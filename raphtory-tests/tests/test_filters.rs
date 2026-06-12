@@ -1647,32 +1647,38 @@ fn init_edges_graph_with_str_ids_del<
 
 mod test_node_filter {
 
-use crate::{
+    use crate::{
         init_nodes_graph, init_nodes_graph_with_num_ids, init_nodes_graph_with_str_ids,
         IdentityGraphTransformer,
     };
+    use proptest::proptest;
     use raphtory::{
-        algorithms::alternating_mask::alternating_mask, core::entities::VID, db::{
-            api::view::{Filter, filter_ops::NodeSelect},
-            graph::{
-                views::filter::{
-                    CreateFilter, model::{
-                        ComposableFilter, CompositeNodeFilter, NodeViewFilterOps, PropertyFilterFactory, TryAsCompositeFilter, ViewWrapOps, degree_filter::DegreeFilterFactory, node_filter::ops::{NodeFilterOps, NodeIdFilterOps}, property_filter::ops::{ListAggOps, PropertyFilterOps}
-                    }
+        algorithms::alternating_mask::alternating_mask,
+        core::entities::VID,
+        db::{
+            api::view::{filter_ops::NodeSelect, Filter},
+            graph::views::filter::{
+                model::{
+                    degree_filter::DegreeFilterFactory,
+                    node_filter::ops::{NodeFilterOps, NodeIdFilterOps},
+                    property_filter::ops::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
+                    ComposableFilter, CompositeNodeFilter, NodeViewFilterOps,
+                    PropertyFilterFactory, TryAsCompositeFilter, ViewWrapOps,
                 },
+                CreateFilter,
             },
-        }, errors::GraphError, prelude::{
-            AdditionOps, Graph, GraphViewOps, NO_PROPS, NodeFilter, NodeStateOps, NodeViewOps, TimeOps
-        }
+        },
+        errors::GraphError,
+        prelude::{
+            AdditionOps, Graph, GraphViewOps, IntoProp, NodeFilter, NodeStateOps, NodeViewOps,
+            TimeOps, NO_PROPS,
+        },
     };
+    use raphtory_api::core::{entities::properties::prop::Prop, Direction};
     use raphtory_tests::assertions::{
         assert_filter_nodes_results, assert_search_nodes_results, assert_select_nodes_results,
         TestVariants,
     };
-    use raphtory_api::core::{Direction, entities::properties::prop::Prop};
-    use raphtory::prelude::IntoProp;
-    use raphtory::db::graph::views::filter::model::property_filter::ops::ElemQualifierOps;
-    use proptest::proptest;
 
     fn sort_vids(mut vids: Vec<VID>) -> Vec<VID> {
         vids.sort();
@@ -1717,7 +1723,8 @@ use crate::{
             .map(|n| n.node)
             .collect::<Vec<_>>();
 
-        let expected_filter_nodes = candidates_with_history_after_filtering(graph, expected_select_nodes.clone());
+        let expected_filter_nodes =
+            candidates_with_history_after_filtering(graph, expected_select_nodes.clone());
 
         let filtered_event_graph = graph.filter(filter.clone()).unwrap();
         let filtered_event_nodes = sort_vids(
@@ -1799,7 +1806,6 @@ use crate::{
         graph
     }
 
-
     fn degree_graph_with_add_edge_only() -> Graph {
         let graph = Graph::new();
 
@@ -1843,7 +1849,6 @@ use crate::{
 
         graph
     }
-
 
     // Property-based tests for degree filtering
     proptest! {
@@ -2033,7 +2038,7 @@ use crate::{
                 |d| d > threshold as usize && d < (threshold + 5) as usize,
                 &format!("OUT > {} AND OUT < {}", threshold, threshold + 5),
             );
-        } 
+        }
 
         #[test]
         fn prop_degree_filter_or(threshold in 0u64..15) {
@@ -2158,7 +2163,7 @@ use crate::{
                 &format!("OUT is_not_in({}, {})", val1, val2),
             );
         }
-    } 
+    }
 
     #[test]
     fn test_degree_filter_with_invalid_expressions() {
@@ -13021,4 +13026,3 @@ mod test_edge_composite_filter {
         );
     }
 }
-
