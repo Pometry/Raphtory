@@ -1,5 +1,5 @@
 use raphtory::{
-    algorithms::centrality::pagerank::unweighted_page_rank, io::csv_loader::CsvLoader,
+    algorithms::centrality::pagerank::page_rank, io::csv_loader::CsvLoader,
     logging::global_info_logger, prelude::*,
 };
 use serde::Deserialize;
@@ -82,6 +82,6 @@ fn main() {
         g
     };
     info!("Data loaded\nPageRanking");
-    unweighted_page_rank(&graph, Some(25), Some(8), None, true, None);
+    page_rank(&graph, None, Some(25), Some(8), None, true, None);
     info!("Done PR");
 }

@@ -13,6 +13,7 @@ use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::{
+    fmt::{Debug, Formatter, Write},
     ops::{Deref, DerefMut},
     sync::{
         atomic::{self, AtomicUsize},
@@ -247,7 +248,7 @@ impl Meta {
 }
 
 /// Manages the mapping of property names to their IDs and types.
-#[derive(Default, Debug, Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize)]
 pub struct PropMapper {
     /// Maps property names to their IDs.
     id_mapper: DictMapper,
@@ -261,6 +262,20 @@ pub struct PropMapper {
     /// Per-layer property presence bitset; `layer_presence[layer_id][prop_id]`
     /// is true iff this property has been observed in this layer
     layer_prop_presence: Arc<RwLock<Vec<Vec<bool>>>>,
+}
+
+impl Debug for PropMapper {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str("{")?;
+        for (k, (id, dtype)) in self
+            .all_keys()
+            .iter()
+            .zip(self.all_ids().zip(self.d_types().iter()))
+        {
+            write!(f, "{k}: ({id}, {dtype:?}), ")?;
+        }
+        f.write_str("}")
+    }
 }
 
 impl Deref for PropMapper {

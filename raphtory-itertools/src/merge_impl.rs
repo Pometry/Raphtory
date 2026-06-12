@@ -271,14 +271,14 @@ where
 ///
 /// See [`.merge_by()`](crate::Itertools::merge_by) for more information.
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
-pub struct MergeBy<I: Iterator, J: Iterator, F> {
+pub struct MergeBy<I: Iterator, F> {
     pub(crate) left: PutBack<I>,
-    pub(crate) right: PutBack<J>,
+    pub(crate) right: PutBack<I>,
     pub(crate) cmp_fn: F,
 }
 
-impl<I: Iterator, J: Iterator, F> MergeBy<I, J, F> {
-    pub(crate) fn new(left: I, right: J, cmp_fn: F) -> Self {
+impl<I: Iterator, F> MergeBy<I, F> {
+    pub(crate) fn new(left: I, right: I, cmp_fn: F) -> Self {
         let left = put_back(left);
         let right = put_back(right);
         Self {
@@ -291,17 +291,16 @@ impl<I: Iterator, J: Iterator, F> MergeBy<I, J, F> {
     /// Take the iterators back out.
     ///
     /// Warning: discards the head in the `PutBack` and should only be used before actually iterating over the struct!
-    pub fn into_inner(self) -> (I, J, F) {
+    pub fn into_inner(self) -> (I, I, F) {
         let (_, left) = self.left.into_parts();
         let (_, right) = self.right.into_parts();
         (left, right, self.cmp_fn)
     }
 }
 
-impl<I, J, F> Iterator for MergeBy<I, J, F>
+impl<I, F> Iterator for MergeBy<I, F>
 where
     I: Iterator,
-    J: Iterator<Item = I::Item>,
     F: MergePredicate<I::Item>,
 {
     type Item = I::Item;
@@ -390,10 +389,9 @@ where
     }
 }
 
-impl<I, J, F> FusedIterator for MergeBy<I, J, F>
+impl<I, F> FusedIterator for MergeBy<I, F>
 where
     I: FusedIterator,
-    J: FusedIterator<Item = I::Item>,
     F: MergePredicate<I::Item>,
 {
 }
