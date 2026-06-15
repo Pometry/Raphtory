@@ -15,8 +15,8 @@ pub use crate::{
                         UnaryOp,
                     },
                     node_expr::{
-                        AllMode, AnyMode, AvgExpr, BinaryCmpNodeFilter, ConstExpr,
-                        DegreeExpr, FirstExpr, IntoPropNodeExpr, LastExpr, LenExpr, MaxExpr,
+                        AllMode, AnyMode, BinaryCmpNodeFilter,
+                        FirstExpr, LastExpr, LenExpr, MaxExpr,
                         MinExpr, NodeAggregated, NodeExpr, NodeExprFilterOps, NodePropertyExprOps,
                         NodeQuantified, NodeTemporalPropOps, PropValueSetFilter, QuantifiedNodeFilter,
                         QuantifierMode, SetNodeFilter, StringNodeFilter, SumExpr, TemporalExprOps,
@@ -293,15 +293,16 @@ pub struct PropertyExpr<E> {
     name: String,
 }
 
+impl<E: CreateView + NodeFilterFactory + Clone + Send + Sync + 'static> EntityExpr for PropertyExpr<E> {}
+
 impl<E: CreateView + NodeFilterFactory + Clone + Send + Sync + 'static> NodeExpr
     for PropertyExpr<E>
 {
-    type Output = Option<Prop>;
 
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
         graph: G,
-    ) -> Result<Arc<dyn NodeOp<Output = Self::Output> + 'g>, GraphError> {
+    ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
         let prop_id = graph
             .node_meta()
             .get_prop_id(&self.name, false)
@@ -317,15 +318,15 @@ pub struct MetadataExpr<E> {
     name: String,
 }
 
+impl<E: CreateView + NodeFilterFactory + Clone + Send + Sync + 'static> EntityExpr for MetadataExpr<E> {}
+
 impl<E: CreateView + NodeFilterFactory + Clone + Send + Sync + 'static> NodeExpr
     for MetadataExpr<E>
 {
-    type Output = Option<Prop>;
-
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
         graph: G,
-    ) -> Result<Arc<dyn NodeOp<Output = Self::Output> + 'g>, GraphError> {
+    ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
         let prop_id = graph
             .node_meta()
             .get_prop_id(&self.name, true)
@@ -453,8 +454,10 @@ pub trait EdgeFilterFactory: PropertyFilterFactory + Clone {}
 // ─────────────────────────────────────────────────────────────────────────────
 
 use edge_expr::{
-    EdgeExpr, EdgeMetaOp as EMetaOp, EdgeOp, EdgePropOp as EPropOp,
+    EdgeExpr, EdgeOp
 };
+use crate::db::graph::views::filter::model::edge_expr::{EdgeMetaOp, EdgePropOp};
+use crate::db::graph::views::filter::model::node_expr::EntityExpr;
 
 impl<E: CreateView + EdgeFilterFactory + Clone + Send + Sync + 'static> EdgeExpr
     for PropertyExpr<E>
@@ -470,7 +473,7 @@ impl<E: CreateView + EdgeFilterFactory + Clone + Send + Sync + 'static> EdgeExpr
             .get_prop_id(&self.name, false)
             .ok_or_else(|| GraphError::PropertyMissingError(self.name.clone()))?;
         let graph = self.view_expr.create_view(graph)?;
-        Ok(Arc::new(EPropOp { graph, prop_id }))
+        Ok(Arc::new(EdgePropOp { graph, prop_id }))
     }
 }
 
@@ -488,7 +491,7 @@ impl<E: CreateView + EdgeFilterFactory + Clone + Send + Sync + 'static> EdgeExpr
             .get_prop_id(&self.name, true)
             .ok_or_else(|| GraphError::MetadataMissingError(self.name.clone()))?;
         let graph = self.view_expr.create_view(graph)?;
-        Ok(Arc::new(EMetaOp { graph, prop_id }))
+        Ok(Arc::new(EdgeMetaOp { graph, prop_id }))
     }
 }
 

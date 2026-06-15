@@ -48,6 +48,7 @@ pub mod ops;
 pub use exprs::*;
 pub use filters::*;
 pub use ops::*;
+use crate::db::graph::views::filter::model::{AvgExpr, FirstExpr, LastExpr, MaxExpr, MinExpr, SumExpr};
 pub use super::{Metadata, Property};
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -324,29 +325,29 @@ pub trait EdgeTemporalPropOps: Sized {
         let (view_expr, name) = self.into_temporal_parts();
         EdgeQuantified { expr: TemporalEdgePropExpr::new(view_expr, name), _q: PhantomData }
     }
-    fn sum(self) -> EdgeAggregated<SumEdgeExpr<TemporalEdgePropExpr<Self::ViewExpr>>> {
+    fn sum(self) -> EdgeAggregated<SumExpr<TemporalEdgePropExpr<Self::ViewExpr>>> {
         let (view_expr, name) = self.into_temporal_parts();
-        EdgeAggregated { expr: SumEdgeExpr(TemporalEdgePropExpr::new(view_expr, name)) }
+        EdgeAggregated { expr: SumExpr(TemporalEdgePropExpr::new(view_expr, name)) }
     }
-    fn avg(self) -> EdgeAggregated<AvgEdgeExpr<TemporalEdgePropExpr<Self::ViewExpr>>> {
+    fn avg(self) -> EdgeAggregated<AvgExpr<TemporalEdgePropExpr<Self::ViewExpr>>> {
         let (view_expr, name) = self.into_temporal_parts();
-        EdgeAggregated { expr: AvgEdgeExpr(TemporalEdgePropExpr::new(view_expr, name)) }
+        EdgeAggregated { expr: AvgExpr(TemporalEdgePropExpr::new(view_expr, name)) }
     }
-    fn min(self) -> EdgeAggregated<MinEdgeExpr<TemporalEdgePropExpr<Self::ViewExpr>>> {
+    fn min(self) -> EdgeAggregated<MinExpr<TemporalEdgePropExpr<Self::ViewExpr>>> {
         let (view_expr, name) = self.into_temporal_parts();
-        EdgeAggregated { expr: MinEdgeExpr(TemporalEdgePropExpr::new(view_expr, name)) }
+        EdgeAggregated { expr: MinExpr(TemporalEdgePropExpr::new(view_expr, name)) }
     }
-    fn max(self) -> EdgeAggregated<MaxEdgeExpr<TemporalEdgePropExpr<Self::ViewExpr>>> {
+    fn max(self) -> EdgeAggregated<MaxExpr<TemporalEdgePropExpr<Self::ViewExpr>>> {
         let (view_expr, name) = self.into_temporal_parts();
-        EdgeAggregated { expr: MaxEdgeExpr(TemporalEdgePropExpr::new(view_expr, name)) }
+        EdgeAggregated { expr: MaxExpr(TemporalEdgePropExpr::new(view_expr, name)) }
     }
-    fn first(self) -> EdgeAggregated<FirstEdgeExpr<TemporalEdgePropExpr<Self::ViewExpr>>> {
+    fn first(self) -> EdgeAggregated<FirstExpr<TemporalEdgePropExpr<Self::ViewExpr>>> {
         let (view_expr, name) = self.into_temporal_parts();
-        EdgeAggregated { expr: FirstEdgeExpr(TemporalEdgePropExpr::new(view_expr, name)) }
+        EdgeAggregated { expr: FirstExpr(TemporalEdgePropExpr::new(view_expr, name)) }
     }
-    fn last(self) -> EdgeAggregated<LastEdgeExpr<TemporalEdgePropExpr<Self::ViewExpr>>> {
+    fn last(self) -> EdgeAggregated<LastExpr<TemporalEdgePropExpr<Self::ViewExpr>>> {
         let (view_expr, name) = self.into_temporal_parts();
-        EdgeAggregated { expr: LastEdgeExpr(TemporalEdgePropExpr::new(view_expr, name)) }
+        EdgeAggregated { expr: LastExpr(TemporalEdgePropExpr::new(view_expr, name)) }
     }
     fn len(self) -> LenEdgeExpr<TemporalEdgePropExpr<Self::ViewExpr>> {
         let (view_expr, name) = self.into_temporal_parts();
@@ -503,22 +504,22 @@ impl<E: EdgeExpr<Output = Option<Prop>>> EdgeAggregated<E> {
         }
     }
 
-    pub fn sum(self) -> EdgeAggregated<SumEdgeExpr<UnwrapOptPropEdgeExpr<E>>> {
-        EdgeAggregated { expr: SumEdgeExpr(UnwrapOptPropEdgeExpr(self.expr)) }
+    pub fn sum(self) -> EdgeAggregated<SumExpr<UnwrapOptPropEdgeExpr<E>>> {
+        EdgeAggregated { expr: SumExpr(UnwrapOptPropEdgeExpr(self.expr)) }
     }
-    pub fn avg(self) -> EdgeAggregated<AvgEdgeExpr<UnwrapOptPropEdgeExpr<E>>> {
-        EdgeAggregated { expr: AvgEdgeExpr(UnwrapOptPropEdgeExpr(self.expr)) }
+    pub fn avg(self) -> EdgeAggregated<AvgExpr<UnwrapOptPropEdgeExpr<E>>> {
+        EdgeAggregated { expr: AvgExpr(UnwrapOptPropEdgeExpr(self.expr)) }
     }
-    pub fn min(self) -> EdgeAggregated<MinEdgeExpr<UnwrapOptPropEdgeExpr<E>>> {
-        EdgeAggregated { expr: MinEdgeExpr(UnwrapOptPropEdgeExpr(self.expr)) }
+    pub fn min(self) -> EdgeAggregated<MinExpr<UnwrapOptPropEdgeExpr<E>>> {
+        EdgeAggregated { expr: MinExpr(UnwrapOptPropEdgeExpr(self.expr)) }
     }
-    pub fn max(self) -> EdgeAggregated<MaxEdgeExpr<UnwrapOptPropEdgeExpr<E>>> {
-        EdgeAggregated { expr: MaxEdgeExpr(UnwrapOptPropEdgeExpr(self.expr)) }
+    pub fn max(self) -> EdgeAggregated<MaxExpr<UnwrapOptPropEdgeExpr<E>>> {
+        EdgeAggregated { expr: MaxExpr(UnwrapOptPropEdgeExpr(self.expr)) }
     }
-    pub fn first(self) -> EdgeAggregated<FirstEdgeExpr<UnwrapOptPropEdgeExpr<E>>> {
-        EdgeAggregated { expr: FirstEdgeExpr(UnwrapOptPropEdgeExpr(self.expr)) }
+    pub fn first(self) -> EdgeAggregated<FirstExpr<UnwrapOptPropEdgeExpr<E>>> {
+        EdgeAggregated { expr: FirstExpr(UnwrapOptPropEdgeExpr(self.expr)) }
     }
-    pub fn last(self) -> EdgeAggregated<LastEdgeExpr<UnwrapOptPropEdgeExpr<E>>> {
+    pub fn last(self) -> EdgeAggregated<LastExpr<UnwrapOptPropEdgeExpr<E>>> {
         EdgeAggregated { expr: LastEdgeExpr(UnwrapOptPropEdgeExpr(self.expr)) }
     }
     pub fn len(self) -> LenEdgeExpr<UnwrapOptPropEdgeExpr<E>> {

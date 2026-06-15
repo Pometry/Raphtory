@@ -2,7 +2,7 @@ use crate::{
     db::api::{state::ops::NodeOp, view::internal::GraphView},
     errors::GraphError,
 };
-use raphtory_api::core::entities::properties::prop::PropType;
+use raphtory_api::core::entities::properties::prop::{Prop, PropType};
 use std::sync::Arc;
 
 pub mod exprs;
@@ -15,6 +15,7 @@ mod tests;
 pub use exprs::*;
 pub use filters::*;
 pub use ops::*;
+use crate::db::graph::views::filter::model::edge_expr::EdgeOp;
 pub use super::{Metadata, Property};
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -38,17 +39,17 @@ pub use super::{Metadata, Property};
 /// NodeFilter::name().eq("Alice")
 /// ```
 ///
-pub trait NodeExpr: Clone + Send + Sync + 'static {
-    type Output: Clone + Send + Sync + 'static;
-
+pub trait NodeExpr: EntityExpr + Clone + Send + Sync + 'static {
     /// Compile the expression against a specific graph view.
     ///
     /// Any name→ID resolution (property, metadata) happens here, once.
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
         graph: G,
-    ) -> Result<Arc<dyn NodeOp<Output = Self::Output> + 'g>, GraphError>;
+    ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError>;
+}
 
+pub trait EntityExpr: Clone + Send + Sync + 'static {
     /// A priory known type (for early validation where possible)
     fn prop_type(&self) -> PropType {
         PropType::Empty

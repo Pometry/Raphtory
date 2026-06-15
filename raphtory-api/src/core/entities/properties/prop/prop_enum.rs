@@ -158,6 +158,18 @@ pub enum Prop {
     Decimal(BigDecimal),
 }
 
+impl From<usize> for Prop {
+    fn from(value: usize) -> Self {
+        Prop::U64(value as u64)
+    }
+}
+
+impl FromIterator<Prop> for PropArray {
+    fn from_iter<T: IntoIterator<Item = Prop>>(iter: T) -> Self {
+        PropArray::Vec(Vec::from_iter(iter).into())
+    }
+}
+
 impl From<GidRef<'_>> for Prop {
     fn from(value: GidRef<'_>) -> Self {
         match value {

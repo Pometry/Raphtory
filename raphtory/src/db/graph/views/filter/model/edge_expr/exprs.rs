@@ -1,12 +1,6 @@
 //! EdgeExpr impls for the shared Property/Metadata structs and scalar types.
 
-use super::{
-    ops::{
-        AvgEdgeOp, FirstEdgeOp, LastEdgeOp, LenEdgeOp, MaxEdgeOp, MinEdgeOp, NestedMapEdgeOp,
-        SumEdgeOp, TemporalEdgePropOp, UnwrapOptPropEdgeOp,
-    },
-    EdgeExpr, EdgeMetaOp, EdgeOp, EdgePropOp,
-};
+use super::{EdgeExpr, EdgeMetaOp, EdgeOp, EdgePropOp, LenEdgeOp, TemporalEdgePropOp};
 use crate::db::graph::views::filter::model::property_filter::Op;
 use crate::{
     db::api::{state::ops::Const, view::internal::GraphView},
@@ -15,7 +9,7 @@ use crate::{
 };
 use raphtory_api::core::entities::properties::prop::{Prop, PropType};
 use std::sync::Arc;
-
+use crate::db::graph::views::filter::model::node_expr::{AvgEdgeOp, FirstEdgeOp, LastEdgeOp, MaxEdgeOp, MinEdgeOp, SumEdgeOp};
 // ─────────────────────────────────────────────────────────────────────────────
 // Property / Metadata — EdgeExpr impls
 // ─────────────────────────────────────────────────────────────────────────────
@@ -177,36 +171,6 @@ impl<E: crate::db::graph::views::filter::model::CreateView + Clone + Send + Sync
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Aggregator EdgeExprs — reduce TemporalEdgePropExpr output to a scalar
-// ─────────────────────────────────────────────────────────────────────────────
-
-macro_rules! impl_agg_edge_expr {
-    ($name:ident, $op_ty:ident) => {
-        /// Produced by `EdgeTemporalProp::$op_lower()` — wraps a `TemporalEdgePropExpr`.
-        #[derive(Clone)]
-        pub struct $name<E: EdgeExpr<Output = Prop>>(pub E);
-
-        impl<E: EdgeExpr<Output = Prop>> EdgeExpr for $name<E> {
-            type Output = Option<Prop>;
-
-            fn create_edge_op<'g, G: GraphView + 'g>(
-                &self,
-                graph: G,
-            ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
-                let inner = self.0.create_edge_op(graph)?;
-                Ok(Arc::new($op_ty { inner }))
-            }
-        }
-    };
-}
-
-impl_agg_edge_expr!(SumEdgeExpr, SumEdgeOp);
-impl_agg_edge_expr!(AvgEdgeExpr, AvgEdgeOp);
-impl_agg_edge_expr!(MinEdgeExpr, MinEdgeOp);
-impl_agg_edge_expr!(MaxEdgeExpr, MaxEdgeOp);
-impl_agg_edge_expr!(FirstEdgeExpr, FirstEdgeOp);
-impl_agg_edge_expr!(LastEdgeExpr, LastEdgeOp);
 // LenEdgeExpr written explicitly: Output = usize, not Option<Prop>
 #[derive(Clone)]
 pub struct LenEdgeExpr<E: EdgeExpr<Output = Prop>>(pub E);
@@ -227,48 +191,48 @@ impl<E: EdgeExpr<Output = Prop>> EdgeExpr for LenEdgeExpr<E> {
 // UnwrapOptPropEdgeExpr<E> — bridges Option<Prop> → Prop for nested aggregation
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Bridges `E: EdgeExpr<Output = Option<Prop>>` to `EdgeExpr<Output = Prop>`,
-/// enabling aggregator exprs to operate on values produced by a prior aggregation.
-///
-/// Used when chaining e.g. `.temporal().last().sum()`:
-/// `last()` produces `EdgeAggregated<LastEdgeExpr<...>>` with `Output = Option<Prop>`;
-/// `sum()` wraps in `SumEdgeExpr<UnwrapOptPropEdgeExpr<LastEdgeExpr<...>>>`.
-#[derive(Clone)]
-pub struct UnwrapOptPropEdgeExpr<E: EdgeExpr<Output = Option<Prop>>>(pub E);
-
-impl<E: EdgeExpr<Output = Option<Prop>>> EdgeExpr for UnwrapOptPropEdgeExpr<E> {
-    type Output = Prop;
-
-    fn create_edge_op<'g, G: crate::db::api::view::internal::GraphView + 'g>(
-        &self,
-        graph: G,
-    ) -> Result<std::sync::Arc<dyn EdgeOp<Output = Prop> + 'g>, crate::errors::GraphError> {
-        let inner = self.0.create_edge_op(graph)?;
-        Ok(std::sync::Arc::new(UnwrapOptPropEdgeOp { inner }))
-    }
-}
+// Bridges `E: EdgeExpr<Output = Option<Prop>>` to `EdgeExpr<Output = Prop>`,
+// enabling aggregator exprs to operate on values produced by a prior aggregation.
+// 
+// Used when chaining e.g. `.temporal().last().sum()`:
+// `last()` produces `EdgeAggregated<LastEdgeExpr<...>>` with `Output = Option<Prop>`;
+// `sum()` wraps in `SumEdgeExpr<UnwrapOptPropEdgeExpr<LastEdgeExpr<...>>>`.
+// #[derive(Clone)]
+// pub struct UnwrapOptPropEdgeExpr<E: EdgeExpr<Output = Option<Prop>>>(pub E);
+//
+// impl<E: EdgeExpr<Output = Option<Prop>>> EdgeExpr for UnwrapOptPropEdgeExpr<E> {
+//     type Output = Prop;
+//
+//     fn create_edge_op<'g, G: crate::db::api::view::internal::GraphView + 'g>(
+//         &self,
+//         graph: G,
+//     ) -> Result<std::sync::Arc<dyn EdgeOp<Output = Prop> + 'g>, crate::errors::GraphError> {
+//         let inner = self.0.create_edge_op(graph)?;
+//         Ok(std::sync::Arc::new(UnwrapOptPropEdgeOp { inner }))
+//     }
+// }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // NestedMapEdgeExpr<E> — per-element aggregation / quantification on a Prop::List
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Applies a per-element op to each element of a `Prop::List` produced by `E`.
-///
-/// Used for chained expressions like `.temporal().any().sum()`.
-#[derive(Clone)]
-pub struct NestedMapEdgeExpr<E: EdgeExpr<Output = Prop>> {
-    pub inner: E,
-    pub op: Op,
-}
-
-impl<E: EdgeExpr<Output = Prop>> EdgeExpr for NestedMapEdgeExpr<E> {
-    type Output = Prop;
-
-    fn create_edge_op<'g, G: crate::db::api::view::internal::GraphView + 'g>(
-        &self,
-        graph: G,
-    ) -> Result<std::sync::Arc<dyn EdgeOp<Output = Prop> + 'g>, crate::errors::GraphError> {
-        let inner = self.inner.create_edge_op(graph)?;
-        Ok(std::sync::Arc::new(NestedMapEdgeOp { inner, op: self.op }))
-    }
-}
+// Applies a per-element op to each element of a `Prop::List` produced by `E`.
+//
+// Used for chained expressions like `.temporal().any().sum()`.
+// #[derive(Clone)]
+// pub struct NestedMapEdgeExpr<E: EdgeExpr<Output = Prop>> {
+//     pub inner: E,
+//     pub op: Op,
+// }
+//
+// impl<E: EdgeExpr<Output = Prop>> EdgeExpr for NestedMapEdgeExpr<E> {
+//     type Output = Prop;
+//
+//     fn create_edge_op<'g, G: crate::db::api::view::internal::GraphView + 'g>(
+//         &self,
+//         graph: G,
+//     ) -> Result<std::sync::Arc<dyn EdgeOp<Output = Prop> + 'g>, crate::errors::GraphError> {
+//         let inner = self.inner.create_edge_op(graph)?;
+//         Ok(std::sync::Arc::new(NestedMapEdgeOp { inner, op: self.op }))
+//     }
+// }

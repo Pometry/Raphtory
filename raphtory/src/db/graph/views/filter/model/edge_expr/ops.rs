@@ -2,16 +2,15 @@
 //!
 //! Parallel to `node_expr/ops.rs` — same design, different subject.
 
+use std::collections::HashSet;
+use std::hash::Hash;
 use crate::db::{
     api::{
         properties::internal::{InternalMetadataOps, InternalTemporalPropertyViewOps},
         state::ops::Const,
         view::internal::GraphView,
     },
-    graph::{
-        edge::EdgeView,
-        views::filter::model::property_filter::evaluate::aggregate_values,
-    },
+    graph::edge::EdgeView,
 };
 use raphtory_api::core::entities::{
     edges::edge_ref::EdgeRef,
@@ -21,7 +20,8 @@ use raphtory_storage::graph::graph::GraphStorage;
 
 use super::EdgeOp;
 use std::sync::Arc;
-
+use raphtory_api::core::entities::properties::prop::PropArray;
+use raphtory_api::core::storage::arc_str::ArcStr;
 // ─────────────────────────────────────────────────────────────────────────────
 // Arc<dyn EdgeOp> — blanket impl so Arc-boxed ops satisfy EdgeOp
 // ─────────────────────────────────────────────────────────────────────────────
@@ -148,6 +148,7 @@ impl<'g, L: Comparable + Clone + Send + Sync + 'static> EdgeOp for BinaryCmpEdge
 // ─────────────────────────────────────────────────────────────────────────────
 
 use crate::db::graph::views::filter::model::filter_operator::UnaryOp;
+use crate::db::graph::views::filter::model::{SetOp, StringComparable, StringOp};
 
 #[derive(Clone)]
 pub(crate) struct UnaryEdgeOp<'g, I: Clone + Send + Sync + 'static> {
@@ -164,36 +165,6 @@ impl<'g, I: Clone + Send + Sync + 'static> EdgeOp for UnaryEdgeOp<'g, I> {
             UnaryOp::IsSome => v.is_some(),
             UnaryOp::IsNone => v.is_none(),
         }
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// AnyEdgeOp<'g> / AllEdgeOp<'g> — quantifier ops over Prop::List
-// ─────────────────────────────────────────────────────────────────────────────
-
-#[derive(Clone)]
-pub(crate) struct AnyEdgeOp<'g> {
-    pub(crate) inner: Arc<dyn EdgeOp<Output = bool> + 'g>,
-}
-
-impl<'g> EdgeOp for AnyEdgeOp<'g> {
-    type Output = bool;
-
-    fn apply(&self, storage: &GraphStorage, edge: EdgeRef) -> bool {
-        self.inner.apply(storage, edge)
-    }
-}
-
-#[derive(Clone)]
-pub(crate) struct AllEdgeOp<'g> {
-    pub(crate) inner: Arc<dyn EdgeOp<Output = bool> + 'g>,
-}
-
-impl<'g> EdgeOp for AllEdgeOp<'g> {
-    type Output = bool;
-
-    fn apply(&self, storage: &GraphStorage, edge: EdgeRef) -> bool {
-        self.inner.apply(storage, edge)
     }
 }
 
@@ -233,52 +204,6 @@ impl<'g> EdgeOp for PropListEdgeCmpOp<'g> {
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Aggregator EdgeOps — reduce a Prop::List to a scalar Option<Prop>
-// ─────────────────────────────────────────────────────────────────────────────
-
-macro_rules! impl_agg_edge_op {
-    ($name:ident, |$vals:ident: Vec<Prop>| $body:expr) => {
-        #[derive(Clone)]
-        pub(crate) struct $name<'g> {
-            pub(crate) inner: Arc<dyn EdgeOp<Output = Prop> + 'g>,
-        }
-
-        impl<'g> EdgeOp for $name<'g> {
-            type Output = Option<Prop>;
-
-            fn apply(&self, storage: &GraphStorage, edge: EdgeRef) -> Option<Prop> {
-                let list_prop = self.inner.apply(storage, edge);
-                let $vals: Vec<Prop> = match list_prop {
-                    Prop::List(v) => v.iter().collect(),
-                    _ => return None,
-                };
-                if $vals.is_empty() {
-                    return None;
-                }
-                $body
-            }
-        }
-    };
-}
-
-use crate::db::graph::views::filter::model::{
-    filter_operator::{SetOp, StringComparable, StringOp},
-    property_filter::Op,
-};
-use raphtory_api::core::{
-    entities::properties::prop::PropArray,
-    storage::arc_str::ArcStr,
-};
-use std::collections::HashSet;
-use std::hash::Hash;
-
-impl_agg_edge_op!(SumEdgeOp, |vals: Vec<Prop>| aggregate_values(&vals, Op::Sum));
-impl_agg_edge_op!(AvgEdgeOp, |vals: Vec<Prop>| aggregate_values(&vals, Op::Avg));
-impl_agg_edge_op!(MinEdgeOp, |vals: Vec<Prop>| aggregate_values(&vals, Op::Min));
-impl_agg_edge_op!(MaxEdgeOp, |vals: Vec<Prop>| aggregate_values(&vals, Op::Max));
-impl_agg_edge_op!(FirstEdgeOp, |vals: Vec<Prop>| vals.into_iter().next());
-impl_agg_edge_op!(LastEdgeOp, |vals: Vec<Prop>| vals.into_iter().last());
 // LenEdgeOp written explicitly: Output = usize, not Option<Prop>
 #[derive(Clone)]
 pub(crate) struct LenEdgeOp<'g> {
@@ -511,56 +436,3 @@ impl<'g> EdgeOp for UnwrapOptPropEdgeOp<'g> {
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// NestedMapEdgeOp<'g> — element-wise aggregation / quantification on a Prop::List
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// Applies a per-element operation to each element of an outer `Prop::List`.
-///
-/// Used for chained expressions like `.temporal().any().sum()`:
-/// the outer list is `Prop::List([list_t1, list_t2, …])` and for each inner
-/// `list_ti` the op is applied, producing `Prop::List([result_t1, result_t2, …])`.
-/// The outer `AnyPropEdgeOp` / `AllPropEdgeOp` then reduces the result list.
-#[derive(Clone)]
-pub(crate) struct NestedMapEdgeOp<'g> {
-    pub(crate) inner: Arc<dyn EdgeOp<Output = Prop> + 'g>,
-    pub(crate) op: Op,
-}
-
-impl<'g> EdgeOp for NestedMapEdgeOp<'g> {
-    type Output = Prop;
-
-    fn apply(&self, storage: &GraphStorage, edge: EdgeRef) -> Prop {
-        let outer = self.inner.apply(storage, edge);
-        let Prop::List(arr) = outer else {
-            return Prop::List(PropArray::from(vec![]));
-        };
-        let mapped: Vec<Prop> = arr
-            .iter()
-            .map(|elem| match elem {
-                Prop::List(inner_arr) => {
-                    let vals: Vec<Prop> = inner_arr.iter().collect();
-                    match self.op {
-                        Op::Sum => aggregate_values(&vals, Op::Sum)
-                            .unwrap_or(Prop::List(PropArray::from(vec![]))),
-                        Op::Avg => aggregate_values(&vals, Op::Avg)
-                            .unwrap_or(Prop::List(PropArray::from(vec![]))),
-                        Op::Min => aggregate_values(&vals, Op::Min)
-                            .unwrap_or(Prop::List(PropArray::from(vec![]))),
-                        Op::Max => aggregate_values(&vals, Op::Max)
-                            .unwrap_or(Prop::List(PropArray::from(vec![]))),
-                        Op::First => vals.into_iter().next()
-                            .unwrap_or(Prop::List(PropArray::from(vec![]))),
-                        Op::Last => vals.into_iter().last()
-                            .unwrap_or(Prop::List(PropArray::from(vec![]))),
-                        Op::Len => Prop::U64(inner_arr.len() as u64),
-                        Op::Any => Prop::Bool(prop_any_edge(&Prop::List(inner_arr))),
-                        Op::All => Prop::Bool(prop_all_edge(&Prop::List(inner_arr))),
-                    }
-                }
-                other => other,
-            })
-            .collect();
-        Prop::List(PropArray::from(mapped))
-    }
-}

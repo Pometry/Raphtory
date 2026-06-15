@@ -36,6 +36,10 @@
 //! AllNodeOp             → false   (not all matched)
 //! ```
 
+use super::EdgeOp;
+use crate::db::graph::views::filter::model::property_filter::evaluate::{
+    scan_f64_sum_count, scan_i64_sum, scan_u64_sum,
+};
 use crate::{
     db::{
         api::{
@@ -45,11 +49,12 @@ use crate::{
         },
         graph::views::filter::model::{
             filter_operator::{BinaryOp, Comparable, SetOp, StringComparable, StringOp, UnaryOp},
-            property_filter::{evaluate::aggregate_values, Op},
+            property_filter::evaluate::aggregate_values,
         },
     },
     prelude::GraphViewOps,
 };
+use raphtory_api::core::entities::edges::edge_ref::EdgeRef;
 use raphtory_api::core::{
     entities::{
         properties::prop::{Prop, PropArray, PropType},
@@ -59,7 +64,6 @@ use raphtory_api::core::{
 };
 use raphtory_storage::graph::graph::GraphStorage;
 use std::{collections::HashSet, hash::Hash, sync::Arc};
-
 // ─────────────────────────────────────────────────────────────────────────────
 // NodePropOp<G> — latest property value by pre-resolved column ID
 // ─────────────────────────────────────────────────────────────────────────────
@@ -165,53 +169,122 @@ impl<G: GraphView> NodeOp for TemporalNodePropOp<G> {
 //   LenExpr::create_node_op   → LenNodeOp    (Output = usize)
 // ─────────────────────────────────────────────────────────────────────────────
 
-macro_rules! impl_agg_node_op {
-    ($name:ident, $output:ty, $body:expr) => {
-        pub struct $name<'g> {
-            pub(crate) inner: Arc<dyn NodeOp<Output = Prop> + 'g>,
+macro_rules! impl_agg_entity_op {
+    ($node_name:ident, $edge_name:ident, $body:expr) => {
+        #[derive(Clone)]
+        pub struct $node_name<'g> {
+            pub inner: Arc<dyn NodeOp<Output = Option<Prop>> + 'g>,
         }
 
-        impl<'g> Clone for $name<'g> {
-            fn clone(&self) -> Self {
-                Self {
-                    inner: self.inner.clone(),
-                }
+        impl<'g> NodeOp for $node_name<'g> {
+            type Output = Option<Prop>;
+
+            fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
+                ($body)(self.inner.apply(storage, node))
             }
         }
 
-        impl<'g> NodeOp for $name<'g> {
-            type Output = $output;
+        #[derive(Clone)]
+        pub struct $edge_name<'g> {
+            pub inner: Arc<dyn EdgeOp<Output = Prop> + 'g>,
+        }
 
-            fn apply(&self, storage: &GraphStorage, node: VID) -> $output {
-                let vals: Vec<Prop> = match self.inner.apply(storage, node) {
-                    Prop::List(arr) => arr.iter().collect(),
-                    _ => vec![],
-                };
-                ($body)(vals)
+        impl<'g> EdgeOp for $edge_name<'g> {
+            type Output = Option<Prop>;
+
+            fn apply(&self, storage: &GraphStorage, edge: EdgeRef) -> Option<Prop> {
+                ($body)(self.inner.apply(storage, edge))
             }
         }
     };
 }
 
-impl_agg_node_op!(SumNodeOp, Option<Prop>, |vals: Vec<Prop>| {
-    aggregate_values(&vals, Op::Sum)
+impl_agg_entity_op!(SumNodeOp, SumEdgeOp, |vals| {
+    aggregate_values(vals, |pi| {
+        let mut vals = pi.peekable();
+        if vals.peek().is_none() {
+            return None;
+        }
+        let inner = vals.peek().unwrap().borrow().dtype();
+        match inner {
+            PropType::U8 | PropType::U16 | PropType::U32 | PropType::U64 => {
+                let (promoted, s64, s128, _) = scan_u64_sum(vals)?;
+                Some(if promoted {
+                    Prop::U64(u64::try_from(s128).ok()?)
+                } else {
+                    Prop::U64(s64)
+                })
+            }
+            PropType::I32 | PropType::I64 => {
+                let (promoted, s64, s128, _) = scan_i64_sum(vals)?;
+                Some(if promoted {
+                    Prop::I64(i64::try_from(s128).ok()?)
+                } else {
+                    Prop::I64(s64)
+                })
+            }
+            PropType::F32 | PropType::F64 => {
+                scan_f64_sum_count(vals).map(|(sum, _)| Prop::F64(sum))
+            }
+            _ => None,
+        }
+    })
 });
-impl_agg_node_op!(AvgNodeOp, Option<Prop>, |vals: Vec<Prop>| {
-    aggregate_values(&vals, Op::Avg)
+
+impl_agg_entity_op!(AvgNodeOp, AvgEdgeOp, |vals| {
+    aggregate_values(vals, |pi| {
+        let mut vals = pi.peekable();
+        if vals.peek().is_none() {
+            return None;
+        }
+        let inner = vals.peek().unwrap().borrow().dtype();
+        match inner {
+            PropType::U8 | PropType::U16 | PropType::U32 | PropType::U64 => {
+                let (promoted, s64, s128, count) = scan_u64_sum(vals)?;
+                let s = if promoted { s128 as f64 } else { s64 as f64 };
+                Some(Prop::F64(s / (count as f64)))
+            }
+
+            PropType::I32 | PropType::I64 => {
+                let (promoted, s64, s128, count) = scan_i64_sum(vals)?;
+                let s = if promoted { s128 as f64 } else { s64 as f64 };
+                Some(Prop::F64(s / (count as f64)))
+            }
+
+            PropType::F32 | PropType::F64 => {
+                let (sum, count) = scan_f64_sum_count(vals)?;
+                Some(Prop::F64(sum / (count as f64)))
+            }
+
+            _ => None,
+        }
+    })
 });
-impl_agg_node_op!(MinNodeOp, Option<Prop>, |vals: Vec<Prop>| {
-    aggregate_values(&vals, Op::Min)
+impl_agg_entity_op!(MinNodeOp, MinEdgeOp, |vals| {
+    aggregate_values(vals, |pi| pi.min())
 });
-impl_agg_node_op!(MaxNodeOp, Option<Prop>, |vals: Vec<Prop>| {
-    aggregate_values(&vals, Op::Max)
+impl_agg_entity_op!(MaxNodeOp, MaxEdgeOp, |vals| {
+    aggregate_values(vals, |pi| pi.max())
 });
-impl_agg_node_op!(FirstNodeOp, Option<Prop>, |vals: Vec<Prop>| {
-    vals.into_iter().next()
+impl_agg_entity_op!(FirstNodeOp, FirstEdgeOp, |vals| {
+    aggregate_values(vals, |pi| pi.next())
 });
-impl_agg_node_op!(LastNodeOp, Option<Prop>, |vals: Vec<Prop>| {
-    vals.into_iter().last()
+impl_agg_entity_op!(LastNodeOp, LastEdgeOp, |vals| {
+    aggregate_values(vals, |pi| pi.last())
 });
-impl_agg_node_op!(LenNodeOp, usize, |vals: Vec<Prop>| vals.len());
+impl_agg_entity_op!(LenNodeOp, LenEdgeOp, |vals| {
+    aggregate_values(vals, |pi| pi.count().into_prop())
+});
+impl_agg_entity_op!(AnyNodeOp, AnyEdgeOp, |vals| {
+    aggregate_values(vals, |pi| {
+        Some(Prop::Bool(pi.any(|r| r == Prop::Bool(true))))
+    })
+});
+impl_agg_entity_op!(AllNodeOp, AllEdgeOp, |vals| {
+    aggregate_values(vals, |pi| {
+        Some(Prop::Bool(pi.all(|r| r == Prop::Bool(true))))
+    })
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // AnyNodeOp / AllNodeOp — unary reducers over a Prop::List of booleans
@@ -230,57 +303,6 @@ fn prop_all(prop: &Prop) -> bool {
         Prop::Bool(b) => *b,
         Prop::List(arr) => !arr.is_empty() && arr.iter().all(|p| prop_all(&p)),
         _ => false,
-    }
-}
-
-/// Internal op produced by `QuantifiedNodeFilter<_, AnyMode, _>::create_node_filter`.
-///
-/// Wraps a `PropListCompareOp` and returns `true` if at least one element of the
-/// resulting `Prop::List([Bool, …])` is `true`.
-///
-/// e.g. `NodeFilter::temporal_property("score").any().gt(10i64)` ultimately compiles
-/// to `AnyNodeOp { inner: PropListCompareOp { …, op: Gt } }`.
-pub struct AnyNodeOp<'g> {
-    pub(crate) inner: Arc<dyn NodeOp<Output = Prop> + 'g>,
-}
-
-impl<'g> Clone for AnyNodeOp<'g> {
-    fn clone(&self) -> Self {
-        Self {
-            inner: self.inner.clone(),
-        }
-    }
-}
-
-impl<'g> NodeOp for AnyNodeOp<'g> {
-    type Output = bool;
-
-    fn apply(&self, storage: &GraphStorage, node: VID) -> bool {
-        prop_any(&self.inner.apply(storage, node))
-    }
-}
-
-/// Internal op produced by `QuantifiedNodeFilter<_, AllMode, _>::create_node_filter`.
-///
-/// Like [`AnyNodeOp`] but returns `true` only if every element is `true`
-/// (and the list is non-empty).
-pub struct AllNodeOp<'g> {
-    pub(crate) inner: Arc<dyn NodeOp<Output = Prop> + 'g>,
-}
-
-impl<'g> Clone for AllNodeOp<'g> {
-    fn clone(&self) -> Self {
-        Self {
-            inner: self.inner.clone(),
-        }
-    }
-}
-
-impl<'g> NodeOp for AllNodeOp<'g> {
-    type Output = bool;
-
-    fn apply(&self, storage: &GraphStorage, node: VID) -> bool {
-        prop_all(&self.inner.apply(storage, node))
     }
 }
 
@@ -403,70 +425,6 @@ impl<'g> NodeOp for PropListStringOp<'g> {
             .map(|v| Prop::Bool(Option::<Prop>::string_cmp(&self.op, &Some(v), &rhs)))
             .collect();
         Prop::List(PropArray::from(bools))
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// NestedMapNodeOp<'g> — element-wise aggregation / quantification on a Prop::List
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// Applies a per-element operation to each element of an outer `Prop::List`.
-///
-/// Used for chained expressions like `.temporal().any().sum()`:
-/// the outer list is `Prop::List([list_t1, list_t2, …])` and for each inner
-/// `list_ti` the op is applied, producing `Prop::List([result_t1, result_t2, …])`.
-/// The outer `AnyNodeOp` / `AllNodeOp` then reduces the result list.
-///
-/// Scalar elements are passed through unchanged.
-pub(crate) struct NestedMapNodeOp<'g> {
-    pub(crate) inner: Arc<dyn NodeOp<Output = Prop> + 'g>,
-    pub(crate) op: Op,
-}
-
-impl<'g> Clone for NestedMapNodeOp<'g> {
-    fn clone(&self) -> Self {
-        Self {
-            inner: self.inner.clone(),
-            op: self.op,
-        }
-    }
-}
-
-impl<'g> NodeOp for NestedMapNodeOp<'g> {
-    type Output = Prop;
-
-    fn apply(&self, storage: &GraphStorage, node: VID) -> Prop {
-        let outer = self.inner.apply(storage, node);
-        let Prop::List(arr) = outer else {
-            return Prop::List(PropArray::from(vec![]));
-        };
-        let mapped: Vec<Prop> = arr
-            .iter()
-            .map(|elem| match elem {
-                Prop::List(inner_arr) => {
-                    let vals: Vec<Prop> = inner_arr.iter().collect();
-                    match self.op {
-                        Op::Sum => aggregate_values(&vals, Op::Sum)
-                            .unwrap_or(Prop::List(PropArray::from(vec![]))),
-                        Op::Avg => aggregate_values(&vals, Op::Avg)
-                            .unwrap_or(Prop::List(PropArray::from(vec![]))),
-                        Op::Min => aggregate_values(&vals, Op::Min)
-                            .unwrap_or(Prop::List(PropArray::from(vec![]))),
-                        Op::Max => aggregate_values(&vals, Op::Max)
-                            .unwrap_or(Prop::List(PropArray::from(vec![]))),
-                        Op::First => vals.into_iter().next()
-                            .unwrap_or(Prop::List(PropArray::from(vec![]))),
-                        Op::Last => vals.into_iter().last()
-                            .unwrap_or(Prop::List(PropArray::from(vec![]))),
-                        Op::Len => Prop::U64(inner_arr.len() as u64),
-                        Op::Any => Prop::Bool(prop_any(&Prop::List(inner_arr))),
-                        Op::All => Prop::Bool(prop_all(&Prop::List(inner_arr))),
-                    }
-                }
-                other => other,
-            })
-            .collect();
-        Prop::List(PropArray::from(mapped))
     }
 }
 

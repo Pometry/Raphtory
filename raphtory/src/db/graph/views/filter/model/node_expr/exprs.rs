@@ -7,7 +7,7 @@
 //! # Field expressions
 //!
 //! ```rust,ignore
-//! NodeFilter::id()         // Id        — NodeExpr<Output = GID>         — e.g. .eq(GID::Str("v1".into()))
+//! NodeFilter.id()         // Id        — NodeExpr<Output = GID>         — e.g. .eq(GID::Str("v1".into()))
 //! NodeFilter::name()       // Name      — NodeExpr<Output = String>       — e.g. .eq("Alice")
 //! NodeFilter::node_type()  // Type      — NodeExpr<Output = Option<ArcStr>> — e.g. .is_some()
 //! ```
@@ -59,16 +59,10 @@
 //! // ConstExpr<T> for custom comparable types not covered above
 //! ```
 
-use super::{
-    filters::{
-        BinaryCmpNodeFilter, SetNodeFilter, StringNodeFilter, UnaryNodeFilter,
-    },
-    ops::{
-        AvgNodeOp, FirstNodeOp, LastNodeOp, LenNodeOp, MaxNodeOp, MinNodeOp, NestedMapNodeOp,
-        NodeMetaOp, NodePropOp, SumNodeOp, TemporalNodePropOp, UnwrapOptPropOp,
-    },
-    NodeExpr,
-};
+use super::{ops::{
+    AvgNodeOp, FirstNodeOp, LastNodeOp, LenNodeOp, MaxNodeOp, MinNodeOp, NodeMetaOp,
+    NodePropOp, SumNodeOp, TemporalNodePropOp,
+}, AllEdgeOp, AllNodeOp, AnyEdgeOp, AnyNodeOp, AvgEdgeOp, EntityExpr, FirstEdgeOp, LastEdgeOp, LenEdgeOp, MaxEdgeOp, MinEdgeOp, NodeExpr, SumEdgeOp};
 use crate::{
     db::{
         api::{
@@ -76,14 +70,13 @@ use crate::{
             view::internal::GraphView,
         },
         graph::views::filter::model::{
-            filter_operator::{BinaryOp, Comparable, SetOp, StringOp, UnaryOp},
-            node_filter::NodeFilter,
-            property_filter::Op,
-            CreateView, Metadata, Property,
+            filter_operator::Comparable, node_filter::NodeFilter, CreateView,
+            Metadata, Property,
         },
     },
     errors::GraphError,
 };
+use raphtory_api::core::entities::properties::prop::IntoProp;
 use raphtory_api::core::{
     entities::{
         properties::prop::{Prop, PropType},
@@ -92,8 +85,7 @@ use raphtory_api::core::{
     storage::arc_str::ArcStr,
     Direction,
 };
-use std::{collections::HashSet, marker::PhantomData, sync::Arc};
-
+use std::sync::Arc;
 // ─────────────────────────────────────────────────────────────────────────────
 // Node field expressions — identity, name, type
 //
@@ -104,55 +96,55 @@ use std::{collections::HashSet, marker::PhantomData, sync::Arc};
 //   NodeFilter::node_type()  uses Type  — NodeExpr<Output = Option<ArcStr>>
 // ─────────────────────────────────────────────────────────────────────────────
 
-impl NodeExpr for Id {
-    type Output = GID;
+impl EntityExpr for Id {}
 
+impl NodeExpr for Id {
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
         _graph: G,
-    ) -> Result<Arc<dyn NodeOp<Output = GID> + 'g>, GraphError> {
-        Ok(Arc::new(Id))
+    ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
+        Ok(Arc::new(Id.map(|a| Some(a.into_prop()))))
     }
 }
 
-impl NodeExpr for GID {
-    type Output = GID;
+impl EntityExpr for GID {}
 
+impl NodeExpr for GID {
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
         _graph: G,
-    ) -> Result<Arc<dyn NodeOp<Output = Self::Output> + 'g>, GraphError> {
-        Ok(Arc::new(Const(self.clone())))
+    ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
+        Ok(Arc::new(Const(Some(self.clone().into_prop()))))
+    }
+}
+
+impl EntityExpr for Name {
+    fn prop_type(&self) -> PropType {
+        PropType::Str
     }
 }
 
 impl NodeExpr for Name {
-    type Output = String;
-
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
         _graph: G,
-    ) -> Result<Arc<dyn NodeOp<Output = String> + 'g>, GraphError> {
-        Ok(Arc::new(Name))
+    ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
+        Ok(Arc::new(Name.map(|a| Some(a.into_prop()))))
     }
+}
 
+impl EntityExpr for Type {
     fn prop_type(&self) -> PropType {
         PropType::Str
     }
 }
 
 impl NodeExpr for Type {
-    type Output = Option<ArcStr>;
-
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
         _graph: G,
-    ) -> Result<Arc<dyn NodeOp<Output = Option<ArcStr>> + 'g>, GraphError> {
-        Ok(Arc::new(Type))
-    }
-
-    fn prop_type(&self) -> PropType {
-        PropType::Str
+    ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
+        Ok(Arc::new(Type.map(|a| a.map(|b| b.into_prop()))))
     }
 }
 
@@ -165,63 +157,63 @@ impl NodeExpr for Type {
 //   NodeFilter::property("age").gt(30i64)
 // ─────────────────────────────────────────────────────────────────────────────
 
-impl NodeExpr for usize {
-    type Output = usize;
-
-    fn create_node_op<'g, G: GraphView + 'g>(
-        &self,
-        _graph: G,
-    ) -> Result<Arc<dyn NodeOp<Output = usize> + 'g>, GraphError> {
-        Ok(Arc::new(Const(*self)))
-    }
-
+impl EntityExpr for usize {
     fn prop_type(&self) -> PropType {
         PropType::U64
     }
 }
 
-impl NodeExpr for String {
-    type Output = String;
-
+impl NodeExpr for usize {
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
         _graph: G,
-    ) -> Result<Arc<dyn NodeOp<Output = String> + 'g>, GraphError> {
-        Ok(Arc::new(Const(self.clone())))
+    ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
+        Ok(Arc::new(Const(*self.into())))
     }
+}
 
+impl EntityExpr for String {
+    fn prop_type(&self) -> PropType {
+        PropType::Str
+    }
+}
+
+impl NodeExpr for String {
+    fn create_node_op<'g, G: GraphView + 'g>(
+        &self,
+        _graph: G,
+    ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
+        Ok(Arc::new(Const(self.clone().into_prop())))
+    }
+}
+
+impl EntityExpr for ArcStr {
     fn prop_type(&self) -> PropType {
         PropType::Str
     }
 }
 
 impl NodeExpr for ArcStr {
-    type Output = Option<ArcStr>;
-
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
         _graph: G,
-    ) -> Result<Arc<dyn NodeOp<Output = Option<ArcStr>> + 'g>, GraphError> {
-        Ok(Arc::new(Const(Some(self.clone()))))
+    ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
+        Ok(Arc::new(Const(Some(self.clone().into_prop()))))
     }
+}
 
+impl EntityExpr for &'static str {
     fn prop_type(&self) -> PropType {
         PropType::Str
     }
 }
 
 impl NodeExpr for &'static str {
-    type Output = &'static str;
-
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
         _graph: G,
-    ) -> Result<Arc<dyn NodeOp<Output = &'static str> + 'g>, GraphError> {
-        Ok(Arc::new(Const(*self)))
-    }
-
-    fn prop_type(&self) -> PropType {
-        PropType::Str
+    ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
+        Ok(Arc::new(Const(Some(*self.into_prop()))))
     }
 }
 
@@ -233,61 +225,35 @@ impl NodeExpr for &'static str {
 // with a single method name.
 // ─────────────────────────────────────────────────────────────────────────────
 
-pub trait IntoPropNodeExpr {
-    type Expr: NodeExpr<Output = Option<Prop>>;
-    fn into_prop_node_expr(self) -> Self::Expr;
-}
-
-// Blanket: anything already NodeExpr<Output = Option<Prop>> passes through unchanged.
-// Covers Prop, i64, u64, i32, u32, f32, f64, bool, u8, u16, Property, Metadata, etc.
-impl<T: NodeExpr<Output = Option<Prop>>> IntoPropNodeExpr for T {
-    type Expr = T;
-    fn into_prop_node_expr(self) -> T {
-        self
-    }
-}
-
-// &'static str has Output = &'static str, so the blanket above does NOT cover it.
-// Convert to Prop::Str so .eq("Alice") works transparently.
-impl IntoPropNodeExpr for &'static str {
-    type Expr = Prop;
-    fn into_prop_node_expr(self) -> Prop {
-        Prop::Str(ArcStr::from(self))
-    }
-}
-
-impl IntoPropNodeExpr for String {
-    type Expr = Prop;
-    fn into_prop_node_expr(self) -> Prop {
-        Prop::Str(ArcStr::from(self))
+impl EntityExpr for Prop {
+    fn prop_type(&self) -> PropType {
+        self.dtype()
     }
 }
 
 impl NodeExpr for Prop {
-    type Output = Option<Prop>;
-
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
         _graph: G,
     ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
         Ok(Arc::new(Const(Some(self.clone()))))
     }
-
-    fn prop_type(&self) -> PropType {
-        self.dtype()
-    }
 }
 
 macro_rules! impl_node_expr_for_numeric {
     ($prim:ty, $variant:ident) => {
-        impl NodeExpr for $prim {
-            type Output = Option<Prop>;
+        impl EntityExpr for $prim {
+            fn prop_type(&self) -> PropType {
+                PropType::$variant
+            }
+        }
 
+        impl NodeExpr for $prim {
             fn create_node_op<'g, G: GraphView + 'g>(
                 &self,
                 _graph: G,
             ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
-                Ok(Arc::new(Const(Some(Prop::$variant(*self)))))
+                Ok(Arc::new(Const(Some(*self))))
             }
         }
     };
@@ -315,13 +281,13 @@ impl_node_expr_for_numeric!(u16, U16);
 #[derive(Clone)]
 pub struct ConstExpr<T>(pub T);
 
-impl<T: Comparable + Clone + Send + Sync + 'static> NodeExpr for ConstExpr<T> {
-    type Output = T;
+impl<T: Comparable + Clone + Send + Sync + 'static> EntityExpr for ConstExpr<T> {}
 
+impl<T: Comparable + Clone + Send + Sync + 'static> NodeExpr for ConstExpr<T> {
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
         _graph: G,
-    ) -> Result<Arc<dyn NodeOp<Output = T> + 'g>, GraphError> {
+    ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
         Ok(Arc::new(Const(self.0.clone())))
     }
 }
@@ -346,23 +312,30 @@ pub struct DegreeExpr<E> {
     pub view_expr: E,
 }
 
-impl<E: CreateView + Clone + Send + Sync + 'static> NodeExpr for DegreeExpr<E> {
-    type Output = usize;
-
-    fn create_node_op<'g, G: GraphView + 'g>(
-        &self,
-        graph: G,
-    ) -> Result<Arc<dyn NodeOp<Output = usize> + 'g>, GraphError> {
-        Ok(Arc::new(Degree {
-            dir: self.dir,
-            view: self.view_expr.create_view(graph)?,
-        }))
+impl<E: CreateView + Clone + Send + Sync + 'static> EntityExpr for DegreeExpr<E> {
+    fn prop_type(&self) -> PropType {
+        PropType::U64
     }
 }
 
-impl NodeExpr for Property {
-    type Output = Option<Prop>;
+impl<E: CreateView + Clone + Send + Sync + 'static> NodeExpr for DegreeExpr<E> {
+    fn create_node_op<'g, G: GraphView + 'g>(
+        &self,
+        graph: G,
+    ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
+        Ok(Arc::new(
+            Degree {
+                dir: self.dir,
+                view: self.view_expr.create_view(graph)?,
+            }
+            .map(|a| Some(Prop::U64(a.into()))),
+        ))
+    }
+}
 
+impl EntityExpr for Property {}
+
+impl NodeExpr for Property {
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
         graph: G,
@@ -375,9 +348,9 @@ impl NodeExpr for Property {
     }
 }
 
-impl NodeExpr for Metadata {
-    type Output = Option<Prop>;
+impl EntityExpr for Metadata {}
 
+impl NodeExpr for Metadata {
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
         graph: G,
@@ -422,19 +395,21 @@ impl TemporalPropertyExpr<NodeFilter> {
     }
 }
 
-impl<E: CreateView + Clone + Send + Sync + 'static> NodeExpr for TemporalPropertyExpr<E> {
-    type Output = Prop;
+impl<E: CreateView + Clone + Send + Sync + 'static> EntityExpr for TemporalPropertyExpr<E> {}
 
+impl<E: CreateView + Clone + Send + Sync + 'static> NodeExpr for TemporalPropertyExpr<E> {
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
         graph: G,
-    ) -> Result<Arc<dyn NodeOp<Output = Prop> + 'g>, GraphError> {
+    ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
         let (prop_id, _) = graph
             .node_meta()
             .get_prop_id_and_type(&self.name, false)
             .ok_or_else(|| GraphError::PropertyMissingError(self.name.clone()))?;
         let graph = self.view_expr.create_view(graph)?;
-        Ok(Arc::new(TemporalNodePropOp { graph, prop_id }))
+        Ok(Arc::new(
+            TemporalNodePropOp { graph, prop_id }.map(|a| Some(a)),
+        ))
     }
 }
 
@@ -453,90 +428,40 @@ impl<E: CreateView + Clone + Send + Sync + 'static> NodeExpr for TemporalPropert
 // ─────────────────────────────────────────────────────────────────────────────
 
 macro_rules! impl_agg_expr {
-    ($expr:ident, $op_ty:ident, $output:ty) => {
-        pub struct $expr<E: NodeExpr<Output = Prop>>(pub E);
+    ($expr:ident, $node_op_ty:ident,  $edge_op_ty:ident) => {
+        #[derive(Clone)]
+        pub struct $expr<E>(pub E);
 
-        impl<E: NodeExpr<Output = Prop>> Clone for $expr<E> {
-            fn clone(&self) -> Self {
-                $expr(self.0.clone())
-            }
-        }
+        impl<E: EntityExpr> EntityExpr for $expr<E> {}
 
-        impl<E: NodeExpr<Output = Prop>> NodeExpr for $expr<E> {
-            type Output = $output;
-
+        impl<E: NodeExpr> NodeExpr for $expr<E> {
             fn create_node_op<'g, G: GraphView + 'g>(
                 &self,
                 graph: G,
-            ) -> Result<Arc<dyn NodeOp<Output = $output> + 'g>, GraphError> {
+            ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
                 let inner = self.0.create_node_op(graph)?;
-                Ok(Arc::new($op_ty { inner }))
+                Ok(Arc::new($node_op_ty { inner }))
+            }
+        }
+
+        impl<E: EdgeExpr> EdgeExpr for $expr<E> {
+            fn create_edge_op<'g, G: GraphView + 'g>(
+                &self,
+                graph: G,
+            ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
+                let inner = self.0.create_edge_op(graph)?;
+                Ok(Arc::new($edge_op_ty { inner }))
             }
         }
     };
 }
 
-impl_agg_expr!(SumExpr, SumNodeOp, Option<Prop>);
-impl_agg_expr!(AvgExpr, AvgNodeOp, Option<Prop>);
-impl_agg_expr!(MinExpr, MinNodeOp, Option<Prop>);
-impl_agg_expr!(MaxExpr, MaxNodeOp, Option<Prop>);
-impl_agg_expr!(FirstExpr, FirstNodeOp, Option<Prop>);
-impl_agg_expr!(LastExpr, LastNodeOp, Option<Prop>);
-impl_agg_expr!(LenExpr, LenNodeOp, usize);
-
-// ─────────────────────────────────────────────────────────────────────────────
-// UnwrapOptPropNodeExpr<E> — bridges Option<Prop> → Prop for nested aggregation
-// ─────────────────────────────────────────────────────────────────────────────
-
-// ─────────────────────────────────────────────────────────────────────────────
-// NestedMapExpr<E> — per-element aggregation / quantification on a Prop::List
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// Applies a per-element operation to each element of a `Prop::List` produced by `E`.
-///
-/// Used for chained expressions like `.temporal().any().sum()`:
-/// `E` produces `Prop::List([list_t1, list_t2, …])` and each inner `list_ti` is
-/// aggregated, yielding `Prop::List([result_t1, result_t2, …])` which is then
-/// further quantified by `AnyNodeOp` / `AllNodeOp`.
-#[derive(Clone)]
-pub struct NestedMapExpr<E: NodeExpr<Output = Prop>> {
-    pub inner: E,
-    pub op: Op,
-}
-
-impl<E: NodeExpr<Output = Prop>> NodeExpr for NestedMapExpr<E> {
-    type Output = Prop;
-
-    fn create_node_op<'g, G: GraphView + 'g>(
-        &self,
-        graph: G,
-    ) -> Result<Arc<dyn NodeOp<Output = Prop> + 'g>, GraphError> {
-        let inner = self.inner.create_node_op(graph)?;
-        Ok(Arc::new(NestedMapNodeOp {
-            inner,
-            op: self.op,
-        }))
-    }
-}
-
-/// Bridges `E: NodeExpr<Output = Option<Prop>>` to `NodeExpr<Output = Prop>`,
-/// enabling aggregator exprs (`SumExpr`, `AnyMode`, etc.) to operate on values
-/// produced by a prior aggregation step.
-///
-/// Used when chaining e.g. `.temporal().last().sum()`:
-/// `last()` produces `NodeAggregated<LastExpr<...>>` with `Output = Option<Prop>`;
-/// `sum()` on that wraps in `SumExpr<UnwrapOptPropNodeExpr<LastExpr<...>>>`.
-#[derive(Clone)]
-pub struct UnwrapOptPropNodeExpr<E: NodeExpr<Output = Option<Prop>>>(pub E);
-
-impl<E: NodeExpr<Output = Option<Prop>>> NodeExpr for UnwrapOptPropNodeExpr<E> {
-    type Output = Prop;
-
-    fn create_node_op<'g, G: GraphView + 'g>(
-        &self,
-        graph: G,
-    ) -> Result<Arc<dyn NodeOp<Output = Prop> + 'g>, GraphError> {
-        let inner = self.0.create_node_op(graph)?;
-        Ok(Arc::new(UnwrapOptPropOp { inner }))
-    }
-}
+impl_agg_expr!(SumExpr, SumNodeOp, SumEdgeOp);
+impl_agg_expr!(AvgExpr, AvgNodeOp, AvgEdgeOp);
+impl_agg_expr!(MinExpr, MinNodeOp, MinEdgeOp);
+impl_agg_expr!(MaxExpr, MaxNodeOp, MaxEdgeOp);
+impl_agg_expr!(FirstExpr, FirstNodeOp, FirstEdgeOp);
+impl_agg_expr!(LastExpr, LastNodeOp, LastEdgeOp);
+impl_agg_expr!(LenExpr, LenNodeOp, LenEdgeOp);
+impl_agg_expr!(AnyExpr, AnyNodeOp, AnyEdgeOp);
+impl_agg_expr!(AllExpr, AllNodeOp, AllEdgeOp);
