@@ -2,7 +2,7 @@ use crate::{
     db::{
         api::state::ops::{Id, Name, Type},
         graph::views::filter::model::{
-            node_filter::{ops::NodeFilterOps, NodeFilter},
+            degree_filter::DegreeFilterFactory,node_filter::{ops::NodeFilterOps, NodeFilter},
             node_state_filter::NodeStateBoolColOp,
             property_filter::builders::{MetadataFilterBuilder, PropertyFilterBuilder},
             NodeViewFilterOps, PropertyFilterFactory, ViewWrapOps,
@@ -36,7 +36,6 @@ use std::sync::Arc;
 ///     Node.id().is_in([1, 2, 3])
 ///     Node.id().starts_with("user:")
 #[pyclass(frozen, name = "NodeIdFilterBuilder", module = "raphtory.filter")]
-#[derive(Clone)]
 pub struct PyNodeIdFilterBuilder(Id);
 
 #[pymethods]
@@ -218,7 +217,6 @@ impl PyNodeIdFilterBuilder {
 ///     Node.name() == "alice"
 ///     Node.name().contains("ali")
 #[pyclass(frozen, name = "NodeNameFilterBuilder", module = "raphtory.filter")]
-#[derive(Clone)]
 pub struct PyNodeNameFilterBuilder;
 
 /// Filters nodes by their node type.
@@ -229,7 +227,6 @@ pub struct PyNodeNameFilterBuilder;
 ///     Node.node_type() == "fire_nation"
 ///     Node.node_type().is_not_in(["air_nomads"])
 #[pyclass(frozen, name = "NodeTypeFilterBuilder", module = "raphtory.filter")]
-#[derive(Clone)]
 pub struct PyNodeTypeFilterBuilder;
 
 macro_rules! impl_node_text_filter_builder {
@@ -313,7 +310,6 @@ impl PyNodeTypeFilterBuilder {
 /// - a view-restricted filter context, or
 /// - a boolean predicate over node state.
 #[pyclass(frozen, name = "Node", module = "raphtory.filter")]
-#[derive(Clone)]
 pub struct PyNodeFilter;
 
 #[pymethods]
@@ -343,6 +339,33 @@ impl PyNodeFilter {
     #[staticmethod]
     fn node_type() -> PyNodeTypeFilterBuilder {
         PyNodeTypeFilterBuilder
+    }
+
+    /// Selects incoming node degree for filtering.
+    ///
+    /// Returns:
+    ///     filter.FilterOps
+    #[staticmethod]
+    fn in_degree<'py>(py: Python<'py>) -> PyPropertyExprBuilder {
+        PyPropertyExprBuilder(Arc::new(NodeFilter.in_degree()))
+    }
+
+    /// Selects total node degree for filtering.
+    ///
+    /// Returns:
+    ///     filter.FilterOps
+    #[staticmethod]
+    fn degree<'py>(py: Python<'py>) -> PyPropertyExprBuilder {
+        PyPropertyExprBuilder(Arc::new(NodeFilter.degree()))
+    }
+
+    /// Selects outgoing node degree for filtering.
+    ///
+    /// Returns:
+    ///     filter.FilterOps
+    #[staticmethod]
+    fn out_degree<'py>(py: Python<'py>) -> PyPropertyExprBuilder {
+        PyPropertyExprBuilder(Arc::new(NodeFilter.out_degree()))
     }
 
     /// Filters a node property by name.

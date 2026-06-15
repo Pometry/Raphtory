@@ -44,7 +44,7 @@ type DynamicVectorisedGraph = VectorisedGraph<DynamicGraph>;
 ///     org_id (str, optional): OpenAI organization id. If None, no org id is sent. Defaults to None.
 ///     project_id (str, optional): OpenAI project id. If None, no project id is sent. Defaults to None.
 ///     dim (int, optional): Embedding dimension override. If None, the model's native dimension is used. Defaults to None.
-#[pyclass(name = "OpenAIEmbeddings")]
+#[pyclass(name = "OpenAIEmbeddings", from_py_object)]
 #[derive(Clone)]
 pub struct PyOpenAIEmbeddings {
     model: String,
@@ -96,7 +96,7 @@ impl From<PyOpenAIEmbeddings> for OpenAIEmbeddings {
 /// Arguments:
 ///     v_cache (OpenAIEmbeddings): Embedding model configuration.
 ///     cache (str, optional): Path to persist the embedding cache on disk. Defaults to None.
-#[pyclass(name = "VectorCache")]
+#[pyclass(name = "VectorCache", from_py_object)]
 #[derive(Clone)]
 pub struct PyVectorCache {
     cache_model: CachedEmbeddingModel,

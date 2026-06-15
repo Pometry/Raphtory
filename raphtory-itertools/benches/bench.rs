@@ -1,7 +1,8 @@
-use criterion::{black_box, criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion};
 use itertools::Itertools;
 use rand::{rngs::SmallRng, Rng, SeedableRng};
 use raphtory_itertools::FastMergeExt;
+use std::hint::black_box;
 
 fn bench(criterion: &mut Criterion) {
     let mut rng = SmallRng::seed_from_u64(42);

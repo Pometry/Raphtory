@@ -18,7 +18,7 @@ use url::Url;
 ///     url (str): the URL of the Raphtory GraphQL server
 ///     token:
 #[derive(Clone)]
-#[pyclass(name = "RaphtoryClient", module = "raphtory.graphql")]
+#[pyclass(name = "RaphtoryClient", module = "raphtory.graphql", from_py_object)]
 pub struct PyRaphtoryClient {
     pub(crate) client: RaphtoryGraphQLClient,
 }

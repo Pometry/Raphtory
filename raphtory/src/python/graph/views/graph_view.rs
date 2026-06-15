@@ -75,7 +75,13 @@ impl<'py> FromPyObject<'_, 'py> for DynamicGraph {
 }
 /// Graph view is a read-only version of a graph at a certain point in time.
 
-#[pyclass(name = "GraphView", frozen, subclass, module = "raphtory")]
+#[pyclass(
+    name = "GraphView",
+    frozen,
+    subclass,
+    module = "raphtory",
+    from_py_object
+)]
 #[derive(Clone)]
 #[repr(C)]
 pub struct PyGraphView {

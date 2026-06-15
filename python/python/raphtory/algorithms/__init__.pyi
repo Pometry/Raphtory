@@ -304,6 +304,7 @@ def pagerank(
     max_diff: Optional[float] = None,
     use_l2_norm: bool = True,
     damping_factor: float = 0.85,
+    weight: Optional[str] = None,
 ) -> OutputNodeState:
     """
     Pagerank -- pagerank centrality value of the nodes in a graph
@@ -320,6 +321,7 @@ def pagerank(
             is less than the max diff value given.
         use_l2_norm (bool): Flag for choosing the norm to use for convergence checks, True for l2 norm, False for l1 norm. Defaults to True.
         damping_factor (float): The damping factor for the PageRank calculation. Defaults to 0.85.
+        weight (Optional[str]): Edge property key to use as weight. If None, all edges have weight 1.0.
 
     Returns:
         OutputNodeState: NodeState mapping nodes to their pagerank score.
@@ -427,7 +429,7 @@ def local_clustering_coefficient_batch(graph: Any, v: Any = None) -> OutputNodeS
         OutputNodeState: Mapping of vertices to lcc score
     """
 
-def weakly_connected_components(graph: GraphView) -> NodeStateUsize:
+def weakly_connected_components(graph: GraphView) -> OutputNodeState:
     """
     Weakly connected components -- partitions the graph into node sets which are mutually reachable by an undirected path
 
@@ -438,7 +440,7 @@ def weakly_connected_components(graph: GraphView) -> NodeStateUsize:
         graph (GraphView): Raphtory graph
 
     Returns:
-        NodeStateUsize: Mapping of nodes to their component ids.
+        OutputNodeState: Mapping of nodes to their component ids.
     """
 
 def strongly_connected_components(graph: GraphView) -> OutputNodeState:

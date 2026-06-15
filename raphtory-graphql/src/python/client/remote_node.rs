@@ -5,7 +5,7 @@ use raphtory_api::core::{entities::properties::prop::Prop, storage::timeindex::E
 use std::{collections::HashMap, sync::Arc};
 
 #[derive(Clone)]
-#[pyclass(name = "RemoteNode", module = "raphtory.graphql")]
+#[pyclass(name = "RemoteNode", module = "raphtory.graphql", from_py_object)]
 pub struct PyRemoteNode {
     pub(crate) node: Arc<GraphQLRemoteNode>,
 }

@@ -19,7 +19,13 @@ use crate::{
 use pyo3::prelude::*;
 use std::sync::Arc;
 
-#[pyclass(frozen, name = "FilterExpr", module = "raphtory.filter", subclass)]
+#[pyclass(
+    frozen,
+    name = "FilterExpr",
+    module = "raphtory.filter",
+    subclass,
+    from_py_object
+)]
 #[derive(Clone)]
 pub struct PyFilterExpr(pub Arc<dyn DynCreateFilter>);
 
@@ -78,12 +84,5 @@ impl CreateFilter for PyFilterExpr {
         graph: G,
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
         self.0.create_node_filter(graph)
-    }
-
-    fn filter_graph_view<'graph, G: GraphView + 'graph>(
-        &self,
-        graph: G,
-    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-        self.0.filter_graph_view(graph)
     }
 }

@@ -109,14 +109,6 @@ impl Base for Storage {
 const IN_MEMORY_INDEX_NOT_PERSISTED: &str = "In-memory index not persisted. Not supported";
 
 impl Storage {
-    pub(crate) fn new() -> Self {
-        Self {
-            graph: GraphStorage::Unlocked(Arc::new(TemporalGraph::default())),
-            #[cfg(feature = "search")]
-            index: RwLock::new(GraphIndex::Empty),
-        }
-    }
-
     #[cfg(feature = "search")]
     pub fn index(&self) -> &RwLock<GraphIndex> {
         &self.index

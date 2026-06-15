@@ -80,6 +80,7 @@ use raphtory_api::core::{
 use std::{marker::PhantomData, ops::Deref, sync::Arc};
 
 pub mod and_filter;
+pub mod degree_filter;
 pub mod edge_expr;
 pub mod edge_filter;
 pub mod exploded_edge_filter;

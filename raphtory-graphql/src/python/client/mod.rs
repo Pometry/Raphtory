@@ -23,7 +23,7 @@ pub mod remote_node;
 ///     time (TimeInput): the timestamp for the update
 ///     properties (PropInput, optional): the properties for the update
 #[derive(Clone)]
-#[pyclass(name = "RemoteUpdate", module = "raphtory.graphql")]
+#[pyclass(name = "RemoteUpdate", module = "raphtory.graphql", from_py_object)]
 pub struct PyUpdate {
     time: PyEventTime,
     properties: Option<HashMap<String, Prop>>,
@@ -80,7 +80,11 @@ impl PyUpdate {
 ///     metadata (PropInput, optional): the metadata
 ///     updates (list[RemoteUpdate], optional): the temporal updates
 #[derive(Clone)]
-#[pyclass(name = "RemoteNodeAddition", module = "raphtory.graphql")]
+#[pyclass(
+    name = "RemoteNodeAddition",
+    module = "raphtory.graphql",
+    from_py_object
+)]
 pub struct PyNodeAddition {
     name: GID,
     node_type: Option<String>,
@@ -158,7 +162,11 @@ impl PyNodeAddition {
 ///     metadata (PropInput, optional): the metadata for the edge
 ///     updates (list[RemoteUpdate], optional): the temporal updates for the edge
 #[derive(Clone)]
-#[pyclass(name = "RemoteEdgeAddition", module = "raphtory.graphql")]
+#[pyclass(
+    name = "RemoteEdgeAddition",
+    module = "raphtory.graphql",
+    from_py_object
+)]
 pub struct PyEdgeAddition {
     src: GID,
     dst: GID,
@@ -234,7 +242,13 @@ impl PyEdgeAddition {
 /// Specifies that **all** properties should be included when creating an index.
 /// Use one of the predefined variants: ALL , ALL_METADATA , or ALL_TEMPORAL .
 #[derive(Clone, Serialize, PartialEq)]
-#[pyclass(name = "AllPropertySpec", module = "raphtory.graphql", eq, eq_int)]
+#[pyclass(
+    name = "AllPropertySpec",
+    module = "raphtory.graphql",
+    eq,
+    eq_int,
+    from_py_object
+)]
 pub enum PyAllPropertySpec {
     /// Include all properties (both metadata and temporal).
     #[serde(rename = "ALL")]
@@ -253,7 +267,7 @@ pub enum PyAllPropertySpec {
 ///     metadata (list[str]): Metadata property names. Defaults to [].
 ///     properties (list[str]): Temporal property names. Defaults to [].
 #[derive(Clone, Serialize)]
-#[pyclass(name = "SomePropertySpec", module = "raphtory.graphql")]
+#[pyclass(name = "SomePropertySpec", module = "raphtory.graphql", from_py_object)]
 pub struct PySomePropertySpec {
     /// Metadata property names to include in the index.
     pub metadata: Vec<String>,
@@ -282,7 +296,7 @@ impl PySomePropertySpec {
 /// Raises:
 ///     ValueError: If neither all and some are specified.
 #[derive(Clone, Serialize)]
-#[pyclass(name = "PropsInput", module = "raphtory.graphql")]
+#[pyclass(name = "PropsInput", module = "raphtory.graphql", from_py_object)]
 pub struct PyPropsInput {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub all: Option<PyAllPropertySpec>,
@@ -312,7 +326,7 @@ impl PyPropsInput {
 ///     node_props (PropsInput): Property spec for nodes.
 ///     edge_props (PropsInput): Property spec for edges.
 #[derive(Clone, Serialize)]
-#[pyclass(name = "RemoteIndexSpec", module = "raphtory.graphql")]
+#[pyclass(name = "RemoteIndexSpec", module = "raphtory.graphql", from_py_object)]
 pub struct PyRemoteIndexSpec {
     /// Property inclusion specification for nodes.
     #[serde(rename = "nodeProps")]

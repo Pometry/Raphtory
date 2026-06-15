@@ -9,7 +9,7 @@ use pyo3::{prelude::*, IntoPyObjectExt};
 use pyo3_arrow::PyArray;
 
 /// A document corresponding to a graph entity. Used to generate embeddings.
-#[pyclass(name = "Document", module = "raphtory.vectors", frozen)]
+#[pyclass(name = "Document", module = "raphtory.vectors", frozen, from_py_object)]
 #[derive(Clone)]
 pub struct PyDocument(pub(crate) Document<DynamicGraph>);
 
@@ -52,7 +52,12 @@ impl PyDocument {
     }
 }
 
-#[pyclass(name = "Embedding", module = "raphtory.vectors", frozen)]
+#[pyclass(
+    name = "Embedding",
+    module = "raphtory.vectors",
+    frozen,
+    from_py_object
+)]
 #[derive(Clone)]
 pub struct PyEmbedding(pub Embedding);
 

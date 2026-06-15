@@ -393,7 +393,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
                 .collect_vec();
 
             let has_prior_addition = node
-                .node_additions(layer_id)
+                .node_prop_additions(layer_id)
                 .range(EventTime::MIN..w.start)
                 .iter()
                 .next()

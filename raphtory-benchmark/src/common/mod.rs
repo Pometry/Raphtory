@@ -4,12 +4,12 @@
 pub mod vectors;
 
 use criterion::{
-    black_box, measurement::WallTime, BatchSize, Bencher, BenchmarkGroup, BenchmarkId, Criterion,
+    measurement::WallTime, BatchSize, Bencher, BenchmarkGroup, BenchmarkId, Criterion,
 };
 use rand::{distr::Uniform, seq::*, Rng, SeedableRng};
 use raphtory::{db::api::view::StaticGraphViewOps, prelude::*};
 use raphtory_api::core::{storage::timeindex::AsTime, utils::logging::global_info_logger};
-use std::{collections::HashSet, iter};
+use std::{collections::HashSet, hint::black_box, iter};
 use tempfile::TempDir;
 use tracing::info;
 
@@ -292,13 +292,26 @@ pub fn run_analysis_benchmarks<F, G>(
 
     let nodes: HashSet<GID> = graph.nodes().id().collect();
 
+    let graph_cached = graph.cache_view();
+
     bench(group, "num_edges", parameter, |b: &mut Bencher| {
         b.iter(|| graph.count_edges())
+    });
+
+    bench(group, "num_edges_cached", parameter, |b: &mut Bencher| {
+        b.iter(|| graph_cached.count_edges())
     });
 
     bench(group, "num_edges_temporal", parameter, |b: &mut Bencher| {
         b.iter(|| graph.count_temporal_edges())
     });
+
+    bench(
+        group,
+        "num_edges_temporal_cached",
+        parameter,
+        |b: &mut Bencher| b.iter(|| graph_cached.count_temporal_edges()),
+    );
 
     bench(group, "has_edge_existing", parameter, |b: &mut Bencher| {
         let mut rng = rand::rng();
@@ -308,6 +321,20 @@ pub fn run_analysis_benchmarks<F, G>(
             .expect("has_edge_existing: non-empty graph (graph().edges().iter() is empty)");
         b.iter(|| graph.has_edge(src, dst))
     });
+
+    bench(
+        group,
+        "has_edge_existing_cached",
+        parameter,
+        |b: &mut Bencher| {
+            let mut rng = rand::rng();
+            let (src, dst) = edges
+                .iter()
+                .choose(&mut rng)
+                .expect("has_edge_existing: non-empty graph (graph().edges().iter() is empty)");
+            b.iter(|| graph_cached.has_edge(src, dst))
+        },
+    );
 
     bench(
         group,
@@ -328,11 +355,46 @@ pub fn run_analysis_benchmarks<F, G>(
         },
     );
 
+    bench(
+        group,
+        "has_edge_nonexisting_cached",
+        parameter,
+        |b: &mut Bencher| {
+            let mut rng = rand::rng();
+            let edge = loop {
+                let edge: (&GID, &GID) = (
+                    nodes.iter().choose(&mut rng).expect("has_edge_nonexisting: non-empty graph (graph().nodes().id().iter() is empty)"),
+                    nodes.iter().choose(&mut rng).expect("has_edge_nonexisting: non-empty graph (graph().nodes().id().iter() is empty)"),
+                );
+                if !edges.contains(&(edge.0.clone(), edge.1.clone())) {
+                    break edge;
+                }
+            };
+            b.iter(|| graph_cached.has_edge(edge.0, edge.1))
+        },
+    );
+
     bench(group, "active edge", parameter, |b: &mut Bencher| {
         let mut rng = rand::rng();
         let (edge, active_t) = edges_t
             .choose(&mut rng)
             .and_then(|(src, dst, t)| graph.edge(src, dst).map(|e| (e, t.t())))
+            .expect("active edge");
+        b.iter(|| {
+            edge.window(active_t.saturating_sub(5), active_t + 5)
+                .explode_layers()
+                .iter()
+                .for_each(|e| {
+                    black_box(e);
+                });
+        });
+    });
+
+    bench(group, "active edge_cached", parameter, |b: &mut Bencher| {
+        let mut rng = rand::rng();
+        let (edge, active_t) = edges_t
+            .choose(&mut rng)
+            .and_then(|(src, dst, t)| graph_cached.edge(src, dst).map(|e| (e, t.t())))
             .expect("active edge");
         b.iter(|| {
             edge.window(active_t.saturating_sub(5), active_t + 5)
@@ -360,8 +422,33 @@ pub fn run_analysis_benchmarks<F, G>(
         });
     });
 
+    bench(
+        group,
+        "edge has layer_cached",
+        parameter,
+        |b: &mut Bencher| {
+            let mut rng = rand::rng();
+            let edge = edges
+                .iter()
+                .choose(&mut rng)
+                .and_then(|(src, dst)| graph_cached.edge(src, dst))
+                .expect("active edge");
+
+            let layers = graph_cached.unique_layers().collect::<Vec<_>>();
+            b.iter(|| {
+                for name in layers.iter() {
+                    black_box(edge.has_layer(name));
+                }
+            });
+        },
+    );
+
     bench(group, "num_nodes", parameter, |b: &mut Bencher| {
         b.iter(|| graph.count_nodes())
+    });
+
+    bench(group, "num_nodes_cached", parameter, |b: &mut Bencher| {
+        b.iter(|| graph_cached.count_nodes())
     });
 
     bench(group, "has_node_existing", parameter, |b: &mut Bencher| {
@@ -372,6 +459,19 @@ pub fn run_analysis_benchmarks<F, G>(
             .expect("has_node_existing: non-empty graph (graph().nodes().id().iter() is empty)");
         b.iter(|| graph.has_node(v))
     });
+
+    bench(
+        group,
+        "has_node_existing_cached",
+        parameter,
+        |b: &mut Bencher| {
+            let mut rng = rand::rng();
+            let v = nodes.iter().choose(&mut rng).expect(
+                "has_node_existing: non-empty graph (graph().nodes().id().iter() is empty)",
+            );
+            b.iter(|| graph_cached.has_node(v))
+        },
+    );
 
     bench(
         group,
@@ -389,15 +489,39 @@ pub fn run_analysis_benchmarks<F, G>(
         },
     );
 
+    bench(
+        group,
+        "has_node_nonexisting_cached",
+        parameter,
+        |b: &mut Bencher| {
+            let mut rng = rand::rng();
+            let v: u64 = loop {
+                let v: u64 = rng.random();
+                if !nodes.contains(&GID::U64(v)) {
+                    break v;
+                }
+            };
+            b.iter(|| graph_cached.has_node(v))
+        },
+    );
+
     bench(group, "max_id", parameter, |b: &mut Bencher| {
         b.iter(|| graph.nodes().id().max())
+    });
+
+    bench(group, "max_id_cached", parameter, |b: &mut Bencher| {
+        b.iter(|| graph_cached.nodes().id().max())
     });
 
     bench(group, "max_degree", parameter, |b: &mut Bencher| {
         b.iter(|| graph.nodes().degree().max())
     });
 
-    bench(group, "iterate nodes", parameter, |b: &mut Bencher| {
+    bench(group, "max_degree_cached", parameter, |b: &mut Bencher| {
+        b.iter(|| graph_cached.nodes().degree().max())
+    });
+
+    bench(group, "iterate_nodes", parameter, |b: &mut Bencher| {
         b.iter(|| {
             for n in graph.nodes() {
                 black_box(n);
@@ -405,7 +529,20 @@ pub fn run_analysis_benchmarks<F, G>(
         })
     });
 
-    bench(group, "iterate edges", parameter, |b: &mut Bencher| {
+    bench(
+        group,
+        "iterate_nodes_cached",
+        parameter,
+        |b: &mut Bencher| {
+            b.iter(|| {
+                for n in graph_cached.nodes() {
+                    black_box(n);
+                }
+            })
+        },
+    );
+
+    bench(group, "iterate_edges", parameter, |b: &mut Bencher| {
         b.iter(|| {
             for e in graph.edges() {
                 black_box(e);
@@ -415,11 +552,39 @@ pub fn run_analysis_benchmarks<F, G>(
 
     bench(
         group,
+        "iterate_edges_cached",
+        parameter,
+        |b: &mut Bencher| {
+            b.iter(|| {
+                for e in graph_cached.edges() {
+                    black_box(e);
+                }
+            })
+        },
+    );
+
+    bench(
+        group,
         "iterate_exploded_edges",
         parameter,
         |b: &mut Bencher| {
             b.iter(|| {
                 for e in graph.edges() {
+                    for ee in e.explode() {
+                        black_box(ee);
+                    }
+                }
+            })
+        },
+    );
+
+    bench(
+        group,
+        "iterate_exploded_edges_cached",
+        parameter,
+        |b: &mut Bencher| {
+            b.iter(|| {
+                for e in graph_cached.edges() {
                     for ee in e.explode() {
                         black_box(ee);
                     }
@@ -442,9 +607,36 @@ pub fn run_analysis_benchmarks<F, G>(
         },
     );
 
+    bench(
+        group,
+        "max_neighbour_degree_cached",
+        parameter,
+        |b: &mut Bencher| {
+            let v = graph_cached
+                .nodes()
+                .into_iter()
+                .next()
+                .expect("graph should not be empty");
+            b.iter(|| v.neighbours().degree().max())
+        },
+    );
+
     bench(group, "graph_latest", parameter, |b: &mut Bencher| {
         b.iter(|| graph.latest_time().expect("graph should not be empty"))
     });
+
+    bench(
+        group,
+        "graph_latest_cached",
+        parameter,
+        |b: &mut Bencher| {
+            b.iter(|| {
+                graph_cached
+                    .latest_time()
+                    .expect("graph should not be empty")
+            })
+        },
+    );
 }
 
 pub fn run_materialize<F, G>(
@@ -474,16 +666,14 @@ pub fn run_graph_ops_benches(
     let make_graph = || graph.clone();
     run_analysis_benchmarks(&mut graph_group, make_graph, None);
     graph_group.finish();
-
     bench_materialise(&format!("{graph_name}_materialise"), c, make_graph);
 
     let group_name = format!("{graph_name}_window_100");
     let make_graph = || graph.window(i64::MIN, i64::MAX);
-    let mut graph_window_group_100 = c.benchmark_group(group_name);
+    let mut graph_window_group_100 = c.benchmark_group(&group_name);
     // graph_window_group_100.sample_size(10);
     run_analysis_benchmarks(&mut graph_window_group_100, make_graph, None);
     graph_window_group_100.finish();
-
     bench_materialise(
         &format!("{graph_name}_window_100_materialise"),
         c,
@@ -492,7 +682,7 @@ pub fn run_graph_ops_benches(
 
     // graph windowed
     let group_name = format!("{graph_name}_window_10");
-    let mut graph_window_group_10 = c.benchmark_group(group_name);
+    let mut graph_window_group_10 = c.benchmark_group(&group_name);
     let latest = graph
         .latest_time()
         .expect("windowed graph latest time error: non-empty graph")
@@ -523,7 +713,7 @@ pub fn run_graph_ops_benches(
         .collect::<Vec<_>>();
     let subgraph = graph.subgraph(nodes);
     let group_name = format!("{graph_name}_subgraph_10pc");
-    let mut subgraph_10 = c.benchmark_group(group_name);
+    let mut subgraph_10 = c.benchmark_group(&group_name);
     // subgraph_10.sample_size(10);
 
     let make_graph = || subgraph.clone();
@@ -537,8 +727,7 @@ pub fn run_graph_ops_benches(
 
     // subgraph windowed
     let group_name = format!("{graph_name}_subgraph_10pc_windowed");
-    let mut subgraph_10_windowed = c.benchmark_group(group_name);
-
+    let mut subgraph_10_windowed = c.benchmark_group(&group_name);
     let make_graph = || subgraph.window(start, latest + 1);
     run_analysis_benchmarks(&mut subgraph_10_windowed, make_graph, None);
     subgraph_10_windowed.finish();
@@ -551,7 +740,7 @@ pub fn run_graph_ops_benches(
     // layered graph windowed
     let graph = layered_graph;
     let group_name = format!("{graph_name}_window_50_layered");
-    let mut graph_window_layered_group_50 = c.benchmark_group(group_name);
+    let mut graph_window_layered_group_50 = c.benchmark_group(&group_name);
     let latest = graph
         .latest_time()
         .expect("layered windowed graph latest time error: non-empty graph")
@@ -578,7 +767,7 @@ pub fn run_graph_ops_benches(
     let graph = graph.persistent_graph();
 
     let group_name = format!("{graph_name}_persistent_window_50_layered");
-    let mut graph_window_layered_group_50 = c.benchmark_group(group_name);
+    let mut graph_window_layered_group_50 = c.benchmark_group(&group_name);
     let latest = graph
         .latest_time()
         .expect("layered windowed persistent graph latest time error: non-empty graph")

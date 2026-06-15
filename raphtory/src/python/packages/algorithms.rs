@@ -7,7 +7,7 @@ use crate::{
         centrality::{
             betweenness::betweenness_centrality as betweenness_rs,
             degree_centrality::degree_centrality as degree_centrality_rs, hits::hits as hits_rs,
-            pagerank::unweighted_page_rank,
+            pagerank::page_rank,
         },
         community_detection::{
             label_propagation::label_propagation as label_propagation_rs,
@@ -132,7 +132,7 @@ pub fn local_triangle_count(graph: &PyGraphView, v: PyNodeRef) -> Option<usize> 
 ///     graph (GraphView): Raphtory graph
 ///
 /// Returns:
-///     NodeStateUsize: Mapping of nodes to their component ids.
+///     OutputNodeState: Mapping of nodes to their component ids.
 #[pyfunction]
 #[pyo3(signature = (graph))]
 pub fn weakly_connected_components(
@@ -256,20 +256,23 @@ pub fn out_component(
 ///         is less than the max diff value given.
 ///     use_l2_norm (bool): Flag for choosing the norm to use for convergence checks, True for l2 norm, False for l1 norm. Defaults to True.
 ///     damping_factor (float): The damping factor for the PageRank calculation. Defaults to 0.85.
+///     weight (Optional[str]): Edge property key to use as weight. If None, all edges have weight 1.0.
 ///
 /// Returns:
 ///     OutputNodeState: NodeState mapping nodes to their pagerank score.
 #[pyfunction]
-#[pyo3(signature = (graph, iter_count=20, max_diff=None, use_l2_norm=true, damping_factor=0.85))]
+#[pyo3(signature = (graph, iter_count=20, max_diff=None, use_l2_norm=true, damping_factor=0.85, weight=None))]
 pub fn pagerank(
     graph: &PyGraphView,
     iter_count: usize,
     max_diff: Option<f64>,
     use_l2_norm: bool,
     damping_factor: Option<f64>,
+    weight: Option<&str>,
 ) -> OutputTypedNodeState<'static, DynamicGraph> {
-    unweighted_page_rank(
+    page_rank(
         &graph.graph,
+        weight,
         Some(iter_count),
         None,
         max_diff,

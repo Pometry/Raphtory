@@ -1,4 +1,5 @@
 use crate::{
+    api::core::Direction,
     db::{
         api::{
             state::{
@@ -15,6 +16,7 @@ use crate::{
         },
         graph::views::filter::{
             model::{
+                degree_filter::{DegreeFilter, DegreeFilterFactory},
                 edge_filter::CompositeEdgeFilter,
                 filter::Filter,
                 is_active_node_filter::IsActiveNode,
@@ -22,13 +24,13 @@ use crate::{
                 layered_filter::Layered,
                 node_expr::{DegreeExpr, Metadata, Property},
                 node_filter::validate::validate,
-                node_state_filter::NodeStateBoolColOp,
-                property_filter::builders::{MetadataFilterBuilder, PropertyFilterBuilder},
+                node_state_filter::NodeStateBoolColOp
+                ,
                 snapshot_filter::{SnapshotAt, SnapshotLatest},
-                windowed_filter::Windowed,
-                AndFilter, CombinedFilter, ComposableFilter, CompositeExplodedEdgeFilter,
-                CreateView, EntityMarker, InternalViewWrapOps, NodeViewFilterOps, NotFilter,
-                OrFilter, PropertyFilterFactory, TryAsCompositeFilter, Wrap,
+                windowed_filter::Windowed
+                , CombinedFilter, ComposableFilter, CompositeExplodedEdgeFilter,
+                CreateView, EntityMarker, InternalViewWrapOps, NodeViewFilterOps
+                , PropertyFilterFactory, TryAsCompositeFilter, Wrap,
             },
             node_filtered_graph::NodeFilteredGraph,
             CreateFilter,
@@ -37,7 +39,7 @@ use crate::{
     errors::GraphError,
     prelude::{GraphViewOps, PropertyFilter},
 };
-use raphtory_api::core::{entities::GID, storage::timeindex::EventTime, Direction};
+use raphtory_api::core::storage::timeindex::EventTime;
 use std::{fmt, fmt::Display, sync::Arc};
 
 pub mod builders;
@@ -376,6 +378,7 @@ pub enum CompositeNodeFilter {
     Name(Filter),
     Type(Filter),
     Property(PropertyFilter<NodeFilter>),
+    Degree(DegreeFilter),
     Windowed(Box<Windowed<CompositeNodeFilter>>),
     Latest(Box<Latest<CompositeNodeFilter>>),
     SnapshotAt(Box<SnapshotAt<CompositeNodeFilter>>),
@@ -392,6 +395,7 @@ impl Display for CompositeNodeFilter {
         match self {
             CompositeNodeFilter::Property(filter) => write!(f, "{}", filter),
             CompositeNodeFilter::Windowed(filter) => write!(f, "{}", filter),
+            CompositeNodeFilter::Degree(filter) => write!(f, "{}", filter),
             CompositeNodeFilter::Layered(filter) => write!(f, "{}", filter),
             CompositeNodeFilter::Latest(filter) => write!(f, "{}", filter),
             CompositeNodeFilter::SnapshotAt(filter) => write!(f, "{}", filter),
@@ -432,6 +436,7 @@ impl CreateFilter for CompositeNodeFilter {
         graph: G,
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
         match self {
+            CompositeNodeFilter::Degree(i) => Ok(Arc::new(i.create_node_filter(graph)?)),
             CompositeNodeFilter::Id(i) => Ok(Arc::new(NodeIdFilter(i).create_node_filter(graph)?)),
             CompositeNodeFilter::Name(i) => {
                 Ok(Arc::new(NodeNameFilter(i).create_node_filter(graph)?))

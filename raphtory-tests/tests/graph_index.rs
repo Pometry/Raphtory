@@ -147,10 +147,6 @@ mod test_index {
         };
         use tempfile::TempDir;
 
-        fn temp_storage_path() -> std::path::PathBuf {
-            tempfile::tempdir().unwrap().path().to_path_buf()
-        }
-
         fn init_graph() -> Graph {
             let graph = Graph::new();
 
@@ -293,7 +289,6 @@ mod test_index {
             graph.encode(path).unwrap();
 
             // Should load the updated graph and index
-            let storage_path = path.parent().unwrap().to_path_buf();
             let graph = Graph::decode(path).unwrap();
             let is_indexed = graph.get_storage().unwrap().is_indexed();
             assert!(is_indexed);
@@ -310,7 +305,6 @@ mod test_index {
             let folder = GraphFolder::new_as_zip(zip_path);
             graph.encode(&folder).unwrap();
 
-            let storage_path = tmp_dir.path().to_path_buf();
             let graph = Graph::decode(&folder).unwrap();
             let node = graph.node("Alice").unwrap();
             let node_type = node.node_type();
@@ -455,11 +449,9 @@ mod test_index {
         #[test]
         #[ignore]
         fn test_too_many_open_files_graph_index() {
-            use TempDir;
-
             let mut graphs = vec![];
 
-            for i in 0..1000 {
+            for _ in 0..1000 {
                 let graph = init_graph();
                 if let Err(e) = graph.create_index() {
                     match &e {
@@ -540,10 +532,6 @@ mod test_index {
         };
         use raphtory_tests::assertions::{search_edges, search_nodes};
         use tempfile::{tempdir, TempDir};
-
-        fn temp_storage_path() -> std::path::PathBuf {
-            tempfile::tempdir().unwrap().path().to_path_buf()
-        }
 
         fn init_graph() -> Graph {
             let graph = Graph::new();

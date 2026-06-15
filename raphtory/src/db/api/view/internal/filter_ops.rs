@@ -13,7 +13,7 @@ use raphtory_storage::graph::{
     nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
 };
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum FilterState {
     Neither,
     Window,
@@ -137,13 +137,12 @@ impl<G: GraphView> FilterOps for G {
             }
         }
 
-        if self.internal_nodes_filtered() {
-            if !self.internal_filter_node(node, self.layer_ids()) {
-                return false;
-            }
+        // call this to optimise the cached view of a windowed graph
+        if !self.internal_filter_node(node, self.layer_ids()) {
+            return false;
         }
 
-        if self.window_filtered()
+        if (self.window_filtered() && !self.node_filter_includes_window_filter())
             || (self.internal_nodes_filtered()
                 && (!self.edge_filter_includes_node_filter()
                     || !self.edge_layer_filter_includes_node_filter()
@@ -227,16 +226,13 @@ impl<G: GraphView> FilterOps for G {
 
     #[inline]
     fn filter_edge(&self, edge: EdgeEntryRef) -> bool {
-        if self.internal_edge_filtered() {
-            if !self.internal_filter_edge(edge, self.layer_ids()) {
-                return false;
-            }
+        // we need to call this to optimise the cached view
+        if !self.internal_filter_edge(edge, self.layer_ids()) {
+            return false;
         }
 
-        if self.is_layer_filtered() {
-            if !edge.has_layer(self.layer_ids()) {
-                return false;
-            }
+        if !edge.has_layer(self.layer_ids()) {
+            return false;
         }
 
         if self.internal_nodes_filtered() {
@@ -245,7 +241,7 @@ impl<G: GraphView> FilterOps for G {
             }
         }
 
-        if self.window_filtered()
+        if (self.window_filtered() && !self.edge_filter_includes_window_filter())
             || (self.internal_edge_layer_filtered()
                 && !self.edge_filter_includes_edge_layer_filter())
             || (self.internal_exploded_edge_filtered()

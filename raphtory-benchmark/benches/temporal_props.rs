@@ -1,5 +1,5 @@
 use criterion::{
-    black_box, criterion_group, criterion_main, measurement::WallTime, BenchmarkGroup, Criterion,
+    criterion_group, criterion_main, measurement::WallTime, BenchmarkGroup, Criterion,
 };
 use rand::{Rng, SeedableRng};
 use rand_distr::{Distribution, Normal};
@@ -8,6 +8,7 @@ use raphtory::{
     graph_loader::lotr_graph::lotr_graph, prelude::*, storage::core_ops::CoreGraphOps,
 };
 use raphtory_api::core::storage::timeindex::AsTime;
+use std::hint::black_box;
 
 const PROP_NAME: &str = "bench_prop";
 const RNG_SEED: u64 = 42;

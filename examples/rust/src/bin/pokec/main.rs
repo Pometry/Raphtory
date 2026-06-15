@@ -1,7 +1,5 @@
 use raphtory::{
-    algorithms::{
-        centrality::pagerank::unweighted_page_rank, components::weakly_connected_components,
-    },
+    algorithms::{centrality::pagerank::page_rank, components::weakly_connected_components},
     db::{api::mutation::AdditionOps, graph::graph::Graph},
     io::csv_loader::CsvLoader,
     logging::global_info_logger,
@@ -51,7 +49,7 @@ fn main() {
 
     let now = Instant::now();
 
-    unweighted_page_rank(&g, Some(100), None, Some(0.00000001), true, None);
+    page_rank(&g, None, Some(100), None, Some(0.00000001), true, None);
 
     info!("PageRank took {} millis", now.elapsed().as_millis());
 

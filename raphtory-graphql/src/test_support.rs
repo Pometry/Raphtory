@@ -18,7 +18,6 @@ use raphtory::{
     serialise::ROOT_META_PATH,
 };
 use std::{path::Path, sync::Arc};
-use tempfile::{tempdir, TempDir};
 
 pub(crate) struct TestSetup {
     pub(crate) data: Data,

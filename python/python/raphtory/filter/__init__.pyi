@@ -342,12 +342,30 @@ class Node(object):
         """
 
     @staticmethod
+    def degree():
+        """
+        Selects total node degree for filtering.
+
+        Returns:
+            filter.FilterOps
+        """
+
+    @staticmethod
     def id() -> filter.NodeIdFilterBuilder:
         """
         Selects the node ID field for filtering.
 
         Returns:
             filter.NodeIdFilterBuilder:
+        """
+
+    @staticmethod
+    def in_degree():
+        """
+        Selects incoming node degree for filtering.
+
+        Returns:
+            filter.FilterOps
         """
 
     @staticmethod
@@ -422,6 +440,15 @@ class Node(object):
 
         Returns:
             filter.NodeTypeFilterBuilder:
+        """
+
+    @staticmethod
+    def out_degree():
+        """
+        Selects outgoing node degree for filtering.
+
+        Returns:
+            filter.FilterOps
         """
 
     @staticmethod
