@@ -85,6 +85,11 @@ jobs:
         run: npx playwright install ${{ matrix.browser }}
       - name: Test UI
         timeout-minutes: 30
+        # Run raphtory on a non-default port so a UI bundle that hardcoded
+        # http://localhost:1736 cannot self-mask: any test needing GraphQL
+        # data would fail immediately when the GraphQL POST hits a dead origin.
+        env:
+          RAPHTORY_PORT: '1737'
         run: |
           # On Windows the venv activate script lives under Scripts/ rather than bin/.
           source .venv/Scripts/activate
@@ -97,7 +102,7 @@ jobs:
           streak=0
           for i in $(seq 1 120); do
               body=$(curl -s -m 5 -H 'Content-Type: application/json' \
-                  -d "$query" http://localhost:1736/ || true)
+                  -d "$query" "http://localhost:$RAPHTORY_PORT/" || true)
               if echo "$body" | grep -q '"path":"vanilla"'; then
                   streak=$((streak + 1))
                   echo "Picker query OK ($streak/3)"
@@ -117,7 +122,7 @@ jobs:
           # Extra settle time for any background indexing
           sleep 10
           cd ui-tests
-          UI_BASE_URL=http://localhost:1736 npx playwright test --project ${{ matrix.browser }} --shard=${{ matrix.shard }}/${{ env.NUM_SHARDS }}
+          UI_BASE_URL="http://localhost:$RAPHTORY_PORT" GRAPHQL_URL="http://localhost:$RAPHTORY_PORT" npx playwright test --project ${{ matrix.browser }} --shard=${{ matrix.shard }}/${{ env.NUM_SHARDS }}
       - name: Upload UI Report
         uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
