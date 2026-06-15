@@ -5,8 +5,8 @@ use crate::{
             filter::{
                 model::{
                     edge_filter::CompositeEdgeFilter, windowed_filter::Windowed, ComposableFilter,
-                    CompositeExplodedEdgeFilter, CompositeNodeFilter, InternalViewWrapOps,
-                    TryAsCompositeFilter, Wrap,
+                    CompositeExplodedEdgeFilter, CompositeNodeFilter, CreateView,
+                    InternalViewWrapOps, TryAsCompositeFilter, Wrap,
                 },
                 CreateFilter,
             },
@@ -106,6 +106,17 @@ impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for Latest<T>
 }
 
 impl<T: ComposableFilter> ComposableFilter for Latest<T> {}
+
+impl<T: CreateView> CreateView for Latest<T> {
+    type View<'graph, G: GraphView + 'graph> = T::View<'graph, G>;
+
+    fn create_view<'graph, G: GraphView + 'graph>(
+        &self,
+        view: G,
+    ) -> Result<Self::View<'graph, G>, GraphError> {
+        self.inner.create_view(view)
+    }
+}
 
 impl<M> Wrap for Latest<M> {
     type Wrapped<T> = Latest<T>;

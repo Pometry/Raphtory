@@ -4,7 +4,7 @@ use crate::{
         graph::views::filter::{
             model::{
                 edge_filter::CompositeEdgeFilter, windowed_filter::Windowed, ComposableFilter,
-                CompositeExplodedEdgeFilter, CompositeNodeFilter, InternalViewWrapOps,
+                CompositeExplodedEdgeFilter, CompositeNodeFilter, CreateView, InternalViewWrapOps,
                 TryAsCompositeFilter, Wrap,
             },
             CreateFilter,
@@ -113,6 +113,17 @@ impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for SnapshotA
 
 impl<T: ComposableFilter> ComposableFilter for SnapshotAt<T> {}
 
+impl<T: CreateView> CreateView for SnapshotAt<T> {
+    type View<'graph, G: GraphView + 'graph> = T::View<'graph, G>;
+
+    fn create_view<'graph, G: GraphView + 'graph>(
+        &self,
+        view: G,
+    ) -> Result<Self::View<'graph, G>, GraphError> {
+        self.inner.create_view(view)
+    }
+}
+
 impl<M> Wrap for SnapshotAt<M> {
     type Wrapped<T> = SnapshotAt<T>;
     fn wrap<T>(&self, value: T) -> Self::Wrapped<T> {
@@ -210,6 +221,17 @@ impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for SnapshotL
 }
 
 impl<T: ComposableFilter> ComposableFilter for SnapshotLatest<T> {}
+
+impl<T: CreateView> CreateView for SnapshotLatest<T> {
+    type View<'graph, G: GraphView + 'graph> = T::View<'graph, G>;
+
+    fn create_view<'graph, G: GraphView + 'graph>(
+        &self,
+        view: G,
+    ) -> Result<Self::View<'graph, G>, GraphError> {
+        self.inner.create_view(view)
+    }
+}
 
 impl<M> Wrap for SnapshotLatest<M> {
     type Wrapped<T> = SnapshotLatest<T>;

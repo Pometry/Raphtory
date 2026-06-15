@@ -50,9 +50,12 @@ use crate::{
     },
     prelude::GraphViewOps,
 };
-use raphtory_api::core::entities::{
-    properties::prop::{Prop, PropArray, PropType},
-    VID,
+use raphtory_api::core::{
+    entities::{
+        properties::prop::{Prop, PropArray, PropType},
+        VID,
+    },
+    storage::arc_str::ArcStr,
 };
 use raphtory_storage::graph::graph::GraphStorage;
 use std::{collections::HashSet, hash::Hash, sync::Arc};
@@ -208,7 +211,7 @@ impl_agg_node_op!(FirstNodeOp, Option<Prop>, |vals: Vec<Prop>| {
 impl_agg_node_op!(LastNodeOp, Option<Prop>, |vals: Vec<Prop>| {
     vals.into_iter().last()
 });
-impl_agg_node_op!(LenNodeOp, usize, |vals: Vec<Prop>| { vals.len() });
+impl_agg_node_op!(LenNodeOp, usize, |vals: Vec<Prop>| vals.len());
 
 // ─────────────────────────────────────────────────────────────────────────────
 // AnyNodeOp / AllNodeOp — unary reducers over a Prop::List of booleans
@@ -319,6 +322,225 @@ impl<'g> NodeOp for PropListCompareOp<'g> {
                 Prop::List(PropArray::from(bools))
             }
             other => Prop::Bool(Prop::binary_cmp(&self.op, &other, &rhs)),
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PropListInSetOp<'g> — element-wise set-membership test on a Prop::List
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Checks each element of a `Prop::List` against a fixed `Vec<Prop>`, producing
+/// `Prop::List([Bool, …])`.  The result is then reduced by [`AnyNodeOp`] or [`AllNodeOp`].
+pub(crate) struct PropListInSetOp<'g> {
+    pub(crate) inner: Arc<dyn NodeOp<Output = Prop> + 'g>,
+    pub(crate) values: Vec<Prop>,
+    pub(crate) op: SetOp,
+}
+
+impl<'g> Clone for PropListInSetOp<'g> {
+    fn clone(&self) -> Self {
+        Self {
+            inner: self.inner.clone(),
+            values: self.values.clone(),
+            op: self.op,
+        }
+    }
+}
+
+impl<'g> NodeOp for PropListInSetOp<'g> {
+    type Output = Prop;
+
+    fn apply(&self, storage: &GraphStorage, node: VID) -> Prop {
+        let Prop::List(arr) = self.inner.apply(storage, node) else {
+            return Prop::List(PropArray::from(vec![]));
+        };
+        let bools: Vec<Prop> = arr
+            .iter()
+            .map(|v| {
+                Prop::Bool(match self.op {
+                    SetOp::IsIn => self.values.iter().any(|x| x == &v),
+                    SetOp::IsNotIn => self.values.iter().all(|x| x != &v),
+                })
+            })
+            .collect();
+        Prop::List(PropArray::from(bools))
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PropListStringOp<'g> — element-wise string comparison on a Prop::List
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Applies a [`StringOp`] to each element of a `Prop::List` against a scalar RHS,
+/// producing `Prop::List([Bool, …])`.  Reduced by [`AnyNodeOp`] or [`AllNodeOp`].
+pub(crate) struct PropListStringOp<'g> {
+    pub(crate) inner: Arc<dyn NodeOp<Output = Prop> + 'g>,
+    pub(crate) rhs: ArcStr,
+    pub(crate) op: StringOp,
+}
+
+impl<'g> Clone for PropListStringOp<'g> {
+    fn clone(&self) -> Self {
+        Self {
+            inner: self.inner.clone(),
+            rhs: self.rhs.clone(),
+            op: self.op,
+        }
+    }
+}
+
+impl<'g> NodeOp for PropListStringOp<'g> {
+    type Output = Prop;
+
+    fn apply(&self, storage: &GraphStorage, node: VID) -> Prop {
+        let Prop::List(arr) = self.inner.apply(storage, node) else {
+            return Prop::List(PropArray::from(vec![]));
+        };
+        let rhs = Some(Prop::Str(self.rhs.clone()));
+        let bools: Vec<Prop> = arr
+            .iter()
+            .map(|v| Prop::Bool(Option::<Prop>::string_cmp(&self.op, &Some(v), &rhs)))
+            .collect();
+        Prop::List(PropArray::from(bools))
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NestedMapNodeOp<'g> — element-wise aggregation / quantification on a Prop::List
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Applies a per-element operation to each element of an outer `Prop::List`.
+///
+/// Used for chained expressions like `.temporal().any().sum()`:
+/// the outer list is `Prop::List([list_t1, list_t2, …])` and for each inner
+/// `list_ti` the op is applied, producing `Prop::List([result_t1, result_t2, …])`.
+/// The outer `AnyNodeOp` / `AllNodeOp` then reduces the result list.
+///
+/// Scalar elements are passed through unchanged.
+pub(crate) struct NestedMapNodeOp<'g> {
+    pub(crate) inner: Arc<dyn NodeOp<Output = Prop> + 'g>,
+    pub(crate) op: Op,
+}
+
+impl<'g> Clone for NestedMapNodeOp<'g> {
+    fn clone(&self) -> Self {
+        Self {
+            inner: self.inner.clone(),
+            op: self.op,
+        }
+    }
+}
+
+impl<'g> NodeOp for NestedMapNodeOp<'g> {
+    type Output = Prop;
+
+    fn apply(&self, storage: &GraphStorage, node: VID) -> Prop {
+        let outer = self.inner.apply(storage, node);
+        let Prop::List(arr) = outer else {
+            return Prop::List(PropArray::from(vec![]));
+        };
+        let mapped: Vec<Prop> = arr
+            .iter()
+            .map(|elem| match elem {
+                Prop::List(inner_arr) => {
+                    let vals: Vec<Prop> = inner_arr.iter().collect();
+                    match self.op {
+                        Op::Sum => aggregate_values(&vals, Op::Sum)
+                            .unwrap_or(Prop::List(PropArray::from(vec![]))),
+                        Op::Avg => aggregate_values(&vals, Op::Avg)
+                            .unwrap_or(Prop::List(PropArray::from(vec![]))),
+                        Op::Min => aggregate_values(&vals, Op::Min)
+                            .unwrap_or(Prop::List(PropArray::from(vec![]))),
+                        Op::Max => aggregate_values(&vals, Op::Max)
+                            .unwrap_or(Prop::List(PropArray::from(vec![]))),
+                        Op::First => vals.into_iter().next()
+                            .unwrap_or(Prop::List(PropArray::from(vec![]))),
+                        Op::Last => vals.into_iter().last()
+                            .unwrap_or(Prop::List(PropArray::from(vec![]))),
+                        Op::Len => Prop::U64(inner_arr.len() as u64),
+                        Op::Any => Prop::Bool(prop_any(&Prop::List(inner_arr))),
+                        Op::All => Prop::Bool(prop_all(&Prop::List(inner_arr))),
+                    }
+                }
+                other => other,
+            })
+            .collect();
+        Prop::List(PropArray::from(mapped))
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UnwrapOptPropOp<'g> — converts Option<Prop> → Prop for nested aggregation
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Converts `Option<Prop>` → `Prop` so that aggregator ops (`SumNodeOp`, etc.)
+/// can operate on a value produced by a prior aggregation step.
+///
+/// Used internally when chaining e.g. `.temporal().last().sum()`:
+/// `LastExpr` outputs `Option<Prop::List([...]))`, `UnwrapOptPropOp` makes that
+/// available as `Prop` for the next-level `SumNodeOp`.
+///
+/// - `Some(Prop::List(arr))` → `Prop::List(arr)` (pass through as-is)
+/// - `Some(v)`               → `Prop::List([v])` (single-element list)
+/// - `None`                  → `Prop::List([])` (empty — yields None from aggregators)
+pub(crate) struct UnwrapOptPropOp<'g> {
+    pub(crate) inner: Arc<dyn NodeOp<Output = Option<Prop>> + 'g>,
+}
+
+impl<'g> Clone for UnwrapOptPropOp<'g> {
+    fn clone(&self) -> Self {
+        Self {
+            inner: self.inner.clone(),
+        }
+    }
+}
+
+impl<'g> NodeOp for UnwrapOptPropOp<'g> {
+    type Output = Prop;
+
+    fn apply(&self, storage: &GraphStorage, node: VID) -> Prop {
+        match self.inner.apply(storage, node) {
+            Some(Prop::List(arr)) => Prop::List(arr),
+            Some(v) => Prop::List(PropArray::from(vec![v])),
+            None => Prop::List(PropArray::from(vec![])),
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PropValueSetNodeOp<'g> — is_in / is_not_in for Option<Prop> (linear scan)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Checks whether an `Option<Prop>` value is in (or not in) a fixed `Vec<Prop>`.
+/// Uses linear scan because `Prop` may contain floats (`F32`, `F64`) which don't
+/// implement `Hash`.
+pub struct PropValueSetNodeOp<'g> {
+    pub(crate) inner: Arc<dyn NodeOp<Output = Option<Prop>> + 'g>,
+    pub(crate) values: Vec<Prop>,
+    pub(crate) op: SetOp,
+}
+
+impl<'g> Clone for PropValueSetNodeOp<'g> {
+    fn clone(&self) -> Self {
+        Self {
+            inner: self.inner.clone(),
+            values: self.values.clone(),
+            op: self.op,
+        }
+    }
+}
+
+impl<'g> NodeOp for PropValueSetNodeOp<'g> {
+    type Output = bool;
+
+    fn apply(&self, storage: &GraphStorage, node: VID) -> bool {
+        match self.inner.apply(storage, node) {
+            None => false,
+            Some(v) => match self.op {
+                SetOp::IsIn => self.values.iter().any(|x| x == &v),
+                SetOp::IsNotIn => self.values.iter().all(|x| x != &v),
+            },
         }
     }
 }

@@ -15,6 +15,7 @@ mod tests;
 pub use exprs::*;
 pub use filters::*;
 pub use ops::*;
+pub use super::{Metadata, Property};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // NodeExpr — typed node expression with associated Output type

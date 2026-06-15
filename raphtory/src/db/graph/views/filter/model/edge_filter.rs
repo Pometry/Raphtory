@@ -20,8 +20,9 @@ use crate::{
                 property_filter::PropertyFilter,
                 snapshot_filter::{SnapshotAt, SnapshotLatest},
                 windowed_filter::Windowed,
-                AndFilter, CombinedFilter, ComposableFilter, EdgeViewFilterOps, EntityMarker,
-                InternalViewWrapOps, NotFilter, OrFilter, TryAsCompositeFilter, Wrap,
+                AndFilter, CombinedFilter, ComposableFilter, CreateView, EdgeFilterFactory,
+                EdgeViewFilterOps, EntityMarker, InternalViewWrapOps, NotFilter, OrFilter,
+                TryAsCompositeFilter, Wrap,
             },
             CreateFilter,
         },
@@ -362,3 +363,14 @@ impl TryAsCompositeFilter for CompositeEdgeFilter {
         Err(GraphError::NotSupported)
     }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EdgeFilterFactory impls
+// ─────────────────────────────────────────────────────────────────────────────
+
+impl EdgeFilterFactory for EdgeFilter {}
+impl<T: EdgeFilterFactory + CreateView> EdgeFilterFactory for Windowed<T> {}
+impl<T: EdgeFilterFactory + CreateView> EdgeFilterFactory for Latest<T> {}
+impl<T: EdgeFilterFactory + CreateView> EdgeFilterFactory for Layered<T> {}
+impl<T: EdgeFilterFactory + CreateView> EdgeFilterFactory for SnapshotAt<T> {}
+impl<T: EdgeFilterFactory + CreateView> EdgeFilterFactory for SnapshotLatest<T> {}

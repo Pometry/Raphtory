@@ -123,7 +123,7 @@ mod test_property_semantics {
                 api::view::{filter_ops::Filter, StaticGraphViewOps},
                 graph::views::filter::model::{
                     node_filter::NodeFilter, property_filter::ops::PropertyFilterOps,
-                    PropertyFilterFactory, TemporalPropertyFilterFactory,
+                    PropertyFilterFactory,
                 },
             },
             errors::GraphError,
@@ -468,7 +468,7 @@ mod test_property_semantics {
                 graph::views::filter::{
                     model::{
                         edge_filter::EdgeFilter, property_filter::ops::PropertyFilterOps,
-                        PropertyFilterFactory, TemporalPropertyFilterFactory,
+                        PropertyFilterFactory,
                     },
                     CreateFilter,
                 },
@@ -1655,9 +1655,9 @@ mod test_node_filter {
         db::{
             api::view::{filter_ops::NodeSelect, Filter},
             graph::views::filter::model::{
-                node_filter::ops::{NodeFilterOps, NodeIdFilterOps},
-                ComposableFilter, CompositeNodeFilter, NodeViewFilterOps, TryAsCompositeFilter,
-                ViewWrapOps,
+                node_filter::ops::NodeFilterOps,
+                ComposableFilter, CompositeNodeFilter, NodeFilterFactory, NodeViewFilterOps,
+                TryAsCompositeFilter, ViewWrapOps,
             },
         },
         prelude::{
@@ -1676,7 +1676,7 @@ mod test_node_filter {
         let nodes = graph
             .nodes()
             .after(5)
-            .select(NodeFilter::node_type().contains("x"))
+            .select(NodeFilter.node_type().contains("x"))
             .unwrap();
         let degrees = nodes.degree();
         let degrees_collected = degrees.compute();
@@ -1685,7 +1685,7 @@ mod test_node_filter {
 
     #[test]
     fn test_filter_nodes_for_node_name_eq() {
-        let filter = NodeFilter::name().eq("3");
+        let filter = NodeFilter.name().eq("3");
         let expected_results = vec!["3"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -1705,7 +1705,7 @@ mod test_node_filter {
 
     #[test]
     fn test_filter_nodes_for_node_name_ne() {
-        let filter = NodeFilter::name().ne("2");
+        let filter = NodeFilter.name().ne("2");
         let expected_results = vec!["1", "3", "4"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -1725,7 +1725,7 @@ mod test_node_filter {
 
     #[test]
     fn test_filter_nodes_for_node_name_in() {
-        let filter = NodeFilter::name().is_in(vec!["1"]);
+        let filter = NodeFilter.name().is_in(vec!["1"]);
         let expected_results = vec!["1"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -1742,7 +1742,7 @@ mod test_node_filter {
             TestVariants::All,
         );
 
-        let filter = NodeFilter::name().is_in(vec![""]);
+        let filter = NodeFilter.name().is_in(vec![""]);
         let expected_results = Vec::<&str>::new();
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -1759,7 +1759,7 @@ mod test_node_filter {
             TestVariants::All,
         );
 
-        let filter = NodeFilter::name().is_in(vec!["2", "3"]);
+        let filter = NodeFilter.name().is_in(vec!["2", "3"]);
         let expected_results = vec!["2", "3"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -1779,7 +1779,7 @@ mod test_node_filter {
 
     #[test]
     fn test_filter_nodes_for_node_name_not_in() {
-        let filter = NodeFilter::name().is_not_in(vec!["1"]);
+        let filter = NodeFilter.name().is_not_in(vec!["1"]);
         let expected_results = vec!["2", "3", "4"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -1796,7 +1796,7 @@ mod test_node_filter {
             TestVariants::All,
         );
 
-        let filter = NodeFilter::name().is_not_in(vec![""]);
+        let filter = NodeFilter.name().is_not_in(vec![""]);
         let expected_results = vec!["1", "2", "3", "4"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -1816,7 +1816,7 @@ mod test_node_filter {
 
     #[test]
     fn test_filter_nodes_for_node_type_eq() {
-        let filter = NodeFilter::node_type().eq("fire_nation");
+        let filter = NodeFilter.node_type().eq("fire_nation");
         let expected_results = vec!["1", "3"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -1836,7 +1836,7 @@ mod test_node_filter {
 
     #[test]
     fn test_filter_nodes_for_node_type_ne() {
-        let filter = NodeFilter::node_type().ne("fire_nation");
+        let filter = NodeFilter.node_type().ne("fire_nation");
         let expected_results = vec!["2", "4"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -1856,7 +1856,7 @@ mod test_node_filter {
 
     #[test]
     fn test_filter_nodes_for_node_type_in() {
-        let filter = NodeFilter::node_type().is_in(vec!["fire_nation"]);
+        let filter = NodeFilter.node_type().is_in(vec!["fire_nation"]);
         let expected_results = vec!["1", "3"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -1873,7 +1873,7 @@ mod test_node_filter {
             TestVariants::All,
         );
 
-        let filter = NodeFilter::node_type().is_in(vec!["fire_nation", "air_nomads"]);
+        let filter = NodeFilter.node_type().is_in(vec!["fire_nation", "air_nomads"]);
         let expected_results = vec!["1", "2", "3"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -1893,7 +1893,7 @@ mod test_node_filter {
 
     #[test]
     fn test_filter_nodes_for_node_type_not_in() {
-        let filter = NodeFilter::node_type().is_not_in(vec!["fire_nation"]);
+        let filter = NodeFilter.node_type().is_not_in(vec!["fire_nation"]);
         let expected_results = vec!["2", "4"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -1913,7 +1913,7 @@ mod test_node_filter {
 
     #[test]
     fn test_filter_nodes_for_node_type_starts_with() {
-        let filter = NodeFilter::node_type().starts_with("fire");
+        let filter = NodeFilter.node_type().starts_with("fire");
         let expected_results = vec!["1", "3"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -1930,7 +1930,7 @@ mod test_node_filter {
             TestVariants::All,
         );
 
-        let filter = NodeFilter::node_type().starts_with("rocket");
+        let filter = NodeFilter.node_type().starts_with("rocket");
         let expected_results = vec![];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -1950,7 +1950,7 @@ mod test_node_filter {
 
     #[test]
     fn test_filter_nodes_for_node_type_ends_with() {
-        let filter = NodeFilter::node_type().ends_with("nomads");
+        let filter = NodeFilter.node_type().ends_with("nomads");
         let expected_results = vec!["2"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -1967,7 +1967,7 @@ mod test_node_filter {
             TestVariants::All,
         );
 
-        let filter = NodeFilter::node_type().ends_with("circle");
+        let filter = NodeFilter.node_type().ends_with("circle");
         let expected_results = vec![];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -1987,7 +1987,7 @@ mod test_node_filter {
 
     #[test]
     fn test_filter_nodes_for_node_type_contains() {
-        let filter = NodeFilter::node_type().contains("fire");
+        let filter = NodeFilter.node_type().contains("fire");
         let expected_results = vec!["1", "3"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -2007,7 +2007,7 @@ mod test_node_filter {
 
     #[test]
     fn test_filter_nodes_for_node_type_contains_not() {
-        let filter = NodeFilter::node_type().not_contains("fire");
+        let filter = NodeFilter.node_type().not_contains("fire");
         let expected_results = vec!["2", "4"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -2027,7 +2027,7 @@ mod test_node_filter {
 
     #[test]
     fn test_filter_nodes_for_fuzzy_search() {
-        let filter = NodeFilter::node_type().fuzzy_search("fire", 2, true);
+        let filter = NodeFilter.node_type().fuzzy_search("fire", 2, true);
         let expected_results: Vec<&str> = vec!["1", "3"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -2037,7 +2037,7 @@ mod test_node_filter {
             TestVariants::All,
         );
 
-        let filter = NodeFilter::node_type().fuzzy_search("fire", 2, false);
+        let filter = NodeFilter.node_type().fuzzy_search("fire", 2, false);
         let expected_results: Vec<&str> = vec![];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -2047,7 +2047,7 @@ mod test_node_filter {
             TestVariants::All,
         );
 
-        let filter = NodeFilter::node_type().fuzzy_search("air_noma", 2, false);
+        let filter = NodeFilter.node_type().fuzzy_search("air_noma", 2, false);
         let expected_results: Vec<&str> = vec!["2"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -2060,7 +2060,7 @@ mod test_node_filter {
 
     #[test]
     fn test_filter_nodes_for_not_node_type() {
-        let filter = NodeFilter::node_type().is_not_in(vec!["fire_nation"]).not();
+        let filter = NodeFilter.node_type().is_not_in(vec!["fire_nation"]).not();
         let expected_results = vec!["1", "3"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -2080,7 +2080,7 @@ mod test_node_filter {
 
     #[test]
     fn test_filter_nodes_for_eq_node_id() {
-        let filter = NodeFilter::id().eq("1");
+        let filter = NodeFilter.id().eq("1");
         let expected_results = vec!["1"];
 
         assert_filter_nodes_results(
@@ -2098,7 +2098,7 @@ mod test_node_filter {
             TestVariants::All,
         );
 
-        let filter = NodeFilter::id().eq(1);
+        let filter = NodeFilter.id().eq(1);
         let expected_results = vec!["1"];
 
         assert_filter_nodes_results(
@@ -2119,7 +2119,7 @@ mod test_node_filter {
 
     #[test]
     fn test_filter_nodes_for_ne_node_id() {
-        let filter = NodeFilter::id().ne("1");
+        let filter = NodeFilter.id().ne("1");
         let expected_results = vec!["2", "3", "4"];
 
         assert_filter_nodes_results(
@@ -2137,7 +2137,7 @@ mod test_node_filter {
             TestVariants::All,
         );
 
-        let filter = NodeFilter::id().ne(1);
+        let filter = NodeFilter.id().ne(1);
         let expected_results = vec!["2", "3", "4"];
 
         assert_filter_nodes_results(
@@ -2158,7 +2158,7 @@ mod test_node_filter {
 
     #[test]
     fn test_filter_nodes_for_is_in_node_id() {
-        let filter = NodeFilter::id().is_in(vec!["1", "3", "6"]);
+        let filter = NodeFilter.id().is_in(vec!["1", "3", "6"]);
         let expected_results = vec!["1", "3"];
 
         assert_filter_nodes_results(
@@ -2176,7 +2176,7 @@ mod test_node_filter {
             TestVariants::All,
         );
 
-        let filter = NodeFilter::id().is_in(vec![1, 3, 6]);
+        let filter = NodeFilter.id().is_in(vec![1, 3, 6]);
         let expected_results = vec!["1", "3"];
 
         assert_filter_nodes_results(
@@ -2197,7 +2197,7 @@ mod test_node_filter {
 
     #[test]
     fn test_filter_nodes_for_is_not_in_node_id() {
-        let filter = NodeFilter::id().is_not_in(vec!["1", "3", "6"]);
+        let filter = NodeFilter.id().is_not_in(vec!["1", "3", "6"]);
         let expected_results = vec!["2", "4"];
 
         assert_filter_nodes_results(
@@ -2215,7 +2215,7 @@ mod test_node_filter {
             TestVariants::All,
         );
 
-        let filter = NodeFilter::id().is_not_in(vec![1, 3, 6]);
+        let filter = NodeFilter.id().is_not_in(vec![1, 3, 6]);
         let expected_results = vec!["2", "4"];
 
         assert_filter_nodes_results(
@@ -2236,7 +2236,7 @@ mod test_node_filter {
 
     #[test]
     fn test_filter_nodes_for_lt_node_id() {
-        let filter = NodeFilter::id().lt(2);
+        let filter = NodeFilter.id().lt(2);
         let expected_results = vec!["1"];
 
         assert_filter_nodes_results(
@@ -2257,7 +2257,7 @@ mod test_node_filter {
 
     #[test]
     fn test_filter_nodes_for_le_node_id() {
-        let filter = NodeFilter::id().le(3);
+        let filter = NodeFilter.id().le(3);
         let expected_results = vec!["1", "2", "3"];
 
         assert_filter_nodes_results(
@@ -2278,7 +2278,7 @@ mod test_node_filter {
 
     #[test]
     fn test_filter_nodes_for_gt_node_id() {
-        let filter = NodeFilter::id().gt(2);
+        let filter = NodeFilter.id().gt(2);
         let expected_results = vec!["3", "4"];
 
         assert_filter_nodes_results(
@@ -2299,7 +2299,7 @@ mod test_node_filter {
 
     #[test]
     fn test_filter_nodes_for_ge_node_id() {
-        let filter = NodeFilter::id().ge(2);
+        let filter = NodeFilter.id().ge(2);
         let expected_results = vec!["2", "3", "4"];
 
         assert_filter_nodes_results(
@@ -2320,7 +2320,7 @@ mod test_node_filter {
 
     #[test]
     fn test_filter_nodes_for_starts_with_node_id() {
-        let filter = NodeFilter::id().starts_with("France");
+        let filter = NodeFilter.id().starts_with("France");
         let expected_results = vec!["France Paris"];
         assert_filter_nodes_results(
             init_nodes_graph_with_str_ids,
@@ -2333,7 +2333,7 @@ mod test_node_filter {
 
     #[test]
     fn test_filter_nodes_for_ends_with_node_id() {
-        let filter = NodeFilter::id().ends_with("wo");
+        let filter = NodeFilter.id().ends_with("wo");
         let expected_results = vec!["Two"];
         assert_filter_nodes_results(
             init_nodes_graph_with_str_ids,
@@ -2353,7 +2353,7 @@ mod test_node_filter {
 
     #[test]
     fn test_filter_nodes_for_contains_node_id() {
-        let filter = NodeFilter::id().contains("o");
+        let filter = NodeFilter.id().contains("o");
         let expected_results = vec!["London", "Tokyo", "Two"];
         assert_filter_nodes_results(
             init_nodes_graph_with_str_ids,
@@ -2366,7 +2366,7 @@ mod test_node_filter {
 
     #[test]
     fn test_filter_nodes_for_not_contains_node_id() {
-        let filter = NodeFilter::id().not_contains("o");
+        let filter = NodeFilter.id().not_contains("o");
         let expected_results = vec!["France Paris"];
         assert_filter_nodes_results(
             init_nodes_graph_with_str_ids,
@@ -2379,7 +2379,7 @@ mod test_node_filter {
 
     #[test]
     fn test_filter_nodes_for_is_in_node_id_str() {
-        let filter = NodeFilter::id().is_in(vec!["London", "Tokyo"]);
+        let filter = NodeFilter.id().is_in(vec!["London", "Tokyo"]);
         let expected_results = vec!["London", "Tokyo"];
         assert_filter_nodes_results(
             init_nodes_graph_with_str_ids,
@@ -2399,7 +2399,7 @@ mod test_node_filter {
 
     #[test]
     fn test_filter_nodes_for_is_not_in_node_id_str() {
-        let filter = NodeFilter::id().is_not_in(vec!["London", "Tokyo"]);
+        let filter = NodeFilter.id().is_not_in(vec!["London", "Tokyo"]);
         let expected_results = vec!["France Paris", "Two"];
         assert_filter_nodes_results(
             init_nodes_graph_with_str_ids,
@@ -2526,7 +2526,7 @@ mod test_node_property_filter {
         not_filter::NotFilter,
         property_filter::ops::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
         windowed_filter::Windowed,
-        ComposableFilter, PropertyFilterFactory, TemporalPropertyFilterFactory, ViewWrapOps,
+        ComposableFilter, PropertyFilterFactory, ViewWrapOps,
     };
     use raphtory_api::core::entities::properties::prop::Prop;
     use raphtory_tests::assertions::{
@@ -4593,7 +4593,7 @@ mod test_node_composite_filter {
     use raphtory::{
         db::graph::views::filter::model::{
             node_filter::ops::NodeFilterOps, property_filter::ops::PropertyFilterOps,
-            ComposableFilter, PropertyFilterFactory, TryAsCompositeFilter,
+            ComposableFilter, NodeFilterFactory, PropertyFilterFactory, TryAsCompositeFilter,
         },
         prelude::NodeFilter,
     };
@@ -4761,7 +4761,7 @@ mod test_node_composite_filter {
             TestVariants::All,
         );
 
-        let filter = NodeFilter::node_type()
+        let filter = NodeFilter.node_type()
             .eq("fire_nation")
             .and(NodeFilter.property("p1").eq("prop1"));
         let expected_results = Vec::<&str>::new();
@@ -4830,7 +4830,7 @@ mod test_node_composite_filter {
             TestVariants::All,
         );
 
-        let filter = NodeFilter::node_type()
+        let filter = NodeFilter.node_type()
             .eq("fire_nation")
             .and(NodeFilter.property("p1").eq("shivam_kapoor"));
         let expected_results = vec!["1"];
@@ -4864,7 +4864,7 @@ mod test_node_composite_filter {
             TestVariants::All,
         );
 
-        let filter = NodeFilter::name()
+        let filter = NodeFilter.name()
             .eq("2")
             .and(NodeFilter.property("p2").eq(2u64));
         let expected_results = vec!["2"];
@@ -4898,7 +4898,7 @@ mod test_node_composite_filter {
             TestVariants::All,
         );
 
-        let filter = NodeFilter::name()
+        let filter = NodeFilter.name()
             .eq("2")
             .and(NodeFilter.property("p2").eq(2u64))
             .or(NodeFilter.property("p9").eq(5u64));
@@ -4936,7 +4936,7 @@ mod test_node_composite_filter {
 
     #[test]
     fn test_not_composite_filter_nodes() {
-        let filter = NodeFilter::name()
+        let filter = NodeFilter.name()
             .eq("2")
             .and(NodeFilter.property("p2").eq(2u64))
             .or(NodeFilter.property("p9").eq(5u64))
@@ -4957,7 +4957,7 @@ mod test_node_composite_filter {
             TestVariants::All,
         );
 
-        let filter = NodeFilter::name()
+        let filter = NodeFilter.name()
             .eq("2")
             .not()
             .and(NodeFilter.property("p2").eq(2u64))
@@ -4981,7 +4981,7 @@ mod test_node_composite_filter {
 
     #[test]
     fn test_out_neighbours_filter() {
-        let filter = NodeFilter::name()
+        let filter = NodeFilter.name()
             .eq("2")
             .and(NodeFilter.property("p2").eq(2u64));
         let expected_results = vec!["2"];
@@ -5036,7 +5036,7 @@ mod test_node_property_filter_agg {
                 model::{
                     node_filter::NodeFilter,
                     property_filter::ops::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
-                    PropertyFilterFactory, TemporalPropertyFilterFactory, TryAsCompositeFilter,
+                    PropertyFilterFactory, TryAsCompositeFilter,
                 },
                 CreateFilter,
             },
@@ -8563,9 +8563,9 @@ mod test_edge_filter {
     };
     use raphtory::db::graph::views::filter::model::{
         edge_filter::EdgeFilter,
-        node_filter::ops::{NodeFilterOps, NodeIdFilterOps},
+        node_filter::ops::NodeFilterOps,
         property_filter::ops::{ListAggOps, PropertyFilterOps},
-        ComposableFilter, EdgeViewFilterOps, PropertyFilterFactory, TemporalPropertyFilterFactory,
+        ComposableFilter, EdgeViewFilterOps, NodeFilterFactory, PropertyFilterFactory,
         ViewWrapOps,
     };
     use raphtory_tests::assertions::{
@@ -10043,7 +10043,7 @@ mod test_edge_property_filter {
     use raphtory::db::graph::views::filter::model::{
         edge_filter::EdgeFilter,
         property_filter::ops::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
-        ComposableFilter, PropertyFilterFactory, TemporalPropertyFilterFactory, ViewWrapOps,
+        ComposableFilter, PropertyFilterFactory, ViewWrapOps,
     };
 
     use raphtory_api::core::entities::properties::prop::Prop;
@@ -11885,8 +11885,8 @@ mod test_edge_property_filter {
 mod test_edge_composite_filter {
     use raphtory::db::graph::views::filter::model::{
         edge_filter::EdgeFilter, node_filter::ops::NodeFilterOps,
-        property_filter::ops::PropertyFilterOps, ComposableFilter, PropertyFilterFactory,
-        TryAsCompositeFilter,
+        property_filter::ops::PropertyFilterOps, ComposableFilter, NodeFilterFactory,
+        PropertyFilterFactory, TryAsCompositeFilter,
     };
     use raphtory_tests::assertions::{
         assert_filter_edges_results, assert_search_edges_results, TestGraphVariants, TestVariants,

@@ -11,6 +11,7 @@ use crate::{
 };
 
 pub mod and_filtered_graph;
+pub mod edge_expr_filtered_graph;
 pub mod edge_node_filtered_graph;
 pub mod edge_property_filtered_graph;
 pub mod exploded_edge_node_filtered_graph;

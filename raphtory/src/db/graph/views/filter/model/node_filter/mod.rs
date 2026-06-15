@@ -78,7 +78,6 @@ pub trait NodeFilterFactory: PropertyFilterFactory + Clone {
 
     /// Build a filter from a boolean column inside a TypedNodeState.
     fn by_column<'graph, V, G, T>(
-        &self,
         state: &TypedNodeState<'graph, V, G, T>,
         col: &str,
     ) -> Result<NodeStateBoolColOp, GraphError>
@@ -168,6 +167,12 @@ impl InternalViewWrapOps for NodeFilter {
         Windowed::from_times(start, end, self)
     }
 }
+
+impl<T: NodeFilterFactory + CreateView> NodeFilterFactory for Windowed<T> {}
+impl<T: NodeFilterFactory + CreateView> NodeFilterFactory for Latest<T> {}
+impl<T: NodeFilterFactory + CreateView> NodeFilterFactory for SnapshotAt<T> {}
+impl<T: NodeFilterFactory + CreateView> NodeFilterFactory for SnapshotLatest<T> {}
+impl<T: NodeFilterFactory + CreateView> NodeFilterFactory for Layered<T> {}
 
 #[derive(Debug, Clone)]
 pub struct NodeIdFilter(pub Filter);

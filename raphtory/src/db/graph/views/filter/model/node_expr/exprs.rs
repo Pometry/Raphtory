@@ -60,9 +60,12 @@
 //! ```
 
 use super::{
+    filters::{
+        BinaryCmpNodeFilter, SetNodeFilter, StringNodeFilter, UnaryNodeFilter,
+    },
     ops::{
-        AvgNodeOp, FirstNodeOp, LastNodeOp, LenNodeOp, MaxNodeOp, MinNodeOp, NodeMetaOp,
-        NodePropOp, SumNodeOp, TemporalNodePropOp,
+        AvgNodeOp, FirstNodeOp, LastNodeOp, LenNodeOp, MaxNodeOp, MinNodeOp, NestedMapNodeOp,
+        NodeMetaOp, NodePropOp, SumNodeOp, TemporalNodePropOp, UnwrapOptPropOp,
     },
     NodeExpr,
 };
@@ -73,7 +76,10 @@ use crate::{
             view::internal::GraphView,
         },
         graph::views::filter::model::{
-            filter_operator::Comparable, node_filter::NodeFilter, CreateView,
+            filter_operator::{BinaryOp, Comparable, SetOp, StringOp, UnaryOp},
+            node_filter::NodeFilter,
+            property_filter::Op,
+            CreateView, Metadata, Property,
         },
     },
     errors::GraphError,
@@ -86,7 +92,7 @@ use raphtory_api::core::{
     storage::arc_str::ArcStr,
     Direction,
 };
-use std::sync::Arc;
+use std::{collections::HashSet, marker::PhantomData, sync::Arc};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Node field expressions — identity, name, type
@@ -219,6 +225,44 @@ impl NodeExpr for &'static str {
     }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// IntoPropNodeExpr — normalises any RHS value to NodeExpr<Output = Option<Prop>>
+//
+// Used as the bound on Quantified::eq/ne/gt/ge/lt/le and NodeAggregated::eq/ne/…
+// so that .eq("Alice"), .eq(30i64), and .eq(NodeFilter::property("x")) all work
+// with a single method name.
+// ─────────────────────────────────────────────────────────────────────────────
+
+pub trait IntoPropNodeExpr {
+    type Expr: NodeExpr<Output = Option<Prop>>;
+    fn into_prop_node_expr(self) -> Self::Expr;
+}
+
+// Blanket: anything already NodeExpr<Output = Option<Prop>> passes through unchanged.
+// Covers Prop, i64, u64, i32, u32, f32, f64, bool, u8, u16, Property, Metadata, etc.
+impl<T: NodeExpr<Output = Option<Prop>>> IntoPropNodeExpr for T {
+    type Expr = T;
+    fn into_prop_node_expr(self) -> T {
+        self
+    }
+}
+
+// &'static str has Output = &'static str, so the blanket above does NOT cover it.
+// Convert to Prop::Str so .eq("Alice") works transparently.
+impl IntoPropNodeExpr for &'static str {
+    type Expr = Prop;
+    fn into_prop_node_expr(self) -> Prop {
+        Prop::Str(ArcStr::from(self))
+    }
+}
+
+impl IntoPropNodeExpr for String {
+    type Expr = Prop;
+    fn into_prop_node_expr(self) -> Prop {
+        Prop::Str(ArcStr::from(self))
+    }
+}
+
 impl NodeExpr for Prop {
     type Output = Option<Prop>;
 
@@ -316,27 +360,6 @@ impl<E: CreateView + Clone + Send + Sync + 'static> NodeExpr for DegreeExpr<E> {
     }
 }
 
-/// Current (latest) value of a named property.
-///
-/// Created by `NodeFilter::property("name")`.
-/// Resolves the property name to a column ID once at `create_node_op` time,
-/// then compiles to a `NodePropOp { graph, prop_id }`.
-///
-/// ```rust,ignore
-/// NodeFilter::property("age").gt(30i64)
-/// NodeFilter::property("score").is_some()
-/// ```
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Property {
-    pub name: String,
-}
-
-impl Property {
-    pub fn new(name: impl Into<String>) -> Self {
-        Self { name: name.into() }
-    }
-}
-
 impl NodeExpr for Property {
     type Output = Option<Prop>;
 
@@ -349,27 +372,6 @@ impl NodeExpr for Property {
             .get_prop_id_and_type(&self.name, false)
             .ok_or_else(|| GraphError::PropertyMissingError(self.name.clone()))?;
         Ok(Arc::new(NodePropOp { graph, prop_id }))
-    }
-}
-
-/// Static (non-temporal) metadata field.
-///
-/// Created by `NodeFilter::metadata("name")`.
-/// Resolves the metadata name to a column ID once at `create_node_op` time,
-/// then compiles to a `NodeMetaOp { graph, prop_id }`.
-///
-/// ```rust,ignore
-/// NodeFilter::metadata("region").eq(Prop::Str("EU".into()))
-/// NodeFilter::metadata("tier").is_some()
-/// ```
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Metadata {
-    pub name: String,
-}
-
-impl Metadata {
-    pub fn new(name: impl Into<String>) -> Self {
-        Self { name: name.into() }
     }
 }
 
@@ -441,12 +443,12 @@ impl<E: CreateView + Clone + Send + Sync + 'static> NodeExpr for TemporalPropert
 //
 // Each wraps a NodeExpr<Output = Prop> (typically TemporalPropertyExpr) and reduces
 // the Prop::List it produces to a scalar.  Not constructed directly —
-// TemporalProp / TemporalExprOps methods return Aggregated<XxxExpr<..>>:
+// TemporalProp / TemporalExprOps methods return NodeAggregated<XxxExpr<..>>:
 //
-//   .temporal_property("v").sum()  → Aggregated<SumExpr<TemporalPropertyExpr<..>>>
-//   .temporal_property("v").len()  → Aggregated<LenExpr<TemporalPropertyExpr<..>>>
+//   .temporal_property("v").sum()  → NodeAggregated<SumExpr<TemporalPropertyExpr<..>>>
+//   .temporal_property("v").len()  → NodeAggregated<LenExpr<TemporalPropertyExpr<..>>>
 //
-// Calling .gt() / .eq() etc. on Aggregated then produces:
+// Calling .gt() / .eq() etc. on NodeAggregated then produces:
 //   BinaryCmpNodeFilter<SumExpr<TemporalPropertyExpr<..>>, RHS>
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -481,3 +483,60 @@ impl_agg_expr!(MaxExpr, MaxNodeOp, Option<Prop>);
 impl_agg_expr!(FirstExpr, FirstNodeOp, Option<Prop>);
 impl_agg_expr!(LastExpr, LastNodeOp, Option<Prop>);
 impl_agg_expr!(LenExpr, LenNodeOp, usize);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UnwrapOptPropNodeExpr<E> — bridges Option<Prop> → Prop for nested aggregation
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NestedMapExpr<E> — per-element aggregation / quantification on a Prop::List
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Applies a per-element operation to each element of a `Prop::List` produced by `E`.
+///
+/// Used for chained expressions like `.temporal().any().sum()`:
+/// `E` produces `Prop::List([list_t1, list_t2, …])` and each inner `list_ti` is
+/// aggregated, yielding `Prop::List([result_t1, result_t2, …])` which is then
+/// further quantified by `AnyNodeOp` / `AllNodeOp`.
+#[derive(Clone)]
+pub struct NestedMapExpr<E: NodeExpr<Output = Prop>> {
+    pub inner: E,
+    pub op: Op,
+}
+
+impl<E: NodeExpr<Output = Prop>> NodeExpr for NestedMapExpr<E> {
+    type Output = Prop;
+
+    fn create_node_op<'g, G: GraphView + 'g>(
+        &self,
+        graph: G,
+    ) -> Result<Arc<dyn NodeOp<Output = Prop> + 'g>, GraphError> {
+        let inner = self.inner.create_node_op(graph)?;
+        Ok(Arc::new(NestedMapNodeOp {
+            inner,
+            op: self.op,
+        }))
+    }
+}
+
+/// Bridges `E: NodeExpr<Output = Option<Prop>>` to `NodeExpr<Output = Prop>`,
+/// enabling aggregator exprs (`SumExpr`, `AnyMode`, etc.) to operate on values
+/// produced by a prior aggregation step.
+///
+/// Used when chaining e.g. `.temporal().last().sum()`:
+/// `last()` produces `NodeAggregated<LastExpr<...>>` with `Output = Option<Prop>`;
+/// `sum()` on that wraps in `SumExpr<UnwrapOptPropNodeExpr<LastExpr<...>>>`.
+#[derive(Clone)]
+pub struct UnwrapOptPropNodeExpr<E: NodeExpr<Output = Option<Prop>>>(pub E);
+
+impl<E: NodeExpr<Output = Option<Prop>>> NodeExpr for UnwrapOptPropNodeExpr<E> {
+    type Output = Prop;
+
+    fn create_node_op<'g, G: GraphView + 'g>(
+        &self,
+        graph: G,
+    ) -> Result<Arc<dyn NodeOp<Output = Prop> + 'g>, GraphError> {
+        let inner = self.0.create_node_op(graph)?;
+        Ok(Arc::new(UnwrapOptPropOp { inner }))
+    }
+}

@@ -147,14 +147,19 @@ pub mod prelude {
     };
 
     pub use crate::db::graph::views::filter::model::{
-        filter::Filter, property_filter::PropertyFilter,
+        filter::Filter, property_filter::PropertyFilter, NodeAggregated, NodeQuantified,
+        NodeExprFilterOps, NodePropertyExprOps, NodeTemporalPropOps,
+        EdgeExprFilterOps, EdgePropertyExprOps, EdgeTemporalPropOps,
     };
 
     pub use crate::db::graph::views::{
         property_redacted_graph::PropertyRedaction, PropertyRedactedGraph,
     };
 
-    pub use crate::db::graph::views::filter::model::{node_filter::NodeFilter, EdgeFilter};
+    pub use crate::db::graph::views::filter::model::{
+        node_filter::{NodeFilter, NodeFilterFactory},
+        EdgeFilter,
+    };
 
     pub use storage::{persist::config::ConfigOps, Config};
 

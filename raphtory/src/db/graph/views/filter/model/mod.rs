@@ -15,13 +15,14 @@ pub use crate::{
                         UnaryOp,
                     },
                     node_expr::{
-                        Aggregated, AllMode, AnyMode, AvgExpr, BinaryCmpNodeFilter, ConstExpr,
-                        DegreeExpr, FirstExpr, LastExpr, LenExpr, MaxExpr, Metadata, MinExpr,
-                        NodeExpr, NodeExprFilterOps, Property, Quantified, QuantifiedNodeFilter,
+                        AllMode, AnyMode, AvgExpr, BinaryCmpNodeFilter, ConstExpr,
+                        DegreeExpr, FirstExpr, IntoPropNodeExpr, LastExpr, LenExpr, MaxExpr,
+                        MinExpr, NodeAggregated, NodeExpr, NodeExprFilterOps, NodePropertyExprOps,
+                        NodeQuantified, NodeTemporalPropOps, PropValueSetFilter, QuantifiedNodeFilter,
                         QuantifierMode, SetNodeFilter, StringNodeFilter, SumExpr, TemporalExprOps,
                         TemporalProp, UnaryNodeFilter,
                     },
-                    node_filter::NodeFilter,
+                    node_filter::{NodeFilter, NodeFilterFactory},
                     not_filter::NotFilter,
                     or_filter::OrFilter,
                 },
@@ -54,7 +55,6 @@ use crate::{
                 latest_filter::Latest,
                 layered_filter::Layered,
                 node_expr::{NodeMetaOp, NodePropOp},
-                node_filter::NodeFilterFactory,
                 property_filter::{
                     builders::{
                         InternalPropertyFilterBuilder, PropertyExprBuilder,
@@ -71,14 +71,16 @@ use crate::{
     prelude::LayerOps,
 };
 pub use node_filter::CompositeNodeFilter;
+pub use edge_expr::{EdgeExprFilterOps, EdgePropertyExprOps, EdgeTemporalPropOps};
 use raphtory_api::core::{
     entities::{properties::prop::Prop, Layer},
-    storage::timeindex::{AsTime, EventTime},
+    storage::{arc_str::ArcStr, timeindex::{AsTime, EventTime}},
     utils::time::IntoTime,
 };
-use std::{ops::Deref, sync::Arc};
+use std::{marker::PhantomData, ops::Deref, sync::Arc};
 
 pub mod and_filter;
+pub mod edge_expr;
 pub mod edge_filter;
 pub mod exploded_edge_filter;
 pub mod filter;
@@ -252,6 +254,38 @@ pub enum EntityMarker {
     ExplodedEdge,
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Shared property name expressions
+//
+// These structs carry only a property name. They implement both NodeExpr and
+// EdgeExpr in their respective modules (node_expr/exprs.rs, edge_expr/exprs.rs),
+// reading from node_meta() or edge_meta() depending on the context.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Latest temporal property value — implements both `NodeExpr` and `EdgeExpr`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Property {
+    pub name: String,
+}
+
+impl Property {
+    pub fn new(name: impl Into<String>) -> Self {
+        Self { name: name.into() }
+    }
+}
+
+/// Static metadata field — implements both `NodeExpr` and `EdgeExpr`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Metadata {
+    pub name: String,
+}
+
+impl Metadata {
+    pub fn new(name: impl Into<String>) -> Self {
+        Self { name: name.into() }
+    }
+}
+
 #[derive(Clone)]
 pub struct PropertyExpr<E> {
     view_expr: E,
@@ -400,6 +434,60 @@ where
 impl<E: CreateView + Clone + Send + Sync + 'static> PropertyExpr<E> {
     pub fn temporal(&self) -> TemporalProp<E> {
         TemporalProp::new(self.view_expr.clone(), self.name.clone())
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EdgeFilterFactory — marker for edge-side filter builder types
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Marker trait for edge filter builder types (`EdgeFilter`, `Windowed<EdgeFilter>`, etc.).
+///
+/// Disjoint from `NodeFilterFactory`: no type implements both, so `PropertyExpr<E>`
+/// can have two separate sets of comparison methods gated on each.
+pub trait EdgeFilterFactory: PropertyFilterFactory + Clone {}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PropertyExpr<E> / MetadataExpr<E> — EdgeExpr impls
+// ─────────────────────────────────────────────────────────────────────────────
+
+use edge_expr::{
+    EdgeExpr, EdgeMetaOp as EMetaOp, EdgeOp, EdgePropOp as EPropOp,
+};
+
+impl<E: CreateView + EdgeFilterFactory + Clone + Send + Sync + 'static> EdgeExpr
+    for PropertyExpr<E>
+{
+    type Output = Option<Prop>;
+
+    fn create_edge_op<'g, G: GraphView + 'g>(
+        &self,
+        graph: G,
+    ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
+        let prop_id = graph
+            .edge_meta()
+            .get_prop_id(&self.name, false)
+            .ok_or_else(|| GraphError::PropertyMissingError(self.name.clone()))?;
+        let graph = self.view_expr.create_view(graph)?;
+        Ok(Arc::new(EPropOp { graph, prop_id }))
+    }
+}
+
+impl<E: CreateView + EdgeFilterFactory + Clone + Send + Sync + 'static> EdgeExpr
+    for MetadataExpr<E>
+{
+    type Output = Option<Prop>;
+
+    fn create_edge_op<'g, G: GraphView + 'g>(
+        &self,
+        graph: G,
+    ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
+        let prop_id = graph
+            .edge_meta()
+            .get_prop_id(&self.name, true)
+            .ok_or_else(|| GraphError::MetadataMissingError(self.name.clone()))?;
+        let graph = self.view_expr.create_view(graph)?;
+        Ok(Arc::new(EMetaOp { graph, prop_id }))
     }
 }
 
@@ -565,6 +653,28 @@ impl CreateView for Arc<dyn DynCreateView> {
 }
 
 impl CreateView for NodeFilter {
+    type View<'graph, G: GraphView + 'graph> = G;
+
+    fn create_view<'graph, G: GraphView + 'graph>(
+        &self,
+        view: G,
+    ) -> Result<Self::View<'graph, G>, GraphError> {
+        Ok(view)
+    }
+}
+
+impl CreateView for EdgeFilter {
+    type View<'graph, G: GraphView + 'graph> = G;
+
+    fn create_view<'graph, G: GraphView + 'graph>(
+        &self,
+        view: G,
+    ) -> Result<Self::View<'graph, G>, GraphError> {
+        Ok(view)
+    }
+}
+
+impl CreateView for ExplodedEdgeFilter {
     type View<'graph, G: GraphView + 'graph> = G;
 
     fn create_view<'graph, G: GraphView + 'graph>(

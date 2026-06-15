@@ -37,23 +37,28 @@
 
 use super::{
     ops::{
-        AllNodeOp, AnyNodeOp, BinaryCmpNodeOp, PropListCompareOp, SetNodeOp, StringNodeOp,
-        UnaryNodeOp,
+        AllNodeOp, AnyNodeOp, BinaryCmpNodeOp, PropListCompareOp, PropListInSetOp,
+        PropListStringOp, PropValueSetNodeOp, SetNodeOp, StringNodeOp, UnaryNodeOp,
     },
-    AvgExpr, FirstExpr, LastExpr, LenExpr, MaxExpr, MinExpr, NodeExpr, SumExpr,
-    TemporalPropertyExpr,
+    AvgExpr, FirstExpr, IntoPropNodeExpr, LastExpr, LenExpr, MaxExpr, MinExpr, NestedMapExpr,
+    NodeExpr, SumExpr, TemporalPropertyExpr, UnwrapOptPropNodeExpr,
 };
 use crate::{
     db::{
-        api::{state::ops::NodeOp, view::internal::GraphView},
+        api::{
+            state::ops::NodeOp,
+            view::internal::GraphView,
+        },
         graph::views::filter::{
             model::{
                 edge_filter::CompositeEdgeFilter,
                 filter_operator::{
                     BinaryOp, Comparable, SetOp, StringComparable, StringOp, UnaryOp,
                 },
+                node_filter::NodeFilterFactory,
+                property_filter::Op,
                 ComposableFilter, CompositeExplodedEdgeFilter, CompositeNodeFilter, CreateFilter,
-                CreateView, TryAsCompositeFilter,
+                CreateView, MetadataExpr, PropertyExpr, TryAsCompositeFilter,
             },
             node_filtered_graph::NodeFilteredGraph,
         },
@@ -61,9 +66,12 @@ use crate::{
     errors::GraphError,
     prelude::GraphViewOps,
 };
-use raphtory_api::core::entities::{
-    properties::prop::{Prop, PropType},
-    VID,
+use raphtory_api::core::{
+    entities::{
+        properties::prop::{Prop, PropType},
+        VID,
+    },
+    storage::arc_str::ArcStr,
 };
 use std::{collections::HashSet, hash::Hash, marker::PhantomData, sync::Arc};
 
@@ -590,11 +598,11 @@ where
 /// Not constructed directly — returned by `Quantified::gt/eq/…`:
 /// ```rust,ignore
 /// // NodeFilter::temporal_property("score").any().gt(10i64)
-/// //   → QuantifiedNodeFilter<TemporalPropertyExpr<NodeFilter>, AnyMode, i64>
+/// //   → QuantifiedNodeFilter<TemporalPropertyExpr<NodeFilter>, AnyMode>
 /// //   compiles to: AnyNodeOp { inner: PropListCompareOp { …, op: Gt } }
 ///
 /// // NodeFilter::temporal_property("score").all().gt(0i64)
-/// //   → QuantifiedNodeFilter<TemporalPropertyExpr<NodeFilter>, AllMode, i64>
+/// //   → QuantifiedNodeFilter<TemporalPropertyExpr<NodeFilter>, AllMode>
 /// //   compiles to: AllNodeOp { inner: PropListCompareOp { …, op: Gt } }
 /// ```
 pub struct QuantifiedNodeFilter<E, Q, R>
@@ -674,9 +682,11 @@ where
         self,
         graph: G,
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        let rhs: Arc<dyn NodeOp<Output = Option<Prop>> + 'graph> =
+            self.rhs.create_node_op(graph.clone())?;
         let inner = Arc::new(PropListCompareOp {
-            inner: self.expr.create_node_op(graph.clone())?,
-            rhs: self.rhs.create_node_op(graph)?,
+            inner: self.expr.create_node_op(graph)?,
+            rhs,
             op: self.op,
         });
         Ok(AnyNodeOp { inner })
@@ -708,9 +718,11 @@ where
         self,
         graph: G,
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        let rhs: Arc<dyn NodeOp<Output = Option<Prop>> + 'graph> =
+            self.rhs.create_node_op(graph.clone())?;
         let inner = Arc::new(PropListCompareOp {
-            inner: self.expr.create_node_op(graph.clone())?,
-            rhs: self.rhs.create_node_op(graph)?,
+            inner: self.expr.create_node_op(graph)?,
+            rhs,
             op: self.op,
         });
         Ok(AllNodeOp { inner })
@@ -739,6 +751,334 @@ where
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// QuantifiedIsInNodeFilter<E, Q> — quantified set-membership filter
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// A node filter that checks whether any/all temporal values are in a fixed set.
+///
+/// ```rust,ignore
+/// NodeFilter::temporal_property("status").any().is_in(vec![Prop::Str("A".into()), Prop::Str("B".into())])
+/// ```
+pub struct QuantifiedIsInNodeFilter<E, Q>
+where
+    E: NodeExpr<Output = Prop>,
+    Q: QuantifierMode,
+{
+    pub(crate) expr: E,
+    pub(crate) values: Vec<Prop>,
+    pub(crate) op: SetOp,
+    pub(crate) _q: PhantomData<Q>,
+}
+
+impl<E, Q> Clone for QuantifiedIsInNodeFilter<E, Q>
+where
+    E: NodeExpr<Output = Prop>,
+    Q: QuantifierMode,
+{
+    fn clone(&self) -> Self {
+        Self {
+            expr: self.expr.clone(),
+            values: self.values.clone(),
+            op: self.op,
+            _q: PhantomData,
+        }
+    }
+}
+
+impl<E, Q> ComposableFilter for QuantifiedIsInNodeFilter<E, Q>
+where
+    E: NodeExpr<Output = Prop>,
+    Q: QuantifierMode,
+{
+}
+
+impl<E> CreateFilter for QuantifiedIsInNodeFilter<E, AnyMode>
+where
+    E: NodeExpr<Output = Prop>,
+{
+    type EntityFiltered<'graph, G: GraphViewOps<'graph>> = NodeFilteredGraph<G, AnyNodeOp<'graph>>;
+    type NodeFilter<'graph, G: GraphView + 'graph> = AnyNodeOp<'graph>;
+    type FilteredGraph<'graph, G>
+        = G
+    where
+        Self: 'graph,
+        G: GraphViewOps<'graph>;
+
+    fn create_filter<'graph, G: GraphViewOps<'graph>>(
+        self,
+        graph: G,
+    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
+        let filter = self.create_node_filter(graph.clone())?;
+        Ok(NodeFilteredGraph::new(graph, filter))
+    }
+
+    fn create_node_filter<'graph, G: GraphView + 'graph>(
+        self,
+        graph: G,
+    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        let inner: Arc<dyn NodeOp<Output = Prop> + 'graph> = Arc::new(PropListInSetOp {
+            inner: self.expr.create_node_op(graph)?,
+            values: self.values,
+            op: self.op,
+        });
+        Ok(AnyNodeOp { inner })
+    }
+}
+
+impl<E> CreateFilter for QuantifiedIsInNodeFilter<E, AllMode>
+where
+    E: NodeExpr<Output = Prop>,
+{
+    type EntityFiltered<'graph, G: GraphViewOps<'graph>> = NodeFilteredGraph<G, AllNodeOp<'graph>>;
+    type NodeFilter<'graph, G: GraphView + 'graph> = AllNodeOp<'graph>;
+    type FilteredGraph<'graph, G>
+        = G
+    where
+        Self: 'graph,
+        G: GraphViewOps<'graph>;
+
+    fn create_filter<'graph, G: GraphViewOps<'graph>>(
+        self,
+        graph: G,
+    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
+        let filter = self.create_node_filter(graph.clone())?;
+        Ok(NodeFilteredGraph::new(graph, filter))
+    }
+
+    fn create_node_filter<'graph, G: GraphView + 'graph>(
+        self,
+        graph: G,
+    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        let inner: Arc<dyn NodeOp<Output = Prop> + 'graph> = Arc::new(PropListInSetOp {
+            inner: self.expr.create_node_op(graph)?,
+            values: self.values,
+            op: self.op,
+        });
+        Ok(AllNodeOp { inner })
+    }
+}
+
+impl<E, Q> TryAsCompositeFilter for QuantifiedIsInNodeFilter<E, Q>
+where
+    E: NodeExpr<Output = Prop>,
+    Q: QuantifierMode,
+{
+    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
+
+    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
+
+    fn try_as_composite_exploded_edge_filter(
+        &self,
+    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// QuantifiedStringNodeFilter<E, Q> — quantified string-comparison filter
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// A node filter that applies a string op to every temporal value and reduces with any/all.
+///
+/// ```rust,ignore
+/// NodeFilter::temporal_property("name").any().starts_with("Al")
+/// NodeFilter::temporal_property("tag").all().contains("foo")
+/// ```
+pub struct QuantifiedStringNodeFilter<E, Q>
+where
+    E: NodeExpr<Output = Prop>,
+    Q: QuantifierMode,
+{
+    pub(crate) expr: E,
+    pub(crate) rhs: ArcStr,
+    pub(crate) op: StringOp,
+    pub(crate) _q: PhantomData<Q>,
+}
+
+impl<E, Q> Clone for QuantifiedStringNodeFilter<E, Q>
+where
+    E: NodeExpr<Output = Prop>,
+    Q: QuantifierMode,
+{
+    fn clone(&self) -> Self {
+        Self {
+            expr: self.expr.clone(),
+            rhs: self.rhs.clone(),
+            op: self.op,
+            _q: PhantomData,
+        }
+    }
+}
+
+impl<E, Q> ComposableFilter for QuantifiedStringNodeFilter<E, Q>
+where
+    E: NodeExpr<Output = Prop>,
+    Q: QuantifierMode,
+{
+}
+
+impl<E> CreateFilter for QuantifiedStringNodeFilter<E, AnyMode>
+where
+    E: NodeExpr<Output = Prop>,
+{
+    type EntityFiltered<'graph, G: GraphViewOps<'graph>> = NodeFilteredGraph<G, AnyNodeOp<'graph>>;
+    type NodeFilter<'graph, G: GraphView + 'graph> = AnyNodeOp<'graph>;
+    type FilteredGraph<'graph, G>
+        = G
+    where
+        Self: 'graph,
+        G: GraphViewOps<'graph>;
+
+    fn create_filter<'graph, G: GraphViewOps<'graph>>(
+        self,
+        graph: G,
+    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
+        let filter = self.create_node_filter(graph.clone())?;
+        Ok(NodeFilteredGraph::new(graph, filter))
+    }
+
+    fn create_node_filter<'graph, G: GraphView + 'graph>(
+        self,
+        graph: G,
+    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        let inner: Arc<dyn NodeOp<Output = Prop> + 'graph> = Arc::new(PropListStringOp {
+            inner: self.expr.create_node_op(graph)?,
+            rhs: self.rhs,
+            op: self.op,
+        });
+        Ok(AnyNodeOp { inner })
+    }
+}
+
+impl<E> CreateFilter for QuantifiedStringNodeFilter<E, AllMode>
+where
+    E: NodeExpr<Output = Prop>,
+{
+    type EntityFiltered<'graph, G: GraphViewOps<'graph>> = NodeFilteredGraph<G, AllNodeOp<'graph>>;
+    type NodeFilter<'graph, G: GraphView + 'graph> = AllNodeOp<'graph>;
+    type FilteredGraph<'graph, G>
+        = G
+    where
+        Self: 'graph,
+        G: GraphViewOps<'graph>;
+
+    fn create_filter<'graph, G: GraphViewOps<'graph>>(
+        self,
+        graph: G,
+    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
+        let filter = self.create_node_filter(graph.clone())?;
+        Ok(NodeFilteredGraph::new(graph, filter))
+    }
+
+    fn create_node_filter<'graph, G: GraphView + 'graph>(
+        self,
+        graph: G,
+    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        let inner: Arc<dyn NodeOp<Output = Prop> + 'graph> = Arc::new(PropListStringOp {
+            inner: self.expr.create_node_op(graph)?,
+            rhs: self.rhs,
+            op: self.op,
+        });
+        Ok(AllNodeOp { inner })
+    }
+}
+
+impl<E, Q> TryAsCompositeFilter for QuantifiedStringNodeFilter<E, Q>
+where
+    E: NodeExpr<Output = Prop>,
+    Q: QuantifierMode,
+{
+    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
+
+    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
+
+    fn try_as_composite_exploded_edge_filter(
+        &self,
+    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PropValueSetFilter<E> — is_in / is_not_in for aggregated Option<Prop> values
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// A node filter that checks whether an aggregated scalar property value is in
+/// (or not in) a fixed set of `Prop` values.  Uses linear scan because `Prop`
+/// may contain floats that don't implement `Hash`.
+pub struct PropValueSetFilter<E: NodeExpr<Output = Option<Prop>>> {
+    pub(crate) expr: E,
+    pub(crate) values: Vec<Prop>,
+    pub(crate) op: SetOp,
+}
+
+impl<E: NodeExpr<Output = Option<Prop>>> Clone for PropValueSetFilter<E> {
+    fn clone(&self) -> Self {
+        Self {
+            expr: self.expr.clone(),
+            values: self.values.clone(),
+            op: self.op,
+        }
+    }
+}
+
+impl<E: NodeExpr<Output = Option<Prop>>> ComposableFilter for PropValueSetFilter<E> {}
+
+impl<E: NodeExpr<Output = Option<Prop>>> CreateFilter for PropValueSetFilter<E> {
+    type EntityFiltered<'graph, G: GraphViewOps<'graph>> =
+        NodeFilteredGraph<G, PropValueSetNodeOp<'graph>>;
+    type NodeFilter<'graph, G: GraphView + 'graph> = PropValueSetNodeOp<'graph>;
+    type FilteredGraph<'graph, G>
+        = G
+    where
+        Self: 'graph,
+        G: GraphViewOps<'graph>;
+
+    fn create_filter<'graph, G: GraphViewOps<'graph>>(
+        self,
+        graph: G,
+    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
+        let filter = self.create_node_filter(graph.clone())?;
+        Ok(NodeFilteredGraph::new(graph, filter))
+    }
+
+    fn create_node_filter<'graph, G: GraphView + 'graph>(
+        self,
+        graph: G,
+    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        Ok(PropValueSetNodeOp {
+            inner: self.expr.create_node_op(graph)?,
+            values: self.values,
+            op: self.op,
+        })
+    }
+}
+
+impl<E: NodeExpr<Output = Option<Prop>>> TryAsCompositeFilter for PropValueSetFilter<E> {
+    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
+
+    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
+
+    fn try_as_composite_exploded_edge_filter(
+        &self,
+    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Quantified / Aggregated / TemporalProp — intermediate types in the fluent chain
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -750,7 +1090,7 @@ where
 /// NodeFilter::temporal_property("score").any()   // → Quantified<TemporalPropertyExpr<..>, AnyMode>
 ///     .gt(10i64)                                  // → QuantifiedNodeFilter<TemporalPropertyExpr<..>, AnyMode, i64>
 /// ```
-pub struct Quantified<E, Q>
+pub struct NodeQuantified<E, Q>
 where
     E: NodeExpr<Output = Prop>,
     Q: QuantifierMode,
@@ -759,41 +1099,120 @@ where
     pub(crate) _q: PhantomData<Q>,
 }
 
-impl<E, Q> Quantified<E, Q>
+impl<E, Q> NodeQuantified<E, Q>
 where
     E: NodeExpr<Output = Prop>,
     Q: QuantifierMode,
 {
-    fn finish<R: NodeExpr<Output = Option<Prop>>>(
+    fn finish<R: IntoPropNodeExpr>(
         self,
         op: BinaryOp,
         rhs: R,
-    ) -> QuantifiedNodeFilter<E, Q, R> {
-        QuantifiedNodeFilter::new(self.expr, op, rhs)
+    ) -> QuantifiedNodeFilter<E, Q, R::Expr> {
+        QuantifiedNodeFilter::new(self.expr, op, rhs.into_prop_node_expr())
     }
 
-    pub fn eq<R: NodeExpr<Output = Option<Prop>>>(self, rhs: R) -> QuantifiedNodeFilter<E, Q, R> {
+    pub fn eq<R: IntoPropNodeExpr>(self, rhs: R) -> QuantifiedNodeFilter<E, Q, R::Expr> {
         self.finish(BinaryOp::Eq, rhs)
     }
 
-    pub fn ne<R: NodeExpr<Output = Option<Prop>>>(self, rhs: R) -> QuantifiedNodeFilter<E, Q, R> {
+    pub fn ne<R: IntoPropNodeExpr>(self, rhs: R) -> QuantifiedNodeFilter<E, Q, R::Expr> {
         self.finish(BinaryOp::Ne, rhs)
     }
 
-    pub fn gt<R: NodeExpr<Output = Option<Prop>>>(self, rhs: R) -> QuantifiedNodeFilter<E, Q, R> {
+    pub fn gt<R: IntoPropNodeExpr>(self, rhs: R) -> QuantifiedNodeFilter<E, Q, R::Expr> {
         self.finish(BinaryOp::Gt, rhs)
     }
 
-    pub fn ge<R: NodeExpr<Output = Option<Prop>>>(self, rhs: R) -> QuantifiedNodeFilter<E, Q, R> {
+    pub fn ge<R: IntoPropNodeExpr>(self, rhs: R) -> QuantifiedNodeFilter<E, Q, R::Expr> {
         self.finish(BinaryOp::Ge, rhs)
     }
 
-    pub fn lt<R: NodeExpr<Output = Option<Prop>>>(self, rhs: R) -> QuantifiedNodeFilter<E, Q, R> {
+    pub fn lt<R: IntoPropNodeExpr>(self, rhs: R) -> QuantifiedNodeFilter<E, Q, R::Expr> {
         self.finish(BinaryOp::Lt, rhs)
     }
 
-    pub fn le<R: NodeExpr<Output = Option<Prop>>>(self, rhs: R) -> QuantifiedNodeFilter<E, Q, R> {
+    pub fn le<R: IntoPropNodeExpr>(self, rhs: R) -> QuantifiedNodeFilter<E, Q, R::Expr> {
         self.finish(BinaryOp::Le, rhs)
+    }
+
+    pub fn is_in(self, values: impl IntoIterator<Item = Prop>) -> QuantifiedIsInNodeFilter<E, Q> {
+        QuantifiedIsInNodeFilter {
+            expr: self.expr,
+            values: values.into_iter().collect(),
+            op: SetOp::IsIn,
+            _q: PhantomData,
+        }
+    }
+
+    pub fn is_not_in(self, values: impl IntoIterator<Item = Prop>) -> QuantifiedIsInNodeFilter<E, Q> {
+        QuantifiedIsInNodeFilter {
+            expr: self.expr,
+            values: values.into_iter().collect(),
+            op: SetOp::IsNotIn,
+            _q: PhantomData,
+        }
+    }
+
+    fn string_finish(self, op: StringOp, rhs: &str) -> QuantifiedStringNodeFilter<E, Q> {
+        QuantifiedStringNodeFilter {
+            expr: self.expr,
+            rhs: ArcStr::from(rhs),
+            op,
+            _q: PhantomData,
+        }
+    }
+
+    pub fn starts_with(self, rhs: &str) -> QuantifiedStringNodeFilter<E, Q> {
+        self.string_finish(StringOp::StartsWith, rhs)
+    }
+
+    pub fn ends_with(self, rhs: &str) -> QuantifiedStringNodeFilter<E, Q> {
+        self.string_finish(StringOp::EndsWith, rhs)
+    }
+
+    pub fn contains(self, rhs: &str) -> QuantifiedStringNodeFilter<E, Q> {
+        self.string_finish(StringOp::Contains, rhs)
+    }
+
+    pub fn not_contains(self, rhs: &str) -> QuantifiedStringNodeFilter<E, Q> {
+        self.string_finish(StringOp::NotContains, rhs)
+    }
+
+    pub fn sum(self) -> NodeQuantified<NestedMapExpr<E>, Q> {
+        NodeQuantified { expr: NestedMapExpr { inner: self.expr, op: Op::Sum }, _q: PhantomData }
+    }
+
+    pub fn avg(self) -> NodeQuantified<NestedMapExpr<E>, Q> {
+        NodeQuantified { expr: NestedMapExpr { inner: self.expr, op: Op::Avg }, _q: PhantomData }
+    }
+
+    pub fn min(self) -> NodeQuantified<NestedMapExpr<E>, Q> {
+        NodeQuantified { expr: NestedMapExpr { inner: self.expr, op: Op::Min }, _q: PhantomData }
+    }
+
+    pub fn max(self) -> NodeQuantified<NestedMapExpr<E>, Q> {
+        NodeQuantified { expr: NestedMapExpr { inner: self.expr, op: Op::Max }, _q: PhantomData }
+    }
+
+    pub fn first(self) -> NodeQuantified<NestedMapExpr<E>, Q> {
+        NodeQuantified { expr: NestedMapExpr { inner: self.expr, op: Op::First }, _q: PhantomData }
+    }
+
+    pub fn last(self) -> NodeQuantified<NestedMapExpr<E>, Q> {
+        NodeQuantified { expr: NestedMapExpr { inner: self.expr, op: Op::Last }, _q: PhantomData }
+    }
+
+    pub fn len(self) -> NodeQuantified<NestedMapExpr<E>, Q> {
+        NodeQuantified { expr: NestedMapExpr { inner: self.expr, op: Op::Len }, _q: PhantomData }
+    }
+
+    pub fn any(self) -> NodeQuantified<NestedMapExpr<E>, AnyMode> {
+        NodeQuantified { expr: NestedMapExpr { inner: self.expr, op: Op::Any }, _q: PhantomData }
+    }
+
+    pub fn all(self) -> NodeQuantified<NestedMapExpr<E>, AllMode> {
+        NodeQuantified { expr: NestedMapExpr { inner: self.expr, op: Op::All }, _q: PhantomData }
     }
 }
 
@@ -805,41 +1224,135 @@ where
 /// NodeFilter::temporal_property("price").sum()   // → Aggregated<SumExpr<TemporalPropertyExpr<..>>>
 ///     .gt(100i64)                                 // → BinaryCmpNodeFilter<SumExpr<TemporalPropertyExpr<..>>, i64>
 /// ```
-pub struct Aggregated<E: NodeExpr> {
+pub struct NodeAggregated<E: NodeExpr> {
     pub(crate) expr: E,
 }
 
-impl<E: NodeExpr> Aggregated<E> {
-    fn finish<R: NodeExpr<Output = E::Output>>(
+impl<E: NodeExpr<Output = Option<Prop>>> NodeAggregated<E> {
+    fn finish<R: IntoPropNodeExpr>(
         self,
         op: BinaryOp,
         rhs: R,
-    ) -> BinaryCmpNodeFilter<E, R> {
-        BinaryCmpNodeFilter::new(self.expr, op, rhs)
+    ) -> BinaryCmpNodeFilter<E, R::Expr> {
+        BinaryCmpNodeFilter::new(self.expr, op, rhs.into_prop_node_expr())
     }
 
-    pub fn eq<R: NodeExpr<Output = E::Output>>(self, rhs: R) -> BinaryCmpNodeFilter<E, R> {
+    pub fn eq<R: IntoPropNodeExpr>(self, rhs: R) -> BinaryCmpNodeFilter<E, R::Expr> {
         self.finish(BinaryOp::Eq, rhs)
     }
 
-    pub fn ne<R: NodeExpr<Output = E::Output>>(self, rhs: R) -> BinaryCmpNodeFilter<E, R> {
+    pub fn ne<R: IntoPropNodeExpr>(self, rhs: R) -> BinaryCmpNodeFilter<E, R::Expr> {
         self.finish(BinaryOp::Ne, rhs)
     }
 
-    pub fn gt<R: NodeExpr<Output = E::Output>>(self, rhs: R) -> BinaryCmpNodeFilter<E, R> {
+    pub fn gt<R: IntoPropNodeExpr>(self, rhs: R) -> BinaryCmpNodeFilter<E, R::Expr> {
         self.finish(BinaryOp::Gt, rhs)
     }
 
-    pub fn ge<R: NodeExpr<Output = E::Output>>(self, rhs: R) -> BinaryCmpNodeFilter<E, R> {
+    pub fn ge<R: IntoPropNodeExpr>(self, rhs: R) -> BinaryCmpNodeFilter<E, R::Expr> {
         self.finish(BinaryOp::Ge, rhs)
     }
 
-    pub fn lt<R: NodeExpr<Output = E::Output>>(self, rhs: R) -> BinaryCmpNodeFilter<E, R> {
+    pub fn lt<R: IntoPropNodeExpr>(self, rhs: R) -> BinaryCmpNodeFilter<E, R::Expr> {
         self.finish(BinaryOp::Lt, rhs)
     }
 
-    pub fn le<R: NodeExpr<Output = E::Output>>(self, rhs: R) -> BinaryCmpNodeFilter<E, R> {
+    pub fn le<R: IntoPropNodeExpr>(self, rhs: R) -> BinaryCmpNodeFilter<E, R::Expr> {
         self.finish(BinaryOp::Le, rhs)
+    }
+
+    pub fn is_in(self, values: impl IntoIterator<Item = Prop>) -> PropValueSetFilter<E> {
+        PropValueSetFilter {
+            expr: self.expr,
+            values: values.into_iter().collect(),
+            op: SetOp::IsIn,
+        }
+    }
+
+    pub fn is_not_in(self, values: impl IntoIterator<Item = Prop>) -> PropValueSetFilter<E> {
+        PropValueSetFilter {
+            expr: self.expr,
+            values: values.into_iter().collect(),
+            op: SetOp::IsNotIn,
+        }
+    }
+
+    fn string_finish(self, op: StringOp, rhs: &str) -> StringNodeFilter<E, Prop> {
+        StringNodeFilter::new(self.expr, op, Prop::Str(ArcStr::from(rhs)))
+    }
+
+    pub fn starts_with(self, rhs: &str) -> StringNodeFilter<E, Prop> {
+        self.string_finish(StringOp::StartsWith, rhs)
+    }
+
+    pub fn ends_with(self, rhs: &str) -> StringNodeFilter<E, Prop> {
+        self.string_finish(StringOp::EndsWith, rhs)
+    }
+
+    pub fn contains(self, rhs: &str) -> StringNodeFilter<E, Prop> {
+        self.string_finish(StringOp::Contains, rhs)
+    }
+
+    pub fn not_contains(self, rhs: &str) -> StringNodeFilter<E, Prop> {
+        self.string_finish(StringOp::NotContains, rhs)
+    }
+
+    pub fn is_some(self) -> UnaryNodeFilter<E, Prop> {
+        UnaryNodeFilter {
+            expr: self.expr,
+            op: UnaryOp::IsSome,
+            _phantom: PhantomData,
+        }
+    }
+
+    pub fn is_none(self) -> UnaryNodeFilter<E, Prop> {
+        UnaryNodeFilter {
+            expr: self.expr,
+            op: UnaryOp::IsNone,
+            _phantom: PhantomData,
+        }
+    }
+
+    pub fn sum(self) -> NodeAggregated<SumExpr<UnwrapOptPropNodeExpr<E>>> {
+        NodeAggregated { expr: SumExpr(UnwrapOptPropNodeExpr(self.expr)) }
+    }
+
+    pub fn avg(self) -> NodeAggregated<AvgExpr<UnwrapOptPropNodeExpr<E>>> {
+        NodeAggregated { expr: AvgExpr(UnwrapOptPropNodeExpr(self.expr)) }
+    }
+
+    pub fn min(self) -> NodeAggregated<MinExpr<UnwrapOptPropNodeExpr<E>>> {
+        NodeAggregated { expr: MinExpr(UnwrapOptPropNodeExpr(self.expr)) }
+    }
+
+    pub fn max(self) -> NodeAggregated<MaxExpr<UnwrapOptPropNodeExpr<E>>> {
+        NodeAggregated { expr: MaxExpr(UnwrapOptPropNodeExpr(self.expr)) }
+    }
+
+    pub fn first(self) -> NodeAggregated<FirstExpr<UnwrapOptPropNodeExpr<E>>> {
+        NodeAggregated { expr: FirstExpr(UnwrapOptPropNodeExpr(self.expr)) }
+    }
+
+    pub fn last(self) -> NodeAggregated<LastExpr<UnwrapOptPropNodeExpr<E>>> {
+        NodeAggregated { expr: LastExpr(UnwrapOptPropNodeExpr(self.expr)) }
+    }
+
+    pub fn len(self) -> LenExpr<UnwrapOptPropNodeExpr<E>> {
+        LenExpr(UnwrapOptPropNodeExpr(self.expr))
+    }
+
+    pub fn any(self) -> NodeQuantified<UnwrapOptPropNodeExpr<E>, AnyMode> {
+        NodeQuantified {
+            expr: UnwrapOptPropNodeExpr(self.expr),
+            _q: PhantomData,
+        }
+    }
+
+    pub fn all(self) -> NodeQuantified<UnwrapOptPropNodeExpr<E>, AllMode> {
+        NodeQuantified {
+            expr: UnwrapOptPropNodeExpr(self.expr),
+            _q: PhantomData,
+        }
     }
 }
 
@@ -878,68 +1391,83 @@ impl<E: CreateView + Clone + Send + Sync + 'static> TemporalProp<E> {
             name: name.into(),
         }
     }
+}
 
-    fn make_expr(self) -> TemporalPropertyExpr<E> {
-        TemporalPropertyExpr {
-            view_expr: self.view_expr,
-            name: self.name,
-        }
+// ─────────────────────────────────────────────────────────────────────────────
+// NodePropertyExprOps — fluent comparison API for node-side property expressions
+// ─────────────────────────────────────────────────────────────────────────────
+
+pub trait NodePropertyExprOps: NodeExpr<Output = Option<Prop>> + Sized {
+    fn is_in(self, values: impl IntoIterator<Item = Prop>) -> PropValueSetFilter<Self> {
+        PropValueSetFilter { expr: self, values: values.into_iter().collect(), op: SetOp::IsIn }
     }
-
-    pub fn any(self) -> Quantified<TemporalPropertyExpr<E>, AnyMode> {
-        Quantified {
-            expr: self.make_expr(),
-            _q: PhantomData,
-        }
+    fn is_not_in(self, values: impl IntoIterator<Item = Prop>) -> PropValueSetFilter<Self> {
+        PropValueSetFilter { expr: self, values: values.into_iter().collect(), op: SetOp::IsNotIn }
     }
+}
 
-    pub fn all(self) -> Quantified<TemporalPropertyExpr<E>, AllMode> {
-        Quantified {
-            expr: self.make_expr(),
-            _q: PhantomData,
-        }
+impl<E: CreateView + NodeFilterFactory + Clone + Send + Sync + 'static> NodePropertyExprOps
+    for PropertyExpr<E>
+{
+}
+
+impl<E: CreateView + NodeFilterFactory + Clone + Send + Sync + 'static> NodePropertyExprOps
+    for MetadataExpr<E>
+{
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NodeTemporalPropOps — fluent temporal API for node-side TemporalProp
+// ─────────────────────────────────────────────────────────────────────────────
+
+pub trait NodeTemporalPropOps: Sized {
+    type ViewExpr: CreateView + NodeFilterFactory + Clone + Send + Sync + 'static;
+    fn into_temporal_parts(self) -> (Self::ViewExpr, String);
+
+    fn any(self) -> NodeQuantified<TemporalPropertyExpr<Self::ViewExpr>, AnyMode> {
+        let (view_expr, name) = self.into_temporal_parts();
+        NodeQuantified { expr: TemporalPropertyExpr { view_expr, name }, _q: PhantomData }
     }
-
-    pub fn sum(self) -> Aggregated<SumExpr<TemporalPropertyExpr<E>>> {
-        Aggregated {
-            expr: SumExpr(self.make_expr()),
-        }
+    fn all(self) -> NodeQuantified<TemporalPropertyExpr<Self::ViewExpr>, AllMode> {
+        let (view_expr, name) = self.into_temporal_parts();
+        NodeQuantified { expr: TemporalPropertyExpr { view_expr, name }, _q: PhantomData }
     }
-
-    pub fn avg(self) -> Aggregated<AvgExpr<TemporalPropertyExpr<E>>> {
-        Aggregated {
-            expr: AvgExpr(self.make_expr()),
-        }
+    fn sum(self) -> NodeAggregated<SumExpr<TemporalPropertyExpr<Self::ViewExpr>>> {
+        let (view_expr, name) = self.into_temporal_parts();
+        NodeAggregated { expr: SumExpr(TemporalPropertyExpr { view_expr, name }) }
     }
-
-    pub fn min(self) -> Aggregated<MinExpr<TemporalPropertyExpr<E>>> {
-        Aggregated {
-            expr: MinExpr(self.make_expr()),
-        }
+    fn avg(self) -> NodeAggregated<AvgExpr<TemporalPropertyExpr<Self::ViewExpr>>> {
+        let (view_expr, name) = self.into_temporal_parts();
+        NodeAggregated { expr: AvgExpr(TemporalPropertyExpr { view_expr, name }) }
     }
-
-    pub fn max(self) -> Aggregated<MaxExpr<TemporalPropertyExpr<E>>> {
-        Aggregated {
-            expr: MaxExpr(self.make_expr()),
-        }
+    fn min(self) -> NodeAggregated<MinExpr<TemporalPropertyExpr<Self::ViewExpr>>> {
+        let (view_expr, name) = self.into_temporal_parts();
+        NodeAggregated { expr: MinExpr(TemporalPropertyExpr { view_expr, name }) }
     }
-
-    pub fn first(self) -> Aggregated<FirstExpr<TemporalPropertyExpr<E>>> {
-        Aggregated {
-            expr: FirstExpr(self.make_expr()),
-        }
+    fn max(self) -> NodeAggregated<MaxExpr<TemporalPropertyExpr<Self::ViewExpr>>> {
+        let (view_expr, name) = self.into_temporal_parts();
+        NodeAggregated { expr: MaxExpr(TemporalPropertyExpr { view_expr, name }) }
     }
-
-    pub fn last(self) -> Aggregated<LastExpr<TemporalPropertyExpr<E>>> {
-        Aggregated {
-            expr: LastExpr(self.make_expr()),
-        }
+    fn first(self) -> NodeAggregated<FirstExpr<TemporalPropertyExpr<Self::ViewExpr>>> {
+        let (view_expr, name) = self.into_temporal_parts();
+        NodeAggregated { expr: FirstExpr(TemporalPropertyExpr { view_expr, name }) }
     }
+    fn last(self) -> NodeAggregated<LastExpr<TemporalPropertyExpr<Self::ViewExpr>>> {
+        let (view_expr, name) = self.into_temporal_parts();
+        NodeAggregated { expr: LastExpr(TemporalPropertyExpr { view_expr, name }) }
+    }
+    fn len(self) -> LenExpr<TemporalPropertyExpr<Self::ViewExpr>> {
+        let (view_expr, name) = self.into_temporal_parts();
+        LenExpr(TemporalPropertyExpr { view_expr, name })
+    }
+}
 
-    pub fn len(self) -> Aggregated<LenExpr<TemporalPropertyExpr<E>>> {
-        Aggregated {
-            expr: LenExpr(self.make_expr()),
-        }
+impl<E: CreateView + NodeFilterFactory + Clone + Send + Sync + 'static> NodeTemporalPropOps
+    for TemporalProp<E>
+{
+    type ViewExpr = E;
+    fn into_temporal_parts(self) -> (E, String) {
+        (self.view_expr, self.name)
     }
 }
 
@@ -1065,35 +1593,6 @@ pub trait NodeExprFilterOps: NodeExpr + Sized {
         self.eq(Prop::Bool(false))
     }
 
-    fn is_in<Inner, Iter>(self, values: Iter) -> SetNodeFilter<Self, Inner>
-    where
-        Self: NodeExpr<Output = Option<Inner>>,
-        Inner: Eq + Hash + Clone + Send + Sync + 'static,
-        Iter: IntoIterator<Item = Inner>,
-    {
-        let set: HashSet<_> = values.into_iter().collect();
-        SetNodeFilter {
-            expr: self,
-            op: SetOp::IsIn,
-            values: Arc::new(set),
-            _phantom: PhantomData,
-        }
-    }
-
-    fn is_not_in<Inner, Iter>(self, values: Iter) -> SetNodeFilter<Self, Inner>
-    where
-        Self: NodeExpr<Output = Option<Inner>>,
-        Inner: Eq + Hash + Clone + Send + Sync + 'static,
-        Iter: IntoIterator<Item = Inner>,
-    {
-        let set: HashSet<_> = values.into_iter().collect();
-        SetNodeFilter {
-            expr: self,
-            op: SetOp::IsNotIn,
-            values: Arc::new(set),
-            _phantom: PhantomData,
-        }
-    }
 }
 
 impl<E: NodeExpr> NodeExprFilterOps for E {}
@@ -1106,15 +1605,15 @@ impl<E: NodeExpr> NodeExprFilterOps for E {}
 ///
 /// Available on any `NodeExpr<Output = Prop>` that returns a `Prop::List` (e.g. [`TemporalPropertyExpr`]).
 pub trait TemporalExprOps: NodeExpr<Output = Prop> + Sized {
-    fn any(self) -> Quantified<Self, AnyMode> {
-        Quantified {
+    fn any(self) -> NodeQuantified<Self, AnyMode> {
+        NodeQuantified {
             expr: self,
             _q: PhantomData,
         }
     }
 
-    fn all(self) -> Quantified<Self, AllMode> {
-        Quantified {
+    fn all(self) -> NodeQuantified<Self, AllMode> {
+        NodeQuantified {
             expr: self,
             _q: PhantomData,
         }
