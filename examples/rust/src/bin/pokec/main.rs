@@ -1,7 +1,5 @@
 use raphtory::{
-    algorithms::{
-        centrality::pagerank::page_rank, components::weakly_connected_components,
-    },
+    algorithms::{centrality::pagerank::page_rank, components::weakly_connected_components},
     db::{api::mutation::AdditionOps, graph::graph::Graph},
     io::csv_loader::CsvLoader,
     logging::global_info_logger,

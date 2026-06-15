@@ -536,7 +536,6 @@ mod graphql_test {
         graph
     }
 
-
     fn degree_graph_with_add_edge_only() -> Graph {
         let graph = Graph::new();
 
@@ -645,8 +644,6 @@ mod graphql_test {
             })
         );
     }
-
-    
 
     #[tokio::test]
     async fn test_unique_temporal_properties() {

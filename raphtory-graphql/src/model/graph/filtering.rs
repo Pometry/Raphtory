@@ -1,4 +1,7 @@
-use crate::model::{graph::{node_id::GqlNodeId, property::Value, timeindex::GqlTimeInput}, plugins::operation};
+use crate::model::{
+    graph::{node_id::GqlNodeId, property::Value, timeindex::GqlTimeInput},
+    plugins::operation,
+};
 use async_graphql::dynamic::ValueAccessor;
 use dynamic_graphql::{
     internal::{
@@ -7,16 +10,35 @@ use dynamic_graphql::{
     Enum, InputObject, OneOfInput,
 };
 use raphtory::{
-    db::{api::{state::ops::Degree, view::internal::filtered_edge}, graph::views::filter::model::{
-        ComposableFilter, DynFilter, DynView, NoFilter, ViewWrapOps, degree_filter::DegreeFilter, edge_filter::{CompositeEdgeFilter, EdgeFilter}, filter::{Filter, FilterValue}, filter_operator::FilterOperator, graph_filter::GraphFilter, is_active_edge_filter::IsActiveEdge, is_active_node_filter::IsActiveNode, is_deleted_filter::IsDeletedEdge, is_self_loop_filter::IsSelfLoopEdge, is_valid_filter::IsValidEdge, latest_filter::Latest as LatestWrap, layered_filter::Layered, node_filter::{CompositeNodeFilter, NodeFilter}, property_filter::{Op, PropertyFilter, PropertyFilterValue, PropertyRef}, snapshot_filter::{SnapshotAt as SnapshotAtWrap, SnapshotLatest as SnapshotLatestWrap}, windowed_filter::Windowed
-    }},
+    db::{
+        api::{state::ops::Degree, view::internal::filtered_edge},
+        graph::views::filter::model::{
+            degree_filter::DegreeFilter,
+            edge_filter::{CompositeEdgeFilter, EdgeFilter},
+            filter::{Filter, FilterValue},
+            filter_operator::FilterOperator,
+            graph_filter::GraphFilter,
+            is_active_edge_filter::IsActiveEdge,
+            is_active_node_filter::IsActiveNode,
+            is_deleted_filter::IsDeletedEdge,
+            is_self_loop_filter::IsSelfLoopEdge,
+            is_valid_filter::IsValidEdge,
+            latest_filter::Latest as LatestWrap,
+            layered_filter::Layered,
+            node_filter::{CompositeNodeFilter, NodeFilter},
+            property_filter::{Op, PropertyFilter, PropertyFilterValue, PropertyRef},
+            snapshot_filter::{SnapshotAt as SnapshotAtWrap, SnapshotLatest as SnapshotLatestWrap},
+            windowed_filter::Windowed,
+            ComposableFilter, DynFilter, DynView, NoFilter, ViewWrapOps,
+        },
+    },
     errors::GraphError,
 };
-use raphtory_api::core::Direction;
 use raphtory_api::core::{
     entities::{properties::prop::Prop, Layer, GID},
     storage::timeindex::{AsTime, EventTime},
     utils::time::IntoTime,
+    Direction,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -304,7 +326,6 @@ pub struct PropertyFilterNew {
     pub where_: PropCondition,
 }
 
-
 /// Filters nodes by computed degree with a directional scope.
 ///
 /// `DegreeFilterNew` lets callers filter on:
@@ -330,8 +351,8 @@ pub enum DegreeDirection {
 impl From<DegreeDirection> for Direction {
     fn from(d: DegreeDirection) -> Self {
         match d {
-            DegreeDirection::In   => Direction::IN,
-            DegreeDirection::Out  => Direction::OUT,
+            DegreeDirection::In => Direction::IN,
+            DegreeDirection::Out => Direction::OUT,
             DegreeDirection::Both => Direction::BOTH,
         }
     }
@@ -342,7 +363,7 @@ impl From<DegreeDirection> for String {
         match d {
             DegreeDirection::In => "in_degree".to_string(),
             DegreeDirection::Out => "out_degree".to_string(),
-            DegreeDirection::Both => "degree".to_string(), 
+            DegreeDirection::Both => "degree".to_string(),
         }
     }
 }
@@ -1440,8 +1461,8 @@ impl TryFrom<GqlNodeFilter> for CompositeNodeFilter {
                     direction: core_direction,
                     operator,
                     value,
-                    ops
-                })) 
+                    ops,
+                }))
             }
             GqlNodeFilter::Property(prop) => {
                 let prop_ref = PropertyRef::Property(prop.name.clone());
