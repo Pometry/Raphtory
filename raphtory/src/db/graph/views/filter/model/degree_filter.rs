@@ -1,20 +1,18 @@
-use std::{collections::HashSet, sync::Arc};
-
 use crate::{
     db::{
         api::{
             state::ops::{filter::NodeDegreeFilterOp, GraphView},
-            view::{GraphViewOps, NodeViewOps},
+            view::GraphViewOps,
         },
         graph::views::filter::{
             model,
             model::{
                 property_filter::{
-                    builders::{PropertyExprBuilder, PropertyExprBuilderInput},
-                    Op, PropertyFilter, PropertyFilterInput, PropertyFilterValue, PropertyRef,
+                    builders::PropertyExprBuilderInput, Op, PropertyFilter, PropertyFilterInput,
+                    PropertyFilterValue, PropertyRef,
                 },
-                CombinedFilter, ComposableFilter, CompositeNodeFilter, EntityMarker,
-                FilterOperator, InternalPropertyFilterBuilder, NodeFilter, TryAsCompositeFilter,
+                CombinedFilter, ComposableFilter, CompositeNodeFilter, FilterOperator,
+                InternalPropertyFilterBuilder, NodeFilter, TryAsCompositeFilter,
             },
             node_filtered_graph::NodeFilteredGraph,
             CreateFilter,
@@ -26,9 +24,7 @@ use raphtory_api::core::{
     entities::properties::prop::{Prop, PropType},
     Direction,
 };
-use raphtory_core::entities::VID;
-use raphtory_storage::graph::nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps};
-use std::{fmt, fmt::Display};
+use std::{collections::HashSet, fmt, fmt::Display, sync::Arc};
 
 #[derive(Clone)]
 pub struct DegreeFilterBuilder {

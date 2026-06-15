@@ -242,7 +242,7 @@ impl NodeTimeSemanticsOps for EventSemantics {
         // nodes with explicit additions are always valid
         let layers = view.layer_ids();
         let has_history = !node
-            .node_additions(&layers.union(&LayerIds::One(STATIC_GRAPH_LAYER_ID)))
+            .node_prop_additions(&layers.union(&LayerIds::One(STATIC_GRAPH_LAYER_ID)))
             .is_empty();
         if has_history {
             return true;
