@@ -57,7 +57,7 @@ use crate::{
 use raphtory_api::core::entities::edges::edge_ref::EdgeRef;
 use raphtory_api::core::{
     entities::{
-        properties::prop::{Prop, PropArray, PropType},
+        properties::prop::{IntoProp, Prop, PropArray, PropType},
         VID,
     },
     storage::arc_str::ArcStr,
@@ -186,7 +186,7 @@ macro_rules! impl_agg_entity_op {
 
         #[derive(Clone)]
         pub struct $edge_name<'g> {
-            pub inner: Arc<dyn EdgeOp<Output = Prop> + 'g>,
+            pub inner: Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>,
         }
 
         impl<'g> EdgeOp for $edge_name<'g> {
@@ -273,7 +273,7 @@ impl_agg_entity_op!(LastNodeOp, LastEdgeOp, |vals| {
     aggregate_values(vals, |pi| pi.last())
 });
 impl_agg_entity_op!(LenNodeOp, LenEdgeOp, |vals| {
-    aggregate_values(vals, |pi| pi.count().into_prop())
+    aggregate_values(vals, |pi| Some(pi.count().into_prop()))
 });
 impl_agg_entity_op!(AnyNodeOp, AnyEdgeOp, |vals| {
     aggregate_values(vals, |pi| {
