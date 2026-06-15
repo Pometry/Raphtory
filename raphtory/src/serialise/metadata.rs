@@ -3,29 +3,15 @@ use crate::{
     prelude::GraphViewOps,
     serialise::{GraphFolder, GraphPaths},
 };
-use raphtory_api::GraphType;
-use serde::{Deserialize, Serialize};
+use raphtory_api::core::storage::graph_folder::GraphMetadata;
 
-#[derive(PartialEq, Serialize, Deserialize, Debug)]
-pub struct GraphMetadata {
-    pub node_count: usize,
-    pub edge_count: usize,
-    pub graph_type: GraphType,
-    pub is_diskgraph: bool,
-}
-
-impl GraphMetadata {
-    pub fn from_graph<G: GraphView>(graph: G) -> Self {
-        let node_count = graph.count_nodes();
-        let edge_count = graph.count_edges();
-        let graph_type = graph.graph_type();
-        let is_diskgraph = graph.disk_storage_path().is_some();
-        Self {
-            node_count,
-            edge_count,
-            graph_type,
-            is_diskgraph,
-        }
+/// Build the [`GraphMetadata`] summary for a graph
+pub fn build_graph_metadata(graph: impl GraphView) -> GraphMetadata {
+    GraphMetadata {
+        node_count: graph.count_nodes(),
+        edge_count: graph.count_edges(),
+        graph_type: graph.graph_type(),
+        is_diskgraph: graph.disk_storage_path().is_some(),
     }
 }
 

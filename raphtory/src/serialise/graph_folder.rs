@@ -12,14 +12,14 @@
 
 use crate::{
     db::api::view::internal::GraphView, errors::GraphError, prelude::ParquetEncoder,
-    serialise::metadata::GraphMetadata,
+    serialise::metadata::build_graph_metadata,
 };
 use itertools::Itertools;
 use raphtory_api::core::{
     input::input_node::parse_u64_strict,
     storage::graph_folder::{
-        DATA_PATH, DIRTY_PATH, GRAPH_META_PATH, GRAPH_PATH, INDEX_PATH, ROOT_META_PATH,
-        VECTORS_PATH,
+        GraphMetadata, Metadata, DATA_PATH, DIRTY_PATH, GRAPH_META_PATH, GRAPH_PATH, INDEX_PATH,
+        ROOT_META_PATH, VECTORS_PATH,
     },
 };
 use serde::{Deserialize, Serialize};
@@ -128,12 +128,6 @@ pub struct RelativePath {
     pub path: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Metadata {
-    pub path: String,
-    pub meta: GraphMetadata,
-}
-
 pub trait GraphPaths {
     fn root(&self) -> &Path;
 
@@ -223,16 +217,12 @@ pub trait GraphPaths {
 
     fn write_metadata(&self, graph: impl GraphView) -> Result<(), GraphError> {
         let graph_path = self.relative_graph_path()?;
-        let metadata = GraphMetadata::from_graph(graph);
+        let metadata = build_graph_metadata(graph);
         let meta = Metadata {
             path: graph_path,
             meta: metadata,
         };
-        let tmp_path = self.data_path()?.path.join(".tmp");
-        let tmp_file = File::create(&tmp_path)?;
-        serde_json::to_writer(tmp_file, &meta)?;
-        let path = self.meta_path()?;
-        fs::rename(tmp_path, path)?;
+        meta.write_atomic(self.data_path()?.as_ref())?;
         Ok(())
     }
 
@@ -518,7 +508,7 @@ impl AsRef<Path> for InnerGraphFolder {
 impl InnerGraphFolder {
     pub fn write_metadata(&self, graph: impl GraphView) -> Result<(), GraphError> {
         let graph_path = self.relative_graph_path()?;
-        let metadata = GraphMetadata::from_graph(graph);
+        let metadata = build_graph_metadata(graph);
         let meta = Metadata {
             path: graph_path,
             meta: metadata,
@@ -543,7 +533,7 @@ impl InnerGraphFolder {
         let data_path = self.as_ref();
         let old_relative_graph_path = self.relative_graph_path()?;
         let old_graph_path = self.path.join(&old_relative_graph_path);
-        let meta = GraphMetadata::from_graph(&graph);
+        let meta = build_graph_metadata(&graph);
         let new_relative_graph_path = make_path_pointer(data_path, GRAPH_META_PATH, GRAPH_PATH)?;
         graph.encode_parquet(data_path.join(&new_relative_graph_path))?;
 

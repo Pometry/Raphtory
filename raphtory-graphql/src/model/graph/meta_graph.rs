@@ -9,8 +9,9 @@ use raphtory::{
     db::api::storage::storage::read_constant_graph_properties,
     errors::GraphError,
     prelude::{GraphViewOps, PropertiesOps},
-    serialise::{metadata::GraphMetadata, parquet::decode_graph_metadata, GraphPaths},
+    serialise::{parquet::decode_graph_metadata, GraphPaths},
 };
+use raphtory_api::core::storage::graph_folder::GraphMetadata;
 use std::{cmp::Ordering, sync::Arc};
 use tokio::sync::OnceCell;
 

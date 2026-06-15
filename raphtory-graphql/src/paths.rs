@@ -7,12 +7,9 @@ use raphtory::{
     },
     errors::{GraphError, InvalidPathReason},
     prelude::{AdditionOps, GraphViewOps},
-    serialise::{
-        metadata::GraphMetadata, GraphFolder, GraphPaths, RelativePath, StableDecode,
-        WriteableGraphFolder,
-    },
+    serialise::{GraphFolder, GraphPaths, RelativePath, StableDecode, WriteableGraphFolder},
 };
-use raphtory_api::core::storage::graph_folder::{DIRTY_PATH, ROOT_META_PATH};
+use raphtory_api::core::storage::graph_folder::{GraphMetadata, DIRTY_PATH, ROOT_META_PATH};
 use std::{
     cmp::Ordering,
     fs,
