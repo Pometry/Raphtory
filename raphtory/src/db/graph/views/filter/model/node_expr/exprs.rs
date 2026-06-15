@@ -168,7 +168,7 @@ impl NodeExpr for usize {
         &self,
         _graph: G,
     ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        Ok(Arc::new(Const(*self.into())))
+        Ok(Arc::new(Const(Some(Prop::U64(*self as u64)))))
     }
 }
 
@@ -183,7 +183,7 @@ impl NodeExpr for String {
         &self,
         _graph: G,
     ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        Ok(Arc::new(Const(self.clone().into_prop())))
+        Ok(Arc::new(Const(Some(self.clone().into_prop()))))
     }
 }
 
@@ -213,7 +213,7 @@ impl NodeExpr for &'static str {
         &self,
         _graph: G,
     ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        Ok(Arc::new(Const(Some(*self.into_prop()))))
+        Ok(Arc::new(Const(Some((*self).into_prop()))))
     }
 }
 
@@ -253,7 +253,7 @@ macro_rules! impl_node_expr_for_numeric {
                 &self,
                 _graph: G,
             ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
-                Ok(Arc::new(Const(Some(*self))))
+                Ok(Arc::new(Const(Some(Prop::$variant(*self)))))
             }
         }
     };
