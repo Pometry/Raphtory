@@ -60,7 +60,6 @@ use raphtory_api::core::{
         properties::prop::{IntoProp, Prop, PropArray, PropType},
         VID,
     },
-    storage::arc_str::ArcStr,
 };
 use raphtory_storage::graph::graph::GraphStorage;
 use std::{collections::HashSet, hash::Hash, sync::Arc};
@@ -287,144 +286,86 @@ impl_agg_entity_op!(AllNodeOp, AllEdgeOp, |vals| {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// AnyNodeOp / AllNodeOp — unary reducers over a Prop::List of booleans
+// ListAwareCmpNodeOp / ListAwareStringNodeOp / ListAwareSetNodeOp
+//
+// These ops implement NodeExpr for BinaryCmpNodeFilter, StringNodeFilter, and
+// PropValueSetFilter respectively, enabling mid-chain use before .any()/.all().
+//
+// Each uses aggregate_values so arbitrary nesting depth is handled automatically:
+//   temporal().sum().gt(5).any()
+//   temporal().contains("rock").all()
+//   temporal().is_in([...]).any()
 // ─────────────────────────────────────────────────────────────────────────────
 
-fn prop_any(prop: &Prop) -> bool {
-    match prop {
-        Prop::Bool(b) => *b,
-        Prop::List(arr) => arr.iter().any(|p| prop_any(&p)),
-        _ => false,
-    }
-}
-
-fn prop_all(prop: &Prop) -> bool {
-    match prop {
-        Prop::Bool(b) => *b,
-        Prop::List(arr) => !arr.is_empty() && arr.iter().all(|p| prop_all(&p)),
-        _ => false,
-    }
-}
-
-/// Internal op produced inside `QuantifiedNodeFilter::create_node_filter`.
-///
-/// Applies `BinaryOp` element-wise to a `Prop::List` (from `TemporalNodePropOp`)
-/// against a scalar RHS, producing `Prop::List([Bool, Bool, …])`.
-/// That boolean list is then reduced by [`AnyNodeOp`] or [`AllNodeOp`].
-pub(crate) struct PropListCompareOp<'g> {
-    pub(crate) inner: Arc<dyn NodeOp<Output = Prop> + 'g>,
-    pub(crate) rhs: Arc<dyn NodeOp<Output = Option<Prop>> + 'g>,
+#[derive(Clone)]
+pub(crate) struct ListAwareCmpNodeOp<'g> {
+    pub(crate) left: Arc<dyn NodeOp<Output = Option<Prop>> + 'g>,
+    pub(crate) right: Arc<dyn NodeOp<Output = Option<Prop>> + 'g>,
     pub(crate) op: BinaryOp,
 }
 
-impl<'g> Clone for PropListCompareOp<'g> {
-    fn clone(&self) -> Self {
-        Self {
-            inner: self.inner.clone(),
-            rhs: self.rhs.clone(),
-            op: self.op,
-        }
+impl<'g> NodeOp for ListAwareCmpNodeOp<'g> {
+    type Output = Option<Prop>;
+
+    fn apply(&self, storage: &GraphStorage, node: VID) -> Option<Prop> {
+        let lv = self.left.apply(storage, node);
+        let rhs = self.right.apply(storage, node)?;
+        let op = &self.op;
+        aggregate_values(lv, |pi| {
+            let bools: Vec<Prop> = pi
+                .map(|v| Prop::Bool(Prop::binary_cmp(op, &v, &rhs)))
+                .collect();
+            if bools.is_empty() { None } else { Some(Prop::List(PropArray::from(bools))) }
+        })
     }
 }
 
-impl<'g> NodeOp for PropListCompareOp<'g> {
-    type Output = Prop;
+#[derive(Clone)]
+pub(crate) struct ListAwareStringNodeOp<'g> {
+    pub(crate) left: Arc<dyn NodeOp<Output = Option<Prop>> + 'g>,
+    pub(crate) right: Arc<dyn NodeOp<Output = Option<Prop>> + 'g>,
+    pub(crate) op: StringOp,
+}
 
-    fn apply(&self, storage: &GraphStorage, node: VID) -> Prop {
-        let Some(rhs) = self.rhs.apply(storage, node) else {
-            return Prop::List(PropArray::from(vec![]));
-        };
-        let prop = self.inner.apply(storage, node);
-        match prop {
-            Prop::List(arr) => {
-                let bools: Vec<Prop> = arr
-                    .iter()
-                    .map(|v| Prop::Bool(Prop::binary_cmp(&self.op, &v, &rhs)))
-                    .collect();
-                Prop::List(PropArray::from(bools))
-            }
-            other => Prop::Bool(Prop::binary_cmp(&self.op, &other, &rhs)),
-        }
+impl<'g> NodeOp for ListAwareStringNodeOp<'g> {
+    type Output = Option<Prop>;
+
+    fn apply(&self, storage: &GraphStorage, node: VID) -> Option<Prop> {
+        let lv = self.left.apply(storage, node);
+        let rhs = self.right.apply(storage, node);
+        let op = &self.op;
+        aggregate_values(lv, |pi| {
+            let bools: Vec<Prop> = pi
+                .map(|v| Prop::Bool(Option::<Prop>::string_cmp(op, &Some(v), &rhs)))
+                .collect();
+            if bools.is_empty() { None } else { Some(Prop::List(PropArray::from(bools))) }
+        })
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// PropListInSetOp<'g> — element-wise set-membership test on a Prop::List
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// Checks each element of a `Prop::List` against a fixed `Vec<Prop>`, producing
-/// `Prop::List([Bool, …])`.  The result is then reduced by [`AnyNodeOp`] or [`AllNodeOp`].
-pub(crate) struct PropListInSetOp<'g> {
-    pub(crate) inner: Arc<dyn NodeOp<Output = Prop> + 'g>,
+#[derive(Clone)]
+pub(crate) struct ListAwareSetNodeOp<'g> {
+    pub(crate) inner: Arc<dyn NodeOp<Output = Option<Prop>> + 'g>,
     pub(crate) values: Vec<Prop>,
     pub(crate) op: SetOp,
 }
 
-impl<'g> Clone for PropListInSetOp<'g> {
-    fn clone(&self) -> Self {
-        Self {
-            inner: self.inner.clone(),
-            values: self.values.clone(),
-            op: self.op,
-        }
-    }
-}
+impl<'g> NodeOp for ListAwareSetNodeOp<'g> {
+    type Output = Option<Prop>;
 
-impl<'g> NodeOp for PropListInSetOp<'g> {
-    type Output = Prop;
-
-    fn apply(&self, storage: &GraphStorage, node: VID) -> Prop {
-        let Prop::List(arr) = self.inner.apply(storage, node) else {
-            return Prop::List(PropArray::from(vec![]));
-        };
-        let bools: Vec<Prop> = arr
-            .iter()
-            .map(|v| {
-                Prop::Bool(match self.op {
-                    SetOp::IsIn => self.values.iter().any(|x| x == &v),
-                    SetOp::IsNotIn => self.values.iter().all(|x| x != &v),
-                })
-            })
-            .collect();
-        Prop::List(PropArray::from(bools))
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// PropListStringOp<'g> — element-wise string comparison on a Prop::List
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// Applies a [`StringOp`] to each element of a `Prop::List` against a scalar RHS,
-/// producing `Prop::List([Bool, …])`.  Reduced by [`AnyNodeOp`] or [`AllNodeOp`].
-pub(crate) struct PropListStringOp<'g> {
-    pub(crate) inner: Arc<dyn NodeOp<Output = Prop> + 'g>,
-    pub(crate) rhs: ArcStr,
-    pub(crate) op: StringOp,
-}
-
-impl<'g> Clone for PropListStringOp<'g> {
-    fn clone(&self) -> Self {
-        Self {
-            inner: self.inner.clone(),
-            rhs: self.rhs.clone(),
-            op: self.op,
-        }
-    }
-}
-
-impl<'g> NodeOp for PropListStringOp<'g> {
-    type Output = Prop;
-
-    fn apply(&self, storage: &GraphStorage, node: VID) -> Prop {
-        let Prop::List(arr) = self.inner.apply(storage, node) else {
-            return Prop::List(PropArray::from(vec![]));
-        };
-        let rhs = Some(Prop::Str(self.rhs.clone()));
-        let bools: Vec<Prop> = arr
-            .iter()
-            .map(|v| Prop::Bool(Option::<Prop>::string_cmp(&self.op, &Some(v), &rhs)))
-            .collect();
-        Prop::List(PropArray::from(bools))
+    fn apply(&self, storage: &GraphStorage, node: VID) -> Option<Prop> {
+        let vals = self.inner.apply(storage, node);
+        let values = &self.values;
+        let op = &self.op;
+        aggregate_values(vals, |pi| {
+            let bools: Vec<Prop> = pi
+                .map(|v| Prop::Bool(match op {
+                    SetOp::IsIn => values.iter().any(|x| x == &v),
+                    SetOp::IsNotIn => values.iter().all(|x| x != &v),
+                }))
+                .collect();
+            if bools.is_empty() { None } else { Some(Prop::List(PropArray::from(bools))) }
+        })
     }
 }
 

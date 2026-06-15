@@ -37,10 +37,10 @@
 
 use super::{
     ops::{
-        AllNodeOp, AnyNodeOp, BinaryCmpNodeOp, PropListCompareOp, PropListInSetOp,
-        PropListStringOp, PropValueSetNodeOp, SetNodeOp, StringNodeOp, UnaryNodeOp,
+        AllNodeOp, AnyNodeOp, BinaryCmpNodeOp, ListAwareCmpNodeOp, ListAwareSetNodeOp,
+        ListAwareStringNodeOp, PropValueSetNodeOp, SetNodeOp, StringNodeOp, UnaryNodeOp,
     },
-    NodeExpr, TemporalPropertyExpr,
+    EntityExpr, NodeExpr, TemporalPropertyExpr,
 };
 use crate::{
     db::{
@@ -797,3 +797,53 @@ pub trait NodeExprFilterOps: NodeExpr + Sized {
 }
 
 impl<E: NodeExpr> NodeExprFilterOps for E {}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NodeExpr impls for filter types — enables mid-chain use before .any()/.all()
+//
+// e.g. temporal().sum().gt(5).any()
+//      temporal().contains("rock").all()
+//      temporal().is_in([...]).any()
+// ─────────────────────────────────────────────────────────────────────────────
+
+impl<L: NodeExpr, R: NodeExpr> EntityExpr for BinaryCmpNodeFilter<L, R> {}
+
+impl<L: NodeExpr, R: NodeExpr> NodeExpr for BinaryCmpNodeFilter<L, R> {
+    fn create_node_op<'g, G: GraphView + 'g>(
+        &self,
+        graph: G,
+    ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
+        let left = self.left.create_node_op(graph.clone())?;
+        let right = self.right.create_node_op(graph)?;
+        Ok(Arc::new(ListAwareCmpNodeOp { left, right, op: self.op }))
+    }
+}
+
+impl<L: NodeExpr, R: NodeExpr> EntityExpr for StringNodeFilter<L, R> {}
+
+impl<L: NodeExpr, R: NodeExpr> NodeExpr for StringNodeFilter<L, R> {
+    fn create_node_op<'g, G: GraphView + 'g>(
+        &self,
+        graph: G,
+    ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
+        let left = self.left.create_node_op(graph.clone())?;
+        let right = self.right.create_node_op(graph)?;
+        Ok(Arc::new(ListAwareStringNodeOp { left, right, op: self.op }))
+    }
+}
+
+impl<E: NodeExpr> EntityExpr for PropValueSetFilter<E> {}
+
+impl<E: NodeExpr> NodeExpr for PropValueSetFilter<E> {
+    fn create_node_op<'g, G: GraphView + 'g>(
+        &self,
+        graph: G,
+    ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
+        let inner = self.expr.create_node_op(graph)?;
+        Ok(Arc::new(ListAwareSetNodeOp {
+            inner,
+            values: self.values.clone(),
+            op: self.op,
+        }))
+    }
+}
