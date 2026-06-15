@@ -1,5 +1,5 @@
 use crate::core::{
-    entities::properties::meta::STATIC_GRAPH_LAYER,
+    entities::properties::meta::STATIC_GRAPH_LAYER_NAME,
     storage::{arc_str::ArcStr, ArcRwLockReadGuard},
 };
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
@@ -203,7 +203,7 @@ impl DictMapper {
     }
 
     pub fn new_layer_mapper() -> Self {
-        Self::new_with_private_fields([STATIC_GRAPH_LAYER])
+        Self::new_with_private_fields([STATIC_GRAPH_LAYER_NAME])
     }
 
     pub fn new_with_private_fields(fields: impl IntoIterator<Item = impl Into<ArcStr>>) -> Self {
