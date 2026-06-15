@@ -13,6 +13,11 @@ pub(crate) mod property_schema;
 
 const ENUM_BOUNDARY: usize = 20;
 
+/// Above this many entities (nodes graph-wide for `NodeSchema`, edges
+/// graph-wide for `EdgeSchema`), schema resolvers skip collecting property
+/// values (variants) and only return keys and types
+const MAX_DETAILED_SCHEMA_ENTITIES: usize = 1000;
+
 const DEFAULT_NODE_TYPE: &'static str = "None";
 
 fn get_node_type<'graph, G: GraphViewOps<'graph>>(node: NodeView<'graph, G>) -> String {

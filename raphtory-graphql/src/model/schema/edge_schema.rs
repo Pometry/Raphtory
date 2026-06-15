@@ -1,6 +1,7 @@
 use crate::{
     model::schema::{
-        get_node_type, merge_schemas, property_schema::PropertySchema, SchemaAggregate,
+        merge_schemas, property_schema::PropertySchema, SchemaAggregate,
+        MAX_DETAILED_SCHEMA_ENTITIES,
     },
     rayon::blocking_compute,
 };
@@ -10,8 +11,10 @@ use raphtory::{
     db::{api::view::StaticGraphViewOps, graph::edge::EdgeView},
     prelude::*,
 };
-use raphtory_api::core::entities::properties::meta::PropMapper;
-use std::collections::HashSet;
+use raphtory_api::core::entities::{
+    edges::edge_ref::EdgeRef, properties::meta::PropMapper, LayerIds,
+};
+use std::{collections::HashSet, sync::Arc};
 
 /// Describes edges between a specific pair of node types — the property and
 /// metadata keys seen on such edges, along with their observed value types.
@@ -21,23 +24,22 @@ pub(crate) struct EdgeSchema<G: StaticGraphViewOps> {
     graph: G,
     src_type: String,
     dst_type: String,
+    // scan once and remember edges matching the (srcType, dstType)
+    edges: Arc<[EdgeRef]>,
 }
 
 impl<G: StaticGraphViewOps> EdgeSchema<G> {
-    pub fn new(graph: G, src_type: String, dst_type: String) -> Self {
+    pub fn new(graph: G, src_type: String, dst_type: String, edges: Vec<EdgeRef>) -> Self {
         Self {
             graph,
             src_type,
             dst_type,
+            edges: edges.into(),
         }
     }
 
-    fn edges(&self) -> impl Iterator<Item = EdgeView<&G>> {
-        (&&self.graph).edges().into_iter().filter(|&edge| {
-            let src_type = get_node_type(edge.src());
-            let dst_type = get_node_type(edge.dst());
-            src_type == self.src_type && dst_type == self.dst_type
-        })
+    fn edges(&self) -> impl Iterator<Item = EdgeView<&G>> + '_ {
+        self.edges.iter().map(|e| EdgeView::new(&self.graph, *e))
     }
 }
 
@@ -57,12 +59,29 @@ impl<G: StaticGraphViewOps> EdgeSchema<G> {
     async fn properties(&self) -> Vec<PropertySchema> {
         let cloned = self.clone();
         blocking_compute(move || {
-            let schema: SchemaAggregate = cloned
-                .edges()
-                .map(collect_edge_property_schema)
-                .reduce(merge_schemas)
-                .unwrap_or_default();
-            schema.into_iter().map(|prop| prop.into()).collect_vec()
+            if cloned.graph.unfiltered_num_edges(&LayerIds::All) > MAX_DETAILED_SCHEMA_ENTITIES {
+                // large graph, do not collect detailed schema as it is expensive
+                let visible: HashSet<usize> =
+                    cloned.graph.edge_visible_temporal_prop_ids().collect();
+                cloned
+                    .graph
+                    .edge_meta()
+                    .temporal_prop_mapper()
+                    .locked()
+                    .iter_ids_and_types()
+                    .filter(|(id, _, _)| visible.contains(id))
+                    .map(|(_, name, dtype)| {
+                        PropertySchema::new(name.to_string(), dtype.to_string(), vec![])
+                    })
+                    .collect()
+            } else {
+                let schema: SchemaAggregate = cloned
+                    .edges()
+                    .map(collect_edge_property_schema)
+                    .reduce(merge_schemas)
+                    .unwrap_or_default();
+                schema.into_iter().map(|prop| prop.into()).collect_vec()
+            }
         })
         .await
     }
@@ -70,12 +89,28 @@ impl<G: StaticGraphViewOps> EdgeSchema<G> {
     async fn metadata(&self) -> Vec<PropertySchema> {
         let cloned = self.clone();
         blocking_compute(move || {
-            let schema: SchemaAggregate = cloned
-                .edges()
-                .map(collect_edge_metadata_schema)
-                .reduce(merge_schemas)
-                .unwrap_or_default();
-            schema.into_iter().map(|prop| prop.into()).collect_vec()
+            if cloned.graph.unfiltered_num_edges(&LayerIds::All) > MAX_DETAILED_SCHEMA_ENTITIES {
+                // large graph, do not collect detailed schema as it is expensive
+                let visible: HashSet<usize> = cloned.graph.edge_visible_metadata_ids().collect();
+                cloned
+                    .graph
+                    .edge_meta()
+                    .metadata_mapper()
+                    .locked()
+                    .iter_ids_and_types()
+                    .filter(|(id, _, _)| visible.contains(id))
+                    .map(|(_, name, dtype)| {
+                        PropertySchema::new(name.to_string(), dtype.to_string(), vec![])
+                    })
+                    .collect()
+            } else {
+                let schema: SchemaAggregate = cloned
+                    .edges()
+                    .map(collect_edge_metadata_schema)
+                    .reduce(merge_schemas) // FIXME: Stop scanning all properties, take the first (or last) 20
+                    .unwrap_or_default();
+                schema.into_iter().map(|prop| prop.into()).collect_vec()
+            }
         })
         .await
     }

@@ -1,4 +1,6 @@
-use crate::model::schema::{property_schema::PropertySchema, DEFAULT_NODE_TYPE};
+use crate::model::schema::{
+    property_schema::PropertySchema, DEFAULT_NODE_TYPE, MAX_DETAILED_SCHEMA_ENTITIES,
+};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
     db::{
@@ -76,7 +78,7 @@ impl NodeSchema {
             .map(|(_, name, dtype)| (name.to_string(), dtype.to_string()))
             .unzip();
 
-        if self.graph.unfiltered_num_nodes(&LayerIds::All) > 1000 {
+        if self.graph.unfiltered_num_nodes(&LayerIds::All) > MAX_DETAILED_SCHEMA_ENTITIES {
             // large graph, do not collect detailed schema as it is expensive
             keys.into_iter()
                 .zip(property_types)
@@ -126,7 +128,7 @@ impl NodeSchema {
             .map(|(_, name, dtype)| (name.to_string(), dtype.to_string()))
             .unzip();
 
-        if self.graph.unfiltered_num_nodes(&LayerIds::All) > 1000 {
+        if self.graph.unfiltered_num_nodes(&LayerIds::All) > MAX_DETAILED_SCHEMA_ENTITIES {
             // large graph, do not collect detailed schema as it is expensive
             keys.into_iter()
                 .zip(property_types)
