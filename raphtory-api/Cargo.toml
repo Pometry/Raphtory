@@ -45,8 +45,6 @@ iter-enum = { workspace = true }
 minijinja = { workspace = true, optional = true }
 display-error-chain = { workspace = true, optional = true }
 indexmap.workspace = true
-walkdir.workspace = true
-zip.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true
