@@ -377,6 +377,11 @@ impl<
         let wal = self.ext.wal();
         let control_file = self.ext.control_file();
 
+        // If the DB is dropped in the middle of crash recovery, skip the shutdown flush.
+        if control_file.db_state() == DBState::CrashRecovery {
+            return;
+        }
+
         match self.flush() {
             Ok(_) => {
                 // Log a checkpoint record in the WAL, indicating that the DB was shutdown
