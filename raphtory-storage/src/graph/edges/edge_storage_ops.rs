@@ -2,7 +2,7 @@ use iter_enum::{DoubleEndedIterator, ExactSizeIterator, FusedIterator, Iterator}
 use raphtory_api::core::{
     entities::{
         edges::edge_ref::{Dir, EdgeRef},
-        properties::{meta::STATIC_GRAPH_LAYER_ID, prop::Prop, tprop::TPropOps},
+        properties::{prop::Prop, tprop::TPropOps},
         LayerId, LayerIds, LayerVariants, EID, VID,
     },
     storage::timeindex::{EventTime, TimeIndexOps},
@@ -186,7 +186,7 @@ impl<'a> EdgeStorageOps<'a> for storage::EdgeEntryRef<'a> {
     fn has_layer(self, layer_ids: &LayerIds) -> bool {
         match layer_ids {
             LayerIds::None => false,
-            LayerIds::All => self.has_layer_inner(STATIC_GRAPH_LAYER_ID),
+            LayerIds::All => true, // if we have the edge, it must exist, no need to check the static graph
             LayerIds::One(id) => self.has_layer_inner(*id),
             LayerIds::Multiple(ids) => self.has_layers(ids),
         }
