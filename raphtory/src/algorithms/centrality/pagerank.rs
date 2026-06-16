@@ -3,7 +3,7 @@ use crate::{
     db::{
         api::{
             state::{GenericNodeState, TypedNodeState},
-            view::{NodeViewOps, StaticGraphViewOps},
+            view::{EdgeViewOps, NodeViewOps, StaticGraphViewOps},
         },
         task::{
             context::Context,
@@ -11,9 +11,10 @@ use crate::{
             task_runner::TaskRunner,
         },
     },
-    prelude::GraphViewOps, python::graph::node_state::NodeFilter,
+    prelude::{GraphViewOps, PropertiesOps},
 };
 use num_traits::abs;
+use raphtory_api::core::entities::properties::prop::PropUnwrap;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
@@ -21,20 +22,17 @@ pub struct PageRankState {
     #[serde(rename = "pagerank_score")]
     pub score: f64,
     #[serde(skip)]
-    out_degree: usize,
-    nbor_score: f64,
-    num_in_nbors: usize,
+    weighted_out_degree: f64,
 }
 
 impl PageRankState {
     fn new(num_nodes: usize) -> Self {
         Self {
             score: 1f64 / num_nodes as f64,
-            out_degree: 0,
-            nbor_score: 0f64,
-            num_in_nbors: 0,
+            weighted_out_degree: 0f64,
         }
     }
+
     fn reset(&mut self) {
         self.score = 0f64;
     }
@@ -46,6 +44,7 @@ impl PageRankState {
 /// # Arguments
 ///
 /// - `g`: A GraphView object
+/// - `weight`: Edge property key to use as weight. If None, all edges have weight 1.0.
 /// - `iter_count`: Number of iterations to run the algorithm for
 /// - `threads`: Number of threads to use for parallel execution
 /// - `tol`: The tolerance value for convergence
@@ -56,8 +55,9 @@ impl PageRankState {
 ///
 /// An [AlgorithmResult] object containing the mapping from node ID to the PageRank score of the node
 ///
-pub fn unweighted_page_rank<G: StaticGraphViewOps>(
+pub fn page_rank<G: StaticGraphViewOps>(
     g: &G,
+    weight: Option<&str>,
     iter_count: Option<usize>,
     threads: Option<usize>,
     tol: Option<f64>,
@@ -83,12 +83,21 @@ pub fn unweighted_page_rank<G: StaticGraphViewOps>(
 
     ctx.global_agg_reset(total_sink_contribution);
 
-    let step1 = ATask::new(move |s| {
-        let out_degree = s.out_degree();
-        let state: &mut PageRankState = s.get_mut();
-        state.out_degree = out_degree;
-        state.num_in_nbors = s.in_degree();
-        Step::Continue
+    let weight_id = weight.and_then(|key| g.edge_meta().get_prop_id(key, false));
+
+    let step1 = ATask::new({
+        move |s| {
+            let weighted_out_degree = s.out_edges().iter().fold(0.0f64, |acc, edge| {
+                weight_id
+                    .and_then(|id| edge.properties().get_by_id(id))
+                    .and_then(|p| p.as_f64())
+                    .unwrap_or(1.0)
+                    + acc
+            });
+            let state: &mut PageRankState = s.get_mut();
+            state.weighted_out_degree = weighted_out_degree;
+            Step::Continue
+        }
     });
 
     let step2: ATask<G, ComputeStateVec, PageRankState, _> = ATask::new(move |s| {
@@ -98,10 +107,17 @@ pub fn unweighted_page_rank<G: StaticGraphViewOps>(
             state.reset();
         }
 
-        for t in s.in_neighbours() {
-            let prev = t.prev();
+        for edge in s.in_edges() {
+            let w = weight_id
+                .and_then(|id| edge.properties().get_by_id(id))
+                .and_then(|p| p.as_f64())
+                .unwrap_or(1.0);
+            let nbr = edge.nbr();
+            let prev = nbr.prev();
 
-            s.get_mut().score += prev.score / prev.out_degree as f64;
+            if prev.weighted_out_degree > 0.0 {
+                s.get_mut().score += prev.score * w / prev.weighted_out_degree;
+            }
         }
 
         s.get_mut().score *= damp;
@@ -113,7 +129,7 @@ pub fn unweighted_page_rank<G: StaticGraphViewOps>(
     let step3 = ATask::new(move |s| {
         let state: &mut PageRankState = s.get_mut();
 
-        if state.out_degree == 0 {
+        if state.weighted_out_degree.abs() < f64::EPSILON {
             let curr = s.prev().score;
 
             let ts_contrib = factor * curr;

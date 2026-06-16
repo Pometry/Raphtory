@@ -4,7 +4,7 @@ use itertools::Itertools;
 use proptest::{arbitrary::any, prop_assert, prop_assert_eq, proptest, sample::subsequence};
 use raphtory::{
     algorithms::{
-        centrality::{degree_centrality::degree_centrality, pagerank::unweighted_page_rank},
+        centrality::{degree_centrality::degree_centrality, pagerank::page_rank},
         components::weakly_connected_components,
     },
     db::{
@@ -2933,7 +2933,7 @@ fn test_node_state_merge() {
 
     let sg = graph.subgraph(1..200);
     let degs = degree_centrality(&graph);
-    let pr = unweighted_page_rank(&sg, None, None, None, false, None);
+    let pr = page_rank(&sg, None, None, None, None, false, None);
 
     let m1 = pr.state.merge(
         &degs.state,
@@ -3641,6 +3641,28 @@ fn materialize_window_proptest() {
         let gmw = gw.materialize().unwrap();
         assert_graph_equal(&gw, &gmw);
     })
+}
+
+#[test]
+fn test_window_layers() {
+    let g = Graph::new();
+    g.add_node(2, 0, NO_PROPS, None, None).unwrap();
+    g.add_edge(0, 1, 0, NO_PROPS, Some("a")).unwrap();
+
+    let gw = g.window(1, 3);
+    assert_graph_equal(&gw, &gw.materialize().unwrap())
+}
+
+#[test]
+fn test_node_on_layer() {
+    let g = Graph::new();
+    g.add_node(0, 0, NO_PROPS, None, Some("a")).unwrap();
+    let gw = g.window(-1, 1);
+    assert_eq!(g.earliest_time().unwrap(), 0);
+    assert_eq!(gw.earliest_time().unwrap(), 0);
+    assert_eq!(gw.latest_time().unwrap(), 0);
+    assert_eq!(gw.node(0).unwrap().earliest_time().unwrap(), 0);
+    assert_eq!(gw.node(0).unwrap().latest_time().unwrap(), 0);
 }
 
 #[test]

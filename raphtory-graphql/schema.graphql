@@ -131,6 +131,32 @@ type CollectionOfNamespacedItem {
 }
 
 """
+Filters nodes by computed degree with a directional scope.
+
+`DegreeFilterNew` lets callers filter on:
+- inbound degree (`IN`),
+- outbound degree (`OUT`),
+- or total degree (`BOTH`).
+
+The selected degree is compared using the `where` condition.
+
+Example (GraphQL):
+```graphql
+{ Degree: { direction: BOTH, where: { Gt: 10 } } }
+```
+"""
+enum DegreeDirection {
+	IN
+	OUT
+	BOTH
+}
+
+input DegreeFilterNew {
+	direction: DegreeDirection!
+	where: PropCondition!
+}
+
+"""
 Document in a vector graph
 """
 type Document {
@@ -1844,7 +1870,7 @@ type Graph {
 }
 
 type GraphAlgorithmPlugin {
-	pagerank(iterCount: Int!, threads: Int, tol: Float): [PagerankOutput!]!
+	pagerank(iterCount: Int!, threads: Int, tol: Float, weight: String): [PagerankOutput!]!
 	shortest_path(source: String!, targets: [String!]!, direction: String): [ShortestPathOutput!]!
 }
 
@@ -3622,6 +3648,10 @@ input NodeFilter @oneOf {
 	Filters a node property by name and condition.
 	"""
 	property: PropertyFilterNew
+	"""
+	Filters a node's degree (in, out, or total) by a condition.
+	"""
+	degree: DegreeFilterNew
 	"""
 	Filters a node metadata field by name and condition.
 	

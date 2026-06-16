@@ -56,6 +56,7 @@ use raphtory_api::core::{
 use std::{ops::Deref, sync::Arc};
 
 pub mod and_filter;
+pub mod degree_filter;
 pub mod edge_filter;
 pub mod exploded_edge_filter;
 pub mod filter;

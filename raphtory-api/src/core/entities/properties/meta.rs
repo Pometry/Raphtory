@@ -1,7 +1,7 @@
 use crate::core::{
     entities::{
         properties::prop::{check_for_unification, unify_types, PropError, PropType},
-        LayerId,
+        LayerId, LayerIds,
     },
     storage::{
         arc_str::ArcStr,
@@ -13,6 +13,7 @@ use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::{
+    fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
     sync::{
         atomic::{self, AtomicUsize},
@@ -27,8 +28,10 @@ pub const NODE_ID_IDX: usize = 0;
 pub const NODE_TYPE_PROP_KEY: &str = "_raphtory_node_type";
 pub const NODE_TYPE_IDX: usize = 1;
 
-pub const STATIC_GRAPH_LAYER: &str = "_static_graph";
+pub const STATIC_GRAPH_LAYER_NAME: &str = "_static_graph";
 pub const STATIC_GRAPH_LAYER_ID: LayerId = LayerId(0);
+
+pub const STATIC_GRAPH_LAYER: LayerIds = LayerIds::One(STATIC_GRAPH_LAYER_ID);
 
 /// The type ID for nodes that don't have a specified type.
 pub const DEFAULT_NODE_TYPE_ID: usize = 0;
@@ -235,7 +238,7 @@ impl Meta {
 }
 
 /// Manages the mapping of property names to their IDs and types.
-#[derive(Default, Debug, Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize)]
 pub struct PropMapper {
     /// Maps property names to their IDs.
     id_mapper: DictMapper,
@@ -245,6 +248,20 @@ pub struct PropMapper {
 
     /// Estimated size in bytes of a single row of properties maintained by this mapper.
     row_size: AtomicUsize,
+}
+
+impl Debug for PropMapper {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str("{")?;
+        for (k, (id, dtype)) in self
+            .all_keys()
+            .iter()
+            .zip(self.all_ids().zip(self.d_types().iter()))
+        {
+            write!(f, "{k}: ({id}, {dtype:?}), ")?;
+        }
+        f.write_str("}")
+    }
 }
 
 impl Deref for PropMapper {

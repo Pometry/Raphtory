@@ -264,7 +264,7 @@ pub trait FilteredNodeStorageOps<'a>: NodeStorageOps<'a> {
         // Nodes added without a specific layer go to STATIC_GRAPH_LAYER_ID and should appear
         // active in any layer-restricted view. Nodes added with an explicit layer only appear
         // in that layer's view.
-        let additions = self.node_additions(layer_ids_with_static(layer_ids));
+        let additions = self.node_prop_additions(layer_ids_with_static(layer_ids));
         let edge_history = self.node_edge_additions(layer_ids);
         NodeHistory {
             edge_history,

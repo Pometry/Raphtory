@@ -1,7 +1,10 @@
 use raphtory_api::core::{
     entities::{
         edges::edge_ref::EdgeRef,
-        properties::{meta::STATIC_GRAPH_LAYER_ID, prop::Prop},
+        properties::{
+            meta::{STATIC_GRAPH_LAYER, STATIC_GRAPH_LAYER_ID, STATIC_GRAPH_LAYER_NAME},
+            prop::Prop,
+        },
         GidRef, LayerId, LayerIds, VID,
     },
     storage::timeindex::TimeIndexOps,
@@ -38,17 +41,19 @@ pub trait NodeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
     ) -> impl Iterator<Item = LayerId> + Send + Sync + 'a;
 
     fn has_layers(self, layer_ids: &'a LayerIds) -> bool {
-        !self.additions().is_empty() || self.layer_ids_iter(layer_ids).next().is_some()
+        !self.node_prop_additions(&STATIC_GRAPH_LAYER).is_empty()
+            || self.layer_ids_iter(layer_ids).next().is_some()
     }
 
-    fn node_additions<L: Into<LayerIter<'a>>>(self, layer_id: L) -> storage::NodePropAdditions<'a>;
+    fn node_prop_additions<L: Into<LayerIter<'a>>>(
+        self,
+        layer_id: L,
+    ) -> storage::NodePropAdditions<'a>;
 
     fn node_edge_additions<L: Into<LayerIter<'a>>>(
         self,
         layer_id: L,
     ) -> storage::NodeEdgeAdditions<'a>;
-
-    fn additions(self) -> storage::NodePropAdditions<'a>;
 
     fn temporal_prop_layer(self, layer_id: LayerId, prop_id: usize) -> storage::NodeTProps<'a>;
 
@@ -171,7 +176,7 @@ impl<'a> NodeStorageOps<'a> for NodeEntryRef<'a> {
         }
     }
 
-    fn node_additions<L: Into<LayerIter<'a>>>(
+    fn node_prop_additions<L: Into<LayerIter<'a>>>(
         self,
         layer_ids: L,
     ) -> storage::NodePropAdditions<'a> {
@@ -183,10 +188,6 @@ impl<'a> NodeStorageOps<'a> for NodeEntryRef<'a> {
         layer_id: L,
     ) -> storage::NodeEdgeAdditions<'a> {
         NodeRefOps::edge_additions(self, layer_id)
-    }
-
-    fn additions(self) -> storage::NodePropAdditions<'a> {
-        NodeRefOps::node_additions(self, 0)
     }
 
     fn tprop(self, prop_id: usize) -> storage::NodeTProps<'a> {
