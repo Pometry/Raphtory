@@ -506,6 +506,10 @@ impl AsRef<Path> for InnerGraphFolder {
 }
 
 impl InnerGraphFolder {
+    pub fn new(path: impl Into<PathBuf>) -> Self {
+        Self { path: path.into() }
+    }
+
     pub fn write_metadata(&self, graph: impl GraphView) -> Result<(), GraphError> {
         let graph_path = self.relative_graph_path()?;
         let metadata = build_graph_metadata(graph);

@@ -13,7 +13,7 @@ use raphtory_api::core::{
             meta::Meta,
             prop::{AsPropRef, Prop, PropType},
         },
-        GidRef, LayerId, LayerIds, EID, VID,
+        GidRef, LayerId, EID, VID,
     },
     storage::{dict_mapper::MaybeNew, timeindex::EventTime},
 };
@@ -55,6 +55,7 @@ use {
 };
 
 // Re-export for raphtory dependencies to use when creating graphs.
+use crate::serialise::InnerGraphFolder;
 pub use storage::{
     persist::strategy::PersistenceStrategy, read_constant_graph_properties, Config, Extension,
 };
@@ -70,13 +71,12 @@ pub struct Storage {
 impl Drop for Storage {
     fn drop(&mut self) {
         if let Some(disk_path) = self.graph.disk_storage_path() {
-            let disk_path = disk_path.to_path_buf();
-            let node_count = self.graph.unfiltered_num_nodes(&LayerIds::All);
-            let edge_count = self.graph.unfiltered_num_edges(&LayerIds::All);
-            // Drop must not panic - ignore any error refreshing the metadata
-            // file. The graph data itself is already persisted by the storage
-            // layer so a stale `.meta` only affects node and edge counts (for now).
-            let _ = storage::refresh_disk_graph_metadata(&disk_path, node_count, edge_count);
+            if let Some(data_folder) = disk_path.parent() {
+                // Drop must not panic - ignore any error refreshing the metadata
+                // file. The graph data itself is already persisted by the storage
+                // layer so a stale `.meta` only affects node and edge counts (for now).
+                let _ = InnerGraphFolder::new(data_folder).write_metadata(&self.graph);
+            }
         }
     }
 }

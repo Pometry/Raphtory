@@ -8,6 +8,7 @@ use crate::{
         graph::{edge::EdgeView, node::NodeView},
     },
     errors::{into_graph_err, GraphError},
+    serialise::InnerGraphFolder,
 };
 use raphtory_api::core::{
     entities::properties::{
@@ -23,7 +24,10 @@ use raphtory_storage::{
         MutationError,
     },
 };
-use storage::wal::{GraphWalOps, WalOps};
+use storage::{
+    error::StorageError,
+    wal::{GraphWalOps, WalOps},
+};
 
 pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<GraphError>> {
     // TODO: Probably add vector reference here like add
@@ -309,13 +313,14 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         #[cfg(feature = "io")]
         {
             if let Some(disk_path) = self.disk_storage_path() {
-                let disk_path = disk_path.to_path_buf();
-                storage::refresh_disk_graph_metadata(
-                    &disk_path,
-                    self.count_nodes(),
-                    self.count_edges(),
-                )
-                .map_err(|err| MutationError::from(err).into())?;
+                if let Some(data_folder) = disk_path.parent() {
+                    InnerGraphFolder::new(data_folder)
+                        .write_metadata(self)
+                        .map_err(|err| {
+                            MutationError::from(StorageError::from(std::io::Error::from(err)))
+                                .into()
+                        })?;
+                }
             }
         }
 

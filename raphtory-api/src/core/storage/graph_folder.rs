@@ -2,6 +2,7 @@
 
 use crate::GraphType;
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "io")]
 use std::{
     fs::{self, File},
     path::Path,
