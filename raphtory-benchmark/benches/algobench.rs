@@ -50,6 +50,22 @@ pub fn local_clustering_coefficient_analysis(c: &mut Criterion) {
     group.finish();
 }
 
+pub fn page_rank_analysis(c: &mut Criterion) {
+    let mut group = c.benchmark_group("page_rank");
+    group.sample_size(10);
+
+    bench(&mut group, "page_rank", None, |b| {
+        let g: Graph = raphtory::graph_loader::lotr_graph::lotr_graph();
+
+        b.iter(|| {
+            let result = unweighted_page_rank(&g, Some(100), None, None, true, None);
+            black_box(result);
+        })
+    });
+
+    group.finish();
+}
+
 pub fn graphgen_large_clustering_coeff(c: &mut Criterion) {
     let mut group = c.benchmark_group("graphgen_large_clustering_coeff");
     // generate graph
@@ -135,6 +151,7 @@ criterion_group!(
     benches,
     local_triangle_count_analysis,
     local_clustering_coefficient_analysis,
+    page_rank_analysis,
     graphgen_large_clustering_coeff,
     graphgen_large_pagerank,
     graphgen_large_concomp,

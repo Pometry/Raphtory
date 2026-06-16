@@ -11,7 +11,7 @@ use crate::{
             task_runner::TaskRunner,
         },
     },
-    prelude::GraphViewOps,
+    prelude::GraphViewOps, python::graph::node_state::NodeFilter,
 };
 use num_traits::abs;
 use serde::{Deserialize, Serialize};
@@ -22,6 +22,8 @@ pub struct PageRankState {
     pub score: f64,
     #[serde(skip)]
     out_degree: usize,
+    nbor_score: f64,
+    num_in_nbors: usize,
 }
 
 impl PageRankState {
@@ -29,6 +31,8 @@ impl PageRankState {
         Self {
             score: 1f64 / num_nodes as f64,
             out_degree: 0,
+            nbor_score: 0f64,
+            num_in_nbors: 0,
         }
     }
     fn reset(&mut self) {
@@ -61,6 +65,7 @@ pub fn unweighted_page_rank<G: StaticGraphViewOps>(
     damping_factor: Option<f64>,
 ) -> TypedNodeState<'static, PageRankState, G> {
     let n = g.count_nodes();
+    let f_g = g.select(NodeFilter.in_degree());
 
     let mut ctx: Context<G, ComputeStateVec> = g.into();
 
@@ -82,6 +87,7 @@ pub fn unweighted_page_rank<G: StaticGraphViewOps>(
         let out_degree = s.out_degree();
         let state: &mut PageRankState = s.get_mut();
         state.out_degree = out_degree;
+        state.num_in_nbors = s.in_degree();
         Step::Continue
     });
 
