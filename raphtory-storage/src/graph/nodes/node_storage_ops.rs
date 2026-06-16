@@ -2,9 +2,7 @@ use crate::graph::layer_ids_with_static;
 use raphtory_api::core::{
     entities::{
         edges::edge_ref::EdgeRef,
-        properties::{
-            prop::Prop,
-        },
+        properties::{meta::STATIC_GRAPH_LAYER, prop::Prop},
         GidRef, LayerId, LayerIds, VID,
     },
     storage::timeindex::TimeIndexOps,
