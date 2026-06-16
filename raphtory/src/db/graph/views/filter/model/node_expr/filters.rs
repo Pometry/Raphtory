@@ -136,6 +136,7 @@ where
 }
 
 /// Reject ordering operators on boolean properties.
+//. TODO: Also check if both the types are comparable.
 fn validate_binary_op(op: &BinaryOp, prop_type: &PropType) -> Result<(), GraphError> {
     if *prop_type != PropType::Empty
         && matches!(
@@ -195,7 +196,7 @@ where
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
         let left = self.left.create_node_op(graph.clone())?;
         let right = self.right.create_node_op(graph)?;
-        validate_binary_op(&self.op, &left.prop_type())?;
+        validate_binary_op(&self.op, &left.prop_type(), &right.prop_type())?;
         Ok(Arc::new(BinaryCmpNodeOp {
             left,
             right,
@@ -245,7 +246,7 @@ where
 {
     pub expr: E,
     pub op: UnaryOp,
-    pub(crate) _phantom: PhantomData<I>,
+    pub(crate) _phantom: PhantomData<I>, // TODO: Not needed anymore
 }
 
 impl<E, I> Clone for UnaryNodeFilter<E, I>
@@ -584,12 +585,14 @@ impl<E: CreateView + NodeFilterFactory + Clone + Send + Sync + 'static> NodeProp
 ///
 /// ```rust,ignore
 /// NodeFilter.degree().gt(2usize)
+/// NodeFilter.degree().sum() // TODO: Throw an error
 /// NodeFilter.out_degree().gt(NodeFilter.in_degree())
 /// NodeFilter.property("age").gt(30i64)
 /// NodeFilter.property("score").temporal().gt(10i64).any()
 /// ```
 pub trait NodeExprFilterOps: NodeExpr + Sized {
     fn gt<R: NodeExpr>(self, rhs: R) -> BinaryCmpNodeFilter<Self, R> {
+        // TODO: validate ops
         BinaryCmpNodeFilter::new(self, BinaryOp::Gt, rhs)
     }
 

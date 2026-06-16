@@ -10,7 +10,7 @@ enum ValueType {
 
 pub fn aggregate_values(
     vals: Option<Prop>,
-    op: &dyn Fn(Box<dyn Iterator<Item = Prop>>) -> Option<Prop>,
+    op: impl Fn(Box<dyn Iterator<Item = Prop>>) -> Option<Prop>,
 ) -> Option<Prop> {
     match vals? {
         Prop::List(x) => match x.dtype() {

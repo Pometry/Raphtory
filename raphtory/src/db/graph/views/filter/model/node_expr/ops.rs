@@ -37,7 +37,6 @@
 //! ```
 
 use super::EdgeOp;
-use std::borrow::Borrow;
 use crate::db::graph::views::filter::model::property_filter::evaluate::{
     scan_f64_sum_count, scan_i64_sum, scan_u64_sum,
 };
@@ -56,13 +55,12 @@ use crate::{
     prelude::GraphViewOps,
 };
 use raphtory_api::core::entities::edges::edge_ref::EdgeRef;
-use raphtory_api::core::{
-    entities::{
-        properties::prop::{IntoProp, Prop, PropArray, PropType},
-        VID,
-    },
+use raphtory_api::core::entities::{
+    properties::prop::{IntoProp, Prop, PropArray, PropType},
+    VID,
 };
 use raphtory_storage::graph::graph::GraphStorage;
+use std::borrow::Borrow;
 use std::{collections::HashSet, hash::Hash, sync::Arc};
 // ─────────────────────────────────────────────────────────────────────────────
 // NodePropOp<G> — latest property value by pre-resolved column ID
@@ -261,35 +259,35 @@ impl_agg_entity_op!(AvgNodeOp, AvgEdgeOp, |vals| {
     })
 });
 impl_agg_entity_op!(MinNodeOp, MinEdgeOp, |vals| {
-    aggregate_values(vals, &|pi| {
+    aggregate_values(vals, |pi| {
         let mut it = pi;
         let first = it.next()?;
         it.fold(Some(first), |acc, v| acc.and_then(|a| a.min(v)))
     })
 });
 impl_agg_entity_op!(MaxNodeOp, MaxEdgeOp, |vals| {
-    aggregate_values(vals, &|pi| {
+    aggregate_values(vals, |pi| {
         let mut it = pi;
         let first = it.next()?;
         it.fold(Some(first), |acc, v| acc.and_then(|a| a.max(v)))
     })
 });
 impl_agg_entity_op!(FirstNodeOp, FirstEdgeOp, |vals| {
-    aggregate_values(vals, &|mut pi| pi.next())
+    aggregate_values(vals, |mut pi| pi.next())
 });
 impl_agg_entity_op!(LastNodeOp, LastEdgeOp, |vals| {
-    aggregate_values(vals, &|pi| pi.last())
+    aggregate_values(vals, |pi| pi.last())
 });
 impl_agg_entity_op!(LenNodeOp, LenEdgeOp, |vals| {
-    aggregate_values(vals, &|pi| Some(pi.count().into_prop()))
+    aggregate_values(vals, |pi| Some(pi.count().into_prop()))
 });
 impl_agg_entity_op!(AnyNodeOp, AnyEdgeOp, |vals| {
-    aggregate_values(vals, &|mut pi| {
+    aggregate_values(vals, |mut pi| {
         Some(Prop::Bool(pi.any(|r| r == Prop::Bool(true))))
     })
 });
 impl_agg_entity_op!(AllNodeOp, AllEdgeOp, |vals| {
-    aggregate_values(vals, &|mut pi| {
+    aggregate_values(vals, |mut pi| {
         Some(Prop::Bool(pi.all(|r| r == Prop::Bool(true))))
     })
 });
@@ -318,13 +316,20 @@ impl<'g> NodeOp for ListAwareCmpNodeOp<'g> {
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Option<Prop> {
         let lv = self.left.apply(storage, node);
-        let rhs = self.right.apply(storage, node)?;
+        let rhs = self.right.apply(storage, node);
         let op = &self.op;
-        aggregate_values(lv, &|pi| {
-            let bools: Vec<Prop> = pi
-                .map(|v| Prop::Bool(Prop::binary_cmp(op, &v, &rhs)))
-                .collect();
-            if bools.is_empty() { None } else { Some(Prop::List(PropArray::from(bools))) }
+        // aggregate_values(lv, &|pi| {
+        //     let bools: Vec<Prop> = pi
+        //         .map(|v| Prop::Bool(Prop::binary_cmp(op, &v, &rhs)))
+        //         .collect();
+        //     if bools.is_empty() {
+        //         None
+        //     } else {
+        //         Some(Prop::List(PropArray::from(bools)))
+        //     }
+        // })
+        broadcast_binary(lv, rhs, |lv, rhs| {
+            Some(Prop::Bool(Prop::binary_cmp(op, &lv?, &rhs?)))
         })
     }
 }
@@ -343,12 +348,61 @@ impl<'g> NodeOp for ListAwareStringNodeOp<'g> {
         let lv = self.left.apply(storage, node);
         let rhs = self.right.apply(storage, node);
         let op = &self.op;
-        aggregate_values(lv, &|pi| {
-            let bools: Vec<Prop> = pi
-                .map(|v| Prop::Bool(Option::<Prop>::string_cmp(op, &Some(v), &rhs)))
-                .collect();
-            if bools.is_empty() { None } else { Some(Prop::List(PropArray::from(bools))) }
+        // aggregate_values(lv, &|pi| {
+        //     let bools: Vec<Prop> = pi
+        //         .map(|v| Prop::Bool(Option::<Prop>::string_cmp(op, &Some(v), &rhs)))
+        //         .collect();
+        //     if bools.is_empty() {
+        //         None
+        //     } else {
+        //         Some(Prop::List(PropArray::from(bools)))
+        //     }
+        // })
+        broadcast_binary(lv, rhs, |lv, rhs| {
+            Some(Prop::Bool(Option::<Prop>::string_cmp(op, &lv, &rhs)))
         })
+    }
+}
+
+// [1,2,3] == [1,2,3]
+// [4,5,6] > [1,2,3]
+
+pub fn broadcast_unary(v: Option<Prop>, op: impl Fn(Option<Prop>) -> Option<Prop>) -> Option<Prop> {
+    match v {
+        Some(Prop::List(v)) => Some(Prop::List(v.iter_all().map(|l| op(l)).flatten().collect())),
+        _ => op(v),
+    }
+}
+
+pub fn broadcast_binary(
+    l: Option<Prop>,
+    r: Option<Prop>,
+    op: impl Fn(Option<Prop>, Option<Prop>) -> Option<Prop>,
+) -> Option<Prop> {
+    let l = l?;
+    let r = r?;
+
+    match (l, r) {
+        (Prop::List(l), Prop::List(r)) => {
+            if l.len() == r.len() {
+                Some(Prop::List(
+                    l.iter_all()
+                        .zip(r.iter_all())
+                        .map(|(l, r)| op(l, r))
+                        .flatten()
+                        .collect(),
+                ))
+            } else {
+                None
+            }
+        }
+        (Prop::List(l), r) => Some(Prop::List(
+            l.iter_all().map(|(l)| op(l, Some(r))).flatten().collect(),
+        )),
+        (l, Prop::List(r)) => Some(Prop::List(
+            r.iter_all().map(|(r)| op(Some(l), r)).flatten().collect(),
+        )),
+        (l, r) => op(Some(l), Some(r)),
     }
 }
 
@@ -366,14 +420,27 @@ impl<'g> NodeOp for ListAwareSetNodeOp<'g> {
         let vals = self.inner.apply(storage, node);
         let values = &self.values;
         let op = &self.op;
-        aggregate_values(vals, &|pi| {
-            let bools: Vec<Prop> = pi
-                .map(|v| Prop::Bool(match op {
-                    SetOp::IsIn => values.iter().any(|x| x == &v),
-                    SetOp::IsNotIn => values.iter().all(|x| x != &v),
-                }))
-                .collect();
-            if bools.is_empty() { None } else { Some(Prop::List(PropArray::from(bools))) }
+        // aggregate_values(vals, &|pi| {
+        //     let bools: Vec<Prop> = pi
+        //         .map(|v| {
+        //             Prop::Bool(match op {
+        //                 SetOp::IsIn => values.iter().any(|x| x == &v),
+        //                 SetOp::IsNotIn => values.iter().all(|x| x != &v),
+        //             })
+        //         })
+        //         .collect();
+        //     if bools.is_empty() {
+        //         None
+        //     } else {
+        //         Some(Prop::List(PropArray::from(bools)))
+        //     }
+        // })
+        broadcast_unary(vals, |v, rhs| {
+            let v = v?;
+            Some(Prop::Bool(match op {
+                SetOp::IsIn => values.iter().any(|x| x == &v),
+                SetOp::IsNotIn => values.iter().all(|x| x != &v),
+            }))
         })
     }
 }
