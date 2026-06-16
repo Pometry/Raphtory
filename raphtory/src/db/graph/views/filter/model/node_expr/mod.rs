@@ -1,9 +1,11 @@
 use crate::{
-    db::api::{state::ops::NodeOp, view::internal::GraphView},
-    db::graph::views::filter::model::{
-        CreateView,
-        filter_operator::{BinaryOp, StringOp},
-        node_filter::NodeFilterFactory,
+    db::{
+        api::{state::ops::NodeOp, view::internal::GraphView},
+        graph::views::filter::model::{
+            filter_operator::{BinaryOp, StringOp},
+            node_filter::NodeFilterFactory,
+            CreateView,
+        },
     },
     errors::GraphError,
 };
@@ -17,11 +19,11 @@ pub mod ops;
 #[cfg(test)]
 mod tests;
 
+pub use super::{Metadata, Property};
+use crate::db::graph::views::filter::model::edge_expr::EdgeOp;
 pub use exprs::*;
 pub use filters::*;
 pub use ops::*;
-use crate::db::graph::views::filter::model::edge_expr::EdgeOp;
-pub use super::{Metadata, Property};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // NodeExpr — typed node expression with associated Output type
@@ -45,7 +47,7 @@ pub use super::{Metadata, Property};
 /// NodeFilter.property("score").temporal().gt(10i64).any()
 /// ```
 ///
-pub(crate) trait NodeExpr: EntityExpr + Clone + Send + Sync + 'static {
+pub trait NodeExpr: EntityExpr + Clone + Send + Sync + 'static {
     /// Compile the expression against a specific graph view.
     ///
     /// Any name→ID resolution (property, metadata) happens here, once.
@@ -56,11 +58,20 @@ pub(crate) trait NodeExpr: EntityExpr + Clone + Send + Sync + 'static {
 }
 
 pub trait EntityExpr: Clone + Send + Sync + 'static {
+    type Marker: Copy + Default + 'static;
+
+    fn entity() -> Self::Marker {
+        Self::Marker::default()
+    }
+
     /// A priory known type (for early validation where possible)
     fn prop_type(&self) -> PropType {
         PropType::Empty
     }
 }
+
+/// Sealed trait to avoid conflicts between node and edge expressions
+pub(crate) trait NodeExprMarker {}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // NodeTemporalPropOps — aggregation and direct comparison on TemporalProp<E>
@@ -132,16 +143,28 @@ pub trait NodeTemporalPropOps: Sized {
     fn ne<R: NodeExpr>(self, rhs: R) -> BinaryCmpFilter<TemporalPropertyExpr<Self::ViewExpr>, R> {
         BinaryCmpFilter::new(self.into_expr(), BinaryOp::Ne, rhs)
     }
-    fn contains<R: NodeExpr>(self, rhs: R) -> StringFilter<TemporalPropertyExpr<Self::ViewExpr>, R> {
+    fn contains<R: NodeExpr>(
+        self,
+        rhs: R,
+    ) -> StringFilter<TemporalPropertyExpr<Self::ViewExpr>, R> {
         StringFilter::new(self.into_expr(), StringOp::Contains, rhs)
     }
-    fn starts_with<R: NodeExpr>(self, rhs: R) -> StringFilter<TemporalPropertyExpr<Self::ViewExpr>, R> {
+    fn starts_with<R: NodeExpr>(
+        self,
+        rhs: R,
+    ) -> StringFilter<TemporalPropertyExpr<Self::ViewExpr>, R> {
         StringFilter::new(self.into_expr(), StringOp::StartsWith, rhs)
     }
-    fn ends_with<R: NodeExpr>(self, rhs: R) -> StringFilter<TemporalPropertyExpr<Self::ViewExpr>, R> {
+    fn ends_with<R: NodeExpr>(
+        self,
+        rhs: R,
+    ) -> StringFilter<TemporalPropertyExpr<Self::ViewExpr>, R> {
         StringFilter::new(self.into_expr(), StringOp::EndsWith, rhs)
     }
-    fn not_contains<R: NodeExpr>(self, rhs: R) -> StringFilter<TemporalPropertyExpr<Self::ViewExpr>, R> {
+    fn not_contains<R: NodeExpr>(
+        self,
+        rhs: R,
+    ) -> StringFilter<TemporalPropertyExpr<Self::ViewExpr>, R> {
         StringFilter::new(self.into_expr(), StringOp::NotContains, rhs)
     }
     fn fuzzy_search<R: NodeExpr>(
@@ -152,7 +175,10 @@ pub trait NodeTemporalPropOps: Sized {
     ) -> StringFilter<TemporalPropertyExpr<Self::ViewExpr>, R> {
         StringFilter::new(
             self.into_expr(),
-            StringOp::FuzzySearch { levenshtein_distance, prefix_match },
+            StringOp::FuzzySearch {
+                levenshtein_distance,
+                prefix_match,
+            },
             rhs,
         )
     }

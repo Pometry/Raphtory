@@ -42,25 +42,19 @@
 
 use super::{
     ops::{
-        BinaryCmpNodeOp, ListAwareCmpNodeOp, ListAwareSetNodeOp,
-        ListAwareStringNodeOp, PropValueSetNodeOp, StringNodeOp, UnaryNodeOp,
+        BinaryCmpNodeOp, ListAwareCmpNodeOp, ListAwareSetNodeOp, ListAwareStringNodeOp,
+        PropValueSetNodeOp, StringNodeOp, UnaryNodeOp,
     },
-    AllExpr, AnyExpr, EntityExpr, NodeExpr,
+    AllExpr, AnyExpr, EntityExpr, NodeExpr, NodeExprMarker,
 };
 use crate::{
     db::{
-        api::{
-            state::ops::NodeOp,
-            view::internal::GraphView,
-        },
+        api::{state::ops::NodeOp, view::internal::GraphView},
         graph::views::filter::{
             model::{
                 edge_filter::CompositeEdgeFilter,
-                filter_operator::{
-                    BinaryOp, SetOp, StringOp, UnaryOp,
-                },
-                node_filter::NodeFilterFactory
-                ,
+                filter_operator::{BinaryOp, SetOp, StringOp, UnaryOp},
+                node_filter::NodeFilterFactory,
                 ComposableFilter, CompositeExplodedEdgeFilter, CompositeNodeFilter, CreateFilter,
                 CreateView, MetadataExpr, PropertyExpr, TryAsCompositeFilter,
             },
@@ -68,11 +62,11 @@ use crate::{
         },
     },
     errors::GraphError,
-    prelude::GraphViewOps,
+    prelude::{GraphViewOps, NodeFilter},
 };
+use neo4rs::Node;
 use raphtory_api::core::entities::properties::prop::{Prop, PropType};
 use std::{marker::PhantomData, sync::Arc};
-
 // ─────────────────────────────────────────────────────────────────────────────
 // BinaryCmpNodeFilter<L, R> — binary expression filter
 // ─────────────────────────────────────────────────────────────────────────────
@@ -95,22 +89,25 @@ use std::{marker::PhantomData, sync::Arc};
 ///   → BinaryCmpNodeOp { left: NodePropOp(prop_id=N), right: Const(Some(I64(30))), op: Eq }
 /// ```
 #[derive(Clone)]
-pub struct BinaryCmpFilter<L, R> {
+pub struct BinaryCmpFilter<L, R, Entity> {
     pub left: L,
     pub op: BinaryOp,
     pub right: R,
+    pub entity: Entity,
 }
 
-impl<L, R> BinaryCmpFilter<L, R>
-{
-    pub fn new(left: L, op: BinaryOp, right: R) -> Self {
-        Self { left, op, right }
+impl<L, R, E> BinaryCmpFilter<L, R, E> {
+    pub fn new(left: L, op: BinaryOp, right: R, entity: E) -> Self {
+        Self {
+            left,
+            op,
+            right,
+            entity,
+        }
     }
 }
 
-impl<L, R> ComposableFilter for BinaryCmpFilter<L, R>
-{
-}
+impl<L, R, E> ComposableFilter for BinaryCmpFilter<L, R, E> {}
 
 /// Reject ordering operators on boolean properties.
 //. TODO: Also check if both the types are comparable.
@@ -143,7 +140,7 @@ fn validate_string_op(prop_type: &PropType) -> Result<(), GraphError> {
     Ok(())
 }
 
-impl<L, R> CreateFilter for BinaryCmpFilter<L, R>
+impl<L, R> CreateFilter for BinaryCmpFilter<L, R, NodeFilter>
 where
     L: NodeExpr,
     R: NodeExpr,
@@ -183,7 +180,7 @@ where
     }
 }
 
-impl<L, R> TryAsCompositeFilter for BinaryCmpFilter<L, R>
+impl<L, R> TryAsCompositeFilter for BinaryCmpFilter<L, R, NodeFilter>
 where
     L: NodeExpr,
     R: NodeExpr,
@@ -218,14 +215,12 @@ where
 ///   → UnaryNodeOp { inner: NodePropOp(prop_id=N), op: IsSome }
 /// ```
 #[derive(Clone)]
-pub struct UnaryFilter<E>
-{
+pub struct UnaryFilter<E> {
     pub expr: E,
     pub op: UnaryOp,
 }
 
-impl<E> ComposableFilter for UnaryFilter<E> {
-}
+impl<E> ComposableFilter for UnaryFilter<E> {}
 
 impl<E> CreateFilter for UnaryFilter<E>
 where
@@ -305,18 +300,15 @@ pub struct StringFilter<L, R> {
     pub right: R,
 }
 
-impl<L, R> StringFilter<L, R>
-{
+impl<L, R> StringFilter<L, R> {
     pub fn new(left: L, op: StringOp, right: R) -> Self {
         Self { left, op, right }
     }
 }
 
-impl<L, R> ComposableFilter for StringFilter<L, R> {
-}
+impl<L, R> ComposableFilter for StringFilter<L, R> {}
 
-impl<L: NodeExpr, R: NodeExpr> CreateFilter for StringFilter<L, R>
-{
+impl<L: NodeExpr, R: NodeExpr> CreateFilter for StringFilter<L, R> {
     type EntityFiltered<'graph, G: GraphViewOps<'graph>> =
         NodeFilteredGraph<G, Self::NodeFilter<'graph, G>>;
 
@@ -474,12 +466,20 @@ impl<E: CreateView + Clone + Send + Sync + 'static> TemporalProp<E> {
 // NodePropertyExprOps — fluent comparison API for node-side property expressions
 // ─────────────────────────────────────────────────────────────────────────────
 
-pub trait NodePropertyExprOps: NodeExpr + Sized {
+pub trait NodePropertyExprOps: EntityExpr + Sized {
     fn is_in(self, values: impl IntoIterator<Item = Prop>) -> PropValueSetFilter<Self> {
-        PropValueSetFilter { expr: self, values: values.into_iter().collect(), op: SetOp::IsIn }
+        PropValueSetFilter {
+            expr: self,
+            values: values.into_iter().collect(),
+            op: SetOp::IsIn,
+        }
     }
     fn is_not_in(self, values: impl IntoIterator<Item = Prop>) -> PropValueSetFilter<Self> {
-        PropValueSetFilter { expr: self, values: values.into_iter().collect(), op: SetOp::IsNotIn }
+        PropValueSetFilter {
+            expr: self,
+            values: values.into_iter().collect(),
+            op: SetOp::IsNotIn,
+        }
     }
 }
 
@@ -536,23 +536,19 @@ pub trait EntityExprFilterOps: EntityExpr + Sized {
         BinaryCmpFilter::new(self, BinaryOp::Ne, rhs)
     }
 
-    fn starts_with<R: EntityExpr>(self, rhs: R) -> StringFilter<Self, R>
-    {
+    fn starts_with<R: EntityExpr>(self, rhs: R) -> StringFilter<Self, R> {
         StringFilter::new(self, StringOp::StartsWith, rhs)
     }
 
-    fn ends_with<R: EntityExpr>(self, rhs: R) -> StringFilter<Self, R>
-    {
+    fn ends_with<R: EntityExpr>(self, rhs: R) -> StringFilter<Self, R> {
         StringFilter::new(self, StringOp::EndsWith, rhs)
     }
 
-    fn contains<R: EntityExpr>(self, rhs: R) -> StringFilter<Self, R>
-    {
+    fn contains<R: EntityExpr>(self, rhs: R) -> StringFilter<Self, R> {
         StringFilter::new(self, StringOp::Contains, rhs)
     }
 
-    fn not_contains<R: EntityExpr>(self, rhs: R) -> StringFilter<Self, R>
-    {
+    fn not_contains<R: EntityExpr>(self, rhs: R) -> StringFilter<Self, R> {
         StringFilter::new(self, StringOp::NotContains, rhs)
     }
 
@@ -561,8 +557,7 @@ pub trait EntityExprFilterOps: EntityExpr + Sized {
         rhs: R,
         levenshtein_distance: usize,
         prefix_match: bool,
-    ) -> StringFilter<Self, R>
-    {
+    ) -> StringFilter<Self, R> {
         StringFilter::new(
             self,
             StringOp::FuzzySearch {
@@ -573,24 +568,21 @@ pub trait EntityExprFilterOps: EntityExpr + Sized {
         )
     }
 
-    fn is_some(self) -> UnaryFilter<Self>
-    {
+    fn is_some(self) -> UnaryFilter<Self> {
         UnaryFilter {
             expr: self,
             op: UnaryOp::IsSome,
         }
     }
 
-    fn is_none(self) -> UnaryFilter<Self>
-    {
+    fn is_none(self) -> UnaryFilter<Self> {
         UnaryFilter {
             expr: self,
             op: UnaryOp::IsNone,
         }
     }
 
-    fn not(self) -> BinaryCmpFilter<Self, Prop>
-    {
+    fn not(self) -> BinaryCmpFilter<Self, Prop> {
         self.eq(Prop::Bool(false))
     }
 
@@ -620,6 +612,8 @@ impl<L: EntityExpr, R: EntityExpr> EntityExpr for BinaryCmpFilter<L, R> {
     }
 }
 
+impl<L: NodeExprMarker, R> NodeExprMarker for BinaryCmpFilter<L, R> {}
+
 impl<L: NodeExpr, R: NodeExpr> NodeExpr for BinaryCmpFilter<L, R> {
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
@@ -627,7 +621,11 @@ impl<L: NodeExpr, R: NodeExpr> NodeExpr for BinaryCmpFilter<L, R> {
     ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
         let left = self.left.create_node_op(graph.clone())?;
         let right = self.right.create_node_op(graph)?;
-        Ok(Arc::new(ListAwareCmpNodeOp { left, right, op: self.op }))
+        Ok(Arc::new(ListAwareCmpNodeOp {
+            left,
+            right,
+            op: self.op,
+        }))
     }
 }
 
@@ -645,7 +643,11 @@ impl<L: NodeExpr, R: NodeExpr> NodeExpr for StringFilter<L, R> {
     ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
         let left = self.left.create_node_op(graph.clone())?;
         let right = self.right.create_node_op(graph)?;
-        Ok(Arc::new(ListAwareStringNodeOp { left, right, op: self.op }))
+        Ok(Arc::new(ListAwareStringNodeOp {
+            left,
+            right,
+            op: self.op,
+        }))
     }
 }
 

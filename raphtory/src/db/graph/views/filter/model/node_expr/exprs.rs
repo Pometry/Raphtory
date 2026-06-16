@@ -64,7 +64,7 @@
 use super::{ops::{
     AvgNodeOp, FirstNodeOp, LastNodeOp, LenNodeOp, MaxNodeOp, MinNodeOp, NodeMetaOp,
     NodePropOp, SumNodeOp, TemporalNodePropOp,
-}, AllEdgeOp, AllNodeOp, AnyEdgeOp, AnyNodeOp, AvgEdgeOp, EntityExpr, FirstEdgeOp, LastEdgeOp, LenEdgeOp, MaxEdgeOp, MinEdgeOp, NodeExpr, SumEdgeOp};
+}, AllEdgeOp, AllNodeOp, AnyEdgeOp, AnyNodeOp, AvgEdgeOp, EntityExpr, FirstEdgeOp, LastEdgeOp, LenEdgeOp, MaxEdgeOp, MinEdgeOp, NodeExpr, NodeExprMarker, SumEdgeOp};
 use crate::{
     db::{
         api::{
@@ -72,23 +72,23 @@ use crate::{
             view::internal::GraphView,
         },
         graph::views::filter::model::{
-            filter_operator::Comparable, node_filter::NodeFilter, CreateView,
-            Metadata, Property,
+            edge_expr::{EdgeExpr, EdgeOp},
+            filter_operator::Comparable,
+            node_filter::NodeFilter,
+            CreateView, Metadata, Property,
         },
     },
     errors::GraphError,
 };
-use raphtory_api::core::entities::properties::prop::IntoProp;
 use raphtory_api::core::{
     entities::{
-        properties::prop::{Prop, PropType},
+        properties::prop::{IntoProp, Prop, PropType},
         GID,
     },
     storage::arc_str::ArcStr,
     Direction,
 };
 use std::sync::Arc;
-use crate::db::graph::views::filter::model::edge_expr::{EdgeExpr, EdgeOp};
 // ─────────────────────────────────────────────────────────────────────────────
 // Node field expressions — identity, name, type
 //
@@ -100,7 +100,12 @@ use crate::db::graph::views::filter::model::edge_expr::{EdgeExpr, EdgeOp};
 //   NodeFilter.node_type() uses Type — produces Option<Prop> (ArcStr as Prop::Str, None if unset)
 // ─────────────────────────────────────────────────────────────────────────────
 
-impl EntityExpr for Id {}
+#[derive(Copy, Clone, Debug, Default)]
+pub struct ConstFilter;
+
+impl EntityExpr for Id {
+    type Marker = NodeFilter;
+}
 
 impl NodeExpr for Id {
     fn create_node_op<'g, G: GraphView + 'g>(
@@ -111,7 +116,9 @@ impl NodeExpr for Id {
     }
 }
 
-impl EntityExpr for GID {}
+impl EntityExpr for GID {
+    type Marker = NodeFilter;
+}
 
 impl NodeExpr for GID {
     fn create_node_op<'g, G: GraphView + 'g>(
@@ -123,6 +130,7 @@ impl NodeExpr for GID {
 }
 
 impl EntityExpr for Name {
+    type Marker = NodeFilter;
     fn prop_type(&self) -> PropType {
         PropType::Str
     }
@@ -138,12 +146,14 @@ impl NodeExpr for Name {
 }
 
 impl EntityExpr for Type {
+    type Marker = NodeFilter;
     fn prop_type(&self) -> PropType {
         PropType::Str
     }
 }
 
 impl NodeExpr for Type {
+
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
         _graph: G,
@@ -162,6 +172,7 @@ impl NodeExpr for Type {
 // ─────────────────────────────────────────────────────────────────────────────
 
 impl EntityExpr for usize {
+    type Marker = ConstFilter;
     fn prop_type(&self) -> PropType {
         PropType::U64
     }
@@ -177,6 +188,7 @@ impl NodeExpr for usize {
 }
 
 impl EntityExpr for String {
+    type Marker = ConstFilter;
     fn prop_type(&self) -> PropType {
         PropType::Str
     }
@@ -192,6 +204,7 @@ impl NodeExpr for String {
 }
 
 impl EntityExpr for ArcStr {
+    type Marker = ConstFilter;
     fn prop_type(&self) -> PropType {
         PropType::Str
     }
@@ -206,7 +219,9 @@ impl NodeExpr for ArcStr {
     }
 }
 
-impl EntityExpr for &'static str {
+impl EntityExpr for &'static str
+{
+    type Marker = ConstFilter;
     fn prop_type(&self) -> PropType {
         PropType::Str
     }
@@ -230,6 +245,7 @@ impl NodeExpr for &'static str {
 // ─────────────────────────────────────────────────────────────────────────────
 
 impl EntityExpr for Prop {
+    type Marker = ConstFilter;
     fn prop_type(&self) -> PropType {
         self.dtype()
     }
@@ -285,7 +301,9 @@ impl_node_expr_for_numeric!(u16, U16);
 #[derive(Clone)]
 pub struct ConstExpr<T>(pub T);
 
-impl<T: Comparable + Clone + Send + Sync + 'static> EntityExpr for ConstExpr<T> {}
+impl<T: Comparable + Clone + Send + Sync + 'static> EntityExpr for ConstExpr<T> {
+    type Marker = ConstFilter;
+}
 
 impl<T: Comparable + Into<Prop> + Clone + Send + Sync + 'static> NodeExpr for ConstExpr<T> {
     fn create_node_op<'g, G: GraphView + 'g>(
@@ -317,6 +335,7 @@ pub struct DegreeExpr<E> {
 }
 
 impl<E: CreateView + Clone + Send + Sync + 'static> EntityExpr for DegreeExpr<E> {
+    type Marker = NodeFilter;
     fn prop_type(&self) -> PropType {
         PropType::U64
     }
