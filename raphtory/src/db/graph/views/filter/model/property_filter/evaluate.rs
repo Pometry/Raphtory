@@ -1,7 +1,7 @@
+use super::PropertyFilter;
 use crate::db::graph::views::filter::model::Op;
 use raphtory_api::core::entities::properties::prop::{Prop, PropArray, PropType};
 use std::borrow::Borrow;
-use super::PropertyFilter;
 
 enum ValueType {
     Seq(Vec<Prop>),
@@ -17,7 +17,7 @@ pub fn aggregate_values(
             PropType::List(_) => {
                 let s = x
                     .iter_all()
-                    .map(|y| aggregate_values(y, op))
+                    .map(|y| aggregate_values(y, &op))
                     .flatten()
                     .collect();
                 Some(Prop::List(s))

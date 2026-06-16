@@ -37,9 +37,6 @@
 //! ```
 
 use super::EdgeOp;
-use crate::db::graph::views::filter::model::property_filter::evaluate::{
-    scan_f64_sum_count, scan_i64_sum, scan_u64_sum,
-};
 use crate::{
     db::{
         api::{
@@ -49,19 +46,20 @@ use crate::{
         },
         graph::views::filter::model::{
             filter_operator::{BinaryOp, Comparable, SetOp, StringComparable, StringOp, UnaryOp},
-            property_filter::evaluate::aggregate_values,
+            property_filter::evaluate::{
+                aggregate_values, scan_f64_sum_count, scan_i64_sum, scan_u64_sum,
+            },
         },
     },
     prelude::GraphViewOps,
 };
-use raphtory_api::core::entities::edges::edge_ref::EdgeRef;
 use raphtory_api::core::entities::{
+    edges::edge_ref::EdgeRef,
     properties::prop::{IntoProp, Prop, PropArray, PropType},
     VID,
 };
 use raphtory_storage::graph::graph::GraphStorage;
-use std::borrow::Borrow;
-use std::{collections::HashSet, hash::Hash, sync::Arc};
+use std::{borrow::Borrow, collections::HashSet, hash::Hash, sync::Arc};
 // ─────────────────────────────────────────────────────────────────────────────
 // NodePropOp<G> — latest property value by pre-resolved column ID
 // ─────────────────────────────────────────────────────────────────────────────
@@ -198,7 +196,7 @@ macro_rules! impl_agg_entity_op {
 }
 
 impl_agg_entity_op!(SumNodeOp, SumEdgeOp, |vals| {
-    aggregate_values(vals, &|pi| {
+    aggregate_values(vals, |pi| {
         let mut vals = pi.peekable();
         if vals.peek().is_none() {
             return None;
@@ -230,7 +228,7 @@ impl_agg_entity_op!(SumNodeOp, SumEdgeOp, |vals| {
 });
 
 impl_agg_entity_op!(AvgNodeOp, AvgEdgeOp, |vals| {
-    aggregate_values(vals, &|pi| {
+    aggregate_values(vals, |pi| {
         let mut vals = pi.peekable();
         if vals.peek().is_none() {
             return None;
@@ -397,10 +395,16 @@ pub fn broadcast_binary(
             }
         }
         (Prop::List(l), r) => Some(Prop::List(
-            l.iter_all().map(|(l)| op(l, Some(r))).flatten().collect(),
+            l.iter_all()
+                .map(|(l)| op(l, Some(r.clone())))
+                .flatten()
+                .collect(),
         )),
         (l, Prop::List(r)) => Some(Prop::List(
-            r.iter_all().map(|r| op(Some(l), r)).flatten().collect(),
+            r.iter_all()
+                .map(|r| op(Some(l.clone()), r))
+                .flatten()
+                .collect(),
         )),
         (l, r) => op(Some(l), Some(r)),
     }
@@ -435,7 +439,7 @@ impl<'g> NodeOp for ListAwareSetNodeOp<'g> {
         //         Some(Prop::List(PropArray::from(bools)))
         //     }
         // })
-        broadcast_unary(vals, |v, rhs| {
+        broadcast_unary(vals, |v| {
             let v = v?;
             Some(Prop::Bool(match op {
                 SetOp::IsIn => values.iter().any(|x| x == &v),

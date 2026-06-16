@@ -2,8 +2,6 @@
 //!
 //! Parallel to `node_expr/ops.rs` — same design, different subject.
 
-use std::collections::HashSet;
-use std::hash::Hash;
 use crate::db::{
     api::{
         properties::internal::{InternalMetadataOps, InternalTemporalPropertyViewOps},
@@ -17,11 +15,12 @@ use raphtory_api::core::entities::{
     properties::prop::{Prop, PropType},
 };
 use raphtory_storage::graph::graph::GraphStorage;
+use std::{collections::HashSet, hash::Hash};
 
 use super::EdgeOp;
-use std::sync::Arc;
-use raphtory_api::core::entities::properties::prop::PropArray;
 use crate::db::graph::views::filter::model::property_filter::evaluate::aggregate_values;
+use raphtory_api::core::entities::properties::prop::PropArray;
+use std::sync::Arc;
 // ─────────────────────────────────────────────────────────────────────────────
 // Arc<dyn EdgeOp> — blanket impl so Arc-boxed ops satisfy EdgeOp
 // ─────────────────────────────────────────────────────────────────────────────
@@ -147,8 +146,9 @@ impl<'g, L: Comparable + Clone + Send + Sync + 'static> EdgeOp for BinaryCmpEdge
 // UnaryEdgeOp<'g, I> — is_some / is_none on Option<I>-valued expressions
 // ─────────────────────────────────────────────────────────────────────────────
 
-use crate::db::graph::views::filter::model::filter_operator::UnaryOp;
-use crate::db::graph::views::filter::model::{SetOp, StringComparable, StringOp};
+use crate::db::graph::views::filter::model::{
+    filter_operator::UnaryOp, SetOp, StringComparable, StringOp,
+};
 
 #[derive(Clone)]
 pub(crate) struct UnaryEdgeOp<'g, I: Clone + Send + Sync + 'static> {
@@ -261,9 +261,15 @@ impl<'g> EdgeOp for ListAwareCmpEdgeOp<'g> {
         let lv = self.left.apply(storage, edge);
         let rhs = self.right.apply(storage, edge)?;
         let op = &self.op;
-        aggregate_values(lv, &|pi| {
-            let bools: Vec<Prop> = pi.map(|v| Prop::Bool(Prop::binary_cmp(op, &v, &rhs))).collect();
-            if bools.is_empty() { None } else { Some(Prop::List(PropArray::from(bools))) }
+        aggregate_values(lv, |pi| {
+            let bools: Vec<Prop> = pi
+                .map(|v| Prop::Bool(Prop::binary_cmp(op, &v, &rhs)))
+                .collect();
+            if bools.is_empty() {
+                None
+            } else {
+                Some(Prop::List(PropArray::from(bools)))
+            }
         })
     }
 }
@@ -286,9 +292,15 @@ impl<'g> EdgeOp for ListAwareStringEdgeOp<'g> {
         let lv = self.left.apply(storage, edge);
         let rhs = self.right.apply(storage, edge);
         let op = &self.op;
-        aggregate_values(lv, &|pi| {
-            let bools: Vec<Prop> = pi.map(|v| Prop::Bool(Option::<Prop>::string_cmp(op, &Some(v), &rhs))).collect();
-            if bools.is_empty() { None } else { Some(Prop::List(PropArray::from(bools))) }
+        aggregate_values(lv, |pi| {
+            let bools: Vec<Prop> = pi
+                .map(|v| Prop::Bool(Option::<Prop>::string_cmp(op, &Some(v), &rhs)))
+                .collect();
+            if bools.is_empty() {
+                None
+            } else {
+                Some(Prop::List(PropArray::from(bools)))
+            }
         })
     }
 }
@@ -311,13 +323,20 @@ impl<'g> EdgeOp for ListAwareSetEdgeOp<'g> {
         let lv = self.inner.apply(storage, edge);
         let values = &self.values;
         let op = &self.op;
-        aggregate_values(lv, &|pi| {
-            let bools: Vec<Prop> = pi.map(|v| Prop::Bool(match op {
-                SetOp::IsIn => values.iter().any(|x| x == &v),
-                SetOp::IsNotIn => values.iter().all(|x| x != &v),
-            })).collect();
-            if bools.is_empty() { None } else { Some(Prop::List(PropArray::from(bools))) }
+        aggregate_values(lv, |pi| {
+            let bools: Vec<Prop> = pi
+                .map(|v| {
+                    Prop::Bool(match op {
+                        SetOp::IsIn => values.iter().any(|x| x == &v),
+                        SetOp::IsNotIn => values.iter().all(|x| x != &v),
+                    })
+                })
+                .collect();
+            if bools.is_empty() {
+                None
+            } else {
+                Some(Prop::List(PropArray::from(bools)))
+            }
         })
     }
 }
-
