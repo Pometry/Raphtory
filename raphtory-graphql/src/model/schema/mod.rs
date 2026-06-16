@@ -27,21 +27,6 @@ fn get_node_type<'graph, G: GraphViewOps<'graph>>(node: NodeView<'graph, G>) -> 
     }
 }
 
+/// Maps each `(property key, property type)` to its distinct values.
+/// An empty HashSet means "too many values" so we're skipping value collection.
 type SchemaAggregate = FxHashMap<(String, String), HashSet<String>>;
-
-fn merge_schemas(mut s1: SchemaAggregate, s2: SchemaAggregate) -> SchemaAggregate {
-    for ((key, prop_type), set2) in s2 {
-        if let Some(set1) = s1.get_mut(&(key.clone(), prop_type.clone())) {
-            // Here, an empty set means: too many values to be interpreted as an enumerated type
-            if set1.len() > 0 && set2.len() > 0 {
-                set1.extend(set2);
-            }
-            if set1.len() > ENUM_BOUNDARY {
-                set1.clear();
-            }
-        } else {
-            s1.insert((key, prop_type), set2);
-        }
-    }
-    s1
-}

@@ -1,12 +1,11 @@
 use crate::{
     model::schema::{
-        merge_schemas, property_schema::PropertySchema, SchemaAggregate,
+        property_schema::PropertySchema, SchemaAggregate, ENUM_BOUNDARY,
         MAX_DETAILED_SCHEMA_ENTITIES,
     },
     rayon::blocking_compute,
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
-use itertools::Itertools;
 use raphtory::{
     db::{api::view::StaticGraphViewOps, graph::edge::EdgeView},
     prelude::*,
@@ -14,7 +13,10 @@ use raphtory::{
 use raphtory_api::core::entities::{
     edges::edge_ref::EdgeRef, properties::meta::PropMapper, LayerIds,
 };
-use std::{collections::HashSet, sync::Arc};
+use std::{
+    collections::{hash_map::Entry, HashSet},
+    sync::Arc,
+};
 
 /// Describes edges between a specific pair of node types — the property and
 /// metadata keys seen on such edges, along with their observed value types.
@@ -75,12 +77,11 @@ impl<G: StaticGraphViewOps> EdgeSchema<G> {
                     })
                     .collect()
             } else {
-                let schema: SchemaAggregate = cloned
-                    .edges()
-                    .map(collect_edge_property_schema)
-                    .reduce(merge_schemas)
-                    .unwrap_or_default();
-                schema.into_iter().map(|prop| prop.into()).collect_vec()
+                let meta = cloned.graph.edge_meta();
+                collect_schema(
+                    cloned.edges().map(|edge| edge.properties()),
+                    meta.temporal_prop_mapper(),
+                )
             }
         })
         .await
@@ -104,24 +105,26 @@ impl<G: StaticGraphViewOps> EdgeSchema<G> {
                     })
                     .collect()
             } else {
-                let schema: SchemaAggregate = cloned
-                    .edges()
-                    .map(collect_edge_metadata_schema)
-                    .reduce(merge_schemas) // FIXME: Stop scanning all properties, take the first (or last) 20
-                    .unwrap_or_default();
-                schema.into_iter().map(|prop| prop.into()).collect_vec()
+                let meta = cloned.graph.edge_meta();
+                collect_schema(
+                    cloned.edges().map(|edge| edge.metadata()),
+                    meta.metadata_mapper(),
+                )
             }
         })
         .await
     }
 }
 
-fn collect_schema<P: PropertiesOps>(props: P, mapper: &PropMapper) -> SchemaAggregate {
-    props
-        .iter()
-        .zip(props.ids())
-        .filter_map(|((key, value), id)| {
-            let value = value?;
+/// Aggregate `(key, dtype) -> distinct values` across all edges, capping each value set at `ENUM_BOUNDARY`
+fn collect_schema<P: PropertiesOps>(
+    props_per_edge: impl Iterator<Item = P>,
+    mapper: &PropMapper,
+) -> Vec<PropertySchema> {
+    let mut schema = SchemaAggregate::default();
+    for props in props_per_edge {
+        for ((key, value), id) in props.iter().zip(props.ids()) {
+            let Some(value) = value else { continue };
             let key_with_prop_type = (
                 key.to_string(),
                 mapper
@@ -129,23 +132,23 @@ fn collect_schema<P: PropertiesOps>(props: P, mapper: &PropMapper) -> SchemaAggr
                     .expect("type for internal id should always exist")
                     .to_string(),
             );
-            Some((key_with_prop_type, HashSet::from([value.to_string()])))
-        })
-        .collect()
-}
-
-fn collect_edge_property_schema<'graph, G: GraphViewOps<'graph>>(
-    edge: EdgeView<G>,
-) -> SchemaAggregate {
-    let props = edge.properties();
-    let mapper = edge.graph.edge_meta().temporal_prop_mapper();
-    collect_schema(props, mapper)
-}
-
-fn collect_edge_metadata_schema<'graph, G: GraphViewOps<'graph>>(
-    edge: EdgeView<G>,
-) -> SchemaAggregate {
-    let props = edge.metadata();
-    let mapper = edge.graph.edge_meta().metadata_mapper();
-    collect_schema(props, mapper)
+            match schema.entry(key_with_prop_type) {
+                Entry::Vacant(entry) => {
+                    entry.insert(HashSet::from([value.to_string()]));
+                }
+                Entry::Occupied(mut entry) => {
+                    let variants = entry.get_mut();
+                    // An empty set means "too many variants" so we skip.
+                    // Otherwise, there should always be at least 1 value in the set.
+                    if !variants.is_empty() {
+                        variants.insert(value.to_string());
+                        if variants.len() > ENUM_BOUNDARY {
+                            variants.clear();
+                        }
+                    }
+                }
+            }
+        }
+    }
+    schema.into_iter().map(|prop| prop.into()).collect()
 }
