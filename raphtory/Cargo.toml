@@ -87,7 +87,7 @@ minijinja-contrib = { workspace = true, optional = true }
 heed = { workspace = true, optional = true }
 moka = { workspace = true, optional = true, features = ["future"] }
 lancedb = { workspace = true, optional = true }
-axum = { workspace = true, optional = true } # TODO put this in the proper place and make optional
+axum = { workspace = true, optional = true }
 
 # python binding optional dependencies
 pyo3 = { workspace = true, optional = true }

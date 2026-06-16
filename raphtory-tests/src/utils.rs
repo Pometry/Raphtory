@@ -14,7 +14,7 @@ use raphtory::{
 };
 use raphtory_api::core::{
     entities::properties::{
-        meta::STATIC_GRAPH_LAYER,
+        meta::STATIC_GRAPH_LAYER_NAME,
         prop::{PropType, DECIMAL_MAX},
     },
     storage::{
@@ -1131,7 +1131,12 @@ pub fn build_graph_layer(graph_fix: &GraphFixture, layers: &[&str]) -> Arc<Stora
             graph_fix
                 .nodes()
                 .filter(|(_, updates)| !updates.props.t_props.is_empty())
-                .map(|(_, updates)| updates.node_layer.as_str().unwrap_or(STATIC_GRAPH_LAYER)),
+                .map(|(_, updates)| {
+                    updates
+                        .node_layer
+                        .as_str()
+                        .unwrap_or(STATIC_GRAPH_LAYER_NAME)
+                }),
         )
         .collect();
 
