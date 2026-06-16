@@ -45,7 +45,7 @@ pub use super::{Metadata, Property};
 /// NodeFilter.property("score").temporal().gt(10i64).any()
 /// ```
 ///
-pub trait NodeExpr: EntityExpr + Clone + Send + Sync + 'static {
+pub(crate) trait NodeExpr: EntityExpr + Clone + Send + Sync + 'static {
     /// Compile the expression against a specific graph view.
     ///
     /// Any name→ID resolution (property, metadata) happens here, once.
@@ -114,53 +114,53 @@ pub trait NodeTemporalPropOps: Sized {
         AllExpr(self.into_expr())
     }
 
-    fn gt<R: NodeExpr>(self, rhs: R) -> BinaryCmpNodeFilter<TemporalPropertyExpr<Self::ViewExpr>, R> {
-        BinaryCmpNodeFilter::new(self.into_expr(), BinaryOp::Gt, rhs)
+    fn gt<R: NodeExpr>(self, rhs: R) -> BinaryCmpFilter<TemporalPropertyExpr<Self::ViewExpr>, R> {
+        BinaryCmpFilter::new(self.into_expr(), BinaryOp::Gt, rhs)
     }
-    fn ge<R: NodeExpr>(self, rhs: R) -> BinaryCmpNodeFilter<TemporalPropertyExpr<Self::ViewExpr>, R> {
-        BinaryCmpNodeFilter::new(self.into_expr(), BinaryOp::Ge, rhs)
+    fn ge<R: NodeExpr>(self, rhs: R) -> BinaryCmpFilter<TemporalPropertyExpr<Self::ViewExpr>, R> {
+        BinaryCmpFilter::new(self.into_expr(), BinaryOp::Ge, rhs)
     }
-    fn lt<R: NodeExpr>(self, rhs: R) -> BinaryCmpNodeFilter<TemporalPropertyExpr<Self::ViewExpr>, R> {
-        BinaryCmpNodeFilter::new(self.into_expr(), BinaryOp::Lt, rhs)
+    fn lt<R: NodeExpr>(self, rhs: R) -> BinaryCmpFilter<TemporalPropertyExpr<Self::ViewExpr>, R> {
+        BinaryCmpFilter::new(self.into_expr(), BinaryOp::Lt, rhs)
     }
-    fn le<R: NodeExpr>(self, rhs: R) -> BinaryCmpNodeFilter<TemporalPropertyExpr<Self::ViewExpr>, R> {
-        BinaryCmpNodeFilter::new(self.into_expr(), BinaryOp::Le, rhs)
+    fn le<R: NodeExpr>(self, rhs: R) -> BinaryCmpFilter<TemporalPropertyExpr<Self::ViewExpr>, R> {
+        BinaryCmpFilter::new(self.into_expr(), BinaryOp::Le, rhs)
     }
-    fn eq<R: NodeExpr>(self, rhs: R) -> BinaryCmpNodeFilter<TemporalPropertyExpr<Self::ViewExpr>, R> {
-        BinaryCmpNodeFilter::new(self.into_expr(), BinaryOp::Eq, rhs)
+    fn eq<R: NodeExpr>(self, rhs: R) -> BinaryCmpFilter<TemporalPropertyExpr<Self::ViewExpr>, R> {
+        BinaryCmpFilter::new(self.into_expr(), BinaryOp::Eq, rhs)
     }
-    fn ne<R: NodeExpr>(self, rhs: R) -> BinaryCmpNodeFilter<TemporalPropertyExpr<Self::ViewExpr>, R> {
-        BinaryCmpNodeFilter::new(self.into_expr(), BinaryOp::Ne, rhs)
+    fn ne<R: NodeExpr>(self, rhs: R) -> BinaryCmpFilter<TemporalPropertyExpr<Self::ViewExpr>, R> {
+        BinaryCmpFilter::new(self.into_expr(), BinaryOp::Ne, rhs)
     }
-    fn contains<R: NodeExpr>(self, rhs: R) -> StringNodeFilter<TemporalPropertyExpr<Self::ViewExpr>, R> {
-        StringNodeFilter::new(self.into_expr(), StringOp::Contains, rhs)
+    fn contains<R: NodeExpr>(self, rhs: R) -> StringFilter<TemporalPropertyExpr<Self::ViewExpr>, R> {
+        StringFilter::new(self.into_expr(), StringOp::Contains, rhs)
     }
-    fn starts_with<R: NodeExpr>(self, rhs: R) -> StringNodeFilter<TemporalPropertyExpr<Self::ViewExpr>, R> {
-        StringNodeFilter::new(self.into_expr(), StringOp::StartsWith, rhs)
+    fn starts_with<R: NodeExpr>(self, rhs: R) -> StringFilter<TemporalPropertyExpr<Self::ViewExpr>, R> {
+        StringFilter::new(self.into_expr(), StringOp::StartsWith, rhs)
     }
-    fn ends_with<R: NodeExpr>(self, rhs: R) -> StringNodeFilter<TemporalPropertyExpr<Self::ViewExpr>, R> {
-        StringNodeFilter::new(self.into_expr(), StringOp::EndsWith, rhs)
+    fn ends_with<R: NodeExpr>(self, rhs: R) -> StringFilter<TemporalPropertyExpr<Self::ViewExpr>, R> {
+        StringFilter::new(self.into_expr(), StringOp::EndsWith, rhs)
     }
-    fn not_contains<R: NodeExpr>(self, rhs: R) -> StringNodeFilter<TemporalPropertyExpr<Self::ViewExpr>, R> {
-        StringNodeFilter::new(self.into_expr(), StringOp::NotContains, rhs)
+    fn not_contains<R: NodeExpr>(self, rhs: R) -> StringFilter<TemporalPropertyExpr<Self::ViewExpr>, R> {
+        StringFilter::new(self.into_expr(), StringOp::NotContains, rhs)
     }
     fn fuzzy_search<R: NodeExpr>(
         self,
         rhs: R,
         levenshtein_distance: usize,
         prefix_match: bool,
-    ) -> StringNodeFilter<TemporalPropertyExpr<Self::ViewExpr>, R> {
-        StringNodeFilter::new(
+    ) -> StringFilter<TemporalPropertyExpr<Self::ViewExpr>, R> {
+        StringFilter::new(
             self.into_expr(),
             StringOp::FuzzySearch { levenshtein_distance, prefix_match },
             rhs,
         )
     }
-    fn is_true(self) -> BinaryCmpNodeFilter<TemporalPropertyExpr<Self::ViewExpr>, Prop> {
-        BinaryCmpNodeFilter::new(self.into_expr(), BinaryOp::Eq, Prop::Bool(true))
+    fn is_true(self) -> BinaryCmpFilter<TemporalPropertyExpr<Self::ViewExpr>, Prop> {
+        BinaryCmpFilter::new(self.into_expr(), BinaryOp::Eq, Prop::Bool(true))
     }
-    fn is_false(self) -> BinaryCmpNodeFilter<TemporalPropertyExpr<Self::ViewExpr>, Prop> {
-        BinaryCmpNodeFilter::new(self.into_expr(), BinaryOp::Eq, Prop::Bool(false))
+    fn is_false(self) -> BinaryCmpFilter<TemporalPropertyExpr<Self::ViewExpr>, Prop> {
+        BinaryCmpFilter::new(self.into_expr(), BinaryOp::Eq, Prop::Bool(false))
     }
 }
 

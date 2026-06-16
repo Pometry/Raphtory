@@ -8,7 +8,7 @@
 //! ```text
 //! ┌─ Build phase (pure data, no graph) ──────────────────────┐
 //! │  EdgeFilter.property("weight")    ← EdgeExpr              │
-//! │  .eq(5.0f64)                      ← BinaryCmpEdgeFilter   │
+//! │  .eq(5.0f64)                      ← BinaryCmpFilter   │
 //! └──────────────────────────────────────────────────────────┘
 //!          │  create_edge_op(graph)?   ← resolve name → prop_id
 //!          ▼
@@ -44,7 +44,7 @@ pub mod ops;
 
 pub use exprs::*;
 pub use filters::*;
-use filters::BinaryCmpEdgeFilter;
+use filters::BinaryCmpFilter;
 use crate::db::graph::views::filter::model::{ FirstExpr, LastExpr, LenExpr, MaxExpr, MinExpr, SumExpr};
 use crate::db::graph::views::filter::model::node_expr::{AllExpr, AnyExpr, AvgExpr};
 pub use super::{Metadata, Property};
@@ -80,7 +80,7 @@ pub trait EdgeOp: Send + Sync {
 /// EdgeFilter.property("tag").temporal().sum().gt(100i64)
 /// EdgeFilter.property("label").temporal().into_expr().contains("foo").any()
 /// ```
-pub trait EdgeExpr: EntityExpr + Clone + Send + Sync + 'static {
+pub(crate) trait EdgeExpr: EntityExpr + Clone + Send + Sync + 'static {
     fn create_edge_op<'g, G: GraphView + 'g>(
         &self,
         graph: G,
@@ -95,11 +95,11 @@ pub trait EdgeExpr: EntityExpr + Clone + Send + Sync + 'static {
 /// Presence and set-membership operators for `PropertyExpr<E>` and `MetadataExpr<E>`
 /// on the edge side.
 pub trait EdgePropertyExprOps: EdgeExpr + Sized {
-    fn is_some(self) -> UnaryEdgeFilter<Self, Prop> {
-        UnaryEdgeFilter { expr: self, op: UnaryOp::IsSome, _phantom: PhantomData }
+    fn is_some(self) -> UnaryFilter<Self> {
+        UnaryFilter { expr: self, op: UnaryOp::IsSome}
     }
-    fn is_none(self) -> UnaryEdgeFilter<Self, Prop> {
-        UnaryEdgeFilter { expr: self, op: UnaryOp::IsNone, _phantom: PhantomData }
+    fn is_none(self) -> UnaryFilter<Self> {
+        UnaryFilter { expr: self, op: UnaryOp::IsNone }
     }
     fn is_in(
         self,
@@ -121,11 +121,11 @@ pub trait EdgePropertyExprOps: EdgeExpr + Sized {
             op: SetOp::IsNotIn,
         }
     }
-    fn is_true(self) -> BinaryCmpEdgeFilter<Self, Prop> {
-        BinaryCmpEdgeFilter::new(self, BinaryOp::Eq, Prop::Bool(true))
+    fn is_true(self) -> BinaryCmpFilter<Self, Prop> {
+        BinaryCmpFilter::new(self, BinaryOp::Eq, Prop::Bool(true))
     }
-    fn is_false(self) -> BinaryCmpEdgeFilter<Self, Prop> {
-        BinaryCmpEdgeFilter::new(self, BinaryOp::Eq, Prop::Bool(false))
+    fn is_false(self) -> BinaryCmpFilter<Self, Prop> {
+        BinaryCmpFilter::new(self, BinaryOp::Eq, Prop::Bool(false))
     }
 }
 
@@ -192,53 +192,53 @@ pub trait EdgeTemporalPropOps: Sized {
     }
 
     // Direct comparison — no .into_expr() needed
-    fn gt<R: EdgeExpr>(self, rhs: R) -> BinaryCmpEdgeFilter<TemporalEdgePropExpr<Self::ViewExpr>, R> {
-        BinaryCmpEdgeFilter::new(self.into_expr(), BinaryOp::Gt, rhs)
+    fn gt<R: EdgeExpr>(self, rhs: R) -> BinaryCmpFilter<TemporalEdgePropExpr<Self::ViewExpr>, R> {
+        BinaryCmpFilter::new(self.into_expr(), BinaryOp::Gt, rhs)
     }
-    fn ge<R: EdgeExpr>(self, rhs: R) -> BinaryCmpEdgeFilter<TemporalEdgePropExpr<Self::ViewExpr>, R> {
-        BinaryCmpEdgeFilter::new(self.into_expr(), BinaryOp::Ge, rhs)
+    fn ge<R: EdgeExpr>(self, rhs: R) -> BinaryCmpFilter<TemporalEdgePropExpr<Self::ViewExpr>, R> {
+        BinaryCmpFilter::new(self.into_expr(), BinaryOp::Ge, rhs)
     }
-    fn lt<R: EdgeExpr>(self, rhs: R) -> BinaryCmpEdgeFilter<TemporalEdgePropExpr<Self::ViewExpr>, R> {
-        BinaryCmpEdgeFilter::new(self.into_expr(), BinaryOp::Lt, rhs)
+    fn lt<R: EdgeExpr>(self, rhs: R) -> BinaryCmpFilter<TemporalEdgePropExpr<Self::ViewExpr>, R> {
+        BinaryCmpFilter::new(self.into_expr(), BinaryOp::Lt, rhs)
     }
-    fn le<R: EdgeExpr>(self, rhs: R) -> BinaryCmpEdgeFilter<TemporalEdgePropExpr<Self::ViewExpr>, R> {
-        BinaryCmpEdgeFilter::new(self.into_expr(), BinaryOp::Le, rhs)
+    fn le<R: EdgeExpr>(self, rhs: R) -> BinaryCmpFilter<TemporalEdgePropExpr<Self::ViewExpr>, R> {
+        BinaryCmpFilter::new(self.into_expr(), BinaryOp::Le, rhs)
     }
-    fn eq<R: EdgeExpr>(self, rhs: R) -> BinaryCmpEdgeFilter<TemporalEdgePropExpr<Self::ViewExpr>, R> {
-        BinaryCmpEdgeFilter::new(self.into_expr(), BinaryOp::Eq, rhs)
+    fn eq<R: EdgeExpr>(self, rhs: R) -> BinaryCmpFilter<TemporalEdgePropExpr<Self::ViewExpr>, R> {
+        BinaryCmpFilter::new(self.into_expr(), BinaryOp::Eq, rhs)
     }
-    fn ne<R: EdgeExpr>(self, rhs: R) -> BinaryCmpEdgeFilter<TemporalEdgePropExpr<Self::ViewExpr>, R> {
-        BinaryCmpEdgeFilter::new(self.into_expr(), BinaryOp::Ne, rhs)
+    fn ne<R: EdgeExpr>(self, rhs: R) -> BinaryCmpFilter<TemporalEdgePropExpr<Self::ViewExpr>, R> {
+        BinaryCmpFilter::new(self.into_expr(), BinaryOp::Ne, rhs)
     }
-    fn contains<R: EdgeExpr>(self, rhs: R) -> StringEdgeFilter<TemporalEdgePropExpr<Self::ViewExpr>, R> {
-        StringEdgeFilter::new(self.into_expr(), StringOp::Contains, rhs)
+    fn contains<R: EdgeExpr>(self, rhs: R) -> StringFilter<TemporalEdgePropExpr<Self::ViewExpr>, R> {
+        StringFilter::new(self.into_expr(), StringOp::Contains, rhs)
     }
-    fn starts_with<R: EdgeExpr>(self, rhs: R) -> StringEdgeFilter<TemporalEdgePropExpr<Self::ViewExpr>, R> {
-        StringEdgeFilter::new(self.into_expr(), StringOp::StartsWith, rhs)
+    fn starts_with<R: EdgeExpr>(self, rhs: R) -> StringFilter<TemporalEdgePropExpr<Self::ViewExpr>, R> {
+        StringFilter::new(self.into_expr(), StringOp::StartsWith, rhs)
     }
-    fn ends_with<R: EdgeExpr>(self, rhs: R) -> StringEdgeFilter<TemporalEdgePropExpr<Self::ViewExpr>, R> {
-        StringEdgeFilter::new(self.into_expr(), StringOp::EndsWith, rhs)
+    fn ends_with<R: EdgeExpr>(self, rhs: R) -> StringFilter<TemporalEdgePropExpr<Self::ViewExpr>, R> {
+        StringFilter::new(self.into_expr(), StringOp::EndsWith, rhs)
     }
-    fn not_contains<R: EdgeExpr>(self, rhs: R) -> StringEdgeFilter<TemporalEdgePropExpr<Self::ViewExpr>, R> {
-        StringEdgeFilter::new(self.into_expr(), StringOp::NotContains, rhs)
+    fn not_contains<R: EdgeExpr>(self, rhs: R) -> StringFilter<TemporalEdgePropExpr<Self::ViewExpr>, R> {
+        StringFilter::new(self.into_expr(), StringOp::NotContains, rhs)
     }
     fn fuzzy_search<R: EdgeExpr>(
         self,
         rhs: R,
         levenshtein_distance: usize,
         prefix_match: bool,
-    ) -> StringEdgeFilter<TemporalEdgePropExpr<Self::ViewExpr>, R> {
-        StringEdgeFilter::new(
+    ) -> StringFilter<TemporalEdgePropExpr<Self::ViewExpr>, R> {
+        StringFilter::new(
             self.into_expr(),
             StringOp::FuzzySearch { levenshtein_distance, prefix_match },
             rhs,
         )
     }
-    fn is_true(self) -> BinaryCmpEdgeFilter<TemporalEdgePropExpr<Self::ViewExpr>, Prop> {
-        BinaryCmpEdgeFilter::new(self.into_expr(), BinaryOp::Eq, Prop::Bool(true))
+    fn is_true(self) -> BinaryCmpFilter<TemporalEdgePropExpr<Self::ViewExpr>, Prop> {
+        BinaryCmpFilter::new(self.into_expr(), BinaryOp::Eq, Prop::Bool(true))
     }
-    fn is_false(self) -> BinaryCmpEdgeFilter<TemporalEdgePropExpr<Self::ViewExpr>, Prop> {
-        BinaryCmpEdgeFilter::new(self.into_expr(), BinaryOp::Eq, Prop::Bool(false))
+    fn is_false(self) -> BinaryCmpFilter<TemporalEdgePropExpr<Self::ViewExpr>, Prop> {
+        BinaryCmpFilter::new(self.into_expr(), BinaryOp::Eq, Prop::Bool(false))
     }
 }
 
@@ -267,43 +267,43 @@ impl<E: CreateView + EdgeFilterFactory + Clone + Send + Sync + 'static> EdgeTemp
 /// EdgeFilter.property("count").temporal().sum().gt(100i64)
 /// ```
 pub trait EdgeExprFilterOps: EdgeExpr + Sized {
-    fn gt<R: EdgeExpr>(self, rhs: R) -> BinaryCmpEdgeFilter<Self, R> {
-        BinaryCmpEdgeFilter::new(self, BinaryOp::Gt, rhs)
+    fn gt<R: EdgeExpr>(self, rhs: R) -> BinaryCmpFilter<Self, R> {
+        BinaryCmpFilter::new(self, BinaryOp::Gt, rhs)
     }
-    fn ge<R: EdgeExpr>(self, rhs: R) -> BinaryCmpEdgeFilter<Self, R> {
-        BinaryCmpEdgeFilter::new(self, BinaryOp::Ge, rhs)
+    fn ge<R: EdgeExpr>(self, rhs: R) -> BinaryCmpFilter<Self, R> {
+        BinaryCmpFilter::new(self, BinaryOp::Ge, rhs)
     }
-    fn lt<R: EdgeExpr>(self, rhs: R) -> BinaryCmpEdgeFilter<Self, R> {
-        BinaryCmpEdgeFilter::new(self, BinaryOp::Lt, rhs)
+    fn lt<R: EdgeExpr>(self, rhs: R) -> BinaryCmpFilter<Self, R> {
+        BinaryCmpFilter::new(self, BinaryOp::Lt, rhs)
     }
-    fn le<R: EdgeExpr>(self, rhs: R) -> BinaryCmpEdgeFilter<Self, R> {
-        BinaryCmpEdgeFilter::new(self, BinaryOp::Le, rhs)
+    fn le<R: EdgeExpr>(self, rhs: R) -> BinaryCmpFilter<Self, R> {
+        BinaryCmpFilter::new(self, BinaryOp::Le, rhs)
     }
-    fn eq<R: EdgeExpr>(self, rhs: R) -> BinaryCmpEdgeFilter<Self, R> {
-        BinaryCmpEdgeFilter::new(self, BinaryOp::Eq, rhs)
+    fn eq<R: EdgeExpr>(self, rhs: R) -> BinaryCmpFilter<Self, R> {
+        BinaryCmpFilter::new(self, BinaryOp::Eq, rhs)
     }
-    fn ne<R: EdgeExpr>(self, rhs: R) -> BinaryCmpEdgeFilter<Self, R> {
-        BinaryCmpEdgeFilter::new(self, BinaryOp::Ne, rhs)
+    fn ne<R: EdgeExpr>(self, rhs: R) -> BinaryCmpFilter<Self, R> {
+        BinaryCmpFilter::new(self, BinaryOp::Ne, rhs)
     }
-    fn starts_with<R: EdgeExpr>(self, rhs: R) -> StringEdgeFilter<Self, R> {
-        StringEdgeFilter::new(self, StringOp::StartsWith, rhs)
+    fn starts_with<R: EdgeExpr>(self, rhs: R) -> StringFilter<Self, R> {
+        StringFilter::new(self, StringOp::StartsWith, rhs)
     }
-    fn ends_with<R: EdgeExpr>(self, rhs: R) -> StringEdgeFilter<Self, R> {
-        StringEdgeFilter::new(self, StringOp::EndsWith, rhs)
+    fn ends_with<R: EdgeExpr>(self, rhs: R) -> StringFilter<Self, R> {
+        StringFilter::new(self, StringOp::EndsWith, rhs)
     }
-    fn contains<R: EdgeExpr>(self, rhs: R) -> StringEdgeFilter<Self, R> {
-        StringEdgeFilter::new(self, StringOp::Contains, rhs)
+    fn contains<R: EdgeExpr>(self, rhs: R) -> StringFilter<Self, R> {
+        StringFilter::new(self, StringOp::Contains, rhs)
     }
-    fn not_contains<R: EdgeExpr>(self, rhs: R) -> StringEdgeFilter<Self, R> {
-        StringEdgeFilter::new(self, StringOp::NotContains, rhs)
+    fn not_contains<R: EdgeExpr>(self, rhs: R) -> StringFilter<Self, R> {
+        StringFilter::new(self, StringOp::NotContains, rhs)
     }
     fn fuzzy_search<R: EdgeExpr>(
         self,
         rhs: R,
         levenshtein_distance: usize,
         prefix_match: bool,
-    ) -> StringEdgeFilter<Self, R> {
-        StringEdgeFilter::new(
+    ) -> StringFilter<Self, R> {
+        StringFilter::new(
             self,
             StringOp::FuzzySearch { levenshtein_distance, prefix_match },
             rhs,
@@ -315,11 +315,11 @@ pub trait EdgeExprFilterOps: EdgeExpr + Sized {
     fn is_not_in(self, values: impl IntoIterator<Item = Prop>) -> PropValueSetEdgeFilter<Self> {
         PropValueSetEdgeFilter { expr: self, values: values.into_iter().collect(), op: SetOp::IsNotIn }
     }
-    fn any(self) -> BinaryCmpEdgeFilter<AnyExpr<Self>, Prop> {
-        BinaryCmpEdgeFilter::new(AnyExpr(self), BinaryOp::Eq, Prop::Bool(true))
+    fn any(self) -> BinaryCmpFilter<AnyExpr<Self>, Prop> {
+        BinaryCmpFilter::new(AnyExpr(self), BinaryOp::Eq, Prop::Bool(true))
     }
-    fn all(self) -> BinaryCmpEdgeFilter<AllExpr<Self>, Prop> {
-        BinaryCmpEdgeFilter::new(AllExpr(self), BinaryOp::Eq, Prop::Bool(true))
+    fn all(self) -> BinaryCmpFilter<AllExpr<Self>, Prop> {
+        BinaryCmpFilter::new(AllExpr(self), BinaryOp::Eq, Prop::Bool(true))
     }
 }
 

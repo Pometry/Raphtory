@@ -15,11 +15,11 @@ pub use crate::{
                         UnaryOp,
                     },
                     node_expr::{
-                        AllExpr, AnyExpr, AvgExpr, BinaryCmpNodeFilter,
+                        AllExpr, AnyExpr, AvgExpr, BinaryCmpFilter,
                         FirstExpr, LastExpr, LenExpr, MaxExpr,
-                        MinExpr, NodeExpr, NodeExprFilterOps, NodePropertyExprOps, NodeTemporalPropOps,
-                        PropValueSetFilter, StringNodeFilter, SumExpr,
-                        TemporalProp, UnaryNodeFilter,
+                        MinExpr, EntityExprFilterOps, NodePropertyExprOps, NodeTemporalPropOps,
+                        PropValueSetFilter, StringFilter, SumExpr,
+                        TemporalProp, UnaryFilter,
                     },
                     node_filter::{NodeFilter, NodeFilterFactory},
                     not_filter::NotFilter,
@@ -456,7 +456,7 @@ use edge_expr::{
     EdgeExpr, EdgeOp
 };
 use crate::db::graph::views::filter::model::edge_expr::ops::{EdgeMetaOp, EdgePropOp};
-use crate::db::graph::views::filter::model::node_expr::EntityExpr;
+use crate::db::graph::views::filter::model::node_expr::{EntityExpr, NodeExpr};
 
 impl<E: CreateView + EdgeFilterFactory + Clone + Send + Sync + 'static> EdgeExpr
     for PropertyExpr<E>

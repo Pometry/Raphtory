@@ -400,7 +400,7 @@ pub fn broadcast_binary(
             l.iter_all().map(|(l)| op(l, Some(r))).flatten().collect(),
         )),
         (l, Prop::List(r)) => Some(Prop::List(
-            r.iter_all().map(|(r)| op(Some(l), r)).flatten().collect(),
+            r.iter_all().map(|r| op(Some(l), r)).flatten().collect(),
         )),
         (l, r) => op(Some(l), Some(r)),
     }

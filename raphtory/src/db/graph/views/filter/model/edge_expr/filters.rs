@@ -29,7 +29,7 @@ use crate::{
 };
 use raphtory_api::core::entities::properties::prop::{Prop, PropType};
 use std::{marker::PhantomData, sync::Arc};
-
+pub(crate) use crate::db::graph::views::filter::model::{BinaryCmpFilter, StringFilter, UnaryFilter};
 // ─────────────────────────────────────────────────────────────────────────────
 // validate helpers
 // ─────────────────────────────────────────────────────────────────────────────
@@ -50,49 +50,7 @@ fn validate_binary_op(op: &BinaryOp, prop_type: &PropType) -> Result<(), GraphEr
 // ─────────────────────────────────────────────────────────────────────────────
 // BinaryCmpEdgeFilter<L, R>
 // ─────────────────────────────────────────────────────────────────────────────
-
-pub struct BinaryCmpEdgeFilter<L, R>
-where
-    L: EdgeExpr,
-    R: EdgeExpr,
-{
-    pub left: L,
-    pub op: BinaryOp,
-    pub right: R,
-}
-
-impl<L, R> BinaryCmpEdgeFilter<L, R>
-where
-    L: EdgeExpr,
-    R: EdgeExpr,
-{
-    pub fn new(left: L, op: BinaryOp, right: R) -> Self {
-        Self { left, op, right }
-    }
-}
-
-impl<L, R> Clone for BinaryCmpEdgeFilter<L, R>
-where
-    L: EdgeExpr,
-    R: EdgeExpr,
-{
-    fn clone(&self) -> Self {
-        Self {
-            left: self.left.clone(),
-            op: self.op,
-            right: self.right.clone(),
-        }
-    }
-}
-
-impl<L, R> EntityExpr for BinaryCmpEdgeFilter<L, R>
-where
-    L: EdgeExpr,
-    R: EdgeExpr,
-{
-}
-
-impl<L, R> EdgeExpr for BinaryCmpEdgeFilter<L, R>
+impl<L, R> EdgeExpr for BinaryCmpFilter<L, R>
 where
     L: EdgeExpr,
     R: EdgeExpr,
@@ -107,14 +65,7 @@ where
     }
 }
 
-impl<L, R> ComposableFilter for BinaryCmpEdgeFilter<L, R>
-where
-    L: EdgeExpr,
-    R: EdgeExpr,
-{
-}
-
-impl<L, R> TryAsCompositeFilter for BinaryCmpEdgeFilter<L, R>
+impl<L, R> TryAsCompositeFilter for BinaryCmpFilter<L, R>
 where
     L: EdgeExpr,
     R: EdgeExpr,
@@ -134,7 +85,7 @@ where
     }
 }
 
-impl<L, R> CreateFilter for BinaryCmpEdgeFilter<L, R>
+impl<L, R> CreateFilter for BinaryCmpFilter<L, R>
 where
     L: EdgeExpr,
     R: EdgeExpr,
@@ -174,41 +125,9 @@ where
 // UnaryEdgeFilter<E, I>
 // ─────────────────────────────────────────────────────────────────────────────
 
-pub struct UnaryEdgeFilter<E, I>
+impl<E> TryAsCompositeFilter for UnaryFilter<E>
 where
     E: EdgeExpr,
-    I: Clone + Send + Sync + 'static,
-{
-    pub expr: E,
-    pub op: UnaryOp,
-    pub(crate) _phantom: PhantomData<I>,
-}
-
-impl<E, I> Clone for UnaryEdgeFilter<E, I>
-where
-    E: EdgeExpr,
-    I: Clone + Send + Sync + 'static,
-{
-    fn clone(&self) -> Self {
-        Self {
-            expr: self.expr.clone(),
-            op: self.op,
-            _phantom: PhantomData,
-        }
-    }
-}
-
-impl<E, I> ComposableFilter for UnaryEdgeFilter<E, I>
-where
-    E: EdgeExpr,
-    I: Clone + Send + Sync + 'static,
-{
-}
-
-impl<E, I> TryAsCompositeFilter for UnaryEdgeFilter<E, I>
-where
-    E: EdgeExpr,
-    I: Clone + Send + Sync + 'static,
 {
     fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
         Err(GraphError::NotSupported)
@@ -225,10 +144,9 @@ where
     }
 }
 
-impl<E, I> CreateFilter for UnaryEdgeFilter<E, I>
+impl<E> CreateFilter for UnaryFilter<E>
 where
     E: EdgeExpr,
-    I: Clone + Send + Sync + 'static,
 {
     type EntityFiltered<'graph, G: GraphViewOps<'graph>> =
         EdgeExprFilteredGraph<G, Arc<dyn EdgeOp<Output = bool> + 'graph>>;
@@ -275,44 +193,8 @@ fn validate_string_op(prop_type: &PropType) -> Result<(), GraphError> {
 // StringEdgeFilter<L, R> — string expression filter for edges
 // ─────────────────────────────────────────────────────────────────────────────
 
-pub struct StringEdgeFilter<L, R>
-where
-    L: EdgeExpr,
-    R: EdgeExpr,
-{
-    pub left: L,
-    pub op: StringOp,
-    pub right: R,
-}
 
-impl<L, R> StringEdgeFilter<L, R>
-where
-    L: EdgeExpr,
-    R: EdgeExpr,
-{
-    pub fn new(left: L, op: StringOp, right: R) -> Self {
-        Self { left, op, right }
-    }
-}
-
-impl<L, R> Clone for StringEdgeFilter<L, R>
-where
-    L: EdgeExpr,
-    R: EdgeExpr,
-{
-    fn clone(&self) -> Self {
-        Self { left: self.left.clone(), op: self.op, right: self.right.clone() }
-    }
-}
-
-impl<L, R> EntityExpr for StringEdgeFilter<L, R>
-where
-    L: EdgeExpr,
-    R: EdgeExpr,
-{
-}
-
-impl<L, R> EdgeExpr for StringEdgeFilter<L, R>
+impl<L, R> EdgeExpr for StringFilter<L, R>
 where
     L: EdgeExpr,
     R: EdgeExpr,
@@ -327,14 +209,7 @@ where
     }
 }
 
-impl<L, R> ComposableFilter for StringEdgeFilter<L, R>
-where
-    L: EdgeExpr,
-    R: EdgeExpr,
-{
-}
-
-impl<L, R> TryAsCompositeFilter for StringEdgeFilter<L, R>
+impl<L, R> TryAsCompositeFilter for StringFilter<L, R>
 where
     L: EdgeExpr,
     R: EdgeExpr,
@@ -352,7 +227,7 @@ where
     }
 }
 
-impl<L, R> CreateFilter for StringEdgeFilter<L, R>
+impl<L, R> CreateFilter for StringFilter<L, R>
 where
     L: EdgeExpr,
     R: EdgeExpr,
