@@ -41,11 +41,11 @@ pub struct GraphMetadata {
 #[cfg(feature = "io")]
 impl Metadata {
     /// Atomically write this metadata into the data folder at `data_path`
-    pub fn write_atomic(&self, data_path: &Path) -> std::io::Result<()> {
+    pub fn write_atomic(&self, data_path: &Path, meta_path: &Path) -> std::io::Result<()> {
         let tmp_path = data_path.join(".tmp");
         let tmp_file = File::create(&tmp_path)?;
         serde_json::to_writer(tmp_file, self).map_err(std::io::Error::other)?;
-        fs::rename(tmp_path, data_path.join(GRAPH_META_PATH))?;
+        fs::rename(tmp_path, meta_path)?;
         Ok(())
     }
 }

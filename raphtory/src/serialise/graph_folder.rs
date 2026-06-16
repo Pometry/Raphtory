@@ -222,7 +222,7 @@ pub trait GraphPaths {
             path: graph_path,
             meta: metadata,
         };
-        meta.write_atomic(self.data_path()?.as_ref())?;
+        meta.write_atomic(self.data_path()?.as_ref(), self.meta_path()?.as_ref())?;
         Ok(())
     }
 
@@ -513,9 +513,8 @@ impl InnerGraphFolder {
             path: graph_path,
             meta: metadata,
         };
-        let path = self.meta_path();
-        let file = File::create(&path)?;
-        Ok(serde_json::to_writer(file, &meta)?)
+        meta.write_atomic(self.as_ref(), &self.meta_path())?;
+        Ok(())
     }
 
     pub fn read_metadata(&self) -> Result<GraphMetadata, GraphError> {
