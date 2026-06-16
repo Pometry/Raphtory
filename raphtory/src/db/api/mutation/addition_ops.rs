@@ -1,3 +1,5 @@
+#[cfg(feature = "io")]
+use crate::serialise::metadata::build_graph_metadata;
 use crate::{
     core::entities::{edges::edge_ref::EdgeRef, nodes::node_ref::AsNodeRef},
     db::{
@@ -8,8 +10,9 @@ use crate::{
         graph::{edge::EdgeView, node::NodeView},
     },
     errors::{into_graph_err, GraphError},
-    serialise::InnerGraphFolder,
 };
+#[cfg(feature = "io")]
+use raphtory_api::core::storage::graph_folder::{Metadata, GRAPH_META_PATH};
 use raphtory_api::core::{
     entities::properties::{
         meta::{DEFAULT_NODE_TYPE_ID, STATIC_GRAPH_LAYER_ID},
@@ -24,10 +27,9 @@ use raphtory_storage::{
         MutationError,
     },
 };
-use storage::{
-    error::StorageError,
-    wal::{GraphWalOps, WalOps},
-};
+#[cfg(feature = "io")]
+use storage::error::StorageError;
+use storage::wal::{GraphWalOps, WalOps};
 
 pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<GraphError>> {
     // TODO: Probably add vector reference here like add
@@ -313,13 +315,16 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         #[cfg(feature = "io")]
         {
             if let Some(disk_path) = self.disk_storage_path() {
-                if let Some(data_folder) = disk_path.parent() {
-                    InnerGraphFolder::new(data_folder)
-                        .write_metadata(self)
-                        .map_err(|err| {
-                            MutationError::from(StorageError::from(std::io::Error::from(err)))
-                                .into()
-                        })?;
+                if let (Some(data_folder), Some(graph_dir)) = (
+                    disk_path.parent(),
+                    disk_path.file_name().and_then(|name| name.to_str()),
+                ) {
+                    let meta = Metadata {
+                        path: graph_dir.to_string(),
+                        meta: build_graph_metadata(self),
+                    };
+                    meta.write_atomic(data_folder, &data_folder.join(GRAPH_META_PATH))
+                        .map_err(|err| MutationError::from(StorageError::from(err)).into())?;
                 }
             }
         }
