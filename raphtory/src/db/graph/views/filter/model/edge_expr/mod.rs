@@ -1,12 +1,13 @@
 //! Edge expressions — what value an edge can produce.
 //!
 //! Mirrors [`node_expr`] exactly, but the subject is an edge rather than a node.
+//! All expressions produce `Option<Prop>` — no associated output type.
 //!
 //! # Two-phase pipeline (same as node_expr)
 //!
 //! ```text
 //! ┌─ Build phase (pure data, no graph) ──────────────────────┐
-//! │  EdgeFilter::property("weight")   ← EdgePropertyExpr      │
+//! │  EdgeFilter.property("weight")    ← EdgeExpr              │
 //! │  .eq(5.0f64)                      ← BinaryCmpEdgeFilter   │
 //! └──────────────────────────────────────────────────────────┘
 //!          │  create_edge_op(graph)?   ← resolve name → prop_id
@@ -22,24 +23,20 @@ use crate::{
     db::{
         api::view::internal::GraphView,
         graph::views::filter::model::{
-            filter_operator::{BinaryOp, SetOp, StringComparable, StringOp, UnaryOp},
-            node_expr::{AllMode, AnyMode, QuantifierMode},
+            filter_operator::{BinaryOp, SetOp, StringOp, UnaryOp},
+            node_expr::EntityExpr,
             node_expr::filters::TemporalProp,
-            property_filter::Op,
             CreateView, EdgeFilterFactory, MetadataExpr, PropertyExpr,
         },
     },
     errors::GraphError,
 };
-use raphtory_api::core::{
-    entities::{
-        edges::edge_ref::EdgeRef,
-        properties::prop::{Prop, PropType},
-    },
-    storage::arc_str::ArcStr,
+use raphtory_api::core::entities::{
+    edges::edge_ref::EdgeRef,
+    properties::prop::{Prop, PropType},
 };
 use raphtory_storage::graph::graph::GraphStorage;
-use std::{collections::HashSet, hash::Hash, marker::PhantomData, sync::Arc};
+use std::{marker::PhantomData, sync::Arc};
 
 pub mod exprs;
 pub mod filters;
@@ -47,8 +44,9 @@ pub mod ops;
 
 pub use exprs::*;
 pub use filters::*;
-pub use ops::*;
-use crate::db::graph::views::filter::model::{AvgExpr, FirstExpr, LastExpr, MaxExpr, MinExpr, SumExpr};
+use filters::BinaryCmpEdgeFilter;
+use crate::db::graph::views::filter::model::{ FirstExpr, LastExpr, LenExpr, MaxExpr, MinExpr, SumExpr};
+use crate::db::graph::views::filter::model::node_expr::{AllExpr, AnyExpr, AvgExpr};
 pub use super::{Metadata, Property};
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -74,197 +72,29 @@ pub trait EdgeOp: Send + Sync {
 
 /// A typed expression that produces a value per edge.
 ///
-/// Parallel to [`NodeExpr`] — same two-phase design.
-pub trait EdgeExpr: Clone + Send + Sync + 'static {
-    type Output: Clone + Send + Sync + 'static;
-
+/// Parallel to [`NodeExpr`] — all expressions produce `Option<Prop>`; no associated output type.
+///
+/// Usage:
+/// ```rust,ignore
+/// EdgeFilter.property("weight").gt(5.0f64)
+/// EdgeFilter.property("tag").temporal().sum().gt(100i64)
+/// EdgeFilter.property("label").temporal().into_expr().contains("foo").any()
+/// ```
+pub trait EdgeExpr: EntityExpr + Clone + Send + Sync + 'static {
     fn create_edge_op<'g, G: GraphView + 'g>(
         &self,
         graph: G,
-    ) -> Result<Arc<dyn EdgeOp<Output = Self::Output> + 'g>, GraphError>;
-
-    fn prop_type(&self) -> PropType {
-        PropType::Empty
-    }
+    ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError>;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// EdgeAggregated<E> — builder that produces BinaryCmpEdgeFilter
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// Returned by `EdgeTemporalProp::sum()`, `.first()`, etc.
-/// Calling `.eq()` etc. produces a `BinaryCmpEdgeFilter`.
-pub struct EdgeAggregated<E: EdgeExpr> {
-    pub(crate) expr: E,
-}
-
-impl<E: EdgeExpr<Output = Option<Prop>>> EdgeAggregated<E> {
-    fn finish<R: IntoPropEdgeExpr>(
-        self,
-        op: crate::db::graph::views::filter::model::filter_operator::BinaryOp,
-        rhs: R,
-    ) -> BinaryCmpEdgeFilter<E, R::Expr> {
-        BinaryCmpEdgeFilter::new(self.expr, op, rhs.into_prop_edge_expr())
-    }
-
-    pub fn eq<R: IntoPropEdgeExpr>(self, rhs: R) -> BinaryCmpEdgeFilter<E, R::Expr> {
-        self.finish(crate::db::graph::views::filter::model::filter_operator::BinaryOp::Eq, rhs)
-    }
-    pub fn ne<R: IntoPropEdgeExpr>(self, rhs: R) -> BinaryCmpEdgeFilter<E, R::Expr> {
-        self.finish(crate::db::graph::views::filter::model::filter_operator::BinaryOp::Ne, rhs)
-    }
-    pub fn gt<R: IntoPropEdgeExpr>(self, rhs: R) -> BinaryCmpEdgeFilter<E, R::Expr> {
-        self.finish(crate::db::graph::views::filter::model::filter_operator::BinaryOp::Gt, rhs)
-    }
-    pub fn ge<R: IntoPropEdgeExpr>(self, rhs: R) -> BinaryCmpEdgeFilter<E, R::Expr> {
-        self.finish(crate::db::graph::views::filter::model::filter_operator::BinaryOp::Ge, rhs)
-    }
-    pub fn lt<R: IntoPropEdgeExpr>(self, rhs: R) -> BinaryCmpEdgeFilter<E, R::Expr> {
-        self.finish(crate::db::graph::views::filter::model::filter_operator::BinaryOp::Lt, rhs)
-    }
-    pub fn le<R: IntoPropEdgeExpr>(self, rhs: R) -> BinaryCmpEdgeFilter<E, R::Expr> {
-        self.finish(crate::db::graph::views::filter::model::filter_operator::BinaryOp::Le, rhs)
-    }
-    pub fn is_some(self) -> UnaryEdgeFilter<E, Prop> {
-        UnaryEdgeFilter {
-            expr: self.expr,
-            op: crate::db::graph::views::filter::model::filter_operator::UnaryOp::IsSome,
-            _phantom: std::marker::PhantomData,
-        }
-    }
-    pub fn is_none(self) -> UnaryEdgeFilter<E, Prop> {
-        UnaryEdgeFilter {
-            expr: self.expr,
-            op: crate::db::graph::views::filter::model::filter_operator::UnaryOp::IsNone,
-            _phantom: std::marker::PhantomData,
-        }
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// EdgeQuantified<E, Q> — builder that produces QuantifiedEdgeFilter
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// Returned by `EdgeTemporalProp::any()` / `all()`.
-/// Calling `.eq()` etc. produces a `QuantifiedEdgeFilter`.
-pub struct EdgeQuantified<E, Q>
-where
-    E: EdgeExpr<Output = Prop>,
-    Q: QuantifierMode,
-{
-    pub(crate) expr: E,
-    pub(crate) _q: std::marker::PhantomData<Q>,
-}
-
-impl<E, Q> EdgeQuantified<E, Q>
-where
-    E: EdgeExpr<Output = Prop>,
-    Q: QuantifierMode,
-{
-    fn finish<R: IntoPropEdgeExpr>(
-        self,
-        op: crate::db::graph::views::filter::model::filter_operator::BinaryOp,
-        rhs: R,
-    ) -> QuantifiedEdgeFilter<E, Q, R::Expr> {
-        QuantifiedEdgeFilter::new(self.expr, op, rhs.into_prop_edge_expr())
-    }
-
-    pub fn eq<R: IntoPropEdgeExpr>(self, rhs: R) -> QuantifiedEdgeFilter<E, Q, R::Expr> {
-        self.finish(crate::db::graph::views::filter::model::filter_operator::BinaryOp::Eq, rhs)
-    }
-    pub fn ne<R: IntoPropEdgeExpr>(self, rhs: R) -> QuantifiedEdgeFilter<E, Q, R::Expr> {
-        self.finish(crate::db::graph::views::filter::model::filter_operator::BinaryOp::Ne, rhs)
-    }
-    pub fn gt<R: IntoPropEdgeExpr>(self, rhs: R) -> QuantifiedEdgeFilter<E, Q, R::Expr> {
-        self.finish(crate::db::graph::views::filter::model::filter_operator::BinaryOp::Gt, rhs)
-    }
-    pub fn ge<R: IntoPropEdgeExpr>(self, rhs: R) -> QuantifiedEdgeFilter<E, Q, R::Expr> {
-        self.finish(crate::db::graph::views::filter::model::filter_operator::BinaryOp::Ge, rhs)
-    }
-    pub fn lt<R: IntoPropEdgeExpr>(self, rhs: R) -> QuantifiedEdgeFilter<E, Q, R::Expr> {
-        self.finish(crate::db::graph::views::filter::model::filter_operator::BinaryOp::Lt, rhs)
-    }
-    pub fn le<R: IntoPropEdgeExpr>(self, rhs: R) -> QuantifiedEdgeFilter<E, Q, R::Expr> {
-        self.finish(crate::db::graph::views::filter::model::filter_operator::BinaryOp::Le, rhs)
-    }
-
-    pub fn is_in(self, values: impl IntoIterator<Item = Prop>) -> QuantifiedIsInEdgeFilter<E, Q> {
-        QuantifiedIsInEdgeFilter {
-            expr: self.expr,
-            values: values.into_iter().collect(),
-            op: SetOp::IsIn,
-            _q: PhantomData,
-        }
-    }
-
-    pub fn is_not_in(self, values: impl IntoIterator<Item = Prop>) -> QuantifiedIsInEdgeFilter<E, Q> {
-        QuantifiedIsInEdgeFilter {
-            expr: self.expr,
-            values: values.into_iter().collect(),
-            op: SetOp::IsNotIn,
-            _q: PhantomData,
-        }
-    }
-
-    fn string_finish(self, op: StringOp, rhs: &str) -> QuantifiedStringEdgeFilter<E, Q> {
-        QuantifiedStringEdgeFilter {
-            expr: self.expr,
-            rhs: ArcStr::from(rhs),
-            op,
-            _q: PhantomData,
-        }
-    }
-
-    pub fn starts_with(self, rhs: &str) -> QuantifiedStringEdgeFilter<E, Q> {
-        self.string_finish(StringOp::StartsWith, rhs)
-    }
-
-    pub fn ends_with(self, rhs: &str) -> QuantifiedStringEdgeFilter<E, Q> {
-        self.string_finish(StringOp::EndsWith, rhs)
-    }
-
-    pub fn contains(self, rhs: &str) -> QuantifiedStringEdgeFilter<E, Q> {
-        self.string_finish(StringOp::Contains, rhs)
-    }
-
-    pub fn not_contains(self, rhs: &str) -> QuantifiedStringEdgeFilter<E, Q> {
-        self.string_finish(StringOp::NotContains, rhs)
-    }
-
-    pub fn sum(self) -> EdgeQuantified<NestedMapEdgeExpr<E>, Q> {
-        EdgeQuantified { expr: NestedMapEdgeExpr { inner: self.expr, op: Op::Sum }, _q: PhantomData }
-    }
-    pub fn avg(self) -> EdgeQuantified<NestedMapEdgeExpr<E>, Q> {
-        EdgeQuantified { expr: NestedMapEdgeExpr { inner: self.expr, op: Op::Avg }, _q: PhantomData }
-    }
-    pub fn min(self) -> EdgeQuantified<NestedMapEdgeExpr<E>, Q> {
-        EdgeQuantified { expr: NestedMapEdgeExpr { inner: self.expr, op: Op::Min }, _q: PhantomData }
-    }
-    pub fn max(self) -> EdgeQuantified<NestedMapEdgeExpr<E>, Q> {
-        EdgeQuantified { expr: NestedMapEdgeExpr { inner: self.expr, op: Op::Max }, _q: PhantomData }
-    }
-    pub fn first(self) -> EdgeQuantified<NestedMapEdgeExpr<E>, Q> {
-        EdgeQuantified { expr: NestedMapEdgeExpr { inner: self.expr, op: Op::First }, _q: PhantomData }
-    }
-    pub fn last(self) -> EdgeQuantified<NestedMapEdgeExpr<E>, Q> {
-        EdgeQuantified { expr: NestedMapEdgeExpr { inner: self.expr, op: Op::Last }, _q: PhantomData }
-    }
-    pub fn len(self) -> EdgeQuantified<NestedMapEdgeExpr<E>, Q> {
-        EdgeQuantified { expr: NestedMapEdgeExpr { inner: self.expr, op: Op::Len }, _q: PhantomData }
-    }
-    pub fn any(self) -> EdgeQuantified<NestedMapEdgeExpr<E>, AnyMode> {
-        EdgeQuantified { expr: NestedMapEdgeExpr { inner: self.expr, op: Op::Any }, _q: PhantomData }
-    }
-    pub fn all(self) -> EdgeQuantified<NestedMapEdgeExpr<E>, AllMode> {
-        EdgeQuantified { expr: NestedMapEdgeExpr { inner: self.expr, op: Op::All }, _q: PhantomData }
-    }
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // EdgePropertyExprOps — fluent comparison API for edge-side property expressions
 // ─────────────────────────────────────────────────────────────────────────────
 
-pub trait EdgePropertyExprOps: EdgeExpr<Output = Option<Prop>> + Sized {
+/// Presence and set-membership operators for `PropertyExpr<E>` and `MetadataExpr<E>`
+/// on the edge side.
+pub trait EdgePropertyExprOps: EdgeExpr + Sized {
     fn is_some(self) -> UnaryEdgeFilter<Self, Prop> {
         UnaryEdgeFilter { expr: self, op: UnaryOp::IsSome, _phantom: PhantomData }
     }
@@ -313,45 +143,102 @@ impl<E: CreateView + EdgeFilterFactory + Clone + Send + Sync + 'static> EdgeProp
 // EdgeTemporalPropOps — fluent temporal API for edge-side TemporalProp
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// Temporal aggregation/quantification on `TemporalProp<E>` when `E: EdgeFilterFactory`.
+///
+/// Provides both aggregation (`.sum()`, `.avg()`, `.len()`, …) and direct
+/// element-wise comparison (`.gt()`, `.eq()`, `.contains()`, …) so users
+/// never have to call `.into_expr()` explicitly:
+///
+/// ```rust,ignore
+/// EdgeFilter.property("score").temporal().sum().gt(100i64)
+/// EdgeFilter.property("score").temporal().gt(10i64).any()
+/// EdgeFilter.property("score").temporal().len().gt(3usize)
+/// EdgeFilter.property("label").temporal().contains("rock").any()
+/// ```
 pub trait EdgeTemporalPropOps: Sized {
     type ViewExpr: CreateView + EdgeFilterFactory + Clone + Send + Sync + 'static;
     fn into_temporal_parts(self) -> (Self::ViewExpr, String);
 
-    fn any(self) -> EdgeQuantified<TemporalEdgePropExpr<Self::ViewExpr>, AnyMode> {
+    fn into_expr(self) -> TemporalEdgePropExpr<Self::ViewExpr> {
         let (view_expr, name) = self.into_temporal_parts();
-        EdgeQuantified { expr: TemporalEdgePropExpr::new(view_expr, name), _q: PhantomData }
+        TemporalEdgePropExpr::new(view_expr, name)
     }
-    fn all(self) -> EdgeQuantified<TemporalEdgePropExpr<Self::ViewExpr>, AllMode> {
-        let (view_expr, name) = self.into_temporal_parts();
-        EdgeQuantified { expr: TemporalEdgePropExpr::new(view_expr, name), _q: PhantomData }
+    fn sum(self) -> SumExpr<TemporalEdgePropExpr<Self::ViewExpr>> {
+        SumExpr(self.into_expr())
     }
-    fn sum(self) -> EdgeAggregated<SumExpr<TemporalEdgePropExpr<Self::ViewExpr>>> {
-        let (view_expr, name) = self.into_temporal_parts();
-        EdgeAggregated { expr: SumExpr(TemporalEdgePropExpr::new(view_expr, name)) }
+    fn avg(self) -> AvgExpr<TemporalEdgePropExpr<Self::ViewExpr>> {
+        AvgExpr(self.into_expr())
     }
-    fn avg(self) -> EdgeAggregated<AvgExpr<TemporalEdgePropExpr<Self::ViewExpr>>> {
-        let (view_expr, name) = self.into_temporal_parts();
-        EdgeAggregated { expr: AvgExpr(TemporalEdgePropExpr::new(view_expr, name)) }
+    fn min(self) -> MinExpr<TemporalEdgePropExpr<Self::ViewExpr>> {
+        MinExpr(self.into_expr())
     }
-    fn min(self) -> EdgeAggregated<MinExpr<TemporalEdgePropExpr<Self::ViewExpr>>> {
-        let (view_expr, name) = self.into_temporal_parts();
-        EdgeAggregated { expr: MinExpr(TemporalEdgePropExpr::new(view_expr, name)) }
+    fn max(self) -> MaxExpr<TemporalEdgePropExpr<Self::ViewExpr>> {
+        MaxExpr(self.into_expr())
     }
-    fn max(self) -> EdgeAggregated<MaxExpr<TemporalEdgePropExpr<Self::ViewExpr>>> {
-        let (view_expr, name) = self.into_temporal_parts();
-        EdgeAggregated { expr: MaxExpr(TemporalEdgePropExpr::new(view_expr, name)) }
+    fn first(self) -> FirstExpr<TemporalEdgePropExpr<Self::ViewExpr>> {
+        FirstExpr(self.into_expr())
     }
-    fn first(self) -> EdgeAggregated<FirstExpr<TemporalEdgePropExpr<Self::ViewExpr>>> {
-        let (view_expr, name) = self.into_temporal_parts();
-        EdgeAggregated { expr: FirstExpr(TemporalEdgePropExpr::new(view_expr, name)) }
+    fn last(self) -> LastExpr<TemporalEdgePropExpr<Self::ViewExpr>> {
+        LastExpr(self.into_expr())
     }
-    fn last(self) -> EdgeAggregated<LastExpr<TemporalEdgePropExpr<Self::ViewExpr>>> {
-        let (view_expr, name) = self.into_temporal_parts();
-        EdgeAggregated { expr: LastExpr(TemporalEdgePropExpr::new(view_expr, name)) }
+    fn len(self) -> LenExpr<TemporalEdgePropExpr<Self::ViewExpr>> {
+        LenExpr(self.into_expr())
     }
-    fn len(self) -> LenEdgeExpr<TemporalEdgePropExpr<Self::ViewExpr>> {
-        let (view_expr, name) = self.into_temporal_parts();
-        LenEdgeExpr(TemporalEdgePropExpr::new(view_expr, name))
+    fn any(self) -> AnyExpr<TemporalEdgePropExpr<Self::ViewExpr>> {
+        AnyExpr(self.into_expr())
+    }
+    fn all(self) -> AllExpr<TemporalEdgePropExpr<Self::ViewExpr>> {
+        AllExpr(self.into_expr())
+    }
+
+    // Direct comparison — no .into_expr() needed
+    fn gt<R: EdgeExpr>(self, rhs: R) -> BinaryCmpEdgeFilter<TemporalEdgePropExpr<Self::ViewExpr>, R> {
+        BinaryCmpEdgeFilter::new(self.into_expr(), BinaryOp::Gt, rhs)
+    }
+    fn ge<R: EdgeExpr>(self, rhs: R) -> BinaryCmpEdgeFilter<TemporalEdgePropExpr<Self::ViewExpr>, R> {
+        BinaryCmpEdgeFilter::new(self.into_expr(), BinaryOp::Ge, rhs)
+    }
+    fn lt<R: EdgeExpr>(self, rhs: R) -> BinaryCmpEdgeFilter<TemporalEdgePropExpr<Self::ViewExpr>, R> {
+        BinaryCmpEdgeFilter::new(self.into_expr(), BinaryOp::Lt, rhs)
+    }
+    fn le<R: EdgeExpr>(self, rhs: R) -> BinaryCmpEdgeFilter<TemporalEdgePropExpr<Self::ViewExpr>, R> {
+        BinaryCmpEdgeFilter::new(self.into_expr(), BinaryOp::Le, rhs)
+    }
+    fn eq<R: EdgeExpr>(self, rhs: R) -> BinaryCmpEdgeFilter<TemporalEdgePropExpr<Self::ViewExpr>, R> {
+        BinaryCmpEdgeFilter::new(self.into_expr(), BinaryOp::Eq, rhs)
+    }
+    fn ne<R: EdgeExpr>(self, rhs: R) -> BinaryCmpEdgeFilter<TemporalEdgePropExpr<Self::ViewExpr>, R> {
+        BinaryCmpEdgeFilter::new(self.into_expr(), BinaryOp::Ne, rhs)
+    }
+    fn contains<R: EdgeExpr>(self, rhs: R) -> StringEdgeFilter<TemporalEdgePropExpr<Self::ViewExpr>, R> {
+        StringEdgeFilter::new(self.into_expr(), StringOp::Contains, rhs)
+    }
+    fn starts_with<R: EdgeExpr>(self, rhs: R) -> StringEdgeFilter<TemporalEdgePropExpr<Self::ViewExpr>, R> {
+        StringEdgeFilter::new(self.into_expr(), StringOp::StartsWith, rhs)
+    }
+    fn ends_with<R: EdgeExpr>(self, rhs: R) -> StringEdgeFilter<TemporalEdgePropExpr<Self::ViewExpr>, R> {
+        StringEdgeFilter::new(self.into_expr(), StringOp::EndsWith, rhs)
+    }
+    fn not_contains<R: EdgeExpr>(self, rhs: R) -> StringEdgeFilter<TemporalEdgePropExpr<Self::ViewExpr>, R> {
+        StringEdgeFilter::new(self.into_expr(), StringOp::NotContains, rhs)
+    }
+    fn fuzzy_search<R: EdgeExpr>(
+        self,
+        rhs: R,
+        levenshtein_distance: usize,
+        prefix_match: bool,
+    ) -> StringEdgeFilter<TemporalEdgePropExpr<Self::ViewExpr>, R> {
+        StringEdgeFilter::new(
+            self.into_expr(),
+            StringOp::FuzzySearch { levenshtein_distance, prefix_match },
+            rhs,
+        )
+    }
+    fn is_true(self) -> BinaryCmpEdgeFilter<TemporalEdgePropExpr<Self::ViewExpr>, Prop> {
+        BinaryCmpEdgeFilter::new(self.into_expr(), BinaryOp::Eq, Prop::Bool(true))
+    }
+    fn is_false(self) -> BinaryCmpEdgeFilter<TemporalEdgePropExpr<Self::ViewExpr>, Prop> {
+        BinaryCmpEdgeFilter::new(self.into_expr(), BinaryOp::Eq, Prop::Bool(false))
     }
 }
 
@@ -368,167 +255,73 @@ impl<E: CreateView + EdgeFilterFactory + Clone + Send + Sync + 'static> EdgeTemp
 // EdgeExprFilterOps — comparison operators on any EdgeExpr
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Comparison operators on any [`EdgeExpr`], regardless of output type.
+/// Comparison, string, set, and presence operators on any [`EdgeExpr`].
 ///
-/// Unlike [`EdgePropertyExprOps`] (which is limited to `Output = Option<Prop>`),
-/// this trait works for any output type — in particular `usize` for `.len()`:
+/// `.any()` / `.all()` are terminal: they wrap `self` in `AnyExpr`/`AllExpr` and compare
+/// to `Bool(true)`. For element-wise comparison before reduction, chain in order:
+/// `.gt(10i64).any()` not `.any().gt(10i64)`.
 ///
 /// ```rust,ignore
-/// EdgeFilter.temporal_property("count").len().gt(3usize)
-/// EdgeFilter.temporal_property("count").len().eq(0usize)
+/// EdgeFilter.property("weight").gt(5.0f64)
+/// EdgeFilter.property("tag").temporal().into_expr().contains("foo").any()
+/// EdgeFilter.property("count").temporal().sum().gt(100i64)
 /// ```
 pub trait EdgeExprFilterOps: EdgeExpr + Sized {
-    fn gt<R: EdgeExpr<Output = Self::Output>>(self, rhs: R) -> BinaryCmpEdgeFilter<Self, R> {
+    fn gt<R: EdgeExpr>(self, rhs: R) -> BinaryCmpEdgeFilter<Self, R> {
         BinaryCmpEdgeFilter::new(self, BinaryOp::Gt, rhs)
     }
-    fn ge<R: EdgeExpr<Output = Self::Output>>(self, rhs: R) -> BinaryCmpEdgeFilter<Self, R> {
+    fn ge<R: EdgeExpr>(self, rhs: R) -> BinaryCmpEdgeFilter<Self, R> {
         BinaryCmpEdgeFilter::new(self, BinaryOp::Ge, rhs)
     }
-    fn lt<R: EdgeExpr<Output = Self::Output>>(self, rhs: R) -> BinaryCmpEdgeFilter<Self, R> {
+    fn lt<R: EdgeExpr>(self, rhs: R) -> BinaryCmpEdgeFilter<Self, R> {
         BinaryCmpEdgeFilter::new(self, BinaryOp::Lt, rhs)
     }
-    fn le<R: EdgeExpr<Output = Self::Output>>(self, rhs: R) -> BinaryCmpEdgeFilter<Self, R> {
+    fn le<R: EdgeExpr>(self, rhs: R) -> BinaryCmpEdgeFilter<Self, R> {
         BinaryCmpEdgeFilter::new(self, BinaryOp::Le, rhs)
     }
-    fn eq<R: EdgeExpr<Output = Self::Output>>(self, rhs: R) -> BinaryCmpEdgeFilter<Self, R> {
+    fn eq<R: EdgeExpr>(self, rhs: R) -> BinaryCmpEdgeFilter<Self, R> {
         BinaryCmpEdgeFilter::new(self, BinaryOp::Eq, rhs)
     }
-    fn ne<R: EdgeExpr<Output = Self::Output>>(self, rhs: R) -> BinaryCmpEdgeFilter<Self, R> {
+    fn ne<R: EdgeExpr>(self, rhs: R) -> BinaryCmpEdgeFilter<Self, R> {
         BinaryCmpEdgeFilter::new(self, BinaryOp::Ne, rhs)
     }
-    fn starts_with<R: EdgeExpr<Output = Self::Output>>(
-        self,
-        rhs: R,
-    ) -> StringEdgeFilter<Self, R>
-    where
-        Self::Output: StringComparable,
-    {
+    fn starts_with<R: EdgeExpr>(self, rhs: R) -> StringEdgeFilter<Self, R> {
         StringEdgeFilter::new(self, StringOp::StartsWith, rhs)
     }
-    fn ends_with<R: EdgeExpr<Output = Self::Output>>(
-        self,
-        rhs: R,
-    ) -> StringEdgeFilter<Self, R>
-    where
-        Self::Output: StringComparable,
-    {
+    fn ends_with<R: EdgeExpr>(self, rhs: R) -> StringEdgeFilter<Self, R> {
         StringEdgeFilter::new(self, StringOp::EndsWith, rhs)
     }
-    fn contains<R: EdgeExpr<Output = Self::Output>>(
-        self,
-        rhs: R,
-    ) -> StringEdgeFilter<Self, R>
-    where
-        Self::Output: StringComparable,
-    {
+    fn contains<R: EdgeExpr>(self, rhs: R) -> StringEdgeFilter<Self, R> {
         StringEdgeFilter::new(self, StringOp::Contains, rhs)
     }
-    fn not_contains<R: EdgeExpr<Output = Self::Output>>(
-        self,
-        rhs: R,
-    ) -> StringEdgeFilter<Self, R>
-    where
-        Self::Output: StringComparable,
-    {
+    fn not_contains<R: EdgeExpr>(self, rhs: R) -> StringEdgeFilter<Self, R> {
         StringEdgeFilter::new(self, StringOp::NotContains, rhs)
     }
-    fn fuzzy_search<R: EdgeExpr<Output = Self::Output>>(
+    fn fuzzy_search<R: EdgeExpr>(
         self,
         rhs: R,
         levenshtein_distance: usize,
         prefix_match: bool,
-    ) -> StringEdgeFilter<Self, R>
-    where
-        Self::Output: StringComparable,
-    {
+    ) -> StringEdgeFilter<Self, R> {
         StringEdgeFilter::new(
             self,
             StringOp::FuzzySearch { levenshtein_distance, prefix_match },
             rhs,
         )
     }
+    fn is_in(self, values: impl IntoIterator<Item = Prop>) -> PropValueSetEdgeFilter<Self> {
+        PropValueSetEdgeFilter { expr: self, values: values.into_iter().collect(), op: SetOp::IsIn }
+    }
+    fn is_not_in(self, values: impl IntoIterator<Item = Prop>) -> PropValueSetEdgeFilter<Self> {
+        PropValueSetEdgeFilter { expr: self, values: values.into_iter().collect(), op: SetOp::IsNotIn }
+    }
+    fn any(self) -> BinaryCmpEdgeFilter<AnyExpr<Self>, Prop> {
+        BinaryCmpEdgeFilter::new(AnyExpr(self), BinaryOp::Eq, Prop::Bool(true))
+    }
+    fn all(self) -> BinaryCmpEdgeFilter<AllExpr<Self>, Prop> {
+        BinaryCmpEdgeFilter::new(AllExpr(self), BinaryOp::Eq, Prop::Bool(true))
+    }
 }
 
 impl<E: EdgeExpr> EdgeExprFilterOps for E {}
 
-// ─────────────────────────────────────────────────────────────────────────────
-// EdgeAggregated string convenience — mirrors NodeAggregated::contains etc.
-// ─────────────────────────────────────────────────────────────────────────────
-
-impl<E: EdgeExpr<Output = Option<Prop>>> EdgeAggregated<E> {
-    fn str_finish(self, op: StringOp, rhs: &str) -> StringEdgeFilter<E, Prop> {
-        StringEdgeFilter::new(self.expr, op, Prop::Str(ArcStr::from(rhs)))
-    }
-
-    pub fn starts_with(self, rhs: &str) -> StringEdgeFilter<E, Prop> {
-        self.str_finish(StringOp::StartsWith, rhs)
-    }
-    pub fn ends_with(self, rhs: &str) -> StringEdgeFilter<E, Prop> {
-        self.str_finish(StringOp::EndsWith, rhs)
-    }
-    pub fn contains(self, rhs: &str) -> StringEdgeFilter<E, Prop> {
-        self.str_finish(StringOp::Contains, rhs)
-    }
-    pub fn not_contains(self, rhs: &str) -> StringEdgeFilter<E, Prop> {
-        self.str_finish(StringOp::NotContains, rhs)
-    }
-    pub fn fuzzy_search(
-        self,
-        rhs: &str,
-        levenshtein_distance: usize,
-        prefix_match: bool,
-    ) -> StringEdgeFilter<E, Prop> {
-        self.str_finish(
-            StringOp::FuzzySearch { levenshtein_distance, prefix_match },
-            rhs,
-        )
-    }
-    pub fn is_in(
-        self,
-        values: impl IntoIterator<Item = Prop>,
-    ) -> PropValueSetEdgeFilter<E> {
-        PropValueSetEdgeFilter {
-            expr: self.expr,
-            values: values.into_iter().collect(),
-            op: SetOp::IsIn,
-        }
-    }
-    pub fn is_not_in(
-        self,
-        values: impl IntoIterator<Item = Prop>,
-    ) -> PropValueSetEdgeFilter<E> {
-        PropValueSetEdgeFilter {
-            expr: self.expr,
-            values: values.into_iter().collect(),
-            op: SetOp::IsNotIn,
-        }
-    }
-
-    pub fn sum(self) -> EdgeAggregated<SumExpr<UnwrapOptPropEdgeExpr<E>>> {
-        EdgeAggregated { expr: SumExpr(UnwrapOptPropEdgeExpr(self.expr)) }
-    }
-    pub fn avg(self) -> EdgeAggregated<AvgExpr<UnwrapOptPropEdgeExpr<E>>> {
-        EdgeAggregated { expr: AvgExpr(UnwrapOptPropEdgeExpr(self.expr)) }
-    }
-    pub fn min(self) -> EdgeAggregated<MinExpr<UnwrapOptPropEdgeExpr<E>>> {
-        EdgeAggregated { expr: MinExpr(UnwrapOptPropEdgeExpr(self.expr)) }
-    }
-    pub fn max(self) -> EdgeAggregated<MaxExpr<UnwrapOptPropEdgeExpr<E>>> {
-        EdgeAggregated { expr: MaxExpr(UnwrapOptPropEdgeExpr(self.expr)) }
-    }
-    pub fn first(self) -> EdgeAggregated<FirstExpr<UnwrapOptPropEdgeExpr<E>>> {
-        EdgeAggregated { expr: FirstExpr(UnwrapOptPropEdgeExpr(self.expr)) }
-    }
-    pub fn last(self) -> EdgeAggregated<LastExpr<UnwrapOptPropEdgeExpr<E>>> {
-        EdgeAggregated { expr: LastEdgeExpr(UnwrapOptPropEdgeExpr(self.expr)) }
-    }
-    pub fn len(self) -> LenEdgeExpr<UnwrapOptPropEdgeExpr<E>> {
-        LenEdgeExpr(UnwrapOptPropEdgeExpr(self.expr))
-    }
-    pub fn any(self) -> EdgeQuantified<UnwrapOptPropEdgeExpr<E>, AnyMode> {
-        EdgeQuantified { expr: UnwrapOptPropEdgeExpr(self.expr), _q: PhantomData }
-    }
-    pub fn all(self) -> EdgeQuantified<UnwrapOptPropEdgeExpr<E>, AllMode> {
-        EdgeQuantified { expr: UnwrapOptPropEdgeExpr(self.expr), _q: PhantomData }
-    }
-}

@@ -147,7 +147,7 @@ pub mod prelude {
     };
 
     pub use crate::db::graph::views::filter::model::{
-        filter::Filter, property_filter::PropertyFilter, NodeAggregated, NodeQuantified,
+        filter::Filter, property_filter::PropertyFilter,
         NodeExprFilterOps, NodePropertyExprOps, NodeTemporalPropOps,
         EdgeExprFilterOps, EdgePropertyExprOps, EdgeTemporalPropOps,
     };

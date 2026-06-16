@@ -9,16 +9,16 @@
 //! # Evaluation pipeline
 //!
 //! ```text
-//! NodeFilter::property("age")          ← NodeExpr (pure data)
-//!   .create_node_op(graph)?            ← resolve "age" → prop_id = 3
+//! NodeFilter.property("age")          ← NodeExpr (pure data)
+//!   .create_node_op(graph)?           ← resolve "age" → prop_id = 3
 //!  ──► NodePropOp { graph, prop_id: 3 }  ← NodeOp: apply() reads column 3 in O(1)
 //!
-//! NodeFilter::property("age").gt(30i64)   ← BinaryCmpNodeFilter (pure data)
+//! NodeFilter.property("age").gt(30i64)   ← BinaryCmpNodeFilter (pure data)
 //!   .create_node_filter(graph)?
-//!  ──► BinaryCmpNodeOp { left: NodePropOp, right: ConstNodeOp(30), op: Gt }
-//!        apply: Prop::binary_cmp(Gt, age_value, 30)
+//!  ──► BinaryCmpNodeOp { left: NodePropOp, right: Const(Some(I64(30))), op: Gt }
+//!        apply: Prop::binary_cmp(Gt, age_value, Some(I64(30)))
 //!
-//! NodeFilter::temporal_property("score").sum()  ← SumExpr (pure data)
+//! NodeFilter.property("score").temporal().sum()  ← SumExpr (pure data)
 //!   .create_node_op(graph)?
 //!  ──► SumNodeOp { inner: TemporalNodePropOp { graph, prop_id: 7 } }
 //!        apply: collect Prop::List temporal values, then aggregate_values(Sum)
@@ -26,17 +26,18 @@
 //!
 //! # Quantified evaluation
 //!
-//! [`PropListCompareOp`] applies a [`BinaryOp`] element-wise to a `Prop::List`,
-//! then [`AnyNodeOp`] / [`AllNodeOp`] reduce the boolean list:
+//! Filter types (`BinaryCmpNodeFilter`, `StringNodeFilter`, `PropValueSetFilter`) also
+//! implement `NodeExpr`, producing list-aware ops for mid-chain use before `.any()`/`.all()`:
 //!
 //! ```text
 //! temporal values = [8, 12, 5],  rhs = 10
-//! PropListCompareOp(Gt) → Prop::List([false, true, false])
-//! AnyNodeOp             → true    (at least one matched)
-//! AllNodeOp             → false   (not all matched)
+//! .gt(10i64) as NodeExpr  →  ListAwareCmpNodeOp → Prop::List([false, true, false])
+//! .any()                  →  AnyNodeOp reduces boolean list → Prop::Bool(true)
+//! Eq Bool(true)           →  true    (at least one matched)
 //! ```
 
 use super::EdgeOp;
+use std::borrow::Borrow;
 use crate::db::graph::views::filter::model::property_filter::evaluate::{
     scan_f64_sum_count, scan_i64_sum, scan_u64_sum,
 };
@@ -129,9 +130,9 @@ impl<G: GraphView> NodeOp for NodeMetaOp<G> {
 
 /// Internal op produced by [`TemporalPropertyExpr::create_node_op`] — not constructed directly.
 ///
-/// Collects all recorded values within the current view window into a `Prop::List`.
+/// Collects all recorded values within the current view window into a `Some(Prop::List([...]))`.
 /// That list is then consumed by aggregator ops (`SumNodeOp`, `LenNodeOp`, …) or
-/// by `PropListCompareOp` for quantified comparisons.
+/// by `ListAwareCmpNodeOp` for element-wise comparisons before `.any()`/`.all()` reduction.
 #[derive(Clone)]
 pub(crate) struct TemporalNodePropOp<G> {
     pub(crate) graph: G,
@@ -199,7 +200,7 @@ macro_rules! impl_agg_entity_op {
 }
 
 impl_agg_entity_op!(SumNodeOp, SumEdgeOp, |vals| {
-    aggregate_values(vals, |pi| {
+    aggregate_values(vals, &|pi| {
         let mut vals = pi.peekable();
         if vals.peek().is_none() {
             return None;
@@ -231,7 +232,7 @@ impl_agg_entity_op!(SumNodeOp, SumEdgeOp, |vals| {
 });
 
 impl_agg_entity_op!(AvgNodeOp, AvgEdgeOp, |vals| {
-    aggregate_values(vals, |pi| {
+    aggregate_values(vals, &|pi| {
         let mut vals = pi.peekable();
         if vals.peek().is_none() {
             return None;
@@ -260,27 +261,35 @@ impl_agg_entity_op!(AvgNodeOp, AvgEdgeOp, |vals| {
     })
 });
 impl_agg_entity_op!(MinNodeOp, MinEdgeOp, |vals| {
-    aggregate_values(vals, |pi| pi.min())
+    aggregate_values(vals, &|pi| {
+        let mut it = pi;
+        let first = it.next()?;
+        it.fold(Some(first), |acc, v| acc.and_then(|a| a.min(v)))
+    })
 });
 impl_agg_entity_op!(MaxNodeOp, MaxEdgeOp, |vals| {
-    aggregate_values(vals, |pi| pi.max())
+    aggregate_values(vals, &|pi| {
+        let mut it = pi;
+        let first = it.next()?;
+        it.fold(Some(first), |acc, v| acc.and_then(|a| a.max(v)))
+    })
 });
 impl_agg_entity_op!(FirstNodeOp, FirstEdgeOp, |vals| {
-    aggregate_values(vals, |pi| pi.next())
+    aggregate_values(vals, &|mut pi| pi.next())
 });
 impl_agg_entity_op!(LastNodeOp, LastEdgeOp, |vals| {
-    aggregate_values(vals, |pi| pi.last())
+    aggregate_values(vals, &|pi| pi.last())
 });
 impl_agg_entity_op!(LenNodeOp, LenEdgeOp, |vals| {
-    aggregate_values(vals, |pi| Some(pi.count().into_prop()))
+    aggregate_values(vals, &|pi| Some(pi.count().into_prop()))
 });
 impl_agg_entity_op!(AnyNodeOp, AnyEdgeOp, |vals| {
-    aggregate_values(vals, |pi| {
+    aggregate_values(vals, &|mut pi| {
         Some(Prop::Bool(pi.any(|r| r == Prop::Bool(true))))
     })
 });
 impl_agg_entity_op!(AllNodeOp, AllEdgeOp, |vals| {
-    aggregate_values(vals, |pi| {
+    aggregate_values(vals, &|mut pi| {
         Some(Prop::Bool(pi.all(|r| r == Prop::Bool(true))))
     })
 });
@@ -311,7 +320,7 @@ impl<'g> NodeOp for ListAwareCmpNodeOp<'g> {
         let lv = self.left.apply(storage, node);
         let rhs = self.right.apply(storage, node)?;
         let op = &self.op;
-        aggregate_values(lv, |pi| {
+        aggregate_values(lv, &|pi| {
             let bools: Vec<Prop> = pi
                 .map(|v| Prop::Bool(Prop::binary_cmp(op, &v, &rhs)))
                 .collect();
@@ -334,7 +343,7 @@ impl<'g> NodeOp for ListAwareStringNodeOp<'g> {
         let lv = self.left.apply(storage, node);
         let rhs = self.right.apply(storage, node);
         let op = &self.op;
-        aggregate_values(lv, |pi| {
+        aggregate_values(lv, &|pi| {
             let bools: Vec<Prop> = pi
                 .map(|v| Prop::Bool(Option::<Prop>::string_cmp(op, &Some(v), &rhs)))
                 .collect();
@@ -357,7 +366,7 @@ impl<'g> NodeOp for ListAwareSetNodeOp<'g> {
         let vals = self.inner.apply(storage, node);
         let values = &self.values;
         let op = &self.op;
-        aggregate_values(vals, |pi| {
+        aggregate_values(vals, &|pi| {
             let bools: Vec<Prop> = pi
                 .map(|v| Prop::Bool(match op {
                     SetOp::IsIn => values.iter().any(|x| x == &v),
@@ -453,8 +462,8 @@ impl<'g> NodeOp for PropValueSetNodeOp<'g> {
 /// Holds two compiled `NodeOp<Output = T>` and applies `T::binary_cmp` per node.
 /// The `'g` lifetime bounds both ops to the graph view they were compiled against.
 ///
-/// e.g. `NodeFilter::property("age").gt(30i64)` compiles to:
-/// `BinaryCmpNodeOp { left: NodePropOp(prop_id=3), right: ConstNodeOp(30), op: Gt }`
+/// e.g. `NodeFilter.property("age").gt(30i64)` compiles to:
+/// `BinaryCmpNodeOp { left: NodePropOp(prop_id=3), right: Const(Some(I64(30))), op: Gt }`
 #[derive(Clone)]
 pub struct BinaryCmpNodeOp<'g, T: Comparable> {
     pub(crate) left: Arc<dyn NodeOp<Output = T> + 'g>,
@@ -482,8 +491,8 @@ impl<'g, T: Comparable + Clone + Send + Sync + 'static> NodeOp for BinaryCmpNode
 
 /// Internal op produced by [`StringNodeFilter::create_node_filter`].
 ///
-/// e.g. `NodeFilter::name().starts_with("Al")` compiles to:
-/// `StringNodeOp { left: NameOp, right: ConstNodeOp("Al"), op: StartsWith }`
+/// e.g. `NodeFilter.name().starts_with("Al")` compiles to:
+/// `StringNodeOp { left: Name.map(...), right: Const(Some(Str("Al"))), op: StartsWith }`
 #[derive(Clone)]
 pub struct StringNodeOp<'g, T: StringComparable> {
     pub(crate) left: Arc<dyn NodeOp<Output = T> + 'g>,
@@ -509,7 +518,7 @@ impl<'g, T: StringComparable> NodeOp for StringNodeOp<'g, T> {
 
 /// Internal op produced by [`UnaryNodeFilter::create_node_filter`].
 ///
-/// e.g. `NodeFilter::property("age").is_some()` compiles to:
+/// e.g. `NodeFilter.property("age").is_some::<Prop>()` compiles to:
 /// `UnaryNodeOp { inner: NodePropOp(prop_id=3), op: IsSome }`
 #[derive(Clone)]
 pub struct UnaryNodeOp<'g, I: Clone + Send + Sync + 'static> {
@@ -537,10 +546,10 @@ impl<'g, I: Clone + Send + Sync + 'static> NodeOp for UnaryNodeOp<'g, I> {
 // SetNodeOp<'g, T> — evaluates is_in / is_not_in
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Internal op produced by [`SetNodeFilter::create_node_filter`].
+/// Internal op for hash-set membership on typed values.
 ///
-/// e.g. `NodeFilter::node_type().is_in(["Person", "Account"])` compiles to:
-/// `SetNodeOp { inner: TypeOp, op: IsIn, values: {"Person", "Account"} }`
+/// e.g. `NodeFilter.node_type().is_in(["Person", "Account"])` compiles to:
+/// `SetNodeOp { inner: Type.map(...), op: IsIn, values: {"Person", "Account"} }`
 #[derive(Clone)]
 pub struct SetNodeOp<'g, I: Eq + Hash + Clone + Send + Sync + 'static> {
     pub(crate) inner: Arc<dyn NodeOp<Output = Option<I>> + 'g>,

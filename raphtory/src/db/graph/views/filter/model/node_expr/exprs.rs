@@ -6,57 +6,59 @@
 //!
 //! # Field expressions
 //!
+//! All expressions produce `Option<Prop>` — field values are mapped via `into_prop()`.
+//!
 //! ```rust,ignore
-//! NodeFilter.id()         // Id        — NodeExpr<Output = GID>         — e.g. .eq(GID::Str("v1".into()))
-//! NodeFilter::name()       // Name      — NodeExpr<Output = String>       — e.g. .eq("Alice")
-//! NodeFilter::node_type()  // Type      — NodeExpr<Output = Option<ArcStr>> — e.g. .is_some()
+//! NodeFilter.id()           // Id    — e.g. .eq(GID::Str("v1".into()))
+//! NodeFilter.name()         // Name  — e.g. .eq("Alice")
+//! NodeFilter.node_type()    // Type  — e.g. .is_some::<Prop>()
 //! ```
 //!
 //! # Degree expressions
 //!
 //! ```rust,ignore
-//! NodeFilter::degree()      // DegreeExpr — NodeExpr<Output = usize> — e.g. .gt(2usize)
-//! NodeFilter::in_degree()   // DegreeExpr — NodeExpr<Output = usize> — e.g. .eq(0usize)  (no in-edges)
-//! NodeFilter::out_degree()  // DegreeExpr — NodeExpr<Output = usize> — e.g. .gt(NodeFilter::in_degree())
+//! NodeFilter.degree()      // DegreeExpr — e.g. .gt(2usize)
+//! NodeFilter.in_degree()   // DegreeExpr — e.g. .eq(0usize)
+//! NodeFilter.out_degree()  // DegreeExpr — e.g. .gt(NodeFilter.in_degree())
 //! ```
 //!
 //! # Property expressions
 //!
 //! ```rust,ignore
-//! NodeFilter::property("age")              // Property — NodeExpr<Output = Option<Prop>> — e.g. .gt(30i64)
-//! NodeFilter::property("score").is_some()  // Property — nodes where "score" is set
-//! NodeFilter::metadata("region")           // Metadata — NodeExpr<Output = Option<Prop>> — e.g. .eq(Prop::Str("EU".into()))
+//! NodeFilter.property("age")                         // Property — e.g. .gt(30i64)
+//! NodeFilter.property("score").is_some::<Prop>()     // nodes where "score" is set
+//! NodeFilter.metadata("region")                      // Metadata — e.g. .eq(Prop::Str("EU".into()))
 //! ```
 //!
 //! # Temporal property expressions
 //!
+//! Accessed via `.temporal()` on `PropertyExpr<E>` (returned by `.property("name")`):
+//!
 //! ```rust,ignore
-//! NodeFilter::temporal_property("score")  // TemporalPropertyExpr — NodeExpr<Output = Prop> (Prop::List of all values in window)
+//! // Quantifiers — compare element-wise then reduce with .any() / .all():
+//! NodeFilter.property("score").temporal().gt(10i64).any()  // pass if any value > 10
+//! NodeFilter.property("score").temporal().gt(0i64).all()   // pass if every value > 0
 //!
-//! // Quantifiers (QuantifiedNodeFilter via AnyMode / AllMode):
-//! NodeFilter::temporal_property("score").any().gt(10i64)   // pass if any value > 10
-//! NodeFilter::temporal_property("score").all().gt(0i64)    // pass if every value > 0
-//!
-//! // Aggregators (BinaryCmpNodeFilter via SumExpr / AvgExpr / etc.):
-//! NodeFilter::temporal_property("price").sum().gt(100i64)      // SumExpr  — pass if total > 100
-//! NodeFilter::temporal_property("price").avg().lt(50i64)       // AvgExpr  — pass if average < 50
-//! NodeFilter::temporal_property("ts").len().gt(3usize)         // LenExpr  — pass if more than 3 updates
-//! NodeFilter::temporal_property("ts").first().eq(Prop::I64(0)) // FirstExpr — pass if first value == 0
-//! NodeFilter::temporal_property("ts").last().eq(Prop::I64(1))  // LastExpr  — pass if last value == 1
-//! NodeFilter::temporal_property("v").min().gt(0i64)            // MinExpr  — pass if minimum > 0
-//! NodeFilter::temporal_property("v").max().lt(100i64)          // MaxExpr  — pass if maximum < 100
+//! // Aggregators:
+//! NodeFilter.property("price").temporal().sum().gt(100i64)             // SumExpr  — pass if total > 100
+//! NodeFilter.property("price").temporal().avg().lt(50i64)              // AvgExpr  — pass if average < 50
+//! NodeFilter.property("ts").temporal().len().gt(3usize)                // LenExpr  — pass if more than 3 updates
+//! NodeFilter.property("ts").temporal().first().eq(Prop::I64(0))        // FirstExpr — pass if first value == 0
+//! NodeFilter.property("ts").temporal().last().eq(Prop::I64(1))         // LastExpr  — pass if last value == 1
+//! NodeFilter.property("v").temporal().min().gt(0i64)                   // MinExpr  — pass if minimum > 0
+//! NodeFilter.property("v").temporal().max().lt(100i64)                 // MaxExpr  — pass if maximum < 100
 //! ```
 //!
 //! # Literal (RHS) expressions
 //!
 //! ```rust,ignore
-//! // Plain Rust values implement NodeExpr — pass them directly as the RHS of any comparison:
-//! NodeFilter::degree().gt(2usize)                    // usize  — NodeExpr<Output = usize>
-//! NodeFilter::name().eq("Alice")                     // &str   — NodeExpr<Output = &'static str>
-//! NodeFilter::name().eq("Bob".to_string())           // String — NodeExpr<Output = String>
-//! NodeFilter::property("age").gt(30i64)              // i64    — NodeExpr<Output = Option<Prop>>
-//! NodeFilter::property("score").eq(Prop::F64(9.5))  // Prop   — NodeExpr<Output = Option<Prop>>
-//! // ConstExpr<T> for custom comparable types not covered above
+//! // Plain Rust values implement NodeExpr and produce Option<Prop> — pass directly as RHS:
+//! NodeFilter.degree().gt(2usize)                   // usize → Prop::U64
+//! NodeFilter.name().eq("Alice")                    // &str  → Prop::Str
+//! NodeFilter.name().eq("Bob".to_string())          // String → Prop::Str
+//! NodeFilter.property("age").gt(30i64)             // i64   → Prop::I64
+//! NodeFilter.property("score").eq(Prop::F64(9.5)) // Prop  → passed as-is
+//! // ConstExpr<T: Comparable> for custom comparable types not covered above
 //! ```
 
 use super::{ops::{
@@ -86,14 +88,16 @@ use raphtory_api::core::{
     Direction,
 };
 use std::sync::Arc;
+use crate::db::graph::views::filter::model::edge_expr::{EdgeExpr, EdgeOp};
 // ─────────────────────────────────────────────────────────────────────────────
 // Node field expressions — identity, name, type
 //
 // Id, Name, Type are zero-sized structs defined in db::api::state::ops.
 // NodeExpr is implemented here so they can appear as LHS or RHS in filter expressions.
-//   NodeFilter::id()         uses Id    — NodeExpr<Output = GID>
-//   NodeFilter::name()       uses Name  — NodeExpr<Output = String>
-//   NodeFilter::node_type()  uses Type  — NodeExpr<Output = Option<ArcStr>>
+// All map their native types into Option<Prop> via into_prop():
+//   NodeFilter.id()        uses Id   — produces Option<Prop> (GID mapped to Prop)
+//   NodeFilter.name()      uses Name — produces Option<Prop> (String as Prop::Str)
+//   NodeFilter.node_type() uses Type — produces Option<Prop> (ArcStr as Prop::Str, None if unset)
 // ─────────────────────────────────────────────────────────────────────────────
 
 impl EntityExpr for Id {}
@@ -152,9 +156,9 @@ impl NodeExpr for Type {
 // Constant value expressions — literal RHS values
 //
 // Allows passing raw values directly to filter operators:
-//   NodeFilter::degree().gt(2usize)
-//   NodeFilter::name().eq("Alice")
-//   NodeFilter::property("age").gt(30i64)
+//   NodeFilter.degree().gt(2usize)
+//   NodeFilter.name().eq("Alice")
+//   NodeFilter.property("age").gt(30i64)
 // ─────────────────────────────────────────────────────────────────────────────
 
 impl EntityExpr for usize {
@@ -218,11 +222,11 @@ impl NodeExpr for &'static str {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// IntoPropNodeExpr — normalises any RHS value to NodeExpr<Output = Option<Prop>>
+// Prop scalar — NodeExpr impl
 //
-// Used as the bound on Quantified::eq/ne/gt/ge/lt/le and NodeAggregated::eq/ne/…
-// so that .eq("Alice"), .eq(30i64), and .eq(NodeFilter::property("x")) all work
-// with a single method name.
+// All exprs produce Option<Prop>, so Prop itself (and numeric/string primitives)
+// implement NodeExpr directly. Pass them as the RHS of any comparison:
+//   .eq("Alice"), .gt(30i64), .eq(NodeFilter.property("x")) all share the same type.
 // ─────────────────────────────────────────────────────────────────────────────
 
 impl EntityExpr for Prop {
@@ -283,12 +287,12 @@ pub struct ConstExpr<T>(pub T);
 
 impl<T: Comparable + Clone + Send + Sync + 'static> EntityExpr for ConstExpr<T> {}
 
-impl<T: Comparable + Clone + Send + Sync + 'static> NodeExpr for ConstExpr<T> {
+impl<T: Comparable + Into<Prop> + Clone + Send + Sync + 'static> NodeExpr for ConstExpr<T> {
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
         _graph: G,
     ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        Ok(Arc::new(Const(self.0.clone())))
+        Ok(Arc::new(Const(Some(self.0.clone().into()))))
     }
 }
 
@@ -298,13 +302,13 @@ impl<T: Comparable + Clone + Send + Sync + 'static> NodeExpr for ConstExpr<T> {
 
 /// Degree of a node in a given direction.
 ///
-/// Created by `NodeFilter::degree()` / `::in_degree()` / `::out_degree()`.
+/// Created by `NodeFilter.degree()` / `.in_degree()` / `.out_degree()`.
 /// `E` is the view expression that scopes the edges counted (window / layer / etc.).
-/// Compiles to the `Degree` op from `db::api::state::ops`.
+/// Compiles to `Degree { dir, view }.map(|a| Some(Prop::U64(a as u64)))`.
 ///
 /// ```rust,ignore
-/// NodeFilter::degree().gt(2usize)
-/// NodeFilter::out_degree().gt(NodeFilter::in_degree())
+/// NodeFilter.degree().gt(2usize)
+/// NodeFilter.out_degree().gt(NodeFilter.in_degree())
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DegreeExpr<E> {
@@ -328,7 +332,7 @@ impl<E: CreateView + Clone + Send + Sync + 'static> NodeExpr for DegreeExpr<E> {
                 dir: self.dir,
                 view: self.view_expr.create_view(graph)?,
             }
-            .map(|a| Some(Prop::U64(a.into()))),
+            .map(|a| Some(Prop::U64(a as u64))),
         ))
     }
 }
@@ -369,16 +373,16 @@ impl NodeExpr for Metadata {
 
 /// All temporal values of a named property over the current view window.
 ///
-/// Produces `Prop::List` of every recorded value within the view.
+/// Produces `Some(Prop::List([...]))` of every recorded value within the view.
 ///
-/// Not constructed directly — created internally by the fluent chain started
-/// by `NodeFilter::temporal_property(name)`:
+/// Not constructed directly — obtained from `NodeTemporalPropOps::into_expr()`,
+/// or implicitly via `.sum()` / `.any()` / etc. on `TemporalProp`:
 ///
 /// ```rust,ignore
-/// // NodeFilter::temporal_property("score") returns TemporalProp, not this type.
-/// // TemporalPropertyExpr is created inside .any() / .all() / .sum() etc., e.g.:
-/// //   .any().gt(10i64)  →  QuantifiedNodeFilter<TemporalPropertyExpr<..>, AnyMode, i64>
-/// //   .sum().gt(100i64) →  BinaryCmpNodeFilter<SumExpr<TemporalPropertyExpr<..>>, i64>
+/// // NodeFilter.property("score").temporal() returns TemporalProp, not this type.
+/// // TemporalPropertyExpr is produced implicitly by NodeTemporalPropOps methods:
+/// //   .gt(10i64).any()  → BinaryCmpNodeFilter<AnyExpr<BinaryCmpNodeFilter<TemporalPropertyExpr, i64>>, Prop>
+/// //   .sum().gt(100i64) → BinaryCmpNodeFilter<SumExpr<TemporalPropertyExpr<..>>, i64>
 /// ```
 #[derive(Clone)]
 pub struct TemporalPropertyExpr<E: Clone> {
@@ -416,14 +420,15 @@ impl<E: CreateView + Clone + Send + Sync + 'static> NodeExpr for TemporalPropert
 // ─────────────────────────────────────────────────────────────────────────────
 // Aggregator Exprs — NodeExpr wrappers producing a single scalar
 //
-// Each wraps a NodeExpr<Output = Prop> (typically TemporalPropertyExpr) and reduces
-// the Prop::List it produces to a scalar.  Not constructed directly —
-// TemporalProp / TemporalExprOps methods return NodeAggregated<XxxExpr<..>>:
+// Each wraps an inner NodeExpr (typically TemporalPropertyExpr) and reduces
+// the Prop::List it produces.  Not constructed directly —
+// TemporalProp methods return these exprs directly:
 //
-//   .temporal_property("v").sum()  → NodeAggregated<SumExpr<TemporalPropertyExpr<..>>>
-//   .temporal_property("v").len()  → NodeAggregated<LenExpr<TemporalPropertyExpr<..>>>
+//   .property("v").temporal().sum()  → SumExpr<TemporalPropertyExpr<..>>
+//   .property("v").temporal().len()  → LenExpr<TemporalPropertyExpr<..>>
+//   .property("v").temporal().any()  → AnyExpr<TemporalPropertyExpr<..>>
 //
-// Calling .gt() / .eq() etc. on NodeAggregated then produces:
+// Calling .gt() / .eq() etc. on any of these (via NodeExprFilterOps) produces:
 //   BinaryCmpNodeFilter<SumExpr<TemporalPropertyExpr<..>>, RHS>
 // ─────────────────────────────────────────────────────────────────────────────
 

@@ -15,11 +15,10 @@ pub use crate::{
                         UnaryOp,
                     },
                     node_expr::{
-                        AllMode, AnyMode, BinaryCmpNodeFilter,
+                        AllExpr, AnyExpr, AvgExpr, BinaryCmpNodeFilter,
                         FirstExpr, LastExpr, LenExpr, MaxExpr,
-                        MinExpr, NodeAggregated, NodeExpr, NodeExprFilterOps, NodePropertyExprOps,
-                        NodeQuantified, NodeTemporalPropOps, PropValueSetFilter, QuantifiedNodeFilter,
-                        QuantifierMode, SetNodeFilter, StringNodeFilter, SumExpr, TemporalExprOps,
+                        MinExpr, NodeExpr, NodeExprFilterOps, NodePropertyExprOps, NodeTemporalPropOps,
+                        PropValueSetFilter, StringNodeFilter, SumExpr,
                         TemporalProp, UnaryNodeFilter,
                     },
                     node_filter::{NodeFilter, NodeFilterFactory},
@@ -293,7 +292,7 @@ pub struct PropertyExpr<E> {
     name: String,
 }
 
-impl<E: CreateView + NodeFilterFactory + Clone + Send + Sync + 'static> EntityExpr for PropertyExpr<E> {}
+impl<E: Clone + Send + Sync + 'static> EntityExpr for PropertyExpr<E> {}
 
 impl<E: CreateView + NodeFilterFactory + Clone + Send + Sync + 'static> NodeExpr
     for PropertyExpr<E>
@@ -318,7 +317,7 @@ pub struct MetadataExpr<E> {
     name: String,
 }
 
-impl<E: CreateView + NodeFilterFactory + Clone + Send + Sync + 'static> EntityExpr for MetadataExpr<E> {}
+impl<E: Clone + Send + Sync + 'static> EntityExpr for MetadataExpr<E> {}
 
 impl<E: CreateView + NodeFilterFactory + Clone + Send + Sync + 'static> NodeExpr
     for MetadataExpr<E>
@@ -456,14 +455,12 @@ pub trait EdgeFilterFactory: PropertyFilterFactory + Clone {}
 use edge_expr::{
     EdgeExpr, EdgeOp
 };
-use crate::db::graph::views::filter::model::edge_expr::{EdgeMetaOp, EdgePropOp};
+use crate::db::graph::views::filter::model::edge_expr::ops::{EdgeMetaOp, EdgePropOp};
 use crate::db::graph::views::filter::model::node_expr::EntityExpr;
 
 impl<E: CreateView + EdgeFilterFactory + Clone + Send + Sync + 'static> EdgeExpr
     for PropertyExpr<E>
 {
-    type Output = Option<Prop>;
-
     fn create_edge_op<'g, G: GraphView + 'g>(
         &self,
         graph: G,
@@ -480,8 +477,6 @@ impl<E: CreateView + EdgeFilterFactory + Clone + Send + Sync + 'static> EdgeExpr
 impl<E: CreateView + EdgeFilterFactory + Clone + Send + Sync + 'static> EdgeExpr
     for MetadataExpr<E>
 {
-    type Output = Option<Prop>;
-
     fn create_edge_op<'g, G: GraphView + 'g>(
         &self,
         graph: G,

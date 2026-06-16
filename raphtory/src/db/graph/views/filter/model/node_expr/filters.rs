@@ -8,39 +8,44 @@
 //!
 //! ```text
 //! Phase 1 — Build (pure Rust data, no graph):
-//!   NodeFilter::property("age").gt(30i64)
-//!   ──► BinaryCmpNodeFilter { left: Property("age"), op: Gt, right: ConstExpr(30i64) }
+//!   NodeFilter.property("age").gt(30i64)
+//!   ──► BinaryCmpNodeFilter { left: Property("age"), op: Gt, right: 30i64 }
 //!
 //! Phase 2 — Compile (bind to graph, resolve names):
 //!   BinaryCmpNodeFilter::create_node_filter(graph)?
 //!   ──► Arc<dyn NodeOp<Output = bool>>
-//!         = BinaryCmpNodeOp { left: NodePropOp(id=3), right: ConstNodeOp(30), op: Gt }
+//!         = BinaryCmpNodeOp { left: NodePropOp(id=3), right: Const(Some(I64(30))), op: Gt }
 //!
 //! Phase 3 — Runtime (per-node, O(1)):
 //!   filter.apply(storage, vid)  →  age_value = NodePropOp.apply(...)
-//!                                   Prop::binary_cmp(Gt, age_value, 30)  →  true/false
+//!                                   Prop::binary_cmp(Gt, age_value, Some(I64(30)))  →  true/false
 //! ```
 //!
 //! # Temporal quantification
 //!
+//! Filter types also implement `NodeExpr` (producing list-aware ops), enabling chaining
+//! before `.any()`/`.all()`:
+//!
 //! ```rust,ignore
 //! // "pass if any temporal value of 'score' > 10"
-//! NodeFilter::temporal_property("score").any().gt(10i64)
-//! ──► QuantifiedNodeFilter<TemporalPropertyExpr, AnyMode, ConstExpr<i64>>
+//! NodeFilter.property("score").temporal().gt(10i64).any()
+//! ──► BinaryCmpNodeFilter<AnyExpr<BinaryCmpNodeFilter<TemporalPropertyExpr, i64>>, Prop>
 //!   create_node_filter(graph)?
-//!   ──► AnyNodeOp { inner: PropListCompareOp { temporal_op, rhs: ConstNodeOp(10), op: Gt } }
+//!   ──► BinaryCmpNodeOp { left: AnyNodeOp { inner: ListAwareCmpNodeOp { TemporalNodePropOp,
+//!                                                                         Const(I64(10)), Gt } },
+//!                          right: Const(Bool(true)), op: Eq }
 //!
 //! // "pass if sum of 'score' > 100"
-//! NodeFilter::temporal_property("score").sum().gt(100i64)
-//! ──► BinaryCmpNodeFilter<SumExpr<TemporalPropertyExpr>, ConstExpr<i64>>
+//! NodeFilter.property("score").temporal().sum().gt(100i64)
+//! ──► BinaryCmpNodeFilter<SumExpr<TemporalPropertyExpr>, i64>
 //! ```
 
 use super::{
     ops::{
-        AllNodeOp, AnyNodeOp, BinaryCmpNodeOp, ListAwareCmpNodeOp, ListAwareSetNodeOp,
-        ListAwareStringNodeOp, PropValueSetNodeOp, SetNodeOp, StringNodeOp, UnaryNodeOp,
+        BinaryCmpNodeOp, ListAwareCmpNodeOp, ListAwareSetNodeOp,
+        ListAwareStringNodeOp, PropValueSetNodeOp, StringNodeOp, UnaryNodeOp,
     },
-    EntityExpr, NodeExpr, TemporalPropertyExpr,
+    AllExpr, AnyExpr, EntityExpr, NodeExpr,
 };
 use crate::{
     db::{
@@ -52,10 +57,10 @@ use crate::{
             model::{
                 edge_filter::CompositeEdgeFilter,
                 filter_operator::{
-                    BinaryOp, Comparable, SetOp, StringComparable, StringOp, UnaryOp,
+                    BinaryOp, SetOp, StringOp, UnaryOp,
                 },
-                node_filter::NodeFilterFactory,
-                property_filter::Op,
+                node_filter::NodeFilterFactory
+                ,
                 ComposableFilter, CompositeExplodedEdgeFilter, CompositeNodeFilter, CreateFilter,
                 CreateView, MetadataExpr, PropertyExpr, TryAsCompositeFilter,
             },
@@ -65,15 +70,8 @@ use crate::{
     errors::GraphError,
     prelude::GraphViewOps,
 };
-use raphtory_api::core::{
-    entities::{
-        properties::prop::{Prop, PropType},
-        VID,
-    },
-    storage::arc_str::ArcStr,
-};
-use std::{collections::HashSet, hash::Hash, marker::PhantomData, sync::Arc};
-use crate::db::graph::views::filter::model::{FirstExpr, LastExpr, LenExpr, MaxExpr, MinExpr, SumExpr};
+use raphtory_api::core::entities::properties::prop::{Prop, PropType};
+use std::{marker::PhantomData, sync::Arc};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // BinaryCmpNodeFilter<L, R> — binary expression filter
@@ -81,20 +79,20 @@ use crate::db::graph::views::filter::model::{FirstExpr, LastExpr, LenExpr, MaxEx
 
 /// A node filter that compares two [`NodeExpr`] values using a [`BinaryOp`].
 ///
-/// The output type is determined by the left expression (`L::Output`);
-/// the right expression must produce the same type.
+/// Both sides produce `Option<Prop>` at runtime. Created by [`NodeExprFilterOps`] methods
+/// (`.gt`, `.lt`, `.eq`, `.ne`, `.ge`, `.le`).
 ///
-/// Created by [`NodeExprFilterOps`] methods (`.gt`, `.lt`, `.eq`, `.ne`, `.ge`, `.le`).
-/// Compiles to a `BinaryCmpNodeOp` wrapped in `Arc<dyn NodeOp<Output = bool>>`.
+/// As a **terminal filter** (`CreateFilter`): compiles to `BinaryCmpNodeOp` → bool.
+/// As a **mid-chain expression** (`NodeExpr`): compiles to `ListAwareCmpNodeOp` → `Option<Prop::List([Bool]...)>`.
 ///
 /// ```rust,ignore
-/// NodeFilter::degree().gt(2usize)
+/// NodeFilter.degree().gt(2usize)
 ///   → BinaryCmpNodeFilter<DegreeExpr<..>, usize>
-///   → BinaryCmpNodeOp { left: Degree(..), right: ConstNodeOp(2), op: Gt }
+///   → BinaryCmpNodeOp { left: Degree(..).map(Prop::U64), right: Const(Some(U64(2))), op: Gt }
 ///
-/// NodeFilter::property("age").eq(30i64)
+/// NodeFilter.property("age").eq(30i64)
 ///   → BinaryCmpNodeFilter<Property, i64>
-///   → BinaryCmpNodeOp { left: NodePropOp(prop_id=N), right: ConstNodeOp(30), op: Eq }
+///   → BinaryCmpNodeOp { left: NodePropOp(prop_id=N), right: Const(Some(I64(30))), op: Eq }
 /// ```
 pub struct BinaryCmpNodeFilter<L, R>
 where
@@ -236,7 +234,7 @@ where
 /// Compiles to a `UnaryNodeOp { inner, op }`.
 ///
 /// ```rust,ignore
-/// NodeFilter::property("age").is_some()
+/// NodeFilter.property("age").is_some::<Prop>()
 ///   → UnaryNodeFilter<Property, Prop>
 ///   → UnaryNodeOp { inner: NodePropOp(prop_id=N), op: IsSome }
 /// ```
@@ -271,15 +269,14 @@ where
 {
 }
 
-impl<E, I> CreateFilter for UnaryNodeFilter<E, I>
+impl<E> CreateFilter for UnaryNodeFilter<E, Prop>
 where
     E: NodeExpr,
-    I: Clone + Send + Sync + 'static,
 {
     type EntityFiltered<'graph, G: GraphViewOps<'graph>> =
-        NodeFilteredGraph<G, UnaryNodeOp<'graph, I>>;
+        NodeFilteredGraph<G, UnaryNodeOp<'graph, Prop>>;
 
-    type NodeFilter<'graph, G: GraphView + 'graph> = UnaryNodeOp<'graph, I>;
+    type NodeFilter<'graph, G: GraphView + 'graph> = UnaryNodeOp<'graph, Prop>;
 
     type FilteredGraph<'graph, G>
         = G
@@ -325,111 +322,6 @@ where
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SetNodeFilter<E> — is_in / is_not_in on nullable expressions
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// A node filter that checks whether an `Option`-valued expression is contained
-/// in (or absent from) a fixed set of values.
-///
-/// Created by `.is_in(values)` / `.is_not_in(values)`.
-/// Compiles to a `SetNodeOp { inner, op, values }`.
-///
-/// ```rust,ignore
-/// NodeFilter::node_type().is_in(["Person", "Account"])
-///   → SetNodeFilter<Type, ArcStr>
-///   → SetNodeOp { inner: TypeOp, op: IsIn, values: {"Person", "Account"} }
-/// ```
-pub struct SetNodeFilter<E, I>
-where
-    E: NodeExpr,
-    I: Eq + Hash + Clone + Send + Sync + 'static,
-{
-    pub expr: E,
-    pub op: SetOp,
-    pub values: Arc<HashSet<I>>,
-    pub(crate) _phantom: PhantomData<I>,
-}
-
-impl<E, I> Clone for SetNodeFilter<E, I>
-where
-    E: NodeExpr,
-    I: Eq + Hash + Clone + Send + Sync + 'static,
-{
-    fn clone(&self) -> Self {
-        Self {
-            expr: self.expr.clone(),
-            op: self.op,
-            values: self.values.clone(),
-            _phantom: PhantomData,
-        }
-    }
-}
-
-impl<E, I> ComposableFilter for SetNodeFilter<E, I>
-where
-    E: NodeExpr,
-    I: Eq + Hash + Clone + Send + Sync + 'static,
-{
-}
-
-impl<E, I> CreateFilter for SetNodeFilter<E, I>
-where
-    E: NodeExpr,
-    I: Eq + Hash + Clone + Send + Sync + 'static,
-{
-    type EntityFiltered<'graph, G: GraphViewOps<'graph>> =
-        NodeFilteredGraph<G, SetNodeOp<'graph, I>>;
-
-    type NodeFilter<'graph, G: GraphView + 'graph> = SetNodeOp<'graph, I>;
-
-    type FilteredGraph<'graph, G>
-        = G
-    where
-        Self: 'graph,
-        G: GraphViewOps<'graph>;
-
-    fn create_filter<'graph, G: GraphViewOps<'graph>>(
-        self,
-        graph: G,
-    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
-        let filter = self.create_node_filter(graph.clone())?;
-        Ok(NodeFilteredGraph::new(graph, filter))
-    }
-
-    fn create_node_filter<'graph, G: GraphView + 'graph>(
-        self,
-        graph: G,
-    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
-        let inner = self.expr.create_node_op(graph)?;
-        Ok(SetNodeOp {
-            inner,
-            op: self.op,
-            values: self.values,
-        })
-    }
-}
-
-impl<E, I> TryAsCompositeFilter for SetNodeFilter<E, I>
-where
-    E: NodeExpr,
-    I: Eq + Hash + Clone + Send + Sync + 'static,
-{
-    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-
-    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-
-    fn try_as_composite_exploded_edge_filter(
-        &self,
-    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // StringNodeFilter<L, R> — string expression filter
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -441,13 +333,13 @@ where
 /// Compiles to a `StringNodeOp` wrapped in `Arc<dyn NodeOp<Output = bool>>`.
 ///
 /// ```rust,ignore
-/// NodeFilter::name().starts_with("Al")
+/// NodeFilter.name().starts_with("Al")
 ///   → StringNodeFilter<Name, &str>
-///   → StringNodeOp { left: NameOp, right: ConstNodeOp("Al"), op: StartsWith }
+///   → StringNodeOp { left: Name.map(...), right: Const(Some(Str("Al"))), op: StartsWith }
 ///
-/// NodeFilter::property("tag").contains(Prop::Str("foo".into()))
+/// NodeFilter.property("tag").contains(Prop::Str("foo".into()))
 ///   → StringNodeFilter<Property, Prop>
-///   → StringNodeOp { left: NodePropOp(prop_id=N), right: ConstNodeOp(Str("foo")), op: Contains }
+///   → StringNodeOp { left: NodePropOp(prop_id=N), right: Const(Some(Str("foo"))), op: Contains }
 /// ```
 pub struct StringNodeFilter<L, R>
 where
@@ -621,27 +513,27 @@ impl<E: NodeExpr> TryAsCompositeFilter for PropValueSetFilter<E> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TemporalProp<E> — entry point returned from `.temporal_property(name)`
+// TemporalProp<E> — entry point returned from `.property(name).temporal()`
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Entry point returned by `NodeFilter::temporal_property(name)`.
+/// Entry point returned by `PropertyExpr::temporal()`.
 ///
 /// `E` is the view expression (e.g. `NodeFilter`, `Windowed<NodeFilter>`, `Layered<NodeFilter>`)
 /// that scopes which temporal property values are visible.
 ///
 /// Calling a method produces the next step in the chain:
 /// ```rust,ignore
-/// NodeFilter::temporal_property("score")         // → TemporalProp<NodeFilter>
-///     .any()                                      // → Quantified<TemporalPropertyExpr<..>, AnyMode>
-///     .gt(10i64)                                  // → QuantifiedNodeFilter<.., AnyMode, i64>
+/// NodeFilter.property("score").temporal()        // → TemporalProp<NodeFilter>
+///     .gt(10i64)                                 // → BinaryCmpNodeFilter<TemporalPropertyExpr, i64>
+///     .any()                                     // → BinaryCmpNodeFilter<AnyExpr<..>, Prop>
 ///
-/// NodeFilter::temporal_property("price")         // → TemporalProp<NodeFilter>
-///     .sum()                                      // → Aggregated<SumExpr<TemporalPropertyExpr<..>>>
-///     .gt(100i64)                                 // → BinaryCmpNodeFilter<SumExpr<..>, i64>
+/// NodeFilter.property("price").temporal()        // → TemporalProp<NodeFilter>
+///     .sum()                                     // → SumExpr<TemporalPropertyExpr<NodeFilter>>
+///     .gt(100i64)                                // → BinaryCmpNodeFilter<SumExpr<..>, i64>
 ///
-/// NodeFilter.window(0, 100)
-///     .temporal_property("score")                // → TemporalProp<Windowed<NodeFilter>>
-///     .any().gt(10i64)
+/// NodeFilter.window(0, 100).property("score")
+///     .temporal()                                // → TemporalProp<Windowed<NodeFilter>>
+///     .gt(10i64).any()
 /// ```
 pub struct TemporalProp<E: CreateView + Clone> {
     pub(crate) view_expr: E,
@@ -686,11 +578,15 @@ impl<E: CreateView + NodeFilterFactory + Clone + Send + Sync + 'static> NodeProp
 
 /// Comparison, string, set, and presence operators on any [`NodeExpr`].
 ///
+/// `.any()` / `.all()` are terminal: they wrap `self` in `AnyExpr`/`AllExpr` and compare the
+/// result to `Bool(true)`. For element-wise comparison before reduction, chain in order:
+/// `.gt(10i64).any()` not `.any().gt(10i64)`.
+///
 /// ```rust,ignore
-/// DegreeExpr(Direction::BOTH).gt(2usize)
-/// DegreeExpr(Direction::OUT).gt(DegreeExpr(Direction::IN))
-/// NodeFilter::property("age").gt(30i64)
-/// DegreeExpr(Direction::BOTH).is_in([2usize, 3usize])
+/// NodeFilter.degree().gt(2usize)
+/// NodeFilter.out_degree().gt(NodeFilter.in_degree())
+/// NodeFilter.property("age").gt(30i64)
+/// NodeFilter.property("score").temporal().gt(10i64).any()
 /// ```
 pub trait NodeExprFilterOps: NodeExpr + Sized {
     fn gt<R: NodeExpr>(self, rhs: R) -> BinaryCmpNodeFilter<Self, R> {
@@ -794,6 +690,13 @@ pub trait NodeExprFilterOps: NodeExpr + Sized {
         self.eq(Prop::Bool(false))
     }
 
+    fn any(self) -> BinaryCmpNodeFilter<AnyExpr<Self>, Prop> {
+        BinaryCmpNodeFilter::new(AnyExpr(self), BinaryOp::Eq, Prop::Bool(true))
+    }
+
+    fn all(self) -> BinaryCmpNodeFilter<AllExpr<Self>, Prop> {
+        BinaryCmpNodeFilter::new(AllExpr(self), BinaryOp::Eq, Prop::Bool(true))
+    }
 }
 
 impl<E: NodeExpr> NodeExprFilterOps for E {}
