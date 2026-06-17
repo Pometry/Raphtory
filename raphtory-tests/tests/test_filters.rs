@@ -1670,8 +1670,8 @@ mod test_node_filter {
         },
         errors::GraphError,
         prelude::{
-            AdditionOps, Graph, GraphViewOps, IntoProp, NodeFilter, NodeStateOps, NodeViewOps,
-            TimeOps, NO_PROPS,
+            AdditionOps, EntityExprFilterOps, Graph, GraphViewOps, IntoProp, NodeFilter,
+            NodeFilterFactory, NodeStateOps, NodeViewOps, TimeOps, NO_PROPS,
         },
     };
     use raphtory_api::core::{entities::properties::prop::Prop, Direction};
@@ -3239,6 +3239,7 @@ mod test_node_property_filter {
         ComposableFilter, PropertyFilterFactory, ViewWrapOps,
     };
     use raphtory_api::core::entities::properties::prop::Prop;
+    use raphtory::prelude::{EntityExprFilterOps, TemporalPropOps};
     use raphtory_tests::assertions::{
         assert_filter_nodes_results, assert_search_nodes_results, TestVariants,
     };
@@ -5751,7 +5752,7 @@ mod test_node_property_filter_agg {
                 CreateFilter,
             },
         },
-        prelude::{AdditionOps, GraphViewOps, PropertyAdditionOps},
+        prelude::{AdditionOps, GraphViewOps, PropertyAdditionOps, TemporalPropOps},
     };
     use raphtory_api::core::{
         entities::properties::prop::{IntoProp, Prop},
@@ -10757,6 +10758,7 @@ mod test_edge_property_filter {
     };
 
     use raphtory_api::core::entities::properties::prop::Prop;
+    use raphtory::prelude::{EntityExprFilterOps, TemporalPropOps};
     use raphtory_tests::assertions::{
         assert_filter_edges_results, assert_search_edges_results, TestGraphVariants, TestVariants,
     };
