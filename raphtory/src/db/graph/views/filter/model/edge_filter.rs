@@ -7,6 +7,7 @@ use crate::{
         graph::views::filter::{
             edge_node_filtered_graph::EdgeNodeFilteredGraph,
             model::{
+                edge_expr::{ops::EdgeEndpointNodeOp, EdgeExpr, EdgeOp},
                 exploded_edge_filter::{CompositeExplodedEdgeFilter, ExplodedEdgeFilter},
                 is_active_edge_filter::IsActiveEdge,
                 is_deleted_filter::IsDeletedEdge,
@@ -14,15 +15,18 @@ use crate::{
                 is_valid_filter::IsValidEdge,
                 latest_filter::Latest,
                 layered_filter::Layered,
+                node_expr::{EntityExpr, NodeExpr, TemporalPropOps},
                 node_filter::{
                     builders::InternalNodeFilterBuilder, CompositeNodeFilter, NodeFilter,
                 },
                 property_filter::PropertyFilter,
                 snapshot_filter::{SnapshotAt, SnapshotLatest},
                 windowed_filter::Windowed,
-                AndFilter, CombinedFilter, ComposableFilter, CreateView, EdgeFilterFactory,
-                EdgeViewFilterOps, EntityMarker, InternalViewWrapOps, NotFilter, OrFilter,
-                TryAsCompositeFilter, Wrap,
+                AllExpr, AndFilter, AnyExpr, AvgExpr, CombinedFilter, ComposableFilter,
+                CreateView, EdgeFilterFactory, EdgeViewFilterOps, EntityMarker,
+                FirstExpr, InternalViewWrapOps, LastExpr, LenExpr, MaxExpr, MetadataExpr,
+                MinExpr, NotFilter, OrFilter, PropertyExpr, PropertyFilterFactory,
+                SumExpr, TemporalExpr, TemporalProp, TryAsCompositeFilter, Wrap,
             },
             CreateFilter,
         },
@@ -30,7 +34,10 @@ use crate::{
     errors::GraphError,
     prelude::GraphViewOps,
 };
-use raphtory_api::core::{entities::GID, storage::timeindex::EventTime};
+use raphtory_api::core::{
+    entities::{properties::prop::Prop, GID},
+    storage::timeindex::EventTime,
+};
 use std::{fmt, fmt::Display, sync::Arc};
 
 // User facing entry for building edge filters.
@@ -141,6 +148,85 @@ impl EdgeEndpointWrapper<NodeFilter> {
     #[inline]
     pub fn node_type(&self) -> EdgeEndpointWrapper<Type> {
         EdgeEndpointWrapper::new(Type, self.endpoint)
+    }
+
+    #[inline]
+    pub fn property(&self, name: impl Into<String>) -> EdgeEndpointWrapper<PropertyExpr<NodeFilter>> {
+        EdgeEndpointWrapper::new(NodeFilter.property(name), self.endpoint)
+    }
+
+    #[inline]
+    pub fn metadata(&self, name: impl Into<String>) -> EdgeEndpointWrapper<MetadataExpr<NodeFilter>> {
+        EdgeEndpointWrapper::new(NodeFilter.metadata(name), self.endpoint)
+    }
+}
+
+impl<E: CreateView + Clone + Send + Sync + 'static> EdgeEndpointWrapper<PropertyExpr<E>> {
+    #[inline]
+    pub fn temporal(&self) -> EdgeEndpointWrapper<TemporalProp<E>> {
+        EdgeEndpointWrapper::new(self.inner.temporal(), self.endpoint)
+    }
+}
+
+impl<E: CreateView + EntityExpr + Clone + Send + Sync + 'static> EdgeEndpointWrapper<TemporalProp<E>> {
+    #[inline]
+    pub fn sum(self) -> EdgeEndpointWrapper<SumExpr<TemporalExpr<E>>> {
+        let endpoint = self.endpoint;
+        EdgeEndpointWrapper::new(self.inner.sum(), endpoint)
+    }
+    #[inline]
+    pub fn avg(self) -> EdgeEndpointWrapper<AvgExpr<TemporalExpr<E>>> {
+        let endpoint = self.endpoint;
+        EdgeEndpointWrapper::new(self.inner.avg(), endpoint)
+    }
+    #[inline]
+    pub fn min(self) -> EdgeEndpointWrapper<MinExpr<TemporalExpr<E>>> {
+        let endpoint = self.endpoint;
+        EdgeEndpointWrapper::new(self.inner.min(), endpoint)
+    }
+    #[inline]
+    pub fn max(self) -> EdgeEndpointWrapper<MaxExpr<TemporalExpr<E>>> {
+        let endpoint = self.endpoint;
+        EdgeEndpointWrapper::new(self.inner.max(), endpoint)
+    }
+    #[inline]
+    pub fn first(self) -> EdgeEndpointWrapper<FirstExpr<TemporalExpr<E>>> {
+        let endpoint = self.endpoint;
+        EdgeEndpointWrapper::new(self.inner.first(), endpoint)
+    }
+    #[inline]
+    pub fn last(self) -> EdgeEndpointWrapper<LastExpr<TemporalExpr<E>>> {
+        let endpoint = self.endpoint;
+        EdgeEndpointWrapper::new(self.inner.last(), endpoint)
+    }
+    #[inline]
+    pub fn len(self) -> EdgeEndpointWrapper<LenExpr<TemporalExpr<E>>> {
+        let endpoint = self.endpoint;
+        EdgeEndpointWrapper::new(self.inner.len(), endpoint)
+    }
+    #[inline]
+    pub fn any(self) -> EdgeEndpointWrapper<AnyExpr<TemporalExpr<E>>> {
+        let endpoint = self.endpoint;
+        EdgeEndpointWrapper::new(self.inner.any(), endpoint)
+    }
+    #[inline]
+    pub fn all(self) -> EdgeEndpointWrapper<AllExpr<TemporalExpr<E>>> {
+        let endpoint = self.endpoint;
+        EdgeEndpointWrapper::new(self.inner.all(), endpoint)
+    }
+}
+
+impl<T: EntityExpr> EntityExpr for EdgeEndpointWrapper<T> {
+    type Marker = EdgeFilter;
+}
+
+impl<T: NodeExpr> EdgeExpr for EdgeEndpointWrapper<T> {
+    fn create_edge_op<'g, G: GraphView + 'g>(
+        &self,
+        graph: G,
+    ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
+        let node_op = self.inner.create_node_op(graph)?;
+        Ok(Arc::new(EdgeEndpointNodeOp { node_op, endpoint: self.endpoint }))
     }
 }
 

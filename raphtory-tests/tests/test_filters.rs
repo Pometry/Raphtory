@@ -2171,31 +2171,39 @@ mod test_node_filter {
         let invalid_filters = vec![
             NodeFilter.degree().is_none(),
             NodeFilter.degree().is_some(),
+            NodeFilter.in_degree().is_none(),
+            NodeFilter.in_degree().is_some(),
+            NodeFilter.out_degree().is_none(),
+            NodeFilter.out_degree().is_some(),
+        ];
+        for filter in invalid_filters {
+            assert!(
+                matches!(graph.filter(filter), Err(GraphError::InvalidFilter(_))),
+                "expected InvalidFilter for unsupported degree filter operation"
+            );
+        }
+
+        let string_invalid_filters = vec![
             NodeFilter.degree().starts_with("1"),
             NodeFilter.degree().ends_with("1"),
             NodeFilter.degree().contains("1"),
             NodeFilter.degree().not_contains("1"),
             NodeFilter.degree().fuzzy_search("1", 1, false),
-            NodeFilter.in_degree().is_none(),
-            NodeFilter.in_degree().is_some(),
             NodeFilter.in_degree().starts_with("1"),
             NodeFilter.in_degree().ends_with("1"),
             NodeFilter.in_degree().contains("1"),
             NodeFilter.in_degree().not_contains("1"),
             NodeFilter.in_degree().fuzzy_search("1", 1, false),
-            NodeFilter.out_degree().is_none(),
-            NodeFilter.out_degree().is_some(),
             NodeFilter.out_degree().starts_with("1"),
             NodeFilter.out_degree().ends_with("1"),
             NodeFilter.out_degree().contains("1"),
             NodeFilter.out_degree().not_contains("1"),
             NodeFilter.out_degree().fuzzy_search("1", 1, false),
         ];
-
-        for filter in invalid_filters {
+        for filter in string_invalid_filters {
             assert!(
                 matches!(graph.filter(filter), Err(GraphError::InvalidFilter(_))),
-                "expected InvalidFilter for unsupported degree filter operation"
+                "expected InvalidFilter for string op on numeric degree"
             );
         }
     }
@@ -2336,18 +2344,26 @@ mod test_node_filter {
                 NodeFilter.out_degree().ne(value_a.clone()),
                 NodeFilter.out_degree().ge(value_a.clone()),
                 NodeFilter.out_degree().gt(value_a.clone()),
-                NodeFilter.degree().is_in(vec![value_a.clone().into_prop(), value_b.clone().into_prop()]),
-                NodeFilter.degree().is_not_in(vec![value_a.clone().into_prop(), value_b.clone().into_prop()]),
-                NodeFilter.in_degree().is_in(vec![value_a.clone().into_prop(), value_b.clone().into_prop()]),
-                NodeFilter.in_degree().is_not_in(vec![value_a.clone().into_prop(), value_b.clone().into_prop()]),
-                NodeFilter.out_degree().is_in(vec![value_a.clone().into_prop(), value_b.clone().into_prop()]),
-                NodeFilter.out_degree().is_not_in(vec![value_a.clone().into_prop(), value_b.clone().into_prop()]),
             ];
-
             for filter in invalid_filters {
                 assert!(
                     matches!(graph.filter(filter), Err(GraphError::InvalidFilter(_))),
                     "expected InvalidFilter for non-numeric string values"
+                );
+            }
+
+            let set_invalid_filters = vec![
+                NodeFilter.degree().is_in(vec![value_a.clone(), value_b.clone()]),
+                NodeFilter.degree().is_not_in(vec![value_a.clone(), value_b.clone()]),
+                NodeFilter.in_degree().is_in(vec![value_a.clone(), value_b.clone()]),
+                NodeFilter.in_degree().is_not_in(vec![value_a.clone(), value_b.clone()]),
+                NodeFilter.out_degree().is_in(vec![value_a.clone(), value_b.clone()]),
+                NodeFilter.out_degree().is_not_in(vec![value_a.clone(), value_b.clone()]),
+            ];
+            for filter in set_invalid_filters {
+                assert!(
+                    matches!(graph.filter(filter), Err(GraphError::InvalidFilter(_))),
+                    "expected InvalidFilter for is_in/is_not_in on numeric degree"
                 );
             }
         }
@@ -5270,14 +5286,16 @@ mod test_node_property_filter {
     }
 }
 
-mod test_node_composite_filter {
+// TODO: delete when search is dropped and graphql composite path is gone
+mod composite_node_filter_tests {
     use raphtory_api::core::Direction;
 
     use crate::{init_edges_graph, init_nodes_graph, IdentityGraphTransformer};
     use raphtory::{
         db::graph::views::filter::model::{
-            node_filter::ops::NodeFilterOps, property_filter::ops::PropertyFilterOps,
-            ComposableFilter, NodeFilterFactory, PropertyFilterFactory, TryAsCompositeFilter,
+            node_filter::ops::NodeFilterOps, not_filter::NotFilter,
+            property_filter::ops::PropertyFilterOps, ComposableFilter, NodeFilterFactory,
+            PropertyFilterFactory, TryAsCompositeFilter,
         },
         prelude::NodeFilter,
     };
@@ -5620,11 +5638,13 @@ mod test_node_composite_filter {
 
     #[test]
     fn test_not_composite_filter_nodes() {
-        let filter = NodeFilter.name()
-            .eq("2")
-            .and(NodeFilter.property("p2").eq(2u64))
-            .or(NodeFilter.property("p9").eq(5u64))
-            .not();
+        let filter = NotFilter(
+            NodeFilter
+                .name()
+                .eq("2")
+                .and(NodeFilter.property("p2").eq(2u64))
+                .or(NodeFilter.property("p9").eq(5u64)),
+        );
         let expected_results = vec!["3", "4"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -5641,9 +5661,7 @@ mod test_node_composite_filter {
             TestVariants::All,
         );
 
-        let filter = NodeFilter.name()
-            .eq("2")
-            .not()
+        let filter = NotFilter(NodeFilter.name().eq("2"))
             .and(NodeFilter.property("p2").eq(2u64))
             .or(NodeFilter.property("p9").eq(5u64));
         let expected_results = vec!["1"];
@@ -5725,7 +5743,7 @@ mod test_node_property_filter_agg {
                 CreateFilter,
             },
         },
-        prelude::{AdditionOps, EntityExprFilterOps, GraphViewOps, PropertyAdditionOps, TemporalPropOps},
+        prelude::{AdditionOps, EntityAggOps, EntityExprFilterOps, GraphViewOps, PropertyAdditionOps, TemporalPropOps},
     };
     use raphtory_api::core::{
         entities::properties::prop::{IntoProp, Prop},
@@ -9247,8 +9265,7 @@ mod test_edge_filter {
     };
     use raphtory::db::graph::views::filter::model::{
         edge_filter::EdgeFilter,
-        node_filter::ops::NodeFilterOps,
-        property_filter::ops::{ListAggOps, PropertyFilterOps},
+        node_expr::EntityExprFilterOps,
         ComposableFilter, EdgeViewFilterOps, NodeFilterFactory, PropertyFilterFactory,
         ViewWrapOps,
     };
@@ -12567,9 +12584,10 @@ mod test_edge_property_filter {
     }
 }
 
-mod test_edge_composite_filter {
+// TODO: delete when search is dropped and graphql composite path is gone
+mod composite_edge_filter_tests {
     use raphtory::db::graph::views::filter::model::{
-        edge_filter::EdgeFilter, node_filter::ops::NodeFilterOps,
+        edge_filter::EdgeFilter, node_filter::ops::NodeFilterOps, not_filter::NotFilter,
         property_filter::ops::PropertyFilterOps, ComposableFilter, NodeFilterFactory,
         PropertyFilterFactory, TryAsCompositeFilter,
     };
@@ -12942,11 +12960,12 @@ mod test_edge_composite_filter {
     #[test]
     fn test_not_composite_filter_edges() {
         // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for both filter_edges and search_edges. Search API uses filter API internally for this filter.
-        let filter = EdgeFilter::src()
-            .name()
-            .eq("13")
-            .and(EdgeFilter.property("p1").eq("prop1"))
-            .not();
+        let filter = NotFilter(
+            EdgeFilter::src()
+                .name()
+                .eq("13")
+                .and(EdgeFilter.property("p1").eq("prop1")),
+        );
         let expected_results = vec![
             "1->2",
             "2->1",
@@ -12971,11 +12990,12 @@ mod test_edge_composite_filter {
             TestVariants::EventOnly,
         );
 
-        let filter = EdgeFilter::src()
-            .name()
-            .eq("13")
-            .and(EdgeFilter.property("p1").eq("prop1").not())
-            .not();
+        let filter = NotFilter(
+            EdgeFilter::src()
+                .name()
+                .eq("13")
+                .and(NotFilter(EdgeFilter.property("p1").eq("prop1"))),
+        );
         let expected_results = vec![
             "1->2",
             "2->1",

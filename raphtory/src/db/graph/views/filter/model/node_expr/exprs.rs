@@ -462,6 +462,23 @@ impl<E: EntityExpr + CreateView + EdgeFilterFactory + Clone + Send + Sync + 'sta
 //   BinaryCmpNodeFilter<SumExpr<TemporalPropertyExpr<..>>, RHS>
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ─────────────────────────────────────────────────────────────────────────────
+// EntityAggOps — secondary aggregate operators on filter expression types
+//
+// Enables chains like: .temporal().first().sum().eq(6).any()
+// Only implemented for the agg expr wrappers (not primitive EntityExpr types like u64).
+// ─────────────────────────────────────────────────────────────────────────────
+
+pub trait EntityAggOps: EntityExpr + Sized {
+    fn sum(self) -> SumExpr<Self>;
+    fn avg(self) -> AvgExpr<Self>;
+    fn min(self) -> MinExpr<Self>;
+    fn max(self) -> MaxExpr<Self>;
+    fn first(self) -> FirstExpr<Self>;
+    fn last(self) -> LastExpr<Self>;
+    fn len(self) -> LenExpr<Self>;
+}
+
 macro_rules! impl_agg_expr {
     ($expr:ident, $node_op_ty:ident,  $edge_op_ty:ident) => {
         #[derive(Clone)]
@@ -469,6 +486,16 @@ macro_rules! impl_agg_expr {
 
         impl<E: EntityExpr> EntityExpr for $expr<E> {
             type Marker = E::Marker;
+        }
+
+        impl<E: EntityExpr> EntityAggOps for $expr<E> {
+            fn sum(self) -> SumExpr<Self> { SumExpr(self) }
+            fn avg(self) -> AvgExpr<Self> { AvgExpr(self) }
+            fn min(self) -> MinExpr<Self> { MinExpr(self) }
+            fn max(self) -> MaxExpr<Self> { MaxExpr(self) }
+            fn first(self) -> FirstExpr<Self> { FirstExpr(self) }
+            fn last(self) -> LastExpr<Self> { LastExpr(self) }
+            fn len(self) -> LenExpr<Self> { LenExpr(self) }
         }
 
         impl<E: NodeExpr> NodeExpr for $expr<E> {

@@ -18,7 +18,10 @@ use raphtory_storage::graph::graph::GraphStorage;
 use std::{collections::HashSet, hash::Hash};
 
 use super::EdgeOp;
-use crate::db::graph::views::filter::model::property_filter::evaluate::aggregate_values;
+use crate::db::{
+    api::state::ops::NodeOp,
+    graph::views::filter::model::{edge_filter::Endpoint, property_filter::evaluate::aggregate_values},
+};
 use raphtory_api::core::entities::properties::prop::PropArray;
 use std::sync::Arc;
 // ─────────────────────────────────────────────────────────────────────────────
@@ -387,5 +390,31 @@ impl<'g> EdgeOp for OrBoolEdgeOp<'g> {
         let l = matches!(self.left.apply(storage, edge), Some(Prop::Bool(true)));
         let r = matches!(self.right.apply(storage, edge), Some(Prop::Bool(true)));
         Some(Prop::Bool(l || r))
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EdgeEndpointNodeOp — applies a node op to the src or dst VID of an edge
+//
+// Bridges EdgeEndpointWrapper<T: NodeExpr> into the EdgeExpr system:
+// EdgeFilter::src().name().eq("Alice") compiles the name NodeOp once, then
+// at evaluation time looks up the src VID and applies the node op to it.
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[derive(Clone)]
+pub(crate) struct EdgeEndpointNodeOp<'g> {
+    pub(crate) node_op: Arc<dyn NodeOp<Output = Option<Prop>> + 'g>,
+    pub(crate) endpoint: Endpoint,
+}
+
+impl<'g> EdgeOp for EdgeEndpointNodeOp<'g> {
+    type Output = Option<Prop>;
+
+    fn apply(&self, storage: &GraphStorage, edge: EdgeRef) -> Option<Prop> {
+        let vid = match self.endpoint {
+            Endpoint::Src => edge.src(),
+            Endpoint::Dst => edge.dst(),
+        };
+        self.node_op.apply(storage, vid)
     }
 }

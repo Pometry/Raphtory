@@ -557,19 +557,19 @@ pub trait EntityExprFilterOps: EntityExpr + Sized {
         }
     }
 
-    fn is_in(self, values: impl IntoIterator<Item = Prop>) -> PropValueSetFilter<Self, Self::Marker> {
+    fn is_in<V: Into<Prop>>(self, values: impl IntoIterator<Item = V>) -> PropValueSetFilter<Self, Self::Marker> {
         PropValueSetFilter {
             expr: self,
-            values: values.into_iter().collect(),
+            values: values.into_iter().map(Into::into).collect(),
             op: SetOp::IsIn,
             entity: Self::Marker::default(),
         }
     }
 
-    fn is_not_in(self, values: impl IntoIterator<Item = Prop>) -> PropValueSetFilter<Self, Self::Marker> {
+    fn is_not_in<V: Into<Prop>>(self, values: impl IntoIterator<Item = V>) -> PropValueSetFilter<Self, Self::Marker> {
         PropValueSetFilter {
             expr: self,
-            values: values.into_iter().collect(),
+            values: values.into_iter().map(Into::into).collect(),
             op: SetOp::IsNotIn,
             entity: Self::Marker::default(),
         }
