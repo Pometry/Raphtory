@@ -286,7 +286,12 @@ impl_agg_entity_op!(AnyNodeOp, AnyEdgeOp, |vals| {
 });
 impl_agg_entity_op!(AllNodeOp, AllEdgeOp, |vals| {
     aggregate_values(vals, &|mut pi| {
-        Some(Prop::Bool(pi.all(|r| r == Prop::Bool(true))))
+        let mut saw_any = false;
+        let all_true = pi.all(|r| {
+            saw_any = true;
+            r == Prop::Bool(true)
+        });
+        Some(Prop::Bool(saw_any && all_true))
     })
 });
 
