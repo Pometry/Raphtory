@@ -1,11 +1,7 @@
 use crate::{
     db::{
         api::{state::ops::NodeOp, view::internal::GraphView},
-        graph::views::filter::model::{
-            filter_operator::{BinaryOp, StringOp},
-            node_filter::NodeFilterFactory,
-            CreateView,
-        },
+        graph::views::filter::model::CreateView,
     },
     errors::GraphError,
 };
@@ -20,7 +16,7 @@ pub mod ops;
 mod tests;
 
 pub use super::{Metadata, Property};
-use crate::db::graph::views::filter::model::edge_expr::EdgeOp;
+use crate::db::graph::views::filter::model::{edge_expr::EdgeOp, node_filter::NodeFilter};
 pub use exprs::*;
 pub use filters::*;
 pub use ops::*;
@@ -74,125 +70,83 @@ pub trait EntityExpr: Clone + Send + Sync + 'static {
 pub(crate) trait NodeExprMarker {}
 
 // ─────────────────────────────────────────────────────────────────────────────
-// NodeTemporalPropOps — aggregation and direct comparison on TemporalProp<E>
+// TemporalPropOps — unified aggregation and comparison on TemporalProp<E>
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Aggregation and comparison operators on `TemporalProp<E>` when `E: NodeFilterFactory`.
-///
-/// Provides both aggregation (`.sum()`, `.avg()`, `.len()`, …) and direct
-/// element-wise comparison (`.gt()`, `.eq()`, `.contains()`, …) so users
-/// never have to call `.into_expr()` explicitly:
+/// Aggregation and comparison operators on `TemporalProp<E>`, unified for both
+/// node-side (`E: NodeFilterFactory`) and edge-side (`E: EdgeFilterFactory`).
 ///
 /// ```rust,ignore
 /// NodeFilter.property("score").temporal().sum().gt(100i64)
 /// NodeFilter.property("score").temporal().gt(10i64).any()
-/// NodeFilter.property("score").temporal().len().gt(3usize)
-/// NodeFilter.property("label").temporal().contains("rock").any()
+/// EdgeFilter.property("score").temporal().sum().gt(100i64)
+/// EdgeFilter.property("score").temporal().gt(10i64).any()
 /// ```
-pub trait NodeTemporalPropOps: Sized {
-    type ViewExpr: CreateView + NodeFilterFactory + Clone + Send + Sync + 'static;
+pub trait TemporalPropOps: Sized {
+    type ViewExpr: CreateView + EntityExpr + Clone + Send + Sync + 'static;
     fn into_temporal_parts(self) -> (Self::ViewExpr, String);
 
-    fn into_expr(self) -> TemporalPropertyExpr<Self::ViewExpr> {
+    fn into_expr(self) -> TemporalExpr<Self::ViewExpr> {
         let (view_expr, name) = self.into_temporal_parts();
-        TemporalPropertyExpr { view_expr, name }
+        TemporalExpr { view_expr, name }
     }
-    fn sum(self) -> SumExpr<TemporalPropertyExpr<Self::ViewExpr>> {
-        SumExpr(self.into_expr())
-    }
-    fn avg(self) -> AvgExpr<TemporalPropertyExpr<Self::ViewExpr>> {
-        AvgExpr(self.into_expr())
-    }
-    fn min(self) -> MinExpr<TemporalPropertyExpr<Self::ViewExpr>> {
-        MinExpr(self.into_expr())
-    }
-    fn max(self) -> MaxExpr<TemporalPropertyExpr<Self::ViewExpr>> {
-        MaxExpr(self.into_expr())
-    }
-    fn first(self) -> FirstExpr<TemporalPropertyExpr<Self::ViewExpr>> {
-        FirstExpr(self.into_expr())
-    }
-    fn last(self) -> LastExpr<TemporalPropertyExpr<Self::ViewExpr>> {
-        LastExpr(self.into_expr())
-    }
-    fn len(self) -> LenExpr<TemporalPropertyExpr<Self::ViewExpr>> {
-        LenExpr(self.into_expr())
-    }
-    fn any(self) -> AnyExpr<TemporalPropertyExpr<Self::ViewExpr>> {
-        AnyExpr(self.into_expr())
-    }
-    fn all(self) -> AllExpr<TemporalPropertyExpr<Self::ViewExpr>> {
-        AllExpr(self.into_expr())
-    }
+    fn sum(self) -> SumExpr<TemporalExpr<Self::ViewExpr>> { SumExpr(self.into_expr()) }
+    fn avg(self) -> AvgExpr<TemporalExpr<Self::ViewExpr>> { AvgExpr(self.into_expr()) }
+    fn min(self) -> MinExpr<TemporalExpr<Self::ViewExpr>> { MinExpr(self.into_expr()) }
+    fn max(self) -> MaxExpr<TemporalExpr<Self::ViewExpr>> { MaxExpr(self.into_expr()) }
+    fn first(self) -> FirstExpr<TemporalExpr<Self::ViewExpr>> { FirstExpr(self.into_expr()) }
+    fn last(self) -> LastExpr<TemporalExpr<Self::ViewExpr>> { LastExpr(self.into_expr()) }
+    fn len(self) -> LenExpr<TemporalExpr<Self::ViewExpr>> { LenExpr(self.into_expr()) }
+    fn any(self) -> AnyExpr<TemporalExpr<Self::ViewExpr>> { AnyExpr(self.into_expr()) }
+    fn all(self) -> AllExpr<TemporalExpr<Self::ViewExpr>> { AllExpr(self.into_expr()) }
 
-    fn gt<R: NodeExpr>(self, rhs: R) -> BinaryCmpFilter<TemporalPropertyExpr<Self::ViewExpr>, R> {
-        BinaryCmpFilter::new(self.into_expr(), BinaryOp::Gt, rhs)
+    fn gt<R: EntityExpr>(self, rhs: R) -> BinaryCmpFilter<TemporalExpr<Self::ViewExpr>, R, <Self::ViewExpr as EntityExpr>::Marker> {
+        self.into_expr().gt(rhs)
     }
-    fn ge<R: NodeExpr>(self, rhs: R) -> BinaryCmpFilter<TemporalPropertyExpr<Self::ViewExpr>, R> {
-        BinaryCmpFilter::new(self.into_expr(), BinaryOp::Ge, rhs)
+    fn ge<R: EntityExpr>(self, rhs: R) -> BinaryCmpFilter<TemporalExpr<Self::ViewExpr>, R, <Self::ViewExpr as EntityExpr>::Marker> {
+        self.into_expr().ge(rhs)
     }
-    fn lt<R: NodeExpr>(self, rhs: R) -> BinaryCmpFilter<TemporalPropertyExpr<Self::ViewExpr>, R> {
-        BinaryCmpFilter::new(self.into_expr(), BinaryOp::Lt, rhs)
+    fn lt<R: EntityExpr>(self, rhs: R) -> BinaryCmpFilter<TemporalExpr<Self::ViewExpr>, R, <Self::ViewExpr as EntityExpr>::Marker> {
+        self.into_expr().lt(rhs)
     }
-    fn le<R: NodeExpr>(self, rhs: R) -> BinaryCmpFilter<TemporalPropertyExpr<Self::ViewExpr>, R> {
-        BinaryCmpFilter::new(self.into_expr(), BinaryOp::Le, rhs)
+    fn le<R: EntityExpr>(self, rhs: R) -> BinaryCmpFilter<TemporalExpr<Self::ViewExpr>, R, <Self::ViewExpr as EntityExpr>::Marker> {
+        self.into_expr().le(rhs)
     }
-    fn eq<R: NodeExpr>(self, rhs: R) -> BinaryCmpFilter<TemporalPropertyExpr<Self::ViewExpr>, R> {
-        BinaryCmpFilter::new(self.into_expr(), BinaryOp::Eq, rhs)
+    fn eq<R: EntityExpr>(self, rhs: R) -> BinaryCmpFilter<TemporalExpr<Self::ViewExpr>, R, <Self::ViewExpr as EntityExpr>::Marker> {
+        self.into_expr().eq(rhs)
     }
-    fn ne<R: NodeExpr>(self, rhs: R) -> BinaryCmpFilter<TemporalPropertyExpr<Self::ViewExpr>, R> {
-        BinaryCmpFilter::new(self.into_expr(), BinaryOp::Ne, rhs)
+    fn ne<R: EntityExpr>(self, rhs: R) -> BinaryCmpFilter<TemporalExpr<Self::ViewExpr>, R, <Self::ViewExpr as EntityExpr>::Marker> {
+        self.into_expr().ne(rhs)
     }
-    fn contains<R: NodeExpr>(
-        self,
-        rhs: R,
-    ) -> StringFilter<TemporalPropertyExpr<Self::ViewExpr>, R> {
-        StringFilter::new(self.into_expr(), StringOp::Contains, rhs)
+    fn contains<R: EntityExpr>(self, rhs: R) -> StringFilter<TemporalExpr<Self::ViewExpr>, R, <Self::ViewExpr as EntityExpr>::Marker> {
+        self.into_expr().contains(rhs)
     }
-    fn starts_with<R: NodeExpr>(
-        self,
-        rhs: R,
-    ) -> StringFilter<TemporalPropertyExpr<Self::ViewExpr>, R> {
-        StringFilter::new(self.into_expr(), StringOp::StartsWith, rhs)
+    fn starts_with<R: EntityExpr>(self, rhs: R) -> StringFilter<TemporalExpr<Self::ViewExpr>, R, <Self::ViewExpr as EntityExpr>::Marker> {
+        self.into_expr().starts_with(rhs)
     }
-    fn ends_with<R: NodeExpr>(
-        self,
-        rhs: R,
-    ) -> StringFilter<TemporalPropertyExpr<Self::ViewExpr>, R> {
-        StringFilter::new(self.into_expr(), StringOp::EndsWith, rhs)
+    fn ends_with<R: EntityExpr>(self, rhs: R) -> StringFilter<TemporalExpr<Self::ViewExpr>, R, <Self::ViewExpr as EntityExpr>::Marker> {
+        self.into_expr().ends_with(rhs)
     }
-    fn not_contains<R: NodeExpr>(
-        self,
-        rhs: R,
-    ) -> StringFilter<TemporalPropertyExpr<Self::ViewExpr>, R> {
-        StringFilter::new(self.into_expr(), StringOp::NotContains, rhs)
+    fn not_contains<R: EntityExpr>(self, rhs: R) -> StringFilter<TemporalExpr<Self::ViewExpr>, R, <Self::ViewExpr as EntityExpr>::Marker> {
+        self.into_expr().not_contains(rhs)
     }
-    fn fuzzy_search<R: NodeExpr>(
+    fn fuzzy_search<R: EntityExpr>(
         self,
         rhs: R,
         levenshtein_distance: usize,
         prefix_match: bool,
-    ) -> StringFilter<TemporalPropertyExpr<Self::ViewExpr>, R> {
-        StringFilter::new(
-            self.into_expr(),
-            StringOp::FuzzySearch {
-                levenshtein_distance,
-                prefix_match,
-            },
-            rhs,
-        )
+    ) -> StringFilter<TemporalExpr<Self::ViewExpr>, R, <Self::ViewExpr as EntityExpr>::Marker> {
+        self.into_expr().fuzzy_search(rhs, levenshtein_distance, prefix_match)
     }
-    fn is_true(self) -> BinaryCmpFilter<TemporalPropertyExpr<Self::ViewExpr>, Prop> {
-        BinaryCmpFilter::new(self.into_expr(), BinaryOp::Eq, Prop::Bool(true))
+    fn is_true(self) -> BinaryCmpFilter<TemporalExpr<Self::ViewExpr>, Prop, <Self::ViewExpr as EntityExpr>::Marker> {
+        self.into_expr().is_true()
     }
-    fn is_false(self) -> BinaryCmpFilter<TemporalPropertyExpr<Self::ViewExpr>, Prop> {
-        BinaryCmpFilter::new(self.into_expr(), BinaryOp::Eq, Prop::Bool(false))
+    fn is_false(self) -> BinaryCmpFilter<TemporalExpr<Self::ViewExpr>, Prop, <Self::ViewExpr as EntityExpr>::Marker> {
+        self.into_expr().is_false()
     }
 }
 
-impl<E: CreateView + NodeFilterFactory + Clone + Send + Sync + 'static> NodeTemporalPropOps
-    for TemporalProp<E>
-{
+impl<E: CreateView + EntityExpr + Clone + Send + Sync + 'static> TemporalPropOps for TemporalProp<E> {
     type ViewExpr = E;
     fn into_temporal_parts(self) -> (E, String) {
         (self.view_expr, self.name)

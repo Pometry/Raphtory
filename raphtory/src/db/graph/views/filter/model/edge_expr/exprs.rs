@@ -1,9 +1,9 @@
 //! EdgeExpr impls for the shared Property/Metadata structs and scalar types.
 
-use super::{ops::{EdgeMetaOp, EdgePropOp, TemporalEdgePropOp}, EdgeExpr, EdgeOp};
+use super::{ops::{EdgeMetaOp, EdgePropOp}, EdgeExpr, EdgeOp};
 use crate::{
     db::api::{state::ops::Const, view::internal::GraphView},
-    db::graph::views::filter::model::{node_expr::EntityExpr, Metadata, Property},
+    db::graph::views::filter::model::{edge_filter::EdgeFilter, node_expr::EntityExpr, Metadata, Property},
     errors::GraphError,
 };
 use raphtory_api::core::entities::properties::prop::Prop;
@@ -94,44 +94,3 @@ impl EdgeExpr for usize {
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// TemporalEdgePropExpr<E> — all temporal values of a property in the view window
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// Parallel to `TemporalPropertyExpr` but for edges: reads from `edge_meta()`.
-///
-/// Produced by `EdgeTemporalPropOps::into_expr()` on `TemporalProp<E>` when `E: EdgeFilterFactory`,
-/// or implicitly inside `.sum()`, `.any()`, etc.
-/// Returns `Some(Prop::List([...]))` of all temporal values within the view window.
-#[derive(Clone)]
-pub struct TemporalEdgePropExpr<E: Clone> {
-    pub(crate) view_expr: E,
-    pub(crate) name: String,
-}
-
-impl<E: Clone> TemporalEdgePropExpr<E> {
-    pub fn new(view_expr: E, name: impl Into<String>) -> Self {
-        Self { view_expr, name: name.into() }
-    }
-}
-
-impl<E: crate::db::graph::views::filter::model::CreateView + Clone + Send + Sync + 'static>
-    EntityExpr for TemporalEdgePropExpr<E>
-{
-}
-
-impl<E: crate::db::graph::views::filter::model::CreateView + Clone + Send + Sync + 'static>
-    EdgeExpr for TemporalEdgePropExpr<E>
-{
-    fn create_edge_op<'g, G: GraphView + 'g>(
-        &self,
-        graph: G,
-    ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        let (prop_id, _) = graph
-            .edge_meta()
-            .get_prop_id_and_type(&self.name, false)
-            .ok_or_else(|| GraphError::PropertyMissingError(self.name.clone()))?;
-        let graph = self.view_expr.create_view(graph)?;
-        Ok(Arc::new(TemporalEdgePropOp { graph, prop_id }))
-    }
-}

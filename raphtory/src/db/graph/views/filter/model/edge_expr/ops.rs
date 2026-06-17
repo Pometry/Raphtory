@@ -261,7 +261,7 @@ impl<'g> EdgeOp for ListAwareCmpEdgeOp<'g> {
         let lv = self.left.apply(storage, edge);
         let rhs = self.right.apply(storage, edge)?;
         let op = &self.op;
-        aggregate_values(lv, |pi| {
+        aggregate_values(lv, &|pi| {
             let bools: Vec<Prop> = pi
                 .map(|v| Prop::Bool(Prop::binary_cmp(op, &v, &rhs)))
                 .collect();
@@ -292,7 +292,7 @@ impl<'g> EdgeOp for ListAwareStringEdgeOp<'g> {
         let lv = self.left.apply(storage, edge);
         let rhs = self.right.apply(storage, edge);
         let op = &self.op;
-        aggregate_values(lv, |pi| {
+        aggregate_values(lv, &|pi| {
             let bools: Vec<Prop> = pi
                 .map(|v| Prop::Bool(Option::<Prop>::string_cmp(op, &Some(v), &rhs)))
                 .collect();
@@ -323,7 +323,7 @@ impl<'g> EdgeOp for ListAwareSetEdgeOp<'g> {
         let lv = self.inner.apply(storage, edge);
         let values = &self.values;
         let op = &self.op;
-        aggregate_values(lv, |pi| {
+        aggregate_values(lv, &|pi| {
             let bools: Vec<Prop> = pi
                 .map(|v| {
                     Prop::Bool(match op {

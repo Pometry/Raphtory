@@ -5,7 +5,6 @@ use raphtory::{
     },
     prelude::*,
 };
-use raphtory::prelude::EdgeExprFilterOps;
 
 fn sorted_edges(g: impl GraphViewOps<'static>) -> Vec<String> {
     let mut edges: Vec<String> = g

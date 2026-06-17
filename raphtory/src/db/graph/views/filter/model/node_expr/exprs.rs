@@ -72,10 +72,10 @@ use crate::{
             view::internal::GraphView,
         },
         graph::views::filter::model::{
-            edge_expr::{EdgeExpr, EdgeOp},
+            edge_expr::{EdgeExpr, EdgeOp, ops::TemporalEdgePropOp},
             filter_operator::Comparable,
-            node_filter::NodeFilter,
-            CreateView, Metadata, Property,
+            node_filter::{NodeFilter, NodeFilterFactory},
+            EdgeFilterFactory, CreateView, Metadata, Property,
         },
     },
     errors::GraphError,
@@ -263,6 +263,7 @@ impl NodeExpr for Prop {
 macro_rules! impl_node_expr_for_numeric {
     ($prim:ty, $variant:ident) => {
         impl EntityExpr for $prim {
+            type Marker = ConstFilter;
             fn prop_type(&self) -> PropType {
                 PropType::$variant
             }
@@ -356,7 +357,9 @@ impl<E: CreateView + Clone + Send + Sync + 'static> NodeExpr for DegreeExpr<E> {
     }
 }
 
-impl EntityExpr for Property {}
+impl EntityExpr for Property {
+    type Marker = NodeFilter;
+}
 
 impl NodeExpr for Property {
     fn create_node_op<'g, G: GraphView + 'g>(
@@ -371,7 +374,9 @@ impl NodeExpr for Property {
     }
 }
 
-impl EntityExpr for Metadata {}
+impl EntityExpr for Metadata {
+    type Marker = NodeFilter;
+}
 
 impl NodeExpr for Metadata {
     fn create_node_op<'g, G: GraphView + 'g>(
@@ -387,40 +392,34 @@ impl NodeExpr for Metadata {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Temporal property expression — returns Prop::List of all values in the window
+// TemporalExpr<E> — all temporal values of a property over the view window
+//
+// Unified replacement for TemporalPropertyExpr (node) and TemporalEdgePropExpr (edge).
+// Implements NodeExpr when E: NodeFilterFactory, EdgeExpr when E: EdgeFilterFactory.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// All temporal values of a named property over the current view window.
 ///
-/// Produces `Some(Prop::List([...]))` of every recorded value within the view.
-///
-/// Not constructed directly — obtained from `NodeTemporalPropOps::into_expr()`,
-/// or implicitly via `.sum()` / `.any()` / etc. on `TemporalProp`:
-///
-/// ```rust,ignore
-/// // NodeFilter.property("score").temporal() returns TemporalProp, not this type.
-/// // TemporalPropertyExpr is produced implicitly by NodeTemporalPropOps methods:
-/// //   .gt(10i64).any()  → BinaryCmpNodeFilter<AnyExpr<BinaryCmpNodeFilter<TemporalPropertyExpr, i64>>, Prop>
-/// //   .sum().gt(100i64) → BinaryCmpNodeFilter<SumExpr<TemporalPropertyExpr<..>>, i64>
-/// ```
+/// Implements `NodeExpr` when `E: NodeFilterFactory` and `EdgeExpr` when `E: EdgeFilterFactory`.
+/// Produced implicitly by `TemporalPropOps` methods (`.sum()`, `.gt()`, etc.) — not usually
+/// constructed directly.
 #[derive(Clone)]
-pub struct TemporalPropertyExpr<E: Clone> {
-    pub view_expr: E,
-    pub name: String,
+pub struct TemporalExpr<E: Clone> {
+    pub(crate) view_expr: E,
+    pub(crate) name: String,
 }
 
-impl TemporalPropertyExpr<NodeFilter> {
+impl TemporalExpr<NodeFilter> {
     pub fn new(name: impl Into<String>) -> Self {
-        Self {
-            view_expr: NodeFilter,
-            name: name.into(),
-        }
+        Self { view_expr: NodeFilter, name: name.into() }
     }
 }
 
-impl<E: CreateView + Clone + Send + Sync + 'static> EntityExpr for TemporalPropertyExpr<E> {}
+impl<E: EntityExpr + Clone + Send + Sync + 'static> EntityExpr for TemporalExpr<E> {
+    type Marker = E::Marker;
+}
 
-impl<E: CreateView + Clone + Send + Sync + 'static> NodeExpr for TemporalPropertyExpr<E> {
+impl<E: EntityExpr + CreateView + NodeFilterFactory + Clone + Send + Sync + 'static> NodeExpr for TemporalExpr<E> {
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
         graph: G,
@@ -430,9 +429,21 @@ impl<E: CreateView + Clone + Send + Sync + 'static> NodeExpr for TemporalPropert
             .get_prop_id_and_type(&self.name, false)
             .ok_or_else(|| GraphError::PropertyMissingError(self.name.clone()))?;
         let graph = self.view_expr.create_view(graph)?;
-        Ok(Arc::new(
-            TemporalNodePropOp { graph, prop_id }.map(|a| Some(a)),
-        ))
+        Ok(Arc::new(TemporalNodePropOp { graph, prop_id }.map(|a| Some(a))))
+    }
+}
+
+impl<E: EntityExpr + CreateView + EdgeFilterFactory + Clone + Send + Sync + 'static> EdgeExpr for TemporalExpr<E> {
+    fn create_edge_op<'g, G: GraphView + 'g>(
+        &self,
+        graph: G,
+    ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
+        let (prop_id, _) = graph
+            .edge_meta()
+            .get_prop_id_and_type(&self.name, false)
+            .ok_or_else(|| GraphError::PropertyMissingError(self.name.clone()))?;
+        let graph = self.view_expr.create_view(graph)?;
+        Ok(Arc::new(TemporalEdgePropOp { graph, prop_id }))
     }
 }
 
@@ -456,7 +467,9 @@ macro_rules! impl_agg_expr {
         #[derive(Clone)]
         pub struct $expr<E>(pub E);
 
-        impl<E: EntityExpr> EntityExpr for $expr<E> {}
+        impl<E: EntityExpr> EntityExpr for $expr<E> {
+            type Marker = E::Marker;
+        }
 
         impl<E: NodeExpr> NodeExpr for $expr<E> {
             fn create_node_op<'g, G: GraphView + 'g>(

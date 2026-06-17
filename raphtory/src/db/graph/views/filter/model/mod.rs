@@ -17,9 +17,9 @@ pub use crate::{
                     node_expr::{
                         AllExpr, AnyExpr, AvgExpr, BinaryCmpFilter,
                         FirstExpr, LastExpr, LenExpr, MaxExpr,
-                        MinExpr, EntityExprFilterOps, NodePropertyExprOps, NodeTemporalPropOps,
+                        MinExpr, EntityExprFilterOps, TemporalPropOps,
                         PropValueSetFilter, StringFilter, SumExpr,
-                        TemporalProp, UnaryFilter,
+                        TemporalExpr, TemporalProp, UnaryFilter,
                     },
                     node_filter::{NodeFilter, NodeFilterFactory},
                     not_filter::NotFilter,
@@ -70,7 +70,6 @@ use crate::{
     prelude::LayerOps,
 };
 pub use node_filter::CompositeNodeFilter;
-pub use edge_expr::{EdgeExprFilterOps, EdgePropertyExprOps, EdgeTemporalPropOps};
 use raphtory_api::core::{
     entities::{properties::prop::Prop, Layer},
     storage::{arc_str::ArcStr, timeindex::{AsTime, EventTime}},
@@ -292,9 +291,11 @@ pub struct PropertyExpr<E> {
     name: String,
 }
 
-impl<E: Clone + Send + Sync + 'static> EntityExpr for PropertyExpr<E> {}
+impl<E: EntityExpr> EntityExpr for PropertyExpr<E> {
+    type Marker = E::Marker;
+}
 
-impl<E: CreateView + NodeFilterFactory + Clone + Send + Sync + 'static> NodeExpr
+impl<E: EntityExpr + CreateView + NodeFilterFactory + Clone + Send + Sync + 'static> NodeExpr
     for PropertyExpr<E>
 {
 
@@ -317,9 +318,11 @@ pub struct MetadataExpr<E> {
     name: String,
 }
 
-impl<E: Clone + Send + Sync + 'static> EntityExpr for MetadataExpr<E> {}
+impl<E: EntityExpr> EntityExpr for MetadataExpr<E> {
+    type Marker = E::Marker;
+}
 
-impl<E: CreateView + NodeFilterFactory + Clone + Send + Sync + 'static> NodeExpr
+impl<E: EntityExpr + CreateView + NodeFilterFactory + Clone + Send + Sync + 'static> NodeExpr
     for MetadataExpr<E>
 {
     fn create_node_op<'g, G: GraphView + 'g>(
@@ -458,7 +461,7 @@ use edge_expr::{
 use crate::db::graph::views::filter::model::edge_expr::ops::{EdgeMetaOp, EdgePropOp};
 use crate::db::graph::views::filter::model::node_expr::{EntityExpr, NodeExpr};
 
-impl<E: CreateView + EdgeFilterFactory + Clone + Send + Sync + 'static> EdgeExpr
+impl<E: EntityExpr + CreateView + EdgeFilterFactory + Clone + Send + Sync + 'static> EdgeExpr
     for PropertyExpr<E>
 {
     fn create_edge_op<'g, G: GraphView + 'g>(
@@ -474,7 +477,7 @@ impl<E: CreateView + EdgeFilterFactory + Clone + Send + Sync + 'static> EdgeExpr
     }
 }
 
-impl<E: CreateView + EdgeFilterFactory + Clone + Send + Sync + 'static> EdgeExpr
+impl<E: EntityExpr + CreateView + EdgeFilterFactory + Clone + Send + Sync + 'static> EdgeExpr
     for MetadataExpr<E>
 {
     fn create_edge_op<'g, G: GraphView + 'g>(
@@ -662,6 +665,10 @@ impl CreateView for NodeFilter {
     }
 }
 
+impl EntityExpr for NodeFilter {
+    type Marker = NodeFilter;
+}
+
 impl CreateView for EdgeFilter {
     type View<'graph, G: GraphView + 'graph> = G;
 
@@ -673,6 +680,10 @@ impl CreateView for EdgeFilter {
     }
 }
 
+impl EntityExpr for EdgeFilter {
+    type Marker = EdgeFilter;
+}
+
 impl CreateView for ExplodedEdgeFilter {
     type View<'graph, G: GraphView + 'graph> = G;
 
@@ -682,6 +693,30 @@ impl CreateView for ExplodedEdgeFilter {
     ) -> Result<Self::View<'graph, G>, GraphError> {
         Ok(view)
     }
+}
+
+impl EntityExpr for ExplodedEdgeFilter {
+    type Marker = EdgeFilter;
+}
+
+impl<T: EntityExpr> EntityExpr for Windowed<T> {
+    type Marker = T::Marker;
+}
+
+impl<T: EntityExpr> EntityExpr for Layered<T> {
+    type Marker = T::Marker;
+}
+
+impl<T: EntityExpr> EntityExpr for Latest<T> {
+    type Marker = T::Marker;
+}
+
+impl<T: EntityExpr> EntityExpr for SnapshotAt<T> {
+    type Marker = T::Marker;
+}
+
+impl<T: EntityExpr> EntityExpr for SnapshotLatest<T> {
+    type Marker = T::Marker;
 }
 
 impl<T: CreateView> CreateView for Layered<T> {

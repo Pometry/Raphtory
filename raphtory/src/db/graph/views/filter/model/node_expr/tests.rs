@@ -208,7 +208,7 @@ fn temporal_any_eq_selects_nodes_with_matching_value() {
     // alice has 1, 5, 10; bob has 2, 3; carol has none
     // any == 5 → alice only
     let g = build_temporal_graph();
-    let filter = TemporalPropertyExpr::new("score").any().eq(5i64);
+    let filter = TemporalExpr::new("score").any().eq(5i64);
     assert_eq!(temporal_filtered_names(filter, g), vec!["alice"]);
 }
 
@@ -216,7 +216,7 @@ fn temporal_any_eq_selects_nodes_with_matching_value() {
 fn temporal_any_gt_selects_nodes_with_at_least_one_value_above_threshold() {
     // any > 4 → alice (has 5, 10), not bob (max 3), not carol (none)
     let g = build_temporal_graph();
-    let filter = TemporalPropertyExpr::new("score").any().gt(4i64);
+    let filter = TemporalExpr::new("score").any().gt(4i64);
     assert_eq!(temporal_filtered_names(filter, g), vec!["alice"]);
 }
 
@@ -224,7 +224,7 @@ fn temporal_any_gt_selects_nodes_with_at_least_one_value_above_threshold() {
 fn temporal_any_gt_both_nodes_qualify() {
     // any > 1 → alice (5, 10), bob (2, 3) — both qualify
     let g = build_temporal_graph();
-    let filter = TemporalPropertyExpr::new("score").any().gt(1i64);
+    let filter = TemporalExpr::new("score").any().gt(1i64);
     assert_eq!(temporal_filtered_names(filter, g), vec!["alice", "bob"]);
 }
 
@@ -234,7 +234,7 @@ fn temporal_any_gt_both_nodes_qualify() {
 fn temporal_all_gt_requires_every_value() {
     // all > 0 → alice (1,5,10 all > 0 ✓), bob (2,3 all > 0 ✓), carol excluded (empty)
     let g = build_temporal_graph();
-    let filter = TemporalPropertyExpr::new("score").all().gt(0i64);
+    let filter = TemporalExpr::new("score").all().gt(0i64);
     assert_eq!(temporal_filtered_names(filter, g), vec!["alice", "bob"]);
 }
 
@@ -242,7 +242,7 @@ fn temporal_all_gt_requires_every_value() {
 fn temporal_all_gt_rejects_if_any_value_fails() {
     // all > 4 → alice (1 fails) not included, bob (2, 3 fail) not included
     let g = build_temporal_graph();
-    let filter = TemporalPropertyExpr::new("score").all().gt(4i64);
+    let filter = TemporalExpr::new("score").all().gt(4i64);
     assert!(temporal_filtered_names(filter, g).is_empty());
 }
 
@@ -250,7 +250,7 @@ fn temporal_all_gt_rejects_if_any_value_fails() {
 fn temporal_all_requires_non_empty_sequence() {
     // carol has no score → "all" over empty sequence returns false
     let g = build_temporal_graph();
-    let filter = TemporalPropertyExpr::new("score").all().ge(0i64);
+    let filter = TemporalExpr::new("score").all().ge(0i64);
     let names = temporal_filtered_names(filter, g);
     assert!(!names.contains(&"carol".to_string()));
 }
@@ -261,7 +261,7 @@ fn temporal_all_requires_non_empty_sequence() {
 fn temporal_sum_gt_threshold() {
     // alice sum = 16, bob sum = 5 → sum > 10 → alice only
     let g = build_temporal_graph();
-    let filter = TemporalPropertyExpr::new("score").sum().gt(10i64);
+    let filter = TemporalExpr::new("score").sum().gt(10i64);
     assert_eq!(temporal_filtered_names(filter, g), vec!["alice"]);
 }
 
@@ -269,7 +269,7 @@ fn temporal_sum_gt_threshold() {
 fn temporal_sum_eq() {
     // bob sum = 5 → sum == 5 → bob only
     let g = build_temporal_graph();
-    let filter = TemporalPropertyExpr::new("score").sum().eq(5i64);
+    let filter = TemporalExpr::new("score").sum().eq(5i64);
     assert_eq!(temporal_filtered_names(filter, g), vec!["bob"]);
 }
 
@@ -279,7 +279,7 @@ fn temporal_sum_eq() {
 fn temporal_first_value() {
     // alice first = 1, bob first = 2 → first == 1 → alice only
     let g = build_temporal_graph();
-    let filter = TemporalPropertyExpr::new("score").first().eq(1i64);
+    let filter = TemporalExpr::new("score").first().eq(1i64);
     assert_eq!(temporal_filtered_names(filter, g), vec!["alice"]);
 }
 
@@ -287,7 +287,7 @@ fn temporal_first_value() {
 fn temporal_last_value() {
     // alice last = 10 → last > 9 → alice only
     let g = build_temporal_graph();
-    let filter = TemporalPropertyExpr::new("score").last().gt(9i64);
+    let filter = TemporalExpr::new("score").last().gt(9i64);
     assert_eq!(temporal_filtered_names(filter, g), vec!["alice"]);
 }
 
@@ -297,7 +297,7 @@ fn temporal_last_value() {
 fn temporal_len_count() {
     // alice has 3 updates, bob has 2 → len == 3 → alice only
     let g = build_temporal_graph();
-    let filter = TemporalPropertyExpr::new("score").len().eq(3usize);
+    let filter = TemporalExpr::new("score").len().eq(3usize);
     assert_eq!(temporal_filtered_names(filter, g), vec!["alice"]);
 }
 
@@ -305,7 +305,7 @@ fn temporal_len_count() {
 fn temporal_len_ge_2() {
     // alice (3), bob (2) both have len >= 2; carol has 0
     let g = build_temporal_graph();
-    let filter = TemporalPropertyExpr::new("score").len().ge(2usize);
+    let filter = TemporalExpr::new("score").len().ge(2usize);
     assert_eq!(temporal_filtered_names(filter, g), vec!["alice", "bob"]);
 }
 
@@ -322,9 +322,9 @@ fn node_filter_temporal_property_entry_point() {
 
 #[test]
 fn temporal_expr_ops_blanket_any() {
-    // Using the blanket TemporalExprOps on TemporalPropertyExpr directly
+    // Using TemporalPropOps blanket on TemporalExpr directly
     let g = build_temporal_graph();
-    let filter = TemporalPropertyExpr::new("score").any().eq(10i64);
+    let filter = TemporalExpr::new("score").any().eq(10i64);
     assert_eq!(temporal_filtered_names(filter, g), vec!["alice"]);
 }
 

@@ -10,6 +10,9 @@ use super::{
     },
     EdgeExpr, EdgeOp,
 };
+use crate::db::graph::views::filter::model::edge_filter::EdgeFilter;
+use crate::db::graph::views::filter::model::node_expr::filters::PropValueSetFilter;
+pub(crate) use crate::db::graph::views::filter::model::{BinaryCmpFilter, StringFilter, UnaryFilter};
 use crate::{
     db::{
         api::{state::ops::NotANodeFilter, view::internal::GraphView},
@@ -17,9 +20,9 @@ use crate::{
             edge_expr_filtered_graph::EdgeExprFilteredGraph,
             model::{
                 edge_filter::CompositeEdgeFilter,
-                filter_operator::{BinaryOp, SetOp, StringOp, UnaryOp},
-                node_expr::EntityExpr,
-                ComposableFilter, CompositeExplodedEdgeFilter,
+                filter_operator::BinaryOp
+
+                , CompositeExplodedEdgeFilter,
                 CompositeNodeFilter, CreateFilter, TryAsCompositeFilter,
             },
         },
@@ -28,8 +31,7 @@ use crate::{
     prelude::GraphViewOps,
 };
 use raphtory_api::core::entities::properties::prop::{Prop, PropType};
-use std::{marker::PhantomData, sync::Arc};
-pub(crate) use crate::db::graph::views::filter::model::{BinaryCmpFilter, StringFilter, UnaryFilter};
+use std::sync::Arc;
 // ─────────────────────────────────────────────────────────────────────────────
 // validate helpers
 // ─────────────────────────────────────────────────────────────────────────────
@@ -50,7 +52,7 @@ fn validate_binary_op(op: &BinaryOp, prop_type: &PropType) -> Result<(), GraphEr
 // ─────────────────────────────────────────────────────────────────────────────
 // BinaryCmpEdgeFilter<L, R>
 // ─────────────────────────────────────────────────────────────────────────────
-impl<L, R> EdgeExpr for BinaryCmpFilter<L, R>
+impl<L, R> EdgeExpr for BinaryCmpFilter<L, R, EdgeFilter>
 where
     L: EdgeExpr,
     R: EdgeExpr,
@@ -65,7 +67,7 @@ where
     }
 }
 
-impl<L, R> TryAsCompositeFilter for BinaryCmpFilter<L, R>
+impl<L, R> TryAsCompositeFilter for BinaryCmpFilter<L, R, EdgeFilter>
 where
     L: EdgeExpr,
     R: EdgeExpr,
@@ -85,7 +87,7 @@ where
     }
 }
 
-impl<L, R> CreateFilter for BinaryCmpFilter<L, R>
+impl<L, R> CreateFilter for BinaryCmpFilter<L, R, EdgeFilter>
 where
     L: EdgeExpr,
     R: EdgeExpr,
@@ -125,7 +127,7 @@ where
 // UnaryEdgeFilter<E, I>
 // ─────────────────────────────────────────────────────────────────────────────
 
-impl<E> TryAsCompositeFilter for UnaryFilter<E>
+impl<E> TryAsCompositeFilter for UnaryFilter<E, EdgeFilter>
 where
     E: EdgeExpr,
 {
@@ -144,7 +146,7 @@ where
     }
 }
 
-impl<E> CreateFilter for UnaryFilter<E>
+impl<E> CreateFilter for UnaryFilter<E, EdgeFilter>
 where
     E: EdgeExpr,
 {
@@ -194,7 +196,7 @@ fn validate_string_op(prop_type: &PropType) -> Result<(), GraphError> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 
-impl<L, R> EdgeExpr for StringFilter<L, R>
+impl<L, R> EdgeExpr for StringFilter<L, R, EdgeFilter>
 where
     L: EdgeExpr,
     R: EdgeExpr,
@@ -209,7 +211,7 @@ where
     }
 }
 
-impl<L, R> TryAsCompositeFilter for StringFilter<L, R>
+impl<L, R> TryAsCompositeFilter for StringFilter<L, R, EdgeFilter>
 where
     L: EdgeExpr,
     R: EdgeExpr,
@@ -227,7 +229,7 @@ where
     }
 }
 
-impl<L, R> CreateFilter for StringFilter<L, R>
+impl<L, R> CreateFilter for StringFilter<L, R, EdgeFilter>
 where
     L: EdgeExpr,
     R: EdgeExpr,
@@ -262,24 +264,10 @@ where
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PropValueSetEdgeFilter<E> — is_in / is_not_in for Option<Prop> (linear scan)
+// PropValueSetFilter<E, EdgeFilter> — is_in / is_not_in for edge-side exprs
 // ─────────────────────────────────────────────────────────────────────────────
 
-pub struct PropValueSetEdgeFilter<E: EdgeExpr> {
-    pub(crate) expr: E,
-    pub(crate) values: Vec<Prop>,
-    pub(crate) op: SetOp,
-}
-
-impl<E: EdgeExpr> Clone for PropValueSetEdgeFilter<E> {
-    fn clone(&self) -> Self {
-        Self { expr: self.expr.clone(), values: self.values.clone(), op: self.op }
-    }
-}
-
-impl<E: EdgeExpr> EntityExpr for PropValueSetEdgeFilter<E> {}
-
-impl<E: EdgeExpr> EdgeExpr for PropValueSetEdgeFilter<E> {
+impl<E: EdgeExpr> EdgeExpr for PropValueSetFilter<E, EdgeFilter> {
     fn create_edge_op<'g, G: GraphView + 'g>(
         &self,
         graph: G,
@@ -289,9 +277,8 @@ impl<E: EdgeExpr> EdgeExpr for PropValueSetEdgeFilter<E> {
     }
 }
 
-impl<E: EdgeExpr> ComposableFilter for PropValueSetEdgeFilter<E> {}
 
-impl<E: EdgeExpr> TryAsCompositeFilter for PropValueSetEdgeFilter<E> {
+impl<E: EdgeExpr> TryAsCompositeFilter for PropValueSetFilter<E, EdgeFilter> {
     fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
         Err(GraphError::NotSupported)
     }
@@ -305,7 +292,7 @@ impl<E: EdgeExpr> TryAsCompositeFilter for PropValueSetEdgeFilter<E> {
     }
 }
 
-impl<E: EdgeExpr> CreateFilter for PropValueSetEdgeFilter<E> {
+impl<E: EdgeExpr> CreateFilter for PropValueSetFilter<E, EdgeFilter> {
     type EntityFiltered<'graph, G: GraphViewOps<'graph>> =
         EdgeExprFilteredGraph<G, Arc<dyn EdgeOp<Output = bool> + 'graph>>;
     type NodeFilter<'graph, G: GraphView + 'graph> = NotANodeFilter;
@@ -332,7 +319,3 @@ impl<E: EdgeExpr> CreateFilter for PropValueSetEdgeFilter<E> {
         Err(GraphError::NotNodeFilter)
     }
 }
-
-// (AnyExpr<E: EdgeExpr> and AllExpr<E: EdgeExpr> terminate via
-//  BinaryCmpEdgeFilter<AnyExpr<E>, Prop> / BinaryCmpEdgeFilter<AllExpr<E>, Prop>
-//  produced by EdgeExprFilterOps::any() / all())

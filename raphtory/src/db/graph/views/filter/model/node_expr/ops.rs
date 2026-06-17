@@ -196,7 +196,7 @@ macro_rules! impl_agg_entity_op {
 }
 
 impl_agg_entity_op!(SumNodeOp, SumEdgeOp, |vals| {
-    aggregate_values(vals, |pi| {
+    aggregate_values(vals, &|pi| {
         let mut vals = pi.peekable();
         if vals.peek().is_none() {
             return None;
@@ -228,7 +228,7 @@ impl_agg_entity_op!(SumNodeOp, SumEdgeOp, |vals| {
 });
 
 impl_agg_entity_op!(AvgNodeOp, AvgEdgeOp, |vals| {
-    aggregate_values(vals, |pi| {
+    aggregate_values(vals, &|pi| {
         let mut vals = pi.peekable();
         if vals.peek().is_none() {
             return None;
@@ -257,35 +257,35 @@ impl_agg_entity_op!(AvgNodeOp, AvgEdgeOp, |vals| {
     })
 });
 impl_agg_entity_op!(MinNodeOp, MinEdgeOp, |vals| {
-    aggregate_values(vals, |pi| {
+    aggregate_values(vals, &|pi| {
         let mut it = pi;
         let first = it.next()?;
         it.fold(Some(first), |acc, v| acc.and_then(|a| a.min(v)))
     })
 });
 impl_agg_entity_op!(MaxNodeOp, MaxEdgeOp, |vals| {
-    aggregate_values(vals, |pi| {
+    aggregate_values(vals, &|pi| {
         let mut it = pi;
         let first = it.next()?;
         it.fold(Some(first), |acc, v| acc.and_then(|a| a.max(v)))
     })
 });
 impl_agg_entity_op!(FirstNodeOp, FirstEdgeOp, |vals| {
-    aggregate_values(vals, |mut pi| pi.next())
+    aggregate_values(vals, &|mut pi| pi.next())
 });
 impl_agg_entity_op!(LastNodeOp, LastEdgeOp, |vals| {
-    aggregate_values(vals, |pi| pi.last())
+    aggregate_values(vals, &|pi| pi.last())
 });
 impl_agg_entity_op!(LenNodeOp, LenEdgeOp, |vals| {
-    aggregate_values(vals, |pi| Some(pi.count().into_prop()))
+    aggregate_values(vals, &|pi| Some(pi.count().into_prop()))
 });
 impl_agg_entity_op!(AnyNodeOp, AnyEdgeOp, |vals| {
-    aggregate_values(vals, |mut pi| {
+    aggregate_values(vals, &|mut pi| {
         Some(Prop::Bool(pi.any(|r| r == Prop::Bool(true))))
     })
 });
 impl_agg_entity_op!(AllNodeOp, AllEdgeOp, |vals| {
-    aggregate_values(vals, |mut pi| {
+    aggregate_values(vals, &|mut pi| {
         Some(Prop::Bool(pi.all(|r| r == Prop::Bool(true))))
     })
 });
