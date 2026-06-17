@@ -402,11 +402,11 @@ mod test_property_semantics {
             let filter = NodeFilter.property("p1").ge(1u64);
             let graph = init_graph(Graph::new());
             assert!(matches!(
-                graph.filter(filter.clone()).unwrap_err(),
+                graph.filter(filter.clone()).err().expect("expected PropertyMissingError"),
                 GraphError::PropertyMissingError(ref name) if name == "p1"
             ));
             assert!(matches!(
-                graph.persistent_graph().filter(filter).unwrap_err(),
+                graph.persistent_graph().filter(filter).err().expect("expected PropertyMissingError"),
                 GraphError::PropertyMissingError(ref name) if name == "p1"
             ));
         }
@@ -953,11 +953,11 @@ mod test_property_semantics {
             let filter = EdgeFilter.property("p1").eq(1u64);
             let graph = init_graph(Graph::new());
             assert!(matches!(
-                graph.filter(filter.clone()).unwrap_err(),
+                graph.filter(filter.clone()).err().expect("expected PropertyMissingError"),
                 GraphError::PropertyMissingError(ref name) if name == "p1"
             ));
             assert!(matches!(
-                graph.persistent_graph().filter(filter).unwrap_err(),
+                graph.persistent_graph().filter(filter).err().expect("expected PropertyMissingError"),
                 GraphError::PropertyMissingError(ref name) if name == "p1"
             ));
         }
