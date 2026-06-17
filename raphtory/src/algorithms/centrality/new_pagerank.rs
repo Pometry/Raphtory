@@ -18,6 +18,8 @@ use serde::{Deserialize, Serialize};
 use crate::prelude::NodeFilter;
 use crate::db::graph::views::filter::model::degree_filter::DegreeFilterFactory;
 use crate::db::graph::views::filter::model::property_filter::ops::PropertyFilterOps;
+use std::collections::HashMap;
+use raphtory_api::core::entities::VID;
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
 pub struct PageRankState {
@@ -25,20 +27,23 @@ pub struct PageRankState {
     pub score: f64,
     #[serde(skip)]
     weighted_out_degree: f64,
-    special_neighbor_weight: f64
+    special_neighbor_weight: f64,
+    special_node_score: f64,
 }
 
 impl PageRankState {
     fn new(num_nodes: usize) -> Self {
         Self {
             score: 1f64 / num_nodes as f64,
+            special_node_score: 1f64 / num_nodes as f64,
             weighted_out_degree: 0f64,
-            special_neighbor_weight: 0.0
+            special_neighbor_weight: 0.0,
         }
     }
 
     fn reset(&mut self) {
         self.score = 0f64;
+        self.special_node_score = 0f64;
     }
 }
 
@@ -84,14 +89,36 @@ pub fn page_rank<G: StaticGraphViewOps>(
 
     let total_sink_contribution = accumulators::sum::<f64>(4);
 
+
     ctx.global_agg_reset(max_diff);
 
     ctx.global_agg_reset(total_sink_contribution);
-
+    
     let weight_id = weight.and_then(|key| g.edge_meta().get_prop_id(key, false));
+
+    let mut special_node_sink_contributor_count = 0;
+
+    let mut special_node_out_degrees: HashMap<VID, f64> = HashMap::new();
+    for node in g.nodes() {
+        if node.in_degree() == 0 {
+            let weighted_out_degree = node.out_edges().iter().fold(0.0f64, |acc, edge| {
+                weight_id
+                    .and_then(|id| edge.properties().get_by_id(id))
+                    .and_then(|p| p.as_f64())
+                    .unwrap_or(1.0)
+                    + acc
+            });
+            if (weighted_out_degree.abs() < f64::EPSILON) {
+                special_node_sink_contributor_count += 1;
+            }
+            special_node_out_degrees.insert(node.node, weighted_out_degree);
+        }
+    }
+
 
     let step1 = ATask::new({
         move |s| {
+            let special_node_out_degrees = s.read_global_state(&special_node_out_degrees).unwrap();
             let s_node = g.node(&s.node).unwrap();
             let weighted_out_degree = s_node.out_edges().iter().fold(0.0f64, |acc, edge| {
                 weight_id
@@ -104,28 +131,21 @@ pub fn page_rank<G: StaticGraphViewOps>(
             state.weighted_out_degree = weighted_out_degree;
             let special_neighbor_weight = s_node.in_edges().iter().fold(0.0f64, |acc, edge| {
                 let nbr = edge.nbr();
-                if nbr.in_degree() == 0 {
-                let weighted_out_degree = nbr.out_edges().iter().fold(0.0f64, |acc, edge| {
-                    weight_id
-                        .and_then(|id| edge.properties().get_by_id(id))
-                        .and_then(|p| p.as_f64())
-                        .unwrap_or(1.0)
-                        + acc
- 
-                });
-                if weighted_out_degree > 0.0 {
-                    let w = weight_id
-                        .and_then(|id| edge.properties().get_by_id(id))
-                        .and_then(|p| p.as_f64())
-                        .unwrap_or(1.0);
-                    acc + w / weighted_out_degree
+                if let Some(&weighted_out_degree) = special_node_out_degrees.get(&nbr.node) {
+                    if weighted_out_degree > 0.0 {
+                        let w = weight_id
+                            .and_then(|id| edge.properties().get_by_id(id))
+                            .and_then(|p| p.as_f64())
+                            .unwrap_or(1.0);
+                        acc + w / weighted_out_degree
+                    } else {
+                        acc
+                    }
                 } else {
                     acc
                 }
-            } else {
-                acc
-            }
             });
+            state.special_neighbor_weight = special_neighbor_weight;
             Step::Continue
         }
     });
@@ -136,6 +156,8 @@ pub fn page_rank<G: StaticGraphViewOps>(
             let state: &mut PageRankState = s.get_mut();
             state.reset();
         }
+        
+        let special_node_score = s.prev().special_node_score; 
 
         for edge in s.in_edges() {
             let w = weight_id
@@ -149,10 +171,15 @@ pub fn page_rank<G: StaticGraphViewOps>(
                 s.get_mut().score += prev.score * w / prev.weighted_out_degree;
             }
         }
+        s.get_mut().score += s.prev().special_neighbor_weight * special_node_score;  
 
         s.get_mut().score *= damp;
 
         s.get_mut().score += teleport_prob;
+
+        s.get_mut().special_node_score *= damp;
+
+        s.get_mut().special_node_score += teleport_prob;
         Step::Continue
     });
 
