@@ -16,7 +16,7 @@ use raphtory_api::core::{
 };
 use raphtory_storage::{core_ops::CoreGraphOps, graph::nodes::node_storage_ops::NodeStorageOps};
 use std::{ops::Range, sync::Arc};
-use storage::gen_ts::LayerIter;
+use storage::generic_time_ops::LayerIter;
 
 #[derive(Debug, Clone)]
 pub struct NodeHistory<'a, G> {
@@ -229,7 +229,7 @@ impl<'b, G: GraphViewOps<'b>> TimeIndexOps<'b> for NodeHistory<'b, G> {
 fn layer_ids_with_static(layer_ids: &LayerIds) -> LayerIter<'_> {
     match layer_ids {
         // All layers already includes STATIC
-        LayerIds::All => LayerIter::LRef(layer_ids),
+        LayerIds::All => LayerIter::LayerRef(layer_ids),
         // No layers + static = just static
         LayerIds::None => LayerIter::One(STATIC_GRAPH_LAYER_ID),
         LayerIds::One(id) => {
@@ -244,7 +244,7 @@ fn layer_ids_with_static(layer_ids: &LayerIds) -> LayerIter<'_> {
         }
         LayerIds::Multiple(ids) => {
             if ids.contains(STATIC_GRAPH_LAYER_ID) {
-                LayerIter::LRef(layer_ids)
+                LayerIter::LayerRef(layer_ids)
             } else {
                 let mut combined: Vec<_> = std::iter::once(STATIC_GRAPH_LAYER_ID)
                     .chain(ids.iter())

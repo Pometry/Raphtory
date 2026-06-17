@@ -1,7 +1,7 @@
 use crate::{
     LocalPOS, NodeEdgeAdditions, NodePropAdditions, NodeTProps,
     api::nodes::{NodeEntryOps, NodeRefOps},
-    gen_ts::{EdgeAdditionCellsRef, LayerIter, PropAdditionCellsRef, WithTimeCells},
+    generic_time_ops::{EdgeAdditionCellsRef, LayerIter, PropAdditionCellsRef, WithTimeCells},
     generic_t_props::WithTProps,
     segments::{additions::MemAdditions, node::segment::MemNodeSegment},
 };

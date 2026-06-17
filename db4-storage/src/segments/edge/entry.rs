@@ -1,7 +1,7 @@
 use crate::{
     EdgeAdditions, EdgeDeletions, EdgeTProps, LocalPOS,
     api::edges::{EdgeEntryOps, EdgeRefOps},
-    gen_ts::{AdditionCellsRef, DeletionCellsRef, WithTimeCells},
+    generic_time_ops::{AdditionCellsRef, DeletionCellsRef, WithTimeCells},
     generic_t_props::WithTProps,
     segments::{additions::MemAdditions, edge::segment::MemEdgeSegment},
 };

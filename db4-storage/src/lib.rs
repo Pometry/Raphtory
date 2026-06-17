@@ -1,5 +1,5 @@
 use crate::{
-    gen_ts::{
+    generic_time_ops::{
         AdditionCellsRef, DeletionCellsRef, EdgeAdditionCellsRef, GenericTimeOps,
         PropAdditionCellsRef,
     },
@@ -35,7 +35,7 @@ use std::{
 
 pub mod api;
 pub mod dir;
-pub mod gen_ts;
+pub mod generic_time_ops;
 pub mod generic_t_props;
 pub mod pages;
 pub mod persist;
