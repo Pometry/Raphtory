@@ -552,6 +552,7 @@ mod test_filters_window_graph {
                 api::view::filter_ops::Filter,
                 graph::views::filter::model::{
                     node_filter::{ops::NodeFilterOps, NodeFilter},
+                    NodeFilterFactory,
                     property_filter::ops::PropertyFilterOps,
                     PropertyFilterFactory,
                 },
