@@ -936,20 +936,3 @@ impl EdgeViewFilterOps for DynEdgeViewProps {
     }
 }
 
-impl DynEdgeViewFilterOps for Windowed<DynEdgeViewProps> {
-    fn dyn_is_active(&self) -> Arc<dyn DynCreateFilter> {
-        Arc::new(Windowed::new(self.start, self.end, IsActiveEdge))
-    }
-
-    fn dyn_is_valid(&self) -> Arc<dyn DynCreateFilter> {
-        Arc::new(Windowed::new(self.start, self.end, IsValidEdge))
-    }
-
-    fn dyn_is_deleted(&self) -> Arc<dyn DynCreateFilter> {
-        Arc::new(Windowed::new(self.start, self.end, IsDeletedEdge))
-    }
-
-    fn dyn_is_self_loop(&self) -> Arc<dyn DynCreateFilter> {
-        self.inner.deref().dyn_is_self_loop()
-    }
-}

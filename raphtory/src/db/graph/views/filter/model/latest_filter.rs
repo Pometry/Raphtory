@@ -4,9 +4,15 @@ use crate::{
         graph::views::{
             filter::{
                 model::{
-                    edge_filter::CompositeEdgeFilter, windowed_filter::Windowed, ComposableFilter,
-                    CompositeExplodedEdgeFilter, CompositeNodeFilter, CreateView,
-                    InternalViewWrapOps, TryAsCompositeFilter, Wrap,
+                    edge_filter::CompositeEdgeFilter,
+                    is_active_edge_filter::IsActiveEdge,
+                    is_deleted_filter::IsDeletedEdge,
+                    is_self_loop_filter::IsSelfLoopEdge,
+                    is_valid_filter::IsValidEdge,
+                    windowed_filter::Windowed,
+                    CombinedFilter, ComposableFilter, CompositeExplodedEdgeFilter,
+                    CompositeNodeFilter, CreateView, EdgeViewFilterOps, InternalViewWrapOps,
+                    TryAsCompositeFilter, Wrap,
                 },
                 CreateFilter,
             },
@@ -122,5 +128,25 @@ impl<M> Wrap for Latest<M> {
     type Wrapped<T> = Latest<T>;
     fn wrap<T>(&self, value: T) -> Self::Wrapped<T> {
         Latest::new(value)
+    }
+}
+
+impl<T: EdgeViewFilterOps> EdgeViewFilterOps for Latest<T> {
+    type Output<F: CombinedFilter> = Latest<T::Output<F>>;
+
+    fn is_active(&self) -> Self::Output<IsActiveEdge> {
+        self.wrap(self.inner.is_active())
+    }
+
+    fn is_valid(&self) -> Self::Output<IsValidEdge> {
+        self.wrap(self.inner.is_valid())
+    }
+
+    fn is_deleted(&self) -> Self::Output<IsDeletedEdge> {
+        self.wrap(self.inner.is_deleted())
+    }
+
+    fn is_self_loop(&self) -> Self::Output<IsSelfLoopEdge> {
+        self.wrap(self.inner.is_self_loop())
     }
 }
