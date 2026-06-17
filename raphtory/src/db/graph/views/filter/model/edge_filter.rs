@@ -7,7 +7,7 @@ use crate::{
         graph::views::filter::{
             edge_node_filtered_graph::EdgeNodeFilteredGraph,
             model::{
-                exploded_edge_filter::CompositeExplodedEdgeFilter,
+                exploded_edge_filter::{CompositeExplodedEdgeFilter, ExplodedEdgeFilter},
                 is_active_edge_filter::IsActiveEdge,
                 is_deleted_filter::IsDeletedEdge,
                 is_self_loop_filter::IsSelfLoopEdge,
@@ -369,6 +369,7 @@ impl TryAsCompositeFilter for CompositeEdgeFilter {
 // ─────────────────────────────────────────────────────────────────────────────
 
 impl EdgeFilterFactory for EdgeFilter {}
+impl EdgeFilterFactory for ExplodedEdgeFilter {}
 impl<T: EdgeFilterFactory + CreateView> EdgeFilterFactory for Windowed<T> {}
 impl<T: EdgeFilterFactory + CreateView> EdgeFilterFactory for Latest<T> {}
 impl<T: EdgeFilterFactory + CreateView> EdgeFilterFactory for Layered<T> {}
