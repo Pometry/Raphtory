@@ -29,6 +29,7 @@ pub struct PageRankState {
     weighted_out_degree: f64,
     special_neighbor_weight: f64,
     special_node_score: f64,
+    special_node_sink_contributor_count: usize,
 }
 
 impl PageRankState {
@@ -38,6 +39,7 @@ impl PageRankState {
             special_node_score: 1f64 / num_nodes as f64,
             weighted_out_degree: 0f64,
             special_neighbor_weight: 0.0,
+            special_node_sink_contributor_count: 0,
         }
     }
 
@@ -97,7 +99,6 @@ pub fn page_rank<G: StaticGraphViewOps>(
     let weight_id = weight.and_then(|key| g.edge_meta().get_prop_id(key, false));
 
     let mut special_node_sink_contributor_count = 0;
-
     let mut special_node_out_degrees: HashMap<VID, f64> = HashMap::new();
     for node in g.nodes() {
         if node.in_degree() == 0 {
@@ -118,7 +119,6 @@ pub fn page_rank<G: StaticGraphViewOps>(
 
     let step1 = ATask::new({
         move |s| {
-            let special_node_out_degrees = s.read_global_state(&special_node_out_degrees).unwrap();
             let s_node = g.node(&s.node).unwrap();
             let weighted_out_degree = s_node.out_edges().iter().fold(0.0f64, |acc, edge| {
                 weight_id
@@ -201,8 +201,10 @@ pub fn page_rank<G: StaticGraphViewOps>(
             .read_global_state(&total_sink_contribution)
             .unwrap_or_default();
         // update local score with total sink contribution
+        let total_sink_contribution = total_sink_contribution + s.prev().special_node_sink_contributor_count as f64 * factor * s.prev().special_node_score; 
         let state: &mut PageRankState = s.get_mut();
         state.score += total_sink_contribution;
+        state.special_node_score += total_sink_contribution;
 
         // update global max diff
 
