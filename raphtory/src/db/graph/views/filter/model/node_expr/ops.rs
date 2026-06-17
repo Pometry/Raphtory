@@ -455,6 +455,56 @@ impl<'g> NodeOp for ListAwareSetNodeOp<'g> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// AndBoolNodeOp / OrBoolNodeOp — boolean AND/OR over two Option<Prop> node ops
+//
+// Used by AndFilter<L, R> / OrFilter<L, R> when they implement NodeExpr so that
+// .not() (and other EntityExprFilterOps) can be chained on composed filters:
+//   NodeFilter.degree().lt(5).and(NodeFilter.name().eq("alice")).not()
+// ─────────────────────────────────────────────────────────────────────────────
+
+pub(crate) struct AndBoolNodeOp<'g> {
+    pub(crate) left: Arc<dyn NodeOp<Output = Option<Prop>> + 'g>,
+    pub(crate) right: Arc<dyn NodeOp<Output = Option<Prop>> + 'g>,
+}
+
+impl<'g> Clone for AndBoolNodeOp<'g> {
+    fn clone(&self) -> Self {
+        Self { left: self.left.clone(), right: self.right.clone() }
+    }
+}
+
+impl<'g> NodeOp for AndBoolNodeOp<'g> {
+    type Output = Option<Prop>;
+
+    fn apply(&self, storage: &GraphStorage, node: VID) -> Option<Prop> {
+        let l = matches!(self.left.apply(storage, node), Some(Prop::Bool(true)));
+        let r = matches!(self.right.apply(storage, node), Some(Prop::Bool(true)));
+        Some(Prop::Bool(l && r))
+    }
+}
+
+pub(crate) struct OrBoolNodeOp<'g> {
+    pub(crate) left: Arc<dyn NodeOp<Output = Option<Prop>> + 'g>,
+    pub(crate) right: Arc<dyn NodeOp<Output = Option<Prop>> + 'g>,
+}
+
+impl<'g> Clone for OrBoolNodeOp<'g> {
+    fn clone(&self) -> Self {
+        Self { left: self.left.clone(), right: self.right.clone() }
+    }
+}
+
+impl<'g> NodeOp for OrBoolNodeOp<'g> {
+    type Output = Option<Prop>;
+
+    fn apply(&self, storage: &GraphStorage, node: VID) -> Option<Prop> {
+        let l = matches!(self.left.apply(storage, node), Some(Prop::Bool(true)));
+        let r = matches!(self.right.apply(storage, node), Some(Prop::Bool(true)));
+        Some(Prop::Bool(l || r))
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // UnwrapOptPropOp<'g> — converts Option<Prop> → Prop for nested aggregation
 // ─────────────────────────────────────────────────────────────────────────────
 

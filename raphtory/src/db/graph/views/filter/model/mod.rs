@@ -180,10 +180,6 @@ pub trait ComposableFilter: Sized {
             right: other,
         }
     }
-
-    fn not(self) -> NotFilter<Self> {
-        NotFilter(self)
-    }
 }
 
 pub trait DynCreateFilter: TryAsCompositeFilter + Send + Sync + 'static {

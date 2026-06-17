@@ -1,14 +1,16 @@
 use crate::{
     db::{
         api::{
-            state::ops::{filter::AndOp, NodeFilterOp},
+            state::ops::{filter::AndOp, NodeFilterOp, NodeOp},
             view::internal::GraphView,
         },
         graph::views::filter::{
             and_filtered_graph::AndFilteredGraph,
             model::{
+                edge_expr::{EdgeExpr, EdgeOp, ops::AndBoolEdgeOp},
                 edge_filter::CompositeEdgeFilter,
                 exploded_edge_filter::CompositeExplodedEdgeFilter,
+                node_expr::{EntityExpr, NodeExpr, ops::AndBoolNodeOp},
                 node_filter::CompositeNodeFilter, ComposableFilter, TryAsCompositeFilter,
             },
             CreateFilter,
@@ -17,8 +19,9 @@ use crate::{
     errors::GraphError,
     prelude::GraphViewOps,
 };
+use raphtory_api::core::entities::properties::prop::Prop;
 use raphtory_storage::layer_ops::InternalLayerOps;
-use std::{fmt, fmt::Display};
+use std::{fmt, fmt::Display, sync::Arc};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AndFilter<L, R> {
@@ -101,5 +104,45 @@ impl<L: TryAsCompositeFilter, R: TryAsCompositeFilter> TryAsCompositeFilter for 
             Box::new(self.left.try_as_composite_exploded_edge_filter()?),
             Box::new(self.right.try_as_composite_exploded_edge_filter()?),
         ))
+    }
+}
+
+impl<L, R> EntityExpr for AndFilter<L, R>
+where
+    L: EntityExpr,
+    R: EntityExpr<Marker = L::Marker>,
+{
+    type Marker = L::Marker;
+}
+
+impl<L, R> NodeExpr for AndFilter<L, R>
+where
+    L: NodeExpr,
+    R: NodeExpr,
+    R: EntityExpr<Marker = L::Marker>,
+{
+    fn create_node_op<'g, G: GraphView + 'g>(
+        &self,
+        graph: G,
+    ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
+        let left = self.left.create_node_op(graph.clone())?;
+        let right = self.right.create_node_op(graph)?;
+        Ok(Arc::new(AndBoolNodeOp { left, right }))
+    }
+}
+
+impl<L, R> EdgeExpr for AndFilter<L, R>
+where
+    L: EdgeExpr,
+    R: EdgeExpr,
+    R: EntityExpr<Marker = L::Marker>,
+{
+    fn create_edge_op<'g, G: GraphView + 'g>(
+        &self,
+        graph: G,
+    ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
+        let left = self.left.create_edge_op(graph.clone())?;
+        let right = self.right.create_edge_op(graph)?;
+        Ok(Arc::new(AndBoolEdgeOp { left, right }))
     }
 }

@@ -340,3 +340,52 @@ impl<'g> EdgeOp for ListAwareSetEdgeOp<'g> {
         })
     }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AndBoolEdgeOp / OrBoolEdgeOp — boolean AND/OR over two Option<Prop> edge ops
+//
+// Used by AndFilter<L, R> / OrFilter<L, R> when they implement EdgeExpr so that
+// .not() (and other EntityExprFilterOps) can be chained on composed edge filters.
+// ─────────────────────────────────────────────────────────────────────────────
+
+pub(crate) struct AndBoolEdgeOp<'g> {
+    pub(crate) left: Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>,
+    pub(crate) right: Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>,
+}
+
+impl<'g> Clone for AndBoolEdgeOp<'g> {
+    fn clone(&self) -> Self {
+        Self { left: self.left.clone(), right: self.right.clone() }
+    }
+}
+
+impl<'g> EdgeOp for AndBoolEdgeOp<'g> {
+    type Output = Option<Prop>;
+
+    fn apply(&self, storage: &GraphStorage, edge: EdgeRef) -> Option<Prop> {
+        let l = matches!(self.left.apply(storage, edge), Some(Prop::Bool(true)));
+        let r = matches!(self.right.apply(storage, edge), Some(Prop::Bool(true)));
+        Some(Prop::Bool(l && r))
+    }
+}
+
+pub(crate) struct OrBoolEdgeOp<'g> {
+    pub(crate) left: Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>,
+    pub(crate) right: Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>,
+}
+
+impl<'g> Clone for OrBoolEdgeOp<'g> {
+    fn clone(&self) -> Self {
+        Self { left: self.left.clone(), right: self.right.clone() }
+    }
+}
+
+impl<'g> EdgeOp for OrBoolEdgeOp<'g> {
+    type Output = Option<Prop>;
+
+    fn apply(&self, storage: &GraphStorage, edge: EdgeRef) -> Option<Prop> {
+        let l = matches!(self.left.apply(storage, edge), Some(Prop::Bool(true)));
+        let r = matches!(self.right.apply(storage, edge), Some(Prop::Bool(true)));
+        Some(Prop::Bool(l || r))
+    }
+}
