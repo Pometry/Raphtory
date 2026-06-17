@@ -3,19 +3,21 @@ use crate::{
     db::{
         api::{
             state::{GenericNodeState, TypedNodeState},
-            view::{EdgeViewOps, NodeViewOps, StaticGraphViewOps},
-        },
-        task::{
+            view::{EdgeViewOps, NodeViewOps, StaticGraphViewOps, filter_ops::NodeSelect},
+        }, graph::views::node_subgraph::NodeSubgraph, task::{
             context::Context,
             task::{ATask, Job, Step},
             task_runner::TaskRunner,
-        },
+        }
     },
     prelude::{GraphViewOps, PropertiesOps},
 };
 use num_traits::abs;
 use raphtory_api::core::entities::properties::prop::PropUnwrap;
 use serde::{Deserialize, Serialize};
+use crate::prelude::NodeFilter;
+use crate::db::graph::views::filter::model::degree_filter::DegreeFilterFactory;
+use crate::db::graph::views::filter::model::property_filter::ops::PropertyFilterOps;
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
 pub struct PageRankState {
@@ -23,6 +25,7 @@ pub struct PageRankState {
     pub score: f64,
     #[serde(skip)]
     weighted_out_degree: f64,
+    special_neighbor_weight: f64
 }
 
 impl PageRankState {
@@ -30,6 +33,7 @@ impl PageRankState {
         Self {
             score: 1f64 / num_nodes as f64,
             weighted_out_degree: 0f64,
+            special_neighbor_weight: 0.0
         }
     }
 
@@ -63,8 +67,10 @@ pub fn page_rank<G: StaticGraphViewOps>(
     tol: Option<f64>,
     use_l2_norm: bool,
     damping_factor: Option<f64>,
-) -> TypedNodeState<'static, PageRankState, G> {
+) -> TypedNodeState<'static, PageRankState, NodeSubgraph<G>> {
     let n = g.count_nodes();
+    let not_special_neighbors = g.nodes().select(NodeFilter.in_degree().eq(0)).unwrap();
+    let f_g = g.subgraph(not_special_neighbors); 
 
     let mut ctx: Context<G, ComputeStateVec> = g.into();
 
@@ -86,7 +92,8 @@ pub fn page_rank<G: StaticGraphViewOps>(
 
     let step1 = ATask::new({
         move |s| {
-            let weighted_out_degree = s.out_edges().iter().fold(0.0f64, |acc, edge| {
+            let s_node = g.node(&s.node).unwrap();
+            let weighted_out_degree = s_node.out_edges().iter().fold(0.0f64, |acc, edge| {
                 weight_id
                     .and_then(|id| edge.properties().get_by_id(id))
                     .and_then(|p| p.as_f64())
@@ -95,6 +102,30 @@ pub fn page_rank<G: StaticGraphViewOps>(
             });
             let state: &mut PageRankState = s.get_mut();
             state.weighted_out_degree = weighted_out_degree;
+            let special_neighbor_weight = s_node.in_edges().iter().fold(0.0f64, |acc, edge| {
+                let nbr = edge.nbr();
+                if nbr.in_degree() == 0 {
+                let weighted_out_degree = nbr.out_edges().iter().fold(0.0f64, |acc, edge| {
+                    weight_id
+                        .and_then(|id| edge.properties().get_by_id(id))
+                        .and_then(|p| p.as_f64())
+                        .unwrap_or(1.0)
+                        + acc
+ 
+                });
+                if weighted_out_degree > 0.0 {
+                    let w = weight_id
+                        .and_then(|id| edge.properties().get_by_id(id))
+                        .and_then(|p| p.as_f64())
+                        .unwrap_or(1.0);
+                    acc + w / weighted_out_degree
+                } else {
+                    acc
+                }
+            } else {
+                acc
+            }
+            });
             Step::Continue
         }
     });
@@ -186,7 +217,7 @@ pub fn page_rank<G: StaticGraphViewOps>(
         Some(vec![PageRankState::new(num_nodes); num_nodes]),
         |_, _, _, local, index| {
             TypedNodeState::new(GenericNodeState::new_from_eval_with_index(
-                g.clone(),
+                f_g.clone(),
                 local,
                 index,
                 None,
