@@ -5725,7 +5725,7 @@ mod test_node_property_filter_agg {
                 CreateFilter,
             },
         },
-        prelude::{AdditionOps, GraphViewOps, PropertyAdditionOps, TemporalPropOps},
+        prelude::{AdditionOps, EntityExprFilterOps, GraphViewOps, PropertyAdditionOps, TemporalPropOps},
     };
     use raphtory_api::core::{
         entities::properties::prop::{IntoProp, Prop},
@@ -7175,9 +7175,9 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_u8s")
             .temporal()
-            .all()
             .sum()
-            .eq(Prop::U64(6));
+            .eq(Prop::U64(6))
+            .all();
         let expected = vec!["n3", "n10"];
         apply_assertion(filter, &expected);
     }
@@ -7187,9 +7187,9 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_u16s")
             .temporal()
-            .all()
             .sum()
-            .eq(Prop::U64(6));
+            .eq(Prop::U64(6))
+            .all();
         let expected = vec!["n3", "n10"];
         apply_assertion(filter, &expected);
     }
@@ -7199,9 +7199,9 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_u32s")
             .temporal()
-            .all()
             .sum()
-            .eq(Prop::U64(6));
+            .eq(Prop::U64(6))
+            .all();
         let expected = vec!["n3", "n10"];
         apply_assertion(filter, &expected);
     }
@@ -7211,9 +7211,9 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_u64s")
             .temporal()
-            .all()
             .sum()
-            .eq(Prop::U64(6));
+            .eq(Prop::U64(6))
+            .all();
         let expected = vec!["n3", "n10"];
         apply_assertion(filter, &expected);
     }
@@ -7223,9 +7223,9 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_i32s")
             .temporal()
-            .all()
             .sum()
-            .eq(Prop::I64(6));
+            .eq(Prop::I64(6))
+            .all();
         let expected = vec!["n3", "n10"];
         apply_assertion(filter, &expected);
     }
@@ -7235,9 +7235,9 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_i64s")
             .temporal()
-            .all()
             .sum()
-            .eq(Prop::I64(0));
+            .eq(Prop::I64(0))
+            .all();
         let expected = vec!["n3", "n10"];
         apply_assertion(filter, &expected);
     }
@@ -7247,9 +7247,9 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_f32s")
             .temporal()
-            .all()
             .sum()
-            .eq(Prop::F64(6.5));
+            .eq(Prop::F64(6.5))
+            .all();
         let expected = vec!["n3", "n10"];
         apply_assertion(filter, &expected);
     }
@@ -7259,9 +7259,9 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_f64s")
             .temporal()
-            .all()
             .sum()
-            .eq(Prop::F64(90.0));
+            .eq(Prop::F64(90.0))
+            .all();
         let expected = vec!["n3", "n10"];
         apply_assertion(filter, &expected);
     }
@@ -7272,9 +7272,9 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_u8s")
             .temporal()
-            .all()
             .avg()
-            .eq(Prop::F64(2.0));
+            .eq(Prop::F64(2.0))
+            .all();
         let expected = vec!["n3", "n10"];
         apply_assertion(filter, &expected);
     }
@@ -7284,9 +7284,9 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_u16s")
             .temporal()
-            .all()
             .avg()
-            .eq(Prop::F64(2.0));
+            .eq(Prop::F64(2.0))
+            .all();
         let expected = vec!["n3", "n10"];
         apply_assertion(filter, &expected);
     }
@@ -7296,9 +7296,9 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_u32s")
             .temporal()
-            .all()
             .avg()
-            .eq(Prop::F64(2.0));
+            .eq(Prop::F64(2.0))
+            .all();
         let expected = vec!["n3", "n10"];
         apply_assertion(filter, &expected);
     }
@@ -7308,9 +7308,9 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_u64s")
             .temporal()
-            .all()
             .avg()
-            .eq(Prop::F64(2.0));
+            .eq(Prop::F64(2.0))
+            .all();
         let expected = vec!["n3", "n10"];
         apply_assertion(filter, &expected);
     }
@@ -7320,9 +7320,9 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_i32s")
             .temporal()
-            .all()
             .avg()
-            .eq(Prop::F64(2.0));
+            .eq(Prop::F64(2.0))
+            .all();
         let expected = vec!["n3", "n10"];
         apply_assertion(filter, &expected);
     }
@@ -7332,9 +7332,9 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_i64s")
             .temporal()
-            .all()
             .avg()
-            .eq(Prop::F64(0.0));
+            .eq(Prop::F64(0.0))
+            .all();
         let expected = vec!["n3", "n10"];
         apply_assertion(filter, &expected);
     }
@@ -7344,9 +7344,9 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_f32s")
             .temporal()
-            .all()
             .avg()
-            .eq(Prop::F64(2.1666666666666665));
+            .eq(Prop::F64(2.1666666666666665))
+            .all();
         let expected = vec!["n10", "n3"];
         apply_assertion(filter, &expected);
     }
@@ -7356,9 +7356,9 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_f64s")
             .temporal()
-            .all()
             .avg()
-            .eq(Prop::F64(45.0));
+            .eq(Prop::F64(45.0))
+            .all();
         let expected = vec!["n10", "n3"];
         apply_assertion(filter, &expected);
     }
@@ -7369,9 +7369,9 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_u8s")
             .temporal()
-            .all()
             .min()
-            .eq(Prop::U8(1));
+            .eq(Prop::U8(1))
+            .all();
         let expected = vec!["n1", "n10", "n3"];
         apply_assertion(filter, &expected);
     }
@@ -7381,9 +7381,9 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_u16s")
             .temporal()
-            .all()
             .min()
-            .eq(Prop::U16(1));
+            .eq(Prop::U16(1))
+            .all();
         let expected = vec!["n1", "n10"];
         apply_assertion(filter, &expected);
     }
@@ -7393,9 +7393,9 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_u32s")
             .temporal()
-            .all()
             .min()
-            .eq(Prop::U32(1));
+            .eq(Prop::U32(1))
+            .all();
         let expected = vec!["n1", "n10"];
         apply_assertion(filter, &expected);
     }
@@ -7405,9 +7405,9 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_u64s")
             .temporal()
-            .all()
             .min()
-            .eq(Prop::U64(1));
+            .eq(Prop::U64(1))
+            .all();
         let expected = vec!["n1", "n10", "n2", "n5"];
         apply_assertion(filter, &expected);
     }
@@ -7417,9 +7417,9 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_i32s")
             .temporal()
-            .all()
             .min()
-            .eq(Prop::I32(-2));
+            .eq(Prop::I32(-2))
+            .all();
         let expected = vec!["n6"];
         apply_assertion(filter, &expected);
     }
@@ -7429,9 +7429,9 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_i64s")
             .temporal()
-            .all()
             .min()
-            .eq(Prop::I64(-3));
+            .eq(Prop::I64(-3))
+            .all();
         let expected = vec!["n10", "n3"];
         apply_assertion(filter, &expected);
     }
@@ -7441,9 +7441,9 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_f32s")
             .temporal()
-            .all()
             .min()
-            .eq(Prop::F32(1.0));
+            .eq(Prop::F32(1.0))
+            .all();
         let expected = vec!["n1", "n10", "n3"];
         apply_assertion(filter, &expected);
     }
@@ -7453,9 +7453,9 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_f64s")
             .temporal()
-            .all()
             .min()
-            .eq(Prop::F64(30.0));
+            .eq(Prop::F64(30.0))
+            .all();
         let expected = vec!["n2"];
         apply_assertion(filter, &expected);
     }
@@ -7466,9 +7466,9 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_u8s")
             .temporal()
-            .all()
             .max()
-            .eq(Prop::U8(3));
+            .eq(Prop::U8(3))
+            .all();
         let expected = vec!["n10"];
         apply_assertion(filter, &expected);
     }
@@ -7478,9 +7478,9 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_u16s")
             .temporal()
-            .all()
             .max()
-            .eq(Prop::U16(3));
+            .eq(Prop::U16(3))
+            .all();
         let expected = vec!["n10"];
         apply_assertion(filter, &expected);
     }
@@ -7490,9 +7490,9 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_u32s")
             .temporal()
-            .all()
             .max()
-            .eq(Prop::U32(3));
+            .eq(Prop::U32(3))
+            .all();
         let expected = vec!["n10"];
         apply_assertion(filter, &expected);
     }
@@ -7502,9 +7502,9 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_u64s")
             .temporal()
-            .all()
             .max()
-            .eq(Prop::U64(4));
+            .eq(Prop::U64(4))
+            .all();
         let expected = vec!["n2"];
         apply_assertion(filter, &expected);
     }
@@ -7514,9 +7514,9 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_i32s")
             .temporal()
-            .all()
             .max()
-            .eq(Prop::I32(3));
+            .eq(Prop::I32(3))
+            .all();
         let expected = vec!["n10", "n6"];
         apply_assertion(filter, &expected);
     }
@@ -7526,9 +7526,9 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_i64s")
             .temporal()
-            .all()
             .max()
-            .eq(Prop::I64(2));
+            .eq(Prop::I64(2))
+            .all();
         let expected = vec!["n10"];
         apply_assertion(filter, &expected);
     }
@@ -7538,9 +7538,9 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_f32s")
             .temporal()
-            .all()
             .max()
-            .eq(Prop::F32(3.5));
+            .eq(Prop::F32(3.5))
+            .all();
         let expected = vec!["n10"];
         apply_assertion(filter, &expected);
     }
@@ -7550,9 +7550,9 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_f64s")
             .temporal()
-            .all()
             .max()
-            .eq(Prop::F64(50.0));
+            .eq(Prop::F64(50.0))
+            .all();
         let expected = vec!["n1", "n10", "n2"];
         apply_assertion(filter, &expected);
     }
@@ -7563,9 +7563,9 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_u8s")
             .temporal()
-            .all()
             .len()
-            .eq(Prop::U64(3));
+            .eq(Prop::U64(3))
+            .all();
         let expected = vec!["n10", "n3"];
         apply_assertion(filter, &expected);
     }
@@ -7575,9 +7575,9 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_u16s")
             .temporal()
-            .all()
             .len()
-            .eq(Prop::U64(3));
+            .eq(Prop::U64(3))
+            .all();
         let expected = vec!["n10", "n3"];
         apply_assertion(filter, &expected);
     }
@@ -7587,9 +7587,9 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_u32s")
             .temporal()
-            .all()
             .len()
-            .eq(Prop::U64(3));
+            .eq(Prop::U64(3))
+            .all();
         let expected = vec!["n10", "n3"];
         apply_assertion(filter, &expected);
     }
@@ -7599,9 +7599,9 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_u64s")
             .temporal()
-            .all()
             .len()
-            .eq(Prop::U64(4));
+            .eq(Prop::U64(4))
+            .all();
         let expected = vec!["n2"];
         apply_assertion(filter, &expected);
     }
@@ -7611,9 +7611,9 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_i32s")
             .temporal()
-            .all()
             .len()
-            .eq(Prop::U64(3));
+            .eq(Prop::U64(3))
+            .all();
         let expected = vec!["n10", "n3", "n4", "n6"];
         apply_assertion(filter, &expected);
     }
@@ -7623,9 +7623,9 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_i64s")
             .temporal()
-            .all()
             .len()
-            .eq(Prop::U64(2));
+            .eq(Prop::U64(2))
+            .all();
         let expected = vec!["n5"];
         apply_assertion(filter, &expected);
     }
@@ -7635,9 +7635,9 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_f32s")
             .temporal()
-            .all()
             .len()
-            .eq(Prop::U64(3));
+            .eq(Prop::U64(3))
+            .all();
         let expected = vec!["n10", "n3", "n4"];
         apply_assertion(filter, &expected);
     }
@@ -7647,9 +7647,9 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_f64s")
             .temporal()
-            .all()
             .len()
-            .eq(Prop::U64(2));
+            .eq(Prop::U64(2))
+            .all();
         let expected = vec!["n10", "n3"];
         apply_assertion(filter, &expected);
     }
@@ -8145,18 +8145,18 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_u8s")
             .temporal()
-            .any()
             .sum()
-            .eq(Prop::U64(6));
+            .eq(Prop::U64(6))
+            .any();
         let expected = vec!["n1", "n10", "n3"];
         apply_assertion(filter, &expected);
 
         let filter = NodeFilter
             .property("p_u8s")
             .temporal()
-            .any()
             .sum()
-            .eq(Prop::U64(10));
+            .eq(Prop::U64(10))
+            .any();
         let expected = vec!["n1"];
         apply_assertion(filter, &expected);
     }
@@ -8166,18 +8166,18 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_u16s")
             .temporal()
-            .any()
             .sum()
-            .eq(Prop::U64(6));
+            .eq(Prop::U64(6))
+            .any();
         let expected = vec!["n1", "n10", "n3"];
         apply_assertion(filter, &expected);
 
         let filter = NodeFilter
             .property("p_u16s")
             .temporal()
-            .any()
             .sum()
-            .eq(Prop::U64(10));
+            .eq(Prop::U64(10))
+            .any();
         let expected = vec!["n1"];
         apply_assertion(filter, &expected);
     }
@@ -8187,18 +8187,18 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_u32s")
             .temporal()
-            .any()
             .sum()
-            .eq(Prop::U64(6));
+            .eq(Prop::U64(6))
+            .any();
         let expected = vec!["n1", "n10", "n3"];
         apply_assertion(filter, &expected);
 
         let filter = NodeFilter
             .property("p_u32s")
             .temporal()
-            .any()
             .sum()
-            .eq(Prop::U64(10));
+            .eq(Prop::U64(10))
+            .any();
         let expected = vec!["n1"];
         apply_assertion(filter, &expected);
     }
@@ -8208,18 +8208,18 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_u64s")
             .temporal()
-            .any()
             .sum()
-            .eq(Prop::U64(6));
+            .eq(Prop::U64(6))
+            .any();
         let expected = vec!["n1", "n10", "n3", "n4"];
         apply_assertion(filter, &expected);
 
         let filter = NodeFilter
             .property("p_u64s")
             .temporal()
-            .any()
             .sum()
-            .eq(Prop::U64(10));
+            .eq(Prop::U64(10))
+            .any();
         let expected = vec!["n1", "n2"];
         apply_assertion(filter, &expected);
     }
@@ -8229,18 +8229,18 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_i32s")
             .temporal()
-            .any()
             .sum()
-            .eq(Prop::I64(6));
+            .eq(Prop::I64(6))
+            .any();
         let expected = vec!["n1", "n10", "n3", "n4"];
         apply_assertion(filter, &expected);
 
         let filter = NodeFilter
             .property("p_i32s")
             .temporal()
-            .any()
             .sum()
-            .eq(Prop::I64(60));
+            .eq(Prop::I64(60))
+            .any();
         let expected = vec!["n4"];
         apply_assertion(filter, &expected);
     }
@@ -8250,18 +8250,18 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_i64s")
             .temporal()
-            .any()
             .sum()
-            .eq(Prop::I64(0));
+            .eq(Prop::I64(0))
+            .any();
         let expected = vec!["n3", "n10"];
         apply_assertion(filter, &expected);
 
         let filter = NodeFilter
             .property("p_i64s")
             .temporal()
-            .any()
             .sum()
-            .eq(Prop::I64(10));
+            .eq(Prop::I64(10))
+            .any();
         let expected = vec!["n1"];
         apply_assertion(filter, &expected);
     }
@@ -8271,18 +8271,18 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_f32s")
             .temporal()
-            .any()
             .sum()
-            .eq(Prop::F64(6.5));
+            .eq(Prop::F64(6.5))
+            .any();
         let expected = vec!["n1", "n10", "n3", "n4"];
         apply_assertion(filter, &expected);
 
         let filter = NodeFilter
             .property("p_f32s")
             .temporal()
-            .any()
             .sum()
-            .eq(Prop::F64(60.0));
+            .eq(Prop::F64(60.0))
+            .any();
         let expected = vec!["n4"];
         apply_assertion(filter, &expected);
     }
@@ -8292,18 +8292,18 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_f64s")
             .temporal()
-            .any()
             .sum()
-            .eq(Prop::F64(90.0));
+            .eq(Prop::F64(90.0))
+            .any();
         let expected = vec!["n1", "n10", "n3"];
         apply_assertion(filter, &expected);
 
         let filter = NodeFilter
             .property("p_f64s")
             .temporal()
-            .any()
             .sum()
-            .eq(Prop::F64(120.0));
+            .eq(Prop::F64(120.0))
+            .any();
         let expected = vec!["n1", "n2"];
         apply_assertion(filter, &expected);
     }
@@ -8314,18 +8314,18 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_u8s")
             .temporal()
-            .any()
             .avg()
-            .eq(Prop::F64(2.0));
+            .eq(Prop::F64(2.0))
+            .any();
         let expected = vec!["n1", "n10", "n3"];
         apply_assertion(filter, &expected);
 
         let filter = NodeFilter
             .property("p_u8s")
             .temporal()
-            .any()
             .avg()
-            .eq(Prop::F64(2.5));
+            .eq(Prop::F64(2.5))
+            .any();
         let expected = vec!["n1"];
         apply_assertion(filter, &expected);
     }
@@ -8335,18 +8335,18 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_u16s")
             .temporal()
-            .any()
             .avg()
-            .eq(Prop::F64(2.0));
+            .eq(Prop::F64(2.0))
+            .any();
         let expected = vec!["n1", "n10", "n3"];
         apply_assertion(filter, &expected);
 
         let filter = NodeFilter
             .property("p_u16s")
             .temporal()
-            .any()
             .avg()
-            .eq(Prop::F64(2.5));
+            .eq(Prop::F64(2.5))
+            .any();
         let expected = vec!["n1"];
         apply_assertion(filter, &expected);
     }
@@ -8356,18 +8356,18 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_u32s")
             .temporal()
-            .any()
             .avg()
-            .eq(Prop::F64(2.0));
+            .eq(Prop::F64(2.0))
+            .any();
         let expected = vec!["n1", "n10", "n3"];
         apply_assertion(filter, &expected);
 
         let filter = NodeFilter
             .property("p_u32s")
             .temporal()
-            .any()
             .avg()
-            .eq(Prop::F64(2.5));
+            .eq(Prop::F64(2.5))
+            .any();
         let expected = vec!["n1"];
         apply_assertion(filter, &expected);
     }
@@ -8377,18 +8377,18 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_u64s")
             .temporal()
-            .any()
             .avg()
-            .eq(Prop::F64(2.0));
+            .eq(Prop::F64(2.0))
+            .any();
         let expected = vec!["n1", "n10", "n3", "n4"];
         apply_assertion(filter, &expected);
 
         let filter = NodeFilter
             .property("p_u64s")
             .temporal()
-            .any()
             .avg()
-            .eq(Prop::F64(2.5));
+            .eq(Prop::F64(2.5))
+            .any();
         let expected = vec!["n1", "n2"];
         apply_assertion(filter, &expected);
     }
@@ -8398,18 +8398,18 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_i32s")
             .temporal()
-            .any()
             .avg()
-            .eq(Prop::F64(2.0));
+            .eq(Prop::F64(2.0))
+            .any();
         let expected = vec!["n1", "n10", "n3", "n4"];
         apply_assertion(filter, &expected);
 
         let filter = NodeFilter
             .property("p_i32s")
             .temporal()
-            .any()
             .avg()
-            .eq(Prop::F64(2.5));
+            .eq(Prop::F64(2.5))
+            .any();
         let expected = vec!["n1"];
         apply_assertion(filter, &expected);
     }
@@ -8419,18 +8419,18 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_i64s")
             .temporal()
-            .any()
             .avg()
-            .eq(Prop::F64(0.0));
+            .eq(Prop::F64(0.0))
+            .any();
         let expected = vec!["n3", "n10"];
         apply_assertion(filter, &expected);
 
         let filter = NodeFilter
             .property("p_i64s")
             .temporal()
-            .any()
             .avg()
-            .eq(Prop::F64(2.5));
+            .eq(Prop::F64(2.5))
+            .any();
         let expected = vec!["n1"];
         apply_assertion(filter, &expected);
     }
@@ -8440,18 +8440,18 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_f32s")
             .temporal()
-            .any()
             .avg()
-            .eq(Prop::F64(2.1666666666666665));
+            .eq(Prop::F64(2.1666666666666665))
+            .any();
         let expected = vec!["n1", "n10", "n3", "n4"];
         apply_assertion(filter, &expected);
 
         let filter = NodeFilter
             .property("p_f32s")
             .temporal()
-            .any()
             .avg()
-            .eq(Prop::F64(20.0));
+            .eq(Prop::F64(20.0))
+            .any();
         let expected = vec!["n4"];
         apply_assertion(filter, &expected);
     }
@@ -8461,18 +8461,18 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_f64s")
             .temporal()
-            .any()
             .avg()
-            .eq(Prop::F64(45.0));
+            .eq(Prop::F64(45.0))
+            .any();
         let expected = vec!["n1", "n10", "n3"];
         apply_assertion(filter, &expected);
 
         let filter = NodeFilter
             .property("p_f64s")
             .temporal()
-            .any()
             .avg()
-            .eq(Prop::F64(40.0));
+            .eq(Prop::F64(40.0))
+            .any();
         let expected = vec!["n1", "n2"];
         apply_assertion(filter, &expected);
     }
@@ -8483,9 +8483,9 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_u8s")
             .temporal()
-            .any()
             .min()
-            .eq(Prop::U8(1));
+            .eq(Prop::U8(1))
+            .any();
         let expected = vec!["n1", "n10", "n3"];
         apply_assertion(filter, &expected);
     }
@@ -8495,9 +8495,9 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_u16s")
             .temporal()
-            .any()
             .min()
-            .eq(Prop::U16(1));
+            .eq(Prop::U16(1))
+            .any();
         let expected = vec!["n1", "n10", "n3"];
         apply_assertion(filter, &expected);
     }
@@ -8507,9 +8507,9 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_u32s")
             .temporal()
-            .any()
             .min()
-            .eq(Prop::U32(1));
+            .eq(Prop::U32(1))
+            .any();
         let expected = vec!["n1", "n10", "n3"];
         apply_assertion(filter, &expected);
     }
@@ -8519,9 +8519,9 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_u64s")
             .temporal()
-            .any()
             .min()
-            .eq(Prop::U64(1));
+            .eq(Prop::U64(1))
+            .any();
         let expected = vec!["n1", "n10", "n2", "n3", "n4", "n5"];
         apply_assertion(filter, &expected);
     }
@@ -8531,18 +8531,18 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_i32s")
             .temporal()
-            .any()
             .min()
-            .eq(Prop::I32(-2));
+            .eq(Prop::I32(-2))
+            .any();
         let expected = vec!["n6"];
         apply_assertion(filter, &expected);
 
         let filter = NodeFilter
             .property("p_i32s")
             .temporal()
-            .any()
             .min()
-            .eq(Prop::I32(10));
+            .eq(Prop::I32(10))
+            .any();
         let expected = vec!["n4"];
         apply_assertion(filter, &expected);
     }
@@ -8552,18 +8552,18 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_i64s")
             .temporal()
-            .any()
             .min()
-            .eq(Prop::I64(-3));
+            .eq(Prop::I64(-3))
+            .any();
         let expected = vec!["n10", "n3"];
         apply_assertion(filter, &expected);
 
         let filter = NodeFilter
             .property("p_i64s")
             .temporal()
-            .any()
             .min()
-            .eq(Prop::I64(1));
+            .eq(Prop::I64(1))
+            .any();
         let expected = vec!["n1", "n5"];
         apply_assertion(filter, &expected);
     }
@@ -8573,18 +8573,18 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_f32s")
             .temporal()
-            .any()
             .min()
-            .eq(Prop::F32(1.0));
+            .eq(Prop::F32(1.0))
+            .any();
         let expected = vec!["n1", "n10", "n3", "n4"];
         apply_assertion(filter, &expected);
 
         let filter = NodeFilter
             .property("p_f32s")
             .temporal()
-            .any()
             .min()
-            .eq(Prop::F32(10.0));
+            .eq(Prop::F32(10.0))
+            .any();
         let expected = vec!["n4"];
         apply_assertion(filter, &expected);
     }
@@ -8594,18 +8594,18 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_f64s")
             .temporal()
-            .any()
             .min()
-            .eq(Prop::F64(30.0));
+            .eq(Prop::F64(30.0))
+            .any();
         let expected = vec!["n1", "n2", "n3"];
         apply_assertion(filter, &expected);
 
         let filter = NodeFilter
             .property("p_f64s")
             .temporal()
-            .any()
             .min()
-            .eq(Prop::F64(40.0));
+            .eq(Prop::F64(40.0))
+            .any();
         let expected = vec!["n1", "n10", "n3"];
         apply_assertion(filter, &expected);
     }
@@ -8616,18 +8616,18 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_u8s")
             .temporal()
-            .any()
             .max()
-            .eq(Prop::U8(3));
+            .eq(Prop::U8(3))
+            .any();
         let expected = vec!["n1", "n10", "n3"];
         apply_assertion(filter, &expected);
 
         let filter = NodeFilter
             .property("p_u8s")
             .temporal()
-            .any()
             .max()
-            .eq(Prop::U8(4));
+            .eq(Prop::U8(4))
+            .any();
         let expected = vec!["n1", "n3"];
         apply_assertion(filter, &expected);
     }
@@ -8637,18 +8637,18 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_u16s")
             .temporal()
-            .any()
             .max()
-            .eq(Prop::U16(3));
+            .eq(Prop::U16(3))
+            .any();
         let expected = vec!["n1", "n10", "n3"];
         apply_assertion(filter, &expected);
 
         let filter = NodeFilter
             .property("p_u16s")
             .temporal()
-            .any()
             .max()
-            .eq(Prop::U16(4));
+            .eq(Prop::U16(4))
+            .any();
         let expected = vec!["n1"];
         apply_assertion(filter, &expected);
     }
@@ -8658,18 +8658,18 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_u32s")
             .temporal()
-            .any()
             .max()
-            .eq(Prop::U32(3));
+            .eq(Prop::U32(3))
+            .any();
         let expected = vec!["n1", "n10", "n3"];
         apply_assertion(filter, &expected);
 
         let filter = NodeFilter
             .property("p_u32s")
             .temporal()
-            .any()
             .max()
-            .eq(Prop::U32(4));
+            .eq(Prop::U32(4))
+            .any();
         let expected = vec!["n1"];
         apply_assertion(filter, &expected);
     }
@@ -8679,18 +8679,18 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_u64s")
             .temporal()
-            .any()
             .max()
-            .eq(Prop::U64(4));
+            .eq(Prop::U64(4))
+            .any();
         let expected = vec!["n1", "n2"];
         apply_assertion(filter, &expected);
 
         let filter = NodeFilter
             .property("p_u64s")
             .temporal()
-            .any()
             .max()
-            .eq(Prop::U64(3));
+            .eq(Prop::U64(3))
+            .any();
         let expected = vec!["n1", "n10", "n3", "n4"];
         apply_assertion(filter, &expected);
     }
@@ -8700,18 +8700,18 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_i32s")
             .temporal()
-            .any()
             .max()
-            .eq(Prop::I32(3));
+            .eq(Prop::I32(3))
+            .any();
         let expected = vec!["n1", "n10", "n3", "n4", "n6"];
         apply_assertion(filter, &expected);
 
         let filter = NodeFilter
             .property("p_i32s")
             .temporal()
-            .any()
             .max()
-            .eq(Prop::I32(30));
+            .eq(Prop::I32(30))
+            .any();
         let expected = vec!["n4"];
         apply_assertion(filter, &expected);
     }
@@ -8721,18 +8721,18 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_i64s")
             .temporal()
-            .any()
             .max()
-            .eq(Prop::I64(2));
+            .eq(Prop::I64(2))
+            .any();
         let expected = vec!["n10", "n3"];
         apply_assertion(filter, &expected);
 
         let filter = NodeFilter
             .property("p_i64s")
             .temporal()
-            .any()
             .max()
-            .eq(Prop::I64(2));
+            .eq(Prop::I64(2))
+            .any();
         let expected = vec!["n10", "n3"];
         apply_assertion(filter, &expected);
     }
@@ -8742,18 +8742,18 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_f32s")
             .temporal()
-            .any()
             .max()
-            .eq(Prop::F32(3.5));
+            .eq(Prop::F32(3.5))
+            .any();
         let expected = vec!["n1", "n10", "n3", "n4"];
         apply_assertion(filter, &expected);
 
         let filter = NodeFilter
             .property("p_f32s")
             .temporal()
-            .any()
             .max()
-            .eq(Prop::F32(30.0));
+            .eq(Prop::F32(30.0))
+            .any();
         let expected = vec!["n4"];
         apply_assertion(filter, &expected);
     }
@@ -8763,9 +8763,9 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_f64s")
             .temporal()
-            .any()
             .max()
-            .eq(Prop::F64(50.0));
+            .eq(Prop::F64(50.0))
+            .any();
         let expected = vec!["n1", "n10", "n2", "n3"];
         apply_assertion(filter, &expected);
     }
@@ -8776,18 +8776,18 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_u8s")
             .temporal()
-            .any()
             .len()
-            .is_in(vec![Prop::U64(3)]);
+            .is_in(vec![Prop::U64(3)])
+            .any();
         let expected = vec!["n1", "n10", "n3"];
         apply_assertion(filter, &expected);
 
         let filter = NodeFilter
             .property("p_u8s")
             .temporal()
-            .any()
             .len()
-            .eq(Prop::U64(4));
+            .eq(Prop::U64(4))
+            .any();
         let expected = vec!["n1"];
         apply_assertion(filter, &expected);
     }
@@ -8797,18 +8797,18 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_u16s")
             .temporal()
-            .any()
             .len()
-            .eq(Prop::U64(3));
+            .eq(Prop::U64(3))
+            .any();
         let expected = vec!["n1", "n10", "n3"];
         apply_assertion(filter, &expected);
 
         let filter = NodeFilter
             .property("p_u16s")
             .temporal()
-            .any()
             .len()
-            .eq(Prop::U64(4));
+            .eq(Prop::U64(4))
+            .any();
         let expected = vec!["n1"];
         apply_assertion(filter, &expected);
     }
@@ -8818,18 +8818,18 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_u32s")
             .temporal()
-            .any()
             .len()
-            .eq(Prop::U64(3));
+            .eq(Prop::U64(3))
+            .any();
         let expected = vec!["n1", "n10", "n3"];
         apply_assertion(filter, &expected);
 
         let filter = NodeFilter
             .property("p_u32s")
             .temporal()
-            .any()
             .len()
-            .eq(Prop::U64(4));
+            .eq(Prop::U64(4))
+            .any();
         let expected = vec!["n1"];
         apply_assertion(filter, &expected);
     }
@@ -8839,18 +8839,18 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_u64s")
             .temporal()
-            .any()
             .len()
-            .eq(Prop::U64(4));
+            .eq(Prop::U64(4))
+            .any();
         let expected = vec!["n1", "n2"];
         apply_assertion(filter, &expected);
 
         let filter = NodeFilter
             .property("p_u64s")
             .temporal()
-            .any()
             .len()
-            .eq(Prop::U64(3));
+            .eq(Prop::U64(3))
+            .any();
         let expected = vec!["n1", "n10", "n3", "n4"];
         apply_assertion(filter, &expected);
     }
@@ -8860,18 +8860,18 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_i32s")
             .temporal()
-            .any()
             .len()
-            .eq(Prop::U64(3));
+            .eq(Prop::U64(3))
+            .any();
         let expected = vec!["n1", "n10", "n3", "n4", "n6"];
         apply_assertion(filter, &expected);
 
         let filter = NodeFilter
             .property("p_i32s")
             .temporal()
-            .any()
             .len()
-            .eq(Prop::U64(4));
+            .eq(Prop::U64(4))
+            .any();
         let expected = vec!["n1"];
         apply_assertion(filter, &expected);
     }
@@ -8881,18 +8881,18 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_i64s")
             .temporal()
-            .any()
             .len()
-            .eq(Prop::U64(2));
+            .eq(Prop::U64(2))
+            .any();
         let expected = vec!["n5"];
         apply_assertion(filter, &expected);
 
         let filter = NodeFilter
             .property("p_i64s")
             .temporal()
-            .any()
             .len()
-            .eq(Prop::U64(4));
+            .eq(Prop::U64(4))
+            .any();
         let expected = vec!["n1"];
         apply_assertion(filter, &expected);
     }
@@ -8902,18 +8902,18 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_f32s")
             .temporal()
-            .any()
             .len()
-            .eq(Prop::U64(3));
+            .eq(Prop::U64(3))
+            .any();
         let expected = vec!["n1", "n10", "n3", "n4"];
         apply_assertion(filter, &expected);
 
         let filter = NodeFilter
             .property("p_f32s")
             .temporal()
-            .any()
             .len()
-            .eq(Prop::U64(4));
+            .eq(Prop::U64(4))
+            .any();
         let expected = vec!["n1"];
         apply_assertion(filter, &expected);
     }
@@ -8923,18 +8923,18 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_f64s")
             .temporal()
-            .any()
             .len()
-            .eq(Prop::U64(2));
+            .eq(Prop::U64(2))
+            .any();
         let expected = vec!["n1", "n10", "n3"];
         apply_assertion(filter, &expected);
 
         let filter = NodeFilter
             .property("p_f64s")
             .temporal()
-            .any()
             .len()
-            .eq(Prop::U64(3));
+            .eq(Prop::U64(3))
+            .any();
         let expected = vec!["n1", "n2"];
         apply_assertion(filter, &expected);
     }
