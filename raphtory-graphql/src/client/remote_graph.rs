@@ -22,7 +22,7 @@ pub fn build_query(template: &str, context: Value) -> Result<String, ClientError
     Ok(query)
 }
 
-/// Pure Rust remote graph wrapper around `RaphtoryGraphQLClient`.
+/// A handle to a remote graph on the server.
 #[derive(Clone)]
 pub struct GraphQLRemoteGraph {
     pub path: String,
