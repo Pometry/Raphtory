@@ -1,4 +1,4 @@
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, SamplingMode};
+use criterion::{criterion_group, criterion_main, Criterion, SamplingMode};
 use rand::{rngs::SmallRng, SeedableRng};
 use raphtory::{
     algorithms::{
@@ -19,7 +19,7 @@ use raphtory::{
             strongly_connected_components, weakly_connected_components,
         },
         cores::k_core::{k_core, k_core_set},
-        dynamics::temporal::epidemics::{temporal_SEIR, Number},
+        dynamics::temporal::epidemics::{Number, temporal_SEIR},
         embeddings::fast_rp::fast_rp,
         layout::{
             cohesive_fruchterman_reingold::cohesive_fruchterman_reingold,
@@ -43,19 +43,13 @@ use raphtory::{
             global_temporal_three_node_motifs::{
                 global_temporal_three_node_motif, temporal_three_node_motif_multi,
                 triangle_motifs as global_triangle_motifs_internal,
-            },
-            local_temporal_three_node_motifs::{
+            }, local_temporal_three_node_motifs::{
                 temporal_three_node_motif as local_temporal_three_node_motif,
                 triangle_motifs as local_triangle_motifs_internal,
-            },
-            local_triangle_count::local_triangle_count,
-            three_node_motifs::{
+            }, local_triangle_count::local_triangle_count, temporal_rich_club_coefficient::temporal_rich_club_coefficient, three_node_motifs::{
                 init_star_count, init_tri_count, init_two_node_count, new_triangle_edge,
                 star_event, two_node_event,
-            },
-            temporal_rich_club_coefficient::temporal_rich_club_coefficient,
-            triangle_count::triangle_count,
-            triplet_count::triplet_count,
+            }, triangle_count::triangle_count, triplet_count::triplet_count
         },
         pathing::{
             dijkstra::dijkstra_single_source_shortest_paths,
@@ -64,14 +58,14 @@ use raphtory::{
         },
         projections::temporal_bipartite_projection::temporal_bipartite_projection,
     },
-    db::graph::views::filter::Unfiltered,
+    db::{api::view::StaticGraphViewOps, graph::views::filter::Unfiltered},
     graphgen::random_attachment::random_attachment,
     prelude::*,
 };
 use raphtory_api::core::Direction;
 use std::hint::black_box;
 
-fn graph_benchmark_with_setup<BuildGraph, Setup, Run, SetupData, Output>(
+fn graph_benchmark_with_setup<G, BuildGraph, Setup, Run, SetupData, Output>(
     c: &mut Criterion,
     name: &str,
     measurement_secs: u64,
@@ -80,9 +74,10 @@ fn graph_benchmark_with_setup<BuildGraph, Setup, Run, SetupData, Output>(
     setup: Setup,
     mut run: Run,
 ) where
-    BuildGraph: FnOnce() -> Graph,
-    Setup: FnOnce(&Graph) -> SetupData,
-    Run: FnMut(&Graph, &SetupData) -> Output,
+    G: StaticGraphViewOps,
+    BuildGraph: FnOnce() -> G,
+    Setup: Fn(&G) -> SetupData,
+    Run: FnMut(&G, &SetupData) -> Output,
 {
     let mut group = c.benchmark_group(name);
     let graph = build_graph();
@@ -91,16 +86,16 @@ fn graph_benchmark_with_setup<BuildGraph, Setup, Run, SetupData, Output>(
     group.sampling_mode(SamplingMode::Flat);
     group.measurement_time(std::time::Duration::from_secs(measurement_secs));
     group.sample_size(sample_size);
-    group.bench_with_input(BenchmarkId::new(name, &graph), &graph, |b, graph| {
+    group.bench_function(name, |b| {
         b.iter(|| {
-            let result = run(graph, &setup_data);
+            let result = run(&graph, &setup_data);
             black_box(result);
         });
     });
     group.finish()
 }
 
-fn graph_benchmark<BuildGraph, Run, Output>(
+fn graph_benchmark<G, BuildGraph, Run, Output>(
     c: &mut Criterion,
     name: &str,
     measurement_secs: u64,
@@ -108,8 +103,9 @@ fn graph_benchmark<BuildGraph, Run, Output>(
     build_graph: BuildGraph,
     run: Run,
 ) where
-    BuildGraph: FnOnce() -> Graph,
-    Run: FnMut(&Graph, &()) -> Output,
+    G: StaticGraphViewOps,
+    BuildGraph: FnOnce() -> G,
+    Run: FnMut(&G, &()) -> Output,
 {
     graph_benchmark_with_setup(c, name, measurement_secs, sample_size, build_graph, |_| (), run)
 }
@@ -143,7 +139,7 @@ fn large_random_attachment_graph() -> Graph {
     graph
 }
 
-fn first_node_id(graph: &Graph) -> GID {
+fn first_node_id<G: StaticGraphViewOps>(graph: &G) -> GID {
     graph
         .nodes()
         .id()
