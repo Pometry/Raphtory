@@ -1,6 +1,6 @@
 use crate::{
     model::schema::{
-        property_schema::PropertySchema, SchemaAggregate, ENUM_BOUNDARY,
+        cache::SchemaCache, property_schema::PropertySchema, SchemaAggregate, ENUM_BOUNDARY,
         MAX_DETAILED_SCHEMA_ENTITIES,
     },
     rayon::blocking_compute,
@@ -24,24 +24,44 @@ use std::{
 #[derive(Clone, ResolvedObject)]
 pub(crate) struct EdgeSchema<G: StaticGraphViewOps> {
     graph: G,
+    layer: String,
     src_type: String,
     dst_type: String,
-    // scan once and remember edges matching the (srcType, dstType)
+    // scan once and remember edges matching the (srcNodeType, dstNodeType)
     edges: Arc<[EdgeRef]>,
+    // schema cache for the base graph, `None` for filtered/derived views
+    cache: Option<Arc<SchemaCache>>,
 }
 
 impl<G: StaticGraphViewOps> EdgeSchema<G> {
-    pub fn new(graph: G, src_type: String, dst_type: String, edges: Vec<EdgeRef>) -> Self {
+    pub fn new(
+        graph: G,
+        layer: String,
+        src_type: String,
+        dst_type: String,
+        edges: Vec<EdgeRef>,
+        cache: Option<Arc<SchemaCache>>,
+    ) -> Self {
         Self {
             graph,
+            layer,
             src_type,
             dst_type,
             edges: edges.into(),
+            cache,
         }
     }
 
     fn edges(&self) -> impl Iterator<Item = EdgeView<&G>> + '_ {
         self.edges.iter().map(|e| EdgeView::new(&self.graph, *e))
+    }
+
+    fn cache_key(&self) -> (String, String, String) {
+        (
+            self.layer.clone(),
+            self.src_type.clone(),
+            self.dst_type.clone(),
+        )
     }
 }
 
@@ -59,8 +79,14 @@ impl<G: StaticGraphViewOps> EdgeSchema<G> {
 
     /// Returns the list of property schemas for edges matching these `(src_node_type, dst_node_type)`
     async fn properties(&self) -> Vec<PropertySchema> {
+        if let Some(cache) = &self.cache {
+            if let Some(hit) = cache.get_edge_properties(&self.cache_key()) {
+                return hit.as_ref().clone();
+            }
+        }
+        // not found in cache, so calculate it and cache it
         let cloned = self.clone();
-        blocking_compute(move || {
+        let result = blocking_compute(move || {
             if cloned.graph.unfiltered_num_edges(&LayerIds::All) > MAX_DETAILED_SCHEMA_ENTITIES {
                 // large graph, do not collect detailed schema as it is expensive
                 let visible: HashSet<usize> =
@@ -84,12 +110,22 @@ impl<G: StaticGraphViewOps> EdgeSchema<G> {
                 )
             }
         })
-        .await
+        .await;
+        if let Some(cache) = &self.cache {
+            cache.store_edge_properties(self.cache_key(), Arc::new(result.clone()));
+        }
+        result
     }
     /// Returns the list of metadata schemas for edges matching these `(src_node_type, dst_node_type)`
     async fn metadata(&self) -> Vec<PropertySchema> {
+        if let Some(cache) = &self.cache {
+            if let Some(hit) = cache.get_edge_metadata(&self.cache_key()) {
+                return hit.as_ref().clone();
+            }
+        }
+        // not found in cache, so calculate it and cache it
         let cloned = self.clone();
-        blocking_compute(move || {
+        let result = blocking_compute(move || {
             if cloned.graph.unfiltered_num_edges(&LayerIds::All) > MAX_DETAILED_SCHEMA_ENTITIES {
                 // large graph, do not collect detailed schema as it is expensive
                 let visible: HashSet<usize> = cloned.graph.edge_visible_metadata_ids().collect();
@@ -112,7 +148,11 @@ impl<G: StaticGraphViewOps> EdgeSchema<G> {
                 )
             }
         })
-        .await
+        .await;
+        if let Some(cache) = &self.cache {
+            cache.store_edge_metadata(self.cache_key(), Arc::new(result.clone()));
+        }
+        result
     }
 }
 

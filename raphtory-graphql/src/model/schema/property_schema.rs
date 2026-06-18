@@ -1,6 +1,6 @@
 use dynamic_graphql::SimpleObject;
 
-#[derive(SimpleObject, Debug, PartialEq, PartialOrd, Ord, Eq)]
+#[derive(SimpleObject, Clone, Debug, PartialEq, PartialOrd, Ord, Eq)]
 pub(crate) struct PropertySchema {
     key: String,
     property_type: String,

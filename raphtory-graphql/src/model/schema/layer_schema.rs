@@ -1,5 +1,7 @@
 use crate::{
-    model::schema::{edge_schema::EdgeSchema, get_node_type, MAX_DETAILED_SCHEMA_ENTITIES},
+    model::schema::{
+        cache::SchemaCache, edge_schema::EdgeSchema, get_node_type, MAX_DETAILED_SCHEMA_ENTITIES,
+    },
     rayon::blocking_compute,
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
@@ -8,18 +10,20 @@ use raphtory::{
     prelude::*,
 };
 use raphtory_api::core::entities::edges::edge_ref::EdgeRef;
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 /// Describes a single edge layer — its name and the per `(srcType, dstType)`
 /// edge schemas observed within it.
 #[derive(ResolvedObject)]
 pub(crate) struct LayerSchema<G: StaticGraphViewOps> {
     graph: LayeredGraph<G>,
+    // schema cache for the base graph; `None` for filtered views
+    cache: Option<Arc<SchemaCache>>,
 }
 
-impl<G: StaticGraphViewOps> From<LayeredGraph<G>> for LayerSchema<G> {
-    fn from(value: LayeredGraph<G>) -> Self {
-        Self { graph: value }
+impl<G: StaticGraphViewOps> LayerSchema<G> {
+    pub fn new(graph: LayeredGraph<G>, cache: Option<Arc<SchemaCache>>) -> Self {
+        Self { graph, cache }
     }
 }
 
@@ -38,7 +42,13 @@ impl<G: StaticGraphViewOps> LayerSchema<G> {
     /// Returns the list of edge schemas for this edge layer
     async fn edges(&self) -> Vec<EdgeSchema<LayeredGraph<G>>> {
         let graph = self.graph.clone();
+        let cache = self.cache.clone();
         blocking_compute(move || {
+            let layer: String = graph
+                .unique_layers()
+                .next()
+                .map(Into::into)
+                .unwrap_or_default();
             // Single scan over the layer's edges, bucketing them by (src_node_type, dst_node_type)
             let mut buckets: HashMap<(String, String), Vec<EdgeRef>> = HashMap::new();
             let mut total = 0usize;
@@ -59,7 +69,14 @@ impl<G: StaticGraphViewOps> LayerSchema<G> {
             buckets
                 .into_iter()
                 .map(|((src_type, dst_type), edges)| {
-                    EdgeSchema::new(graph.clone(), src_type, dst_type, edges)
+                    EdgeSchema::new(
+                        graph.clone(),
+                        layer.clone(),
+                        src_type,
+                        dst_type,
+                        edges,
+                        cache.clone(),
+                    )
                 })
                 .collect()
         })

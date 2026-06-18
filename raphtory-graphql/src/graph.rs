@@ -1,4 +1,5 @@
 use crate::{
+    model::schema::cache::SchemaCache,
     paths::{ExistingGraphFolder, ValidGraphPaths},
     rayon::blocking_compute,
 };
@@ -46,6 +47,9 @@ pub struct GraphWithVectorsInner {
     pub folder: ExistingGraphFolder,
     pub is_dirty: AtomicBool,
     pub is_flushing: AtomicBool,
+    /// Cache of computed edge schemas for the unfiltered base view of this graph.
+    /// Cleared on every mutation
+    pub schema_cache: Arc<SchemaCache>,
 }
 
 impl GraphWithVectors {
@@ -60,6 +64,7 @@ impl GraphWithVectors {
             folder,
             is_dirty: AtomicBool::new(false),
             is_flushing: AtomicBool::new(false),
+            schema_cache: Arc::new(SchemaCache::new()),
         });
         Self { inner }
     }
@@ -96,6 +101,17 @@ impl GraphWithVectors {
     pub fn folder(&self) -> &ExistingGraphFolder {
         &self.inner.folder
     }
+
+    /// Handle to this graph's schema cache.
+    pub fn schema_cache(&self) -> Arc<SchemaCache> {
+        self.inner.schema_cache.clone()
+    }
+
+    /// Drop all cached schemas. Called after every mutation.
+    pub fn invalidate_schema_cache(&self) {
+        self.inner.schema_cache.invalidate();
+    }
+
     pub fn set_dirty(&self, is_dirty: bool) {
         self.inner.is_dirty.store(is_dirty, Ordering::Release);
     }

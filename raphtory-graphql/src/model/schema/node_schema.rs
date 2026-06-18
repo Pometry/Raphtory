@@ -224,7 +224,7 @@ mod test {
     }
 
     fn check_schema(g: &Graph) {
-        let gs = GraphSchema::new(&g.clone().into_dynamic());
+        let gs = GraphSchema::new(&g.clone().into_dynamic(), None);
 
         let mut actual: Vec<(String, Vec<PropertySchema>, Vec<PropertySchema>)> = gs
             .nodes

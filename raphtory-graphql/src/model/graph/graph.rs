@@ -16,7 +16,7 @@ use crate::{
             GqlAlignmentUnit, WindowDuration,
         },
         plugins::graph_algorithm_plugin::GraphAlgorithmPlugin,
-        schema::graph_schema::GraphSchema,
+        schema::{cache::SchemaCache, graph_schema::GraphSchema},
     },
     paths::{ExistingGraphFolder, PathValidationError, ValidGraphPaths},
     rayon::blocking_compute,
@@ -62,6 +62,9 @@ use std::{
 pub(crate) struct GqlGraph {
     path: ExistingGraphFolder,
     graph: DynamicGraph,
+    // Shared schema cache, set only for the unfiltered native base graph.
+    // Any derived view (window/layer/filter/...) drops it so it recomputes.
+    schema_cache: Option<Arc<SchemaCache>>,
 }
 
 impl From<GraphWithVectors> for GqlGraph {
@@ -75,6 +78,21 @@ impl GqlGraph {
         Self {
             path,
             graph: graph.into_dynamic(),
+            schema_cache: None,
+        }
+    }
+
+    /// Carries the base graph's schema cache. Used only for the top-level, unfiltered (e.g. materialized) graph view
+    /// `cache` is `None` when the view is redacted or type-overridden.
+    pub fn new_cached<G: StaticGraphViewOps + IntoDynamic>(
+        path: ExistingGraphFolder,
+        graph: G,
+        cache: Option<Arc<SchemaCache>>,
+    ) -> Self {
+        Self {
+            path,
+            graph: graph.into_dynamic(),
+            schema_cache: cache,
         }
     }
 
@@ -86,6 +104,8 @@ impl GqlGraph {
         Self {
             path: self.path.clone(),
             graph: graph_operation(&self.graph).into_dynamic(),
+            // a derived view's schema differs from the base, so don't cache it
+            schema_cache: None,
         }
     }
 }
@@ -631,7 +651,10 @@ impl GqlGraph {
     /// Returns the graph schema.
     async fn schema(&self) -> Result<GraphSchema> {
         let self_clone = self.clone();
-        Ok(blocking_compute(move || GraphSchema::new(&self_clone.graph)).await)
+        Ok(blocking_compute(move || {
+            GraphSchema::new(&self_clone.graph, self_clone.schema_cache.clone())
+        })
+        .await)
     }
 
     /// Access registered graph algorithms (PageRank, shortest path, etc.) for this

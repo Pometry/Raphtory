@@ -1,8 +1,11 @@
-use crate::model::schema::{layer_schema::LayerSchema, node_schema::NodeSchema};
+use crate::model::schema::{
+    cache::SchemaCache, layer_schema::LayerSchema, node_schema::NodeSchema,
+};
 use dynamic_graphql::SimpleObject;
 use itertools::Itertools;
 use raphtory::{db::api::view::DynamicGraph, prelude::*};
 use raphtory_storage::core_ops::CoreGraphOps;
+use std::sync::Arc;
 
 #[derive(SimpleObject)]
 pub(crate) struct GraphSchema {
@@ -11,7 +14,9 @@ pub(crate) struct GraphSchema {
 }
 
 impl GraphSchema {
-    pub fn new(graph: &DynamicGraph) -> Self {
+    /// `cache` is `Some` only for the unfiltered, base graph.
+    /// Other views (such as filtered, layered, windowed) pass `None` and recompute every time.
+    pub fn new(graph: &DynamicGraph, cache: Option<Arc<SchemaCache>>) -> Self {
         let node_types = graph.node_meta().node_type_meta().ids();
         let nodes = node_types
             .map(|node_type| NodeSchema::new(node_type, graph.clone()))
@@ -19,7 +24,7 @@ impl GraphSchema {
 
         let layers = graph
             .unique_layers()
-            .map(|layer_name| graph.layers(layer_name).unwrap().into())
+            .map(|layer_name| LayerSchema::new(graph.layers(layer_name).unwrap(), cache.clone()))
             .collect_vec();
 
         GraphSchema { nodes, layers }
