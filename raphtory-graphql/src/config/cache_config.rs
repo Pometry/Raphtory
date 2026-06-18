@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-pub const DEFAULT_CAPACITY: u64 = 30;
+pub const DEFAULT_CACHE_CAPACITY: u64 = 30;
 
 #[derive(Debug, Deserialize, PartialEq, Clone, serde::Serialize)]
 pub struct CacheConfig {
@@ -10,7 +10,7 @@ pub struct CacheConfig {
 impl Default for CacheConfig {
     fn default() -> Self {
         Self {
-            capacity: DEFAULT_CAPACITY,
+            capacity: DEFAULT_CACHE_CAPACITY,
         }
     }
 }

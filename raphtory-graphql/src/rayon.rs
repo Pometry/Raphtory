@@ -84,7 +84,7 @@ mod deadlock_tests {
 
     async fn test_pool_lock(port: u16, pool_lock: impl FnOnce(Arc<Mutex<()>>)) {
         let tempdir = TempDir::new().unwrap();
-        let server = GraphServer::new(tempdir.path().to_path_buf(), None, None, Config::default())
+        let server = GraphServer::new(tempdir.path().to_path_buf(), None, Config::default())
             .await
             .unwrap();
         let _running = server.start_with_port(port).await.unwrap();

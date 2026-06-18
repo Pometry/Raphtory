@@ -10,10 +10,7 @@ pub mod schema_config;
 
 #[cfg(test)]
 mod tests {
-    use crate::config::{
-        app_config::{load_config, AppConfigBuilder},
-        otlp_config::TracingLevel,
-    };
+    use crate::config::{app_config::AppConfigBuilder, otlp_config::TracingLevel};
     use std::fs;
     use tempfile::NamedTempFile;
 
@@ -37,7 +34,10 @@ mod tests {
         let config_path = config_file.path();
         fs::write(&config_path, config_toml).unwrap();
 
-        let result = load_config(None, Some(config_path.to_path_buf()));
+        let result = AppConfigBuilder::new()
+            .load_from_path(config_path)
+            .unwrap()
+            .build();
 
         let expected_config = AppConfigBuilder::new()
             .with_log_level("DEBUG".to_string())
@@ -50,15 +50,6 @@ mod tests {
             .unwrap()
             .build();
 
-        assert_eq!(result.unwrap(), expected_config);
-    }
-
-    #[test]
-    fn test_load_config_with_custom_cache() {
-        let app_config = AppConfigBuilder::new().with_cache_capacity(50).build();
-
-        let result = load_config(Some(app_config.clone()), None);
-
-        assert_eq!(result.unwrap(), app_config);
+        assert_eq!(result, expected_config);
     }
 }

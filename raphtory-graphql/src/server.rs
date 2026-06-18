@@ -1,7 +1,7 @@
 use crate::{
     auth::{AuthenticatedGraphQL, MutationAuth},
     auth_policy::AuthorizationPolicy,
-    config::app_config::{load_config, AppConfig},
+    config::{app_config::AppConfig, auth_config::PublicKeyError},
     data::Data,
     model::{
         plugins::{entry_point::EntryPoint, operation::Operation},
@@ -82,6 +82,8 @@ pub fn has_server_extension() -> bool {
 pub enum ServerError {
     #[error("Config error: {0}")]
     ConfigError(#[from] ConfigError),
+    #[error("Public key error: {0}")]
+    PublicKeyError(#[from] PublicKeyError),
     #[error("Cache error: {0}")]
     CacheError(String),
     #[error("No client id provided")]
@@ -148,13 +150,12 @@ impl GraphServer {
     pub async fn new(
         work_dir: PathBuf,
         app_config: Option<AppConfig>,
-        config_path: Option<PathBuf>,
         graph_config: Config,
     ) -> IoResult<Self> {
         if !work_dir.exists() {
             create_dir_all(&work_dir)?;
         }
-        let config = load_config(app_config, config_path).map_err(ServerError::ConfigError)?;
+        let config = app_config.unwrap_or_default();
         let data = Data::new(work_dir.as_path(), &config, graph_config);
         Ok(Self {
             data,
@@ -490,7 +491,7 @@ mod server_tests {
     async fn test_server_start_stop() {
         global_info_logger();
         let tmp_dir = tempdir().unwrap();
-        let server = GraphServer::new(tmp_dir.path().to_path_buf(), None, None, Config::default())
+        let server = GraphServer::new(tmp_dir.path().to_path_buf(), None, Config::default())
             .await
             .unwrap();
         info!("Calling start at time {}", Local::now());
@@ -508,7 +509,7 @@ mod server_tests {
         graph.encode(tmp_dir.path().join("g")).unwrap();
 
         global_info_logger();
-        let server = GraphServer::new(tmp_dir.path().to_path_buf(), None, None, Config::default())
+        let server = GraphServer::new(tmp_dir.path().to_path_buf(), None, Config::default())
             .await
             .unwrap();
         let template = DocumentTemplate {

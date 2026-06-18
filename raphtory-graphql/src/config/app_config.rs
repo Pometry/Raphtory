@@ -1,15 +1,27 @@
 use super::auth_config::{AuthConfig, PublicKeyError, PUBLIC_KEY_DECODING_ERR_MSG};
-use crate::config::{
-    cache_config::CacheConfig, concurrency_config::ConcurrencyConfig, log_config::LoggingConfig,
-    otlp_config::TracingConfig, schema_config::SchemaConfig,
-};
-use config::{Config, ConfigError, File};
-use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
-
 #[cfg(feature = "search")]
 use crate::config::index_config::IndexConfig;
-use crate::config::otlp_config::TracingLevel;
+use crate::{
+    config::{
+        cache_config::CacheConfig,
+        concurrency_config::ConcurrencyConfig,
+        log_config::LoggingConfig,
+        otlp_config::{TracingConfig, TracingLevel, TracingProtocol},
+        schema_config::SchemaConfig,
+    },
+    server::ServerError,
+};
+use clap::{
+    parser::{RawValues, ValueSource},
+    ArgMatches,
+};
+use config::{Config, ConfigError, File, Map, Source, Value, ValueKind};
+use serde::{Deserialize, Serialize};
+use std::{
+    collections::HashMap,
+    io,
+    path::{Path, PathBuf},
+};
 
 #[derive(Debug, Default, Deserialize, PartialEq, Clone, Serialize)]
 pub struct AppConfig {
@@ -63,6 +75,102 @@ impl AppConfigBuilder {
         AppConfig::default().into()
     }
 
+    pub fn load_from_path(mut self, config_path: impl AsRef<Path>) -> Result<Self, ServerError> {
+        let mut settings = Config::builder()
+            .add_source(File::from(config_path.as_ref()))
+            .build()?;
+
+        // Override with provided configs from config file if any
+        if let Ok(log_level) = settings.get::<String>("logging.log_level") {
+            self = self.with_log_level(log_level);
+        }
+
+        if let Ok(tracing) = settings.get::<bool>("tracing.tracing_enabled") {
+            self = self.with_tracing(tracing);
+        }
+
+        if let Ok(tracing_level) = settings.get::<TracingLevel>("tracing.tracing_level") {
+            self = self.with_tracing_level(tracing_level);
+        }
+
+        if let Ok(otlp_agent_host) = settings.get::<String>("tracing.otlp_agent_host") {
+            self = self.with_otlp_agent_host(otlp_agent_host);
+        }
+
+        if let Ok(otlp_agent_port) = settings.get::<String>("tracing.otlp_agent_port") {
+            self = self.with_otlp_agent_port(otlp_agent_port);
+        }
+
+        if let Ok(otlp_tracing_service_name) =
+            settings.get::<String>("tracing.otlp_tracing_service_name")
+        {
+            self = self.with_otlp_tracing_service_name(otlp_tracing_service_name);
+        }
+
+        if let Ok(cache_capacity) = settings.get::<u64>("cache.capacity") {
+            self = self.with_cache_capacity(cache_capacity);
+        }
+
+        if let Ok(public_key) = settings.get::<Option<String>>("auth.public_key") {
+            self = self.with_auth_public_key(public_key)?;
+        }
+        if let Ok(require_auth_for_reads) = settings.get::<bool>("auth.require_auth_for_reads") {
+            self = self.with_require_auth_for_reads(require_auth_for_reads);
+        }
+
+        if let Ok(heavy_query_limit) =
+            settings.get::<Option<usize>>("concurrency.heavy_query_limit")
+        {
+            self = self.with_heavy_query_limit(heavy_query_limit);
+        }
+        if let Ok(exclusive_writes) = settings.get::<bool>("concurrency.exclusive_writes") {
+            self = self.with_exclusive_writes(exclusive_writes);
+        }
+        if let Ok(disable_batching) = settings.get::<bool>("concurrency.disable_batching") {
+            self = self.with_disable_batching(disable_batching);
+        }
+        if let Ok(max_batch_size) = settings.get::<Option<usize>>("concurrency.max_batch_size") {
+            self = self.with_max_batch_size(max_batch_size);
+        }
+        if let Ok(disable_lists) = settings.get::<bool>("concurrency.disable_lists") {
+            self = self.with_disable_lists(disable_lists);
+        }
+        if let Ok(max_page_size) = settings.get::<Option<usize>>("concurrency.max_page_size") {
+            self = self.with_max_page_size(max_page_size);
+        }
+
+        if let Ok(max_query_depth) = settings.get::<Option<usize>>("schema.max_query_depth") {
+            self = self.with_max_query_depth(max_query_depth);
+        }
+        if let Ok(max_query_complexity) =
+            settings.get::<Option<usize>>("schema.max_query_complexity")
+        {
+            self = self.with_max_query_complexity(max_query_complexity);
+        }
+        if let Ok(max_recursive_depth) = settings.get::<Option<usize>>("schema.max_recursive_depth")
+        {
+            self = self.with_max_recursive_depth(max_recursive_depth);
+        }
+        if let Ok(max_directives_per_field) =
+            settings.get::<Option<usize>>("schema.max_directives_per_field")
+        {
+            self = self.with_max_directives_per_field(max_directives_per_field);
+        }
+        if let Ok(disable_introspection) = settings.get::<bool>("schema.disable_introspection") {
+            self = self.with_disable_introspection(disable_introspection);
+        }
+
+        if let Ok(public_dir) = settings.get::<Option<PathBuf>>("public_dir") {
+            self = self.with_public_dir(public_dir);
+        }
+
+        #[cfg(feature = "search")]
+        if let Ok(create_index) = settings.get::<bool>("index.create_index") {
+            self = self.with_create_index(create_index);
+        }
+        Ok(self)
+    }
+
     pub fn with_log_level(mut self, log_level: String) -> Self {
         self.logging.log_level = log_level;
         self
@@ -90,6 +198,16 @@ impl AppConfigBuilder {
 
     pub fn with_otlp_tracing_service_name(mut self, otlp_tracing_service_name: String) -> Self {
         self.tracing.otlp_tracing_service_name = otlp_tracing_service_name;
+        self
+    }
+
+    pub fn with_otlp_transport_protocol(mut self, otlp_protocol: TracingProtocol) -> Self {
+        self.tracing.otlp_transport_protocol = otlp_protocol;
+        self
+    }
+
+    pub fn with_otlp_transport_headers(mut self, headers: HashMap<String, String>) -> Self {
+        self.tracing.otlp_transport_headers = headers;
         self
     }
 
@@ -195,115 +313,4 @@ impl AppConfigBuilder {
             index: self.index,
         }
     }
-}
-
-// Order of precedence of config loading: config args >> config path >> config default
-// Note: Since config args takes precedence over config path, ensure not to provide config args when starting server from a compile rust instance.
-// This would cause configs from config paths to be ignored. The reason it has been implemented so is to avoid having to pass all the configs as
-// args from the python instance i.e., being able to provide configs from config path as default configs and yet give precedence to config args.
-pub fn load_config(
-    app_config: Option<AppConfig>,
-    config_path: Option<PathBuf>,
-) -> Result<AppConfig, ConfigError> {
-    let mut settings_config_builder = Config::builder();
-    if let Some(config_path) = config_path {
-        settings_config_builder = settings_config_builder.add_source(File::from(config_path));
-    }
-    let settings = settings_config_builder.build()?;
-
-    let mut app_config_builder = if let Some(app_config) = app_config {
-        AppConfigBuilder::from(app_config)
-    } else {
-        AppConfigBuilder::new()
-    };
-
-    // Override with provided configs from config file if any
-    if let Ok(log_level) = settings.get::<String>("logging.log_level") {
-        app_config_builder = app_config_builder.with_log_level(log_level);
-    }
-
-    if let Ok(tracing) = settings.get::<bool>("tracing.tracing_enabled") {
-        app_config_builder = app_config_builder.with_tracing(tracing);
-    }
-
-    if let Ok(tracing_level) = settings.get::<TracingLevel>("tracing.tracing_level") {
-        app_config_builder = app_config_builder.with_tracing_level(tracing_level);
-    }
-
-    if let Ok(otlp_agent_host) = settings.get::<String>("tracing.otlp_agent_host") {
-        app_config_builder = app_config_builder.with_otlp_agent_host(otlp_agent_host);
-    }
-
-    if let Ok(otlp_agent_port) = settings.get::<String>("tracing.otlp_agent_port") {
-        app_config_builder = app_config_builder.with_otlp_agent_port(otlp_agent_port);
-    }
-
-    if let Ok(otlp_tracing_service_name) =
-        settings.get::<String>("tracing.otlp_tracing_service_name")
-    {
-        app_config_builder =
-            app_config_builder.with_otlp_tracing_service_name(otlp_tracing_service_name);
-    }
-
-    if let Ok(cache_capacity) = settings.get::<u64>("cache.capacity") {
-        app_config_builder = app_config_builder.with_cache_capacity(cache_capacity);
-    }
-
-    if let Ok(public_key) = settings.get::<Option<String>>("auth.public_key") {
-        app_config_builder = app_config_builder
-            .with_auth_public_key(public_key)
-            .map_err(|_| ConfigError::Message(PUBLIC_KEY_DECODING_ERR_MSG.to_owned()))?;
-    }
-    if let Ok(require_auth_for_reads) = settings.get::<bool>("auth.require_auth_for_reads") {
-        app_config_builder = app_config_builder.with_require_auth_for_reads(require_auth_for_reads);
-    }
-
-    if let Ok(heavy_query_limit) = settings.get::<Option<usize>>("concurrency.heavy_query_limit") {
-        app_config_builder = app_config_builder.with_heavy_query_limit(heavy_query_limit);
-    }
-    if let Ok(exclusive_writes) = settings.get::<bool>("concurrency.exclusive_writes") {
-        app_config_builder = app_config_builder.with_exclusive_writes(exclusive_writes);
-    }
-    if let Ok(disable_batching) = settings.get::<bool>("concurrency.disable_batching") {
-        app_config_builder = app_config_builder.with_disable_batching(disable_batching);
-    }
-    if let Ok(max_batch_size) = settings.get::<Option<usize>>("concurrency.max_batch_size") {
-        app_config_builder = app_config_builder.with_max_batch_size(max_batch_size);
-    }
-    if let Ok(disable_lists) = settings.get::<bool>("concurrency.disable_lists") {
-        app_config_builder = app_config_builder.with_disable_lists(disable_lists);
-    }
-    if let Ok(max_page_size) = settings.get::<Option<usize>>("concurrency.max_page_size") {
-        app_config_builder = app_config_builder.with_max_page_size(max_page_size);
-    }
-
-    if let Ok(max_query_depth) = settings.get::<Option<usize>>("schema.max_query_depth") {
-        app_config_builder = app_config_builder.with_max_query_depth(max_query_depth);
-    }
-    if let Ok(max_query_complexity) = settings.get::<Option<usize>>("schema.max_query_complexity") {
-        app_config_builder = app_config_builder.with_max_query_complexity(max_query_complexity);
-    }
-    if let Ok(max_recursive_depth) = settings.get::<Option<usize>>("schema.max_recursive_depth") {
-        app_config_builder = app_config_builder.with_max_recursive_depth(max_recursive_depth);
-    }
-    if let Ok(max_directives_per_field) =
-        settings.get::<Option<usize>>("schema.max_directives_per_field")
-    {
-        app_config_builder =
-            app_config_builder.with_max_directives_per_field(max_directives_per_field);
-    }
-    if let Ok(disable_introspection) = settings.get::<bool>("schema.disable_introspection") {
-        app_config_builder = app_config_builder.with_disable_introspection(disable_introspection);
-    }
-
-    if let Ok(public_dir) = settings.get::<Option<PathBuf>>("public_dir") {
-        app_config_builder = app_config_builder.with_public_dir(public_dir);
-    }
-
-    #[cfg(feature = "search")]
-    if let Ok(create_index) = settings.get::<bool>("index.create_index") {
-        app_config_builder = app_config_builder.with_create_index(create_index);
-    }
-
-    Ok(app_config_builder.build())
 }

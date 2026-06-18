@@ -139,6 +139,11 @@ impl PyGraphServer {
         permissions_store_path: Option<PathBuf>,
     ) -> PyResult<Self> {
         let mut app_config_builder = AppConfigBuilder::new();
+        if let Some(config_path) = config_path {
+            app_config_builder = app_config_builder
+                .load_from_path(config_path)
+                .map_err(|err| PyRuntimeError::new_err(format!("Invalid config file: {err}")))?;
+        }
         if let Some(log_level) = log_level {
             app_config_builder = app_config_builder.with_log_level(log_level);
         }
@@ -216,12 +221,7 @@ impl PyGraphServer {
         }
         let app_config = Some(app_config_builder.build());
 
-        let server = block_on(GraphServer::new(
-            work_dir,
-            app_config,
-            config_path,
-            Config::default(),
-        ))?;
+        let server = block_on(GraphServer::new(work_dir, app_config, Config::default()))?;
         let server = apply_server_extension(server, permissions_store_path.as_deref());
         Ok(PyGraphServer(server))
     }

@@ -1,12 +1,12 @@
-use clap::ValueEnum;
+use clap::{Args, ValueEnum};
 use opentelemetry::KeyValue;
-use opentelemetry_otlp::{SpanExporter, WithExportConfig};
+use opentelemetry_otlp::{Protocol, SpanExporter, WithExportConfig, WithHttpConfig};
 use opentelemetry_sdk::{
     trace::{Sampler, SdkTracerProvider},
     Resource,
 };
 use serde::Deserialize;
-use std::time::Duration;
+use std::{collections::HashMap, env, time::Duration};
 use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter, EnumString, IntoStaticStr};
 
@@ -51,6 +51,35 @@ impl TracingLevel {
     }
 }
 
+#[derive(
+    Clone,
+    Debug,
+    Deserialize,
+    PartialEq,
+    serde::Serialize,
+    EnumIter,
+    EnumString,
+    Display,
+    ValueEnum,
+    IntoStaticStr,
+)]
+#[clap(rename_all = "UPPERCASE")]
+#[serde(try_from = "String")]
+#[serde(into = "&str")]
+#[strum(ascii_case_insensitive)]
+pub enum TracingProtocol {
+    TONIC,
+    HTTP,
+}
+
+impl TryFrom<String> for TracingProtocol {
+    type Error = strum::ParseError;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Self::try_from(value.as_str())
+    }
+}
+
 pub const ESSENTIAL_TRACE_SPANS: [&str; 10] = [
     "addEdge",
     "addEdges",
@@ -66,6 +95,8 @@ pub const ESSENTIAL_TRACE_SPANS: [&str; 10] = [
 
 pub const DEFAULT_TRACING_LEVEL: TracingLevel = TracingLevel::COMPLETE;
 
+pub const DEFAULT_OTLP_TRANSPORT_PROTOCOL: TracingProtocol = TracingProtocol::TONIC;
+
 pub const DEFAULT_OTLP_AGENT_HOST: &'static str = "http://localhost";
 pub const DEFAULT_OTLP_AGENT_PORT: &'static str = "4317";
 pub const DEFAULT_OTLP_TRACING_SERVICE_NAME: &'static str = "Raphtory";
@@ -77,6 +108,9 @@ pub struct TracingConfig {
     pub otlp_agent_host: String,
     pub otlp_agent_port: String,
     pub otlp_tracing_service_name: String,
+    pub otlp_transport_protocol: TracingProtocol,
+    /// Headers to use when transport_protocol is set to HTTP
+    pub otlp_transport_headers: HashMap<String, String>,
 }
 
 impl Default for TracingConfig {
@@ -87,6 +121,8 @@ impl Default for TracingConfig {
             otlp_agent_host: DEFAULT_OTLP_AGENT_HOST.to_owned(),
             otlp_agent_port: DEFAULT_OTLP_AGENT_PORT.to_owned(),
             otlp_tracing_service_name: DEFAULT_OTLP_TRACING_SERVICE_NAME.to_owned(),
+            otlp_transport_protocol: DEFAULT_OTLP_TRANSPORT_PROTOCOL,
+            otlp_transport_headers: Default::default(),
         }
     }
 }
@@ -105,16 +141,30 @@ impl TracingConfig {
                 ));
             }
 
-            match SpanExporter::builder()
-                .with_tonic()
-                .with_endpoint(format!(
-                    "{}:{}",
-                    self.otlp_agent_host.clone(),
-                    self.otlp_agent_port.clone()
-                ))
-                .with_timeout(Duration::from_secs(3))
-                .build()
-            {
+            let exporter = match self.otlp_transport_protocol {
+                TracingProtocol::TONIC => SpanExporter::builder()
+                    .with_tonic()
+                    .with_endpoint(format!(
+                        "{}:{}",
+                        self.otlp_agent_host.clone(),
+                        self.otlp_agent_port.clone()
+                    ))
+                    .with_timeout(Duration::from_secs(3))
+                    .build(),
+                TracingProtocol::HTTP => SpanExporter::builder()
+                    .with_http()
+                    .with_protocol(Protocol::HttpBinary)
+                    .with_headers(self.otlp_transport_headers.clone())
+                    .with_endpoint(format!(
+                        "{}:{}",
+                        self.otlp_agent_host.clone(),
+                        self.otlp_agent_port.clone()
+                    ))
+                    .with_timeout(Duration::from_secs(3))
+                    .build(),
+            };
+
+            match exporter {
                 Ok(exporter) => {
                     let tracer_provider = SdkTracerProvider::builder()
                         .with_batch_exporter(exporter)
@@ -128,7 +178,7 @@ impl TracingConfig {
                                 .build(),
                         )
                         .build();
-                    println!(
+                    eprintln!(
                         // info!() here does not work since tracing is not enabled yet
                         "Sending traces to {}:{} with tracing level: `{}`",
                         self.otlp_agent_host.clone(),
@@ -138,7 +188,7 @@ impl TracingConfig {
                     Ok(Some(tracer_provider))
                 }
                 Err(e) => {
-                    println!("{}", e.to_string()); // error!() here does not work since tracing is not enabled yet
+                    eprintln!("{}", e.to_string()); // error!() here does not work since tracing is not enabled yet
                     Ok(None)
                 }
             }
