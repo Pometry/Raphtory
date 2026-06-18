@@ -84,10 +84,6 @@ impl<'a, 'b: 'a> NodeStorageOps<'a> for &'a NodeStorageEntry<'b> {
         self.as_ref().degree(layers, dir)
     }
 
-    fn additions(self) -> storage::NodePropAdditions<'a> {
-        self.as_ref().additions()
-    }
-
     fn edges_iter(
         self,
         layers: &LayerIds,
@@ -143,8 +139,11 @@ impl<'a, 'b: 'a> NodeStorageOps<'a> for &'a NodeStorageEntry<'b> {
         self.as_ref().num_layers()
     }
 
-    fn node_additions<L: Into<LayerIter<'a>>>(self, layer_id: L) -> storage::NodePropAdditions<'a> {
-        self.as_ref().node_additions(layer_id)
+    fn node_prop_additions<L: Into<LayerIter<'a>>>(
+        self,
+        layer_id: L,
+    ) -> storage::NodePropAdditions<'a> {
+        self.as_ref().node_prop_additions(layer_id)
     }
 
     fn node_edge_additions<L: Into<LayerIter<'a>>>(

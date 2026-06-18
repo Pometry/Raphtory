@@ -321,8 +321,12 @@ impl<'graph, G: GraphViewOps<'graph>> GraphTimeSemanticsOps for WindowedGraph<G>
         if self.window_is_empty() {
             return None;
         }
-        self.graph
-            .earliest_time_window(self.start_bound(), self.end_bound())
+        if self.window_is_bounding() {
+            self.graph
+                .earliest_time_window(self.start_bound(), self.end_bound())
+        } else {
+            self.graph.earliest_time_global()
+        }
     }
 
     #[inline]
@@ -330,8 +334,12 @@ impl<'graph, G: GraphViewOps<'graph>> GraphTimeSemanticsOps for WindowedGraph<G>
         if self.window_is_empty() {
             return None;
         }
-        self.graph
-            .latest_time_window(self.start_bound(), self.end_bound())
+        if self.window_is_bounding() {
+            self.graph
+                .latest_time_window(self.start_bound(), self.end_bound())
+        } else {
+            self.graph.latest_time_global()
+        }
     }
 
     #[inline]

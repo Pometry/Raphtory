@@ -3644,6 +3644,28 @@ fn materialize_window_proptest() {
 }
 
 #[test]
+fn test_window_layers() {
+    let g = Graph::new();
+    g.add_node(2, 0, NO_PROPS, None, None).unwrap();
+    g.add_edge(0, 1, 0, NO_PROPS, Some("a")).unwrap();
+
+    let gw = g.window(1, 3);
+    assert_graph_equal(&gw, &gw.materialize().unwrap())
+}
+
+#[test]
+fn test_node_on_layer() {
+    let g = Graph::new();
+    g.add_node(0, 0, NO_PROPS, None, Some("a")).unwrap();
+    let gw = g.window(-1, 1);
+    assert_eq!(g.earliest_time().unwrap(), 0);
+    assert_eq!(gw.earliest_time().unwrap(), 0);
+    assert_eq!(gw.latest_time().unwrap(), 0);
+    assert_eq!(gw.node(0).unwrap().earliest_time().unwrap(), 0);
+    assert_eq!(gw.node(0).unwrap().latest_time().unwrap(), 0);
+}
+
+#[test]
 fn materialize_temporal_properties_one_edge() {
     let g = Graph::new();
     g.add_edge(
