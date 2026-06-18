@@ -1,8 +1,8 @@
 use crate::{
     EdgeAdditions, EdgeDeletions, EdgeTProps, LocalPOS,
     api::edges::{EdgeEntryOps, EdgeRefOps},
-    generic_time_ops::{AdditionCellsRef, DeletionCellsRef, WithTimeCells},
     generic_t_props::WithTProps,
+    generic_time_ops::{AdditionCellsRef, DeletionCellsRef, WithTimeCells},
     segments::{additions::MemAdditions, edge::segment::MemEdgeSegment},
 };
 use raphtory_api::core::entities::{LayerId, edges::edge_ref::Dir, properties::prop::Prop};

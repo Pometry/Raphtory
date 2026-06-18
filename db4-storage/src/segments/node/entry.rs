@@ -1,8 +1,8 @@
 use crate::{
     LocalPOS, NodeEdgeAdditions, NodePropAdditions, NodeTProps,
     api::nodes::{NodeEntryOps, NodeRefOps},
-    generic_time_ops::{EdgeAdditionCellsRef, LayerIter, PropAdditionCellsRef, WithTimeCells},
     generic_t_props::WithTProps,
+    generic_time_ops::{EdgeAdditionCellsRef, LayerIter, PropAdditionCellsRef, WithTimeCells},
     segments::{additions::MemAdditions, node::segment::MemNodeSegment},
 };
 use itertools::Itertools;
