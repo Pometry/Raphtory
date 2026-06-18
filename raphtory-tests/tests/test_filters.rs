@@ -5729,6 +5729,26 @@ mod composite_node_filter_tests {
     }
 }
 
+// Chain order convention for quantifier filters:
+//
+// Always place the comparison (.eq/.gt/etc.) BEFORE quantifiers.
+// Quantifiers after the comparison are applied innermost→outermost (left to right).
+//
+//   .property("p").eq(x).any().all()
+//                         ↑     ↑
+//                      ∃ elem  ∀ timestamp   →  ∀t ∃e: e == x
+//
+// For temporal + nested list (n levels deep):
+//   .temporal().gt(x).any().all().all()
+//                      ↑     ↑     ↑
+//                   ∃ leaf  ∀ d2  ∀ d1/timestamp
+//
+// This is the OPPOSITE of the old broken convention (.all().eq(x).any())
+// where quantifiers before the comparison received raw typed values and
+// checked `elem == Bool(true)`, always returning false for non-Bool types.
+//
+// temporal() semantics: iterates only timestamps where the property IS defined.
+// A node with the property absent at some timestamps is unaffected by those gaps.
 mod test_node_property_filter_agg {
     use crate::IdentityGraphTransformer;
     use raphtory::{
@@ -9172,8 +9192,8 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_f32s")
             .temporal()
-            .any()
             .eq(Prop::F32(3.5))
+            .any()
             .any();
         let expected = vec!["n1", "n10", "n3", "n4"];
         apply_assertion(filter, &expected);
@@ -9181,8 +9201,8 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_f32s")
             .temporal()
-            .any()
             .eq(Prop::F32(30.0))
+            .any()
             .any();
         let expected = vec!["n4"];
         apply_assertion(filter, &expected);
@@ -9194,9 +9214,9 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_bools")
             .temporal()
-            .any()
             .eq(false)
-            .all();
+            .all()
+            .any();
         let expected = vec!["n2", "n4"];
         apply_assertion(filter, &expected);
     }
@@ -9205,11 +9225,11 @@ mod test_node_property_filter_agg {
     fn test_node_nested_list_property_all_all_all_any() {
         let filter = NodeFilter
             .property("nested_list")
-            .all()
-            .all()
-            .all()
+            .gt(45.0)
             .any()
-            .gt(45.0);
+            .all()
+            .all()
+            .all();
 
         let expected = vec!["n1", "n3"];
         apply_assertion(filter, &expected);
@@ -9220,14 +9240,14 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("nested_list")
             .temporal()
-            .all()
-            .all()
-            .all()
-            .all()
             .gt(45.0)
-            .any();
+            .any()
+            .all()
+            .all()
+            .all()
+            .all();
 
-        let expected = vec!["n3"];
+        let expected = vec!["n1", "n3"];
         apply_assertion(filter, &expected);
     }
 
@@ -9237,9 +9257,9 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_bools")
             .temporal()
-            .all()
             .eq(true)
-            .any();
+            .any()
+            .all();
         let expected = vec!["n1", "n10", "n3"];
         apply_assertion(filter, &expected);
     }
@@ -12036,8 +12056,8 @@ mod test_edge_property_filter {
             .window(2, 4)
             .property("p20")
             .temporal()
-            .any()
-            .eq("Gold_boat");
+            .eq("Gold_boat")
+            .any();
 
         let expected_any = vec!["2->3"];
         assert_filter_edges_results(
@@ -12059,8 +12079,8 @@ mod test_edge_property_filter {
             .window(2, 4)
             .property("p20")
             .temporal()
-            .all()
-            .eq("Gold_boat");
+            .eq("Gold_boat")
+            .all();
 
         let expected_all: Vec<&str> = vec![];
         assert_filter_edges_results(
@@ -12085,8 +12105,8 @@ mod test_edge_property_filter {
             .window(3, 6)
             .property("p10")
             .temporal()
-            .any()
-            .eq("Paper_airplane");
+            .eq("Paper_airplane")
+            .any();
 
         let filter2 = EdgeFilter
             .window(3, 6)

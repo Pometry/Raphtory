@@ -341,7 +341,7 @@ impl<'g> NodeOp for ListAwareCmpNodeOp<'g> {
         //         Some(Prop::List(PropArray::from(bools)))
         //     }
         // })
-        broadcast_binary(lv, rhs, |lv, rhs| {
+        broadcast_binary(lv, rhs, &|lv, rhs| {
             Some(Prop::Bool(Prop::binary_cmp(op, &lv?, &rhs?)))
         })
     }
@@ -371,7 +371,7 @@ impl<'g> NodeOp for ListAwareStringNodeOp<'g> {
         //         Some(Prop::List(PropArray::from(bools)))
         //     }
         // })
-        broadcast_binary(lv, rhs, |lv, rhs| {
+        broadcast_binary(lv, rhs, &|lv, rhs| {
             Some(Prop::Bool(Option::<Prop>::string_cmp(op, &lv, &rhs)))
         })
     }
@@ -390,7 +390,7 @@ pub fn broadcast_unary(v: Option<Prop>, op: impl Fn(Option<Prop>) -> Option<Prop
 pub fn broadcast_binary(
     l: Option<Prop>,
     r: Option<Prop>,
-    op: impl Fn(Option<Prop>, Option<Prop>) -> Option<Prop>,
+    op: &impl Fn(Option<Prop>, Option<Prop>) -> Option<Prop>,
 ) -> Option<Prop> {
     let l = l?;
     let r = r?;
@@ -411,13 +411,13 @@ pub fn broadcast_binary(
         }
         (Prop::List(l), r) => Some(Prop::List(
             l.iter_all()
-                .map(|(l)| op(l, Some(r.clone())))
+                .map(|l| broadcast_binary(l, Some(r.clone()), op))
                 .flatten()
                 .collect(),
         )),
         (l, Prop::List(r)) => Some(Prop::List(
             r.iter_all()
-                .map(|r| op(Some(l.clone()), r))
+                .map(|r| broadcast_binary(Some(l.clone()), r, op))
                 .flatten()
                 .collect(),
         )),
