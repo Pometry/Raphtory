@@ -271,10 +271,20 @@ impl_agg_entity_op!(MaxNodeOp, MaxEdgeOp, |vals| {
     })
 });
 impl_agg_entity_op!(FirstNodeOp, FirstEdgeOp, |vals| {
-    aggregate_values(vals, &|mut pi| pi.next())
+    // Pick the first temporal entry as-is (whether scalar or list).
+    // aggregate_values would recurse into list entries and pick the first
+    // *element* within each entry, which is wrong for list-typed properties.
+    match vals? {
+        Prop::List(x) => x.iter_all().find_map(|v| v),
+        _ => None,
+    }
 });
 impl_agg_entity_op!(LastNodeOp, LastEdgeOp, |vals| {
-    aggregate_values(vals, &|pi| pi.last())
+    // Pick the last temporal entry as-is (whether scalar or list).
+    match vals? {
+        Prop::List(x) => x.iter_all().filter_map(|v| v).last(),
+        _ => None,
+    }
 });
 impl_agg_entity_op!(LenNodeOp, LenEdgeOp, |vals| {
     aggregate_values(vals, &|pi| Some(pi.count().into_prop()))

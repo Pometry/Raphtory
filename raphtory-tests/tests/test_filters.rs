@@ -243,7 +243,7 @@ mod test_property_semantics {
 
         #[test]
         fn test_temporal_any_semantics() {
-            let filter = NodeFilter.property("p1").temporal().any().eq(1u64);
+            let filter = NodeFilter.property("p1").temporal().eq(1u64).any();
             let expected_results = vec!["N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8"];
             assert_filter_nodes_results(
                 init_graph,
@@ -263,7 +263,7 @@ mod test_property_semantics {
 
         #[test]
         fn test_temporal_any_semantics_for_event_ids() {
-            let filter = NodeFilter.property("p1").temporal().any().eq(1u64);
+            let filter = NodeFilter.property("p1").temporal().eq(1u64).any();
             let expected_results =
                 vec!["N1", "N16", "N17", "N2", "N3", "N4", "N5", "N6", "N7", "N8"];
             assert_filter_nodes_results(
@@ -779,7 +779,7 @@ mod test_property_semantics {
         #[test]
         fn test_temporal_any_semantics() {
             // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
-            let filter = EdgeFilter.property("p1").temporal().any().eq(1u64);
+            let filter = EdgeFilter.property("p1").temporal().eq(1u64).any();
             let expected_results = vec![
                 "N1->N2", "N2->N3", "N3->N4", "N4->N5", "N5->N6", "N6->N7", "N7->N8", "N8->N9",
             ];
@@ -802,7 +802,7 @@ mod test_property_semantics {
         #[test]
         fn test_temporal_any_semantics_for_event_ids() {
             // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
-            let filter = EdgeFilter.property("p1").temporal().any().lt(2u64);
+            let filter = EdgeFilter.property("p1").temporal().lt(2u64).any();
             let expected_results = vec![
                 "N1->N2", "N16->N15", "N17->N16", "N2->N3", "N3->N4", "N4->N5", "N5->N6", "N6->N7",
                 "N7->N8", "N8->N9",
@@ -3328,7 +3328,7 @@ mod test_node_property_filter {
             TestVariants::All,
         );
 
-        let filter = NodeFilter.property("p20").temporal().all().eq("Gold_ship");
+        let filter = NodeFilter.property("p20").temporal().eq("Gold_ship").all();
         let expected_results = vec!["1"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -3382,7 +3382,7 @@ mod test_node_property_filter {
             TestVariants::All,
         );
 
-        let filter = NodeFilter.property("p1").temporal().all().ne("Gold_ship");
+        let filter = NodeFilter.property("p1").temporal().ne("Gold_ship").all();
         let expected_results = vec!["1"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -3436,7 +3436,7 @@ mod test_node_property_filter {
             TestVariants::All,
         );
 
-        let filter = NodeFilter.property("p9").temporal().all().lt(10u64);
+        let filter = NodeFilter.property("p9").temporal().lt(10u64).all();
         let expected_results = vec!["1"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -3490,7 +3490,7 @@ mod test_node_property_filter {
             TestVariants::All,
         );
 
-        let filter = NodeFilter.property("p2").temporal().all().le(10u64);
+        let filter = NodeFilter.property("p2").temporal().le(10u64).all();
         let expected_results = vec!["3"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -3544,7 +3544,7 @@ mod test_node_property_filter {
             TestVariants::All,
         );
 
-        let filter = NodeFilter.property("p9").temporal().all().gt(1u64);
+        let filter = NodeFilter.property("p9").temporal().gt(1u64).all();
         let expected_results = vec!["1"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -3598,7 +3598,7 @@ mod test_node_property_filter {
             TestVariants::All,
         );
 
-        let filter = NodeFilter.property("p40").temporal().all().ge(5u64);
+        let filter = NodeFilter.property("p40").temporal().ge(5u64).all();
         let expected_results = vec!["1", "2"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -3678,8 +3678,8 @@ mod test_node_property_filter {
         let filter = NodeFilter
             .property("p2")
             .temporal()
-            .any()
-            .is_in(vec![Prop::U64(2)]);
+            .eq(Prop::U64(2))
+            .any();
         let expected_results = vec!["2"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -3736,8 +3736,8 @@ mod test_node_property_filter {
         let filter = NodeFilter
             .property("p2")
             .temporal()
-            .all()
-            .is_not_in(vec![Prop::U64(2)]);
+            .ne(Prop::U64(2))
+            .all();
         let expected_results = vec!["3"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -3851,8 +3851,8 @@ mod test_node_property_filter {
         let filter = NodeFilter
             .property("p10")
             .temporal()
-            .any()
-            .starts_with("Pap");
+            .starts_with("Pap")
+            .any();
         let expected_results: Vec<&str> = vec!["1", "2", "3"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -3935,8 +3935,8 @@ mod test_node_property_filter {
         let filter = NodeFilter
             .property("p20")
             .temporal()
-            .all()
-            .starts_with("Gold");
+            .starts_with("Gold")
+            .all();
         let expected_results: Vec<&str> = vec!["1", "2", "4"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -3976,8 +3976,8 @@ mod test_node_property_filter {
         let filter = NodeFilter
             .property("p10")
             .temporal()
-            .any()
-            .ends_with("ship");
+            .ends_with("ship")
+            .any();
         let expected_results: Vec<&str> = vec!["2"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -4060,8 +4060,8 @@ mod test_node_property_filter {
         let filter = NodeFilter
             .property("p20")
             .temporal()
-            .all()
-            .ends_with("ship");
+            .ends_with("ship")
+            .all();
         let expected_results: Vec<&str> = vec!["1"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -4101,8 +4101,8 @@ mod test_node_property_filter {
         let filter = NodeFilter
             .property("p10")
             .temporal()
-            .any()
-            .contains("Paper");
+            .contains("Paper")
+            .any();
         let expected_results: Vec<&str> = vec!["1", "2", "3"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -4161,7 +4161,7 @@ mod test_node_property_filter {
             TestVariants::All,
         );
 
-        let filter = NodeFilter.property("p30").temporal().all().contains("Gold");
+        let filter = NodeFilter.property("p30").temporal().contains("Gold").all();
         let expected_results: Vec<&str> = vec!["1"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -4201,8 +4201,8 @@ mod test_node_property_filter {
         let filter = NodeFilter
             .property("p10")
             .temporal()
-            .any()
-            .not_contains("ship");
+            .not_contains("ship")
+            .any();
         let expected_results: Vec<&str> = vec!["1", "3"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -4264,8 +4264,8 @@ mod test_node_property_filter {
         let filter = NodeFilter
             .property("p30")
             .temporal()
-            .all()
-            .not_contains("boat");
+            .not_contains("boat")
+            .all();
         let expected_results: Vec<&str> = vec!["1", "4"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -4545,8 +4545,8 @@ mod test_node_property_filter {
             .window(3, 5)
             .property("p20")
             .temporal()
-            .any()
-            .eq("Gold_boat");
+            .eq("Gold_boat")
+            .any();
 
         let expected_results = vec!["4"];
         assert_filter_nodes_results(
@@ -4568,8 +4568,8 @@ mod test_node_property_filter {
             .window(3, 5)
             .property("p20")
             .temporal()
-            .all()
-            .eq("Gold_boat");
+            .eq("Gold_boat")
+            .all();
 
         let expected_results = vec![];
         assert_filter_nodes_results(
@@ -4595,8 +4595,8 @@ mod test_node_property_filter {
             .window(1, 4)
             .property("p10")
             .temporal()
-            .any()
-            .eq("Paper_airplane");
+            .eq("Paper_airplane")
+            .any();
 
         // Filters only node 3
         let filter2 = NodeFilter
@@ -9082,7 +9082,7 @@ mod test_node_property_filter_agg {
     // ------ Property: any ------
     #[test]
     fn test_node_property_any() {
-        let filter = NodeFilter.property("p_u8s").any().eq(Prop::U8(3));
+        let filter = NodeFilter.property("p_u8s").eq(Prop::U8(3)).any();
         let expected = vec!["n1", "n10", "n3"];
         apply_assertion(filter, &expected);
     }
@@ -9101,7 +9101,7 @@ mod test_node_property_filter_agg {
     // ------ Metadata: any ------
     #[test]
     fn test_node_metadata_any() {
-        let filter = NodeFilter.metadata("p_u64s").any().eq(Prop::U64(1));
+        let filter = NodeFilter.metadata("p_u64s").eq(Prop::U64(1)).any();
         let expected = vec!["n10", "n7"];
         apply_assertion(filter, &expected);
     }
@@ -9109,7 +9109,7 @@ mod test_node_property_filter_agg {
     // ------ Metadata: all ------
     #[test]
     fn test_node_metadata_all() {
-        let filter = NodeFilter.metadata("p_strs").all().eq("a");
+        let filter = NodeFilter.metadata("p_strs").eq("a").all();
         let expected = vec!["n6", "n7"];
         apply_assertion(filter, &expected);
     }
@@ -9121,8 +9121,8 @@ mod test_node_property_filter_agg {
             .property("p_bools")
             .temporal()
             .first()
-            .any()
-            .eq(false);
+            .eq(false)
+            .any();
         let expected = vec!["n1", "n10", "n2", "n3", "n4"];
         apply_assertion(filter, &expected);
     }
@@ -9134,8 +9134,8 @@ mod test_node_property_filter_agg {
             .property("p_bools_all")
             .temporal()
             .first()
-            .all()
-            .eq(true);
+            .eq(true)
+            .all();
         let expected = vec!["n10", "n4"];
         apply_assertion(filter, &expected);
     }
@@ -9147,8 +9147,8 @@ mod test_node_property_filter_agg {
             .property("p_f32s")
             .temporal()
             .last()
-            .any()
-            .eq(Prop::F32(3.5));
+            .eq(Prop::F32(3.5))
+            .any();
         let expected = vec!["n1", "n10", "n3"];
         apply_assertion(filter, &expected);
     }
@@ -9160,8 +9160,8 @@ mod test_node_property_filter_agg {
             .property("p_bools_all")
             .temporal()
             .last()
-            .all()
-            .eq(true);
+            .eq(true)
+            .all();
         let expected = vec!["n10", "n4"];
         apply_assertion(filter, &expected);
     }
@@ -9173,8 +9173,8 @@ mod test_node_property_filter_agg {
             .property("p_f32s")
             .temporal()
             .any()
-            .any()
-            .eq(Prop::F32(3.5));
+            .eq(Prop::F32(3.5))
+            .any();
         let expected = vec!["n1", "n10", "n3", "n4"];
         apply_assertion(filter, &expected);
 
@@ -9182,8 +9182,8 @@ mod test_node_property_filter_agg {
             .property("p_f32s")
             .temporal()
             .any()
-            .any()
-            .eq(Prop::F32(30.0));
+            .eq(Prop::F32(30.0))
+            .any();
         let expected = vec!["n4"];
         apply_assertion(filter, &expected);
     }
@@ -9195,8 +9195,8 @@ mod test_node_property_filter_agg {
             .property("p_bools")
             .temporal()
             .any()
-            .all()
-            .eq(false);
+            .eq(false)
+            .all();
         let expected = vec!["n2", "n4"];
         apply_assertion(filter, &expected);
     }
@@ -9224,8 +9224,8 @@ mod test_node_property_filter_agg {
             .all()
             .all()
             .all()
-            .any()
-            .gt(45.0);
+            .gt(45.0)
+            .any();
 
         let expected = vec!["n3"];
         apply_assertion(filter, &expected);
@@ -9238,8 +9238,8 @@ mod test_node_property_filter_agg {
             .property("p_bools")
             .temporal()
             .all()
-            .any()
-            .eq(true);
+            .eq(true)
+            .any();
         let expected = vec!["n1", "n10", "n3"];
         apply_assertion(filter, &expected);
     }
@@ -9251,8 +9251,8 @@ mod test_node_property_filter_agg {
             .property("p_bools_all")
             .temporal()
             .all()
-            .all()
-            .eq(true);
+            .eq(true)
+            .all();
         let expected = vec!["n4", "n10"];
         apply_assertion(filter, &expected);
     }
@@ -10790,7 +10790,7 @@ mod test_edge_property_filter {
             TestVariants::All,
         );
 
-        let filter = EdgeFilter.property("p20").temporal().all().eq("Gold_ship");
+        let filter = EdgeFilter.property("p20").temporal().eq("Gold_ship").all();
         let expected_results = vec!["1->2"];
         assert_filter_edges_results(
             init_edges_graph,
@@ -10851,7 +10851,7 @@ mod test_edge_property_filter {
             TestVariants::All,
         );
 
-        let filter = EdgeFilter.property("p30").temporal().all().ne("Classic");
+        let filter = EdgeFilter.property("p30").temporal().ne("Classic").all();
         let expected_results = vec!["1->2", "2->3"];
         assert_filter_edges_results(
             init_edges_graph,
@@ -10913,7 +10913,7 @@ mod test_edge_property_filter {
             TestVariants::All,
         );
 
-        let filter = EdgeFilter.property("p2").temporal().all().lt(10u64);
+        let filter = EdgeFilter.property("p2").temporal().lt(10u64).all();
         let expected_results = vec![
             "1->2",
             "2->1",
@@ -10982,7 +10982,7 @@ mod test_edge_property_filter {
             TestVariants::All,
         );
 
-        let filter = EdgeFilter.property("p2").temporal().all().le(5u64);
+        let filter = EdgeFilter.property("p2").temporal().le(5u64).all();
         let expected_results = vec!["1->2", "2->3"];
         assert_filter_edges_results(
             init_edges_graph,
@@ -11048,7 +11048,7 @@ mod test_edge_property_filter {
             TestVariants::All,
         );
 
-        let filter = EdgeFilter.property("p2").temporal().all().gt(5u64);
+        let filter = EdgeFilter.property("p2").temporal().gt(5u64).all();
         let expected_results = vec![
             "2->1",
             "3->1",
@@ -11120,7 +11120,7 @@ mod test_edge_property_filter {
             TestVariants::All,
         );
 
-        let filter = EdgeFilter.property("p2").temporal().all().ge(6u64);
+        let filter = EdgeFilter.property("p2").temporal().ge(6u64).all();
         let expected_results = vec![
             "2->1",
             "3->1",
@@ -11734,7 +11734,7 @@ mod test_edge_property_filter {
             TestVariants::All,
         );
 
-        let filter = EdgeFilter.property("p20").temporal().all().contains("ship");
+        let filter = EdgeFilter.property("p20").temporal().contains("ship").all();
         let expected_results: Vec<&str> = vec!["1->2"];
         assert_filter_edges_results(
             init_edges_graph,
