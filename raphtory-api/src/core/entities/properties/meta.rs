@@ -13,7 +13,7 @@ use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::{
-    fmt::{Debug, Formatter, Write},
+    fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
     sync::{
         atomic::{self, AtomicUsize},

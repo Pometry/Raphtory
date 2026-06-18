@@ -21,9 +21,9 @@ impl GraphWalOps for NoWal {
         _dst_name: Option<GidRef<'_>>,
         _dst_id: VID,
         _eid: EID,
+        _props: Vec<(&str, usize, Prop)>,
         _layer_name: Option<&str>,
         _layer_id: LayerId,
-        _props: Vec<(&str, usize, Prop)>,
     ) -> Result<LSN, StorageError> {
         Ok(0)
     }

@@ -81,9 +81,9 @@ pub trait GraphWalOps {
         dst_name: Option<GidRef<'_>>,
         dst_id: VID,
         eid: EID,
+        props: Vec<(&str, usize, Prop)>,
         layer_name: Option<&str>,
         layer_id: LayerId,
-        props: Vec<(&str, usize, Prop)>,
     ) -> Result<LSN, StorageError>;
 
     fn log_add_edge_metadata(
@@ -183,9 +183,9 @@ pub trait GraphReplay {
         dst_name: Option<GID>,
         dst_id: VID,
         eid: EID,
+        props: Vec<(String, usize, Prop)>,
         layer_name: Option<String>,
         layer_id: LayerId,
-        props: Vec<(String, usize, Prop)>,
     ) -> Result<(), StorageError>;
 
     fn replay_add_edge_metadata(
@@ -220,6 +220,8 @@ pub trait GraphReplay {
         node_id: VID,
         node_type_and_id: Option<(String, usize)>,
         props: Vec<(String, usize, Prop)>,
+        layer_name: Option<String>,
+        layer_id: LayerId,
     ) -> Result<(), StorageError>;
 
     fn replay_add_node_metadata(

@@ -265,9 +265,9 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
             dst_gid,
             dst_id,
             edge_id,
+            props_for_wal,
             layer,
             layer_id,
-            props_for_wal,
         )?;
 
         let props = props_with_status

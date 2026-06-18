@@ -377,8 +377,8 @@ impl<
         let wal = self.ext.wal();
         let control_file = self.ext.control_file();
 
-        // If the DB is dropped in the middle of crash recovery, skip the shutdown flush.
-        if control_file.db_state() == DBState::CrashRecovery {
+        // Run a clean shutdown only if the DB is still Running.
+        if control_file.db_state() != DBState::Running {
             return;
         }
 
