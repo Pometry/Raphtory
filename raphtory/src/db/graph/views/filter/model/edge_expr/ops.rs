@@ -214,8 +214,8 @@ impl<'g> EdgeOp for PropValueSetEdgeOp<'g> {
         match self.inner.apply(storage, edge) {
             None => false,
             Some(v) => match self.op {
-                SetOp::IsIn => self.values.iter().any(|x| x == &v),
-                SetOp::IsNotIn => self.values.iter().all(|x| x != &v),
+                SetOp::IsIn => self.values.iter().any(|x| Prop::binary_cmp(&BinaryOp::Eq, x, &v)),
+                SetOp::IsNotIn => self.values.iter().all(|x| Prop::binary_cmp(&BinaryOp::Ne, x, &v)),
             },
         }
     }
@@ -330,8 +330,8 @@ impl<'g> EdgeOp for ListAwareSetEdgeOp<'g> {
             let bools: Vec<Prop> = pi
                 .map(|v| {
                     Prop::Bool(match op {
-                        SetOp::IsIn => values.iter().any(|x| x == &v),
-                        SetOp::IsNotIn => values.iter().all(|x| x != &v),
+                        SetOp::IsIn => values.iter().any(|x| Prop::binary_cmp(&BinaryOp::Eq, x, &v)),
+                        SetOp::IsNotIn => values.iter().all(|x| Prop::binary_cmp(&BinaryOp::Ne, x, &v)),
                     })
                 })
                 .collect();

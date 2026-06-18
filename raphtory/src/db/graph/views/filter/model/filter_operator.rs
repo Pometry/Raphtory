@@ -54,18 +54,18 @@ impl_comparable_str!(&'static str);
 impl Comparable for Prop {
     fn binary_cmp(op: &BinaryOp, left: &Prop, right: &Prop) -> bool {
         use std::cmp::Ordering::*;
+
+        // Try casting right to left's type for cross-type numeric comparisons
+        // (e.g. Prop::I32(1) vs Prop::U64(1), or Prop::F64(3.0) vs Prop::U64(3)).
+        let right_casted = right.clone().try_cast(left.dtype());
+        let right = right_casted.as_ref().unwrap_or(right);
+
         match op {
             BinaryOp::Eq => left == right,
             BinaryOp::Ne => left != right,
             BinaryOp::Lt => left.partial_cmp(right).map(|o| o == Less).unwrap_or(false),
-            BinaryOp::Le => left
-                .partial_cmp(right)
-                .map(|o| o != Greater)
-                .unwrap_or(false),
-            BinaryOp::Gt => left
-                .partial_cmp(right)
-                .map(|o| o == Greater)
-                .unwrap_or(false),
+            BinaryOp::Le => left.partial_cmp(right).map(|o| o != Greater).unwrap_or(false),
+            BinaryOp::Gt => left.partial_cmp(right).map(|o| o == Greater).unwrap_or(false),
             BinaryOp::Ge => left.partial_cmp(right).map(|o| o != Less).unwrap_or(false),
         }
     }

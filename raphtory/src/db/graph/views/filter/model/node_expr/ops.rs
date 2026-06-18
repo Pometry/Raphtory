@@ -457,8 +457,8 @@ impl<'g> NodeOp for ListAwareSetNodeOp<'g> {
         broadcast_unary(vals, |v| {
             let v = v?;
             Some(Prop::Bool(match op {
-                SetOp::IsIn => values.iter().any(|x| x == &v),
-                SetOp::IsNotIn => values.iter().all(|x| x != &v),
+                SetOp::IsIn => values.iter().any(|x| Prop::binary_cmp(&BinaryOp::Eq, x, &v)),
+                SetOp::IsNotIn => values.iter().all(|x| Prop::binary_cmp(&BinaryOp::Ne, x, &v)),
             }))
         })
     }
@@ -582,8 +582,8 @@ impl<'g> NodeOp for PropValueSetNodeOp<'g> {
         match self.inner.apply(storage, node) {
             None => false,
             Some(v) => match self.op {
-                SetOp::IsIn => self.values.iter().any(|x| x == &v),
-                SetOp::IsNotIn => self.values.iter().all(|x| x != &v),
+                SetOp::IsIn => self.values.iter().any(|x| Prop::binary_cmp(&BinaryOp::Eq, x, &v)),
+                SetOp::IsNotIn => self.values.iter().all(|x| Prop::binary_cmp(&BinaryOp::Ne, x, &v)),
             },
         }
     }
