@@ -615,13 +615,15 @@ fn test_edge_property_is_false() {
 #[test]
 fn test_edge_quantified_any_sum_gt() {
     let g = Graph::new();
-    g.add_edge(1, "A", "B", [("score", Prop::I64(3))], None).unwrap();
-    g.add_edge(2, "A", "B", [("score", Prop::I64(8))], None).unwrap();
-    g.add_edge(1, "C", "D", [("score", Prop::I64(1))], None).unwrap();
-    g.add_edge(2, "C", "D", [("score", Prop::I64(4))], None).unwrap();
+    // A->B: t=1 has a list whose sum = 11 (> 5); t=2 has a list whose sum = 3
+    g.add_edge(1, "A", "B", [("score", Prop::List(vec![Prop::I64(3), Prop::I64(8)].into()))], None).unwrap();
+    g.add_edge(2, "A", "B", [("score", Prop::List(vec![Prop::I64(1), Prop::I64(2)].into()))], None).unwrap();
+    // C->D: t=1 sum = 3, t=2 sum = 5 (neither > 5)
+    g.add_edge(1, "C", "D", [("score", Prop::List(vec![Prop::I64(1), Prop::I64(2)].into()))], None).unwrap();
+    g.add_edge(2, "C", "D", [("score", Prop::List(vec![Prop::I64(1), Prop::I64(4)].into()))], None).unwrap();
 
-    // A->B has 8 > 5, C->D has no value > 5
-    let filter = EdgeFilter.property("score").temporal().any().sum().gt(5i64);
+    // any temporal snapshot where sum of list > 5
+    let filter = EdgeFilter.property("score").temporal().sum().gt(5i64).any();
     let result = g.filter(filter).unwrap();
     assert_eq!(sorted_edges(result), vec!["A->B"]);
 }
@@ -629,21 +631,31 @@ fn test_edge_quantified_any_sum_gt() {
 #[test]
 fn test_edge_quantified_all_min_ge() {
     let g = Graph::new();
-    g.add_edge(1, "A", "B", [("score", Prop::I64(3))], None).unwrap();
-    g.add_edge(2, "A", "B", [("score", Prop::I64(8))], None).unwrap();
-    g.add_edge(1, "C", "D", [("score", Prop::I64(1))], None).unwrap();
-    g.add_edge(2, "C", "D", [("score", Prop::I64(9))], None).unwrap();
+    // A->B: t=1 min = 3, t=2 min = 5 (all ≥ 3)
+    g.add_edge(1, "A", "B", [("score", Prop::List(vec![Prop::I64(3), Prop::I64(8)].into()))], None).unwrap();
+    g.add_edge(2, "A", "B", [("score", Prop::List(vec![Prop::I64(5), Prop::I64(9)].into()))], None).unwrap();
+    // C->D: t=1 min = 1 (< 3), so not all snapshots pass
+    g.add_edge(1, "C", "D", [("score", Prop::List(vec![Prop::I64(1), Prop::I64(9)].into()))], None).unwrap();
+    g.add_edge(2, "C", "D", [("score", Prop::List(vec![Prop::I64(3), Prop::I64(5)].into()))], None).unwrap();
 
-    // A->B: all values >= 3 → passes; C->D: 1 < 3 → fails
-    let filter = EdgeFilter.property("score").temporal().all().min().ge(3i64);
+    // all temporal snapshots where min of list >= 3
+    let filter = EdgeFilter.property("score").temporal().min().ge(3i64).all();
     let result = g.filter(filter).unwrap();
     assert_eq!(sorted_edges(result), vec!["A->B"]);
 }
 
 #[test]
 fn test_edge_quantified_any_any_contains() {
-    let g = genre_graph();
-    let filter = EdgeFilter.property("tag").temporal().any().any().contains("rock");
+    let g = Graph::new();
+    // A->B: t=1 list has "rock" (any element contains "rock")
+    g.add_edge(1, "A", "B", [("tag", Prop::List(vec![Prop::str("rock"), Prop::str("metal")].into()))], None).unwrap();
+    g.add_edge(2, "A", "B", [("tag", Prop::List(vec![Prop::str("jazz"), Prop::str("blues")].into()))], None).unwrap();
+    // C->D: no list has any element containing "rock"
+    g.add_edge(1, "C", "D", [("tag", Prop::List(vec![Prop::str("jazz"), Prop::str("blues")].into()))], None).unwrap();
+    g.add_edge(2, "C", "D", [("tag", Prop::List(vec![Prop::str("folk"), Prop::str("pop")].into()))], None).unwrap();
+
+    // any temporal snapshot where any list element contains "rock"
+    let filter = EdgeFilter.property("tag").temporal().contains("rock").any().any();
     let result = g.filter(filter).unwrap();
     assert_eq!(sorted_edges(result), vec!["A->B"]);
 }
@@ -651,17 +663,19 @@ fn test_edge_quantified_any_any_contains() {
 #[test]
 fn test_edge_quantified_any_last_is_in() {
     let g = Graph::new();
-    g.add_edge(1, "A", "B", [("tag", Prop::str("rock"))], None).unwrap();
-    g.add_edge(2, "A", "B", [("tag", Prop::str("metal"))], None).unwrap();
-    g.add_edge(1, "C", "D", [("tag", Prop::str("jazz"))], None).unwrap();
+    // A->B: last snapshot (t=2) has "metal" as an element
+    g.add_edge(1, "A", "B", [("tag", Prop::List(vec![Prop::str("rock"), Prop::str("folk")].into()))], None).unwrap();
+    g.add_edge(2, "A", "B", [("tag", Prop::List(vec![Prop::str("pop"), Prop::str("metal")].into()))], None).unwrap();
+    // C->D: last (and only) snapshot has no element in {"metal"}
+    g.add_edge(1, "C", "D", [("tag", Prop::List(vec![Prop::str("jazz"), Prop::str("blues")].into()))], None).unwrap();
 
-    // A->B: values ["rock", "metal"] → any in {"metal"} → true; C->D: ["jazz"] → false
+    // last temporal snapshot's list — any element is in {"metal"}
     let filter = EdgeFilter
         .property("tag")
         .temporal()
-        .any()
         .last()
-        .is_in([Prop::str("metal")]);
+        .is_in([Prop::str("metal")])
+        .any();
     let result = g.filter(filter).unwrap();
     assert_eq!(sorted_edges(result), vec!["A->B"]);
 }
