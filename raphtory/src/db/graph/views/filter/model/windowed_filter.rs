@@ -100,14 +100,14 @@ impl<T: TryAsCompositeFilter> TryAsCompositeFilter for Windowed<T> {
 
 impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for Windowed<T> {
     type EntityFiltered<'graph, G>
-        = T::EntityFiltered<'graph, G>
+        = T::EntityFiltered<'graph, WindowedGraph<G>>
     where
-        G: GraphViewOps<'graph>;
+        G: GraphViewOps<'graph> + TimeOps<'graph, WindowedViewType = WindowedGraph<G>>;
 
     type NodeFilter<'graph, G>
-        = T::NodeFilter<'graph, G>
+        = T::NodeFilter<'graph, WindowedGraph<G>>
     where
-        G: GraphView + 'graph;
+        G: GraphView + TimeOps<'graph, WindowedViewType = WindowedGraph<G>> + 'graph;
 
     type FilteredGraph<'graph, G>
         = G
@@ -120,9 +120,9 @@ impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for Windowed<
         graph: G,
     ) -> Result<Self::EntityFiltered<'graph, G>, GraphError>
     where
-        G: GraphViewOps<'graph>,
+        G: GraphViewOps<'graph> + TimeOps<'graph, WindowedViewType = WindowedGraph<G>>,
     {
-        self.inner.create_filter(graph)
+        self.inner.create_filter(graph.window(self.start.t(), self.end.t()))
     }
 
     fn create_node_filter<'graph, G>(
@@ -130,9 +130,9 @@ impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for Windowed<
         graph: G,
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError>
     where
-        G: GraphView + 'graph,
+        G: GraphView + TimeOps<'graph, WindowedViewType = WindowedGraph<G>> + 'graph,
     {
-        self.inner.create_node_filter(graph)
+        self.inner.create_node_filter(graph.window(self.start.t(), self.end.t()))
     }
 }
 

@@ -1,23 +1,26 @@
 use crate::{
     db::{
         api::view::internal::GraphView,
-        graph::views::filter::{
-            model::{
-                edge_filter::CompositeEdgeFilter,
-                is_active_edge_filter::IsActiveEdge,
-                is_deleted_filter::IsDeletedEdge,
-                is_self_loop_filter::IsSelfLoopEdge,
-                is_valid_filter::IsValidEdge,
-                windowed_filter::Windowed,
-                CombinedFilter, ComposableFilter, CompositeExplodedEdgeFilter,
-                CompositeNodeFilter, CreateView, EdgeViewFilterOps, InternalViewWrapOps,
-                TryAsCompositeFilter, Wrap,
+        graph::views::{
+            filter::{
+                model::{
+                    edge_filter::CompositeEdgeFilter,
+                    is_active_edge_filter::IsActiveEdge,
+                    is_deleted_filter::IsDeletedEdge,
+                    is_self_loop_filter::IsSelfLoopEdge,
+                    is_valid_filter::IsValidEdge,
+                    windowed_filter::Windowed,
+                    CombinedFilter, ComposableFilter, CompositeExplodedEdgeFilter,
+                    CompositeNodeFilter, CreateView, EdgeViewFilterOps, InternalViewWrapOps,
+                    TryAsCompositeFilter, Wrap,
+                },
+                CreateFilter,
             },
-            CreateFilter,
+            window_graph::WindowedGraph,
         },
     },
     errors::GraphError,
-    prelude::GraphViewOps,
+    prelude::{GraphViewOps, TimeOps},
 };
 use raphtory_api::core::{storage::timeindex::EventTime, utils::time::IntoTime};
 use std::{fmt, fmt::Display};
@@ -81,14 +84,14 @@ impl<T: TryAsCompositeFilter> TryAsCompositeFilter for SnapshotAt<T> {
 
 impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for SnapshotAt<T> {
     type EntityFiltered<'graph, G>
-        = T::EntityFiltered<'graph, G>
+        = T::EntityFiltered<'graph, WindowedGraph<G>>
     where
-        G: GraphViewOps<'graph>;
+        G: GraphViewOps<'graph> + TimeOps<'graph, WindowedViewType = WindowedGraph<G>>;
 
     type NodeFilter<'graph, G>
-        = T::NodeFilter<'graph, G>
+        = T::NodeFilter<'graph, WindowedGraph<G>>
     where
-        G: GraphView + 'graph;
+        G: GraphView + TimeOps<'graph, WindowedViewType = WindowedGraph<G>> + 'graph;
 
     type FilteredGraph<'graph, G>
         = G
@@ -101,9 +104,9 @@ impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for SnapshotA
         graph: G,
     ) -> Result<Self::EntityFiltered<'graph, G>, GraphError>
     where
-        G: GraphViewOps<'graph>,
+        G: GraphViewOps<'graph> + TimeOps<'graph, WindowedViewType = WindowedGraph<G>>,
     {
-        self.inner.create_filter(graph)
+        self.inner.create_filter(graph.snapshot_at(self.time))
     }
 
     fn create_node_filter<'graph, G>(
@@ -111,22 +114,23 @@ impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for SnapshotA
         graph: G,
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError>
     where
-        G: GraphView + 'graph,
+        G: GraphView + TimeOps<'graph, WindowedViewType = WindowedGraph<G>> + 'graph,
     {
-        self.inner.create_node_filter(graph)
+        self.inner.create_node_filter(graph.snapshot_at(self.time))
     }
 }
 
 impl<T: ComposableFilter> ComposableFilter for SnapshotAt<T> {}
 
 impl<T: CreateView> CreateView for SnapshotAt<T> {
-    type View<'graph, G: GraphView + 'graph> = T::View<'graph, G>;
+    type View<'graph, G: GraphView + 'graph> = WindowedGraph<T::View<'graph, G>>;
 
     fn create_view<'graph, G: GraphView + 'graph>(
         &self,
         view: G,
     ) -> Result<Self::View<'graph, G>, GraphError> {
-        self.inner.create_view(view)
+        let inner = self.inner.create_view(view)?;
+        Ok(inner.snapshot_at(self.time))
     }
 }
 
@@ -210,14 +214,14 @@ impl<T: TryAsCompositeFilter> TryAsCompositeFilter for SnapshotLatest<T> {
 
 impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for SnapshotLatest<T> {
     type EntityFiltered<'graph, G>
-        = T::EntityFiltered<'graph, G>
+        = T::EntityFiltered<'graph, WindowedGraph<G>>
     where
-        G: GraphViewOps<'graph>;
+        G: GraphViewOps<'graph> + TimeOps<'graph, WindowedViewType = WindowedGraph<G>>;
 
     type NodeFilter<'graph, G>
-        = T::NodeFilter<'graph, G>
+        = T::NodeFilter<'graph, WindowedGraph<G>>
     where
-        G: GraphView + 'graph;
+        G: GraphView + TimeOps<'graph, WindowedViewType = WindowedGraph<G>> + 'graph;
 
     type FilteredGraph<'graph, G>
         = G
@@ -230,9 +234,9 @@ impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for SnapshotL
         graph: G,
     ) -> Result<Self::EntityFiltered<'graph, G>, GraphError>
     where
-        G: GraphViewOps<'graph>,
+        G: GraphViewOps<'graph> + TimeOps<'graph, WindowedViewType = WindowedGraph<G>>,
     {
-        self.inner.create_filter(graph)
+        self.inner.create_filter(graph.snapshot_latest())
     }
 
     fn create_node_filter<'graph, G>(
@@ -240,22 +244,23 @@ impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for SnapshotL
         graph: G,
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError>
     where
-        G: GraphView + 'graph,
+        G: GraphView + TimeOps<'graph, WindowedViewType = WindowedGraph<G>> + 'graph,
     {
-        self.inner.create_node_filter(graph)
+        self.inner.create_node_filter(graph.snapshot_latest())
     }
 }
 
 impl<T: ComposableFilter> ComposableFilter for SnapshotLatest<T> {}
 
 impl<T: CreateView> CreateView for SnapshotLatest<T> {
-    type View<'graph, G: GraphView + 'graph> = T::View<'graph, G>;
+    type View<'graph, G: GraphView + 'graph> = WindowedGraph<T::View<'graph, G>>;
 
     fn create_view<'graph, G: GraphView + 'graph>(
         &self,
         view: G,
     ) -> Result<Self::View<'graph, G>, GraphError> {
-        self.inner.create_view(view)
+        let inner = self.inner.create_view(view)?;
+        Ok(inner.snapshot_latest())
     }
 }
 

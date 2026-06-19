@@ -75,14 +75,14 @@ impl<T: TryAsCompositeFilter> TryAsCompositeFilter for Latest<T> {
 
 impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for Latest<T> {
     type EntityFiltered<'graph, G>
-        = T::EntityFiltered<'graph, G>
+        = T::EntityFiltered<'graph, WindowedGraph<G>>
     where
-        G: GraphViewOps<'graph> + TimeOps<'graph> + Clone;
+        G: GraphViewOps<'graph> + TimeOps<'graph, WindowedViewType = WindowedGraph<G>> + Clone;
 
     type NodeFilter<'graph, G>
-        = T::NodeFilter<'graph, G>
+        = T::NodeFilter<'graph, WindowedGraph<G>>
     where
-        G: GraphView + TimeOps<'graph> + Clone + 'graph;
+        G: GraphView + TimeOps<'graph, WindowedViewType = WindowedGraph<G>> + Clone + 'graph;
 
     type FilteredGraph<'graph, G>
         = G
@@ -97,7 +97,7 @@ impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for Latest<T>
     where
         G: GraphViewOps<'graph> + TimeOps<'graph, WindowedViewType = WindowedGraph<G>> + Clone,
     {
-        self.inner.create_filter(graph)
+        self.inner.create_filter(graph.latest())
     }
 
     fn create_node_filter<'graph, G>(
@@ -107,20 +107,21 @@ impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for Latest<T>
     where
         G: GraphView + TimeOps<'graph, WindowedViewType = WindowedGraph<G>> + Clone + 'graph,
     {
-        self.inner.create_node_filter(graph)
+        self.inner.create_node_filter(graph.latest())
     }
 }
 
 impl<T: ComposableFilter> ComposableFilter for Latest<T> {}
 
 impl<T: CreateView> CreateView for Latest<T> {
-    type View<'graph, G: GraphView + 'graph> = T::View<'graph, G>;
+    type View<'graph, G: GraphView + 'graph> = WindowedGraph<T::View<'graph, G>>;
 
     fn create_view<'graph, G: GraphView + 'graph>(
         &self,
         view: G,
     ) -> Result<Self::View<'graph, G>, GraphError> {
-        self.inner.create_view(view)
+        let inner = self.inner.create_view(view)?;
+        Ok(inner.latest())
     }
 }
 

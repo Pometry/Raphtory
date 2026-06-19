@@ -717,13 +717,14 @@ impl<T: EntityExpr> EntityExpr for SnapshotLatest<T> {
 }
 
 impl<T: CreateView> CreateView for Layered<T> {
-    type View<'graph, G: GraphView + 'graph> = LayeredGraph<G>;
+    type View<'graph, G: GraphView + 'graph> = LayeredGraph<T::View<'graph, G>>;
 
     fn create_view<'graph, G: GraphView + 'graph>(
         &self,
         view: G,
-    ) -> Result<Self::View<'graph, G>, GraphError> {
-        view.layers(self.layer.clone())
+    ) -> Result<LayeredGraph<T::View<'graph, G>>, GraphError> {
+        let inner = self.inner.create_view(view)?;
+        inner.layers(self.layer.clone())
     }
 }
 

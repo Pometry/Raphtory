@@ -1,6 +1,6 @@
 use crate::{
     db::{
-        api::view::internal::GraphView,
+        api::view::internal::{GraphView, InternalFilter},
         graph::views::{
             filter::{
                 model::{
@@ -87,14 +87,16 @@ impl<T: TryAsCompositeFilter> TryAsCompositeFilter for Layered<T> {
 
 impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for Layered<T> {
     type EntityFiltered<'graph, G>
-        = T::EntityFiltered<'graph, G>
+        = T::EntityFiltered<'graph, <G as LayerOps<'graph>>::LayeredViewType>
     where
-        G: GraphViewOps<'graph>;
+        G: GraphViewOps<'graph> + InternalFilter<'graph>,
+        <G as LayerOps<'graph>>::LayeredViewType: GraphViewOps<'graph>;
 
     type NodeFilter<'graph, G>
-        = T::NodeFilter<'graph, G>
+        = T::NodeFilter<'graph, <G as LayerOps<'graph>>::LayeredViewType>
     where
-        G: GraphView + 'graph;
+        G: GraphView + InternalFilter<'graph> + 'graph,
+        <G as LayerOps<'graph>>::LayeredViewType: GraphView + 'graph;
 
     type FilteredGraph<'graph, G>
         = G
@@ -107,9 +109,10 @@ impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for Layered<T
         graph: G,
     ) -> Result<Self::EntityFiltered<'graph, G>, GraphError>
     where
-        G: GraphViewOps<'graph>,
+        G: GraphViewOps<'graph> + InternalFilter<'graph>,
+        <G as LayerOps<'graph>>::LayeredViewType: GraphViewOps<'graph>,
     {
-        self.inner.create_filter(graph)
+        self.inner.create_filter(graph.layers(self.layer)?)
     }
 
     fn create_node_filter<'graph, G>(
@@ -117,9 +120,10 @@ impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for Layered<T
         graph: G,
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError>
     where
-        G: GraphView + 'graph,
+        G: GraphView + InternalFilter<'graph> + 'graph,
+        <G as LayerOps<'graph>>::LayeredViewType: GraphView + 'graph,
     {
-        self.inner.create_node_filter(graph)
+        self.inner.create_node_filter(graph.layers(self.layer)?)
     }
 }
 
