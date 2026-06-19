@@ -25,7 +25,8 @@ pub trait WalOps {
     fn read(&self, lsn: LSN) -> Result<Option<ReplayRecord>, StorageError>;
 
     /// Returns an iterator over the entries in the wal, starting from the given LSN.
-    fn replay(&self, start: LSN) -> impl Iterator<Item = Result<ReplayRecord, StorageError>>;
+    /// If `start` is `None`, replay begins at the first record in the WAL stream.
+    fn replay(&self, start: Option<LSN>) -> impl Iterator<Item = Result<ReplayRecord, StorageError>>;
 
     /// Returns the current position in the WAL stream.
     fn position(&self) -> LSN;
@@ -163,11 +164,12 @@ pub trait GraphWalOps {
     fn read_shutdown_checkpoint(&self, lsn: LSN) -> Result<LSN, StorageError>;
 
     /// Replays and applies all the entries in the wal to the given graph, starting from the given LSN.
+    /// If `start` is `None`, replay begins at the first record in the WAL stream.
     /// Returns the LSN immediately after the last entry in the WAL stream on success.
     fn replay_to_graph<G: GraphReplay>(
         &self,
         graph: &mut G,
-        start: LSN,
+        start: Option<LSN>,
     ) -> Result<LSN, StorageError>;
 }
 

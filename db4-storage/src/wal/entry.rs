@@ -126,7 +126,7 @@ impl GraphWalOps for NoWal {
     fn replay_to_graph<G: GraphReplay>(
         &self,
         _graph: &mut G,
-        _start: LSN,
+        _start: Option<LSN>,
     ) -> Result<LSN, StorageError> {
         panic!("NoWAL does not support replay")
     }
