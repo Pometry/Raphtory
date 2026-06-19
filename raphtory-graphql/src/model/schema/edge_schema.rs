@@ -1,7 +1,8 @@
 use crate::{
     model::schema::{
-        cache::SchemaCache, property_schema::PropertySchema, SchemaAggregate, ENUM_BOUNDARY,
-        MAX_DETAILED_SCHEMA_ENTITIES,
+        cache::{EdgeSchemaKey, SchemaCache},
+        property_schema::PropertySchema,
+        SchemaAggregate, ENUM_BOUNDARY, MAX_DETAILED_SCHEMA_ENTITIES,
     },
     rayon::blocking_compute,
 };
@@ -24,9 +25,8 @@ use std::{
 #[derive(Clone, ResolvedObject)]
 pub(crate) struct EdgeSchema<G: StaticGraphViewOps> {
     graph: G,
-    layer: String,
-    src_type: String,
-    dst_type: String,
+    // (layer, src_type, dst_type) information; also the schema-cache lookup key
+    key: EdgeSchemaKey,
     // scan once and remember edges matching the (srcNodeType, dstNodeType)
     edges: Arc<[EdgeRef]>,
     // schema cache for the base graph, `None` for filtered/derived views
@@ -44,9 +44,7 @@ impl<G: StaticGraphViewOps> EdgeSchema<G> {
     ) -> Self {
         Self {
             graph,
-            layer,
-            src_type,
-            dst_type,
+            key: EdgeSchemaKey::new(layer, src_type, dst_type),
             edges: edges.into(),
             cache,
         }
@@ -55,32 +53,24 @@ impl<G: StaticGraphViewOps> EdgeSchema<G> {
     fn edges(&self) -> impl Iterator<Item = EdgeView<&G>> + '_ {
         self.edges.iter().map(|e| EdgeView::new(&self.graph, *e))
     }
-
-    fn cache_key(&self) -> (String, String, String) {
-        (
-            self.layer.clone(),
-            self.src_type.clone(),
-            self.dst_type.clone(),
-        )
-    }
 }
 
 #[ResolvedObjectFields]
 impl<G: StaticGraphViewOps> EdgeSchema<G> {
     /// Returns the type of source for these edges
     async fn src_type(&self) -> String {
-        self.src_type.clone()
+        self.key.src_type.clone()
     }
 
     /// Returns the type of destination for these edges
     async fn dst_type(&self) -> String {
-        self.dst_type.clone()
+        self.key.dst_type.clone()
     }
 
     /// Returns the list of property schemas for edges matching these `(src_node_type, dst_node_type)`
     async fn properties(&self) -> Vec<PropertySchema> {
         if let Some(cache) = &self.cache {
-            if let Some(hit) = cache.get_edge_properties(&self.cache_key()) {
+            if let Some(hit) = cache.get_edge_properties(&self.key) {
                 return hit.as_ref().clone();
             }
         }
@@ -112,14 +102,14 @@ impl<G: StaticGraphViewOps> EdgeSchema<G> {
         })
         .await;
         if let Some(cache) = &self.cache {
-            cache.store_edge_properties(self.cache_key(), Arc::new(result.clone()));
+            cache.store_edge_properties(self.key.clone(), Arc::new(result.clone()));
         }
         result
     }
     /// Returns the list of metadata schemas for edges matching these `(src_node_type, dst_node_type)`
     async fn metadata(&self) -> Vec<PropertySchema> {
         if let Some(cache) = &self.cache {
-            if let Some(hit) = cache.get_edge_metadata(&self.cache_key()) {
+            if let Some(hit) = cache.get_edge_metadata(&self.key) {
                 return hit.as_ref().clone();
             }
         }
@@ -150,7 +140,7 @@ impl<G: StaticGraphViewOps> EdgeSchema<G> {
         })
         .await;
         if let Some(cache) = &self.cache {
-            cache.store_edge_metadata(self.cache_key(), Arc::new(result.clone()));
+            cache.store_edge_metadata(self.key.clone(), Arc::new(result.clone()));
         }
         result
     }
