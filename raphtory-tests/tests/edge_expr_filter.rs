@@ -302,7 +302,7 @@ fn genre_graph() -> Graph {
 fn test_edge_quantified_any_contains() {
     let g = genre_graph();
     // any temporal value of "tag" contains "rock"
-    let filter = EdgeFilter.property("tag").temporal().any().contains("rock");
+    let filter = EdgeFilter.property("tag").temporal().contains("rock").any();
     let result = g.filter(filter).unwrap();
     // A->B has "rock" and "rock-n-roll" (contains "rock"), C->D has neither
     assert_eq!(sorted_edges(result), vec!["A->B"]);
@@ -311,7 +311,7 @@ fn test_edge_quantified_any_contains() {
 #[test]
 fn test_edge_quantified_any_starts_with() {
     let g = genre_graph();
-    let filter = EdgeFilter.property("tag").temporal().any().starts_with("rock");
+    let filter = EdgeFilter.property("tag").temporal().starts_with("rock").any();
     let result = g.filter(filter).unwrap();
     assert_eq!(sorted_edges(result), vec!["A->B"]);
 }
@@ -319,7 +319,7 @@ fn test_edge_quantified_any_starts_with() {
 #[test]
 fn test_edge_quantified_any_ends_with() {
     let g = genre_graph();
-    let filter = EdgeFilter.property("tag").temporal().any().ends_with("roll");
+    let filter = EdgeFilter.property("tag").temporal().ends_with("roll").any();
     let result = g.filter(filter).unwrap();
     assert_eq!(sorted_edges(result), vec!["A->B"]);
 }
@@ -331,7 +331,7 @@ fn test_edge_quantified_any_not_contains() {
     // A->B: "metal" and "rock-n-roll" don't, but "rock" does → any not_contains is true for A->B
     // C->D: "jazz" and "blues" don't contain "rock" → any not_contains is true for C->D
     // Both edges pass (any value doesn't contain "rock")
-    let filter = EdgeFilter.property("tag").temporal().any().not_contains("rock");
+    let filter = EdgeFilter.property("tag").temporal().not_contains("rock").any();
     let result = g.filter(filter).unwrap();
     assert_eq!(sorted_edges(result), vec!["A->B", "C->D"]);
 }
@@ -346,7 +346,7 @@ fn test_edge_quantified_all_contains() {
     g.add_edge(1, "C", "D", [("tag", Prop::str("rock"))], None).unwrap();
     g.add_edge(2, "C", "D", [("tag", Prop::str("jazz"))], None).unwrap();
 
-    let filter = EdgeFilter.property("tag").temporal().all().contains("rock");
+    let filter = EdgeFilter.property("tag").temporal().contains("rock").all();
     let result = g.filter(filter).unwrap();
     assert_eq!(sorted_edges(result), vec!["A->B"]);
 }
@@ -359,7 +359,7 @@ fn test_edge_quantified_all_starts_with() {
     g.add_edge(1, "C", "D", [("tag", Prop::str("jazz"))], None).unwrap();
     g.add_edge(2, "C", "D", [("tag", Prop::str("rock-steady"))], None).unwrap();
 
-    let filter = EdgeFilter.property("tag").temporal().all().starts_with("rock");
+    let filter = EdgeFilter.property("tag").temporal().starts_with("rock").all();
     let result = g.filter(filter).unwrap();
     assert_eq!(sorted_edges(result), vec!["A->B"]);
 }
@@ -375,8 +375,8 @@ fn test_edge_quantified_any_is_in() {
     let filter = EdgeFilter
         .property("tag")
         .temporal()
-        .any()
-        .is_in([Prop::str("metal"), Prop::str("blues")]);
+        .is_in([Prop::str("metal"), Prop::str("blues")])
+        .any();
     let result = g.filter(filter).unwrap();
     // A->B has "metal" → passes; C->D has "blues" → passes
     assert_eq!(sorted_edges(result), vec!["A->B", "C->D"]);
@@ -409,8 +409,8 @@ fn test_edge_quantified_all_is_in() {
     let filter = EdgeFilter
         .property("tag")
         .temporal()
-        .all()
-        .is_in([Prop::str("rock"), Prop::str("metal")]);
+        .is_in([Prop::str("rock"), Prop::str("metal")])
+        .all();
     let result = g.filter(filter).unwrap();
     // A->B: "rock" ✓, "metal" ✓ → passes; C->D: "jazz" ✗ → fails
     assert_eq!(sorted_edges(result), vec!["A->B"]);
@@ -428,8 +428,8 @@ fn test_edge_quantified_all_is_not_in() {
     let filter = EdgeFilter
         .property("tag")
         .temporal()
-        .all()
-        .is_not_in([Prop::str("rock"), Prop::str("metal")]);
+        .is_not_in([Prop::str("rock"), Prop::str("metal")])
+        .all();
     let result = g.filter(filter).unwrap();
     // A->B: "rock" is in set → fails; C->D: "jazz" ✓, "blues" ✓ → passes
     assert_eq!(sorted_edges(result), vec!["C->D"]);
@@ -614,8 +614,6 @@ fn test_edge_property_is_false() {
 
 #[test]
 fn test_edge_quantified_any_sum_gt() {
-    // .any().sum() on scalar temporal values: sum() is pass-through for scalars,
-    // validating the re-aggregation chain compiles and produces correct output.
     let g = Graph::new();
     g.add_edge(1, "A", "B", [("score", Prop::I64(3))], None).unwrap();
     g.add_edge(2, "A", "B", [("score", Prop::I64(8))], None).unwrap();
@@ -630,7 +628,6 @@ fn test_edge_quantified_any_sum_gt() {
 
 #[test]
 fn test_edge_quantified_all_min_ge() {
-    // .all().min().ge(n): validates the all + re-aggregation chain compiles.
     let g = Graph::new();
     g.add_edge(1, "A", "B", [("score", Prop::I64(3))], None).unwrap();
     g.add_edge(2, "A", "B", [("score", Prop::I64(8))], None).unwrap();
@@ -645,7 +642,6 @@ fn test_edge_quantified_all_min_ge() {
 
 #[test]
 fn test_edge_quantified_any_any_contains() {
-    // .any().any().contains(s): double-any chain via NestedMapEdgeExpr.
     let g = genre_graph();
     let filter = EdgeFilter.property("tag").temporal().any().any().contains("rock");
     let result = g.filter(filter).unwrap();
@@ -654,7 +650,6 @@ fn test_edge_quantified_any_any_contains() {
 
 #[test]
 fn test_edge_quantified_any_last_is_in() {
-    // .any().last().is_in([...]): re-aggregate with last then set-check.
     let g = Graph::new();
     g.add_edge(1, "A", "B", [("tag", Prop::str("rock"))], None).unwrap();
     g.add_edge(2, "A", "B", [("tag", Prop::str("metal"))], None).unwrap();

@@ -3678,7 +3678,7 @@ mod test_node_property_filter {
         let filter = NodeFilter
             .property("p2")
             .temporal()
-            .eq(Prop::U64(2))
+            .is_in(vec![Prop::U64(2)])
             .any();
         let expected_results = vec!["2"];
         assert_filter_nodes_results(
@@ -3736,7 +3736,7 @@ mod test_node_property_filter {
         let filter = NodeFilter
             .property("p2")
             .temporal()
-            .ne(Prop::U64(2))
+            .is_not_in(vec![Prop::U64(2)])
             .all();
         let expected_results = vec!["3"];
         assert_filter_nodes_results(
