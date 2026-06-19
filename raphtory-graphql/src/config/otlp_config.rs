@@ -71,6 +71,7 @@ impl TracingLevel {
 pub enum TracingProtocol {
     TONIC,
     HTTP,
+    STDOUT,
 }
 
 impl TryFrom<String> for TracingProtocol {
@@ -129,6 +130,24 @@ impl Default for TracingConfig {
 }
 
 impl TracingConfig {
+    fn with_exporter<E: opentelemetry_sdk::trace::SpanExporter + 'static>(
+        &self,
+        exporter: E,
+    ) -> SdkTracerProvider {
+        SdkTracerProvider::builder()
+            .with_batch_exporter(exporter)
+            .with_sampler(Sampler::AlwaysOn)
+            .with_resource(
+                Resource::builder()
+                    .with_attributes(vec![KeyValue::new(
+                        "service.name",
+                        self.otlp_tracing_service_name.clone(),
+                    )])
+                    .build(),
+            )
+            .build()
+    }
+
     pub fn tracer_provider(&self) -> std::io::Result<Option<SdkTracerProvider>> {
         if self.tracing_enabled {
             if !self.otlp_agent_host.starts_with("http://")
@@ -142,7 +161,7 @@ impl TracingConfig {
                 ));
             }
 
-            let exporter = match self.otlp_transport_protocol {
+            let tracer_provider = match self.otlp_transport_protocol {
                 TracingProtocol::TONIC => SpanExporter::builder()
                     .with_tonic()
                     .with_endpoint(format!(
@@ -151,7 +170,17 @@ impl TracingConfig {
                         self.otlp_agent_port.clone()
                     ))
                     .with_timeout(Duration::from_secs(3))
-                    .build(),
+                    .build()
+                    .map(|exporter| {
+                        eprintln!(
+                            // info!() here does not work since tracing is not enabled yet
+                            "Sending traces to {}:{} with protocol `TONIC` and tracing level `{}`",
+                            self.otlp_agent_host.clone(),
+                            self.otlp_agent_port.clone(),
+                            self.tracing_level.clone()
+                        );
+                        self.with_exporter(exporter)
+                    }),
                 TracingProtocol::HTTP => SpanExporter::builder()
                     .with_http()
                     .with_protocol(Protocol::HttpBinary)
@@ -162,32 +191,28 @@ impl TracingConfig {
                         self.otlp_agent_port.clone()
                     ))
                     .with_timeout(Duration::from_secs(3))
-                    .build(),
+                    .build()
+                    .map(|exporter| {
+                        eprintln!(
+                            // info!() here does not work since tracing is not enabled yet
+                            "Sending traces to {}:{} with protocol `HTTP` and tracing level `{}`",
+                            self.otlp_agent_host.clone(),
+                            self.otlp_agent_port.clone(),
+                            self.tracing_level.clone()
+                        );
+                        self.with_exporter(exporter)
+                    }),
+                TracingProtocol::STDOUT => {
+                    eprintln!(
+                        "Sending traces to stdout with tracing level `{}`",
+                        self.tracing_level
+                    );
+                    Ok(self.with_exporter(opentelemetry_stdout::SpanExporter::default()))
+                }
             };
 
-            match exporter {
-                Ok(exporter) => {
-                    let tracer_provider = SdkTracerProvider::builder()
-                        .with_batch_exporter(exporter)
-                        .with_sampler(Sampler::AlwaysOn)
-                        .with_resource(
-                            Resource::builder()
-                                .with_attributes(vec![KeyValue::new(
-                                    "service.name",
-                                    self.otlp_tracing_service_name.clone(),
-                                )])
-                                .build(),
-                        )
-                        .build();
-                    eprintln!(
-                        // info!() here does not work since tracing is not enabled yet
-                        "Sending traces to {}:{} with tracing level: `{}`",
-                        self.otlp_agent_host.clone(),
-                        self.otlp_agent_port.clone(),
-                        self.tracing_level.clone()
-                    );
-                    Ok(Some(tracer_provider))
-                }
+            match tracer_provider {
+                Ok(tracer_provider) => Ok(Some(tracer_provider)),
                 Err(e) => {
                     eprintln!("{}", e.to_string()); // error!() here does not work since tracing is not enabled yet
                     Ok(None)
