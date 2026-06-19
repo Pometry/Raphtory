@@ -26,7 +26,10 @@ pub trait WalOps {
 
     /// Returns an iterator over the entries in the wal, starting from the given LSN.
     /// If `start` is `None`, replay begins at the first record in the WAL stream.
-    fn replay(&self, start: Option<LSN>) -> impl Iterator<Item = Result<ReplayRecord, StorageError>>;
+    fn replay(
+        &self,
+        start: Option<LSN>,
+    ) -> impl Iterator<Item = Result<ReplayRecord, StorageError>>;
 
     /// Returns the current position in the WAL stream.
     fn position(&self) -> LSN;
