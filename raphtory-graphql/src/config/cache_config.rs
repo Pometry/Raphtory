@@ -1,8 +1,9 @@
+use field_types::FieldName;
 use serde::Deserialize;
 
 pub const DEFAULT_CACHE_CAPACITY: u64 = 30;
 
-#[derive(Debug, Deserialize, PartialEq, Clone, serde::Serialize)]
+#[derive(Debug, Deserialize, PartialEq, Clone, serde::Serialize, FieldName)]
 pub struct CacheConfig {
     pub capacity: u64,
 }

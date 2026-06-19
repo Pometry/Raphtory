@@ -140,15 +140,15 @@ impl PyGraphServer {
     ) -> PyResult<Self> {
         let mut app_config_builder = AppConfigBuilder::new();
         if let Some(config_path) = config_path {
-            app_config_builder = app_config_builder
+            app_config_builder
                 .load_from_path(config_path)
                 .map_err(|err| PyRuntimeError::new_err(format!("Invalid config file: {err}")))?;
         }
         if let Some(log_level) = log_level {
-            app_config_builder = app_config_builder.with_log_level(log_level);
+            app_config_builder.with_log_level(log_level);
         }
         if let Some(tracing) = tracing {
-            app_config_builder = app_config_builder.with_tracing(tracing);
+            app_config_builder.with_tracing(tracing);
         }
         if let Some(tracing_level) = tracing_level {
             let json = format!("\"{}\"", tracing_level).to_uppercase();
@@ -158,66 +158,62 @@ impl PyGraphServer {
                     TracingLevel::all_levels_string()
                 ))
             })?;
-            app_config_builder = app_config_builder.with_tracing_level(tl);
+            app_config_builder.with_tracing_level(tl);
         }
         if let Some(otlp_agent_host) = otlp_agent_host {
-            app_config_builder = app_config_builder.with_otlp_agent_host(otlp_agent_host);
+            app_config_builder.with_otlp_agent_host(otlp_agent_host);
         }
         if let Some(otlp_agent_port) = otlp_agent_port {
-            app_config_builder = app_config_builder.with_otlp_agent_port(otlp_agent_port);
+            app_config_builder.with_otlp_agent_port(otlp_agent_port);
         }
         if let Some(otlp_tracing_service_name) = otlp_tracing_service_name {
-            app_config_builder =
-                app_config_builder.with_otlp_tracing_service_name(otlp_tracing_service_name);
+            app_config_builder.with_otlp_tracing_service_name(otlp_tracing_service_name);
         }
         if let Some(cache_capacity) = cache_capacity {
-            app_config_builder = app_config_builder.with_cache_capacity(cache_capacity);
+            app_config_builder.with_cache_capacity(cache_capacity);
         }
-        app_config_builder = app_config_builder
+        app_config_builder
             .with_auth_public_key(auth_public_key)
             .map_err(|_| PyValueError::new_err(PUBLIC_KEY_DECODING_ERR_MSG))?;
         if let Some(require_auth_for_reads) = require_auth_for_reads {
-            app_config_builder =
-                app_config_builder.with_require_auth_for_reads(require_auth_for_reads);
+            app_config_builder.with_require_auth_for_reads(require_auth_for_reads);
         }
         #[cfg(feature = "search")]
         if let Some(create_index) = create_index {
-            app_config_builder = app_config_builder.with_create_index(create_index);
+            app_config_builder.with_create_index(create_index);
         }
         if heavy_query_limit.is_some() {
-            app_config_builder = app_config_builder.with_heavy_query_limit(heavy_query_limit);
+            app_config_builder.with_heavy_query_limit(heavy_query_limit);
         }
         if let Some(exclusive_writes) = exclusive_writes {
-            app_config_builder = app_config_builder.with_exclusive_writes(exclusive_writes);
+            app_config_builder.with_exclusive_writes(exclusive_writes);
         }
         if let Some(disable_batching) = disable_batching {
-            app_config_builder = app_config_builder.with_disable_batching(disable_batching);
+            app_config_builder.with_disable_batching(disable_batching);
         }
         if max_batch_size.is_some() {
-            app_config_builder = app_config_builder.with_max_batch_size(max_batch_size);
+            app_config_builder.with_max_batch_size(max_batch_size);
         }
         if let Some(disable_lists) = disable_lists {
-            app_config_builder = app_config_builder.with_disable_lists(disable_lists);
+            app_config_builder.with_disable_lists(disable_lists);
         }
         if max_page_size.is_some() {
-            app_config_builder = app_config_builder.with_max_page_size(max_page_size);
+            app_config_builder.with_max_page_size(max_page_size);
         }
         if max_query_depth.is_some() {
-            app_config_builder = app_config_builder.with_max_query_depth(max_query_depth);
+            app_config_builder.with_max_query_depth(max_query_depth);
         }
         if max_query_complexity.is_some() {
-            app_config_builder = app_config_builder.with_max_query_complexity(max_query_complexity);
+            app_config_builder.with_max_query_complexity(max_query_complexity);
         }
         if max_recursive_depth.is_some() {
-            app_config_builder = app_config_builder.with_max_recursive_depth(max_recursive_depth);
+            app_config_builder.with_max_recursive_depth(max_recursive_depth);
         }
         if max_directives_per_field.is_some() {
-            app_config_builder =
-                app_config_builder.with_max_directives_per_field(max_directives_per_field);
+            app_config_builder.with_max_directives_per_field(max_directives_per_field);
         }
         if let Some(disable_introspection) = disable_introspection {
-            app_config_builder =
-                app_config_builder.with_disable_introspection(disable_introspection);
+            app_config_builder.with_disable_introspection(disable_introspection);
         }
         let app_config = Some(app_config_builder.build());
 

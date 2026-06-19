@@ -221,83 +221,83 @@ where
         Commands::Server(server_args) => {
             let mut builder = AppConfigBuilder::new();
             if let Some(config_file) = server_args.config_file {
-                builder = builder.load_from_path(config_file)?;
+                builder.load_from_path(config_file)?;
             };
             if let Some(cache_capacity) = server_args.cache_capacity {
-                builder = builder.with_cache_capacity(cache_capacity);
+                builder.with_cache_capacity(cache_capacity);
             }
             if let Some(log_level) = server_args.log_level {
-                builder = builder.with_log_level(log_level);
+                builder.with_log_level(log_level);
             }
             if let Some(tracing) = server_args.tracing {
-                builder = builder.with_tracing(tracing);
+                builder.with_tracing(tracing);
             }
             if let Some(tracing_level) = server_args.tracing_level {
-                builder = builder.with_tracing_level(tracing_level);
+                builder.with_tracing_level(tracing_level);
             }
             if let Some(otlp_agent_host) = server_args.otlp_agent_host {
-                builder = builder.with_otlp_agent_host(otlp_agent_host);
+                builder.with_otlp_agent_host(otlp_agent_host);
             }
             if let Some(otlp_agent_port) = server_args.otlp_agent_port {
-                builder = builder.with_otlp_agent_port(otlp_agent_port)
+                builder.with_otlp_agent_port(otlp_agent_port);
             }
             if let Some(otlp_tracing_service_name) = server_args.otlp_tracing_service_name {
-                builder = builder.with_otlp_tracing_service_name(otlp_tracing_service_name);
+                builder.with_otlp_tracing_service_name(otlp_tracing_service_name);
             }
             if let Some(otlp_transport_protocol) = server_args.otlp_transport_protocol {
-                builder = builder.with_otlp_transport_protocol(otlp_transport_protocol);
+                builder.with_otlp_transport_protocol(otlp_transport_protocol);
             }
             if let Some(otlp_transport_headers) = server_args.otlp_transport_headers {
-                builder = builder.with_otlp_transport_headers(otlp_transport_headers)
+                builder.with_otlp_transport_headers(otlp_transport_headers);
             }
             if let Some(auth_public_key) = server_args.auth_public_key {
-                builder = builder
+                builder
                     .with_auth_public_key(Some(auth_public_key))
                     .map_err(|err| io::Error::new(io::ErrorKind::Other, err))?;
             }
             if let Some(public_dir) = server_args.public_dir {
-                builder = builder.with_public_dir(Some(public_dir));
+                builder.with_public_dir(Some(public_dir));
             }
             if let Some(require_auth_for_reads) = server_args.require_auth_for_reads {
-                builder = builder.with_require_auth_for_reads(require_auth_for_reads);
+                builder.with_require_auth_for_reads(require_auth_for_reads);
             }
             if let Some(heavy_query_limit) = server_args.heavy_query_limit {
-                builder = builder.with_heavy_query_limit(Some(heavy_query_limit));
+                builder.with_heavy_query_limit(Some(heavy_query_limit));
             }
             if let Some(exclusive_writes) = server_args.exclusive_writes {
-                builder = builder.with_exclusive_writes(exclusive_writes);
+                builder.with_exclusive_writes(exclusive_writes);
             }
             if let Some(disable_batching) = server_args.disable_batching {
-                builder = builder.with_disable_batching(disable_batching);
+                builder.with_disable_batching(disable_batching);
             }
             if let Some(max_batch_size) = server_args.max_batch_size {
-                builder = builder.with_max_batch_size(Some(max_batch_size));
+                builder.with_max_batch_size(Some(max_batch_size));
             }
             if let Some(disable_lists) = server_args.disable_lists {
-                builder = builder.with_disable_lists(disable_lists);
+                builder.with_disable_lists(disable_lists);
             }
             if let Some(max_page_size) = server_args.max_page_size {
-                builder = builder.with_max_page_size(Some(max_page_size));
+                builder.with_max_page_size(Some(max_page_size));
             }
             if let Some(max_query_depth) = server_args.max_query_depth {
-                builder = builder.with_max_query_depth(Some(max_query_depth));
+                builder.with_max_query_depth(Some(max_query_depth));
             }
             if let Some(max_query_complexity) = server_args.max_query_complexity {
-                builder = builder.with_max_query_complexity(Some(max_query_complexity));
+                builder.with_max_query_complexity(Some(max_query_complexity));
             }
             if let Some(max_recursive_depth) = server_args.max_recursive_depth {
-                builder = builder.with_max_recursive_depth(Some(max_recursive_depth));
+                builder.with_max_recursive_depth(Some(max_recursive_depth));
             }
             if let Some(max_directives_per_field) = server_args.max_directives_per_field {
-                builder = builder.with_max_directives_per_field(Some(max_directives_per_field));
+                builder.with_max_directives_per_field(Some(max_directives_per_field));
             }
             if let Some(disable_introspection) = server_args.disable_introspection {
-                builder = builder.with_disable_introspection(disable_introspection);
+                builder.with_disable_introspection(disable_introspection);
             }
             #[cfg(feature = "search")]
             {
                 if let Some(create_index) = server_args.create_index {
-                    builder = builder.with_create_index(create_index);
+                    builder.with_create_index(create_index);
                 }
             }
 

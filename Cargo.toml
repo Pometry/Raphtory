@@ -192,6 +192,8 @@ datafusion-physical-expr = "53.1.0"
 datafusion-physical-plan = "53.1.0"
 datafusion-expr-common = "53.1.0"
 axum = "0.8.9"
+serde-diff = "0.4.1"
+field_types = "1.1.0"
 
 [workspace.dependencies.storage]
 package = "db4-storage"

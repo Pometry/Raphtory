@@ -1,4 +1,5 @@
 use clap::{Args, ValueEnum};
+use field_types::FieldName;
 use opentelemetry::KeyValue;
 use opentelemetry_otlp::{Protocol, SpanExporter, WithExportConfig, WithHttpConfig};
 use opentelemetry_sdk::{
@@ -101,7 +102,7 @@ pub const DEFAULT_OTLP_AGENT_HOST: &'static str = "http://localhost";
 pub const DEFAULT_OTLP_AGENT_PORT: &'static str = "4317";
 pub const DEFAULT_OTLP_TRACING_SERVICE_NAME: &'static str = "Raphtory";
 
-#[derive(Clone, Deserialize, Debug, PartialEq, serde::Serialize)]
+#[derive(Clone, Deserialize, Debug, PartialEq, serde::Serialize, FieldName)]
 pub struct TracingConfig {
     pub tracing_enabled: bool,
     pub tracing_level: TracingLevel,

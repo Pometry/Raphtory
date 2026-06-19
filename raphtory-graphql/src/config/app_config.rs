@@ -1,29 +1,29 @@
-use super::auth_config::{AuthConfig, PublicKeyError, PUBLIC_KEY_DECODING_ERR_MSG};
+use super::auth_config::{AuthConfig, AuthConfigFieldName, PublicKeyError};
 #[cfg(feature = "search")]
-use crate::config::index_config::IndexConfig;
+use crate::config::index_config::{IndexConfig, IndexConfigFieldName};
 use crate::{
     config::{
-        cache_config::CacheConfig,
-        concurrency_config::ConcurrencyConfig,
-        log_config::LoggingConfig,
-        otlp_config::{TracingConfig, TracingLevel, TracingProtocol},
-        schema_config::SchemaConfig,
+        cache_config::{CacheConfig, CacheConfigFieldName},
+        concurrency_config::{ConcurrencyConfig, ConcurrencyConfigFieldName},
+        log_config::{LoggingConfig, LoggingConfigFieldName},
+        otlp_config::{TracingConfig, TracingConfigFieldName, TracingLevel, TracingProtocol},
+        schema_config::{SchemaConfig, SchemaConfigFieldName},
     },
     server::ServerError,
 };
-use clap::{
-    parser::{RawValues, ValueSource},
-    ArgMatches,
-};
-use config::{Config, ConfigError, File, Map, Source, Value, ValueKind};
-use serde::{Deserialize, Serialize};
+use config::{Config, ConfigError, File, Source};
+use field_types::FieldName;
+use itertools::Itertools;
+use poem::Server;
+use serde::{de::DeserializeSeed, Deserialize, Deserializer, Serialize};
 use std::{
     collections::HashMap,
-    io,
+    error::Error,
+    fmt::Display,
     path::{Path, PathBuf},
 };
 
-#[derive(Debug, Default, Deserialize, PartialEq, Clone, Serialize)]
+#[derive(Debug, Default, Deserialize, PartialEq, Clone, Serialize, FieldName)]
 pub struct AppConfig {
     pub logging: LoggingConfig,
     pub cache: CacheConfig,
@@ -37,30 +37,12 @@ pub struct AppConfig {
 }
 
 pub struct AppConfigBuilder {
-    logging: LoggingConfig,
-    cache: CacheConfig,
-    tracing: TracingConfig,
-    auth: AuthConfig,
-    concurrency: ConcurrencyConfig,
-    schema: SchemaConfig,
-    public_dir: Option<PathBuf>,
-    #[cfg(feature = "search")]
-    index: IndexConfig,
+    config: AppConfig,
 }
 
 impl From<AppConfig> for AppConfigBuilder {
     fn from(config: AppConfig) -> Self {
-        Self {
-            logging: config.logging,
-            cache: config.cache,
-            tracing: config.tracing,
-            auth: config.auth,
-            concurrency: config.concurrency,
-            schema: config.schema,
-            public_dir: config.public_dir,
-            #[cfg(feature = "search")]
-            index: config.index,
-        }
+        Self { config }
     }
 }
 
@@ -70,247 +52,407 @@ impl Default for AppConfigBuilder {
     }
 }
 
+fn invalid_path(path: impl IntoIterator<Item: Display>) -> ServerError {
+    let path = path.into_iter().join(".");
+    ServerError::ConfigError(ConfigError::Message(format!(
+        "Invalid configuration field '{path}'"
+    )))
+}
+
+fn invalid_value(path: impl IntoIterator<Item: Display>, err: impl Error) -> ServerError {
+    let path = path.into_iter().join(".");
+    ServerError::ConfigError(ConfigError::Message(format!(
+        "Invalid configuration value for field '{path}': {err}"
+    )))
+}
+
+fn as_boxed_external<E: Error + Send + Sync + 'static>(error: E) -> ServerError {
+    ServerError::ConfigError(ConfigError::Foreign(Box::new(error)))
+}
+
 impl AppConfigBuilder {
     pub fn new() -> Self {
         AppConfig::default().into()
     }
 
-    pub fn load_from_path(mut self, config_path: impl AsRef<Path>) -> Result<Self, ServerError> {
-        let mut settings = Config::builder()
-            .add_source(File::from(config_path.as_ref()))
-            .build()?;
+    pub fn update_from_json(&mut self, value: serde_json::Value) -> Result<&mut Self, ServerError> {
+        let map = value
+            .as_object()
+            .ok_or_else(|| ConfigError::Message(format!("Invalid config: {value}")))?;
 
-        // Override with provided configs from config file if any
-        if let Ok(log_level) = settings.get::<String>("logging.log_level") {
-            self = self.with_log_level(log_level);
+        for (path, value) in map {
+            match AppConfigFieldName::by_name(path).ok_or_else(|| invalid_path([path]))? {
+                AppConfigFieldName::Logging => {
+                    let map = value.as_object().ok_or_else(|| {
+                        ConfigError::Message(format!("Invalid logging config: {value}"))
+                    })?;
+                    for (sub_path, value) in map {
+                        match LoggingConfigFieldName::by_name(sub_path)
+                            .ok_or_else(|| invalid_path([path, sub_path]))?
+                        {
+                            LoggingConfigFieldName::LogLevel => {
+                                self.with_log_level(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                        }
+                    }
+                }
+                AppConfigFieldName::Cache => {
+                    let map = value.as_object().ok_or_else(|| {
+                        ConfigError::Message(format!("Invalid cache config: {value}"))
+                    })?;
+                    for (sub_path, value) in map {
+                        match CacheConfigFieldName::by_name(sub_path)
+                            .ok_or_else(|| invalid_path([path, sub_path]))?
+                        {
+                            CacheConfigFieldName::Capacity => {
+                                self.with_cache_capacity(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                        }
+                    }
+                }
+                AppConfigFieldName::Tracing => {
+                    let map = value.as_object().ok_or_else(|| {
+                        ConfigError::Message(format!("Invalid tracing config: {value}"))
+                    })?;
+                    for (sub_path, value) in map {
+                        match TracingConfigFieldName::by_name(sub_path)
+                            .ok_or_else(|| invalid_path([path, sub_path]))?
+                        {
+                            TracingConfigFieldName::TracingEnabled => {
+                                self.with_tracing(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                            TracingConfigFieldName::TracingLevel => {
+                                self.with_tracing_level(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                            TracingConfigFieldName::OtlpAgentHost => {
+                                self.with_otlp_agent_host(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                            TracingConfigFieldName::OtlpAgentPort => {
+                                self.with_otlp_agent_port(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                            TracingConfigFieldName::OtlpTracingServiceName => {
+                                self.with_otlp_tracing_service_name(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                            TracingConfigFieldName::OtlpTransportProtocol => {
+                                self.with_otlp_transport_protocol(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                            TracingConfigFieldName::OtlpTransportHeaders => {
+                                self.with_otlp_transport_headers(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                        }
+                    }
+                }
+                AppConfigFieldName::Auth => {
+                    let map = value.as_object().ok_or_else(|| {
+                        ConfigError::Message(format!("Invalid auth config: {value}"))
+                    })?;
+                    for (sub_path, value) in map {
+                        match AuthConfigFieldName::by_name(sub_path)
+                            .ok_or_else(|| invalid_path([path, sub_path]))?
+                        {
+                            AuthConfigFieldName::PublicKey => {
+                                self.with_auth_public_key(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                )?;
+                            }
+                            AuthConfigFieldName::RequireAuthForReads => {
+                                self.with_require_auth_for_reads(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                        }
+                    }
+                }
+                AppConfigFieldName::Concurrency => {
+                    let map = value.as_object().ok_or_else(|| {
+                        ConfigError::Message(format!("Invalid concurrency config: {value}"))
+                    })?;
+                    for (sub_path, value) in map {
+                        match ConcurrencyConfigFieldName::by_name(sub_path)
+                            .ok_or_else(|| invalid_path([path, sub_path]))?
+                        {
+                            ConcurrencyConfigFieldName::HeavyQueryLimit => {
+                                self.with_heavy_query_limit(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                            ConcurrencyConfigFieldName::ExclusiveWrites => {
+                                self.with_exclusive_writes(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                            ConcurrencyConfigFieldName::DisableBatching => {
+                                self.with_disable_batching(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                            ConcurrencyConfigFieldName::MaxBatchSize => {
+                                self.with_max_batch_size(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                            ConcurrencyConfigFieldName::DisableLists => {
+                                self.with_disable_lists(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                            ConcurrencyConfigFieldName::MaxPageSize => {
+                                self.with_max_page_size(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                        }
+                    }
+                }
+                AppConfigFieldName::Schema => {
+                    let map = value.as_object().ok_or_else(|| {
+                        ConfigError::Message(format!("Invalid schema config: {value}"))
+                    })?;
+                    for (sub_path, value) in map {
+                        match SchemaConfigFieldName::by_name(sub_path)
+                            .ok_or_else(|| invalid_path([path, sub_path]))?
+                        {
+                            SchemaConfigFieldName::MaxQueryDepth => {
+                                self.with_max_query_depth(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                            SchemaConfigFieldName::MaxQueryComplexity => {
+                                self.with_max_query_complexity(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                            SchemaConfigFieldName::MaxRecursiveDepth => {
+                                self.with_max_recursive_depth(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                            SchemaConfigFieldName::MaxDirectivesPerField => {
+                                self.with_max_directives_per_field(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                            SchemaConfigFieldName::DisableIntrospection => {
+                                self.with_disable_introspection(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                        }
+                    }
+                }
+                AppConfigFieldName::PublicDir => {
+                    self.with_public_dir(
+                        Deserialize::deserialize(value).map_err(|e| invalid_value([path], e))?,
+                    );
+                }
+                #[cfg(feature = "search")]
+                AppConfigFieldName::Index => {
+                    let map = value.as_object().ok_or_else(|| {
+                        ConfigError::Message(format!("Invalid index config: {value}"))
+                    })?;
+                    for (sub_path, value) in map {
+                        match IndexConfigFieldName::by_name(sub_path)
+                            .ok_or_else(|| invalid_path([path, sub_path]))?
+                        {
+                            IndexConfigFieldName::CreateIndex => {
+                                self.with_create_index(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                        }
+                    }
+                }
+            }
         }
 
-        if let Ok(tracing) = settings.get::<bool>("tracing.tracing_enabled") {
-            self = self.with_tracing(tracing);
-        }
-
-        if let Ok(tracing_level) = settings.get::<TracingLevel>("tracing.tracing_level") {
-            self = self.with_tracing_level(tracing_level);
-        }
-
-        if let Ok(otlp_agent_host) = settings.get::<String>("tracing.otlp_agent_host") {
-            self = self.with_otlp_agent_host(otlp_agent_host);
-        }
-
-        if let Ok(otlp_agent_port) = settings.get::<String>("tracing.otlp_agent_port") {
-            self = self.with_otlp_agent_port(otlp_agent_port);
-        }
-
-        if let Ok(otlp_tracing_service_name) =
-            settings.get::<String>("tracing.otlp_tracing_service_name")
-        {
-            self = self.with_otlp_tracing_service_name(otlp_tracing_service_name);
-        }
-
-        if let Ok(cache_capacity) = settings.get::<u64>("cache.capacity") {
-            self = self.with_cache_capacity(cache_capacity);
-        }
-
-        if let Ok(public_key) = settings.get::<Option<String>>("auth.public_key") {
-            self = self.with_auth_public_key(public_key)?;
-        }
-        if let Ok(require_auth_for_reads) = settings.get::<bool>("auth.require_auth_for_reads") {
-            self = self.with_require_auth_for_reads(require_auth_for_reads);
-        }
-
-        if let Ok(heavy_query_limit) =
-            settings.get::<Option<usize>>("concurrency.heavy_query_limit")
-        {
-            self = self.with_heavy_query_limit(heavy_query_limit);
-        }
-        if let Ok(exclusive_writes) = settings.get::<bool>("concurrency.exclusive_writes") {
-            self = self.with_exclusive_writes(exclusive_writes);
-        }
-        if let Ok(disable_batching) = settings.get::<bool>("concurrency.disable_batching") {
-            self = self.with_disable_batching(disable_batching);
-        }
-        if let Ok(max_batch_size) = settings.get::<Option<usize>>("concurrency.max_batch_size") {
-            self = self.with_max_batch_size(max_batch_size);
-        }
-        if let Ok(disable_lists) = settings.get::<bool>("concurrency.disable_lists") {
-            self = self.with_disable_lists(disable_lists);
-        }
-        if let Ok(max_page_size) = settings.get::<Option<usize>>("concurrency.max_page_size") {
-            self = self.with_max_page_size(max_page_size);
-        }
-
-        if let Ok(max_query_depth) = settings.get::<Option<usize>>("schema.max_query_depth") {
-            self = self.with_max_query_depth(max_query_depth);
-        }
-        if let Ok(max_query_complexity) =
-            settings.get::<Option<usize>>("schema.max_query_complexity")
-        {
-            self = self.with_max_query_complexity(max_query_complexity);
-        }
-        if let Ok(max_recursive_depth) = settings.get::<Option<usize>>("schema.max_recursive_depth")
-        {
-            self = self.with_max_recursive_depth(max_recursive_depth);
-        }
-        if let Ok(max_directives_per_field) =
-            settings.get::<Option<usize>>("schema.max_directives_per_field")
-        {
-            self = self.with_max_directives_per_field(max_directives_per_field);
-        }
-        if let Ok(disable_introspection) = settings.get::<bool>("schema.disable_introspection") {
-            self = self.with_disable_introspection(disable_introspection);
-        }
-
-        if let Ok(public_dir) = settings.get::<Option<PathBuf>>("public_dir") {
-            self = self.with_public_dir(public_dir);
-        }
-
-        #[cfg(feature = "search")]
-        if let Ok(create_index) = settings.get::<bool>("index.create_index") {
-            self = self.with_create_index(create_index);
-        }
         Ok(self)
     }
 
-    pub fn with_log_level(mut self, log_level: String) -> Self {
-        self.logging.log_level = log_level;
+    pub fn load_from_path(
+        &mut self,
+        config_path: impl AsRef<Path>,
+    ) -> Result<&mut Self, ServerError> {
+        let settings = Config::builder()
+            .add_source(File::from(config_path.as_ref()))
+            .build()?;
+        let value = serde_json::Value::deserialize(settings)?;
+        self.update_from_json(value)
+    }
+
+    pub fn with_log_level(&mut self, log_level: String) -> &mut Self {
+        self.config.logging.log_level = log_level;
         self
     }
 
-    pub fn with_tracing(mut self, tracing: bool) -> Self {
-        self.tracing.tracing_enabled = tracing;
+    pub fn with_tracing(&mut self, tracing: bool) -> &mut Self {
+        self.config.tracing.tracing_enabled = tracing;
         self
     }
 
-    pub fn with_tracing_level(mut self, tracing_level: TracingLevel) -> Self {
-        self.tracing.tracing_level = tracing_level;
+    pub fn with_tracing_level(&mut self, tracing_level: TracingLevel) -> &mut Self {
+        self.config.tracing.tracing_level = tracing_level;
         self
     }
 
-    pub fn with_otlp_agent_host(mut self, otlp_agent_host: String) -> Self {
-        self.tracing.otlp_agent_host = otlp_agent_host;
+    pub fn with_otlp_agent_host(&mut self, otlp_agent_host: String) -> &mut Self {
+        self.config.tracing.otlp_agent_host = otlp_agent_host;
         self
     }
 
-    pub fn with_otlp_agent_port(mut self, otlp_agent_port: String) -> Self {
-        self.tracing.otlp_agent_port = otlp_agent_port;
+    pub fn with_otlp_agent_port(&mut self, otlp_agent_port: String) -> &mut Self {
+        self.config.tracing.otlp_agent_port = otlp_agent_port;
         self
     }
 
-    pub fn with_otlp_tracing_service_name(mut self, otlp_tracing_service_name: String) -> Self {
-        self.tracing.otlp_tracing_service_name = otlp_tracing_service_name;
+    pub fn with_otlp_tracing_service_name(
+        &mut self,
+        otlp_tracing_service_name: String,
+    ) -> &mut Self {
+        self.config.tracing.otlp_tracing_service_name = otlp_tracing_service_name;
         self
     }
 
-    pub fn with_otlp_transport_protocol(mut self, otlp_protocol: TracingProtocol) -> Self {
-        self.tracing.otlp_transport_protocol = otlp_protocol;
+    pub fn with_otlp_transport_protocol(&mut self, otlp_protocol: TracingProtocol) -> &mut Self {
+        self.config.tracing.otlp_transport_protocol = otlp_protocol;
         self
     }
 
-    pub fn with_otlp_transport_headers(mut self, headers: HashMap<String, String>) -> Self {
-        self.tracing.otlp_transport_headers = headers;
+    pub fn with_otlp_transport_headers(&mut self, headers: HashMap<String, String>) -> &mut Self {
+        self.config.tracing.otlp_transport_headers = headers;
         self
     }
 
-    pub fn with_cache_capacity(mut self, cache_capacity: u64) -> Self {
-        self.cache.capacity = cache_capacity;
+    pub fn with_cache_capacity(&mut self, cache_capacity: u64) -> &mut Self {
+        self.config.cache.capacity = cache_capacity;
         self
     }
 
     pub fn with_auth_public_key(
-        mut self,
+        &mut self,
         public_key: Option<String>,
-    ) -> Result<Self, PublicKeyError> {
+    ) -> Result<&mut Self, PublicKeyError> {
         if let Some(public_key) = public_key {
-            self.auth.public_key = Some(public_key.try_into()?);
+            self.config.auth.public_key = Some(public_key.try_into()?);
         }
         Ok(self)
     }
 
-    pub fn with_require_auth_for_reads(mut self, require_auth_for_reads: bool) -> Self {
-        self.auth.require_auth_for_reads = require_auth_for_reads;
+    pub fn with_require_auth_for_reads(&mut self, require_auth_for_reads: bool) -> &mut Self {
+        self.config.auth.require_auth_for_reads = require_auth_for_reads;
         self
     }
 
-    pub fn with_heavy_query_limit(mut self, heavy_query_limit: Option<usize>) -> Self {
-        self.concurrency.heavy_query_limit = heavy_query_limit;
+    pub fn with_heavy_query_limit(&mut self, heavy_query_limit: Option<usize>) -> &mut Self {
+        self.config.concurrency.heavy_query_limit = heavy_query_limit;
         self
     }
 
-    pub fn with_exclusive_writes(mut self, exclusive_writes: bool) -> Self {
-        self.concurrency.exclusive_writes = exclusive_writes;
+    pub fn with_exclusive_writes(&mut self, exclusive_writes: bool) -> &mut Self {
+        self.config.concurrency.exclusive_writes = exclusive_writes;
         self
     }
 
-    pub fn with_disable_batching(mut self, disable_batching: bool) -> Self {
-        self.concurrency.disable_batching = disable_batching;
+    pub fn with_disable_batching(&mut self, disable_batching: bool) -> &mut Self {
+        self.config.concurrency.disable_batching = disable_batching;
         self
     }
 
-    pub fn with_max_batch_size(mut self, max_batch_size: Option<usize>) -> Self {
-        self.concurrency.max_batch_size = max_batch_size;
+    pub fn with_max_batch_size(&mut self, max_batch_size: Option<usize>) -> &mut Self {
+        self.config.concurrency.max_batch_size = max_batch_size;
         self
     }
 
-    pub fn with_disable_lists(mut self, disable_lists: bool) -> Self {
-        self.concurrency.disable_lists = disable_lists;
+    pub fn with_disable_lists(&mut self, disable_lists: bool) -> &mut Self {
+        self.config.concurrency.disable_lists = disable_lists;
         self
     }
 
-    pub fn with_max_page_size(mut self, max_page_size: Option<usize>) -> Self {
-        self.concurrency.max_page_size = max_page_size;
+    pub fn with_max_page_size(&mut self, max_page_size: Option<usize>) -> &mut Self {
+        self.config.concurrency.max_page_size = max_page_size;
         self
     }
 
-    pub fn with_max_query_depth(mut self, max_query_depth: Option<usize>) -> Self {
-        self.schema.max_query_depth = max_query_depth;
+    pub fn with_max_query_depth(&mut self, max_query_depth: Option<usize>) -> &mut Self {
+        self.config.schema.max_query_depth = max_query_depth;
         self
     }
 
-    pub fn with_max_query_complexity(mut self, max_query_complexity: Option<usize>) -> Self {
-        self.schema.max_query_complexity = max_query_complexity;
+    pub fn with_max_query_complexity(&mut self, max_query_complexity: Option<usize>) -> &mut Self {
+        self.config.schema.max_query_complexity = max_query_complexity;
         self
     }
 
-    pub fn with_max_recursive_depth(mut self, max_recursive_depth: Option<usize>) -> Self {
-        self.schema.max_recursive_depth = max_recursive_depth;
+    pub fn with_max_recursive_depth(&mut self, max_recursive_depth: Option<usize>) -> &mut Self {
+        self.config.schema.max_recursive_depth = max_recursive_depth;
         self
     }
 
     pub fn with_max_directives_per_field(
-        mut self,
+        &mut self,
         max_directives_per_field: Option<usize>,
-    ) -> Self {
-        self.schema.max_directives_per_field = max_directives_per_field;
+    ) -> &mut Self {
+        self.config.schema.max_directives_per_field = max_directives_per_field;
         self
     }
 
-    pub fn with_disable_introspection(mut self, disable_introspection: bool) -> Self {
-        self.schema.disable_introspection = disable_introspection;
+    pub fn with_disable_introspection(&mut self, disable_introspection: bool) -> &mut Self {
+        self.config.schema.disable_introspection = disable_introspection;
         self
     }
 
-    pub fn with_public_dir(mut self, public_dir: Option<PathBuf>) -> Self {
-        self.public_dir = public_dir;
+    pub fn with_public_dir(&mut self, public_dir: Option<PathBuf>) -> &mut Self {
+        self.config.public_dir = public_dir;
         self
     }
 
     #[cfg(feature = "search")]
-    pub fn with_create_index(mut self, create_index: bool) -> Self {
-        self.index.create_index = create_index;
+    pub fn with_create_index(&mut self, create_index: bool) -> &mut Self {
+        self.config.index.create_index = create_index;
         self
     }
 
-    pub fn build(self) -> AppConfig {
-        AppConfig {
-            logging: self.logging,
-            cache: self.cache,
-            tracing: self.tracing,
-            auth: self.auth,
-            concurrency: self.concurrency,
-            schema: self.schema,
-            public_dir: self.public_dir,
-            #[cfg(feature = "search")]
-            index: self.index,
-        }
+    pub fn build(&mut self) -> AppConfig {
+        self.config.clone()
     }
 }
