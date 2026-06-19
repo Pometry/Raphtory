@@ -11,7 +11,7 @@ services:
   raphtory:
     image: pometry/raphtory:latest
     depends_on: [ tempo ]
-    command: --tracing --otlp-agent-host=http://tempo --otlp-agent-port=4317 --otlp-tracing-service-name=raphtory
+    command: --tracing --otlp-agent-host=http://tempo --otlp-agent-port=4317 --otlp-tracing-service-name=raphtory --tracing-level=complete
     ports:
       - "1736:1736"
     restart: unless-stopped

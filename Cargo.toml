@@ -140,6 +140,7 @@ rust-embed = { version = "8.11.0", features = ["interpolate-folder-path"] }
 opentelemetry = "0.32.0"
 opentelemetry_sdk = { version = "0.32.1", features = ["rt-tokio"] }
 opentelemetry-otlp = { version = "0.32.0", features = ["grpc-tonic"] }
+opentelemetry-stdout = "0.32.0"
 tracing = { version = "0.1.44", features = ["log"] }
 tracing-opentelemetry = "0.33.0"
 tracing-subscriber = { version = "0.3.23", features = ["std", "env-filter"] }

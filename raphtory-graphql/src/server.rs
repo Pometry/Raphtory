@@ -270,7 +270,7 @@ impl GraphServer {
                         tracing_opentelemetry::layer().with_tracer(tp.tracer(tracer_name.clone())),
                     )
                     .try_init()
-                    .ok();
+                    .unwrap_or_else(|err| eprintln!("Failed to initialise tracer provider: {err}"));
             }
             None => {
                 registry.try_init().ok();

@@ -70,12 +70,13 @@ where
 {
     async fn request(&self, ctx: &ExtensionContext<'_>, next: NextRequest<'_>) -> Response {
         next.run(ctx)
-            .with_context(OpenTelemetryContext::current_with_span(
+            .with_context(OpenTelemetryContext::current_with_span({
+                dbg!("tracing");
                 self.tracer
                     .span_builder("request")
                     .with_kind(SpanKind::Server)
-                    .start(&*self.tracer),
-            ))
+                    .start(&*self.tracer)
+            }))
             .await
     }
 
