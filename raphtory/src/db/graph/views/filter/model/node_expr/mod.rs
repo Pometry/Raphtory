@@ -138,6 +138,12 @@ pub trait TemporalPropOps: Sized {
     ) -> StringFilter<TemporalExpr<Self::ViewExpr>, R, <Self::ViewExpr as EntityExpr>::Marker> {
         self.into_expr().fuzzy_search(rhs, levenshtein_distance, prefix_match)
     }
+    fn is_in<V: Into<Prop>>(self, values: impl IntoIterator<Item = V>) -> PropValueSetFilter<TemporalExpr<Self::ViewExpr>, <Self::ViewExpr as EntityExpr>::Marker> {
+        self.into_expr().is_in(values)
+    }
+    fn is_not_in<V: Into<Prop>>(self, values: impl IntoIterator<Item = V>) -> PropValueSetFilter<TemporalExpr<Self::ViewExpr>, <Self::ViewExpr as EntityExpr>::Marker> {
+        self.into_expr().is_not_in(values)
+    }
     fn is_true(self) -> BinaryCmpFilter<TemporalExpr<Self::ViewExpr>, Prop, <Self::ViewExpr as EntityExpr>::Marker> {
         self.into_expr().is_true()
     }

@@ -11242,8 +11242,8 @@ mod test_edge_property_filter {
         let filter = EdgeFilter
             .property("p2")
             .temporal()
-            .all()
-            .is_in(vec![Prop::U64(6)]);
+            .is_in(vec![Prop::U64(6)])
+            .all();
         let expected_results = vec![
             "2->1",
             "3->1",
@@ -11310,8 +11310,8 @@ mod test_edge_property_filter {
         let filter = EdgeFilter
             .property("p2")
             .temporal()
-            .all()
-            .is_not_in(vec![Prop::U64(6)]);
+            .is_not_in(vec![Prop::U64(6)])
+            .all();
         let expected_results = vec!["1->2", "2->3"];
         assert_filter_edges_results(
             init_edges_graph,
@@ -11442,8 +11442,8 @@ mod test_edge_property_filter {
         let filter = EdgeFilter
             .property("p10")
             .temporal()
-            .any()
-            .starts_with("Pape");
+            .starts_with("Pape")
+            .any();
         let expected_results: Vec<&str> = vec!["1->2", "2->1", "2->3"];
         assert_filter_edges_results(
             init_edges_graph,
@@ -11526,8 +11526,8 @@ mod test_edge_property_filter {
         let filter = EdgeFilter
             .property("p20")
             .temporal()
-            .all()
-            .starts_with("Gold");
+            .starts_with("Gold")
+            .all();
         let expected_results: Vec<&str> = vec!["1->2", "2->3"];
         assert_filter_edges_results(
             init_edges_graph,
@@ -11568,8 +11568,8 @@ mod test_edge_property_filter {
         let filter = EdgeFilter
             .property("p10")
             .temporal()
-            .any()
-            .ends_with("ship");
+            .ends_with("ship")
+            .any();
         let expected_results: Vec<&str> = vec!["2->3"];
         assert_filter_edges_results(
             init_edges_graph,
@@ -11652,8 +11652,8 @@ mod test_edge_property_filter {
         let filter = EdgeFilter
             .property("p20")
             .temporal()
-            .all()
-            .ends_with("ship");
+            .ends_with("ship")
+            .all();
         let expected_results: Vec<&str> = vec!["1->2"];
         assert_filter_edges_results(
             init_edges_graph,
@@ -11694,8 +11694,8 @@ mod test_edge_property_filter {
         let filter = EdgeFilter
             .property("p10")
             .temporal()
-            .any()
-            .contains("Paper");
+            .contains("Paper")
+            .any();
         let expected_results: Vec<&str> = vec!["1->2", "2->1", "2->3"];
         assert_filter_edges_results(
             init_edges_graph,
@@ -11795,8 +11795,8 @@ mod test_edge_property_filter {
         let filter = EdgeFilter
             .property("p10")
             .temporal()
-            .any()
-            .not_contains("ship");
+            .not_contains("ship")
+            .any();
         let expected_results: Vec<&str> = vec!["1->2", "2->1"];
         assert_filter_edges_results(
             init_edges_graph,
@@ -11858,8 +11858,8 @@ mod test_edge_property_filter {
         let filter = EdgeFilter
             .property("p30")
             .temporal()
-            .all()
-            .not_contains("ship");
+            .not_contains("ship")
+            .all();
         let expected_results: Vec<&str> = vec!["2->3"];
         assert_filter_edges_results(
             init_edges_graph,
