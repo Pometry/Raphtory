@@ -9,7 +9,7 @@ use crate::{
     },
     observability::open_telemetry::OpenTelemetry,
     paths::ExistingGraphFolder,
-    routes::{health, version, PublicFilesEndpoint},
+    routes::{graphql_stream_poc, health, version, PublicFilesEndpoint},
     server::ServerError::SchemaError,
     GQLError,
 };
@@ -363,6 +363,7 @@ impl GraphServer {
             )
             .at("/health", get(health))
             .at("/version", get(version))
+            .at("/graphql_stream_poc", get(graphql_stream_poc))
             .with(Cors::new())
             .with(Compression::new().with_quality(CompressionLevel::Fastest));
         Ok(app)

@@ -10,7 +10,10 @@ use rust_embed::Embed;
 use serde::{Deserialize, Serialize};
 use std::{path::PathBuf, time::Duration};
 
-use crate::rayon::{blocking_compute, blocking_write};
+use crate::{
+    interpreter::streaming_body,
+    rayon::{blocking_compute, blocking_write},
+};
 
 #[derive(Serialize, Deserialize)]
 pub(crate) struct Health {
@@ -50,6 +53,39 @@ pub(crate) async fn version() -> impl IntoResponse {
         version: String::from(raphtory::version()),
     };
     (StatusCode::OK, Json(v))
+}
+
+/// POC endpoint exercising the streaming [`Sink`](crate::interpreter::Sink)
+/// end-to-end: it produces a JSON document large enough to span several ~4Kb
+/// chunks and streams it to the response without ever buffering the whole body.
+///
+/// This is scaffolding to prove the producer (rayon) → channel → poem plumbing;
+/// it will be replaced by the real interpreter once planning/execution land.
+#[handler]
+pub(crate) async fn graphql_stream_poc() -> impl IntoResponse {
+    let body = streaming_body(|sink| {
+        sink.begin_object();
+        sink.begin_field("data");
+        sink.begin_object();
+
+        sink.begin_field("hello");
+        sink.write_str("world from the streaming interpreter");
+
+        // enough elements to force multiple chunks over the channel
+        sink.begin_field("nums");
+        sink.begin_array();
+        for i in 0..2000i64 {
+            sink.write_i64(i);
+        }
+        sink.end_array();
+
+        sink.end_object();
+        sink.end_object();
+    });
+
+    Response::builder()
+        .header("content-type", "application/json")
+        .body(body)
 }
 
 #[derive(Embed)]

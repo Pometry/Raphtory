@@ -18,6 +18,7 @@ pub mod client;
 pub mod config;
 pub mod data;
 mod graph;
+pub mod interpreter;
 pub mod model;
 pub mod observability;
 mod paths;
