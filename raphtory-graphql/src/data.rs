@@ -250,6 +250,18 @@ impl Data {
         self.get_graph(path).await
     }
 
+    /// Load a graph by path for the streaming interpreter endpoint.
+    ///
+    /// Returns the cached/loaded `GraphWithVectors` without applying row-level
+    /// permission filtering. Auth is the caller's responsibility (the POC
+    /// endpoint does not yet enforce it — see `interpreter::http`).
+    pub(crate) async fn get_graph_unfiltered(
+        &self,
+        path: &str,
+    ) -> Result<GraphWithVectors, GQLError> {
+        self.get_graph(path).await
+    }
+
     pub async fn get_cached_graph(&self, path: &str) -> Option<GraphWithVectors> {
         self.cache.get(path.into())
     }

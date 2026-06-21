@@ -12,6 +12,7 @@
 //! ever concatenating the whole document.
 
 pub mod exec;
+pub mod http;
 pub mod plan;
 pub mod planner;
 pub mod schema;
@@ -19,6 +20,7 @@ pub mod sink;
 pub mod value;
 
 pub use exec::execute;
+pub use http::InterpreterEndpoint;
 pub use plan::{IterKind, LeafKind, Nav, Op, Plan};
 pub use planner::{plan_request, PlanError, PlannedRequest};
 pub use sink::{streaming_body, Sink};

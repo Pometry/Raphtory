@@ -60,6 +60,32 @@ Status: **DRAFT for review** — see the [Open Questions](#open-questions) at th
 > parse `schema.graphql` into a type map and validate during the planning walk —
 > `schema.graphql` stays the single authoritative source, which was the intent.
 
+### HTTP interop (`http.rs`)
+
+The interpreter is mounted as its own poem endpoint at **`POST /graphql_interp`**,
+alongside the async-graphql endpoint at `/`. Wired in `server.rs` with a clone of
+`Data`. Flow: read body → `plan_request` (parse + SDL-validate) → load graph via
+`Data::get_graph_unfiltered` (the only async step) → `streaming_body(execute(...))`.
+Tested e2e (`interp_endpoint_matches_async_graphql`) — byte-identical to `/`.
+
+**Why not an async-graphql `Extension` / middleware** (investigated):
+
+| Approach | Verdict |
+|----------|---------|
+| `Extension::execute` hook (intercept post-validation) | ✗ returns a **materialised** `Response`; `ExtensionContext` doesn't expose the parsed document → can't stream and can't get the AST out |
+| Standalone reuse of `check_rules` | ✗ `pub(crate)`; `prepare_request` also `pub(crate)`; static-schema `Registry` not exposed |
+| Dynamic `Schema` from SDL as a pure validator | ✗ no validate-only call; `.execute()` runs resolvers — can't separate validation errors from "unimplemented field" errors |
+| **Dedicated poem endpoint** (chosen) | ✓ full raw-byte streaming, full control; validation via our SDL walk (authoritative against `schema.graphql`) |
+
+Raw-byte streaming can only happen where poem owns the response body, so the
+endpoint layer is the correct seam regardless. If async-graphql later exposes
+`check_rules`/`Registry` publicly, we can swap in their validator behind
+`plan_request` without touching the HTTP layer.
+
+**Not yet wired:** auth/permissions on `/graphql_interp` (the async-graphql path
+still enforces them via `AuthenticatedGraphQL`); `get_graph_unfiltered` skips
+row-level filtering. To address before this is more than a POC.
+
 This document turns the sketch in [`graphql-interpreter.md`](./graphql-interpreter.md)
 into a concrete design for a push-based, (near-)zero-allocation GraphQL execution
 engine that lives **alongside** the existing `async-graphql` / `dynamic-graphql`

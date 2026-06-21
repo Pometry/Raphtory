@@ -3,6 +3,7 @@ use crate::{
     auth_policy::AuthorizationPolicy,
     config::app_config::{load_config, AppConfig},
     data::Data,
+    interpreter::InterpreterEndpoint,
     model::{
         plugins::{entry_point::EntryPoint, operation::Operation},
         App,
@@ -21,6 +22,7 @@ use poem::{
     get,
     listener::{Acceptor, Listener, TcpListener},
     middleware::{Compression, CompressionEndpoint, Cors, CorsEndpoint},
+    post,
     web::CompressionLevel,
     EndpointExt, Route, Server,
 };
@@ -364,6 +366,10 @@ impl GraphServer {
             .at("/health", get(health))
             .at("/version", get(version))
             .at("/graphql_stream_poc", get(graphql_stream_poc))
+            .at(
+                "/graphql_interp",
+                post(InterpreterEndpoint::new(self.data.clone())),
+            )
             .with(Cors::new())
             .with(Compression::new().with_quality(CompressionLevel::Fastest));
         Ok(app)
