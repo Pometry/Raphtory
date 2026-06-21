@@ -13,10 +13,13 @@
 
 pub mod exec;
 pub mod plan;
+pub mod planner;
+pub mod schema;
 pub mod sink;
 pub mod value;
 
 pub use exec::execute;
 pub use plan::{IterKind, LeafKind, Nav, Op, Plan};
+pub use planner::{plan_request, PlanError, PlannedRequest};
 pub use sink::{streaming_body, Sink};
 pub use value::Value;

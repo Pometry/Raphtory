@@ -55,7 +55,7 @@ impl GqlNodes {
         }
     }
 
-    fn iter(&self) -> Box<dyn Iterator<Item = GqlNode> + '_> {
+    pub(crate) fn iter(&self) -> Box<dyn Iterator<Item = GqlNode> + '_> {
         let iter = self.nn.iter_owned_unlocked().map(GqlNode::from);
         Box::new(iter)
     }

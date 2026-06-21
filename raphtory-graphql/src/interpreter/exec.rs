@@ -10,12 +10,12 @@ use super::{
     sink::Sink,
     value::Value,
 };
-use crate::model::graph::{history::GqlHistory, node::GqlNode};
+use crate::model::graph::{history::GqlHistory, node::GqlNode, nodes::GqlNodes};
 use raphtory::{
     db::api::view::DynamicGraph,
     prelude::{GraphViewOps, NodeViewOps, TimeOps},
 };
-use raphtory_api::core::storage::timeindex::AsTime;
+use raphtory_api::core::{entities::GID, storage::timeindex::AsTime};
 
 /// Execute a plan against an already-loaded root graph, writing the full
 /// `{"data": {"<root_key>": …}}` document into `sink`.
@@ -84,6 +84,21 @@ fn exec(op: &Op, stack: &mut Vec<Value>, sink: &mut Sink) {
             // a local, so the item iterator borrows the local — not `stack` —
             // and we're free to push items as we go.
             match iter {
+                IterKind::NodesList => {
+                    let nodes = match stack.last().expect("non-empty stack") {
+                        Value::Nodes(n) => n.clone(),
+                        _ => unreachable!("plan/type mismatch"),
+                    };
+                    for node in nodes.iter() {
+                        sink.begin_object();
+                        stack.push(Value::Node(node));
+                        for child in children.iter() {
+                            exec(child, stack, sink);
+                        }
+                        stack.pop();
+                        sink.end_object();
+                    }
+                }
                 IterKind::HistoryList => {
                     let history = match stack.last().expect("non-empty stack") {
                         Value::History(h) => h.clone(),
@@ -115,9 +130,8 @@ impl Nav {
     /// `None` for a nullable field that resolved to nothing).
     fn apply(&self, recv: &Value) -> Option<Value> {
         match (self, recv) {
-            (Nav::Node(id), Value::Graph(g)) => {
-                g.node(id).map(|n| Value::Node(GqlNode::from(n)))
-            }
+            (Nav::Nodes, Value::Graph(g)) => Some(Value::Nodes(GqlNodes::new(g.nodes()))),
+            (Nav::Node(id), Value::Graph(g)) => g.node(id).map(|n| Value::Node(GqlNode::from(n))),
             (Nav::History, Value::Node(n)) => {
                 Some(Value::History(GqlHistory::from(n.vv.history())))
             }
@@ -134,9 +148,13 @@ impl Nav {
 impl LeafKind {
     fn write(&self, recv: &Value, sink: &mut Sink) {
         match (self, recv) {
+            (LeafKind::Id, Value::Node(n)) => match n.vv.id() {
+                GID::Str(s) => sink.write_str(&s),
+                GID::U64(u) => sink.write_u64(u),
+            },
+            (LeafKind::Name, Value::Node(n)) => sink.write_str(&n.vv.name()),
             (LeafKind::Timestamp, Value::EventTime(t)) => sink.write_i64(t.t()),
             (LeafKind::EventId, Value::EventTime(t)) => sink.write_u64(t.i() as u64),
-            (LeafKind::Name, Value::Node(n)) => sink.write_str(&n.vv.name()),
             _ => unreachable!("plan/type mismatch — validation should prevent this"),
         }
     }

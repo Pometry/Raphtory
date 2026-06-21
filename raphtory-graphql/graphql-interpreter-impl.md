@@ -48,10 +48,17 @@ Status: **DRAFT for review** — see the [Open Questions](#open-questions) at th
 | Poem POC route `GET /graphql_stream_poc` | ✅ proves producer→channel→response streaming |
 | `value.rs` — `Value` enum | ✅ `Graph` / `Node` / `History` / `EventTime` |
 | `plan.rs` — `Plan` / `Op` / `Nav` / `IterKind` / `LeafKind` | ✅ generic tree (branching-ready) |
-| `exec.rs` — depth-first executor over the stack | ✅ `graph→node→history→list→{timestamp,eventId}` |
-| Differential test vs live async-graphql endpoint | ✅ `matches_async_graphql_endpoint` — byte-identical `data` |
-| Branching navs (`after` / `before` / `window` / `neighbours`) | 🚧 `Nav` variants stubbed; `neighbours` iterator + plan wiring pending |
-| `validate.rs` (SDL validation) + `planner.rs` (AST→Plan) | ⬜ not started — plans are hand-built in tests |
+| `exec.rs` — depth-first executor over the stack | ✅ `nodes→list→id` and `node→history→list→{timestamp,eventId}` |
+| `schema.rs` — SDL type map (validation source) | ✅ parses `schema.graphql` once; `(type,field)→return-type` |
+| `planner.rs` — parse + validate + AST→Plan | ✅ type-directed walk; rejects unknown & unimplemented fields |
+| **Full vertical slice** `graph{nodes{list{id}}}` request→validate→plan→execute | ✅ `vertical_slice_matches_endpoint` — byte-identical to live endpoint |
+| Differential test vs live async-graphql endpoint | ✅ `matches_async_graphql_endpoint` + `vertical_slice_matches_endpoint` |
+| Branching navs (`after` / `before` / `window` / `neighbours`) | 🚧 `Nav::After/Before/Window` implemented in exec; `neighbours` + planner wiring pending |
+
+> **Validation note:** async-graphql's validator (`check_rules`) is `pub(crate)`,
+> so the locked Q2 ("reuse async-graphql's validator") isn't reachable. We instead
+> parse `schema.graphql` into a type map and validate during the planning walk —
+> `schema.graphql` stays the single authoritative source, which was the intent.
 
 This document turns the sketch in [`graphql-interpreter.md`](./graphql-interpreter.md)
 into a concrete design for a push-based, (near-)zero-allocation GraphQL execution
