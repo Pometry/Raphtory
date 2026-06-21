@@ -3386,7 +3386,9 @@ mod test_node_property_filter {
         );
 
         let filter = NodeFilter.property("p1").temporal().ne("Gold_ship").all();
-        let expected_results = vec!["1"];
+        // Both nodes have non-empty p1 streams whose values are all ne "Gold_ship".
+        // Nodes 3 and 4 have empty p1 streams and are correctly rejected.
+        let expected_results = vec!["1", "2"];
         assert_filter_nodes_results(
             init_nodes_graph,
             IdentityGraphTransformer,
@@ -3494,7 +3496,9 @@ mod test_node_property_filter {
         );
 
         let filter = NodeFilter.property("p2").temporal().le(10u64).all();
-        let expected_results = vec!["3"];
+        // Node 2 (p2=2) and node 3 (p2=6) both have non-empty streams satisfying le(10).
+        // Nodes 1 and 4 have empty p2 streams and are correctly rejected.
+        let expected_results = vec!["2", "3"];
         assert_filter_nodes_results(
             init_nodes_graph,
             IdentityGraphTransformer,
