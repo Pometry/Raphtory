@@ -92,8 +92,7 @@ impl<T: Comparable> Comparable for Option<T> {
     fn binary_cmp(op: &BinaryOp, left: &Option<T>, right: &Option<T>) -> bool {
         match (left, right) {
             (Some(l), Some(r)) => T::binary_cmp(op, l, r),
-            (None, None) => matches!(op, BinaryOp::Eq),
-            (None, Some(_)) | (Some(_), None) => matches!(op, BinaryOp::Ne),
+            _ => false,
         }
     }
 }
