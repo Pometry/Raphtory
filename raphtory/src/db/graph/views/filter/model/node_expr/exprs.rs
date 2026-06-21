@@ -340,6 +340,9 @@ impl<E: CreateView + Clone + Send + Sync + 'static> EntityExpr for DegreeExpr<E>
     fn prop_type(&self) -> PropType {
         PropType::U64
     }
+    fn nullable(&self) -> bool {
+        false
+    }
 }
 
 impl<E: CreateView + Clone + Send + Sync + 'static> NodeExpr for DegreeExpr<E> {

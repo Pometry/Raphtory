@@ -64,6 +64,16 @@ pub trait EntityExpr: Clone + Send + Sync + 'static {
     fn prop_type(&self) -> PropType {
         PropType::Empty
     }
+
+    /// Whether this expression can produce `None` at runtime.
+    ///
+    /// Defaults to `true` (most expressions read optional properties).
+    /// Override to `false` for expressions that always produce `Some(_)`
+    /// (e.g. degree). Filters like `is_some`/`is_none` are meaningless on
+    /// non-nullable expressions and should be rejected at compile time.
+    fn nullable(&self) -> bool {
+        true
+    }
 }
 
 /// Sealed trait to avoid conflicts between node and edge expressions

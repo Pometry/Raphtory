@@ -139,6 +139,73 @@ fn validate_string_op(prop_type: &PropType) -> Result<(), GraphError> {
     Ok(())
 }
 
+/// Pick the more specific of the two known prop types.
+///
+/// Compiled `NodeOp`s and `EntityExpr`s may both have a known prop type, but
+/// expression-level info (e.g. `DegreeExpr::prop_type()` → U64) is not always
+/// propagated through generic wrappers like `Map<Op, V>`. Prefer whichever side
+/// has a concrete type so validation can fire early.
+fn resolved_prop_type(expr_pt: PropType, op_pt: PropType) -> PropType {
+    if expr_pt != PropType::Empty {
+        expr_pt
+    } else {
+        op_pt
+    }
+}
+
+/// Reject a constant RHS value whose type cannot be coerced to the LHS type.
+///
+/// Only fires when both sides are known and the RHS is a literal/const. Defers
+/// to runtime when the LHS type is unknown (`PropType::Empty`) or the RHS isn't
+/// a const value.
+fn validate_const_castable(
+    lhs_pt: &PropType,
+    rhs_const: Option<&Prop>,
+) -> Result<(), GraphError> {
+    if *lhs_pt == PropType::Empty {
+        return Ok(());
+    }
+    if let Some(rhs) = rhs_const {
+        if rhs.dtype() != *lhs_pt && rhs.clone().try_cast(lhs_pt.clone()).is_none() {
+            return Err(GraphError::InvalidFilter(format!(
+                "value {:?} of type {} cannot be coerced to {}",
+                rhs,
+                rhs.dtype(),
+                lhs_pt
+            )));
+        }
+    }
+    Ok(())
+}
+
+/// Cast every value in an `is_in`/`is_not_in` set to the LHS type.
+///
+/// If the LHS type is unknown (`PropType::Empty`), the values are returned
+/// unchanged and coercion is deferred to runtime. Otherwise, any value whose
+/// type cannot be coerced produces `Err(InvalidFilter)`. Successful casts are
+/// substituted so the runtime set comparison sees same-typed values.
+fn coerce_set_values(lhs_pt: &PropType, values: Vec<Prop>) -> Result<Vec<Prop>, GraphError> {
+    if *lhs_pt == PropType::Empty {
+        return Ok(values);
+    }
+    values
+        .into_iter()
+        .map(|v| {
+            if v.dtype() == *lhs_pt {
+                Ok(v)
+            } else {
+                let original_dtype = v.dtype();
+                v.clone().try_cast(lhs_pt.clone()).ok_or_else(|| {
+                    GraphError::InvalidFilter(format!(
+                        "value {:?} of type {} cannot be coerced to {}",
+                        v, original_dtype, lhs_pt
+                    ))
+                })
+            }
+        })
+        .collect()
+}
+
 impl<L, R> CreateFilter for BinaryCmpFilter<L, R, NodeFilter>
 where
     L: NodeExpr,
@@ -167,10 +234,12 @@ where
         self,
         graph: G,
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        let expr_pt = self.left.prop_type();
         let left = self.left.create_node_op(graph.clone())?;
         let right = self.right.create_node_op(graph)?;
-        validate_binary_op(&self.op, &left.prop_type())?;
-        // TODO: validate_binary_op(&self.op, &left.prop_type(), &right.prop_type())?;
+        let lhs_pt = resolved_prop_type(expr_pt, left.prop_type());
+        validate_binary_op(&self.op, &lhs_pt)?;
+        validate_const_castable(&lhs_pt, right.const_value().as_ref().and_then(|o| o.as_ref()))?;
         Ok(Arc::new(BinaryCmpNodeOp {
             left,
             right,
@@ -249,6 +318,12 @@ where
         self,
         graph: G,
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        if !self.expr.nullable() {
+            return Err(GraphError::InvalidFilter(format!(
+                "operator {:?} is not valid for non-nullable expression",
+                self.op
+            )));
+        }
         let inner = self.expr.create_node_op(graph)?;
         Ok(UnaryNodeOp { inner, op: self.op })
     }
@@ -333,9 +408,10 @@ impl<L: NodeExpr, R: NodeExpr> CreateFilter for StringFilter<L, R, NodeFilter> {
         self,
         graph: G,
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        let expr_pt = self.left.prop_type();
         let left = self.left.create_node_op(graph.clone())?;
         let right = self.right.create_node_op(graph)?;
-        validate_string_op(&left.prop_type())?;
+        validate_string_op(&resolved_prop_type(expr_pt, left.prop_type()))?;
         Ok(Arc::new(StringNodeOp {
             left,
             right,
@@ -404,9 +480,13 @@ impl<E: NodeExpr> CreateFilter for PropValueSetFilter<E, NodeFilter> {
         self,
         graph: G,
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        let expr_pt = self.expr.prop_type();
+        let inner = self.expr.create_node_op(graph)?;
+        let lhs_pt = resolved_prop_type(expr_pt, inner.prop_type());
+        let values = coerce_set_values(&lhs_pt, self.values)?;
         Ok(PropValueSetNodeOp {
-            inner: self.expr.create_node_op(graph)?,
-            values: self.values,
+            inner,
+            values,
             op: self.op,
         })
     }
