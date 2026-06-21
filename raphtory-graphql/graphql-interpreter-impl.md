@@ -40,6 +40,19 @@ Status: **DRAFT for review** — see the [Open Questions](#open-questions) at th
   to compare against async-graphql; the engine/production path never
   concatenates. (Q-D)
 
+### Implementation status
+
+| Component | State |
+|-----------|-------|
+| `sink.rs` — streaming `Sink` + bounded-channel → poem `Body` plumbing | ✅ done, tested (unit + HTTP e2e) |
+| Poem POC route `GET /graphql_stream_poc` | ✅ proves producer→channel→response streaming |
+| `value.rs` — `Value` enum | ✅ `Graph` / `Node` / `History` / `EventTime` |
+| `plan.rs` — `Plan` / `Op` / `Nav` / `IterKind` / `LeafKind` | ✅ generic tree (branching-ready) |
+| `exec.rs` — depth-first executor over the stack | ✅ `graph→node→history→list→{timestamp,eventId}` |
+| Differential test vs live async-graphql endpoint | ✅ `matches_async_graphql_endpoint` — byte-identical `data` |
+| Branching navs (`after` / `before` / `window` / `neighbours`) | 🚧 `Nav` variants stubbed; `neighbours` iterator + plan wiring pending |
+| `validate.rs` (SDL validation) + `planner.rs` (AST→Plan) | ⬜ not started — plans are hand-built in tests |
+
 This document turns the sketch in [`graphql-interpreter.md`](./graphql-interpreter.md)
 into a concrete design for a push-based, (near-)zero-allocation GraphQL execution
 engine that lives **alongside** the existing `async-graphql` / `dynamic-graphql`

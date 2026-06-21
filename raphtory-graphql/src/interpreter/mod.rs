@@ -11,6 +11,12 @@
 //! bounded channel; the HTTP layer flushes each chunk to the response without
 //! ever concatenating the whole document.
 
+pub mod exec;
+pub mod plan;
 pub mod sink;
+pub mod value;
 
+pub use exec::execute;
+pub use plan::{IterKind, LeafKind, Nav, Op, Plan};
 pub use sink::{streaming_body, Sink};
+pub use value::Value;

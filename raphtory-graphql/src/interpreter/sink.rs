@@ -312,6 +312,30 @@ where
     Body::from_bytes_stream(stream)
 }
 
+// ── test-only helpers ────────────────────────────────────────────────────────
+
+/// Drain a producer's chunks and reassemble the full document. Collecting here
+/// is a *test-only* convenience — the engine itself never concatenates.
+#[cfg(test)]
+pub(crate) async fn test_collect(producer: impl FnOnce(&mut Sink) + Send + 'static) -> Vec<u8> {
+    let mut rx = spawn_producer(producer);
+    let mut out = Vec::new();
+    while let Some(chunk) = rx.recv().await {
+        out.extend_from_slice(&chunk);
+    }
+    out
+}
+
+/// Like [`test_collect`] but parses the result as JSON.
+#[cfg(test)]
+pub(crate) async fn test_collect_json(
+    producer: impl FnOnce(&mut Sink) + Send + 'static,
+) -> serde_json::Value {
+    let bytes = test_collect(producer).await;
+    serde_json::from_slice(&bytes)
+        .unwrap_or_else(|e| panic!("not valid JSON: {e}\n{}", String::from_utf8_lossy(&bytes)))
+}
+
 // ── small integer formatting helpers (no external itoa dep) ──────────────────
 
 type ItoaBuf = [u8; 20];
@@ -358,22 +382,7 @@ mod tests {
     use super::*;
     use serde_json::{json, Value};
 
-    /// Drain the producer's chunks and reassemble the full document (collecting
-    /// here is a *test-only* convenience — the engine itself never concatenates).
-    async fn collect(producer: impl FnOnce(&mut Sink) + Send + 'static) -> Vec<u8> {
-        let mut rx = spawn_producer(producer);
-        let mut out = Vec::new();
-        while let Some(chunk) = rx.recv().await {
-            out.extend_from_slice(&chunk);
-        }
-        out
-    }
-
-    async fn collect_json(producer: impl FnOnce(&mut Sink) + Send + 'static) -> Value {
-        let bytes = collect(producer).await;
-        serde_json::from_slice(&bytes)
-            .unwrap_or_else(|e| panic!("not valid JSON: {e}\n{}", String::from_utf8_lossy(&bytes)))
-    }
+    use super::{test_collect as collect, test_collect_json as collect_json};
 
     #[tokio::test]
     async fn nested_object_and_array() {
