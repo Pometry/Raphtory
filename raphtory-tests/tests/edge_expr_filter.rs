@@ -441,16 +441,15 @@ fn test_edge_quantified_all_is_not_in() {
 
 #[test]
 fn test_edge_aggregated_last_then_sum() {
-    // temporal values are themselves lists — re-aggregate the aggregated list
-    // E.g. .temporal().last() gives the last single value; chaining .sum() wraps it
-    // in an UnwrapOptPropEdgeExpr and sums what is available.
-    // Simple case: single temporal value so last == only value, sum of that single number.
+    // Property is list-valued at each timestamp.
+    // .last() picks the last snapshot's list, .sum() reduces it to a scalar.
     let g = Graph::new();
-    g.add_edge(1, "A", "B", [("score", Prop::I64(10))], None).unwrap();
-    g.add_edge(2, "A", "B", [("score", Prop::I64(20))], None).unwrap();
-    g.add_edge(1, "C", "D", [("score", Prop::I64(5))], None).unwrap();
+    // A->B: last snapshot = [3,4,5], sum = 12 (> 10)
+    g.add_edge(1, "A", "B", [("score", Prop::List(vec![Prop::I64(1), Prop::I64(2)].into()))], None).unwrap();
+    g.add_edge(2, "A", "B", [("score", Prop::List(vec![Prop::I64(3), Prop::I64(4), Prop::I64(5)].into()))], None).unwrap();
+    // C->D: last (and only) snapshot = [1,2,3], sum = 6 (not > 10)
+    g.add_edge(1, "C", "D", [("score", Prop::List(vec![Prop::I64(1), Prop::I64(2), Prop::I64(3)].into()))], None).unwrap();
 
-    // last temporal value: A->B = 20, C->D = 5; then sum of that single value = itself
     let filter = EdgeFilter.property("score").temporal().last().sum().gt(10i64);
     let result = g.filter(filter).unwrap();
     assert_eq!(sorted_edges(result), vec!["A->B"]);
@@ -485,45 +484,53 @@ fn test_edge_aggregated_first_then_ends_with() {
 
 #[test]
 fn test_edge_aggregated_last_then_len() {
+    // Property is list-valued at each timestamp.
+    // .last() picks the last snapshot's list, .len() returns its length.
     let g = Graph::new();
-    g.add_edge(1, "A", "B", [("score", Prop::I64(42))], None).unwrap();
-    g.add_edge(1, "C", "D", [("score", Prop::I64(7))], None).unwrap();
+    // A->B: last snapshot = [20, 30], len = 2
+    g.add_edge(1, "A", "B", [("score", Prop::List(vec![Prop::I64(10)].into()))], None).unwrap();
+    g.add_edge(2, "A", "B", [("score", Prop::List(vec![Prop::I64(20), Prop::I64(30)].into()))], None).unwrap();
+    // C->D: last snapshot = [5, 10, 15], len = 3
+    g.add_edge(1, "C", "D", [("score", Prop::List(vec![Prop::I64(5), Prop::I64(10), Prop::I64(15)].into()))], None).unwrap();
 
-    // last() gives Option<Prop>; len() wraps as list of one element → len = 1
-    // When None, len = 0. Here both edges have a last value, so len = 1 for both.
-    let filter = EdgeFilter.property("score").temporal().last().len().eq(1usize);
+    let filter = EdgeFilter.property("score").temporal().last().len().eq(2usize);
     let result = g.filter(filter).unwrap();
-    assert_eq!(sorted_edges(result), vec!["A->B", "C->D"]);
+    assert_eq!(sorted_edges(result), vec!["A->B"]);
 }
 
 #[test]
 fn test_edge_aggregated_last_then_any_is_in() {
+    // Property is list-valued at each timestamp.
+    // .last() picks the last snapshot's list, .is_in([...]).any() checks if any element is in the set.
     let g = Graph::new();
-    g.add_edge(1, "A", "B", [("tag", Prop::str("rock"))], None).unwrap();
-    g.add_edge(2, "A", "B", [("tag", Prop::str("metal"))], None).unwrap();
-    g.add_edge(1, "C", "D", [("tag", Prop::str("jazz"))], None).unwrap();
+    // A->B: last snapshot = ["folk","metal"] — "metal" ∈ {"metal","blues"}
+    g.add_edge(1, "A", "B", [("tag", Prop::List(vec![Prop::str("rock"), Prop::str("pop")].into()))], None).unwrap();
+    g.add_edge(2, "A", "B", [("tag", Prop::List(vec![Prop::str("folk"), Prop::str("metal")].into()))], None).unwrap();
+    // C->D: last (and only) snapshot = ["jazz","pop"] — neither in {"metal","blues"}
+    g.add_edge(1, "C", "D", [("tag", Prop::List(vec![Prop::str("jazz"), Prop::str("pop")].into()))], None).unwrap();
 
-    // last value: A->B = "metal", C->D = "jazz"
-    // .any().is_in([...]) — since last() produces a single-element list, any == the value itself
     let filter = EdgeFilter
         .property("tag")
         .temporal()
         .last()
-        .any()
-        .is_in([Prop::str("metal"), Prop::str("blues")]);
+        .is_in([Prop::str("metal"), Prop::str("blues")])
+        .any();
     let result = g.filter(filter).unwrap();
     assert_eq!(sorted_edges(result), vec!["A->B"]);
 }
 
 #[test]
 fn test_edge_aggregated_last_then_all_contains() {
+    // Property is list-valued at each timestamp.
+    // .last() picks the last snapshot's list, .contains("rock").all() checks all elements contain "rock".
     let g = Graph::new();
-    g.add_edge(1, "A", "B", [("tag", Prop::str("rock"))], None).unwrap();
-    g.add_edge(2, "A", "B", [("tag", Prop::str("rock-n-roll"))], None).unwrap();
-    g.add_edge(1, "C", "D", [("tag", Prop::str("jazz"))], None).unwrap();
+    // A->B: last snapshot = ["rock","rock-n-roll"] — all contain "rock"
+    g.add_edge(1, "A", "B", [("tag", Prop::List(vec![Prop::str("jazz")].into()))], None).unwrap();
+    g.add_edge(2, "A", "B", [("tag", Prop::List(vec![Prop::str("rock"), Prop::str("rock-n-roll")].into()))], None).unwrap();
+    // C->D: last (and only) snapshot = ["rock","jazz"] — "jazz" doesn't contain "rock"
+    g.add_edge(1, "C", "D", [("tag", Prop::List(vec![Prop::str("rock"), Prop::str("jazz")].into()))], None).unwrap();
 
-    // last value: A->B = "rock-n-roll" (contains "rock"), C->D = "jazz" (doesn't)
-    let filter = EdgeFilter.property("tag").temporal().last().all().contains("rock");
+    let filter = EdgeFilter.property("tag").temporal().last().contains("rock").all();
     let result = g.filter(filter).unwrap();
     assert_eq!(sorted_edges(result), vec!["A->B"]);
 }
