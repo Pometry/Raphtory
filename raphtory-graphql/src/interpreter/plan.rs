@@ -60,11 +60,13 @@ pub enum Nav {
     Node(GqlNodeId),
     /// `node.history` — `Node` → `History`
     History,
+    /// `node.neighbours` — `Node` → `PathFromNode`
+    Neighbours,
     /// `node.after(time:)` — `Node` → `Node`
     After(EventTime),
     /// `node.before(time:)` — `Node` → `Node`
     Before(EventTime),
-    /// `node.window(start:, end:)` — `Node` → `Node`
+    /// `window(start:, end:)` — `Graph` → `Graph` or `Node` → `Node`
     Window { start: EventTime, end: EventTime },
 }
 
@@ -73,6 +75,8 @@ pub enum Nav {
 pub enum IterKind {
     /// `nodes.list` — iterate a `Nodes`, item per `Node`.
     NodesList,
+    /// `neighbours.list` — iterate a `PathFromNode`, item per `Node`.
+    NeighboursList,
     /// `history.list` — iterate a `History`, item per `EventTime`.
     HistoryList,
 }

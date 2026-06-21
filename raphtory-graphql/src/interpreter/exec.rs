@@ -10,9 +10,11 @@ use super::{
     sink::Sink,
     value::Value,
 };
-use crate::model::graph::{history::GqlHistory, node::GqlNode, nodes::GqlNodes};
+use crate::model::graph::{
+    history::GqlHistory, node::GqlNode, nodes::GqlNodes, path_from_node::GqlPathFromNode,
+};
 use raphtory::{
-    db::api::view::DynamicGraph,
+    db::api::view::{DynamicGraph, IntoDynamic},
     prelude::{GraphViewOps, NodeViewOps, TimeOps},
 };
 use raphtory_api::core::{entities::GID, storage::timeindex::AsTime};
@@ -99,6 +101,21 @@ fn exec(op: &Op, stack: &mut Vec<Value>, sink: &mut Sink) {
                         sink.end_object();
                     }
                 }
+                IterKind::NeighboursList => {
+                    let path = match stack.last().expect("non-empty stack") {
+                        Value::Path(p) => p.clone(),
+                        _ => unreachable!("plan/type mismatch"),
+                    };
+                    for node in path.iter() {
+                        sink.begin_object();
+                        stack.push(Value::Node(node));
+                        for child in children.iter() {
+                            exec(child, stack, sink);
+                        }
+                        stack.pop();
+                        sink.end_object();
+                    }
+                }
                 IterKind::HistoryList => {
                     let history = match stack.last().expect("non-empty stack") {
                         Value::History(h) => h.clone(),
@@ -135,8 +152,14 @@ impl Nav {
             (Nav::History, Value::Node(n)) => {
                 Some(Value::History(GqlHistory::from(n.vv.history())))
             }
+            (Nav::Neighbours, Value::Node(n)) => {
+                Some(Value::Path(GqlPathFromNode::new(n.vv.neighbours())))
+            }
             (Nav::After(t), Value::Node(n)) => Some(Value::Node(GqlNode::from(n.vv.after(*t)))),
             (Nav::Before(t), Value::Node(n)) => Some(Value::Node(GqlNode::from(n.vv.before(*t)))),
+            (Nav::Window { start, end }, Value::Graph(g)) => {
+                Some(Value::Graph(g.window(*start, *end).into_dynamic()))
+            }
             (Nav::Window { start, end }, Value::Node(n)) => {
                 Some(Value::Node(GqlNode::from(n.vv.window(*start, *end))))
             }

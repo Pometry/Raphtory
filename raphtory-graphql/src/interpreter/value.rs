@@ -6,7 +6,9 @@
 //! `Value` between stack slots is a pointer copy / refcount bump, never a data
 //! copy — and output parity with the existing engine is structural.
 
-use crate::model::graph::{history::GqlHistory, node::GqlNode, nodes::GqlNodes};
+use crate::model::graph::{
+    history::GqlHistory, node::GqlNode, nodes::GqlNodes, path_from_node::GqlPathFromNode,
+};
 use raphtory::db::api::view::DynamicGraph;
 use raphtory_api::core::storage::timeindex::EventTime;
 
@@ -16,6 +18,8 @@ pub enum Value {
     Graph(DynamicGraph),
     /// A node collection (`graph.nodes`).
     Nodes(GqlNodes),
+    /// A path of nodes reachable from a node (`node.neighbours`).
+    Path(GqlPathFromNode),
     /// A node view (`node(name:)`, `after(time:)`, a neighbour, …).
     Node(GqlNode),
     /// A history handle (`node.history`).

@@ -24,7 +24,7 @@ use async_graphql::{
     },
     Value as GqlValue,
 };
-use raphtory_api::core::entities::GID;
+use raphtory_api::core::{entities::GID, storage::timeindex::EventTime};
 
 /// The root object type in `schema.graphql`.
 const ROOT_TYPE: &str = "QueryRoot";
@@ -159,10 +159,32 @@ fn resolve_op(parent_type: &str, field: &str, f: &Field) -> Result<OpKind, PlanE
     Ok(match (parent_type, field) {
         ("Graph", "nodes") => OpKind::Navigate(Nav::Nodes),
         ("Graph", "node") => OpKind::Navigate(Nav::Node(node_id_arg(f)?)),
+        ("Graph", "window") => OpKind::Navigate(Nav::Window {
+            start: time_arg(f, "start")?,
+            end: time_arg(f, "end")?,
+        }),
         ("Nodes", "list") => OpKind::List(IterKind::NodesList),
         ("Node", "id") => OpKind::Leaf(LeafKind::Id),
         ("Node", "name") => OpKind::Leaf(LeafKind::Name),
         ("Node", "history") => OpKind::Navigate(Nav::History),
+        ("Node", "after") => OpKind::Navigate(Nav::After(time_arg(f, "time")?)),
+        ("Node", "before") => OpKind::Navigate(Nav::Before(time_arg(f, "time")?)),
+        ("Node", "window") => OpKind::Navigate(Nav::Window {
+            start: time_arg(f, "start")?,
+            end: time_arg(f, "end")?,
+        }),
+        ("Node", "neighbours") => {
+            // `select` filters the neighbour set and changes output — refuse it
+            // rather than silently ignore it until the interpreter supports it.
+            if f.get_argument("select").is_some() {
+                return Err(PlanError::Unsupported {
+                    ty: parent_type.into(),
+                    field: "neighbours(select:)".into(),
+                });
+            }
+            OpKind::Navigate(Nav::Neighbours)
+        }
+        ("PathFromNode", "list") => OpKind::List(IterKind::NeighboursList),
         ("History", "list") => OpKind::List(IterKind::HistoryList),
         ("EventTime", "timestamp") => OpKind::Leaf(LeafKind::Timestamp),
         ("EventTime", "eventId") => OpKind::Leaf(LeafKind::EventId),
@@ -185,6 +207,20 @@ fn const_arg(f: &Field, name: &str) -> Option<GqlValue> {
 fn string_arg(f: &Field, name: &'static str) -> Result<String, PlanError> {
     match const_arg(f, name) {
         Some(GqlValue::String(s)) => Ok(s),
+        Some(_) => Err(PlanError::BadArgument(name)),
+        None => Err(PlanError::MissingArgument(name)),
+    }
+}
+
+/// Parse a `TimeInput` argument. The POC supports the integer form (millis
+/// since epoch), built into an `EventTime` exactly as the resolvers do
+/// (`EventTime::start`). String/object time forms are not yet supported.
+fn time_arg(f: &Field, name: &'static str) -> Result<EventTime, PlanError> {
+    match const_arg(f, name) {
+        Some(GqlValue::Number(n)) => n
+            .as_i64()
+            .map(EventTime::start)
+            .ok_or(PlanError::BadArgument(name)),
         Some(_) => Err(PlanError::BadArgument(name)),
         None => Err(PlanError::MissingArgument(name)),
     }

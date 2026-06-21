@@ -17,7 +17,7 @@ pub mod namespaced_item;
 pub(crate) mod node;
 pub(crate) mod node_id;
 pub(crate) mod nodes;
-mod path_from_node;
+pub(crate) mod path_from_node;
 pub(crate) mod property;
 pub(crate) mod timeindex;
 pub(crate) mod vector_selection;

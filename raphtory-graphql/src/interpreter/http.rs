@@ -146,6 +146,23 @@ mod tests {
             r#"{ graph(path: "g") { nodes { list { id } } } }"#,
             r#"{ graph(path: "g") { nodes { list { name } } } }"#,
             r#"{ graph(path: "g") { node(name: "ben") { history { list { timestamp eventId } } } } }"#,
+            // branching: window (Graph→Graph), after/before (Node→Node),
+            // neighbours (Node→PathFromNode), neighbours.list, nested history
+            r#"{ graph(path: "g") {
+                window(start: 1, end: 10) {
+                    node(name: "ben") {
+                        after(time: 0) {
+                            history { list { timestamp eventId } }
+                            neighbours {
+                                list {
+                                    name
+                                    before(time: 5) { history { list { timestamp eventId } } }
+                                }
+                            }
+                        }
+                    }
+                }
+            } }"#,
         ] {
             let expected =
                 serde_json::to_value(gql.query(query, HashMap::new()).await.unwrap()).unwrap(); // {"graph": {...}}
