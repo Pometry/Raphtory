@@ -123,43 +123,43 @@ impl AppConfigBuilder {
                         match TracingConfigFieldName::by_name(sub_path)
                             .ok_or_else(|| invalid_path([path, sub_path]))?
                         {
-                            TracingConfigFieldName::TracingEnabled => {
+                            TracingConfigFieldName::Enabled => {
                                 self.with_tracing(
                                     Deserialize::deserialize(value)
                                         .map_err(|e| invalid_value([path, sub_path], e))?,
                                 );
                             }
-                            TracingConfigFieldName::TracingLevel => {
+                            TracingConfigFieldName::Level => {
                                 self.with_tracing_level(
                                     Deserialize::deserialize(value)
                                         .map_err(|e| invalid_value([path, sub_path], e))?,
                                 );
                             }
-                            TracingConfigFieldName::OtlpAgentHost => {
+                            TracingConfigFieldName::AgentHost => {
                                 self.with_otlp_agent_host(
                                     Deserialize::deserialize(value)
                                         .map_err(|e| invalid_value([path, sub_path], e))?,
                                 );
                             }
-                            TracingConfigFieldName::OtlpTracingServiceName => {
+                            TracingConfigFieldName::ServiceName => {
                                 self.with_otlp_tracing_service_name(
                                     Deserialize::deserialize(value)
                                         .map_err(|e| invalid_value([path, sub_path], e))?,
                                 );
                             }
-                            TracingConfigFieldName::OtlpTransportProtocol => {
+                            TracingConfigFieldName::TransportProtocol => {
                                 self.with_otlp_transport_protocol(
                                     Deserialize::deserialize(value)
                                         .map_err(|e| invalid_value([path, sub_path], e))?,
                                 );
                             }
-                            TracingConfigFieldName::OtlpTransportHeaders => {
+                            TracingConfigFieldName::TransportHeaders => {
                                 self.with_otlp_transport_headers(
                                     Deserialize::deserialize(value)
                                         .map_err(|e| invalid_value([path, sub_path], e))?,
                                 );
                             }
-                            TracingConfigFieldName::OtlpTransportCertificate => {
+                            TracingConfigFieldName::TransportCertificate => {
                                 self.with_otlp_transport_certificate(
                                     Deserialize::deserialize(value)
                                         .map_err(|e| invalid_value([path, sub_path], e))?,
@@ -325,17 +325,17 @@ impl AppConfigBuilder {
     }
 
     pub fn with_tracing(&mut self, tracing: bool) -> &mut Self {
-        self.config.tracing.tracing_enabled = tracing;
+        self.config.tracing.enabled = tracing;
         self
     }
 
     pub fn with_tracing_level(&mut self, tracing_level: TracingLevel) -> &mut Self {
-        self.config.tracing.tracing_level = tracing_level;
+        self.config.tracing.level = tracing_level;
         self
     }
 
     pub fn with_otlp_agent_host(&mut self, otlp_agent_host: Option<String>) -> &mut Self {
-        self.config.tracing.otlp_agent_host = otlp_agent_host;
+        self.config.tracing.agent_host = otlp_agent_host;
         self
     }
 
@@ -343,22 +343,22 @@ impl AppConfigBuilder {
         &mut self,
         otlp_tracing_service_name: String,
     ) -> &mut Self {
-        self.config.tracing.otlp_tracing_service_name = otlp_tracing_service_name;
+        self.config.tracing.service_name = otlp_tracing_service_name;
         self
     }
 
     pub fn with_otlp_transport_protocol(&mut self, otlp_protocol: TracingProtocol) -> &mut Self {
-        self.config.tracing.otlp_transport_protocol = otlp_protocol;
+        self.config.tracing.transport_protocol = otlp_protocol;
         self
     }
 
     pub fn with_otlp_transport_headers(&mut self, headers: HashMap<String, String>) -> &mut Self {
-        self.config.tracing.otlp_transport_headers = headers;
+        self.config.tracing.transport_headers = headers;
         self
     }
 
     pub fn with_otlp_transport_certificate(&mut self, certificte: Option<PathBuf>) -> &mut Self {
-        self.config.tracing.otlp_transport_certificate = certificte;
+        self.config.tracing.transport_certificate = certificte;
         self
     }
 

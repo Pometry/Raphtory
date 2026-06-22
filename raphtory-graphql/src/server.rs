@@ -265,7 +265,7 @@ impl GraphServer {
         // set up opentelemetry first of all
         let config = self.config.clone();
         let filter = config.logging.get_log_env();
-        let tracer_name = config.tracing.otlp_tracing_service_name.clone();
+        let tracer_name = config.tracing.service_name.clone();
         let tp = config.tracing.tracer_provider().await?;
         // Create the base registry
         let registry = Registry::default().with(filter).with(
@@ -354,7 +354,7 @@ impl GraphServer {
         if schema_cfg.disable_introspection {
             schema_builder = schema_builder.disable_introspection();
         }
-        let trace_level = self.config.tracing.tracing_level.clone();
+        let trace_level = self.config.tracing.level.clone();
         let schema = if let Some(t) = tracer {
             schema_builder
                 .extension(OpenTelemetry::new(t, trace_level))
