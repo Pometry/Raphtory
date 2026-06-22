@@ -322,7 +322,7 @@ fn node_filter_temporal_property_entry_point() {
 
 #[test]
 fn temporal_expr_ops_blanket_any() {
-    // Using TemporalPropOps blanket on TemporalExpr directly
+    // Using EntityAggOps / EntityExprFilterOps on TemporalExpr directly
     let g = build_temporal_graph();
     let filter = NodeFilter.property("score").temporal().eq(10i64).any();
     assert_eq!(temporal_filtered_names(filter, g), vec!["alice"]);

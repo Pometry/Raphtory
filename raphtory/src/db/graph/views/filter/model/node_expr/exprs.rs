@@ -404,8 +404,10 @@ impl NodeExpr for Metadata {
 /// All temporal values of a named property over the current view window.
 ///
 /// Implements `NodeExpr` when `E: NodeFilterFactory` and `EdgeExpr` when `E: EdgeFilterFactory`.
-/// Produced implicitly by `TemporalPropOps` methods (`.sum()`, `.gt()`, etc.) — not usually
-/// constructed directly.
+/// Constructed by `PropertyExpr::temporal()`. Implements `EntityExpr` so all
+/// `EntityExprFilterOps` chain methods (`.gt()`, `.contains()`, `.any()`, etc.)
+/// are available, plus `EntityAggOps` for aggregators (`.sum()`, `.last()`,
+/// `.len()`, etc.).
 #[derive(Clone)]
 pub struct TemporalExpr<E: Clone> {
     pub(crate) view_expr: E,
@@ -420,6 +422,16 @@ impl TemporalExpr<NodeFilter> {
 
 impl<E: EntityExpr + Clone + Send + Sync + 'static> EntityExpr for TemporalExpr<E> {
     type Marker = E::Marker;
+}
+
+impl<E: EntityExpr + Clone + Send + Sync + 'static> EntityAggOps for TemporalExpr<E> {
+    fn sum(self) -> SumExpr<Self> { SumExpr(self) }
+    fn avg(self) -> AvgExpr<Self> { AvgExpr(self) }
+    fn min(self) -> MinExpr<Self> { MinExpr(self) }
+    fn max(self) -> MaxExpr<Self> { MaxExpr(self) }
+    fn first(self) -> FirstExpr<Self> { FirstExpr(self) }
+    fn last(self) -> LastExpr<Self> { LastExpr(self) }
+    fn len(self) -> LenExpr<Self> { LenExpr(self) }
 }
 
 impl<E: EntityExpr + CreateView + NodeFilterFactory + Clone + Send + Sync + 'static> NodeExpr for TemporalExpr<E> {
@@ -455,7 +467,7 @@ impl<E: EntityExpr + CreateView + EdgeFilterFactory + Clone + Send + Sync + 'sta
 //
 // Each wraps an inner NodeExpr (typically TemporalPropertyExpr) and reduces
 // the Prop::List it produces.  Not constructed directly —
-// TemporalProp methods return these exprs directly:
+// EntityAggOps methods on TemporalExpr return these exprs directly:
 //
 //   .property("v").temporal().sum()  → SumExpr<TemporalPropertyExpr<..>>
 //   .property("v").temporal().len()  → LenExpr<TemporalPropertyExpr<..>>
@@ -468,8 +480,9 @@ impl<E: EntityExpr + CreateView + EdgeFilterFactory + Clone + Send + Sync + 'sta
 // ─────────────────────────────────────────────────────────────────────────────
 // EntityAggOps — secondary aggregate operators on filter expression types
 //
-// Enables chains like: .temporal().first().sum().eq(6).any()
-// Only implemented for the agg expr wrappers (not primitive EntityExpr types like u64).
+// Scoped narrowly (not blanket-impl) to avoid name collisions with stdlib methods
+// like `Ord::min` / `Ord::max` / `Iterator::sum` on primitive `EntityExpr` types
+// (`u64`, `i64`, etc. all implement `EntityExpr` as constant values).
 // ─────────────────────────────────────────────────────────────────────────────
 
 pub trait EntityAggOps: EntityExpr + Sized {

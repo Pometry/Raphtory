@@ -148,7 +148,7 @@ pub mod prelude {
 
     pub use crate::db::graph::views::filter::model::{
         filter::Filter, property_filter::PropertyFilter,
-        EntityAggOps, EntityExprFilterOps, TemporalPropOps,
+        EntityAggOps, EntityExprFilterOps,
     };
 
     pub use crate::db::graph::views::{

@@ -19,7 +19,7 @@ pub use crate::{
                         EntityAggOps, EntityExprFilterOps, FirstExpr,
                         LastExpr, LenExpr, MaxExpr, MinExpr,
                         PropValueSetExpr, StringExpr, SumExpr,
-                        TemporalExpr, TemporalProp, TemporalPropOps,
+                        TemporalExpr,
                         UnaryExpr,
                     },
                     node_filter::{NodeFilter, NodeFilterFactory},
@@ -433,8 +433,11 @@ where
 }
 
 impl<E: CreateView + Clone + Send + Sync + 'static> PropertyExpr<E> {
-    pub fn temporal(&self) -> TemporalProp<E> {
-        TemporalProp::new(self.view_expr.clone(), self.name.clone())
+    pub fn temporal(&self) -> TemporalExpr<E> {
+        TemporalExpr {
+            view_expr: self.view_expr.clone(),
+            name: self.name.clone(),
+        }
     }
 }
 

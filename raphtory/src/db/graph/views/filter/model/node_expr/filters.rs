@@ -509,43 +509,6 @@ impl<E: NodeExpr> TryAsCompositeFilter for PropValueSetExpr<E, NodeFilter> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TemporalProp<E> — entry point returned from `.property(name).temporal()`
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// Entry point returned by `PropertyExpr::temporal()`.
-///
-/// `E` is the view expression (e.g. `NodeFilter`, `Windowed<NodeFilter>`, `Layered<NodeFilter>`)
-/// that scopes which temporal property values are visible.
-///
-/// Calling a method produces the next step in the chain:
-/// ```rust,ignore
-/// NodeFilter.property("score").temporal()        // → TemporalProp<NodeFilter>
-///     .gt(10i64)                                 // → BinaryCmpExpr<TemporalPropertyExpr, i64>
-///     .any()                                     // → BinaryCmpExpr<AnyExpr<..>, Prop>
-///
-/// NodeFilter.property("price").temporal()        // → TemporalProp<NodeFilter>
-///     .sum()                                     // → SumExpr<TemporalPropertyExpr<NodeFilter>>
-///     .gt(100i64)                                // → BinaryCmpExpr<SumExpr<..>, i64>
-///
-/// NodeFilter.window(0, 100).property("score")
-///     .temporal()                                // → TemporalProp<Windowed<NodeFilter>>
-///     .gt(10i64).any()
-/// ```
-pub struct TemporalProp<E: CreateView + Clone> {
-    pub(crate) view_expr: E,
-    pub(crate) name: String,
-}
-
-impl<E: CreateView + Clone + Send + Sync + 'static> TemporalProp<E> {
-    pub(crate) fn new(view_expr: E, name: impl Into<String>) -> Self {
-        Self {
-            view_expr,
-            name: name.into(),
-        }
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // EntityExprFilterOps — comparison and set operators on any EntityExpr
 // ─────────────────────────────────────────────────────────────────────────────
 

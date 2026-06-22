@@ -15,7 +15,7 @@ use crate::{
                 is_valid_filter::IsValidEdge,
                 latest_filter::Latest,
                 layered_filter::Layered,
-                node_expr::{EntityExpr, NodeExpr, TemporalPropOps},
+                node_expr::{EntityExpr, NodeExpr},
                 node_filter::{
                     builders::InternalNodeFilterBuilder, CompositeNodeFilter, NodeFilter,
                 },
@@ -23,10 +23,11 @@ use crate::{
                 snapshot_filter::{SnapshotAt, SnapshotLatest},
                 windowed_filter::Windowed,
                 AllExpr, AndFilter, AnyExpr, AvgExpr, CombinedFilter, ComposableFilter,
-                CreateView, EdgeFilterFactory, EdgeViewFilterOps, EntityMarker,
-                FirstExpr, InternalViewWrapOps, LastExpr, LenExpr, MaxExpr, MetadataExpr,
-                MinExpr, NotFilter, OrFilter, PropertyExpr, PropertyFilterFactory,
-                SumExpr, TemporalExpr, TemporalProp, TryAsCompositeFilter, Wrap,
+                CreateView, EdgeFilterFactory, EdgeViewFilterOps, EntityAggOps,
+                EntityExprFilterOps, EntityMarker, FirstExpr, InternalViewWrapOps,
+                LastExpr, LenExpr, MaxExpr, MetadataExpr, MinExpr, NotFilter, OrFilter,
+                PropertyExpr, PropertyFilterFactory, SumExpr, TemporalExpr,
+                TryAsCompositeFilter, Wrap,
             },
             CreateFilter,
         },
@@ -163,12 +164,12 @@ impl EdgeEndpointWrapper<NodeFilter> {
 
 impl<E: CreateView + Clone + Send + Sync + 'static> EdgeEndpointWrapper<PropertyExpr<E>> {
     #[inline]
-    pub fn temporal(&self) -> EdgeEndpointWrapper<TemporalProp<E>> {
+    pub fn temporal(&self) -> EdgeEndpointWrapper<TemporalExpr<E>> {
         EdgeEndpointWrapper::new(self.inner.temporal(), self.endpoint)
     }
 }
 
-impl<E: CreateView + EntityExpr + Clone + Send + Sync + 'static> EdgeEndpointWrapper<TemporalProp<E>> {
+impl<E: CreateView + EntityExpr + Clone + Send + Sync + 'static> EdgeEndpointWrapper<TemporalExpr<E>> {
     #[inline]
     pub fn sum(self) -> EdgeEndpointWrapper<SumExpr<TemporalExpr<E>>> {
         let endpoint = self.endpoint;
@@ -207,12 +208,12 @@ impl<E: CreateView + EntityExpr + Clone + Send + Sync + 'static> EdgeEndpointWra
     #[inline]
     pub fn any(self) -> EdgeEndpointWrapper<AnyExpr<TemporalExpr<E>>> {
         let endpoint = self.endpoint;
-        EdgeEndpointWrapper::new(self.inner.any(), endpoint)
+        EdgeEndpointWrapper::new(AnyExpr(self.inner), endpoint)
     }
     #[inline]
     pub fn all(self) -> EdgeEndpointWrapper<AllExpr<TemporalExpr<E>>> {
         let endpoint = self.endpoint;
-        EdgeEndpointWrapper::new(self.inner.all(), endpoint)
+        EdgeEndpointWrapper::new(AllExpr(self.inner), endpoint)
     }
 }
 
