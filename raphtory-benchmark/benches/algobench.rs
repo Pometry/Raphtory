@@ -58,7 +58,13 @@ use raphtory::{
         },
         projections::temporal_bipartite_projection::temporal_bipartite_projection,
     },
-    db::{api::view::StaticGraphViewOps, graph::views::{filter::Unfiltered, node_subgraph::NodeSubgraph}},
+    db::{
+        api::view::{Filter, StaticGraphViewOps},
+        graph::views::{
+            filter::{Unfiltered, model::{degree_filter::DegreeFilterFactory, property_filter::ops::PropertyFilterOps}},
+            node_subgraph::NodeSubgraph,
+        },
+    },
     graphgen::random_attachment::random_attachment,
     prelude::*,
 };
@@ -171,6 +177,18 @@ fn large_weighted_random_attachment_subgraph() -> NodeSubgraph<Graph> {
     subgraph
 }
 
+fn large_random_attachment_filtered() -> impl StaticGraphViewOps {
+    large_random_attachment_graph()
+        .filter(NodeFilter.degree().ge(0u64))
+        .unwrap()
+}
+
+fn large_weighted_random_attachment_filtered() -> impl StaticGraphViewOps {
+    large_weighted_random_attachment_graph()
+        .filter(NodeFilter.degree().ge(0u64))
+        .unwrap()
+}
+
 fn large_typed_random_attachment_graph() -> Graph {
     let graph = large_random_attachment_graph();
     for id in graph.nodes().id().iter_values() {
@@ -185,6 +203,12 @@ fn large_typed_random_attachment_subgraph() -> NodeSubgraph<Graph> {
     let graph = large_typed_random_attachment_graph();
     let subgraph = graph.subgraph(graph.nodes());
     subgraph
+}
+
+fn large_typed_random_attachment_filtered() -> impl StaticGraphViewOps {
+    large_typed_random_attachment_graph()
+        .filter(NodeFilter.degree().ge(0u64))
+        .unwrap()
 }
 
 fn large_random_attachment_layered() -> impl StaticGraphViewOps {
@@ -231,6 +255,15 @@ pub fn local_triangle_count_analysis(c: &mut Criterion) {
         first_node_id,
         |graph, node_id| local_triangle_count(graph, node_id.clone()).unwrap(),
     );
+    graph_benchmark_with_setup(
+        c,
+        "local_triangle_count_graph_filtered",
+        20,
+        10,
+        large_random_attachment_filtered,
+        first_node_id,
+        |graph, node_id| local_triangle_count(graph, node_id.clone()).unwrap(),
+    );
 }
 
 pub fn local_clustering_coefficient_analysis(c: &mut Criterion) {
@@ -260,6 +293,15 @@ pub fn local_clustering_coefficient_analysis(c: &mut Criterion) {
         large_random_attachment_layered,
         first_node_id,
         |graph, node_id| local_clustering_coefficient(graph, node_id.clone()),
+    );
+    graph_benchmark_with_setup(
+        c,
+        "local_clustering_coefficient_graph_filtered",
+        20,
+        10,
+        large_random_attachment_filtered,
+        first_node_id,
+        |graph, node_id| local_clustering_coefficient(graph, node_id.clone()),
     )
 }
 
@@ -286,6 +328,14 @@ pub fn graphgen_large_clustering_coeff(c: &mut Criterion) {
         60,
         10,
         large_random_attachment_layered,
+        |graph, _| global_clustering_coefficient(graph),
+    );
+    graph_benchmark(
+        c,
+        "graphgen_large_clustering_coeff_graph_filtered",
+        60,
+        10,
+        large_random_attachment_filtered,
         |graph, _| global_clustering_coefficient(graph),
     )
 }
@@ -314,6 +364,14 @@ pub fn graphgen_large_pagerank(c: &mut Criterion) {
         10,
         large_random_attachment_layered,
         |graph, _| page_rank(graph, None, Some(100), None, None, true, None),
+    );
+    graph_benchmark(
+        c,
+        "graphgen_large_pagerank_graph_filtered",
+        20,
+        10,
+        large_random_attachment_filtered,
+        |graph, _| page_rank(graph, None, Some(100), None, None, true, None),
     )
 }
 
@@ -340,6 +398,14 @@ pub fn graphgen_large_concomp(c: &mut Criterion) {
         60,
         10,
         large_random_attachment_layered,
+        |graph, _| weakly_connected_components(graph),
+    );
+    graph_benchmark(
+        c,
+        "graphgen_large_concomp_graph_filtered",
+        60,
+        10,
+        large_random_attachment_filtered,
         |graph, _| weakly_connected_components(graph),
     )
 }
@@ -368,6 +434,14 @@ pub fn graphgen_large_hits(c: &mut Criterion) {
         10,
         large_random_attachment_layered,
         |graph, _| hits(graph, 100, None),
+    );
+    graph_benchmark(
+        c,
+        "graphgen_large_hits_graph_filtered",
+        20,
+        10,
+        large_random_attachment_filtered,
+        |graph, _| hits(graph, 100, None),
     )
 }
 
@@ -394,6 +468,14 @@ pub fn graphgen_large_degree_centrality(c: &mut Criterion) {
         20,
         10,
         large_random_attachment_layered,
+        |graph, _| degree_centrality(graph),
+    );
+    graph_benchmark(
+        c,
+        "graphgen_large_degree_centrality_graph_filtered",
+        20,
+        10,
+        large_random_attachment_filtered,
         |graph, _| degree_centrality(graph),
     )
 }
@@ -422,6 +504,14 @@ pub fn graphgen_large_betweenness(c: &mut Criterion) {
         10,
         large_random_attachment_layered,
         |graph, _| betweenness_centrality(graph, None, false),
+    );
+    graph_benchmark(
+        c,
+        "graphgen_large_betweenness_graph_filtered",
+        20,
+        10,
+        large_random_attachment_filtered,
+        |graph, _| betweenness_centrality(graph, None, false),
     )
 }
 
@@ -448,6 +538,14 @@ pub fn graphgen_large_triangle_count(c: &mut Criterion) {
         20,
         10,
         large_random_attachment_layered,
+        |graph, _| triangle_count(graph, None),
+    );
+    graph_benchmark(
+        c,
+        "graphgen_large_triangle_count_graph_filtered",
+        20,
+        10,
+        large_random_attachment_filtered,
         |graph, _| triangle_count(graph, None),
     )
 }
@@ -476,6 +574,14 @@ pub fn graphgen_large_triplet_count(c: &mut Criterion) {
         10,
         large_random_attachment_layered,
         |graph, _| triplet_count(graph, None),
+    );
+    graph_benchmark(
+        c,
+        "graphgen_large_triplet_count_graph_filtered",
+        20,
+        10,
+        large_random_attachment_filtered,
+        |graph, _| triplet_count(graph, None),
     )
 }
 
@@ -502,6 +608,14 @@ pub fn graphgen_large_directed_density(c: &mut Criterion) {
         20,
         10,
         large_random_attachment_layered,
+        |graph, _| directed_graph_density(graph),
+    );
+    graph_benchmark(
+        c,
+        "graphgen_large_directed_density_graph_filtered",
+        20,
+        10,
+        large_random_attachment_filtered,
         |graph, _| directed_graph_density(graph),
     )
 }
@@ -530,6 +644,14 @@ pub fn graphgen_large_reciprocity(c: &mut Criterion) {
         10,
         large_random_attachment_layered,
         |graph, _| global_reciprocity(graph),
+    );
+    graph_benchmark(
+        c,
+        "graphgen_large_reciprocity_graph_filtered",
+        20,
+        10,
+        large_random_attachment_filtered,
+        |graph, _| global_reciprocity(graph),
     )
 }
 
@@ -556,6 +678,14 @@ pub fn graphgen_large_scc(c: &mut Criterion) {
         20,
         10,
         large_random_attachment_layered,
+        |graph, _| strongly_connected_components(graph),
+    );
+    graph_benchmark(
+        c,
+        "graphgen_large_scc_graph_filtered",
+        20,
+        10,
+        large_random_attachment_filtered,
         |graph, _| strongly_connected_components(graph),
     )
 }
@@ -584,6 +714,14 @@ pub fn graphgen_large_in_components(c: &mut Criterion) {
         10,
         large_random_attachment_layered,
         |graph, _| in_components(graph, None),
+    );
+    graph_benchmark(
+        c,
+        "graphgen_large_in_components_graph_filtered",
+        20,
+        10,
+        large_random_attachment_filtered,
+        |graph, _| in_components(graph, None),
     )
 }
 
@@ -610,6 +748,14 @@ pub fn graphgen_large_out_components(c: &mut Criterion) {
         20,
         10,
         large_random_attachment_layered,
+        |graph, _| out_components(graph, None),
+    );
+    graph_benchmark(
+        c,
+        "graphgen_large_out_components_graph_filtered",
+        20,
+        10,
+        large_random_attachment_filtered,
         |graph, _| out_components(graph, None),
     )
 }
@@ -638,6 +784,14 @@ pub fn graphgen_large_in_components_filtered(c: &mut Criterion) {
         10,
         large_random_attachment_layered,
         |graph, _| in_components_filtered(graph, None, Unfiltered).unwrap(),
+    );
+    graph_benchmark(
+        c,
+        "graphgen_large_in_components_filtered_graph_filtered",
+        20,
+        10,
+        large_random_attachment_filtered,
+        |graph, _| in_components_filtered(graph, None, Unfiltered).unwrap(),
     )
 }
 
@@ -664,6 +818,14 @@ pub fn graphgen_large_out_components_filtered(c: &mut Criterion) {
         20,
         10,
         large_random_attachment_layered,
+        |graph, _| out_components_filtered(graph, None, Unfiltered).unwrap(),
+    );
+    graph_benchmark(
+        c,
+        "graphgen_large_out_components_filtered_graph_filtered",
+        20,
+        10,
+        large_random_attachment_filtered,
         |graph, _| out_components_filtered(graph, None, Unfiltered).unwrap(),
     )
 }
@@ -692,6 +854,14 @@ pub fn graphgen_large_label_propagation(c: &mut Criterion) {
         10,
         large_random_attachment_layered,
         |graph, _| label_propagation(graph, 20, Some([1; 32]), None),
+    );
+    graph_benchmark(
+        c,
+        "graphgen_large_label_propagation_graph_filtered",
+        20,
+        10,
+        large_random_attachment_filtered,
+        |graph, _| label_propagation(graph, 20, Some([1; 32]), None),
     )
 }
 
@@ -718,6 +888,14 @@ pub fn graphgen_large_louvain(c: &mut Criterion) {
         20,
         10,
         large_random_attachment_layered,
+        |graph, _| louvain::<ModularityUnDir, _>(graph, 1.0, None, None),
+    );
+    graph_benchmark(
+        c,
+        "graphgen_large_louvain_graph_filtered",
+        20,
+        10,
+        large_random_attachment_filtered,
         |graph, _| louvain::<ModularityUnDir, _>(graph, 1.0, None, None),
     )
 }
@@ -746,6 +924,14 @@ pub fn graphgen_large_alternating_mask(c: &mut Criterion) {
         10,
         large_random_attachment_layered,
         |graph, _| alternating_mask(graph),
+    );
+    graph_benchmark(
+        c,
+        "graphgen_large_alternating_mask_graph_filtered",
+        20,
+        10,
+        large_random_attachment_filtered,
+        |graph, _| alternating_mask(graph),
     )
 }
 
@@ -772,6 +958,14 @@ pub fn graphgen_large_all_local_reciprocity(c: &mut Criterion) {
         20,
         10,
         large_random_attachment_layered,
+        |graph, _| all_local_reciprocity(graph),
+    );
+    graph_benchmark(
+        c,
+        "graphgen_large_all_local_reciprocity_graph_filtered",
+        20,
+        10,
+        large_random_attachment_filtered,
         |graph, _| all_local_reciprocity(graph),
     )
 }
@@ -800,6 +994,14 @@ pub fn graphgen_large_balance(c: &mut Criterion) {
         10,
         large_weighted_random_attachment_layered,
         |graph, _| balance(graph, "weight".to_string(), Direction::BOTH).unwrap(),
+    );
+    graph_benchmark(
+        c,
+        "graphgen_large_balance_graph_filtered",
+        20,
+        10,
+        large_weighted_random_attachment_filtered,
+        |graph, _| balance(graph, "weight".to_string(), Direction::BOTH).unwrap(),
     )
 }
 
@@ -826,6 +1028,14 @@ pub fn graphgen_large_max_degree(c: &mut Criterion) {
         20,
         10,
         large_random_attachment_layered,
+        |graph, _| max_degree(graph),
+    );
+    graph_benchmark(
+        c,
+        "graphgen_large_max_degree_graph_filtered",
+        20,
+        10,
+        large_random_attachment_filtered,
         |graph, _| max_degree(graph),
     )
 }
@@ -854,6 +1064,14 @@ pub fn graphgen_large_min_degree(c: &mut Criterion) {
         10,
         large_random_attachment_layered,
         |graph, _| min_degree(graph),
+    );
+    graph_benchmark(
+        c,
+        "graphgen_large_min_degree_graph_filtered",
+        20,
+        10,
+        large_random_attachment_filtered,
+        |graph, _| min_degree(graph),
     )
 }
 
@@ -880,6 +1098,14 @@ pub fn graphgen_large_max_out_degree(c: &mut Criterion) {
         20,
         10,
         large_random_attachment_layered,
+        |graph, _| max_out_degree(graph),
+    );
+    graph_benchmark(
+        c,
+        "graphgen_large_max_out_degree_graph_filtered",
+        20,
+        10,
+        large_random_attachment_filtered,
         |graph, _| max_out_degree(graph),
     )
 }
@@ -908,6 +1134,14 @@ pub fn graphgen_large_max_in_degree(c: &mut Criterion) {
         10,
         large_random_attachment_layered,
         |graph, _| max_in_degree(graph),
+    );
+    graph_benchmark(
+        c,
+        "graphgen_large_max_in_degree_graph_filtered",
+        20,
+        10,
+        large_random_attachment_filtered,
+        |graph, _| max_in_degree(graph),
     )
 }
 
@@ -934,6 +1168,14 @@ pub fn graphgen_large_min_out_degree(c: &mut Criterion) {
         20,
         10,
         large_random_attachment_layered,
+        |graph, _| min_out_degree(graph),
+    );
+    graph_benchmark(
+        c,
+        "graphgen_large_min_out_degree_graph_filtered",
+        20,
+        10,
+        large_random_attachment_filtered,
         |graph, _| min_out_degree(graph),
     )
 }
@@ -962,6 +1204,14 @@ pub fn graphgen_large_min_in_degree(c: &mut Criterion) {
         10,
         large_random_attachment_layered,
         |graph, _| min_in_degree(graph),
+    );
+    graph_benchmark(
+        c,
+        "graphgen_large_min_in_degree_graph_filtered",
+        20,
+        10,
+        large_random_attachment_filtered,
+        |graph, _| min_in_degree(graph),
     )
 }
 
@@ -988,6 +1238,14 @@ pub fn graphgen_large_average_degree(c: &mut Criterion) {
         20,
         10,
         large_random_attachment_layered,
+        |graph, _| average_degree(graph),
+    );
+    graph_benchmark(
+        c,
+        "graphgen_large_average_degree_graph_filtered",
+        20,
+        10,
+        large_random_attachment_filtered,
         |graph, _| average_degree(graph),
     )
 }
@@ -1017,6 +1275,15 @@ pub fn graphgen_large_local_clustering_coefficient_batch(c: &mut Criterion) {
         20,
         10,
         large_random_attachment_layered,
+        first_node_id,
+        |graph, node_id| local_clustering_coefficient_batch(graph, vec![node_id.clone()]),
+    );
+    graph_benchmark_with_setup(
+        c,
+        "graphgen_large_local_clustering_coefficient_batch_graph_filtered",
+        20,
+        10,
+        large_random_attachment_filtered,
         first_node_id,
         |graph, node_id| local_clustering_coefficient_batch(graph, vec![node_id.clone()]),
     )
@@ -1055,6 +1322,17 @@ pub fn graphgen_large_temporal_rich_club(c: &mut Criterion) {
             let rolling = graph.rolling(1, Some(1)).unwrap();
             temporal_rich_club_coefficient(graph, rolling, 3, 3)
         },
+    );
+    graph_benchmark(
+        c,
+        "graphgen_large_temporal_rich_club_graph_filtered",
+        20,
+        10,
+        large_random_attachment_filtered,
+        |graph, _| {
+            let rolling = graph.rolling(1, Some(1)).unwrap();
+            temporal_rich_club_coefficient(graph, rolling, 3, 3)
+        },
     )
 }
 
@@ -1082,6 +1360,14 @@ pub fn graphgen_large_temporal_motif_multi(c: &mut Criterion) {
         10,
         large_random_attachment_layered,
         |graph, _| temporal_three_node_motif_multi(graph, vec![100], None),
+    );
+    graph_benchmark(
+        c,
+        "graphgen_large_temporal_motif_multi_graph_filtered",
+        20,
+        10,
+        large_random_attachment_filtered,
+        |graph, _| temporal_three_node_motif_multi(graph, vec![100], None),
     )
 }
 
@@ -1108,6 +1394,14 @@ pub fn graphgen_large_local_temporal_motif(c: &mut Criterion) {
         20,
         10,
         large_random_attachment_layered,
+        |graph, _| local_temporal_three_node_motif(graph, 100, None),
+    );
+    graph_benchmark(
+        c,
+        "graphgen_large_local_temporal_motif_graph_filtered",
+        20,
+        10,
+        large_random_attachment_filtered,
         |graph, _| local_temporal_three_node_motif(graph, 100, None),
     )
 }
@@ -1166,6 +1460,24 @@ pub fn graphgen_large_dijkstra(c: &mut Criterion) {
             )
             .unwrap()
         },
+    );
+    graph_benchmark_with_setup(
+        c,
+        "graphgen_large_dijkstra_graph_filtered",
+        20,
+        10,
+        large_random_attachment_filtered,
+        first_node_id,
+        |graph, source| {
+            dijkstra_single_source_shortest_paths(
+                graph,
+                source.clone(),
+                vec![source.clone()],
+                None,
+                Direction::BOTH,
+            )
+            .unwrap()
+        },
     )
 }
 
@@ -1196,6 +1508,15 @@ pub fn graphgen_large_single_source_shortest_path(c: &mut Criterion) {
         large_random_attachment_layered,
         first_node_id,
         |graph, source| single_source_shortest_path(graph, source.clone(), None),
+    );
+    graph_benchmark_with_setup(
+        c,
+        "graphgen_large_single_source_shortest_path_graph_filtered",
+        20,
+        10,
+        large_random_attachment_filtered,
+        first_node_id,
+        |graph, source| single_source_shortest_path(graph, source.clone(), None),
     )
 }
 
@@ -1224,6 +1545,15 @@ pub fn graphgen_large_temporally_reachable_nodes(c: &mut Criterion) {
         20,
         10,
         large_random_attachment_layered,
+        first_node_id,
+        |graph, source| temporally_reachable_nodes(graph, None, 20, 0, vec![source.clone()], None),
+    );
+    graph_benchmark_with_setup(
+        c,
+        "graphgen_large_temporally_reachable_nodes_graph_filtered",
+        20,
+        10,
+        large_random_attachment_filtered,
         first_node_id,
         |graph, source| temporally_reachable_nodes(graph, None, 20, 0, vec![source.clone()], None),
     )
@@ -1260,6 +1590,18 @@ pub fn graphgen_large_in_component(c: &mut Criterion) {
         20,
         10,
         large_random_attachment_layered,
+        first_node_id,
+        |graph, source| {
+            let node = graph.node(source.clone()).expect("source node exists");
+            in_component(node)
+        },
+    );
+    graph_benchmark_with_setup(
+        c,
+        "graphgen_large_in_component_graph_filtered",
+        20,
+        10,
+        large_random_attachment_filtered,
         first_node_id,
         |graph, source| {
             let node = graph.node(source.clone()).expect("source node exists");
@@ -1304,6 +1646,18 @@ pub fn graphgen_large_out_component(c: &mut Criterion) {
             let node = graph.node(source.clone()).expect("source node exists");
             out_component(node)
         },
+    );
+    graph_benchmark_with_setup(
+        c,
+        "graphgen_large_out_component_graph_filtered",
+        20,
+        10,
+        large_random_attachment_filtered,
+        first_node_id,
+        |graph, source| {
+            let node = graph.node(source.clone()).expect("source node exists");
+            out_component(node)
+        },
     )
 }
 
@@ -1343,6 +1697,18 @@ pub fn graphgen_large_in_component_filtered(c: &mut Criterion) {
             let node = graph.node(source.clone()).expect("source node exists");
             in_component_filtered(node, Unfiltered).unwrap()
         },
+    );
+    graph_benchmark_with_setup(
+        c,
+        "graphgen_large_in_component_filtered_graph_filtered",
+        20,
+        10,
+        large_random_attachment_filtered,
+        first_node_id,
+        |graph, source| {
+            let node = graph.node(source.clone()).expect("source node exists");
+            in_component_filtered(node, Unfiltered).unwrap()
+        },
     )
 }
 
@@ -1377,6 +1743,18 @@ pub fn graphgen_large_out_component_filtered(c: &mut Criterion) {
         20,
         10,
         large_random_attachment_layered,
+        first_node_id,
+        |graph, source| {
+            let node = graph.node(source.clone()).expect("source node exists");
+            out_component_filtered(node, Unfiltered).unwrap()
+        },
+    );
+    graph_benchmark_with_setup(
+        c,
+        "graphgen_large_out_component_filtered_graph_filtered",
+        20,
+        10,
+        large_random_attachment_filtered,
         first_node_id,
         |graph, source| {
             let node = graph.node(source.clone()).expect("source node exists");
@@ -1445,6 +1823,14 @@ pub fn graphgen_internal_global_triangle_motifs(c: &mut Criterion) {
         10,
         large_random_attachment_layered,
         |graph, _| global_triangle_motifs_internal(graph, vec![100], None),
+    );
+    graph_benchmark(
+        c,
+        "graphgen_internal_global_triangle_motifs_graph_filtered",
+        20,
+        10,
+        large_random_attachment_filtered,
+        |graph, _| global_triangle_motifs_internal(graph, vec![100], None),
     )
 }
 
@@ -1471,6 +1857,14 @@ pub fn graphgen_internal_local_triangle_motifs(c: &mut Criterion) {
         20,
         10,
         large_random_attachment_layered,
+        |graph, _| local_triangle_motifs_internal(graph, vec![100], None),
+    );
+    graph_benchmark(
+        c,
+        "graphgen_internal_local_triangle_motifs_graph_filtered",
+        20,
+        10,
+        large_random_attachment_filtered,
         |graph, _| local_triangle_motifs_internal(graph, vec![100], None),
     )
 }
@@ -1499,6 +1893,14 @@ pub fn graphgen_large_k_core_set(c: &mut Criterion) {
         10,
         large_random_attachment_layered,
         |graph, _| k_core_set(graph, 2, usize::MAX, None),
+    );
+    graph_benchmark(
+        c,
+        "graphgen_large_k_core_set_graph_filtered",
+        20,
+        10,
+        large_random_attachment_filtered,
+        |graph, _| k_core_set(graph, 2, usize::MAX, None),
     )
 }
 
@@ -1525,6 +1927,14 @@ pub fn graphgen_large_k_core(c: &mut Criterion) {
         20,
         10,
         large_random_attachment_layered,
+        |graph, _| k_core(graph, 2, usize::MAX, None),
+    );
+    graph_benchmark(
+        c,
+        "graphgen_large_k_core_graph_filtered",
+        20,
+        10,
+        large_random_attachment_filtered,
         |graph, _| k_core(graph, 2, usize::MAX, None),
     )
 }
@@ -1553,6 +1963,14 @@ pub fn graphgen_large_fruchterman_reingold(c: &mut Criterion) {
         10,
         large_random_attachment_layered,
         |graph, _| fruchterman_reingold_unbounded(graph, 5, 1.0, 1.0, 0.9, 0.1),
+    );
+    graph_benchmark(
+        c,
+        "graphgen_large_fruchterman_reingold_graph_filtered",
+        20,
+        10,
+        large_random_attachment_filtered,
+        |graph, _| fruchterman_reingold_unbounded(graph, 5, 1.0, 1.0, 0.9, 0.1),
     )
 }
 
@@ -1579,6 +1997,14 @@ pub fn graphgen_large_cohesive_fruchterman_reingold(c: &mut Criterion) {
         20,
         10,
         large_random_attachment_layered,
+        |graph, _| cohesive_fruchterman_reingold(graph, 5, 1.0, 1.0, 0.9, 0.1),
+    );
+    graph_benchmark(
+        c,
+        "graphgen_large_cohesive_fruchterman_reingold_graph_filtered",
+        20,
+        10,
+        large_random_attachment_filtered,
         |graph, _| cohesive_fruchterman_reingold(graph, 5, 1.0, 1.0, 0.9, 0.1),
     )
 }
@@ -1607,6 +2033,14 @@ pub fn graphgen_large_fast_rp(c: &mut Criterion) {
         10,
         large_random_attachment_layered,
         |graph, _| fast_rp(graph, 32, 0.5, vec![1.0, 1.0, 1.0], Some(1), None),
+    );
+    graph_benchmark(
+        c,
+        "graphgen_large_fast_rp_graph_filtered",
+        20,
+        10,
+        large_random_attachment_filtered,
+        |graph, _| fast_rp(graph, 32, 0.5, vec![1.0, 1.0, 1.0], Some(1), None),
     )
 }
 
@@ -1633,6 +2067,14 @@ pub fn graphgen_large_max_weight_matching(c: &mut Criterion) {
         20,
         10,
         large_random_attachment_layered,
+        |graph, _| max_weight_matching(graph, None, false, false),
+    );
+    graph_benchmark(
+        c,
+        "graphgen_large_max_weight_matching_graph_filtered",
+        20,
+        10,
+        large_random_attachment_filtered,
         |graph, _| max_weight_matching(graph, None, false, false),
     )
 }
@@ -1670,6 +2112,17 @@ pub fn graphgen_large_temporal_seir(c: &mut Criterion) {
             let mut rng = SmallRng::seed_from_u64(1);
             temporal_SEIR(graph, Some(0.1), None, 0.5f64, 0, Number(1), &mut rng).unwrap()
         },
+    );
+    graph_benchmark(
+        c,
+        "graphgen_large_temporal_seir_graph_filtered",
+        20,
+        10,
+        large_random_attachment_filtered,
+        |graph, _| {
+            let mut rng = SmallRng::seed_from_u64(1);
+            temporal_SEIR(graph, Some(0.1), None, 0.5f64, 0, Number(1), &mut rng).unwrap()
+        },
     )
 }
 
@@ -1697,6 +2150,14 @@ pub fn graphgen_large_temporal_bipartite_projection(c: &mut Criterion) {
         10,
         large_typed_random_attachment_layered,
         |graph, _| temporal_bipartite_projection(graph, 1, "Right".to_string()),
+    );
+    graph_benchmark(
+        c,
+        "graphgen_large_temporal_bipartite_projection_graph_filtered",
+        20,
+        10,
+        large_typed_random_attachment_filtered,
+        |graph, _| temporal_bipartite_projection(graph, 1, "Right".to_string()),
     )
 }
 
@@ -1723,6 +2184,14 @@ pub fn temporal_motifs(c: &mut Criterion) {
         20,
         10,
         large_random_attachment_layered,
+        |graph, _| global_temporal_three_node_motif(graph, 100, None),
+    );
+    graph_benchmark(
+        c,
+        "temporal_motifs_graph_filtered",
+        20,
+        10,
+        large_random_attachment_filtered,
         |graph, _| global_temporal_three_node_motif(graph, 100, None),
     )
 }
