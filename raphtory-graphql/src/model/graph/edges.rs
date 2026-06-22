@@ -52,7 +52,7 @@ impl GqlEdges {
         Self { ee: edges.into() }
     }
 
-    fn iter(&self) -> Box<dyn Iterator<Item = GqlEdge> + '_> {
+    pub(crate) fn iter(&self) -> Box<dyn Iterator<Item = GqlEdge> + '_> {
         let iter = self.ee.iter().map(GqlEdge::from_ref);
         Box::new(iter)
     }

@@ -158,17 +158,35 @@ enum OpKind {
 fn resolve_op(parent_type: &str, field: &str, f: &Field) -> Result<OpKind, PlanError> {
     Ok(match (parent_type, field) {
         ("Graph", "nodes") => OpKind::Navigate(Nav::Nodes),
-        ("Graph", "node") => OpKind::Navigate(Nav::Node(node_id_arg(f)?)),
+        ("Graph", "node") => OpKind::Navigate(Nav::Node(node_id_arg(f, "name")?)),
+        ("Graph", "edges") => {
+            // edge filtering (`select`) is not supported yet — refuse rather
+            // than silently ignore it.
+            if f.get_argument("select").is_some() {
+                return Err(PlanError::Unsupported {
+                    ty: parent_type.into(),
+                    field: "edges(select:)".into(),
+                });
+            }
+            OpKind::Navigate(Nav::Edges)
+        }
+        ("Graph", "edge") => OpKind::Navigate(Nav::Edge {
+            src: node_id_arg(f, "src")?,
+            dst: node_id_arg(f, "dst")?,
+        }),
+        ("Graph", "layer") => OpKind::Navigate(Nav::Layer(string_arg(f, "name")?.into())),
         ("Graph", "window") => OpKind::Navigate(Nav::Window {
             start: time_arg(f, "start")?,
             end: time_arg(f, "end")?,
         }),
         ("Nodes", "list") => OpKind::List(IterKind::NodesList),
+        ("Edges", "list") => OpKind::List(IterKind::EdgesList),
         ("Node", "id") => OpKind::Leaf(LeafKind::Id),
         ("Node", "name") => OpKind::Leaf(LeafKind::Name),
         ("Node", "history") => OpKind::Navigate(Nav::History),
         ("Node", "after") => OpKind::Navigate(Nav::After(time_arg(f, "time")?)),
         ("Node", "before") => OpKind::Navigate(Nav::Before(time_arg(f, "time")?)),
+        ("Node", "layer") => OpKind::Navigate(Nav::Layer(string_arg(f, "name")?.into())),
         ("Node", "window") => OpKind::Navigate(Nav::Window {
             start: time_arg(f, "start")?,
             end: time_arg(f, "end")?,
@@ -184,6 +202,17 @@ fn resolve_op(parent_type: &str, field: &str, f: &Field) -> Result<OpKind, PlanE
             }
             OpKind::Navigate(Nav::Neighbours)
         }
+        ("Edge", "id") => OpKind::Leaf(LeafKind::EdgeId),
+        ("Edge", "src") => OpKind::Navigate(Nav::Src),
+        ("Edge", "dst") => OpKind::Navigate(Nav::Dst),
+        ("Edge", "history") => OpKind::Navigate(Nav::History),
+        ("Edge", "after") => OpKind::Navigate(Nav::After(time_arg(f, "time")?)),
+        ("Edge", "before") => OpKind::Navigate(Nav::Before(time_arg(f, "time")?)),
+        ("Edge", "layer") => OpKind::Navigate(Nav::Layer(string_arg(f, "name")?.into())),
+        ("Edge", "window") => OpKind::Navigate(Nav::Window {
+            start: time_arg(f, "start")?,
+            end: time_arg(f, "end")?,
+        }),
         ("PathFromNode", "list") => OpKind::List(IterKind::NeighboursList),
         ("History", "list") => OpKind::List(IterKind::HistoryList),
         ("EventTime", "timestamp") => OpKind::Leaf(LeafKind::Timestamp),
@@ -226,15 +255,15 @@ fn time_arg(f: &Field, name: &'static str) -> Result<EventTime, PlanError> {
     }
 }
 
-fn node_id_arg(f: &Field) -> Result<GqlNodeId, PlanError> {
-    match const_arg(f, "name") {
+fn node_id_arg(f: &Field, name: &'static str) -> Result<GqlNodeId, PlanError> {
+    match const_arg(f, name) {
         Some(GqlValue::String(s)) => Ok(GqlNodeId(GID::Str(s))),
         Some(GqlValue::Number(n)) => n
             .as_u64()
             .map(|u| GqlNodeId(GID::U64(u)))
-            .ok_or(PlanError::BadArgument("name")),
-        Some(_) => Err(PlanError::BadArgument("name")),
-        None => Err(PlanError::MissingArgument("name")),
+            .ok_or(PlanError::BadArgument(name)),
+        Some(_) => Err(PlanError::BadArgument(name)),
+        None => Err(PlanError::MissingArgument(name)),
     }
 }
 

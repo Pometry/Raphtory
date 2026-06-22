@@ -54,7 +54,9 @@ Status: **DRAFT for review** — see the [Open Questions](#open-questions) at th
 | **Full vertical slice** `graph{nodes{list{id}}}` request→validate→plan→execute | ✅ `vertical_slice_matches_endpoint` — byte-identical to live endpoint |
 | Differential test vs live async-graphql endpoint | ✅ `matches_async_graphql_endpoint` + `vertical_slice_matches_endpoint` + branching query over HTTP |
 | Branching navs (`window` / `after` / `before` / `neighbours`) | ✅ wired through planner + exec; `Value::Path` added; full branching query (window→node→after→{history, neighbours→list→{name, before→history}}) differential-tested over HTTP |
-| `node.history` semantics — node `select`/`neighbours(select:)` filters | ⬜ `select` args rejected as `Unsupported` for now (would change output) |
+| Edges: `graph.edge(src,dst)` / `graph.edges` / `edges.list` | ✅ `Value::Edge`/`Value::Edges`; `edge.history`/`src`/`dst`/`id`/`window`/`after`/`before`/`layer`; `layer(name:)` (Graph/Node/Edge); differential-tested over HTTP (incl. windowed/layered/null edge) |
+| Edge/node filtering (`edges(select:)`, `filterEdges`, `neighbours(select:)`) | ⬜ rejected as `Unsupported` for now (would change output) |
+| History sub-objects (`timestamps`/`datetimes`/`eventId` lists, `eventTime.datetime`) | ⬜ only `history.list.{timestamp,eventId}` so far; `test_gql_history.py` shapes need these next |
 
 > **Validation note:** async-graphql's validator (`check_rules`) is `pub(crate)`,
 > so the locked Q2 ("reuse async-graphql's validator") isn't reachable. We instead

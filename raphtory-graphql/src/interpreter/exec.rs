@@ -11,11 +11,12 @@ use super::{
     value::Value,
 };
 use crate::model::graph::{
-    history::GqlHistory, node::GqlNode, nodes::GqlNodes, path_from_node::GqlPathFromNode,
+    edge::GqlEdge, edges::GqlEdges, history::GqlHistory, node::GqlNode, nodes::GqlNodes,
+    path_from_node::GqlPathFromNode,
 };
 use raphtory::{
     db::api::view::{DynamicGraph, IntoDynamic},
-    prelude::{GraphViewOps, NodeViewOps, TimeOps},
+    prelude::{EdgeViewOps, GraphViewOps, LayerOps, NodeViewOps, TimeOps},
 };
 use raphtory_api::core::{entities::GID, storage::timeindex::AsTime};
 
@@ -116,6 +117,21 @@ fn exec(op: &Op, stack: &mut Vec<Value>, sink: &mut Sink) {
                         sink.end_object();
                     }
                 }
+                IterKind::EdgesList => {
+                    let edges = match stack.last().expect("non-empty stack") {
+                        Value::Edges(e) => e.clone(),
+                        _ => unreachable!("plan/type mismatch"),
+                    };
+                    for edge in edges.iter() {
+                        sink.begin_object();
+                        stack.push(Value::Edge(edge));
+                        for child in children.iter() {
+                            exec(child, stack, sink);
+                        }
+                        stack.pop();
+                        sink.end_object();
+                    }
+                }
                 IterKind::HistoryList => {
                     let history = match stack.last().expect("non-empty stack") {
                         Value::History(h) => h.clone(),
@@ -149,19 +165,42 @@ impl Nav {
         match (self, recv) {
             (Nav::Nodes, Value::Graph(g)) => Some(Value::Nodes(GqlNodes::new(g.nodes()))),
             (Nav::Node(id), Value::Graph(g)) => g.node(id).map(|n| Value::Node(GqlNode::from(n))),
+            (Nav::Edges, Value::Graph(g)) => Some(Value::Edges(GqlEdges::new(g.edges()))),
+            (Nav::Edge { src, dst }, Value::Graph(g)) => {
+                g.edge(src, dst).map(|e| Value::Edge(GqlEdge::from(e)))
+            }
+            (Nav::Src, Value::Edge(e)) => Some(Value::Node(GqlNode::from(e.ee.src()))),
+            (Nav::Dst, Value::Edge(e)) => Some(Value::Node(GqlNode::from(e.ee.dst()))),
             (Nav::History, Value::Node(n)) => {
                 Some(Value::History(GqlHistory::from(n.vv.history())))
+            }
+            (Nav::History, Value::Edge(e)) => {
+                Some(Value::History(GqlHistory::from(e.ee.history())))
             }
             (Nav::Neighbours, Value::Node(n)) => {
                 Some(Value::Path(GqlPathFromNode::new(n.vv.neighbours())))
             }
+            (Nav::Layer(name), Value::Graph(g)) => {
+                Some(Value::Graph(g.valid_layers(name.to_string()).into_dynamic()))
+            }
+            (Nav::Layer(name), Value::Node(n)) => {
+                Some(Value::Node(GqlNode::from(n.vv.valid_layers(name.to_string()))))
+            }
+            (Nav::Layer(name), Value::Edge(e)) => {
+                Some(Value::Edge(GqlEdge::from(e.ee.valid_layers(name.to_string()))))
+            }
             (Nav::After(t), Value::Node(n)) => Some(Value::Node(GqlNode::from(n.vv.after(*t)))),
+            (Nav::After(t), Value::Edge(e)) => Some(Value::Edge(GqlEdge::from(e.ee.after(*t)))),
             (Nav::Before(t), Value::Node(n)) => Some(Value::Node(GqlNode::from(n.vv.before(*t)))),
+            (Nav::Before(t), Value::Edge(e)) => Some(Value::Edge(GqlEdge::from(e.ee.before(*t)))),
             (Nav::Window { start, end }, Value::Graph(g)) => {
                 Some(Value::Graph(g.window(*start, *end).into_dynamic()))
             }
             (Nav::Window { start, end }, Value::Node(n)) => {
                 Some(Value::Node(GqlNode::from(n.vv.window(*start, *end))))
+            }
+            (Nav::Window { start, end }, Value::Edge(e)) => {
+                Some(Value::Edge(GqlEdge::from(e.ee.window(*start, *end))))
             }
             _ => unreachable!("plan/type mismatch — validation should prevent this"),
         }
@@ -171,15 +210,28 @@ impl Nav {
 impl LeafKind {
     fn write(&self, recv: &Value, sink: &mut Sink) {
         match (self, recv) {
-            (LeafKind::Id, Value::Node(n)) => match n.vv.id() {
-                GID::Str(s) => sink.write_str(&s),
-                GID::U64(u) => sink.write_u64(u),
-            },
+            (LeafKind::Id, Value::Node(n)) => write_gid(sink, n.vv.id()),
             (LeafKind::Name, Value::Node(n)) => sink.write_str(&n.vv.name()),
+            (LeafKind::EdgeId, Value::Edge(e)) => {
+                let (src, dst) = e.ee.id();
+                sink.begin_array();
+                write_gid(sink, src);
+                write_gid(sink, dst);
+                sink.end_array();
+            }
             (LeafKind::Timestamp, Value::EventTime(t)) => sink.write_i64(t.t()),
             (LeafKind::EventId, Value::EventTime(t)) => sink.write_u64(t.i() as u64),
             _ => unreachable!("plan/type mismatch — validation should prevent this"),
         }
+    }
+}
+
+/// Write a node id as the schema's `NodeId` scalar: a JSON string for
+/// string-indexed graphs, a JSON number for integer-indexed graphs.
+fn write_gid(sink: &mut Sink, gid: GID) {
+    match gid {
+        GID::Str(s) => sink.write_str(&s),
+        GID::U64(u) => sink.write_u64(u),
     }
 }
 

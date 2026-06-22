@@ -172,6 +172,58 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn interp_edge_queries_match_endpoint() {
+        // mirrors the layered graph in test_gql_history.py (edges only)
+        let g = Graph::new();
+        g.add_edge(150, "Dumbledore", "Harry", NO_PROPS, Some("communication"))
+            .unwrap();
+        g.add_edge(200, "Dumbledore", "Harry", [("weight", 0.5f64)], Some("friendship"))
+            .unwrap();
+        g.add_edge(300, "Dumbledore", "Harry", [("weight", 0.7f64)], Some("communication"))
+            .unwrap();
+        g.add_edge(350, "Dumbledore", "Harry", [("weight", 0.9f64)], Some("friendship"))
+            .unwrap();
+
+        let tempdir = TempDir::new().unwrap();
+        let server = GraphServer::new(tempdir.path().to_path_buf(), None, None, Config::default())
+            .await
+            .unwrap();
+        let port = 43936;
+        let _running = server.start_with_port(port).await.unwrap();
+        tokio::time::sleep(Duration::from_secs(1)).await;
+
+        let gql = RaphtoryGraphQLClient::new(
+            Url::parse(&format!("http://localhost:{port}/")).unwrap(),
+            None,
+        );
+        let encoded = url_encode_graph(g.materialize().unwrap()).unwrap();
+        gql.send_graph("g", &encoded, true).await.unwrap();
+
+        let http = reqwest::Client::new();
+        for query in [
+            // edge + history
+            r#"{ graph(path:"g") { edge(src:"Dumbledore", dst:"Harry") { history { list { timestamp eventId } } } } }"#,
+            // edge endpoints + id
+            r#"{ graph(path:"g") { edge(src:"Dumbledore", dst:"Harry") { id src { name } dst { name } } } }"#,
+            // edges collection
+            r#"{ graph(path:"g") { edges { list { id } } } }"#,
+            // windowed edge that exists in the window
+            r#"{ graph(path:"g") { window(start:150, end:300) { edge(src:"Dumbledore", dst:"Harry") { history { list { timestamp eventId } } } } } }"#,
+            // windowed edge that is absent → null
+            r#"{ graph(path:"g") { window(start:0, end:150) { edge(src:"Dumbledore", dst:"Harry") { history { list { timestamp eventId } } } } } }"#,
+            // layered edge
+            r#"{ graph(path:"g") { layer(name:"communication") { edge(src:"Dumbledore", dst:"Harry") { history { list { timestamp eventId } } } } } }"#,
+            // edge after/before
+            r#"{ graph(path:"g") { edge(src:"Dumbledore", dst:"Harry") { after(time:200) { history { list { timestamp } } } } } }"#,
+        ] {
+            let expected =
+                serde_json::to_value(gql.query(query, HashMap::new()).await.unwrap()).unwrap();
+            let got = post_interp(&http, port, query).await;
+            assert_eq!(got["data"], expected, "mismatch for query: {query}");
+        }
+    }
+
+    #[tokio::test]
     async fn interp_endpoint_rejects_invalid_query() {
         let tempdir = TempDir::new().unwrap();
         let server = GraphServer::new(tempdir.path().to_path_buf(), None, None, Config::default())

@@ -58,15 +58,25 @@ pub enum Nav {
     Nodes,
     /// `graph.node(name:)` — `Graph` → `Node?`
     Node(GqlNodeId),
-    /// `node.history` — `Node` → `History`
+    /// `graph.edges` — `Graph` → `Edges`
+    Edges,
+    /// `graph.edge(src:, dst:)` — `Graph` → `Edge?`
+    Edge { src: GqlNodeId, dst: GqlNodeId },
+    /// `edge.src` — `Edge` → `Node`
+    Src,
+    /// `edge.dst` — `Edge` → `Node`
+    Dst,
+    /// `node.history` / `edge.history` — `Node`/`Edge` → `History`
     History,
     /// `node.neighbours` — `Node` → `PathFromNode`
     Neighbours,
-    /// `node.after(time:)` — `Node` → `Node`
+    /// `layer(name:)` — `Graph`/`Node`/`Edge` → same type
+    Layer(Box<str>),
+    /// `after(time:)` — `Node`/`Edge` → same type
     After(EventTime),
-    /// `node.before(time:)` — `Node` → `Node`
+    /// `before(time:)` — `Node`/`Edge` → same type
     Before(EventTime),
-    /// `window(start:, end:)` — `Graph` → `Graph` or `Node` → `Node`
+    /// `window(start:, end:)` — `Graph`/`Node`/`Edge` → same type
     Window { start: EventTime, end: EventTime },
 }
 
@@ -77,6 +87,8 @@ pub enum IterKind {
     NodesList,
     /// `neighbours.list` — iterate a `PathFromNode`, item per `Node`.
     NeighboursList,
+    /// `edges.list` — iterate an `Edges`, item per `Edge`.
+    EdgesList,
     /// `history.list` — iterate a `History`, item per `EventTime`.
     HistoryList,
 }
@@ -88,6 +100,8 @@ pub enum LeafKind {
     Id,
     /// `node.name` — `String`
     Name,
+    /// `edge.id` — `[NodeId!]!` (the `[src, dst]` id pair)
+    EdgeId,
     /// `eventTime.timestamp` — `Int`
     Timestamp,
     /// `eventTime.eventId` — `Int`
