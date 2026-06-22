@@ -92,7 +92,6 @@ impl PyGraphServer {
             tracing=None,
             tracing_level=None,
             otlp_agent_host=None,
-            otlp_agent_port=None,
             otlp_tracing_service_name=None,
             auth_public_key=None,
             require_auth_for_reads=None,
@@ -119,7 +118,6 @@ impl PyGraphServer {
         tracing: Option<bool>,
         tracing_level: Option<String>,
         otlp_agent_host: Option<String>,
-        otlp_agent_port: Option<String>,
         otlp_tracing_service_name: Option<String>,
         auth_public_key: Option<String>,
         require_auth_for_reads: Option<bool>,
@@ -161,11 +159,9 @@ impl PyGraphServer {
             app_config_builder.with_tracing_level(tl);
         }
         if let Some(otlp_agent_host) = otlp_agent_host {
-            app_config_builder.with_otlp_agent_host(otlp_agent_host);
+            app_config_builder.with_otlp_agent_host(Some(otlp_agent_host));
         }
-        if let Some(otlp_agent_port) = otlp_agent_port {
-            app_config_builder.with_otlp_agent_port(otlp_agent_port);
-        }
+
         if let Some(otlp_tracing_service_name) = otlp_tracing_service_name {
             app_config_builder.with_otlp_tracing_service_name(otlp_tracing_service_name);
         }

@@ -11,10 +11,9 @@ use crate::{
     },
     server::ServerError,
 };
-use config::{Config, ConfigError, File, Source};
+use config::{Config, ConfigError, File};
 use field_types::FieldName;
 use itertools::Itertools;
-use poem::Server;
 use serde::{de::DeserializeSeed, Deserialize, Deserializer, Serialize};
 use std::{
     collections::HashMap,
@@ -138,12 +137,6 @@ impl AppConfigBuilder {
                             }
                             TracingConfigFieldName::OtlpAgentHost => {
                                 self.with_otlp_agent_host(
-                                    Deserialize::deserialize(value)
-                                        .map_err(|e| invalid_value([path, sub_path], e))?,
-                                );
-                            }
-                            TracingConfigFieldName::OtlpAgentPort => {
-                                self.with_otlp_agent_port(
                                     Deserialize::deserialize(value)
                                         .map_err(|e| invalid_value([path, sub_path], e))?,
                                 );
@@ -335,13 +328,8 @@ impl AppConfigBuilder {
         self
     }
 
-    pub fn with_otlp_agent_host(&mut self, otlp_agent_host: String) -> &mut Self {
+    pub fn with_otlp_agent_host(&mut self, otlp_agent_host: Option<String>) -> &mut Self {
         self.config.tracing.otlp_agent_host = otlp_agent_host;
-        self
-    }
-
-    pub fn with_otlp_agent_port(&mut self, otlp_agent_port: String) -> &mut Self {
-        self.config.tracing.otlp_agent_port = otlp_agent_port;
         self
     }
 

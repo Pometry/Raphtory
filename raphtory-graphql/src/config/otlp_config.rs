@@ -6,6 +6,7 @@ use opentelemetry_sdk::{
     trace::{Sampler, SdkTracerProvider},
     Resource,
 };
+use raphtory_api::core::storage::arc_str::OptionAsStr;
 use serde::Deserialize;
 use std::{collections::HashMap, env, time::Duration};
 use strum::IntoEnumIterator;
@@ -98,17 +99,14 @@ pub const ESSENTIAL_TRACE_SPANS: [&str; 10] = [
 pub const DEFAULT_TRACING_LEVEL: TracingLevel = TracingLevel::COMPLETE;
 
 pub const DEFAULT_OTLP_TRANSPORT_PROTOCOL: TracingProtocol = TracingProtocol::TONIC;
-
-pub const DEFAULT_OTLP_AGENT_HOST: &'static str = "http://localhost";
-pub const DEFAULT_OTLP_AGENT_PORT: &'static str = "4317";
+pub const DEFAULT_OTLP_AGENT_PORT_TONIC: u16 = 4317;
 pub const DEFAULT_OTLP_TRACING_SERVICE_NAME: &'static str = "Raphtory";
 
 #[derive(Clone, Deserialize, Debug, PartialEq, serde::Serialize, FieldName)]
 pub struct TracingConfig {
     pub tracing_enabled: bool,
     pub tracing_level: TracingLevel,
-    pub otlp_agent_host: String,
-    pub otlp_agent_port: String,
+    pub otlp_agent_host: Option<String>,
     pub otlp_tracing_service_name: String,
     pub otlp_transport_protocol: TracingProtocol,
     /// Headers to use when transport_protocol is set to HTTP
@@ -120,8 +118,7 @@ impl Default for TracingConfig {
         Self {
             tracing_enabled: DEFAULT_TRACING_ENABLED,
             tracing_level: DEFAULT_TRACING_LEVEL,
-            otlp_agent_host: DEFAULT_OTLP_AGENT_HOST.to_owned(),
-            otlp_agent_port: DEFAULT_OTLP_AGENT_PORT.to_owned(),
+            otlp_agent_host: None,
             otlp_tracing_service_name: DEFAULT_OTLP_TRACING_SERVICE_NAME.to_owned(),
             otlp_transport_protocol: DEFAULT_OTLP_TRANSPORT_PROTOCOL,
             otlp_transport_headers: Default::default(),
@@ -150,58 +147,66 @@ impl TracingConfig {
 
     pub fn tracer_provider(&self) -> std::io::Result<Option<SdkTracerProvider>> {
         if self.tracing_enabled {
-            if !self.otlp_agent_host.starts_with("http://")
-                && !self.otlp_agent_host.starts_with("https://")
-            {
-                return Err(std::io::Error::other(
-                    format!(
-                        "otlp_agent_host needs to include the protocol, either http:// or https://, current value: {}",
-                        self.otlp_agent_host
-                    ),
-                ));
+            if let Some(agent_host) = self.otlp_agent_host.as_str() {
+                if !agent_host.starts_with("http://") && !agent_host.starts_with("https://") {
+                    return Err(std::io::Error::other(
+                        format!(
+                            "otlp_agent_host needs to include the protocol, either http:// or https://, current value: {}",
+                            agent_host
+                        ),
+                    ));
+                }
             }
 
             let tracer_provider = match self.otlp_transport_protocol {
-                TracingProtocol::TONIC => SpanExporter::builder()
-                    .with_tonic()
-                    .with_endpoint(format!(
-                        "{}:{}",
-                        self.otlp_agent_host.clone(),
-                        self.otlp_agent_port.clone()
-                    ))
-                    .with_timeout(Duration::from_secs(3))
-                    .build()
-                    .map(|exporter| {
+                TracingProtocol::TONIC => {
+                    let mut builder = SpanExporter::builder()
+                        .with_tonic()
+                        .with_timeout(Duration::from_secs(3));
+                    if let Some(agent_host) = self.otlp_agent_host.as_str() {
+                        builder = builder.with_endpoint(agent_host);
+                    }
+                    builder.build().map(|exporter| {
                         eprintln!(
                             // info!() here does not work since tracing is not enabled yet
-                            "Sending traces to {}:{} with protocol `TONIC` and tracing level `{}`",
-                            self.otlp_agent_host.clone(),
-                            self.otlp_agent_port.clone(),
+                            "Sending traces to {} with protocol `TONIC` and tracing level `{}`",
+                            self.otlp_agent_host.as_str().unwrap_or("default endpoint"),
                             self.tracing_level.clone()
                         );
                         self.with_exporter(exporter)
-                    }),
-                TracingProtocol::HTTP => SpanExporter::builder()
-                    .with_http()
-                    .with_protocol(Protocol::HttpBinary)
-                    .with_headers(self.otlp_transport_headers.clone())
-                    .with_endpoint(format!(
-                        "{}:{}",
-                        self.otlp_agent_host.clone(),
-                        self.otlp_agent_port.clone()
-                    ))
-                    .with_timeout(Duration::from_secs(3))
-                    .build()
-                    .map(|exporter| {
-                        eprintln!(
-                            // info!() here does not work since tracing is not enabled yet
-                            "Sending traces to {}:{} with protocol `HTTP` and tracing level `{}`",
-                            self.otlp_agent_host.clone(),
-                            self.otlp_agent_port.clone(),
-                            self.tracing_level.clone()
-                        );
-                        self.with_exporter(exporter)
-                    }),
+                    })
+                }
+                TracingProtocol::HTTP => {
+                    let mut builder = SpanExporter::builder()
+                        .with_http()
+                        .with_protocol(Protocol::HttpBinary)
+                        .with_headers(self.otlp_transport_headers.clone())
+                        .with_timeout(Duration::from_secs(3));
+                    if let Some(agent_host) = self.otlp_agent_host.as_str() {
+                        builder = builder.with_endpoint(format!("{agent_host}/v1/traces"));
+                    }
+                    builder
+                        .build()
+                        .map(|exporter| {
+                            match self.otlp_agent_host.as_str() {
+                                Some(host) => {
+                                    eprintln!(
+                                        // info!() here does not work since tracing is not enabled yet
+                                        "Sending traces to {host}/v1/traces with protocol `HTTP` and tracing level `{}`",
+                                        self.tracing_level.clone()
+                                    );
+                                }
+                                None =>  {
+                                    eprintln!(
+                                        // info!() here does not work since tracing is not enabled yet
+                                        "Sending traces to default endpoint with protocol `HTTP` and tracing level `{}`",
+                                        self.tracing_level.clone()
+                                    );
+                                }
+                            }
+                            self.with_exporter(exporter)
+                        })
+                }
                 TracingProtocol::STDOUT => {
                     eprintln!(
                         "Sending traces to stdout with tracing level `{}`",

@@ -8,7 +8,7 @@ use crate::{
         concurrency_config::{DEFAULT_DISABLE_BATCHING, DEFAULT_EXCLUSIVE_WRITES},
         log_config::DEFAULT_LOG_LEVEL,
         otlp_config::{
-            TracingLevel, TracingProtocol, DEFAULT_OTLP_AGENT_HOST, DEFAULT_OTLP_AGENT_PORT,
+            TracingLevel, TracingProtocol,
             DEFAULT_OTLP_TRACING_SERVICE_NAME, DEFAULT_OTLP_TRANSPORT_PROTOCOL,
             DEFAULT_TRACING_ENABLED, DEFAULT_TRACING_LEVEL,
         },
@@ -17,7 +17,7 @@ use crate::{
     server::{apply_server_extension, DEFAULT_PORT},
     GraphServer,
 };
-use clap::{CommandFactory, FromArgMatches, Parser, Subcommand};
+use clap::{Parser, Subcommand};
 use raphtory::db::api::storage::storage::Config;
 use std::{collections::HashMap, io, path::PathBuf};
 use tokio::io::Result as IoResult;
@@ -83,11 +83,8 @@ struct ServerArgs {
     )]
     tracing_level: Option<TracingLevel>,
 
-    #[arg(long, env = "RAPHTORY_OTLP_AGENT_HOST", help = help_with_default!("OTLP agent host.", DEFAULT_OTLP_AGENT_HOST))]
+    #[arg(long, env = "RAPHTORY_OTLP_AGENT_HOST", help = "OTLP agent host.")]
     otlp_agent_host: Option<String>,
-
-    #[arg(long, env = "RAPHTORY_OTLP_AGENT_PORT", help = help_with_default!("OTLP agent port.", DEFAULT_OTLP_AGENT_PORT))]
-    otlp_agent_port: Option<String>,
 
     #[arg(
         long,
@@ -236,10 +233,7 @@ where
                 builder.with_tracing_level(tracing_level);
             }
             if let Some(otlp_agent_host) = server_args.otlp_agent_host {
-                builder.with_otlp_agent_host(otlp_agent_host);
-            }
-            if let Some(otlp_agent_port) = server_args.otlp_agent_port {
-                builder.with_otlp_agent_port(otlp_agent_port);
+                builder.with_otlp_agent_host(Some(otlp_agent_host));
             }
             if let Some(otlp_tracing_service_name) = server_args.otlp_tracing_service_name {
                 builder.with_otlp_tracing_service_name(otlp_tracing_service_name);
@@ -325,7 +319,7 @@ where
 }
 
 pub async fn cli() -> IoResult<()> {
-    cli_with_args(std::env::args_os()).await
+    cli_with_args(dbg!(std::env::args_os())).await
 }
 
 /// Run the Raphtory GraphQL CLI from Python. Uses `sys.argv` for arguments.

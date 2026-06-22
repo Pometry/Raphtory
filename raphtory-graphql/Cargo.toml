@@ -36,7 +36,7 @@ async-graphql-poem = { workspace = true }
 futures-util = { workspace = true }
 opentelemetry = { workspace = true }
 opentelemetry_sdk = { workspace = true }
-opentelemetry-otlp = { workspace = true, features = ["http-json", "http-proto", "reqwest-rustls", "tls-aws-lc"] }
+opentelemetry-otlp = { workspace = true, features = ["http-json", "http-proto", "reqwest-rustls", "tls-aws-lc", "reqwest-blocking-client", "internal-logs"] }
 opentelemetry-stdout = { workspace = true }
 tracing = { workspace = true }
 tracing-opentelemetry = { workspace = true }
