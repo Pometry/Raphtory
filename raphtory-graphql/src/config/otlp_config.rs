@@ -1,4 +1,6 @@
+use crate::{model::blocking_io, server::ServerError};
 use clap::{Args, ValueEnum};
+use config::ConfigError;
 use field_types::FieldName;
 use opentelemetry::KeyValue;
 use opentelemetry_otlp::{Protocol, SpanExporter, WithExportConfig, WithHttpConfig};
@@ -7,8 +9,9 @@ use opentelemetry_sdk::{
     Resource,
 };
 use raphtory_api::core::storage::arc_str::OptionAsStr;
+use reqwest::{blocking::ClientBuilder, Certificate};
 use serde::Deserialize;
-use std::{collections::HashMap, env, time::Duration};
+use std::{collections::HashMap, env, fs::File, io::Read, path::PathBuf, time::Duration};
 use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter, EnumString, IntoStaticStr};
 
@@ -111,6 +114,7 @@ pub struct TracingConfig {
     pub otlp_transport_protocol: TracingProtocol,
     /// Headers to use when transport_protocol is set to HTTP
     pub otlp_transport_headers: HashMap<String, String>,
+    pub otlp_transport_certificate: Option<PathBuf>,
 }
 
 impl Default for TracingConfig {
@@ -122,6 +126,7 @@ impl Default for TracingConfig {
             otlp_tracing_service_name: DEFAULT_OTLP_TRACING_SERVICE_NAME.to_owned(),
             otlp_transport_protocol: DEFAULT_OTLP_TRANSPORT_PROTOCOL,
             otlp_transport_headers: Default::default(),
+            otlp_transport_certificate: None,
         }
     }
 }
@@ -145,16 +150,14 @@ impl TracingConfig {
             .build()
     }
 
-    pub fn tracer_provider(&self) -> std::io::Result<Option<SdkTracerProvider>> {
+    pub async fn tracer_provider(&self) -> Result<Option<SdkTracerProvider>, ServerError> {
         if self.tracing_enabled {
             if let Some(agent_host) = self.otlp_agent_host.as_str() {
                 if !agent_host.starts_with("http://") && !agent_host.starts_with("https://") {
-                    return Err(std::io::Error::other(
-                        format!(
-                            "otlp_agent_host needs to include the protocol, either http:// or https://, current value: {}",
-                            agent_host
-                        ),
-                    ));
+                    let err = ServerError::ConfigError(ConfigError::Message(format!(
+                        "otlp_agent_host needs to include the protocol, either http:// or https://, current value: {}",
+                        agent_host)));
+                    return Err(err);
                 }
             }
 
@@ -177,10 +180,27 @@ impl TracingConfig {
                     })
                 }
                 TracingProtocol::HTTP => {
+                    let cert = self.otlp_transport_certificate.clone();
+
+                    // needs to happen on blocking threadpool to avoid panic in initialisation
+                    let client = blocking_io(move || {
+                        let mut client_builder = ClientBuilder::new();
+                        if let Some(cert) = cert {
+                            let mut buf = Vec::new();
+                            File::open(cert)?.read_to_end(&mut buf)?;
+                            let cert = Certificate::from_pem(&buf)?;
+                            client_builder = client_builder.add_root_certificate(cert);
+                        }
+                        let client = client_builder.build()?;
+                        Ok::<_, ServerError>(client)
+                    })
+                    .await?;
+
                     let mut builder = SpanExporter::builder()
                         .with_http()
                         .with_protocol(Protocol::HttpBinary)
                         .with_headers(self.otlp_transport_headers.clone())
+                        .with_http_client(client)
                         .with_timeout(Duration::from_secs(3));
                     if let Some(agent_host) = self.otlp_agent_host.as_str() {
                         builder = builder.with_endpoint(format!("{agent_host}/v1/traces"));

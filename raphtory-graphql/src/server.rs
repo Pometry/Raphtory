@@ -80,8 +80,12 @@ pub fn has_server_extension() -> bool {
 
 #[derive(Error, Debug)]
 pub enum ServerError {
-    #[error("Config error: {0}")]
+    #[error(transparent)]
     ConfigError(#[from] ConfigError),
+    #[error(transparent)]
+    ReqwestError(#[from] reqwest::Error),
+    #[error(transparent)]
+    IoError(#[from] io::Error),
     #[error("Public key error: {0}")]
     PublicKeyError(#[from] PublicKeyError),
     #[error("Cache error: {0}")]
@@ -258,7 +262,7 @@ impl GraphServer {
         let config = self.config.clone();
         let filter = config.logging.get_log_env();
         let tracer_name = config.tracing.otlp_tracing_service_name.clone();
-        let tp = config.tracing.tracer_provider()?;
+        let tp = config.tracing.tracer_provider().await?;
         // Create the base registry
         let registry = Registry::default().with(filter).with(
             fmt::layer().pretty().with_span_events(FmtSpan::NONE), //(FULL, NEW, ENTER, EXIT, CLOSE)

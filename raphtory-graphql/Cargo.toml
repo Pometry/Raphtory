@@ -54,6 +54,7 @@ strum_macros = { workspace = true }
 bigdecimal = { workspace = true, features = ["serde"] }
 quick_cache = { workspace = true }
 field_types = { workspace = true }
+pythonize = { workspace = true, optional = true }
 
 # python binding optional dependencies
 pyo3 = { workspace = true, optional = true }
@@ -69,6 +70,6 @@ tempfile = { workspace = true }
 pretty_assertions = { workspace = true }
 
 [features]
-python = ["dep:pyo3", "raphtory/python"]
+python = ["dep:pyo3", "dep:pythonize", "raphtory/python"]
 search = ["raphtory/search"]
 panic-on-drop = ["raphtory/panic-on-drop"]

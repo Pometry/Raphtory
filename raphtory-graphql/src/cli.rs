@@ -8,9 +8,8 @@ use crate::{
         concurrency_config::{DEFAULT_DISABLE_BATCHING, DEFAULT_EXCLUSIVE_WRITES},
         log_config::DEFAULT_LOG_LEVEL,
         otlp_config::{
-            TracingLevel, TracingProtocol,
-            DEFAULT_OTLP_TRACING_SERVICE_NAME, DEFAULT_OTLP_TRANSPORT_PROTOCOL,
-            DEFAULT_TRACING_ENABLED, DEFAULT_TRACING_LEVEL,
+            TracingLevel, TracingProtocol, DEFAULT_OTLP_TRACING_SERVICE_NAME,
+            DEFAULT_OTLP_TRANSPORT_PROTOCOL, DEFAULT_TRACING_ENABLED, DEFAULT_TRACING_LEVEL,
         },
         schema_config::DEFAULT_DISABLE_INTROSPECTION,
     },
@@ -103,6 +102,13 @@ struct ServerArgs {
     #[arg(long, env="RAPHTORY_OTLP_TRANSPORT_HEADERS", value_parser = parse_json_map)]
     /// Headers for use with OTLP HTTP protocol (expects a json-encoded map from keys to string values)
     otlp_transport_headers: Option<HashMap<String, String>>,
+
+    #[arg(
+        long,
+        env = "RAPHTORY_OTLP_TRANSPORT_CERTIFICATE",
+        help = "Path to certificate to use for OTLP transport in `.pem` format"
+    )]
+    otlp_transport_certificate: Option<PathBuf>,
 
     #[arg(long, env = "RAPHTORY_AUTH_PUBLIC_KEY", help = "Public key for auth")]
     auth_public_key: Option<String>,
@@ -243,6 +249,9 @@ where
             }
             if let Some(otlp_transport_headers) = server_args.otlp_transport_headers {
                 builder.with_otlp_transport_headers(otlp_transport_headers);
+            }
+            if let Some(otlp_transport_certificate) = server_args.otlp_transport_certificate {
+                builder.with_otlp_transport_certificate(Some(otlp_transport_certificate));
             }
             if let Some(auth_public_key) = server_args.auth_public_key {
                 builder

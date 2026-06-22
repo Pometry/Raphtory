@@ -159,6 +159,12 @@ impl AppConfigBuilder {
                                         .map_err(|e| invalid_value([path, sub_path], e))?,
                                 );
                             }
+                            TracingConfigFieldName::OtlpTransportCertificate => {
+                                self.with_otlp_transport_certificate(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
                         }
                     }
                 }
@@ -348,6 +354,11 @@ impl AppConfigBuilder {
 
     pub fn with_otlp_transport_headers(&mut self, headers: HashMap<String, String>) -> &mut Self {
         self.config.tracing.otlp_transport_headers = headers;
+        self
+    }
+
+    pub fn with_otlp_transport_certificate(&mut self, certificte: Option<PathBuf>) -> &mut Self {
+        self.config.tracing.otlp_transport_certificate = certificte;
         self
     }
 
