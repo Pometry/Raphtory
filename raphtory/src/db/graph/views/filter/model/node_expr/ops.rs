@@ -311,8 +311,9 @@ impl_agg_entity_op!(AllNodeOp, AllEdgeOp, |vals| {
 // These ops implement NodeExpr for BinaryCmpNodeFilter, StringNodeFilter, and
 // PropValueSetFilter respectively, enabling mid-chain use before .any()/.all().
 //
-// Each uses aggregate_values so arbitrary nesting depth is handled automatically:
-//   temporal().sum().gt(5).any()
+// Each uses broadcasting so that comparisons applied to a `Prop::List(...)`
+// fan out element-wise; scalar inputs are passed through to the op directly.
+//   temporal().gt(5).any()
 //   temporal().contains("rock").all()
 //   temporal().is_in([...]).any()
 // ─────────────────────────────────────────────────────────────────────────────
@@ -511,44 +512,6 @@ impl<'g> NodeOp for OrBoolNodeOp<'g> {
         let l = matches!(self.left.apply(storage, node), Some(Prop::Bool(true)));
         let r = matches!(self.right.apply(storage, node), Some(Prop::Bool(true)));
         Some(Prop::Bool(l || r))
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// UnwrapOptPropOp<'g> — converts Option<Prop> → Prop for nested aggregation
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// Converts `Option<Prop>` → `Prop` so that aggregator ops (`SumNodeOp`, etc.)
-/// can operate on a value produced by a prior aggregation step.
-///
-/// Used internally when chaining e.g. `.temporal().last().sum()`:
-/// `LastExpr` outputs `Option<Prop::List([...]))`, `UnwrapOptPropOp` makes that
-/// available as `Prop` for the next-level `SumNodeOp`.
-///
-/// - `Some(Prop::List(arr))` → `Prop::List(arr)` (pass through as-is)
-/// - `Some(v)`               → `Prop::List([v])` (single-element list)
-/// - `None`                  → `Prop::List([])` (empty — yields None from aggregators)
-pub(crate) struct UnwrapOptPropOp<'g> {
-    pub(crate) inner: Arc<dyn NodeOp<Output = Option<Prop>> + 'g>,
-}
-
-impl<'g> Clone for UnwrapOptPropOp<'g> {
-    fn clone(&self) -> Self {
-        Self {
-            inner: self.inner.clone(),
-        }
-    }
-}
-
-impl<'g> NodeOp for UnwrapOptPropOp<'g> {
-    type Output = Prop;
-
-    fn apply(&self, storage: &GraphStorage, node: VID) -> Prop {
-        match self.inner.apply(storage, node) {
-            Some(Prop::List(arr)) => Prop::List(arr),
-            Some(v) => Prop::List(PropArray::from(vec![v])),
-            None => Prop::List(PropArray::from(vec![])),
-        }
     }
 }
 

@@ -17,9 +17,9 @@ impl EdgeExpr for Property {
         &self,
         graph: G,
     ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        let (prop_id, _) = graph
+        let prop_id = graph
             .edge_meta()
-            .get_prop_id_and_type(&self.name, false)
+            .get_prop_id(&self.name, false)
             .ok_or_else(|| GraphError::PropertyMissingError(self.name.clone()))?;
         Ok(Arc::new(EdgePropOp { graph, prop_id }))
     }
@@ -30,9 +30,9 @@ impl EdgeExpr for Metadata {
         &self,
         graph: G,
     ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        let (prop_id, _) = graph
+        let prop_id = graph
             .edge_meta()
-            .get_prop_id_and_type(&self.name, true)
+            .get_prop_id(&self.name, true)
             .ok_or_else(|| GraphError::MetadataMissingError(self.name.clone()))?;
         Ok(Arc::new(EdgeMetaOp { graph, prop_id }))
     }

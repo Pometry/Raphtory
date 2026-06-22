@@ -64,7 +64,7 @@
 use super::{ops::{
     AvgNodeOp, FirstNodeOp, LastNodeOp, LenNodeOp, MaxNodeOp, MinNodeOp, NodeMetaOp,
     NodePropOp, SumNodeOp, TemporalNodePropOp,
-}, AllEdgeOp, AllNodeOp, AnyEdgeOp, AnyNodeOp, AvgEdgeOp, EntityExpr, FirstEdgeOp, LastEdgeOp, LenEdgeOp, MaxEdgeOp, MinEdgeOp, NodeExpr, NodeExprMarker, SumEdgeOp};
+}, AllEdgeOp, AllNodeOp, AnyEdgeOp, AnyNodeOp, AvgEdgeOp, EntityExpr, FirstEdgeOp, LastEdgeOp, LenEdgeOp, MaxEdgeOp, MinEdgeOp, NodeExpr, SumEdgeOp};
 use crate::{
     db::{
         api::{
@@ -369,9 +369,9 @@ impl NodeExpr for Property {
         &self,
         graph: G,
     ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        let (prop_id, _) = graph
+        let prop_id = graph
             .node_meta()
-            .get_prop_id_and_type(&self.name, false)
+            .get_prop_id(&self.name, false)
             .ok_or_else(|| GraphError::PropertyMissingError(self.name.clone()))?;
         Ok(Arc::new(NodePropOp { graph, prop_id }))
     }
@@ -386,9 +386,9 @@ impl NodeExpr for Metadata {
         &self,
         graph: G,
     ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        let (prop_id, _) = graph
+        let prop_id = graph
             .node_meta()
-            .get_prop_id_and_type(&self.name, true)
+            .get_prop_id(&self.name, true)
             .ok_or_else(|| GraphError::MetadataMissingError(self.name.clone()))?;
         Ok(Arc::new(NodeMetaOp { graph, prop_id }))
     }
@@ -427,9 +427,9 @@ impl<E: EntityExpr + CreateView + NodeFilterFactory + Clone + Send + Sync + 'sta
         &self,
         graph: G,
     ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        let (prop_id, _) = graph
+        let prop_id = graph
             .node_meta()
-            .get_prop_id_and_type(&self.name, false)
+            .get_prop_id(&self.name, false)
             .ok_or_else(|| GraphError::PropertyMissingError(self.name.clone()))?;
         let graph = self.view_expr.create_view(graph)?;
         Ok(Arc::new(TemporalNodePropOp { graph, prop_id }.map(|a| Some(a))))
@@ -441,9 +441,9 @@ impl<E: EntityExpr + CreateView + EdgeFilterFactory + Clone + Send + Sync + 'sta
         &self,
         graph: G,
     ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        let (prop_id, _) = graph
+        let prop_id = graph
             .edge_meta()
-            .get_prop_id_and_type(&self.name, false)
+            .get_prop_id(&self.name, false)
             .ok_or_else(|| GraphError::PropertyMissingError(self.name.clone()))?;
         let graph = self.view_expr.create_view(graph)?;
         Ok(Arc::new(TemporalEdgePropOp { graph, prop_id }))

@@ -76,9 +76,6 @@ pub trait EntityExpr: Clone + Send + Sync + 'static {
     }
 }
 
-/// Sealed trait to avoid conflicts between node and edge expressions
-pub(crate) trait NodeExprMarker {}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // TemporalPropOps — unified aggregation and comparison on TemporalProp<E>
 // ─────────────────────────────────────────────────────────────────────────────

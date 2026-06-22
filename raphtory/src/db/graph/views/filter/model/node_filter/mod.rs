@@ -140,20 +140,6 @@ impl TryAsCompositeFilter for NodeFilter {
     }
 }
 
-impl NodeFilter {
-    /// Current (latest) value of a named property — serializable.
-    #[inline]
-    pub fn property(name: impl Into<String>) -> Property {
-        Property::new(name)
-    }
-
-    /// Static metadata field — serializable.
-    #[inline]
-    pub fn metadata(name: impl Into<String>) -> Metadata {
-        Metadata::new(name)
-    }
-}
-
 impl Wrap for NodeFilter {
     type Wrapped<T> = T;
 

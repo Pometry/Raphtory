@@ -45,7 +45,7 @@ use super::{
         BinaryCmpNodeOp, ListAwareCmpNodeOp, ListAwareSetNodeOp, ListAwareStringNodeOp,
         PropValueSetNodeOp, StringNodeOp, UnaryNodeOp,
     },
-    AllExpr, AnyExpr, EntityExpr, NodeExpr, NodeExprMarker,
+    AllExpr, AnyExpr, EntityExpr, NodeExpr,
 };
 use crate::{
     db::{
@@ -693,8 +693,6 @@ impl<L: EntityExpr, R: EntityExpr, E: Copy + Default + Send + Sync + 'static> En
         PropType::Empty
     }
 }
-
-impl<L: NodeExprMarker, R, E> NodeExprMarker for BinaryCmpFilter<L, R, E> {}
 
 impl<L: NodeExpr, R: NodeExpr> NodeExpr for BinaryCmpFilter<L, R, NodeFilter> {
     fn create_node_op<'g, G: GraphView + 'g>(

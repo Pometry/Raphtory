@@ -227,23 +227,27 @@ pub fn reduce_float<P: Borrow<Prop>>(
     }
 }
 
-/// Reduce a flat `Vec<Prop>` using `op`. All elements must have the same numeric type.
-/// Returns `None` if the vector is empty, the type is non-numeric, or the op is not
-/// a numeric aggregator (Sum/Avg/Min/Max).
-pub fn reduce_seq(vs: Vec<Prop>, op: Op) -> Option<Prop> {
-    if vs.is_empty() || matches!(vs.first(), Some(Prop::List(_))) {
-        return None;
-    }
-    let inner_dtype = vs.first()?.dtype();
+/// Reduce a sequence of `Prop` values using `op`. All elements must have the
+/// same numeric type. Returns `None` if the sequence is empty, the type is
+/// non-numeric, or the op is not a numeric aggregator (Sum/Avg/Min/Max).
+pub fn reduce_seq(vs: impl IntoIterator<Item = Prop>, op: Op) -> Option<Prop> {
+    let mut iter = vs.into_iter().peekable();
+    let inner_dtype = {
+        let first = iter.peek()?;
+        if matches!(first, Prop::List(_)) {
+            return None;
+        }
+        first.dtype()
+    };
     match inner_dtype {
-        PropType::U8 => reduce_unsigned(vs, |x| Prop::U8(x as u8), op),
-        PropType::U16 => reduce_unsigned(vs, |x| Prop::U16(x as u16), op),
-        PropType::U32 => reduce_unsigned(vs, |x| Prop::U32(x as u32), op),
-        PropType::U64 => reduce_unsigned(vs, |x| Prop::U64(x), op),
-        PropType::I32 => reduce_signed(vs, |x| Prop::I32(x as i32), op),
-        PropType::I64 => reduce_signed(vs, |x| Prop::I64(x), op),
-        PropType::F32 => reduce_float(vs, |x| Prop::F32(x as f32), op),
-        PropType::F64 => reduce_float(vs, |x| Prop::F64(x), op),
+        PropType::U8 => reduce_unsigned(iter, |x| Prop::U8(x as u8), op),
+        PropType::U16 => reduce_unsigned(iter, |x| Prop::U16(x as u16), op),
+        PropType::U32 => reduce_unsigned(iter, |x| Prop::U32(x as u32), op),
+        PropType::U64 => reduce_unsigned(iter, |x| Prop::U64(x), op),
+        PropType::I32 => reduce_signed(iter, |x| Prop::I32(x as i32), op),
+        PropType::I64 => reduce_signed(iter, |x| Prop::I64(x), op),
+        PropType::F32 => reduce_float(iter, |x| Prop::F32(x as f32), op),
+        PropType::F64 => reduce_float(iter, |x| Prop::F64(x), op),
         _ => None,
     }
 }
@@ -254,10 +258,7 @@ pub fn apply_agg_to_prop(p: &Prop, op: Op) -> Option<Prop> {
         (Op::Sum, Prop::List(inner))
         | (Op::Avg, Prop::List(inner))
         | (Op::Min, Prop::List(inner))
-        | (Op::Max, Prop::List(inner)) => {
-            let vs: Vec<Prop> = inner.iter().collect();
-            reduce_seq(vs, op)
-        }
+        | (Op::Max, Prop::List(inner)) => reduce_seq(inner.iter(), op),
 
         (Op::Len, _) => Some(Prop::U64(1)),
 

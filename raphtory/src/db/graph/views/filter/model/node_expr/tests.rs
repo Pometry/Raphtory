@@ -513,14 +513,14 @@ fn build_bool_graph() -> Graph {
 #[test]
 fn is_true_keeps_only_true_nodes() {
     let g = build_bool_graph();
-    let filter = NodeFilter::property("active").is_true();
+    let filter = NodeFilter.property("active").is_true();
     assert_eq!(filtered_names(filter, g), vec!["on"]);
 }
 
 #[test]
 fn is_false_keeps_only_false_nodes() {
     let g = build_bool_graph();
-    let filter = NodeFilter::property("active").is_false();
+    let filter = NodeFilter.property("active").is_false();
     assert_eq!(filtered_names(filter, g), vec!["off"]);
 }
 
@@ -528,7 +528,7 @@ fn is_false_keeps_only_false_nodes() {
 fn is_true_excludes_absent_property() {
     // "na" has no "active" property — must not appear
     let g = build_bool_graph();
-    let filter = NodeFilter::property("active").is_true();
+    let filter = NodeFilter.property("active").is_true();
     let names = filtered_names(filter, g);
     assert!(!names.contains(&"na".to_string()));
 }
@@ -538,7 +538,7 @@ fn is_true_excludes_absent_property() {
 #[test]
 fn string_op_on_numeric_prop_returns_error() {
     let g = build_temporal_graph();
-    let filter = NodeFilter::property("score").starts_with(Prop::Str("x".into()));
+    let filter = NodeFilter.property("score").starts_with(Prop::Str("x".into()));
     let result = filter.create_filter(g);
     assert!(
         result.is_err(),
@@ -552,7 +552,7 @@ fn ordering_op_on_bool_prop_returns_error() {
     g.add_node(0, "n", [("flag", true.into_prop())], None, None)
         .unwrap();
     // Use Prop::Bool as rhs so both sides share Output = Option<Prop>
-    let filter = NodeFilter::property("flag").gt(Prop::Bool(false));
+    let filter = NodeFilter.property("flag").gt(Prop::Bool(false));
     let result = filter.create_filter(g);
     assert!(
         result.is_err(),
