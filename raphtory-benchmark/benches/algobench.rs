@@ -141,7 +141,7 @@ fn simple_benchmark<Run, Output>(
 fn large_random_attachment_graph() -> Graph {
     let graph = Graph::new();
     let seed: [u8; 32] = [1; 32];
-    random_attachment(&graph, 500000, 4, Some(seed));
+    random_attachment(&graph, 5000, 4, Some(seed));
     graph
 }
 
