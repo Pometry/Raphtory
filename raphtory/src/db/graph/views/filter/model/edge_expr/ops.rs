@@ -20,7 +20,11 @@ use std::{collections::HashSet, hash::Hash};
 use super::EdgeOp;
 use crate::db::{
     api::state::ops::NodeOp,
-    graph::views::filter::model::{edge_filter::Endpoint, property_filter::evaluate::aggregate_values},
+    graph::views::filter::model::{
+        edge_filter::Endpoint,
+        node_expr::ops::{broadcast_binary, broadcast_unary},
+        property_filter::evaluate::aggregate_values,
+    },
 };
 use raphtory_api::core::entities::properties::prop::PropArray;
 use std::sync::Arc;
@@ -262,17 +266,10 @@ impl<'g> EdgeOp for ListAwareCmpEdgeOp<'g> {
 
     fn apply(&self, storage: &GraphStorage, edge: EdgeRef) -> Option<Prop> {
         let lv = self.left.apply(storage, edge);
-        let rhs = self.right.apply(storage, edge)?;
+        let rhs = self.right.apply(storage, edge);
         let op = &self.op;
-        aggregate_values(lv, &|pi| {
-            let bools: Vec<Prop> = pi
-                .map(|v| Prop::Bool(Prop::binary_cmp(op, &v, &rhs)))
-                .collect();
-            if bools.is_empty() {
-                None
-            } else {
-                Some(Prop::List(PropArray::from(bools)))
-            }
+        broadcast_binary(lv, rhs, &|lv, rhs| {
+            Some(Prop::Bool(Prop::binary_cmp(op, &lv?, &rhs?)))
         })
     }
 }
@@ -295,15 +292,8 @@ impl<'g> EdgeOp for ListAwareStringEdgeOp<'g> {
         let lv = self.left.apply(storage, edge);
         let rhs = self.right.apply(storage, edge);
         let op = &self.op;
-        aggregate_values(lv, &|pi| {
-            let bools: Vec<Prop> = pi
-                .map(|v| Prop::Bool(Option::<Prop>::string_cmp(op, &Some(v), &rhs)))
-                .collect();
-            if bools.is_empty() {
-                None
-            } else {
-                Some(Prop::List(PropArray::from(bools)))
-            }
+        broadcast_binary(lv, rhs, &|lv, rhs| {
+            Some(Prop::Bool(Option::<Prop>::string_cmp(op, &lv, &rhs)))
         })
     }
 }
@@ -323,23 +313,15 @@ impl<'g> EdgeOp for ListAwareSetEdgeOp<'g> {
     type Output = Option<Prop>;
 
     fn apply(&self, storage: &GraphStorage, edge: EdgeRef) -> Option<Prop> {
-        let lv = self.inner.apply(storage, edge);
+        let vals = self.inner.apply(storage, edge);
         let values = &self.values;
         let op = &self.op;
-        aggregate_values(lv, &|pi| {
-            let bools: Vec<Prop> = pi
-                .map(|v| {
-                    Prop::Bool(match op {
-                        SetOp::IsIn => values.iter().any(|x| Prop::binary_cmp(&BinaryOp::Eq, x, &v)),
-                        SetOp::IsNotIn => values.iter().all(|x| Prop::binary_cmp(&BinaryOp::Ne, x, &v)),
-                    })
-                })
-                .collect();
-            if bools.is_empty() {
-                None
-            } else {
-                Some(Prop::List(PropArray::from(bools)))
-            }
+        broadcast_unary(vals, |v| {
+            let v = v?;
+            Some(Prop::Bool(match op {
+                SetOp::IsIn => values.iter().any(|x| Prop::binary_cmp(&BinaryOp::Eq, x, &v)),
+                SetOp::IsNotIn => values.iter().all(|x| Prop::binary_cmp(&BinaryOp::Ne, x, &v)),
+            }))
         })
     }
 }

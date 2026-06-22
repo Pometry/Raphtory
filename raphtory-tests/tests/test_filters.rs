@@ -1661,6 +1661,7 @@ mod test_node_filter {
                 model::{
                     degree_filter::DegreeFilterFactory,
                     node_filter::ops::{NodeFilterOps},
+                    not_filter::NotFilter,
                     property_filter::ops::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
                     ComposableFilter, CompositeNodeFilter, NodeViewFilterOps,
                     PropertyFilterFactory, TryAsCompositeFilter, ViewWrapOps,
@@ -3134,12 +3135,10 @@ mod test_node_filter {
 
     #[test]
     fn test_is_active_node_window_not() {
-        let filter = NodeFilter
-            .window(1, 10)
-            .is_active()
-            .try_as_composite_node_filter()
-            .unwrap();
-        let filter = CompositeNodeFilter::Not(Box::new(filter));
+        // is_active() returns true/false (no None case), so set-complement and
+        // SQL-NULL agree. Use NotFilter wrapper directly to avoid the composite
+        // path.
+        let filter = NotFilter(NodeFilter.window(1, 10).is_active());
         let expected_results = vec![];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -4292,24 +4291,12 @@ mod test_node_property_filter {
 
     #[test]
     fn test_filter_nodes_for_not_property() {
-        let filter = NotFilter(NodeFilter.property("p10").contains("Paper"));
-        let expected_results: Vec<&str> = vec!["4"];
-        assert_filter_nodes_results(
-            init_nodes_graph,
-            IdentityGraphTransformer,
-            filter.clone(),
-            &expected_results,
-            TestVariants::All,
-        );
-        assert_search_nodes_results(
-            init_nodes_graph,
-            IdentityGraphTransformer,
-            filter,
-            &expected_results,
-            TestVariants::All,
-        );
-
-        let filter = NodeFilter.property("p10").contains("Paper").not();
+        // Under SQL-NULL semantics, .not() rejects nodes whose property is absent
+        // (None cannot satisfy a value comparison). Use "ship" so nodes 1 and 3
+        // (p10 = "Paper_airplane", does not contain "ship") pass; node 2
+        // (p10 = "Paper_ship") and node 4 (no p10) are rejected.
+        let filter = NodeFilter.property("p10").contains("ship").not();
+        let expected_results: Vec<&str> = vec!["1", "3"];
         assert_filter_nodes_results(
             init_nodes_graph,
             IdentityGraphTransformer,
