@@ -1,8 +1,5 @@
 use crate::model::schema::property_schema::PropertySchema;
-use std::{
-    collections::HashMap,
-    sync::{Arc, RwLock},
-};
+use std::{collections::HashMap, sync::RwLock};
 
 /// Cache key for an edge schema entry: `(layer name, src node type, dst node type)`.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -65,24 +62,24 @@ impl SchemaCache {
 /// Cache of computed edge schema results, keyed by `(layer, src_type, dst_type)`.
 #[derive(Default)]
 pub(crate) struct EdgeSchemaCache {
-    properties: RwLock<HashMap<EdgeSchemaKey, Arc<Vec<PropertySchema>>>>,
-    metadata: RwLock<HashMap<EdgeSchemaKey, Arc<Vec<PropertySchema>>>>,
+    properties: RwLock<HashMap<EdgeSchemaKey, Vec<PropertySchema>>>,
+    metadata: RwLock<HashMap<EdgeSchemaKey, Vec<PropertySchema>>>,
 }
 
 impl EdgeSchemaCache {
-    pub(crate) fn get_properties(&self, key: &EdgeSchemaKey) -> Option<Arc<Vec<PropertySchema>>> {
+    pub(crate) fn get_properties(&self, key: &EdgeSchemaKey) -> Option<Vec<PropertySchema>> {
         self.properties.read().unwrap().get(key).cloned()
     }
 
-    pub(crate) fn store_properties(&self, key: EdgeSchemaKey, value: Arc<Vec<PropertySchema>>) {
+    pub(crate) fn store_properties(&self, key: EdgeSchemaKey, value: Vec<PropertySchema>) {
         self.properties.write().unwrap().insert(key, value);
     }
 
-    pub(crate) fn get_metadata(&self, key: &EdgeSchemaKey) -> Option<Arc<Vec<PropertySchema>>> {
+    pub(crate) fn get_metadata(&self, key: &EdgeSchemaKey) -> Option<Vec<PropertySchema>> {
         self.metadata.read().unwrap().get(key).cloned()
     }
 
-    pub(crate) fn store_metadata(&self, key: EdgeSchemaKey, value: Arc<Vec<PropertySchema>>) {
+    pub(crate) fn store_metadata(&self, key: EdgeSchemaKey, value: Vec<PropertySchema>) {
         self.metadata.write().unwrap().insert(key, value);
     }
 
@@ -95,24 +92,24 @@ impl EdgeSchemaCache {
 /// Cache of computed node schema results, keyed by node type id.
 #[derive(Default)]
 pub(crate) struct NodeSchemaCache {
-    properties: RwLock<HashMap<NodeSchemaKey, Arc<Vec<PropertySchema>>>>,
-    metadata: RwLock<HashMap<NodeSchemaKey, Arc<Vec<PropertySchema>>>>,
+    properties: RwLock<HashMap<NodeSchemaKey, Vec<PropertySchema>>>,
+    metadata: RwLock<HashMap<NodeSchemaKey, Vec<PropertySchema>>>,
 }
 
 impl NodeSchemaCache {
-    pub(crate) fn get_properties(&self, key: &NodeSchemaKey) -> Option<Arc<Vec<PropertySchema>>> {
+    pub(crate) fn get_properties(&self, key: &NodeSchemaKey) -> Option<Vec<PropertySchema>> {
         self.properties.read().unwrap().get(key).cloned()
     }
 
-    pub(crate) fn store_properties(&self, key: NodeSchemaKey, value: Arc<Vec<PropertySchema>>) {
+    pub(crate) fn store_properties(&self, key: NodeSchemaKey, value: Vec<PropertySchema>) {
         self.properties.write().unwrap().insert(key, value);
     }
 
-    pub(crate) fn get_metadata(&self, key: &NodeSchemaKey) -> Option<Arc<Vec<PropertySchema>>> {
+    pub(crate) fn get_metadata(&self, key: &NodeSchemaKey) -> Option<Vec<PropertySchema>> {
         self.metadata.read().unwrap().get(key).cloned()
     }
 
-    pub(crate) fn store_metadata(&self, key: NodeSchemaKey, value: Arc<Vec<PropertySchema>>) {
+    pub(crate) fn store_metadata(&self, key: NodeSchemaKey, value: Vec<PropertySchema>) {
         self.metadata.write().unwrap().insert(key, value);
     }
 

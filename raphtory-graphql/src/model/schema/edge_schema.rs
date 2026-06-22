@@ -71,7 +71,7 @@ impl<G: StaticGraphViewOps> EdgeSchema<G> {
     async fn properties(&self) -> Vec<PropertySchema> {
         if let Some(cache) = &self.cache {
             if let Some(hit) = cache.edge().get_properties(&self.key) {
-                return hit.as_ref().clone();
+                return hit;
             }
         }
         // not found in cache, so calculate it and cache it
@@ -104,7 +104,7 @@ impl<G: StaticGraphViewOps> EdgeSchema<G> {
         if let Some(cache) = &self.cache {
             cache
                 .edge()
-                .store_properties(self.key.clone(), Arc::new(result.clone()));
+                .store_properties(self.key.clone(), result.clone());
         }
         result
     }
@@ -112,7 +112,7 @@ impl<G: StaticGraphViewOps> EdgeSchema<G> {
     async fn metadata(&self) -> Vec<PropertySchema> {
         if let Some(cache) = &self.cache {
             if let Some(hit) = cache.edge().get_metadata(&self.key) {
-                return hit.as_ref().clone();
+                return hit;
             }
         }
         // not found in cache, so calculate it and cache it
@@ -144,7 +144,7 @@ impl<G: StaticGraphViewOps> EdgeSchema<G> {
         if let Some(cache) = &self.cache {
             cache
                 .edge()
-                .store_metadata(self.key.clone(), Arc::new(result.clone()));
+                .store_metadata(self.key.clone(), result.clone());
         }
         result
     }

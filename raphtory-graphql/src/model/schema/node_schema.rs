@@ -56,7 +56,7 @@ impl NodeSchema {
     async fn properties(&self) -> Vec<PropertySchema> {
         if let Some(cache) = &self.cache {
             if let Some(hit) = cache.node().get_properties(&self.key) {
-                return hit.as_ref().clone();
+                return hit;
             }
         }
         // not found in cache, so calculate it and cache it
@@ -64,7 +64,7 @@ impl NodeSchema {
         if let Some(cache) = &self.cache {
             cache
                 .node()
-                .store_properties(self.key.clone(), Arc::new(result.clone()));
+                .store_properties(self.key.clone(), result.clone());
         }
         result
     }
@@ -74,7 +74,7 @@ impl NodeSchema {
     async fn metadata(&self) -> Vec<PropertySchema> {
         if let Some(cache) = &self.cache {
             if let Some(hit) = cache.node().get_metadata(&self.key) {
-                return hit.as_ref().clone();
+                return hit;
             }
         }
         // not found in cache, so calculate it and cache it
@@ -82,7 +82,7 @@ impl NodeSchema {
         if let Some(cache) = &self.cache {
             cache
                 .node()
-                .store_metadata(self.key.clone(), Arc::new(result.clone()));
+                .store_metadata(self.key.clone(), result.clone());
         }
         result
     }
