@@ -301,9 +301,10 @@ impl LeafKind {
                 // uses for the `PropertyOutput` scalar, so formatting matches exactly.
                 // let json =
                 //     serde_json::to_vec(&prop_to_gql(&p.prop)).unwrap_or_else(|_| b"null".to_vec());
-                serde_json::to_writer(sink, &prop_to_gql(&p.prop))
-                    .unwrap_or_else(|_| panic!("should not panic! :O"));
+                // serde_json::to_writer(sink, &prop_to_gql(&p.prop))
+                //     .unwrap_or_else(|_| panic!("should not panic! :O"));
                 // sink.write_raw_json(&json);
+                sink.write_json(&prop_to_gql(&p.prop));
             }
             _ => unreachable!("plan/type mismatch — validation should prevent this"),
         }
