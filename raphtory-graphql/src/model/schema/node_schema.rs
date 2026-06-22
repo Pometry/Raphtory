@@ -1,5 +1,7 @@
 use crate::model::schema::{
-    property_schema::PropertySchema, DEFAULT_NODE_TYPE, MAX_DETAILED_SCHEMA_ENTITIES,
+    cache::{NodeSchemaKey, SchemaCache},
+    property_schema::PropertySchema,
+    DEFAULT_NODE_TYPE, MAX_DETAILED_SCHEMA_ENTITIES,
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
@@ -16,21 +18,26 @@ use raphtory::{
 use raphtory_api::core::entities::LayerIds;
 use raphtory_storage::core_ops::CoreGraphOps;
 use rayon::prelude::*;
+use std::sync::Arc;
 
 /// Describes nodes of a specific type in a graph — its property keys and
 /// observed value types (and, for string-valued properties, the set of
 /// distinct values seen). One `NodeSchema` per node type.
-#[derive(ResolvedObject)]
+#[derive(Clone, ResolvedObject)]
 pub(crate) struct NodeSchema {
-    pub(crate) type_id: usize,
+    /// node type id; also the schema-cache lookup key
+    key: NodeSchemaKey,
     graph: DynamicGraph,
+    // schema cache for the base graph, `None` for filtered/derived views
+    cache: Option<Arc<SchemaCache>>,
 }
 
 impl NodeSchema {
-    pub fn new(node_type: usize, graph: DynamicGraph) -> Self {
+    pub fn new(node_type: usize, graph: DynamicGraph, cache: Option<Arc<SchemaCache>>) -> Self {
         Self {
-            type_id: node_type,
+            key: NodeSchemaKey::new(node_type),
             graph,
+            cache,
         }
     }
 }
@@ -47,13 +54,37 @@ impl NodeSchema {
     /// ever set on a node of this type, with its observed `PropertyType` and (for
     /// string-valued properties) the set of distinct values.
     async fn properties(&self) -> Vec<PropertySchema> {
-        self.properties_inner()
+        if let Some(cache) = &self.cache {
+            if let Some(hit) = cache.node().get_properties(&self.key) {
+                return hit.as_ref().clone();
+            }
+        }
+        // not found in cache, so calculate it and cache it
+        let result = self.properties_inner();
+        if let Some(cache) = &self.cache {
+            cache
+                .node()
+                .store_properties(self.key.clone(), Arc::new(result.clone()));
+        }
+        result
     }
 
     /// Metadata schemas seen on nodes of this type — like `properties`, but
     /// covering metadata fields rather than temporal properties.
     async fn metadata(&self) -> Vec<PropertySchema> {
-        self.metadata_inner()
+        if let Some(cache) = &self.cache {
+            if let Some(hit) = cache.node().get_metadata(&self.key) {
+                return hit.as_ref().clone();
+            }
+        }
+        // not found in cache, so calculate it and cache it
+        let result = self.metadata_inner();
+        if let Some(cache) = &self.cache {
+            cache
+                .node()
+                .store_metadata(self.key.clone(), Arc::new(result.clone()));
+        }
+        result
     }
 }
 
@@ -61,7 +92,7 @@ impl NodeSchema {
     fn type_name_inner(&self) -> String {
         self.graph
             .node_meta()
-            .get_node_type_name_by_id(self.type_id)
+            .get_node_type_name_by_id(self.key.type_id)
             .map(|type_name| type_name.to_string())
             .unwrap_or_else(|| DEFAULT_NODE_TYPE.to_string())
     }
@@ -90,7 +121,7 @@ impl NodeSchema {
                 .filter_map(|(key, dtype)| {
                     let mut node_types_filter =
                         vec![false; self.graph.node_meta().node_type_meta().num_all_fields()];
-                    node_types_filter[self.type_id] = true;
+                    node_types_filter[self.key.type_id] = true;
                     let filter = TypeId.mask(node_types_filter.into());
                     let unique_values: ahash::HashSet<_> =
                         NodeFilteredGraph::new(self.graph.clone(), filter)
@@ -140,7 +171,7 @@ impl NodeSchema {
                 .filter_map(|(key, dtype)| {
                     let mut node_types_filter =
                         vec![false; self.graph.node_meta().node_type_meta().num_all_fields()];
-                    node_types_filter[self.type_id] = true;
+                    node_types_filter[self.key.type_id] = true;
                     let filter = TypeId.mask(node_types_filter.into());
                     let unique_values: ahash::HashSet<_> =
                         NodeFilteredGraph::new(self.graph.clone(), filter)

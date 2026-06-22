@@ -70,7 +70,7 @@ impl<G: StaticGraphViewOps> EdgeSchema<G> {
     /// Returns the list of property schemas for edges matching these `(src_node_type, dst_node_type)`
     async fn properties(&self) -> Vec<PropertySchema> {
         if let Some(cache) = &self.cache {
-            if let Some(hit) = cache.get_edge_properties(&self.key) {
+            if let Some(hit) = cache.edge().get_properties(&self.key) {
                 return hit.as_ref().clone();
             }
         }
@@ -102,14 +102,16 @@ impl<G: StaticGraphViewOps> EdgeSchema<G> {
         })
         .await;
         if let Some(cache) = &self.cache {
-            cache.store_edge_properties(self.key.clone(), Arc::new(result.clone()));
+            cache
+                .edge()
+                .store_properties(self.key.clone(), Arc::new(result.clone()));
         }
         result
     }
     /// Returns the list of metadata schemas for edges matching these `(src_node_type, dst_node_type)`
     async fn metadata(&self) -> Vec<PropertySchema> {
         if let Some(cache) = &self.cache {
-            if let Some(hit) = cache.get_edge_metadata(&self.key) {
+            if let Some(hit) = cache.edge().get_metadata(&self.key) {
                 return hit.as_ref().clone();
             }
         }
@@ -140,7 +142,9 @@ impl<G: StaticGraphViewOps> EdgeSchema<G> {
         })
         .await;
         if let Some(cache) = &self.cache {
-            cache.store_edge_metadata(self.key.clone(), Arc::new(result.clone()));
+            cache
+                .edge()
+                .store_metadata(self.key.clone(), Arc::new(result.clone()));
         }
         result
     }

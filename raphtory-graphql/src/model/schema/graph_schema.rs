@@ -19,7 +19,7 @@ impl GraphSchema {
     pub fn new(graph: &DynamicGraph, cache: Option<Arc<SchemaCache>>) -> Self {
         let node_types = graph.node_meta().node_type_meta().ids();
         let nodes = node_types
-            .map(|node_type| NodeSchema::new(node_type, graph.clone()))
+            .map(|node_type| NodeSchema::new(node_type, graph.clone(), cache.clone()))
             .collect();
 
         let layers = graph
