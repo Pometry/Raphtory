@@ -60,8 +60,33 @@ impl<I: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> List<I> {
         }
     }
 
+    pub fn union(&self, other: &List<I>) -> List<I> {
+        match self {
+            List::All => List::All,
+            List::List { elems: left } => match other {
+                List::All => List::All,
+                List::List { elems: right } => List::List {
+                    elems: left.union(right),
+                },
+            },
+        }
+    }
+
     pub fn unfiltered(&self) -> bool {
         matches!(self, List::All)
+    }
+
+    pub fn is_empty(&self) -> bool {
+        match self {
+            List::All => false,
+            List::List { elems } => elems.is_empty(),
+        }
+    }
+
+    pub fn empty() -> Self {
+        List::List {
+            elems: Index::default(),
+        }
     }
 }
 

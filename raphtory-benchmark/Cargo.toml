@@ -1,5 +1,6 @@
 [package]
 name = "raphtory-benchmark"
+publish = false
 version.workspace = true
 edition = "2021"
 
@@ -9,17 +10,15 @@ edition = "2021"
 criterion = { workspace = true }
 raphtory = { workspace = true, features = [
     "io",
-    "vectors",
 ] }
 raphtory-api = { workspace = true }
-sorted_vector_map = { workspace = true }
 rand = { workspace = true }
+rand_distr = { workspace = true }
 rayon = { workspace = true }
 tempfile = { workspace = true }
 tracing = { workspace = true }
 once_cell = { workspace = true }
 serde = { workspace = true }
-itertools = { workspace = true }
 fake = { workspace = true }
 csv = { workspace = true }
 chrono = { workspace = true }
@@ -58,14 +57,12 @@ name = "materialise"
 harness = false
 
 [[bench]]
-name = "proto_encode"
+name = "encode"
 harness = false
-required-features = ["proto"]
 
 [[bench]]
-name = "proto_decode"
+name = "decode"
 harness = false
-required-features = ["proto"]
 
 [[bench]]
 name = "search_bench"
@@ -75,12 +72,17 @@ required-features = ["search"]
 [[bench]]
 name = "vectors"
 harness = false
+required-features = ["vectors"]
 
 [[bench]]
 name = "index_bench"
 harness = false
 required-features = ["search"]
 
+[[bench]]
+name = "temporal_props"
+harness = false
+
 [features]
 search = ["raphtory/search"]
-proto = ["raphtory/proto"]
+vectors = ["raphtory/vectors"]

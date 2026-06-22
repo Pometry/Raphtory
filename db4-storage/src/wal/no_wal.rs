@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use crate::{
     error::StorageError,
     wal::{LSN, ReplayRecord, WalOps},
@@ -11,16 +9,6 @@ use crate::{
 pub struct NoWal;
 
 impl WalOps for NoWal {
-    type Config = ();
-
-    fn new(_dir: Option<&Path>, _config: ()) -> Result<Self, StorageError> {
-        Ok(Self)
-    }
-
-    fn load(_dir: Option<&Path>, _config: ()) -> Result<Self, StorageError> {
-        Ok(Self)
-    }
-
     fn append(&self, _data: &[u8]) -> Result<LSN, StorageError> {
         Ok(0)
     }
@@ -29,20 +17,24 @@ impl WalOps for NoWal {
         Ok(())
     }
 
-    fn rotate(&self, _cutoff_lsn: LSN) -> Result<(), StorageError> {
-        Ok(())
-    }
-
-    fn replay(&self) -> impl Iterator<Item = Result<ReplayRecord, StorageError>> {
+    fn replay(&self, _start: LSN) -> impl Iterator<Item = Result<ReplayRecord, StorageError>> {
         let error = "Recovery is not supported for NoWAL";
         std::iter::once(Err(StorageError::GenericFailure(error.to_string())))
     }
 
-    fn has_entries(&self) -> Result<bool, StorageError> {
-        Ok(false)
+    fn read(&self, _lsn: LSN) -> Result<Option<ReplayRecord>, StorageError> {
+        Err(StorageError::GenericFailure(
+            "read is not supported for NoWAL".to_string(),
+        ))
     }
 
-    fn next_lsn(&self) -> LSN {
-        1
+    fn position(&self) -> LSN {
+        0
+    }
+
+    fn set_position(&self, _lsn: LSN) -> Result<(), StorageError> {
+        Err(StorageError::GenericFailure(
+            "set_position is not supported for NoWAL".to_string(),
+        ))
     }
 }

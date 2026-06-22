@@ -23,6 +23,10 @@ impl LockedGraph {
     pub fn flush(&self) -> Result<(), StorageError> {
         self.graph.flush()
     }
+
+    pub fn vacuum(&self) -> Result<(), StorageError> {
+        self.graph.vacuum()
+    }
 }
 
 impl Clone for LockedGraph {

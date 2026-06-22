@@ -108,18 +108,6 @@ impl TColumns {
     pub fn num_columns(&self) -> usize {
         self.t_props_log.len()
     }
-
-    pub fn reset_len(&mut self) {
-        self.num_rows = self
-            .t_props_log
-            .iter()
-            .map(|col| col.len())
-            .max()
-            .unwrap_or(0);
-        self.t_props_log
-            .iter_mut()
-            .for_each(|col| col.grow(self.num_rows));
-    }
 }
 
 #[derive(Debug)]

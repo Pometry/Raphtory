@@ -1,6 +1,5 @@
 name: Run Python test
-permissions:
-  contents: write
+permissions: { }
 on:
   workflow_call:
     inputs:
@@ -34,10 +33,6 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         name: Checkout
-        with:
-          submodules: recursive
-          token: '${{ secrets.PULL_TOKEN }}'
-          ref: ${{ github.head_ref }}
       - uses: maxim-lobanov/setup-xcode@v1
         name: Xcode version
         if: "contains(matrix.os, 'macOS')"

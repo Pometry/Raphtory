@@ -70,8 +70,8 @@ def create_updates(timestamps: List[int]):
 
 def test_add_nodes():
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
         client.new_graph("path/to/event_graph", "EVENT")
         rg: RemoteGraph = client.remote_graph("path/to/event_graph")
         node_updates = []
@@ -124,8 +124,8 @@ def test_add_nodes():
 
 def test_add_edges():
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
         client.new_graph("path/to/event_graph", "EVENT")
         rg: RemoteGraph = client.remote_graph("path/to/event_graph")
         edge_updates = []

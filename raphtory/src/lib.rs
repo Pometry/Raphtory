@@ -106,14 +106,13 @@ pub mod vectors;
 pub mod io;
 
 pub mod api;
+pub mod arrow_loader;
 pub mod core;
 pub mod errors;
+pub mod parquet_encoder;
 #[cfg(feature = "io")]
 pub mod serialise;
 pub mod storage;
-
-#[cfg(any(test, feature = "test-utils"))]
-pub mod test_utils;
 
 /// Return Raphtory crate version.
 ///
@@ -149,6 +148,10 @@ pub mod prelude {
 
     pub use crate::db::graph::views::filter::model::{
         filter::Filter, property_filter::PropertyFilter,
+    };
+
+    pub use crate::db::graph::views::{
+        property_redacted_graph::PropertyRedaction, PropertyRedactedGraph,
     };
 
     pub use crate::db::graph::views::filter::model::{node_filter::NodeFilter, EdgeFilter};

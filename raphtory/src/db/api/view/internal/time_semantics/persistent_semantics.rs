@@ -1,12 +1,15 @@
 use crate::{
-    db::api::view::internal::{
-        filtered_edge::{FilteredEdgeTimeIndex, InvertedFilteredEdgeTimeIndex},
-        filtered_node::NodeEdgeHistory,
-        time_semantics::{
-            event_semantics::EventSemantics, filtered_edge::FilteredEdgeStorageOps,
-            filtered_node::FilteredNodeStorageOps, time_semantics_ops::NodeTimeSemanticsOps,
+    db::{
+        api::view::internal::{
+            filtered_edge::{FilteredEdgeTimeIndex, InvertedFilteredEdgeTimeIndex},
+            filtered_node::NodeEdgeHistory,
+            time_semantics::{
+                event_semantics::EventSemantics, filtered_edge::FilteredEdgeStorageOps,
+                filtered_node::FilteredNodeStorageOps, time_semantics_ops::NodeTimeSemanticsOps,
+            },
+            EdgeTimeSemanticsOps, FilterOps, GraphView, InnerFilterOps,
         },
-        EdgeTimeSemanticsOps, FilterOps, GraphView, InnerFilterOps,
+        graph::views::layer_graph::LayeredGraph,
     },
     prelude::GraphViewOps,
 };
@@ -24,7 +27,7 @@ use raphtory_storage::graph::{
     edges::edge_storage_ops::EdgeStorageOps,
     nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
 };
-use std::{iter, ops::Range};
+use std::{iter, ops::Range, sync::Arc};
 use storage::{EdgeAdditions, EdgeDeletions, EdgeEntryRef};
 
 fn alive_before<
@@ -118,7 +121,7 @@ fn node_has_valid_edges<'graph, G: GraphView>(
         .history_rev()
         .any(|(_, e)| {
             // scan backwards in time over filtered history and keep track of deletions
-            let eid = e.edge;
+            let eid = e.eid();
             let layer = e.layer();
             if e.is_deletion() {
                 deleted.insert((eid, layer));
@@ -359,8 +362,9 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         self,
         node: NodeStorageRef<'graph>,
         _view: G,
+        prop_ids: Arc<[usize]>,
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
-        node.temp_prop_rows()
+        node.temp_prop_rows(prop_ids)
             .map(|(t, l, row)| (t, LayerId(l), row))
     }
 
@@ -369,39 +373,54 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         node: NodeStorageRef<'graph>,
         view: G,
         w: Range<EventTime>,
+        prop_ids: Arc<[usize]>,
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
-        let start = w.start;
-        let first_row = if node
-            .additions()
-            .range(EventTime::MIN..start)
-            .iter()
-            .next()
-            .is_some()
-        {
-            Some(
-                view.node_meta()
-                    .temporal_prop_mapper()
-                    .ids()
-                    .map(|prop_id| (prop_id, node.tprop(prop_id)))
-                    .filter_map(|(i, tprop)| {
-                        if tprop.active(start..EventTime::start(start.t().saturating_add(1))) {
-                            None
-                        } else {
-                            tprop.last_before(start).map(|(_, v)| (i, v))
-                        }
+        // make sure static graph layer is always visible, even if excluded from the view
+        let layers = view
+            .layer_ids()
+            .union(&LayerIds::One(STATIC_GRAPH_LAYER_ID));
+        let num_layers = node.num_layers();
+        let exact_layers = layers.into_iter(num_layers).filter(move |&layer_id| {
+            node.layer_ids_iter(&LayerIds::One(layer_id))
+                .next()
+                .is_some()
+        });
+
+        exact_layers.flat_map(move |layer_id| {
+            let mut rows = node
+                .temp_prop_rows_range(Some(w.clone()), prop_ids.clone())
+                .filter(|(_, row_layer, _)| *row_layer == layer_id.0)
+                .collect_vec();
+
+            let has_prior_addition = node
+                .node_prop_additions(layer_id)
+                .range(EventTime::MIN..w.start)
+                .iter()
+                .next()
+                .is_some();
+            let start_t = w.start.t();
+            let next_t = EventTime::start(start_t.saturating_add(1));
+            let has_row_in_start_t = rows.iter().any(|(t, _, _)| t.t() == start_t);
+
+            if has_prior_addition && !has_row_in_start_t {
+                let layer_view = LayeredGraph::new(view.clone(), LayerIds::One(layer_id));
+                let row = prop_ids
+                    .iter()
+                    .copied()
+                    .filter_map(|prop_id| {
+                        self.node_tprop_iter_window(node, layer_view.clone(), prop_id, w.clone())
+                            .find(|(t, _)| *t >= w.start && *t < next_t)
+                            .map(|(_, prop)| (prop_id, prop))
                     })
-                    .collect(),
-            )
-        } else {
-            None
-        };
-        first_row
-            .into_iter()
-            .map(move |row| (start, STATIC_GRAPH_LAYER_ID, row))
-            .chain(
-                node.temp_prop_rows_range(Some(w))
-                    .map(|(t, l, row)| (t, LayerId(l), row)),
-            )
+                    .collect::<Vec<_>>();
+                rows.push((w.start, layer_id.0, row));
+            }
+
+            rows.sort_unstable_by_key(|(t, _, _)| *t);
+            rows.into_iter()
+                .map(|(t, _, row)| (t, layer_id, row))
+                .collect_vec()
+        })
     }
 
     fn node_valid<'graph, G: GraphViewOps<'graph>>(
@@ -504,6 +523,29 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         window_iter_rev.chain(first)
     }
 
+    fn node_tprop_last<'graph, G: GraphView + 'graph>(
+        &self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        prop_id: usize,
+    ) -> Option<(EventTime, Prop)> {
+        node.tprop_iter_layers(view.layer_ids(), prop_id)
+            .filter_map(|prop| prop.last())
+            .max_by_key(|(t, _)| *t)
+    }
+
+    fn node_tprop_last_window<'graph, G: GraphView + 'graph>(
+        &self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        prop_id: usize,
+        w: Range<EventTime>,
+    ) -> Option<(EventTime, Prop)> {
+        node.tprop_iter_layers(view.layer_ids(), prop_id)
+            .filter_map(|prop| prop.last_before(w.end))
+            .max_by_key(|(t, _)| *t)
+    }
+
     fn node_tprop_last_at<'graph, G: GraphViewOps<'graph>>(
         &self,
         node: NodeStorageRef<'graph>,
@@ -549,7 +591,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
                 && !view.internal_edge_filtered()
                 && !view.internal_edge_layer_filtered())
                 || {
-                    let edge = view.core_edge(eid.edge);
+                    let edge = view.core_edge(Either::Left(eid.eid()));
                     view.internal_filter_edge_layer(edge.as_ref(), layer)
                         && view.internal_filter_edge(edge.as_ref(), view.layer_ids())
                         && view.filter_edge_from_nodes(edge.as_ref())
@@ -557,7 +599,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         {
             if view.internal_filter_exploded_edge(eid, t, view.layer_ids())
                 && (!view.internal_nodes_filtered() || {
-                    let edge = view.core_edge(eid.edge);
+                    let edge = view.core_edge(Either::Left(eid.eid()));
                     view.internal_filter_node(view.core_node(edge.src()).as_ref(), view.layer_ids())
                         && view.internal_filter_node(
                             view.core_node(edge.dst()).as_ref(),
@@ -627,7 +669,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
                 return true;
             }
 
-            let edge = view.core_edge(elid.edge);
+            let edge = view.core_edge(Either::Left(elid.eid()));
             let e = edge.as_ref();
             let layer = elid.layer();
             !e.filtered_deletions(layer, &view)
@@ -1245,6 +1287,38 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         t: EventTime,
     ) -> Option<Prop> {
         EventSemantics.temporal_edge_prop_last_at(e, view, prop_id, t) // TODO: double check this
+    }
+
+    fn temporal_edge_prop_last<'graph, G: GraphView + 'graph>(
+        &self,
+        e: EdgeEntryRef<'graph>,
+        view: G,
+        prop_id: usize,
+    ) -> Option<Prop> {
+        EventSemantics.temporal_edge_prop_last(e, view, prop_id)
+    }
+
+    fn temporal_edge_prop_last_window<'graph, G: GraphView + 'graph>(
+        &self,
+        e: EdgeEntryRef<'graph>,
+        view: G,
+        prop_id: usize,
+        w: Range<EventTime>,
+    ) -> Option<Prop> {
+        e.filtered_updates_iter(&view, view.layer_ids())
+            .filter_map(|(layer, additions, deletions)| {
+                let start = deletions
+                    .merge(additions.invert())
+                    .range(EventTime::MIN..w.end)
+                    .last()
+                    .map(|t| t.next())
+                    .unwrap_or(EventTime::MIN);
+                e.filtered_temporal_prop_layer(layer, prop_id, &view)
+                    .iter_inner_rev(Some(start..w.end))
+                    .next()
+            })
+            .max_by(|(t1, _), (t2, _)| t1.cmp(t2))
+            .map(|(_, v)| v)
     }
 
     fn temporal_edge_prop_last_at_window<'graph, G: GraphViewOps<'graph>>(

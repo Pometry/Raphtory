@@ -247,7 +247,6 @@ mod lancedb_tests {
         },
         Embedding,
     };
-    use rand::Rng;
     use std::sync::Arc;
 
     #[tokio::test]
@@ -368,7 +367,7 @@ mod lancedb_tests {
             .unwrap()
             .collect::<Vec<_>>();
         assert_eq!(result.len(), 1);
-        let (returned_id, distance) = result[0];
+        let (returned_id, _) = result[0];
         assert_eq!(returned_id, id);
         let returned_vector = collection.get_id(returned_id).await.unwrap().unwrap();
         assert_eq!(returned_vector, vector);

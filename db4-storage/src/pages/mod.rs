@@ -3,7 +3,11 @@ use crate::{
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     error::StorageError,
     pages::{edge_store::ReadLockedEdgeStorage, node_store::ReadLockedNodeStorage},
-    persist::{config::ConfigOps, strategy::PersistenceStrategy},
+    persist::{
+        config::ConfigOps,
+        control_file::{ControlFileOps, DBState},
+        strategy::PersistenceStrategy,
+    },
     segments::{edge::segment::MemEdgeSegment, node::segment::MemNodeSegment},
     state::StateIndex,
     wal::{GraphWalOps, WalOps},
@@ -38,8 +42,21 @@ pub mod session;
 #[cfg(any(test, feature = "test-utils"))]
 pub mod test_utils;
 
-// graph // (node/edges) // segment // layer_ids (0, 1, 2, ...) // actual graphy bits
+#[cfg(any(test, feature = "panic-on-drop"))]
+macro_rules! drop_error {
+    ($($arg:tt)*) => {{
+        panic!($($arg)*)
+    }};
+}
 
+#[cfg(not(any(test, feature = "panic-on-drop")))]
+macro_rules! drop_error {
+    ($($arg:tt)*) => {{
+        eprintln!($($arg)*)
+    }};
+}
+
+// graph // (node/edges) // segment // layer_ids (0, 1, 2, ...) // actual graphy bits
 #[derive(Debug)]
 pub struct GraphStore<
     NS: NodeSegmentOps<Extension = EXT>,
@@ -160,18 +177,26 @@ impl<
 
         let edge_storage = Arc::new(EdgeStorageInner::load(edges_path, ext.clone())?);
         let edge_meta = edge_storage.edge_meta().clone();
-        let node_storage = Arc::new(NodeStorageInner::load(nodes_path, edge_meta, ext.clone())?);
+        let node_storage: Arc<NodeStorageInner<NS, EXT>> = Arc::new(NodeStorageInner::load(
+            nodes_path,
+            edge_meta.clone(),
+            ext.clone(),
+        )?);
         let node_meta = node_storage.prop_meta();
 
         // Load graph temporal properties and metadata.
-        let graph_prop_storage =
-            Arc::new(GraphPropStorageInner::load(graph_props_path, ext.clone())?);
+        let graph_prop_storage = Arc::new(GraphPropStorageInner::<GS, EXT>::load(
+            graph_props_path,
+            ext.clone(),
+        )?);
 
         for node_type in ext.config().node_types().iter() {
             node_meta.get_or_create_node_type_id(node_type);
         }
 
-        let t_len = edge_storage.t_len();
+        let t_len = edge_storage.num_updates()
+            + node_storage.t_len()
+            + graph_prop_storage.segment().num_updates();
 
         Ok(Self {
             nodes: node_storage,
@@ -311,7 +336,7 @@ impl<I: From<usize> + Into<usize>> SegmentCounts<I> {
     pub fn into_iter(self) -> impl Iterator<Item = I> {
         let max_seg_len = self.max_seg_len as usize;
         self.counts.into_iter().enumerate().flat_map(move |(i, c)| {
-            let g_pos = i * max_seg_len as usize;
+            let g_pos = i * max_seg_len;
             (0..c).map(move |offset| I::from(g_pos + offset as usize))
         })
     }
@@ -349,35 +374,47 @@ impl<
 > Drop for GraphStore<NS, ES, GS, EXT>
 {
     fn drop(&mut self) {
+        let wal = self.ext.wal();
+        let control_file = self.ext.control_file();
+
         match self.flush() {
             Ok(_) => {
-                let wal = self.ext.wal();
+                // Log a checkpoint record in the WAL, indicating that the DB was shutdown
+                // with all the segments flushed to disk.
+                // On startup, recovery is skipped since there are no pending writes to replay.
+                let checkpoint_lsn = match wal.log_shutdown_checkpoint() {
+                    Ok(lsn) => lsn,
+                    Err(err) => {
+                        drop_error!("Failed to log shutdown checkpoint in drop: {err}");
+                        // this is unreachable with panic-on-drop
+                        #[allow(unreachable_code)]
+                        return;
+                    }
+                };
 
-                // INVARIANTS:
-                // 1. No new writes can occur since we are in a drop.
-                // 2. flush() has persisted all the segments to disk.
-                //
-                // Thus, we can safely discard all records with LSN <= latest_lsn_on_disk
-                // by rotating the WAL.
-                let latest_lsn_on_disk = wal.next_lsn() - 1;
+                // Flush up to the end of the WAL stream.
+                let flush_lsn = wal.position();
 
-                if let Err(e) = wal.rotate(latest_lsn_on_disk) {
-                    eprintln!("Failed to rotate WAL in drop: {}", e);
+                if let Err(err) = wal.flush(flush_lsn) {
+                    drop_error!("Failed to flush checkpoint record in drop: {err}");
+                    // this is unreachable with panic-on-drop
+                    #[allow(unreachable_code)]
+                    return;
                 }
 
-                // FIXME: If the process crashes here after rotation, we lose the
-                // checkpoint record. Write next LSN to a separate file before rotation.
+                // Record the checkpoint and shutdown state and write control file to disk.
+                control_file.set_checkpoint(checkpoint_lsn);
+                control_file.set_db_state(DBState::Shutdown);
 
-                // Log a checkpoint record so we can restore the next LSN after reload.
-                let checkpoint_lsn = wal
-                    .log_checkpoint(latest_lsn_on_disk)
-                    .expect("Failed to log checkpoint in drop");
-
-                wal.flush(checkpoint_lsn)
-                    .expect("Failed to flush checkpoint record in drop");
+                if let Err(err) = control_file.save() {
+                    drop_error!("Failed to save control file in drop: {err}");
+                    // this is unreachable with panic-on-drop
+                    #[allow(unreachable_code)]
+                    return;
+                }
             }
             Err(err) => {
-                eprintln!("Failed to flush storage in drop: {err}")
+                drop_error!("Failed to flush storage in drop: {err}");
             }
         }
     }
@@ -422,7 +459,7 @@ mod test {
     use rayon::iter::ParallelIterator;
 
     #[test]
-    fn test_iterleave() {
+    fn test_interleave() {
         let chunk_size = 3;
         let num_segments = 3;
         let max_seg_len = 4;
@@ -439,5 +476,11 @@ mod test {
         ];
 
         assert_eq!(actual, expected);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_drop_error() {
+        drop_error!("failed");
     }
 }

@@ -10,9 +10,9 @@ use crate::{
     errors::{into_graph_err, GraphError},
 };
 use raphtory_api::core::{entities::edges::edge_ref::EdgeRef, utils::time::IntoTimeWithFormat};
-use raphtory_storage::mutation::{
-    addition_ops::{EdgeWriteLock, InternalAdditionOps},
+use raphtory_storage::{
     durability_ops::DurabilityOps,
+    mutation::addition_ops::{EdgeWriteLock, InternalAdditionOps},
 };
 use storage::wal::{GraphWalOps, WalOps};
 

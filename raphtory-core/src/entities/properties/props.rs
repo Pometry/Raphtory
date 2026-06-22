@@ -1,7 +1,4 @@
-use crate::{
-    entities::properties::tprop::IllegalPropType,
-    storage::{lazy_vec::IllegalSet, TPropColumnError},
-};
+use crate::storage::{lazy_vec::IllegalSet, TPropColumnError};
 use raphtory_api::core::entities::properties::prop::Prop;
 use std::fmt::Debug;
 use thiserror::Error;
@@ -16,9 +13,6 @@ pub enum TPropError {
 pub enum MetadataError {
     #[error("Attempted to change value of metadata, old: {old}, new: {new}")]
     IllegalUpdate { old: Prop, new: Prop },
-
-    #[error(transparent)]
-    IllegalPropType(#[from] IllegalPropType),
 
     #[error(transparent)]
     ColumnError(#[from] TPropColumnError),

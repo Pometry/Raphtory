@@ -33,7 +33,12 @@ use std::sync::Arc;
 ///     Edge.src().id() == 1
 ///     Edge.dst().id().is_in([1, 2, 3])
 ///     Edge.src().id().starts_with("user:")
-#[pyclass(frozen, name = "EdgeEndpointIdFilter", module = "raphtory.filter")]
+#[pyclass(
+    frozen,
+    name = "EdgeEndpointIdFilter",
+    module = "raphtory.filter",
+    from_py_object
+)]
 #[derive(Clone)]
 pub struct PyEdgeEndpointIdFilterBuilder(pub EdgeEndpointWrapper<NodeIdFilterBuilder>);
 
@@ -205,7 +210,6 @@ impl PyEdgeEndpointIdFilterBuilder {
 ///     Edge.src().name() == "alice"
 ///     Edge.dst().name().contains("ali")
 #[pyclass(frozen, name = "EdgeEndpointNameFilter", module = "raphtory.filter")]
-#[derive(Clone)]
 pub struct PyEdgeEndpointNameFilterBuilder(pub EdgeEndpointWrapper<NodeNameFilterBuilder>);
 
 /// Filters an edge endpoint by its node type.
@@ -217,7 +221,6 @@ pub struct PyEdgeEndpointNameFilterBuilder(pub EdgeEndpointWrapper<NodeNameFilte
 ///     Edge.src().node_type() == "fire_nation"
 ///     Edge.dst().node_type().is_not_in(["air_nomads"])
 #[pyclass(frozen, name = "EdgeEndpointTypeFilter", module = "raphtory.filter")]
-#[derive(Clone)]
 pub struct PyEdgeEndpointTypeFilterBuilder(pub EdgeEndpointWrapper<NodeTypeFilterBuilder>);
 
 impl_node_text_filter_builder!(PyEdgeEndpointNameFilterBuilder);
@@ -234,7 +237,6 @@ impl_node_text_filter_builder!(PyEdgeEndpointTypeFilterBuilder);
 ///     Edge.dst().name().starts_with("user:")
 ///     Edge.src().property("country") == "UK"
 #[pyclass(frozen, name = "EdgeEndpoint", module = "raphtory.filter")]
-#[derive(Clone)]
 pub struct PyEdgeEndpoint(pub EdgeEndpointWrapper<NodeFilter>);
 
 #[pymethods]
@@ -242,7 +244,7 @@ impl PyEdgeEndpoint {
     /// Selects the endpoint node ID field for filtering.
     ///
     /// Returns:
-    ///     filter.EdgeEndpointIdFilter
+    ///     filter.EdgeEndpointIdFilter:
     fn id(&self) -> PyEdgeEndpointIdFilterBuilder {
         PyEdgeEndpointIdFilterBuilder(self.0.id())
     }
@@ -250,7 +252,7 @@ impl PyEdgeEndpoint {
     /// Selects the endpoint node name field for filtering.
     ///
     /// Returns:
-    ///     filter.EdgeEndpointNameFilter
+    ///     filter.EdgeEndpointNameFilter:
     fn name(&self) -> PyEdgeEndpointNameFilterBuilder {
         PyEdgeEndpointNameFilterBuilder(self.0.name())
     }
@@ -258,7 +260,7 @@ impl PyEdgeEndpoint {
     /// Selects the endpoint node type field for filtering.
     ///
     /// Returns:
-    ///     filter.EdgeEndpointTypeFilter
+    ///     filter.EdgeEndpointTypeFilter:
     fn node_type(&self) -> PyEdgeEndpointTypeFilterBuilder {
         PyEdgeEndpointTypeFilterBuilder(self.0.node_type())
     }
@@ -271,7 +273,7 @@ impl PyEdgeEndpoint {
     ///     name (str): Property key.
     ///
     /// Returns:
-    ///     filter.PropertyFilterOps
+    ///     filter.PropertyFilterOps:
     fn property<'py>(
         &self,
         py: Python<'py>,
@@ -289,7 +291,7 @@ impl PyEdgeEndpoint {
     ///     name (str): Metadata key.
     ///
     /// Returns:
-    ///     filter.FilterOps
+    ///     filter.FilterOps:
     fn metadata<'py>(
         &self,
         py: Python<'py>,
@@ -314,7 +316,6 @@ impl PyEdgeEndpoint {
 ///     Edge.window(0, 10).is_active()
 ///     Edge.layer("fire_nation").is_valid()
 #[pyclass(frozen, name = "Edge", module = "raphtory.filter")]
-#[derive(Clone)]
 pub struct PyEdgeFilter;
 
 #[pymethods]
@@ -322,7 +323,7 @@ impl PyEdgeFilter {
     /// Selects the edge **source endpoint** for filtering.
     ///
     /// Returns:
-    ///     filter.EdgeEndpoint
+    ///     filter.EdgeEndpoint:
     #[staticmethod]
     fn src() -> PyEdgeEndpoint {
         PyEdgeEndpoint(EdgeFilter::src())
@@ -331,7 +332,7 @@ impl PyEdgeFilter {
     /// Selects the edge **destination endpoint** for filtering.
     ///
     /// Returns:
-    ///     filter.EdgeEndpoint
+    ///     filter.EdgeEndpoint:
     #[staticmethod]
     fn dst() -> PyEdgeEndpoint {
         PyEdgeEndpoint(EdgeFilter::dst())
@@ -345,7 +346,7 @@ impl PyEdgeFilter {
     ///     name (str): Property key.
     ///
     /// Returns:
-    ///     filter.PropertyFilterOps
+    ///     filter.PropertyFilterOps:
     #[staticmethod]
     fn property<'py>(
         py: Python<'py>,
@@ -364,7 +365,7 @@ impl PyEdgeFilter {
     ///     name (str): Metadata key.
     ///
     /// Returns:
-    ///     filter.FilterOps
+    ///     filter.FilterOps:
     #[staticmethod]
     fn metadata<'py>(py: Python<'py>, name: String) -> PyResult<Bound<'py, PyPropertyExprBuilder>> {
         let b: MetadataFilterBuilder<EdgeFilter> =
@@ -381,7 +382,7 @@ impl PyEdgeFilter {
     ///     end (int): End time.
     ///
     /// Returns:
-    ///     filter.EdgeViewPropsFilterBuilder
+    ///     filter.EdgeViewPropsFilterBuilder:
     #[staticmethod]
     fn window(start: EventTime, end: EventTime) -> PyEdgeViewPropsFilterBuilder {
         PyEdgeViewPropsFilterBuilder(Arc::new(EdgeFilter.window(start, end)))
@@ -393,7 +394,7 @@ impl PyEdgeFilter {
     ///     time (int): Event time.
     ///
     /// Returns:
-    ///     filter.EdgeViewPropsFilterBuilder
+    ///     filter.EdgeViewPropsFilterBuilder:
     #[staticmethod]
     fn at(time: EventTime) -> PyEdgeViewPropsFilterBuilder {
         PyEdgeViewPropsFilterBuilder(Arc::new(EdgeFilter.at(time)))
@@ -405,7 +406,7 @@ impl PyEdgeFilter {
     ///     time (int): Lower time bound.
     ///
     /// Returns:
-    ///     filter.EdgeViewPropsFilterBuilder
+    ///     filter.EdgeViewPropsFilterBuilder:
     #[staticmethod]
     fn after(time: EventTime) -> PyEdgeViewPropsFilterBuilder {
         PyEdgeViewPropsFilterBuilder(Arc::new(EdgeFilter.after(time)))
@@ -417,7 +418,7 @@ impl PyEdgeFilter {
     ///     time (int): Upper time bound.
     ///
     /// Returns:
-    ///     filter.EdgeViewPropsFilterBuilder
+    ///     filter.EdgeViewPropsFilterBuilder:
     #[staticmethod]
     fn before(time: EventTime) -> PyEdgeViewPropsFilterBuilder {
         PyEdgeViewPropsFilterBuilder(Arc::new(EdgeFilter.before(time)))
@@ -426,7 +427,7 @@ impl PyEdgeFilter {
     /// Evaluates edge predicates against the latest available edge state.
     ///
     /// Returns:
-    ///     filter.EdgeViewPropsFilterBuilder
+    ///     filter.EdgeViewPropsFilterBuilder:
     #[staticmethod]
     fn latest() -> PyEdgeViewPropsFilterBuilder {
         PyEdgeViewPropsFilterBuilder(Arc::new(EdgeFilter.latest()))
@@ -438,7 +439,7 @@ impl PyEdgeFilter {
     ///     time (int): Snapshot time.
     ///
     /// Returns:
-    ///     filter.EdgeViewPropsFilterBuilder
+    ///     filter.EdgeViewPropsFilterBuilder:
     #[staticmethod]
     fn snapshot_at(time: EventTime) -> PyEdgeViewPropsFilterBuilder {
         PyEdgeViewPropsFilterBuilder(Arc::new(EdgeFilter.snapshot_at(time)))
@@ -447,7 +448,7 @@ impl PyEdgeFilter {
     /// Evaluates edge predicates against the most recent snapshot of the graph.
     ///
     /// Returns:
-    ///     filter.EdgeViewPropsFilterBuilder
+    ///     filter.EdgeViewPropsFilterBuilder:
     #[staticmethod]
     fn snapshot_latest() -> PyEdgeViewPropsFilterBuilder {
         PyEdgeViewPropsFilterBuilder(Arc::new(EdgeFilter.snapshot_latest()))
@@ -459,7 +460,7 @@ impl PyEdgeFilter {
     ///     layer (str): Layer name.
     ///
     /// Returns:
-    ///     filter.EdgeViewPropsFilterBuilder
+    ///     filter.EdgeViewPropsFilterBuilder:
     #[staticmethod]
     fn layer(layer: String) -> PyEdgeViewPropsFilterBuilder {
         PyEdgeViewPropsFilterBuilder(Arc::new(EdgeFilter.layer(layer)))
@@ -471,7 +472,7 @@ impl PyEdgeFilter {
     ///     layers (list[str]): Layer names.
     ///
     /// Returns:
-    ///     filter.EdgeViewPropsFilterBuilder
+    ///     filter.EdgeViewPropsFilterBuilder:
     #[staticmethod]
     fn layers(layers: FromIterable<String>) -> PyEdgeViewPropsFilterBuilder {
         PyEdgeViewPropsFilterBuilder(Arc::new(EdgeFilter.layer(layers)))
@@ -480,7 +481,7 @@ impl PyEdgeFilter {
     /// Matches edges that have at least one event in the current view.
     ///
     /// Returns:
-    ///     filter.FilterExpr
+    ///     filter.FilterExpr:
     #[staticmethod]
     fn is_active() -> PyFilterExpr {
         PyFilterExpr(Arc::new(EdgeFilter.is_active()))
@@ -489,7 +490,7 @@ impl PyEdgeFilter {
     /// Matches edges that are structurally valid in the current view.
     ///
     /// Returns:
-    ///     filter.FilterExpr
+    ///     filter.FilterExpr:
     #[staticmethod]
     fn is_valid() -> PyFilterExpr {
         PyFilterExpr(Arc::new(EdgeFilter.is_valid()))
@@ -498,7 +499,7 @@ impl PyEdgeFilter {
     /// Matches edges that have been deleted.
     ///
     /// Returns:
-    ///     filter.FilterExpr
+    ///     filter.FilterExpr:
     #[staticmethod]
     fn is_deleted() -> PyFilterExpr {
         PyFilterExpr(Arc::new(EdgeFilter.is_deleted()))
@@ -507,7 +508,7 @@ impl PyEdgeFilter {
     /// Matches edges that are self-loops (source == destination).
     ///
     /// Returns:
-    ///     filter.FilterExpr
+    ///     filter.FilterExpr:
     #[staticmethod]
     fn is_self_loop() -> PyFilterExpr {
         PyFilterExpr(Arc::new(EdgeFilter.is_self_loop()))

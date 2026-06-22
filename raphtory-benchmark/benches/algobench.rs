@@ -1,7 +1,7 @@
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, SamplingMode};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, SamplingMode};
 use raphtory::{
     algorithms::{
-        centrality::pagerank::unweighted_page_rank,
+        centrality::pagerank::page_rank,
         components::weakly_connected_components,
         metrics::clustering_coefficient::{
             global_clustering_coefficient::global_clustering_coefficient,
@@ -17,6 +17,7 @@ use raphtory::{
 };
 use raphtory_benchmark::common::bench;
 use rayon::prelude::*;
+use std::hint::black_box;
 
 pub fn local_triangle_count_analysis(c: &mut Criterion) {
     let mut group = c.benchmark_group("local_triangle_count");
@@ -87,7 +88,7 @@ pub fn graphgen_large_pagerank(c: &mut Criterion) {
         &graph,
         |b, graph| {
             b.iter(|| {
-                let result = unweighted_page_rank(graph, Some(100), None, None, true, None);
+                let result = page_rank(graph, None, Some(100), None, None, true, None);
                 black_box(result);
             });
         },

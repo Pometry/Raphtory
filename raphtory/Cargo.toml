@@ -13,21 +13,23 @@ readme.workspace = true
 homepage.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
-raphtory-api.workspace = true                                #{ path = "../raphtory-api", version = "0.15.1" }
-raphtory-core.workspace = true                               # = { path = "../raphtory-core", version = "0.15.1" }
-raphtory-storage.workspace = true                            # = { path = "../raphtory-storage", version = "0.15.1" }
-db4-graph.workspace = true
+raphtory-api.workspace = true
+raphtory-core.workspace = true
+raphtory-storage.workspace = true
+raphtory-itertools.workspace = true
 storage.workspace = true
+db4-graph.workspace = true
 iter-enum = { workspace = true, features = ["rayon"] }
 hashbrown = { workspace = true }
 chrono = { workspace = true }
+crossbeam-channel = { workspace = true }
 itertools = { workspace = true }
 num-traits = { workspace = true }
 num-integer = { workspace = true }
 parking_lot = { workspace = true }
 once_cell = { workspace = true }
+quick_cache = { workspace = true }
 rand = { workspace = true }
 rand_distr = { workspace = true }
 rayon = { workspace = true }
@@ -50,7 +52,6 @@ ahash = { workspace = true }
 roaring = { workspace = true }
 strsim = { workspace = true }
 walkdir = { workspace = true }
-uuid = { workspace = true }
 parquet = { workspace = true }
 arrow-json = { workspace = true }
 arrow-csv = { workspace = true }
@@ -59,7 +60,6 @@ arrow-array.workspace = true
 arrow-schema.workspace = true
 arrow-select.workspace = true
 serde_arrow.workspace = true
-disjoint-sets = { workspace = true }
 datafusion-physical-expr-common = { workspace = true }
 datafusion-physical-expr = { workspace = true }
 datafusion-physical-plan = { workspace = true }
@@ -75,11 +75,6 @@ reqwest = { workspace = true, features = ["blocking"], optional = true }
 tokio = { workspace = true, optional = true }
 kdam = { workspace = true, optional = true }
 
-# proto optional dependencies
-memmap2 = { workspace = true, optional = true }
-prost = { workspace = true, optional = true }
-prost-types = { workspace = true, optional = true }
-
 # search optional dependencies
 tantivy = { workspace = true, optional = true }
 
@@ -87,13 +82,12 @@ tantivy = { workspace = true, optional = true }
 futures-util = { workspace = true, optional = true }
 async-trait = { workspace = true, optional = true }
 async-openai = { workspace = true, optional = true }
-bincode = { workspace = true, optional = true }
 minijinja = { workspace = true, optional = true }
 minijinja-contrib = { workspace = true, optional = true }
 heed = { workspace = true, optional = true }
 moka = { workspace = true, optional = true, features = ["future"] }
 lancedb = { workspace = true, optional = true }
-axum = "0.8.4" # TODO put this in the proper place and make optional
+axum = { workspace = true, optional = true }
 
 # python binding optional dependencies
 pyo3 = { workspace = true, optional = true }
@@ -104,31 +98,25 @@ tempfile = { workspace = true, optional = true }
 pyo3-arrow = { workspace = true, optional = true }
 pythonize = { workspace = true, optional = true }
 
-# test utils
-proptest = { workspace = true, optional = true }
-proptest-derive = { workspace = true, optional = true }
 
 [dev-dependencies]
 csv = { workspace = true }
-pretty_assertions = { workspace = true }
 tempfile = { workspace = true }
-tokio = { workspace = true }                             # for vector testing
-dotenv = { workspace = true }                            # for vector testing
+tokio = { workspace = true } # for vector testing
+dotenv = { workspace = true } # for vector testing
 streaming-stats = { workspace = true }
 indoc = { workspace = true }
-raphtory = { workspace = true, features = ["test-utils"] } # enable test-utils for integration tests
+proptest.workspace = true
 
 [target.'cfg(target_os = "macos")'.dependencies]
-tikv-jemallocator = "0.6.1"
-
-[build-dependencies]
-prost-build = { workspace = true, optional = true }
+tikv-jemallocator.workspace = true
 
 [features]
-default = []
+default = [] # we can't depend on ourselves but we want to share test-utils
 
 # enables progress bars
 progress = ["dep:kdam"]
+
 # Enables the graph loader io module
 io = [
     "dep:neo4rs",
@@ -143,13 +131,13 @@ io = [
 ]
 
 # search
-search = ["dep:tantivy", "dep:tempfile", "proto", "io"]
+search = ["dep:tantivy", "dep:tempfile", "io"]
+
 # vectors
 vectors = [
     "dep:futures-util",
     "dep:async-trait",
     "dep:async-openai",
-    "dep:bincode",
     "dep:minijinja",
     "dep:minijinja-contrib",
     "raphtory-api/template",
@@ -158,6 +146,7 @@ vectors = [
     "dep:lancedb",
     "dep:tokio", # also used for the io feature
     "dep:tempfile", # also used for the storage feature
+    "dep:axum"
 ]
 
 # Enables generating the pyo3 python bindings
@@ -176,16 +165,6 @@ python = [
     "kdam/notebook",
 ]
 
-
-proto = [
-    "dep:prost",
-    "dep:prost-types",
-    "dep:prost-build",
-    "dep:memmap2",
-    "io",
-]
-
-test-utils = [
-    "dep:proptest",
-    "dep:proptest-derive"
+panic-on-drop = [
+    "storage/panic-on-drop"
 ]

@@ -118,11 +118,27 @@ impl<A: Sync + Send> TCell<A> {
         match self {
             TCell::Empty => None,
             TCell::TCell1(t2, v) => (*t2 < t).then_some((*t2, v)),
-            TCell::TCellCap(map) => map.range(EventTime::MIN..t).last().map(|(ti, v)| (*ti, v)),
-            TCell::TCellN(map) => map.range(EventTime::MIN..t).last().map(|(ti, v)| (*ti, v)),
+            TCell::TCellCap(map) => map
+                .range(EventTime::MIN..t)
+                .next_back()
+                .map(|(ti, v)| (*ti, v)),
+            TCell::TCellN(map) => map
+                .range(EventTime::MIN..t)
+                .next_back()
+                .map(|(ti, v)| (*ti, v)),
         }
     }
 
+    pub fn last_value(&self) -> Option<(EventTime, &A)> {
+        match self {
+            TCell::Empty => None,
+            TCell::TCell1(t, v) => Some((*t, v)),
+            TCell::TCellCap(map) => map.last_key_value().map(|(t, v)| (*t, v)),
+            TCell::TCellN(map) => map.last_key_value().map(|(t, v)| (*t, v)),
+        }
+    }
+
+    #[inline]
     pub fn len(&self) -> usize {
         match self {
             TCell::Empty => 0,
@@ -132,6 +148,7 @@ impl<A: Sync + Send> TCell<A> {
         }
     }
 
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
@@ -146,7 +163,7 @@ impl<'a, A: Send + Sync> TimeIndexOps<'a> for &'a TCell<A> {
         match self {
             TCell::Empty => false,
             TCell::TCell1(time_index_entry, _) => w.contains(time_index_entry),
-            TCell::TCellCap(svm) => svm.range(w).next().is_some(),
+            TCell::TCellCap(svm) => svm.active(w),
             TCell::TCellN(btree_map) => btree_map.range(w).next().is_some(),
         }
     }

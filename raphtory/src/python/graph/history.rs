@@ -20,14 +20,8 @@ use raphtory_api::{
 use raphtory_core::utils::iter::GenLockedIter;
 use std::sync::Arc;
 
-impl Repr for EventTime {
-    fn repr(&self) -> String {
-        self.to_string()
-    }
-}
-
 /// History of updates for an object. Provides access to time entries and derived views such as timestamps, datetimes, event ids, and intervals.
-#[pyclass(name = "History", module = "raphtory", frozen)]
+#[pyclass(name = "History", module = "raphtory", frozen, from_py_object)]
 #[derive(Clone)]
 pub struct PyHistory {
     history: History<'static, Arc<dyn InternalHistoryOps>>,
@@ -304,8 +298,8 @@ impl<'py> FromPyObject<'_, 'py> for History<'static, Arc<dyn InternalHistoryOps>
 }
 
 /// History view that exposes timestamps in milliseconds since the Unix epoch.
-#[pyclass(name = "HistoryTimestamp", module = "raphtory", frozen)]
-#[derive(Clone, PartialEq, Eq)]
+#[pyclass(name = "HistoryTimestamp", module = "raphtory", frozen, from_py_object)]
+#[derive(PartialEq, Eq, Clone)]
 pub struct PyHistoryTimestamp {
     pub history_t: HistoryTimestamp<Arc<dyn InternalHistoryOps>>,
 }
@@ -467,8 +461,8 @@ impl<'py, T: InternalHistoryOps + 'static> IntoPyObject<'py> for HistoryTimestam
 }
 
 /// History view that exposes UTC datetimes.
-#[pyclass(name = "HistoryDateTime", module = "raphtory", frozen)]
-#[derive(Clone, PartialEq, Eq)]
+#[pyclass(name = "HistoryDateTime", module = "raphtory", frozen, from_py_object)]
+#[derive(PartialEq, Eq, Clone)]
 pub struct PyHistoryDateTime {
     pub history_dt: HistoryDateTime<Arc<dyn InternalHistoryOps>>,
 }
@@ -653,7 +647,7 @@ impl<'py, T: InternalHistoryOps + 'static> IntoPyObject<'py> for HistoryDateTime
 }
 
 /// History view that exposes event ids of time entries. They are used for ordering within the same timestamp.
-#[pyclass(name = "HistoryEventId", module = "raphtory", frozen)]
+#[pyclass(name = "HistoryEventId", module = "raphtory", frozen, from_py_object)]
 #[derive(Clone, PartialEq, Eq)]
 pub struct PyHistoryEventId {
     pub history_s: HistoryEventId<Arc<dyn InternalHistoryOps>>,
@@ -816,7 +810,7 @@ impl<'py, T: InternalHistoryOps + 'static> IntoPyObject<'py> for HistoryEventId<
 }
 
 /// View over the intervals between consecutive timestamps, expressed in milliseconds.
-#[pyclass(name = "Intervals", module = "raphtory", frozen)]
+#[pyclass(name = "Intervals", module = "raphtory", frozen, from_py_object)]
 #[derive(Clone, PartialEq, Eq)]
 pub struct PyIntervals {
     pub intervals: Intervals<Arc<dyn InternalHistoryOps>>,

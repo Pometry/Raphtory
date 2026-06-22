@@ -70,6 +70,10 @@ impl ResultUtcDateTimeIterable {
         self.repr()
     }
 
+    /// Materialise the iterable as a list of datetimes, raising if any element produced an error.
+    ///
+    /// Returns:
+    ///     list[datetime]: one datetime per element.
     fn collect(&self) -> PyResult<Vec<DateTime<Utc>>> {
         self.iter()
             .map(|result| result.map_err(PyErr::from))
@@ -158,6 +162,10 @@ impl NestedResultUtcDateTimeIterable {
         self.repr()
     }
 
+    /// Materialise the iterable as a nested list of datetimes, raising if any element produced an error.
+    ///
+    /// Returns:
+    ///     list[list[datetime]]: one inner list per outer element.
     fn collect(&self) -> PyResult<Vec<Vec<DateTime<Utc>>>> {
         self.iter()
             .map(|inner_iter| {
@@ -235,6 +243,10 @@ impl ResultOptionUtcDateTimeIterable {
         self.repr()
     }
 
+    /// Materialise the iterable as a list of optional datetimes, raising if any element produced an error.
+    ///
+    /// Returns:
+    ///     list[Optional[datetime]]: one entry per element (None where absent).
     fn collect(&self) -> PyResult<Vec<Option<DateTime<Utc>>>> {
         self.iter()
             .map(|result| result.map_err(PyErr::from))
@@ -326,6 +338,10 @@ impl NestedResultOptionUtcDateTimeIterable {
         self.repr()
     }
 
+    /// Materialise the iterable as a nested list of optional datetimes, raising if any element produced an error.
+    ///
+    /// Returns:
+    ///     list[list[Optional[datetime]]]: one inner list per outer element (entries are None where absent).
     fn collect(&self) -> PyResult<Vec<Vec<Option<DateTime<Utc>>>>> {
         self.iter()
             .map(|inner_iter| {

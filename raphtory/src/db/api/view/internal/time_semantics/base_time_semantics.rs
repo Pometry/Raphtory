@@ -11,7 +11,7 @@ use raphtory_api::core::{
     storage::timeindex::EventTime,
 };
 use raphtory_storage::graph::nodes::node_ref::NodeStorageRef;
-use std::ops::Range;
+use std::{ops::Range, sync::Arc};
 use storage::EdgeEntryRef;
 
 #[derive(Copy, Clone, Debug)]
@@ -193,8 +193,9 @@ impl NodeTimeSemanticsOps for BaseTimeSemantics {
         self,
         node: NodeStorageRef<'graph>,
         view: G,
+        prop_ids: Arc<[usize]>,
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
-        for_all_iter!(self, semantics => semantics.node_updates(node, view))
+        for_all_iter!(self, semantics => semantics.node_updates(node, view, prop_ids))
     }
 
     #[inline]
@@ -203,8 +204,9 @@ impl NodeTimeSemanticsOps for BaseTimeSemantics {
         node: NodeStorageRef<'graph>,
         view: G,
         w: Range<EventTime>,
+        prop_ids: Arc<[usize]>,
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
-        for_all_iter!(self, semantics => semantics.node_updates_window(node, view, w))
+        for_all_iter!(self, semantics => semantics.node_updates_window(node, view, w, prop_ids))
     }
 
     #[inline]
@@ -289,6 +291,27 @@ impl NodeTimeSemanticsOps for BaseTimeSemantics {
         w: Range<EventTime>,
     ) -> Option<(EventTime, Prop)> {
         for_all!(self, semantics => semantics.node_tprop_last_at_window(node, view, prop_id, t, w))
+    }
+
+    #[inline]
+    fn node_tprop_last<'graph, G: GraphView + 'graph>(
+        &self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        prop_id: usize,
+    ) -> Option<(EventTime, Prop)> {
+        for_all!(self, semantics => semantics.node_tprop_last(node, view, prop_id))
+    }
+
+    #[inline]
+    fn node_tprop_last_window<'graph, G: GraphView + 'graph>(
+        &self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        prop_id: usize,
+        w: Range<EventTime>,
+    ) -> Option<(EventTime, Prop)> {
+        for_all!(self, semantics => semantics.node_tprop_last_window(node, view, prop_id, w))
     }
 }
 
@@ -746,6 +769,27 @@ impl EdgeTimeSemanticsOps for BaseTimeSemantics {
         w: Range<EventTime>,
     ) -> Option<Prop> {
         for_all!(self, semantics => semantics.temporal_edge_prop_last_at_window(e, view, prop_id, t, w))
+    }
+
+    #[inline]
+    fn temporal_edge_prop_last<'graph, G: GraphView + 'graph>(
+        &self,
+        e: EdgeEntryRef<'graph>,
+        view: G,
+        prop_id: usize,
+    ) -> Option<Prop> {
+        for_all!(self, semantics => semantics.temporal_edge_prop_last(e, view, prop_id))
+    }
+
+    #[inline]
+    fn temporal_edge_prop_last_window<'graph, G: GraphView + 'graph>(
+        &self,
+        e: EdgeEntryRef<'graph>,
+        view: G,
+        prop_id: usize,
+        w: Range<EventTime>,
+    ) -> Option<Prop> {
+        for_all!(self, semantics => semantics.temporal_edge_prop_last_window(e, view, prop_id, w))
     }
 
     #[inline]

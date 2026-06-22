@@ -2,7 +2,9 @@ use crate::{
     core::entities::LayerIds,
     db::{
         api::{
-            properties::internal::InheritPropertiesOps,
+            properties::internal::{
+                InheritEdgePropertySchemaOps, InheritNodePropertySchemaOps, InheritPropertiesOps,
+            },
             view::internal::{
                 Immutable, InheritEdgeFilterOps, InheritEdgeHistoryFilter,
                 InheritEdgeLayerFilterOps, InheritLayerOps, InheritListOps, InheritMaterialize,
@@ -73,6 +75,16 @@ impl<'graph, G: GraphViewOps<'graph>> InheritPropertiesOps
 {
 }
 
+impl<'graph, G: GraphViewOps<'graph>> InheritNodePropertySchemaOps
+    for ExplodedEdgePropertyFilteredGraph<G>
+{
+}
+
+impl<'graph, G: GraphViewOps<'graph>> InheritEdgePropertySchemaOps
+    for ExplodedEdgePropertyFilteredGraph<G>
+{
+}
+
 impl<'graph, G: GraphViewOps<'graph>> InheritNodeFilterOps
     for ExplodedEdgePropertyFilteredGraph<G>
 {
@@ -111,7 +123,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalExplodedEdgeFilterOps
                 self.filter.matches_exploded_edge(
                     &self.graph,
                     self.prop_id,
-                    eid.edge,
+                    eid.eid(),
                     t,
                     eid.layer(),
                 )

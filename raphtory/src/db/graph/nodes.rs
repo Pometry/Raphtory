@@ -246,25 +246,13 @@ where
     /// Returns the number of nodes in the graph.
     #[inline]
     pub fn len(&self) -> usize {
-        match &self.nodes {
-            Index::Full(_) => {
-                if self.is_list_filtered() {
-                    let g = self.locked_storage();
-                    self.par_iter_refs(g).count()
-                } else {
-                    match self.graph.node_list() {
-                        NodeList::All => self.graph.unfiltered_num_nodes(self.graph.layer_ids()),
-                        NodeList::List { elems } => elems.len(),
-                    }
-                }
-            }
-            Index::Partial(nodes) => {
-                if self.is_filtered() {
-                    let g = self.locked_storage();
-                    self.par_iter_refs(g).count()
-                } else {
-                    nodes.len()
-                }
+        if self.is_list_filtered() {
+            let g = self.locked_storage();
+            self.par_iter_refs(g).count()
+        } else {
+            match &self.nodes {
+                Index::Full(_) => self.graph.count_nodes(),
+                Index::Partial(nodes) => nodes.len(),
             }
         }
     }
@@ -320,7 +308,7 @@ where
     }
 
     pub fn is_list_filtered(&self) -> bool {
-        !self.graph.node_list_trusted() || self.predicate.is_filtered()
+        !self.graph.node_list_trusted() || self.predicate.is_domain_filtered()
     }
 
     pub fn is_filtered(&self) -> bool {
@@ -357,12 +345,17 @@ where
         &self,
         filter: Filter,
     ) -> Self::IterFiltered<Filter> {
+        let domain = filter.domain(self.graph.core_graph());
+        let nodes = match domain {
+            NodeList::All => self.nodes.clone(),
+            NodeList::List { elems } => self.nodes.intersection(&elems),
+        };
         let predicate = self.predicate.clone().and(filter);
         Nodes {
             base_graph: self.base_graph.clone(),
             graph: self.graph.clone(),
             predicate,
-            nodes: self.nodes.clone(),
+            nodes,
             _marker: Default::default(),
         }
     }

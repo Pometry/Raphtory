@@ -7,7 +7,7 @@ use crate::{
         centrality::{
             betweenness::betweenness_centrality as betweenness_rs,
             degree_centrality::degree_centrality as degree_centrality_rs, hits::hits as hits_rs,
-            pagerank::unweighted_page_rank,
+            pagerank::page_rank,
         },
         community_detection::{
             label_propagation::label_propagation as label_propagation_rs,
@@ -132,31 +132,13 @@ pub fn local_triangle_count(graph: &PyGraphView, v: PyNodeRef) -> Option<usize> 
 ///     graph (GraphView): Raphtory graph
 ///
 /// Returns:
-///     NodeStateUsize: Mapping of nodes to their component ids.
+///     OutputNodeState: Mapping of nodes to their component ids.
 #[pyfunction]
 #[pyo3(signature = (graph))]
 pub fn weakly_connected_components(
     graph: &PyGraphView,
 ) -> OutputTypedNodeState<'static, DynamicGraph> {
     components::weakly_connected_components(&graph.graph).to_output_nodestate()
-}
-
-/// Weakly connected components (Disjoint Set Union) -- partitions the graph into node sets which are mutually reachable by an undirected path
-///
-/// This function assigns a component id to each node such that nodes with the same component id are mutually reachable
-/// by an undirected path.
-///
-/// Arguments:
-///     graph (GraphView): Raphtory graph
-///
-/// Returns:
-///     NodeStateUsize: Mapping of nodes to their component ids.
-#[pyfunction]
-#[pyo3(signature = (graph))]
-pub fn weakly_connected_components_ds(
-    graph: &PyGraphView,
-) -> OutputTypedNodeState<'static, DynamicGraph> {
-    components::weakly_connected_components_ds(&graph.graph).to_output_nodestate()
 }
 
 /// Strongly connected components
@@ -167,7 +149,7 @@ pub fn weakly_connected_components_ds(
 ///     graph (GraphView): Raphtory graph
 ///
 /// Returns:
-///     PyOutputNodeState: NodeState mapping nodes to their component ids
+///     OutputNodeState: NodeState mapping nodes to their component ids
 #[pyfunction]
 #[pyo3(signature = (graph))]
 pub fn strongly_connected_components(
@@ -274,20 +256,23 @@ pub fn out_component(
 ///         is less than the max diff value given.
 ///     use_l2_norm (bool): Flag for choosing the norm to use for convergence checks, True for l2 norm, False for l1 norm. Defaults to True.
 ///     damping_factor (float): The damping factor for the PageRank calculation. Defaults to 0.85.
+///     weight (Optional[str]): Edge property key to use as weight. If None, all edges have weight 1.0.
 ///
 /// Returns:
-///     PyOutputNodeState: NodeState mapping nodes to their pagerank score.
+///     OutputNodeState: NodeState mapping nodes to their pagerank score.
 #[pyfunction]
-#[pyo3(signature = (graph, iter_count=20, max_diff=None, use_l2_norm=true, damping_factor=0.85))]
+#[pyo3(signature = (graph, iter_count=20, max_diff=None, use_l2_norm=true, damping_factor=0.85, weight=None))]
 pub fn pagerank(
     graph: &PyGraphView,
     iter_count: usize,
     max_diff: Option<f64>,
     use_l2_norm: bool,
     damping_factor: Option<f64>,
+    weight: Option<&str>,
 ) -> OutputTypedNodeState<'static, DynamicGraph> {
-    unweighted_page_rank(
+    page_rank(
         &graph.graph,
+        weight,
         Some(iter_count),
         None,
         max_diff,
@@ -356,7 +341,7 @@ pub fn local_clustering_coefficient(graph: &PyGraphView, v: PyNodeRef) -> Option
 ///     v: vec of node ids, if empty, will return results for every node in the graph
 ///
 /// Returns:
-///     PyOutputNodeState: Mapping of vertices to lcc score
+///     OutputNodeState: Mapping of vertices to lcc score
 #[pyfunction]
 #[pyo3(signature = (graph, v=None))]
 pub fn local_clustering_coefficient_batch(
@@ -611,6 +596,7 @@ pub fn global_temporal_three_node_motif_multi(
 /// Arguments:
 ///     graph (GraphView): A directed raphtory graph
 ///     delta (int): Maximum time difference between the first and last edge of the motif. NB if time for edges was given as a UNIX epoch, this should be given in seconds, otherwise milliseconds should be used (if edge times were given as string)
+///     threads (int, optional): Number of threads to use. Defaults to None.
 ///
 /// Returns:
 ///     NodeStateMotifs: A mapping from nodes to lists of motif counts (40 counts in the same order as the global motif counts) with the number of each motif that node participates in.
@@ -686,7 +672,7 @@ pub fn balance(
 ///     graph (GraphView): The graph view on which the operation is to be performed.
 ///
 /// Returns:
-///     PyOutputNodeState: NodeState mapping nodes to their associated degree centrality.
+///     OutputNodeState: NodeState mapping nodes to their associated degree centrality.
 #[pyfunction]
 #[pyo3[signature = (graph)]]
 pub fn degree_centrality(graph: &PyGraphView) -> OutputTypedNodeState<'static, DynamicGraph> {
@@ -788,11 +774,11 @@ pub fn betweenness_centrality(
 ///
 /// Arguments:
 ///     graph (GraphView): A reference to the graph
-///     iter_count: Number of iterations
+///     iter_count (int): Number of iterations. Defaults to 20.
 ///     seed (bytes, optional): Array of 32 bytes of u8 which is set as the rng seed
 ///
 /// Returns:
-///     PyOutputNodeState: NodeState mapping nodes to community id
+///     OutputNodeState: NodeState mapping nodes to community id
 ///
 #[pyfunction]
 #[pyo3[signature = (graph, iter_count=20, seed=None)]]
@@ -1100,7 +1086,7 @@ pub fn fast_rp(
 ///     graph (GraphView): The graph view on which the operation is to be performed.
 ///
 /// Returns:
-///     PyOutputNodeState: NodeState mapping nodes to their associated alternating masks.
+///     OutputNodeState: NodeState mapping nodes to their associated alternating masks.
 #[pyfunction]
 #[pyo3[signature = (graph)]]
 pub fn alternating_mask(graph: &PyGraphView) -> OutputTypedNodeState<'static, DynamicGraph> {

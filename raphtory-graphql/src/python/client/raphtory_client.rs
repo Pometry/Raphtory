@@ -18,7 +18,7 @@ use url::Url;
 ///     url (str): the URL of the Raphtory GraphQL server
 ///     token:
 #[derive(Clone)]
-#[pyclass(name = "RaphtoryClient", module = "raphtory.graphql")]
+#[pyclass(name = "RaphtoryClient", module = "raphtory.graphql", from_py_object)]
 pub struct PyRaphtoryClient {
     pub(crate) client: RaphtoryGraphQLClient,
 }
@@ -210,9 +210,9 @@ impl PyRaphtoryClient {
     /// Create Index for graph on the server at 'path'
     ///
     /// Arguments:
-    ///     path: the path of the graph to be created
-    ///     RemoteIndexSpec (RemoteIndexSpec): spec specifying the properties that need to be indexed
-    ///     in_ram (bool): create index in ram
+    ///     path (str): the path of the graph to be created
+    ///     index_spec (RemoteIndexSpec): spec specifying the properties that need to be indexed
+    ///     in_ram (bool): create index in ram. Defaults to True.
     ///
     /// Returns:
     ///     None:

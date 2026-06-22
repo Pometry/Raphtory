@@ -54,6 +54,7 @@ pub type GS<P> = GraphPropSegmentView<P>;
 pub type Layer<P> = GraphStore<NS<P>, ES<P>, GS<P>, P>;
 
 pub type Wal = <Extension as PersistenceStrategy>::Wal;
+pub type ControlFile = <Extension as PersistenceStrategy>::ControlFile;
 pub type Config = <Extension as PersistenceStrategy>::Config;
 pub type GIDResolver = MappingResolver;
 
@@ -126,6 +127,7 @@ pub mod error {
     }
 
     impl StorageError {
+        /// Propagate external errors from other crates through StorageError.
         pub fn from_external<E: std::error::Error + Send + Sync + 'static>(error: E) -> Self {
             Self::External(Arc::new(error))
         }
@@ -211,4 +213,33 @@ pub fn loop_lock_write<A>(l: &RwLock<A>) -> parking_lot::RwLockWriteGuard<'_, A>
         thread::park_timeout(Duration::from_micros(backoff_us));
         backoff_us = (backoff_us * 2).min(MAX_BACKOFF_US);
     }
+}
+
+/// In-memory shim that mirrors the disk-storage function of the same name.
+/// In-memory graphs have no on-disk `graph_props` segment to read from, so
+/// callers always get an empty result. The existence of this symbol
+/// preserves the drop-in compatibility between this crate and
+/// `db4-disk-storage` when used as the workspace `storage` alias.
+pub fn read_constant_graph_properties(
+    _graph_dir: impl AsRef<Path>,
+) -> Result<
+    Vec<(
+        raphtory_api::core::storage::arc_str::ArcStr,
+        raphtory_api::core::entities::properties::prop::Prop,
+    )>,
+    error::StorageError,
+> {
+    Ok(Vec::new())
+}
+
+/// Matches `db4_disk_storage::meta_file::GRAPH_META_PATH`
+pub const GRAPH_META_PATH: &str = ".meta";
+
+/// No-op shim for when we have db4-storage instead of db4-disk-storage
+pub fn refresh_disk_graph_metadata(
+    _disk_graph_path: &Path,
+    _node_count: usize,
+    _edge_count: usize,
+) -> Result<(), error::StorageError> {
+    Ok(())
 }

@@ -1,7 +1,18 @@
 use crate::{
+    auth::ContextValidation,
+    auth_policy::{AuthorizationPolicy, GraphPermission, PermissionLevel},
+    cache::GraphCache,
     config::app_config::AppConfig,
     graph::GraphWithVectors,
-    model::blocking_io,
+    model::{
+        blocking_io,
+        graph::{
+            filtering::{GraphAccessFilter, GraphRowFilter, HiddenKeys},
+            namespace::Namespace,
+            namespaced_item::NamespacedItem,
+            vectorised_graph::GqlVectorisedGraph,
+        },
+    },
     paths::{
         mark_dirty, ExistingGraphFolder, InternalPathValidationError, PathValidationError,
         ValidGraphPaths, ValidWriteableGraphFolder,
@@ -9,25 +20,28 @@ use crate::{
     rayon::blocking_compute,
     GQLError,
 };
-use futures_util::FutureExt;
-use moka::future::Cache;
+use async_graphql::Context;
+use dynamic_graphql::Enum;
 use raphtory::{
-    db::api::{storage::storage::Config, view::MaterializedGraph},
+    db::{
+        api::{
+            storage::storage::Config,
+            view::{DynamicGraph, Filter, GraphViewOps, IntoDynamic, MaterializedGraph},
+        },
+        graph::views::{filter::model::DynFilter, property_redacted_graph::PropertyRedaction},
+    },
     errors::GraphError,
+    prelude::AdditionOps,
     serialise::GraphPaths,
     vectors::{
-        cache::{CachedEmbeddingModel, VectorCache},
-        storage::LazyDiskVectorCache,
-        template::DocumentTemplate,
-        vectorisable::Vectorisable,
-        vectorised_graph::VectorisedGraph,
+        cache::CachedEmbeddingModel, storage::LazyDiskVectorCache, template::DocumentTemplate,
+        vectorisable::Vectorisable, vectorised_graph::VectorisedGraph,
     },
 };
 use std::{
-    collections::HashMap,
     fs, io,
     io::{Read, Seek},
-    ops::{Deref, DerefMut},
+    ops::Deref,
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -44,6 +58,8 @@ pub enum MutationErrorInner {
     IO(#[from] io::Error),
     #[error(transparent)]
     InvalidInternal(#[from] InternalPathValidationError),
+    #[error("Cache operation failed, simultaneous mutation occurred")]
+    CacheReplacementError,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -130,9 +146,10 @@ pub(crate) fn get_relative_path(
 /// Inner struct with a drop implementation that cleans up the graphs
 pub struct DataInner {
     pub(crate) work_dir: PathBuf,
-    pub(crate) cache: Cache<String, GraphWithVectors>,
+    pub(crate) cache: GraphCache,
     pub(crate) vector_cache: LazyDiskVectorCache,
     pub(crate) graph_conf: Config,
+    pub(crate) auth_policy: Option<Arc<dyn AuthorizationPolicy>>,
 }
 
 /// Outer data struct that wraps the inner data to make sure it is only dropped once
@@ -150,29 +167,27 @@ impl Deref for Data {
     }
 }
 
+/// flushes the graph to avoid errors due to writing to deleted directory
+async fn invalidate_graph(old_graph: Option<GraphWithVectors>) {
+    if let Some(old_graph) = old_graph {
+        let inner = old_graph.into_inner().await;
+        blocking_compute(move || {
+            if let Err(e) = inner.graph.flush() {
+                error!(
+                    "Failed to flush old graph {} before replacing: {e}",
+                    inner.folder.local_path()
+                )
+            }
+        })
+        .await;
+    }
+}
+
 impl Data {
     pub fn new(work_dir: &Path, configs: &AppConfig, graph_conf: Config) -> Self {
         let cache_configs = &configs.cache;
 
-        let cache = Cache::<String, GraphWithVectors>::builder()
-            .max_capacity(cache_configs.capacity)
-            .time_to_idle(std::time::Duration::from_secs(cache_configs.tti_seconds))
-            .async_eviction_listener(|_, graph, cause| {
-                // The eviction listener gets called any time a graph is removed from the cache,
-                // not just when it is evicted. Only serialize on evictions.
-                async move {
-                    if !cause.was_evicted() {
-                        return;
-                    }
-                    if let Err(e) =
-                        blocking_compute(move || graph.folder.replace_graph_data(graph.graph)).await
-                    {
-                        error!("Error encoding graph to disk on eviction: {e}");
-                    }
-                }
-                .boxed()
-            })
-            .build();
+        let cache = GraphCache::new(cache_configs.capacity as usize);
 
         #[cfg(feature = "search")]
         let create_index = configs.index.create_index;
@@ -187,14 +202,16 @@ impl Data {
                 cache,
                 vector_cache: LazyDiskVectorCache::new(work_dir.join(".vector-cache")),
                 graph_conf,
+                auth_policy: None,
             }),
             create_index,
         }
     }
 
-    async fn invalidate(&self, path: &str) {
-        self.cache.invalidate(path).await;
-        self.cache.run_pending_tasks().await; // make sure the item is actually dropped
+    pub(crate) fn set_auth_policy(&mut self, policy: Arc<dyn AuthorizationPolicy>) {
+        Arc::get_mut(&mut self.inner)
+            .expect("Data is not uniquely owned when setting auth_policy")
+            .auth_policy = Some(policy);
     }
 
     pub fn validate_path_for_insert(
@@ -209,19 +226,32 @@ impl Data {
         }
     }
 
-    pub async fn get_graph(&self, path: &str) -> Result<GraphWithVectors, Arc<GQLError>> {
+    /// Validates that `ns_path` exists and is a namespace, returning the `Namespace`
+    /// so callers can enumerate descendants via `get_all_children()`.
+    pub fn get_namespace(&self, ns_path: &str) -> Result<Namespace, PathValidationError> {
+        Namespace::try_new(self.work_dir.clone(), ns_path.to_string())
+    }
+
+    /// # ⚠ Bypasses all permission checks — do not call from resolvers directly.
+    /// Use `get_graph_with_read_permission`, `get_raw_graph_with_read_permission`, or
+    /// `get_graph_with_write_permission` instead.
+    async fn get_graph(&self, path: &str) -> Result<GraphWithVectors, GQLError> {
         self.cache
-            .try_get_with(path.into(), self.read_graph_from_disk(path))
+            .get_or_insert(path.into(), self.read_graph_from_disk(path))
             .await
     }
 
-    pub async fn get_cached_graph(&self, path: &str) -> Option<GraphWithVectors> {
-        self.cache.get(path).await
+    /// Test-only: direct graph load without permission checks.
+    #[cfg(test)]
+    pub(crate) async fn get_graph_for_test(
+        &self,
+        path: &str,
+    ) -> Result<GraphWithVectors, GQLError> {
+        self.get_graph(path).await
     }
 
-    pub fn has_graph(&self, path: &str) -> bool {
-        self.cache.contains_key(path)
-            || ExistingGraphFolder::try_from(self.work_dir.clone(), path).is_ok()
+    pub async fn get_cached_graph(&self, path: &str) -> Option<GraphWithVectors> {
+        self.cache.get(path.into())
     }
 
     pub async fn insert_graph(
@@ -229,18 +259,21 @@ impl Data {
         writeable_folder: ValidWriteableGraphFolder,
         graph: MaterializedGraph,
     ) -> Result<(), InsertionError> {
-        self.invalidate(writeable_folder.local_path()).await;
+        let key = writeable_folder.local_path().to_owned();
         let config = self.graph_conf.clone();
-        let graph = blocking_compute(move || {
-            writeable_folder.write_graph_data(graph.clone(), config)?;
-            let folder = writeable_folder.finish()?;
-            let graph = GraphWithVectors::new(graph, None, folder.as_existing()?);
-            Ok::<_, InsertionError>(graph)
-        })
-        .await?;
         self.cache
-            .insert(graph.folder.local_path().into(), graph)
-            .await;
+            .insert_or_replace_with(&key, |old_graph| async {
+                invalidate_graph(old_graph).await;
+                blocking_compute(move || {
+                    let (is_dirty, new_graph) = writeable_folder.write_graph_data(graph, config)?;
+                    let folder = writeable_folder.finish()?;
+                    let graph = GraphWithVectors::new(new_graph, None, folder.as_existing()?);
+                    graph.set_dirty(is_dirty);
+                    Ok::<_, InsertionError>(graph)
+                })
+                .await
+            })
+            .await?;
         Ok(())
     }
 
@@ -250,13 +283,17 @@ impl Data {
         folder: ValidWriteableGraphFolder,
         bytes: R,
     ) -> Result<(), InsertionError> {
-        self.invalidate(folder.local_path()).await;
         let conf = self.graph_conf.clone();
-        blocking_io(move || {
-            folder.write_graph_bytes(bytes, conf)?;
-            folder.finish()
-        })
-        .await?;
+        self.cache
+            .invalidate_with(&folder.local_path().to_string(), |old_graph| async {
+                invalidate_graph(old_graph).await;
+                blocking_io(move || {
+                    folder.write_graph_bytes(bytes, conf)?;
+                    folder.finish()
+                })
+                .await
+            })
+            .await?;
         Ok(())
     }
 
@@ -264,14 +301,19 @@ impl Data {
         &self,
         graph_folder: ExistingGraphFolder,
     ) -> Result<(), MutationErrorInner> {
+        let key = graph_folder.local_path().to_string();
         let dirty_file = mark_dirty(graph_folder.root())?;
-        self.invalidate(graph_folder.local_path()).await;
-        blocking_io(move || {
-            fs::remove_dir_all(graph_folder.root())?;
-            fs::remove_file(dirty_file)?;
-            Ok::<_, MutationErrorInner>(())
-        })
-        .await?;
+        self.cache
+            .invalidate_with(&key, |old_graph| async {
+                invalidate_graph(old_graph).await;
+                blocking_io(move || {
+                    fs::remove_dir_all(graph_folder.root())?;
+                    fs::remove_file(dirty_file)?;
+                    Ok::<_, MutationErrorInner>(())
+                })
+                .await
+            })
+            .await?;
         Ok(())
     }
 
@@ -280,7 +322,65 @@ impl Data {
         self.delete_graph_inner(graph_folder)
             .await
             .map_err(|err| DeletionError::from_inner(path, err))?;
-        self.cache.remove(path).await;
+        Ok(())
+    }
+
+    pub async fn delete_namespace(
+        &self,
+        path: &str,
+        descendants: &Vec<NamespacedItem>,
+    ) -> Result<(), DeletionError> {
+        if path.is_empty() {
+            return Err(DeletionError::PathValidation(
+                PathValidationError::EmptyPath,
+            ));
+        }
+        let namespace = Namespace::try_new(self.work_dir.clone(), path.to_string())?;
+        let root = namespace.current_dir().to_path_buf();
+        let dirty_file = mark_dirty(&root).map_err(|err| {
+            DeletionError::from_inner(path, MutationErrorInner::InvalidInternal(err))
+        })?;
+        for item in descendants {
+            if let NamespacedItem::MetaGraph(g) = item {
+                self.cache
+                    .invalidate_with(g.local_path(), |old_graph| async {
+                        invalidate_graph(old_graph).await;
+                    })
+                    .await;
+            }
+        }
+        blocking_io(move || {
+            fs::remove_dir_all(&root)?;
+            fs::remove_file(dirty_file)?;
+            Ok::<_, MutationErrorInner>(())
+        })
+        .await
+        .map_err(|err| DeletionError::from_inner(path, err))?;
+        Ok(())
+    }
+
+    pub async fn create_namespace(&self, path: &str) -> Result<(), InsertionError> {
+        let target = crate::paths::validate_path_for_namespace_create(self.work_dir.clone(), path)?;
+        let mut cleanup_root = target.as_path();
+        while let Some(parent) = cleanup_root.parent() {
+            if parent.is_dir() {
+                break;
+            }
+            cleanup_root = parent;
+        }
+        let dirty_file = mark_dirty(cleanup_root).map_err(|err| {
+            InsertionError::from_inner(path, MutationErrorInner::InvalidInternal(err))
+        })?;
+        blocking_io(move || {
+            if let Some(parent) = target.parent() {
+                fs::create_dir_all(parent)?;
+            }
+            fs::create_dir(&target)?;
+            fs::remove_file(dirty_file)?;
+            Ok::<_, MutationErrorInner>(())
+        })
+        .await
+        .map_err(|err| InsertionError::from_inner(path, err))?;
         Ok(())
     }
 
@@ -315,13 +415,23 @@ impl Data {
         template: &DocumentTemplate,
         model: CachedEmbeddingModel,
     ) -> Result<(), GQLError> {
-        let graph = match self.get_cached_graph(folder.local_path()).await {
-            None => self.read_graph_from_disk_inner(folder.clone()).await?,
-            Some(graph) => graph,
-        };
-        self.vectorise_with_template(graph.graph, folder, template, model)
-            .await;
-        self.cache.remove(folder.local_path()).await;
+        let cloned_folder = folder.clone();
+        self.cache
+            .insert_or_replace_with(folder.local_path(), move |old_graph| async {
+                let graph = match old_graph {
+                    None => self
+                        .read_graph_from_disk_inner(cloned_folder.clone())
+                        .await?
+                        .graph()
+                        .clone(),
+                    Some(old_graph) => old_graph.graph().clone(),
+                };
+                let vectors = self
+                    .vectorise_with_template(graph.clone(), folder, template, model)
+                    .await;
+                Ok::<_, GQLError>(GraphWithVectors::new(graph, vectors, cloned_folder))
+            })
+            .await?;
         Ok(())
     }
 
@@ -354,16 +464,304 @@ impl Data {
     }
 }
 
-impl Drop for DataInner {
-    fn drop(&mut self) {
-        // On drop, serialize graphs that don't have underlying storage.
-        for (_, graph) in self.cache.iter() {
-            if graph.is_dirty() {
-                if let Err(e) = graph.folder.replace_graph_data(graph.graph) {
-                    error!("Error encoding graph to disk on drop: {e}");
+// ---------------------------------------------------------------------------
+// Permission types and helpers
+// ---------------------------------------------------------------------------
+
+#[derive(thiserror::Error, Debug)]
+pub(crate) enum PermissionError {
+    /// Graph exists but caller has no namespace visibility — hide graph existence.
+    #[error("Graph does not exist")]
+    GraphNotFound,
+    /// Caller has introspect-only access; cannot read graph data.
+    #[error(
+        "Access denied: introspect-only access to graph '{graph}' — \
+         use graphMetadata(path:) for counts and timestamps, or namespace listings to browse graphs"
+    )]
+    IntrospectOnly { graph: String },
+    /// Caller has read-only access but the operation requires write.
+    #[error("Access denied: WRITE permission required for graph '{graph}'")]
+    GraphWriteRequired { graph: String },
+
+    /// Caller has filtered read-only access but the opration requires unfiltered read
+    #[error("Access denied: unfiltered READ permissions required for graph '{graph}'")]
+    GraphUnfilteredReadRequired { graph: String },
+    /// Caller lacks write permission on the destination namespace.
+    #[error(
+        "Access denied: WRITE required on namespace '{namespace}' to {operation} graph '{graph}'"
+    )]
+    NamespaceWriteRequired {
+        namespace: String,
+        graph: String,
+        operation: String,
+    },
+}
+
+#[derive(Enum)]
+#[graphql(name = "GraphType")]
+pub enum GqlGraphType {
+    /// Persistent.
+    Persistent,
+    /// Event.
+    Event,
+}
+
+/// Returns the namespace portion of a graph path: everything before the last `/`.
+/// For top-level graphs (no `/`), returns `""` (the root namespace).
+pub(crate) fn parent_namespace(path: &str) -> &str {
+    path.rfind('/').map(|i| &path[..i]).unwrap_or("")
+}
+
+/// Checks that the caller has at least READ permission for the graph at `path`.
+/// Returns the effective `GraphPermission` (including any stored filter) on success.
+/// When denied and the caller has no INTROSPECT on the parent namespace, returns a
+/// "Graph does not exist" error to avoid leaking that the graph is present.
+fn require_at_least_read(
+    ctx: &Context<'_>,
+    policy: &Option<Arc<dyn AuthorizationPolicy>>,
+    path: &str,
+) -> async_graphql::Result<GraphPermission> {
+    if let Some(policy) = policy {
+        return match policy.graph_permissions(ctx, path) {
+            Err(msg) => {
+                warn!(graph = path, "Access denied by auth policy");
+                let ns = parent_namespace(path);
+                if policy.namespace_permissions(ctx, ns).is_some() {
+                    Err(msg.into())
+                } else {
+                    Err(PermissionError::GraphNotFound.into())
                 }
             }
+            Ok(perm) => {
+                if let Some(p) = perm.at_least_read() {
+                    Ok(p)
+                } else {
+                    warn!(
+                        graph = path,
+                        "Introspect-only access — graph() denied; use graphMetadata() instead"
+                    );
+                    Err(PermissionError::IntrospectOnly {
+                        graph: path.to_string(),
+                    }
+                    .into())
+                }
+            }
+        };
+    }
+    Ok(GraphPermission::Write)
+}
+
+pub(crate) fn require_graph_write(
+    ctx: &Context<'_>,
+    policy: &Option<Arc<dyn AuthorizationPolicy>>,
+    path: &str,
+) -> async_graphql::Result<()> {
+    match policy {
+        None => ctx.require_jwt_write_access().map_err(Into::into),
+        Some(p) => {
+            p.graph_permissions(ctx, path)
+                .map_err(async_graphql::Error::from)?
+                .at_least_write()
+                .ok_or_else(|| {
+                    async_graphql::Error::from(PermissionError::GraphWriteRequired {
+                        graph: path.to_string(),
+                    })
+                })?;
+            Ok(())
         }
+    }
+}
+
+/// Applies a `GraphRowFilter` to a `DynamicGraph`.
+async fn apply_graph_filter(
+    graph: DynamicGraph,
+    row_filter: GraphRowFilter,
+) -> async_graphql::Result<DynamicGraph> {
+    blocking_compute(move || apply_row_filter_sync(graph, row_filter)).await
+}
+
+fn apply_row_filter_sync(
+    graph: DynamicGraph,
+    filter: GraphRowFilter,
+) -> async_graphql::Result<DynamicGraph> {
+    // And sub-filters are applied sequentially so that DynView (window/snapshot/layer)
+    // sub-filters wrap the graph view before subsequent node/edge predicate filters run.
+    if let GraphRowFilter::And(filters) = filter {
+        return filters
+            .into_iter()
+            .try_fold(graph, |g, f| apply_row_filter_sync(g, f));
+    }
+    let dyn_filter = DynFilter::try_from(filter).map_err(|e| {
+        error!(error = %e, "filter conversion failed");
+        async_graphql::Error::new("internal error applying access filter")
+    })?;
+    Ok(graph
+        .filter(dyn_filter)
+        .map_err(|e| {
+            error!(error = %e, "failed to apply filter");
+            async_graphql::Error::new("internal error applying access filter")
+        })?
+        .into_dynamic())
+}
+
+fn build_redaction(filter: &GraphAccessFilter) -> PropertyRedaction {
+    let hp = filter.hidden_properties.as_ref();
+    let hm = filter.hidden_metadata.as_ref();
+    fn collect(
+        keys: Option<&HiddenKeys>,
+        pick: fn(&HiddenKeys) -> Option<&Vec<String>>,
+    ) -> std::collections::HashSet<String> {
+        keys.and_then(pick)
+            .map(|v| v.iter().cloned().collect())
+            .unwrap_or_default()
+    }
+    PropertyRedaction {
+        node_hidden_props: collect(hp, |h| h.node.as_ref()),
+        node_hidden_meta: collect(hm, |h| h.node.as_ref()),
+        edge_hidden_props: collect(hp, |h| h.edge.as_ref()),
+        edge_hidden_meta: collect(hm, |h| h.edge.as_ref()),
+        graph_hidden_props: collect(hp, |h| h.graph.as_ref()),
+        graph_hidden_meta: collect(hm, |h| h.graph.as_ref()),
+    }
+}
+
+async fn apply_access_filter(
+    graph: DynamicGraph,
+    f: &GraphAccessFilter,
+) -> async_graphql::Result<DynamicGraph> {
+    let graph = if let Some(ref row_filter) = f.filter {
+        apply_graph_filter(graph, row_filter.clone()).await?
+    } else {
+        graph
+    };
+    let redaction = build_redaction(f);
+    if redaction.has_restrictions() {
+        Ok(graph.exclude_properties(&redaction).into_dynamic())
+    } else {
+        Ok(graph)
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Data permission methods
+// ---------------------------------------------------------------------------
+
+impl Data {
+    /// Loads and filters the graph using an already-verified permission. Private shared core.
+    async fn load_and_filter(
+        &self,
+        path: &str,
+        perm: GraphPermission,
+        graph_type: Option<GqlGraphType>,
+    ) -> async_graphql::Result<(ExistingGraphFolder, DynamicGraph)> {
+        let gwv = self.get_graph(path).await?;
+        let typed_graph = match graph_type {
+            Some(GqlGraphType::Event) => match gwv.graph() {
+                MaterializedGraph::EventGraph(g) => MaterializedGraph::EventGraph(g.clone()),
+                MaterializedGraph::PersistentGraph(g) => {
+                    MaterializedGraph::EventGraph(g.event_graph())
+                }
+            },
+            Some(GqlGraphType::Persistent) => match gwv.graph() {
+                MaterializedGraph::EventGraph(g) => {
+                    MaterializedGraph::PersistentGraph(g.persistent_graph())
+                }
+                MaterializedGraph::PersistentGraph(g) => {
+                    MaterializedGraph::PersistentGraph(g.clone())
+                }
+            },
+            None => gwv.graph().clone(),
+        };
+        let raw = typed_graph.into_dynamic();
+        let graph = if let GraphPermission::Read {
+            filter: Some(ref f),
+        } = perm
+        {
+            apply_access_filter(raw, f).await?
+        } else {
+            raw
+        };
+        Ok((gwv.folder().clone(), graph))
+    }
+
+    /// For the `graph()` resolver: permission denial → `Ok(None)` (null to client, hides
+    /// existence and access level). Load failure → `Err` (graph was deleted, etc.).
+    pub async fn get_graph_with_read_permission(
+        &self,
+        ctx: &Context<'_>,
+        path: &str,
+        graph_type: Option<GqlGraphType>,
+    ) -> async_graphql::Result<Option<(ExistingGraphFolder, DynamicGraph)>> {
+        match require_at_least_read(ctx, &self.auth_policy, path) {
+            Ok(perm) => self.load_and_filter(path, perm, graph_type).await.map(Some),
+            Err(_) => Ok(None),
+        }
+    }
+
+    /// For resolvers that must surface the specific denial reason (`receive_graph`,
+    /// `create_subgraph`). A caller with no namespace visibility gets "does not exist"
+    /// (hides graph existence). A caller who can already see the graph in listings gets
+    /// "Access denied" (they already know it's there; now they know they need READ).
+    pub(crate) async fn get_graph_requiring_read(
+        &self,
+        ctx: &Context<'_>,
+        path: &str,
+        graph_type: Option<GqlGraphType>,
+    ) -> async_graphql::Result<(ExistingGraphFolder, DynamicGraph)> {
+        let perm = require_at_least_read(ctx, &self.auth_policy, path)?;
+        self.load_and_filter(path, perm, graph_type).await
+    }
+
+    /// Checks read permission then returns the raw `GraphWithVectors` (unfiltered).
+    /// Use for copy/move operations where the caller needs the raw storage handle —
+    /// O(1) Arc clone, no materialization. Row filters are intentionally not applied:
+    /// the destination will have its own access controls.
+    pub(crate) async fn get_raw_graph_with_read_permission(
+        &self,
+        ctx: &Context<'_>,
+        path: &str,
+    ) -> async_graphql::Result<GraphWithVectors> {
+        let res = require_at_least_read(ctx, &self.auth_policy, path)?;
+        if res.level() < PermissionLevel::Read {
+            Err(PermissionError::GraphUnfilteredReadRequired {
+                graph: path.to_string(),
+            })?;
+        }
+        let graph = self.get_graph(path).await?;
+        Ok(graph)
+    }
+
+    /// Checks write permission then returns the raw `GraphWithVectors` for mutation operations.
+    pub(crate) async fn get_graph_with_write_permission(
+        &self,
+        ctx: &Context<'_>,
+        path: &str,
+    ) -> async_graphql::Result<GraphWithVectors> {
+        require_graph_write(ctx, &self.auth_policy, path)?;
+        let graph = self.get_graph(path).await?;
+        Ok(graph)
+    }
+
+    /// Checks read permission then returns the vectorised graph, if any.
+    /// Returns `None` for filtered-access users: embeddings are computed from the full graph
+    /// and search results cannot be retroactively row-filtered.
+    pub(crate) async fn get_vectors_with_read_permission(
+        &self,
+        ctx: &Context<'_>,
+        path: &str,
+    ) -> async_graphql::Result<Option<GqlVectorisedGraph>> {
+        let perm = require_at_least_read(ctx, &self.auth_policy, path)?;
+        if matches!(perm, GraphPermission::Read { filter: Some(_) }) {
+            return Ok(None);
+        }
+        let graph = self.get_graph(path).await?;
+        Ok(graph.vectors().cloned().map(|g| g.into()))
+    }
+}
+
+impl Drop for DataInner {
+    fn drop(&mut self) {
+        self.cache.flush_and_clear();
     }
 }
 
@@ -440,10 +838,7 @@ pub(crate) mod data_tests {
         graph.encode(&tmp_work_dir.path().join("test_g")).unwrap();
         graph.encode(&tmp_work_dir.path().join("test_g2")).unwrap();
 
-        let configs = AppConfigBuilder::new()
-            .with_cache_capacity(1)
-            .with_cache_tti_seconds(2)
-            .build();
+        let configs = AppConfigBuilder::new().with_cache_capacity(1).build();
 
         let data = Data::new(tmp_work_dir.path(), &configs, Default::default());
 
@@ -456,20 +851,7 @@ pub(crate) mod data_tests {
         assert!(!data.cache.contains_key("test_g"));
 
         data.get_graph("test_g").await.unwrap(); // wait for any eviction
-        data.cache.run_pending_tasks().await;
         assert_eq!(data.cache.iter().count(), 1);
-
-        sleep(Duration::from_secs(3)).await;
-        assert!(!data.cache.contains_key("test_g"));
-        assert!(!data.cache.contains_key("test_g2"));
-        // FIXME: this test is not doing anything because calling cache.contains_key() runs
-        // any pending evictions. To actually test it we need this assertion:
-        //   assert_eq!(data.cache.entry_count(), 0);
-        // Which currently does not work because the server task to trigger evictions is not running
-        // in this context. The problem is if we do run it by creating a server and calling
-        // server.start() the server gets consumed and we loose access to the cache to be able to run
-        // the check. If rework the server implementation and this becomes feasible we should change
-        // this test
     }
 
     #[tokio::test]
@@ -500,10 +882,7 @@ pub(crate) mod data_tests {
         fs::create_dir_all(&g6_path).unwrap();
         fs::write(g6_path.join("random-file"), "some-random-content").unwrap();
 
-        let configs = AppConfigBuilder::new()
-            .with_cache_capacity(1)
-            .with_cache_tti_seconds(2)
-            .build();
+        let configs = AppConfigBuilder::new().with_cache_capacity(1).build();
 
         let data = Data::new(work_dir, &configs, Default::default());
 
@@ -564,10 +943,7 @@ pub(crate) mod data_tests {
         let graph1_original_time = graph1_metadata.modified().unwrap();
         let graph2_original_time = graph2_metadata.modified().unwrap();
 
-        let configs = AppConfigBuilder::new()
-            .with_cache_capacity(10)
-            .with_cache_tti_seconds(300)
-            .build();
+        let configs = AppConfigBuilder::new().with_cache_capacity(10).build();
 
         let data = Data::new(tmp_work_dir.path(), &configs, Default::default());
 
@@ -575,7 +951,7 @@ pub(crate) mod data_tests {
         let loaded_graph2 = data.get_graph("test_graph2").await.unwrap();
 
         // TODO: This test doesn't work with disk storage right now, make sure modification dates actually update correctly!
-        if loaded_graph1.graph.disk_storage_path().is_some() {
+        if loaded_graph1.graph().disk_storage_path().is_some() {
             assert!(
                 !loaded_graph1.is_dirty(),
                 "Graph1 should not be dirty when loaded from disk"
@@ -648,10 +1024,7 @@ pub(crate) mod data_tests {
         let graph2_original_time = graph2_metadata.modified().unwrap();
 
         // Create cache with time to idle 3 seconds to force eviction
-        let configs = AppConfigBuilder::new()
-            .with_cache_capacity(10)
-            .with_cache_tti_seconds(3)
-            .build();
+        let configs = AppConfigBuilder::new().with_cache_capacity(10).build();
 
         let data = Data::new(tmp_work_dir.path(), &configs, Default::default());
 
@@ -679,10 +1052,9 @@ pub(crate) mod data_tests {
 
         // Sleep to trigger eviction
         sleep(Duration::from_secs(3)).await;
-        data.cache.run_pending_tasks().await;
 
         // TODO: This test doesn't work with disk storage right now, make sure modification dates actually update correctly!
-        if loaded_graph1.graph.disk_storage_path().is_some() {
+        if loaded_graph1.graph().disk_storage_path().is_some() {
             // Check modification times after eviction
             let graph1_metadata_after = fs::metadata(&graph1_path).unwrap();
             let graph2_metadata_after = fs::metadata(&graph2_path).unwrap();

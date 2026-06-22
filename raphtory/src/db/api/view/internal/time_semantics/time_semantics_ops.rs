@@ -4,7 +4,7 @@ use raphtory_api::core::{
     storage::timeindex::EventTime,
 };
 use raphtory_storage::graph::nodes::node_ref::NodeStorageRef;
-use std::ops::Range;
+use std::{ops::Range, sync::Arc};
 use storage::EdgeEntryRef;
 
 pub trait NodeTimeSemanticsOps {
@@ -111,6 +111,7 @@ pub trait NodeTimeSemanticsOps {
         self,
         node: NodeStorageRef<'graph>,
         view: G,
+        prop_ids: Arc<[usize]>,
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph;
 
     fn node_updates_window<'graph, G: GraphView + 'graph>(
@@ -118,6 +119,7 @@ pub trait NodeTimeSemanticsOps {
         node: NodeStorageRef<'graph>,
         view: G,
         w: Range<EventTime>,
+        prop_ids: Arc<[usize]>,
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph;
 
     /// Check if the node is part of the graph based on the history
@@ -163,6 +165,21 @@ pub trait NodeTimeSemanticsOps {
         prop_id: usize,
         w: Range<EventTime>,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph;
+
+    fn node_tprop_last<'graph, G: GraphView + 'graph>(
+        &self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        prop_id: usize,
+    ) -> Option<(EventTime, Prop)>;
+
+    fn node_tprop_last_window<'graph, G: GraphView + 'graph>(
+        &self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        prop_id: usize,
+        w: Range<EventTime>,
+    ) -> Option<(EventTime, Prop)>;
 
     fn node_tprop_last_at<'graph, G: GraphView + 'graph>(
         &self,
@@ -571,6 +588,22 @@ pub trait EdgeTimeSemanticsOps {
         view: G,
         prop_id: usize,
         t: EventTime,
+        w: Range<EventTime>,
+    ) -> Option<Prop>;
+
+    // /// Return the last value of a temporal edge property at or before a given point in time
+    fn temporal_edge_prop_last<'graph, G: GraphView + 'graph>(
+        &self,
+        e: EdgeEntryRef<'graph>,
+        view: G,
+        prop_id: usize,
+    ) -> Option<Prop>;
+
+    fn temporal_edge_prop_last_window<'graph, G: GraphView + 'graph>(
+        &self,
+        e: EdgeEntryRef<'graph>,
+        view: G,
+        prop_id: usize,
         w: Range<EventTime>,
     ) -> Option<Prop>;
 

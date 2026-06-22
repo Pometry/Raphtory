@@ -170,6 +170,10 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         self.segments.count()
     }
 
+    pub fn t_len(&self) -> usize {
+        self.segments.iter().map(|(_, page)| page.t_len()).sum()
+    }
+
     // pub fn segments(&self) -> &boxcar::Vec<Arc<NS>> {
     //     &self.segments
     // }
@@ -631,7 +635,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
 /// If the result exceeds `limit`, leaves the counter unchanged and returns `None`.
 pub fn increment_and_clamp(counter: &AtomicU32, increment: u32, limit: u32) -> Option<u32> {
     counter
-        .fetch_update(
+        .try_update(
             std::sync::atomic::Ordering::Relaxed,
             std::sync::atomic::Ordering::Relaxed,
             |current| {

@@ -58,7 +58,7 @@ def init_graph(graph):
     for time, id, props, node_type in nodes:
         graph.add_node(time, id, props, node_type)
 
-    edge_data = [
+    edges = [
         (
             1,
             "1",
@@ -94,7 +94,7 @@ def init_graph(graph):
         (4, "John Mayer", "Jimmy Page", {"p2": 6, "p3": 1, "p20": "Gold_ship"}, None),
     ]
 
-    for time, src, dst, props, edge_type in edge_data:
+    for time, src, dst, props, edge_type in edges:
         graph.add_edge(time, src, dst, props, edge_type)
 
     return graph
@@ -142,7 +142,7 @@ def init_graph2(graph):
     for time, id, props, node_type in nodes:
         graph.add_node(time, id, props, node_type)
 
-    edge_data = [
+    edges = [
         (
             1,
             1,
@@ -170,14 +170,14 @@ def init_graph2(graph):
         (3, 2, 1, {"p2": 6, "p3": 1, "p10": "Paper_airplane"}, None),
     ]
 
-    for time, src, dst, props, edge_type in edge_data:
+    for time, src, dst, props, edge_type in edges:
         graph.add_edge(time, src, dst, props, edge_type)
 
     return graph
 
 
 def init_graph3(graph):
-    edge_data = [
+    edges = [
         (
             1,
             1,
@@ -222,7 +222,7 @@ def init_graph3(graph):
         (3, 2, 1, {"p2": 6, "p3": 1, "p10": "Paper_airplane"}, None),
     ]
 
-    for time, src, dst, props, edge_type in edge_data:
+    for time, src, dst, props, edge_type in edges:
         graph.add_edge(time, src, dst, props, edge_type)
 
     return graph
@@ -270,7 +270,7 @@ def init_graph4(graph):
     for time, id, props, node_type in nodes:
         graph.add_node(time, id, props, node_type)
 
-    edge_data = [
+    edges = [
         (
             1,
             1,
@@ -298,7 +298,7 @@ def init_graph4(graph):
         (3, 2, 1, {"p2": 6, "p3": 1, "p10": "Paper_airplane"}, None),
     ]
 
-    for time, src, dst, props, edge_type in edge_data:
+    for time, src, dst, props, edge_type in edges:
         graph.add_edge(time, src, dst, props, edge_type)
 
     graph.delete_edge(4, 3, 4, None, None)
@@ -830,3 +830,66 @@ def create_test_graph3(g):
         "fire_nation",
     )
     return g
+
+
+def degree_graph_with_add_edge_only(graph):
+    edges = [
+        (1, "1", "2", "layer_a"),
+        (1, "1", "3", "layer_b"),
+        (1, "1", "4", "layer_a"),
+        (1, "1", "5", "layer_b"),
+        (1, "1", "6", "layer_a"),
+        (2, "2", "1", "layer_b"),
+        (2, "2", "3", "layer_a"),
+        (2, "2", "4", "layer_b"),
+        (2, "2", "5", "layer_a"),
+        (3, "3", "1", "layer_a"),
+        (3, "3", "4", "layer_b"),
+        (3, "3", "5", "layer_a"),
+        (4, "4", "1", "layer_b"),
+        (4, "4", "2", "layer_a"),
+        (5, "5", "1", "layer_b"),
+        (6, "6", "1", "layer_a"),
+        (6, "4", "3", "layer_b"),
+        (6, "5", "2", "layer_a"),
+        (6, "6", "2", "layer_b"),
+        (6, "5", "3", "layer_a"),
+        (7, "2", "6", "layer_c"),
+        (7, "3", "6", "layer_d"),
+        (7, "6", "4", "layer_e"),
+        (7, "1", "5", "layer_f"),
+        (8, "3", "2", "layer_c"),
+        (8, "4", "6", "layer_d"),
+        (8, "2", "5", "layer_e"),
+        (8, "6", "3", "layer_f"),
+        (9, "5", "4", "layer_c"),
+        (9, "4", "5", "layer_d"),
+        (9, "2", "4", "layer_e"),
+        (9, "3", "1", "layer_f"),
+    ]
+
+    for time, src, dst, layer in edges:
+        graph.add_edge(time, src, dst, {}, layer)
+
+    return graph
+
+
+def degree_graph_with_add_node_and_add_edge(graph):
+    graph = degree_graph_with_add_edge_only(graph)
+    add_nodes = [
+        (0, "1", "layer_a"),
+        (0, "7", None),
+        (0, "8", None),
+        (3, "9", "layer_a"),
+        (4, "9", "layer_c"),
+        (5, "10", "layer_b"),
+        (6, "10", "layer_e"),
+        (7, "11", "layer_d"),
+        (8, "12", "layer_f"),
+        (9, "12", "layer_c"),
+    ]
+
+    for time, node_id, layer in add_nodes:
+        graph.add_node(timestamp=time, id=node_id, layer=layer)
+
+    return graph

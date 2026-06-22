@@ -19,8 +19,8 @@ def test_latest_and_active():
     work_dir = tempfile.mkdtemp()
     g = Graph()
     g.save_to_file(work_dir + "/graph")
-    with GraphServer(work_dir).turn_off_index().start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(work_dir).turn_off_index().start() as server:
+        client = server.get_client()
         with pytest.raises(Exception) as excinfo:
             client.query(query)
         assert (

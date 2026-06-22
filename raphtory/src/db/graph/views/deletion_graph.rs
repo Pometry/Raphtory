@@ -4,8 +4,10 @@ use crate::{
     core::storage::timeindex::{AsTime, EventTime, TimeIndex, TimeIndexOps},
     db::{
         api::{
-            properties::internal::InheritPropertiesOps,
-            storage::storage::{PersistenceStrategy, Storage},
+            properties::internal::{
+                InheritEdgePropertySchemaOps, InheritNodePropertySchemaOps, InheritPropertiesOps,
+            },
+            storage::storage::Storage,
             view::internal::*,
         },
         graph::graph::graph_equal,
@@ -28,8 +30,11 @@ use std::{
 };
 use storage::{
     api::graph_props::{GraphPropEntryOps, GraphPropRefOps},
-    Config, Extension,
+    Config,
 };
+
+#[cfg(feature = "io")]
+use storage::{persist::strategy::PersistenceStrategy, Extension};
 
 /// A graph view where an edge remains active from the time it is added until it is explicitly marked as deleted.
 ///
@@ -197,12 +202,42 @@ impl PersistentGraph {
         )?)))
     }
 
+    /// Load the graph as a read-only snapshot — multiple processes can open
+    /// the same graph directory concurrently. Mutating operations will fail.
+    #[cfg(feature = "io")]
+    pub fn load_read_only(path: &(impl GraphPaths + ?Sized)) -> Result<Self, GraphError> {
+        Ok(Self(Arc::new(Storage::load_read_only(path.graph_path()?)?)))
+    }
+
+    #[cfg(feature = "io")]
+    pub fn load_read_only_with_config(
+        path: &(impl GraphPaths + ?Sized),
+        config: Config,
+    ) -> Result<Self, GraphError> {
+        Ok(Self(Arc::new(Storage::load_read_only_with_config(
+            path.graph_path()?,
+            config,
+        )?)))
+    }
+
     pub fn from_storage(storage: Arc<Storage>) -> Self {
         Self(storage)
     }
 
     pub fn from_internal_graph(internal_graph: GraphStorage) -> Self {
         Self(Arc::new(Storage::from_inner(internal_graph)))
+    }
+
+    /// Return a read-only handle to this graph. Mutations on the returned
+    /// graph fail with `Immutable::ReadLockedImmutable`. The underlying
+    /// `TemporalGraph` is shared — this is not a snapshot.
+    ///
+    /// **Warning**: while a read-only handle is live, writes through the
+    /// original `PersistentGraph` will block on the per-segment read locks
+    /// the handle holds. Drop the read-only handle before mutating the
+    /// original.
+    pub fn read_only(&self) -> Self {
+        Self(Arc::new(self.0.read_only()))
     }
 
     /// Get event graph
@@ -245,6 +280,10 @@ impl InheritCoreGraphOps for PersistentGraph {}
 
 impl InheritPropertiesOps for PersistentGraph {}
 
+impl InheritNodePropertySchemaOps for PersistentGraph {}
+
+impl InheritEdgePropertySchemaOps for PersistentGraph {}
+
 impl InheritLayerOps for PersistentGraph {}
 
 impl InheritAllEdgeFilterOps for PersistentGraph {}
@@ -258,6 +297,10 @@ impl GraphTimeSemanticsOps for PersistentGraph {
 
     fn edge_time_semantics(&self) -> TimeSemantics {
         TimeSemantics::persistent()
+    }
+    #[inline]
+    fn window_filtered(&self) -> bool {
+        false
     }
 
     fn view_start(&self) -> Option<EventTime> {

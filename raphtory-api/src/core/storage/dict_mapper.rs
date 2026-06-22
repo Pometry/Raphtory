@@ -1,5 +1,5 @@
 use crate::core::{
-    entities::properties::meta::STATIC_GRAPH_LAYER,
+    entities::properties::meta::STATIC_GRAPH_LAYER_NAME,
     storage::{arc_str::ArcStr, ArcRwLockReadGuard},
 };
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
@@ -8,16 +8,27 @@ use serde::{Deserialize, Serialize};
 use std::{
     borrow::{Borrow, BorrowMut},
     collections::hash_map::Entry,
+    fmt::{Debug, Formatter},
     hash::Hash,
     ops::{Deref, DerefMut},
     sync::Arc,
 };
 
-#[derive(Serialize, Deserialize, Default, Debug, Clone)]
+#[derive(Serialize, Deserialize, Default, Clone)]
 pub struct DictMapper {
     map: Arc<RwLock<FxHashMap<ArcStr, usize>>>,
     reverse_map: Arc<RwLock<Vec<ArcStr>>>,
     num_private_fields: usize,
+}
+
+impl Debug for DictMapper {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str("{")?;
+        for (k, v) in self.all_keys().iter().zip(self.all_ids()) {
+            write!(f, "{k}: {v}, ")?;
+        }
+        f.write_str("}")
+    }
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -192,7 +203,7 @@ impl DictMapper {
     }
 
     pub fn new_layer_mapper() -> Self {
-        Self::new_with_private_fields([STATIC_GRAPH_LAYER])
+        Self::new_with_private_fields([STATIC_GRAPH_LAYER_NAME])
     }
 
     pub fn new_with_private_fields(fields: impl IntoIterator<Item = impl Into<ArcStr>>) -> Self {
@@ -466,7 +477,7 @@ mod test {
     }
 
     #[test]
-    fn check_dict_mapper_concurrent_write() {
+    fn check_dict_mapper_concurrent_write_proptest() {
         proptest!(|(write: Vec<String>)| {
             let n = 100;
             let mapper: DictMapper = DictMapper::default();

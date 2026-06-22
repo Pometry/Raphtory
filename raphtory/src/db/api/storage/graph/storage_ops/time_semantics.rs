@@ -5,7 +5,10 @@ use crate::{
     prelude::Prop,
 };
 use raphtory_api::{
-    core::{entities::properties::tprop::TPropOps, storage::timeindex::EventTime},
+    core::{
+        entities::{properties::tprop::TPropOps, LayerIds},
+        storage::timeindex::EventTime,
+    },
     iter::{BoxedLIter, IntoDynBoxed},
 };
 use raphtory_core::utils::iter::GenLockedIter;
@@ -24,6 +27,11 @@ impl GraphTimeSemanticsOps for GraphStorage {
 
     fn edge_time_semantics(&self) -> TimeSemantics {
         TimeSemantics::event()
+    }
+
+    #[inline]
+    fn window_filtered(&self) -> bool {
+        false
     }
 
     fn view_start(&self) -> Option<EventTime> {
@@ -56,7 +64,7 @@ impl GraphTimeSemanticsOps for GraphStorage {
         self.nodes()
             .par_iter()
             .flat_map_iter(|node| {
-                node.additions()
+                node.node_prop_additions(&LayerIds::All)
                     .range(start..end)
                     .first_t()
                     .into_iter()
@@ -73,7 +81,7 @@ impl GraphTimeSemanticsOps for GraphStorage {
         self.nodes()
             .par_iter()
             .flat_map_iter(|node| {
-                node.additions()
+                node.node_prop_additions(ALL_LAYERS.clone())
                     .range(start..end)
                     .last_t()
                     .into_iter()

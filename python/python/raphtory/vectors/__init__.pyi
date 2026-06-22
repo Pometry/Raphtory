@@ -15,13 +15,17 @@ import raphtory.filter as filter
 from raphtory.algorithms import *
 from raphtory.node_state import *
 from raphtory.graphql import *
+from raphtory.gql import *
 from raphtory.typing import *
 import numpy as np
 from numpy.typing import NDArray
 from datetime import datetime
+import pandas
 from pandas import DataFrame
+import pyarrow  # type: ignore[import-untyped]
 from pyarrow import DataType  # type: ignore[import-untyped]
 from os import PathLike
+from decimal import Decimal
 import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 from raphtory.iterables import *
@@ -33,6 +37,8 @@ __all__ = [
     "VectorSelection",
     "OpenAIEmbeddings",
     "VectorCache",
+    "EmbeddingServer",
+    "RunningEmbeddingServer",
     "embedding_server",
 ]
 
@@ -57,8 +63,13 @@ class VectorisedGraph(object):
           VectorSelection: The vector selection resulting from the search.
         """
 
-    def empty_selection(self):
-        """Return an empty selection of entities."""
+    def empty_selection(self) -> VectorSelection:
+        """
+        Return an empty selection of entities.
+
+        Returns:
+            VectorSelection:
+        """
 
     def entities_by_similarity(
         self,
@@ -96,8 +107,13 @@ class VectorisedGraph(object):
           VectorSelection: The vector selection resulting from the search.
         """
 
-    def optimize_index(self):
-        """Optmize the vector index"""
+    def optimize_index(self) -> None:
+        """
+        Optimise the vector index.
+
+        Returns:
+            None:
+        """
 
 class Document(object):
     """A document corresponding to a graph entity. Used to generate embeddings."""
@@ -136,7 +152,13 @@ class Embedding(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def to_arrow(self): ...
+    def to_arrow(self) -> pyarrow.Array:
+        """
+        Returns the embedding as a `pyarrow.Array` of floats.
+
+        Returns:
+            pyarrow.Array:
+        """
 
 class VectorSelection(object):
     def add_edges(self, edges: list) -> None:
@@ -295,19 +317,89 @@ class VectorSelection(object):
         """
 
 class OpenAIEmbeddings(object):
+    """
+    OpenAI-compatible embedding configuration. Pass an instance of this to
+    `VectorCache(...)` to drive `vectorise(...)`.
+
+    Arguments:
+        model (str): The OpenAI embedding model to use. Defaults to "text-embedding-3-small".
+        api_base (str, optional): Base URL for the OpenAI-compatible API. If None, falls back to OpenAI's default endpoint. Defaults to None.
+        api_key_env (str, optional): Environment variable name to read the API key from. If None, reads from `OPENAI_API_KEY`. Defaults to None.
+        org_id (str, optional): OpenAI organization id. If None, no org id is sent. Defaults to None.
+        project_id (str, optional): OpenAI project id. If None, no project id is sent. Defaults to None.
+        dim (int, optional): Embedding dimension override. If None, the model's native dimension is used. Defaults to None.
+    """
+
     def __new__(
         cls,
-        model="text-embedding-3-small",
-        api_base=None,
-        api_key_env=None,
-        org_id=None,
-        project_id=None,
-        dim=None,
+        model: str = "text-embedding-3-small",
+        api_base: Optional[str] = None,
+        api_key_env: Optional[str] = None,
+        org_id: Optional[str] = None,
+        project_id: Optional[str] = None,
+        dim: Optional[int] = None,
     ) -> OpenAIEmbeddings:
         """Create and return a new object.  See help(type) for accurate signature."""
 
 class VectorCache(object):
-    def __new__(cls, v_cache, cache=None) -> VectorCache:
+    """
+    Cache wrapping an embedding model. Pass to `Graph.vectorise(model=...)`
+    or other vectorisation entry points.
+
+    Arguments:
+        v_cache (OpenAIEmbeddings): Embedding model configuration.
+        cache (str, optional): Path to persist the embedding cache on disk. Defaults to None.
+    """
+
+    def __new__(
+        cls, v_cache: OpenAIEmbeddings, cache: Optional[str] = None
+    ) -> VectorCache:
         """Create and return a new object.  See help(type) for accurate signature."""
 
-def embedding_server(function): ...
+class EmbeddingServer(object):
+    def run(self, port: int, host: Optional[str] = None) -> None:
+        """
+        Run the embedding server in the foreground until it's stopped.
+
+        Arguments:
+            port (int): Port to listen on.
+            host (str, optional): Host interface to bind to. Defaults to None.
+
+        Returns:
+            None:
+        """
+
+    def start(self, port: int, host: Optional[str] = None) -> RunningEmbeddingServer:
+        """
+        Start the embedding server in the background and return a handle.
+
+        Arguments:
+            port (int): Port to listen on.
+            host (str, optional): Host interface to bind to. Defaults to None.
+
+        Returns:
+            RunningEmbeddingServer: handle to stop the server.
+        """
+
+class RunningEmbeddingServer(object):
+    def __enter__(self): ...
+    def __exit__(self, _exc_type, _exc_val, _exc_tb): ...
+    def stop(self) -> None:
+        """
+        Stop the running embedding server.
+
+        Returns:
+            None:
+        """
+
+def embedding_server(function: Callable[[str], list[float]]) -> EmbeddingServer:
+    """
+    Wrap a Python callable so it can be served as an OpenAI-compatible
+    embedding endpoint via `EmbeddingServer.serve(...)`.
+
+    Arguments:
+        function (Callable[[str], list[float]]): A callable that maps a text input to its embedding vector.
+
+    Returns:
+        EmbeddingServer:
+    """

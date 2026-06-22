@@ -85,6 +85,7 @@ pub fn base_node_state_module(py: Python<'_>) -> PyResult<Bound<'_, PyModule>> {
         NodeStateSEIR,
         NodeLayout,
         NodeStateF64String,
+        PyOutputNodeState,
     );
     Ok(m)
 }

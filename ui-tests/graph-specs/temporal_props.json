@@ -1,0 +1,40 @@
+{
+    "graphType": "EVENT",
+    "nodes": [
+        {
+            "time": 1648598400000,
+            "name": "Ben",
+            "nodeType": "Person",
+            "properties": { "status": "joined" }
+        },
+        {
+            "time": 1656288000000,
+            "name": "Ben",
+            "properties": { "status": "active" }
+        },
+        {
+            "time": 1663977600000,
+            "name": "Ben",
+            "properties": { "status": "promoted" }
+        },
+        {
+            "time": 1648598400000,
+            "name": "Hamza",
+            "nodeType": "Person",
+            "properties": { "status": "joined" }
+        },
+        {
+            "time": 1663977600000,
+            "name": "Hamza",
+            "properties": { "status": "active" }
+        }
+    ],
+    "edges": [
+        {
+            "time": 1671667200000,
+            "src": "Ben",
+            "dst": "Hamza",
+            "layer": "meets"
+        }
+    ]
+}

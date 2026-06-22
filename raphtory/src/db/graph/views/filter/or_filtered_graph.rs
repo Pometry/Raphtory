@@ -1,6 +1,8 @@
 use crate::{
     db::api::{
-        properties::internal::InheritPropertiesOps,
+        properties::internal::{
+            InheritEdgePropertySchemaOps, InheritNodePropertySchemaOps, InheritPropertiesOps,
+        },
         view::internal::{
             Immutable, InheritLayerOps, InheritListOps, InheritMaterialize, InheritStorageOps,
             InheritTimeSemantics, InternalEdgeFilterOps, InternalEdgeLayerFilterOps,
@@ -45,6 +47,14 @@ impl<'graph, G: GraphViewOps<'graph>, L, R> InheritLayerOps for OrFilteredGraph<
 impl<'graph, G: GraphViewOps<'graph>, L, R> InheritListOps for OrFilteredGraph<G, L, R> {}
 impl<'graph, G: GraphViewOps<'graph>, L, R> InheritMaterialize for OrFilteredGraph<G, L, R> {}
 impl<'graph, G: GraphViewOps<'graph>, L, R> InheritPropertiesOps for OrFilteredGraph<G, L, R> {}
+impl<'graph, G: GraphViewOps<'graph>, L, R> InheritNodePropertySchemaOps
+    for OrFilteredGraph<G, L, R>
+{
+}
+impl<'graph, G: GraphViewOps<'graph>, L, R> InheritEdgePropertySchemaOps
+    for OrFilteredGraph<G, L, R>
+{
+}
 impl<'graph, G: GraphViewOps<'graph>, L, R> InheritTimeSemantics for OrFilteredGraph<G, L, R> {}
 
 impl<G, L: InternalNodeFilterOps, R: InternalNodeFilterOps> InternalNodeFilterOps

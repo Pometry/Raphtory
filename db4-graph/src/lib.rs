@@ -142,12 +142,30 @@ where
     }
 
     pub fn load(path: impl AsRef<Path>, ext: EXT) -> Result<Self, StorageError> {
+        Self::load_inner(path, ext, false)
+    }
+
+    /// Load a graph as a read-only snapshot. Multiple read-only handles can
+    /// attach to the same graph directory concurrently and writes on the
+    /// returned instance are rejected.
+    ///
+    /// The caller is responsible for skipping crash recovery — see
+    /// `Storage::load_read_only`.
+    pub fn load_read_only(path: impl AsRef<Path>, ext: EXT) -> Result<Self, StorageError> {
+        Self::load_inner(path, ext, true)
+    }
+
+    fn load_inner(path: impl AsRef<Path>, ext: EXT, read_only: bool) -> Result<Self, StorageError> {
         let path = path.as_ref();
         let storage = Layer::load(path, ext)?;
         let id_type = storage.nodes().id_type();
 
         let gid_resolver_dir = path.join("gid_resolver");
-        let resolver = GIDResolver::new_with_path(&gid_resolver_dir, id_type)?;
+        let resolver = if read_only {
+            GIDResolver::new_readonly_with_path(&gid_resolver_dir, id_type)?
+        } else {
+            GIDResolver::new_with_path(&gid_resolver_dir, id_type)?
+        };
 
         Ok(Self {
             graph_dir: Some(path.into()),
@@ -161,6 +179,11 @@ where
     pub fn flush(&self) -> Result<(), StorageError> {
         self.storage.flush()?;
         self.logical_to_physical.flush()
+    }
+
+    pub fn vacuum(&self) -> Result<(), StorageError> {
+        self.storage.vacuum()?;
+        Ok(())
     }
 
     pub fn disk_storage_path(&self) -> Option<&Path> {
@@ -402,7 +425,7 @@ where
         WriteLockedGraph::new(self)
     }
 
-    pub fn update_time(&self, earliest: EventTime) {
+    pub fn update_time(&self, _earliest: EventTime) {
         // self.storage.update_time(earliest);
     }
 }

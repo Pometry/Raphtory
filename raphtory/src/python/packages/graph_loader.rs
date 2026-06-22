@@ -119,7 +119,7 @@ pub fn stable_coin_graph(path: Option<String>, subset: Option<bool>) -> PyResult
 ///     uri (str):
 ///     username (str):
 ///     password (str):
-///     database (str):
+///     database (str): Neo4j database name. Defaults to "neo4j".
 ///
 /// Returns:
 ///     Graph:

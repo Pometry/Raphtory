@@ -112,6 +112,6 @@ mod tests {
         let edge_count = graph.edges().into_iter().count();
         let node_count = graph.nodes().id().iter_values().count();
         assert_eq!(node_count, n_nodes);
-        assert_eq!(edge_count, (n_nodes * (n_nodes - 1)));
+        assert_eq!(edge_count, n_nodes * (n_nodes - 1));
     }
 }

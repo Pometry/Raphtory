@@ -15,7 +15,6 @@ use pyo3::prelude::*;
 use raphtory_api::core::entities::properties::meta::PropMapper;
 
 #[pyclass(name = "IndexSpec", module = "raphtory", frozen)]
-#[derive(Clone)]
 pub struct PyIndexSpec {
     pub(crate) graph: DynamicGraph,
     pub(crate) spec: IndexSpec,
@@ -107,7 +106,6 @@ impl PyIndexSpec {
 }
 
 #[pyclass(name = "IndexSpecBuilder", module = "raphtory")]
-#[derive(Clone)]
 pub struct PyIndexSpecBuilder {
     builder: IndexSpecBuilder<MaterializedGraph>,
 }

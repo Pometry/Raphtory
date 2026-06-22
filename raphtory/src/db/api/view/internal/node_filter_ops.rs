@@ -40,6 +40,11 @@ pub trait InternalNodeFilterOps {
 
     /// If `true`, node is included in the graph
     fn internal_filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool;
+
+    #[inline]
+    fn node_filter_includes_window_filter(&self) -> bool {
+        false
+    }
 }
 
 pub trait InheritNodeFilterOps: Base {}
@@ -76,5 +81,10 @@ where
     #[inline]
     fn internal_filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
         self.base().internal_filter_node(node, layer_ids)
+    }
+
+    #[inline]
+    fn node_filter_includes_window_filter(&self) -> bool {
+        self.base().node_filter_includes_window_filter()
     }
 }

@@ -2,7 +2,9 @@ use crate::{
     db::{
         api::{
             properties::internal::{
+                EdgePropertySchemaOps, InheritEdgePropertySchemaOps, InheritNodePropertySchemaOps,
                 InheritPropertiesOps, InternalMetadataOps, InternalPropertiesOps,
+                NodePropertySchemaOps,
             },
             storage::storage::Storage,
         },
@@ -56,6 +58,8 @@ pub trait BoxableGraphView:
     + InternalPropertiesOps
     + InternalMetadataOps
     + InternalStorageOps
+    + NodePropertySchemaOps
+    + EdgePropertySchemaOps
     + Send
     + Sync
 {
@@ -74,6 +78,8 @@ impl<
             + InternalPropertiesOps
             + InternalMetadataOps
             + InternalStorageOps
+            + NodePropertySchemaOps
+            + EdgePropertySchemaOps
             + Send
             + Sync,
     > BoxableGraphView for G
@@ -95,6 +101,9 @@ impl<G: InheritViewOps + CoreGraphOps> InheritTimeSemantics for G {}
 impl<G: InheritViewOps> InheritMaterialize for G {}
 
 impl<G: InheritViewOps> InheritPropertiesOps for G {}
+
+impl<G: InheritViewOps> InheritNodePropertySchemaOps for G {}
+impl<G: InheritViewOps> InheritEdgePropertySchemaOps for G {}
 
 pub trait InheritStorageOps: Base {}
 
@@ -219,13 +228,13 @@ impl InheritNodeHistoryFilter for DynamicGraph {}
 
 impl InheritEdgeHistoryFilter for DynamicGraph {}
 
-impl<'graph1, 'graph2: 'graph1, G: GraphViewOps<'graph2>> InheritViewOps for &'graph1 G {}
+impl<'graph1, 'graph2: 'graph1, G: GraphView + 'graph2> InheritViewOps for &'graph1 G {}
 
-impl<'graph1, 'graph2: 'graph1, G: GraphViewOps<'graph2>> InheritStorageOps for &'graph1 G {}
+impl<'graph1, 'graph2: 'graph1, G: GraphView + 'graph2> InheritStorageOps for &'graph1 G {}
 
-impl<'graph1, 'graph2: 'graph1, G: GraphViewOps<'graph2>> InheritNodeHistoryFilter for &'graph1 G {}
+impl<'graph1, 'graph2: 'graph1, G: GraphView + 'graph2> InheritNodeHistoryFilter for &'graph1 G {}
 
-impl<'graph1, 'graph2: 'graph1, G: GraphViewOps<'graph2>> InheritEdgeHistoryFilter for &'graph1 G {}
+impl<'graph1, 'graph2: 'graph1, G: GraphView + 'graph2> InheritEdgeHistoryFilter for &'graph1 G {}
 
 #[cfg(test)]
 mod test {

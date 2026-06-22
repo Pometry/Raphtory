@@ -24,7 +24,8 @@ use arrow::{
     row::{RowConverter, SortField},
 };
 use arrow_array::{
-    builder::UInt64Builder, Array, ArrayRef, RecordBatch, StringArray, UInt32Array, UInt64Array,
+    builder::UInt64Builder, Array, ArrayRef, LargeStringArray, RecordBatch, UInt32Array,
+    UInt64Array,
 };
 use arrow_schema::{ArrowError, DataType, Field, FieldRef, Schema, SchemaBuilder, SortOptions};
 use arrow_select::{concat::concat, take::take};
@@ -42,7 +43,7 @@ use parquet::{
 use raphtory_api::core::entities::{
     properties::{
         meta::STATIC_GRAPH_LAYER_ID,
-        prop::{Prop, PropType, PropUntagged, PropUnwrap},
+        prop::{Prop, PropUntagged, PropUnwrap},
     },
     LayerIds,
 };
@@ -56,7 +57,7 @@ use serde_arrow::{
 use std::{
     cmp::{Ordering, PartialEq},
     collections::{BinaryHeap, HashMap},
-    fmt::{Debug, Formatter, Pointer},
+    fmt::{Debug, Formatter},
     fs::File,
     hash::BuildHasher,
     marker::PhantomData,
@@ -508,7 +509,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
                 .iter()
                 .map(|(_, gid)| gid.to_string())
                 .collect();
-            let ids_array = Arc::new(StringArray::from(ids)) as ArrayRef;
+            let ids_array = Arc::new(LargeStringArray::from(ids)) as ArrayRef;
 
             let mut builder = SchemaBuilder::new();
             for field in &self.values.schema().fields().clone() {
@@ -516,7 +517,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
             }
             builder.push(Arc::new(Field::new(
                 id_column.unwrap(),
-                DataType::Utf8,
+                DataType::LargeUtf8,
                 false,
             )));
             schema = Arc::new(Schema::new(builder.finish().fields));

@@ -54,8 +54,8 @@ def make_props2():
 
 def test_add_updates():
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
         client.new_graph("path/to/event_graph", "EVENT")
         rg = client.remote_graph("path/to/event_graph")
         props = make_props()
@@ -78,8 +78,8 @@ def test_add_updates():
 
 def test_add_metadata():
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
         client.new_graph("path/to/event_graph", "EVENT")
         rg = client.remote_graph("path/to/event_graph")
         props = make_props()
@@ -100,8 +100,8 @@ def test_add_metadata():
 
 def test_update_metadata():
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
         client.new_graph("path/to/event_graph", "EVENT")
         rg = client.remote_graph("path/to/event_graph")
         props = make_props()
@@ -122,8 +122,8 @@ def test_update_metadata():
 
 def test_delete():
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
         client.new_graph("path/to/event_graph", "EVENT")
         rg = client.remote_graph("path/to/event_graph")
 
@@ -139,5 +139,5 @@ def test_delete():
         edge = rg.add_edge(1, "ben", "lucas", layer="colleagues")
         edge.delete(2, layer="colleagues")
         g = client.receive_graph("path/to/persistent_graph")
-        assert g.edge("ben", "hamza").deletions == [(2, 1)]
-        assert g.edge("ben", "lucas").deletions == [(2, 3)]
+        assert g.edge("ben", "hamza").deletions.t == [2]
+        assert g.edge("ben", "lucas").deletions.t == [2]

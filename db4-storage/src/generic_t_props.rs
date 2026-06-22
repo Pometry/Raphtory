@@ -85,7 +85,7 @@ impl<'a, Ref: WithTProps<'a>> GenericTProps<'a, Ref> {
 }
 
 impl<'a, Ref: WithTProps<'a>> GenericTProps<'a, Ref> {
-    #[box_on_debug_lifetime]
+    #[inline]
     fn tprops(self, prop_id: usize) -> impl Iterator<Item = Ref::TProp> + Send + Sync + 'a {
         match self.layer_id {
             Either::Left(layer_ids) => {
@@ -102,6 +102,20 @@ impl<'a, Ref: WithTProps<'a>> TPropOps<'a> for GenericTProps<'a, Ref> {
     fn last_before(&self, t: EventTime) -> Option<(EventTime, Prop)> {
         self.tprops(self.prop_id)
             .filter_map(|t_props| t_props.last_before(t))
+            .max_by_key(|(t, _)| *t)
+    }
+
+    #[inline]
+    fn last_window(&self, w: Range<EventTime>) -> Option<(EventTime, Prop)> {
+        self.tprops(self.prop_id)
+            .filter_map(|t_props| t_props.last_window(w.clone()))
+            .max_by_key(|(t, _)| *t)
+    }
+
+    #[inline]
+    fn last(&self) -> Option<(EventTime, Prop)> {
+        self.tprops(self.prop_id)
+            .filter_map(|t_props| t_props.last())
             .max_by_key(|(t, _)| *t)
     }
 
@@ -126,8 +140,6 @@ impl<'a, Ref: WithTProps<'a>> TPropOps<'a> for GenericTProps<'a, Ref> {
     }
 
     fn at(&self, ti: &EventTime) -> Option<Prop> {
-        self.tprops(self.prop_id)
-            .flat_map(|t_props| t_props.at(ti))
-            .next() // TODO: need to figure out how to handle this
+        self.tprops(self.prop_id).find_map(|t_props| t_props.at(ti))
     }
 }

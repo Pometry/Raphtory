@@ -57,6 +57,8 @@ impl InheritLayerOps for MaterializedGraph {}
 impl InheritListOps for MaterializedGraph {}
 
 impl InheritPropertiesOps for MaterializedGraph {}
+impl InheritNodePropertySchemaOps for MaterializedGraph {}
+impl InheritEdgePropertySchemaOps for MaterializedGraph {}
 
 impl InheritNodeFilterOps for MaterializedGraph {}
 impl InheritAllEdgeFilterOps for MaterializedGraph {}
@@ -148,6 +150,11 @@ impl GraphTimeSemanticsOps for MaterializedGraph {
 
     fn edge_time_semantics(&self) -> TimeSemantics {
         for_all!(self, g => g.edge_time_semantics())
+    }
+
+    #[inline]
+    fn window_filtered(&self) -> bool {
+        false
     }
 
     fn view_start(&self) -> Option<EventTime> {

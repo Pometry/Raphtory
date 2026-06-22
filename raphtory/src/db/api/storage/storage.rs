@@ -13,28 +13,28 @@ use raphtory_api::core::{
             meta::Meta,
             prop::{AsPropRef, Prop, PropType},
         },
-        GidRef, LayerId, EID, VID,
+        GidRef, LayerId, LayerIds, EID, VID,
     },
     storage::{dict_mapper::MaybeNew, timeindex::EventTime},
 };
 use raphtory_storage::{
     core_ops::InheritCoreGraphOps,
-    graph::graph::GraphStorage,
+    graph::{graph::GraphStorage, locked::LockedGraph},
     layer_ops::InheritLayerOps,
     mutation::{
         addition_ops::{EdgeWriteLock, InternalAdditionOps, SessionAdditionOps},
         addition_ops_ext::{AtomicAddEdge, AtomicAddNode, UnlockedSession},
-        durability_ops::DurabilityOps,
         property_addition_ops::InternalPropertyAdditionOps,
         EdgeWriterT, GraphPropWriterT, NodeWriterT,
     },
+    recovery_ops::RecoveryOps,
 };
 use std::{
     fmt::{Display, Formatter},
     path::Path,
     sync::Arc,
 };
-use storage::wal::{GraphWalOps, WalOps, LSN};
+use storage::wal::LSN;
 
 #[cfg(feature = "search")]
 use {
@@ -43,7 +43,6 @@ use {
         search::graph_index::{GraphIndex, MutableGraphIndex},
         serialise::{GraphFolder, GraphPaths},
     },
-    either::Either,
     parking_lot::RwLock,
     raphtory_api::core::entities::properties::prop::IntoProp,
     raphtory_storage::core_ops::CoreGraphOps,
@@ -56,13 +55,30 @@ use {
 };
 
 // Re-export for raphtory dependencies to use when creating graphs.
-pub use storage::{persist::strategy::PersistenceStrategy, Config, Extension};
+pub use storage::{
+    persist::strategy::PersistenceStrategy, read_constant_graph_properties, Config, Extension,
+};
 
 #[derive(Debug, Default)]
 pub struct Storage {
     graph: GraphStorage,
     #[cfg(feature = "search")]
     pub(crate) index: RwLock<GraphIndex>,
+}
+
+#[cfg(feature = "io")]
+impl Drop for Storage {
+    fn drop(&mut self) {
+        if let Some(disk_path) = self.graph.disk_storage_path() {
+            let disk_path = disk_path.to_path_buf();
+            let node_count = self.graph.unfiltered_num_nodes(&LayerIds::All);
+            let edge_count = self.graph.unfiltered_num_edges(&LayerIds::All);
+            // Drop must not panic - ignore any error refreshing the metadata
+            // file. The graph data itself is already persisted by the storage
+            // layer so a stale `.meta` only affects node and edge counts (for now).
+            let _ = storage::refresh_disk_graph_metadata(&disk_path, node_count, edge_count);
+        }
+    }
 }
 
 impl From<GraphStorage> for Storage {
@@ -93,14 +109,10 @@ impl Base for Storage {
 const IN_MEMORY_INDEX_NOT_PERSISTED: &str = "In-memory index not persisted. Not supported";
 
 impl Storage {
-    pub(crate) fn new() -> Self {
-        Self {
-            graph: GraphStorage::Unlocked(Arc::new(TemporalGraph::default())),
-            #[cfg(feature = "search")]
-            index: RwLock::new(GraphIndex::Empty),
-        }
+    #[cfg(feature = "search")]
+    pub fn index(&self) -> &RwLock<GraphIndex> {
+        &self.index
     }
-
     pub(crate) fn new_at_path(path: impl AsRef<Path>) -> Result<Self, GraphError> {
         let config = Config::default();
         let ext = Extension::new(config, Some(path.as_ref()))?;
@@ -139,13 +151,9 @@ impl Storage {
 
     fn load_with_extension(path: &Path, ext: Extension) -> Result<Self, GraphError> {
         let temporal_graph = TemporalGraph::load(path, ext)?;
-        let wal = temporal_graph.wal()?;
 
-        // Replay any pending writes from the WAL.
-        if wal.has_entries()? {
-            let mut write_locked_graph = temporal_graph.write_lock()?;
-            wal.replay_to_graph(&mut write_locked_graph)?;
-        }
+        // Run crash recovery if needed.
+        temporal_graph.run_recovery()?;
 
         Ok(Self {
             graph: GraphStorage::Unlocked(Arc::new(temporal_graph)),
@@ -154,16 +162,55 @@ impl Storage {
         })
     }
 
+    fn load_read_only_with_extension(path: &Path, ext: Extension) -> Result<Self, GraphError> {
+        // Skip crash recovery: recovery mutates the graph and is unsafe
+        // when other handles are attached to the same directory.
+        let temporal_graph = TemporalGraph::load_read_only(path, ext)?;
+
+        // `LockedGraph` holds read locks on the underlying segments, so
+        // every mutation entry point that goes through
+        // `GraphStorage::mutable()?` errors with `ReadLockedImmutable`.
+        let locked = LockedGraph::new(Arc::new(temporal_graph));
+
+        Ok(Self {
+            graph: GraphStorage::Mem(locked),
+            #[cfg(feature = "search")]
+            index: RwLock::new(GraphIndex::Empty),
+        })
+    }
+
     pub fn load(path: impl AsRef<Path>) -> Result<Self, GraphError> {
         let path = path.as_ref();
         let ext = Extension::load(path)?;
+
         Self::load_with_extension(path, ext)
     }
 
     pub fn load_with_config(path: impl AsRef<Path>, config: Config) -> Result<Self, GraphError> {
         let path = path.as_ref();
         let ext = Extension::load_with_config(path, config)?;
+
         Self::load_with_extension(path, ext)
+    }
+
+    /// Load the graph as a read-only snapshot — multiple processes can open
+    /// the same graph directory concurrently. Mutating operations on the
+    /// returned graph will return errors from the underlying storage.
+    pub fn load_read_only(path: impl AsRef<Path>) -> Result<Self, GraphError> {
+        let path = path.as_ref();
+        let ext = Extension::load(path)?;
+
+        Self::load_read_only_with_extension(path, ext)
+    }
+
+    pub fn load_read_only_with_config(
+        path: impl AsRef<Path>,
+        config: Config,
+    ) -> Result<Self, GraphError> {
+        let path = path.as_ref();
+        let ext = Extension::load_with_config(path, config)?;
+
+        Self::load_read_only_with_extension(path, ext)
     }
 
     pub(crate) fn from_inner(graph: GraphStorage) -> Self {
@@ -171,6 +218,19 @@ impl Storage {
             graph,
             #[cfg(feature = "search")]
             index: RwLock::new(GraphIndex::Empty),
+        }
+    }
+
+    /// Produce a read-only handle backed by the same `TemporalGraph` as
+    /// this storage. Mutations on the returned `Storage` return
+    /// `Immutable::ReadLockedImmutable`. The handle holds read locks on
+    /// every segment, so writers on the original `Storage` will block
+    /// until the read-only handle is dropped — this is not a snapshot.
+    pub fn read_only(&self) -> Self {
+        Self {
+            graph: self.graph.lock(),
+            #[cfg(feature = "search")]
+            index: RwLock::new(self.index.read().clone()),
         }
     }
 
@@ -277,7 +337,7 @@ impl Storage {
         &self.index
     }
 
-    pub(crate) fn is_indexed(&self) -> bool {
+    pub fn is_indexed(&self) -> bool {
         self.index.read_recursive().is_indexed()
     }
 
@@ -334,12 +394,10 @@ impl InheritViewOps for Storage {}
 #[derive(Clone)]
 pub struct StorageWriteSession<'a> {
     session: UnlockedSession<'a>,
-    storage: &'a Storage,
 }
 
 pub struct AtomicAddEdgeSession<'a> {
     session: AtomicAddEdge<'a, Extension>,
-    storage: &'a Storage,
 }
 
 impl EdgeWriteLock for AtomicAddEdgeSession<'_> {
@@ -489,10 +547,7 @@ impl InternalAdditionOps for Storage {
 
     fn write_session(&self) -> Result<Self::WS<'_>, Self::Error> {
         let session = self.graph.write_session()?;
-        Ok(StorageWriteSession {
-            session,
-            storage: self,
-        })
+        Ok(StorageWriteSession { session })
     }
 
     fn atomic_add_edge(
@@ -502,10 +557,7 @@ impl InternalAdditionOps for Storage {
         e_id: Option<EID>,
     ) -> Result<Self::AtomicAddEdge<'_>, Self::Error> {
         let session = self.graph.atomic_add_edge(src, dst, e_id)?;
-        Ok(AtomicAddEdgeSession {
-            session,
-            storage: self,
-        })
+        Ok(AtomicAddEdgeSession { session })
     }
 
     fn internal_add_node(

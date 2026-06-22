@@ -75,6 +75,10 @@ pub trait InternalEdgeFilterOps {
     fn edge_layer_filter_includes_edge_filter(&self) -> bool {
         false
     }
+
+    fn edge_filter_includes_window_filter(&self) -> bool {
+        false
+    }
 }
 
 pub trait InheritAllEdgeFilterOps: Base {}
@@ -99,6 +103,18 @@ impl<G: InheritEdgeFilterOps<Base: InternalEdgeFilterOps>> InternalEdgeFilterOps
     #[inline]
     fn node_filter_includes_edge_filter(&self) -> bool {
         self.base().node_filter_includes_edge_filter()
+    }
+
+    fn exploded_edge_filter_includes_edge_filter(&self) -> bool {
+        self.base().exploded_edge_filter_includes_edge_filter()
+    }
+
+    fn edge_layer_filter_includes_edge_filter(&self) -> bool {
+        self.base().edge_layer_filter_includes_edge_filter()
+    }
+
+    fn edge_filter_includes_window_filter(&self) -> bool {
+        self.base().edge_filter_includes_window_filter()
     }
 }
 

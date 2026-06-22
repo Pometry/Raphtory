@@ -1,4 +1,4 @@
-use std::ops::Range;
+use std::{ops::Range, sync::Arc};
 
 use crate::graph::nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps};
 use raphtory_api::core::{
@@ -84,10 +84,6 @@ impl<'a, 'b: 'a> NodeStorageOps<'a> for &'a NodeStorageEntry<'b> {
         self.as_ref().degree(layers, dir)
     }
 
-    fn additions(self) -> storage::NodePropAdditions<'a> {
-        self.as_ref().additions()
-    }
-
     fn edges_iter(
         self,
         layers: &LayerIds,
@@ -130,8 +126,9 @@ impl<'a, 'b: 'a> NodeStorageOps<'a> for &'a NodeStorageEntry<'b> {
     fn temp_prop_rows_range(
         self,
         w: Option<Range<EventTime>>,
+        prop_ids: Arc<[usize]>,
     ) -> impl Iterator<Item = (EventTime, usize, Vec<(usize, Prop)>)> {
-        self.as_ref().temp_prop_rows_range(w)
+        self.as_ref().temp_prop_rows_range(w, prop_ids)
     }
 
     fn tprop(self, prop_id: usize) -> storage::NodeTProps<'a> {
@@ -142,8 +139,11 @@ impl<'a, 'b: 'a> NodeStorageOps<'a> for &'a NodeStorageEntry<'b> {
         self.as_ref().num_layers()
     }
 
-    fn node_additions<L: Into<LayerIter<'a>>>(self, layer_id: L) -> storage::NodePropAdditions<'a> {
-        self.as_ref().node_additions(layer_id)
+    fn node_prop_additions<L: Into<LayerIter<'a>>>(
+        self,
+        layer_id: L,
+    ) -> storage::NodePropAdditions<'a> {
+        self.as_ref().node_prop_additions(layer_id)
     }
 
     fn node_edge_additions<L: Into<LayerIter<'a>>>(

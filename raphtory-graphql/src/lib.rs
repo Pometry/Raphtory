@@ -1,24 +1,36 @@
-pub use crate::server::GraphServer;
+#![recursion_limit = "256"]
+
+pub use crate::{
+    auth::{require_jwt_write_access_dynamic, Access},
+    model::graph::filtering::GraphAccessFilter,
+    server::GraphServer,
+};
 use crate::{data::InsertionError, paths::PathValidationError};
+pub use raphtory::db::graph::views::{PropertyRedactedGraph, PropertyRedaction};
 use raphtory::errors::GraphError;
 use std::sync::Arc;
 
 mod auth;
+pub mod auth_policy;
+pub mod cache;
+pub mod cli;
 pub mod client;
+pub mod config;
 pub mod data;
 mod graph;
 pub mod model;
 pub mod observability;
 mod paths;
+pub mod rayon;
 mod routes;
 pub mod server;
 pub mod url_encode;
 
-pub mod cli;
-pub mod config;
 #[cfg(feature = "python")]
 pub mod python;
-pub mod rayon;
+
+#[cfg(test)]
+pub(crate) mod test_support;
 
 #[derive(thiserror::Error, Debug)]
 pub enum GQLError {
@@ -26,11 +38,8 @@ pub enum GQLError {
     GraphError(#[from] GraphError),
     #[error(transparent)]
     Validation(#[from] PathValidationError),
-    #[error("Insertion failed for Graph {graph}: {error}")]
-    Insertion {
-        graph: String,
-        error: InsertionError,
-    },
+    #[error(transparent)]
+    Insertion(#[from] InsertionError),
     #[error(transparent)]
     Arc(#[from] Arc<Self>),
 }
@@ -40,9 +49,15 @@ mod graphql_test {
     #[cfg(feature = "search")]
     use crate::config::app_config::AppConfigBuilder;
     use crate::{
+        auth::Access,
+        auth_policy::{auth_policy_tests::FakePolicy, GraphPermission, NamespacePermission},
         config::app_config::AppConfig,
         data::{data_tests::save_graphs_to_work_dir, Data},
         model::App,
+        test_support::{
+            assert_is_namespace_dir, run_mutation, run_mutation_as_user, setup_with_graphs,
+            setup_with_policy,
+        },
         url_encode::{url_decode_graph_at, url_encode_graph},
     };
     use async_graphql::{dynamic::Schema, UploadValue};
@@ -58,15 +73,15 @@ mod graphql_test {
         },
         prelude::*,
         serialise::GraphFolder,
-        test_utils::json_sort_by_name,
     };
-    use raphtory_api::core::storage::arc_str::ArcStr;
+    use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
     use serde_json::{json, Value};
     use std::{
         collections::{HashMap, HashSet},
         fs,
+        sync::Arc,
     };
-    use tempfile::tempdir;
+    use tempfile::{tempdir, TempDir};
 
     #[tokio::test]
     async fn test_copy_graph() {
@@ -85,7 +100,7 @@ mod graphql_test {
             )
         }"#;
 
-        let req = Request::new(query);
+        let req = Request::new(query).data(Access::Rw);
         let res = schema.execute(req).await;
         assert_eq!(res.errors, []);
     }
@@ -278,7 +293,7 @@ mod graphql_test {
                     "nodes": {
                         "list": [
                             {
-                                "id": "11"
+                                "id": 11
                             }
                         ]
                     }
@@ -501,9 +516,137 @@ mod graphql_test {
         );
     }
 
+    fn degree_graph_with_add_node_and_add_edge() -> Graph {
+        let graph = degree_graph_with_add_edge_only();
+        let add_nodes = [
+            (0, "1", Some("layer_a")),
+            (0, "7", None),
+            (0, "8", None),
+            (3, "9", Some("layer_a")),
+            (4, "9", Some("layer_c")),
+            (5, "10", Some("layer_b")),
+            (6, "10", Some("layer_e")),
+            (7, "11", Some("layer_d")),
+            (8, "12", Some("layer_f")),
+            (9, "12", Some("layer_c")),
+        ];
+        for (t, id, layer) in add_nodes {
+            graph.add_node(t, id, NO_PROPS, None, layer).unwrap();
+        }
+        graph
+    }
+
+    fn degree_graph_with_add_edge_only() -> Graph {
+        let graph = Graph::new();
+
+        let edges = [
+            (1, "1", "2", "layer_a"),
+            (1, "1", "3", "layer_b"),
+            (1, "1", "4", "layer_a"),
+            (1, "1", "5", "layer_b"),
+            (1, "1", "6", "layer_a"),
+            (2, "2", "1", "layer_b"),
+            (2, "2", "3", "layer_a"),
+            (2, "2", "4", "layer_b"),
+            (2, "2", "5", "layer_a"),
+            (3, "3", "1", "layer_a"),
+            (3, "3", "4", "layer_b"),
+            (3, "3", "5", "layer_a"),
+            (4, "4", "1", "layer_b"),
+            (4, "4", "2", "layer_a"),
+            (5, "5", "1", "layer_b"),
+            (6, "6", "1", "layer_a"),
+            (6, "4", "3", "layer_b"),
+            (6, "5", "2", "layer_a"),
+            (6, "6", "2", "layer_b"),
+            (6, "5", "3", "layer_a"),
+            (7, "2", "6", "layer_c"),
+            (7, "3", "6", "layer_d"),
+            (7, "6", "4", "layer_e"),
+            (7, "1", "5", "layer_f"),
+            (8, "3", "2", "layer_c"),
+            (8, "4", "6", "layer_d"),
+            (8, "2", "5", "layer_e"),
+            (8, "6", "3", "layer_f"),
+            (9, "5", "4", "layer_c"),
+            (9, "4", "5", "layer_d"),
+            (9, "2", "4", "layer_e"),
+            (9, "3", "1", "layer_f"),
+        ];
+        for (t, src, dst, layer) in edges {
+            graph.add_edge(t, src, dst, NO_PROPS, Some(layer)).unwrap();
+        }
+
+        graph
+    }
+
+    #[tokio::test]
+    async fn test_degree_filter_nodes_and_select_gql() {
+        let graph: MaterializedGraph = degree_graph_with_add_node_and_add_edge().into();
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", graph)], tmp_dir.path()).await;
+
+        let query = r#"
+        {
+          graph(path: "g") {
+            filterNodes(expr: { degree: { direction: BOTH, where: { gt: { u64: 0 } } } }) {
+              nodes {
+                list {
+                  name
+                }
+              }
+            }
+            nodes {
+              select(expr: { degree: { direction: BOTH, where: { gt: { u64: 0 } } } }) {
+                list {
+                  name
+                }
+              }
+            }
+          }
+        }
+        "#;
+
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+
+        let data = json_sort_by_name(res.data.into_json().unwrap());
+
+        assert_eq!(
+            data,
+            json!({
+                "graph": {
+                    "filterNodes": {
+                        "nodes": {
+                            "list": [
+                                { "name": "1" },
+                                { "name": "2" },
+                                { "name": "3" },
+                                { "name": "4" },
+                                { "name": "5" },
+                                { "name": "6" }
+                            ]
+                        }
+                    },
+                    "nodes": {
+                        "select": {
+                            "list": [
+                                { "name": "1" },
+                                { "name": "2" },
+                                { "name": "3" },
+                                { "name": "4" },
+                                { "name": "5" },
+                                { "name": "6" }
+                            ]
+                        }
+                    }
+                }
+            })
+        );
+    }
+
     #[tokio::test]
     async fn test_unique_temporal_properties() {
-        // TODO: this doesn't test anything?
         let g = Graph::new();
         g.add_metadata([("name", "graph")]).unwrap();
         g.add_properties(1, [("state", "abc")]).unwrap();
@@ -531,127 +674,69 @@ mod graphql_test {
         let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
         save_graphs_to_work_dir(&data, &graphs).await.unwrap();
 
-        let expected = json!({
-            "graph": {
-              "properties": {
-                "temporal": {
-                  "values": [
-                    {
-                      "unique": [
-                        "xyz",
-                        "abc"
-                      ]
-                    }
-                  ]
-                }
-              },
-              "node": {
-                "properties": {
-                  "temporal": {
-                    "values": [
-                      {
-                        "unique": [
-                          "fax",
-                          "phone"
-                        ]
-                      }
-                    ]
-                  }
-                }
-              },
-              "edge": {
-                "properties": {
-                  "temporal": {
-                    "values": [
-                      {
-                        "unique": [
-                          "open",
-                          "review",
-                          "in-progress"
-                        ]
-                      },
-                      {
-                        "unique": [
-                          "false",
-                          "true"
-                        ]
-                      }
-                    ]
-                  }
+        let schema = App::create_schema().data(data).finish().unwrap();
+
+        // Query each `unique` by key so we can assert the typed element shape
+        // (strings for string props, bools for bool props — not stringified).
+        let query = r#"
+        {
+          graph(path: "graph") {
+            properties {
+              temporal {
+                get(key: "state") { unique }
+              }
+            }
+            node(name: "3") {
+              properties {
+                temporal {
+                  get(key: "name") { unique }
                 }
               }
             }
-        });
+            edge(src: "1", dst: "2") {
+              properties {
+                temporal {
+                  status: get(key: "status") { unique }
+                  state:  get(key: "state")  { unique }
+                }
+              }
+            }
+          }
+        }
+        "#;
 
-        let mut actual_graph_props = HashSet::new();
-        let mut actual_node_props = HashSet::new();
-        let mut actual_edge_props = HashSet::new();
+        let req = Request::new(query);
+        let res = schema.execute(req).await;
+        assert!(res.errors.is_empty(), "errors: {:?}", res.errors);
+        let data = res.data.into_json().unwrap();
 
-        let graph_props = &expected["graph"]["properties"]["temporal"]["values"];
-        for value in graph_props.as_array().unwrap().iter() {
-            let unique_values: HashSet<_> = value["unique"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .map(|v| v.as_str().unwrap())
-                .collect();
-            actual_graph_props.extend(unique_values);
+        fn sorted_unique<'a>(v: &'a Value) -> Vec<&'a Value> {
+            let mut out: Vec<&Value> = v["unique"].as_array().unwrap().iter().collect();
+            // serde_json::Value has a deterministic total order for same-typed values
+            // and groups by type for mixed inputs — fine for this test.
+            out.sort_by(|a, b| a.to_string().cmp(&b.to_string()));
+            out
         }
 
-        let node_props = &expected["graph"]["node"]["properties"]["temporal"]["values"];
-        for value in node_props.as_array().unwrap().iter() {
-            let unique_values: HashSet<_> = value["unique"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .map(|v| v.as_str().unwrap())
-                .collect();
-            actual_node_props.extend(unique_values);
-        }
+        // graph-level `state` is a string property
+        let state = sorted_unique(&data["graph"]["properties"]["temporal"]["get"]);
+        assert_eq!(state, vec![&json!("abc"), &json!("xyz")]);
 
-        let edge_props = &expected["graph"]["edge"]["properties"]["temporal"]["values"];
-        for value in edge_props.as_array().unwrap().iter() {
-            let unique_values: HashSet<_> = value["unique"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .map(|v| v.as_str().unwrap())
-                .collect();
-            actual_edge_props.extend(unique_values);
-        }
+        // node-level `name` is a string property
+        let name = sorted_unique(&data["graph"]["node"]["properties"]["temporal"]["get"]);
+        assert_eq!(name, vec![&json!("fax"), &json!("phone")]);
 
+        // edge-level `status` is a string property
+        let status = sorted_unique(&data["graph"]["edge"]["properties"]["temporal"]["status"]);
         assert_eq!(
-            actual_graph_props,
-            expected["graph"]["properties"]["temporal"]["values"][0]["unique"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .map(|v| v.as_str().unwrap())
-                .collect::<HashSet<_>>()
+            status,
+            vec![&json!("in-progress"), &json!("open"), &json!("review")]
         );
-        assert_eq!(
-            actual_node_props,
-            expected["graph"]["node"]["properties"]["temporal"]["values"][0]["unique"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .map(|v| v.as_str().unwrap())
-                .collect::<HashSet<_>>()
-        );
-        assert_eq!(
-            actual_edge_props,
-            expected["graph"]["edge"]["properties"]["temporal"]["values"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .map(|value| value["unique"]
-                    .as_array()
-                    .unwrap()
-                    .iter()
-                    .map(|v| v.as_str().unwrap()))
-                .flatten()
-                .collect::<HashSet<_>>()
-        );
+
+        // edge-level `state` is a bool property — must come back as JSON bools,
+        // not strings "true" / "false".
+        let edge_state = sorted_unique(&data["graph"]["edge"]["properties"]["temporal"]["state"]);
+        assert_eq!(edge_state, vec![&json!(false), &json!(true)]);
     }
 
     #[tokio::test]
@@ -1066,7 +1151,9 @@ mod graphql_test {
         "##;
 
         let variables = json!({ "file": null, "overwrite": false });
-        let mut req = Request::new(query).variables(Variables::from_json(variables));
+        let mut req = Request::new(query)
+            .variables(Variables::from_json(variables))
+            .data(Access::Rw);
         req.set_upload("variables.file", upload_val);
         let res = schema.execute(req).await;
         assert_eq!(res.errors, vec![]);
@@ -1089,10 +1176,7 @@ mod graphql_test {
         let res = schema.execute(req).await;
         assert_eq!(res.errors, []);
         let res_json = res.data.into_json().unwrap();
-        assert_eq!(
-            res_json,
-            json!({"graph": {"nodes": {"list": [{"id": "1"}]}}})
-        );
+        assert_eq!(res_json, json!({"graph": {"nodes": {"list": [{"id": 1}]}}}));
     }
 
     #[tokio::test]
@@ -1111,9 +1195,11 @@ mod graphql_test {
             sendGraph(path: "test", graph: $graph, overwrite: $overwrite)
         }
         "#;
-        let req = Request::new(query).variables(Variables::from_json(
-            json!({ "graph": graph_str, "overwrite": false }),
-        ));
+        let req = Request::new(query)
+            .variables(Variables::from_json(
+                json!({ "graph": graph_str, "overwrite": false }),
+            ))
+            .data(Access::Rw);
 
         let res = schema.execute(req).await;
         assert_eq!(res.errors, []);
@@ -1136,10 +1222,7 @@ mod graphql_test {
         let res = schema.execute(req).await;
         assert_eq!(res.errors.len(), 0);
         let res_json = res.data.into_json().unwrap();
-        assert_eq!(
-            res_json,
-            json!({"graph": {"nodes": {"list": [{"id": "1"}]}}})
-        );
+        assert_eq!(res_json, json!({"graph": {"nodes": {"list": [{"id": 1}]}}}));
 
         let receive_graph = r#"
         query {
@@ -1311,21 +1394,23 @@ mod graphql_test {
         let all_edges: Vec<_> = graph1
             .edges()
             .id()
-            .map(|(src, dst)| (src.to_string(), dst.to_string()))
+            .map(|(src, dst)| {
+                let src = match src {
+                    GID::U64(u) => u,
+                    GID::Str(_) => unreachable!("integer-indexed graph"),
+                };
+                let dst = match dst {
+                    GID::U64(u) => u,
+                    GID::Str(_) => unreachable!("integer-indexed graph"),
+                };
+                (src, dst)
+            })
             .collect();
 
         // make sure we have the correct edges
         assert_eq!(
             all_edges.iter().cloned().sorted().collect_vec(),
-            [
-                ("1".to_string(), "2".to_string()),
-                ("2".to_string(), "4".to_string()),
-                ("3".to_string(), "2".to_string()),
-                ("3".to_string(), "6".to_string()),
-                ("4".to_string(), "5".to_string()),
-                ("4".to_string(), "6".to_string()),
-                ("5".to_string(), "6".to_string()),
-            ]
+            [(1, 2), (2, 4), (3, 2), (3, 6), (4, 5), (4, 6), (5, 6),]
         );
         let graph2 = Graph::new();
         graph2.add_metadata([("name", "graph2")]).unwrap();
@@ -1355,6 +1440,63 @@ mod graphql_test {
         let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
         save_graphs_to_work_dir(&data, &graphs).await.unwrap();
         let schema = App::create_schema().data(data).finish().unwrap();
+
+        let all = r#"{
+            graph(path: "graph1") {
+                nodes {
+                    list {
+                        name
+                    }
+                }
+                edges {
+                    list {
+                        id
+                    }
+                }
+            }
+        }"#;
+
+        let res = schema.execute(Request::new(all)).await;
+        let data = res.data.into_json().unwrap();
+
+        let all_nodes: Vec<_> = data
+            .get("graph")
+            .unwrap()
+            .get("nodes")
+            .unwrap()
+            .get("list")
+            .unwrap()
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|v| v.get("name").unwrap().as_str())
+            .collect();
+
+        let all_edges: Vec<(_, _)> = data
+            .get("graph")
+            .unwrap()
+            .get("edges")
+            .unwrap()
+            .get("list")
+            .unwrap()
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|v| v.get("id").unwrap().as_array())
+            .filter_map(|ids| ids.iter().filter_map(|v| v.as_u64()).collect_tuple())
+            .collect();
+
+        // make sure we have the correct edges
+        assert_eq!(
+            all_edges.iter().cloned().sorted().collect_vec(),
+            [(1, 2), (2, 4), (3, 2), (3, 6), (4, 5), (4, 6), (5, 6),]
+        );
+
+        // make sure we have the correct nodes
+        assert_eq!(
+            all_nodes.iter().copied().sorted().collect_vec(),
+            ["1", "2", "3", "4", "5", "6"]
+        );
 
         let req = r#"
         {
@@ -1626,7 +1768,7 @@ mod graphql_test {
           createSubgraph(parentPath: "graph", newPath: "graph2", nodes: ["1", "2"], overwrite: false)
         }
         "#;
-        let req = Request::new(req);
+        let req = Request::new(req).data(Access::Rw);
         let res = schema.execute(req).await;
         assert_eq!(res.errors, vec![]);
         let req = r#"
@@ -1634,7 +1776,7 @@ mod graphql_test {
           createSubgraph(parentPath: "graph", newPath: "namespace1/graph3", nodes: ["2", "3", "4"], overwrite: false)
         }
         "#;
-        let req = Request::new(req);
+        let req = Request::new(req).data(Access::Rw);
         let res = schema.execute(req).await;
         assert_eq!(res.errors, vec![]);
 
@@ -1818,7 +1960,8 @@ mod graphql_test {
     async fn test_new_graph(schema: &Schema, path: &str, should_work: bool) {
         let req = Request::new(format!(
             r#"mutation {{ newGraph(path: "{path}", graphType: EVENT) }}"#,
-        ));
+        ))
+        .data(Access::Rw);
         let res = schema.execute(req).await;
 
         if should_work {
@@ -1902,5 +2045,559 @@ mod graphql_test {
             vec![],
         )
         .await;
+    }
+
+    #[tokio::test]
+    async fn test_node_types() {
+        // Ensure node types are returned correctly by the server.
+        let node_types = ["Alpha", "Beta", "Gamma", "Delta", "Epsilon"];
+        let graph = Graph::new();
+
+        for (node_id, node_type) in node_types.iter().enumerate() {
+            graph
+                .add_node(0, node_id as u64, NO_PROPS, Some(node_type), None)
+                .expect("add_node");
+        }
+
+        let tmp_dir = tempdir().unwrap();
+        let graph_name = "graph_with_node_types";
+        let graphs = HashMap::from([(graph_name.to_string(), graph.into())]);
+        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
+
+        save_graphs_to_work_dir(&data, &graphs).await.unwrap();
+
+        // Drop and reload data to mimic server restart.
+        drop(data);
+
+        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
+        let schema = App::create_schema().data(data).finish().unwrap();
+
+        let query = format!(
+            r#"
+        query {{
+          graph(path: "{graph_name}", graphType: EVENT) {{
+            nodes {{
+              list {{
+                nodeType
+              }}
+            }}
+          }}
+        }}
+      "#
+        );
+
+        let res = schema.execute(Request::new(query).data(Access::Rw)).await;
+
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+
+        let gql_data = res.data.into_json().unwrap();
+
+        let list = gql_data
+            .get("graph")
+            .and_then(|g| g.get("nodes"))
+            .and_then(|n| n.get("list"))
+            .unwrap();
+
+        let Value::Array(nodes) = list else {
+            panic!("graph.nodes.list should be an array, got {list:?}");
+        };
+
+        assert_eq!(nodes.len(), 5, "expected 5 nodes, got {:?}", nodes.len());
+
+        let retrieved: HashSet<String> = nodes
+            .iter()
+            .map(|node| {
+                node.get("nodeType")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or_else(|| panic!("nodeType missing or not a string: {node:?}"))
+                    .to_owned()
+            })
+            .collect();
+
+        let expected: HashSet<String> = node_types.iter().map(|s| (*s).to_string()).collect();
+
+        assert_eq!(
+            retrieved, expected,
+            "node types returned by GraphQL should match those set on ingest"
+        );
+    }
+
+    #[derive(PartialEq, Eq, PartialOrd, Ord)]
+    pub enum NameSortKey<'a> {
+        Node(&'a str),
+        Edge(&'a str, &'a str),
+    }
+
+    #[tokio::test]
+    async fn test_create_namespace_at_root() {
+        let work_dir = TempDir::new().unwrap();
+        {
+            let setup = setup_with_graphs(&[], work_dir.path()).await;
+
+            let res = run_mutation(
+                &setup.schema,
+                r#"mutation { createNamespace(path: "foo") }"#,
+            )
+            .await;
+
+            assert_eq!(res.errors, vec![]);
+            assert_eq!(
+                res.data.into_json().unwrap(),
+                json!({ "createNamespace": "foo" }),
+            );
+
+            let foo = work_dir.path().join("foo");
+            assert_is_namespace_dir(&foo);
+
+            let req = Request::new(
+                r#"{ namespace(path: "") { items { list { __typename ... on Namespace { path } ... on MetaGraph { path } } } } }"#,
+            );
+            let res = setup.schema.execute(req).await;
+            assert_eq!(res.errors, vec![]);
+            assert_eq!(
+                res.data.into_json().unwrap(),
+                json!({
+                    "namespace": {
+                        "items": {
+                            "list": [
+                                { "__typename": "Namespace", "path": "foo" }
+                            ]
+                        }
+                    }
+                }),
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn test_create_namespace_nested() {
+        let work_dir = TempDir::new().unwrap();
+        {
+            let setup = setup_with_graphs(&[], work_dir.path()).await;
+
+            let res = run_mutation(
+                &setup.schema,
+                r#"mutation { createNamespace(path: "a/b/c") }"#,
+            )
+            .await;
+            assert_eq!(res.errors, vec![]);
+            assert_eq!(
+                res.data.into_json().unwrap(),
+                json!({ "createNamespace": "a/b/c" }),
+            );
+
+            for rel in ["a", "a/b", "a/b/c"] {
+                let p = work_dir.path().join(rel);
+                assert_is_namespace_dir(&p);
+            }
+
+            let req = Request::new(r#"{ namespace(path: "a/b") { children { list { path } } } }"#);
+            let res = setup.schema.execute(req).await;
+            assert_eq!(res.errors, vec![]);
+            assert_eq!(
+                res.data.into_json().unwrap(),
+                json!({
+                    "namespace": {
+                        "children": { "list": [ { "path": "a/b/c" } ] }
+                    }
+                }),
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn test_create_namespace_rejects_existing_graph() {
+        let work_dir = TempDir::new().unwrap();
+        {
+            let g = Graph::new();
+            g.add_node(0, 1, NO_PROPS, None, None).unwrap();
+            let g: MaterializedGraph = g.into();
+            let setup = setup_with_graphs(&[("g", g)], work_dir.path()).await;
+
+            let res =
+                run_mutation(&setup.schema, r#"mutation { createNamespace(path: "g") }"#).await;
+            assert!(!res.errors.is_empty(), "expected error, got {:?}", res);
+
+            assert!(setup.data.get_graph_for_test("g").await.is_ok());
+        }
+    }
+
+    #[tokio::test]
+    async fn test_create_namespace_rejects_existing_namespace() {
+        let work_dir = TempDir::new().unwrap();
+        {
+            let setup = setup_with_graphs(&[], work_dir.path()).await;
+
+            let res =
+                run_mutation(&setup.schema, r#"mutation { createNamespace(path: "ns") }"#).await;
+            assert_eq!(res.errors, vec![]);
+
+            let res =
+                run_mutation(&setup.schema, r#"mutation { createNamespace(path: "ns") }"#).await;
+            assert!(!res.errors.is_empty(), "expected error, got {:?}", res);
+            assert!(
+                res.errors[0].message.contains("Namespace"),
+                "unexpected error message: {}",
+                res.errors[0].message,
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn test_create_namespace_rejects_invalid_paths() {
+        let work_dir = TempDir::new().unwrap();
+        {
+            let setup = setup_with_graphs(&[], work_dir.path()).await;
+
+            let cases = ["", ".hidden/x", "x/.hidden", "../escape", "a//b"];
+
+            let snapshot_before = std::fs::read_dir(work_dir.path())
+                .unwrap()
+                .map(|e| e.unwrap().file_name())
+                .collect::<HashSet<_>>();
+
+            for path in cases {
+                let query = format!(
+                    r#"mutation {{ createNamespace(path: "{}") }}"#,
+                    path.replace('"', r#"\""#),
+                );
+                let res = run_mutation(&setup.schema, &query).await;
+                assert!(
+                    !res.errors.is_empty(),
+                    "expected error for path {:?}, got {:?}",
+                    path,
+                    res,
+                );
+            }
+
+            let snapshot_after = std::fs::read_dir(work_dir.path())
+                .unwrap()
+                .map(|e| e.unwrap().file_name())
+                .collect::<HashSet<_>>();
+            assert_eq!(
+                snapshot_before, snapshot_after,
+                "work_dir contents changed after rejected creates",
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn test_create_namespace_denied_without_parent_write() {
+        let work_dir = TempDir::new().unwrap();
+        {
+            let policy =
+                Arc::new(FakePolicy::default().with_namespace("", NamespacePermission::Read));
+            let setup = setup_with_policy(&[], work_dir.path(), policy).await;
+
+            let res = run_mutation_as_user(
+                &setup.schema,
+                r#"mutation { createNamespace(path: "foo") }"#,
+            )
+            .await;
+            assert!(!res.errors.is_empty(), "expected error, got {:?}", res);
+            assert!(
+                res.errors[0]
+                    .message
+                    .contains("WRITE required on namespace"),
+                "unexpected error message: {}",
+                res.errors[0].message,
+            );
+
+            assert!(!work_dir.path().join("foo").exists());
+        }
+    }
+
+    #[tokio::test]
+    async fn test_delete_namespace_empty() {
+        let work_dir = TempDir::new().unwrap();
+        {
+            let setup = setup_with_graphs(&[], work_dir.path()).await;
+
+            let res =
+                run_mutation(&setup.schema, r#"mutation { createNamespace(path: "ns") }"#).await;
+            assert_eq!(res.errors, vec![]);
+            assert!(work_dir.path().join("ns").is_dir());
+
+            let res =
+                run_mutation(&setup.schema, r#"mutation { deleteNamespace(path: "ns") }"#).await;
+            assert_eq!(res.errors, vec![]);
+            assert_eq!(
+                res.data.into_json().unwrap(),
+                json!({ "deleteNamespace": true }),
+            );
+            assert!(!work_dir.path().join("ns").exists());
+            assert_is_namespace_dir(work_dir.path());
+        }
+    }
+
+    #[tokio::test]
+    async fn test_delete_namespace_with_children() {
+        let work_dir = TempDir::new().unwrap();
+        {
+            let g1 = Graph::new();
+            g1.add_node(0, 1, NO_PROPS, None, None).unwrap();
+            let g1: MaterializedGraph = g1.into();
+            let g2 = Graph::new();
+            g2.add_node(0, 2, NO_PROPS, None, None).unwrap();
+            let g2: MaterializedGraph = g2.into();
+            let setup =
+                setup_with_graphs(&[("ns/g1", g1), ("ns/sub/g2", g2)], work_dir.path()).await;
+
+            let res = run_mutation(
+                &setup.schema,
+                r#"mutation { createNamespace(path: "ns/empty") }"#,
+            )
+            .await;
+            assert_eq!(res.errors, vec![]);
+            assert!(work_dir.path().join("ns/empty").is_dir());
+
+            let res =
+                run_mutation(&setup.schema, r#"mutation { deleteNamespace(path: "ns") }"#).await;
+            assert_eq!(res.errors, vec![]);
+            assert_eq!(
+                res.data.into_json().unwrap(),
+                json!({ "deleteNamespace": true }),
+            );
+            assert!(!work_dir.path().join("ns").exists());
+
+            let req = Request::new(r#"{ namespace(path: "") { children { list { path } } } }"#);
+            let res = setup.schema.execute(req).await;
+            assert_eq!(res.errors, vec![]);
+            assert_eq!(
+                res.data.into_json().unwrap(),
+                json!({ "namespace": { "children": { "list": [] } } }),
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn test_delete_namespace_rejects_empty_path() {
+        let work_dir = TempDir::new().unwrap();
+        {
+            let setup = setup_with_graphs(&[], work_dir.path()).await;
+
+            let res =
+                run_mutation(&setup.schema, r#"mutation { deleteNamespace(path: "") }"#).await;
+            assert!(!res.errors.is_empty(), "expected error, got {:?}", res);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_delete_namespace_rejects_nonexistent() {
+        let work_dir = TempDir::new().unwrap();
+        {
+            let setup = setup_with_graphs(&[], work_dir.path()).await;
+
+            let res = run_mutation(
+                &setup.schema,
+                r#"mutation { deleteNamespace(path: "noexist") }"#,
+            )
+            .await;
+            assert!(!res.errors.is_empty(), "expected error, got {:?}", res);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_delete_namespace_denied_when_descendant_unwritable() {
+        let work_dir = TempDir::new().unwrap();
+        {
+            let g1 = Graph::new();
+            g1.add_node(0, 1, NO_PROPS, None, None).unwrap();
+            let g1: MaterializedGraph = g1.into();
+            let g2 = Graph::new();
+            g2.add_node(0, 2, NO_PROPS, None, None).unwrap();
+            let g2: MaterializedGraph = g2.into();
+
+            let policy = Arc::new(
+                FakePolicy::default()
+                    .with_namespace("", NamespacePermission::Write)
+                    .with_namespace("ns", NamespacePermission::Write)
+                    .with_graph("ns/g1", GraphPermission::Write)
+                    .with_graph("ns/g2", GraphPermission::Read { filter: None }),
+            );
+            let setup =
+                setup_with_policy(&[("ns/g1", g1), ("ns/g2", g2)], work_dir.path(), policy).await;
+
+            let res =
+                run_mutation_as_user(&setup.schema, r#"mutation { deleteNamespace(path: "ns") }"#)
+                    .await;
+            assert!(!res.errors.is_empty(), "expected error, got {:?}", res);
+            // Substring is from `require_graph_write` in raphtory-graphql/src/model/mod.rs.
+            assert!(
+                res.errors[0]
+                    .message
+                    .contains("WRITE permission required for graph"),
+                "unexpected error message: {}",
+                res.errors[0].message,
+            );
+
+            assert!(work_dir.path().join("ns").is_dir());
+            assert!(setup.data.get_graph_for_test("ns/g1").await.is_ok());
+            assert!(setup.data.get_graph_for_test("ns/g2").await.is_ok());
+        }
+    }
+
+    #[tokio::test]
+    async fn test_delete_namespace_denied_without_parent_write() {
+        let work_dir = TempDir::new().unwrap();
+        {
+            let g = Graph::new();
+            g.add_node(0, 1, NO_PROPS, None, None).unwrap();
+            let g: MaterializedGraph = g.into();
+
+            let policy = Arc::new(
+                FakePolicy::default()
+                    .with_namespace("", NamespacePermission::Read)
+                    .with_namespace("ns", NamespacePermission::Write)
+                    .with_graph("ns/g", GraphPermission::Write),
+            );
+            let setup = setup_with_policy(&[("ns/g", g)], work_dir.path(), policy).await;
+
+            let res =
+                run_mutation_as_user(&setup.schema, r#"mutation { deleteNamespace(path: "ns") }"#)
+                    .await;
+            assert!(!res.errors.is_empty(), "expected error, got {:?}", res);
+            assert!(
+                res.errors[0]
+                    .message
+                    .contains("WRITE required on namespace"),
+                "unexpected error message: {}",
+                res.errors[0].message,
+            );
+
+            assert!(work_dir.path().join("ns").is_dir());
+            assert!(setup.data.get_graph_for_test("ns/g").await.is_ok());
+        }
+    }
+
+    #[tokio::test]
+    async fn test_delete_namespace_denied_without_own_write() {
+        let work_dir = TempDir::new().unwrap();
+        {
+            let g = Graph::new();
+            g.add_node(0, 1, NO_PROPS, None, None).unwrap();
+            let g: MaterializedGraph = g.into();
+
+            let policy = Arc::new(
+                FakePolicy::default()
+                    .with_namespace("", NamespacePermission::Write)
+                    .with_namespace("ns", NamespacePermission::Read)
+                    .with_graph("ns/g", GraphPermission::Write),
+            );
+            let setup = setup_with_policy(&[("ns/g", g)], work_dir.path(), policy).await;
+
+            let res =
+                run_mutation_as_user(&setup.schema, r#"mutation { deleteNamespace(path: "ns") }"#)
+                    .await;
+            assert!(!res.errors.is_empty(), "expected error, got {:?}", res);
+            assert!(
+                res.errors[0]
+                    .message
+                    .contains("WRITE required on namespace"),
+                "unexpected error message: {}",
+                res.errors[0].message,
+            );
+
+            assert!(work_dir.path().join("ns").is_dir());
+            assert!(setup.data.get_graph_for_test("ns/g").await.is_ok());
+        }
+    }
+
+    #[tokio::test]
+    async fn test_delete_namespace_denied_without_descendant_namespace_write() {
+        let work_dir = TempDir::new().unwrap();
+        {
+            let g = Graph::new();
+            g.add_node(0, 1, NO_PROPS, None, None).unwrap();
+            let g: MaterializedGraph = g.into();
+
+            let policy = Arc::new(
+                FakePolicy::default()
+                    .with_namespace("", NamespacePermission::Write)
+                    .with_namespace("ns", NamespacePermission::Write)
+                    .with_namespace("ns/sub", NamespacePermission::Read)
+                    .with_graph("ns/sub/g", GraphPermission::Write),
+            );
+            let setup = setup_with_policy(&[("ns/sub/g", g)], work_dir.path(), policy).await;
+
+            let res =
+                run_mutation_as_user(&setup.schema, r#"mutation { deleteNamespace(path: "ns") }"#)
+                    .await;
+            assert!(!res.errors.is_empty(), "expected error, got {:?}", res);
+            assert!(
+                res.errors[0]
+                    .message
+                    .contains("WRITE required on namespace"),
+                "unexpected error message: {}",
+                res.errors[0].message,
+            );
+
+            assert!(work_dir.path().join("ns").is_dir());
+            assert!(work_dir.path().join("ns/sub").is_dir());
+            assert!(setup.data.get_graph_for_test("ns/sub/g").await.is_ok());
+        }
+    }
+
+    #[tokio::test]
+    async fn test_delete_namespace_invalidates_cache() {
+        let work_dir = TempDir::new().unwrap();
+        {
+            let g = Graph::new();
+            g.add_node(0, 1, NO_PROPS, None, None).unwrap();
+            let g: MaterializedGraph = g.into();
+            let setup = setup_with_graphs(&[("ns/g", g)], work_dir.path()).await;
+
+            setup.data.get_graph_for_test("ns/g").await.unwrap();
+            assert!(setup.data.get_cached_graph("ns/g").await.is_some());
+
+            let res =
+                run_mutation(&setup.schema, r#"mutation { deleteNamespace(path: "ns") }"#).await;
+            assert_eq!(res.errors, vec![]);
+            assert_eq!(
+                res.data.into_json().unwrap(),
+                json!({ "deleteNamespace": true }),
+            );
+
+            assert!(setup.data.get_cached_graph("ns/g").await.is_none());
+        }
+    }
+
+    pub fn json_sort_by_name(value: Value) -> Value {
+        match value {
+            Value::Array(inner) => Value::Array(
+                inner
+                    .into_iter()
+                    .sorted_by(|l, r| name_sort_key(l).cmp(&name_sort_key(r)))
+                    .map(|inner_value| json_sort_by_name(inner_value))
+                    .collect(),
+            ),
+            Value::Object(inner) => Value::Object(
+                inner
+                    .into_iter()
+                    .map(|(key, value)| (key, json_sort_by_name(value)))
+                    .collect(),
+            ),
+            value => value,
+        }
+    }
+
+    fn name_sort_key(value: &Value) -> Option<NameSortKey<'_>> {
+        match value {
+            Value::Object(inner) => inner
+                .get("name")
+                .and_then(|name| Some(NameSortKey::Node(name.as_str()?)))
+                .or_else(|| {
+                    inner.get("id").and_then(|id| match id {
+                        Value::String(node) => Some(NameSortKey::Node(node)),
+                        Value::Array(edge) => {
+                            let (src, dst) =
+                                edge.iter().map(|e| e.as_str().unwrap()).next_tuple()?;
+                            Some(NameSortKey::Edge(src, dst))
+                        }
+                        _ => None,
+                    })
+                }),
+            _ => None,
+        }
     }
 }

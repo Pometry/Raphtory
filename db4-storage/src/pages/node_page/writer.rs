@@ -31,6 +31,7 @@ pub struct NodeWriter<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSe
 impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWriter<'a, MP, NS> {
     pub fn new(page: &'a NS, global_num_nodes: &'a GraphStats, writer: MP) -> Self {
         let old_est_size = writer.est_size();
+
         Self {
             page,
             mut_segment: writer,
@@ -38,6 +39,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
             old_est_size,
         }
     }
+
     #[inline(always)]
     pub fn resolve_pos(&self, node_id: VID) -> Option<LocalPOS> {
         let (page, pos) = resolve_pos(node_id, self.mut_segment.max_page_len());
@@ -166,7 +168,8 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         layer_id: LayerId,
         props: &[(usize, P)],
     ) -> Result<(), StorageError> {
-        self.mut_segment.check_metadata(pos, layer_id, props)
+        self.mut_segment.check_metadata(pos, layer_id, props)?;
+        self.page.check_metadata_immut(pos, layer_id, props)
     }
 
     pub fn update_c_props<P: AsPropRef>(
@@ -269,6 +272,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> Drop
     fn drop(&mut self) {
         self.mut_segment
             .increment_global_est_size(self.mut_segment.est_size() - self.old_est_size);
+
         self.page
             .notify_write(self.mut_segment.deref_mut())
             .expect("Failed to persist node page");

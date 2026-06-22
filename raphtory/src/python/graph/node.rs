@@ -76,7 +76,7 @@ use std::{
 };
 
 /// A node (or node) in the graph.
-#[pyclass(name = "Node", subclass, module = "raphtory", frozen)]
+#[pyclass(name = "Node", subclass, module = "raphtory", frozen, from_py_object)]
 #[derive(Clone)]
 pub struct PyNode {
     pub node: NodeView<'static, DynamicGraph>,
@@ -117,7 +117,7 @@ impl PyNode {
     ///    other: The other node to compare to.
     ///
     /// Returns:
-    ///   True if the nodes are equal, false otherwise.
+    ///   True if the nodes are equal, false otherwise.:
     fn __eq__(&self, other: Bound<PyNode>) -> bool {
         self.node.id() == other.get().node.id()
     }
@@ -145,7 +145,7 @@ impl PyNode {
     /// Returns the hash of the node.
     ///
     /// Returns:
-    ///   The node id.
+    ///   The node id.:
     pub fn __hash__(&self) -> u64 {
         calculate_hash(&self.node.id())
     }
@@ -379,6 +379,7 @@ impl PyMutableNode {
     ///                                      is of type Prop representing the property value.
     ///                                      If None, no properties are updated.
     ///    event_id (int, optional): The optional integer which will be used as an event id.
+    ///    layer (str, optional): The layer this update is recorded under. Defaults to None.
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
@@ -443,7 +444,7 @@ impl PyMutableNode {
 
 /// A list of nodes that can be iterated over.
 #[derive(Clone)]
-#[pyclass(name = "Nodes", module = "raphtory", frozen)]
+#[pyclass(name = "Nodes", module = "raphtory", frozen, from_py_object)]
 pub struct PyNodes {
     pub(crate) nodes: Nodes<'static, DynamicGraph, DynamicGraph, DynNodeFilter>,
 }

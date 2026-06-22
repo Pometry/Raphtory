@@ -5,7 +5,7 @@ use raphtory_api::{
         Direction,
         entities::properties::{
             meta::{Meta, NODE_ID_IDX, NODE_TYPE_IDX},
-            prop::{Prop, PropUnwrap},
+            prop::{AsPropRef, Prop, PropUnwrap},
             tprop::TPropOps,
         },
     },
@@ -38,6 +38,7 @@ use crate::{
     wal::LSN,
 };
 use raphtory_api::core::entities::{LayerId, properties::meta::STATIC_GRAPH_LAYER_ID};
+use raphtory_itertools::FastMergeExt;
 use rayon::prelude::*;
 
 pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
@@ -137,6 +138,13 @@ pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
     fn num_layers(&self) -> usize;
 
     fn layer_count(&self, layer_id: LayerId) -> u32;
+
+    fn check_metadata_immut<P: AsPropRef>(
+        &self,
+        pos: LocalPOS,
+        layer_id: LayerId,
+        props: &[(usize, P)],
+    ) -> Result<(), StorageError>;
 }
 
 pub trait LockedNSSegment: Debug + Send + Sync {
@@ -241,6 +249,38 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
     }
 
     #[box_on_debug_lifetime]
+    fn edges_sorted_dir(
+        self,
+        layer_id: LayerId,
+        dir: Direction,
+    ) -> impl Iterator<Item = EdgeRef> + Send + Sync + 'a
+    where
+        Self: Sized,
+    {
+        let src_pid = self.vid();
+        match dir {
+            Direction::OUT => Iter3::I(
+                self.out_edges_sorted(layer_id)
+                    .map(move |(v, e)| EdgeRef::new_outgoing(e, src_pid, v)),
+            ),
+            Direction::IN => Iter3::J(
+                self.inb_edges_sorted(layer_id)
+                    .map(move |(v, e)| EdgeRef::new_incoming(e, v, src_pid)),
+            ),
+            Direction::BOTH => Iter3::K(
+                self.out_edges_sorted(layer_id)
+                    .map(move |(v, e)| EdgeRef::new_outgoing(e, src_pid, v))
+                    .merge_by(
+                        self.inb_edges_sorted(layer_id)
+                            .map(move |(v, e)| EdgeRef::new_incoming(e, v, src_pid)),
+                        |e1, e2| e1.remote() < e2.remote(),
+                    )
+                    .dedup_by(|l, r| l.pid() == r.pid()),
+            ),
+        }
+    }
+
+    #[box_on_debug_lifetime]
     fn edges_iter<'b>(
         self,
         layers_ids: &'b LayerIds,
@@ -255,8 +295,8 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
             LayerIds::Multiple(layers) => Iter4::K(
                 layers
                     .into_iter()
-                    .map(|layer_id| self.edges_dir(layer_id, dir))
-                    .kmerge_by(|e1, e2| e1.remote() < e2.remote())
+                    .map(|layer_id| self.edges_sorted_dir(layer_id, dir))
+                    .fast_merge_by(|e1, e2| e1.remote() < e2.remote())
                     .dedup_by(|l, r| l.pid() == r.pid()),
             ),
             LayerIds::None => Iter4::L(std::iter::empty()),
@@ -268,19 +308,20 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
     fn temp_prop_rows(
         self,
         w: Option<Range<EventTime>>,
+        prop_ids: Arc<[usize]>,
     ) -> impl Iterator<Item = (EventTime, usize, Vec<(usize, Prop)>)> + 'a {
         (0..self.internal_num_layers()).flat_map(move |layer_id| {
             let w = w.clone();
+            let prop_ids = Arc::clone(&prop_ids);
             let additions = self.node_additions(layer_id);
             let additions = w
                 .clone()
                 .map(|w| Iter2::I1(additions.range(w).iter()))
                 .unwrap_or_else(|| Iter2::I2(additions.iter()));
 
-            let mut time_ordered_iter = self
-                .node_meta()
-                .temporal_prop_mapper()
-                .ids()
+            let mut time_ordered_iter = prop_ids
+                .iter()
+                .copied()
                 .map(move |prop_id| {
                     self.temporal_prop_layer(LayerId(layer_id), prop_id)
                         .iter_inner(w.clone())

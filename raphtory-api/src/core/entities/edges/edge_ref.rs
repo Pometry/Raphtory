@@ -86,6 +86,11 @@ impl EdgeRef {
     }
 
     #[inline]
+    pub fn set_dir(&mut self, dir: Dir) {
+        self.e_type = dir;
+    }
+
+    #[inline]
     pub fn src(&self) -> VID {
         self.src_pid
     }

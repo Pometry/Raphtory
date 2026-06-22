@@ -1,17 +1,27 @@
 use crate::{
     db::{
         api::{
-            state::ops::{Const, IntoDynNodeOp, NodeOp, TypeId},
-            view::internal::GraphView,
+            state::{
+                ops::{Const, Degree, IntoDynNodeOp, NodeOp, TypeId},
+                Index,
+            },
+            view::internal::{GraphView, NodeList},
         },
         graph::{
             create_node_type_filter,
-            views::filter::model::{filter::Filter, node_filter::NodeFilter},
+            views::filter::model::{
+                degree_filter::DegreeFilter,
+                filter::{Filter, FilterValue},
+                node_filter::NodeFilter,
+                property_filter::PropertyFilterValue,
+                FilterOperator,
+            },
         },
     },
     prelude::{GraphViewOps, PropertyFilter},
 };
-use raphtory_api::core::entities::VID;
+use raphtory_api::core::entities::{properties::prop::Prop, VID};
+use raphtory_core::entities::nodes::node_ref::AsNodeRef;
 use raphtory_storage::graph::{graph::GraphStorage, nodes::node_storage_ops::NodeStorageOps};
 use std::sync::Arc;
 
@@ -83,6 +93,48 @@ impl NodeOp for NodeIdFilterOp {
         let node = storage.core_node(node);
         self.filter.id_matches(node.id())
     }
+
+    fn domain(&self, storage: &GraphStorage) -> NodeList {
+        let op = &self.filter.operator;
+        match op {
+            FilterOperator::Eq => match &self.filter.field_value {
+                FilterValue::ID(id) => {
+                    let vid = storage.internalise_node(id.as_node_ref());
+                    NodeList::List {
+                        elems: vid.into_iter().collect(),
+                    }
+                }
+                _ => unreachable!(),
+            },
+            FilterOperator::IsIn => match &self.filter.field_value {
+                FilterValue::IDSet(ids) => NodeList::List {
+                    elems: ids
+                        .iter()
+                        .filter_map(|id| storage.internalise_node(id.as_node_ref()))
+                        .collect(),
+                },
+                _ => unreachable!(),
+            },
+            FilterOperator::IsNone => NodeList::empty(),
+            _ => NodeList::All,
+        }
+    }
+
+    fn const_value(&self) -> Option<Self::Output> {
+        match &self.filter.operator {
+            FilterOperator::IsSome => Some(true),
+            _ => None,
+        }
+    }
+    fn const_value_in_domain(&self) -> Option<Self::Output> {
+        match &self.filter.operator {
+            FilterOperator::Eq
+            | FilterOperator::IsIn
+            | FilterOperator::IsNone
+            | FilterOperator::IsSome => Some(true),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -99,9 +151,53 @@ impl NodeNameFilterOp {
 impl NodeOp for NodeNameFilterOp {
     type Output = bool;
 
+    fn domain(&self, storage: &GraphStorage) -> NodeList {
+        let op = &self.filter.operator;
+        match op {
+            FilterOperator::Eq => match &self.filter.field_value {
+                FilterValue::Single(name) => {
+                    let vid = storage.internalise_node(name.as_node_ref());
+                    NodeList::List {
+                        elems: vid.into_iter().collect(),
+                    }
+                }
+                _ => unreachable!(),
+            },
+            FilterOperator::IsIn => match &self.filter.field_value {
+                FilterValue::Set(names) => NodeList::List {
+                    elems: names
+                        .iter()
+                        .filter_map(|name| storage.internalise_node(name.as_node_ref()))
+                        .collect(),
+                },
+                _ => unreachable!(),
+            },
+            FilterOperator::IsNone => NodeList::List {
+                elems: Index::default(),
+            },
+            _ => NodeList::All,
+        }
+    }
+
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
         let node_ref = storage.core_node(node);
         self.filter.matches(Some(&node_ref.name()))
+    }
+
+    fn const_value(&self) -> Option<Self::Output> {
+        match &self.filter.operator {
+            FilterOperator::IsSome => Some(true),
+            _ => None,
+        }
+    }
+    fn const_value_in_domain(&self) -> Option<Self::Output> {
+        match &self.filter.operator {
+            FilterOperator::Eq
+            | FilterOperator::IsIn
+            | FilterOperator::IsNone
+            | FilterOperator::IsSome => Some(true),
+            _ => None,
+        }
     }
 }
 
@@ -132,6 +228,38 @@ impl<G: GraphView> NodeOp for NodePropertyFilterOp<G> {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct NodeDegreeFilterOp<G> {
+    degree: Degree<G>,
+    operator: FilterOperator,
+    value: PropertyFilterValue,
+}
+
+impl<G> NodeDegreeFilterOp<G> {
+    pub(crate) fn new(graph: G, filter: DegreeFilter) -> Self {
+        let degree = Degree {
+            dir: filter.direction,
+            view: graph,
+        };
+        Self {
+            degree,
+            operator: filter.operator,
+            value: filter.value,
+        }
+    }
+}
+
+impl<G: GraphView> NodeOp for NodeDegreeFilterOp<G> {
+    type Output = bool;
+
+    fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
+        let node_degree = self.degree.apply(storage, node);
+        let node_degree_prop = Prop::U64(node_degree as u64);
+        self.operator
+            .apply_to_property(&self.value, Some(&node_degree_prop))
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OrOp<L, R> {
     pub(crate) left: L,
@@ -147,6 +275,33 @@ where
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
         self.left.apply(storage, node) || self.right.apply(storage, node)
+    }
+
+    fn domain(&self, storage: &GraphStorage) -> NodeList {
+        if matches!(self.const_value_in_domain(), Some(false)) {
+            NodeList::empty()
+        } else {
+            self.left.domain(storage).union(&self.right.domain(storage))
+        }
+    }
+
+    fn const_value_in_domain(&self) -> Option<Self::Output> {
+        match (self.left.const_value(), self.right.const_value()) {
+            (Some(true), _) | (_, Some(true)) => Some(true),
+            (Some(left), Some(right)) => Some(left || right),
+            _ => None,
+        }
+    }
+
+    fn const_value(&self) -> Option<Self::Output> {
+        match (
+            self.left.const_value_in_domain(),
+            self.right.const_value_in_domain(),
+        ) {
+            (Some(true), _) | (_, Some(true)) => Some(true),
+            (Some(left), Some(right)) => Some(left || right),
+            _ => None,
+        }
     }
 }
 
@@ -167,6 +322,35 @@ where
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
         self.left.apply(storage, node) && self.right.apply(storage, node)
+    }
+
+    fn domain(&self, storage: &GraphStorage) -> NodeList {
+        if matches!(self.const_value_in_domain(), Some(false)) {
+            NodeList::empty()
+        } else {
+            self.left
+                .domain(storage)
+                .intersection(&self.right.domain(storage))
+        }
+    }
+
+    fn const_value(&self) -> Option<Self::Output> {
+        match (self.left.const_value(), self.right.const_value()) {
+            (Some(false), _) | (_, Some(false)) => Some(false),
+            (Some(left), Some(right)) => Some(left && right),
+            _ => None,
+        }
+    }
+
+    fn const_value_in_domain(&self) -> Option<Self::Output> {
+        match (
+            self.left.const_value_in_domain(),
+            self.right.const_value_in_domain(),
+        ) {
+            (Some(false), _) | (_, Some(false)) => Some(false),
+            (Some(left), Some(right)) => Some(left && right),
+            _ => None,
+        }
     }
 }
 

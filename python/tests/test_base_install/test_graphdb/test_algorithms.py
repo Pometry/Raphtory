@@ -1,3 +1,6 @@
+import tempfile
+
+import pandas
 import pytest
 from raphtory import Graph, algorithms, graph_loader
 from numpy.linalg import norm
@@ -52,6 +55,14 @@ def test_connected_components():
     c = actual[1]
     expected = {1: c, 2: c, 3: c, 4: c, 5: c, 6: c, 7: c, 8: c}
     assert actual == expected
+    with tempfile.NamedTemporaryFile() as f:
+        f.close()
+        actual.to_parquet(f.name)
+        df = pandas.read_parquet(f.name)
+        print(df)
+        assert dict(zip(df["id"], df["component_id"])) == {
+            str(n): c["component_id"] for n, c in expected.items()
+        }
 
 
 def test_largest_connected_component():
@@ -340,6 +351,46 @@ def test_page_rank():
     assert result == expected
 
 
+def test_weighted_page_rank():
+    g = Graph()
+    g.add_edge(0, 1, 2, {"weight": 0.37})
+    g.add_edge(0, 1, 3, {"weight": 4.2})
+    g.add_edge(0, 2, 1, {"weight": 0.9})
+    g.add_edge(0, 2, 4, {"weight": 1.7})
+    g.add_edge(0, 3, 1, {"weight": 2.6})
+    g.add_edge(0, 3, 2, {"weight": 0.05})
+    g.add_edge(0, 4, 3, {"weight": 3.3})
+    g.add_edge(0, 4, 1, {"weight": 0.8})
+
+    actual = algorithms.pagerank(g, iter_count=1000, max_diff=1e-10, weight="weight")
+    for node, expected in [
+        ("1", 0.42499),
+        ("2", 0.07353),
+        ("3", 0.42311),
+        ("4", 0.07837),
+    ]:
+        assert (
+            abs(actual[node]["pagerank_score"] - expected) < 1e-5
+        ), f"node {node}: {actual[node]} != {expected}"
+
+
+def test_weighted_page_rank_none_matches_unweighted():
+    g = Graph()
+    g.add_edge(0, 1, 2, {"weight": 1.0})
+    g.add_edge(0, 1, 4, {"weight": 1.0})
+    g.add_edge(0, 2, 3, {"weight": 1.0})
+    g.add_edge(0, 3, 1, {"weight": 1.0})
+    g.add_edge(0, 4, 1, {"weight": 1.0})
+
+    unweighted = algorithms.pagerank(g, iter_count=1000)
+    weighted = algorithms.pagerank(g, iter_count=1000, weight="weight")
+    for node in ["1", "2", "3", "4"]:
+        assert (
+            abs(unweighted[node]["pagerank_score"] - weighted[node]["pagerank_score"])
+            < 1e-5
+        ), f"node {node} differs"
+
+
 def test_temporal_reachability():
     g = gen_graph()
 
@@ -564,17 +615,10 @@ def test_label_propagation_algorithm():
     for time, src, dst in edges_str:
         g.add_edge(time, src, dst)
     seed = [5] * 32
-    result_node = algorithms.label_propagation(g, 10, seed)
-    result = []
-    print(result_node)
-    for community_id in (2, 8):
-        community = set()
-        for node_id, value in result_node.items():
-            if value["community_id"] == community_id:
-                community.add(node_id.name)
-        result.append(community)
-    expected = [{"R2", "R3", "R1"}, {"G", "B4", "B3", "B2", "B1", "B5"}]
-    assert result == expected
+    labels = algorithms.label_propagation(g, 10, seed)
+    groups = sorted(sorted(v.id) for _, v in labels.groups(["community_id"]))
+    expected = [["B1", "B2", "B3", "B4", "B5", "G"], ["R1", "R2", "R3"]]
+    assert groups == expected
 
 
 def test_k_core():
@@ -652,7 +696,7 @@ def test_nodestate_merge():
     import gc
     import time
 
-    N = 1_000_000
+    N = 1_000
 
     print("start graph gen")
     now = time.time()

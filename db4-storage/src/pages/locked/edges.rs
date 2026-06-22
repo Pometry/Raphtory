@@ -117,7 +117,7 @@ impl<'a, EXT: PersistenceStrategy<ES = ES>, ES: EdgeSegmentOps<Extension = EXT>>
         } else {
             return false;
         };
-        let (page_id, pos) = resolve_pos(elid.edge, max_page_len);
+        let (page_id, pos) = resolve_pos(elid.eid(), max_page_len);
         self.writers.get(page_id).is_some_and(|page| {
             let locked_head = page.lock.deref();
             page.page.has_edge(pos, elid.layer(), locked_head)
@@ -125,9 +125,10 @@ impl<'a, EXT: PersistenceStrategy<ES = ES>, ES: EdgeSegmentOps<Extension = EXT>>
     }
 
     pub fn vacuum(&mut self) -> Result<(), StorageError> {
-        for LockedEdgePage { page, lock, .. } in &mut self.writers {
-            page.vacuum(lock.deref_mut())?;
-        }
+        self.writers.par_iter_mut().try_for_each(|writer| {
+            let LockedEdgePage { page, lock, .. } = writer;
+            page.vacuum(lock.deref_mut())
+        })?;
         Ok(())
     }
 

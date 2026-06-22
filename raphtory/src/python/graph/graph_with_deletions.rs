@@ -12,7 +12,7 @@ use crate::{
         graph::{edge::EdgeView, node::NodeView, views::deletion_graph::PersistentGraph},
     },
     errors::GraphError,
-    io::{arrow::df_loaders::edges::ColumnNames, parquet_loaders::*},
+    io::parquet_loaders::*,
     prelude::{DeletionOps, GraphViewOps, ImportOps, ParquetEncoder},
     python::{
         graph::{
@@ -49,12 +49,16 @@ use std::{
     sync::Arc,
 };
 
-use crate::python::config::PyConfig;
+use crate::{arrow_loader::df_loaders::edges::ColumnNames, python::config::PyConfig};
 #[cfg(feature = "search")]
 use crate::{prelude::IndexMutationOps, python::graph::index::PyIndexSpec};
 
 /// A temporal graph that allows edges and nodes to be deleted.
-#[derive(Clone)]
+///
+/// Arguments:
+///     path (str | PathLike, optional): The path for persisting the graph (only works with disk storage enabled). Defaults to None.
+///     config (Config, optional): Storage/config overrides. Defaults to None.
+///
 #[pyclass(name = "PersistentGraph", extends = PyGraphView, frozen, module="raphtory")]
 pub struct PyPersistentGraph {
     pub(crate) graph: PersistentGraph,
@@ -150,14 +154,26 @@ impl PyPersistentGraph {
     ///     path (str | PathLike): the path of the graph folder
     ///     config (Config, optional): specify a new config to override the values saved for the graph
     ///                                (note that the page sizes cannot be overridden and are ignored)
+    ///     read_only (bool): open as a read-only snapshot. Multiple processes can hold
+    ///                       a read-only handle to the same graph directory concurrently;
+    ///                       mutating the returned graph will fail. Defaults to ``False``.
     ///
     /// Returns:
     ///     PersistentGraph: the graph
+    #[pyo3(signature = (path, config = None, read_only = false))]
     #[staticmethod]
-    pub fn load(path: PathBuf, config: Option<PyConfig>) -> Result<PersistentGraph, GraphError> {
-        match config {
-            None => PersistentGraph::load(&path),
-            Some(PyConfig(config)) => PersistentGraph::load_with_config(&path, config),
+    pub fn load(
+        path: PathBuf,
+        config: Option<PyConfig>,
+        read_only: bool,
+    ) -> Result<PersistentGraph, GraphError> {
+        match (config, read_only) {
+            (None, false) => PersistentGraph::load(&path),
+            (Some(PyConfig(config)), false) => PersistentGraph::load_with_config(&path, config),
+            (None, true) => PersistentGraph::load_read_only(&path),
+            (Some(PyConfig(config)), true) => {
+                PersistentGraph::load_read_only_with_config(&path, config)
+            }
         }
     }
 
@@ -167,6 +183,25 @@ impl PyPersistentGraph {
     ///     None: This function does not return a value, if the operation is successful.
     pub fn flush(&self) -> Result<(), GraphError> {
         self.graph.flush()
+    }
+
+    /// Return a read-only handle to this graph.
+    ///
+    /// Mutations on the returned graph (``add_node``, ``add_edge``,
+    /// ``add_metadata``, etc.) raise an error containing ``"locked"``.
+    /// The underlying data is shared with the original handle — this is
+    /// not a snapshot.
+    ///
+    /// .. warning::
+    ///     While this handle is live, the original graph cannot be
+    ///     mutated either: writes from it will block on the read locks
+    ///     held by this handle. Drop the read-only handle (``del ro``)
+    ///     before mutating the original.
+    ///
+    /// Returns:
+    ///     PersistentGraph: a read-only handle to the same graph data.
+    pub fn read_only(&self) -> PersistentGraph {
+        self.graph.read_only()
     }
 
     fn __reduce__(&self) -> Result<(PyGraphEncoder, (Vec<u8>,)), GraphError> {
@@ -731,6 +766,7 @@ impl PyPersistentGraph {
                     layer,
                     layer_col,
                     None,
+                    None,
                     true,
                     arced_schema.clone(),
                 )?;
@@ -1054,6 +1090,8 @@ impl PyPersistentGraph {
                     None,
                     &metadata,
                     shared_metadata.as_ref(),
+                    None,
+                    None,
                     None,
                     arced_schema.clone(),
                 )?;

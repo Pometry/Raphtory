@@ -1,15 +1,18 @@
 use raphtory_api::core::{
     entities::{
         edges::edge_ref::EdgeRef,
-        properties::{meta::STATIC_GRAPH_LAYER_ID, prop::Prop},
+        properties::{
+            meta::{STATIC_GRAPH_LAYER, STATIC_GRAPH_LAYER_ID, STATIC_GRAPH_LAYER_NAME},
+            prop::Prop,
+        },
         GidRef, LayerId, LayerIds, VID,
     },
     storage::timeindex::TimeIndexOps,
     Direction,
 };
 use raphtory_core::{entities::LayerVariants, storage::timeindex::EventTime};
-use std::{borrow::Cow, ops::Range};
-use storage::{api::nodes::NodeRefOps, gen_ts::LayerIter, NodeEntryRef};
+use std::{borrow::Cow, ops::Range, sync::Arc};
+use storage::{api::nodes::NodeRefOps, gen_ts::LayerIter, utils::Iter3, NodeEntryRef};
 
 pub trait NodeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
     fn degree(self, layers: &LayerIds, dir: Direction) -> usize;
@@ -38,17 +41,19 @@ pub trait NodeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
     ) -> impl Iterator<Item = LayerId> + Send + Sync + 'a;
 
     fn has_layers(self, layer_ids: &'a LayerIds) -> bool {
-        !self.additions().is_empty() || self.layer_ids_iter(layer_ids).next().is_some()
+        !self.node_prop_additions(&STATIC_GRAPH_LAYER).is_empty()
+            || self.layer_ids_iter(layer_ids).next().is_some()
     }
 
-    fn node_additions<L: Into<LayerIter<'a>>>(self, layer_id: L) -> storage::NodePropAdditions<'a>;
+    fn node_prop_additions<L: Into<LayerIter<'a>>>(
+        self,
+        layer_id: L,
+    ) -> storage::NodePropAdditions<'a>;
 
     fn node_edge_additions<L: Into<LayerIter<'a>>>(
         self,
         layer_id: L,
     ) -> storage::NodeEdgeAdditions<'a>;
-
-    fn additions(self) -> storage::NodePropAdditions<'a>;
 
     fn temporal_prop_layer(self, layer_id: LayerId, prop_id: usize) -> storage::NodeTProps<'a>;
 
@@ -75,35 +80,26 @@ pub trait NodeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
         layer_ids: &LayerIds,
         prop_id: usize,
     ) -> impl Iterator<Item = storage::NodeTProps<'a>> + Send + Sync + 'a {
-        let layers: Vec<LayerId> = match layer_ids {
-            // No edge layers requested → still include STATIC so unlayered nodes show their props.
-            LayerIds::None => vec![STATIC_GRAPH_LAYER_ID],
-            // All layers already includes STATIC.
-            LayerIds::All => (0..self.num_layers()).map(LayerId).collect(),
+        let layers = match layer_ids {
+            LayerIds::None => LayerVariants::None(std::iter::once(STATIC_GRAPH_LAYER_ID)),
+            LayerIds::All => LayerVariants::All((0..self.num_layers()).map(LayerId)),
             LayerIds::One(id) => {
                 if *id == STATIC_GRAPH_LAYER_ID {
-                    vec![*id]
+                    LayerVariants::One(std::iter::once(*id))
                 } else {
-                    let mut v = vec![STATIC_GRAPH_LAYER_ID, *id];
-                    v.sort();
-                    v
+                    LayerVariants::Multiple(Iter3::I([STATIC_GRAPH_LAYER_ID, *id].into_iter()))
                 }
             }
             LayerIds::Multiple(ids) => {
                 if ids.contains(STATIC_GRAPH_LAYER_ID) {
-                    ids.into_iter().collect()
+                    LayerVariants::Multiple(Iter3::J(ids.clone().into_iter()))
                 } else {
-                    let mut v: Vec<LayerId> = std::iter::once(STATIC_GRAPH_LAYER_ID)
-                        .chain(ids.into_iter())
-                        .collect();
-                    v.sort();
-                    v
+                    let v = std::iter::once(STATIC_GRAPH_LAYER_ID).chain(ids.clone().into_iter());
+                    LayerVariants::Multiple(Iter3::K(v))
                 }
             }
         };
-        layers
-            .into_iter()
-            .map(move |id| self.temporal_prop_layer(id, prop_id))
+        layers.map(move |id| self.temporal_prop_layer(id, prop_id))
     }
 
     fn constant_prop_layer(self, layer_id: LayerId, prop_id: usize) -> Option<Prop>;
@@ -120,10 +116,14 @@ pub trait NodeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
     fn temp_prop_rows_range(
         self,
         w: Option<Range<EventTime>>,
+        prop_ids: Arc<[usize]>,
     ) -> impl Iterator<Item = (EventTime, usize, Vec<(usize, Prop)>)>;
 
-    fn temp_prop_rows(self) -> impl Iterator<Item = (EventTime, usize, Vec<(usize, Prop)>)> {
-        self.temp_prop_rows_range(None)
+    fn temp_prop_rows(
+        self,
+        prop_ids: Arc<[usize]>,
+    ) -> impl Iterator<Item = (EventTime, usize, Vec<(usize, Prop)>)> {
+        self.temp_prop_rows_range(None, prop_ids)
     }
 }
 
@@ -176,7 +176,7 @@ impl<'a> NodeStorageOps<'a> for NodeEntryRef<'a> {
         }
     }
 
-    fn node_additions<L: Into<LayerIter<'a>>>(
+    fn node_prop_additions<L: Into<LayerIter<'a>>>(
         self,
         layer_ids: L,
     ) -> storage::NodePropAdditions<'a> {
@@ -188,10 +188,6 @@ impl<'a> NodeStorageOps<'a> for NodeEntryRef<'a> {
         layer_id: L,
     ) -> storage::NodeEdgeAdditions<'a> {
         NodeRefOps::edge_additions(self, layer_id)
-    }
-
-    fn additions(self) -> storage::NodePropAdditions<'a> {
-        NodeRefOps::node_additions(self, 0)
     }
 
     fn tprop(self, prop_id: usize) -> storage::NodeTProps<'a> {
@@ -213,7 +209,8 @@ impl<'a> NodeStorageOps<'a> for NodeEntryRef<'a> {
     fn temp_prop_rows_range(
         self,
         w: Option<Range<EventTime>>,
+        prop_ids: Arc<[usize]>,
     ) -> impl Iterator<Item = (EventTime, usize, Vec<(usize, Prop)>)> {
-        NodeRefOps::temp_prop_rows(self, w)
+        NodeRefOps::temp_prop_rows(self, w, prop_ids)
     }
 }

@@ -18,18 +18,10 @@ raphtory-api-macros = { workspace = true }
 raphtory-core = { workspace = true }
 storage.workspace = true
 db4-graph.workspace = true
+either.workspace = true
 parking_lot.workspace = true
 rayon = { workspace = true }
 iter-enum = { workspace = true }
-serde = { workspace = true, features = ["derive"] }
 itertools = { workspace = true }
 thiserror = { workspace = true }
-bigdecimal = { workspace = true, optional = true }
-num-traits = { workspace = true, optional = true }
-arrow-array = { workspace = true }
-arrow-schema = { workspace = true }
-
-[dev-dependencies]
-proptest = { workspace = true }
-tempfile = { workspace = true }
 

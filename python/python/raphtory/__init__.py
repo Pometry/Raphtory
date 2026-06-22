@@ -1,14 +1,18 @@
 import sys as _sys
+import inspect as _inspect
+
+from . import _raphtory
 from ._raphtory import *
 
-_sys.modules["raphtory.node_state"] = node_state
-_sys.modules["raphtory.algorithms"] = algorithms
-_sys.modules["raphtory.graph_gen"] = graph_gen
-_sys.modules["raphtory.graph_loader"] = graph_loader
-_sys.modules["raphtory.vectors"] = vectors
-_sys.modules["raphtory.graphql"] = graphql
-_sys.modules["raphtory.filter"] = filter
-_sys.modules["raphtory.gql"] = gql
+
+def _init_submodules(path: str, module):
+    for name, submodule in _inspect.getmembers(module, _inspect.ismodule):
+        submodule_path = f"{path}.{name}"
+        _sys.modules[submodule_path] = submodule
+        _init_submodules(submodule_path, submodule)
+
+
+_init_submodules("raphtory", _raphtory)
 
 __doc__ = _raphtory.__doc__
 if hasattr(_raphtory, "__all__"):

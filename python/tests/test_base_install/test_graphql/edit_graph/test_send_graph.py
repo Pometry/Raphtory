@@ -13,8 +13,8 @@ def test_send_graph_succeeds_if_no_graph_found_with_same_name():
     g.add_edge(3, "ben", "haaroon")
 
     tmp_work_dir = tempfile.mkdtemp()
-    with GraphServer(tmp_work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(tmp_work_dir).start() as server:
+        client = server.get_client()
         client.send_graph(path="g", graph=g)
 
 
@@ -27,8 +27,8 @@ def test_send_graph_fails_if_graph_already_exists():
     g.add_edge(3, "ben", "haaroon")
     g.save_to_file(os.path.join(tmp_work_dir, "g"))
 
-    with GraphServer(tmp_work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(tmp_work_dir).start() as server:
+        client = server.get_client()
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path="g", graph=g)
         assert "Graph 'g' already exists" in str(excinfo.value)
@@ -42,8 +42,8 @@ def test_send_graph_succeeds_if_graph_already_exists_with_overwrite_enabled():
     g.add_edge(2, "haaroon", "hamza")
     g.add_edge(3, "ben", "haaroon")
 
-    with GraphServer(tmp_work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(tmp_work_dir).start() as server:
+        client = server.get_client()
 
         client.send_graph(path="g", graph=g)
 
@@ -76,8 +76,8 @@ def test_send_graph_succeeds_if_no_graph_found_with_same_name_at_namespace():
     g.add_edge(3, "ben", "haaroon")
 
     tmp_work_dir = tempfile.mkdtemp()
-    with GraphServer(tmp_work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(tmp_work_dir).start() as server:
+        client = server.get_client()
         client.send_graph(path="shivam/g", graph=g)
 
 
@@ -91,8 +91,8 @@ def test_send_graph_fails_if_graph_already_exists_at_namespace():
     os.makedirs(os.path.join(tmp_work_dir, "shivam"), exist_ok=True)
     g.save_to_file(os.path.join(tmp_work_dir, "shivam", "g"))
 
-    with GraphServer(tmp_work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(tmp_work_dir).start() as server:
+        client = server.get_client()
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path="shivam/g", graph=g)
         assert "Graph 'shivam/g' already exists" in str(excinfo.value)
@@ -108,8 +108,8 @@ def test_send_graph_succeeds_if_graph_already_exists_at_namespace_with_overwrite
     os.makedirs(os.path.join(tmp_work_dir, "shivam"), exist_ok=True)
     g.save_to_file(os.path.join(tmp_work_dir, "shivam", "g"))
 
-    with GraphServer(tmp_work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(tmp_work_dir).start() as server:
+        client = server.get_client()
 
         g = Graph()
         g.add_edge(1, "ben", "hamza")

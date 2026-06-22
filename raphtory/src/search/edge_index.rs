@@ -10,6 +10,7 @@ use crate::{
     },
 };
 use ahash::HashSet;
+use either::Either;
 use raphtory_api::core::{
     entities::{LayerId, LayerIds},
     storage::dict_mapper::MaybeNew,
@@ -127,7 +128,7 @@ impl EdgeIndex {
 
     pub(crate) fn print(&self) -> Result<(), GraphError> {
         let searcher = get_reader(&self.entity_index.index)?.searcher();
-        let top_docs = searcher.search(&AllQuery, &TopDocs::with_limit(1000))?;
+        let top_docs = searcher.search(&AllQuery, &TopDocs::with_limit(1000).order_by_score())?;
 
         println!("Total edge doc count: {}", top_docs.len());
 
@@ -252,7 +253,7 @@ impl EdgeIndex {
         edge_id
             .if_new(|eid| {
                 let mut writer = self.entity_index.index.writer(100_000_000)?;
-                let ese = graph.core_edge(eid);
+                let ese = graph.core_edge(Either::Left(eid));
                 let src = graph.node_name(ese.src());
                 let dst = graph.node_name(ese.dst());
                 let edge_doc = self.create_document(eid_u64, src, dst);

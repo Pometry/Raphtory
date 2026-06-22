@@ -108,6 +108,14 @@ impl<'a, G: GraphViewOps<'a>> TimeIndexOps<'a> for NodePropHistory<'a, G> {
     fn is_empty(&self) -> bool {
         self.additions.is_empty()
     }
+
+    fn last(&self) -> Option<Self::IndexType> {
+        self.additions.last()
+    }
+
+    fn first(&self) -> Option<Self::IndexType> {
+        self.additions.first()
+    }
 }
 
 impl<'a, G: GraphViewOps<'a>> TimeIndexOps<'a> for NodeEdgeHistory<'a, G> {
@@ -130,12 +138,31 @@ impl<'a, G: GraphViewOps<'a>> TimeIndexOps<'a> for NodeEdgeHistory<'a, G> {
         self.history().map(|(t, _)| t)
     }
 
+    fn last(&self) -> Option<Self::IndexType> {
+        if self.view.filtered() {
+            self.clone().iter_rev().next()
+        } else {
+            self.additions.last()
+        }
+    }
+
+    fn first(&self) -> Option<Self::IndexType> {
+        if self.view.filtered() {
+            self.clone().iter().next()
+        } else {
+            self.additions.first()
+        }
+    }
+
     fn iter_rev(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a {
         self.history_rev().map(|(t, _)| t)
     }
 
     fn len(&self) -> usize {
-        if matches!(self.view.filter_state(), FilterState::Neither) {
+        if matches!(
+            self.view.filter_state(),
+            FilterState::Neither | FilterState::Window
+        ) {
             self.additions.len()
         } else {
             self.history().count()
@@ -143,7 +170,10 @@ impl<'a, G: GraphViewOps<'a>> TimeIndexOps<'a> for NodeEdgeHistory<'a, G> {
     }
 
     fn is_empty(&self) -> bool {
-        if matches!(self.view.filter_state(), FilterState::Neither) {
+        if matches!(
+            self.view.filter_state(),
+            FilterState::Neither | FilterState::Window
+        ) {
             self.additions.is_empty()
         } else {
             self.history().next().is_none()
@@ -157,6 +187,10 @@ impl<'b, G: GraphViewOps<'b>> TimeIndexOps<'b> for NodeHistory<'b, G> {
 
     fn active(&self, w: Range<Self::IndexType>) -> bool {
         self.prop_history().active(w.clone()) || self.edge_history().active(w)
+    }
+
+    fn last(&self) -> Option<Self::IndexType> {
+        self.prop_history().last().max(self.edge_history().last())
     }
 
     fn range(&self, w: Range<Self::IndexType>) -> Self {
@@ -230,7 +264,7 @@ pub trait FilteredNodeStorageOps<'a>: NodeStorageOps<'a> {
         // Nodes added without a specific layer go to STATIC_GRAPH_LAYER_ID and should appear
         // active in any layer-restricted view. Nodes added with an explicit layer only appear
         // in that layer's view.
-        let additions = self.node_additions(layer_ids_with_static(layer_ids));
+        let additions = self.node_prop_additions(layer_ids_with_static(layer_ids));
         let edge_history = self.node_edge_additions(layer_ids);
         NodeHistory {
             edge_history,
@@ -247,9 +281,9 @@ pub trait FilteredNodeStorageOps<'a>: NodeStorageOps<'a> {
         self.history(view, layer_ids).edge_history()
     }
 
-    fn filtered_edges_iter<G: GraphViewOps<'a>>(
+    fn filtered_edges_iter<G: GraphView + 'a>(
         self,
-        view: G,
+        view: &'a G,
         layer_ids: &'a LayerIds,
         dir: Direction,
     ) -> impl Iterator<Item = EdgeRef> + 'a {
@@ -258,25 +292,25 @@ pub trait FilteredNodeStorageOps<'a>: NodeStorageOps<'a> {
             FilterState::Neither => FilterVariants::Neither(iter),
             FilterState::Both => FilterVariants::Both(iter.filter(move |e| {
                 let gs = view.core_graph();
-                view.filter_edge(gs.core_edge(e.pid()).as_ref())
+                view.filter_edge(gs.core_edge(Either::Right(*e)).as_ref())
                     && view.filter_node(gs.core_node(e.remote()).as_ref())
             })),
             FilterState::Nodes => FilterVariants::Nodes(iter.filter(move |e| {
                 let gs = view.core_graph();
                 view.filter_node(gs.core_node(e.remote()).as_ref())
             })),
-            FilterState::Edges | FilterState::BothIndependent => {
+            FilterState::Edges | FilterState::BothIndependent | FilterState::Window => {
                 FilterVariants::Edges(iter.filter(move |e| {
                     let gs = view.core_graph();
-                    view.filter_edge(gs.core_edge(e.pid()).as_ref())
+                    view.filter_edge(gs.core_edge(Either::Right(*e)).as_ref())
                 }))
             }
         }
     }
 
-    fn filtered_neighbours_iter<G: GraphViewOps<'a>>(
+    fn filtered_neighbours_iter<G: GraphView + 'a>(
         self,
-        view: G,
+        view: &'a G,
         layer_ids: &'a LayerIds,
         dir: Direction,
     ) -> impl Iterator<Item = VID> + 'a {

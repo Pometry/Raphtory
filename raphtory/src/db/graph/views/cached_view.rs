@@ -1,12 +1,15 @@
 use crate::{
     core::entities::LayerIds,
     db::api::{
-        properties::internal::InheritPropertiesOps,
+        properties::internal::{
+            InheritEdgePropertySchemaOps, InheritNodePropertySchemaOps, InheritPropertiesOps,
+        },
         view::internal::{
-            EdgeTimeSemanticsOps, FilterOps, Immutable, InheritEdgeHistoryFilter, InheritLayerOps,
-            InheritListOps, InheritMaterialize, InheritNodeHistoryFilter, InheritStorageOps,
-            InheritTimeSemantics, InternalEdgeFilterOps, InternalEdgeLayerFilterOps,
-            InternalExplodedEdgeFilterOps, InternalLayerOps, InternalNodeFilterOps, Static,
+            EdgeTimeSemanticsOps, FilterOps, GraphView, Immutable, InheritEdgeHistoryFilter,
+            InheritLayerOps, InheritListOps, InheritMaterialize, InheritNodeHistoryFilter,
+            InheritStorageOps, InheritTimeSemantics, InternalEdgeFilterOps,
+            InternalEdgeLayerFilterOps, InternalExplodedEdgeFilterOps, InternalLayerOps,
+            InternalNodeFilterOps, Static,
         },
     },
     prelude::{GraphViewOps, LayerOps},
@@ -60,10 +63,11 @@ impl<'graph, G: GraphViewOps<'graph>> Base for CachedView<G> {
 }
 
 impl<'graph, G: GraphViewOps<'graph>> Immutable for CachedView<G> {}
-
+impl<'graph, G: GraphView> InheritTimeSemantics for CachedView<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritCoreGraphOps for CachedView<G> {}
-impl<'graph, G: GraphViewOps<'graph>> InheritTimeSemantics for CachedView<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritPropertiesOps for CachedView<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritNodePropertySchemaOps for CachedView<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritEdgePropertySchemaOps for CachedView<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for CachedView<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritLayerOps for CachedView<G> {}
 
@@ -184,6 +188,14 @@ impl<'graph, G: GraphViewOps<'graph>> InternalExplodedEdgeFilterOps for CachedVi
     fn node_filter_includes_exploded_edge_filter(&self) -> bool {
         true
     }
+
+    fn edge_filter_includes_exploded_edge_filter(&self) -> bool {
+        true
+    }
+
+    fn edge_layer_filter_includes_exploded_edge_filter(&self) -> bool {
+        true
+    }
 }
 
 impl<'graph, G: GraphViewOps<'graph>> InternalEdgeLayerFilterOps for CachedView<G> {
@@ -202,6 +214,14 @@ impl<'graph, G: GraphViewOps<'graph>> InternalEdgeLayerFilterOps for CachedView<
     }
 
     fn node_filter_includes_edge_layer_filter(&self) -> bool {
+        true
+    }
+
+    fn edge_filter_includes_edge_layer_filter(&self) -> bool {
+        true
+    }
+
+    fn exploded_edge_filter_includes_edge_layer_filter(&self) -> bool {
         true
     }
 }
@@ -230,6 +250,17 @@ impl<'graph, G: GraphViewOps<'graph>> InternalEdgeFilterOps for CachedView<G> {
                 .iter()
                 .any(|id| self.layered_mask.get(id.0).is_some_and(filter_fn)),
         }
+    }
+    fn edge_filter_includes_window_filter(&self) -> bool {
+        true
+    }
+
+    fn edge_layer_filter_includes_edge_filter(&self) -> bool {
+        true
+    }
+
+    fn exploded_edge_filter_includes_edge_filter(&self) -> bool {
+        true
     }
 
     fn node_filter_includes_edge_filter(&self) -> bool {
@@ -274,5 +305,9 @@ impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for CachedView<G> {
                     .unwrap_or(false)
             }),
         }
+    }
+
+    fn node_filter_includes_window_filter(&self) -> bool {
+        true
     }
 }
