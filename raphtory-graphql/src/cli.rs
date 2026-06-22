@@ -13,6 +13,7 @@ use crate::{
         },
         schema_config::DEFAULT_DISABLE_INTROSPECTION,
     },
+    model::App,
     server::{apply_server_extension, DEFAULT_PORT},
     GraphServer,
 };
@@ -220,7 +221,10 @@ where
     let args = Args::parse_from(args_iter);
 
     match args.command {
-        Commands::Schema => {}
+        Commands::Schema => {
+            let schema = App::create_schema().finish().unwrap();
+            println!("{}", schema.sdl());
+        }
         Commands::Server(server_args) => {
             let mut builder = AppConfigBuilder::new();
             if let Some(config_file) = server_args.config_file {
