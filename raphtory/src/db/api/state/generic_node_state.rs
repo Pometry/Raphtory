@@ -1,12 +1,15 @@
 use crate::{
-    core::entities::{VID, nodes::node_ref::AsNodeRef},
+    core::entities::{nodes::node_ref::AsNodeRef, VID},
     db::{
         api::{
             state::{
-                Index, node_state_ops::NodeStateOps, ops::{Const, filter::NO_FILTER}
+                node_state_ops::NodeStateOps,
+                ops::{filter::NO_FILTER, Const},
+                Index,
             },
             view::{
-                BoxableGraphView, DynamicGraph, IntoDynBoxed, IntoDynamic, internal::{GraphView, InnerFilterOps}
+                internal::{GraphView, InnerFilterOps},
+                BoxableGraphView, DynamicGraph, IntoDynBoxed, IntoDynamic,
             },
         },
         graph::{
@@ -19,7 +22,7 @@ use crate::{
 };
 use arrow::{
     array::{ArrayBuilder, AsArray},
-    compute::{CastOptions, cast_with_options, interleave_record_batch},
+    compute::{cast_with_options, interleave_record_batch, CastOptions},
     datatypes::UInt64Type,
     row::{RowConverter, SortField},
 };
@@ -810,8 +813,10 @@ impl<
 
     pub fn values_from_rows(&mut self, rows: Vec<V>) {
         // let fields = Vec::<FieldRef>::from_type::<V>(TracingOptions::default()).unwrap();
-        let fields = Vec::<FieldRef>::from_type::<V>(TracingOptions::default())
-        .unwrap_or_else(|_| Vec::<FieldRef>::from_samples(&rows, TracingOptions::default()).unwrap());
+        let fields =
+            Vec::<FieldRef>::from_type::<V>(TracingOptions::default()).unwrap_or_else(|_| {
+                Vec::<FieldRef>::from_samples(&rows, TracingOptions::default()).unwrap()
+            });
         self.state.values = to_record_batch(&fields, &rows).unwrap();
     }
 
@@ -1202,7 +1207,12 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
         let values: Vec<V> = values.into_iter().map(map).collect();
         //let fields = Vec::<Field>::from_type::<V>(TracingOptions::default()).unwrap();
         let fields: Vec<Field> = Vec::<FieldRef>::from_type::<V>(TracingOptions::default())
-        .unwrap_or_else(|_| Vec::<FieldRef>::from_samples(&values, TracingOptions::default()).unwrap()).into_iter().map(|f| Arc::unwrap_or_clone(f)).collect();
+            .unwrap_or_else(|_| {
+                Vec::<FieldRef>::from_samples(&values, TracingOptions::default()).unwrap()
+            })
+            .into_iter()
+            .map(|f| Arc::unwrap_or_clone(f))
+            .collect();
         let fields: Vec<_> = fields
             .into_iter()
             .map(|field| FieldRef::new(field.with_nullable(true)))

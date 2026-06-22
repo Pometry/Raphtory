@@ -1,18 +1,24 @@
 use crate::{
     db::api::{
         properties::{
-            TemporalProperties, TemporalPropertyView, dyn_props::{DynTemporalProperties, DynTemporalProperty}, internal::InternalPropertiesOps
-        }, state::GenericNodeState, view::{
+            dyn_props::{DynTemporalProperties, DynTemporalProperty},
+            internal::InternalPropertiesOps,
+            TemporalProperties, TemporalPropertyView,
+        },
+        state::GenericNodeState,
+        view::{
             history::History,
             internal::{DynamicGraph, Static},
-        }
+        },
     },
     python::{
         graph::{
-            history::{HistoryIterable, NestedHistoryIterable, PyHistory}, node_state::PyOutputNodeState, properties::{PyPropValueList, PyPropValueListList}
+            history::{HistoryIterable, NestedHistoryIterable, PyHistory},
+            node_state::PyOutputNodeState,
+            properties::{PyPropValueList, PyPropValueListList},
         },
         types::{
-            repr::{Repr, iterator_dict_repr, iterator_repr},
+            repr::{iterator_dict_repr, iterator_repr, Repr},
             wrappers::{
                 iterables::{NestedUsizeIterable, PropIterable, UsizeIterable},
                 iterators::PyBorrowingIterator,
@@ -1262,9 +1268,17 @@ impl PyPropValueList {
     }
 
     pub fn arrow_compute(&self, graph: DynamicGraph, col_name: String) -> PyOutputNodeState {
-        PyOutputNodeState::new(GenericNodeState::new_from_eval_mapped(graph.clone(), self.collect(), move |v| {
-            IndexMap::<String, Option<PropUntagged>>::from([(col_name.clone(), v.map(Into::<PropUntagged>::into))])
-        }, None))
+        PyOutputNodeState::new(GenericNodeState::new_from_eval_mapped(
+            graph.clone(),
+            self.collect(),
+            move |v| {
+                IndexMap::<String, Option<PropUntagged>>::from([(
+                    col_name.clone(),
+                    v.map(Into::<PropUntagged>::into),
+                )])
+            },
+            None,
+        ))
     }
 }
 
