@@ -7,8 +7,13 @@
 //! copy — and output parity with the existing engine is structural.
 
 use crate::model::graph::{
-    edge::GqlEdge, edges::GqlEdges, history::GqlHistory, node::GqlNode, nodes::GqlNodes,
+    edge::GqlEdge,
+    edges::GqlEdges,
+    history::GqlHistory,
+    node::GqlNode,
+    nodes::GqlNodes,
     path_from_node::GqlPathFromNode,
+    property::{GqlMetadata, GqlProperties, GqlProperty, GqlTemporalProperties, GqlTemporalProperty},
 };
 use raphtory::db::api::view::DynamicGraph;
 use raphtory_api::core::storage::timeindex::EventTime;
@@ -31,4 +36,14 @@ pub enum Value {
     History(GqlHistory),
     /// A single history entry — the item produced while iterating `history.list`.
     EventTime(EventTime),
+    /// A property bag (`node.properties` / `edge.properties`).
+    Properties(GqlProperties),
+    /// The temporal-only view of a property bag (`properties.temporal`).
+    TemporalProperties(GqlTemporalProperties),
+    /// A metadata bag (`node.metadata` / `edge.metadata`).
+    Metadata(GqlMetadata),
+    /// A single `{key, value}` reading — item of `properties.values` / `metadata.values`.
+    Property(GqlProperty),
+    /// A single property timeline — item of `temporal.values`.
+    TemporalProperty(GqlTemporalProperty),
 }

@@ -210,7 +210,7 @@ fn gql_to_prop(value: GqlValue) -> Result<Prop, Error> {
     }
 }
 
-fn prop_to_gql(prop: &Prop) -> GqlValue {
+pub(crate) fn prop_to_gql(prop: &Prop) -> GqlValue {
     match prop {
         Prop::Str(s) => GqlValue::String(s.to_string()),
         Prop::U8(u) => GqlValue::Number(Number::from(*u)),
@@ -244,8 +244,8 @@ fn prop_to_gql(prop: &Prop) -> GqlValue {
 #[derive(Clone, ResolvedObject)]
 #[graphql(name = "Property")]
 pub(crate) struct GqlProperty {
-    key: String,
-    prop: Prop,
+    pub(crate) key: String,
+    pub(crate) prop: Prop,
 }
 
 impl GqlProperty {
@@ -331,8 +331,15 @@ impl GqlPropertyTuple {
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "TemporalProperty")]
 pub(crate) struct GqlTemporalProperty {
-    key: String,
-    prop: TemporalPropertyView<DynProps>,
+    pub(crate) key: String,
+    pub(crate) prop: TemporalPropertyView<DynProps>,
+}
+
+impl GqlTemporalProperty {
+    /// History handle for this temporal property (interpreter access).
+    pub(crate) fn history_handle(&self) -> GqlHistory {
+        self.prop.history().into()
+    }
 }
 
 impl GqlTemporalProperty {
@@ -493,6 +500,74 @@ impl<P: Into<DynProperties>> From<P> for GqlProperties {
     fn from(value: P) -> Self {
         Self {
             props: value.into(),
+        }
+    }
+}
+
+impl GqlProperties {
+    /// `values(keys:)` as a plain (sync) collection, for the interpreter.
+    pub(crate) fn collect_values(&self, keys: Option<&[String]>) -> Vec<GqlProperty> {
+        match keys {
+            Some(keys) => self
+                .props
+                .iter_filtered()
+                .filter_map(|(k, prop)| {
+                    let key = k.to_string();
+                    keys.contains(&key).then_some((key, prop).into())
+                })
+                .collect(),
+            None => self
+                .props
+                .iter_filtered()
+                .map(|(k, prop)| (k.to_string(), prop).into())
+                .collect(),
+        }
+    }
+
+    /// The temporal-only view (interpreter access for `properties.temporal`).
+    pub(crate) fn temporal_view(&self) -> GqlTemporalProperties {
+        self.props.temporal().into()
+    }
+}
+
+impl GqlTemporalProperties {
+    /// `values(keys:)` as a plain (sync) collection, for the interpreter.
+    pub(crate) fn collect_values(&self, keys: Option<&[String]>) -> Vec<GqlTemporalProperty> {
+        match keys {
+            Some(keys) => self
+                .props
+                .iter_filtered()
+                .filter_map(|(k, p)| {
+                    let key = k.to_string();
+                    keys.contains(&key).then_some((key, p).into())
+                })
+                .collect(),
+            None => self
+                .props
+                .iter_filtered()
+                .map(|(k, p)| (k.to_string(), p).into())
+                .collect(),
+        }
+    }
+}
+
+impl GqlMetadata {
+    /// `values(keys:)` as a plain (sync) collection, for the interpreter.
+    pub(crate) fn collect_values(&self, keys: Option<&[String]>) -> Vec<GqlProperty> {
+        match keys {
+            Some(keys) => self
+                .props
+                .iter_filtered()
+                .filter_map(|(k, p)| {
+                    let key = k.to_string();
+                    keys.contains(&key).then_some((key, p).into())
+                })
+                .collect(),
+            None => self
+                .props
+                .iter_filtered()
+                .map(|(k, p)| (k.to_string(), p).into())
+                .collect(),
         }
     }
 }

@@ -202,6 +202,10 @@ fn resolve_op(parent_type: &str, field: &str, f: &Field) -> Result<OpKind, PlanE
             }
             OpKind::Navigate(Nav::Neighbours)
         }
+        ("Node", "properties") => OpKind::Navigate(Nav::Properties),
+        ("Node", "metadata") => OpKind::Navigate(Nav::Metadata),
+        ("Edge", "properties") => OpKind::Navigate(Nav::Properties),
+        ("Edge", "metadata") => OpKind::Navigate(Nav::Metadata),
         ("Edge", "id") => OpKind::Leaf(LeafKind::EdgeId),
         ("Edge", "src") => OpKind::Navigate(Nav::Src),
         ("Edge", "dst") => OpKind::Navigate(Nav::Dst),
@@ -217,6 +221,15 @@ fn resolve_op(parent_type: &str, field: &str, f: &Field) -> Result<OpKind, PlanE
         ("History", "list") => OpKind::List(IterKind::HistoryList),
         ("EventTime", "timestamp") => OpKind::Leaf(LeafKind::Timestamp),
         ("EventTime", "eventId") => OpKind::Leaf(LeafKind::EventId),
+        ("Properties", "values") => OpKind::List(IterKind::PropertiesValues(keys_arg(f)?)),
+        ("Properties", "temporal") => OpKind::Navigate(Nav::Temporal),
+        ("Metadata", "values") => OpKind::List(IterKind::MetadataValues(keys_arg(f)?)),
+        ("TemporalProperties", "values") => OpKind::List(IterKind::TemporalValues(keys_arg(f)?)),
+        ("Property", "key") => OpKind::Leaf(LeafKind::Key),
+        ("Property", "asString") => OpKind::Leaf(LeafKind::AsString),
+        ("Property", "value") => OpKind::Leaf(LeafKind::Value),
+        ("TemporalProperty", "key") => OpKind::Leaf(LeafKind::Key),
+        ("TemporalProperty", "history") => OpKind::Navigate(Nav::History),
         _ => {
             return Err(PlanError::Unsupported {
                 ty: parent_type.into(),
@@ -252,6 +265,24 @@ fn time_arg(f: &Field, name: &'static str) -> Result<EventTime, PlanError> {
             .ok_or(PlanError::BadArgument(name)),
         Some(_) => Err(PlanError::BadArgument(name)),
         None => Err(PlanError::MissingArgument(name)),
+    }
+}
+
+/// Parse the optional `keys: [String!]` whitelist for `values(...)`.
+fn keys_arg(f: &Field) -> Result<Option<Box<[String]>>, PlanError> {
+    match const_arg(f, "keys") {
+        None | Some(GqlValue::Null) => Ok(None),
+        Some(GqlValue::List(items)) => {
+            let mut keys = Vec::with_capacity(items.len());
+            for item in items {
+                match item {
+                    GqlValue::String(s) => keys.push(s),
+                    _ => return Err(PlanError::BadArgument("keys")),
+                }
+            }
+            Ok(Some(keys.into_boxed_slice()))
+        }
+        Some(_) => Err(PlanError::BadArgument("keys")),
     }
 }
 

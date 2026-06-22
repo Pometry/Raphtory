@@ -66,10 +66,16 @@ pub enum Nav {
     Src,
     /// `edge.dst` — `Edge` → `Node`
     Dst,
-    /// `node.history` / `edge.history` — `Node`/`Edge` → `History`
+    /// `history` — `Node`/`Edge`/`TemporalProperty` → `History`
     History,
     /// `node.neighbours` — `Node` → `PathFromNode`
     Neighbours,
+    /// `properties` — `Node`/`Edge` → `Properties`
+    Properties,
+    /// `metadata` — `Node`/`Edge` → `Metadata`
+    Metadata,
+    /// `properties.temporal` — `Properties` → `TemporalProperties`
+    Temporal,
     /// `layer(name:)` — `Graph`/`Node`/`Edge` → same type
     Layer(Box<str>),
     /// `after(time:)` — `Node`/`Edge` → same type
@@ -91,6 +97,12 @@ pub enum IterKind {
     EdgesList,
     /// `history.list` — iterate a `History`, item per `EventTime`.
     HistoryList,
+    /// `properties.values(keys:)` — item per `Property` (optional key whitelist).
+    PropertiesValues(Option<Box<[String]>>),
+    /// `metadata.values(keys:)` — item per `Property` (optional key whitelist).
+    MetadataValues(Option<Box<[String]>>),
+    /// `temporal.values(keys:)` — item per `TemporalProperty` (optional key whitelist).
+    TemporalValues(Option<Box<[String]>>),
 }
 
 /// A scalar leaf read from the current receiver.
@@ -106,4 +118,10 @@ pub enum LeafKind {
     Timestamp,
     /// `eventTime.eventId` — `Int`
     EventId,
+    /// `property.key` / `temporalProperty.key` — `String`
+    Key,
+    /// `property.asString` — `String`
+    AsString,
+    /// `property.value` — `PropertyOutput` (a typed scalar)
+    Value,
 }

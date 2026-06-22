@@ -219,6 +219,14 @@ impl Sink {
         self.put(b"null");
     }
 
+    /// Write a pre-serialized JSON value in value position (array element or the
+    /// value of a field). Used for dynamic scalars (e.g. a property value) whose
+    /// formatting must match serde_json exactly.
+    pub fn write_raw_json(&mut self, json: &[u8]) {
+        self.before_value();
+        self.put(json);
+    }
+
     /// Write a JSON-escaped, double-quoted string (used for both keys and
     /// string values).
     fn write_json_string(&mut self, s: &str) {

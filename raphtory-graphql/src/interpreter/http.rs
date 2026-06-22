@@ -224,6 +224,62 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn interp_property_queries_match_endpoint() {
+        // mirrors test_graph_properties_query: a node whose temporal props change
+        // over time, plus node metadata; a second node with numeric props; an edge
+        // with a float property.
+        let g = Graph::new();
+        g.add_node(1, "n1", [("prop1", "val1"), ("prop2", "val1")], None, None)
+            .unwrap();
+        g.add_node(2, "n1", [("prop1", "val2"), ("prop2", "val2")], None, None)
+            .unwrap();
+        let n = g
+            .add_node(3, "n1", [("prop1", "val3"), ("prop2", "val3")], None, None)
+            .unwrap();
+        n.add_metadata([("prop5", "val4")]).unwrap();
+        g.add_node(1, "n2", [("score", 42i64)], None, None).unwrap();
+        g.add_edge(5, "n1", "n2", [("weight", 0.9f64)], None).unwrap();
+
+        let tempdir = TempDir::new().unwrap();
+        let server = GraphServer::new(tempdir.path().to_path_buf(), None, None, Config::default())
+            .await
+            .unwrap();
+        let port = 43937;
+        let _running = server.start_with_port(port).await.unwrap();
+        tokio::time::sleep(Duration::from_secs(1)).await;
+
+        let gql = RaphtoryGraphQLClient::new(
+            Url::parse(&format!("http://localhost:{port}/")).unwrap(),
+            None,
+        );
+        let encoded = url_encode_graph(g.materialize().unwrap()).unwrap();
+        gql.send_graph("g", &encoded, true).await.unwrap();
+
+        let http = reqwest::Client::new();
+        for query in [
+            // properties.values(keys) + asString, temporal.values(keys).history, metadata.values(keys).value
+            r#"{ graph(path:"g") { node(name:"n1") {
+                properties {
+                    values(keys:["prop1"]) { key asString value }
+                    temporal { values(keys:["prop2"]) { key history { list { timestamp eventId } } } }
+                }
+                metadata { values(keys:["prop5"]) { key value } }
+            } } }"#,
+            // numeric `value` (no keys → all props)
+            r#"{ graph(path:"g") { node(name:"n2") { properties { values { key value asString } } } } }"#,
+            // edge properties
+            r#"{ graph(path:"g") { edge(src:"n1", dst:"n2") { properties { values(keys:["weight"]) { key value asString } } } } }"#,
+            // properties.values over a collection
+            r#"{ graph(path:"g") { nodes { list { properties { values { key } } } } } }"#,
+        ] {
+            let expected =
+                serde_json::to_value(gql.query(query, HashMap::new()).await.unwrap()).unwrap();
+            let got = post_interp(&http, port, query).await;
+            assert_eq!(got["data"], expected, "mismatch for query: {query}");
+        }
+    }
+
+    #[tokio::test]
     async fn interp_endpoint_rejects_invalid_query() {
         let tempdir = TempDir::new().unwrap();
         let server = GraphServer::new(tempdir.path().to_path_buf(), None, None, Config::default())

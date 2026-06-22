@@ -11,11 +11,19 @@ use super::{
     value::Value,
 };
 use crate::model::graph::{
-    edge::GqlEdge, edges::GqlEdges, history::GqlHistory, node::GqlNode, nodes::GqlNodes,
+    edge::GqlEdge,
+    edges::GqlEdges,
+    history::GqlHistory,
+    node::GqlNode,
+    nodes::GqlNodes,
     path_from_node::GqlPathFromNode,
+    property::{prop_to_gql, GqlMetadata, GqlProperties},
 };
 use raphtory::{
-    db::api::view::{DynamicGraph, IntoDynamic},
+    db::api::{
+        properties::dyn_props::DynProperties,
+        view::{DynamicGraph, IntoDynamic},
+    },
     prelude::{EdgeViewOps, GraphViewOps, LayerOps, NodeViewOps, TimeOps},
 };
 use raphtory_api::core::{entities::GID, storage::timeindex::AsTime};
@@ -147,6 +155,51 @@ fn exec(op: &Op, stack: &mut Vec<Value>, sink: &mut Sink) {
                         sink.end_object();
                     }
                 }
+                IterKind::PropertiesValues(keys) => {
+                    let props = match stack.last().expect("non-empty stack") {
+                        Value::Properties(p) => p.clone(),
+                        _ => unreachable!("plan/type mismatch"),
+                    };
+                    for prop in props.collect_values(keys.as_deref()) {
+                        sink.begin_object();
+                        stack.push(Value::Property(prop));
+                        for child in children.iter() {
+                            exec(child, stack, sink);
+                        }
+                        stack.pop();
+                        sink.end_object();
+                    }
+                }
+                IterKind::MetadataValues(keys) => {
+                    let meta = match stack.last().expect("non-empty stack") {
+                        Value::Metadata(m) => m.clone(),
+                        _ => unreachable!("plan/type mismatch"),
+                    };
+                    for prop in meta.collect_values(keys.as_deref()) {
+                        sink.begin_object();
+                        stack.push(Value::Property(prop));
+                        for child in children.iter() {
+                            exec(child, stack, sink);
+                        }
+                        stack.pop();
+                        sink.end_object();
+                    }
+                }
+                IterKind::TemporalValues(keys) => {
+                    let temporal = match stack.last().expect("non-empty stack") {
+                        Value::TemporalProperties(t) => t.clone(),
+                        _ => unreachable!("plan/type mismatch"),
+                    };
+                    for tp in temporal.collect_values(keys.as_deref()) {
+                        sink.begin_object();
+                        stack.push(Value::TemporalProperty(tp));
+                        for child in children.iter() {
+                            exec(child, stack, sink);
+                        }
+                        stack.pop();
+                        sink.end_object();
+                    }
+                }
             }
             sink.end_array();
         }
@@ -180,15 +233,34 @@ impl Nav {
             (Nav::Neighbours, Value::Node(n)) => {
                 Some(Value::Path(GqlPathFromNode::new(n.vv.neighbours())))
             }
-            (Nav::Layer(name), Value::Graph(g)) => {
-                Some(Value::Graph(g.valid_layers(name.to_string()).into_dynamic()))
+            (Nav::History, Value::TemporalProperty(tp)) => {
+                Some(Value::History(tp.history_handle()))
             }
-            (Nav::Layer(name), Value::Node(n)) => {
-                Some(Value::Node(GqlNode::from(n.vv.valid_layers(name.to_string()))))
+            (Nav::Properties, Value::Node(n)) => {
+                let dp: DynProperties = n.vv.properties().into();
+                Some(Value::Properties(GqlProperties::from(dp)))
             }
-            (Nav::Layer(name), Value::Edge(e)) => {
-                Some(Value::Edge(GqlEdge::from(e.ee.valid_layers(name.to_string()))))
+            (Nav::Properties, Value::Edge(e)) => {
+                Some(Value::Properties(GqlProperties::from(e.ee.properties())))
             }
+            (Nav::Metadata, Value::Node(n)) => {
+                Some(Value::Metadata(GqlMetadata::from(n.vv.metadata())))
+            }
+            (Nav::Metadata, Value::Edge(e)) => {
+                Some(Value::Metadata(GqlMetadata::from(e.ee.metadata())))
+            }
+            (Nav::Temporal, Value::Properties(p)) => {
+                Some(Value::TemporalProperties(p.temporal_view()))
+            }
+            (Nav::Layer(name), Value::Graph(g)) => Some(Value::Graph(
+                g.valid_layers(name.to_string()).into_dynamic(),
+            )),
+            (Nav::Layer(name), Value::Node(n)) => Some(Value::Node(GqlNode::from(
+                n.vv.valid_layers(name.to_string()),
+            ))),
+            (Nav::Layer(name), Value::Edge(e)) => Some(Value::Edge(GqlEdge::from(
+                e.ee.valid_layers(name.to_string()),
+            ))),
             (Nav::After(t), Value::Node(n)) => Some(Value::Node(GqlNode::from(n.vv.after(*t)))),
             (Nav::After(t), Value::Edge(e)) => Some(Value::Edge(GqlEdge::from(e.ee.after(*t)))),
             (Nav::Before(t), Value::Node(n)) => Some(Value::Node(GqlNode::from(n.vv.before(*t)))),
@@ -221,6 +293,18 @@ impl LeafKind {
             }
             (LeafKind::Timestamp, Value::EventTime(t)) => sink.write_i64(t.t()),
             (LeafKind::EventId, Value::EventTime(t)) => sink.write_u64(t.i() as u64),
+            (LeafKind::Key, Value::Property(p)) => sink.write_str(&p.key),
+            (LeafKind::Key, Value::TemporalProperty(tp)) => sink.write_str(&tp.key),
+            (LeafKind::AsString, Value::Property(p)) => sink.write_str(&p.prop.to_string()),
+            (LeafKind::Value, Value::Property(p)) => {
+                // Serialize the typed property value via the same path async-graphql
+                // uses for the `PropertyOutput` scalar, so formatting matches exactly.
+                // let json =
+                //     serde_json::to_vec(&prop_to_gql(&p.prop)).unwrap_or_else(|_| b"null".to_vec());
+                serde_json::to_writer(sink, &prop_to_gql(&p.prop))
+                    .unwrap_or_else(|_| panic!("should not panic! :O"));
+                // sink.write_raw_json(&json);
+            }
             _ => unreachable!("plan/type mismatch — validation should prevent this"),
         }
     }
