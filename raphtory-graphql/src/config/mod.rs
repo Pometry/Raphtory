@@ -21,11 +21,11 @@ mod tests {
             log_level = "DEBUG"
 
             [tracing]
-            tracing_enabled = true
-            tracing_level = "Essential"
+            enabled = true
+            level = "Essential"
 
             [cache]
-            tti_seconds = 1000
+            capacity = 20
 
             [auth]
             public_key = "MCowBQYDK2VwAyEADdrWr1kTLj+wSHlr45eneXmOjlHo3N1DjLIvDa2ozno="
@@ -43,7 +43,7 @@ mod tests {
             .with_log_level("DEBUG".to_string())
             .with_tracing(true)
             .with_tracing_level(TracingLevel::ESSENTIAL)
-            .with_cache_capacity(30)
+            .with_cache_capacity(20)
             .with_auth_public_key(Some(
                 "MCowBQYDK2VwAyEADdrWr1kTLj+wSHlr45eneXmOjlHo3N1DjLIvDa2ozno=".to_owned(),
             ))
