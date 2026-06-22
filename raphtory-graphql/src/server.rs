@@ -16,7 +16,11 @@ use crate::{
 use config::ConfigError;
 use once_cell::sync::Lazy;
 use opentelemetry::trace::TracerProvider;
-use opentelemetry_sdk::trace::{SdkTracerProvider as TP, Tracer};
+use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
+use opentelemetry_sdk::{
+    logs::SdkLoggerProvider,
+    trace::{SdkTracerProvider as TP, SdkTracerProvider, Tracer},
+};
 use poem::{
     get,
     listener::{Acceptor, Listener, TcpListener},
@@ -268,11 +272,13 @@ impl GraphServer {
             fmt::layer().pretty().with_span_events(FmtSpan::NONE), //(FULL, NEW, ENTER, EXIT, CLOSE)
         );
         match tp.clone() {
-            Some(tp) => {
+            Some((span, log)) => {
                 registry
                     .with(
-                        tracing_opentelemetry::layer().with_tracer(tp.tracer(tracer_name.clone())),
+                        tracing_opentelemetry::layer()
+                            .with_tracer(span.tracer(tracer_name.clone())),
                     )
+                    .with(OpenTelemetryTracingBridge::new(&log))
                     .try_init()
                     .unwrap_or_else(|err| eprintln!("Failed to initialise tracer provider: {err}"));
             }
@@ -285,7 +291,7 @@ impl GraphServer {
 
         // it is important that this runs after algorithms have been pushed to PLUGIN_ALGOS static variable
         let app = self
-            .generate_endpoint(tp.clone().map(|tp| tp.tracer(tracer_name)))
+            .generate_endpoint(tp.clone().map(|(tp, _)| tp.tracer(tracer_name)))
             .await?;
 
         let (signal_sender, signal_receiver) = mpsc::channel(1);
@@ -438,7 +444,10 @@ impl RunningGraphServer {
     }
 }
 
-async fn server_termination(mut internal_signal: Receiver<()>, tp: Option<TP>) {
+async fn server_termination(
+    mut internal_signal: Receiver<()>,
+    tp: Option<(SdkTracerProvider, SdkLoggerProvider)>,
+) {
     let ctrl_c = async {
         signal::ctrl_c()
             .await
@@ -464,11 +473,15 @@ async fn server_termination(mut internal_signal: Receiver<()>, tp: Option<TP>) {
     }
     match tp {
         None => {}
-        Some(p) => {
+        Some((tp, lp)) => {
             task::spawn_blocking(move || {
-                let res = p.shutdown();
+                let res = tp.shutdown();
                 if let Err(e) = res {
-                    debug!("Failed to shut down tracing provider: {:?}", e);
+                    eprintln!("Failed to shut down tracing provider: {:?}", e);
+                }
+                let res = lp.shutdown();
+                if let Err(e) = res {
+                    eprintln!("Failed to shut down logging provider: {:?}", e);
                 }
             })
             .await
