@@ -107,34 +107,34 @@ pub trait TemporalPropOps: Sized {
     fn any(self) -> AnyExpr<TemporalExpr<Self::ViewExpr>> { AnyExpr(self.into_expr()) }
     fn all(self) -> AllExpr<TemporalExpr<Self::ViewExpr>> { AllExpr(self.into_expr()) }
 
-    fn gt<R: EntityExpr>(self, rhs: R) -> BinaryCmpFilter<TemporalExpr<Self::ViewExpr>, R, <Self::ViewExpr as EntityExpr>::Marker> {
+    fn gt<R: EntityExpr>(self, rhs: R) -> BinaryCmpExpr<TemporalExpr<Self::ViewExpr>, R, <Self::ViewExpr as EntityExpr>::Marker> {
         self.into_expr().gt(rhs)
     }
-    fn ge<R: EntityExpr>(self, rhs: R) -> BinaryCmpFilter<TemporalExpr<Self::ViewExpr>, R, <Self::ViewExpr as EntityExpr>::Marker> {
+    fn ge<R: EntityExpr>(self, rhs: R) -> BinaryCmpExpr<TemporalExpr<Self::ViewExpr>, R, <Self::ViewExpr as EntityExpr>::Marker> {
         self.into_expr().ge(rhs)
     }
-    fn lt<R: EntityExpr>(self, rhs: R) -> BinaryCmpFilter<TemporalExpr<Self::ViewExpr>, R, <Self::ViewExpr as EntityExpr>::Marker> {
+    fn lt<R: EntityExpr>(self, rhs: R) -> BinaryCmpExpr<TemporalExpr<Self::ViewExpr>, R, <Self::ViewExpr as EntityExpr>::Marker> {
         self.into_expr().lt(rhs)
     }
-    fn le<R: EntityExpr>(self, rhs: R) -> BinaryCmpFilter<TemporalExpr<Self::ViewExpr>, R, <Self::ViewExpr as EntityExpr>::Marker> {
+    fn le<R: EntityExpr>(self, rhs: R) -> BinaryCmpExpr<TemporalExpr<Self::ViewExpr>, R, <Self::ViewExpr as EntityExpr>::Marker> {
         self.into_expr().le(rhs)
     }
-    fn eq<R: EntityExpr>(self, rhs: R) -> BinaryCmpFilter<TemporalExpr<Self::ViewExpr>, R, <Self::ViewExpr as EntityExpr>::Marker> {
+    fn eq<R: EntityExpr>(self, rhs: R) -> BinaryCmpExpr<TemporalExpr<Self::ViewExpr>, R, <Self::ViewExpr as EntityExpr>::Marker> {
         self.into_expr().eq(rhs)
     }
-    fn ne<R: EntityExpr>(self, rhs: R) -> BinaryCmpFilter<TemporalExpr<Self::ViewExpr>, R, <Self::ViewExpr as EntityExpr>::Marker> {
+    fn ne<R: EntityExpr>(self, rhs: R) -> BinaryCmpExpr<TemporalExpr<Self::ViewExpr>, R, <Self::ViewExpr as EntityExpr>::Marker> {
         self.into_expr().ne(rhs)
     }
-    fn contains<R: EntityExpr>(self, rhs: R) -> StringFilter<TemporalExpr<Self::ViewExpr>, R, <Self::ViewExpr as EntityExpr>::Marker> {
+    fn contains<R: EntityExpr>(self, rhs: R) -> StringExpr<TemporalExpr<Self::ViewExpr>, R, <Self::ViewExpr as EntityExpr>::Marker> {
         self.into_expr().contains(rhs)
     }
-    fn starts_with<R: EntityExpr>(self, rhs: R) -> StringFilter<TemporalExpr<Self::ViewExpr>, R, <Self::ViewExpr as EntityExpr>::Marker> {
+    fn starts_with<R: EntityExpr>(self, rhs: R) -> StringExpr<TemporalExpr<Self::ViewExpr>, R, <Self::ViewExpr as EntityExpr>::Marker> {
         self.into_expr().starts_with(rhs)
     }
-    fn ends_with<R: EntityExpr>(self, rhs: R) -> StringFilter<TemporalExpr<Self::ViewExpr>, R, <Self::ViewExpr as EntityExpr>::Marker> {
+    fn ends_with<R: EntityExpr>(self, rhs: R) -> StringExpr<TemporalExpr<Self::ViewExpr>, R, <Self::ViewExpr as EntityExpr>::Marker> {
         self.into_expr().ends_with(rhs)
     }
-    fn not_contains<R: EntityExpr>(self, rhs: R) -> StringFilter<TemporalExpr<Self::ViewExpr>, R, <Self::ViewExpr as EntityExpr>::Marker> {
+    fn not_contains<R: EntityExpr>(self, rhs: R) -> StringExpr<TemporalExpr<Self::ViewExpr>, R, <Self::ViewExpr as EntityExpr>::Marker> {
         self.into_expr().not_contains(rhs)
     }
     fn fuzzy_search<R: EntityExpr>(
@@ -142,19 +142,19 @@ pub trait TemporalPropOps: Sized {
         rhs: R,
         levenshtein_distance: usize,
         prefix_match: bool,
-    ) -> StringFilter<TemporalExpr<Self::ViewExpr>, R, <Self::ViewExpr as EntityExpr>::Marker> {
+    ) -> StringExpr<TemporalExpr<Self::ViewExpr>, R, <Self::ViewExpr as EntityExpr>::Marker> {
         self.into_expr().fuzzy_search(rhs, levenshtein_distance, prefix_match)
     }
-    fn is_in<V: Into<Prop>>(self, values: impl IntoIterator<Item = V>) -> PropValueSetFilter<TemporalExpr<Self::ViewExpr>, <Self::ViewExpr as EntityExpr>::Marker> {
+    fn is_in<V: Into<Prop>>(self, values: impl IntoIterator<Item = V>) -> PropValueSetExpr<TemporalExpr<Self::ViewExpr>, <Self::ViewExpr as EntityExpr>::Marker> {
         self.into_expr().is_in(values)
     }
-    fn is_not_in<V: Into<Prop>>(self, values: impl IntoIterator<Item = V>) -> PropValueSetFilter<TemporalExpr<Self::ViewExpr>, <Self::ViewExpr as EntityExpr>::Marker> {
+    fn is_not_in<V: Into<Prop>>(self, values: impl IntoIterator<Item = V>) -> PropValueSetExpr<TemporalExpr<Self::ViewExpr>, <Self::ViewExpr as EntityExpr>::Marker> {
         self.into_expr().is_not_in(values)
     }
-    fn is_true(self) -> BinaryCmpFilter<TemporalExpr<Self::ViewExpr>, Prop, <Self::ViewExpr as EntityExpr>::Marker> {
+    fn is_true(self) -> BinaryCmpExpr<TemporalExpr<Self::ViewExpr>, Prop, <Self::ViewExpr as EntityExpr>::Marker> {
         self.into_expr().is_true()
     }
-    fn is_false(self) -> BinaryCmpFilter<TemporalExpr<Self::ViewExpr>, Prop, <Self::ViewExpr as EntityExpr>::Marker> {
+    fn is_false(self) -> BinaryCmpExpr<TemporalExpr<Self::ViewExpr>, Prop, <Self::ViewExpr as EntityExpr>::Marker> {
         self.into_expr().is_false()
     }
 }

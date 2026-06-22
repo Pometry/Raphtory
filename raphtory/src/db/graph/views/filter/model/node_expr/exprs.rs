@@ -462,7 +462,7 @@ impl<E: EntityExpr + CreateView + EdgeFilterFactory + Clone + Send + Sync + 'sta
 //   .property("v").temporal().any()  → AnyExpr<TemporalPropertyExpr<..>>
 //
 // Calling .gt() / .eq() etc. on any of these (via NodeExprFilterOps) produces:
-//   BinaryCmpNodeFilter<SumExpr<TemporalPropertyExpr<..>>, RHS>
+//   BinaryCmpExpr<SumExpr<TemporalPropertyExpr<..>>, RHS>
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ─────────────────────────────────────────────────────────────────────────────

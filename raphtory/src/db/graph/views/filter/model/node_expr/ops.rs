@@ -13,7 +13,7 @@
 //!   .create_node_op(graph)?           ← resolve "age" → prop_id = 3
 //!  ──► NodePropOp { graph, prop_id: 3 }  ← NodeOp: apply() reads column 3 in O(1)
 //!
-//! NodeFilter.property("age").gt(30i64)   ← BinaryCmpNodeFilter (pure data)
+//! NodeFilter.property("age").gt(30i64)   ← BinaryCmpExpr (pure data)
 //!   .create_node_filter(graph)?
 //!  ──► BinaryCmpNodeOp { left: NodePropOp, right: Const(Some(I64(30))), op: Gt }
 //!        apply: Prop::binary_cmp(Gt, age_value, Some(I64(30)))
@@ -26,7 +26,7 @@
 //!
 //! # Quantified evaluation
 //!
-//! Filter types (`BinaryCmpNodeFilter`, `StringNodeFilter`, `PropValueSetFilter`) also
+//! Filter types (`BinaryCmpExpr`, `StringExpr`, `PropValueSetExpr`) also
 //! implement `NodeExpr`, producing list-aware ops for mid-chain use before `.any()`/`.all()`:
 //!
 //! ```text
@@ -308,8 +308,8 @@ impl_agg_entity_op!(AllNodeOp, AllEdgeOp, |vals| {
 // ─────────────────────────────────────────────────────────────────────────────
 // ListAwareCmpNodeOp / ListAwareStringNodeOp / ListAwareSetNodeOp
 //
-// These ops implement NodeExpr for BinaryCmpNodeFilter, StringNodeFilter, and
-// PropValueSetFilter respectively, enabling mid-chain use before .any()/.all().
+// These ops implement NodeExpr for BinaryCmpExpr, StringExpr, and
+// PropValueSetExpr respectively, enabling mid-chain use before .any()/.all().
 //
 // Each uses broadcasting so that comparisons applied to a `Prop::List(...)`
 // fan out element-wise; scalar inputs are passed through to the op directly.
@@ -556,7 +556,7 @@ impl<'g> NodeOp for PropValueSetNodeOp<'g> {
 // BinaryCmpNodeOp<'g, T> — compares two NodeOp<Output = T> using BinaryOp
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Internal op produced by [`BinaryCmpNodeFilter::create_node_filter`].
+/// Internal op produced by [`BinaryCmpExpr::create_node_filter`].
 ///
 /// Holds two compiled `NodeOp<Output = T>` and applies `T::binary_cmp` per node.
 /// The `'g` lifetime bounds both ops to the graph view they were compiled against.
@@ -588,7 +588,7 @@ impl<'g, T: Comparable + Clone + Send + Sync + 'static> NodeOp for BinaryCmpNode
 // StringNodeOp<'g, T> — applies a StringOp to two NodeOp<Output = T>
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Internal op produced by [`StringNodeFilter::create_node_filter`].
+/// Internal op produced by [`StringExpr::create_node_filter`].
 ///
 /// e.g. `NodeFilter.name().starts_with("Al")` compiles to:
 /// `StringNodeOp { left: Name.map(...), right: Const(Some(Str("Al"))), op: StartsWith }`
@@ -615,7 +615,7 @@ impl<'g, T: StringComparable> NodeOp for StringNodeOp<'g, T> {
 // UnaryNodeOp<'g, T> — evaluates is_some / is_none
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Internal op produced by [`UnaryNodeFilter::create_node_filter`].
+/// Internal op produced by [`UnaryExpr::create_node_filter`].
 ///
 /// e.g. `NodeFilter.property("age").is_some::<Prop>()` compiles to:
 /// `UnaryNodeOp { inner: NodePropOp(prop_id=3), op: IsSome }`

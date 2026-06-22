@@ -8,7 +8,7 @@
 //! ```text
 //! ┌─ Build phase (pure data, no graph) ──────────────────────┐
 //! │  EdgeFilter.property("weight")    ← EdgeExpr              │
-//! │  .eq(5.0f64)                      ← BinaryCmpFilter   │
+//! │  .eq(5.0f64)                      ← BinaryCmpExpr   │
 //! └──────────────────────────────────────────────────────────┘
 //!          │  create_edge_op(graph)?   ← resolve name → prop_id
 //!          ▼

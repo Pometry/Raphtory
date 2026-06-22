@@ -166,7 +166,7 @@ impl<T: StringComparable> StringComparable for Option<T> {
 // Focused operator enums for the NodeExpr expression system
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Ordering and equality operators used by `BinaryCmpNodeFilter`.
+/// Ordering and equality operators used by `BinaryCmpExpr`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BinaryOp {
     Eq,
@@ -190,7 +190,7 @@ impl Display for BinaryOp {
     }
 }
 
-/// String-only operators used by `StringNodeFilter`.
+/// String-only operators used by `StringExpr`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StringOp {
     StartsWith,
@@ -218,7 +218,7 @@ impl Display for StringOp {
     }
 }
 
-/// Unary presence operators used by `UnaryNodeFilter`.
+/// Unary presence operators used by `UnaryExpr`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UnaryOp {
     IsSome,
@@ -549,7 +549,7 @@ impl FilterOperator {
 
     /// Compare two optional values symmetrically.
     ///
-    /// Used by `BinaryCmpNodeFilter` where both sides are expressions that may return `None`.
+    /// Used by `BinaryCmpExpr` where both sides are expressions that may return `None`.
     /// Supports Eq, Ne, Lt, Le, Gt, Ge.  All other operators return `false`.
     pub fn compare_values<T>(&self, left: Option<&T>, right: Option<&T>) -> bool
     where

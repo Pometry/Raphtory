@@ -9,10 +9,10 @@
 //! ```text
 //! Phase 1 — Build (pure Rust data, no graph):
 //!   NodeFilter.property("age").gt(30i64)
-//!   ──► BinaryCmpNodeFilter { left: Property("age"), op: Gt, right: 30i64 }
+//!   ──► BinaryCmpExpr { left: Property("age"), op: Gt, right: 30i64 }
 //!
 //! Phase 2 — Compile (bind to graph, resolve names):
-//!   BinaryCmpNodeFilter::create_node_filter(graph)?
+//!   BinaryCmpExpr::create_node_filter(graph)?
 //!   ──► Arc<dyn NodeOp<Output = bool>>
 //!         = BinaryCmpNodeOp { left: NodePropOp(id=3), right: Const(Some(I64(30))), op: Gt }
 //!
@@ -29,7 +29,7 @@
 //! ```rust,ignore
 //! // "pass if any temporal value of 'score' > 10"
 //! NodeFilter.property("score").temporal().gt(10i64).any()
-//! ──► BinaryCmpNodeFilter<AnyExpr<BinaryCmpNodeFilter<TemporalPropertyExpr, i64>>, Prop>
+//! ──► BinaryCmpExpr<AnyExpr<BinaryCmpExpr<TemporalPropertyExpr, i64>>, Prop>
 //!   create_node_filter(graph)?
 //!   ──► BinaryCmpNodeOp { left: AnyNodeOp { inner: ListAwareCmpNodeOp { TemporalNodePropOp,
 //!                                                                         Const(I64(10)), Gt } },
@@ -37,7 +37,7 @@
 //!
 //! // "pass if sum of 'score' > 100"
 //! NodeFilter.property("score").temporal().sum().gt(100i64)
-//! ──► BinaryCmpNodeFilter<SumExpr<TemporalPropertyExpr>, i64>
+//! ──► BinaryCmpExpr<SumExpr<TemporalPropertyExpr>, i64>
 //! ```
 
 use super::{
@@ -67,7 +67,7 @@ use crate::{
 use raphtory_api::core::entities::properties::prop::{Prop, PropType};
 use std::sync::Arc;
 // ─────────────────────────────────────────────────────────────────────────────
-// BinaryCmpNodeFilter<L, R> — binary expression filter
+// BinaryCmpExpr<L, R> — binary expression filter
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// A node filter that compares two [`NodeExpr`] values using a [`BinaryOp`].
@@ -80,22 +80,22 @@ use std::sync::Arc;
 ///
 /// ```rust,ignore
 /// NodeFilter.degree().gt(2usize)
-///   → BinaryCmpNodeFilter<DegreeExpr<..>, usize>
+///   → BinaryCmpExpr<DegreeExpr<..>, usize>
 ///   → BinaryCmpNodeOp { left: Degree(..).map(Prop::U64), right: Const(Some(U64(2))), op: Gt }
 ///
 /// NodeFilter.property("age").eq(30i64)
-///   → BinaryCmpNodeFilter<Property, i64>
+///   → BinaryCmpExpr<Property, i64>
 ///   → BinaryCmpNodeOp { left: NodePropOp(prop_id=N), right: Const(Some(I64(30))), op: Eq }
 /// ```
 #[derive(Clone)]
-pub struct BinaryCmpFilter<L, R, Entity> {
+pub struct BinaryCmpExpr<L, R, Entity> {
     pub left: L,
     pub op: BinaryOp,
     pub right: R,
     pub entity: Entity,
 }
 
-impl<L, R, E> BinaryCmpFilter<L, R, E> {
+impl<L, R, E> BinaryCmpExpr<L, R, E> {
     pub fn new(left: L, op: BinaryOp, right: R, entity: E) -> Self {
         Self {
             left,
@@ -106,7 +106,7 @@ impl<L, R, E> BinaryCmpFilter<L, R, E> {
     }
 }
 
-impl<L, R, E> ComposableFilter for BinaryCmpFilter<L, R, E> {}
+impl<L, R, E> ComposableFilter for BinaryCmpExpr<L, R, E> {}
 
 /// Reject ordering operators on boolean properties.
 //. TODO: Also check if both the types are comparable.
@@ -206,7 +206,7 @@ fn coerce_set_values(lhs_pt: &PropType, values: Vec<Prop>) -> Result<Vec<Prop>, 
         .collect()
 }
 
-impl<L, R> CreateFilter for BinaryCmpFilter<L, R, NodeFilter>
+impl<L, R> CreateFilter for BinaryCmpExpr<L, R, NodeFilter>
 where
     L: NodeExpr,
     R: NodeExpr,
@@ -248,7 +248,7 @@ where
     }
 }
 
-impl<L, R> TryAsCompositeFilter for BinaryCmpFilter<L, R, NodeFilter>
+impl<L, R> TryAsCompositeFilter for BinaryCmpExpr<L, R, NodeFilter>
 where
     L: NodeExpr,
     R: NodeExpr,
@@ -269,7 +269,7 @@ where
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// UnaryNodeFilter<E> — is_some / is_none on nullable expressions
+// UnaryExpr<E> — is_some / is_none on nullable expressions
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// A node filter that tests the presence of an `Option`-valued expression.
@@ -279,19 +279,19 @@ where
 ///
 /// ```rust,ignore
 /// NodeFilter.property("age").is_some::<Prop>()
-///   → UnaryNodeFilter<Property, Prop>
+///   → UnaryExpr<Property, Prop>
 ///   → UnaryNodeOp { inner: NodePropOp(prop_id=N), op: IsSome }
 /// ```
 #[derive(Clone)]
-pub struct UnaryFilter<E, Entity> {
+pub struct UnaryExpr<E, Entity> {
     pub expr: E,
     pub op: UnaryOp,
     pub entity: Entity,
 }
 
-impl<E, Entity> ComposableFilter for UnaryFilter<E, Entity> {}
+impl<E, Entity> ComposableFilter for UnaryExpr<E, Entity> {}
 
-impl<E> CreateFilter for UnaryFilter<E, NodeFilter>
+impl<E> CreateFilter for UnaryExpr<E, NodeFilter>
 where
     E: NodeExpr,
 {
@@ -329,7 +329,7 @@ where
     }
 }
 
-impl<E> TryAsCompositeFilter for UnaryFilter<E, NodeFilter>
+impl<E> TryAsCompositeFilter for UnaryExpr<E, NodeFilter>
 where
     E: NodeExpr,
 {
@@ -349,7 +349,7 @@ where
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// StringNodeFilter<L, R> — string expression filter
+// StringExpr<L, R> — string expression filter
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// A node filter that applies a [`StringOp`] to two [`NodeExpr`] values.
@@ -361,30 +361,30 @@ where
 ///
 /// ```rust,ignore
 /// NodeFilter.name().starts_with("Al")
-///   → StringNodeFilter<Name, &str>
+///   → StringExpr<Name, &str>
 ///   → StringNodeOp { left: Name.map(...), right: Const(Some(Str("Al"))), op: StartsWith }
 ///
 /// NodeFilter.property("tag").contains(Prop::Str("foo".into()))
-///   → StringNodeFilter<Property, Prop>
+///   → StringExpr<Property, Prop>
 ///   → StringNodeOp { left: NodePropOp(prop_id=N), right: Const(Some(Str("foo"))), op: Contains }
 /// ```
 #[derive(Clone)]
-pub struct StringFilter<L, R, Entity> {
+pub struct StringExpr<L, R, Entity> {
     pub left: L,
     pub op: StringOp,
     pub right: R,
     pub entity: Entity,
 }
 
-impl<L, R, Entity> StringFilter<L, R, Entity> {
+impl<L, R, Entity> StringExpr<L, R, Entity> {
     pub fn new(left: L, op: StringOp, right: R, entity: Entity) -> Self {
         Self { left, op, right, entity }
     }
 }
 
-impl<L, R, Entity> ComposableFilter for StringFilter<L, R, Entity> {}
+impl<L, R, Entity> ComposableFilter for StringExpr<L, R, Entity> {}
 
-impl<L: NodeExpr, R: NodeExpr> CreateFilter for StringFilter<L, R, NodeFilter> {
+impl<L: NodeExpr, R: NodeExpr> CreateFilter for StringExpr<L, R, NodeFilter> {
     type EntityFiltered<'graph, G: GraphViewOps<'graph>> =
         NodeFilteredGraph<G, Self::NodeFilter<'graph, G>>;
 
@@ -420,7 +420,7 @@ impl<L: NodeExpr, R: NodeExpr> CreateFilter for StringFilter<L, R, NodeFilter> {
     }
 }
 
-impl<L, R> TryAsCompositeFilter for StringFilter<L, R, NodeFilter>
+impl<L, R> TryAsCompositeFilter for StringExpr<L, R, NodeFilter>
 where
     L: NodeExpr,
     R: NodeExpr,
@@ -441,7 +441,7 @@ where
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PropValueSetFilter<E> — is_in / is_not_in for aggregated Option<Prop> values
+// PropValueSetExpr<E> — is_in / is_not_in for aggregated Option<Prop> values
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// A filter that checks whether a scalar property value is in (or not in) a fixed set.
@@ -449,16 +449,16 @@ where
 /// Uses linear scan because `Prop` may contain floats that don't implement `Hash`.
 /// Works for both nodes (`Entity = NodeFilter`) and edges (`Entity = EdgeFilter`).
 #[derive(Clone)]
-pub struct PropValueSetFilter<E, Entity> {
+pub struct PropValueSetExpr<E, Entity> {
     pub(crate) expr: E,
     pub(crate) values: Vec<Prop>,
     pub(crate) op: SetOp,
     pub(crate) entity: Entity,
 }
 
-impl<E, Entity> ComposableFilter for PropValueSetFilter<E, Entity> {}
+impl<E, Entity> ComposableFilter for PropValueSetExpr<E, Entity> {}
 
-impl<E: NodeExpr> CreateFilter for PropValueSetFilter<E, NodeFilter> {
+impl<E: NodeExpr> CreateFilter for PropValueSetExpr<E, NodeFilter> {
     type EntityFiltered<'graph, G: GraphViewOps<'graph>> =
         NodeFilteredGraph<G, PropValueSetNodeOp<'graph>>;
     type NodeFilter<'graph, G: GraphView + 'graph> = PropValueSetNodeOp<'graph>;
@@ -492,7 +492,7 @@ impl<E: NodeExpr> CreateFilter for PropValueSetFilter<E, NodeFilter> {
     }
 }
 
-impl<E: NodeExpr> TryAsCompositeFilter for PropValueSetFilter<E, NodeFilter> {
+impl<E: NodeExpr> TryAsCompositeFilter for PropValueSetExpr<E, NodeFilter> {
     fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
         Err(GraphError::NotSupported)
     }
@@ -520,12 +520,12 @@ impl<E: NodeExpr> TryAsCompositeFilter for PropValueSetFilter<E, NodeFilter> {
 /// Calling a method produces the next step in the chain:
 /// ```rust,ignore
 /// NodeFilter.property("score").temporal()        // → TemporalProp<NodeFilter>
-///     .gt(10i64)                                 // → BinaryCmpNodeFilter<TemporalPropertyExpr, i64>
-///     .any()                                     // → BinaryCmpNodeFilter<AnyExpr<..>, Prop>
+///     .gt(10i64)                                 // → BinaryCmpExpr<TemporalPropertyExpr, i64>
+///     .any()                                     // → BinaryCmpExpr<AnyExpr<..>, Prop>
 ///
 /// NodeFilter.property("price").temporal()        // → TemporalProp<NodeFilter>
 ///     .sum()                                     // → SumExpr<TemporalPropertyExpr<NodeFilter>>
-///     .gt(100i64)                                // → BinaryCmpNodeFilter<SumExpr<..>, i64>
+///     .gt(100i64)                                // → BinaryCmpExpr<SumExpr<..>, i64>
 ///
 /// NodeFilter.window(0, 100).property("score")
 ///     .temporal()                                // → TemporalProp<Windowed<NodeFilter>>
@@ -563,45 +563,45 @@ impl<E: CreateView + Clone + Send + Sync + 'static> TemporalProp<E> {
 /// NodeFilter.property("score").temporal().gt(10i64).any()
 /// ```
 pub trait EntityExprFilterOps: EntityExpr + Sized {
-    fn gt<R: EntityExpr>(self, rhs: R) -> BinaryCmpFilter<Self, R, Self::Marker> {
+    fn gt<R: EntityExpr>(self, rhs: R) -> BinaryCmpExpr<Self, R, Self::Marker> {
         // TODO: validate ops
-        BinaryCmpFilter::new(self, BinaryOp::Gt, rhs, Self::Marker::default())
+        BinaryCmpExpr::new(self, BinaryOp::Gt, rhs, Self::Marker::default())
     }
 
-    fn ge<R: EntityExpr>(self, rhs: R) -> BinaryCmpFilter<Self, R, Self::Marker> {
-        BinaryCmpFilter::new(self, BinaryOp::Ge, rhs, Self::Marker::default())
+    fn ge<R: EntityExpr>(self, rhs: R) -> BinaryCmpExpr<Self, R, Self::Marker> {
+        BinaryCmpExpr::new(self, BinaryOp::Ge, rhs, Self::Marker::default())
     }
 
-    fn lt<R: EntityExpr>(self, rhs: R) -> BinaryCmpFilter<Self, R, Self::Marker> {
-        BinaryCmpFilter::new(self, BinaryOp::Lt, rhs, Self::Marker::default())
+    fn lt<R: EntityExpr>(self, rhs: R) -> BinaryCmpExpr<Self, R, Self::Marker> {
+        BinaryCmpExpr::new(self, BinaryOp::Lt, rhs, Self::Marker::default())
     }
 
-    fn le<R: EntityExpr>(self, rhs: R) -> BinaryCmpFilter<Self, R, Self::Marker> {
-        BinaryCmpFilter::new(self, BinaryOp::Le, rhs, Self::Marker::default())
+    fn le<R: EntityExpr>(self, rhs: R) -> BinaryCmpExpr<Self, R, Self::Marker> {
+        BinaryCmpExpr::new(self, BinaryOp::Le, rhs, Self::Marker::default())
     }
 
-    fn eq<R: EntityExpr>(self, rhs: R) -> BinaryCmpFilter<Self, R, Self::Marker> {
-        BinaryCmpFilter::new(self, BinaryOp::Eq, rhs, Self::Marker::default())
+    fn eq<R: EntityExpr>(self, rhs: R) -> BinaryCmpExpr<Self, R, Self::Marker> {
+        BinaryCmpExpr::new(self, BinaryOp::Eq, rhs, Self::Marker::default())
     }
 
-    fn ne<R: EntityExpr>(self, rhs: R) -> BinaryCmpFilter<Self, R, Self::Marker> {
-        BinaryCmpFilter::new(self, BinaryOp::Ne, rhs, Self::Marker::default())
+    fn ne<R: EntityExpr>(self, rhs: R) -> BinaryCmpExpr<Self, R, Self::Marker> {
+        BinaryCmpExpr::new(self, BinaryOp::Ne, rhs, Self::Marker::default())
     }
 
-    fn starts_with<R: EntityExpr>(self, rhs: R) -> StringFilter<Self, R, Self::Marker> {
-        StringFilter::new(self, StringOp::StartsWith, rhs, Self::Marker::default())
+    fn starts_with<R: EntityExpr>(self, rhs: R) -> StringExpr<Self, R, Self::Marker> {
+        StringExpr::new(self, StringOp::StartsWith, rhs, Self::Marker::default())
     }
 
-    fn ends_with<R: EntityExpr>(self, rhs: R) -> StringFilter<Self, R, Self::Marker> {
-        StringFilter::new(self, StringOp::EndsWith, rhs, Self::Marker::default())
+    fn ends_with<R: EntityExpr>(self, rhs: R) -> StringExpr<Self, R, Self::Marker> {
+        StringExpr::new(self, StringOp::EndsWith, rhs, Self::Marker::default())
     }
 
-    fn contains<R: EntityExpr>(self, rhs: R) -> StringFilter<Self, R, Self::Marker> {
-        StringFilter::new(self, StringOp::Contains, rhs, Self::Marker::default())
+    fn contains<R: EntityExpr>(self, rhs: R) -> StringExpr<Self, R, Self::Marker> {
+        StringExpr::new(self, StringOp::Contains, rhs, Self::Marker::default())
     }
 
-    fn not_contains<R: EntityExpr>(self, rhs: R) -> StringFilter<Self, R, Self::Marker> {
-        StringFilter::new(self, StringOp::NotContains, rhs, Self::Marker::default())
+    fn not_contains<R: EntityExpr>(self, rhs: R) -> StringExpr<Self, R, Self::Marker> {
+        StringExpr::new(self, StringOp::NotContains, rhs, Self::Marker::default())
     }
 
     fn fuzzy_search<R: EntityExpr>(
@@ -609,8 +609,8 @@ pub trait EntityExprFilterOps: EntityExpr + Sized {
         rhs: R,
         levenshtein_distance: usize,
         prefix_match: bool,
-    ) -> StringFilter<Self, R, Self::Marker> {
-        StringFilter::new(
+    ) -> StringExpr<Self, R, Self::Marker> {
+        StringExpr::new(
             self,
             StringOp::FuzzySearch {
                 levenshtein_distance,
@@ -621,24 +621,24 @@ pub trait EntityExprFilterOps: EntityExpr + Sized {
         )
     }
 
-    fn is_some(self) -> UnaryFilter<Self, Self::Marker> {
-        UnaryFilter {
+    fn is_some(self) -> UnaryExpr<Self, Self::Marker> {
+        UnaryExpr {
             expr: self,
             op: UnaryOp::IsSome,
             entity: Self::Marker::default(),
         }
     }
 
-    fn is_none(self) -> UnaryFilter<Self, Self::Marker> {
-        UnaryFilter {
+    fn is_none(self) -> UnaryExpr<Self, Self::Marker> {
+        UnaryExpr {
             expr: self,
             op: UnaryOp::IsNone,
             entity: Self::Marker::default(),
         }
     }
 
-    fn is_in<V: Into<Prop>>(self, values: impl IntoIterator<Item = V>) -> PropValueSetFilter<Self, Self::Marker> {
-        PropValueSetFilter {
+    fn is_in<V: Into<Prop>>(self, values: impl IntoIterator<Item = V>) -> PropValueSetExpr<Self, Self::Marker> {
+        PropValueSetExpr {
             expr: self,
             values: values.into_iter().map(Into::into).collect(),
             op: SetOp::IsIn,
@@ -646,8 +646,8 @@ pub trait EntityExprFilterOps: EntityExpr + Sized {
         }
     }
 
-    fn is_not_in<V: Into<Prop>>(self, values: impl IntoIterator<Item = V>) -> PropValueSetFilter<Self, Self::Marker> {
-        PropValueSetFilter {
+    fn is_not_in<V: Into<Prop>>(self, values: impl IntoIterator<Item = V>) -> PropValueSetExpr<Self, Self::Marker> {
+        PropValueSetExpr {
             expr: self,
             values: values.into_iter().map(Into::into).collect(),
             op: SetOp::IsNotIn,
@@ -655,24 +655,24 @@ pub trait EntityExprFilterOps: EntityExpr + Sized {
         }
     }
 
-    fn is_true(self) -> BinaryCmpFilter<Self, Prop, Self::Marker> {
-        BinaryCmpFilter::new(self, BinaryOp::Eq, Prop::Bool(true), Self::Marker::default())
+    fn is_true(self) -> BinaryCmpExpr<Self, Prop, Self::Marker> {
+        BinaryCmpExpr::new(self, BinaryOp::Eq, Prop::Bool(true), Self::Marker::default())
     }
 
-    fn is_false(self) -> BinaryCmpFilter<Self, Prop, Self::Marker> {
-        BinaryCmpFilter::new(self, BinaryOp::Eq, Prop::Bool(false), Self::Marker::default())
+    fn is_false(self) -> BinaryCmpExpr<Self, Prop, Self::Marker> {
+        BinaryCmpExpr::new(self, BinaryOp::Eq, Prop::Bool(false), Self::Marker::default())
     }
 
-    fn not(self) -> BinaryCmpFilter<Self, Prop, Self::Marker> {
+    fn not(self) -> BinaryCmpExpr<Self, Prop, Self::Marker> {
         self.eq(Prop::Bool(false))
     }
 
-    fn any(self) -> BinaryCmpFilter<AnyExpr<Self>, Prop, Self::Marker> {
-        BinaryCmpFilter::new(AnyExpr(self), BinaryOp::Eq, Prop::Bool(true), Self::Marker::default())
+    fn any(self) -> BinaryCmpExpr<AnyExpr<Self>, Prop, Self::Marker> {
+        BinaryCmpExpr::new(AnyExpr(self), BinaryOp::Eq, Prop::Bool(true), Self::Marker::default())
     }
 
-    fn all(self) -> BinaryCmpFilter<AllExpr<Self>, Prop, Self::Marker> {
-        BinaryCmpFilter::new(AllExpr(self), BinaryOp::Eq, Prop::Bool(true), Self::Marker::default())
+    fn all(self) -> BinaryCmpExpr<AllExpr<Self>, Prop, Self::Marker> {
+        BinaryCmpExpr::new(AllExpr(self), BinaryOp::Eq, Prop::Bool(true), Self::Marker::default())
     }
 }
 
@@ -686,7 +686,7 @@ impl<E: EntityExpr> EntityExprFilterOps for E {}
 //      temporal().is_in([...]).any()
 // ─────────────────────────────────────────────────────────────────────────────
 
-impl<L: EntityExpr, R: EntityExpr, E: Copy + Default + Send + Sync + 'static> EntityExpr for BinaryCmpFilter<L, R, E> {
+impl<L: EntityExpr, R: EntityExpr, E: Copy + Default + Send + Sync + 'static> EntityExpr for BinaryCmpExpr<L, R, E> {
     type Marker = E;
     fn prop_type(&self) -> PropType {
         // TODO: depending on the types of left and right, we should figure out the type to return here
@@ -694,7 +694,7 @@ impl<L: EntityExpr, R: EntityExpr, E: Copy + Default + Send + Sync + 'static> En
     }
 }
 
-impl<L: NodeExpr, R: NodeExpr> NodeExpr for BinaryCmpFilter<L, R, NodeFilter> {
+impl<L: NodeExpr, R: NodeExpr> NodeExpr for BinaryCmpExpr<L, R, NodeFilter> {
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
         graph: G,
@@ -709,14 +709,14 @@ impl<L: NodeExpr, R: NodeExpr> NodeExpr for BinaryCmpFilter<L, R, NodeFilter> {
     }
 }
 
-impl<L: EntityExpr, R: EntityExpr, Entity: Copy + Default + Send + Sync + 'static> EntityExpr for StringFilter<L, R, Entity> {
+impl<L: EntityExpr, R: EntityExpr, Entity: Copy + Default + Send + Sync + 'static> EntityExpr for StringExpr<L, R, Entity> {
     type Marker = Entity;
     fn prop_type(&self) -> PropType {
         PropType::Empty
     }
 }
 
-impl<L: NodeExpr, R: NodeExpr> NodeExpr for StringFilter<L, R, NodeFilter> {
+impl<L: NodeExpr, R: NodeExpr> NodeExpr for StringExpr<L, R, NodeFilter> {
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
         graph: G,
@@ -731,18 +731,18 @@ impl<L: NodeExpr, R: NodeExpr> NodeExpr for StringFilter<L, R, NodeFilter> {
     }
 }
 
-impl<E: EntityExpr, Entity: Copy + Default + Send + Sync + 'static> EntityExpr for PropValueSetFilter<E, Entity> {
+impl<E: EntityExpr, Entity: Copy + Default + Send + Sync + 'static> EntityExpr for PropValueSetExpr<E, Entity> {
     type Marker = Entity;
     fn prop_type(&self) -> PropType {
         PropType::Empty
     }
 }
 
-impl<E: EntityExpr, Entity: Copy + Default + Send + Sync + 'static> EntityExpr for UnaryFilter<E, Entity> {
+impl<E: EntityExpr, Entity: Copy + Default + Send + Sync + 'static> EntityExpr for UnaryExpr<E, Entity> {
     type Marker = Entity;
 }
 
-impl<E: NodeExpr> NodeExpr for PropValueSetFilter<E, NodeFilter> {
+impl<E: NodeExpr> NodeExpr for PropValueSetExpr<E, NodeFilter> {
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
         graph: G,

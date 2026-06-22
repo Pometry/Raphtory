@@ -221,13 +221,13 @@ fn test_edge_aggregated_first_starts_with_str_convenience() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Set ops — PropValueSetEdgeFilter (linear scan, Option<Prop>) and
+// Set ops — PropValueSetExpr (linear scan, Option<Prop>) and
 //           SetEdgeFilter (HashSet, Option<I: Hash>)
 // ─────────────────────────────────────────────────────────────────────────────
 
 #[test]
 fn test_edge_property_is_in_prop_values() {
-    // Path A: EdgePropertyExprOps::is_in — PropValueSetEdgeFilter
+    // Path A: EdgePropertyExprOps::is_in — PropValueSetExpr
     let g = band_graph();
     let filter = EdgeFilter.property("band").is_in([
         Prop::str("Pink Floyd"),
