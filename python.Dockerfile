@@ -7,6 +7,7 @@ WORKDIR /app
 ENV HOME=/root
 ENV PYENV_ROOT=$HOME/.pyenv
 ENV PATH=$PYENV_ROOT/shims:$PYENV_ROOT/bin:$PATH
+RUN apt-get update && apt-get install -y protobuf-compiler
 RUN curl -fsSL https://pyenv.run | bash
 RUN PYTHON_VERSION=$(echo ${BASE_PYTHON_IMAGE_TAG} | cut -d'-' -f1) && \
     pyenv install ${PYTHON_VERSION} && \
