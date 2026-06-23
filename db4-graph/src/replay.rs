@@ -39,9 +39,9 @@ where
         dst_name: Option<GID>,
         dst_id: VID,
         eid: EID,
+        props: Vec<(String, usize, Prop)>,
         layer_name: Option<String>,
         layer_id: LayerId,
-        props: Vec<(String, usize, Prop)>,
     ) -> Result<(), StorageError> {
         // Insert node ids into resolver.
         if let Some(src_name) = src_name.as_ref() {
@@ -457,12 +457,27 @@ where
         node_id: VID,
         node_type_and_id: Option<(String, usize)>,
         props: Vec<(String, usize, Prop)>,
+        layer_name: Option<String>,
+        layer_id: LayerId,
     ) -> Result<(), StorageError> {
         // Insert node id into resolver.
         if let Some(ref name) = node_name {
             self.graph()
                 .logical_to_physical
                 .set(name.as_ref(), node_id)?;
+        }
+
+        // Make layer name -> id mapping available to both edge and node meta.
+        if let Some(name) = layer_name.as_deref() {
+            self.graph()
+                .edge_meta()
+                .layer_meta()
+                .set_id(name, layer_id.0);
+
+            self.graph()
+                .node_meta()
+                .layer_meta()
+                .set_id(name, layer_id.0);
         }
 
         // Resolve segment and check LSN.
@@ -490,13 +505,13 @@ where
                     .set_id(node_type.as_str(), node_type_id);
             }
 
-            let node_writer = self.nodes.get_mut(segment_id).ok_or_else(|| {
+            let node_segment = self.nodes.get_mut(segment_id).ok_or_else(|| {
                 StorageError::GenericFailure(format!(
                     "Node segment {segment_id} not found during replay_add_node"
                 ))
             })?;
 
-            let mut node_writer = node_writer.writer();
+            let mut node_writer = node_segment.writer();
 
             if !node_writer.has_node(pos, STATIC_GRAPH_LAYER_ID) {
                 node_writer.increment_seg_num_nodes();
@@ -510,11 +525,11 @@ where
                 node_writer.store_node_type(pos, STATIC_GRAPH_LAYER_ID, node_type_id);
             }
 
-            // Add the node with its timestamp and props.
+            // Add the node with its timestamp and props to the specified layer.
             node_writer.add_props(
                 t,
                 pos,
-                STATIC_GRAPH_LAYER_ID,
+                layer_id,
                 props
                     .into_iter()
                     .map(|(_, prop_id, prop_value)| (prop_id, prop_value)),
