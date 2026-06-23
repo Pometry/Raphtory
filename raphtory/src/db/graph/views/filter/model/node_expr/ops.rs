@@ -488,9 +488,13 @@ impl<'g> NodeOp for AndBoolNodeOp<'g> {
     type Output = Option<Prop>;
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Option<Prop> {
-        let l = matches!(self.left.apply(storage, node), Some(Prop::Bool(true)));
-        let r = matches!(self.right.apply(storage, node), Some(Prop::Bool(true)));
-        Some(Prop::Bool(l && r))
+        let l = self.left.apply(storage, node);
+        let r = self.right.apply(storage, node);
+        broadcast_binary(l, r, &|lv, rv| {
+            let lb = matches!(lv, Some(Prop::Bool(true)));
+            let rb = matches!(rv, Some(Prop::Bool(true)));
+            Some(Prop::Bool(lb && rb))
+        })
     }
 }
 
@@ -509,9 +513,13 @@ impl<'g> NodeOp for OrBoolNodeOp<'g> {
     type Output = Option<Prop>;
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Option<Prop> {
-        let l = matches!(self.left.apply(storage, node), Some(Prop::Bool(true)));
-        let r = matches!(self.right.apply(storage, node), Some(Prop::Bool(true)));
-        Some(Prop::Bool(l || r))
+        let l = self.left.apply(storage, node);
+        let r = self.right.apply(storage, node);
+        broadcast_binary(l, r, &|lv, rv| {
+            let lb = matches!(lv, Some(Prop::Bool(true)));
+            let rb = matches!(rv, Some(Prop::Bool(true)));
+            Some(Prop::Bool(lb || rb))
+        })
     }
 }
 

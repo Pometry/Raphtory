@@ -348,9 +348,13 @@ impl<'g> EdgeOp for AndBoolEdgeOp<'g> {
     type Output = Option<Prop>;
 
     fn apply(&self, storage: &GraphStorage, edge: EdgeRef) -> Option<Prop> {
-        let l = matches!(self.left.apply(storage, edge), Some(Prop::Bool(true)));
-        let r = matches!(self.right.apply(storage, edge), Some(Prop::Bool(true)));
-        Some(Prop::Bool(l && r))
+        let l = self.left.apply(storage, edge);
+        let r = self.right.apply(storage, edge);
+        broadcast_binary(l, r, &|lv, rv| {
+            let lb = matches!(lv, Some(Prop::Bool(true)));
+            let rb = matches!(rv, Some(Prop::Bool(true)));
+            Some(Prop::Bool(lb && rb))
+        })
     }
 }
 
@@ -369,9 +373,13 @@ impl<'g> EdgeOp for OrBoolEdgeOp<'g> {
     type Output = Option<Prop>;
 
     fn apply(&self, storage: &GraphStorage, edge: EdgeRef) -> Option<Prop> {
-        let l = matches!(self.left.apply(storage, edge), Some(Prop::Bool(true)));
-        let r = matches!(self.right.apply(storage, edge), Some(Prop::Bool(true)));
-        Some(Prop::Bool(l || r))
+        let l = self.left.apply(storage, edge);
+        let r = self.right.apply(storage, edge);
+        broadcast_binary(l, r, &|lv, rv| {
+            let lb = matches!(lv, Some(Prop::Bool(true)));
+            let rb = matches!(rv, Some(Prop::Bool(true)));
+            Some(Prop::Bool(lb || rb))
+        })
     }
 }
 
