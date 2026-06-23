@@ -1,5 +1,6 @@
 use crate::{
     data::Data,
+    graph::GraphWithVectors,
     model::graph::property::GqlProperty,
     paths::{ExistingGraphFolder, ValidGraphPaths},
 };
@@ -60,10 +61,11 @@ impl MetaGraph {
     async fn meta(&self, data: &Data) -> Result<&GraphMetadata> {
         Ok(self
             .meta
-            .get_or_try_init(|| {
-                data.get_cached_graph(self.folder.local_path())
-                    .map(GraphMetadata::from_graph)
-                    .unwrap_or_else(|| self.folder.read_metadata_async())
+            .get_or_try_init(|| async {
+                match data.get_cached_graph(self.folder.local_path()).await {
+                    None => self.folder.read_metadata_async().await,
+                    Some(graph) => Ok(GraphMetadata::from_graph(graph)),
+                }
             })
             .await?)
     }
