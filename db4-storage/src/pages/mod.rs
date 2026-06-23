@@ -377,8 +377,13 @@ impl<
         let wal = self.ext.wal();
         let control_file = self.ext.control_file();
 
-        // Run a clean shutdown only if the DB is still Running.
-        if control_file.db_state() != DBState::Running {
+        // Skip running a clean flush if the DB is in shutdown or crash recovery state.
+        // Note that the state can be Shutdown after the graph is loaded and before recovery
+        // is complete.
+        if matches!(
+            control_file.db_state(),
+            DBState::Shutdown | DBState::CrashRecovery
+        ) {
             return;
         }
 
