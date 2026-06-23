@@ -2,6 +2,7 @@ ARG RUST_VERSION=1.95
 ARG RAPHTORY_PROFILE="release"
 
 FROM rust:${RUST_VERSION} AS chef
+RUN apt-get update && apt-get install -y protobuf-compiler
 RUN cargo install cargo-chef --version 0.1.77
 WORKDIR /app
 
