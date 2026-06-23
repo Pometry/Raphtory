@@ -25,7 +25,11 @@ pub trait WalOps {
     fn read(&self, lsn: LSN) -> Result<Option<ReplayRecord>, StorageError>;
 
     /// Returns an iterator over the entries in the wal, starting from the given LSN.
-    fn replay(&self, start: LSN) -> impl Iterator<Item = Result<ReplayRecord, StorageError>>;
+    /// If `start` is `None`, replay begins at the first record in the WAL stream.
+    fn replay(
+        &self,
+        start: Option<LSN>,
+    ) -> impl Iterator<Item = Result<ReplayRecord, StorageError>>;
 
     /// Returns the current position in the WAL stream.
     fn position(&self) -> LSN;
@@ -81,9 +85,9 @@ pub trait GraphWalOps {
         dst_name: Option<GidRef<'_>>,
         dst_id: VID,
         eid: EID,
+        props: Vec<(&str, usize, Prop)>,
         layer_name: Option<&str>,
         layer_id: LayerId,
-        props: Vec<(&str, usize, Prop)>,
     ) -> Result<LSN, StorageError>;
 
     fn log_add_edge_metadata(
@@ -163,11 +167,12 @@ pub trait GraphWalOps {
     fn read_shutdown_checkpoint(&self, lsn: LSN) -> Result<LSN, StorageError>;
 
     /// Replays and applies all the entries in the wal to the given graph, starting from the given LSN.
+    /// If `start` is `None`, replay begins at the first record in the WAL stream.
     /// Returns the LSN immediately after the last entry in the WAL stream on success.
     fn replay_to_graph<G: GraphReplay>(
         &self,
         graph: &mut G,
-        start: LSN,
+        start: Option<LSN>,
     ) -> Result<LSN, StorageError>;
 }
 
@@ -183,9 +188,9 @@ pub trait GraphReplay {
         dst_name: Option<GID>,
         dst_id: VID,
         eid: EID,
+        props: Vec<(String, usize, Prop)>,
         layer_name: Option<String>,
         layer_id: LayerId,
-        props: Vec<(String, usize, Prop)>,
     ) -> Result<(), StorageError>;
 
     fn replay_add_edge_metadata(
@@ -220,6 +225,8 @@ pub trait GraphReplay {
         node_id: VID,
         node_type_and_id: Option<(String, usize)>,
         props: Vec<(String, usize, Prop)>,
+        layer_name: Option<String>,
+        layer_id: LayerId,
     ) -> Result<(), StorageError>;
 
     fn replay_add_node_metadata(
