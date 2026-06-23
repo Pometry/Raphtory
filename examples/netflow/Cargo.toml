@@ -1,5 +1,6 @@
 [package]
 name = "raphtory_netflow"
+publish = false
 version.workspace = true
 edition = "2021"
 

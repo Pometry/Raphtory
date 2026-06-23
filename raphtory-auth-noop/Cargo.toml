@@ -1,5 +1,6 @@
 [package]
 name = "raphtory-auth-noop"
+description = "Mock auth module"
 version.workspace = true
 edition.workspace = true
 

@@ -1,5 +1,6 @@
 [package]
 name = "raphtory_custom_gql_apis"
+publish = false
 description = "Python package for raphtory, a temporal graph library"
 version = "0.9.3"
 keywords = ["graph", "temporal-graph", "temporal", "jira"]
