@@ -683,8 +683,10 @@ impl InternalAdditionOps for TemporalGraph {
                 }
             },
         };
+
         let (segment_id, _) = self.storage().nodes().resolve_pos(node_vid);
         let writer = self.storage().node_writer(segment_id);
+
         Ok(AtomicAddNode {
             writer,
             vid: MaybeNew::Existing(node_vid),

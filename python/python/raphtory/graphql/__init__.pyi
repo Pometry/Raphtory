@@ -417,6 +417,7 @@ class RemoteGraph(object):
         id: str | int,
         properties: Optional[dict] = None,
         node_type: Optional[str] = None,
+        layer: Optional[str] = None,
     ) -> RemoteNode:
         """
         Adds a new node with the given id and properties to the remote graph.
@@ -426,6 +427,7 @@ class RemoteGraph(object):
             id (str | int): The id of the node.
             properties (dict, optional): The properties of the node.
             node_type (str, optional): The optional string which will be used as a node type
+            layer (str, optional): The optional layer where the node update should be written
 
         Returns:
             RemoteNode: the new remote node

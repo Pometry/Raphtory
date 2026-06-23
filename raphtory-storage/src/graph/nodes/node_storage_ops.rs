@@ -10,7 +10,7 @@ use raphtory_api::core::{
 };
 use raphtory_core::{entities::LayerVariants, storage::timeindex::EventTime};
 use std::{borrow::Cow, ops::Range, sync::Arc};
-use storage::{api::nodes::NodeRefOps, gen_ts::LayerIter, NodeEntryRef};
+use storage::{api::nodes::NodeRefOps, generic_time_ops::LayerIter, NodeEntryRef};
 
 pub trait NodeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
     fn degree(self, layers: &LayerIds, dir: Direction) -> usize;
