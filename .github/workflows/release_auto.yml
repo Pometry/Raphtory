@@ -14,7 +14,7 @@ on:
       python_version:
         description: Python version for python docker image
         type: string
-        default: 3.14.2
+        default: 3.14.6
       debian_version:
         description: Debian variant for python docker image
         type: string

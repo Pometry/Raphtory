@@ -1,4 +1,4 @@
-ARG RUST_VERSION=1.86.0
+ARG RUST_VERSION=1.95.0
 ARG BASE_PYTHON_IMAGE_TAG
 
 FROM rust:${RUST_VERSION} AS build
@@ -11,7 +11,7 @@ RUN curl -fsSL https://pyenv.run | bash
 RUN PYTHON_VERSION=$(echo ${BASE_PYTHON_IMAGE_TAG} | cut -d'-' -f1) && \
     pyenv install ${PYTHON_VERSION} && \
     pyenv global ${PYTHON_VERSION}
-RUN pip install maturin==1.8.3 patchelf==0.17.2.2
+RUN pip install maturin[patchelf]
 COPY . .
 RUN cd python && maturin build --release
 
