@@ -38,6 +38,7 @@ use std::{
     },
 };
 use storage::Config;
+use tracing::error;
 use walkdir::WalkDir;
 use zip::{write::FileOptions, ZipArchive, ZipWriter};
 
@@ -648,7 +649,7 @@ fn collect_prop_columns(
 fn ls_parquet_files(dir: &Path) -> Result<impl Iterator<Item = PathBuf>, GraphError> {
     Ok(std::fs::read_dir(dir)
         .inspect_err(|err| {
-            eprintln!("Error reading directory {}: {}", dir.display(), err);
+            error!("Error reading directory {}: {}", dir.display(), err);
         })? // print out the path if it's missing
         .filter_map(Result::ok)
         .map(|entry| entry.path())

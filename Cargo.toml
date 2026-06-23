@@ -14,7 +14,8 @@ members = [
     "raphtory-storage",
     "raphtory-api-macros",
     "raphtory-tests",
-    "raphtory-itertools", ]
+    "raphtory-itertools",
+    "drop-logging"]
 default-members = ["raphtory"]
 resolver = "2"
 
@@ -65,6 +66,7 @@ raphtory-core = { version = "0.18.0", path = "raphtory-core", default-features =
 raphtory-graphql = { version = "0.18.0", path = "raphtory-graphql", default-features = false }
 raphtory-storage = { version = "0.18.0", path = "raphtory-storage", default-features = false }
 raphtory-itertools = { version = "0.18.0", path = "raphtory-itertools" }
+drop-logging = { version = "0.18.0", path = "drop-logging" }
 async-graphql = { version = "7.2.1", features = ["dynamic-schema"] }
 async-graphql-poem = "7.2.1"
 dynamic-graphql = "0.10.2"

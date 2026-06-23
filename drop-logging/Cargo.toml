@@ -1,0 +1,19 @@
+[package]
+name = "drop-logging"
+version.workspace = true
+documentation.workspace = true
+repository.workspace = true
+license.workspace = true
+readme.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+authors.workspace = true
+categories.workspace = true
+rust-version.workspace = true
+edition.workspace = true
+
+[dependencies]
+tracing.workspace = true
+
+[features]
+panic-on-drop = []

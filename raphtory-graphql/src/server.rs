@@ -55,7 +55,7 @@ use tokio::{
     task,
     task::JoinHandle,
 };
-use tracing::{debug, info, warn};
+use tracing::{debug, error, info, warn};
 use tracing_subscriber::{
     fmt, fmt::format::FmtSpan, layer::SubscriberExt, util::SubscriberInitExt, Registry,
 };
@@ -280,7 +280,7 @@ impl GraphServer {
                     )
                     .with(OpenTelemetryTracingBridge::new(&log))
                     .try_init()
-                    .unwrap_or_else(|err| eprintln!("Failed to initialise tracer provider: {err}"));
+                    .unwrap_or_else(|err| error!("Failed to initialise tracer provider: {err}"));
             }
             None => {
                 registry.try_init().ok();
@@ -477,11 +477,11 @@ async fn server_termination(
             task::spawn_blocking(move || {
                 let res = tp.shutdown();
                 if let Err(e) = res {
-                    eprintln!("Failed to shut down tracing provider: {:?}", e);
+                    error!("Failed to shut down tracing provider: {:?}", e);
                 }
                 let res = lp.shutdown();
                 if let Err(e) = res {
-                    eprintln!("Failed to shut down logging provider: {:?}", e);
+                    error!("Failed to shut down logging provider: {:?}", e);
                 }
             })
             .await
