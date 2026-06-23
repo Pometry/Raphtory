@@ -8,9 +8,6 @@
 
 Each field is tested under a combination of base / window / layer views to
 exercise the composition plumbing, not just the field itself.
-
-`searchEdges` is left untested here — it's marked experimental in the schema
-and requires an index-creation path that these fixtures don't exercise.
 """
 
 from utils import run_group_graphql_test
