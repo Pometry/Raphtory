@@ -30,6 +30,7 @@ keywords = ["graph", "temporal-graph", "temporal"]
 authors = ["Pometry"]
 rust-version = "1.95.0"
 edition = "2021"
+categories = ["science", "database-implementations", "data-structures"]
 
 # debug symbols are using a lot of resources
 [profile.dev]
