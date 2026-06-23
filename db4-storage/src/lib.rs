@@ -1,9 +1,9 @@
 use crate::{
-    gen_ts::{
+    generic_t_props::GenericTProps,
+    generic_time_ops::{
         AdditionCellsRef, DeletionCellsRef, EdgeAdditionCellsRef, GenericTimeOps,
         PropAdditionCellsRef,
     },
-    generic_t_props::GenericTProps,
     pages::{
         GraphStore, ReadLockedGraphStore, edge_store::ReadLockedEdgeStorage,
         node_store::ReadLockedNodeStorage,
@@ -35,8 +35,8 @@ use std::{
 
 pub mod api;
 pub mod dir;
-pub mod gen_ts;
 pub mod generic_t_props;
+pub mod generic_time_ops;
 pub mod pages;
 pub mod persist;
 pub mod properties;
