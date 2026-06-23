@@ -185,6 +185,49 @@ def test_namespaces_and_metagraph():
     assert sort_dict(result) == sort_dict(correct)
 
 
+def test_metagraph_updating():
+    with tempfile.TemporaryDirectory() as work_dir:
+        with GraphServer(work_dir).start() as server:
+            client = server.get_client()
+            client.new_graph("test", "EVENT")
+
+            query = """ 
+                {
+                    graphMetadata(path: "test") {
+                        nodeCount
+                        edgeCount
+                    }
+                }
+            """
+
+            result = client.query(query)
+            correct_empty = {
+                "graphMetadata": {
+                    "nodeCount": 0,
+                    "edgeCount": 0
+                }
+            }
+            assert result == correct_empty
+            client.remote_graph("test").add_node(0, "1")
+
+            result = client.query(query)
+            assert result == {
+                "graphMetadata": {
+                    "nodeCount": 1,
+                    "edgeCount": 0
+                }
+            }
+
+            client.remote_graph("test").add_edge(1, "2", "3")
+            result = client.query(query)
+            assert result == {
+                "graphMetadata": {
+                    "nodeCount": 3,
+                    "edgeCount": 1
+                }
+            }
+
+
 def test_counting():
     work_dir = tempfile.mkdtemp()
 
@@ -294,8 +337,8 @@ def test_wrong_paths():
         with pytest.raises(Exception) as excinfo:
             client.query(query)
             assert (
-                "Only relative paths are allowed to be used within the working_dir: /test"
-                in str(excinfo.value)
+                    "Only relative paths are allowed to be used within the working_dir: /test"
+                    in str(excinfo.value)
             )
 
         query = """{
@@ -309,8 +352,8 @@ def test_wrong_paths():
         with pytest.raises(Exception) as excinfo:
             client.query(query)
             assert (
-                "References to the parent dir are not allowed within the path: test/../../"
-                in str(excinfo.value)
+                    "References to the parent dir are not allowed within the path: test/../../"
+                    in str(excinfo.value)
             )
 
         query = """{
@@ -324,8 +367,8 @@ def test_wrong_paths():
         with pytest.raises(Exception) as excinfo:
             client.query(query)
             assert (
-                "References to the current dir are not allowed within the path: ./test"
-                in str(excinfo.value)
+                    "References to the current dir are not allowed within the path: ./test"
+                    in str(excinfo.value)
             )
 
         query = """{
@@ -339,8 +382,8 @@ def test_wrong_paths():
         with pytest.raises(Exception) as excinfo:
             client.query(query)
             assert (
-                "The path to the graph contains a subpath to an existing graph: test/second/internal/graph1"
-                in str(excinfo.value)
+                    "The path to the graph contains a subpath to an existing graph: test/second/internal/graph1"
+                    in str(excinfo.value)
             )
 
 
