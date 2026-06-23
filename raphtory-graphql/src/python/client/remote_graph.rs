@@ -219,22 +219,27 @@ impl PyRemoteGraph {
     ///     id (str | int): The id of the node.
     ///     properties (dict, optional): The properties of the node.
     ///     node_type (str, optional): The optional string which will be used as a node type
+    ///     layer (str, optional): The optional layer where the node update should be written
     ///
     /// Returns:
     ///     RemoteNode: the new remote node
-    #[pyo3(signature = (timestamp, id, properties = None, node_type = None))]
+    #[pyo3(signature = (timestamp, id, properties = None, node_type = None, layer = None))]
     pub fn add_node(
         &self,
         timestamp: EventTime,
         id: GID,
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<&str>,
+        layer: Option<&str>,
     ) -> Result<PyRemoteNode, ClientError> {
         let graph = Arc::clone(&self.graph);
         let node_type = node_type.map(|s| s.to_string());
+        let layer = layer.map(|s| s.to_string());
 
         let node = execute_async_task(move || async move {
-            graph.add_node(timestamp, id, properties, node_type).await
+            graph
+                .add_node(timestamp, id, properties, node_type, layer)
+                .await
         })?;
 
         Ok(PyRemoteNode::new(node))

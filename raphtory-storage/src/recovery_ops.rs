@@ -29,9 +29,9 @@ pub trait RecoveryOps: DurabilityOps + InternalAdditionOps<Error = MutationError
                 let redo_lsn = if checkpoint_lsn == LAST_CHECKPOINT_INIT {
                     // No successful checkpoint has been written yet,
                     // replay from the start of the WAL stream.
-                    0
+                    None
                 } else {
-                    wal.read_checkpoint(checkpoint_lsn)?
+                    Some(wal.read_checkpoint(checkpoint_lsn)?)
                 };
 
                 // Set db state to indicate that recovery is in progress.

@@ -1,5 +1,3 @@
-//! Pure Rust GraphQL client for Raphtory GraphQL server.
-
 mod error;
 pub mod raphtory_client;
 pub mod remote_edge;
