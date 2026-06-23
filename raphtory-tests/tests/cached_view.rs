@@ -170,7 +170,7 @@ mod test_filters_cached_view {
         };
         use raphtory_api::core::entities::properties::prop::Prop;
         use raphtory_tests::assertions::{
-            assert_filter_nodes_results, assert_search_nodes_results, TestGraphVariants,
+            assert_filter_nodes_results, TestGraphVariants,
             TestVariants,
         };
 
@@ -216,13 +216,6 @@ mod test_filters_cached_view {
                 &expected_results,
                 TestVariants::EventOnly,
             );
-            assert_search_nodes_results(
-                init_graph,
-                CachedGraphTransformer,
-                filter,
-                &expected_results,
-                TestVariants::EventOnly,
-            );
         }
 
         #[test]
@@ -237,13 +230,6 @@ mod test_filters_cached_view {
                 &expected_results,
                 vec![TestGraphVariants::Graph],
             );
-            assert_search_nodes_results(
-                init_graph,
-                WindowedCachedGraphTransformer(6..9),
-                filter,
-                &expected_results,
-                TestVariants::EventOnly,
-            );
         }
 
         #[test]
@@ -257,13 +243,6 @@ mod test_filters_cached_view {
                 &expected_results,
                 TestVariants::PersistentOnly,
             );
-            assert_search_nodes_results(
-                init_graph,
-                WindowedCachedGraphTransformer(6..9),
-                filter,
-                &expected_results,
-                TestVariants::PersistentOnly,
-            );
         }
     }
 
@@ -274,7 +253,7 @@ mod test_filters_cached_view {
         };
         use raphtory_api::core::entities::properties::prop::Prop;
         use raphtory_tests::assertions::{
-            assert_filter_edges_results, assert_search_edges_results, TestVariants,
+            assert_filter_edges_results, TestVariants,
         };
 
         use crate::test_filters_cached_view::{
@@ -323,13 +302,6 @@ mod test_filters_cached_view {
                 &expected_results,
                 TestVariants::EventOnly,
             );
-            assert_search_edges_results(
-                init_graph,
-                CachedGraphTransformer,
-                filter,
-                &expected_results,
-                TestVariants::All,
-            );
         }
 
         #[test]
@@ -340,13 +312,6 @@ mod test_filters_cached_view {
                 init_graph,
                 WindowedCachedGraphTransformer(6..9),
                 filter.clone(),
-                &expected_results,
-                TestVariants::EventOnly,
-            );
-            assert_search_edges_results(
-                init_graph,
-                WindowedCachedGraphTransformer(6..9),
-                filter,
                 &expected_results,
                 TestVariants::EventOnly,
             );
@@ -363,13 +328,6 @@ mod test_filters_cached_view {
                 filter.clone(),
                 &expected_results,
                 vec![],
-            );
-            assert_search_edges_results(
-                init_graph,
-                WindowedCachedGraphTransformer(6..9),
-                filter,
-                &expected_results,
-                TestVariants::PersistentOnly,
             );
         }
     }

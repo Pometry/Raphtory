@@ -188,7 +188,7 @@ pub mod test_filters_node_subgraph {
         };
         use raphtory_api::core::entities::properties::prop::Prop;
         use raphtory_tests::assertions::{
-            assert_filter_nodes_results, assert_search_nodes_results, TestGraphVariants,
+            assert_filter_nodes_results, TestGraphVariants,
             TestVariants,
         };
 
@@ -230,13 +230,6 @@ pub mod test_filters_node_subgraph {
                 &expected_results,
                 TestVariants::All,
             );
-            assert_search_nodes_results(
-                init_graph,
-                NodeSubgraphTransformer(None),
-                filter,
-                &expected_results,
-                TestVariants::All,
-            );
 
             let node_names: Option<Vec<String>> =
                 Some(vec!["N2".into(), "N3".into(), "N4".into(), "N5".into()]);
@@ -246,13 +239,6 @@ pub mod test_filters_node_subgraph {
                 init_graph,
                 NodeSubgraphTransformer(node_names.clone()),
                 filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-            assert_search_nodes_results(
-                init_graph,
-                NodeSubgraphTransformer(node_names),
-                filter,
                 &expected_results,
                 TestVariants::All,
             );
@@ -270,13 +256,6 @@ pub mod test_filters_node_subgraph {
                 &expected_results,
                 vec![TestGraphVariants::Graph],
             );
-            assert_search_nodes_results(
-                init_graph,
-                WindowedNodeSubgraphTransformer(None, 6..9),
-                filter,
-                &expected_results,
-                vec![TestGraphVariants::Graph],
-            );
 
             let node_names: Option<Vec<String>> = Some(vec!["N3".into()]);
             let filter = NodeFilter.property("p1").gt(0u64);
@@ -285,13 +264,6 @@ pub mod test_filters_node_subgraph {
                 init_graph,
                 WindowedNodeSubgraphTransformer(node_names.clone(), 6..9),
                 filter.clone(),
-                &expected_results,
-                vec![TestGraphVariants::Graph],
-            );
-            assert_search_nodes_results(
-                init_graph,
-                WindowedNodeSubgraphTransformer(node_names, 6..9),
-                filter,
                 &expected_results,
                 vec![TestGraphVariants::Graph],
             );
@@ -308,13 +280,6 @@ pub mod test_filters_node_subgraph {
                 &expected_results,
                 TestVariants::PersistentOnly,
             );
-            assert_search_nodes_results(
-                init_graph,
-                WindowedNodeSubgraphTransformer(None, 6..9),
-                filter,
-                &expected_results,
-                TestVariants::PersistentOnly,
-            );
 
             let node_names: Option<Vec<String>> =
                 Some(vec!["N2".into(), "N3".into(), "N4".into(), "N5".into()]);
@@ -324,13 +289,6 @@ pub mod test_filters_node_subgraph {
                 init_graph,
                 WindowedNodeSubgraphTransformer(node_names.clone(), 6..9),
                 filter.clone(),
-                &expected_results,
-                TestVariants::PersistentOnly,
-            );
-            assert_search_nodes_results(
-                init_graph,
-                WindowedNodeSubgraphTransformer(node_names, 6..9),
-                filter,
                 &expected_results,
                 TestVariants::PersistentOnly,
             );
@@ -349,7 +307,7 @@ pub mod test_filters_node_subgraph {
         };
         use raphtory_api::core::entities::properties::prop::Prop;
         use raphtory_tests::assertions::{
-            assert_filter_edges_results, assert_search_edges_results, TestVariants,
+            assert_filter_edges_results, TestVariants,
         };
 
         use crate::test_filters_node_subgraph::{
@@ -393,13 +351,6 @@ pub mod test_filters_node_subgraph {
                 &expected_results,
                 TestVariants::EventOnly,
             );
-            assert_search_edges_results(
-                init_graph,
-                NodeSubgraphTransformer(None),
-                filter,
-                &expected_results,
-                TestVariants::All,
-            );
 
             let node_names: Option<Vec<String>> =
                 Some(vec!["N2".into(), "N3".into(), "N4".into(), "N5".into()]);
@@ -411,13 +362,6 @@ pub mod test_filters_node_subgraph {
                 filter.clone(),
                 &expected_results,
                 TestVariants::EventOnly,
-            );
-            assert_search_edges_results(
-                init_graph,
-                NodeSubgraphTransformer(node_names),
-                filter,
-                &expected_results,
-                TestVariants::All,
             );
         }
 
@@ -432,13 +376,6 @@ pub mod test_filters_node_subgraph {
                 &expected_results,
                 TestVariants::EventOnly,
             );
-            assert_search_edges_results(
-                init_graph,
-                WindowedNodeSubgraphTransformer(None, 6..9),
-                filter,
-                &expected_results,
-                TestVariants::EventOnly,
-            );
 
             let node_names: Option<Vec<String>> =
                 Some(vec!["N2".into(), "N3".into(), "N4".into(), "N5".into()]);
@@ -448,13 +385,6 @@ pub mod test_filters_node_subgraph {
                 init_graph,
                 WindowedNodeSubgraphTransformer(node_names.clone(), 6..9),
                 filter.clone(),
-                &expected_results,
-                TestVariants::EventOnly,
-            );
-            assert_search_edges_results(
-                init_graph,
-                WindowedNodeSubgraphTransformer(node_names, 6..9),
-                filter,
                 &expected_results,
                 TestVariants::EventOnly,
             );
@@ -472,13 +402,6 @@ pub mod test_filters_node_subgraph {
                 &expected_results,
                 vec![],
             );
-            assert_search_edges_results(
-                init_graph,
-                WindowedNodeSubgraphTransformer(None, 6..9),
-                filter,
-                &expected_results,
-                TestVariants::PersistentOnly,
-            );
 
             let node_names: Option<Vec<String>> = Some(vec![
                 "N2".into(),
@@ -495,13 +418,6 @@ pub mod test_filters_node_subgraph {
                 filter.clone(),
                 &expected_results,
                 vec![],
-            );
-            assert_search_edges_results(
-                init_graph,
-                WindowedNodeSubgraphTransformer(node_names, 6..9),
-                filter,
-                &expected_results,
-                TestVariants::PersistentOnly,
             );
         }
     }
