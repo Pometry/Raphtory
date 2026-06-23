@@ -2270,6 +2270,7 @@ dependencies = [
  "chrono",
  "clap",
  "dashmap",
+ "drop-logging",
  "either",
  "iter-enum",
  "itertools 0.14.0",
@@ -2532,6 +2533,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "415b6ec780d34dcf624666747194393603d0373b7141eef01d12ee58881507d9"
 dependencies = [
  "phf 0.11.3",
+]
+
+[[package]]
+name = "drop-logging"
+version = "0.18.0"
+dependencies = [
+ "tracing",
 ]
 
 [[package]]
