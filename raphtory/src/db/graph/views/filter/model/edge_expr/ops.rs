@@ -23,7 +23,6 @@ use crate::db::{
     graph::views::filter::model::{
         edge_filter::Endpoint,
         node_expr::ops::{broadcast_binary, broadcast_unary},
-        property_filter::evaluate::aggregate_values,
     },
 };
 use raphtory_api::core::entities::properties::prop::PropArray;
@@ -251,7 +250,7 @@ impl<'g, I: Eq + Hash + Clone + Send + Sync + 'static> EdgeOp for SetEdgeOp<'g, 
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ListAwareCmpEdgeOp<'g> — element-wise comparison via aggregate_values
+// ListAwareCmpEdgeOp<'g> — element-wise comparison via broadcast_binary
 // ─────────────────────────────────────────────────────────────────────────────
 
 #[derive(Clone)]
@@ -275,7 +274,7 @@ impl<'g> EdgeOp for ListAwareCmpEdgeOp<'g> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ListAwareStringEdgeOp<'g> — element-wise string comparison via aggregate_values
+// ListAwareStringEdgeOp<'g> — element-wise string comparison via broadcast_binary
 // ─────────────────────────────────────────────────────────────────────────────
 
 #[derive(Clone)]
@@ -299,7 +298,7 @@ impl<'g> EdgeOp for ListAwareStringEdgeOp<'g> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ListAwareSetEdgeOp<'g> — element-wise set membership via aggregate_values
+// ListAwareSetEdgeOp<'g> — element-wise set membership via broadcast_unary
 // ─────────────────────────────────────────────────────────────────────────────
 
 #[derive(Clone)]
