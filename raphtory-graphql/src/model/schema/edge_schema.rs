@@ -27,7 +27,7 @@ pub(crate) struct EdgeSchema<G: StaticGraphViewOps> {
     graph: G,
     // (layer, src_type, dst_type) information; also the schema-cache lookup key
     key: EdgeSchemaKey,
-    // scan once and remember edges matching the (srcNodeType, dstNodeType)
+    // already scanned the edges matching the (srcNodeType, dstNodeType) in LayerSchema
     edges: Arc<[EdgeRef]>,
     // schema cache for the base graph, `None` for filtered/derived views
     cache: Option<Arc<SchemaCache>>,

@@ -261,7 +261,7 @@ pub struct PropMapper {
     /// Estimated size in bytes of a single row of properties maintained by this mapper.
     row_size: AtomicUsize,
 
-    /// Per-layer property presence bitset; `layer_presence[layer_id][prop_id]`
+    /// Per-layer property presence bitset; `layer_prop_presence[layer_id][prop_id]`
     /// is true iff this property has been observed in this layer
     layer_prop_presence: Arc<RwLock<Vec<Vec<bool>>>>,
 }

@@ -104,7 +104,7 @@ impl GqlGraph {
         Self {
             path: self.path.clone(),
             graph: graph_operation(&self.graph).into_dynamic(),
-            // a derived view's schema differs from the base, so don't cache it
+            // a derived view's schema differs from the base, so don't use the cache
             schema_cache: None,
         }
     }

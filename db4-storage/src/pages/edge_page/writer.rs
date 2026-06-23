@@ -140,7 +140,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
         }
 
         // Mirror each (layer, prop_id) into the per-layer property presence bitset in Meta.
-        // `.inspect` runs once per emitted item as the iterator is consumed
+        // `.inspect` runs once per emitted item as the iterator is consumed in `insert_edge_internal`
         let meta = self.writer.edge_meta().clone();
         let t_meta = meta.as_ref();
         let t_props = t_props.into_iter().inspect(move |(id, _)| {

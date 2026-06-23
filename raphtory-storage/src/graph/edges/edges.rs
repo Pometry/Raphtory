@@ -149,7 +149,7 @@ impl<'a> EdgesStorageRef<'a> {
     }
 
     /// O(1) check via the per-layer bitset cached on `Meta.temporal_prop_mapper`.
-    /// `false` is authoritative — callers can skip column reads for `(layer_id, prop_id)`.
+    /// `false` is authoritative i.e. callers can skip column reads for `(layer_id, prop_id)`.
     pub fn layer_has_temporal_prop(&self, layer_id: LayerId, prop_id: usize) -> bool {
         let inner = match self {
             EdgesStorageRef::Mem(storage) => storage.storage(),
@@ -162,6 +162,7 @@ impl<'a> EdgesStorageRef<'a> {
     }
 
     /// O(1) check via the per-layer bitset cached on `Meta.metadata_mapper`.
+    /// `false` is authoritative i.e. callers can skip column reads for `(layer_id, prop_id)`.
     pub fn layer_has_metadata(&self, layer_id: LayerId, prop_id: usize) -> bool {
         let inner = match self {
             EdgesStorageRef::Mem(storage) => storage.storage(),
