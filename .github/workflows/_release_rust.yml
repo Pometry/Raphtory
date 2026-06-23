@@ -13,7 +13,7 @@ on:
       crates:
         description: crate arguments to pass to cargo publish, i.e. '-p raphtory -p raphtory-graphql' (all by default)
         type: string
-        default: -p raphtory-api -p pometry-storage -p raphtory-core -p raphtory-storage -p raphtory -p raphtory-graphql
+        default: --workspace
   workflow_call:
     inputs: *inputs
 
