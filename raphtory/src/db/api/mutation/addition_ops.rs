@@ -1,5 +1,3 @@
-#[cfg(feature = "io")]
-use crate::serialise::metadata::build_graph_metadata;
 use crate::{
     core::entities::{edges::edge_ref::EdgeRef, nodes::node_ref::AsNodeRef},
     db::{
@@ -11,8 +9,6 @@ use crate::{
     },
     errors::{into_graph_err, GraphError},
 };
-#[cfg(feature = "io")]
-use raphtory_api::core::storage::graph_folder::{Metadata, GRAPH_META_PATH};
 use raphtory_api::core::{
     entities::properties::{
         meta::{DEFAULT_NODE_TYPE_ID, STATIC_GRAPH_LAYER_ID},
@@ -27,8 +23,6 @@ use raphtory_storage::{
         MutationError,
     },
 };
-#[cfg(feature = "io")]
-use storage::error::StorageError;
 use storage::wal::{GraphWalOps, WalOps};
 
 pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<GraphError>> {
@@ -311,24 +305,6 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         self.core_graph()
             .flush()
             .map_err(|err| MutationError::from(err).into())?;
-
-        #[cfg(feature = "io")]
-        {
-            if let Some(disk_path) = self.disk_storage_path() {
-                if let (Some(data_folder), Some(graph_dir)) = (
-                    disk_path.parent(),
-                    disk_path.file_name().and_then(|name| name.to_str()),
-                ) {
-                    let meta = Metadata {
-                        path: graph_dir.to_string(),
-                        meta: build_graph_metadata(self),
-                    };
-                    meta.write_atomic(data_folder, &data_folder.join(GRAPH_META_PATH))
-                        .map_err(|err| MutationError::from(StorageError::from(err)).into())?;
-                }
-            }
-        }
-
         Ok(())
     }
 }
