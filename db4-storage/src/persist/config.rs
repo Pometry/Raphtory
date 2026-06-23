@@ -5,6 +5,7 @@ use clap::{
 };
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{iter, path::Path};
+use tempfile::NamedTempFile;
 use tracing::error;
 
 pub const DEFAULT_MAX_PAGE_LEN_NODES: u32 = 600_000; // 2^17
@@ -32,9 +33,13 @@ pub trait ConfigOps: Serialize + DeserializeOwned + Args + Sized {
     }
 
     fn save_to_dir(&self, dir: &Path) -> Result<(), StorageError> {
-        let config_file = dir.join(CONFIG_FILE_NAME);
-        let config_file = std::fs::File::create(&config_file)?;
-        serde_json::to_writer_pretty(config_file, self)?;
+        let config_path = dir.join(CONFIG_FILE_NAME);
+        let mut tmp_file = NamedTempFile::new_in(dir)?;
+        serde_json::to_writer_pretty(&mut tmp_file, self)?;
+        tmp_file.as_file().sync_all()?;
+        tmp_file
+            .persist(&config_path)
+            .map_err(std::io::Error::from)?;
         Ok(())
     }
 
