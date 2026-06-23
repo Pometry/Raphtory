@@ -195,7 +195,9 @@ axum = "0.8.9"
 [workspace.dependencies.storage]
 package = "db4-storage"
 path = "db4-storage"
+version = "0.18.5"
 
 [workspace.dependencies.auth]
 package = "raphtory-auth-noop"
 path = "raphtory-auth-noop"
+version = "0.18.5"
