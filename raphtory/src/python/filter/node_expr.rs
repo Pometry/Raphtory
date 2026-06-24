@@ -8,7 +8,7 @@ use crate::{
     prelude::{EntityExprFilterOps, NodeFilter, NodeFilterFactory},
     python::{graph::node_state::PyOutputNodeState, types::iterable::FromIterable},
 };
-use pyo3::{pyclass, pymethods, IntoPyObject, PyResult};
+use pyo3::{pyclass, pymethods, PyResult};
 use raphtory_api::core::storage::timeindex::EventTime;
 use std::sync::Arc;
 use crate::db::graph::views::filter::model::node_expr::DynCreateOp;

@@ -15,9 +15,9 @@ pub use crate::{
                         UnaryOp,
                     },
                     node_expr::{
-                        AllExpr, AnyExpr, AvgExpr, BinaryCmpExpr, EntityAggOps,
-                        EntityExprFilterOps, FirstExpr, LastExpr, LenExpr, MaxExpr, MinExpr,
-                        PropValueSetExpr, StringExpr, SumExpr, TemporalPropExpr, UnaryExpr,
+                        AllExpr, AnyExpr, AvgExpr, BinaryCmpExpr, EntityAggOps, FirstExpr,
+                        LastExpr, LenExpr, MaxExpr, MinExpr, PropValueSetExpr, StringExpr, SumExpr,
+                        TemporalPropExpr, UnaryExpr,
                     },
                     node_filter::{NodeFilter, NodeFilterFactory},
                     not_filter::NotFilter,
@@ -1152,7 +1152,10 @@ pub fn resolved_prop_type(expr_pt: PropType, op_pt: PropType) -> PropType {
 /// Only fires when both sides are known and the RHS is a literal/const. Defers
 /// to runtime when the LHS type is unknown (`PropType::Empty`) or the RHS isn't
 /// a const value.
-pub fn validate_const_castable(lhs_pt: &PropType, rhs_const: Option<&Prop>) -> Result<(), GraphError> {
+pub fn validate_const_castable(
+    lhs_pt: &PropType,
+    rhs_const: Option<&Prop>,
+) -> Result<(), GraphError> {
     if *lhs_pt == PropType::Empty {
         return Ok(());
     }
