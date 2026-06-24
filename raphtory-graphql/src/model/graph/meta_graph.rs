@@ -1,5 +1,5 @@
 use crate::{
-    data::Data,
+    data::{Data, WorkDirGuard},
     model::graph::property::GqlProperty,
     paths::{ExistingGraphFolder, ValidGraphPaths},
 };
@@ -11,8 +11,8 @@ use raphtory::{
     prelude::{GraphViewOps, PropertiesOps},
     serialise::{metadata::GraphMetadata, parquet::decode_graph_metadata, GraphPaths},
 };
-use std::{cmp::Ordering, sync::Arc};
-use tokio::sync::OnceCell;
+use std::{cmp::Ordering, path::PathBuf, sync::Arc};
+use tokio::sync::{OnceCell, OwnedRwLockReadGuard, RwLockReadGuard};
 
 /// Lightweight summary of a stored graph — its name, path, counts, and
 /// filesystem timestamps — served without deserializing the full graph.
@@ -45,7 +45,7 @@ impl Ord for MetaGraph {
 }
 
 impl MetaGraph {
-    pub fn new(path: ExistingGraphFolder) -> Self {
+    pub(crate) fn new(path: ExistingGraphFolder) -> Self {
         Self {
             folder: path,
             meta: Default::default(),

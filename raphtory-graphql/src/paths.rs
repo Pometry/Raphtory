@@ -1,4 +1,8 @@
-use crate::{data::DIRTY_PATH, model::blocking_io, rayon::blocking_compute};
+use crate::{
+    data::{WorkDirGuard, WorkDirWriteGuard, DIRTY_PATH},
+    model::blocking_io,
+    rayon::blocking_compute,
+};
 use futures_util::io;
 use raphtory::{
     db::api::{
@@ -69,6 +73,7 @@ impl ValidPath {
         let full_path = valid_path_inner(base_path, relative_path).with_path(relative_path)?;
         Ok(ValidPath(full_path))
     }
+
     /// path exists and is a graph
     pub fn is_graph(&self) -> bool {
         self.0.exists() && self.0.join(ROOT_META_PATH).exists()
@@ -112,15 +117,17 @@ pub fn validate_path_for_namespace_create(
 }
 
 #[derive(Clone, Debug, PartialOrd, PartialEq, Ord, Eq)]
-pub struct ExistingGraphFolder(pub(crate) ValidGraphFolder);
+pub struct ExistingGraphFolder {
+    pub(crate) folder: ValidGraphFolder,
+}
 
 impl ValidGraphPaths for ExistingGraphFolder {
     fn local_path(&self) -> &str {
-        self.0.local_path()
+        self.folder.local_path()
     }
 
     fn graph_folder(&self) -> &impl GraphPaths {
-        self.0.graph_folder()
+        self.folder.graph_folder()
     }
 }
 
@@ -128,26 +135,33 @@ impl Deref for ExistingGraphFolder {
     type Target = ValidGraphFolder;
 
     fn deref(&self) -> &Self::Target {
-        &self.0
+        &self.folder
     }
 }
 
 impl ExistingGraphFolder {
-    pub fn try_from(base_path: PathBuf, relative_path: &str) -> Result<Self, PathValidationError> {
-        let path = ValidPath::try_new(base_path, relative_path)?;
-        Self::try_from_valid(path, relative_path)
+    pub fn try_from(
+        work_dir_guard: WorkDirGuard,
+        relative_path: &str,
+    ) -> Result<Self, PathValidationError> {
+        let path = ValidPath::try_new(work_dir_guard.to_path_buf(), relative_path)?;
+        Self::try_from_valid(work_dir_guard, path, relative_path)
     }
 
     pub fn try_from_valid(
-        base_path: ValidPath,
+        work_dir_guard: WorkDirGuard,
+        full_path: ValidPath,
         relative_path: &str,
     ) -> Result<Self, PathValidationError> {
-        let graph_folder: GraphFolder = base_path.into_path().into();
+        let graph_folder: GraphFolder = full_path.into_path().into();
         if graph_folder.is_reserved() {
-            Ok(Self(ValidGraphFolder {
-                global_path: graph_folder,
-                local_path: relative_path.to_string(),
-            }))
+            Ok(Self {
+                folder: ValidGraphFolder {
+                    global_path: graph_folder,
+                    local_path: relative_path.to_string(),
+                    work_dir_guard,
+                },
+            })
         } else {
             Err(PathValidationError::GraphNotExistsError(
                 relative_path.to_string(),
@@ -174,6 +188,23 @@ impl ExistingGraphFolder {
 pub struct ValidGraphFolder {
     global_path: GraphFolder,
     local_path: String,
+    work_dir_guard: WorkDirGuard,
+}
+
+#[derive(Clone, Debug, PartialOrd, PartialEq, Ord, Eq)]
+pub struct UnlockedGraphFolder {
+    global_path: GraphFolder,
+    local_path: String,
+}
+
+impl ValidGraphPaths for UnlockedGraphFolder {
+    fn local_path(&self) -> &str {
+        &self.local_path
+    }
+
+    fn graph_folder(&self) -> &impl GraphPaths {
+        &self.global_path
+    }
 }
 
 fn valid_component(component: Component<'_>) -> Result<&str, InvalidPathReason> {
@@ -303,6 +334,7 @@ impl CleanupPath {
 
 #[derive(Clone, Debug)]
 pub struct ValidWriteableGraphFolder {
+    work_dir_write_guard: WorkDirWriteGuard,
     global_path: WriteableGraphFolder,
     local_path: String,
     dirty_marker: Option<CleanupPath>,
@@ -320,6 +352,7 @@ impl ValidGraphPaths for ValidWriteableGraphFolder {
 
 impl ValidWriteableGraphFolder {
     fn new_inner(
+        work_dir_write_guard: WorkDirWriteGuard,
         valid_path: NewPath,
         graph_name: &str,
     ) -> Result<Self, InternalPathValidationError> {
@@ -332,13 +365,18 @@ impl ValidWriteableGraphFolder {
         }
         let data_path = graph_folder.init_swap()?;
         Ok(Self {
+            work_dir_write_guard,
             global_path: data_path,
             dirty_marker: valid_path.cleanup,
             local_path: graph_name.to_string(),
         })
     }
-    fn new(valid_path: NewPath, graph_name: &str) -> Result<Self, PathValidationError> {
-        Self::new_inner(valid_path, graph_name).map_err(|error| {
+    fn new(
+        work_dir_write_guard: WorkDirWriteGuard,
+        valid_path: NewPath,
+        graph_name: &str,
+    ) -> Result<Self, PathValidationError> {
+        Self::new_inner(work_dir_write_guard, valid_path, graph_name).map_err(|error| {
             PathValidationError::InternalError {
                 graph: graph_name.to_string(),
                 error,
@@ -347,29 +385,30 @@ impl ValidWriteableGraphFolder {
     }
 
     pub(crate) fn try_new(
-        base_path: PathBuf,
+        work_dir_write_guard: WorkDirWriteGuard,
         relative_path: &str,
     ) -> Result<Self, PathValidationError> {
-        let path = create_valid_path(base_path, relative_path).map_err(|error| {
-            PathValidationError::InternalError {
+        let path = create_valid_path(work_dir_write_guard.to_path_buf(), relative_path).map_err(
+            |error| PathValidationError::InternalError {
                 graph: relative_path.to_string(),
                 error,
-            }
-        })?;
+            },
+        )?;
         if !path.cleanup.is_some() {
             return Err(PathValidationError::GraphExistsError(
                 relative_path.to_string(),
             ));
         }
-        Self::new(path, relative_path)
+        Self::new(work_dir_write_guard, path, relative_path)
     }
 
     pub(crate) fn try_existing_or_new(
-        base_path: PathBuf,
+        work_dir_write_guard: WorkDirWriteGuard,
         relative_path: &str,
     ) -> Result<Self, PathValidationError> {
-        let path = create_valid_path(base_path, relative_path).with_path(relative_path)?;
-        Self::new(path, relative_path)
+        let path = create_valid_path(work_dir_write_guard.to_path_buf(), relative_path)
+            .with_path(relative_path)?;
+        Self::new(work_dir_write_guard, path, relative_path)
     }
 
     /// write graph data to folder (returns a flag to indicate if the graph should be considered dirty)
@@ -442,6 +481,7 @@ impl ValidWriteableGraphFolder {
             cleanup.persist().with_path(&self.local_path)?;
         }
         Ok(ValidGraphFolder {
+            work_dir_guard: self.work_dir_write_guard.into(),
             global_path: data_path,
             local_path: self.local_path,
         })
@@ -720,7 +760,9 @@ impl ValidGraphFolder {
     }
     pub(crate) fn as_existing(&self) -> Result<ExistingGraphFolder, PathValidationError> {
         if self.global_path.is_reserved() {
-            Ok(ExistingGraphFolder(self.clone()))
+            Ok(ExistingGraphFolder {
+                folder: self.clone(),
+            })
         } else {
             Err(PathValidationError::GraphNotExistsError(
                 self.local_path.clone(),

@@ -893,6 +893,8 @@ mod tests {
 
         let overwrite = false;
         let folder = data
+            .work_dir_write()
+            .await
             .validate_path_for_insert(graph_name, overwrite)
             .unwrap();
         data.insert_graph(folder.clone(), graph).await.unwrap();
@@ -907,7 +909,7 @@ mod tests {
         let vector_cache = data.vector_cache.resolve().await.unwrap();
         let model = vector_cache.openai(config.into()).await.unwrap();
         data.vectorise_folder(
-            &ExistingGraphFolder::try_from(work_dir.to_path_buf(), graph_name).unwrap(),
+            &ExistingGraphFolder::try_from(data.work_dir_read().await, graph_name).unwrap(),
             &template,
             model,
         )
