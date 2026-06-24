@@ -1,15 +1,13 @@
 use crate::{
     db::{
         api::{
-            state::ops::{filter::OrOp, NodeFilterOp, NodeOp},
+            state::ops::{filter::OrOp, NodeFilterOp},
             view::internal::GraphView,
         },
         graph::views::filter::{
             model::{
-                edge_expr::{ops::OrBoolEdgeOp, EdgeOp},
                 edge_filter::CompositeEdgeFilter,
                 exploded_edge_filter::CompositeExplodedEdgeFilter,
-                node_expr::{ops::OrBoolNodeOp, CreateOp, EntityExpr},
                 node_filter::CompositeNodeFilter,
                 ComposableFilter, TryAsCompositeFilter,
             },
@@ -20,8 +18,7 @@ use crate::{
     errors::GraphError,
     prelude::GraphViewOps,
 };
-use raphtory_api::core::entities::properties::prop::Prop;
-use std::{fmt, fmt::Display, sync::Arc};
+use std::{fmt, fmt::Display};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OrFilter<L, R> {
@@ -64,42 +61,6 @@ impl<L: CreateFilter, R: CreateFilter> CreateFilter for OrFilter<L, R> {
         let left = self.left.create_node_filter(graph.clone())?;
         let right = self.right.create_node_filter(graph)?;
         Ok(left.or(right))
-    }
-}
-
-impl<L, R> EntityExpr for OrFilter<L, R>
-where
-    L: EntityExpr,
-    R: EntityExpr<Marker = L::Marker>,
-{
-    type Marker = L::Marker;
-    fn entity(&self) -> Self::Marker {
-        self.left.entity()
-    }
-}
-
-impl<L, R> CreateOp for OrFilter<L, R>
-where
-    L: CreateOp,
-    R: CreateOp,
-    R: EntityExpr<Marker = L::Marker>,
-{
-    fn create_node_op<'g, G: GraphView + 'g>(
-        &self,
-        graph: G,
-    ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        let left = self.left.create_node_op(graph.clone())?;
-        let right = self.right.create_node_op(graph)?;
-        Ok(Arc::new(OrBoolNodeOp { left, right }))
-    }
-
-    fn create_edge_op<'g, G: GraphView + 'g>(
-        &self,
-        graph: G,
-    ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        let left = self.left.create_edge_op(graph.clone())?;
-        let right = self.right.create_edge_op(graph)?;
-        Ok(Arc::new(OrBoolEdgeOp { left, right }))
     }
 }
 

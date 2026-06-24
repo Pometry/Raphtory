@@ -44,9 +44,10 @@ use super::{
     ops::{
         BinaryCmpNodeOp, ListAwareCmpNodeOp, ListAwareSetNodeOp, ListAwareStringNodeOp,
         PropValueSetNodeOp, StringNodeOp, UnaryNodeOp,
-    },
-    AllExpr, AnyExpr, CreateOp, EntityExpr,
+    }
+    , CreateOp, EntityExpr,
 };
+use crate::db::graph::views::filter::model::{coerce_set_values, resolved_prop_type, validate_binary_op, validate_const_castable, validate_string_op};
 use crate::{
     db::{
         api::{
@@ -68,7 +69,6 @@ use crate::{
 };
 use raphtory_api::core::entities::properties::prop::{Prop, PropType};
 use std::sync::Arc;
-use crate::db::graph::views::filter::model::{coerce_set_values, resolved_prop_type, validate_binary_op, validate_const_castable, validate_string_op};
 // ─────────────────────────────────────────────────────────────────────────────
 // BinaryCmpExpr<L, R> — binary expression filter
 // ─────────────────────────────────────────────────────────────────────────────
