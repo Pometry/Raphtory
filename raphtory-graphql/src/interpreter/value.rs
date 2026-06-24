@@ -14,9 +14,9 @@ use crate::model::graph::{
     nodes::GqlNodes,
     path_from_node::GqlPathFromNode,
     property::{GqlMetadata, GqlProperties, GqlProperty, GqlTemporalProperties, GqlTemporalProperty},
+    timeindex::GqlEventTime,
 };
 use raphtory::db::api::view::DynamicGraph;
-use raphtory_api::core::storage::timeindex::EventTime;
 
 /// A value produced during execution and held on the stack.
 pub enum Value {
@@ -34,8 +34,11 @@ pub enum Value {
     Edge(GqlEdge),
     /// A history handle (`node.history` / `edge.history`).
     History(GqlHistory),
-    /// A single history entry — the item produced while iterating `history.list`.
-    EventTime(EventTime),
+    /// A point in time as a (nullable) `EventTime` object — a `history.list`
+    /// item, or a time field like `earliestTime` / `start` / edge `time`. Wraps
+    /// `Option<EventTime>` so the `timestamp` / `eventId` / `datetime` leaves can
+    /// emit `null` when the time is absent.
+    EventTime(GqlEventTime),
     /// The timestamp projection of a history (`history.timestamps`).
     HistoryTimestamp(GqlHistoryTimestamp),
     /// The event-id projection of a history (`history.eventId`).

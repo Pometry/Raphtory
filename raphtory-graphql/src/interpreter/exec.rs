@@ -18,6 +18,7 @@ use crate::model::graph::{
     nodes::GqlNodes,
     path_from_node::GqlPathFromNode,
     property::{prop_to_gql, GqlMetadata, GqlProperties},
+    timeindex::GqlEventTime,
 };
 use raphtory::{
     db::api::{
@@ -147,7 +148,7 @@ fn exec(op: &Op, stack: &mut Vec<Value>, sink: &mut Sink) {
                     };
                     for et in history.history.iter() {
                         sink.begin_object();
-                        stack.push(Value::EventTime(et));
+                        stack.push(Value::EventTime(GqlEventTime::from(et)));
                         for child in children.iter() {
                             exec(child, stack, sink);
                         }
@@ -298,8 +299,14 @@ impl LeafKind {
                 write_gid(sink, dst);
                 sink.end_array();
             }
-            (LeafKind::Timestamp, Value::EventTime(t)) => sink.write_i64(t.t()),
-            (LeafKind::EventId, Value::EventTime(t)) => sink.write_u64(t.i() as u64),
+            (LeafKind::Timestamp, Value::EventTime(t)) => match t.inner {
+                Some(et) => sink.write_i64(et.t()),
+                None => sink.write_null(),
+            },
+            (LeafKind::EventId, Value::EventTime(t)) => match t.inner {
+                Some(et) => sink.write_u64(et.i() as u64),
+                None => sink.write_null(),
+            },
             (LeafKind::Key, Value::Property(p)) => sink.write_str(&p.key),
             (LeafKind::Key, Value::TemporalProperty(tp)) => sink.write_str(&tp.key),
             (LeafKind::AsString, Value::Property(p)) => sink.write_str(&p.prop.to_string()),
@@ -337,9 +344,12 @@ impl LeafKind {
                 }
                 sink.end_array();
             }
-            (LeafKind::DateTime(fmt), Value::EventTime(t)) => match t.dt() {
-                Ok(dt) => sink.write_str(&dt.format(fmt).to_string()),
-                Err(_) => sink.write_null(),
+            (LeafKind::DateTime(fmt), Value::EventTime(t)) => match t.inner {
+                None => sink.write_null(),
+                Some(et) => match et.dt() {
+                    Ok(dt) => sink.write_str(&dt.format(fmt).to_string()),
+                    Err(_) => sink.write_null(),
+                },
             },
             _ => unreachable!("plan/type mismatch — validation should prevent this"),
         }
