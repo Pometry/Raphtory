@@ -9,7 +9,7 @@ use crate::{
     python::{graph::node_state::PyOutputNodeState, types::iterable::FromIterable},
 };
 use pyo3::{pyclass, pymethods, PyResult};
-use raphtory_api::core::storage::timeindex::EventTime;
+use raphtory_api::core::{entities::properties::prop::Prop, storage::timeindex::EventTime};
 use std::sync::Arc;
 use crate::db::graph::views::filter::model::node_expr::DynCreateOp;
 
@@ -26,8 +26,92 @@ impl<E: CreateOp> From<E> for PyExpr {
 #[pymethods]
 impl PyExpr {
     fn __eq__(&self, other: &Self) -> Self {
-        self.0.eq(&other.0).into()
+        self.0.clone().eq(other.0.clone()).into()
     }
+    fn __ne__(&self, other: &Self) -> Self {
+        self.0.clone().ne(other.0.clone()).into()
+    }
+    fn __lt__(&self, other: &Self) -> Self {
+        self.0.clone().lt(other.0.clone()).into()
+    }
+    fn __le__(&self, other: &Self) -> Self {
+        self.0.clone().le(other.0.clone()).into()
+    }
+    fn __gt__(&self, other: &Self) -> Self {
+        self.0.clone().gt(other.0.clone()).into()
+    }
+    fn __ge__(&self, other: &Self) -> Self {
+        self.0.clone().ge(other.0.clone()).into()
+    }
+
+    fn starts_with(&self, other: &Self) -> Self {
+        self.0.clone().starts_with(other.0.clone()).into()
+    }
+    fn ends_with(&self, other: &Self) -> Self {
+        self.0.clone().ends_with(other.0.clone()).into()
+    }
+    fn contains(&self, other: &Self) -> Self {
+        self.0.clone().contains(other.0.clone()).into()
+    }
+    fn not_contains(&self, other: &Self) -> Self {
+        self.0.clone().not_contains(other.0.clone()).into()
+    }
+    fn fuzzy_search(
+        &self,
+        other: &Self,
+        levenshtein_distance: usize,
+        prefix_match: bool,
+    ) -> Self {
+        self.0
+            .clone()
+            .fuzzy_search(other.0.clone(), levenshtein_distance, prefix_match)
+            .into()
+    }
+
+    fn is_in(&self, values: FromIterable<Prop>) -> Self {
+        self.0.clone().is_in(values).into()
+    }
+    fn is_not_in(&self, values: FromIterable<Prop>) -> Self {
+        self.0.clone().is_not_in(values).into()
+    }
+
+    fn is_some(&self) -> Self {
+        self.0.clone().is_some().into()
+    }
+    fn is_none(&self) -> Self {
+        self.0.clone().is_none().into()
+    }
+
+    fn __invert__(&self) -> Self {
+        self.0.clone().not().into()
+    }
+
+    fn any(&self) -> Self {
+        self.0.clone().any().into()
+    }
+    fn all(&self) -> Self {
+        self.0.clone().all().into()
+    }
+
+    // ── Aggregators ─────────────────────────────────────────────────────
+    // Require `Arc<dyn DynCreateOp>: EntityAggOps`, which isn't impl'd yet.
+    // Add an `impl EntityAggOps for Arc<dyn DynCreateOp>` in `dyn_expr.rs`
+    // (mirroring the EntityExpr / CreateOp impls there) before these will compile.
+    //
+    // fn sum(&self) -> Self  { self.0.clone().sum().into()  }
+    // fn avg(&self) -> Self  { self.0.clone().avg().into()  }
+    // fn min(&self) -> Self  { self.0.clone().min().into()  }
+    // fn max(&self) -> Self  { self.0.clone().max().into()  }
+    // fn first(&self) -> Self { self.0.clone().first().into() }
+    // fn last(&self) -> Self  { self.0.clone().last().into()  }
+    // fn len(&self) -> Self   { self.0.clone().len().into()   }
+
+    // ── Temporal ────────────────────────────────────────────────────────
+    // `.temporal()` only exists on `PropertyExpr<E>`. To expose it on PyExpr
+    // you need either a separate `PyPropertyExpr` subtype, or a `dyn_temporal`
+    // method on `DynCreateOp` that downcasts/dispatches.
+    //
+    // fn temporal(&self) -> Self { … }
 }
 
 /// Constructs node filter expressions.
