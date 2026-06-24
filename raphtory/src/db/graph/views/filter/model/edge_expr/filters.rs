@@ -10,6 +10,8 @@ use super::{
     },
     EdgeOp,
 };
+use crate::db::graph::views::filter::exploded_edge_expr_filtered_graph::ExplodedEdgeExprFilteredGraph;
+use crate::db::graph::views::filter::model::{validate_binary_op, validate_string_op, ExplodedEdgeFilter};
 pub(crate) use crate::db::graph::views::filter::model::{BinaryCmpExpr, StringExpr, UnaryExpr};
 use crate::{
     db::{
@@ -17,8 +19,8 @@ use crate::{
         graph::views::filter::{
             edge_expr_filtered_graph::EdgeExprFilteredGraph,
             model::{
-                edge_filter::{CompositeEdgeFilter, EdgeFilter},
-                filter_operator::BinaryOp,
+                edge_filter::{CompositeEdgeFilter, EdgeFilter}
+                ,
                 node_expr::{filters::PropValueSetExpr, CreateOp},
                 CompositeExplodedEdgeFilter, CompositeNodeFilter, CreateFilter,
                 TryAsCompositeFilter,
@@ -28,10 +30,8 @@ use crate::{
     errors::GraphError,
     prelude::GraphViewOps,
 };
-use raphtory_api::core::entities::properties::prop::{Prop, PropType};
+use raphtory_api::core::entities::properties::prop::Prop;
 use std::sync::Arc;
-use crate::db::graph::views::filter::exploded_edge_expr_filtered_graph::ExplodedEdgeExprFilteredGraph;
-use crate::db::graph::views::filter::model::{validate_binary_op, validate_string_op, ExplodedEdgeFilter};
 // ─────────────────────────────────────────────────────────────────────────────
 // BinaryCmpExpr<L, R>
 // ─────────────────────────────────────────────────────────────────────────────

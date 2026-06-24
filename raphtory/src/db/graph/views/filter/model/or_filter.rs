@@ -67,31 +67,6 @@ impl<L: CreateFilter, R: CreateFilter> CreateFilter for OrFilter<L, R> {
     }
 }
 
-impl<L: TryAsCompositeFilter, R: TryAsCompositeFilter> TryAsCompositeFilter for OrFilter<L, R> {
-    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        Ok(CompositeNodeFilter::Or(
-            Box::new(self.left.try_as_composite_node_filter()?),
-            Box::new(self.right.try_as_composite_node_filter()?),
-        ))
-    }
-
-    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        Ok(CompositeEdgeFilter::Or(
-            Box::new(self.left.try_as_composite_edge_filter()?),
-            Box::new(self.right.try_as_composite_edge_filter()?),
-        ))
-    }
-
-    fn try_as_composite_exploded_edge_filter(
-        &self,
-    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        Ok(CompositeExplodedEdgeFilter::Or(
-            Box::new(self.left.try_as_composite_exploded_edge_filter()?),
-            Box::new(self.right.try_as_composite_exploded_edge_filter()?),
-        ))
-    }
-}
-
 impl<L, R> EntityExpr for OrFilter<L, R>
 where
     L: EntityExpr,
@@ -125,5 +100,30 @@ where
         let left = self.left.create_edge_op(graph.clone())?;
         let right = self.right.create_edge_op(graph)?;
         Ok(Arc::new(OrBoolEdgeOp { left, right }))
+    }
+}
+
+impl<L: TryAsCompositeFilter, R: TryAsCompositeFilter> TryAsCompositeFilter for OrFilter<L, R> {
+    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
+        Ok(CompositeNodeFilter::Or(
+            Box::new(self.left.try_as_composite_node_filter()?),
+            Box::new(self.right.try_as_composite_node_filter()?),
+        ))
+    }
+
+    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
+        Ok(CompositeEdgeFilter::Or(
+            Box::new(self.left.try_as_composite_edge_filter()?),
+            Box::new(self.right.try_as_composite_edge_filter()?),
+        ))
+    }
+
+    fn try_as_composite_exploded_edge_filter(
+        &self,
+    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
+        Ok(CompositeExplodedEdgeFilter::Or(
+            Box::new(self.left.try_as_composite_exploded_edge_filter()?),
+            Box::new(self.right.try_as_composite_exploded_edge_filter()?),
+        ))
     }
 }
