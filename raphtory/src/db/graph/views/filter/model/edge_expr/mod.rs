@@ -30,7 +30,6 @@ use raphtory_api::core::entities::{
 use raphtory_storage::graph::graph::GraphStorage;
 use std::sync::Arc;
 
-pub mod exprs;
 pub mod filters;
 pub mod ops;
 

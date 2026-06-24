@@ -31,27 +31,7 @@ use crate::{
 use raphtory_api::core::entities::properties::prop::{Prop, PropType};
 use std::sync::Arc;
 use crate::db::graph::views::filter::exploded_edge_expr_filtered_graph::ExplodedEdgeExprFilteredGraph;
-use crate::db::graph::views::filter::model::ExplodedEdgeFilter;
-// ─────────────────────────────────────────────────────────────────────────────
-// validate helpers
-// ─────────────────────────────────────────────────────────────────────────────
-
-fn validate_binary_op(op: &BinaryOp, prop_type: &PropType) -> Result<(), GraphError> {
-    if *prop_type != PropType::Empty
-        && matches!(
-            op,
-            BinaryOp::Lt | BinaryOp::Le | BinaryOp::Gt | BinaryOp::Ge
-        )
-        && *prop_type == PropType::Bool
-    {
-        return Err(GraphError::InvalidFilter(format!(
-            "operator {:?} is not valid for boolean properties",
-            op
-        )));
-    }
-    Ok(())
-}
-
+use crate::db::graph::views::filter::model::{validate_binary_op, validate_string_op, ExplodedEdgeFilter};
 // ─────────────────────────────────────────────────────────────────────────────
 // BinaryCmpExpr<L, R>
 // ─────────────────────────────────────────────────────────────────────────────
@@ -207,20 +187,6 @@ where
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
         Err(GraphError::NotNodeFilter)
     }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// validate_string_op — reject non-string prop types at compile time
-// ─────────────────────────────────────────────────────────────────────────────
-
-fn validate_string_op(prop_type: &PropType) -> Result<(), GraphError> {
-    if *prop_type != PropType::Empty && *prop_type != PropType::Str {
-        return Err(GraphError::InvalidFilter(format!(
-            "string operator requires a Str property, but the property type is {}",
-            prop_type
-        )));
-    }
-    Ok(())
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

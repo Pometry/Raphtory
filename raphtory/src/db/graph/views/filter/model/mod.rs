@@ -34,7 +34,6 @@ pub use crate::{
 use crate::{
     db::{
         api::{
-            properties::TemporalPropertyView,
             state::{
                 ops::{filter::NO_FILTER, Const},
                 NodeOp,
@@ -70,13 +69,10 @@ use crate::{
 pub use node_filter::CompositeNodeFilter;
 use raphtory_api::core::{
     entities::{properties::prop::Prop, Layer},
-    storage::{
-        arc_str::ArcStr,
-        timeindex::{AsTime, EventTime},
-    },
+    storage::timeindex::{AsTime, EventTime},
     utils::time::IntoTime,
 };
-use std::{marker::PhantomData, ops::Deref, sync::Arc};
+use std::{ops::Deref, sync::Arc};
 
 pub mod and_filter;
 pub mod degree_filter;
@@ -479,6 +475,7 @@ use crate::db::graph::views::filter::model::{
     node_expr::{CreateOp, EntityExpr},
 };
 use edge_expr::EdgeOp;
+use raphtory_api::core::entities::properties::prop::PropType;
 
 pub trait TryAsCompositeFilter: Send + Sync {
     fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError>;
@@ -946,4 +943,256 @@ impl EdgeViewFilterOps for DynEdgeViewProps {
     fn is_self_loop(&self) -> Self::Output<IsSelfLoopEdge> {
         self.deref().dyn_is_self_loop()
     }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EntityExprFilterOps — comparison and set operators on any EntityExpr
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Comparison, string, set, and presence operators on any [`CreateOp`].
+///
+/// `.any()` / `.all()` are terminal: they wrap `self` in `AnyExpr`/`AllExpr` and compare the
+/// result to `Bool(true)`. For element-wise comparison before reduction, chain in order:
+/// `.gt(10i64).any()` not `.any().gt(10i64)`.
+///
+/// ```rust,ignore
+/// NodeFilter.degree().gt(2usize)
+/// NodeFilter.degree().sum() // TODO: Throw an error
+/// NodeFilter.out_degree().gt(NodeFilter.in_degree())
+/// NodeFilter.property("age").gt(30i64)
+/// NodeFilter.property("score").temporal().gt(10i64).any()
+/// ```
+pub trait EntityExprFilterOps: EntityExpr + Sized {
+    fn gt<R: EntityExpr>(self, rhs: R) -> BinaryCmpExpr<Self, R, Self::Marker> {
+        let entity = self.entity();
+        BinaryCmpExpr::new(self, BinaryOp::Gt, rhs, entity)
+    }
+
+    fn ge<R: EntityExpr>(self, rhs: R) -> BinaryCmpExpr<Self, R, Self::Marker> {
+        let entity = self.entity();
+        BinaryCmpExpr::new(self, BinaryOp::Ge, rhs, entity)
+    }
+
+    fn lt<R: EntityExpr>(self, rhs: R) -> BinaryCmpExpr<Self, R, Self::Marker> {
+        let entity = self.entity();
+        BinaryCmpExpr::new(self, BinaryOp::Lt, rhs, entity)
+    }
+
+    fn le<R: EntityExpr>(self, rhs: R) -> BinaryCmpExpr<Self, R, Self::Marker> {
+        let entity = self.entity();
+        BinaryCmpExpr::new(self, BinaryOp::Le, rhs, entity)
+    }
+
+    fn eq<R: EntityExpr>(self, rhs: R) -> BinaryCmpExpr<Self, R, Self::Marker> {
+        let entity = self.entity();
+        BinaryCmpExpr::new(self, BinaryOp::Eq, rhs, entity)
+    }
+
+    fn ne<R: EntityExpr>(self, rhs: R) -> BinaryCmpExpr<Self, R, Self::Marker> {
+        let entity = self.entity();
+        BinaryCmpExpr::new(self, BinaryOp::Ne, rhs, entity)
+    }
+
+    fn starts_with<R: EntityExpr>(self, rhs: R) -> StringExpr<Self, R, Self::Marker> {
+        let entity = self.entity();
+        StringExpr::new(self, StringOp::StartsWith, rhs, entity)
+    }
+
+    fn ends_with<R: EntityExpr>(self, rhs: R) -> StringExpr<Self, R, Self::Marker> {
+        let entity = self.entity();
+        StringExpr::new(self, StringOp::EndsWith, rhs, entity)
+    }
+
+    fn contains<R: EntityExpr>(self, rhs: R) -> StringExpr<Self, R, Self::Marker> {
+        let entity = self.entity();
+        StringExpr::new(self, StringOp::Contains, rhs, entity)
+    }
+
+    fn not_contains<R: EntityExpr>(self, rhs: R) -> StringExpr<Self, R, Self::Marker> {
+        let entity = self.entity();
+        StringExpr::new(self, StringOp::NotContains, rhs, entity)
+    }
+
+    fn fuzzy_search<R: EntityExpr>(
+        self,
+        rhs: R,
+        levenshtein_distance: usize,
+        prefix_match: bool,
+    ) -> StringExpr<Self, R, Self::Marker> {
+        let entity = self.entity();
+        StringExpr::new(
+            self,
+            StringOp::FuzzySearch {
+                levenshtein_distance,
+                prefix_match,
+            },
+            rhs,
+            entity,
+        )
+    }
+
+    fn is_some(self) -> UnaryExpr<Self, Self::Marker> {
+        let entity = self.entity();
+        UnaryExpr {
+            expr: self,
+            op: UnaryOp::IsSome,
+            entity,
+        }
+    }
+
+    fn is_none(self) -> UnaryExpr<Self, Self::Marker> {
+        let entity = self.entity();
+        UnaryExpr {
+            expr: self,
+            op: UnaryOp::IsNone,
+            entity,
+        }
+    }
+
+    fn is_in<V: Into<Prop>>(
+        self,
+        values: impl IntoIterator<Item = V>,
+    ) -> PropValueSetExpr<Self, Self::Marker> {
+        let entity = self.entity();
+        PropValueSetExpr {
+            expr: self,
+            values: values.into_iter().map(Into::into).collect(),
+            op: SetOp::IsIn,
+            entity,
+        }
+    }
+
+    fn is_not_in<V: Into<Prop>>(
+        self,
+        values: impl IntoIterator<Item = V>,
+    ) -> PropValueSetExpr<Self, Self::Marker> {
+        let entity = self.entity();
+        PropValueSetExpr {
+            expr: self,
+            values: values.into_iter().map(Into::into).collect(),
+            op: SetOp::IsNotIn,
+            entity,
+        }
+    }
+
+    fn is_true(self) -> BinaryCmpExpr<Self, Prop, Self::Marker> {
+        let entity = self.entity();
+        BinaryCmpExpr::new(self, BinaryOp::Eq, Prop::Bool(true), entity)
+    }
+
+    fn is_false(self) -> BinaryCmpExpr<Self, Prop, Self::Marker> {
+        let entity = self.entity();
+        BinaryCmpExpr::new(self, BinaryOp::Eq, Prop::Bool(false), entity)
+    }
+
+    fn not(self) -> BinaryCmpExpr<Self, Prop, Self::Marker> {
+        self.eq(Prop::Bool(false))
+    }
+
+    fn any(self) -> BinaryCmpExpr<AnyExpr<Self>, Prop, Self::Marker> {
+        let entity = self.entity();
+        BinaryCmpExpr::new(AnyExpr(self), BinaryOp::Eq, Prop::Bool(true), entity)
+    }
+
+    fn all(self) -> BinaryCmpExpr<AllExpr<Self>, Prop, Self::Marker> {
+        let entity = self.entity();
+        BinaryCmpExpr::new(AllExpr(self), BinaryOp::Eq, Prop::Bool(true), entity)
+    }
+}
+
+impl<E: EntityExpr> EntityExprFilterOps for E {}
+
+/// Reject ordering operators on boolean properties.
+//. TODO: Also check if both the types are comparable.
+pub fn validate_binary_op(op: &BinaryOp, prop_type: &PropType) -> Result<(), GraphError> {
+    if *prop_type != PropType::Empty
+        && matches!(
+            op,
+            BinaryOp::Lt | BinaryOp::Le | BinaryOp::Gt | BinaryOp::Ge
+        )
+        && *prop_type == PropType::Bool
+    {
+        return Err(GraphError::InvalidFilter(format!(
+            "operator {:?} is not valid for boolean properties",
+            op
+        )));
+    }
+    Ok(())
+}
+
+/// Reject string operators on non-string properties.
+///
+/// Only fires when the type is known (`!= PropType::Empty`).
+pub fn validate_string_op(prop_type: &PropType) -> Result<(), GraphError> {
+    if *prop_type != PropType::Empty && *prop_type != PropType::Str {
+        return Err(GraphError::InvalidFilter(format!(
+            "string operator requires a Str property, but the property type is {}",
+            prop_type
+        )));
+    }
+    Ok(())
+}
+
+/// Pick the more specific of the two known prop types.
+///
+/// Compiled `NodeOp`s and `EntityExpr`s may both have a known prop type, but
+/// expression-level info (e.g. `DegreeExpr::prop_type()` → U64) is not always
+/// propagated through generic wrappers like `Map<Op, V>`. Prefer whichever side
+/// has a concrete type so validation can fire early.
+pub fn resolved_prop_type(expr_pt: PropType, op_pt: PropType) -> PropType {
+    if expr_pt != PropType::Empty {
+        expr_pt
+    } else {
+        op_pt
+    }
+}
+
+/// Reject a constant RHS value whose type cannot be coerced to the LHS type.
+///
+/// Only fires when both sides are known and the RHS is a literal/const. Defers
+/// to runtime when the LHS type is unknown (`PropType::Empty`) or the RHS isn't
+/// a const value.
+pub fn validate_const_castable(lhs_pt: &PropType, rhs_const: Option<&Prop>) -> Result<(), GraphError> {
+    if *lhs_pt == PropType::Empty {
+        return Ok(());
+    }
+    if let Some(rhs) = rhs_const {
+        if rhs.dtype() != *lhs_pt && rhs.clone().try_cast(lhs_pt.clone()).is_none() {
+            return Err(GraphError::InvalidFilter(format!(
+                "value {:?} of type {} cannot be coerced to {}",
+                rhs,
+                rhs.dtype(),
+                lhs_pt
+            )));
+        }
+    }
+    Ok(())
+}
+
+/// Cast every value in an `is_in`/`is_not_in` set to the LHS type.
+///
+/// If the LHS type is unknown (`PropType::Empty`), the values are returned
+/// unchanged and coercion is deferred to runtime. Otherwise, any value whose
+/// type cannot be coerced produces `Err(InvalidFilter)`. Successful casts are
+/// substituted so the runtime set comparison sees same-typed values.
+pub fn coerce_set_values(lhs_pt: &PropType, values: Vec<Prop>) -> Result<Vec<Prop>, GraphError> {
+    if *lhs_pt == PropType::Empty {
+        return Ok(values);
+    }
+    values
+        .into_iter()
+        .map(|v| {
+            if v.dtype() == *lhs_pt {
+                Ok(v)
+            } else {
+                let original_dtype = v.dtype();
+                v.clone().try_cast(lhs_pt.clone()).ok_or_else(|| {
+                    GraphError::InvalidFilter(format!(
+                        "value {:?} of type {} cannot be coerced to {}",
+                        v, original_dtype, lhs_pt
+                    ))
+                })
+            }
+        })
+        .collect()
 }
