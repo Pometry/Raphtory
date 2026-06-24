@@ -9,7 +9,7 @@
 use crate::model::graph::{
     edge::GqlEdge,
     edges::GqlEdges,
-    history::GqlHistory,
+    history::{GqlHistory, GqlHistoryDateTime, GqlHistoryEventId, GqlHistoryTimestamp},
     node::GqlNode,
     nodes::GqlNodes,
     path_from_node::GqlPathFromNode,
@@ -36,6 +36,12 @@ pub enum Value {
     History(GqlHistory),
     /// A single history entry — the item produced while iterating `history.list`.
     EventTime(EventTime),
+    /// The timestamp projection of a history (`history.timestamps`).
+    HistoryTimestamp(GqlHistoryTimestamp),
+    /// The event-id projection of a history (`history.eventId`).
+    HistoryEventId(GqlHistoryEventId),
+    /// The datetime projection of a history (`history.datetimes`).
+    HistoryDateTime(GqlHistoryDateTime),
     /// A property bag (`node.properties` / `edge.properties`).
     Properties(GqlProperties),
     /// The temporal-only view of a property bag (`properties.temporal`).

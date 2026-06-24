@@ -16,7 +16,7 @@ use super::{
     plan::{IterKind, LeafKind, Nav, Op, Plan},
     schema::SchemaTypes,
 };
-use crate::model::graph::node_id::GqlNodeId;
+use crate::model::graph::{node_id::GqlNodeId, timeindex::dt_format_str_is_valid};
 use async_graphql::{
     parser::{
         parse_query,
@@ -45,6 +45,8 @@ pub enum PlanError {
     MissingArgument(&'static str),
     #[error("invalid value for argument `{0}`")]
     BadArgument(&'static str),
+    #[error("Invalid datetime format string: '{0}'")]
+    InvalidDateTimeFormat(String),
     #[error("fragments are not supported")]
     Fragments,
 }
@@ -219,8 +221,17 @@ fn resolve_op(parent_type: &str, field: &str, f: &Field) -> Result<OpKind, PlanE
         }),
         ("PathFromNode", "list") => OpKind::List(IterKind::NeighboursList),
         ("History", "list") => OpKind::List(IterKind::HistoryList),
+        ("History", "timestamps") => OpKind::Navigate(Nav::Timestamps),
+        ("History", "eventId") => OpKind::Navigate(Nav::EventIds),
+        ("History", "datetimes") => OpKind::Navigate(Nav::DateTimes(datetime_format_arg(f)?)),
+        ("HistoryTimestamp", "list") => OpKind::Leaf(LeafKind::TimestampList),
+        ("HistoryEventId", "list") => OpKind::Leaf(LeafKind::EventIdList),
+        ("HistoryDateTime", "list") => OpKind::Leaf(LeafKind::DateTimeList),
         ("EventTime", "timestamp") => OpKind::Leaf(LeafKind::Timestamp),
         ("EventTime", "eventId") => OpKind::Leaf(LeafKind::EventId),
+        ("EventTime", "datetime") => OpKind::Leaf(LeafKind::DateTime(
+            datetime_format_arg(f)?.unwrap_or_else(|| "%+".into()),
+        )),
         ("Properties", "values") => OpKind::List(IterKind::PropertiesValues(keys_arg(f)?)),
         ("Properties", "temporal") => OpKind::Navigate(Nav::Temporal),
         ("Metadata", "values") => OpKind::List(IterKind::MetadataValues(keys_arg(f)?)),
@@ -265,6 +276,24 @@ fn time_arg(f: &Field, name: &'static str) -> Result<EventTime, PlanError> {
             .ok_or(PlanError::BadArgument(name)),
         Some(_) => Err(PlanError::BadArgument(name)),
         None => Err(PlanError::MissingArgument(name)),
+    }
+}
+
+/// Parse and validate the optional `formatString` argument for `datetimes` /
+/// `datetime`. Validation happens here, at plan time — before any byte is
+/// streamed — so an invalid format becomes a clean pre-stream error.
+/// Returns `None` when the argument is absent (caller supplies the default).
+fn datetime_format_arg(f: &Field) -> Result<Option<Box<str>>, PlanError> {
+    match const_arg(f, "formatString") {
+        None | Some(GqlValue::Null) => Ok(None),
+        Some(GqlValue::String(s)) => {
+            if dt_format_str_is_valid(&s) {
+                Ok(Some(s.into_boxed_str()))
+            } else {
+                Err(PlanError::InvalidDateTimeFormat(s))
+            }
+        }
+        Some(_) => Err(PlanError::BadArgument("formatString")),
     }
 }
 

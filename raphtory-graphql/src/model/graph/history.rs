@@ -38,6 +38,30 @@ impl<T: InternalHistoryOps + 'static> From<History<'_, T>> for GqlHistory {
     }
 }
 
+impl GqlHistory {
+    /// Timestamp projection (interpreter access for `history.timestamps`).
+    pub(crate) fn timestamps_view(&self) -> GqlHistoryTimestamp {
+        GqlHistoryTimestamp {
+            history_t: HistoryTimestamp::new(self.history.0.clone()),
+        }
+    }
+
+    /// Event-id projection (interpreter access for `history.eventId`).
+    pub(crate) fn event_id_view(&self) -> GqlHistoryEventId {
+        GqlHistoryEventId {
+            history_s: HistoryEventId::new(self.history.0.clone()),
+        }
+    }
+
+    /// Datetime projection (interpreter access for `history.datetimes`).
+    pub(crate) fn datetimes_view(&self, format_string: Option<String>) -> GqlHistoryDateTime {
+        GqlHistoryDateTime {
+            history_dt: HistoryDateTime::new(self.history.0.clone()),
+            format_string,
+        }
+    }
+}
+
 #[ResolvedObjectFields]
 impl GqlHistory {
     /// Get the earliest time entry associated with this history or None if the history is empty.
@@ -203,6 +227,32 @@ impl GqlHistory {
 #[graphql(name = "HistoryTimestamp")]
 pub struct GqlHistoryTimestamp {
     history_t: HistoryTimestamp<Arc<dyn InternalHistoryOps>>,
+}
+
+impl GqlHistoryTimestamp {
+    /// Iterate the timestamps (interpreter access for `timestamps.list`).
+    pub(crate) fn iter_values(&self) -> impl Iterator<Item = i64> + '_ {
+        self.history_t.iter()
+    }
+}
+
+impl GqlHistoryEventId {
+    /// Iterate the event ids (interpreter access for `eventId.list`).
+    pub(crate) fn iter_values(&self) -> impl Iterator<Item = u64> + '_ {
+        self.history_s.iter().map(|s: usize| s as u64)
+    }
+}
+
+impl GqlHistoryDateTime {
+    /// Iterate the formatted datetimes (interpreter access for `datetimes.list`).
+    /// Each item is `Some(formatted)` or `None` if the timestamp could not be
+    /// converted. The format string is validated at plan time.
+    pub(crate) fn iter_formatted(&self) -> impl Iterator<Item = Option<String>> + '_ {
+        let fmt = self.format_string.clone().unwrap_or_else(|| "%+".to_string());
+        self.history_dt
+            .iter()
+            .map(move |t| t.ok().map(|dt| dt.format(&fmt).to_string()))
+    }
 }
 
 #[ResolvedObjectFields]

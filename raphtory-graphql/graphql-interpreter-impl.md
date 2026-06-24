@@ -56,13 +56,83 @@ Status: **DRAFT for review** — see the [Open Questions](#open-questions) at th
 | Branching navs (`window` / `after` / `before` / `neighbours`) | ✅ wired through planner + exec; `Value::Path` added; full branching query (window→node→after→{history, neighbours→list→{name, before→history}}) differential-tested over HTTP |
 | Edges: `graph.edge(src,dst)` / `graph.edges` / `edges.list` | ✅ `Value::Edge`/`Value::Edges`; `edge.history`/`src`/`dst`/`id`/`window`/`after`/`before`/`layer`; `layer(name:)` (Graph/Node/Edge); differential-tested over HTTP (incl. windowed/layered/null edge) |
 | Properties block: `node/edge.properties` + `metadata`, `values(keys:)`, `temporal`, `Property.{key,asString,value}`, `TemporalProperty.{key,history}` | ✅ `Value::Properties/TemporalProperties/Metadata/Property/TemporalProperty`; `IterKind::*Values(Option<keys>)`; `value` serialized via `prop_to_gql` for exact parity; differential-tested over HTTP (string/int/float values, with/without `keys`) |
+| History projections: `history.{timestamps,eventId,datetimes}` + scalar `.list`, `eventTime.datetime(formatString:)` | ✅ `Value::History{Timestamp,EventId,DateTime}`; scalar-array leaves; datetime `formatString` **validated at plan time** (invalid → clean pre-stream error, message matches endpoint); differential-tested over HTTP incl. error cases |
 | Edge/node filtering (`edges(select:)`, `filterEdges`, `neighbours(select:)`, property `where` expressions) | ⬜ rejected as `Unsupported` for now (would change output) |
-| History sub-objects (`timestamps`/`datetimes`/`eventId` lists, `eventTime.datetime`) | ⬜ only `history.list.{timestamp,eventId}` so far; `test_gql_history.py` shapes need these next |
 
 > **Validation note:** async-graphql's validator (`check_rules`) is `pub(crate)`,
 > so the locked Q2 ("reuse async-graphql's validator") isn't reachable. We instead
 > parse `schema.graphql` into a type map and validate during the planning walk —
 > `schema.graphql` stays the single authoritative source, which was the intent.
+
+### Remaining feature surface (gap analysis vs `test_base_install/test_graphql`)
+
+Cataloged from the whole Python GraphQL test suite. Everything below is **not yet
+implemented**; each row gives the concrete way to add it on the existing
+`Nav` / `IterKind` / `LeafKind` / `Value` machinery. Recurring design moves are
+collected under **Cross-cutting patterns** first, then the per-area table.
+
+#### Cross-cutting patterns
+
+1. **View transforms are same-type navs.** `at`, `latest`, `before`, `after`,
+   `snapshotAt`, `snapshotLatest`, `layers`, `excludeLayer(s)`, `defaultLayer`,
+   `shrinkWindow/Start/End`, `valid`, `subgraph`, `subgraphNodeTypes`,
+   `excludeNodes`, `typeFilter` all map `T → T` for `T ∈ {Graph, Node, Edge,
+   Nodes, Edges, PathFromNode}`. Rather than one `Nav` per (op × type), add a
+   single `Nav::View(ViewKind, Args)` and dispatch `(ViewKind, Value)` in
+   `apply`, each arm calling the matching raphtory view op (mirroring the
+   existing `GqlGraph::apply` / resolver bodies). `window`/`after`/`before`/
+   `layer` (already done) fold into this enum. Keeps the combinatorial arms in
+   one place.
+
+2. **Filters are pushed into raphtory — we never evaluate predicates.** For every
+   `expr:` / `select:` / `filter:` argument (`NodeFilter`, `EdgeFilter`,
+   `GraphFilter` — all `@oneOf` input objects), parse the argument `ConstValue`
+   at **plan time** via async-graphql's own `InputType::parse` into the existing
+   `GqlNodeFilter` / `GqlEdgeFilter`, then the existing `TryInto` conversion
+   (`GqlNodeFilter → CompositeNodeFilter`, used today by the resolvers). Store the
+   resulting raphtory filter in the `Nav`/`Op`; at exec call the raphtory op
+   (`g.filter_nodes(f)`, `nodes.select(f)`, `node.neighbours().select(f)`, …).
+   This reuses async-graphql for filter parsing/validation and raphtory for
+   evaluation; the interpreter just carries the typed filter through. (Parsing
+   may fail → a clean pre-stream `PlanError`.)
+
+3. **`EventTime` should carry `GqlEventTime` (an `Option`).** Fields like
+   `earliestTime`/`latestTime`/`start`/`end`/`firstUpdate`/`lastUpdate`/edge
+   `time` return a nullable `EventTime` object. Change `Value::EventTime` to hold
+   `GqlEventTime` (which wraps `Option<EventTime>`); the existing
+   `timestamp`/`eventId`/`datetime` leaves already emit `null` for an empty inner.
+   `history.list` items just push `GqlEventTime(Some(..))`. Unifies the two uses.
+
+4. **Scalar-array + paginated lists.** `count` → `Int` leaf; `ids` → array leaf;
+   `page(limit, offset, pageIndex)` → like the `*List` iterators but with
+   `.skip(offset + pageIndex*limit).take(limit)` (args parsed at plan time);
+   `sorted(sortBys:)` → a `Nav` returning the same collection type after calling
+   raphtory's sort (the `NodeSortBy`/`EdgeSortBy` list is parsed via `InputType`
+   and pushed down). These reuse the clone-iterable-out-of-stack pattern.
+
+| Feature area (schema types) | How to implement |
+|------|------|
+| **Graph view ops** — `at`, `latest`, `before`, `after`, `snapshotAt`, `snapshotLatest`, `layers`, `excludeLayer(s)`, `defaultLayer`, `subgraph(nodes:)`, `subgraphNodeTypes`, `excludeNodes`, `valid`, `shrink*`, `applyViews(views:[GraphViewCollection])` | `Nav::View(ViewKind,…)` (pattern 1). `applyViews` folds a parsed `[GraphViewCollection]` list, applying each variant in order (reuse `GqlGraph::apply_views` logic). |
+| **Graph scalars/info** — `countNodes`, `countEdges`, `countTemporalEdges`, `hasNode(name:)`, `hasEdge(src,dst,layer)`, `name`, `path`, `namespace`, `created`, `lastUpdated`, `lastOpened`, `uniqueLayers`, `start`/`end`/`earliestTime`/`latestTime`/`earliestEdgeTime`/`latestEdgeTime`, `sharedNeighbours(selectedNodes:)` | `Int`/`Bool`/`String` leaves; time fields → `EventTime` navs (pattern 3); `uniqueLayers`/`sharedNeighbours` → array leaves / `Node` lists. Mechanical 1:1 with `GqlGraph` resolvers. |
+| **Node scalars/structure** — `nodeType`, `degree`, `inDegree`, `outDegree`, `edgeHistoryCount`, `isActive`, `earliestTime`, `latestTime`, `firstUpdate`, `lastUpdate`, `start`, `end` | `Int`/`Bool`/nullable-`String` leaves; time fields via pattern 3. |
+| **Node traversal** — `edges`, `inEdges`, `outEdges` (→ `Edges`), `inNeighbours`, `outNeighbours` (→ `PathFromNode`), `inComponent`, `outComponent` (→ `Nodes`), node view ops (`at`/`latest`/`snapshot*`/`layers`/`shrink*`/`applyViews`) | New `Nav`s producing existing `Value::Edges`/`Path`/`Nodes`; components via `algorithms::{in,out}_component`. View ops via pattern 1. |
+| **Edge scalars/structure** — `nbr` (→Node), `explode`/`explodeLayers` (→Edges), `deletions` (→History), `layerNames`, `layerName`, `isActive`/`isValid`/`isDeleted`/`isSelfLoop`, `time`/`start`/`end`/`earliestTime`/`latestTime`/`firstUpdate`/`lastUpdate`, edge view ops + `applyViews` | New `Nav`s / leaves mirroring `GqlEdge`; time fields via pattern 3. |
+| **Collections (`Nodes`/`Edges`/`PathFromNode`)** — `count`, `ids`, `page(limit,offset,pageIndex)`, `sorted(sortBys:)`, `explode`/`explodeLayers` (Edges), full set of view ops + `select`/`filter`/`applyViews`/`typeFilter` | `count`/`ids` leaves; `page` iterator (pattern 4); `sorted` nav (pattern 4, push `NodeSortBy`/`EdgeSortBy` down); view ops pattern 1; `select`/`filter` pattern 2. |
+| **Filtering** — `graph.filter`/`filterNodes`/`filterEdges`, `nodes(select:)`/`edges(select:)`, `neighbours(select:)`/`in*`/`out*`, collection `.filter`/`.select`, `node.filter`/`edge` filter | **Pattern 2** end-to-end. This unblocks the entire `test_filters/` suite (property/temporal/node/degree filters, And/Or/Not, window/at/layers scoping) for free, since raphtory evaluates them. |
+| **Temporal aggregates (`TemporalProperty`)** — `values`, `at(t)`, `latest`, `unique`, `orderedDedupe(latestTime:)`, `sum`, `mean`, `average`, `min`, `max`, `median`, `count` | Scalar-list / nullable-scalar leaves over `GqlTemporalProperty`’s existing methods; `min`/`max`/`median`/`orderedDedupe` return a small `PropertyTuple` object → new `Value::PropertyTuple` + `time`/`value`/`asString` leaves. |
+| **Properties/Metadata extras** — `get(key:)` (nullable), `keys`, `contains(key:)`; `TemporalProperties.{get,keys,contains}` | `get` → nullable `Nav`; `keys` → array leaf; `contains` → `Bool` leaf. |
+| **Rolling / expanding** — `graph/node/edge.rolling(window,step,alignmentUnit)` / `expanding(step,…)` → `*WindowSet`; `WindowSet.{list,page,count}`; each window is a `Graph`/`Node`/`Edge` | New `Value::*WindowSet` + `IterKind` iterating windows (raphtory produces them); `WindowDuration` (`@oneOf` epoch/duration) and `AlignmentUnit` parsed at plan time. |
+| **Algorithms** — `graph.algorithms { pagerank(...) , shortest_path(...) }` → `[PagerankOutput]`/`[ShortestPathOutput]` | `Nav` graph→`GraphAlgorithmPlugin`, then list-producing fields with args. Plugin registry is dynamic — larger; defer unless needed. |
+| **Index search** — `searchNodes`/`searchEdges(filter,limit,offset)` | Filter via pattern 2; requires the `search` feature + built index. Defer / feature-gate. |
+| **`graph.schema` (`GraphSchema`)** — `nodes`/`layers` → `NodeSchema`/`EdgeSchema`/`PropertySchema` | Moderate object subtree; mechanical but sizeable. Defer until a consumer needs it. |
+| **Mutations** — `mutationRoot`/`updateGraph` → `MutableGraph` (`createNode`/`addNode`/`addEdge`/`addProperties`/`addMetadata`/`deleteNode`/`deleteEdge`/batch), `newGraph`, `deleteGraph`, `move/copy/uploadGraph` | **Out of scope for the streaming read interpreter.** Mutations are side-effecting, return tiny payloads, and need the write lock/permission path. Route mutation operations to the existing async-graphql endpoint; the interpreter stays read-only. (The poem layer can dispatch by operation type.) |
+
+**Sequencing suggestion:** (1) pattern 3 (`EventTime`) + the scalar/time leaves —
+small and unblocks many surface tests; (2) collections `count`/`page`/`sorted` +
+remaining view ops via pattern 1; (3) **pattern 2 filtering** — single biggest
+coverage win (`test_filters/` + `select:` everywhere); (4) temporal aggregates;
+(5) rolling/expanding; (6) defer algorithms/search/schema; mutations stay on the
+async-graphql endpoint.
 
 ### HTTP interop (`http.rs`)
 

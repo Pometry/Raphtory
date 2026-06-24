@@ -76,6 +76,13 @@ pub enum Nav {
     Metadata,
     /// `properties.temporal` — `Properties` → `TemporalProperties`
     Temporal,
+    /// `history.timestamps` — `History` → `HistoryTimestamp`
+    Timestamps,
+    /// `history.eventId` — `History` → `HistoryEventId`
+    EventIds,
+    /// `history.datetimes(formatString:)` — `History` → `HistoryDateTime`
+    /// (the format string is pre-validated at plan time; `None` means default).
+    DateTimes(Option<Box<str>>),
     /// `layer(name:)` — `Graph`/`Node`/`Edge` → same type
     Layer(Box<str>),
     /// `after(time:)` — `Node`/`Edge` → same type
@@ -124,4 +131,12 @@ pub enum LeafKind {
     AsString,
     /// `property.value` — `PropertyOutput` (a typed scalar)
     Value,
+    /// `historyTimestamp.list` — `[Int!]!` (a flat array of timestamps)
+    TimestampList,
+    /// `historyEventId.list` — `[Int!]!` (a flat array of event ids)
+    EventIdList,
+    /// `historyDateTime.list` — `[String!]!` (a flat array of formatted datetimes)
+    DateTimeList,
+    /// `eventTime.datetime(formatString:)` — `String` (format pre-validated at plan time)
+    DateTime(Box<str>),
 }

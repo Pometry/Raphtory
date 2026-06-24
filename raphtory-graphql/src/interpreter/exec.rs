@@ -252,6 +252,13 @@ impl Nav {
             (Nav::Temporal, Value::Properties(p)) => {
                 Some(Value::TemporalProperties(p.temporal_view()))
             }
+            (Nav::Timestamps, Value::History(h)) => {
+                Some(Value::HistoryTimestamp(h.timestamps_view()))
+            }
+            (Nav::EventIds, Value::History(h)) => Some(Value::HistoryEventId(h.event_id_view())),
+            (Nav::DateTimes(fmt), Value::History(h)) => Some(Value::HistoryDateTime(
+                h.datetimes_view(fmt.as_ref().map(|s| s.to_string())),
+            )),
             (Nav::Layer(name), Value::Graph(g)) => Some(Value::Graph(
                 g.valid_layers(name.to_string()).into_dynamic(),
             )),
@@ -306,6 +313,34 @@ impl LeafKind {
                 // sink.write_raw_json(&json);
                 sink.write_json(&prop_to_gql(&p.prop));
             }
+            (LeafKind::TimestampList, Value::HistoryTimestamp(h)) => {
+                sink.begin_array();
+                for ts in h.iter_values() {
+                    sink.write_i64(ts);
+                }
+                sink.end_array();
+            }
+            (LeafKind::EventIdList, Value::HistoryEventId(h)) => {
+                sink.begin_array();
+                for id in h.iter_values() {
+                    sink.write_u64(id);
+                }
+                sink.end_array();
+            }
+            (LeafKind::DateTimeList, Value::HistoryDateTime(h)) => {
+                sink.begin_array();
+                for dt in h.iter_formatted() {
+                    match dt {
+                        Some(s) => sink.write_str(&s),
+                        None => sink.write_null(),
+                    }
+                }
+                sink.end_array();
+            }
+            (LeafKind::DateTime(fmt), Value::EventTime(t)) => match t.dt() {
+                Ok(dt) => sink.write_str(&dt.format(fmt).to_string()),
+                Err(_) => sink.write_null(),
+            },
             _ => unreachable!("plan/type mismatch — validation should prevent this"),
         }
     }

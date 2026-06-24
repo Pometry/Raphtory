@@ -280,6 +280,66 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn interp_history_projections_match_endpoint() {
+        // layered graph from test_gql_history.py (edges only suffice here)
+        let g = Graph::new();
+        g.add_edge(150, "Dumbledore", "Harry", NO_PROPS, Some("communication"))
+            .unwrap();
+        g.add_edge(200, "Dumbledore", "Harry", [("weight", 0.5f64)], Some("friendship"))
+            .unwrap();
+        g.add_edge(300, "Dumbledore", "Harry", [("weight", 0.7f64)], Some("communication"))
+            .unwrap();
+        g.add_edge(350, "Dumbledore", "Harry", [("weight", 0.9f64)], Some("friendship"))
+            .unwrap();
+
+        let tempdir = TempDir::new().unwrap();
+        let server = GraphServer::new(tempdir.path().to_path_buf(), None, None, Config::default())
+            .await
+            .unwrap();
+        let port = 43938;
+        let _running = server.start_with_port(port).await.unwrap();
+        tokio::time::sleep(Duration::from_secs(1)).await;
+
+        let gql = RaphtoryGraphQLClient::new(
+            Url::parse(&format!("http://localhost:{port}/")).unwrap(),
+            None,
+        );
+        let encoded = url_encode_graph(g.materialize().unwrap()).unwrap();
+        gql.send_graph("g", &encoded, true).await.unwrap();
+
+        let http = reqwest::Client::new();
+        for query in [
+            r#"{ graph(path:"g") { edge(src:"Dumbledore", dst:"Harry") { history { timestamps { list } } } } }"#,
+            r#"{ graph(path:"g") { edge(src:"Dumbledore", dst:"Harry") { history { eventId { list } } } } }"#,
+            r#"{ graph(path:"g") { edge(src:"Dumbledore", dst:"Harry") { history { datetimes { list } } } } }"#,
+            r#"{ graph(path:"g") { edge(src:"Dumbledore", dst:"Harry") { history { datetimes(formatString:"%Y-%m-%d") { list } } } } }"#,
+            r#"{ graph(path:"g") { edge(src:"Dumbledore", dst:"Harry") { history { datetimes(formatString:"%Y-%m-%d %H:%M:%S %3fms") { list } } } } }"#,
+            r#"{ graph(path:"g") { edge(src:"Dumbledore", dst:"Harry") { history { list { datetime(formatString:"%Y-%m-%d %H:%M:%S %3fms") } } } } }"#,
+        ] {
+            let expected =
+                serde_json::to_value(gql.query(query, HashMap::new()).await.unwrap()).unwrap();
+            let got = post_interp(&http, port, query).await;
+            assert_eq!(got["data"], expected, "mismatch for query: {query}");
+        }
+
+        // invalid datetime format → rejected at plan time, before streaming
+        for bad in [
+            r#"{ graph(path:"g") { edge(src:"Dumbledore", dst:"Harry") { history { datetimes(formatString:"%Y-%m-%d %H:%M:%S %4fms") { list } } } } }"#,
+            r#"{ graph(path:"g") { edge(src:"Dumbledore", dst:"Harry") { history { list { datetime(formatString:"%Y-%m-%d %H:%M:%S %4fms") } } } } }"#,
+        ] {
+            let body = post_interp(&http, port, bad).await;
+            assert_eq!(body["data"], Value::Null, "expected error for: {bad}");
+            assert!(
+                body["errors"][0]["message"]
+                    .as_str()
+                    .unwrap()
+                    .contains("Invalid datetime format string"),
+                "unexpected error body: {body}"
+            );
+        }
+    }
+
+    #[tokio::test]
     async fn interp_endpoint_rejects_invalid_query() {
         let tempdir = TempDir::new().unwrap();
         let server = GraphServer::new(tempdir.path().to_path_buf(), None, None, Config::default())
