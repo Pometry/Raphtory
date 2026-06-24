@@ -20,6 +20,7 @@ use std::{
     cmp::Ordering,
     fs,
     fs::File,
+    future::Future,
     io::{ErrorKind, Read, Seek, Write},
     ops::Deref,
     panic::Location,
@@ -39,6 +40,62 @@ pub trait ValidGraphPaths {
         fun: impl FnOnce() -> R,
     ) -> Result<R::Value, PathValidationError> {
         fun().with_path(self.local_path())
+    }
+
+    async fn with_internal_errors_async<R: WithPath>(
+        &self,
+        future: impl Future<Output = R>,
+    ) -> Result<R::Value, PathValidationError> {
+        future.await.with_path(self.local_path())
+    }
+
+    fn get_graph_name(&self) -> Result<String, PathValidationError> {
+        let path: &Path = self.local_path().as_ref();
+        let name = self.with_internal_errors(|| {
+            let last_component: Component = path
+                .components()
+                .last()
+                .ok_or(InvalidPathReason::PathNotParsable)?;
+            match last_component {
+                Component::Normal(value) => Ok::<_, InvalidPathReason>(
+                    value
+                        .to_str()
+                        .map(|s| s.to_string())
+                        .ok_or(InvalidPathReason::PathNotParsable)?,
+                ),
+                Component::Prefix(_)
+                | Component::RootDir
+                | Component::CurDir
+                | Component::ParentDir => Err(InvalidPathReason::PathNotParsable)?,
+            }
+        })?;
+
+        Ok(name)
+    }
+
+    async fn created_async(&self) -> Result<i64, PathValidationError> {
+        let cloned = self.graph_folder().root().to_path_buf();
+        self.with_internal_errors_async(blocking_io(move || cloned.created()))
+            .await
+    }
+
+    async fn last_opened_async(&self) -> Result<i64, PathValidationError> {
+        let cloned = self.graph_folder().root().to_path_buf();
+        self.with_internal_errors_async(blocking_io(move || cloned.last_opened()))
+            .await
+    }
+
+    async fn last_updated_async(&self) -> Result<i64, PathValidationError> {
+        let cloned = self.graph_folder().root().to_path_buf();
+        self.with_internal_errors_async(blocking_io(move || cloned.last_updated()))
+            .await
+    }
+
+    async fn read_metadata_async(&self) -> Result<GraphMetadata, PathValidationError> {
+        let folder = self.graph_folder().root().to_path_buf();
+        blocking_compute(move || folder.read_metadata())
+            .await
+            .with_path(self.local_path())
     }
 }
 
@@ -121,6 +178,15 @@ pub struct ExistingGraphFolder {
     pub(crate) folder: ValidGraphFolder,
 }
 
+impl ExistingGraphFolder {
+    pub fn unlock(self) -> UnlockedGraphFolder {
+        UnlockedGraphFolder {
+            global_path: self.folder.global_path,
+            local_path: self.folder.local_path,
+        }
+    }
+}
+
 impl ValidGraphPaths for ExistingGraphFolder {
     fn local_path(&self) -> &str {
         self.folder.local_path()
@@ -168,20 +234,6 @@ impl ExistingGraphFolder {
             ))
         }
     }
-
-    pub fn replace_graph_data(&self, graph: MaterializedGraph) -> Result<(), PathValidationError> {
-        self.with_internal_errors(|| {
-            if let Some(path) = graph.disk_storage_path() {
-                if path != self.global_path.graph_path()? {
-                    return Err(InternalPathValidationError::MismatchedGraphPath);
-                }
-                self.global_path.write_metadata(&graph)?;
-            } else {
-                self.global_path.data_path()?.replace_graph(graph)?;
-            }
-            Ok(())
-        })
-    }
 }
 
 #[derive(Clone, Debug, PartialOrd, PartialEq, Ord, Eq)]
@@ -195,6 +247,26 @@ pub struct ValidGraphFolder {
 pub struct UnlockedGraphFolder {
     global_path: GraphFolder,
     local_path: String,
+}
+
+impl UnlockedGraphFolder {
+    /// this function doesn't currently lock the folder, it is expected that the caller already holds the necessary locks
+    pub(crate) fn replace_graph_data(
+        &self,
+        graph: MaterializedGraph,
+    ) -> Result<(), PathValidationError> {
+        self.with_internal_errors(|| {
+            if let Some(path) = graph.disk_storage_path() {
+                if path != self.global_path.graph_path()? {
+                    return Err(InternalPathValidationError::MismatchedGraphPath);
+                }
+                self.global_path.write_metadata(&graph)?;
+            } else {
+                self.global_path.data_path()?.replace_graph(graph)?;
+            }
+            Ok(())
+        })
+    }
 }
 
 impl ValidGraphPaths for UnlockedGraphFolder {
@@ -690,74 +762,12 @@ impl ValidGraphFolder {
     pub fn graph_folder(&self) -> &GraphFolder {
         &self.global_path
     }
-    pub fn created(&self) -> Result<i64, PathValidationError> {
-        self.with_internal_errors(|| {
-            Ok(self.root_meta_path().metadata()?.created()?.to_millis()?)
-        })
-    }
-
-    pub fn last_opened(&self) -> Result<i64, PathValidationError> {
-        self.with_internal_errors(|| {
-            Ok(fs::metadata(self.global_path.meta_path()?)?
-                .accessed()?
-                .to_millis()?)
-        })
-    }
-
-    pub fn last_updated(&self) -> Result<i64, PathValidationError> {
-        self.with_internal_errors(|| {
-            Ok(fs::metadata(self.meta_path()?)?.modified()?.to_millis()?)
-        })
-    }
-
-    pub async fn created_async(&self) -> Result<i64, PathValidationError> {
-        let cloned = self.clone();
-        blocking_io(move || cloned.created()).await
-    }
-
-    pub async fn last_opened_async(&self) -> Result<i64, PathValidationError> {
-        let cloned = self.clone();
-        blocking_io(move || cloned.last_opened()).await
-    }
-
-    pub async fn last_updated_async(&self) -> Result<i64, PathValidationError> {
-        let cloned = self.clone();
-        blocking_io(move || cloned.last_updated()).await
-    }
-
-    pub async fn read_metadata_async(&self) -> Result<GraphMetadata, PathValidationError> {
-        let folder: GraphFolder = self.global_path.clone();
-        blocking_compute(move || folder.read_metadata())
-            .await
-            .with_path(self.local_path())
-    }
 
     /// This returns the PathBuf used to build multiple GraphError types
     pub fn to_error_path(&self) -> PathBuf {
         self.local_path.to_owned().into()
     }
 
-    pub fn get_graph_name(&self) -> Result<String, PathValidationError> {
-        let path: &Path = self.local_path.as_ref();
-        let name = self.with_internal_errors(|| {
-            let last_component: Component = path
-                .components()
-                .last()
-                .ok_or(InvalidPathReason::PathNotParsable)?;
-            match last_component {
-                Component::Normal(value) => Ok(value
-                    .to_str()
-                    .map(|s| s.to_string())
-                    .ok_or(InvalidPathReason::PathNotParsable)?),
-                Component::Prefix(_)
-                | Component::RootDir
-                | Component::CurDir
-                | Component::ParentDir => Err(InvalidPathReason::PathNotParsable)?,
-            }
-        })?;
-
-        Ok(name)
-    }
     pub(crate) fn as_existing(&self) -> Result<ExistingGraphFolder, PathValidationError> {
         if self.global_path.is_reserved() {
             Ok(ExistingGraphFolder {
@@ -768,14 +778,5 @@ impl ValidGraphFolder {
                 self.local_path.clone(),
             ))
         }
-    }
-}
-
-trait ToMillis {
-    fn to_millis(&self) -> Result<i64, GraphError>;
-}
-impl ToMillis for SystemTime {
-    fn to_millis(&self) -> Result<i64, GraphError> {
-        Ok(self.duration_since(UNIX_EPOCH)?.as_millis() as i64)
     }
 }

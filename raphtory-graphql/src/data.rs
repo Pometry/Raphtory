@@ -16,7 +16,7 @@ use crate::{
     },
     paths::{
         mark_dirty, ExistingGraphFolder, InternalPathValidationError, PathValidationError,
-        ValidGraphPaths, ValidWriteableGraphFolder,
+        UnlockedGraphFolder, ValidGraphPaths, ValidWriteableGraphFolder,
     },
     rayon::blocking_compute,
     GQLError,
@@ -753,7 +753,7 @@ impl Data {
         path: &str,
         perm: GraphPermission,
         graph_type: Option<GqlGraphType>,
-    ) -> async_graphql::Result<(ExistingGraphFolder, DynamicGraph)> {
+    ) -> async_graphql::Result<(UnlockedGraphFolder, DynamicGraph)> {
         let gwv = self.get_graph(path).await?;
         let typed_graph = match graph_type {
             Some(GqlGraphType::Event) => match gwv.graph() {
@@ -791,7 +791,7 @@ impl Data {
         ctx: &Context<'_>,
         path: &str,
         graph_type: Option<GqlGraphType>,
-    ) -> async_graphql::Result<Option<(ExistingGraphFolder, DynamicGraph)>> {
+    ) -> async_graphql::Result<Option<(UnlockedGraphFolder, DynamicGraph)>> {
         match require_at_least_read(ctx, &self.auth_policy, path) {
             Ok(perm) => self.load_and_filter(path, perm, graph_type).await.map(Some),
             Err(_) => Ok(None),
@@ -807,7 +807,7 @@ impl Data {
         ctx: &Context<'_>,
         path: &str,
         graph_type: Option<GqlGraphType>,
-    ) -> async_graphql::Result<(ExistingGraphFolder, DynamicGraph)> {
+    ) -> async_graphql::Result<(UnlockedGraphFolder, DynamicGraph)> {
         let perm = require_at_least_read(ctx, &self.auth_policy, path)?;
         self.load_and_filter(path, perm, graph_type).await
     }

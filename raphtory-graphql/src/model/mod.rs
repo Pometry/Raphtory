@@ -451,11 +451,13 @@ impl Mut {
         // for the templates or if it needs to be vectorised at all
         let overwrite = overwrite.unwrap_or(false);
         let src = data.get_raw_graph_with_read_permission(ctx, path).await?;
+        let graph = src.graph().clone();
+        drop(src);
         let folder = data
             .work_dir_write()
             .await
             .validate_path_for_insert(new_path, overwrite)?;
-        data.insert_graph(folder, src.graph().clone()).await?;
+        data.insert_graph(folder, graph).await?;
         if let Err(e) = auto_grant_on_create(ctx, &data.auth_policy, new_path) {
             let _ = data.delete_graph(new_path).await;
             return Err(e);
