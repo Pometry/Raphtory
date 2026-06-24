@@ -7,6 +7,13 @@ RUST_READTHEDOCS_DOCS_TARGET=docs/source/_rustdoc
 print-version: # this is used by the CI, don't change
 	@cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version'
 
+# Idempotently publish the public crates to crates.io: skips any crate
+# whose current version is already published. Override the list with
+# CRATES=..., or DRY_RUN=true to only dry-run. Used by CI.
+CRATES ?= -p raphtory-api -p pometry-storage -p raphtory-core -p raphtory-storage -p raphtory -p raphtory-graphql
+publish-crates:
+	@./scripts/publish_crates.sh $(CRATES)
+
 build-all: rust-build
 	cd python && maturin develop
 
