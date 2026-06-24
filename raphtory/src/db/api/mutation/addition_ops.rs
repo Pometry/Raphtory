@@ -172,8 +172,8 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         node_type: Option<&str>,
         layer: Option<&str>,
     ) -> Result<NodeView<'static, G>, GraphError> {
-        let error_if_exists = false;
-        add_node_impl(self, t, v, props, node_type, error_if_exists, layer)
+        let require_new = false;
+        add_node_impl(self, t, v, props, node_type, require_new, layer)
     }
 
     fn create_node<
@@ -191,8 +191,8 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         node_type: Option<&str>,
         layer: Option<&str>,
     ) -> Result<NodeView<'static, G>, GraphError> {
-        let error_if_exists = true;
-        add_node_impl(self, t, v, props, node_type, error_if_exists, layer)
+        let require_new = true;
+        add_node_impl(self, t, v, props, node_type, require_new, layer)
     }
 
     fn add_edge<
@@ -265,9 +265,9 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
             dst_gid,
             dst_id,
             edge_id,
+            props_for_wal,
             layer,
             layer_id,
-            props_for_wal,
         )?;
 
         let props = props_with_status
@@ -336,7 +336,7 @@ fn add_node_impl<
     v: V,
     props: PII,
     node_type: Option<&str>,
-    error_if_exists: bool,
+    require_new: bool,
     layer: Option<&str>,
 ) -> Result<NodeView<'static, G>, GraphError> {
     let transaction_manager = graph.core_graph().transaction_manager()?;
@@ -389,7 +389,7 @@ fn add_node_impl<
     let is_new = writer.node().is_new();
     let node_id = writer.node().inner();
 
-    if error_if_exists && !is_new {
+    if require_new && !is_new {
         drop(writer);
         let node_id = graph.node(node_id).unwrap().id();
         return Err(GraphError::NodeExistsError(node_id));

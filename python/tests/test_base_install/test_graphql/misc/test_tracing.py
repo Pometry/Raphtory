@@ -12,7 +12,9 @@ def test_server_start_on_default_port():
     g.add_edge(3, "ben", "haaroon")
 
     tmp_work_dir = tempfile.mkdtemp()
-    with GraphServer(tmp_work_dir, tracing=True).start() as server:
+    with GraphServer(
+        tmp_work_dir, config={"tracing": {"enabled": True}}
+    ).start() as server:
         client = server.get_client()
         client.send_graph(path="g", graph=g)
 
@@ -24,7 +26,9 @@ def test_server_start_on_default_port():
                 }
             }
         }
-    with GraphServer(tmp_work_dir, tracing=True).start() as server:
+    with GraphServer(
+        tmp_work_dir, config={"tracing": {"enabled": True}}
+    ).start() as server:
         client = server.get_client()
         client.send_graph(path="g2", graph=g)
 

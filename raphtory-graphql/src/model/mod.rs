@@ -178,7 +178,6 @@ impl QueryRoot {
     }
 
     /// Returns a graph
-
     async fn graph<'a>(
         ctx: &Context<'a>,
         #[graphql(
@@ -203,7 +202,6 @@ impl QueryRoot {
 
     /// Returns lightweight metadata for a graph (node/edge counts, timestamps) without loading it.
     /// Requires at least INTROSPECT permission.
-
     async fn graph_metadata<'a>(
         ctx: &Context<'a>,
         #[graphql(desc = "Graph path relative to the root namespace.")] path: String,
@@ -230,7 +228,6 @@ impl QueryRoot {
     /// Update graph query, has side effects to update graph state
     ///
     /// Returns:: GqlMutableGraph
-
     async fn update_graph<'a>(
         ctx: &Context<'a>,
         #[graphql(desc = "Graph path relative to the root namespace.")] path: String,
@@ -247,7 +244,6 @@ impl QueryRoot {
     /// Update graph query, has side effects to update graph state
     ///
     /// Returns:: GqlMutableGraph
-
     async fn vectorise_graph<'a>(
         ctx: &Context<'a>,
         #[graphql(desc = "Graph path relative to the root namespace.")] path: String,
@@ -279,7 +275,6 @@ impl QueryRoot {
     /// Create vectorised graph in the format used for queries
     ///
     /// Returns:: GqlVectorisedGraph
-
     async fn vectorised_graph<'a>(
         ctx: &Context<'a>,
         #[graphql(desc = "Graph path relative to the root namespace.")] path: &str,
@@ -310,7 +305,6 @@ impl QueryRoot {
     /// Returns a specific namespace at a given path
     ///
     /// Returns:: Namespace or error if no namespace found
-
     async fn namespace<'a>(ctx: &Context<'a>, path: String) -> Result<Namespace> {
         let data = ctx.data_unchecked::<Data>();
         Ok(Namespace::try_new(data.work_dir.clone(), path)?)
@@ -332,7 +326,6 @@ impl QueryRoot {
     /// Encodes graph and returns as string.
     ///
     /// Returns:: Base64 url safe encoded string
-
     async fn receive_graph<'a>(
         ctx: &Context<'a>,
         #[graphql(desc = "Graph path relative to the root namespace.")] path: String,
@@ -365,7 +358,6 @@ impl Mut {
     }
 
     /// Delete graph from a path on the server.
-
     async fn delete_graph<'a>(
         ctx: &Context<'a>,
         #[graphql(desc = "Graph path relative to the root namespace.")] path: String,
@@ -379,7 +371,6 @@ impl Mut {
     }
 
     /// Creates a new graph.
-
     async fn new_graph<'a>(
         ctx: &Context<'a>,
         #[graphql(desc = "Destination path relative to the root namespace.")] path: String,
@@ -413,7 +404,6 @@ impl Mut {
     }
 
     /// Move graph from a path on the server to a new_path on the server.
-
     async fn move_graph<'a>(
         ctx: &Context<'a>,
         #[graphql(desc = "Current graph path relative to the root namespace.")] path: &str,
@@ -439,7 +429,6 @@ impl Mut {
     }
 
     /// Copy graph from a path on the server to a new_path on the server.
-
     async fn copy_graph<'a>(
         ctx: &Context<'a>,
         #[graphql(desc = "Source graph path relative to the root namespace.")] path: &str,
@@ -471,7 +460,6 @@ impl Mut {
     ///
     /// Returns::
     /// name of the new graph
-
     async fn upload_graph<'a>(
         ctx: &Context<'a>,
         #[graphql(desc = "Destination path relative to the root namespace.")] path: String,
@@ -496,7 +484,6 @@ impl Mut {
     ///
     /// Returns::
     /// path of the new graph
-
     async fn send_graph<'a>(
         ctx: &Context<'a>,
         #[graphql(desc = "Destination path relative to the root namespace.")] path: &str,
@@ -589,7 +576,6 @@ impl Mut {
     ///
     /// Returns::
     /// name of the new graph
-
     async fn create_subgraph<'a>(
         ctx: &Context<'a>,
         #[graphql(desc = "Source graph path relative to the root namespace.")] parent_path: &str,
@@ -624,7 +610,6 @@ impl Mut {
     }
 
     /// (Experimental) Creates search index.
-
     async fn create_index<'a>(
         ctx: &Context<'a>,
         #[graphql(desc = "Graph path relative to the root namespace.")] path: &str,

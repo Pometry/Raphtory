@@ -8,7 +8,8 @@ use crate::{
                 Index,
             },
             view::{
-                internal::GraphView, BoxableGraphView, DynamicGraph, IntoDynBoxed, IntoDynamic,
+                internal::{GraphView, InnerFilterOps},
+                BoxableGraphView, DynamicGraph, IntoDynBoxed, IntoDynamic,
             },
         },
         graph::{
@@ -20,7 +21,7 @@ use crate::{
     prelude::{GraphViewOps, NodeViewOps},
 };
 use arrow::{
-    array::AsArray,
+    array::{ArrayBuilder, AsArray},
     compute::{cast_with_options, interleave_record_batch, CastOptions},
     datatypes::UInt64Type,
     row::{RowConverter, SortField},
@@ -86,7 +87,7 @@ pub trait InputNodeStateValue<V>: NodeStateValue + From<V> {}
 impl<T, V> InputNodeStateValue<V> for T where T: NodeStateValue + From<V> {}
 
 // These are the options for merging NodeState indexes/columns
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum MergePriority {
     Left,
     Right,
@@ -811,7 +812,11 @@ impl<
     }
 
     pub fn values_from_rows(&mut self, rows: Vec<V>) {
-        let fields = Vec::<FieldRef>::from_type::<V>(TracingOptions::default()).unwrap();
+        // let fields = Vec::<FieldRef>::from_type::<V>(TracingOptions::default()).unwrap();
+        let fields =
+            Vec::<FieldRef>::from_type::<V>(TracingOptions::default()).unwrap_or_else(|_| {
+                Vec::<FieldRef>::from_samples(&rows, TracingOptions::default()).unwrap()
+            });
         self.state.values = to_record_batch(&fields, &rows).unwrap();
     }
 
@@ -1200,7 +1205,14 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
         >,
     ) -> Self {
         let values: Vec<V> = values.into_iter().map(map).collect();
-        let fields = Vec::<Field>::from_type::<V>(TracingOptions::default()).unwrap();
+        //let fields = Vec::<Field>::from_type::<V>(TracingOptions::default()).unwrap();
+        let fields: Vec<Field> = Vec::<FieldRef>::from_type::<V>(TracingOptions::default())
+            .unwrap_or_else(|_| {
+                Vec::<FieldRef>::from_samples(&values, TracingOptions::default()).unwrap()
+            })
+            .into_iter()
+            .map(|f| Arc::unwrap_or_clone(f))
+            .collect();
         let fields: Vec<_> = fields
             .into_iter()
             .map(|field| FieldRef::new(field.with_nullable(true)))

@@ -1,5 +1,3 @@
-//! Pure Rust remote node client for GraphQL updateGraph.node(...) operations.
-
 use crate::client::{
     build_property_string, raphtory_client::RaphtoryGraphQLClient, remote_graph::build_query,
     ClientError,
@@ -10,7 +8,7 @@ use raphtory_api::core::{
 };
 use std::collections::HashMap;
 
-/// Pure Rust remote node wrapper around `RaphtoryGraphQLClient`.
+/// A handle to a remote node on the server.
 #[derive(Clone)]
 pub struct GraphQLRemoteNode {
     pub path: String,

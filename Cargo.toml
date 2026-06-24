@@ -14,7 +14,8 @@ members = [
     "raphtory-storage",
     "raphtory-api-macros",
     "raphtory-tests",
-    "raphtory-itertools", ]
+    "raphtory-itertools",
+    "drop-logging"]
 default-members = ["raphtory"]
 resolver = "2"
 
@@ -29,6 +30,7 @@ keywords = ["graph", "temporal-graph", "temporal"]
 authors = ["Pometry"]
 rust-version = "1.95.0"
 edition = "2021"
+categories = ["science", "database-implementations", "data-structures"]
 
 # debug symbols are using a lot of resources
 [profile.dev]
@@ -65,6 +67,7 @@ raphtory-core = { version = "0.18.0", path = "raphtory-core", default-features =
 raphtory-graphql = { version = "0.18.0", path = "raphtory-graphql", default-features = false }
 raphtory-storage = { version = "0.18.0", path = "raphtory-storage", default-features = false }
 raphtory-itertools = { version = "0.18.0", path = "raphtory-itertools" }
+drop-logging = { version = "0.18.0", path = "drop-logging" }
 async-graphql = { version = "7.2.1", features = ["dynamic-schema"] }
 async-graphql-poem = "7.2.1"
 dynamic-graphql = "0.10.2"
@@ -140,6 +143,7 @@ rust-embed = { version = "8.11.0", features = ["interpolate-folder-path"] }
 opentelemetry = "0.32.0"
 opentelemetry_sdk = { version = "0.32.1", features = ["rt-tokio"] }
 opentelemetry-otlp = { version = "0.32.0", features = ["grpc-tonic"] }
+opentelemetry-stdout = "0.32.0"
 tracing = { version = "0.1.44", features = ["log"] }
 tracing-opentelemetry = "0.33.0"
 tracing-subscriber = { version = "0.3.23", features = ["std", "env-filter"] }
@@ -191,6 +195,9 @@ datafusion-physical-expr = "53.1.0"
 datafusion-physical-plan = "53.1.0"
 datafusion-expr-common = "53.1.0"
 axum = "0.8.9"
+serde-diff = "0.4.1"
+field_types = "1.1.0"
+opentelemetry-appender-tracing = "0.32.0"
 
 [workspace.dependencies.storage]
 package = "db4-storage"

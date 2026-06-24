@@ -17,7 +17,7 @@ use rayon::iter::ParallelIterator;
 use std::ops::Range;
 use storage::{
     api::graph_props::{GraphPropEntryOps, GraphPropRefOps},
-    gen_ts::ALL_LAYERS,
+    generic_time_ops::ALL_LAYERS,
 };
 
 impl GraphTimeSemanticsOps for GraphStorage {

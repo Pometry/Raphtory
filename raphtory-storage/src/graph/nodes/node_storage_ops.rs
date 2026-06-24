@@ -2,7 +2,7 @@ use raphtory_api::core::{
     entities::{
         edges::edge_ref::EdgeRef,
         properties::{
-            meta::{STATIC_GRAPH_LAYER, STATIC_GRAPH_LAYER_ID, STATIC_GRAPH_LAYER_NAME},
+            meta::{STATIC_GRAPH_LAYER, STATIC_GRAPH_LAYER_ID},
             prop::Prop,
         },
         GidRef, LayerId, LayerIds, VID,
@@ -12,7 +12,7 @@ use raphtory_api::core::{
 };
 use raphtory_core::{entities::LayerVariants, storage::timeindex::EventTime};
 use std::{borrow::Cow, ops::Range, sync::Arc};
-use storage::{api::nodes::NodeRefOps, gen_ts::LayerIter, utils::Iter3, NodeEntryRef};
+use storage::{api::nodes::NodeRefOps, generic_time_ops::LayerIter, utils::Iter3, NodeEntryRef};
 
 pub trait NodeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
     fn degree(self, layers: &LayerIds, dir: Direction) -> usize;
