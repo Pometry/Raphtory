@@ -19,7 +19,7 @@ use crate::{
             properties::{
                 MetadataView, PropertiesView, PyMetadata, PyPropHistItemsList,
                 PyPropHistItemsListList, PyPropHistValueList, PyPropHistValueListList,
-                PyPropValueList, PyPropValueListList, PyProperties, Py
+                PyPropValueList, PyPropValueListList, PyProperties, PyTemporalProp,
                 PyTemporalPropList, PyTemporalPropListList, PyTemporalProperties,
                 PyTemporalPropsList, PyTemporalPropsListList,
             },
@@ -93,7 +93,7 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
         MetadataView,
         PyTemporalProperties,
         PropertiesView,
-        Py
+        PyTemporalProp,
         PyEventTime,
         PyOptionalEventTime,
         PyHistory,

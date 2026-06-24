@@ -4,14 +4,11 @@ use crate::{
         graph::views::{
             filter::{
                 model::{
-                    edge_filter::CompositeEdgeFilter,
-                    is_active_edge_filter::IsActiveEdge,
-                    is_deleted_filter::IsDeletedEdge,
-                    is_self_loop_filter::IsSelfLoopEdge,
-                    is_valid_filter::IsValidEdge,
-                    CombinedFilter, ComposableFilter, CompositeExplodedEdgeFilter,
-                    CompositeNodeFilter, CreateView, EdgeViewFilterOps, InternalViewWrapOps,
-                    TryAsCompositeFilter, Wrap,
+                    edge_filter::CompositeEdgeFilter, is_active_edge_filter::IsActiveEdge,
+                    is_deleted_filter::IsDeletedEdge, is_self_loop_filter::IsSelfLoopEdge,
+                    is_valid_filter::IsValidEdge, CombinedFilter, ComposableFilter,
+                    CompositeExplodedEdgeFilter, CompositeNodeFilter, CreateView,
+                    EdgeViewFilterOps, InternalViewWrapOps, TryAsCompositeFilter, Wrap,
                 },
                 CreateFilter,
             },
@@ -109,12 +106,6 @@ impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for Windowed<
     where
         G: GraphView + TimeOps<'graph, WindowedViewType = WindowedGraph<G>> + 'graph;
 
-    type FilteredGraph<'graph, G>
-        = G
-    where
-        Self: 'graph,
-        G: GraphViewOps<'graph>;
-
     fn create_filter<'graph, G>(
         self,
         graph: G,
@@ -122,7 +113,8 @@ impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for Windowed<
     where
         G: GraphViewOps<'graph> + TimeOps<'graph, WindowedViewType = WindowedGraph<G>>,
     {
-        self.inner.create_filter(graph.window(self.start.t(), self.end.t()))
+        self.inner
+            .create_filter(graph.window(self.start.t(), self.end.t()))
     }
 
     fn create_node_filter<'graph, G>(
@@ -132,7 +124,8 @@ impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for Windowed<
     where
         G: GraphView + TimeOps<'graph, WindowedViewType = WindowedGraph<G>> + 'graph,
     {
-        self.inner.create_node_filter(graph.window(self.start.t(), self.end.t()))
+        self.inner
+            .create_node_filter(graph.window(self.start.t(), self.end.t()))
     }
 }
 

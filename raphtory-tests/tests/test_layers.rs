@@ -254,8 +254,7 @@ pub mod test_filters_layer_graph {
         };
 
         use raphtory_tests::assertions::{
-            assert_filter_nodes_results, TestGraphVariants,
-            TestVariants,
+            assert_filter_nodes_results, TestGraphVariants, TestVariants,
         };
         fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
             let edges = vec![
@@ -453,8 +452,7 @@ pub mod test_filters_layer_graph {
         };
         use raphtory_api::core::entities::properties::prop::Prop;
         use raphtory_tests::assertions::{
-            assert_filter_edges_results, TestGraphVariants,
-            TestVariants,
+            assert_filter_edges_results, TestGraphVariants, TestVariants,
         };
 
         use crate::test_filters_layer_graph::{

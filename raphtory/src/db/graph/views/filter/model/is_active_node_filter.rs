@@ -39,12 +39,6 @@ impl<E: CreateView + 'static> CreateFilter for IsActiveNode<E> {
         Self: 'graph,
         G: GraphView + 'graph;
 
-    type FilteredGraph<'graph, G>
-        = G
-    where
-        Self: 'graph,
-        G: GraphViewOps<'graph>;
-
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
         graph: G,

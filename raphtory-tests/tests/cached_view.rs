@@ -170,8 +170,7 @@ mod test_filters_cached_view {
         };
         use raphtory_api::core::entities::properties::prop::Prop;
         use raphtory_tests::assertions::{
-            assert_filter_nodes_results, TestGraphVariants,
-            TestVariants,
+            assert_filter_nodes_results, TestGraphVariants, TestVariants,
         };
 
         use crate::test_filters_cached_view::{
@@ -252,9 +251,7 @@ mod test_filters_cached_view {
             prelude::{AdditionOps, EdgeFilter},
         };
         use raphtory_api::core::entities::properties::prop::Prop;
-        use raphtory_tests::assertions::{
-            assert_filter_edges_results, TestVariants,
-        };
+        use raphtory_tests::assertions::{assert_filter_edges_results, TestVariants};
 
         use crate::test_filters_cached_view::{
             CachedGraphTransformer, WindowedCachedGraphTransformer,

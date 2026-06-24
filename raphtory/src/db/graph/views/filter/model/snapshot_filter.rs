@@ -4,15 +4,11 @@ use crate::{
         graph::views::{
             filter::{
                 model::{
-                    edge_filter::CompositeEdgeFilter,
-                    is_active_edge_filter::IsActiveEdge,
-                    is_deleted_filter::IsDeletedEdge,
-                    is_self_loop_filter::IsSelfLoopEdge,
-                    is_valid_filter::IsValidEdge,
-                    windowed_filter::Windowed,
-                    CombinedFilter, ComposableFilter, CompositeExplodedEdgeFilter,
-                    CompositeNodeFilter, CreateView, EdgeViewFilterOps, InternalViewWrapOps,
-                    TryAsCompositeFilter, Wrap,
+                    edge_filter::CompositeEdgeFilter, is_active_edge_filter::IsActiveEdge,
+                    is_deleted_filter::IsDeletedEdge, is_self_loop_filter::IsSelfLoopEdge,
+                    is_valid_filter::IsValidEdge, windowed_filter::Windowed, CombinedFilter,
+                    ComposableFilter, CompositeExplodedEdgeFilter, CompositeNodeFilter, CreateView,
+                    EdgeViewFilterOps, InternalViewWrapOps, TryAsCompositeFilter, Wrap,
                 },
                 CreateFilter,
             },
@@ -92,12 +88,6 @@ impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for SnapshotA
         = T::NodeFilter<'graph, WindowedGraph<G>>
     where
         G: GraphView + TimeOps<'graph, WindowedViewType = WindowedGraph<G>> + 'graph;
-
-    type FilteredGraph<'graph, G>
-        = G
-    where
-        Self: 'graph,
-        G: GraphViewOps<'graph>;
 
     fn create_filter<'graph, G>(
         self,
@@ -222,12 +212,6 @@ impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for SnapshotL
         = T::NodeFilter<'graph, WindowedGraph<G>>
     where
         G: GraphView + TimeOps<'graph, WindowedViewType = WindowedGraph<G>> + 'graph;
-
-    type FilteredGraph<'graph, G>
-        = G
-    where
-        Self: 'graph,
-        G: GraphViewOps<'graph>;
 
     fn create_filter<'graph, G>(
         self,

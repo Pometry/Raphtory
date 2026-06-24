@@ -12,7 +12,7 @@ use crate::{
         filter::{
             filter_expr::PyFilterExpr,
             property_expr::{
-                PyEdgeViewPropsFilterBuilder, PyPropertyExprBuilder, PyPropertyFilterBuilder,
+                PyEdgeViewPropsFilterBuilder,
             },
         },
         types::iterable::FromIterable,

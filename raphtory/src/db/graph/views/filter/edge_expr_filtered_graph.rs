@@ -16,11 +16,10 @@ use crate::{
     },
     prelude::GraphViewOps,
 };
-use raphtory_api::{
-    core::entities::edges::edge_ref::EdgeRef,
-    inherit::Base,
+use raphtory_api::{core::entities::edges::edge_ref::EdgeRef, inherit::Base};
+use raphtory_storage::{
+    core_ops::InheritCoreGraphOps, graph::edges::edge_storage_ops::EdgeStorageOps,
 };
-use raphtory_storage::{core_ops::InheritCoreGraphOps, graph::edges::edge_storage_ops::EdgeStorageOps};
 use storage::EdgeEntryRef;
 
 /// Edge-filtered graph: hides edges that fail the predicate `filter`.
@@ -78,12 +77,12 @@ impl<'graph, G: GraphViewOps<'graph>, F: EdgeOp<Output = bool> + Clone> InheritP
     for EdgeExprFilteredGraph<G, F>
 {
 }
-impl<'graph, G: GraphViewOps<'graph>, F: EdgeOp<Output = bool> + Clone>
-    InheritNodePropertySchemaOps for EdgeExprFilteredGraph<G, F>
+impl<'graph, G: GraphViewOps<'graph>, F: EdgeOp<Output = bool> + Clone> InheritNodePropertySchemaOps
+    for EdgeExprFilteredGraph<G, F>
 {
 }
-impl<'graph, G: GraphViewOps<'graph>, F: EdgeOp<Output = bool> + Clone>
-    InheritEdgePropertySchemaOps for EdgeExprFilteredGraph<G, F>
+impl<'graph, G: GraphViewOps<'graph>, F: EdgeOp<Output = bool> + Clone> InheritEdgePropertySchemaOps
+    for EdgeExprFilteredGraph<G, F>
 {
 }
 impl<'graph, G: GraphViewOps<'graph>, F: EdgeOp<Output = bool> + Clone> InheritTimeSemantics
@@ -98,8 +97,8 @@ impl<'graph, G: GraphViewOps<'graph>, F: EdgeOp<Output = bool> + Clone> InheritE
     for EdgeExprFilteredGraph<G, F>
 {
 }
-impl<'graph, G: GraphViewOps<'graph>, F: EdgeOp<Output = bool> + Clone>
-    InheritExplodedEdgeFilterOps for EdgeExprFilteredGraph<G, F>
+impl<'graph, G: GraphViewOps<'graph>, F: EdgeOp<Output = bool> + Clone> InheritExplodedEdgeFilterOps
+    for EdgeExprFilteredGraph<G, F>
 {
 }
 impl<'graph, G: GraphViewOps<'graph>, F: EdgeOp<Output = bool> + Clone> InheritEdgeLayerFilterOps

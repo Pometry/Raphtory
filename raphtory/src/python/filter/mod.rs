@@ -1,16 +1,16 @@
 use crate::python::{
     filter::{
-        edge_filter_builders::{
+        edge_expr::{
             PyEdgeEndpoint, PyEdgeEndpointIdFilterBuilder, PyEdgeEndpointNameFilterBuilder,
             PyEdgeEndpointTypeFilterBuilder, PyEdgeFilter,
         },
-        exploded_edge_filter_builder::PyExplodedEdgeFilter,
+        exploded_edge_expr::PyExplodedEdgeFilter,
         filter_expr::PyFilterExpr,
         graph_filter::PyGraphFilter,
-        node_filter_builders::{
+        node_expr::{
             PyNodeFilter, PyNodeIdFilterBuilder, PyNodeNameFilterBuilder, PyNodeTypeFilterBuilder,
         },
-        property_filter_builders::{PyPropertyExprBuilder, PyPropertyFilterBuilder},
+        property_expr::{PyPropertyExprBuilder, PyPropertyFilterBuilder},
     },
     types::iterable::FromIterable,
 };
@@ -20,12 +20,12 @@ use pyo3::{
 };
 use raphtory_api::core::entities::Layer;
 
-pub mod edge_filter_builders;
-pub mod exploded_edge_filter_builder;
+pub mod edge_expr;
+pub mod exploded_edge_expr;
 pub mod filter_expr;
 pub mod graph_filter;
-pub mod node_filter_builders;
-pub mod property_filter_builders;
+pub mod node_expr;
+pub mod property_expr;
 
 impl From<FromIterable<String>> for Layer {
     fn from(iter: FromIterable<String>) -> Self {

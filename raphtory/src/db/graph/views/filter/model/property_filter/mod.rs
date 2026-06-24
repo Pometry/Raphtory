@@ -385,12 +385,6 @@ impl CreateFilter for PropertyFilter<NodeFilter> {
 
     type NodeFilter<'graph, G: GraphView + 'graph> = NodePropertyFilterOp<G>;
 
-    type FilteredGraph<'graph, G>
-        = G
-    where
-        Self: 'graph,
-        G: GraphViewOps<'graph>;
-
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
         graph: G,
@@ -413,12 +407,6 @@ impl CreateFilter for PropertyFilter<EdgeFilter> {
 
     type NodeFilter<'graph, G: GraphView + 'graph> = NotANodeFilter;
 
-    type FilteredGraph<'graph, G>
-        = G
-    where
-        Self: 'graph,
-        G: GraphViewOps<'graph>;
-
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
         graph: G,
@@ -438,11 +426,6 @@ impl CreateFilter for PropertyFilter<EdgeFilter> {
 impl CreateFilter for PropertyFilter<ExplodedEdgeFilter> {
     type EntityFiltered<'graph, G: GraphViewOps<'graph>> = ExplodedEdgePropertyFilteredGraph<G>;
     type NodeFilter<'graph, G: GraphView + 'graph> = NotANodeFilter;
-    type FilteredGraph<'graph, G>
-        = G
-    where
-        Self: 'graph,
-        G: GraphViewOps<'graph>;
 
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,

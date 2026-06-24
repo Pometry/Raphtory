@@ -133,9 +133,7 @@ mod test_property_semantics {
         use raphtory_storage::mutation::{
             addition_ops::InternalAdditionOps, property_addition_ops::InternalPropertyAdditionOps,
         };
-        use raphtory_tests::assertions::{
-            assert_filter_nodes_results, TestVariants,
-        };
+        use raphtory_tests::assertions::{assert_filter_nodes_results, TestVariants};
 
         fn init_graph<G: StaticGraphViewOps + AdditionOps + PropertyAdditionOps>(graph: G) -> G {
             let nodes = [
@@ -425,8 +423,7 @@ mod test_property_semantics {
             addition_ops::InternalAdditionOps, property_addition_ops::InternalPropertyAdditionOps,
         };
         use raphtory_tests::assertions::{
-            assert_filter_edges_results, TestGraphVariants,
-            TestVariants, WindowGraphTransformer,
+            assert_filter_edges_results, TestGraphVariants, TestVariants, WindowGraphTransformer,
         };
 
         fn init_graph<
@@ -1506,7 +1503,7 @@ mod test_node_filter {
             graph::views::filter::{
                 model::{
                     degree_filter::DegreeFilterFactory,
-                    node_filter::ops::{NodeFilterOps},
+                    node_filter::ops::NodeFilterOps,
                     not_filter::NotFilter,
                     property_filter::ops::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
                     ComposableFilter, CompositeNodeFilter, NodeViewFilterOps,
@@ -1523,8 +1520,7 @@ mod test_node_filter {
     };
     use raphtory_api::core::{entities::properties::prop::Prop, Direction};
     use raphtory_tests::assertions::{
-        assert_filter_nodes_results, assert_select_nodes_results,
-        TestVariants,
+        assert_filter_nodes_results, assert_select_nodes_results, TestVariants,
     };
 
     fn sort_vids(mut vids: Vec<VID>) -> Vec<VID> {
@@ -2350,7 +2346,9 @@ mod test_node_filter {
             TestVariants::All,
         );
 
-        let filter = NodeFilter.node_type().is_in(vec!["fire_nation", "air_nomads"]);
+        let filter = NodeFilter
+            .node_type()
+            .is_in(vec!["fire_nation", "air_nomads"]);
         let expected_results = vec!["1", "2", "3"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -2836,19 +2834,19 @@ mod test_node_filter {
 
 mod test_node_property_filter {
     use crate::{init_nodes_graph, IdentityGraphTransformer};
-    use raphtory::db::graph::views::filter::model::{
-        graph_filter::GraphFilter,
-        node_filter::NodeFilter,
-        not_filter::NotFilter,
-        property_filter::ops::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
-        windowed_filter::Windowed,
-        ComposableFilter, PropertyFilterFactory, ViewWrapOps,
+    use raphtory::{
+        db::graph::views::filter::model::{
+            graph_filter::GraphFilter,
+            node_filter::NodeFilter,
+            not_filter::NotFilter,
+            property_filter::ops::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
+            windowed_filter::Windowed,
+            ComposableFilter, PropertyFilterFactory, ViewWrapOps,
+        },
+        prelude::{EntityAggOps, EntityExprFilterOps},
     };
     use raphtory_api::core::entities::properties::prop::Prop;
-    use raphtory::prelude::{EntityAggOps, EntityExprFilterOps};
-    use raphtory_tests::assertions::{
-        assert_filter_nodes_results, TestVariants,
-    };
+    use raphtory_tests::assertions::{assert_filter_nodes_results, TestVariants};
     use std::vec;
 
     #[test]
@@ -4314,8 +4312,7 @@ mod composite_node_filter_tests {
         prelude::NodeFilter,
     };
     use raphtory_tests::assertions::{
-        assert_filter_neighbours_results, assert_filter_nodes_results,
-        TestVariants,
+        assert_filter_neighbours_results, assert_filter_nodes_results, TestVariants,
     };
 
     #[test]
@@ -4428,7 +4425,8 @@ mod composite_node_filter_tests {
             TestVariants::All,
         );
 
-        let filter = NodeFilter.node_type()
+        let filter = NodeFilter
+            .node_type()
             .eq("fire_nation")
             .and(NodeFilter.property("p1").eq("prop1"));
         let expected_results = Vec::<&str>::new();
@@ -4469,7 +4467,8 @@ mod composite_node_filter_tests {
             TestVariants::All,
         );
 
-        let filter = NodeFilter.node_type()
+        let filter = NodeFilter
+            .node_type()
             .eq("fire_nation")
             .and(NodeFilter.property("p1").eq("shivam_kapoor"));
         let expected_results = vec!["1"];
@@ -4489,7 +4488,8 @@ mod composite_node_filter_tests {
             TestVariants::All,
         );
 
-        let filter = NodeFilter.name()
+        let filter = NodeFilter
+            .name()
             .eq("2")
             .and(NodeFilter.property("p2").eq(2u64));
         let expected_results = vec!["2"];
@@ -4509,7 +4509,8 @@ mod composite_node_filter_tests {
             TestVariants::All,
         );
 
-        let filter = NodeFilter.name()
+        let filter = NodeFilter
+            .name()
             .eq("2")
             .and(NodeFilter.property("p2").eq(2u64))
             .or(NodeFilter.property("p9").eq(5u64));
@@ -4564,7 +4565,8 @@ mod composite_node_filter_tests {
 
     #[test]
     fn test_out_neighbours_filter() {
-        let filter = NodeFilter.name()
+        let filter = NodeFilter
+            .name()
             .eq("2")
             .and(NodeFilter.property("p2").eq(2u64));
         let expected_results = vec!["2"];
@@ -4644,7 +4646,9 @@ mod test_node_property_filter_agg {
                 CreateFilter,
             },
         },
-        prelude::{AdditionOps, EntityAggOps, EntityExprFilterOps, GraphViewOps, PropertyAdditionOps},
+        prelude::{
+            AdditionOps, EntityAggOps, EntityExprFilterOps, GraphViewOps, PropertyAdditionOps,
+        },
     };
     use raphtory_api::core::{
         entities::properties::prop::{IntoProp, Prop},
@@ -4654,8 +4658,7 @@ mod test_node_property_filter_agg {
         addition_ops::InternalAdditionOps, property_addition_ops::InternalPropertyAdditionOps,
     };
     use raphtory_tests::assertions::{
-        assert_filter_nodes_err, assert_filter_nodes_results,
-        TestVariants::All,
+        assert_filter_nodes_err, assert_filter_nodes_results, TestVariants::All,
     };
 
     fn list_u8(xs: &[u8]) -> Prop {
@@ -4982,7 +4985,6 @@ mod test_node_property_filter_agg {
             &expected,
             All,
         );
-
     }
 
     fn apply_assertion_err(
@@ -4996,7 +4998,6 @@ mod test_node_property_filter_agg {
             &expected,
             All,
         );
-
     }
 
     // ------ Property: SUM ----
@@ -8151,14 +8152,11 @@ mod test_edge_filter {
         init_edges_graph_with_str_ids_del, init_nodes_graph, IdentityGraphTransformer,
     };
     use raphtory::db::graph::views::filter::model::{
-        edge_filter::EdgeFilter,
-        node_expr::EntityExprFilterOps,
-        ComposableFilter, EdgeViewFilterOps, NodeFilterFactory, PropertyFilterFactory,
-        ViewWrapOps,
+        edge_filter::EdgeFilter, node_expr::EntityExprFilterOps, ComposableFilter,
+        EdgeViewFilterOps, NodeFilterFactory, PropertyFilterFactory, ViewWrapOps,
     };
     use raphtory_tests::assertions::{
-        assert_filter_edges_results, assert_select_edges_results,
-        TestGraphVariants, TestVariants,
+        assert_filter_edges_results, assert_select_edges_results, TestGraphVariants, TestVariants,
     };
 
     #[test]
@@ -9172,8 +9170,8 @@ mod test_edge_property_filter {
         ComposableFilter, PropertyFilterFactory, ViewWrapOps,
     };
 
-    use raphtory_api::core::entities::properties::prop::Prop;
     use raphtory::prelude::{EntityAggOps, EntityExprFilterOps};
+    use raphtory_api::core::entities::properties::prop::Prop;
     use raphtory_tests::assertions::{
         assert_filter_edges_results, TestGraphVariants, TestVariants,
     };
@@ -10749,7 +10747,6 @@ mod composite_edge_filter_tests {
             TestVariants::EventOnly,
         );
 
-
         let filter = NotFilter(
             EdgeFilter::src()
                 .name()
@@ -10771,6 +10768,5 @@ mod composite_edge_filter_tests {
             &expected_results,
             TestVariants::EventOnly,
         );
-
     }
 }

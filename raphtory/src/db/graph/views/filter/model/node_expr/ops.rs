@@ -332,16 +332,6 @@ impl<'g> NodeOp for ListAwareCmpNodeOp<'g> {
         let lv = self.left.apply(storage, node);
         let rhs = self.right.apply(storage, node);
         let op = &self.op;
-        // aggregate_values(lv, &|pi| {
-        //     let bools: Vec<Prop> = pi
-        //         .map(|v| Prop::Bool(Prop::binary_cmp(op, &v, &rhs)))
-        //         .collect();
-        //     if bools.is_empty() {
-        //         None
-        //     } else {
-        //         Some(Prop::List(PropArray::from(bools)))
-        //     }
-        // })
         broadcast_binary(lv, rhs, &|lv, rhs| {
             Some(Prop::Bool(Prop::binary_cmp(op, &lv?, &rhs?)))
         })
@@ -362,16 +352,6 @@ impl<'g> NodeOp for ListAwareStringNodeOp<'g> {
         let lv = self.left.apply(storage, node);
         let rhs = self.right.apply(storage, node);
         let op = &self.op;
-        // aggregate_values(lv, &|pi| {
-        //     let bools: Vec<Prop> = pi
-        //         .map(|v| Prop::Bool(Option::<Prop>::string_cmp(op, &Some(v), &rhs)))
-        //         .collect();
-        //     if bools.is_empty() {
-        //         None
-        //     } else {
-        //         Some(Prop::List(PropArray::from(bools)))
-        //     }
-        // })
         broadcast_binary(lv, rhs, &|lv, rhs| {
             Some(Prop::Bool(Option::<Prop>::string_cmp(op, &lv, &rhs)))
         })
@@ -440,26 +420,15 @@ impl<'g> NodeOp for ListAwareSetNodeOp<'g> {
         let vals = self.inner.apply(storage, node);
         let values = &self.values;
         let op = &self.op;
-        // aggregate_values(vals, &|pi| {
-        //     let bools: Vec<Prop> = pi
-        //         .map(|v| {
-        //             Prop::Bool(match op {
-        //                 SetOp::IsIn => values.iter().any(|x| x == &v),
-        //                 SetOp::IsNotIn => values.iter().all(|x| x != &v),
-        //             })
-        //         })
-        //         .collect();
-        //     if bools.is_empty() {
-        //         None
-        //     } else {
-        //         Some(Prop::List(PropArray::from(bools)))
-        //     }
-        // })
         broadcast_unary(vals, |v| {
             let v = v?;
             Some(Prop::Bool(match op {
-                SetOp::IsIn => values.iter().any(|x| Prop::binary_cmp(&BinaryOp::Eq, x, &v)),
-                SetOp::IsNotIn => values.iter().all(|x| Prop::binary_cmp(&BinaryOp::Ne, x, &v)),
+                SetOp::IsIn => values
+                    .iter()
+                    .any(|x| Prop::binary_cmp(&BinaryOp::Eq, x, &v)),
+                SetOp::IsNotIn => values
+                    .iter()
+                    .all(|x| Prop::binary_cmp(&BinaryOp::Ne, x, &v)),
             }))
         })
     }
@@ -480,7 +449,10 @@ pub(crate) struct AndBoolNodeOp<'g> {
 
 impl<'g> Clone for AndBoolNodeOp<'g> {
     fn clone(&self) -> Self {
-        Self { left: self.left.clone(), right: self.right.clone() }
+        Self {
+            left: self.left.clone(),
+            right: self.right.clone(),
+        }
     }
 }
 
@@ -505,7 +477,10 @@ pub(crate) struct OrBoolNodeOp<'g> {
 
 impl<'g> Clone for OrBoolNodeOp<'g> {
     fn clone(&self) -> Self {
-        Self { left: self.left.clone(), right: self.right.clone() }
+        Self {
+            left: self.left.clone(),
+            right: self.right.clone(),
+        }
     }
 }
 
@@ -553,8 +528,14 @@ impl<'g> NodeOp for PropValueSetNodeOp<'g> {
         match self.inner.apply(storage, node) {
             None => false,
             Some(v) => match self.op {
-                SetOp::IsIn => self.values.iter().any(|x| Prop::binary_cmp(&BinaryOp::Eq, x, &v)),
-                SetOp::IsNotIn => self.values.iter().all(|x| Prop::binary_cmp(&BinaryOp::Ne, x, &v)),
+                SetOp::IsIn => self
+                    .values
+                    .iter()
+                    .any(|x| Prop::binary_cmp(&BinaryOp::Eq, x, &v)),
+                SetOp::IsNotIn => self
+                    .values
+                    .iter()
+                    .all(|x| Prop::binary_cmp(&BinaryOp::Ne, x, &v)),
             },
         }
     }

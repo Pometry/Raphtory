@@ -147,11 +147,6 @@ impl<T: CreateFilter + Clone + 'static> CreateFilter for ExplodedEdgeEndpointWra
     where
         Self: 'graph,
         G: GraphView + 'graph;
-    type FilteredGraph<'graph, G>
-        = G
-    where
-        Self: 'graph,
-        G: GraphViewOps<'graph>;
 
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
@@ -253,11 +248,6 @@ impl CreateFilter for CompositeExplodedEdgeFilter {
     where
         Self: 'graph,
         G: GraphView + 'graph;
-    type FilteredGraph<'graph, G>
-        = Arc<dyn BoxableGraphView + 'graph>
-    where
-        Self: 'graph,
-        G: GraphViewOps<'graph>;
 
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,

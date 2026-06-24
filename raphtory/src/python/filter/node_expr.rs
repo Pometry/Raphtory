@@ -1,305 +1,32 @@
 use crate::{
-    db::{
-        api::state::ops::{Id, Name, Type},
-        graph::views::filter::model::{
-            degree_filter::DegreeFilterFactory,node_filter::{ops::NodeFilterOps, NodeFilter},
-            node_state_filter::NodeStateBoolColOp,
-            property_filter::builders::{MetadataFilterBuilder, PropertyFilterBuilder},
-            NodeViewFilterOps, PropertyFilterFactory, ViewWrapOps,
-        },
+    db::graph::views::filter::model::{
+        degree_filter::DegreeFilterFactory,
+        node_expr::{CreateOp},
+        node_state_filter::NodeStateBoolColOp,
+        NodeViewFilterOps, PropertyFilterFactory, ViewWrapOps,
     },
-    python::{
-        filter::{
-            filter_expr::PyFilterExpr,
-            property_expr_builders::{
-                PyNodeViewPropsFilterBuilder, PyPropertyExprBuilder, PyPropertyFilterBuilder,
-            },
-        },
-        graph::node_state::PyOutputNodeState,
-        types::iterable::FromIterable,
-    },
+    prelude::{EntityExprFilterOps, NodeFilter, NodeFilterFactory},
+    python::{graph::node_state::PyOutputNodeState, types::iterable::FromIterable},
 };
-use pyo3::{pyclass, pymethods, Bound, IntoPyObject, PyResult, Python};
-use raphtory_api::core::{
-    entities::GID,
-    storage::{arc_str::ArcStr, timeindex::EventTime},
-};
+use pyo3::{pyclass, pymethods, IntoPyObject, PyResult};
+use raphtory_api::core::storage::timeindex::EventTime;
 use std::sync::Arc;
+use crate::db::graph::views::filter::model::node_expr::DynCreateOp;
 
-/// Filters nodes by their ID value.
-///
-/// Supports numeric and string IDs and produces a `FilterExpr`
-/// that can be used in node queries.
-///
-/// Examples:
-///     Node.id() == 1
-///     Node.id().is_in([1, 2, 3])
-///     Node.id().starts_with("user:")
-#[pyclass(frozen, name = "NodeIdFilterBuilder", module = "raphtory.filter")]
-pub struct PyNodeIdFilterBuilder(Id);
+#[pyclass(frozen, name = "Expr", module = "raphtory.filter")]
+#[derive(Clone)]
+pub struct PyExpr(Arc<dyn DynCreateOp>);
 
-#[pymethods]
-impl PyNodeIdFilterBuilder {
-    /// Returns a filter expression that checks whether the node ID
-    /// is equal to the given value.
-    /// Arguments:
-    ///     value (int): Node ID to compare against.
-    ///
-    /// Returns:
-    ///     filter.FilterExpr: A filter expression evaluating equality.
-    fn __eq__(&self, value: GID) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.0.eq(value)))
-    }
-
-    /// Returns a filter expression that checks whether the node ID
-    /// is not equal to the given value.
-    ///
-    /// Arguments:
-    ///     value (int): Node ID to compare against.
-    ///
-    /// Returns:
-    ///     filter.FilterExpr: A filter expression evaluating inequality.
-    fn __ne__(&self, value: GID) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.0.ne(value)))
-    }
-
-    /// Returns a filter expression that checks whether the node ID
-    /// is less than the given value.
-    ///
-    /// Arguments:
-    ///     value (int): Upper bound (exclusive) for the node ID.
-    ///
-    /// Returns:
-    ///     filter.FilterExpr: A filter expression evaluating a `<` comparison.
-    fn __lt__(&self, value: GID) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.0.lt(value)))
-    }
-
-    /// Returns a filter expression that checks whether the node ID
-    /// is less than or equal to the given value.
-    ///
-    /// Arguments:
-    ///     value (int): Upper bound (inclusive) for the node ID.
-    ///
-    /// Returns:
-    ///     filter.FilterExpr: A filter expression evaluating a `<=` comparison.
-    fn __le__(&self, value: GID) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.0.le(value)))
-    }
-
-    /// Returns a filter expression that checks whether the node ID
-    /// is greater than the given value.
-    ///
-    /// Arguments:
-    ///     value (int): Lower bound (exclusive) for the node ID.
-    ///
-    /// Returns:
-    ///     filter.FilterExpr: A filter expression evaluating a `>` comparison.
-    fn __gt__(&self, value: GID) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.0.gt(value)))
-    }
-
-    /// Returns a filter expression that checks whether the node ID
-    /// is greater than or equal to the given value.
-    ///
-    /// Arguments:
-    ///     value (int): Lower bound (inclusive) for the node ID.
-    ///
-    /// Returns:
-    ///     filter.FilterExpr: A filter expression evaluating a `>=` comparison.
-    fn __ge__(&self, value: GID) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.0.ge(value)))
-    }
-
-    /// Returns a filter expression that checks whether the node ID
-    /// is contained within the specified iterable of IDs.
-    ///
-    /// Arguments:
-    ///     values (list[int]): Iterable of node IDs to match against.
-    ///
-    /// Returns:
-    ///     filter.FilterExpr: A filter expression evaluating membership.
-    fn is_in(&self, values: FromIterable<GID>) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.0.is_in(values)))
-    }
-
-    /// Returns a filter expression that checks whether the node ID
-    /// is **not** contained within the specified iterable of IDs.
-    ///
-    /// Arguments:
-    ///     values (list[int]): Iterable of node IDs to exclude.
-    ///
-    /// Returns:
-    ///     filter.FilterExpr: A filter expression evaluating non-membership.
-    fn is_not_in(&self, values: FromIterable<GID>) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.0.is_not_in(values)))
-    }
-
-    /// Returns a filter expression that checks whether the string
-    /// representation of the node ID starts with the given prefix.
-    ///
-    /// Arguments:
-    ///     value (str): Prefix to check for.
-    ///
-    /// Returns:
-    ///     filter.FilterExpr: A filter expression evaluating prefix matching.
-    fn starts_with(&self, value: String) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.0.starts_with(value)))
-    }
-
-    /// Returns a filter expression that checks whether the string
-    /// representation of the node ID ends with the given suffix.
-    ///
-    /// Arguments:
-    ///     value (str): Suffix to check for.
-    ///
-    /// Returns:
-    ///     filter.FilterExpr: A filter expression evaluating suffix matching.
-    fn ends_with(&self, value: String) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.0.ends_with(value)))
-    }
-
-    /// Returns a filter expression that checks whether the string
-    /// representation of the node ID contains the given substring.
-    ///
-    /// Arguments:
-    ///     value (str): Substring that must appear within the value.
-    ///
-    /// Returns:
-    ///     filter.FilterExpr: A filter expression evaluating substring search.
-    fn contains(&self, value: String) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.0.contains(value)))
-    }
-
-    /// Returns a filter expression that checks whether the string
-    /// representation of the node ID **does not** contain the given substring.
-    ///
-    /// Arguments:
-    ///     value (str): Substring that must not appear within the value.
-    ///
-    /// Returns:
-    ///     filter.FilterExpr: A filter expression evaluating substring exclusion.
-    fn not_contains(&self, value: String) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.0.not_contains(value)))
-    }
-
-    /// Returns a filter expression that performs fuzzy matching
-    /// against the string representation of the node ID.
-    ///
-    /// Uses a specified Levenshtein distance and optional prefix matching.
-    ///
-    /// Arguments:
-    ///     value (str): String to approximately match against.
-    ///     levenshtein_distance (int): Maximum allowed edit distance.
-    ///     prefix_match (bool): If true, the value must also match as a prefix.
-    ///
-    /// Returns:
-    ///     filter.FilterExpr: A filter expression performing approximate text matching.
-    fn fuzzy_search(
-        &self,
-        value: String,
-        levenshtein_distance: usize,
-        prefix_match: bool,
-    ) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.0.fuzzy_search(
-            value,
-            levenshtein_distance,
-            prefix_match,
-        )))
+impl<E: CreateOp> From<E> for PyExpr {
+    fn from(value: E) -> Self {
+        PyExpr(Arc::new(value))
     }
 }
 
-/// Filters nodes by their name.
-///
-/// Comparisons are performed on the node's string name.
-///
-/// Examples:
-///     Node.name() == "alice"
-///     Node.name().contains("ali")
-#[pyclass(frozen, name = "NodeNameFilterBuilder", module = "raphtory.filter")]
-pub struct PyNodeNameFilterBuilder;
-
-/// Filters nodes by their node type.
-///
-/// The node type corresponds to the optional type assigned at node creation.
-///
-/// Examples:
-///     Node.node_type() == "fire_nation"
-///     Node.node_type().is_not_in(["air_nomads"])
-#[pyclass(frozen, name = "NodeTypeFilterBuilder", module = "raphtory.filter")]
-pub struct PyNodeTypeFilterBuilder;
-
-macro_rules! impl_node_text_filter_builder {
-    ($py_ty:ident, $expr:expr) => {
-        #[pymethods]
-        impl $py_ty {
-            fn __eq__(&self, value: String) -> PyFilterExpr {
-                PyFilterExpr(Arc::new($expr.eq(value)))
-            }
-
-            fn __ne__(&self, value: String) -> PyFilterExpr {
-                PyFilterExpr(Arc::new($expr.ne(value)))
-            }
-
-            fn starts_with(&self, value: String) -> PyFilterExpr {
-                PyFilterExpr(Arc::new($expr.starts_with(value)))
-            }
-
-            fn ends_with(&self, value: String) -> PyFilterExpr {
-                PyFilterExpr(Arc::new($expr.ends_with(value)))
-            }
-
-            fn contains(&self, value: String) -> PyFilterExpr {
-                PyFilterExpr(Arc::new($expr.contains(value)))
-            }
-
-            fn not_contains(&self, value: String) -> PyFilterExpr {
-                PyFilterExpr(Arc::new($expr.not_contains(value)))
-            }
-
-            fn fuzzy_search(
-                &self,
-                value: String,
-                levenshtein_distance: usize,
-                prefix_match: bool,
-            ) -> PyFilterExpr {
-                PyFilterExpr(Arc::new($expr.fuzzy_search(
-                    value,
-                    levenshtein_distance,
-                    prefix_match,
-                )))
-            }
-        }
-    };
-}
-
-impl_node_text_filter_builder!(PyNodeNameFilterBuilder, Name);
-
 #[pymethods]
-impl PyNodeNameFilterBuilder {
-    fn is_in(&self, values: FromIterable<String>) -> PyFilterExpr {
-        let vals: Vec<String> = values.into_iter().collect();
-        PyFilterExpr(Arc::new(Name.is_in(vals)))
-    }
-
-    fn is_not_in(&self, values: FromIterable<String>) -> PyFilterExpr {
-        let vals: Vec<String> = values.into_iter().collect();
-        PyFilterExpr(Arc::new(Name.is_not_in(vals)))
-    }
-}
-
-impl_node_text_filter_builder!(PyNodeTypeFilterBuilder, Type);
-
-#[pymethods]
-impl PyNodeTypeFilterBuilder {
-    fn is_in(&self, values: FromIterable<String>) -> PyFilterExpr {
-        let vals: Vec<ArcStr> = values.into_iter().map(ArcStr::from).collect();
-        PyFilterExpr(Arc::new(Type.is_in(vals)))
-    }
-
-    fn is_not_in(&self, values: FromIterable<String>) -> PyFilterExpr {
-        let vals: Vec<ArcStr> = values.into_iter().map(ArcStr::from).collect();
-        PyFilterExpr(Arc::new(Type.is_not_in(vals)))
+impl PyExpr {
+    fn __eq__(&self, other: &Self) -> Self {
+        self.0.eq(&other.0).into()
     }
 }
 
@@ -310,62 +37,61 @@ impl PyNodeTypeFilterBuilder {
 /// - a view-restricted filter context, or
 /// - a boolean predicate over node state.
 #[pyclass(frozen, name = "Node", module = "raphtory.filter")]
-pub struct PyNodeFilter;
+pub struct PyNodeFilter(Arc<dyn NodeFilterFactory>);
 
 #[pymethods]
 impl PyNodeFilter {
+    #[new]
+    fn new() -> PyNodeFilter {
+        PyNodeFilter(Arc::new(NodeFilter))
+    }
+
     /// Selects the node ID field for filtering.
     ///
     /// Returns:
     ///     filter.NodeIdFilterBuilder:
-    #[staticmethod]
-    fn id() -> PyNodeIdFilterBuilder {
-        PyNodeIdFilterBuilder(NodeFilter::id())
+    fn id(&self) -> PyExpr {
+        self.0.id().into()
     }
 
     /// Selects the node name field for filtering.
     ///
     /// Returns:
     ///     filter.NodeNameFilterBuilder:
-    #[staticmethod]
-    fn name() -> PyNodeNameFilterBuilder {
-        PyNodeNameFilterBuilder
+    fn name(&self) -> PyExpr {
+        self.0.name().into()
     }
 
     /// Selects the node type field for filtering.
     ///
     /// Returns:
     ///     filter.NodeTypeFilterBuilder:
-    #[staticmethod]
-    fn node_type() -> PyNodeTypeFilterBuilder {
-        PyNodeTypeFilterBuilder
+    fn node_type(&self) -> PyExpr {
+        self.0.node_type().into()
     }
 
     /// Selects incoming node degree for filtering.
     ///
     /// Returns:
     ///     filter.FilterOps
-    #[staticmethod]
-    fn in_degree<'py>(py: Python<'py>) -> PyPropertyExprBuilder {
-        PyPropertyExprBuilder(Arc::new(NodeFilter.in_degree()))
+    fn in_degree(&self) -> PyExpr {
+        self.0.in_degree().into()
     }
 
     /// Selects total node degree for filtering.
     ///
     /// Returns:
     ///     filter.FilterOps
-    #[staticmethod]
-    fn degree<'py>(py: Python<'py>) -> PyPropertyExprBuilder {
-        PyPropertyExprBuilder(Arc::new(NodeFilter.degree()))
+    fn degree(&self) -> PyExpr {
+        self.0.degree().into()
     }
 
     /// Selects outgoing node degree for filtering.
     ///
     /// Returns:
     ///     filter.FilterOps
-    #[staticmethod]
-    fn out_degree<'py>(py: Python<'py>) -> PyPropertyExprBuilder {
-        PyPropertyExprBuilder(Arc::new(NodeFilter.out_degree()))
+    fn out_degree(&self) -> PyExpr {
+        self.0.out_degree().into()
     }
 
     /// Filters a node property by name.
@@ -377,14 +103,8 @@ impl PyNodeFilter {
     ///
     /// Returns:
     ///     filter.PropertyFilterOps:
-    #[staticmethod]
-    fn property<'py>(
-        py: Python<'py>,
-        name: String,
-    ) -> PyResult<Bound<'py, PyPropertyFilterBuilder>> {
-        let b: PropertyFilterBuilder<NodeFilter> =
-            PropertyFilterFactory::property(&NodeFilter, name);
-        b.into_pyobject(py)
+    fn property(&self, name: String) -> PyExpr {
+        self.0.property(name).into()
     }
 
     /// Filters a node metadata field by name.
@@ -396,11 +116,8 @@ impl PyNodeFilter {
     ///
     /// Returns:
     ///     filter.FilterOps:
-    #[staticmethod]
-    fn metadata<'py>(py: Python<'py>, name: String) -> PyResult<Bound<'py, PyPropertyExprBuilder>> {
-        let b: MetadataFilterBuilder<NodeFilter> =
-            PropertyFilterFactory::metadata(&NodeFilter, name);
-        b.into_pyobject(py)
+    fn metadata(&self, name: String) -> PyExpr {
+        self.0.metadata(name).into()
     }
 
     /// Restricts node evaluation to the given time window.
@@ -413,9 +130,8 @@ impl PyNodeFilter {
     ///
     /// Returns:
     ///     filter.NodeViewPropsFilterBuilder:
-    #[staticmethod]
-    fn window(start: EventTime, end: EventTime) -> PyNodeViewPropsFilterBuilder {
-        PyNodeViewPropsFilterBuilder(Arc::new(NodeFilter.window(start, end)))
+    fn window(&self, start: EventTime, end: EventTime) -> PyNodeFilter {
+        self.0.window(start, end).into()
     }
 
     /// Restricts node evaluation to a single point in time.
@@ -425,9 +141,8 @@ impl PyNodeFilter {
     ///
     /// Returns:
     ///     filter.NodeViewPropsFilterBuilder:
-    #[staticmethod]
-    fn at(time: EventTime) -> PyNodeViewPropsFilterBuilder {
-        PyNodeViewPropsFilterBuilder(Arc::new(NodeFilter.at(time)))
+    fn at(&self, time: EventTime) -> PyNodeFilter {
+        self.0.at(time).into()
     }
 
     /// Restricts node evaluation to times strictly after the given time.
@@ -437,9 +152,8 @@ impl PyNodeFilter {
     ///
     /// Returns:
     ///     filter.NodeViewPropsFilterBuilder:
-    #[staticmethod]
-    fn after(time: EventTime) -> PyNodeViewPropsFilterBuilder {
-        PyNodeViewPropsFilterBuilder(Arc::new(NodeFilter.after(time)))
+    fn after(&self, time: EventTime) -> PyNodeFilter {
+        self.0.after(time).into()
     }
 
     /// Restricts node evaluation to times strictly before the given time.
@@ -449,18 +163,16 @@ impl PyNodeFilter {
     ///
     /// Returns:
     ///     filter.NodeViewPropsFilterBuilder:
-    #[staticmethod]
-    fn before(time: EventTime) -> PyNodeViewPropsFilterBuilder {
-        PyNodeViewPropsFilterBuilder(Arc::new(NodeFilter.before(time)))
+    fn before(&self, time: EventTime) -> PyNodeFilter {
+        self.0.before(time).into()
     }
 
     /// Evaluates filters against the latest available state of each node.
     ///
     /// Returns:
     ///     filter.NodeViewPropsFilterBuilder:
-    #[staticmethod]
-    fn latest() -> PyNodeViewPropsFilterBuilder {
-        PyNodeViewPropsFilterBuilder(Arc::new(NodeFilter.latest()))
+    fn latest(&self) -> PyNodeFilter {
+        self.0.latest().into()
     }
 
     /// Evaluates filters against a snapshot of the graph at a given time.
@@ -470,18 +182,16 @@ impl PyNodeFilter {
     ///
     /// Returns:
     ///     filter.NodeViewPropsFilterBuilder:
-    #[staticmethod]
-    fn snapshot_at(time: EventTime) -> PyNodeViewPropsFilterBuilder {
-        PyNodeViewPropsFilterBuilder(Arc::new(NodeFilter.snapshot_at(time)))
+    fn snapshot_at(&self, time: EventTime) -> PyNodeFilter {
+        self.0.snapshot_at(time).into()
     }
 
     /// Evaluates filters against the most recent snapshot of the graph.
     ///
     /// Returns:
     ///     filter.NodeViewPropsFilterBuilder:
-    #[staticmethod]
-    fn snapshot_latest() -> PyNodeViewPropsFilterBuilder {
-        PyNodeViewPropsFilterBuilder(Arc::new(NodeFilter.snapshot_latest()))
+    fn snapshot_latest(&self) -> PyNodeFilter {
+        self.0.snapshot_latest().into()
     }
 
     /// Restricts evaluation to nodes belonging to the given layer.
@@ -491,9 +201,8 @@ impl PyNodeFilter {
     ///
     /// Returns:
     ///     filter.NodeViewPropsFilterBuilder:
-    #[staticmethod]
-    fn layer(layer: String) -> PyNodeViewPropsFilterBuilder {
-        PyNodeViewPropsFilterBuilder(Arc::new(NodeFilter.layer(layer)))
+    fn layer(&self, layer: String) -> PyNodeFilter {
+        self.0.layer(layer).into()
     }
 
     /// Restricts evaluation to nodes belonging to any of the given layers.
@@ -503,18 +212,16 @@ impl PyNodeFilter {
     ///
     /// Returns:
     ///     filter.NodeViewPropsFilterBuilder:
-    #[staticmethod]
-    fn layers(layers: FromIterable<String>) -> PyNodeViewPropsFilterBuilder {
-        PyNodeViewPropsFilterBuilder(Arc::new(NodeFilter.layer(layers)))
+    fn layers(&self, layers: FromIterable<String>) -> PyNodeFilter {
+        self.0.layer(layers).into()
     }
 
     /// Matches nodes that have at least one event in the current view.
     ///
     /// Returns:
     ///     filter.FilterExpr:
-    #[staticmethod]
-    fn is_active() -> PyFilterExpr {
-        PyFilterExpr(Arc::new(NodeFilter.is_active()))
+    fn is_active(&self) -> PyNodeFilter {
+        self.0.is_active().into()
     }
 
     /// Build a node filter from a boolean column of an existing node-state result.
@@ -525,10 +232,9 @@ impl PyNodeFilter {
     ///
     /// Returns:
     ///     filter.FilterExpr:
-    #[staticmethod]
-    fn by_state_column(state: &PyOutputNodeState, col: String) -> PyResult<PyFilterExpr> {
+    fn by_state_column(&self, state: &PyOutputNodeState, col: String) -> PyResult<PyExpr> {
         let op = NodeStateBoolColOp::new(&state.inner, &col)
             .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
-        Ok(PyFilterExpr(Arc::new(op)))
+        Ok(PyExpr(Arc::new(op)))
     }
 }

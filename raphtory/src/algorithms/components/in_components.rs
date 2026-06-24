@@ -91,7 +91,6 @@ pub fn in_components_filtered<G, F>(
 where
     G: StaticGraphViewOps,
     F: CreateFilter + 'static,
-    F::EntityFiltered<'static, F::FilteredGraph<'static, G>>: StaticGraphViewOps,
 {
     let filtered = g.filter(filter)?;
     let ctx: Context<_, _> = (&filtered).into();
@@ -192,7 +191,6 @@ pub fn in_component_filtered<'graph, G, F>(
 where
     G: GraphViewOps<'graph>,
     F: CreateFilter + 'graph,
-    F::EntityFiltered<'graph, F::FilteredGraph<'graph, G>>: GraphViewOps<'graph>,
 {
     let mut in_components = HashMap::new();
     let mut to_check_stack = VecDeque::new();

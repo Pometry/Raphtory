@@ -217,8 +217,14 @@ impl<'g> EdgeOp for PropValueSetEdgeOp<'g> {
         match self.inner.apply(storage, edge) {
             None => false,
             Some(v) => match self.op {
-                SetOp::IsIn => self.values.iter().any(|x| Prop::binary_cmp(&BinaryOp::Eq, x, &v)),
-                SetOp::IsNotIn => self.values.iter().all(|x| Prop::binary_cmp(&BinaryOp::Ne, x, &v)),
+                SetOp::IsIn => self
+                    .values
+                    .iter()
+                    .any(|x| Prop::binary_cmp(&BinaryOp::Eq, x, &v)),
+                SetOp::IsNotIn => self
+                    .values
+                    .iter()
+                    .all(|x| Prop::binary_cmp(&BinaryOp::Ne, x, &v)),
             },
         }
     }
@@ -318,8 +324,12 @@ impl<'g> EdgeOp for ListAwareSetEdgeOp<'g> {
         broadcast_unary(vals, |v| {
             let v = v?;
             Some(Prop::Bool(match op {
-                SetOp::IsIn => values.iter().any(|x| Prop::binary_cmp(&BinaryOp::Eq, x, &v)),
-                SetOp::IsNotIn => values.iter().all(|x| Prop::binary_cmp(&BinaryOp::Ne, x, &v)),
+                SetOp::IsIn => values
+                    .iter()
+                    .any(|x| Prop::binary_cmp(&BinaryOp::Eq, x, &v)),
+                SetOp::IsNotIn => values
+                    .iter()
+                    .all(|x| Prop::binary_cmp(&BinaryOp::Ne, x, &v)),
             }))
         })
     }
@@ -339,7 +349,10 @@ pub(crate) struct AndBoolEdgeOp<'g> {
 
 impl<'g> Clone for AndBoolEdgeOp<'g> {
     fn clone(&self) -> Self {
-        Self { left: self.left.clone(), right: self.right.clone() }
+        Self {
+            left: self.left.clone(),
+            right: self.right.clone(),
+        }
     }
 }
 
@@ -364,7 +377,10 @@ pub(crate) struct OrBoolEdgeOp<'g> {
 
 impl<'g> Clone for OrBoolEdgeOp<'g> {
     fn clone(&self) -> Self {
-        Self { left: self.left.clone(), right: self.right.clone() }
+        Self {
+            left: self.left.clone(),
+            right: self.right.clone(),
+        }
     }
 }
 

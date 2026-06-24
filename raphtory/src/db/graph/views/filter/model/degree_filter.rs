@@ -55,12 +55,6 @@ impl CreateFilter for DegreeFilter {
 
     type NodeFilter<'graph, G: GraphView + 'graph> = NodeDegreeFilterOp<G>;
 
-    type FilteredGraph<'graph, G>
-        = G
-    where
-        Self: 'graph,
-        G: GraphViewOps<'graph>;
-
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
         graph: G,

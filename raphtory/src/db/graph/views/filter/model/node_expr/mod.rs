@@ -8,6 +8,7 @@ use crate::{
 use raphtory_api::core::entities::properties::prop::{Prop, PropType};
 use std::sync::Arc;
 
+pub mod dyn_expr;
 pub mod exprs;
 pub mod filters;
 pub mod ops;
@@ -17,6 +18,7 @@ mod tests;
 
 pub use super::{Metadata, Property};
 use crate::db::graph::views::filter::model::{edge_expr::EdgeOp, node_filter::NodeFilter};
+pub use dyn_expr::*;
 pub use exprs::*;
 pub use filters::*;
 pub use ops::*;
@@ -43,22 +45,29 @@ pub use ops::*;
 /// NodeFilter.property("score").temporal().gt(10i64).any()
 /// ```
 ///
-pub trait NodeExpr: EntityExpr + Clone + Send + Sync + 'static {
+pub trait CreateOp: EntityExpr + Clone + Send + Sync + 'static {
     /// Compile the expression against a specific graph view.
     ///
     /// Any name→ID resolution (property, metadata) happens here, once.
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
-        graph: G,
-    ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError>;
+        _graph: G,
+    ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
+        Err(GraphError::NotNodeFilter)
+    }
+
+    fn create_edge_op<'g, G: GraphView + 'g>(
+        &self,
+        _graph: G,
+    ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
+        Err(GraphError::NotEdgeFilter)
+    }
 }
 
 pub trait EntityExpr: Clone + Send + Sync + 'static {
-    type Marker: Copy + Default + 'static;
+    type Marker: Copy + 'static;
 
-    fn entity() -> Self::Marker {
-        Self::Marker::default()
-    }
+    fn entity(&self) -> Self::Marker;
 
     /// A priory known type (for early validation where possible)
     fn prop_type(&self) -> PropType {
@@ -75,4 +84,3 @@ pub trait EntityExpr: Clone + Send + Sync + 'static {
         true
     }
 }
-

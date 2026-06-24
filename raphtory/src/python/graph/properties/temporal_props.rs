@@ -225,7 +225,7 @@ impl From<DynTemporalProperty> for PyTemporalPropCmp {
     }
 }
 
-py_eq!(Py PyTemporalPropCmp);
+py_eq!(PyTemporalProp, PyTemporalPropCmp);
 
 #[pymethods]
 impl PyTemporalProp {

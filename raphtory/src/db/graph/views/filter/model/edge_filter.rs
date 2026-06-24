@@ -7,7 +7,7 @@ use crate::{
         graph::views::filter::{
             edge_node_filtered_graph::EdgeNodeFilteredGraph,
             model::{
-                edge_expr::{ops::EdgeEndpointNodeOp, EdgeExpr, EdgeOp},
+                edge_expr::{ops::EdgeEndpointNodeOp, EdgeOp},
                 exploded_edge_filter::{CompositeExplodedEdgeFilter, ExplodedEdgeFilter},
                 is_active_edge_filter::IsActiveEdge,
                 is_deleted_filter::IsDeletedEdge,
@@ -15,19 +15,18 @@ use crate::{
                 is_valid_filter::IsValidEdge,
                 latest_filter::Latest,
                 layered_filter::Layered,
-                node_expr::{EntityExpr, NodeExpr},
+                node_expr::{CreateOp, EntityExpr},
                 node_filter::{
                     builders::InternalNodeFilterBuilder, CompositeNodeFilter, NodeFilter,
                 },
                 property_filter::PropertyFilter,
                 snapshot_filter::{SnapshotAt, SnapshotLatest},
                 windowed_filter::Windowed,
-                AllExpr, AndFilter, AnyExpr, AvgExpr, CombinedFilter, ComposableFilter,
-                CreateView, EdgeFilterFactory, EdgeViewFilterOps, EntityAggOps,
-                EntityExprFilterOps, EntityMarker, FirstExpr, InternalViewWrapOps,
-                LastExpr, LenExpr, MaxExpr, MetadataExpr, MinExpr, NotFilter, OrFilter,
-                PropertyExpr, PropertyFilterFactory, SumExpr, TemporalExpr,
-                TryAsCompositeFilter, Wrap,
+                AllExpr, AndFilter, AnyExpr, AvgExpr, CombinedFilter, ComposableFilter, CreateView,
+                EdgeFilterFactory, EdgeViewFilterOps, EntityAggOps,
+                EntityMarker, FirstExpr, InternalViewWrapOps, LastExpr, LenExpr, MaxExpr,
+                MetadataExpr, MinExpr, NotFilter, OrFilter, PropertyExpr, PropertyFilterFactory,
+                SumExpr, TemporalPropExpr, TryAsCompositeFilter, Wrap,
             },
             CreateFilter,
         },
@@ -36,7 +35,7 @@ use crate::{
     prelude::GraphViewOps,
 };
 use raphtory_api::core::{
-    entities::{properties::prop::Prop, GID},
+    entities::properties::prop::Prop,
     storage::timeindex::EventTime,
 };
 use std::{fmt, fmt::Display, sync::Arc};
@@ -152,66 +151,74 @@ impl EdgeEndpointWrapper<NodeFilter> {
     }
 
     #[inline]
-    pub fn property(&self, name: impl Into<String>) -> EdgeEndpointWrapper<PropertyExpr<NodeFilter>> {
+    pub fn property(
+        &self,
+        name: impl Into<String>,
+    ) -> EdgeEndpointWrapper<PropertyExpr<NodeFilter>> {
         EdgeEndpointWrapper::new(NodeFilter.property(name), self.endpoint)
     }
 
     #[inline]
-    pub fn metadata(&self, name: impl Into<String>) -> EdgeEndpointWrapper<MetadataExpr<NodeFilter>> {
+    pub fn metadata(
+        &self,
+        name: impl Into<String>,
+    ) -> EdgeEndpointWrapper<MetadataExpr<NodeFilter>> {
         EdgeEndpointWrapper::new(NodeFilter.metadata(name), self.endpoint)
     }
 }
 
 impl<E: CreateView + Clone + Send + Sync + 'static> EdgeEndpointWrapper<PropertyExpr<E>> {
     #[inline]
-    pub fn temporal(&self) -> EdgeEndpointWrapper<TemporalExpr<E>> {
+    pub fn temporal(&self) -> EdgeEndpointWrapper<TemporalPropExpr<E>> {
         EdgeEndpointWrapper::new(self.inner.temporal(), self.endpoint)
     }
 }
 
-impl<E: CreateView + EntityExpr + Clone + Send + Sync + 'static> EdgeEndpointWrapper<TemporalExpr<E>> {
+impl<E: CreateView + EntityExpr + Clone + Send + Sync + 'static>
+    EdgeEndpointWrapper<TemporalPropExpr<E>>
+{
     #[inline]
-    pub fn sum(self) -> EdgeEndpointWrapper<SumExpr<TemporalExpr<E>>> {
+    pub fn sum(self) -> EdgeEndpointWrapper<SumExpr<TemporalPropExpr<E>>> {
         let endpoint = self.endpoint;
         EdgeEndpointWrapper::new(self.inner.sum(), endpoint)
     }
     #[inline]
-    pub fn avg(self) -> EdgeEndpointWrapper<AvgExpr<TemporalExpr<E>>> {
+    pub fn avg(self) -> EdgeEndpointWrapper<AvgExpr<TemporalPropExpr<E>>> {
         let endpoint = self.endpoint;
         EdgeEndpointWrapper::new(self.inner.avg(), endpoint)
     }
     #[inline]
-    pub fn min(self) -> EdgeEndpointWrapper<MinExpr<TemporalExpr<E>>> {
+    pub fn min(self) -> EdgeEndpointWrapper<MinExpr<TemporalPropExpr<E>>> {
         let endpoint = self.endpoint;
         EdgeEndpointWrapper::new(self.inner.min(), endpoint)
     }
     #[inline]
-    pub fn max(self) -> EdgeEndpointWrapper<MaxExpr<TemporalExpr<E>>> {
+    pub fn max(self) -> EdgeEndpointWrapper<MaxExpr<TemporalPropExpr<E>>> {
         let endpoint = self.endpoint;
         EdgeEndpointWrapper::new(self.inner.max(), endpoint)
     }
     #[inline]
-    pub fn first(self) -> EdgeEndpointWrapper<FirstExpr<TemporalExpr<E>>> {
+    pub fn first(self) -> EdgeEndpointWrapper<FirstExpr<TemporalPropExpr<E>>> {
         let endpoint = self.endpoint;
         EdgeEndpointWrapper::new(self.inner.first(), endpoint)
     }
     #[inline]
-    pub fn last(self) -> EdgeEndpointWrapper<LastExpr<TemporalExpr<E>>> {
+    pub fn last(self) -> EdgeEndpointWrapper<LastExpr<TemporalPropExpr<E>>> {
         let endpoint = self.endpoint;
         EdgeEndpointWrapper::new(self.inner.last(), endpoint)
     }
     #[inline]
-    pub fn len(self) -> EdgeEndpointWrapper<LenExpr<TemporalExpr<E>>> {
+    pub fn len(self) -> EdgeEndpointWrapper<LenExpr<TemporalPropExpr<E>>> {
         let endpoint = self.endpoint;
         EdgeEndpointWrapper::new(self.inner.len(), endpoint)
     }
     #[inline]
-    pub fn any(self) -> EdgeEndpointWrapper<AnyExpr<TemporalExpr<E>>> {
+    pub fn any(self) -> EdgeEndpointWrapper<AnyExpr<TemporalPropExpr<E>>> {
         let endpoint = self.endpoint;
         EdgeEndpointWrapper::new(AnyExpr(self.inner), endpoint)
     }
     #[inline]
-    pub fn all(self) -> EdgeEndpointWrapper<AllExpr<TemporalExpr<E>>> {
+    pub fn all(self) -> EdgeEndpointWrapper<AllExpr<TemporalPropExpr<E>>> {
         let endpoint = self.endpoint;
         EdgeEndpointWrapper::new(AllExpr(self.inner), endpoint)
     }
@@ -219,15 +226,21 @@ impl<E: CreateView + EntityExpr + Clone + Send + Sync + 'static> EdgeEndpointWra
 
 impl<T: EntityExpr> EntityExpr for EdgeEndpointWrapper<T> {
     type Marker = EdgeFilter;
+    fn entity(&self) -> Self::Marker {
+        EdgeFilter
+    }
 }
 
-impl<T: NodeExpr> EdgeExpr for EdgeEndpointWrapper<T> {
+impl<T: CreateOp> CreateOp for EdgeEndpointWrapper<T> {
     fn create_edge_op<'g, G: GraphView + 'g>(
         &self,
         graph: G,
     ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
         let node_op = self.inner.create_node_op(graph)?;
-        Ok(Arc::new(EdgeEndpointNodeOp { node_op, endpoint: self.endpoint }))
+        Ok(Arc::new(EdgeEndpointNodeOp {
+            node_op,
+            endpoint: self.endpoint,
+        }))
     }
 }
 
@@ -263,12 +276,6 @@ impl<T: CreateFilter + Clone + 'static> CreateFilter for EdgeEndpointWrapper<T> 
     where
         Self: 'graph,
         G: GraphView + 'graph;
-
-    type FilteredGraph<'graph, G>
-        = G
-    where
-        Self: 'graph,
-        G: GraphViewOps<'graph>;
 
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
@@ -361,12 +368,6 @@ impl CreateFilter for CompositeEdgeFilter {
     where
         Self: 'graph,
         G: GraphView + 'graph;
-
-    type FilteredGraph<'graph, G>
-        = Arc<dyn BoxableGraphView + 'graph>
-    where
-        Self: 'graph,
-        G: GraphViewOps<'graph>;
 
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,

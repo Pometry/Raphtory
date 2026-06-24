@@ -20,10 +20,7 @@
 //! ```
 
 use crate::{
-    db::{
-        api::view::internal::GraphView,
-        graph::views::filter::model::node_expr::EntityExpr,
-    },
+    db::{api::view::internal::GraphView, graph::views::filter::model::node_expr::EntityExpr},
     errors::GraphError,
 };
 use raphtory_api::core::entities::{
@@ -37,9 +34,8 @@ pub mod exprs;
 pub mod filters;
 pub mod ops;
 
-pub use exprs::*;
-pub use filters::*;
 pub use super::{Metadata, Property};
+pub use filters::*;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // EdgeOp — compiled evaluator: EdgeRef → typed value
@@ -57,27 +53,3 @@ pub trait EdgeOp: Send + Sync {
         PropType::Empty
     }
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// EdgeExpr — typed expression describing what to compute per edge
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// A typed expression that produces a value per edge.
-///
-/// Parallel to [`NodeExpr`] — all expressions produce `Option<Prop>`; no associated output type.
-///
-/// Usage:
-/// ```rust,ignore
-/// EdgeFilter.property("weight").gt(5.0f64)
-/// EdgeFilter.property("tag").temporal().sum().gt(100i64)
-/// EdgeFilter.property("label").temporal().into_expr().contains("foo").any()
-/// ```
-pub(crate) trait EdgeExpr: EntityExpr + Clone + Send + Sync + 'static {
-    fn create_edge_op<'g, G: GraphView + 'g>(
-        &self,
-        graph: G,
-    ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError>;
-}
-
-
-

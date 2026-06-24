@@ -66,12 +66,6 @@ impl CreateFilter for PyFilterExpr {
     where
         Self: 'graph;
 
-    type FilteredGraph<'graph, G>
-        = Arc<dyn BoxableGraphView + 'graph>
-    where
-        Self: 'graph,
-        G: GraphViewOps<'graph>;
-
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
         graph: G,

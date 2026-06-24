@@ -188,8 +188,7 @@ pub mod test_filters_node_subgraph {
         };
         use raphtory_api::core::entities::properties::prop::Prop;
         use raphtory_tests::assertions::{
-            assert_filter_nodes_results, TestGraphVariants,
-            TestVariants,
+            assert_filter_nodes_results, TestGraphVariants, TestVariants,
         };
 
         fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
@@ -306,9 +305,7 @@ pub mod test_filters_node_subgraph {
             prelude::{AdditionOps, EdgeFilter},
         };
         use raphtory_api::core::entities::properties::prop::Prop;
-        use raphtory_tests::assertions::{
-            assert_filter_edges_results, TestVariants,
-        };
+        use raphtory_tests::assertions::{assert_filter_edges_results, TestVariants};
 
         use crate::test_filters_node_subgraph::{
             NodeSubgraphTransformer, WindowedNodeSubgraphTransformer,

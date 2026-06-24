@@ -254,8 +254,7 @@ mod test_filters_node_type_filtered_subgraph {
             db::graph::views::filter::model::PropertyFilterFactory, prelude::NodeFilter,
         };
         use raphtory_tests::assertions::{
-            assert_filter_nodes_results, TestGraphVariants,
-            TestVariants,
+            assert_filter_nodes_results, TestGraphVariants, TestVariants,
         };
         #[test]
         fn test_nodes_filters() {
@@ -456,9 +455,7 @@ mod test_filters_node_type_filtered_subgraph {
             db::graph::views::filter::model::PropertyFilterFactory, prelude::EdgeFilter,
         };
 
-        use raphtory_tests::assertions::{
-            assert_filter_edges_results, TestVariants,
-        };
+        use raphtory_tests::assertions::{assert_filter_edges_results, TestVariants};
         #[test]
         fn test_edges_filters() {
             let filter = EdgeFilter.property("p1").eq(1u64);

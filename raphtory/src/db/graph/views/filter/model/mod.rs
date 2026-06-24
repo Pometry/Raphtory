@@ -15,12 +15,9 @@ pub use crate::{
                         UnaryOp,
                     },
                     node_expr::{
-                        AllExpr, AnyExpr, AvgExpr, BinaryCmpExpr,
-                        EntityAggOps, EntityExprFilterOps, FirstExpr,
-                        LastExpr, LenExpr, MaxExpr, MinExpr,
-                        PropValueSetExpr, StringExpr, SumExpr,
-                        TemporalExpr,
-                        UnaryExpr,
+                        AllExpr, AnyExpr, AvgExpr, BinaryCmpExpr, EntityAggOps,
+                        EntityExprFilterOps, FirstExpr, LastExpr, LenExpr, MaxExpr, MinExpr,
+                        PropValueSetExpr, StringExpr, SumExpr, TemporalPropExpr, UnaryExpr,
                     },
                     node_filter::{NodeFilter, NodeFilterFactory},
                     not_filter::NotFilter,
@@ -73,7 +70,10 @@ use crate::{
 pub use node_filter::CompositeNodeFilter;
 use raphtory_api::core::{
     entities::{properties::prop::Prop, Layer},
-    storage::{arc_str::ArcStr, timeindex::{AsTime, EventTime}},
+    storage::{
+        arc_str::ArcStr,
+        timeindex::{AsTime, EventTime},
+    },
     utils::time::IntoTime,
 };
 use std::{marker::PhantomData, ops::Deref, sync::Arc};
@@ -117,11 +117,6 @@ impl CreateFilter for NoFilter {
     where
         Self: 'graph,
         G: GraphView + 'graph;
-    type FilteredGraph<'graph, G>
-        = G
-    where
-        Self: 'graph,
-        G: GraphViewOps<'graph>;
 
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
@@ -222,12 +217,6 @@ impl<T: DynCreateFilter + ?Sized + 'static> CreateFilter for Arc<T> {
 
     type NodeFilter<'graph, G: GraphView + 'graph> = Arc<dyn NodeOp<Output = bool> + 'graph>;
 
-    type FilteredGraph<'graph, G>
-        = Arc<dyn BoxableGraphView + 'graph>
-    where
-        Self: 'graph,
-        G: GraphViewOps<'graph>;
-
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
         graph: G,
@@ -290,12 +279,15 @@ pub struct PropertyExpr<E> {
 
 impl<E: EntityExpr> EntityExpr for PropertyExpr<E> {
     type Marker = E::Marker;
+
+    fn entity(&self) -> Self::Marker {
+        self.view_expr.entity()
+    }
 }
 
-impl<E: EntityExpr + CreateView + NodeFilterFactory + Clone + Send + Sync + 'static> NodeExpr
+impl<E: EntityExpr + CreateView + NodeFilterFactory + Clone + Send + Sync + 'static> CreateOp
     for PropertyExpr<E>
 {
-
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
         graph: G,
@@ -307,6 +299,18 @@ impl<E: EntityExpr + CreateView + NodeFilterFactory + Clone + Send + Sync + 'sta
         let graph = self.view_expr.create_view(graph)?;
         Ok(Arc::new(NodePropOp { graph, prop_id }))
     }
+
+    fn create_edge_op<'g, G: GraphView + 'g>(
+        &self,
+        graph: G,
+    ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
+        let prop_id = graph
+            .edge_meta()
+            .get_prop_id(&self.name, false)
+            .ok_or_else(|| GraphError::PropertyMissingError(self.name.clone()))?;
+        let graph = self.view_expr.create_view(graph)?;
+        Ok(Arc::new(EdgePropOp { graph, prop_id }))
+    }
 }
 
 #[derive(Clone)]
@@ -317,9 +321,12 @@ pub struct MetadataExpr<E> {
 
 impl<E: EntityExpr> EntityExpr for MetadataExpr<E> {
     type Marker = E::Marker;
+    fn entity(&self) -> Self::Marker {
+        self.view_expr.entity()
+    }
 }
 
-impl<E: EntityExpr + CreateView + NodeFilterFactory + Clone + Send + Sync + 'static> NodeExpr
+impl<E: EntityExpr + CreateView + NodeFilterFactory + Clone + Send + Sync + 'static> CreateOp
     for MetadataExpr<E>
 {
     fn create_node_op<'g, G: GraphView + 'g>(
@@ -332,6 +339,18 @@ impl<E: EntityExpr + CreateView + NodeFilterFactory + Clone + Send + Sync + 'sta
             .ok_or_else(|| GraphError::PropertyMissingError(self.name.clone()))?;
         let graph = self.view_expr.create_view(graph)?;
         Ok(Arc::new(NodeMetaOp { graph, prop_id }))
+    }
+
+    fn create_edge_op<'g, G: GraphView + 'g>(
+        &self,
+        graph: G,
+    ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
+        let prop_id = graph
+            .edge_meta()
+            .get_prop_id(&self.name, true)
+            .ok_or_else(|| GraphError::MetadataMissingError(self.name.clone()))?;
+        let graph = self.view_expr.create_view(graph)?;
+        Ok(Arc::new(EdgeMetaOp { graph, prop_id }))
     }
 }
 
@@ -433,8 +452,8 @@ where
 }
 
 impl<E: CreateView + Clone + Send + Sync + 'static> PropertyExpr<E> {
-    pub fn temporal(&self) -> TemporalExpr<E> {
-        TemporalExpr {
+    pub fn temporal(&self) -> TemporalPropExpr<E> {
+        TemporalPropExpr {
             view_expr: self.view_expr.clone(),
             name: self.name.clone(),
         }
@@ -455,43 +474,11 @@ pub trait EdgeFilterFactory: PropertyFilterFactory + Clone {}
 // PropertyExpr<E> / MetadataExpr<E> — EdgeExpr impls
 // ─────────────────────────────────────────────────────────────────────────────
 
-use edge_expr::{
-    EdgeExpr, EdgeOp
+use crate::db::graph::views::filter::model::{
+    edge_expr::ops::{EdgeMetaOp, EdgePropOp},
+    node_expr::{CreateOp, EntityExpr},
 };
-use crate::db::graph::views::filter::model::edge_expr::ops::{EdgeMetaOp, EdgePropOp};
-use crate::db::graph::views::filter::model::node_expr::{EntityExpr, NodeExpr};
-
-impl<E: EntityExpr + CreateView + EdgeFilterFactory + Clone + Send + Sync + 'static> EdgeExpr
-    for PropertyExpr<E>
-{
-    fn create_edge_op<'g, G: GraphView + 'g>(
-        &self,
-        graph: G,
-    ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        let prop_id = graph
-            .edge_meta()
-            .get_prop_id(&self.name, false)
-            .ok_or_else(|| GraphError::PropertyMissingError(self.name.clone()))?;
-        let graph = self.view_expr.create_view(graph)?;
-        Ok(Arc::new(EdgePropOp { graph, prop_id }))
-    }
-}
-
-impl<E: EntityExpr + CreateView + EdgeFilterFactory + Clone + Send + Sync + 'static> EdgeExpr
-    for MetadataExpr<E>
-{
-    fn create_edge_op<'g, G: GraphView + 'g>(
-        &self,
-        graph: G,
-    ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        let prop_id = graph
-            .edge_meta()
-            .get_prop_id(&self.name, true)
-            .ok_or_else(|| GraphError::MetadataMissingError(self.name.clone()))?;
-        let graph = self.view_expr.create_view(graph)?;
-        Ok(Arc::new(EdgeMetaOp { graph, prop_id }))
-    }
-}
+use edge_expr::EdgeOp;
 
 pub trait TryAsCompositeFilter: Send + Sync {
     fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError>;
@@ -667,6 +654,9 @@ impl CreateView for NodeFilter {
 
 impl EntityExpr for NodeFilter {
     type Marker = NodeFilter;
+    fn entity(&self) -> Self::Marker {
+        NodeFilter
+    }
 }
 
 impl CreateView for EdgeFilter {
@@ -682,6 +672,9 @@ impl CreateView for EdgeFilter {
 
 impl EntityExpr for EdgeFilter {
     type Marker = EdgeFilter;
+    fn entity(&self) -> Self::Marker {
+        EdgeFilter
+    }
 }
 
 impl CreateView for ExplodedEdgeFilter {
@@ -696,27 +689,45 @@ impl CreateView for ExplodedEdgeFilter {
 }
 
 impl EntityExpr for ExplodedEdgeFilter {
-    type Marker = EdgeFilter;
+    type Marker = ExplodedEdgeFilter;
+    fn entity(&self) -> Self::Marker {
+        ExplodedEdgeFilter
+    }
 }
 
 impl<T: EntityExpr> EntityExpr for Windowed<T> {
     type Marker = T::Marker;
+    fn entity(&self) -> Self::Marker {
+        self.inner.entity()
+    }
 }
 
 impl<T: EntityExpr> EntityExpr for Layered<T> {
     type Marker = T::Marker;
+    fn entity(&self) -> Self::Marker {
+        self.inner.entity()
+    }
 }
 
 impl<T: EntityExpr> EntityExpr for Latest<T> {
     type Marker = T::Marker;
+    fn entity(&self) -> Self::Marker {
+        self.inner.entity()
+    }
 }
 
 impl<T: EntityExpr> EntityExpr for SnapshotAt<T> {
     type Marker = T::Marker;
+    fn entity(&self) -> Self::Marker {
+        self.inner.entity()
+    }
 }
 
 impl<T: EntityExpr> EntityExpr for SnapshotLatest<T> {
     type Marker = T::Marker;
+    fn entity(&self) -> Self::Marker {
+        self.inner.entity()
+    }
 }
 
 impl<T: CreateView> CreateView for Layered<T> {
@@ -936,4 +947,3 @@ impl EdgeViewFilterOps for DynEdgeViewProps {
         self.deref().dyn_is_self_loop()
     }
 }
-

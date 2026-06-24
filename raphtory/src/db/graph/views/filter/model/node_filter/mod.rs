@@ -22,15 +22,14 @@ use crate::{
                 is_active_node_filter::IsActiveNode,
                 latest_filter::Latest,
                 layered_filter::Layered,
-                node_expr::{DegreeExpr, Metadata, Property},
+                node_expr::DegreeExpr,
                 node_filter::validate::validate,
-                node_state_filter::NodeStateBoolColOp
-                ,
+                node_state_filter::NodeStateBoolColOp,
                 snapshot_filter::{SnapshotAt, SnapshotLatest},
-                windowed_filter::Windowed
-                , CombinedFilter, ComposableFilter, CompositeExplodedEdgeFilter,
-                CreateView, EntityMarker, InternalViewWrapOps, NodeViewFilterOps
-                , PropertyFilterFactory, TryAsCompositeFilter, Wrap,
+                windowed_filter::Windowed,
+                CombinedFilter, ComposableFilter, CompositeExplodedEdgeFilter, CreateView,
+                EntityMarker, InternalViewWrapOps, NodeViewFilterOps, PropertyFilterFactory,
+                TryAsCompositeFilter, Wrap,
             },
             node_filtered_graph::NodeFilteredGraph,
             CreateFilter,
@@ -86,6 +85,7 @@ pub trait NodeFilterFactory: PropertyFilterFactory + Clone {
     where
         V: NodeStateValue + 'graph,
         T: Clone + Send + Sync + 'graph,
+        Self: Sized,
     {
         state.bool_col_filter(col)
     }
@@ -184,12 +184,6 @@ impl CreateFilter for NodeIdFilter {
 
     type NodeFilter<'graph, G: GraphView + 'graph> = NodeIdFilterOp;
 
-    type FilteredGraph<'graph, G>
-        = G
-    where
-        Self: 'graph,
-        G: GraphViewOps<'graph>;
-
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
         graph: G,
@@ -245,12 +239,6 @@ impl CreateFilter for NodeNameFilter {
 
     type NodeFilter<'graph, G: GraphView + 'graph> = NodeNameFilterOp;
 
-    type FilteredGraph<'graph, G>
-        = G
-    where
-        Self: 'graph,
-        G: GraphViewOps<'graph>;
-
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
         graph: G,
@@ -303,12 +291,6 @@ impl CreateFilter for NodeTypeFilter {
     type EntityFiltered<'graph, G: GraphViewOps<'graph>> = NodeFilteredGraph<G, NodeTypeFilterOp>;
 
     type NodeFilter<'graph, G: GraphView + 'graph> = NodeTypeFilterOp;
-
-    type FilteredGraph<'graph, G>
-        = G
-    where
-        Self: 'graph,
-        G: GraphViewOps<'graph>;
 
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
@@ -402,12 +384,6 @@ impl CreateFilter for CompositeNodeFilter {
         NodeFilteredGraph<G, Self::NodeFilter<'graph, G>>;
 
     type NodeFilter<'graph, G: GraphView + 'graph> = Arc<dyn NodeOp<Output = bool> + 'graph>;
-
-    type FilteredGraph<'graph, G>
-        = Arc<dyn BoxableGraphView + 'graph>
-    where
-        Self: 'graph,
-        G: GraphViewOps<'graph>;
 
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,

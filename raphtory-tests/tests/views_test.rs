@@ -543,8 +543,7 @@ mod test_filters_window_graph {
             addition_ops::InternalAdditionOps, property_addition_ops::InternalPropertyAdditionOps,
         };
         use raphtory_tests::assertions::{
-            assert_filter_nodes_results, TestGraphVariants,
-            TestVariants,
+            assert_filter_nodes_results, TestGraphVariants, TestVariants,
         };
 
         use raphtory::{
@@ -552,9 +551,8 @@ mod test_filters_window_graph {
                 api::view::filter_ops::Filter,
                 graph::views::filter::model::{
                     node_filter::{ops::NodeFilterOps, NodeFilter},
-                    NodeFilterFactory,
                     property_filter::ops::PropertyFilterOps,
-                    PropertyFilterFactory,
+                    NodeFilterFactory, PropertyFilterFactory,
                 },
             },
             errors::GraphError,
@@ -964,7 +962,9 @@ mod test_filters_window_graph {
                 vec![TestGraphVariants::Graph],
             );
 
-            let filter = NodeFilter.node_type().is_in(vec!["fire_nation", "air_nomad"]);
+            let filter = NodeFilter
+                .node_type()
+                .is_in(vec!["fire_nation", "air_nomad"]);
             let expected_results = vec!["N1", "N3", "N5", "N6"];
             assert_filter_nodes_results(
                 init_graph,
@@ -987,7 +987,9 @@ mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = NodeFilter.node_type().is_in(vec!["fire_nation", "air_nomad"]);
+            let filter = NodeFilter
+                .node_type()
+                .is_in(vec!["fire_nation", "air_nomad"]);
             let expected_results = vec!["N1", "N3", "N5", "N6", "N7", "N8"];
             assert_filter_nodes_results(
                 init_graph,
@@ -1984,8 +1986,7 @@ mod test_filters_window_graph {
         };
         use raphtory_api::core::{entities::properties::prop::Prop, storage::arc_str::ArcStr};
         use raphtory_tests::assertions::{
-            assert_filter_edges_results, TestGraphVariants,
-            TestVariants, WindowGraphTransformer,
+            assert_filter_edges_results, TestGraphVariants, TestVariants, WindowGraphTransformer,
         };
 
         fn init_graph<G: StaticGraphViewOps + AdditionOps + PropertyAdditionOps>(graph: G) -> G {
@@ -3233,7 +3234,6 @@ mod test_filters_window_graph {
                 &expected_results,
                 TestVariants::PersistentOnly,
             );
-
         }
 
         #[test]

@@ -7,11 +7,12 @@ use crate::{
         graph::views::filter::{
             and_filtered_graph::AndFilteredGraph,
             model::{
-                edge_expr::{EdgeExpr, EdgeOp, ops::AndBoolEdgeOp},
+                edge_expr::{ops::AndBoolEdgeOp, EdgeOp},
                 edge_filter::CompositeEdgeFilter,
                 exploded_edge_filter::CompositeExplodedEdgeFilter,
-                node_expr::{EntityExpr, NodeExpr, ops::AndBoolNodeOp},
-                node_filter::CompositeNodeFilter, ComposableFilter, TryAsCompositeFilter,
+                node_expr::{ops::AndBoolNodeOp, CreateOp, EntityExpr},
+                node_filter::CompositeNodeFilter,
+                ComposableFilter, TryAsCompositeFilter,
             },
             CreateFilter,
         },
@@ -47,12 +48,6 @@ impl<L: CreateFilter, R: CreateFilter> CreateFilter for AndFilter<L, R> {
         = AndOp<L::NodeFilter<'graph, G>, R::NodeFilter<'graph, G>>
     where
         Self: 'graph;
-
-    type FilteredGraph<'graph, G>
-        = G
-    where
-        Self: 'graph,
-        G: GraphViewOps<'graph>;
 
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
@@ -113,12 +108,16 @@ where
     R: EntityExpr<Marker = L::Marker>,
 {
     type Marker = L::Marker;
+
+    fn entity(&self) -> Self::Marker {
+        self.left.entity()
+    }
 }
 
-impl<L, R> NodeExpr for AndFilter<L, R>
+impl<L, R> CreateOp for AndFilter<L, R>
 where
-    L: NodeExpr,
-    R: NodeExpr,
+    L: CreateOp,
+    R: CreateOp,
     R: EntityExpr<Marker = L::Marker>,
 {
     fn create_node_op<'g, G: GraphView + 'g>(
@@ -129,14 +128,7 @@ where
         let right = self.right.create_node_op(graph)?;
         Ok(Arc::new(AndBoolNodeOp { left, right }))
     }
-}
 
-impl<L, R> EdgeExpr for AndFilter<L, R>
-where
-    L: EdgeExpr,
-    R: EdgeExpr,
-    R: EntityExpr<Marker = L::Marker>,
-{
     fn create_edge_op<'g, G: GraphView + 'g>(
         &self,
         graph: G,

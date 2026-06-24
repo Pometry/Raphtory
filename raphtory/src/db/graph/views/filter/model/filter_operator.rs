@@ -64,8 +64,14 @@ impl Comparable for Prop {
             BinaryOp::Eq => left == right,
             BinaryOp::Ne => left != right,
             BinaryOp::Lt => left.partial_cmp(right).map(|o| o == Less).unwrap_or(false),
-            BinaryOp::Le => left.partial_cmp(right).map(|o| o != Greater).unwrap_or(false),
-            BinaryOp::Gt => left.partial_cmp(right).map(|o| o == Greater).unwrap_or(false),
+            BinaryOp::Le => left
+                .partial_cmp(right)
+                .map(|o| o != Greater)
+                .unwrap_or(false),
+            BinaryOp::Gt => left
+                .partial_cmp(right)
+                .map(|o| o == Greater)
+                .unwrap_or(false),
             BinaryOp::Ge => left.partial_cmp(right).map(|o| o != Less).unwrap_or(false),
         }
     }

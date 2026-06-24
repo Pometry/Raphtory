@@ -4,14 +4,11 @@ use crate::{
         graph::views::{
             filter::{
                 model::{
-                    edge_filter::CompositeEdgeFilter,
-                    is_active_edge_filter::IsActiveEdge,
-                    is_deleted_filter::IsDeletedEdge,
-                    is_self_loop_filter::IsSelfLoopEdge,
-                    is_valid_filter::IsValidEdge,
-                    CombinedFilter, ComposableFilter, CompositeExplodedEdgeFilter,
-                    CompositeNodeFilter, EdgeViewFilterOps, InternalViewWrapOps,
-                    TryAsCompositeFilter, Wrap,
+                    edge_filter::CompositeEdgeFilter, is_active_edge_filter::IsActiveEdge,
+                    is_deleted_filter::IsDeletedEdge, is_self_loop_filter::IsSelfLoopEdge,
+                    is_valid_filter::IsValidEdge, CombinedFilter, ComposableFilter,
+                    CompositeExplodedEdgeFilter, CompositeNodeFilter, EdgeViewFilterOps,
+                    InternalViewWrapOps, TryAsCompositeFilter, Wrap,
                 },
                 CreateFilter,
             },
@@ -97,12 +94,6 @@ impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for Layered<T
     where
         G: GraphView + InternalFilter<'graph> + 'graph,
         <G as LayerOps<'graph>>::LayeredViewType: GraphView + 'graph;
-
-    type FilteredGraph<'graph, G>
-        = G
-    where
-        Self: 'graph,
-        G: GraphViewOps<'graph>;
 
     fn create_filter<'graph, G>(
         self,

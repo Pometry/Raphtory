@@ -20,6 +20,7 @@ pub mod model;
 pub mod node_filtered_graph;
 pub mod not_filtered_graph;
 pub mod or_filtered_graph;
+mod exploded_edge_expr_filtered_graph;
 
 pub struct Unfiltered;
 
@@ -34,11 +35,6 @@ impl CreateFilter for Unfiltered {
     where
         Self: 'graph,
         G: GraphView + 'graph;
-    type FilteredGraph<'graph, G>
-        = G
-    where
-        Self: 'graph,
-        G: GraphViewOps<'graph>;
 
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
@@ -66,11 +62,6 @@ pub trait CreateFilter: Sized {
         Self: 'graph,
         G: GraphView + 'graph;
 
-    type FilteredGraph<'graph, G>: GraphViewOps<'graph>
-    where
-        Self: 'graph,
-        G: GraphViewOps<'graph>;
-
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
         graph: G,
@@ -92,11 +83,6 @@ impl<T: NodeFilterOp> CreateFilter for T {
         = Self
     where
         Self: 'graph;
-    type FilteredGraph<'graph, G>
-        = G
-    where
-        Self: 'graph,
-        G: GraphView + 'graph;
 
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,

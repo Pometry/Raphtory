@@ -148,7 +148,12 @@ fn total_gt_in_degree_selects_nodes_with_outgoing_edges() {
 
 #[test]
 fn const_expr_works() {
-    let filter = BinaryCmpExpr::new(ConstExpr(2usize), BinaryOp::Eq, ConstExpr(2usize), NodeFilter);
+    let filter = BinaryCmpExpr::new(
+        ConstExpr(2usize),
+        BinaryOp::Eq,
+        ConstExpr(2usize),
+        NodeFilter,
+    );
     let g = build_test_graph();
     assert_eq!(filtered_names(filter, g), vec!["a", "b", "c"]);
 }
@@ -538,7 +543,9 @@ fn is_true_excludes_absent_property() {
 #[test]
 fn string_op_on_numeric_prop_returns_error() {
     let g = build_temporal_graph();
-    let filter = NodeFilter.property("score").starts_with(Prop::Str("x".into()));
+    let filter = NodeFilter
+        .property("score")
+        .starts_with(Prop::Str("x".into()));
     let result = filter.create_filter(g);
     assert!(
         result.is_err(),
