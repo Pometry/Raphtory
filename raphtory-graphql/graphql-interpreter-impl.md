@@ -51,6 +51,8 @@ Status: **DRAFT for review** — see the [Open Questions](#open-questions) at th
 | `exec.rs` — depth-first executor over the stack | ✅ `nodes→list→id` and `node→history→list→{timestamp,eventId}` |
 | `schema.rs` — SDL type map (validation source) | ✅ parses `schema.graphql` once; `(type,field)→return-type` |
 | `planner.rs` — parse + validate + AST→Plan | ✅ type-directed walk; rejects unknown & unimplemented fields |
+| `tokens.rs` — interned identifier strings | ✅ `tok::{ty,field,arg}` consts; no bare string literals in `resolve_op` |
+| `resolve_op` compaction | ✅ or-patterns on parent type collapse shared fields (`window`/`start`/`history`/…) to one arm each; parent type **kept** so SDL-valid-but-unwired fields (e.g. `graph.properties`) still hit a clean pre-stream `Unsupported` instead of an exec panic |
 | **Full vertical slice** `graph{nodes{list{id}}}` request→validate→plan→execute | ✅ `vertical_slice_matches_endpoint` — byte-identical to live endpoint |
 | Differential test vs live async-graphql endpoint | ✅ `matches_async_graphql_endpoint` + `vertical_slice_matches_endpoint` + branching query over HTTP |
 | Branching navs (`window` / `after` / `before` / `neighbours`) | ✅ wired through planner + exec; `Value::Path` added; full branching query (window→node→after→{history, neighbours→list→{name, before→history}}) differential-tested over HTTP |

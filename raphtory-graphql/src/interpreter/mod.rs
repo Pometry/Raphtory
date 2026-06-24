@@ -17,6 +17,7 @@ pub mod plan;
 pub mod planner;
 pub mod schema;
 pub mod sink;
+pub mod tokens;
 pub mod value;
 
 pub use exec::execute;
