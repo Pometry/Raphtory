@@ -12,6 +12,7 @@ use pyo3::{pyclass, pymethods, PyResult};
 use raphtory_api::core::{entities::properties::prop::Prop, storage::timeindex::EventTime};
 use std::sync::Arc;
 use crate::db::graph::views::filter::model::node_expr::DynCreateOp;
+use crate::prelude::EntityAggOps;
 
 #[pyclass(frozen, name = "Expr", module = "raphtory.filter")]
 #[derive(Clone)]
@@ -93,18 +94,27 @@ impl PyExpr {
         self.0.clone().all().into()
     }
 
-    // ── Aggregators ─────────────────────────────────────────────────────
-    // Require `Arc<dyn DynCreateOp>: EntityAggOps`, which isn't impl'd yet.
-    // Add an `impl EntityAggOps for Arc<dyn DynCreateOp>` in `dyn_expr.rs`
-    // (mirroring the EntityExpr / CreateOp impls there) before these will compile.
-    //
-    // fn sum(&self) -> Self  { self.0.clone().sum().into()  }
-    // fn avg(&self) -> Self  { self.0.clone().avg().into()  }
-    // fn min(&self) -> Self  { self.0.clone().min().into()  }
-    // fn max(&self) -> Self  { self.0.clone().max().into()  }
-    // fn first(&self) -> Self { self.0.clone().first().into() }
-    // fn last(&self) -> Self  { self.0.clone().last().into()  }
-    // fn len(&self) -> Self   { self.0.clone().len().into()   }
+    fn sum(&self) -> Self {
+        self.0.clone().sum().into()
+    }
+    fn avg(&self) -> Self {
+        self.0.clone().avg().into()
+    }
+    fn min(&self) -> Self {
+        self.0.clone().min().into()
+    }
+    fn max(&self) -> Self {
+        self.0.clone().max().into()
+    }
+    fn first(&self) -> Self {
+        self.0.clone().first().into()
+    }
+    fn last(&self) -> Self {
+        self.0.clone().last().into()
+    }
+    fn len(&self) -> Self {
+        self.0.clone().len().into()
+    }
 
     // ── Temporal ────────────────────────────────────────────────────────
     // `.temporal()` only exists on `PropertyExpr<E>`. To expose it on PyExpr

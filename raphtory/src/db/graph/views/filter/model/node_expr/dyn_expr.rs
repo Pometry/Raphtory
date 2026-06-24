@@ -32,7 +32,10 @@ use crate::{
         },
         graph::views::filter::model::{
             edge_expr::EdgeOp,
-            node_expr::{CreateOp, EntityExpr},
+            node_expr::{
+                AvgExpr, CreateOp, EntityAggOps, EntityExpr, FirstExpr, LastExpr, LenExpr, MaxExpr,
+                MinExpr, SumExpr,
+            },
             EntityMarker,
         },
     },
@@ -126,5 +129,29 @@ impl CreateOp for Arc<dyn DynCreateOp> {
         graph: G,
     ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
         self.deref().dyn_create_edge_op(Arc::new(graph))
+    }
+}
+
+impl EntityAggOps for Arc<dyn DynCreateOp> {
+    fn sum(self) -> SumExpr<Self> {
+        SumExpr(self)
+    }
+    fn avg(self) -> AvgExpr<Self> {
+        AvgExpr(self)
+    }
+    fn min(self) -> MinExpr<Self> {
+        MinExpr(self)
+    }
+    fn max(self) -> MaxExpr<Self> {
+        MaxExpr(self)
+    }
+    fn first(self) -> FirstExpr<Self> {
+        FirstExpr(self)
+    }
+    fn last(self) -> LastExpr<Self> {
+        LastExpr(self)
+    }
+    fn len(self) -> LenExpr<Self> {
+        LenExpr(self)
     }
 }
