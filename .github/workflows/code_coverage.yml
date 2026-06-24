@@ -23,14 +23,14 @@
          with:
            ref: ${{ github.head_ref }}
        - name: Cache sccache
-         uses: actions/cache@v3
+         uses: actions/cache@v6
          with:
            path: /home/runner/.cache/sccache
            key: codecov-${{ runner.os }}-sccache-${{ hashFiles('**/Cargo.lock') }}
            restore-keys: |
              codecov-${{ runner.os }}-sccache-
        - name: Set up cargo cache
-         uses: actions/cache@v3
+         uses: actions/cache@v6
          continue-on-error: false
          with:
            path: |
