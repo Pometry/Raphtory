@@ -468,7 +468,7 @@ mod tests {
 
         // start the real server (old engine)
         let tempdir = TempDir::new().unwrap();
-        let server = GraphServer::new(tempdir.path().to_path_buf(), None, None, Config::default())
+        let server = GraphServer::new(tempdir.path().to_path_buf(), None, Config::default())
             .await
             .unwrap();
         let port = 43932;

@@ -124,7 +124,7 @@ mod tests {
         g.add_node(3, "ben", NO_PROPS, None, None).unwrap();
 
         let tempdir = TempDir::new().unwrap();
-        let server = GraphServer::new(tempdir.path().to_path_buf(), None, None, Config::default())
+        let server = GraphServer::new(tempdir.path().to_path_buf(), None, Config::default())
             .await
             .unwrap();
         let port = 43934;
@@ -185,7 +185,7 @@ mod tests {
             .unwrap();
 
         let tempdir = TempDir::new().unwrap();
-        let server = GraphServer::new(tempdir.path().to_path_buf(), None, None, Config::default())
+        let server = GraphServer::new(tempdir.path().to_path_buf(), None, Config::default())
             .await
             .unwrap();
         let port = 43936;
@@ -241,7 +241,7 @@ mod tests {
         g.add_edge(5, "n1", "n2", [("weight", 0.9f64)], None).unwrap();
 
         let tempdir = TempDir::new().unwrap();
-        let server = GraphServer::new(tempdir.path().to_path_buf(), None, None, Config::default())
+        let server = GraphServer::new(tempdir.path().to_path_buf(), None, Config::default())
             .await
             .unwrap();
         let port = 43937;
@@ -293,7 +293,7 @@ mod tests {
             .unwrap();
 
         let tempdir = TempDir::new().unwrap();
-        let server = GraphServer::new(tempdir.path().to_path_buf(), None, None, Config::default())
+        let server = GraphServer::new(tempdir.path().to_path_buf(), None, Config::default())
             .await
             .unwrap();
         let port = 43938;
@@ -342,7 +342,7 @@ mod tests {
     #[tokio::test]
     async fn interp_endpoint_rejects_invalid_query() {
         let tempdir = TempDir::new().unwrap();
-        let server = GraphServer::new(tempdir.path().to_path_buf(), None, None, Config::default())
+        let server = GraphServer::new(tempdir.path().to_path_buf(), None, Config::default())
             .await
             .unwrap();
         let port = 43935;
