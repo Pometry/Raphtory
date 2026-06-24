@@ -11,7 +11,7 @@ use crate::{
     python::{
         filter::{
             filter_expr::PyFilterExpr,
-            property_filter_builders::{
+            property_expr_builders::{
                 PyNodeViewPropsFilterBuilder, PyPropertyExprBuilder, PyPropertyFilterBuilder,
             },
         },
