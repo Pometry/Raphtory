@@ -1,8 +1,9 @@
+use field_types::FieldName;
 use serde::Deserialize;
 
-pub const DEFAULT_CAPACITY: u64 = 30;
+pub const DEFAULT_CACHE_CAPACITY: u64 = 30;
 
-#[derive(Debug, Deserialize, PartialEq, Clone, serde::Serialize)]
+#[derive(Debug, Deserialize, PartialEq, Clone, serde::Serialize, FieldName)]
 pub struct CacheConfig {
     pub capacity: u64,
 }
@@ -10,7 +11,7 @@ pub struct CacheConfig {
 impl Default for CacheConfig {
     fn default() -> Self {
         Self {
-            capacity: DEFAULT_CAPACITY,
+            capacity: DEFAULT_CACHE_CAPACITY,
         }
     }
 }

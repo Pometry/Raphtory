@@ -1,7 +1,7 @@
 use crate::{
     auth::{AuthenticatedGraphQL, MutationAuth},
     auth_policy::AuthorizationPolicy,
-    config::app_config::{load_config, AppConfig},
+    config::{app_config::AppConfig, auth_config::PublicKeyError},
     data::Data,
     model::{
         plugins::{entry_point::EntryPoint, operation::Operation},
@@ -16,7 +16,11 @@ use crate::{
 use config::ConfigError;
 use once_cell::sync::Lazy;
 use opentelemetry::trace::TracerProvider;
-use opentelemetry_sdk::trace::{SdkTracerProvider as TP, Tracer};
+use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
+use opentelemetry_sdk::{
+    logs::SdkLoggerProvider,
+    trace::{SdkTracerProvider as TP, SdkTracerProvider, Tracer},
+};
 use poem::{
     get,
     listener::{Acceptor, Listener, TcpListener},
@@ -51,7 +55,7 @@ use tokio::{
     task,
     task::JoinHandle,
 };
-use tracing::{debug, info, warn};
+use tracing::{debug, error, info, warn};
 use tracing_subscriber::{
     fmt, fmt::format::FmtSpan, layer::SubscriberExt, util::SubscriberInitExt, Registry,
 };
@@ -80,8 +84,14 @@ pub fn has_server_extension() -> bool {
 
 #[derive(Error, Debug)]
 pub enum ServerError {
-    #[error("Config error: {0}")]
+    #[error(transparent)]
     ConfigError(#[from] ConfigError),
+    #[error(transparent)]
+    ReqwestError(#[from] reqwest::Error),
+    #[error(transparent)]
+    IoError(#[from] io::Error),
+    #[error("Public key error: {0}")]
+    PublicKeyError(#[from] PublicKeyError),
     #[error("Cache error: {0}")]
     CacheError(String),
     #[error("No client id provided")]
@@ -148,13 +158,12 @@ impl GraphServer {
     pub async fn new(
         work_dir: PathBuf,
         app_config: Option<AppConfig>,
-        config_path: Option<PathBuf>,
         graph_config: Config,
     ) -> IoResult<Self> {
         if !work_dir.exists() {
             create_dir_all(&work_dir)?;
         }
-        let config = load_config(app_config, config_path).map_err(ServerError::ConfigError)?;
+        let config = app_config.unwrap_or_default();
         let data = Data::new(work_dir.as_path(), &config, graph_config);
         Ok(Self {
             data,
@@ -256,20 +265,22 @@ impl GraphServer {
         // set up opentelemetry first of all
         let config = self.config.clone();
         let filter = config.logging.get_log_env();
-        let tracer_name = config.tracing.otlp_tracing_service_name.clone();
-        let tp = config.tracing.tracer_provider()?;
+        let tracer_name = config.tracing.service_name.clone();
+        let tp = config.tracing.tracer_provider().await?;
         // Create the base registry
         let registry = Registry::default().with(filter).with(
             fmt::layer().pretty().with_span_events(FmtSpan::NONE), //(FULL, NEW, ENTER, EXIT, CLOSE)
         );
         match tp.clone() {
-            Some(tp) => {
+            Some((span, log)) => {
                 registry
                     .with(
-                        tracing_opentelemetry::layer().with_tracer(tp.tracer(tracer_name.clone())),
+                        tracing_opentelemetry::layer()
+                            .with_tracer(span.tracer(tracer_name.clone())),
                     )
+                    .with(OpenTelemetryTracingBridge::new(&log))
                     .try_init()
-                    .ok();
+                    .unwrap_or_else(|err| error!("Failed to initialise tracer provider: {err}"));
             }
             None => {
                 registry.try_init().ok();
@@ -280,7 +291,7 @@ impl GraphServer {
 
         // it is important that this runs after algorithms have been pushed to PLUGIN_ALGOS static variable
         let app = self
-            .generate_endpoint(tp.clone().map(|tp| tp.tracer(tracer_name)))
+            .generate_endpoint(tp.clone().map(|(tp, _)| tp.tracer(tracer_name)))
             .await?;
 
         let (signal_sender, signal_receiver) = mpsc::channel(1);
@@ -343,7 +354,7 @@ impl GraphServer {
         if schema_cfg.disable_introspection {
             schema_builder = schema_builder.disable_introspection();
         }
-        let trace_level = self.config.tracing.tracing_level.clone();
+        let trace_level = self.config.tracing.level.clone();
         let schema = if let Some(t) = tracer {
             schema_builder
                 .extension(OpenTelemetry::new(t, trace_level))
@@ -433,7 +444,10 @@ impl RunningGraphServer {
     }
 }
 
-async fn server_termination(mut internal_signal: Receiver<()>, tp: Option<TP>) {
+async fn server_termination(
+    mut internal_signal: Receiver<()>,
+    tp: Option<(SdkTracerProvider, SdkLoggerProvider)>,
+) {
     let ctrl_c = async {
         signal::ctrl_c()
             .await
@@ -459,11 +473,15 @@ async fn server_termination(mut internal_signal: Receiver<()>, tp: Option<TP>) {
     }
     match tp {
         None => {}
-        Some(p) => {
+        Some((tp, lp)) => {
             task::spawn_blocking(move || {
-                let res = p.shutdown();
+                let res = tp.shutdown();
                 if let Err(e) = res {
-                    debug!("Failed to shut down tracing provider: {:?}", e);
+                    error!("Failed to shut down tracing provider: {:?}", e);
+                }
+                let res = lp.shutdown();
+                if let Err(e) = res {
+                    error!("Failed to shut down logging provider: {:?}", e);
                 }
             })
             .await
@@ -490,7 +508,7 @@ mod server_tests {
     async fn test_server_start_stop() {
         global_info_logger();
         let tmp_dir = tempdir().unwrap();
-        let server = GraphServer::new(tmp_dir.path().to_path_buf(), None, None, Config::default())
+        let server = GraphServer::new(tmp_dir.path().to_path_buf(), None, Config::default())
             .await
             .unwrap();
         info!("Calling start at time {}", Local::now());
@@ -508,7 +526,7 @@ mod server_tests {
         graph.encode(tmp_dir.path().join("g")).unwrap();
 
         global_info_logger();
-        let server = GraphServer::new(tmp_dir.path().to_path_buf(), None, None, Config::default())
+        let server = GraphServer::new(tmp_dir.path().to_path_buf(), None, Config::default())
             .await
             .unwrap();
         let template = DocumentTemplate {

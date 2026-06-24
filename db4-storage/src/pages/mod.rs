@@ -12,6 +12,7 @@ use crate::{
     state::StateIndex,
     wal::{GraphWalOps, WalOps},
 };
+use drop_logging::drop_error;
 use edge_page::writer::EdgeWriter;
 use edge_store::EdgeStorageInner;
 use graph_prop_store::GraphPropStorageInner;
@@ -41,20 +42,6 @@ pub mod session;
 
 #[cfg(any(test, feature = "test-utils"))]
 pub mod test_utils;
-
-#[cfg(any(test, feature = "panic-on-drop"))]
-macro_rules! drop_error {
-    ($($arg:tt)*) => {{
-        panic!($($arg)*)
-    }};
-}
-
-#[cfg(not(any(test, feature = "panic-on-drop")))]
-macro_rules! drop_error {
-    ($($arg:tt)*) => {{
-        eprintln!($($arg)*)
-    }};
-}
 
 // graph // (node/edges) // segment // layer_ids (0, 1, 2, ...) // actual graphy bits
 #[derive(Debug)]
@@ -90,7 +77,6 @@ impl<
         self.nodes.flush()?;
         self.edges.flush()?;
         self.graph_props.flush()?;
-
         Ok(())
     }
 }
@@ -486,11 +472,5 @@ mod test {
         ];
 
         assert_eq!(actual, expected);
-    }
-
-    #[test]
-    #[should_panic]
-    fn test_drop_error() {
-        drop_error!("failed");
     }
 }

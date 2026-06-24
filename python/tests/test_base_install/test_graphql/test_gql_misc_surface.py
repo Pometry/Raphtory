@@ -65,7 +65,7 @@ def test_nodes_ids():
     ]
 
     tmp = tempfile.mkdtemp()
-    with GraphServer(tmp, create_index=True).start() as server:
+    with GraphServer(tmp).start() as server:
         client = server.get_client()
         client.send_graph(path="g", graph=graph)
         for query, path, expected in cases:

@@ -114,7 +114,7 @@ def measure(name: str, f: Callable[..., B], *args, print_result: bool = True) ->
 
 def run_graphql_test(query, expected_output, graph, sort_output=False):
     tmp_work_dir = tempfile.mkdtemp()
-    with GraphServer(tmp_work_dir, create_index=True).start() as server:
+    with GraphServer(tmp_work_dir).start() as server:
         client = server.get_client()
         client.send_graph(path="g", graph=graph)
         response = client.query(query)
@@ -131,7 +131,7 @@ def run_graphql_test(query, expected_output, graph, sort_output=False):
 
 def run_group_graphql_test(queries_and_expected_outputs, graph, sort_output=False):
     tmp_work_dir = tempfile.mkdtemp()
-    with GraphServer(tmp_work_dir, create_index=True).start() as server:
+    with GraphServer(tmp_work_dir).start() as server:
         client = server.get_client()
         client.send_graph(path="g", graph=graph)
 
@@ -150,7 +150,7 @@ def run_group_graphql_test(queries_and_expected_outputs, graph, sort_output=Fals
 
 def run_graphql_error_test(query, expected_error_message, graph):
     tmp_work_dir = tempfile.mkdtemp()
-    with GraphServer(tmp_work_dir, create_index=True).start() as server:
+    with GraphServer(tmp_work_dir).start() as server:
         client = server.get_client()
         client.send_graph(path="g", graph=graph)
 
@@ -168,7 +168,7 @@ def run_graphql_error_test(query, expected_error_message, graph):
 
 def run_group_graphql_error_test(queries_and_expected_error_messages, graph):
     tmp_work_dir = tempfile.mkdtemp()
-    with GraphServer(tmp_work_dir, create_index=True).start() as server:
+    with GraphServer(tmp_work_dir).start() as server:
         client = server.get_client()
         client.send_graph(path="g", graph=graph)
         for query, expected_error_message in queries_and_expected_error_messages:
@@ -185,7 +185,7 @@ def run_group_graphql_error_test(queries_and_expected_error_messages, graph):
 
 def run_graphql_error_test_contains(query, expected_substrings, graph):
     tmp_work_dir = tempfile.mkdtemp()
-    with GraphServer(tmp_work_dir, create_index=True).start() as server:
+    with GraphServer(tmp_work_dir).start() as server:
         client = server.get_client()
         client.send_graph(path="g", graph=graph)
 
@@ -202,7 +202,7 @@ def run_graphql_error_test_contains(query, expected_substrings, graph):
 
 def run_graphql_compare_test(query_a, query_b, graph):
     tmp_work_dir = tempfile.mkdtemp()
-    with GraphServer(tmp_work_dir, create_index=True).start() as server:
+    with GraphServer(tmp_work_dir).start() as server:
         client = server.get_client()
         client.send_graph(path="g", graph=graph)
 
