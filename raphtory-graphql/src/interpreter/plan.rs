@@ -66,6 +66,38 @@ pub enum Nav {
     Src,
     /// `edge.dst` — `Edge` → `Node`
     Dst,
+    /// `edge.nbr` — `Edge` → `Node`
+    Nbr,
+    /// `edge.explode` — `Edge` → `Edges`
+    Explode,
+    /// `edge.explodeLayers` — `Edge` → `Edges`
+    ExplodeLayers,
+    /// `edge.deletions` — `Edge` → `History`
+    Deletions,
+    /// `node.inEdges` — `Node` → `Edges`
+    InEdges,
+    /// `node.outEdges` — `Node` → `Edges`
+    OutEdges,
+    /// `node.inNeighbours` — `Node` → `PathFromNode`
+    InNeighbours,
+    /// `node.outNeighbours` — `Node` → `PathFromNode`
+    OutNeighbours,
+    /// `node.inComponent` — `Node` → `Nodes`
+    InComponent,
+    /// `node.outComponent` — `Node` → `Nodes`
+    OutComponent,
+    /// `earliestTime` — `Graph`/`Node`/`Edge` → `EventTime`
+    EarliestTime,
+    /// `latestTime` — `Graph`/`Node`/`Edge` → `EventTime`
+    LatestTime,
+    /// `start` — `Graph`/`Node`/`Edge` → `EventTime`
+    Start,
+    /// `end` — `Graph`/`Node`/`Edge` → `EventTime`
+    End,
+    /// `firstUpdate` — `Node`/`Edge` → `EventTime`
+    FirstUpdate,
+    /// `lastUpdate` — `Node`/`Edge` → `EventTime`
+    LastUpdate,
     /// `history` — `Node`/`Edge`/`TemporalProperty` → `History`
     History,
     /// `node.neighbours` — `Node` → `PathFromNode`
@@ -139,4 +171,31 @@ pub enum LeafKind {
     DateTimeList,
     /// `eventTime.datetime(formatString:)` — `String` (format pre-validated at plan time)
     DateTime(Box<str>),
+    /// `node.nodeType` — `String` (nullable)
+    NodeType,
+    /// `node.degree` / `inDegree` / `outDegree` / `edgeHistoryCount` — `Int`
+    Degree,
+    InDegree,
+    OutDegree,
+    EdgeHistoryCount,
+    /// `isActive` (Node/Edge) / `isValid` / `isDeleted` / `isSelfLoop` (Edge) — `Boolean`
+    IsActive,
+    IsValid,
+    IsDeleted,
+    IsSelfLoop,
+    /// `edge.layerNames` / `graph.uniqueLayers` — `[String!]!`
+    LayerNames,
+    UniqueLayers,
+    /// `graph.countNodes` / `countEdges` / `countTemporalEdges` — `Int`
+    CountNodes,
+    CountEdges,
+    CountTemporalEdges,
+    /// `graph.hasNode(name:)` — `Boolean`
+    HasNode(GqlNodeId),
+    /// `graph.hasEdge(src:, dst:, layer:)` — `Boolean`
+    HasEdge {
+        src: GqlNodeId,
+        dst: GqlNodeId,
+        layer: Option<Box<str>>,
+    },
 }

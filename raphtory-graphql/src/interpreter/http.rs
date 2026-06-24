@@ -340,6 +340,51 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn interp_surface_fields_match_endpoint() {
+        let g = Graph::new();
+        g.add_edge(1, "a", "b", NO_PROPS, Some("l1")).unwrap();
+        g.add_edge(2, "a", "c", [("w", 1.0f64)], Some("l2")).unwrap();
+        g.add_edge(3, "b", "c", NO_PROPS, Some("l1")).unwrap();
+        g.add_node(5, "a", NO_PROPS, Some("person"), None).unwrap();
+
+        let tempdir = TempDir::new().unwrap();
+        let server = GraphServer::new(tempdir.path().to_path_buf(), None, Config::default())
+            .await
+            .unwrap();
+        let port = 43939;
+        let _running = server.start_with_port(port).await.unwrap();
+        tokio::time::sleep(Duration::from_secs(1)).await;
+
+        let gql = RaphtoryGraphQLClient::new(
+            Url::parse(&format!("http://localhost:{port}/")).unwrap(),
+            None,
+        );
+        let encoded = url_encode_graph(g.materialize().unwrap()).unwrap();
+        gql.send_graph("g", &encoded, true).await.unwrap();
+
+        let http = reqwest::Client::new();
+        for query in [
+            // graph scalars + counts + lookups + time
+            r#"{ graph(path:"g") { countNodes countEdges countTemporalEdges uniqueLayers hasNode(name:"a") hasAB: hasEdge(src:"a", dst:"b") hasAZ: hasEdge(src:"a", dst:"z") earliestTime{timestamp} latestTime{timestamp eventId} } }"#,
+            // node scalars + time (start has no window → null EventTime path)
+            r#"{ graph(path:"g") { node(name:"a") { nodeType degree inDegree outDegree edgeHistoryCount isActive earliestTime{timestamp eventId} latestTime{timestamp} firstUpdate{timestamp} lastUpdate{timestamp} start{timestamp} } } }"#,
+            // node traversal collections
+            r#"{ graph(path:"g") { node(name:"a") { edges{list{id}} inEdges{list{id}} outEdges{list{id}} neighbours{list{name}} inNeighbours{list{name}} outNeighbours{list{name}} } } }"#,
+            // components
+            r#"{ graph(path:"g") { node(name:"a") { outComponent{list{name}} inComponent{list{name}} } } }"#,
+            // edge scalars/structure/time (start no window → null)
+            r#"{ graph(path:"g") { edge(src:"a", dst:"b") { nbr{name} isValid isActive isDeleted isSelfLoop layerNames earliestTime{timestamp} latestTime{timestamp} start{timestamp} } } }"#,
+            // edge explode / explodeLayers
+            r#"{ graph(path:"g") { edge(src:"a", dst:"b") { explode{list{layerNames}} explodeLayers{list{layerNames}} } } }"#,
+        ] {
+            let expected =
+                serde_json::to_value(gql.query(query, HashMap::new()).await.unwrap()).unwrap();
+            let got = post_interp(&http, port, query).await;
+            assert_eq!(got["data"], expected, "mismatch for query: {query}");
+        }
+    }
+
+    #[tokio::test]
     async fn interp_endpoint_rejects_invalid_query() {
         let tempdir = TempDir::new().unwrap();
         let server = GraphServer::new(tempdir.path().to_path_buf(), None, Config::default())

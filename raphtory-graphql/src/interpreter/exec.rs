@@ -21,11 +21,12 @@ use crate::model::graph::{
     timeindex::GqlEventTime,
 };
 use raphtory::{
+    algorithms::components::{in_component, out_component},
     db::api::{
         properties::dyn_props::DynProperties,
         view::{DynamicGraph, IntoDynamic},
     },
-    prelude::{EdgeViewOps, GraphViewOps, LayerOps, NodeViewOps, TimeOps},
+    prelude::{EdgeViewOps, GraphViewOps, LayerOps, NodeStateOps, NodeViewOps, TimeOps},
 };
 use raphtory_api::core::{entities::GID, storage::timeindex::AsTime};
 
@@ -225,6 +226,57 @@ impl Nav {
             }
             (Nav::Src, Value::Edge(e)) => Some(Value::Node(GqlNode::from(e.ee.src()))),
             (Nav::Dst, Value::Edge(e)) => Some(Value::Node(GqlNode::from(e.ee.dst()))),
+            (Nav::Nbr, Value::Edge(e)) => Some(Value::Node(GqlNode::from(e.ee.nbr()))),
+            (Nav::Explode, Value::Edge(e)) => Some(Value::Edges(GqlEdges::new(e.ee.explode()))),
+            (Nav::ExplodeLayers, Value::Edge(e)) => {
+                Some(Value::Edges(GqlEdges::new(e.ee.explode_layers())))
+            }
+            (Nav::Deletions, Value::Edge(e)) => {
+                Some(Value::History(GqlHistory::from(e.ee.deletions())))
+            }
+            (Nav::Edges, Value::Node(n)) => Some(Value::Edges(GqlEdges::new(n.vv.edges()))),
+            (Nav::InEdges, Value::Node(n)) => Some(Value::Edges(GqlEdges::new(n.vv.in_edges()))),
+            (Nav::OutEdges, Value::Node(n)) => Some(Value::Edges(GqlEdges::new(n.vv.out_edges()))),
+            (Nav::InNeighbours, Value::Node(n)) => {
+                Some(Value::Path(GqlPathFromNode::new(n.vv.in_neighbours())))
+            }
+            (Nav::OutNeighbours, Value::Node(n)) => {
+                Some(Value::Path(GqlPathFromNode::new(n.vv.out_neighbours())))
+            }
+            (Nav::InComponent, Value::Node(n)) => {
+                Some(Value::Nodes(GqlNodes::new(in_component(n.vv.clone()).nodes())))
+            }
+            (Nav::OutComponent, Value::Node(n)) => {
+                Some(Value::Nodes(GqlNodes::new(out_component(n.vv.clone()).nodes())))
+            }
+            (Nav::EarliestTime, Value::Graph(g)) => Some(Value::EventTime(g.earliest_time().into())),
+            (Nav::EarliestTime, Value::Node(n)) => {
+                Some(Value::EventTime(n.vv.earliest_time().into()))
+            }
+            (Nav::EarliestTime, Value::Edge(e)) => {
+                Some(Value::EventTime(e.ee.earliest_time().into()))
+            }
+            (Nav::LatestTime, Value::Graph(g)) => Some(Value::EventTime(g.latest_time().into())),
+            (Nav::LatestTime, Value::Node(n)) => Some(Value::EventTime(n.vv.latest_time().into())),
+            (Nav::LatestTime, Value::Edge(e)) => Some(Value::EventTime(e.ee.latest_time().into())),
+            (Nav::Start, Value::Graph(g)) => Some(Value::EventTime(g.start().into())),
+            (Nav::Start, Value::Node(n)) => Some(Value::EventTime(n.vv.start().into())),
+            (Nav::Start, Value::Edge(e)) => Some(Value::EventTime(e.ee.start().into())),
+            (Nav::End, Value::Graph(g)) => Some(Value::EventTime(g.end().into())),
+            (Nav::End, Value::Node(n)) => Some(Value::EventTime(n.vv.end().into())),
+            (Nav::End, Value::Edge(e)) => Some(Value::EventTime(e.ee.end().into())),
+            (Nav::FirstUpdate, Value::Node(n)) => {
+                Some(Value::EventTime(n.vv.history().earliest_time().into()))
+            }
+            (Nav::FirstUpdate, Value::Edge(e)) => {
+                Some(Value::EventTime(e.ee.history().earliest_time().into()))
+            }
+            (Nav::LastUpdate, Value::Node(n)) => {
+                Some(Value::EventTime(n.vv.history().latest_time().into()))
+            }
+            (Nav::LastUpdate, Value::Edge(e)) => {
+                Some(Value::EventTime(e.ee.history().latest_time().into()))
+            }
             (Nav::History, Value::Node(n)) => {
                 Some(Value::History(GqlHistory::from(n.vv.history())))
             }
@@ -351,6 +403,51 @@ impl LeafKind {
                     Err(_) => sink.write_null(),
                 },
             },
+            (LeafKind::NodeType, Value::Node(n)) => match n.vv.node_type() {
+                Some(t) => sink.write_str(&t.to_string()),
+                None => sink.write_null(),
+            },
+            (LeafKind::Degree, Value::Node(n)) => sink.write_u64(n.vv.degree() as u64),
+            (LeafKind::InDegree, Value::Node(n)) => sink.write_u64(n.vv.in_degree() as u64),
+            (LeafKind::OutDegree, Value::Node(n)) => sink.write_u64(n.vv.out_degree() as u64),
+            (LeafKind::EdgeHistoryCount, Value::Node(n)) => {
+                sink.write_u64(n.vv.edge_history_count() as u64)
+            }
+            (LeafKind::IsActive, Value::Node(n)) => sink.write_bool(n.vv.is_active()),
+            (LeafKind::IsActive, Value::Edge(e)) => sink.write_bool(e.ee.is_active()),
+            (LeafKind::IsValid, Value::Edge(e)) => sink.write_bool(e.ee.is_valid()),
+            (LeafKind::IsDeleted, Value::Edge(e)) => sink.write_bool(e.ee.is_deleted()),
+            (LeafKind::IsSelfLoop, Value::Edge(e)) => sink.write_bool(e.ee.is_self_loop()),
+            (LeafKind::LayerNames, Value::Edge(e)) => {
+                sink.begin_array();
+                for name in e.ee.layer_names() {
+                    sink.write_str(&name.to_string());
+                }
+                sink.end_array();
+            }
+            (LeafKind::UniqueLayers, Value::Graph(g)) => {
+                sink.begin_array();
+                for name in g.unique_layers() {
+                    sink.write_str(&name.to_string());
+                }
+                sink.end_array();
+            }
+            (LeafKind::CountNodes, Value::Graph(g)) => sink.write_u64(g.count_nodes() as u64),
+            (LeafKind::CountEdges, Value::Graph(g)) => sink.write_u64(g.count_edges() as u64),
+            (LeafKind::CountTemporalEdges, Value::Graph(g)) => {
+                sink.write_u64(g.count_temporal_edges() as u64)
+            }
+            (LeafKind::HasNode(id), Value::Graph(g)) => sink.write_bool(g.has_node(id.clone())),
+            (LeafKind::HasEdge { src, dst, layer }, Value::Graph(g)) => {
+                let exists = match layer {
+                    Some(name) => g
+                        .layers(name.to_string())
+                        .map(|l| l.has_edge(src.clone(), dst.clone()))
+                        .unwrap_or(false),
+                    None => g.has_edge(src.clone(), dst.clone()),
+                };
+                sink.write_bool(exists);
+            }
             _ => unreachable!("plan/type mismatch — validation should prevent this"),
         }
     }

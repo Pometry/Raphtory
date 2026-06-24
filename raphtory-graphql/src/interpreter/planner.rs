@@ -181,6 +181,24 @@ fn resolve_op(parent_type: &str, field: &str, f: &Field) -> Result<OpKind, PlanE
             start: time_arg(f, "start")?,
             end: time_arg(f, "end")?,
         }),
+        ("Graph", "earliestTime") => OpKind::Navigate(Nav::EarliestTime),
+        ("Graph", "latestTime") => OpKind::Navigate(Nav::LatestTime),
+        ("Graph", "start") => OpKind::Navigate(Nav::Start),
+        ("Graph", "end") => OpKind::Navigate(Nav::End),
+        ("Graph", "countNodes") => OpKind::Leaf(LeafKind::CountNodes),
+        ("Graph", "countEdges") => OpKind::Leaf(LeafKind::CountEdges),
+        ("Graph", "countTemporalEdges") => OpKind::Leaf(LeafKind::CountTemporalEdges),
+        ("Graph", "uniqueLayers") => OpKind::Leaf(LeafKind::UniqueLayers),
+        ("Graph", "hasNode") => OpKind::Leaf(LeafKind::HasNode(node_id_arg(f, "name")?)),
+        ("Graph", "hasEdge") => OpKind::Leaf(LeafKind::HasEdge {
+            src: node_id_arg(f, "src")?,
+            dst: node_id_arg(f, "dst")?,
+            layer: match const_arg(f, "layer") {
+                None | Some(GqlValue::Null) => None,
+                Some(GqlValue::String(s)) => Some(s.into_boxed_str()),
+                Some(_) => return Err(PlanError::BadArgument("layer")),
+            },
+        }),
         ("Nodes", "list") => OpKind::List(IterKind::NodesList),
         ("Edges", "list") => OpKind::List(IterKind::EdgesList),
         ("Node", "id") => OpKind::Leaf(LeafKind::Id),
@@ -194,16 +212,43 @@ fn resolve_op(parent_type: &str, field: &str, f: &Field) -> Result<OpKind, PlanE
             end: time_arg(f, "end")?,
         }),
         ("Node", "neighbours") => {
-            // `select` filters the neighbour set and changes output — refuse it
-            // rather than silently ignore it until the interpreter supports it.
-            if f.get_argument("select").is_some() {
-                return Err(PlanError::Unsupported {
-                    ty: parent_type.into(),
-                    field: "neighbours(select:)".into(),
-                });
-            }
+            reject_select(f, parent_type, "neighbours")?;
             OpKind::Navigate(Nav::Neighbours)
         }
+        ("Node", "inNeighbours") => {
+            reject_select(f, parent_type, "inNeighbours")?;
+            OpKind::Navigate(Nav::InNeighbours)
+        }
+        ("Node", "outNeighbours") => {
+            reject_select(f, parent_type, "outNeighbours")?;
+            OpKind::Navigate(Nav::OutNeighbours)
+        }
+        ("Node", "edges") => {
+            reject_select(f, parent_type, "edges")?;
+            OpKind::Navigate(Nav::Edges)
+        }
+        ("Node", "inEdges") => {
+            reject_select(f, parent_type, "inEdges")?;
+            OpKind::Navigate(Nav::InEdges)
+        }
+        ("Node", "outEdges") => {
+            reject_select(f, parent_type, "outEdges")?;
+            OpKind::Navigate(Nav::OutEdges)
+        }
+        ("Node", "inComponent") => OpKind::Navigate(Nav::InComponent),
+        ("Node", "outComponent") => OpKind::Navigate(Nav::OutComponent),
+        ("Node", "earliestTime") => OpKind::Navigate(Nav::EarliestTime),
+        ("Node", "latestTime") => OpKind::Navigate(Nav::LatestTime),
+        ("Node", "start") => OpKind::Navigate(Nav::Start),
+        ("Node", "end") => OpKind::Navigate(Nav::End),
+        ("Node", "firstUpdate") => OpKind::Navigate(Nav::FirstUpdate),
+        ("Node", "lastUpdate") => OpKind::Navigate(Nav::LastUpdate),
+        ("Node", "nodeType") => OpKind::Leaf(LeafKind::NodeType),
+        ("Node", "degree") => OpKind::Leaf(LeafKind::Degree),
+        ("Node", "inDegree") => OpKind::Leaf(LeafKind::InDegree),
+        ("Node", "outDegree") => OpKind::Leaf(LeafKind::OutDegree),
+        ("Node", "edgeHistoryCount") => OpKind::Leaf(LeafKind::EdgeHistoryCount),
+        ("Node", "isActive") => OpKind::Leaf(LeafKind::IsActive),
         ("Node", "properties") => OpKind::Navigate(Nav::Properties),
         ("Node", "metadata") => OpKind::Navigate(Nav::Metadata),
         ("Edge", "properties") => OpKind::Navigate(Nav::Properties),
@@ -211,7 +256,22 @@ fn resolve_op(parent_type: &str, field: &str, f: &Field) -> Result<OpKind, PlanE
         ("Edge", "id") => OpKind::Leaf(LeafKind::EdgeId),
         ("Edge", "src") => OpKind::Navigate(Nav::Src),
         ("Edge", "dst") => OpKind::Navigate(Nav::Dst),
+        ("Edge", "nbr") => OpKind::Navigate(Nav::Nbr),
+        ("Edge", "explode") => OpKind::Navigate(Nav::Explode),
+        ("Edge", "explodeLayers") => OpKind::Navigate(Nav::ExplodeLayers),
+        ("Edge", "deletions") => OpKind::Navigate(Nav::Deletions),
         ("Edge", "history") => OpKind::Navigate(Nav::History),
+        ("Edge", "earliestTime") => OpKind::Navigate(Nav::EarliestTime),
+        ("Edge", "latestTime") => OpKind::Navigate(Nav::LatestTime),
+        ("Edge", "start") => OpKind::Navigate(Nav::Start),
+        ("Edge", "end") => OpKind::Navigate(Nav::End),
+        ("Edge", "firstUpdate") => OpKind::Navigate(Nav::FirstUpdate),
+        ("Edge", "lastUpdate") => OpKind::Navigate(Nav::LastUpdate),
+        ("Edge", "isActive") => OpKind::Leaf(LeafKind::IsActive),
+        ("Edge", "isValid") => OpKind::Leaf(LeafKind::IsValid),
+        ("Edge", "isDeleted") => OpKind::Leaf(LeafKind::IsDeleted),
+        ("Edge", "isSelfLoop") => OpKind::Leaf(LeafKind::IsSelfLoop),
+        ("Edge", "layerNames") => OpKind::Leaf(LeafKind::LayerNames),
         ("Edge", "after") => OpKind::Navigate(Nav::After(time_arg(f, "time")?)),
         ("Edge", "before") => OpKind::Navigate(Nav::Before(time_arg(f, "time")?)),
         ("Edge", "layer") => OpKind::Navigate(Nav::Layer(string_arg(f, "name")?.into())),
@@ -297,6 +357,19 @@ fn datetime_format_arg(f: &Field) -> Result<Option<Box<str>>, PlanError> {
     }
 }
 
+/// Reject a `select:` filter argument on a traversal field — filtering is
+/// pushed into raphtory but not wired yet, and silently ignoring it would change
+/// the output.
+fn reject_select(f: &Field, parent_type: &str, label: &str) -> Result<(), PlanError> {
+    if f.get_argument("select").is_some() {
+        return Err(PlanError::Unsupported {
+            ty: parent_type.into(),
+            field: format!("{label}(select:)"),
+        });
+    }
+    Ok(())
+}
+
 /// Parse the optional `keys: [String!]` whitelist for `values(...)`.
 fn keys_arg(f: &Field) -> Result<Option<Box<[String]>>, PlanError> {
     match const_arg(f, "keys") {
@@ -361,9 +434,9 @@ mod tests {
 
     #[test]
     fn rejects_unimplemented_field() {
-        // `uniqueLayers` is a valid Graph field in the SDL, but the interpreter
+        // `name` is a valid Graph field in the SDL, but the interpreter
         // doesn't implement it yet → distinct from a validation failure.
-        let err = plan_request(r#"{ graph(path:"g") { uniqueLayers } }"#).unwrap_err();
+        let err = plan_request(r#"{ graph(path:"g") { name } }"#).unwrap_err();
         assert!(matches!(err, PlanError::Unsupported { .. }), "{err:?}");
     }
 
