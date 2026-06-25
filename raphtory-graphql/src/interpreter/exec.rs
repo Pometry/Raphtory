@@ -6,7 +6,7 @@
 //! `schema.max_query_depth`); nothing is allocated per result.
 
 use super::{
-    plan::{IterKind, LeafKind, Nav, Op, Plan},
+    plan::{IterKind, LeafKind, Nav, Op, Plan, ViewKind},
     sink::Sink,
     value::Value,
 };
@@ -301,28 +301,10 @@ impl Nav {
             (Nav::DateTimes(fmt), Value::History(h)) => Some(Value::HistoryDateTime(
                 h.datetimes_view(fmt.as_ref().map(|s| s.to_string())),
             )),
-            (Nav::Layer(name), Value::Graph(g)) => Some(Value::Graph(
-                g.valid_layers(name.to_string()).into_dynamic(),
-            )),
-            (Nav::Layer(name), Value::Node(n)) => Some(Value::Node(GqlNode::from(
-                n.vv.valid_layers(name.to_string()),
-            ))),
-            (Nav::Layer(name), Value::Edge(e)) => Some(Value::Edge(GqlEdge::from(
-                e.ee.valid_layers(name.to_string()),
-            ))),
-            (Nav::After(t), Value::Node(n)) => Some(Value::Node(GqlNode::from(n.vv.after(*t)))),
-            (Nav::After(t), Value::Edge(e)) => Some(Value::Edge(GqlEdge::from(e.ee.after(*t)))),
-            (Nav::Before(t), Value::Node(n)) => Some(Value::Node(GqlNode::from(n.vv.before(*t)))),
-            (Nav::Before(t), Value::Edge(e)) => Some(Value::Edge(GqlEdge::from(e.ee.before(*t)))),
-            (Nav::Window { start, end }, Value::Graph(g)) => {
-                Some(Value::Graph(g.window(*start, *end).into_dynamic()))
-            }
-            (Nav::Window { start, end }, Value::Node(n)) => {
-                Some(Value::Node(GqlNode::from(n.vv.window(*start, *end))))
-            }
-            (Nav::Window { start, end }, Value::Edge(e)) => {
-                Some(Value::Edge(GqlEdge::from(e.ee.window(*start, *end))))
-            }
+            // Same-type view transforms — dispatched per receiver type.
+            (Nav::View(vk), Value::Graph(g)) => Some(Value::Graph(view_graph(g, vk))),
+            (Nav::View(vk), Value::Node(n)) => Some(Value::Node(view_node(n, vk))),
+            (Nav::View(vk), Value::Edge(e)) => Some(Value::Edge(view_edge(e, vk))),
             _ => unreachable!("plan/type mismatch — validation should prevent this"),
         }
     }
@@ -442,6 +424,78 @@ impl LeafKind {
             }
             _ => unreachable!("plan/type mismatch — validation should prevent this"),
         }
+    }
+}
+
+/// Apply a same-type view transform to a graph. Mirrors `GqlGraph`'s resolvers;
+/// every result is re-wrapped as a `DynamicGraph`.
+fn view_graph(g: &DynamicGraph, vk: &ViewKind) -> DynamicGraph {
+    match vk {
+        ViewKind::Window { start, end } => g.window(*start, *end).into_dynamic(),
+        ViewKind::At(t) => g.at(*t).into_dynamic(),
+        ViewKind::Before(t) => g.before(*t).into_dynamic(),
+        ViewKind::After(t) => g.after(*t).into_dynamic(),
+        ViewKind::Latest => g.latest().into_dynamic(),
+        ViewKind::SnapshotAt(t) => g.snapshot_at(*t).into_dynamic(),
+        ViewKind::SnapshotLatest => g.snapshot_latest().into_dynamic(),
+        ViewKind::ShrinkWindow { start, end } => g.shrink_window(*start, *end).into_dynamic(),
+        ViewKind::ShrinkStart(t) => g.shrink_start(*t).into_dynamic(),
+        ViewKind::ShrinkEnd(t) => g.shrink_end(*t).into_dynamic(),
+        ViewKind::DefaultLayer => g.default_layer().into_dynamic(),
+        ViewKind::Layer(name) => g.valid_layers(name.to_string()).into_dynamic(),
+        ViewKind::Layers(names) => g.valid_layers(names.to_vec()).into_dynamic(),
+        ViewKind::ExcludeLayer(name) => g.exclude_valid_layers(name.to_string()).into_dynamic(),
+        ViewKind::ExcludeLayers(names) => g.exclude_valid_layers(names.to_vec()).into_dynamic(),
+        ViewKind::Valid => g.valid().into_dynamic(),
+        ViewKind::Subgraph(nodes) => g.subgraph(nodes.clone()).into_dynamic(),
+        ViewKind::SubgraphNodeTypes(types) => g.subgraph_node_types(types.to_vec()).into_dynamic(),
+        ViewKind::ExcludeNodes(nodes) => g.exclude_nodes(nodes.clone()).into_dynamic(),
+    }
+}
+
+/// Apply a same-type view transform to a node. Graph-only variants are
+/// `unreachable!` — the planner never emits them for a `Node`.
+fn view_node(n: &GqlNode, vk: &ViewKind) -> GqlNode {
+    match vk {
+        ViewKind::Window { start, end } => GqlNode::from(n.vv.window(*start, *end)),
+        ViewKind::At(t) => GqlNode::from(n.vv.at(*t)),
+        ViewKind::Before(t) => GqlNode::from(n.vv.before(*t)),
+        ViewKind::After(t) => GqlNode::from(n.vv.after(*t)),
+        ViewKind::Latest => GqlNode::from(n.vv.latest()),
+        ViewKind::SnapshotAt(t) => GqlNode::from(n.vv.snapshot_at(*t)),
+        ViewKind::SnapshotLatest => GqlNode::from(n.vv.snapshot_latest()),
+        ViewKind::ShrinkWindow { start, end } => GqlNode::from(n.vv.shrink_window(*start, *end)),
+        ViewKind::ShrinkStart(t) => GqlNode::from(n.vv.shrink_start(*t)),
+        ViewKind::ShrinkEnd(t) => GqlNode::from(n.vv.shrink_end(*t)),
+        ViewKind::DefaultLayer => GqlNode::from(n.vv.default_layer()),
+        ViewKind::Layer(name) => GqlNode::from(n.vv.valid_layers(name.to_string())),
+        ViewKind::Layers(names) => GqlNode::from(n.vv.valid_layers(names.to_vec())),
+        ViewKind::ExcludeLayer(name) => GqlNode::from(n.vv.exclude_valid_layers(name.to_string())),
+        ViewKind::ExcludeLayers(names) => GqlNode::from(n.vv.exclude_valid_layers(names.to_vec())),
+        _ => unreachable!("not a node view op — validation should prevent this"),
+    }
+}
+
+/// Apply a same-type view transform to an edge. Graph-only variants are
+/// `unreachable!` — the planner never emits them for an `Edge`.
+fn view_edge(e: &GqlEdge, vk: &ViewKind) -> GqlEdge {
+    match vk {
+        ViewKind::Window { start, end } => GqlEdge::from(e.ee.window(*start, *end)),
+        ViewKind::At(t) => GqlEdge::from(e.ee.at(*t)),
+        ViewKind::Before(t) => GqlEdge::from(e.ee.before(*t)),
+        ViewKind::After(t) => GqlEdge::from(e.ee.after(*t)),
+        ViewKind::Latest => GqlEdge::from(e.ee.latest()),
+        ViewKind::SnapshotAt(t) => GqlEdge::from(e.ee.snapshot_at(*t)),
+        ViewKind::SnapshotLatest => GqlEdge::from(e.ee.snapshot_latest()),
+        ViewKind::ShrinkWindow { start, end } => GqlEdge::from(e.ee.shrink_window(*start, *end)),
+        ViewKind::ShrinkStart(t) => GqlEdge::from(e.ee.shrink_start(*t)),
+        ViewKind::ShrinkEnd(t) => GqlEdge::from(e.ee.shrink_end(*t)),
+        ViewKind::DefaultLayer => GqlEdge::from(e.ee.default_layer()),
+        ViewKind::Layer(name) => GqlEdge::from(e.ee.valid_layers(name.to_string())),
+        ViewKind::Layers(names) => GqlEdge::from(e.ee.valid_layers(names.to_vec())),
+        ViewKind::ExcludeLayer(name) => GqlEdge::from(e.ee.exclude_valid_layers(name.to_string())),
+        ViewKind::ExcludeLayers(names) => GqlEdge::from(e.ee.exclude_valid_layers(names.to_vec())),
+        _ => unreachable!("not an edge view op — validation should prevent this"),
     }
 }
 

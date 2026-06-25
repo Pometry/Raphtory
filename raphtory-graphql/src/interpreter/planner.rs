@@ -13,7 +13,7 @@
 //!      its children.
 
 use super::{
-    plan::{IterKind, LeafKind, Nav, Op, Page, Plan},
+    plan::{IterKind, LeafKind, Nav, Op, Page, Plan, ViewKind},
     schema::SchemaTypes,
     tokens::{arg, field as fld, ty},
 };
@@ -163,6 +163,10 @@ fn resolve_op(parent_type: &str, field: &str, f: &Field) -> Result<OpKind, PlanE
     use LeafKind as L;
     use Nav as N;
     use OpKind::{Leaf, List, Navigate};
+    use ViewKind as VK;
+
+    /// A same-type view transform op.
+    let view = |vk: ViewKind| Navigate(N::View(vk));
 
     // Fields shared across types collapse into one arm via or-patterns on the
     // parent type. The parent type is *kept* (not dropped) so a field that the
@@ -211,16 +215,49 @@ fn resolve_op(parent_type: &str, field: &str, f: &Field) -> Result<OpKind, PlanE
         (ty::EDGE, fld::EXPLODE_LAYERS) => Navigate(N::ExplodeLayers),
         (ty::EDGE, fld::DELETIONS) => Navigate(N::Deletions),
 
-        // ── view transforms (same type in → out) ──
-        (ty::GRAPH | ty::NODE | ty::EDGE, fld::LAYER) => {
-            Navigate(N::Layer(string_arg(f, arg::NAME)?.into()))
-        }
-        (ty::GRAPH | ty::NODE | ty::EDGE, fld::WINDOW) => Navigate(N::Window {
+        // ── view transforms (same type in → out) via Nav::View(ViewKind) ──
+        (ty::GRAPH | ty::NODE | ty::EDGE, fld::WINDOW) => view(VK::Window {
             start: time_arg(f, arg::START)?,
             end: time_arg(f, arg::END)?,
         }),
-        (ty::NODE | ty::EDGE, fld::AFTER) => Navigate(N::After(time_arg(f, arg::TIME)?)),
-        (ty::NODE | ty::EDGE, fld::BEFORE) => Navigate(N::Before(time_arg(f, arg::TIME)?)),
+        (ty::GRAPH | ty::NODE | ty::EDGE, fld::AT) => view(VK::At(time_arg(f, arg::TIME)?)),
+        (ty::GRAPH | ty::NODE | ty::EDGE, fld::BEFORE) => view(VK::Before(time_arg(f, arg::TIME)?)),
+        (ty::GRAPH | ty::NODE | ty::EDGE, fld::AFTER) => view(VK::After(time_arg(f, arg::TIME)?)),
+        (ty::GRAPH | ty::NODE | ty::EDGE, fld::LATEST) => view(VK::Latest),
+        (ty::GRAPH | ty::NODE | ty::EDGE, fld::SNAPSHOT_AT) => {
+            view(VK::SnapshotAt(time_arg(f, arg::TIME)?))
+        }
+        (ty::GRAPH | ty::NODE | ty::EDGE, fld::SNAPSHOT_LATEST) => view(VK::SnapshotLatest),
+        (ty::GRAPH | ty::NODE | ty::EDGE, fld::SHRINK_WINDOW) => view(VK::ShrinkWindow {
+            start: time_arg(f, arg::START)?,
+            end: time_arg(f, arg::END)?,
+        }),
+        (ty::GRAPH | ty::NODE | ty::EDGE, fld::SHRINK_START) => {
+            view(VK::ShrinkStart(time_arg(f, arg::START)?))
+        }
+        (ty::GRAPH | ty::NODE | ty::EDGE, fld::SHRINK_END) => {
+            view(VK::ShrinkEnd(time_arg(f, arg::END)?))
+        }
+        (ty::GRAPH | ty::NODE | ty::EDGE, fld::DEFAULT_LAYER) => view(VK::DefaultLayer),
+        (ty::GRAPH | ty::NODE | ty::EDGE, fld::LAYER) => {
+            view(VK::Layer(string_arg(f, arg::NAME)?.into()))
+        }
+        (ty::GRAPH | ty::NODE | ty::EDGE, fld::LAYERS) => {
+            view(VK::Layers(strings_arg(f, arg::NAMES)?))
+        }
+        (ty::GRAPH | ty::NODE | ty::EDGE, fld::EXCLUDE_LAYER) => {
+            view(VK::ExcludeLayer(string_arg(f, arg::NAME)?.into()))
+        }
+        (ty::GRAPH | ty::NODE | ty::EDGE, fld::EXCLUDE_LAYERS) => {
+            view(VK::ExcludeLayers(strings_arg(f, arg::NAMES)?))
+        }
+        // graph-only structural views
+        (ty::GRAPH, fld::VALID) => view(VK::Valid),
+        (ty::GRAPH, fld::SUBGRAPH) => view(VK::Subgraph(node_ids_arg(f, arg::NODES)?)),
+        (ty::GRAPH, fld::SUBGRAPH_NODE_TYPES) => {
+            view(VK::SubgraphNodeTypes(strings_arg(f, arg::NODE_TYPES)?))
+        }
+        (ty::GRAPH, fld::EXCLUDE_NODES) => view(VK::ExcludeNodes(node_ids_arg(f, arg::NODES)?)),
 
         // ── time fields → EventTime ──
         (ty::GRAPH | ty::NODE | ty::EDGE, fld::EARLIEST_TIME) => Navigate(N::EarliestTime),
@@ -370,6 +407,43 @@ fn reject_select(f: &Field, parent_type: &str, label: &str) -> Result<(), PlanEr
         });
     }
     Ok(())
+}
+
+/// Parse a required `[String!]!` argument into a boxed slice.
+fn strings_arg(f: &Field, name: &'static str) -> Result<Box<[String]>, PlanError> {
+    let items = match const_arg(f, name) {
+        Some(GqlValue::List(items)) => items,
+        Some(_) => return Err(PlanError::BadArgument(name)),
+        None => return Err(PlanError::MissingArgument(name)),
+    };
+    items
+        .into_iter()
+        .map(|v| match v {
+            GqlValue::String(s) => Ok(s),
+            _ => Err(PlanError::BadArgument(name)),
+        })
+        .collect::<Result<Vec<_>, _>>()
+        .map(Vec::into_boxed_slice)
+}
+
+/// Parse a required `[NodeId!]!` argument.
+fn node_ids_arg(f: &Field, name: &'static str) -> Result<Vec<GqlNodeId>, PlanError> {
+    let items = match const_arg(f, name) {
+        Some(GqlValue::List(items)) => items,
+        Some(_) => return Err(PlanError::BadArgument(name)),
+        None => return Err(PlanError::MissingArgument(name)),
+    };
+    items
+        .into_iter()
+        .map(|v| match v {
+            GqlValue::String(s) => Ok(GqlNodeId(GID::Str(s))),
+            GqlValue::Number(n) => n
+                .as_u64()
+                .map(|u| GqlNodeId(GID::U64(u)))
+                .ok_or(PlanError::BadArgument(name)),
+            _ => Err(PlanError::BadArgument(name)),
+        })
+        .collect()
 }
 
 /// Parse the optional `keys: [String!]` whitelist for `values(...)`.

@@ -131,6 +131,10 @@ pub enum Nav {
     Metadata,
     /// `properties.temporal` — `Properties` → `TemporalProperties`
     Temporal,
+    /// A view transform that maps a receiver to the **same** type
+    /// (`window`/`at`/`layer`/`subgraph`/…). Dispatched per receiver type in
+    /// `exec`. See [`ViewKind`].
+    View(ViewKind),
     /// `history.timestamps` — `History` → `HistoryTimestamp`
     Timestamps,
     /// `history.eventId` — `History` → `HistoryEventId`
@@ -138,14 +142,35 @@ pub enum Nav {
     /// `history.datetimes(formatString:)` — `History` → `HistoryDateTime`
     /// (the format string is pre-validated at plan time; `None` means default).
     DateTimes(Option<Box<str>>),
-    /// `layer(name:)` — `Graph`/`Node`/`Edge` → same type
-    Layer(Box<str>),
-    /// `after(time:)` — `Node`/`Edge` → same type
-    After(EventTime),
-    /// `before(time:)` — `Node`/`Edge` → same type
-    Before(EventTime),
-    /// `window(start:, end:)` — `Graph`/`Node`/`Edge` → same type
+}
+
+/// A same-type view transform. One variant per view op; the planner gates which
+/// variant is emitted for which receiver type, and `exec` dispatches per type
+/// (each arm calling the matching raphtory view op). Arguments are pre-parsed.
+#[derive(Debug)]
+pub enum ViewKind {
+    // ── time scoping (Graph/Node/Edge) ──
     Window { start: EventTime, end: EventTime },
+    At(EventTime),
+    Before(EventTime),
+    After(EventTime),
+    Latest,
+    SnapshotAt(EventTime),
+    SnapshotLatest,
+    ShrinkWindow { start: EventTime, end: EventTime },
+    ShrinkStart(EventTime),
+    ShrinkEnd(EventTime),
+    // ── layer scoping (Graph/Node/Edge) ──
+    DefaultLayer,
+    Layer(Box<str>),
+    Layers(Box<[String]>),
+    ExcludeLayer(Box<str>),
+    ExcludeLayers(Box<[String]>),
+    // ── graph-only structural views ──
+    Valid,
+    Subgraph(Vec<GqlNodeId>),
+    SubgraphNodeTypes(Box<[String]>),
+    ExcludeNodes(Vec<GqlNodeId>),
 }
 
 /// An iteration step that turns a receiver into a sequence of item receivers.
