@@ -4,7 +4,6 @@ use std::{
     collections::HashMap,
     fmt,
     fmt::{Display, Formatter},
-    str::FromStr,
     sync::Arc,
 };
 
@@ -206,17 +205,6 @@ pub fn data_type_as_prop_type(dt: &DataType) -> Result<PropType, InvalidProperty
 #[derive(thiserror::Error, Debug)]
 #[error("{0:?} not supported as property type")]
 pub struct InvalidPropertyTypeErr(pub DataType);
-
-impl FromStr for PropType {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let data_type: DataType = s
-            .parse()
-            .map_err(|e| format!("Unknown type '{s}': {e}"))?;
-        data_type_as_prop_type(&data_type).map_err(|e| format!("Unsupported type '{s}': {e}"))
-    }
-}
 
 pub mod arrow {
     use crate::core::entities::properties::prop::{PropType, EMPTY_MAP_FIELD_NAME};

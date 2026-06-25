@@ -64,7 +64,6 @@ datafusion-physical-expr-common = { workspace = true }
 datafusion-physical-expr = { workspace = true }
 datafusion-physical-plan = { workspace = true }
 datafusion-expr-common = { workspace = true }
-atomic_float = { workspace = true }
 
 # io optional dependencies
 csv = { workspace = true, optional = true }
@@ -108,7 +107,6 @@ dotenv = { workspace = true } # for vector testing
 streaming-stats = { workspace = true }
 indoc = { workspace = true }
 proptest.workspace = true
-criterion = { workspace = true }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 tikv-jemallocator.workspace = true
