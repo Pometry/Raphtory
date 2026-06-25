@@ -57,6 +57,18 @@ impl<E: CreateOp<Marker: Into<EntityMarker>>> From<E> for PyExpr {
     }
 }
 
+impl From<Arc<dyn DynTemporal>> for PyPropertyExpr {
+    fn from(value: Arc<dyn DynTemporal>) -> Self {
+        PyPropertyExpr(value)
+    }
+}
+
+impl From<Arc<dyn DynNodeFilterFactory>> for PyNodeFilter {
+    fn from(value: Arc<dyn DynNodeFilterFactory>) -> Self {
+        PyNodeFilter(value)
+    }
+}
+
 #[pymethods]
 impl PyExpr {
     fn __eq__(&self, other: &Self) -> Self {
@@ -417,14 +429,14 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.NodeViewPropsFilterBuilder:
     fn layers(&self, layers: FromIterable<String>) -> PyNodeFilter {
-        self.0.dyn_layer(layers.into_vec()).into()
+        self.0.dyn_layer(layers.to_vec()).into()
     }
 
     /// Matches nodes that have at least one event in the current view.
     ///
     /// Returns:
     ///     filter.FilterExpr:
-    fn is_active(&self) -> PyNodeFilter {
+    fn is_active(&self) -> PyExpr {
         self.0.dyn_is_active().into()
     }
 
