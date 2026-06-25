@@ -897,7 +897,7 @@ mod tests {
             .await
             .validate_path_for_insert(graph_name, overwrite)
             .unwrap();
-        data.insert_graph(folder.clone(), graph).await.unwrap();
+        data.insert_graph(folder, graph).await.unwrap();
         let template = DocumentTemplate {
             node_template: Some("{{ name }} is a {{ node_type }}".to_string()),
             edge_template: Some("{{ src.name }} appeared with {{ dst.name}}".to_string()),
