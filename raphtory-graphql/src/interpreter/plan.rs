@@ -11,8 +11,27 @@
 //! values (`after(time: 500)` → an [`EventTime`]). Execution does zero string
 //! lookups and zero argument decoding.
 
-use crate::model::graph::node_id::GqlNodeId;
+use crate::model::{
+    graph::node_id::GqlNodeId,
+    sorting::{EdgeSortBy, NodeSortBy},
+};
 use raphtory_api::core::storage::timeindex::EventTime;
+
+/// Pagination arguments for `page(limit, offset, pageIndex)`. The first item is
+/// `pageIndex * limit + offset`.
+#[derive(Debug)]
+pub struct Page {
+    pub limit: usize,
+    pub offset: usize,
+    pub page_index: usize,
+}
+
+impl Page {
+    /// Index of the first item to emit.
+    pub fn start(&self) -> usize {
+        self.page_index * self.limit + self.offset
+    }
+}
 
 /// A compiled query: the selection set under the root `graph(path:)` field
 /// (which is resolved/loaded asynchronously before execution), plus the response
@@ -102,6 +121,10 @@ pub enum Nav {
     History,
     /// `node.neighbours` — `Node` → `PathFromNode`
     Neighbours,
+    /// `nodes.sorted(sortBys:)` — `Nodes` → `Nodes`
+    SortedNodes(Vec<NodeSortBy>),
+    /// `edges.sorted(sortBys:)` — `Edges` → `Edges`
+    SortedEdges(Vec<EdgeSortBy>),
     /// `properties` — `Node`/`Edge` → `Properties`
     Properties,
     /// `metadata` — `Node`/`Edge` → `Metadata`
@@ -134,6 +157,12 @@ pub enum IterKind {
     NeighboursList,
     /// `edges.list` — iterate an `Edges`, item per `Edge`.
     EdgesList,
+    /// `nodes.page(...)` — a paginated window of `Nodes`.
+    NodesPage(Page),
+    /// `edges.page(...)` — a paginated window of `Edges`.
+    EdgesPage(Page),
+    /// `neighbours.page(...)` — a paginated window of `PathFromNode`.
+    NeighboursPage(Page),
     /// `history.list` — iterate a `History`, item per `EventTime`.
     HistoryList,
     /// `properties.values(keys:)` — item per `Property` (optional key whitelist).
@@ -147,6 +176,8 @@ pub enum IterKind {
 /// A scalar leaf read from the current receiver.
 #[derive(Debug)]
 pub enum LeafKind {
+    /// `nodes`/`edges`/`neighbours` `.count` — `Int`
+    Count,
     /// `node.id` — `NodeId` (string or non-negative int)
     Id,
     /// `node.name` — `String`

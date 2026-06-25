@@ -56,6 +56,63 @@ impl GqlEdges {
         let iter = self.ee.iter().map(GqlEdge::from_ref);
         Box::new(iter)
     }
+
+    /// Sort the edges by `sort_bys` (synchronous; shared by the `sorted`
+    /// resolver and the interpreter). Multiple keys are applied
+    /// lexicographically.
+    pub(crate) fn sorted_view(&self, sort_bys: Vec<EdgeSortBy>) -> Self {
+        let sorted: Arc<[_]> = self
+            .ee
+            .iter()
+            .sorted_by(|first_edge, second_edge| {
+                sort_bys
+                    .clone()
+                    .into_iter()
+                    .fold(Ordering::Equal, |current_ordering, sort_by| {
+                        current_ordering.then_with(|| {
+                            let ordering = if sort_by.src == Some(true) {
+                                first_edge.src().id().partial_cmp(&second_edge.src().id())
+                            } else if sort_by.dst == Some(true) {
+                                first_edge.dst().id().partial_cmp(&second_edge.dst().id())
+                            } else if let Some(sort_by_time) = sort_by.time {
+                                let (first_time, second_time) = match sort_by_time {
+                                    SortByTime::Latest => {
+                                        (first_edge.latest_time(), second_edge.latest_time())
+                                    }
+                                    SortByTime::Earliest => {
+                                        (first_edge.earliest_time(), second_edge.earliest_time())
+                                    }
+                                };
+                                first_time.partial_cmp(&second_time)
+                            } else if let Some(sort_by_property) = sort_by.property {
+                                let first_prop_maybe =
+                                    first_edge.properties().get(&sort_by_property);
+                                let second_prop_maybe =
+                                    second_edge.properties().get(&sort_by_property);
+                                first_prop_maybe.partial_cmp(&second_prop_maybe)
+                            } else {
+                                None
+                            };
+                            match ordering {
+                                Some(ordering) if sort_by.reverse == Some(true) => {
+                                    ordering.reverse()
+                                }
+                                Some(ordering) => ordering,
+                                None => Ordering::Equal,
+                            }
+                        })
+                    })
+            })
+            .map(|edge_view| edge_view.edge)
+            .collect();
+        self.update(Edges::new(
+            self.ee.base_graph().clone(),
+            Arc::new(move || {
+                let sorted = sorted.clone();
+                (0..sorted.len()).map(move |i| sorted[i]).into_dyn_boxed()
+            }),
+        ))
+    }
 }
 
 /// A collection of edges.
@@ -73,7 +130,6 @@ impl GqlEdges {
     }
 
     /// Returns a collection containing only edges belonging to the listed layers.
-
     async fn layers(
         &self,
         #[graphql(desc = "Layer names to include.")] names: Vec<String>,
@@ -83,7 +139,6 @@ impl GqlEdges {
     }
 
     /// Returns a collection containing edges belonging to all layers except the excluded list of layers.
-
     async fn exclude_layers(
         &self,
         #[graphql(desc = "Layer names to exclude.")] names: Vec<String>,
@@ -93,13 +148,11 @@ impl GqlEdges {
     }
 
     /// Returns a collection containing edges belonging to the specified layer.
-
     async fn layer(&self, #[graphql(desc = "Layer name to include.")] name: String) -> Self {
         self.update(self.ee.valid_layers(name))
     }
 
     /// Returns a collection containing edges belonging to all layers except the excluded layer specified.
-
     async fn exclude_layer(
         &self,
         #[graphql(desc = "Layer name to exclude.")] name: String,
@@ -116,7 +169,6 @@ impl GqlEdges {
     /// e.g. "1 month and 1 day" will align at the start of the day.
     /// Note that passing a step larger than window while alignment_unit is not "Unaligned" may lead to some entries appearing before
     /// the start of the first window and/or after the end of the last window (i.e. not included in any window).
-
     async fn rolling(
         &self,
         #[graphql(
@@ -149,7 +201,6 @@ impl GqlEdges {
     /// alignment_unit optionally aligns the windows to the specified unit. "Unaligned" can be passed for no alignment.
     /// If unspecified (i.e. by default), alignment is done on the smallest unit of time in the step.
     /// e.g. "1 month and 1 day" will align at the start of the day.
-
     async fn expanding(
         &self,
         #[graphql(
@@ -171,7 +222,6 @@ impl GqlEdges {
     }
 
     /// Creates a view of the Edge including all events between the specified start (inclusive) and end (exclusive).
-
     async fn window(
         &self,
         #[graphql(desc = "Inclusive lower bound.")] start: GqlTimeInput,
@@ -181,7 +231,6 @@ impl GqlEdges {
     }
 
     /// Creates a view of the Edge including all events at a specified time.
-
     async fn at(
         &self,
         #[graphql(desc = "Instant to pin the view to.")] time: GqlTimeInput,
@@ -197,7 +246,6 @@ impl GqlEdges {
     }
 
     /// Creates a view of the Edge including all events that are valid at time. This is equivalent to before(time + 1) for Graph and at(time) for PersistentGraph.
-
     async fn snapshot_at(
         &self,
         #[graphql(desc = "Instant at which entities must be valid.")] time: GqlTimeInput,
@@ -211,19 +259,16 @@ impl GqlEdges {
     }
 
     /// Creates a view of the Edge including all events before a specified end (exclusive).
-
     async fn before(&self, #[graphql(desc = "Exclusive upper bound.")] time: GqlTimeInput) -> Self {
         self.update(self.ee.before(time.into_time()))
     }
 
     /// Creates a view of the Edge including all events after a specified start (exclusive).
-
     async fn after(&self, #[graphql(desc = "Exclusive lower bound.")] time: GqlTimeInput) -> Self {
         self.update(self.ee.after(time.into_time()))
     }
 
     /// Shrinks both the start and end of the window.
-
     async fn shrink_window(
         &self,
         #[graphql(desc = "Proposed new start (TimeInput); ignored if it would widen the window.")]
@@ -235,7 +280,6 @@ impl GqlEdges {
     }
 
     /// Set the start of the window.
-
     async fn shrink_start(
         &self,
         #[graphql(desc = "Proposed new start (TimeInput); ignored if it would widen the window.")]
@@ -245,7 +289,6 @@ impl GqlEdges {
     }
 
     /// Set the end of the window.
-
     async fn shrink_end(
         &self,
         #[graphql(desc = "Proposed new end (TimeInput); ignored if it would widen the window.")]
@@ -255,7 +298,6 @@ impl GqlEdges {
     }
 
     /// Takes a specified selection of views and applies them in order given.
-
     async fn apply_views(
         &self,
         #[graphql(
@@ -336,63 +378,7 @@ impl GqlEdges {
         sort_bys: Vec<EdgeSortBy>,
     ) -> Self {
         let self_clone = self.clone();
-        blocking_compute(move || {
-            let sorted: Arc<[_]> = self_clone
-                .ee
-                .iter()
-                .sorted_by(|first_edge, second_edge| {
-                    sort_bys.clone().into_iter().fold(
-                        Ordering::Equal,
-                        |current_ordering, sort_by| {
-                            current_ordering.then_with(|| {
-                                let ordering = if sort_by.src == Some(true) {
-                                    first_edge.src().id().partial_cmp(&second_edge.src().id())
-                                } else if sort_by.dst == Some(true) {
-                                    first_edge.dst().id().partial_cmp(&second_edge.dst().id())
-                                } else if let Some(sort_by_time) = sort_by.time {
-                                    let (first_time, second_time) = match sort_by_time {
-                                        SortByTime::Latest => {
-                                            (first_edge.latest_time(), second_edge.latest_time())
-                                        }
-                                        SortByTime::Earliest => (
-                                            first_edge.earliest_time(),
-                                            second_edge.earliest_time(),
-                                        ),
-                                    };
-                                    first_time.partial_cmp(&second_time)
-                                } else if let Some(sort_by_property) = sort_by.property {
-                                    let first_prop_maybe =
-                                        first_edge.properties().get(&*sort_by_property);
-                                    let second_prop_maybe =
-                                        second_edge.properties().get(&*sort_by_property);
-                                    first_prop_maybe.partial_cmp(&second_prop_maybe)
-                                } else {
-                                    None
-                                };
-                                if let Some(ordering) = ordering {
-                                    if sort_by.reverse == Some(true) {
-                                        ordering.reverse()
-                                    } else {
-                                        ordering
-                                    }
-                                } else {
-                                    Ordering::Equal
-                                }
-                            })
-                        },
-                    )
-                })
-                .map(|edge_view| edge_view.edge)
-                .collect();
-            self_clone.update(Edges::new(
-                self_clone.ee.base_graph().clone(),
-                Arc::new(move || {
-                    let sorted = sorted.clone();
-                    (0..sorted.len()).map(move |i| sorted[i]).into_dyn_boxed()
-                }),
-            ))
-        })
-        .await
+        blocking_compute(move || self_clone.sorted_view(sort_bys)).await
     }
 
     ////////////////////////
@@ -427,7 +413,6 @@ impl GqlEdges {
     ///
     /// For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
     /// will be returned.
-
     async fn page(
         &self,
         ctx: &Context<'_>,
@@ -470,7 +455,6 @@ impl GqlEdges {
     /// ```
     ///
     /// Contrast with `select`, which applies here and is not carried through.
-
     async fn filter(
         &self,
         #[graphql(desc = "Composite edge filter (by property, layer, src/dst, etc.).")]
@@ -503,7 +487,6 @@ impl GqlEdges {
     /// ```
     ///
     /// Contrast with `filter`, which persists the scope through subsequent ops.
-
     async fn select(
         &self,
         #[graphql(desc = "Composite edge filter (by property, layer, src/dst, etc.).")]

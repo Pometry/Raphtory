@@ -30,6 +30,38 @@ use raphtory::{
 };
 use raphtory_api::core::{entities::GID, storage::timeindex::AsTime};
 
+/// Clone the top-of-stack receiver out into a local (a cheap Arc bump) so the
+/// item iterator borrows the local, not `stack` — leaving us free to push items
+/// as we iterate. The variant is guaranteed by SDL validation + planning.
+macro_rules! clone_top {
+    ($stack:expr, $variant:path) => {
+        match $stack.last().expect("non-empty stack") {
+            $variant(v) => v.clone(),
+            _ => unreachable!("plan/type mismatch — validation should prevent this"),
+        }
+    };
+}
+
+/// Emit each item of `items` as a JSON object running `children` against it.
+/// `items` must not borrow `stack` (clone the receiver out first via
+/// [`clone_top!`]).
+fn emit_items(
+    items: impl Iterator<Item = Value>,
+    children: &[Op],
+    stack: &mut Vec<Value>,
+    sink: &mut Sink,
+) {
+    for item in items {
+        sink.begin_object();
+        stack.push(item);
+        for child in children.iter() {
+            exec(child, stack, sink);
+        }
+        stack.pop();
+        sink.end_object();
+    }
+}
+
 /// Execute a plan against an already-loaded root graph, writing the full
 /// `{"data": {"<root_key>": …}}` document into `sink`.
 ///
@@ -93,114 +125,65 @@ fn exec(op: &Op, stack: &mut Vec<Value>, sink: &mut Sink) {
         } => {
             sink.begin_field(key);
             sink.begin_array();
-            // Clone the iterable handle out of the stack (a cheap Arc bump) into
-            // a local, so the item iterator borrows the local — not `stack` —
-            // and we're free to push items as we go.
             match iter {
                 IterKind::NodesList => {
-                    let nodes = match stack.last().expect("non-empty stack") {
-                        Value::Nodes(n) => n.clone(),
-                        _ => unreachable!("plan/type mismatch"),
-                    };
-                    for node in nodes.iter() {
-                        sink.begin_object();
-                        stack.push(Value::Node(node));
-                        for child in children.iter() {
-                            exec(child, stack, sink);
-                        }
-                        stack.pop();
-                        sink.end_object();
-                    }
+                    let nodes = clone_top!(stack, Value::Nodes);
+                    emit_items(nodes.iter().map(Value::Node), children, stack, sink);
                 }
-                IterKind::NeighboursList => {
-                    let path = match stack.last().expect("non-empty stack") {
-                        Value::Path(p) => p.clone(),
-                        _ => unreachable!("plan/type mismatch"),
-                    };
-                    for node in path.iter() {
-                        sink.begin_object();
-                        stack.push(Value::Node(node));
-                        for child in children.iter() {
-                            exec(child, stack, sink);
-                        }
-                        stack.pop();
-                        sink.end_object();
-                    }
+                IterKind::NodesPage(p) => {
+                    let nodes = clone_top!(stack, Value::Nodes);
+                    let items = nodes.iter().map(Value::Node).skip(p.start()).take(p.limit);
+                    emit_items(items, children, stack, sink);
                 }
                 IterKind::EdgesList => {
-                    let edges = match stack.last().expect("non-empty stack") {
-                        Value::Edges(e) => e.clone(),
-                        _ => unreachable!("plan/type mismatch"),
-                    };
-                    for edge in edges.iter() {
-                        sink.begin_object();
-                        stack.push(Value::Edge(edge));
-                        for child in children.iter() {
-                            exec(child, stack, sink);
-                        }
-                        stack.pop();
-                        sink.end_object();
-                    }
+                    let edges = clone_top!(stack, Value::Edges);
+                    emit_items(edges.iter().map(Value::Edge), children, stack, sink);
+                }
+                IterKind::EdgesPage(p) => {
+                    let edges = clone_top!(stack, Value::Edges);
+                    let items = edges.iter().map(Value::Edge).skip(p.start()).take(p.limit);
+                    emit_items(items, children, stack, sink);
+                }
+                IterKind::NeighboursList => {
+                    let path = clone_top!(stack, Value::Path);
+                    emit_items(path.iter().map(Value::Node), children, stack, sink);
+                }
+                IterKind::NeighboursPage(p) => {
+                    let path = clone_top!(stack, Value::Path);
+                    let items = path.iter().map(Value::Node).skip(p.start()).take(p.limit);
+                    emit_items(items, children, stack, sink);
                 }
                 IterKind::HistoryList => {
-                    let history = match stack.last().expect("non-empty stack") {
-                        Value::History(h) => h.clone(),
-                        _ => unreachable!("plan/type mismatch"),
-                    };
-                    for et in history.history.iter() {
-                        sink.begin_object();
-                        stack.push(Value::EventTime(GqlEventTime::from(et)));
-                        for child in children.iter() {
-                            exec(child, stack, sink);
-                        }
-                        stack.pop();
-                        sink.end_object();
-                    }
+                    let history = clone_top!(stack, Value::History);
+                    let items = history
+                        .history
+                        .iter()
+                        .map(|et| Value::EventTime(GqlEventTime::from(et)));
+                    emit_items(items, children, stack, sink);
                 }
                 IterKind::PropertiesValues(keys) => {
-                    let props = match stack.last().expect("non-empty stack") {
-                        Value::Properties(p) => p.clone(),
-                        _ => unreachable!("plan/type mismatch"),
-                    };
-                    for prop in props.collect_values(keys.as_deref()) {
-                        sink.begin_object();
-                        stack.push(Value::Property(prop));
-                        for child in children.iter() {
-                            exec(child, stack, sink);
-                        }
-                        stack.pop();
-                        sink.end_object();
-                    }
+                    let props = clone_top!(stack, Value::Properties);
+                    let items = props
+                        .collect_values(keys.as_deref())
+                        .into_iter()
+                        .map(Value::Property);
+                    emit_items(items, children, stack, sink);
                 }
                 IterKind::MetadataValues(keys) => {
-                    let meta = match stack.last().expect("non-empty stack") {
-                        Value::Metadata(m) => m.clone(),
-                        _ => unreachable!("plan/type mismatch"),
-                    };
-                    for prop in meta.collect_values(keys.as_deref()) {
-                        sink.begin_object();
-                        stack.push(Value::Property(prop));
-                        for child in children.iter() {
-                            exec(child, stack, sink);
-                        }
-                        stack.pop();
-                        sink.end_object();
-                    }
+                    let meta = clone_top!(stack, Value::Metadata);
+                    let items = meta
+                        .collect_values(keys.as_deref())
+                        .into_iter()
+                        .map(Value::Property);
+                    emit_items(items, children, stack, sink);
                 }
                 IterKind::TemporalValues(keys) => {
-                    let temporal = match stack.last().expect("non-empty stack") {
-                        Value::TemporalProperties(t) => t.clone(),
-                        _ => unreachable!("plan/type mismatch"),
-                    };
-                    for tp in temporal.collect_values(keys.as_deref()) {
-                        sink.begin_object();
-                        stack.push(Value::TemporalProperty(tp));
-                        for child in children.iter() {
-                            exec(child, stack, sink);
-                        }
-                        stack.pop();
-                        sink.end_object();
-                    }
+                    let temporal = clone_top!(stack, Value::TemporalProperties);
+                    let items = temporal
+                        .collect_values(keys.as_deref())
+                        .into_iter()
+                        .map(Value::TemporalProperty);
+                    emit_items(items, children, stack, sink);
                 }
             }
             sink.end_array();
@@ -286,6 +269,12 @@ impl Nav {
             (Nav::Neighbours, Value::Node(n)) => {
                 Some(Value::Path(GqlPathFromNode::new(n.vv.neighbours())))
             }
+            (Nav::SortedNodes(sort_bys), Value::Nodes(n)) => {
+                Some(Value::Nodes(n.sorted_view(sort_bys.clone())))
+            }
+            (Nav::SortedEdges(sort_bys), Value::Edges(e)) => {
+                Some(Value::Edges(e.sorted_view(sort_bys.clone())))
+            }
             (Nav::History, Value::TemporalProperty(tp)) => {
                 Some(Value::History(tp.history_handle()))
             }
@@ -342,6 +331,9 @@ impl Nav {
 impl LeafKind {
     fn write(&self, recv: &Value, sink: &mut Sink) {
         match (self, recv) {
+            (LeafKind::Count, Value::Nodes(n)) => sink.write_u64(n.nn.len() as u64),
+            (LeafKind::Count, Value::Edges(e)) => sink.write_u64(e.ee.len() as u64),
+            (LeafKind::Count, Value::Path(p)) => sink.write_u64(p.nn.len() as u64),
             (LeafKind::Id, Value::Node(n)) => write_gid(sink, n.vv.id()),
             (LeafKind::Name, Value::Node(n)) => sink.write_str(&n.vv.name()),
             (LeafKind::EdgeId, Value::Edge(e)) => {

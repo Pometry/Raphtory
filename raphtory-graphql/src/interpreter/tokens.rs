@@ -48,6 +48,9 @@ pub mod field {
     pub const HAS_NODE: &str = "hasNode";
     pub const HAS_EDGE: &str = "hasEdge";
     pub const LIST: &str = "list";
+    pub const PAGE: &str = "page";
+    pub const COUNT: &str = "count";
+    pub const SORTED: &str = "sorted";
     pub const ID: &str = "id";
     pub const NAME: &str = "name";
     pub const HISTORY: &str = "history";
@@ -101,4 +104,8 @@ pub mod arg {
     pub const KEYS: &str = "keys";
     pub const FORMAT_STRING: &str = "formatString";
     pub const SELECT: &str = "select";
+    pub const LIMIT: &str = "limit";
+    pub const OFFSET: &str = "offset";
+    pub const PAGE_INDEX: &str = "pageIndex";
+    pub const SORT_BYS: &str = "sortBys";
 }

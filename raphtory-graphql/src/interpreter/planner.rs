@@ -13,11 +13,14 @@
 //!      its children.
 
 use super::{
-    plan::{IterKind, LeafKind, Nav, Op, Plan},
+    plan::{IterKind, LeafKind, Nav, Op, Page, Plan},
     schema::SchemaTypes,
     tokens::{arg, field as fld, ty},
 };
-use crate::model::graph::{node_id::GqlNodeId, timeindex::dt_format_str_is_valid};
+use crate::model::{
+    graph::{node_id::GqlNodeId, timeindex::dt_format_str_is_valid},
+    sorting::{EdgeSortBy, NodeSortBy, SortByTime},
+};
 use async_graphql::{
     parser::{
         parse_query,
@@ -238,10 +241,18 @@ fn resolve_op(parent_type: &str, field: &str, f: &Field) -> Result<OpKind, PlanE
         (ty::HISTORY, fld::EVENT_ID) => Navigate(N::EventIds),
         (ty::HISTORY, fld::DATETIMES) => Navigate(N::DateTimes(datetime_format_arg(f)?)),
 
-        // ── lists (parent type disambiguates the item) ──
+        // ── collection sizing / sorting (same type out) ──
+        (ty::NODES | ty::EDGES | ty::PATH_FROM_NODE, fld::COUNT) => Leaf(L::Count),
+        (ty::NODES, fld::SORTED) => Navigate(N::SortedNodes(node_sort_bys_arg(f)?)),
+        (ty::EDGES, fld::SORTED) => Navigate(N::SortedEdges(edge_sort_bys_arg(f)?)),
+
+        // ── lists & pages (parent type disambiguates the item) ──
         (ty::NODES, fld::LIST) => List(I::NodesList),
         (ty::EDGES, fld::LIST) => List(I::EdgesList),
         (ty::PATH_FROM_NODE, fld::LIST) => List(I::NeighboursList),
+        (ty::NODES, fld::PAGE) => List(I::NodesPage(page_arg(f)?)),
+        (ty::EDGES, fld::PAGE) => List(I::EdgesPage(page_arg(f)?)),
+        (ty::PATH_FROM_NODE, fld::PAGE) => List(I::NeighboursPage(page_arg(f)?)),
         (ty::HISTORY, fld::LIST) => List(I::HistoryList),
         (ty::PROPERTIES, fld::VALUES) => List(I::PropertiesValues(keys_arg(f)?)),
         (ty::METADATA, fld::VALUES) => List(I::MetadataValues(keys_arg(f)?)),
@@ -388,6 +399,108 @@ fn node_id_arg(f: &Field, name: &'static str) -> Result<GqlNodeId, PlanError> {
             .ok_or(PlanError::BadArgument(name)),
         Some(_) => Err(PlanError::BadArgument(name)),
         None => Err(PlanError::MissingArgument(name)),
+    }
+}
+
+/// Parse `page(limit, offset, pageIndex)` args (`limit` required; the others
+/// default to 0).
+fn page_arg(f: &Field) -> Result<Page, PlanError> {
+    let limit = match const_arg(f, arg::LIMIT) {
+        Some(GqlValue::Number(n)) => usize_of(n.as_u64(), arg::LIMIT)?,
+        Some(_) => return Err(PlanError::BadArgument(arg::LIMIT)),
+        None => return Err(PlanError::MissingArgument(arg::LIMIT)),
+    };
+    Ok(Page {
+        limit,
+        offset: opt_usize_arg(f, arg::OFFSET)?.unwrap_or(0),
+        page_index: opt_usize_arg(f, arg::PAGE_INDEX)?.unwrap_or(0),
+    })
+}
+
+fn opt_usize_arg(f: &Field, name: &'static str) -> Result<Option<usize>, PlanError> {
+    match const_arg(f, name) {
+        None | Some(GqlValue::Null) => Ok(None),
+        Some(GqlValue::Number(n)) => Ok(Some(usize_of(n.as_u64(), name)?)),
+        Some(_) => Err(PlanError::BadArgument(name)),
+    }
+}
+
+fn usize_of(v: Option<u64>, name: &'static str) -> Result<usize, PlanError> {
+    v.map(|u| u as usize).ok_or(PlanError::BadArgument(name))
+}
+
+/// Parse the required `sortBys: [NodeSortBy!]!` list.
+fn node_sort_bys_arg(f: &Field) -> Result<Vec<NodeSortBy>, PlanError> {
+    sort_bys_list(f)?
+        .iter()
+        .map(|v| {
+            Ok(NodeSortBy {
+                reverse: as_opt_bool(field_of(v, "reverse"))?,
+                id: as_opt_bool(field_of(v, "id"))?,
+                time: as_opt_time(field_of(v, "time"))?,
+                property: as_opt_string(field_of(v, "property"))?,
+            })
+        })
+        .collect()
+}
+
+/// Parse the required `sortBys: [EdgeSortBy!]!` list.
+fn edge_sort_bys_arg(f: &Field) -> Result<Vec<EdgeSortBy>, PlanError> {
+    sort_bys_list(f)?
+        .iter()
+        .map(|v| {
+            Ok(EdgeSortBy {
+                reverse: as_opt_bool(field_of(v, "reverse"))?,
+                src: as_opt_bool(field_of(v, "src"))?,
+                dst: as_opt_bool(field_of(v, "dst"))?,
+                time: as_opt_time(field_of(v, "time"))?,
+                property: as_opt_string(field_of(v, "property"))?,
+            })
+        })
+        .collect()
+}
+
+fn sort_bys_list(f: &Field) -> Result<Vec<GqlValue>, PlanError> {
+    match const_arg(f, arg::SORT_BYS) {
+        Some(GqlValue::List(items)) => Ok(items),
+        Some(_) => Err(PlanError::BadArgument(arg::SORT_BYS)),
+        None => Err(PlanError::MissingArgument(arg::SORT_BYS)),
+    }
+}
+
+/// Look up a field inside an input-object `ConstValue`.
+fn field_of<'a>(v: &'a GqlValue, key: &str) -> Option<&'a GqlValue> {
+    match v {
+        GqlValue::Object(obj) => obj.get(key),
+        _ => None,
+    }
+}
+
+fn as_opt_bool(v: Option<&GqlValue>) -> Result<Option<bool>, PlanError> {
+    match v {
+        None | Some(GqlValue::Null) => Ok(None),
+        Some(GqlValue::Boolean(b)) => Ok(Some(*b)),
+        Some(_) => Err(PlanError::BadArgument(arg::SORT_BYS)),
+    }
+}
+
+fn as_opt_string(v: Option<&GqlValue>) -> Result<Option<String>, PlanError> {
+    match v {
+        None | Some(GqlValue::Null) => Ok(None),
+        Some(GqlValue::String(s)) => Ok(Some(s.clone())),
+        Some(_) => Err(PlanError::BadArgument(arg::SORT_BYS)),
+    }
+}
+
+fn as_opt_time(v: Option<&GqlValue>) -> Result<Option<SortByTime>, PlanError> {
+    match v {
+        None | Some(GqlValue::Null) => Ok(None),
+        Some(GqlValue::Enum(name)) => match name.as_str() {
+            "LATEST" => Ok(Some(SortByTime::Latest)),
+            "EARLIEST" => Ok(Some(SortByTime::Earliest)),
+            _ => Err(PlanError::BadArgument(arg::SORT_BYS)),
+        },
+        Some(_) => Err(PlanError::BadArgument(arg::SORT_BYS)),
     }
 }
 

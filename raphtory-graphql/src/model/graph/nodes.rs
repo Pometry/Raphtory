@@ -59,6 +59,51 @@ impl GqlNodes {
         let iter = self.nn.iter_owned_unlocked().map(GqlNode::from);
         Box::new(iter)
     }
+
+    /// Sort the nodes by `sort_bys` (synchronous; shared by the `sorted`
+    /// resolver and the interpreter). Multiple keys are applied
+    /// lexicographically.
+    pub(crate) fn sorted_view(&self, sort_bys: Vec<NodeSortBy>) -> Self {
+        let sorted: Index<VID> = self
+            .nn
+            .iter()
+            .sorted_by(|first_node, second_node| {
+                sort_bys
+                    .iter()
+                    .fold(Ordering::Equal, |current_ordering, sort_by| {
+                        current_ordering.then_with(|| {
+                            let ordering = if sort_by.id == Some(true) {
+                                first_node.id().partial_cmp(&second_node.id())
+                            } else if let Some(sort_by_time) = sort_by.time.as_ref() {
+                                let (first_time, second_time) = match sort_by_time {
+                                    SortByTime::Latest => {
+                                        (first_node.latest_time(), second_node.latest_time())
+                                    }
+                                    SortByTime::Earliest => {
+                                        (first_node.earliest_time(), second_node.earliest_time())
+                                    }
+                                };
+                                first_time.partial_cmp(&second_time)
+                            } else if let Some(sort_by_property) = sort_by.property.as_ref() {
+                                let first_prop_maybe = first_node.properties().get(sort_by_property);
+                                let second_prop_maybe =
+                                    second_node.properties().get(sort_by_property);
+                                first_prop_maybe.partial_cmp(&second_prop_maybe)
+                            } else {
+                                None
+                            };
+                            match ordering {
+                                Some(ordering) if sort_by.reverse == Some(true) => ordering.reverse(),
+                                Some(ordering) => ordering,
+                                None => Ordering::Equal,
+                            }
+                        })
+                    })
+            })
+            .map(|node_view| node_view.node)
+            .collect();
+        GqlNodes::new(self.nn.indexed(sorted))
+    }
 }
 
 #[ResolvedObjectFields]
@@ -340,54 +385,7 @@ impl GqlNodes {
         sort_bys: Vec<NodeSortBy>,
     ) -> Self {
         let self_clone = self.clone();
-        blocking_compute(move || {
-            let sorted: Index<VID> = self_clone
-                .nn
-                .iter()
-                .sorted_by(|first_node, second_node| {
-                    sort_bys
-                        .iter()
-                        .fold(Ordering::Equal, |current_ordering, sort_by| {
-                            current_ordering.then_with(|| {
-                                let ordering = if sort_by.id == Some(true) {
-                                    first_node.id().partial_cmp(&second_node.id())
-                                } else if let Some(sort_by_time) = sort_by.time.as_ref() {
-                                    let (first_time, second_time) = match sort_by_time {
-                                        SortByTime::Latest => {
-                                            (first_node.latest_time(), second_node.latest_time())
-                                        }
-                                        SortByTime::Earliest => (
-                                            first_node.earliest_time(),
-                                            second_node.earliest_time(),
-                                        ),
-                                    };
-                                    first_time.partial_cmp(&second_time)
-                                } else if let Some(sort_by_property) = sort_by.property.as_ref() {
-                                    let first_prop_maybe =
-                                        first_node.properties().get(sort_by_property);
-                                    let second_prop_maybe =
-                                        second_node.properties().get(sort_by_property);
-                                    first_prop_maybe.partial_cmp(&second_prop_maybe)
-                                } else {
-                                    None
-                                };
-                                if let Some(ordering) = ordering {
-                                    if sort_by.reverse == Some(true) {
-                                        ordering.reverse()
-                                    } else {
-                                        ordering
-                                    }
-                                } else {
-                                    Ordering::Equal
-                                }
-                            })
-                        })
-                })
-                .map(|node_view| node_view.node)
-                .collect();
-            GqlNodes::new(self_clone.nn.indexed(sorted))
-        })
-        .await
+        blocking_compute(move || self_clone.sorted_view(sort_bys)).await
     }
 
     ////////////////////////
