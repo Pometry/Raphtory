@@ -794,62 +794,6 @@ impl GqlGraph {
         }
     }
 
-    /// (Experimental) Searches for nodes which match the given filter
-    /// expression. Uses Tantivy's exact search; requires the graph to have
-    /// been indexed.
-
-    async fn search_nodes(
-        &self,
-        #[graphql(desc = "Composite node filter (by name, property, type, etc.).")]
-        filter: GqlNodeFilter,
-        #[graphql(desc = "Maximum number of nodes to return.")] limit: usize,
-        #[graphql(desc = "Number of matches to skip before returning results.")] offset: usize,
-    ) -> Result<Vec<GqlNode>> {
-        #[cfg(feature = "search")]
-        {
-            let self_clone = self.clone();
-            blocking_compute(move || {
-                let f: CompositeNodeFilter = filter.try_into()?;
-                let nodes = self_clone.graph.search_nodes(f, limit, offset)?;
-                let result = nodes.into_iter().map(|vv| vv.into()).collect();
-                Ok(result)
-            })
-            .await
-        }
-        #[cfg(not(feature = "search"))]
-        {
-            Err(GraphError::IndexingNotSupported.into())
-        }
-    }
-
-    /// (Experimental) Searches the index for edges which match the given
-    /// filter expression. Uses Tantivy's exact search; requires the graph to
-    /// have been indexed.
-
-    async fn search_edges(
-        &self,
-        #[graphql(desc = "Composite edge filter (by property, layer, src/dst, etc.).")]
-        filter: GqlEdgeFilter,
-        #[graphql(desc = "Maximum number of edges to return.")] limit: usize,
-        #[graphql(desc = "Number of matches to skip before returning results.")] offset: usize,
-    ) -> Result<Vec<GqlEdge>> {
-        #[cfg(feature = "search")]
-        {
-            let self_clone = self.clone();
-            blocking_compute(move || {
-                let f: CompositeEdgeFilter = filter.try_into()?;
-                let edges = self_clone.graph.search_edges(f, limit, offset)?;
-                let result = edges.into_iter().map(|vv| vv.into()).collect();
-                Ok(result)
-            })
-            .await
-        }
-        #[cfg(not(feature = "search"))]
-        {
-            Err(GraphError::IndexingNotSupported.into())
-        }
-    }
-
     /// Apply a list of view operations in the given order and return the
     /// resulting graph view. Lets callers compose multiple view transforms
     /// (window, layer, filter, snapshot, ...) in a single call.
