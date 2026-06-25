@@ -435,6 +435,36 @@ impl<'g> NodeOp for ListAwareSetNodeOp<'g> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// ListAwareUnaryNodeOp — element-wise is_some / is_none via broadcast_unary
+//
+// Unlike `UnaryNodeOp` (which returns `bool` for use in `CreateFilter`), this
+// op returns `Option<Prop::Bool>` so it can plug into the expression chain via
+// `CreateOp`. The closure intentionally does NOT `?`-propagate the inner
+// `None` — the whole purpose of `is_some`/`is_none` is to test that case.
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[derive(Clone)]
+pub(crate) struct ListAwareUnaryNodeOp<'g> {
+    pub(crate) inner: Arc<dyn NodeOp<Output = Option<Prop>> + 'g>,
+    pub(crate) op: UnaryOp,
+}
+
+impl<'g> NodeOp for ListAwareUnaryNodeOp<'g> {
+    type Output = Option<Prop>;
+
+    fn apply(&self, storage: &GraphStorage, node: VID) -> Option<Prop> {
+        let vals = self.inner.apply(storage, node);
+        let op = &self.op;
+        broadcast_unary(vals, |v| {
+            Some(Prop::Bool(match op {
+                UnaryOp::IsSome => v.is_some(),
+                UnaryOp::IsNone => v.is_none(),
+            }))
+        })
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // AndBoolNodeOp / OrBoolNodeOp — boolean AND/OR over two Option<Prop> node ops
 //
 // Used by AndFilter<L, R> / OrFilter<L, R> when they implement NodeExpr so that

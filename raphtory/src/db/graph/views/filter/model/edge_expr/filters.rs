@@ -6,7 +6,7 @@
 use super::{
     ops::{
         BinaryCmpEdgeOp, ListAwareCmpEdgeOp, ListAwareSetEdgeOp, ListAwareStringEdgeOp,
-        PropValueSetEdgeOp, StringEdgeOp, UnaryEdgeOp,
+        ListAwareUnaryEdgeOp, PropValueSetEdgeOp, StringEdgeOp, UnaryEdgeOp,
     },
     EdgeOp,
 };
@@ -162,6 +162,31 @@ where
 // ─────────────────────────────────────────────────────────────────────────────
 // UnaryExpr<E, I>
 // ─────────────────────────────────────────────────────────────────────────────
+impl<E> CreateOp for UnaryExpr<E, EdgeFilter>
+where
+    E: CreateOp,
+{
+    fn create_edge_op<'g, G: GraphView + 'g>(
+        &self,
+        graph: G,
+    ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
+        let inner = self.expr.create_edge_op(graph)?;
+        Ok(Arc::new(ListAwareUnaryEdgeOp { inner, op: self.op }))
+    }
+}
+
+impl<E> CreateOp for UnaryExpr<E, ExplodedEdgeFilter>
+where
+    E: CreateOp,
+{
+    fn create_edge_op<'g, G: GraphView + 'g>(
+        &self,
+        graph: G,
+    ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
+        let inner = self.expr.create_edge_op(graph)?;
+        Ok(Arc::new(ListAwareUnaryEdgeOp { inner, op: self.op }))
+    }
+}
 
 impl<E> CreateFilter for UnaryExpr<E, EdgeFilter>
 where

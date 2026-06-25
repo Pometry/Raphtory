@@ -43,7 +43,7 @@
 use super::{
     ops::{
         BinaryCmpNodeOp, ListAwareCmpNodeOp, ListAwareSetNodeOp, ListAwareStringNodeOp,
-        PropValueSetNodeOp, StringNodeOp, UnaryNodeOp,
+        ListAwareUnaryNodeOp, PropValueSetNodeOp, StringNodeOp, UnaryNodeOp,
     }
     , CreateOp, EntityExpr,
 };
@@ -110,6 +110,34 @@ impl<L, R, E> BinaryCmpExpr<L, R, E> {
 }
 
 impl<L, R, E> ComposableFilter for BinaryCmpExpr<L, R, E> {}
+
+impl<L: EntityExpr, R: EntityExpr, E: Copy + Default + Send + Sync + 'static> EntityExpr
+for BinaryCmpExpr<L, R, E>
+{
+    type Marker = E;
+    fn entity(&self) -> Self::Marker {
+        self.entity
+    }
+    fn prop_type(&self) -> PropType {
+        // TODO: depending on the types of left and right, we should figure out the type to return here
+        PropType::Empty
+    }
+}
+
+impl<L: CreateOp, R: CreateOp> CreateOp for BinaryCmpExpr<L, R, NodeFilter> {
+    fn create_node_op<'g, G: GraphView + 'g>(
+        &self,
+        graph: G,
+    ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
+        let left = self.left.create_node_op(graph.clone())?;
+        let right = self.right.create_node_op(graph)?;
+        Ok(Arc::new(ListAwareCmpNodeOp {
+            left,
+            right,
+            op: self.op,
+        }))
+    }
+}
 
 impl<L, R> CreateFilter for BinaryCmpExpr<L, R, NodeFilter>
 where
@@ -194,34 +222,6 @@ where
     }
 }
 
-impl<L: EntityExpr, R: EntityExpr, E: Copy + Default + Send + Sync + 'static> EntityExpr
-for BinaryCmpExpr<L, R, E>
-{
-    type Marker = E;
-    fn entity(&self) -> Self::Marker {
-        self.entity
-    }
-    fn prop_type(&self) -> PropType {
-        // TODO: depending on the types of left and right, we should figure out the type to return here
-        PropType::Empty
-    }
-}
-
-impl<L: CreateOp, R: CreateOp> CreateOp for BinaryCmpExpr<L, R, NodeFilter> {
-    fn create_node_op<'g, G: GraphView + 'g>(
-        &self,
-        graph: G,
-    ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        let left = self.left.create_node_op(graph.clone())?;
-        let right = self.right.create_node_op(graph)?;
-        Ok(Arc::new(ListAwareCmpNodeOp {
-            left,
-            right,
-            op: self.op,
-        }))
-    }
-}
-
 impl<L, R> TryAsCompositeFilter for BinaryCmpExpr<L, R, NodeFilter>
 where
     L: CreateOp,
@@ -274,6 +274,28 @@ impl<E, Entity> UnaryExpr<E, Entity> {
 }
 
 impl<E, Entity> ComposableFilter for UnaryExpr<E, Entity> {}
+
+impl<E: EntityExpr, Entity: Copy + Default + Send + Sync + 'static> EntityExpr
+for UnaryExpr<E, Entity>
+{
+    type Marker = Entity;
+    fn entity(&self) -> Self::Marker {
+        self.entity
+    }
+}
+
+impl<E> CreateOp for UnaryExpr<E, NodeFilter>
+where
+    E: CreateOp,
+{
+    fn create_node_op<'g, G: GraphView + 'g>(
+        &self,
+        graph: G,
+    ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
+        let inner = self.expr.create_node_op(graph)?;
+        Ok(Arc::new(ListAwareUnaryNodeOp { inner, op: self.op }))
+    }
+}
 
 impl<E> CreateFilter for UnaryExpr<E, NodeFilter>
 where
@@ -339,16 +361,6 @@ where
         }
     }
 }
-
-impl<E: EntityExpr, Entity: Copy + Default + Send + Sync + 'static> EntityExpr
-for UnaryExpr<E, Entity>
-{
-    type Marker = Entity;
-    fn entity(&self) -> Self::Marker {
-        self.entity
-    }
-}
-
 
 impl<E> TryAsCompositeFilter for UnaryExpr<E, NodeFilter>
 where
@@ -419,6 +431,33 @@ impl<L, R, Entity> StringExpr<L, R, Entity> {
 
 impl<L, R, Entity> ComposableFilter for StringExpr<L, R, Entity> {}
 
+impl<L: EntityExpr, R: EntityExpr, Entity: Copy + Default + Send + Sync + 'static> EntityExpr
+for StringExpr<L, R, Entity>
+{
+    type Marker = Entity;
+    fn entity(&self) -> Self::Marker {
+        self.entity
+    }
+    fn prop_type(&self) -> PropType {
+        PropType::Empty
+    }
+}
+
+impl<L: CreateOp, R: CreateOp> CreateOp for StringExpr<L, R, NodeFilter> {
+    fn create_node_op<'g, G: GraphView + 'g>(
+        &self,
+        graph: G,
+    ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
+        let left = self.left.create_node_op(graph.clone())?;
+        let right = self.right.create_node_op(graph)?;
+        Ok(Arc::new(ListAwareStringNodeOp {
+            left,
+            right,
+            op: self.op,
+        }))
+    }
+}
+
 impl<L: CreateOp, R: CreateOp> CreateFilter for StringExpr<L, R, NodeFilter> {
     type EntityFiltered<'graph, G: GraphViewOps<'graph>> =
         NodeFilteredGraph<G, Self::NodeFilter<'graph, G>>;
@@ -479,33 +518,6 @@ impl<L: CreateOp, R: CreateOp> CreateFilter for StringExpr<L, R, EntityMarker> {
     }
 }
 
-impl<L: EntityExpr, R: EntityExpr, Entity: Copy + Default + Send + Sync + 'static> EntityExpr
-for StringExpr<L, R, Entity>
-{
-    type Marker = Entity;
-    fn entity(&self) -> Self::Marker {
-        self.entity
-    }
-    fn prop_type(&self) -> PropType {
-        PropType::Empty
-    }
-}
-
-impl<L: CreateOp, R: CreateOp> CreateOp for StringExpr<L, R, NodeFilter> {
-    fn create_node_op<'g, G: GraphView + 'g>(
-        &self,
-        graph: G,
-    ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        let left = self.left.create_node_op(graph.clone())?;
-        let right = self.right.create_node_op(graph)?;
-        Ok(Arc::new(ListAwareStringNodeOp {
-            left,
-            right,
-            op: self.op,
-        }))
-    }
-}
-
 impl<L, R> TryAsCompositeFilter for StringExpr<L, R, NodeFilter>
 where
     L: CreateOp,
@@ -554,6 +566,33 @@ impl<E, Entity> PropValueSetExpr<E, Entity> {
 }
 
 impl<E, Entity> ComposableFilter for PropValueSetExpr<E, Entity> {}
+
+impl<E: EntityExpr, Entity: Copy + Default + Send + Sync + 'static> EntityExpr
+for PropValueSetExpr<E, Entity>
+{
+    type Marker = Entity;
+    fn entity(&self) -> Self::Marker {
+        self.entity
+    }
+    fn prop_type(&self) -> PropType {
+        PropType::Empty
+    }
+}
+
+
+impl<E: CreateOp> CreateOp for PropValueSetExpr<E, NodeFilter> {
+    fn create_node_op<'g, G: GraphView + 'g>(
+        &self,
+        graph: G,
+    ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
+        let inner = self.expr.create_node_op(graph)?;
+        Ok(Arc::new(ListAwareSetNodeOp {
+            inner,
+            values: self.values.clone(),
+            op: self.op,
+        }))
+    }
+}
 
 impl<E: CreateOp> CreateFilter for PropValueSetExpr<E, NodeFilter> {
     type EntityFiltered<'graph, G: GraphViewOps<'graph>> =
@@ -612,34 +651,6 @@ impl<E: CreateOp> CreateFilter for PropValueSetExpr<E, EntityMarker> {
         }
     }
 }
-
-impl<E: EntityExpr, Entity: Copy + Default + Send + Sync + 'static> EntityExpr
-for PropValueSetExpr<E, Entity>
-{
-    type Marker = Entity;
-    fn entity(&self) -> Self::Marker {
-        self.entity
-    }
-    fn prop_type(&self) -> PropType {
-        PropType::Empty
-    }
-}
-
-
-impl<E: CreateOp> CreateOp for PropValueSetExpr<E, NodeFilter> {
-    fn create_node_op<'g, G: GraphView + 'g>(
-        &self,
-        graph: G,
-    ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        let inner = self.expr.create_node_op(graph)?;
-        Ok(Arc::new(ListAwareSetNodeOp {
-            inner,
-            values: self.values.clone(),
-            op: self.op,
-        }))
-    }
-}
-
 
 impl<E: CreateOp> TryAsCompositeFilter for PropValueSetExpr<E, NodeFilter> {
     fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {

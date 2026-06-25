@@ -27,6 +27,11 @@ use crate::db::{
 };
 use raphtory_api::core::entities::properties::prop::PropArray;
 use std::sync::Arc;
+use crate::db::graph::views::filter::model::filter_operator::{BinaryOp, Comparable};
+
+use crate::db::graph::views::filter::model::{
+    filter_operator::UnaryOp, SetOp, StringComparable, StringOp,
+};
 // ─────────────────────────────────────────────────────────────────────────────
 // Arc<dyn EdgeOp> — blanket impl so Arc-boxed ops satisfy EdgeOp
 // ─────────────────────────────────────────────────────────────────────────────
@@ -129,8 +134,6 @@ impl<G: GraphView> EdgeOp for TemporalEdgePropOp<G> {
 // BinaryCmpEdgeOp<'g> — compares two EdgeOp outputs, returns bool
 // ─────────────────────────────────────────────────────────────────────────────
 
-use crate::db::graph::views::filter::model::filter_operator::{BinaryOp, Comparable};
-
 #[derive(Clone)]
 pub(crate) struct BinaryCmpEdgeOp<'g, L> {
     pub(crate) left: Arc<dyn EdgeOp<Output = L> + 'g>,
@@ -151,10 +154,6 @@ impl<'g, L: Comparable + Clone + Send + Sync + 'static> EdgeOp for BinaryCmpEdge
 // ─────────────────────────────────────────────────────────────────────────────
 // UnaryEdgeOp<'g, I> — is_some / is_none on Option<I>-valued expressions
 // ─────────────────────────────────────────────────────────────────────────────
-
-use crate::db::graph::views::filter::model::{
-    filter_operator::UnaryOp, SetOp, StringComparable, StringOp,
-};
 
 #[derive(Clone)]
 pub(crate) struct UnaryEdgeOp<'g, I: Clone + Send + Sync + 'static> {
@@ -330,6 +329,36 @@ impl<'g> EdgeOp for ListAwareSetEdgeOp<'g> {
                 SetOp::IsNotIn => values
                     .iter()
                     .all(|x| Prop::binary_cmp(&BinaryOp::Ne, x, &v)),
+            }))
+        })
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ListAwareUnaryEdgeOp — element-wise is_some / is_none via broadcast_unary
+//
+// Unlike `UnaryEdgeOp` (which returns `bool` for use in `CreateFilter`), this
+// op returns `Option<Prop::Bool>` so it can plug into the expression chain via
+// `CreateOp`. The closure intentionally does NOT `?`-propagate the inner
+// `None` — the whole purpose of `is_some`/`is_none` is to test that case.
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[derive(Clone)]
+pub(crate) struct ListAwareUnaryEdgeOp<'g> {
+    pub(crate) inner: Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>,
+    pub(crate) op: UnaryOp,
+}
+
+impl<'g> EdgeOp for ListAwareUnaryEdgeOp<'g> {
+    type Output = Option<Prop>;
+
+    fn apply(&self, storage: &GraphStorage, edge: EdgeRef) -> Option<Prop> {
+        let vals = self.inner.apply(storage, edge);
+        let op = &self.op;
+        broadcast_unary(vals, |v| {
+            Some(Prop::Bool(match op {
+                UnaryOp::IsSome => v.is_some(),
+                UnaryOp::IsNone => v.is_none(),
             }))
         })
     }
