@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "io")]
 use std::{
     fs::{self, File},
-    path::Path,
+    path::{Path, PathBuf},
 };
 
 /// Metadata file that stores path to the data folder.
@@ -49,4 +49,24 @@ impl Metadata {
         fs::rename(tmp_path, meta_path)?;
         Ok(())
     }
+}
+
+/// Errors returned by the graph folder path operations (the `GraphPaths` trait and its helpers)
+#[cfg(feature = "io")]
+#[derive(thiserror::Error, Debug)]
+pub enum GraphFolderError {
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
+    #[error(transparent)]
+    Serde(#[from] serde_json::Error),
+    #[error("zip operation failed: {0}")]
+    Zip(#[from] zip::result::ZipError),
+    #[error("Path {0} is not a valid relative data path")]
+    InvalidRelativePath(String),
+    #[error("Not a zip archive")]
+    NotAZip,
+    #[error("Cannot write graph into non empty folder {0}")]
+    NonEmptyGraphFolder(PathBuf),
+    #[error("Graph folder is not initialised for writing")]
+    NoWriteInProgress,
 }

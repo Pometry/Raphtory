@@ -18,8 +18,8 @@ use itertools::Itertools;
 use raphtory_api::core::{
     input::input_node::parse_u64_strict,
     storage::graph_folder::{
-        GraphMetadata, Metadata, DATA_PATH, DIRTY_PATH, GRAPH_META_PATH, GRAPH_PATH, INDEX_PATH,
-        ROOT_META_PATH, VECTORS_PATH,
+        GraphFolderError, GraphMetadata, Metadata, DATA_PATH, DIRTY_PATH, GRAPH_META_PATH,
+        GRAPH_PATH, INDEX_PATH, ROOT_META_PATH, VECTORS_PATH,
     },
 };
 use serde::{Deserialize, Serialize};
@@ -31,15 +31,18 @@ use std::{
 use walkdir::WalkDir;
 use zip::{write::FileOptions, ZipArchive, ZipWriter};
 
-pub(crate) fn valid_path_pointer(relative_path: &str, prefix: &str) -> Result<(), GraphError> {
+pub(crate) fn valid_path_pointer(
+    relative_path: &str,
+    prefix: &str,
+) -> Result<(), GraphFolderError> {
     relative_path
         .strip_prefix(prefix) // should have the prefix
         .and_then(parse_u64_strict) // the remainder should be the id
-        .ok_or_else(|| GraphError::InvalidRelativePath(relative_path.to_string()))?;
+        .ok_or_else(|| GraphFolderError::InvalidRelativePath(relative_path.to_string()))?;
     Ok(())
 }
 
-fn read_path_from_file(mut file: impl Read, prefix: &str) -> Result<String, GraphError> {
+fn read_path_from_file(mut file: impl Read, prefix: &str) -> Result<String, GraphFolderError> {
     let mut value = String::new();
     file.read_to_string(&mut value)?;
     let path: RelativePath = serde_json::from_str(&value)?;
@@ -51,7 +54,7 @@ pub fn read_path_pointer(
     base_path: &Path,
     file_name: &str,
     prefix: &str,
-) -> Result<Option<String>, GraphError> {
+) -> Result<Option<String>, GraphFolderError> {
     let file = match File::open(base_path.join(file_name)) {
         Ok(file) => file,
         Err(error) => {
@@ -69,7 +72,7 @@ pub fn make_path_pointer(
     base_path: &Path,
     file_name: &str,
     prefix: &str,
-) -> Result<String, io::Error> {
+) -> Result<String, GraphFolderError> {
     let mut id = read_path_pointer(base_path, file_name, prefix)?
         .and_then(|path| {
             path.strip_prefix(prefix)
@@ -89,11 +92,13 @@ pub fn read_or_default_path_pointer(
     base_path: &Path,
     file_name: &str,
     prefix: &str,
-) -> Result<String, GraphError> {
+) -> Result<String, GraphFolderError> {
     Ok(read_path_pointer(base_path, file_name, prefix)?.unwrap_or_else(|| prefix.to_owned() + "0"))
 }
 
-pub fn get_zip_data_path<R: Read + Seek>(zip: &mut ZipArchive<R>) -> Result<String, GraphError> {
+pub fn get_zip_data_path<R: Read + Seek>(
+    zip: &mut ZipArchive<R>,
+) -> Result<String, GraphFolderError> {
     let file = zip.by_name(ROOT_META_PATH)?;
     Ok(read_path_from_file(file, DATA_PATH)?)
 }
@@ -109,14 +114,16 @@ pub fn get_zip_graph_path<R: Read + Seek>(zip: &mut ZipArchive<R>) -> Result<Str
 pub fn get_zip_graph_path_name<R: Read + Seek>(
     zip: &mut ZipArchive<R>,
     mut data_path: String,
-) -> Result<String, GraphError> {
+) -> Result<String, GraphFolderError> {
     data_path.push('/');
     data_path.push_str(GRAPH_META_PATH);
     let graph_path = read_path_from_file(zip.by_name(&data_path)?, GRAPH_PATH)?;
     Ok(graph_path)
 }
 
-pub fn get_zip_meta_path<R: Read + Seek>(zip: &mut ZipArchive<R>) -> Result<String, GraphError> {
+pub fn get_zip_meta_path<R: Read + Seek>(
+    zip: &mut ZipArchive<R>,
+) -> Result<String, GraphFolderError> {
     let mut path = get_zip_data_path(zip)?;
     path.push('/');
     path.push_str(GRAPH_META_PATH);
@@ -135,31 +142,31 @@ pub trait GraphPaths {
         self.root().join(ROOT_META_PATH)
     }
 
-    fn data_path(&self) -> Result<InnerGraphFolder, GraphError> {
+    fn data_path(&self) -> Result<InnerGraphFolder, GraphFolderError> {
         Ok(InnerGraphFolder {
             path: self.root().join(self.relative_data_path()?),
         })
     }
 
-    fn vectors_path(&self) -> Result<PathBuf, GraphError> {
+    fn vectors_path(&self) -> Result<PathBuf, GraphFolderError> {
         let mut path = self.data_path()?.path;
         path.push(VECTORS_PATH);
         Ok(path)
     }
 
-    fn index_path(&self) -> Result<PathBuf, GraphError> {
+    fn index_path(&self) -> Result<PathBuf, GraphFolderError> {
         let mut path = self.data_path()?.path;
         path.push(INDEX_PATH);
         Ok(path)
     }
 
-    fn graph_path(&self) -> Result<PathBuf, GraphError> {
+    fn graph_path(&self) -> Result<PathBuf, GraphFolderError> {
         let mut path = self.data_path()?.path;
         path.push(self.relative_graph_path()?);
         Ok(path)
     }
 
-    fn meta_path(&self) -> Result<PathBuf, GraphError> {
+    fn meta_path(&self) -> Result<PathBuf, GraphFolderError> {
         let mut path = self.data_path()?.path;
         path.push(GRAPH_META_PATH);
         Ok(path)
@@ -169,17 +176,17 @@ pub trait GraphPaths {
         self.root().is_file()
     }
 
-    fn read_zip(&self) -> Result<ZipArchive<File>, GraphError> {
+    fn read_zip(&self) -> Result<ZipArchive<File>, GraphFolderError> {
         if self.is_zip() {
             let file = File::open(self.root())?;
             let archive = ZipArchive::new(file)?;
             Ok(archive)
         } else {
-            Err(GraphError::NotAZip)
+            Err(GraphFolderError::NotAZip)
         }
     }
 
-    fn relative_data_path(&self) -> Result<String, GraphError> {
+    fn relative_data_path(&self) -> Result<String, GraphFolderError> {
         let path = if self.is_zip() {
             let mut zip = self.read_zip()?;
             get_zip_data_path(&mut zip)?
@@ -189,7 +196,7 @@ pub trait GraphPaths {
         Ok(path)
     }
 
-    fn relative_graph_path(&self) -> Result<String, GraphError> {
+    fn relative_graph_path(&self) -> Result<String, GraphFolderError> {
         if self.is_zip() {
             let mut zip = self.read_zip()?;
             let data_path = get_zip_data_path(&mut zip)?;
@@ -200,7 +207,7 @@ pub trait GraphPaths {
         }
     }
 
-    fn read_metadata(&self) -> Result<GraphMetadata, GraphError> {
+    fn read_metadata(&self) -> Result<GraphMetadata, GraphFolderError> {
         let mut json = String::new();
         if self.is_zip() {
             let mut zip = self.read_zip()?;
@@ -215,13 +222,7 @@ pub trait GraphPaths {
         Ok(metadata.meta)
     }
 
-    fn write_metadata(&self, graph: impl GraphView) -> Result<(), GraphError> {
-        let graph_path = self.relative_graph_path()?;
-        let metadata = build_graph_metadata(graph);
-        let meta = Metadata {
-            path: graph_path,
-            meta: metadata,
-        };
+    fn write_metadata(&self, meta: Metadata) -> Result<(), GraphFolderError> {
         meta.write_atomic(self.data_path()?.as_ref(), self.meta_path()?.as_ref())?;
         Ok(())
     }
@@ -232,11 +233,11 @@ pub trait GraphPaths {
     }
 
     /// Initialise the data folder and metadata pointer
-    fn init(&self) -> Result<(), GraphError> {
+    fn init(&self) -> Result<(), GraphFolderError> {
         if self.root().is_dir() {
             let non_empty = self.root().read_dir()?.next().is_some();
             if non_empty {
-                return Err(GraphError::NonEmptyGraphFolder(self.root().into()));
+                return Err(GraphFolderError::NonEmptyGraphFolder(self.root().into()));
             }
         } else {
             fs::create_dir_all(self.root())?
@@ -379,11 +380,13 @@ impl GraphFolder {
         }
     }
 
-    fn ensure_clean_root_dir(&self) -> Result<(), GraphError> {
+    fn ensure_clean_root_dir(&self) -> Result<(), GraphFolderError> {
         if self.root_folder.exists() {
             let non_empty = self.root_folder.read_dir()?.next().is_some();
             if non_empty {
-                return Err(GraphError::NonEmptyGraphFolder(self.root_folder.clone()));
+                return Err(GraphFolderError::NonEmptyGraphFolder(
+                    self.root_folder.clone(),
+                ));
             }
         } else {
             fs::create_dir(&self.root_folder)?
@@ -453,19 +456,19 @@ impl GraphPaths for WriteableGraphFolder {
         &self.path
     }
 
-    fn relative_data_path(&self) -> Result<String, GraphError> {
+    fn relative_data_path(&self) -> Result<String, GraphFolderError> {
         let path = read_path_pointer(self.root(), DIRTY_PATH, DATA_PATH)?
-            .ok_or(GraphError::NoWriteInProgress)?;
+            .ok_or(GraphFolderError::NoWriteInProgress)?;
         Ok(path)
     }
 
-    fn relative_graph_path(&self) -> Result<String, GraphError> {
+    fn relative_graph_path(&self) -> Result<String, GraphFolderError> {
         let path =
             read_or_default_path_pointer(&self.data_path()?.as_ref(), GRAPH_META_PATH, GRAPH_PATH)?;
         Ok(path)
     }
 
-    fn init(&self) -> Result<(), GraphError> {
+    fn init(&self) -> Result<(), GraphFolderError> {
         Ok(())
     }
 }
@@ -571,11 +574,13 @@ impl InnerGraphFolder {
         Ok(self.path.join(self.relative_graph_path()?))
     }
 
-    fn ensure_clean_root_dir(&self) -> Result<(), GraphError> {
+    fn ensure_clean_root_dir(&self) -> Result<(), GraphFolderError> {
         if self.as_ref().exists() {
             let non_empty = self.as_ref().read_dir()?.next().is_some();
             if non_empty {
-                return Err(GraphError::NonEmptyGraphFolder(self.as_ref().to_path_buf()));
+                return Err(GraphFolderError::NonEmptyGraphFolder(
+                    self.as_ref().to_path_buf(),
+                ));
             }
         } else {
             fs::create_dir_all(self)?

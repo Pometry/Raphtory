@@ -1,5 +1,5 @@
 #[cfg(feature = "io")]
-use crate::serialise::GraphPaths;
+use crate::serialise::{metadata::build_graph_metadata, GraphPaths};
 use crate::{
     core::storage::timeindex::{AsTime, EventTime, TimeIndex, TimeIndexOps},
     db::{
@@ -15,6 +15,8 @@ use crate::{
     errors::GraphError,
     prelude::*,
 };
+#[cfg(feature = "io")]
+use raphtory_api::core::storage::graph_folder::Metadata;
 use raphtory_api::{
     core::entities::properties::tprop::TPropOps,
     inherit::Base,
@@ -141,7 +143,11 @@ impl PersistentGraph {
             path.graph_path()?,
             config,
         )?));
-        path.write_metadata(&graph)?;
+        let meta = Metadata {
+            path: path.relative_graph_path()?,
+            meta: build_graph_metadata(&graph),
+        };
+        path.write_metadata(meta)?;
         Ok(graph)
     }
 
@@ -163,7 +169,11 @@ impl PersistentGraph {
         }
         path.init()?;
         let graph = Self(Arc::new(Storage::new_at_path(path.graph_path()?)?));
-        path.write_metadata(&graph)?;
+        let meta = Metadata {
+            path: path.relative_graph_path()?,
+            meta: build_graph_metadata(&graph),
+        };
+        path.write_metadata(meta)?;
         Ok(graph)
     }
 

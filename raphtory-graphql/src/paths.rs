@@ -7,9 +7,14 @@ use raphtory::{
     },
     errors::{GraphError, InvalidPathReason},
     prelude::{AdditionOps, GraphViewOps},
-    serialise::{GraphFolder, GraphPaths, RelativePath, StableDecode, WriteableGraphFolder},
+    serialise::{
+        metadata::build_graph_metadata, GraphFolder, GraphPaths, RelativePath, StableDecode,
+        WriteableGraphFolder,
+    },
 };
-use raphtory_api::core::storage::graph_folder::{GraphMetadata, DIRTY_PATH, ROOT_META_PATH};
+use raphtory_api::core::storage::graph_folder::{
+    GraphFolderError, GraphMetadata, Metadata, DIRTY_PATH, ROOT_META_PATH,
+};
 use std::{
     cmp::Ordering,
     fs,
@@ -159,7 +164,11 @@ impl ExistingGraphFolder {
                 if path != self.global_path.graph_path()? {
                     return Err(InternalPathValidationError::MismatchedGraphPath);
                 }
-                self.global_path.write_metadata(&graph)?;
+                let meta = Metadata {
+                    path: self.global_path.relative_graph_path()?,
+                    meta: build_graph_metadata(&graph),
+                };
+                self.global_path.write_metadata(meta)?;
             } else {
                 self.global_path.data_path()?.replace_graph(graph)?;
             }
@@ -382,7 +391,11 @@ impl ValidWriteableGraphFolder {
                 .disk_storage_path()
                 .is_some_and(|path| path == &graph_path)
             {
-                self.global_path.write_metadata(&graph)?;
+                let meta = Metadata {
+                    path: self.global_path.relative_graph_path()?,
+                    meta: build_graph_metadata(&graph),
+                };
+                self.global_path.write_metadata(meta)?;
                 (true, graph)
             } else {
                 let new_graph = graph.materialize_at_with_config(self.graph_folder(), config)?;
@@ -460,6 +473,8 @@ pub enum InternalPathValidationError {
     InvalidMetadata(#[from] serde_json::Error),
     #[error(transparent)]
     GraphError(#[from] GraphError),
+    #[error(transparent)]
+    GraphFolderError(#[from] GraphFolderError),
     #[error("Graph path should always have a parent")]
     MissingParent,
     #[error(transparent)]
@@ -618,11 +633,11 @@ impl GraphPaths for ValidGraphFolder {
         self.global_path.root()
     }
 
-    fn relative_data_path(&self) -> Result<String, GraphError> {
+    fn relative_data_path(&self) -> Result<String, GraphFolderError> {
         self.global_path.relative_data_path()
     }
 
-    fn relative_graph_path(&self) -> Result<String, GraphError> {
+    fn relative_graph_path(&self) -> Result<String, GraphFolderError> {
         self.global_path.relative_graph_path()
     }
 }

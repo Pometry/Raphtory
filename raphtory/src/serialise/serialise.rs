@@ -172,7 +172,11 @@ impl<T: ParquetDecoder + StaticGraphViewOps + AdditionOps> StableDecode for T {
         )?;
 
         //TODO: graph.load_index_from_zip(&mut reader, prefix)
-        target.write_metadata(&graph)?;
+        let meta = Metadata {
+            path: target.relative_graph_path()?,
+            meta: build_graph_metadata(&graph),
+        };
+        target.write_metadata(meta)?;
         Ok(graph)
     }
 
@@ -208,7 +212,11 @@ impl<T: ParquetDecoder + StaticGraphViewOps + AdditionOps> StableDecode for T {
                 config,
             )?;
         }
-        target.write_metadata(&graph)?;
+        let meta = Metadata {
+            path: target.relative_graph_path()?,
+            meta: build_graph_metadata(&graph),
+        };
+        target.write_metadata(meta)?;
         Ok(graph)
     }
 }

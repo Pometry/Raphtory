@@ -226,7 +226,9 @@ mod test_index {
             let result = graph.encode(path);
 
             match result {
-                Err(GraphError::NonEmptyGraphFolder(err_path)) => {
+                Err(GraphError::GraphFolder(err))
+                    if matches!(err, GraphFolderError::NonEmptyGraphFolder(err_path)) =>
+                {
                     assert_eq!(path, err_path);
                 }
                 Ok(_) => panic!("Expected error on second encode, got Ok"),
