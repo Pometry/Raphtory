@@ -408,7 +408,7 @@ impl<L, R, Entity> StringExpr<L, R, Entity> {
     }
 
     fn with_entity<T>(self, entity: T) -> StringExpr<L, R, T> {
-        Self {
+        StringExpr {
             left: self.left,
             op: self.op,
             right: self.right,

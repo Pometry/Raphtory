@@ -269,8 +269,8 @@ impl Metadata {
 
 #[derive(Clone)]
 pub struct PropertyExpr<E> {
-    view_expr: E,
-    name: String,
+    pub(crate) view_expr: E,
+    pub(crate) name: String,
 }
 
 impl<E: EntityExpr> EntityExpr for PropertyExpr<E> {

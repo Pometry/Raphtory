@@ -1,16 +1,10 @@
 use crate::python::{
     filter::{
-        edge_expr::{
-            PyEdgeEndpoint, PyEdgeEndpointIdFilterBuilder, PyEdgeEndpointNameFilterBuilder,
-            PyEdgeEndpointTypeFilterBuilder, PyEdgeFilter,
-        },
+        edge_expr::{PyEdgeEndpoint, PyEdgeFilter},
         exploded_edge_expr::PyExplodedEdgeFilter,
         filter_expr::PyFilterExpr,
         graph_filter::PyGraphFilter,
-        node_expr::{
-            PyNodeFilter, PyNodeIdFilterBuilder, PyNodeNameFilterBuilder, PyNodeTypeFilterBuilder,
-        },
-        property_expr::{PyPropertyExprBuilder, PyPropertyFilterBuilder},
+        node_expr::PyNodeFilter,
     },
     types::iterable::FromIterable,
 };
@@ -25,7 +19,6 @@ pub mod exploded_edge_expr;
 pub mod filter_expr;
 pub mod graph_filter;
 pub mod node_expr;
-pub mod property_expr;
 
 impl From<FromIterable<String>> for Layer {
     fn from(iter: FromIterable<String>) -> Self {
@@ -37,19 +30,11 @@ pub fn base_filter_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyErr> 
     let filter_module = PyModule::new(py, "filter")?;
 
     filter_module.add_class::<PyFilterExpr>()?;
-    filter_module.add_class::<PyPropertyExprBuilder>()?;
-    filter_module.add_class::<PyPropertyFilterBuilder>()?;
 
     filter_module.add_class::<PyNodeFilter>()?;
-    filter_module.add_class::<PyNodeIdFilterBuilder>()?;
-    filter_module.add_class::<PyNodeNameFilterBuilder>()?;
-    filter_module.add_class::<PyNodeTypeFilterBuilder>()?;
 
     filter_module.add_class::<PyEdgeFilter>()?;
     filter_module.add_class::<PyEdgeEndpoint>()?;
-    filter_module.add_class::<PyEdgeEndpointIdFilterBuilder>()?;
-    filter_module.add_class::<PyEdgeEndpointNameFilterBuilder>()?;
-    filter_module.add_class::<PyEdgeEndpointTypeFilterBuilder>()?;
 
     filter_module.add_class::<PyExplodedEdgeFilter>()?;
     filter_module.add_class::<PyGraphFilter>()?;
