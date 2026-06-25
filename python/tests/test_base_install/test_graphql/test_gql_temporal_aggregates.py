@@ -477,7 +477,7 @@ def _run_typed_accessors_cases(graph, cases):
     (needed for fields like `unique` whose ordering is non-deterministic).
     """
     tmp_work_dir = tempfile.mkdtemp()
-    with GraphServer(tmp_work_dir, create_index=True).start() as server:
+    with GraphServer(tmp_work_dir).start() as server:
         client = server.get_client()
         client.send_graph(path="g", graph=graph)
         for query, expected, transform in cases:

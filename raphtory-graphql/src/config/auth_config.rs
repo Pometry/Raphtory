@@ -1,4 +1,5 @@
 use base64::{prelude::BASE64_STANDARD, DecodeError, Engine};
+use field_types::FieldName;
 use jsonwebtoken::{Algorithm, DecodingKey};
 use serde::{de, Deserialize, Deserializer, Serialize};
 use spki::SubjectPublicKeyInfoRef;
@@ -110,7 +111,7 @@ impl Debug for PublicKey {
     }
 }
 
-#[derive(Debug, Deserialize, Clone, Serialize, PartialEq)]
+#[derive(Debug, Deserialize, Clone, Serialize, PartialEq, FieldName)]
 pub struct AuthConfig {
     pub public_key: Option<PublicKey>,
     pub require_auth_for_reads: bool,
