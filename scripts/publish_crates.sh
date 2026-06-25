@@ -29,7 +29,12 @@ DEFAULT_CRATES="raphtory-api pometry-storage raphtory-core raphtory-storage raph
 
 crates=()
 for tok in "$@"; do
-  [ "$tok" = "-p" ] && continue
+  # Skip flag-style tokens: "-p" (cargo's per-package flag) and
+  # "--workspace" both mean "use the full default list", which we
+  # enumerate explicitly below in dependency order.
+  case "$tok" in
+    -*) continue ;;
+  esac
   crates+=("$tok")
 done
 if [ "${#crates[@]}" -eq 0 ]; then

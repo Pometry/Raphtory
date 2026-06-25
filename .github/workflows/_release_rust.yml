@@ -11,9 +11,9 @@ on:
         type: boolean
         default: false
       crates:
-        description: crate arguments to pass to cargo publish, i.e. '-p raphtory -p raphtory-graphql' (all by default)
+        description: crate names to publish, i.e. '-p raphtory -p raphtory-graphql' (all by default). Use '--workspace' or leave empty for the full default list.
         type: string
-        default: --workspace
+        default: -p raphtory-api -p pometry-storage -p raphtory-core -p raphtory-storage -p raphtory -p raphtory-graphql
 
   workflow_call:
     inputs: *inputs
