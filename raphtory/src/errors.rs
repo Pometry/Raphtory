@@ -421,9 +421,6 @@ pub enum GraphError {
     #[error("Node filter is not supported for edge filtering")]
     NodeFilterIsNotEdgeFilter,
 
-    #[error("Expression is not an exploded edge filter")]
-    NotExplodedEdgeFilter,
-
     #[error("Indexing not supported")]
     IndexingNotSupported,
 
