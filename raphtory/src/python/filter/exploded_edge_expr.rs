@@ -1,14 +1,13 @@
 use crate::{
-    db::graph::views::filter::model::{
-        exploded_edge_filter::ExplodedEdgeFilter, EdgeFilterFactory, EdgeViewFilterOps,
-        PropertyFilterFactory, ViewWrapOps,
+    db::graph::views::filter::model::exploded_edge_filter::ExplodedEdgeFilter,
+    python::{
+        filter::{edge_expr::DynEdgeFilterFactory, node_expr::PyExpr},
+        types::iterable::FromIterable,
     },
-    python::{filter::node_expr::PyExpr, types::iterable::FromIterable},
 };
 use pyo3::{pyclass, pymethods};
 use raphtory_api::core::storage::timeindex::EventTime;
 use std::sync::Arc;
-use crate::prelude::EdgeViewOps;
 
 /// Entry point for constructing **exploded edge** filter expressions.
 ///
@@ -26,7 +25,13 @@ use crate::prelude::EdgeViewOps;
 ///     ExplodedEdge.window(0, 10).is_active()
 ///     ExplodedEdge.layer("fire_nation").is_valid()
 #[pyclass(frozen, name = "ExplodedEdge", module = "raphtory.filter")]
-pub struct PyExplodedEdgeFilter(Arc<dyn EdgeFilterFactory>);
+pub struct PyExplodedEdgeFilter(Arc<dyn DynEdgeFilterFactory>);
+
+impl From<Arc<dyn DynEdgeFilterFactory>> for PyExplodedEdgeFilter {
+    fn from(value: Arc<dyn DynEdgeFilterFactory>) -> Self {
+        PyExplodedEdgeFilter(value)
+    }
+}
 
 #[pymethods]
 impl PyExplodedEdgeFilter {
@@ -42,7 +47,7 @@ impl PyExplodedEdgeFilter {
     /// Arguments:
     ///     name (str): Property key.
     fn property(&self, name: String) -> PyExpr {
-        self.0.property(name).into()
+        self.0.dyn_property(name).into()
     }
 
     /// Filters an exploded edge metadata field by name.
@@ -52,73 +57,73 @@ impl PyExplodedEdgeFilter {
     /// Arguments:
     ///     name (str): Metadata key.
     fn metadata(&self, name: String) -> PyExpr {
-        self.0.metadata(name).into()
+        self.0.dyn_metadata(name).into()
     }
 
     /// Restricts exploded edge evaluation to the given time window.
     ///
     /// The window is inclusive of `start` and exclusive of `end`.
     fn window(&self, start: EventTime, end: EventTime) -> PyExplodedEdgeFilter {
-        self.0.clone().window(start, end).into()
+        self.0.dyn_window(start, end).into()
     }
 
     /// Restricts exploded edge evaluation to a single point in time.
     fn at(&self, time: EventTime) -> PyExplodedEdgeFilter {
-        self.0.clone().at(time).into()
+        self.0.dyn_at(time).into()
     }
 
     /// Restricts exploded edge evaluation to times strictly after the given time.
     fn after(&self, time: EventTime) -> PyExplodedEdgeFilter {
-        self.0.clone().after(time).into()
+        self.0.dyn_after(time).into()
     }
 
     /// Restricts exploded edge evaluation to times strictly before the given time.
     fn before(&self, time: EventTime) -> PyExplodedEdgeFilter {
-        self.0.clone().before(time).into()
+        self.0.dyn_before(time).into()
     }
 
     /// Evaluates exploded edge predicates against the latest available state.
     fn latest(&self) -> PyExplodedEdgeFilter {
-        self.0.clone().latest().into()
+        self.0.dyn_latest().into()
     }
 
     /// Evaluates exploded edge predicates against a snapshot of the graph at a given time.
     fn snapshot_at(&self, time: EventTime) -> PyExplodedEdgeFilter {
-        self.0.clone().snapshot_at(time).into()
+        self.0.dyn_snapshot_at(time).into()
     }
 
     /// Evaluates exploded edge predicates against the most recent snapshot of the graph.
     fn snapshot_latest(&self) -> PyExplodedEdgeFilter {
-        self.0.clone().snapshot_latest().into()
+        self.0.dyn_snapshot_latest().into()
     }
 
     /// Restricts evaluation to exploded edges belonging to the given layer.
     fn layer(&self, layer: String) -> PyExplodedEdgeFilter {
-        self.0.clone().layer(layer).into()
+        self.0.dyn_layer(vec![layer]).into()
     }
 
     /// Restricts evaluation to exploded edges belonging to any of the given layers.
     fn layers(&self, layers: FromIterable<String>) -> PyExplodedEdgeFilter {
-        self.0.clone().layer(layers).into()
+        self.0.dyn_layer(layers.to_vec()).into()
     }
 
     /// Matches exploded edges that have at least one event in the current view.
-    fn is_active(&self) -> PyExplodedEdgeFilter {
-        self.0.is_active().into()
+    fn is_active(&self) -> PyExpr {
+        self.0.dyn_is_active().into()
     }
 
     /// Matches exploded edges that are structurally valid in the current view.
-    fn is_valid(&self) -> PyExplodedEdgeFilter {
-        self.0.is_valid().into()
+    fn is_valid(&self) -> PyExpr {
+        self.0.dyn_is_valid().into()
     }
 
     /// Matches exploded edges that have been deleted.
-    fn is_deleted(&self) -> PyExplodedEdgeFilter {
-        self.0.is_deleted().into()
+    fn is_deleted(&self) -> PyExpr {
+        self.0.dyn_is_deleted().into()
     }
 
     /// Matches exploded edges that are self-loops (source == destination).
-    fn is_self_loop(&self) -> PyExplodedEdgeFilter {
-        self.0.is_self_loop().into()
+    fn is_self_loop(&self) -> PyExpr {
+        self.0.dyn_is_self_loop().into()
     }
 }

@@ -1,15 +1,16 @@
 use crate::{
     db::graph::views::filter::model::{
         edge_filter::{EdgeEndpointWrapper, EdgeFilter},
+        node_expr::DynCreateOp,
         node_filter::NodeFilter,
-        EdgeFilterFactory, EdgeViewFilterOps, PropertyFilterFactory, ViewWrapOps,
+        CreateView, EdgeFilterFactory, EdgeViewFilterOps, PropertyFilterFactory, ViewWrapOps,
     },
+    prelude::EdgeViewOps,
     python::{filter::node_expr::PyExpr, types::iterable::FromIterable},
 };
 use pyo3::{pyclass, pymethods};
 use raphtory_api::core::storage::timeindex::EventTime;
 use std::sync::Arc;
-use crate::prelude::EdgeViewOps;
 
 /// Entry point for filtering an edge endpoint (source or destination).
 ///
@@ -58,6 +59,81 @@ impl PyEdgeEndpoint {
     }
 }
 
+pub trait DynEdgeFilterFactory: Send + Sync + 'static {
+    fn dyn_property(&self, name: String) -> Arc<dyn DynCreateOp>;
+    fn dyn_metadata(&self, name: String) -> Arc<dyn DynCreateOp>;
+
+    fn dyn_is_active(&self) -> Arc<dyn DynCreateOp>;
+    fn dyn_is_valid(&self) -> Arc<dyn DynCreateOp>;
+    fn dyn_is_deleted(&self) -> Arc<dyn DynCreateOp>;
+    fn dyn_is_self_loop(&self) -> Arc<dyn DynCreateOp>;
+
+    fn dyn_window(&self, start: EventTime, end: EventTime) -> Arc<dyn DynEdgeFilterFactory>;
+    fn dyn_at(&self, time: EventTime) -> Arc<dyn DynEdgeFilterFactory>;
+    fn dyn_after(&self, time: EventTime) -> Arc<dyn DynEdgeFilterFactory>;
+    fn dyn_before(&self, time: EventTime) -> Arc<dyn DynEdgeFilterFactory>;
+    fn dyn_latest(&self) -> Arc<dyn DynEdgeFilterFactory>;
+    fn dyn_snapshot_at(&self, time: EventTime) -> Arc<dyn DynEdgeFilterFactory>;
+    fn dyn_snapshot_latest(&self) -> Arc<dyn DynEdgeFilterFactory>;
+    fn dyn_layer(&self, layers: Vec<String>) -> Arc<dyn DynEdgeFilterFactory>;
+}
+
+impl<T> DynEdgeFilterFactory for T
+where
+    T: EdgeFilterFactory + EdgeViewFilterOps + ViewWrapOps + CreateView + Clone + Send + Sync + 'static,
+{
+    fn dyn_property(&self, name: String) -> Arc<dyn DynCreateOp> {
+        Arc::new(PropertyFilterFactory::property(self, name))
+    }
+    fn dyn_metadata(&self, name: String) -> Arc<dyn DynCreateOp> {
+        Arc::new(PropertyFilterFactory::metadata(self, name))
+    }
+
+    fn dyn_is_active(&self) -> Arc<dyn DynCreateOp> {
+        Arc::new(self.is_active())
+    }
+    fn dyn_is_valid(&self) -> Arc<dyn DynCreateOp> {
+        Arc::new(self.is_valid())
+    }
+    fn dyn_is_deleted(&self) -> Arc<dyn DynCreateOp> {
+        Arc::new(self.is_deleted())
+    }
+    fn dyn_is_self_loop(&self) -> Arc<dyn DynCreateOp> {
+        Arc::new(self.is_self_loop())
+    }
+
+    fn dyn_window(&self, start: EventTime, end: EventTime) -> Arc<dyn DynEdgeFilterFactory> {
+        Arc::new(self.clone().window(start, end))
+    }
+    fn dyn_at(&self, time: EventTime) -> Arc<dyn DynEdgeFilterFactory> {
+        Arc::new(self.clone().at(time))
+    }
+    fn dyn_after(&self, time: EventTime) -> Arc<dyn DynEdgeFilterFactory> {
+        Arc::new(self.clone().after(time))
+    }
+    fn dyn_before(&self, time: EventTime) -> Arc<dyn DynEdgeFilterFactory> {
+        Arc::new(self.clone().before(time))
+    }
+    fn dyn_latest(&self) -> Arc<dyn DynEdgeFilterFactory> {
+        Arc::new(self.clone().latest())
+    }
+    fn dyn_snapshot_at(&self, time: EventTime) -> Arc<dyn DynEdgeFilterFactory> {
+        Arc::new(self.clone().snapshot_at(time))
+    }
+    fn dyn_snapshot_latest(&self) -> Arc<dyn DynEdgeFilterFactory> {
+        Arc::new(self.clone().snapshot_latest())
+    }
+    fn dyn_layer(&self, layers: Vec<String>) -> Arc<dyn DynEdgeFilterFactory> {
+        Arc::new(self.clone().layer(layers))
+    }
+}
+
+impl From<Arc<dyn DynEdgeFilterFactory>> for PyEdgeFilter {
+    fn from(value: Arc<dyn DynEdgeFilterFactory>) -> Self {
+        PyEdgeFilter(value)
+    }
+}
+
 /// Entry point for constructing edge filter expressions.
 ///
 /// The `Edge` filter provides:
@@ -72,7 +148,7 @@ impl PyEdgeEndpoint {
 ///     Edge.window(0, 10).is_active()
 ///     Edge.layer("fire_nation").is_valid()
 #[pyclass(frozen, name = "Edge", module = "raphtory.filter")]
-pub struct PyEdgeFilter(Arc<dyn EdgeFilterFactory>);
+pub struct PyEdgeFilter(Arc<dyn DynEdgeFilterFactory>);
 
 #[pymethods]
 impl PyEdgeFilter {
@@ -96,7 +172,7 @@ impl PyEdgeFilter {
     /// Arguments:
     ///     name (str): Property key.
     fn property(&self, name: String) -> PyExpr {
-        self.0.property(name).into()
+        self.0.dyn_property(name).into()
     }
 
     /// Filters an edge metadata field by name.
@@ -104,71 +180,71 @@ impl PyEdgeFilter {
     /// Arguments:
     ///     name (str): Metadata key.
     fn metadata(&self, name: String) -> PyExpr {
-        self.0.metadata(name).into()
+        self.0.dyn_metadata(name).into()
     }
 
     /// Restricts edge evaluation to the given time window.
     fn window(&self, start: EventTime, end: EventTime) -> PyEdgeFilter {
-        self.0.clone().window(start, end).into()
+        self.0.dyn_window(start, end).into()
     }
 
     /// Restricts edge evaluation to a single point in time.
     fn at(&self, time: EventTime) -> PyEdgeFilter {
-        self.0.clone().at(time).into()
+        self.0.dyn_at(time).into()
     }
 
     /// Restricts edge evaluation to times strictly after the given time.
     fn after(&self, time: EventTime) -> PyEdgeFilter {
-        self.0.clone().after(time).into()
+        self.0.dyn_after(time).into()
     }
 
     /// Restricts edge evaluation to times strictly before the given time.
     fn before(&self, time: EventTime) -> PyEdgeFilter {
-        self.0.clone().before(time).into()
+        self.0.dyn_before(time).into()
     }
 
     /// Evaluates edge predicates against the latest available edge state.
     fn latest(&self) -> PyEdgeFilter {
-        self.0.clone().latest().into()
+        self.0.dyn_latest().into()
     }
 
     /// Evaluates edge predicates against a snapshot of the graph at a given time.
     fn snapshot_at(&self, time: EventTime) -> PyEdgeFilter {
-        self.0.clone().snapshot_at(time).into()
+        self.0.dyn_snapshot_at(time).into()
     }
 
     /// Evaluates edge predicates against the most recent snapshot of the graph.
     fn snapshot_latest(&self) -> PyEdgeFilter {
-        self.0.clone().snapshot_latest().into()
+        self.0.dyn_snapshot_latest().into()
     }
 
     /// Restricts evaluation to edges belonging to the given layer.
     fn layer(&self, layer: String) -> PyEdgeFilter {
-        self.0.clone().layer(layer).into()
+        self.0.dyn_layer(vec![layer]).into()
     }
 
     /// Restricts evaluation to edges belonging to any of the given layers.
     fn layers(&self, layers: FromIterable<String>) -> PyEdgeFilter {
-        self.0.clone().layer(layers).into()
+        self.0.dyn_layer(layers.to_vec()).into()
     }
 
     /// Matches edges that have at least one event in the current view.
-    fn is_active(&self) -> PyEdgeFilter {
-        self.0.is_active().into()
+    fn is_active(&self) -> PyExpr {
+        self.0.dyn_is_active().into()
     }
 
     /// Matches edges that are structurally valid in the current view.
-    fn is_valid(&self) -> PyEdgeFilter {
-        self.0.is_valid().into()
+    fn is_valid(&self) -> PyExpr {
+        self.0.dyn_is_valid().into()
     }
 
     /// Matches edges that have been deleted.
-    fn is_deleted(&self) -> PyEdgeFilter {
-        self.0.is_deleted().into()
+    fn is_deleted(&self) -> PyExpr {
+        self.0.dyn_is_deleted().into()
     }
 
     /// Matches edges that are self-loops (source == destination).
-    fn is_self_loop(&self) -> PyEdgeFilter {
-        self.0.is_self_loop().into()
+    fn is_self_loop(&self) -> PyExpr {
+        self.0.dyn_is_self_loop().into()
     }
 }
