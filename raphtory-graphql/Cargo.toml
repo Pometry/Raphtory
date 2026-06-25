@@ -18,7 +18,7 @@ raphtory = { workspace = true, features = [
     "io",
 ] }
 tempfile = { workspace = true }
-raphtory-api = { workspace = true }
+raphtory-api = { workspace = true, features = [ "io" ] }
 raphtory-storage = { workspace = true }
 base64 = { workspace = true }
 jsonwebtoken = { workspace = true }
