@@ -281,7 +281,7 @@ impl<E: EntityExpr> EntityExpr for PropertyExpr<E> {
     }
 }
 
-impl<E: EntityExpr + CreateView + NodeFilterFactory + Clone + Send + Sync + 'static> CreateOp
+impl<E: EntityExpr + CreateView + Clone + Send + Sync + 'static> CreateOp
     for PropertyExpr<E>
 {
     fn create_node_op<'g, G: GraphView + 'g>(
@@ -322,7 +322,7 @@ impl<E: EntityExpr> EntityExpr for MetadataExpr<E> {
     }
 }
 
-impl<E: EntityExpr + CreateView + NodeFilterFactory + Clone + Send + Sync + 'static> CreateOp
+impl<E: EntityExpr + CreateView + Clone + Send + Sync + 'static> CreateOp
     for MetadataExpr<E>
 {
     fn create_node_op<'g, G: GraphView + 'g>(
