@@ -7,10 +7,9 @@ use crate::{
             },
             view::internal::{
                 Immutable, InheritEdgeFilterOps, InheritEdgeHistoryFilter,
-                InheritEdgeLayerFilterOps, InheritLayerOps,
-                InheritListOps, InheritMaterialize, InheritNodeFilterOps, InheritNodeHistoryFilter,
-                InheritStorageOps, InheritTimeSemantics,
-                InternalExplodedEdgeFilterOps, Static,
+                InheritEdgeLayerFilterOps, InheritLayerOps, InheritListOps, InheritMaterialize,
+                InheritNodeFilterOps, InheritNodeHistoryFilter, InheritStorageOps,
+                InheritTimeSemantics, InternalExplodedEdgeFilterOps, Static,
             },
         },
         graph::views::filter::model::edge_expr::EdgeOp,
@@ -121,8 +120,10 @@ impl<'graph, G: GraphViewOps<'graph>, F: EdgeOp<Output = bool> + Clone>
             return false;
         }
         let edge_ref: EdgeRef = self.core_edge(Either::Left(eid.eid())).out_ref();
-        self.filter
-            .apply(self.graph.core_graph(), edge_ref.at_layer(eid.layer()).at(t))
+        self.filter.apply(
+            self.graph.core_graph(),
+            edge_ref.at_layer(eid.layer()).at(t),
+        )
     }
 }
 impl<'graph, G: GraphViewOps<'graph>, F: EdgeOp<Output = bool> + Clone> InheritEdgeLayerFilterOps

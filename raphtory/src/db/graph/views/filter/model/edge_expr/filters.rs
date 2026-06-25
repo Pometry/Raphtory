@@ -10,20 +10,18 @@ use super::{
     },
     EdgeOp,
 };
-use crate::db::graph::views::filter::exploded_edge_expr_filtered_graph::ExplodedEdgeExprFilteredGraph;
-use crate::db::graph::views::filter::model::{validate_binary_op, validate_string_op, ExplodedEdgeFilter};
 pub(crate) use crate::db::graph::views::filter::model::{BinaryCmpExpr, StringExpr, UnaryExpr};
 use crate::{
     db::{
         api::{state::ops::NotANodeFilter, view::internal::GraphView},
         graph::views::filter::{
             edge_expr_filtered_graph::EdgeExprFilteredGraph,
+            exploded_edge_expr_filtered_graph::ExplodedEdgeExprFilteredGraph,
             model::{
-                edge_filter::{CompositeEdgeFilter, EdgeFilter}
-                ,
+                edge_filter::{CompositeEdgeFilter, EdgeFilter},
                 node_expr::{filters::PropValueSetExpr, CreateOp},
-                CompositeExplodedEdgeFilter, CompositeNodeFilter, CreateFilter,
-                TryAsCompositeFilter,
+                validate_binary_op, validate_string_op, CompositeExplodedEdgeFilter,
+                CompositeNodeFilter, CreateFilter, ExplodedEdgeFilter, TryAsCompositeFilter,
             },
         },
     },
@@ -112,7 +110,7 @@ where
     R: CreateOp,
 {
     type EntityFiltered<'graph, G: GraphViewOps<'graph>> =
-    ExplodedEdgeExprFilteredGraph<G, Arc<dyn EdgeOp<Output = bool> + 'graph>>;
+        ExplodedEdgeExprFilteredGraph<G, Arc<dyn EdgeOp<Output = bool> + 'graph>>;
 
     type NodeFilter<'graph, G: GraphView + 'graph> = NotANodeFilter;
 

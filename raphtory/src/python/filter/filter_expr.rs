@@ -5,11 +5,7 @@ use crate::{
             view::{internal::GraphView, BoxableGraphView},
         },
         graph::views::filter::{
-            model::{
-                edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter,
-                not_filter::NotFilter, or_filter::OrFilter, AndFilter, DynCreateFilter,
-                TryAsCompositeFilter,
-            },
+            model::{not_filter::NotFilter, or_filter::OrFilter, AndFilter, DynCreateFilter},
             CreateFilter,
         },
     },
@@ -28,16 +24,6 @@ use std::sync::Arc;
 )]
 #[derive(Clone)]
 pub struct PyFilterExpr(pub Arc<dyn DynCreateFilter>);
-
-impl PyFilterExpr {
-    pub fn try_as_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        self.0.try_as_composite_node_filter()
-    }
-
-    pub fn try_as_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        self.0.try_as_composite_edge_filter()
-    }
-}
 
 #[pymethods]
 impl PyFilterExpr {

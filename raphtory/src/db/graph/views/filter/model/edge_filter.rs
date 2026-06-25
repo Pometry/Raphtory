@@ -23,10 +23,10 @@ use crate::{
                 snapshot_filter::{SnapshotAt, SnapshotLatest},
                 windowed_filter::Windowed,
                 AllExpr, AndFilter, AnyExpr, AvgExpr, CombinedFilter, ComposableFilter, CreateView,
-                EdgeFilterFactory, EdgeViewFilterOps, EntityAggOps,
-                EntityMarker, FirstExpr, InternalViewWrapOps, LastExpr, LenExpr, MaxExpr,
-                MetadataExpr, MinExpr, NotFilter, OrFilter, PropertyExpr, PropertyFilterFactory,
-                SumExpr, TemporalPropExpr, TryAsCompositeFilter, Wrap,
+                EdgeFilterFactory, EdgeViewFilterOps, EntityAggOps, EntityMarker, FirstExpr,
+                InternalViewWrapOps, LastExpr, LenExpr, MaxExpr, MetadataExpr, MinExpr, NotFilter,
+                OrFilter, PropertyExpr, PropertyFilterFactory, SumExpr, TemporalPropExpr,
+                TryAsCompositeFilter, Wrap,
             },
             CreateFilter,
         },
@@ -34,10 +34,7 @@ use crate::{
     errors::GraphError,
     prelude::GraphViewOps,
 };
-use raphtory_api::core::{
-    entities::properties::prop::Prop,
-    storage::timeindex::EventTime,
-};
+use raphtory_api::core::{entities::properties::prop::Prop, storage::timeindex::EventTime};
 use std::{fmt, fmt::Display, sync::Arc};
 
 // User facing entry for building edge filters.

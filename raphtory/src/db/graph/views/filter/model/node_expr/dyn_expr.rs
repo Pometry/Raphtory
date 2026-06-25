@@ -102,7 +102,7 @@ impl<E: CreateOp<Marker: Into<EntityMarker>>> DynCreateOp for E {
 
     fn dyn_create_edge_op<'g>(
         &self,
-        graph:  Arc<dyn BoxableGraphView + 'g>,
+        graph: Arc<dyn BoxableGraphView + 'g>,
     ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
         self.create_edge_op(graph)
     }

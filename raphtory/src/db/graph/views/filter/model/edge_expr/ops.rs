@@ -22,12 +22,12 @@ use crate::db::{
     api::state::ops::NodeOp,
     graph::views::filter::model::{
         edge_filter::Endpoint,
+        filter_operator::{BinaryOp, Comparable},
         node_expr::ops::{broadcast_binary, broadcast_unary},
     },
 };
 use raphtory_api::core::entities::properties::prop::PropArray;
 use std::sync::Arc;
-use crate::db::graph::views::filter::model::filter_operator::{BinaryOp, Comparable};
 
 use crate::db::graph::views::filter::model::{
     filter_operator::UnaryOp, SetOp, StringComparable, StringOp,

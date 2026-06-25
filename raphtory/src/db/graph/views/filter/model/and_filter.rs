@@ -9,8 +9,7 @@ use crate::{
             model::{
                 edge_filter::CompositeEdgeFilter,
                 exploded_edge_filter::CompositeExplodedEdgeFilter,
-                node_filter::CompositeNodeFilter,
-                ComposableFilter, TryAsCompositeFilter,
+                node_filter::CompositeNodeFilter, ComposableFilter, TryAsCompositeFilter,
             },
             CreateFilter,
         },

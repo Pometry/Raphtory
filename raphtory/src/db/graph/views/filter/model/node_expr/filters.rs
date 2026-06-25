@@ -44,10 +44,9 @@ use super::{
     ops::{
         BinaryCmpNodeOp, ListAwareCmpNodeOp, ListAwareSetNodeOp, ListAwareStringNodeOp,
         ListAwareUnaryNodeOp, PropValueSetNodeOp, StringNodeOp, UnaryNodeOp,
-    }
-    , CreateOp, EntityExpr,
+    },
+    CreateOp, EntityExpr,
 };
-use crate::db::graph::views::filter::model::{coerce_set_values, resolved_prop_type, validate_binary_op, validate_const_castable, validate_string_op};
 use crate::{
     db::{
         api::{
@@ -56,11 +55,14 @@ use crate::{
         },
         graph::views::filter::{
             model::{
+                coerce_set_values,
                 edge_expr::EdgeOp,
                 edge_filter::CompositeEdgeFilter,
                 filter_operator::{BinaryOp, SetOp, StringOp, UnaryOp},
-                ComposableFilter, CompositeExplodedEdgeFilter, CompositeNodeFilter, CreateFilter,
-                EntityMarker, ExplodedEdgeFilter, TryAsCompositeFilter,
+                resolved_prop_type, validate_binary_op, validate_const_castable,
+                validate_string_op, ComposableFilter, CompositeExplodedEdgeFilter,
+                CompositeNodeFilter, CreateFilter, EntityMarker, ExplodedEdgeFilter,
+                TryAsCompositeFilter,
             },
             node_filtered_graph::NodeFilteredGraph,
         },
@@ -122,7 +124,7 @@ impl<L, R, E> BinaryCmpExpr<L, R, E> {
 impl<L, R, E> ComposableFilter for BinaryCmpExpr<L, R, E> {}
 
 impl<L: EntityExpr, R: EntityExpr, E: Copy + Send + Sync + 'static> EntityExpr
-for BinaryCmpExpr<L, R, E>
+    for BinaryCmpExpr<L, R, E>
 {
     type Marker = E;
     fn entity(&self) -> Self::Marker {
@@ -245,9 +247,10 @@ where
         match self.entity {
             EntityMarker::Node => Err(GraphError::NotEdgeFilter),
             EntityMarker::Edge => self.clone().with_entity(EdgeFilter).create_edge_op(graph),
-            EntityMarker::ExplodedEdge => {
-                self.clone().with_entity(ExplodedEdgeFilter).create_edge_op(graph)
-            }
+            EntityMarker::ExplodedEdge => self
+                .clone()
+                .with_entity(ExplodedEdgeFilter)
+                .create_edge_op(graph),
         }
     }
 }
@@ -305,9 +308,7 @@ impl<E, Entity> UnaryExpr<E, Entity> {
 
 impl<E, Entity> ComposableFilter for UnaryExpr<E, Entity> {}
 
-impl<E: EntityExpr, Entity: Copy + Send + Sync + 'static> EntityExpr
-for UnaryExpr<E, Entity>
-{
+impl<E: EntityExpr, Entity: Copy + Send + Sync + 'static> EntityExpr for UnaryExpr<E, Entity> {
     type Marker = Entity;
     fn entity(&self) -> Self::Marker {
         self.entity
@@ -414,9 +415,10 @@ where
         match self.entity {
             EntityMarker::Node => Err(GraphError::NotEdgeFilter),
             EntityMarker::Edge => self.clone().with_entity(EdgeFilter).create_edge_op(graph),
-            EntityMarker::ExplodedEdge => {
-                self.clone().with_entity(ExplodedEdgeFilter).create_edge_op(graph)
-            }
+            EntityMarker::ExplodedEdge => self
+                .clone()
+                .with_entity(ExplodedEdgeFilter)
+                .create_edge_op(graph),
         }
     }
 }
@@ -491,7 +493,7 @@ impl<L, R, Entity> StringExpr<L, R, Entity> {
 impl<L, R, Entity> ComposableFilter for StringExpr<L, R, Entity> {}
 
 impl<L: EntityExpr, R: EntityExpr, Entity: Copy + Send + Sync + 'static> EntityExpr
-for StringExpr<L, R, Entity>
+    for StringExpr<L, R, Entity>
 {
     type Marker = Entity;
     fn entity(&self) -> Self::Marker {
@@ -596,9 +598,10 @@ impl<L: CreateOp, R: CreateOp> CreateOp for StringExpr<L, R, EntityMarker> {
         match self.entity {
             EntityMarker::Node => Err(GraphError::NotEdgeFilter),
             EntityMarker::Edge => self.clone().with_entity(EdgeFilter).create_edge_op(graph),
-            EntityMarker::ExplodedEdge => {
-                self.clone().with_entity(ExplodedEdgeFilter).create_edge_op(graph)
-            }
+            EntityMarker::ExplodedEdge => self
+                .clone()
+                .with_entity(ExplodedEdgeFilter)
+                .create_edge_op(graph),
         }
     }
 }
@@ -653,7 +656,7 @@ impl<E, Entity> PropValueSetExpr<E, Entity> {
 impl<E, Entity> ComposableFilter for PropValueSetExpr<E, Entity> {}
 
 impl<E: EntityExpr, Entity: Copy + Send + Sync + 'static> EntityExpr
-for PropValueSetExpr<E, Entity>
+    for PropValueSetExpr<E, Entity>
 {
     type Marker = Entity;
     fn entity(&self) -> Self::Marker {
@@ -663,7 +666,6 @@ for PropValueSetExpr<E, Entity>
         PropType::Empty
     }
 }
-
 
 impl<E: CreateOp> CreateOp for PropValueSetExpr<E, NodeFilter> {
     fn create_node_op<'g, G: GraphView + 'g>(
@@ -756,9 +758,10 @@ impl<E: CreateOp> CreateOp for PropValueSetExpr<E, EntityMarker> {
         match self.entity {
             EntityMarker::Node => Err(GraphError::NotEdgeFilter),
             EntityMarker::Edge => self.clone().with_entity(EdgeFilter).create_edge_op(graph),
-            EntityMarker::ExplodedEdge => {
-                self.clone().with_entity(ExplodedEdgeFilter).create_edge_op(graph)
-            }
+            EntityMarker::ExplodedEdge => self
+                .clone()
+                .with_entity(ExplodedEdgeFilter)
+                .create_edge_op(graph),
         }
     }
 }

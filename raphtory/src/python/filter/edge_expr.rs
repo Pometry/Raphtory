@@ -80,7 +80,14 @@ pub trait DynEdgeFilterFactory: Send + Sync + 'static {
 
 impl<T> DynEdgeFilterFactory for T
 where
-    T: EdgeFilterFactory + EdgeViewFilterOps + ViewWrapOps + CreateView + Clone + Send + Sync + 'static,
+    T: EdgeFilterFactory
+        + EdgeViewFilterOps
+        + ViewWrapOps
+        + CreateView
+        + Clone
+        + Send
+        + Sync
+        + 'static,
 {
     fn dyn_property(&self, name: String) -> Arc<dyn DynCreateOp> {
         Arc::new(PropertyFilterFactory::property(self, name))
