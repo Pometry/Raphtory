@@ -7,10 +7,7 @@ use std::ops::Range;
 use raphtory::{
     db::{
         api::view::filter_ops::{EdgeSelect, NodeSelect},
-        graph::views::{
-            filter::CreateFilter,
-            window_graph::WindowedGraph,
-        },
+        graph::views::{filter::CreateFilter, window_graph::WindowedGraph},
     },
     errors::GraphError,
     prelude::TimeOps,

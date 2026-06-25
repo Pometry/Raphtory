@@ -1506,8 +1506,7 @@ mod test_node_filter {
                     node_filter::ops::NodeFilterOps,
                     not_filter::NotFilter,
                     property_filter::ops::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
-                    ComposableFilter, CompositeNodeFilter, NodeViewFilterOps,
-                    PropertyFilterFactory, TryAsCompositeFilter, ViewWrapOps,
+                    ComposableFilter, NodeViewFilterOps, PropertyFilterFactory, ViewWrapOps,
                 },
                 CreateFilter,
             },
@@ -1550,7 +1549,7 @@ mod test_node_filter {
         manual_expr: F,
         context: &str,
     ) where
-        CF: CreateFilter + TryAsCompositeFilter + Clone,
+        CF: CreateFilter + Clone,
         F: Fn(usize) -> bool + Copy,
     {
         let expected_select_nodes = graph
@@ -4307,7 +4306,7 @@ mod composite_node_filter_tests {
         db::graph::views::filter::model::{
             node_filter::ops::NodeFilterOps, not_filter::NotFilter,
             property_filter::ops::PropertyFilterOps, ComposableFilter, NodeFilterFactory,
-            PropertyFilterFactory, TryAsCompositeFilter,
+            PropertyFilterFactory,
         },
         prelude::NodeFilter,
     };
@@ -4577,7 +4576,7 @@ mod test_node_property_filter_agg {
                 model::{
                     node_filter::NodeFilter,
                     property_filter::ops::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
-                    PropertyFilterFactory, TryAsCompositeFilter,
+                    PropertyFilterFactory,
                 },
                 CreateFilter,
             },
@@ -4910,10 +4909,7 @@ mod test_node_property_filter_agg {
         graph
     }
 
-    fn apply_assertion(
-        filter: impl TryAsCompositeFilter + CreateFilter + Clone,
-        expected: &[&str],
-    ) {
+    fn apply_assertion(filter: impl CreateFilter + Clone, expected: &[&str]) {
         assert_filter_nodes_results(
             init_nodes_graph,
             IdentityGraphTransformer,
@@ -4923,10 +4919,7 @@ mod test_node_property_filter_agg {
         );
     }
 
-    fn apply_assertion_err(
-        filter: impl TryAsCompositeFilter + CreateFilter + Clone,
-        expected: &str,
-    ) {
+    fn apply_assertion_err(filter: impl CreateFilter + Clone, expected: &str) {
         assert_filter_nodes_err(
             init_nodes_graph,
             IdentityGraphTransformer,
@@ -10409,7 +10402,7 @@ mod composite_edge_filter_tests {
     use raphtory::db::graph::views::filter::model::{
         edge_filter::EdgeFilter, node_filter::ops::NodeFilterOps, not_filter::NotFilter,
         property_filter::ops::PropertyFilterOps, ComposableFilter, NodeFilterFactory,
-        PropertyFilterFactory, TryAsCompositeFilter,
+        PropertyFilterFactory,
     };
     use raphtory_tests::assertions::{
         assert_filter_edges_results, TestGraphVariants, TestVariants,
@@ -10591,7 +10584,6 @@ mod composite_edge_filter_tests {
             &expected_results,
             vec![TestGraphVariants::Graph],
         );
-
     }
 
     #[test]
