@@ -73,26 +73,6 @@ where
     }
 }
 
-impl<L, R> TryAsCompositeFilter for BinaryCmpExpr<L, R, EdgeFilter>
-where
-    L: CreateOp,
-    R: CreateOp,
-{
-    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-
-    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-
-    fn try_as_composite_exploded_edge_filter(
-        &self,
-    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-}
-
 impl<L, R> CreateFilter for BinaryCmpExpr<L, R, EdgeFilter>
 where
     L: CreateOp,
@@ -159,13 +139,10 @@ where
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// UnaryExpr<E, I>
-// ─────────────────────────────────────────────────────────────────────────────
-
-impl<E> TryAsCompositeFilter for UnaryExpr<E, EdgeFilter>
+impl<L, R> TryAsCompositeFilter for BinaryCmpExpr<L, R, EdgeFilter>
 where
-    E: CreateOp,
+    L: CreateOp,
+    R: CreateOp,
 {
     fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
         Err(GraphError::NotSupported)
@@ -181,6 +158,10 @@ where
         Err(GraphError::NotSupported)
     }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UnaryExpr<E, I>
+// ─────────────────────────────────────────────────────────────────────────────
 
 impl<E> CreateFilter for UnaryExpr<E, EdgeFilter>
 where
@@ -234,6 +215,25 @@ where
     }
 }
 
+impl<E> TryAsCompositeFilter for UnaryExpr<E, EdgeFilter>
+where
+    E: CreateOp,
+{
+    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
+
+    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
+
+    fn try_as_composite_exploded_edge_filter(
+        &self,
+    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // StringExpr<L, R> — string expression filter for edges
 // ─────────────────────────────────────────────────────────────────────────────
@@ -273,24 +273,6 @@ where
             right,
             op: self.op,
         }))
-    }
-}
-
-impl<L, R> TryAsCompositeFilter for StringExpr<L, R, EdgeFilter>
-where
-    L: CreateOp,
-    R: CreateOp,
-{
-    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-    fn try_as_composite_exploded_edge_filter(
-        &self,
-    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
     }
 }
 
@@ -358,6 +340,24 @@ where
     }
 }
 
+impl<L, R> TryAsCompositeFilter for StringExpr<L, R, EdgeFilter>
+where
+    L: CreateOp,
+    R: CreateOp,
+{
+    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
+    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
+    fn try_as_composite_exploded_edge_filter(
+        &self,
+    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // PropValueSetExpr<E, EdgeFilter> — is_in / is_not_in for edge-side exprs
 // ─────────────────────────────────────────────────────────────────────────────
@@ -387,20 +387,6 @@ impl<E: CreateOp> CreateOp for PropValueSetExpr<E, ExplodedEdgeFilter> {
             values: self.values.clone(),
             op: self.op,
         }))
-    }
-}
-
-impl<E: CreateOp> TryAsCompositeFilter for PropValueSetExpr<E, EdgeFilter> {
-    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-    fn try_as_composite_exploded_edge_filter(
-        &self,
-    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
     }
 }
 
@@ -453,5 +439,19 @@ impl<E: CreateOp> CreateFilter for PropValueSetExpr<E, ExplodedEdgeFilter> {
         _graph: G,
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
         Err(GraphError::NotNodeFilter)
+    }
+}
+
+impl<E: CreateOp> TryAsCompositeFilter for PropValueSetExpr<E, EdgeFilter> {
+    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
+    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
+    fn try_as_composite_exploded_edge_filter(
+        &self,
+    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
+        Err(GraphError::NotSupported)
     }
 }
