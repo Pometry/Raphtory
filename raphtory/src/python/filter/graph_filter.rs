@@ -1,5 +1,5 @@
 use crate::{
-    db::graph::views::filter::model::{graph_filter::GraphFilter, DynView, ViewWrapOps},
+    db::graph::views::filter::model::{DynView, ViewWrapOps},
     python::{filter::filter_expr::PyFilterExpr, types::iterable::FromIterable},
 };
 use pyo3::{pyclass, pymethods, Bound, IntoPyObject, PyErr, Python};
@@ -31,11 +31,6 @@ pub struct PyGraphFilter(pub(crate) DynView);
 
 #[pymethods]
 impl PyGraphFilter {
-    #[new]
-    fn new() -> Self {
-        PyGraphFilter(Arc::new(GraphFilter))
-    }
-
     /// Restricts evaluation to events within a time window.
     ///
     /// The window is inclusive of `start` and exclusive of `end`.

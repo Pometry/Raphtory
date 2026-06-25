@@ -108,6 +108,15 @@ impl<L, R, E> BinaryCmpExpr<L, R, E> {
             entity,
         }
     }
+
+    fn with_entity<T>(self, entity: T) -> BinaryCmpExpr<L, R, T> {
+        BinaryCmpExpr {
+            left: self.left,
+            op: self.op,
+            right: self.right,
+            entity,
+        }
+    }
 }
 
 impl<L, R, E> ComposableFilter for BinaryCmpExpr<L, R, E> {}
@@ -193,18 +202,11 @@ where
         graph: G,
     ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
         Ok(match self.entity {
-            EntityMarker::Node => Arc::new(
-                BinaryCmpExpr::new(self.left, self.op, self.right, NodeFilter)
-                    .create_filter(graph)?,
-            ),
-            EntityMarker::Edge => Arc::new(
-                BinaryCmpExpr::new(self.left, self.op, self.right, EdgeFilter)
-                    .create_filter(graph)?,
-            ),
-            EntityMarker::ExplodedEdge => Arc::new(
-                BinaryCmpExpr::new(self.left, self.op, self.right, ExplodedEdgeFilter)
-                    .create_filter(graph)?,
-            ),
+            EntityMarker::Node => Arc::new(self.with_entity(NodeFilter).create_filter(graph)?),
+            EntityMarker::Edge => Arc::new(self.with_entity(EdgeFilter).create_filter(graph)?),
+            EntityMarker::ExplodedEdge => {
+                Arc::new(self.with_entity(ExplodedEdgeFilter).create_filter(graph)?)
+            }
         })
     }
 
@@ -213,10 +215,7 @@ where
         graph: G,
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
         match self.entity {
-            EntityMarker::Node => Ok(BinaryCmpExpr::new(
-                self.left, self.op, self.right, NodeFilter,
-            )
-            .create_node_filter(graph)?),
+            EntityMarker::Node => Ok(self.with_entity(NodeFilter).create_node_filter(graph)?),
             EntityMarker::Edge => Err(GraphError::NotNodeFilter),
             EntityMarker::ExplodedEdge => Err(GraphError::NotNodeFilter),
         }
@@ -233,10 +232,7 @@ where
         graph: G,
     ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
         match self.entity {
-            EntityMarker::Node => BinaryCmpExpr::new(
-                self.left.clone(), self.op, self.right.clone(), NodeFilter,
-            )
-            .create_node_op(graph),
+            EntityMarker::Node => self.clone().with_entity(NodeFilter).create_node_op(graph),
             EntityMarker::Edge => Err(GraphError::NotNodeFilter),
             EntityMarker::ExplodedEdge => Err(GraphError::NotNodeFilter),
         }
@@ -248,14 +244,10 @@ where
     ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
         match self.entity {
             EntityMarker::Node => Err(GraphError::NotEdgeFilter),
-            EntityMarker::Edge => BinaryCmpExpr::new(
-                self.left.clone(), self.op, self.right.clone(), EdgeFilter,
-            )
-            .create_edge_op(graph),
-            EntityMarker::ExplodedEdge => BinaryCmpExpr::new(
-                self.left.clone(), self.op, self.right.clone(), ExplodedEdgeFilter,
-            )
-            .create_edge_op(graph),
+            EntityMarker::Edge => self.clone().with_entity(EdgeFilter).create_edge_op(graph),
+            EntityMarker::ExplodedEdge => {
+                self.clone().with_entity(ExplodedEdgeFilter).create_edge_op(graph)
+            }
         }
     }
 }
