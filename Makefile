@@ -10,7 +10,7 @@ print-version: # this is used by the CI, don't change
 # Idempotently publish the public crates to crates.io: skips any crate
 # whose current version is already published. Override the list with
 # CRATES=..., or DRY_RUN=true to only dry-run. Used by CI.
-CRATES ?= -p raphtory-api -p pometry-storage -p raphtory-core -p raphtory-storage -p raphtory -p raphtory-graphql
+CRATES ?= -p raphtory-api -p raphtory-core -p raphtory-storage -p raphtory -p raphtory-graphql
 publish-crates:
 	@./scripts/publish_crates.sh $(CRATES)
 
