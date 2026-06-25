@@ -358,10 +358,10 @@ pub enum GraphError {
     #[error("Not supported")]
     NotSupported,
 
-    #[error("Edge filter expected")]
+    #[error("Expression is not a node filter")]
     NotNodeFilter,
 
-    #[error("Node filter expected")]
+    #[error("Expression is not an edge filter")]
     NotEdgeFilter,
 
     #[error("Operator {0} requires a property value, but none was provided.")]
@@ -421,7 +421,7 @@ pub enum GraphError {
     #[error("Node filter is not supported for edge filtering")]
     NodeFilterIsNotEdgeFilter,
 
-    #[error("Only property filters are supported for exploded edge filtering")]
+    #[error("Expression is not an exploded edge filter")]
     NotExplodedEdgeFilter,
 
     #[error("Indexing not supported")]
