@@ -7,7 +7,10 @@ use crate::{
         PropertyFilterFactory, ViewWrapOps,
     },
     prelude::{EntityAggOps, EntityExprFilterOps, NodeFilter, NodeFilterFactory},
-    python::{graph::node_state::PyOutputNodeState, types::iterable::FromIterable},
+    python::{
+        filter::filter_expr::PyFilterExpr, graph::node_state::PyOutputNodeState,
+        types::iterable::FromIterable,
+    },
 };
 use pyo3::{pyclass, pymethods, Bound, IntoPyObject, PyErr, PyResult, Python};
 use raphtory_api::core::{entities::properties::prop::Prop, storage::timeindex::EventTime};
@@ -463,14 +466,9 @@ impl PyNodeFilter {
     ///
     /// Returns:
     ///     filter.FilterExpr:
-    fn by_state_column(&self, state: &PyOutputNodeState, col: String) -> PyResult<PyExpr> {
+    fn by_state_column(&self, state: &PyOutputNodeState, col: String) -> PyResult<PyFilterExpr> {
         let op = NodeStateBoolColOp::new(&state.inner, &col)
             .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
-        Ok(PyExpr(Arc::new(op)))
+        Ok(PyFilterExpr(Arc::new(op)))
     }
 }
-
-// TODO:
-//  We need a wrapper for Arc<dyn DynCreateFilter>
-//  Py Expr needs to extend this wrapper (PyFilter)
-//  by_state_column can return pyfilter

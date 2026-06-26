@@ -201,7 +201,7 @@ impl_agg_entity_op!(SumNodeOp, SumEdgeOp, |vals| {
         if vals.peek().is_none() {
             return None;
         }
-        let inner = vals.peek().unwrap().borrow().dtype();
+        let inner = vals.peek().unwrap().dtype();
         match inner {
             PropType::U8 | PropType::U16 | PropType::U32 | PropType::U64 => {
                 let (promoted, s64, s128, _) = scan_u64_sum(vals)?;
@@ -233,7 +233,7 @@ impl_agg_entity_op!(AvgNodeOp, AvgEdgeOp, |vals| {
         if vals.peek().is_none() {
             return None;
         }
-        let inner = vals.peek().unwrap().borrow().dtype();
+        let inner = vals.peek().unwrap().dtype();
         match inner {
             PropType::U8 | PropType::U16 | PropType::U32 | PropType::U64 => {
                 let (promoted, s64, s128, count) = scan_u64_sum(vals)?;

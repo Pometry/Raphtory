@@ -113,7 +113,7 @@ impl<'graph1, 'graph2, G1: GraphViewOps<'graph1>, G2: GraphViewOps<'graph2>> Par
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> Base for WindowedGraph<G> {
+impl<'graph, G> Base for WindowedGraph<G> {
     type Base = G;
     #[inline(always)]
     fn base(&self) -> &Self::Base {
