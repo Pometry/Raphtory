@@ -25,7 +25,11 @@ pub(crate) async fn setup_with_graphs(
 ) -> TestSetup {
     let data = Data::new(work_dir, &AppConfig::default(), Config::default());
     for (path, graph) in graphs {
-        let folder = data.validate_path_for_insert(path, false).unwrap();
+        let folder = data
+            .work_dir_write()
+            .await
+            .validate_path_for_insert(path, false)
+            .unwrap();
         data.insert_graph(folder, graph.clone()).await.unwrap();
     }
     let schema = App::create_schema().data(data.clone()).finish().unwrap();
@@ -39,7 +43,11 @@ pub(crate) async fn setup_with_policy(
 ) -> TestSetup {
     let mut data = Data::new(work_dir, &AppConfig::default(), Config::default());
     for (path, graph) in graphs {
-        let folder = data.validate_path_for_insert(path, false).unwrap();
+        let folder = data
+            .work_dir_write()
+            .await
+            .validate_path_for_insert(path, false)
+            .unwrap();
         data.insert_graph(folder, graph.clone()).await.unwrap();
     }
     data.set_auth_policy(policy);

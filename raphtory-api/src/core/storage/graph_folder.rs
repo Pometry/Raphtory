@@ -10,7 +10,7 @@
 //!     ├── index/        # Search indexes (optional)
 //!     └── vectors/      # Vector embeddings (optional)
 
-use crate::{core::input::input_node::parse_u64_strict, GraphType};
+use crate::{core::input::input_node::parse_u64_strict, GraphType, to_millis::ToMillis};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "io")]
@@ -320,6 +320,18 @@ pub trait GraphPaths {
         fs::create_dir(&graph_path)?;
 
         Ok(())
+    }
+
+    fn created(&self) -> Result<i64, GraphError> {
+        Ok(self.root_meta_path().metadata()?.created()?.to_millis()?)
+    }
+
+    fn last_updated(&self) -> Result<i64, GraphError> {
+        Ok(fs::metadata(self.meta_path()?)?.modified()?.to_millis()?)
+    }
+
+    fn last_opened(&self) -> Result<i64, GraphError> {
+        Ok(fs::metadata(self.meta_path()?)?.accessed()?.to_millis()?)
     }
 }
 

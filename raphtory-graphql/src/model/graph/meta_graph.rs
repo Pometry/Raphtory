@@ -1,12 +1,11 @@
 use crate::{
-    data::Data,
+    data::{Data, WorkDirGuard},
     graph::GraphWithVectors,
     model::graph::property::GqlProperty,
     paths::{ExistingGraphFolder, ValidGraphPaths},
 };
 use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, Result};
-use futures_util::TryFutureExt;
 use raphtory::{
     db::api::storage::storage::read_constant_graph_properties,
     errors::GraphError,
@@ -14,8 +13,8 @@ use raphtory::{
     serialise::parquet::decode_graph_metadata,
 };
 use raphtory_api::core::storage::graph_folder::{GraphMetadata, GraphPaths};
-use std::{cmp::Ordering, sync::Arc};
-use tokio::sync::OnceCell;
+use std::{cmp::Ordering, path::PathBuf, sync::Arc};
+use tokio::sync::{OnceCell, OwnedRwLockReadGuard, RwLockReadGuard};
 
 /// Lightweight summary of a stored graph — its name, path, counts, and
 /// filesystem timestamps — served without deserializing the full graph.
@@ -48,7 +47,7 @@ impl Ord for MetaGraph {
 }
 
 impl MetaGraph {
-    pub fn new(path: ExistingGraphFolder) -> Self {
+    pub(crate) fn new(path: ExistingGraphFolder) -> Self {
         Self {
             folder: path,
             meta: Default::default(),
