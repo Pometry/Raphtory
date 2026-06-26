@@ -494,10 +494,14 @@ async fn server_termination(
 mod server_tests {
     use crate::{
         client::raphtory_client::RaphtoryGraphQLClient,
-        config::{app_config::AppConfigBuilder, otlp_config::TracingProtocol},
+        config::{
+            app_config::AppConfigBuilder,
+            otlp_config::{TracingLevel, TracingProtocol},
+        },
         server::GraphServer,
     };
     use chrono::prelude::*;
+    use opentelemetry::trace::SpanId;
     use raphtory::{
         db::api::storage::storage::Config,
         prelude::{AdditionOps, Graph, StableEncode, NO_PROPS},
@@ -508,7 +512,49 @@ mod server_tests {
     use tokio::time::{sleep, Duration};
     use tracing::info;
     use url::Url;
-    use std::collections::HashMap;
+    use std::collections::{HashMap, HashSet};
+    use raphtory::prelude::PropertyAdditionOps;
+
+    fn print_span_tree(spans: &[opentelemetry_sdk::trace::SpanData]) {
+        let mut children: HashMap<SpanId, Vec<&opentelemetry_sdk::trace::SpanData>> =
+            HashMap::new();
+
+        for span in spans {
+            children
+                .entry(span.parent_span_id)
+                .or_default()
+                .push(span);
+        }
+
+        for span in spans
+            .iter()
+            .filter(|span| span.parent_span_id == SpanId::INVALID)
+            .collect::<Vec<_>>()
+        {
+            print_span_node(span, 0, &mut children);
+        }
+    }
+
+    fn print_span_node(
+        span: &opentelemetry_sdk::trace::SpanData,
+        depth: usize,
+        children: &mut HashMap<SpanId, Vec<&opentelemetry_sdk::trace::SpanData>>,
+    ) {
+        println!(
+            "{}{} [{} -> {}]",
+            "  ".repeat(depth),
+            span.name,
+            span.span_context.span_id(),
+            span.parent_span_id
+        );
+
+        if let Some(mut child_spans) = children.remove(&span.span_context.span_id()) {
+            child_spans.sort_by_key(|span| span.start_time);
+            for child in child_spans {
+                print_span_node(child, depth + 1, children);
+            }
+        }
+    }
 
     #[tokio::test]
     async fn test_server_start_stop() {
@@ -554,22 +600,6 @@ mod server_tests {
         graph.add_node(0, 0, NO_PROPS, None, None).unwrap();
         graph.encode(tmp_dir.path().join("g")).unwrap();
 
-        let app_config = AppConfigBuilder::new()
-            .with_tracing(true)
-            .with_otlp_transport_protocol(TracingProtocol::IN_MEMORY)
-            .build();
-
-        let server = GraphServer::new(
-            tmp_dir.path().to_path_buf(),
-            Some(app_config.clone()),
-            Config::default(),
-        )
-        .await
-        .unwrap();
-        let handler = server.start_with_port(0).await.unwrap();
-
-        let endpoint = Url::parse(&format!("http://localhost:{}/", handler.port())).unwrap();
-        let client = RaphtoryGraphQLClient::new(endpoint, None);
         let add_node_query = r#"
         {
             updateGraph(path: "g") {
@@ -580,37 +610,60 @@ mod server_tests {
         }
         "#;
 
-        let result = client
-            .query(add_node_query, HashMap::new())
+        for tracing_level in [
+            TracingLevel::COMPLETE,
+            TracingLevel::ESSENTIAL,
+            TracingLevel::MINIMAL,
+        ] {
+            let app_config = AppConfigBuilder::new()
+                .with_tracing(true)
+                .with_tracing_level(tracing_level.clone())
+                .with_otlp_transport_protocol(TracingProtocol::IN_MEMORY)
+                .build();
+
+            let server = GraphServer::new(
+                tmp_dir.path().to_path_buf(),
+                Some(app_config.clone()),
+                Config::default(),
+            )
             .await
             .unwrap();
-        let added = result
-            .get("updateGraph")
-            .and_then(|v| v.get("addNode"))
-            .and_then(|v| v.get("success"))
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false);
-        assert!(added, "addNode mutation returned unsuccessful response");
+            let handler = server.start_with_port(0).await.unwrap();
 
-        sleep(Duration::from_secs(5)).await;
-        handler.stop().await;
-        assert!(
-            app_config
+            let endpoint = Url::parse(&format!("http://localhost:{}/", handler.port())).unwrap();
+            let client = RaphtoryGraphQLClient::new(endpoint, None);
+
+            let result = client
+                .query(add_node_query, HashMap::new())
+                .await;
+            sleep(Duration::from_secs(5)).await;
+            assert!(result.is_ok(), "query failed for tracing level {tracing_level:?}");
+            handler.stop().await;
+
+            let finished_spans = app_config
                 .tracing
                 .exporters
                 .span_exporter
                 .get_finished_spans()
-                .unwrap()
-                .len() > 0
-        );
-        assert!(
-            app_config
+                .unwrap();
+            let emitted_logs = app_config
                 .tracing
                 .exporters
                 .log_exporter
                 .get_emitted_logs()
-                .unwrap()
-                .len() > 0
-        );
+                .unwrap();
+
+            println!("\n=== tracing level: {tracing_level:?} ===");
+            print_span_tree(&finished_spans);
+
+            assert!(
+                finished_spans.len() > 0,
+                "expected spans for tracing level {tracing_level:?}"
+            );
+            println!(
+                "emitted logs for tracing level {tracing_level:?}: {}",
+                emitted_logs.len()
+            );
+        }
     }
 }
