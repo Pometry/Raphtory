@@ -165,6 +165,10 @@ impl AppConfigBuilder {
                                         .map_err(|e| invalid_value([path, sub_path], e))?,
                                 );
                             }
+                            #[cfg(test)]
+                            TracingConfigFieldName::Exporters => {
+                                // Exporter handles are runtime-only and should not be loaded from config.
+                            }
                         }
                     }
                 }

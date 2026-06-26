@@ -540,4 +540,20 @@ mod server_tests {
         sleep(Duration::from_secs(5)).await;
         handler.await.unwrap().stop().await
     }
+
+    #[tokio::test]
+    async fn test_open_telemetry() {
+        let tmp_dir = tempdir().unwrap();
+        let graph = Graph::new();
+        graph.add_node(0, 0, NO_PROPS, None, None).unwrap();
+        graph.encode(tmp_dir.path().join("g")).unwrap();
+
+        global_info_logger();
+        let server = GraphServer::new(tmp_dir.path().to_path_buf(), None, Config::default())
+            .await
+            .unwrap();
+        let handler = server.start_with_port(0);
+        sleep(Duration::from_secs(5)).await;
+        handler.await.unwrap().stop().await;
+    }
 }

@@ -69,6 +69,7 @@ rust-embed = { workspace = true }
 parking_lot = { workspace = true }
 tempfile = { workspace = true }
 pretty_assertions = { workspace = true }
+opentelemetry_sdk = { version = "0.32.1", features = ["rt-tokio", "testing"] }
 
 [features]
 python = ["dep:pyo3", "dep:pythonize", "raphtory/python"]

@@ -12,12 +12,17 @@ use opentelemetry_sdk::{
     trace::{Sampler, SdkTracerProvider},
     Resource,
 };
+#[cfg(test)]
+use opentelemetry_sdk::{logs::InMemoryLogExporter, trace::InMemorySpanExporter};
+#[cfg(test)]
+use std::sync::{Arc, Mutex};
 use raphtory_api::core::storage::arc_str::OptionAsStr;
 use reqwest::{blocking::ClientBuilder, Certificate};
 use serde::Deserialize;
 use std::{collections::HashMap, env, fs::File, io::Read, path::PathBuf, time::Duration};
 use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter, EnumString, IntoStaticStr};
+
 
 pub const DEFAULT_TRACING_ENABLED: bool = false;
 
@@ -80,6 +85,8 @@ pub enum TracingProtocol {
     TONIC,
     HTTP,
     STDOUT,
+    #[cfg(test)]
+    IN_MEMORY
 }
 
 impl TryFrom<String> for TracingProtocol {
@@ -119,6 +126,8 @@ pub struct TracingConfig {
     /// Headers to use when transport_protocol is set to HTTP
     pub transport_headers: HashMap<String, String>,
     pub transport_certificate: Option<PathBuf>,
+    #[cfg(test)]
+    pub exporters: InMemoryExporterStore,
 }
 
 impl Default for TracingConfig {
@@ -131,6 +140,8 @@ impl Default for TracingConfig {
             transport_protocol: DEFAULT_OTLP_TRANSPORT_PROTOCOL,
             transport_headers: Default::default(),
             transport_certificate: None,
+            #[cfg(test)]
+            exporters: InMemoryExporterStore::default(),
         }
     }
 }
@@ -264,6 +275,24 @@ impl TracingConfig {
                         opentelemetry_stdout::SpanExporter::default(),
                         opentelemetry_stdout::LogExporter::default(),
                     ))
+                },
+                #[cfg(test)]
+                TracingProtocol::IN_MEMORY => {
+                    eprintln!(
+                        "Sending traces to in-memory exporter with tracing level `{}`",
+                        self.level
+                    );
+                    let span_exporter = InMemorySpanExporter::default(); 
+                    let log_exporter = InMemoryLogExporter::default();
+                    let exporters = InMemoryExporters {
+                        span_exporter: span_exporter.clone(),
+                        log_exporter: log_exporter.clone(),
+                    };
+                    self.exporters.set(exporters);
+                    Ok(self.with_exporter(
+                        span_exporter,
+                        log_exporter,
+                    ))
                 }
             };
 
@@ -277,5 +306,133 @@ impl TracingConfig {
         } else {
             Ok(None)
         }
+    }
+
+    #[cfg(test)]
+    pub async fn tracer_provider_with_exporters(
+        &self,
+    ) -> Result<
+        (
+            Option<(SdkTracerProvider, SdkLoggerProvider)>,
+            Option<InMemoryExporters>,
+        ),
+        ServerError,
+    > {
+        if self.enabled && matches!(self.transport_protocol, TracingProtocol::IN_MEMORY) {
+            eprintln!(
+                "Sending traces to in-memory exporter with tracing level `{}`",
+                self.level
+            );
+
+            let span_exporter = InMemorySpanExporter::default();
+            let log_exporter = InMemoryLogExporter::default();
+            let providers = self.with_exporter(span_exporter.clone(), log_exporter.clone());
+
+            Ok((
+                Some(providers),
+                Some(InMemoryExporters {
+                    span_exporter,
+                    log_exporter,
+                }),
+            ))
+        } else {
+            Ok((self.tracer_provider().await?, None))
+        }
+    }
+}
+
+#[cfg(test)]
+#[derive(Clone, Debug)]
+pub struct InMemoryExporters {
+    pub span_exporter: InMemorySpanExporter,
+    pub log_exporter: InMemoryLogExporter,
+}
+
+#[cfg(test)]
+#[derive(Clone, Debug)]
+pub struct InMemoryExporterStore {
+    pub inner: Arc<Mutex<Option<InMemoryExporters>>>,
+}
+
+#[cfg(test)]
+impl Default for InMemoryExporterStore {
+    fn default() -> Self {
+        Self {
+            inner: Arc::new(Mutex::new(None)),
+        }
+    }
+}
+
+#[cfg(test)]
+impl InMemoryExporterStore {
+    pub fn set(&self, exporters: InMemoryExporters) {
+        let mut lock = self.inner.lock().expect("exporter store poisoned");
+        lock.replace(exporters);
+    }
+
+    pub fn get(&self) -> Option<InMemoryExporters> {
+        let lock = self.inner.lock().expect("exporter store poisoned");
+        lock.clone()
+    }
+}
+
+#[cfg(test)]
+impl PartialEq for InMemoryExporterStore {
+    fn eq(&self, _other: &Self) -> bool {
+        // Runtime exporter handles are process-local and not value-comparable.
+        true
+    }
+}
+
+#[cfg(test)]
+impl serde::Serialize for InMemoryExporterStore {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_unit_struct("InMemoryExporterStore")
+    }
+}
+
+#[cfg(test)]
+impl<'de> serde::Deserialize<'de> for InMemoryExporterStore {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let _ = <Option<()>>::deserialize(deserializer)?;
+        Ok(Self::default())
+    }
+}
+
+#[cfg(test)]
+impl PartialEq for InMemoryExporters {
+    fn eq(&self, _other: &Self) -> bool {
+        // Exporters are runtime handles; identity/equality semantics are not meaningful.
+        true
+    }
+}
+
+#[cfg(test)]
+impl serde::Serialize for InMemoryExporters {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_unit_struct("InMemoryExporters")
+    }
+}
+
+#[cfg(test)]
+impl<'de> serde::Deserialize<'de> for InMemoryExporters {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let _ = <Option<()>>::deserialize(deserializer)?;
+        Ok(Self {
+            span_exporter: InMemorySpanExporter::default(),
+            log_exporter: InMemoryLogExporter::default(),
+        })
     }
 }
