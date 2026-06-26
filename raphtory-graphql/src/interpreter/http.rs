@@ -494,6 +494,59 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn interp_filters_match_endpoint() {
+        // nodes with a temporal Age property + edges with a weight property
+        let g = Graph::new();
+        g.add_node(200, "Dumbledore", [("Age", 50i64)], None, None).unwrap();
+        g.add_node(300, "Dumbledore", [("Age", 51i64)], None, None).unwrap();
+        g.add_node(250, "Harry", [("Age", 20i64)], None, None).unwrap();
+        g.add_node(350, "Harry", [("Age", 21i64)], None, None).unwrap();
+        g.add_edge(200, "Dumbledore", "Harry", [("weight", 0.5f64)], None).unwrap();
+        g.add_edge(300, "Dumbledore", "Sirius", [("weight", 0.9f64)], None).unwrap();
+
+        let tempdir = TempDir::new().unwrap();
+        let server = GraphServer::new(tempdir.path().to_path_buf(), None, Config::default())
+            .await
+            .unwrap();
+        let port = 43942;
+        let _running = server.start_with_port(port).await.unwrap();
+        tokio::time::sleep(Duration::from_secs(1)).await;
+
+        let gql = RaphtoryGraphQLClient::new(
+            Url::parse(&format!("http://localhost:{port}/")).unwrap(),
+            None,
+        );
+        let encoded = url_encode_graph(g.materialize().unwrap()).unwrap();
+        gql.send_graph("g", &encoded, true).await.unwrap();
+
+        let http = reqwest::Client::new();
+        for query in [
+            // graph.filterNodes / filterEdges (property filters pushed into raphtory)
+            r#"{ graph(path:"g") { filterNodes(expr:{property:{name:"Age",where:{ge:{i64:51}}}}) { nodes { list { name } } } } }"#,
+            r#"{ graph(path:"g") { filterEdges(expr:{property:{name:"weight",where:{eq:{f64:0.9}}}}) { edges { list { id } } } } }"#,
+            // nodes(select:) / edges(select:) on the graph entry points
+            r#"{ graph(path:"g") { nodes(select:{property:{name:"Age",where:{lt:{i64:51}}}}) { list { name } } } }"#,
+            r#"{ graph(path:"g") { edges(select:{property:{name:"weight",where:{gt:{f64:0.5}}}}) { list { id } } } }"#,
+            // collection .filter / .select
+            r#"{ graph(path:"g") { nodes { filter(expr:{property:{name:"Age",where:{lt:{i64:51}}}}) { list { name } } } } }"#,
+            r#"{ graph(path:"g") { nodes { select(expr:{property:{name:"Age",where:{ge:{i64:21}}}}) { list { name } } } } }"#,
+            r#"{ graph(path:"g") { edges { select(expr:{property:{name:"weight",where:{gt:{f64:0.5}}}}) { list { id } } } } }"#,
+            // neighbours(select:) — filter the neighbour set by property
+            r#"{ graph(path:"g") { node(name:"Dumbledore") { neighbours(select:{property:{name:"Age",where:{ge:{i64:21}}}}) { list { name } } } } }"#,
+            // And / Or / Not combinators
+            r#"{ graph(path:"g") { filterNodes(expr:{and:[{property:{name:"Age",where:{ge:{i64:21}}}},{property:{name:"Age",where:{lt:{i64:60}}}}]}) { nodes { list { name } } } } }"#,
+            r#"{ graph(path:"g") { filterNodes(expr:{not:{property:{name:"Age",where:{ge:{i64:51}}}}}) { nodes { list { name } } } } }"#,
+            // node.filter
+            r#"{ graph(path:"g") { node(name:"Dumbledore") { filter(expr:{property:{name:"Age",where:{ge:{i64:51}}}}) { name } } } }"#,
+        ] {
+            let expected =
+                serde_json::to_value(gql.query(query, HashMap::new()).await.unwrap()).unwrap();
+            let got = post_interp(&http, port, query).await;
+            assert_eq!(got["data"], expected, "mismatch for query: {query}");
+        }
+    }
+
+    #[tokio::test]
     async fn interp_endpoint_rejects_invalid_query() {
         let tempdir = TempDir::new().unwrap();
         let server = GraphServer::new(tempdir.path().to_path_buf(), None, Config::default())

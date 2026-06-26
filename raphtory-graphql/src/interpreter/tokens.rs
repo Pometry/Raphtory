@@ -66,6 +66,10 @@ pub mod field {
     pub const PAGE: &str = "page";
     pub const COUNT: &str = "count";
     pub const SORTED: &str = "sorted";
+    pub const FILTER: &str = "filter";
+    pub const SELECT: &str = "select";
+    pub const FILTER_NODES: &str = "filterNodes";
+    pub const FILTER_EDGES: &str = "filterEdges";
     pub const ID: &str = "id";
     pub const NAME: &str = "name";
     pub const HISTORY: &str = "history";
@@ -122,6 +126,7 @@ pub mod arg {
     pub const KEYS: &str = "keys";
     pub const FORMAT_STRING: &str = "formatString";
     pub const SELECT: &str = "select";
+    pub const EXPR: &str = "expr";
     pub const LIMIT: &str = "limit";
     pub const OFFSET: &str = "offset";
     pub const PAGE_INDEX: &str = "pageIndex";

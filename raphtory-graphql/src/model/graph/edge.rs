@@ -111,7 +111,6 @@ impl GqlEdge {
     /// e.g. "1 month and 1 day" will align at the start of the day.
     /// Note that passing a step larger than window while alignment_unit is not "Unaligned" may lead to some entries appearing before
     /// the start of the first window and/or after the end of the last window (i.e. not included in any window).
-
     async fn rolling(
         &self,
         #[graphql(

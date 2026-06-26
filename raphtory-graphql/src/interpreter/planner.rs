@@ -18,8 +18,15 @@ use super::{
     tokens::{arg, field as fld, ty},
 };
 use crate::model::{
-    graph::{node_id::GqlNodeId, timeindex::dt_format_str_is_valid},
+    graph::{
+        filtering::{GqlEdgeFilter, GqlNodeFilter},
+        node_id::GqlNodeId,
+        timeindex::dt_format_str_is_valid,
+    },
     sorting::{EdgeSortBy, NodeSortBy, SortByTime},
+};
+use raphtory::db::graph::views::filter::model::{
+    edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter,
 };
 use async_graphql::{
     parser::{
@@ -48,6 +55,8 @@ pub enum PlanError {
     BadArgument(&'static str),
     #[error("Invalid datetime format string: '{0}'")]
     InvalidDateTimeFormat(String),
+    #[error("invalid filter for argument `{arg}`: {reason}")]
+    Filter { arg: &'static str, reason: String },
     #[error("fragments are not supported")]
     Fragments,
 }
@@ -165,7 +174,7 @@ fn resolve_op(parent_type: &str, field: &str, f: &Field) -> Result<OpKind, PlanE
     use OpKind::{Leaf, List, Navigate};
     use ViewKind as VK;
 
-    /// A same-type view transform op.
+    // A same-type view transform op.
     let view = |vk: ViewKind| Navigate(N::View(vk));
 
     // Fields shared across types collapse into one arm via or-patterns on the
@@ -173,38 +182,24 @@ fn resolve_op(parent_type: &str, field: &str, f: &Field) -> Result<OpKind, PlanE
     // SDL allows on a type the interpreter hasn't wired falls through to the
     // `Unsupported` arm — a clean pre-stream error rather than an exec panic.
     Ok(match (parent_type, field) {
-        // ── entry points: graph → collections / lookups ──
-        (ty::GRAPH, fld::NODES) => Navigate(N::Nodes),
+        // ── entry points: graph → collections / lookups (optional `select:` filter) ──
+        (ty::GRAPH, fld::NODES) => Navigate(N::Nodes(opt_node_filter(f, arg::SELECT)?)),
         (ty::GRAPH, fld::NODE) => Navigate(N::Node(node_id_arg(f, arg::NAME)?)),
         (ty::GRAPH, fld::EDGE) => Navigate(N::Edge {
             src: node_id_arg(f, arg::SRC)?,
             dst: node_id_arg(f, arg::DST)?,
         }),
 
-        // ── traversal (Node) and edge endpoints ──
-        (ty::GRAPH | ty::NODE, fld::EDGES) => {
-            reject_select(f, parent_type, field)?;
-            Navigate(N::Edges)
-        }
-        (ty::NODE, fld::IN_EDGES) => {
-            reject_select(f, parent_type, field)?;
-            Navigate(N::InEdges)
-        }
-        (ty::NODE, fld::OUT_EDGES) => {
-            reject_select(f, parent_type, field)?;
-            Navigate(N::OutEdges)
-        }
-        (ty::NODE, fld::NEIGHBOURS) => {
-            reject_select(f, parent_type, field)?;
-            Navigate(N::Neighbours)
-        }
+        // ── traversal (Node) and edge endpoints; `select:` pushed into raphtory ──
+        (ty::GRAPH | ty::NODE, fld::EDGES) => Navigate(N::Edges(opt_edge_filter(f, arg::SELECT)?)),
+        (ty::NODE, fld::IN_EDGES) => Navigate(N::InEdges(opt_edge_filter(f, arg::SELECT)?)),
+        (ty::NODE, fld::OUT_EDGES) => Navigate(N::OutEdges(opt_edge_filter(f, arg::SELECT)?)),
+        (ty::NODE, fld::NEIGHBOURS) => Navigate(N::Neighbours(opt_node_filter(f, arg::SELECT)?)),
         (ty::NODE, fld::IN_NEIGHBOURS) => {
-            reject_select(f, parent_type, field)?;
-            Navigate(N::InNeighbours)
+            Navigate(N::InNeighbours(opt_node_filter(f, arg::SELECT)?))
         }
         (ty::NODE, fld::OUT_NEIGHBOURS) => {
-            reject_select(f, parent_type, field)?;
-            Navigate(N::OutNeighbours)
+            Navigate(N::OutNeighbours(opt_node_filter(f, arg::SELECT)?))
         }
         (ty::NODE, fld::IN_COMPONENT) => Navigate(N::InComponent),
         (ty::NODE, fld::OUT_COMPONENT) => Navigate(N::OutComponent),
@@ -277,6 +272,30 @@ fn resolve_op(parent_type: &str, field: &str, f: &Field) -> Result<OpKind, PlanE
         (ty::HISTORY, fld::TIMESTAMPS) => Navigate(N::Timestamps),
         (ty::HISTORY, fld::EVENT_ID) => Navigate(N::EventIds),
         (ty::HISTORY, fld::DATETIMES) => Navigate(N::DateTimes(datetime_format_arg(f)?)),
+
+        // ── filtering (pushed into raphtory) ──
+        (ty::GRAPH, fld::FILTER_NODES) => Navigate(N::FilterNodes(node_filter(f, arg::EXPR)?)),
+        (ty::GRAPH, fld::FILTER_EDGES) => Navigate(N::FilterEdges(edge_filter(f, arg::EXPR)?)),
+        (ty::NODE, fld::FILTER) => Navigate(N::ApplyNodeFilter {
+            filter: node_filter(f, arg::EXPR)?,
+            select: false,
+        }),
+        (ty::NODES | ty::PATH_FROM_NODE, fld::FILTER) => Navigate(N::ApplyNodeFilter {
+            filter: node_filter(f, arg::EXPR)?,
+            select: false,
+        }),
+        (ty::NODES | ty::PATH_FROM_NODE, fld::SELECT) => Navigate(N::ApplyNodeFilter {
+            filter: node_filter(f, arg::EXPR)?,
+            select: true,
+        }),
+        (ty::EDGES, fld::FILTER) => Navigate(N::ApplyEdgeFilter {
+            filter: edge_filter(f, arg::EXPR)?,
+            select: false,
+        }),
+        (ty::EDGES, fld::SELECT) => Navigate(N::ApplyEdgeFilter {
+            filter: edge_filter(f, arg::EXPR)?,
+            select: true,
+        }),
 
         // ── collection sizing / sorting (same type out) ──
         (ty::NODES | ty::EDGES | ty::PATH_FROM_NODE, fld::COUNT) => Leaf(L::Count),
@@ -396,17 +415,71 @@ fn datetime_format_arg(f: &Field) -> Result<Option<Box<str>>, PlanError> {
     }
 }
 
-/// Reject a `select:` filter argument on a traversal field — filtering is
-/// pushed into raphtory but not wired yet, and silently ignoring it would change
-/// the output.
-fn reject_select(f: &Field, parent_type: &str, label: &str) -> Result<(), PlanError> {
-    if f.get_argument(arg::SELECT).is_some() {
-        return Err(PlanError::Unsupported {
-            ty: parent_type.into(),
-            field: format!("{label}(select:)"),
-        });
+/// Parse a node-filter argument (`NodeFilter` `@oneOf`) and push it down into a
+/// raphtory `CompositeNodeFilter`. Goes via serde — the `Gql*Filter` types derive
+/// `Deserialize` with camelCase renames that match the GraphQL JSON — then the
+/// existing `TryInto` conversion the resolvers use. Both steps run at plan time,
+/// so a malformed filter is a clean pre-stream error.
+fn parse_node_filter(v: GqlValue, arg: &'static str) -> Result<CompositeNodeFilter, PlanError> {
+    let json = serde_json::to_value(&v).map_err(|e| PlanError::Filter {
+        arg,
+        reason: e.to_string(),
+    })?;
+    let gql: GqlNodeFilter = serde_json::from_value(json).map_err(|e| PlanError::Filter {
+        arg,
+        reason: e.to_string(),
+    })?;
+    CompositeNodeFilter::try_from(gql).map_err(|e| PlanError::Filter {
+        arg,
+        reason: e.to_string(),
+    })
+}
+
+fn parse_edge_filter(v: GqlValue, arg: &'static str) -> Result<CompositeEdgeFilter, PlanError> {
+    let json = serde_json::to_value(&v).map_err(|e| PlanError::Filter {
+        arg,
+        reason: e.to_string(),
+    })?;
+    let gql: GqlEdgeFilter = serde_json::from_value(json).map_err(|e| PlanError::Filter {
+        arg,
+        reason: e.to_string(),
+    })?;
+    CompositeEdgeFilter::try_from(gql).map_err(|e| PlanError::Filter {
+        arg,
+        reason: e.to_string(),
+    })
+}
+
+/// Required node filter (`expr:`).
+fn node_filter(f: &Field, arg: &'static str) -> Result<CompositeNodeFilter, PlanError> {
+    parse_node_filter(const_arg(f, arg).ok_or(PlanError::MissingArgument(arg))?, arg)
+}
+
+/// Required edge filter (`expr:`).
+fn edge_filter(f: &Field, arg: &'static str) -> Result<CompositeEdgeFilter, PlanError> {
+    parse_edge_filter(const_arg(f, arg).ok_or(PlanError::MissingArgument(arg))?, arg)
+}
+
+/// Optional node filter (`select:`), absent/null → `None`.
+fn opt_node_filter(
+    f: &Field,
+    arg: &'static str,
+) -> Result<Option<CompositeNodeFilter>, PlanError> {
+    match const_arg(f, arg) {
+        None | Some(GqlValue::Null) => Ok(None),
+        Some(v) => Ok(Some(parse_node_filter(v, arg)?)),
     }
-    Ok(())
+}
+
+/// Optional edge filter (`select:`), absent/null → `None`.
+fn opt_edge_filter(
+    f: &Field,
+    arg: &'static str,
+) -> Result<Option<CompositeEdgeFilter>, PlanError> {
+    match const_arg(f, arg) {
+        None | Some(GqlValue::Null) => Ok(None),
+        Some(v) => Ok(Some(parse_edge_filter(v, arg)?)),
+    }
 }
 
 /// Parse a required `[String!]!` argument into a boxed slice.

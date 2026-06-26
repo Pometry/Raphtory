@@ -47,6 +47,16 @@ impl GqlPathFromNode {
         let iter = self.nn.iter().map(GqlNode::from);
         Box::new(iter)
     }
+
+    /// `filter(expr:)` as a sync helper (shared with the interpreter).
+    pub(crate) fn filter_view(&self, filter: CompositeNodeFilter) -> Result<Self, GraphError> {
+        Ok(self.update(self.nn.filter(filter)?.into_dyn()))
+    }
+
+    /// `select(expr:)` as a sync helper (shared with the interpreter).
+    pub(crate) fn select_view(&self, filter: CompositeNodeFilter) -> Result<Self, GraphError> {
+        Ok(self.update(self.nn.select(filter)?.into_dyn()))
+    }
 }
 
 #[ResolvedObjectFields]
@@ -99,7 +109,6 @@ impl GqlPathFromNode {
     /// e.g. "1 month and 1 day" will align at the start of the day.
     /// Note that passing a step larger than window while alignment_unit is not "Unaligned" may lead to some entries appearing before
     /// the start of the first window and/or after the end of the last window (i.e. not included in any window).
-
     async fn rolling(
         &self,
         #[graphql(

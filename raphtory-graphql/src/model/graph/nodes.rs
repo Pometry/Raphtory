@@ -60,6 +60,16 @@ impl GqlNodes {
         Box::new(iter)
     }
 
+    /// `filter(expr:)` as a sync helper (shared with the interpreter).
+    pub(crate) fn filter_view(&self, filter: CompositeNodeFilter) -> Result<Self, GraphError> {
+        Ok(self.update(self.nn.filter(filter)?.into_dyn()))
+    }
+
+    /// `select(expr:)` as a sync helper (shared with the interpreter).
+    pub(crate) fn select_view(&self, filter: CompositeNodeFilter) -> Result<Self, GraphError> {
+        Ok(self.update(self.nn.select(filter)?.into_dyn()))
+    }
+
     /// Sort the nodes by `sort_bys` (synchronous; shared by the `sorted`
     /// resolver and the interpreter). Multiple keys are applied
     /// lexicographically.
@@ -85,7 +95,8 @@ impl GqlNodes {
                                 };
                                 first_time.partial_cmp(&second_time)
                             } else if let Some(sort_by_property) = sort_by.property.as_ref() {
-                                let first_prop_maybe = first_node.properties().get(sort_by_property);
+                                let first_prop_maybe =
+                                    first_node.properties().get(sort_by_property);
                                 let second_prop_maybe =
                                     second_node.properties().get(sort_by_property);
                                 first_prop_maybe.partial_cmp(&second_prop_maybe)
@@ -93,7 +104,9 @@ impl GqlNodes {
                                 None
                             };
                             match ordering {
-                                Some(ordering) if sort_by.reverse == Some(true) => ordering.reverse(),
+                                Some(ordering) if sort_by.reverse == Some(true) => {
+                                    ordering.reverse()
+                                }
                                 Some(ordering) => ordering,
                                 None => Ordering::Equal,
                             }
@@ -160,7 +173,6 @@ impl GqlNodes {
     /// e.g. "1 month and 1 day" will align at the start of the day.
     /// Note that passing a step larger than window while alignment_unit is not "Unaligned" may lead to some entries appearing before
     /// the start of the first window and/or after the end of the last window (i.e. not included in any window).
-
     async fn rolling(
         &self,
         #[graphql(

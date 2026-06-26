@@ -15,6 +15,9 @@ use crate::model::{
     graph::node_id::GqlNodeId,
     sorting::{EdgeSortBy, NodeSortBy},
 };
+use raphtory::db::graph::views::filter::model::{
+    edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter,
+};
 use raphtory_api::core::storage::timeindex::EventTime;
 
 /// Pagination arguments for `page(limit, offset, pageIndex)`. The first item is
@@ -73,14 +76,24 @@ pub enum Op {
 /// One variant per supported field; arguments are pre-parsed into typed values.
 #[derive(Debug)]
 pub enum Nav {
-    /// `graph.nodes` — `Graph` → `Nodes`
-    Nodes,
+    /// `graph.nodes(select:)` — `Graph` → `Nodes` (optional pushed-down filter)
+    Nodes(Option<CompositeNodeFilter>),
     /// `graph.node(name:)` — `Graph` → `Node?`
     Node(GqlNodeId),
-    /// `graph.edges` — `Graph` → `Edges`
-    Edges,
+    /// `graph.edges(select:)` / `node.edges(select:)` — → `Edges` (optional filter)
+    Edges(Option<CompositeEdgeFilter>),
     /// `graph.edge(src:, dst:)` — `Graph` → `Edge?`
     Edge { src: GqlNodeId, dst: GqlNodeId },
+    /// `graph.filterNodes(expr:)` — `Graph` → `Graph`
+    FilterNodes(CompositeNodeFilter),
+    /// `graph.filterEdges(expr:)` — `Graph` → `Graph`
+    FilterEdges(CompositeEdgeFilter),
+    /// `node.filter` / `nodes.filter`+`select` / `path.filter`+`select` — applies a
+    /// node filter to a `Node`/`Nodes`/`PathFromNode`, keeping the same type.
+    /// `select` chooses `select(..)` (one-hop) over `filter(..)` (sticky).
+    ApplyNodeFilter { filter: CompositeNodeFilter, select: bool },
+    /// `edges.filter`+`select` — applies an edge filter to an `Edges`.
+    ApplyEdgeFilter { filter: CompositeEdgeFilter, select: bool },
     /// `edge.src` — `Edge` → `Node`
     Src,
     /// `edge.dst` — `Edge` → `Node`
@@ -93,14 +106,14 @@ pub enum Nav {
     ExplodeLayers,
     /// `edge.deletions` — `Edge` → `History`
     Deletions,
-    /// `node.inEdges` — `Node` → `Edges`
-    InEdges,
-    /// `node.outEdges` — `Node` → `Edges`
-    OutEdges,
-    /// `node.inNeighbours` — `Node` → `PathFromNode`
-    InNeighbours,
-    /// `node.outNeighbours` — `Node` → `PathFromNode`
-    OutNeighbours,
+    /// `node.inEdges(select:)` — `Node` → `Edges`
+    InEdges(Option<CompositeEdgeFilter>),
+    /// `node.outEdges(select:)` — `Node` → `Edges`
+    OutEdges(Option<CompositeEdgeFilter>),
+    /// `node.inNeighbours(select:)` — `Node` → `PathFromNode`
+    InNeighbours(Option<CompositeNodeFilter>),
+    /// `node.outNeighbours(select:)` — `Node` → `PathFromNode`
+    OutNeighbours(Option<CompositeNodeFilter>),
     /// `node.inComponent` — `Node` → `Nodes`
     InComponent,
     /// `node.outComponent` — `Node` → `Nodes`
@@ -119,8 +132,8 @@ pub enum Nav {
     LastUpdate,
     /// `history` — `Node`/`Edge`/`TemporalProperty` → `History`
     History,
-    /// `node.neighbours` — `Node` → `PathFromNode`
-    Neighbours,
+    /// `node.neighbours(select:)` — `Node` → `PathFromNode`
+    Neighbours(Option<CompositeNodeFilter>),
     /// `nodes.sorted(sortBys:)` — `Nodes` → `Nodes`
     SortedNodes(Vec<NodeSortBy>),
     /// `edges.sorted(sortBys:)` — `Edges` → `Edges`

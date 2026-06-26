@@ -22,12 +22,23 @@ use crate::model::graph::{
 };
 use raphtory::{
     algorithms::components::{in_component, out_component},
-    db::api::{
-        properties::dyn_props::DynProperties,
-        view::{DynamicGraph, IntoDynamic},
+    db::{
+        api::{
+            properties::dyn_props::DynProperties,
+            view::{DynamicGraph, Filter, IntoDynamic},
+        },
+        graph::views::filter::model::{
+            edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter,
+        },
     },
     prelude::{EdgeViewOps, GraphViewOps, LayerOps, NodeStateOps, NodeViewOps, TimeOps},
 };
+
+/// `expect` message for a runtime filter/select failure. Filters are structurally
+/// validated at plan time (`TryInto<Composite*Filter>`), so a failure here is the
+/// Q-C "impossible mid-stream error" path: the panic drops the `Sink`, closing
+/// the channel and truncating the (already-streaming) response.
+const FILTER_FAILED: &str = "filter application failed at runtime (validated at plan time)";
 use raphtory_api::core::{entities::GID, storage::timeindex::AsTime};
 
 /// Clone the top-of-stack receiver out into a local (a cheap Arc bump) so the
@@ -201,9 +212,16 @@ impl Nav {
     /// `None` for a nullable field that resolved to nothing).
     fn apply(&self, recv: &Value) -> Option<Value> {
         match (self, recv) {
-            (Nav::Nodes, Value::Graph(g)) => Some(Value::Nodes(GqlNodes::new(g.nodes()))),
+            (Nav::Nodes(filt), Value::Graph(g)) => {
+                Some(Value::Nodes(opt_select_nodes(GqlNodes::new(g.nodes()), filt)))
+            }
             (Nav::Node(id), Value::Graph(g)) => g.node(id).map(|n| Value::Node(GqlNode::from(n))),
-            (Nav::Edges, Value::Graph(g)) => Some(Value::Edges(GqlEdges::new(g.edges()))),
+            (Nav::Edges(filt), Value::Graph(g)) => {
+                Some(Value::Edges(opt_select_edges(GqlEdges::new(g.edges()), filt)))
+            }
+            (Nav::Edges(filt), Value::Node(n)) => {
+                Some(Value::Edges(opt_select_edges(GqlEdges::new(n.vv.edges()), filt)))
+            }
             (Nav::Edge { src, dst }, Value::Graph(g)) => {
                 g.edge(src, dst).map(|e| Value::Edge(GqlEdge::from(e)))
             }
@@ -217,20 +235,58 @@ impl Nav {
             (Nav::Deletions, Value::Edge(e)) => {
                 Some(Value::History(GqlHistory::from(e.ee.deletions())))
             }
-            (Nav::Edges, Value::Node(n)) => Some(Value::Edges(GqlEdges::new(n.vv.edges()))),
-            (Nav::InEdges, Value::Node(n)) => Some(Value::Edges(GqlEdges::new(n.vv.in_edges()))),
-            (Nav::OutEdges, Value::Node(n)) => Some(Value::Edges(GqlEdges::new(n.vv.out_edges()))),
-            (Nav::InNeighbours, Value::Node(n)) => {
-                Some(Value::Path(GqlPathFromNode::new(n.vv.in_neighbours())))
+            (Nav::InEdges(filt), Value::Node(n)) => {
+                Some(Value::Edges(opt_select_edges(GqlEdges::new(n.vv.in_edges()), filt)))
             }
-            (Nav::OutNeighbours, Value::Node(n)) => {
-                Some(Value::Path(GqlPathFromNode::new(n.vv.out_neighbours())))
+            (Nav::OutEdges(filt), Value::Node(n)) => {
+                Some(Value::Edges(opt_select_edges(GqlEdges::new(n.vv.out_edges()), filt)))
             }
+            (Nav::Neighbours(filt), Value::Node(n)) => Some(Value::Path(opt_select_path(
+                GqlPathFromNode::new(n.vv.neighbours()),
+                filt,
+            ))),
+            (Nav::InNeighbours(filt), Value::Node(n)) => Some(Value::Path(opt_select_path(
+                GqlPathFromNode::new(n.vv.in_neighbours()),
+                filt,
+            ))),
+            (Nav::OutNeighbours(filt), Value::Node(n)) => Some(Value::Path(opt_select_path(
+                GqlPathFromNode::new(n.vv.out_neighbours()),
+                filt,
+            ))),
             (Nav::InComponent, Value::Node(n)) => {
                 Some(Value::Nodes(GqlNodes::new(in_component(n.vv.clone()).nodes())))
             }
             (Nav::OutComponent, Value::Node(n)) => {
                 Some(Value::Nodes(GqlNodes::new(out_component(n.vv.clone()).nodes())))
+            }
+            // Filters pushed into raphtory (parsed + structurally validated at plan time).
+            (Nav::FilterNodes(f), Value::Graph(g)) => Some(Value::Graph(
+                g.filter(f.clone()).expect(FILTER_FAILED).into_dynamic(),
+            )),
+            (Nav::FilterEdges(f), Value::Graph(g)) => Some(Value::Graph(
+                g.filter(f.clone()).expect(FILTER_FAILED).into_dynamic(),
+            )),
+            (Nav::ApplyNodeFilter { filter, .. }, Value::Node(n)) => {
+                Some(Value::Node(n.filter_view(filter.clone()).expect(FILTER_FAILED)))
+            }
+            (Nav::ApplyNodeFilter { filter, select }, Value::Nodes(ns)) => {
+                Some(Value::Nodes(apply_node_filter(ns, filter, *select)))
+            }
+            (Nav::ApplyNodeFilter { filter, select }, Value::Path(p)) => {
+                let out = if *select {
+                    p.select_view(filter.clone())
+                } else {
+                    p.filter_view(filter.clone())
+                };
+                Some(Value::Path(out.expect(FILTER_FAILED)))
+            }
+            (Nav::ApplyEdgeFilter { filter, select }, Value::Edges(es)) => {
+                let out = if *select {
+                    es.select_view(filter.clone())
+                } else {
+                    es.filter_view(filter.clone())
+                };
+                Some(Value::Edges(out.expect(FILTER_FAILED)))
             }
             (Nav::EarliestTime, Value::Graph(g)) => Some(Value::EventTime(g.earliest_time().into())),
             (Nav::EarliestTime, Value::Node(n)) => {
@@ -265,9 +321,6 @@ impl Nav {
             }
             (Nav::History, Value::Edge(e)) => {
                 Some(Value::History(GqlHistory::from(e.ee.history())))
-            }
-            (Nav::Neighbours, Value::Node(n)) => {
-                Some(Value::Path(GqlPathFromNode::new(n.vv.neighbours())))
             }
             (Nav::SortedNodes(sort_bys), Value::Nodes(n)) => {
                 Some(Value::Nodes(n.sorted_view(sort_bys.clone())))
@@ -497,6 +550,39 @@ fn view_edge(e: &GqlEdge, vk: &ViewKind) -> GqlEdge {
         ViewKind::ExcludeLayers(names) => GqlEdge::from(e.ee.exclude_valid_layers(names.to_vec())),
         _ => unreachable!("not an edge view op — validation should prevent this"),
     }
+}
+
+/// Apply an optional `select:` filter (pushed into raphtory) to a freshly
+/// produced node collection.
+fn opt_select_nodes(nodes: GqlNodes, filt: &Option<CompositeNodeFilter>) -> GqlNodes {
+    match filt {
+        Some(f) => nodes.select_view(f.clone()).expect(FILTER_FAILED),
+        None => nodes,
+    }
+}
+
+fn opt_select_edges(edges: GqlEdges, filt: &Option<CompositeEdgeFilter>) -> GqlEdges {
+    match filt {
+        Some(f) => edges.select_view(f.clone()).expect(FILTER_FAILED),
+        None => edges,
+    }
+}
+
+fn opt_select_path(path: GqlPathFromNode, filt: &Option<CompositeNodeFilter>) -> GqlPathFromNode {
+    match filt {
+        Some(f) => path.select_view(f.clone()).expect(FILTER_FAILED),
+        None => path,
+    }
+}
+
+/// `nodes.filter(expr:)` (sticky) or `nodes.select(expr:)` (one-hop).
+fn apply_node_filter(ns: &GqlNodes, filter: &CompositeNodeFilter, select: bool) -> GqlNodes {
+    let out = if select {
+        ns.select_view(filter.clone())
+    } else {
+        ns.filter_view(filter.clone())
+    };
+    out.expect(FILTER_FAILED)
 }
 
 /// Write a node id as the schema's `NodeId` scalar: a JSON string for

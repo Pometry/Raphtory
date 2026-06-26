@@ -57,6 +57,16 @@ impl GqlEdges {
         Box::new(iter)
     }
 
+    /// `filter(expr:)` as a sync helper (shared with the interpreter).
+    pub(crate) fn filter_view(&self, filter: CompositeEdgeFilter) -> Result<Self, GraphError> {
+        Ok(self.update(self.ee.filter(filter)?.into_dyn()))
+    }
+
+    /// `select(expr:)` as a sync helper (shared with the interpreter).
+    pub(crate) fn select_view(&self, filter: CompositeEdgeFilter) -> Result<Self, GraphError> {
+        Ok(self.update(self.ee.select(filter)?))
+    }
+
     /// Sort the edges by `sort_bys` (synchronous; shared by the `sorted`
     /// resolver and the interpreter). Multiple keys are applied
     /// lexicographically.
