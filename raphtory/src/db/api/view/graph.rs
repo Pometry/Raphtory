@@ -1,5 +1,5 @@
 #[cfg(feature = "io")]
-use crate::serialise::{metadata::build_graph_metadata, GraphPaths};
+use crate::serialise::metadata::build_graph_metadata;
 use crate::{
     arrow_loader::{
         dataframe::{DFChunk, DFView},
@@ -43,6 +43,8 @@ use ahash::HashSet;
 use arrow::array::RecordBatch;
 use db4_graph::TemporalGraph;
 use either::Either;
+#[cfg(feature = "io")]
+use raphtory_api::core::storage::graph_folder::GraphPaths;
 #[cfg(feature = "io")]
 use raphtory_api::core::storage::graph_folder::Metadata as GraphFolderMetadata;
 use raphtory_api::core::{

@@ -139,11 +139,13 @@ mod test_index {
             },
             errors::GraphError,
             prelude::*,
-            serialise::GraphFolder,
         };
         use raphtory_api::core::{
             entities::properties::prop::Prop,
-            storage::{arc_str::ArcStr, graph_folder::GraphFolderError},
+            storage::{
+                arc_str::ArcStr,
+                graph_folder::{GraphFolder, GraphFolderError},
+            },
             utils::logging::global_info_logger,
         };
         use tempfile::TempDir;
@@ -529,8 +531,9 @@ mod test_index {
             },
             errors::GraphError,
             prelude::{AdditionOps, Graph, IndexMutationOps, SearchableGraphOps, StableDecode},
-            serialise::{GraphFolder, StableEncode},
+            serialise::StableEncode,
         };
+        use raphtory_api::core::storage::graph_folder::GraphFolder;
         use raphtory_tests::assertions::{search_edges, search_nodes};
         use tempfile::{tempdir, TempDir};
 

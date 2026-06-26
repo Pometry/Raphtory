@@ -9,11 +9,12 @@ use raphtory::{
     prelude::{AdditionOps, GraphViewOps},
     serialise::{
         metadata::{build_graph_metadata, replace_graph_in_folder},
-        GraphFolder, GraphPaths, RelativePath, StableDecode, WriteableGraphFolder,
+        StableDecode,
     },
 };
 use raphtory_api::core::storage::graph_folder::{
-    GraphFolderError, GraphMetadata, Metadata, DIRTY_PATH, ROOT_META_PATH,
+    GraphFolder, GraphFolderError, GraphMetadata, GraphPaths, Metadata, RelativePath,
+    WriteableGraphFolder, DIRTY_PATH, ROOT_META_PATH,
 };
 use std::{
     cmp::Ordering,

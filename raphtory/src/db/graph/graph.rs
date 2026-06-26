@@ -17,7 +17,7 @@
 //!
 use super::views::deletion_graph::PersistentGraph;
 #[cfg(feature = "io")]
-use crate::serialise::{metadata::build_graph_metadata, GraphPaths};
+use crate::serialise::metadata::build_graph_metadata;
 use crate::{
     db::{
         api::{
@@ -37,7 +37,7 @@ use crate::{
     prelude::*,
 };
 #[cfg(feature = "io")]
-use raphtory_api::core::storage::graph_folder::Metadata as GraphFolderMetadata;
+use raphtory_api::core::storage::graph_folder::{GraphPaths, Metadata as GraphFolderMetadata};
 use raphtory_api::{
     core::storage::{arc_str::ArcStr, timeindex::AsTime},
     inherit::Base,

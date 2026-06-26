@@ -37,11 +37,12 @@ use std::{
 use storage::wal::LSN;
 
 #[cfg(feature = "search")]
+use raphtory_api::core::storage::graph_folder::{GraphFolder, GraphPaths};
+#[cfg(feature = "search")]
 use {
     crate::{
         db::api::view::IndexSpec,
         search::graph_index::{GraphIndex, MutableGraphIndex},
-        serialise::{GraphFolder, GraphPaths},
     },
     parking_lot::RwLock,
     raphtory_api::core::entities::properties::prop::IntoProp,
@@ -53,7 +54,6 @@ use {
     tracing::info,
     zip::ZipWriter,
 };
-
 // Re-export for raphtory dependencies to use when creating graphs.
 pub use storage::{
     persist::strategy::PersistenceStrategy, read_constant_graph_properties, Config, Extension,

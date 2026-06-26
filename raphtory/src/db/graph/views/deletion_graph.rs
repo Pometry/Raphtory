@@ -1,5 +1,5 @@
 #[cfg(feature = "io")]
-use crate::serialise::{metadata::build_graph_metadata, GraphPaths};
+use crate::serialise::metadata::build_graph_metadata;
 use crate::{
     core::storage::timeindex::{AsTime, EventTime, TimeIndex, TimeIndexOps},
     db::{
@@ -15,6 +15,8 @@ use crate::{
     errors::GraphError,
     prelude::*,
 };
+#[cfg(feature = "io")]
+use raphtory_api::core::storage::graph_folder::GraphPaths;
 #[cfg(feature = "io")]
 use raphtory_api::core::storage::graph_folder::Metadata;
 use raphtory_api::{

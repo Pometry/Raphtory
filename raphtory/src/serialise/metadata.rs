@@ -2,10 +2,10 @@ use crate::{
     db::api::view::internal::GraphView,
     errors::GraphError,
     prelude::{GraphViewOps, ParquetEncoder},
-    serialise::{make_path_pointer, GraphFolder, GraphPaths, InnerGraphFolder},
 };
 use raphtory_api::core::storage::graph_folder::{
-    GraphMetadata, Metadata, GRAPH_META_PATH, GRAPH_PATH,
+    make_path_pointer, GraphFolder, GraphMetadata, GraphPaths, InnerGraphFolder, Metadata,
+    GRAPH_META_PATH, GRAPH_PATH,
 };
 
 /// Build the [`GraphMetadata`] summary for a graph
