@@ -1,8 +1,7 @@
 use itertools::Itertools;
 use raphtory::{
     algorithms::{
-        centrality::pagerank::unweighted_page_rank,
-        pathing::temporal_reachability::temporally_reachable_nodes,
+        centrality::pagerank::page_rank, pathing::temporal_reachability::temporally_reachable_nodes,
     },
     db::api::view::*,
     graph_loader::stable_coins::stable_coin_graph,
@@ -33,16 +32,24 @@ fn main() {
 
     info!("Pagerank");
     let now = Instant::now();
-    let _ = unweighted_page_rank(&g, Some(20), None, None, true, None);
+    let _ = page_rank(&g, None, Some(20), None, None, true, None);
     info!("Time taken: {} secs", now.elapsed().as_secs());
 
     let now = Instant::now();
 
-    let _ = unweighted_page_rank(&g, Some(20), None, None, true, None);
+    let _ = page_rank(&g, None, Some(20), None, None, true, None);
     info!("Time taken: {} secs", now.elapsed().as_secs());
 
     let now = Instant::now();
-    let _ = unweighted_page_rank(&g.layers("USDT").unwrap(), Some(20), None, None, true, None);
+    let _ = page_rank(
+        &g.layers("USDT").unwrap(),
+        None,
+        Some(20),
+        None,
+        None,
+        true,
+        None,
+    );
     info!("Time taken: {} secs", now.elapsed().as_secs());
 
     info!("Generic taint");

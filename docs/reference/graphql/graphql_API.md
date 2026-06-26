@@ -3367,6 +3367,11 @@ Ordered list of view operations; each entry is a one-of variant applied to the r
 <td></td>
 </tr>
 <tr>
+<td colspan="2" align="right" valign="top">weight</td>
+<td valign="top"><a href="#string">String</a></td>
+<td></td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="graphalgorithmplugin.shortest_path">shortest_path</strong></td>
 <td valign="top">[<a href="#shortestpathoutput">ShortestPathOutput</a>!]!</td>
 <td></td>
@@ -8279,6 +8284,30 @@ Optional `{start, end}` to restrict matches to edges active in that interval.
 
 ## Inputs
 
+### DegreeFilterNew
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="degreefilternew.direction">direction</strong></td>
+<td valign="top"><a href="#degreedirection">DegreeDirection</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="degreefilternew.where">where</strong></td>
+<td valign="top"><a href="#propcondition">PropCondition</a>!</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+
 ### EdgeAddition
 
 <table>
@@ -9918,6 +9947,15 @@ Filters a built-in node field (ID, name, or type).
 <td>
 
 Filters a node property by name and condition.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodefilter.degree">degree</strong></td>
+<td valign="top"><a href="#degreefilternew">DegreeFilterNew</a></td>
+<td>
+
+Filters a node's degree (in, out, or total) by a condition.
 
 </td>
 </tr>
@@ -11576,6 +11614,45 @@ All metadata.
 All properties.
 
 </td>
+</tr>
+</tbody>
+</table>
+
+### DegreeDirection
+
+Filters nodes by computed degree with a directional scope.
+
+`DegreeFilterNew` lets callers filter on:
+- inbound degree (`IN`),
+- outbound degree (`OUT`),
+- or total degree (`BOTH`).
+
+The selected degree is compared using the `where` condition.
+
+Example (GraphQL):
+```graphql
+{ Degree: { direction: BOTH, where: { Gt: 10 } } }
+```
+
+<table>
+<thead>
+<tr>
+<th align="left">Value</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td valign="top"><strong>IN</strong></td>
+<td></td>
+</tr>
+<tr>
+<td valign="top"><strong>OUT</strong></td>
+<td></td>
+</tr>
+<tr>
+<td valign="top"><strong>BOTH</strong></td>
+<td></td>
 </tr>
 </tbody>
 </table>

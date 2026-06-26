@@ -11,6 +11,8 @@ distributor:
         http:
           endpoint: "0.0.0.0:4318"
 
+stream_over_http_enabled: true
+
 metrics_generator:
   processor:
     local_blocks:

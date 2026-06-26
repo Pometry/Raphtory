@@ -1,4 +1,7 @@
-use crate::model::graph::{node_id::GqlNodeId, property::Value, timeindex::GqlTimeInput};
+use crate::model::{
+    graph::{node_id::GqlNodeId, property::Value, timeindex::GqlTimeInput},
+    plugins::operation,
+};
 use async_graphql::dynamic::ValueAccessor;
 use dynamic_graphql::{
     internal::{
@@ -7,23 +10,27 @@ use dynamic_graphql::{
     Enum, InputObject, OneOfInput,
 };
 use raphtory::{
-    db::graph::views::filter::model::{
-        edge_filter::{CompositeEdgeFilter, EdgeFilter},
-        filter::{Filter, FilterValue},
-        filter_operator::FilterOperator,
-        graph_filter::GraphFilter,
-        is_active_edge_filter::IsActiveEdge,
-        is_active_node_filter::IsActiveNode,
-        is_deleted_filter::IsDeletedEdge,
-        is_self_loop_filter::IsSelfLoopEdge,
-        is_valid_filter::IsValidEdge,
-        latest_filter::Latest as LatestWrap,
-        layered_filter::Layered,
-        node_filter::{CompositeNodeFilter, NodeFilter},
-        property_filter::{Op, PropertyFilter, PropertyFilterValue, PropertyRef},
-        snapshot_filter::{SnapshotAt as SnapshotAtWrap, SnapshotLatest as SnapshotLatestWrap},
-        windowed_filter::Windowed,
-        ComposableFilter, DynFilter, DynView, NoFilter, ViewWrapOps,
+    db::{
+        api::{state::ops::Degree, view::internal::filtered_edge},
+        graph::views::filter::model::{
+            degree_filter::DegreeFilter,
+            edge_filter::{CompositeEdgeFilter, EdgeFilter},
+            filter::{Filter, FilterValue},
+            filter_operator::FilterOperator,
+            graph_filter::GraphFilter,
+            is_active_edge_filter::IsActiveEdge,
+            is_active_node_filter::IsActiveNode,
+            is_deleted_filter::IsDeletedEdge,
+            is_self_loop_filter::IsSelfLoopEdge,
+            is_valid_filter::IsValidEdge,
+            latest_filter::Latest as LatestWrap,
+            layered_filter::Layered,
+            node_filter::{CompositeNodeFilter, NodeFilter},
+            property_filter::{Op, PropertyFilter, PropertyFilterValue, PropertyRef},
+            snapshot_filter::{SnapshotAt as SnapshotAtWrap, SnapshotLatest as SnapshotLatestWrap},
+            windowed_filter::Windowed,
+            ComposableFilter, DynFilter, DynView, NoFilter, ViewWrapOps,
+        },
     },
     errors::GraphError,
 };
@@ -31,6 +38,7 @@ use raphtory_api::core::{
     entities::{properties::prop::Prop, Layer, GID},
     storage::timeindex::{AsTime, EventTime},
     utils::time::IntoTime,
+    Direction,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -313,6 +321,56 @@ pub struct PropertyFilterNew {
     /// Condition applied to the property value.
     ///
     /// Exposed as `where` in GraphQL.
+    #[graphql(name = "where")]
+    #[serde(rename = "where")]
+    pub where_: PropCondition,
+}
+
+/// Filters nodes by computed degree with a directional scope.
+///
+/// `DegreeFilterNew` lets callers filter on:
+/// - inbound degree (`IN`),
+/// - outbound degree (`OUT`),
+/// - or total degree (`BOTH`).
+///
+/// The selected degree is compared using the `where` condition.
+///
+/// Example (GraphQL):
+/// ```graphql
+/// { Degree: { direction: BOTH, where: { Gt: 10 } } }
+/// ```
+
+#[derive(Enum, Copy, Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum DegreeDirection {
+    In,
+    Out,
+    Both,
+}
+
+impl From<DegreeDirection> for Direction {
+    fn from(d: DegreeDirection) -> Self {
+        match d {
+            DegreeDirection::In => Direction::IN,
+            DegreeDirection::Out => Direction::OUT,
+            DegreeDirection::Both => Direction::BOTH,
+        }
+    }
+}
+
+impl From<DegreeDirection> for String {
+    fn from(d: DegreeDirection) -> Self {
+        match d {
+            DegreeDirection::In => "in_degree".to_string(),
+            DegreeDirection::Out => "out_degree".to_string(),
+            DegreeDirection::Both => "degree".to_string(),
+        }
+    }
+}
+
+#[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
+pub struct DegreeFilterNew {
+    pub direction: DegreeDirection,
     #[graphql(name = "where")]
     #[serde(rename = "where")]
     pub where_: PropCondition,
@@ -678,6 +736,9 @@ pub enum GqlNodeFilter {
 
     /// Filters a node property by name and condition.
     Property(PropertyFilterNew),
+
+    /// Filters a node's degree (in, out, or total) by a condition.
+    Degree(DegreeFilterNew),
 
     /// Filters a node metadata field by name and condition.
     ///
@@ -1386,6 +1447,21 @@ impl TryFrom<GqlNodeFilter> for CompositeNodeFilter {
                     field_name,
                     field_value,
                     operator,
+                }))
+            }
+            GqlNodeFilter::Degree(degree) => {
+                let core_direction: Direction = degree.direction.into();
+
+                let field_name: String = degree.direction.into();
+
+                let mut ops = Vec::new();
+                peel_prop_wrappers_and_collect_ops(&degree.where_, &mut ops);
+                let (operator, value) = translate_prop_leaf_to_filter(&field_name, &degree.where_)?;
+                Ok(CompositeNodeFilter::Degree(DegreeFilter {
+                    direction: core_direction,
+                    operator,
+                    value,
+                    ops,
                 }))
             }
             GqlNodeFilter::Property(prop) => {

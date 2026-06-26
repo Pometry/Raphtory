@@ -8,7 +8,7 @@ use futures_util::future::BoxFuture;
 use itertools::Itertools;
 use raphtory::{
     algorithms::{
-        centrality::pagerank::{unweighted_page_rank, PageRankState},
+        centrality::pagerank::{page_rank, PageRankState},
         pathing::dijkstra::dijkstra_single_source_shortest_paths,
     },
     prelude::{GraphViewOps, NodeViewOps},
@@ -47,6 +47,7 @@ impl<'a> Operation<'a, GraphAlgorithmPlugin> for Pagerank {
             ("iterCount", TypeRef::named_nn(TypeRef::INT)), // _nn stands for not null
             ("threads", TypeRef::named(TypeRef::INT)),      // this one though might be null
             ("tol", TypeRef::named(TypeRef::FLOAT)),
+            ("weight", TypeRef::named(TypeRef::STRING)),
         ]
     }
 
@@ -73,8 +74,10 @@ fn apply_pagerank<'b>(
         .get("damping_factor")
         .map(|v| v.f64())
         .transpose()?;
-    let binding = unweighted_page_rank(
+    let weight = ctx.args.get("weight").map(|v| v.string()).transpose()?;
+    let binding = page_rank(
         &entry_point.graph,
+        weight.as_deref(),
         Some(iter_count),
         threads,
         tol,

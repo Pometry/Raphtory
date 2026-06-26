@@ -3,7 +3,7 @@ use csv::StringRecord;
 use flate2::read::GzDecoder;
 use raphtory::{
     algorithms::{
-        centrality::pagerank::unweighted_page_rank, components::weakly_connected_components,
+        centrality::pagerank::page_rank, components::weakly_connected_components,
     },
     graph_loader::fetch_file,
     io::csv_loader::CsvLoader,
@@ -200,7 +200,7 @@ fn main() {
 
     // page rank with time
     now = Instant::now();
-    let _page_rank = unweighted_page_rank(&g, Some(1000), None, None, true, None);
+    let _page_rank = page_rank(&g, None, Some(1000), None, None, true, None);
     info!("Page rank: {} seconds", now.elapsed().as_secs_f64());
 
     // connected community_detection with time

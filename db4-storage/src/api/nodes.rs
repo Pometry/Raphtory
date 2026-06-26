@@ -31,13 +31,14 @@ use std::{
 use crate::{
     LocalPOS,
     error::StorageError,
-    gen_ts::LayerIter,
+    generic_time_ops::LayerIter,
     pages::node_store::increment_and_clamp,
     segments::node::segment::MemNodeSegment,
     utils::{Iter2, Iter3, Iter4},
     wal::LSN,
 };
 use raphtory_api::core::entities::{LayerId, properties::meta::STATIC_GRAPH_LAYER_ID};
+use raphtory_itertools::FastMergeExt;
 use rayon::prelude::*;
 
 pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
@@ -248,6 +249,38 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
     }
 
     #[box_on_debug_lifetime]
+    fn edges_sorted_dir(
+        self,
+        layer_id: LayerId,
+        dir: Direction,
+    ) -> impl Iterator<Item = EdgeRef> + Send + Sync + 'a
+    where
+        Self: Sized,
+    {
+        let src_pid = self.vid();
+        match dir {
+            Direction::OUT => Iter3::I(
+                self.out_edges_sorted(layer_id)
+                    .map(move |(v, e)| EdgeRef::new_outgoing(e, src_pid, v)),
+            ),
+            Direction::IN => Iter3::J(
+                self.inb_edges_sorted(layer_id)
+                    .map(move |(v, e)| EdgeRef::new_incoming(e, v, src_pid)),
+            ),
+            Direction::BOTH => Iter3::K(
+                self.out_edges_sorted(layer_id)
+                    .map(move |(v, e)| EdgeRef::new_outgoing(e, src_pid, v))
+                    .merge_by(
+                        self.inb_edges_sorted(layer_id)
+                            .map(move |(v, e)| EdgeRef::new_incoming(e, v, src_pid)),
+                        |e1, e2| e1.remote() < e2.remote(),
+                    )
+                    .dedup_by(|l, r| l.pid() == r.pid()),
+            ),
+        }
+    }
+
+    #[box_on_debug_lifetime]
     fn edges_iter<'b>(
         self,
         layers_ids: &'b LayerIds,
@@ -262,8 +295,8 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
             LayerIds::Multiple(layers) => Iter4::K(
                 layers
                     .into_iter()
-                    .map(|layer_id| self.edges_dir(layer_id, dir))
-                    .kmerge_by(|e1, e2| e1.remote() < e2.remote())
+                    .map(|layer_id| self.edges_sorted_dir(layer_id, dir))
+                    .fast_merge_by(|e1, e2| e1.remote() < e2.remote())
                     .dedup_by(|l, r| l.pid() == r.pid()),
             ),
             LayerIds::None => Iter4::L(std::iter::empty()),

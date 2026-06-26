@@ -22,6 +22,7 @@ use std::{
     io::{self, ErrorKind, Read, Seek, Write},
     path::{Path, PathBuf},
 };
+use tempfile::NamedTempFile;
 use walkdir::WalkDir;
 use zip::{write::FileOptions, ZipArchive, ZipWriter};
 
@@ -234,6 +235,7 @@ pub trait GraphPaths {
             let mut file = File::open(self.meta_path()?)?;
             file.read_to_string(&mut json)?;
         }
+
         let metadata: Metadata = serde_json::from_str(&json)?;
         Ok(metadata.meta)
     }
@@ -245,11 +247,15 @@ pub trait GraphPaths {
             path: graph_path,
             meta: metadata,
         };
-        let tmp_path = self.data_path()?.path.join(".tmp");
-        let tmp_file = File::create(&tmp_path)?;
-        serde_json::to_writer(tmp_file, &meta)?;
+
+        let data_dir = &self.data_path()?.path;
+        let mut tmp_file = NamedTempFile::new_in(data_dir)?;
+        serde_json::to_writer(&mut tmp_file, &meta)?;
+        tmp_file.as_file().sync_all()?;
+
         let path = self.meta_path()?;
-        fs::rename(tmp_path, path)?;
+        tmp_file.persist(&path).map_err(io::Error::from)?;
+
         Ok(())
     }
 

@@ -5831,6 +5831,7 @@ class PyPropValueList(object):
     def __repr__(self):
         """Return repr(self)."""
 
+    def arrow_compute(self, graph, col_name): ...
     def average(self) -> PropValue:
         """
         Compute the average of all property values. Alias for mean().
