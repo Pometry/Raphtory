@@ -10,7 +10,7 @@ use raphtory::{
     db::api::storage::storage::read_constant_graph_properties,
     errors::GraphError,
     prelude::{GraphViewOps, PropertiesOps},
-    serialise::parquet::decode_graph_metadata,
+    serialise::{metadata::build_graph_metadata, parquet::decode_graph_metadata},
 };
 use raphtory_api::core::storage::graph_folder::{GraphMetadata, GraphPaths};
 use std::{cmp::Ordering, path::PathBuf, sync::Arc};
@@ -64,7 +64,7 @@ impl MetaGraph {
             .get_or_try_init(|| async {
                 match data.get_cached_graph(self.folder.local_path()).await {
                     None => self.folder.read_metadata_async().await,
-                    Some(graph) => Ok(GraphMetadata::from_graph(graph)),
+                    Some(graph) => Ok(build_graph_metadata(graph)),
                 }
             })
             .await?)

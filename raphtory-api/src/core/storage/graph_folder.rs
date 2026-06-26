@@ -10,7 +10,7 @@
 //!     ├── index/        # Search indexes (optional)
 //!     └── vectors/      # Vector embeddings (optional)
 
-use crate::{core::input::input_node::parse_u64_strict, GraphType, to_millis::ToMillis};
+use crate::{core::input::input_node::parse_u64_strict, to_millis::ToMillis, GraphType};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "io")]
@@ -21,6 +21,7 @@ use std::{
 use std::{
     io,
     io::{ErrorKind, Read, Seek, Write},
+    time::SystemTimeError,
 };
 #[cfg(feature = "io")]
 use tempfile::NamedTempFile;
@@ -78,22 +79,33 @@ impl Metadata {
 pub enum GraphFolderError {
     #[error(transparent)]
     Io(#[from] std::io::Error),
+
     #[error(transparent)]
     Serde(#[from] serde_json::Error),
+
     #[error("zip operation failed: {0}")]
     Zip(#[from] zip::result::ZipError),
+
     #[error("Path {0} is not a valid relative data path")]
     InvalidRelativePath(String),
+
     #[error("Not a zip archive")]
     NotAZip,
+
     #[error("Cannot write graph into non empty folder {0}")]
     NonEmptyGraphFolder(PathBuf),
+
     #[error("Graph folder is not initialised for writing")]
     NoWriteInProgress,
+
     #[error("Cannot swap zipped graph data")]
     ZippedGraphCannotBeSwapped,
+
     #[error("IO operation failed: {0}")]
     IOErrorMsg(String),
+
+    #[error("System time error: {0}")]
+    SystemTimeError(#[from] SystemTimeError),
 }
 
 pub fn valid_path_pointer(relative_path: &str, prefix: &str) -> Result<(), GraphFolderError> {
@@ -322,15 +334,15 @@ pub trait GraphPaths {
         Ok(())
     }
 
-    fn created(&self) -> Result<i64, GraphError> {
+    fn created(&self) -> Result<i64, GraphFolderError> {
         Ok(self.root_meta_path().metadata()?.created()?.to_millis()?)
     }
 
-    fn last_updated(&self) -> Result<i64, GraphError> {
+    fn last_updated(&self) -> Result<i64, GraphFolderError> {
         Ok(fs::metadata(self.meta_path()?)?.modified()?.to_millis()?)
     }
 
-    fn last_opened(&self) -> Result<i64, GraphError> {
+    fn last_opened(&self) -> Result<i64, GraphFolderError> {
         Ok(fs::metadata(self.meta_path()?)?.accessed()?.to_millis()?)
     }
 }

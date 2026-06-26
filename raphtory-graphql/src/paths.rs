@@ -1,5 +1,5 @@
 use crate::{
-    data::{WorkDirGuard, WorkDirWriteGuard, DIRTY_PATH},
+    data::{WorkDirGuard, WorkDirWriteGuard},
     model::blocking_io,
     rayon::blocking_compute,
 };
