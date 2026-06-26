@@ -58,6 +58,7 @@ use storage::{
     },
     Extension,
 };
+use tracing::error;
 
 #[derive(Debug, Copy, Clone)]
 pub struct ColumnNames<'a> {
@@ -131,7 +132,7 @@ pub fn load_edges_from_df_prefetch<
                 let sender = tx;
                 for chunk in chunks {
                     if let Err(e) = sender.send(chunk) {
-                        eprintln!("Error sending chunk to loader: {}", e);
+                        error!("Error sending chunk to loader: {}", e);
                         break;
                     }
                 }

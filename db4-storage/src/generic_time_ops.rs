@@ -11,18 +11,18 @@ use raphtory_itertools::FastMergeExt;
 #[derive(Clone, Debug)]
 pub enum LayerIter<'a> {
     One(LayerId),
-    LRef(&'a LayerIds),
+    LayerRef(&'a LayerIds),
     Multiple(Multiple),
 }
 
-pub static ALL_LAYERS: LayerIter<'static> = LayerIter::LRef(&LayerIds::All);
-pub static NONE_LAYERS: LayerIter<'static> = LayerIter::LRef(&LayerIds::None);
+pub static ALL_LAYERS: LayerIter<'static> = LayerIter::LayerRef(&LayerIds::All);
+pub static NONE_LAYERS: LayerIter<'static> = LayerIter::LayerRef(&LayerIds::None);
 
 impl<'a> LayerIter<'a> {
     pub fn into_iter(self, num_layers: usize) -> impl Iterator<Item = LayerId> + Send + Sync + 'a {
         match self {
             LayerIter::One(id) => Iter3::I(std::iter::once(id)),
-            LayerIter::LRef(layers) => Iter3::J(layers.iter(num_layers)),
+            LayerIter::LayerRef(layers) => Iter3::J(layers.iter(num_layers)),
             LayerIter::Multiple(ids) => Iter3::K(ids.into_iter()),
         }
     }
@@ -42,7 +42,7 @@ impl From<LayerId> for LayerIter<'_> {
 
 impl<'a> From<&'a LayerIds> for LayerIter<'a> {
     fn from(layers: &'a LayerIds) -> Self {
-        LayerIter::LRef(layers)
+        LayerIter::LayerRef(layers)
     }
 }
 

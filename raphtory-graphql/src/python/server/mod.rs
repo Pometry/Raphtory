@@ -11,7 +11,7 @@ pub(crate) enum BridgeCommand {
 }
 
 pub(crate) struct ServerStarted {
-    port: u16,
+    pub(crate) port: u16,
 }
 
 pub(crate) fn wait_server(running_server: &mut Option<ServerHandler>) -> PyResult<()> {

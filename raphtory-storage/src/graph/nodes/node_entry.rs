@@ -8,7 +8,7 @@ use raphtory_api::core::{
 use raphtory_core::storage::timeindex::EventTime;
 use storage::{
     api::nodes::{self, NodeEntryOps},
-    gen_ts::LayerIter,
+    generic_time_ops::LayerIter,
     utils::Iter2,
     NodeEntry, NodeEntryRef,
 };

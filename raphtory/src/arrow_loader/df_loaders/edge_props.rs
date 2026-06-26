@@ -40,6 +40,7 @@ use storage::{
     pages::locked::{edges::LockedEdgePage, nodes::LockedNodePage},
     Extension,
 };
+use tracing::error;
 
 #[allow(clippy::too_many_arguments)]
 pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
@@ -188,7 +189,7 @@ pub fn load_edges_from_df_prefetch<G: StaticGraphViewOps + PropertyAdditionOps +
             let sender = tx;
             for chunk in chunks {
                 if let Err(e) = sender.send(chunk) {
-                    eprintln!("Error pre-fetching chunk for loading edges, possibly receiver has been dropped {e}");
+                    error!("Error pre-fetching chunk for loading edges, possibly receiver has been dropped {e}");
                     break;
                 }
             }

@@ -505,9 +505,9 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
                 dst_name,
                 dst,
                 edge_id,
+                props_for_wal,
                 layer,
                 layer_id,
-                props_for_wal,
             )
             .map_err(into_graph_err)?;
 
