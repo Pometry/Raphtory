@@ -2,7 +2,10 @@ use crate::{
     db::{
         api::state::ops::{filter::NodeExistsOp, GraphView},
         graph::views::{
-            filter::{model::ComposableFilter, CreateFilter},
+            filter::{
+                model::{ComposableFilter, CreateView},
+                CreateFilter,
+            },
             is_self_loop_graph::IsSelfLoopGraph,
         },
     },
@@ -10,7 +13,6 @@ use crate::{
     prelude::GraphViewOps,
 };
 use std::fmt;
-use crate::db::graph::views::filter::model::CreateView;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct IsSelfLoopEdge<E> {

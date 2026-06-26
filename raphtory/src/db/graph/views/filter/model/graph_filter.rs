@@ -55,4 +55,3 @@ impl CreateFilter for GraphFilter {
         Ok(NodeExistsOp::new(graph))
     }
 }
-

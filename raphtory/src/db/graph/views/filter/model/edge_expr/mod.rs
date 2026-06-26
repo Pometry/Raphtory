@@ -19,13 +19,8 @@
 //! └──────────────────────────────────────────────────────────┘
 //! ```
 
-use crate::{
-    db::{ graph::views::filter::model::node_expr::EntityExpr},
-};
-use raphtory_api::core::entities::{
-    edges::edge_ref::EdgeRef,
-    properties::prop::{ PropType},
-};
+use crate::db::graph::views::filter::model::node_expr::EntityExpr;
+use raphtory_api::core::entities::{edges::edge_ref::EdgeRef, properties::prop::PropType};
 use raphtory_storage::graph::graph::GraphStorage;
 
 pub mod filters;

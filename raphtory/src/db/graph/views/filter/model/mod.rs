@@ -759,31 +759,33 @@ impl<T: NodeViewFilterOps + DynInternalViewWrapPropOps> DynNodeViewFilterOps for
 
 pub trait EdgeViewFilterOps: ViewWrapOps {
     fn is_active(&self) -> IsActiveEdge<Self> {
-        IsActiveEdge{
-            view_expr: self.clone()
+        IsActiveEdge {
+            view_expr: self.clone(),
         }
     }
 
     fn is_valid(&self) -> IsValidEdge<Self> {
         IsValidEdge {
-            view_expr: self.clone()
+            view_expr: self.clone(),
         }
     }
 
     fn is_deleted(&self) -> IsDeletedEdge<Self> {
         IsDeletedEdge {
-            view_expr: self.clone()
+            view_expr: self.clone(),
         }
     }
 
     fn is_self_loop(&self) -> IsSelfLoopEdge<Self> {
         IsSelfLoopEdge {
-            view_expr: self.clone()
+            view_expr: self.clone(),
         }
     }
 }
 
 impl EdgeViewFilterOps for EdgeFilter {}
+impl EdgeViewFilterOps for ExplodedEdgeFilter {}
+
 pub trait DynEdgeViewFilterOps: DynInternalViewWrapPropOps {
     fn dyn_is_active(&self) -> Arc<dyn DynCreateFilter>;
 
@@ -879,7 +881,7 @@ impl InternalViewWrapOps for DynEdgeViewProps {
 }
 
 // TODO: Do we need this?
-impl EdgeViewFilterOps for DynEdgeViewProps {}
+// impl EdgeViewFilterOps for DynEdgeViewProps {}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // EntityExprFilterOps — comparison and set operators on any EntityExpr

@@ -56,4 +56,3 @@ impl<L: CreateFilter, R: CreateFilter> CreateFilter for OrFilter<L, R> {
         Ok(left.or(right))
     }
 }
-

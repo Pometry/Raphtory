@@ -4,8 +4,8 @@ use crate::{
         graph::views::{
             filter::{
                 model::{
-                    windowed_filter::Windowed, ComposableFilter, CreateView,
-                     InternalViewWrapOps, Wrap,
+                    windowed_filter::Windowed, ComposableFilter, CreateView, EdgeViewFilterOps,
+                    InternalViewWrapOps, Wrap,
                 },
                 CreateFilter,
             },
@@ -17,7 +17,6 @@ use crate::{
 };
 use raphtory_api::core::{storage::timeindex::EventTime, utils::time::IntoTime};
 use std::{fmt, fmt::Display};
-use crate::db::graph::views::filter::model::EdgeViewFilterOps;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SnapshotAt<M> {

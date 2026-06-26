@@ -66,4 +66,3 @@ impl<L: CreateFilter, R: CreateFilter> CreateFilter for AndFilter<L, R> {
         Ok(left.and(right))
     }
 }
-

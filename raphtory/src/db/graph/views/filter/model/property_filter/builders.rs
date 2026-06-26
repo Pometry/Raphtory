@@ -1,7 +1,9 @@
-use crate::db::graph::views::filter::CreateFilter;
-use crate::db::graph::views::filter::model::{
-    property_filter::{Op, PropertyFilter, PropertyFilterInput, PropertyRef},
-     EntityMarker, Wrap,
+use crate::db::graph::views::filter::{
+    model::{
+        property_filter::{Op, PropertyFilter, PropertyFilterInput, PropertyRef},
+        EntityMarker, Wrap,
+    },
+    CreateFilter,
 };
 
 pub trait InternalPropertyFilterBuilder {

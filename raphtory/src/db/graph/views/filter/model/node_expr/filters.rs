@@ -706,4 +706,3 @@ impl<E: CreateOp> CreateOp for PropValueSetExpr<E, EntityMarker> {
         }
     }
 }
-

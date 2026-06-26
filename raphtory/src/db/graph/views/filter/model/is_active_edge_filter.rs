@@ -1,10 +1,9 @@
-use crate::db::graph::views::filter::model::CreateView;
 use crate::{
     db::{
         api::state::ops::{filter::NodeExistsOp, GraphView},
         graph::views::{
             filter::{
-                model::ComposableFilter,
+                model::{ComposableFilter, CreateView},
                 CreateFilter,
             },
             is_active_graph::IsActiveGraph,

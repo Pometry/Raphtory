@@ -12,9 +12,7 @@ use crate::{
                 edge_property_filtered_graph::EdgePropertyFilteredGraph,
                 exploded_edge_property_filter::ExplodedEdgePropertyFilteredGraph,
                 model::{
-                    filter_value::FilterValue, ComposableFilter,
-                    ExplodedEdgeFilter,
-                    FilterOperator,
+                    filter_value::FilterValue, ComposableFilter, ExplodedEdgeFilter, FilterOperator,
                 },
                 node_filtered_graph::NodeFilteredGraph,
                 CreateFilter,
@@ -444,4 +442,3 @@ impl CreateFilter for PropertyFilter<ExplodedEdgeFilter> {
 }
 
 impl<M> ComposableFilter for PropertyFilter<M> {}
-

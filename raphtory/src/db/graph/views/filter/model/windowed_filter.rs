@@ -3,7 +3,9 @@ use crate::{
         api::view::internal::GraphView,
         graph::views::{
             filter::{
-                model::{ComposableFilter, CreateView, InternalViewWrapOps, Wrap},
+                model::{
+                    ComposableFilter, CreateView, EdgeViewFilterOps, InternalViewWrapOps, Wrap,
+                },
                 CreateFilter,
             },
             window_graph::WindowedGraph,
@@ -17,7 +19,6 @@ use raphtory_api::core::{
     utils::time::IntoTime,
 };
 use std::{fmt, fmt::Display};
-use crate::db::graph::views::filter::model::EdgeViewFilterOps;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Windowed<M> {

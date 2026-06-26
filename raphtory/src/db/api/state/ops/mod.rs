@@ -3,24 +3,30 @@ pub mod history;
 pub mod node;
 pub mod properties;
 
-use crate::db::{
-    api::{
-        state::ops::filter::{AndOp, NotOp, OrOp},
-        view::internal::NodeList,
+use crate::{
+    db::{
+        api::{
+            state::ops::filter::{AndOp, NotOp, OrOp},
+            view::internal::NodeList,
+        },
+        graph::views::filter::model::{
+            node_expr::{BinaryCmpNodeOp, CreateOp, EntityExpr},
+            BinaryOp, Comparable,
+        },
     },
-    graph::views::filter::model::{node_expr::BinaryCmpNodeOp, BinaryOp, Comparable},
+    errors::GraphError,
+    prelude::NodeFilter,
 };
 pub use history::*;
 pub use node::*;
 pub use properties::*;
-use raphtory_api::core::entities::{properties::prop::PropType, VID};
+use raphtory_api::core::entities::{
+    properties::prop::{Prop, PropType},
+    VID,
+};
 use raphtory_storage::graph::graph::GraphStorage;
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, marker::PhantomData, ops::Deref, sync::Arc};
-use raphtory_api::core::entities::properties::prop::Prop;
-use crate::db::graph::views::filter::model::node_expr::{CreateOp, EntityExpr};
-use crate::errors::GraphError;
-use crate::prelude::NodeFilter;
 
 // this probably needs the 'graph lifetime to make bin_cmp work with ops that capture the graph
 pub trait NodeOp: Send + Sync {

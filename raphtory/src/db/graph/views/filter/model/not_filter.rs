@@ -53,4 +53,3 @@ impl<T: CreateFilter> CreateFilter for NotFilter<T> {
         Ok(self.0.create_node_filter(graph)?.not())
     }
 }
-

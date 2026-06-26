@@ -2,7 +2,7 @@ use crate::{
     db::{
         api::view::internal::{GraphView, InternalFilter},
         graph::views::filter::{
-            model::{ComposableFilter, InternalViewWrapOps, Wrap},
+            model::{ComposableFilter, EdgeViewFilterOps, InternalViewWrapOps, Wrap},
             CreateFilter,
         },
     },
@@ -11,7 +11,6 @@ use crate::{
 };
 use raphtory_api::core::{entities::Layer, storage::timeindex::EventTime};
 use std::{fmt, fmt::Display};
-use crate::db::graph::views::filter::model::EdgeViewFilterOps;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Layered<M> {
