@@ -128,6 +128,7 @@ type SchemaDataInjector = std::sync::Arc<
 #[derive(Clone)]
 pub struct GraphServer {
     data: Data,
+    work_dir: PathBuf,
     config: AppConfig,
     schema_data: Vec<SchemaDataInjector>,
 }
@@ -168,6 +169,7 @@ impl GraphServer {
         let config = app_config.unwrap_or_default();
         let data = Data::new(work_dir.as_path(), &config, graph_config);
         Ok(Self {
+            work_dir,
             data,
             config,
             schema_data: Vec::new(),
@@ -176,7 +178,7 @@ impl GraphServer {
 
     /// Returns the working directory for this server.
     pub fn work_dir(&self) -> &Path {
-        &self.data.work_dir
+        &self.work_dir
     }
 
     pub fn turn_off_index(&mut self) {
@@ -218,7 +220,7 @@ impl GraphServer {
     ) -> Result<(), GQLError> {
         let vector_cache = self.data.vector_cache.resolve().await?;
         let model = vector_cache.openai(embeddings.into()).await?;
-        for folder in self.data.get_all_graph_folders() {
+        for folder in self.data.get_all_graph_folders().await {
             self.data
                 .vectorise_folder(&folder, template, model.clone()) // TODO: avoid clone, just ask for a ref
                 .await?;
@@ -239,7 +241,7 @@ impl GraphServer {
     ) -> Result<(), GQLError> {
         let vetor_cache = self.data.vector_cache.resolve();
         let model = vetor_cache.await?.openai(embeddings.into()).await?;
-        let folder = ExistingGraphFolder::try_from(self.data.work_dir.clone(), path)?;
+        let folder = ExistingGraphFolder::try_from(self.data.work_dir_read().await, path)?;
         self.data.vectorise_folder(&folder, template, model).await
     }
 
@@ -289,7 +291,7 @@ impl GraphServer {
             }
         };
 
-        let work_dir = self.data.work_dir.clone();
+        let work_dir = self.work_dir();
 
         // it is important that this runs after algorithms have been pushed to PLUGIN_ALGOS static variable
         let app = self

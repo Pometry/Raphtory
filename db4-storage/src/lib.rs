@@ -124,6 +124,9 @@ pub mod error {
 
         #[error("Disk storage not supported")]
         DiskStorageNotSupported,
+
+        #[error("Graph requires WAL recovery; load with WAL enabled")]
+        RecoveryRequired,
     }
 
     impl StorageError {
