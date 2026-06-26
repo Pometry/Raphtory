@@ -16,7 +16,7 @@ use crate::{
     errors::GraphError,
     prelude::{GraphViewOps, NodeFilter},
 };
-use raphtory_api::core::entities::properties::prop::Prop;
+use raphtory_api::core::entities::properties::prop::{Prop, PropType};
 use std::{fmt, sync::Arc};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -36,6 +36,14 @@ impl<E: Clone + Send + Sync + 'static> EntityExpr for IsActiveNode<E> {
     fn entity(&self) -> Self::Marker {
         NodeFilter
     }
+
+    fn prop_type(&self) -> PropType {
+        PropType::Bool
+    }
+
+    fn nullable(&self) -> bool {
+        false
+    }
 }
 
 impl<E: CreateView + Clone> CreateOp for IsActiveNode<E> {
@@ -44,7 +52,8 @@ impl<E: CreateView + Clone> CreateOp for IsActiveNode<E> {
         graph: G,
     ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
         Ok(Arc::new(
-            HistoryOp::new(self.view_expr.create_view(graph)?).map(|h| !h.is_empty()),
+            HistoryOp::new(self.view_expr.create_view(graph)?)
+                .map(|h| Some(Prop::Bool(!h.is_empty()))),
         ))
     }
 }
