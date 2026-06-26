@@ -365,7 +365,7 @@ impl<
 
         // Skip running a clean flush if the DB is in shutdown or crash recovery.
         // Note that the state can be Shutdown after load is called and before recovery is complete.
-        // If state is NotSupported, the WAL is disabled and we should flush anyways.
+        // A clean flush is performed even when state is WalDisabled or NotSupported.
         if matches!(
             control_file.db_state(),
             DBState::Shutdown | DBState::CrashRecovery
