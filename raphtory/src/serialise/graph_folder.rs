@@ -10,10 +10,6 @@
 //!     ├── index/        # Search indexes (optional)
 //!     └── vectors/      # Vector embeddings (optional)
 
-use crate::{
-    db::api::view::internal::GraphView, errors::GraphError, prelude::ParquetEncoder,
-    serialise::metadata::build_graph_metadata,
-};
 use itertools::Itertools;
 use raphtory_api::core::{
     input::input_node::parse_u64_strict,
@@ -103,7 +99,9 @@ pub fn get_zip_data_path<R: Read + Seek>(
     Ok(read_path_from_file(file, DATA_PATH)?)
 }
 
-pub fn get_zip_graph_path<R: Read + Seek>(zip: &mut ZipArchive<R>) -> Result<String, GraphError> {
+pub fn get_zip_graph_path<R: Read + Seek>(
+    zip: &mut ZipArchive<R>,
+) -> Result<String, GraphFolderError> {
     let mut path = get_zip_data_path(zip)?;
     let graph_path = get_zip_graph_path_name(zip, path.clone())?;
     path.push('/');
@@ -268,7 +266,7 @@ impl<P: AsRef<Path> + ?Sized> GraphPaths for P {
 #[derive(Clone, Debug, PartialOrd, PartialEq, Ord, Eq)]
 pub struct GraphFolder {
     root_folder: PathBuf,
-    pub(crate) write_as_zip_format: bool,
+    pub write_as_zip_format: bool,
 }
 
 impl GraphPaths for GraphFolder {
@@ -288,9 +286,9 @@ impl GraphFolder {
 
     /// Reserve a folder, marking it as occupied by a graph.
     /// Returns an error if the folder has data.
-    pub fn init_write(self) -> Result<WriteableGraphFolder, GraphError> {
+    pub fn init_write(self) -> Result<WriteableGraphFolder, GraphFolderError> {
         if self.write_as_zip_format {
-            return Err(GraphError::ZippedGraphCannotBeSwapped);
+            return Err(GraphFolderError::ZippedGraphCannotBeSwapped);
         }
         let relative_data_path = self.relative_data_path()?;
         let meta = serde_json::to_string(&RelativePath {
@@ -311,9 +309,9 @@ impl GraphFolder {
     ///
     /// If a swap is already in progress (i.e., `.dirty` file exists) it is aborted and
     /// the contents of the corresponding folder are deleted.
-    pub fn init_swap(self) -> Result<WriteableGraphFolder, GraphError> {
+    pub fn init_swap(self) -> Result<WriteableGraphFolder, GraphFolderError> {
         if self.write_as_zip_format {
-            return Err(GraphError::ZippedGraphCannotBeSwapped);
+            return Err(GraphFolderError::ZippedGraphCannotBeSwapped);
         }
         let old_swap = match read_path_pointer(self.root(), DIRTY_PATH, DATA_PATH) {
             Ok(path) => path,
@@ -353,9 +351,9 @@ impl GraphFolder {
     }
 
     /// Clears the folder of any contents.
-    pub fn clear(&self) -> Result<(), GraphError> {
+    pub fn clear(&self) -> Result<(), GraphFolderError> {
         if self.is_zip() {
-            return Err(GraphError::IOErrorMsg(
+            return Err(GraphFolderError::IOErrorMsg(
                 "Cannot clear a zip folder".to_string(),
             ));
         }
@@ -365,7 +363,7 @@ impl GraphFolder {
         Ok(())
     }
 
-    pub fn get_zip_graph_prefix(&self) -> Result<String, GraphError> {
+    pub fn get_zip_graph_prefix(&self) -> Result<String, GraphFolderError> {
         if self.is_zip() {
             let mut zip = self.read_zip()?;
             Ok([get_zip_data_path(&mut zip)?, get_zip_graph_path(&mut zip)?].join("/"))
@@ -395,13 +393,13 @@ impl GraphFolder {
         Ok(())
     }
 
-    pub fn is_disk_graph(&self) -> Result<bool, GraphError> {
+    pub fn is_disk_graph(&self) -> Result<bool, GraphFolderError> {
         let meta = self.read_metadata()?;
         Ok(meta.is_diskgraph)
     }
 
     /// Creates a zip file from the folder.
-    pub fn zip_from_folder<W: Write + Seek>(&self, mut writer: W) -> Result<(), GraphError> {
+    pub fn zip_from_folder<W: Write + Seek>(&self, mut writer: W) -> Result<(), GraphFolderError> {
         if self.is_zip() {
             let mut reader = File::open(&self.root_folder)?;
             io::copy(&mut reader, &mut writer)?;
@@ -413,7 +411,7 @@ impl GraphFolder {
             {
                 let path = entry.path();
                 let rel_path = path.strip_prefix(&self.root_folder).map_err(|e| {
-                    GraphError::IOErrorMsg(format!("Failed to strip prefix from path: {}", e))
+                    GraphFolderError::IOErrorMsg(format!("Failed to strip prefix from path: {}", e))
                 })?;
 
                 let zip_entry_name = rel_path
@@ -437,7 +435,7 @@ impl GraphFolder {
         Ok(())
     }
 
-    pub fn unzip_to_folder<R: Read + Seek>(&self, reader: R) -> Result<(), GraphError> {
+    pub fn unzip_to_folder<R: Read + Seek>(&self, reader: R) -> Result<(), GraphFolderError> {
         self.ensure_clean_root_dir()?;
         let mut archive = ZipArchive::new(reader)?;
         archive.extract(self.root())?;
@@ -478,7 +476,7 @@ impl WriteableGraphFolder {
     /// and cleaning up any old data if it exists.
     ///
     /// This operation returns an error if there is no write in progress.
-    pub fn finish(self) -> Result<GraphFolder, GraphError> {
+    pub fn finish(self) -> Result<GraphFolder, GraphFolderError> {
         let old_data = read_path_pointer(self.root(), ROOT_META_PATH, DATA_PATH)?;
         fs::rename(
             self.root().join(DIRTY_PATH),
@@ -509,18 +507,12 @@ impl AsRef<Path> for InnerGraphFolder {
 }
 
 impl InnerGraphFolder {
-    pub fn write_metadata(&self, graph: impl GraphView) -> Result<(), GraphError> {
-        let graph_path = self.relative_graph_path()?;
-        let metadata = build_graph_metadata(graph);
-        let meta = Metadata {
-            path: graph_path,
-            meta: metadata,
-        };
+    pub fn write_metadata(&self, meta: Metadata) -> Result<(), GraphFolderError> {
         meta.write_atomic(self.as_ref(), &self.meta_path())?;
         Ok(())
     }
 
-    pub fn read_metadata(&self) -> Result<GraphMetadata, GraphError> {
+    pub fn read_metadata(&self) -> Result<GraphMetadata, GraphFolderError> {
         let mut json = String::new();
         let mut file = File::open(self.meta_path())?;
         file.read_to_string(&mut json)?;
@@ -528,28 +520,18 @@ impl InnerGraphFolder {
         Ok(metadata.meta)
     }
 
-    pub fn replace_graph(
-        &self,
-        graph: impl ParquetEncoder + GraphView + std::fmt::Debug,
-    ) -> Result<(), GraphError> {
-        let data_path = self.as_ref();
+    /// Atomically point the metadata file at the graph data described by `meta`, removing the
+    /// previously-referenced graph directory if the path changed.
+    ///
+    /// NOTE: this does NOT encode the graph data itself. The caller must have already written
+    /// the graph data into the directory in `meta.path` (see the `replace_graph` in `raphtory`)
+    pub fn replace_graph_path(&self, meta: Metadata) -> Result<(), GraphFolderError> {
         let old_relative_graph_path = self.relative_graph_path()?;
-        let old_graph_path = self.path.join(&old_relative_graph_path);
-        let meta = build_graph_metadata(&graph);
-        let new_relative_graph_path = make_path_pointer(data_path, GRAPH_META_PATH, GRAPH_PATH)?;
-        graph.encode_parquet(data_path.join(&new_relative_graph_path))?;
+        let path_changed = meta.path != old_relative_graph_path;
 
-        let dirty_path = data_path.join(DIRTY_PATH);
-        fs::write(
-            &dirty_path,
-            &serde_json::to_vec(&Metadata {
-                path: new_relative_graph_path.clone(),
-                meta,
-            })?,
-        )?;
-        fs::rename(&dirty_path, data_path.join(GRAPH_META_PATH))?;
-        if new_relative_graph_path != old_relative_graph_path {
-            fs::remove_dir_all(old_graph_path)?;
+        self.write_metadata(meta)?;
+        if path_changed {
+            fs::remove_dir_all(self.as_ref().join(&old_relative_graph_path))?;
         }
         Ok(())
     }
@@ -565,12 +547,12 @@ impl InnerGraphFolder {
         self.path.join(GRAPH_META_PATH)
     }
 
-    pub fn relative_graph_path(&self) -> Result<String, GraphError> {
+    pub fn relative_graph_path(&self) -> Result<String, GraphFolderError> {
         let relative = read_or_default_path_pointer(&self.path, GRAPH_META_PATH, GRAPH_PATH)?;
         Ok(relative)
     }
 
-    pub fn graph_path(&self) -> Result<PathBuf, GraphError> {
+    pub fn graph_path(&self) -> Result<PathBuf, GraphFolderError> {
         Ok(self.path.join(self.relative_graph_path()?))
     }
 
@@ -589,7 +571,7 @@ impl InnerGraphFolder {
     }
 
     /// Extracts a zip file to the folder.
-    pub fn unzip_to_folder<R: Read + Seek>(&self, reader: R) -> Result<(), GraphError> {
+    pub fn unzip_to_folder<R: Read + Seek>(&self, reader: R) -> Result<(), GraphFolderError> {
         self.ensure_clean_root_dir()?;
 
         let mut zip = ZipArchive::new(reader)?;

@@ -142,7 +142,8 @@ mod test_index {
             serialise::GraphFolder,
         };
         use raphtory_api::core::{
-            entities::properties::prop::Prop, storage::arc_str::ArcStr,
+            entities::properties::prop::Prop,
+            storage::{arc_str::ArcStr, graph_folder::GraphFolderError},
             utils::logging::global_info_logger,
         };
         use tempfile::TempDir;
@@ -226,9 +227,7 @@ mod test_index {
             let result = graph.encode(path);
 
             match result {
-                Err(GraphError::GraphFolder(err))
-                    if matches!(err, GraphFolderError::NonEmptyGraphFolder(err_path)) =>
-                {
+                Err(GraphError::GraphFolder(GraphFolderError::NonEmptyGraphFolder(err_path))) => {
                     assert_eq!(path, err_path);
                 }
                 Ok(_) => panic!("Expected error on second encode, got Ok"),

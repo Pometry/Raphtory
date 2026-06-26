@@ -2,7 +2,7 @@ use raphtory_api::core::{
     entities::{
         edges::edge_ref::EdgeRef,
         properties::{
-            meta::{STATIC_GRAPH_LAYER, STATIC_GRAPH_LAYER_ID, STATIC_GRAPH_LAYER_NAME},
+            meta::{STATIC_GRAPH_LAYER, STATIC_GRAPH_LAYER_ID},
             prop::Prop,
         },
         GidRef, LayerId, LayerIds, VID,

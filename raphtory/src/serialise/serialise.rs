@@ -72,7 +72,12 @@ impl<T: ParquetEncoder + StaticGraphViewOps + AdditionOps> StableEncode for T {
             self.encode_parquet(write_folder.graph_path()?)?;
             #[cfg(feature = "search")]
             self.persist_index_to_disk(&write_folder)?;
-            write_folder.data_path()?.write_metadata(self)?;
+            let data_folder = write_folder.data_path()?;
+            let meta = Metadata {
+                path: data_folder.relative_graph_path()?,
+                meta: build_graph_metadata(self),
+            };
+            data_folder.write_metadata(meta)?;
             write_folder.finish()?;
         }
         Ok(())

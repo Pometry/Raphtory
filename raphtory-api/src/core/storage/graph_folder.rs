@@ -69,4 +69,8 @@ pub enum GraphFolderError {
     NonEmptyGraphFolder(PathBuf),
     #[error("Graph folder is not initialised for writing")]
     NoWriteInProgress,
+    #[error("Cannot swap zipped graph data")]
+    ZippedGraphCannotBeSwapped,
+    #[error("IO operation failed: {0}")]
+    IOErrorMsg(String),
 }

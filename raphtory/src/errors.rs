@@ -420,9 +420,6 @@ pub enum GraphError {
     #[error("Your window and step must be of the same type: duration (string) or epoch (int)")]
     MismatchedIntervalTypes,
 
-    #[error("Cannot swap zipped graph data")]
-    ZippedGraphCannotBeSwapped,
-
     #[error("{source} at {location}")]
     StripPrefixError {
         source: StripPrefixError,

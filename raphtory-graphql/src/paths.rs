@@ -8,8 +8,8 @@ use raphtory::{
     errors::{GraphError, InvalidPathReason},
     prelude::{AdditionOps, GraphViewOps},
     serialise::{
-        metadata::build_graph_metadata, GraphFolder, GraphPaths, RelativePath, StableDecode,
-        WriteableGraphFolder,
+        metadata::{build_graph_metadata, replace_graph_in_folder},
+        GraphFolder, GraphPaths, RelativePath, StableDecode, WriteableGraphFolder,
     },
 };
 use raphtory_api::core::storage::graph_folder::{
@@ -170,7 +170,7 @@ impl ExistingGraphFolder {
                 };
                 self.global_path.write_metadata(meta)?;
             } else {
-                self.global_path.data_path()?.replace_graph(graph)?;
+                replace_graph_in_folder(&self.global_path.data_path()?, graph)?;
             }
             Ok(())
         })
@@ -402,7 +402,7 @@ impl ValidWriteableGraphFolder {
                 (true, new_graph)
             }
         } else {
-            self.global_path.data_path()?.replace_graph(graph.clone())?;
+            replace_graph_in_folder(&self.global_path.data_path()?, graph.clone())?;
             (false, graph)
         };
         Ok(is_dirty)
