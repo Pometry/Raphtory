@@ -499,8 +499,8 @@ impl Add<Interval> for EventTime {
 #[cfg(test)]
 mod time_tests {
     use crate::utils::time::{AlignmentUnit, Interval, WEEK_MS};
-    use chrono::{DateTime, Datelike, NaiveTime, Utc, Weekday};
-    use proptest::{arbitrary::any, prelude::Strategy, proptest};
+    use chrono::{DateTime, Datelike, NaiveTime, Weekday};
+    use proptest::{prelude::Strategy, proptest};
     use raphtory_api::core::{
         storage::timeindex::AsTime,
         utils::time::{ParseTimeError, TryIntoTime},
