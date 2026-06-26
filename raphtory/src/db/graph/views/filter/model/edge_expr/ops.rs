@@ -2,13 +2,16 @@
 //!
 //! Parallel to `node_expr/ops.rs` — same design, different subject.
 
-use crate::db::{
-    api::{
-        properties::internal::{InternalMetadataOps, InternalTemporalPropertyViewOps},
-        state::ops::Const,
-        view::internal::GraphView,
+use crate::{
+    db::{
+        api::{
+            properties::internal::{InternalMetadataOps, InternalTemporalPropertyViewOps},
+            state::ops::Const,
+            view::internal::GraphView,
+        },
+        graph::edge::EdgeView,
     },
-    graph::edge::EdgeView,
+    prelude::EdgeViewOps,
 };
 use raphtory_api::core::entities::{
     edges::edge_ref::EdgeRef,
@@ -450,5 +453,80 @@ impl<'g> EdgeOp for EdgeEndpointNodeOp<'g> {
             Endpoint::Dst => edge.dst(),
         };
         self.node_op.apply(storage, vid)
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Per-edge predicate ops — produce Some(Prop::Bool(...)) per edge.
+// Used by `CreateOp::create_edge_op` for the expression-mode path of the
+// structural edge predicates (IsActiveEdge, IsValidEdge, IsDeletedEdge,
+// IsSelfLoopEdge).
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[derive(Clone)]
+pub(crate) struct IsActiveEdgePropOp<G> {
+    pub(crate) graph: G,
+}
+
+impl<G: GraphView> EdgeOp for IsActiveEdgePropOp<G> {
+    type Output = Option<Prop>;
+
+    fn apply(&self, _storage: &GraphStorage, edge: EdgeRef) -> Option<Prop> {
+        Some(Prop::Bool(EdgeView::new(&self.graph, edge).is_active()))
+    }
+
+    fn prop_type(&self) -> PropType {
+        PropType::Bool
+    }
+}
+
+#[derive(Clone)]
+pub(crate) struct IsValidEdgePropOp<G> {
+    pub(crate) graph: G,
+}
+
+impl<G: GraphView> EdgeOp for IsValidEdgePropOp<G> {
+    type Output = Option<Prop>;
+
+    fn apply(&self, _storage: &GraphStorage, edge: EdgeRef) -> Option<Prop> {
+        Some(Prop::Bool(EdgeView::new(&self.graph, edge).is_valid()))
+    }
+
+    fn prop_type(&self) -> PropType {
+        PropType::Bool
+    }
+}
+
+#[derive(Clone)]
+pub(crate) struct IsDeletedEdgePropOp<G> {
+    pub(crate) graph: G,
+}
+
+impl<G: GraphView> EdgeOp for IsDeletedEdgePropOp<G> {
+    type Output = Option<Prop>;
+
+    fn apply(&self, _storage: &GraphStorage, edge: EdgeRef) -> Option<Prop> {
+        Some(Prop::Bool(EdgeView::new(&self.graph, edge).is_deleted()))
+    }
+
+    fn prop_type(&self) -> PropType {
+        PropType::Bool
+    }
+}
+
+#[derive(Clone)]
+pub(crate) struct IsSelfLoopEdgePropOp<G> {
+    pub(crate) graph: G,
+}
+
+impl<G: GraphView> EdgeOp for IsSelfLoopEdgePropOp<G> {
+    type Output = Option<Prop>;
+
+    fn apply(&self, _storage: &GraphStorage, edge: EdgeRef) -> Option<Prop> {
+        Some(Prop::Bool(EdgeView::new(&self.graph, edge).is_self_loop()))
+    }
+
+    fn prop_type(&self) -> PropType {
+        PropType::Bool
     }
 }

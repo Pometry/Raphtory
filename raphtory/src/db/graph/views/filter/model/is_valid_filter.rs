@@ -3,7 +3,12 @@ use crate::{
         api::state::ops::{filter::NodeExistsOp, GraphView},
         graph::views::{
             filter::{
-                model::{ComposableFilter, CreateView},
+                model::{
+                    edge_expr::{ops::IsValidEdgePropOp, EdgeOp},
+                    edge_filter::EdgeFilter,
+                    node_expr::{CreateOp, EntityExpr},
+                    ComposableFilter, CreateView,
+                },
                 CreateFilter,
             },
             valid_graph::ValidGraph,
@@ -12,7 +17,8 @@ use crate::{
     errors::GraphError,
     prelude::GraphViewOps,
 };
-use std::fmt;
+use raphtory_api::core::entities::properties::prop::{Prop, PropType};
+use std::{fmt, sync::Arc};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct IsValidEdge<E> {
@@ -22,6 +28,32 @@ pub struct IsValidEdge<E> {
 impl<E> fmt::Display for IsValidEdge<E> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "IS_VALID_EDGE")
+    }
+}
+
+impl<E: Clone + Send + Sync + 'static> EntityExpr for IsValidEdge<E> {
+    type Marker = EdgeFilter;
+
+    fn entity(&self) -> Self::Marker {
+        EdgeFilter
+    }
+
+    fn prop_type(&self) -> PropType {
+        PropType::Bool
+    }
+
+    fn nullable(&self) -> bool {
+        false
+    }
+}
+
+impl<E: CreateView + Clone> CreateOp for IsValidEdge<E> {
+    fn create_edge_op<'g, G: GraphView + 'g>(
+        &self,
+        graph: G,
+    ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
+        let view = self.view_expr.create_view(graph)?;
+        Ok(Arc::new(IsValidEdgePropOp { graph: view }))
     }
 }
 
