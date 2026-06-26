@@ -60,9 +60,9 @@ use crate::{
                 edge_filter::CompositeEdgeFilter,
                 filter_operator::{BinaryOp, SetOp, StringOp, UnaryOp},
                 resolved_prop_type, validate_binary_op, validate_const_castable,
-                validate_string_op, ComposableFilter, CompositeExplodedEdgeFilter,
-                CompositeNodeFilter, CreateFilter, EntityMarker, ExplodedEdgeFilter,
-                TryAsCompositeFilter,
+                validate_string_op, validate_types_compatible, ComposableFilter,
+                CompositeExplodedEdgeFilter, CompositeNodeFilter, CreateFilter, EntityMarker,
+                ExplodedEdgeFilter, TryAsCompositeFilter,
             },
             node_filtered_graph::NodeFilteredGraph,
         },
@@ -177,11 +177,13 @@ where
         let left = self.left.create_node_op(graph.clone())?;
         let right = self.right.create_node_op(graph)?;
         let lhs_pt = resolved_prop_type(expr_pt, left.prop_type());
+        let rhs_pt = resolved_prop_type(self.right.prop_type(), right.prop_type());
         validate_binary_op(&self.op, &lhs_pt)?;
         validate_const_castable(
             &lhs_pt,
             right.const_value().as_ref().and_then(|o| o.as_ref()),
         )?;
+        validate_types_compatible(&lhs_pt, &rhs_pt)?;
         Ok(Arc::new(BinaryCmpNodeOp {
             left,
             right,

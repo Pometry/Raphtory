@@ -1168,6 +1168,72 @@ pub fn validate_const_castable(
     Ok(())
 }
 
+/// A representative value for a given `PropType` — used to check type-level
+/// compatibility via the value-based `Prop::try_cast` matrix. Returns `None`
+/// for composite types (List, Map) where no canonical scalar default exists.
+fn representative_prop(pt: &PropType) -> Option<Prop> {
+    Some(match pt {
+        PropType::Str => Prop::Str("".into()),
+        PropType::U8 => Prop::U8(0),
+        PropType::U16 => Prop::U16(0),
+        PropType::U32 => Prop::U32(0),
+        PropType::U64 => Prop::U64(0),
+        PropType::I32 => Prop::I32(0),
+        PropType::I64 => Prop::I64(0),
+        PropType::F32 => Prop::F32(0.0),
+        PropType::F64 => Prop::F64(0.0),
+        PropType::Bool => Prop::Bool(false),
+        PropType::Empty
+        | PropType::List(_)
+        | PropType::Map(_)
+        | PropType::NDTime
+        | PropType::DTime
+        | PropType::Decimal { .. } => return None,
+    })
+}
+
+/// Reject a binary comparison where LHS and RHS types are known but incompatible.
+///
+/// Complements `validate_const_castable` (which only checks const RHS) by also
+/// catching mismatches when the RHS is another expression with a declared
+/// `prop_type`. Uses the same `Prop::try_cast` matrix for coercion checks via
+/// a representative value, so the numeric family (U/I/F) is considered
+/// compatible while cross-domain (Bool vs U64, Str vs I64) is rejected.
+///
+/// Both sides being `Empty` defers to runtime (no-op).
+pub fn validate_types_compatible(lhs_pt: &PropType, rhs_pt: &PropType) -> Result<(), GraphError> {
+    if *lhs_pt == PropType::Empty || *rhs_pt == PropType::Empty || lhs_pt == rhs_pt {
+        return Ok(());
+    }
+    let castable = representative_prop(rhs_pt)
+        .and_then(|v| v.try_cast(lhs_pt.clone()))
+        .is_some();
+    if !castable {
+        return Err(GraphError::InvalidFilter(format!(
+            "type mismatch: lhs is {}, rhs is {}",
+            lhs_pt, rhs_pt
+        )));
+    }
+    Ok(())
+}
+
+/// Reject aggregators called on a declared scalar expression.
+///
+/// Lists and unresolved (`PropType::Empty`) types pass through — unresolved
+/// is the case where a property name hasn't been looked up yet at expression-
+/// build time, so we defer to filter-build / runtime to catch scalar/list
+/// mismatches there. Anything declaring a scalar type up front (e.g.
+/// `IsActiveNode` → `Bool`, `DegreeExpr` → `U64`) is rejected.
+pub fn require_aggregable(pt: &PropType, op: &str) -> Result<(), GraphError> {
+    match pt {
+        PropType::List(_) | PropType::Empty => Ok(()),
+        _ => Err(GraphError::InvalidFilter(format!(
+            "{} is not valid on a scalar expression of type {}",
+            op, pt
+        ))),
+    }
+}
+
 /// Cast every value in an `is_in`/`is_not_in` set to the LHS type.
 ///
 /// If the LHS type is unknown (`PropType::Empty`), the values are returned

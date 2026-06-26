@@ -20,8 +20,9 @@ use crate::{
             model::{
                 edge_filter::{CompositeEdgeFilter, EdgeFilter},
                 node_expr::{filters::PropValueSetExpr, CreateOp},
-                validate_binary_op, validate_string_op, CompositeExplodedEdgeFilter,
-                CompositeNodeFilter, CreateFilter, ExplodedEdgeFilter, TryAsCompositeFilter,
+                resolved_prop_type, validate_binary_op, validate_string_op,
+                validate_types_compatible, CompositeExplodedEdgeFilter, CompositeNodeFilter,
+                CreateFilter, ExplodedEdgeFilter, TryAsCompositeFilter,
             },
         },
     },
@@ -85,9 +86,13 @@ where
         self,
         graph: G,
     ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
+        let expr_pt = self.left.prop_type();
         let left = self.left.create_edge_op(graph.clone())?;
         let right = self.right.create_edge_op(graph.clone())?;
-        validate_binary_op(&self.op, &left.prop_type())?;
+        let lhs_pt = resolved_prop_type(expr_pt, left.prop_type());
+        let rhs_pt = resolved_prop_type(self.right.prop_type(), right.prop_type());
+        validate_binary_op(&self.op, &lhs_pt)?;
+        validate_types_compatible(&lhs_pt, &rhs_pt)?;
         let op: Arc<dyn EdgeOp<Output = bool> + 'graph> = Arc::new(BinaryCmpEdgeOp {
             left,
             right,
@@ -118,9 +123,13 @@ where
         self,
         graph: G,
     ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
+        let expr_pt = self.left.prop_type();
         let left = self.left.create_edge_op(graph.clone())?;
         let right = self.right.create_edge_op(graph.clone())?;
-        validate_binary_op(&self.op, &left.prop_type())?;
+        let lhs_pt = resolved_prop_type(expr_pt, left.prop_type());
+        let rhs_pt = resolved_prop_type(self.right.prop_type(), right.prop_type());
+        validate_binary_op(&self.op, &lhs_pt)?;
+        validate_types_compatible(&lhs_pt, &rhs_pt)?;
         let op: Arc<dyn EdgeOp<Output = bool> + 'graph> = Arc::new(BinaryCmpEdgeOp {
             left,
             right,

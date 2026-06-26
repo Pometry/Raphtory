@@ -79,7 +79,7 @@ use crate::{
             edge_expr::{ops::TemporalEdgePropOp, EdgeOp},
             filter_operator::Comparable,
             node_filter::{NodeFilter, NodeFilterFactory},
-            CreateView,
+            require_aggregable, resolved_prop_type, CreateView,
         },
     },
     errors::GraphError,
@@ -614,6 +614,8 @@ macro_rules! impl_agg_expr {
                 graph: G,
             ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
                 let inner = self.0.create_node_op(graph)?;
+                let pt = resolved_prop_type(self.0.prop_type(), inner.prop_type());
+                require_aggregable(&pt, stringify!($expr))?;
                 Ok(Arc::new($node_op_ty { inner }))
             }
 
@@ -622,6 +624,8 @@ macro_rules! impl_agg_expr {
                 graph: G,
             ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
                 let inner = self.0.create_edge_op(graph)?;
+                let pt = resolved_prop_type(self.0.prop_type(), inner.prop_type());
+                require_aggregable(&pt, stringify!($expr))?;
                 Ok(Arc::new($edge_op_ty { inner }))
             }
         }
