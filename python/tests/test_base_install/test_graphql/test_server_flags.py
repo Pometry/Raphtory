@@ -48,7 +48,9 @@ def test_introspection_enabled_by_default():
 
 def test_disable_introspection():
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, disable_introspection=True).start() as server:
+    with GraphServer(
+        work_dir, config={"schema": {"disable_introspection": True}}
+    ).start() as server:
         client = server.get_client()
         client.query("{ version }")
 
@@ -60,7 +62,9 @@ def test_disable_introspection():
 
 def test_max_query_depth():
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, max_query_depth=3).start() as server:
+    with GraphServer(
+        work_dir, config={"schema": {"max_query_depth": 3}}
+    ).start() as server:
         client = server.get_client()
         make_graph(client)
 
@@ -75,7 +79,9 @@ def test_max_query_depth():
 
 def test_max_query_complexity():
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, max_query_complexity=3).start() as server:
+    with GraphServer(
+        work_dir, config={"schema": {"max_query_complexity": 3}}
+    ).start() as server:
         client = server.get_client()
         make_graph(client)
 
@@ -253,7 +259,9 @@ PAGE_QUERIES = [
 def test_disable_lists_all_resolvers():
     """Every `list` endpoint across every paginated type rejects with the same error."""
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, disable_lists=True).start() as server:
+    with GraphServer(
+        work_dir, config={"concurrency": {"disable_lists": True}}
+    ).start() as server:
         client = server.get_client()
         make_graph(client)
 
@@ -269,7 +277,9 @@ def test_disable_lists_all_resolvers():
 def test_disable_lists_page_still_works():
     """Even with `disable_lists=True`, `page` queries still succeed."""
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, disable_lists=True).start() as server:
+    with GraphServer(
+        work_dir, config={"concurrency": {"disable_lists": True}}
+    ).start() as server:
         client = server.get_client()
         make_graph(client)
         result = client.query(
@@ -281,7 +291,9 @@ def test_disable_lists_page_still_works():
 def test_max_page_size_all_resolvers():
     """Every `page` endpoint across every paginated type enforces max_page_size."""
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, max_page_size=2).start() as server:
+    with GraphServer(
+        work_dir, config={"concurrency": {"max_page_size": 2}}
+    ).start() as server:
         client = server.get_client()
         make_graph(client)
 
@@ -296,7 +308,9 @@ def test_max_page_size_all_resolvers():
 def test_max_page_size_under_cap_works():
     """Pages at or below max_page_size still succeed."""
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, max_page_size=2).start() as server:
+    with GraphServer(
+        work_dir, config={"concurrency": {"max_page_size": 2}}
+    ).start() as server:
         client = server.get_client()
         make_graph(client)
         result = client.query(
@@ -307,7 +321,9 @@ def test_max_page_size_under_cap_works():
 
 def test_disable_batching():
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, disable_batching=True).start() as server:
+    with GraphServer(
+        work_dir, config={"concurrency": {"disable_batching": True}}
+    ).start() as server:
         server.get_client().query("{ version }")
 
         status, body = batch_query(
@@ -319,7 +335,9 @@ def test_disable_batching():
 
 def test_max_batch_size():
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, max_batch_size=2).start() as server:
+    with GraphServer(
+        work_dir, config={"concurrency": {"max_batch_size": 2}}
+    ).start() as server:
         port = server.port()
         status, body = batch_query(port, [{"query": "{ version }"}] * 2)
         assert status == 200
@@ -332,7 +350,9 @@ def test_max_batch_size():
 
 def test_max_recursive_depth():
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, max_recursive_depth=2).start() as server:
+    with GraphServer(
+        work_dir, config={"schema": {"max_recursive_depth": 2}}
+    ).start() as server:
         client = server.get_client()
         make_graph(client)
 
@@ -348,7 +368,9 @@ def test_max_recursive_depth():
 
 def test_max_directives_per_field():
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, max_directives_per_field=1).start() as server:
+    with GraphServer(
+        work_dir, config={"schema": {"max_directives_per_field": 1}}
+    ).start() as server:
         client = server.get_client()
 
         # 1 directive — allowed
@@ -371,8 +393,7 @@ def test_concurrency_flags_smoke():
     work_dir = tempfile.mkdtemp()
     with GraphServer(
         work_dir,
-        heavy_query_limit=4,
-        exclusive_writes=True,
+        config={"concurrency": {"heavy_query_limit": 4, "exclusive_writes": True}},
     ).start() as server:
         client = server.get_client()
         make_graph(client)

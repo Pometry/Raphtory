@@ -22,7 +22,7 @@ pub fn build_query(template: &str, context: Value) -> Result<String, ClientError
     Ok(query)
 }
 
-/// Pure Rust remote graph wrapper around `RaphtoryGraphQLClient`.
+/// A handle to a remote graph on the server.
 #[derive(Clone)]
 pub struct GraphQLRemoteGraph {
     pub path: String,
@@ -55,11 +55,18 @@ impl GraphQLRemoteGraph {
         id: G,
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<String>,
+        layer: Option<String>,
     ) -> Result<GraphQLRemoteNode, ClientError> {
         let template = r#"
         {
             updateGraph(path: "{{ path }}") {
-                addNode(time: {{ time }}, name: "{{ name }}" {% if properties is not none %}, properties:  {{ properties | safe }} {% endif %}{% if node_type is not none %}, nodeType: "{{ node_type }}"{% endif %}) {
+                addNode(
+                    time: {{ time }},
+                    name: "{{ name }}"
+                    {% if properties is not none %}, properties: {{ properties | safe }}{% endif %}
+                    {% if node_type is not none %}, nodeType: "{{ node_type }}"{% endif %}
+                    {% if layer is not none %}, layer: "{{ layer }}"{% endif %}
+                ) {
                     success
                 }
             }
@@ -72,6 +79,7 @@ impl GraphQLRemoteGraph {
             name => id.to_string(),
             properties => properties.map(|p| build_property_string(p)),
             node_type => node_type,
+            layer => layer,
         };
 
         let query = build_query(template, ctx)?;
@@ -106,7 +114,12 @@ impl GraphQLRemoteGraph {
         let template = r#"
         {
             updateGraph(path: "{{ path }}") {
-                createNode(time: {{ time }}, name: "{{ name }}" {% if properties is not none %}, properties:  {{ properties | safe }} {% endif %}{% if node_type is not none %}, nodeType: "{{ node_type }}"{% endif %}) {
+                createNode(
+                    time: {{ time }},
+                    name: "{{ name }}"
+                    {% if properties is not none %}, properties: {{ properties | safe }}{% endif %}
+                    {% if node_type is not none %}, nodeType: "{{ node_type }}"{% endif %}
+                ) {
                     success
                 }
             }
@@ -153,7 +166,13 @@ impl GraphQLRemoteGraph {
         let template = r#"
         {
             updateGraph(path: "{{ path }}") {
-                addEdge(time: {{ time }}, src: "{{ src }}", dst: "{{ dst }}" {% if properties is not none %}, properties:  {{ properties | safe }} {% endif %}{% if layer is not none %}, layer: "{{ layer }}"{% endif %}) {
+                addEdge(
+                    time: {{ time }},
+                    src: "{{ src }}",
+                    dst: "{{ dst }}"
+                    {% if properties is not none %}, properties: {{ properties | safe }}{% endif %}
+                    {% if layer is not none %}, layer: "{{ layer }}"{% endif %}
+                ) {
                     success
                 }
             }
@@ -297,7 +316,12 @@ impl GraphQLRemoteGraph {
         let template = r#"
         {
             updateGraph(path: "{{ path }}") {
-                deleteEdge(time: {{ time }}, src: "{{ src }}", dst: "{{ dst }}" {% if layer is not none %}, layer: "{{ layer }}"{% endif %}) {
+                deleteEdge(
+                    time: {{ time }},
+                    src: "{{ src }}",
+                    dst: "{{ dst }}"
+                    {% if layer is not none %}, layer: "{{ layer }}"{% endif %}
+                ) {
                     success
                 }
             }

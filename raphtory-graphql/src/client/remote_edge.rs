@@ -1,5 +1,3 @@
-//! Pure Rust remote edge client for GraphQL updateGraph.edge(...) operations.
-
 use crate::client::{
     build_property_string, raphtory_client::RaphtoryGraphQLClient, remote_graph::build_query,
     ClientError,
@@ -10,7 +8,7 @@ use raphtory_api::core::{
 };
 use std::collections::HashMap;
 
-/// Pure Rust remote edge wrapper around `RaphtoryGraphQLClient`.
+/// A handle to a remote edge on the server.
 #[derive(Clone)]
 pub struct GraphQLRemoteEdge {
     pub path: String,

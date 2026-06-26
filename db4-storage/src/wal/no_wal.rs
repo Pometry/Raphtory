@@ -17,7 +17,10 @@ impl WalOps for NoWal {
         Ok(())
     }
 
-    fn replay(&self, _start: LSN) -> impl Iterator<Item = Result<ReplayRecord, StorageError>> {
+    fn replay(
+        &self,
+        _start: Option<LSN>,
+    ) -> impl Iterator<Item = Result<ReplayRecord, StorageError>> {
         let error = "Recovery is not supported for NoWAL";
         std::iter::once(Err(StorageError::GenericFailure(error.to_string())))
     }

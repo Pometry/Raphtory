@@ -9,7 +9,7 @@ use serde_json::{json, Value as JsonValue};
 use std::{collections::HashMap, io::Cursor};
 use url::Url;
 
-/// Pure Rust client for Raphtory GraphQL operations.
+/// Client for interacting with a Raphtory GraphQL server.
 #[derive(Clone, Debug)]
 pub struct RaphtoryGraphQLClient {
     pub(crate) url: Url,

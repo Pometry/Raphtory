@@ -12,6 +12,7 @@ use std::{
     sync::Arc,
 };
 use tokio::{signal, sync::mpsc, task::JoinHandle};
+use tracing::error;
 
 #[derive(Deserialize, Debug)]
 struct EmbeddingRequest {
@@ -64,7 +65,7 @@ impl EmbeddingServer {
 
     pub async fn stop(&self) {
         if let Err(e) = self.stop_signal.send(()).await {
-            eprintln!("Failed to send stop signal to embedding server: {}", e);
+            error!("Failed to send stop signal to embedding server: {}", e);
         }
     }
 }
