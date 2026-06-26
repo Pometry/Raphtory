@@ -492,7 +492,11 @@ async fn server_termination(
 
 #[cfg(test)]
 mod server_tests {
-    use crate::server::GraphServer;
+    use crate::{
+        client::raphtory_client::RaphtoryGraphQLClient,
+        config::{app_config::AppConfigBuilder, otlp_config::TracingProtocol},
+        server::GraphServer,
+    };
     use chrono::prelude::*;
     use raphtory::{
         db::api::storage::storage::Config,
@@ -503,6 +507,8 @@ mod server_tests {
     use tempfile::tempdir;
     use tokio::time::{sleep, Duration};
     use tracing::info;
+    use url::Url;
+    use std::collections::HashMap;
 
     #[tokio::test]
     async fn test_server_start_stop() {
@@ -548,12 +554,63 @@ mod server_tests {
         graph.add_node(0, 0, NO_PROPS, None, None).unwrap();
         graph.encode(tmp_dir.path().join("g")).unwrap();
 
-        global_info_logger();
-        let server = GraphServer::new(tmp_dir.path().to_path_buf(), None, Config::default())
+        let app_config = AppConfigBuilder::new()
+            .with_tracing(true)
+            .with_otlp_transport_protocol(TracingProtocol::IN_MEMORY)
+            .build();
+
+        let server = GraphServer::new(
+            tmp_dir.path().to_path_buf(),
+            Some(app_config.clone()),
+            Config::default(),
+        )
+        .await
+        .unwrap();
+        let handler = server.start_with_port(0).await.unwrap();
+
+        let endpoint = Url::parse(&format!("http://localhost:{}/", handler.port())).unwrap();
+        let client = RaphtoryGraphQLClient::new(endpoint, None);
+        let add_node_query = r#"
+        {
+            updateGraph(path: "g") {
+                addNode(time: 1, name: 1) {
+                    success
+                }
+            }
+        }
+        "#;
+
+        let result = client
+            .query(add_node_query, HashMap::new())
             .await
             .unwrap();
-        let handler = server.start_with_port(0);
+        let added = result
+            .get("updateGraph")
+            .and_then(|v| v.get("addNode"))
+            .and_then(|v| v.get("success"))
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+        assert!(added, "addNode mutation returned unsuccessful response");
+
         sleep(Duration::from_secs(5)).await;
-        handler.await.unwrap().stop().await;
+        handler.stop().await;
+        assert!(
+            app_config
+                .tracing
+                .exporters
+                .span_exporter
+                .get_finished_spans()
+                .unwrap()
+                .len() > 0
+        );
+        assert!(
+            app_config
+                .tracing
+                .exporters
+                .log_exporter
+                .get_emitted_logs()
+                .unwrap()
+                .len() > 0
+        );
     }
 }
