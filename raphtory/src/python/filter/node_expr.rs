@@ -3,7 +3,7 @@ use crate::{
         degree_filter::DegreeFilterFactory,
         node_expr::{CreateOp, DynCreateOp, EntityExpr},
         node_state_filter::NodeStateBoolColOp,
-        CreateView, DynCreateView, EntityMarker, NodeViewFilterOps, PropertyExpr,
+        CreateView, EntityMarker, InternalViewWrapOps, NodeViewFilterOps, PropertyExpr,
         PropertyFilterFactory, ViewWrapOps,
     },
     prelude::{EntityAggOps, EntityExprFilterOps, NodeFilter, NodeFilterFactory},
@@ -30,7 +30,7 @@ impl<
         Arc::new(self.temporal())
     }
 }
-
+// filter.Node.neighbours.is_active.all
 #[pyclass(frozen, subclass, name = "Expr", module = "raphtory.filter")]
 #[derive(Clone)]
 pub struct PyExpr(Arc<dyn DynCreateOp>);
@@ -185,9 +185,18 @@ pub trait DynNodeFilterFactory: Send + Sync + 'static {
     fn dyn_layer(&self, layers: Vec<String>) -> Arc<dyn DynNodeFilterFactory>;
 }
 
+impl InternalViewWrapOps for Arc<dyn DynNodeFilterFactory> {
+    type Window = Arc<dyn DynNodeFilterFactory>;
+
+    fn build_window(self, start: EventTime, end: EventTime) -> Self::Window {
+        self.dyn_window(start, end)
+    }
+}
+
 impl<T> DynNodeFilterFactory for T
 where
-    T: NodeFilterFactory + ViewWrapOps + CreateView + Clone + Send + Sync + 'static,
+    T: NodeFilterFactory + ViewWrapOps + CreateView + EntityExpr + Clone + Send + Sync + 'static,
+    <T as EntityExpr>::Marker: Into<EntityMarker>,
 {
     fn dyn_id(&self) -> Arc<dyn DynCreateOp> {
         Arc::new(self.id())
@@ -220,17 +229,23 @@ where
         Arc::new(PropertyFilterFactory::metadata(self, name))
     }
 
+    // Go dynamic before calling window — the Arc<dyn DynNodeFilterFactory> impl
+    // has Window = Self, which terminates the recursive bound resolution.
     fn dyn_window(&self, start: EventTime, end: EventTime) -> Arc<dyn DynNodeFilterFactory> {
-        Arc::new(self.clone().window(start, end))
+        let dyn_self: Arc<dyn DynNodeFilterFactory> = Arc::new(self.clone());
+        dyn_self.window(start, end)
     }
     fn dyn_at(&self, time: EventTime) -> Arc<dyn DynNodeFilterFactory> {
-        Arc::new(self.clone().at(time))
+        let dyn_self: Arc<dyn DynNodeFilterFactory> = Arc::new(self.clone());
+        dyn_self.at(time)
     }
     fn dyn_after(&self, time: EventTime) -> Arc<dyn DynNodeFilterFactory> {
-        Arc::new(self.clone().after(time))
+        let dyn_self: Arc<dyn DynNodeFilterFactory> = Arc::new(self.clone());
+        dyn_self.after(time)
     }
     fn dyn_before(&self, time: EventTime) -> Arc<dyn DynNodeFilterFactory> {
-        Arc::new(self.clone().before(time))
+        let dyn_self: Arc<dyn DynNodeFilterFactory> = Arc::new(self.clone());
+        dyn_self.before(time)
     }
     fn dyn_latest(&self) -> Arc<dyn DynNodeFilterFactory> {
         Arc::new(self.clone().latest())
