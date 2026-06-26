@@ -23,6 +23,8 @@ use std::{
     io::{ErrorKind, Read, Seek, Write},
 };
 #[cfg(feature = "io")]
+use tempfile::NamedTempFile;
+#[cfg(feature = "io")]
 use walkdir::WalkDir;
 #[cfg(feature = "io")]
 use zip::{write::FileOptions, ZipArchive, ZipWriter};
@@ -62,10 +64,10 @@ pub struct GraphMetadata {
 impl Metadata {
     /// Atomically write this metadata into the data folder at `data_path`
     pub fn write_atomic(&self, data_path: &Path, meta_path: &Path) -> std::io::Result<()> {
-        let tmp_path = data_path.join(".tmp");
-        let tmp_file = File::create(&tmp_path)?;
-        serde_json::to_writer(tmp_file, self).map_err(std::io::Error::other)?;
-        fs::rename(tmp_path, meta_path)?;
+        let mut tmp_file = NamedTempFile::new_in(data_path)?;
+        serde_json::to_writer(&mut tmp_file, self).map_err(std::io::Error::other)?;
+        tmp_file.as_file().sync_all()?;
+        tmp_file.persist(meta_path).map_err(io::Error::from)?;
         Ok(())
     }
 }
