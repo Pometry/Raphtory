@@ -1,18 +1,9 @@
 use crate::{
     db::{
         api::view::internal::{GraphView, InternalFilter},
-        graph::views::{
-            filter::{
-                model::{
-                    edge_filter::CompositeEdgeFilter, is_active_edge_filter::IsActiveEdge,
-                    is_deleted_filter::IsDeletedEdge, is_self_loop_filter::IsSelfLoopEdge,
-                    is_valid_filter::IsValidEdge, CombinedFilter, ComposableFilter,
-                    CompositeExplodedEdgeFilter, CompositeNodeFilter, EdgeViewFilterOps,
-                    InternalViewWrapOps, TryAsCompositeFilter, Wrap,
-                },
-                CreateFilter,
-            },
-            layer_graph::LayeredGraph,
+        graph::views::filter::{
+            model::{ComposableFilter, InternalViewWrapOps, Wrap},
+            CreateFilter,
         },
     },
     errors::GraphError,
@@ -20,6 +11,7 @@ use crate::{
 };
 use raphtory_api::core::{entities::Layer, storage::timeindex::EventTime};
 use std::{fmt, fmt::Display};
+use crate::db::graph::views::filter::model::EdgeViewFilterOps;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Layered<M> {
@@ -57,28 +49,6 @@ impl<T: InternalViewWrapOps> InternalViewWrapOps for Layered<T> {
 
     fn build_window(self, start: EventTime, end: EventTime) -> Self::Window {
         Layered::new(self.layer, self.inner.build_window(start, end))
-    }
-}
-
-impl<T: TryAsCompositeFilter> TryAsCompositeFilter for Layered<T> {
-    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        let filter = self.inner.try_as_composite_node_filter()?;
-        let filter = CompositeNodeFilter::Layered(Box::new(self.wrap(filter)));
-        Ok(filter)
-    }
-
-    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        let filter = self.inner.try_as_composite_edge_filter()?;
-        let filter = CompositeEdgeFilter::Layered(Box::new(self.wrap(filter)));
-        Ok(filter)
-    }
-
-    fn try_as_composite_exploded_edge_filter(
-        &self,
-    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        let filter = self.inner.try_as_composite_exploded_edge_filter()?;
-        let filter = CompositeExplodedEdgeFilter::Layered(Box::new(self.wrap(filter)));
-        Ok(filter)
     }
 }
 
@@ -128,22 +98,4 @@ impl<M> Wrap for Layered<M> {
     }
 }
 
-impl<T: EdgeViewFilterOps> EdgeViewFilterOps for Layered<T> {
-    type Output<F: CombinedFilter> = Layered<T::Output<F>>;
-
-    fn is_active(&self) -> Self::Output<IsActiveEdge> {
-        self.wrap(self.inner.is_active())
-    }
-
-    fn is_valid(&self) -> Self::Output<IsValidEdge> {
-        self.wrap(self.inner.is_valid())
-    }
-
-    fn is_deleted(&self) -> Self::Output<IsDeletedEdge> {
-        self.wrap(self.inner.is_deleted())
-    }
-
-    fn is_self_loop(&self) -> Self::Output<IsSelfLoopEdge> {
-        self.wrap(self.inner.is_self_loop())
-    }
-}
+impl<T: EdgeViewFilterOps> EdgeViewFilterOps for Layered<T> {}

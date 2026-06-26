@@ -2,11 +2,7 @@ use crate::{
     db::{
         api::state::ops::{filter::NodeExistsOp, GraphView},
         graph::views::filter::{
-            model::{
-                edge_filter::CompositeEdgeFilter, windowed_filter::Windowed,
-                CompositeExplodedEdgeFilter, CompositeNodeFilter, InternalViewWrapOps,
-                TryAsCompositeFilter, Wrap,
-            },
+            model::{windowed_filter::Windowed, InternalViewWrapOps, Wrap},
             CreateFilter,
         },
     },
@@ -60,18 +56,3 @@ impl CreateFilter for GraphFilter {
     }
 }
 
-impl TryAsCompositeFilter for GraphFilter {
-    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-
-    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-
-    fn try_as_composite_exploded_edge_filter(
-        &self,
-    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-}

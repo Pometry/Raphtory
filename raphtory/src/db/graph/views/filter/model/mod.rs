@@ -6,10 +6,7 @@ pub use crate::{
             filter::{
                 model::{
                     edge_filter::{EdgeEndpointWrapper, EdgeFilter},
-                    exploded_edge_filter::{
-                        CompositeExplodedEdgeFilter, ExplodedEdgeEndpointWrapper,
-                        ExplodedEdgeFilter,
-                    },
+                    exploded_edge_filter::{ExplodedEdgeEndpointWrapper, ExplodedEdgeFilter},
                     filter_operator::{
                         BinaryOp, Comparable, FilterOperator, SetOp, StringComparable, StringOp,
                         UnaryOp,
@@ -42,7 +39,6 @@ use crate::{
         },
         graph::views::{
             filter::model::{
-                edge_filter::CompositeEdgeFilter,
                 is_active_edge_filter::IsActiveEdge,
                 is_active_node_filter::IsActiveNode,
                 is_deleted_filter::IsDeletedEdge,
@@ -66,7 +62,6 @@ use crate::{
     },
     prelude::LayerOps,
 };
-pub use node_filter::CompositeNodeFilter;
 use raphtory_api::core::{
     entities::{properties::prop::Prop, Layer},
     storage::timeindex::{AsTime, EventTime},
@@ -129,22 +124,6 @@ impl CreateFilter for NoFilter {
     }
 }
 
-impl TryAsCompositeFilter for NoFilter {
-    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-
-    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-
-    fn try_as_composite_exploded_edge_filter(
-        &self,
-    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-}
-
 pub trait Wrap {
     type Wrapped<T>;
 
@@ -174,7 +153,7 @@ pub trait ComposableFilter: Sized {
     }
 }
 
-pub trait DynCreateFilter: TryAsCompositeFilter + Send + Sync + 'static {
+pub trait DynCreateFilter: Send + Sync + 'static {
     fn create_dyn_filter<'graph>(
         &self,
         graph: Arc<dyn BoxableGraphView + 'graph>,
@@ -186,10 +165,7 @@ pub trait DynCreateFilter: TryAsCompositeFilter + Send + Sync + 'static {
     ) -> Result<Arc<dyn NodeOp<Output = bool> + 'graph>, GraphError>;
 }
 
-impl<T> DynCreateFilter for T
-where
-    T: CombinedFilter,
-{
+impl<T: CreateFilter + 'static> DynCreateFilter for T {
     fn create_dyn_filter<'graph>(
         &self,
         graph: Arc<dyn BoxableGraphView + 'graph>,
@@ -384,7 +360,7 @@ impl<T: CreateView> DynPropertyFilterFactory for T {
 impl<E> InternalPropertyFilterBuilder for PropertyExpr<E>
 where
     E: Into<EntityMarker> + Send + Sync + Clone + 'static,
-    crate::prelude::PropertyFilter<E>: CombinedFilter,
+    crate::prelude::PropertyFilter<E>: CreateFilter,
     PropertyExprBuilder<E>: InternalPropertyFilterBuilder,
 {
     type Filter = crate::prelude::PropertyFilter<E>;
@@ -415,7 +391,7 @@ where
 impl<E> InternalPropertyFilterBuilder for MetadataExpr<E>
 where
     E: Into<EntityMarker> + Send + Sync + Clone + 'static,
-    crate::prelude::PropertyFilter<E>: CombinedFilter,
+    crate::prelude::PropertyFilter<E>: CreateFilter,
     PropertyExprBuilder<E>: InternalPropertyFilterBuilder,
 {
     type Filter = crate::prelude::PropertyFilter<E>;
@@ -472,36 +448,6 @@ use crate::db::graph::views::filter::model::{
 };
 use edge_expr::EdgeOp;
 use raphtory_api::core::entities::properties::prop::PropType;
-
-pub trait TryAsCompositeFilter: Send + Sync {
-    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError>;
-
-    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError>;
-
-    fn try_as_composite_exploded_edge_filter(
-        &self,
-    ) -> Result<CompositeExplodedEdgeFilter, GraphError>;
-}
-
-impl<T: TryAsCompositeFilter + ?Sized> TryAsCompositeFilter for Arc<T> {
-    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        self.deref().try_as_composite_node_filter()
-    }
-
-    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        self.deref().try_as_composite_edge_filter()
-    }
-
-    fn try_as_composite_exploded_edge_filter(
-        &self,
-    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        self.deref().try_as_composite_exploded_edge_filter()
-    }
-}
-
-pub trait CombinedFilter: CreateFilter + TryAsCompositeFilter + Clone + 'static {}
-
-impl<T: CreateFilter + TryAsCompositeFilter + Clone + 'static> CombinedFilter for T {}
 
 // This is implemented to avoid infinite recursive windowing.
 pub trait InternalViewWrapOps: Send + Sync + Clone + 'static {
@@ -796,36 +742,49 @@ impl InternalViewWrapOps for DynView {
 }
 
 pub trait NodeViewFilterOps: ViewWrapOps {
-    type Output<T: CombinedFilter>: CombinedFilter;
+    type Output<T: CreateFilter>: CreateFilter;
 
     fn is_active(&self) -> Self::Output<IsActiveNode<NodeFilter>>;
 }
 
-pub trait DynNodeViewFilterOps: DynInternalViewWrapPropOps + TryAsCompositeFilter {
+pub trait DynNodeViewFilterOps: DynInternalViewWrapPropOps {
     fn dyn_is_active(&self) -> Arc<dyn DynCreateFilter>;
 }
 
-impl<T: NodeViewFilterOps + DynInternalViewWrapPropOps + TryAsCompositeFilter> DynNodeViewFilterOps
-    for T
-{
+impl<T: NodeViewFilterOps + DynInternalViewWrapPropOps> DynNodeViewFilterOps for T {
     fn dyn_is_active(&self) -> Arc<dyn DynCreateFilter> {
         Arc::new(self.is_active())
     }
 }
 
 pub trait EdgeViewFilterOps: ViewWrapOps {
-    type Output<T: CombinedFilter>: CombinedFilter;
+    fn is_active(&self) -> IsActiveEdge<Self> {
+        IsActiveEdge{
+            view_expr: self.clone()
+        }
+    }
 
-    fn is_active(&self) -> Self::Output<IsActiveEdge>;
+    fn is_valid(&self) -> IsValidEdge<Self> {
+        IsValidEdge {
+            view_expr: self.clone()
+        }
+    }
 
-    fn is_valid(&self) -> Self::Output<IsValidEdge>;
+    fn is_deleted(&self) -> IsDeletedEdge<Self> {
+        IsDeletedEdge {
+            view_expr: self.clone()
+        }
+    }
 
-    fn is_deleted(&self) -> Self::Output<IsDeletedEdge>;
-
-    fn is_self_loop(&self) -> Self::Output<IsSelfLoopEdge>;
+    fn is_self_loop(&self) -> IsSelfLoopEdge<Self> {
+        IsSelfLoopEdge {
+            view_expr: self.clone()
+        }
+    }
 }
 
-pub trait DynEdgeViewFilterOps: DynInternalViewWrapPropOps + TryAsCompositeFilter {
+impl EdgeViewFilterOps for EdgeFilter {}
+pub trait DynEdgeViewFilterOps: DynInternalViewWrapPropOps {
     fn dyn_is_active(&self) -> Arc<dyn DynCreateFilter>;
 
     fn dyn_is_valid(&self) -> Arc<dyn DynCreateFilter>;
@@ -835,9 +794,7 @@ pub trait DynEdgeViewFilterOps: DynInternalViewWrapPropOps + TryAsCompositeFilte
     fn dyn_is_self_loop(&self) -> Arc<dyn DynCreateFilter>;
 }
 
-impl<T: EdgeViewFilterOps + DynInternalViewWrapPropOps + TryAsCompositeFilter> DynEdgeViewFilterOps
-    for T
-{
+impl<T: EdgeViewFilterOps + DynInternalViewWrapPropOps> DynEdgeViewFilterOps for T {
     fn dyn_is_active(&self) -> Arc<dyn DynCreateFilter> {
         Arc::new(self.is_active())
     }
@@ -881,7 +838,7 @@ impl InternalViewWrapOps for DynNodeViewProps {
 }
 
 impl NodeViewFilterOps for DynNodeViewProps {
-    type Output<T: CombinedFilter> = Arc<dyn DynCreateFilter>;
+    type Output<T: CreateFilter> = Arc<dyn DynCreateFilter>;
 
     fn is_active(&self) -> Self::Output<IsActiveNode<NodeFilter>> {
         self.deref().dyn_is_active()
@@ -921,25 +878,8 @@ impl InternalViewWrapOps for DynEdgeViewProps {
     }
 }
 
-impl EdgeViewFilterOps for DynEdgeViewProps {
-    type Output<T: CombinedFilter> = Arc<dyn DynCreateFilter>;
-
-    fn is_active(&self) -> Self::Output<IsActiveEdge> {
-        self.deref().dyn_is_active()
-    }
-
-    fn is_valid(&self) -> Self::Output<IsValidEdge> {
-        self.deref().dyn_is_valid()
-    }
-
-    fn is_deleted(&self) -> Self::Output<IsDeletedEdge> {
-        self.deref().dyn_is_deleted()
-    }
-
-    fn is_self_loop(&self) -> Self::Output<IsSelfLoopEdge> {
-        self.deref().dyn_is_self_loop()
-    }
-}
+// TODO: Do we need this?
+impl EdgeViewFilterOps for DynEdgeViewProps {}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // EntityExprFilterOps — comparison and set operators on any EntityExpr

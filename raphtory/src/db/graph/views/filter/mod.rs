@@ -22,6 +22,7 @@ pub mod node_filtered_graph;
 pub mod not_filtered_graph;
 pub mod or_filtered_graph;
 
+#[derive(Copy, Clone, Debug)]
 pub struct Unfiltered;
 
 impl CreateFilter for Unfiltered {
@@ -51,7 +52,7 @@ impl CreateFilter for Unfiltered {
     }
 }
 
-pub trait CreateFilter: Sized {
+pub trait CreateFilter: Clone + Sized + Send + Sync {
     type EntityFiltered<'graph, G>: GraphViewOps<'graph>
     where
         Self: 'graph,

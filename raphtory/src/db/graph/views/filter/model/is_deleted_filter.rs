@@ -3,10 +3,7 @@ use crate::{
         api::state::ops::{filter::NodeExistsOp, GraphView},
         graph::views::{
             filter::{
-                model::{
-                    edge_filter::CompositeEdgeFilter, ComposableFilter,
-                    CompositeExplodedEdgeFilter, CompositeNodeFilter, TryAsCompositeFilter,
-                },
+                model::{ComposableFilter, CreateView},
                 CreateFilter,
             },
             is_deleted_graph::IsDeletedGraph,
@@ -18,15 +15,17 @@ use crate::{
 use std::fmt;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct IsDeletedEdge;
+pub struct IsDeletedEdge<E> {
+    pub(crate) view_expr: E,
+}
 
-impl fmt::Display for IsDeletedEdge {
+impl<E> fmt::Display for IsDeletedEdge<E> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "IS_DELETED_EDGE")
     }
 }
 
-impl CreateFilter for IsDeletedEdge {
+impl<E: CreateView + 'static> CreateFilter for IsDeletedEdge<E> {
     type EntityFiltered<'graph, G>
         = IsDeletedGraph<G>
     where
@@ -54,20 +53,4 @@ impl CreateFilter for IsDeletedEdge {
     }
 }
 
-impl ComposableFilter for IsDeletedEdge {}
-
-impl TryAsCompositeFilter for IsDeletedEdge {
-    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-
-    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        Ok(CompositeEdgeFilter::IsDeletedEdge(IsDeletedEdge))
-    }
-
-    fn try_as_composite_exploded_edge_filter(
-        &self,
-    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        Ok(CompositeExplodedEdgeFilter::IsDeletedEdge(IsDeletedEdge))
-    }
-}
+impl<E: CreateView> ComposableFilter for IsDeletedEdge<E> {}

@@ -1,6 +1,7 @@
+use crate::db::graph::views::filter::CreateFilter;
 use crate::db::graph::views::filter::model::{
     property_filter::{Op, PropertyFilter, PropertyFilterInput, PropertyRef},
-    CombinedFilter, EntityMarker, Wrap,
+     EntityMarker, Wrap,
 };
 
 pub trait InternalPropertyFilterBuilder {
@@ -35,7 +36,7 @@ impl<M> Wrap for PropertyFilterBuilder<M> {
 impl<M> InternalPropertyFilterBuilder for PropertyFilterBuilder<M>
 where
     M: Into<EntityMarker> + Send + Sync + Clone + 'static,
-    PropertyFilter<M>: CombinedFilter,
+    PropertyFilter<M>: CreateFilter,
     PropertyExprBuilder<M>: InternalPropertyFilterBuilder,
 {
     type Filter = PropertyFilter<M>;
@@ -83,7 +84,7 @@ impl<M> Wrap for MetadataFilterBuilder<M> {
 impl<M> InternalPropertyFilterBuilder for MetadataFilterBuilder<M>
 where
     M: Into<EntityMarker> + Send + Sync + Clone + 'static,
-    PropertyFilter<M>: CombinedFilter,
+    PropertyFilter<M>: CreateFilter,
     PropertyExprBuilder<M>: InternalPropertyFilterBuilder,
 {
     type Filter = PropertyFilter<M>;
@@ -192,7 +193,7 @@ impl<M> Wrap for PropertyExprBuilder<M> {
 impl<M> InternalPropertyFilterBuilder for PropertyExprBuilder<M>
 where
     M: Into<EntityMarker> + Send + Sync + Clone + 'static,
-    PropertyFilter<M>: CombinedFilter,
+    PropertyFilter<M>: CreateFilter,
 {
     type Filter = PropertyFilter<M>;
     type ExprBuilder = PropertyExprBuilder<M>;

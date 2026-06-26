@@ -20,15 +20,13 @@
 //! ```
 
 use crate::{
-    db::{api::view::internal::GraphView, graph::views::filter::model::node_expr::EntityExpr},
-    errors::GraphError,
+    db::{ graph::views::filter::model::node_expr::EntityExpr},
 };
 use raphtory_api::core::entities::{
     edges::edge_ref::EdgeRef,
-    properties::prop::{Prop, PropType},
+    properties::prop::{ PropType},
 };
 use raphtory_storage::graph::graph::GraphStorage;
-use std::sync::Arc;
 
 pub mod filters;
 pub mod ops;

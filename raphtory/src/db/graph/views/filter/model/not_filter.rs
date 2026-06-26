@@ -5,13 +5,7 @@ use crate::{
             view::internal::GraphView,
         },
         graph::views::filter::{
-            model::{
-                edge_filter::CompositeEdgeFilter,
-                exploded_edge_filter::CompositeExplodedEdgeFilter,
-                node_filter::CompositeNodeFilter, ComposableFilter, TryAsCompositeFilter,
-            },
-            not_filtered_graph::NotFilteredGraph,
-            CreateFilter,
+            model::ComposableFilter, not_filtered_graph::NotFilteredGraph, CreateFilter,
         },
     },
     errors::GraphError,
@@ -60,24 +54,3 @@ impl<T: CreateFilter> CreateFilter for NotFilter<T> {
     }
 }
 
-impl<T: TryAsCompositeFilter> TryAsCompositeFilter for NotFilter<T> {
-    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        Ok(CompositeNodeFilter::Not(Box::new(
-            self.0.try_as_composite_node_filter()?,
-        )))
-    }
-
-    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        Ok(CompositeEdgeFilter::Not(Box::new(
-            self.0.try_as_composite_edge_filter()?,
-        )))
-    }
-
-    fn try_as_composite_exploded_edge_filter(
-        &self,
-    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        Ok(CompositeExplodedEdgeFilter::Not(Box::new(
-            self.0.try_as_composite_exploded_edge_filter()?,
-        )))
-    }
-}

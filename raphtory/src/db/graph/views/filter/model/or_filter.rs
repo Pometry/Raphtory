@@ -5,13 +5,7 @@ use crate::{
             view::internal::GraphView,
         },
         graph::views::filter::{
-            model::{
-                edge_filter::CompositeEdgeFilter,
-                exploded_edge_filter::CompositeExplodedEdgeFilter,
-                node_filter::CompositeNodeFilter, ComposableFilter, TryAsCompositeFilter,
-            },
-            or_filtered_graph::OrFilteredGraph,
-            CreateFilter,
+            model::ComposableFilter, or_filtered_graph::OrFilteredGraph, CreateFilter,
         },
     },
     errors::GraphError,
@@ -63,27 +57,3 @@ impl<L: CreateFilter, R: CreateFilter> CreateFilter for OrFilter<L, R> {
     }
 }
 
-impl<L: TryAsCompositeFilter, R: TryAsCompositeFilter> TryAsCompositeFilter for OrFilter<L, R> {
-    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        Ok(CompositeNodeFilter::Or(
-            Box::new(self.left.try_as_composite_node_filter()?),
-            Box::new(self.right.try_as_composite_node_filter()?),
-        ))
-    }
-
-    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        Ok(CompositeEdgeFilter::Or(
-            Box::new(self.left.try_as_composite_edge_filter()?),
-            Box::new(self.right.try_as_composite_edge_filter()?),
-        ))
-    }
-
-    fn try_as_composite_exploded_edge_filter(
-        &self,
-    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        Ok(CompositeExplodedEdgeFilter::Or(
-            Box::new(self.left.try_as_composite_exploded_edge_filter()?),
-            Box::new(self.right.try_as_composite_exploded_edge_filter()?),
-        ))
-    }
-}

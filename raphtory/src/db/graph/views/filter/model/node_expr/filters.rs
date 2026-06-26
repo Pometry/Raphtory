@@ -57,12 +57,10 @@ use crate::{
             model::{
                 coerce_set_values,
                 edge_expr::EdgeOp,
-                edge_filter::CompositeEdgeFilter,
                 filter_operator::{BinaryOp, SetOp, StringOp, UnaryOp},
                 resolved_prop_type, validate_binary_op, validate_const_castable,
-                validate_string_op, validate_types_compatible, ComposableFilter,
-                CompositeExplodedEdgeFilter, CompositeNodeFilter, CreateFilter, EntityMarker,
-                ExplodedEdgeFilter, TryAsCompositeFilter,
+                validate_string_op, validate_types_compatible, ComposableFilter, CreateFilter,
+                EntityMarker, ExplodedEdgeFilter,
             },
             node_filtered_graph::NodeFilteredGraph,
         },
@@ -257,26 +255,6 @@ where
     }
 }
 
-impl<L, R> TryAsCompositeFilter for BinaryCmpExpr<L, R, NodeFilter>
-where
-    L: CreateOp,
-    R: CreateOp,
-{
-    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-
-    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-
-    fn try_as_composite_exploded_edge_filter(
-        &self,
-    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // UnaryExpr<E> — is_some / is_none on nullable expressions
 // ─────────────────────────────────────────────────────────────────────────────
@@ -422,25 +400,6 @@ where
                 .with_entity(ExplodedEdgeFilter)
                 .create_edge_op(graph),
         }
-    }
-}
-
-impl<E> TryAsCompositeFilter for UnaryExpr<E, NodeFilter>
-where
-    E: CreateOp,
-{
-    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-
-    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-
-    fn try_as_composite_exploded_edge_filter(
-        &self,
-    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
     }
 }
 
@@ -608,26 +567,6 @@ impl<L: CreateOp, R: CreateOp> CreateOp for StringExpr<L, R, EntityMarker> {
     }
 }
 
-impl<L, R> TryAsCompositeFilter for StringExpr<L, R, NodeFilter>
-where
-    L: CreateOp,
-    R: CreateOp,
-{
-    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-
-    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-
-    fn try_as_composite_exploded_edge_filter(
-        &self,
-    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // PropValueSetExpr<E> — is_in / is_not_in for aggregated Option<Prop> values
 // ─────────────────────────────────────────────────────────────────────────────
@@ -768,18 +707,3 @@ impl<E: CreateOp> CreateOp for PropValueSetExpr<E, EntityMarker> {
     }
 }
 
-impl<E: CreateOp> TryAsCompositeFilter for PropValueSetExpr<E, NodeFilter> {
-    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-
-    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-
-    fn try_as_composite_exploded_edge_filter(
-        &self,
-    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-}

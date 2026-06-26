@@ -4,11 +4,8 @@ use crate::{
         graph::views::{
             filter::{
                 model::{
-                    edge_filter::CompositeEdgeFilter, is_active_edge_filter::IsActiveEdge,
-                    is_deleted_filter::IsDeletedEdge, is_self_loop_filter::IsSelfLoopEdge,
-                    is_valid_filter::IsValidEdge, windowed_filter::Windowed, CombinedFilter,
-                    ComposableFilter, CompositeExplodedEdgeFilter, CompositeNodeFilter, CreateView,
-                    EdgeViewFilterOps, InternalViewWrapOps, TryAsCompositeFilter, Wrap,
+                    windowed_filter::Windowed, ComposableFilter, CreateView, InternalViewWrapOps,
+                    Wrap,
                 },
                 CreateFilter,
             },
@@ -20,6 +17,7 @@ use crate::{
 };
 use raphtory_api::core::storage::timeindex::EventTime;
 use std::{fmt, fmt::Display};
+use crate::db::graph::views::filter::model::EdgeViewFilterOps;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Latest<M> {
@@ -44,28 +42,6 @@ impl<T: InternalViewWrapOps> InternalViewWrapOps for Latest<T> {
 
     fn build_window(self, start: EventTime, end: EventTime) -> Self::Window {
         Windowed::from_times(start, end, self)
-    }
-}
-
-impl<T: TryAsCompositeFilter> TryAsCompositeFilter for Latest<T> {
-    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        Ok(CompositeNodeFilter::Latest(Box::new(Latest::new(
-            self.inner.try_as_composite_node_filter()?,
-        ))))
-    }
-
-    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        Ok(CompositeEdgeFilter::Latest(Box::new(Latest::new(
-            self.inner.try_as_composite_edge_filter()?,
-        ))))
-    }
-
-    fn try_as_composite_exploded_edge_filter(
-        &self,
-    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        Ok(CompositeExplodedEdgeFilter::Latest(Box::new(Latest::new(
-            self.inner.try_as_composite_exploded_edge_filter()?,
-        ))))
     }
 }
 
@@ -122,22 +98,4 @@ impl<M> Wrap for Latest<M> {
     }
 }
 
-impl<T: EdgeViewFilterOps> EdgeViewFilterOps for Latest<T> {
-    type Output<F: CombinedFilter> = Latest<T::Output<F>>;
-
-    fn is_active(&self) -> Self::Output<IsActiveEdge> {
-        self.wrap(self.inner.is_active())
-    }
-
-    fn is_valid(&self) -> Self::Output<IsValidEdge> {
-        self.wrap(self.inner.is_valid())
-    }
-
-    fn is_deleted(&self) -> Self::Output<IsDeletedEdge> {
-        self.wrap(self.inner.is_deleted())
-    }
-
-    fn is_self_loop(&self) -> Self::Output<IsSelfLoopEdge> {
-        self.wrap(self.inner.is_self_loop())
-    }
-}
+impl<T: EdgeViewFilterOps> EdgeViewFilterOps for Latest<T> {}

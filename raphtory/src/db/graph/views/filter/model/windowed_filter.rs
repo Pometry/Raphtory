@@ -3,13 +3,7 @@ use crate::{
         api::view::internal::GraphView,
         graph::views::{
             filter::{
-                model::{
-                    edge_filter::CompositeEdgeFilter, is_active_edge_filter::IsActiveEdge,
-                    is_deleted_filter::IsDeletedEdge, is_self_loop_filter::IsSelfLoopEdge,
-                    is_valid_filter::IsValidEdge, CombinedFilter, ComposableFilter,
-                    CompositeExplodedEdgeFilter, CompositeNodeFilter, CreateView,
-                    EdgeViewFilterOps, InternalViewWrapOps, TryAsCompositeFilter, Wrap,
-                },
+                model::{ComposableFilter, CreateView, InternalViewWrapOps, Wrap},
                 CreateFilter,
             },
             window_graph::WindowedGraph,
@@ -23,6 +17,7 @@ use raphtory_api::core::{
     utils::time::IntoTime,
 };
 use std::{fmt, fmt::Display};
+use crate::db::graph::views::filter::model::EdgeViewFilterOps;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Windowed<M> {
@@ -70,28 +65,6 @@ impl<T: InternalViewWrapOps> InternalViewWrapOps for Windowed<T> {
 
     fn build_window(self, start: EventTime, end: EventTime) -> Self::Window {
         self.inner.build_window(start, end)
-    }
-}
-
-impl<T: TryAsCompositeFilter> TryAsCompositeFilter for Windowed<T> {
-    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        let filter = self.inner.try_as_composite_node_filter()?;
-        let filter = CompositeNodeFilter::Windowed(Box::new(self.wrap(filter)));
-        Ok(filter)
-    }
-
-    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        let filter = self.inner.try_as_composite_edge_filter()?;
-        let filter = CompositeEdgeFilter::Windowed(Box::new(self.wrap(filter)));
-        Ok(filter)
-    }
-
-    fn try_as_composite_exploded_edge_filter(
-        &self,
-    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        let filter = self.inner.try_as_composite_exploded_edge_filter()?;
-        let filter = CompositeExplodedEdgeFilter::Windowed(Box::new(self.wrap(filter)));
-        Ok(filter)
     }
 }
 
@@ -151,22 +124,4 @@ impl<T: CreateView> CreateView for Windowed<T> {
     }
 }
 
-impl<T: EdgeViewFilterOps> EdgeViewFilterOps for Windowed<T> {
-    type Output<F: CombinedFilter> = Windowed<T::Output<F>>;
-
-    fn is_active(&self) -> Self::Output<IsActiveEdge> {
-        self.wrap(self.inner.is_active())
-    }
-
-    fn is_valid(&self) -> Self::Output<IsValidEdge> {
-        self.wrap(self.inner.is_valid())
-    }
-
-    fn is_deleted(&self) -> Self::Output<IsDeletedEdge> {
-        self.wrap(self.inner.is_deleted())
-    }
-
-    fn is_self_loop(&self) -> Self::Output<IsSelfLoopEdge> {
-        self.wrap(self.inner.is_self_loop())
-    }
-}
+impl<T: EdgeViewFilterOps> EdgeViewFilterOps for Windowed<T> {}

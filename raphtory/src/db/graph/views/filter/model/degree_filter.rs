@@ -5,14 +5,12 @@ use crate::{
             view::GraphViewOps,
         },
         graph::views::filter::{
-            model,
             model::{
                 property_filter::{
                     builders::PropertyExprBuilderInput, Op, PropertyFilter, PropertyFilterInput,
                     PropertyFilterValue, PropertyRef,
                 },
-                CombinedFilter, ComposableFilter, CompositeNodeFilter, FilterOperator,
-                InternalPropertyFilterBuilder, NodeFilter, TryAsCompositeFilter,
+                ComposableFilter, FilterOperator, InternalPropertyFilterBuilder, NodeFilter,
             },
             node_filtered_graph::NodeFilteredGraph,
             CreateFilter,
@@ -126,22 +124,6 @@ impl CreateFilter for DegreeFilter {
     }
 }
 
-impl TryAsCompositeFilter for DegreeFilter {
-    fn try_as_composite_edge_filter(
-        &self,
-    ) -> Result<model::edge_filter::CompositeEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-    fn try_as_composite_exploded_edge_filter(
-        &self,
-    ) -> Result<model::CompositeExplodedEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-    fn try_as_composite_node_filter(&self) -> Result<model::CompositeNodeFilter, GraphError> {
-        Ok(CompositeNodeFilter::Degree(self.clone()))
-    }
-}
-
 fn property_ref(direction: &Direction) -> PropertyRef {
     match direction {
         Direction::IN => PropertyRef::Property("in_degree".to_string()),
@@ -152,7 +134,7 @@ fn property_ref(direction: &Direction) -> PropertyRef {
 
 impl InternalPropertyFilterBuilder for DegreeFilterBuilder
 where
-    DegreeFilter: CombinedFilter,
+    DegreeFilter: CreateFilter,
 {
     type Filter = DegreeFilter;
     type ExprBuilder = DegreeFilterBuilder;

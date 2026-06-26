@@ -17,6 +17,10 @@ use raphtory_api::core::entities::{properties::prop::PropType, VID};
 use raphtory_storage::graph::graph::GraphStorage;
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, marker::PhantomData, ops::Deref, sync::Arc};
+use raphtory_api::core::entities::properties::prop::Prop;
+use crate::db::graph::views::filter::model::node_expr::{CreateOp, EntityExpr};
+use crate::errors::GraphError;
+use crate::prelude::NodeFilter;
 
 // this probably needs the 'graph lifetime to make bin_cmp work with ops that capture the graph
 pub trait NodeOp: Send + Sync {
@@ -69,6 +73,23 @@ pub trait NodeOp: Send + Sync {
         })
     }
 }
+
+// impl<T: NodeOp + Clone> EntityExpr for T {
+//     type Marker = NodeFilter;
+//
+//     fn entity(&self) -> Self::Marker {
+//         NodeFilter
+//     }
+// }
+//
+// impl<T: NodeOp + Clone> CreateOp for T {
+//     fn create_node_op<'g, G: GraphView + 'g>(
+//         &self,
+//         _graph: G,
+//     ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
+//         Ok(Arc::new(self.clone()))
+//     }
+// }
 
 pub trait IntoArrowNodeOp: NodeOp + Sized {
     fn into_arrow_node_op<A: InputNodeStateValue<Self::Output>>(self) -> ArrowMap<Self, A> {

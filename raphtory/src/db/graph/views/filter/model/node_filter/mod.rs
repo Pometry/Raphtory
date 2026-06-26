@@ -4,10 +4,7 @@ use crate::{
         api::{
             state::{
                 ops::{
-                    filter::{
-                        AndOp, MaskOp, NodeIdFilterOp, NodeNameFilterOp, NodeTypeFilterOp, NotOp,
-                        OrOp,
-                    },
+                    filter::{MaskOp, NodeIdFilterOp, NodeNameFilterOp, NodeTypeFilterOp},
                     Id, Name, NodeOp, Type, TypeId,
                 },
                 NodeStateValue, TypedNodeState,
@@ -16,8 +13,6 @@ use crate::{
         },
         graph::views::filter::{
             model::{
-                degree_filter::{DegreeFilter, DegreeFilterFactory},
-                edge_filter::CompositeEdgeFilter,
                 filter::Filter,
                 is_active_node_filter::IsActiveNode,
                 latest_filter::Latest,
@@ -27,19 +22,18 @@ use crate::{
                 node_state_filter::NodeStateBoolColOp,
                 snapshot_filter::{SnapshotAt, SnapshotLatest},
                 windowed_filter::Windowed,
-                CombinedFilter, ComposableFilter, CompositeExplodedEdgeFilter, CreateView,
-                EntityMarker, InternalViewWrapOps, NodeViewFilterOps, PropertyFilterFactory,
-                TryAsCompositeFilter, Wrap,
+                 ComposableFilter, CreateView, EntityMarker, InternalViewWrapOps,
+                NodeViewFilterOps, PropertyFilterFactory, Wrap,
             },
             node_filtered_graph::NodeFilteredGraph,
             CreateFilter,
         },
     },
     errors::GraphError,
-    prelude::{GraphViewOps, PropertyFilter},
+    prelude::GraphViewOps,
 };
 use raphtory_api::core::storage::timeindex::EventTime;
-use std::{fmt, fmt::Display, sync::Arc};
+use std::{fmt, fmt::Display};
 
 pub mod builders;
 pub mod ops;
@@ -124,22 +118,6 @@ pub trait NodeFilterFactory: PropertyFilterFactory + Clone {
 
 impl NodeFilterFactory for NodeFilter {}
 
-impl TryAsCompositeFilter for NodeFilter {
-    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-
-    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-
-    fn try_as_composite_exploded_edge_filter(
-        &self,
-    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-}
-
 impl Wrap for NodeFilter {
     type Wrapped<T> = T;
 
@@ -201,22 +179,6 @@ impl CreateFilter for NodeIdFilter {
     }
 }
 
-impl TryAsCompositeFilter for NodeIdFilter {
-    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        Ok(CompositeNodeFilter::Id(self.0.clone()))
-    }
-
-    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-
-    fn try_as_composite_exploded_edge_filter(
-        &self,
-    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct NodeNameFilter(pub Filter);
 
@@ -251,22 +213,6 @@ impl CreateFilter for NodeNameFilter {
         _graph: G,
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
         Ok(NodeNameFilterOp::new(self.0))
-    }
-}
-
-impl TryAsCompositeFilter for NodeNameFilter {
-    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        Ok(CompositeNodeFilter::Name(self.0.clone()))
-    }
-
-    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-
-    fn try_as_composite_exploded_edge_filter(
-        &self,
-    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
     }
 }
 
@@ -321,140 +267,5 @@ impl CreateFilter for NodeTypeFilter {
             .map(|k| self.0.matches(Some(k))) // TODO: _default check
             .collect::<Vec<_>>();
         Ok(TypeId.mask(node_types_filter.into()))
-    }
-}
-
-impl TryAsCompositeFilter for NodeTypeFilter {
-    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        Ok(CompositeNodeFilter::Type(self.0.clone()))
-    }
-
-    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-
-    fn try_as_composite_exploded_edge_filter(
-        &self,
-    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum CompositeNodeFilter {
-    Id(Filter),
-    Name(Filter),
-    Type(Filter),
-    Property(PropertyFilter<NodeFilter>),
-    Degree(DegreeFilter),
-    Windowed(Box<Windowed<CompositeNodeFilter>>),
-    Latest(Box<Latest<CompositeNodeFilter>>),
-    SnapshotAt(Box<SnapshotAt<CompositeNodeFilter>>),
-    SnapshotLatest(Box<SnapshotLatest<CompositeNodeFilter>>),
-    Layered(Box<Layered<CompositeNodeFilter>>),
-    IsActiveNode(Box<CompositeNodeFilter>),
-    And(Box<CompositeNodeFilter>, Box<CompositeNodeFilter>),
-    Or(Box<CompositeNodeFilter>, Box<CompositeNodeFilter>),
-    Not(Box<CompositeNodeFilter>),
-}
-
-impl Display for CompositeNodeFilter {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            CompositeNodeFilter::Property(filter) => write!(f, "{}", filter),
-            CompositeNodeFilter::Windowed(filter) => write!(f, "{}", filter),
-            CompositeNodeFilter::Degree(filter) => write!(f, "{}", filter),
-            CompositeNodeFilter::Layered(filter) => write!(f, "{}", filter),
-            CompositeNodeFilter::Latest(filter) => write!(f, "{}", filter),
-            CompositeNodeFilter::SnapshotAt(filter) => write!(f, "{}", filter),
-            CompositeNodeFilter::SnapshotLatest(filter) => write!(f, "{}", filter),
-            CompositeNodeFilter::IsActiveNode(filter) => write!(f, "{}", filter),
-            CompositeNodeFilter::Id(filter) => write!(f, "{}", filter),
-            CompositeNodeFilter::Name(filter) => write!(f, "{}", filter),
-            CompositeNodeFilter::Type(filter) => write!(f, "{}", filter),
-            CompositeNodeFilter::And(left, right) => write!(f, "({} AND {})", left, right),
-            CompositeNodeFilter::Or(left, right) => write!(f, "({} OR {})", left, right),
-            CompositeNodeFilter::Not(filter) => write!(f, "NOT({})", filter),
-        }
-    }
-}
-
-impl CreateFilter for CompositeNodeFilter {
-    type EntityFiltered<'graph, G: GraphViewOps<'graph>> =
-        NodeFilteredGraph<G, Self::NodeFilter<'graph, G>>;
-
-    type NodeFilter<'graph, G: GraphView + 'graph> = Arc<dyn NodeOp<Output = bool> + 'graph>;
-
-    fn create_filter<'graph, G: GraphViewOps<'graph>>(
-        self,
-        graph: G,
-    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
-        let filter = self.create_node_filter(graph.clone())?;
-        Ok(NodeFilteredGraph::new(graph, filter))
-    }
-
-    fn create_node_filter<'graph, G: GraphView + 'graph>(
-        self,
-        graph: G,
-    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
-        match self {
-            CompositeNodeFilter::Degree(i) => Ok(Arc::new(i.create_node_filter(graph)?)),
-            CompositeNodeFilter::Id(i) => Ok(Arc::new(NodeIdFilter(i).create_node_filter(graph)?)),
-            CompositeNodeFilter::Name(i) => {
-                Ok(Arc::new(NodeNameFilter(i).create_node_filter(graph)?))
-            }
-            CompositeNodeFilter::Type(i) => {
-                Ok(Arc::new(NodeTypeFilter(i).create_node_filter(graph)?))
-            }
-            CompositeNodeFilter::Property(i) => Ok(Arc::new(i.create_node_filter(graph)?)),
-            CompositeNodeFilter::Windowed(i) => {
-                let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
-                i.create_node_filter(dyn_graph)
-            }
-            CompositeNodeFilter::Layered(i) => {
-                let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
-                i.create_node_filter(dyn_graph)
-            }
-            CompositeNodeFilter::Latest(i) => {
-                let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
-                i.create_node_filter(dyn_graph)
-            }
-            CompositeNodeFilter::SnapshotAt(i) => {
-                let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
-                i.create_node_filter(dyn_graph)
-            }
-            CompositeNodeFilter::SnapshotLatest(i) => {
-                let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
-                i.create_node_filter(dyn_graph)
-            }
-            CompositeNodeFilter::IsActiveNode(i) => Ok(Arc::new(i.create_node_filter(graph)?)),
-            CompositeNodeFilter::And(l, r) => Ok(Arc::new(AndOp {
-                left: l.clone().create_node_filter(graph.clone())?,
-                right: r.clone().create_node_filter(graph.clone())?,
-            })),
-            CompositeNodeFilter::Or(l, r) => Ok(Arc::new(OrOp {
-                left: l.clone().create_node_filter(graph.clone())?,
-                right: r.clone().create_node_filter(graph.clone())?,
-            })),
-            CompositeNodeFilter::Not(filter) => {
-                Ok(Arc::new(NotOp(filter.clone().create_node_filter(graph)?)))
-            }
-        }
-    }
-}
-
-impl TryAsCompositeFilter for CompositeNodeFilter {
-    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        Ok(self.clone())
-    }
-
-    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-
-    fn try_as_composite_exploded_edge_filter(
-        &self,
-    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
     }
 }

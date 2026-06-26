@@ -3,11 +3,8 @@ use crate::{
         api::state::ops::{GraphView, HistoryOp, Map, NodeOp},
         graph::views::filter::{
             model::{
-                edge_expr::EdgeOp,
-                edge_filter::CompositeEdgeFilter,
                 node_expr::{CreateOp, EntityExpr},
-                ComposableFilter, CompositeExplodedEdgeFilter, CompositeNodeFilter, CreateView,
-                TryAsCompositeFilter,
+                ComposableFilter, CreateView,
             },
             node_filtered_graph::NodeFilteredGraph,
             CreateFilter,
@@ -88,21 +85,3 @@ impl<E: CreateView + 'static> CreateFilter for IsActiveNode<E> {
 }
 
 impl<E: CreateView> ComposableFilter for IsActiveNode<E> {}
-
-impl<E: CreateView + TryAsCompositeFilter> TryAsCompositeFilter for IsActiveNode<E> {
-    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        Ok(CompositeNodeFilter::IsActiveNode(Box::new(
-            self.view_expr.try_as_composite_node_filter()?,
-        )))
-    }
-
-    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-
-    fn try_as_composite_exploded_edge_filter(
-        &self,
-    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-}

@@ -1,12 +1,10 @@
+use crate::db::graph::views::filter::model::CreateView;
 use crate::{
     db::{
         api::state::ops::{filter::NodeExistsOp, GraphView},
         graph::views::{
             filter::{
-                model::{
-                    edge_filter::CompositeEdgeFilter, ComposableFilter,
-                    CompositeExplodedEdgeFilter, CompositeNodeFilter, TryAsCompositeFilter,
-                },
+                model::ComposableFilter,
                 CreateFilter,
             },
             is_active_graph::IsActiveGraph,
@@ -18,15 +16,17 @@ use crate::{
 use std::fmt;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct IsActiveEdge;
+pub struct IsActiveEdge<E> {
+    pub(crate) view_expr: E,
+}
 
-impl fmt::Display for IsActiveEdge {
+impl<E> fmt::Display for IsActiveEdge<E> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "IS_ACTIVE_EDGE")
     }
 }
 
-impl CreateFilter for IsActiveEdge {
+impl<E: CreateView + 'static> CreateFilter for IsActiveEdge<E> {
     type EntityFiltered<'graph, G>
         = IsActiveGraph<G>
     where
@@ -54,20 +54,4 @@ impl CreateFilter for IsActiveEdge {
     }
 }
 
-impl ComposableFilter for IsActiveEdge {}
-
-impl TryAsCompositeFilter for IsActiveEdge {
-    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-
-    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        Ok(CompositeEdgeFilter::IsActiveEdge(IsActiveEdge))
-    }
-
-    fn try_as_composite_exploded_edge_filter(
-        &self,
-    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        Ok(CompositeExplodedEdgeFilter::IsActiveEdge(IsActiveEdge))
-    }
-}
+impl<E: CreateView> ComposableFilter for IsActiveEdge<E> {}

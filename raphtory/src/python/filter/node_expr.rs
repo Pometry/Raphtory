@@ -469,3 +469,8 @@ impl PyNodeFilter {
         Ok(PyExpr(Arc::new(op)))
     }
 }
+
+// TODO:
+//  We need a wrapper for Arc<dyn DynCreateFilter>
+//  Py Expr needs to extend this wrapper (PyFilter)
+//  by_state_column can return pyfilter
