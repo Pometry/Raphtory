@@ -6,6 +6,7 @@ pub enum DBState {
     Running,
     Shutdown,
     CrashRecovery,
+    WalDisabled,
     NotSupported,
 }
 
