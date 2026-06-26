@@ -796,7 +796,7 @@ pub trait DynEdgeViewFilterOps: DynInternalViewWrapPropOps {
     fn dyn_is_self_loop(&self) -> Arc<dyn DynCreateFilter>;
 }
 
-impl<T: EdgeViewFilterOps + DynInternalViewWrapPropOps> DynEdgeViewFilterOps for T {
+impl<T: EdgeViewFilterOps + DynInternalViewWrapPropOps + CreateView> DynEdgeViewFilterOps for T {
     fn dyn_is_active(&self) -> Arc<dyn DynCreateFilter> {
         Arc::new(self.is_active())
     }
@@ -880,8 +880,7 @@ impl InternalViewWrapOps for DynEdgeViewProps {
     }
 }
 
-// TODO: Do we need this?
-// impl EdgeViewFilterOps for DynEdgeViewProps {}
+impl EdgeViewFilterOps for DynEdgeViewProps {}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // EntityExprFilterOps — comparison and set operators on any EntityExpr
