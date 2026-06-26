@@ -25,7 +25,7 @@ set -euo pipefail
 UA="raphtory-release (fabian.murariu@pometry.com)"
 
 # Default list mirrors the CI default (dependency order matters).
-DEFAULT_CRATES="raphtory-api pometry-storage raphtory-core raphtory-storage raphtory raphtory-graphql"
+DEFAULT_CRATES="raphtory-graphql raphtory-api raphtory-core raphtory db4-graph db4-storage raphtory-api-macros raphtory-itertools raphtory-storage"
 
 crates=()
 for tok in "$@"; do
