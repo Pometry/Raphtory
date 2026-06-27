@@ -358,6 +358,9 @@ impl Nav {
             (Nav::View(vk), Value::Graph(g)) => Some(Value::Graph(view_graph(g, vk))),
             (Nav::View(vk), Value::Node(n)) => Some(Value::Node(view_node(n, vk))),
             (Nav::View(vk), Value::Edge(e)) => Some(Value::Edge(view_edge(e, vk))),
+            (Nav::View(vk), Value::Nodes(ns)) => Some(Value::Nodes(view_nodes(ns, vk))),
+            (Nav::View(vk), Value::Edges(es)) => Some(Value::Edges(view_edges(es, vk))),
+            (Nav::View(vk), Value::Path(p)) => Some(Value::Path(view_path(p, vk))),
             _ => unreachable!("plan/type mismatch — validation should prevent this"),
         }
     }
@@ -503,6 +506,9 @@ fn view_graph(g: &DynamicGraph, vk: &ViewKind) -> DynamicGraph {
         ViewKind::Subgraph(nodes) => g.subgraph(nodes.clone()).into_dynamic(),
         ViewKind::SubgraphNodeTypes(types) => g.subgraph_node_types(types.to_vec()).into_dynamic(),
         ViewKind::ExcludeNodes(nodes) => g.exclude_nodes(nodes.clone()).into_dynamic(),
+        ViewKind::TypeFilter(_) => {
+            unreachable!("typeFilter is a node-collection view op — validation should prevent this")
+        }
     }
 }
 
@@ -549,6 +555,75 @@ fn view_edge(e: &GqlEdge, vk: &ViewKind) -> GqlEdge {
         ViewKind::ExcludeLayer(name) => GqlEdge::from(e.ee.exclude_valid_layers(name.to_string())),
         ViewKind::ExcludeLayers(names) => GqlEdge::from(e.ee.exclude_valid_layers(names.to_vec())),
         _ => unreachable!("not an edge view op — validation should prevent this"),
+    }
+}
+
+/// Apply a same-type view transform to a node collection.
+fn view_nodes(ns: &GqlNodes, vk: &ViewKind) -> GqlNodes {
+    match vk {
+        ViewKind::Window { start, end } => GqlNodes::new(ns.nn.window(*start, *end)),
+        ViewKind::At(t) => GqlNodes::new(ns.nn.at(*t)),
+        ViewKind::Before(t) => GqlNodes::new(ns.nn.before(*t)),
+        ViewKind::After(t) => GqlNodes::new(ns.nn.after(*t)),
+        ViewKind::Latest => GqlNodes::new(ns.nn.latest()),
+        ViewKind::SnapshotAt(t) => GqlNodes::new(ns.nn.snapshot_at(*t)),
+        ViewKind::SnapshotLatest => GqlNodes::new(ns.nn.snapshot_latest()),
+        ViewKind::ShrinkWindow { start, end } => GqlNodes::new(ns.nn.shrink_window(*start, *end)),
+        ViewKind::ShrinkStart(t) => GqlNodes::new(ns.nn.shrink_start(*t)),
+        ViewKind::ShrinkEnd(t) => GqlNodes::new(ns.nn.shrink_end(*t)),
+        ViewKind::DefaultLayer => GqlNodes::new(ns.nn.default_layer()),
+        ViewKind::Layer(name) => GqlNodes::new(ns.nn.valid_layers(name.to_string())),
+        ViewKind::Layers(names) => GqlNodes::new(ns.nn.valid_layers(names.to_vec())),
+        ViewKind::ExcludeLayer(name) => GqlNodes::new(ns.nn.exclude_valid_layers(name.to_string())),
+        ViewKind::ExcludeLayers(names) => GqlNodes::new(ns.nn.exclude_valid_layers(names.to_vec())),
+        ViewKind::TypeFilter(types) => GqlNodes::new(ns.nn.type_filter(types.iter())),
+        _ => unreachable!("not a node-collection view op — validation should prevent this"),
+    }
+}
+
+/// Apply a same-type view transform to an edge collection.
+fn view_edges(es: &GqlEdges, vk: &ViewKind) -> GqlEdges {
+    match vk {
+        ViewKind::Window { start, end } => GqlEdges::new(es.ee.window(*start, *end)),
+        ViewKind::At(t) => GqlEdges::new(es.ee.at(*t)),
+        ViewKind::Before(t) => GqlEdges::new(es.ee.before(*t)),
+        ViewKind::After(t) => GqlEdges::new(es.ee.after(*t)),
+        ViewKind::Latest => GqlEdges::new(es.ee.latest()),
+        ViewKind::SnapshotAt(t) => GqlEdges::new(es.ee.snapshot_at(*t)),
+        ViewKind::SnapshotLatest => GqlEdges::new(es.ee.snapshot_latest()),
+        ViewKind::ShrinkWindow { start, end } => GqlEdges::new(es.ee.shrink_window(*start, *end)),
+        ViewKind::ShrinkStart(t) => GqlEdges::new(es.ee.shrink_start(*t)),
+        ViewKind::ShrinkEnd(t) => GqlEdges::new(es.ee.shrink_end(*t)),
+        ViewKind::DefaultLayer => GqlEdges::new(es.ee.default_layer()),
+        ViewKind::Layer(name) => GqlEdges::new(es.ee.valid_layers(name.to_string())),
+        ViewKind::Layers(names) => GqlEdges::new(es.ee.valid_layers(names.to_vec())),
+        ViewKind::ExcludeLayer(name) => GqlEdges::new(es.ee.exclude_valid_layers(name.to_string())),
+        ViewKind::ExcludeLayers(names) => GqlEdges::new(es.ee.exclude_valid_layers(names.to_vec())),
+        _ => unreachable!("not an edge-collection view op — validation should prevent this"),
+    }
+}
+
+/// Apply a same-type view transform to a node path (`neighbours` result).
+fn view_path(p: &GqlPathFromNode, vk: &ViewKind) -> GqlPathFromNode {
+    use GqlPathFromNode as P;
+    match vk {
+        ViewKind::Window { start, end } => P::new(p.nn.window(*start, *end)),
+        ViewKind::At(t) => P::new(p.nn.at(*t)),
+        ViewKind::Before(t) => P::new(p.nn.before(*t)),
+        ViewKind::After(t) => P::new(p.nn.after(*t)),
+        ViewKind::Latest => P::new(p.nn.latest()),
+        ViewKind::SnapshotAt(t) => P::new(p.nn.snapshot_at(*t)),
+        ViewKind::SnapshotLatest => P::new(p.nn.snapshot_latest()),
+        ViewKind::ShrinkWindow { start, end } => P::new(p.nn.shrink_window(*start, *end)),
+        ViewKind::ShrinkStart(t) => P::new(p.nn.shrink_start(*t)),
+        ViewKind::ShrinkEnd(t) => P::new(p.nn.shrink_end(*t)),
+        ViewKind::DefaultLayer => P::new(p.nn.default_layer()),
+        ViewKind::Layer(name) => P::new(p.nn.valid_layers(name.to_string())),
+        ViewKind::Layers(names) => P::new(p.nn.valid_layers(names.to_vec())),
+        ViewKind::ExcludeLayer(name) => P::new(p.nn.exclude_valid_layers(name.to_string())),
+        ViewKind::ExcludeLayers(names) => P::new(p.nn.exclude_valid_layers(names.to_vec())),
+        ViewKind::TypeFilter(types) => P::new(p.nn.type_filter(types.iter())),
+        _ => unreachable!("not a path view op — validation should prevent this"),
     }
 }
 

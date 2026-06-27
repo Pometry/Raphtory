@@ -46,6 +46,7 @@ pub mod field {
     pub const SHRINK_WINDOW: &str = "shrinkWindow";
     pub const SHRINK_START: &str = "shrinkStart";
     pub const SHRINK_END: &str = "shrinkEnd";
+    pub const TYPE_FILTER: &str = "typeFilter";
     pub const VALID: &str = "valid";
     pub const SUBGRAPH: &str = "subgraph";
     pub const SUBGRAPH_NODE_TYPES: &str = "subgraphNodeTypes";

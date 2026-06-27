@@ -211,40 +211,36 @@ fn resolve_op(parent_type: &str, field: &str, f: &Field) -> Result<OpKind, PlanE
         (ty::EDGE, fld::DELETIONS) => Navigate(N::Deletions),
 
         // ── view transforms (same type in → out) via Nav::View(ViewKind) ──
-        (ty::GRAPH | ty::NODE | ty::EDGE, fld::WINDOW) => view(VK::Window {
+        // Time/layer views apply to entities *and* their collections; `is_viewable`
+        // gates the parent type (SDL validation already confirmed the field exists).
+        (t, fld::WINDOW) if is_viewable(t) => view(VK::Window {
             start: time_arg(f, arg::START)?,
             end: time_arg(f, arg::END)?,
         }),
-        (ty::GRAPH | ty::NODE | ty::EDGE, fld::AT) => view(VK::At(time_arg(f, arg::TIME)?)),
-        (ty::GRAPH | ty::NODE | ty::EDGE, fld::BEFORE) => view(VK::Before(time_arg(f, arg::TIME)?)),
-        (ty::GRAPH | ty::NODE | ty::EDGE, fld::AFTER) => view(VK::After(time_arg(f, arg::TIME)?)),
-        (ty::GRAPH | ty::NODE | ty::EDGE, fld::LATEST) => view(VK::Latest),
-        (ty::GRAPH | ty::NODE | ty::EDGE, fld::SNAPSHOT_AT) => {
-            view(VK::SnapshotAt(time_arg(f, arg::TIME)?))
-        }
-        (ty::GRAPH | ty::NODE | ty::EDGE, fld::SNAPSHOT_LATEST) => view(VK::SnapshotLatest),
-        (ty::GRAPH | ty::NODE | ty::EDGE, fld::SHRINK_WINDOW) => view(VK::ShrinkWindow {
+        (t, fld::AT) if is_viewable(t) => view(VK::At(time_arg(f, arg::TIME)?)),
+        (t, fld::BEFORE) if is_viewable(t) => view(VK::Before(time_arg(f, arg::TIME)?)),
+        (t, fld::AFTER) if is_viewable(t) => view(VK::After(time_arg(f, arg::TIME)?)),
+        (t, fld::LATEST) if is_viewable(t) => view(VK::Latest),
+        (t, fld::SNAPSHOT_AT) if is_viewable(t) => view(VK::SnapshotAt(time_arg(f, arg::TIME)?)),
+        (t, fld::SNAPSHOT_LATEST) if is_viewable(t) => view(VK::SnapshotLatest),
+        (t, fld::SHRINK_WINDOW) if is_viewable(t) => view(VK::ShrinkWindow {
             start: time_arg(f, arg::START)?,
             end: time_arg(f, arg::END)?,
         }),
-        (ty::GRAPH | ty::NODE | ty::EDGE, fld::SHRINK_START) => {
-            view(VK::ShrinkStart(time_arg(f, arg::START)?))
-        }
-        (ty::GRAPH | ty::NODE | ty::EDGE, fld::SHRINK_END) => {
-            view(VK::ShrinkEnd(time_arg(f, arg::END)?))
-        }
-        (ty::GRAPH | ty::NODE | ty::EDGE, fld::DEFAULT_LAYER) => view(VK::DefaultLayer),
-        (ty::GRAPH | ty::NODE | ty::EDGE, fld::LAYER) => {
-            view(VK::Layer(string_arg(f, arg::NAME)?.into()))
-        }
-        (ty::GRAPH | ty::NODE | ty::EDGE, fld::LAYERS) => {
-            view(VK::Layers(strings_arg(f, arg::NAMES)?))
-        }
-        (ty::GRAPH | ty::NODE | ty::EDGE, fld::EXCLUDE_LAYER) => {
+        (t, fld::SHRINK_START) if is_viewable(t) => view(VK::ShrinkStart(time_arg(f, arg::START)?)),
+        (t, fld::SHRINK_END) if is_viewable(t) => view(VK::ShrinkEnd(time_arg(f, arg::END)?)),
+        (t, fld::DEFAULT_LAYER) if is_viewable(t) => view(VK::DefaultLayer),
+        (t, fld::LAYER) if is_viewable(t) => view(VK::Layer(string_arg(f, arg::NAME)?.into())),
+        (t, fld::LAYERS) if is_viewable(t) => view(VK::Layers(strings_arg(f, arg::NAMES)?)),
+        (t, fld::EXCLUDE_LAYER) if is_viewable(t) => {
             view(VK::ExcludeLayer(string_arg(f, arg::NAME)?.into()))
         }
-        (ty::GRAPH | ty::NODE | ty::EDGE, fld::EXCLUDE_LAYERS) => {
+        (t, fld::EXCLUDE_LAYERS) if is_viewable(t) => {
             view(VK::ExcludeLayers(strings_arg(f, arg::NAMES)?))
+        }
+        // node-collection-only
+        (ty::NODES | ty::PATH_FROM_NODE, fld::TYPE_FILTER) => {
+            view(VK::TypeFilter(strings_arg(f, arg::NODE_TYPES)?))
         }
         // graph-only structural views
         (ty::GRAPH, fld::VALID) => view(VK::Valid),
@@ -413,6 +409,21 @@ fn datetime_format_arg(f: &Field) -> Result<Option<Box<str>>, PlanError> {
         }
         Some(_) => Err(PlanError::BadArgument(arg::FORMAT_STRING)),
     }
+}
+
+/// Types that accept the shared time/layer view transforms (entities and their
+/// collections). Graph-only structural views (`valid`/`subgraph`/…) are matched
+/// separately.
+fn is_viewable(ty: &str) -> bool {
+    matches!(
+        ty,
+        ty::GRAPH
+            | ty::NODE
+            | ty::EDGE
+            | ty::NODES
+            | ty::EDGES
+            | ty::PATH_FROM_NODE
+    )
 }
 
 /// Parse a node-filter argument (`NodeFilter` `@oneOf`) and push it down into a

@@ -635,6 +635,53 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn interp_collection_views_match_endpoint() {
+        // layered, multi-timestamp graph + node types, for collection view ops
+        let g = Graph::new();
+        g.add_edge(1, "a", "b", NO_PROPS, Some("l1")).unwrap();
+        g.add_edge(5, "a", "c", NO_PROPS, Some("l2")).unwrap();
+        g.add_edge(9, "b", "c", NO_PROPS, Some("l1")).unwrap();
+        g.add_node(3, "a", NO_PROPS, Some("person"), None).unwrap();
+        g.add_node(4, "b", NO_PROPS, Some("machine"), None).unwrap();
+
+        let tempdir = TempDir::new().unwrap();
+        let server = GraphServer::new(tempdir.path().to_path_buf(), None, Config::default())
+            .await
+            .unwrap();
+        let port = 43945;
+        let _running = server.start_with_port(port).await.unwrap();
+        tokio::time::sleep(Duration::from_secs(1)).await;
+
+        let gql = RaphtoryGraphQLClient::new(
+            Url::parse(&format!("http://localhost:{port}/")).unwrap(),
+            None,
+        );
+        let encoded = url_encode_graph(g.materialize().unwrap()).unwrap();
+        gql.send_graph("g", &encoded, true).await.unwrap();
+
+        let http = reqwest::Client::new();
+        for query in [
+            // Nodes view ops (Nodes → Nodes)
+            r#"{ graph(path:"g") { nodes { window(start:0, end:5) { list { name } } } } }"#,
+            r#"{ graph(path:"g") { nodes { before(time:5) { count } } } }"#,
+            r#"{ graph(path:"g") { nodes { typeFilter(nodeTypes:["person"]) { list { name } } } } }"#,
+            // Edges view ops (Edges → Edges)
+            r#"{ graph(path:"g") { edges { layer(name:"l1") { list { id } } } } }"#,
+            r#"{ graph(path:"g") { edges { after(time:1) { list { id } } } } }"#,
+            // PathFromNode view ops (neighbours → neighbours)
+            r#"{ graph(path:"g") { node(name:"a") { neighbours { layer(name:"l2") { list { name } } } } } }"#,
+            r#"{ graph(path:"g") { node(name:"a") { neighbours { typeFilter(nodeTypes:["machine"]) { list { name } } } } } }"#,
+            // chained collection views
+            r#"{ graph(path:"g") { nodes { window(start:0, end:10) { layer(name:"l1") { list { name } } } } } }"#,
+        ] {
+            let expected =
+                serde_json::to_value(gql.query(query, HashMap::new()).await.unwrap()).unwrap();
+            let got = post_interp(&http, port, query).await;
+            assert_eq!(got["data"], expected, "mismatch for query: {query}");
+        }
+    }
+
+    #[tokio::test]
     async fn interp_endpoint_rejects_invalid_query() {
         let tempdir = TempDir::new().unwrap();
         let server = GraphServer::new(tempdir.path().to_path_buf(), None, Config::default())

@@ -179,6 +179,9 @@ pub enum ViewKind {
     Layers(Box<[String]>),
     ExcludeLayer(Box<str>),
     ExcludeLayers(Box<[String]>),
+    // ── node-collection-only ──
+    /// `typeFilter(nodeTypes:)` — `Nodes`/`PathFromNode` → same type
+    TypeFilter(Box<[String]>),
     // ── graph-only structural views ──
     Valid,
     Subgraph(Vec<GqlNodeId>),
