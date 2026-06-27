@@ -13,7 +13,10 @@ use crate::model::graph::{
     node::GqlNode,
     nodes::GqlNodes,
     path_from_node::GqlPathFromNode,
-    property::{GqlMetadata, GqlProperties, GqlProperty, GqlTemporalProperties, GqlTemporalProperty},
+    property::{
+        GqlMetadata, GqlProperties, GqlProperty, GqlPropertyTuple, GqlTemporalProperties,
+        GqlTemporalProperty,
+    },
     timeindex::GqlEventTime,
 };
 use raphtory::db::api::view::DynamicGraph;
@@ -55,4 +58,7 @@ pub enum Value {
     Property(GqlProperty),
     /// A single property timeline — item of `temporal.values`.
     TemporalProperty(GqlTemporalProperty),
+    /// A `(time, value)` pair — `temporalProperty.{min,max,median}` and the item
+    /// of `orderedDedupe`.
+    PropertyTuple(GqlPropertyTuple),
 }

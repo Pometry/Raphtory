@@ -682,6 +682,57 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn interp_temporal_aggregates_match_endpoint() {
+        // node "A" with a numeric temporal property "score" at 4 timestamps
+        let g = Graph::new();
+        g.add_node(100, "A", [("score", 10i64)], None, None).unwrap();
+        g.add_node(200, "A", [("score", 20i64)], None, None).unwrap();
+        g.add_node(300, "A", [("score", 30i64)], None, None).unwrap();
+        g.add_node(400, "A", [("score", 40i64)], None, None).unwrap();
+
+        let tempdir = TempDir::new().unwrap();
+        let server = GraphServer::new(tempdir.path().to_path_buf(), None, Config::default())
+            .await
+            .unwrap();
+        let port = 43946;
+        let _running = server.start_with_port(port).await.unwrap();
+        tokio::time::sleep(Duration::from_secs(1)).await;
+
+        let gql = RaphtoryGraphQLClient::new(
+            Url::parse(&format!("http://localhost:{port}/")).unwrap(),
+            None,
+        );
+        let encoded = url_encode_graph(g.materialize().unwrap()).unwrap();
+        gql.send_graph("g", &encoded, true).await.unwrap();
+
+        let http = reqwest::Client::new();
+        for query in [
+            // the full aggregate surface via temporal.get(key)
+            // NB: `unique` is intentionally omitted — its order is unspecified
+            // ("order not guaranteed"), so it isn't comparable by strict equality.
+            r#"{ graph(path:"g") { node(name:"A") { properties { temporal { get(key:"score") {
+                key count sum mean average values latest at(t:250)
+                min { time { timestamp } value asString }
+                max { value }
+                median { time { timestamp } value }
+                orderedDedupe(latestTime:false) { time { timestamp } value }
+                history { list { timestamp eventId } }
+            } } } } } }"#,
+            // reached via temporal.values(keys:) list + object TimeInput for at
+            r#"{ graph(path:"g") { node(name:"A") { properties { temporal { values(keys:["score"]) {
+                key sum count at(t:{timestamp:200, eventId:0})
+            } } } } } }"#,
+            // a missing key → get returns null
+            r#"{ graph(path:"g") { node(name:"A") { properties { temporal { get(key:"nope") { sum } } } } } }"#,
+        ] {
+            let expected =
+                serde_json::to_value(gql.query(query, HashMap::new()).await.unwrap()).unwrap();
+            let got = post_interp(&http, port, query).await;
+            assert_eq!(got["data"], expected, "mismatch for query: {query}");
+        }
+    }
+
+    #[tokio::test]
     async fn interp_endpoint_rejects_invalid_query() {
         let tempdir = TempDir::new().unwrap();
         let server = GraphServer::new(tempdir.path().to_path_buf(), None, Config::default())

@@ -21,7 +21,7 @@ use crate::model::{
     graph::{
         filtering::{GqlEdgeFilter, GqlNodeFilter},
         node_id::GqlNodeId,
-        timeindex::dt_format_str_is_valid,
+        timeindex::{dt_format_str_is_valid, GqlTimeInput},
     },
     sorting::{EdgeSortBy, NodeSortBy, SortByTime},
 };
@@ -309,6 +309,12 @@ fn resolve_op(parent_type: &str, field: &str, f: &Field) -> Result<OpKind, PlanE
         (ty::PROPERTIES, fld::VALUES) => List(I::PropertiesValues(keys_arg(f)?)),
         (ty::METADATA, fld::VALUES) => List(I::MetadataValues(keys_arg(f)?)),
         (ty::TEMPORAL_PROPERTIES, fld::VALUES) => List(I::TemporalValues(keys_arg(f)?)),
+        (ty::PROPERTIES | ty::METADATA, fld::GET) => {
+            Navigate(N::PropGet(string_arg(f, arg::KEY)?.into()))
+        }
+        (ty::TEMPORAL_PROPERTIES, fld::GET) => {
+            Navigate(N::TemporalGet(string_arg(f, arg::KEY)?.into()))
+        }
         (ty::HISTORY_TIMESTAMP, fld::LIST) => Leaf(L::TimestampList),
         (ty::HISTORY_EVENT_ID, fld::LIST) => Leaf(L::EventIdList),
         (ty::HISTORY_DATE_TIME, fld::LIST) => Leaf(L::DateTimeList),
@@ -343,8 +349,25 @@ fn resolve_op(parent_type: &str, field: &str, f: &Field) -> Result<OpKind, PlanE
             datetime_format_arg(f)?.unwrap_or_else(|| "%+".into()),
         )),
         (ty::PROPERTY | ty::TEMPORAL_PROPERTY, fld::KEY) => Leaf(L::Key),
-        (ty::PROPERTY, fld::AS_STRING) => Leaf(L::AsString),
-        (ty::PROPERTY, fld::VALUE) => Leaf(L::Value),
+        (ty::PROPERTY | ty::PROPERTY_TUPLE, fld::AS_STRING) => Leaf(L::AsString),
+        (ty::PROPERTY | ty::PROPERTY_TUPLE, fld::VALUE) => Leaf(L::Value),
+
+        // ── temporal aggregates (TemporalProperty) ──
+        (ty::TEMPORAL_PROPERTY, fld::VALUES) => Leaf(L::TemporalValueList),
+        (ty::TEMPORAL_PROPERTY, fld::UNIQUE) => Leaf(L::TemporalUniqueList),
+        (ty::TEMPORAL_PROPERTY, fld::LATEST) => Leaf(L::TemporalLatest),
+        (ty::TEMPORAL_PROPERTY, fld::SUM) => Leaf(L::TemporalSum),
+        (ty::TEMPORAL_PROPERTY, fld::MEAN) => Leaf(L::TemporalMean),
+        (ty::TEMPORAL_PROPERTY, fld::AVERAGE) => Leaf(L::TemporalAverage),
+        (ty::TEMPORAL_PROPERTY, fld::COUNT) => Leaf(L::TemporalCount),
+        (ty::TEMPORAL_PROPERTY, fld::AT) => Leaf(L::TemporalAt(time_arg(f, arg::T)?)),
+        (ty::TEMPORAL_PROPERTY, fld::MIN) => Navigate(N::TemporalMin),
+        (ty::TEMPORAL_PROPERTY, fld::MAX) => Navigate(N::TemporalMax),
+        (ty::TEMPORAL_PROPERTY, fld::MEDIAN) => Navigate(N::TemporalMedian),
+        (ty::TEMPORAL_PROPERTY, fld::ORDERED_DEDUPE) => {
+            List(I::OrderedDedupe(bool_arg(f, arg::LATEST_TIME)?))
+        }
+        (ty::PROPERTY_TUPLE, fld::TIME) => Navigate(N::TupleTime),
 
         _ => {
             return Err(PlanError::Unsupported {
@@ -360,6 +383,14 @@ fn resolve_op(parent_type: &str, field: &str, f: &Field) -> Result<OpKind, PlanE
 /// variables are present (the POC does not support variables).
 fn const_arg(f: &Field, name: &str) -> Option<GqlValue> {
     f.get_argument(name).and_then(|v| v.node.clone().into_const())
+}
+
+fn bool_arg(f: &Field, name: &'static str) -> Result<bool, PlanError> {
+    match const_arg(f, name) {
+        Some(GqlValue::Boolean(b)) => Ok(b),
+        Some(_) => Err(PlanError::BadArgument(name)),
+        None => Err(PlanError::MissingArgument(name)),
+    }
 }
 
 fn string_arg(f: &Field, name: &'static str) -> Result<String, PlanError> {
@@ -379,18 +410,16 @@ fn opt_string_arg(f: &Field, name: &'static str) -> Result<Option<Box<str>>, Pla
     }
 }
 
-/// Parse a `TimeInput` argument. The POC supports the integer form (millis
-/// since epoch), built into an `EventTime` exactly as the resolvers do
-/// (`EventTime::start`). String/object time forms are not yet supported.
+/// Parse a `TimeInput` argument into an `EventTime`, via the same scalar parser
+/// the resolvers use (`GqlTimeInput::from_value`). Supports all three GraphQL
+/// forms: integer/datetime-string/`{timestamp, eventId}` object.
 fn time_arg(f: &Field, name: &'static str) -> Result<EventTime, PlanError> {
-    match const_arg(f, name) {
-        Some(GqlValue::Number(n)) => n
-            .as_i64()
-            .map(EventTime::start)
-            .ok_or(PlanError::BadArgument(name)),
-        Some(_) => Err(PlanError::BadArgument(name)),
-        None => Err(PlanError::MissingArgument(name)),
-    }
+    use dynamic_graphql::ScalarValue;
+    use raphtory_api::core::utils::time::IntoTime;
+    let v = const_arg(f, name).ok_or(PlanError::MissingArgument(name))?;
+    GqlTimeInput::from_value(v)
+        .map(IntoTime::into_time)
+        .map_err(|_| PlanError::BadArgument(name))
 }
 
 /// Parse and validate the optional `formatString` argument for `datetimes` /

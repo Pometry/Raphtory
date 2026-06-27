@@ -144,6 +144,16 @@ pub enum Nav {
     Metadata,
     /// `properties.temporal` — `Properties` → `TemporalProperties`
     Temporal,
+    /// `properties.get(key:)` / `metadata.get(key:)` — → `Property?`
+    PropGet(Box<str>),
+    /// `temporal.get(key:)` — `TemporalProperties` → `TemporalProperty?`
+    TemporalGet(Box<str>),
+    /// `temporalProperty.min` / `max` / `median` — `TemporalProperty` → `PropertyTuple?`
+    TemporalMin,
+    TemporalMax,
+    TemporalMedian,
+    /// `propertyTuple.time` — `PropertyTuple` → `EventTime`
+    TupleTime,
     /// A view transform that maps a receiver to the **same** type
     /// (`window`/`at`/`layer`/`subgraph`/…). Dispatched per receiver type in
     /// `exec`. See [`ViewKind`].
@@ -212,6 +222,8 @@ pub enum IterKind {
     MetadataValues(Option<Box<[String]>>),
     /// `temporal.values(keys:)` — item per `TemporalProperty` (optional key whitelist).
     TemporalValues(Option<Box<[String]>>),
+    /// `temporalProperty.orderedDedupe(latestTime:)` — item per `PropertyTuple`.
+    OrderedDedupe(bool),
 }
 
 /// A scalar leaf read from the current receiver.
@@ -233,8 +245,20 @@ pub enum LeafKind {
     Key,
     /// `property.asString` — `String`
     AsString,
-    /// `property.value` — `PropertyOutput` (a typed scalar)
+    /// `property.value` / `propertyTuple.value` — `PropertyOutput` (a typed scalar)
     Value,
+    /// `temporalProperty.values` / `unique` — `[PropertyOutput!]!` (flat scalar array)
+    TemporalValueList,
+    TemporalUniqueList,
+    /// `temporalProperty.latest` / `sum` / `mean` / `average` — nullable `PropertyOutput`
+    TemporalLatest,
+    TemporalSum,
+    TemporalMean,
+    TemporalAverage,
+    /// `temporalProperty.at(t:)` — nullable `PropertyOutput`
+    TemporalAt(EventTime),
+    /// `temporalProperty.count` — `Int`
+    TemporalCount,
     /// `historyTimestamp.list` — `[Int!]!` (a flat array of timestamps)
     TimestampList,
     /// `historyEventId.list` — `[Int!]!` (a flat array of event ids)

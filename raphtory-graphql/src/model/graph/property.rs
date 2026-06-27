@@ -287,8 +287,8 @@ impl GqlProperty {
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "PropertyTuple")]
 pub(crate) struct GqlPropertyTuple {
-    time: EventTime,
-    prop: Prop,
+    pub(crate) time: EventTime,
+    pub(crate) prop: Prop,
 }
 
 impl GqlPropertyTuple {
@@ -339,6 +339,48 @@ impl GqlTemporalProperty {
     /// History handle for this temporal property (interpreter access).
     pub(crate) fn history_handle(&self) -> GqlHistory {
         self.prop.history().into()
+    }
+
+    // ── temporal aggregate helpers (sync; shared with the interpreter) ──
+    pub(crate) fn values_vec(&self) -> Vec<Prop> {
+        self.prop.values().collect()
+    }
+    pub(crate) fn unique_vec(&self) -> Vec<Prop> {
+        self.prop.unique().into_iter().collect()
+    }
+    pub(crate) fn at_prop(&self, t: EventTime) -> Option<Prop> {
+        self.prop.at(t)
+    }
+    pub(crate) fn latest_prop(&self) -> Option<Prop> {
+        self.prop.latest()
+    }
+    pub(crate) fn sum_prop(&self) -> Option<Prop> {
+        self.prop.sum()
+    }
+    pub(crate) fn mean_prop(&self) -> Option<Prop> {
+        self.prop.mean()
+    }
+    pub(crate) fn average_prop(&self) -> Option<Prop> {
+        self.prop.average()
+    }
+    pub(crate) fn count_val(&self) -> usize {
+        self.prop.count()
+    }
+    pub(crate) fn min_tuple(&self) -> Option<GqlPropertyTuple> {
+        self.prop.min().map(GqlPropertyTuple::from)
+    }
+    pub(crate) fn max_tuple(&self) -> Option<GqlPropertyTuple> {
+        self.prop.max().map(GqlPropertyTuple::from)
+    }
+    pub(crate) fn median_tuple(&self) -> Option<GqlPropertyTuple> {
+        self.prop.median().map(GqlPropertyTuple::from)
+    }
+    pub(crate) fn dedupe_tuples(&self, latest_time: bool) -> Vec<GqlPropertyTuple> {
+        self.prop
+            .ordered_dedupe(latest_time)
+            .into_iter()
+            .map(|(k, p)| (k, p).into())
+            .collect()
     }
 }
 
@@ -528,9 +570,19 @@ impl GqlProperties {
     pub(crate) fn temporal_view(&self) -> GqlTemporalProperties {
         self.props.temporal().into()
     }
+
+    /// `get(key:)` as a sync helper (interpreter access).
+    pub(crate) fn get_view(&self, key: &str) -> Option<GqlProperty> {
+        self.props.get(key).map(|p| (key.to_string(), p).into())
+    }
 }
 
 impl GqlTemporalProperties {
+    /// `get(key:)` as a sync helper (interpreter access).
+    pub(crate) fn get_view(&self, key: &str) -> Option<GqlTemporalProperty> {
+        self.props.get(key).map(|p| (key.to_string(), p).into())
+    }
+
     /// `values(keys:)` as a plain (sync) collection, for the interpreter.
     pub(crate) fn collect_values(&self, keys: Option<&[String]>) -> Vec<GqlTemporalProperty> {
         match keys {
@@ -552,6 +604,11 @@ impl GqlTemporalProperties {
 }
 
 impl GqlMetadata {
+    /// `get(key:)` as a sync helper (interpreter access).
+    pub(crate) fn get_view(&self, key: &str) -> Option<GqlProperty> {
+        self.props.get(key).map(|p| (key.to_string(), p).into())
+    }
+
     /// `values(keys:)` as a plain (sync) collection, for the interpreter.
     pub(crate) fn collect_values(&self, keys: Option<&[String]>) -> Vec<GqlProperty> {
         match keys {

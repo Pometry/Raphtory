@@ -31,7 +31,7 @@ use raphtory::{
             edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter,
         },
     },
-    prelude::{EdgeViewOps, GraphViewOps, LayerOps, NodeStateOps, NodeViewOps, TimeOps},
+    prelude::{EdgeViewOps, GraphViewOps, LayerOps, NodeStateOps, NodeViewOps, Prop, TimeOps},
 };
 
 /// `expect` message for a runtime filter/select failure. Filters are structurally
@@ -196,6 +196,11 @@ fn exec(op: &Op, stack: &mut Vec<Value>, sink: &mut Sink) {
                         .map(Value::TemporalProperty);
                     emit_items(items, children, stack, sink);
                 }
+                IterKind::OrderedDedupe(latest_time) => {
+                    let tp = clone_top!(stack, Value::TemporalProperty);
+                    let items = tp.dedupe_tuples(*latest_time).into_iter().map(Value::PropertyTuple);
+                    emit_items(items, children, stack, sink);
+                }
             }
             sink.end_array();
         }
@@ -347,6 +352,23 @@ impl Nav {
             (Nav::Temporal, Value::Properties(p)) => {
                 Some(Value::TemporalProperties(p.temporal_view()))
             }
+            (Nav::PropGet(key), Value::Properties(p)) => p.get_view(key).map(Value::Property),
+            (Nav::PropGet(key), Value::Metadata(m)) => m.get_view(key).map(Value::Property),
+            (Nav::TemporalGet(key), Value::TemporalProperties(t)) => {
+                t.get_view(key).map(Value::TemporalProperty)
+            }
+            (Nav::TemporalMin, Value::TemporalProperty(tp)) => {
+                tp.min_tuple().map(Value::PropertyTuple)
+            }
+            (Nav::TemporalMax, Value::TemporalProperty(tp)) => {
+                tp.max_tuple().map(Value::PropertyTuple)
+            }
+            (Nav::TemporalMedian, Value::TemporalProperty(tp)) => {
+                tp.median_tuple().map(Value::PropertyTuple)
+            }
+            (Nav::TupleTime, Value::PropertyTuple(t)) => {
+                Some(Value::EventTime(GqlEventTime::from(t.time)))
+            }
             (Nav::Timestamps, Value::History(h)) => {
                 Some(Value::HistoryTimestamp(h.timestamps_view()))
             }
@@ -392,15 +414,43 @@ impl LeafKind {
             (LeafKind::Key, Value::Property(p)) => sink.write_str(&p.key),
             (LeafKind::Key, Value::TemporalProperty(tp)) => sink.write_str(&tp.key),
             (LeafKind::AsString, Value::Property(p)) => sink.write_str(&p.prop.to_string()),
-            (LeafKind::Value, Value::Property(p)) => {
-                // Serialize the typed property value via the same path async-graphql
-                // uses for the `PropertyOutput` scalar, so formatting matches exactly.
-                // let json =
-                //     serde_json::to_vec(&prop_to_gql(&p.prop)).unwrap_or_else(|_| b"null".to_vec());
-                // serde_json::to_writer(sink, &prop_to_gql(&p.prop))
-                //     .unwrap_or_else(|_| panic!("should not panic! :O"));
-                // sink.write_raw_json(&json);
-                sink.write_json(&prop_to_gql(&p.prop));
+            (LeafKind::AsString, Value::PropertyTuple(t)) => sink.write_str(&t.prop.to_string()),
+            // Serialize the typed property value via the same path async-graphql uses
+            // for the `PropertyOutput` scalar, so formatting matches exactly.
+            (LeafKind::Value, Value::Property(p)) => sink.write_json(&prop_to_gql(&p.prop)),
+            (LeafKind::Value, Value::PropertyTuple(t)) => sink.write_json(&prop_to_gql(&t.prop)),
+            // ── temporal aggregates ──
+            (LeafKind::TemporalValueList, Value::TemporalProperty(tp)) => {
+                sink.begin_array();
+                for p in tp.values_vec() {
+                    sink.write_json(&prop_to_gql(&p));
+                }
+                sink.end_array();
+            }
+            (LeafKind::TemporalUniqueList, Value::TemporalProperty(tp)) => {
+                sink.begin_array();
+                for p in tp.unique_vec() {
+                    sink.write_json(&prop_to_gql(&p));
+                }
+                sink.end_array();
+            }
+            (LeafKind::TemporalLatest, Value::TemporalProperty(tp)) => {
+                write_opt_prop(sink, tp.latest_prop())
+            }
+            (LeafKind::TemporalSum, Value::TemporalProperty(tp)) => {
+                write_opt_prop(sink, tp.sum_prop())
+            }
+            (LeafKind::TemporalMean, Value::TemporalProperty(tp)) => {
+                write_opt_prop(sink, tp.mean_prop())
+            }
+            (LeafKind::TemporalAverage, Value::TemporalProperty(tp)) => {
+                write_opt_prop(sink, tp.average_prop())
+            }
+            (LeafKind::TemporalAt(t), Value::TemporalProperty(tp)) => {
+                write_opt_prop(sink, tp.at_prop(*t))
+            }
+            (LeafKind::TemporalCount, Value::TemporalProperty(tp)) => {
+                sink.write_u64(tp.count_val() as u64)
             }
             (LeafKind::TimestampList, Value::HistoryTimestamp(h)) => {
                 sink.begin_array();
@@ -658,6 +708,15 @@ fn apply_node_filter(ns: &GqlNodes, filter: &CompositeNodeFilter, select: bool) 
         ns.filter_view(filter.clone())
     };
     out.expect(FILTER_FAILED)
+}
+
+/// Write a nullable `PropertyOutput` scalar: the typed value (via `prop_to_gql`)
+/// or JSON `null`.
+fn write_opt_prop(sink: &mut Sink, prop: Option<Prop>) {
+    match prop {
+        Some(p) => sink.write_json(&prop_to_gql(&p)),
+        None => sink.write_null(),
+    }
 }
 
 /// Write a node id as the schema's `NodeId` scalar: a JSON string for

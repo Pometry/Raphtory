@@ -22,6 +22,7 @@ pub mod ty {
     pub const TEMPORAL_PROPERTIES: &str = "TemporalProperties";
     pub const PROPERTY: &str = "Property";
     pub const TEMPORAL_PROPERTY: &str = "TemporalProperty";
+    pub const PROPERTY_TUPLE: &str = "PropertyTuple";
 }
 
 /// GraphQL field names.
@@ -105,15 +106,27 @@ pub mod field {
     pub const TIMESTAMP: &str = "timestamp";
     pub const DATETIME: &str = "datetime";
     pub const VALUES: &str = "values";
+    pub const GET: &str = "get";
     pub const TEMPORAL: &str = "temporal";
     pub const KEY: &str = "key";
     pub const AS_STRING: &str = "asString";
     pub const VALUE: &str = "value";
+    // temporal aggregates (TemporalProperty)
+    pub const UNIQUE: &str = "unique";
+    pub const SUM: &str = "sum";
+    pub const MEAN: &str = "mean";
+    pub const AVERAGE: &str = "average";
+    pub const MIN: &str = "min";
+    pub const MAX: &str = "max";
+    pub const MEDIAN: &str = "median";
+    pub const ORDERED_DEDUPE: &str = "orderedDedupe";
+    pub const TIME: &str = "time";
 }
 
 /// GraphQL field-argument names.
 pub mod arg {
     pub const NAME: &str = "name";
+    pub const KEY: &str = "key";
     pub const SRC: &str = "src";
     pub const DST: &str = "dst";
     pub const LAYER: &str = "layer";
@@ -125,6 +138,8 @@ pub mod arg {
     pub const TIME: &str = "time";
     pub const PATH: &str = "path";
     pub const KEYS: &str = "keys";
+    pub const T: &str = "t";
+    pub const LATEST_TIME: &str = "latestTime";
     pub const FORMAT_STRING: &str = "formatString";
     pub const SELECT: &str = "select";
     pub const EXPR: &str = "expr";
