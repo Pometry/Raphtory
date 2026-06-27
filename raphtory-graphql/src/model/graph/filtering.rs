@@ -271,7 +271,10 @@ pub enum PathFromNodeViewCollection {
 }
 
 #[derive(Enum, Copy, Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+// SCREAMING_SNAKE_CASE matches the GraphQL enum values (NODE_ID/NODE_NAME/NODE_TYPE)
+// emitted by the dynamic-graphql `Enum` derive, so the interpreter's serde bridge
+// (ConstValue → serde_json → GqlNodeFilter) can deserialize node-field filters.
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum NodeField {
     /// Node ID field.
     ///

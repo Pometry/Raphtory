@@ -16,9 +16,66 @@ use serde::{Deserialize, Serialize};
 /// `addProperties`, etc.) can preserve auto-increment of `event_id` when only
 /// a timestamp is given. Pass the object form `{timestamp, eventId}` to lock
 /// the event_id explicitly.
-#[derive(Scalar, Clone, Debug, Serialize, Deserialize)]
+#[derive(Scalar, Clone, Debug, Serialize)]
 #[graphql(name = "TimeInput")]
 pub struct GqlTimeInput(pub InputTime);
+
+/// Custom serde `Deserialize` accepting the *GraphQL* `TimeInput` shapes
+/// (`Int`, datetime `String`, or `{timestamp|time, eventId|id}` object) rather
+/// than `InputTime`'s native enum repr. This lets the interpreter's filter
+/// bridge (`ConstValue → serde_json → Gql*Filter`) parse time-scoped filter
+/// expressions; it mirrors [`ScalarValue::from_value`] above.
+impl<'de> Deserialize<'de> for GqlTimeInput {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        use serde::de::Error as _;
+        let value = serde_json::Value::deserialize(deserializer)?;
+        let input = match value {
+            serde_json::Value::Number(n) => {
+                let t = n
+                    .as_i64()
+                    .ok_or_else(|| D::Error::custom("timestamp must be an integer"))?;
+                InputTime::Simple(t)
+            }
+            serde_json::Value::String(s) => {
+                let t = s.try_into_time().map_err(D::Error::custom)?;
+                InputTime::Simple(t.t())
+            }
+            serde_json::Value::Object(map) => {
+                let ts = map
+                    .get("timestamp")
+                    .or_else(|| map.get("time"))
+                    .ok_or_else(|| D::Error::custom("Object must contain 'timestamp' (or 'time')."))?;
+                let ts = match ts {
+                    serde_json::Value::Number(n) => n
+                        .as_i64()
+                        .ok_or_else(|| D::Error::custom("timestamp must be an Int or DateTime String."))?,
+                    serde_json::Value::String(s) => {
+                        s.clone().try_into_time().map_err(D::Error::custom)?.t()
+                    }
+                    _ => return Err(D::Error::custom("timestamp must be an Int or a DateTime String.")),
+                };
+                let idx = map
+                    .get("eventId")
+                    .or_else(|| map.get("id"))
+                    .ok_or_else(|| D::Error::custom("Object must contain 'eventId' (or 'id')."))?;
+                let idx = idx
+                    .as_u64()
+                    .ok_or_else(|| D::Error::custom("eventId must be a non-negative Int."))?
+                    as usize;
+                InputTime::Indexed(ts, idx)
+            }
+            _ => {
+                return Err(D::Error::custom(
+                    "Expected Int, DateTime String, or Object { timestamp, eventId }.",
+                ))
+            }
+        };
+        Ok(GqlTimeInput(input))
+    }
+}
 
 impl ScalarValue for GqlTimeInput {
     fn from_value(value: GqlValue) -> Result<Self, Error> {

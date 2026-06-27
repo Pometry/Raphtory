@@ -547,6 +547,47 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn interp_node_field_filters_match_endpoint() {
+        // named, typed nodes to exercise node-field filters (NODE_NAME/NODE_TYPE/NODE_ID)
+        let g = Graph::new();
+        g.add_node(1, "alice", NO_PROPS, Some("person"), None).unwrap();
+        g.add_node(2, "bob", NO_PROPS, Some("person"), None).unwrap();
+        g.add_node(3, "server1", NO_PROPS, Some("machine"), None).unwrap();
+        g.add_edge(5, "alice", "bob", NO_PROPS, None).unwrap();
+        g.add_edge(6, "alice", "server1", NO_PROPS, None).unwrap();
+
+        let tempdir = TempDir::new().unwrap();
+        let server = GraphServer::new(tempdir.path().to_path_buf(), None, Config::default())
+            .await
+            .unwrap();
+        let port = 43943;
+        let _running = server.start_with_port(port).await.unwrap();
+        tokio::time::sleep(Duration::from_secs(1)).await;
+
+        let gql = RaphtoryGraphQLClient::new(
+            Url::parse(&format!("http://localhost:{port}/")).unwrap(),
+            None,
+        );
+        let encoded = url_encode_graph(g.materialize().unwrap()).unwrap();
+        gql.send_graph("g", &encoded, true).await.unwrap();
+
+        let http = reqwest::Client::new();
+        for query in [
+            // node-field filters: by NODE_NAME / NODE_TYPE / NODE_ID (the enum gap, now closed)
+            r#"{ graph(path:"g") { filterNodes(expr:{node:{field:NODE_NAME,where:{eq:{str:"alice"}}}}) { nodes { list { name } } } } }"#,
+            r#"{ graph(path:"g") { nodes(select:{node:{field:NODE_TYPE,where:{eq:{str:"person"}}}}) { list { name } } } }"#,
+            r#"{ graph(path:"g") { nodes { filter(expr:{node:{field:NODE_NAME,where:{ne:{str:"alice"}}}}) { list { name } } } } }"#,
+            r#"{ graph(path:"g") { node(name:"alice") { neighbours(select:{node:{field:NODE_TYPE,where:{eq:{str:"machine"}}}}) { list { name } } } } }"#,
+            r#"{ graph(path:"g") { filterNodes(expr:{node:{field:NODE_ID,where:{eq:{str:"bob"}}}}) { nodes { list { name } } } } }"#,
+        ] {
+            let expected =
+                serde_json::to_value(gql.query(query, HashMap::new()).await.unwrap()).unwrap();
+            let got = post_interp(&http, port, query).await;
+            assert_eq!(got["data"], expected, "mismatch for query: {query}");
+        }
+    }
+
+    #[tokio::test]
     async fn interp_endpoint_rejects_invalid_query() {
         let tempdir = TempDir::new().unwrap();
         let server = GraphServer::new(tempdir.path().to_path_buf(), None, Config::default())
