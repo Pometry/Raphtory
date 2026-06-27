@@ -588,6 +588,53 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn interp_degree_and_time_scoped_filters_match_endpoint() {
+        // a hub + spokes (varying degree) and a temporal Age property
+        let g = Graph::new();
+        g.add_edge(1, "hub", "a", NO_PROPS, None).unwrap();
+        g.add_edge(2, "hub", "b", NO_PROPS, None).unwrap();
+        g.add_edge(3, "hub", "c", NO_PROPS, None).unwrap();
+        g.add_edge(4, "a", "b", NO_PROPS, None).unwrap();
+        g.add_node(100, "a", [("Age", 10i64)], None, None).unwrap();
+        g.add_node(300, "a", [("Age", 50i64)], None, None).unwrap();
+        g.add_node(100, "b", [("Age", 99i64)], None, None).unwrap();
+
+        let tempdir = TempDir::new().unwrap();
+        let server = GraphServer::new(tempdir.path().to_path_buf(), None, Config::default())
+            .await
+            .unwrap();
+        let port = 43944;
+        let _running = server.start_with_port(port).await.unwrap();
+        tokio::time::sleep(Duration::from_secs(1)).await;
+
+        let gql = RaphtoryGraphQLClient::new(
+            Url::parse(&format!("http://localhost:{port}/")).unwrap(),
+            None,
+        );
+        let encoded = url_encode_graph(g.materialize().unwrap()).unwrap();
+        gql.send_graph("g", &encoded, true).await.unwrap();
+
+        let http = reqwest::Client::new();
+        for query in [
+            // degree filters (DegreeDirection enum: BOTH / OUT / IN)
+            r#"{ graph(path:"g") { filterNodes(expr:{degree:{direction:BOTH,where:{ge:{u64:2}}}}) { nodes { list { name } } } } }"#,
+            r#"{ graph(path:"g") { filterNodes(expr:{degree:{direction:OUT,where:{ge:{u64:3}}}}) { nodes { list { name } } } } }"#,
+            r#"{ graph(path:"g") { filterNodes(expr:{degree:{direction:IN,where:{eq:{u64:1}}}}) { nodes { list { name } } } } }"#,
+            // time-scoped filter expressions (TimeInput leaves: int form)
+            r#"{ graph(path:"g") { filterNodes(expr:{window:{start:0,end:200,expr:{property:{name:"Age",where:{lt:{i64:40}}}}}}) { nodes { list { name } } } } }"#,
+            r#"{ graph(path:"g") { filterNodes(expr:{before:{time:200,expr:{property:{name:"Age",where:{lt:{i64:40}}}}}}) { nodes { list { name } } } } }"#,
+            r#"{ graph(path:"g") { filterNodes(expr:{after:{time:200,expr:{property:{name:"Age",where:{ge:{i64:40}}}}}}) { nodes { list { name } } } } }"#,
+            // time-scoped via object TimeInput form {timestamp, eventId}
+            r#"{ graph(path:"g") { filterNodes(expr:{at:{time:{timestamp:100,eventId:0},expr:{property:{name:"Age",where:{ge:{i64:90}}}}}}) { nodes { list { name } } } } }"#,
+        ] {
+            let expected =
+                serde_json::to_value(gql.query(query, HashMap::new()).await.unwrap()).unwrap();
+            let got = post_interp(&http, port, query).await;
+            assert_eq!(got["data"], expected, "mismatch for query: {query}");
+        }
+    }
+
+    #[tokio::test]
     async fn interp_endpoint_rejects_invalid_query() {
         let tempdir = TempDir::new().unwrap();
         let server = GraphServer::new(tempdir.path().to_path_buf(), None, Config::default())
