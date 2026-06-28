@@ -500,4 +500,10 @@ impl GqlEdge {
     fn update<E: Into<EdgeView<DynamicGraph>>>(&self, edge: E) -> Self {
         Self { ee: edge.into() }
     }
+
+    /// Sync mirror of the `filter` resolver for the interpreter (`applyViews`).
+    pub(crate) fn filter_view(&self, filter: CompositeEdgeFilter) -> Result<Self, GraphError> {
+        let filtered = self.ee.filter(filter)?;
+        Ok(self.update(filtered.into_dynamic()))
+    }
 }

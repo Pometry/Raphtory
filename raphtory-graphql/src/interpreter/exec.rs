@@ -6,7 +6,7 @@
 //! `schema.max_query_depth`); nothing is allocated per result.
 
 use super::{
-    plan::{IterKind, LeafKind, Nav, Op, Plan, ViewKind},
+    plan::{IterKind, LeafKind, Nav, Op, Plan, ViewKind, ViewStep},
     sink::Sink,
     value::Value,
 };
@@ -383,6 +383,78 @@ impl Nav {
             (Nav::View(vk), Value::Nodes(ns)) => Some(Value::Nodes(view_nodes(ns, vk))),
             (Nav::View(vk), Value::Edges(es)) => Some(Value::Edges(view_edges(es, vk))),
             (Nav::View(vk), Value::Path(p)) => Some(Value::Path(view_path(p, vk))),
+            // applyViews — fold the steps left-to-right (same type in → out).
+            (Nav::ApplyViews(steps), Value::Graph(g)) => {
+                let mut cur = g.clone();
+                for step in steps {
+                    cur = match step {
+                        ViewStep::View(vk) => view_graph(&cur, vk),
+                        ViewStep::NodeFilter(f) => {
+                            cur.filter(f.clone()).expect(FILTER_FAILED).into_dynamic()
+                        }
+                        ViewStep::EdgeFilter(f) => {
+                            cur.filter(f.clone()).expect(FILTER_FAILED).into_dynamic()
+                        }
+                    };
+                }
+                Some(Value::Graph(cur))
+            }
+            (Nav::ApplyViews(steps), Value::Node(n)) => {
+                let mut cur = n.clone();
+                for step in steps {
+                    cur = match step {
+                        ViewStep::View(vk) => view_node(&cur, vk),
+                        ViewStep::NodeFilter(f) => cur.filter_view(f.clone()).expect(FILTER_FAILED),
+                        ViewStep::EdgeFilter(_) => unreachable!("node applyViews has no edge filter"),
+                    };
+                }
+                Some(Value::Node(cur))
+            }
+            (Nav::ApplyViews(steps), Value::Edge(e)) => {
+                let mut cur = e.clone();
+                for step in steps {
+                    cur = match step {
+                        ViewStep::View(vk) => view_edge(&cur, vk),
+                        ViewStep::EdgeFilter(f) => cur.filter_view(f.clone()).expect(FILTER_FAILED),
+                        ViewStep::NodeFilter(_) => unreachable!("edge applyViews has no node filter"),
+                    };
+                }
+                Some(Value::Edge(cur))
+            }
+            (Nav::ApplyViews(steps), Value::Nodes(ns)) => {
+                let mut cur = ns.clone();
+                for step in steps {
+                    cur = match step {
+                        ViewStep::View(vk) => view_nodes(&cur, vk),
+                        ViewStep::NodeFilter(f) => cur.filter_view(f.clone()).expect(FILTER_FAILED),
+                        ViewStep::EdgeFilter(_) => unreachable!("nodes applyViews has no edge filter"),
+                    };
+                }
+                Some(Value::Nodes(cur))
+            }
+            (Nav::ApplyViews(steps), Value::Edges(es)) => {
+                let mut cur = es.clone();
+                for step in steps {
+                    cur = match step {
+                        ViewStep::View(vk) => view_edges(&cur, vk),
+                        ViewStep::EdgeFilter(f) => cur.filter_view(f.clone()).expect(FILTER_FAILED),
+                        ViewStep::NodeFilter(_) => unreachable!("edges applyViews has no node filter"),
+                    };
+                }
+                Some(Value::Edges(cur))
+            }
+            (Nav::ApplyViews(steps), Value::Path(p)) => {
+                let mut cur = p.clone();
+                for step in steps {
+                    cur = match step {
+                        ViewStep::View(vk) => view_path(&cur, vk),
+                        ViewStep::NodeFilter(_) | ViewStep::EdgeFilter(_) => {
+                            unreachable!("path applyViews has no filter steps")
+                        }
+                    };
+                }
+                Some(Value::Path(cur))
+            }
             _ => unreachable!("plan/type mismatch — validation should prevent this"),
         }
     }

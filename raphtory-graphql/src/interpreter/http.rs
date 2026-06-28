@@ -24,7 +24,7 @@ use crate::{
     data::Data,
     interpreter::{execute, plan_request, streaming_body},
 };
-use poem::{Body, Endpoint, IntoResponse, Request, Response};
+use poem::{Endpoint, IntoResponse, Request, Response};
 use raphtory::db::api::view::IntoDynamic;
 use serde::Deserialize;
 
@@ -724,6 +724,56 @@ mod tests {
             } } } } } }"#,
             // a missing key → get returns null
             r#"{ graph(path:"g") { node(name:"A") { properties { temporal { get(key:"nope") { sum } } } } } }"#,
+        ] {
+            let expected =
+                serde_json::to_value(gql.query(query, HashMap::new()).await.unwrap()).unwrap();
+            let got = post_interp(&http, port, query).await;
+            assert_eq!(got["data"], expected, "mismatch for query: {query}");
+        }
+    }
+
+    #[tokio::test]
+    async fn interp_apply_views_match_endpoint() {
+        // layered, multi-timestamp, typed graph with properties for filter steps
+        let g = Graph::new();
+        g.add_node(3, "alice", [("Age", 30i64)], Some("person"), None).unwrap();
+        g.add_node(4, "bob", [("Age", 40i64)], Some("person"), None).unwrap();
+        g.add_node(5, "server1", [("Age", 5i64)], Some("machine"), None).unwrap();
+        g.add_edge(1, "alice", "bob", [("weight", 0.5f64)], Some("l1")).unwrap();
+        g.add_edge(5, "alice", "server1", [("weight", 0.9f64)], Some("l2")).unwrap();
+        g.add_edge(9, "bob", "server1", [("weight", 0.1f64)], Some("l1")).unwrap();
+
+        let tempdir = TempDir::new().unwrap();
+        let server = GraphServer::new(tempdir.path().to_path_buf(), None, Config::default())
+            .await
+            .unwrap();
+        let port = 43947;
+        let _running = server.start_with_port(port).await.unwrap();
+        tokio::time::sleep(Duration::from_secs(1)).await;
+
+        let gql = RaphtoryGraphQLClient::new(
+            Url::parse(&format!("http://localhost:{port}/")).unwrap(),
+            None,
+        );
+        let encoded = url_encode_graph(g.materialize().unwrap()).unwrap();
+        gql.send_graph("g", &encoded, true).await.unwrap();
+
+        let http = reqwest::Client::new();
+        for query in [
+            // Graph.applyViews — time + layer + node-field filter folded left→right
+            r#"{ graph(path:"g") { applyViews(views:[{window:{start:0, end:10}},{layers:["l1"]},{nodeFilter:{node:{field:NODE_TYPE,where:{eq:{str:"person"}}}}}]) { nodes { list { name } } } } }"#,
+            // Graph.applyViews — edge filter step
+            r#"{ graph(path:"g") { applyViews(views:[{edgeFilter:{property:{name:"weight",where:{ge:{f64:0.5}}}}}]) { edges { list { id } } } } }"#,
+            // Graph.applyViews — boolean flag (latest:false is a no-op step)
+            r#"{ graph(path:"g") { applyViews(views:[{latest:false},{before:5}]) { nodes { count } } } }"#,
+            // Nodes.applyViews — window + typeFilter + nodeFilter
+            r#"{ graph(path:"g") { nodes { applyViews(views:[{typeFilter:["person"]},{nodeFilter:{node:{field:NODE_NAME,where:{ne:{str:"alice"}}}}}]) { list { name } } } } }"#,
+            // Edges.applyViews — layer + edge filter
+            r#"{ graph(path:"g") { edges { applyViews(views:[{layers:["l1","l2"]},{edgeFilter:{property:{name:"weight",where:{gt:{f64:0.2}}}}}]) { list { id } } } } }"#,
+            // Node.applyViews — time scoping
+            r#"{ graph(path:"g") { node(name:"alice") { applyViews(views:[{window:{start:0, end:6}}]) { name degree } } } }"#,
+            // PathFromNode.applyViews — view ops only
+            r#"{ graph(path:"g") { node(name:"alice") { neighbours { applyViews(views:[{layers:["l2"]}]) { list { name } } } } } }"#,
         ] {
             let expected =
                 serde_json::to_value(gql.query(query, HashMap::new()).await.unwrap()).unwrap();

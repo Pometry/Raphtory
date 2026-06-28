@@ -13,7 +13,7 @@
 //!      its children.
 
 use super::{
-    plan::{IterKind, LeafKind, Nav, Op, Page, Plan, ViewKind},
+    plan::{IterKind, LeafKind, Nav, Op, Page, Plan, ViewKind, ViewStep},
     schema::SchemaTypes,
     tokens::{arg, field as fld, ty},
 };
@@ -242,6 +242,8 @@ fn resolve_op(parent_type: &str, field: &str, f: &Field) -> Result<OpKind, PlanE
         (ty::NODES | ty::PATH_FROM_NODE, fld::TYPE_FILTER) => {
             view(VK::TypeFilter(strings_arg(f, arg::NODE_TYPES)?))
         }
+        // applyViews — fold a [*ViewCollection] list (all viewable types)
+        (t, fld::APPLY_VIEWS) if is_viewable(t) => Navigate(N::ApplyViews(view_steps_arg(f)?)),
         // graph-only structural views
         (ty::GRAPH, fld::VALID) => view(VK::Valid),
         (ty::GRAPH, fld::SUBGRAPH) => view(VK::Subgraph(node_ids_arg(f, arg::NODES)?)),
@@ -488,6 +490,143 @@ fn parse_edge_filter(v: GqlValue, arg: &'static str) -> Result<CompositeEdgeFilt
         arg,
         reason: e.to_string(),
     })
+}
+
+/// Parse the `views:` argument of `applyViews` — a list of `*ViewCollection`
+/// `@oneOf` entries — into a sequence of [`ViewStep`]s folded left-to-right at
+/// exec time. Boolean flags that are `false` contribute no step.
+fn view_steps_arg(f: &Field) -> Result<Vec<ViewStep>, PlanError> {
+    let items = match const_arg(f, arg::VIEWS) {
+        Some(GqlValue::List(items)) => items,
+        Some(_) => return Err(PlanError::BadArgument(arg::VIEWS)),
+        None => return Err(PlanError::MissingArgument(arg::VIEWS)),
+    };
+    let mut steps = Vec::with_capacity(items.len());
+    for item in items {
+        if let Some(step) = parse_view_step(item)? {
+            steps.push(step);
+        }
+    }
+    Ok(steps)
+}
+
+/// Parse a single `*ViewCollection` `@oneOf` entry into a [`ViewStep`].
+/// Returns `None` for a boolean flag set to `false` (no-op step).
+fn parse_view_step(entry: GqlValue) -> Result<Option<ViewStep>, PlanError> {
+    use ViewKind as VK;
+    let obj = match entry {
+        GqlValue::Object(o) => o,
+        _ => return Err(PlanError::BadArgument(arg::VIEWS)),
+    };
+    // `@oneOf`: exactly one key is set.
+    let (key, v) = obj
+        .into_iter()
+        .next()
+        .ok_or(PlanError::BadArgument(arg::VIEWS))?;
+    let step = match key.as_str() {
+        fld::WINDOW => {
+            let (start, end) = window_value(v)?;
+            ViewStep::View(VK::Window { start, end })
+        }
+        fld::SHRINK_WINDOW => {
+            let (start, end) = window_value(v)?;
+            ViewStep::View(VK::ShrinkWindow { start, end })
+        }
+        fld::AT => ViewStep::View(VK::At(time_value(v)?)),
+        fld::BEFORE => ViewStep::View(VK::Before(time_value(v)?)),
+        fld::AFTER => ViewStep::View(VK::After(time_value(v)?)),
+        fld::SNAPSHOT_AT => ViewStep::View(VK::SnapshotAt(time_value(v)?)),
+        fld::SHRINK_START => ViewStep::View(VK::ShrinkStart(time_value(v)?)),
+        fld::SHRINK_END => ViewStep::View(VK::ShrinkEnd(time_value(v)?)),
+        fld::LATEST => return Ok(bool_value(&v)?.then_some(ViewStep::View(VK::Latest))),
+        fld::SNAPSHOT_LATEST => {
+            return Ok(bool_value(&v)?.then_some(ViewStep::View(VK::SnapshotLatest)))
+        }
+        fld::DEFAULT_LAYER => return Ok(bool_value(&v)?.then_some(ViewStep::View(VK::DefaultLayer))),
+        fld::VALID => return Ok(bool_value(&v)?.then_some(ViewStep::View(VK::Valid))),
+        fld::LAYERS => ViewStep::View(VK::Layers(strings_value(v)?)),
+        fld::EXCLUDE_LAYERS => ViewStep::View(VK::ExcludeLayers(strings_value(v)?)),
+        fld::EXCLUDE_LAYER => ViewStep::View(VK::ExcludeLayer(string_value(v)?.into_boxed_str())),
+        fld::TYPE_FILTER => ViewStep::View(VK::TypeFilter(strings_value(v)?)),
+        fld::SUBGRAPH => ViewStep::View(VK::Subgraph(node_ids_value(v)?)),
+        fld::SUBGRAPH_NODE_TYPES => ViewStep::View(VK::SubgraphNodeTypes(strings_value(v)?)),
+        fld::EXCLUDE_NODES => ViewStep::View(VK::ExcludeNodes(node_ids_value(v)?)),
+        fld::NODE_FILTER => ViewStep::NodeFilter(parse_node_filter(v, fld::NODE_FILTER)?),
+        fld::EDGE_FILTER => ViewStep::EdgeFilter(parse_edge_filter(v, fld::EDGE_FILTER)?),
+        other => {
+            return Err(PlanError::Unsupported {
+                ty: "ViewCollection".into(),
+                field: other.into(),
+            })
+        }
+    };
+    Ok(Some(step))
+}
+
+/// Parse a `TimeInput` value (already lowered to a `GqlValue`) into an
+/// `EventTime`, via the same scalar parser the resolvers use.
+fn time_value(v: GqlValue) -> Result<EventTime, PlanError> {
+    use dynamic_graphql::ScalarValue;
+    use raphtory_api::core::utils::time::IntoTime;
+    GqlTimeInput::from_value(v)
+        .map(IntoTime::into_time)
+        .map_err(|_| PlanError::BadArgument(arg::VIEWS))
+}
+
+/// Parse a `Window` value object (`{start, end}`) into a `(start, end)` pair.
+fn window_value(v: GqlValue) -> Result<(EventTime, EventTime), PlanError> {
+    let start = field_of(&v, arg::START)
+        .cloned()
+        .ok_or(PlanError::BadArgument(arg::VIEWS))?;
+    let end = field_of(&v, arg::END)
+        .cloned()
+        .ok_or(PlanError::BadArgument(arg::VIEWS))?;
+    Ok((time_value(start)?, time_value(end)?))
+}
+
+fn bool_value(v: &GqlValue) -> Result<bool, PlanError> {
+    match v {
+        GqlValue::Boolean(b) => Ok(*b),
+        _ => Err(PlanError::BadArgument(arg::VIEWS)),
+    }
+}
+
+fn string_value(v: GqlValue) -> Result<String, PlanError> {
+    match v {
+        GqlValue::String(s) => Ok(s),
+        _ => Err(PlanError::BadArgument(arg::VIEWS)),
+    }
+}
+
+fn strings_value(v: GqlValue) -> Result<Box<[String]>, PlanError> {
+    match v {
+        GqlValue::List(items) => items
+            .into_iter()
+            .map(|x| match x {
+                GqlValue::String(s) => Ok(s),
+                _ => Err(PlanError::BadArgument(arg::VIEWS)),
+            })
+            .collect::<Result<Vec<_>, _>>()
+            .map(Vec::into_boxed_slice),
+        _ => Err(PlanError::BadArgument(arg::VIEWS)),
+    }
+}
+
+fn node_ids_value(v: GqlValue) -> Result<Vec<GqlNodeId>, PlanError> {
+    match v {
+        GqlValue::List(items) => items
+            .into_iter()
+            .map(|x| match x {
+                GqlValue::String(s) => Ok(GqlNodeId(GID::Str(s))),
+                GqlValue::Number(n) => n
+                    .as_u64()
+                    .map(|u| GqlNodeId(GID::U64(u)))
+                    .ok_or(PlanError::BadArgument(arg::VIEWS)),
+                _ => Err(PlanError::BadArgument(arg::VIEWS)),
+            })
+            .collect(),
+        _ => Err(PlanError::BadArgument(arg::VIEWS)),
+    }
 }
 
 /// Required node filter (`expr:`).

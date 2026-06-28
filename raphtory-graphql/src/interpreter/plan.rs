@@ -158,6 +158,9 @@ pub enum Nav {
     /// (`window`/`at`/`layer`/`subgraph`/…). Dispatched per receiver type in
     /// `exec`. See [`ViewKind`].
     View(ViewKind),
+    /// `applyViews(views:)` — fold a list of view/filter steps left-to-right,
+    /// each applied to the running result (same type in → out).
+    ApplyViews(Vec<ViewStep>),
     /// `history.timestamps` — `History` → `HistoryTimestamp`
     Timestamps,
     /// `history.eventId` — `History` → `HistoryEventId`
@@ -165,6 +168,15 @@ pub enum Nav {
     /// `history.datetimes(formatString:)` — `History` → `HistoryDateTime`
     /// (the format string is pre-validated at plan time; `None` means default).
     DateTimes(Option<Box<str>>),
+}
+
+/// One step of an `applyViews` fold: a view transform, or a (sticky) node/edge
+/// filter. Parsed from a single `*ViewCollection` `@oneOf` entry.
+#[derive(Debug)]
+pub enum ViewStep {
+    View(ViewKind),
+    NodeFilter(CompositeNodeFilter),
+    EdgeFilter(CompositeEdgeFilter),
 }
 
 /// A same-type view transform. One variant per view op; the planner gates which

@@ -72,6 +72,9 @@ pub mod field {
     pub const SELECT: &str = "select";
     pub const FILTER_NODES: &str = "filterNodes";
     pub const FILTER_EDGES: &str = "filterEdges";
+    pub const APPLY_VIEWS: &str = "applyViews";
+    pub const NODE_FILTER: &str = "nodeFilter";
+    pub const EDGE_FILTER: &str = "edgeFilter";
     pub const ID: &str = "id";
     pub const NAME: &str = "name";
     pub const HISTORY: &str = "history";
@@ -143,6 +146,7 @@ pub mod arg {
     pub const FORMAT_STRING: &str = "formatString";
     pub const SELECT: &str = "select";
     pub const EXPR: &str = "expr";
+    pub const VIEWS: &str = "views";
     pub const LIMIT: &str = "limit";
     pub const OFFSET: &str = "offset";
     pub const PAGE_INDEX: &str = "pageIndex";
