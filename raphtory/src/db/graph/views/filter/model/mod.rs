@@ -209,6 +209,7 @@ pub enum EntityMarker {
     Node,
     Edge,
     ExplodedEdge,
+    Const,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -322,13 +323,13 @@ impl<E: EntityExpr + CreateView + Clone + Send + Sync + 'static> CreateOp for Me
     }
 }
 
-pub trait PropertyFilterFactory: Sized {
+pub trait PropertyFilterFactory: CreateView + EntityExpr + Sized {
     fn property(&self, name: impl Into<String>) -> PropertyExpr<Self>;
 
     fn metadata(&self, name: impl Into<String>) -> MetadataExpr<Self>;
 }
 
-impl<T: CreateView + Clone> PropertyFilterFactory for T {
+impl<T: CreateView + EntityExpr + Clone> PropertyFilterFactory for T {
     fn property(&self, name: impl Into<String>) -> PropertyExpr<Self> {
         PropertyExpr {
             view_expr: self.clone(),
@@ -345,15 +346,12 @@ impl<T: CreateView + Clone> PropertyFilterFactory for T {
 }
 
 pub trait DynPropertyFilterFactory {
-    fn property(&self, name: String) -> PropertyExpr<Arc<dyn DynCreateView>>;
+    fn dyn_property(&self, name: String) -> Arc<dyn DynTemporal>;
 }
 
-impl<T: CreateView> DynPropertyFilterFactory for T {
-    fn property(&self, name: String) -> PropertyExpr<Arc<dyn DynCreateView>> {
-        PropertyExpr {
-            view_expr: Arc::new(self.clone()) as Arc<dyn DynCreateView>,
-            name,
-        }
+impl<T: PropertyFilterFactory> DynPropertyFilterFactory for T {
+    fn dyn_property(&self, name: String) -> Arc<dyn DynTemporal> {
+        Arc::new(self.property(name))
     }
 }
 
@@ -444,7 +442,7 @@ pub trait EdgeFilterFactory: PropertyFilterFactory + Clone {}
 
 use crate::db::graph::views::filter::model::{
     edge_expr::ops::{EdgeMetaOp, EdgePropOp},
-    node_expr::{CreateOp, EntityExpr},
+    node_expr::{CreateOp, DynTemporal, EntityExpr},
 };
 use edge_expr::EdgeOp;
 use raphtory_api::core::entities::properties::prop::PropType;

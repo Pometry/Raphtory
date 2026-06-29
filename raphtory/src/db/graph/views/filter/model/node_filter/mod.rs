@@ -17,13 +17,13 @@ use crate::{
                 is_active_node_filter::IsActiveNode,
                 latest_filter::Latest,
                 layered_filter::Layered,
-                node_expr::DegreeExpr,
+                node_expr::{DegreeExpr, EntityExpr},
                 node_filter::validate::validate,
                 node_state_filter::NodeStateBoolColOp,
                 snapshot_filter::{SnapshotAt, SnapshotLatest},
                 windowed_filter::Windowed,
                 ComposableFilter, CreateView, EntityMarker, InternalViewWrapOps,
-                PropertyFilterFactory, Wrap,
+                PropertyFilterFactory, ViewWrapPropOps, Wrap,
             },
             node_filtered_graph::NodeFilteredGraph,
             CreateFilter,
@@ -48,7 +48,12 @@ impl From<NodeFilter> for EntityMarker {
     }
 }
 
-pub trait NodeFilterFactory: PropertyFilterFactory + Clone {
+// The extra type is a workaround for a trait solver limitation, ideally this would just be `NodeFilterFactory: InternalViewWrapOps<Window: NodeFilterFactory>` but that leads to a cycle in the compiler.
+// We need this bound for the python implementation to avoid infinte recursion in the dynamic trait bounds.
+pub trait NodeFilterFactory:
+    InternalViewWrapOps<Window = Self::NodeWindow> + CreateView + EntityExpr
+{
+    type NodeWindow: NodeFilterFactory;
     #[inline]
     fn id(&self) -> Id {
         Id
@@ -116,7 +121,9 @@ pub trait NodeFilterFactory: PropertyFilterFactory + Clone {
     }
 }
 
-impl NodeFilterFactory for NodeFilter {}
+impl NodeFilterFactory for NodeFilter {
+    type NodeWindow = Self::Window;
+}
 
 impl Wrap for NodeFilter {
     type Wrapped<T> = T;
@@ -134,11 +141,21 @@ impl InternalViewWrapOps for NodeFilter {
     }
 }
 
-impl<T: NodeFilterFactory + CreateView> NodeFilterFactory for Windowed<T> {}
-impl<T: NodeFilterFactory + CreateView> NodeFilterFactory for Latest<T> {}
-impl<T: NodeFilterFactory + CreateView> NodeFilterFactory for SnapshotAt<T> {}
-impl<T: NodeFilterFactory + CreateView> NodeFilterFactory for SnapshotLatest<T> {}
-impl<T: NodeFilterFactory + CreateView> NodeFilterFactory for Layered<T> {}
+impl<T: NodeFilterFactory> NodeFilterFactory for Windowed<T> {
+    type NodeWindow = T::NodeWindow;
+}
+impl<T: NodeFilterFactory> NodeFilterFactory for Latest<T> {
+    type NodeWindow = Self::Window;
+}
+impl<T: NodeFilterFactory> NodeFilterFactory for SnapshotAt<T> {
+    type NodeWindow = Self::Window;
+}
+impl<T: NodeFilterFactory> NodeFilterFactory for SnapshotLatest<T> {
+    type NodeWindow = Self::Window;
+}
+impl<T: NodeFilterFactory> NodeFilterFactory for Layered<T> {
+    type NodeWindow = Self::Window;
+}
 
 #[derive(Debug, Clone)]
 pub struct NodeIdFilter(pub Filter);

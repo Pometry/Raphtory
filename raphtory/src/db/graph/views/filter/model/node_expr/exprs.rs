@@ -79,7 +79,7 @@ use crate::{
             edge_expr::{ops::TemporalEdgePropOp, EdgeOp},
             filter_operator::Comparable,
             node_filter::{NodeFilter, NodeFilterFactory},
-            require_aggregable, resolved_prop_type, CreateView,
+            require_aggregable, resolved_prop_type, CreateView, EntityMarker,
         },
     },
     errors::GraphError,
@@ -106,6 +106,12 @@ use std::sync::Arc;
 
 #[derive(Copy, Clone, Debug, Default)]
 pub struct ConstFilter;
+
+impl From<ConstFilter> for EntityMarker {
+    fn from(_value: ConstFilter) -> Self {
+        EntityMarker::Const
+    }
+}
 
 impl EntityExpr for Id {
     type Marker = NodeFilter;
@@ -509,9 +515,7 @@ impl<E: EntityExpr + Clone + Send + Sync + 'static> EntityAggOps for TemporalPro
     }
 }
 
-impl<E: EntityExpr + CreateView + NodeFilterFactory + Clone + Send + Sync + 'static> CreateOp
-    for TemporalPropExpr<E>
-{
+impl<E: EntityExpr + CreateView + Clone + Send + Sync + 'static> CreateOp for TemporalPropExpr<E> {
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
         graph: G,

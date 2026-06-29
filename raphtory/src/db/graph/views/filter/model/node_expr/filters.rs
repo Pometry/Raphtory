@@ -45,7 +45,7 @@ use super::{
         BinaryCmpNodeOp, ListAwareCmpNodeOp, ListAwareSetNodeOp, ListAwareStringNodeOp,
         ListAwareUnaryNodeOp, PropValueSetNodeOp, StringNodeOp, UnaryNodeOp,
     },
-    CreateOp, EntityExpr,
+    ConstFilter, CreateOp, EntityExpr, Marker,
 };
 use crate::{
     db::{
@@ -56,7 +56,13 @@ use crate::{
         graph::views::filter::{
             model::{
                 coerce_set_values,
-                edge_expr::EdgeOp,
+                edge_expr::{
+                    ops::{
+                        ListAwareCmpEdgeOp, ListAwareSetEdgeOp, ListAwareStringEdgeOp,
+                        ListAwareUnaryEdgeOp,
+                    },
+                    EdgeOp,
+                },
                 filter_operator::{BinaryOp, SetOp, StringOp, UnaryOp},
                 resolved_prop_type, validate_binary_op, validate_const_castable,
                 validate_string_op, validate_types_compatible, ComposableFilter, CreateFilter,
@@ -121,9 +127,7 @@ impl<L, R, E> BinaryCmpExpr<L, R, E> {
 
 impl<L, R, E> ComposableFilter for BinaryCmpExpr<L, R, E> {}
 
-impl<L: EntityExpr, R: EntityExpr, E: Copy + Send + Sync + 'static> EntityExpr
-    for BinaryCmpExpr<L, R, E>
-{
+impl<L: EntityExpr, R: EntityExpr, E: Marker> EntityExpr for BinaryCmpExpr<L, R, E> {
     type Marker = E;
     fn entity(&self) -> Self::Marker {
         self.entity
@@ -134,7 +138,7 @@ impl<L: EntityExpr, R: EntityExpr, E: Copy + Send + Sync + 'static> EntityExpr
     }
 }
 
-impl<L: CreateOp, R: CreateOp> CreateOp for BinaryCmpExpr<L, R, NodeFilter> {
+impl<L: CreateOp, R: CreateOp, E: Marker> CreateOp for BinaryCmpExpr<L, R, E> {
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
         graph: G,
@@ -142,6 +146,19 @@ impl<L: CreateOp, R: CreateOp> CreateOp for BinaryCmpExpr<L, R, NodeFilter> {
         let left = self.left.create_node_op(graph.clone())?;
         let right = self.right.create_node_op(graph)?;
         Ok(Arc::new(ListAwareCmpNodeOp {
+            left,
+            right,
+            op: self.op,
+        }))
+    }
+
+    fn create_edge_op<'g, G: GraphView + 'g>(
+        &self,
+        graph: G,
+    ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
+        let left = self.left.create_edge_op(graph.clone())?;
+        let right = self.right.create_edge_op(graph)?;
+        Ok(Arc::new(ListAwareCmpEdgeOp {
             left,
             right,
             op: self.op,
@@ -192,7 +209,7 @@ where
 
 impl<L, R> CreateFilter for BinaryCmpExpr<L, R, EntityMarker>
 where
-    L: CreateOp,
+    L: CreateOp<Marker = EntityMarker>,
     R: CreateOp,
 {
     type EntityFiltered<'graph, G: GraphViewOps<'graph>> = Arc<dyn BoxableGraphView + 'graph>;
@@ -209,6 +226,8 @@ where
             EntityMarker::ExplodedEdge => {
                 Arc::new(self.with_entity(ExplodedEdgeFilter).create_filter(graph)?)
             }
+
+            EntityMarker::Const => Err(GraphError::NotSupported)?,
         })
     }
 
@@ -220,37 +239,7 @@ where
             EntityMarker::Node => Ok(self.with_entity(NodeFilter).create_node_filter(graph)?),
             EntityMarker::Edge => Err(GraphError::NotNodeFilter),
             EntityMarker::ExplodedEdge => Err(GraphError::NotNodeFilter),
-        }
-    }
-}
-
-impl<L, R> CreateOp for BinaryCmpExpr<L, R, EntityMarker>
-where
-    L: CreateOp,
-    R: CreateOp,
-{
-    fn create_node_op<'g, G: GraphView + 'g>(
-        &self,
-        graph: G,
-    ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        match self.entity {
-            EntityMarker::Node => self.clone().with_entity(NodeFilter).create_node_op(graph),
-            EntityMarker::Edge => Err(GraphError::NotNodeFilter),
-            EntityMarker::ExplodedEdge => Err(GraphError::NotNodeFilter),
-        }
-    }
-
-    fn create_edge_op<'g, G: GraphView + 'g>(
-        &self,
-        graph: G,
-    ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        match self.entity {
-            EntityMarker::Node => Err(GraphError::NotEdgeFilter),
-            EntityMarker::Edge => self.clone().with_entity(EdgeFilter).create_edge_op(graph),
-            EntityMarker::ExplodedEdge => self
-                .clone()
-                .with_entity(ExplodedEdgeFilter)
-                .create_edge_op(graph),
+            EntityMarker::Const => Err(GraphError::NotSupported)?,
         }
     }
 }
@@ -288,23 +277,28 @@ impl<E, Entity> UnaryExpr<E, Entity> {
 
 impl<E, Entity> ComposableFilter for UnaryExpr<E, Entity> {}
 
-impl<E: EntityExpr, Entity: Copy + Send + Sync + 'static> EntityExpr for UnaryExpr<E, Entity> {
-    type Marker = Entity;
+impl<E: EntityExpr, M: Marker> EntityExpr for UnaryExpr<E, M> {
+    type Marker = M;
     fn entity(&self) -> Self::Marker {
         self.entity
     }
 }
 
-impl<E> CreateOp for UnaryExpr<E, NodeFilter>
-where
-    E: CreateOp,
-{
+impl<E: CreateOp, M: Marker> CreateOp for UnaryExpr<E, M> {
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
         graph: G,
     ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
         let inner = self.expr.create_node_op(graph)?;
         Ok(Arc::new(ListAwareUnaryNodeOp { inner, op: self.op }))
+    }
+
+    fn create_edge_op<'g, G: GraphView + 'g>(
+        &self,
+        graph: G,
+    ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
+        let inner = self.expr.create_edge_op(graph)?;
+        Ok(Arc::new(ListAwareUnaryEdgeOp { inner, op: self.op }))
     }
 }
 
@@ -358,6 +352,7 @@ where
             EntityMarker::ExplodedEdge => {
                 Arc::new(self.with_entity(ExplodedEdgeFilter).create_filter(graph)?)
             }
+            EntityMarker::Const => Err(GraphError::NotSupported)?,
         })
     }
 
@@ -369,36 +364,7 @@ where
             EntityMarker::Node => Ok(self.with_entity(NodeFilter).create_node_filter(graph)?),
             EntityMarker::Edge => Err(GraphError::NotNodeFilter),
             EntityMarker::ExplodedEdge => Err(GraphError::NotNodeFilter),
-        }
-    }
-}
-
-impl<E> CreateOp for UnaryExpr<E, EntityMarker>
-where
-    E: CreateOp,
-{
-    fn create_node_op<'g, G: GraphView + 'g>(
-        &self,
-        graph: G,
-    ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        match self.entity {
-            EntityMarker::Node => self.clone().with_entity(NodeFilter).create_node_op(graph),
-            EntityMarker::Edge => Err(GraphError::NotNodeFilter),
-            EntityMarker::ExplodedEdge => Err(GraphError::NotNodeFilter),
-        }
-    }
-
-    fn create_edge_op<'g, G: GraphView + 'g>(
-        &self,
-        graph: G,
-    ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        match self.entity {
-            EntityMarker::Node => Err(GraphError::NotEdgeFilter),
-            EntityMarker::Edge => self.clone().with_entity(EdgeFilter).create_edge_op(graph),
-            EntityMarker::ExplodedEdge => self
-                .clone()
-                .with_entity(ExplodedEdgeFilter)
-                .create_edge_op(graph),
+            EntityMarker::Const => Err(GraphError::NotSupported)?,
         }
     }
 }
@@ -453,10 +419,8 @@ impl<L, R, Entity> StringExpr<L, R, Entity> {
 
 impl<L, R, Entity> ComposableFilter for StringExpr<L, R, Entity> {}
 
-impl<L: EntityExpr, R: EntityExpr, Entity: Copy + Send + Sync + 'static> EntityExpr
-    for StringExpr<L, R, Entity>
-{
-    type Marker = Entity;
+impl<L: EntityExpr, R: EntityExpr, M: Marker> EntityExpr for StringExpr<L, R, M> {
+    type Marker = M;
     fn entity(&self) -> Self::Marker {
         self.entity
     }
@@ -465,7 +429,7 @@ impl<L: EntityExpr, R: EntityExpr, Entity: Copy + Send + Sync + 'static> EntityE
     }
 }
 
-impl<L: CreateOp, R: CreateOp> CreateOp for StringExpr<L, R, NodeFilter> {
+impl<L: CreateOp, R: CreateOp, M: Marker> CreateOp for StringExpr<L, R, M> {
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
         graph: G,
@@ -473,6 +437,19 @@ impl<L: CreateOp, R: CreateOp> CreateOp for StringExpr<L, R, NodeFilter> {
         let left = self.left.create_node_op(graph.clone())?;
         let right = self.right.create_node_op(graph)?;
         Ok(Arc::new(ListAwareStringNodeOp {
+            left,
+            right,
+            op: self.op,
+        }))
+    }
+
+    fn create_edge_op<'g, G: GraphView + 'g>(
+        &self,
+        graph: G,
+    ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
+        let left = self.left.create_edge_op(graph.clone())?;
+        let right = self.right.create_edge_op(graph)?;
+        Ok(Arc::new(ListAwareStringEdgeOp {
             left,
             right,
             op: self.op,
@@ -525,6 +502,7 @@ impl<L: CreateOp, R: CreateOp> CreateFilter for StringExpr<L, R, EntityMarker> {
             EntityMarker::ExplodedEdge => {
                 Arc::new(self.with_entity(ExplodedEdgeFilter).create_filter(graph)?)
             }
+            EntityMarker::Const => Err(GraphError::NotSupported)?,
         })
     }
 
@@ -536,33 +514,7 @@ impl<L: CreateOp, R: CreateOp> CreateFilter for StringExpr<L, R, EntityMarker> {
             EntityMarker::Node => Ok(self.with_entity(NodeFilter).create_node_filter(graph)?),
             EntityMarker::Edge => Err(GraphError::NotNodeFilter),
             EntityMarker::ExplodedEdge => Err(GraphError::NotNodeFilter),
-        }
-    }
-}
-
-impl<L: CreateOp, R: CreateOp> CreateOp for StringExpr<L, R, EntityMarker> {
-    fn create_node_op<'g, G: GraphView + 'g>(
-        &self,
-        graph: G,
-    ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        match self.entity {
-            EntityMarker::Node => self.clone().with_entity(NodeFilter).create_node_op(graph),
-            EntityMarker::Edge => Err(GraphError::NotNodeFilter),
-            EntityMarker::ExplodedEdge => Err(GraphError::NotNodeFilter),
-        }
-    }
-
-    fn create_edge_op<'g, G: GraphView + 'g>(
-        &self,
-        graph: G,
-    ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        match self.entity {
-            EntityMarker::Node => Err(GraphError::NotEdgeFilter),
-            EntityMarker::Edge => self.clone().with_entity(EdgeFilter).create_edge_op(graph),
-            EntityMarker::ExplodedEdge => self
-                .clone()
-                .with_entity(ExplodedEdgeFilter)
-                .create_edge_op(graph),
+            EntityMarker::Const => Err(GraphError::NotSupported)?,
         }
     }
 }
@@ -596,10 +548,8 @@ impl<E, Entity> PropValueSetExpr<E, Entity> {
 
 impl<E, Entity> ComposableFilter for PropValueSetExpr<E, Entity> {}
 
-impl<E: EntityExpr, Entity: Copy + Send + Sync + 'static> EntityExpr
-    for PropValueSetExpr<E, Entity>
-{
-    type Marker = Entity;
+impl<E: EntityExpr, M: Marker> EntityExpr for PropValueSetExpr<E, M> {
+    type Marker = M;
     fn entity(&self) -> Self::Marker {
         self.entity
     }
@@ -608,13 +558,25 @@ impl<E: EntityExpr, Entity: Copy + Send + Sync + 'static> EntityExpr
     }
 }
 
-impl<E: CreateOp> CreateOp for PropValueSetExpr<E, NodeFilter> {
+impl<E: CreateOp, M: Marker> CreateOp for PropValueSetExpr<E, M> {
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
         graph: G,
     ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
         let inner = self.expr.create_node_op(graph)?;
         Ok(Arc::new(ListAwareSetNodeOp {
+            inner,
+            values: self.values.clone(),
+            op: self.op,
+        }))
+    }
+
+    fn create_edge_op<'g, G: GraphView + 'g>(
+        &self,
+        graph: G,
+    ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
+        let inner = self.expr.create_edge_op(graph)?;
+        Ok(Arc::new(ListAwareSetEdgeOp {
             inner,
             values: self.values.clone(),
             op: self.op,
@@ -665,6 +627,7 @@ impl<E: CreateOp> CreateFilter for PropValueSetExpr<E, EntityMarker> {
             EntityMarker::ExplodedEdge => {
                 Arc::new(self.with_entity(ExplodedEdgeFilter).create_filter(graph)?)
             }
+            EntityMarker::Const => Err(GraphError::NotSupported)?,
         })
     }
 
@@ -676,33 +639,7 @@ impl<E: CreateOp> CreateFilter for PropValueSetExpr<E, EntityMarker> {
             EntityMarker::Node => Ok(self.with_entity(NodeFilter).create_node_filter(graph)?),
             EntityMarker::Edge => Err(GraphError::NotNodeFilter),
             EntityMarker::ExplodedEdge => Err(GraphError::NotNodeFilter),
-        }
-    }
-}
-
-impl<E: CreateOp> CreateOp for PropValueSetExpr<E, EntityMarker> {
-    fn create_node_op<'g, G: GraphView + 'g>(
-        &self,
-        graph: G,
-    ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        match self.entity {
-            EntityMarker::Node => self.clone().with_entity(NodeFilter).create_node_op(graph),
-            EntityMarker::Edge => Err(GraphError::NotNodeFilter),
-            EntityMarker::ExplodedEdge => Err(GraphError::NotNodeFilter),
-        }
-    }
-
-    fn create_edge_op<'g, G: GraphView + 'g>(
-        &self,
-        graph: G,
-    ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        match self.entity {
-            EntityMarker::Node => Err(GraphError::NotEdgeFilter),
-            EntityMarker::Edge => self.clone().with_entity(EdgeFilter).create_edge_op(graph),
-            EntityMarker::ExplodedEdge => self
-                .clone()
-                .with_entity(ExplodedEdgeFilter)
-                .create_edge_op(graph),
+            EntityMarker::Const => Err(GraphError::NotSupported)?,
         }
     }
 }

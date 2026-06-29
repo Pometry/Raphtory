@@ -33,43 +33,6 @@ use std::sync::Arc;
 // ─────────────────────────────────────────────────────────────────────────────
 // BinaryCmpExpr<L, R>
 // ─────────────────────────────────────────────────────────────────────────────
-impl<L, R> CreateOp for BinaryCmpExpr<L, R, EdgeFilter>
-where
-    L: CreateOp,
-    R: CreateOp,
-{
-    fn create_edge_op<'g, G: GraphView + 'g>(
-        &self,
-        graph: G,
-    ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        let left = self.left.create_edge_op(graph.clone())?;
-        let right = self.right.create_edge_op(graph)?;
-        Ok(Arc::new(ListAwareCmpEdgeOp {
-            left,
-            right,
-            op: self.op,
-        }))
-    }
-}
-
-impl<L, R> CreateOp for BinaryCmpExpr<L, R, ExplodedEdgeFilter>
-where
-    L: CreateOp,
-    R: CreateOp,
-{
-    fn create_edge_op<'g, G: GraphView + 'g>(
-        &self,
-        graph: G,
-    ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        let left = self.left.create_edge_op(graph.clone())?;
-        let right = self.right.create_edge_op(graph)?;
-        Ok(Arc::new(ListAwareCmpEdgeOp {
-            left,
-            right,
-            op: self.op,
-        }))
-    }
-}
 
 impl<L, R> CreateFilter for BinaryCmpExpr<L, R, EdgeFilter>
 where
@@ -148,31 +111,6 @@ where
 // ─────────────────────────────────────────────────────────────────────────────
 // UnaryExpr<E, I>
 // ─────────────────────────────────────────────────────────────────────────────
-impl<E> CreateOp for UnaryExpr<E, EdgeFilter>
-where
-    E: CreateOp,
-{
-    fn create_edge_op<'g, G: GraphView + 'g>(
-        &self,
-        graph: G,
-    ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        let inner = self.expr.create_edge_op(graph)?;
-        Ok(Arc::new(ListAwareUnaryEdgeOp { inner, op: self.op }))
-    }
-}
-
-impl<E> CreateOp for UnaryExpr<E, ExplodedEdgeFilter>
-where
-    E: CreateOp,
-{
-    fn create_edge_op<'g, G: GraphView + 'g>(
-        &self,
-        graph: G,
-    ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        let inner = self.expr.create_edge_op(graph)?;
-        Ok(Arc::new(ListAwareUnaryEdgeOp { inner, op: self.op }))
-    }
-}
 
 impl<E> CreateFilter for UnaryExpr<E, EdgeFilter>
 where
@@ -229,44 +167,6 @@ where
 // ─────────────────────────────────────────────────────────────────────────────
 // StringExpr<L, R> — string expression filter for edges
 // ─────────────────────────────────────────────────────────────────────────────
-
-impl<L, R> CreateOp for StringExpr<L, R, EdgeFilter>
-where
-    L: CreateOp,
-    R: CreateOp,
-{
-    fn create_edge_op<'g, G: GraphView + 'g>(
-        &self,
-        graph: G,
-    ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        let left = self.left.create_edge_op(graph.clone())?;
-        let right = self.right.create_edge_op(graph)?;
-        Ok(Arc::new(ListAwareStringEdgeOp {
-            left,
-            right,
-            op: self.op,
-        }))
-    }
-}
-
-impl<L, R> CreateOp for StringExpr<L, R, ExplodedEdgeFilter>
-where
-    L: CreateOp,
-    R: CreateOp,
-{
-    fn create_edge_op<'g, G: GraphView + 'g>(
-        &self,
-        graph: G,
-    ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        let left = self.left.create_edge_op(graph.clone())?;
-        let right = self.right.create_edge_op(graph)?;
-        Ok(Arc::new(ListAwareStringEdgeOp {
-            left,
-            right,
-            op: self.op,
-        }))
-    }
-}
 
 impl<L, R> CreateFilter for StringExpr<L, R, EdgeFilter>
 where
@@ -335,34 +235,6 @@ where
 // ─────────────────────────────────────────────────────────────────────────────
 // PropValueSetExpr<E, EdgeFilter> — is_in / is_not_in for edge-side exprs
 // ─────────────────────────────────────────────────────────────────────────────
-
-impl<E: CreateOp> CreateOp for PropValueSetExpr<E, EdgeFilter> {
-    fn create_edge_op<'g, G: GraphView + 'g>(
-        &self,
-        graph: G,
-    ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        let inner = self.expr.create_edge_op(graph)?;
-        Ok(Arc::new(ListAwareSetEdgeOp {
-            inner,
-            values: self.values.clone(),
-            op: self.op,
-        }))
-    }
-}
-
-impl<E: CreateOp> CreateOp for PropValueSetExpr<E, ExplodedEdgeFilter> {
-    fn create_edge_op<'g, G: GraphView + 'g>(
-        &self,
-        graph: G,
-    ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        let inner = self.expr.create_edge_op(graph)?;
-        Ok(Arc::new(ListAwareSetEdgeOp {
-            inner,
-            values: self.values.clone(),
-            op: self.op,
-        }))
-    }
-}
 
 impl<E: CreateOp> CreateFilter for PropValueSetExpr<E, EdgeFilter> {
     type EntityFiltered<'graph, G: GraphViewOps<'graph>> =

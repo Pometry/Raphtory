@@ -17,7 +17,9 @@ pub mod ops;
 mod tests;
 
 pub use super::{Metadata, Property};
-use crate::db::graph::views::filter::model::{edge_expr::EdgeOp, node_filter::NodeFilter};
+use crate::db::graph::views::filter::model::{
+    edge_expr::EdgeOp, node_filter::NodeFilter, EntityMarker,
+};
 pub use dyn_expr::*;
 pub use exprs::*;
 pub use filters::*;
@@ -64,8 +66,12 @@ pub trait CreateOp: EntityExpr + Clone + Send + Sync + 'static {
     }
 }
 
+pub trait Marker: Into<EntityMarker> + Copy + Send + Sync + 'static {}
+
+impl<M: Into<EntityMarker> + Copy + Send + Sync + 'static> Marker for M {}
+
 pub trait EntityExpr: Clone + Send + Sync + 'static {
-    type Marker: Copy + 'static;
+    type Marker: Marker;
 
     fn entity(&self) -> Self::Marker;
 

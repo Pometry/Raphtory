@@ -1,10 +1,10 @@
 use crate::{
     db::graph::views::filter::model::{
         degree_filter::DegreeFilterFactory,
-        node_expr::{CreateOp, DynCreateOp, EntityExpr},
+        node_expr::{CreateOp, DynCreateOp, DynEntityExpr, DynTemporal, EntityExpr},
         node_state_filter::NodeStateBoolColOp,
-        CreateView, EntityMarker, InternalViewWrapOps, NodeViewFilterOps, PropertyExpr,
-        PropertyFilterFactory, ViewWrapOps,
+        CreateView, DynCreateView, DynPropertyFilterFactory, EntityMarker, InternalViewWrapOps,
+        PropertyExpr, PropertyFilterFactory, ViewWrapOps,
     },
     prelude::{EntityAggOps, EntityExprFilterOps, NodeFilter, NodeFilterFactory},
     python::{
@@ -16,23 +16,6 @@ use pyo3::{pyclass, pymethods, Bound, IntoPyObject, PyErr, PyResult, Python};
 use raphtory_api::core::{entities::properties::prop::Prop, storage::timeindex::EventTime};
 use std::sync::Arc;
 
-trait DynTemporal: DynCreateOp {
-    fn temporal(&self) -> Arc<dyn DynCreateOp>;
-}
-
-impl<
-        E: EntityExpr<Marker: Into<EntityMarker>>
-            + CreateView
-            + NodeFilterFactory
-            + Send
-            + Sync
-            + 'static,
-    > DynTemporal for PropertyExpr<E>
-{
-    fn temporal(&self) -> Arc<dyn DynCreateOp> {
-        Arc::new(self.temporal())
-    }
-}
 // filter.Node.neighbours.is_active.all
 #[pyclass(frozen, subclass, name = "Expr", module = "raphtory.filter")]
 #[derive(Clone)]
@@ -167,7 +150,9 @@ impl PyExpr {
     // fn temporal(&self) -> Self { … }
 }
 
-pub trait DynNodeFilterFactory: Send + Sync + 'static {
+pub trait DynNodeFilterFactory:
+    DynPropertyFilterFactory + DynEntityExpr + DynCreateView + Send + Sync + 'static
+{
     fn dyn_id(&self) -> Arc<dyn DynCreateOp>;
     fn dyn_name(&self) -> Arc<dyn DynCreateOp>;
     fn dyn_node_type(&self) -> Arc<dyn DynCreateOp>;
@@ -175,31 +160,29 @@ pub trait DynNodeFilterFactory: Send + Sync + 'static {
     fn dyn_in_degree(&self) -> Arc<dyn DynCreateOp>;
     fn dyn_out_degree(&self) -> Arc<dyn DynCreateOp>;
     fn dyn_is_active(&self) -> Arc<dyn DynCreateOp>;
-    fn dyn_property(&self, name: String) -> Arc<dyn DynTemporal>;
     fn dyn_metadata(&self, name: String) -> Arc<dyn DynCreateOp>;
 
-    fn dyn_window(&self, start: EventTime, end: EventTime) -> Arc<dyn DynNodeFilterFactory>;
-    fn dyn_at(&self, time: EventTime) -> Arc<dyn DynNodeFilterFactory>;
-    fn dyn_after(&self, time: EventTime) -> Arc<dyn DynNodeFilterFactory>;
-    fn dyn_before(&self, time: EventTime) -> Arc<dyn DynNodeFilterFactory>;
-    fn dyn_latest(&self) -> Arc<dyn DynNodeFilterFactory>;
-    fn dyn_snapshot_at(&self, time: EventTime) -> Arc<dyn DynNodeFilterFactory>;
-    fn dyn_snapshot_latest(&self) -> Arc<dyn DynNodeFilterFactory>;
-    fn dyn_layer(&self, layers: Vec<String>) -> Arc<dyn DynNodeFilterFactory>;
+    fn dyn_build_window(&self, start: EventTime, end: EventTime) -> Arc<dyn DynNodeFilterFactory>;
+
+    fn dyn_bounds(&self) -> (EventTime, EventTime);
 }
 
 impl InternalViewWrapOps for Arc<dyn DynNodeFilterFactory> {
     type Window = Arc<dyn DynNodeFilterFactory>;
 
+    fn bounds(&self) -> (EventTime, EventTime) {
+        self.dyn_bounds()
+    }
+
     fn build_window(self, start: EventTime, end: EventTime) -> Self::Window {
-        self.dyn_window(start, end)
+        self.dyn_build_window(start, end)
     }
 }
 
 impl<T> DynNodeFilterFactory for T
 where
-    T: NodeFilterFactory + ViewWrapOps + CreateView + EntityExpr + Clone + Send + Sync + 'static,
-    <T as EntityExpr>::Marker: Into<EntityMarker>,
+    T: NodeFilterFactory + Send + Sync + 'static,
+    T::Window: NodeFilterFactory + Send + Sync + 'static,
 {
     fn dyn_id(&self) -> Arc<dyn DynCreateOp> {
         Arc::new(self.id())
@@ -225,43 +208,21 @@ where
         Arc::new(self.is_active())
     }
 
-    fn dyn_property(&self, name: String) -> Arc<dyn DynTemporal> {
-        Arc::new(self.property(name))
-    }
     fn dyn_metadata(&self, name: String) -> Arc<dyn DynCreateOp> {
         Arc::new(PropertyFilterFactory::metadata(self, name))
     }
 
-    // Go dynamic before calling window — the Arc<dyn DynNodeFilterFactory> impl
-    // has Window = Self, which terminates the recursive bound resolution.
-    fn dyn_window(&self, start: EventTime, end: EventTime) -> Arc<dyn DynNodeFilterFactory> {
-        let dyn_self: Arc<dyn DynNodeFilterFactory> = Arc::new(self.clone());
-        dyn_self.window(start, end)
+    fn dyn_build_window(&self, start: EventTime, end: EventTime) -> Arc<dyn DynNodeFilterFactory> {
+        Arc::new(self.clone().build_window(start, end))
     }
-    fn dyn_at(&self, time: EventTime) -> Arc<dyn DynNodeFilterFactory> {
-        let dyn_self: Arc<dyn DynNodeFilterFactory> = Arc::new(self.clone());
-        dyn_self.at(time)
+
+    fn dyn_bounds(&self) -> (EventTime, EventTime) {
+        self.bounds()
     }
-    fn dyn_after(&self, time: EventTime) -> Arc<dyn DynNodeFilterFactory> {
-        let dyn_self: Arc<dyn DynNodeFilterFactory> = Arc::new(self.clone());
-        dyn_self.after(time)
-    }
-    fn dyn_before(&self, time: EventTime) -> Arc<dyn DynNodeFilterFactory> {
-        let dyn_self: Arc<dyn DynNodeFilterFactory> = Arc::new(self.clone());
-        dyn_self.before(time)
-    }
-    fn dyn_latest(&self) -> Arc<dyn DynNodeFilterFactory> {
-        Arc::new(self.clone().latest())
-    }
-    fn dyn_snapshot_at(&self, time: EventTime) -> Arc<dyn DynNodeFilterFactory> {
-        Arc::new(self.clone().snapshot_at(time))
-    }
-    fn dyn_snapshot_latest(&self) -> Arc<dyn DynNodeFilterFactory> {
-        Arc::new(self.clone().snapshot_latest())
-    }
-    fn dyn_layer(&self, layers: Vec<String>) -> Arc<dyn DynNodeFilterFactory> {
-        Arc::new(self.clone().layer(layers))
-    }
+}
+
+impl NodeFilterFactory for Arc<dyn DynNodeFilterFactory> {
+    type NodeWindow = Self::Window;
 }
 
 /// Constructs node filter expressions.
@@ -272,6 +233,12 @@ where
 /// - a boolean predicate over node state.
 #[pyclass(frozen, name = "Node", module = "raphtory.filter")]
 pub struct PyNodeFilter(Arc<dyn DynNodeFilterFactory>);
+
+impl PyNodeFilter {
+    fn wrap<T: DynNodeFilterFactory>(filter: T) -> Self {
+        Self(Arc::new(filter))
+    }
+}
 
 #[pymethods]
 impl PyNodeFilter {
@@ -365,7 +332,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.NodeViewPropsFilterBuilder:
     fn window(&self, start: EventTime, end: EventTime) -> PyNodeFilter {
-        self.0.dyn_window(start, end).into()
+        self.0.clone().window(start, end).into()
     }
 
     /// Restricts node evaluation to a single point in time.
@@ -376,7 +343,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.NodeViewPropsFilterBuilder:
     fn at(&self, time: EventTime) -> PyNodeFilter {
-        self.0.dyn_at(time).into()
+        self.0.clone().at(time).into()
     }
 
     /// Restricts node evaluation to times strictly after the given time.
@@ -387,7 +354,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.NodeViewPropsFilterBuilder:
     fn after(&self, time: EventTime) -> PyNodeFilter {
-        self.0.dyn_after(time).into()
+        self.0.clone().after(time).into()
     }
 
     /// Restricts node evaluation to times strictly before the given time.
@@ -398,7 +365,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.NodeViewPropsFilterBuilder:
     fn before(&self, time: EventTime) -> PyNodeFilter {
-        self.0.dyn_before(time).into()
+        self.0.clone().before(time).into()
     }
 
     /// Evaluates filters against the latest available state of each node.
@@ -406,7 +373,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.NodeViewPropsFilterBuilder:
     fn latest(&self) -> PyNodeFilter {
-        self.0.dyn_latest().into()
+        Self::wrap(self.0.clone().latest())
     }
 
     /// Evaluates filters against a snapshot of the graph at a given time.
@@ -417,7 +384,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.NodeViewPropsFilterBuilder:
     fn snapshot_at(&self, time: EventTime) -> PyNodeFilter {
-        self.0.dyn_snapshot_at(time).into()
+        Self::wrap(self.0.clone().snapshot_at(time))
     }
 
     /// Evaluates filters against the most recent snapshot of the graph.
@@ -425,7 +392,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.NodeViewPropsFilterBuilder:
     fn snapshot_latest(&self) -> PyNodeFilter {
-        self.0.dyn_snapshot_latest().into()
+        Self::wrap(self.0.clone().snapshot_latest())
     }
 
     /// Restricts evaluation to nodes belonging to the given layer.
@@ -436,7 +403,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.NodeViewPropsFilterBuilder:
     fn layer(&self, layer: String) -> PyNodeFilter {
-        self.0.dyn_layer(vec![layer]).into()
+        Self::wrap(self.0.clone().layer(vec![layer]))
     }
 
     /// Restricts evaluation to nodes belonging to any of the given layers.
@@ -447,7 +414,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.NodeViewPropsFilterBuilder:
     fn layers(&self, layers: FromIterable<String>) -> PyNodeFilter {
-        self.0.dyn_layer(layers.to_vec()).into()
+        Self::wrap(self.0.clone().layer(layers.to_vec()))
     }
 
     /// Matches nodes that have at least one event in the current view.

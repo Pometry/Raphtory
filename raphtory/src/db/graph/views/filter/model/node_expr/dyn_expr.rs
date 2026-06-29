@@ -36,7 +36,7 @@ use crate::{
                 AvgExpr, CreateOp, EntityAggOps, EntityExpr, FirstExpr, LastExpr, LenExpr, MaxExpr,
                 MinExpr, SumExpr,
             },
-            EntityMarker,
+            CreateView, EntityMarker, PropertyExpr,
         },
     },
     errors::GraphError,
@@ -44,7 +44,7 @@ use crate::{
 use raphtory_api::core::entities::properties::prop::{Prop, PropType};
 use std::{ops::Deref, sync::Arc};
 
-trait DynEntityExpr: Send + Sync + 'static {
+pub trait DynEntityExpr: Send + Sync + 'static {
     fn dyn_entity(&self) -> EntityMarker;
     fn dyn_prop_type(&self) -> PropType;
     fn dyn_nullable(&self) -> bool;
@@ -64,19 +64,13 @@ impl<E: EntityExpr<Marker: Into<EntityMarker>>> DynEntityExpr for E {
     }
 }
 
-impl EntityExpr for Arc<dyn DynEntityExpr> {
-    type Marker = EntityMarker;
+pub trait DynTemporal: DynCreateOp {
+    fn temporal(&self) -> Arc<dyn DynCreateOp>;
+}
 
-    fn entity(&self) -> Self::Marker {
-        self.deref().dyn_entity()
-    }
-
-    fn prop_type(&self) -> PropType {
-        self.deref().dyn_prop_type()
-    }
-
-    fn nullable(&self) -> bool {
-        self.deref().dyn_nullable()
+impl<E: EntityExpr + CreateView + Send + Sync + 'static> DynTemporal for PropertyExpr<E> {
+    fn temporal(&self) -> Arc<dyn DynCreateOp> {
+        Arc::new(self.temporal())
     }
 }
 
@@ -92,7 +86,7 @@ pub trait DynCreateOp: DynEntityExpr {
     ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError>;
 }
 
-impl<E: CreateOp<Marker: Into<EntityMarker>>> DynCreateOp for E {
+impl<E: CreateOp> DynCreateOp for E {
     fn dyn_create_node_op<'g>(
         &self,
         graph: Arc<dyn BoxableGraphView + 'g>,
@@ -108,7 +102,7 @@ impl<E: CreateOp<Marker: Into<EntityMarker>>> DynCreateOp for E {
     }
 }
 
-impl EntityExpr for Arc<dyn DynCreateOp> {
+impl<T: DynEntityExpr + ?Sized> EntityExpr for Arc<T> {
     type Marker = EntityMarker;
 
     fn entity(&self) -> Self::Marker {
@@ -116,7 +110,7 @@ impl EntityExpr for Arc<dyn DynCreateOp> {
     }
 }
 
-impl CreateOp for Arc<dyn DynCreateOp> {
+impl<T: DynCreateOp + ?Sized> CreateOp for Arc<T> {
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
         graph: G,
@@ -132,7 +126,7 @@ impl CreateOp for Arc<dyn DynCreateOp> {
     }
 }
 
-impl EntityAggOps for Arc<dyn DynCreateOp> {
+impl<T: DynCreateOp + ?Sized> EntityAggOps for Arc<T> {
     fn sum(self) -> SumExpr<Self> {
         SumExpr(self)
     }
