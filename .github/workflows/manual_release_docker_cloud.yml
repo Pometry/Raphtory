@@ -57,7 +57,6 @@ jobs:
         with:
           driver: cloud
           endpoint: "pometry/raphtory"
-          install: true
 
       - name: Build and push
         uses: docker/build-push-action@v7
