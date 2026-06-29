@@ -18,7 +18,7 @@ use crate::{
         plugins::graph_algorithm_plugin::GraphAlgorithmPlugin,
         schema::{cache::SchemaCache, graph_schema::GraphSchema},
     },
-    paths::{ExistingGraphFolder, PathValidationError, ValidGraphPaths},
+    paths::{ExistingGraphFolder, PathValidationError, UnlockedGraphFolder, ValidGraphPaths},
     rayon::blocking_compute,
 };
 use async_graphql::Context;
@@ -60,7 +60,7 @@ use std::{
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "Graph")]
 pub(crate) struct GqlGraph {
-    path: ExistingGraphFolder,
+    path: UnlockedGraphFolder,
     graph: DynamicGraph,
     // Shared schema cache, set only for the unfiltered native base graph.
     // Any derived view (window/layer/filter/...) drops it so it recomputes.
@@ -74,7 +74,7 @@ impl From<GraphWithVectors> for GqlGraph {
 }
 
 impl GqlGraph {
-    pub fn new<G: StaticGraphViewOps + IntoDynamic>(path: ExistingGraphFolder, graph: G) -> Self {
+    pub fn new<G: StaticGraphViewOps + IntoDynamic>(path: UnlockedGraphFolder, graph: G) -> Self {
         Self {
             path,
             graph: graph.into_dynamic(),

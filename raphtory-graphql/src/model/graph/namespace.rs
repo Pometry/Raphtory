@@ -1,6 +1,6 @@
 use crate::{
     auth_policy::AuthorizationPolicy,
-    data::{get_relative_path, Data},
+    data::{get_relative_path, Data, WorkDirGuard},
     model::graph::{
         collection::GqlCollection, meta_graph::MetaGraph, namespaced_item::NamespacedItem,
     },
@@ -10,17 +10,39 @@ use crate::{
 use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
-use std::{path::PathBuf, sync::Arc};
+use std::{cmp::Ordering, path::PathBuf, sync::Arc};
+use tokio::sync::OwnedRwLockReadGuard;
 use walkdir::WalkDir;
 
 /// A directory-like container for graphs and nested namespaces. Graphs are
 /// addressed by path (e.g. `"team/project/graph"`), and every segment except
 /// the last is a namespace. Use to browse what's stored on the server without
 /// loading any graph data.
-#[derive(ResolvedObject, Clone, Ord, Eq, PartialEq, PartialOrd)]
+#[derive(ResolvedObject, Clone)]
 pub struct Namespace {
+    guard: WorkDirGuard,
     current_dir: PathBuf,  // always validated
     relative_path: String, // relative to the root working directory
+}
+
+impl PartialEq for Namespace {
+    fn eq(&self, other: &Self) -> bool {
+        self.current_dir == other.current_dir
+    }
+}
+
+impl PartialOrd for Namespace {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.current_dir.partial_cmp(&other.current_dir)
+    }
+}
+
+impl Eq for Namespace {}
+
+impl Ord for Namespace {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.current_dir.cmp(&other.current_dir)
+    }
 }
 
 pub struct NamespaceIter {
@@ -68,9 +90,11 @@ impl Iterator for NamespaceIter {
 }
 
 impl Namespace {
-    pub fn root(root: PathBuf) -> Self {
+    pub fn root(root: WorkDirGuard) -> Self {
+        let current_dir = root.to_path_buf();
         Self {
-            current_dir: root,
+            guard: root,
+            current_dir,
             relative_path: "".to_owned(),
         }
     }
@@ -79,18 +103,20 @@ impl Namespace {
         &self.relative_path
     }
 
-    pub fn try_new(root: PathBuf, relative_path: String) -> Result<Self, PathValidationError> {
-        let current_dir = ValidPath::try_new(root, relative_path.as_str())?;
-        Self::try_from_valid(current_dir, &relative_path)
+    pub fn try_new(root: WorkDirGuard, relative_path: String) -> Result<Self, PathValidationError> {
+        let current_dir = ValidPath::try_new(root.to_path_buf(), relative_path.as_str())?;
+        Self::try_from_valid(root, current_dir, &relative_path)
     }
 
     /// Create a namespace from a valid path if it exists and is a namespace
     pub fn try_from_valid(
+        guard: WorkDirGuard,
         current_dir: ValidPath,
         relative_path: impl Into<String>,
     ) -> Result<Self, PathValidationError> {
         if current_dir.is_namespace() {
             Ok(Self {
+                guard,
                 current_dir: current_dir.into_path(),
                 relative_path: relative_path.into(),
             })
@@ -109,9 +135,14 @@ impl Namespace {
             [&self.relative_path, file_name].join("/")
         };
         let child = if current_dir.is_namespace() {
-            NamespacedItem::Namespace(Self::try_from_valid(current_dir, relative_path)?)
+            NamespacedItem::Namespace(Self::try_from_valid(
+                self.guard.clone(),
+                current_dir,
+                relative_path,
+            )?)
         } else {
             NamespacedItem::MetaGraph(MetaGraph::new(ExistingGraphFolder::try_from_valid(
+                self.guard.clone(),
                 current_dir,
                 &relative_path,
             )?))
@@ -218,7 +249,9 @@ impl Namespace {
                 .relative_path
                 .rsplit_once("/")
                 .map_or("", |(parent, _)| parent);
+            let guard = self.guard.clone();
             Some(Self {
+                guard,
                 current_dir: parent,
                 relative_path: relative_path.to_owned(),
             })

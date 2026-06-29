@@ -1,12 +1,21 @@
-use clap::ValueEnum;
+use crate::{model::blocking_io, server::ServerError};
+use clap::{Args, ValueEnum};
+use config::ConfigError;
+use field_types::FieldName;
 use opentelemetry::KeyValue;
-use opentelemetry_otlp::{SpanExporter, WithExportConfig};
+use opentelemetry_appender_tracing::layer::{
+    OpenTelemetryTracingBridge, OpenTelemetryTracingBridgeBuilder,
+};
+use opentelemetry_otlp::{LogExporter, Protocol, SpanExporter, WithExportConfig, WithHttpConfig};
 use opentelemetry_sdk::{
+    logs::SdkLoggerProvider,
     trace::{Sampler, SdkTracerProvider},
     Resource,
 };
+use raphtory_api::core::storage::arc_str::OptionAsStr;
+use reqwest::{blocking::ClientBuilder, Certificate};
 use serde::Deserialize;
-use std::time::Duration;
+use std::{collections::HashMap, env, fs::File, io::Read, path::PathBuf, time::Duration};
 use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter, EnumString, IntoStaticStr};
 
@@ -51,6 +60,36 @@ impl TracingLevel {
     }
 }
 
+#[derive(
+    Clone,
+    Debug,
+    Deserialize,
+    PartialEq,
+    serde::Serialize,
+    EnumIter,
+    EnumString,
+    Display,
+    ValueEnum,
+    IntoStaticStr,
+)]
+#[clap(rename_all = "UPPERCASE")]
+#[serde(try_from = "String")]
+#[serde(into = "&str")]
+#[strum(ascii_case_insensitive)]
+pub enum TracingProtocol {
+    TONIC,
+    HTTP,
+    STDOUT,
+}
+
+impl TryFrom<String> for TracingProtocol {
+    type Error = strum::ParseError;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Self::try_from(value.as_str())
+    }
+}
+
 pub const ESSENTIAL_TRACE_SPANS: [&str; 10] = [
     "addEdge",
     "addEdges",
@@ -66,79 +105,172 @@ pub const ESSENTIAL_TRACE_SPANS: [&str; 10] = [
 
 pub const DEFAULT_TRACING_LEVEL: TracingLevel = TracingLevel::COMPLETE;
 
-pub const DEFAULT_OTLP_AGENT_HOST: &'static str = "http://localhost";
-pub const DEFAULT_OTLP_AGENT_PORT: &'static str = "4317";
+pub const DEFAULT_OTLP_TRANSPORT_PROTOCOL: TracingProtocol = TracingProtocol::TONIC;
+pub const DEFAULT_OTLP_AGENT_PORT_TONIC: u16 = 4317;
 pub const DEFAULT_OTLP_TRACING_SERVICE_NAME: &'static str = "Raphtory";
 
-#[derive(Clone, Deserialize, Debug, PartialEq, serde::Serialize)]
+#[derive(Clone, Deserialize, Debug, PartialEq, serde::Serialize, FieldName)]
 pub struct TracingConfig {
-    pub tracing_enabled: bool,
-    pub tracing_level: TracingLevel,
-    pub otlp_agent_host: String,
-    pub otlp_agent_port: String,
-    pub otlp_tracing_service_name: String,
+    pub enabled: bool,
+    pub level: TracingLevel,
+    pub agent_host: Option<String>,
+    pub service_name: String,
+    pub transport_protocol: TracingProtocol,
+    /// Headers to use when transport_protocol is set to HTTP
+    pub transport_headers: HashMap<String, String>,
+    pub transport_certificate: Option<PathBuf>,
 }
 
 impl Default for TracingConfig {
     fn default() -> Self {
         Self {
-            tracing_enabled: DEFAULT_TRACING_ENABLED,
-            tracing_level: DEFAULT_TRACING_LEVEL,
-            otlp_agent_host: DEFAULT_OTLP_AGENT_HOST.to_owned(),
-            otlp_agent_port: DEFAULT_OTLP_AGENT_PORT.to_owned(),
-            otlp_tracing_service_name: DEFAULT_OTLP_TRACING_SERVICE_NAME.to_owned(),
+            enabled: DEFAULT_TRACING_ENABLED,
+            level: DEFAULT_TRACING_LEVEL,
+            agent_host: None,
+            service_name: DEFAULT_OTLP_TRACING_SERVICE_NAME.to_owned(),
+            transport_protocol: DEFAULT_OTLP_TRANSPORT_PROTOCOL,
+            transport_headers: Default::default(),
+            transport_certificate: None,
         }
     }
 }
 
 impl TracingConfig {
-    pub fn tracer_provider(&self) -> std::io::Result<Option<SdkTracerProvider>> {
-        if self.tracing_enabled {
-            if !self.otlp_agent_host.starts_with("http://")
-                && !self.otlp_agent_host.starts_with("https://")
-            {
-                return Err(std::io::Error::other(
-                    format!(
+    fn with_exporter<
+        E: opentelemetry_sdk::trace::SpanExporter + 'static,
+        L: opentelemetry_sdk::logs::LogExporter + 'static,
+    >(
+        &self,
+        span_exporter: E,
+        log_exporter: L,
+    ) -> (SdkTracerProvider, SdkLoggerProvider) {
+        let resource = Resource::builder()
+            .with_attributes(vec![KeyValue::new(
+                "service.name",
+                self.service_name.clone(),
+            )])
+            .build();
+        let tracer = SdkTracerProvider::builder()
+            .with_batch_exporter(span_exporter)
+            .with_sampler(Sampler::AlwaysOn)
+            .with_resource(resource.clone())
+            .build();
+
+        let logger = SdkLoggerProvider::builder()
+            .with_batch_exporter(log_exporter)
+            .with_resource(resource)
+            .build();
+        (tracer, logger)
+    }
+
+    pub async fn tracer_provider(
+        &self,
+    ) -> Result<Option<(SdkTracerProvider, SdkLoggerProvider)>, ServerError> {
+        if self.enabled {
+            if let Some(agent_host) = self.agent_host.as_str() {
+                if !agent_host.starts_with("http://") && !agent_host.starts_with("https://") {
+                    let err = ServerError::ConfigError(ConfigError::Message(format!(
                         "otlp_agent_host needs to include the protocol, either http:// or https://, current value: {}",
-                        self.otlp_agent_host
-                    ),
-                ));
+                        agent_host)));
+                    return Err(err);
+                }
             }
 
-            match SpanExporter::builder()
-                .with_tonic()
-                .with_endpoint(format!(
-                    "{}:{}",
-                    self.otlp_agent_host.clone(),
-                    self.otlp_agent_port.clone()
-                ))
-                .with_timeout(Duration::from_secs(3))
-                .build()
-            {
-                Ok(exporter) => {
-                    let tracer_provider = SdkTracerProvider::builder()
-                        .with_batch_exporter(exporter)
-                        .with_sampler(Sampler::AlwaysOn)
-                        .with_resource(
-                            Resource::builder()
-                                .with_attributes(vec![KeyValue::new(
-                                    "service.name",
-                                    self.otlp_tracing_service_name.clone(),
-                                )])
-                                .build(),
-                        )
-                        .build();
-                    println!(
-                        // info!() here does not work since tracing is not enabled yet
-                        "Sending traces to {}:{} with tracing level: `{}`",
-                        self.otlp_agent_host.clone(),
-                        self.otlp_agent_port.clone(),
-                        self.tracing_level.clone()
-                    );
-                    Ok(Some(tracer_provider))
+            let providers = match self.transport_protocol {
+                TracingProtocol::TONIC => {
+                    let mut span_builder = SpanExporter::builder()
+                        .with_tonic()
+                        .with_timeout(Duration::from_secs(3));
+                    let mut logger_builder = LogExporter::builder().with_tonic();
+                    if let Some(agent_host) = self.agent_host.as_str() {
+                        span_builder = span_builder.with_endpoint(agent_host);
+                        logger_builder = logger_builder.with_endpoint(agent_host);
+                    }
+
+                    span_builder
+                        .build()
+                        .and_then(|span_exporter| {
+                            logger_builder.build().map(|logger| (span_exporter, logger))
+                        })
+                        .map(|(span, log)| {
+                            eprintln!(
+                                // info!() here does not work since tracing is not enabled yet
+                                "Sending traces to {} with protocol `TONIC` and tracing level `{}`",
+                                self.agent_host.as_str().unwrap_or("default endpoint"),
+                                self.level.clone()
+                            );
+                            self.with_exporter(span, log)
+                        })
                 }
+                TracingProtocol::HTTP => {
+                    let cert = self.transport_certificate.clone();
+
+                    // needs to happen on blocking threadpool to avoid panic in initialisation
+                    let client = blocking_io(move || {
+                        let mut client_builder = ClientBuilder::new();
+                        if let Some(cert) = cert {
+                            let mut buf = Vec::new();
+                            File::open(cert)?.read_to_end(&mut buf)?;
+                            let cert = Certificate::from_pem(&buf)?;
+                            client_builder = client_builder.add_root_certificate(cert);
+                        }
+                        let client = client_builder.build()?;
+                        Ok::<_, ServerError>(client)
+                    })
+                    .await?;
+
+                    let mut span_builder = SpanExporter::builder()
+                        .with_http()
+                        .with_protocol(Protocol::HttpBinary)
+                        .with_headers(self.transport_headers.clone())
+                        .with_http_client(client.clone())
+                        .with_timeout(Duration::from_secs(3));
+                    let mut logger_builder = LogExporter::builder()
+                        .with_http()
+                        .with_protocol(Protocol::HttpBinary)
+                        .with_headers(self.transport_headers.clone())
+                        .with_http_client(client)
+                        .with_timeout(Duration::from_secs(3));
+
+                    if let Some(agent_host) = self.agent_host.as_str() {
+                        span_builder =
+                            span_builder.with_endpoint(format!("{agent_host}/v1/traces"));
+                        logger_builder =
+                            logger_builder.with_endpoint(format!("{agent_host}/v1/logs"));
+                    }
+                    span_builder
+                        .build()
+                        .and_then(|span_exporter| {
+                            logger_builder
+                                .build()
+                                .map(|log_exporter| (span_exporter, log_exporter))
+                        })
+                        .map(|(span, log)| {
+                            eprintln!(
+                                // info!() here does not work since tracing is not enabled yet
+                                "Sending traces to {} with protocol `HTTP` and tracing level `{}`",
+                                self.agent_host.as_str().unwrap_or("default endpoint"),
+                                self.level.clone()
+                            );
+                            self.with_exporter(span, log)
+                        })
+                }
+                TracingProtocol::STDOUT => {
+                    eprintln!(
+                        "Sending traces to stdout with tracing level `{}`",
+                        self.level
+                    );
+                    Ok(self.with_exporter(
+                        opentelemetry_stdout::SpanExporter::default(),
+                        opentelemetry_stdout::LogExporter::default(),
+                    ))
+                }
+            };
+
+            match providers {
+                Ok(providers) => Ok(Some(providers)),
                 Err(e) => {
-                    println!("{}", e.to_string()); // error!() here does not work since tracing is not enabled yet
+                    eprintln!("{}", e.to_string()); // error!() here does not work since tracing is not enabled yet
                     Ok(None)
                 }
             }
