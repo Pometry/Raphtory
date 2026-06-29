@@ -17,7 +17,7 @@ use raphtory::{
     core::utils::time::TryIntoInterval,
     db::{
         api::view::{DynamicGraph, EdgeViewOps, Filter, IntoDynamic, StaticGraphViewOps},
-        graph::{edge::EdgeView, views::filter::model::edge_filter::CompositeEdgeFilter},
+        graph::{edge::EdgeView, views::filter::model::DynFilter},
     },
     errors::GraphError,
     prelude::{LayerOps, TimeOps},
@@ -489,7 +489,7 @@ impl GqlEdge {
     ) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let filter: CompositeEdgeFilter = expr.try_into()?;
+            let filter: DynFilter = expr.try_into()?;
             let filtered = self_clone.ee.filter(filter)?;
             Ok(self_clone.update(filtered.into_dynamic()))
         })

@@ -38,10 +38,7 @@ use raphtory::{
         },
         graph::{
             node::NodeView,
-            views::filter::model::{
-                edge_filter::CompositeEdgeFilter, graph_filter::GraphFilter,
-                node_filter::CompositeNodeFilter, DynView,
-            },
+            views::filter::model::{graph_filter::GraphFilter, DynFilter, DynView},
         },
     },
     errors::GraphError,
@@ -545,7 +542,7 @@ impl GqlGraph {
         let nn = self.graph.nodes();
 
         if let Some(sel) = select {
-            let nf: CompositeNodeFilter = sel.try_into()?;
+            let nf: DynFilter = sel.try_into()?;
             let narrowed = blocking_compute({
                 let nn_clone = nn.clone();
                 move || nn_clone.select(nf)
@@ -580,7 +577,7 @@ impl GqlGraph {
         let base = self.graph.edges_unlocked();
 
         if let Some(sel) = select {
-            let ef: CompositeEdgeFilter = sel.try_into()?;
+            let ef: DynFilter = sel.try_into()?;
             let narrowed = blocking_compute(move || base.select(ef)).await?;
             return Ok(GqlEdges::new(narrowed));
         }
@@ -740,7 +737,7 @@ impl GqlGraph {
     ) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let filter: CompositeNodeFilter = expr.try_into()?;
+            let filter: DynFilter = expr.try_into()?;
             let filtered_graph = self_clone.graph.filter(filter)?;
             Ok(GqlGraph::new(
                 self_clone.path.clone(),
@@ -760,7 +757,7 @@ impl GqlGraph {
     ) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let filter: CompositeEdgeFilter = expr.try_into()?;
+            let filter: DynFilter = expr.try_into()?;
             let filtered_graph = self_clone.graph.filter(filter)?;
             Ok(GqlGraph::new(
                 self_clone.path.clone(),

@@ -25,6 +25,12 @@ pub struct IsDeletedEdge<E> {
     pub(crate) view_expr: E,
 }
 
+impl<E> IsDeletedEdge<E> {
+    pub fn new(view_expr: E) -> Self {
+        Self { view_expr }
+    }
+}
+
 impl<E> fmt::Display for IsDeletedEdge<E> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "IS_DELETED_EDGE")

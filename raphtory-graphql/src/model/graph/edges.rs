@@ -28,9 +28,7 @@ use raphtory_api::{core::utils::time::IntoTime, iter::IntoDynBoxed};
 use std::{cmp::Ordering, sync::Arc};
 
 use crate::model::graph::filtering::GqlEdgeFilter;
-use raphtory::db::{
-    api::view::Filter, graph::views::filter::model::edge_filter::CompositeEdgeFilter,
-};
+use raphtory::db::{api::view::Filter, graph::views::filter::model::DynFilter};
 
 /// A lazy collection of edges from a graph view. Supports the usual view
 /// transforms (window, layer, filter, ...), plus edge-specific ones like
@@ -478,7 +476,7 @@ impl GqlEdges {
     ) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let filter: CompositeEdgeFilter = expr.try_into()?;
+            let filter: DynFilter = expr.try_into()?;
             let filtered = self_clone.ee.filter(filter)?;
             Ok(self_clone.update(filtered.into_dyn()))
         })
@@ -511,7 +509,7 @@ impl GqlEdges {
     ) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let filter: CompositeEdgeFilter = expr.try_into()?;
+            let filter: DynFilter = expr.try_into()?;
             let filtered = self_clone.ee.select(filter)?;
             Ok(self_clone.update(filtered))
         })

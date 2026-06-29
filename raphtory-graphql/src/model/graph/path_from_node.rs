@@ -15,7 +15,7 @@ use raphtory::{
     core::utils::time::TryIntoInterval,
     db::{
         api::view::{filter_ops::NodeSelect, DynamicGraph, Filter},
-        graph::{path::PathFromNode, views::filter::model::CompositeNodeFilter},
+        graph::{path::PathFromNode, views::filter::model::DynFilter},
     },
     errors::GraphError,
     prelude::*,
@@ -387,7 +387,7 @@ impl GqlPathFromNode {
     ) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let filter: CompositeNodeFilter = expr.try_into()?;
+            let filter: DynFilter = expr.try_into()?;
             let filtered = self_clone.nn.filter(filter)?;
             Ok(self_clone.update(filtered.into_dyn()))
         })
@@ -417,7 +417,7 @@ impl GqlPathFromNode {
     ) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let filter: CompositeNodeFilter = expr.try_into()?;
+            let filter: DynFilter = expr.try_into()?;
             let filtered = self_clone.nn.select(filter)?;
             Ok(self_clone.update(filtered.into_dyn()))
         })

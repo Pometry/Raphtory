@@ -1,7 +1,4 @@
-use crate::model::{
-    graph::{node_id::GqlNodeId, property::Value, timeindex::GqlTimeInput},
-    plugins::operation,
-};
+use crate::model::graph::{node_id::GqlNodeId, property::Value, timeindex::GqlTimeInput};
 use async_graphql::dynamic::ValueAccessor;
 use dynamic_graphql::{
     internal::{
@@ -10,27 +7,25 @@ use dynamic_graphql::{
     Enum, InputObject, OneOfInput,
 };
 use raphtory::{
-    db::{
-        api::{state::ops::Degree, view::internal::filtered_edge},
-        graph::views::filter::model::{
-            degree_filter::DegreeFilter,
-            edge_filter::{CompositeEdgeFilter, EdgeFilter},
-            filter::{FieldFilterValue, Filter},
-            filter_operator::FilterOperator,
-            graph_filter::GraphFilter,
-            is_active_edge_filter::IsActiveEdge,
-            is_active_node_filter::IsActiveNode,
-            is_deleted_filter::IsDeletedEdge,
-            is_self_loop_filter::IsSelfLoopEdge,
-            is_valid_filter::IsValidEdge,
-            latest_filter::Latest as LatestWrap,
-            layered_filter::Layered,
-            node_filter::{CompositeNodeFilter, NodeFilter},
-            property_filter::{Op, PropertyFilter, PropertyFilterValue, PropertyRef},
-            snapshot_filter::{SnapshotAt as SnapshotAtWrap, SnapshotLatest as SnapshotLatestWrap},
-            windowed_filter::Windowed,
-            ComposableFilter, DynFilter, DynView, NoFilter, ViewWrapOps,
-        },
+    db::graph::views::filter::model::{
+        degree_filter::DegreeFilter,
+        edge_filter::{EdgeEndpointWrapper, EdgeFilter, Endpoint},
+        filter::{FieldFilterValue, Filter},
+        filter_operator::FilterOperator,
+        graph_filter::GraphFilter,
+        is_active_edge_filter::IsActiveEdge,
+        is_active_node_filter::IsActiveNode,
+        is_deleted_filter::IsDeletedEdge,
+        is_self_loop_filter::IsSelfLoopEdge,
+        is_valid_filter::IsValidEdge,
+        latest_filter::Latest as LatestWrap,
+        layered_filter::Layered,
+        node_filter::{NodeFilter, NodeIdFilter, NodeNameFilter, NodeTypeFilter},
+        not_filter::NotFilter,
+        property_filter::{Op, PropertyFilter, PropertyFilterValue, PropertyRef},
+        snapshot_filter::{SnapshotAt as SnapshotAtWrap, SnapshotLatest as SnapshotLatestWrap},
+        windowed_filter::Windowed,
+        ComposableFilter, DynFilter, DynView, NoFilter, ViewWrapOps,
     },
     errors::GraphError,
 };
@@ -1397,7 +1392,7 @@ fn build_property_filter_from_condition_with_entity<M: Clone + Send + Sync + 'st
 fn build_node_filter_from_prop_condition(
     prop_ref: PropertyRef,
     cond: &PropCondition,
-) -> Result<CompositeNodeFilter, GraphError> {
+) -> Result<DynFilter, GraphError> {
     use PropCondition::*;
 
     match cond {
@@ -1409,7 +1404,7 @@ fn build_node_filter_from_prop_condition(
             let mut acc = build_node_filter_from_prop_condition(prop_ref.clone(), first)?;
             for c in it {
                 let next = build_node_filter_from_prop_condition(prop_ref.clone(), c)?;
-                acc = CompositeNodeFilter::And(Box::new(acc), Box::new(next));
+                acc = Arc::new(acc.and(next)) as DynFilter;
             }
             Ok(acc)
         }
@@ -1421,24 +1416,24 @@ fn build_node_filter_from_prop_condition(
             let mut acc = build_node_filter_from_prop_condition(prop_ref.clone(), first)?;
             for c in it {
                 let next = build_node_filter_from_prop_condition(prop_ref.clone(), c)?;
-                acc = CompositeNodeFilter::Or(Box::new(acc), Box::new(next));
+                acc = Arc::new(acc.or(next)) as DynFilter;
             }
             Ok(acc)
         }
         Not(inner) => {
             let nf = build_node_filter_from_prop_condition(prop_ref, inner)?;
-            Ok(CompositeNodeFilter::Not(Box::new(nf)))
+            Ok(Arc::new(NotFilter(nf)) as DynFilter)
         }
         _ => {
             let pf = build_property_filter_from_condition_with_entity::<NodeFilter>(
                 prop_ref, cond, NodeFilter,
             )?;
-            Ok(CompositeNodeFilter::Property(pf))
+            Ok(Arc::new(pf) as DynFilter)
         }
     }
 }
 
-impl TryFrom<GqlNodeFilter> for CompositeNodeFilter {
+impl TryFrom<GqlNodeFilter> for DynFilter {
     type Error = GraphError;
     fn try_from(filter: GqlNodeFilter) -> Result<Self, Self::Error> {
         match filter {
@@ -1446,31 +1441,30 @@ impl TryFrom<GqlNodeFilter> for CompositeNodeFilter {
                 let field = node.field;
                 let (field_name, field_value, operator) =
                     translate_node_field_where(node.field, &node.where_)?;
-                let filter = Filter {
+                let f = Filter {
                     field_name,
                     field_value,
                     operator,
                 };
                 Ok(match field {
-                    NodeField::NodeId => CompositeNodeFilter::Id(filter),
-                    NodeField::NodeName => CompositeNodeFilter::Name(filter),
-                    NodeField::NodeType => CompositeNodeFilter::Type(filter),
+                    NodeField::NodeId => Arc::new(NodeIdFilter(f)) as DynFilter,
+                    NodeField::NodeName => Arc::new(NodeNameFilter(f)) as DynFilter,
+                    NodeField::NodeType => Arc::new(NodeTypeFilter(f)) as DynFilter,
                 })
             }
             GqlNodeFilter::Degree(degree) => {
                 let core_direction: Direction = degree.direction.into();
-
                 let field_name: String = degree.direction.into();
 
                 let mut ops = Vec::new();
                 peel_prop_wrappers_and_collect_ops(&degree.where_, &mut ops);
                 let (operator, value) = translate_prop_leaf_to_filter(&field_name, &degree.where_)?;
-                Ok(CompositeNodeFilter::Degree(DegreeFilter {
+                Ok(Arc::new(DegreeFilter {
                     direction: core_direction,
                     operator,
                     value,
                     ops,
-                }))
+                }) as DynFilter)
             }
             GqlNodeFilter::Property(prop) => {
                 let prop_ref = PropertyRef::Property(prop.name.clone());
@@ -1485,100 +1479,85 @@ impl TryFrom<GqlNodeFilter> for CompositeNodeFilter {
                 build_node_filter_from_prop_condition(prop_ref, &prop.where_)
             }
             GqlNodeFilter::And(and_filters) => {
-                let mut iter = and_filters.into_iter().map(TryInto::try_into);
+                let mut iter = and_filters.into_iter().map(DynFilter::try_from);
                 let first = iter.next().ok_or_else(|| {
                     GraphError::InvalidGqlFilter("Filter 'and' requires non-empty list".into())
                 })??;
-                Ok(iter.try_fold(first, |acc, next| {
+                iter.try_fold(first, |acc, next| {
                     let n = next?;
-                    Ok::<_, GraphError>(CompositeNodeFilter::And(Box::new(acc), Box::new(n)))
-                })?)
+                    Ok::<_, GraphError>(Arc::new(acc.and(n)) as DynFilter)
+                })
             }
             GqlNodeFilter::Or(or_filters) => {
-                let mut iter = or_filters.into_iter().map(TryInto::try_into);
+                let mut iter = or_filters.into_iter().map(DynFilter::try_from);
                 let first = iter.next().ok_or_else(|| {
                     GraphError::InvalidGqlFilter("Filter 'or' requires non-empty list".into())
                 })??;
-                Ok(iter.try_fold(first, |acc, next| {
+                iter.try_fold(first, |acc, next| {
                     let n = next?;
-                    Ok::<_, GraphError>(CompositeNodeFilter::Or(Box::new(acc), Box::new(n)))
-                })?)
+                    Ok::<_, GraphError>(Arc::new(acc.or(n)) as DynFilter)
+                })
             }
             GqlNodeFilter::Not(not_filters) => {
-                let inner = CompositeNodeFilter::try_from(not_filters.deref().clone())?;
-                Ok(CompositeNodeFilter::Not(Box::new(inner)))
+                let inner: DynFilter = not_filters.deref().clone().try_into()?;
+                Ok(Arc::new(NotFilter(inner)) as DynFilter)
             }
             GqlNodeFilter::Window(w) => {
-                let inner: CompositeNodeFilter = w.expr.deref().clone().try_into()?;
-                Ok(CompositeNodeFilter::Windowed(Box::new(Windowed::new(
-                    w.start.into_time(),
-                    w.end.into_time(),
-                    inner,
-                ))))
+                let inner: DynFilter = w.expr.deref().clone().try_into()?;
+                Ok(Arc::new(Windowed::new(w.start.into_time(), w.end.into_time(), inner))
+                    as DynFilter)
             }
 
             GqlNodeFilter::At(t) => {
-                let inner: CompositeNodeFilter = t.expr.deref().clone().try_into()?;
+                let inner: DynFilter = t.expr.deref().clone().try_into()?;
                 let et = t.time.into_time();
-                Ok(CompositeNodeFilter::Windowed(Box::new(Windowed::new(
+                Ok(Arc::new(Windowed::new(
                     et,
                     EventTime::end(et.t().saturating_add(1)),
                     inner,
-                ))))
+                )) as DynFilter)
             }
 
             GqlNodeFilter::Before(t) => {
-                let inner: CompositeNodeFilter = t.expr.deref().clone().try_into()?;
-                Ok(CompositeNodeFilter::Windowed(Box::new(Windowed::new(
+                let inner: DynFilter = t.expr.deref().clone().try_into()?;
+                Ok(Arc::new(Windowed::new(
                     EventTime::start(i64::MIN),
                     EventTime::end(t.time.t()),
                     inner,
-                ))))
+                )) as DynFilter)
             }
 
             GqlNodeFilter::After(t) => {
-                let inner: CompositeNodeFilter = t.expr.deref().clone().try_into()?;
+                let inner: DynFilter = t.expr.deref().clone().try_into()?;
                 let start = EventTime::start(t.time.t().saturating_add(1));
-                Ok(CompositeNodeFilter::Windowed(Box::new(Windowed::new(
-                    start,
-                    EventTime::end(i64::MAX),
-                    inner,
-                ))))
+                Ok(Arc::new(Windowed::new(start, EventTime::end(i64::MAX), inner)) as DynFilter)
             }
 
             GqlNodeFilter::Latest(u) => {
-                let inner: CompositeNodeFilter = u.expr.deref().clone().try_into()?;
-                Ok(CompositeNodeFilter::Latest(Box::new(LatestWrap::new(
-                    inner,
-                ))))
+                let inner: DynFilter = u.expr.deref().clone().try_into()?;
+                Ok(Arc::new(LatestWrap::new(inner)) as DynFilter)
             }
 
             GqlNodeFilter::SnapshotAt(t) => {
-                let inner: CompositeNodeFilter = t.expr.deref().clone().try_into()?;
-                Ok(CompositeNodeFilter::SnapshotAt(Box::new(
-                    SnapshotAtWrap::new(t.time.into_time(), inner),
-                )))
+                let inner: DynFilter = t.expr.deref().clone().try_into()?;
+                Ok(Arc::new(SnapshotAtWrap::new(t.time.into_time(), inner)) as DynFilter)
             }
 
             GqlNodeFilter::SnapshotLatest(u) => {
-                let inner: CompositeNodeFilter = u.expr.deref().clone().try_into()?;
-                Ok(CompositeNodeFilter::SnapshotLatest(Box::new(
-                    SnapshotLatestWrap::new(inner),
-                )))
+                let inner: DynFilter = u.expr.deref().clone().try_into()?;
+                Ok(Arc::new(SnapshotLatestWrap::new(inner)) as DynFilter)
             }
 
             GqlNodeFilter::Layers(l) => {
                 let layer = Layer::from(l.names.clone());
-                let inner: CompositeNodeFilter = l.expr.deref().clone().try_into()?;
-                Ok(CompositeNodeFilter::Layered(Box::new(Layered::new(
-                    layer, inner,
-                ))))
+                let inner: DynFilter = l.expr.deref().clone().try_into()?;
+                Ok(Arc::new(Layered::new(layer, inner)) as DynFilter)
             }
 
-            GqlNodeFilter::IsActive(true) => Ok(CompositeNodeFilter::IsActiveNode(IsActiveNode)),
-            GqlNodeFilter::IsActive(false) => Ok(CompositeNodeFilter::Not(Box::new(
-                CompositeNodeFilter::IsActiveNode(IsActiveNode),
-            ))),
+            GqlNodeFilter::IsActive(true) => Ok(Arc::new(IsActiveNode::new(NodeFilter)) as DynFilter),
+            GqlNodeFilter::IsActive(false) => {
+                Ok(Arc::new(NotFilter(IsActiveNode::new(NodeFilter))) as DynFilter)
+            }
         }
     }
 }
@@ -1586,7 +1565,7 @@ impl TryFrom<GqlNodeFilter> for CompositeNodeFilter {
 fn build_edge_filter_from_prop_condition(
     prop_ref: PropertyRef,
     cond: &PropCondition,
-) -> Result<CompositeEdgeFilter, GraphError> {
+) -> Result<DynFilter, GraphError> {
     use PropCondition::*;
 
     match cond {
@@ -1598,7 +1577,7 @@ fn build_edge_filter_from_prop_condition(
             let mut acc = build_edge_filter_from_prop_condition(prop_ref.clone(), first)?;
             for c in it {
                 let next = build_edge_filter_from_prop_condition(prop_ref.clone(), c)?;
-                acc = CompositeEdgeFilter::And(Box::new(acc), Box::new(next));
+                acc = Arc::new(acc.and(next)) as DynFilter;
             }
             Ok(acc)
         }
@@ -1610,34 +1589,34 @@ fn build_edge_filter_from_prop_condition(
             let mut acc = build_edge_filter_from_prop_condition(prop_ref.clone(), first)?;
             for c in it {
                 let next = build_edge_filter_from_prop_condition(prop_ref.clone(), c)?;
-                acc = CompositeEdgeFilter::Or(Box::new(acc), Box::new(next));
+                acc = Arc::new(acc.or(next)) as DynFilter;
             }
             Ok(acc)
         }
         Not(inner) => {
             let ef = build_edge_filter_from_prop_condition(prop_ref, inner)?;
-            Ok(CompositeEdgeFilter::Not(Box::new(ef)))
+            Ok(Arc::new(NotFilter(ef)) as DynFilter)
         }
         _ => {
             let pf = build_property_filter_from_condition_with_entity::<EdgeFilter>(
                 prop_ref, cond, EdgeFilter,
             )?;
-            Ok(CompositeEdgeFilter::Property(pf))
+            Ok(Arc::new(pf) as DynFilter)
         }
     }
 }
 
-impl TryFrom<GqlEdgeFilter> for CompositeEdgeFilter {
+impl TryFrom<GqlEdgeFilter> for DynFilter {
     type Error = GraphError;
     fn try_from(filter: GqlEdgeFilter) -> Result<Self, Self::Error> {
         match filter {
             GqlEdgeFilter::Src(nf) => {
-                let nf: CompositeNodeFilter = nf.deref().clone().try_into()?;
-                Ok(CompositeEdgeFilter::Src(nf))
+                let inner: DynFilter = nf.deref().clone().try_into()?;
+                Ok(Arc::new(EdgeEndpointWrapper::new(inner, Endpoint::Src)) as DynFilter)
             }
             GqlEdgeFilter::Dst(nf) => {
-                let nf: CompositeNodeFilter = nf.deref().clone().try_into()?;
-                Ok(CompositeEdgeFilter::Dst(nf))
+                let inner: DynFilter = nf.deref().clone().try_into()?;
+                Ok(Arc::new(EdgeEndpointWrapper::new(inner, Endpoint::Dst)) as DynFilter)
             }
             GqlEdgeFilter::Property(prop) => {
                 let prop_ref = PropertyRef::Property(prop.name.clone());
@@ -1652,117 +1631,104 @@ impl TryFrom<GqlEdgeFilter> for CompositeEdgeFilter {
                 build_edge_filter_from_prop_condition(prop_ref, &prop.where_)
             }
             GqlEdgeFilter::And(and_filters) => {
-                let mut iter = and_filters.into_iter().map(TryInto::try_into);
+                let mut iter = and_filters.into_iter().map(DynFilter::try_from);
                 let first = iter.next().ok_or_else(|| {
                     GraphError::InvalidGqlFilter("Filter 'and' requires non-empty list".into())
                 })??;
-                Ok(iter.try_fold(first, |acc, next| {
+                iter.try_fold(first, |acc, next| {
                     let n = next?;
-                    Ok::<_, GraphError>(CompositeEdgeFilter::And(Box::new(acc), Box::new(n)))
-                })?)
+                    Ok::<_, GraphError>(Arc::new(acc.and(n)) as DynFilter)
+                })
             }
             GqlEdgeFilter::Or(or_filters) => {
-                let mut iter = or_filters.into_iter().map(TryInto::try_into);
+                let mut iter = or_filters.into_iter().map(DynFilter::try_from);
                 let first = iter.next().ok_or_else(|| {
                     GraphError::InvalidGqlFilter("Filter 'or' requires non-empty list".into())
                 })??;
-                Ok(iter.try_fold(first, |acc, next| {
+                iter.try_fold(first, |acc, next| {
                     let n = next?;
-                    Ok::<_, GraphError>(CompositeEdgeFilter::Or(Box::new(acc), Box::new(n)))
-                })?)
+                    Ok::<_, GraphError>(Arc::new(acc.or(n)) as DynFilter)
+                })
             }
             GqlEdgeFilter::Not(not_filters) => {
-                let inner = CompositeEdgeFilter::try_from(not_filters.deref().clone())?;
-                Ok(CompositeEdgeFilter::Not(Box::new(inner)))
+                let inner: DynFilter = not_filters.deref().clone().try_into()?;
+                Ok(Arc::new(NotFilter(inner)) as DynFilter)
             }
             GqlEdgeFilter::Window(w) => {
-                let inner: CompositeEdgeFilter = w.expr.deref().clone().try_into()?;
-                Ok(CompositeEdgeFilter::Windowed(Box::new(Windowed::new(
-                    w.start.into_time(),
-                    w.end.into_time(),
-                    inner,
-                ))))
+                let inner: DynFilter = w.expr.deref().clone().try_into()?;
+                Ok(Arc::new(Windowed::new(w.start.into_time(), w.end.into_time(), inner))
+                    as DynFilter)
             }
 
             GqlEdgeFilter::At(t) => {
-                let inner: CompositeEdgeFilter = t.expr.deref().clone().try_into()?;
+                let inner: DynFilter = t.expr.deref().clone().try_into()?;
                 let et = t.time.into_time();
-                Ok(CompositeEdgeFilter::Windowed(Box::new(Windowed::new(
+                Ok(Arc::new(Windowed::new(
                     et,
                     EventTime::end(et.t().saturating_add(1)),
                     inner,
-                ))))
+                )) as DynFilter)
             }
 
             GqlEdgeFilter::Before(t) => {
-                let inner: CompositeEdgeFilter = t.expr.deref().clone().try_into()?;
-                Ok(CompositeEdgeFilter::Windowed(Box::new(Windowed::new(
+                let inner: DynFilter = t.expr.deref().clone().try_into()?;
+                Ok(Arc::new(Windowed::new(
                     EventTime::start(i64::MIN),
                     EventTime::end(t.time.t()),
                     inner,
-                ))))
+                )) as DynFilter)
             }
 
             GqlEdgeFilter::After(t) => {
-                let inner: CompositeEdgeFilter = t.expr.deref().clone().try_into()?;
+                let inner: DynFilter = t.expr.deref().clone().try_into()?;
                 let start = EventTime::start(t.time.t().saturating_add(1));
-                Ok(CompositeEdgeFilter::Windowed(Box::new(Windowed::new(
-                    start,
-                    EventTime::end(i64::MAX),
-                    inner,
-                ))))
+                Ok(Arc::new(Windowed::new(start, EventTime::end(i64::MAX), inner)) as DynFilter)
             }
 
             GqlEdgeFilter::Latest(u) => {
-                let inner: CompositeEdgeFilter = u.expr.deref().clone().try_into()?;
-                Ok(CompositeEdgeFilter::Latest(Box::new(LatestWrap::new(
-                    inner,
-                ))))
+                let inner: DynFilter = u.expr.deref().clone().try_into()?;
+                Ok(Arc::new(LatestWrap::new(inner)) as DynFilter)
             }
 
             GqlEdgeFilter::SnapshotAt(t) => {
-                let inner: CompositeEdgeFilter = t.expr.deref().clone().try_into()?;
-                Ok(CompositeEdgeFilter::SnapshotAt(Box::new(
-                    SnapshotAtWrap::new(t.time.into_time(), inner),
-                )))
+                let inner: DynFilter = t.expr.deref().clone().try_into()?;
+                Ok(Arc::new(SnapshotAtWrap::new(t.time.into_time(), inner)) as DynFilter)
             }
 
             GqlEdgeFilter::SnapshotLatest(u) => {
-                let inner: CompositeEdgeFilter = u.expr.deref().clone().try_into()?;
-                Ok(CompositeEdgeFilter::SnapshotLatest(Box::new(
-                    SnapshotLatestWrap::new(inner),
-                )))
+                let inner: DynFilter = u.expr.deref().clone().try_into()?;
+                Ok(Arc::new(SnapshotLatestWrap::new(inner)) as DynFilter)
             }
 
             GqlEdgeFilter::Layers(l) => {
                 let layer = Layer::from(l.names.clone());
-                let inner: CompositeEdgeFilter = l.expr.deref().clone().try_into()?;
-                Ok(CompositeEdgeFilter::Layered(Box::new(Layered::new(
-                    layer, inner,
-                ))))
+                let inner: DynFilter = l.expr.deref().clone().try_into()?;
+                Ok(Arc::new(Layered::new(layer, inner)) as DynFilter)
             }
 
-            GqlEdgeFilter::IsActive(true) => Ok(CompositeEdgeFilter::IsActiveEdge(IsActiveEdge)),
-            GqlEdgeFilter::IsActive(false) => Ok(CompositeEdgeFilter::Not(Box::new(
-                CompositeEdgeFilter::IsActiveEdge(IsActiveEdge),
-            ))),
+            GqlEdgeFilter::IsActive(true) => Ok(Arc::new(IsActiveEdge::new(EdgeFilter)) as DynFilter),
+            GqlEdgeFilter::IsActive(false) => {
+                Ok(Arc::new(NotFilter(IsActiveEdge::new(EdgeFilter))) as DynFilter)
+            }
 
-            GqlEdgeFilter::IsValid(true) => Ok(CompositeEdgeFilter::IsValidEdge(IsValidEdge)),
-            GqlEdgeFilter::IsValid(false) => Ok(CompositeEdgeFilter::Not(Box::new(
-                CompositeEdgeFilter::IsValidEdge(IsValidEdge),
-            ))),
+            GqlEdgeFilter::IsValid(true) => Ok(Arc::new(IsValidEdge::new(EdgeFilter)) as DynFilter),
+            GqlEdgeFilter::IsValid(false) => {
+                Ok(Arc::new(NotFilter(IsValidEdge::new(EdgeFilter))) as DynFilter)
+            }
 
-            GqlEdgeFilter::IsDeleted(true) => Ok(CompositeEdgeFilter::IsDeletedEdge(IsDeletedEdge)),
-            GqlEdgeFilter::IsDeleted(false) => Ok(CompositeEdgeFilter::Not(Box::new(
-                CompositeEdgeFilter::IsDeletedEdge(IsDeletedEdge),
-            ))),
+            GqlEdgeFilter::IsDeleted(true) => {
+                Ok(Arc::new(IsDeletedEdge::new(EdgeFilter)) as DynFilter)
+            }
+            GqlEdgeFilter::IsDeleted(false) => {
+                Ok(Arc::new(NotFilter(IsDeletedEdge::new(EdgeFilter))) as DynFilter)
+            }
 
             GqlEdgeFilter::IsSelfLoop(true) => {
-                Ok(CompositeEdgeFilter::IsSelfLoopEdge(IsSelfLoopEdge))
+                Ok(Arc::new(IsSelfLoopEdge::new(EdgeFilter)) as DynFilter)
             }
-            GqlEdgeFilter::IsSelfLoop(false) => Ok(CompositeEdgeFilter::Not(Box::new(
-                CompositeEdgeFilter::IsSelfLoopEdge(IsSelfLoopEdge),
-            ))),
+            GqlEdgeFilter::IsSelfLoop(false) => {
+                Ok(Arc::new(NotFilter(IsSelfLoopEdge::new(EdgeFilter))) as DynFilter)
+            }
         }
     }
 }
@@ -1859,12 +1825,8 @@ impl TryFrom<GraphRowFilter> for DynFilter {
 
     fn try_from(value: GraphRowFilter) -> Result<Self, Self::Error> {
         let filter = match value {
-            GraphRowFilter::Node(filter) => {
-                Arc::new(CompositeNodeFilter::try_from(filter)?) as DynFilter
-            }
-            GraphRowFilter::Edge(filter) => {
-                Arc::new(CompositeEdgeFilter::try_from(filter)?) as DynFilter
-            }
+            GraphRowFilter::Node(filter) => DynFilter::try_from(filter)?,
+            GraphRowFilter::Edge(filter) => DynFilter::try_from(filter)?,
             GraphRowFilter::Graph(filter) => DynView::try_from(filter)?,
             GraphRowFilter::And(filters) => {
                 let mut filters = filters.into_iter().map(DynFilter::try_from);

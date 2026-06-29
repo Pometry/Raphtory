@@ -24,7 +24,7 @@ use raphtory::{
         },
         graph::{
             nodes::{IntoDynNodes, Nodes},
-            views::filter::model::node_filter::CompositeNodeFilter,
+            views::filter::model::DynFilter,
         },
     },
     errors::GraphError,
@@ -481,7 +481,7 @@ impl GqlNodes {
     ) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let filter: CompositeNodeFilter = expr.try_into()?;
+            let filter: DynFilter = expr.try_into()?;
             let filtered = self_clone.nn.filter(filter)?;
             Ok(self_clone.update(filtered.into_dyn()))
         })
@@ -514,7 +514,7 @@ impl GqlNodes {
     ) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let filter: CompositeNodeFilter = expr.try_into()?;
+            let filter: DynFilter = expr.try_into()?;
             let filtered = self_clone.nn.select(filter)?;
             Ok(self_clone.update(filtered.into_dyn()))
         })
