@@ -66,8 +66,8 @@ use super::{
         AvgNodeOp, FirstNodeOp, LastNodeOp, LenNodeOp, MaxNodeOp, MinNodeOp, SumNodeOp,
         TemporalNodePropOp,
     },
-    AllEdgeOp, AllNodeOp, AnyEdgeOp, AnyNodeOp, AvgEdgeOp, CreateOp, EntityExpr, FirstEdgeOp,
-    LastEdgeOp, LenEdgeOp, MaxEdgeOp, MinEdgeOp, SumEdgeOp,
+    AllEdgeOp, AllNodeOp, AnyEdgeOp, AnyNodeOp, AvgEdgeOp, CreateOp, EntityExpr, EntityExprBuilder,
+    FirstEdgeOp, LastEdgeOp, LenEdgeOp, MaxEdgeOp, MinEdgeOp, SumEdgeOp,
 };
 use crate::{
     db::{
@@ -121,6 +121,8 @@ impl EntityExpr for Id {
     }
 }
 
+impl EntityExprBuilder for Id {}
+
 impl CreateOp for Id {
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
@@ -159,6 +161,8 @@ impl EntityExpr for Name {
     }
 }
 
+impl EntityExprBuilder for Name {}
+
 impl CreateOp for Name {
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
@@ -179,6 +183,8 @@ impl EntityExpr for Type {
         PropType::Str
     }
 }
+
+impl EntityExprBuilder for Type {}
 
 impl CreateOp for Type {
     fn create_node_op<'g, G: GraphView + 'g>(
@@ -449,6 +455,8 @@ impl<E: CreateView + Clone + Send + Sync + 'static> EntityExpr for DegreeExpr<E>
     }
 }
 
+impl<E: CreateView + Clone + Send + Sync + 'static> EntityExprBuilder for DegreeExpr<E> {}
+
 impl<E: CreateView + Clone + Send + Sync + 'static> CreateOp for DegreeExpr<E> {
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
@@ -490,6 +498,8 @@ impl<E: EntityExpr + Clone + Send + Sync + 'static> EntityExpr for TemporalPropE
         self.view_expr.entity()
     }
 }
+
+impl<E: EntityExpr + Clone + Send + Sync + 'static> EntityExprBuilder for TemporalPropExpr<E> {}
 
 impl<E: EntityExpr + Clone + Send + Sync + 'static> EntityAggOps for TemporalPropExpr<E> {
     fn sum(self) -> SumExpr<Self> {
@@ -587,6 +597,8 @@ macro_rules! impl_agg_expr {
                 self.0.entity()
             }
         }
+
+        impl<E: EntityExpr> EntityExprBuilder for $expr<E> {}
 
         impl<E: EntityExpr> EntityAggOps for $expr<E> {
             fn sum(self) -> SumExpr<Self> {

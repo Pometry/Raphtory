@@ -443,7 +443,7 @@ pub trait EdgeFilterFactory: PropertyFilterFactory + Clone {}
 use crate::db::graph::views::filter::model::{
     edge_expr::ops::{EdgeMetaOp, EdgePropOp},
     graph_filter::GraphFilterOps,
-    node_expr::{CreateOp, DynTemporal, EntityExpr},
+    node_expr::{CreateOp, DynTemporal, EntityExpr, EntityExprBuilder},
 };
 use edge_expr::EdgeOp;
 use raphtory_api::core::entities::properties::prop::PropType;
@@ -951,7 +951,23 @@ pub trait EntityExprFilterOps: EntityExpr + Sized {
     }
 }
 
-impl<E: EntityExpr> EntityExprFilterOps for E {}
+impl<E: EntityExprBuilder> EntityExprFilterOps for E {}
+
+// Concrete LHS markers
+impl EntityExprBuilder for NodeFilter {}
+impl EntityExprBuilder for EdgeFilter {}
+impl EntityExprBuilder for ExplodedEdgeFilter {}
+
+// Property / metadata accessors
+impl<E: EntityExpr> EntityExprBuilder for PropertyExpr<E> {}
+impl<E: EntityExpr> EntityExprBuilder for MetadataExpr<E> {}
+
+// View modifiers preserve builder-ness
+impl<T: EntityExprBuilder> EntityExprBuilder for Windowed<T> {}
+impl<T: EntityExprBuilder> EntityExprBuilder for Layered<T> {}
+impl<T: EntityExprBuilder> EntityExprBuilder for Latest<T> {}
+impl<T: EntityExprBuilder> EntityExprBuilder for SnapshotAt<T> {}
+impl<T: EntityExprBuilder> EntityExprBuilder for SnapshotLatest<T> {}
 
 /// Reject ordering operators on boolean properties.
 //. TODO: Also check if both the types are comparable.

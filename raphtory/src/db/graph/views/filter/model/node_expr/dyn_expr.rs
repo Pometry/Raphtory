@@ -33,8 +33,8 @@ use crate::{
         graph::views::filter::model::{
             edge_expr::EdgeOp,
             node_expr::{
-                AvgExpr, CreateOp, EntityAggOps, EntityExpr, FirstExpr, LastExpr, LenExpr, MaxExpr,
-                MinExpr, SumExpr,
+                AvgExpr, CreateOp, EntityAggOps, EntityExpr, EntityExprBuilder, FirstExpr,
+                LastExpr, LenExpr, MaxExpr, MinExpr, SumExpr,
             },
             CreateView, EntityMarker, PropertyExpr,
         },
@@ -109,6 +109,8 @@ impl<T: DynEntityExpr + ?Sized> EntityExpr for Arc<T> {
         self.deref().dyn_entity()
     }
 }
+
+impl<T: DynEntityExpr + ?Sized> EntityExprBuilder for Arc<T> {}
 
 impl<T: DynCreateOp + ?Sized> CreateOp for Arc<T> {
     fn create_node_op<'g, G: GraphView + 'g>(

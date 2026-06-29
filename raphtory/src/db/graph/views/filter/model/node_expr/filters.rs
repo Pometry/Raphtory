@@ -45,7 +45,7 @@ use super::{
         BinaryCmpNodeOp, ListAwareCmpNodeOp, ListAwareSetNodeOp, ListAwareStringNodeOp,
         ListAwareUnaryNodeOp, PropValueSetNodeOp, StringNodeOp, UnaryNodeOp,
     },
-    ConstFilter, CreateOp, EntityExpr, Marker,
+    ConstFilter, CreateOp, EntityExpr, EntityExprBuilder, Marker,
 };
 use crate::{
     db::{
@@ -126,6 +126,8 @@ impl<L, R, E> BinaryCmpExpr<L, R, E> {
 }
 
 impl<L, R, E> ComposableFilter for BinaryCmpExpr<L, R, E> {}
+
+impl<L: EntityExpr, R: EntityExpr, E: Marker> EntityExprBuilder for BinaryCmpExpr<L, R, E> {}
 
 impl<L: EntityExpr, R: EntityExpr, E: Marker> EntityExpr for BinaryCmpExpr<L, R, E> {
     type Marker = E;
@@ -277,6 +279,8 @@ impl<E, Entity> UnaryExpr<E, Entity> {
 
 impl<E, Entity> ComposableFilter for UnaryExpr<E, Entity> {}
 
+impl<E: EntityExpr, M: Marker> EntityExprBuilder for UnaryExpr<E, M> {}
+
 impl<E: EntityExpr, M: Marker> EntityExpr for UnaryExpr<E, M> {
     type Marker = M;
     fn entity(&self) -> Self::Marker {
@@ -419,6 +423,8 @@ impl<L, R, Entity> StringExpr<L, R, Entity> {
 
 impl<L, R, Entity> ComposableFilter for StringExpr<L, R, Entity> {}
 
+impl<L: EntityExpr, R: EntityExpr, M: Marker> EntityExprBuilder for StringExpr<L, R, M> {}
+
 impl<L: EntityExpr, R: EntityExpr, M: Marker> EntityExpr for StringExpr<L, R, M> {
     type Marker = M;
     fn entity(&self) -> Self::Marker {
@@ -547,6 +553,8 @@ impl<E, Entity> PropValueSetExpr<E, Entity> {
 }
 
 impl<E, Entity> ComposableFilter for PropValueSetExpr<E, Entity> {}
+
+impl<E: EntityExpr, M: Marker> EntityExprBuilder for PropValueSetExpr<E, M> {}
 
 impl<E: EntityExpr, M: Marker> EntityExpr for PropValueSetExpr<E, M> {
     type Marker = M;

@@ -11,7 +11,7 @@ use crate::{
                 exploded_edge_filter::ExplodedEdgeFilter,
                 latest_filter::Latest,
                 layered_filter::Layered,
-                node_expr::{CreateOp, EntityExpr},
+                node_expr::{CreateOp, EntityExpr, EntityExprBuilder},
                 node_filter::{builders::InternalNodeFilterBuilder, NodeFilter},
                 snapshot_filter::{SnapshotAt, SnapshotLatest},
                 windowed_filter::Windowed,
@@ -192,6 +192,8 @@ impl<E: CreateView + EntityExpr + Clone + Send + Sync + 'static>
         EdgeEndpointWrapper::new(AllExpr(self.inner), endpoint)
     }
 }
+
+impl<T: EntityExprBuilder> EntityExprBuilder for EdgeEndpointWrapper<T> {}
 
 impl<T: EntityExpr> EntityExpr for EdgeEndpointWrapper<T> {
     type Marker = EdgeFilter;

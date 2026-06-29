@@ -90,3 +90,13 @@ pub trait EntityExpr: Clone + Send + Sync + 'static {
         true
     }
 }
+
+/// Marker for types that initiate a filter expression chain (LHS receiver for
+/// `.eq` / `.gt` / `.contains` / ...).
+///
+/// Scoped narrowly (not blanket-impl'd for every `EntityExpr`) to avoid name
+/// collisions with stdlib methods like `str::contains` / `PartialOrd::gt` on
+/// primitive `EntityExpr` types (`String`, `&str`, `usize`, numerics, `Prop`).
+///
+/// Mirrors the same trick used by `EntityAggOps` for `min`/`max`/`sum`.
+pub trait EntityExprBuilder: EntityExpr {}
