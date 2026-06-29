@@ -20,9 +20,6 @@ pub fn build_graph_metadata(graph: impl GraphView) -> GraphMetadata {
 
 /// Encode `graph`'s data into a fresh directory inside `folder` and atomically point the folder's
 /// metadata at it, deleting any previously-stored graph data.
-///
-/// The graph-data encoding lives in `raphtory` because the `ParquetEncoder` /
-/// `GraphView` traits aren't available in `raphtory-api`
 pub fn replace_graph_in_folder(
     folder: &InnerGraphFolder,
     graph: impl ParquetEncoder + GraphView + std::fmt::Debug,

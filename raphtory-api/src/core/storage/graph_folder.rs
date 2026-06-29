@@ -13,21 +13,15 @@
 use crate::{core::input::input_node::parse_u64_strict, to_millis::ToMillis, GraphType};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-#[cfg(feature = "io")]
 use std::{
     fs::{self, File},
-    path::{Path, PathBuf},
-};
-use std::{
     io,
     io::{ErrorKind, Read, Seek, Write},
+    path::{Path, PathBuf},
     time::SystemTimeError,
 };
-#[cfg(feature = "io")]
 use tempfile::NamedTempFile;
-#[cfg(feature = "io")]
 use walkdir::WalkDir;
-#[cfg(feature = "io")]
 use zip::{write::FileOptions, ZipArchive, ZipWriter};
 
 /// Metadata file that stores path to the data folder.
@@ -61,7 +55,6 @@ pub struct GraphMetadata {
     pub is_diskgraph: bool,
 }
 
-#[cfg(feature = "io")]
 impl Metadata {
     /// Atomically write this metadata into the data folder at `data_path`
     pub fn write_atomic(&self, data_path: &Path, meta_path: &Path) -> std::io::Result<()> {
@@ -74,7 +67,6 @@ impl Metadata {
 }
 
 /// Errors returned by the graph folder path operations (the `GraphPaths` trait and its helpers)
-#[cfg(feature = "io")]
 #[derive(thiserror::Error, Debug)]
 pub enum GraphFolderError {
     #[error(transparent)]

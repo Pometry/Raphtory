@@ -16,10 +16,10 @@ edition.workspace = true
 
 [dependencies]
 serde = { workspace = true, features = ["derive"] }
-serde_json = { workspace = true, optional = true }
-zip = { workspace = true, optional = true }
-walkdir = { workspace = true, optional = true }
-tempfile = { workspace = true, optional = true }
+serde_json = { workspace = true }
+zip = { workspace = true }
+walkdir = { workspace = true }
+tempfile = { workspace = true }
 bigdecimal = { workspace = true, features = ["string-only"] }
 thiserror = { workspace = true }
 bytemuck = { workspace = true }
@@ -62,4 +62,3 @@ python = [
 vectors = []
 template = ["dep:minijinja"]
 search = []
-io = ["dep:serde_json", "dep:zip", "dep:walkdir", "dep:tempfile"]
