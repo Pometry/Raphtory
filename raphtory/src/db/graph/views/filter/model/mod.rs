@@ -442,6 +442,7 @@ pub trait EdgeFilterFactory: PropertyFilterFactory + Clone {}
 
 use crate::db::graph::views::filter::model::{
     edge_expr::ops::{EdgeMetaOp, EdgePropOp},
+    graph_filter::GraphFilterOps,
     node_expr::{CreateOp, DynTemporal, EntityExpr},
 };
 use edge_expr::EdgeOp;
@@ -693,9 +694,39 @@ impl<T> DynInternalViewWrapPropOps for T where
 {
 }
 
-pub trait DynViewFilter: DynInternalViewWrapOps + DynCreateFilter + Send + Sync + 'static {}
-impl<T> DynViewFilter for T where T: DynInternalViewWrapOps + DynCreateFilter + Send + Sync + 'static
-{}
+pub trait DynViewFilter: DynCreateFilter + Send + Sync + 'static {
+    fn dyn_bounds(&self) -> (EventTime, EventTime);
+
+    fn dyn_build_window(&self, start: EventTime, end: EventTime) -> Arc<dyn DynViewFilter>;
+}
+impl<T> DynViewFilter for T
+where
+    T: GraphFilterOps + Send + Sync + 'static,
+{
+    fn dyn_bounds(&self) -> (EventTime, EventTime) {
+        self.bounds()
+    }
+
+    fn dyn_build_window(&self, start: EventTime, end: EventTime) -> Arc<dyn DynViewFilter> {
+        Arc::new(self.clone().build_window(start, end))
+    }
+}
+
+impl InternalViewWrapOps for Arc<dyn DynViewFilter> {
+    type Window = Self;
+
+    fn bounds(&self) -> (EventTime, EventTime) {
+        self.deref().dyn_bounds()
+    }
+
+    fn build_window(self, start: EventTime, end: EventTime) -> Self::Window {
+        self.deref().dyn_build_window(start, end)
+    }
+}
+
+impl GraphFilterOps for DynView {
+    type GraphWindow = Self;
+}
 
 pub type DynView = Arc<dyn DynViewFilter>;
 

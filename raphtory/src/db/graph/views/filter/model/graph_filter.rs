@@ -2,7 +2,13 @@ use crate::{
     db::{
         api::state::ops::{filter::NodeExistsOp, GraphView},
         graph::views::filter::{
-            model::{windowed_filter::Windowed, InternalViewWrapOps, Wrap},
+            model::{
+                latest_filter::Latest,
+                layered_filter::Layered,
+                snapshot_filter::{SnapshotAt, SnapshotLatest},
+                windowed_filter::Windowed,
+                CreateView, InternalViewWrapOps, Wrap,
+            },
             CreateFilter,
         },
     },
@@ -36,6 +42,10 @@ impl InternalViewWrapOps for GraphFilter {
     }
 }
 
+pub trait GraphFilterOps: InternalViewWrapOps<Window = Self::GraphWindow> + CreateFilter {
+    type GraphWindow: GraphFilterOps;
+}
+
 impl CreateFilter for GraphFilter {
     type EntityFiltered<'graph, G: GraphViewOps<'graph>> = G;
 
@@ -54,4 +64,28 @@ impl CreateFilter for GraphFilter {
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
         Ok(NodeExistsOp::new(graph))
     }
+}
+
+impl GraphFilterOps for GraphFilter {
+    type GraphWindow = Self::Window;
+}
+
+impl<T: GraphFilterOps> GraphFilterOps for Windowed<T> {
+    type GraphWindow = Self::Window;
+}
+
+impl<T: GraphFilterOps> GraphFilterOps for Layered<T> {
+    type GraphWindow = Self::Window;
+}
+
+impl<T: GraphFilterOps> GraphFilterOps for Latest<T> {
+    type GraphWindow = Self::Window;
+}
+
+impl<T: GraphFilterOps> GraphFilterOps for SnapshotAt<T> {
+    type GraphWindow = Self::Window;
+}
+
+impl<T: GraphFilterOps> GraphFilterOps for SnapshotLatest<T> {
+    type GraphWindow = Self::Window;
 }

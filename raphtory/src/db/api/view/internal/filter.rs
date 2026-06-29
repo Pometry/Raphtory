@@ -6,7 +6,9 @@ use crate::{
 pub trait InternalFilter<'graph> {
     type Graph: GraphView + 'graph;
 
-    type Filtered<FilteredGraph: GraphView + 'graph>: InternalFilter<'graph, Graph = FilteredGraph>;
+    type Filtered<FilteredGraph: GraphView + 'graph>: InternalFilter<'graph, Graph = FilteredGraph>
+        + Clone
+        + 'graph;
 
     fn base_graph(&self) -> &Self::Graph;
 

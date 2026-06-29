@@ -182,7 +182,6 @@ impl InternalViewWrapOps for Arc<dyn DynNodeFilterFactory> {
 impl<T> DynNodeFilterFactory for T
 where
     T: NodeFilterFactory + Send + Sync + 'static,
-    T::Window: NodeFilterFactory + Send + Sync + 'static,
 {
     fn dyn_id(&self) -> Arc<dyn DynCreateOp> {
         Arc::new(self.id())

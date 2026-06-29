@@ -11,7 +11,7 @@ use raphtory_storage::core_ops::CoreGraphOps;
 
 /// Trait defining layer operations
 pub trait LayerOps<'graph> {
-    type LayeredViewType;
+    type LayeredViewType: LayerOps<'graph>;
 
     /// Return a graph containing only the default edge layer
     fn default_layer(&self) -> Self::LayeredViewType {
