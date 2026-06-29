@@ -22,7 +22,7 @@ use crate::{
                 node_state_filter::NodeStateBoolColOp,
                 snapshot_filter::{SnapshotAt, SnapshotLatest},
                 windowed_filter::Windowed,
-                ComposableFilter, CreateView, EntityMarker, InternalViewWrapOps, NodeViewFilterOps,
+                ComposableFilter, CreateView, EntityMarker, InternalViewWrapOps,
                 PropertyFilterFactory, Wrap,
             },
             node_filtered_graph::NodeFilteredGraph,

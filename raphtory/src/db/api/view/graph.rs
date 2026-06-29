@@ -1292,16 +1292,13 @@ where
     G: GraphView + 'graph,
 {
     type Graph = G;
-    type Filtered<Next: GraphViewOps<'graph> + 'graph> = Next;
+    type Filtered<Next: GraphView + 'graph> = Next;
 
     fn base_graph(&self) -> &Self::Graph {
         self
     }
 
-    fn apply_filter<Next: GraphViewOps<'graph> + 'graph>(
-        &self,
-        filtered_graph: Next,
-    ) -> Self::Filtered<Next> {
+    fn apply_filter<Next: GraphView + 'graph>(&self, filtered_graph: Next) -> Self::Filtered<Next> {
         filtered_graph
     }
 }

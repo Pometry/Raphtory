@@ -481,7 +481,7 @@ impl<T: InternalViewWrapOps> DynInternalViewWrapOps for T {
     }
 }
 
-impl InternalViewWrapOps for Arc<dyn DynInternalViewWrapOps> {
+impl<T: DynInternalViewWrapOps + ?Sized> InternalViewWrapOps for Arc<T> {
     type Window = Arc<dyn DynInternalViewWrapOps>;
 
     fn bounds(&self) -> (EventTime, EventTime) {
@@ -553,7 +553,7 @@ pub trait CreateView: Clone + Send + Sync + 'static {
     ) -> Result<Self::View<'graph, G>, GraphError>;
 }
 
-pub trait DynCreateView: Send + Sync {
+pub trait DynCreateView: Send + Sync + 'static {
     fn dyn_create_view<'graph>(
         &self,
         view: Arc<dyn BoxableGraphView + 'graph>,
@@ -569,7 +569,7 @@ impl<T: CreateView> DynCreateView for T {
     }
 }
 
-impl CreateView for Arc<dyn DynCreateView> {
+impl<T: DynCreateView + ?Sized> CreateView for Arc<T> {
     type View<'graph, G: GraphView + 'graph> = Arc<dyn BoxableGraphView + 'graph>;
 
     fn create_view<'graph, G: GraphView + 'graph>(
@@ -695,29 +695,6 @@ impl<T> DynInternalViewWrapPropOps for T where
 {
 }
 
-impl InternalViewWrapOps for Arc<dyn DynInternalViewWrapPropOps> {
-    type Window = Arc<dyn DynInternalViewWrapPropOps>;
-
-    fn bounds(&self) -> (EventTime, EventTime) {
-        self.deref().dyn_bounds()
-    }
-
-    fn build_window(self, start: EventTime, end: EventTime) -> Self::Window {
-        Arc::new(Windowed::new(start, end, self))
-    }
-}
-
-impl CreateView for Arc<dyn DynInternalViewWrapPropOps> {
-    type View<'graph, G: GraphView + 'graph> = Arc<dyn BoxableGraphView + 'graph>;
-
-    fn create_view<'graph, G: GraphView + 'graph>(
-        &self,
-        view: G,
-    ) -> Result<Self::View<'graph, G>, GraphError> {
-        self.deref().dyn_create_view(Arc::new(view))
-    }
-}
-
 pub trait DynViewFilter: DynInternalViewWrapOps + DynCreateFilter + Send + Sync + 'static {}
 impl<T> DynViewFilter for T where T: DynInternalViewWrapOps + DynCreateFilter + Send + Sync + 'static
 {}
@@ -728,34 +705,6 @@ pub type DynFilter = Arc<dyn DynCreateFilter>;
 
 impl ComposableFilter for DynFilter {}
 impl ComposableFilter for DynView {}
-
-impl InternalViewWrapOps for DynView {
-    type Window = DynView;
-
-    fn bounds(&self) -> (EventTime, EventTime) {
-        self.deref().dyn_bounds()
-    }
-
-    fn build_window(self, start: EventTime, end: EventTime) -> Self::Window {
-        Arc::new(Windowed::new(start, end, self))
-    }
-}
-
-pub trait NodeViewFilterOps: ViewWrapOps {
-    type Output<T: CreateFilter>: CreateFilter;
-
-    fn is_active(&self) -> Self::Output<IsActiveNode<NodeFilter>>;
-}
-
-pub trait DynNodeViewFilterOps: DynInternalViewWrapPropOps {
-    fn dyn_is_active(&self) -> Arc<dyn DynCreateFilter>;
-}
-
-impl<T: NodeViewFilterOps + DynInternalViewWrapPropOps> DynNodeViewFilterOps for T {
-    fn dyn_is_active(&self) -> Arc<dyn DynCreateFilter> {
-        Arc::new(self.is_active())
-    }
-}
 
 pub trait EdgeViewFilterOps: ViewWrapOps {
     fn is_active(&self) -> IsActiveEdge<Self> {
@@ -814,71 +763,7 @@ impl<T: EdgeViewFilterOps + DynInternalViewWrapPropOps + CreateView> DynEdgeView
     }
 }
 
-pub type DynNodeViewProps = Arc<dyn DynNodeViewFilterOps>;
-
-impl CreateView for DynNodeViewProps {
-    type View<'graph, G: GraphView + 'graph> = Arc<dyn BoxableGraphView + 'graph>;
-
-    fn create_view<'graph, G: GraphView + 'graph>(
-        &self,
-        view: G,
-    ) -> Result<Self::View<'graph, G>, GraphError> {
-        self.deref().dyn_create_view(Arc::new(view))
-    }
-}
-
-impl InternalViewWrapOps for DynNodeViewProps {
-    type Window = DynNodeViewProps;
-
-    fn bounds(&self) -> (EventTime, EventTime) {
-        self.deref().dyn_bounds()
-    }
-
-    fn build_window(self, start: EventTime, end: EventTime) -> Self::Window {
-        Arc::new(Windowed::new(start, end, self))
-    }
-}
-
-impl NodeViewFilterOps for DynNodeViewProps {
-    type Output<T: CreateFilter> = Arc<dyn DynCreateFilter>;
-
-    fn is_active(&self) -> Self::Output<IsActiveNode<NodeFilter>> {
-        self.deref().dyn_is_active()
-    }
-}
-
-impl DynNodeViewFilterOps for Windowed<DynNodeViewProps> {
-    fn dyn_is_active(&self) -> Arc<dyn DynCreateFilter> {
-        Arc::new(IsActiveNode {
-            view_expr: self.clone(),
-        })
-    }
-}
-
 pub type DynEdgeViewProps = Arc<dyn DynEdgeViewFilterOps>;
-
-impl CreateView for DynEdgeViewProps {
-    type View<'graph, G: GraphView + 'graph> = Arc<dyn BoxableGraphView + 'graph>;
-
-    fn create_view<'graph, G: GraphView + 'graph>(
-        &self,
-        view: G,
-    ) -> Result<Self::View<'graph, G>, GraphError> {
-        self.deref().dyn_create_view(Arc::new(view))
-    }
-}
-
-impl InternalViewWrapOps for DynEdgeViewProps {
-    type Window = DynEdgeViewProps;
-
-    fn bounds(&self) -> (EventTime, EventTime) {
-        self.deref().dyn_bounds()
-    }
-
-    fn build_window(self, start: EventTime, end: EventTime) -> Self::Window {
-        Arc::new(Windowed::new(start, end, self))
-    }
-}
 
 impl EdgeViewFilterOps for DynEdgeViewProps {}
 

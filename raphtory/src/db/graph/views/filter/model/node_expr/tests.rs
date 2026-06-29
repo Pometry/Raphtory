@@ -10,7 +10,7 @@ use crate::{
             CreateFilter,
         },
     },
-    prelude::{AdditionOps, Graph, GraphViewOps, NodeViewOps, NO_PROPS},
+    prelude::{AdditionOps, EntityExprFilterOps, Graph, GraphViewOps, NodeViewOps, NO_PROPS},
 };
 use raphtory_api::core::{
     entities::{
