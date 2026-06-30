@@ -20,8 +20,14 @@ use crate::{
     rayon::blocking_compute,
     GQLError,
 };
+
 use async_graphql::Context;
 use dynamic_graphql::Enum;
+#[cfg(feature = "vectors")]
+use raphtory::vectors::{
+    cache::CachedEmbeddingModel, storage::LazyDiskVectorCache, template::DocumentTemplate,
+    vectorisable::Vectorisable, vectorised_graph::VectorisedGraph,
+};
 use raphtory::{
     db::{
         api::{
@@ -33,10 +39,6 @@ use raphtory::{
     errors::GraphError,
     prelude::AdditionOps,
     serialise::GraphPaths,
-    vectors::{
-        cache::CachedEmbeddingModel, storage::LazyDiskVectorCache, template::DocumentTemplate,
-        vectorisable::Vectorisable, vectorised_graph::VectorisedGraph,
-    },
 };
 use std::{
     fs, io,
@@ -147,6 +149,7 @@ pub(crate) fn get_relative_path(
 pub struct DataInner {
     pub(crate) work_dir: PathBuf,
     pub(crate) cache: GraphCache,
+    #[cfg(feature = "vectors")]
     pub(crate) vector_cache: LazyDiskVectorCache,
     pub(crate) graph_conf: Config,
     pub(crate) auth_policy: Option<Arc<dyn AuthorizationPolicy>>,
@@ -200,6 +203,7 @@ impl Data {
             inner: Arc::new(DataInner {
                 work_dir: work_dir.to_path_buf(),
                 cache,
+                #[cfg(feature = "vectors")]
                 vector_cache: LazyDiskVectorCache::new(work_dir.join(".vector-cache")),
                 graph_conf,
                 auth_policy: None,
@@ -384,6 +388,7 @@ impl Data {
         Ok(())
     }
 
+    #[cfg(feature = "vectors")]
     async fn vectorise_with_template(
         &self,
         graph: MaterializedGraph,
@@ -409,6 +414,7 @@ impl Data {
         }
     }
 
+    #[cfg(feature = "vectors")]
     pub(crate) async fn vectorise_folder(
         &self,
         folder: &ExistingGraphFolder,
@@ -454,8 +460,16 @@ impl Data {
     ) -> Result<GraphWithVectors, GraphError> {
         let create_index = self.create_index;
         let config = self.graph_conf.clone();
+        #[cfg(feature = "vectors")]
         let cache = self.vector_cache.clone();
-        GraphWithVectors::read_from_folder(&folder, &cache, create_index, config).await
+        GraphWithVectors::read_from_folder(
+            &folder,
+            #[cfg(feature = "vectors")]
+            &cache,
+            create_index,
+            config,
+        )
+        .await
     }
 
     async fn read_graph_from_disk(&self, path: &str) -> Result<GraphWithVectors, GQLError> {
@@ -754,8 +768,16 @@ impl Data {
         if matches!(perm, GraphPermission::Read { filter: Some(_) }) {
             return Ok(None);
         }
-        let graph = self.get_graph(path).await?;
-        Ok(graph.vectors().cloned().map(|g| g.into()))
+        #[cfg(feature = "vectors")]
+        {
+            let graph = self.get_graph(path).await?;
+            Ok(graph.vectors().cloned().map(|g| g.into()))
+        }
+        #[cfg(not(feature = "vectors"))]
+        {
+            let _ = path;
+            Err(async_graphql::Error::new("vectors feature not enabled"))
+        }
     }
 }
 

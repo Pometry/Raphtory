@@ -34,12 +34,13 @@ use raphtory::{
     },
     errors::{GraphError, GraphResult},
     prelude::*,
-    vectors::{
-        cache::CachedEmbeddingModel,
-        storage::OpenAIEmbeddings,
-        template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
-    },
     version,
+};
+#[cfg(feature = "vectors")]
+use raphtory::vectors::{
+    cache::CachedEmbeddingModel,
+    storage::OpenAIEmbeddings,
+    template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
 };
 use std::sync::Arc;
 use tracing::warn;
@@ -64,6 +65,7 @@ pub enum EmbeddingModel {
     OpenAI(OpenAIConfig),
 }
 
+#[cfg(feature = "vectors")]
 impl EmbeddingModel {
     async fn cache<'a>(self, ctx: &Context<'a>) -> GraphResult<CachedEmbeddingModel> {
         let data = ctx.data_unchecked::<Data>();
@@ -162,6 +164,7 @@ pub enum Template {
     Custom(String),
 }
 
+#[cfg_attr(not(feature = "vectors"), allow(dead_code))]
 fn resolve(template: Option<Template>, default: &str) -> Option<String> {
     match template? {
         Template::Enabled(false) => None,
@@ -256,20 +259,28 @@ impl QueryRoot {
         #[graphql(desc = "Optional edge-document template; defaults to the built-in template.")]
         edges: Option<Template>,
     ) -> Result<bool> {
-        ctx.require_jwt_write_access()?;
-        let data = ctx.data_unchecked::<Data>();
-        let template = DocumentTemplate {
-            node_template: resolve(nodes, DEFAULT_NODE_TEMPLATE),
-            edge_template: resolve(edges, DEFAULT_EDGE_TEMPLATE),
-        };
-        let cached_model = model
-            .unwrap_or(EmbeddingModel::OpenAI(Default::default()))
-            .cache(ctx)
-            .await?;
-        let folder = ExistingGraphFolder::try_from(data.work_dir.clone(), &path)?;
-        data.vectorise_folder(&folder, &template, cached_model)
-            .await?;
-        Ok(true)
+        #[cfg(feature = "vectors")]
+        {
+            ctx.require_jwt_write_access()?;
+            let data = ctx.data_unchecked::<Data>();
+            let template = DocumentTemplate {
+                node_template: resolve(nodes, DEFAULT_NODE_TEMPLATE),
+                edge_template: resolve(edges, DEFAULT_EDGE_TEMPLATE),
+            };
+            let cached_model = model
+                .unwrap_or(EmbeddingModel::OpenAI(Default::default()))
+                .cache(ctx)
+                .await?;
+            let folder = ExistingGraphFolder::try_from(data.work_dir.clone(), &path)?;
+            data.vectorise_folder(&folder, &template, cached_model)
+                .await?;
+            Ok(true)
+        }
+        #[cfg(not(feature = "vectors"))]
+        {
+            let _ = (ctx, path, model, nodes, edges);
+            Err(async_graphql::Error::new("vectors feature not enabled"))
+        }
     }
 
     /// Create vectorised graph in the format used for queries
