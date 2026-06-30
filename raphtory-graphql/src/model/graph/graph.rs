@@ -85,7 +85,7 @@ impl GqlGraph {
     /// Carries the base graph's schema cache. Used only for the top-level, unfiltered (e.g. materialized) graph view
     /// `cache` is `None` when the view is redacted or type-overridden.
     pub fn new_cached<G: StaticGraphViewOps + IntoDynamic>(
-        path: ExistingGraphFolder,
+        path: UnlockedGraphFolder,
         graph: G,
         cache: Option<Arc<SchemaCache>>,
     ) -> Self {

@@ -1,29 +1,23 @@
 use crate::{
-    model::schema::{
-        cache::SchemaCache, edge_schema::EdgeSchema, get_node_type, MAX_DETAILED_SCHEMA_ENTITIES,
-    },
+    model::schema::{property_schema::PropertySchema, ENUM_BOUNDARY, MAX_DETAILED_SCHEMA_ENTITIES},
     rayon::blocking_compute,
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
-use raphtory::{
-    db::{api::view::StaticGraphViewOps, graph::views::layer_graph::LayeredGraph},
-    prelude::*,
-};
-use raphtory_api::core::entities::edges::edge_ref::EdgeRef;
-use std::{collections::HashMap, sync::Arc};
+use raphtory::{db::api::view::StaticGraphViewOps, prelude::*};
+use raphtory_api::core::entities::{properties::meta::PropMapper, LayerId, LayerIds};
+use std::collections::{hash_map::Entry, HashMap, HashSet};
 
-/// Describes a single edge layer — its name and the per `(srcType, dstType)`
-/// edge schemas observed within it.
-#[derive(ResolvedObject)]
+/// Describes a single edge layer: its name and the edge property/metadata keys
+/// present in it, with observed variants (property values) on small graphs
+#[derive(Clone, ResolvedObject)]
 pub(crate) struct LayerSchema<G: StaticGraphViewOps> {
-    graph: LayeredGraph<G>,
-    // schema cache for the base graph; `None` for filtered views
-    cache: Option<Arc<SchemaCache>>,
+    graph: G,
+    layer_id: LayerId,
 }
 
 impl<G: StaticGraphViewOps> LayerSchema<G> {
-    pub fn new(graph: LayeredGraph<G>, cache: Option<Arc<SchemaCache>>) -> Self {
-        Self { graph, cache }
+    pub fn new(graph: G, layer_id: LayerId) -> Self {
+        Self { graph, layer_id }
     }
 }
 
@@ -31,55 +25,108 @@ impl<G: StaticGraphViewOps> LayerSchema<G> {
 impl<G: StaticGraphViewOps> LayerSchema<G> {
     /// Returns the name of the layer with this schema
     async fn name(&self) -> String {
-        let mut layers = self.graph.unique_layers();
-        let layer = layers.next().expect("Layered graph has a layer");
-        debug_assert!(
-            layers.next().is_none(),
-            "Layered graph outputted more than one layer name"
-        );
-        layer.into()
+        self.graph.get_layer_name(self.layer_id).to_string()
     }
-    /// Returns the list of edge schemas for this edge layer
-    async fn edges(&self) -> Vec<EdgeSchema<LayeredGraph<G>>> {
+
+    /// Returns the list of property schemas present on edges in this layer
+    async fn properties(&self) -> Vec<PropertySchema> {
         let graph = self.graph.clone();
-        let cache = self.cache.clone();
+        let layer_id = self.layer_id;
         blocking_compute(move || {
-            let layer: String = graph
-                .unique_layers()
-                .next()
-                .map(Into::into)
-                .unwrap_or_default();
-            // Single scan over the layer's edges, bucketing them by (src_node_type, dst_node_type)
-            let mut buckets: HashMap<(String, String), Vec<EdgeRef>> = HashMap::new();
-            let mut total = 0usize;
-            for edge in graph.edges().into_iter() {
-                // FIXME: Do we stop if we have over 1000 edges or no?
-                // total += 1;
-                // if total > MAX_DETAILED_SCHEMA_ENTITIES {
-                //     // Too many edges to build a detailed schema; abort
-                //     return vec![];
-                // }
-                let src_type = get_node_type(edge.src());
-                let dst_type = get_node_type(edge.dst());
-                buckets
-                    .entry((src_type, dst_type))
-                    .or_default()
-                    .push(edge.edge);
+            if too_many_edges(&graph, layer_id) {
+                // too many edges to collect values: keys/types only, no variants
+                return collect_layer_schema(&graph, layer_id, false);
             }
-            buckets
-                .into_iter()
-                .map(|((src_type, dst_type), edges)| {
-                    EdgeSchema::new(
-                        graph.clone(),
-                        layer.clone(),
-                        src_type,
-                        dst_type,
-                        edges,
-                        cache.clone(),
-                    )
-                })
-                .collect()
+            let layer = graph.get_layer_name(layer_id);
+            let layered = graph.valid_layers(layer);
+            let mapper = graph.edge_meta().temporal_prop_mapper();
+            collect_variants(layered.edges().into_iter().map(|e| e.properties()), mapper)
         })
         .await
     }
+
+    /// Returns the list of metadata schemas present on edges in this layer
+    async fn metadata(&self) -> Vec<PropertySchema> {
+        let graph = self.graph.clone();
+        let layer_id = self.layer_id;
+        blocking_compute(move || {
+            if too_many_edges(&graph, layer_id) {
+                return collect_layer_schema(&graph, layer_id, true);
+            }
+            let layer = graph.get_layer_name(layer_id);
+            let layered = graph.valid_layers(layer);
+            let mapper = graph.edge_meta().metadata_mapper();
+            collect_variants(layered.edges().into_iter().map(|e| e.metadata()), mapper)
+        })
+        .await
+    }
+}
+
+/// True if the layer holds more edges than we're willing to scan for values.
+fn too_many_edges<G: StaticGraphViewOps>(graph: &G, layer_id: LayerId) -> bool {
+    graph.unfiltered_num_edges(&LayerIds::One(layer_id)) > MAX_DETAILED_SCHEMA_ENTITIES
+}
+
+/// Get edge property/metadata keys and types using bitset without collecting values.
+/// Redacted properties are handled by the GraphView (in edge_layer_has_*).
+fn collect_layer_schema<G: StaticGraphViewOps>(
+    graph: &G,
+    layer_id: LayerId,
+    metadata: bool,
+) -> Vec<PropertySchema> {
+    let meta = graph.edge_meta();
+    let mapper = if metadata {
+        meta.metadata_mapper()
+    } else {
+        meta.temporal_prop_mapper()
+    };
+    mapper
+        .locked()
+        .iter_ids_and_types()
+        .filter(|(id, _, _)| {
+            if metadata {
+                graph.edge_layer_has_metadata(layer_id, *id)
+            } else {
+                graph.edge_layer_has_temporal_prop(layer_id, *id)
+            }
+        })
+        .map(|(_, name, dtype)| PropertySchema::new(name.to_string(), dtype.to_string(), vec![]))
+        .collect()
+}
+
+/// Collect distinct property values for `(key, dtype)` pairs. If there are too many values, we stop.
+fn collect_variants<P: PropertiesOps>(
+    props_per_edge: impl Iterator<Item = P>,
+    mapper: &PropMapper,
+) -> Vec<PropertySchema> {
+    let mut schema: HashMap<(String, String), HashSet<String>> = HashMap::new();
+    for props in props_per_edge {
+        for ((key, value), id) in props.iter().zip(props.ids()) {
+            let Some(value) = value else { continue };
+            let key_with_prop_type = (
+                key.to_string(),
+                mapper
+                    .get_dtype(id)
+                    .expect("type for internal id should always exist")
+                    .to_string(),
+            );
+            match schema.entry(key_with_prop_type) {
+                Entry::Vacant(entry) => {
+                    entry.insert(HashSet::from([value.to_string()]));
+                }
+                Entry::Occupied(mut entry) => {
+                    let variants = entry.get_mut();
+                    // An empty set means "too many variants", so we skip
+                    // Otherwise, there should always be at least 1 value in the set
+                    if !variants.is_empty() {
+                        variants.insert(value.to_string());
+                        if variants.len() > ENUM_BOUNDARY {
+                            variants.clear();
+                        }
+                    }
+                }
+            }
+        }
+    }
+    schema.into_iter().map(|prop| prop.into()).collect()
 }
