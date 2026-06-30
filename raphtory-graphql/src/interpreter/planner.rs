@@ -29,12 +29,18 @@ use raphtory::db::graph::views::filter::model::{
     edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter,
 };
 use async_graphql::{
+    normalize::{iter_fields, resolve_value},
     parser::{
         parse_query,
-        types::{DocumentOperations, Field, Selection, SelectionSet},
+        types::{
+            DocumentOperations, ExecutableDocument, Field, FragmentDefinition, Selection,
+            SelectionSet, VariableDefinition,
+        },
+        Positioned,
     },
-    Value as GqlValue,
+    Name, Value as GqlValue, Variables,
 };
+use std::collections::HashMap;
 use raphtory_api::core::{entities::GID, storage::timeindex::EventTime};
 
 #[derive(Debug, thiserror::Error)]
@@ -57,8 +63,8 @@ pub enum PlanError {
     InvalidDateTimeFormat(String),
     #[error("invalid filter for argument `{arg}`: {reason}")]
     Filter { arg: &'static str, reason: String },
-    #[error("fragments are not supported")]
-    Fragments,
+    #[error("{0}")]
+    Variable(String),
 }
 
 /// A planned request: the (async-loaded) root graph path plus the compiled plan
@@ -70,25 +76,43 @@ pub struct PlannedRequest {
 }
 
 /// Parse, validate, and compile a query string into a [`PlannedRequest`].
-pub fn plan_request(query: &str) -> Result<PlannedRequest, PlanError> {
+pub fn plan_request(query: &str, variables: &Variables) -> Result<PlannedRequest, PlanError> {
     let doc = parse_query(query).map_err(|e| PlanError::Parse(e.to_string()))?;
-    let op = match doc.operations {
+    let ExecutableDocument {
+        operations,
+        mut fragments,
+    } = doc;
+    let mut op = match operations {
         DocumentOperations::Single(op) => op.node,
         DocumentOperations::Multiple(ops) => {
             ops.into_iter().next().ok_or(PlanError::NoOperation)?.1.node
         }
     };
+
+    // Resolve variables once, up front: rewrite every argument's `$var` into a
+    // concrete value (using `variables`, then operation-level defaults) — both in
+    // the operation and in the fragment definitions its spreads pull in. After
+    // this, the planner only ever sees variable-free argument values, so the
+    // existing `const_arg` path works unchanged.
+    substitute_variables(&mut op.selection_set.node, &op.variable_definitions, variables)?;
+    for fragment in fragments.values_mut() {
+        substitute_variables(
+            &mut fragment.node.selection_set.node,
+            &op.variable_definitions,
+            variables,
+        )?;
+    }
+
     let schema = SchemaTypes::get();
 
-    // The root must select exactly one field, and it must be `graph(path:)`.
-    let items = &op.selection_set.node.items;
-    if items.len() != 1 {
+    // The root must select exactly one field (after following any fragment), and
+    // it must be `graph(path:)`.
+    let mut roots = iter_fields(&op.selection_set.node, &fragments);
+    let graph_field = roots.next().ok_or(PlanError::BadRoot)?;
+    if roots.next().is_some() {
         return Err(PlanError::BadRoot);
     }
-    let graph_field = match &items[0].node {
-        Selection::Field(f) => &f.node,
-        _ => return Err(PlanError::Fragments),
-    };
+    let graph_field = &graph_field.node;
     if graph_field.name.node.as_str() != fld::GRAPH {
         return Err(PlanError::BadRoot);
     }
@@ -101,7 +125,8 @@ pub fn plan_request(query: &str) -> Result<PlannedRequest, PlanError> {
 
     let graph_path = string_arg(graph_field, arg::PATH)?;
     let root_key = graph_field.response_key().node.to_string();
-    let children = plan_selection(&ginfo.return_type, &graph_field.selection_set.node, schema)?;
+    let children =
+        plan_selection(&ginfo.return_type, &graph_field.selection_set.node, schema, &fragments)?;
 
     Ok(PlannedRequest {
         graph_path,
@@ -112,18 +137,44 @@ pub fn plan_request(query: &str) -> Result<PlannedRequest, PlanError> {
     })
 }
 
-/// Compile a selection set whose fields are selected on `parent_type`.
+/// Rewrite every argument value in `sel` (and nested inline fragments), replacing
+/// `Value::Variable` with a concrete value via the schema-agnostic resolver in
+/// `async_graphql::normalize`. Fragment *definitions* are handled by the caller.
+fn substitute_variables(
+    sel: &mut SelectionSet,
+    defs: &[Positioned<VariableDefinition>],
+    variables: &Variables,
+) -> Result<(), PlanError> {
+    for item in &mut sel.items {
+        match &mut item.node {
+            Selection::Field(field) => {
+                for (_, value) in &mut field.node.arguments {
+                    let resolved = resolve_value(&value.node, defs, variables)
+                        .map_err(|e| PlanError::Variable(e.message))?;
+                    value.node = resolved.into_value();
+                }
+                substitute_variables(&mut field.node.selection_set.node, defs, variables)?;
+            }
+            Selection::InlineFragment(inline) => {
+                substitute_variables(&mut inline.node.selection_set.node, defs, variables)?;
+            }
+            Selection::FragmentSpread(_) => {}
+        }
+    }
+    Ok(())
+}
+
+/// Compile a selection set whose fields are selected on `parent_type`. Fragment
+/// spreads and inline fragments are followed transparently via [`iter_fields`].
 fn plan_selection(
     parent_type: &str,
     sel: &SelectionSet,
     schema: &SchemaTypes,
+    fragments: &HashMap<Name, Positioned<FragmentDefinition>>,
 ) -> Result<Box<[Op]>, PlanError> {
-    let mut ops = Vec::with_capacity(sel.items.len());
-    for item in &sel.items {
-        let field = match &item.node {
-            Selection::Field(f) => &f.node,
-            _ => return Err(PlanError::Fragments),
-        };
+    let mut ops = Vec::new();
+    for field in iter_fields(sel, fragments) {
+        let field = &field.node;
         let name = field.name.node.as_str();
         let key = field.response_key().node.as_str();
 
@@ -145,12 +196,22 @@ fn plan_selection(
                 key: key.into(),
                 nav,
                 nullable: finfo.nullable,
-                children: plan_selection(&finfo.return_type, &field.selection_set.node, schema)?,
+                children: plan_selection(
+                    &finfo.return_type,
+                    &field.selection_set.node,
+                    schema,
+                    fragments,
+                )?,
             },
             OpKind::List(iter) => Op::List {
                 key: key.into(),
                 iter,
-                children: plan_selection(&finfo.return_type, &field.selection_set.node, schema)?,
+                children: plan_selection(
+                    &finfo.return_type,
+                    &field.selection_set.node,
+                    schema,
+                    fragments,
+                )?,
             },
         };
         ops.push(op);
@@ -858,7 +919,11 @@ mod tests {
     #[test]
     fn rejects_unknown_field() {
         // `bogus` is not a field on Node in schema.graphql
-        let err = plan_request(r#"{ graph(path:"g") { nodes { list { bogus } } } }"#).unwrap_err();
+        let err = plan_request(
+            r#"{ graph(path:"g") { nodes { list { bogus } } } }"#,
+            &Variables::default(),
+        )
+        .unwrap_err();
         assert!(matches!(err, PlanError::UnknownField { .. }), "{err:?}");
     }
 
@@ -866,14 +931,106 @@ mod tests {
     fn rejects_unimplemented_field() {
         // `name` is a valid Graph field in the SDL, but the interpreter
         // doesn't implement it yet → distinct from a validation failure.
-        let err = plan_request(r#"{ graph(path:"g") { name } }"#).unwrap_err();
+        let err = plan_request(r#"{ graph(path:"g") { name } }"#, &Variables::default()).unwrap_err();
         assert!(matches!(err, PlanError::Unsupported { .. }), "{err:?}");
     }
 
     #[test]
     fn extracts_graph_path() {
-        let p = plan_request(r#"{ graph(path:"my/graph") { nodes { list { id } } } }"#).unwrap();
+        let p = plan_request(
+            r#"{ graph(path:"my/graph") { nodes { list { id } } } }"#,
+            &Variables::default(),
+        )
+        .unwrap();
         assert_eq!(p.graph_path, "my/graph");
+    }
+
+    /// async-graphql's *parser* does NOT inline fragments or substitute
+    /// variables — it preserves them symbolically in the AST. That resolution is
+    /// a separate pass in async-graphql's *execution* layer, which we bypass.
+    /// This test pins that behaviour so the gap is documented, not assumed.
+    #[test]
+    fn parser_preserves_fragments_and_variables() {
+        let query = r#"
+            query Q($p: String!) {
+                graph(path: $p) {
+                    nodes { ...NodeFields }
+                }
+            }
+            fragment NodeFields on Nodes { list { id } }
+        "#;
+        let doc = parse_query(query).unwrap();
+
+        // (1) The fragment is kept as a *definition*, not inlined at the spread.
+        assert!(
+            doc.fragments.contains_key("NodeFields"),
+            "fragment definition should survive parsing"
+        );
+
+        let op = match &doc.operations {
+            DocumentOperations::Single(op) => &op.node,
+            DocumentOperations::Multiple(ops) => &ops.values().next().unwrap().node,
+        };
+        let graph_field = match &op.selection_set.node.items[0].node {
+            Selection::Field(f) => &f.node,
+            _ => panic!("expected the graph field"),
+        };
+
+        // (2) The `path` argument is still a *variable reference*, not the value.
+        let (_, path_val) = graph_field
+            .arguments
+            .iter()
+            .find(|(n, _)| n.node.as_str() == "path")
+            .unwrap();
+        // It renders as the GraphQL variable `$p` (the variable-capable
+        // `async_graphql_value::Value::Variable`), not the literal "g".
+        assert_eq!(path_val.node.to_string(), "$p");
+        // `into_const()` (what `const_arg` uses) yields None while a variable is
+        // unresolved — which is exactly why variable args don't reach the planner.
+        assert!(path_val.node.clone().into_const().is_none());
+
+        // (3) Inside `nodes`, the selection is a *spread*, not inlined fields.
+        let nodes_field = match &graph_field.selection_set.node.items[0].node {
+            Selection::Field(f) => &f.node,
+            _ => panic!("expected the nodes field"),
+        };
+        assert!(
+            matches!(
+                &nodes_field.selection_set.node.items[0].node,
+                Selection::FragmentSpread(_)
+            ),
+            "spread should remain a FragmentSpread, not be inlined into Fields"
+        );
+    }
+
+    /// Fragment spreads are now followed transparently during planning (via
+    /// `async_graphql::normalize::iter_fields`), so a fragment query plans fine.
+    #[test]
+    fn plans_through_fragments() {
+        let query = r#"
+            { graph(path: "g") { nodes { ...NodeFields } } }
+            fragment NodeFields on Nodes { list { id } }
+        "#;
+        assert!(plan_request(query, &Variables::default()).is_ok());
+    }
+
+    /// Variables are substituted up front from the provided `variables` map, so
+    /// the `path` argument resolves to the variable's value.
+    #[test]
+    fn substitutes_variable_argument() {
+        let query = r#"query Q($p: String!) { graph(path: $p) { nodes { list { id } } } }"#;
+        let variables = Variables::from_json(serde_json::json!({ "p": "my/graph" }));
+        let planned = plan_request(query, &variables).unwrap();
+        assert_eq!(planned.graph_path, "my/graph");
+    }
+
+    /// A variable with no provided value falls back to its operation-level default.
+    #[test]
+    fn substitutes_variable_default() {
+        let query =
+            r#"query Q($p: String = "default/graph") { graph(path: $p) { nodes { list { id } } } }"#;
+        let planned = plan_request(query, &Variables::default()).unwrap();
+        assert_eq!(planned.graph_path, "default/graph");
     }
 
     /// The full vertical slice: a raw query string is parsed, validated against
@@ -884,7 +1041,7 @@ mod tests {
         let query = r#"{ graph(path: "g") { nodes { list { id } } } }"#;
 
         // request -> validate -> plan
-        let planned = plan_request(query).unwrap();
+        let planned = plan_request(query, &Variables::default()).unwrap();
         assert_eq!(planned.graph_path, "g");
 
         // stand up the real server (old engine) and send the same graph

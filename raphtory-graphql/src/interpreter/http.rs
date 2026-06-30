@@ -28,11 +28,14 @@ use poem::{Endpoint, IntoResponse, Request, Response};
 use raphtory::db::api::view::IntoDynamic;
 use serde::Deserialize;
 
-/// A GraphQL-over-HTTP request body. `variables`/`operationName` are accepted
-/// (so well-formed clients don't break) but ignored by the POC.
+/// A GraphQL-over-HTTP request body. `variables` are resolved into the query at
+/// plan time; `operationName` is accepted but the planner uses the sole/first
+/// operation.
 #[derive(Deserialize)]
 struct HttpRequest {
     query: String,
+    #[serde(default)]
+    variables: Option<serde_json::Value>,
 }
 
 /// Streaming GraphQL endpoint backed by the interpreter. Mounted alongside the
@@ -58,8 +61,12 @@ impl Endpoint for InterpreterEndpoint {
             Err(e) => return Ok(graphql_error(format!("invalid request body: {e}"))),
         };
 
-        // request → validate (against schema.graphql) → plan
-        let planned = match plan_request(&parsed.query) {
+        // request → resolve variables + validate (against schema.graphql) → plan
+        let variables = parsed
+            .variables
+            .map(async_graphql::Variables::from_json)
+            .unwrap_or_default();
+        let planned = match plan_request(&parsed.query, &variables) {
             Ok(p) => p,
             Err(e) => return Ok(graphql_error(e.to_string())),
         };
@@ -104,9 +111,19 @@ mod tests {
 
     /// POST a query to the interpreter endpoint and return the parsed JSON body.
     async fn post_interp(http: &reqwest::Client, port: u16, query: &str) -> Value {
+        post_interp_vars(http, port, query, json!({})).await
+    }
+
+    /// POST a query + `variables` to the interpreter endpoint.
+    async fn post_interp_vars(
+        http: &reqwest::Client,
+        port: u16,
+        query: &str,
+        variables: Value,
+    ) -> Value {
         let resp = http
             .post(format!("http://localhost:{port}/graphql_interp"))
-            .json(&json!({ "query": query }))
+            .json(&json!({ "query": query, "variables": variables }))
             .timeout(Duration::from_secs(30))
             .send()
             .await
@@ -730,6 +747,79 @@ mod tests {
             let got = post_interp(&http, port, query).await;
             assert_eq!(got["data"], expected, "mismatch for query: {query}");
         }
+    }
+
+    #[tokio::test]
+    async fn interp_fragments_and_variables_match_endpoint() {
+        // a small graph with typed, multi-timestamp nodes + a layered edge
+        let g = Graph::new();
+        g.add_node(3, "alice", [("Age", 30i64)], Some("person"), None).unwrap();
+        g.add_node(4, "bob", [("Age", 40i64)], Some("person"), None).unwrap();
+        g.add_edge(5, "alice", "bob", NO_PROPS, Some("l1")).unwrap();
+
+        let tempdir = TempDir::new().unwrap();
+        let server = GraphServer::new(tempdir.path().to_path_buf(), None, Config::default())
+            .await
+            .unwrap();
+        let port = 43948;
+        let _running = server.start_with_port(port).await.unwrap();
+        tokio::time::sleep(Duration::from_secs(1)).await;
+
+        let gql = RaphtoryGraphQLClient::new(
+            Url::parse(&format!("http://localhost:{port}/")).unwrap(),
+            None,
+        );
+        let encoded = url_encode_graph(g.materialize().unwrap()).unwrap();
+        gql.send_graph("g", &encoded, true).await.unwrap();
+
+        let http = reqwest::Client::new();
+
+        // (1) named fragment + inline fragment, no variables.
+        let frag_query = r#"
+            { graph(path:"g") { nodes { list { ...NodeBits ... on Node { nodeType } } } } }
+            fragment NodeBits on Node { id name }
+        "#;
+        let expected =
+            serde_json::to_value(gql.query(frag_query, HashMap::new()).await.unwrap()).unwrap();
+        let got = post_interp(&http, port, frag_query).await;
+        assert_eq!(got["data"], expected, "fragment query mismatch");
+
+        // (2) variables: graph path, a window, and a typeFilter list — all driven
+        // by `$vars`, with one relying on an operation-level default.
+        let var_query = r#"
+            query Q($path: String!, $start: Int!, $end: Int = 10, $types: [String!]!) {
+                graph(path: $path) {
+                    nodes {
+                        window(start: $start, end: $end) {
+                            typeFilter(nodeTypes: $types) { list { name } }
+                        }
+                    }
+                }
+            }
+        "#;
+        let variables = json!({ "path": "g", "start": 0, "types": ["person"] });
+        let mut client_vars: HashMap<String, Value> = HashMap::new();
+        client_vars.insert("path".into(), json!("g"));
+        client_vars.insert("start".into(), json!(0));
+        client_vars.insert("types".into(), json!(["person"]));
+        let expected =
+            serde_json::to_value(gql.query(var_query, client_vars).await.unwrap()).unwrap();
+        let got = post_interp_vars(&http, port, var_query, variables).await;
+        assert_eq!(got["data"], expected, "variable query mismatch");
+
+        // (3) a fragment whose field carries a variable argument.
+        let mixed_query = r#"
+            query Q($t: Int!) {
+                graph(path:"g") { node(name:"alice") { ...Win } }
+            }
+            fragment Win on Node { before(time: $t) { name } }
+        "#;
+        let mut client_vars: HashMap<String, Value> = HashMap::new();
+        client_vars.insert("t".into(), json!(4));
+        let expected =
+            serde_json::to_value(gql.query(mixed_query, client_vars).await.unwrap()).unwrap();
+        let got = post_interp_vars(&http, port, mixed_query, json!({ "t": 4 })).await;
+        assert_eq!(got["data"], expected, "fragment+variable query mismatch");
     }
 
     #[tokio::test]

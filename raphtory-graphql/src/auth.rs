@@ -161,8 +161,14 @@ where
             Ok(Response::builder()
                 .header("content-type", "multipart/mixed; boundary=graphql")
                 .body(Body::from_bytes_stream(
-                    create_multipart_mixed_stream(stream, Duration::from_secs(30))
-                        .map(Ok::<_, std::io::Error>),
+                    // The forked async-graphql adds a `Timer` argument to
+                    // `create_multipart_mixed_stream` (input, timer, interval).
+                    create_multipart_mixed_stream(
+                        stream,
+                        async_graphql::runtime::TokioTimer::default(),
+                        Duration::from_secs(30),
+                    )
+                    .map(Ok::<_, std::io::Error>),
                 )))
         } else {
             let (req, mut body) = req.split();

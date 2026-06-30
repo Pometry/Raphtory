@@ -68,8 +68,11 @@ raphtory-graphql = { version = "0.18.0", path = "raphtory-graphql", default-feat
 raphtory-storage = { version = "0.18.0", path = "raphtory-storage", default-features = false }
 raphtory-itertools = { version = "0.18.0", path = "raphtory-itertools" }
 drop-logging = { version = "0.18.0", path = "drop-logging" }
-async-graphql = { version = "7.2.1", features = ["dynamic-schema"] }
-async-graphql-poem = "7.2.1"
+# NB: pinned to "=7.2.0" (was "7.2.1") so ONLY the local fork (v7.2.0) matches —
+# with a caret req the resolver would pick the higher crates.io 7.2.1 and the
+# [patch.crates-io] override below would be silently ignored ("patch not used").
+async-graphql = { version = "=7.2.0", features = ["dynamic-schema"] }
+async-graphql-poem = "=7.2.0"
 dynamic-graphql = "0.10.2"
 derive_more = "2.1.1"
 tikv-jemallocator = "0.7.0"
@@ -206,3 +209,14 @@ path = "db4-storage"
 [workspace.dependencies.auth]
 package = "raphtory-auth-noop"
 path = "raphtory-auth-noop"
+
+# Local fork of async-graphql (Pometry/async-graphql) for working on
+# fragment/variable/validation handling. Patches every async-graphql crate so
+# the whole graph — including dynamic-graphql's transitive dependency — resolves
+# to one consistent copy from the fork. Remove this block to go back to crates.io.
+[patch.crates-io]
+async-graphql = { path = "/Users/murariuf/Source/async-graphql" }
+async-graphql-value = { path = "/Users/murariuf/Source/async-graphql/value" }
+async-graphql-parser = { path = "/Users/murariuf/Source/async-graphql/parser" }
+async-graphql-derive = { path = "/Users/murariuf/Source/async-graphql/derive" }
+async-graphql-poem = { path = "/Users/murariuf/Source/async-graphql/integrations/poem" }
