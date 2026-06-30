@@ -1,11 +1,17 @@
 use crate::{
-    model::schema::{property_schema::PropertySchema, ENUM_BOUNDARY, MAX_DETAILED_SCHEMA_ENTITIES},
+    model::schema::{
+        cache::SchemaCache, property_schema::PropertySchema, ENUM_BOUNDARY,
+        MAX_DETAILED_SCHEMA_ENTITIES,
+    },
     rayon::blocking_compute,
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{db::api::view::StaticGraphViewOps, prelude::*};
 use raphtory_api::core::entities::{properties::meta::PropMapper, LayerId, LayerIds};
-use std::collections::{hash_map::Entry, HashMap, HashSet};
+use std::{
+    collections::{hash_map::Entry, HashMap, HashSet},
+    sync::Arc,
+};
 
 /// Describes a single edge layer: its name and the edge property/metadata keys
 /// present in it, with observed variants (property values) on small graphs
@@ -13,11 +19,17 @@ use std::collections::{hash_map::Entry, HashMap, HashSet};
 pub(crate) struct LayerSchema<G: StaticGraphViewOps> {
     graph: G,
     layer_id: LayerId,
+    // schema cache for the base graph, `None` for filtered/derived views
+    cache: Option<Arc<SchemaCache>>,
 }
 
 impl<G: StaticGraphViewOps> LayerSchema<G> {
-    pub fn new(graph: G, layer_id: LayerId) -> Self {
-        Self { graph, layer_id }
+    pub fn new(graph: G, layer_id: LayerId, cache: Option<Arc<SchemaCache>>) -> Self {
+        Self {
+            graph,
+            layer_id,
+            cache,
+        }
     }
 }
 
@@ -30,9 +42,14 @@ impl<G: StaticGraphViewOps> LayerSchema<G> {
 
     /// Returns the list of property schemas present on edges in this layer
     async fn properties(&self) -> Vec<PropertySchema> {
+        if let Some(cache) = &self.cache {
+            if let Some(hit) = cache.layer().get_properties(&self.layer_id) {
+                return hit;
+            }
+        }
         let graph = self.graph.clone();
         let layer_id = self.layer_id;
-        blocking_compute(move || {
+        let result = blocking_compute(move || {
             if too_many_edges(&graph, layer_id) {
                 // too many edges to collect values: keys/types only, no variants
                 return collect_layer_schema(&graph, layer_id, false);
@@ -42,14 +59,25 @@ impl<G: StaticGraphViewOps> LayerSchema<G> {
             let mapper = graph.edge_meta().temporal_prop_mapper();
             collect_variants(layered.edges().into_iter().map(|e| e.properties()), mapper)
         })
-        .await
+        .await;
+        if let Some(cache) = &self.cache {
+            cache
+                .layer()
+                .store_properties(self.layer_id, result.clone());
+        }
+        result
     }
 
     /// Returns the list of metadata schemas present on edges in this layer
     async fn metadata(&self) -> Vec<PropertySchema> {
+        if let Some(cache) = &self.cache {
+            if let Some(hit) = cache.layer().get_metadata(&self.layer_id) {
+                return hit;
+            }
+        }
         let graph = self.graph.clone();
         let layer_id = self.layer_id;
-        blocking_compute(move || {
+        let result = blocking_compute(move || {
             if too_many_edges(&graph, layer_id) {
                 return collect_layer_schema(&graph, layer_id, true);
             }
@@ -58,7 +86,11 @@ impl<G: StaticGraphViewOps> LayerSchema<G> {
             let mapper = graph.edge_meta().metadata_mapper();
             collect_variants(layered.edges().into_iter().map(|e| e.metadata()), mapper)
         })
-        .await
+        .await;
+        if let Some(cache) = &self.cache {
+            cache.layer().store_metadata(self.layer_id, result.clone());
+        }
+        result
     }
 }
 

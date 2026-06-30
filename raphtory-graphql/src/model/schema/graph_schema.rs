@@ -4,6 +4,7 @@ use crate::model::schema::{
 use dynamic_graphql::SimpleObject;
 use itertools::Itertools;
 use raphtory::{db::api::view::DynamicGraph, prelude::*};
+use raphtory_api::core::entities::properties::meta::STATIC_GRAPH_LAYER_ID;
 use raphtory_storage::{core_ops::CoreGraphOps, layer_ops::InternalLayerOps};
 use std::sync::Arc;
 
@@ -25,7 +26,9 @@ impl GraphSchema {
         let layers = graph
             .layer_ids()
             .iter(graph.num_layers())
-            .map(|layer_id| LayerSchema::new(graph.clone(), layer_id))
+            // skip the internal `_static_graph` layer
+            .filter(|&layer_id| layer_id != STATIC_GRAPH_LAYER_ID)
+            .map(|layer_id| LayerSchema::new(graph.clone(), layer_id, cache.clone()))
             .collect_vec();
 
         GraphSchema { nodes, layers }

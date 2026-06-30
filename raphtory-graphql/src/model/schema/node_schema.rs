@@ -1,7 +1,6 @@
 use crate::model::schema::{
-    cache::{NodeSchemaKey, SchemaCache},
-    property_schema::PropertySchema,
-    DEFAULT_NODE_TYPE, MAX_DETAILED_SCHEMA_ENTITIES,
+    cache::SchemaCache, property_schema::PropertySchema, DEFAULT_NODE_TYPE,
+    MAX_DETAILED_SCHEMA_ENTITIES,
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
@@ -26,7 +25,7 @@ use std::sync::Arc;
 #[derive(Clone, ResolvedObject)]
 pub(crate) struct NodeSchema {
     /// node type id; also the schema-cache lookup key
-    key: NodeSchemaKey,
+    type_id: usize,
     graph: DynamicGraph,
     // schema cache for the base graph, `None` for filtered/derived views
     cache: Option<Arc<SchemaCache>>,
@@ -35,7 +34,7 @@ pub(crate) struct NodeSchema {
 impl NodeSchema {
     pub fn new(node_type: usize, graph: DynamicGraph, cache: Option<Arc<SchemaCache>>) -> Self {
         Self {
-            key: NodeSchemaKey::new(node_type),
+            type_id: node_type,
             graph,
             cache,
         }
@@ -55,16 +54,14 @@ impl NodeSchema {
     /// string-valued properties) the set of distinct values.
     async fn properties(&self) -> Vec<PropertySchema> {
         if let Some(cache) = &self.cache {
-            if let Some(hit) = cache.node().get_properties(&self.key) {
+            if let Some(hit) = cache.node().get_properties(self.type_id) {
                 return hit;
             }
         }
         // not found in cache, so calculate it and cache it
         let result = self.properties_inner();
         if let Some(cache) = &self.cache {
-            cache
-                .node()
-                .store_properties(self.key.clone(), result.clone());
+            cache.node().store_properties(self.type_id, result.clone());
         }
         result
     }
@@ -73,16 +70,14 @@ impl NodeSchema {
     /// covering metadata fields rather than temporal properties.
     async fn metadata(&self) -> Vec<PropertySchema> {
         if let Some(cache) = &self.cache {
-            if let Some(hit) = cache.node().get_metadata(&self.key) {
+            if let Some(hit) = cache.node().get_metadata(self.type_id) {
                 return hit;
             }
         }
         // not found in cache, so calculate it and cache it
         let result = self.metadata_inner();
         if let Some(cache) = &self.cache {
-            cache
-                .node()
-                .store_metadata(self.key.clone(), result.clone());
+            cache.node().store_metadata(self.type_id, result.clone());
         }
         result
     }
@@ -92,7 +87,7 @@ impl NodeSchema {
     fn type_name_inner(&self) -> String {
         self.graph
             .node_meta()
-            .get_node_type_name_by_id(self.key.type_id)
+            .get_node_type_name_by_id(self.type_id)
             .map(|type_name| type_name.to_string())
             .unwrap_or_else(|| DEFAULT_NODE_TYPE.to_string())
     }
@@ -121,7 +116,7 @@ impl NodeSchema {
                 .filter_map(|(key, dtype)| {
                     let mut node_types_filter =
                         vec![false; self.graph.node_meta().node_type_meta().num_all_fields()];
-                    node_types_filter[self.key.type_id] = true;
+                    node_types_filter[self.type_id] = true;
                     let filter = TypeId.mask(node_types_filter.into());
                     let unique_values: ahash::HashSet<_> =
                         NodeFilteredGraph::new(self.graph.clone(), filter)
@@ -171,7 +166,7 @@ impl NodeSchema {
                 .filter_map(|(key, dtype)| {
                     let mut node_types_filter =
                         vec![false; self.graph.node_meta().node_type_meta().num_all_fields()];
-                    node_types_filter[self.key.type_id] = true;
+                    node_types_filter[self.type_id] = true;
                     let filter = TypeId.mask(node_types_filter.into());
                     let unique_values: ahash::HashSet<_> =
                         NodeFilteredGraph::new(self.graph.clone(), filter)
