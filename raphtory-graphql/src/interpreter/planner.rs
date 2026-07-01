@@ -38,9 +38,9 @@ use async_graphql::{
         },
         Positioned,
     },
-    Name, Value as GqlValue, Variables,
+    Name, ValidationMode, Value as GqlValue, Variables,
 };
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::OnceLock};
 use raphtory_api::core::{entities::GID, storage::timeindex::EventTime};
 
 #[derive(Debug, thiserror::Error)]
@@ -65,6 +65,8 @@ pub enum PlanError {
     Filter { arg: &'static str, reason: String },
     #[error("{0}")]
     Variable(String),
+    #[error("{0}")]
+    Validation(String),
 }
 
 /// A planned request: the (async-loaded) root graph path plus the compiled plan
@@ -76,8 +78,40 @@ pub struct PlannedRequest {
 }
 
 /// Parse, validate, and compile a query string into a [`PlannedRequest`].
+/// The async-graphql schema `Registry` used to validate requests. Built once
+/// from the same `App` that powers the `/` endpoint (so it is authoritative —
+/// it is what generates `schema.graphql`), then cached. No `Data` is needed to
+/// build it: data is runtime context, the registry is schema shape only.
+fn schema_registry() -> &'static async_graphql::registry::Registry {
+    use async_graphql::dynamic::Schema;
+    static SCHEMA: OnceLock<Schema> = OnceLock::new();
+    SCHEMA
+        .get_or_init(|| {
+            crate::model::App::create_schema()
+                .finish()
+                .expect("failed to build schema for interpreter validation")
+        })
+        .registry()
+}
+
 pub fn plan_request(query: &str, variables: &Variables) -> Result<PlannedRequest, PlanError> {
     let doc = parse_query(query).map_err(|e| PlanError::Parse(e.to_string()))?;
+
+    // Validate against async-graphql's own rules (field/argument existence and
+    // types, variable usage, fragment cycles, …) before touching the document —
+    // variable references must still be present for the variable rules to run.
+    schema_registry()
+        .check_query(&doc, Some(variables), None, ValidationMode::Strict)
+        .map_err(|errors| {
+            PlanError::Validation(
+                errors
+                    .iter()
+                    .map(|e| e.message.clone())
+                    .collect::<Vec<_>>()
+                    .join("; "),
+            )
+        })?;
+
     let ExecutableDocument {
         operations,
         mut fragments,
@@ -918,13 +952,40 @@ mod tests {
 
     #[test]
     fn rejects_unknown_field() {
-        // `bogus` is not a field on Node in schema.graphql
+        // `bogus` is not a field on Node in schema.graphql → async-graphql
+        // validation rejects it (before our SDL walk would), naming the field.
         let err = plan_request(
             r#"{ graph(path:"g") { nodes { list { bogus } } } }"#,
             &Variables::default(),
         )
         .unwrap_err();
-        assert!(matches!(err, PlanError::UnknownField { .. }), "{err:?}");
+        match err {
+            PlanError::Validation(msg) => assert!(msg.contains("bogus"), "{msg}"),
+            other => panic!("expected validation error, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn rejects_unknown_argument() {
+        // The SDL type-map walk only checked field existence; async-graphql
+        // validation also rejects unknown arguments (KnownArgumentNames).
+        let err = plan_request(
+            r#"{ graph(path:"g") { nodes(bogusArg: 1) { list { id } } } }"#,
+            &Variables::default(),
+        )
+        .unwrap_err();
+        assert!(matches!(err, PlanError::Validation(_)), "{err:?}");
+    }
+
+    #[test]
+    fn rejects_undefined_variable() {
+        // `$missing` is never declared → NoUndefinedVariables.
+        let err = plan_request(
+            r#"query { graph(path: $missing) { nodes { list { id } } } }"#,
+            &Variables::default(),
+        )
+        .unwrap_err();
+        assert!(matches!(err, PlanError::Validation(_)), "{err:?}");
     }
 
     #[test]

@@ -72,10 +72,15 @@ Status: **DRAFT for review** — see the [Open Questions](#open-questions) at th
 | **Fragments + variables** — named fragments, inline fragments, query variables (incl. operation-level defaults) | ✅ via the forked `async-graphql` (`Pometry/async-graphql`, wired through `[patch.crates-io]`). New `async_graphql::normalize` exposes `iter_fields` (lazy fragment-following over the unmodified AST) and `resolve_value` (variable substitution); `check_rules` made `pub`. `plan_request(query, &Variables)` resolves variables up front (operation + fragment defs), then `plan_selection` walks via `iter_fields`, so `const_arg` and all arg helpers are unchanged. Differential-tested (named+inline fragments; variables for path/window/typeFilter incl. a defaulted var; a fragment field carrying a variable arg). Known gap: fields duplicated across a spread + direct selection aren't merged. |
 | Filter enum/time-scoped gap (closed) | ✅ `NodeField` serde rename → `SCREAMING_SNAKE_CASE` (matches GraphQL) closes node-field filters (`{node:{field:NODE_NAME/NODE_ID/NODE_TYPE,…}}`); `DegreeDirection` already matched (`UPPERCASE`); `GqlTimeInput` got a custom `Deserialize` (int / datetime-string / `{timestamp,eventId}`) closing time-scoped filter exprs (`{window/at/before/after/…}`). Verified nothing else consumes these serde reprs. Differential-tested: node-field (`NODE_NAME`/`NODE_ID`/`NODE_TYPE`), degree (`BOTH`/`OUT`/`IN`), and time-scoped exprs (`window`/`before`/`after`/`at`, incl. the `{timestamp,eventId}` object `TimeInput` form). |
 
-> **Validation note:** async-graphql's validator (`check_rules`) is `pub(crate)`,
-> so the locked Q2 ("reuse async-graphql's validator") isn't reachable. We instead
-> parse `schema.graphql` into a type map and validate during the planning walk —
-> `schema.graphql` stays the single authoritative source, which was the intent.
+> **Validation note (updated):** Q2 ("reuse async-graphql's validator") is now
+> realised. The forked `async-graphql` makes `check_rules` `pub`, and
+> `plan_request` runs it (`ValidationMode::Strict`) against the `Registry` of the
+> `App`-built `dynamic::Schema` (cached in a `OnceLock`; the same schema that
+> generates `schema.graphql`, so it stays authoritative). This runs *before*
+> variable substitution, so the variable rules see `$var` references. The local
+> `SchemaTypes` map is retained only as the planning lookup for return-type /
+> nullability — unknown fields/arguments and variable misuse are now caught by
+> async-graphql first (`PlanError::Validation`).
 
 ### Remaining feature surface (gap analysis vs `test_base_install/test_graphql`)
 
