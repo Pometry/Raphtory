@@ -8,6 +8,7 @@ use crate::{
         blocking_io,
         graph::{
             filtering::{GraphAccessFilter, GraphRowFilter, HiddenKeys},
+            meta_graph::MetaGraph,
             namespace::Namespace,
             namespaced_item::NamespacedItem,
             vectorised_graph::GqlVectorisedGraph,
@@ -15,7 +16,7 @@ use crate::{
     },
     paths::{
         mark_dirty, ExistingGraphFolder, InternalPathValidationError, PathValidationError,
-        ValidGraphPaths, ValidWriteableGraphFolder,
+        UnlockedGraphFolder, ValidGraphPaths, ValidWriteableGraphFolder,
     },
     rayon::blocking_compute,
     GQLError,
@@ -41,12 +42,14 @@ use raphtory::{
     serialise::GraphPaths,
 };
 use std::{
+    cmp::Ordering,
     fs, io,
     io::{Read, Seek},
     ops::Deref,
     path::{Path, PathBuf},
     sync::Arc,
 };
+use tokio::sync::{OwnedRwLockReadGuard, OwnedRwLockWriteGuard, RwLock, RwLockReadGuard};
 use tracing::{error, warn};
 use walkdir::WalkDir;
 
@@ -147,12 +150,106 @@ pub(crate) fn get_relative_path(
 
 /// Inner struct with a drop implementation that cleans up the graphs
 pub struct DataInner {
-    pub(crate) work_dir: PathBuf,
+    work_dir: Arc<RwLock<PathBuf>>,
     pub(crate) cache: GraphCache,
     #[cfg(feature = "vectors")]
     pub(crate) vector_cache: LazyDiskVectorCache,
     pub(crate) graph_conf: Config,
     pub(crate) auth_policy: Option<Arc<dyn AuthorizationPolicy>>,
+}
+
+#[derive(Debug, Clone)]
+pub struct WorkDirWriteGuard {
+    guard: Arc<OwnedRwLockWriteGuard<PathBuf>>,
+}
+
+impl WorkDirWriteGuard {
+    pub fn path(&self) -> &Path {
+        &self.guard
+    }
+
+    pub fn to_path_buf(&self) -> PathBuf {
+        self.path().to_path_buf()
+    }
+
+    pub fn validate_path_for_insert(
+        self,
+        path: &str,
+        overwrite: bool,
+    ) -> Result<ValidWriteableGraphFolder, PathValidationError> {
+        if overwrite {
+            ValidWriteableGraphFolder::try_existing_or_new(self, path)
+        } else {
+            ValidWriteableGraphFolder::try_new(self, path)
+        }
+    }
+}
+
+impl PartialEq for WorkDirWriteGuard {
+    fn eq(&self, other: &Self) -> bool {
+        self.path() == other.path()
+    }
+}
+
+impl Eq for WorkDirWriteGuard {}
+
+impl PartialOrd for WorkDirWriteGuard {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.path().partial_cmp(other.path())
+    }
+}
+
+impl Ord for WorkDirWriteGuard {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.path().cmp(other.path())
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum WorkDirGuard {
+    Read {
+        guard: Arc<OwnedRwLockReadGuard<PathBuf>>,
+    },
+    Write(WorkDirWriteGuard),
+}
+
+impl From<WorkDirWriteGuard> for WorkDirGuard {
+    fn from(value: WorkDirWriteGuard) -> Self {
+        Self::Write(value)
+    }
+}
+
+impl PartialEq for WorkDirGuard {
+    fn eq(&self, other: &Self) -> bool {
+        self.path() == other.path()
+    }
+}
+
+impl Eq for WorkDirGuard {}
+
+impl PartialOrd for WorkDirGuard {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.path().partial_cmp(other.path())
+    }
+}
+
+impl Ord for WorkDirGuard {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.path().cmp(other.path())
+    }
+}
+
+impl WorkDirGuard {
+    pub fn path(&self) -> &Path {
+        match self {
+            WorkDirGuard::Read { guard } => &guard,
+            WorkDirGuard::Write(guard) => guard.path(),
+        }
+    }
+
+    pub fn to_path_buf(&self) -> PathBuf {
+        self.path().to_path_buf()
+    }
 }
 
 /// Outer data struct that wraps the inner data to make sure it is only dropped once
@@ -201,7 +298,7 @@ impl Data {
 
         Self {
             inner: Arc::new(DataInner {
-                work_dir: work_dir.to_path_buf(),
+                work_dir: Arc::new(RwLock::new(work_dir.to_path_buf())),
                 cache,
                 #[cfg(feature = "vectors")]
                 vector_cache: LazyDiskVectorCache::new(work_dir.join(".vector-cache")),
@@ -212,28 +309,27 @@ impl Data {
         }
     }
 
+    pub async fn work_dir_read(&self) -> WorkDirGuard {
+        let guard = Arc::new(self.work_dir.clone().read_owned().await);
+        WorkDirGuard::Read { guard }
+    }
+
+    pub async fn work_dir_write(&self) -> WorkDirWriteGuard {
+        let guard = Arc::new(self.work_dir.clone().write_owned().await);
+        WorkDirWriteGuard { guard }
+    }
+
     pub(crate) fn set_auth_policy(&mut self, policy: Arc<dyn AuthorizationPolicy>) {
         Arc::get_mut(&mut self.inner)
             .expect("Data is not uniquely owned when setting auth_policy")
             .auth_policy = Some(policy);
     }
 
-    pub fn validate_path_for_insert(
-        &self,
-        path: &str,
-        overwrite: bool,
-    ) -> Result<ValidWriteableGraphFolder, PathValidationError> {
-        if overwrite {
-            ValidWriteableGraphFolder::try_existing_or_new(self.work_dir.clone(), path)
-        } else {
-            ValidWriteableGraphFolder::try_new(self.work_dir.clone(), path)
-        }
-    }
-
     /// Validates that `ns_path` exists and is a namespace, returning the `Namespace`
     /// so callers can enumerate descendants via `get_all_children()`.
-    pub fn get_namespace(&self, ns_path: &str) -> Result<Namespace, PathValidationError> {
-        Namespace::try_new(self.work_dir.clone(), ns_path.to_string())
+    pub async fn get_namespace(&self, ns_path: &str) -> Result<Namespace, PathValidationError> {
+        let work_dir = self.work_dir_read().await;
+        Namespace::try_new(work_dir, ns_path.to_string())
     }
 
     /// # ⚠ Bypasses all permission checks — do not call from resolvers directly.
@@ -322,7 +418,8 @@ impl Data {
     }
 
     pub async fn delete_graph(&self, path: &str) -> Result<(), DeletionError> {
-        let graph_folder = ExistingGraphFolder::try_from(self.work_dir.clone(), path)?;
+        let work_dir = self.work_dir_write().await;
+        let graph_folder = ExistingGraphFolder::try_from(work_dir.into(), path)?;
         self.delete_graph_inner(graph_folder)
             .await
             .map_err(|err| DeletionError::from_inner(path, err))?;
@@ -331,15 +428,15 @@ impl Data {
 
     pub async fn delete_namespace(
         &self,
-        path: &str,
+        namespace: Namespace,
         descendants: &Vec<NamespacedItem>,
     ) -> Result<(), DeletionError> {
+        let path = namespace.local_path();
         if path.is_empty() {
             return Err(DeletionError::PathValidation(
                 PathValidationError::EmptyPath,
             ));
         }
-        let namespace = Namespace::try_new(self.work_dir.clone(), path.to_string())?;
         let root = namespace.current_dir().to_path_buf();
         let dirty_file = mark_dirty(&root).map_err(|err| {
             DeletionError::from_inner(path, MutationErrorInner::InvalidInternal(err))
@@ -364,7 +461,9 @@ impl Data {
     }
 
     pub async fn create_namespace(&self, path: &str) -> Result<(), InsertionError> {
-        let target = crate::paths::validate_path_for_namespace_create(self.work_dir.clone(), path)?;
+        let work_dir = self.work_dir_write().await;
+        let target =
+            crate::paths::validate_path_for_namespace_create(work_dir.to_path_buf(), path)?;
         let mut cleanup_root = target.as_path();
         while let Some(parent) = cleanup_root.parent() {
             if parent.is_dir() {
@@ -441,15 +540,15 @@ impl Data {
         Ok(())
     }
 
-    pub fn get_all_graph_folders(&self) -> impl Iterator<Item = ExistingGraphFolder> {
-        let base_path = self.work_dir.clone();
-        WalkDir::new(&self.work_dir)
+    pub async fn get_all_graph_folders(&self) -> impl Iterator<Item = ExistingGraphFolder> {
+        let work_dir = self.work_dir_read().await;
+        WalkDir::new(work_dir.path())
             .into_iter()
             .filter_map(move |e| {
                 let entry = e.ok()?;
                 let path = entry.path();
-                let relative = get_relative_path(&base_path, path).ok()?;
-                let folder = ExistingGraphFolder::try_from(base_path.clone(), &relative).ok()?;
+                let relative = get_relative_path(work_dir.path(), path).ok()?;
+                let folder = ExistingGraphFolder::try_from(work_dir.clone(), &relative).ok()?;
                 Some(folder)
             })
     }
@@ -473,7 +572,8 @@ impl Data {
     }
 
     async fn read_graph_from_disk(&self, path: &str) -> Result<GraphWithVectors, GQLError> {
-        let folder = ExistingGraphFolder::try_from(self.work_dir.clone(), path)?;
+        let work_dir = self.work_dir_read().await;
+        let folder = ExistingGraphFolder::try_from(work_dir, path)?;
         Ok(self.read_graph_from_disk_inner(folder).await?)
     }
 }
@@ -667,7 +767,7 @@ impl Data {
         path: &str,
         perm: GraphPermission,
         graph_type: Option<GqlGraphType>,
-    ) -> async_graphql::Result<(ExistingGraphFolder, DynamicGraph)> {
+    ) -> async_graphql::Result<(UnlockedGraphFolder, DynamicGraph)> {
         let gwv = self.get_graph(path).await?;
         let typed_graph = match graph_type {
             Some(GqlGraphType::Event) => match gwv.graph() {
@@ -705,7 +805,7 @@ impl Data {
         ctx: &Context<'_>,
         path: &str,
         graph_type: Option<GqlGraphType>,
-    ) -> async_graphql::Result<Option<(ExistingGraphFolder, DynamicGraph)>> {
+    ) -> async_graphql::Result<Option<(UnlockedGraphFolder, DynamicGraph)>> {
         match require_at_least_read(ctx, &self.auth_policy, path) {
             Ok(perm) => self.load_and_filter(path, perm, graph_type).await.map(Some),
             Err(_) => Ok(None),
@@ -721,7 +821,7 @@ impl Data {
         ctx: &Context<'_>,
         path: &str,
         graph_type: Option<GqlGraphType>,
-    ) -> async_graphql::Result<(ExistingGraphFolder, DynamicGraph)> {
+    ) -> async_graphql::Result<(UnlockedGraphFolder, DynamicGraph)> {
         let perm = require_at_least_read(ctx, &self.auth_policy, path)?;
         self.load_and_filter(path, perm, graph_type).await
     }
@@ -811,8 +911,9 @@ pub(crate) mod data_tests {
         data: &Data,
         graphs: &HashMap<String, MaterializedGraph>,
     ) -> Result<(), InsertionError> {
+        let work_dir = data.work_dir_write().await;
         for (name, graph) in graphs.into_iter() {
-            let folder = data.validate_path_for_insert(name, true)?;
+            let folder = work_dir.clone().validate_path_for_insert(name, true)?;
             data.insert_graph(folder, graph.clone()).await?;
         }
         Ok(())
@@ -910,8 +1011,9 @@ pub(crate) mod data_tests {
 
         let paths = data
             .get_all_graph_folders()
+            .await
             .into_iter()
-            .map(|folder| folder.0.root().to_path_buf())
+            .map(|folder| folder.folder.root().to_path_buf())
             .collect_vec();
 
         assert_eq!(paths.len(), 5);
