@@ -25,7 +25,6 @@
         "eslint-check": "eslint . --report-unused-disable-directives --max-warnings 0",
         "install-playwright": "npx playwright install --with-deps",
         "test": "npx playwright test",
-        "test-macos": "npx playwright test -c playwright.macos.config.ts",
         "tsc": "tsc",
         "prepare": "husky"
     },

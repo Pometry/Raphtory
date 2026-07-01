@@ -202,7 +202,9 @@ test('Expand via all entry points and restore via all hide paths', async ({
     const expectExpanded = async () => {
         await waitForLayoutToFinish(page);
         const state = await getGraphState(page);
-        expect(new Set(state.nodes.map((n) => n.id))).toEqual(new Set(['Pedro', 'Ben', 'Hamza']));
+        expect(new Set(state.nodes.map((n) => n.id))).toEqual(
+            new Set(['Pedro', 'Ben', 'Hamza']),
+        );
         expect(
             state.nodes.find((n) => n.id === 'Pedro')?.badgeText,
         ).toBeUndefined();

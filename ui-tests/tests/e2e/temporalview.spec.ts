@@ -28,7 +28,8 @@ test('Temporal view hover over edges', async ({ page }) => {
     // wide line that listens to mouse events. Use the edge group's
     // aria-label rather than g:nth-child(N) so the test does not rely on
     // the DOM order of edges, which depends on raphtory iteration order.
-    const sensor = (id: string) => `[aria-label="Edge ID ${id}"] line:last-child`;
+    const sensor = (id: string) =>
+        `[aria-label="Edge ID ${id}"] line:last-child`;
 
     await hoverEdgeAndExpectTooltip(
         page,

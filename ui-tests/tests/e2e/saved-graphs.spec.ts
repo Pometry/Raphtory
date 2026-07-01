@@ -27,6 +27,23 @@ test(`Card view has N cards per page`, async ({ page }) => {
     );
 });
 
+test('Page index is preserved in URL and survives reload', async ({
+    page,
+}) => {
+    await navigateInSavedGraphs(page, { namespace: 'vanilla' });
+    await expect(page.getByText(`1-${PAGE_SIZE} of`)).toBeVisible();
+
+    await page.getByRole('button', { name: 'Next page', exact: true }).click();
+    const countOnPage2 = page.getByText(`${PAGE_SIZE + 1}-`);
+    await expect(countOnPage2).toBeVisible();
+    await expect(page).toHaveURL(/[?&]page=1\b/);
+
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+    await expect(page).toHaveURL(/[?&]page=1\b/);
+    await expect(countOnPage2).toBeVisible();
+});
+
 test('Row sorting on saved graphs table by columns', async ({ page }) => {
     await navigateInSavedGraphs(
         page,
