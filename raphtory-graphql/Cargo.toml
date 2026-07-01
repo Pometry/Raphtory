@@ -18,7 +18,7 @@ raphtory = { workspace = true, features = [
     "io",
 ] }
 tempfile = { workspace = true }
-raphtory-api = { workspace = true }
+raphtory-api = { workspace = true, features = [ "io" ] }
 raphtory-storage = { workspace = true }
 base64 = { workspace = true }
 jsonwebtoken = { workspace = true }
@@ -69,6 +69,8 @@ rust-embed = { workspace = true }
 parking_lot = { workspace = true }
 tempfile = { workspace = true }
 pretty_assertions = { workspace = true }
+arrow = { workspace = true }
+parquet = { workspace = true }
 
 [features]
 python = ["dep:pyo3", "dep:pythonize", "raphtory/python"]

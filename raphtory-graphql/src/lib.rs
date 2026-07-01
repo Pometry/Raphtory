@@ -2600,4 +2600,290 @@ mod graphql_test {
             _ => None,
         }
     }
+
+    #[tokio::test]
+    async fn test_load_nodes_from_parquet() {
+        use arrow::{
+            array::{Int64Array, StringArray},
+            datatypes::{DataType, Field, Schema as ArrowSchema},
+            record_batch::RecordBatch,
+        };
+        use crate::config::app_config::AppConfigBuilder;
+        use parquet::arrow::ArrowWriter;
+        use std::{fs::File, sync::Arc};
+
+        let tmp_dir = tempdir().unwrap();
+
+        // Write a minimal parquet file: two nodes "a" and "b" at t=1 with a weight property.
+        let parquet_path = tmp_dir.path().join("nodes.parquet");
+        let arrow_schema = Arc::new(ArrowSchema::new(vec![
+            Field::new("id", DataType::Utf8, false),
+            Field::new("time", DataType::Int64, false),
+            Field::new("weight", DataType::Int64, true),
+        ]));
+        let batch = RecordBatch::try_new(
+            arrow_schema.clone(),
+            vec![
+                Arc::new(StringArray::from(vec!["a", "b"])),
+                Arc::new(Int64Array::from(vec![1, 1])),
+                Arc::new(Int64Array::from(vec![10, 20])),
+            ],
+        )
+        .unwrap();
+        let file = File::create(&parquet_path).unwrap();
+        let mut writer = ArrowWriter::try_new(file, arrow_schema, None).unwrap();
+        writer.write(&batch).unwrap();
+        writer.close().unwrap();
+
+        // Build an AppConfig that permits the temp dir as a parquet source.
+        let app_config = AppConfigBuilder::new()
+            .with_allowed_parquet_paths(vec![tmp_dir.path().to_path_buf()])
+            .build();
+
+        let data = Data::new(tmp_dir.path(), &app_config, Config::default());
+        let folder = data.validate_path_for_insert("mygraph", false).unwrap();
+        data.insert_graph(folder, Graph::new().into()).await.unwrap();
+
+        let schema = App::create_schema().data(data).finish().unwrap();
+
+        let mutation = format!(
+            r#"mutation {{
+                loadNodesFromParquet(
+                    graphPath: "mygraph",
+                    dataPath: "{}",
+                    time: "time",
+                    id: "id",
+                    properties: ["weight"]
+                )
+            }}"#,
+            parquet_path.display()
+        );
+        let res = run_mutation(&schema, &mutation).await;
+        assert_eq!(res.errors, vec![], "loadNodesFromParquet mutation returned errors");
+        assert_eq!(res.data.into_json().unwrap(), json!({"loadNodesFromParquet": true}));
+
+        // Query the loaded nodes back via GraphQL to confirm they landed.
+        let query = r#"{
+            graph(path: "mygraph") {
+                nodes {
+                    list { name }
+                }
+            }
+        }"#;
+        let res = schema
+            .execute(Request::new(query).data(Access::Rw))
+            .await;
+        assert_eq!(res.errors, vec![], "node query returned errors");
+        let mut names: Vec<String> = res.data.into_json().unwrap()["graph"]["nodes"]["list"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|n| n["name"].as_str().unwrap().to_string())
+            .collect();
+        names.sort();
+        assert_eq!(names, vec!["a", "b"]);
+    }
+
+    #[tokio::test]
+    async fn test_load_edges_from_parquet() {
+        use arrow::{
+            array::{Int64Array, StringArray},
+            datatypes::{DataType, Field, Schema as ArrowSchema},
+            record_batch::RecordBatch,
+        };
+        use crate::config::app_config::AppConfigBuilder;
+        use parquet::arrow::ArrowWriter;
+        use std::{fs::File, sync::Arc};
+
+        let tmp_dir = tempdir().unwrap();
+
+        // Write a minimal parquet file: two edges a→b and b→c at t=1 with a weight property.
+        let parquet_path = tmp_dir.path().join("edges.parquet");
+        let arrow_schema = Arc::new(ArrowSchema::new(vec![
+            Field::new("src", DataType::Utf8, false),
+            Field::new("dst", DataType::Utf8, false),
+            Field::new("time", DataType::Int64, false),
+            Field::new("weight", DataType::Int64, true),
+        ]));
+        let batch = RecordBatch::try_new(
+            arrow_schema.clone(),
+            vec![
+                Arc::new(StringArray::from(vec!["a", "b"])),
+                Arc::new(StringArray::from(vec!["b", "c"])),
+                Arc::new(Int64Array::from(vec![1, 1])),
+                Arc::new(Int64Array::from(vec![10, 20])),
+            ],
+        )
+        .unwrap();
+        let file = File::create(&parquet_path).unwrap();
+        let mut writer = ArrowWriter::try_new(file, arrow_schema, None).unwrap();
+        writer.write(&batch).unwrap();
+        writer.close().unwrap();
+
+        // Build an AppConfig that permits the temp dir as a parquet source.
+        let app_config = AppConfigBuilder::new()
+            .with_allowed_parquet_paths(vec![tmp_dir.path().to_path_buf()])
+            .build();
+
+        let data = Data::new(tmp_dir.path(), &app_config, Config::default());
+        let folder = data.validate_path_for_insert("mygraph", false).unwrap();
+        data.insert_graph(folder, Graph::new().into()).await.unwrap();
+
+        let schema = App::create_schema().data(data).finish().unwrap();
+
+        let mutation = format!(
+            r#"mutation {{
+                loadEdgesFromParquet(
+                    graphPath: "mygraph",
+                    dataPath: "{}",
+                    time: "time",
+                    src: "src",
+                    dst: "dst",
+                    properties: ["weight"]
+                )
+            }}"#,
+            parquet_path.display()
+        );
+        let res = run_mutation(&schema, &mutation).await;
+        assert_eq!(res.errors, vec![], "loadEdgesFromParquet mutation returned errors");
+        assert_eq!(res.data.into_json().unwrap(), json!({"loadEdgesFromParquet": true}));
+
+        // Query the loaded edges back via GraphQL to confirm they landed.
+        let query = r#"{
+            graph(path: "mygraph") {
+                edges {
+                    list { src { name } dst { name } }
+                }
+            }
+        }"#;
+        let res = schema
+            .execute(Request::new(query).data(Access::Rw))
+            .await;
+        assert_eq!(res.errors, vec![], "edge query returned errors");
+        let mut edges: Vec<(String, String)> = res.data.into_json().unwrap()["graph"]["edges"]["list"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|e| {
+                (
+                    e["src"]["name"].as_str().unwrap().to_string(),
+                    e["dst"]["name"].as_str().unwrap().to_string(),
+                )
+            })
+            .collect();
+        edges.sort();
+        assert_eq!(edges, vec![("a".to_string(), "b".to_string()), ("b".to_string(), "c".to_string())]);
+    }
+
+    // ── allowed-paths tests ──────────────────────────────────────────────────
+
+    /// Write a one-row nodes parquet file into `dir` and return its path.
+    fn write_nodes_parquet(dir: &std::path::Path) -> std::path::PathBuf {
+        use arrow::{
+            array::{Int64Array, StringArray},
+            datatypes::{DataType, Field, Schema as ArrowSchema},
+            record_batch::RecordBatch,
+        };
+        use parquet::arrow::ArrowWriter;
+        use std::{fs::File, sync::Arc};
+
+        let path = dir.join("nodes.parquet");
+        let schema = Arc::new(ArrowSchema::new(vec![
+            Field::new("id", DataType::Utf8, false),
+            Field::new("time", DataType::Int64, false),
+        ]));
+        let batch = RecordBatch::try_new(
+            schema.clone(),
+            vec![
+                Arc::new(StringArray::from(vec!["x"])),
+                Arc::new(Int64Array::from(vec![1i64])),
+            ],
+        )
+        .unwrap();
+        let file = File::create(&path).unwrap();
+        let mut writer = ArrowWriter::try_new(file, schema, None).unwrap();
+        writer.write(&batch).unwrap();
+        writer.close().unwrap();
+        path
+    }
+
+    #[tokio::test]
+    async fn test_parquet_allowed_path_accepted() {
+        use crate::config::app_config::AppConfigBuilder;
+
+        let tmp_dir = tempdir().unwrap();
+        let parquet_path = write_nodes_parquet(tmp_dir.path());
+
+        let app_config = AppConfigBuilder::new()
+            .with_allowed_parquet_paths(vec![tmp_dir.path().to_path_buf()])
+            .build();
+        let data = Data::new(tmp_dir.path(), &app_config, Config::default());
+        let folder = data.validate_path_for_insert("g", false).unwrap();
+        data.insert_graph(folder, Graph::new().into()).await.unwrap();
+
+        let schema = App::create_schema().data(data).finish().unwrap();
+        let mutation = format!(
+            r#"mutation {{ loadNodesFromParquet(graphPath: "g", dataPath: "{}", time: "time", id: "id") }}"#,
+            parquet_path.display()
+        );
+        let res = run_mutation(&schema, &mutation).await;
+        assert_eq!(res.errors, vec![], "path inside allowlist should be accepted");
+    }
+
+    #[tokio::test]
+    async fn test_parquet_disallowed_path_rejected() {
+        use crate::config::app_config::AppConfigBuilder;
+
+        let allowed_dir = tempdir().unwrap();
+        let other_dir = tempdir().unwrap();
+        let parquet_path = write_nodes_parquet(other_dir.path());
+
+        let app_config = AppConfigBuilder::new()
+            .with_allowed_parquet_paths(vec![allowed_dir.path().to_path_buf()])
+            .build();
+        let data = Data::new(allowed_dir.path(), &app_config, Config::default());
+        let folder = data.validate_path_for_insert("g", false).unwrap();
+        data.insert_graph(folder, Graph::new().into()).await.unwrap();
+
+        let schema = App::create_schema().data(data).finish().unwrap();
+        let mutation = format!(
+            r#"mutation {{ loadNodesFromParquet(graphPath: "g", dataPath: "{}", time: "time", id: "id") }}"#,
+            parquet_path.display()
+        );
+        let res = run_mutation(&schema, &mutation).await;
+        assert!(
+            !res.errors.is_empty(),
+            "path outside allowlist should be rejected"
+        );
+        assert!(
+            res.errors[0].message.contains("not in the list of allowed paths"),
+            "unexpected error: {}",
+            res.errors[0].message
+        );
+    }
+
+    #[tokio::test]
+    async fn test_parquet_empty_allowlist_permits_any_path() {
+        use crate::config::app_config::AppConfigBuilder;
+
+        let graph_dir = tempdir().unwrap();
+        let other_dir = tempdir().unwrap();
+        let parquet_path = write_nodes_parquet(other_dir.path());
+
+        // No allowed paths configured → everything is permitted.
+        let app_config = AppConfigBuilder::new()
+            .with_allowed_parquet_paths(vec![])
+            .build();
+        let data = Data::new(graph_dir.path(), &app_config, Config::default());
+        let folder = data.validate_path_for_insert("g", false).unwrap();
+        data.insert_graph(folder, Graph::new().into()).await.unwrap();
+
+        let schema = App::create_schema().data(data).finish().unwrap();
+        let mutation = format!(
+            r#"mutation {{ loadNodesFromParquet(graphPath: "g", dataPath: "{}", time: "time", id: "id") }}"#,
+            parquet_path.display()
+        );
+        let res = run_mutation(&schema, &mutation).await;
+        assert_eq!(res.errors, vec![], "empty allowlist should permit any path");
+    }
 }

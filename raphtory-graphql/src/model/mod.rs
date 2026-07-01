@@ -25,29 +25,92 @@ use dynamic_graphql::{
 };
 use itertools::Itertools;
 use raphtory::{
-    db::{
+    arrow_loader::{self, df_loaders::edges::ColumnNames}, db::{
         api::{
             storage::storage::{Extension, PersistenceStrategy},
             view::MaterializedGraph,
         },
         graph::views::deletion_graph::PersistentGraph,
-    },
-    errors::{GraphError, GraphResult},
-    prelude::*,
-    vectors::{
+    }, errors::{GraphError, GraphResult}, io::parquet_loaders::{load_edges_from_parquet, load_nodes_from_parquet}, prelude::*, vectors::{
         cache::CachedEmbeddingModel,
         storage::OpenAIEmbeddings,
-        template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
-    },
-    version,
+        template::{DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE, DocumentTemplate},
+    }, version
 };
-use std::sync::Arc;
+use raphtory_api::core::entities::properties::prop::{Prop, PropType};
+use std::{collections::HashMap, ffi::OsStr, fs, path::PathBuf, sync::Arc};
 use tracing::warn;
 
 pub mod graph;
 pub mod plugins;
 pub(crate) mod schema;
 pub(crate) mod sorting;
+
+// duplicate of the same function in parquet_loaders
+pub(crate) fn is_parquet_path(path: &PathBuf) -> Result<bool, std::io::Error> {
+    if path.is_dir() {
+        Ok(fs::read_dir(&path)?.any(|entry| {
+            entry.map_or(false, |e| {
+                e.path().extension().and_then(OsStr::to_str) == Some("parquet")
+            })
+        }))
+    } else {
+        Ok(path.extension().and_then(OsStr::to_str) == Some("parquet"))
+    }
+}
+
+pub(crate) fn is_csv_path(path: &PathBuf) -> Result<bool, std::io::Error> {
+    if path.is_dir() {
+        Ok(fs::read_dir(&path)?.any(|entry| {
+            entry.map_or(false, |e| {
+                let p = e.path();
+                let s = p.to_string_lossy();
+                s.ends_with(".csv") || s.ends_with(".csv.gz") || s.ends_with(".csv.bz2")
+            })
+        }))
+    } else {
+        let path_str = path.to_string_lossy();
+        Ok(path_str.ends_with(".csv")
+            || path_str.ends_with(".csv.gz")
+            || path_str.ends_with(".csv.bz2"))
+    }
+}
+
+pub(crate) fn parse_json_schema(
+    json: Option<&str>,
+) -> Result<Option<HashMap<String, PropType>>, String> {
+    let json = match json {
+        None | Some("") => return Ok(None),
+        Some(s) => s,
+    };
+    let map: HashMap<String, String> =
+        serde_json::from_str(json).map_err(|e| format!("Invalid JSON schema: {e}"))?;
+    map.into_iter()
+        .map(|(col, type_str)| {
+            let prop_type = type_str
+                .parse::<PropType>()
+                .map_err(|e| format!("Column '{col}': {e}"))?;
+            Ok((col, prop_type))
+        })
+        .collect::<Result<HashMap<_, _>, _>>()
+        .map(Some)
+}
+
+/*
+pub(crate) fn parse_json_props(json: &str) -> Result<HashMap<String, Prop>, String> {
+    let value: serde_json::Value =
+        serde_json::from_str(json).map_err(|e| format!("Invalid JSON props: {e}"))?;
+    let obj = value
+        .as_object()
+        .ok_or_else(|| "Expected a JSON object".to_string())?;
+    obj.iter()
+        .map(|(k, v)| {
+            let prop = Prop::try_from(v.clone())
+                .map_err(|e| format!("Invalid value for key '{k}': {e}"))?;
+            Ok((k.clone(), prop))
+        })
+        .collect()
+}*/
 
 #[derive(InputObject, Debug, Clone, Default)]
 pub struct OpenAIConfig {
@@ -111,6 +174,8 @@ pub enum GqlGraphError {
     InvalidNamespace(String),
     #[error("Failed to create dir {0}")]
     FailedToCreateDir(String),
+    #[error("{0}")]
+    LoadError(String),
 }
 
 /// Auto-grants Write on `path` for the creator's role after a graph is created.
@@ -178,6 +243,7 @@ impl QueryRoot {
     }
 
     /// Returns a graph
+
     async fn graph<'a>(
         ctx: &Context<'a>,
         #[graphql(
@@ -202,6 +268,7 @@ impl QueryRoot {
 
     /// Returns lightweight metadata for a graph (node/edge counts, timestamps) without loading it.
     /// Requires at least INTROSPECT permission.
+
     async fn graph_metadata<'a>(
         ctx: &Context<'a>,
         #[graphql(desc = "Graph path relative to the root namespace.")] path: String,
@@ -228,6 +295,7 @@ impl QueryRoot {
     /// Update graph query, has side effects to update graph state
     ///
     /// Returns:: GqlMutableGraph
+
     async fn update_graph<'a>(
         ctx: &Context<'a>,
         #[graphql(desc = "Graph path relative to the root namespace.")] path: String,
@@ -244,6 +312,7 @@ impl QueryRoot {
     /// Update graph query, has side effects to update graph state
     ///
     /// Returns:: GqlMutableGraph
+
     async fn vectorise_graph<'a>(
         ctx: &Context<'a>,
         #[graphql(desc = "Graph path relative to the root namespace.")] path: String,
@@ -275,6 +344,7 @@ impl QueryRoot {
     /// Create vectorised graph in the format used for queries
     ///
     /// Returns:: GqlVectorisedGraph
+
     async fn vectorised_graph<'a>(
         ctx: &Context<'a>,
         #[graphql(desc = "Graph path relative to the root namespace.")] path: &str,
@@ -305,6 +375,7 @@ impl QueryRoot {
     /// Returns a specific namespace at a given path
     ///
     /// Returns:: Namespace or error if no namespace found
+
     async fn namespace<'a>(ctx: &Context<'a>, path: String) -> Result<Namespace> {
         let data = ctx.data_unchecked::<Data>();
         Ok(Namespace::try_new(data.work_dir.clone(), path)?)
@@ -326,6 +397,7 @@ impl QueryRoot {
     /// Encodes graph and returns as string.
     ///
     /// Returns:: Base64 url safe encoded string
+
     async fn receive_graph<'a>(
         ctx: &Context<'a>,
         #[graphql(desc = "Graph path relative to the root namespace.")] path: String,
@@ -358,6 +430,7 @@ impl Mut {
     }
 
     /// Delete graph from a path on the server.
+
     async fn delete_graph<'a>(
         ctx: &Context<'a>,
         #[graphql(desc = "Graph path relative to the root namespace.")] path: String,
@@ -370,7 +443,150 @@ impl Mut {
         Ok(true)
     }
 
+    /// Load nodes from parquet
+
+    async fn load_nodes_from_parquet<'a>(
+        ctx: &Context<'a>,
+        #[graphql(desc = "Graph path relative to the root namespace.")] graph_path: String,
+        #[graphql(desc = "Path to the parquet directory.")] data_path: String,
+        #[graphql(desc = "The column name for the timestamps.")] time: String,
+        #[graphql(desc = "The column name for the node IDs.")] id: String,
+        #[graphql(desc = "A value to use as the node type for all nodes. Cannot be used in combination with node_type_col.")] node_type: Option<String>,
+        #[graphql(desc = "The node type column name in a dataframe. Cannot be used in combination with node_type.")] node_type_col: Option<String>,
+        #[graphql(desc = "List of node property column names.")] properties: Option<Vec<String>>,
+        #[graphql(desc = "List of node metadata column names.")] metadata: Option<Vec<String>>,
+        // #[graphql(desc = "A dictionary of metadata properties that will be added to every node.")] shared_metadata: Option<String>,
+        #[graphql(desc = "A JSON-formatted dict of {'column_name': column_type} to cast columns to. Defaults to None.")] schema: Option<String>,
+        #[graphql(desc = "The column name for the secondary index.")] event_id: Option<String>,
+        #[graphql(desc = "A value to use as the layer for all nodes. Cannot be used in combination with layer_col.")] layer: Option<String>,
+        #[graphql(desc = "The node layer column name in a dataframe. Cannot be used in combination with layer.")] layer_col: Option<String>,
+    ) -> Result<bool> {
+        let data = ctx.data_unchecked::<Data>();
+        // src: require WRITE on graph
+        // require_graph_write(ctx, &data.auth_policy, graph_path)?;
+        let graph = data
+            .get_graph_with_write_permission(ctx, &graph_path)
+            .await?
+            .graph()
+            .clone();
+        // NOTE: skipping shared metadata for now until we figure out parsing of types
+        let properties_owned = properties.unwrap_or_default();
+        let properties: Vec<&str> = properties_owned.iter().map(String::as_str).collect();
+
+        let metadata_owned = metadata.unwrap_or_default();
+        let metadata: Vec<&str> = metadata_owned.iter().map(String::as_str).collect();
+
+        let schema = parse_json_schema(schema.as_deref()).map_err(GqlGraphError::LoadError)?;
+
+        // extracting PathBuf handles Strings too
+        let data_path = PathBuf::from(data_path);
+        let is_parquet = is_parquet_path(&data_path)?;
+
+        if !data.is_parquet_path_allowed(&data_path) {
+            return Err(GqlGraphError::LoadError(
+                "Argument 'data_path' is not in the list of allowed paths".to_string(),
+            )
+            .into());
+        }
+
+        if !is_parquet {
+            return Err(GqlGraphError::LoadError("Argument 'data' contains invalid path. Paths must either point to a Parquet/CSV file, or a directory containing Parquet/CSV files".to_string()).into());
+        }
+
+        // wrap in Arc to avoid cloning the entire schema for inner loops
+        let arced_schema = schema.map(Arc::new);
+        
+        load_nodes_from_parquet(
+            &graph,
+            &data_path,
+            &time,
+            event_id.as_deref(),
+            &id,
+            node_type.as_deref(),
+            node_type_col.as_deref(),
+            properties.as_slice(),
+            metadata.as_slice(),
+            None,
+            layer.as_deref(),
+            layer_col.as_deref(),
+            None,
+            None,
+            true,
+            arced_schema.clone(),
+        )?;
+        Ok(true)
+    }
+
+    /// Load edges from parquet
+
+    async fn load_edges_from_parquet<'a>(
+        ctx: &Context<'a>,
+        #[graphql(desc = "Graph path relative to the root namespace.")] graph_path: String,
+        #[graphql(desc = "Path to the parquet directory.")] data_path: String,
+        #[graphql(desc = "The column name for the update timestamps.")] time: String,
+        #[graphql(desc = "The column name for the source node IDs.")] src: String,
+        #[graphql(desc = "The column name for the destination node IDs.")] dst: String,
+        #[graphql(desc = "List of edge property column names. Defaults to None.")] properties: Option<Vec<String>>,
+        #[graphql(desc = "List of edge metadata column names. Defaults to None.")] metadata: Option<Vec<String>>,
+        // #[graphql(desc = "A dictionary of metadata properties that will be added to every edge.")] shared_metadata: Option<String>,
+        #[graphql(desc = "A JSON-formatted dict of {'column_name': column_type} to cast columns to. Defaults to None.")] schema: Option<String>,
+        #[graphql(desc = "The column name for the secondary index.")] event_id: Option<String>,
+        #[graphql(desc = "A value to use as the layer for all edges. Cannot be used in combination with layer_col. Defaults to None.")] layer: Option<String>,
+        #[graphql(desc = "The edge layer column name in a dataframe. Cannot be used in combination with layer. Defaults to None.")] layer_col: Option<String>,
+    ) -> Result<bool> {
+        let data = ctx.data_unchecked::<Data>();
+        // src: require WRITE on graph
+        // require_graph_write(ctx, &data.auth_policy, graph_path)?;
+        let graph = data
+            .get_graph_with_write_permission(ctx, &graph_path)
+            .await?
+            .graph()
+            .clone();
+        // NOTE: skipping shared metadata for now until we figure out parsing of types
+        let properties_owned = properties.unwrap_or_default();
+        let properties: Vec<&str> = properties_owned.iter().map(String::as_str).collect();
+
+        let metadata_owned = metadata.unwrap_or_default();
+        let metadata: Vec<&str> = metadata_owned.iter().map(String::as_str).collect();
+
+        let schema = parse_json_schema(schema.as_deref()).map_err(GqlGraphError::LoadError)?;
+
+        // extracting PathBuf handles Strings too
+        let data_path = PathBuf::from(data_path);
+        let is_parquet = is_parquet_path(&data_path)?;
+
+        if !data.is_parquet_path_allowed(&data_path) {
+            return Err(GqlGraphError::LoadError(
+                "Argument 'data_path' is not in the list of allowed paths".to_string(),
+            )
+            .into());
+        }
+
+        if !is_parquet {
+            return Err(GqlGraphError::LoadError("Argument 'data' contains invalid path. Paths must either point to a Parquet/CSV file, or a directory containing Parquet/CSV files".to_string()).into());
+        }
+
+        // wrap in Arc to avoid cloning the entire schema for inner loops
+        let arced_schema = schema.map(Arc::new);
+        
+        load_edges_from_parquet(
+            &graph,
+            &data_path,
+            ColumnNames::new(time.as_str(), event_id.as_deref(), src.as_str(), dst.as_str(), layer_col.as_deref()),
+            true,
+            properties.as_slice(),
+            metadata.as_slice(),
+            None,
+            layer.as_deref(),
+            None,
+            arced_schema.clone(),
+        )?;
+        Ok(true)
+    }
+
+
     /// Creates a new graph.
+
     async fn new_graph<'a>(
         ctx: &Context<'a>,
         #[graphql(desc = "Destination path relative to the root namespace.")] path: String,
@@ -404,6 +620,7 @@ impl Mut {
     }
 
     /// Move graph from a path on the server to a new_path on the server.
+
     async fn move_graph<'a>(
         ctx: &Context<'a>,
         #[graphql(desc = "Current graph path relative to the root namespace.")] path: &str,
@@ -429,6 +646,7 @@ impl Mut {
     }
 
     /// Copy graph from a path on the server to a new_path on the server.
+
     async fn copy_graph<'a>(
         ctx: &Context<'a>,
         #[graphql(desc = "Source graph path relative to the root namespace.")] path: &str,
@@ -460,6 +678,7 @@ impl Mut {
     ///
     /// Returns::
     /// name of the new graph
+
     async fn upload_graph<'a>(
         ctx: &Context<'a>,
         #[graphql(desc = "Destination path relative to the root namespace.")] path: String,
@@ -484,6 +703,7 @@ impl Mut {
     ///
     /// Returns::
     /// path of the new graph
+
     async fn send_graph<'a>(
         ctx: &Context<'a>,
         #[graphql(desc = "Destination path relative to the root namespace.")] path: &str,
@@ -576,6 +796,7 @@ impl Mut {
     ///
     /// Returns::
     /// name of the new graph
+
     async fn create_subgraph<'a>(
         ctx: &Context<'a>,
         #[graphql(desc = "Source graph path relative to the root namespace.")] parent_path: &str,
@@ -610,6 +831,7 @@ impl Mut {
     }
 
     /// (Experimental) Creates search index.
+
     async fn create_index<'a>(
         ctx: &Context<'a>,
         #[graphql(desc = "Graph path relative to the root namespace.")] path: &str,

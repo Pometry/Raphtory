@@ -150,6 +150,7 @@ pub struct DataInner {
     pub(crate) vector_cache: LazyDiskVectorCache,
     pub(crate) graph_conf: Config,
     pub(crate) auth_policy: Option<Arc<dyn AuthorizationPolicy>>,
+    pub(crate) allowed_parquet_paths: Vec<PathBuf>,
 }
 
 /// Outer data struct that wraps the inner data to make sure it is only dropped once
@@ -203,6 +204,7 @@ impl Data {
                 vector_cache: LazyDiskVectorCache::new(work_dir.join(".vector-cache")),
                 graph_conf,
                 auth_policy: None,
+                allowed_parquet_paths: configs.parquet.allowed_paths.clone(),
             }),
             create_index,
         }
@@ -212,6 +214,17 @@ impl Data {
         Arc::get_mut(&mut self.inner)
             .expect("Data is not uniquely owned when setting auth_policy")
             .auth_policy = Some(policy);
+    }
+
+    /// Returns `true` if `path` is permitted by the parquet allowlist.
+    /// When `allowed_parquet_paths` is empty every path is permitted.
+    pub fn is_parquet_path_allowed(&self, path: &Path) -> bool {
+        if self.allowed_parquet_paths.is_empty() {
+            return true;
+        }
+        self.allowed_parquet_paths
+            .iter()
+            .any(|allowed| path.starts_with(allowed))
     }
 
     pub fn validate_path_for_insert(
