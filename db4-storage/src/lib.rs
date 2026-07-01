@@ -127,6 +127,9 @@ pub mod error {
 
         #[error("Graph requires WAL recovery; load with WAL enabled")]
         RecoveryRequired,
+
+        #[error("Graph is read-only")]
+        ReadOnly,
     }
 
     impl StorageError {

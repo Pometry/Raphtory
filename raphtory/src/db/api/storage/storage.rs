@@ -62,6 +62,9 @@ pub use storage::{
 #[derive(Debug, Default)]
 pub struct Storage {
     graph: GraphStorage,
+    // Set by `load_read_only_*`.  Guards Drop so a read-only handle does
+    // not rewrite the on-disk `.meta` file.
+    read_only: bool,
     #[cfg(feature = "search")]
     pub(crate) index: RwLock<GraphIndex>,
 }
@@ -69,6 +72,12 @@ pub struct Storage {
 #[cfg(feature = "io")]
 impl Drop for Storage {
     fn drop(&mut self) {
+        // A read-only handle must never write to the graph directory,
+        // including the `.meta` counts file (a fixed-name `.tmp` collides
+        // with the writer's own `.meta` refresh under concurrency).
+        if self.read_only {
+            return;
+        }
         if let Some(disk_path) = self.graph.disk_storage_path() {
             let disk_path = disk_path.to_path_buf();
             let node_count = self.graph.unfiltered_num_nodes(&LayerIds::All);
@@ -120,6 +129,7 @@ impl Storage {
 
         Ok(Self {
             graph: GraphStorage::Unlocked(Arc::new(temporal_graph)),
+            read_only: false,
             #[cfg(feature = "search")]
             index: RwLock::new(GraphIndex::Empty),
         })
@@ -130,6 +140,7 @@ impl Storage {
         let temporal_graph = TemporalGraph::new(ext)?;
         Ok(Self {
             graph: GraphStorage::Unlocked(Arc::new(temporal_graph)),
+            read_only: false,
             #[cfg(feature = "search")]
             index: RwLock::new(GraphIndex::Empty),
         })
@@ -144,6 +155,7 @@ impl Storage {
 
         Ok(Self {
             graph: GraphStorage::Unlocked(Arc::new(temporal_graph)),
+            read_only: false,
             #[cfg(feature = "search")]
             index: RwLock::new(GraphIndex::Empty),
         })
@@ -157,6 +169,7 @@ impl Storage {
 
         Ok(Self {
             graph: GraphStorage::Unlocked(Arc::new(temporal_graph)),
+            read_only: false,
             #[cfg(feature = "search")]
             index: RwLock::new(GraphIndex::Empty),
         })
@@ -174,6 +187,7 @@ impl Storage {
 
         Ok(Self {
             graph: GraphStorage::Mem(locked),
+            read_only: true,
             #[cfg(feature = "search")]
             index: RwLock::new(GraphIndex::Empty),
         })
@@ -216,6 +230,7 @@ impl Storage {
     pub(crate) fn from_inner(graph: GraphStorage) -> Self {
         Self {
             graph,
+            read_only: false,
             #[cfg(feature = "search")]
             index: RwLock::new(GraphIndex::Empty),
         }
@@ -229,6 +244,10 @@ impl Storage {
     pub fn read_only(&self) -> Self {
         Self {
             graph: self.graph.lock(),
+            // The original Storage still owns the writer's Drop protocol
+            // for the underlying graph; this in-process view must not
+            // duplicate the on-disk `.meta` refresh on its own drop.
+            read_only: true,
             #[cfg(feature = "search")]
             index: RwLock::new(self.index.read().clone()),
         }

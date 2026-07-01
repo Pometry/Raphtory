@@ -57,6 +57,7 @@ pub struct GraphStore<
     graph_dir: Option<PathBuf>,
     event_id: AtomicUsize,
     ext: EXT,
+    read_only: bool,
 }
 
 impl<
@@ -67,6 +68,10 @@ impl<
 > GraphStore<NS, ES, GS, EXT>
 {
     pub fn flush(&self) -> Result<(), StorageError> {
+        if self.read_only {
+            return Err(StorageError::ReadOnly);
+        }
+
         let node_types = self.nodes.prop_meta().get_all_node_types();
         let config = self.ext.config().with_node_types(node_types);
 
@@ -153,6 +158,7 @@ impl<
             event_id: AtomicUsize::new(0),
             graph_dir: graph_dir.map(|p| p.to_path_buf()),
             ext,
+            read_only: false,
         }
     }
 
@@ -191,7 +197,18 @@ impl<
             event_id: AtomicUsize::new(t_len),
             graph_dir: Some(graph_dir.as_ref().to_path_buf()),
             ext,
+            read_only: false,
         })
+    }
+
+    /// Load a graph directory as a read-only snapshot.  The returned store
+    /// is byte-identical to `load` at the storage level, but its Drop and
+    /// `flush` paths are guarded to never write to the graph directory —
+    /// safe to attach to a directory a live writer is holding open.
+    pub fn load_read_only(graph_dir: impl AsRef<Path>, ext: EXT) -> Result<Self, StorageError> {
+        let mut store = Self::load(graph_dir, ext)?;
+        store.read_only = true;
+        Ok(store)
     }
 
     pub fn read_locked(self: &Arc<Self>) -> ReadLockedGraphStore<NS, ES, GS, EXT> {
@@ -360,6 +377,14 @@ impl<
 > Drop for GraphStore<NS, ES, GS, EXT>
 {
     fn drop(&mut self) {
+        // A read-only handle must never write to the graph directory —
+        // running the clean-shutdown protocol would append a shutdown
+        // checkpoint to the shared WAL and rewrite the control file,
+        // corrupting a concurrent writer's crash recovery.
+        if self.read_only {
+            return;
+        }
+
         let wal = self.ext.wal();
         let control_file = self.ext.control_file();
 

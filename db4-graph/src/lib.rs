@@ -157,7 +157,13 @@ where
 
     fn load_inner(path: impl AsRef<Path>, ext: EXT, read_only: bool) -> Result<Self, StorageError> {
         let path = path.as_ref();
-        let storage = Layer::load(path, ext)?;
+        // Load the storage layer as read-only when requested so its Drop
+        // and flush paths do not write to the shared graph directory.
+        let storage = if read_only {
+            Layer::load_read_only(path, ext)?
+        } else {
+            Layer::load(path, ext)?
+        };
         let id_type = storage.nodes().id_type();
 
         let gid_resolver_dir = path.join("gid_resolver");
