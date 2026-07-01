@@ -497,12 +497,12 @@ async fn server_termination(
 mod server_tests {
     use crate::server::GraphServer;
     use chrono::prelude::*;
+    #[cfg(feature = "vectors")]
+    use raphtory::vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate};
     use raphtory::{
         db::api::storage::storage::Config,
         prelude::{AdditionOps, Graph, StableEncode, NO_PROPS},
     };
-    #[cfg(feature = "vectors")]
-    use raphtory::vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate};
     use raphtory_api::core::utils::logging::global_info_logger;
     use tempfile::tempdir;
     use tokio::time::{sleep, Duration};

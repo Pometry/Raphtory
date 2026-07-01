@@ -4,6 +4,8 @@ use crate::{
 };
 #[cfg(feature = "search")]
 use raphtory::prelude::IndexMutationOps;
+#[cfg(feature = "vectors")]
+use raphtory::vectors::{storage::LazyDiskVectorCache, vectorised_graph::VectorisedGraph};
 use raphtory::{
     core::entities::nodes::node_ref::AsNodeRef,
     db::{
@@ -22,8 +24,6 @@ use raphtory::{
     prelude::{EdgeViewOps, StableDecode},
     serialise::GraphPaths,
 };
-#[cfg(feature = "vectors")]
-use raphtory::vectors::{storage::LazyDiskVectorCache, vectorised_graph::VectorisedGraph};
 use raphtory_storage::{
     core_ops::InheritCoreGraphOps, layer_ops::InheritLayerOps, mutation::InheritMutationOps,
 };

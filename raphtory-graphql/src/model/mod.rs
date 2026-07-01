@@ -25,6 +25,12 @@ use dynamic_graphql::{
 };
 use itertools::Itertools;
 use minijinja::functions::namespace;
+#[cfg(feature = "vectors")]
+use raphtory::vectors::{
+    cache::CachedEmbeddingModel,
+    storage::OpenAIEmbeddings,
+    template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
+};
 use raphtory::{
     db::{
         api::{
@@ -36,12 +42,6 @@ use raphtory::{
     errors::{GraphError, GraphResult},
     prelude::*,
     version,
-};
-#[cfg(feature = "vectors")]
-use raphtory::vectors::{
-    cache::CachedEmbeddingModel,
-    storage::OpenAIEmbeddings,
-    template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
 };
 use std::sync::Arc;
 use tracing::warn;
