@@ -2641,7 +2641,7 @@ mod graphql_test {
             .build();
 
         let data = Data::new(tmp_dir.path(), &app_config, Config::default());
-        let folder = data.validate_path_for_insert("mygraph", false).unwrap();
+        let folder = data.work_dir_write().await.validate_path_for_insert("mygraph", false).unwrap();
         data.insert_graph(folder, Graph::new().into()).await.unwrap();
 
         let schema = App::create_schema().data(data).finish().unwrap();
@@ -2726,7 +2726,7 @@ mod graphql_test {
             .build();
 
         let data = Data::new(tmp_dir.path(), &app_config, Config::default());
-        let folder = data.validate_path_for_insert("mygraph", false).unwrap();
+        let folder = data.work_dir_write().await.validate_path_for_insert("mygraph", false).unwrap();
         data.insert_graph(folder, Graph::new().into()).await.unwrap();
 
         let schema = App::create_schema().data(data).finish().unwrap();
@@ -2818,7 +2818,7 @@ mod graphql_test {
             .with_allowed_parquet_paths(vec![tmp_dir.path().to_path_buf()])
             .build();
         let data = Data::new(tmp_dir.path(), &app_config, Config::default());
-        let folder = data.validate_path_for_insert("g", false).unwrap();
+        let folder = data.work_dir_write().await.validate_path_for_insert("g", false).unwrap();
         data.insert_graph(folder, Graph::new().into()).await.unwrap();
 
         let schema = App::create_schema().data(data).finish().unwrap();
@@ -2842,7 +2842,7 @@ mod graphql_test {
             .with_allowed_parquet_paths(vec![allowed_dir.path().to_path_buf()])
             .build();
         let data = Data::new(allowed_dir.path(), &app_config, Config::default());
-        let folder = data.validate_path_for_insert("g", false).unwrap();
+        let folder = data.work_dir_write().await.validate_path_for_insert("g", false).unwrap();
         data.insert_graph(folder, Graph::new().into()).await.unwrap();
 
         let schema = App::create_schema().data(data).finish().unwrap();
@@ -2875,7 +2875,7 @@ mod graphql_test {
             .with_allowed_parquet_paths(vec![])
             .build();
         let data = Data::new(graph_dir.path(), &app_config, Config::default());
-        let folder = data.validate_path_for_insert("g", false).unwrap();
+        let folder = data.work_dir_write().await.validate_path_for_insert("g", false).unwrap();
         data.insert_graph(folder, Graph::new().into()).await.unwrap();
 
         let schema = App::create_schema().data(data).finish().unwrap();

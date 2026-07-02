@@ -44,6 +44,10 @@ pub trait RecoveryOps: DurabilityOps + InternalAdditionOps<Error = MutationError
                 // Set the next LSN for future writes to the end of the WAL stream.
                 wal.set_position(end_of_wal_lsn)?;
             }
+            DBState::WalDisabled => {
+                // A graph that was created with WAL disabled is now loaded with WAL enabled.
+                // No recovery is needed.
+            }
             DBState::NotSupported => {
                 // Recovery is not supported, skip.
             }

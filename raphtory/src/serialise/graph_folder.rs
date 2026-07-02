@@ -15,7 +15,7 @@ use crate::{
     serialise::metadata::GraphMetadata,
 };
 use itertools::Itertools;
-use raphtory_api::core::input::input_node::parse_u64_strict;
+use raphtory_api::{core::input::input_node::parse_u64_strict, to_millis::ToMillis};
 use serde::{Deserialize, Serialize};
 use std::{
     fs::{self, File},
@@ -288,6 +288,18 @@ pub trait GraphPaths {
         fs::create_dir(&graph_path)?;
 
         Ok(())
+    }
+
+    fn created(&self) -> Result<i64, GraphError> {
+        Ok(self.root_meta_path().metadata()?.created()?.to_millis()?)
+    }
+
+    fn last_updated(&self) -> Result<i64, GraphError> {
+        Ok(fs::metadata(self.meta_path()?)?.modified()?.to_millis()?)
+    }
+
+    fn last_opened(&self) -> Result<i64, GraphError> {
+        Ok(fs::metadata(self.meta_path()?)?.accessed()?.to_millis()?)
     }
 }
 
