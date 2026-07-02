@@ -62,31 +62,47 @@ pub use storage::{
 #[derive(Debug, Default)]
 pub struct Storage {
     graph: GraphStorage,
-    // Set by `load_read_only_*`.  Guards Drop so a read-only handle does
-    // not rewrite the on-disk `.meta` file.
-    read_only: bool,
+    // `Some` on writable handles; on drop the guard refreshes the
+    // on-disk `.meta` counts.  `None` on read-only handles, whose drop
+    // is therefore a no-op with respect to the graph directory.
+    #[cfg(feature = "io")]
+    metadata_guard: Option<MetadataRefreshGuard>,
     #[cfg(feature = "search")]
     pub(crate) index: RwLock<GraphIndex>,
 }
 
+/// Refreshes the disk-backed `.meta` file on drop.  Held only by
+/// writable `Storage` handles.  Reader handles omit this guard, so a
+/// read-only lifecycle can never touch `.meta`.
 #[cfg(feature = "io")]
-impl Drop for Storage {
+#[derive(Debug)]
+struct MetadataRefreshGuard {
+    disk_path: std::path::PathBuf,
+    graph: GraphStorage,
+}
+
+#[cfg(feature = "io")]
+impl Drop for MetadataRefreshGuard {
     fn drop(&mut self) {
-        // A read-only handle must never write to the graph directory,
-        // including the `.meta` counts file (a fixed-name `.tmp` collides
-        // with the writer's own `.meta` refresh under concurrency).
-        if self.read_only {
-            return;
-        }
-        if let Some(disk_path) = self.graph.disk_storage_path() {
-            let disk_path = disk_path.to_path_buf();
-            let node_count = self.graph.unfiltered_num_nodes(&LayerIds::All);
-            let edge_count = self.graph.unfiltered_num_edges(&LayerIds::All);
-            // Drop must not panic - ignore any error refreshing the metadata
-            // file. The graph data itself is already persisted by the storage
-            // layer so a stale `.meta` only affects node and edge counts (for now).
-            let _ = storage::refresh_disk_graph_metadata(&disk_path, node_count, edge_count);
-        }
+        let node_count = self.graph.unfiltered_num_nodes(&LayerIds::All);
+        let edge_count = self.graph.unfiltered_num_edges(&LayerIds::All);
+        // Drop must not panic - ignore any error refreshing the metadata
+        // file. The graph data itself is already persisted by the storage
+        // layer so a stale `.meta` only affects node and edge counts (for now).
+        let _ = storage::refresh_disk_graph_metadata(&self.disk_path, node_count, edge_count);
+    }
+}
+
+// `Storage` has no explicit `Drop` — the `metadata_guard` field's Drop
+// runs the `.meta` refresh on writable handles, and is simply absent
+// (`None`) on read-only handles.
+#[cfg(feature = "io")]
+impl Storage {
+    fn build_metadata_guard(graph: &GraphStorage) -> Option<MetadataRefreshGuard> {
+        graph.disk_storage_path().map(|p| MetadataRefreshGuard {
+            disk_path: p.to_path_buf(),
+            graph: graph.clone(),
+        })
     }
 }
 
@@ -126,10 +142,12 @@ impl Storage {
         let config = Config::default();
         let ext = Extension::new(config, Some(path.as_ref()))?;
         let temporal_graph = TemporalGraph::new_at_path_with_ext(path, ext)?;
+        let graph = GraphStorage::Unlocked(Arc::new(temporal_graph));
 
         Ok(Self {
-            graph: GraphStorage::Unlocked(Arc::new(temporal_graph)),
-            read_only: false,
+            #[cfg(feature = "io")]
+            metadata_guard: Self::build_metadata_guard(&graph),
+            graph,
             #[cfg(feature = "search")]
             index: RwLock::new(GraphIndex::Empty),
         })
@@ -138,9 +156,11 @@ impl Storage {
     pub(crate) fn new_with_config(config: Config) -> Result<Self, GraphError> {
         let ext = Extension::new(config, None)?;
         let temporal_graph = TemporalGraph::new(ext)?;
+        let graph = GraphStorage::Unlocked(Arc::new(temporal_graph));
         Ok(Self {
-            graph: GraphStorage::Unlocked(Arc::new(temporal_graph)),
-            read_only: false,
+            #[cfg(feature = "io")]
+            metadata_guard: Self::build_metadata_guard(&graph),
+            graph,
             #[cfg(feature = "search")]
             index: RwLock::new(GraphIndex::Empty),
         })
@@ -152,10 +172,12 @@ impl Storage {
     ) -> Result<Self, GraphError> {
         let ext = Extension::new(config, Some(path.as_ref()))?;
         let temporal_graph = TemporalGraph::new_at_path_with_ext(path, ext)?;
+        let graph = GraphStorage::Unlocked(Arc::new(temporal_graph));
 
         Ok(Self {
-            graph: GraphStorage::Unlocked(Arc::new(temporal_graph)),
-            read_only: false,
+            #[cfg(feature = "io")]
+            metadata_guard: Self::build_metadata_guard(&graph),
+            graph,
             #[cfg(feature = "search")]
             index: RwLock::new(GraphIndex::Empty),
         })
@@ -166,10 +188,12 @@ impl Storage {
 
         // Run crash recovery if needed.
         temporal_graph.run_recovery()?;
+        let graph = GraphStorage::Unlocked(Arc::new(temporal_graph));
 
         Ok(Self {
-            graph: GraphStorage::Unlocked(Arc::new(temporal_graph)),
-            read_only: false,
+            #[cfg(feature = "io")]
+            metadata_guard: Self::build_metadata_guard(&graph),
+            graph,
             #[cfg(feature = "search")]
             index: RwLock::new(GraphIndex::Empty),
         })
@@ -187,7 +211,9 @@ impl Storage {
 
         Ok(Self {
             graph: GraphStorage::Mem(locked),
-            read_only: true,
+            // Read-only: no metadata guard, drop must not touch `.meta`.
+            #[cfg(feature = "io")]
+            metadata_guard: None,
             #[cfg(feature = "search")]
             index: RwLock::new(GraphIndex::Empty),
         })
@@ -229,8 +255,9 @@ impl Storage {
 
     pub(crate) fn from_inner(graph: GraphStorage) -> Self {
         Self {
+            #[cfg(feature = "io")]
+            metadata_guard: Self::build_metadata_guard(&graph),
             graph,
-            read_only: false,
             #[cfg(feature = "search")]
             index: RwLock::new(GraphIndex::Empty),
         }
@@ -247,7 +274,8 @@ impl Storage {
             // The original Storage still owns the writer's Drop protocol
             // for the underlying graph; this in-process view must not
             // duplicate the on-disk `.meta` refresh on its own drop.
-            read_only: true,
+            #[cfg(feature = "io")]
+            metadata_guard: None,
             #[cfg(feature = "search")]
             index: RwLock::new(self.index.read().clone()),
         }

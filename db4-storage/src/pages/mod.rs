@@ -57,7 +57,32 @@ pub struct GraphStore<
     graph_dir: Option<PathBuf>,
     event_id: AtomicUsize,
     ext: EXT,
-    read_only: bool,
+    // `Some` on writable handles, `None` on read-only handles.  On drop
+    // the guard runs the clean-shutdown protocol (flush + WAL shutdown
+    // checkpoint + control-file update); a `None` here means the drop
+    // does nothing, so a read-only handle can never write to the graph
+    // directory.  Also gates `flush()`.
+    shutdown_guard: Option<WriterShutdownGuard<NS, ES, GS, EXT>>,
+}
+
+/// Owns the writer's clean-shutdown protocol.  Constructed alongside a
+/// writable `GraphStore`; dropped when that store is dropped, at which
+/// point (if the DB is still `Running`) it flushes the segments and
+/// records a shutdown checkpoint in the WAL.  Read-only handles never
+/// hold one, so they are structurally incapable of running this
+/// protocol.
+#[derive(Debug)]
+pub struct WriterShutdownGuard<
+    NS: NodeSegmentOps<Extension = EXT>,
+    ES: EdgeSegmentOps<Extension = EXT>,
+    GS: GraphPropSegmentOps<Extension = EXT>,
+    EXT: PersistenceStrategy<NS = NS, ES = ES, GS = GS>,
+> {
+    nodes: Arc<NodeStorageInner<NS, EXT>>,
+    edges: Arc<EdgeStorageInner<ES, EXT>>,
+    graph_props: Arc<GraphPropStorageInner<GS, EXT>>,
+    graph_dir: Option<PathBuf>,
+    ext: EXT,
 }
 
 impl<
@@ -65,13 +90,9 @@ impl<
     ES: EdgeSegmentOps<Extension = EXT>,
     GS: GraphPropSegmentOps<Extension = EXT>,
     EXT: PersistenceStrategy<NS = NS, ES = ES, GS = GS>,
-> GraphStore<NS, ES, GS, EXT>
+> WriterShutdownGuard<NS, ES, GS, EXT>
 {
-    pub fn flush(&self) -> Result<(), StorageError> {
-        if self.read_only {
-            return Err(StorageError::ReadOnly);
-        }
-
+    fn flush(&self) -> Result<(), StorageError> {
         let node_types = self.nodes.prop_meta().get_all_node_types();
         let config = self.ext.config().with_node_types(node_types);
 
@@ -83,6 +104,85 @@ impl<
         self.edges.flush()?;
         self.graph_props.flush()?;
         Ok(())
+    }
+}
+
+impl<
+    NS: NodeSegmentOps<Extension = EXT>,
+    ES: EdgeSegmentOps<Extension = EXT>,
+    GS: GraphPropSegmentOps<Extension = EXT>,
+    EXT: PersistenceStrategy<NS = NS, ES = ES, GS = GS>,
+> Drop for WriterShutdownGuard<NS, ES, GS, EXT>
+{
+    fn drop(&mut self) {
+        let wal = self.ext.wal();
+        let control_file = self.ext.control_file();
+
+        // Skip running a clean flush if the DB is in shutdown or crash recovery.
+        // Note that the state can be Shutdown after load is called and before recovery is complete.
+        // A clean flush is performed even when state is WalDisabled or NotSupported.
+        if matches!(
+            control_file.db_state(),
+            DBState::Shutdown | DBState::CrashRecovery
+        ) {
+            return;
+        }
+
+        match self.flush() {
+            Ok(_) => {
+                // Log a checkpoint record in the WAL, indicating that the DB was shutdown
+                // with all the segments flushed to disk.
+                // On startup, recovery is skipped since there are no pending writes to replay.
+                let checkpoint_lsn = match wal.log_shutdown_checkpoint() {
+                    Ok(lsn) => lsn,
+                    Err(err) => {
+                        drop_error!("Failed to log shutdown checkpoint in drop: {err}");
+                        // this is unreachable with panic-on-drop
+                        #[allow(unreachable_code)]
+                        return;
+                    }
+                };
+
+                // Flush up to the end of the WAL stream.
+                let flush_lsn = wal.position();
+
+                if let Err(err) = wal.flush(flush_lsn) {
+                    drop_error!("Failed to flush checkpoint record in drop: {err}");
+                    // this is unreachable with panic-on-drop
+                    #[allow(unreachable_code)]
+                    return;
+                }
+
+                // Record the checkpoint and shutdown state and write control file to disk.
+                control_file.set_checkpoint(checkpoint_lsn);
+                control_file.set_db_state(DBState::Shutdown);
+
+                if let Err(err) = control_file.save() {
+                    drop_error!("Failed to save control file in drop: {err}");
+                    // this is unreachable with panic-on-drop
+                    #[allow(unreachable_code)]
+                    return;
+                }
+            }
+            Err(err) => {
+                drop_error!("Failed to flush storage in drop: {err}");
+            }
+        }
+    }
+}
+
+impl<
+    NS: NodeSegmentOps<Extension = EXT>,
+    ES: EdgeSegmentOps<Extension = EXT>,
+    GS: GraphPropSegmentOps<Extension = EXT>,
+    EXT: PersistenceStrategy<NS = NS, ES = ES, GS = GS>,
+> GraphStore<NS, ES, GS, EXT>
+{
+    pub fn flush(&self) -> Result<(), StorageError> {
+        match &self.shutdown_guard {
+            None => Err(StorageError::ReadOnly),
+            Some(guard) => guard.flush(),
+        }
     }
 }
 
@@ -151,18 +251,43 @@ impl<
                 .expect("Failed to write config to disk");
         }
 
+        let graph_dir = graph_dir.map(|p| p.to_path_buf());
+        let shutdown_guard = Some(WriterShutdownGuard {
+            nodes: node_storage.clone(),
+            edges: edge_storage.clone(),
+            graph_props: graph_prop_storage.clone(),
+            graph_dir: graph_dir.clone(),
+            ext: ext.clone(),
+        });
+
         Self {
             nodes: node_storage,
             edges: edge_storage,
             graph_props: graph_prop_storage,
             event_id: AtomicUsize::new(0),
-            graph_dir: graph_dir.map(|p| p.to_path_buf()),
+            graph_dir,
             ext,
-            read_only: false,
+            shutdown_guard,
         }
     }
 
     pub fn load(graph_dir: impl AsRef<Path>, ext: EXT) -> Result<Self, StorageError> {
+        Self::load_impl(graph_dir, ext, /* read_only */ false)
+    }
+
+    /// Load a graph directory as a read-only snapshot.  The returned store
+    /// omits the writer's shutdown guard, so its Drop and `flush` paths
+    /// are structurally incapable of writing to the graph directory —
+    /// safe to attach to a directory a live writer is holding open.
+    pub fn load_read_only(graph_dir: impl AsRef<Path>, ext: EXT) -> Result<Self, StorageError> {
+        Self::load_impl(graph_dir, ext, /* read_only */ true)
+    }
+
+    fn load_impl(
+        graph_dir: impl AsRef<Path>,
+        ext: EXT,
+        read_only: bool,
+    ) -> Result<Self, StorageError> {
         let nodes_path = graph_dir.as_ref().join("nodes");
         let edges_path = graph_dir.as_ref().join("edges");
         let graph_props_path = graph_dir.as_ref().join("graph_props");
@@ -190,25 +315,31 @@ impl<
             + node_storage.t_len()
             + graph_prop_storage.segment().num_updates();
 
+        let graph_dir = Some(graph_dir.as_ref().to_path_buf());
+        // The guard is only constructed for writable handles.  Constructing
+        // it and then setting the field to `None` would run its Drop and
+        // execute the very shutdown protocol we're trying to avoid.
+        let shutdown_guard = if read_only {
+            None
+        } else {
+            Some(WriterShutdownGuard {
+                nodes: node_storage.clone(),
+                edges: edge_storage.clone(),
+                graph_props: graph_prop_storage.clone(),
+                graph_dir: graph_dir.clone(),
+                ext: ext.clone(),
+            })
+        };
+
         Ok(Self {
             nodes: node_storage,
             edges: edge_storage,
             graph_props: graph_prop_storage,
             event_id: AtomicUsize::new(t_len),
-            graph_dir: Some(graph_dir.as_ref().to_path_buf()),
+            graph_dir,
             ext,
-            read_only: false,
+            shutdown_guard,
         })
-    }
-
-    /// Load a graph directory as a read-only snapshot.  The returned store
-    /// is byte-identical to `load` at the storage level, but its Drop and
-    /// `flush` paths are guarded to never write to the graph directory —
-    /// safe to attach to a directory a live writer is holding open.
-    pub fn load_read_only(graph_dir: impl AsRef<Path>, ext: EXT) -> Result<Self, StorageError> {
-        let mut store = Self::load(graph_dir, ext)?;
-        store.read_only = true;
-        Ok(store)
     }
 
     pub fn read_locked(self: &Arc<Self>) -> ReadLockedGraphStore<NS, ES, GS, EXT> {
@@ -369,77 +500,9 @@ impl<I: From<usize> + Send> SegmentCounts<I> {
     }
 }
 
-impl<
-    NS: NodeSegmentOps<Extension = EXT>,
-    ES: EdgeSegmentOps<Extension = EXT>,
-    GS: GraphPropSegmentOps<Extension = EXT>,
-    EXT: PersistenceStrategy<NS = NS, ES = ES, GS = GS>,
-> Drop for GraphStore<NS, ES, GS, EXT>
-{
-    fn drop(&mut self) {
-        // A read-only handle must never write to the graph directory —
-        // running the clean-shutdown protocol would append a shutdown
-        // checkpoint to the shared WAL and rewrite the control file,
-        // corrupting a concurrent writer's crash recovery.
-        if self.read_only {
-            return;
-        }
-
-        let wal = self.ext.wal();
-        let control_file = self.ext.control_file();
-
-        // Skip running a clean flush if the DB is in shutdown or crash recovery.
-        // Note that the state can be Shutdown after load is called and before recovery is complete.
-        // A clean flush is performed even when state is WalDisabled or NotSupported.
-        if matches!(
-            control_file.db_state(),
-            DBState::Shutdown | DBState::CrashRecovery
-        ) {
-            return;
-        }
-
-        match self.flush() {
-            Ok(_) => {
-                // Log a checkpoint record in the WAL, indicating that the DB was shutdown
-                // with all the segments flushed to disk.
-                // On startup, recovery is skipped since there are no pending writes to replay.
-                let checkpoint_lsn = match wal.log_shutdown_checkpoint() {
-                    Ok(lsn) => lsn,
-                    Err(err) => {
-                        drop_error!("Failed to log shutdown checkpoint in drop: {err}");
-                        // this is unreachable with panic-on-drop
-                        #[allow(unreachable_code)]
-                        return;
-                    }
-                };
-
-                // Flush up to the end of the WAL stream.
-                let flush_lsn = wal.position();
-
-                if let Err(err) = wal.flush(flush_lsn) {
-                    drop_error!("Failed to flush checkpoint record in drop: {err}");
-                    // this is unreachable with panic-on-drop
-                    #[allow(unreachable_code)]
-                    return;
-                }
-
-                // Record the checkpoint and shutdown state and write control file to disk.
-                control_file.set_checkpoint(checkpoint_lsn);
-                control_file.set_db_state(DBState::Shutdown);
-
-                if let Err(err) = control_file.save() {
-                    drop_error!("Failed to save control file in drop: {err}");
-                    // this is unreachable with panic-on-drop
-                    #[allow(unreachable_code)]
-                    return;
-                }
-            }
-            Err(err) => {
-                drop_error!("Failed to flush storage in drop: {err}");
-            }
-        }
-    }
-}
+// `GraphStore` has no explicit `Drop` — the `shutdown_guard` field's
+// Drop runs the clean-shutdown protocol on writable handles, and is
+// simply absent (`None`) on read-only handles.
 
 #[inline(always)]
 pub fn resolve_pos<I: Copy + Into<usize>>(i: I, max_page_len: u32) -> (usize, LocalPOS) {
