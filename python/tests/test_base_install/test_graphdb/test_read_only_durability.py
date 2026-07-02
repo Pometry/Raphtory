@@ -1,28 +1,28 @@
 """
-Durability regression tests for concurrent read-only opens.
+Durability regression tests for read-only opens.
 
-There are three distinct bugs in this area, targeted by three separate
-tests below:
+These tests exercise Raphtory's Drop-side-effect fixes for concurrent
+read-only opens of a disk-backed graph:
 
-  Bug #1  Reader Drop appends a shutdown checkpoint to the writer's WAL,
-          overwriting live records at LSN 256 of ``log.0``.  On next
-          reopen after a writer crash, recovery fails with
+  Bug #1  Reader Drop appended a shutdown checkpoint to the writer's
+          WAL, overwriting live records at LSN 256 of ``log.0``.  On
+          next reopen after a writer crash, recovery failed with
           "Expected checkpoint at given LSN".
-  Bug #2  Reader Drop rewrites ``.meta`` via a fixed-name ``.tmp`` file.
-          Racing renames intermittently ENOENT at ``meta_file.rs:80``.
-  Bug #3  Reader ``Graph.load`` races the writer's segment-file
-          creation and can list a segment directory before its layer
-          stats file has been written, causing ENOENT at
-          ``disk_layer_stats/mod.rs:301``.
+  Bug #2  Reader Drop rewrote ``.meta`` via a fixed-name ``.tmp`` file.
+          Racing renames intermittently ENOENT'd at
+          ``meta_file.rs:80``.
 
-Bugs #1 and #2 are Drop side-effects on shared state.  Bug #3 is a
-reader-open race, independent of Drop.
+Both bugs are fixed by Raphtory-side Drop guards (see
+``WriterShutdownGuard`` on ``GraphStore`` in ``db4-storage`` and
+``MetadataRefreshGuard`` on ``Storage`` in ``raphtory``).
+
+A separate reader-vs-writer race in pometry-storage's segment
+publication has its own regression test in pometry-storage's
+``python/tests/test_read_only_durability.py``.
 
 Each test is parametrised over ``Graph`` and ``PersistentGraph`` — the
 underlying storage layer is shared, but the Python entry points are
 separate ``#[pymethods]`` blocks that could drift independently.
-
-See ``docs/db-v4-wal-explainer.md`` for the underlying mechanism.
 """
 
 import hashlib
@@ -30,7 +30,6 @@ import os
 import signal
 import subprocess
 import sys
-import threading
 import time
 from pathlib import Path
 
@@ -47,9 +46,10 @@ GRAPH_CLASSES = ["Graph", "PersistentGraph"]
 
 def _writer_script(graph_cls_name: str) -> str:
     """Build the subprocess writer script for the given graph class."""
-    # Double braces in the f-string escape to a literal single brace, so
-    # ``{{i}}`` becomes ``{i}`` in the emitted script (an f-string in the
-    # subprocess), and ``{{"v": i}}`` becomes ``{"v": i}`` (a dict).
+    # Double braces in the outer f-string escape to a literal single
+    # brace, so ``{{i}}`` becomes ``{i}`` in the emitted script (an
+    # f-string in the subprocess), and ``{{"v": i}}`` becomes
+    # ``{"v": i}`` (a dict).
     return f"""
 import sys, time
 from raphtory import {graph_cls_name}
@@ -109,7 +109,7 @@ def test_writer_crash_recovers_cleanly_without_readers(tmp_path, graph_cls_name)
     """CONTROL: a writer that is SIGKILLed with no concurrent readers must
     still be recoverable on reopen.  Ordinary crash recovery must work
     before we can meaningfully assert anything about the concurrent-reader
-    cases below."""
+    case below."""
     graph_cls = _graph_cls(graph_cls_name)
 
     path = str(tmp_path / "g")
@@ -173,66 +173,4 @@ def test_readonly_open_and_drop_does_not_modify_any_file(tmp_path, graph_cls_nam
     assert not diffs, (
         f"read-only open+drop modified {len(diffs)} file(s) in the graph "
         f"directory: {sorted(diffs.keys())}"
-    )
-
-
-# --- Test 3: Bug #3 (reader-open race, xfail placeholder) ------------------
-
-
-@pytest.mark.parametrize("graph_cls_name", GRAPH_CLASSES)
-@pytest.mark.xfail(
-    reason=(
-        "Bug #3: reader Graph.load races the writer's segment-file creation; "
-        "reader can list a segment directory before its layer stats file has "
-        "been written, causing ENOENT at disk_layer_stats/mod.rs:301. "
-        "Separate follow-up from the Drop-side-effect fix (Bugs #1 and #2)."
-    ),
-    strict=False,
-)
-def test_reader_open_does_not_race_writer_segment_creation(tmp_path, graph_cls_name):
-    """Bug #3: while a writer is writing + flushing continuously, reader
-    threads that repeatedly open the graph read-only should not encounter
-    ENOENT on layer stats files that the writer is mid-creating.
-
-    Marked ``xfail`` because the fix is a separate change — the writer's
-    segment creation needs to become atomic before this can pass.
-    """
-    graph_cls = _graph_cls(graph_cls_name)
-
-    path = str(tmp_path / "g")
-    w = _spawn_writer(path, graph_cls_name)
-
-    stop = threading.Event()
-    enoent_errors = []
-    lock = threading.Lock()
-
-    def reader():
-        while not stop.is_set():
-            try:
-                rg = graph_cls.load(path, read_only=True)
-                rg.count_nodes()
-                del rg
-            except Exception as exc:  # noqa: BLE001 - collect any error
-                msg = str(exc)
-                # Focus on the specific race we're tracking here — ignore
-                # any other transient errors that a general stress test
-                # might surface.
-                if "disk_layer_stats" in msg and "No such file" in msg:
-                    with lock:
-                        enoent_errors.append(repr(exc))
-
-    threads = [threading.Thread(target=reader, daemon=True) for _ in range(4)]
-    try:
-        for t in threads:
-            t.start()
-        time.sleep(1.5)
-        stop.set()
-        for t in threads:
-            t.join(timeout=5)
-    finally:
-        _kill(w)
-
-    assert not enoent_errors, (
-        f"reader-open raced writer segment creation: {len(enoent_errors)} "
-        f"ENOENT errors, first: {enoent_errors[0]}"
     )
