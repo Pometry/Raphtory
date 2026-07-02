@@ -32,7 +32,6 @@ from pathlib import Path
 
 import pytest
 
-
 pytestmark = pytest.mark.skipif(
     "DISK_TEST_MARK" not in os.environ,
     reason="disk-backed graph tests require the storage feature",
