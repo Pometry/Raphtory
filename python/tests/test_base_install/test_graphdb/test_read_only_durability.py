@@ -18,6 +18,10 @@ tests below:
 Bugs #1 and #2 are Drop side-effects on shared state.  Bug #3 is a
 reader-open race, independent of Drop.
 
+Each test is parametrised over ``Graph`` and ``PersistentGraph`` — the
+underlying storage layer is shared, but the Python entry points are
+separate ``#[pymethods]`` blocks that could drift independently.
+
 See ``docs/db-v4-wal-explainer.md`` for the underlying mechanism.
 """
 
@@ -38,27 +42,32 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-# Subprocess writer: opens the graph at argv[1] and appends nodes + flushes
-# in a tight loop.  Prints ``UP`` to stdout so the parent knows the writer
-# has taken the writer lock and started producing data.
-_WRITER_SCRIPT = """
+GRAPH_CLASSES = ["Graph", "PersistentGraph"]
+
+
+def _writer_script(graph_cls_name: str) -> str:
+    """Build the subprocess writer script for the given graph class."""
+    # Double braces in the f-string escape to a literal single brace, so
+    # ``{{i}}`` becomes ``{i}`` in the emitted script (an f-string in the
+    # subprocess), and ``{{"v": i}}`` becomes ``{"v": i}`` (a dict).
+    return f"""
 import sys, time
-from raphtory import Graph
-g = Graph(sys.argv[1])
+from raphtory import {graph_cls_name}
+g = {graph_cls_name}(sys.argv[1])
 print("UP", flush=True)
 i = 0
 while True:
     for _ in range(20):
-        g.add_node(1 + i, f"n{i}", properties={"v": i})
+        g.add_node(1 + i, f"n{{i}}", properties={{"v": i}})
         i += 1
     g.flush()
     time.sleep(0.01)
 """
 
 
-def _spawn_writer(path):
+def _spawn_writer(path, graph_cls_name):
     p = subprocess.Popen(
-        [sys.executable, "-c", _WRITER_SCRIPT, path],
+        [sys.executable, "-c", _writer_script(graph_cls_name), path],
         stdout=subprocess.PIPE,
         text=True,
     )
@@ -86,31 +95,39 @@ def _hash_all_files(root):
     }
 
 
+def _graph_cls(graph_cls_name):
+    import raphtory
+
+    return getattr(raphtory, graph_cls_name)
+
+
 # --- Test 1: CONTROL --------------------------------------------------------
 
 
-def test_writer_crash_recovers_cleanly_without_readers(tmp_path):
+@pytest.mark.parametrize("graph_cls_name", GRAPH_CLASSES)
+def test_writer_crash_recovers_cleanly_without_readers(tmp_path, graph_cls_name):
     """CONTROL: a writer that is SIGKILLed with no concurrent readers must
     still be recoverable on reopen.  Ordinary crash recovery must work
     before we can meaningfully assert anything about the concurrent-reader
     cases below."""
-    from raphtory import Graph
+    graph_cls = _graph_cls(graph_cls_name)
 
     path = str(tmp_path / "g")
-    w = _spawn_writer(path)
+    w = _spawn_writer(path, graph_cls_name)
     try:
         time.sleep(1.5)
     finally:
         _kill(w)
 
-    g = Graph.load(path)
+    g = graph_cls.load(path)
     assert g.count_nodes() > 0
 
 
 # --- Test 2: Bugs #1 and #2 (deterministic Drop side-effect test) ----------
 
 
-def test_readonly_open_and_drop_does_not_modify_any_file(tmp_path):
+@pytest.mark.parametrize("graph_cls_name", GRAPH_CLASSES)
+def test_readonly_open_and_drop_does_not_modify_any_file(tmp_path, graph_cls_name):
     """Bugs #1 and #2: a read-only ``Graph.load(...)`` followed by drop
     must not modify any file in the graph directory.
 
@@ -126,10 +143,10 @@ def test_readonly_open_and_drop_does_not_modify_any_file(tmp_path):
     * Bug #2 - Drop for Storage rewrites ``.meta``, changing its bytes
       (and racing on ``.tmp`` under concurrency).
     """
-    from raphtory import Graph
+    graph_cls = _graph_cls(graph_cls_name)
 
     path = Path(tmp_path) / "g"
-    w = _spawn_writer(str(path))
+    w = _spawn_writer(str(path), graph_cls_name)
     # Give the writer time to produce enough data that log.0 has real
     # records past the header (which is what Bug #1 clobbers).
     time.sleep(0.5)
@@ -138,7 +155,7 @@ def test_readonly_open_and_drop_does_not_modify_any_file(tmp_path):
     try:
         before = _hash_all_files(path)
 
-        rg = Graph.load(str(path), read_only=True)
+        rg = graph_cls.load(str(path), read_only=True)
         rg.count_nodes()
         del rg
 
@@ -162,6 +179,7 @@ def test_readonly_open_and_drop_does_not_modify_any_file(tmp_path):
 # --- Test 3: Bug #3 (reader-open race, xfail placeholder) ------------------
 
 
+@pytest.mark.parametrize("graph_cls_name", GRAPH_CLASSES)
 @pytest.mark.xfail(
     reason=(
         "Bug #3: reader Graph.load races the writer's segment-file creation; "
@@ -171,7 +189,7 @@ def test_readonly_open_and_drop_does_not_modify_any_file(tmp_path):
     ),
     strict=False,
 )
-def test_reader_open_does_not_race_writer_segment_creation(tmp_path):
+def test_reader_open_does_not_race_writer_segment_creation(tmp_path, graph_cls_name):
     """Bug #3: while a writer is writing + flushing continuously, reader
     threads that repeatedly open the graph read-only should not encounter
     ENOENT on layer stats files that the writer is mid-creating.
@@ -179,10 +197,10 @@ def test_reader_open_does_not_race_writer_segment_creation(tmp_path):
     Marked ``xfail`` because the fix is a separate change — the writer's
     segment creation needs to become atomic before this can pass.
     """
-    from raphtory import Graph
+    graph_cls = _graph_cls(graph_cls_name)
 
     path = str(tmp_path / "g")
-    w = _spawn_writer(path)
+    w = _spawn_writer(path, graph_cls_name)
 
     stop = threading.Event()
     enoent_errors = []
@@ -191,7 +209,7 @@ def test_reader_open_does_not_race_writer_segment_creation(tmp_path):
     def reader():
         while not stop.is_set():
             try:
-                rg = Graph.load(path, read_only=True)
+                rg = graph_cls.load(path, read_only=True)
                 rg.count_nodes()
                 del rg
             except Exception as exc:  # noqa: BLE001 - collect any error
