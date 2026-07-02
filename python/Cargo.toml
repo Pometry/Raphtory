@@ -21,18 +21,18 @@ crate-type = ["cdylib"]
 pyo3 = { workspace = true }
 raphtory = { workspace = true, features = [
     "python",
-    "vectors",
 ] }
 raphtory-graphql = { workspace = true, features = [
     "python",
-    "vectors",
 ] }
 auth = { workspace = true }
 
 
 [features]
+default = []
 extension-module = ["pyo3/extension-module"]
 search = ["raphtory/search", "raphtory-graphql/search"]
+vectors = ["raphtory/vectors", "raphtory-graphql/vectors"]
 test = ["raphtory/panic-on-drop", "extension-module"]
 
 
