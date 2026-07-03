@@ -102,4 +102,17 @@ impl PyRemoteNode {
         execute_async_task(task)?;
         Ok(())
     }
+
+    /// Returns the degree of the node, evaluated under the current view chain
+    /// (e.g. under any `rg.window(...)` applied on the parent graph).
+    ///
+    /// Fires one RPC to the server.
+    ///
+    /// Returns:
+    ///   int: the node's degree
+    pub fn degree(&self) -> Result<i64, ClientError> {
+        let node = Arc::clone(&self.node);
+        let task = move || async move { node.degree().await };
+        execute_async_task(task)
+    }
 }

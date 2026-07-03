@@ -24,6 +24,25 @@ pub struct PyRemoteGraph {
 
 #[pymethods]
 impl PyRemoteGraph {
+    /// Restrict the graph to a time window `[start, end)`.
+    ///
+    /// Lazy: builds up a read expression on the returned `RemoteGraph` without
+    /// firing an RPC. Terminals invoked on child references (e.g.
+    /// `rg.window(0, 10).node("ben").degree()`) evaluate under the accumulated
+    /// view chain.
+    ///
+    /// Arguments:
+    ///     start (int): inclusive start of the window
+    ///     end (int): exclusive end of the window
+    ///
+    /// Returns:
+    ///     RemoteGraph: a new remote graph view restricted to the window
+    pub fn window(&self, start: i64, end: i64) -> PyRemoteGraph {
+        PyRemoteGraph {
+            graph: Arc::new(self.graph.window(start, end)),
+        }
+    }
+
     /// Gets a remote node with the specified id.
     ///
     /// Inherits any view chain built up on the parent `RemoteGraph` (e.g. after
