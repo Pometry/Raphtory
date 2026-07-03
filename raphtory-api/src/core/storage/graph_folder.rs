@@ -98,6 +98,9 @@ pub enum GraphFolderError {
 
     #[error("System time error: {0}")]
     SystemTimeError(#[from] SystemTimeError),
+
+    #[error("Graph path in metadata changed from {recorded:?} to {actual:?}")]
+    GraphPathChanged { recorded: String, actual: String },
 }
 
 pub fn valid_path_pointer(relative_path: &str, prefix: &str) -> Result<(), GraphFolderError> {
@@ -343,6 +346,53 @@ impl<P: AsRef<Path> + ?Sized> GraphPaths for P {
     fn root(&self) -> &Path {
         self.as_ref()
     }
+}
+
+/// Refresh the node/edge counts recorded in a disk-backed graph's metadata file.
+pub fn refresh_metadata(
+    graph_dir: &Path,
+    node_count: usize,
+    edge_count: usize,
+) -> Result<(), GraphFolderError> {
+    let (Some(data_folder), Some(graph_path)) = (
+        graph_dir.parent(),
+        graph_dir.file_name().and_then(|name| name.to_str()),
+    ) else {
+        return Ok(());
+    };
+
+    let folder = InnerGraphFolder {
+        path: data_folder.to_path_buf(),
+    };
+
+    // nothing to refresh if there is no metadata file yet
+    if !folder.meta_path().exists() {
+        return Ok(());
+    }
+
+    // preserve the existing graph type; a corrupt metadata file surfaces as an error here
+    let existing = folder.read_metadata()?;
+
+    // the graph data directory must not change between writes
+    let recorded_graph_path = folder.relative_graph_path()?;
+    if recorded_graph_path != graph_path {
+        return Err(GraphFolderError::GraphPathChanged {
+            recorded: recorded_graph_path,
+            actual: graph_path.to_string(),
+        });
+    }
+
+    folder.write_metadata(Metadata {
+        path: graph_path.to_string(),
+        meta: GraphMetadata {
+            node_count,
+            edge_count,
+            graph_type: existing.graph_type,
+            is_diskgraph: true,
+        },
+    })?;
+
+    Ok(())
 }
 
 #[derive(Clone, Debug, PartialOrd, PartialEq, Ord, Eq)]
@@ -606,7 +656,7 @@ impl InnerGraphFolder {
     /// previously-referenced graph directory if the path changed.
     ///
     /// NOTE: this does NOT encode the graph data itself. The caller must have already written
-    /// the graph data into the directory in `meta.path` (see the `replace_graph` in `raphtory`)
+    /// the graph data into the directory in `meta.path` (see `replace_graph` in `raphtory`)
     pub fn replace_graph_path(&self, meta: Metadata) -> Result<(), GraphFolderError> {
         let old_relative_graph_path = self.relative_graph_path()?;
         let path_changed = meta.path != old_relative_graph_path;

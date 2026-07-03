@@ -20,13 +20,10 @@ use node_page::writer::NodeWriter;
 use node_store::NodeStorageInner;
 use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::{
-    entities::properties::meta::Meta,
-    storage::graph_folder::{GRAPH_META_PATH, GraphMetadata, Metadata},
+    entities::properties::meta::Meta, storage::graph_folder::refresh_metadata,
 };
 use rayon::prelude::*;
 use std::{
-    fs::File,
-    io::ErrorKind,
     path::{Path, PathBuf},
     sync::{
         Arc,
@@ -83,55 +80,11 @@ impl<
         self.edges.flush()?;
         self.graph_props.flush()?;
 
-        self.refresh_metadata()?;
-
-        Ok(())
-    }
-
-    /// Refresh the graph metadata file (`.meta`) for disk-backed graphs. Reads graph type from the existing meta file.
-    /// Errors if the file can't be read or the graph path has changed
-    fn refresh_metadata(&self) -> Result<(), StorageError> {
-        let Some(graph_dir) = self.graph_dir.as_ref() else {
-            return Ok(());
-        };
-        let (Some(data_folder), Some(graph_path)) = (
-            graph_dir.parent(),
-            graph_dir.file_name().and_then(|name| name.to_str()),
-        ) else {
-            return Ok(());
-        };
-
-        // if the file doesn't exist, there is nothing to refresh
-        let meta_path = data_folder.join(GRAPH_META_PATH);
-        let file = match File::open(&meta_path) {
-            Ok(file) => file,
-            Err(err) if err.kind() == ErrorKind::NotFound => return Ok(()),
-            Err(err) => return Err(err.into()),
-        };
-
-        // a corrupted file returns an error
-        let existing: Metadata = serde_json::from_reader(file)?;
-
-        // the graph data directory must not change between writes
-        if existing.path != graph_path {
-            return Err(StorageError::GenericFailure(format!(
-                "graph path in {} changed from {:?} to {:?}",
-                meta_path.display(),
-                existing.path,
-                graph_path,
-            )));
+        // Refresh the graph metadata file (.meta) for disk-backed graphs
+        if let Some(graph_dir) = self.graph_dir.as_ref() {
+            refresh_metadata(graph_dir, self.nodes.num_nodes(), self.edges.num_edges())?;
         }
 
-        let metadata = Metadata {
-            path: graph_path.to_string(),
-            meta: GraphMetadata {
-                node_count: self.nodes.num_nodes(),
-                edge_count: self.edges.num_edges(),
-                graph_type: existing.meta.graph_type,
-                is_diskgraph: true,
-            },
-        };
-        metadata.write_atomic(data_folder, &meta_path)?;
         Ok(())
     }
 }

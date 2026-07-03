@@ -83,7 +83,10 @@ pub mod error {
     use std::{io, panic::Location, path::PathBuf, sync::Arc};
 
     use crate::resolver::mapping_resolver::InvalidNodeId;
-    use raphtory_api::core::{entities::properties::prop::PropError, utils::time::ParseTimeError};
+    use raphtory_api::core::{
+        entities::properties::prop::PropError, storage::graph_folder::GraphFolderError,
+        utils::time::ParseTimeError,
+    };
     use raphtory_core::entities::properties::props::MetadataError;
 
     #[derive(thiserror::Error, Debug)]
@@ -116,6 +119,8 @@ pub mod error {
         // MutationError(#[from] MutationError),
         #[error("Unnamed Failure: {0}")]
         GenericFailure(String),
+        #[error(transparent)]
+        GraphFolder(#[from] GraphFolderError),
         #[error(transparent)]
         InvalidNodeId(#[from] InvalidNodeId),
 
