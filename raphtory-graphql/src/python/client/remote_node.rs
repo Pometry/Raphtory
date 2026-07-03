@@ -1,4 +1,4 @@
-use crate::client::{remote_node::GraphQLRemoteNode, ClientError};
+use crate::client::{remote_node::RemoteNode, ClientError};
 use pyo3::{pyclass, pymethods};
 use raphtory::python::utils::execute_async_task;
 use raphtory_api::core::{entities::properties::prop::Prop, storage::timeindex::EventTime};
@@ -7,7 +7,7 @@ use std::{collections::HashMap, sync::Arc};
 #[derive(Clone)]
 #[pyclass(name = "RemoteNode", module = "raphtory.graphql", from_py_object)]
 pub struct PyRemoteNode {
-    pub(crate) node: Arc<GraphQLRemoteNode>,
+    pub(crate) node: Arc<RemoteNode>,
 }
 
 impl PyRemoteNode {
@@ -20,7 +20,7 @@ impl PyRemoteNode {
     ///
     /// Returns:
     ///   None:
-    pub(crate) fn new(node: GraphQLRemoteNode) -> Self {
+    pub(crate) fn new(node: RemoteNode) -> Self {
         Self {
             node: Arc::new(node),
         }

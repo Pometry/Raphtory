@@ -10,13 +10,13 @@ use std::collections::HashMap;
 
 /// A handle to a remote node on the server.
 #[derive(Clone)]
-pub struct GraphQLRemoteNode {
+pub struct RemoteNode {
     pub path: String,
     pub client: RaphtoryGraphQLClient,
     pub id: String,
 }
 
-impl GraphQLRemoteNode {
+impl RemoteNode {
     pub fn new(path: String, client: RaphtoryGraphQLClient, id: String) -> Self {
         Self { path, client, id }
     }

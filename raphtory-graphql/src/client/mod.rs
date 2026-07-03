@@ -5,9 +5,9 @@ pub mod remote_graph;
 pub mod remote_node;
 
 pub use error::ClientError;
-pub use remote_edge::GraphQLRemoteEdge;
-pub use remote_graph::GraphQLRemoteGraph;
-pub use remote_node::GraphQLRemoteNode;
+pub use remote_edge::RemoteEdge;
+pub use remote_graph::RemoteGraph;
+pub use remote_node::RemoteNode;
 
 use raphtory_api::core::entities::properties::prop::Prop;
 use std::collections::HashMap;

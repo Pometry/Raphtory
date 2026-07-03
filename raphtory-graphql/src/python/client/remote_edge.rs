@@ -1,4 +1,4 @@
-use crate::client::{remote_edge::GraphQLRemoteEdge, ClientError};
+use crate::client::{remote_edge::RemoteEdge, ClientError};
 use pyo3::{pyclass, pymethods};
 use raphtory::python::utils::execute_async_task;
 use raphtory_api::core::{entities::properties::prop::Prop, storage::timeindex::EventTime};
@@ -12,11 +12,11 @@ use std::{collections::HashMap, sync::Arc};
 #[derive(Clone)]
 #[pyclass(name = "RemoteEdge", module = "raphtory.graphql", from_py_object)]
 pub struct PyRemoteEdge {
-    pub(crate) edge: Arc<GraphQLRemoteEdge>,
+    pub(crate) edge: Arc<RemoteEdge>,
 }
 
 impl PyRemoteEdge {
-    pub(crate) fn new(edge: GraphQLRemoteEdge) -> Self {
+    pub(crate) fn new(edge: RemoteEdge) -> Self {
         PyRemoteEdge {
             edge: Arc::new(edge),
         }

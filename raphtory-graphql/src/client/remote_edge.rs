@@ -10,14 +10,14 @@ use std::collections::HashMap;
 
 /// A handle to a remote edge on the server.
 #[derive(Clone)]
-pub struct GraphQLRemoteEdge {
+pub struct RemoteEdge {
     pub path: String,
     pub client: RaphtoryGraphQLClient,
     pub src: String,
     pub dst: String,
 }
 
-impl GraphQLRemoteEdge {
+impl RemoteEdge {
     pub fn new(path: String, client: RaphtoryGraphQLClient, src: String, dst: String) -> Self {
         Self {
             path,

@@ -1,8 +1,8 @@
 use crate::{
     client::{
-        remote_edge::GraphQLRemoteEdge,
-        remote_graph::{build_query, GraphQLRemoteGraph},
-        remote_node::GraphQLRemoteNode,
+        remote_edge::RemoteEdge,
+        remote_graph::{build_query, RemoteGraph},
+        remote_node::RemoteNode,
         ClientError,
     },
     python::client::{
@@ -21,7 +21,7 @@ use std::{collections::HashMap, sync::Arc};
 #[derive(Clone)]
 #[pyclass(name = "RemoteGraph", module = "raphtory.graphql", from_py_object)]
 pub struct PyRemoteGraph {
-    pub(crate) graph: Arc<GraphQLRemoteGraph>,
+    pub(crate) graph: Arc<RemoteGraph>,
 }
 
 #[pymethods]
@@ -34,7 +34,7 @@ impl PyRemoteGraph {
     /// Returns:
     ///     RemoteNode: the remote node reference
     pub fn node(&self, id: GID) -> PyRemoteNode {
-        let node = GraphQLRemoteNode::new(
+        let node = RemoteNode::new(
             self.graph.path.clone(),
             self.graph.client.clone(),
             id.to_string(),
@@ -52,7 +52,7 @@ impl PyRemoteGraph {
     ///     RemoteEdge: the remote edge reference
     #[pyo3(signature = (src, dst))]
     pub fn edge(&self, src: GID, dst: GID) -> PyRemoteEdge {
-        let edge = GraphQLRemoteEdge::new(
+        let edge = RemoteEdge::new(
             self.graph.path.clone(),
             self.graph.client.clone(),
             src.to_string(),

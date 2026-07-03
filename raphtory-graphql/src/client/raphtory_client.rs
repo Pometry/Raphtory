@@ -1,5 +1,5 @@
 use crate::{
-    client::{ClientError, GraphQLRemoteGraph},
+    client::{ClientError, RemoteGraph},
     url_encode::url_decode_graph,
 };
 use raphtory::{db::api::view::MaterializedGraph, prelude::Config, serialise::GraphFolder};
@@ -338,8 +338,8 @@ impl RaphtoryGraphQLClient {
         }
     }
 
-    pub fn remote_graph(&self, path: String) -> GraphQLRemoteGraph {
-        GraphQLRemoteGraph::new(path, self.clone())
+    pub fn remote_graph(&self, path: String) -> RemoteGraph {
+        RemoteGraph::new(path, self.clone())
     }
 
     /// Create index on the server. `index_spec` must serialize to a value

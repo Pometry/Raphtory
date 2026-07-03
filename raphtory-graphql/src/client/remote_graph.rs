@@ -1,6 +1,6 @@
 use crate::client::{
-    build_property_string, raphtory_client::RaphtoryGraphQLClient, remote_edge::GraphQLRemoteEdge,
-    remote_node::GraphQLRemoteNode, ClientError,
+    build_property_string, raphtory_client::RaphtoryGraphQLClient, remote_edge::RemoteEdge,
+    remote_node::RemoteNode, ClientError,
 };
 use minijinja::{context, Environment, Value};
 use raphtory_api::core::{
@@ -24,24 +24,24 @@ pub fn build_query(template: &str, context: Value) -> Result<String, ClientError
 
 /// A handle to a remote graph on the server.
 #[derive(Clone)]
-pub struct GraphQLRemoteGraph {
+pub struct RemoteGraph {
     pub path: String,
     pub client: RaphtoryGraphQLClient,
 }
 
-impl GraphQLRemoteGraph {
+impl RemoteGraph {
     pub fn new(path: String, client: RaphtoryGraphQLClient) -> Self {
         Self { path, client }
     }
 
     /// Returns a remote node reference for the given node id.
-    pub fn node(&self, id: impl ToString) -> GraphQLRemoteNode {
-        GraphQLRemoteNode::new(self.path.clone(), self.client.clone(), id.to_string())
+    pub fn node(&self, id: impl ToString) -> RemoteNode {
+        RemoteNode::new(self.path.clone(), self.client.clone(), id.to_string())
     }
 
     /// Returns a remote edge reference for the given source and destination node ids.
-    pub fn edge(&self, src: impl ToString, dst: impl ToString) -> GraphQLRemoteEdge {
-        GraphQLRemoteEdge::new(
+    pub fn edge(&self, src: impl ToString, dst: impl ToString) -> RemoteEdge {
+        RemoteEdge::new(
             self.path.clone(),
             self.client.clone(),
             src.to_string(),
@@ -56,7 +56,7 @@ impl GraphQLRemoteGraph {
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<String>,
         layer: Option<String>,
-    ) -> Result<GraphQLRemoteNode, ClientError> {
+    ) -> Result<RemoteNode, ClientError> {
         let template = r#"
         {
             updateGraph(path: "{{ path }}") {
@@ -93,7 +93,7 @@ impl GraphQLRemoteGraph {
             .and_then(|x| x.as_bool())
             .is_some_and(|x| x == true)
         {
-            Ok(GraphQLRemoteNode::new(
+            Ok(RemoteNode::new(
                 self.path.clone(),
                 self.client.clone(),
                 id.to_string(),
@@ -110,7 +110,7 @@ impl GraphQLRemoteGraph {
         id: G,
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<String>,
-    ) -> Result<GraphQLRemoteNode, ClientError> {
+    ) -> Result<RemoteNode, ClientError> {
         let template = r#"
         {
             updateGraph(path: "{{ path }}") {
@@ -145,7 +145,7 @@ impl GraphQLRemoteGraph {
             .and_then(|x| x.as_bool())
             .is_some_and(|x| x == true)
         {
-            Ok(GraphQLRemoteNode::new(
+            Ok(RemoteNode::new(
                 self.path.clone(),
                 self.client.clone(),
                 id.to_string(),
@@ -162,7 +162,7 @@ impl GraphQLRemoteGraph {
         dst: G,
         properties: Option<HashMap<String, Prop>>,
         layer: Option<String>,
-    ) -> Result<GraphQLRemoteEdge, ClientError> {
+    ) -> Result<RemoteEdge, ClientError> {
         let template = r#"
         {
             updateGraph(path: "{{ path }}") {
@@ -199,7 +199,7 @@ impl GraphQLRemoteGraph {
             .and_then(|x| x.as_bool())
             .is_some_and(|x| x == true)
         {
-            Ok(GraphQLRemoteEdge::new(
+            Ok(RemoteEdge::new(
                 self.path.clone(),
                 self.client.clone(),
                 src.to_string(),
@@ -312,7 +312,7 @@ impl GraphQLRemoteGraph {
         src: G,
         dst: G,
         layer: Option<String>,
-    ) -> Result<GraphQLRemoteEdge, ClientError> {
+    ) -> Result<RemoteEdge, ClientError> {
         let template = r#"
         {
             updateGraph(path: "{{ path }}") {
@@ -347,7 +347,7 @@ impl GraphQLRemoteGraph {
             .and_then(|x| x.as_bool())
             .is_some_and(|x| x == true)
         {
-            Ok(GraphQLRemoteEdge::new(
+            Ok(RemoteEdge::new(
                 self.path.clone(),
                 self.client.clone(),
                 src.to_string(),
