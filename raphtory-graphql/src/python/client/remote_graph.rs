@@ -1,8 +1,6 @@
 use crate::{
     client::{
-        remote_edge::RemoteEdge,
         remote_graph::{build_query, RemoteGraph},
-        remote_node::RemoteNode,
         ClientError,
     },
     python::client::{
@@ -26,7 +24,11 @@ pub struct PyRemoteGraph {
 
 #[pymethods]
 impl PyRemoteGraph {
-    /// Gets a remote node with the specified id
+    /// Gets a remote node with the specified id.
+    ///
+    /// Inherits any view chain built up on the parent `RemoteGraph` (e.g. after
+    /// `rg.window(...)`) so subsequent terminals like `degree()` evaluate under
+    /// the same view context.
     ///
     /// Arguments:
     ///     id (str | int): the node id
@@ -34,15 +36,10 @@ impl PyRemoteGraph {
     /// Returns:
     ///     RemoteNode: the remote node reference
     pub fn node(&self, id: GID) -> PyRemoteNode {
-        let node = RemoteNode::new(
-            self.graph.path.clone(),
-            self.graph.client.clone(),
-            id.to_string(),
-        );
-        PyRemoteNode::new(node)
+        PyRemoteNode::new(self.graph.node(id.to_string()))
     }
 
-    /// Gets a remote edge with the specified source and destination nodes
+    /// Gets a remote edge with the specified source and destination nodes.
     ///
     /// Arguments:
     ///     src (str | int): the source node id
@@ -52,13 +49,7 @@ impl PyRemoteGraph {
     ///     RemoteEdge: the remote edge reference
     #[pyo3(signature = (src, dst))]
     pub fn edge(&self, src: GID, dst: GID) -> PyRemoteEdge {
-        let edge = RemoteEdge::new(
-            self.graph.path.clone(),
-            self.graph.client.clone(),
-            src.to_string(),
-            dst.to_string(),
-        );
-        PyRemoteEdge::new(edge)
+        PyRemoteEdge::new(self.graph.edge(src.to_string(), dst.to_string()))
     }
 
     /// Batch add node updates to the remote graph

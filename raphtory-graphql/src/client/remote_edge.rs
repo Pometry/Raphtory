@@ -1,11 +1,9 @@
 use crate::client::{
-    graphql_transport::GraphqlTransport,
     op::{
         AddEdgeMetadata as AddEdgeMetadataOp, AddEdgeUpdates as AddEdgeUpdatesOp,
         DeleteEdgeAtTime as DeleteEdgeAtTimeOp, Op, UpdateEdgeMetadata as UpdateEdgeMetadataOp,
         WriteOp,
     },
-    remote_client::RemoteClient,
     transport::Transport,
     ClientError,
 };
@@ -18,20 +16,15 @@ use std::{collections::HashMap, sync::Arc};
 #[derive(Clone)]
 pub struct RemoteEdge {
     pub path: String,
-    /// Kept for now — parity with `RemoteGraph`/`RemoteNode` during the write
-    /// migration. Removed once no method here uses it directly.
-    pub client: RemoteClient,
     pub src: String,
     pub dst: String,
     pub transport: Arc<dyn Transport>,
 }
 
 impl RemoteEdge {
-    pub fn new(path: String, client: RemoteClient, src: String, dst: String) -> Self {
-        let transport: Arc<dyn Transport> = Arc::new(GraphqlTransport::new(client.clone()));
+    pub fn new(path: String, transport: Arc<dyn Transport>, src: String, dst: String) -> Self {
         Self {
             path,
-            client,
             src,
             dst,
             transport,

@@ -1,10 +1,8 @@
 use crate::client::{
-    graphql_transport::GraphqlTransport,
     op::{
         AddNodeMetadata as AddNodeMetadataOp, AddNodeUpdates as AddNodeUpdatesOp, Op, ReadExpr,
         SetNodeType as SetNodeTypeOp, UpdateNodeMetadata as UpdateNodeMetadataOp, WriteOp,
     },
-    remote_client::RemoteClient,
     transport::Transport,
     ClientError,
 };
@@ -21,45 +19,23 @@ use std::{collections::HashMap, sync::Arc};
 #[derive(Clone)]
 pub struct RemoteNode {
     pub path: String,
-    /// Kept for now — behavior preservation during migration.
-    pub client: RemoteClient,
     pub id: String,
     pub transport: Arc<dyn Transport>,
     pub expr: ReadExpr,
 }
 
 impl RemoteNode {
-    /// Legacy constructor: builds a fresh transport and a minimal `Root → Node`
-    /// expression. Use `with_expr` when a parent `RemoteGraph` has already
-    /// built up view state.
-    pub fn new(path: String, client: RemoteClient, id: String) -> Self {
-        let transport: Arc<dyn Transport> = Arc::new(GraphqlTransport::new(client.clone()));
-        let expr = ReadExpr::Node {
-            input: Box::new(ReadExpr::Root { path: path.clone() }),
-            id: id.clone(),
-        };
-        Self {
-            path,
-            client,
-            id,
-            transport,
-            expr,
-        }
-    }
-
     /// Construct with an explicit transport and pre-built read expression.
     /// Used when a `RemoteGraph` propagates its accumulated view chain into a
     /// child node reference.
     pub fn with_expr(
         path: String,
-        client: RemoteClient,
         id: String,
         transport: Arc<dyn Transport>,
         expr: ReadExpr,
     ) -> Self {
         Self {
             path,
-            client,
             id,
             transport,
             expr,

@@ -41,8 +41,10 @@ pub fn build_query(template: &str, context: Value) -> Result<String, ClientError
 #[derive(Clone)]
 pub struct RemoteGraph {
     pub path: String,
-    /// Kept for now — used by writes that haven't yet been migrated through
-    /// the transport. Removed once all writes route through it.
+    /// Kept for now — used only by the Python-side `add_nodes` and `add_edges`
+    /// batch methods that still call `client.query(...)` directly (see the
+    /// TODO in `python/client/remote_graph.rs`). Removed once those two batch
+    /// mutations are migrated through the transport.
     pub client: RemoteClient,
     pub transport: Arc<dyn Transport>,
     /// The read expression built so far. Starts as `Root { path }`.
@@ -82,7 +84,6 @@ impl RemoteGraph {
         let id_str = id.to_string();
         RemoteNode::with_expr(
             self.path.clone(),
-            self.client.clone(),
             id_str.clone(),
             self.transport.clone(),
             ReadExpr::Node {
@@ -96,7 +97,7 @@ impl RemoteGraph {
     pub fn edge(&self, src: impl ToString, dst: impl ToString) -> RemoteEdge {
         RemoteEdge::new(
             self.path.clone(),
-            self.client.clone(),
+            self.transport.clone(),
             src.to_string(),
             dst.to_string(),
         )
@@ -122,7 +123,6 @@ impl RemoteGraph {
         self.transport.execute(&op).await?;
         Ok(RemoteNode::with_expr(
             self.path.clone(),
-            self.client.clone(),
             id_str.clone(),
             self.transport.clone(),
             ReadExpr::Node {
@@ -151,7 +151,6 @@ impl RemoteGraph {
         self.transport.execute(&op).await?;
         Ok(RemoteNode::with_expr(
             self.path.clone(),
-            self.client.clone(),
             id_str.clone(),
             self.transport.clone(),
             ReadExpr::Node {
@@ -182,7 +181,7 @@ impl RemoteGraph {
         self.transport.execute(&op).await?;
         Ok(RemoteEdge::new(
             self.path.clone(),
-            self.client.clone(),
+            self.transport.clone(),
             src_str,
             dst_str,
         ))
@@ -243,7 +242,7 @@ impl RemoteGraph {
         self.transport.execute(&op).await?;
         Ok(RemoteEdge::new(
             self.path.clone(),
-            self.client.clone(),
+            self.transport.clone(),
             src_str,
             dst_str,
         ))
