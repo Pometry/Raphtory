@@ -6,7 +6,7 @@
 
 use crate::client::{
     build_property_string,
-    op::{AddNode, Op, ReadExpr, WriteOp},
+    op::{AddNode, CreateNode, Op, ReadExpr, WriteOp},
     remote_client::RemoteClient,
     remote_graph::build_query,
     transport::Transport,
@@ -45,6 +45,7 @@ impl GraphqlTransport {
     async fn apply_write(&self, op: &WriteOp) -> Result<Option<Prop>, ClientError> {
         match op {
             WriteOp::AddNode(args) => self.apply_add_node(args).await,
+            WriteOp::CreateNode(args) => self.apply_create_node(args).await,
         }
     }
 
@@ -81,6 +82,49 @@ impl GraphqlTransport {
             .get("updateGraph")
             .and_then(|x| x.as_object())
             .and_then(|x| x.get("addNode"))
+            .and_then(|x| x.as_object())
+            .and_then(|x| x.get("success"))
+            .and_then(|x| x.as_bool())
+            .is_some_and(|x| x);
+
+        if success {
+            Ok(None)
+        } else {
+            Err(ClientError::UnsuccessfulResponse)
+        }
+    }
+
+    async fn apply_create_node(&self, args: &CreateNode) -> Result<Option<Prop>, ClientError> {
+        let template = r#"
+        {
+            updateGraph(path: "{{ path }}") {
+                createNode(
+                    time: {{ time }},
+                    name: "{{ name }}"
+                    {% if properties is not none %}, properties: {{ properties | safe }}{% endif %}
+                    {% if node_type is not none %}, nodeType: "{{ node_type }}"{% endif %}
+                ) {
+                    success
+                }
+            }
+        }
+        "#;
+
+        let ctx = context! {
+            path => args.path,
+            time => args.time,
+            name => args.id,
+            properties => args.properties.as_ref().map(|p| build_property_string(p.clone())),
+            node_type => args.node_type,
+        };
+
+        let query = build_query(template, ctx)?;
+        let res = self.client.query(&query, HashMap::new()).await?;
+
+        let success = res
+            .get("updateGraph")
+            .and_then(|x| x.as_object())
+            .and_then(|x| x.get("createNode"))
             .and_then(|x| x.as_object())
             .and_then(|x| x.get("success"))
             .and_then(|x| x.as_bool())

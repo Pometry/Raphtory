@@ -43,11 +43,12 @@ pub enum ReadExpr {
 /// Write operations. Each variant is a self-contained command with all its
 /// arguments upfront — no composition, no wrapping.
 ///
-/// Starting with `AddNode` only. Remaining mutations (`create_node`, `add_edge`,
-/// `add_property`, `add_metadata`, `update_metadata`, `delete_edge`, and the
-/// per-node/per-edge variants) added incrementally.
+/// Remaining mutations (`add_edge`, `add_property`, `add_metadata`,
+/// `update_metadata`, `delete_edge`, and the per-node/per-edge variants)
+/// added incrementally.
 pub enum WriteOp {
     AddNode(AddNode),
+    CreateNode(CreateNode),
 }
 
 /// Arguments for `RemoteGraph::add_node`.
@@ -58,4 +59,15 @@ pub struct AddNode {
     pub properties: Option<HashMap<String, Prop>>,
     pub node_type: Option<String>,
     pub layer: Option<String>,
+}
+
+/// Arguments for `RemoteGraph::create_node`. Same as `AddNode` minus `layer` —
+/// distinct because it maps to the server's `createNode` mutation which fails
+/// if the node already exists (vs `addNode` which is upsert-like).
+pub struct CreateNode {
+    pub path: String,
+    pub time: i64,
+    pub id: String,
+    pub properties: Option<HashMap<String, Prop>>,
+    pub node_type: Option<String>,
 }

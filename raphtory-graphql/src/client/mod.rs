@@ -9,7 +9,7 @@ pub mod transport;
 
 pub use error::ClientError;
 pub use graphql_transport::GraphqlTransport;
-pub use op::{AddNode, Op, ReadExpr, WriteOp};
+pub use op::{AddNode, CreateNode, Op, ReadExpr, WriteOp};
 pub use remote_edge::RemoteEdge;
 pub use remote_graph::RemoteGraph;
 pub use remote_node::RemoteNode;

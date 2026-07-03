@@ -1,7 +1,7 @@
 use crate::client::{
     build_property_string,
     graphql_transport::GraphqlTransport,
-    op::{AddNode as AddNodeOp, Op, ReadExpr, WriteOp},
+    op::{AddNode as AddNodeOp, CreateNode as CreateNodeOp, Op, ReadExpr, WriteOp},
     remote_client::RemoteClient,
     remote_edge::RemoteEdge,
     remote_node::RemoteNode,
@@ -136,48 +136,25 @@ impl RemoteGraph {
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<String>,
     ) -> Result<RemoteNode, ClientError> {
-        let template = r#"
-        {
-            updateGraph(path: "{{ path }}") {
-                createNode(
-                    time: {{ time }},
-                    name: "{{ name }}"
-                    {% if properties is not none %}, properties: {{ properties | safe }}{% endif %}
-                    {% if node_type is not none %}, nodeType: "{{ node_type }}"{% endif %}
-                ) {
-                    success
-                }
-            }
-        }
-        "#;
-
-        let ctx = context! {
-            path => self.path,
-            time => timestamp.into_time().t(),
-            name => id.to_string(),
-            properties => properties.map(|p| build_property_string(p)),
-            node_type => node_type,
-        };
-
-        let query = build_query(template, ctx)?;
-        let res = self.client.query(&query, HashMap::new()).await?;
-        if res
-            .get("updateGraph")
-            .and_then(|x| x.as_object())
-            .and_then(|x| x.get("createNode"))
-            .and_then(|x| x.as_object())
-            .and_then(|x| x.get("success"))
-            .and_then(|x| x.as_bool())
-            .is_some_and(|x| x == true)
-        {
-            Ok(RemoteNode::new(
-                self.path.clone(),
-                self.client.clone(),
-                id.to_string(),
-            ))
-        } else {
-            Err(ClientError::UnsuccessfulResponse)
-        }
+        let id_str = id.to_string();
+        let op = Op::Write(WriteOp::CreateNode(CreateNodeOp {
+            path: self.path.clone(),
+            time: timestamp.into_time().t(),
+            id: id_str.clone(),
+            properties,
+            node_type,
+        }));
+        self.transport.execute(&op).await?;
+        Ok(RemoteNode::with_expr(
+            self.path.clone(),
+            self.client.clone(),
+            id_str.clone(),
+            self.transport.clone(),
+            ReadExpr::Node {
+                input: Box::new(self.expr.clone()),
+                id: id_str,
+            },
+        ))
     }
 
     pub async fn add_edge<G: Into<GID> + ToString, T: IntoTime>(
