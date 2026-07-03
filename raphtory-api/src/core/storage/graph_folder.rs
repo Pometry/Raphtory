@@ -348,53 +348,6 @@ impl<P: AsRef<Path> + ?Sized> GraphPaths for P {
     }
 }
 
-/// Refresh the node/edge counts recorded in a disk-backed graph's metadata file.
-pub fn refresh_metadata(
-    graph_dir: &Path,
-    node_count: usize,
-    edge_count: usize,
-) -> Result<(), GraphFolderError> {
-    let (Some(data_folder), Some(graph_path)) = (
-        graph_dir.parent(),
-        graph_dir.file_name().and_then(|name| name.to_str()),
-    ) else {
-        return Ok(());
-    };
-
-    let folder = InnerGraphFolder {
-        path: data_folder.to_path_buf(),
-    };
-
-    // nothing to refresh if there is no metadata file yet
-    if !folder.meta_path().exists() {
-        return Ok(());
-    }
-
-    // preserve the existing graph type; a corrupt metadata file surfaces as an error here
-    let existing = folder.read_metadata()?;
-
-    // the graph data directory must not change between writes
-    let recorded_graph_path = folder.relative_graph_path()?;
-    if recorded_graph_path != graph_path {
-        return Err(GraphFolderError::GraphPathChanged {
-            recorded: recorded_graph_path,
-            actual: graph_path.to_string(),
-        });
-    }
-
-    folder.write_metadata(Metadata {
-        path: graph_path.to_string(),
-        meta: GraphMetadata {
-            node_count,
-            edge_count,
-            graph_type: existing.graph_type,
-            is_diskgraph: true,
-        },
-    })?;
-
-    Ok(())
-}
-
 #[derive(Clone, Debug, PartialOrd, PartialEq, Ord, Eq)]
 pub struct GraphFolder {
     root_folder: PathBuf,
@@ -639,8 +592,49 @@ impl AsRef<Path> for InnerGraphFolder {
 }
 
 impl InnerGraphFolder {
+    pub fn new(path: impl Into<PathBuf>) -> Self {
+        Self { path: path.into() }
+    }
+
     pub fn write_metadata(&self, meta: Metadata) -> Result<(), GraphFolderError> {
         meta.write_atomic(self.as_ref(), &self.meta_path())?;
+        Ok(())
+    }
+
+    /// Refresh the node/edge counts recorded in the metadata file, preserving the graph type.
+    pub fn refresh_metadata(
+        &self,
+        graph_path: &str,
+        node_count: usize,
+        edge_count: usize,
+    ) -> Result<(), GraphFolderError> {
+        // nothing to refresh if there is no metadata file yet
+        if !self.meta_path().exists() {
+            return Ok(());
+        }
+
+        // preserve the existing graph type; a corrupt metadata file surfaces as an error here
+        let existing = self.read_metadata()?;
+
+        // the graph data directory must not change between updates
+        let recorded_graph_path = self.relative_graph_path()?;
+        if recorded_graph_path != graph_path {
+            return Err(GraphFolderError::GraphPathChanged {
+                recorded: recorded_graph_path,
+                actual: graph_path.to_string(),
+            });
+        }
+
+        self.write_metadata(Metadata {
+            path: graph_path.to_string(),
+            meta: GraphMetadata {
+                node_count,
+                edge_count,
+                graph_type: existing.graph_type,
+                is_diskgraph: true,
+            },
+        })?;
+
         Ok(())
     }
 

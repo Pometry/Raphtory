@@ -20,7 +20,7 @@ use node_page::writer::NodeWriter;
 use node_store::NodeStorageInner;
 use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::{
-    entities::properties::meta::Meta, storage::graph_folder::refresh_metadata,
+    entities::properties::meta::Meta, storage::graph_folder::InnerGraphFolder,
 };
 use rayon::prelude::*;
 use std::{
@@ -82,7 +82,16 @@ impl<
 
         // Refresh the graph metadata file (.meta) for disk-backed graphs
         if let Some(graph_dir) = self.graph_dir.as_ref() {
-            refresh_metadata(graph_dir, self.nodes.num_nodes(), self.edges.num_edges())?;
+            if let (Some(data_folder), Some(graph_path)) = (
+                graph_dir.parent(),
+                graph_dir.file_name().and_then(|name| name.to_str()),
+            ) {
+                InnerGraphFolder::new(data_folder).refresh_metadata(
+                    graph_path,
+                    self.nodes.num_nodes(),
+                    self.edges.num_edges(),
+                )?;
+            }
         }
 
         Ok(())
