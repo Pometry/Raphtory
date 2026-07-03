@@ -6,7 +6,10 @@
 
 use crate::client::{
     build_property_string,
-    op::{AddNode, CreateNode, Op, ReadExpr, WriteOp},
+    op::{
+        AddEdge, AddGraphMetadata, AddGraphProperty, AddNode, CreateNode, DeleteEdge, Op, ReadExpr,
+        UpdateGraphMetadata, WriteOp,
+    },
     remote_client::RemoteClient,
     remote_graph::build_query,
     transport::Transport,
@@ -46,6 +49,11 @@ impl GraphqlTransport {
         match op {
             WriteOp::AddNode(args) => self.apply_add_node(args).await,
             WriteOp::CreateNode(args) => self.apply_create_node(args).await,
+            WriteOp::AddEdge(args) => self.apply_add_edge(args).await,
+            WriteOp::AddGraphProperty(args) => self.apply_add_graph_property(args).await,
+            WriteOp::AddGraphMetadata(args) => self.apply_add_graph_metadata(args).await,
+            WriteOp::UpdateGraphMetadata(args) => self.apply_update_graph_metadata(args).await,
+            WriteOp::DeleteEdge(args) => self.apply_delete_edge(args).await,
         }
     }
 
@@ -125,6 +133,197 @@ impl GraphqlTransport {
             .get("updateGraph")
             .and_then(|x| x.as_object())
             .and_then(|x| x.get("createNode"))
+            .and_then(|x| x.as_object())
+            .and_then(|x| x.get("success"))
+            .and_then(|x| x.as_bool())
+            .is_some_and(|x| x);
+
+        if success {
+            Ok(None)
+        } else {
+            Err(ClientError::UnsuccessfulResponse)
+        }
+    }
+
+    async fn apply_add_edge(&self, args: &AddEdge) -> Result<Option<Prop>, ClientError> {
+        let template = r#"
+        {
+            updateGraph(path: "{{ path }}") {
+                addEdge(
+                    time: {{ time }},
+                    src: "{{ src }}",
+                    dst: "{{ dst }}"
+                    {% if properties is not none %}, properties: {{ properties | safe }}{% endif %}
+                    {% if layer is not none %}, layer: "{{ layer }}"{% endif %}
+                ) {
+                    success
+                }
+            }
+        }
+        "#;
+
+        let ctx = context! {
+            path => args.path,
+            time => args.time,
+            src => args.src,
+            dst => args.dst,
+            properties => args.properties.as_ref().map(|p| build_property_string(p.clone())),
+            layer => args.layer,
+        };
+
+        let query = build_query(template, ctx)?;
+        let res = self.client.query(&query, HashMap::new()).await?;
+
+        let success = res
+            .get("updateGraph")
+            .and_then(|x| x.as_object())
+            .and_then(|x| x.get("addEdge"))
+            .and_then(|x| x.as_object())
+            .and_then(|x| x.get("success"))
+            .and_then(|x| x.as_bool())
+            .is_some_and(|x| x);
+
+        if success {
+            Ok(None)
+        } else {
+            Err(ClientError::UnsuccessfulResponse)
+        }
+    }
+
+    async fn apply_add_graph_property(
+        &self,
+        args: &AddGraphProperty,
+    ) -> Result<Option<Prop>, ClientError> {
+        let template = r#"
+        {
+          updateGraph(path: "{{ path }}") {
+            addProperties(t: {{t}} properties: {{ properties | safe }})
+          }
+        }
+        "#;
+
+        let ctx = context! {
+            path => args.path,
+            t => args.time,
+            properties => build_property_string(args.properties.clone()),
+        };
+
+        let query = build_query(template, ctx)?;
+        let res = self.client.query(&query, HashMap::new()).await?;
+
+        let success = res
+            .get("updateGraph")
+            .and_then(|x| x.as_object())
+            .and_then(|x| x.get("addProperties"))
+            .and_then(|x| x.as_bool())
+            .is_some_and(|x| x);
+
+        if success {
+            Ok(None)
+        } else {
+            Err(ClientError::UnsuccessfulResponse)
+        }
+    }
+
+    async fn apply_add_graph_metadata(
+        &self,
+        args: &AddGraphMetadata,
+    ) -> Result<Option<Prop>, ClientError> {
+        let template = r#"
+        {
+          updateGraph(path: "{{ path }}") {
+            addMetadata(properties: {{ properties | safe }})
+          }
+        }
+        "#;
+
+        let ctx = context! {
+            path => args.path,
+            properties => build_property_string(args.properties.clone()),
+        };
+
+        let query = build_query(template, ctx)?;
+        let res = self.client.query(&query, HashMap::new()).await?;
+
+        let success = res
+            .get("updateGraph")
+            .and_then(|x| x.as_object())
+            .and_then(|x| x.get("addMetadata"))
+            .and_then(|x| x.as_bool())
+            .is_some_and(|x| x);
+
+        if success {
+            Ok(None)
+        } else {
+            Err(ClientError::UnsuccessfulResponse)
+        }
+    }
+
+    async fn apply_update_graph_metadata(
+        &self,
+        args: &UpdateGraphMetadata,
+    ) -> Result<Option<Prop>, ClientError> {
+        let template = r#"
+        {
+          updateGraph(path: "{{ path }}") {
+            updateMetadata(properties: {{ properties | safe }})
+          }
+        }
+        "#;
+
+        let ctx = context! {
+            path => args.path,
+            properties => build_property_string(args.properties.clone()),
+        };
+
+        let query = build_query(template, ctx)?;
+        let res = self.client.query(&query, HashMap::new()).await?;
+
+        let success = res
+            .get("updateGraph")
+            .and_then(|x| x.as_object())
+            .and_then(|x| x.get("updateMetadata"))
+            .and_then(|x| x.as_bool())
+            .is_some_and(|x| x);
+
+        if success {
+            Ok(None)
+        } else {
+            Err(ClientError::UnsuccessfulResponse)
+        }
+    }
+
+    async fn apply_delete_edge(&self, args: &DeleteEdge) -> Result<Option<Prop>, ClientError> {
+        let template = r#"
+        {
+            updateGraph(path: "{{ path }}") {
+                deleteEdge(
+                    time: {{ time }},
+                    src: "{{ src }}",
+                    dst: "{{ dst }}"
+                    {% if layer is not none %}, layer: "{{ layer }}"{% endif %}
+                ) {
+                    success
+                }
+            }
+        }
+        "#;
+
+        let ctx = context! {
+            path => args.path,
+            time => args.time,
+            src => args.src,
+            dst => args.dst,
+            layer => args.layer,
+        };
+
+        let query = build_query(template, ctx)?;
+        let res = self.client.query(&query, HashMap::new()).await?;
+
+        let success = res
+            .get("updateGraph")
+            .and_then(|x| x.as_object())
+            .and_then(|x| x.get("deleteEdge"))
             .and_then(|x| x.as_object())
             .and_then(|x| x.get("success"))
             .and_then(|x| x.as_bool())

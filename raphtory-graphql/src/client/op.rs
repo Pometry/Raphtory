@@ -43,12 +43,16 @@ pub enum ReadExpr {
 /// Write operations. Each variant is a self-contained command with all its
 /// arguments upfront — no composition, no wrapping.
 ///
-/// Remaining mutations (`add_edge`, `add_property`, `add_metadata`,
-/// `update_metadata`, `delete_edge`, and the per-node/per-edge variants)
-/// added incrementally.
+/// Remaining per-node/per-edge variants added incrementally.
 pub enum WriteOp {
+    // On the graph
     AddNode(AddNode),
     CreateNode(CreateNode),
+    AddEdge(AddEdge),
+    AddGraphProperty(AddGraphProperty),
+    AddGraphMetadata(AddGraphMetadata),
+    UpdateGraphMetadata(UpdateGraphMetadata),
+    DeleteEdge(DeleteEdge),
 }
 
 /// Arguments for `RemoteGraph::add_node`.
@@ -70,4 +74,46 @@ pub struct CreateNode {
     pub id: String,
     pub properties: Option<HashMap<String, Prop>>,
     pub node_type: Option<String>,
+}
+
+/// Arguments for `RemoteGraph::add_edge`.
+pub struct AddEdge {
+    pub path: String,
+    pub time: i64,
+    pub src: String,
+    pub dst: String,
+    pub properties: Option<HashMap<String, Prop>>,
+    pub layer: Option<String>,
+}
+
+/// Arguments for `RemoteGraph::add_property` — adds temporal properties on the
+/// graph itself (not on a node/edge).
+pub struct AddGraphProperty {
+    pub path: String,
+    pub time: i64,
+    pub properties: HashMap<String, Prop>,
+}
+
+/// Arguments for `RemoteGraph::add_metadata` — adds (non-temporal) metadata on
+/// the graph itself.
+pub struct AddGraphMetadata {
+    pub path: String,
+    pub properties: HashMap<String, Prop>,
+}
+
+/// Arguments for `RemoteGraph::update_metadata` — overwrites existing metadata
+/// on the graph.
+pub struct UpdateGraphMetadata {
+    pub path: String,
+    pub properties: HashMap<String, Prop>,
+}
+
+/// Arguments for `RemoteGraph::delete_edge`. Marks the edge as deleted at the
+/// given time (optionally on a specific layer).
+pub struct DeleteEdge {
+    pub path: String,
+    pub time: i64,
+    pub src: String,
+    pub dst: String,
+    pub layer: Option<String>,
 }

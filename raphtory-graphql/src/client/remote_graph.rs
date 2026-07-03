@@ -1,14 +1,18 @@
 use crate::client::{
-    build_property_string,
     graphql_transport::GraphqlTransport,
-    op::{AddNode as AddNodeOp, CreateNode as CreateNodeOp, Op, ReadExpr, WriteOp},
+    op::{
+        AddEdge as AddEdgeOp, AddGraphMetadata as AddGraphMetadataOp,
+        AddGraphProperty as AddGraphPropertyOp, AddNode as AddNodeOp, CreateNode as CreateNodeOp,
+        DeleteEdge as DeleteEdgeOp, Op, ReadExpr, UpdateGraphMetadata as UpdateGraphMetadataOp,
+        WriteOp,
+    },
     remote_client::RemoteClient,
     remote_edge::RemoteEdge,
     remote_node::RemoteNode,
     transport::Transport,
     ClientError,
 };
-use minijinja::{context, Environment, Value};
+use minijinja::{Environment, Value};
 use raphtory_api::core::{
     entities::{properties::prop::Prop, GID},
     storage::timeindex::{AsTime, EventTime},
@@ -165,51 +169,23 @@ impl RemoteGraph {
         properties: Option<HashMap<String, Prop>>,
         layer: Option<String>,
     ) -> Result<RemoteEdge, ClientError> {
-        let template = r#"
-        {
-            updateGraph(path: "{{ path }}") {
-                addEdge(
-                    time: {{ time }},
-                    src: "{{ src }}",
-                    dst: "{{ dst }}"
-                    {% if properties is not none %}, properties: {{ properties | safe }}{% endif %}
-                    {% if layer is not none %}, layer: "{{ layer }}"{% endif %}
-                ) {
-                    success
-                }
-            }
-        }
-        "#;
-
-        let ctx = context! {
-            path => self.path,
-            time => timestamp.into_time().t(),
-            src => src.to_string(),
-            dst => dst.to_string(),
-            properties => properties.map(|p| build_property_string(p)),
-            layer => layer,
-        };
-
-        let query = build_query(template, ctx)?;
-        let res = self.client.query(&query, HashMap::new()).await?;
-        if res
-            .get("updateGraph")
-            .and_then(|x| x.as_object())
-            .and_then(|x| x.get("addEdge"))
-            .and_then(|x| x.as_object())
-            .and_then(|x| x.get("success"))
-            .and_then(|x| x.as_bool())
-            .is_some_and(|x| x == true)
-        {
-            Ok(RemoteEdge::new(
-                self.path.clone(),
-                self.client.clone(),
-                src.to_string(),
-                dst.to_string(),
-            ))
-        } else {
-            Err(ClientError::UnsuccessfulResponse)
-        }
+        let src_str = src.to_string();
+        let dst_str = dst.to_string();
+        let op = Op::Write(WriteOp::AddEdge(AddEdgeOp {
+            path: self.path.clone(),
+            time: timestamp.into_time().t(),
+            src: src_str.clone(),
+            dst: dst_str.clone(),
+            properties,
+            layer,
+        }));
+        self.transport.execute(&op).await?;
+        Ok(RemoteEdge::new(
+            self.path.clone(),
+            self.client.clone(),
+            src_str,
+            dst_str,
+        ))
     }
 
     pub async fn add_property(
@@ -217,94 +193,34 @@ impl RemoteGraph {
         timestamp: EventTime,
         properties: HashMap<String, Prop>,
     ) -> Result<(), ClientError> {
-        let template = r#"
-        {
-          updateGraph(path: "{{ path }}") {
-            addProperties(t: {{t}} properties: {{ properties | safe }})
-          }
-        }
-        "#;
-
-        let ctx = context! {
-            path => self.path,
-            t => timestamp.into_time().t(),
-            properties => build_property_string(properties),
-        };
-
-        let query = build_query(template, ctx)?;
-        let res = self.client.query(&query, HashMap::new()).await?;
-        if res
-            .get("updateGraph")
-            .and_then(|x| x.as_object())
-            .and_then(|x| x.get("addProperties"))
-            .and_then(|x| x.as_bool())
-            .is_some_and(|x| x == true)
-        {
-            Ok(())
-        } else {
-            Err(ClientError::UnsuccessfulResponse)
-        }
+        let op = Op::Write(WriteOp::AddGraphProperty(AddGraphPropertyOp {
+            path: self.path.clone(),
+            time: timestamp.into_time().t(),
+            properties,
+        }));
+        self.transport.execute(&op).await?;
+        Ok(())
     }
 
     pub async fn add_metadata(&self, properties: HashMap<String, Prop>) -> Result<(), ClientError> {
-        let template = r#"
-        {
-          updateGraph(path: "{{ path }}") {
-            addMetadata(properties: {{ properties | safe }})
-          }
-        }
-        "#;
-
-        let ctx = context! {
-            path => self.path,
-            properties => build_property_string(properties),
-        };
-
-        let query = build_query(template, ctx)?;
-        let res = self.client.query(&query, HashMap::new()).await?;
-        if res
-            .get("updateGraph")
-            .and_then(|x| x.as_object())
-            .and_then(|x| x.get("addMetadata"))
-            .and_then(|x| x.as_bool())
-            .is_some_and(|x| x == true)
-        {
-            Ok(())
-        } else {
-            Err(ClientError::UnsuccessfulResponse)
-        }
+        let op = Op::Write(WriteOp::AddGraphMetadata(AddGraphMetadataOp {
+            path: self.path.clone(),
+            properties,
+        }));
+        self.transport.execute(&op).await?;
+        Ok(())
     }
 
     pub async fn update_metadata(
         &self,
         properties: HashMap<String, Prop>,
     ) -> Result<(), ClientError> {
-        let template = r#"
-        {
-          updateGraph(path: "{{ path }}") {
-            updateMetadata(properties: {{ properties | safe }})
-          }
-        }
-        "#;
-
-        let ctx = context! {
-            path => self.path,
-            properties => build_property_string(properties),
-        };
-
-        let query = build_query(template, ctx)?;
-        let res = self.client.query(&query, HashMap::new()).await?;
-        if res
-            .get("updateGraph")
-            .and_then(|x| x.as_object())
-            .and_then(|x| x.get("updateMetadata"))
-            .and_then(|x| x.as_bool())
-            .is_some_and(|x| x == true)
-        {
-            Ok(())
-        } else {
-            Err(ClientError::UnsuccessfulResponse)
-        }
+        let op = Op::Write(WriteOp::UpdateGraphMetadata(UpdateGraphMetadataOp {
+            path: self.path.clone(),
+            properties,
+        }));
+        self.transport.execute(&op).await?;
+        Ok(())
     }
 
     /// Deletes an edge at the given time, src, dst and optional layer.
@@ -315,48 +231,21 @@ impl RemoteGraph {
         dst: G,
         layer: Option<String>,
     ) -> Result<RemoteEdge, ClientError> {
-        let template = r#"
-        {
-            updateGraph(path: "{{ path }}") {
-                deleteEdge(
-                    time: {{ time }},
-                    src: "{{ src }}",
-                    dst: "{{ dst }}"
-                    {% if layer is not none %}, layer: "{{ layer }}"{% endif %}
-                ) {
-                    success
-                }
-            }
-        }
-        "#;
-
-        let ctx = context! {
-            path => self.path,
-            time => timestamp.into_time().t(),
-            src => src.to_string(),
-            dst => dst.to_string(),
-            layer => layer,
-        };
-
-        let query = build_query(template, ctx)?;
-        let res = self.client.query(&query, HashMap::new()).await?;
-        if res
-            .get("updateGraph")
-            .and_then(|x| x.as_object())
-            .and_then(|x| x.get("deleteEdge"))
-            .and_then(|x| x.as_object())
-            .and_then(|x| x.get("success"))
-            .and_then(|x| x.as_bool())
-            .is_some_and(|x| x == true)
-        {
-            Ok(RemoteEdge::new(
-                self.path.clone(),
-                self.client.clone(),
-                src.to_string(),
-                dst.to_string(),
-            ))
-        } else {
-            Err(ClientError::UnsuccessfulResponse)
-        }
+        let src_str = src.to_string();
+        let dst_str = dst.to_string();
+        let op = Op::Write(WriteOp::DeleteEdge(DeleteEdgeOp {
+            path: self.path.clone(),
+            time: timestamp.into_time().t(),
+            src: src_str.clone(),
+            dst: dst_str.clone(),
+            layer,
+        }));
+        self.transport.execute(&op).await?;
+        Ok(RemoteEdge::new(
+            self.path.clone(),
+            self.client.clone(),
+            src_str,
+            dst_str,
+        ))
     }
 }
