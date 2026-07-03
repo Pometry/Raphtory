@@ -1,28 +1,40 @@
 use crate::client::{
-    build_property_string, remote_client::RemoteClient, remote_graph::build_query, ClientError,
+    graphql_transport::GraphqlTransport,
+    op::{
+        AddEdgeMetadata as AddEdgeMetadataOp, AddEdgeUpdates as AddEdgeUpdatesOp,
+        DeleteEdgeAtTime as DeleteEdgeAtTimeOp, Op, UpdateEdgeMetadata as UpdateEdgeMetadataOp,
+        WriteOp,
+    },
+    remote_client::RemoteClient,
+    transport::Transport,
+    ClientError,
 };
-use minijinja::context;
 use raphtory_api::core::{
     entities::properties::prop::Prop, storage::timeindex::AsTime, utils::time::IntoTime,
 };
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 /// A handle to a remote edge on the server.
 #[derive(Clone)]
 pub struct RemoteEdge {
     pub path: String,
+    /// Kept for now — parity with `RemoteGraph`/`RemoteNode` during the write
+    /// migration. Removed once no method here uses it directly.
     pub client: RemoteClient,
     pub src: String,
     pub dst: String,
+    pub transport: Arc<dyn Transport>,
 }
 
 impl RemoteEdge {
     pub fn new(path: String, client: RemoteClient, src: String, dst: String) -> Self {
+        let transport: Arc<dyn Transport> = Arc::new(GraphqlTransport::new(client.clone()));
         Self {
             path,
             client,
             src,
             dst,
+            transport,
         }
     }
 
@@ -33,27 +45,16 @@ impl RemoteEdge {
         properties: Option<HashMap<String, Prop>>,
         layer: Option<String>,
     ) -> Result<(), ClientError> {
-        let template = r#"
-            {
-              updateGraph(path: "{{path}}") {
-                edge(src: "{{src}}",dst: "{{dst}}") {
-                  addUpdates(time: {{t}} {% if properties is not none %}, properties: {{ properties | safe }} {% endif %} {% if layer is not none %}, layer:  "{{layer}}" {% endif %})
-                }
-              }
-            }
-        "#;
-
-        let ctx = context! {
-            path => self.path,
-            src => self.src,
-            dst => self.dst,
-            t => t.into_time().t(),
-            properties => properties.map(|p| build_property_string(p)),
-            layer => layer
-        };
-
-        let query = build_query(template, ctx).map_err(ClientError::from)?;
-        self.client.query(&query, HashMap::new()).await.map(|_| ())
+        let op = Op::Write(WriteOp::AddEdgeUpdates(AddEdgeUpdatesOp {
+            path: self.path.clone(),
+            src: self.src.clone(),
+            dst: self.dst.clone(),
+            time: t.into_time().t(),
+            properties,
+            layer,
+        }));
+        self.transport.execute(&op).await?;
+        Ok(())
     }
 
     /// Mark the edge as deleted at the specified time.
@@ -62,26 +63,15 @@ impl RemoteEdge {
         t: T,
         layer: Option<String>,
     ) -> Result<(), ClientError> {
-        let template = r#"
-            {
-              updateGraph(path: "{{path}}") {
-                edge(src: "{{src}}",dst: "{{dst}}") {
-                  delete(time: {{t}}{% if layer is not none %}, layer:  "{{layer}}"{% endif %})
-                }
-              }
-            }
-        "#;
-
-        let ctx = context! {
-            path => self.path,
-            src => self.src,
-            dst => self.dst,
-            t => t.into_time().t(),
-            layer => layer
-        };
-
-        let query = build_query(template, ctx).map_err(ClientError::from)?;
-        self.client.query(&query, HashMap::new()).await.map(|_| ())
+        let op = Op::Write(WriteOp::DeleteEdgeAtTime(DeleteEdgeAtTimeOp {
+            path: self.path.clone(),
+            src: self.src.clone(),
+            dst: self.dst.clone(),
+            time: t.into_time().t(),
+            layer,
+        }));
+        self.transport.execute(&op).await?;
+        Ok(())
     }
 
     /// Add metadata to the edge (properties that do not change over time).
@@ -90,26 +80,15 @@ impl RemoteEdge {
         properties: HashMap<String, Prop>,
         layer: Option<String>,
     ) -> Result<(), ClientError> {
-        let template = r#"
-            {
-              updateGraph(path: "{{path}}") {
-                edge(src: "{{src}}",dst: "{{dst}}") {
-                  addMetadata(properties:  {{ properties | safe }} {% if layer is not none %}, layer:  "{{layer}}" {% endif %})
-                }
-              }
-            }
-        "#;
-
-        let ctx = context! {
-            path => self.path,
-            src => self.src,
-            dst => self.dst,
-            properties => build_property_string(properties),
-            layer => layer
-        };
-
-        let query = build_query(template, ctx).map_err(ClientError::from)?;
-        self.client.query(&query, HashMap::new()).await.map(|_| ())
+        let op = Op::Write(WriteOp::AddEdgeMetadata(AddEdgeMetadataOp {
+            path: self.path.clone(),
+            src: self.src.clone(),
+            dst: self.dst.clone(),
+            properties,
+            layer,
+        }));
+        self.transport.execute(&op).await?;
+        Ok(())
     }
 
     /// Update metadata of the edge, overwriting existing values.
@@ -118,25 +97,14 @@ impl RemoteEdge {
         properties: HashMap<String, Prop>,
         layer: Option<String>,
     ) -> Result<(), ClientError> {
-        let template = r#"
-            {
-              updateGraph(path: "{{path}}") {
-                edge(src: "{{src}}",dst: "{{dst}}") {
-                  updateMetadata(properties:  {{ properties | safe }} {% if layer is not none %}, layer:  "{{layer}}" {% endif %})
-                }
-              }
-            }
-        "#;
-
-        let ctx = context! {
-            path => self.path,
-            src => self.src,
-            dst => self.dst,
-            properties => build_property_string(properties),
-            layer => layer
-        };
-
-        let query = build_query(template, ctx).map_err(ClientError::from)?;
-        self.client.query(&query, HashMap::new()).await.map(|_| ())
+        let op = Op::Write(WriteOp::UpdateEdgeMetadata(UpdateEdgeMetadataOp {
+            path: self.path.clone(),
+            src: self.src.clone(),
+            dst: self.dst.clone(),
+            properties,
+            layer,
+        }));
+        self.transport.execute(&op).await?;
+        Ok(())
     }
 }

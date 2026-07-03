@@ -7,9 +7,9 @@
 use crate::client::{
     build_property_string,
     op::{
-        AddEdge, AddGraphMetadata, AddGraphProperty, AddNode, AddNodeMetadata, AddNodeUpdates,
-        CreateNode, DeleteEdge, Op, ReadExpr, SetNodeType, UpdateGraphMetadata, UpdateNodeMetadata,
-        WriteOp,
+        AddEdge, AddEdgeMetadata, AddEdgeUpdates, AddGraphMetadata, AddGraphProperty, AddNode,
+        AddNodeMetadata, AddNodeUpdates, CreateNode, DeleteEdge, DeleteEdgeAtTime, Op, ReadExpr,
+        SetNodeType, UpdateEdgeMetadata, UpdateGraphMetadata, UpdateNodeMetadata, WriteOp,
     },
     remote_client::RemoteClient,
     remote_graph::build_query,
@@ -59,6 +59,10 @@ impl GraphqlTransport {
             WriteOp::AddNodeUpdates(args) => self.apply_add_node_updates(args).await,
             WriteOp::AddNodeMetadata(args) => self.apply_add_node_metadata(args).await,
             WriteOp::UpdateNodeMetadata(args) => self.apply_update_node_metadata(args).await,
+            WriteOp::AddEdgeUpdates(args) => self.apply_add_edge_updates(args).await,
+            WriteOp::DeleteEdgeAtTime(args) => self.apply_delete_edge_at_time(args).await,
+            WriteOp::AddEdgeMetadata(args) => self.apply_add_edge_metadata(args).await,
+            WriteOp::UpdateEdgeMetadata(args) => self.apply_update_edge_metadata(args).await,
         }
     }
 
@@ -432,6 +436,115 @@ impl GraphqlTransport {
             path => args.path,
             name => args.id,
             properties => build_property_string(args.properties.clone()),
+        };
+
+        let query = build_query(template, ctx)?;
+        self.client.query(&query, HashMap::new()).await?;
+        Ok(None)
+    }
+
+    async fn apply_add_edge_updates(
+        &self,
+        args: &AddEdgeUpdates,
+    ) -> Result<Option<Prop>, ClientError> {
+        let template = r#"
+            {
+              updateGraph(path: "{{path}}") {
+                edge(src: "{{src}}",dst: "{{dst}}") {
+                  addUpdates(time: {{t}} {% if properties is not none %}, properties: {{ properties | safe }} {% endif %} {% if layer is not none %}, layer:  "{{layer}}" {% endif %})
+                }
+              }
+            }
+        "#;
+
+        let ctx = context! {
+            path => args.path,
+            src => args.src,
+            dst => args.dst,
+            t => args.time,
+            properties => args.properties.as_ref().map(|p| build_property_string(p.clone())),
+            layer => args.layer,
+        };
+
+        let query = build_query(template, ctx)?;
+        self.client.query(&query, HashMap::new()).await?;
+        Ok(None)
+    }
+
+    async fn apply_delete_edge_at_time(
+        &self,
+        args: &DeleteEdgeAtTime,
+    ) -> Result<Option<Prop>, ClientError> {
+        let template = r#"
+            {
+              updateGraph(path: "{{path}}") {
+                edge(src: "{{src}}",dst: "{{dst}}") {
+                  delete(time: {{t}}{% if layer is not none %}, layer:  "{{layer}}"{% endif %})
+                }
+              }
+            }
+        "#;
+
+        let ctx = context! {
+            path => args.path,
+            src => args.src,
+            dst => args.dst,
+            t => args.time,
+            layer => args.layer,
+        };
+
+        let query = build_query(template, ctx)?;
+        self.client.query(&query, HashMap::new()).await?;
+        Ok(None)
+    }
+
+    async fn apply_add_edge_metadata(
+        &self,
+        args: &AddEdgeMetadata,
+    ) -> Result<Option<Prop>, ClientError> {
+        let template = r#"
+            {
+              updateGraph(path: "{{path}}") {
+                edge(src: "{{src}}",dst: "{{dst}}") {
+                  addMetadata(properties:  {{ properties | safe }} {% if layer is not none %}, layer:  "{{layer}}" {% endif %})
+                }
+              }
+            }
+        "#;
+
+        let ctx = context! {
+            path => args.path,
+            src => args.src,
+            dst => args.dst,
+            properties => build_property_string(args.properties.clone()),
+            layer => args.layer,
+        };
+
+        let query = build_query(template, ctx)?;
+        self.client.query(&query, HashMap::new()).await?;
+        Ok(None)
+    }
+
+    async fn apply_update_edge_metadata(
+        &self,
+        args: &UpdateEdgeMetadata,
+    ) -> Result<Option<Prop>, ClientError> {
+        let template = r#"
+            {
+              updateGraph(path: "{{path}}") {
+                edge(src: "{{src}}",dst: "{{dst}}") {
+                  updateMetadata(properties:  {{ properties | safe }} {% if layer is not none %}, layer:  "{{layer}}" {% endif %})
+                }
+              }
+            }
+        "#;
+
+        let ctx = context! {
+            path => args.path,
+            src => args.src,
+            dst => args.dst,
+            properties => build_property_string(args.properties.clone()),
+            layer => args.layer,
         };
 
         let query = build_query(template, ctx)?;

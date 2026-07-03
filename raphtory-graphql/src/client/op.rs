@@ -42,8 +42,6 @@ pub enum ReadExpr {
 
 /// Write operations. Each variant is a self-contained command with all its
 /// arguments upfront — no composition, no wrapping.
-///
-/// Remaining per-edge variants added incrementally.
 pub enum WriteOp {
     // On the graph
     AddNode(AddNode),
@@ -59,6 +57,13 @@ pub enum WriteOp {
     AddNodeUpdates(AddNodeUpdates),
     AddNodeMetadata(AddNodeMetadata),
     UpdateNodeMetadata(UpdateNodeMetadata),
+
+    // On an edge (via `RemoteEdge` handle — GraphQL path is
+    // `updateGraph.edge(src, dst).xxx`, distinct from graph-scope mutations)
+    AddEdgeUpdates(AddEdgeUpdates),
+    DeleteEdgeAtTime(DeleteEdgeAtTime),
+    AddEdgeMetadata(AddEdgeMetadata),
+    UpdateEdgeMetadata(UpdateEdgeMetadata),
 }
 
 /// Arguments for `RemoteGraph::add_node`.
@@ -155,4 +160,46 @@ pub struct UpdateNodeMetadata {
     pub path: String,
     pub id: String,
     pub properties: HashMap<String, Prop>,
+}
+
+/// Arguments for `RemoteEdge::add_updates` — adds temporal updates to an
+/// existing edge at a specific time.
+pub struct AddEdgeUpdates {
+    pub path: String,
+    pub src: String,
+    pub dst: String,
+    pub time: i64,
+    pub properties: Option<HashMap<String, Prop>>,
+    pub layer: Option<String>,
+}
+
+/// Arguments for `RemoteEdge::delete` — marks an edge as deleted at a specific
+/// time. Distinct from graph-scope `DeleteEdge` because it uses the nested
+/// `updateGraph.edge(src,dst).delete(time, layer)` mutation.
+pub struct DeleteEdgeAtTime {
+    pub path: String,
+    pub src: String,
+    pub dst: String,
+    pub time: i64,
+    pub layer: Option<String>,
+}
+
+/// Arguments for `RemoteEdge::add_metadata` — adds non-temporal metadata to a
+/// specific edge (optionally on a specific layer).
+pub struct AddEdgeMetadata {
+    pub path: String,
+    pub src: String,
+    pub dst: String,
+    pub properties: HashMap<String, Prop>,
+    pub layer: Option<String>,
+}
+
+/// Arguments for `RemoteEdge::update_metadata` — overwrites existing metadata
+/// on a specific edge (optionally on a specific layer).
+pub struct UpdateEdgeMetadata {
+    pub path: String,
+    pub src: String,
+    pub dst: String,
+    pub properties: HashMap<String, Prop>,
+    pub layer: Option<String>,
 }

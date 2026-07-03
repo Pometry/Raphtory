@@ -10,9 +10,9 @@ pub mod transport;
 pub use error::ClientError;
 pub use graphql_transport::GraphqlTransport;
 pub use op::{
-    AddEdge, AddGraphMetadata, AddGraphProperty, AddNode, AddNodeMetadata, AddNodeUpdates,
-    CreateNode, DeleteEdge, Op, ReadExpr, SetNodeType, UpdateGraphMetadata, UpdateNodeMetadata,
-    WriteOp,
+    AddEdge, AddEdgeMetadata, AddEdgeUpdates, AddGraphMetadata, AddGraphProperty, AddNode,
+    AddNodeMetadata, AddNodeUpdates, CreateNode, DeleteEdge, DeleteEdgeAtTime, Op, ReadExpr,
+    SetNodeType, UpdateEdgeMetadata, UpdateGraphMetadata, UpdateNodeMetadata, WriteOp,
 };
 pub use remote_edge::RemoteEdge;
 pub use remote_graph::RemoteGraph;
