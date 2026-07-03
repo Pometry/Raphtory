@@ -1,13 +1,13 @@
 use crate::client::{
-    build_property_string,
     graphql_transport::GraphqlTransport,
-    op::{Op, ReadExpr},
+    op::{
+        AddNodeMetadata as AddNodeMetadataOp, AddNodeUpdates as AddNodeUpdatesOp, Op, ReadExpr,
+        SetNodeType as SetNodeTypeOp, UpdateNodeMetadata as UpdateNodeMetadataOp, WriteOp,
+    },
     remote_client::RemoteClient,
-    remote_graph::build_query,
     transport::Transport,
     ClientError,
 };
-use minijinja::context;
 use raphtory_api::core::{
     entities::properties::prop::Prop, storage::timeindex::AsTime, utils::time::IntoTime,
 };
@@ -82,24 +82,13 @@ impl RemoteNode {
 
     /// Set the type on the node. This only works if the type has not been previously set.
     pub async fn set_node_type(&self, new_type: String) -> Result<(), ClientError> {
-        let template = r#"
-            {
-              updateGraph(path: "{{path}}") {
-                node(name: "{{name}}") {
-                  setNodeType(newType: "{{new_type}}")
-                }
-              }
-            }
-        "#;
-
-        let ctx = context! {
-            path => self.path,
-            name => self.id,
-            new_type => new_type
-        };
-
-        let query = build_query(template, ctx).map_err(ClientError::from)?;
-        self.client.query(&query, HashMap::new()).await.map(|_| ())
+        let op = Op::Write(WriteOp::SetNodeType(SetNodeTypeOp {
+            path: self.path.clone(),
+            id: self.id.clone(),
+            new_type,
+        }));
+        self.transport.execute(&op).await?;
+        Ok(())
     }
 
     /// Add temporal updates to the node at the specified time.
@@ -108,47 +97,25 @@ impl RemoteNode {
         t: T,
         properties: Option<HashMap<String, Prop>>,
     ) -> Result<(), ClientError> {
-        let template = r#"
-            {
-              updateGraph(path: "{{path}}") {
-                node(name: "{{name}}") {
-                  addUpdates(time: {{t}} {% if properties is not none %}, properties:  {{ properties | safe }} {% endif %})
-                }
-              }
-            }
-        "#;
-
-        let ctx = context! {
-            path => self.path,
-            name => self.id,
-            t => t.into_time().t(),
-            properties => properties.map(|p| build_property_string(p)),
-        };
-
-        let query = build_query(template, ctx).map_err(ClientError::from)?;
-        self.client.query(&query, HashMap::new()).await.map(|_| ())
+        let op = Op::Write(WriteOp::AddNodeUpdates(AddNodeUpdatesOp {
+            path: self.path.clone(),
+            id: self.id.clone(),
+            time: t.into_time().t(),
+            properties,
+        }));
+        self.transport.execute(&op).await?;
+        Ok(())
     }
 
     /// Add metadata to the node (properties that do not change over time).
     pub async fn add_metadata(&self, properties: HashMap<String, Prop>) -> Result<(), ClientError> {
-        let template = r#"
-            {
-              updateGraph(path: "{{path}}") {
-                node(name: "{{name}}") {
-                  addMetadata(properties: {{ properties | safe }} )
-                }
-              }
-            }
-        "#;
-
-        let ctx = context! {
-            path => self.path,
-            name => self.id,
-            properties => build_property_string(properties),
-        };
-
-        let query = build_query(template, ctx).map_err(ClientError::from)?;
-        self.client.query(&query, HashMap::new()).await.map(|_| ())
+        let op = Op::Write(WriteOp::AddNodeMetadata(AddNodeMetadataOp {
+            path: self.path.clone(),
+            id: self.id.clone(),
+            properties,
+        }));
+        self.transport.execute(&op).await?;
+        Ok(())
     }
 
     /// Update metadata of the node, overwriting existing values.
@@ -156,23 +123,12 @@ impl RemoteNode {
         &self,
         properties: HashMap<String, Prop>,
     ) -> Result<(), ClientError> {
-        let template = r#"
-            {
-              updateGraph(path: "{{path}}") {
-                node(name: "{{name}}") {
-                  updateMetadata(properties: {{ properties | safe }} )
-                }
-              }
-            }
-        "#;
-
-        let ctx = context! {
-            path => self.path,
-            name => self.id,
-            properties => build_property_string(properties)
-        };
-
-        let query = build_query(template, ctx).map_err(ClientError::from)?;
-        self.client.query(&query, HashMap::new()).await.map(|_| ())
+        let op = Op::Write(WriteOp::UpdateNodeMetadata(UpdateNodeMetadataOp {
+            path: self.path.clone(),
+            id: self.id.clone(),
+            properties,
+        }));
+        self.transport.execute(&op).await?;
+        Ok(())
     }
 }

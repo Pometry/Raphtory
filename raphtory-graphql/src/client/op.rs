@@ -43,7 +43,7 @@ pub enum ReadExpr {
 /// Write operations. Each variant is a self-contained command with all its
 /// arguments upfront — no composition, no wrapping.
 ///
-/// Remaining per-node/per-edge variants added incrementally.
+/// Remaining per-edge variants added incrementally.
 pub enum WriteOp {
     // On the graph
     AddNode(AddNode),
@@ -53,6 +53,12 @@ pub enum WriteOp {
     AddGraphMetadata(AddGraphMetadata),
     UpdateGraphMetadata(UpdateGraphMetadata),
     DeleteEdge(DeleteEdge),
+
+    // On a node
+    SetNodeType(SetNodeType),
+    AddNodeUpdates(AddNodeUpdates),
+    AddNodeMetadata(AddNodeMetadata),
+    UpdateNodeMetadata(UpdateNodeMetadata),
 }
 
 /// Arguments for `RemoteGraph::add_node`.
@@ -116,4 +122,37 @@ pub struct DeleteEdge {
     pub src: String,
     pub dst: String,
     pub layer: Option<String>,
+}
+
+/// Arguments for `RemoteNode::set_node_type` — sets the node's type (only
+/// works if the type has not been previously set).
+pub struct SetNodeType {
+    pub path: String,
+    pub id: String,
+    pub new_type: String,
+}
+
+/// Arguments for `RemoteNode::add_updates` — adds temporal updates to a node
+/// at a specific time.
+pub struct AddNodeUpdates {
+    pub path: String,
+    pub id: String,
+    pub time: i64,
+    pub properties: Option<HashMap<String, Prop>>,
+}
+
+/// Arguments for `RemoteNode::add_metadata` — adds non-temporal metadata to a
+/// specific node.
+pub struct AddNodeMetadata {
+    pub path: String,
+    pub id: String,
+    pub properties: HashMap<String, Prop>,
+}
+
+/// Arguments for `RemoteNode::update_metadata` — overwrites existing metadata
+/// on a specific node.
+pub struct UpdateNodeMetadata {
+    pub path: String,
+    pub id: String,
+    pub properties: HashMap<String, Prop>,
 }

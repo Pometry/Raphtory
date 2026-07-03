@@ -7,8 +7,9 @@
 use crate::client::{
     build_property_string,
     op::{
-        AddEdge, AddGraphMetadata, AddGraphProperty, AddNode, CreateNode, DeleteEdge, Op, ReadExpr,
-        UpdateGraphMetadata, WriteOp,
+        AddEdge, AddGraphMetadata, AddGraphProperty, AddNode, AddNodeMetadata, AddNodeUpdates,
+        CreateNode, DeleteEdge, Op, ReadExpr, SetNodeType, UpdateGraphMetadata, UpdateNodeMetadata,
+        WriteOp,
     },
     remote_client::RemoteClient,
     remote_graph::build_query,
@@ -54,6 +55,10 @@ impl GraphqlTransport {
             WriteOp::AddGraphMetadata(args) => self.apply_add_graph_metadata(args).await,
             WriteOp::UpdateGraphMetadata(args) => self.apply_update_graph_metadata(args).await,
             WriteOp::DeleteEdge(args) => self.apply_delete_edge(args).await,
+            WriteOp::SetNodeType(args) => self.apply_set_node_type(args).await,
+            WriteOp::AddNodeUpdates(args) => self.apply_add_node_updates(args).await,
+            WriteOp::AddNodeMetadata(args) => self.apply_add_node_metadata(args).await,
+            WriteOp::UpdateNodeMetadata(args) => self.apply_update_node_metadata(args).await,
         }
     }
 
@@ -334,6 +339,104 @@ impl GraphqlTransport {
         } else {
             Err(ClientError::UnsuccessfulResponse)
         }
+    }
+
+    async fn apply_set_node_type(&self, args: &SetNodeType) -> Result<Option<Prop>, ClientError> {
+        let template = r#"
+            {
+              updateGraph(path: "{{path}}") {
+                node(name: "{{name}}") {
+                  setNodeType(newType: "{{new_type}}")
+                }
+              }
+            }
+        "#;
+
+        let ctx = context! {
+            path => args.path,
+            name => args.id,
+            new_type => args.new_type,
+        };
+
+        let query = build_query(template, ctx)?;
+        self.client.query(&query, HashMap::new()).await?;
+        Ok(None)
+    }
+
+    async fn apply_add_node_updates(
+        &self,
+        args: &AddNodeUpdates,
+    ) -> Result<Option<Prop>, ClientError> {
+        let template = r#"
+            {
+              updateGraph(path: "{{path}}") {
+                node(name: "{{name}}") {
+                  addUpdates(time: {{t}} {% if properties is not none %}, properties:  {{ properties | safe }} {% endif %})
+                }
+              }
+            }
+        "#;
+
+        let ctx = context! {
+            path => args.path,
+            name => args.id,
+            t => args.time,
+            properties => args.properties.as_ref().map(|p| build_property_string(p.clone())),
+        };
+
+        let query = build_query(template, ctx)?;
+        self.client.query(&query, HashMap::new()).await?;
+        Ok(None)
+    }
+
+    async fn apply_add_node_metadata(
+        &self,
+        args: &AddNodeMetadata,
+    ) -> Result<Option<Prop>, ClientError> {
+        let template = r#"
+            {
+              updateGraph(path: "{{path}}") {
+                node(name: "{{name}}") {
+                  addMetadata(properties: {{ properties | safe }} )
+                }
+              }
+            }
+        "#;
+
+        let ctx = context! {
+            path => args.path,
+            name => args.id,
+            properties => build_property_string(args.properties.clone()),
+        };
+
+        let query = build_query(template, ctx)?;
+        self.client.query(&query, HashMap::new()).await?;
+        Ok(None)
+    }
+
+    async fn apply_update_node_metadata(
+        &self,
+        args: &UpdateNodeMetadata,
+    ) -> Result<Option<Prop>, ClientError> {
+        let template = r#"
+            {
+              updateGraph(path: "{{path}}") {
+                node(name: "{{name}}") {
+                  updateMetadata(properties: {{ properties | safe }} )
+                }
+              }
+            }
+        "#;
+
+        let ctx = context! {
+            path => args.path,
+            name => args.id,
+            properties => build_property_string(args.properties.clone()),
+        };
+
+        let query = build_query(template, ctx)?;
+        self.client.query(&query, HashMap::new()).await?;
+        Ok(None)
     }
 }
 
