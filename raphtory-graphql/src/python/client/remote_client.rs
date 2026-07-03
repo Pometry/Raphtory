@@ -1,5 +1,5 @@
 use crate::{
-    client::{is_online, raphtory_client::RaphtoryGraphQLClient, ClientError},
+    client::{is_online, remote_client::RemoteClient, ClientError},
     python::{
         client::{remote_graph::PyRemoteGraph, PyRemoteIndexSpec},
         encode_graph, translate_from_python, translate_map_to_python,
@@ -20,14 +20,14 @@ use url::Url;
 #[derive(Clone)]
 #[pyclass(name = "RaphtoryClient", module = "raphtory.graphql", from_py_object)]
 pub struct PyRaphtoryClient {
-    pub(crate) client: RaphtoryGraphQLClient,
+    pub(crate) client: RemoteClient,
 }
 
 impl PyRaphtoryClient {
     /// Run an async operation that returns Result<O, ClientError> and map errors to PyErr.
     pub(crate) fn run_async<F, Fut, O>(&self, f: F) -> PyResult<O>
     where
-        F: FnOnce(RaphtoryGraphQLClient) -> Fut + Send + 'static,
+        F: FnOnce(RemoteClient) -> Fut + Send + 'static,
         Fut: Future<Output = Result<O, ClientError>> + Send + 'static,
         O: Send + 'static,
     {
@@ -52,8 +52,8 @@ impl PyRaphtoryClient {
     #[pyo3(signature = (url, token=None))]
     pub(crate) fn new(url: String, token: Option<String>) -> PyResult<Self> {
         let url = Url::parse(url.as_str()).map_err(|e| PyException::new_err(e.to_string()))?;
-        let client = execute_async_task(|| RaphtoryGraphQLClient::connect(url, token))
-            .map_err(PyErr::from)?;
+        let client =
+            execute_async_task(|| RemoteClient::connect(url, token)).map_err(PyErr::from)?;
         Ok(Self { client })
     }
 

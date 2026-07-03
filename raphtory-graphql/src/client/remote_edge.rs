@@ -1,6 +1,5 @@
 use crate::client::{
-    build_property_string, raphtory_client::RaphtoryGraphQLClient, remote_graph::build_query,
-    ClientError,
+    build_property_string, remote_client::RemoteClient, remote_graph::build_query, ClientError,
 };
 use minijinja::context;
 use raphtory_api::core::{
@@ -12,13 +11,13 @@ use std::collections::HashMap;
 #[derive(Clone)]
 pub struct RemoteEdge {
     pub path: String,
-    pub client: RaphtoryGraphQLClient,
+    pub client: RemoteClient,
     pub src: String,
     pub dst: String,
 }
 
 impl RemoteEdge {
-    pub fn new(path: String, client: RaphtoryGraphQLClient, src: String, dst: String) -> Self {
+    pub fn new(path: String, client: RemoteClient, src: String, dst: String) -> Self {
         Self {
             path,
             client,

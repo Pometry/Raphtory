@@ -1,7 +1,7 @@
 mod error;
 pub mod graphql_transport;
 pub mod op;
-pub mod raphtory_client;
+pub mod remote_client;
 pub mod remote_edge;
 pub mod remote_graph;
 pub mod remote_node;

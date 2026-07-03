@@ -135,7 +135,7 @@ impl PyRemoteGraph {
         Ok(())
     }
 
-    // TODO: Still need to move add_nodes and add_edges logic over to Rust client in src/client/raphtory_client.rs
+    // TODO: Still need to move add_nodes and add_edges logic over to Rust client in src/client/remote_client.rs
 
     /// Batch add edge updates to the remote graph
     ///

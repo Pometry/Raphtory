@@ -2,7 +2,7 @@ use crate::client::{
     build_property_string,
     graphql_transport::GraphqlTransport,
     op::{AddNode as AddNodeOp, Op, ReadExpr, WriteOp},
-    raphtory_client::RaphtoryGraphQLClient,
+    remote_client::RemoteClient,
     remote_edge::RemoteEdge,
     remote_node::RemoteNode,
     transport::Transport,
@@ -39,14 +39,14 @@ pub struct RemoteGraph {
     pub path: String,
     /// Kept for now — used by writes that haven't yet been migrated through
     /// the transport. Removed once all writes route through it.
-    pub client: RaphtoryGraphQLClient,
+    pub client: RemoteClient,
     pub transport: Arc<dyn Transport>,
     /// The read expression built so far. Starts as `Root { path }`.
     pub expr: ReadExpr,
 }
 
 impl RemoteGraph {
-    pub fn new(path: String, client: RaphtoryGraphQLClient) -> Self {
+    pub fn new(path: String, client: RemoteClient) -> Self {
         let transport: Arc<dyn Transport> = Arc::new(GraphqlTransport::new(client.clone()));
         let expr = ReadExpr::Root { path: path.clone() };
         Self {

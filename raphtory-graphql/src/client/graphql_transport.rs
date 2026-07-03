@@ -7,7 +7,7 @@
 use crate::client::{
     build_property_string,
     op::{AddNode, Op, ReadExpr, WriteOp},
-    raphtory_client::RaphtoryGraphQLClient,
+    remote_client::RemoteClient,
     remote_graph::build_query,
     transport::Transport,
     ClientError,
@@ -18,13 +18,13 @@ use raphtory_api::core::entities::properties::prop::Prop;
 use serde_json::Value as JsonValue;
 use std::collections::HashMap;
 
-/// V1 transport: renders ops as GraphQL, sends over HTTP via `RaphtoryGraphQLClient`.
+/// V1 transport: renders ops as GraphQL, sends over HTTP via `RemoteClient`.
 pub struct GraphqlTransport {
-    client: RaphtoryGraphQLClient,
+    client: RemoteClient,
 }
 
 impl GraphqlTransport {
-    pub fn new(client: RaphtoryGraphQLClient) -> Self {
+    pub fn new(client: RemoteClient) -> Self {
         Self { client }
     }
 }
@@ -248,7 +248,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_end_to_end_add_node_and_degree() {
-        use crate::{client::raphtory_client::RaphtoryGraphQLClient, server::GraphServer};
+        use crate::{client::remote_client::RemoteClient, server::GraphServer};
         use raphtory::db::api::storage::storage::Config;
         use reqwest::Url;
         use tempfile::tempdir;
@@ -261,7 +261,7 @@ mod tests {
         let port = running.port();
 
         let url = Url::parse(&format!("http://localhost:{port}")).unwrap();
-        let client = RaphtoryGraphQLClient::new(url, None);
+        let client = RemoteClient::new(url, None);
 
         // Create the graph
         client.new_graph("test-graph", "EVENT").await.unwrap();

@@ -2,7 +2,7 @@ use crate::{
     cli::python_cli,
     python::{
         client::{
-            raphtory_client::PyRaphtoryClient, remote_edge::PyRemoteEdge,
+            remote_client::PyRaphtoryClient, remote_edge::PyRemoteEdge,
             remote_graph::PyRemoteGraph, remote_node::PyRemoteNode, PyAllPropertySpec,
             PyEdgeAddition, PyNodeAddition, PyPropsInput, PyRemoteIndexSpec, PySomePropertySpec,
             PyUpdate,

@@ -2,7 +2,7 @@ use crate::client::{
     build_property_string,
     graphql_transport::GraphqlTransport,
     op::{Op, ReadExpr},
-    raphtory_client::RaphtoryGraphQLClient,
+    remote_client::RemoteClient,
     remote_graph::build_query,
     transport::Transport,
     ClientError,
@@ -22,7 +22,7 @@ use std::{collections::HashMap, sync::Arc};
 pub struct RemoteNode {
     pub path: String,
     /// Kept for now — behavior preservation during migration.
-    pub client: RaphtoryGraphQLClient,
+    pub client: RemoteClient,
     pub id: String,
     pub transport: Arc<dyn Transport>,
     pub expr: ReadExpr,
@@ -32,7 +32,7 @@ impl RemoteNode {
     /// Legacy constructor: builds a fresh transport and a minimal `Root → Node`
     /// expression. Use `with_expr` when a parent `RemoteGraph` has already
     /// built up view state.
-    pub fn new(path: String, client: RaphtoryGraphQLClient, id: String) -> Self {
+    pub fn new(path: String, client: RemoteClient, id: String) -> Self {
         let transport: Arc<dyn Transport> = Arc::new(GraphqlTransport::new(client.clone()));
         let expr = ReadExpr::Node {
             input: Box::new(ReadExpr::Root { path: path.clone() }),
@@ -52,7 +52,7 @@ impl RemoteNode {
     /// child node reference.
     pub fn with_expr(
         path: String,
-        client: RaphtoryGraphQLClient,
+        client: RemoteClient,
         id: String,
         transport: Arc<dyn Transport>,
         expr: ReadExpr,

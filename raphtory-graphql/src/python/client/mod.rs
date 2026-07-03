@@ -12,7 +12,7 @@ use serde::{ser::SerializeStruct, Serialize, Serializer};
 use serde_json::json;
 use std::collections::HashMap;
 
-pub mod raphtory_client;
+pub mod remote_client;
 pub mod remote_edge;
 pub mod remote_graph;
 pub mod remote_node;

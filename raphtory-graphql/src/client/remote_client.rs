@@ -10,13 +10,13 @@ use url::Url;
 
 /// Client for interacting with a Raphtory GraphQL server.
 #[derive(Clone, Debug)]
-pub struct RaphtoryGraphQLClient {
+pub struct RemoteClient {
     pub(crate) url: Url,
     pub(crate) token: String,
     client: Client,
 }
 
-impl RaphtoryGraphQLClient {
+impl RemoteClient {
     /// Create a new client. Does not perform a connectivity check; use [`client::is_online`] first if needed.
     pub fn new(url: Url, token: Option<String>) -> Self {
         Self {
