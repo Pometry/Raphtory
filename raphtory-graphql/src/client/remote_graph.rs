@@ -1,6 +1,12 @@
 use crate::client::{
-    build_property_string, raphtory_client::RaphtoryGraphQLClient, remote_edge::RemoteEdge,
-    remote_node::RemoteNode, ClientError,
+    build_property_string,
+    graphql_transport::GraphqlTransport,
+    op::{AddNode as AddNodeOp, Op, ReadExpr, WriteOp},
+    raphtory_client::RaphtoryGraphQLClient,
+    remote_edge::RemoteEdge,
+    remote_node::RemoteNode,
+    transport::Transport,
+    ClientError,
 };
 use minijinja::{context, Environment, Value};
 use raphtory_api::core::{
@@ -8,7 +14,7 @@ use raphtory_api::core::{
     storage::timeindex::{AsTime, EventTime},
     utils::time::IntoTime,
 };
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 pub fn build_query(template: &str, context: Value) -> Result<String, ClientError> {
     let mut env = Environment::new();
@@ -23,20 +29,63 @@ pub fn build_query(template: &str, context: Value) -> Result<String, ClientError
 }
 
 /// A handle to a remote graph on the server.
+///
+/// Holds an accumulating `ReadExpr` for lazy view construction — `.window()`,
+/// `.node()` etc. append to it without firing an RPC. Terminals on the child
+/// types (e.g. `RemoteNode::degree`) evaluate the accumulated expression via
+/// the transport.
 #[derive(Clone)]
 pub struct RemoteGraph {
     pub path: String,
+    /// Kept for now — used by writes that haven't yet been migrated through
+    /// the transport. Removed once all writes route through it.
     pub client: RaphtoryGraphQLClient,
+    pub transport: Arc<dyn Transport>,
+    /// The read expression built so far. Starts as `Root { path }`.
+    pub expr: ReadExpr,
 }
 
 impl RemoteGraph {
     pub fn new(path: String, client: RaphtoryGraphQLClient) -> Self {
-        Self { path, client }
+        let transport: Arc<dyn Transport> = Arc::new(GraphqlTransport::new(client.clone()));
+        let expr = ReadExpr::Root { path: path.clone() };
+        Self {
+            path,
+            client,
+            transport,
+            expr,
+        }
+    }
+
+    /// Time-window the graph. Lazy — builds up the read expression, no RPC.
+    pub fn window(&self, start: i64, end: i64) -> RemoteGraph {
+        RemoteGraph {
+            path: self.path.clone(),
+            client: self.client.clone(),
+            transport: self.transport.clone(),
+            expr: ReadExpr::Window {
+                input: Box::new(self.expr.clone()),
+                start,
+                end,
+            },
+        }
     }
 
     /// Returns a remote node reference for the given node id.
+    /// Carries the built-up read expression forward, so subsequent terminals
+    /// (e.g. `degree()`) evaluate under the same view chain.
     pub fn node(&self, id: impl ToString) -> RemoteNode {
-        RemoteNode::new(self.path.clone(), self.client.clone(), id.to_string())
+        let id_str = id.to_string();
+        RemoteNode::with_expr(
+            self.path.clone(),
+            self.client.clone(),
+            id_str.clone(),
+            self.transport.clone(),
+            ReadExpr::Node {
+                input: Box::new(self.expr.clone()),
+                id: id_str,
+            },
+        )
     }
 
     /// Returns a remote edge reference for the given source and destination node ids.
@@ -57,50 +106,26 @@ impl RemoteGraph {
         node_type: Option<String>,
         layer: Option<String>,
     ) -> Result<RemoteNode, ClientError> {
-        let template = r#"
-        {
-            updateGraph(path: "{{ path }}") {
-                addNode(
-                    time: {{ time }},
-                    name: "{{ name }}"
-                    {% if properties is not none %}, properties: {{ properties | safe }}{% endif %}
-                    {% if node_type is not none %}, nodeType: "{{ node_type }}"{% endif %}
-                    {% if layer is not none %}, layer: "{{ layer }}"{% endif %}
-                ) {
-                    success
-                }
-            }
-        }
-        "#;
-
-        let ctx = context! {
-            path => self.path,
-            time => timestamp.into_time().t(),
-            name => id.to_string(),
-            properties => properties.map(|p| build_property_string(p)),
-            node_type => node_type,
-            layer => layer,
-        };
-
-        let query = build_query(template, ctx)?;
-        let res = self.client.query(&query, HashMap::new()).await?;
-        if res
-            .get("updateGraph")
-            .and_then(|x| x.as_object())
-            .and_then(|x| x.get("addNode"))
-            .and_then(|x| x.as_object())
-            .and_then(|x| x.get("success"))
-            .and_then(|x| x.as_bool())
-            .is_some_and(|x| x == true)
-        {
-            Ok(RemoteNode::new(
-                self.path.clone(),
-                self.client.clone(),
-                id.to_string(),
-            ))
-        } else {
-            Err(ClientError::UnsuccessfulResponse)
-        }
+        let id_str = id.to_string();
+        let op = Op::Write(WriteOp::AddNode(AddNodeOp {
+            path: self.path.clone(),
+            time: timestamp.into_time().t(),
+            id: id_str.clone(),
+            properties,
+            node_type,
+            layer,
+        }));
+        self.transport.execute(&op).await?;
+        Ok(RemoteNode::with_expr(
+            self.path.clone(),
+            self.client.clone(),
+            id_str.clone(),
+            self.transport.clone(),
+            ReadExpr::Node {
+                input: Box::new(self.expr.clone()),
+                id: id_str,
+            },
+        ))
     }
 
     /// Create a new node (fails if the node already exists). Uses the createNode mutation.

@@ -1,13 +1,19 @@
 mod error;
+pub mod graphql_transport;
+pub mod op;
 pub mod raphtory_client;
 pub mod remote_edge;
 pub mod remote_graph;
 pub mod remote_node;
+pub mod transport;
 
 pub use error::ClientError;
+pub use graphql_transport::GraphqlTransport;
+pub use op::{AddNode, Op, ReadExpr, WriteOp};
 pub use remote_edge::RemoteEdge;
 pub use remote_graph::RemoteGraph;
 pub use remote_node::RemoteNode;
+pub use transport::Transport;
 
 use raphtory_api::core::entities::properties::prop::Prop;
 use std::collections::HashMap;
