@@ -15,3 +15,19 @@ pub enum GraphType {
     EventGraph,
     PersistentGraph,
 }
+
+impl GraphType {
+    pub fn is_event_graph(&self) -> bool {
+        match self {
+            GraphType::EventGraph => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_persistent_graph(&self) -> bool {
+        match self {
+            GraphType::PersistentGraph => true,
+            _ => false,
+        }
+    }
+}

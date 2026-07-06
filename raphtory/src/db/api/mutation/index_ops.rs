@@ -2,8 +2,8 @@ use crate::{
     db::api::view::{IndexSpec, IndexSpecBuilder},
     errors::GraphError,
     prelude::AdditionOps,
-    serialise::{GraphFolder, GraphPaths},
 };
+use raphtory_api::core::storage::graph_folder::{GraphFolder, GraphPaths};
 use std::{
     fs::File,
     io::{Seek, Write},

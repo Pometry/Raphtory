@@ -17,7 +17,6 @@ use crate::{
         SECONDARY_INDEX_COL, SRC_GID_COL, SRC_VID_COL, TIME_COL, TYPE_COL, TYPE_ID_COL,
     },
     prelude::*,
-    serialise::GraphPaths,
 };
 use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use itertools::Itertools;
@@ -26,7 +25,12 @@ use parquet::{
     basic::Compression,
     file::{metadata::KeyValue, properties::WriterProperties},
 };
-use raphtory_api::{core::entities::properties::prop::prop_col::lift_property_col, GraphType};
+use raphtory_api::{
+    core::{
+        entities::properties::prop::prop_col::lift_property_col, storage::graph_folder::GraphPaths,
+    },
+    GraphType,
+};
 use raphtory_storage::core_ops::CoreGraphOps;
 use std::{
     fs::File,

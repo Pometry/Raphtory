@@ -33,12 +33,12 @@ use raphtory::{
     },
     errors::GraphError,
     prelude::AdditionOps,
-    serialise::GraphPaths,
     vectors::{
         cache::CachedEmbeddingModel, storage::LazyDiskVectorCache, template::DocumentTemplate,
         vectorisable::Vectorisable, vectorised_graph::VectorisedGraph,
     },
 };
+use raphtory_api::core::storage::graph_folder::GraphPaths;
 use std::{
     cmp::Ordering,
     fs, io,
@@ -50,8 +50,6 @@ use std::{
 use tokio::sync::{OwnedRwLockReadGuard, OwnedRwLockWriteGuard, RwLock, RwLockReadGuard};
 use tracing::{error, warn};
 use walkdir::WalkDir;
-
-pub const DIRTY_PATH: &'static str = ".dirty";
 
 #[derive(thiserror::Error, Debug)]
 pub enum MutationErrorInner {
@@ -873,8 +871,8 @@ pub(crate) mod data_tests {
     use raphtory::{
         db::api::view::{internal::InternalStorageOps, MaterializedGraph},
         prelude::*,
-        serialise::GraphPaths,
     };
+    use raphtory_api::core::storage::graph_folder::GraphPaths;
     use std::{collections::HashMap, fs, path::Path, time::Duration};
     use tokio::time::sleep;
 
