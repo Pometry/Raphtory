@@ -62,8 +62,8 @@ use std::{
 pub(crate) struct GqlGraph {
     path: UnlockedGraphFolder,
     graph: DynamicGraph,
-    // Shared schema cache, set only for the unfiltered native base graph.
-    // Any derived view (window/layer/filter/...) drops it so it recomputes.
+    /// Shared schema cache, set only for the unfiltered native base graph.
+    /// Any derived view (window/layer/filter/...) drops it so it recomputes.
     schema_cache: Option<Arc<SchemaCache>>,
 }
 

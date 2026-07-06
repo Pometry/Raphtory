@@ -57,9 +57,8 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
         layer_id: LayerId,
     ) -> LocalPOS {
         self.graph_stats.update_time(t.t());
-        // Mirror each (layer, prop_id) into the per-layer property presence bitset in Meta.
+        // Update the per-layer property presence bitset in Meta.
         // `.inspect` runs once per emitted item as the iterator is consumed in `insert_edge_internal`
-        // without needing to pass Meta to insert_edge_internal
         let meta = self.writer.edge_meta().clone();
         let props = props.into_iter().inspect(move |(id, _)| {
             meta.temporal_prop_mapper()
@@ -140,7 +139,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
             }
         }
 
-        // Mirror each (layer, prop_id) into the per-layer property presence bitset in Meta.
+        // Update the per-layer property presence bitset in Meta.
         // `.inspect` runs once per emitted item as the iterator is consumed in `insert_edge_internal`
         let meta = self.writer.edge_meta().clone();
         let t_meta = meta.as_ref();
@@ -233,8 +232,8 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
         if !existing_edge {
             self.increment_layer_num_edges(layer_id);
         }
-        // Mirror each (layer, prop_id) into the per-layer property presence bitset in Meta.
-        // `.inspect` runs once per emitted item as the iterator is consumed (in update_const_properties)
+        // Update the per-layer property presence bitset in Meta.
+        // `.inspect` runs once per emitted item as the iterator is consumed in `update_const_properties`
         let meta = self.writer.edge_meta().clone();
         let props = props.into_iter().inspect(move |(id, _)| {
             meta.metadata_mapper().mark_prop_in_layer(layer_id, *id);

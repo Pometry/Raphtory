@@ -153,6 +153,7 @@ impl<T: HasRow> SparseVec<T> {
     }
 }
 
+/// A single layer's data in a Mem(Edge/Node)Segment.
 #[derive(Debug)]
 pub struct SegmentContainer<T> {
     segment_id: usize,

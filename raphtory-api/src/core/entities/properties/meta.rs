@@ -319,7 +319,7 @@ impl PropMapper {
             .unwrap_or(false)
     }
 
-    /// Mark `prop_id` as present in `layer_id`. only takes the write lock once per (layer, prop)
+    /// Mark `prop_id` as present in `layer_id`. Only takes the write lock once per (layer, prop)
     pub fn mark_prop_in_layer(&self, layer_id: LayerId, prop_id: usize) {
         if self.layer_has(layer_id, prop_id) {
             return;
@@ -483,7 +483,7 @@ pub struct WriteLockedPropMapper<'a> {
     /// Estimated size in bytes of a single row of properties maintained by this mapper.
     row_size: &'a AtomicUsize,
 
-    /// Per-layer property presence bitset
+    /// Per-layer property presence bitset.
     layer_presence: RwLockWriteGuard<'a, Vec<Vec<bool>>>,
 }
 

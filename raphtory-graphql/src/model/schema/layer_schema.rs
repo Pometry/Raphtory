@@ -50,7 +50,7 @@ impl<G: StaticGraphViewOps> LayerSchema<G> {
         let graph = self.graph.clone();
         let layer_id = self.layer_id;
         let result = blocking_compute(move || {
-            if too_many_edges(&graph, layer_id) {
+            if graph.unfiltered_num_edges(&LayerIds::One(layer_id)) > MAX_DETAILED_SCHEMA_ENTITIES {
                 // too many edges to collect values: keys/types only, no variants
                 return collect_layer_schema(&graph, layer_id, false);
             }
@@ -78,7 +78,7 @@ impl<G: StaticGraphViewOps> LayerSchema<G> {
         let graph = self.graph.clone();
         let layer_id = self.layer_id;
         let result = blocking_compute(move || {
-            if too_many_edges(&graph, layer_id) {
+            if graph.unfiltered_num_edges(&LayerIds::One(layer_id)) > MAX_DETAILED_SCHEMA_ENTITIES {
                 return collect_layer_schema(&graph, layer_id, true);
             }
             let layer = graph.get_layer_name(layer_id);
@@ -92,11 +92,6 @@ impl<G: StaticGraphViewOps> LayerSchema<G> {
         }
         result
     }
-}
-
-/// True if the layer holds more edges than we're willing to scan for values.
-fn too_many_edges<G: StaticGraphViewOps>(graph: &G, layer_id: LayerId) -> bool {
-    graph.unfiltered_num_edges(&LayerIds::One(layer_id)) > MAX_DETAILED_SCHEMA_ENTITIES
 }
 
 /// Get edge property/metadata keys and types using bitset without collecting values.

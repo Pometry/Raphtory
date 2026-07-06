@@ -189,8 +189,8 @@ impl<'a> NodeStorageOps<'a> for NodeEntryRef<'a> {
         NodeRefOps::c_prop(self, layer_id, prop_id)
     }
 
-    /// Layer-skip override: drop layers whose per-layer property presence bitset in
-    /// Meta says `prop_id` has never been written
+    // Layer-skip override: drop layers whose per-layer property presence bitset in
+    // Meta says `prop_id` has never been written
     fn temporal_prop_iter(
         self,
         layer_ids: &'a LayerIds,
@@ -207,7 +207,7 @@ impl<'a> NodeStorageOps<'a> for NodeEntryRef<'a> {
             })
     }
 
-    /// Layer-skip override: same shape as `temporal_prop_iter` but for the metadata mapper.
+    // Layer-skip override: same shape as `temporal_prop_iter` but for the metadata mapper.
     fn constant_prop_iter(
         self,
         layer_ids: &'a LayerIds,
@@ -224,7 +224,7 @@ impl<'a> NodeStorageOps<'a> for NodeEntryRef<'a> {
             })
     }
 
-    /// Layer-skip override: drops layers that the per-layer bitset says don't carry `prop_id`.
+    // Layer-skip override: drops layers that the per-layer bitset says don't carry `prop_id`.
     fn tprop_iter_layers(
         self,
         layer_ids: &LayerIds,

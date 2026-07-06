@@ -24,8 +24,8 @@ impl GraphSchema {
             .collect();
 
         let layers = graph
-            .layer_ids()
-            .iter(graph.num_layers())
+            .layer_ids() // FIXME: Do we want to use unique_layers() here instead?
+            .iter(graph.num_layers() + 1)
             // skip the internal `_static_graph` layer
             .filter(|&layer_id| layer_id != STATIC_GRAPH_LAYER_ID)
             .map(|layer_id| LayerSchema::new(graph.clone(), layer_id, cache.clone()))

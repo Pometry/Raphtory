@@ -238,7 +238,7 @@ impl<'a> EdgeStorageOps<'a> for storage::EdgeEntryRef<'a> {
         EdgeRefOps::c_prop(self, layer_id, prop_id)
     }
 
-    /// Layer-skip override: drop layers where we know the property isn't present
+    // Layer-skip override: drop layers where we know the property isn't present
     fn temporal_prop_iter(
         self,
         layer_ids: &'a LayerIds,
@@ -250,7 +250,7 @@ impl<'a> EdgeStorageOps<'a> for storage::EdgeEntryRef<'a> {
             .map(move |id| (id, EdgeStorageOps::temporal_prop_layer(self, id, prop_id)))
     }
 
-    /// Layer-skip override: same shape as `temporal_prop_iter` but against the metadata mapper
+    // Layer-skip override: same shape as `temporal_prop_iter` but against the metadata mapper
     fn metadata_iter(
         self,
         layer_ids: &'a LayerIds,

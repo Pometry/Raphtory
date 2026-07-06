@@ -23,7 +23,7 @@ use std::sync::Arc;
 
 pub mod props_meta_writer;
 
-// Held by SegmentContainer, which corresponds to one layer in a Mem(Edge/Node)Segment
+/// Contains the properties of a `SegmentContainer` (which corresponds to one layer in a Mem(Edge/Node)Segment)
 #[derive(Debug, Default)]
 pub struct Properties {
     c_properties: Vec<PropColumn>,
