@@ -72,9 +72,11 @@ mod graphql_test {
             graph::views::deletion_graph::PersistentGraph,
         },
         prelude::*,
-        serialise::GraphFolder,
     };
-    use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
+    use raphtory_api::core::{
+        entities::GID,
+        storage::{arc_str::ArcStr, graph_folder::GraphFolder},
+    };
     use serde_json::{json, Value};
     use std::{
         collections::{HashMap, HashSet},

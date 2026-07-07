@@ -13,7 +13,7 @@ use raphtory_api::core::{
             meta::Meta,
             prop::{AsPropRef, Prop, PropType},
         },
-        GidRef, LayerId, LayerIds, EID, VID,
+        GidRef, LayerId, EID, VID,
     },
     storage::{dict_mapper::MaybeNew, timeindex::EventTime},
 };
@@ -37,11 +37,12 @@ use std::{
 use storage::wal::LSN;
 
 #[cfg(feature = "search")]
+use raphtory_api::core::storage::graph_folder::{GraphFolder, GraphPaths};
+#[cfg(feature = "search")]
 use {
     crate::{
         db::api::view::IndexSpec,
         search::graph_index::{GraphIndex, MutableGraphIndex},
-        serialise::{GraphFolder, GraphPaths},
     },
     parking_lot::RwLock,
     raphtory_api::core::entities::properties::prop::IntoProp,
@@ -53,7 +54,6 @@ use {
     tracing::info,
     zip::ZipWriter,
 };
-
 // Re-export for raphtory dependencies to use when creating graphs.
 pub use storage::{
     persist::strategy::PersistenceStrategy, read_constant_graph_properties, Config, Extension,
@@ -64,21 +64,6 @@ pub struct Storage {
     graph: GraphStorage,
     #[cfg(feature = "search")]
     pub(crate) index: RwLock<GraphIndex>,
-}
-
-#[cfg(feature = "io")]
-impl Drop for Storage {
-    fn drop(&mut self) {
-        if let Some(disk_path) = self.graph.disk_storage_path() {
-            let disk_path = disk_path.to_path_buf();
-            let node_count = self.graph.unfiltered_num_nodes(&LayerIds::All);
-            let edge_count = self.graph.unfiltered_num_edges(&LayerIds::All);
-            // Drop must not panic - ignore any error refreshing the metadata
-            // file. The graph data itself is already persisted by the storage
-            // layer so a stale `.meta` only affects node and edge counts (for now).
-            let _ = storage::refresh_disk_graph_metadata(&disk_path, node_count, edge_count);
-        }
-    }
 }
 
 impl From<GraphStorage> for Storage {

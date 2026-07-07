@@ -20,9 +20,9 @@ use raphtory::{
     },
     errors::{GraphError, GraphResult},
     prelude::{EdgeViewOps, StableDecode},
-    serialise::GraphPaths,
     vectors::{storage::LazyDiskVectorCache, vectorised_graph::VectorisedGraph},
 };
+use raphtory_api::core::storage::graph_folder::GraphPaths;
 use raphtory_storage::{
     core_ops::InheritCoreGraphOps, layer_ops::InheritLayerOps, mutation::InheritMutationOps,
 };
