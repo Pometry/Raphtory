@@ -6,7 +6,7 @@ use pyo3::{exceptions::PyValueError, prelude::*, pyclass, pymethods};
 use raphtory_api::{
     core::{
         entities::{properties::prop::Prop, GID},
-        storage::timeindex::AsTime,
+        storage::timeindex::{AsTime, EventTime},
         utils::time::IntoTime,
     },
     python::{error::adapt_err_value, timeindex::PyEventTime},

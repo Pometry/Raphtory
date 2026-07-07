@@ -688,25 +688,56 @@ fn render_read(expr: &ReadExpr) -> String {
 fn render_read_body(expr: &ReadExpr) -> String {
     match expr {
         ReadExpr::Root { path } => format!("graph(path: \"{}\")", path),
+        // View chaining
         ReadExpr::Window { input, start, end } => format!(
             "{} {{ window(start: {}, end: {})",
             render_read_body(input),
             start,
             end
         ),
+        ReadExpr::Layer { input, name } => format!(
+            "{} {{ layer(name: \"{}\")",
+            render_read_body(input),
+            name
+        ),
+        ReadExpr::At { input, time } => {
+            format!("{} {{ at(time: {})", render_read_body(input), time)
+        }
+        ReadExpr::Before { input, time } => {
+            format!("{} {{ before(time: {})", render_read_body(input), time)
+        }
+        ReadExpr::After { input, time } => {
+            format!("{} {{ after(time: {})", render_read_body(input), time)
+        }
+        // Selection
         ReadExpr::Node { input, id } => {
             format!("{} {{ node(name: \"{}\")", render_read_body(input), id)
         }
+        // Terminals — no args after the field name
+        ReadExpr::CountNodes { input } => format!("{} {{ countNodes", render_read_body(input)),
+        ReadExpr::CountEdges { input } => format!("{} {{ countEdges", render_read_body(input)),
         ReadExpr::Degree { input } => format!("{} {{ degree", render_read_body(input)),
+        ReadExpr::InDegree { input } => format!("{} {{ inDegree", render_read_body(input)),
+        ReadExpr::OutDegree { input } => format!("{} {{ outDegree", render_read_body(input)),
+        ReadExpr::Name { input } => format!("{} {{ name", render_read_body(input)),
     }
 }
 
 fn read_depth(expr: &ReadExpr) -> usize {
     match expr {
         ReadExpr::Root { .. } => 0,
-        ReadExpr::Window { input, .. } => 1 + read_depth(input),
-        ReadExpr::Node { input, .. } => 1 + read_depth(input),
-        ReadExpr::Degree { input } => 1 + read_depth(input),
+        ReadExpr::Window { input, .. }
+        | ReadExpr::Layer { input, .. }
+        | ReadExpr::At { input, .. }
+        | ReadExpr::Before { input, .. }
+        | ReadExpr::After { input, .. }
+        | ReadExpr::Node { input, .. }
+        | ReadExpr::CountNodes { input }
+        | ReadExpr::CountEdges { input }
+        | ReadExpr::Degree { input }
+        | ReadExpr::InDegree { input }
+        | ReadExpr::OutDegree { input }
+        | ReadExpr::Name { input } => 1 + read_depth(input),
     }
 }
 
@@ -729,13 +760,25 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
     })?;
 
     match expr {
-        ReadExpr::Degree { .. } => terminal_val
+        // i64-shaped terminals
+        ReadExpr::Degree { .. }
+        | ReadExpr::InDegree { .. }
+        | ReadExpr::OutDegree { .. }
+        | ReadExpr::CountNodes { .. }
+        | ReadExpr::CountEdges { .. } => terminal_val
             .as_i64()
             .map(|n| Some(Prop::I64(n)))
-            .ok_or_else(|| ClientError::InvalidResponse("`degree` not an i64".into())),
-        // The outermost expression must be a terminal — Root/Window/Node
-        // alone don't fire an RPC. This branch is unreachable for well-formed
-        // trees built by the client wrappers.
+            .ok_or_else(|| {
+                ClientError::InvalidResponse(format!("`{}` not an i64", terminal_key))
+            }),
+        // String-shaped terminals
+        ReadExpr::Name { .. } => terminal_val
+            .as_str()
+            .map(|s| Some(Prop::Str(s.into())))
+            .ok_or_else(|| {
+                ClientError::InvalidResponse(format!("`{}` not a string", terminal_key))
+            }),
+        // Non-terminals — outermost expr must be a terminal in a well-formed tree.
         _ => Err(ClientError::InvalidResponse(
             "expression tree has no terminal".into(),
         )),
@@ -750,13 +793,49 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
                 go(input, out);
                 out.push("window");
             }
+            ReadExpr::Layer { input, .. } => {
+                go(input, out);
+                out.push("layer");
+            }
+            ReadExpr::At { input, .. } => {
+                go(input, out);
+                out.push("at");
+            }
+            ReadExpr::Before { input, .. } => {
+                go(input, out);
+                out.push("before");
+            }
+            ReadExpr::After { input, .. } => {
+                go(input, out);
+                out.push("after");
+            }
             ReadExpr::Node { input, .. } => {
                 go(input, out);
                 out.push("node");
             }
+            ReadExpr::CountNodes { input } => {
+                go(input, out);
+                out.push("countNodes");
+            }
+            ReadExpr::CountEdges { input } => {
+                go(input, out);
+                out.push("countEdges");
+            }
             ReadExpr::Degree { input } => {
                 go(input, out);
                 out.push("degree");
+            }
+            ReadExpr::InDegree { input } => {
+                go(input, out);
+                out.push("inDegree");
+            }
+            ReadExpr::OutDegree { input } => {
+                go(input, out);
+                out.push("outDegree");
+            }
+            ReadExpr::Name { input } => {
+                go(input, out);
+                out.push("name");
             }
         }
     }

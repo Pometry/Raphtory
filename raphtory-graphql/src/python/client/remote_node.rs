@@ -112,7 +112,26 @@ impl PyRemoteNode {
     ///   int: the node's degree
     pub fn degree(&self) -> Result<i64, ClientError> {
         let node = Arc::clone(&self.node);
-        let task = move || async move { node.degree().await };
-        execute_async_task(task)
+        execute_async_task(move || async move { node.degree().await })
+    }
+
+    /// Returns the in-degree of the node under the current view chain.
+    /// Fires one RPC.
+    pub fn in_degree(&self) -> Result<i64, ClientError> {
+        let node = Arc::clone(&self.node);
+        execute_async_task(move || async move { node.in_degree().await })
+    }
+
+    /// Returns the out-degree of the node under the current view chain.
+    /// Fires one RPC.
+    pub fn out_degree(&self) -> Result<i64, ClientError> {
+        let node = Arc::clone(&self.node);
+        execute_async_task(move || async move { node.out_degree().await })
+    }
+
+    /// Returns the node's name. Fires one RPC.
+    pub fn name(&self) -> Result<String, ClientError> {
+        let node = Arc::clone(&self.node);
+        execute_async_task(move || async move { node.name().await })
     }
 }

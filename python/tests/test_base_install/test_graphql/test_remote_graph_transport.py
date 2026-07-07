@@ -68,3 +68,54 @@ def test_view_chain_propagation():
         )
     finally:
         server_cm.__exit__(None, None, None)
+
+
+def test_graph_terminals():
+    """`count_nodes` / `count_edges` on `RemoteGraph`, both unwindowed and
+    under a view chain."""
+    server_cm, rg = _make_graph_with_edge()
+    try:
+        assert rg.count_nodes() == 2
+        assert rg.count_edges() == 1
+
+        # Window [0, 3) includes ben (t=1) and hamza (t=2) but excludes the
+        # edge (added at t=3, and window end is exclusive).
+        rg_narrow = rg.window(0, 3)
+        assert rg_narrow.count_nodes() == 2
+        assert rg_narrow.count_edges() == 0
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_node_terminals():
+    """`.name()`, `.in_degree()`, `.out_degree()` on `RemoteNode`."""
+    server_cm, rg = _make_graph_with_edge()
+    try:
+        ben = rg.node("ben")
+        assert ben.name() == "ben"
+        assert ben.out_degree() == 1  # ben → hamza
+        assert ben.in_degree() == 0
+
+        hamza = rg.node("hamza")
+        assert hamza.out_degree() == 0
+        assert hamza.in_degree() == 1  # ben → hamza
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_view_ops():
+    """`.at(...)`, `.before(...)`, `.after(...)` are lazy builders that
+    compose with terminals. Server-side `.after` is an exclusive lower bound
+    (strictly-after semantics), `.before` is an exclusive upper bound."""
+    server_cm, rg = _make_graph_with_edge()
+    try:
+        # `.before(3)` — strictly before t=3 — edge at t=3 not visible.
+        assert rg.before(3).node("ben").degree() == 0
+        # `.before(4)` — includes the edge at t=3.
+        assert rg.before(4).node("ben").degree() == 1
+        # `.after(0)` — strictly after t=0 — all events visible.
+        assert rg.after(0).node("ben").degree() == 1
+        # `.at(3)` snapshots at t=3 — edge exists.
+        assert rg.at(3).node("ben").degree() == 1
+    finally:
+        server_cm.__exit__(None, None, None)

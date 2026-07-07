@@ -19,28 +19,54 @@ pub enum Op {
 }
 
 /// Recursive read expression. Composable: every non-terminal variant wraps its
-/// input, forming a tree. Terminals (e.g. `Degree`) fire the RPC on the server.
+/// input, forming a tree. Terminals (e.g. `Degree`, `CountNodes`, `Name`) fire
+/// the RPC on the server.
 ///
-/// This is a minimal starting set — enough to demo `g.window(s,e).node(id).degree()`
-/// end-to-end. More variants (layer, at, rolling, nodes, edges, properties,
-/// history, count_*, ...) added incrementally, driven by real demand.
+/// New variants land as demand arises. Structural pattern per variant:
+/// - `render_read_body` case in `graphql_transport.rs` — emit the GraphQL fragment
+/// - `read_depth` case — count how many `{` this variant opens (usually 1)
+/// - `build_json_path` case — push the JSON key(s) that navigate to this level
+/// - For terminals only: `parse_read` case to unwrap the JSON value into a `Prop`
 #[derive(Clone)]
 pub enum ReadExpr {
     /// Start of every read tree — names the graph.
     Root { path: String },
 
-    /// Time-window a graph (or nested view). Composes.
+    // ============ View chaining (Graph → Graph) ============
+    /// Time-window a graph. Composes.
     Window {
         input: Box<ReadExpr>,
         start: i64,
         end: i64,
     },
+    /// Restrict to a single layer.
+    Layer { input: Box<ReadExpr>, name: String },
+    /// Snapshot at a single timestamp.
+    At { input: Box<ReadExpr>, time: i64 },
+    /// Restrict to events strictly before the given time.
+    Before { input: Box<ReadExpr>, time: i64 },
+    /// Restrict to events at or after the given time.
+    After { input: Box<ReadExpr>, time: i64 },
 
+    // ============ Selection (Graph → Node) ============
     /// Narrow to a single node by id. Consumes a graph, produces a node.
     Node { input: Box<ReadExpr>, id: String },
 
-    /// Terminal: returns the degree of a node as an `i64`.
+    // ============ Scalar terminals on Graph ============
+    /// Terminal: total node count under the current view — `i64`.
+    CountNodes { input: Box<ReadExpr> },
+    /// Terminal: total edge count under the current view — `i64`.
+    CountEdges { input: Box<ReadExpr> },
+
+    // ============ Scalar terminals on Node ============
+    /// Terminal: node degree — `i64`.
     Degree { input: Box<ReadExpr> },
+    /// Terminal: in-degree — `i64`.
+    InDegree { input: Box<ReadExpr> },
+    /// Terminal: out-degree — `i64`.
+    OutDegree { input: Box<ReadExpr> },
+    /// Terminal: node name — `String`.
+    Name { input: Box<ReadExpr> },
 }
 
 /// Write operations. Each variant is a self-contained command with all its

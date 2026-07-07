@@ -32,6 +32,29 @@ pub fn build_query(template: &str, context: Value) -> Result<String, ClientError
     Ok(query)
 }
 
+/// Unwrap a `Transport::execute` result expecting a `Prop::I64` scalar.
+/// `context` is used for the error message if the shape doesn't match.
+pub(crate) fn expect_i64(v: Option<Prop>, context: &str) -> Result<i64, ClientError> {
+    match v {
+        Some(Prop::I64(n)) => Ok(n),
+        _ => Err(ClientError::InvalidResponse(format!(
+            "`{}` returned unexpected value type",
+            context
+        ))),
+    }
+}
+
+/// Unwrap a `Transport::execute` result expecting a `Prop::Str` scalar.
+pub(crate) fn expect_string(v: Option<Prop>, context: &str) -> Result<String, ClientError> {
+    match v {
+        Some(Prop::Str(s)) => Ok(s.to_string()),
+        _ => Err(ClientError::InvalidResponse(format!(
+            "`{}` returned unexpected value type",
+            context
+        ))),
+    }
+}
+
 /// A handle to a remote graph on the server.
 ///
 /// Holds an accumulating `ReadExpr` for lazy view construction — `.window()`,
@@ -59,14 +82,68 @@ impl RemoteGraph {
 
     /// Time-window the graph. Lazy — builds up the read expression, no RPC.
     pub fn window(&self, start: i64, end: i64) -> RemoteGraph {
+        self.with_expr(ReadExpr::Window {
+            input: Box::new(self.expr.clone()),
+            start,
+            end,
+        })
+    }
+
+    /// Restrict to a single named layer. Lazy — no RPC.
+    pub fn layer(&self, name: impl ToString) -> RemoteGraph {
+        self.with_expr(ReadExpr::Layer {
+            input: Box::new(self.expr.clone()),
+            name: name.to_string(),
+        })
+    }
+
+    /// Snapshot at a specific time. Lazy — no RPC.
+    pub fn at(&self, time: i64) -> RemoteGraph {
+        self.with_expr(ReadExpr::At {
+            input: Box::new(self.expr.clone()),
+            time,
+        })
+    }
+
+    /// Restrict to events strictly before the given time. Lazy — no RPC.
+    pub fn before(&self, time: i64) -> RemoteGraph {
+        self.with_expr(ReadExpr::Before {
+            input: Box::new(self.expr.clone()),
+            time,
+        })
+    }
+
+    /// Restrict to events at or after the given time. Lazy — no RPC.
+    pub fn after(&self, time: i64) -> RemoteGraph {
+        self.with_expr(ReadExpr::After {
+            input: Box::new(self.expr.clone()),
+            time,
+        })
+    }
+
+    /// Terminal: count of nodes under the current view. Fires one RPC.
+    pub async fn count_nodes(&self) -> Result<i64, ClientError> {
+        let op = Op::Read(ReadExpr::CountNodes {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_i64(self.transport.execute(&op).await?, "countNodes")
+    }
+
+    /// Terminal: count of edges under the current view. Fires one RPC.
+    pub async fn count_edges(&self) -> Result<i64, ClientError> {
+        let op = Op::Read(ReadExpr::CountEdges {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_i64(self.transport.execute(&op).await?, "countEdges")
+    }
+
+    /// Internal helper: clone `self` with a new `expr`. Keeps the view-op
+    /// builder methods (`.window`, `.layer`, `.at`, ...) as one-liners.
+    fn with_expr(&self, expr: ReadExpr) -> RemoteGraph {
         RemoteGraph {
             path: self.path.clone(),
             transport: self.transport.clone(),
-            expr: ReadExpr::Window {
-                input: Box::new(self.expr.clone()),
-                start,
-                end,
-            },
+            expr,
         }
     }
 

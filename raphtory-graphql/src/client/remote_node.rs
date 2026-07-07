@@ -3,6 +3,7 @@ use crate::client::{
         AddNodeMetadata as AddNodeMetadataOp, AddNodeUpdates as AddNodeUpdatesOp, Op, ReadExpr,
         SetNodeType as SetNodeTypeOp, UpdateNodeMetadata as UpdateNodeMetadataOp, WriteOp,
     },
+    remote_graph::{expect_i64, expect_string},
     transport::Transport,
     ClientError,
 };
@@ -42,18 +43,36 @@ impl RemoteNode {
         }
     }
 
-    /// Terminal: fires an RPC to evaluate the accumulated expression and
-    /// returns the node's degree.
+    /// Terminal: node degree (in + out, deduplicated). Fires one RPC.
     pub async fn degree(&self) -> Result<i64, ClientError> {
         let op = Op::Read(ReadExpr::Degree {
             input: Box::new(self.expr.clone()),
         });
-        match self.transport.execute(&op).await? {
-            Some(Prop::I64(n)) => Ok(n),
-            _ => Err(ClientError::InvalidResponse(
-                "`degree` returned unexpected value type".into(),
-            )),
-        }
+        expect_i64(self.transport.execute(&op).await?, "degree")
+    }
+
+    /// Terminal: node in-degree. Fires one RPC.
+    pub async fn in_degree(&self) -> Result<i64, ClientError> {
+        let op = Op::Read(ReadExpr::InDegree {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_i64(self.transport.execute(&op).await?, "inDegree")
+    }
+
+    /// Terminal: node out-degree. Fires one RPC.
+    pub async fn out_degree(&self) -> Result<i64, ClientError> {
+        let op = Op::Read(ReadExpr::OutDegree {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_i64(self.transport.execute(&op).await?, "outDegree")
+    }
+
+    /// Terminal: node name. Fires one RPC.
+    pub async fn name(&self) -> Result<String, ClientError> {
+        let op = Op::Read(ReadExpr::Name {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_string(self.transport.execute(&op).await?, "name")
     }
 
     /// Set the type on the node. This only works if the type has not been previously set.

@@ -47,6 +47,46 @@ impl PyRemoteGraph {
         }
     }
 
+    /// Restrict to a single named layer. Lazy — no RPC.
+    pub fn layer(&self, name: &str) -> PyRemoteGraph {
+        PyRemoteGraph {
+            graph: Arc::new(self.graph.layer(name)),
+        }
+    }
+
+    /// Snapshot at a specific time. Lazy — no RPC.
+    pub fn at(&self, time: i64) -> PyRemoteGraph {
+        PyRemoteGraph {
+            graph: Arc::new(self.graph.at(time)),
+        }
+    }
+
+    /// Restrict to events strictly before the given time. Lazy — no RPC.
+    pub fn before(&self, time: i64) -> PyRemoteGraph {
+        PyRemoteGraph {
+            graph: Arc::new(self.graph.before(time)),
+        }
+    }
+
+    /// Restrict to events at or after the given time. Lazy — no RPC.
+    pub fn after(&self, time: i64) -> PyRemoteGraph {
+        PyRemoteGraph {
+            graph: Arc::new(self.graph.after(time)),
+        }
+    }
+
+    /// Terminal: total node count under the current view. Fires one RPC.
+    pub fn count_nodes(&self) -> Result<i64, ClientError> {
+        let graph = Arc::clone(&self.graph);
+        execute_async_task(move || async move { graph.count_nodes().await })
+    }
+
+    /// Terminal: total edge count under the current view. Fires one RPC.
+    pub fn count_edges(&self) -> Result<i64, ClientError> {
+        let graph = Arc::clone(&self.graph);
+        execute_async_task(move || async move { graph.count_edges().await })
+    }
+
     /// Gets a remote node with the specified id.
     ///
     /// Inherits any view chain built up on the parent `RemoteGraph` (e.g. after
