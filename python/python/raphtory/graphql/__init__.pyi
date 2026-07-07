@@ -478,7 +478,7 @@ class RemoteGraph(object):
 
     def edge(self, src: str | int, dst: str | int) -> RemoteEdge:
         """
-        Gets a remote edge with the specified source and destination nodes
+        Gets a remote edge with the specified source and destination nodes.
 
         Arguments:
             src (str | int): the source node id
@@ -490,7 +490,11 @@ class RemoteGraph(object):
 
     def node(self, id: str | int) -> RemoteNode:
         """
-        Gets a remote node with the specified id
+        Gets a remote node with the specified id.
+
+        Inherits any view chain built up on the parent `RemoteGraph` (e.g. after
+        `rg.window(...)`) so subsequent terminals like `degree()` evaluate under
+        the same view context.
 
         Arguments:
             id (str | int): the node id
@@ -508,6 +512,23 @@ class RemoteGraph(object):
 
         Returns:
             None:
+        """
+
+    def window(self, start: int, end: int) -> RemoteGraph:
+        """
+        Restrict the graph to a time window `[start, end)`.
+
+        Lazy: builds up a read expression on the returned `RemoteGraph` without
+        firing an RPC. Terminals invoked on child references (e.g.
+        `rg.window(0, 10).node("ben").degree()`) evaluate under the accumulated
+        view chain.
+
+        Arguments:
+            start (int): inclusive start of the window
+            end (int): exclusive end of the window
+
+        Returns:
+            RemoteGraph: a new remote graph view restricted to the window
         """
 
 class RemoteEdge(object):
@@ -614,6 +635,17 @@ class RemoteNode(object):
 
         Returns:
           None:
+        """
+
+    def degree(self) -> int:
+        """
+        Returns the degree of the node, evaluated under the current view chain
+        (e.g. under any `rg.window(...)` applied on the parent graph).
+
+        Fires one RPC to the server.
+
+        Returns:
+          int: the node's degree
         """
 
     def set_node_type(self, new_type: str) -> None:
