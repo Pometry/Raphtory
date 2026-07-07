@@ -26,17 +26,23 @@ use dynamic_graphql::{
 use itertools::Itertools;
 use minijinja::functions::namespace;
 use raphtory::{
-    arrow_loader::{self, df_loaders::edges::ColumnNames}, db::{
+    arrow_loader::{self, df_loaders::edges::ColumnNames},
+    db::{
         api::{
             storage::storage::{Extension, PersistenceStrategy},
             view::MaterializedGraph,
         },
         graph::views::deletion_graph::PersistentGraph,
-    }, errors::{GraphError, GraphResult}, io::parquet_loaders::{load_edges_from_parquet, load_nodes_from_parquet}, prelude::*, vectors::{
+    },
+    errors::{GraphError, GraphResult},
+    io::parquet_loaders::{load_edges_from_parquet, load_nodes_from_parquet},
+    prelude::*,
+    vectors::{
         cache::CachedEmbeddingModel,
         storage::OpenAIEmbeddings,
-        template::{DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE, DocumentTemplate},
-    }, version
+        template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
+    },
+    version,
 };
 use raphtory_api::core::entities::properties::prop::{Prop, PropType};
 use std::{collections::HashMap, ffi::OsStr, fs, path::PathBuf, sync::Arc};
@@ -453,15 +459,30 @@ impl Mut {
         #[graphql(desc = "Path to the parquet directory.")] data_path: String,
         #[graphql(desc = "The column name for the timestamps.")] time: String,
         #[graphql(desc = "The column name for the node IDs.")] id: String,
-        #[graphql(desc = "A value to use as the node type for all nodes. Cannot be used in combination with node_type_col.")] node_type: Option<String>,
-        #[graphql(desc = "The node type column name in a dataframe. Cannot be used in combination with node_type.")] node_type_col: Option<String>,
+        #[graphql(
+            desc = "A value to use as the node type for all nodes. Cannot be used in combination with node_type_col."
+        )]
+        node_type: Option<String>,
+        #[graphql(
+            desc = "The node type column name in a dataframe. Cannot be used in combination with node_type."
+        )]
+        node_type_col: Option<String>,
         #[graphql(desc = "List of node property column names.")] properties: Option<Vec<String>>,
         #[graphql(desc = "List of node metadata column names.")] metadata: Option<Vec<String>>,
         // #[graphql(desc = "A dictionary of metadata properties that will be added to every node.")] shared_metadata: Option<String>,
-        #[graphql(desc = "A JSON-formatted dict of {'column_name': column_type} to cast columns to. Defaults to None.")] schema: Option<String>,
+        #[graphql(
+            desc = "A JSON-formatted dict of {'column_name': column_type} to cast columns to. Defaults to None."
+        )]
+        schema: Option<String>,
         #[graphql(desc = "The column name for the secondary index.")] event_id: Option<String>,
-        #[graphql(desc = "A value to use as the layer for all nodes. Cannot be used in combination with layer_col.")] layer: Option<String>,
-        #[graphql(desc = "The node layer column name in a dataframe. Cannot be used in combination with layer.")] layer_col: Option<String>,
+        #[graphql(
+            desc = "A value to use as the layer for all nodes. Cannot be used in combination with layer_col."
+        )]
+        layer: Option<String>,
+        #[graphql(
+            desc = "The node layer column name in a dataframe. Cannot be used in combination with layer."
+        )]
+        layer_col: Option<String>,
     ) -> Result<bool> {
         let data = ctx.data_unchecked::<Data>();
         // src: require WRITE on graph
@@ -497,7 +518,7 @@ impl Mut {
 
         // wrap in Arc to avoid cloning the entire schema for inner loops
         let arced_schema = schema.map(Arc::new);
-        
+
         load_nodes_from_parquet(
             &graph,
             &data_path,
@@ -528,13 +549,25 @@ impl Mut {
         #[graphql(desc = "The column name for the update timestamps.")] time: String,
         #[graphql(desc = "The column name for the source node IDs.")] src: String,
         #[graphql(desc = "The column name for the destination node IDs.")] dst: String,
-        #[graphql(desc = "List of edge property column names. Defaults to None.")] properties: Option<Vec<String>>,
-        #[graphql(desc = "List of edge metadata column names. Defaults to None.")] metadata: Option<Vec<String>>,
+        #[graphql(desc = "List of edge property column names. Defaults to None.")]
+        properties: Option<Vec<String>>,
+        #[graphql(desc = "List of edge metadata column names. Defaults to None.")] metadata: Option<
+            Vec<String>,
+        >,
         // #[graphql(desc = "A dictionary of metadata properties that will be added to every edge.")] shared_metadata: Option<String>,
-        #[graphql(desc = "A JSON-formatted dict of {'column_name': column_type} to cast columns to. Defaults to None.")] schema: Option<String>,
+        #[graphql(
+            desc = "A JSON-formatted dict of {'column_name': column_type} to cast columns to. Defaults to None."
+        )]
+        schema: Option<String>,
         #[graphql(desc = "The column name for the secondary index.")] event_id: Option<String>,
-        #[graphql(desc = "A value to use as the layer for all edges. Cannot be used in combination with layer_col. Defaults to None.")] layer: Option<String>,
-        #[graphql(desc = "The edge layer column name in a dataframe. Cannot be used in combination with layer. Defaults to None.")] layer_col: Option<String>,
+        #[graphql(
+            desc = "A value to use as the layer for all edges. Cannot be used in combination with layer_col. Defaults to None."
+        )]
+        layer: Option<String>,
+        #[graphql(
+            desc = "The edge layer column name in a dataframe. Cannot be used in combination with layer. Defaults to None."
+        )]
+        layer_col: Option<String>,
     ) -> Result<bool> {
         let data = ctx.data_unchecked::<Data>();
         // src: require WRITE on graph
@@ -570,11 +603,17 @@ impl Mut {
 
         // wrap in Arc to avoid cloning the entire schema for inner loops
         let arced_schema = schema.map(Arc::new);
-        
+
         load_edges_from_parquet(
             &graph,
             &data_path,
-            ColumnNames::new(time.as_str(), event_id.as_deref(), src.as_str(), dst.as_str(), layer_col.as_deref()),
+            ColumnNames::new(
+                time.as_str(),
+                event_id.as_deref(),
+                src.as_str(),
+                dst.as_str(),
+                layer_col.as_deref(),
+            ),
             true,
             properties.as_slice(),
             metadata.as_slice(),
@@ -585,7 +624,6 @@ impl Mut {
         )?;
         Ok(true)
     }
-
 
     /// Creates a new graph.
 

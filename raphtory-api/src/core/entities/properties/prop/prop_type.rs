@@ -1,7 +1,10 @@
 use arrow_schema::DataType;
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::HashMap, fmt::{self, Display, Formatter}, str::FromStr, sync::Arc,
+    collections::HashMap,
+    fmt::{self, Display, Formatter},
+    str::FromStr,
+    sync::Arc,
 };
 
 #[derive(thiserror::Error, Debug, PartialEq)]
@@ -207,9 +210,7 @@ impl FromStr for PropType {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let data_type: DataType = s
-            .parse()
-            .map_err(|e| format!("Unknown type '{s}': {e}"))?;
+        let data_type: DataType = s.parse().map_err(|e| format!("Unknown type '{s}': {e}"))?;
         data_type_as_prop_type(&data_type).map_err(|e| format!("Unsupported type '{s}': {e}"))
     }
 }

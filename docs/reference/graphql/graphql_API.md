@@ -279,6 +279,231 @@ Graph path relative to the root namespace.
 </td>
 </tr>
 <tr>
+<td colspan="2" valign="top"><strong id="mutroot.loadnodesfromparquet">loadNodesFromParquet</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a>!</td>
+<td>
+
+Load nodes from parquet
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">graphPath</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Graph path relative to the root namespace.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">dataPath</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Path to the parquet directory.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">time</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+The column name for the timestamps.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">id</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+The column name for the node IDs.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">nodeType</td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+A value to use as the node type for all nodes. Cannot be used in combination with node_type_col.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">nodeTypeCol</td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+The node type column name in a dataframe. Cannot be used in combination with node_type.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">properties</td>
+<td valign="top">[<a href="#string">String</a>!]</td>
+<td>
+
+List of node property column names.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">metadata</td>
+<td valign="top">[<a href="#string">String</a>!]</td>
+<td>
+
+List of node metadata column names.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">schema</td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+A JSON-formatted dict of {'column_name': column_type} to cast columns to. Defaults to None.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">eventId</td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+The column name for the secondary index.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">layer</td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+A value to use as the layer for all nodes. Cannot be used in combination with layer_col.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">layerCol</td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+The node layer column name in a dataframe. Cannot be used in combination with layer.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="mutroot.loadedgesfromparquet">loadEdgesFromParquet</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a>!</td>
+<td>
+
+Load edges from parquet
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">graphPath</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Graph path relative to the root namespace.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">dataPath</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Path to the parquet directory.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">time</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+The column name for the update timestamps.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">src</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+The column name for the source node IDs.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">dst</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+The column name for the destination node IDs.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">properties</td>
+<td valign="top">[<a href="#string">String</a>!]</td>
+<td>
+
+List of edge property column names. Defaults to None.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">metadata</td>
+<td valign="top">[<a href="#string">String</a>!]</td>
+<td>
+
+List of edge metadata column names. Defaults to None.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">schema</td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+A JSON-formatted dict of {'column_name': column_type} to cast columns to. Defaults to None.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">eventId</td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+The column name for the secondary index.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">layer</td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+A value to use as the layer for all edges. Cannot be used in combination with layer_col. Defaults to None.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">layerCol</td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+The edge layer column name in a dataframe. Cannot be used in combination with layer. Defaults to None.
+
+</td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="mutroot.newgraph">newGraph</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
 <td>

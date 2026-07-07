@@ -2605,12 +2605,12 @@ mod graphql_test {
 
     #[tokio::test]
     async fn test_load_nodes_from_parquet() {
+        use crate::config::app_config::AppConfigBuilder;
         use arrow::{
             array::{Int64Array, StringArray},
             datatypes::{DataType, Field, Schema as ArrowSchema},
             record_batch::RecordBatch,
         };
-        use crate::config::app_config::AppConfigBuilder;
         use parquet::arrow::ArrowWriter;
         use std::{fs::File, sync::Arc};
 
@@ -2643,8 +2643,14 @@ mod graphql_test {
             .build();
 
         let data = Data::new(tmp_dir.path(), &app_config, Config::default());
-        let folder = data.work_dir_write().await.validate_path_for_insert("mygraph", false).unwrap();
-        data.insert_graph(folder, Graph::new().into()).await.unwrap();
+        let folder = data
+            .work_dir_write()
+            .await
+            .validate_path_for_insert("mygraph", false)
+            .unwrap();
+        data.insert_graph(folder, Graph::new().into())
+            .await
+            .unwrap();
 
         let schema = App::create_schema().data(data).finish().unwrap();
 
@@ -2662,8 +2668,15 @@ mod graphql_test {
             parquet_path_str
         );
         let res = run_mutation(&schema, &mutation).await;
-        assert_eq!(res.errors, vec![], "loadNodesFromParquet mutation returned errors");
-        assert_eq!(res.data.into_json().unwrap(), json!({"loadNodesFromParquet": true}));
+        assert_eq!(
+            res.errors,
+            vec![],
+            "loadNodesFromParquet mutation returned errors"
+        );
+        assert_eq!(
+            res.data.into_json().unwrap(),
+            json!({"loadNodesFromParquet": true})
+        );
 
         // Query the loaded nodes back via GraphQL to confirm they landed.
         let query = r#"{
@@ -2673,9 +2686,7 @@ mod graphql_test {
                 }
             }
         }"#;
-        let res = schema
-            .execute(Request::new(query).data(Access::Rw))
-            .await;
+        let res = schema.execute(Request::new(query).data(Access::Rw)).await;
         assert_eq!(res.errors, vec![], "node query returned errors");
         let mut names: Vec<String> = res.data.into_json().unwrap()["graph"]["nodes"]["list"]
             .as_array()
@@ -2689,12 +2700,12 @@ mod graphql_test {
 
     #[tokio::test]
     async fn test_load_edges_from_parquet() {
+        use crate::config::app_config::AppConfigBuilder;
         use arrow::{
             array::{Int64Array, StringArray},
             datatypes::{DataType, Field, Schema as ArrowSchema},
             record_batch::RecordBatch,
         };
-        use crate::config::app_config::AppConfigBuilder;
         use parquet::arrow::ArrowWriter;
         use std::{fs::File, sync::Arc};
 
@@ -2729,8 +2740,14 @@ mod graphql_test {
             .build();
 
         let data = Data::new(tmp_dir.path(), &app_config, Config::default());
-        let folder = data.work_dir_write().await.validate_path_for_insert("mygraph", false).unwrap();
-        data.insert_graph(folder, Graph::new().into()).await.unwrap();
+        let folder = data
+            .work_dir_write()
+            .await
+            .validate_path_for_insert("mygraph", false)
+            .unwrap();
+        data.insert_graph(folder, Graph::new().into())
+            .await
+            .unwrap();
 
         let schema = App::create_schema().data(data).finish().unwrap();
 
@@ -2749,8 +2766,15 @@ mod graphql_test {
             parquet_path_str
         );
         let res = run_mutation(&schema, &mutation).await;
-        assert_eq!(res.errors, vec![], "loadEdgesFromParquet mutation returned errors");
-        assert_eq!(res.data.into_json().unwrap(), json!({"loadEdgesFromParquet": true}));
+        assert_eq!(
+            res.errors,
+            vec![],
+            "loadEdgesFromParquet mutation returned errors"
+        );
+        assert_eq!(
+            res.data.into_json().unwrap(),
+            json!({"loadEdgesFromParquet": true})
+        );
 
         // Query the loaded edges back via GraphQL to confirm they landed.
         let query = r#"{
@@ -2760,11 +2784,10 @@ mod graphql_test {
                 }
             }
         }"#;
-        let res = schema
-            .execute(Request::new(query).data(Access::Rw))
-            .await;
+        let res = schema.execute(Request::new(query).data(Access::Rw)).await;
         assert_eq!(res.errors, vec![], "edge query returned errors");
-        let mut edges: Vec<(String, String)> = res.data.into_json().unwrap()["graph"]["edges"]["list"]
+        let mut edges: Vec<(String, String)> = res.data.into_json().unwrap()["graph"]["edges"]
+            ["list"]
             .as_array()
             .unwrap()
             .iter()
@@ -2776,7 +2799,13 @@ mod graphql_test {
             })
             .collect();
         edges.sort();
-        assert_eq!(edges, vec![("a".to_string(), "b".to_string()), ("b".to_string(), "c".to_string())]);
+        assert_eq!(
+            edges,
+            vec![
+                ("a".to_string(), "b".to_string()),
+                ("b".to_string(), "c".to_string())
+            ]
+        );
     }
 
     // ── allowed-paths tests ──────────────────────────────────────────────────
@@ -2822,8 +2851,14 @@ mod graphql_test {
             .with_allowed_parquet_paths(vec![tmp_dir.path().to_path_buf()])
             .build();
         let data = Data::new(tmp_dir.path(), &app_config, Config::default());
-        let folder = data.work_dir_write().await.validate_path_for_insert("g", false).unwrap();
-        data.insert_graph(folder, Graph::new().into()).await.unwrap();
+        let folder = data
+            .work_dir_write()
+            .await
+            .validate_path_for_insert("g", false)
+            .unwrap();
+        data.insert_graph(folder, Graph::new().into())
+            .await
+            .unwrap();
 
         let schema = App::create_schema().data(data).finish().unwrap();
         let parquet_path_str = parquet_path.to_str().unwrap().replace('\\', "/");
@@ -2832,7 +2867,11 @@ mod graphql_test {
             parquet_path_str
         );
         let res = run_mutation(&schema, &mutation).await;
-        assert_eq!(res.errors, vec![], "path inside allowlist should be accepted");
+        assert_eq!(
+            res.errors,
+            vec![],
+            "path inside allowlist should be accepted"
+        );
     }
 
     #[tokio::test]
@@ -2847,8 +2886,14 @@ mod graphql_test {
             .with_allowed_parquet_paths(vec![allowed_dir.path().to_path_buf()])
             .build();
         let data = Data::new(allowed_dir.path(), &app_config, Config::default());
-        let folder = data.work_dir_write().await.validate_path_for_insert("g", false).unwrap();
-        data.insert_graph(folder, Graph::new().into()).await.unwrap();
+        let folder = data
+            .work_dir_write()
+            .await
+            .validate_path_for_insert("g", false)
+            .unwrap();
+        data.insert_graph(folder, Graph::new().into())
+            .await
+            .unwrap();
 
         let schema = App::create_schema().data(data).finish().unwrap();
         let parquet_path_str = parquet_path.to_str().unwrap().replace('\\', "/");
@@ -2862,7 +2907,9 @@ mod graphql_test {
             "path outside allowlist should be rejected"
         );
         assert!(
-            res.errors[0].message.contains("not in the list of allowed paths"),
+            res.errors[0]
+                .message
+                .contains("not in the list of allowed paths"),
             "unexpected error: {}",
             res.errors[0].message
         );
@@ -2881,8 +2928,14 @@ mod graphql_test {
             .with_allowed_parquet_paths(vec![])
             .build();
         let data = Data::new(graph_dir.path(), &app_config, Config::default());
-        let folder = data.work_dir_write().await.validate_path_for_insert("g", false).unwrap();
-        data.insert_graph(folder, Graph::new().into()).await.unwrap();
+        let folder = data
+            .work_dir_write()
+            .await
+            .validate_path_for_insert("g", false)
+            .unwrap();
+        data.insert_graph(folder, Graph::new().into())
+            .await
+            .unwrap();
 
         let schema = App::create_schema().data(data).finish().unwrap();
         let parquet_path_str = parquet_path.to_str().unwrap().replace('\\', "/");
