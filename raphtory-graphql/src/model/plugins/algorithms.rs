@@ -83,6 +83,7 @@ fn apply_pagerank<'b>(
         tol,
         true,
         damping_factor,
+        None,
     );
     let result = binding
         .into_iter()

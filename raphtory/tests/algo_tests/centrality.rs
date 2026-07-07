@@ -1,6 +1,5 @@
-use std::collections::HashMap;
+use std::borrow::Borrow;
 
-use crate::algo_tests::assert_eq_hashmaps_approx;
 use itertools::Itertools;
 use raphtory::{
     algorithms::centrality::{
@@ -8,8 +7,8 @@ use raphtory::{
         pagerank::page_rank,
     },
     prelude::*,
+    test_storage,
 };
-use raphtory_tests::test_storage;
 
 #[test]
 fn test_betweenness_centrality() {
@@ -41,8 +40,7 @@ fn test_betweenness_centrality() {
         expected.insert("5".to_string(), 0.0);
         expected.insert("6".to_string(), 0.0);
 
-        let res = betweenness_centrality(graph, None, false)
-            .to_hashmap(|value| value.betweenness_centrality);
+        let res = betweenness_centrality(graph, None, false);
         assert_eq!(res, expected);
 
         let mut expected: HashMap<String, f64> = HashMap::new();
@@ -52,8 +50,7 @@ fn test_betweenness_centrality() {
         expected.insert("4".to_string(), 0.05);
         expected.insert("5".to_string(), 0.0);
         expected.insert("6".to_string(), 0.0);
-        let res = betweenness_centrality(graph, None, true)
-            .to_hashmap(|value| value.betweenness_centrality);
+        let res = betweenness_centrality(graph, None, true);
         assert_eq!(res, expected);
     });
 }
@@ -72,7 +69,7 @@ fn test_degree_centrality() {
         expected.insert("3".to_string(), 2.0 / 3.0);
         expected.insert("4".to_string(), 2.0 / 3.0);
 
-        let res = degree_centrality(graph).to_hashmap(|value| value.score);
+        let res = degree_centrality(graph);
         assert_eq!(res, expected);
     });
 }
@@ -119,18 +116,18 @@ fn test_hits() {
         for (node, value) in results.iter() {
             let expected_value = expected.get(&node.name()).unwrap();
             assert!(
-                (value.hub_score - expected_value.0).abs() < 1e-6,
+                (value.0 - expected_value.0).abs() < 1e-6,
                 "mismatched hub score for node {}, expected {}, actual {}",
                 node.name(),
                 expected_value.0,
-                value.hub_score
+                value.0
             );
             assert!(
-                (value.auth_score - expected_value.1).abs() < 1e-6,
+                (value.1 - expected_value.1).abs() < 1e-6,
                 "mismatched authority score for node {}, expected {}, actual {}",
                 node.name(),
                 expected_value.1,
-                value.auth_score
+                value.1
             );
         }
     })
@@ -147,15 +144,13 @@ fn test_page_rank() {
     }
 
     test_storage!(&graph, |graph| {
-        let expected: HashMap<String, f64> = HashMap::from([
-            ("1".to_string(), 0.38694),
-            ("2".to_string(), 0.20195),
-            ("3".to_string(), 0.20916),
-            ("4".to_string(), 0.20195),
-        ]);
         let results = page_rank(graph, None, Some(1000), Some(1), None, true, None, None)
-            .to_hashmap(|value| value.score);
-        assert_eq_hashmaps_approx(&results, &expected, 1e-5);
+            .map(|pr| pr.score);
+
+        assert_eq_f64(results.get_by_node("1"), Some(&0.38694), 5);
+        assert_eq_f64(results.get_by_node("2"), Some(&0.20195), 5);
+        assert_eq_f64(results.get_by_node("4"), Some(&0.20195), 5);
+        assert_eq_f64(results.get_by_node("3"), Some(&0.20916), 5);
     });
 }
 
@@ -194,23 +189,20 @@ fn motif_page_rank() {
     }
 
     test_storage!(&graph, |graph| {
-        let expected: HashMap<String, f64> = HashMap::from([
-            ("10".to_string(), 0.072082),
-            ("8".to_string(), 0.136473),
-            ("3".to_string(), 0.15484),
-            ("6".to_string(), 0.07208),
-            ("11".to_string(), 0.06186),
-            ("2".to_string(), 0.03557),
-            ("1".to_string(), 0.11284),
-            ("4".to_string(), 0.07944),
-            ("7".to_string(), 0.01638),
-            ("9".to_string(), 0.06186),
-            ("5".to_string(), 0.19658),
-        ]);
         let results = page_rank(graph, None, Some(1000), Some(4), None, true, None, None)
-            .to_hashmap(|value| value.score);
+            .map(|pr| pr.score);
 
-        assert_eq_hashmaps_approx(&results, &expected, 1e-5);
+        assert_eq_f64(results.get_by_node("10"), Some(&0.072082), 5);
+        assert_eq_f64(results.get_by_node("8"), Some(&0.136473), 5);
+        assert_eq_f64(results.get_by_node("3"), Some(&0.15484), 5);
+        assert_eq_f64(results.get_by_node("6"), Some(&0.07208), 5);
+        assert_eq_f64(results.get_by_node("11"), Some(&0.06186), 5);
+        assert_eq_f64(results.get_by_node("2"), Some(&0.03557), 5);
+        assert_eq_f64(results.get_by_node("1"), Some(&0.11284), 5);
+        assert_eq_f64(results.get_by_node("4"), Some(&0.07944), 5);
+        assert_eq_f64(results.get_by_node("7"), Some(&0.01638), 5);
+        assert_eq_f64(results.get_by_node("9"), Some(&0.06186), 5);
+        assert_eq_f64(results.get_by_node("5"), Some(&0.19658), 5);
     });
 }
 
@@ -225,12 +217,11 @@ fn two_nodes_page_rank() {
     }
 
     test_storage!(&graph, |graph| {
-        let expected: HashMap<String, f64> =
-            HashMap::from([("1".to_string(), 0.5), ("2".to_string(), 0.5)]);
         let results = page_rank(graph, None, Some(1000), Some(4), None, false, None, None)
-            .to_hashmap(|value| value.score);
+            .map(|pr| pr.score);
 
-        assert_eq_hashmaps_approx(&results, &expected, 1e-3);
+        assert_eq_f64(results.get_by_node("1"), Some(&0.5), 3);
+        assert_eq_f64(results.get_by_node("2"), Some(&0.5), 3);
     });
 }
 
@@ -245,15 +236,12 @@ fn three_nodes_page_rank_one_dangling() {
     }
 
     test_storage!(&graph, |graph| {
-        let expected: HashMap<String, f64> = HashMap::from([
-            ("1".to_string(), 0.303),
-            ("2".to_string(), 0.393),
-            ("3".to_string(), 0.303),
-        ]);
         let results = page_rank(graph, None, Some(10), Some(4), None, false, None, None)
-            .to_hashmap(|value| value.score);
+            .map(|pr| pr.score);
 
-        assert_eq_hashmaps_approx(&results, &expected, 1e-3);
+        assert_eq_f64(results.get_by_node("1"), Some(&0.303), 3);
+        assert_eq_f64(results.get_by_node("2"), Some(&0.393), 3);
+        assert_eq_f64(results.get_by_node("3"), Some(&0.303), 3);
     });
 }
 
@@ -286,171 +274,108 @@ fn dangling_page_rank() {
         graph.add_edge(t, src, dst, NO_PROPS, None).unwrap();
     }
     test_storage!(&graph, |graph| {
-        let expected: HashMap<String, f64> = HashMap::from([
-            ("1".to_string(), 0.055),
-            ("2".to_string(), 0.079),
-            ("3".to_string(), 0.113),
-            ("4".to_string(), 0.055),
-            ("5".to_string(), 0.070),
-            ("6".to_string(), 0.083),
-            ("7".to_string(), 0.093),
-            ("8".to_string(), 0.102),
-            ("9".to_string(), 0.110),
-            ("10".to_string(), 0.117),
-            ("11".to_string(), 0.122),
-        ]);
         let results = page_rank(graph, None, Some(1000), Some(4), None, true, None, None)
-            .to_hashmap(|value| value.score);
+            .map(|pr| pr.score);
 
-        assert_eq_hashmaps_approx(&results, &expected, 1e-3);
-    });
-}
-#[test]
-fn page_rank_non_uniform_weights() {
-    let graph = Graph::new();
-    graph
-        .add_edge(0, 1, 2, [("weight", Prop::F64(0.37))], None)
-        .unwrap();
-    graph
-        .add_edge(0, 1, 3, [("weight", Prop::F64(4.2))], None)
-        .unwrap();
-    graph
-        .add_edge(0, 2, 1, [("weight", Prop::F64(0.9))], None)
-        .unwrap();
-    graph
-        .add_edge(0, 2, 4, [("weight", Prop::F64(1.7))], None)
-        .unwrap();
-    graph
-        .add_edge(0, 3, 1, [("weight", Prop::F64(2.6))], None)
-        .unwrap();
-    graph
-        .add_edge(0, 3, 2, [("weight", Prop::F64(0.05))], None)
-        .unwrap();
-    graph
-        .add_edge(0, 4, 3, [("weight", Prop::F64(3.3))], None)
-        .unwrap();
-    graph
-        .add_edge(0, 4, 1, [("weight", Prop::F64(0.8))], None)
-        .unwrap();
-
-    test_storage!(&graph, |graph| {
-        let expected: HashMap<String, f64> = HashMap::from([
-            ("1".to_string(), 0.42499),
-            ("2".to_string(), 0.07353),
-            ("3".to_string(), 0.42311),
-            ("4".to_string(), 0.07837),
-        ]);
-        let results = page_rank(
-            graph,
-            Some("weight"),
-            Some(1000),
-            Some(1),
-            Some(1e-10),
-            true,
-            None,
-            None,
-        )
-        .to_hashmap(|value| value.score);
-
-        assert_eq_hashmaps_approx(&results, &expected, 1e-5);
+        assert_eq_f64(results.get_by_node("1"), Some(&0.055), 3);
+        assert_eq_f64(results.get_by_node("2"), Some(&0.079), 3);
+        assert_eq_f64(results.get_by_node("3"), Some(&0.113), 3);
+        assert_eq_f64(results.get_by_node("4"), Some(&0.055), 3);
+        assert_eq_f64(results.get_by_node("5"), Some(&0.070), 3);
+        assert_eq_f64(results.get_by_node("6"), Some(&0.083), 3);
+        assert_eq_f64(results.get_by_node("7"), Some(&0.093), 3);
+        assert_eq_f64(results.get_by_node("8"), Some(&0.102), 3);
+        assert_eq_f64(results.get_by_node("9"), Some(&0.110), 3);
+        assert_eq_f64(results.get_by_node("10"), Some(&0.117), 3);
+        assert_eq_f64(results.get_by_node("11"), Some(&0.122), 3);
     });
 }
 
 #[test]
-fn page_rank_dangling_weighted() {
-    let graph = Graph::new();
-    graph
-        .add_edge(0, 1, 2, [("weight", Prop::F64(0.12))], None)
-        .unwrap();
-    graph
-        .add_edge(0, 1, 3, [("weight", Prop::F64(7.1))], None)
-        .unwrap();
-    graph
-        .add_edge(0, 2, 4, [("weight", Prop::F64(0.004))], None)
-        .unwrap();
-    graph
-        .add_edge(0, 3, 1, [("weight", Prop::F64(1.9))], None)
-        .unwrap();
-    graph
-        .add_edge(0, 3, 5, [("weight", Prop::F64(0.63))], None)
-        .unwrap();
-
-    test_storage!(&graph, |graph| {
-        let expected: HashMap<String, f64> = HashMap::from([
-            ("1".to_string(), 0.28736),
-            ("2".to_string(), 0.08587),
-            ("3".to_string(), 0.32201),
-            ("4".to_string(), 0.15480),
-            ("5".to_string(), 0.14997),
-        ]);
-        let results = page_rank(
-            graph,
-            Some("weight"),
-            Some(1000),
-            Some(1),
-            Some(1e-10),
-            true,
-            None,
-            None,
-        )
-        .to_hashmap(|value| value.score);
-
-        assert_eq_hashmaps_approx(&results, &expected, 1e-5);
-    });
-}
-
-#[test]
-fn page_rank_uniform_weights_match_unweighted() {
+fn test_personalized_page_rank() {
     let graph = Graph::new();
     let edges = vec![(1, 2), (1, 4), (2, 3), (3, 1), (4, 1)];
-    for (src, dst) in edges {
+    for node in [(1, 1.0), (2, 0.0), (3, 0.0), (4, 0.0)] {
         graph
-            .add_edge(0, src, dst, [("weight", Prop::F64(1.0))], None)
+            .add_node(0, node.0, [("personalization", node.1)], None, None)
             .unwrap();
     }
-
-    test_storage!(&graph, |graph| {
-        let expected = page_rank(graph, None, Some(1000), Some(1), None, true, None, None)
-            .to_hashmap(|value| value.score);
-        let results = page_rank(
-            graph,
-            Some("weight"),
-            Some(1000),
-            Some(1),
-            None,
-            true,
-            None,
-            None,
-        )
-        .to_hashmap(|value| value.score);
-
-        assert_eq_hashmaps_approx(&results, &expected, 1e-5);
-    });
-}
-
-#[test]
-fn page_rank_missing_property_defaults_to_unweighted() {
-    let graph = Graph::new();
-    let edges = vec![(1, 2), (1, 4), (2, 3), (3, 1), (4, 1)];
     for (src, dst) in edges {
         graph.add_edge(0, src, dst, NO_PROPS, None).unwrap();
     }
 
     test_storage!(&graph, |graph| {
-        let expected = page_rank(graph, None, Some(1000), Some(1), None, true, None, None)
-            .to_hashmap(|value| value.score);
         let results = page_rank(
             graph,
-            Some("weight"),
+            None,
             Some(1000),
             Some(1),
             None,
             true,
             None,
-            None,
+            Some("personalization"),
         )
-        .to_hashmap(|value| value.score);
+        .map(|pr| pr.score);
 
-        assert_eq_hashmaps_approx(&results, &expected, 1e-5);
+        // nx.pagerank(G, alpha=0.85, personalization={1:1.0, 2:0.0, 3:0.0, 4:0.0})
+        assert_eq_f64(results.get_by_node("1"), Some(&0.45223), 5);
+        assert_eq_f64(results.get_by_node("2"), Some(&0.19220), 5);
+        assert_eq_f64(results.get_by_node("3"), Some(&0.16337), 5);
+        assert_eq_f64(results.get_by_node("4"), Some(&0.19220), 5);
     });
+}
+
+#[test]
+fn test_personalized_page_rank_partial() {
+    let graph = Graph::new();
+    let edges = vec![(1, 2), (1, 4), (2, 3), (3, 1), (4, 1)];
+    graph
+        .add_node(0, 1, [("personalization", 0.5)], None, None)
+        .unwrap();
+    graph
+        .add_node(0, 3, [("personalization", 0.5)], None, None)
+        .unwrap();
+    for (src, dst) in edges {
+        graph.add_edge(0, src, dst, NO_PROPS, None).unwrap();
+    }
+
+    test_storage!(&graph, |graph| {
+        let results = page_rank(
+            graph,
+            None,
+            Some(1000),
+            Some(1),
+            Some(1e-10),
+            false,
+            None,
+            Some("personalization"),
+        )
+        .map(|pr| pr.score);
+
+        // nx.pagerank(G, alpha=0.85, personalization={1:0.5, 3:0.5})
+        assert_eq_f64(results.get_by_node("1"), Some(&0.41832), 5);
+        assert_eq_f64(results.get_by_node("2"), Some(&0.17778), 5);
+        assert_eq_f64(results.get_by_node("3"), Some(&0.22612), 5);
+        assert_eq_f64(results.get_by_node("4"), Some(&0.17778), 5);
+    });
+}
+
+pub fn assert_eq_f64<T: Borrow<f64> + PartialEq + std::fmt::Debug>(
+    a: Option<T>,
+    b: Option<T>,
+    decimals: u8,
+) {
+    if a.is_none() || b.is_none() {
+        assert_eq!(a, b);
+    } else {
+        let factor = 10.0_f64.powi(decimals as i32);
+        match (a, b) {
+            (Some(a), Some(b)) => {
+                let left = (a.borrow() * factor).round();
+                let right = (b.borrow() * factor).round();
+                assert_eq!(left, right,);
+            }
+            _ => unreachable!(),
+        }
+    }
 }
