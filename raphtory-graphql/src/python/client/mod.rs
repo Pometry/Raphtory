@@ -1,5 +1,4 @@
 use crate::client::{
-    inner_collection,
     op::{EdgeAddition, NodeAddition, TemporalUpdate},
     ClientError,
 };
@@ -7,13 +6,12 @@ use pyo3::{exceptions::PyValueError, prelude::*, pyclass, pymethods};
 use raphtory_api::{
     core::{
         entities::{properties::prop::Prop, GID},
-        storage::timeindex::{AsTime, EventTime},
+        storage::timeindex::AsTime,
         utils::time::IntoTime,
     },
     python::{error::adapt_err_value, timeindex::PyEventTime},
 };
-use serde::{ser::SerializeStruct, Serialize, Serializer};
-use serde_json::json;
+use serde::Serialize;
 use std::collections::HashMap;
 
 pub mod remote_client;
@@ -31,37 +29,6 @@ pub mod remote_node;
 pub struct PyUpdate {
     time: PyEventTime,
     properties: Option<HashMap<String, Prop>>,
-}
-
-impl Serialize for PyUpdate {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut count = 1;
-        if self.properties.is_some() {
-            count += 1;
-        }
-        let mut state = serializer.serialize_struct("PyUpdate", count)?;
-
-        let time = &self.time;
-        let time = time.clone().into_time();
-        state.serialize_field("time", &time)?;
-        if let Some(ref properties) = self.properties {
-            let properties_list: Vec<serde_json::Value> = properties
-                .iter()
-                .map(|(key, value)| {
-                    json!({
-                        "key": key,
-                        "value": inner_collection(value),
-                    })
-                })
-                .collect();
-            state.serialize_field("properties", &properties_list)?;
-        }
-
-        state.end()
-    }
 }
 
 #[pymethods]
@@ -94,48 +61,6 @@ pub struct PyNodeAddition {
     node_type: Option<String>,
     metadata: Option<HashMap<String, Prop>>,
     updates: Option<Vec<PyUpdate>>,
-}
-
-impl Serialize for PyNodeAddition {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut count = 1;
-        if self.node_type.is_some() {
-            count += 1;
-        }
-        if self.metadata.is_some() {
-            count += 1;
-        }
-        if self.updates.is_some() {
-            count += 1;
-        }
-        let mut state = serializer.serialize_struct("PyNodeAddition", count)?;
-
-        state.serialize_field("name", &self.name.to_string())?;
-
-        if let Some(node_type) = &self.node_type {
-            state.serialize_field("node_type", node_type)?;
-        }
-
-        if let Some(ref metadata) = self.metadata {
-            let properties_list: Vec<serde_json::Value> = metadata
-                .iter()
-                .map(|(key, value)| {
-                    json!({
-                        "key": key,
-                        "value": inner_collection(value),
-                    })
-                })
-                .collect();
-            state.serialize_field("metadata", &properties_list)?;
-        }
-        if let Some(updates) = &self.updates {
-            state.serialize_field("updates", updates)?;
-        }
-        state.end()
-    }
 }
 
 #[pymethods]
@@ -177,49 +102,6 @@ pub struct PyEdgeAddition {
     layer: Option<String>,
     metadata: Option<HashMap<String, Prop>>,
     updates: Option<Vec<PyUpdate>>,
-}
-
-impl Serialize for PyEdgeAddition {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut count = 2;
-        if self.layer.is_some() {
-            count += 1;
-        }
-        if self.metadata.is_some() {
-            count += 1;
-        }
-        if self.updates.is_some() {
-            count += 1;
-        }
-        let mut state = serializer.serialize_struct("PyEdgeAddition", count)?;
-
-        state.serialize_field("src", &self.src.to_string())?;
-        state.serialize_field("dst", &self.dst.to_string())?;
-
-        if let Some(layer) = &self.layer {
-            state.serialize_field("layer", layer)?;
-        }
-
-        if let Some(ref metadata) = self.metadata {
-            let properties_list: Vec<serde_json::Value> = metadata
-                .iter()
-                .map(|(key, value)| {
-                    json!({
-                        "key": key,
-                        "value": inner_collection(value),
-                    })
-                })
-                .collect();
-            state.serialize_field("metadata", &properties_list)?;
-        }
-        if let Some(updates) = &self.updates {
-            state.serialize_field("updates", updates)?;
-        }
-        state.end()
-    }
 }
 
 #[pymethods]

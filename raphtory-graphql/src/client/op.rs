@@ -4,7 +4,10 @@
 //! hands it to the transport. This module is the single source of truth for
 //! what "an operation" means on the wire.
 
+use crate::client::inner_collection;
 use raphtory_api::core::entities::properties::prop::Prop;
+use serde::{ser::SerializeStruct, Serialize, Serializer};
+use serde_json::json;
 use std::collections::HashMap;
 
 /// Top-level split between reads (recursive expressions returning values) and
@@ -245,4 +248,101 @@ pub struct EdgeAddition {
 pub struct TemporalUpdate {
     pub time: i64,
     pub properties: Option<HashMap<String, Prop>>,
+}
+
+// ============ Serialize impls for batch mutation types ============
+// These produce the JSON shape the Jinja templates in `graphql_transport.rs`
+// expect: `metadata` and `properties` render as `[{ key, value }, ...]` where
+// `value` is the pre-baked GraphQL syntax string produced by `inner_collection`
+// (e.g. `{ str: "foo" }`, `{ i64: 3 }`).
+
+impl Serialize for TemporalUpdate {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut count = 1;
+        if self.properties.is_some() {
+            count += 1;
+        }
+        let mut state = serializer.serialize_struct("TemporalUpdate", count)?;
+        state.serialize_field("time", &self.time)?;
+        if let Some(ref props) = self.properties {
+            let items: Vec<serde_json::Value> = props
+                .iter()
+                .map(|(k, v)| json!({ "key": k, "value": inner_collection(v) }))
+                .collect();
+            state.serialize_field("properties", &items)?;
+        }
+        state.end()
+    }
+}
+
+impl Serialize for NodeAddition {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut count = 1;
+        if self.node_type.is_some() {
+            count += 1;
+        }
+        if self.metadata.is_some() {
+            count += 1;
+        }
+        if self.updates.is_some() {
+            count += 1;
+        }
+        let mut state = serializer.serialize_struct("NodeAddition", count)?;
+        state.serialize_field("name", &self.name)?;
+        if let Some(ref nt) = self.node_type {
+            state.serialize_field("node_type", nt)?;
+        }
+        if let Some(ref meta) = self.metadata {
+            let items: Vec<serde_json::Value> = meta
+                .iter()
+                .map(|(k, v)| json!({ "key": k, "value": inner_collection(v) }))
+                .collect();
+            state.serialize_field("metadata", &items)?;
+        }
+        if let Some(ref updates) = self.updates {
+            state.serialize_field("updates", updates)?;
+        }
+        state.end()
+    }
+}
+
+impl Serialize for EdgeAddition {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut count = 2;
+        if self.layer.is_some() {
+            count += 1;
+        }
+        if self.metadata.is_some() {
+            count += 1;
+        }
+        if self.updates.is_some() {
+            count += 1;
+        }
+        let mut state = serializer.serialize_struct("EdgeAddition", count)?;
+        state.serialize_field("src", &self.src)?;
+        state.serialize_field("dst", &self.dst)?;
+        if let Some(ref layer) = self.layer {
+            state.serialize_field("layer", layer)?;
+        }
+        if let Some(ref meta) = self.metadata {
+            let items: Vec<serde_json::Value> = meta
+                .iter()
+                .map(|(k, v)| json!({ "key": k, "value": inner_collection(v) }))
+                .collect();
+            state.serialize_field("metadata", &items)?;
+        }
+        if let Some(ref updates) = self.updates {
+            state.serialize_field("updates", updates)?;
+        }
+        state.end()
+    }
 }
