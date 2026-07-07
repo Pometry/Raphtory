@@ -1,32 +1,38 @@
 use crate::{
     db::api::view::internal::GraphView,
-    prelude::GraphViewOps,
-    serialise::{GraphFolder, GraphPaths},
+    errors::GraphError,
+    prelude::{GraphViewOps, ParquetEncoder},
 };
-use raphtory_api::GraphType;
-use serde::{Deserialize, Serialize};
+use raphtory_api::core::storage::graph_folder::{
+    make_path_pointer, GraphFolder, GraphMetadata, GraphPaths, InnerGraphFolder, Metadata,
+    GRAPH_META_PATH, GRAPH_PATH,
+};
 
-#[derive(PartialEq, Serialize, Deserialize, Debug)]
-pub struct GraphMetadata {
-    pub node_count: usize,
-    pub edge_count: usize,
-    pub graph_type: GraphType,
-    pub is_diskgraph: bool,
+/// Build the [`GraphMetadata`] summary for a graph
+pub fn build_graph_metadata(graph: impl GraphView) -> GraphMetadata {
+    GraphMetadata {
+        node_count: graph.count_nodes(),
+        edge_count: graph.count_edges(),
+        graph_type: graph.graph_type(),
+        is_diskgraph: graph.disk_storage_path().is_some(),
+    }
 }
 
-impl GraphMetadata {
-    pub fn from_graph<G: GraphView>(graph: G) -> Self {
-        let node_count = graph.count_nodes();
-        let edge_count = graph.count_edges();
-        let graph_type = graph.graph_type();
-        let is_diskgraph = graph.disk_storage_path().is_some();
-        Self {
-            node_count,
-            edge_count,
-            graph_type,
-            is_diskgraph,
-        }
-    }
+/// Encode `graph`'s data into a fresh directory inside `folder` and atomically point the folder's
+/// metadata at it, deleting any previously-stored graph data.
+pub fn replace_graph_in_folder(
+    folder: &InnerGraphFolder,
+    graph: impl ParquetEncoder + GraphView + std::fmt::Debug,
+) -> Result<(), GraphError> {
+    let data_path = folder.as_ref();
+    let new_relative_graph_path = make_path_pointer(data_path, GRAPH_META_PATH, GRAPH_PATH)?;
+    graph.encode_parquet(data_path.join(&new_relative_graph_path))?;
+    let meta = Metadata {
+        path: new_relative_graph_path,
+        meta: build_graph_metadata(&graph),
+    };
+    folder.replace_graph_path(meta)?;
+    Ok(())
 }
 
 pub fn assert_metadata_correct<'graph>(folder: &GraphFolder, graph: &impl GraphViewOps<'graph>) {

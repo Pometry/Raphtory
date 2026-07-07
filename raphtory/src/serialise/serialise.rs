@@ -6,12 +6,13 @@ use crate::{
     },
     errors::GraphError,
     serialise::{
-        get_zip_graph_path,
-        metadata::GraphMetadata,
+        metadata::build_graph_metadata,
         parquet::{ParquetDecoder, ParquetEncoder},
-        GraphFolder, GraphPaths, Metadata, RelativePath, DEFAULT_DATA_PATH, DEFAULT_GRAPH_PATH,
-        GRAPH_META_PATH, ROOT_META_PATH,
     },
+};
+use raphtory_api::core::storage::graph_folder::{
+    get_zip_graph_path, GraphFolder, GraphPaths, Metadata, RelativePath, DEFAULT_DATA_PATH,
+    DEFAULT_GRAPH_PATH, GRAPH_META_PATH, ROOT_META_PATH,
 };
 use std::{
     fs::File,
@@ -32,7 +33,7 @@ pub trait StableEncode: StaticGraphViewOps + AdditionOps {
 
 impl<T: ParquetEncoder + StaticGraphViewOps + AdditionOps> StableEncode for T {
     fn encode_to_zip<W: Write + Seek>(&self, mut writer: ZipWriter<W>) -> Result<(), GraphError> {
-        let graph_meta = GraphMetadata::from_graph(self);
+        let graph_meta = build_graph_metadata(self);
         writer.start_file(ROOT_META_PATH, SimpleFileOptions::default())?;
         writer.write_all(&serde_json::to_vec(&RelativePath {
             path: DEFAULT_DATA_PATH.to_string(),
@@ -70,7 +71,12 @@ impl<T: ParquetEncoder + StaticGraphViewOps + AdditionOps> StableEncode for T {
             self.encode_parquet(write_folder.graph_path()?)?;
             #[cfg(feature = "search")]
             self.persist_index_to_disk(&write_folder)?;
-            write_folder.data_path()?.write_metadata(self)?;
+            let data_folder = write_folder.data_path()?;
+            let meta = Metadata {
+                path: data_folder.relative_graph_path()?,
+                meta: build_graph_metadata(self),
+            };
+            data_folder.write_metadata(meta)?;
             write_folder.finish()?;
         }
         Ok(())
@@ -170,7 +176,11 @@ impl<T: ParquetDecoder + StaticGraphViewOps + AdditionOps> StableDecode for T {
         )?;
 
         //TODO: graph.load_index_from_zip(&mut reader, prefix)
-        target.write_metadata(&graph)?;
+        let meta = Metadata {
+            path: target.relative_graph_path()?,
+            meta: build_graph_metadata(&graph),
+        };
+        target.write_metadata(meta)?;
         Ok(graph)
     }
 
@@ -206,7 +216,11 @@ impl<T: ParquetDecoder + StaticGraphViewOps + AdditionOps> StableDecode for T {
                 config,
             )?;
         }
-        target.write_metadata(&graph)?;
+        let meta = Metadata {
+            path: target.relative_graph_path()?,
+            meta: build_graph_metadata(&graph),
+        };
+        target.write_metadata(meta)?;
         Ok(graph)
     }
 }
