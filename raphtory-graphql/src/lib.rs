@@ -2646,6 +2646,7 @@ mod graphql_test {
 
         let schema = App::create_schema().data(data).finish().unwrap();
 
+        let parquet_path_str = parquet_path.to_str().unwrap().replace('\\', "/");
         let mutation = format!(
             r#"mutation {{
                 loadNodesFromParquet(
@@ -2656,7 +2657,7 @@ mod graphql_test {
                     properties: ["weight"]
                 )
             }}"#,
-            parquet_path.display()
+            parquet_path_str
         );
         let res = run_mutation(&schema, &mutation).await;
         assert_eq!(res.errors, vec![], "loadNodesFromParquet mutation returned errors");
@@ -2731,6 +2732,7 @@ mod graphql_test {
 
         let schema = App::create_schema().data(data).finish().unwrap();
 
+        let parquet_path_str = parquet_path.to_str().unwrap().replace('\\', "/");
         let mutation = format!(
             r#"mutation {{
                 loadEdgesFromParquet(
@@ -2742,7 +2744,7 @@ mod graphql_test {
                     properties: ["weight"]
                 )
             }}"#,
-            parquet_path.display()
+            parquet_path_str
         );
         let res = run_mutation(&schema, &mutation).await;
         assert_eq!(res.errors, vec![], "loadEdgesFromParquet mutation returned errors");
@@ -2822,9 +2824,10 @@ mod graphql_test {
         data.insert_graph(folder, Graph::new().into()).await.unwrap();
 
         let schema = App::create_schema().data(data).finish().unwrap();
+        let parquet_path_str = parquet_path.to_str().unwrap().replace('\\', "/");
         let mutation = format!(
             r#"mutation {{ loadNodesFromParquet(graphPath: "g", dataPath: "{}", time: "time", id: "id") }}"#,
-            parquet_path.display()
+            parquet_path_str
         );
         let res = run_mutation(&schema, &mutation).await;
         assert_eq!(res.errors, vec![], "path inside allowlist should be accepted");
@@ -2846,9 +2849,10 @@ mod graphql_test {
         data.insert_graph(folder, Graph::new().into()).await.unwrap();
 
         let schema = App::create_schema().data(data).finish().unwrap();
+        let parquet_path_str = parquet_path.to_str().unwrap().replace('\\', "/");
         let mutation = format!(
             r#"mutation {{ loadNodesFromParquet(graphPath: "g", dataPath: "{}", time: "time", id: "id") }}"#,
-            parquet_path.display()
+            parquet_path_str
         );
         let res = run_mutation(&schema, &mutation).await;
         assert!(
@@ -2879,9 +2883,10 @@ mod graphql_test {
         data.insert_graph(folder, Graph::new().into()).await.unwrap();
 
         let schema = App::create_schema().data(data).finish().unwrap();
+        let parquet_path_str = parquet_path.to_str().unwrap().replace('\\', "/");
         let mutation = format!(
             r#"mutation {{ loadNodesFromParquet(graphPath: "g", dataPath: "{}", time: "time", id: "id") }}"#,
-            parquet_path.display()
+            parquet_path_str
         );
         let res = run_mutation(&schema, &mutation).await;
         assert_eq!(res.errors, vec![], "empty allowlist should permit any path");

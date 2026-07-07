@@ -329,9 +329,15 @@ impl Data {
         if self.allowed_parquet_paths.is_empty() {
             return true;
         }
-        self.allowed_parquet_paths
-            .iter()
-            .any(|allowed| path.starts_with(allowed))
+        let Ok(canonical_path) = path.canonicalize() else {
+            return false;
+        };
+        self.allowed_parquet_paths.iter().any(|allowed| {
+            allowed
+                .canonicalize()
+                .map(|c| canonical_path.starts_with(c))
+                .unwrap_or(false)
+        })
     }
 
     /// Validates that `ns_path` exists and is a namespace, returning the `Namespace`
