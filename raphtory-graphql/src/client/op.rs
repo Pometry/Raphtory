@@ -43,7 +43,7 @@ pub enum ReadExpr {
 /// Write operations. Each variant is a self-contained command with all its
 /// arguments upfront — no composition, no wrapping.
 pub enum WriteOp {
-    // On the graph
+    // On the graph — single mutations
     AddNode(AddNode),
     CreateNode(CreateNode),
     AddEdge(AddEdge),
@@ -51,6 +51,10 @@ pub enum WriteOp {
     AddGraphMetadata(AddGraphMetadata),
     UpdateGraphMetadata(UpdateGraphMetadata),
     DeleteEdge(DeleteEdge),
+
+    // On the graph — batch mutations
+    AddNodes(AddNodes),
+    AddEdges(AddEdges),
 
     // On a node
     SetNodeType(SetNodeType),
@@ -202,4 +206,43 @@ pub struct UpdateEdgeMetadata {
     pub dst: String,
     pub properties: HashMap<String, Prop>,
     pub layer: Option<String>,
+}
+
+// ============ Batch mutation types ============
+
+/// Arguments for `RemoteGraph::add_nodes` — batch node updates.
+pub struct AddNodes {
+    pub path: String,
+    pub nodes: Vec<NodeAddition>,
+}
+
+/// Arguments for `RemoteGraph::add_edges` — batch edge updates.
+pub struct AddEdges {
+    pub path: String,
+    pub edges: Vec<EdgeAddition>,
+}
+
+/// One node in a batch add. `metadata` = non-temporal props; `updates` =
+/// temporal events attached to the node at specific times.
+pub struct NodeAddition {
+    pub name: String,
+    pub node_type: Option<String>,
+    pub metadata: Option<HashMap<String, Prop>>,
+    pub updates: Option<Vec<TemporalUpdate>>,
+}
+
+/// One edge in a batch add.
+pub struct EdgeAddition {
+    pub src: String,
+    pub dst: String,
+    pub layer: Option<String>,
+    pub metadata: Option<HashMap<String, Prop>>,
+    pub updates: Option<Vec<TemporalUpdate>>,
+}
+
+/// A temporal update on a node or edge — property values attached at a
+/// specific event time.
+pub struct TemporalUpdate {
+    pub time: i64,
+    pub properties: Option<HashMap<String, Prop>>,
 }

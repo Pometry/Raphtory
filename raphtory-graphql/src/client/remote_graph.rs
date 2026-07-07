@@ -41,11 +41,6 @@ pub fn build_query(template: &str, context: Value) -> Result<String, ClientError
 #[derive(Clone)]
 pub struct RemoteGraph {
     pub path: String,
-    /// Kept for now — used only by the Python-side `add_nodes` and `add_edges`
-    /// batch methods that still call `client.query(...)` directly (see the
-    /// TODO in `python/client/remote_graph.rs`). Removed once those two batch
-    /// mutations are migrated through the transport.
-    pub client: RemoteClient,
     pub transport: Arc<dyn Transport>,
     /// The read expression built so far. Starts as `Root { path }`.
     pub expr: ReadExpr,
@@ -53,11 +48,10 @@ pub struct RemoteGraph {
 
 impl RemoteGraph {
     pub fn new(path: String, client: RemoteClient) -> Self {
-        let transport: Arc<dyn Transport> = Arc::new(GraphqlTransport::new(client.clone()));
+        let transport: Arc<dyn Transport> = Arc::new(GraphqlTransport::new(client));
         let expr = ReadExpr::Root { path: path.clone() };
         Self {
             path,
-            client,
             transport,
             expr,
         }
@@ -67,7 +61,6 @@ impl RemoteGraph {
     pub fn window(&self, start: i64, end: i64) -> RemoteGraph {
         RemoteGraph {
             path: self.path.clone(),
-            client: self.client.clone(),
             transport: self.transport.clone(),
             expr: ReadExpr::Window {
                 input: Box::new(self.expr.clone()),

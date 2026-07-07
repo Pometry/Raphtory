@@ -1,9 +1,13 @@
-use crate::client::{inner_collection, ClientError};
+use crate::client::{
+    inner_collection,
+    op::{EdgeAddition, NodeAddition, TemporalUpdate},
+    ClientError,
+};
 use pyo3::{exceptions::PyValueError, prelude::*, pyclass, pymethods};
 use raphtory_api::{
     core::{
         entities::{properties::prop::Prop, GID},
-        storage::timeindex::EventTime,
+        storage::timeindex::{AsTime, EventTime},
         utils::time::IntoTime,
     },
     python::{error::adapt_err_value, timeindex::PyEventTime},
@@ -352,5 +356,41 @@ impl PyRemoteIndexSpec {
 impl From<ClientError> for PyErr {
     fn from(err: ClientError) -> Self {
         adapt_err_value(&err)
+    }
+}
+
+// ============ Py* → transport-layer op-arg conversions ============
+// Used by the batch `add_nodes` / `add_edges` mutations to hand off the
+// Python-supplied input to `WriteOp::AddNodes` / `WriteOp::AddEdges`.
+
+impl From<PyUpdate> for TemporalUpdate {
+    fn from(u: PyUpdate) -> Self {
+        Self {
+            time: u.time.into_time().t(),
+            properties: u.properties,
+        }
+    }
+}
+
+impl From<PyNodeAddition> for NodeAddition {
+    fn from(n: PyNodeAddition) -> Self {
+        Self {
+            name: n.name.to_string(),
+            node_type: n.node_type,
+            metadata: n.metadata,
+            updates: n.updates.map(|us| us.into_iter().map(Into::into).collect()),
+        }
+    }
+}
+
+impl From<PyEdgeAddition> for EdgeAddition {
+    fn from(e: PyEdgeAddition) -> Self {
+        Self {
+            src: e.src.to_string(),
+            dst: e.dst.to_string(),
+            layer: e.layer,
+            metadata: e.metadata,
+            updates: e.updates.map(|us| us.into_iter().map(Into::into).collect()),
+        }
     }
 }

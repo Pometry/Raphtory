@@ -5,11 +5,12 @@
 //! client wrappers (`RemoteGraph`, `RemoteNode`, ...) stay transport-agnostic.
 
 use crate::client::{
-    build_property_string,
+    build_property_string, inner_collection,
     op::{
-        AddEdge, AddEdgeMetadata, AddEdgeUpdates, AddGraphMetadata, AddGraphProperty, AddNode,
-        AddNodeMetadata, AddNodeUpdates, CreateNode, DeleteEdge, DeleteEdgeAtTime, Op, ReadExpr,
-        SetNodeType, UpdateEdgeMetadata, UpdateGraphMetadata, UpdateNodeMetadata, WriteOp,
+        AddEdge, AddEdgeMetadata, AddEdgeUpdates, AddEdges, AddGraphMetadata, AddGraphProperty,
+        AddNode, AddNodeMetadata, AddNodeUpdates, AddNodes, CreateNode, DeleteEdge,
+        DeleteEdgeAtTime, EdgeAddition, NodeAddition, Op, ReadExpr, SetNodeType, TemporalUpdate,
+        UpdateEdgeMetadata, UpdateGraphMetadata, UpdateNodeMetadata, WriteOp,
     },
     remote_client::RemoteClient,
     remote_graph::build_query,
@@ -63,6 +64,8 @@ impl GraphqlTransport {
             WriteOp::DeleteEdgeAtTime(args) => self.apply_delete_edge_at_time(args).await,
             WriteOp::AddEdgeMetadata(args) => self.apply_add_edge_metadata(args).await,
             WriteOp::UpdateEdgeMetadata(args) => self.apply_update_edge_metadata(args).await,
+            WriteOp::AddNodes(args) => self.apply_add_nodes(args).await,
+            WriteOp::AddEdges(args) => self.apply_add_edges(args).await,
         }
     }
 
@@ -551,6 +554,97 @@ impl GraphqlTransport {
         self.client.query(&query, HashMap::new()).await?;
         Ok(None)
     }
+
+    async fn apply_add_nodes(&self, args: &AddNodes) -> Result<Option<Prop>, ClientError> {
+        let nodes_gql = args
+            .nodes
+            .iter()
+            .map(render_node_addition)
+            .collect::<Vec<_>>()
+            .join(", ");
+        let query = format!(
+            r#"{{ updateGraph(path: "{path}") {{ addNodes(nodes: [{nodes_gql}]) }} }}"#,
+            path = args.path,
+            nodes_gql = nodes_gql,
+        );
+        self.client.query(&query, HashMap::new()).await?;
+        Ok(None)
+    }
+
+    async fn apply_add_edges(&self, args: &AddEdges) -> Result<Option<Prop>, ClientError> {
+        let edges_gql = args
+            .edges
+            .iter()
+            .map(render_edge_addition)
+            .collect::<Vec<_>>()
+            .join(", ");
+        let query = format!(
+            r#"{{ updateGraph(path: "{path}") {{ addEdges(edges: [{edges_gql}]) }} }}"#,
+            path = args.path,
+            edges_gql = edges_gql,
+        );
+        self.client.query(&query, HashMap::new()).await?;
+        Ok(None)
+    }
+}
+
+// ============ Batch mutation rendering helpers ============
+
+fn render_node_addition(node: &NodeAddition) -> String {
+    let mut parts = vec![format!(r#"name: "{}""#, node.name)];
+    if let Some(nt) = &node.node_type {
+        parts.push(format!(r#"nodeType: "{}""#, nt));
+    }
+    if let Some(updates) = &node.updates {
+        parts.push(format!("updates: [{}]", render_updates_list(updates)));
+    }
+    if let Some(metadata) = &node.metadata {
+        parts.push(format!("metadata: [{}]", render_kv_list(metadata)));
+    }
+    format!("{{ {} }}", parts.join(", "))
+}
+
+fn render_edge_addition(edge: &EdgeAddition) -> String {
+    let mut parts = vec![
+        format!(r#"src: "{}""#, edge.src),
+        format!(r#"dst: "{}""#, edge.dst),
+    ];
+    if let Some(layer) = &edge.layer {
+        parts.push(format!(r#"layer: "{}""#, layer));
+    }
+    if let Some(updates) = &edge.updates {
+        parts.push(format!("updates: [{}]", render_updates_list(updates)));
+    }
+    if let Some(metadata) = &edge.metadata {
+        parts.push(format!("metadata: [{}]", render_kv_list(metadata)));
+    }
+    format!("{{ {} }}", parts.join(", "))
+}
+
+fn render_updates_list(updates: &[TemporalUpdate]) -> String {
+    updates
+        .iter()
+        .map(render_temporal_update)
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+fn render_temporal_update(u: &TemporalUpdate) -> String {
+    let mut parts = vec![format!("time: {}", u.time)];
+    if let Some(props) = &u.properties {
+        parts.push(format!("properties: [{}]", render_kv_list(props)));
+    }
+    format!("{{ {} }}", parts.join(", "))
+}
+
+/// Render a `HashMap<String, Prop>` as a list of `{ key, value }` GraphQL
+/// objects. Values use `inner_collection` which produces the tagged GraphQL
+/// value syntax (`{ str: "..." }`, `{ i64: 3 }`, etc.).
+fn render_kv_list(map: &HashMap<String, Prop>) -> String {
+    map.iter()
+        .map(|(k, v)| format!(r#"{{ key: "{}", value: {} }}"#, k, inner_collection(v)))
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 // ============ Read path ============

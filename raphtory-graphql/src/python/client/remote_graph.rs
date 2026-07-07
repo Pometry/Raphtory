@@ -1,18 +1,22 @@
 use crate::{
     client::{
-        remote_graph::{build_query, RemoteGraph},
+        op::{
+            AddEdges as AddEdgesOp, AddNodes as AddNodesOp, EdgeAddition, NodeAddition, Op,
+            TemporalUpdate, WriteOp,
+        },
+        remote_graph::RemoteGraph,
+        transport::Transport,
         ClientError,
     },
     python::client::{
         remote_edge::PyRemoteEdge, remote_node::PyRemoteNode, PyEdgeAddition, PyNodeAddition,
     },
 };
-use minijinja::context;
 use pyo3::{pyclass, pymethods};
 use raphtory::python::utils::execute_async_task;
 use raphtory_api::core::{
     entities::{properties::prop::Prop, GID},
-    storage::timeindex::EventTime,
+    storage::timeindex::{AsTime, EventTime},
 };
 use std::{collections::HashMap, sync::Arc};
 
@@ -80,72 +84,15 @@ impl PyRemoteGraph {
     ///     None:
     #[pyo3(signature = (updates))]
     pub fn add_nodes(&self, updates: Vec<PyNodeAddition>) -> Result<(), ClientError> {
-        let template = r#"
-        {
-        updateGraph(path: "{{ path }}") {
-            addNodes(
-                nodes: [
-                    {% for node in nodes %}
-                    {
-                        name: "{{ node.name }}"
-                        {% if node.node_type%}, nodeType: "{{ node.node_type }}"{% endif %}
-                        {% if node.updates%},
-                        updates: [
-                            {% for tprop in node.updates %}
-                            {
-                                time: {{ tprop.time[0] }},
-                                {% if tprop.properties%}
-                                properties: [
-                                    {% for prop in tprop.properties%}
-                                    {
-                                        key: "{{ prop.key }}",
-                                        value:{{prop.value | safe}}
-                                    }
-                                    {% if not loop.last %},{% endif %}
-                                    {% endfor %}
-                                ]
-                                {% endif %}
-                            }
-                            {% if not loop.last %},{% endif %}
-                            {% endfor %}
-                        ]
-                        {% endif %}
-                        {% if node.metadata%},
-                        metadata: [
-                            {% for cprop in node.metadata %}
-                            {
-                                key: "{{ cprop.key }}",
-                                value:{{ cprop.value }}
-                            }
-                            {% if not loop.last %},{% endif %}
-                            {% endfor %}
-                        ]
-                        {% endif %}
-                    }
-                    {% if not loop.last %},{% endif %}
-                    {% endfor %}
-                ]
-            )
-        }
-    }
-        "#;
-
-        let query_context = context! {
-            path => self.graph.path.clone(),
-            nodes => updates
-        };
-
-        let query = build_query(template, query_context)?;
-        let task = {
-            let graph = Arc::clone(&self.graph);
-            move || async move { graph.client.query(&query, HashMap::new()).await }
-        };
+        let op = Op::Write(WriteOp::AddNodes(AddNodesOp {
+            path: self.graph.path.clone(),
+            nodes: updates.into_iter().map(NodeAddition::from).collect(),
+        }));
+        let graph = Arc::clone(&self.graph);
+        let task = move || async move { graph.transport.execute(&op).await };
         execute_async_task(task)?;
-
         Ok(())
     }
-
-    // TODO: Still need to move add_nodes and add_edges logic over to Rust client in src/client/remote_client.rs
 
     /// Batch add edge updates to the remote graph
     ///
@@ -156,69 +103,13 @@ impl PyRemoteGraph {
     ///     None:
     #[pyo3(signature = (updates))]
     pub fn add_edges(&self, updates: Vec<PyEdgeAddition>) -> Result<(), ClientError> {
-        let template = r#"
-                {
-                updateGraph(path: "{{ path }}") {
-                    addEdges(
-                        edges: [
-                            {% for edge in edges %}
-                            {
-                                src: "{{ edge.src }}"
-                                dst: "{{ edge.dst }}"
-                                {% if edge.layer%}, layer: "{{ edge.layer }}"{% endif %}
-                                {% if edge.updates%},
-                                updates: [
-                                    {% for tprop in edge.updates %}
-                                    {
-                                        time: {{ tprop.time[0] }},
-                                        {% if tprop.properties%}
-                                        properties: [
-                                            {% for prop in tprop.properties%}
-                                            {
-                                                key: "{{ prop.key }}",
-                                                value:{{prop.value | safe}}
-                                            }
-                                            {% if not loop.last %},{% endif %}
-                                            {% endfor %}
-                                        ]
-                                        {% endif %}
-                                    }
-                                    {% if not loop.last %},{% endif %}
-                                    {% endfor %}
-                                ]
-                                {% endif %}
-                                {% if edge.metadata%},
-                                metadata: [
-                                    {% for cprop in edge.metadata %}
-                                    {
-                                        key: "{{ cprop.key }}",
-                                        value:{{ cprop.value }}
-                                    }
-                                    {% if not loop.last %},{% endif %}
-                                    {% endfor %}
-                                ]
-                                {% endif %}
-                            }
-                            {% if not loop.last %},{% endif %}
-                            {% endfor %}
-                        ]
-                    )
-                }
-            }
-        "#;
-
-        let query_context = context! {
-            path => self.graph.path.clone(),
-            edges => updates,
-        };
-
-        let query = build_query(template, query_context)?;
-        let task = {
-            let graph = Arc::clone(&self.graph);
-            move || async move { graph.client.query(&query, HashMap::new()).await }
-        };
+        let op = Op::Write(WriteOp::AddEdges(AddEdgesOp {
+            path: self.graph.path.clone(),
+            edges: updates.into_iter().map(EdgeAddition::from).collect(),
+        }));
+        let graph = Arc::clone(&self.graph);
+        let task = move || async move { graph.transport.execute(&op).await };
         execute_async_task(task)?;
-
         Ok(())
     }
 
