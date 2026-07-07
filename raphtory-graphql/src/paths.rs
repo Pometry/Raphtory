@@ -28,8 +28,7 @@ use std::{
     io::{ErrorKind, Read, Seek, Write},
     ops::Deref,
     panic::Location,
-    path::{Component, Path, PathBuf, StripPrefixError},
-    time::{SystemTime, UNIX_EPOCH},
+    path::{Component, Path, PathBuf, StripPrefixError}
 };
 use tracing::{error, warn};
 use zip::ZipArchive;
@@ -431,6 +430,19 @@ impl ValidGraphPaths for ValidWriteableGraphFolder {
 }
 
 impl ValidWriteableGraphFolder {
+    fn new(
+        work_dir_write_guard: WorkDirWriteGuard,
+        valid_path: NewPath,
+        graph_name: &str,
+    ) -> Result<Self, PathValidationError> {
+        Self::new_inner(work_dir_write_guard, valid_path, graph_name).map_err(|error| {
+            PathValidationError::InternalError {
+                graph: graph_name.to_string(),
+                error,
+            }
+        })
+    }
+
     fn new_inner(
         work_dir_write_guard: WorkDirWriteGuard,
         valid_path: NewPath,
@@ -449,18 +461,6 @@ impl ValidWriteableGraphFolder {
             global_path: data_path,
             dirty_marker: valid_path.cleanup,
             local_path: graph_name.to_string(),
-        })
-    }
-    fn new(
-        work_dir_write_guard: WorkDirWriteGuard,
-        valid_path: NewPath,
-        graph_name: &str,
-    ) -> Result<Self, PathValidationError> {
-        Self::new_inner(work_dir_write_guard, valid_path, graph_name).map_err(|error| {
-            PathValidationError::InternalError {
-                graph: graph_name.to_string(),
-                error,
-            }
         })
     }
 
