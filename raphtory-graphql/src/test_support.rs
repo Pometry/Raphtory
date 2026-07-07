@@ -5,18 +5,13 @@
 #![allow(dead_code)]
 
 use crate::{
-    auth::Access,
-    auth_policy::AuthorizationPolicy,
-    config::app_config::AppConfig,
-    data::{Data, DIRTY_PATH},
+    auth::Access, auth_policy::AuthorizationPolicy, config::app_config::AppConfig, data::Data,
     model::App,
 };
 use async_graphql::dynamic::Schema;
 use dynamic_graphql::Request;
-use raphtory::{
-    db::api::{storage::storage::Config, view::MaterializedGraph},
-    serialise::ROOT_META_PATH,
-};
+use raphtory::db::api::{storage::storage::Config, view::MaterializedGraph};
+use raphtory_api::core::storage::graph_folder::{DIRTY_PATH, ROOT_META_PATH};
 use std::{path::Path, sync::Arc};
 
 pub(crate) struct TestSetup {
@@ -30,7 +25,11 @@ pub(crate) async fn setup_with_graphs(
 ) -> TestSetup {
     let data = Data::new(work_dir, &AppConfig::default(), Config::default());
     for (path, graph) in graphs {
-        let folder = data.validate_path_for_insert(path, false).unwrap();
+        let folder = data
+            .work_dir_write()
+            .await
+            .validate_path_for_insert(path, false)
+            .unwrap();
         data.insert_graph(folder, graph.clone()).await.unwrap();
     }
     let schema = App::create_schema().data(data.clone()).finish().unwrap();
@@ -44,7 +43,11 @@ pub(crate) async fn setup_with_policy(
 ) -> TestSetup {
     let mut data = Data::new(work_dir, &AppConfig::default(), Config::default());
     for (path, graph) in graphs {
-        let folder = data.validate_path_for_insert(path, false).unwrap();
+        let folder = data
+            .work_dir_write()
+            .await
+            .validate_path_for_insert(path, false)
+            .unwrap();
         data.insert_graph(folder, graph.clone()).await.unwrap();
     }
     data.set_auth_policy(policy);

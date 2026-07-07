@@ -29,9 +29,9 @@ pub trait RecoveryOps: DurabilityOps + InternalAdditionOps<Error = MutationError
                 let redo_lsn = if checkpoint_lsn == LAST_CHECKPOINT_INIT {
                     // No successful checkpoint has been written yet,
                     // replay from the start of the WAL stream.
-                    0
+                    None
                 } else {
-                    wal.read_checkpoint(checkpoint_lsn)?
+                    Some(wal.read_checkpoint(checkpoint_lsn)?)
                 };
 
                 // Set db state to indicate that recovery is in progress.
@@ -43,6 +43,10 @@ pub trait RecoveryOps: DurabilityOps + InternalAdditionOps<Error = MutationError
 
                 // Set the next LSN for future writes to the end of the WAL stream.
                 wal.set_position(end_of_wal_lsn)?;
+            }
+            DBState::WalDisabled => {
+                // A graph that was created with WAL disabled is now loaded with WAL enabled.
+                // No recovery is needed.
             }
             DBState::NotSupported => {
                 // Recovery is not supported, skip.

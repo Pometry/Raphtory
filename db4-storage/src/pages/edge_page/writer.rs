@@ -6,6 +6,7 @@ use crate::{
     segments::edge::segment::MemEdgeSegment,
     wal::LSN,
 };
+use drop_logging::drop_error;
 use raphtory_api::core::entities::{
     EID, LayerId, VID,
     properties::{
@@ -235,7 +236,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
         let delta = self.writer.est_size() - self.old_estimated_size;
         self.writer.increment_global_memory(delta);
         if let Err(err) = self.page.notify_write(self.writer.deref_mut()) {
-            eprintln!("Failed to persist {}, err: {}", self.segment_id(), err)
+            drop_error!("Failed to persist {}, err: {}", self.segment_id(), err)
         }
     }
 }

@@ -1,9 +1,9 @@
 use crate::{
-    gen_ts::{
+    generic_t_props::GenericTProps,
+    generic_time_ops::{
         AdditionCellsRef, DeletionCellsRef, EdgeAdditionCellsRef, GenericTimeOps,
         PropAdditionCellsRef,
     },
-    generic_t_props::GenericTProps,
     pages::{
         GraphStore, ReadLockedGraphStore, edge_store::ReadLockedEdgeStorage,
         node_store::ReadLockedNodeStorage,
@@ -35,8 +35,8 @@ use std::{
 
 pub mod api;
 pub mod dir;
-pub mod gen_ts;
 pub mod generic_t_props;
+pub mod generic_time_ops;
 pub mod pages;
 pub mod persist;
 pub mod properties;
@@ -83,7 +83,10 @@ pub mod error {
     use std::{io, panic::Location, path::PathBuf, sync::Arc};
 
     use crate::resolver::mapping_resolver::InvalidNodeId;
-    use raphtory_api::core::{entities::properties::prop::PropError, utils::time::ParseTimeError};
+    use raphtory_api::core::{
+        entities::properties::prop::PropError, storage::graph_folder::GraphFolderError,
+        utils::time::ParseTimeError,
+    };
     use raphtory_core::entities::properties::props::MetadataError;
 
     #[derive(thiserror::Error, Debug)]
@@ -117,6 +120,8 @@ pub mod error {
         #[error("Unnamed Failure: {0}")]
         GenericFailure(String),
         #[error(transparent)]
+        GraphFolder(#[from] GraphFolderError),
+        #[error(transparent)]
         InvalidNodeId(#[from] InvalidNodeId),
 
         #[error("Failed to vacuum storage")]
@@ -124,6 +129,9 @@ pub mod error {
 
         #[error("Disk storage not supported")]
         DiskStorageNotSupported,
+
+        #[error("Graph requires WAL recovery; load with WAL enabled")]
+        RecoveryRequired,
     }
 
     impl StorageError {
@@ -230,16 +238,4 @@ pub fn read_constant_graph_properties(
     error::StorageError,
 > {
     Ok(Vec::new())
-}
-
-/// Matches `db4_disk_storage::meta_file::GRAPH_META_PATH`
-pub const GRAPH_META_PATH: &str = ".meta";
-
-/// No-op shim for when we have db4-storage instead of db4-disk-storage
-pub fn refresh_disk_graph_metadata(
-    _disk_graph_path: &Path,
-    _node_count: usize,
-    _edge_count: usize,
-) -> Result<(), error::StorageError> {
-    Ok(())
 }

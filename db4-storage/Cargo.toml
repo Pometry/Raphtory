@@ -11,7 +11,7 @@ rust-version.workspace = true
 edition = "2024"
 
 [dependencies]
-raphtory-api.workspace = true
+raphtory-api.workspace = true 
 raphtory-api-macros.workspace = true
 raphtory-core = { workspace = true }
 raphtory-itertools.workspace = true
@@ -37,6 +37,7 @@ tracing.workspace = true
 dashmap.workspace = true
 lock_api.workspace = true
 once_cell.workspace = true
+drop-logging.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true
@@ -47,5 +48,5 @@ test-log.workspace = true
 
 [features]
 test-utils = ["dep:proptest", "dep:chrono", "panic-on-drop"]
-panic-on-drop = []
+panic-on-drop = ["drop-logging/panic-on-drop"]
 

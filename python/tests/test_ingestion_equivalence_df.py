@@ -1,10 +1,11 @@
 import os.path
-import pytest
 from pathlib import Path
+
+import duckdb
 import pandas as pd
 import polars as pl
 import pyarrow as pa
-import duckdb
+import pytest
 
 try:
     import fireducks.pandas as fpd
@@ -15,6 +16,14 @@ from raphtory import Graph, PersistentGraph
 base_dir = Path(__file__).parent
 EDGES_FILE = os.path.join(base_dir, "data/network_traffic_edges.csv")
 NODES_FILE = os.path.join(base_dir, "data/network_traffic_nodes.csv")
+
+
+def _btc_root() -> Path:
+    return Path(__file__).parent / "data" / "btc_dataset"
+
+
+def _collect_edges(g: Graph):
+    return sorted((e.history.t[0], e.src.id, e.dst.id, e["value"]) for e in g.edges)
 
 
 def duck_query(con, sql: str):
@@ -313,3 +322,217 @@ def test_metadata_update_equivalence(dataframes, graph_type):
             metadata=["is_encrypted"],
         )
         assert g_pd == g_fd, "FireDucks metadata ingestion failed equivalence check"
+
+
+def test_different_data_sources():
+    nodes_list = []
+
+    ######### PARQUET #########
+    parquet_dir_path_str = str(_btc_root() / "parquet_directory")
+    parquet_file_path_str = str(_btc_root() / "flattened_data.parquet")
+    # test path string for parquet file
+    g = Graph()
+    g.load_nodes(
+        data=parquet_file_path_str, time="block_timestamp", id="inputs_address"
+    )
+    nodes_list.append(sorted(g.nodes.id.collect()))
+    del g
+
+    # test Path object for parquet file
+    file_path_obj = Path(parquet_file_path_str)
+    g = Graph()
+    g.load_nodes(data=file_path_obj, time="block_timestamp", id="inputs_address")
+    nodes_list.append(sorted(g.nodes.id.collect()))
+    del g
+
+    # test path string for parquet directory
+    g = Graph()
+    g.load_nodes(data=parquet_dir_path_str, time="block_timestamp", id="inputs_address")
+    nodes_list.append(sorted(g.nodes.id.collect()))
+    del g
+
+    # test Path object for parquet directory
+    dir_path_obj = Path(parquet_dir_path_str)
+    g = Graph()
+    g.load_nodes(data=dir_path_obj, time="block_timestamp", id="inputs_address")
+    nodes_list.append(sorted(g.nodes.id.collect()))
+    del g
+
+    ######### CSV #########
+    csv_dir_path_str = str(_btc_root() / "csv_directory")
+    csv_file_path_str = str(_btc_root() / "flattened_data.csv")
+    # test path string for CSV file
+    g = Graph()
+    g.load_nodes(data=csv_file_path_str, time="block_timestamp", id="inputs_address")
+    nodes_list.append(sorted(g.nodes.id.collect()))
+    del g
+
+    # test Path object for CSV file
+    file_path_obj = Path(csv_file_path_str)
+    g = Graph()
+    g.load_nodes(data=file_path_obj, time="block_timestamp", id="inputs_address")
+    nodes_list.append(sorted(g.nodes.id.collect()))
+    del g
+
+    # test path string for bz2 compressed CSV file
+    g = Graph()
+    compressed_file_path = csv_file_path_str + ".bz2"
+    g.load_nodes(data=compressed_file_path, time="block_timestamp", id="inputs_address")
+    nodes_list.append(sorted(g.nodes.id.collect()))
+    del g
+
+    # test Path object for bz2 compressed CSV file
+    file_path_obj = Path(compressed_file_path)
+    g = Graph()
+    g.load_nodes(data=file_path_obj, time="block_timestamp", id="inputs_address")
+    nodes_list.append(sorted(g.nodes.id.collect()))
+    del g
+
+    # test path string for gzip compressed CSV file
+    g = Graph()
+    compressed_file_path = csv_file_path_str + ".gz"
+    g.load_nodes(data=compressed_file_path, time="block_timestamp", id="inputs_address")
+    nodes_list.append(sorted(g.nodes.id.collect()))
+    del g
+
+    # test Path object for gzip compressed CSV file
+    file_path_obj = Path(compressed_file_path)
+    g = Graph()
+    g.load_nodes(data=file_path_obj, time="block_timestamp", id="inputs_address")
+    nodes_list.append(sorted(g.nodes.id.collect()))
+    del g
+
+    # test path string for CSV directory
+    g = Graph()
+    g.load_nodes(data=csv_dir_path_str, time="block_timestamp", id="inputs_address")
+    nodes_list.append(sorted(g.nodes.id.collect()))
+    del g
+
+    # test Path object for CSV directory
+    dir_path_obj = Path(csv_dir_path_str)
+    g = Graph()
+    g.load_nodes(data=dir_path_obj, time="block_timestamp", id="inputs_address")
+    nodes_list.append(sorted(g.nodes.id.collect()))
+    del g
+
+    ######### mixed directory #########
+    mixed_dir_path_str = (
+        str(Path(__file__).parent) + "/data/btc_dataset/mixed_directory"
+    )
+    # test path string
+    g = Graph()
+    g.load_nodes(data=mixed_dir_path_str, time="block_timestamp", id="inputs_address")
+    nodes_list.append(sorted(g.nodes.id.collect()))
+    del g
+
+    # test Path object
+    g = Graph()
+    g.load_nodes(
+        data=Path(mixed_dir_path_str), time="block_timestamp", id="inputs_address"
+    )
+    nodes_list.append(sorted(g.nodes.id.collect()))
+    del g
+
+    ######### arrow_c_stream #########
+    # test pandas
+    df_pd = pd.read_parquet(parquet_file_path_str)
+    g = Graph()
+    g.load_nodes(data=df_pd, time="block_timestamp", id="inputs_address")
+    nodes_list.append(sorted(g.nodes.id.collect()))
+    del g, df_pd
+
+    # test polars
+    df_pl = pl.read_parquet(parquet_file_path_str)
+    g = Graph()
+    g.load_nodes(data=df_pl, time="block_timestamp", id="inputs_address")
+    nodes_list.append(sorted(g.nodes.id.collect()))
+    del g, df_pl
+
+    # sanity check, make sure we ingested the same nodes each time
+    print(f"Number of tests ran: {len(nodes_list)}")
+    for i in range(len(nodes_list) - 1):
+        assert (
+            nodes_list[0] == nodes_list[i + 1]
+        ), f"Nodes list assertion failed at item i={i}"
+
+
+@pytest.mark.parametrize("graph_type", [Graph, PersistentGraph])
+def test_load_edges_from_polars_df(graph_type):
+    df = pl.DataFrame(
+        {
+            "time": [1, 2, 3],
+            "src": [1, 2, 3],
+            "dst": [2, 3, 4],
+            "value": [10.0, 20.0, 30.0],
+        }
+    )
+
+    g_to_pandas = graph_type()
+    g_to_pandas.load_edges(
+        data=df.to_pandas(), time="time", src="src", dst="dst", properties=["value"]
+    )
+
+    g_from_df = graph_type()
+    g_from_df.load_edges(
+        data=df, time="time", src="src", dst="dst", properties=["value"]
+    )
+
+    expected = [(1, 1, 2, 10.0), (2, 2, 3, 20.0), (3, 3, 4, 30.0)]
+    assert _collect_edges(g_to_pandas) == _collect_edges(g_from_df)
+    assert _collect_edges(g_to_pandas) == expected
+    assert _collect_edges(g_from_df) == expected
+
+
+if fpd:
+    import pandas
+
+    @pytest.mark.parametrize("graph_type", [Graph, PersistentGraph])
+    def test_load_edges_from_fireducks_df(graph_type):
+        # FireDucks DataFrame (pandas-compatible API)
+        df = fpd.DataFrame(
+            {
+                "time": [1, 2, 3],
+                "src": [1, 2, 3],
+                "dst": [2, 3, 4],
+                "value": [10.0, 20.0, 30.0],
+            }
+        )
+
+        g = graph_type()
+        g.load_edges(data=df, time="time", src="src", dst="dst", properties=["value"])
+        assert [(1, 1, 2, 10.0), (2, 2, 3, 20.0), (3, 3, 4, 30.0)] == _collect_edges(g)
+
+    @pytest.mark.parametrize("graph_type", [Graph, PersistentGraph])
+    def test_fireducks_matches_pandas_for_same_edges(graph_type):
+        df_fireducks = fpd.DataFrame(
+            {
+                "time": [1, 2, 3],
+                "src": [1, 2, 3],
+                "dst": [2, 3, 4],
+                "value": [10.0, 20.0, 30.0],
+            }
+        )
+        df_pandas = pandas.DataFrame(
+            {
+                "time": [1, 2, 3],
+                "src": [1, 2, 3],
+                "dst": [2, 3, 4],
+                "value": [10.0, 20.0, 30.0],
+            }
+        )
+
+        g_fireducks = graph_type()
+        g_fireducks.load_edges(
+            data=df_fireducks, time="time", src="src", dst="dst", properties=["value"]
+        )
+
+        g_pandas = graph_type()
+        g_pandas.load_edges(
+            data=df_pandas, time="time", src="src", dst="dst", properties=["value"]
+        )
+
+        expected = [(1, 1, 2, 10.0), (2, 2, 3, 20.0), (3, 3, 4, 30.0)]
+
+        assert _collect_edges(g_fireducks) == _collect_edges(g_pandas)
+        assert _collect_edges(g_fireducks) == expected
+        assert _collect_edges(g_pandas) == expected

@@ -1,5 +1,3 @@
-#[cfg(feature = "io")]
-use crate::serialise::GraphPaths;
 use crate::{
     core::storage::timeindex::EventTime,
     db::{
@@ -9,6 +7,8 @@ use crate::{
     errors::GraphError,
     prelude::*,
 };
+#[cfg(feature = "io")]
+use raphtory_api::core::storage::graph_folder::GraphPaths;
 use raphtory_api::{iter::BoxedLIter, GraphType};
 use raphtory_storage::{graph::graph::GraphStorage, mutation::InheritMutationOps};
 use std::ops::Range;

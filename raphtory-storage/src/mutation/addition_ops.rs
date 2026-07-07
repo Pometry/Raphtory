@@ -56,7 +56,8 @@ pub trait InternalAdditionOps {
         node_type: Option<&str>,
     ) -> Result<(VID, usize), Self::Error>;
 
-    /// SAFETY this function assumes it is called from behind a sharded structure that does not allow the same id to be resolved at the same time by more than 1 thread
+    /// SAFETY this function assumes it is called from behind a sharded structure that does not
+    /// allow the same id to be resolved at the same time by more than 1 thread
     unsafe fn bulk_load_resolve_node(&self, id: GidRef<'_>) -> Result<VID, Self::Error>;
 
     /// validate the GidRef is the correct type

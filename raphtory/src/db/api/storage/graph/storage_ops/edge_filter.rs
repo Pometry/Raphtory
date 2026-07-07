@@ -30,6 +30,10 @@ impl InternalEdgeFilterOps for GraphStorage {
     fn node_filter_includes_edge_filter(&self) -> bool {
         true
     }
+
+    fn edge_filter_includes_window_filter(&self) -> bool {
+        true
+    }
 }
 
 impl InternalExplodedEdgeFilterOps for GraphStorage {
