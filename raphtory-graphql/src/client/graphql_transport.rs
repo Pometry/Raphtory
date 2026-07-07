@@ -695,11 +695,9 @@ fn render_read_body(expr: &ReadExpr) -> String {
             start,
             end
         ),
-        ReadExpr::Layer { input, name } => format!(
-            "{} {{ layer(name: \"{}\")",
-            render_read_body(input),
-            name
-        ),
+        ReadExpr::Layer { input, name } => {
+            format!("{} {{ layer(name: \"{}\")", render_read_body(input), name)
+        }
         ReadExpr::At { input, time } => {
             format!("{} {{ at(time: {})", render_read_body(input), time)
         }
@@ -713,6 +711,14 @@ fn render_read_body(expr: &ReadExpr) -> String {
         ReadExpr::Node { input, id } => {
             format!("{} {{ node(name: \"{}\")", render_read_body(input), id)
         }
+        ReadExpr::Edge { input, src, dst } => format!(
+            "{} {{ edge(src: \"{}\", dst: \"{}\")",
+            render_read_body(input),
+            src,
+            dst
+        ),
+        ReadExpr::Src { input } => format!("{} {{ src", render_read_body(input)),
+        ReadExpr::Dst { input } => format!("{} {{ dst", render_read_body(input)),
         // Terminals — no args after the field name
         ReadExpr::CountNodes { input } => format!("{} {{ countNodes", render_read_body(input)),
         ReadExpr::CountEdges { input } => format!("{} {{ countEdges", render_read_body(input)),
@@ -732,6 +738,9 @@ fn read_depth(expr: &ReadExpr) -> usize {
         | ReadExpr::Before { input, .. }
         | ReadExpr::After { input, .. }
         | ReadExpr::Node { input, .. }
+        | ReadExpr::Edge { input, .. }
+        | ReadExpr::Src { input }
+        | ReadExpr::Dst { input }
         | ReadExpr::CountNodes { input }
         | ReadExpr::CountEdges { input }
         | ReadExpr::Degree { input }
@@ -768,9 +777,7 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
         | ReadExpr::CountEdges { .. } => terminal_val
             .as_i64()
             .map(|n| Some(Prop::I64(n)))
-            .ok_or_else(|| {
-                ClientError::InvalidResponse(format!("`{}` not an i64", terminal_key))
-            }),
+            .ok_or_else(|| ClientError::InvalidResponse(format!("`{}` not an i64", terminal_key))),
         // String-shaped terminals
         ReadExpr::Name { .. } => terminal_val
             .as_str()
@@ -812,6 +819,18 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
             ReadExpr::Node { input, .. } => {
                 go(input, out);
                 out.push("node");
+            }
+            ReadExpr::Edge { input, .. } => {
+                go(input, out);
+                out.push("edge");
+            }
+            ReadExpr::Src { input } => {
+                go(input, out);
+                out.push("src");
+            }
+            ReadExpr::Dst { input } => {
+                go(input, out);
+                out.push("dst");
             }
             ReadExpr::CountNodes { input } => {
                 go(input, out);

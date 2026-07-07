@@ -1,4 +1,7 @@
-use crate::client::{remote_edge::RemoteEdge, ClientError};
+use crate::{
+    client::{remote_edge::RemoteEdge, ClientError},
+    python::client::remote_node::PyRemoteNode,
+};
 use pyo3::{pyclass, pymethods};
 use raphtory::python::utils::execute_async_task;
 use raphtory_api::core::{entities::properties::prop::Prop, storage::timeindex::EventTime};
@@ -123,5 +126,21 @@ impl PyRemoteEdge {
         execute_async_task(task)?;
 
         Ok(())
+    }
+
+    /// Navigate to this edge's source node. Lazy — no RPC.
+    ///
+    /// Returns:
+    ///   RemoteNode: a handle to the source node, carrying the accumulated view chain.
+    pub fn src(&self) -> PyRemoteNode {
+        PyRemoteNode::new(self.edge.src())
+    }
+
+    /// Navigate to this edge's destination node. Lazy — no RPC.
+    ///
+    /// Returns:
+    ///   RemoteNode: a handle to the destination node, carrying the accumulated view chain.
+    pub fn dst(&self) -> PyRemoteNode {
+        PyRemoteNode::new(self.edge.dst())
     }
 }

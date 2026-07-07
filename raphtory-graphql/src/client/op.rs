@@ -48,9 +48,19 @@ pub enum ReadExpr {
     /// Restrict to events at or after the given time.
     After { input: Box<ReadExpr>, time: i64 },
 
-    // ============ Selection (Graph → Node) ============
-    /// Narrow to a single node by id. Consumes a graph, produces a node.
+    // ============ Selection ============
+    /// Narrow to a single node by id. Graph → Node.
     Node { input: Box<ReadExpr>, id: String },
+    /// Narrow to a single edge by (src, dst). Graph → Edge.
+    Edge {
+        input: Box<ReadExpr>,
+        src: String,
+        dst: String,
+    },
+    /// Navigate to an edge's source node. Edge → Node.
+    Src { input: Box<ReadExpr> },
+    /// Navigate to an edge's destination node. Edge → Node.
+    Dst { input: Box<ReadExpr> },
 
     // ============ Scalar terminals on Graph ============
     /// Terminal: total node count under the current view — `i64`.

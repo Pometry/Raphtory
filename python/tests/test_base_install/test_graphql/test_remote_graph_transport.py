@@ -119,3 +119,20 @@ def test_view_ops():
         assert rg.at(3).node("ben").degree() == 1
     finally:
         server_cm.__exit__(None, None, None)
+
+
+def test_edge_selection_and_navigation():
+    """`rg.edge(src, dst)` selects an edge; `.src()` / `.dst()` navigate back
+    to node handles that carry the whole view chain."""
+    server_cm, rg = _make_graph_with_edge()
+    try:
+        e = rg.edge("ben", "hamza")
+        # Navigate back to source/destination nodes and read from them.
+        assert e.src().name() == "ben"
+        assert e.dst().name() == "hamza"
+        # The navigated-back node handles carry the full view chain — evaluating
+        # a terminal on them fires an RPC against the same underlying edge.
+        assert e.src().degree() == 1
+        assert e.dst().degree() == 1
+    finally:
+        server_cm.__exit__(None, None, None)

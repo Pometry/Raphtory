@@ -164,12 +164,21 @@ impl RemoteGraph {
     }
 
     /// Returns a remote edge reference for the given source and destination node ids.
+    /// Carries the built-up read expression forward, so subsequent navigations
+    /// (`.src()`, `.dst()`) evaluate under the same view chain.
     pub fn edge(&self, src: impl ToString, dst: impl ToString) -> RemoteEdge {
-        RemoteEdge::new(
+        let src_str = src.to_string();
+        let dst_str = dst.to_string();
+        RemoteEdge::with_expr(
             self.path.clone(),
+            src_str.clone(),
+            dst_str.clone(),
             self.transport.clone(),
-            src.to_string(),
-            dst.to_string(),
+            ReadExpr::Edge {
+                input: Box::new(self.expr.clone()),
+                src: src_str,
+                dst: dst_str,
+            },
         )
     }
 
@@ -249,11 +258,16 @@ impl RemoteGraph {
             layer,
         }));
         self.transport.execute(&op).await?;
-        Ok(RemoteEdge::new(
+        Ok(RemoteEdge::with_expr(
             self.path.clone(),
+            src_str.clone(),
+            dst_str.clone(),
             self.transport.clone(),
-            src_str,
-            dst_str,
+            ReadExpr::Edge {
+                input: Box::new(self.expr.clone()),
+                src: src_str,
+                dst: dst_str,
+            },
         ))
     }
 
@@ -310,11 +324,16 @@ impl RemoteGraph {
             layer,
         }));
         self.transport.execute(&op).await?;
-        Ok(RemoteEdge::new(
+        Ok(RemoteEdge::with_expr(
             self.path.clone(),
+            src_str.clone(),
+            dst_str.clone(),
             self.transport.clone(),
-            src_str,
-            dst_str,
+            ReadExpr::Edge {
+                input: Box::new(self.expr.clone()),
+                src: src_str,
+                dst: dst_str,
+            },
         ))
     }
 }
