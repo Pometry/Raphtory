@@ -48,8 +48,8 @@ pub struct GraphWithVectorsInner {
     pub is_dirty: AtomicBool,
     pub is_flushing: AtomicBool,
     /// Cache of computed edge schemas for the unfiltered base view of this graph.
-    /// Cleared on every mutation
-    pub schema_cache: Arc<SchemaCache>,
+    /// Cleared on every mutation.
+    pub(crate) schema_cache: Arc<SchemaCache>,
 }
 
 impl GraphWithVectors {
@@ -103,7 +103,7 @@ impl GraphWithVectors {
     }
 
     /// Handle to this graph's schema cache.
-    pub fn schema_cache(&self) -> Arc<SchemaCache> {
+    pub(crate) fn schema_cache(&self) -> Arc<SchemaCache> {
         self.inner.schema_cache.clone()
     }
 

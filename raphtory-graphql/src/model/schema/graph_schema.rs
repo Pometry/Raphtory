@@ -4,8 +4,7 @@ use crate::model::schema::{
 use dynamic_graphql::SimpleObject;
 use itertools::Itertools;
 use raphtory::{db::api::view::DynamicGraph, prelude::*};
-use raphtory_api::core::entities::properties::meta::STATIC_GRAPH_LAYER_ID;
-use raphtory_storage::{core_ops::CoreGraphOps, layer_ops::InternalLayerOps};
+use raphtory_storage::core_ops::CoreGraphOps;
 use std::sync::Arc;
 
 #[derive(SimpleObject)]
@@ -24,11 +23,11 @@ impl GraphSchema {
             .collect();
 
         let layers = graph
-            .layer_ids() // FIXME: Do we want to use unique_layers() here instead?
-            .iter(graph.num_layers() + 1)
-            // skip the internal `_static_graph` layer
-            .filter(|&layer_id| layer_id != STATIC_GRAPH_LAYER_ID)
-            .map(|layer_id| LayerSchema::new(graph.clone(), layer_id, cache.clone()))
+            .unique_layers()
+            .filter_map(|layer| {
+                let layer_id = graph.get_layer_id(layer.as_ref())?;
+                Some(LayerSchema::new(graph.clone(), layer_id, cache.clone()))
+            })
             .collect_vec();
 
         GraphSchema { nodes, layers }

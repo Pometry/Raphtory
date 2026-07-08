@@ -1,8 +1,5 @@
 use crate::{
-    db::api::{
-        properties::internal::EdgePropertySchemaOps,
-        view::internal::{FilterOps, FilterState, FilterVariants, GraphView},
-    },
+    db::api::view::internal::{FilterOps, FilterState, FilterVariants, GraphView},
     prelude::{GraphViewOps, LayerOps},
 };
 use either::Either;
