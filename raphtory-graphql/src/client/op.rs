@@ -47,6 +47,24 @@ pub enum ReadExpr {
     Before { input: Box<ReadExpr>, time: i64 },
     /// Restrict to events at or after the given time.
     After { input: Box<ReadExpr>, time: i64 },
+    /// Latest state — no args. Composes.
+    Latest { input: Box<ReadExpr> },
+    /// Snapshot at the latest time. Composes.
+    SnapshotLatest { input: Box<ReadExpr> },
+    /// Snapshot at a specific time. Composes.
+    SnapshotAt { input: Box<ReadExpr>, time: i64 },
+    /// Exclude a specific layer.
+    ExcludeLayer { input: Box<ReadExpr>, name: String },
+    /// Shrink both start and end of the window.
+    ShrinkWindow {
+        input: Box<ReadExpr>,
+        start: i64,
+        end: i64,
+    },
+    /// Shrink the start of the window.
+    ShrinkStart { input: Box<ReadExpr>, start: i64 },
+    /// Shrink the end of the window.
+    ShrinkEnd { input: Box<ReadExpr>, end: i64 },
 
     // ============ Selection ============
     /// Narrow to a single node by id. Graph → Node.
@@ -89,6 +107,28 @@ pub enum ReadExpr {
     Start { input: Box<ReadExpr> },
     /// Terminal: view end bound — `Option<i64>`. Works on Graph and Node.
     End { input: Box<ReadExpr> },
+
+    // ============ Graph scalar terminals ============
+    /// Terminal: check if a node with `id` exists in the view — `bool`.
+    HasNode { input: Box<ReadExpr>, id: String },
+    /// Terminal: check if an edge with `(src, dst)` exists in the view — `bool`.
+    HasEdge {
+        input: Box<ReadExpr>,
+        src: String,
+        dst: String,
+    },
+    /// Terminal: total count of temporal edges (edge updates) — `i64`.
+    CountTemporalEdges { input: Box<ReadExpr> },
+
+    // ============ Node scalar terminals ============
+    /// Terminal: node id — `String` (server may return int-like GID; treated as string).
+    Id { input: Box<ReadExpr> },
+    /// Terminal: node type — `Option<String>` (null if not set).
+    NodeType { input: Box<ReadExpr> },
+    /// Terminal: whether the node has any events in the current view — `bool`.
+    IsActive { input: Box<ReadExpr> },
+    /// Terminal: count of temporal edge events on this node — `i64`.
+    EdgeHistoryCount { input: Box<ReadExpr> },
 }
 
 /// Write operations. Each variant is a self-contained command with all its

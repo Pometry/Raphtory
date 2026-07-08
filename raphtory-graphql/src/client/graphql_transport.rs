@@ -707,6 +707,34 @@ fn render_read_body(expr: &ReadExpr) -> String {
         ReadExpr::After { input, time } => {
             format!("{} {{ after(time: {})", render_read_body(input), time)
         }
+        ReadExpr::Latest { input } => format!("{} {{ latest", render_read_body(input)),
+        ReadExpr::SnapshotLatest { input } => {
+            format!("{} {{ snapshotLatest", render_read_body(input))
+        }
+        ReadExpr::SnapshotAt { input, time } => format!(
+            "{} {{ snapshotAt(time: {})",
+            render_read_body(input),
+            time
+        ),
+        ReadExpr::ExcludeLayer { input, name } => format!(
+            "{} {{ excludeLayer(name: \"{}\")",
+            render_read_body(input),
+            name
+        ),
+        ReadExpr::ShrinkWindow { input, start, end } => format!(
+            "{} {{ shrinkWindow(start: {}, end: {})",
+            render_read_body(input),
+            start,
+            end
+        ),
+        ReadExpr::ShrinkStart { input, start } => format!(
+            "{} {{ shrinkStart(start: {})",
+            render_read_body(input),
+            start
+        ),
+        ReadExpr::ShrinkEnd { input, end } => {
+            format!("{} {{ shrinkEnd(end: {})", render_read_body(input), end)
+        }
         // Selection
         ReadExpr::Node { input, id } => {
             format!("{} {{ node(name: \"{}\")", render_read_body(input), id)
@@ -726,6 +754,26 @@ fn render_read_body(expr: &ReadExpr) -> String {
         ReadExpr::InDegree { input } => format!("{} {{ inDegree", render_read_body(input)),
         ReadExpr::OutDegree { input } => format!("{} {{ outDegree", render_read_body(input)),
         ReadExpr::Name { input } => format!("{} {{ name", render_read_body(input)),
+        ReadExpr::HasNode { input, id } => format!(
+            "{} {{ hasNode(name: \"{}\")",
+            render_read_body(input),
+            id
+        ),
+        ReadExpr::HasEdge { input, src, dst } => format!(
+            "{} {{ hasEdge(src: \"{}\", dst: \"{}\")",
+            render_read_body(input),
+            src,
+            dst
+        ),
+        ReadExpr::CountTemporalEdges { input } => {
+            format!("{} {{ countTemporalEdges", render_read_body(input))
+        }
+        ReadExpr::Id { input } => format!("{} {{ id", render_read_body(input)),
+        ReadExpr::NodeType { input } => format!("{} {{ nodeType", render_read_body(input)),
+        ReadExpr::IsActive { input } => format!("{} {{ isActive", render_read_body(input)),
+        ReadExpr::EdgeHistoryCount { input } => {
+            format!("{} {{ edgeHistoryCount", render_read_body(input))
+        }
         // Compound terminals — open TWO braces (outer field + `timestamp` sub-field)
         ReadExpr::EarliestTime { input } => {
             format!("{} {{ earliestTime {{ timestamp", render_read_body(input))
@@ -751,6 +799,13 @@ fn read_depth(expr: &ReadExpr) -> usize {
         | ReadExpr::At { input, .. }
         | ReadExpr::Before { input, .. }
         | ReadExpr::After { input, .. }
+        | ReadExpr::Latest { input }
+        | ReadExpr::SnapshotLatest { input }
+        | ReadExpr::SnapshotAt { input, .. }
+        | ReadExpr::ExcludeLayer { input, .. }
+        | ReadExpr::ShrinkWindow { input, .. }
+        | ReadExpr::ShrinkStart { input, .. }
+        | ReadExpr::ShrinkEnd { input, .. }
         | ReadExpr::Node { input, .. }
         | ReadExpr::Edge { input, .. }
         | ReadExpr::Src { input }
@@ -760,7 +815,14 @@ fn read_depth(expr: &ReadExpr) -> usize {
         | ReadExpr::Degree { input }
         | ReadExpr::InDegree { input }
         | ReadExpr::OutDegree { input }
-        | ReadExpr::Name { input } => 1 + read_depth(input),
+        | ReadExpr::Name { input }
+        | ReadExpr::HasNode { input, .. }
+        | ReadExpr::HasEdge { input, .. }
+        | ReadExpr::CountTemporalEdges { input }
+        | ReadExpr::Id { input }
+        | ReadExpr::NodeType { input }
+        | ReadExpr::IsActive { input }
+        | ReadExpr::EdgeHistoryCount { input } => 1 + read_depth(input),
         // Compound terminals — open two `{` (outer field + `timestamp` sub-field).
         ReadExpr::EarliestTime { input }
         | ReadExpr::LatestTime { input }
@@ -793,10 +855,48 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
         | ReadExpr::InDegree { .. }
         | ReadExpr::OutDegree { .. }
         | ReadExpr::CountNodes { .. }
-        | ReadExpr::CountEdges { .. } => terminal_val
+        | ReadExpr::CountEdges { .. }
+        | ReadExpr::CountTemporalEdges { .. }
+        | ReadExpr::EdgeHistoryCount { .. } => terminal_val
             .as_i64()
             .map(|n| Some(Prop::I64(n)))
             .ok_or_else(|| ClientError::InvalidResponse(format!("`{}` not an i64", terminal_key))),
+        // Bool-shaped terminals.
+        ReadExpr::HasNode { .. } | ReadExpr::HasEdge { .. } | ReadExpr::IsActive { .. } => {
+            terminal_val
+                .as_bool()
+                .map(|b| Some(Prop::Bool(b)))
+                .ok_or_else(|| {
+                    ClientError::InvalidResponse(format!("`{}` not a bool", terminal_key))
+                })
+        }
+        // `id` can be a JSON string or number (GID scalar); coerce to string.
+        ReadExpr::Id { .. } => {
+            if let Some(s) = terminal_val.as_str() {
+                Ok(Some(Prop::Str(s.into())))
+            } else if let Some(n) = terminal_val.as_i64() {
+                Ok(Some(Prop::Str(n.to_string().into())))
+            } else if let Some(n) = terminal_val.as_u64() {
+                Ok(Some(Prop::Str(n.to_string().into())))
+            } else {
+                Err(ClientError::InvalidResponse(
+                    "`id` not a string or int".into(),
+                ))
+            }
+        }
+        // Nullable String terminal — server can return JSON null.
+        ReadExpr::NodeType { .. } => {
+            if terminal_val.is_null() {
+                Ok(None)
+            } else {
+                terminal_val
+                    .as_str()
+                    .map(|s| Some(Prop::Str(s.into())))
+                    .ok_or_else(|| {
+                        ClientError::InvalidResponse(format!("`{}` not a string", terminal_key))
+                    })
+            }
+        }
         // Nullable i64-shaped terminals — server can return JSON `null`
         // (e.g. an empty graph has no `earliestTime.timestamp`). We map JSON
         // null → Ok(None); a valid number → Ok(Some(Prop::I64(n))).
@@ -853,6 +953,34 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
                 go(input, out);
                 out.push("after");
             }
+            ReadExpr::Latest { input } => {
+                go(input, out);
+                out.push("latest");
+            }
+            ReadExpr::SnapshotLatest { input } => {
+                go(input, out);
+                out.push("snapshotLatest");
+            }
+            ReadExpr::SnapshotAt { input, .. } => {
+                go(input, out);
+                out.push("snapshotAt");
+            }
+            ReadExpr::ExcludeLayer { input, .. } => {
+                go(input, out);
+                out.push("excludeLayer");
+            }
+            ReadExpr::ShrinkWindow { input, .. } => {
+                go(input, out);
+                out.push("shrinkWindow");
+            }
+            ReadExpr::ShrinkStart { input, .. } => {
+                go(input, out);
+                out.push("shrinkStart");
+            }
+            ReadExpr::ShrinkEnd { input, .. } => {
+                go(input, out);
+                out.push("shrinkEnd");
+            }
             ReadExpr::Node { input, .. } => {
                 go(input, out);
                 out.push("node");
@@ -892,6 +1020,34 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
             ReadExpr::Name { input } => {
                 go(input, out);
                 out.push("name");
+            }
+            ReadExpr::HasNode { input, .. } => {
+                go(input, out);
+                out.push("hasNode");
+            }
+            ReadExpr::HasEdge { input, .. } => {
+                go(input, out);
+                out.push("hasEdge");
+            }
+            ReadExpr::CountTemporalEdges { input } => {
+                go(input, out);
+                out.push("countTemporalEdges");
+            }
+            ReadExpr::Id { input } => {
+                go(input, out);
+                out.push("id");
+            }
+            ReadExpr::NodeType { input } => {
+                go(input, out);
+                out.push("nodeType");
+            }
+            ReadExpr::IsActive { input } => {
+                go(input, out);
+                out.push("isActive");
+            }
+            ReadExpr::EdgeHistoryCount { input } => {
+                go(input, out);
+                out.push("edgeHistoryCount");
             }
             // Compound terminals — push TWO keys (outer field + "timestamp").
             ReadExpr::EarliestTime { input } => {

@@ -159,4 +159,29 @@ impl PyRemoteNode {
         let node = Arc::clone(&self.node);
         execute_async_task(move || async move { node.end().await })
     }
+
+    /// The node's id (as a string, even if the graph uses integer GIDs).
+    /// Fires one RPC.
+    pub fn id(&self) -> Result<String, ClientError> {
+        let node = Arc::clone(&self.node);
+        execute_async_task(move || async move { node.id().await })
+    }
+
+    /// The node's type. `None` if not set. Fires one RPC.
+    pub fn node_type(&self) -> Result<Option<String>, ClientError> {
+        let node = Arc::clone(&self.node);
+        execute_async_task(move || async move { node.node_type().await })
+    }
+
+    /// Whether the node has any events in the current view. Fires one RPC.
+    pub fn is_active(&self) -> Result<bool, ClientError> {
+        let node = Arc::clone(&self.node);
+        execute_async_task(move || async move { node.is_active().await })
+    }
+
+    /// Count of temporal edge events on this node. Fires one RPC.
+    pub fn edge_history_count(&self) -> Result<i64, ClientError> {
+        let node = Arc::clone(&self.node);
+        execute_async_task(move || async move { node.edge_history_count().await })
+    }
 }

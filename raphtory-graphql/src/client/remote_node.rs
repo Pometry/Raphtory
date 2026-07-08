@@ -3,7 +3,9 @@ use crate::client::{
         AddNodeMetadata as AddNodeMetadataOp, AddNodeUpdates as AddNodeUpdatesOp, Op, ReadExpr,
         SetNodeType as SetNodeTypeOp, UpdateNodeMetadata as UpdateNodeMetadataOp, WriteOp,
     },
-    remote_graph::{expect_i64, expect_optional_i64, expect_string},
+    remote_graph::{
+        expect_bool, expect_i64, expect_optional_i64, expect_optional_string, expect_string,
+    },
     transport::Transport,
     ClientError,
 };
@@ -107,6 +109,39 @@ impl RemoteNode {
             input: Box::new(self.expr.clone()),
         });
         expect_optional_i64(self.transport.execute(&op).await?, "end")
+    }
+
+    /// Terminal: the node's id (as a string, even if the graph uses int GIDs).
+    /// Fires one RPC.
+    pub async fn id(&self) -> Result<String, ClientError> {
+        let op = Op::Read(ReadExpr::Id {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_string(self.transport.execute(&op).await?, "id")
+    }
+
+    /// Terminal: the node's type. `None` if not set. Fires one RPC.
+    pub async fn node_type(&self) -> Result<Option<String>, ClientError> {
+        let op = Op::Read(ReadExpr::NodeType {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_optional_string(self.transport.execute(&op).await?, "nodeType")
+    }
+
+    /// Terminal: whether the node has any events in the current view. Fires one RPC.
+    pub async fn is_active(&self) -> Result<bool, ClientError> {
+        let op = Op::Read(ReadExpr::IsActive {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_bool(self.transport.execute(&op).await?, "isActive")
+    }
+
+    /// Terminal: count of temporal edge events on this node. Fires one RPC.
+    pub async fn edge_history_count(&self) -> Result<i64, ClientError> {
+        let op = Op::Read(ReadExpr::EdgeHistoryCount {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_i64(self.transport.execute(&op).await?, "edgeHistoryCount")
     }
 
     /// Set the type on the node. This only works if the type has not been previously set.

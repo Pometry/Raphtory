@@ -75,6 +75,55 @@ impl PyRemoteGraph {
         }
     }
 
+    /// Restrict to the latest state. Lazy — no RPC.
+    pub fn latest(&self) -> PyRemoteGraph {
+        PyRemoteGraph {
+            graph: Arc::new(self.graph.latest()),
+        }
+    }
+
+    /// Snapshot at the latest time. Lazy — no RPC.
+    pub fn snapshot_latest(&self) -> PyRemoteGraph {
+        PyRemoteGraph {
+            graph: Arc::new(self.graph.snapshot_latest()),
+        }
+    }
+
+    /// Snapshot at a specific time. Lazy — no RPC.
+    pub fn snapshot_at(&self, time: i64) -> PyRemoteGraph {
+        PyRemoteGraph {
+            graph: Arc::new(self.graph.snapshot_at(time)),
+        }
+    }
+
+    /// Exclude a specific layer from the view. Lazy — no RPC.
+    pub fn exclude_layer(&self, name: &str) -> PyRemoteGraph {
+        PyRemoteGraph {
+            graph: Arc::new(self.graph.exclude_layer(name)),
+        }
+    }
+
+    /// Shrink both start and end of the current window. Lazy — no RPC.
+    pub fn shrink_window(&self, start: i64, end: i64) -> PyRemoteGraph {
+        PyRemoteGraph {
+            graph: Arc::new(self.graph.shrink_window(start, end)),
+        }
+    }
+
+    /// Shrink the start of the current window. Lazy — no RPC.
+    pub fn shrink_start(&self, start: i64) -> PyRemoteGraph {
+        PyRemoteGraph {
+            graph: Arc::new(self.graph.shrink_start(start)),
+        }
+    }
+
+    /// Shrink the end of the current window. Lazy — no RPC.
+    pub fn shrink_end(&self, end: i64) -> PyRemoteGraph {
+        PyRemoteGraph {
+            graph: Arc::new(self.graph.shrink_end(end)),
+        }
+    }
+
     /// Terminal: total node count under the current view. Fires one RPC.
     pub fn count_nodes(&self) -> Result<i64, ClientError> {
         let graph = Arc::clone(&self.graph);
@@ -110,6 +159,29 @@ impl PyRemoteGraph {
     pub fn end(&self) -> Result<Option<i64>, ClientError> {
         let graph = Arc::clone(&self.graph);
         execute_async_task(move || async move { graph.end().await })
+    }
+
+    /// Terminal: does the graph have a node with this id? Fires one RPC.
+    pub fn has_node(&self, id: GID) -> Result<bool, ClientError> {
+        let graph = Arc::clone(&self.graph);
+        let id_str = id.to_string();
+        execute_async_task(move || async move { graph.has_node(id_str).await })
+    }
+
+    /// Terminal: does the graph have an edge `(src, dst)`? Fires one RPC.
+    #[pyo3(signature = (src, dst))]
+    pub fn has_edge(&self, src: GID, dst: GID) -> Result<bool, ClientError> {
+        let graph = Arc::clone(&self.graph);
+        let src_str = src.to_string();
+        let dst_str = dst.to_string();
+        execute_async_task(move || async move { graph.has_edge(src_str, dst_str).await })
+    }
+
+    /// Terminal: total temporal-edge count (edge updates) under the current
+    /// view. Fires one RPC.
+    pub fn count_temporal_edges(&self) -> Result<i64, ClientError> {
+        let graph = Arc::clone(&self.graph);
+        execute_async_task(move || async move { graph.count_temporal_edges().await })
     }
 
     /// Gets a remote node with the specified id.

@@ -73,6 +73,34 @@ pub(crate) fn expect_optional_i64(
     }
 }
 
+/// Unwrap a `Transport::execute` result expecting a `Prop::Bool` scalar.
+pub(crate) fn expect_bool(v: Option<Prop>, context: &str) -> Result<bool, ClientError> {
+    match v {
+        Some(Prop::Bool(b)) => Ok(b),
+        _ => Err(ClientError::InvalidResponse(format!(
+            "`{}` returned unexpected value type",
+            context
+        ))),
+    }
+}
+
+/// Unwrap a `Transport::execute` result expecting a nullable `Prop::Str`
+/// scalar. `Ok(None)` means the server returned JSON null (e.g. `node_type`
+/// when the type isn't set); `Ok(Some(Prop::Str(s)))` is the happy path.
+pub(crate) fn expect_optional_string(
+    v: Option<Prop>,
+    context: &str,
+) -> Result<Option<String>, ClientError> {
+    match v {
+        None => Ok(None),
+        Some(Prop::Str(s)) => Ok(Some(s.to_string())),
+        Some(_) => Err(ClientError::InvalidResponse(format!(
+            "`{}` returned unexpected value type",
+            context
+        ))),
+    }
+}
+
 /// A handle to a remote graph on the server.
 ///
 /// Holds an accumulating `ReadExpr` for lazy view construction — `.window()`,
@@ -139,6 +167,62 @@ impl RemoteGraph {
         })
     }
 
+    /// Restrict to the latest state — no args. Lazy — no RPC.
+    pub fn latest(&self) -> RemoteGraph {
+        self.with_expr(ReadExpr::Latest {
+            input: Box::new(self.expr.clone()),
+        })
+    }
+
+    /// Snapshot at the latest time. Lazy — no RPC.
+    pub fn snapshot_latest(&self) -> RemoteGraph {
+        self.with_expr(ReadExpr::SnapshotLatest {
+            input: Box::new(self.expr.clone()),
+        })
+    }
+
+    /// Snapshot at a specific time. Lazy — no RPC.
+    pub fn snapshot_at(&self, time: i64) -> RemoteGraph {
+        self.with_expr(ReadExpr::SnapshotAt {
+            input: Box::new(self.expr.clone()),
+            time,
+        })
+    }
+
+    /// Exclude a specific layer from the view. Lazy — no RPC.
+    pub fn exclude_layer(&self, name: impl ToString) -> RemoteGraph {
+        self.with_expr(ReadExpr::ExcludeLayer {
+            input: Box::new(self.expr.clone()),
+            name: name.to_string(),
+        })
+    }
+
+    /// Shrink both start and end of the current window (intersection, never widens).
+    /// Lazy — no RPC.
+    pub fn shrink_window(&self, start: i64, end: i64) -> RemoteGraph {
+        self.with_expr(ReadExpr::ShrinkWindow {
+            input: Box::new(self.expr.clone()),
+            start,
+            end,
+        })
+    }
+
+    /// Shrink the start of the current window. Lazy — no RPC.
+    pub fn shrink_start(&self, start: i64) -> RemoteGraph {
+        self.with_expr(ReadExpr::ShrinkStart {
+            input: Box::new(self.expr.clone()),
+            start,
+        })
+    }
+
+    /// Shrink the end of the current window. Lazy — no RPC.
+    pub fn shrink_end(&self, end: i64) -> RemoteGraph {
+        self.with_expr(ReadExpr::ShrinkEnd {
+            input: Box::new(self.expr.clone()),
+            end,
+        })
+    }
+
     /// Terminal: count of nodes under the current view. Fires one RPC.
     pub async fn count_nodes(&self) -> Result<i64, ClientError> {
         let op = Op::Read(ReadExpr::CountNodes {
@@ -189,6 +273,38 @@ impl RemoteGraph {
             input: Box::new(self.expr.clone()),
         });
         expect_optional_i64(self.transport.execute(&op).await?, "end")
+    }
+
+    /// Terminal: does the graph have a node with this id? Fires one RPC.
+    pub async fn has_node(&self, id: impl ToString) -> Result<bool, ClientError> {
+        let op = Op::Read(ReadExpr::HasNode {
+            input: Box::new(self.expr.clone()),
+            id: id.to_string(),
+        });
+        expect_bool(self.transport.execute(&op).await?, "hasNode")
+    }
+
+    /// Terminal: does the graph have an edge `(src, dst)`? Fires one RPC.
+    pub async fn has_edge(
+        &self,
+        src: impl ToString,
+        dst: impl ToString,
+    ) -> Result<bool, ClientError> {
+        let op = Op::Read(ReadExpr::HasEdge {
+            input: Box::new(self.expr.clone()),
+            src: src.to_string(),
+            dst: dst.to_string(),
+        });
+        expect_bool(self.transport.execute(&op).await?, "hasEdge")
+    }
+
+    /// Terminal: total temporal-edge count (edge updates) under the current view.
+    /// Fires one RPC.
+    pub async fn count_temporal_edges(&self) -> Result<i64, ClientError> {
+        let op = Op::Read(ReadExpr::CountTemporalEdges {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_i64(self.transport.execute(&op).await?, "countTemporalEdges")
     }
 
     /// Internal helper: clone `self` with a new `expr`. Keeps the view-op

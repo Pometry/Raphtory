@@ -147,6 +147,67 @@ def test_compound_time_terminals():
         server_cm.__exit__(None, None, None)
 
 
+def test_graph_bool_and_i64_terminals():
+    """`has_node`, `has_edge`, `count_temporal_edges` on `RemoteGraph`."""
+    server_cm, rg = _make_graph_with_edge()
+    try:
+        assert rg.has_node("ben") is True
+        assert rg.has_node("unknown") is False
+        assert rg.has_edge("ben", "hamza") is True
+        assert rg.has_edge("hamza", "ben") is False  # edges are directed
+        # 1 edge added once → 1 temporal edge event.
+        assert rg.count_temporal_edges() == 1
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_node_id_type_and_state():
+    """`id`, `node_type`, `is_active`, `edge_history_count` on `RemoteNode`."""
+    server_cm, rg = _make_graph_with_edge()
+    try:
+        ben = rg.node("ben")
+        assert ben.id() == "ben"
+        assert ben.node_type() is None  # type not set
+
+        # Set a node type via the write path, then re-read.
+        ben.set_node_type("person")
+        assert rg.node("ben").node_type() == "person"
+
+        # Ben participates in the ben→hamza edge → 1 edge history event.
+        assert rg.node("ben").edge_history_count() == 1
+        # Under a window that excludes the edge, no edge events for ben.
+        assert rg.window(0, 3).node("ben").edge_history_count() == 0
+
+        # is_active: ben has an event at t=1 (add_node), so active under a
+        # view that includes t=1.
+        assert rg.node("ben").is_active() is True
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_view_ops_batch2():
+    """`.snapshot_at()`, `.latest()`, `.exclude_layer()`, `.shrink_window()` etc.
+    All lazy builders that compose with terminals."""
+    server_cm, rg = _make_graph_with_edge()
+    try:
+        # `.snapshot_at(3)` — snapshot at t=3, edge is visible.
+        assert rg.snapshot_at(3).node("ben").degree() == 1
+        # `.latest()` — latest state, edge visible.
+        assert rg.latest().node("ben").degree() == 1
+        # `.snapshot_latest()` — snapshot at latest time, edge visible.
+        assert rg.snapshot_latest().node("ben").degree() == 1
+        # `.exclude_layer("_default")` — the edge was added on the default layer,
+        # so excluding it should remove the edge from view (ben degree = 0).
+        assert rg.exclude_layer("_default").node("ben").degree() == 0
+        # `.shrink_window` — first widen with window(0, 10), then shrink to [1, 3).
+        # Shrunk view excludes edge at t=3.
+        assert rg.window(0, 10).shrink_window(1, 3).node("ben").degree() == 0
+        # `.shrink_end(3)` — after window(0, 10), narrow to end=3.
+        assert rg.window(0, 10).shrink_end(3).node("ben").degree() == 0
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
 def test_edge_selection_and_navigation():
     """`rg.edge(src, dst)` selects an edge; `.src()` / `.dst()` navigate back
     to node handles that carry the whole view chain."""
