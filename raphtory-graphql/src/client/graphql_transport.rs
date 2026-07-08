@@ -726,12 +726,26 @@ fn render_read_body(expr: &ReadExpr) -> String {
         ReadExpr::InDegree { input } => format!("{} {{ inDegree", render_read_body(input)),
         ReadExpr::OutDegree { input } => format!("{} {{ outDegree", render_read_body(input)),
         ReadExpr::Name { input } => format!("{} {{ name", render_read_body(input)),
+        // Compound terminals — open TWO braces (outer field + `timestamp` sub-field)
+        ReadExpr::EarliestTime { input } => {
+            format!("{} {{ earliestTime {{ timestamp", render_read_body(input))
+        }
+        ReadExpr::LatestTime { input } => {
+            format!("{} {{ latestTime {{ timestamp", render_read_body(input))
+        }
+        ReadExpr::Start { input } => {
+            format!("{} {{ start {{ timestamp", render_read_body(input))
+        }
+        ReadExpr::End { input } => {
+            format!("{} {{ end {{ timestamp", render_read_body(input))
+        }
     }
 }
 
 fn read_depth(expr: &ReadExpr) -> usize {
     match expr {
         ReadExpr::Root { .. } => 0,
+        // Single-brace variants — open one `{` each.
         ReadExpr::Window { input, .. }
         | ReadExpr::Layer { input, .. }
         | ReadExpr::At { input, .. }
@@ -747,6 +761,11 @@ fn read_depth(expr: &ReadExpr) -> usize {
         | ReadExpr::InDegree { input }
         | ReadExpr::OutDegree { input }
         | ReadExpr::Name { input } => 1 + read_depth(input),
+        // Compound terminals — open two `{` (outer field + `timestamp` sub-field).
+        ReadExpr::EarliestTime { input }
+        | ReadExpr::LatestTime { input }
+        | ReadExpr::Start { input }
+        | ReadExpr::End { input } => 2 + read_depth(input),
     }
 }
 
@@ -769,7 +788,7 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
     })?;
 
     match expr {
-        // i64-shaped terminals
+        // i64-shaped terminals (non-null on the wire).
         ReadExpr::Degree { .. }
         | ReadExpr::InDegree { .. }
         | ReadExpr::OutDegree { .. }
@@ -778,6 +797,24 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
             .as_i64()
             .map(|n| Some(Prop::I64(n)))
             .ok_or_else(|| ClientError::InvalidResponse(format!("`{}` not an i64", terminal_key))),
+        // Nullable i64-shaped terminals — server can return JSON `null`
+        // (e.g. an empty graph has no `earliestTime.timestamp`). We map JSON
+        // null → Ok(None); a valid number → Ok(Some(Prop::I64(n))).
+        ReadExpr::EarliestTime { .. }
+        | ReadExpr::LatestTime { .. }
+        | ReadExpr::Start { .. }
+        | ReadExpr::End { .. } => {
+            if terminal_val.is_null() {
+                Ok(None)
+            } else {
+                terminal_val
+                    .as_i64()
+                    .map(|n| Some(Prop::I64(n)))
+                    .ok_or_else(|| {
+                        ClientError::InvalidResponse(format!("`{}` not an i64", terminal_key))
+                    })
+            }
+        }
         // String-shaped terminals
         ReadExpr::Name { .. } => terminal_val
             .as_str()
@@ -855,6 +892,27 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
             ReadExpr::Name { input } => {
                 go(input, out);
                 out.push("name");
+            }
+            // Compound terminals — push TWO keys (outer field + "timestamp").
+            ReadExpr::EarliestTime { input } => {
+                go(input, out);
+                out.push("earliestTime");
+                out.push("timestamp");
+            }
+            ReadExpr::LatestTime { input } => {
+                go(input, out);
+                out.push("latestTime");
+                out.push("timestamp");
+            }
+            ReadExpr::Start { input } => {
+                go(input, out);
+                out.push("start");
+                out.push("timestamp");
+            }
+            ReadExpr::End { input } => {
+                go(input, out);
+                out.push("end");
+                out.push("timestamp");
             }
         }
     }

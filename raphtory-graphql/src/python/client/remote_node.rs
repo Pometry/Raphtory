@@ -134,4 +134,29 @@ impl PyRemoteNode {
         let node = Arc::clone(&self.node);
         execute_async_task(move || async move { node.name().await })
     }
+
+    /// Earliest event timestamp on this node under the current view.
+    /// Returns `None` if the node has no events. Fires one RPC.
+    pub fn earliest_time(&self) -> Result<Option<i64>, ClientError> {
+        let node = Arc::clone(&self.node);
+        execute_async_task(move || async move { node.earliest_time().await })
+    }
+
+    /// Latest event timestamp on this node. Fires one RPC.
+    pub fn latest_time(&self) -> Result<Option<i64>, ClientError> {
+        let node = Arc::clone(&self.node);
+        execute_async_task(move || async move { node.latest_time().await })
+    }
+
+    /// View start bound as seen by this node. Fires one RPC.
+    pub fn start(&self) -> Result<Option<i64>, ClientError> {
+        let node = Arc::clone(&self.node);
+        execute_async_task(move || async move { node.start().await })
+    }
+
+    /// View end bound as seen by this node. Fires one RPC.
+    pub fn end(&self) -> Result<Option<i64>, ClientError> {
+        let node = Arc::clone(&self.node);
+        execute_async_task(move || async move { node.end().await })
+    }
 }

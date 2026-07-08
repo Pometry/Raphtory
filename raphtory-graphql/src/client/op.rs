@@ -77,6 +77,18 @@ pub enum ReadExpr {
     OutDegree { input: Box<ReadExpr> },
     /// Terminal: node name — `String`.
     Name { input: Box<ReadExpr> },
+
+    // ============ Compound terminals on Graph or Node → Option<i64> ============
+    // Server returns an `EventTime` object; we query `<field> { timestamp }`
+    // and unwrap the (possibly-null) `timestamp` field.
+    /// Terminal: earliest event time — `Option<i64>`. Works on Graph and Node.
+    EarliestTime { input: Box<ReadExpr> },
+    /// Terminal: latest event time — `Option<i64>`. Works on Graph and Node.
+    LatestTime { input: Box<ReadExpr> },
+    /// Terminal: view start bound — `Option<i64>`. Works on Graph and Node.
+    Start { input: Box<ReadExpr> },
+    /// Terminal: view end bound — `Option<i64>`. Works on Graph and Node.
+    End { input: Box<ReadExpr> },
 }
 
 /// Write operations. Each variant is a self-contained command with all its

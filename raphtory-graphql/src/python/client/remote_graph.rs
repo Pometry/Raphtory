@@ -87,6 +87,31 @@ impl PyRemoteGraph {
         execute_async_task(move || async move { graph.count_edges().await })
     }
 
+    /// Terminal: earliest event timestamp under the current view. Returns
+    /// `None` if the view has no events. Fires one RPC.
+    pub fn earliest_time(&self) -> Result<Option<i64>, ClientError> {
+        let graph = Arc::clone(&self.graph);
+        execute_async_task(move || async move { graph.earliest_time().await })
+    }
+
+    /// Terminal: latest event timestamp under the current view. Fires one RPC.
+    pub fn latest_time(&self) -> Result<Option<i64>, ClientError> {
+        let graph = Arc::clone(&self.graph);
+        execute_async_task(move || async move { graph.latest_time().await })
+    }
+
+    /// Terminal: view start bound. `None` for an unbounded view. Fires one RPC.
+    pub fn start(&self) -> Result<Option<i64>, ClientError> {
+        let graph = Arc::clone(&self.graph);
+        execute_async_task(move || async move { graph.start().await })
+    }
+
+    /// Terminal: view end bound. `None` for an unbounded view. Fires one RPC.
+    pub fn end(&self) -> Result<Option<i64>, ClientError> {
+        let graph = Arc::clone(&self.graph);
+        execute_async_task(move || async move { graph.end().await })
+    }
+
     /// Gets a remote node with the specified id.
     ///
     /// Inherits any view chain built up on the parent `RemoteGraph` (e.g. after

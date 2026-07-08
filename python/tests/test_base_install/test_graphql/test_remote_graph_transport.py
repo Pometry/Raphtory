@@ -121,6 +121,32 @@ def test_view_ops():
         server_cm.__exit__(None, None, None)
 
 
+def test_compound_time_terminals():
+    """Compound terminals (`earliest_time`, `latest_time`, `start`, `end`) require
+    2-step JSON navigation (`<field> { timestamp }`) and can return `None` when
+    the view has no events."""
+    server_cm, rg = _make_graph_with_edge()
+    try:
+        # Unwindowed: earliest is t=1 (ben added), latest is t=3 (edge).
+        assert rg.earliest_time() == 1
+        assert rg.latest_time() == 3
+
+        # Windowed [1, 3): earliest=1, latest=2 (hamza added at t=2; edge excluded).
+        rg_win = rg.window(1, 3)
+        assert rg_win.earliest_time() == 1
+        assert rg_win.latest_time() == 2
+        # Window bounds also come back through the same compound path.
+        assert rg_win.start() == 1
+        assert rg_win.end() == 3
+
+        # On a Node — earliest/latest reflect the node's own events under the view.
+        ben = rg.node("ben")
+        assert ben.earliest_time() == 1  # ben added at t=1
+        assert ben.latest_time() == 3    # participated in edge at t=3
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
 def test_edge_selection_and_navigation():
     """`rg.edge(src, dst)` selects an edge; `.src()` / `.dst()` navigate back
     to node handles that carry the whole view chain."""

@@ -55,6 +55,24 @@ pub(crate) fn expect_string(v: Option<Prop>, context: &str) -> Result<String, Cl
     }
 }
 
+/// Unwrap a `Transport::execute` result expecting a nullable `Prop::I64`
+/// scalar. `Ok(None)` from the transport means the server returned JSON null
+/// (e.g. earliest_time on an empty graph); `Ok(Some(Prop::I64(n)))` is the
+/// happy path. Wrong-type payloads become an error.
+pub(crate) fn expect_optional_i64(
+    v: Option<Prop>,
+    context: &str,
+) -> Result<Option<i64>, ClientError> {
+    match v {
+        None => Ok(None),
+        Some(Prop::I64(n)) => Ok(Some(n)),
+        Some(_) => Err(ClientError::InvalidResponse(format!(
+            "`{}` returned unexpected value type",
+            context
+        ))),
+    }
+}
+
 /// A handle to a remote graph on the server.
 ///
 /// Holds an accumulating `ReadExpr` for lazy view construction — `.window()`,
@@ -135,6 +153,42 @@ impl RemoteGraph {
             input: Box::new(self.expr.clone()),
         });
         expect_i64(self.transport.execute(&op).await?, "countEdges")
+    }
+
+    /// Terminal: earliest event timestamp under the current view. Returns
+    /// `None` if the view has no events. Fires one RPC.
+    pub async fn earliest_time(&self) -> Result<Option<i64>, ClientError> {
+        let op = Op::Read(ReadExpr::EarliestTime {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_optional_i64(self.transport.execute(&op).await?, "earliestTime")
+    }
+
+    /// Terminal: latest event timestamp under the current view. Returns
+    /// `None` if the view has no events. Fires one RPC.
+    pub async fn latest_time(&self) -> Result<Option<i64>, ClientError> {
+        let op = Op::Read(ReadExpr::LatestTime {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_optional_i64(self.transport.execute(&op).await?, "latestTime")
+    }
+
+    /// Terminal: view start bound. Returns `None` for an unbounded view.
+    /// Fires one RPC.
+    pub async fn start(&self) -> Result<Option<i64>, ClientError> {
+        let op = Op::Read(ReadExpr::Start {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_optional_i64(self.transport.execute(&op).await?, "start")
+    }
+
+    /// Terminal: view end bound. Returns `None` for an unbounded view.
+    /// Fires one RPC.
+    pub async fn end(&self) -> Result<Option<i64>, ClientError> {
+        let op = Op::Read(ReadExpr::End {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_optional_i64(self.transport.execute(&op).await?, "end")
     }
 
     /// Internal helper: clone `self` with a new `expr`. Keeps the view-op
