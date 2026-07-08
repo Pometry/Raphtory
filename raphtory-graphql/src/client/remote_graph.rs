@@ -223,6 +223,60 @@ impl RemoteGraph {
         })
     }
 
+    /// Restrict to the "valid" subgraph (event-graph filter). Lazy — no RPC.
+    pub fn valid(&self) -> RemoteGraph {
+        self.with_expr(ReadExpr::Valid {
+            input: Box::new(self.expr.clone()),
+        })
+    }
+
+    /// Restrict to the default layer. Lazy — no RPC.
+    pub fn default_layer(&self) -> RemoteGraph {
+        self.with_expr(ReadExpr::DefaultLayer {
+            input: Box::new(self.expr.clone()),
+        })
+    }
+
+    /// Restrict to the given set of layers. Lazy — no RPC.
+    pub fn layers(&self, names: Vec<String>) -> RemoteGraph {
+        self.with_expr(ReadExpr::Layers {
+            input: Box::new(self.expr.clone()),
+            names,
+        })
+    }
+
+    /// Exclude the given set of layers from the view. Lazy — no RPC.
+    pub fn exclude_layers(&self, names: Vec<String>) -> RemoteGraph {
+        self.with_expr(ReadExpr::ExcludeLayers {
+            input: Box::new(self.expr.clone()),
+            names,
+        })
+    }
+
+    /// Restrict to a subgraph induced by the given node ids. Lazy — no RPC.
+    pub fn subgraph(&self, nodes: Vec<String>) -> RemoteGraph {
+        self.with_expr(ReadExpr::Subgraph {
+            input: Box::new(self.expr.clone()),
+            nodes,
+        })
+    }
+
+    /// Restrict to nodes matching one of the given node types. Lazy — no RPC.
+    pub fn subgraph_node_types(&self, node_types: Vec<String>) -> RemoteGraph {
+        self.with_expr(ReadExpr::SubgraphNodeTypes {
+            input: Box::new(self.expr.clone()),
+            node_types,
+        })
+    }
+
+    /// Exclude the given nodes from the view. Lazy — no RPC.
+    pub fn exclude_nodes(&self, nodes: Vec<String>) -> RemoteGraph {
+        self.with_expr(ReadExpr::ExcludeNodes {
+            input: Box::new(self.expr.clone()),
+            nodes,
+        })
+    }
+
     /// Terminal: count of nodes under the current view. Fires one RPC.
     pub async fn count_nodes(&self) -> Result<i64, ClientError> {
         let op = Op::Read(ReadExpr::CountNodes {
@@ -305,6 +359,30 @@ impl RemoteGraph {
             input: Box::new(self.expr.clone()),
         });
         expect_i64(self.transport.execute(&op).await?, "countTemporalEdges")
+    }
+
+    /// Terminal: graph name. Fires one RPC.
+    pub async fn name(&self) -> Result<String, ClientError> {
+        let op = Op::Read(ReadExpr::Name {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_string(self.transport.execute(&op).await?, "name")
+    }
+
+    /// Terminal: graph path. Fires one RPC.
+    pub async fn path(&self) -> Result<String, ClientError> {
+        let op = Op::Read(ReadExpr::Path {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_string(self.transport.execute(&op).await?, "path")
+    }
+
+    /// Terminal: parent namespace of the graph path. Fires one RPC.
+    pub async fn namespace(&self) -> Result<String, ClientError> {
+        let op = Op::Read(ReadExpr::Namespace {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_string(self.transport.execute(&op).await?, "namespace")
     }
 
     /// Internal helper: clone `self` with a new `expr`. Keeps the view-op

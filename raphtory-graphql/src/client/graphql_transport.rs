@@ -685,6 +685,17 @@ fn render_read(expr: &ReadExpr) -> String {
     format!("{{ {} {} }}", body, closes)
 }
 
+/// Render a `Vec<String>` as the contents of a GraphQL list arg, e.g.
+/// `["a", "b", "c"]`. Returns the comma-joined body only — the caller wraps
+/// with `[` and `]`.
+fn render_string_list(items: &[String]) -> String {
+    items
+        .iter()
+        .map(|s| format!("\"{}\"", s))
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
 fn render_read_body(expr: &ReadExpr) -> String {
     match expr {
         ReadExpr::Root { path } => format!("graph(path: \"{}\")", path),
@@ -735,6 +746,35 @@ fn render_read_body(expr: &ReadExpr) -> String {
         ReadExpr::ShrinkEnd { input, end } => {
             format!("{} {{ shrinkEnd(end: {})", render_read_body(input), end)
         }
+        ReadExpr::Valid { input } => format!("{} {{ valid", render_read_body(input)),
+        ReadExpr::DefaultLayer { input } => {
+            format!("{} {{ defaultLayer", render_read_body(input))
+        }
+        ReadExpr::Layers { input, names } => format!(
+            "{} {{ layers(names: [{}])",
+            render_read_body(input),
+            render_string_list(names)
+        ),
+        ReadExpr::ExcludeLayers { input, names } => format!(
+            "{} {{ excludeLayers(names: [{}])",
+            render_read_body(input),
+            render_string_list(names)
+        ),
+        ReadExpr::Subgraph { input, nodes } => format!(
+            "{} {{ subgraph(nodes: [{}])",
+            render_read_body(input),
+            render_string_list(nodes)
+        ),
+        ReadExpr::SubgraphNodeTypes { input, node_types } => format!(
+            "{} {{ subgraphNodeTypes(nodeTypes: [{}])",
+            render_read_body(input),
+            render_string_list(node_types)
+        ),
+        ReadExpr::ExcludeNodes { input, nodes } => format!(
+            "{} {{ excludeNodes(nodes: [{}])",
+            render_read_body(input),
+            render_string_list(nodes)
+        ),
         // Selection
         ReadExpr::Node { input, id } => {
             format!("{} {{ node(name: \"{}\")", render_read_body(input), id)
@@ -768,6 +808,8 @@ fn render_read_body(expr: &ReadExpr) -> String {
         ReadExpr::CountTemporalEdges { input } => {
             format!("{} {{ countTemporalEdges", render_read_body(input))
         }
+        ReadExpr::Path { input } => format!("{} {{ path", render_read_body(input)),
+        ReadExpr::Namespace { input } => format!("{} {{ namespace", render_read_body(input)),
         ReadExpr::Id { input } => format!("{} {{ id", render_read_body(input)),
         ReadExpr::NodeType { input } => format!("{} {{ nodeType", render_read_body(input)),
         ReadExpr::IsActive { input } => format!("{} {{ isActive", render_read_body(input)),
@@ -806,6 +848,13 @@ fn read_depth(expr: &ReadExpr) -> usize {
         | ReadExpr::ShrinkWindow { input, .. }
         | ReadExpr::ShrinkStart { input, .. }
         | ReadExpr::ShrinkEnd { input, .. }
+        | ReadExpr::Valid { input }
+        | ReadExpr::DefaultLayer { input }
+        | ReadExpr::Layers { input, .. }
+        | ReadExpr::ExcludeLayers { input, .. }
+        | ReadExpr::Subgraph { input, .. }
+        | ReadExpr::SubgraphNodeTypes { input, .. }
+        | ReadExpr::ExcludeNodes { input, .. }
         | ReadExpr::Node { input, .. }
         | ReadExpr::Edge { input, .. }
         | ReadExpr::Src { input }
@@ -819,6 +868,8 @@ fn read_depth(expr: &ReadExpr) -> usize {
         | ReadExpr::HasNode { input, .. }
         | ReadExpr::HasEdge { input, .. }
         | ReadExpr::CountTemporalEdges { input }
+        | ReadExpr::Path { input }
+        | ReadExpr::Namespace { input }
         | ReadExpr::Id { input }
         | ReadExpr::NodeType { input }
         | ReadExpr::IsActive { input }
@@ -916,12 +967,14 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
             }
         }
         // String-shaped terminals
-        ReadExpr::Name { .. } => terminal_val
-            .as_str()
-            .map(|s| Some(Prop::Str(s.into())))
-            .ok_or_else(|| {
-                ClientError::InvalidResponse(format!("`{}` not a string", terminal_key))
-            }),
+        ReadExpr::Name { .. } | ReadExpr::Path { .. } | ReadExpr::Namespace { .. } => {
+            terminal_val
+                .as_str()
+                .map(|s| Some(Prop::Str(s.into())))
+                .ok_or_else(|| {
+                    ClientError::InvalidResponse(format!("`{}` not a string", terminal_key))
+                })
+        }
         // Non-terminals — outermost expr must be a terminal in a well-formed tree.
         _ => Err(ClientError::InvalidResponse(
             "expression tree has no terminal".into(),
@@ -981,6 +1034,34 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
                 go(input, out);
                 out.push("shrinkEnd");
             }
+            ReadExpr::Valid { input } => {
+                go(input, out);
+                out.push("valid");
+            }
+            ReadExpr::DefaultLayer { input } => {
+                go(input, out);
+                out.push("defaultLayer");
+            }
+            ReadExpr::Layers { input, .. } => {
+                go(input, out);
+                out.push("layers");
+            }
+            ReadExpr::ExcludeLayers { input, .. } => {
+                go(input, out);
+                out.push("excludeLayers");
+            }
+            ReadExpr::Subgraph { input, .. } => {
+                go(input, out);
+                out.push("subgraph");
+            }
+            ReadExpr::SubgraphNodeTypes { input, .. } => {
+                go(input, out);
+                out.push("subgraphNodeTypes");
+            }
+            ReadExpr::ExcludeNodes { input, .. } => {
+                go(input, out);
+                out.push("excludeNodes");
+            }
             ReadExpr::Node { input, .. } => {
                 go(input, out);
                 out.push("node");
@@ -1032,6 +1113,14 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
             ReadExpr::CountTemporalEdges { input } => {
                 go(input, out);
                 out.push("countTemporalEdges");
+            }
+            ReadExpr::Path { input } => {
+                go(input, out);
+                out.push("path");
+            }
+            ReadExpr::Namespace { input } => {
+                go(input, out);
+                out.push("namespace");
             }
             ReadExpr::Id { input } => {
                 go(input, out);

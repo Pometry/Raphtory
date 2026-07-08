@@ -208,6 +208,51 @@ def test_view_ops_batch2():
         server_cm.__exit__(None, None, None)
 
 
+def test_graph_string_terminals():
+    """`.name()`, `.path()`, `.namespace()` on `RemoteGraph`."""
+    server_cm, rg = _make_graph_with_edge()
+    try:
+        # We created the graph at path "test-graph" — the leaf name is "test-graph"
+        # and the namespace is the empty root.
+        assert rg.name() == "test-graph"
+        assert rg.path() == "test-graph"
+        # Namespace of a top-level graph — server returns some form of it; just
+        # confirm it's a string and doesn't error.
+        assert isinstance(rg.namespace(), str)
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_list_arg_view_ops():
+    """List-arg view ops: `.layers(...)`, `.exclude_layers(...)`, `.subgraph(...)`,
+    `.subgraph_node_types(...)`, `.exclude_nodes(...)`."""
+    server_cm, rg = _make_graph_with_edge()
+    try:
+        # `.layers(["_default"])` — restrict to default layer (where our edge lives).
+        assert rg.layers(["_default"]).node("ben").degree() == 1
+        # `.exclude_layers(["_default"])` — exclude the layer containing the edge.
+        assert rg.exclude_layers(["_default"]).node("ben").degree() == 0
+        # `.subgraph(["ben"])` — restrict to just the ben node.
+        assert rg.subgraph(["ben"]).count_nodes() == 1
+        # `.exclude_nodes(["hamza"])` — leaves just ben.
+        assert rg.exclude_nodes(["hamza"]).count_nodes() == 1
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_default_layer_and_valid():
+    """`.default_layer()` and `.valid()` are parameterless view builders."""
+    server_cm, rg = _make_graph_with_edge()
+    try:
+        # `.default_layer()` restricts to the default layer — edge is on it.
+        assert rg.default_layer().node("ben").degree() == 1
+        # `.valid()` filters out invalid entities. On an event graph with only
+        # add ops, this is a no-op — count matches unwindowed.
+        assert rg.valid().count_nodes() == 2
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
 def test_edge_selection_and_navigation():
     """`rg.edge(src, dst)` selects an edge; `.src()` / `.dst()` navigate back
     to node handles that carry the whole view chain."""

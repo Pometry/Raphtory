@@ -124,6 +124,55 @@ impl PyRemoteGraph {
         }
     }
 
+    /// Restrict to the "valid" subgraph (event-graph filter). Lazy — no RPC.
+    pub fn valid(&self) -> PyRemoteGraph {
+        PyRemoteGraph {
+            graph: Arc::new(self.graph.valid()),
+        }
+    }
+
+    /// Restrict to the default layer. Lazy — no RPC.
+    pub fn default_layer(&self) -> PyRemoteGraph {
+        PyRemoteGraph {
+            graph: Arc::new(self.graph.default_layer()),
+        }
+    }
+
+    /// Restrict to the given set of layers. Lazy — no RPC.
+    pub fn layers(&self, names: Vec<String>) -> PyRemoteGraph {
+        PyRemoteGraph {
+            graph: Arc::new(self.graph.layers(names)),
+        }
+    }
+
+    /// Exclude the given set of layers from the view. Lazy — no RPC.
+    pub fn exclude_layers(&self, names: Vec<String>) -> PyRemoteGraph {
+        PyRemoteGraph {
+            graph: Arc::new(self.graph.exclude_layers(names)),
+        }
+    }
+
+    /// Restrict to a subgraph induced by the given node ids. Lazy — no RPC.
+    pub fn subgraph(&self, nodes: Vec<String>) -> PyRemoteGraph {
+        PyRemoteGraph {
+            graph: Arc::new(self.graph.subgraph(nodes)),
+        }
+    }
+
+    /// Restrict to nodes matching one of the given node types. Lazy — no RPC.
+    pub fn subgraph_node_types(&self, node_types: Vec<String>) -> PyRemoteGraph {
+        PyRemoteGraph {
+            graph: Arc::new(self.graph.subgraph_node_types(node_types)),
+        }
+    }
+
+    /// Exclude the given nodes from the view. Lazy — no RPC.
+    pub fn exclude_nodes(&self, nodes: Vec<String>) -> PyRemoteGraph {
+        PyRemoteGraph {
+            graph: Arc::new(self.graph.exclude_nodes(nodes)),
+        }
+    }
+
     /// Terminal: total node count under the current view. Fires one RPC.
     pub fn count_nodes(&self) -> Result<i64, ClientError> {
         let graph = Arc::clone(&self.graph);
@@ -182,6 +231,24 @@ impl PyRemoteGraph {
     pub fn count_temporal_edges(&self) -> Result<i64, ClientError> {
         let graph = Arc::clone(&self.graph);
         execute_async_task(move || async move { graph.count_temporal_edges().await })
+    }
+
+    /// Terminal: the graph's name. Fires one RPC.
+    pub fn name(&self) -> Result<String, ClientError> {
+        let graph = Arc::clone(&self.graph);
+        execute_async_task(move || async move { graph.name().await })
+    }
+
+    /// Terminal: the graph's full path. Fires one RPC.
+    pub fn path(&self) -> Result<String, ClientError> {
+        let graph = Arc::clone(&self.graph);
+        execute_async_task(move || async move { graph.path().await })
+    }
+
+    /// Terminal: the parent namespace of the graph path. Fires one RPC.
+    pub fn namespace(&self) -> Result<String, ClientError> {
+        let graph = Arc::clone(&self.graph);
+        execute_async_task(move || async move { graph.namespace().await })
     }
 
     /// Gets a remote node with the specified id.

@@ -65,6 +65,35 @@ pub enum ReadExpr {
     ShrinkStart { input: Box<ReadExpr>, start: i64 },
     /// Shrink the end of the window.
     ShrinkEnd { input: Box<ReadExpr>, end: i64 },
+    /// Restrict to the "valid" subgraph (event-graph filter). No args. Composes.
+    Valid { input: Box<ReadExpr> },
+    /// Restrict to the default layer. No args. Composes.
+    DefaultLayer { input: Box<ReadExpr> },
+    /// Restrict to a specific set of layers.
+    Layers {
+        input: Box<ReadExpr>,
+        names: Vec<String>,
+    },
+    /// Exclude a specific set of layers.
+    ExcludeLayers {
+        input: Box<ReadExpr>,
+        names: Vec<String>,
+    },
+    /// Restrict to a subgraph induced by the given node ids.
+    Subgraph {
+        input: Box<ReadExpr>,
+        nodes: Vec<String>,
+    },
+    /// Restrict to nodes matching one of the given node types.
+    SubgraphNodeTypes {
+        input: Box<ReadExpr>,
+        node_types: Vec<String>,
+    },
+    /// Exclude the given nodes from the view.
+    ExcludeNodes {
+        input: Box<ReadExpr>,
+        nodes: Vec<String>,
+    },
 
     // ============ Selection ============
     /// Narrow to a single node by id. Graph → Node.
@@ -119,6 +148,10 @@ pub enum ReadExpr {
     },
     /// Terminal: total count of temporal edges (edge updates) — `i64`.
     CountTemporalEdges { input: Box<ReadExpr> },
+    /// Terminal: graph path — `String`.
+    Path { input: Box<ReadExpr> },
+    /// Terminal: parent namespace of the graph path — `String`.
+    Namespace { input: Box<ReadExpr> },
 
     // ============ Node scalar terminals ============
     /// Terminal: node id — `String` (server may return int-like GID; treated as string).
