@@ -43,9 +43,6 @@ fn test_materialize_no_edges() {
 }
 
 #[test]
-fn test_optimisation_flags() {}
-
-#[test]
 fn test_mask_the_window_50pc() {
     let graph = Graph::new();
     let edges = vec![
