@@ -3076,4 +3076,23 @@ mod graphql_test {
             "parquet nested inside an allowed path should be accepted"
         );
     }
+
+    #[tokio::test]
+    async fn test_flush() {
+        let tmp_dir = tempdir().unwrap();
+        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
+        let folder = data
+            .work_dir_write()
+            .await
+            .validate_path_for_insert("g", false)
+            .unwrap();
+        data.insert_graph(folder, Graph::new().into())
+            .await
+            .unwrap();
+
+        let schema = App::create_schema().data(data).finish().unwrap();
+        let res = run_mutation(&schema, r#"mutation { flush(graphPath: "g") }"#).await;
+        assert_eq!(res.errors, vec![], "flush mutation returned errors");
+        assert_eq!(res.data.into_json().unwrap(), json!({"flush": true}));
+    }
 }

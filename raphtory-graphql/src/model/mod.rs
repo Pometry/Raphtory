@@ -853,6 +853,21 @@ impl Mut {
             Err(GraphError::IndexingNotSupported.into())
         }
     }
+
+    /// Flush any pending writes for the graph at `graphPath` to disk.
+    async fn flush<'a>(
+        ctx: &Context<'a>,
+        #[graphql(desc = "Graph path relative to the root namespace.")] graph_path: String,
+    ) -> Result<bool> {
+        let data = ctx.data_unchecked::<Data>();
+        let graph = data
+            .get_graph_with_write_permission(ctx, &graph_path)
+            .await?
+            .graph()
+            .clone();
+        graph.flush()?;
+        Ok(true)
+    }
 }
 
 #[derive(App)]
