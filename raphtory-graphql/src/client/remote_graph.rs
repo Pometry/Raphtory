@@ -9,6 +9,7 @@ use crate::client::{
     remote_client::RemoteClient,
     remote_edge::RemoteEdge,
     remote_node::RemoteNode,
+    remote_nodes::RemoteNodes,
     transport::Transport,
     ClientError,
 };
@@ -95,6 +96,30 @@ pub(crate) fn expect_optional_string(
         None => Ok(None),
         Some(Prop::Str(s)) => Ok(Some(s.to_string())),
         Some(_) => Err(ClientError::InvalidResponse(format!(
+            "`{}` returned unexpected value type",
+            context
+        ))),
+    }
+}
+
+/// Unwrap a `Transport::execute` result expecting a `Prop::List` of
+/// `Prop::Str`s (e.g. the result of `.ids()` on a collection).
+pub(crate) fn expect_string_list(
+    v: Option<Prop>,
+    context: &str,
+) -> Result<Vec<String>, ClientError> {
+    match v {
+        Some(Prop::List(items)) => items
+            .iter()
+            .map(|p| match p {
+                Prop::Str(s) => Ok(s.to_string()),
+                _ => Err(ClientError::InvalidResponse(format!(
+                    "`{}` list contains non-string element",
+                    context
+                ))),
+            })
+            .collect(),
+        _ => Err(ClientError::InvalidResponse(format!(
             "`{}` returned unexpected value type",
             context
         ))),
@@ -407,6 +432,18 @@ impl RemoteGraph {
             ReadExpr::Node {
                 input: Box::new(self.expr.clone()),
                 id: id_str,
+            },
+        )
+    }
+
+    /// Returns the collection of all nodes in the graph, evaluated under the
+    /// current view chain. Lazy — no RPC.
+    pub fn nodes(&self) -> RemoteNodes {
+        RemoteNodes::with_expr(
+            self.path.clone(),
+            self.transport.clone(),
+            ReadExpr::Nodes {
+                input: Box::new(self.expr.clone()),
             },
         )
     }

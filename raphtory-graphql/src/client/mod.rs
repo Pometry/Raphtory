@@ -5,6 +5,7 @@ pub mod remote_client;
 pub mod remote_edge;
 pub mod remote_graph;
 pub mod remote_node;
+pub mod remote_nodes;
 pub mod transport;
 
 pub use error::ClientError;
@@ -18,6 +19,7 @@ pub use op::{
 pub use remote_edge::RemoteEdge;
 pub use remote_graph::RemoteGraph;
 pub use remote_node::RemoteNode;
+pub use remote_nodes::RemoteNodes;
 pub use transport::Transport;
 
 use raphtory_api::core::entities::properties::prop::Prop;

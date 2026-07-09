@@ -108,6 +108,14 @@ pub enum ReadExpr {
     Src { input: Box<ReadExpr> },
     /// Navigate to an edge's destination node. Edge → Node.
     Dst { input: Box<ReadExpr> },
+    /// Graph → the collection of all nodes in the (view-restricted) graph.
+    Nodes { input: Box<ReadExpr> },
+    /// Node → the collection of the node's neighbours (both directions).
+    Neighbours { input: Box<ReadExpr> },
+    /// Node → the collection of the node's in-neighbours.
+    InNeighbours { input: Box<ReadExpr> },
+    /// Node → the collection of the node's out-neighbours.
+    OutNeighbours { input: Box<ReadExpr> },
 
     // ============ Scalar terminals on Graph ============
     /// Terminal: total node count under the current view — `i64`.
@@ -152,6 +160,14 @@ pub enum ReadExpr {
     Path { input: Box<ReadExpr> },
     /// Terminal: parent namespace of the graph path — `String`.
     Namespace { input: Box<ReadExpr> },
+
+    // ============ Collection terminals (on Nodes/Edges collections) ============
+    /// Terminal on a collection: list of member ids — `Vec<String>`.
+    Ids { input: Box<ReadExpr> },
+    /// Terminal on a collection: number of members — `i64`.
+    /// Distinct from `CountNodes`/`CountEdges` (which are Graph-scope); this
+    /// fires against the collection's `count` field.
+    Count { input: Box<ReadExpr> },
 
     // ============ Node scalar terminals ============
     /// Terminal: node id — `String` (server may return int-like GID; treated as string).

@@ -1,4 +1,7 @@
-use crate::client::{remote_node::RemoteNode, ClientError};
+use crate::{
+    client::{remote_node::RemoteNode, ClientError},
+    python::client::remote_nodes::PyRemoteNodes,
+};
 use pyo3::{pyclass, pymethods};
 use raphtory::python::utils::execute_async_task;
 use raphtory_api::core::{entities::properties::prop::Prop, storage::timeindex::EventTime};
@@ -183,5 +186,23 @@ impl PyRemoteNode {
     pub fn edge_history_count(&self) -> Result<i64, ClientError> {
         let node = Arc::clone(&self.node);
         execute_async_task(move || async move { node.edge_history_count().await })
+    }
+
+    /// The collection of this node's neighbours (both directions). Lazy — no RPC.
+    #[getter]
+    pub fn neighbours(&self) -> PyRemoteNodes {
+        PyRemoteNodes::new(self.node.neighbours())
+    }
+
+    /// The collection of this node's in-neighbours. Lazy — no RPC.
+    #[getter]
+    pub fn in_neighbours(&self) -> PyRemoteNodes {
+        PyRemoteNodes::new(self.node.in_neighbours())
+    }
+
+    /// The collection of this node's out-neighbours. Lazy — no RPC.
+    #[getter]
+    pub fn out_neighbours(&self) -> PyRemoteNodes {
+        PyRemoteNodes::new(self.node.out_neighbours())
     }
 }

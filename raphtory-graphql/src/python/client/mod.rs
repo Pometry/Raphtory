@@ -18,6 +18,7 @@ pub mod remote_client;
 pub mod remote_edge;
 pub mod remote_graph;
 pub mod remote_node;
+pub mod remote_nodes;
 
 /// A temporal update
 ///

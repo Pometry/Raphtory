@@ -6,6 +6,7 @@ use crate::client::{
     remote_graph::{
         expect_bool, expect_i64, expect_optional_i64, expect_optional_string, expect_string,
     },
+    remote_nodes::RemoteNodes,
     transport::Transport,
     ClientError,
 };
@@ -142,6 +143,40 @@ impl RemoteNode {
             input: Box::new(self.expr.clone()),
         });
         expect_i64(self.transport.execute(&op).await?, "edgeHistoryCount")
+    }
+
+    /// Returns the collection of this node's neighbours (both directions).
+    /// Lazy — no RPC.
+    pub fn neighbours(&self) -> RemoteNodes {
+        RemoteNodes::with_expr(
+            self.path.clone(),
+            self.transport.clone(),
+            ReadExpr::Neighbours {
+                input: Box::new(self.expr.clone()),
+            },
+        )
+    }
+
+    /// Returns the collection of this node's in-neighbours. Lazy — no RPC.
+    pub fn in_neighbours(&self) -> RemoteNodes {
+        RemoteNodes::with_expr(
+            self.path.clone(),
+            self.transport.clone(),
+            ReadExpr::InNeighbours {
+                input: Box::new(self.expr.clone()),
+            },
+        )
+    }
+
+    /// Returns the collection of this node's out-neighbours. Lazy — no RPC.
+    pub fn out_neighbours(&self) -> RemoteNodes {
+        RemoteNodes::with_expr(
+            self.path.clone(),
+            self.transport.clone(),
+            ReadExpr::OutNeighbours {
+                input: Box::new(self.expr.clone()),
+            },
+        )
     }
 
     /// Set the type on the node. This only works if the type has not been previously set.

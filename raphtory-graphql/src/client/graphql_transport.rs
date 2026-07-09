@@ -722,11 +722,9 @@ fn render_read_body(expr: &ReadExpr) -> String {
         ReadExpr::SnapshotLatest { input } => {
             format!("{} {{ snapshotLatest", render_read_body(input))
         }
-        ReadExpr::SnapshotAt { input, time } => format!(
-            "{} {{ snapshotAt(time: {})",
-            render_read_body(input),
-            time
-        ),
+        ReadExpr::SnapshotAt { input, time } => {
+            format!("{} {{ snapshotAt(time: {})", render_read_body(input), time)
+        }
         ReadExpr::ExcludeLayer { input, name } => format!(
             "{} {{ excludeLayer(name: \"{}\")",
             render_read_body(input),
@@ -787,6 +785,14 @@ fn render_read_body(expr: &ReadExpr) -> String {
         ),
         ReadExpr::Src { input } => format!("{} {{ src", render_read_body(input)),
         ReadExpr::Dst { input } => format!("{} {{ dst", render_read_body(input)),
+        ReadExpr::Nodes { input } => format!("{} {{ nodes", render_read_body(input)),
+        ReadExpr::Neighbours { input } => format!("{} {{ neighbours", render_read_body(input)),
+        ReadExpr::InNeighbours { input } => {
+            format!("{} {{ inNeighbours", render_read_body(input))
+        }
+        ReadExpr::OutNeighbours { input } => {
+            format!("{} {{ outNeighbours", render_read_body(input))
+        }
         // Terminals — no args after the field name
         ReadExpr::CountNodes { input } => format!("{} {{ countNodes", render_read_body(input)),
         ReadExpr::CountEdges { input } => format!("{} {{ countEdges", render_read_body(input)),
@@ -794,11 +800,9 @@ fn render_read_body(expr: &ReadExpr) -> String {
         ReadExpr::InDegree { input } => format!("{} {{ inDegree", render_read_body(input)),
         ReadExpr::OutDegree { input } => format!("{} {{ outDegree", render_read_body(input)),
         ReadExpr::Name { input } => format!("{} {{ name", render_read_body(input)),
-        ReadExpr::HasNode { input, id } => format!(
-            "{} {{ hasNode(name: \"{}\")",
-            render_read_body(input),
-            id
-        ),
+        ReadExpr::HasNode { input, id } => {
+            format!("{} {{ hasNode(name: \"{}\")", render_read_body(input), id)
+        }
         ReadExpr::HasEdge { input, src, dst } => format!(
             "{} {{ hasEdge(src: \"{}\", dst: \"{}\")",
             render_read_body(input),
@@ -810,6 +814,8 @@ fn render_read_body(expr: &ReadExpr) -> String {
         }
         ReadExpr::Path { input } => format!("{} {{ path", render_read_body(input)),
         ReadExpr::Namespace { input } => format!("{} {{ namespace", render_read_body(input)),
+        ReadExpr::Ids { input } => format!("{} {{ ids", render_read_body(input)),
+        ReadExpr::Count { input } => format!("{} {{ count", render_read_body(input)),
         ReadExpr::Id { input } => format!("{} {{ id", render_read_body(input)),
         ReadExpr::NodeType { input } => format!("{} {{ nodeType", render_read_body(input)),
         ReadExpr::IsActive { input } => format!("{} {{ isActive", render_read_body(input)),
@@ -859,6 +865,12 @@ fn read_depth(expr: &ReadExpr) -> usize {
         | ReadExpr::Edge { input, .. }
         | ReadExpr::Src { input }
         | ReadExpr::Dst { input }
+        | ReadExpr::Nodes { input }
+        | ReadExpr::Neighbours { input }
+        | ReadExpr::InNeighbours { input }
+        | ReadExpr::OutNeighbours { input }
+        | ReadExpr::Ids { input }
+        | ReadExpr::Count { input }
         | ReadExpr::CountNodes { input }
         | ReadExpr::CountEdges { input }
         | ReadExpr::Degree { input }
@@ -908,10 +920,29 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
         | ReadExpr::CountNodes { .. }
         | ReadExpr::CountEdges { .. }
         | ReadExpr::CountTemporalEdges { .. }
-        | ReadExpr::EdgeHistoryCount { .. } => terminal_val
+        | ReadExpr::EdgeHistoryCount { .. }
+        | ReadExpr::Count { .. } => terminal_val
             .as_i64()
             .map(|n| Some(Prop::I64(n)))
             .ok_or_else(|| ClientError::InvalidResponse(format!("`{}` not an i64", terminal_key))),
+        // List-of-string terminal — the JSON is an array of strings.
+        ReadExpr::Ids { .. } => {
+            let arr = terminal_val.as_array().ok_or_else(|| {
+                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
+            })?;
+            let items: Result<Vec<Prop>, ClientError> = arr
+                .iter()
+                .map(|v| {
+                    v.as_str().map(|s| Prop::Str(s.into())).ok_or_else(|| {
+                        ClientError::InvalidResponse(format!(
+                            "`{}` element not a string",
+                            terminal_key
+                        ))
+                    })
+                })
+                .collect();
+            Ok(Some(Prop::List(items?.into())))
+        }
         // Bool-shaped terminals.
         ReadExpr::HasNode { .. } | ReadExpr::HasEdge { .. } | ReadExpr::IsActive { .. } => {
             terminal_val
@@ -967,14 +998,12 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
             }
         }
         // String-shaped terminals
-        ReadExpr::Name { .. } | ReadExpr::Path { .. } | ReadExpr::Namespace { .. } => {
-            terminal_val
-                .as_str()
-                .map(|s| Some(Prop::Str(s.into())))
-                .ok_or_else(|| {
-                    ClientError::InvalidResponse(format!("`{}` not a string", terminal_key))
-                })
-        }
+        ReadExpr::Name { .. } | ReadExpr::Path { .. } | ReadExpr::Namespace { .. } => terminal_val
+            .as_str()
+            .map(|s| Some(Prop::Str(s.into())))
+            .ok_or_else(|| {
+                ClientError::InvalidResponse(format!("`{}` not a string", terminal_key))
+            }),
         // Non-terminals — outermost expr must be a terminal in a well-formed tree.
         _ => Err(ClientError::InvalidResponse(
             "expression tree has no terminal".into(),
@@ -1077,6 +1106,30 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
             ReadExpr::Dst { input } => {
                 go(input, out);
                 out.push("dst");
+            }
+            ReadExpr::Nodes { input } => {
+                go(input, out);
+                out.push("nodes");
+            }
+            ReadExpr::Neighbours { input } => {
+                go(input, out);
+                out.push("neighbours");
+            }
+            ReadExpr::InNeighbours { input } => {
+                go(input, out);
+                out.push("inNeighbours");
+            }
+            ReadExpr::OutNeighbours { input } => {
+                go(input, out);
+                out.push("outNeighbours");
+            }
+            ReadExpr::Ids { input } => {
+                go(input, out);
+                out.push("ids");
+            }
+            ReadExpr::Count { input } => {
+                go(input, out);
+                out.push("count");
             }
             ReadExpr::CountNodes { input } => {
                 go(input, out);

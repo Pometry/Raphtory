@@ -253,6 +253,42 @@ def test_default_layer_and_valid():
         server_cm.__exit__(None, None, None)
 
 
+def test_nodes_collection():
+    """`rg.nodes` accessor returns a `RemoteNodes` collection with `.ids()`,
+    `.count()`, and `.list()` terminals."""
+    server_cm, rg = _make_graph_with_edge()
+    try:
+        nodes = rg.nodes
+        assert nodes.count() == 2
+        assert sorted(nodes.ids()) == ["ben", "hamza"]
+
+        # Materialize as RemoteNode handles, then read a scalar off each.
+        remote_nodes = nodes.list()
+        assert len(remote_nodes) == 2
+        names = sorted(n.name() for n in remote_nodes)
+        assert names == ["ben", "hamza"]
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_node_neighbour_collections():
+    """`.neighbours`, `.in_neighbours`, `.out_neighbours` on `RemoteNode`."""
+    server_cm, rg = _make_graph_with_edge()
+    try:
+        ben = rg.node("ben")
+        # ben has one out-neighbour (hamza) and zero in-neighbours.
+        assert ben.out_neighbours.ids() == ["hamza"]
+        assert ben.in_neighbours.ids() == []
+        # `.neighbours` is directed union — includes hamza.
+        assert ben.neighbours.ids() == ["hamza"]
+
+        hamza = rg.node("hamza")
+        assert hamza.in_neighbours.ids() == ["ben"]
+        assert hamza.out_neighbours.ids() == []
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
 def test_edge_selection_and_navigation():
     """`rg.edge(src, dst)` selects an edge; `.src()` / `.dst()` navigate back
     to node handles that carry the whole view chain."""
