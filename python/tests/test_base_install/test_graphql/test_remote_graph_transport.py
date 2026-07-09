@@ -271,6 +271,25 @@ def test_nodes_collection():
         server_cm.__exit__(None, None, None)
 
 
+def test_nodes_native_iteration():
+    """`for n in rg.nodes:` — no explicit `.list()` needed."""
+    server_cm, rg = _make_graph_with_edge()
+    try:
+        names = sorted(n.name() for n in rg.nodes)
+        assert names == ["ben", "hamza"]
+
+        # Native iteration over a navigation collection.
+        out_names = [n.name() for n in rg.node("ben").out_neighbours]
+        assert out_names == ["hamza"]
+
+        # Iterating twice is idempotent (each iter() call fetches fresh).
+        first = [n.name() for n in rg.nodes]
+        second = [n.name() for n in rg.nodes]
+        assert sorted(first) == sorted(second)
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
 def test_node_neighbour_collections():
     """`.neighbours`, `.in_neighbours`, `.out_neighbours` on `RemoteNode`."""
     server_cm, rg = _make_graph_with_edge()

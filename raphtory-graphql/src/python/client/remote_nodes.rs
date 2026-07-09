@@ -2,7 +2,7 @@ use crate::{
     client::{remote_nodes::RemoteNodes, ClientError},
     python::client::remote_node::PyRemoteNode,
 };
-use pyo3::{pyclass, pymethods};
+use pyo3::{pyclass, pymethods, PyRef, PyRefMut};
 use raphtory::python::utils::execute_async_task;
 use std::sync::Arc;
 
@@ -61,5 +61,36 @@ impl PyRemoteNodes {
         let nodes = Arc::clone(&self.nodes);
         let result = execute_async_task(move || async move { nodes.list().await })?;
         Ok(result.into_iter().map(PyRemoteNode::new).collect())
+    }
+
+    /// Enables `for n in remote_nodes:` — fetches all ids in one RPC, then
+    /// yields a `RemoteNode` handle for each. No per-node RPC batching yet
+    /// (planned as a follow-up); each terminal on a yielded node fires its
+    /// own RPC.
+    fn __iter__(&self) -> Result<PyRemoteNodesIter, ClientError> {
+        let list = self.list()?;
+        Ok(PyRemoteNodesIter {
+            inner: list.into_iter(),
+        })
+    }
+}
+
+/// Opaque iterator returned by `PyRemoteNodes::__iter__`.
+///
+/// Not intended to be constructed directly — Python creates it via
+/// `iter(remote_nodes)` (or under the hood in a `for` loop).
+#[pyclass(name = "RemoteNodesIter", module = "raphtory.graphql")]
+pub struct PyRemoteNodesIter {
+    inner: std::vec::IntoIter<PyRemoteNode>,
+}
+
+#[pymethods]
+impl PyRemoteNodesIter {
+    fn __iter__(slf: PyRef<Self>) -> PyRef<Self> {
+        slf
+    }
+
+    fn __next__(mut slf: PyRefMut<Self>) -> Option<PyRemoteNode> {
+        slf.inner.next()
     }
 }
