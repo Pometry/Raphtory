@@ -1,5 +1,5 @@
 use crate::{
-    paths::{ExistingGraphFolder, ValidGraphPaths},
+    paths::{ExistingGraphFolder, UnlockedGraphFolder, ValidGraphPaths},
     rayon::blocking_compute,
 };
 #[cfg(feature = "search")]
@@ -20,9 +20,9 @@ use raphtory::{
     },
     errors::{GraphError, GraphResult},
     prelude::{EdgeViewOps, StableDecode},
-    serialise::GraphPaths,
     vectors::{storage::LazyDiskVectorCache, vectorised_graph::VectorisedGraph},
 };
+use raphtory_api::core::storage::graph_folder::GraphPaths;
 use raphtory_storage::{
     core_ops::InheritCoreGraphOps, layer_ops::InheritLayerOps, mutation::InheritMutationOps,
 };
@@ -43,7 +43,7 @@ pub struct GraphWithVectors {
 pub struct GraphWithVectorsInner {
     pub graph: MaterializedGraph,
     pub vectors: Option<VectorisedGraph<MaterializedGraph>>,
-    pub folder: ExistingGraphFolder,
+    pub folder: UnlockedGraphFolder,
     pub is_dirty: AtomicBool,
     pub is_flushing: AtomicBool,
 }
@@ -57,7 +57,7 @@ impl GraphWithVectors {
         let inner = Arc::new(GraphWithVectorsInner {
             graph,
             vectors,
-            folder,
+            folder: folder.unlock(),
             is_dirty: AtomicBool::new(false),
             is_flushing: AtomicBool::new(false),
         });
@@ -93,7 +93,7 @@ impl GraphWithVectors {
         self.inner.vectors.as_ref()
     }
 
-    pub fn folder(&self) -> &ExistingGraphFolder {
+    pub fn folder(&self) -> &UnlockedGraphFolder {
         &self.inner.folder
     }
     pub fn set_dirty(&self, is_dirty: bool) {

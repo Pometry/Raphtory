@@ -24,6 +24,7 @@ use dynamic_graphql::{
     ResolvedObjectFields, Result, Upload,
 };
 use itertools::Itertools;
+use minijinja::functions::namespace;
 use raphtory::{
     db::{
         api::{
@@ -220,7 +221,8 @@ impl QueryRoot {
             }
         }
 
-        let folder = ExistingGraphFolder::try_from(data.work_dir.clone(), &path)
+        let work_dir = data.work_dir_read().await;
+        let folder = ExistingGraphFolder::try_from(work_dir, &path)
             .map_err(|e| async_graphql::Error::new(e.to_string()))?;
         Ok(Some(MetaGraph::new(folder)))
     }
@@ -266,7 +268,7 @@ impl QueryRoot {
             .unwrap_or(EmbeddingModel::OpenAI(Default::default()))
             .cache(ctx)
             .await?;
-        let folder = ExistingGraphFolder::try_from(data.work_dir.clone(), &path)?;
+        let folder = ExistingGraphFolder::try_from(data.work_dir_read().await, &path)?;
         data.vectorise_folder(&folder, &template, cached_model)
             .await?;
         Ok(true)
@@ -288,7 +290,7 @@ impl QueryRoot {
     /// Returns::  List of namespaces on root
     async fn namespaces<'a>(ctx: &Context<'a>) -> GqlCollection<Namespace> {
         let data = ctx.data_unchecked::<Data>();
-        let root = Namespace::root(data.work_dir.clone());
+        let root = Namespace::root(data.work_dir_read().await);
         let list = blocking_compute(move || {
             root.self_and_all_children()
                 .filter_map(|child| match child {
@@ -307,7 +309,7 @@ impl QueryRoot {
     /// Returns:: Namespace or error if no namespace found
     async fn namespace<'a>(ctx: &Context<'a>, path: String) -> Result<Namespace> {
         let data = ctx.data_unchecked::<Data>();
-        Ok(Namespace::try_new(data.work_dir.clone(), path)?)
+        Ok(Namespace::try_new(data.work_dir_read().await, path)?)
     }
 
     /// Returns root namespace
@@ -315,7 +317,7 @@ impl QueryRoot {
     /// Returns::  Root namespace
     async fn root<'a>(ctx: &Context<'a>) -> Namespace {
         let data = ctx.data_unchecked::<Data>();
-        Namespace::root(data.work_dir.clone())
+        Namespace::root(data.work_dir_read().await)
     }
 
     /// Returns a plugin.
@@ -380,7 +382,10 @@ impl Mut {
         let ns = parent_namespace(&path);
         require_namespace_write(ctx, &data.auth_policy, ns, &path, "create")?;
         let overwrite = false;
-        let folder = data.validate_path_for_insert(&path, overwrite)?;
+        let folder = data
+            .work_dir_write()
+            .await
+            .validate_path_for_insert(&path, overwrite)?;
         let graph_path = folder.graph_folder();
         let graph: MaterializedGraph = if Extension::disk_storage_enabled() {
             match graph_type {
@@ -446,8 +451,13 @@ impl Mut {
         // for the templates or if it needs to be vectorised at all
         let overwrite = overwrite.unwrap_or(false);
         let src = data.get_raw_graph_with_read_permission(ctx, path).await?;
-        let folder = data.validate_path_for_insert(new_path, overwrite)?;
-        data.insert_graph(folder, src.graph().clone()).await?;
+        let graph = src.graph().clone();
+        drop(src);
+        let folder = data
+            .work_dir_write()
+            .await
+            .validate_path_for_insert(new_path, overwrite)?;
+        data.insert_graph(folder, graph).await?;
         if let Err(e) = auto_grant_on_create(ctx, &data.auth_policy, new_path) {
             let _ = data.delete_graph(new_path).await;
             return Err(e);
@@ -470,7 +480,10 @@ impl Mut {
         let dst_ns = parent_namespace(&path);
         require_namespace_write(ctx, &data.auth_policy, dst_ns, &path, "upload")?;
         let in_file = graph.value(ctx)?.content;
-        let folder = data.validate_path_for_insert(&path, overwrite)?;
+        let folder = data
+            .work_dir_write()
+            .await
+            .validate_path_for_insert(&path, overwrite)?;
         data.insert_graph_as_bytes(folder, in_file).await?;
         if let Err(e) = auto_grant_on_create(ctx, &data.auth_policy, &path) {
             let _ = data.delete_graph(&path).await;
@@ -493,10 +506,11 @@ impl Mut {
         let data = ctx.data_unchecked::<Data>();
         let dst_ns = parent_namespace(path);
         require_namespace_write(ctx, &data.auth_policy, dst_ns, path, "send")?;
+        let work_dir = data.work_dir_write().await;
         let folder = if overwrite {
-            ValidWriteableGraphFolder::try_existing_or_new(data.work_dir.clone(), path)?
+            ValidWriteableGraphFolder::try_existing_or_new(work_dir, path)?
         } else {
-            ValidWriteableGraphFolder::try_new(data.work_dir.clone(), path)?
+            ValidWriteableGraphFolder::try_new(work_dir, path)?
         };
         let config = data.graph_conf.clone();
         let folder_clone = folder.clone();
@@ -547,7 +561,7 @@ impl Mut {
         require_namespace_write(ctx, &data.auth_policy, parent_ns, path, "delete")?;
         require_namespace_write(ctx, &data.auth_policy, path, path, "delete")?;
 
-        let namespace = Namespace::try_new(data.work_dir.clone(), path.to_string())?;
+        let namespace = Namespace::try_new(data.work_dir_write().await.into(), path.to_string())?;
         let ns_clone = namespace.clone();
         let descendants: Vec<NamespacedItem> =
             blocking_compute(move || ns_clone.get_all_children().collect()).await;
@@ -568,7 +582,7 @@ impl Mut {
             }
         }
 
-        data.delete_namespace(path, &descendants).await?;
+        data.delete_namespace(namespace, &descendants).await?;
         Ok(true)
     }
 
@@ -586,7 +600,10 @@ impl Mut {
         let data = ctx.data_unchecked::<Data>();
         let dst_ns = parent_namespace(&new_path);
         require_namespace_write(ctx, &data.auth_policy, dst_ns, &new_path, "create")?;
-        let folder = data.validate_path_for_insert(&new_path, overwrite)?;
+        let folder = data
+            .work_dir_write()
+            .await
+            .validate_path_for_insert(&new_path, overwrite)?;
         let (_, parent_graph) = data
             .get_graph_requiring_read(ctx, parent_path, None)
             .await?;
