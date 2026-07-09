@@ -3,6 +3,7 @@ use crate::client::{
         AddNodeMetadata as AddNodeMetadataOp, AddNodeUpdates as AddNodeUpdatesOp, Op, ReadExpr,
         SetNodeType as SetNodeTypeOp, UpdateNodeMetadata as UpdateNodeMetadataOp, WriteOp,
     },
+    remote_edges::RemoteEdges,
     remote_graph::{
         expect_bool, expect_i64, expect_optional_i64, expect_optional_string, expect_string,
     },
@@ -183,6 +184,43 @@ impl RemoteNode {
             self.path.clone(),
             self.transport.clone(),
             ReadExpr::OutNeighbours {
+                input: Box::new(self.expr.clone()),
+            },
+            self.base_graph.clone(),
+        )
+    }
+
+    /// Returns the collection of this node's edges (both directions). Lazy — no RPC.
+    /// Propagates the base graph view so materialized edges are correctly rebased.
+    pub fn edges(&self) -> RemoteEdges {
+        RemoteEdges::with_expr(
+            self.path.clone(),
+            self.transport.clone(),
+            ReadExpr::NodeEdges {
+                input: Box::new(self.expr.clone()),
+            },
+            self.base_graph.clone(),
+        )
+    }
+
+    /// Returns the collection of this node's incoming edges. Lazy — no RPC.
+    pub fn in_edges(&self) -> RemoteEdges {
+        RemoteEdges::with_expr(
+            self.path.clone(),
+            self.transport.clone(),
+            ReadExpr::InEdges {
+                input: Box::new(self.expr.clone()),
+            },
+            self.base_graph.clone(),
+        )
+    }
+
+    /// Returns the collection of this node's outgoing edges. Lazy — no RPC.
+    pub fn out_edges(&self) -> RemoteEdges {
+        RemoteEdges::with_expr(
+            self.path.clone(),
+            self.transport.clone(),
+            ReadExpr::OutEdges {
                 input: Box::new(self.expr.clone()),
             },
             self.base_graph.clone(),

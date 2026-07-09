@@ -3,9 +3,9 @@ use crate::{
     python::{
         client::{
             remote_client::PyRaphtoryClient, remote_edge::PyRemoteEdge,
-            remote_graph::PyRemoteGraph, remote_node::PyRemoteNode, remote_nodes::PyRemoteNodes,
-            PyAllPropertySpec, PyEdgeAddition, PyNodeAddition, PyPropsInput, PyRemoteIndexSpec,
-            PySomePropertySpec, PyUpdate,
+            remote_edges::PyRemoteEdges, remote_graph::PyRemoteGraph, remote_node::PyRemoteNode,
+            remote_nodes::PyRemoteNodes, PyAllPropertySpec, PyEdgeAddition, PyNodeAddition,
+            PyPropsInput, PyRemoteIndexSpec, PySomePropertySpec, PyUpdate,
         },
         decode_graph, encode_graph, schema,
         server::{running_server::PyRunningGraphServer, server::PyGraphServer},
@@ -31,6 +31,7 @@ pub fn base_graphql_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyErr>
     graphql_module.add_class::<PyRemoteEdge>()?;
     graphql_module.add_class::<PyRemoteNode>()?;
     graphql_module.add_class::<PyRemoteNodes>()?;
+    graphql_module.add_class::<PyRemoteEdges>()?;
     graphql_module.add_class::<PyNodeAddition>()?;
     graphql_module.add_class::<PyUpdate>()?;
     graphql_module.add_class::<PyEdgeAddition>()?;

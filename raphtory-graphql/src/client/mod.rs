@@ -3,6 +3,7 @@ pub mod graphql_transport;
 pub mod op;
 pub mod remote_client;
 pub mod remote_edge;
+pub mod remote_edges;
 pub mod remote_graph;
 pub mod remote_node;
 pub mod remote_nodes;
@@ -17,6 +18,7 @@ pub use op::{
     UpdateGraphMetadata, UpdateNodeMetadata, WriteOp,
 };
 pub use remote_edge::RemoteEdge;
+pub use remote_edges::RemoteEdges;
 pub use remote_graph::RemoteGraph;
 pub use remote_node::RemoteNode;
 pub use remote_nodes::RemoteNodes;

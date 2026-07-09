@@ -9,8 +9,8 @@ use crate::{
         ClientError,
     },
     python::client::{
-        remote_edge::PyRemoteEdge, remote_node::PyRemoteNode, remote_nodes::PyRemoteNodes,
-        PyEdgeAddition, PyNodeAddition,
+        remote_edge::PyRemoteEdge, remote_edges::PyRemoteEdges, remote_node::PyRemoteNode,
+        remote_nodes::PyRemoteNodes, PyEdgeAddition, PyNodeAddition,
     },
 };
 use pyo3::{pyclass, pymethods};
@@ -288,6 +288,16 @@ impl PyRemoteGraph {
     #[getter]
     pub fn nodes(&self) -> PyRemoteNodes {
         PyRemoteNodes::new(self.graph.nodes())
+    }
+
+    /// The collection of all edges in this graph under the current view.
+    /// Lazy — no RPC.
+    ///
+    /// Returns:
+    ///   RemoteEdges: a handle to the edges collection.
+    #[getter]
+    pub fn edges(&self) -> PyRemoteEdges {
+        PyRemoteEdges::new(self.graph.edges())
     }
 
     /// Batch add node updates to the remote graph

@@ -8,6 +8,7 @@ use crate::client::{
     },
     remote_client::RemoteClient,
     remote_edge::RemoteEdge,
+    remote_edges::RemoteEdges,
     remote_node::RemoteNode,
     remote_nodes::RemoteNodes,
     transport::Transport,
@@ -115,6 +116,69 @@ pub(crate) fn expect_string_list(
                 Prop::Str(s) => Ok(s.to_string()),
                 _ => Err(ClientError::InvalidResponse(format!(
                     "`{}` list contains non-string element",
+                    context
+                ))),
+            })
+            .collect(),
+        _ => Err(ClientError::InvalidResponse(format!(
+            "`{}` returned unexpected value type",
+            context
+        ))),
+    }
+}
+
+/// Unwrap a `Transport::execute` result expecting an EdgesList terminal — a
+/// `Prop::List` of 2-element `Prop::List([src, dst])` string pairs.
+pub(crate) fn expect_edge_list(
+    v: Option<Prop>,
+    context: &str,
+) -> Result<Vec<(String, String)>, ClientError> {
+    match v {
+        Some(Prop::List(items)) => items
+            .iter()
+            .map(|p| match p {
+                Prop::List(pair) => {
+                    let mut it = pair.iter();
+                    let src = it.next().ok_or_else(|| {
+                        ClientError::InvalidResponse(format!(
+                            "`{}` element missing src",
+                            context
+                        ))
+                    })?;
+                    let dst = it.next().ok_or_else(|| {
+                        ClientError::InvalidResponse(format!(
+                            "`{}` element missing dst",
+                            context
+                        ))
+                    })?;
+                    if it.next().is_some() {
+                        return Err(ClientError::InvalidResponse(format!(
+                            "`{}` element has more than 2 items",
+                            context
+                        )));
+                    }
+                    let src = match src {
+                        Prop::Str(s) => s.to_string(),
+                        _ => {
+                            return Err(ClientError::InvalidResponse(format!(
+                                "`{}` src not a string",
+                                context
+                            )))
+                        }
+                    };
+                    let dst = match dst {
+                        Prop::Str(s) => s.to_string(),
+                        _ => {
+                            return Err(ClientError::InvalidResponse(format!(
+                                "`{}` dst not a string",
+                                context
+                            )))
+                        }
+                    };
+                    Ok((src, dst))
+                }
+                _ => Err(ClientError::InvalidResponse(format!(
+                    "`{}` element not a pair",
                     context
                 ))),
             })
@@ -444,6 +508,19 @@ impl RemoteGraph {
             self.path.clone(),
             self.transport.clone(),
             ReadExpr::Nodes {
+                input: Box::new(self.expr.clone()),
+            },
+            self.expr.clone(),
+        )
+    }
+
+    /// Returns the collection of all edges in the graph, evaluated under the
+    /// current view chain. Lazy — no RPC.
+    pub fn edges(&self) -> RemoteEdges {
+        RemoteEdges::with_expr(
+            self.path.clone(),
+            self.transport.clone(),
+            ReadExpr::Edges {
                 input: Box::new(self.expr.clone()),
             },
             self.expr.clone(),

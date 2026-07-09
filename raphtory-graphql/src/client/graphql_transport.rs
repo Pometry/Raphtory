@@ -793,6 +793,10 @@ fn render_read_body(expr: &ReadExpr) -> String {
         ReadExpr::OutNeighbours { input } => {
             format!("{} {{ outNeighbours", render_read_body(input))
         }
+        ReadExpr::Edges { input } => format!("{} {{ edges", render_read_body(input)),
+        ReadExpr::NodeEdges { input } => format!("{} {{ edges", render_read_body(input)),
+        ReadExpr::InEdges { input } => format!("{} {{ inEdges", render_read_body(input)),
+        ReadExpr::OutEdges { input } => format!("{} {{ outEdges", render_read_body(input)),
         // Terminals — no args after the field name
         ReadExpr::CountNodes { input } => format!("{} {{ countNodes", render_read_body(input)),
         ReadExpr::CountEdges { input } => format!("{} {{ countEdges", render_read_body(input)),
@@ -816,6 +820,13 @@ fn render_read_body(expr: &ReadExpr) -> String {
         ReadExpr::Namespace { input } => format!("{} {{ namespace", render_read_body(input)),
         ReadExpr::Ids { input } => format!("{} {{ ids", render_read_body(input)),
         ReadExpr::Count { input } => format!("{} {{ count", render_read_body(input)),
+        // Compound structured terminal: renders as `list { src { name } dst { name } }`.
+        // The `list` field opens ONE brace that gets closed by the outer `read_depth`;
+        // the inner `src { name }` / `dst { name }` groups are self-balanced.
+        ReadExpr::EdgesList { input } => format!(
+            "{} {{ list {{ src {{ name }} dst {{ name }} }}",
+            render_read_body(input)
+        ),
         ReadExpr::Id { input } => format!("{} {{ id", render_read_body(input)),
         ReadExpr::NodeType { input } => format!("{} {{ nodeType", render_read_body(input)),
         ReadExpr::IsActive { input } => format!("{} {{ isActive", render_read_body(input)),
@@ -869,8 +880,13 @@ fn read_depth(expr: &ReadExpr) -> usize {
         | ReadExpr::Neighbours { input }
         | ReadExpr::InNeighbours { input }
         | ReadExpr::OutNeighbours { input }
+        | ReadExpr::Edges { input }
+        | ReadExpr::NodeEdges { input }
+        | ReadExpr::InEdges { input }
+        | ReadExpr::OutEdges { input }
         | ReadExpr::Ids { input }
         | ReadExpr::Count { input }
+        | ReadExpr::EdgesList { input }
         | ReadExpr::CountNodes { input }
         | ReadExpr::CountEdges { input }
         | ReadExpr::Degree { input }
@@ -939,6 +955,41 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
                             terminal_key
                         ))
                     })
+                })
+                .collect();
+            Ok(Some(Prop::List(items?.into())))
+        }
+        // Compound structured list terminal — JSON shape is
+        // `[{"src":{"name":"X"},"dst":{"name":"Y"}}, ...]`. Decode each element
+        // into a 2-element inner list `[src, dst]`, wrapped in an outer list.
+        ReadExpr::EdgesList { .. } => {
+            let arr = terminal_val.as_array().ok_or_else(|| {
+                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
+            })?;
+            let items: Result<Vec<Prop>, ClientError> = arr
+                .iter()
+                .map(|v| {
+                    let src = v
+                        .get("src")
+                        .and_then(|s| s.get("name"))
+                        .and_then(|n| n.as_str())
+                        .ok_or_else(|| {
+                            ClientError::InvalidResponse(
+                                "edge element missing `src.name`".into(),
+                            )
+                        })?;
+                    let dst = v
+                        .get("dst")
+                        .and_then(|d| d.get("name"))
+                        .and_then(|n| n.as_str())
+                        .ok_or_else(|| {
+                            ClientError::InvalidResponse(
+                                "edge element missing `dst.name`".into(),
+                            )
+                        })?;
+                    Ok(Prop::List(
+                        vec![Prop::Str(src.into()), Prop::Str(dst.into())].into(),
+                    ))
                 })
                 .collect();
             Ok(Some(Prop::List(items?.into())))
@@ -1123,6 +1174,22 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
                 go(input, out);
                 out.push("outNeighbours");
             }
+            ReadExpr::Edges { input } => {
+                go(input, out);
+                out.push("edges");
+            }
+            ReadExpr::NodeEdges { input } => {
+                go(input, out);
+                out.push("edges");
+            }
+            ReadExpr::InEdges { input } => {
+                go(input, out);
+                out.push("inEdges");
+            }
+            ReadExpr::OutEdges { input } => {
+                go(input, out);
+                out.push("outEdges");
+            }
             ReadExpr::Ids { input } => {
                 go(input, out);
                 out.push("ids");
@@ -1130,6 +1197,10 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
             ReadExpr::Count { input } => {
                 go(input, out);
                 out.push("count");
+            }
+            ReadExpr::EdgesList { input } => {
+                go(input, out);
+                out.push("list");
             }
             ReadExpr::CountNodes { input } => {
                 go(input, out);

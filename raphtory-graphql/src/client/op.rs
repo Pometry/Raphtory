@@ -116,6 +116,14 @@ pub enum ReadExpr {
     InNeighbours { input: Box<ReadExpr> },
     /// Node → the collection of the node's out-neighbours.
     OutNeighbours { input: Box<ReadExpr> },
+    /// Graph → the collection of all edges in the (view-restricted) graph.
+    Edges { input: Box<ReadExpr> },
+    /// Node → the collection of the node's edges (both directions).
+    NodeEdges { input: Box<ReadExpr> },
+    /// Node → the collection of the node's incoming edges.
+    InEdges { input: Box<ReadExpr> },
+    /// Node → the collection of the node's outgoing edges.
+    OutEdges { input: Box<ReadExpr> },
 
     // ============ Scalar terminals on Graph ============
     /// Terminal: total node count under the current view — `i64`.
@@ -162,12 +170,18 @@ pub enum ReadExpr {
     Namespace { input: Box<ReadExpr> },
 
     // ============ Collection terminals (on Nodes/Edges collections) ============
-    /// Terminal on a collection: list of member ids — `Vec<String>`.
+    /// Terminal on a Nodes collection: list of member ids — `Vec<String>`.
     Ids { input: Box<ReadExpr> },
     /// Terminal on a collection: number of members — `i64`.
     /// Distinct from `CountNodes`/`CountEdges` (which are Graph-scope); this
     /// fires against the collection's `count` field.
     Count { input: Box<ReadExpr> },
+    /// Terminal on an Edges collection: list of (src, dst) pairs.
+    /// Returned as `Prop::List(Prop::List(Prop::Str, Prop::Str), ...)` on the
+    /// wire — each outer element is a 2-element inner list `[src, dst]`.
+    /// Distinct from `Ids` (nodes) because edges have no single-string id;
+    /// they're identified by the pair.
+    EdgesList { input: Box<ReadExpr> },
 
     // ============ Node scalar terminals ============
     /// Terminal: node id — `String` (server may return int-like GID; treated as string).

@@ -365,3 +365,96 @@ def test_edge_selection_and_navigation():
         assert e.dst().degree() == 1
     finally:
         server_cm.__exit__(None, None, None)
+
+
+def test_edges_collection():
+    """`rg.edges` accessor returns a `RemoteEdges` collection with `.count()`
+    and `.list()` terminals. Unlike nodes, edges have no `.ids()` — they're
+    identified by `(src, dst)` pairs."""
+    server_cm, rg = _make_graph_with_edge()
+    try:
+        edges = rg.edges
+        assert edges.count() == 1
+
+        # Materialize as RemoteEdge handles; navigate back to endpoints.
+        remote_edges = edges.list()
+        assert len(remote_edges) == 1
+        pairs = sorted((e.src().name(), e.dst().name()) for e in remote_edges)
+        assert pairs == [("ben", "hamza")]
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_edges_native_iteration():
+    """`for e in rg.edges:` yields `RemoteEdge` handles without an explicit
+    `.list()` call."""
+    server_cm, rg = _make_graph_with_edge()
+    # Add a second edge so we can verify multi-edge iteration.
+    rg.add_node(4, "sam")
+    rg.add_edge(5, "ben", "sam")
+    try:
+        pairs = sorted((e.src().name(), e.dst().name()) for e in rg.edges)
+        assert pairs == [("ben", "hamza"), ("ben", "sam")]
+
+        # Native iteration over a node's out_edges collection.
+        out_pairs = sorted(
+            (e.src().name(), e.dst().name()) for e in rg.node("ben").out_edges
+        )
+        assert out_pairs == [("ben", "hamza"), ("ben", "sam")]
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_node_edge_collections():
+    """`.edges`, `.in_edges`, `.out_edges` on `RemoteNode`."""
+    server_cm, rg = _make_graph_with_edge()
+    try:
+        ben = rg.node("ben")
+        # ben → hamza: ben has one out-edge, zero in-edges.
+        assert ben.out_edges.count() == 1
+        assert ben.in_edges.count() == 0
+        assert ben.edges.count() == 1
+
+        hamza = rg.node("hamza")
+        assert hamza.in_edges.count() == 1
+        assert hamza.out_edges.count() == 0
+        assert hamza.edges.count() == 1
+
+        # The single out-edge from ben goes to hamza.
+        out_pairs = [(e.src().name(), e.dst().name()) for e in ben.out_edges.list()]
+        assert out_pairs == [("ben", "hamza")]
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_edges_view_chain_propagates_through_collection_list():
+    """Regression: materialized edges must carry the parent view forward, so
+    view-dependent terminals give the right answer under the same view chain
+    that produced the collection."""
+    server_cm, rg = _make_graph_with_edge()
+    try:
+        # Second edge event on the same (ben, hamza) pair at t=8.
+        rg.add_edge(8, "ben", "hamza")
+
+        # Global: one distinct edge, but edge_history_count on ben sees 2 events.
+        # Window [0, 5): only t=3 event visible.
+        # Window [6, 10): only t=8 event visible.
+
+        # Iterate through the graph-level windowed edges collection.
+        windowed_edges = list(rg.window(0, 5).edges)
+        assert len(windowed_edges) == 1
+        # The materialized edge should carry the window — its src() → node
+        # should see edge_history_count == 1 under the window.
+        for e in windowed_edges:
+            assert e.src().edge_history_count() == 1, (
+                "expected src().edge_history_count() == 1 under [0,5) window. "
+                "If this is 2, the view chain isn't propagating through edges.list()."
+            )
+
+        # Also verify via node → out_edges navigation.
+        windowed_out = list(rg.window(0, 5).node("ben").out_edges)
+        assert len(windowed_out) == 1
+        for e in windowed_out:
+            assert e.src().edge_history_count() == 1
+    finally:
+        server_cm.__exit__(None, None, None)

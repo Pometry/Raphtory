@@ -1,6 +1,6 @@
 use crate::{
     client::{remote_node::RemoteNode, ClientError},
-    python::client::remote_nodes::PyRemoteNodes,
+    python::client::{remote_edges::PyRemoteEdges, remote_nodes::PyRemoteNodes},
 };
 use pyo3::{pyclass, pymethods};
 use raphtory::python::utils::execute_async_task;
@@ -204,5 +204,23 @@ impl PyRemoteNode {
     #[getter]
     pub fn out_neighbours(&self) -> PyRemoteNodes {
         PyRemoteNodes::new(self.node.out_neighbours())
+    }
+
+    /// The collection of this node's edges (both directions). Lazy — no RPC.
+    #[getter]
+    pub fn edges(&self) -> PyRemoteEdges {
+        PyRemoteEdges::new(self.node.edges())
+    }
+
+    /// The collection of this node's incoming edges. Lazy — no RPC.
+    #[getter]
+    pub fn in_edges(&self) -> PyRemoteEdges {
+        PyRemoteEdges::new(self.node.in_edges())
+    }
+
+    /// The collection of this node's outgoing edges. Lazy — no RPC.
+    #[getter]
+    pub fn out_edges(&self) -> PyRemoteEdges {
+        PyRemoteEdges::new(self.node.out_edges())
     }
 }
