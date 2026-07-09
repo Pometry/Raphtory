@@ -9,9 +9,9 @@ mod serialise_test {
             graph::{graph::assert_graph_equal, views::deletion_graph::PersistentGraph},
         },
         prelude::*,
-        serialise::{metadata::assert_metadata_correct, GraphFolder},
+        serialise::metadata::assert_metadata_correct,
     };
-    use raphtory_api::core::storage::arc_str::ArcStr;
+    use raphtory_api::core::storage::{arc_str::ArcStr, graph_folder::GraphFolder};
     use raphtory_tests::utils::{build_edge_list, build_graph_from_edge_list};
     use tempfile::TempDir;
 

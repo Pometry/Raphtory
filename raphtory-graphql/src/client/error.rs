@@ -1,5 +1,6 @@
 //! Error type for the GraphQL client.
 
+use raphtory_api::core::storage::graph_folder::GraphFolderError;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -27,4 +28,7 @@ pub enum ClientError {
 
     #[error("The request did not succeed.")]
     UnsuccessfulResponse,
+
+    #[error(transparent)]
+    GraphFolder(#[from] GraphFolderError),
 }
