@@ -271,6 +271,48 @@ def test_nodes_collection():
         server_cm.__exit__(None, None, None)
 
 
+def test_view_chain_propagates_through_collection_list():
+    """Regression: previously `rg.window(...).nodes.list()` rebased returned
+    nodes at Root, causing view-dependent terminals to silently give wrong
+    answers. After the base_graph fix, materialized nodes carry the parent
+    view forward.
+    """
+    server_cm, rg = _make_graph_with_edge()
+    try:
+        # Add a second edge at t=8 so we can distinguish global vs windowed degree.
+        rg.add_edge(8, "ben", "hamza")
+
+        # ben has 2 edge events total (t=3 and t=8), but degree is 1 globally
+        # (same edge). Under window [0, 5), only the t=3 edge is visible.
+        # Under window [6, 10), only the t=8 edge is visible.
+        # Both cases: degree == 1. To distinguish, use edge_history_count.
+
+        # For the correctness check we want a terminal whose value differs
+        # under different views. Use `.edge_history_count()` — number of
+        # temporal edge events involving this node in the view.
+        # Unwindowed: 2 events. Window [0, 5): 1 event. Window [6, 10): 1.
+        ben_unwindowed = rg.node("ben")
+        assert ben_unwindowed.edge_history_count() == 2
+
+        # Iterate through the windowed collection — the returned nodes should
+        # carry the window, so edge_history_count reflects the windowed view.
+        windowed_counts = []
+        for n in rg.window(0, 5).nodes:
+            if n.name() == "ben":
+                windowed_counts.append(n.edge_history_count())
+        assert windowed_counts == [1], (
+            f"expected edge_history_count == 1 under [0,5) window, got {windowed_counts}. "
+            "If this is 2, the view chain isn't propagating through .list()."
+        )
+
+        # Also verify via out_neighbours navigation.
+        for n in rg.window(0, 5).node("ben").out_neighbours:
+            # hamza in [0, 5): only the t=3 edge — history count 1.
+            assert n.edge_history_count() == 1
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
 def test_nodes_native_iteration():
     """`for n in rg.nodes:` — no explicit `.list()` needed."""
     server_cm, rg = _make_graph_with_edge()

@@ -433,6 +433,7 @@ impl RemoteGraph {
                 input: Box::new(self.expr.clone()),
                 id: id_str,
             },
+            self.expr.clone(),
         )
     }
 
@@ -445,6 +446,7 @@ impl RemoteGraph {
             ReadExpr::Nodes {
                 input: Box::new(self.expr.clone()),
             },
+            self.expr.clone(),
         )
     }
 
@@ -464,6 +466,7 @@ impl RemoteGraph {
                 src: src_str,
                 dst: dst_str,
             },
+            self.expr.clone(),
         )
     }
 
@@ -493,6 +496,7 @@ impl RemoteGraph {
                 input: Box::new(self.expr.clone()),
                 id: id_str,
             },
+            self.expr.clone(),
         ))
     }
 
@@ -521,6 +525,7 @@ impl RemoteGraph {
                 input: Box::new(self.expr.clone()),
                 id: id_str,
             },
+            self.expr.clone(),
         ))
     }
 
@@ -553,6 +558,7 @@ impl RemoteGraph {
                 src: src_str,
                 dst: dst_str,
             },
+            self.expr.clone(),
         ))
     }
 
@@ -619,6 +625,7 @@ impl RemoteGraph {
                 src: src_str,
                 dst: dst_str,
             },
+            self.expr.clone(),
         ))
     }
 }

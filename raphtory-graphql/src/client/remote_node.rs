@@ -19,30 +19,36 @@ use std::{collections::HashMap, sync::Arc};
 ///
 /// Holds the accumulated read expression (`expr`) so that terminals like
 /// `degree()` evaluate under the full view chain built up on the parent
-/// `RemoteGraph`.
+/// `RemoteGraph`, plus a `base_graph` expression representing the graph view
+/// this node lives under — used when navigating to child collections
+/// (`neighbours`, etc.) so those children evaluate under the same view chain.
 #[derive(Clone)]
 pub struct RemoteNode {
     pub path: String,
     pub id: String,
     pub transport: Arc<dyn Transport>,
     pub expr: ReadExpr,
+    /// The parent graph view — used by child collections (`neighbours`, etc.)
+    /// to correctly rebase materialized descendants under the same view chain.
+    pub base_graph: ReadExpr,
 }
 
 impl RemoteNode {
-    /// Construct with an explicit transport and pre-built read expression.
-    /// Used when a `RemoteGraph` propagates its accumulated view chain into a
-    /// child node reference.
+    /// Construct with an explicit transport, pre-built read expression, and
+    /// parent graph view.
     pub fn with_expr(
         path: String,
         id: String,
         transport: Arc<dyn Transport>,
         expr: ReadExpr,
+        base_graph: ReadExpr,
     ) -> Self {
         Self {
             path,
             id,
             transport,
             expr,
+            base_graph,
         }
     }
 
@@ -146,7 +152,8 @@ impl RemoteNode {
     }
 
     /// Returns the collection of this node's neighbours (both directions).
-    /// Lazy — no RPC.
+    /// Lazy — no RPC. Propagates the base graph view so materialized nodes
+    /// are correctly rebased.
     pub fn neighbours(&self) -> RemoteNodes {
         RemoteNodes::with_expr(
             self.path.clone(),
@@ -154,6 +161,7 @@ impl RemoteNode {
             ReadExpr::Neighbours {
                 input: Box::new(self.expr.clone()),
             },
+            self.base_graph.clone(),
         )
     }
 
@@ -165,6 +173,7 @@ impl RemoteNode {
             ReadExpr::InNeighbours {
                 input: Box::new(self.expr.clone()),
             },
+            self.base_graph.clone(),
         )
     }
 
@@ -176,6 +185,7 @@ impl RemoteNode {
             ReadExpr::OutNeighbours {
                 input: Box::new(self.expr.clone()),
             },
+            self.base_graph.clone(),
         )
     }
 

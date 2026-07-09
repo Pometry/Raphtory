@@ -15,30 +15,34 @@ use std::sync::Arc;
 ///   the neighbours of a specific node.
 ///
 /// Holds the accumulated read expression (`expr`) so terminals like `.ids()`
-/// and `.count()` evaluate under the full view chain built up on the parent.
-///
-/// **Known limitation**: `.list()` materializes members as `RemoteNode`s
-/// rooted at the graph path (via `ReadExpr::Root`). This means terminals
-/// invoked on those returned nodes see the *unwindowed* view, not the view
-/// chain that produced this collection. For view-dependent terminals under
-/// a view chain, prefer `.ids()` and re-select nodes explicitly via
-/// `parent_graph.node(id)`.
+/// and `.count()` evaluate under the full view chain built up on the parent,
+/// plus a `base_graph` expression representing the parent graph view — used
+/// by `.list()` so materialized `RemoteNode`s carry the same view chain.
 #[derive(Clone)]
 pub struct RemoteNodes {
     pub path: String,
     pub transport: Arc<dyn Transport>,
     pub expr: ReadExpr,
+    /// The parent graph view under which this collection lives — used when
+    /// materializing members via `.list()` so returned nodes are rebased under
+    /// the same view.
+    pub base_graph: ReadExpr,
 }
 
 impl RemoteNodes {
-    /// Construct with an explicit transport and pre-built read expression.
-    /// Used when a parent (`RemoteGraph`/`RemoteNode`) propagates its
-    /// accumulated view chain into a collection reference.
-    pub fn with_expr(path: String, transport: Arc<dyn Transport>, expr: ReadExpr) -> Self {
+    /// Construct with an explicit transport, pre-built read expression, and
+    /// parent graph view.
+    pub fn with_expr(
+        path: String,
+        transport: Arc<dyn Transport>,
+        expr: ReadExpr,
+        base_graph: ReadExpr,
+    ) -> Self {
         Self {
             path,
             transport,
             expr,
+            base_graph,
         }
     }
 
@@ -59,9 +63,10 @@ impl RemoteNodes {
     }
 
     /// Materialize this collection as a `Vec<RemoteNode>`. Fires one RPC to
-    /// fetch the ids; each returned node wraps its id with a fresh
-    /// `ReadExpr::Node { input: Root, id }` (see the known limitation on the
-    /// struct doc).
+    /// fetch the ids; each returned node wraps its id with a
+    /// `ReadExpr::Node { input: base_graph, id }` — meaning terminals on
+    /// returned nodes evaluate under the same view chain that produced this
+    /// collection.
     pub async fn list(&self) -> Result<Vec<RemoteNode>, ClientError> {
         let ids = self.ids().await?;
         Ok(ids
@@ -72,11 +77,10 @@ impl RemoteNodes {
                     id.clone(),
                     self.transport.clone(),
                     ReadExpr::Node {
-                        input: Box::new(ReadExpr::Root {
-                            path: self.path.clone(),
-                        }),
+                        input: Box::new(self.base_graph.clone()),
                         id,
                     },
+                    self.base_graph.clone(),
                 )
             })
             .collect())

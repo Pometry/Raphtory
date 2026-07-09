@@ -16,8 +16,9 @@ use std::{collections::HashMap, sync::Arc};
 /// A handle to a remote edge on the server.
 ///
 /// Holds the accumulated read expression (`expr`) so that navigations like
-/// `.src()` / `.dst()` compose under the full view chain built up on the
-/// parent `RemoteGraph`.
+/// `.src()` / `.dst()` compose under the full view chain, plus a `base_graph`
+/// expression representing the parent graph view — used to correctly rebase
+/// materialized descendants (e.g. `src().neighbours().list()`).
 #[derive(Clone)]
 pub struct RemoteEdge {
     pub path: String,
@@ -25,18 +26,20 @@ pub struct RemoteEdge {
     pub dst: String,
     pub transport: Arc<dyn Transport>,
     pub expr: ReadExpr,
+    /// The parent graph view.
+    pub base_graph: ReadExpr,
 }
 
 impl RemoteEdge {
-    /// Construct with an explicit transport and pre-built read expression.
-    /// Used when a `RemoteGraph` propagates its accumulated view chain into a
-    /// child edge reference.
+    /// Construct with an explicit transport, pre-built read expression, and
+    /// parent graph view.
     pub fn with_expr(
         path: String,
         src: String,
         dst: String,
         transport: Arc<dyn Transport>,
         expr: ReadExpr,
+        base_graph: ReadExpr,
     ) -> Self {
         Self {
             path,
@@ -44,6 +47,7 @@ impl RemoteEdge {
             dst,
             transport,
             expr,
+            base_graph,
         }
     }
 
@@ -57,6 +61,7 @@ impl RemoteEdge {
             ReadExpr::Src {
                 input: Box::new(self.expr.clone()),
             },
+            self.base_graph.clone(),
         )
     }
 
@@ -70,6 +75,7 @@ impl RemoteEdge {
             ReadExpr::Dst {
                 input: Box::new(self.expr.clone()),
             },
+            self.base_graph.clone(),
         )
     }
 
