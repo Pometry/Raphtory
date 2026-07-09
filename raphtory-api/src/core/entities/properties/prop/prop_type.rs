@@ -1,4 +1,4 @@
-use arrow_schema::DataType;
+use arrow_schema::{ArrowError, DataType};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
@@ -206,12 +206,36 @@ pub fn data_type_as_prop_type(dt: &DataType) -> Result<PropType, InvalidProperty
 #[error("{0:?} not supported as property type")]
 pub struct InvalidPropertyTypeErr(pub DataType);
 
+#[derive(thiserror::Error, Debug)]
+pub enum PropTypeParseError {
+    #[error("Unknown type '{input}': {source}")]
+    UnknownType {
+        input: String,
+        #[source]
+        source: ArrowError,
+    },
+    #[error("Unsupported type '{input}': {source}")]
+    UnsupportedType {
+        input: String,
+        #[source]
+        source: InvalidPropertyTypeErr,
+    },
+}
+
 impl FromStr for PropType {
-    type Err = String;
+    type Err = PropTypeParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let data_type: DataType = s.parse().map_err(|e| format!("Unknown type '{s}': {e}"))?;
-        data_type_as_prop_type(&data_type).map_err(|e| format!("Unsupported type '{s}': {e}"))
+        let data_type: DataType = s
+            .parse()
+            .map_err(|source| PropTypeParseError::UnknownType {
+                input: s.to_owned(),
+                source,
+            })?;
+        data_type_as_prop_type(&data_type).map_err(|source| PropTypeParseError::UnsupportedType {
+            input: s.to_owned(),
+            source,
+        })
     }
 }
 

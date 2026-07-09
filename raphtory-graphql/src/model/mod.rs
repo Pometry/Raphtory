@@ -25,7 +25,7 @@ use dynamic_graphql::{
 };
 use itertools::Itertools;
 use raphtory::{
-    arrow_loader::{self, df_loaders::edges::ColumnNames},
+    arrow_loader::df_loaders::edges::ColumnNames,
     db::{
         api::{
             storage::storage::{Extension, PersistenceStrategy},
@@ -43,8 +43,8 @@ use raphtory::{
     },
     version,
 };
-use raphtory_api::core::entities::properties::prop::{Prop, PropType};
-use std::{collections::HashMap, ffi::OsStr, fs, path::PathBuf, sync::Arc};
+use raphtory_api::core::entities::properties::prop::PropType;
+use std::{collections::HashMap, path::PathBuf, sync::Arc};
 use tracing::warn;
 
 pub mod graph;
@@ -54,18 +54,23 @@ pub(crate) mod sorting;
 
 pub(crate) fn parse_json_schema(
     json: Option<&str>,
-) -> Result<Option<HashMap<String, PropType>>, String> {
+) -> Result<Option<HashMap<String, PropType>>, GraphError> {
     let json = match json {
         None | Some("") => return Ok(None),
         Some(s) => s,
     };
     let map: HashMap<String, String> =
-        serde_json::from_str(json).map_err(|e| format!("Invalid JSON schema: {e}"))?;
+        serde_json::from_str(json).map_err(|e| GraphError::InvalidProperty {
+            reason: format!("Invalid JSON schema: {e}"),
+        })?;
     map.into_iter()
         .map(|(col, type_str)| {
-            let prop_type = type_str
-                .parse::<PropType>()
-                .map_err(|e| format!("Column '{col}': {e}"))?;
+            let prop_type =
+                type_str
+                    .parse::<PropType>()
+                    .map_err(|e| GraphError::InvalidProperty {
+                        reason: format!("Column '{col}': {e}"),
+                    })?;
             Ok((col, prop_type))
         })
         .collect::<Result<HashMap<_, _>, _>>()
@@ -442,7 +447,7 @@ impl Mut {
         let metadata_owned = metadata.unwrap_or_default();
         let metadata: Vec<&str> = metadata_owned.iter().map(String::as_str).collect();
 
-        let schema = parse_json_schema(schema.as_deref()).map_err(GqlGraphError::LoadError)?;
+        let schema = parse_json_schema(schema.as_deref())?;
 
         // extracting PathBuf handles Strings too
         let data_path = PathBuf::from(data_path);
@@ -520,7 +525,7 @@ impl Mut {
         let metadata_owned = metadata.unwrap_or_default();
         let metadata: Vec<&str> = metadata_owned.iter().map(String::as_str).collect();
 
-        let schema = parse_json_schema(schema.as_deref()).map_err(GqlGraphError::LoadError)?;
+        let schema = parse_json_schema(schema.as_deref())?;
 
         // extracting PathBuf handles Strings too
         let data_path = PathBuf::from(data_path);
