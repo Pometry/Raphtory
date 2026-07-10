@@ -1,9 +1,9 @@
-use arrow_schema::DataType;
+use arrow_schema::{ArrowError, DataType};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
-    fmt,
-    fmt::{Display, Formatter},
+    fmt::{self, Display, Formatter},
+    str::FromStr,
     sync::Arc,
 };
 
@@ -205,6 +205,39 @@ pub fn data_type_as_prop_type(dt: &DataType) -> Result<PropType, InvalidProperty
 #[derive(thiserror::Error, Debug)]
 #[error("{0:?} not supported as property type")]
 pub struct InvalidPropertyTypeErr(pub DataType);
+
+#[derive(thiserror::Error, Debug)]
+pub enum PropTypeParseError {
+    #[error("Unknown type '{input}': {source}")]
+    UnknownType {
+        input: String,
+        #[source]
+        source: ArrowError,
+    },
+    #[error("Unsupported type '{input}': {source}")]
+    UnsupportedType {
+        input: String,
+        #[source]
+        source: InvalidPropertyTypeErr,
+    },
+}
+
+impl FromStr for PropType {
+    type Err = PropTypeParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let data_type: DataType = s
+            .parse()
+            .map_err(|source| PropTypeParseError::UnknownType {
+                input: s.to_owned(),
+                source,
+            })?;
+        data_type_as_prop_type(&data_type).map_err(|source| PropTypeParseError::UnsupportedType {
+            input: s.to_owned(),
+            source,
+        })
+    }
+}
 
 pub mod arrow {
     use crate::core::entities::properties::prop::{PropType, EMPTY_MAP_FIELD_NAME};
