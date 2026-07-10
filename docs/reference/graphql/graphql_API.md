@@ -279,11 +279,11 @@ Graph path relative to the root namespace.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="mutroot.loadnodesfromparquet">loadNodesFromParquet</strong></td>
+<td colspan="2" valign="top"><strong id="mutroot.loadnodes">loadNodes</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
 <td>
 
-Load nodes from parquet
+Load nodes
 
 </td>
 </tr>
@@ -396,11 +396,11 @@ The node layer column name in a dataframe. Cannot be used in combination with la
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="mutroot.loadedgesfromparquet">loadEdgesFromParquet</strong></td>
+<td colspan="2" valign="top"><strong id="mutroot.loadedges">loadEdges</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
 <td>
 
-Load edges from parquet
+Load edges
 
 </td>
 </tr>
@@ -804,6 +804,24 @@ Optional spec selecting which node/edge property fields to index. Omit to index 
 <td colspan="2" align="right" valign="top">inRam</td>
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
 <td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="mutroot.flush">flush</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a>!</td>
+<td>
+
+Flush any pending writes for the graph at `graphPath` to disk.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">graphPath</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Graph path relative to the root namespace.
+
+</td>
 </tr>
 </tbody>
 </table>
