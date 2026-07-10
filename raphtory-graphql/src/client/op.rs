@@ -152,6 +152,14 @@ pub enum ReadExpr {
     Start { input: Box<ReadExpr> },
     /// Terminal: view end bound — `Option<i64>`. Works on Graph and Node.
     End { input: Box<ReadExpr> },
+    /// Terminal: earliest edge event time under this view — `Option<i64>`. Graph only.
+    EarliestEdgeTime { input: Box<ReadExpr> },
+    /// Terminal: latest edge event time under this view — `Option<i64>`. Graph only.
+    LatestEdgeTime { input: Box<ReadExpr> },
+    /// Terminal: first update time on this node — `Option<i64>`. Node only.
+    FirstUpdate { input: Box<ReadExpr> },
+    /// Terminal: last update time on this node — `Option<i64>`. Node only.
+    LastUpdate { input: Box<ReadExpr> },
 
     // ============ Graph scalar terminals ============
     /// Terminal: check if a node with `id` exists in the view — `bool`.
@@ -168,6 +176,12 @@ pub enum ReadExpr {
     Path { input: Box<ReadExpr> },
     /// Terminal: parent namespace of the graph path — `String`.
     Namespace { input: Box<ReadExpr> },
+    /// Terminal: graph creation timestamp — `i64` (metadata, always set).
+    Created { input: Box<ReadExpr> },
+    /// Terminal: graph last-opened timestamp — `i64` (metadata, always set).
+    LastOpened { input: Box<ReadExpr> },
+    /// Terminal: graph last-updated timestamp — `i64` (metadata, always set).
+    LastUpdated { input: Box<ReadExpr> },
 
     // ============ Collection terminals (on Nodes/Edges collections) ============
     /// Terminal on a Nodes collection: list of member ids — `Vec<String>`.

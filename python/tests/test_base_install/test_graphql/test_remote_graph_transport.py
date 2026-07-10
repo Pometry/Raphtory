@@ -427,6 +427,106 @@ def test_node_edge_collections():
         server_cm.__exit__(None, None, None)
 
 
+def test_graph_metadata_timestamps():
+    """`created`, `last_opened`, `last_updated` on the graph return non-null
+    system timestamps (wall-clock ms, set by the server when the graph is
+    saved/opened/updated on disk)."""
+    server_cm, rg = _make_graph_with_edge()
+    try:
+        created = rg.created()
+        last_opened = rg.last_opened()
+        last_updated = rg.last_updated()
+        # All three are non-null wall-clock milliseconds — must be positive.
+        assert created > 0
+        assert last_opened > 0
+        assert last_updated > 0
+        # Sanity: last_updated must be at or after created.
+        assert last_updated >= created
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_graph_edge_time_terminals():
+    """`earliest_edge_time` / `latest_edge_time` return event timestamps under
+    the current view. Nullable — empty view returns None."""
+    server_cm, rg = _make_graph_with_edge()
+    try:
+        # Only one edge, added at t=3.
+        assert rg.earliest_edge_time() == 3
+        assert rg.latest_edge_time() == 3
+
+        # Add another edge at t=8. Range becomes [3, 8].
+        rg.add_edge(8, "ben", "hamza")
+        assert rg.earliest_edge_time() == 3
+        assert rg.latest_edge_time() == 8
+
+        # Windowed view narrows the range.
+        assert rg.window(0, 5).earliest_edge_time() == 3
+        assert rg.window(0, 5).latest_edge_time() == 3
+        assert rg.window(6, 10).earliest_edge_time() == 8
+
+        # Window with no edge events returns None.
+        assert rg.window(100, 200).earliest_edge_time() is None
+        assert rg.window(100, 200).latest_edge_time() is None
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_node_update_time_terminals():
+    """`first_update` / `last_update` on a node return the range of event
+    timestamps that touched this node under the current view."""
+    server_cm, rg = _make_graph_with_edge()
+    try:
+        # ben has add_node at t=1 and add_edge (ben, hamza) at t=3.
+        ben = rg.node("ben")
+        assert ben.first_update() == 1
+        assert ben.last_update() == 3
+
+        # Windowed view narrows the range — only the t=3 edge event visible.
+        ben_windowed = rg.window(2, 5).node("ben")
+        assert ben_windowed.first_update() == 3
+        assert ben_windowed.last_update() == 3
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_terminals_error_on_absent_node_or_edge():
+    """Any terminal on a node/edge that isn't visible under the current view
+    raises with a semantic `not found in view` message — both nullable and
+    non-nullable terminals treat the intermediate-null response as an error,
+    since the server can't distinguish absent-from-graph vs. absent-from-view.
+    """
+    import pytest
+
+    server_cm, rg = _make_graph_with_edge()
+    try:
+        # Absent from graph entirely.
+        with pytest.raises(Exception, match="Node 'nonexistent' not found"):
+            rg.node("nonexistent").degree()
+        with pytest.raises(Exception, match="Node 'nonexistent' not found"):
+            rg.node("nonexistent").earliest_time()
+        with pytest.raises(Exception, match="Node 'nonexistent' not found"):
+            rg.node("nonexistent").node_type()
+
+        # Present in graph, but not visible in this window.
+        with pytest.raises(Exception, match="Node 'ben' not found"):
+            rg.window(100, 200).node("ben").degree()
+        with pytest.raises(Exception, match="Node 'ben' not found"):
+            rg.window(100, 200).node("ben").first_update()
+
+        # Absent edges (via `.src().name()` — walks through the edge intermediate).
+        with pytest.raises(Exception, match=r"Edge \('nonexistent', 'hamza'\) not found"):
+            rg.edge("nonexistent", "hamza").src().name()
+        with pytest.raises(Exception, match=r"Edge \('ben', 'hamza'\) not found"):
+            rg.window(100, 200).edge("ben", "hamza").src().name()
+
+        # Nullable terminal on an *existing* node with genuinely-missing data
+        # still returns None (ben exists, no type ever set on him).
+        assert rg.node("ben").node_type() is None
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
 def test_edges_view_chain_propagates_through_collection_list():
     """Regression: materialized edges must carry the parent view forward, so
     view-dependent terminals give the right answer under the same view chain

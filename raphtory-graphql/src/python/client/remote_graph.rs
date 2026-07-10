@@ -211,6 +211,38 @@ impl PyRemoteGraph {
         execute_async_task(move || async move { graph.end().await })
     }
 
+    /// Terminal: graph creation timestamp. Fires one RPC.
+    pub fn created(&self) -> Result<i64, ClientError> {
+        let graph = Arc::clone(&self.graph);
+        execute_async_task(move || async move { graph.created().await })
+    }
+
+    /// Terminal: last time this graph was opened. Fires one RPC.
+    pub fn last_opened(&self) -> Result<i64, ClientError> {
+        let graph = Arc::clone(&self.graph);
+        execute_async_task(move || async move { graph.last_opened().await })
+    }
+
+    /// Terminal: last time this graph was updated. Fires one RPC.
+    pub fn last_updated(&self) -> Result<i64, ClientError> {
+        let graph = Arc::clone(&self.graph);
+        execute_async_task(move || async move { graph.last_updated().await })
+    }
+
+    /// Terminal: earliest edge event time under the current view. Returns
+    /// `None` if the view has no edge events. Fires one RPC.
+    pub fn earliest_edge_time(&self) -> Result<Option<i64>, ClientError> {
+        let graph = Arc::clone(&self.graph);
+        execute_async_task(move || async move { graph.earliest_edge_time().await })
+    }
+
+    /// Terminal: latest edge event time under the current view. Returns
+    /// `None` if the view has no edge events. Fires one RPC.
+    pub fn latest_edge_time(&self) -> Result<Option<i64>, ClientError> {
+        let graph = Arc::clone(&self.graph);
+        execute_async_task(move || async move { graph.latest_edge_time().await })
+    }
+
     /// Terminal: does the graph have a node with this id? Fires one RPC.
     pub fn has_node(&self, id: GID) -> Result<bool, ClientError> {
         let graph = Arc::clone(&self.graph);

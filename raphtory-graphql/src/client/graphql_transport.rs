@@ -818,6 +818,9 @@ fn render_read_body(expr: &ReadExpr) -> String {
         }
         ReadExpr::Path { input } => format!("{} {{ path", render_read_body(input)),
         ReadExpr::Namespace { input } => format!("{} {{ namespace", render_read_body(input)),
+        ReadExpr::Created { input } => format!("{} {{ created", render_read_body(input)),
+        ReadExpr::LastOpened { input } => format!("{} {{ lastOpened", render_read_body(input)),
+        ReadExpr::LastUpdated { input } => format!("{} {{ lastUpdated", render_read_body(input)),
         ReadExpr::Ids { input } => format!("{} {{ ids", render_read_body(input)),
         ReadExpr::Count { input } => format!("{} {{ count", render_read_body(input)),
         // Compound structured terminal: renders as `list { src { name } dst { name } }`.
@@ -845,6 +848,20 @@ fn render_read_body(expr: &ReadExpr) -> String {
         }
         ReadExpr::End { input } => {
             format!("{} {{ end {{ timestamp", render_read_body(input))
+        }
+        ReadExpr::EarliestEdgeTime { input } => format!(
+            "{} {{ earliestEdgeTime {{ timestamp",
+            render_read_body(input)
+        ),
+        ReadExpr::LatestEdgeTime { input } => format!(
+            "{} {{ latestEdgeTime {{ timestamp",
+            render_read_body(input)
+        ),
+        ReadExpr::FirstUpdate { input } => {
+            format!("{} {{ firstUpdate {{ timestamp", render_read_body(input))
+        }
+        ReadExpr::LastUpdate { input } => {
+            format!("{} {{ lastUpdate {{ timestamp", render_read_body(input))
         }
     }
 }
@@ -901,12 +918,19 @@ fn read_depth(expr: &ReadExpr) -> usize {
         | ReadExpr::Id { input }
         | ReadExpr::NodeType { input }
         | ReadExpr::IsActive { input }
-        | ReadExpr::EdgeHistoryCount { input } => 1 + read_depth(input),
+        | ReadExpr::EdgeHistoryCount { input }
+        | ReadExpr::Created { input }
+        | ReadExpr::LastOpened { input }
+        | ReadExpr::LastUpdated { input } => 1 + read_depth(input),
         // Compound terminals — open two `{` (outer field + `timestamp` sub-field).
         ReadExpr::EarliestTime { input }
         | ReadExpr::LatestTime { input }
         | ReadExpr::Start { input }
-        | ReadExpr::End { input } => 2 + read_depth(input),
+        | ReadExpr::End { input }
+        | ReadExpr::EarliestEdgeTime { input }
+        | ReadExpr::LatestEdgeTime { input }
+        | ReadExpr::FirstUpdate { input }
+        | ReadExpr::LastUpdate { input } => 2 + read_depth(input),
     }
 }
 
@@ -915,6 +939,14 @@ fn read_depth(expr: &ReadExpr) -> usize {
 /// Strategy: build a root-to-terminal JSON key path from the expression tree,
 /// walk the response along that path, then interpret the terminal value
 /// according to the outermost expression variant.
+///
+/// Null-intermediate handling: if `cursor` becomes JSON `null` mid-walk, the
+/// selection at that step (Node/Edge/Graph) wasn't visible under the current
+/// view. Rather than let the walk fail with a confused "missing key" error,
+/// we walk the `expr` tree to find the responsible selection variant and
+/// raise `ClientError::NotFound` with its id. This surfaces both "absent from
+/// graph" and "absent from view" as the same `NotFound` — the server response
+/// can't distinguish them, and neither should we.
 fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientError> {
     let path = build_json_path(expr);
     let mut cursor = root;
@@ -922,6 +954,9 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
         cursor = cursor.get(*key).ok_or_else(|| {
             ClientError::InvalidResponse(format!("missing `{}` in response", key))
         })?;
+        if cursor.is_null() {
+            return Err(build_not_found_error(expr, key));
+        }
     }
     let terminal_key = path[path.len() - 1];
     let terminal_val = cursor.get(terminal_key).ok_or_else(|| {
@@ -937,7 +972,10 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
         | ReadExpr::CountEdges { .. }
         | ReadExpr::CountTemporalEdges { .. }
         | ReadExpr::EdgeHistoryCount { .. }
-        | ReadExpr::Count { .. } => terminal_val
+        | ReadExpr::Count { .. }
+        | ReadExpr::Created { .. }
+        | ReadExpr::LastOpened { .. }
+        | ReadExpr::LastUpdated { .. } => terminal_val
             .as_i64()
             .map(|n| Some(Prop::I64(n)))
             .ok_or_else(|| ClientError::InvalidResponse(format!("`{}` not an i64", terminal_key))),
@@ -1036,7 +1074,11 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
         ReadExpr::EarliestTime { .. }
         | ReadExpr::LatestTime { .. }
         | ReadExpr::Start { .. }
-        | ReadExpr::End { .. } => {
+        | ReadExpr::End { .. }
+        | ReadExpr::EarliestEdgeTime { .. }
+        | ReadExpr::LatestEdgeTime { .. }
+        | ReadExpr::FirstUpdate { .. }
+        | ReadExpr::LastUpdate { .. } => {
             if terminal_val.is_null() {
                 Ok(None)
             } else {
@@ -1246,6 +1288,18 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
                 go(input, out);
                 out.push("namespace");
             }
+            ReadExpr::Created { input } => {
+                go(input, out);
+                out.push("created");
+            }
+            ReadExpr::LastOpened { input } => {
+                go(input, out);
+                out.push("lastOpened");
+            }
+            ReadExpr::LastUpdated { input } => {
+                go(input, out);
+                out.push("lastUpdated");
+            }
             ReadExpr::Id { input } => {
                 go(input, out);
                 out.push("id");
@@ -1283,11 +1337,126 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
                 out.push("end");
                 out.push("timestamp");
             }
+            ReadExpr::EarliestEdgeTime { input } => {
+                go(input, out);
+                out.push("earliestEdgeTime");
+                out.push("timestamp");
+            }
+            ReadExpr::LatestEdgeTime { input } => {
+                go(input, out);
+                out.push("latestEdgeTime");
+                out.push("timestamp");
+            }
+            ReadExpr::FirstUpdate { input } => {
+                go(input, out);
+                out.push("firstUpdate");
+                out.push("timestamp");
+            }
+            ReadExpr::LastUpdate { input } => {
+                go(input, out);
+                out.push("lastUpdate");
+                out.push("timestamp");
+            }
         }
     }
     let mut out = Vec::new();
     go(expr, &mut out);
     out
+}
+
+/// Build a `NotFound` error describing which Node/Edge/Graph selection
+/// returned `null` in the response. Walks the `expr` tree from outermost
+/// inward to find the variant whose json key matches `null_key`.
+fn build_not_found_error(expr: &ReadExpr, null_key: &str) -> ClientError {
+    let desc = find_selection(expr, null_key)
+        .unwrap_or_else(|| format!("unexpected null at `{}`", null_key));
+    ClientError::NotFound(desc)
+}
+
+/// Descend the expr tree, returning a describing string for the selection
+/// variant whose `build_json_path` key matches `null_key`. Returns `None` if
+/// no matching variant is found in the tree.
+fn find_selection(expr: &ReadExpr, null_key: &str) -> Option<String> {
+    let this = match expr {
+        ReadExpr::Root { path } if null_key == "graph" => Some(format!("Graph '{}'", path)),
+        ReadExpr::Node { id, .. } if null_key == "node" => Some(format!("Node '{}'", id)),
+        ReadExpr::Edge { src, dst, .. } if null_key == "edge" => {
+            Some(format!("Edge ('{}', '{}')", src, dst))
+        }
+        _ => None,
+    };
+    if this.is_some() {
+        return this;
+    }
+    child_input(expr).and_then(|inp| find_selection(inp, null_key))
+}
+
+/// Returns the `input` field of an expr variant (i.e. its child in the tree),
+/// or `None` for `Root` which has no input.
+fn child_input(expr: &ReadExpr) -> Option<&ReadExpr> {
+    match expr {
+        ReadExpr::Root { .. } => None,
+        ReadExpr::Window { input, .. }
+        | ReadExpr::Layer { input, .. }
+        | ReadExpr::At { input, .. }
+        | ReadExpr::Before { input, .. }
+        | ReadExpr::After { input, .. }
+        | ReadExpr::Latest { input }
+        | ReadExpr::SnapshotLatest { input }
+        | ReadExpr::SnapshotAt { input, .. }
+        | ReadExpr::ExcludeLayer { input, .. }
+        | ReadExpr::ShrinkWindow { input, .. }
+        | ReadExpr::ShrinkStart { input, .. }
+        | ReadExpr::ShrinkEnd { input, .. }
+        | ReadExpr::Valid { input }
+        | ReadExpr::DefaultLayer { input }
+        | ReadExpr::Layers { input, .. }
+        | ReadExpr::ExcludeLayers { input, .. }
+        | ReadExpr::Subgraph { input, .. }
+        | ReadExpr::SubgraphNodeTypes { input, .. }
+        | ReadExpr::ExcludeNodes { input, .. }
+        | ReadExpr::Node { input, .. }
+        | ReadExpr::Edge { input, .. }
+        | ReadExpr::Src { input }
+        | ReadExpr::Dst { input }
+        | ReadExpr::Nodes { input }
+        | ReadExpr::Neighbours { input }
+        | ReadExpr::InNeighbours { input }
+        | ReadExpr::OutNeighbours { input }
+        | ReadExpr::Edges { input }
+        | ReadExpr::NodeEdges { input }
+        | ReadExpr::InEdges { input }
+        | ReadExpr::OutEdges { input }
+        | ReadExpr::Ids { input }
+        | ReadExpr::Count { input }
+        | ReadExpr::EdgesList { input }
+        | ReadExpr::CountNodes { input }
+        | ReadExpr::CountEdges { input }
+        | ReadExpr::Degree { input }
+        | ReadExpr::InDegree { input }
+        | ReadExpr::OutDegree { input }
+        | ReadExpr::Name { input }
+        | ReadExpr::HasNode { input, .. }
+        | ReadExpr::HasEdge { input, .. }
+        | ReadExpr::CountTemporalEdges { input }
+        | ReadExpr::Path { input }
+        | ReadExpr::Namespace { input }
+        | ReadExpr::Id { input }
+        | ReadExpr::NodeType { input }
+        | ReadExpr::IsActive { input }
+        | ReadExpr::EdgeHistoryCount { input }
+        | ReadExpr::Created { input }
+        | ReadExpr::LastOpened { input }
+        | ReadExpr::LastUpdated { input }
+        | ReadExpr::EarliestTime { input }
+        | ReadExpr::LatestTime { input }
+        | ReadExpr::Start { input }
+        | ReadExpr::End { input }
+        | ReadExpr::EarliestEdgeTime { input }
+        | ReadExpr::LatestEdgeTime { input }
+        | ReadExpr::FirstUpdate { input }
+        | ReadExpr::LastUpdate { input } => Some(input),
+    }
 }
 
 #[cfg(test)]

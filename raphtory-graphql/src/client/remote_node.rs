@@ -152,6 +152,24 @@ impl RemoteNode {
         expect_i64(self.transport.execute(&op).await?, "edgeHistoryCount")
     }
 
+    /// Terminal: first update timestamp on this node under the current view.
+    /// Returns `None` if the node has no updates in the view. Fires one RPC.
+    pub async fn first_update(&self) -> Result<Option<i64>, ClientError> {
+        let op = Op::Read(ReadExpr::FirstUpdate {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_optional_i64(self.transport.execute(&op).await?, "firstUpdate")
+    }
+
+    /// Terminal: last update timestamp on this node under the current view.
+    /// Returns `None` if the node has no updates in the view. Fires one RPC.
+    pub async fn last_update(&self) -> Result<Option<i64>, ClientError> {
+        let op = Op::Read(ReadExpr::LastUpdate {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_optional_i64(self.transport.execute(&op).await?, "lastUpdate")
+    }
+
     /// Returns the collection of this node's neighbours (both directions).
     /// Lazy — no RPC. Propagates the base graph view so materialized nodes
     /// are correctly rebased.

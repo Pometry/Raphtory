@@ -16,6 +16,15 @@ pub enum ClientError {
     #[error("Invalid response: {0}")]
     InvalidResponse(String),
 
+    /// The read expression referenced a node or edge that isn't visible under
+    /// the current view (either absent from the graph entirely, or filtered
+    /// out by the accumulated view chain). Fired when a terminal RPC returns
+    /// `null` at a selection intermediate — the client can't distinguish "not
+    /// in graph" from "not in view" from a single response, so it treats both
+    /// as `NotFound`.
+    #[error("{0} not found in view")]
+    NotFound(String),
+
     #[error("JSON parse error: {0}")]
     Json(#[from] serde_json::Error),
 

@@ -474,6 +474,49 @@ impl RemoteGraph {
         expect_string(self.transport.execute(&op).await?, "namespace")
     }
 
+    /// Terminal: graph creation timestamp — never null (server metadata).
+    /// Fires one RPC.
+    pub async fn created(&self) -> Result<i64, ClientError> {
+        let op = Op::Read(ReadExpr::Created {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_i64(self.transport.execute(&op).await?, "created")
+    }
+
+    /// Terminal: graph last-opened timestamp — never null. Fires one RPC.
+    pub async fn last_opened(&self) -> Result<i64, ClientError> {
+        let op = Op::Read(ReadExpr::LastOpened {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_i64(self.transport.execute(&op).await?, "lastOpened")
+    }
+
+    /// Terminal: graph last-updated timestamp — never null. Fires one RPC.
+    pub async fn last_updated(&self) -> Result<i64, ClientError> {
+        let op = Op::Read(ReadExpr::LastUpdated {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_i64(self.transport.execute(&op).await?, "lastUpdated")
+    }
+
+    /// Terminal: earliest edge event time under the current view. Returns
+    /// `None` if the view has no edge events. Fires one RPC.
+    pub async fn earliest_edge_time(&self) -> Result<Option<i64>, ClientError> {
+        let op = Op::Read(ReadExpr::EarliestEdgeTime {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_optional_i64(self.transport.execute(&op).await?, "earliestEdgeTime")
+    }
+
+    /// Terminal: latest edge event time under the current view. Returns
+    /// `None` if the view has no edge events. Fires one RPC.
+    pub async fn latest_edge_time(&self) -> Result<Option<i64>, ClientError> {
+        let op = Op::Read(ReadExpr::LatestEdgeTime {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_optional_i64(self.transport.execute(&op).await?, "latestEdgeTime")
+    }
+
     /// Internal helper: clone `self` with a new `expr`. Keeps the view-op
     /// builder methods (`.window`, `.layer`, `.at`, ...) as one-liners.
     fn with_expr(&self, expr: ReadExpr) -> RemoteGraph {
