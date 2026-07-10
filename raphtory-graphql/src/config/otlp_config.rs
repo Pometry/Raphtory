@@ -7,20 +7,19 @@ use opentelemetry_appender_tracing::layer::{
     OpenTelemetryTracingBridge, OpenTelemetryTracingBridgeBuilder,
 };
 use opentelemetry_otlp::{LogExporter, Protocol, SpanExporter, WithExportConfig, WithHttpConfig};
+#[cfg(test)]
+use opentelemetry_sdk::{logs::InMemoryLogExporter, trace::InMemorySpanExporter};
 use opentelemetry_sdk::{
     logs::SdkLoggerProvider,
     trace::{Sampler, SdkTracerProvider},
     Resource,
 };
-#[cfg(test)]
-use opentelemetry_sdk::{logs::InMemoryLogExporter, trace::InMemorySpanExporter};
 use raphtory_api::core::storage::arc_str::OptionAsStr;
 use reqwest::{blocking::ClientBuilder, Certificate};
 use serde::Deserialize;
 use std::{collections::HashMap, env, fs::File, io::Read, path::PathBuf, time::Duration};
 use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter, EnumString, IntoStaticStr};
-
 
 pub const DEFAULT_TRACING_ENABLED: bool = false;
 
@@ -84,7 +83,7 @@ pub enum TracingProtocol {
     HTTP,
     STDOUT,
     #[cfg(test)]
-    IN_MEMORY
+    IN_MEMORY,
 }
 
 impl TryFrom<String> for TracingProtocol {
@@ -125,6 +124,8 @@ pub struct TracingConfig {
     pub transport_headers: HashMap<String, String>,
     pub transport_certificate: Option<PathBuf>,
     #[cfg(test)]
+    #[serde(skip)]
+    // exposed in-memory exporters for testing
     pub exporters: InMemoryExporters,
 }
 
@@ -139,7 +140,7 @@ impl Default for TracingConfig {
             transport_headers: Default::default(),
             transport_certificate: None,
             #[cfg(test)]
-            exporters: InMemoryExporters::default()
+            exporters: InMemoryExporters::default(),
         }
     }
 }
@@ -273,7 +274,7 @@ impl TracingConfig {
                         opentelemetry_stdout::SpanExporter::default(),
                         opentelemetry_stdout::LogExporter::default(),
                     ))
-                },
+                }
                 #[cfg(test)]
                 TracingProtocol::IN_MEMORY => {
                     eprintln!(
@@ -315,26 +316,6 @@ impl PartialEq for InMemoryExporters {
     }
 }
 
-#[cfg(test)]
-impl serde::Serialize for InMemoryExporters {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_unit_struct("InMemoryExporters")
-    }
-}
 
-#[cfg(test)]
-impl<'de> serde::Deserialize<'de> for InMemoryExporters {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let _ = <Option<()>>::deserialize(deserializer)?;
-        Ok(Self {
-            span_exporter: InMemorySpanExporter::default(),
-            log_exporter: InMemoryLogExporter::default(),
-        })
-    }
-}
+
+
