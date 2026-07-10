@@ -2667,9 +2667,9 @@ type MutRoot {
 		path: String!
 	): Boolean!
 	"""
-	Load nodes from parquet
+	Load nodes
 	"""
-	loadNodesFromParquet(
+	loadNodes(
 		"""
 		Graph path relative to the root namespace.
 		"""
@@ -2720,9 +2720,9 @@ type MutRoot {
 		layerCol: String
 	): Boolean!
 	"""
-	Load edges from parquet
+	Load edges
 	"""
-	loadEdgesFromParquet(
+	loadEdges(
 		"""
 		Graph path relative to the root namespace.
 		"""
@@ -2918,6 +2918,15 @@ type MutRoot {
 		Optional spec selecting which node/edge property fields to index. Omit to index a default set.
 		"""
 		indexSpec: IndexSpecInput,		inRam: Boolean!
+	): Boolean!
+	"""
+	Flush any pending writes for the graph at `graphPath` to disk.
+	"""
+	flush(
+		"""
+		Graph path relative to the root namespace.
+		"""
+		graphPath: String!
 	): Boolean!
 }
 
