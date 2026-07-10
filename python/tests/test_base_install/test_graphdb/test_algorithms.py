@@ -48,7 +48,6 @@ def test_local_clustering_coefficient():
     actual = algorithms.local_clustering_coefficient_batch(g, list(range(1, 9)))
     assert actual == expected
 
-
 def test_connected_components():
     g = gen_graph()
     actual = algorithms.weakly_connected_components(g)
