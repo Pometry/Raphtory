@@ -108,6 +108,10 @@ pub enum ReadExpr {
     Src { input: Box<ReadExpr> },
     /// Navigate to an edge's destination node. Edge → Node.
     Dst { input: Box<ReadExpr> },
+    /// Navigate to an edge's "other end" node. Edge → Node.
+    /// Context-sensitive: on an out-edge yields the destination; on an
+    /// in-edge yields the source. Server field: `nbr`.
+    Nbr { input: Box<ReadExpr> },
     /// Graph → the collection of all nodes in the (view-restricted) graph.
     Nodes { input: Box<ReadExpr> },
     /// Node → the collection of the node's neighbours (both directions).
@@ -160,6 +164,10 @@ pub enum ReadExpr {
     FirstUpdate { input: Box<ReadExpr> },
     /// Terminal: last update time on this node — `Option<i64>`. Node only.
     LastUpdate { input: Box<ReadExpr> },
+    /// Terminal: the time an edge event occurred — `Option<i64>`. Edge only.
+    /// Server field is `Result<GqlEventTime, GraphError>`; the client treats
+    /// server-side errors as `ClientError::GraphQLErrors`.
+    Time { input: Box<ReadExpr> },
 
     // ============ Graph scalar terminals ============
     /// Terminal: check if a node with `id` exists in the view — `bool`.
@@ -203,9 +211,28 @@ pub enum ReadExpr {
     /// Terminal: node type — `Option<String>` (null if not set).
     NodeType { input: Box<ReadExpr> },
     /// Terminal: whether the node has any events in the current view — `bool`.
+    /// Also polymorphic on Edge — same server field name.
     IsActive { input: Box<ReadExpr> },
     /// Terminal: count of temporal edge events on this node — `i64`.
     EdgeHistoryCount { input: Box<ReadExpr> },
+
+    // ============ Edge scalar terminals ============
+    /// Terminal: edge id — pair of endpoint ids as `Vec<String>` of length 2.
+    /// Distinct from Node's `Id` (single string): server field is the same
+    /// name (`id`) but returns `Vec<GqlNodeId>` for edges.
+    EdgeIdPair { input: Box<ReadExpr> },
+    /// Terminal: layer names the edge is present in — `Vec<String>`.
+    LayerNames { input: Box<ReadExpr> },
+    /// Terminal: single layer name for a layer-restricted edge view — `String`.
+    /// Server field is `Result<String, GraphError>`; server-side error surfaces
+    /// as `ClientError::GraphQLErrors`.
+    LayerName { input: Box<ReadExpr> },
+    /// Terminal: whether the edge is valid at the current time — `bool`.
+    IsValid { input: Box<ReadExpr> },
+    /// Terminal: whether the edge has been deleted at the current time — `bool`.
+    IsDeleted { input: Box<ReadExpr> },
+    /// Terminal: whether the edge's `src == dst` — `bool`.
+    IsSelfLoop { input: Box<ReadExpr> },
 }
 
 /// Write operations. Each variant is a self-contained command with all its

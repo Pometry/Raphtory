@@ -143,4 +143,97 @@ impl PyRemoteEdge {
     pub fn dst(&self) -> PyRemoteNode {
         PyRemoteNode::new(self.edge.dst())
     }
+
+    /// Navigate to the "other end" node — destination on out-edges, source
+    /// on in-edges. Lazy — no RPC.
+    pub fn nbr(&self) -> PyRemoteNode {
+        PyRemoteNode::new(self.edge.nbr())
+    }
+
+    /// Earliest event time on this edge under the current view. Returns
+    /// `None` if the edge has no events in the view. Fires one RPC.
+    pub fn earliest_time(&self) -> Result<Option<i64>, ClientError> {
+        let edge = Arc::clone(&self.edge);
+        execute_async_task(move || async move { edge.earliest_time().await })
+    }
+
+    /// Latest event time on this edge under the current view. Fires one RPC.
+    pub fn latest_time(&self) -> Result<Option<i64>, ClientError> {
+        let edge = Arc::clone(&self.edge);
+        execute_async_task(move || async move { edge.latest_time().await })
+    }
+
+    /// First update timestamp on this edge under the current view. Fires one RPC.
+    pub fn first_update(&self) -> Result<Option<i64>, ClientError> {
+        let edge = Arc::clone(&self.edge);
+        execute_async_task(move || async move { edge.first_update().await })
+    }
+
+    /// Last update timestamp on this edge under the current view. Fires one RPC.
+    pub fn last_update(&self) -> Result<Option<i64>, ClientError> {
+        let edge = Arc::clone(&self.edge);
+        execute_async_task(move || async move { edge.last_update().await })
+    }
+
+    /// The event time this exploded edge event happened at. Meaningful
+    /// primarily on `explode()`'d views. Fires one RPC.
+    pub fn time(&self) -> Result<Option<i64>, ClientError> {
+        let edge = Arc::clone(&self.edge);
+        execute_async_task(move || async move { edge.time().await })
+    }
+
+    /// View start bound as seen by this edge. Fires one RPC.
+    pub fn start(&self) -> Result<Option<i64>, ClientError> {
+        let edge = Arc::clone(&self.edge);
+        execute_async_task(move || async move { edge.start().await })
+    }
+
+    /// View end bound as seen by this edge. Fires one RPC.
+    pub fn end(&self) -> Result<Option<i64>, ClientError> {
+        let edge = Arc::clone(&self.edge);
+        execute_async_task(move || async move { edge.end().await })
+    }
+
+    /// Edge id as a `(src, dst)` pair of endpoint ids. Fires one RPC.
+    pub fn id(&self) -> Result<(String, String), ClientError> {
+        let edge = Arc::clone(&self.edge);
+        execute_async_task(move || async move { edge.id().await })
+    }
+
+    /// Layer names this edge is present in. Fires one RPC.
+    pub fn layer_names(&self) -> Result<Vec<String>, ClientError> {
+        let edge = Arc::clone(&self.edge);
+        execute_async_task(move || async move { edge.layer_names().await })
+    }
+
+    /// Single layer name for a layer-restricted view of this edge. Raises if
+    /// the edge isn't scoped to exactly one layer. Fires one RPC.
+    pub fn layer_name(&self) -> Result<String, ClientError> {
+        let edge = Arc::clone(&self.edge);
+        execute_async_task(move || async move { edge.layer_name().await })
+    }
+
+    /// Whether the edge has any events in the current view. Fires one RPC.
+    pub fn is_active(&self) -> Result<bool, ClientError> {
+        let edge = Arc::clone(&self.edge);
+        execute_async_task(move || async move { edge.is_active().await })
+    }
+
+    /// Whether the edge is valid at the current time. Fires one RPC.
+    pub fn is_valid(&self) -> Result<bool, ClientError> {
+        let edge = Arc::clone(&self.edge);
+        execute_async_task(move || async move { edge.is_valid().await })
+    }
+
+    /// Whether the edge has been deleted at the current time. Fires one RPC.
+    pub fn is_deleted(&self) -> Result<bool, ClientError> {
+        let edge = Arc::clone(&self.edge);
+        execute_async_task(move || async move { edge.is_deleted().await })
+    }
+
+    /// Whether the edge is a self-loop (src == dst). Fires one RPC.
+    pub fn is_self_loop(&self) -> Result<bool, ClientError> {
+        let edge = Arc::clone(&self.edge);
+        execute_async_task(move || async move { edge.is_self_loop().await })
+    }
 }

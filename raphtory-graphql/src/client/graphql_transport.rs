@@ -785,6 +785,7 @@ fn render_read_body(expr: &ReadExpr) -> String {
         ),
         ReadExpr::Src { input } => format!("{} {{ src", render_read_body(input)),
         ReadExpr::Dst { input } => format!("{} {{ dst", render_read_body(input)),
+        ReadExpr::Nbr { input } => format!("{} {{ nbr", render_read_body(input)),
         ReadExpr::Nodes { input } => format!("{} {{ nodes", render_read_body(input)),
         ReadExpr::Neighbours { input } => format!("{} {{ neighbours", render_read_body(input)),
         ReadExpr::InNeighbours { input } => {
@@ -836,6 +837,13 @@ fn render_read_body(expr: &ReadExpr) -> String {
         ReadExpr::EdgeHistoryCount { input } => {
             format!("{} {{ edgeHistoryCount", render_read_body(input))
         }
+        // Edge-specific terminals
+        ReadExpr::EdgeIdPair { input } => format!("{} {{ id", render_read_body(input)),
+        ReadExpr::LayerNames { input } => format!("{} {{ layerNames", render_read_body(input)),
+        ReadExpr::LayerName { input } => format!("{} {{ layerName", render_read_body(input)),
+        ReadExpr::IsValid { input } => format!("{} {{ isValid", render_read_body(input)),
+        ReadExpr::IsDeleted { input } => format!("{} {{ isDeleted", render_read_body(input)),
+        ReadExpr::IsSelfLoop { input } => format!("{} {{ isSelfLoop", render_read_body(input)),
         // Compound terminals — open TWO braces (outer field + `timestamp` sub-field)
         ReadExpr::EarliestTime { input } => {
             format!("{} {{ earliestTime {{ timestamp", render_read_body(input))
@@ -862,6 +870,9 @@ fn render_read_body(expr: &ReadExpr) -> String {
         }
         ReadExpr::LastUpdate { input } => {
             format!("{} {{ lastUpdate {{ timestamp", render_read_body(input))
+        }
+        ReadExpr::Time { input } => {
+            format!("{} {{ time {{ timestamp", render_read_body(input))
         }
     }
 }
@@ -893,6 +904,7 @@ fn read_depth(expr: &ReadExpr) -> usize {
         | ReadExpr::Edge { input, .. }
         | ReadExpr::Src { input }
         | ReadExpr::Dst { input }
+        | ReadExpr::Nbr { input }
         | ReadExpr::Nodes { input }
         | ReadExpr::Neighbours { input }
         | ReadExpr::InNeighbours { input }
@@ -921,7 +933,13 @@ fn read_depth(expr: &ReadExpr) -> usize {
         | ReadExpr::EdgeHistoryCount { input }
         | ReadExpr::Created { input }
         | ReadExpr::LastOpened { input }
-        | ReadExpr::LastUpdated { input } => 1 + read_depth(input),
+        | ReadExpr::LastUpdated { input }
+        | ReadExpr::EdgeIdPair { input }
+        | ReadExpr::LayerNames { input }
+        | ReadExpr::LayerName { input }
+        | ReadExpr::IsValid { input }
+        | ReadExpr::IsDeleted { input }
+        | ReadExpr::IsSelfLoop { input } => 1 + read_depth(input),
         // Compound terminals — open two `{` (outer field + `timestamp` sub-field).
         ReadExpr::EarliestTime { input }
         | ReadExpr::LatestTime { input }
@@ -930,7 +948,8 @@ fn read_depth(expr: &ReadExpr) -> usize {
         | ReadExpr::EarliestEdgeTime { input }
         | ReadExpr::LatestEdgeTime { input }
         | ReadExpr::FirstUpdate { input }
-        | ReadExpr::LastUpdate { input } => 2 + read_depth(input),
+        | ReadExpr::LastUpdate { input }
+        | ReadExpr::Time { input } => 2 + read_depth(input),
     }
 }
 
@@ -980,7 +999,7 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
             .map(|n| Some(Prop::I64(n)))
             .ok_or_else(|| ClientError::InvalidResponse(format!("`{}` not an i64", terminal_key))),
         // List-of-string terminal — the JSON is an array of strings.
-        ReadExpr::Ids { .. } => {
+        ReadExpr::Ids { .. } | ReadExpr::LayerNames { .. } => {
             let arr = terminal_val.as_array().ok_or_else(|| {
                 ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
             })?;
@@ -993,6 +1012,31 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
                             terminal_key
                         ))
                     })
+                })
+                .collect();
+            Ok(Some(Prop::List(items?.into())))
+        }
+        // List-of-GID terminal — each element can be a JSON string or int.
+        // Used for edge `id` which returns [src, dst] as `Vec<GqlNodeId>`.
+        ReadExpr::EdgeIdPair { .. } => {
+            let arr = terminal_val.as_array().ok_or_else(|| {
+                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
+            })?;
+            let items: Result<Vec<Prop>, ClientError> = arr
+                .iter()
+                .map(|v| {
+                    if let Some(s) = v.as_str() {
+                        Ok(Prop::Str(s.into()))
+                    } else if let Some(n) = v.as_i64() {
+                        Ok(Prop::Str(n.to_string().into()))
+                    } else if let Some(n) = v.as_u64() {
+                        Ok(Prop::Str(n.to_string().into()))
+                    } else {
+                        Err(ClientError::InvalidResponse(format!(
+                            "`{}` element not a string or int",
+                            terminal_key
+                        )))
+                    }
                 })
                 .collect();
             Ok(Some(Prop::List(items?.into())))
@@ -1033,14 +1077,15 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
             Ok(Some(Prop::List(items?.into())))
         }
         // Bool-shaped terminals.
-        ReadExpr::HasNode { .. } | ReadExpr::HasEdge { .. } | ReadExpr::IsActive { .. } => {
-            terminal_val
-                .as_bool()
-                .map(|b| Some(Prop::Bool(b)))
-                .ok_or_else(|| {
-                    ClientError::InvalidResponse(format!("`{}` not a bool", terminal_key))
-                })
-        }
+        ReadExpr::HasNode { .. }
+        | ReadExpr::HasEdge { .. }
+        | ReadExpr::IsActive { .. }
+        | ReadExpr::IsValid { .. }
+        | ReadExpr::IsDeleted { .. }
+        | ReadExpr::IsSelfLoop { .. } => terminal_val
+            .as_bool()
+            .map(|b| Some(Prop::Bool(b)))
+            .ok_or_else(|| ClientError::InvalidResponse(format!("`{}` not a bool", terminal_key))),
         // `id` can be a JSON string or number (GID scalar); coerce to string.
         ReadExpr::Id { .. } => {
             if let Some(s) = terminal_val.as_str() {
@@ -1078,7 +1123,8 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
         | ReadExpr::EarliestEdgeTime { .. }
         | ReadExpr::LatestEdgeTime { .. }
         | ReadExpr::FirstUpdate { .. }
-        | ReadExpr::LastUpdate { .. } => {
+        | ReadExpr::LastUpdate { .. }
+        | ReadExpr::Time { .. } => {
             if terminal_val.is_null() {
                 Ok(None)
             } else {
@@ -1091,7 +1137,10 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
             }
         }
         // String-shaped terminals
-        ReadExpr::Name { .. } | ReadExpr::Path { .. } | ReadExpr::Namespace { .. } => terminal_val
+        ReadExpr::Name { .. }
+        | ReadExpr::Path { .. }
+        | ReadExpr::Namespace { .. }
+        | ReadExpr::LayerName { .. } => terminal_val
             .as_str()
             .map(|s| Some(Prop::Str(s.into())))
             .ok_or_else(|| {
@@ -1199,6 +1248,10 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
             ReadExpr::Dst { input } => {
                 go(input, out);
                 out.push("dst");
+            }
+            ReadExpr::Nbr { input } => {
+                go(input, out);
+                out.push("nbr");
             }
             ReadExpr::Nodes { input } => {
                 go(input, out);
@@ -1316,6 +1369,30 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
                 go(input, out);
                 out.push("edgeHistoryCount");
             }
+            ReadExpr::EdgeIdPair { input } => {
+                go(input, out);
+                out.push("id");
+            }
+            ReadExpr::LayerNames { input } => {
+                go(input, out);
+                out.push("layerNames");
+            }
+            ReadExpr::LayerName { input } => {
+                go(input, out);
+                out.push("layerName");
+            }
+            ReadExpr::IsValid { input } => {
+                go(input, out);
+                out.push("isValid");
+            }
+            ReadExpr::IsDeleted { input } => {
+                go(input, out);
+                out.push("isDeleted");
+            }
+            ReadExpr::IsSelfLoop { input } => {
+                go(input, out);
+                out.push("isSelfLoop");
+            }
             // Compound terminals — push TWO keys (outer field + "timestamp").
             ReadExpr::EarliestTime { input } => {
                 go(input, out);
@@ -1355,6 +1432,11 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
             ReadExpr::LastUpdate { input } => {
                 go(input, out);
                 out.push("lastUpdate");
+                out.push("timestamp");
+            }
+            ReadExpr::Time { input } => {
+                go(input, out);
+                out.push("time");
                 out.push("timestamp");
             }
         }
@@ -1419,6 +1501,7 @@ fn child_input(expr: &ReadExpr) -> Option<&ReadExpr> {
         | ReadExpr::Edge { input, .. }
         | ReadExpr::Src { input }
         | ReadExpr::Dst { input }
+        | ReadExpr::Nbr { input }
         | ReadExpr::Nodes { input }
         | ReadExpr::Neighbours { input }
         | ReadExpr::InNeighbours { input }
@@ -1455,7 +1538,14 @@ fn child_input(expr: &ReadExpr) -> Option<&ReadExpr> {
         | ReadExpr::EarliestEdgeTime { input }
         | ReadExpr::LatestEdgeTime { input }
         | ReadExpr::FirstUpdate { input }
-        | ReadExpr::LastUpdate { input } => Some(input),
+        | ReadExpr::LastUpdate { input }
+        | ReadExpr::Time { input }
+        | ReadExpr::EdgeIdPair { input }
+        | ReadExpr::LayerNames { input }
+        | ReadExpr::LayerName { input }
+        | ReadExpr::IsValid { input }
+        | ReadExpr::IsDeleted { input }
+        | ReadExpr::IsSelfLoop { input } => Some(input),
     }
 }
 

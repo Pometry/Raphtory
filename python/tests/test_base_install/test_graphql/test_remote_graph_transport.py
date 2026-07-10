@@ -527,6 +527,80 @@ def test_terminals_error_on_absent_node_or_edge():
         server_cm.__exit__(None, None, None)
 
 
+def test_edge_read_terminals():
+    """Read terminals on RemoteEdge — time, layer, id, bool state — mirror
+    the shape of the Node terminals under the current view."""
+    server_cm, rg = _make_graph_with_edge()
+    # Second edge event on the same pair at t=8, so we can distinguish
+    # first_update vs last_update on the edge itself.
+    rg.add_edge(8, "ben", "hamza")
+    try:
+        e = rg.edge("ben", "hamza")
+        # Time-range terminals.
+        assert e.earliest_time() == 3
+        assert e.latest_time() == 8
+        assert e.first_update() == 3
+        assert e.last_update() == 8
+
+        # Id — pair of endpoint ids.
+        assert e.id() == ("ben", "hamza")
+
+        # Layer info — layer_names lists all layers this edge appears in.
+        assert e.layer_names() == ["_default"]
+        # `.layer_name()` requires an `.explode()`'d view; on a plain edge
+        # handle the server returns a GraphQL error which surfaces as
+        # ClientError::GraphQLErrors. We surface the message unchanged — the
+        # test just asserts we surface *something* with "layer_name" in it.
+        import pytest
+        with pytest.raises(Exception, match="layer_name"):
+            e.layer_name()
+
+        # Bool state.
+        assert e.is_active() is True
+        assert e.is_valid() is True
+        assert e.is_deleted() is False
+        assert e.is_self_loop() is False
+
+        # Windowed view narrows time range.
+        e_win = rg.window(0, 5).edge("ben", "hamza")
+        assert e_win.earliest_time() == 3
+        assert e_win.latest_time() == 3
+        assert e_win.first_update() == 3
+        assert e_win.last_update() == 3
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_edge_self_loop_and_absent():
+    """`is_self_loop` returns True for src == dst; absent edges error."""
+    import pytest
+
+    server_cm, rg = _make_graph_with_edge()
+    # A self-loop edge.
+    rg.add_edge(4, "ben", "ben")
+    try:
+        assert rg.edge("ben", "ben").is_self_loop() is True
+        assert rg.edge("ben", "hamza").is_self_loop() is False
+
+        # Absent edge → NotFound.
+        with pytest.raises(Exception, match=r"Edge \('nonexistent', 'hamza'\) not found"):
+            rg.edge("nonexistent", "hamza").is_active()
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_edge_nbr_navigation():
+    """`.nbr()` navigates to the "other end" node; on a plain edge it's
+    equivalent to `.dst()`."""
+    server_cm, rg = _make_graph_with_edge()
+    try:
+        e = rg.edge("ben", "hamza")
+        # On a plain (out-)edge view, nbr yields the destination.
+        assert e.nbr().name() == "hamza"
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
 def test_edges_view_chain_propagates_through_collection_list():
     """Regression: materialized edges must carry the parent view forward, so
     view-dependent terminals give the right answer under the same view chain
