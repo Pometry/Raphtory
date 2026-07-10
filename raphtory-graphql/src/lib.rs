@@ -3057,10 +3057,7 @@ mod graphql_test {
             vec![],
             "schema parameter cast Float32 → Float64 should succeed"
         );
-        assert_eq!(
-            res.data.into_json().unwrap(),
-            json!({"loadNodes": true})
-        );
+        assert_eq!(res.data.into_json().unwrap(), json!({"loadNodes": true}));
 
         // Confirm both nodes loaded.
         let query = r#"{
