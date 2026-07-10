@@ -822,6 +822,7 @@ fn render_read_body(expr: &ReadExpr) -> String {
         ReadExpr::Created { input } => format!("{} {{ created", render_read_body(input)),
         ReadExpr::LastOpened { input } => format!("{} {{ lastOpened", render_read_body(input)),
         ReadExpr::LastUpdated { input } => format!("{} {{ lastUpdated", render_read_body(input)),
+        ReadExpr::UniqueLayers { input } => format!("{} {{ uniqueLayers", render_read_body(input)),
         ReadExpr::Ids { input } => format!("{} {{ ids", render_read_body(input)),
         ReadExpr::Count { input } => format!("{} {{ count", render_read_body(input)),
         // Compound structured terminal: renders as `list { src { name } dst { name } }`.
@@ -933,6 +934,7 @@ fn read_depth(expr: &ReadExpr) -> usize {
         | ReadExpr::Created { input }
         | ReadExpr::LastOpened { input }
         | ReadExpr::LastUpdated { input }
+        | ReadExpr::UniqueLayers { input }
         | ReadExpr::EdgeIdPair { input }
         | ReadExpr::LayerNames { input }
         | ReadExpr::LayerName { input }
@@ -998,7 +1000,7 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
             .map(|n| Some(Prop::I64(n)))
             .ok_or_else(|| ClientError::InvalidResponse(format!("`{}` not an i64", terminal_key))),
         // List-of-string terminal — the JSON is an array of strings.
-        ReadExpr::Ids { .. } | ReadExpr::LayerNames { .. } => {
+        ReadExpr::Ids { .. } | ReadExpr::LayerNames { .. } | ReadExpr::UniqueLayers { .. } => {
             let arr = terminal_val.as_array().ok_or_else(|| {
                 ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
             })?;
@@ -1348,6 +1350,10 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
                 go(input, out);
                 out.push("lastUpdated");
             }
+            ReadExpr::UniqueLayers { input } => {
+                go(input, out);
+                out.push("uniqueLayers");
+            }
             ReadExpr::Id { input } => {
                 go(input, out);
                 out.push("id");
@@ -1526,6 +1532,7 @@ fn child_input(expr: &ReadExpr) -> Option<&ReadExpr> {
         | ReadExpr::Created { input }
         | ReadExpr::LastOpened { input }
         | ReadExpr::LastUpdated { input }
+        | ReadExpr::UniqueLayers { input }
         | ReadExpr::EarliestTime { input }
         | ReadExpr::LatestTime { input }
         | ReadExpr::Start { input }

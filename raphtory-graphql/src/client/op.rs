@@ -190,6 +190,8 @@ pub enum ReadExpr {
     LastOpened { input: Box<ReadExpr> },
     /// Terminal: graph last-updated timestamp — `i64` (metadata, always set).
     LastUpdated { input: Box<ReadExpr> },
+    /// Terminal: layer names present in this graph — `Vec<String>`.
+    UniqueLayers { input: Box<ReadExpr> },
 
     // ============ Collection terminals (on Nodes/Edges collections) ============
     /// Terminal on a Nodes collection: list of member ids — `Vec<String>`.

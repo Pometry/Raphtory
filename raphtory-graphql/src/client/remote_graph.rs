@@ -493,6 +493,14 @@ impl RemoteGraph {
         expect_i64(self.transport.execute(&op).await?, "lastUpdated")
     }
 
+    /// Terminal: list of unique layer names present in this graph. Fires one RPC.
+    pub async fn unique_layers(&self) -> Result<Vec<String>, ClientError> {
+        let op = Op::Read(ReadExpr::UniqueLayers {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_string_list(self.transport.execute(&op).await?, "uniqueLayers")
+    }
+
     /// Terminal: earliest edge event time under the current view. Returns
     /// `None` if the view has no edge events. Fires one RPC.
     pub async fn earliest_edge_time(&self) -> Result<Option<i64>, ClientError> {

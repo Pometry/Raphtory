@@ -671,6 +671,20 @@ def test_edge_nbr_navigation():
         server_cm.__exit__(None, None, None)
 
 
+def test_graph_unique_layers():
+    """`unique_layers` returns the list of layer names present in the graph."""
+    server_cm, rg = _make_graph_with_edge()
+    try:
+        assert rg.unique_layers() == ["_default"]
+
+        # Add an edge on a distinct layer.
+        rg.add_edge(4, "ben", "hamza", layer="secret")
+        # Now two layers are present.
+        assert sorted(rg.unique_layers()) == ["_default", "secret"]
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
 def test_edge_view_chain_builders():
     """RemoteEdge has full view-chain builder parity with the local Edge —
     `.window`, `.at`, `.before`, `.after`, `.latest`, `.snapshot_at`,
