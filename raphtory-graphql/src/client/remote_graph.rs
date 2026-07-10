@@ -140,16 +140,10 @@ pub(crate) fn expect_edge_list(
                 Prop::List(pair) => {
                     let mut it = pair.iter();
                     let src = it.next().ok_or_else(|| {
-                        ClientError::InvalidResponse(format!(
-                            "`{}` element missing src",
-                            context
-                        ))
+                        ClientError::InvalidResponse(format!("`{}` element missing src", context))
                     })?;
                     let dst = it.next().ok_or_else(|| {
-                        ClientError::InvalidResponse(format!(
-                            "`{}` element missing dst",
-                            context
-                        ))
+                        ClientError::InvalidResponse(format!("`{}` element missing dst", context))
                     })?;
                     if it.next().is_some() {
                         return Err(ClientError::InvalidResponse(format!(

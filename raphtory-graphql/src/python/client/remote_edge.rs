@@ -28,6 +28,81 @@ impl PyRemoteEdge {
 
 #[pymethods]
 impl PyRemoteEdge {
+    /// Time-window this edge. Lazy — no RPC.
+    pub fn window(&self, start: i64, end: i64) -> PyRemoteEdge {
+        PyRemoteEdge::new(self.edge.window(start, end))
+    }
+
+    /// Restrict to a single named layer. Lazy — no RPC.
+    pub fn layer(&self, name: &str) -> PyRemoteEdge {
+        PyRemoteEdge::new(self.edge.layer(name))
+    }
+
+    /// Snapshot at a specific time. Lazy — no RPC.
+    pub fn at(&self, time: i64) -> PyRemoteEdge {
+        PyRemoteEdge::new(self.edge.at(time))
+    }
+
+    /// Restrict to events strictly before the given time. Lazy — no RPC.
+    pub fn before(&self, time: i64) -> PyRemoteEdge {
+        PyRemoteEdge::new(self.edge.before(time))
+    }
+
+    /// Restrict to events at or after the given time. Lazy — no RPC.
+    pub fn after(&self, time: i64) -> PyRemoteEdge {
+        PyRemoteEdge::new(self.edge.after(time))
+    }
+
+    /// Latest state. Lazy — no RPC.
+    pub fn latest(&self) -> PyRemoteEdge {
+        PyRemoteEdge::new(self.edge.latest())
+    }
+
+    /// Snapshot at the latest time. Lazy — no RPC.
+    pub fn snapshot_latest(&self) -> PyRemoteEdge {
+        PyRemoteEdge::new(self.edge.snapshot_latest())
+    }
+
+    /// Snapshot at a specific time. Lazy — no RPC.
+    pub fn snapshot_at(&self, time: i64) -> PyRemoteEdge {
+        PyRemoteEdge::new(self.edge.snapshot_at(time))
+    }
+
+    /// Exclude a specific layer from the view. Lazy — no RPC.
+    pub fn exclude_layer(&self, name: &str) -> PyRemoteEdge {
+        PyRemoteEdge::new(self.edge.exclude_layer(name))
+    }
+
+    /// Shrink both start and end of the current window. Lazy — no RPC.
+    pub fn shrink_window(&self, start: i64, end: i64) -> PyRemoteEdge {
+        PyRemoteEdge::new(self.edge.shrink_window(start, end))
+    }
+
+    /// Shrink the start of the current window. Lazy — no RPC.
+    pub fn shrink_start(&self, start: i64) -> PyRemoteEdge {
+        PyRemoteEdge::new(self.edge.shrink_start(start))
+    }
+
+    /// Shrink the end of the current window. Lazy — no RPC.
+    pub fn shrink_end(&self, end: i64) -> PyRemoteEdge {
+        PyRemoteEdge::new(self.edge.shrink_end(end))
+    }
+
+    /// Restrict to the default layer. Lazy — no RPC.
+    pub fn default_layer(&self) -> PyRemoteEdge {
+        PyRemoteEdge::new(self.edge.default_layer())
+    }
+
+    /// Restrict to the given set of layers. Lazy — no RPC.
+    pub fn layers(&self, names: Vec<String>) -> PyRemoteEdge {
+        PyRemoteEdge::new(self.edge.layers(names))
+    }
+
+    /// Exclude the given set of layers from the view. Lazy — no RPC.
+    pub fn exclude_layers(&self, names: Vec<String>) -> PyRemoteEdge {
+        PyRemoteEdge::new(self.edge.exclude_layers(names))
+    }
+
     /// Add updates to an edge in the remote graph at a specified time.
     ///
     /// This function allows for the addition of property updates to an edge within the graph.

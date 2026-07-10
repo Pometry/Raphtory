@@ -861,10 +861,9 @@ fn render_read_body(expr: &ReadExpr) -> String {
             "{} {{ earliestEdgeTime {{ timestamp",
             render_read_body(input)
         ),
-        ReadExpr::LatestEdgeTime { input } => format!(
-            "{} {{ latestEdgeTime {{ timestamp",
-            render_read_body(input)
-        ),
+        ReadExpr::LatestEdgeTime { input } => {
+            format!("{} {{ latestEdgeTime {{ timestamp", render_read_body(input))
+        }
         ReadExpr::FirstUpdate { input } => {
             format!("{} {{ firstUpdate {{ timestamp", render_read_body(input))
         }
@@ -1056,18 +1055,14 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
                         .and_then(|s| s.get("name"))
                         .and_then(|n| n.as_str())
                         .ok_or_else(|| {
-                            ClientError::InvalidResponse(
-                                "edge element missing `src.name`".into(),
-                            )
+                            ClientError::InvalidResponse("edge element missing `src.name`".into())
                         })?;
                     let dst = v
                         .get("dst")
                         .and_then(|d| d.get("name"))
                         .and_then(|n| n.as_str())
                         .ok_or_else(|| {
-                            ClientError::InvalidResponse(
-                                "edge element missing `dst.name`".into(),
-                            )
+                            ClientError::InvalidResponse("edge element missing `dst.name`".into())
                         })?;
                     Ok(Prop::List(
                         vec![Prop::Str(src.into()), Prop::Str(dst.into())].into(),

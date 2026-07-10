@@ -671,6 +671,84 @@ def test_edge_nbr_navigation():
         server_cm.__exit__(None, None, None)
 
 
+def test_edge_view_chain_builders():
+    """RemoteEdge has full view-chain builder parity with the local Edge —
+    `.window`, `.at`, `.before`, `.after`, `.latest`, `.snapshot_at`,
+    `.snapshot_latest`, `.shrink_*`, `.default_layer`, `.layer`, `.layers`,
+    `.exclude_layer`, `.exclude_layers`. All lazy — no RPC until a terminal."""
+    server_cm, rg = _make_graph_with_edge()
+    # Add a second edge event on the same pair at t=8.
+    rg.add_edge(8, "ben", "hamza")
+    try:
+        e = rg.edge("ben", "hamza")
+
+        # Global time range: [3, 8].
+        assert e.earliest_time() == 3
+        assert e.latest_time() == 8
+
+        # Windowed narrows the range.
+        assert e.window(0, 5).earliest_time() == 3
+        assert e.window(0, 5).latest_time() == 3
+        assert e.window(6, 10).earliest_time() == 8
+        # Empty window — edge selection is preserved (we selected first, then
+        # windowed), so nullable terminal returns None rather than raising.
+        # This differs from `rg.window(...).edge(...)` where the edge itself
+        # falls out of view and terminals on it raise NotFound.
+        assert e.window(100, 200).earliest_time() is None
+        assert e.window(100, 200).latest_time() is None
+        import pytest
+
+        # At / snapshot_at.
+        assert e.at(3).is_active() is True
+        assert e.snapshot_at(3).is_active() is True
+
+        # Before / after — one-sided views.
+        assert e.before(5).earliest_time() == 3
+        assert e.before(5).latest_time() == 3
+        assert e.after(5).earliest_time() == 8
+        assert e.after(5).latest_time() == 8
+
+        # Latest / snapshot_latest — non-argumentative view ops.
+        assert e.latest().is_active() is True
+        assert e.snapshot_latest().is_active() is True
+
+        # Layer ops.
+        assert e.default_layer().is_active() is True
+        assert e.layer("_default").is_active() is True
+        assert e.layers(["_default"]).is_active() is True
+        # Exclude the only layer → edge selection preserved, view has no
+        # visible events, so `is_active` reports False (not NotFound).
+        assert e.exclude_layer("_default").is_active() is False
+        assert e.exclude_layers(["_default"]).is_active() is False
+
+        # Chained view composes with navigation.
+        assert e.window(0, 5).src().name() == "ben"
+        assert e.window(0, 5).nbr().name() == "hamza"
+
+        # Commutativity: pre-selection view chain matches post-selection view chain.
+        assert e.window(0, 5).earliest_time() == rg.window(0, 5).edge("ben", "hamza").earliest_time()
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_edge_shrink_builders():
+    """`.shrink_window`, `.shrink_start`, `.shrink_end` narrow an existing window."""
+    server_cm, rg = _make_graph_with_edge()
+    rg.add_edge(8, "ben", "hamza")
+    try:
+        wide = rg.edge("ben", "hamza").window(0, 100)
+        assert wide.earliest_time() == 3
+        assert wide.latest_time() == 8
+
+        assert wide.shrink_window(0, 5).latest_time() == 3
+        # shrink_start cuts t=3, keeps t=8.
+        assert wide.shrink_start(5).earliest_time() == 8
+        # shrink_end keeps t=3, cuts t=8.
+        assert wide.shrink_end(5).latest_time() == 3
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
 def test_edges_view_chain_propagates_through_collection_list():
     """Regression: materialized edges must carry the parent view forward, so
     view-dependent terminals give the right answer under the same view chain
