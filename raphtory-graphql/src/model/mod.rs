@@ -401,8 +401,8 @@ impl Mut {
         Ok(true)
     }
 
-    /// Load nodes from parquet
-    async fn load_nodes_from_parquet<'a>(
+    /// Load nodes
+    async fn load_nodes<'a>(
         ctx: &Context<'a>,
         #[graphql(desc = "Graph path relative to the root namespace.")] graph_path: String,
         #[graphql(desc = "Path to the parquet directory.")] data_path: String,
@@ -452,12 +452,9 @@ impl Mut {
         // extracting PathBuf handles Strings too
         let data_path = PathBuf::from(data_path);
 
-        if !data.is_parquet_path_allowed(&data_path) {
-            return Err(GqlGraphError::LoadError(
-                "Argument 'data_path' is not in the list of allowed paths".to_string(),
-            )
-            .into());
-        }
+        data.is_parquet_path_allowed(&data_path)
+            .await
+            .map_err(|e| GqlGraphError::LoadError(e.to_string()))?;
 
         // wrap in Arc to avoid cloning the entire schema for inner loops
         let arced_schema = schema.map(Arc::new);
@@ -483,8 +480,8 @@ impl Mut {
         Ok(true)
     }
 
-    /// Load edges from parquet
-    async fn load_edges_from_parquet<'a>(
+    /// Load edges
+    async fn load_edges<'a>(
         ctx: &Context<'a>,
         #[graphql(desc = "Graph path relative to the root namespace.")] graph_path: String,
         #[graphql(desc = "Path to the parquet directory.")] data_path: String,
@@ -530,12 +527,9 @@ impl Mut {
         // extracting PathBuf handles Strings too
         let data_path = PathBuf::from(data_path);
 
-        if !data.is_parquet_path_allowed(&data_path) {
-            return Err(GqlGraphError::LoadError(
-                "Argument 'data_path' is not in the list of allowed paths".to_string(),
-            )
-            .into());
-        }
+        data.is_parquet_path_allowed(&data_path)
+            .await
+            .map_err(|e| GqlGraphError::LoadError(e.to_string()))?;
 
         // wrap in Arc to avoid cloning the entire schema for inner loops
         let arced_schema = schema.map(Arc::new);

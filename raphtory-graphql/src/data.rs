@@ -52,6 +52,16 @@ use tracing::{error, warn};
 use walkdir::WalkDir;
 
 #[derive(thiserror::Error, Debug)]
+pub enum ParquetPathError {
+    #[error("Path {0:?} does not exist or could not be resolved")]
+    Unresolvable(PathBuf),
+    #[error("Path {0:?} is not allowed: paths within the working directory are not permitted")]
+    WithinWorkDir(PathBuf),
+    #[error("Path {0:?} is not in the list of allowed paths")]
+    NotAllowed(PathBuf),
+}
+
+#[derive(thiserror::Error, Debug)]
 pub enum MutationErrorInner {
     #[error(transparent)]
     GraphError(#[from] GraphError),
@@ -321,21 +331,30 @@ impl Data {
             .auth_policy = Some(policy);
     }
 
-    /// Returns `true` if `path` is permitted by the parquet allowlist.
-    /// When `allowed_parquet_paths` is empty every path is permitted.
-    pub fn is_parquet_path_allowed(&self, path: &Path) -> bool {
-        if self.allowed_parquet_paths.is_empty() {
-            return true;
+    /// Returns `Ok(())` if `path` is permitted by the parquet allowlist, otherwise an error
+    /// describing why the path was rejected.
+    /// When `allowed_parquet_paths` is empty, no path is permitted.
+    /// As a rule, no paths within the working directory are allowed.
+    pub async fn is_parquet_path_allowed(&self, path: &Path) -> Result<(), ParquetPathError> {
+        let canonical_path = path
+            .canonicalize()
+            .map_err(|_| ParquetPathError::Unresolvable(path.to_path_buf()))?;
+        if let Ok(canonical_work_dir) = self.work_dir_read().await.to_path_buf().canonicalize() {
+            if canonical_path.starts_with(canonical_work_dir) {
+                return Err(ParquetPathError::WithinWorkDir(path.to_path_buf()));
+            }
         }
-        let Ok(canonical_path) = path.canonicalize() else {
-            return false;
-        };
-        self.allowed_parquet_paths.iter().any(|allowed| {
+        let allowed = self.allowed_parquet_paths.iter().any(|allowed| {
             allowed
                 .canonicalize()
                 .map(|c| canonical_path.starts_with(c))
                 .unwrap_or(false)
-        })
+        });
+        if allowed {
+            Ok(())
+        } else {
+            Err(ParquetPathError::NotAllowed(path.to_path_buf()))
+        }
     }
 
     /// Validates that `ns_path` exists and is a namespace, returning the `Namespace`

@@ -2614,6 +2614,7 @@ mod graphql_test {
         use parquet::arrow::ArrowWriter;
         use std::{fs::File, sync::Arc};
 
+        let graph_dir = tempdir().unwrap();
         let tmp_dir = tempdir().unwrap();
 
         // Write a minimal parquet file: two nodes "a" and "b" at t=1 with a weight property.
@@ -2642,7 +2643,7 @@ mod graphql_test {
             .with_allowed_parquet_paths(vec![tmp_dir.path().to_path_buf()])
             .build();
 
-        let data = Data::new(tmp_dir.path(), &app_config, Config::default());
+        let data = Data::new(graph_dir.path(), &app_config, Config::default());
         let folder = data
             .work_dir_write()
             .await
@@ -2657,7 +2658,7 @@ mod graphql_test {
         let parquet_path_str = parquet_path.to_str().unwrap().replace('\\', "/");
         let mutation = format!(
             r#"mutation {{
-                loadNodesFromParquet(
+                loadNodes(
                     graphPath: "mygraph",
                     dataPath: "{}",
                     time: "time",
@@ -2668,15 +2669,8 @@ mod graphql_test {
             parquet_path_str
         );
         let res = run_mutation(&schema, &mutation).await;
-        assert_eq!(
-            res.errors,
-            vec![],
-            "loadNodesFromParquet mutation returned errors"
-        );
-        assert_eq!(
-            res.data.into_json().unwrap(),
-            json!({"loadNodesFromParquet": true})
-        );
+        assert_eq!(res.errors, vec![], "loadNodes mutation returned errors");
+        assert_eq!(res.data.into_json().unwrap(), json!({"loadNodes": true}));
 
         // Query the loaded nodes back via GraphQL to confirm they landed.
         let query = r#"{
@@ -2709,6 +2703,7 @@ mod graphql_test {
         use parquet::arrow::ArrowWriter;
         use std::{fs::File, sync::Arc};
 
+        let graph_dir = tempdir().unwrap();
         let tmp_dir = tempdir().unwrap();
 
         // Write a minimal parquet file: two edges a→b and b→c at t=1 with a weight property.
@@ -2739,7 +2734,7 @@ mod graphql_test {
             .with_allowed_parquet_paths(vec![tmp_dir.path().to_path_buf()])
             .build();
 
-        let data = Data::new(tmp_dir.path(), &app_config, Config::default());
+        let data = Data::new(graph_dir.path(), &app_config, Config::default());
         let folder = data
             .work_dir_write()
             .await
@@ -2754,7 +2749,7 @@ mod graphql_test {
         let parquet_path_str = parquet_path.to_str().unwrap().replace('\\', "/");
         let mutation = format!(
             r#"mutation {{
-                loadEdgesFromParquet(
+                loadEdges(
                     graphPath: "mygraph",
                     dataPath: "{}",
                     time: "time",
@@ -2766,15 +2761,8 @@ mod graphql_test {
             parquet_path_str
         );
         let res = run_mutation(&schema, &mutation).await;
-        assert_eq!(
-            res.errors,
-            vec![],
-            "loadEdgesFromParquet mutation returned errors"
-        );
-        assert_eq!(
-            res.data.into_json().unwrap(),
-            json!({"loadEdgesFromParquet": true})
-        );
+        assert_eq!(res.errors, vec![], "loadEdges mutation returned errors");
+        assert_eq!(res.data.into_json().unwrap(), json!({"loadEdges": true}));
 
         // Query the loaded edges back via GraphQL to confirm they landed.
         let query = r#"{
@@ -2844,13 +2832,14 @@ mod graphql_test {
     async fn test_parquet_allowed_path_accepted() {
         use crate::config::app_config::AppConfigBuilder;
 
-        let tmp_dir = tempdir().unwrap();
-        let parquet_path = write_nodes_parquet(tmp_dir.path());
+        let graph_dir = tempdir().unwrap();
+        let allowed_dir = tempdir().unwrap();
+        let parquet_path = write_nodes_parquet(allowed_dir.path());
 
         let app_config = AppConfigBuilder::new()
-            .with_allowed_parquet_paths(vec![tmp_dir.path().to_path_buf()])
+            .with_allowed_parquet_paths(vec![allowed_dir.path().to_path_buf()])
             .build();
-        let data = Data::new(tmp_dir.path(), &app_config, Config::default());
+        let data = Data::new(graph_dir.path(), &app_config, Config::default());
         let folder = data
             .work_dir_write()
             .await
@@ -2863,14 +2852,55 @@ mod graphql_test {
         let schema = App::create_schema().data(data).finish().unwrap();
         let parquet_path_str = parquet_path.to_str().unwrap().replace('\\', "/");
         let mutation = format!(
-            r#"mutation {{ loadNodesFromParquet(graphPath: "g", dataPath: "{}", time: "time", id: "id") }}"#,
+            r#"mutation {{ loadNodes(graphPath: "g", dataPath: "{}", time: "time", id: "id") }}"#,
             parquet_path_str
         );
         let res = run_mutation(&schema, &mutation).await;
         assert_eq!(
             res.errors,
             vec![],
-            "path inside allowlist should be accepted"
+            "path inside allowlist and outside the work dir should be accepted"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_parquet_path_within_work_dir_rejected() {
+        use crate::config::app_config::AppConfigBuilder;
+
+        let graph_dir = tempdir().unwrap();
+        let parquet_path = write_nodes_parquet(graph_dir.path());
+
+        // Even though the work dir is allowlisted, paths within it must be rejected.
+        let app_config = AppConfigBuilder::new()
+            .with_allowed_parquet_paths(vec![graph_dir.path().to_path_buf()])
+            .build();
+        let data = Data::new(graph_dir.path(), &app_config, Config::default());
+        let folder = data
+            .work_dir_write()
+            .await
+            .validate_path_for_insert("g", false)
+            .unwrap();
+        data.insert_graph(folder, Graph::new().into())
+            .await
+            .unwrap();
+
+        let schema = App::create_schema().data(data).finish().unwrap();
+        let parquet_path_str = parquet_path.to_str().unwrap().replace('\\', "/");
+        let mutation = format!(
+            r#"mutation {{ loadNodes(graphPath: "g", dataPath: "{}", time: "time", id: "id") }}"#,
+            parquet_path_str
+        );
+        let res = run_mutation(&schema, &mutation).await;
+        assert!(
+            !res.errors.is_empty(),
+            "path within the work dir should be rejected"
+        );
+        assert!(
+            res.errors[0]
+                .message
+                .contains("working directory are not permitted"),
+            "unexpected error: {}",
+            res.errors[0].message
         );
     }
 
@@ -2898,7 +2928,7 @@ mod graphql_test {
         let schema = App::create_schema().data(data).finish().unwrap();
         let parquet_path_str = parquet_path.to_str().unwrap().replace('\\', "/");
         let mutation = format!(
-            r#"mutation {{ loadNodesFromParquet(graphPath: "g", dataPath: "{}", time: "time", id: "id") }}"#,
+            r#"mutation {{ loadNodes(graphPath: "g", dataPath: "{}", time: "time", id: "id") }}"#,
             parquet_path_str
         );
         let res = run_mutation(&schema, &mutation).await;
@@ -2916,14 +2946,14 @@ mod graphql_test {
     }
 
     #[tokio::test]
-    async fn test_parquet_empty_allowlist_permits_any_path() {
+    async fn test_parquet_empty_allowlist_denies_any_path() {
         use crate::config::app_config::AppConfigBuilder;
 
         let graph_dir = tempdir().unwrap();
         let other_dir = tempdir().unwrap();
         let parquet_path = write_nodes_parquet(other_dir.path());
 
-        // No allowed paths configured → everything is permitted.
+        // No allowed paths configured → nothing is permitted.
         let app_config = AppConfigBuilder::new()
             .with_allowed_parquet_paths(vec![])
             .build();
@@ -2940,11 +2970,21 @@ mod graphql_test {
         let schema = App::create_schema().data(data).finish().unwrap();
         let parquet_path_str = parquet_path.to_str().unwrap().replace('\\', "/");
         let mutation = format!(
-            r#"mutation {{ loadNodesFromParquet(graphPath: "g", dataPath: "{}", time: "time", id: "id") }}"#,
+            r#"mutation {{ loadNodes(graphPath: "g", dataPath: "{}", time: "time", id: "id") }}"#,
             parquet_path_str
         );
         let res = run_mutation(&schema, &mutation).await;
-        assert_eq!(res.errors, vec![], "empty allowlist should permit any path");
+        assert!(
+            !res.errors.is_empty(),
+            "empty allowlist should deny any path"
+        );
+        assert!(
+            res.errors[0]
+                .message
+                .contains("not in the list of allowed paths"),
+            "unexpected error: {}",
+            res.errors[0].message
+        );
     }
 
     #[tokio::test]
@@ -2958,6 +2998,7 @@ mod graphql_test {
         use parquet::arrow::ArrowWriter;
         use std::{fs::File, sync::Arc};
 
+        let graph_dir = tempdir().unwrap();
         let tmp_dir = tempdir().unwrap();
 
         // Write a parquet file where 'score' is stored as Float32.
@@ -2984,7 +3025,7 @@ mod graphql_test {
         let app_config = AppConfigBuilder::new()
             .with_allowed_parquet_paths(vec![tmp_dir.path().to_path_buf()])
             .build();
-        let data = Data::new(tmp_dir.path(), &app_config, Config::default());
+        let data = Data::new(graph_dir.path(), &app_config, Config::default());
         let folder = data
             .work_dir_write()
             .await
@@ -2999,7 +3040,7 @@ mod graphql_test {
         // Cast 'score' from Float32 (on-disk type) to Float64 via the schema parameter.
         let mutation = format!(
             r#"mutation {{
-                loadNodesFromParquet(
+                loadNodes(
                     graphPath: "g",
                     dataPath: "{}",
                     time: "time",
@@ -3018,7 +3059,7 @@ mod graphql_test {
         );
         assert_eq!(
             res.data.into_json().unwrap(),
-            json!({"loadNodesFromParquet": true})
+            json!({"loadNodes": true})
         );
 
         // Confirm both nodes loaded.
@@ -3043,6 +3084,7 @@ mod graphql_test {
     async fn test_load_nodes_nested_directory_within_allowed_path() {
         use crate::config::app_config::AppConfigBuilder;
 
+        let graph_dir = tempdir().unwrap();
         let tmp_dir = tempdir().unwrap();
         // Create a subdirectory inside the allowed root.
         let sub_dir = tmp_dir.path().join("subdir");
@@ -3053,7 +3095,7 @@ mod graphql_test {
         let app_config = AppConfigBuilder::new()
             .with_allowed_parquet_paths(vec![tmp_dir.path().to_path_buf()])
             .build();
-        let data = Data::new(tmp_dir.path(), &app_config, Config::default());
+        let data = Data::new(graph_dir.path(), &app_config, Config::default());
         let folder = data
             .work_dir_write()
             .await
@@ -3066,7 +3108,7 @@ mod graphql_test {
         let schema = App::create_schema().data(data).finish().unwrap();
         let parquet_path_str = parquet_path.to_str().unwrap().replace('\\', "/");
         let mutation = format!(
-            r#"mutation {{ loadNodesFromParquet(graphPath: "g", dataPath: "{}", time: "time", id: "id") }}"#,
+            r#"mutation {{ loadNodes(graphPath: "g", dataPath: "{}", time: "time", id: "id") }}"#,
             parquet_path_str
         );
         let res = run_mutation(&schema, &mutation).await;
