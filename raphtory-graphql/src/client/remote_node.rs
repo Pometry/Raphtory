@@ -53,6 +53,137 @@ impl RemoteNode {
         }
     }
 
+    /// Internal helper: clone `self` with a new `expr`. Keeps view-op builder
+    /// methods as one-liners; `base_graph` is preserved from the original.
+    fn with_view(&self, expr: ReadExpr) -> RemoteNode {
+        RemoteNode {
+            path: self.path.clone(),
+            id: self.id.clone(),
+            transport: self.transport.clone(),
+            expr,
+            base_graph: self.base_graph.clone(),
+        }
+    }
+
+    /// Time-window this node. Lazy — no RPC.
+    pub fn window(&self, start: i64, end: i64) -> RemoteNode {
+        self.with_view(ReadExpr::Window {
+            input: Box::new(self.expr.clone()),
+            start,
+            end,
+        })
+    }
+
+    /// Restrict to a single named layer. Lazy — no RPC.
+    pub fn layer(&self, name: impl ToString) -> RemoteNode {
+        self.with_view(ReadExpr::Layer {
+            input: Box::new(self.expr.clone()),
+            name: name.to_string(),
+        })
+    }
+
+    /// Snapshot at a specific time. Lazy — no RPC.
+    pub fn at(&self, time: i64) -> RemoteNode {
+        self.with_view(ReadExpr::At {
+            input: Box::new(self.expr.clone()),
+            time,
+        })
+    }
+
+    /// Restrict to events strictly before the given time. Lazy — no RPC.
+    pub fn before(&self, time: i64) -> RemoteNode {
+        self.with_view(ReadExpr::Before {
+            input: Box::new(self.expr.clone()),
+            time,
+        })
+    }
+
+    /// Restrict to events at or after the given time. Lazy — no RPC.
+    pub fn after(&self, time: i64) -> RemoteNode {
+        self.with_view(ReadExpr::After {
+            input: Box::new(self.expr.clone()),
+            time,
+        })
+    }
+
+    /// Latest state. Lazy — no RPC.
+    pub fn latest(&self) -> RemoteNode {
+        self.with_view(ReadExpr::Latest {
+            input: Box::new(self.expr.clone()),
+        })
+    }
+
+    /// Snapshot at the latest time. Lazy — no RPC.
+    pub fn snapshot_latest(&self) -> RemoteNode {
+        self.with_view(ReadExpr::SnapshotLatest {
+            input: Box::new(self.expr.clone()),
+        })
+    }
+
+    /// Snapshot at a specific time. Lazy — no RPC.
+    pub fn snapshot_at(&self, time: i64) -> RemoteNode {
+        self.with_view(ReadExpr::SnapshotAt {
+            input: Box::new(self.expr.clone()),
+            time,
+        })
+    }
+
+    /// Exclude a specific layer from the view. Lazy — no RPC.
+    pub fn exclude_layer(&self, name: impl ToString) -> RemoteNode {
+        self.with_view(ReadExpr::ExcludeLayer {
+            input: Box::new(self.expr.clone()),
+            name: name.to_string(),
+        })
+    }
+
+    /// Shrink both start and end of the current window. Lazy — no RPC.
+    pub fn shrink_window(&self, start: i64, end: i64) -> RemoteNode {
+        self.with_view(ReadExpr::ShrinkWindow {
+            input: Box::new(self.expr.clone()),
+            start,
+            end,
+        })
+    }
+
+    /// Shrink the start of the current window. Lazy — no RPC.
+    pub fn shrink_start(&self, start: i64) -> RemoteNode {
+        self.with_view(ReadExpr::ShrinkStart {
+            input: Box::new(self.expr.clone()),
+            start,
+        })
+    }
+
+    /// Shrink the end of the current window. Lazy — no RPC.
+    pub fn shrink_end(&self, end: i64) -> RemoteNode {
+        self.with_view(ReadExpr::ShrinkEnd {
+            input: Box::new(self.expr.clone()),
+            end,
+        })
+    }
+
+    /// Restrict to the default layer. Lazy — no RPC.
+    pub fn default_layer(&self) -> RemoteNode {
+        self.with_view(ReadExpr::DefaultLayer {
+            input: Box::new(self.expr.clone()),
+        })
+    }
+
+    /// Restrict to the given set of layers. Lazy — no RPC.
+    pub fn layers(&self, names: Vec<String>) -> RemoteNode {
+        self.with_view(ReadExpr::Layers {
+            input: Box::new(self.expr.clone()),
+            names,
+        })
+    }
+
+    /// Exclude the given set of layers from the view. Lazy — no RPC.
+    pub fn exclude_layers(&self, names: Vec<String>) -> RemoteNode {
+        self.with_view(ReadExpr::ExcludeLayers {
+            input: Box::new(self.expr.clone()),
+            names,
+        })
+    }
+
     /// Terminal: node degree (in + out, deduplicated). Fires one RPC.
     pub async fn degree(&self) -> Result<i64, ClientError> {
         let op = Op::Read(ReadExpr::Degree {

@@ -527,6 +527,76 @@ def test_terminals_error_on_absent_node_or_edge():
         server_cm.__exit__(None, None, None)
 
 
+def test_node_view_chain_builders():
+    """RemoteNode has full view-chain builder parity with the local Node —
+    `.window`, `.at`, `.before`, `.after`, `.latest`, `.snapshot_at`,
+    `.snapshot_latest`, `.shrink_*`, `.default_layer`, `.layer`, `.layers`,
+    `.exclude_layer`, `.exclude_layers`. All lazy — no RPC until a terminal."""
+    server_cm, rg = _make_graph_with_edge()
+    # Add a second edge event on the same pair at t=8 so we can distinguish
+    # windowed views clearly.
+    rg.add_edge(8, "ben", "hamza")
+    try:
+        ben = rg.node("ben")
+
+        # Global vs windowed on the same node handle.
+        assert ben.edge_history_count() == 2      # two edge events total
+        assert ben.window(0, 5).edge_history_count() == 1
+        assert ben.window(6, 10).edge_history_count() == 1
+        assert ben.window(100, 200).edge_history_count() == 0
+
+        # At — snapshot at a specific time.
+        assert ben.at(3).is_active() is True
+        assert ben.at(5).is_active() is False     # window [5, 6) — no events
+
+        # Before / after — one-sided views.
+        assert ben.before(5).edge_history_count() == 1   # only t=3
+        assert ben.after(5).edge_history_count() == 1    # only t=8
+        assert ben.before(0).edge_history_count() == 0
+        assert ben.after(100).edge_history_count() == 0
+
+        # Latest / snapshot_latest — non-argumentative view ops compile through.
+        assert ben.latest().degree() == 1
+        assert ben.snapshot_latest().degree() == 1
+        assert ben.snapshot_at(3).degree() == 1
+
+        # Layer ops — default_layer, layer, layers, exclude_layer, exclude_layers.
+        assert ben.default_layer().degree() == 1
+        assert ben.layer("_default").degree() == 1
+        assert ben.layers(["_default"]).degree() == 1
+        assert ben.exclude_layer("_default").degree() == 0
+        assert ben.exclude_layers(["_default"]).degree() == 0
+
+        # Chaining works — window then out_neighbours.
+        neighbours = ben.window(0, 5).out_neighbours.ids()
+        assert neighbours == ["hamza"]
+        assert ben.window(100, 200).out_neighbours.count() == 0
+
+        # Chain after selection order commutes with pre-selection.
+        assert ben.window(0, 5).degree() == rg.window(0, 5).node("ben").degree()
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_node_shrink_builders():
+    """`.shrink_window`, `.shrink_start`, `.shrink_end` narrow an existing window."""
+    server_cm, rg = _make_graph_with_edge()
+    rg.add_edge(8, "ben", "hamza")
+    try:
+        # Start from a wide window, then shrink it.
+        wide = rg.node("ben").window(0, 100)
+        assert wide.edge_history_count() == 2
+
+        # Shrink both ends.
+        assert wide.shrink_window(0, 5).edge_history_count() == 1
+        # Shrink start only — cuts off t=3, keeps t=8.
+        assert wide.shrink_start(5).edge_history_count() == 1
+        # Shrink end only — keeps t=3, cuts off t=8.
+        assert wide.shrink_end(5).edge_history_count() == 1
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
 def test_edge_read_terminals():
     """Read terminals on RemoteEdge — time, layer, id, bool state — mirror
     the shape of the Node terminals under the current view."""

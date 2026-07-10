@@ -32,6 +32,81 @@ impl PyRemoteNode {
 
 #[pymethods]
 impl PyRemoteNode {
+    /// Time-window this node. Lazy — no RPC.
+    pub fn window(&self, start: i64, end: i64) -> PyRemoteNode {
+        PyRemoteNode::new(self.node.window(start, end))
+    }
+
+    /// Restrict to a single named layer. Lazy — no RPC.
+    pub fn layer(&self, name: &str) -> PyRemoteNode {
+        PyRemoteNode::new(self.node.layer(name))
+    }
+
+    /// Snapshot at a specific time. Lazy — no RPC.
+    pub fn at(&self, time: i64) -> PyRemoteNode {
+        PyRemoteNode::new(self.node.at(time))
+    }
+
+    /// Restrict to events strictly before the given time. Lazy — no RPC.
+    pub fn before(&self, time: i64) -> PyRemoteNode {
+        PyRemoteNode::new(self.node.before(time))
+    }
+
+    /// Restrict to events at or after the given time. Lazy — no RPC.
+    pub fn after(&self, time: i64) -> PyRemoteNode {
+        PyRemoteNode::new(self.node.after(time))
+    }
+
+    /// Latest state. Lazy — no RPC.
+    pub fn latest(&self) -> PyRemoteNode {
+        PyRemoteNode::new(self.node.latest())
+    }
+
+    /// Snapshot at the latest time. Lazy — no RPC.
+    pub fn snapshot_latest(&self) -> PyRemoteNode {
+        PyRemoteNode::new(self.node.snapshot_latest())
+    }
+
+    /// Snapshot at a specific time. Lazy — no RPC.
+    pub fn snapshot_at(&self, time: i64) -> PyRemoteNode {
+        PyRemoteNode::new(self.node.snapshot_at(time))
+    }
+
+    /// Exclude a specific layer from the view. Lazy — no RPC.
+    pub fn exclude_layer(&self, name: &str) -> PyRemoteNode {
+        PyRemoteNode::new(self.node.exclude_layer(name))
+    }
+
+    /// Shrink both start and end of the current window. Lazy — no RPC.
+    pub fn shrink_window(&self, start: i64, end: i64) -> PyRemoteNode {
+        PyRemoteNode::new(self.node.shrink_window(start, end))
+    }
+
+    /// Shrink the start of the current window. Lazy — no RPC.
+    pub fn shrink_start(&self, start: i64) -> PyRemoteNode {
+        PyRemoteNode::new(self.node.shrink_start(start))
+    }
+
+    /// Shrink the end of the current window. Lazy — no RPC.
+    pub fn shrink_end(&self, end: i64) -> PyRemoteNode {
+        PyRemoteNode::new(self.node.shrink_end(end))
+    }
+
+    /// Restrict to the default layer. Lazy — no RPC.
+    pub fn default_layer(&self) -> PyRemoteNode {
+        PyRemoteNode::new(self.node.default_layer())
+    }
+
+    /// Restrict to the given set of layers. Lazy — no RPC.
+    pub fn layers(&self, names: Vec<String>) -> PyRemoteNode {
+        PyRemoteNode::new(self.node.layers(names))
+    }
+
+    /// Exclude the given set of layers from the view. Lazy — no RPC.
+    pub fn exclude_layers(&self, names: Vec<String>) -> PyRemoteNode {
+        PyRemoteNode::new(self.node.exclude_layers(names))
+    }
+
     /// Set the type on the node. This only works if the type has not been previously set, otherwise will
     /// throw an error
     ///
