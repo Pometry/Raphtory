@@ -7,6 +7,7 @@ use crate::{
         concurrency_config::{ConcurrencyConfig, ConcurrencyConfigFieldName},
         log_config::{LoggingConfig, LoggingConfigFieldName},
         otlp_config::{TracingConfig, TracingConfigFieldName, TracingLevel, TracingProtocol},
+        parquet_config::{ParquetConfig, ParquetConfigFieldName},
         schema_config::{SchemaConfig, SchemaConfigFieldName},
     },
     server::ServerError,
@@ -30,6 +31,7 @@ pub struct AppConfig {
     pub auth: AuthConfig,
     pub concurrency: ConcurrencyConfig,
     pub schema: SchemaConfig,
+    pub parquet: ParquetConfig,
     pub public_dir: Option<PathBuf>,
     #[cfg(feature = "search")]
     pub index: IndexConfig,
@@ -279,6 +281,23 @@ impl AppConfigBuilder {
                         }
                     }
                 }
+                AppConfigFieldName::Parquet => {
+                    let map = value.as_object().ok_or_else(|| {
+                        ConfigError::Message(format!("Invalid parquet config: {value}"))
+                    })?;
+                    for (sub_path, value) in map {
+                        match ParquetConfigFieldName::by_name(sub_path)
+                            .ok_or_else(|| invalid_path([path, sub_path]))?
+                        {
+                            ParquetConfigFieldName::AllowedPaths => {
+                                self.with_allowed_parquet_paths(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                        }
+                    }
+                }
                 AppConfigFieldName::PublicDir => {
                     self.with_public_dir(
                         Deserialize::deserialize(value).map_err(|e| invalid_value([path], e))?,
@@ -437,6 +456,11 @@ impl AppConfigBuilder {
 
     pub fn with_disable_introspection(&mut self, disable_introspection: bool) -> &mut Self {
         self.config.schema.disable_introspection = disable_introspection;
+        self
+    }
+
+    pub fn with_allowed_parquet_paths(&mut self, allowed_paths: Vec<PathBuf>) -> &mut Self {
+        self.config.parquet.allowed_paths = allowed_paths;
         self
     }
 

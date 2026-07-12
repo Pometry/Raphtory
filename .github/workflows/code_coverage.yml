@@ -18,19 +18,19 @@
        SCCACHE_DIR: /home/runner/.cache/sccache
        SCCACHE_PATH: /home/runner/.cache/sccache
      steps:
-       - uses: actions/checkout@v5
+       - uses: actions/checkout@v7
          name: Checkout
          with:
            ref: ${{ github.head_ref }}
        - name: Cache sccache
-         uses: actions/cache@v3
+         uses: actions/cache@v6
          with:
            path: /home/runner/.cache/sccache
            key: codecov-${{ runner.os }}-sccache-${{ hashFiles('**/Cargo.lock') }}
            restore-keys: |
              codecov-${{ runner.os }}-sccache-
        - name: Set up cargo cache
-         uses: actions/cache@v3
+         uses: actions/cache@v6
          continue-on-error: false
          with:
            path: |
@@ -87,7 +87,7 @@
        - name: Run python tests and collect coverage
          run: cd python/tests && pytest --cov=./ --cov-report=xml
        - name: Codecov
-         uses: codecov/codecov-action@v3.1.1
+         uses: codecov/codecov-action@v7.0.0
          with:
            verbose: true
            fail_ci_if_error: false

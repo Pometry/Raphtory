@@ -78,6 +78,7 @@ where
             self.gql.call(req).await
         } else if let Some(public_dir) = &self.public_dir {
             StaticFilesEndpoint::new(public_dir)
+                .index_file("index.html")
                 .fallback_to_index()
                 .call(req)
                 .await
@@ -101,5 +102,65 @@ where
                 EmbeddedFilesEndpoint::<PublicFolder>::new().call(req).await
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::PublicFilesEndpoint;
+    use poem::{
+        endpoint::make_sync,
+        http::{Method, StatusCode},
+        Endpoint, Request, Response,
+    };
+    use std::{fs, path::Path};
+    use tempfile::tempdir;
+
+    fn public_dir_endpoint(dir: &Path) -> impl Endpoint<Output = Response> {
+        PublicFilesEndpoint::new(
+            Some(dir.to_path_buf()),
+            make_sync(|_| Response::builder().body("gql")),
+        )
+    }
+
+    async fn get(endpoint: &impl Endpoint<Output = Response>, path: &str) -> Response {
+        let req = Request::builder()
+            .method(Method::GET)
+            .uri(path.parse().unwrap())
+            .finish();
+        endpoint
+            .call(req)
+            .await
+            .unwrap_or_else(|err| err.into_response())
+    }
+
+    #[tokio::test]
+    async fn public_dir_serves_index_for_spa_routes() {
+        let dir = tempdir().unwrap();
+        fs::write(dir.path().join("index.html"), "<html>ui</html>").unwrap();
+        let endpoint = public_dir_endpoint(dir.path());
+
+        for path in ["/", "/index.html", "/graphs", "/graphs/nested/route"] {
+            let resp = get(&endpoint, path).await;
+            assert_eq!(resp.status(), StatusCode::OK, "GET {path}");
+            assert_eq!(
+                resp.into_body().into_string().await.unwrap(),
+                "<html>ui</html>",
+                "GET {path}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn public_dir_serves_real_files() {
+        let dir = tempdir().unwrap();
+        fs::write(dir.path().join("index.html"), "<html>ui</html>").unwrap();
+        fs::create_dir(dir.path().join("assets")).unwrap();
+        fs::write(dir.path().join("assets").join("app.js"), "js-content").unwrap();
+        let endpoint = public_dir_endpoint(dir.path());
+
+        let resp = get(&endpoint, "/assets/app.js").await;
+        assert_eq!(resp.status(), StatusCode::OK);
+        assert_eq!(resp.into_body().into_string().await.unwrap(), "js-content");
     }
 }

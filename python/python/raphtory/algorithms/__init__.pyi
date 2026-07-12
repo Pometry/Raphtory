@@ -738,6 +738,7 @@ def louvain(
     resolution: float = 1.0,
     weight_prop: str | None = None,
     tol: None | float = None,
+    rng_seed: int | None = None,
 ) -> NodeStateUsize:
     """
     Louvain algorithm for community detection
@@ -747,6 +748,7 @@ def louvain(
         resolution (float): the resolution parameter for modularity. Defaults to 1.0.
         weight_prop (str | None): the edge property to use for weights (has to be float)
         tol (None | float): the floating point tolerance for deciding if improvements are significant (default: 1e-8)
+        rng_seed (int | None): seed for the rng used to shuffle nodes; if None, the rng is seeded from the OS (default: None)
 
     Returns:
         NodeStateUsize: Mapping of nodes to their community assignment

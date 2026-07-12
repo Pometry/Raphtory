@@ -70,7 +70,7 @@ Here we use the [Louvain][raphtory.algorithms.louvain] algorithm to identify dis
 
 /// tab | :fontawesome-brands-python: Python
 ```{.python continuation}
-clustering = algorithms.louvain(G)
+clustering = algorithms.louvain(G, rng_seed=42)
 
 # Extract unique cluster values
 unique_clusters = {cluster["community_id"] for node, cluster in clustering.items()}

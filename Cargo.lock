@@ -6514,6 +6514,7 @@ name = "raphtory-graphql"
 version = "0.18.0"
 dependencies = [
  "ahash",
+ "arrow",
  "async-graphql",
  "async-graphql-poem",
  "base64",
@@ -6535,6 +6536,7 @@ dependencies = [
  "opentelemetry-stdout",
  "opentelemetry_sdk",
  "parking_lot",
+ "parquet",
  "poem",
  "pretty_assertions",
  "pyo3",

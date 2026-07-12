@@ -219,35 +219,9 @@ mod test_filters_node_type_filtered_subgraph {
         };
         use raphtory_api::core::entities::properties::prop::Prop;
 
-        fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
-            let nodes = vec![
-                (6, "N1", vec![("p1", Prop::U64(2u64))], Some("air_nomad")),
-                (7, "N1", vec![("p1", Prop::U64(1u64))], Some("air_nomad")),
-                (6, "N2", vec![("p1", Prop::U64(1u64))], Some("water_tribe")),
-                (7, "N2", vec![("p1", Prop::U64(2u64))], Some("water_tribe")),
-                (8, "N3", vec![("p1", Prop::U64(1u64))], Some("air_nomad")),
-                (9, "N4", vec![("p1", Prop::U64(1u64))], Some("air_nomad")),
-                (5, "N5", vec![("p1", Prop::U64(1u64))], Some("air_nomad")),
-                (6, "N5", vec![("p1", Prop::U64(2u64))], Some("air_nomad")),
-                (5, "N6", vec![("p1", Prop::U64(1u64))], Some("fire_nation")),
-                (6, "N6", vec![("p1", Prop::U64(1u64))], Some("fire_nation")),
-                (3, "N7", vec![("p1", Prop::U64(1u64))], Some("air_nomad")),
-                (5, "N7", vec![("p1", Prop::U64(1u64))], Some("air_nomad")),
-                (3, "N8", vec![("p1", Prop::U64(1u64))], Some("fire_nation")),
-                (4, "N8", vec![("p1", Prop::U64(2u64))], Some("fire_nation")),
-            ];
+        use crate::filter_tests::{init_graph, Edges, Nodes};
 
-            // Add nodes to the graph
-            for (id, name, props, layer) in &nodes {
-                graph
-                    .add_node(*id, name, props.clone(), *layer, None)
-                    .unwrap();
-            }
-
-            graph
-        }
-
-        use crate::test_filters_node_type_filtered_subgraph::{
+        use crate::filter_tests::tests_node_type_filtered_subgraph::test_filters_node_type_filtered_subgraph::{
             NodeTypeGraphTransformer, WindowedNodeTypeGraphTransformer,
         };
         use raphtory::{
@@ -262,14 +236,14 @@ mod test_filters_node_type_filtered_subgraph {
             let filter = NodeFilter.property("p1").eq(1u64);
             let expected_results = vec!["N1", "N3", "N4", "N6", "N7"];
             assert_filter_nodes_results(
-                init_graph,
+                |graph| init_graph(graph, Nodes::Typed, Edges::None),
                 NodeTypeGraphTransformer(None),
                 filter.clone(),
                 &expected_results,
                 TestVariants::All,
             );
             assert_search_nodes_results(
-                init_graph,
+                |graph| init_graph(graph, Nodes::Typed, Edges::None),
                 NodeTypeGraphTransformer(None),
                 filter,
                 &expected_results,
@@ -281,14 +255,14 @@ mod test_filters_node_type_filtered_subgraph {
             let filter = NodeFilter.property("p1").eq(1u64);
             let expected_results = vec!["N1", "N3", "N4", "N7"];
             assert_filter_nodes_results(
-                init_graph,
+                |graph| init_graph(graph, Nodes::Typed, Edges::None),
                 NodeTypeGraphTransformer(node_types.clone()),
                 filter.clone(),
                 &expected_results,
                 TestVariants::All,
             );
             assert_search_nodes_results(
-                init_graph,
+                |graph| init_graph(graph, Nodes::Typed, Edges::None),
                 NodeTypeGraphTransformer(node_types),
                 filter,
                 &expected_results,
@@ -302,14 +276,14 @@ mod test_filters_node_type_filtered_subgraph {
             let filter = NodeFilter.property("p1").eq(1u64);
             let expected_results = vec!["N1", "N3", "N6"];
             assert_filter_nodes_results(
-                init_graph,
+                |graph| init_graph(graph, Nodes::Typed, Edges::None),
                 WindowedNodeTypeGraphTransformer(None, 6..9),
                 filter.clone(),
                 &expected_results,
                 vec![TestGraphVariants::Graph],
             );
             assert_search_nodes_results(
-                init_graph,
+                |graph| init_graph(graph, Nodes::Typed, Edges::None),
                 WindowedNodeTypeGraphTransformer(None, 6..9),
                 filter,
                 &expected_results,
@@ -321,14 +295,14 @@ mod test_filters_node_type_filtered_subgraph {
             let filter = NodeFilter.property("p1").eq(1u64);
             let expected_results = vec!["N1", "N3"];
             assert_filter_nodes_results(
-                init_graph,
+                |graph| init_graph(graph, Nodes::Typed, Edges::None),
                 WindowedNodeTypeGraphTransformer(node_types.clone(), 6..9),
                 filter.clone(),
                 &expected_results,
                 vec![TestGraphVariants::Graph],
             );
             assert_search_nodes_results(
-                init_graph,
+                |graph| init_graph(graph, Nodes::Typed, Edges::None),
                 WindowedNodeTypeGraphTransformer(node_types, 6..9),
                 filter,
                 &expected_results,
@@ -341,14 +315,14 @@ mod test_filters_node_type_filtered_subgraph {
             let filter = NodeFilter.property("p1").eq(1u64);
             let expected_results = vec!["N1", "N3", "N6", "N7"];
             assert_filter_nodes_results(
-                init_graph,
+                |graph| init_graph(graph, Nodes::Typed, Edges::None),
                 WindowedNodeTypeGraphTransformer(None, 6..9),
                 filter.clone(),
                 &expected_results,
                 TestVariants::PersistentOnly,
             );
             assert_search_nodes_results(
-                init_graph,
+                |graph| init_graph(graph, Nodes::Typed, Edges::None),
                 WindowedNodeTypeGraphTransformer(None, 6..9),
                 filter,
                 &expected_results,
@@ -360,14 +334,14 @@ mod test_filters_node_type_filtered_subgraph {
             let filter = NodeFilter.property("p1").eq(1u64);
             let expected_results = vec!["N1", "N3", "N7"];
             assert_filter_nodes_results(
-                init_graph,
+                |graph| init_graph(graph, Nodes::Typed, Edges::None),
                 WindowedNodeTypeGraphTransformer(node_types.clone(), 6..9),
                 filter.clone(),
                 &expected_results,
                 TestVariants::PersistentOnly,
             );
             assert_search_nodes_results(
-                init_graph,
+                |graph| init_graph(graph, Nodes::Typed, Edges::None),
                 WindowedNodeTypeGraphTransformer(node_types, 6..9),
                 filter,
                 &expected_results,
@@ -490,7 +464,7 @@ mod test_filters_node_type_filtered_subgraph {
             graph
         }
 
-        use crate::test_filters_node_type_filtered_subgraph::{
+        use crate::filter_tests::tests_node_type_filtered_subgraph::test_filters_node_type_filtered_subgraph::{
             LayeredNodeTypeGraphTransformer, LayeredWindowedNodeTypeGraphTransformer,
             NodeTypeGraphTransformer, WindowedNodeTypeGraphTransformer,
         };

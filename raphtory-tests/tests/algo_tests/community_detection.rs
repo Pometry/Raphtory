@@ -98,7 +98,7 @@ fn test_all_nodes_assigned_inner(edges: Vec<(u64, u64, f64)>) {
     }
 
     test_storage!(&graph, |graph| {
-        let result = louvain::<ModularityUnDir, _>(graph, 1.0, Some("weight"), None);
+        let result = louvain::<ModularityUnDir, _>(graph, 1.0, Some("weight"), None, Some(42));
         assert!(graph
             .nodes()
             .iter()
@@ -114,7 +114,7 @@ fn test_all_nodes_assigned_inner_unweighted(edges: Vec<(u64, u64)>) {
     }
 
     test_storage!(&graph, |graph| {
-        let result = louvain::<ModularityUnDir, _>(graph, 1.0, None, None);
+        let result = louvain::<ModularityUnDir, _>(graph, 1.0, None, None, Some(42));
         assert!(graph
             .nodes()
             .iter()
@@ -159,7 +159,7 @@ fn lfr_test() {
         .unwrap();
 
     test_storage!(&graph, |graph| {
-        let _ = louvain::<ModularityUnDir, _>(graph, 1.0, None, None);
+        let _ = louvain::<ModularityUnDir, _>(graph, 1.0, None, None, Some(42));
         // TODO: Add assertions
     });
 }

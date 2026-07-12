@@ -8,7 +8,7 @@ use arrow::{datatypes::DataType, error::ArrowError};
 use itertools::Itertools;
 use parquet::errors::ParquetError;
 use raphtory_api::core::entities::{
-    properties::prop::{InvalidPropertyTypeErr, PropError, PropType},
+    properties::prop::{InvalidPropertyTypeErr, PropError, PropType, PropTypeParseError},
     GidType, GID, VID,
 };
 use raphtory_core::entities::{
@@ -535,5 +535,13 @@ impl From<InvalidPropertyTypeErr> for LoadError {
 impl From<InvalidPropertyTypeErr> for GraphError {
     fn from(value: InvalidPropertyTypeErr) -> Self {
         GraphError::from(LoadError::from(value))
+    }
+}
+
+impl From<PropTypeParseError> for GraphError {
+    fn from(value: PropTypeParseError) -> Self {
+        GraphError::InvalidProperty {
+            reason: value.to_string(),
+        }
     }
 }
