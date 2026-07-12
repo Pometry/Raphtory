@@ -495,23 +495,20 @@ async fn server_termination(
 #[cfg(test)]
 mod server_tests {
     use crate::{
-        client::raphtory_client::RaphtoryGraphQLClient,
-        config::{
-            app_config::AppConfigBuilder,
-            otlp_config::{TracingLevel, TracingProtocol, ESSENTIAL_TRACE_SPANS},
-        },
-        server::GraphServer,
+        client::raphtory_client::RaphtoryGraphQLClient, config::{
+            app_config::AppConfigBuilder, otlp_config::{ESSENTIAL_TRACE_SPANS, TracingLevel, TracingProtocol},
+        }, server::{GraphServer, RunningGraphServer},
     };
     use chrono::prelude::*;
     use opentelemetry::trace::SpanId;
-    use opentelemetry_sdk::{logs::in_memory_exporter::LogDataWithResource, trace::SpanData};
+    use opentelemetry_sdk::{logs::{InMemoryLogExporter, in_memory_exporter::LogDataWithResource}, trace::{InMemorySpanExporter, SpanData}};
     use raphtory::{
         db::api::storage::storage::Config,
         prelude::{AdditionOps, Graph, StableEncode, NO_PROPS},
         vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate},
     };
     use raphtory_api::core::utils::logging::global_info_logger;
-    use tempfile::tempdir;
+    use tempfile::{tempdir, TempDir};
     use tokio::time::{sleep, Duration};
     use tracing::info;
 
@@ -584,54 +581,39 @@ mod server_tests {
         handler.await.unwrap().stop().await
     }
 
-    fn print_span_tree(spans: &[opentelemetry_sdk::trace::SpanData]) {
-        let mut children: HashMap<SpanId, Vec<&opentelemetry_sdk::trace::SpanData>> =
-            HashMap::new();
-
-        for span in spans {
-            children.entry(span.parent_span_id).or_default().push(span);
-        }
-
-        for span in spans
-            .iter()
-            .filter(|span| span.parent_span_id == SpanId::INVALID)
-            .collect::<Vec<_>>()
-        {
-            print_span_node(span, 0, &mut children);
-        }
-    }
-
-    fn print_span_node(
-        span: &opentelemetry_sdk::trace::SpanData,
-        depth: usize,
-        children: &mut HashMap<SpanId, Vec<&opentelemetry_sdk::trace::SpanData>>,
-    ) {
-        println!(
-            "{}{} [{} -> {}]",
-            "  ".repeat(depth),
-            span.name,
-            span.span_context.span_id(),
-            span.parent_span_id
-        );
-
-        if let Some(mut child_spans) = children.remove(&span.span_context.span_id()) {
-            child_spans.sort_by_key(|span| span.start_time);
-            for child in child_spans {
-                print_span_node(child, depth + 1, children);
+    const OPEN_TELEMETRY_QUERY: &str = "query {
+        updateGraph(path: \"g\") {
+            addNode(time: 1, name: 1, properties: [{ key: \"seed\", value: { str: \"yes\" } }], nodeType: \"seed\", layer: \"main\") {
+                success
+                node { id }
             }
+            addEdge(time: 5, src: 1, dst: 2, properties: [{ key: \"weight\", value: { f64: 1.5 } }], layer: \"main\") {
+                success
+            }
+            graph {
+                countNodes
+                hasNode(name: 1)
+            }
+            flush
         }
-    }
+    }";
 
-    #[tokio::test]
-    async fn test_open_telemetry_spans_complete() {
+    async fn setup_for_span_tests(
+        tracing_level: TracingLevel,
+    ) -> (
+        RaphtoryGraphQLClient,
+        RunningGraphServer,
+        InMemorySpanExporter,
+        InMemoryLogExporter,
+        TempDir,
+    ) {
         let tmp_dir = tempdir().unwrap();
         let graph = Graph::new();
-        graph.add_node(0, 0, NO_PROPS, None, None).unwrap();
         graph.encode(tmp_dir.path().join("g")).unwrap();
 
         let app_config = AppConfigBuilder::new()
             .with_tracing(true)
-            .with_tracing_level(TracingLevel::COMPLETE)
+            .with_tracing_level(tracing_level)
             .with_otlp_transport_protocol(TracingProtocol::IN_MEMORY)
             .build();
 
@@ -646,34 +628,19 @@ mod server_tests {
 
         let endpoint = Url::parse(&format!("http://localhost:{}/", handler.port())).unwrap();
         let client = RaphtoryGraphQLClient::new(endpoint, None);
+        let span_exporter = app_config.tracing.exporters.span_exporter.clone();
+        let log_exporter = app_config.tracing.exporters.log_exporter.clone();
+        (client, handler, span_exporter, log_exporter, tmp_dir)
+    }
 
-        let query = "query {
-            updateGraph(path: \"g\") {
-                addNode(time: 1, name: 1, properties: [{ key: \"seed\", value: { str: \"yes\" } }], nodeType: \"seed\", layer: \"main\") {
-                    success
-                    node { id }
-                }
-                addEdge(time: 5, src: 1, dst: 2, properties: [{ key: \"weight\", value: { f64: 1.5 } }], layer: \"main\") {
-                    success
-                }
-                graph {
-                    countNodes
-                    hasNode(name: 1)
-                }
-                flush
-            }
-        }";
-        client.query(&query, HashMap::new()).await;
-
+    #[tokio::test]
+    async fn test_open_telemetry_spans_complete() {
+        let (client, handler, span_exporter, log_exporter, _tmp_dir) =
+            setup_for_span_tests(TracingLevel::COMPLETE).await;
+        let _ = client.query(&OPEN_TELEMETRY_QUERY, HashMap::new()).await.unwrap();
         sleep(Duration::from_secs(5)).await;
         handler.stop().await;
-
-        let finished_spans = app_config
-            .tracing
-            .exporters
-            .span_exporter
-            .get_finished_spans()
-            .unwrap();
+        let finished_spans = span_exporter.get_finished_spans().unwrap();
         let all_spans: HashSet<String> = finished_spans.iter().map(|span| span.name.to_string()).collect();
         assert_eq!(all_spans, HashSet::from([
             "addEdge".to_string(),
@@ -691,68 +658,19 @@ mod server_tests {
             "updateGraph".to_string(),
             "validation".to_string(),
         ]));
-        let emitted_logs = app_config
-            .tracing
-            .exporters
-            .log_exporter
-            .get_emitted_logs()
-            .unwrap(); 
-        // assert!(emitted_logs.len() == 1);
+        let emitted_logs = log_exporter.get_emitted_logs().unwrap();
+        assert!(!emitted_logs.is_empty());
     }
 
 
     #[tokio::test]
     async fn test_open_telemetry_spans_essential() {
-        let tmp_dir = tempdir().unwrap();
-        let graph = Graph::new();
-        graph.add_node(0, 0, NO_PROPS, None, None).unwrap();
-        graph.encode(tmp_dir.path().join("g")).unwrap();
-
-        let app_config = AppConfigBuilder::new()
-            .with_tracing(true)
-            .with_tracing_level(TracingLevel::ESSENTIAL)
-            .with_otlp_transport_protocol(TracingProtocol::IN_MEMORY)
-            .build();
-
-        let server = GraphServer::new(
-            tmp_dir.path().to_path_buf(),
-            Some(app_config.clone()),
-            Config::default(),
-        )
-        .await
-        .unwrap();
-        let handler = server.start_with_port(0).await.unwrap();
-
-        let endpoint = Url::parse(&format!("http://localhost:{}/", handler.port())).unwrap();
-        let client = RaphtoryGraphQLClient::new(endpoint, None);
-
-        let query = "query {
-            updateGraph(path: \"g\") {
-                addNode(time: 1, name: 1, properties: [{ key: \"seed\", value: { str: \"yes\" } }], nodeType: \"seed\", layer: \"main\") {
-                    success
-                    node { id }
-                }
-                addEdge(time: 5, src: 1, dst: 2, properties: [{ key: \"weight\", value: { f64: 1.5 } }], layer: \"main\") {
-                    success
-                }
-                graph {
-                    countNodes
-                    hasNode(name: 1)
-                }
-                flush
-            }
-        }";
-        client.query(&query, HashMap::new()).await;
-
+        let (client, handler, span_exporter, log_exporter, _tmp_dir) =
+            setup_for_span_tests(TracingLevel::ESSENTIAL).await;
+        let _ = client.query(&OPEN_TELEMETRY_QUERY, HashMap::new()).await.unwrap();
         sleep(Duration::from_secs(5)).await;
         handler.stop().await;
-
-        let finished_spans = app_config
-            .tracing
-            .exporters
-            .span_exporter
-            .get_finished_spans()
-            .unwrap();
+        let finished_spans = span_exporter.get_finished_spans().unwrap();
         let all_spans: HashSet<String> = finished_spans.iter().map(|span| span.name.to_string()).collect();
         assert_eq!(all_spans, HashSet::from([
             "addEdge".to_string(),
@@ -765,80 +683,26 @@ mod server_tests {
             "updateGraph".to_string(),
             "validation".to_string(),
         ]));
-        let emitted_logs = app_config
-            .tracing
-            .exporters
-            .log_exporter
-            .get_emitted_logs()
-            .unwrap(); 
-        // assert!(emitted_logs.len() == 1);
+        let emitted_logs = log_exporter.get_emitted_logs().unwrap();
+        assert!(!emitted_logs.is_empty());
     }
 
     #[tokio::test]
     async fn test_open_telemetry_spans_minimal() {
-        let tmp_dir = tempdir().unwrap();
-        let graph = Graph::new();
-        graph.add_node(0, 0, NO_PROPS, None, None).unwrap();
-        graph.encode(tmp_dir.path().join("g")).unwrap();
-
-        let app_config = AppConfigBuilder::new()
-            .with_tracing(true)
-            .with_tracing_level(TracingLevel::MINIMAL)
-            .with_otlp_transport_protocol(TracingProtocol::IN_MEMORY)
-            .build();
-
-        let server = GraphServer::new(
-            tmp_dir.path().to_path_buf(),
-            Some(app_config.clone()),
-            Config::default(),
-        )
-        .await
-        .unwrap();
-        let handler = server.start_with_port(0).await.unwrap();
-
-        let endpoint = Url::parse(&format!("http://localhost:{}/", handler.port())).unwrap();
-        let client = RaphtoryGraphQLClient::new(endpoint, None);
-
-        let query = "query {
-            updateGraph(path: \"g\") {
-                addNode(time: 1, name: 1, properties: [{ key: \"seed\", value: { str: \"yes\" } }], nodeType: \"seed\", layer: \"main\") {
-                    success
-                    node { id }
-                }
-                addEdge(time: 5, src: 1, dst: 2, properties: [{ key: \"weight\", value: { f64: 1.5 } }], layer: \"main\") {
-                    success
-                }
-                graph {
-                    countNodes
-                    hasNode(name: 1)
-                }
-                flush
-            }
-        }";
-        client.query(&query, HashMap::new()).await;
-
+        let (client, handler, span_exporter, log_exporter, _tmp_dir) =
+            setup_for_span_tests(TracingLevel::MINIMAL).await;
+        let _ = client.query(&OPEN_TELEMETRY_QUERY, HashMap::new()).await.unwrap();
         sleep(Duration::from_secs(5)).await;
         handler.stop().await;
-
-        let finished_spans = app_config
-            .tracing
-            .exporters
-            .span_exporter
-            .get_finished_spans()
-            .unwrap();
-        let all_spans: HashSet<String> = finished_spans.iter().map(|span| span.name.to_string()).collect();
+        let finished_spans = span_exporter.get_finished_spans().unwrap();
+        let all_spans: HashSet<String> = finished_spans.iter().map(|span| span.name.to_string()).collect(); 
         assert_eq!(all_spans, HashSet::from([
             "execute".to_string(),
             "parse".to_string(),
             "request".to_string(),
             "validation".to_string(),
         ]));
-        let emitted_logs = app_config
-            .tracing
-            .exporters
-            .log_exporter
-            .get_emitted_logs()
-            .unwrap(); 
-        // assert!(emitted_logs.len() == 1);
+        let emitted_logs = log_exporter.get_emitted_logs().unwrap();
+        assert!(!emitted_logs.is_empty());
     }
 }

@@ -125,7 +125,7 @@ pub struct TracingConfig {
     pub transport_certificate: Option<PathBuf>,
     #[cfg(test)]
     #[serde(skip)]
-    // exposed in-memory exporters for testing
+    // Expose in-memory exporters to retrieve spans and logs in tests. 
     pub exporters: InMemoryExporters,
 }
 
