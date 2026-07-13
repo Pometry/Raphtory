@@ -173,6 +173,34 @@ impl TracingConfig {
         (tracer, logger)
     }
 
+    #[cfg(test)]
+    fn with_simple_exporter<
+        E: opentelemetry_sdk::trace::SpanExporter + 'static,
+        L: opentelemetry_sdk::logs::LogExporter + 'static,
+    >(
+        &self,
+        span_exporter: E,
+        log_exporter: L,
+    ) -> (SdkTracerProvider, SdkLoggerProvider) {
+        let resource = Resource::builder()
+            .with_attributes(vec![KeyValue::new(
+                "service.name",
+                self.service_name.clone(),
+            )])
+            .build();
+        let tracer = SdkTracerProvider::builder()
+            .with_simple_exporter(span_exporter)
+            .with_sampler(Sampler::AlwaysOn)
+            .with_resource(resource.clone())
+            .build();
+
+        let logger = SdkLoggerProvider::builder()
+            .with_simple_exporter(log_exporter)
+            .with_resource(resource)
+            .build();
+        (tracer, logger)
+    }
+
     pub async fn tracer_provider(
         &self,
     ) -> Result<Option<(SdkTracerProvider, SdkLoggerProvider)>, ServerError> {
@@ -281,7 +309,7 @@ impl TracingConfig {
                         "Sending traces to in-memory exporter with tracing level `{}`",
                         self.level
                     );
-                    Ok(self.with_exporter(
+                    Ok(self.with_simple_exporter(
                         self.exporters.span_exporter.clone(),
                         self.exporters.log_exporter.clone(),
                     ))
