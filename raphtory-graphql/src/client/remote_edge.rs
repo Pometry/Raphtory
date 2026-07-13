@@ -52,23 +52,28 @@ impl RemoteEdge {
         }
     }
 
-    /// Internal helper: clone `self` with a new `expr`. Keeps view-op builder
-    /// methods as one-liners; `base_graph` is preserved.
-    fn with_view(&self, expr: ReadExpr) -> RemoteEdge {
+    /// Internal helper: apply the same view op to both `expr` and
+    /// `base_graph`. Applying to `expr` narrows the edge's own view; applying
+    /// to `base_graph` ensures descendants navigated via `.src()` / `.dst()` /
+    /// `.nbr()` inherit the same narrowed graph view.
+    fn with_view_op<F>(&self, wrap: F) -> RemoteEdge
+    where
+        F: Fn(ReadExpr) -> ReadExpr,
+    {
         RemoteEdge {
             path: self.path.clone(),
             src: self.src.clone(),
             dst: self.dst.clone(),
             transport: self.transport.clone(),
-            expr,
-            base_graph: self.base_graph.clone(),
+            expr: wrap(self.expr.clone()),
+            base_graph: wrap(self.base_graph.clone()),
         }
     }
 
     /// Time-window this edge. Lazy — no RPC.
     pub fn window(&self, start: i64, end: i64) -> RemoteEdge {
-        self.with_view(ReadExpr::Window {
-            input: Box::new(self.expr.clone()),
+        self.with_view_op(|input| ReadExpr::Window {
+            input: Box::new(input),
             start,
             end,
         })
@@ -76,70 +81,72 @@ impl RemoteEdge {
 
     /// Restrict to a single named layer. Lazy — no RPC.
     pub fn layer(&self, name: impl ToString) -> RemoteEdge {
-        self.with_view(ReadExpr::Layer {
-            input: Box::new(self.expr.clone()),
-            name: name.to_string(),
+        let name = name.to_string();
+        self.with_view_op(|input| ReadExpr::Layer {
+            input: Box::new(input),
+            name: name.clone(),
         })
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
     pub fn at(&self, time: i64) -> RemoteEdge {
-        self.with_view(ReadExpr::At {
-            input: Box::new(self.expr.clone()),
+        self.with_view_op(|input| ReadExpr::At {
+            input: Box::new(input),
             time,
         })
     }
 
     /// Restrict to events strictly before the given time. Lazy — no RPC.
     pub fn before(&self, time: i64) -> RemoteEdge {
-        self.with_view(ReadExpr::Before {
-            input: Box::new(self.expr.clone()),
+        self.with_view_op(|input| ReadExpr::Before {
+            input: Box::new(input),
             time,
         })
     }
 
     /// Restrict to events at or after the given time. Lazy — no RPC.
     pub fn after(&self, time: i64) -> RemoteEdge {
-        self.with_view(ReadExpr::After {
-            input: Box::new(self.expr.clone()),
+        self.with_view_op(|input| ReadExpr::After {
+            input: Box::new(input),
             time,
         })
     }
 
     /// Latest state. Lazy — no RPC.
     pub fn latest(&self) -> RemoteEdge {
-        self.with_view(ReadExpr::Latest {
-            input: Box::new(self.expr.clone()),
+        self.with_view_op(|input| ReadExpr::Latest {
+            input: Box::new(input),
         })
     }
 
     /// Snapshot at the latest time. Lazy — no RPC.
     pub fn snapshot_latest(&self) -> RemoteEdge {
-        self.with_view(ReadExpr::SnapshotLatest {
-            input: Box::new(self.expr.clone()),
+        self.with_view_op(|input| ReadExpr::SnapshotLatest {
+            input: Box::new(input),
         })
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
     pub fn snapshot_at(&self, time: i64) -> RemoteEdge {
-        self.with_view(ReadExpr::SnapshotAt {
-            input: Box::new(self.expr.clone()),
+        self.with_view_op(|input| ReadExpr::SnapshotAt {
+            input: Box::new(input),
             time,
         })
     }
 
     /// Exclude a specific layer from the view. Lazy — no RPC.
     pub fn exclude_layer(&self, name: impl ToString) -> RemoteEdge {
-        self.with_view(ReadExpr::ExcludeLayer {
-            input: Box::new(self.expr.clone()),
-            name: name.to_string(),
+        let name = name.to_string();
+        self.with_view_op(|input| ReadExpr::ExcludeLayer {
+            input: Box::new(input),
+            name: name.clone(),
         })
     }
 
     /// Shrink both start and end of the current window. Lazy — no RPC.
     pub fn shrink_window(&self, start: i64, end: i64) -> RemoteEdge {
-        self.with_view(ReadExpr::ShrinkWindow {
-            input: Box::new(self.expr.clone()),
+        self.with_view_op(|input| ReadExpr::ShrinkWindow {
+            input: Box::new(input),
             start,
             end,
         })
@@ -147,40 +154,40 @@ impl RemoteEdge {
 
     /// Shrink the start of the current window. Lazy — no RPC.
     pub fn shrink_start(&self, start: i64) -> RemoteEdge {
-        self.with_view(ReadExpr::ShrinkStart {
-            input: Box::new(self.expr.clone()),
+        self.with_view_op(|input| ReadExpr::ShrinkStart {
+            input: Box::new(input),
             start,
         })
     }
 
     /// Shrink the end of the current window. Lazy — no RPC.
     pub fn shrink_end(&self, end: i64) -> RemoteEdge {
-        self.with_view(ReadExpr::ShrinkEnd {
-            input: Box::new(self.expr.clone()),
+        self.with_view_op(|input| ReadExpr::ShrinkEnd {
+            input: Box::new(input),
             end,
         })
     }
 
     /// Restrict to the default layer. Lazy — no RPC.
     pub fn default_layer(&self) -> RemoteEdge {
-        self.with_view(ReadExpr::DefaultLayer {
-            input: Box::new(self.expr.clone()),
+        self.with_view_op(|input| ReadExpr::DefaultLayer {
+            input: Box::new(input),
         })
     }
 
     /// Restrict to the given set of layers. Lazy — no RPC.
     pub fn layers(&self, names: Vec<String>) -> RemoteEdge {
-        self.with_view(ReadExpr::Layers {
-            input: Box::new(self.expr.clone()),
-            names,
+        self.with_view_op(|input| ReadExpr::Layers {
+            input: Box::new(input),
+            names: names.clone(),
         })
     }
 
     /// Exclude the given set of layers from the view. Lazy — no RPC.
     pub fn exclude_layers(&self, names: Vec<String>) -> RemoteEdge {
-        self.with_view(ReadExpr::ExcludeLayers {
-            input: Box::new(self.expr.clone()),
-            names,
+        self.with_view_op(|input| ReadExpr::ExcludeLayers {
+            input: Box::new(input),
+            names: names.clone(),
         })
     }
 

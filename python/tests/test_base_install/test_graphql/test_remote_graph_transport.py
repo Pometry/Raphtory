@@ -671,6 +671,87 @@ def test_edge_nbr_navigation():
         server_cm.__exit__(None, None, None)
 
 
+def test_collection_view_chain_builders():
+    """RemoteNodes and RemoteEdges have full view-chain builder parity with
+    the parent Graph — `.window`, `.at`, `.before`, `.after`, `.latest`,
+    `.snapshot_at`, `.snapshot_latest`, `.shrink_*`, `.default_layer`,
+    `.layer`, `.layers`, `.exclude_layer`, `.exclude_layers`. All lazy."""
+    server_cm, rg = _make_graph_with_edge()
+    # Add a second edge event to distinguish windowed views clearly.
+    rg.add_edge(8, "ben", "hamza")
+    try:
+        # Collection membership is "sticky" — narrowing the view of an already-
+        # materialized `.nodes` / `.edges` handle doesn't change its count.
+        # Contrast with pre-selection (`rg.window(...).nodes`) where the graph-
+        # level view filters membership. Same semantics as node/edge selection.
+        assert rg.nodes.window(0, 5).count() == 2
+        assert rg.nodes.window(100, 200).count() == 2   # sticky!
+        assert rg.window(100, 200).nodes.count() == 0   # graph-level filters
+        # Same story on edges — collection membership sticks; view narrows.
+        assert rg.edges.window(0, 5).count() == 1
+        assert rg.edges.window(100, 200).count() == 1   # sticky
+        assert rg.window(100, 200).edges.count() == 0   # graph-level filters
+
+        # at / before / after / latest / snapshot compose without membership change on nodes.
+        assert rg.nodes.at(3).count() == 2
+        assert rg.nodes.before(5).count() == 2
+        assert rg.nodes.after(5).count() == 2
+        assert rg.nodes.latest().count() == 2
+        assert rg.nodes.snapshot_latest().count() == 2
+        assert rg.nodes.snapshot_at(3).count() == 2
+
+        # Layer ops on edges — same sticky semantics: count unchanged, view narrows.
+        assert rg.edges.default_layer().count() == 1
+        assert rg.edges.layer("_default").count() == 1
+        assert rg.edges.layers(["_default"]).count() == 1
+        assert rg.edges.exclude_layer("_default").count() == 1
+        assert rg.edges.exclude_layers(["_default"]).count() == 1
+
+        # `.start` reflects the collection's own view bound.
+        assert rg.nodes.window(0, 5).start() == 0
+        assert rg.nodes.window(0, 5).end() == 5
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_collection_view_chain_composes_with_materialization():
+    """Materialized handles from a view-narrowed collection carry the view
+    forward — tests `base_graph` propagation through view builders on the
+    collection. `for n in ...:` uses `__iter__` which delegates to `.list()`;
+    both paths hit the same base_graph plumbing."""
+    server_cm, rg = _make_graph_with_edge()
+    rg.add_edge(8, "ben", "hamza")
+    try:
+        # Iterate over a window-narrowed collection — each yielded handle
+        # should see the windowed view.
+        for n in rg.nodes.window(0, 5):
+            if n.name() == "ben":
+                # Only the t=3 edge is visible in [0, 5) — ben's history count is 1.
+                assert n.edge_history_count() == 1
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_node_view_chain_propagates_through_neighbour_materialization():
+    """Regression for the same `base_graph` bug — but on `RemoteNode`. If
+    view builders on Node don't update `base_graph`, then materialized
+    neighbours would revert to the unwindowed graph view."""
+    server_cm, rg = _make_graph_with_edge()
+    rg.add_edge(8, "ben", "hamza")
+    try:
+        # Take ben, narrow to [0, 5), then materialize his out_neighbours.
+        # Each neighbour should still see the windowed view — meaning
+        # hamza's edge_history_count under that view is 1, not 2.
+        for n in rg.node("ben").window(0, 5).out_neighbours:
+            assert n.name() == "hamza"
+            assert n.edge_history_count() == 1, (
+                "expected 1 under [0,5) window. If this is 2, base_graph is "
+                "not propagating through RemoteNode's view builders."
+            )
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
 def test_collection_view_bounds():
     """`.start()` / `.end()` on RemoteNodes and RemoteEdges report the
     inherited view bound. `None` when the parent view is unbounded, matching

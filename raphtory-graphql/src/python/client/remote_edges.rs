@@ -31,6 +31,81 @@ impl PyRemoteEdges {
 
 #[pymethods]
 impl PyRemoteEdges {
+    /// Time-window this collection. Lazy — no RPC.
+    pub fn window(&self, start: i64, end: i64) -> PyRemoteEdges {
+        PyRemoteEdges::new(self.edges.window(start, end))
+    }
+
+    /// Restrict to a single named layer. Lazy — no RPC.
+    pub fn layer(&self, name: &str) -> PyRemoteEdges {
+        PyRemoteEdges::new(self.edges.layer(name))
+    }
+
+    /// Snapshot at a specific time. Lazy — no RPC.
+    pub fn at(&self, time: i64) -> PyRemoteEdges {
+        PyRemoteEdges::new(self.edges.at(time))
+    }
+
+    /// Restrict to events strictly before the given time. Lazy — no RPC.
+    pub fn before(&self, time: i64) -> PyRemoteEdges {
+        PyRemoteEdges::new(self.edges.before(time))
+    }
+
+    /// Restrict to events strictly after the given time. Lazy — no RPC.
+    pub fn after(&self, time: i64) -> PyRemoteEdges {
+        PyRemoteEdges::new(self.edges.after(time))
+    }
+
+    /// Latest state. Lazy — no RPC.
+    pub fn latest(&self) -> PyRemoteEdges {
+        PyRemoteEdges::new(self.edges.latest())
+    }
+
+    /// Snapshot at the latest time. Lazy — no RPC.
+    pub fn snapshot_latest(&self) -> PyRemoteEdges {
+        PyRemoteEdges::new(self.edges.snapshot_latest())
+    }
+
+    /// Snapshot at a specific time. Lazy — no RPC.
+    pub fn snapshot_at(&self, time: i64) -> PyRemoteEdges {
+        PyRemoteEdges::new(self.edges.snapshot_at(time))
+    }
+
+    /// Exclude a specific layer. Lazy — no RPC.
+    pub fn exclude_layer(&self, name: &str) -> PyRemoteEdges {
+        PyRemoteEdges::new(self.edges.exclude_layer(name))
+    }
+
+    /// Shrink both start and end of the current window. Lazy — no RPC.
+    pub fn shrink_window(&self, start: i64, end: i64) -> PyRemoteEdges {
+        PyRemoteEdges::new(self.edges.shrink_window(start, end))
+    }
+
+    /// Shrink the start of the current window. Lazy — no RPC.
+    pub fn shrink_start(&self, start: i64) -> PyRemoteEdges {
+        PyRemoteEdges::new(self.edges.shrink_start(start))
+    }
+
+    /// Shrink the end of the current window. Lazy — no RPC.
+    pub fn shrink_end(&self, end: i64) -> PyRemoteEdges {
+        PyRemoteEdges::new(self.edges.shrink_end(end))
+    }
+
+    /// Restrict to the default layer. Lazy — no RPC.
+    pub fn default_layer(&self) -> PyRemoteEdges {
+        PyRemoteEdges::new(self.edges.default_layer())
+    }
+
+    /// Restrict to the given set of layers. Lazy — no RPC.
+    pub fn layers(&self, names: Vec<String>) -> PyRemoteEdges {
+        PyRemoteEdges::new(self.edges.layers(names))
+    }
+
+    /// Exclude the given set of layers. Lazy — no RPC.
+    pub fn exclude_layers(&self, names: Vec<String>) -> PyRemoteEdges {
+        PyRemoteEdges::new(self.edges.exclude_layers(names))
+    }
+
     /// Returns the number of edges in this collection. Fires one RPC.
     ///
     /// Returns:
