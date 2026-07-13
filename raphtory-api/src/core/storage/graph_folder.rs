@@ -4,7 +4,8 @@
 //!
 //! GraphFolder
 //! ├── .raph        # Metadata file (json: {path: "data{id}"}) pointing at the current data folder
-//! └── data{id}/    # Data folder (incremental id for atomic replacement)
+//! ├── (.dirty)     # Optional, has same format as .raph; present only during atomic swap of data folders
+//! └── data{id}/    # DataFolder (incremental id for atomic replacement)
 //!     ├── .meta         # Metadata file (json: {path: "graph{id}", meta: {}}) pointing at the current graph folder
 //!     ├── graph{id}/    # Graph data (incremental id for atomic replacement)
 //!     ├── index/        # Search indexes (optional)
@@ -57,7 +58,7 @@ pub struct GraphMetadata {
 
 impl Metadata {
     /// Atomically write this metadata into the data folder at `data_path`
-    pub fn write_atomic(&self, data_path: &Path, meta_path: &Path) -> std::io::Result<()> {
+    pub fn write(&self, data_path: &Path, meta_path: &Path) -> std::io::Result<()> {
         let mut tmp_file = NamedTempFile::new_in(data_path)?;
         serde_json::to_writer(&mut tmp_file, self).map_err(std::io::Error::other)?;
         tmp_file.as_file().sync_all()?;
@@ -214,8 +215,8 @@ pub trait GraphPaths {
         self.root().join(ROOT_META_PATH)
     }
 
-    fn data_path(&self) -> Result<InnerGraphFolder, GraphFolderError> {
-        Ok(InnerGraphFolder {
+    fn data_path(&self) -> Result<DataFolder, GraphFolderError> {
+        Ok(DataFolder {
             path: self.root().join(self.relative_data_path()?),
         })
     }
@@ -295,7 +296,7 @@ pub trait GraphPaths {
     }
 
     fn write_metadata(&self, meta: Metadata) -> Result<(), GraphFolderError> {
-        meta.write_atomic(self.data_path()?.as_ref(), self.meta_path()?.as_ref())?;
+        meta.write(self.data_path()?.as_ref(), self.meta_path()?.as_ref())?;
         Ok(())
     }
 
@@ -351,13 +352,13 @@ impl<P: AsRef<Path> + ?Sized> GraphPaths for P {
 
 #[derive(Clone, Debug, PartialOrd, PartialEq, Ord, Eq)]
 pub struct GraphFolder {
-    root_folder: PathBuf,
+    root: PathBuf,
     pub write_as_zip_format: bool,
 }
 
 impl GraphPaths for GraphFolder {
     fn root(&self) -> &Path {
-        &self.root_folder
+        &self.root
     }
 }
 
@@ -370,23 +371,29 @@ impl GraphFolder {
         }
     }
 
-    /// Reserve a folder, marking it as occupied by a graph.
-    /// Returns an error if the folder has data.
+    /// Reserve a folder and prepare it for storing a graph.
+    /// Returns an error if the folder already has data OR is to be encoded as zip.
     pub fn init_write(self) -> Result<WriteableGraphFolder, GraphFolderError> {
         if self.write_as_zip_format {
             return Err(GraphFolderError::ZippedGraphCannotBeSwapped);
         }
+
         let relative_data_path = self.relative_data_path()?;
         let meta = serde_json::to_string(&RelativePath {
             path: relative_data_path.clone(),
         })?;
+
         self.ensure_clean_root_dir()?;
-        let metapath = self.root_folder.join(DIRTY_PATH);
-        let mut path_file = File::create_new(&metapath)?;
+
+        // Create a .dirty file to indicate that a graph is being written.
+        let dirty_path = self.root.join(DIRTY_PATH);
+        let mut path_file = File::create_new(&dirty_path)?;
+
         path_file.write_all(meta.as_bytes())?;
-        fs::create_dir_all(self.root_folder.join(relative_data_path))?;
+        fs::create_dir_all(self.root.join(relative_data_path))?;
+
         Ok(WriteableGraphFolder {
-            path: self.root_folder,
+            path: self.root,
         })
     }
 
@@ -402,7 +409,7 @@ impl GraphFolder {
         let old_swap = match read_path_pointer(self.root(), DIRTY_PATH, DATA_PATH) {
             Ok(path) => path,
             Err(_) => {
-                fs::remove_file(self.root_folder.join(DIRTY_PATH))?; // dirty file is corrupted, clean it up
+                fs::remove_file(self.root.join(DIRTY_PATH))?; // dirty file is corrupted, clean it up
                 None
             }
         };
@@ -411,7 +418,7 @@ impl GraphFolder {
 
         let swap_path = match old_swap {
             Some(relative_path) => {
-                let swap_path = self.root_folder.join(relative_path);
+                let swap_path = self.root.join(relative_path);
                 if swap_path.exists() {
                     fs::remove_dir_all(&swap_path)?;
                 }
@@ -420,11 +427,11 @@ impl GraphFolder {
             None => {
                 let new_relative_data_path =
                     make_path_pointer(self.root(), ROOT_META_PATH, DATA_PATH)?;
-                let new_data_path = self.root_folder.join(&new_relative_data_path);
+                let new_data_path = self.root.join(&new_relative_data_path);
                 let meta = serde_json::to_string(&RelativePath {
                     path: new_relative_data_path,
                 })?;
-                let mut dirty_file = File::create_new(self.root_folder.join(DIRTY_PATH))?;
+                let mut dirty_file = File::create_new(self.root.join(DIRTY_PATH))?;
                 dirty_file.write_all(meta.as_bytes())?;
                 dirty_file.sync_all()?;
                 new_data_path
@@ -432,7 +439,7 @@ impl GraphFolder {
         };
         fs::create_dir_all(swap_path)?;
         Ok(WriteableGraphFolder {
-            path: self.root_folder,
+            path: self.root,
         })
     }
 
@@ -444,8 +451,8 @@ impl GraphFolder {
             ));
         }
 
-        fs::remove_dir_all(&self.root_folder)?;
-        fs::create_dir_all(&self.root_folder)?;
+        fs::remove_dir_all(&self.root)?;
+        fs::create_dir_all(&self.root)?;
         Ok(())
     }
 
@@ -465,15 +472,15 @@ impl GraphFolder {
     }
 
     fn ensure_clean_root_dir(&self) -> Result<(), GraphFolderError> {
-        if self.root_folder.exists() {
-            let non_empty = self.root_folder.read_dir()?.next().is_some();
+        if self.root.exists() {
+            let non_empty = self.root.read_dir()?.next().is_some();
             if non_empty {
                 return Err(GraphFolderError::NonEmptyGraphFolder(
-                    self.root_folder.clone(),
+                    self.root.clone(),
                 ));
             }
         } else {
-            fs::create_dir(&self.root_folder)?
+            fs::create_dir(&self.root)?
         }
 
         Ok(())
@@ -487,16 +494,16 @@ impl GraphFolder {
     /// Creates a zip file from the folder.
     pub fn zip_from_folder<W: Write + Seek>(&self, mut writer: W) -> Result<(), GraphFolderError> {
         if self.is_zip() {
-            let mut reader = File::open(&self.root_folder)?;
+            let mut reader = File::open(&self.root)?;
             io::copy(&mut reader, &mut writer)?;
         } else {
             let mut zip = ZipWriter::new(writer);
-            for entry in WalkDir::new(&self.root_folder)
+            for entry in WalkDir::new(&self.root)
                 .into_iter()
                 .filter_map(Result::ok)
             {
                 let path = entry.path();
-                let rel_path = path.strip_prefix(&self.root_folder).map_err(|e| {
+                let rel_path = path.strip_prefix(&self.root).map_err(|e| {
                     GraphFolderError::IOErrorMsg(format!("Failed to strip prefix from path: {}", e))
                 })?;
 
@@ -575,30 +582,30 @@ impl WriteableGraphFolder {
             }
         }
         Ok(GraphFolder {
-            root_folder: self.path,
+            root: self.path,
             write_as_zip_format: false,
         })
     }
 }
 
 #[derive(Clone, Debug)]
-pub struct InnerGraphFolder {
+pub struct DataFolder {
     path: PathBuf,
 }
 
-impl AsRef<Path> for InnerGraphFolder {
+impl AsRef<Path> for DataFolder {
     fn as_ref(&self) -> &Path {
         &self.path
     }
 }
 
-impl InnerGraphFolder {
+impl DataFolder {
     pub fn new(path: impl Into<PathBuf>) -> Self {
         Self { path: path.into() }
     }
 
     pub fn write_metadata(&self, meta: Metadata) -> Result<(), GraphFolderError> {
-        meta.write_atomic(self.as_ref(), &self.meta_path())?;
+        meta.write(self.as_ref(), &self.meta_path())?;
         Ok(())
     }
 
@@ -737,7 +744,7 @@ impl<P: AsRef<Path>> From<P> for GraphFolder {
     fn from(value: P) -> Self {
         let path: &Path = value.as_ref();
         Self {
-            root_folder: path.to_path_buf(),
+            root: path.to_path_buf(),
             write_as_zip_format: false,
         }
     }

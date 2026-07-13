@@ -20,7 +20,7 @@ use node_page::writer::NodeWriter;
 use node_store::NodeStorageInner;
 use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::{
-    entities::properties::meta::Meta, storage::graph_folder::InnerGraphFolder,
+    entities::properties::meta::Meta, storage::graph_folder::DataFolder,
 };
 use rayon::prelude::*;
 use std::{
@@ -86,7 +86,7 @@ impl<
                 graph_dir.parent(),
                 graph_dir.file_name().and_then(|name| name.to_str()),
             ) {
-                InnerGraphFolder::new(data_folder).refresh_metadata(
+                DataFolder::new(data_folder).refresh_metadata(
                     graph_path,
                     self.nodes.num_nodes(),
                     self.edges.num_edges(),
