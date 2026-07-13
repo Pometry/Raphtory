@@ -1,6 +1,6 @@
 use crate::client::{
     op::{Op, ReadExpr},
-    remote_graph::{expect_i64, expect_string_list},
+    remote_graph::{expect_i64, expect_optional_i64, expect_string_list},
     remote_node::RemoteNode,
     transport::Transport,
     ClientError,
@@ -60,6 +60,24 @@ impl RemoteNodes {
             input: Box::new(self.expr.clone()),
         });
         expect_i64(self.transport.execute(&op).await?, "count")
+    }
+
+    /// Terminal: view start bound for this collection — `None` if unbounded.
+    /// Fires one RPC.
+    pub async fn start(&self) -> Result<Option<i64>, ClientError> {
+        let op = Op::Read(ReadExpr::Start {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_optional_i64(self.transport.execute(&op).await?, "start")
+    }
+
+    /// Terminal: view end bound for this collection — `None` if unbounded.
+    /// Fires one RPC.
+    pub async fn end(&self) -> Result<Option<i64>, ClientError> {
+        let op = Op::Read(ReadExpr::End {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_optional_i64(self.transport.execute(&op).await?, "end")
     }
 
     /// Materialize this collection as a `Vec<RemoteNode>`. Fires one RPC to

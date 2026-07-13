@@ -40,6 +40,18 @@ impl PyRemoteEdges {
         execute_async_task(move || async move { edges.count().await })
     }
 
+    /// View start bound for this collection — `None` if unbounded. Fires one RPC.
+    pub fn start(&self) -> Result<Option<i64>, ClientError> {
+        let edges = Arc::clone(&self.edges);
+        execute_async_task(move || async move { edges.start().await })
+    }
+
+    /// View end bound for this collection — `None` if unbounded. Fires one RPC.
+    pub fn end(&self) -> Result<Option<i64>, ClientError> {
+        let edges = Arc::clone(&self.edges);
+        execute_async_task(move || async move { edges.end().await })
+    }
+
     /// Materialize this collection as a list of `RemoteEdge` handles.
     ///
     /// Fires one RPC (to fetch each edge's `(src, dst)` pair); each returned

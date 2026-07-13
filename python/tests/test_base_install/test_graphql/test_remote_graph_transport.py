@@ -671,6 +671,35 @@ def test_edge_nbr_navigation():
         server_cm.__exit__(None, None, None)
 
 
+def test_collection_view_bounds():
+    """`.start()` / `.end()` on RemoteNodes and RemoteEdges report the
+    inherited view bound. `None` when the parent view is unbounded, matching
+    the semantics on Graph / Node / Edge."""
+    server_cm, rg = _make_graph_with_edge()
+    try:
+        # Unbounded — both bounds are None.
+        assert rg.nodes.start() is None
+        assert rg.nodes.end() is None
+        assert rg.edges.start() is None
+        assert rg.edges.end() is None
+
+        # Bounded via graph-level window — inherited by collections.
+        assert rg.window(0, 5).nodes.start() == 0
+        assert rg.window(0, 5).nodes.end() == 5
+        assert rg.window(0, 5).edges.start() == 0
+        assert rg.window(0, 5).edges.end() == 5
+
+        # One-sided bounds propagate to collections too.
+        # `before(5)` is exclusive upper — end reports the boundary time.
+        assert rg.before(5).nodes.start() is None
+        assert rg.before(5).nodes.end() == 5
+        # `after(5)` is exclusive lower — effective start is 6.
+        assert rg.after(5).edges.start() == 6
+        assert rg.after(5).edges.end() is None
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
 def test_graph_unique_layers():
     """`unique_layers` returns the list of layer names present in the graph."""
     server_cm, rg = _make_graph_with_edge()

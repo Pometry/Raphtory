@@ -48,6 +48,18 @@ impl PyRemoteNodes {
         execute_async_task(move || async move { nodes.count().await })
     }
 
+    /// View start bound for this collection — `None` if unbounded. Fires one RPC.
+    pub fn start(&self) -> Result<Option<i64>, ClientError> {
+        let nodes = Arc::clone(&self.nodes);
+        execute_async_task(move || async move { nodes.start().await })
+    }
+
+    /// View end bound for this collection — `None` if unbounded. Fires one RPC.
+    pub fn end(&self) -> Result<Option<i64>, ClientError> {
+        let nodes = Arc::clone(&self.nodes);
+        execute_async_task(move || async move { nodes.end().await })
+    }
+
     /// Materialize this collection as a list of `RemoteNode` handles.
     ///
     /// Fires one RPC (to fetch the ids); each returned node wraps its id in a
