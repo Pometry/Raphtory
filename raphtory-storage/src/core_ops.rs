@@ -38,14 +38,6 @@ pub trait CoreGraphOps: Send + Sync {
         }
     }
 
-    // fn num_shards(&self) -> usize {
-    //     match self.core_graph() {
-    //         GraphStorage::Mem(LockedGraph { graph, .. }) | GraphStorage::Unlocked(graph) => {
-    //             graph.storage.num_shards()
-    //         }
-    //     }
-    // }
-
     /// get the current sequence id without incrementing the counter
     fn read_event_id(&self) -> usize {
         match self.core_graph() {

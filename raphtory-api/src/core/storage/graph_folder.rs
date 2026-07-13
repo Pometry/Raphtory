@@ -3,10 +3,10 @@
 //! Folder structure:
 //!
 //! GraphFolder
-//! ├── .raph         # Metadata file (json: {path: "data{id}"}) pointing at the current data folder
+//! ├── .raph        # Metadata file (json: {path: "data{id}"}) pointing at the current data folder
 //! └── data{id}/    # Data folder (incremental id for atomic replacement)
 //!     ├── .meta         # Metadata file (json: {path: "graph{id}", meta: {}}) pointing at the current graph folder
-//!     ├── graph{id}/   # Graph data (incremental id for atomic replacement)
+//!     ├── graph{id}/    # Graph data (incremental id for atomic replacement)
 //!     ├── index/        # Search indexes (optional)
 //!     └── vectors/      # Vector embeddings (optional)
 
@@ -103,11 +103,12 @@ pub enum GraphFolderError {
     GraphPathChanged { recorded: String, actual: String },
 }
 
-pub fn valid_path_pointer(relative_path: &str, prefix: &str) -> Result<(), GraphFolderError> {
+pub fn validate_path_pointer(relative_path: &str, prefix: &str) -> Result<(), GraphFolderError> {
     relative_path
         .strip_prefix(prefix) // should have the prefix
         .and_then(parse_u64_strict) // the remainder should be the id
         .ok_or_else(|| GraphFolderError::InvalidRelativePath(relative_path.to_string()))?;
+
     Ok(())
 }
 
@@ -115,7 +116,7 @@ fn read_path_from_file(mut file: impl Read, prefix: &str) -> Result<String, Grap
     let mut value = String::new();
     file.read_to_string(&mut value)?;
     let path: RelativePath = serde_json::from_str(&value)?;
-    valid_path_pointer(&path.path, prefix)?;
+    validate_path_pointer(&path.path, prefix)?;
     Ok(path.path)
 }
 
@@ -649,18 +650,21 @@ impl InnerGraphFolder {
     /// Atomically point the metadata file at the graph data described by `meta`, removing the
     /// previously-referenced graph directory if the path changed.
     ///
-    /// NOTE: this does NOT encode the graph data itself. The caller must have already written
-    /// the graph data into the directory in `meta.path` (see `replace_graph` in `raphtory`)
+    /// NOTE: this does NOT encode the graph data itself. The caller must have already written the
+    /// graph data into the directory in `meta.path` (see `replace_graph_in_folder` in `raphtory`)
     pub fn replace_graph_path(&self, meta: Metadata) -> Result<(), GraphFolderError> {
         let old_relative_graph_path = self.relative_graph_path()?;
         let path_changed = meta.path != old_relative_graph_path;
 
         self.write_metadata(meta)?;
+
         if path_changed {
             fs::remove_dir_all(self.as_ref().join(&old_relative_graph_path))?;
         }
+
         Ok(())
     }
+
     pub fn vectors_path(&self) -> PathBuf {
         self.path.join(VECTORS_PATH)
     }
