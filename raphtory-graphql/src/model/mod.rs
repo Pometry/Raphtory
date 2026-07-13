@@ -800,6 +800,7 @@ impl Mut {
             }
         })
         .await?;
+        new_subgraph.flush()?;
 
         data.insert_graph(folder, new_subgraph).await?;
         if let Err(e) = auto_grant_on_create(ctx, &data.auth_policy, &new_path) {
