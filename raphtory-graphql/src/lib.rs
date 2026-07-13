@@ -583,6 +583,44 @@ mod graphql_test {
     }
 
     #[tokio::test]
+    async fn test_algorithm_pagerank() {
+        let graph = Graph::new();
+        graph.add_edge(1, "a", "b", NO_PROPS, None).unwrap();
+        graph.add_edge(2, "b", "c", NO_PROPS, None).unwrap();
+        graph.add_edge(3, "c", "a", NO_PROPS, None).unwrap();
+        let graph: MaterializedGraph = graph.into();
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", graph)], tmp_dir.path()).await;
+
+        let query = r#"
+        {
+          graph(path: "g") {
+            algorithm {
+              pagerank(iterCount: 20) {
+                count
+              }
+            }
+          }
+        }
+        "#;
+
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        assert_eq!(
+            res.data.into_json().unwrap(),
+            json!({
+                "graph": {
+                    "algorithm": {
+                        "pagerank": {
+                            "count": 3
+                        }
+                    }
+                }
+            })
+        );
+    }
+
+    #[tokio::test]
     async fn test_degree_filter_nodes_and_select_gql() {
         let graph: MaterializedGraph = degree_graph_with_add_node_and_add_edge().into();
         let tmp_dir = tempdir().unwrap();

@@ -45,6 +45,7 @@ use raphtory::{
 use std::sync::Arc;
 use tracing::warn;
 
+pub(crate) mod algorithms;
 pub mod graph;
 pub mod plugins;
 pub(crate) mod schema;

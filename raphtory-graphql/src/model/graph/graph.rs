@@ -15,6 +15,7 @@ use crate::{
             windowset::GqlGraphWindowSet,
             GqlAlignmentUnit, WindowDuration,
         },
+        algorithms::GqlAlgorithms,
         plugins::graph_algorithm_plugin::GraphAlgorithmPlugin,
         schema::graph_schema::GraphSchema,
     },
@@ -638,6 +639,11 @@ impl GqlGraph {
     /// graph view. The set of available algorithms is defined by the plugin registry
     /// loaded at server startup.
     async fn algorithms(&self) -> GraphAlgorithmPlugin {
+        self.graph.clone().into()
+    }
+
+    /// Access the algorithms that can be run on this graph view.
+    async fn algorithm(&self) -> GqlAlgorithms {
         self.graph.clone().into()
     }
 
