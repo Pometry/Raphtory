@@ -658,7 +658,7 @@ mod server_tests {
             "validation".to_string(),
         ]));
         let emitted_logs = log_exporter.get_emitted_logs().unwrap();
-        // assert!(!emitted_logs.is_empty());
+        assert!(!emitted_logs.is_empty());
     }
 
 
@@ -682,7 +682,7 @@ mod server_tests {
             "validation".to_string(),
         ]));
         let emitted_logs = log_exporter.get_emitted_logs().unwrap();
-        // assert!(!emitted_logs.is_empty());
+        assert!(!emitted_logs.is_empty());
     }
 
     #[tokio::test]
@@ -700,6 +700,6 @@ mod server_tests {
             "validation".to_string(),
         ]));
         let emitted_logs = log_exporter.get_emitted_logs().unwrap();
-        // assert!(!emitted_logs.is_empty());
+        assert!(!emitted_logs.is_empty());
     }
 }
