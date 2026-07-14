@@ -4,7 +4,7 @@ use crate::{
     db::api::state::{GenericNodeState, TypedNodeState},
     prelude::GraphViewOps,
 };
-use rand::prelude::SliceRandom;
+use rand::{prelude::SliceRandom, rngs::StdRng, SeedableRng};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
@@ -20,6 +20,7 @@ pub struct LouvainState {
 /// - `resolution` (float): the resolution parameter for modularity
 /// - `weight_prop` (str | None): the edge property to use for weights (has to be float)
 /// - `tol` (None | float): the floating point tolerance for deciding if improvements are significant (default: 1e-8)
+/// - `rng_seed` (None | u64): seed for the rng used to shuffle nodes; if `None`, the rng is seeded from the OS (default: None)
 ///
 /// # Returns
 ///
@@ -29,9 +30,13 @@ pub fn louvain<'graph, M: ModularityFunction, G: GraphViewOps<'graph>>(
     resolution: f64,
     weight_prop: Option<&str>,
     tol: Option<f64>,
+    rng_seed: Option<u64>,
 ) -> TypedNodeState<'graph, LouvainState, G> {
     let tol = tol.unwrap_or(1e-8);
-    let mut rng = rand::rng();
+    let mut rng = match rng_seed {
+        Some(seed) => StdRng::seed_from_u64(seed),
+        None => StdRng::from_os_rng(),
+    };
     let mut modularity_state = M::new(
         g,
         weight_prop,

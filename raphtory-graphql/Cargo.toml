@@ -68,6 +68,8 @@ rust-embed = { workspace = true }
 parking_lot = { workspace = true }
 tempfile = { workspace = true }
 pretty_assertions = { workspace = true }
+arrow = { workspace = true }
+parquet = { workspace = true }
 
 [features]
 default = []
