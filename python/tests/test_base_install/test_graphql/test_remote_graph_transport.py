@@ -827,11 +827,11 @@ def test_history_list_and_iter():
         via_iter = [e.timestamp for e in h]
         assert via_iter == [1, 3, 8]
 
-        # event_id is populated by the server — monotonic per timestamp.
-        # Server-side EventTime doesn't carry dt; that lives in the parent
-        # history's `.datetimes` sub-container (follow-up batch).
+        # All three fields populated by the server. dt is RFC 3339.
         for e in events:
+            assert e.timestamp is not None
             assert e.event_id is not None
+            assert e.dt is not None and "T" in e.dt   # ISO 8601 has 'T' separator
     finally:
         server_cm.__exit__(None, None, None)
 

@@ -148,12 +148,17 @@ pub(crate) fn expect_event_time_list(
                         Some(Prop::I64(n)) => Some(*n),
                         _ => None,
                     };
+                    let dt = match map.get("datetime") {
+                        Some(Prop::Str(s)) => Some(s.to_string()),
+                        _ => None,
+                    };
                     let event_id = match map.get("eventId") {
                         Some(Prop::I64(n)) => Some(*n),
                         _ => None,
                     };
                     Ok(RemoteEventTime {
                         timestamp,
+                        dt,
                         event_id,
                     })
                 }

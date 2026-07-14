@@ -838,19 +838,18 @@ fn render_read_body(expr: &ReadExpr) -> String {
         ReadExpr::NodeType { input } => format!("{} {{ nodeType", render_read_body(input)),
         ReadExpr::IsActive { input } => format!("{} {{ isActive", render_read_body(input)),
         ReadExpr::IsEmpty { input } => format!("{} {{ isEmpty", render_read_body(input)),
-        // Compound structured terminal: `list { timestamp eventId }` returns
-        // a list of records. Inner braces are self-balanced; the outer `list`
-        // brace opens one net brace, contributing 1 to read_depth.
+        // Compound structured terminal: `list { timestamp datetime eventId }`
+        // returns a list of records. Inner braces are self-balanced; the outer
+        // `list` brace opens one net brace, contributing 1 to read_depth.
         //
-        // Server-side `GqlEventTime` only exposes `timestamp` and `eventId`;
-        // datetimes live in a separate sub-container (`history.datetimes`),
-        // wired in a follow-up batch.
+        // The server's `datetime` field takes an optional format-string arg
+        // (defaults to RFC 3339). We pass no arg to get the default.
         ReadExpr::HistoryList { input } => format!(
-            "{} {{ list {{ timestamp eventId }}",
+            "{} {{ list {{ timestamp datetime eventId }}",
             render_read_body(input)
         ),
         ReadExpr::HistoryListRev { input } => format!(
-            "{} {{ listRev {{ timestamp eventId }}",
+            "{} {{ listRev {{ timestamp datetime eventId }}",
             render_read_body(input)
         ),
         ReadExpr::EdgeHistoryCount { input } => {
@@ -1092,6 +1091,9 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
                     let mut pairs: Vec<(&'static str, Prop)> = Vec::new();
                     if let Some(t) = obj.get("timestamp").and_then(|x| x.as_i64()) {
                         pairs.push(("timestamp", Prop::I64(t)));
+                    }
+                    if let Some(d) = obj.get("datetime").and_then(|x| x.as_str()) {
+                        pairs.push(("datetime", Prop::Str(d.into())));
                     }
                     if let Some(e) = obj.get("eventId").and_then(|x| x.as_i64()) {
                         pairs.push(("eventId", Prop::I64(e)));

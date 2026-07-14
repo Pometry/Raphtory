@@ -9,17 +9,18 @@ use std::sync::Arc;
 /// A single event on a node/edge's history — the value type each entry in
 /// `RemoteHistory.list()` / `.list_rev()` decodes to.
 ///
-/// Both fields are optional because the server can return null for either
-/// (synthetic events, sparse metadata). Mirrors the two fields the GraphQL
-/// `EventTime` type exposes: `timestamp` and `eventId`.
+/// All three fields are optional because the server can return null for any
+/// of them (synthetic events, sparse metadata). Matches the shape of the
+/// local Python API's `EventTime` type.
 ///
-/// Datetime strings for these events aren't on the event itself — they're
-/// accessed via the parent history's `.datetimes` sub-container (ships in
-/// a follow-up batch).
+/// `dt` is an RFC 3339 datetime string (the server default) — parse to a
+/// typed datetime client-side if you need one.
 #[derive(Clone, Debug, PartialEq)]
 pub struct RemoteEventTime {
     /// The event's timestamp in the graph's native time unit (usually ms).
     pub timestamp: Option<i64>,
+    /// RFC 3339 datetime string for the event (e.g. `"1970-01-01T00:00:00.003+00:00"`).
+    pub dt: Option<String>,
     /// The event's internal id — a monotonically-increasing counter used to
     /// disambiguate multiple events at the same timestamp.
     pub event_id: Option<i64>,

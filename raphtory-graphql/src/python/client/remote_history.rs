@@ -6,17 +6,18 @@ use pyo3::{pyclass, pymethods, PyRef, PyRefMut};
 use raphtory::python::utils::execute_async_task;
 use std::sync::Arc;
 
-/// A single event on a node/edge's history. Both fields are optional because
-/// the server can return null for either.
+/// A single event on a node/edge's history. All three fields are optional
+/// because the server can return null for any of them.
 ///
-/// Server-side `GqlEventTime` only carries `timestamp` and `event_id` — the
-/// datetime for these events lives in the parent history's `.datetimes`
-/// sub-container (ships in a follow-up batch).
+/// `dt` is an RFC 3339 datetime string (e.g. `"1970-01-01T00:00:00.003+00:00"`);
+/// parse it to `datetime.datetime` client-side if you need a typed object.
 #[derive(Clone)]
 #[pyclass(name = "RemoteEventTime", module = "raphtory.graphql", get_all)]
 pub struct PyRemoteEventTime {
     /// The event's timestamp in the graph's native time unit.
     pub timestamp: Option<i64>,
+    /// RFC 3339 datetime string for the event.
+    pub dt: Option<String>,
     /// The event's internal id.
     pub event_id: Option<i64>,
 }
@@ -25,6 +26,7 @@ impl From<RemoteEventTime> for PyRemoteEventTime {
     fn from(t: RemoteEventTime) -> Self {
         Self {
             timestamp: t.timestamp,
+            dt: t.dt,
             event_id: t.event_id,
         }
     }
@@ -34,8 +36,8 @@ impl From<RemoteEventTime> for PyRemoteEventTime {
 impl PyRemoteEventTime {
     fn __repr__(&self) -> String {
         format!(
-            "RemoteEventTime(timestamp={:?}, event_id={:?})",
-            self.timestamp, self.event_id
+            "RemoteEventTime(timestamp={:?}, dt={:?}, event_id={:?})",
+            self.timestamp, self.dt, self.event_id
         )
     }
 }
