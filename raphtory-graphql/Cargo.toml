@@ -35,7 +35,7 @@ dynamic-graphql = { workspace = true }
 async-graphql-poem = { workspace = true }
 futures-util = { workspace = true }
 opentelemetry = { workspace = true }
-opentelemetry_sdk = { workspace = true, features = ["testing"] }
+opentelemetry_sdk = { workspace = true }
 opentelemetry-otlp = { workspace = true, features = ["http-json", "http-proto", "reqwest-rustls", "tls-aws-lc", "reqwest-blocking-client", "internal-logs"] }
 opentelemetry-stdout = { workspace = true }
 opentelemetry-appender-tracing = { workspace = true }
@@ -71,6 +71,7 @@ tempfile = { workspace = true }
 pretty_assertions = { workspace = true }
 arrow = { workspace = true }
 parquet = { workspace = true }
+# Self-reference lets integration tests compile this crate with the `integration-test` feature enabled.
 raphtory-graphql = { workspace = true, default-features = false, features = ["integration-test"] }
 opentelemetry_sdk = { version = "0.32.1", features = ["rt-tokio", "testing"] }
 
