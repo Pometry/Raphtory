@@ -967,6 +967,13 @@ fn read_depth(expr: &ReadExpr) -> usize {
 /// raise `ClientError::NotFound` with its id. This surfaces both "absent from
 /// graph" and "absent from view" as the same `NotFound` — the server response
 /// can't distinguish them, and neither should we.
+///
+/// Note: since `RemoteGraph.node()` / `.edge()` now eagerly validate via
+/// `hasNode` / `hasEdge`, most `NotFound` errors surface there, not here.
+/// This path stays as a safety net for the race window between eager
+/// validation and terminal execution (server-side deletion in between), and
+/// for any future callers that construct a `ReadExpr::Node` / `Edge` without
+/// going through the validated builder.
 fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientError> {
     let path = build_json_path(expr);
     let mut cursor = root;

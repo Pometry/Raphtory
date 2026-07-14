@@ -137,10 +137,9 @@ impl PyRemoteNodes {
 
     /// Materialize this collection as a list of `RemoteNode` handles.
     ///
-    /// Fires one RPC (to fetch the ids); each returned node wraps its id in a
-    /// fresh read expression rooted at the graph. Note: the view chain that
-    /// produced this collection is *not* propagated to the returned nodes —
-    /// see the module docstring for details.
+    /// Fires one RPC (to fetch the ids); each returned node is rebased under
+    /// the same view chain that produced this collection, so terminals on the
+    /// returned handles evaluate under the same window / layer / at / etc.
     ///
     /// Returns:
     ///   list[RemoteNode]: one handle per node in the collection.

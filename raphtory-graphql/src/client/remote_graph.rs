@@ -186,10 +186,13 @@ pub(crate) fn expect_edge_list(
 
 /// A handle to a remote graph on the server.
 ///
-/// Holds an accumulating `ReadExpr` for lazy view construction — `.window()`,
-/// `.node()` etc. append to it without firing an RPC. Terminals on the child
-/// types (e.g. `RemoteNode::degree`) evaluate the accumulated expression via
-/// the transport.
+/// Holds an accumulating `ReadExpr` for view construction. View-op methods
+/// (`.window()`, `.layer()`, `.at()`, ...) append lazily — no RPC. Selection
+/// methods `.node()` and `.edge()` fire one RPC each (`hasNode` / `hasEdge`
+/// against the current view chain) to validate that the id resolves, raising
+/// `ClientError::NotFound` if not. Terminals on the child types (e.g.
+/// `RemoteNode::degree`) fire their own RPC evaluating the accumulated
+/// expression via the transport.
 #[derive(Clone)]
 pub struct RemoteGraph {
     pub path: String,

@@ -3,9 +3,13 @@
 Exercises the full stack: Python API → PyO3 wrapper → Rust RemoteGraph →
 Op::Write/Op::Read → GraphqlTransport → GraphQL server → response back.
 
-All writes and the .degree() read go through Transport::execute; the .window()
-and .node() calls are lazy expression builders that fire the RPC only on the
-terminal.
+RPC model:
+- View-op builders (`.window()`, `.layer()`, `.at()`, ...) are lazy — no RPC.
+- Selection methods `.node()` / `.edge()` fire one validation RPC each (via
+  hasNode / hasEdge) and raise `NotFound` if the id isn't visible.
+- Terminals (`.degree()`, `.earliest_time()`, `.count()`, ...) fire one RPC
+  evaluating the accumulated read expression.
+- Writes (`.add_node()`, `.add_edge()`, ...) always fire an RPC.
 """
 
 import tempfile
