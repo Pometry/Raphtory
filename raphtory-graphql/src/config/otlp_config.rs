@@ -7,7 +7,7 @@ use opentelemetry_appender_tracing::layer::{
     OpenTelemetryTracingBridge, OpenTelemetryTracingBridgeBuilder,
 };
 use opentelemetry_otlp::{LogExporter, Protocol, SpanExporter, WithExportConfig, WithHttpConfig};
-#[cfg(test)]
+#[cfg(any(feature = "integration-test", debug_assertions))]
 use opentelemetry_sdk::{logs::InMemoryLogExporter, trace::InMemorySpanExporter};
 use opentelemetry_sdk::{
     logs::SdkLoggerProvider,
@@ -82,7 +82,7 @@ pub enum TracingProtocol {
     TONIC,
     HTTP,
     STDOUT,
-    #[cfg(test)]
+    #[cfg(any(feature = "integration-test", debug_assertions))]
     IN_MEMORY,
 }
 
@@ -123,7 +123,7 @@ pub struct TracingConfig {
     /// Headers to use when transport_protocol is set to HTTP
     pub transport_headers: HashMap<String, String>,
     pub transport_certificate: Option<PathBuf>,
-    #[cfg(test)]
+    #[cfg(any(feature = "integration-test", debug_assertions))]
     #[serde(skip)]
     // Expose in-memory exporters to retrieve spans and logs in tests. 
     pub exporters: InMemoryExporters,
@@ -139,7 +139,7 @@ impl Default for TracingConfig {
             transport_protocol: DEFAULT_OTLP_TRANSPORT_PROTOCOL,
             transport_headers: Default::default(),
             transport_certificate: None,
-            #[cfg(test)]
+            #[cfg(any(feature = "integration-test", debug_assertions))]
             exporters: InMemoryExporters::default(),
         }
     }
@@ -173,7 +173,7 @@ impl TracingConfig {
         (tracer, logger)
     }
 
-    #[cfg(test)]
+    #[cfg(any(feature = "integration-test", debug_assertions))]
     fn with_simple_exporter<
         E: opentelemetry_sdk::trace::SpanExporter + 'static,
         L: opentelemetry_sdk::logs::LogExporter + 'static,
@@ -303,7 +303,7 @@ impl TracingConfig {
                         opentelemetry_stdout::LogExporter::default(),
                     ))
                 }
-                #[cfg(test)]
+                #[cfg(any(feature = "integration-test", debug_assertions))]
                 TracingProtocol::IN_MEMORY => {
                     eprintln!(
                         "Sending traces to in-memory exporter with tracing level `{}`",
@@ -329,14 +329,14 @@ impl TracingConfig {
     }
 }
 
-#[cfg(test)]
+#[cfg(any(feature = "integration-test", debug_assertions))]
 #[derive(Clone, Debug, Default)]
 pub struct InMemoryExporters {
     pub span_exporter: InMemorySpanExporter,
     pub log_exporter: InMemoryLogExporter,
 }
 
-#[cfg(test)]
+#[cfg(any(feature = "integration-test", debug_assertions))]
 impl PartialEq for InMemoryExporters {
     fn eq(&self, _other: &Self) -> bool {
         // Exporters are runtime handles; identity/equality semantics are not meaningful.

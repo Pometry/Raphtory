@@ -57,7 +57,7 @@ use tokio::{
 };
 use tracing::{debug, error, info, warn};
 use tracing_subscriber::{
-    fmt, fmt::format::FmtSpan, layer::SubscriberExt, util::SubscriberInitExt, Registry,
+    fmt, fmt::format::FmtSpan, layer::SubscriberExt, Registry,
 };
 use url::ParseError;
 
@@ -273,20 +273,16 @@ impl GraphServer {
         let registry = Registry::default().with(filter).with(
             fmt::layer().pretty().with_span_events(FmtSpan::NONE), //(FULL, NEW, ENTER, EXIT, CLOSE)
         );
-        match tp.clone() {
-            Some((span, log)) => {
+        let dispatch = match tp.clone() {
+            Some((span, log)) => tracing::Dispatch::new(
                 registry
                     .with(
                         tracing_opentelemetry::layer()
                             .with_tracer(span.tracer(tracer_name.clone())),
                     )
-                    .with(OpenTelemetryTracingBridge::new(&log))
-                    .try_init()
-                    .unwrap_or_else(|err| error!("Failed to initialise tracer provider: {err}"));
-            }
-            None => {
-                registry.try_init().ok();
-            }
+                    .with(OpenTelemetryTracingBridge::new(&log)),
+            ),
+            None => tracing::Dispatch::new(registry),
         };
 
         let work_dir = self.work_dir();
@@ -311,7 +307,11 @@ impl GraphServer {
             server_termination(signal_receiver, tp),
             None,
         );
-        let server_result = AbortOnDrop(tokio::spawn(server_task));
+        let server_result = AbortOnDrop(tokio::spawn(async move {
+            let _guard = tracing::dispatcher::set_default(&dispatch);
+            info!("Server tracing dispatch initialised");
+            server_task.await
+        }));
 
         info!("UI listening on 0.0.0.0:{actual_port}, live at: http://localhost:{actual_port}");
         debug!(
@@ -495,20 +495,17 @@ async fn server_termination(
 #[cfg(test)]
 mod server_tests {
     use crate::{
-        client::raphtory_client::RaphtoryGraphQLClient, config::{
-            app_config::AppConfigBuilder, otlp_config::{ESSENTIAL_TRACE_SPANS, TracingLevel, TracingProtocol},
-        }, server::{GraphServer, RunningGraphServer},
+        config::app_config::AppConfigBuilder,
+        server::GraphServer,
     };
     use chrono::prelude::*;
-    use opentelemetry::trace::SpanId;
-    use opentelemetry_sdk::{logs::{InMemoryLogExporter, in_memory_exporter::LogDataWithResource}, trace::{InMemorySpanExporter, SpanData}};
     use raphtory::{
         db::api::storage::storage::Config,
         prelude::{AdditionOps, Graph, StableEncode, NO_PROPS},
         vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate},
     };
     use raphtory_api::core::utils::logging::global_info_logger;
-    use tempfile::{tempdir, TempDir};
+    use tempfile::tempdir;
     use tokio::time::{sleep, Duration};
     use tracing::info;
 
@@ -541,9 +538,6 @@ mod server_tests {
 
         running.stop().await
     }
-    use std::collections::{HashMap, HashSet};
-    use url::Url;
-
     #[tokio::test]
     async fn test_server_start_stop() {
         global_info_logger();
@@ -581,125 +575,4 @@ mod server_tests {
         handler.await.unwrap().stop().await
     }
 
-    const OPEN_TELEMETRY_QUERY: &str = "query {
-        updateGraph(path: \"g\") {
-            addNode(time: 1, name: 1, properties: [{ key: \"seed\", value: { str: \"yes\" } }], nodeType: \"seed\", layer: \"main\") {
-                success
-                node { id }
-            }
-            addEdge(time: 5, src: 1, dst: 2, properties: [{ key: \"weight\", value: { f64: 1.5 } }], layer: \"main\") {
-                success
-            }
-            graph {
-                countNodes
-                hasNode(name: 1)
-            }
-            flush
-        }
-    }";
-
-    async fn setup_for_span_tests(
-        tracing_level: TracingLevel,
-    ) -> (
-        RaphtoryGraphQLClient,
-        RunningGraphServer,
-        InMemorySpanExporter,
-        InMemoryLogExporter,
-        TempDir,
-    ) {
-        let tmp_dir = tempdir().unwrap();
-        let graph = Graph::new();
-        graph.encode(tmp_dir.path().join("g")).unwrap();
-
-        let app_config = AppConfigBuilder::new()
-            .with_tracing(true)
-            .with_tracing_level(tracing_level)
-            .with_otlp_transport_protocol(TracingProtocol::IN_MEMORY)
-            .build();
-
-        let server = GraphServer::new(
-            tmp_dir.path().to_path_buf(),
-            Some(app_config.clone()),
-            Config::default(),
-        )
-        .await
-        .unwrap();
-        let handler = server.start_with_port(0).await.unwrap();
-
-        let endpoint = Url::parse(&format!("http://localhost:{}/", handler.port())).unwrap();
-        let client = RaphtoryGraphQLClient::new(endpoint, None);
-        let span_exporter = app_config.tracing.exporters.span_exporter.clone();
-        let log_exporter = app_config.tracing.exporters.log_exporter.clone();
-        (client, handler, span_exporter, log_exporter, tmp_dir)
-    }
-
-    #[tokio::test]
-    async fn test_open_telemetry_spans_complete() {
-        let (client, handler, span_exporter, log_exporter, _tmp_dir) =
-            setup_for_span_tests(TracingLevel::COMPLETE).await;
-        let _ = client.query(&OPEN_TELEMETRY_QUERY, HashMap::new()).await.unwrap();
-        handler.stop().await;
-        let finished_spans = span_exporter.get_finished_spans().unwrap();
-        let all_spans: HashSet<String> = finished_spans.iter().map(|span| span.name.to_string()).collect();
-        assert_eq!(all_spans, HashSet::from([
-            "addEdge".to_string(),
-            "addNode".to_string(),
-            "countNodes".to_string(),
-            "execute".to_string(),
-            "flush".to_string(),
-            "graph".to_string(),
-            "hasNode".to_string(),
-            "id".to_string(),
-            "node".to_string(),
-            "parse".to_string(),
-            "request".to_string(),
-            "success".to_string(),
-            "updateGraph".to_string(),
-            "validation".to_string(),
-        ]));
-        let emitted_logs = log_exporter.get_emitted_logs().unwrap();
-        assert!(!emitted_logs.is_empty());
-    }
-
-
-    #[tokio::test]
-    async fn test_open_telemetry_spans_essential() {
-        let (client, handler, span_exporter, log_exporter, _tmp_dir) =
-            setup_for_span_tests(TracingLevel::ESSENTIAL).await;
-        let _ = client.query(&OPEN_TELEMETRY_QUERY, HashMap::new()).await.unwrap();
-        handler.stop().await;
-        let finished_spans = span_exporter.get_finished_spans().unwrap();
-        let all_spans: HashSet<String> = finished_spans.iter().map(|span| span.name.to_string()).collect();
-        assert_eq!(all_spans, HashSet::from([
-            "addEdge".to_string(),
-            "addNode".to_string(),
-            "execute".to_string(),
-            "graph".to_string(),
-            "node".to_string(),
-            "parse".to_string(),
-            "request".to_string(),
-            "updateGraph".to_string(),
-            "validation".to_string(),
-        ]));
-        let emitted_logs = log_exporter.get_emitted_logs().unwrap();
-        assert!(!emitted_logs.is_empty());
-    }
-
-    #[tokio::test]
-    async fn test_open_telemetry_spans_minimal() {
-        let (client, handler, span_exporter, log_exporter, _tmp_dir) =
-            setup_for_span_tests(TracingLevel::MINIMAL).await;
-        let _ = client.query(&OPEN_TELEMETRY_QUERY, HashMap::new()).await.unwrap();
-        handler.stop().await;
-        let finished_spans = span_exporter.get_finished_spans().unwrap();
-        let all_spans: HashSet<String> = finished_spans.iter().map(|span| span.name.to_string()).collect(); 
-        assert_eq!(all_spans, HashSet::from([
-            "execute".to_string(),
-            "parse".to_string(),
-            "request".to_string(),
-            "validation".to_string(),
-        ]));
-        let emitted_logs = log_exporter.get_emitted_logs().unwrap();
-        assert!(!emitted_logs.is_empty());
-    }
 }
