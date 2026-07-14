@@ -2,21 +2,15 @@ use std::{
     io,
     path::{Path, PathBuf},
 };
-use tempfile::TempDir;
 
 #[derive(Debug)]
-pub enum GraphDir {
-    Temp(TempDir),
-    Path(PathBuf),
-}
+pub struct GraphDir(PathBuf);
 
 impl GraphDir {
     pub fn path(&self) -> &Path {
-        match self {
-            GraphDir::Temp(dir) => dir.path(),
-            GraphDir::Path(path) => path,
-        }
+        &self.0
     }
+
     pub fn gid_resolver_dir(&self) -> PathBuf {
         self.path().join("gid_resolver")
     }
@@ -26,10 +20,7 @@ impl GraphDir {
     }
 
     pub fn create_dir(&self) -> Result<(), io::Error> {
-        if let GraphDir::Path(path) = self {
-            std::fs::create_dir_all(path)?;
-        }
-
+        std::fs::create_dir_all(self.path())?;
         Ok(())
     }
 }
@@ -42,6 +33,6 @@ impl AsRef<Path> for GraphDir {
 
 impl<'a> From<&'a Path> for GraphDir {
     fn from(path: &'a Path) -> Self {
-        GraphDir::Path(path.to_path_buf())
+        GraphDir(path.to_path_buf())
     }
 }
