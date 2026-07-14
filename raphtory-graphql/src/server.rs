@@ -28,10 +28,9 @@ use poem::{
     web::CompressionLevel,
     EndpointExt, Route, Server,
 };
-use raphtory::{
-    db::api::storage::storage::Config,
-    vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate},
-};
+use raphtory::db::api::storage::storage::Config;
+#[cfg(feature = "vectors")]
+use raphtory::vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate};
 use serde_json::json;
 use std::{
     fs::create_dir_all,
@@ -211,6 +210,7 @@ impl GraphServer {
     ///
     /// Returns:
     /// A new server object containing the vectorised graphs.
+    #[cfg(feature = "vectors")]
     pub async fn vectorise_all_graphs(
         &self,
         template: &DocumentTemplate,
@@ -231,6 +231,7 @@ impl GraphServer {
     /// Arguments:
     ///   * path - the path of the graph to vectorise.
     ///   * template - the template to use for creating documents.
+    #[cfg(feature = "vectors")]
     pub async fn vectorise_graph(
         &self,
         path: &str,
@@ -499,10 +500,11 @@ mod server_tests {
         server::GraphServer,
     };
     use chrono::prelude::*;
+    #[cfg(feature = "vectors")]
+    use raphtory::vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate};
     use raphtory::{
         db::api::storage::storage::Config,
         prelude::{AdditionOps, Graph, StableEncode, NO_PROPS},
-        vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate},
     };
     use raphtory_api::core::utils::logging::global_info_logger;
     use tempfile::tempdir;
@@ -552,6 +554,7 @@ mod server_tests {
         handler.await.unwrap().stop().await
     }
 
+    #[cfg(feature = "vectors")]
     #[tokio::test]
     async fn test_server_start_with_failing_embedding() {
         let tmp_dir = tempdir().unwrap();

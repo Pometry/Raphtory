@@ -24,6 +24,13 @@ use dynamic_graphql::{
     ResolvedObjectFields, Result, Upload,
 };
 use itertools::Itertools;
+use minijinja::functions::namespace;
+#[cfg(feature = "vectors")]
+use raphtory::vectors::{
+    cache::CachedEmbeddingModel,
+    storage::OpenAIEmbeddings,
+    template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
+};
 use raphtory::{
     arrow_loader::df_loaders::edges::ColumnNames,
     db::{
@@ -36,11 +43,6 @@ use raphtory::{
     errors::{GraphError, GraphResult},
     io::parquet_loaders::{load_edges_from_parquet, load_nodes_from_parquet},
     prelude::*,
-    vectors::{
-        cache::CachedEmbeddingModel,
-        storage::OpenAIEmbeddings,
-        template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
-    },
     version,
 };
 use raphtory_api::core::entities::properties::prop::PropType;
@@ -92,6 +94,7 @@ pub enum EmbeddingModel {
     OpenAI(OpenAIConfig),
 }
 
+#[cfg(feature = "vectors")]
 impl EmbeddingModel {
     async fn cache<'a>(self, ctx: &Context<'a>) -> GraphResult<CachedEmbeddingModel> {
         let data = ctx.data_unchecked::<Data>();
@@ -192,6 +195,7 @@ pub enum Template {
     Custom(String),
 }
 
+#[cfg_attr(not(feature = "vectors"), allow(dead_code))]
 fn resolve(template: Option<Template>, default: &str) -> Option<String> {
     match template? {
         Template::Enabled(false) => None,
@@ -287,20 +291,28 @@ impl QueryRoot {
         #[graphql(desc = "Optional edge-document template; defaults to the built-in template.")]
         edges: Option<Template>,
     ) -> Result<bool> {
-        ctx.require_jwt_write_access()?;
-        let data = ctx.data_unchecked::<Data>();
-        let template = DocumentTemplate {
-            node_template: resolve(nodes, DEFAULT_NODE_TEMPLATE),
-            edge_template: resolve(edges, DEFAULT_EDGE_TEMPLATE),
-        };
-        let cached_model = model
-            .unwrap_or(EmbeddingModel::OpenAI(Default::default()))
-            .cache(ctx)
-            .await?;
-        let folder = ExistingGraphFolder::try_from(data.work_dir_read().await, &path)?;
-        data.vectorise_folder(&folder, &template, cached_model)
-            .await?;
-        Ok(true)
+        #[cfg(feature = "vectors")]
+        {
+            ctx.require_jwt_write_access()?;
+            let data = ctx.data_unchecked::<Data>();
+            let template = DocumentTemplate {
+                node_template: resolve(nodes, DEFAULT_NODE_TEMPLATE),
+                edge_template: resolve(edges, DEFAULT_EDGE_TEMPLATE),
+            };
+            let cached_model = model
+                .unwrap_or(EmbeddingModel::OpenAI(Default::default()))
+                .cache(ctx)
+                .await?;
+            let folder = ExistingGraphFolder::try_from(data.work_dir_read().await, &path)?;
+            data.vectorise_folder(&folder, &template, cached_model)
+                .await?;
+            Ok(true)
+        }
+        #[cfg(not(feature = "vectors"))]
+        {
+            let _ = (ctx, path, model, nodes, edges);
+            Err(async_graphql::Error::new("vectors feature not enabled"))
+        }
     }
 
     /// Create vectorised graph in the format used for queries
@@ -800,6 +812,7 @@ impl Mut {
             }
         })
         .await?;
+        new_subgraph.flush()?;
 
         data.insert_graph(folder, new_subgraph).await?;
         if let Err(e) = auto_grant_on_create(ctx, &data.auth_policy, &new_path) {
