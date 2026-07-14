@@ -1,10 +1,9 @@
 use crate::{
     durability_ops::DurabilityOps,
     mutation::{
-        addition_ops::{EdgeWriteLock, InternalAdditionOps, NodeWriteLock, SessionAdditionOps},
-        MutationError, NodeWriterT,
+        MutationError, NodeWriterT, addition_ops::{EdgeWriteLock, InternalAdditionOps, NodeWriteLock, SessionAdditionOps}
     },
-    recovery_ops::RecoveryOps,
+    recovery_ops::RecoveryOps, staging_ops::{StagedGraph, StagingError, StagingOps},
 };
 use db4_graph::{TemporalGraph, WriteLockedGraph};
 use raphtory_api::core::{
@@ -16,6 +15,7 @@ use raphtory_api::core::{
         LayerId,
     },
     storage::dict_mapper::MaybeNew,
+    storage::graph_folder::GraphFolder,
 };
 use raphtory_core::{
     entities::{
@@ -760,3 +760,19 @@ impl DurabilityOps for TemporalGraph {
 }
 
 impl RecoveryOps for TemporalGraph {}
+
+impl StagingOps for TemporalGraph {
+    fn stage(&self) -> Result<StagedGraph<'_>, StagingError> {
+        let graph_path = self.graph_dir().ok_or(StagingError::MissingGraphDir)?;
+        let graph_folder = GraphFolder::from_graph_path(graph_path)?;
+
+        // Create a new data folder to hold the staged graph.
+        let writeable_folder = graph_folder.init_swap()?;
+
+        // Hard link the current graph to the new data folder.
+
+
+
+        todo!()
+    }
+}

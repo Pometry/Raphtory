@@ -383,6 +383,11 @@ impl GraphFolder {
             .and_then(|data_folder| data_folder.parent())
             .ok_or_else(|| GraphFolderError::InvalidGraphPath(graph_path.to_path_buf()))?;
 
+        // Ensure `.raph` exists and contains a valid pointer to a 'data{id}' dir.
+        if read_path_pointer(root, ROOT_META_PATH, DATA_PATH)?.is_none() {
+            return Err(GraphFolderError::InvalidGraphPath(graph_path.to_path_buf()));
+        }
+
         Ok(Self {
             root: root.to_path_buf(),
             write_as_zip_format: false,
@@ -390,7 +395,8 @@ impl GraphFolder {
     }
 
     /// Reserve a folder and prepare it for storing a graph.
-    /// Returns an error if the folder contains data OR is to be encoded as zip.
+    ///
+    /// Returns an error if the folder contains data OR if the folder is to be encoded as zip.
     pub fn init_write(self) -> Result<WriteableGraphFolder, GraphFolderError> {
         if self.write_as_zip_format {
             return Err(GraphFolderError::ZippedGraphCannotBeSwapped);
@@ -415,15 +421,15 @@ impl GraphFolder {
         })
     }
 
-    /// Prepare a graph folder for atomically swapping the data contents.
-    /// This returns an error if the folder is set to write as Zip.
+    /// Prepare a new data folder for an atomic swap via a `.dirty` file.
     ///
-    /// If a swap is already in progress (i.e., `.dirty` file exists) it is aborted and
-    /// the contents of the corresponding folder are deleted.
+    /// Fails if the folder is to be encoded as zip. If a prior swap was interrupted
+    /// (`.dirty` already exists), its data folder is cleared and reused.
     pub fn init_swap(self) -> Result<WriteableGraphFolder, GraphFolderError> {
         if self.write_as_zip_format {
             return Err(GraphFolderError::ZippedGraphCannotBeSwapped);
         }
+
         let old_swap = match read_path_pointer(self.root(), DIRTY_PATH, DATA_PATH) {
             Ok(path) => path,
             Err(_) => {
@@ -436,13 +442,17 @@ impl GraphFolder {
 
         let swap_path = match old_swap {
             Some(relative_path) => {
+                // There was a prior swap, clear data folder and reuse.
                 let swap_path = self.root.join(relative_path);
+
                 if swap_path.exists() {
                     fs::remove_dir_all(&swap_path)?;
                 }
+
                 swap_path
             }
             None => {
+                // Prepare a new data folder with an incremented id for the swap.
                 let new_relative_data_path =
                     make_path_pointer(self.root(), ROOT_META_PATH, DATA_PATH)?;
                 let new_data_path = self.root.join(&new_relative_data_path);
@@ -450,12 +460,16 @@ impl GraphFolder {
                     path: new_relative_data_path,
                 })?;
                 let mut dirty_file = File::create_new(self.root.join(DIRTY_PATH))?;
+
                 dirty_file.write_all(meta.as_bytes())?;
                 dirty_file.sync_all()?;
+
                 new_data_path
             }
         };
+
         fs::create_dir_all(swap_path)?;
+
         Ok(WriteableGraphFolder {
             path: self.root,
         })
