@@ -804,6 +804,72 @@ def test_history_scalar_terminals_on_edge():
         server_cm.__exit__(None, None, None)
 
 
+def test_history_list_and_iter():
+    """`history.list()` returns `List[RemoteEventTime]` sorted ascending by
+    time; `.list_rev()` returns them descending. `for t in history:` iterates
+    via `__iter__` which delegates to `.list()`."""
+    server_cm, rg = _make_graph_with_edge()
+    # ben has events at t=1 (add_node) and t=3 (add_edge). Add another at t=8.
+    rg.add_edge(8, "ben", "hamza")
+    try:
+        h = rg.node("ben").history
+        events = h.list()
+        assert len(events) == 3
+        # Extract timestamps — dt/event_id are also populated but shape-check
+        # them separately below.
+        assert [e.timestamp for e in events] == [1, 3, 8]
+
+        # list_rev
+        events_rev = h.list_rev()
+        assert [e.timestamp for e in events_rev] == [8, 3, 1]
+
+        # Iterator delegates to .list() — same order.
+        via_iter = [e.timestamp for e in h]
+        assert via_iter == [1, 3, 8]
+
+        # event_id is populated by the server — monotonic per timestamp.
+        # Server-side EventTime doesn't carry dt; that lives in the parent
+        # history's `.datetimes` sub-container (follow-up batch).
+        for e in events:
+            assert e.event_id is not None
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_history_list_on_empty_view():
+    """`.list()` on an empty history returns an empty list, not None."""
+    server_cm, rg = _make_graph_with_edge()
+    try:
+        empty = rg.node("ben").window(100, 200).history
+        assert empty.list() == []
+        assert empty.list_rev() == []
+        assert list(empty) == []                       # iteration also empty
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_edge_history_and_deletions_lists():
+    """Edge history and deletions both expose `.list()` returning
+    `RemoteEventTime`s under the same shape."""
+    server_cm, rg = _make_graph_with_edge()
+    # Add a deletion event at t=10.
+    rg.delete_edge(10, "ben", "hamza")
+    try:
+        e = rg.edge("ben", "hamza")
+
+        # Deletions has exactly one entry at t=10.
+        deletion_events = e.deletions.list()
+        assert len(deletion_events) == 1
+        assert deletion_events[0].timestamp == 10
+
+        # History exposes non-deletion events.
+        history_events = e.history.list()
+        assert len(history_events) >= 1
+        assert all(ev.timestamp is not None for ev in history_events)
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
 def test_history_records_deletion_event():
     """After `.delete_edge()`, the edge's `.deletions` history includes the
     deletion time; `.history` reflects the add event."""

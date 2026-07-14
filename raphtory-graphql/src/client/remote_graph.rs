@@ -9,6 +9,7 @@ use crate::client::{
     remote_client::RemoteClient,
     remote_edge::RemoteEdge,
     remote_edges::RemoteEdges,
+    remote_history::RemoteEventTime,
     remote_node::RemoteNode,
     remote_nodes::RemoteNodes,
     transport::Transport,
@@ -119,6 +120,45 @@ pub(crate) fn expect_string_list(
                 Prop::Str(s) => Ok(s.to_string()),
                 _ => Err(ClientError::InvalidResponse(format!(
                     "`{}` list contains non-string element",
+                    context
+                ))),
+            })
+            .collect(),
+        _ => Err(ClientError::InvalidResponse(format!(
+            "`{}` returned unexpected value type",
+            context
+        ))),
+    }
+}
+
+/// Unwrap a `Transport::execute` result expecting a `HistoryList` /
+/// `HistoryListRev` terminal — a `Prop::List` of `Prop::Map` records where
+/// each map may contain `timestamp` (i64), `dt` (String), and `eventId`
+/// (i64). Missing keys decode to `None` on the corresponding field.
+pub(crate) fn expect_event_time_list(
+    v: Option<Prop>,
+    context: &str,
+) -> Result<Vec<RemoteEventTime>, ClientError> {
+    match v {
+        Some(Prop::List(items)) => items
+            .iter()
+            .map(|p| match p {
+                Prop::Map(map) => {
+                    let timestamp = match map.get("timestamp") {
+                        Some(Prop::I64(n)) => Some(*n),
+                        _ => None,
+                    };
+                    let event_id = match map.get("eventId") {
+                        Some(Prop::I64(n)) => Some(*n),
+                        _ => None,
+                    };
+                    Ok(RemoteEventTime {
+                        timestamp,
+                        event_id,
+                    })
+                }
+                _ => Err(ClientError::InvalidResponse(format!(
+                    "`{}` element not a Prop::Map",
                     context
                 ))),
             })

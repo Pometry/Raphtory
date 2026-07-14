@@ -4,7 +4,7 @@ use crate::{
         client::{
             remote_client::PyRaphtoryClient, remote_edge::PyRemoteEdge,
             remote_edges::PyRemoteEdges, remote_graph::PyRemoteGraph,
-            remote_history::PyRemoteHistory, remote_node::PyRemoteNode,
+            remote_history::{PyRemoteEventTime, PyRemoteHistory}, remote_node::PyRemoteNode,
             remote_nodes::PyRemoteNodes, PyAllPropertySpec, PyEdgeAddition, PyNodeAddition,
             PyPropsInput, PyRemoteIndexSpec, PySomePropertySpec, PyUpdate,
         },
@@ -34,6 +34,7 @@ pub fn base_graphql_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyErr>
     graphql_module.add_class::<PyRemoteNodes>()?;
     graphql_module.add_class::<PyRemoteEdges>()?;
     graphql_module.add_class::<PyRemoteHistory>()?;
+    graphql_module.add_class::<PyRemoteEventTime>()?;
     graphql_module.add_class::<PyNodeAddition>()?;
     graphql_module.add_class::<PyUpdate>()?;
     graphql_module.add_class::<PyEdgeAddition>()?;

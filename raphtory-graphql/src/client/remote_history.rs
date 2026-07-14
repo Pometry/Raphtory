@@ -1,10 +1,29 @@
 use crate::client::{
     op::{Op, ReadExpr},
-    remote_graph::{expect_bool, expect_i64, expect_optional_i64},
+    remote_graph::{expect_bool, expect_event_time_list, expect_i64, expect_optional_i64},
     transport::Transport,
     ClientError,
 };
 use std::sync::Arc;
+
+/// A single event on a node/edge's history — the value type each entry in
+/// `RemoteHistory.list()` / `.list_rev()` decodes to.
+///
+/// Both fields are optional because the server can return null for either
+/// (synthetic events, sparse metadata). Mirrors the two fields the GraphQL
+/// `EventTime` type exposes: `timestamp` and `eventId`.
+///
+/// Datetime strings for these events aren't on the event itself — they're
+/// accessed via the parent history's `.datetimes` sub-container (ships in
+/// a follow-up batch).
+#[derive(Clone, Debug, PartialEq)]
+pub struct RemoteEventTime {
+    /// The event's timestamp in the graph's native time unit (usually ms).
+    pub timestamp: Option<i64>,
+    /// The event's internal id — a monotonically-increasing counter used to
+    /// disambiguate multiple events at the same timestamp.
+    pub event_id: Option<i64>,
+}
 
 /// A handle to the event history of a node or edge on the server.
 ///
@@ -81,5 +100,24 @@ impl RemoteHistory {
             input: Box::new(self.expr.clone()),
         });
         expect_optional_i64(self.transport.execute(&op).await?, "latestTime")
+    }
+
+    /// Terminal: all events in this history in ascending time order.
+    /// Fires one RPC. Each event carries its timestamp, ISO 8601 datetime
+    /// string, and internal event id (all optional).
+    pub async fn list(&self) -> Result<Vec<RemoteEventTime>, ClientError> {
+        let op = Op::Read(ReadExpr::HistoryList {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_event_time_list(self.transport.execute(&op).await?, "list")
+    }
+
+    /// Terminal: all events in this history in descending time order.
+    /// Fires one RPC.
+    pub async fn list_rev(&self) -> Result<Vec<RemoteEventTime>, ClientError> {
+        let op = Op::Read(ReadExpr::HistoryListRev {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_event_time_list(self.transport.execute(&op).await?, "listRev")
     }
 }

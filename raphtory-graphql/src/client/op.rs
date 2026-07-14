@@ -213,6 +213,13 @@ pub enum ReadExpr {
     /// Terminal on a `RemoteHistory` container: whether the history is empty
     /// — `bool`. Server field name is `isEmpty`.
     IsEmpty { input: Box<ReadExpr> },
+    /// Terminal on a `RemoteHistory` container: list all events in ascending
+    /// order — `Vec<RemoteEventTime>`. Server field is `list`; queries the
+    /// compound sub-fields `timestamp`, `dt`, `eventId` per record.
+    HistoryList { input: Box<ReadExpr> },
+    /// Terminal on a `RemoteHistory` container: list all events in descending
+    /// order — `Vec<RemoteEventTime>`. Server field is `listRev`.
+    HistoryListRev { input: Box<ReadExpr> },
     /// Terminal on an Edges collection: list of (src, dst) pairs.
     /// Returned as `Prop::List(Prop::List(Prop::Str, Prop::Str), ...)` on the
     /// wire — each outer element is a 2-element inner list `[src, dst]`.

@@ -21,7 +21,7 @@ pub use op::{
 pub use remote_edge::RemoteEdge;
 pub use remote_edges::RemoteEdges;
 pub use remote_graph::RemoteGraph;
-pub use remote_history::RemoteHistory;
+pub use remote_history::{RemoteEventTime, RemoteHistory};
 pub use remote_node::RemoteNode;
 pub use remote_nodes::RemoteNodes;
 pub use transport::Transport;

@@ -838,6 +838,21 @@ fn render_read_body(expr: &ReadExpr) -> String {
         ReadExpr::NodeType { input } => format!("{} {{ nodeType", render_read_body(input)),
         ReadExpr::IsActive { input } => format!("{} {{ isActive", render_read_body(input)),
         ReadExpr::IsEmpty { input } => format!("{} {{ isEmpty", render_read_body(input)),
+        // Compound structured terminal: `list { timestamp eventId }` returns
+        // a list of records. Inner braces are self-balanced; the outer `list`
+        // brace opens one net brace, contributing 1 to read_depth.
+        //
+        // Server-side `GqlEventTime` only exposes `timestamp` and `eventId`;
+        // datetimes live in a separate sub-container (`history.datetimes`),
+        // wired in a follow-up batch.
+        ReadExpr::HistoryList { input } => format!(
+            "{} {{ list {{ timestamp eventId }}",
+            render_read_body(input)
+        ),
+        ReadExpr::HistoryListRev { input } => format!(
+            "{} {{ listRev {{ timestamp eventId }}",
+            render_read_body(input)
+        ),
         ReadExpr::EdgeHistoryCount { input } => {
             format!("{} {{ edgeHistoryCount", render_read_body(input))
         }
@@ -946,7 +961,9 @@ fn read_depth(expr: &ReadExpr) -> usize {
         | ReadExpr::IsValid { input }
         | ReadExpr::IsDeleted { input }
         | ReadExpr::IsSelfLoop { input }
-        | ReadExpr::IsEmpty { input } => 1 + read_depth(input),
+        | ReadExpr::IsEmpty { input }
+        | ReadExpr::HistoryList { input }
+        | ReadExpr::HistoryListRev { input } => 1 + read_depth(input),
         // Compound terminals — open two `{` (outer field + `timestamp` sub-field).
         ReadExpr::EarliestTime { input }
         | ReadExpr::LatestTime { input }
@@ -1051,6 +1068,35 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
                             terminal_key
                         )))
                     }
+                })
+                .collect();
+            Ok(Some(Prop::List(items?.into())))
+        }
+        // Compound structured list terminal — JSON shape is
+        // `[{"timestamp":N,"dt":"...","eventId":N}, ...]`. Any field may be
+        // null. Decode each element into a `Prop::Map` (missing keys → null
+        // semantically); `expect_event_time_list` unwraps to a typed
+        // `Vec<RemoteEventTime>`.
+        ReadExpr::HistoryList { .. } | ReadExpr::HistoryListRev { .. } => {
+            let arr = terminal_val.as_array().ok_or_else(|| {
+                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
+            })?;
+            let items: Result<Vec<Prop>, ClientError> = arr
+                .iter()
+                .map(|v| {
+                    let obj = v.as_object().ok_or_else(|| {
+                        ClientError::InvalidResponse(
+                            "history event element is not a JSON object".into(),
+                        )
+                    })?;
+                    let mut pairs: Vec<(&'static str, Prop)> = Vec::new();
+                    if let Some(t) = obj.get("timestamp").and_then(|x| x.as_i64()) {
+                        pairs.push(("timestamp", Prop::I64(t)));
+                    }
+                    if let Some(e) = obj.get("eventId").and_then(|x| x.as_i64()) {
+                        pairs.push(("eventId", Prop::I64(e)));
+                    }
+                    Ok(Prop::map(pairs))
                 })
                 .collect();
             Ok(Some(Prop::List(items?.into())))
@@ -1392,6 +1438,14 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
                 go(input, out);
                 out.push("isEmpty");
             }
+            ReadExpr::HistoryList { input } => {
+                go(input, out);
+                out.push("list");
+            }
+            ReadExpr::HistoryListRev { input } => {
+                go(input, out);
+                out.push("listRev");
+            }
             ReadExpr::EdgeHistoryCount { input } => {
                 go(input, out);
                 out.push("edgeHistoryCount");
@@ -1576,7 +1630,9 @@ fn child_input(expr: &ReadExpr) -> Option<&ReadExpr> {
         | ReadExpr::IsValid { input }
         | ReadExpr::IsDeleted { input }
         | ReadExpr::IsSelfLoop { input }
-        | ReadExpr::IsEmpty { input } => Some(input),
+        | ReadExpr::IsEmpty { input }
+        | ReadExpr::HistoryList { input }
+        | ReadExpr::HistoryListRev { input } => Some(input),
     }
 }
 
