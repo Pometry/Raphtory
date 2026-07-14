@@ -154,7 +154,6 @@ vectors = [
 python = [
     "io",
     "progress",
-    "vectors",
     "dep:pyo3",
     "dep:numpy",
     "dep:num",
