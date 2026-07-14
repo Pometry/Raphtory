@@ -347,6 +347,34 @@ impl RemoteNode {
         )
     }
 
+    /// Returns the in-component of this node — the set of all nodes that can
+    /// reach this node via incoming edges (its ancestors in the directed
+    /// graph, not including itself). Lazy — no RPC.
+    pub fn in_component(&self) -> RemoteNodes {
+        RemoteNodes::with_expr(
+            self.path.clone(),
+            self.transport.clone(),
+            ReadExpr::InComponent {
+                input: Box::new(self.expr.clone()),
+            },
+            self.base_graph.clone(),
+        )
+    }
+
+    /// Returns the out-component of this node — the set of all nodes
+    /// reachable from this node via outgoing edges (its descendants,
+    /// not including itself). Lazy — no RPC.
+    pub fn out_component(&self) -> RemoteNodes {
+        RemoteNodes::with_expr(
+            self.path.clone(),
+            self.transport.clone(),
+            ReadExpr::OutComponent {
+                input: Box::new(self.expr.clone()),
+            },
+            self.base_graph.clone(),
+        )
+    }
+
     /// Returns the collection of this node's edges (both directions). Lazy — no RPC.
     /// Propagates the base graph view so materialized edges are correctly rebased.
     pub fn edges(&self) -> RemoteEdges {

@@ -864,6 +864,12 @@ fn render_read_body(expr: &ReadExpr) -> String {
         ReadExpr::NodeEdges { input } => format!("{} {{ edges", render_read_body(input)),
         ReadExpr::InEdges { input } => format!("{} {{ inEdges", render_read_body(input)),
         ReadExpr::OutEdges { input } => format!("{} {{ outEdges", render_read_body(input)),
+        ReadExpr::InComponent { input } => {
+            format!("{} {{ inComponent", render_read_body(input))
+        }
+        ReadExpr::OutComponent { input } => {
+            format!("{} {{ outComponent", render_read_body(input))
+        }
         // Terminals — no args after the field name
         ReadExpr::CountNodes { input } => format!("{} {{ countNodes", render_read_body(input)),
         ReadExpr::CountEdges { input } => format!("{} {{ countEdges", render_read_body(input)),
@@ -1017,6 +1023,8 @@ fn read_depth(expr: &ReadExpr) -> usize {
         | ReadExpr::NodeEdges { input }
         | ReadExpr::InEdges { input }
         | ReadExpr::OutEdges { input }
+        | ReadExpr::InComponent { input }
+        | ReadExpr::OutComponent { input }
         | ReadExpr::Ids { input }
         | ReadExpr::Count { input }
         | ReadExpr::EdgesList { input }
@@ -1520,6 +1528,14 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
                 go(input, out);
                 out.push("outEdges");
             }
+            ReadExpr::InComponent { input } => {
+                go(input, out);
+                out.push("inComponent");
+            }
+            ReadExpr::OutComponent { input } => {
+                go(input, out);
+                out.push("outComponent");
+            }
             ReadExpr::Ids { input } => {
                 go(input, out);
                 out.push("ids");
@@ -1820,6 +1836,8 @@ fn child_input(expr: &ReadExpr) -> Option<&ReadExpr> {
         | ReadExpr::NodeEdges { input }
         | ReadExpr::InEdges { input }
         | ReadExpr::OutEdges { input }
+        | ReadExpr::InComponent { input }
+        | ReadExpr::OutComponent { input }
         | ReadExpr::Ids { input }
         | ReadExpr::Count { input }
         | ReadExpr::EdgesList { input }

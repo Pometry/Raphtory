@@ -848,6 +848,46 @@ def test_history_list_on_empty_view():
         server_cm.__exit__(None, None, None)
 
 
+def test_node_in_out_component():
+    """`.in_component` / `.out_component` return the set of ancestors /
+    descendants reachable via directed edges (excluding self). Both are
+    `RemoteNodes` handles with the usual terminals (count, ids, list, iter)."""
+    server_cm, rg = _make_graph_with_edge()
+    # Build a chain: ben -> hamza -> sam -> tom  (t=3 already has ben->hamza)
+    rg.add_node(4, "sam")
+    rg.add_node(5, "tom")
+    rg.add_edge(4, "hamza", "sam")
+    rg.add_edge(5, "sam", "tom")
+    try:
+        # Out-component from ben: {hamza, sam, tom} (descendants, excludes ben).
+        out = rg.node("ben").out_component
+        assert sorted(out.ids()) == ["hamza", "sam", "tom"]
+        assert out.count() == 3
+
+        # In-component of tom: {ben, hamza, sam}.
+        into_tom = rg.node("tom").in_component
+        assert sorted(into_tom.ids()) == ["ben", "hamza", "sam"]
+
+        # Sam sits in the middle — in-component {ben, hamza}, out-component {tom}.
+        assert sorted(rg.node("sam").in_component.ids()) == ["ben", "hamza"]
+        assert rg.node("sam").out_component.ids() == ["tom"]
+
+        # Terminal node in out-direction: tom's out-component is empty.
+        assert rg.node("tom").out_component.ids() == []
+        assert rg.node("tom").out_component.count() == 0
+
+        # Composes with view — under a window that only sees ben->hamza,
+        # ben's out-component shrinks to {hamza}.
+        windowed = rg.window(0, 4).node("ben").out_component
+        assert sorted(windowed.ids()) == ["hamza"]
+
+        # Iteration works.
+        names = sorted(n.name() for n in rg.node("ben").out_component)
+        assert names == ["hamza", "sam", "tom"]
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
 def test_nodes_type_filter():
     """`rg.nodes.type_filter(types)` filters membership — the returned
     collection has fewer members. Distinct from view ops (window/layer/etc.)

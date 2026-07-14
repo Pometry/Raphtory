@@ -144,6 +144,13 @@ pub enum ReadExpr {
     InEdges { input: Box<ReadExpr> },
     /// Node → the collection of the node's outgoing edges.
     OutEdges { input: Box<ReadExpr> },
+    /// Node → the collection of nodes reachable *into* this node via incoming
+    /// edges (i.e., the node's ancestors in the directed graph). Server
+    /// field: `inComponent`.
+    InComponent { input: Box<ReadExpr> },
+    /// Node → the collection of nodes reachable *out from* this node via
+    /// outgoing edges (i.e., the node's descendants). Server field: `outComponent`.
+    OutComponent { input: Box<ReadExpr> },
 
     // ============ Scalar terminals on Graph ============
     /// Terminal: total node count under the current view — `i64`.

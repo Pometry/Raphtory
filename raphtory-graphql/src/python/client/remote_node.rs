@@ -297,6 +297,20 @@ impl PyRemoteNode {
         PyRemoteNodes::new(self.node.out_neighbours())
     }
 
+    /// The in-component of this node — nodes that can reach this node via
+    /// incoming edges (ancestors, not including self). Lazy — no RPC.
+    #[getter]
+    pub fn in_component(&self) -> PyRemoteNodes {
+        PyRemoteNodes::new(self.node.in_component())
+    }
+
+    /// The out-component of this node — nodes reachable from this node via
+    /// outgoing edges (descendants, not including self). Lazy — no RPC.
+    #[getter]
+    pub fn out_component(&self) -> PyRemoteNodes {
+        PyRemoteNodes::new(self.node.out_component())
+    }
+
     /// The collection of this node's edges (both directions). Lazy — no RPC.
     #[getter]
     pub fn edges(&self) -> PyRemoteEdges {
