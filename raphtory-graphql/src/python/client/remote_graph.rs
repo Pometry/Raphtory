@@ -296,16 +296,26 @@ impl PyRemoteGraph {
     /// `rg.window(...)`) so subsequent terminals like `degree()` evaluate under
     /// the same view context.
     ///
+    /// Fires one RPC — a `hasNode` check against the current view chain.
+    /// Raises `NotFound` if the node isn't visible under the current view.
+    ///
     /// Arguments:
     ///     id (str | int): the node id
     ///
     /// Returns:
     ///     RemoteNode: the remote node reference
-    pub fn node(&self, id: GID) -> PyRemoteNode {
-        PyRemoteNode::new(self.graph.node(id.to_string()))
+    pub fn node(&self, id: GID) -> Result<PyRemoteNode, ClientError> {
+        let graph = Arc::clone(&self.graph);
+        let id_str = id.to_string();
+        let node =
+            execute_async_task(move || async move { graph.node(id_str).await })?;
+        Ok(PyRemoteNode::new(node))
     }
 
     /// Gets a remote edge with the specified source and destination nodes.
+    ///
+    /// Fires one RPC — a `hasEdge` check against the current view chain.
+    /// Raises `NotFound` if the edge isn't visible under the current view.
     ///
     /// Arguments:
     ///     src (str | int): the source node id
@@ -314,8 +324,14 @@ impl PyRemoteGraph {
     /// Returns:
     ///     RemoteEdge: the remote edge reference
     #[pyo3(signature = (src, dst))]
-    pub fn edge(&self, src: GID, dst: GID) -> PyRemoteEdge {
-        PyRemoteEdge::new(self.graph.edge(src.to_string(), dst.to_string()))
+    pub fn edge(&self, src: GID, dst: GID) -> Result<PyRemoteEdge, ClientError> {
+        let graph = Arc::clone(&self.graph);
+        let src_str = src.to_string();
+        let dst_str = dst.to_string();
+        let edge = execute_async_task(
+            move || async move { graph.edge(src_str, dst_str).await },
+        )?;
+        Ok(PyRemoteEdge::new(edge))
     }
 
     /// The collection of all nodes in this graph under the current view.

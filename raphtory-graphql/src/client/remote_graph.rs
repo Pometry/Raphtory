@@ -530,11 +530,28 @@ impl RemoteGraph {
     }
 
     /// Returns a remote node reference for the given node id.
-    /// Carries the built-up read expression forward, so subsequent terminals
-    /// (e.g. `degree()`) evaluate under the same view chain.
-    pub fn node(&self, id: impl ToString) -> RemoteNode {
+    ///
+    /// **Fires one RPC** — a `hasNode` check against the current view chain,
+    /// raising `ClientError::NotFound` if the node isn't visible under the
+    /// current view. This guarantees that any handle you hold refers to a
+    /// node the server actually resolved at handle-construction time; race
+    /// conditions where the node is deleted between selection and terminal
+    /// are still caught downstream via the null-intermediate NotFound path
+    /// in `parse_read`.
+    ///
+    /// Server-returned handles (from `.nodes.list()`, `.neighbours`, etc.)
+    /// bypass this check — those ids came from the server, so we trust them.
+    pub async fn node(&self, id: impl ToString) -> Result<RemoteNode, ClientError> {
         let id_str = id.to_string();
-        RemoteNode::with_expr(
+        let check = Op::Read(ReadExpr::HasNode {
+            input: Box::new(self.expr.clone()),
+            id: id_str.clone(),
+        });
+        let exists = expect_bool(self.transport.execute(&check).await?, "hasNode")?;
+        if !exists {
+            return Err(ClientError::NotFound(format!("Node '{}'", id_str)));
+        }
+        Ok(RemoteNode::with_expr(
             self.path.clone(),
             id_str.clone(),
             self.transport.clone(),
@@ -543,7 +560,7 @@ impl RemoteGraph {
                 id: id_str,
             },
             self.expr.clone(),
-        )
+        ))
     }
 
     /// Returns the collection of all nodes in the graph, evaluated under the
@@ -573,12 +590,30 @@ impl RemoteGraph {
     }
 
     /// Returns a remote edge reference for the given source and destination node ids.
-    /// Carries the built-up read expression forward, so subsequent navigations
-    /// (`.src()`, `.dst()`) evaluate under the same view chain.
-    pub fn edge(&self, src: impl ToString, dst: impl ToString) -> RemoteEdge {
+    ///
+    /// **Fires one RPC** — a `hasEdge` check against the current view chain,
+    /// raising `ClientError::NotFound` if the edge isn't visible under the
+    /// current view. Same guarantee and rationale as `.node()`.
+    pub async fn edge(
+        &self,
+        src: impl ToString,
+        dst: impl ToString,
+    ) -> Result<RemoteEdge, ClientError> {
         let src_str = src.to_string();
         let dst_str = dst.to_string();
-        RemoteEdge::with_expr(
+        let check = Op::Read(ReadExpr::HasEdge {
+            input: Box::new(self.expr.clone()),
+            src: src_str.clone(),
+            dst: dst_str.clone(),
+        });
+        let exists = expect_bool(self.transport.execute(&check).await?, "hasEdge")?;
+        if !exists {
+            return Err(ClientError::NotFound(format!(
+                "Edge ('{}', '{}')",
+                src_str, dst_str
+            )));
+        }
+        Ok(RemoteEdge::with_expr(
             self.path.clone(),
             src_str.clone(),
             dst_str.clone(),
@@ -589,7 +624,7 @@ impl RemoteGraph {
                 dst: dst_str,
             },
             self.expr.clone(),
-        )
+        ))
     }
 
     pub async fn add_node<G: Into<GID> + ToString, T: IntoTime>(

@@ -1630,17 +1630,43 @@ mod tests {
 
         // Read path: composed expression through Transport
         // g.node("ben").degree() — after edge (ben -> hamza), ben has degree 1.
-        let degree = rg.node("ben").degree().await.unwrap();
+        // `.node()` now fires a hasNode validation RPC before returning the handle.
+        let degree = rg.node("ben").await.unwrap().degree().await.unwrap();
         assert_eq!(degree, 1, "ben should have degree 1 (single edge to hamza)");
 
         // With a windowed view, we can restrict to a time range.
         // Window (0, 5) includes the edge added at time 3, so degree is still 1.
-        let degree_windowed = rg.window(0, 5).node("ben").degree().await.unwrap();
+        let degree_windowed = rg
+            .window(0, 5)
+            .node("ben")
+            .await
+            .unwrap()
+            .degree()
+            .await
+            .unwrap();
         assert_eq!(degree_windowed, 1);
 
-        // Window (0, 2) excludes the edge (added at time 3), so degree is 0.
-        let degree_before_edge = rg.window(0, 2).node("ben").degree().await.unwrap();
+        // Window (0, 2) excludes the edge (added at time 3), but ben himself
+        // was added at t=1 so he's still in the view — his degree is 0.
+        let degree_before_edge = rg
+            .window(0, 2)
+            .node("ben")
+            .await
+            .unwrap()
+            .degree()
+            .await
+            .unwrap();
         assert_eq!(degree_before_edge, 0);
+
+        // A window that excludes ben's add_node event entirely — `.node()`
+        // validates against the view chain and raises NotFound.
+        match rg.window(100, 200).node("ben").await {
+            Err(ClientError::NotFound(msg)) => {
+                assert!(msg.contains("ben"), "expected 'ben' in message, got: {msg}");
+            }
+            Err(e) => panic!("expected NotFound for ben under window [100, 200), got {e:?}"),
+            Ok(_) => panic!("expected NotFound for ben under window [100, 200), got Ok"),
+        }
 
         running.stop().await;
     }
