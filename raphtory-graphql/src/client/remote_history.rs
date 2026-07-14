@@ -121,4 +121,39 @@ impl RemoteHistory {
         });
         expect_event_time_list(self.transport.execute(&op).await?, "listRev")
     }
+
+    /// Terminal: a page of events in ascending time order — at most `limit`
+    /// items, starting `page_index * limit + offset` items in. `offset` and
+    /// `page_index` each default to `0` when `None`. Fires one RPC.
+    pub async fn page(
+        &self,
+        limit: usize,
+        offset: Option<usize>,
+        page_index: Option<usize>,
+    ) -> Result<Vec<RemoteEventTime>, ClientError> {
+        let op = Op::Read(ReadExpr::HistoryPage {
+            input: Box::new(self.expr.clone()),
+            limit,
+            offset,
+            page_index,
+        });
+        expect_event_time_list(self.transport.execute(&op).await?, "page")
+    }
+
+    /// Terminal: a page of events in descending time order. Same args as
+    /// `page()`. Fires one RPC.
+    pub async fn page_rev(
+        &self,
+        limit: usize,
+        offset: Option<usize>,
+        page_index: Option<usize>,
+    ) -> Result<Vec<RemoteEventTime>, ClientError> {
+        let op = Op::Read(ReadExpr::HistoryPageRev {
+            input: Box::new(self.expr.clone()),
+            limit,
+            offset,
+            page_index,
+        });
+        expect_event_time_list(self.transport.execute(&op).await?, "pageRev")
+    }
 }

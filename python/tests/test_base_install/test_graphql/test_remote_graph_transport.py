@@ -848,6 +848,51 @@ def test_history_list_on_empty_view():
         server_cm.__exit__(None, None, None)
 
 
+def test_history_page_and_page_rev():
+    """`history.page(limit, offset, page_index)` returns a slice of events;
+    `.page_rev(...)` returns the equivalent slice in descending order.
+    `offset` and `page_index` default to 0."""
+    server_cm, rg = _make_graph_with_edge()
+    # Add extra edges so ben has 5 events total: add_node at t=1, edges at
+    # t=3, t=5, t=7, t=9.
+    rg.add_edge(5, "ben", "hamza")
+    rg.add_edge(7, "ben", "hamza")
+    rg.add_edge(9, "ben", "hamza")
+    try:
+        h = rg.node("ben").history
+        assert h.count() == 5
+
+        # Full first page — limit=2, no offset, no page_index.
+        page = h.page(limit=2)
+        assert [e.timestamp for e in page] == [1, 3]
+
+        # Explicit offset — skip 2, take 2.
+        page_off = h.page(limit=2, offset=2)
+        assert [e.timestamp for e in page_off] == [5, 7]
+
+        # page_index=1 with limit=2 → skip 2, take 2 (equivalent to offset=2).
+        page_idx = h.page(limit=2, page_index=1)
+        assert [e.timestamp for e in page_idx] == [5, 7]
+
+        # page_index=1 with limit=2 AND offset=1 → skip 2+1=3, take 2.
+        page_combo = h.page(limit=2, offset=1, page_index=1)
+        assert [e.timestamp for e in page_combo] == [7, 9]
+
+        # Limit exceeds remaining — returns whatever is left.
+        page_last = h.page(limit=10, offset=3)
+        assert [e.timestamp for e in page_last] == [7, 9]
+
+        # Reverse — first page in descending order.
+        page_rev = h.page_rev(limit=2)
+        assert [e.timestamp for e in page_rev] == [9, 7]
+
+        # Reverse with offset.
+        page_rev_off = h.page_rev(limit=2, offset=1)
+        assert [e.timestamp for e in page_rev_off] == [7, 5]
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
 def test_edge_history_and_deletions_lists():
     """Edge history and deletions both expose `.list()` returning
     `RemoteEventTime`s under the same shape."""

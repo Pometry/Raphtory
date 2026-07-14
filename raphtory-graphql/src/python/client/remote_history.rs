@@ -124,6 +124,48 @@ impl PyRemoteHistory {
         Ok(result.into_iter().map(Into::into).collect())
     }
 
+    /// A page of events in ascending time order — at most `limit` items,
+    /// starting `page_index * limit + offset` items in. Both `offset` and
+    /// `page_index` default to 0. Fires one RPC.
+    ///
+    /// Arguments:
+    ///   limit (int): maximum number of events on this page.
+    ///   offset (int, optional): additional items to skip. Defaults to 0.
+    ///   page_index (int, optional): 0-based page number. Defaults to 0.
+    ///
+    /// Returns:
+    ///   list[RemoteEventTime]: at most `limit` events.
+    #[pyo3(signature = (limit, offset = None, page_index = None))]
+    pub fn page(
+        &self,
+        limit: usize,
+        offset: Option<usize>,
+        page_index: Option<usize>,
+    ) -> Result<Vec<PyRemoteEventTime>, ClientError> {
+        let history = Arc::clone(&self.history);
+        let result =
+            execute_async_task(
+                move || async move { history.page(limit, offset, page_index).await },
+            )?;
+        Ok(result.into_iter().map(Into::into).collect())
+    }
+
+    /// A page of events in descending time order. Same args as `page()`.
+    /// Fires one RPC.
+    #[pyo3(signature = (limit, offset = None, page_index = None))]
+    pub fn page_rev(
+        &self,
+        limit: usize,
+        offset: Option<usize>,
+        page_index: Option<usize>,
+    ) -> Result<Vec<PyRemoteEventTime>, ClientError> {
+        let history = Arc::clone(&self.history);
+        let result = execute_async_task(move || async move {
+            history.page_rev(limit, offset, page_index).await
+        })?;
+        Ok(result.into_iter().map(Into::into).collect())
+    }
+
     /// Enables `for t in remote_history:` — fetches all events in one RPC
     /// via `.list()`, then yields each `RemoteEventTime` locally.
     fn __iter__(&self) -> Result<PyRemoteHistoryIter, ClientError> {

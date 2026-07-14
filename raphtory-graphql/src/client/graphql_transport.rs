@@ -685,6 +685,23 @@ fn render_read(expr: &ReadExpr) -> String {
     format!("{{ {} {} }}", body, closes)
 }
 
+/// Render the argument list for a `page` / `page_rev` server field:
+/// - `limit` always present
+/// - `offset` and `pageIndex` omitted when `None` (server defaults to 0)
+///
+/// Returns e.g. `"limit: 10"`, `"limit: 10, offset: 5"`, or
+/// `"limit: 10, offset: 5, pageIndex: 2"`. Caller wraps in `(...)`.
+fn render_page_args(limit: usize, offset: Option<usize>, page_index: Option<usize>) -> String {
+    let mut parts = vec![format!("limit: {}", limit)];
+    if let Some(o) = offset {
+        parts.push(format!("offset: {}", o));
+    }
+    if let Some(p) = page_index {
+        parts.push(format!("pageIndex: {}", p));
+    }
+    parts.join(", ")
+}
+
 /// Render a `Vec<String>` as the contents of a GraphQL list arg, e.g.
 /// `["a", "b", "c"]`. Returns the comma-joined body only — the caller wraps
 /// with `[` and `]`.
@@ -852,6 +869,26 @@ fn render_read_body(expr: &ReadExpr) -> String {
             "{} {{ listRev {{ timestamp datetime eventId }}",
             render_read_body(input)
         ),
+        ReadExpr::HistoryPage {
+            input,
+            limit,
+            offset,
+            page_index,
+        } => format!(
+            "{} {{ page({}) {{ timestamp datetime eventId }}",
+            render_read_body(input),
+            render_page_args(*limit, *offset, *page_index),
+        ),
+        ReadExpr::HistoryPageRev {
+            input,
+            limit,
+            offset,
+            page_index,
+        } => format!(
+            "{} {{ pageRev({}) {{ timestamp datetime eventId }}",
+            render_read_body(input),
+            render_page_args(*limit, *offset, *page_index),
+        ),
         ReadExpr::EdgeHistoryCount { input } => {
             format!("{} {{ edgeHistoryCount", render_read_body(input))
         }
@@ -962,7 +999,9 @@ fn read_depth(expr: &ReadExpr) -> usize {
         | ReadExpr::IsSelfLoop { input }
         | ReadExpr::IsEmpty { input }
         | ReadExpr::HistoryList { input }
-        | ReadExpr::HistoryListRev { input } => 1 + read_depth(input),
+        | ReadExpr::HistoryListRev { input }
+        | ReadExpr::HistoryPage { input, .. }
+        | ReadExpr::HistoryPageRev { input, .. } => 1 + read_depth(input),
         // Compound terminals — open two `{` (outer field + `timestamp` sub-field).
         ReadExpr::EarliestTime { input }
         | ReadExpr::LatestTime { input }
@@ -1076,7 +1115,10 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
         // null. Decode each element into a `Prop::Map` (missing keys → null
         // semantically); `expect_event_time_list` unwraps to a typed
         // `Vec<RemoteEventTime>`.
-        ReadExpr::HistoryList { .. } | ReadExpr::HistoryListRev { .. } => {
+        ReadExpr::HistoryList { .. }
+        | ReadExpr::HistoryListRev { .. }
+        | ReadExpr::HistoryPage { .. }
+        | ReadExpr::HistoryPageRev { .. } => {
             let arr = terminal_val.as_array().ok_or_else(|| {
                 ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
             })?;
@@ -1448,6 +1490,14 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
                 go(input, out);
                 out.push("listRev");
             }
+            ReadExpr::HistoryPage { input, .. } => {
+                go(input, out);
+                out.push("page");
+            }
+            ReadExpr::HistoryPageRev { input, .. } => {
+                go(input, out);
+                out.push("pageRev");
+            }
             ReadExpr::EdgeHistoryCount { input } => {
                 go(input, out);
                 out.push("edgeHistoryCount");
@@ -1634,7 +1684,9 @@ fn child_input(expr: &ReadExpr) -> Option<&ReadExpr> {
         | ReadExpr::IsSelfLoop { input }
         | ReadExpr::IsEmpty { input }
         | ReadExpr::HistoryList { input }
-        | ReadExpr::HistoryListRev { input } => Some(input),
+        | ReadExpr::HistoryListRev { input }
+        | ReadExpr::HistoryPage { input, .. }
+        | ReadExpr::HistoryPageRev { input, .. } => Some(input),
     }
 }
 

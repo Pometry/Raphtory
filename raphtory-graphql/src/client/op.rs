@@ -220,6 +220,23 @@ pub enum ReadExpr {
     /// Terminal on a `RemoteHistory` container: list all events in descending
     /// order — `Vec<RemoteEventTime>`. Server field is `listRev`.
     HistoryListRev { input: Box<ReadExpr> },
+    /// Terminal on a `RemoteHistory` container: paginated list of events in
+    /// ascending order — `Vec<RemoteEventTime>`. `offset` and `page_index`
+    /// are optional; each defaults to 0 server-side.
+    HistoryPage {
+        input: Box<ReadExpr>,
+        limit: usize,
+        offset: Option<usize>,
+        page_index: Option<usize>,
+    },
+    /// Terminal on a `RemoteHistory` container: paginated list of events in
+    /// descending order — `Vec<RemoteEventTime>`. Same args as `HistoryPage`.
+    HistoryPageRev {
+        input: Box<ReadExpr>,
+        limit: usize,
+        offset: Option<usize>,
+        page_index: Option<usize>,
+    },
     /// Terminal on an Edges collection: list of (src, dst) pairs.
     /// Returned as `Prop::List(Prop::List(Prop::Str, Prop::Str), ...)` on the
     /// wire — each outer element is a 2-element inner list `[src, dst]`.
