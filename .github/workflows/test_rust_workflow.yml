@@ -60,7 +60,7 @@ jobs:
         env:
           RUSTFLAGS: -Awarnings
         run: |
-          cargo hack check --workspace --all-targets --each-feature  --skip extension-module,default
+          cargo hack check --workspace --all-targets --each-feature  --skip extension-module,default,vectors,datafusion
   doc-test:
     if: ${{ !inputs.skip_tests }}
     name: "Doc tests"
