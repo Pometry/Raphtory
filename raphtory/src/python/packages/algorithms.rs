@@ -882,18 +882,20 @@ pub fn temporal_SEIR(
 ///     resolution (float): the resolution parameter for modularity. Defaults to 1.0.
 ///     weight_prop (str | None): the edge property to use for weights (has to be float)
 ///     tol (None | float): the floating point tolerance for deciding if improvements are significant (default: 1e-8)
+///     rng_seed (int | None): seed for the rng used to shuffle nodes; if None, the rng is seeded from the OS (default: None)
 ///
 /// Returns:
 ///     NodeStateUsize: Mapping of nodes to their community assignment
 #[pyfunction]
-#[pyo3[signature=(graph, resolution=1.0, weight_prop=None, tol=None)]]
+#[pyo3[signature=(graph, resolution=1.0, weight_prop=None, tol=None, rng_seed=None)]]
 pub fn louvain(
     graph: &PyGraphView,
     resolution: f64,
     weight_prop: Option<&str>,
     tol: Option<f64>,
+    rng_seed: Option<u64>,
 ) -> OutputTypedNodeState<'static, DynamicGraph> {
-    louvain_rs::<ModularityUnDir, _>(&graph.graph, resolution, weight_prop, tol)
+    louvain_rs::<ModularityUnDir, _>(&graph.graph, resolution, weight_prop, tol, rng_seed)
         .to_output_nodestate()
 }
 
