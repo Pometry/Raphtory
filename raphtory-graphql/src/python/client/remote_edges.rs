@@ -106,6 +106,16 @@ impl PyRemoteEdges {
         PyRemoteEdges::new(self.edges.exclude_layers(names))
     }
 
+    /// Fan out this collection into one entry per event. Lazy — no RPC.
+    pub fn explode(&self) -> PyRemoteEdges {
+        PyRemoteEdges::new(self.edges.explode())
+    }
+
+    /// Fan out this collection into one entry per layer per edge. Lazy — no RPC.
+    pub fn explode_layers(&self) -> PyRemoteEdges {
+        PyRemoteEdges::new(self.edges.explode_layers())
+    }
+
     /// Returns the number of edges in this collection. Fires one RPC.
     ///
     /// Returns:

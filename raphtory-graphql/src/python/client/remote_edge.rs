@@ -1,6 +1,8 @@
 use crate::{
     client::{remote_edge::RemoteEdge, ClientError},
-    python::client::{remote_history::PyRemoteHistory, remote_node::PyRemoteNode},
+    python::client::{
+        remote_edges::PyRemoteEdges, remote_history::PyRemoteHistory, remote_node::PyRemoteNode,
+    },
 };
 use pyo3::{pyclass, pymethods};
 use raphtory::python::utils::execute_async_task;
@@ -326,5 +328,17 @@ impl PyRemoteEdge {
     #[getter]
     pub fn deletions(&self) -> PyRemoteHistory {
         PyRemoteHistory::new(self.edge.deletions())
+    }
+
+    /// Fan out this edge into one entry per event — returns a `RemoteEdges`
+    /// with each member a single-event edge instance. Lazy — no RPC.
+    pub fn explode(&self) -> PyRemoteEdges {
+        PyRemoteEdges::new(self.edge.explode())
+    }
+
+    /// Fan out this edge into one entry per layer — returns a `RemoteEdges`
+    /// with each member a single-layer edge instance. Lazy — no RPC.
+    pub fn explode_layers(&self) -> PyRemoteEdges {
+        PyRemoteEdges::new(self.edge.explode_layers())
     }
 }

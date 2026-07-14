@@ -186,6 +186,37 @@ impl RemoteEdges {
         })
     }
 
+    /// Fan out this collection into one entry per event — returns a new
+    /// `RemoteEdges` where each member is a single-event edge instance.
+    /// Lazy — no RPC.
+    ///
+    /// Only updates `expr`, not `base_graph` — `explode` is an Edges-only
+    /// server operation and doesn't compose with the parent graph view.
+    pub fn explode(&self) -> RemoteEdges {
+        RemoteEdges {
+            path: self.path.clone(),
+            transport: self.transport.clone(),
+            expr: ReadExpr::Explode {
+                input: Box::new(self.expr.clone()),
+            },
+            base_graph: self.base_graph.clone(),
+        }
+    }
+
+    /// Fan out this collection into one entry per layer per edge — returns
+    /// a new `RemoteEdges`. Only updates `expr`, not `base_graph` (same
+    /// reasoning as `explode`). Lazy — no RPC.
+    pub fn explode_layers(&self) -> RemoteEdges {
+        RemoteEdges {
+            path: self.path.clone(),
+            transport: self.transport.clone(),
+            expr: ReadExpr::ExplodeLayers {
+                input: Box::new(self.expr.clone()),
+            },
+            base_graph: self.base_graph.clone(),
+        }
+    }
+
     /// Terminal: the number of edges in this collection. Fires one RPC.
     pub async fn count(&self) -> Result<i64, ClientError> {
         let op = Op::Read(ReadExpr::Count {

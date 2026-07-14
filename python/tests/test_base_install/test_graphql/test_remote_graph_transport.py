@@ -848,6 +848,47 @@ def test_history_list_on_empty_view():
         server_cm.__exit__(None, None, None)
 
 
+def test_edge_explode():
+    """`.explode()` on a `RemoteEdge` fans it out into one entry per event,
+    returning a `RemoteEdges` collection. `explode_layers()` fans out by layer."""
+    server_cm, rg = _make_graph_with_edge()
+    # Add multiple events on the same edge.
+    rg.add_edge(5, "ben", "hamza")
+    rg.add_edge(8, "ben", "hamza")
+    try:
+        e = rg.edge("ben", "hamza")
+        # 3 events on this edge: t=3, t=5, t=8.
+        exploded = e.explode()
+        assert exploded.count() == 3
+
+        # Each exploded instance still points at (ben, hamza).
+        for ex in exploded.list():
+            assert ex.src().name() == "ben"
+            assert ex.dst().name() == "hamza"
+
+        # Layer explode — only one layer here so should be 1 entry.
+        by_layer = e.explode_layers()
+        assert by_layer.count() == 1
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_edges_explode():
+    """`.explode()` on a `RemoteEdges` collection expands each member into
+    its events. Terminal count reflects the sum of per-edge event counts."""
+    server_cm, rg = _make_graph_with_edge()
+    # Two edges, ben->hamza with events at t=3 and t=5, ben->sam with event at t=7.
+    rg.add_edge(5, "ben", "hamza")
+    rg.add_node(6, "sam")
+    rg.add_edge(7, "ben", "sam")
+    try:
+        # Total events across both edges: 2 + 1 = 3.
+        exploded = rg.edges.explode()
+        assert exploded.count() == 3
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
 def test_node_in_out_component():
     """`.in_component` / `.out_component` return the set of ancestors /
     descendants reachable via directed edges (excluding self). Both are

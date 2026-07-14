@@ -870,6 +870,10 @@ fn render_read_body(expr: &ReadExpr) -> String {
         ReadExpr::OutComponent { input } => {
             format!("{} {{ outComponent", render_read_body(input))
         }
+        ReadExpr::Explode { input } => format!("{} {{ explode", render_read_body(input)),
+        ReadExpr::ExplodeLayers { input } => {
+            format!("{} {{ explodeLayers", render_read_body(input))
+        }
         // Terminals — no args after the field name
         ReadExpr::CountNodes { input } => format!("{} {{ countNodes", render_read_body(input)),
         ReadExpr::CountEdges { input } => format!("{} {{ countEdges", render_read_body(input)),
@@ -1025,6 +1029,8 @@ fn read_depth(expr: &ReadExpr) -> usize {
         | ReadExpr::OutEdges { input }
         | ReadExpr::InComponent { input }
         | ReadExpr::OutComponent { input }
+        | ReadExpr::Explode { input }
+        | ReadExpr::ExplodeLayers { input }
         | ReadExpr::Ids { input }
         | ReadExpr::Count { input }
         | ReadExpr::EdgesList { input }
@@ -1536,6 +1542,14 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
                 go(input, out);
                 out.push("outComponent");
             }
+            ReadExpr::Explode { input } => {
+                go(input, out);
+                out.push("explode");
+            }
+            ReadExpr::ExplodeLayers { input } => {
+                go(input, out);
+                out.push("explodeLayers");
+            }
             ReadExpr::Ids { input } => {
                 go(input, out);
                 out.push("ids");
@@ -1838,6 +1852,8 @@ fn child_input(expr: &ReadExpr) -> Option<&ReadExpr> {
         | ReadExpr::OutEdges { input }
         | ReadExpr::InComponent { input }
         | ReadExpr::OutComponent { input }
+        | ReadExpr::Explode { input }
+        | ReadExpr::ExplodeLayers { input }
         | ReadExpr::Ids { input }
         | ReadExpr::Count { input }
         | ReadExpr::EdgesList { input }

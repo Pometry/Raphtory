@@ -151,6 +151,14 @@ pub enum ReadExpr {
     /// Node → the collection of nodes reachable *out from* this node via
     /// outgoing edges (i.e., the node's descendants). Server field: `outComponent`.
     OutComponent { input: Box<ReadExpr> },
+    /// Fan out an edge / edge collection into one instance per event.
+    /// Polymorphic: on a single `Edge` produces an `Edges` collection with
+    /// one entry per event; on an `Edges` collection produces an `Edges`
+    /// collection with all events across all members. Server field: `explode`.
+    Explode { input: Box<ReadExpr> },
+    /// Fan out an edge / edge collection into one instance per layer.
+    /// Polymorphic on `Edge` and `Edges`. Server field: `explodeLayers`.
+    ExplodeLayers { input: Box<ReadExpr> },
 
     // ============ Scalar terminals on Graph ============
     /// Terminal: total node count under the current view — `i64`.

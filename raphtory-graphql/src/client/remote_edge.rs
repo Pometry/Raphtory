@@ -4,6 +4,7 @@ use crate::client::{
         DeleteEdgeAtTime as DeleteEdgeAtTimeOp, Op, ReadExpr,
         UpdateEdgeMetadata as UpdateEdgeMetadataOp, WriteOp,
     },
+    remote_edges::RemoteEdges,
     remote_graph::{expect_bool, expect_optional_i64, expect_string, expect_string_list},
     remote_history::RemoteHistory,
     remote_node::RemoteNode,
@@ -258,6 +259,34 @@ impl RemoteEdge {
             self.path.clone(),
             self.transport.clone(),
             ReadExpr::Deletions {
+                input: Box::new(self.expr.clone()),
+            },
+            self.base_graph.clone(),
+        )
+    }
+
+    /// Fan out this edge into one entry per event — returns a `RemoteEdges`
+    /// collection where each member is a single-event edge instance.
+    /// Lazy — no RPC.
+    pub fn explode(&self) -> RemoteEdges {
+        RemoteEdges::with_expr(
+            self.path.clone(),
+            self.transport.clone(),
+            ReadExpr::Explode {
+                input: Box::new(self.expr.clone()),
+            },
+            self.base_graph.clone(),
+        )
+    }
+
+    /// Fan out this edge into one entry per layer — returns a `RemoteEdges`
+    /// collection where each member is a single-layer edge instance.
+    /// Lazy — no RPC.
+    pub fn explode_layers(&self) -> RemoteEdges {
+        RemoteEdges::with_expr(
+            self.path.clone(),
+            self.transport.clone(),
+            ReadExpr::ExplodeLayers {
                 input: Box::new(self.expr.clone()),
             },
             self.base_graph.clone(),
