@@ -82,6 +82,9 @@ pub enum GraphFolderError {
     #[error("Path {0} is not a valid relative data path")]
     InvalidRelativePath(String),
 
+    #[error("Path {0} is not a valid graph path")]
+    InvalidGraphPath(PathBuf),
+
     #[error("Not a zip archive")]
     NotAZip,
 
@@ -371,8 +374,23 @@ impl GraphFolder {
         }
     }
 
+    /// Create a [`GraphFolder`] from a path to a `graph{id}/` directory.
+    pub fn from_graph_path(graph_path: impl AsRef<Path>) -> Result<Self, GraphFolderError> {
+        // Layout is GraphFolder/data{id}/graph{id}/, so root is the grandparent of `graph_path`.
+        let graph_path = graph_path.as_ref();
+        let root = graph_path
+            .parent()
+            .and_then(|data_folder| data_folder.parent())
+            .ok_or_else(|| GraphFolderError::InvalidGraphPath(graph_path.to_path_buf()))?;
+
+        Ok(Self {
+            root: root.to_path_buf(),
+            write_as_zip_format: false,
+        })
+    }
+
     /// Reserve a folder and prepare it for storing a graph.
-    /// Returns an error if the folder already has data OR is to be encoded as zip.
+    /// Returns an error if the folder contains data OR is to be encoded as zip.
     pub fn init_write(self) -> Result<WriteableGraphFolder, GraphFolderError> {
         if self.write_as_zip_format {
             return Err(GraphFolderError::ZippedGraphCannotBeSwapped);
