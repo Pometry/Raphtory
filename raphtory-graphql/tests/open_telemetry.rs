@@ -4,7 +4,7 @@ use raphtory::prelude::{Graph, StableEncode};
 use raphtory_graphql::client::raphtory_client::RaphtoryGraphQLClient;
 use raphtory_graphql::config::{
 	app_config::AppConfigBuilder,
-	otlp_config::{TracingLevel, TracingProtocol},
+	otlp_config::{TracingLevel, TracingProtocol, GLOBAL_EXPORTERS},
 };
 use raphtory_graphql::server::{GraphServer, RunningGraphServer};
 use std::collections::{HashMap, HashSet};
@@ -39,6 +39,10 @@ async fn setup_for_span_tests(
 	InMemoryLogExporter,
 	TempDir,
 ) {
+    let span_exporter = GLOBAL_EXPORTERS.span.clone();
+	let log_exporter = GLOBAL_EXPORTERS.log.clone();
+	span_exporter.reset();
+	log_exporter.reset();
 	let tmp_dir = tempdir().unwrap();
 	let graph = Graph::new();
 	graph.encode(tmp_dir.path().join("g")).unwrap();
@@ -60,8 +64,6 @@ async fn setup_for_span_tests(
 
 	let endpoint = Url::parse(&format!("http://localhost:{}/", handler.port())).unwrap();
 	let client = RaphtoryGraphQLClient::new(endpoint, None);
-	let span_exporter = app_config.tracing.exporters.span_exporter.clone();
-	let log_exporter = app_config.tracing.exporters.log_exporter.clone();
 	(client, handler, span_exporter, log_exporter, tmp_dir)
 }
 
@@ -98,6 +100,7 @@ async fn test_open_telemetry_spans_complete() {
 
 	let emitted_logs = log_exporter.get_emitted_logs().unwrap();
 	assert!(!emitted_logs.is_empty());
+	handler.wait().await.unwrap();
 }
 
 async fn test_open_telemetry_spans_essential() {
@@ -128,6 +131,7 @@ async fn test_open_telemetry_spans_essential() {
 
 	let emitted_logs = log_exporter.get_emitted_logs().unwrap();
 	assert!(!emitted_logs.is_empty());
+	handler.wait().await.unwrap();
 }
 
 async fn test_open_telemetry_spans_minimal() {

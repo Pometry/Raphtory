@@ -56,7 +56,7 @@ use tokio::{
 };
 use tracing::{debug, error, info, warn};
 use tracing_subscriber::{
-    fmt, fmt::format::FmtSpan, layer::SubscriberExt, Registry,
+    Registry, fmt::{self, format::FmtSpan}, layer::SubscriberExt, util::SubscriberInitExt,
 };
 use url::ParseError;
 
@@ -274,16 +274,20 @@ impl GraphServer {
         let registry = Registry::default().with(filter).with(
             fmt::layer().pretty().with_span_events(FmtSpan::NONE), //(FULL, NEW, ENTER, EXIT, CLOSE)
         );
-        let dispatch = match tp.clone() {
-            Some((span, log)) => tracing::Dispatch::new(
+        match tp.clone() {
+            Some((span, log)) => {
                 registry
                     .with(
                         tracing_opentelemetry::layer()
                             .with_tracer(span.tracer(tracer_name.clone())),
                     )
-                    .with(OpenTelemetryTracingBridge::new(&log)),
-            ),
-            None => tracing::Dispatch::new(registry),
+                    .with(OpenTelemetryTracingBridge::new(&log))
+                    .try_init()
+                    .unwrap_or_else(|err| error!("Failed to initialise tracer provider: {err}"));
+            }
+            None => {
+                registry.try_init().ok();
+            }
         };
 
         let work_dir = self.work_dir();
@@ -308,11 +312,7 @@ impl GraphServer {
             server_termination(signal_receiver, tp),
             None,
         );
-        let server_result = AbortOnDrop(tokio::spawn(async move {
-            let _guard = tracing::dispatcher::set_default(&dispatch);
-            info!("Server tracing dispatch initialised");
-            server_task.await
-        }));
+        let server_result = AbortOnDrop(tokio::spawn(server_task));
 
         info!("UI listening on 0.0.0.0:{actual_port}, live at: http://localhost:{actual_port}");
         debug!(
@@ -328,7 +328,7 @@ impl GraphServer {
             server_result,
             port: actual_port,
         })
-    }
+    } 
 
     async fn generate_endpoint(
         &self,
@@ -477,6 +477,7 @@ async fn server_termination(
     match tp {
         None => {}
         Some((tp, lp)) => {
+            #[cfg(not(feature="integration-test"))]
             task::spawn_blocking(move || {
                 let res = tp.shutdown();
                 if let Err(e) = res {

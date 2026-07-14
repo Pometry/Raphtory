@@ -17,7 +17,15 @@ use opentelemetry_sdk::{
 use raphtory_api::core::storage::arc_str::OptionAsStr;
 use reqwest::{blocking::ClientBuilder, Certificate};
 use serde::Deserialize;
-use std::{collections::HashMap, env, fs::File, io::Read, path::PathBuf, time::Duration};
+use std::{
+    collections::HashMap,
+    env,
+    fs::File,
+    io::Read,
+    path::PathBuf,
+    sync::LazyLock,
+    time::Duration,
+};
 use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter, EnumString, IntoStaticStr};
 
@@ -113,6 +121,19 @@ pub const DEFAULT_OTLP_TRANSPORT_PROTOCOL: TracingProtocol = TracingProtocol::TO
 pub const DEFAULT_OTLP_AGENT_PORT_TONIC: u16 = 4317;
 pub const DEFAULT_OTLP_TRACING_SERVICE_NAME: &'static str = "Raphtory";
 
+#[cfg(feature = "integration-test")]
+#[derive(Clone)]
+pub struct GlobalExporters {
+    pub span: InMemorySpanExporter,
+    pub log: InMemoryLogExporter,
+}
+
+#[cfg(feature = "integration-test")]
+pub static GLOBAL_EXPORTERS: LazyLock<GlobalExporters> = LazyLock::new(|| GlobalExporters {
+    span: InMemorySpanExporter::default(),
+    log: InMemoryLogExporter::default(),
+});
+
 #[derive(Clone, Deserialize, Debug, PartialEq, serde::Serialize, FieldName)]
 pub struct TracingConfig {
     pub enabled: bool,
@@ -123,10 +144,6 @@ pub struct TracingConfig {
     /// Headers to use when transport_protocol is set to HTTP
     pub transport_headers: HashMap<String, String>,
     pub transport_certificate: Option<PathBuf>,
-    #[cfg(feature = "integration-test")]
-    #[serde(skip)]
-    // Expose in-memory exporters to retrieve spans and logs in tests. 
-    pub exporters: InMemoryExporters,
 }
 
 impl Default for TracingConfig {
@@ -139,8 +156,6 @@ impl Default for TracingConfig {
             transport_protocol: DEFAULT_OTLP_TRANSPORT_PROTOCOL,
             transport_headers: Default::default(),
             transport_certificate: None,
-            #[cfg(feature = "integration-test")]
-            exporters: InMemoryExporters::default(),
         }
     }
 }
@@ -310,8 +325,8 @@ impl TracingConfig {
                         self.level
                     );
                     Ok(self.with_simple_exporter(
-                        self.exporters.span_exporter.clone(),
-                        self.exporters.log_exporter.clone(),
+                        GLOBAL_EXPORTERS.span.clone(),
+                        GLOBAL_EXPORTERS.log.clone(),
                     ))
                 }
             };
@@ -329,20 +344,6 @@ impl TracingConfig {
     }
 }
 
-#[cfg(feature = "integration-test")]
-#[derive(Clone, Debug, Default)]
-pub struct InMemoryExporters {
-    pub span_exporter: InMemorySpanExporter,
-    pub log_exporter: InMemoryLogExporter,
-}
-
-#[cfg(feature = "integration-test")]
-impl PartialEq for InMemoryExporters {
-    fn eq(&self, _other: &Self) -> bool {
-        // Exporters are runtime handles; identity/equality semantics are not meaningful.
-        true
-    }
-}
 
 
 
