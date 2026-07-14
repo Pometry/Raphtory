@@ -18,12 +18,10 @@ use pyo3::{
     BoundObject,
 };
 use pythonize::{depythonize, PythonizeError};
+use raphtory::{db::api::storage::storage::Config, python::utils::block_on};
+#[cfg(feature = "vectors")]
 use raphtory::{
-    db::api::storage::storage::Config,
-    python::{
-        packages::vectors::{PyOpenAIEmbeddings, TemplateConfig},
-        utils::block_on,
-    },
+    python::packages::vectors::{PyOpenAIEmbeddings, TemplateConfig},
     vectors::template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
 };
 use raphtory_api::python::error::adapt_err_value;
@@ -76,6 +74,7 @@ impl From<ServerError> for PyErr {
     }
 }
 
+#[cfg(feature = "vectors")]
 fn template_from_python(
     nodes: TemplateConfig,
     edges: TemplateConfig,
@@ -140,6 +139,7 @@ impl PyGraphServer {
     ///
     /// Returns:
     ///     None:
+    #[cfg(feature = "vectors")]
     #[pyo3(
         signature = (name, embeddings, nodes = TemplateConfig::Bool(true), edges = TemplateConfig::Bool(true))
     )]
@@ -172,6 +172,7 @@ impl PyGraphServer {
     ///
     /// Returns:
     ///     None:
+    #[cfg(feature = "vectors")]
     #[pyo3(
         signature = (embeddings, nodes = TemplateConfig::Bool(true), edges = TemplateConfig::Bool(true))
     )]

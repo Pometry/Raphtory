@@ -8,6 +8,6 @@ name = "raphtory-server"
 path = "src/main.rs"
 
 [dependencies]
-raphtory-graphql = { workspace = true }
+raphtory-graphql = { workspace = true, features = ["vectors"] }
 auth = { workspace = true }
 tokio = { workspace = true }

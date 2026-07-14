@@ -8146,11 +8146,6 @@ Number of updates recorded for this property in the current view.
 
 ### VectorSelection
 
-A working set of documents / nodes / edges built up via similarity
-searches on a `VectorisedGraph`. Selections are mutable: you can grow
-them with more hops (`expand*`), dereference the contents (`nodes`,
-`edges`, `getDocuments`), or start fresh with `emptySelection`.
-
 <table>
 <thead>
 <tr>
@@ -8373,11 +8368,6 @@ Optional `{start, end}` to restrict matches to edges active in that interval.
 
 ### VectorisedGraph
 
-A graph with embedded vector representations for its nodes and edges.
-Exposes similarity search over documents, nodes, and edges, plus
-selection building (`emptySelection`) and index maintenance
-(`optimizeIndex`).
-
 <table>
 <thead>
 <tr>
@@ -8391,33 +8381,17 @@ selection building (`emptySelection`) and index maintenance
 <tr>
 <td colspan="2" valign="top"><strong id="vectorisedgraph.optimizeindex">optimizeIndex</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
-<td>
-
-Rebuild (or incrementally update) the on-disk vector indexes for nodes
-and edges so subsequent similarity searches hit the fresh embeddings.
-Safe to call repeatedly; returns true on success.
-
-</td>
+<td></td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="vectorisedgraph.emptyselection">emptySelection</strong></td>
 <td valign="top"><a href="#vectorselection">VectorSelection</a>!</td>
-<td>
-
-Returns an empty selection of documents.
-
-</td>
+<td></td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="vectorisedgraph.entitiesbysimilarity">entitiesBySimilarity</strong></td>
 <td valign="top"><a href="#vectorselection">VectorSelection</a>!</td>
-<td>
-
-Find the highest-scoring nodes *and* edges (mixed) by similarity to a
-natural-language query. The query is embedded server-side and matched
-against indexed entity vectors.
-
-</td>
+<td></td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">query</td>
@@ -8449,13 +8423,7 @@ Optional `{start, end}` to restrict matches to entities active in that interval.
 <tr>
 <td colspan="2" valign="top"><strong id="vectorisedgraph.nodesbysimilarity">nodesBySimilarity</strong></td>
 <td valign="top"><a href="#vectorselection">VectorSelection</a>!</td>
-<td>
-
-Find the highest-scoring nodes by similarity to a natural-language
-query. The query is embedded server-side and matched against indexed
-node vectors.
-
-</td>
+<td></td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">query</td>
@@ -8487,13 +8455,7 @@ Optional `{start, end}` to restrict matches to nodes active in that interval.
 <tr>
 <td colspan="2" valign="top"><strong id="vectorisedgraph.edgesbysimilarity">edgesBySimilarity</strong></td>
 <td valign="top"><a href="#vectorselection">VectorSelection</a>!</td>
-<td>
-
-Find the highest-scoring edges by similarity to a natural-language
-query. The query is embedded server-side and matched against indexed
-edge vectors.
-
-</td>
+<td></td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">query</td>

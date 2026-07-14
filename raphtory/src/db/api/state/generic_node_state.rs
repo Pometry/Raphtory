@@ -8,8 +8,7 @@ use crate::{
                 Index,
             },
             view::{
-                internal::{GraphView, InnerFilterOps},
-                BoxableGraphView, DynamicGraph, IntoDynBoxed, IntoDynamic,
+                internal::GraphView, BoxableGraphView, DynamicGraph, IntoDynBoxed, IntoDynamic,
             },
         },
         graph::{
@@ -21,7 +20,7 @@ use crate::{
     prelude::{GraphViewOps, NodeViewOps},
 };
 use arrow::{
-    array::{ArrayBuilder, AsArray},
+    array::AsArray,
     compute::{cast_with_options, interleave_record_batch, CastOptions},
     datatypes::UInt64Type,
     row::{RowConverter, SortField},
