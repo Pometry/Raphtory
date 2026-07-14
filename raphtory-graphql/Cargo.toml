@@ -71,7 +71,7 @@ tempfile = { workspace = true }
 pretty_assertions = { workspace = true }
 arrow = { workspace = true }
 parquet = { workspace = true }
-raphtory-graphql = { workspace = true, features = ["integration-test"] }
+raphtory-graphql = { workspace = true, default-features = false, features = ["integration-test"] }
 opentelemetry_sdk = { version = "0.32.1", features = ["rt-tokio", "testing"] }
 
 [features]
