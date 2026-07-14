@@ -1,5 +1,8 @@
 use crate::client::{
-    remote_history::{RemoteEventTime, RemoteHistory},
+    remote_history::{
+        RemoteEventTime, RemoteHistory, RemoteHistoryDateTimes, RemoteHistoryEventIds,
+        RemoteHistoryTimestamps, RemoteIntervals,
+    },
     ClientError,
 };
 use pyo3::{pyclass, pymethods, PyRef, PyRefMut};
@@ -174,6 +177,41 @@ impl PyRemoteHistory {
             inner: list.into_iter(),
         })
     }
+
+    /// Sub-container: timestamps view of this history (plain int timestamps).
+    /// Lazy — no RPC.
+    #[getter]
+    pub fn timestamps(&self) -> PyRemoteHistoryTimestamps {
+        PyRemoteHistoryTimestamps {
+            inner: Arc::new(self.history.timestamps()),
+        }
+    }
+
+    /// Sub-container: event-id view of this history. Lazy — no RPC.
+    #[getter]
+    pub fn event_id(&self) -> PyRemoteHistoryEventIds {
+        PyRemoteHistoryEventIds {
+            inner: Arc::new(self.history.event_id()),
+        }
+    }
+
+    /// Sub-container: datetime view of this history (RFC 3339 strings).
+    /// Lazy — no RPC.
+    #[getter]
+    pub fn datetimes(&self) -> PyRemoteHistoryDateTimes {
+        PyRemoteHistoryDateTimes {
+            inner: Arc::new(self.history.datetimes()),
+        }
+    }
+
+    /// Sub-container: inter-event intervals view of this history. Adds
+    /// stats terminals (mean/median/max/min). Lazy — no RPC.
+    #[getter]
+    pub fn intervals(&self) -> PyRemoteIntervals {
+        PyRemoteIntervals {
+            inner: Arc::new(self.history.intervals()),
+        }
+    }
 }
 
 /// Opaque iterator returned by `PyRemoteHistory::__iter__`.
@@ -190,5 +228,229 @@ impl PyRemoteHistoryIter {
 
     fn __next__(mut slf: PyRefMut<Self>) -> Option<PyRemoteEventTime> {
         slf.inner.next()
+    }
+}
+
+// ============ Sub-container Python types ============
+
+/// Timestamps view of a `RemoteHistory`. Lists / pages return `list[int]`.
+#[derive(Clone)]
+#[pyclass(name = "RemoteHistoryTimestamps", module = "raphtory.graphql", from_py_object)]
+pub struct PyRemoteHistoryTimestamps {
+    pub(crate) inner: Arc<RemoteHistoryTimestamps>,
+}
+
+#[pymethods]
+impl PyRemoteHistoryTimestamps {
+    /// Fires one RPC.
+    pub fn list(&self) -> Result<Vec<i64>, ClientError> {
+        let inner = Arc::clone(&self.inner);
+        execute_async_task(move || async move { inner.list().await })
+    }
+
+    /// Fires one RPC.
+    pub fn list_rev(&self) -> Result<Vec<i64>, ClientError> {
+        let inner = Arc::clone(&self.inner);
+        execute_async_task(move || async move { inner.list_rev().await })
+    }
+
+    /// Fires one RPC.
+    #[pyo3(signature = (limit, offset = None, page_index = None))]
+    pub fn page(
+        &self,
+        limit: usize,
+        offset: Option<usize>,
+        page_index: Option<usize>,
+    ) -> Result<Vec<i64>, ClientError> {
+        let inner = Arc::clone(&self.inner);
+        execute_async_task(move || async move { inner.page(limit, offset, page_index).await })
+    }
+
+    /// Fires one RPC.
+    #[pyo3(signature = (limit, offset = None, page_index = None))]
+    pub fn page_rev(
+        &self,
+        limit: usize,
+        offset: Option<usize>,
+        page_index: Option<usize>,
+    ) -> Result<Vec<i64>, ClientError> {
+        let inner = Arc::clone(&self.inner);
+        execute_async_task(move || async move {
+            inner.page_rev(limit, offset, page_index).await
+        })
+    }
+}
+
+/// Event-id view of a `RemoteHistory`. Lists / pages return `list[int]`.
+#[derive(Clone)]
+#[pyclass(name = "RemoteHistoryEventIds", module = "raphtory.graphql", from_py_object)]
+pub struct PyRemoteHistoryEventIds {
+    pub(crate) inner: Arc<RemoteHistoryEventIds>,
+}
+
+#[pymethods]
+impl PyRemoteHistoryEventIds {
+    /// Fires one RPC.
+    pub fn list(&self) -> Result<Vec<i64>, ClientError> {
+        let inner = Arc::clone(&self.inner);
+        execute_async_task(move || async move { inner.list().await })
+    }
+
+    /// Fires one RPC.
+    pub fn list_rev(&self) -> Result<Vec<i64>, ClientError> {
+        let inner = Arc::clone(&self.inner);
+        execute_async_task(move || async move { inner.list_rev().await })
+    }
+
+    /// Fires one RPC.
+    #[pyo3(signature = (limit, offset = None, page_index = None))]
+    pub fn page(
+        &self,
+        limit: usize,
+        offset: Option<usize>,
+        page_index: Option<usize>,
+    ) -> Result<Vec<i64>, ClientError> {
+        let inner = Arc::clone(&self.inner);
+        execute_async_task(move || async move { inner.page(limit, offset, page_index).await })
+    }
+
+    /// Fires one RPC.
+    #[pyo3(signature = (limit, offset = None, page_index = None))]
+    pub fn page_rev(
+        &self,
+        limit: usize,
+        offset: Option<usize>,
+        page_index: Option<usize>,
+    ) -> Result<Vec<i64>, ClientError> {
+        let inner = Arc::clone(&self.inner);
+        execute_async_task(move || async move {
+            inner.page_rev(limit, offset, page_index).await
+        })
+    }
+}
+
+/// Datetime view of a `RemoteHistory`. Lists / pages return `list[str]`
+/// (RFC 3339 formatted).
+#[derive(Clone)]
+#[pyclass(name = "RemoteHistoryDateTimes", module = "raphtory.graphql", from_py_object)]
+pub struct PyRemoteHistoryDateTimes {
+    pub(crate) inner: Arc<RemoteHistoryDateTimes>,
+}
+
+#[pymethods]
+impl PyRemoteHistoryDateTimes {
+    /// Fires one RPC.
+    pub fn list(&self) -> Result<Vec<String>, ClientError> {
+        let inner = Arc::clone(&self.inner);
+        execute_async_task(move || async move { inner.list().await })
+    }
+
+    /// Fires one RPC.
+    pub fn list_rev(&self) -> Result<Vec<String>, ClientError> {
+        let inner = Arc::clone(&self.inner);
+        execute_async_task(move || async move { inner.list_rev().await })
+    }
+
+    /// Fires one RPC.
+    #[pyo3(signature = (limit, offset = None, page_index = None))]
+    pub fn page(
+        &self,
+        limit: usize,
+        offset: Option<usize>,
+        page_index: Option<usize>,
+    ) -> Result<Vec<String>, ClientError> {
+        let inner = Arc::clone(&self.inner);
+        execute_async_task(move || async move { inner.page(limit, offset, page_index).await })
+    }
+
+    /// Fires one RPC.
+    #[pyo3(signature = (limit, offset = None, page_index = None))]
+    pub fn page_rev(
+        &self,
+        limit: usize,
+        offset: Option<usize>,
+        page_index: Option<usize>,
+    ) -> Result<Vec<String>, ClientError> {
+        let inner = Arc::clone(&self.inner);
+        execute_async_task(move || async move {
+            inner.page_rev(limit, offset, page_index).await
+        })
+    }
+}
+
+/// Intervals view of a `RemoteHistory` — inter-event gaps plus summary
+/// stats (`mean`, `median`, `max`, `min`).
+#[derive(Clone)]
+#[pyclass(name = "RemoteIntervals", module = "raphtory.graphql", from_py_object)]
+pub struct PyRemoteIntervals {
+    pub(crate) inner: Arc<RemoteIntervals>,
+}
+
+#[pymethods]
+impl PyRemoteIntervals {
+    /// Fires one RPC.
+    pub fn list(&self) -> Result<Vec<i64>, ClientError> {
+        let inner = Arc::clone(&self.inner);
+        execute_async_task(move || async move { inner.list().await })
+    }
+
+    /// Fires one RPC.
+    pub fn list_rev(&self) -> Result<Vec<i64>, ClientError> {
+        let inner = Arc::clone(&self.inner);
+        execute_async_task(move || async move { inner.list_rev().await })
+    }
+
+    /// Fires one RPC.
+    #[pyo3(signature = (limit, offset = None, page_index = None))]
+    pub fn page(
+        &self,
+        limit: usize,
+        offset: Option<usize>,
+        page_index: Option<usize>,
+    ) -> Result<Vec<i64>, ClientError> {
+        let inner = Arc::clone(&self.inner);
+        execute_async_task(move || async move { inner.page(limit, offset, page_index).await })
+    }
+
+    /// Fires one RPC.
+    #[pyo3(signature = (limit, offset = None, page_index = None))]
+    pub fn page_rev(
+        &self,
+        limit: usize,
+        offset: Option<usize>,
+        page_index: Option<usize>,
+    ) -> Result<Vec<i64>, ClientError> {
+        let inner = Arc::clone(&self.inner);
+        execute_async_task(move || async move {
+            inner.page_rev(limit, offset, page_index).await
+        })
+    }
+
+    /// Mean interval between consecutive events. `None` if fewer than 2 events.
+    /// Fires one RPC.
+    pub fn mean(&self) -> Result<Option<f64>, ClientError> {
+        let inner = Arc::clone(&self.inner);
+        execute_async_task(move || async move { inner.mean().await })
+    }
+
+    /// Median interval between consecutive events. `None` if fewer than 2 events.
+    /// Fires one RPC.
+    pub fn median(&self) -> Result<Option<i64>, ClientError> {
+        let inner = Arc::clone(&self.inner);
+        execute_async_task(move || async move { inner.median().await })
+    }
+
+    /// Max interval between consecutive events. `None` if fewer than 2 events.
+    /// Fires one RPC.
+    pub fn max(&self) -> Result<Option<i64>, ClientError> {
+        let inner = Arc::clone(&self.inner);
+        execute_async_task(move || async move { inner.max().await })
+    }
+
+    /// Min interval between consecutive events. `None` if fewer than 2 events.
+    /// Fires one RPC.
+    pub fn min(&self) -> Result<Option<i64>, ClientError> {
+        let inner = Arc::clone(&self.inner);
+        execute_async_task(move || async move { inner.min().await })
     }
 }

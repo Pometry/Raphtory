@@ -237,6 +237,54 @@ pub enum ReadExpr {
         offset: Option<usize>,
         page_index: Option<usize>,
     },
+
+    // ============ RemoteHistory sub-container selection ============
+    /// Navigate to the timestamps view of a history. History → HistoryTimestamps.
+    /// Server field: `timestamps`.
+    HistoryTimestamps { input: Box<ReadExpr> },
+    /// Navigate to the event-id view of a history. History → HistoryEventIds.
+    /// Server field: `eventId`.
+    HistoryEventIds { input: Box<ReadExpr> },
+    /// Navigate to the datetime view of a history. History → HistoryDateTimes.
+    /// Server field: `datetimes` (no format arg — server default RFC 3339).
+    HistoryDateTimes { input: Box<ReadExpr> },
+    /// Navigate to the intervals view of a history — inter-event gaps.
+    /// History → HistoryIntervals. Server field: `intervals`.
+    HistoryIntervals { input: Box<ReadExpr> },
+
+    // ============ Sub-container list/page terminals (polymorphic) ============
+    // These four variants render as `list` / `listRev` / `page(...)` /
+    // `pageRev(...)` on the underlying sub-container. Return type is
+    // determined by `parse_read` based on the parent selection variant:
+    // int list for Timestamps/EventIds/Intervals, string list for DateTimes.
+    /// Terminal on any sub-container: list in ascending order.
+    SubList { input: Box<ReadExpr> },
+    /// Terminal on any sub-container: list in descending order.
+    SubListRev { input: Box<ReadExpr> },
+    /// Terminal on any sub-container: paginated ascending list.
+    SubPage {
+        input: Box<ReadExpr>,
+        limit: usize,
+        offset: Option<usize>,
+        page_index: Option<usize>,
+    },
+    /// Terminal on any sub-container: paginated descending list.
+    SubPageRev {
+        input: Box<ReadExpr>,
+        limit: usize,
+        offset: Option<usize>,
+        page_index: Option<usize>,
+    },
+
+    // ============ Intervals scalar stats ============
+    /// Terminal on `HistoryIntervals`: mean of inter-event gaps. `Option<f64>`.
+    IntervalsMean { input: Box<ReadExpr> },
+    /// Terminal on `HistoryIntervals`: median of inter-event gaps. `Option<i64>`.
+    IntervalsMedian { input: Box<ReadExpr> },
+    /// Terminal on `HistoryIntervals`: max inter-event gap. `Option<i64>`.
+    IntervalsMax { input: Box<ReadExpr> },
+    /// Terminal on `HistoryIntervals`: min inter-event gap. `Option<i64>`.
+    IntervalsMin { input: Box<ReadExpr> },
     /// Terminal on an Edges collection: list of (src, dst) pairs.
     /// Returned as `Prop::List(Prop::List(Prop::Str, Prop::Str), ...)` on the
     /// wire — each outer element is a 2-element inner list `[src, dst]`.

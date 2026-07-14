@@ -848,6 +848,79 @@ def test_history_list_on_empty_view():
         server_cm.__exit__(None, None, None)
 
 
+def test_history_sub_containers():
+    """`history.timestamps`, `.datetimes`, `.event_id`, `.intervals` — four
+    parallel projections of the same events. Timestamps/event_id/intervals
+    return `list[int]`; datetimes return `list[str]` (RFC 3339)."""
+    server_cm, rg = _make_graph_with_edge()
+    # ben events: add_node t=1, add_edge t=3. Add more so intervals are non-trivial.
+    rg.add_edge(5, "ben", "hamza")
+    rg.add_edge(9, "ben", "hamza")
+    try:
+        h = rg.node("ben").history
+
+        # Timestamps view — plain ints
+        assert h.timestamps.list() == [1, 3, 5, 9]
+        assert h.timestamps.list_rev() == [9, 5, 3, 1]
+
+        # DateTimes view — ISO strings, positionally aligned with timestamps
+        dts = h.datetimes.list()
+        assert len(dts) == 4
+        for s in dts:
+            assert "T" in s   # RFC 3339 separator
+
+        # Event IDs view — plain ints; server picks per-timestamp
+        eids = h.event_id.list()
+        assert len(eids) == 4
+
+        # Intervals view — deltas between consecutive events: 3-1=2, 5-3=2, 9-5=4
+        intervals = h.intervals.list()
+        assert intervals == [2, 2, 4]
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_intervals_stats():
+    """`intervals.mean()`, `.median()`, `.max()`, `.min()` — summary stats
+    over inter-event gaps."""
+    server_cm, rg = _make_graph_with_edge()
+    # ben events: t=1, t=3. Add more to make intervals meaningful: [2, 2, 4].
+    rg.add_edge(5, "ben", "hamza")
+    rg.add_edge(9, "ben", "hamza")
+    try:
+        stats = rg.node("ben").history.intervals
+
+        # intervals = [2, 2, 4], mean = 8/3 ≈ 2.666...
+        mean = stats.mean()
+        assert mean is not None
+        assert abs(mean - 8.0 / 3.0) < 1e-9
+
+        assert stats.median() == 2
+        assert stats.max() == 4
+        assert stats.min() == 2
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_sub_container_paging():
+    """Sub-containers share the same `page(limit, offset, page_index)` shape
+    as the root `RemoteHistory`."""
+    server_cm, rg = _make_graph_with_edge()
+    rg.add_edge(5, "ben", "hamza")
+    rg.add_edge(7, "ben", "hamza")
+    rg.add_edge(9, "ben", "hamza")
+    try:
+        ts = rg.node("ben").history.timestamps
+        # Full events: [1, 3, 5, 7, 9]
+        assert ts.list() == [1, 3, 5, 7, 9]
+        assert ts.page(limit=2) == [1, 3]
+        assert ts.page(limit=2, offset=2) == [5, 7]
+        assert ts.page(limit=2, page_index=1) == [5, 7]   # equivalent
+        assert ts.page_rev(limit=2) == [9, 7]
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
 def test_history_page_and_page_rev():
     """`history.page(limit, offset, page_index)` returns a slice of events;
     `.page_rev(...)` returns the equivalent slice in descending order.

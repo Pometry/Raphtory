@@ -805,6 +805,48 @@ fn render_read_body(expr: &ReadExpr) -> String {
         ReadExpr::Nbr { input } => format!("{} {{ nbr", render_read_body(input)),
         ReadExpr::History { input } => format!("{} {{ history", render_read_body(input)),
         ReadExpr::Deletions { input } => format!("{} {{ deletions", render_read_body(input)),
+        // Sub-container navigations
+        ReadExpr::HistoryTimestamps { input } => {
+            format!("{} {{ timestamps", render_read_body(input))
+        }
+        ReadExpr::HistoryEventIds { input } => {
+            format!("{} {{ eventId", render_read_body(input))
+        }
+        ReadExpr::HistoryDateTimes { input } => {
+            format!("{} {{ datetimes", render_read_body(input))
+        }
+        ReadExpr::HistoryIntervals { input } => {
+            format!("{} {{ intervals", render_read_body(input))
+        }
+        // Polymorphic sub-container terminals — render field names only;
+        // return type is decided by the parent selection in `parse_read`.
+        ReadExpr::SubList { input } => format!("{} {{ list", render_read_body(input)),
+        ReadExpr::SubListRev { input } => format!("{} {{ listRev", render_read_body(input)),
+        ReadExpr::SubPage {
+            input,
+            limit,
+            offset,
+            page_index,
+        } => format!(
+            "{} {{ page({})",
+            render_read_body(input),
+            render_page_args(*limit, *offset, *page_index),
+        ),
+        ReadExpr::SubPageRev {
+            input,
+            limit,
+            offset,
+            page_index,
+        } => format!(
+            "{} {{ pageRev({})",
+            render_read_body(input),
+            render_page_args(*limit, *offset, *page_index),
+        ),
+        // Intervals stats
+        ReadExpr::IntervalsMean { input } => format!("{} {{ mean", render_read_body(input)),
+        ReadExpr::IntervalsMedian { input } => format!("{} {{ median", render_read_body(input)),
+        ReadExpr::IntervalsMax { input } => format!("{} {{ max", render_read_body(input)),
+        ReadExpr::IntervalsMin { input } => format!("{} {{ min", render_read_body(input)),
         ReadExpr::Nodes { input } => format!("{} {{ nodes", render_read_body(input)),
         ReadExpr::Neighbours { input } => format!("{} {{ neighbours", render_read_body(input)),
         ReadExpr::InNeighbours { input } => {
@@ -1001,7 +1043,19 @@ fn read_depth(expr: &ReadExpr) -> usize {
         | ReadExpr::HistoryList { input }
         | ReadExpr::HistoryListRev { input }
         | ReadExpr::HistoryPage { input, .. }
-        | ReadExpr::HistoryPageRev { input, .. } => 1 + read_depth(input),
+        | ReadExpr::HistoryPageRev { input, .. }
+        | ReadExpr::HistoryTimestamps { input }
+        | ReadExpr::HistoryEventIds { input }
+        | ReadExpr::HistoryDateTimes { input }
+        | ReadExpr::HistoryIntervals { input }
+        | ReadExpr::SubList { input }
+        | ReadExpr::SubListRev { input }
+        | ReadExpr::SubPage { input, .. }
+        | ReadExpr::SubPageRev { input, .. }
+        | ReadExpr::IntervalsMean { input }
+        | ReadExpr::IntervalsMedian { input }
+        | ReadExpr::IntervalsMax { input }
+        | ReadExpr::IntervalsMin { input } => 1 + read_depth(input),
         // Compound terminals — open two `{` (outer field + `timestamp` sub-field).
         ReadExpr::EarliestTime { input }
         | ReadExpr::LatestTime { input }
@@ -1067,6 +1121,65 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
             .as_i64()
             .map(|n| Some(Prop::I64(n)))
             .ok_or_else(|| ClientError::InvalidResponse(format!("`{}` not an i64", terminal_key))),
+        // Sub-container list/page terminals dispatch by parent selection:
+        // DateTimes → string list; Timestamps/EventIds/Intervals → int list.
+        ReadExpr::SubList { input }
+        | ReadExpr::SubListRev { input }
+        | ReadExpr::SubPage { input, .. }
+        | ReadExpr::SubPageRev { input, .. } => {
+            let arr = terminal_val.as_array().ok_or_else(|| {
+                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
+            })?;
+            match &**input {
+                ReadExpr::HistoryDateTimes { .. } => {
+                    let items: Result<Vec<Prop>, ClientError> = arr
+                        .iter()
+                        .map(|v| {
+                            v.as_str().map(|s| Prop::Str(s.into())).ok_or_else(|| {
+                                ClientError::InvalidResponse(format!(
+                                    "`{}` element not a string",
+                                    terminal_key
+                                ))
+                            })
+                        })
+                        .collect();
+                    Ok(Some(Prop::List(items?.into())))
+                }
+                ReadExpr::HistoryTimestamps { .. }
+                | ReadExpr::HistoryEventIds { .. }
+                | ReadExpr::HistoryIntervals { .. } => {
+                    let items: Result<Vec<Prop>, ClientError> = arr
+                        .iter()
+                        .map(|v| {
+                            v.as_i64().map(Prop::I64).ok_or_else(|| {
+                                ClientError::InvalidResponse(format!(
+                                    "`{}` element not an i64",
+                                    terminal_key
+                                ))
+                            })
+                        })
+                        .collect();
+                    Ok(Some(Prop::List(items?.into())))
+                }
+                _ => Err(ClientError::InvalidResponse(format!(
+                    "`{}` on unknown sub-container parent",
+                    terminal_key
+                ))),
+            }
+        }
+        // `IntervalsMean` — `Option<f64>` scalar.
+        ReadExpr::IntervalsMean { .. } => {
+            if terminal_val.is_null() {
+                Ok(None)
+            } else {
+                terminal_val
+                    .as_f64()
+                    .map(|n| Some(Prop::F64(n)))
+                    .ok_or_else(|| {
+                        ClientError::InvalidResponse(format!("`{}` not an f64", terminal_key))
+                    })
+            }
+        }
         // List-of-string terminal — the JSON is an array of strings.
         ReadExpr::Ids { .. } | ReadExpr::LayerNames { .. } | ReadExpr::UniqueLayers { .. } => {
             let arr = terminal_val.as_array().ok_or_else(|| {
@@ -1225,7 +1338,10 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
         | ReadExpr::LatestEdgeTime { .. }
         | ReadExpr::FirstUpdate { .. }
         | ReadExpr::LastUpdate { .. }
-        | ReadExpr::Time { .. } => {
+        | ReadExpr::Time { .. }
+        | ReadExpr::IntervalsMedian { .. }
+        | ReadExpr::IntervalsMax { .. }
+        | ReadExpr::IntervalsMin { .. } => {
             if terminal_val.is_null() {
                 Ok(None)
             } else {
@@ -1498,6 +1614,54 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
                 go(input, out);
                 out.push("pageRev");
             }
+            ReadExpr::HistoryTimestamps { input } => {
+                go(input, out);
+                out.push("timestamps");
+            }
+            ReadExpr::HistoryEventIds { input } => {
+                go(input, out);
+                out.push("eventId");
+            }
+            ReadExpr::HistoryDateTimes { input } => {
+                go(input, out);
+                out.push("datetimes");
+            }
+            ReadExpr::HistoryIntervals { input } => {
+                go(input, out);
+                out.push("intervals");
+            }
+            ReadExpr::SubList { input } => {
+                go(input, out);
+                out.push("list");
+            }
+            ReadExpr::SubListRev { input } => {
+                go(input, out);
+                out.push("listRev");
+            }
+            ReadExpr::SubPage { input, .. } => {
+                go(input, out);
+                out.push("page");
+            }
+            ReadExpr::SubPageRev { input, .. } => {
+                go(input, out);
+                out.push("pageRev");
+            }
+            ReadExpr::IntervalsMean { input } => {
+                go(input, out);
+                out.push("mean");
+            }
+            ReadExpr::IntervalsMedian { input } => {
+                go(input, out);
+                out.push("median");
+            }
+            ReadExpr::IntervalsMax { input } => {
+                go(input, out);
+                out.push("max");
+            }
+            ReadExpr::IntervalsMin { input } => {
+                go(input, out);
+                out.push("min");
+            }
             ReadExpr::EdgeHistoryCount { input } => {
                 go(input, out);
                 out.push("edgeHistoryCount");
@@ -1686,7 +1850,19 @@ fn child_input(expr: &ReadExpr) -> Option<&ReadExpr> {
         | ReadExpr::HistoryList { input }
         | ReadExpr::HistoryListRev { input }
         | ReadExpr::HistoryPage { input, .. }
-        | ReadExpr::HistoryPageRev { input, .. } => Some(input),
+        | ReadExpr::HistoryPageRev { input, .. }
+        | ReadExpr::HistoryTimestamps { input }
+        | ReadExpr::HistoryEventIds { input }
+        | ReadExpr::HistoryDateTimes { input }
+        | ReadExpr::HistoryIntervals { input }
+        | ReadExpr::SubList { input }
+        | ReadExpr::SubListRev { input }
+        | ReadExpr::SubPage { input, .. }
+        | ReadExpr::SubPageRev { input, .. }
+        | ReadExpr::IntervalsMean { input }
+        | ReadExpr::IntervalsMedian { input }
+        | ReadExpr::IntervalsMax { input }
+        | ReadExpr::IntervalsMin { input } => Some(input),
     }
 }
 
