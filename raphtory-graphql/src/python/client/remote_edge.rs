@@ -1,6 +1,6 @@
 use crate::{
     client::{remote_edge::RemoteEdge, ClientError},
-    python::client::remote_node::PyRemoteNode,
+    python::client::{remote_history::PyRemoteHistory, remote_node::PyRemoteNode},
 };
 use pyo3::{pyclass, pymethods};
 use raphtory::python::utils::execute_async_task;
@@ -310,5 +310,21 @@ impl PyRemoteEdge {
     pub fn is_self_loop(&self) -> Result<bool, ClientError> {
         let edge = Arc::clone(&self.edge);
         execute_async_task(move || async move { edge.is_self_loop().await })
+    }
+
+    /// The event history of this edge — a `RemoteHistory` container with
+    /// terminals like `count()`, `list()`, `earliest_time()`, and (in
+    /// follow-up batches) sub-container accessors. Lazy — no RPC.
+    #[getter]
+    pub fn history(&self) -> PyRemoteHistory {
+        PyRemoteHistory::new(self.edge.history())
+    }
+
+    /// The deletion history of this edge — a `RemoteHistory` container
+    /// tracking the times at which the edge was marked deleted. Distinct
+    /// from `history` which tracks all events. Lazy — no RPC.
+    #[getter]
+    pub fn deletions(&self) -> PyRemoteHistory {
+        PyRemoteHistory::new(self.edge.deletions())
     }
 }

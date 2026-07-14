@@ -112,6 +112,15 @@ pub enum ReadExpr {
     /// Context-sensitive: on an out-edge yields the destination; on an
     /// in-edge yields the source. Server field: `nbr`.
     Nbr { input: Box<ReadExpr> },
+    /// Navigate to the event history of a node or edge. Node/Edge → History.
+    /// Container-selection: the resulting `RemoteHistory` handle exposes
+    /// terminals like `.count()`, `.list()`, plus sub-container accessors
+    /// (`.timestamps`, `.intervals`, etc.).
+    History { input: Box<ReadExpr> },
+    /// Navigate to the deletion history of an edge. Edge → History.
+    /// Same shape as `History` but reads the `deletions` server field
+    /// instead of `history` — deletions are edge-only.
+    Deletions { input: Box<ReadExpr> },
     /// Graph → the collection of all nodes in the (view-restricted) graph.
     Nodes { input: Box<ReadExpr> },
     /// Node → the collection of the node's neighbours (both directions).
@@ -198,8 +207,12 @@ pub enum ReadExpr {
     Ids { input: Box<ReadExpr> },
     /// Terminal on a collection: number of members — `i64`.
     /// Distinct from `CountNodes`/`CountEdges` (which are Graph-scope); this
-    /// fires against the collection's `count` field.
+    /// fires against the collection's `count` field. Also polymorphic on
+    /// `RemoteHistory` — same server field name (`count`).
     Count { input: Box<ReadExpr> },
+    /// Terminal on a `RemoteHistory` container: whether the history is empty
+    /// — `bool`. Server field name is `isEmpty`.
+    IsEmpty { input: Box<ReadExpr> },
     /// Terminal on an Edges collection: list of (src, dst) pairs.
     /// Returned as `Prop::List(Prop::List(Prop::Str, Prop::Str), ...)` on the
     /// wire — each outer element is a 2-element inner list `[src, dst]`.

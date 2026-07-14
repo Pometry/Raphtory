@@ -5,6 +5,7 @@ use crate::client::{
         UpdateEdgeMetadata as UpdateEdgeMetadataOp, WriteOp,
     },
     remote_graph::{expect_bool, expect_optional_i64, expect_string, expect_string_list},
+    remote_history::RemoteHistory,
     remote_node::RemoteNode,
     transport::Transport,
     ClientError,
@@ -229,6 +230,34 @@ impl RemoteEdge {
             String::new(),
             self.transport.clone(),
             ReadExpr::Nbr {
+                input: Box::new(self.expr.clone()),
+            },
+            self.base_graph.clone(),
+        )
+    }
+
+    /// Returns the event history of this edge — a `RemoteHistory` container
+    /// with terminals like `.count()`, `.list()`, `.earliest_time()`, and
+    /// sub-container accessors. Lazy — no RPC.
+    pub fn history(&self) -> RemoteHistory {
+        RemoteHistory::with_expr(
+            self.path.clone(),
+            self.transport.clone(),
+            ReadExpr::History {
+                input: Box::new(self.expr.clone()),
+            },
+            self.base_graph.clone(),
+        )
+    }
+
+    /// Returns the deletion history of this edge — a `RemoteHistory`
+    /// container tracking the times at which the edge was marked deleted.
+    /// Distinct from `.history()` which tracks all events. Lazy — no RPC.
+    pub fn deletions(&self) -> RemoteHistory {
+        RemoteHistory::with_expr(
+            self.path.clone(),
+            self.transport.clone(),
+            ReadExpr::Deletions {
                 input: Box::new(self.expr.clone()),
             },
             self.base_graph.clone(),

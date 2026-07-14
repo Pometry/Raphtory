@@ -756,6 +756,69 @@ def test_node_view_chain_propagates_through_neighbour_materialization():
         server_cm.__exit__(None, None, None)
 
 
+def test_history_scalar_terminals_on_node():
+    """`node.history` returns a `RemoteHistory` container with scalar
+    terminals — `count`, `is_empty`, `earliest_time`, `latest_time`. Access
+    is via property (matching local API), not method."""
+    server_cm, rg = _make_graph_with_edge()
+    # Node ben: add_node at t=1, add_edge (ben, hamza) at t=3 → 2 events.
+    try:
+        h = rg.node("ben").history        # property, not method
+        assert h.count() == 2
+        assert h.is_empty() is False
+        assert h.earliest_time() == 1
+        assert h.latest_time() == 3
+
+        # Under a window that excludes both events, count is 0 (view narrows,
+        # but the node selection itself is validated at .node() and passes
+        # because ben exists in the outer view).
+        h_windowed = rg.node("ben").window(100, 200).history
+        assert h_windowed.count() == 0
+        assert h_windowed.is_empty() is True
+        assert h_windowed.earliest_time() is None
+        assert h_windowed.latest_time() is None
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_history_scalar_terminals_on_edge():
+    """`edge.history` and `edge.deletions` — both return `RemoteHistory`
+    handles but read different server fields."""
+    server_cm, rg = _make_graph_with_edge()
+    # Edge (ben, hamza): one event at t=3, no deletions.
+    try:
+        e = rg.edge("ben", "hamza")
+
+        h = e.history
+        assert h.count() == 1
+        assert h.is_empty() is False
+        assert h.earliest_time() == 3
+        assert h.latest_time() == 3
+
+        d = e.deletions
+        assert d.count() == 0
+        assert d.is_empty() is True
+        assert d.earliest_time() is None
+        assert d.latest_time() is None
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_history_records_deletion_event():
+    """After `.delete_edge()`, the edge's `.deletions` history includes the
+    deletion time; `.history` reflects the add event."""
+    server_cm, rg = _make_graph_with_edge()
+    try:
+        # Delete the ben→hamza edge at t=10.
+        rg.delete_edge(10, "ben", "hamza")
+
+        e = rg.edge("ben", "hamza")
+        assert e.deletions.count() == 1
+        assert e.deletions.earliest_time() == 10
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
 def test_collection_view_bounds():
     """`.start()` / `.end()` on RemoteNodes and RemoteEdges report the
     inherited view bound. `None` when the parent view is unbounded, matching

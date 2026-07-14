@@ -1,6 +1,8 @@
 use crate::{
     client::{remote_node::RemoteNode, ClientError},
-    python::client::{remote_edges::PyRemoteEdges, remote_nodes::PyRemoteNodes},
+    python::client::{
+        remote_edges::PyRemoteEdges, remote_history::PyRemoteHistory, remote_nodes::PyRemoteNodes,
+    },
 };
 use pyo3::{pyclass, pymethods};
 use raphtory::python::utils::execute_async_task;
@@ -311,5 +313,13 @@ impl PyRemoteNode {
     #[getter]
     pub fn out_edges(&self) -> PyRemoteEdges {
         PyRemoteEdges::new(self.node.out_edges())
+    }
+
+    /// The event history of this node — a `RemoteHistory` container with
+    /// terminals like `count()`, `list()`, `earliest_time()`, and (in
+    /// follow-up batches) sub-container accessors. Lazy — no RPC.
+    #[getter]
+    pub fn history(&self) -> PyRemoteHistory {
+        PyRemoteHistory::new(self.node.history())
     }
 }

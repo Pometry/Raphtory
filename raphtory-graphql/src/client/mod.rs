@@ -5,6 +5,7 @@ pub mod remote_client;
 pub mod remote_edge;
 pub mod remote_edges;
 pub mod remote_graph;
+pub mod remote_history;
 pub mod remote_node;
 pub mod remote_nodes;
 pub mod transport;
@@ -20,6 +21,7 @@ pub use op::{
 pub use remote_edge::RemoteEdge;
 pub use remote_edges::RemoteEdges;
 pub use remote_graph::RemoteGraph;
+pub use remote_history::RemoteHistory;
 pub use remote_node::RemoteNode;
 pub use remote_nodes::RemoteNodes;
 pub use transport::Transport;

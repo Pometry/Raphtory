@@ -7,6 +7,7 @@ use crate::client::{
     remote_graph::{
         expect_bool, expect_i64, expect_optional_i64, expect_optional_string, expect_string,
     },
+    remote_history::RemoteHistory,
     remote_nodes::RemoteNodes,
     transport::Transport,
     ClientError,
@@ -377,6 +378,21 @@ impl RemoteNode {
             self.path.clone(),
             self.transport.clone(),
             ReadExpr::OutEdges {
+                input: Box::new(self.expr.clone()),
+            },
+            self.base_graph.clone(),
+        )
+    }
+
+    /// Returns the event history of this node — a `RemoteHistory` container
+    /// with terminals like `.count()`, `.list()`, `.earliest_time()`, and
+    /// sub-container accessors (`.timestamps`, `.intervals`, etc.). Lazy —
+    /// no RPC.
+    pub fn history(&self) -> RemoteHistory {
+        RemoteHistory::with_expr(
+            self.path.clone(),
+            self.transport.clone(),
+            ReadExpr::History {
                 input: Box::new(self.expr.clone()),
             },
             self.base_graph.clone(),

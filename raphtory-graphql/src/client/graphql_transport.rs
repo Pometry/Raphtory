@@ -786,6 +786,8 @@ fn render_read_body(expr: &ReadExpr) -> String {
         ReadExpr::Src { input } => format!("{} {{ src", render_read_body(input)),
         ReadExpr::Dst { input } => format!("{} {{ dst", render_read_body(input)),
         ReadExpr::Nbr { input } => format!("{} {{ nbr", render_read_body(input)),
+        ReadExpr::History { input } => format!("{} {{ history", render_read_body(input)),
+        ReadExpr::Deletions { input } => format!("{} {{ deletions", render_read_body(input)),
         ReadExpr::Nodes { input } => format!("{} {{ nodes", render_read_body(input)),
         ReadExpr::Neighbours { input } => format!("{} {{ neighbours", render_read_body(input)),
         ReadExpr::InNeighbours { input } => {
@@ -835,6 +837,7 @@ fn render_read_body(expr: &ReadExpr) -> String {
         ReadExpr::Id { input } => format!("{} {{ id", render_read_body(input)),
         ReadExpr::NodeType { input } => format!("{} {{ nodeType", render_read_body(input)),
         ReadExpr::IsActive { input } => format!("{} {{ isActive", render_read_body(input)),
+        ReadExpr::IsEmpty { input } => format!("{} {{ isEmpty", render_read_body(input)),
         ReadExpr::EdgeHistoryCount { input } => {
             format!("{} {{ edgeHistoryCount", render_read_body(input))
         }
@@ -905,6 +908,8 @@ fn read_depth(expr: &ReadExpr) -> usize {
         | ReadExpr::Src { input }
         | ReadExpr::Dst { input }
         | ReadExpr::Nbr { input }
+        | ReadExpr::History { input }
+        | ReadExpr::Deletions { input }
         | ReadExpr::Nodes { input }
         | ReadExpr::Neighbours { input }
         | ReadExpr::InNeighbours { input }
@@ -940,7 +945,8 @@ fn read_depth(expr: &ReadExpr) -> usize {
         | ReadExpr::LayerName { input }
         | ReadExpr::IsValid { input }
         | ReadExpr::IsDeleted { input }
-        | ReadExpr::IsSelfLoop { input } => 1 + read_depth(input),
+        | ReadExpr::IsSelfLoop { input }
+        | ReadExpr::IsEmpty { input } => 1 + read_depth(input),
         // Compound terminals — open two `{` (outer field + `timestamp` sub-field).
         ReadExpr::EarliestTime { input }
         | ReadExpr::LatestTime { input }
@@ -1086,7 +1092,8 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
         | ReadExpr::IsActive { .. }
         | ReadExpr::IsValid { .. }
         | ReadExpr::IsDeleted { .. }
-        | ReadExpr::IsSelfLoop { .. } => terminal_val
+        | ReadExpr::IsSelfLoop { .. }
+        | ReadExpr::IsEmpty { .. } => terminal_val
             .as_bool()
             .map(|b| Some(Prop::Bool(b)))
             .ok_or_else(|| ClientError::InvalidResponse(format!("`{}` not a bool", terminal_key))),
@@ -1257,6 +1264,14 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
                 go(input, out);
                 out.push("nbr");
             }
+            ReadExpr::History { input } => {
+                go(input, out);
+                out.push("history");
+            }
+            ReadExpr::Deletions { input } => {
+                go(input, out);
+                out.push("deletions");
+            }
             ReadExpr::Nodes { input } => {
                 go(input, out);
                 out.push("nodes");
@@ -1372,6 +1387,10 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
             ReadExpr::IsActive { input } => {
                 go(input, out);
                 out.push("isActive");
+            }
+            ReadExpr::IsEmpty { input } => {
+                go(input, out);
+                out.push("isEmpty");
             }
             ReadExpr::EdgeHistoryCount { input } => {
                 go(input, out);
@@ -1510,6 +1529,8 @@ fn child_input(expr: &ReadExpr) -> Option<&ReadExpr> {
         | ReadExpr::Src { input }
         | ReadExpr::Dst { input }
         | ReadExpr::Nbr { input }
+        | ReadExpr::History { input }
+        | ReadExpr::Deletions { input }
         | ReadExpr::Nodes { input }
         | ReadExpr::Neighbours { input }
         | ReadExpr::InNeighbours { input }
@@ -1554,7 +1575,8 @@ fn child_input(expr: &ReadExpr) -> Option<&ReadExpr> {
         | ReadExpr::LayerName { input }
         | ReadExpr::IsValid { input }
         | ReadExpr::IsDeleted { input }
-        | ReadExpr::IsSelfLoop { input } => Some(input),
+        | ReadExpr::IsSelfLoop { input }
+        | ReadExpr::IsEmpty { input } => Some(input),
     }
 }
 
