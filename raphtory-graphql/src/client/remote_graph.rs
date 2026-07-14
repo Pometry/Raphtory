@@ -22,6 +22,9 @@ use raphtory_api::core::{
 };
 use std::{collections::HashMap, sync::Arc};
 
+/// Render a Jinja template against the given context into a GraphQL query
+/// string. Used by the write path in `graphql_transport.rs` (each mutation
+/// has its own inline template).
 pub fn build_query(template: &str, context: Value) -> Result<String, ClientError> {
     let mut env = Environment::new();
     env.add_template("template", template)
@@ -202,6 +205,10 @@ pub struct RemoteGraph {
 }
 
 impl RemoteGraph {
+    /// Construct a `RemoteGraph` handle for the graph at `path`, using the
+    /// given `RemoteClient` for transport. Wraps the client in a
+    /// `GraphqlTransport`; starts the accumulated read expression at
+    /// `Root { path }`.
     pub fn new(path: String, client: RemoteClient) -> Self {
         let transport: Arc<dyn Transport> = Arc::new(GraphqlTransport::new(client));
         let expr = ReadExpr::Root { path: path.clone() };
@@ -630,6 +637,14 @@ impl RemoteGraph {
         ))
     }
 
+    /// Add a node to the graph at the given timestamp.
+    ///
+    /// Upsert-like: if a node with this id already exists, additional updates
+    /// are appended at the given time. Use `create_node` for strict-create.
+    ///
+    /// Fires one RPC. Returns a trusted `RemoteNode` handle for the added
+    /// node — no follow-up `hasNode` validation is fired, since the server
+    /// just confirmed the write.
     pub async fn add_node<G: Into<GID> + ToString, T: IntoTime>(
         &self,
         timestamp: T,
@@ -660,7 +675,11 @@ impl RemoteGraph {
         ))
     }
 
-    /// Create a new node (fails if the node already exists). Uses the createNode mutation.
+    /// Create a new node at the given timestamp. Fails if a node with this
+    /// id already exists — use `add_node` for upsert semantics.
+    ///
+    /// Fires one RPC. Returns a trusted `RemoteNode` handle for the created
+    /// node — no follow-up `hasNode` validation is fired.
     pub async fn create_node<G: Into<GID> + ToString, T: IntoTime>(
         &self,
         timestamp: T,
@@ -689,6 +708,13 @@ impl RemoteGraph {
         ))
     }
 
+    /// Add an edge to the graph at the given timestamp.
+    ///
+    /// Upsert-like: if an edge with these endpoints already exists, additional
+    /// updates are appended at the given time (optionally on a specific layer).
+    ///
+    /// Fires one RPC. Returns a trusted `RemoteEdge` handle — no follow-up
+    /// `hasEdge` validation is fired, since the server just confirmed the write.
     pub async fn add_edge<G: Into<GID> + ToString, T: IntoTime>(
         &self,
         timestamp: T,
@@ -722,6 +748,10 @@ impl RemoteGraph {
         ))
     }
 
+    /// Add temporal properties on the graph itself (not on any node/edge) at
+    /// the given timestamp. Distinct from `add_metadata`, which is non-temporal.
+    ///
+    /// Fires one RPC.
     pub async fn add_property(
         &self,
         timestamp: EventTime,
@@ -736,6 +766,10 @@ impl RemoteGraph {
         Ok(())
     }
 
+    /// Add non-temporal metadata on the graph itself. Values persist for the
+    /// lifetime of the graph and don't depend on any timestamp.
+    ///
+    /// Fires one RPC.
     pub async fn add_metadata(&self, properties: HashMap<String, Prop>) -> Result<(), ClientError> {
         let op = Op::Write(WriteOp::AddGraphMetadata(AddGraphMetadataOp {
             path: self.path.clone(),
@@ -745,6 +779,10 @@ impl RemoteGraph {
         Ok(())
     }
 
+    /// Overwrite existing metadata on the graph. Unlike `add_metadata`, this
+    /// replaces the value for each supplied key rather than adding.
+    ///
+    /// Fires one RPC.
     pub async fn update_metadata(
         &self,
         properties: HashMap<String, Prop>,
@@ -757,7 +795,12 @@ impl RemoteGraph {
         Ok(())
     }
 
-    /// Deletes an edge at the given time, src, dst and optional layer.
+    /// Mark an edge as deleted at the given timestamp (optionally on a
+    /// specific layer). The edge remains queryable in earlier views; only
+    /// events at or after `timestamp` see it as deleted.
+    ///
+    /// Fires one RPC. Returns a trusted `RemoteEdge` handle for the deleted
+    /// edge — subsequent reads on it observe the deletion.
     pub async fn delete_edge<G: Into<GID> + ToString, T: IntoTime>(
         &self,
         timestamp: T,

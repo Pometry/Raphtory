@@ -307,8 +307,7 @@ impl PyRemoteGraph {
     pub fn node(&self, id: GID) -> Result<PyRemoteNode, ClientError> {
         let graph = Arc::clone(&self.graph);
         let id_str = id.to_string();
-        let node =
-            execute_async_task(move || async move { graph.node(id_str).await })?;
+        let node = execute_async_task(move || async move { graph.node(id_str).await })?;
         Ok(PyRemoteNode::new(node))
     }
 
@@ -328,9 +327,7 @@ impl PyRemoteGraph {
         let graph = Arc::clone(&self.graph);
         let src_str = src.to_string();
         let dst_str = dst.to_string();
-        let edge = execute_async_task(
-            move || async move { graph.edge(src_str, dst_str).await },
-        )?;
+        let edge = execute_async_task(move || async move { graph.edge(src_str, dst_str).await })?;
         Ok(PyRemoteEdge::new(edge))
     }
 
