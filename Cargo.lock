@@ -6544,6 +6544,7 @@ dependencies = [
  "quick_cache",
  "raphtory",
  "raphtory-api",
+ "raphtory-graphql",
  "raphtory-storage",
  "rayon",
  "reqwest 0.13.3",

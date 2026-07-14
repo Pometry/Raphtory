@@ -1,5 +1,3 @@
-#![cfg(any(feature = "integration-test", debug_assertions))]
-
 use raphtory::db::api::storage::storage::Config;
 use raphtory::prelude::{Graph, StableEncode};
 use raphtory_graphql::client::raphtory_client::RaphtoryGraphQLClient;

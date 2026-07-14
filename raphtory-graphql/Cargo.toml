@@ -71,11 +71,11 @@ tempfile = { workspace = true }
 pretty_assertions = { workspace = true }
 arrow = { workspace = true }
 parquet = { workspace = true }
+raphtory-graphql = { workspace = true, features = ["integration-test"] }
 opentelemetry_sdk = { version = "0.32.1", features = ["rt-tokio", "testing"] }
 
 [features]
-default = []
+integration-test = []
 python = ["dep:pyo3", "dep:pythonize", "raphtory/python"]
 search = ["raphtory/search"]
 panic-on-drop = ["raphtory/panic-on-drop"]
-integration-test = []
