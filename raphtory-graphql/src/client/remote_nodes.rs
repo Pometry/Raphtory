@@ -183,6 +183,27 @@ impl RemoteNodes {
         })
     }
 
+    /// Restrict this collection to members whose node type is in the given
+    /// list. Unlike view ops (`window`, `layer`, ...), this actually filters
+    /// membership — the returned collection has fewer members. Lazy — no RPC.
+    ///
+    /// Only updates `expr` (the collection's own view), **not** `base_graph`
+    /// — `typeFilter` is a Nodes-only server operation and applying it to
+    /// the parent graph view would be a schema error. Materialized nodes
+    /// from `.list()` don't need the filter propagated because their `id`
+    /// already identifies the specific filtered node.
+    pub fn type_filter(&self, node_types: Vec<String>) -> RemoteNodes {
+        RemoteNodes {
+            path: self.path.clone(),
+            transport: self.transport.clone(),
+            expr: ReadExpr::TypeFilter {
+                input: Box::new(self.expr.clone()),
+                node_types,
+            },
+            base_graph: self.base_graph.clone(),
+        }
+    }
+
     /// Terminal: the list of node ids in this collection. Fires one RPC.
     pub async fn ids(&self) -> Result<Vec<String>, ClientError> {
         let op = Op::Read(ReadExpr::Ids {

@@ -103,6 +103,13 @@ impl PyRemoteNodes {
         PyRemoteNodes::new(self.nodes.exclude_layers(names))
     }
 
+    /// Restrict this collection to members whose node type is in the given
+    /// list. Filters membership — the returned collection has fewer members.
+    /// Lazy — no RPC.
+    pub fn type_filter(&self, node_types: Vec<String>) -> PyRemoteNodes {
+        PyRemoteNodes::new(self.nodes.type_filter(node_types))
+    }
+
     /// Returns the list of node ids in this collection.
     ///
     /// Fires one RPC.

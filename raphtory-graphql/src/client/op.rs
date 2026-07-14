@@ -94,6 +94,13 @@ pub enum ReadExpr {
         input: Box<ReadExpr>,
         nodes: Vec<String>,
     },
+    /// Restrict a `RemoteNodes` collection to members with one of the given
+    /// node types. Unlike view ops, this actually filters membership — the
+    /// returned collection has fewer members. Server field: `typeFilter`.
+    TypeFilter {
+        input: Box<ReadExpr>,
+        node_types: Vec<String>,
+    },
 
     // ============ Selection ============
     /// Narrow to a single node by id. Graph → Node.

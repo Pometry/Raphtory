@@ -790,6 +790,11 @@ fn render_read_body(expr: &ReadExpr) -> String {
             render_read_body(input),
             render_string_list(nodes)
         ),
+        ReadExpr::TypeFilter { input, node_types } => format!(
+            "{} {{ typeFilter(nodeTypes: [{}])",
+            render_read_body(input),
+            render_string_list(node_types)
+        ),
         // Selection
         ReadExpr::Node { input, id } => {
             format!("{} {{ node(name: \"{}\")", render_read_body(input), id)
@@ -996,6 +1001,7 @@ fn read_depth(expr: &ReadExpr) -> usize {
         | ReadExpr::Subgraph { input, .. }
         | ReadExpr::SubgraphNodeTypes { input, .. }
         | ReadExpr::ExcludeNodes { input, .. }
+        | ReadExpr::TypeFilter { input, .. }
         | ReadExpr::Node { input, .. }
         | ReadExpr::Edge { input, .. }
         | ReadExpr::Src { input }
@@ -1450,6 +1456,10 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
                 go(input, out);
                 out.push("excludeNodes");
             }
+            ReadExpr::TypeFilter { input, .. } => {
+                go(input, out);
+                out.push("typeFilter");
+            }
             ReadExpr::Node { input, .. } => {
                 go(input, out);
                 out.push("node");
@@ -1794,6 +1804,7 @@ fn child_input(expr: &ReadExpr) -> Option<&ReadExpr> {
         | ReadExpr::Subgraph { input, .. }
         | ReadExpr::SubgraphNodeTypes { input, .. }
         | ReadExpr::ExcludeNodes { input, .. }
+        | ReadExpr::TypeFilter { input, .. }
         | ReadExpr::Node { input, .. }
         | ReadExpr::Edge { input, .. }
         | ReadExpr::Src { input }

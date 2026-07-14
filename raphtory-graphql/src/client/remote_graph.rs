@@ -134,10 +134,7 @@ pub(crate) fn expect_string_list(
 /// Unwrap a `Transport::execute` result expecting a `Prop::List` of
 /// `Prop::I64`s. Used by sub-container list/page terminals when the parent
 /// is `Timestamps`, `EventIds`, or `Intervals`.
-pub(crate) fn expect_i64_list(
-    v: Option<Prop>,
-    context: &str,
-) -> Result<Vec<i64>, ClientError> {
+pub(crate) fn expect_i64_list(v: Option<Prop>, context: &str) -> Result<Vec<i64>, ClientError> {
     match v {
         Some(Prop::List(items)) => items
             .iter()

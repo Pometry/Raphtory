@@ -848,6 +848,78 @@ def test_history_list_on_empty_view():
         server_cm.__exit__(None, None, None)
 
 
+def test_nodes_type_filter():
+    """`rg.nodes.type_filter(types)` filters membership — the returned
+    collection has fewer members. Distinct from view ops (window/layer/etc.)
+    which are sticky and preserve membership."""
+    server_cm, rg = _make_graph_with_edge()
+    # Give the nodes distinct types.
+    rg.node("ben").set_node_type("user")
+    rg.node("hamza").set_node_type("bot")
+    # Add a third node with no type.
+    rg.add_node(4, "sam")
+    try:
+        all_nodes = rg.nodes
+        assert all_nodes.count() == 3
+
+        # Filter to only "user" nodes.
+        users = all_nodes.type_filter(["user"])
+        assert users.count() == 1
+        assert users.ids() == ["ben"]
+
+        # Filter to multiple types.
+        both = all_nodes.type_filter(["user", "bot"])
+        assert both.count() == 2
+        assert sorted(both.ids()) == ["ben", "hamza"]
+
+        # Filter to nonexistent type — empty collection.
+        empty = all_nodes.type_filter(["nonexistent"])
+        assert empty.count() == 0
+        assert empty.ids() == []
+
+        # Filter is composable — narrow further by a window.
+        assert all_nodes.type_filter(["user"]).window(0, 5).count() == 1
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_nodes_type_filter_with_windowed_view():
+    """`type_filter` composes with view ops in any order — window then filter,
+    filter then window, or graph-level window then nodes then filter."""
+    server_cm, rg = _make_graph_with_edge()
+    # ben (t=1) and hamza (t=2) are "user"; sam (t=10) is "user" but only
+    # appears in the view after t=10.
+    rg.add_node(10, "sam")
+    rg.node("ben").set_node_type("user")
+    rg.node("hamza").set_node_type("bot")
+    rg.node("sam").set_node_type("user")
+    try:
+        # (a) Graph-scope window pre-selection → nodes filters membership by
+        # window; then type_filter filters by type. Only ben matches "user"
+        # in [0, 5) window.
+        pre_windowed = rg.window(0, 5).nodes.type_filter(["user"])
+        assert pre_windowed.count() == 1
+        assert pre_windowed.ids() == ["ben"]
+
+        # Materialize under the windowed filter — `.list()` returns handles
+        # rebased under the windowed graph. This is the regression path that
+        # the base_graph propagation on view builders + Nodes-only filter
+        # design has to handle correctly.
+        materialized = pre_windowed.list()
+        assert len(materialized) == 1
+        assert materialized[0].name() == "ben"
+
+        # (b) Sticky-selection: nodes fixed at 3, then windowed view narrows
+        # (sticky, count unchanged), then type_filter shrinks to matching type.
+        assert rg.nodes.window(0, 5).type_filter(["user"]).count() == 2
+
+        # (c) Filter first, then window (still sticky — filter shrunk to 2,
+        # window narrows view of those 2, count unchanged at 2).
+        assert rg.nodes.type_filter(["user"]).window(0, 5).count() == 2
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
 def test_history_sub_containers():
     """`history.timestamps`, `.datetimes`, `.event_id`, `.intervals` — four
     parallel projections of the same events. Timestamps/event_id/intervals

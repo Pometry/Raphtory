@@ -235,7 +235,11 @@ impl PyRemoteHistoryIter {
 
 /// Timestamps view of a `RemoteHistory`. Lists / pages return `list[int]`.
 #[derive(Clone)]
-#[pyclass(name = "RemoteHistoryTimestamps", module = "raphtory.graphql", from_py_object)]
+#[pyclass(
+    name = "RemoteHistoryTimestamps",
+    module = "raphtory.graphql",
+    from_py_object
+)]
 pub struct PyRemoteHistoryTimestamps {
     pub(crate) inner: Arc<RemoteHistoryTimestamps>,
 }
@@ -275,15 +279,17 @@ impl PyRemoteHistoryTimestamps {
         page_index: Option<usize>,
     ) -> Result<Vec<i64>, ClientError> {
         let inner = Arc::clone(&self.inner);
-        execute_async_task(move || async move {
-            inner.page_rev(limit, offset, page_index).await
-        })
+        execute_async_task(move || async move { inner.page_rev(limit, offset, page_index).await })
     }
 }
 
 /// Event-id view of a `RemoteHistory`. Lists / pages return `list[int]`.
 #[derive(Clone)]
-#[pyclass(name = "RemoteHistoryEventIds", module = "raphtory.graphql", from_py_object)]
+#[pyclass(
+    name = "RemoteHistoryEventIds",
+    module = "raphtory.graphql",
+    from_py_object
+)]
 pub struct PyRemoteHistoryEventIds {
     pub(crate) inner: Arc<RemoteHistoryEventIds>,
 }
@@ -323,16 +329,18 @@ impl PyRemoteHistoryEventIds {
         page_index: Option<usize>,
     ) -> Result<Vec<i64>, ClientError> {
         let inner = Arc::clone(&self.inner);
-        execute_async_task(move || async move {
-            inner.page_rev(limit, offset, page_index).await
-        })
+        execute_async_task(move || async move { inner.page_rev(limit, offset, page_index).await })
     }
 }
 
 /// Datetime view of a `RemoteHistory`. Lists / pages return `list[str]`
 /// (RFC 3339 formatted).
 #[derive(Clone)]
-#[pyclass(name = "RemoteHistoryDateTimes", module = "raphtory.graphql", from_py_object)]
+#[pyclass(
+    name = "RemoteHistoryDateTimes",
+    module = "raphtory.graphql",
+    from_py_object
+)]
 pub struct PyRemoteHistoryDateTimes {
     pub(crate) inner: Arc<RemoteHistoryDateTimes>,
 }
@@ -372,9 +380,7 @@ impl PyRemoteHistoryDateTimes {
         page_index: Option<usize>,
     ) -> Result<Vec<String>, ClientError> {
         let inner = Arc::clone(&self.inner);
-        execute_async_task(move || async move {
-            inner.page_rev(limit, offset, page_index).await
-        })
+        execute_async_task(move || async move { inner.page_rev(limit, offset, page_index).await })
     }
 }
 
@@ -421,9 +427,7 @@ impl PyRemoteIntervals {
         page_index: Option<usize>,
     ) -> Result<Vec<i64>, ClientError> {
         let inner = Arc::clone(&self.inner);
-        execute_async_task(move || async move {
-            inner.page_rev(limit, offset, page_index).await
-        })
+        execute_async_task(move || async move { inner.page_rev(limit, offset, page_index).await })
     }
 
     /// Mean interval between consecutive events. `None` if fewer than 2 events.
