@@ -164,6 +164,9 @@ pub enum ReadExpr {
     /// Navigate to the non-temporal metadata container. Polymorphic:
     /// Graph/Node/Edge → Metadata. Server field: `metadata`.
     Metadata { input: Box<ReadExpr> },
+    /// Navigate to the full properties container (temporal + non-temporal).
+    /// Polymorphic: Graph/Node/Edge → Properties. Server field: `properties`.
+    Properties { input: Box<ReadExpr> },
     /// Terminal on a properties/metadata container: fetch a single property
     /// by key. Returns `Option<RemoteProperty>` — the server returns `null`
     /// when the key isn't present, decoded to `None` client-side rather

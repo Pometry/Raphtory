@@ -876,6 +876,7 @@ fn render_read_body(expr: &ReadExpr) -> String {
         }
         // Metadata / Properties navigation
         ReadExpr::Metadata { input } => format!("{} {{ metadata", render_read_body(input)),
+        ReadExpr::Properties { input } => format!("{} {{ properties", render_read_body(input)),
         // Property terminals — `get`/`values` are compound (return {key, value}
         // records). Inner braces `{ key value }` are self-balanced; outer
         // `get` / `values` opens one net brace, contributing 1 to read_depth.
@@ -884,11 +885,9 @@ fn render_read_body(expr: &ReadExpr) -> String {
             render_read_body(input),
             key
         ),
-        ReadExpr::PropertyContains { input, key } => format!(
-            "{} {{ contains(key: \"{}\")",
-            render_read_body(input),
-            key
-        ),
+        ReadExpr::PropertyContains { input, key } => {
+            format!("{} {{ contains(key: \"{}\")", render_read_body(input), key)
+        }
         ReadExpr::PropertyKeys { input } => format!("{} {{ keys", render_read_body(input)),
         ReadExpr::PropertyValues { input, keys } => match keys {
             Some(ks) => format!(
@@ -1056,6 +1055,7 @@ fn read_depth(expr: &ReadExpr) -> usize {
         | ReadExpr::Explode { input }
         | ReadExpr::ExplodeLayers { input }
         | ReadExpr::Metadata { input }
+        | ReadExpr::Properties { input }
         | ReadExpr::PropertyGet { input, .. }
         | ReadExpr::PropertyContains { input, .. }
         | ReadExpr::PropertyKeys { input }
@@ -1608,6 +1608,10 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
                 go(input, out);
                 out.push("metadata");
             }
+            ReadExpr::Properties { input } => {
+                go(input, out);
+                out.push("properties");
+            }
             ReadExpr::PropertyGet { input, .. } => {
                 go(input, out);
                 out.push("get");
@@ -1984,6 +1988,7 @@ fn child_input(expr: &ReadExpr) -> Option<&ReadExpr> {
         | ReadExpr::Explode { input }
         | ReadExpr::ExplodeLayers { input }
         | ReadExpr::Metadata { input }
+        | ReadExpr::Properties { input }
         | ReadExpr::PropertyGet { input, .. }
         | ReadExpr::PropertyContains { input, .. }
         | ReadExpr::PropertyKeys { input }

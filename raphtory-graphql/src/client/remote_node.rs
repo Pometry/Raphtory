@@ -8,7 +8,7 @@ use crate::client::{
         expect_bool, expect_i64, expect_optional_i64, expect_optional_string, expect_string,
     },
     remote_history::RemoteHistory,
-    remote_metadata::RemoteMetadata,
+    remote_metadata::{RemoteMetadata, RemoteProperties},
     remote_nodes::RemoteNodes,
     transport::Transport,
     ClientError,
@@ -420,6 +420,19 @@ impl RemoteNode {
             self.path.clone(),
             self.transport.clone(),
             ReadExpr::Metadata {
+                input: Box::new(self.expr.clone()),
+            },
+            self.base_graph.clone(),
+        )
+    }
+
+    /// Returns the full properties container of this node — includes both
+    /// temporal properties and metadata. Lazy — no RPC.
+    pub fn properties(&self) -> RemoteProperties {
+        RemoteProperties::with_expr(
+            self.path.clone(),
+            self.transport.clone(),
+            ReadExpr::Properties {
                 input: Box::new(self.expr.clone()),
             },
             self.base_graph.clone(),

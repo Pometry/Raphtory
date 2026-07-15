@@ -848,6 +848,65 @@ def test_history_list_on_empty_view():
         server_cm.__exit__(None, None, None)
 
 
+def test_node_properties_basic():
+    """`node.properties` returns a `RemoteProperties` container (temporal +
+    metadata). Same terminal shape as metadata; for temporal properties,
+    `.get(key)` and `.values()` return the property's most recent value."""
+    server_cm, rg = _make_graph_with_edge()
+    # Add temporal properties at t=5, t=10.
+    rg.node("ben").add_updates(5, properties={"score": 1.5, "active": True})
+    rg.node("ben").add_updates(10, properties={"score": 2.5})
+    try:
+        props = rg.node("ben").properties
+
+        # keys — all temporal property names.
+        assert sorted(props.keys()) == ["active", "score"]
+
+        # contains — bool.
+        assert props.contains("score") is True
+        assert props.contains("nonexistent") is False
+
+        # get — Optional[RemoteProperty]. For a temporal property, returns
+        # the latest value under the current view (t=10 → score=2.5).
+        score = props.get("score")
+        assert score is not None
+        assert score.key == "score"
+        assert score.value == 2.5
+
+        # get on missing key — None.
+        assert props.get("nonexistent") is None
+
+        # values — list[RemoteProperty], one per key.
+        vs = props.values()
+        by_key = {p.key: p.value for p in vs}
+        assert by_key == {"score": 2.5, "active": True}
+
+        # values with whitelist.
+        subset = props.values(keys=["score"])
+        assert [p.key for p in subset] == ["score"]
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_properties_vs_metadata_separation():
+    """`.properties` covers temporal properties; `.metadata` covers non-
+    temporal. Server exposes them as separate containers — no overlap in
+    keys."""
+    server_cm, rg = _make_graph_with_edge()
+    rg.node("ben").add_metadata({"role": "admin"})            # non-temporal
+    rg.node("ben").add_updates(5, properties={"score": 1.0})   # temporal
+    try:
+        # Metadata has "role", properties has "score" — no cross-contamination.
+        assert rg.node("ben").metadata.keys() == ["role"]
+        assert rg.node("ben").properties.keys() == ["score"]
+
+        # get() on the wrong container returns None.
+        assert rg.node("ben").metadata.get("score") is None
+        assert rg.node("ben").properties.get("role") is None
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
 def test_node_metadata_basic():
     """`node.metadata` returns a `RemoteMetadata` container. Standard shape:
     `get(key)`, `contains(key)`, `keys()`, `values(keys=None)`. Values are

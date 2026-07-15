@@ -1,5 +1,5 @@
 use crate::client::{
-    remote_metadata::{RemoteMetadata, RemoteProperty},
+    remote_metadata::{RemoteMetadata, RemoteProperties, RemoteProperty},
     ClientError,
 };
 use pyo3::{prelude::*, IntoPyObject, Py, PyAny};
@@ -107,10 +107,65 @@ impl PyRemoteMetadata {
     /// Returns:
     ///     list[RemoteProperty]: one entry per metadata key.
     #[pyo3(signature = (keys = None))]
-    pub fn values(
-        &self,
-        keys: Option<Vec<String>>,
-    ) -> Result<Vec<PyRemoteProperty>, ClientError> {
+    pub fn values(&self, keys: Option<Vec<String>>) -> Result<Vec<PyRemoteProperty>, ClientError> {
+        let inner = Arc::clone(&self.inner);
+        let result = execute_async_task(move || async move { inner.values(keys).await })?;
+        Ok(result.into_iter().map(PyRemoteProperty::new).collect())
+    }
+}
+
+/// A handle to the full properties container of a remote graph, node, or
+/// edge — includes both non-temporal metadata and temporal properties.
+///
+/// Same terminal shape as `RemoteMetadata` (`get`/`contains`/`keys`/`values`).
+/// For temporal properties, `.get(key)` and `.values()` yield the property's
+/// most recent value under the current view; drill into a property's timeline
+/// via `.temporal()` (shipped in a follow-up batch).
+///
+/// Returned by [RemoteGraph.properties][raphtory.graphql.RemoteGraph.properties],
+/// [RemoteNode.properties][raphtory.graphql.RemoteNode.properties], and
+/// [RemoteEdge.properties][raphtory.graphql.RemoteEdge.properties].
+#[derive(Clone)]
+#[pyclass(name = "RemoteProperties", module = "raphtory.graphql", from_py_object)]
+pub struct PyRemoteProperties {
+    pub(crate) inner: Arc<RemoteProperties>,
+}
+
+impl PyRemoteProperties {
+    pub(crate) fn new(inner: RemoteProperties) -> Self {
+        Self {
+            inner: Arc::new(inner),
+        }
+    }
+}
+
+#[pymethods]
+impl PyRemoteProperties {
+    /// Fetch a single property value by key. Returns `None` if the key
+    /// isn't present. For a temporal property, yields its most recent value
+    /// under the current view. Fires one RPC.
+    pub fn get(&self, key: String) -> Result<Option<PyRemoteProperty>, ClientError> {
+        let inner = Arc::clone(&self.inner);
+        let result = execute_async_task(move || async move { inner.get(key).await })?;
+        Ok(result.map(PyRemoteProperty::new))
+    }
+
+    /// Whether a property with this key exists. Fires one RPC.
+    pub fn contains(&self, key: String) -> Result<bool, ClientError> {
+        let inner = Arc::clone(&self.inner);
+        execute_async_task(move || async move { inner.contains(key).await })
+    }
+
+    /// All property keys in the current view. Fires one RPC.
+    pub fn keys(&self) -> Result<Vec<String>, ClientError> {
+        let inner = Arc::clone(&self.inner);
+        execute_async_task(move || async move { inner.keys().await })
+    }
+
+    /// All `(key, value)` property entries. If `keys` is provided, only
+    /// entries with those names are returned. Fires one RPC.
+    #[pyo3(signature = (keys = None))]
+    pub fn values(&self, keys: Option<Vec<String>>) -> Result<Vec<PyRemoteProperty>, ClientError> {
         let inner = Arc::clone(&self.inner);
         let result = execute_async_task(move || async move { inner.values(keys).await })?;
         Ok(result.into_iter().map(PyRemoteProperty::new).collect())

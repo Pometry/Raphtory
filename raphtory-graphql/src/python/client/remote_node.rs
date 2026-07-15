@@ -1,8 +1,10 @@
 use crate::{
     client::{remote_node::RemoteNode, ClientError},
     python::client::{
-        remote_edges::PyRemoteEdges, remote_history::PyRemoteHistory,
-        remote_metadata::PyRemoteMetadata, remote_nodes::PyRemoteNodes,
+        remote_edges::PyRemoteEdges,
+        remote_history::PyRemoteHistory,
+        remote_metadata::{PyRemoteMetadata, PyRemoteProperties},
+        remote_nodes::PyRemoteNodes,
     },
 };
 use pyo3::{pyclass, pymethods};
@@ -342,5 +344,12 @@ impl PyRemoteNode {
     #[getter]
     pub fn metadata(&self) -> PyRemoteMetadata {
         PyRemoteMetadata::new(self.node.metadata())
+    }
+
+    /// The full properties container of this node (temporal + metadata).
+    /// Lazy — no RPC.
+    #[getter]
+    pub fn properties(&self) -> PyRemoteProperties {
+        PyRemoteProperties::new(self.node.properties())
     }
 }

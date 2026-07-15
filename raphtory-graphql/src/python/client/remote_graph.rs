@@ -9,9 +9,12 @@ use crate::{
         ClientError,
     },
     python::client::{
-        remote_edge::PyRemoteEdge, remote_edges::PyRemoteEdges,
-        remote_metadata::PyRemoteMetadata, remote_node::PyRemoteNode,
-        remote_nodes::PyRemoteNodes, PyEdgeAddition, PyNodeAddition,
+        remote_edge::PyRemoteEdge,
+        remote_edges::PyRemoteEdges,
+        remote_metadata::{PyRemoteMetadata, PyRemoteProperties},
+        remote_node::PyRemoteNode,
+        remote_nodes::PyRemoteNodes,
+        PyEdgeAddition, PyNodeAddition,
     },
 };
 use pyo3::{pyclass, pymethods};
@@ -359,6 +362,16 @@ impl PyRemoteGraph {
     #[getter]
     pub fn metadata(&self) -> PyRemoteMetadata {
         PyRemoteMetadata::new(self.graph.metadata())
+    }
+
+    /// The full properties container of this graph (temporal + metadata).
+    /// Lazy — no RPC.
+    ///
+    /// Returns:
+    ///   RemoteProperties: a handle to the properties container.
+    #[getter]
+    pub fn properties(&self) -> PyRemoteProperties {
+        PyRemoteProperties::new(self.graph.properties())
     }
 
     /// Batch add node updates to the remote graph

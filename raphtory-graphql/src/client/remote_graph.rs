@@ -10,7 +10,7 @@ use crate::client::{
     remote_edge::RemoteEdge,
     remote_edges::RemoteEdges,
     remote_history::RemoteEventTime,
-    remote_metadata::RemoteMetadata,
+    remote_metadata::{RemoteMetadata, RemoteProperties},
     remote_node::RemoteNode,
     remote_nodes::RemoteNodes,
     transport::Transport,
@@ -737,6 +737,19 @@ impl RemoteGraph {
             self.path.clone(),
             self.transport.clone(),
             ReadExpr::Metadata {
+                input: Box::new(self.expr.clone()),
+            },
+            self.expr.clone(),
+        )
+    }
+
+    /// Returns the full properties container of this graph — includes both
+    /// temporal properties and metadata. Lazy — no RPC.
+    pub fn properties(&self) -> RemoteProperties {
+        RemoteProperties::with_expr(
+            self.path.clone(),
+            self.transport.clone(),
+            ReadExpr::Properties {
                 input: Box::new(self.expr.clone()),
             },
             self.expr.clone(),
