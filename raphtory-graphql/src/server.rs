@@ -19,7 +19,7 @@ use opentelemetry::trace::TracerProvider;
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
 use opentelemetry_sdk::{
     logs::SdkLoggerProvider,
-    trace::{SdkTracerProvider as TP, SdkTracerProvider, Tracer},
+    trace::{SdkTracerProvider, Tracer},
 };
 use poem::{
     get,
@@ -56,7 +56,10 @@ use tokio::{
 };
 use tracing::{debug, error, info, warn};
 use tracing_subscriber::{
-    fmt, fmt::format::FmtSpan, layer::SubscriberExt, util::SubscriberInitExt, Registry,
+    fmt::{self, format::FmtSpan},
+    layer::SubscriberExt,
+    util::SubscriberInitExt,
+    Registry,
 };
 use url::ParseError;
 
@@ -477,6 +480,10 @@ async fn server_termination(
     match tp {
         None => {}
         Some((tp, lp)) => {
+            /* Avoid shutting down global tracing exporters on server shutdown during integration tests
+               since they are reused across multiple tests.
+            */
+            #[cfg(not(feature = "integration-test"))]
             task::spawn_blocking(move || {
                 let res = tp.shutdown();
                 if let Err(e) = res {
@@ -537,7 +544,6 @@ mod server_tests {
 
         running.stop().await
     }
-
     #[tokio::test]
     async fn test_server_start_stop() {
         global_info_logger();
