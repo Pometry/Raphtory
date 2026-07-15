@@ -40,7 +40,7 @@ where
 #[graphql(name = "NodeStateValue")]
 pub(crate) enum GqlNodeStateValue {
     Prop(GqlNodeStateProp),
-    Node(GqlNode), // TODO: test this
+    Node(GqlNode),   // TODO: test this
     Nodes(GqlNodes), // TODO: test this
 }
 

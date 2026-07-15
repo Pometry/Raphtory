@@ -2,6 +2,7 @@ use crate::{
     data::Data,
     graph::GraphWithVectors,
     model::{
+        algorithms::GqlAlgorithms,
         graph::{
             edge::GqlEdge,
             edges::GqlEdges,
@@ -15,7 +16,6 @@ use crate::{
             windowset::GqlGraphWindowSet,
             GqlAlignmentUnit, WindowDuration,
         },
-        algorithms::GqlAlgorithms,
         plugins::graph_algorithm_plugin::GraphAlgorithmPlugin,
         schema::graph_schema::GraphSchema,
     },

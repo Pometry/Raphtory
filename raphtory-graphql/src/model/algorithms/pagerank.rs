@@ -1,9 +1,8 @@
-use crate::model::graph::node_state::GqlNodeState;
+use crate::model::{algorithms::GqlExecutableAlgorithm, graph::node_state::GqlNodeState};
 use raphtory::{
     algorithms::centrality::pagerank::page_rank, db::api::view::DynamicGraph, errors::GraphError,
 };
 use raphtory_api::core::storage::arc_str::OptionAsStr;
-use crate::model::algorithms::GqlExecutableAlgorithm;
 
 /// PageRank, see [`page_rank`].
 pub(crate) struct GqlPagerank;

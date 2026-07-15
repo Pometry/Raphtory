@@ -50,9 +50,7 @@ impl GqlAlgorithms {
     /// Returns the PageRank centrality of every node in the graph.
     async fn pagerank(
         &self,
-        #[graphql(desc = "Number of iterations to run. Defaults to 20.")] iter_count: Option<
-            usize,
-        >,
+        #[graphql(desc = "Number of iterations to run. Defaults to 20.")] iter_count: Option<usize>,
         #[graphql(desc = "Number of threads to use. Defaults to all available.")] threads: Option<
             usize,
         >,
