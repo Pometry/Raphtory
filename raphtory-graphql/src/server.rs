@@ -477,6 +477,10 @@ async fn server_termination(
     match tp {
         None => {}
         Some((tp, lp)) => {
+            /* avoid shutting down tracing exporters on server shutdown during integration tests
+               since the tracing exporters will be used for next test because tracing exporters 
+               are global
+            */
             #[cfg(not(feature="integration-test"))]
             task::spawn_blocking(move || {
                 let res = tp.shutdown();

@@ -122,6 +122,7 @@ pub const DEFAULT_OTLP_AGENT_PORT_TONIC: u16 = 4317;
 pub const DEFAULT_OTLP_TRACING_SERVICE_NAME: &'static str = "Raphtory";
 
 #[cfg(feature = "integration-test")]
+// in-memory exporters to retrieve spans and logs in tests.
 #[derive(Clone)]
 pub struct GlobalExporters {
     pub span: InMemorySpanExporter,
@@ -129,6 +130,14 @@ pub struct GlobalExporters {
 }
 
 #[cfg(feature = "integration-test")]
+/* GraphServer registers span and log exporters 
+   across the entire process, which can conflict 
+   when starting up servers with their own exporters. 
+   Making in-memory exporters global allows them to be 
+   initialized once and reused across multiple tests
+   allowing the tests to retrieve spans and logs
+   without conflicts.
+*/ 
 pub static GLOBAL_EXPORTERS: LazyLock<GlobalExporters> = LazyLock::new(|| GlobalExporters {
     span: InMemorySpanExporter::default(),
     log: InMemoryLogExporter::default(),
@@ -228,7 +237,7 @@ impl TracingConfig {
                     return Err(err);
                 }
             }
-
+ 
             let providers = match self.transport_protocol {
                 TracingProtocol::TONIC => {
                     let mut span_builder = SpanExporter::builder()

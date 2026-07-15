@@ -41,6 +41,7 @@ async fn setup_for_span_tests(
 ) {
     let span_exporter = GLOBAL_EXPORTERS.span.clone();
 	let log_exporter = GLOBAL_EXPORTERS.log.clone();
+	// reset logs and spans for next test 
 	span_exporter.reset();
 	log_exporter.reset();
 	let tmp_dir = tempdir().unwrap();
@@ -161,6 +162,8 @@ async fn test_open_telemetry_spans_minimal() {
 
 #[tokio::test]
 async fn test_open_telemetry_spans() {
+	// All tests use the same exporters so all tests need to be ran sequentlially to avoid conflicts   
+	// with spans and logs from all tests being mixed together on each test's span/log assertions. 
 	test_open_telemetry_spans_complete().await;
 	test_open_telemetry_spans_essential().await;
 	test_open_telemetry_spans_minimal().await;
