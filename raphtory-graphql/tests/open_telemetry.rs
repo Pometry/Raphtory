@@ -171,8 +171,7 @@ async fn test_open_telemetry_spans_minimal() {
 
 #[tokio::test]
 async fn test_open_telemetry_spans() {
-    // All tests use the same exporters so all tests need to be ran sequentlially to avoid conflicts
-    // with spans and logs from all tests being mixed together on each test's span/log assertions.
+    // The following tests share the same global in-memory exporters and hence need to be run sequentially to prevent spans and logs from getting mangled.
     test_open_telemetry_spans_complete().await;
     test_open_telemetry_spans_essential().await;
     test_open_telemetry_spans_minimal().await;
