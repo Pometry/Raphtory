@@ -26,7 +26,10 @@ pub use remote_history::{
     RemoteEventTime, RemoteHistory, RemoteHistoryDateTimes, RemoteHistoryEventIds,
     RemoteHistoryTimestamps, RemoteIntervals,
 };
-pub use remote_metadata::{RemoteMetadata, RemoteProperties, RemoteProperty};
+pub use remote_metadata::{
+    RemoteMetadata, RemoteProperties, RemoteProperty, RemotePropertyTuple,
+    RemoteTemporalProperties, RemoteTemporalProperty,
+};
 pub use remote_node::RemoteNode;
 pub use remote_nodes::RemoteNodes;
 pub use transport::Transport;

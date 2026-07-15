@@ -186,6 +186,59 @@ pub enum ReadExpr {
         input: Box<ReadExpr>,
         keys: Option<Vec<String>>,
     },
+    /// Navigate to the temporal-only view of a properties container.
+    /// Properties → TemporalProperties. Server field: `temporal`.
+    TemporalProperties { input: Box<ReadExpr> },
+    /// Select a single temporal property by key. TemporalProperties →
+    /// TemporalProperty. Server field: `get(key)` — but rendered without
+    /// inner sub-selection so downstream terminals nest their own.
+    TemporalPropertyByKey { input: Box<ReadExpr>, key: String },
+    /// Terminal on a TemporalProperties container: `Vec<String>` — the keys
+    /// of each temporal property, optionally filtered. Server field:
+    /// `values(keys) { key }` — we extract just the key from each record.
+    TemporalPropertyList {
+        input: Box<ReadExpr>,
+        keys: Option<Vec<String>>,
+    },
+    /// Terminal on a TemporalProperty: `Vec<Prop>` — all values this
+    /// property has ever taken, in temporal order. Server field: `values`.
+    TemporalPropertyValueList { input: Box<ReadExpr> },
+    /// Terminal on a TemporalProperty: value at or before the given time.
+    /// Server field: `at(t)`. Nullable — returns `None` if no update
+    /// exists on or before `t`.
+    TemporalPropertyAt { input: Box<ReadExpr>, time: i64 },
+    /// Terminal on a TemporalProperty: the most recent value. Server field:
+    /// `latest`. Nullable — `None` if the property has no updates in view.
+    TemporalPropertyLatest { input: Box<ReadExpr> },
+    /// Terminal on a TemporalProperty: the set of distinct values (order
+    /// not guaranteed). Server field: `unique`.
+    TemporalPropertyUnique { input: Box<ReadExpr> },
+    /// Terminal on a TemporalProperty: collapse consecutive-equal updates
+    /// into a single `(time, value)` pair. `latest_time = true` picks the
+    /// last timestamp of each run; `false` picks the first. Server field:
+    /// `orderedDedupe(latestTime: bool)`.
+    TemporalPropertyOrderedDedupe {
+        input: Box<ReadExpr>,
+        latest_time: bool,
+    },
+    /// Terminal on a TemporalProperty: sum of all updates. Server field:
+    /// `sum`. Nullable.
+    TemporalPropertySum { input: Box<ReadExpr> },
+    /// Terminal on a TemporalProperty: mean of all updates. Server field:
+    /// `mean`. Nullable.
+    TemporalPropertyMean { input: Box<ReadExpr> },
+    /// Terminal on a TemporalProperty: mean (alias). Server field: `average`.
+    /// Nullable.
+    TemporalPropertyAverage { input: Box<ReadExpr> },
+    /// Terminal on a TemporalProperty: minimum `(time, value)` pair.
+    /// Server field: `min`. Nullable.
+    TemporalPropertyMin { input: Box<ReadExpr> },
+    /// Terminal on a TemporalProperty: maximum `(time, value)` pair.
+    /// Server field: `max`. Nullable.
+    TemporalPropertyMax { input: Box<ReadExpr> },
+    /// Terminal on a TemporalProperty: median `(time, value)` pair.
+    /// Server field: `median`. Nullable.
+    TemporalPropertyMedian { input: Box<ReadExpr> },
 
     // ============ Scalar terminals on Graph ============
     /// Terminal: total node count under the current view — `i64`.

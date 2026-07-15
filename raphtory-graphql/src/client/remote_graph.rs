@@ -214,6 +214,109 @@ fn extract_key_value_pair(
     Ok((key, value))
 }
 
+/// Unwrap a `Transport::execute` result expecting a nullable polymorphic
+/// `Prop` scalar. Used by TemporalProperty terminals like `at` / `latest`
+/// that return an arbitrary property value or null.
+pub(crate) fn expect_optional_prop(
+    v: Option<Prop>,
+    _context: &str,
+) -> Result<Option<Prop>, ClientError> {
+    Ok(v)
+}
+
+/// Unwrap a `Transport::execute` result expecting a nullable property tuple
+/// (a `Prop::Map` with `time` and `value` keys). Used by TemporalProperty
+/// stats returning an optional `(time, value)` pair.
+pub(crate) fn expect_optional_property_tuple(
+    v: Option<Prop>,
+    context: &str,
+) -> Result<Option<(crate::client::remote_history::RemoteEventTime, Prop)>, ClientError> {
+    match v {
+        None => Ok(None),
+        Some(Prop::Map(map)) => extract_property_tuple(&*map, context).map(Some),
+        Some(_) => Err(ClientError::InvalidResponse(format!(
+            "`{}` returned unexpected value type",
+            context
+        ))),
+    }
+}
+
+/// Unwrap a list of property tuples (used by `orderedDedupe`).
+pub(crate) fn expect_property_tuple_list(
+    v: Option<Prop>,
+    context: &str,
+) -> Result<Vec<(crate::client::remote_history::RemoteEventTime, Prop)>, ClientError> {
+    match v {
+        Some(Prop::List(items)) => items
+            .iter()
+            .map(|p| match p {
+                Prop::Map(map) => extract_property_tuple(&*map, context),
+                _ => Err(ClientError::InvalidResponse(format!(
+                    "`{}` element not a Prop::Map",
+                    context
+                ))),
+            })
+            .collect(),
+        _ => Err(ClientError::InvalidResponse(format!(
+            "`{}` returned unexpected value type",
+            context
+        ))),
+    }
+}
+
+fn extract_property_tuple(
+    map: &rustc_hash::FxHashMap<raphtory_api::core::storage::arc_str::ArcStr, Prop>,
+    context: &str,
+) -> Result<(crate::client::remote_history::RemoteEventTime, Prop), ClientError> {
+    let time = match map.get("time") {
+        Some(Prop::Map(time_map)) => extract_event_time(&*time_map),
+        _ => {
+            return Err(ClientError::InvalidResponse(format!(
+                "`{}` tuple missing `time`",
+                context
+            )))
+        }
+    };
+    let value = map.get("value").cloned().ok_or_else(|| {
+        ClientError::InvalidResponse(format!("`{}` tuple missing `value`", context))
+    })?;
+    Ok((time, value))
+}
+
+fn extract_event_time(
+    map: &rustc_hash::FxHashMap<raphtory_api::core::storage::arc_str::ArcStr, Prop>,
+) -> crate::client::remote_history::RemoteEventTime {
+    let timestamp = match map.get("timestamp") {
+        Some(Prop::I64(n)) => Some(*n),
+        _ => None,
+    };
+    let dt = match map.get("datetime") {
+        Some(Prop::Str(s)) => Some(s.to_string()),
+        _ => None,
+    };
+    let event_id = match map.get("eventId") {
+        Some(Prop::I64(n)) => Some(*n),
+        _ => None,
+    };
+    crate::client::remote_history::RemoteEventTime {
+        timestamp,
+        dt,
+        event_id,
+    }
+}
+
+/// Unwrap a `Transport::execute` result expecting a `Prop::List` of
+/// arbitrary polymorphic `Prop`s. Used by `TemporalPropertyValueList`.
+pub(crate) fn expect_prop_list(v: Option<Prop>, context: &str) -> Result<Vec<Prop>, ClientError> {
+    match v {
+        Some(Prop::List(items)) => Ok(items.iter().collect()),
+        _ => Err(ClientError::InvalidResponse(format!(
+            "`{}` returned unexpected value type",
+            context
+        ))),
+    }
+}
+
 /// Unwrap a `Transport::execute` result expecting a nullable `Prop::F64`
 /// scalar. Used by `IntervalsMean`.
 pub(crate) fn expect_optional_f64(

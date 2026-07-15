@@ -10,7 +10,10 @@ use crate::{
                 PyRemoteEventTime, PyRemoteHistory, PyRemoteHistoryDateTimes,
                 PyRemoteHistoryEventIds, PyRemoteHistoryTimestamps, PyRemoteIntervals,
             },
-            remote_metadata::{PyRemoteMetadata, PyRemoteProperties, PyRemoteProperty},
+            remote_metadata::{
+                PyRemoteMetadata, PyRemoteProperties, PyRemoteProperty, PyRemotePropertyTuple,
+                PyRemoteTemporalProperties, PyRemoteTemporalProperty,
+            },
             remote_node::PyRemoteNode,
             remote_nodes::PyRemoteNodes,
             PyAllPropertySpec, PyEdgeAddition, PyNodeAddition, PyPropsInput, PyRemoteIndexSpec,
@@ -50,6 +53,9 @@ pub fn base_graphql_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyErr>
     graphql_module.add_class::<PyRemoteMetadata>()?;
     graphql_module.add_class::<PyRemoteProperties>()?;
     graphql_module.add_class::<PyRemoteProperty>()?;
+    graphql_module.add_class::<PyRemoteTemporalProperties>()?;
+    graphql_module.add_class::<PyRemoteTemporalProperty>()?;
+    graphql_module.add_class::<PyRemotePropertyTuple>()?;
     graphql_module.add_class::<PyNodeAddition>()?;
     graphql_module.add_class::<PyUpdate>()?;
     graphql_module.add_class::<PyEdgeAddition>()?;

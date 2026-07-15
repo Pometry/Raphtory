@@ -848,6 +848,145 @@ def test_history_list_on_empty_view():
         server_cm.__exit__(None, None, None)
 
 
+def test_temporal_property_stats():
+    """`RemoteTemporalProperty` numeric stats: sum, mean, average, min, max,
+    median. Non-numeric aggregates return None. Non-numeric stats return
+    `RemotePropertyTuple` with a time and native-Python value."""
+    server_cm, rg = _make_graph_with_edge()
+    # Numeric values: 1, 2, 3, 4, 5
+    for i, t in enumerate([1, 2, 3, 4, 5]):
+        rg.node("ben").add_updates(t, properties={"score": float(i + 1)})
+    try:
+        score = rg.node("ben").properties.temporal.get("score")
+
+        # Numeric aggregates on floats: sum=15, mean=3.0, average=3.0
+        assert score.sum() == 15.0
+        assert score.mean() == 3.0
+        assert score.average() == 3.0
+
+        # Min/max/median return RemotePropertyTuple (time + value)
+        mn = score.min()
+        assert mn is not None
+        assert mn.value == 1.0
+        assert mn.time.timestamp == 1
+
+        mx = score.max()
+        assert mx is not None
+        assert mx.value == 5.0
+        assert mx.time.timestamp == 5
+
+        med = score.median()
+        assert med is not None
+        assert med.value == 3.0
+        assert med.time.timestamp == 3
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_temporal_property_unique_and_dedupe():
+    """`.unique()` returns distinct values; `.ordered_dedupe(latest_time)`
+    collapses runs of consecutive-equal values."""
+    server_cm, rg = _make_graph_with_edge()
+    # Runs of equal values: 1, 1, 2, 2, 2, 3, 1
+    for t, v in [(1, 1), (2, 1), (3, 2), (4, 2), (5, 2), (6, 3), (7, 1)]:
+        rg.node("ben").add_updates(t, properties={"status": v})
+    try:
+        status = rg.node("ben").properties.temporal.get("status")
+
+        # Distinct values — order not guaranteed
+        assert sorted(status.unique()) == [1, 2, 3]
+
+        # ordered_dedupe(latest_time=False): (1, 1), (3, 2), (6, 3), (7, 1) — first
+        # timestamp of each run.
+        first_ts = status.ordered_dedupe(latest_time=False)
+        assert [(p.time.timestamp, p.value) for p in first_ts] == [
+            (1, 1), (3, 2), (6, 3), (7, 1)
+        ]
+
+        # ordered_dedupe(latest_time=True): (2, 1), (5, 2), (6, 3), (7, 1) — last
+        # timestamp of each run.
+        last_ts = status.ordered_dedupe(latest_time=True)
+        assert [(p.time.timestamp, p.value) for p in last_ts] == [
+            (2, 1), (5, 2), (6, 3), (7, 1)
+        ]
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_temporal_properties_container():
+    """`properties.temporal` returns a `RemoteTemporalProperties` container.
+    `.get(key)` returns a `RemoteTemporalProperty` handle if present, `None`
+    otherwise. `.values()` returns handles for every temporal property."""
+    server_cm, rg = _make_graph_with_edge()
+    rg.node("ben").add_updates(5, properties={"score": 1.5, "active": True})
+    rg.node("ben").add_updates(10, properties={"score": 2.5})
+    try:
+        tp = rg.node("ben").properties.temporal
+
+        # keys
+        assert sorted(tp.keys()) == ["active", "score"]
+
+        # contains
+        assert tp.contains("score") is True
+        assert tp.contains("nonexistent") is False
+
+        # get — Optional[RemoteTemporalProperty]
+        score = tp.get("score")
+        assert score is not None
+        assert score.key == "score"
+
+        assert tp.get("nonexistent") is None
+
+        # values — list of handles
+        handles = tp.values()
+        by_key = {h.key: h for h in handles}
+        assert set(by_key.keys()) == {"score", "active"}
+
+        # values with whitelist
+        subset = tp.values(keys=["score"])
+        assert [h.key for h in subset] == ["score"]
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_temporal_property_terminals():
+    """`RemoteTemporalProperty` core methods: `.history`, `.values()`,
+    `.at(t)`, `.latest()`, `.count()`."""
+    server_cm, rg = _make_graph_with_edge()
+    # score: 1.5 at t=5, 2.5 at t=10, 3.5 at t=15
+    rg.node("ben").add_updates(5, properties={"score": 1.5})
+    rg.node("ben").add_updates(10, properties={"score": 2.5})
+    rg.node("ben").add_updates(15, properties={"score": 3.5})
+    try:
+        score = rg.node("ben").properties.temporal.get("score")
+
+        # count — number of updates
+        assert score.count() == 3
+
+        # values — all values in temporal order
+        vals = score.values()
+        assert vals == [1.5, 2.5, 3.5]
+
+        # latest — most recent value
+        assert score.latest() == 3.5
+
+        # at(t) — value at or before t
+        assert score.at(5) == 1.5
+        assert score.at(7) == 1.5   # no update at 7 → latest before is at t=5
+        assert score.at(10) == 2.5
+        assert score.at(100) == 3.5  # latest before 100 is 3.5
+
+        # at(t) before any update — None
+        assert score.at(0) is None
+
+        # history — reuses RemoteHistory
+        hist = score.history
+        assert hist.count() == 3
+        assert hist.list()[0].timestamp == 5
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
 def test_node_properties_basic():
     """`node.properties` returns a `RemoteProperties` container (temporal +
     metadata). Same terminal shape as metadata; for temporal properties,

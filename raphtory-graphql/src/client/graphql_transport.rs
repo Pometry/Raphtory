@@ -897,6 +897,60 @@ fn render_read_body(expr: &ReadExpr) -> String {
             ),
             None => format!("{} {{ values {{ key value }}", render_read_body(input)),
         },
+        ReadExpr::TemporalProperties { input } => {
+            format!("{} {{ temporal", render_read_body(input))
+        }
+        ReadExpr::TemporalPropertyByKey { input, key } => {
+            format!("{} {{ get(key: \"{}\")", render_read_body(input), key)
+        }
+        // `values(keys?) { key }` — we only fetch the key from each record;
+        // clients build a `RemoteTemporalProperty` handle around each key.
+        ReadExpr::TemporalPropertyList { input, keys } => match keys {
+            Some(ks) => format!(
+                "{} {{ values(keys: [{}]) {{ key }}",
+                render_read_body(input),
+                render_string_list(ks)
+            ),
+            None => format!("{} {{ values {{ key }}", render_read_body(input)),
+        },
+        ReadExpr::TemporalPropertyValueList { input } => {
+            format!("{} {{ values", render_read_body(input))
+        }
+        ReadExpr::TemporalPropertyAt { input, time } => {
+            format!("{} {{ at(t: {})", render_read_body(input), time)
+        }
+        ReadExpr::TemporalPropertyLatest { input } => {
+            format!("{} {{ latest", render_read_body(input))
+        }
+        ReadExpr::TemporalPropertyUnique { input } => {
+            format!("{} {{ unique", render_read_body(input))
+        }
+        ReadExpr::TemporalPropertyOrderedDedupe { input, latest_time } => format!(
+            "{} {{ orderedDedupe(latestTime: {}) {{ time {{ timestamp datetime eventId }} value }}",
+            render_read_body(input),
+            latest_time
+        ),
+        ReadExpr::TemporalPropertySum { input } => {
+            format!("{} {{ sum", render_read_body(input))
+        }
+        ReadExpr::TemporalPropertyMean { input } => {
+            format!("{} {{ mean", render_read_body(input))
+        }
+        ReadExpr::TemporalPropertyAverage { input } => {
+            format!("{} {{ average", render_read_body(input))
+        }
+        ReadExpr::TemporalPropertyMin { input } => format!(
+            "{} {{ min {{ time {{ timestamp datetime eventId }} value }}",
+            render_read_body(input)
+        ),
+        ReadExpr::TemporalPropertyMax { input } => format!(
+            "{} {{ max {{ time {{ timestamp datetime eventId }} value }}",
+            render_read_body(input)
+        ),
+        ReadExpr::TemporalPropertyMedian { input } => format!(
+            "{} {{ median {{ time {{ timestamp datetime eventId }} value }}",
+            render_read_body(input)
+        ),
         // Terminals — no args after the field name
         ReadExpr::CountNodes { input } => format!("{} {{ countNodes", render_read_body(input)),
         ReadExpr::CountEdges { input } => format!("{} {{ countEdges", render_read_body(input)),
@@ -1060,6 +1114,20 @@ fn read_depth(expr: &ReadExpr) -> usize {
         | ReadExpr::PropertyContains { input, .. }
         | ReadExpr::PropertyKeys { input }
         | ReadExpr::PropertyValues { input, .. }
+        | ReadExpr::TemporalProperties { input }
+        | ReadExpr::TemporalPropertyByKey { input, .. }
+        | ReadExpr::TemporalPropertyList { input, .. }
+        | ReadExpr::TemporalPropertyValueList { input }
+        | ReadExpr::TemporalPropertyAt { input, .. }
+        | ReadExpr::TemporalPropertyLatest { input }
+        | ReadExpr::TemporalPropertyUnique { input }
+        | ReadExpr::TemporalPropertyOrderedDedupe { input, .. }
+        | ReadExpr::TemporalPropertySum { input }
+        | ReadExpr::TemporalPropertyMean { input }
+        | ReadExpr::TemporalPropertyAverage { input }
+        | ReadExpr::TemporalPropertyMin { input }
+        | ReadExpr::TemporalPropertyMax { input }
+        | ReadExpr::TemporalPropertyMedian { input }
         | ReadExpr::Ids { input }
         | ReadExpr::Count { input }
         | ReadExpr::EdgesList { input }
@@ -1329,6 +1397,79 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
             })?;
             let items: Result<Vec<Prop>, ClientError> =
                 arr.iter().map(json_to_property_record).collect();
+            Ok(Some(Prop::List(items?.into())))
+        }
+        // `TemporalPropertyList`: array of `{key}` records → `Prop::List` of
+        // `Prop::Str`. Only the key is fetched — clients build handles.
+        ReadExpr::TemporalPropertyList { .. } => {
+            let arr = terminal_val.as_array().ok_or_else(|| {
+                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
+            })?;
+            let items: Result<Vec<Prop>, ClientError> = arr
+                .iter()
+                .map(|v| {
+                    let key = v
+                        .as_object()
+                        .and_then(|o| o.get("key"))
+                        .and_then(|k| k.as_str())
+                        .ok_or_else(|| {
+                            ClientError::InvalidResponse(
+                                "temporal property record missing `key`".into(),
+                            )
+                        })?;
+                    Ok(Prop::Str(key.into()))
+                })
+                .collect();
+            Ok(Some(Prop::List(items?.into())))
+        }
+        // `TemporalPropertyValueList`: array of untagged Prop values.
+        ReadExpr::TemporalPropertyValueList { .. } => {
+            let arr = terminal_val.as_array().ok_or_else(|| {
+                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
+            })?;
+            let items: Result<Vec<Prop>, ClientError> = arr.iter().map(json_to_prop).collect();
+            Ok(Some(Prop::List(items?.into())))
+        }
+        // `TemporalPropertyAt` / `TemporalPropertyLatest` / stats returning
+        // a nullable untagged Prop scalar.
+        ReadExpr::TemporalPropertyAt { .. }
+        | ReadExpr::TemporalPropertyLatest { .. }
+        | ReadExpr::TemporalPropertySum { .. }
+        | ReadExpr::TemporalPropertyMean { .. }
+        | ReadExpr::TemporalPropertyAverage { .. } => {
+            if terminal_val.is_null() {
+                Ok(None)
+            } else {
+                Ok(Some(json_to_prop(terminal_val)?))
+            }
+        }
+        // `TemporalPropertyUnique`: array of untagged Prop values.
+        ReadExpr::TemporalPropertyUnique { .. } => {
+            let arr = terminal_val.as_array().ok_or_else(|| {
+                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
+            })?;
+            let items: Result<Vec<Prop>, ClientError> = arr.iter().map(json_to_prop).collect();
+            Ok(Some(Prop::List(items?.into())))
+        }
+        // `TemporalPropertyMin` / `Max` / `Median`: nullable `{time, value}`
+        // record. Decode to a `Prop::Map` with keys `time` (event-time-record)
+        // and `value` (untagged Prop).
+        ReadExpr::TemporalPropertyMin { .. }
+        | ReadExpr::TemporalPropertyMax { .. }
+        | ReadExpr::TemporalPropertyMedian { .. } => {
+            if terminal_val.is_null() {
+                Ok(None)
+            } else {
+                Ok(Some(json_to_property_tuple(terminal_val)?))
+            }
+        }
+        // `TemporalPropertyOrderedDedupe`: array of `{time, value}` records.
+        ReadExpr::TemporalPropertyOrderedDedupe { .. } => {
+            let arr = terminal_val.as_array().ok_or_else(|| {
+                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
+            })?;
+            let items: Result<Vec<Prop>, ClientError> =
+                arr.iter().map(json_to_property_tuple).collect();
             Ok(Some(Prop::List(items?.into())))
         }
         // Compound structured list terminal — JSON shape is
@@ -1628,6 +1769,62 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
                 go(input, out);
                 out.push("values");
             }
+            ReadExpr::TemporalProperties { input } => {
+                go(input, out);
+                out.push("temporal");
+            }
+            ReadExpr::TemporalPropertyByKey { input, .. } => {
+                go(input, out);
+                out.push("get");
+            }
+            ReadExpr::TemporalPropertyList { input, .. } => {
+                go(input, out);
+                out.push("values");
+            }
+            ReadExpr::TemporalPropertyValueList { input } => {
+                go(input, out);
+                out.push("values");
+            }
+            ReadExpr::TemporalPropertyAt { input, .. } => {
+                go(input, out);
+                out.push("at");
+            }
+            ReadExpr::TemporalPropertyLatest { input } => {
+                go(input, out);
+                out.push("latest");
+            }
+            ReadExpr::TemporalPropertyUnique { input } => {
+                go(input, out);
+                out.push("unique");
+            }
+            ReadExpr::TemporalPropertyOrderedDedupe { input, .. } => {
+                go(input, out);
+                out.push("orderedDedupe");
+            }
+            ReadExpr::TemporalPropertySum { input } => {
+                go(input, out);
+                out.push("sum");
+            }
+            ReadExpr::TemporalPropertyMean { input } => {
+                go(input, out);
+                out.push("mean");
+            }
+            ReadExpr::TemporalPropertyAverage { input } => {
+                go(input, out);
+                out.push("average");
+            }
+            ReadExpr::TemporalPropertyMin { input } => {
+                go(input, out);
+                out.push("min");
+            }
+            ReadExpr::TemporalPropertyMax { input } => {
+                go(input, out);
+                out.push("max");
+            }
+            ReadExpr::TemporalPropertyMedian { input } => {
+                go(input, out);
+                out.push("median");
+            }
             ReadExpr::Ids { input } => {
                 go(input, out);
                 out.push("ids");
@@ -1896,6 +2093,39 @@ fn json_to_prop(v: &JsonValue) -> Result<Prop, ClientError> {
     }
 }
 
+/// Decode a `{ time: {timestamp, datetime, eventId}, value }` JSON record
+/// into a `Prop::Map` with `"time"` (nested Prop::Map matching the event-
+/// time shape used elsewhere) and `"value"` (arbitrary Prop). Used by
+/// TemporalProperty stats (`min`/`max`/`median`) and `ordered_dedupe`.
+fn json_to_property_tuple(v: &JsonValue) -> Result<Prop, ClientError> {
+    let obj = v.as_object().ok_or_else(|| {
+        ClientError::InvalidResponse("property tuple is not a JSON object".into())
+    })?;
+    let time_json = obj
+        .get("time")
+        .ok_or_else(|| ClientError::InvalidResponse("property tuple missing `time`".into()))?;
+    let value_json = obj
+        .get("value")
+        .ok_or_else(|| ClientError::InvalidResponse("property tuple missing `value`".into()))?;
+
+    let time_obj = time_json.as_object().ok_or_else(|| {
+        ClientError::InvalidResponse("property tuple `time` is not a JSON object".into())
+    })?;
+    let mut time_pairs: Vec<(&'static str, Prop)> = Vec::new();
+    if let Some(t) = time_obj.get("timestamp").and_then(|x| x.as_i64()) {
+        time_pairs.push(("timestamp", Prop::I64(t)));
+    }
+    if let Some(d) = time_obj.get("datetime").and_then(|x| x.as_str()) {
+        time_pairs.push(("datetime", Prop::Str(d.into())));
+    }
+    if let Some(e) = time_obj.get("eventId").and_then(|x| x.as_i64()) {
+        time_pairs.push(("eventId", Prop::I64(e)));
+    }
+    let time_map = Prop::map(time_pairs);
+    let value = json_to_prop(value_json)?;
+    Ok(Prop::map(vec![("time", time_map), ("value", value)]))
+}
+
 /// Decode a `{ key, value }` JSON record into a `Prop::Map` with `"key"` (Prop::Str)
 /// and `"value"` (arbitrary Prop). Used by property terminals.
 fn json_to_property_record(v: &JsonValue) -> Result<Prop, ClientError> {
@@ -1993,6 +2223,20 @@ fn child_input(expr: &ReadExpr) -> Option<&ReadExpr> {
         | ReadExpr::PropertyContains { input, .. }
         | ReadExpr::PropertyKeys { input }
         | ReadExpr::PropertyValues { input, .. }
+        | ReadExpr::TemporalProperties { input }
+        | ReadExpr::TemporalPropertyByKey { input, .. }
+        | ReadExpr::TemporalPropertyList { input, .. }
+        | ReadExpr::TemporalPropertyValueList { input }
+        | ReadExpr::TemporalPropertyAt { input, .. }
+        | ReadExpr::TemporalPropertyLatest { input }
+        | ReadExpr::TemporalPropertyUnique { input }
+        | ReadExpr::TemporalPropertyOrderedDedupe { input, .. }
+        | ReadExpr::TemporalPropertySum { input }
+        | ReadExpr::TemporalPropertyMean { input }
+        | ReadExpr::TemporalPropertyAverage { input }
+        | ReadExpr::TemporalPropertyMin { input }
+        | ReadExpr::TemporalPropertyMax { input }
+        | ReadExpr::TemporalPropertyMedian { input }
         | ReadExpr::Ids { input }
         | ReadExpr::Count { input }
         | ReadExpr::EdgesList { input }
