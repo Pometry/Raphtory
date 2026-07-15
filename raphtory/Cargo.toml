@@ -61,10 +61,13 @@ arrow-array.workspace = true
 arrow-schema.workspace = true
 arrow-select.workspace = true
 serde_arrow.workspace = true
-datafusion-physical-expr-common = { workspace = true }
-datafusion-physical-expr = { workspace = true }
-datafusion-physical-plan = { workspace = true }
-datafusion-expr-common = { workspace = true }
+# datafusion-backed node-state sort/group_by ops, gated behind the `datafusion`
+# feature (temporarily off by default: datafusion is pinned to arrow 58, which
+# blocks the arrow-59/pyo3-0.29 upgrade). Re-enable via the `datafusion` feature.
+datafusion-physical-expr-common = { workspace = true, optional = true }
+datafusion-physical-expr = { workspace = true, optional = true }
+datafusion-physical-plan = { workspace = true, optional = true }
+datafusion-expr-common = { workspace = true, optional = true }
 
 # io optional dependencies
 csv = { workspace = true, optional = true }
@@ -134,6 +137,15 @@ io = [
 # search
 search = ["dep:tantivy", "dep:tempfile", "io"]
 
+# datafusion-backed node-state sort/group_by ops (see note on the deps above).
+# Temporarily off by default until datafusion supports arrow 59.
+datafusion = [
+    "dep:datafusion-physical-expr-common",
+    "dep:datafusion-physical-expr",
+    "dep:datafusion-physical-plan",
+    "dep:datafusion-expr-common",
+]
+
 # vectors
 vectors = [
     "dep:futures-util",
@@ -154,7 +166,6 @@ vectors = [
 python = [
     "io",
     "progress",
-    "vectors",
     "dep:pyo3",
     "dep:numpy",
     "dep:num",

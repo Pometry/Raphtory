@@ -14,7 +14,6 @@ homepage.workspace = true
 
 [dependencies]
 raphtory = { workspace = true, features = [
-    'vectors',
     "io",
 ] }
 tempfile = { workspace = true }
@@ -69,8 +68,12 @@ rust-embed = { workspace = true }
 parking_lot = { workspace = true }
 tempfile = { workspace = true }
 pretty_assertions = { workspace = true }
+arrow = { workspace = true }
+parquet = { workspace = true }
 
 [features]
+default = []
+vectors = ["raphtory/vectors"]
 python = ["dep:pyo3", "dep:pythonize", "raphtory/python"]
 search = ["raphtory/search"]
 panic-on-drop = ["raphtory/panic-on-drop"]

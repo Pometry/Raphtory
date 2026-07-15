@@ -28,10 +28,9 @@ use poem::{
     web::CompressionLevel,
     EndpointExt, Route, Server,
 };
-use raphtory::{
-    db::api::storage::storage::Config,
-    vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate},
-};
+use raphtory::db::api::storage::storage::Config;
+#[cfg(feature = "vectors")]
+use raphtory::vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate};
 use serde_json::json;
 use std::{
     fs::create_dir_all,
@@ -211,6 +210,7 @@ impl GraphServer {
     ///
     /// Returns:
     /// A new server object containing the vectorised graphs.
+    #[cfg(feature = "vectors")]
     pub async fn vectorise_all_graphs(
         &self,
         template: &DocumentTemplate,
@@ -231,6 +231,7 @@ impl GraphServer {
     /// Arguments:
     ///   * path - the path of the graph to vectorise.
     ///   * template - the template to use for creating documents.
+    #[cfg(feature = "vectors")]
     pub async fn vectorise_graph(
         &self,
         path: &str,
@@ -494,17 +495,48 @@ async fn server_termination(
 
 #[cfg(test)]
 mod server_tests {
-    use crate::server::GraphServer;
+    use crate::{config::app_config::AppConfigBuilder, server::GraphServer};
     use chrono::prelude::*;
+    #[cfg(feature = "vectors")]
+    use raphtory::vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate};
     use raphtory::{
         db::api::storage::storage::Config,
         prelude::{AdditionOps, Graph, StableEncode, NO_PROPS},
-        vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate},
     };
     use raphtory_api::core::utils::logging::global_info_logger;
     use tempfile::tempdir;
     use tokio::time::{sleep, Duration};
     use tracing::info;
+
+    #[tokio::test]
+    async fn test_public_dir_serves_index_for_subpages() {
+        let work_dir = tempdir().unwrap();
+        let public_dir = tempdir().unwrap();
+        std::fs::write(public_dir.path().join("index.html"), "<html>ui</html>").unwrap();
+
+        let app_config = AppConfigBuilder::new()
+            .with_public_dir(Some(public_dir.path().to_path_buf()))
+            .build();
+        let server = GraphServer::new(
+            work_dir.path().to_path_buf(),
+            Some(app_config),
+            Config::default(),
+        )
+        .await
+        .unwrap();
+        let running = server.start_with_port(0).await.unwrap();
+        let port = running.port();
+
+        for path in ["/", "/graphs", "/graphs/nested/route"] {
+            let resp = reqwest::get(format!("http://localhost:{port}{path}"))
+                .await
+                .unwrap();
+            assert_eq!(resp.status(), 200, "GET {path}");
+            assert_eq!(resp.text().await.unwrap(), "<html>ui</html>", "GET {path}");
+        }
+
+        running.stop().await
+    }
 
     #[tokio::test]
     async fn test_server_start_stop() {
@@ -520,6 +552,7 @@ mod server_tests {
         handler.await.unwrap().stop().await
     }
 
+    #[cfg(feature = "vectors")]
     #[tokio::test]
     async fn test_server_start_with_failing_embedding() {
         let tmp_dir = tempdir().unwrap();

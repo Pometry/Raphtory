@@ -6,8 +6,8 @@ use raphtory::{
     },
     errors::GraphError,
     prelude::{StableDecode, StableEncode},
-    serialise::GraphPaths,
 };
+use raphtory_api::core::storage::graph_folder::GraphPaths;
 
 #[derive(thiserror::Error, Debug)]
 pub enum UrlDecodeError {

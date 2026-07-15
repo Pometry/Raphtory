@@ -1,5 +1,5 @@
 use crate::{
-    data::{WorkDirGuard, WorkDirWriteGuard, DIRTY_PATH},
+    data::{WorkDirGuard, WorkDirWriteGuard},
     model::blocking_io,
     rayon::blocking_compute,
 };
@@ -12,9 +12,13 @@ use raphtory::{
     errors::{GraphError, InvalidPathReason},
     prelude::{AdditionOps, GraphViewOps},
     serialise::{
-        metadata::GraphMetadata, GraphFolder, GraphPaths, RelativePath, StableDecode,
-        WriteableGraphFolder, ROOT_META_PATH,
+        metadata::{build_graph_metadata, replace_graph_in_folder},
+        StableDecode,
     },
+};
+use raphtory_api::core::storage::graph_folder::{
+    GraphFolder, GraphFolderError, GraphMetadata, GraphPaths, Metadata, RelativePath,
+    WriteableGraphFolder, DIRTY_PATH, ROOT_META_PATH,
 };
 use std::{
     cmp::Ordering,
@@ -260,9 +264,13 @@ impl UnlockedGraphFolder {
                 if path != self.global_path.graph_path()? {
                     return Err(InternalPathValidationError::MismatchedGraphPath);
                 }
-                self.global_path.write_metadata(&graph)?;
+                let meta = Metadata {
+                    path: self.global_path.relative_graph_path()?,
+                    meta: build_graph_metadata(&graph),
+                };
+                self.global_path.write_metadata(meta)?;
             } else {
-                self.global_path.data_path()?.replace_graph(graph)?;
+                replace_graph_in_folder(&self.global_path.data_path()?, graph)?;
             }
             Ok(())
         })
@@ -495,14 +503,18 @@ impl ValidWriteableGraphFolder {
                 .disk_storage_path()
                 .is_some_and(|path| path == &graph_path)
             {
-                self.global_path.write_metadata(&graph)?;
+                let meta = Metadata {
+                    path: self.global_path.relative_graph_path()?,
+                    meta: build_graph_metadata(&graph),
+                };
+                self.global_path.write_metadata(meta)?;
                 (true, graph)
             } else {
                 let new_graph = graph.materialize_at_with_config(self.graph_folder(), config)?;
                 (true, new_graph)
             }
         } else {
-            self.global_path.data_path()?.replace_graph(graph.clone())?;
+            replace_graph_in_folder(&self.global_path.data_path()?, graph.clone())?;
             (false, graph)
         };
         Ok(is_dirty)
@@ -574,6 +586,8 @@ pub enum InternalPathValidationError {
     InvalidMetadata(#[from] serde_json::Error),
     #[error(transparent)]
     GraphError(#[from] GraphError),
+    #[error(transparent)]
+    GraphFolderError(#[from] GraphFolderError),
     #[error("Graph path should always have a parent")]
     MissingParent,
     #[error(transparent)]
@@ -732,11 +746,11 @@ impl GraphPaths for ValidGraphFolder {
         self.global_path.root()
     }
 
-    fn relative_data_path(&self) -> Result<String, GraphError> {
+    fn relative_data_path(&self) -> Result<String, GraphFolderError> {
         self.global_path.relative_data_path()
     }
 
-    fn relative_graph_path(&self) -> Result<String, GraphError> {
+    fn relative_graph_path(&self) -> Result<String, GraphFolderError> {
         self.global_path.relative_graph_path()
     }
 }

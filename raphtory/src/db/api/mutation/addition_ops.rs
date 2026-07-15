@@ -305,20 +305,6 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         self.core_graph()
             .flush()
             .map_err(|err| MutationError::from(err).into())?;
-
-        #[cfg(feature = "io")]
-        {
-            if let Some(disk_path) = self.disk_storage_path() {
-                let disk_path = disk_path.to_path_buf();
-                storage::refresh_disk_graph_metadata(
-                    &disk_path,
-                    self.count_nodes(),
-                    self.count_edges(),
-                )
-                .map_err(|err| MutationError::from(err).into())?;
-            }
-        }
-
         Ok(())
     }
 }
