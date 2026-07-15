@@ -951,6 +951,16 @@ fn render_read_body(expr: &ReadExpr) -> String {
             "{} {{ median {{ time {{ timestamp datetime eventId }} value }}",
             render_read_body(input)
         ),
+        // Compound-structured tree — one RPC fetches everything.
+        ReadExpr::Schema { input } => format!(
+            "{} {{ schema {{ \
+                nodes {{ typeName properties {{ key propertyType variants }} \
+                    metadata {{ key propertyType variants }} }} \
+                layers {{ name edges {{ srcType dstType \
+                    properties {{ key propertyType variants }} \
+                    metadata {{ key propertyType variants }} }} }} }}",
+            render_read_body(input),
+        ),
         // Terminals — no args after the field name
         ReadExpr::CountNodes { input } => format!("{} {{ countNodes", render_read_body(input)),
         ReadExpr::CountEdges { input } => format!("{} {{ countEdges", render_read_body(input)),
@@ -1128,6 +1138,7 @@ fn read_depth(expr: &ReadExpr) -> usize {
         | ReadExpr::TemporalPropertyMin { input }
         | ReadExpr::TemporalPropertyMax { input }
         | ReadExpr::TemporalPropertyMedian { input }
+        | ReadExpr::Schema { input }
         | ReadExpr::Ids { input }
         | ReadExpr::Count { input }
         | ReadExpr::EdgesList { input }
@@ -1472,6 +1483,12 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
                 arr.iter().map(json_to_property_tuple).collect();
             Ok(Some(Prop::List(items?.into())))
         }
+        // `Schema`: the full nested schema tree. We reuse `json_to_prop` —
+        // the response is untagged JSON strings, arrays, and objects, all of
+        // which `json_to_prop` decodes natively into a nested `Prop::Map` /
+        // `Prop::List` tree. The call site walks that tree to build typed
+        // `RemoteGraphSchema` structs.
+        ReadExpr::Schema { .. } => Ok(Some(json_to_prop(terminal_val)?)),
         // Compound structured list terminal — JSON shape is
         // `[{"src":{"name":"X"},"dst":{"name":"Y"}}, ...]`. Decode each element
         // into a 2-element inner list `[src, dst]`, wrapped in an outer list.
@@ -1824,6 +1841,10 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
             ReadExpr::TemporalPropertyMedian { input } => {
                 go(input, out);
                 out.push("median");
+            }
+            ReadExpr::Schema { input } => {
+                go(input, out);
+                out.push("schema");
             }
             ReadExpr::Ids { input } => {
                 go(input, out);
@@ -2237,6 +2258,7 @@ fn child_input(expr: &ReadExpr) -> Option<&ReadExpr> {
         | ReadExpr::TemporalPropertyMin { input }
         | ReadExpr::TemporalPropertyMax { input }
         | ReadExpr::TemporalPropertyMedian { input }
+        | ReadExpr::Schema { input }
         | ReadExpr::Ids { input }
         | ReadExpr::Count { input }
         | ReadExpr::EdgesList { input }

@@ -16,6 +16,10 @@ use crate::{
             },
             remote_node::PyRemoteNode,
             remote_nodes::PyRemoteNodes,
+            remote_schema::{
+                PyRemoteEdgeSchema, PyRemoteGraphSchema, PyRemoteLayerSchema, PyRemoteNodeSchema,
+                PyRemotePropertySchema,
+            },
             PyAllPropertySpec, PyEdgeAddition, PyNodeAddition, PyPropsInput, PyRemoteIndexSpec,
             PySomePropertySpec, PyUpdate,
         },
@@ -56,6 +60,11 @@ pub fn base_graphql_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyErr>
     graphql_module.add_class::<PyRemoteTemporalProperties>()?;
     graphql_module.add_class::<PyRemoteTemporalProperty>()?;
     graphql_module.add_class::<PyRemotePropertyTuple>()?;
+    graphql_module.add_class::<PyRemoteGraphSchema>()?;
+    graphql_module.add_class::<PyRemoteNodeSchema>()?;
+    graphql_module.add_class::<PyRemoteLayerSchema>()?;
+    graphql_module.add_class::<PyRemoteEdgeSchema>()?;
+    graphql_module.add_class::<PyRemotePropertySchema>()?;
     graphql_module.add_class::<PyNodeAddition>()?;
     graphql_module.add_class::<PyUpdate>()?;
     graphql_module.add_class::<PyEdgeAddition>()?;

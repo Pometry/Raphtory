@@ -14,6 +14,7 @@ use crate::{
         remote_metadata::{PyRemoteMetadata, PyRemoteProperties},
         remote_node::PyRemoteNode,
         remote_nodes::PyRemoteNodes,
+        remote_schema::PyRemoteGraphSchema,
         PyEdgeAddition, PyNodeAddition,
     },
 };
@@ -372,6 +373,18 @@ impl PyRemoteGraph {
     #[getter]
     pub fn properties(&self) -> PyRemoteProperties {
         PyRemoteProperties::new(self.graph.properties())
+    }
+
+    /// Fetch the graph's schema — node types, edge layers, and their
+    /// observed property/metadata schemas. Fires one RPC and materializes
+    /// the entire tree eagerly.
+    ///
+    /// Returns:
+    ///   RemoteGraphSchema: the full schema descriptor.
+    pub fn schema(&self) -> Result<PyRemoteGraphSchema, ClientError> {
+        let graph = Arc::clone(&self.graph);
+        let schema = execute_async_task(move || async move { graph.schema().await })?;
+        Ok(schema.into())
     }
 
     /// Batch add node updates to the remote graph

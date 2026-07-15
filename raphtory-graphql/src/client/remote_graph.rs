@@ -13,6 +13,7 @@ use crate::client::{
     remote_metadata::{RemoteMetadata, RemoteProperties},
     remote_node::RemoteNode,
     remote_nodes::RemoteNodes,
+    remote_schema::RemoteGraphSchema,
     transport::Transport,
     ClientError,
 };
@@ -844,6 +845,22 @@ impl RemoteGraph {
             },
             self.expr.clone(),
         )
+    }
+
+    /// Terminal: fetch the graph's schema — node types, edge layers, and
+    /// their observed property/metadata schemas. Fires one RPC and
+    /// materializes the entire tree eagerly (unlike other containers,
+    /// which lazy-fetch on demand).
+    pub async fn schema(&self) -> Result<RemoteGraphSchema, ClientError> {
+        let op = Op::Read(ReadExpr::Schema {
+            input: Box::new(self.expr.clone()),
+        });
+        let prop = self
+            .transport
+            .execute(&op)
+            .await?
+            .ok_or_else(|| ClientError::InvalidResponse("schema returned null".into()))?;
+        RemoteGraphSchema::from_prop(prop)
     }
 
     /// Returns the full properties container of this graph — includes both

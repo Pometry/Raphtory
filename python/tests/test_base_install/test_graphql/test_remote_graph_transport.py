@@ -848,6 +848,54 @@ def test_history_list_on_empty_view():
         server_cm.__exit__(None, None, None)
 
 
+def test_graph_schema():
+    """`rg.schema()` fires one RPC and returns the full schema tree —
+    node types + edge layers + their property/metadata schemas."""
+    server_cm, rg = _make_graph_with_edge()
+    # Node types + temporal properties + metadata to make the schema
+    # interesting.
+    rg.node("ben").set_node_type("user")
+    rg.node("hamza").set_node_type("bot")
+    rg.node("ben").add_updates(5, properties={"score": 1.5})
+    rg.node("ben").add_metadata({"role": "admin"})
+    rg.edge("ben", "hamza").add_metadata({"weight": 0.5})
+    try:
+        schema = rg.schema()
+
+        # nodes: one entry per node type
+        node_types = sorted(n.type_name for n in schema.nodes)
+        assert "user" in node_types
+        assert "bot" in node_types
+
+        # user node type has a "score" temporal property
+        user_schema = next(n for n in schema.nodes if n.type_name == "user")
+        score_prop = next(
+            (p for p in user_schema.properties if p.key == "score"), None
+        )
+        assert score_prop is not None
+        assert score_prop.property_type  # some type string
+
+        # user node type has "role" metadata
+        role_meta = next((p for p in user_schema.metadata if p.key == "role"), None)
+        assert role_meta is not None
+
+        # layers: default layer with edges
+        default_layer = next((l for l in schema.layers if l.name == "_default"), None)
+        assert default_layer is not None
+        assert len(default_layer.edges) >= 1
+
+        # edge schema: user → bot with weight metadata
+        edge_schema = default_layer.edges[0]
+        assert edge_schema.src_type in {"user", "bot"}
+        assert edge_schema.dst_type in {"user", "bot"}
+        weight_meta = next(
+            (p for p in edge_schema.metadata if p.key == "weight"), None
+        )
+        assert weight_meta is not None
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
 def test_temporal_property_stats():
     """`RemoteTemporalProperty` numeric stats: sum, mean, average, min, max,
     median. Non-numeric aggregates return None. Non-numeric stats return

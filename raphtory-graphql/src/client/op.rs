@@ -240,6 +240,12 @@ pub enum ReadExpr {
     /// Server field: `median`. Nullable.
     TemporalPropertyMedian { input: Box<ReadExpr> },
 
+    /// Terminal on Graph: the full schema tree (node types + edge layers +
+    /// their property schemas). Compound-structured — the entire nested
+    /// tree is fetched in one RPC and materialized as plain data structs.
+    /// Server field: `schema`.
+    Schema { input: Box<ReadExpr> },
+
     // ============ Scalar terminals on Graph ============
     /// Terminal: total node count under the current view — `i64`.
     CountNodes { input: Box<ReadExpr> },
