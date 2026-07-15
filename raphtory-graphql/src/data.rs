@@ -21,8 +21,14 @@ use crate::{
     rayon::blocking_compute,
     GQLError,
 };
+
 use async_graphql::Context;
 use dynamic_graphql::Enum;
+#[cfg(feature = "vectors")]
+use raphtory::vectors::{
+    cache::CachedEmbeddingModel, storage::LazyDiskVectorCache, template::DocumentTemplate,
+    vectorisable::Vectorisable, vectorised_graph::VectorisedGraph,
+};
 use raphtory::{
     db::{
         api::{
@@ -33,10 +39,6 @@ use raphtory::{
     },
     errors::GraphError,
     prelude::AdditionOps,
-    vectors::{
-        cache::CachedEmbeddingModel, storage::LazyDiskVectorCache, template::DocumentTemplate,
-        vectorisable::Vectorisable, vectorised_graph::VectorisedGraph,
-    },
 };
 use raphtory_api::core::storage::graph_folder::GraphPaths;
 use std::{
@@ -50,6 +52,16 @@ use std::{
 use tokio::sync::{OwnedRwLockReadGuard, OwnedRwLockWriteGuard, RwLock, RwLockReadGuard};
 use tracing::{error, warn};
 use walkdir::WalkDir;
+
+#[derive(thiserror::Error, Debug)]
+pub enum ParquetPathError {
+    #[error("Path {0:?} does not exist or could not be resolved")]
+    Unresolvable(PathBuf),
+    #[error("Path {0:?} is not allowed: paths within the working directory are not permitted")]
+    WithinWorkDir(PathBuf),
+    #[error("Path {0:?} is not in the list of allowed paths")]
+    NotAllowed(PathBuf),
+}
 
 #[derive(thiserror::Error, Debug)]
 pub enum MutationErrorInner {
@@ -148,9 +160,11 @@ pub(crate) fn get_relative_path(
 pub struct DataInner {
     work_dir: Arc<RwLock<PathBuf>>,
     pub(crate) cache: GraphCache,
+    #[cfg(feature = "vectors")]
     pub(crate) vector_cache: LazyDiskVectorCache,
     pub(crate) graph_conf: Config,
     pub(crate) auth_policy: Option<Arc<dyn AuthorizationPolicy>>,
+    pub(crate) allowed_parquet_paths: Vec<PathBuf>,
 }
 
 #[derive(Debug, Clone)]
@@ -295,9 +309,11 @@ impl Data {
             inner: Arc::new(DataInner {
                 work_dir: Arc::new(RwLock::new(work_dir.to_path_buf())),
                 cache,
+                #[cfg(feature = "vectors")]
                 vector_cache: LazyDiskVectorCache::new(work_dir.join(".vector-cache")),
                 graph_conf,
                 auth_policy: None,
+                allowed_parquet_paths: configs.parquet.allowed_paths.clone(),
             }),
             create_index,
         }
@@ -317,6 +333,32 @@ impl Data {
         Arc::get_mut(&mut self.inner)
             .expect("Data is not uniquely owned when setting auth_policy")
             .auth_policy = Some(policy);
+    }
+
+    /// Returns `Ok(())` if `path` is permitted by the parquet allowlist, otherwise an error
+    /// describing why the path was rejected.
+    /// When `allowed_parquet_paths` is empty, no path is permitted.
+    /// As a rule, no paths within the working directory are allowed.
+    pub async fn is_parquet_path_allowed(&self, path: &Path) -> Result<(), ParquetPathError> {
+        let canonical_path = path
+            .canonicalize()
+            .map_err(|_| ParquetPathError::Unresolvable(path.to_path_buf()))?;
+        if let Ok(canonical_work_dir) = self.work_dir_read().await.to_path_buf().canonicalize() {
+            if canonical_path.starts_with(canonical_work_dir) {
+                return Err(ParquetPathError::WithinWorkDir(path.to_path_buf()));
+            }
+        }
+        let allowed = self.allowed_parquet_paths.iter().any(|allowed| {
+            allowed
+                .canonicalize()
+                .map(|c| canonical_path.starts_with(c))
+                .unwrap_or(false)
+        });
+        if allowed {
+            Ok(())
+        } else {
+            Err(ParquetPathError::NotAllowed(path.to_path_buf()))
+        }
     }
 
     /// Validates that `ns_path` exists and is a namespace, returning the `Namespace`
@@ -481,6 +523,7 @@ impl Data {
         Ok(())
     }
 
+    #[cfg(feature = "vectors")]
     async fn vectorise_with_template(
         &self,
         graph: MaterializedGraph,
@@ -506,6 +549,7 @@ impl Data {
         }
     }
 
+    #[cfg(feature = "vectors")]
     pub(crate) async fn vectorise_folder(
         &self,
         folder: &ExistingGraphFolder,
@@ -551,8 +595,16 @@ impl Data {
     ) -> Result<GraphWithVectors, GraphError> {
         let create_index = self.create_index;
         let config = self.graph_conf.clone();
+        #[cfg(feature = "vectors")]
         let cache = self.vector_cache.clone();
-        GraphWithVectors::read_from_folder(&folder, &cache, create_index, config).await
+        GraphWithVectors::read_from_folder(
+            &folder,
+            #[cfg(feature = "vectors")]
+            &cache,
+            create_index,
+            config,
+        )
+        .await
     }
 
     async fn read_graph_from_disk(&self, path: &str) -> Result<GraphWithVectors, GQLError> {
@@ -852,8 +904,16 @@ impl Data {
         if matches!(perm, GraphPermission::Read { filter: Some(_) }) {
             return Ok(None);
         }
-        let graph = self.get_graph(path).await?;
-        Ok(graph.vectors().cloned().map(|g| g.into()))
+        #[cfg(feature = "vectors")]
+        {
+            let graph = self.get_graph(path).await?;
+            Ok(graph.vectors().cloned().map(|g| g.into()))
+        }
+        #[cfg(not(feature = "vectors"))]
+        {
+            let _ = path;
+            Err(async_graphql::Error::new("vectors feature not enabled"))
+        }
     }
 }
 

@@ -23,7 +23,7 @@ jobs:
           - os: ubuntu-latest
           - os: windows-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup_rust
         name: Setup Rust
       - name: Free up space (ubuntu)
@@ -60,7 +60,7 @@ jobs:
         env:
           RUSTFLAGS: -Awarnings
         run: |
-          cargo hack check --workspace --all-targets --each-feature  --skip extension-module,default
+          cargo hack check --workspace --all-targets --each-feature  --skip extension-module,default,vectors,datafusion
   doc-test:
     if: ${{ !inputs.skip_tests }}
     name: "Doc tests"
@@ -71,7 +71,7 @@ jobs:
           - os: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
       - uses: ./.github/actions/setup_rust
         name: Setup Rust
       - name: Install Protoc

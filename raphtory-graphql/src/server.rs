@@ -19,7 +19,7 @@ use opentelemetry::trace::TracerProvider;
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
 use opentelemetry_sdk::{
     logs::SdkLoggerProvider,
-    trace::{SdkTracerProvider as TP, SdkTracerProvider, Tracer},
+    trace::{SdkTracerProvider, Tracer},
 };
 use poem::{
     get,
@@ -28,10 +28,9 @@ use poem::{
     web::CompressionLevel,
     EndpointExt, Route, Server,
 };
-use raphtory::{
-    db::api::storage::storage::Config,
-    vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate},
-};
+use raphtory::db::api::storage::storage::Config;
+#[cfg(feature = "vectors")]
+use raphtory::vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate};
 use serde_json::json;
 use std::{
     fs::create_dir_all,
@@ -57,7 +56,10 @@ use tokio::{
 };
 use tracing::{debug, error, info, warn};
 use tracing_subscriber::{
-    fmt, fmt::format::FmtSpan, layer::SubscriberExt, util::SubscriberInitExt, Registry,
+    fmt::{self, format::FmtSpan},
+    layer::SubscriberExt,
+    util::SubscriberInitExt,
+    Registry,
 };
 use url::ParseError;
 
@@ -211,6 +213,7 @@ impl GraphServer {
     ///
     /// Returns:
     /// A new server object containing the vectorised graphs.
+    #[cfg(feature = "vectors")]
     pub async fn vectorise_all_graphs(
         &self,
         template: &DocumentTemplate,
@@ -231,6 +234,7 @@ impl GraphServer {
     /// Arguments:
     ///   * path - the path of the graph to vectorise.
     ///   * template - the template to use for creating documents.
+    #[cfg(feature = "vectors")]
     pub async fn vectorise_graph(
         &self,
         path: &str,
@@ -476,6 +480,10 @@ async fn server_termination(
     match tp {
         None => {}
         Some((tp, lp)) => {
+            /* Avoid shutting down global tracing exporters on server shutdown during integration tests
+               since they are reused across multiple tests.
+            */
+            #[cfg(not(feature = "integration-test"))]
             task::spawn_blocking(move || {
                 let res = tp.shutdown();
                 if let Err(e) = res {
@@ -496,10 +504,11 @@ async fn server_termination(
 mod server_tests {
     use crate::{config::app_config::AppConfigBuilder, server::GraphServer};
     use chrono::prelude::*;
+    #[cfg(feature = "vectors")]
+    use raphtory::vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate};
     use raphtory::{
         db::api::storage::storage::Config,
         prelude::{AdditionOps, Graph, StableEncode, NO_PROPS},
-        vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate},
     };
     use raphtory_api::core::utils::logging::global_info_logger;
     use tempfile::tempdir;
@@ -535,7 +544,6 @@ mod server_tests {
 
         running.stop().await
     }
-
     #[tokio::test]
     async fn test_server_start_stop() {
         global_info_logger();
@@ -550,6 +558,7 @@ mod server_tests {
         handler.await.unwrap().stop().await
     }
 
+    #[cfg(feature = "vectors")]
     #[tokio::test]
     async fn test_server_start_with_failing_embedding() {
         let tmp_dir = tempdir().unwrap();
