@@ -598,6 +598,14 @@ mod graphql_test {
             algorithm {
               pagerank(iterCount: 20) {
                 count
+                nodes { list { name } }
+                columns {
+                  name
+                  values {
+                    __typename
+                    ... on NodeStateProp { value }
+                  }
+                }
               }
             }
           }
@@ -606,13 +614,31 @@ mod graphql_test {
 
         let res = setup.schema.execute(Request::new(query)).await;
         assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        // in a 3-cycle all nodes have the same rank of 1/3
         assert_eq!(
             res.data.into_json().unwrap(),
             json!({
                 "graph": {
                     "algorithm": {
                         "pagerank": {
-                            "count": 3
+                            "count": 3,
+                            "nodes": {
+                                "list": [
+                                    { "name": "a" },
+                                    { "name": "b" },
+                                    { "name": "c" }
+                                ]
+                            },
+                            "columns": [
+                                {
+                                    "name": "pagerank_score",
+                                    "values": [
+                                        { "__typename": "NodeStateProp", "value": 0.3333333333333333 },
+                                        { "__typename": "NodeStateProp", "value": 0.3333333333333333 },
+                                        { "__typename": "NodeStateProp", "value": 0.3333333333333333 }
+                                    ]
+                                }
+                            ]
                         }
                     }
                 }
