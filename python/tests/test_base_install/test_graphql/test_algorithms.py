@@ -3,7 +3,7 @@ from raphtory import Graph
 from utils import run_graphql_test
 
 
-def init_graph(graph):
+def init_graph(graph: Graph):
     graph.add_edge(1, "a", "b")
     graph.add_edge(2, "a", "c")
     graph.add_edge(3, "b", "c")
