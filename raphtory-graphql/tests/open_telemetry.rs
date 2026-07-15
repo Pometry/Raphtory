@@ -1,4 +1,4 @@
-// tests must be separated into their own binary to avoid conflicts with initializing the tracing subscriber multiple times in the same process
+// OpenTelemetry Tests must be separated into their own binary to prevent polluting other tests since the span and log exporters are set globally.
 use raphtory::db::api::storage::storage::Config;
 use raphtory::prelude::{Graph, StableEncode};
 use raphtory_graphql::client::raphtory_client::RaphtoryGraphQLClient;
