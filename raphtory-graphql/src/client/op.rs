@@ -159,6 +159,21 @@ pub enum ReadExpr {
     /// Fan out an edge / edge collection into one instance per layer.
     /// Polymorphic on `Edge` and `Edges`. Server field: `explodeLayers`.
     ExplodeLayers { input: Box<ReadExpr> },
+    /// Reorder a `Nodes` collection by an ordered list of sort keys applied
+    /// lexicographically. Returns a `Nodes` — chainable with any downstream
+    /// terminal (`.list`, `.count`, `.ids`, …). Server field:
+    /// `sorted(sortBys: [NodeSortBy!]!)`.
+    SortedNodes {
+        input: Box<ReadExpr>,
+        sort_bys: Vec<NodeSortBy>,
+    },
+    /// Reorder an `Edges` collection. Same shape as `SortedNodes` with the
+    /// edge-specific sort key set (adds `src` / `dst`). Server field:
+    /// `sorted(sortBys: [EdgeSortBy!]!)`.
+    SortedEdges {
+        input: Box<ReadExpr>,
+        sort_bys: Vec<EdgeSortBy>,
+    },
 
     // ============ Properties / Metadata containers ============
     /// Navigate to the non-temporal metadata container. Polymorphic:
@@ -428,6 +443,35 @@ pub enum ReadExpr {
     IsDeleted { input: Box<ReadExpr> },
     /// Terminal: whether the edge's `src == dst` — `bool`.
     IsSelfLoop { input: Box<ReadExpr> },
+}
+
+/// Sort-key variant for `SortedNodes`. Mirrors the server's `NodeSortBy`
+/// input object. Exactly one of `id` / `time` / `property` should be set per
+/// entry; the client-side Python constructors enforce this at build time.
+#[derive(Clone, Debug)]
+pub struct NodeSortBy {
+    pub reverse: Option<bool>,
+    pub id: Option<bool>,
+    pub time: Option<SortByTime>,
+    pub property: Option<String>,
+}
+
+/// Sort-key variant for `SortedEdges`. Mirrors the server's `EdgeSortBy`
+/// input object. Adds `src` / `dst` to the node key set.
+#[derive(Clone, Debug)]
+pub struct EdgeSortBy {
+    pub reverse: Option<bool>,
+    pub src: Option<bool>,
+    pub dst: Option<bool>,
+    pub time: Option<SortByTime>,
+    pub property: Option<String>,
+}
+
+/// Which time boundary of a member to sort by. Mirrors the server enum.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SortByTime {
+    Latest,
+    Earliest,
 }
 
 /// Write operations. Each variant is a self-contained command with all its

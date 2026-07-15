@@ -1,6 +1,6 @@
 use crate::{
     client::{remote_edges::RemoteEdges, ClientError},
-    python::client::remote_edge::PyRemoteEdge,
+    python::client::{remote_edge::PyRemoteEdge, remote_sorting::PyEdgeSortBy},
 };
 use pyo3::{pyclass, pymethods, PyRef, PyRefMut};
 use raphtory::python::utils::execute_async_task;
@@ -114,6 +114,19 @@ impl PyRemoteEdges {
     /// Fan out this collection into one entry per layer per edge. Lazy — no RPC.
     pub fn explode_layers(&self) -> PyRemoteEdges {
         PyRemoteEdges::new(self.edges.explode_layers())
+    }
+
+    /// Reorder this collection by an ordered list of sort keys. Multi-key
+    /// sort is lexicographic (ties on key 1 break to key 2). Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     sort_bys (list[EdgeSortBy]): the ordered sort keys.
+    ///
+    /// Returns:
+    ///     RemoteEdges: a new collection in the sorted order.
+    pub fn sorted(&self, sort_bys: Vec<PyEdgeSortBy>) -> PyRemoteEdges {
+        let inner: Vec<_> = sort_bys.into_iter().map(|s| s.inner).collect();
+        PyRemoteEdges::new(self.edges.sorted(inner))
     }
 
     /// Returns the number of edges in this collection. Fires one RPC.

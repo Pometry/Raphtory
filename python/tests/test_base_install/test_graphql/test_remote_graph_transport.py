@@ -14,7 +14,7 @@ RPC model:
 
 import tempfile
 
-from raphtory.graphql import GraphServer
+from raphtory.graphql import EdgeSortBy, GraphServer, NodeSortBy, SortByTime
 
 
 def _make_graph_with_edge():
@@ -1614,5 +1614,157 @@ def test_edges_view_chain_propagates_through_collection_list():
         assert len(windowed_out) == 1
         for e in windowed_out:
             assert e.src().edge_history_count() == 1
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_nodes_sorted_by_id():
+    """`nodes.sorted([NodeSortBy.by_id()])` returns a nodes collection in
+    id order — verified by `.ids()`. `reverse=True` flips it."""
+    server_cm, rg = _make_graph_with_edge()
+    try:
+        asc = rg.nodes.sorted([NodeSortBy.by_id()]).ids()
+        assert asc == sorted(asc), f"expected ascending ids, got {asc}"
+
+        desc = rg.nodes.sorted([NodeSortBy.by_id(reverse=True)]).ids()
+        assert desc == sorted(desc, reverse=True), (
+            f"expected descending ids, got {desc}"
+        )
+        # Same members, both orderings.
+        assert set(asc) == set(desc) == {"ben", "hamza"}
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_nodes_sorted_by_property_and_time():
+    """Sort by a temporal property and by time. Multi-key lexicographic
+    sort — tiebreak on the second key when the first ties."""
+    work_dir = tempfile.mkdtemp()
+    server_cm = GraphServer(work_dir).start()
+    server = server_cm.__enter__()
+    try:
+        client = server.get_client()
+        client.new_graph("g", "EVENT")
+        rg = client.remote_graph("g")
+        # Three nodes with distinct scores; ben earlier than hamza & zara.
+        rg.add_node(1, "ben", properties={"score": 3.0})
+        rg.add_node(2, "hamza", properties={"score": 1.0})
+        rg.add_node(3, "zara", properties={"score": 2.0})
+
+        by_score = rg.nodes.sorted([NodeSortBy.by_property("score")]).ids()
+        assert by_score == ["hamza", "zara", "ben"], (
+            f"expected ascending by score: hamza(1), zara(2), ben(3); got {by_score}"
+        )
+
+        by_score_desc = rg.nodes.sorted(
+            [NodeSortBy.by_property("score", reverse=True)]
+        ).ids()
+        assert by_score_desc == ["ben", "zara", "hamza"]
+
+        by_earliest = rg.nodes.sorted(
+            [NodeSortBy.by_time(SortByTime.EARLIEST)]
+        ).ids()
+        assert by_earliest == ["ben", "hamza", "zara"]
+
+        by_latest_desc = rg.nodes.sorted(
+            [NodeSortBy.by_time(SortByTime.LATEST, reverse=True)]
+        ).ids()
+        assert by_latest_desc == ["zara", "hamza", "ben"]
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_nodes_sorted_is_lazy_and_composable():
+    """`.sorted()` doesn't fire an RPC on its own; it returns a `RemoteNodes`
+    that composes with downstream terminals like `.count()` and `.list()`."""
+    server_cm, rg = _make_graph_with_edge()
+    try:
+        sorted_nodes = rg.nodes.sorted([NodeSortBy.by_id()])
+        # Terminal still works — count == 2.
+        assert sorted_nodes.count() == 2
+        # `.list()` returns full node handles in sorted order.
+        materialized = sorted_nodes.list()
+        assert [n.name() for n in materialized] == sorted(
+            n.name() for n in materialized
+        )
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_edges_sorted_by_src_dst():
+    """Sort edges by src then dst — lexicographic multi-key."""
+    work_dir = tempfile.mkdtemp()
+    server_cm = GraphServer(work_dir).start()
+    server = server_cm.__enter__()
+    try:
+        client = server.get_client()
+        client.new_graph("g", "EVENT")
+        rg = client.remote_graph("g")
+        rg.add_edge(1, "b", "c")
+        rg.add_edge(2, "a", "c")
+        rg.add_edge(3, "a", "b")
+
+        sorted_edges = rg.edges.sorted(
+            [EdgeSortBy.by_src(), EdgeSortBy.by_dst()]
+        ).list()
+        pairs = [(e.src().name(), e.dst().name()) for e in sorted_edges]
+        assert pairs == [("a", "b"), ("a", "c"), ("b", "c")], (
+            f"expected [(a,b),(a,c),(b,c)] by (src, dst), got {pairs}"
+        )
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_edges_sorted_by_time_and_property():
+    """Sort edges by earliest observed time; also by an edge property."""
+    work_dir = tempfile.mkdtemp()
+    server_cm = GraphServer(work_dir).start()
+    server = server_cm.__enter__()
+    try:
+        client = server.get_client()
+        client.new_graph("g", "EVENT")
+        rg = client.remote_graph("g")
+        # Three edges at different times, with a weight property.
+        rg.add_edge(10, "a", "b", properties={"weight": 2.0})
+        rg.add_edge(5, "a", "c", properties={"weight": 3.0})
+        rg.add_edge(20, "b", "c", properties={"weight": 1.0})
+
+        by_earliest = rg.edges.sorted(
+            [EdgeSortBy.by_time(SortByTime.EARLIEST)]
+        ).list()
+        # (a,c)@5, (a,b)@10, (b,c)@20
+        pairs = [(e.src().name(), e.dst().name()) for e in by_earliest]
+        assert pairs == [("a", "c"), ("a", "b"), ("b", "c")]
+
+        by_weight_desc = rg.edges.sorted(
+            [EdgeSortBy.by_property("weight", reverse=True)]
+        ).list()
+        # weights: 3, 2, 1 -> (a,c), (a,b), (b,c)
+        pairs = [(e.src().name(), e.dst().name()) for e in by_weight_desc]
+        assert pairs == [("a", "c"), ("a", "b"), ("b", "c")]
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_edges_sorted_composes_with_view_chain():
+    """`.sorted()` composes with a windowed view — sort applies only to
+    edges visible in the window."""
+    work_dir = tempfile.mkdtemp()
+    server_cm = GraphServer(work_dir).start()
+    server = server_cm.__enter__()
+    try:
+        client = server.get_client()
+        client.new_graph("g", "EVENT")
+        rg = client.remote_graph("g")
+        rg.add_edge(1, "a", "b")
+        rg.add_edge(5, "a", "c")
+        rg.add_edge(20, "b", "c")
+
+        windowed_sorted = rg.window(0, 10).edges.sorted(
+            [EdgeSortBy.by_time(SortByTime.EARLIEST)]
+        ).list()
+        pairs = [(e.src().name(), e.dst().name()) for e in windowed_sorted]
+        # Only the first two edges are in [0, 10). Sorted by earliest time.
+        assert pairs == [("a", "b"), ("a", "c")]
     finally:
         server_cm.__exit__(None, None, None)

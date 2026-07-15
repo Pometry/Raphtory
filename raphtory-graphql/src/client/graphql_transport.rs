@@ -9,8 +9,8 @@ use crate::client::{
     op::{
         AddEdge, AddEdgeMetadata, AddEdgeUpdates, AddEdges, AddGraphMetadata, AddGraphProperty,
         AddNode, AddNodeMetadata, AddNodeUpdates, AddNodes, CreateNode, DeleteEdge,
-        DeleteEdgeAtTime, Op, ReadExpr, SetNodeType, UpdateEdgeMetadata, UpdateGraphMetadata,
-        UpdateNodeMetadata, WriteOp,
+        DeleteEdgeAtTime, EdgeSortBy, NodeSortBy, Op, ReadExpr, SetNodeType, SortByTime,
+        UpdateEdgeMetadata, UpdateGraphMetadata, UpdateNodeMetadata, WriteOp,
     },
     remote_client::RemoteClient,
     remote_graph::build_query,
@@ -713,6 +713,69 @@ fn render_string_list(items: &[String]) -> String {
         .join(", ")
 }
 
+/// Render `SortByTime` as its GraphQL enum literal — the async_graphql
+/// `Enum` derive emits SCREAMING_SNAKE_CASE variants.
+fn render_sort_by_time(t: SortByTime) -> &'static str {
+    match t {
+        SortByTime::Latest => "LATEST",
+        SortByTime::Earliest => "EARLIEST",
+    }
+}
+
+/// Render a list of `NodeSortBy` records into GraphQL literal syntax, e.g.
+/// `[{property: "score", reverse: true}, {id: true}]`. Empty list renders
+/// as `[]` — server accepts it as a no-op sort.
+fn render_node_sort_bys(sort_bys: &[NodeSortBy]) -> String {
+    let entries: Vec<String> = sort_bys
+        .iter()
+        .map(|sb| {
+            let mut fields = Vec::new();
+            if let Some(rev) = sb.reverse {
+                fields.push(format!("reverse: {}", rev));
+            }
+            if let Some(id) = sb.id {
+                fields.push(format!("id: {}", id));
+            }
+            if let Some(t) = sb.time {
+                fields.push(format!("time: {}", render_sort_by_time(t)));
+            }
+            if let Some(ref p) = sb.property {
+                fields.push(format!("property: \"{}\"", p));
+            }
+            format!("{{{}}}", fields.join(", "))
+        })
+        .collect();
+    format!("[{}]", entries.join(", "))
+}
+
+/// Same as `render_node_sort_bys` but for `EdgeSortBy` — includes the extra
+/// `src` / `dst` boolean keys.
+fn render_edge_sort_bys(sort_bys: &[EdgeSortBy]) -> String {
+    let entries: Vec<String> = sort_bys
+        .iter()
+        .map(|sb| {
+            let mut fields = Vec::new();
+            if let Some(rev) = sb.reverse {
+                fields.push(format!("reverse: {}", rev));
+            }
+            if let Some(src) = sb.src {
+                fields.push(format!("src: {}", src));
+            }
+            if let Some(dst) = sb.dst {
+                fields.push(format!("dst: {}", dst));
+            }
+            if let Some(t) = sb.time {
+                fields.push(format!("time: {}", render_sort_by_time(t)));
+            }
+            if let Some(ref p) = sb.property {
+                fields.push(format!("property: \"{}\"", p));
+            }
+            format!("{{{}}}", fields.join(", "))
+        })
+        .collect();
+    format!("[{}]", entries.join(", "))
+}
+
 fn render_read_body(expr: &ReadExpr) -> String {
     match expr {
         ReadExpr::Root { path } => format!("graph(path: \"{}\")", path),
@@ -874,6 +937,16 @@ fn render_read_body(expr: &ReadExpr) -> String {
         ReadExpr::ExplodeLayers { input } => {
             format!("{} {{ explodeLayers", render_read_body(input))
         }
+        ReadExpr::SortedNodes { input, sort_bys } => format!(
+            "{} {{ sorted(sortBys: {})",
+            render_read_body(input),
+            render_node_sort_bys(sort_bys)
+        ),
+        ReadExpr::SortedEdges { input, sort_bys } => format!(
+            "{} {{ sorted(sortBys: {})",
+            render_read_body(input),
+            render_edge_sort_bys(sort_bys)
+        ),
         // Metadata / Properties navigation
         ReadExpr::Metadata { input } => format!("{} {{ metadata", render_read_body(input)),
         ReadExpr::Properties { input } => format!("{} {{ properties", render_read_body(input)),
@@ -1118,6 +1191,8 @@ fn read_depth(expr: &ReadExpr) -> usize {
         | ReadExpr::OutComponent { input }
         | ReadExpr::Explode { input }
         | ReadExpr::ExplodeLayers { input }
+        | ReadExpr::SortedNodes { input, .. }
+        | ReadExpr::SortedEdges { input, .. }
         | ReadExpr::Metadata { input }
         | ReadExpr::Properties { input }
         | ReadExpr::PropertyGet { input, .. }
@@ -1762,6 +1837,14 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
                 go(input, out);
                 out.push("explodeLayers");
             }
+            ReadExpr::SortedNodes { input, .. } => {
+                go(input, out);
+                out.push("sorted");
+            }
+            ReadExpr::SortedEdges { input, .. } => {
+                go(input, out);
+                out.push("sorted");
+            }
             ReadExpr::Metadata { input } => {
                 go(input, out);
                 out.push("metadata");
@@ -2238,6 +2321,8 @@ fn child_input(expr: &ReadExpr) -> Option<&ReadExpr> {
         | ReadExpr::OutComponent { input }
         | ReadExpr::Explode { input }
         | ReadExpr::ExplodeLayers { input }
+        | ReadExpr::SortedNodes { input, .. }
+        | ReadExpr::SortedEdges { input, .. }
         | ReadExpr::Metadata { input }
         | ReadExpr::Properties { input }
         | ReadExpr::PropertyGet { input, .. }

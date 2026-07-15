@@ -1,5 +1,5 @@
 use crate::client::{
-    op::{Op, ReadExpr},
+    op::{EdgeSortBy, Op, ReadExpr},
     remote_edge::RemoteEdge,
     remote_graph::{expect_edge_list, expect_i64, expect_optional_i64},
     transport::Transport,
@@ -212,6 +212,22 @@ impl RemoteEdges {
             transport: self.transport.clone(),
             expr: ReadExpr::ExplodeLayers {
                 input: Box::new(self.expr.clone()),
+            },
+            base_graph: self.base_graph.clone(),
+        }
+    }
+
+    /// Reorder this collection by the given sort keys (lexicographic — ties
+    /// on the first key break to the second, etc.). Returns a new
+    /// `RemoteEdges` handle carrying the sort; the RPC only fires on a
+    /// downstream terminal. Lazy — no RPC. `base_graph` is unchanged.
+    pub fn sorted(&self, sort_bys: Vec<EdgeSortBy>) -> RemoteEdges {
+        RemoteEdges {
+            path: self.path.clone(),
+            transport: self.transport.clone(),
+            expr: ReadExpr::SortedEdges {
+                input: Box::new(self.expr.clone()),
+                sort_bys,
             },
             base_graph: self.base_graph.clone(),
         }

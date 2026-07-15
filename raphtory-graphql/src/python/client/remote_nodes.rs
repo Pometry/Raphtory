@@ -1,6 +1,6 @@
 use crate::{
     client::{remote_nodes::RemoteNodes, ClientError},
-    python::client::remote_node::PyRemoteNode,
+    python::client::{remote_node::PyRemoteNode, remote_sorting::PyNodeSortBy},
 };
 use pyo3::{pyclass, pymethods, PyRef, PyRefMut};
 use raphtory::python::utils::execute_async_task;
@@ -108,6 +108,19 @@ impl PyRemoteNodes {
     /// Lazy — no RPC.
     pub fn type_filter(&self, node_types: Vec<String>) -> PyRemoteNodes {
         PyRemoteNodes::new(self.nodes.type_filter(node_types))
+    }
+
+    /// Reorder this collection by an ordered list of sort keys. Multi-key
+    /// sort is lexicographic (ties on key 1 break to key 2). Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     sort_bys (list[NodeSortBy]): the ordered sort keys.
+    ///
+    /// Returns:
+    ///     RemoteNodes: a new collection in the sorted order.
+    pub fn sorted(&self, sort_bys: Vec<PyNodeSortBy>) -> PyRemoteNodes {
+        let inner: Vec<_> = sort_bys.into_iter().map(|s| s.inner).collect();
+        PyRemoteNodes::new(self.nodes.sorted(inner))
     }
 
     /// Returns the list of node ids in this collection.

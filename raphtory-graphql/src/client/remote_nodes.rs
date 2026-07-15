@@ -1,5 +1,5 @@
 use crate::client::{
-    op::{Op, ReadExpr},
+    op::{NodeSortBy, Op, ReadExpr},
     remote_graph::{expect_i64, expect_optional_i64, expect_string_list},
     remote_node::RemoteNode,
     transport::Transport,
@@ -199,6 +199,24 @@ impl RemoteNodes {
             expr: ReadExpr::TypeFilter {
                 input: Box::new(self.expr.clone()),
                 node_types,
+            },
+            base_graph: self.base_graph.clone(),
+        }
+    }
+
+    /// Reorder this collection by the given sort keys (lexicographic — ties
+    /// on the first key break to the second, etc.). Returns a new
+    /// `RemoteNodes` handle carrying the sort; the RPC only fires on a
+    /// downstream terminal (`.list()`, `.count()`, `.ids()`, …). Lazy — no
+    /// RPC. `base_graph` is unchanged: sorting affects only this
+    /// collection's iteration order, not the view of materialized nodes.
+    pub fn sorted(&self, sort_bys: Vec<NodeSortBy>) -> RemoteNodes {
+        RemoteNodes {
+            path: self.path.clone(),
+            transport: self.transport.clone(),
+            expr: ReadExpr::SortedNodes {
+                input: Box::new(self.expr.clone()),
+                sort_bys,
             },
             base_graph: self.base_graph.clone(),
         }
