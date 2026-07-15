@@ -848,6 +848,68 @@ def test_history_list_on_empty_view():
         server_cm.__exit__(None, None, None)
 
 
+def test_node_metadata_basic():
+    """`node.metadata` returns a `RemoteMetadata` container. Standard shape:
+    `get(key)`, `contains(key)`, `keys()`, `values(keys=None)`. Values are
+    native Python types via raphtory's Prop → Python conversion."""
+    server_cm, rg = _make_graph_with_edge()
+    # Attach metadata to ben (non-temporal).
+    rg.node("ben").add_metadata({"role": "admin", "level": 3, "active": True})
+    try:
+        md = rg.node("ben").metadata
+
+        # keys — all names present.
+        assert sorted(md.keys()) == ["active", "level", "role"]
+
+        # contains — bool per key.
+        assert md.contains("role") is True
+        assert md.contains("nonexistent") is False
+
+        # get — Optional[RemoteProperty], value is native Python type.
+        role = md.get("role")
+        assert role is not None
+        assert role.key == "role"
+        assert role.value == "admin"
+
+        level = md.get("level")
+        assert level.value == 3            # int
+        active = md.get("active")
+        assert active.value is True        # bool
+
+        # get on missing key — None.
+        assert md.get("nonexistent") is None
+
+        # values — list of RemoteProperty, all entries.
+        all_values = md.values()
+        assert len(all_values) == 3
+        by_key = {p.key: p.value for p in all_values}
+        assert by_key == {"role": "admin", "level": 3, "active": True}
+
+        # values with whitelist — filter to specific keys.
+        subset = md.values(keys=["role", "level"])
+        assert sorted(p.key for p in subset) == ["level", "role"]
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_graph_and_edge_metadata():
+    """`.metadata` accessor exists on RemoteGraph, RemoteNode, and RemoteEdge
+    — same container shape."""
+    server_cm, rg = _make_graph_with_edge()
+    rg.add_metadata({"description": "test graph"})
+    rg.edge("ben", "hamza").add_metadata({"weight": 5.5})
+    try:
+        # Graph metadata
+        assert rg.metadata.get("description").value == "test graph"
+
+        # Edge metadata
+        weight = rg.edge("ben", "hamza").metadata.get("weight")
+        assert weight is not None
+        assert weight.value == 5.5
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
 def test_edge_explode():
     """`.explode()` on a `RemoteEdge` fans it out into one entry per event,
     returning a `RemoteEdges` collection. `explode_layers()` fans out by layer."""

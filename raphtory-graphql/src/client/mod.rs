@@ -6,6 +6,7 @@ pub mod remote_edge;
 pub mod remote_edges;
 pub mod remote_graph;
 pub mod remote_history;
+pub mod remote_metadata;
 pub mod remote_node;
 pub mod remote_nodes;
 pub mod transport;
@@ -25,6 +26,7 @@ pub use remote_history::{
     RemoteEventTime, RemoteHistory, RemoteHistoryDateTimes, RemoteHistoryEventIds,
     RemoteHistoryTimestamps, RemoteIntervals,
 };
+pub use remote_metadata::{RemoteMetadata, RemoteProperty};
 pub use remote_node::RemoteNode;
 pub use remote_nodes::RemoteNodes;
 pub use transport::Transport;

@@ -7,6 +7,7 @@ use crate::client::{
     remote_edges::RemoteEdges,
     remote_graph::{expect_bool, expect_optional_i64, expect_string, expect_string_list},
     remote_history::RemoteHistory,
+    remote_metadata::RemoteMetadata,
     remote_node::RemoteNode,
     transport::Transport,
     ClientError,
@@ -231,6 +232,19 @@ impl RemoteEdge {
             String::new(),
             self.transport.clone(),
             ReadExpr::Nbr {
+                input: Box::new(self.expr.clone()),
+            },
+            self.base_graph.clone(),
+        )
+    }
+
+    /// Returns the metadata container of this edge — non-temporal
+    /// properties whose values don't depend on time. Lazy — no RPC.
+    pub fn metadata(&self) -> RemoteMetadata {
+        RemoteMetadata::with_expr(
+            self.path.clone(),
+            self.transport.clone(),
+            ReadExpr::Metadata {
                 input: Box::new(self.expr.clone()),
             },
             self.base_graph.clone(),

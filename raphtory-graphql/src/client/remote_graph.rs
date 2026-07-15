@@ -10,6 +10,7 @@ use crate::client::{
     remote_edge::RemoteEdge,
     remote_edges::RemoteEdges,
     remote_history::RemoteEventTime,
+    remote_metadata::RemoteMetadata,
     remote_node::RemoteNode,
     remote_nodes::RemoteNodes,
     transport::Transport,
@@ -151,6 +152,66 @@ pub(crate) fn expect_i64_list(v: Option<Prop>, context: &str) -> Result<Vec<i64>
             context
         ))),
     }
+}
+
+/// Unwrap a `Transport::execute` result expecting a `Prop::Map({key, value})`
+/// wrapped in `Option` — used by `PropertyGet`. Returns `None` if the key
+/// wasn't present in the container.
+pub(crate) fn expect_optional_property(
+    v: Option<Prop>,
+    context: &str,
+) -> Result<Option<(String, Prop)>, ClientError> {
+    match v {
+        None => Ok(None),
+        Some(Prop::Map(map)) => extract_key_value_pair(&*map, context).map(Some),
+        Some(_) => Err(ClientError::InvalidResponse(format!(
+            "`{}` returned unexpected value type",
+            context
+        ))),
+    }
+}
+
+/// Unwrap a `Transport::execute` result expecting a `Prop::List` of
+/// `Prop::Map({key, value})` records — used by `PropertyValues`.
+pub(crate) fn expect_property_list(
+    v: Option<Prop>,
+    context: &str,
+) -> Result<Vec<(String, Prop)>, ClientError> {
+    match v {
+        Some(Prop::List(items)) => items
+            .iter()
+            .map(|p| match p {
+                Prop::Map(map) => extract_key_value_pair(&*map, context),
+                _ => Err(ClientError::InvalidResponse(format!(
+                    "`{}` element not a Prop::Map",
+                    context
+                ))),
+            })
+            .collect(),
+        _ => Err(ClientError::InvalidResponse(format!(
+            "`{}` returned unexpected value type",
+            context
+        ))),
+    }
+}
+
+fn extract_key_value_pair(
+    map: &rustc_hash::FxHashMap<raphtory_api::core::storage::arc_str::ArcStr, Prop>,
+    context: &str,
+) -> Result<(String, Prop), ClientError> {
+    let key = match map.get("key") {
+        Some(Prop::Str(s)) => s.to_string(),
+        _ => {
+            return Err(ClientError::InvalidResponse(format!(
+                "`{}` record missing `key`",
+                context
+            )))
+        }
+    };
+    let value = map.get("value").cloned().ok_or_else(|| {
+        ClientError::InvalidResponse(format!("`{}` record missing `value`", context))
+    })?;
+    Ok((key, value))
 }
 
 /// Unwrap a `Transport::execute` result expecting a nullable `Prop::F64`
@@ -663,6 +724,19 @@ impl RemoteGraph {
             self.path.clone(),
             self.transport.clone(),
             ReadExpr::Nodes {
+                input: Box::new(self.expr.clone()),
+            },
+            self.expr.clone(),
+        )
+    }
+
+    /// Returns the metadata container of this graph — non-temporal
+    /// properties whose values don't depend on time. Lazy — no RPC.
+    pub fn metadata(&self) -> RemoteMetadata {
+        RemoteMetadata::with_expr(
+            self.path.clone(),
+            self.transport.clone(),
+            ReadExpr::Metadata {
                 input: Box::new(self.expr.clone()),
             },
             self.expr.clone(),

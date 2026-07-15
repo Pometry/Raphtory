@@ -874,6 +874,30 @@ fn render_read_body(expr: &ReadExpr) -> String {
         ReadExpr::ExplodeLayers { input } => {
             format!("{} {{ explodeLayers", render_read_body(input))
         }
+        // Metadata / Properties navigation
+        ReadExpr::Metadata { input } => format!("{} {{ metadata", render_read_body(input)),
+        // Property terminals — `get`/`values` are compound (return {key, value}
+        // records). Inner braces `{ key value }` are self-balanced; outer
+        // `get` / `values` opens one net brace, contributing 1 to read_depth.
+        ReadExpr::PropertyGet { input, key } => format!(
+            "{} {{ get(key: \"{}\") {{ key value }}",
+            render_read_body(input),
+            key
+        ),
+        ReadExpr::PropertyContains { input, key } => format!(
+            "{} {{ contains(key: \"{}\")",
+            render_read_body(input),
+            key
+        ),
+        ReadExpr::PropertyKeys { input } => format!("{} {{ keys", render_read_body(input)),
+        ReadExpr::PropertyValues { input, keys } => match keys {
+            Some(ks) => format!(
+                "{} {{ values(keys: [{}]) {{ key value }}",
+                render_read_body(input),
+                render_string_list(ks)
+            ),
+            None => format!("{} {{ values {{ key value }}", render_read_body(input)),
+        },
         // Terminals — no args after the field name
         ReadExpr::CountNodes { input } => format!("{} {{ countNodes", render_read_body(input)),
         ReadExpr::CountEdges { input } => format!("{} {{ countEdges", render_read_body(input)),
@@ -1031,6 +1055,11 @@ fn read_depth(expr: &ReadExpr) -> usize {
         | ReadExpr::OutComponent { input }
         | ReadExpr::Explode { input }
         | ReadExpr::ExplodeLayers { input }
+        | ReadExpr::Metadata { input }
+        | ReadExpr::PropertyGet { input, .. }
+        | ReadExpr::PropertyContains { input, .. }
+        | ReadExpr::PropertyKeys { input }
+        | ReadExpr::PropertyValues { input, .. }
         | ReadExpr::Ids { input }
         | ReadExpr::Count { input }
         | ReadExpr::EdgesList { input }
@@ -1201,7 +1230,10 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
             }
         }
         // List-of-string terminal — the JSON is an array of strings.
-        ReadExpr::Ids { .. } | ReadExpr::LayerNames { .. } | ReadExpr::UniqueLayers { .. } => {
+        ReadExpr::Ids { .. }
+        | ReadExpr::LayerNames { .. }
+        | ReadExpr::UniqueLayers { .. }
+        | ReadExpr::PropertyKeys { .. } => {
             let arr = terminal_val.as_array().ok_or_else(|| {
                 ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
             })?;
@@ -1278,6 +1310,27 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
                 .collect();
             Ok(Some(Prop::List(items?.into())))
         }
+        // Property terminals — each entry is a `{key, value}` record where
+        // value is an untagged Prop (JSON number/string/bool/array/object).
+        //
+        // `PropertyGet`: single record or null. Terminal value is null when
+        // the key isn't present in the container — decode as `Ok(None)`.
+        ReadExpr::PropertyGet { .. } => {
+            if terminal_val.is_null() {
+                Ok(None)
+            } else {
+                Ok(Some(json_to_property_record(terminal_val)?))
+            }
+        }
+        // `PropertyValues`: array of `{key, value}` records → `Prop::List(...)`.
+        ReadExpr::PropertyValues { .. } => {
+            let arr = terminal_val.as_array().ok_or_else(|| {
+                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
+            })?;
+            let items: Result<Vec<Prop>, ClientError> =
+                arr.iter().map(json_to_property_record).collect();
+            Ok(Some(Prop::List(items?.into())))
+        }
         // Compound structured list terminal — JSON shape is
         // `[{"src":{"name":"X"},"dst":{"name":"Y"}}, ...]`. Decode each element
         // into a 2-element inner list `[src, dst]`, wrapped in an outer list.
@@ -1316,7 +1369,8 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
         | ReadExpr::IsValid { .. }
         | ReadExpr::IsDeleted { .. }
         | ReadExpr::IsSelfLoop { .. }
-        | ReadExpr::IsEmpty { .. } => terminal_val
+        | ReadExpr::IsEmpty { .. }
+        | ReadExpr::PropertyContains { .. } => terminal_val
             .as_bool()
             .map(|b| Some(Prop::Bool(b)))
             .ok_or_else(|| ClientError::InvalidResponse(format!("`{}` not a bool", terminal_key))),
@@ -1549,6 +1603,26 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
             ReadExpr::ExplodeLayers { input } => {
                 go(input, out);
                 out.push("explodeLayers");
+            }
+            ReadExpr::Metadata { input } => {
+                go(input, out);
+                out.push("metadata");
+            }
+            ReadExpr::PropertyGet { input, .. } => {
+                go(input, out);
+                out.push("get");
+            }
+            ReadExpr::PropertyContains { input, .. } => {
+                go(input, out);
+                out.push("contains");
+            }
+            ReadExpr::PropertyKeys { input } => {
+                go(input, out);
+                out.push("keys");
+            }
+            ReadExpr::PropertyValues { input, .. } => {
+                go(input, out);
+                out.push("values");
             }
             ReadExpr::Ids { input } => {
                 go(input, out);
@@ -1783,6 +1857,61 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
     out
 }
 
+/// Decode an untagged JSON value into a `Prop`. Mirrors the server's
+/// `prop_to_gql` — server serializes `Prop` as native JSON (number / string /
+/// bool / array / object) with no type tag. Recovering the exact original
+/// variant isn't possible for numbers (I64 vs F64 vs DTime all wire as
+/// numbers) — we pick the widest fitting variant.
+fn json_to_prop(v: &JsonValue) -> Result<Prop, ClientError> {
+    match v {
+        JsonValue::Bool(b) => Ok(Prop::Bool(*b)),
+        JsonValue::Number(n) => {
+            if let Some(i) = n.as_i64() {
+                Ok(Prop::I64(i))
+            } else if let Some(f) = n.as_f64() {
+                Ok(Prop::F64(f))
+            } else {
+                Err(ClientError::InvalidResponse(
+                    "prop number not representable as i64 or f64".into(),
+                ))
+            }
+        }
+        JsonValue::String(s) => Ok(Prop::Str(s.as_str().into())),
+        JsonValue::Array(arr) => {
+            let items: Result<Vec<Prop>, ClientError> = arr.iter().map(json_to_prop).collect();
+            Ok(Prop::List(items?.into()))
+        }
+        JsonValue::Object(obj) => {
+            let pairs: Result<Vec<(&str, Prop)>, ClientError> = obj
+                .iter()
+                .map(|(k, v)| json_to_prop(v).map(|p| (k.as_str(), p)))
+                .collect();
+            Ok(Prop::map(pairs?))
+        }
+        JsonValue::Null => Err(ClientError::InvalidResponse("prop is null".into())),
+    }
+}
+
+/// Decode a `{ key, value }` JSON record into a `Prop::Map` with `"key"` (Prop::Str)
+/// and `"value"` (arbitrary Prop). Used by property terminals.
+fn json_to_property_record(v: &JsonValue) -> Result<Prop, ClientError> {
+    let obj = v.as_object().ok_or_else(|| {
+        ClientError::InvalidResponse("property record is not a JSON object".into())
+    })?;
+    let key = obj
+        .get("key")
+        .and_then(|k| k.as_str())
+        .ok_or_else(|| ClientError::InvalidResponse("property record missing `key`".into()))?;
+    let value_json = obj
+        .get("value")
+        .ok_or_else(|| ClientError::InvalidResponse("property record missing `value`".into()))?;
+    let value = json_to_prop(value_json)?;
+    Ok(Prop::map(vec![
+        ("key", Prop::Str(key.into())),
+        ("value", value),
+    ]))
+}
+
 /// Build a `NotFound` error describing which Node/Edge/Graph selection
 /// returned `null` in the response. Walks the `expr` tree from outermost
 /// inward to find the variant whose json key matches `null_key`.
@@ -1854,6 +1983,11 @@ fn child_input(expr: &ReadExpr) -> Option<&ReadExpr> {
         | ReadExpr::OutComponent { input }
         | ReadExpr::Explode { input }
         | ReadExpr::ExplodeLayers { input }
+        | ReadExpr::Metadata { input }
+        | ReadExpr::PropertyGet { input, .. }
+        | ReadExpr::PropertyContains { input, .. }
+        | ReadExpr::PropertyKeys { input }
+        | ReadExpr::PropertyValues { input, .. }
         | ReadExpr::Ids { input }
         | ReadExpr::Count { input }
         | ReadExpr::EdgesList { input }

@@ -160,6 +160,30 @@ pub enum ReadExpr {
     /// Polymorphic on `Edge` and `Edges`. Server field: `explodeLayers`.
     ExplodeLayers { input: Box<ReadExpr> },
 
+    // ============ Properties / Metadata containers ============
+    /// Navigate to the non-temporal metadata container. Polymorphic:
+    /// Graph/Node/Edge → Metadata. Server field: `metadata`.
+    Metadata { input: Box<ReadExpr> },
+    /// Terminal on a properties/metadata container: fetch a single property
+    /// by key. Returns `Option<RemoteProperty>` — the server returns `null`
+    /// when the key isn't present, decoded to `None` client-side rather
+    /// than raising `NotFound` (see nullable-intermediate handling in
+    /// `parse_read`). Server field: `get(key: String!)`.
+    PropertyGet { input: Box<ReadExpr>, key: String },
+    /// Terminal on a properties/metadata container: `bool` — does a
+    /// property with this key exist? Server field: `contains(key: String!)`.
+    PropertyContains { input: Box<ReadExpr>, key: String },
+    /// Terminal on a properties/metadata container: `Vec<String>` — all
+    /// property keys. Server field: `keys`.
+    PropertyKeys { input: Box<ReadExpr> },
+    /// Terminal on a properties/metadata container: `Vec<RemoteProperty>` —
+    /// each `(key, value)` entry. Optional `keys` whitelist filters the
+    /// returned set. Server field: `values(keys: [String!])`.
+    PropertyValues {
+        input: Box<ReadExpr>,
+        keys: Option<Vec<String>>,
+    },
+
     // ============ Scalar terminals on Graph ============
     /// Terminal: total node count under the current view — `i64`.
     CountNodes { input: Box<ReadExpr> },

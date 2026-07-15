@@ -9,7 +9,8 @@ use crate::{
         ClientError,
     },
     python::client::{
-        remote_edge::PyRemoteEdge, remote_edges::PyRemoteEdges, remote_node::PyRemoteNode,
+        remote_edge::PyRemoteEdge, remote_edges::PyRemoteEdges,
+        remote_metadata::PyRemoteMetadata, remote_node::PyRemoteNode,
         remote_nodes::PyRemoteNodes, PyEdgeAddition, PyNodeAddition,
     },
 };
@@ -349,6 +350,15 @@ impl PyRemoteGraph {
     #[getter]
     pub fn edges(&self) -> PyRemoteEdges {
         PyRemoteEdges::new(self.graph.edges())
+    }
+
+    /// The non-temporal metadata container of this graph. Lazy — no RPC.
+    ///
+    /// Returns:
+    ///   RemoteMetadata: a handle to the metadata container.
+    #[getter]
+    pub fn metadata(&self) -> PyRemoteMetadata {
+        PyRemoteMetadata::new(self.graph.metadata())
     }
 
     /// Batch add node updates to the remote graph
