@@ -18,13 +18,7 @@ use raphtory_api::core::storage::arc_str::OptionAsStr;
 use reqwest::{blocking::ClientBuilder, Certificate};
 use serde::Deserialize;
 use std::{
-    collections::HashMap,
-    env,
-    fs::File,
-    io::Read,
-    path::PathBuf,
-    sync::LazyLock,
-    time::Duration,
+    collections::HashMap, env, fs::File, io::Read, path::PathBuf, sync::LazyLock, time::Duration,
 };
 use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter, EnumString, IntoStaticStr};
@@ -130,14 +124,14 @@ pub struct GlobalExporters {
 }
 
 #[cfg(feature = "integration-test")]
-/* GraphServer registers span and log exporters 
-   across the entire process, which can conflict 
-   when starting up servers with their own exporters. 
-   Making in-memory exporters global allows them to be 
+/* GraphServer registers span and log exporters
+   across the entire process, which can conflict
+   when starting up servers with their own exporters.
+   Making in-memory exporters global allows them to be
    initialized once and reused across multiple tests
    allowing the tests to retrieve spans and logs
    without conflicts.
-*/ 
+*/
 pub static GLOBAL_EXPORTERS: LazyLock<GlobalExporters> = LazyLock::new(|| GlobalExporters {
     span: InMemorySpanExporter::default(),
     log: InMemoryLogExporter::default(),
@@ -237,7 +231,7 @@ impl TracingConfig {
                     return Err(err);
                 }
             }
- 
+
             let providers = match self.transport_protocol {
                 TracingProtocol::TONIC => {
                     let mut span_builder = SpanExporter::builder()
@@ -352,8 +346,3 @@ impl TracingConfig {
         }
     }
 }
-
-
-
-
-

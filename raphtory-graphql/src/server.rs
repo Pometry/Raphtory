@@ -56,7 +56,10 @@ use tokio::{
 };
 use tracing::{debug, error, info, warn};
 use tracing_subscriber::{
-    Registry, fmt::{self, format::FmtSpan}, layer::SubscriberExt, util::SubscriberInitExt,
+    fmt::{self, format::FmtSpan},
+    layer::SubscriberExt,
+    util::SubscriberInitExt,
+    Registry,
 };
 use url::ParseError;
 
@@ -328,7 +331,7 @@ impl GraphServer {
             server_result,
             port: actual_port,
         })
-    } 
+    }
 
     async fn generate_endpoint(
         &self,
@@ -478,10 +481,10 @@ async fn server_termination(
         None => {}
         Some((tp, lp)) => {
             /* avoid shutting down tracing exporters on server shutdown during integration tests
-               since the tracing exporters will be used for next test because tracing exporters 
+               since the tracing exporters will be used for next test because tracing exporters
                are global
             */
-            #[cfg(not(feature="integration-test"))]
+            #[cfg(not(feature = "integration-test"))]
             task::spawn_blocking(move || {
                 let res = tp.shutdown();
                 if let Err(e) = res {
@@ -500,10 +503,7 @@ async fn server_termination(
 
 #[cfg(test)]
 mod server_tests {
-    use crate::{
-        config::app_config::AppConfigBuilder,
-        server::GraphServer,
-    };
+    use crate::{config::app_config::AppConfigBuilder, server::GraphServer};
     use chrono::prelude::*;
     #[cfg(feature = "vectors")]
     use raphtory::vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate};
@@ -582,5 +582,4 @@ mod server_tests {
         sleep(Duration::from_secs(5)).await;
         handler.await.unwrap().stop().await
     }
-
 }
