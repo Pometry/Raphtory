@@ -1,5 +1,7 @@
 use crate::{
-    model::graph::{node::GqlNode, nodes::GqlNodes, property::GqlPropertyOutputVal},
+    model::graph::{
+        node::GqlNode, node_id::GqlNodeId, nodes::GqlNodes, property::GqlPropertyOutputVal,
+    },
     rayon::blocking_compute,
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, SimpleObject, Union};
@@ -75,10 +77,24 @@ pub(crate) struct GqlNodeStateColumn {
     values: Vec<GqlNodeStateValue>,
 }
 
+/// One column's value for a single node.
+#[derive(SimpleObject, Clone)]
+#[graphql(name = "NodeStateEntry")]
+pub(crate) struct GqlNodeStateEntry {
+    /// Name of the column.
+    name: String,
+    /// The node's value in this column.
+    value: GqlNodeStateValue,
+}
+
 // TODO: add paging: `columns`/`nodes` currently dump every row.
 
-// TODO: NodeStateOps surface — expose the remaining operations
-// follow `PyOutputNodeState` (raphtory/src/python/graph/node_state/output_node_state.rs):
+// TODO: still to be implemented, blocked on the datafusion feature gate (CVE):
+// `sortBy` (`GenericNodeState::sort_by`), `topK` (`GenericNodeState::top_k`),
+// `groupBy` (`TypedNodeState::get_groups`).
+//
+// Not exposed: `merge` (takes a second NodeState, which cannot be a query argument)
+// and `to_parquet`/`from_parquet` (avoid server-side filesystem access).
 #[ResolvedObjectFields]
 impl GqlNodeState {
     /// Returns the number of nodes with a value in this state.
@@ -89,6 +105,37 @@ impl GqlNodeState {
     /// The nodes with a value in this state, in row order. Aligned with `values`.
     async fn nodes(&self) -> GqlNodes {
         GqlNodes::new(self.state.nodes())
+    }
+
+    /// Returns the values for a node, one entry per column; null if the node has no value in this NodeState.
+    async fn get(
+        &self,
+        #[graphql(desc = "Node id.")] node: GqlNodeId,
+    ) -> Option<Vec<GqlNodeStateEntry>> {
+        let self_clone = self.clone();
+        blocking_compute(move || {
+            let row = self_clone.state.get_by_node(node)?;
+            let transformed = self_clone.state.convert(row);
+            Some(
+                transformed
+                    .into_iter()
+                    .map(|(name, value)| GqlNodeStateEntry {
+                        name,
+                        value: value.into(),
+                    })
+                    .collect(),
+            )
+        })
+        .await
+    }
+
+    /// Returns a view of this state with the rows sorted by node id.
+    async fn sort_by_id(&self) -> GqlNodeState {
+        let self_clone = self.clone();
+        blocking_compute(move || GqlNodeState {
+            state: self_clone.state.sort_by_id(),
+        })
+        .await
     }
 
     /// The columns of the state, one per output field of the algorithm.

@@ -583,6 +583,71 @@ mod graphql_test {
     }
 
     #[tokio::test]
+    async fn test_algorithm_node_state_ops() {
+        let graph = Graph::new();
+        // insert out of id order so sortById is meaningful
+        graph.add_edge(1, "c", "b", NO_PROPS, None).unwrap();
+        graph.add_edge(2, "b", "a", NO_PROPS, None).unwrap();
+        graph.add_edge(3, "a", "c", NO_PROPS, None).unwrap();
+        let graph: MaterializedGraph = graph.into();
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", graph)], tmp_dir.path()).await;
+
+        let query = r#"
+        {
+          graph(path: "g") {
+            algorithm {
+              pagerank(iterCount: 20) {
+                get(node: "b") {
+                  name
+                  value {
+                    __typename
+                    ... on NodeStateProp { value }
+                  }
+                }
+                missing: get(node: "not-a-node") { name }
+                sortById {
+                  nodes { list { name } }
+                }
+              }
+            }
+          }
+        }
+        "#;
+
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        // in a 3-cycle all nodes have the same rank of 1/3
+        assert_eq!(
+            res.data.into_json().unwrap(),
+            json!({
+                "graph": {
+                    "algorithm": {
+                        "pagerank": {
+                            "get": [
+                                {
+                                    "name": "pagerank_score",
+                                    "value": { "__typename": "NodeStateProp", "value": 0.3333333333333333 }
+                                }
+                            ],
+                            "missing": null,
+                            "sortById": {
+                                "nodes": {
+                                    "list": [
+                                        { "name": "a" },
+                                        { "name": "b" },
+                                        { "name": "c" }
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                }
+            })
+        );
+    }
+
+    #[tokio::test]
     async fn test_algorithm_pagerank() {
         let graph = Graph::new();
         graph.add_edge(1, "a", "b", NO_PROPS, None).unwrap();
