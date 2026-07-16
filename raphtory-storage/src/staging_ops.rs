@@ -1,6 +1,6 @@
 use db4_graph::WriteLockedGraph;
 use raphtory_api::core::storage::graph_folder::GraphFolderError;
-use storage::Extension;
+use storage::{Extension, error::StorageError};
 use thiserror::Error;
 
 /// Represents a temporary graph with pending writes.
@@ -33,4 +33,7 @@ pub enum StagingError {
 
     #[error(transparent)]
     GraphFolder(#[from] GraphFolderError),
+
+    #[error(transparent)]
+    Storage(#[from] StorageError),
 }

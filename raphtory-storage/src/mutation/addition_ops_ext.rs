@@ -763,15 +763,16 @@ impl RecoveryOps for TemporalGraph {}
 
 impl StagingOps for TemporalGraph {
     fn stage(&self) -> Result<StagedGraph<'_>, StagingError> {
+        // Make sure graph is on disk before creating hard links.
+        self.flush()?;
+
         let graph_path = self.graph_dir().ok_or(StagingError::MissingGraphDir)?;
         let graph_folder = GraphFolder::from_graph_path(graph_path)?;
 
         // Create a new data folder to hold the staged graph.
         let writeable_folder = graph_folder.init_swap()?;
 
-        // Hard link the current graph to the new data folder.
-
-
+        // Hard link existing files to the new data folder.
 
         todo!()
     }
