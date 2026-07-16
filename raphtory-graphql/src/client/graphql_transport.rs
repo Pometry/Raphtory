@@ -1068,6 +1068,14 @@ fn render_read_body(expr: &ReadExpr) -> String {
             "{} {{ list {{ src {{ name }} dst {{ name }} }}",
             render_read_body(input)
         ),
+        // Compound structured terminal on Graph: `sharedNeighbours(selectedNodes: [ids]) { name }`
+        // — opens ONE net brace (the outer, before `sharedNeighbours`); the inner
+        // `{ name }` is self-balanced.
+        ReadExpr::SharedNeighbours { input, ids } => format!(
+            "{} {{ sharedNeighbours(selectedNodes: [{}]) {{ name }}",
+            render_read_body(input),
+            render_string_list(ids)
+        ),
         ReadExpr::Id { input } => format!("{} {{ id", render_read_body(input)),
         ReadExpr::NodeType { input } => format!("{} {{ nodeType", render_read_body(input)),
         ReadExpr::IsActive { input } => format!("{} {{ isActive", render_read_body(input)),
@@ -1217,6 +1225,7 @@ fn read_depth(expr: &ReadExpr) -> usize {
         | ReadExpr::Ids { input }
         | ReadExpr::Count { input }
         | ReadExpr::EdgesList { input }
+        | ReadExpr::SharedNeighbours { input, .. }
         | ReadExpr::CountNodes { input }
         | ReadExpr::CountEdges { input }
         | ReadExpr::Degree { input }
@@ -1460,6 +1469,28 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
                         pairs.push(("eventId", Prop::I64(e)));
                     }
                     Ok(Prop::map(pairs))
+                })
+                .collect();
+            Ok(Some(Prop::List(items?.into())))
+        }
+        // `sharedNeighbours { name }` — array of `{"name": "..."}` records.
+        // Decode to `Prop::List(Prop::Str, ...)` matching the shape used by
+        // `Ids` — the client wraps each name in a `RemoteNode`.
+        ReadExpr::SharedNeighbours { .. } => {
+            let arr = terminal_val.as_array().ok_or_else(|| {
+                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
+            })?;
+            let items: Result<Vec<Prop>, ClientError> = arr
+                .iter()
+                .map(|v| {
+                    v.get("name")
+                        .and_then(|x| x.as_str())
+                        .map(|s| Prop::Str(s.into()))
+                        .ok_or_else(|| {
+                            ClientError::InvalidResponse(
+                                "sharedNeighbours element missing `name`".into(),
+                            )
+                        })
                 })
                 .collect();
             Ok(Some(Prop::List(items?.into())))
@@ -1941,6 +1972,10 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
                 go(input, out);
                 out.push("list");
             }
+            ReadExpr::SharedNeighbours { input, .. } => {
+                go(input, out);
+                out.push("sharedNeighbours");
+            }
             ReadExpr::CountNodes { input } => {
                 go(input, out);
                 out.push("countNodes");
@@ -2347,6 +2382,7 @@ fn child_input(expr: &ReadExpr) -> Option<&ReadExpr> {
         | ReadExpr::Ids { input }
         | ReadExpr::Count { input }
         | ReadExpr::EdgesList { input }
+        | ReadExpr::SharedNeighbours { input, .. }
         | ReadExpr::CountNodes { input }
         | ReadExpr::CountEdges { input }
         | ReadExpr::Degree { input }

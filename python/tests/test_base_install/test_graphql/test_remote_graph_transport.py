@@ -1768,3 +1768,99 @@ def test_edges_sorted_composes_with_view_chain():
         assert pairs == [("a", "b"), ("a", "c")]
     finally:
         server_cm.__exit__(None, None, None)
+
+
+def _make_shared_neighbours_graph():
+    """Two hub nodes (a, d) that share neighbours (b, c) plus a
+    non-shared neighbour on each side (e touches only a; f touches only d).
+    Shared: {b, c}. Non-shared: e (only a), f (only d)."""
+    work_dir = tempfile.mkdtemp()
+    server_cm = GraphServer(work_dir).start()
+    server = server_cm.__enter__()
+    client = server.get_client()
+    client.new_graph("g", "EVENT")
+    rg = client.remote_graph("g")
+    rg.add_edge(1, "a", "b")
+    rg.add_edge(2, "a", "c")
+    rg.add_edge(3, "a", "e")   # a only
+    rg.add_edge(4, "d", "b")
+    rg.add_edge(5, "d", "c")
+    rg.add_edge(6, "d", "f")   # d only
+    return server_cm, rg
+
+
+def test_shared_neighbours_intersection():
+    """`shared_neighbours` returns the intersection of neighbours across
+    the input ids."""
+    server_cm, rg = _make_shared_neighbours_graph()
+    try:
+        shared = rg.shared_neighbours(["a", "d"])
+        names = sorted(n.name() for n in shared)
+        assert names == ["b", "c"], f"expected [b, c], got {names}"
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_shared_neighbours_single_node():
+    """One input id returns all its neighbours (intersection of one set)."""
+    server_cm, rg = _make_shared_neighbours_graph()
+    try:
+        shared = rg.shared_neighbours(["a"])
+        names = sorted(n.name() for n in shared)
+        assert names == ["b", "c", "e"]
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_shared_neighbours_empty_and_missing():
+    """Empty input list → []. Missing ids are silently dropped server-side;
+    the intersection is taken over the ids that do exist. All-missing → []."""
+    server_cm, rg = _make_shared_neighbours_graph()
+    try:
+        # Empty input.
+        assert rg.shared_neighbours([]) == []
+
+        # `z` doesn't exist and is dropped — result is `a`'s neighbours.
+        with_missing = rg.shared_neighbours(["a", "z"])
+        names = sorted(n.name() for n in with_missing)
+        assert names == ["b", "c", "e"]
+
+        # All ids missing → nothing to intersect → [].
+        assert rg.shared_neighbours(["x", "y", "z"]) == []
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_shared_neighbours_returns_usable_handles():
+    """Returned RemoteNode handles carry the current view chain — terminals
+    like `.degree()` and `.properties.get(...)` work against them."""
+    server_cm, rg = _make_shared_neighbours_graph()
+    try:
+        shared = rg.shared_neighbours(["a", "d"])
+        for n in shared:
+            # Each shared neighbour has degree 2 (connected to both a and d).
+            assert n.degree() == 2
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_shared_neighbours_composes_with_view_chain():
+    """`.shared_neighbours()` runs against the current view chain — the
+    intersection uses the neighbours visible under that view."""
+    server_cm, rg = _make_shared_neighbours_graph()
+    try:
+        # Window [0, 4) excludes d-b (t=4), d-c (t=5), d-f (t=6). In that
+        # view, only a's edges are visible (t=1,2,3 → b,c,e); d is not
+        # present. Server drops `d` (missing in view), intersection is over
+        # `a` alone → a's in-view neighbours = {b, c, e}.
+        shared_windowed = rg.window(0, 4).shared_neighbours(["a", "d"])
+        names = sorted(n.name() for n in shared_windowed)
+        assert names == ["b", "c", "e"]
+
+        # Under a broader window that includes all edges, both a and d
+        # exist and their common neighbours are [b, c].
+        shared_all = rg.window(0, 100).shared_neighbours(["a", "d"])
+        names = sorted(n.name() for n in shared_all)
+        assert names == ["b", "c"]
+    finally:
+        server_cm.__exit__(None, None, None)

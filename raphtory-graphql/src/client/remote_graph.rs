@@ -863,6 +863,41 @@ impl RemoteGraph {
         RemoteGraphSchema::from_prop(prop)
     }
 
+    /// Terminal: the set-intersection of neighbours across the given node
+    /// ids. Fires one RPC. Server behaviour:
+    /// - empty input list → empty result
+    /// - **ids that don't exist in the current view are silently dropped**;
+    ///   the intersection is taken over the remaining ids
+    /// - if no ids remain after dropping missing ones → empty result
+    ///
+    /// Each returned handle rebases at `self.expr`, so downstream terminals
+    /// inherit the same view chain.
+    pub async fn shared_neighbours(
+        &self,
+        ids: Vec<String>,
+    ) -> Result<Vec<RemoteNode>, ClientError> {
+        let op = Op::Read(ReadExpr::SharedNeighbours {
+            input: Box::new(self.expr.clone()),
+            ids,
+        });
+        let names = expect_string_list(self.transport.execute(&op).await?, "sharedNeighbours")?;
+        Ok(names
+            .into_iter()
+            .map(|name| {
+                RemoteNode::with_expr(
+                    self.path.clone(),
+                    name.clone(),
+                    self.transport.clone(),
+                    ReadExpr::Node {
+                        input: Box::new(self.expr.clone()),
+                        id: name,
+                    },
+                    self.expr.clone(),
+                )
+            })
+            .collect())
+    }
+
     /// Returns the full properties container of this graph — includes both
     /// temporal properties and metadata. Lazy — no RPC.
     pub fn properties(&self) -> RemoteProperties {

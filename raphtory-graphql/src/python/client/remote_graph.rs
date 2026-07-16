@@ -387,6 +387,26 @@ impl PyRemoteGraph {
         Ok(schema.into())
     }
 
+    /// Return the nodes that are common neighbours of the given ids
+    /// (set intersection). Fires one RPC.
+    ///
+    /// Ids that don't exist in the current view are silently dropped
+    /// server-side — the intersection is taken over the ids that do exist.
+    /// So `shared_neighbours(["a", "z"])` where `"z"` is missing returns
+    /// `a`'s neighbours (not an empty set).
+    ///
+    /// Arguments:
+    ///     ids (list[str]): node ids to intersect neighbours of.
+    ///
+    /// Returns:
+    ///     list[RemoteNode]: the shared neighbours. Empty if `ids` is empty
+    ///         or none of the ids exist in the current view.
+    pub fn shared_neighbours(&self, ids: Vec<String>) -> Result<Vec<PyRemoteNode>, ClientError> {
+        let graph = Arc::clone(&self.graph);
+        let nodes = execute_async_task(move || async move { graph.shared_neighbours(ids).await })?;
+        Ok(nodes.into_iter().map(PyRemoteNode::new).collect())
+    }
+
     /// Batch add node updates to the remote graph
     ///
     /// Arguments:

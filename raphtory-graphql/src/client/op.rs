@@ -261,6 +261,16 @@ pub enum ReadExpr {
     /// Server field: `schema`.
     Schema { input: Box<ReadExpr> },
 
+    /// Terminal on Graph: given a set of node ids, return the nodes that
+    /// are common neighbours of *all* of them (set intersection). Empty
+    /// result if any input id doesn't exist or the list is empty. Returns
+    /// `Vec<String>` of names — clients wrap each in a `RemoteNode`.
+    /// Server field: `sharedNeighbours(selectedNodes: [NodeId!]!)`.
+    SharedNeighbours {
+        input: Box<ReadExpr>,
+        ids: Vec<String>,
+    },
+
     // ============ Scalar terminals on Graph ============
     /// Terminal: total node count under the current view — `i64`.
     CountNodes { input: Box<ReadExpr> },
