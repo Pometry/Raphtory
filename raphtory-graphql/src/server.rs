@@ -581,10 +581,7 @@ mod server_tests {
         // At the default cap: allowed.
         assert_eq!(post_batch(port, 10).await, reqwest::StatusCode::OK);
         // One over the default cap: rejected.
-        assert_eq!(
-            post_batch(port, 11).await,
-            reqwest::StatusCode::BAD_REQUEST
-        );
+        assert_eq!(post_batch(port, 11).await, reqwest::StatusCode::BAD_REQUEST);
         running.stop().await;
 
         // Explicit lower cap is honoured.

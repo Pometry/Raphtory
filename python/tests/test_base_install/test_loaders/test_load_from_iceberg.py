@@ -355,7 +355,12 @@ def test_iceberg_incremental_by_watermark(iceberg_catalog):
     tbl = iceberg_catalog.create_table(
         "raphtory.edges",
         schema=pa.schema(
-            [("src", pa.int64()), ("dst", pa.int64()), ("time", pa.int64()), ("weight", pa.float64())]
+            [
+                ("src", pa.int64()),
+                ("dst", pa.int64()),
+                ("time", pa.int64()),
+                ("weight", pa.float64()),
+            ]
         ),
     )
     tbl.append(
@@ -394,7 +399,9 @@ def test_iceberg_incremental_by_watermark(iceberg_catalog):
 
     # The filtered scan returns only rows past the watermark, not the whole table.
     assert sorted(
-        tbl.scan(row_filter=GreaterThan("time", watermark)).to_arrow()["time"].to_pylist()
+        tbl.scan(row_filter=GreaterThan("time", watermark))
+        .to_arrow()["time"]
+        .to_pylist()
     ) == [3, 4]
 
     g.load_edges(

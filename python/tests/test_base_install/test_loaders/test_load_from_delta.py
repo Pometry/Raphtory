@@ -174,7 +174,11 @@ def test_delta_change_column_type(delta_dir):
 
     g = Graph()
     g.load_edges(
-        _reader(DeltaTable(path)), time="time", src="src", dst="dst", properties=["weight"]
+        _reader(DeltaTable(path)),
+        time="time",
+        src="src",
+        dst="dst",
+        properties=["weight"],
     )
     assert g.edge(3, 4)["weight"] == 30
     assert g.edge(1, 2)["weight"] == 10
@@ -238,9 +242,7 @@ def test_delta_incremental_cdf(delta_dir):
 
     # The diff since version 1: exactly one insert and one delete, nothing else.
     changes = (
-        pa.RecordBatchReader.from_stream(
-            DeltaTable(path).load_cdf(starting_version=1)
-        )
+        pa.RecordBatchReader.from_stream(DeltaTable(path).load_cdf(starting_version=1))
         .read_all()
         .to_pandas()
     )

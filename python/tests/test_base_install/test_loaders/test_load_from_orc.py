@@ -7,6 +7,8 @@ from raphtory import Graph, PersistentGraph
 
 # ORC support ships with pyarrow but requires the ORC-enabled build.
 orc = pytest.importorskip("pyarrow.orc")
+
+
 @pytest.fixture
 def orc_files():
     d = tempfile.TemporaryDirectory()

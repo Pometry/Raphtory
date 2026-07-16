@@ -174,15 +174,25 @@ def test_nbf_and_exp_window():
 
         # Valid for one minute, starting 5s from now: the 5s start is inside the 60s
         # leeway, so the token is already valid and its exp (65s out) hasn't passed.
-        assert_successful_response(read_with({"access": "ro", "nbf": now + 5, "exp": now + 65}))
+        assert_successful_response(
+            read_with({"access": "ro", "nbf": now + 5, "exp": now + 65})
+        )
 
         # Same one-minute window, placed an hour ahead (well beyond leeway):
         # not yet valid -> rejected.
-        assert read_with({"access": "ro", "nbf": now + 3600, "exp": now + 3660}).status_code == 401
+        assert (
+            read_with(
+                {"access": "ro", "nbf": now + 3600, "exp": now + 3660}
+            ).status_code
+            == 401
+        )
 
         # Same one-minute window, but it closed over a minute ago (beyond leeway):
         # expired -> rejected.
-        assert read_with({"access": "ro", "nbf": now - 120, "exp": now - 65}).status_code == 401
+        assert (
+            read_with({"access": "ro", "nbf": now - 120, "exp": now - 65}).status_code
+            == 401
+        )
 
 
 @pytest.mark.parametrize("query", TEST_QUERIES)
