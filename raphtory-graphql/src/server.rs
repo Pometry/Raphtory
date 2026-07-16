@@ -538,6 +538,89 @@ mod server_tests {
         running.stop().await
     }
 
+    // Builds a GraphQL batch request body containing `n` trivial queries.
+    fn batch_body(n: usize) -> String {
+        let queries = std::iter::repeat(r#"{"query":"{__typename}"}"#)
+            .take(n)
+            .collect::<Vec<_>>()
+            .join(",");
+        format!("[{queries}]")
+    }
+
+    async fn post_batch(port: u16, n: usize) -> reqwest::StatusCode {
+        reqwest::Client::new()
+            .post(format!("http://localhost:{port}/"))
+            .header("content-type", "application/json")
+            .body(batch_body(n))
+            .send()
+            .await
+            .unwrap()
+            .status()
+    }
+
+    // Regression test for the batch-amplification DoS: a single HTTP request must not
+    // be able to smuggle an unbounded number of GraphQL operations past request-level
+    // throttling. Verifies both the secure default cap and an explicit override.
+    #[tokio::test]
+    async fn test_batch_size_limit_enforced() {
+        let work_dir = tempdir().unwrap();
+        // Default config: max_batch_size defaults to 10.
+        let server = GraphServer::new(work_dir.path().to_path_buf(), None, Config::default())
+            .await
+            .unwrap();
+        let running = server.start_with_port(0).await.unwrap();
+        let port = running.port();
+
+        // At the default cap: allowed.
+        assert_eq!(post_batch(port, 10).await, reqwest::StatusCode::OK);
+        // One over the default cap: rejected.
+        assert_eq!(
+            post_batch(port, 11).await,
+            reqwest::StatusCode::BAD_REQUEST
+        );
+        running.stop().await;
+
+        // Explicit lower cap is honoured.
+        let work_dir = tempdir().unwrap();
+        let app_config = AppConfigBuilder::new().with_max_batch_size(Some(2)).build();
+        let server = GraphServer::new(
+            work_dir.path().to_path_buf(),
+            Some(app_config),
+            Config::default(),
+        )
+        .await
+        .unwrap();
+        let running = server.start_with_port(0).await.unwrap();
+        let port = running.port();
+
+        assert_eq!(post_batch(port, 2).await, reqwest::StatusCode::OK);
+        assert_eq!(post_batch(port, 3).await, reqwest::StatusCode::BAD_REQUEST);
+        running.stop().await;
+
+        // A single (non-batched) query is never treated as a batch and is unaffected.
+        let work_dir = tempdir().unwrap();
+        let app_config = AppConfigBuilder::new().with_max_batch_size(Some(2)).build();
+        let server = GraphServer::new(
+            work_dir.path().to_path_buf(),
+            Some(app_config),
+            Config::default(),
+        )
+        .await
+        .unwrap();
+        let running = server.start_with_port(0).await.unwrap();
+        let port = running.port();
+        let status = reqwest::Client::new()
+            .post(format!("http://localhost:{}/", port))
+            .header("content-type", "application/json")
+            .body(r#"{"query":"{__typename}"}"#)
+            .send()
+            .await
+            .unwrap()
+            .status();
+        assert_eq!(status, reqwest::StatusCode::OK);
+        running.stop().await;
+    }
+
     #[tokio::test]
     async fn test_server_start_stop() {
         global_info_logger();
