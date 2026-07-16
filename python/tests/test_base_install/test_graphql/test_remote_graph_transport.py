@@ -1844,6 +1844,92 @@ def test_shared_neighbours_returns_usable_handles():
         server_cm.__exit__(None, None, None)
 
 
+def test_neighbours_returns_remote_path_from_node():
+    """`.neighbours` / `.in_neighbours` / `.out_neighbours` return the new
+    `RemotePathFromNode` type (subset of `RemoteNodes` — no `.sorted` or
+    `.default_layer`)."""
+    from raphtory.graphql import RemotePathFromNode
+
+    server_cm, rg = _make_graph_with_edge()
+    try:
+        ben = rg.node("ben")
+        # All three navigation accessors return the same type.
+        assert isinstance(ben.neighbours, RemotePathFromNode)
+        assert isinstance(ben.in_neighbours, RemotePathFromNode)
+        assert isinstance(ben.out_neighbours, RemotePathFromNode)
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_remote_path_from_node_terminals():
+    """Terminals shared with `RemoteNodes` — `ids`, `count`, `list`, and
+    native iteration — all work on the new type."""
+    server_cm, rg = _make_graph_with_edge()
+    try:
+        ben = rg.node("ben")
+        assert ben.out_neighbours.ids() == ["hamza"]
+        assert ben.out_neighbours.count() == 1
+        materialized = ben.out_neighbours.list()
+        assert [n.name() for n in materialized] == ["hamza"]
+        assert [n.name() for n in ben.out_neighbours] == ["hamza"]
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_remote_path_from_node_view_chain_composes():
+    """View-chain builders on `RemotePathFromNode` compose lazily. Terminals
+    that inspect membership (`ids`, `list`) reflect the narrowed view."""
+    server_cm, rg = _make_graph_with_edge()
+    try:
+        # Add extra edges so the path has multiple members at different times.
+        rg.add_edge(8, "ben", "hamza")
+
+        # `.window()` on the path narrows the view — verified via terminals
+        # that walk the collection (ids/list).
+        narrowed = rg.node("ben").out_neighbours.window(0, 5)
+        assert narrowed.ids() == ["hamza"]
+
+        # Verify chaining preserves the type and lazy semantics.
+        chained = rg.node("ben").out_neighbours.window(0, 100).layer("_default")
+        assert chained.ids() == ["hamza"]
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_remote_path_from_node_type_filter():
+    """`.type_filter(...)` narrows membership; return type is still
+    `RemotePathFromNode`."""
+    from raphtory.graphql import RemotePathFromNode
+
+    server_cm, rg = _make_graph_with_edge()
+    try:
+        rg.node("hamza").set_node_type("bot")
+        filtered = rg.node("ben").out_neighbours.type_filter(["bot"])
+        assert isinstance(filtered, RemotePathFromNode)
+        assert filtered.ids() == ["hamza"]
+
+        # Filter to a non-matching type — result should be empty.
+        assert rg.node("ben").out_neighbours.type_filter(["human"]).ids() == []
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_remote_path_from_node_lacks_sorted_and_default_layer():
+    """`.sorted` and `.default_layer` are not exposed on `RemotePathFromNode`
+    because the server's `GqlPathFromNode` doesn't support them."""
+    server_cm, rg = _make_graph_with_edge()
+    try:
+        neighbours = rg.node("ben").out_neighbours
+        assert not hasattr(neighbours, "sorted"), (
+            "sorted must not be available on RemotePathFromNode"
+        )
+        assert not hasattr(neighbours, "default_layer"), (
+            "default_layer must not be available on RemotePathFromNode"
+        )
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
 def test_shared_neighbours_composes_with_view_chain():
     """`.shared_neighbours()` runs against the current view chain — the
     intersection uses the neighbours visible under that view."""

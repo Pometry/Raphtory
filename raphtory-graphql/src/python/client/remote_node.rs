@@ -5,6 +5,7 @@ use crate::{
         remote_history::PyRemoteHistory,
         remote_metadata::{PyRemoteMetadata, PyRemoteProperties},
         remote_nodes::PyRemoteNodes,
+        remote_path_from_node::PyRemotePathFromNode,
     },
 };
 use pyo3::{pyclass, pymethods};
@@ -282,22 +283,26 @@ impl PyRemoteNode {
         execute_async_task(move || async move { node.last_update().await })
     }
 
-    /// The collection of this node's neighbours (both directions). Lazy — no RPC.
+    /// This node's neighbours (both directions). Lazy — no RPC. Returns a
+    /// `RemotePathFromNode` (not `RemoteNodes`) — see that type for the
+    /// available methods; `sorted` and `default_layer` are not available.
     #[getter]
-    pub fn neighbours(&self) -> PyRemoteNodes {
-        PyRemoteNodes::new(self.node.neighbours())
+    pub fn neighbours(&self) -> PyRemotePathFromNode {
+        PyRemotePathFromNode::new(self.node.neighbours())
     }
 
-    /// The collection of this node's in-neighbours. Lazy — no RPC.
+    /// This node's in-neighbours. Lazy — no RPC. See `neighbours` for
+    /// return-type notes.
     #[getter]
-    pub fn in_neighbours(&self) -> PyRemoteNodes {
-        PyRemoteNodes::new(self.node.in_neighbours())
+    pub fn in_neighbours(&self) -> PyRemotePathFromNode {
+        PyRemotePathFromNode::new(self.node.in_neighbours())
     }
 
-    /// The collection of this node's out-neighbours. Lazy — no RPC.
+    /// This node's out-neighbours. Lazy — no RPC. See `neighbours` for
+    /// return-type notes.
     #[getter]
-    pub fn out_neighbours(&self) -> PyRemoteNodes {
-        PyRemoteNodes::new(self.node.out_neighbours())
+    pub fn out_neighbours(&self) -> PyRemotePathFromNode {
+        PyRemotePathFromNode::new(self.node.out_neighbours())
     }
 
     /// The in-component of this node — nodes that can reach this node via

@@ -22,6 +22,7 @@ pub mod remote_history;
 pub mod remote_metadata;
 pub mod remote_node;
 pub mod remote_nodes;
+pub mod remote_path_from_node;
 pub mod remote_schema;
 pub mod remote_sorting;
 

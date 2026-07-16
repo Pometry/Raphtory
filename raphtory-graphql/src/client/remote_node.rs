@@ -10,6 +10,7 @@ use crate::client::{
     remote_history::RemoteHistory,
     remote_metadata::{RemoteMetadata, RemoteProperties},
     remote_nodes::RemoteNodes,
+    remote_path_from_node::RemotePathFromNode,
     transport::Transport,
     ClientError,
 };
@@ -310,11 +311,15 @@ impl RemoteNode {
         expect_optional_i64(self.transport.execute(&op).await?, "lastUpdate")
     }
 
-    /// Returns the collection of this node's neighbours (both directions).
-    /// Lazy — no RPC. Propagates the base graph view so materialized nodes
-    /// are correctly rebased.
-    pub fn neighbours(&self) -> RemoteNodes {
-        RemoteNodes::with_expr(
+    /// Returns the "path from node" collection of this node's neighbours
+    /// (both directions). Lazy — no RPC. Propagates the base graph view so
+    /// materialized nodes are correctly rebased.
+    ///
+    /// Returns a `RemotePathFromNode` (not `RemoteNodes`) because the
+    /// server's `GqlPathFromNode` type is a strict subset of `GqlNodes` —
+    /// e.g., `sorted` and `default_layer` are not available here.
+    pub fn neighbours(&self) -> RemotePathFromNode {
+        RemotePathFromNode::with_expr(
             self.path.clone(),
             self.transport.clone(),
             ReadExpr::Neighbours {
@@ -324,9 +329,10 @@ impl RemoteNode {
         )
     }
 
-    /// Returns the collection of this node's in-neighbours. Lazy — no RPC.
-    pub fn in_neighbours(&self) -> RemoteNodes {
-        RemoteNodes::with_expr(
+    /// Returns this node's in-neighbours. Lazy — no RPC. See `neighbours`
+    /// for why this is a `RemotePathFromNode`.
+    pub fn in_neighbours(&self) -> RemotePathFromNode {
+        RemotePathFromNode::with_expr(
             self.path.clone(),
             self.transport.clone(),
             ReadExpr::InNeighbours {
@@ -336,9 +342,10 @@ impl RemoteNode {
         )
     }
 
-    /// Returns the collection of this node's out-neighbours. Lazy — no RPC.
-    pub fn out_neighbours(&self) -> RemoteNodes {
-        RemoteNodes::with_expr(
+    /// Returns this node's out-neighbours. Lazy — no RPC. See `neighbours`
+    /// for why this is a `RemotePathFromNode`.
+    pub fn out_neighbours(&self) -> RemotePathFromNode {
+        RemotePathFromNode::with_expr(
             self.path.clone(),
             self.transport.clone(),
             ReadExpr::OutNeighbours {
