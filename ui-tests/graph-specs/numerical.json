@@ -1,0 +1,104 @@
+{
+    "graphType": "EVENT",
+    "nodes": [
+        {
+            "time": 1648598400000,
+            "name": 1,
+            "nodeType": "Person",
+            "properties": { "age": 28 }
+        },
+        {
+            "time": 1656288000000,
+            "name": 2,
+            "nodeType": "Person",
+            "properties": { "age": 30 }
+        },
+        {
+            "time": 1663977600000,
+            "name": 3,
+            "nodeType": "Person",
+            "properties": { "age": 30 }
+        },
+        { "time": 1687046400000, "name": 4, "nodeType": "Company" },
+        {
+            "time": 1690000000000,
+            "name": 18446744073709551615,
+            "nodeType": "Person",
+            "properties": { "age": 99 }
+        },
+        {
+            "time": 1690000000000,
+            "name": 18446744073709551614,
+            "nodeType": "Person",
+            "properties": { "age": 98 }
+        }
+    ],
+    "edges": [
+        {
+            "time": 1671667200000,
+            "src": 2,
+            "dst": 3,
+            "layer": "meets",
+            "properties": { "where": "London" }
+        },
+        {
+            "time": 1679356800000,
+            "src": 2,
+            "dst": 1,
+            "layer": "meets",
+            "properties": { "where": "Madrid" }
+        },
+        {
+            "time": 1687132800000,
+            "src": 2,
+            "dst": 4,
+            "layer": "founds"
+        },
+        {
+            "time": 1687132800000,
+            "src": 3,
+            "dst": 4,
+            "layer": "founds"
+        },
+        {
+            "time": 1705017600000,
+            "src": 3,
+            "dst": 1,
+            "layer": "transfers",
+            "properties": { "amount": 20 }
+        },
+        {
+            "time": 1690000000000,
+            "src": 18446744073709551615,
+            "dst": 18446744073709551614,
+            "layer": "meets",
+            "properties": { "where": "London" }
+        },
+        {
+            "time": 1690000000000,
+            "src": 1,
+            "dst": 18446744073709551615,
+            "layer": "transfers",
+            "properties": { "amount": 50 }
+        }
+    ],
+    "metadata": {
+        "_ui_node_metadata_presentation": [
+            {
+                "name": "Properties",
+                "values": [
+                    { "key": "age", "label": "Age", "is_property": true }
+                ]
+            }
+        ],
+        "_ui_edge_metadata_presentation": [
+            {
+                "name": "Properties",
+                "values": [
+                    { "key": "where", "label": "Where", "is_property": true },
+                    { "key": "amount", "label": "Amount", "is_property": true, "type": "currency-gbp" }
+                ]
+            }
+        ]
+    }
+}

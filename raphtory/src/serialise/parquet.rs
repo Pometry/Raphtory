@@ -17,7 +17,6 @@ use crate::{
         SECONDARY_INDEX_COL, SRC_GID_COL, SRC_VID_COL, TIME_COL, TYPE_COL, TYPE_ID_COL,
     },
     prelude::*,
-    serialise::GraphPaths,
 };
 use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use itertools::Itertools;
@@ -26,7 +25,12 @@ use parquet::{
     basic::Compression,
     file::{metadata::KeyValue, properties::WriterProperties},
 };
-use raphtory_api::{core::entities::properties::prop::prop_col::lift_property_col, GraphType};
+use raphtory_api::{
+    core::{
+        entities::properties::prop::prop_col::lift_property_col, storage::graph_folder::GraphPaths,
+    },
+    GraphType,
+};
 use raphtory_storage::core_ops::CoreGraphOps;
 use std::{
     fs::File,
@@ -38,6 +42,7 @@ use std::{
     },
 };
 use storage::Config;
+use tracing::error;
 use walkdir::WalkDir;
 use zip::{write::FileOptions, ZipArchive, ZipWriter};
 
@@ -648,7 +653,7 @@ fn collect_prop_columns(
 fn ls_parquet_files(dir: &Path) -> Result<impl Iterator<Item = PathBuf>, GraphError> {
     Ok(std::fs::read_dir(dir)
         .inspect_err(|err| {
-            eprintln!("Error reading directory {}: {}", dir.display(), err);
+            error!("Error reading directory {}: {}", dir.display(), err);
         })? // print out the path if it's missing
         .filter_map(Result::ok)
         .map(|entry| entry.path())

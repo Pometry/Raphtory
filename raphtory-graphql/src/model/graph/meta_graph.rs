@@ -1,5 +1,6 @@
 use crate::{
-    data::Data,
+    data::{Data, WorkDirGuard},
+    graph::GraphWithVectors,
     model::graph::property::GqlProperty,
     paths::{ExistingGraphFolder, ValidGraphPaths},
 };
@@ -9,10 +10,11 @@ use raphtory::{
     db::api::storage::storage::read_constant_graph_properties,
     errors::GraphError,
     prelude::{GraphViewOps, PropertiesOps},
-    serialise::{metadata::GraphMetadata, parquet::decode_graph_metadata, GraphPaths},
+    serialise::{metadata::build_graph_metadata, parquet::decode_graph_metadata},
 };
-use std::{cmp::Ordering, sync::Arc};
-use tokio::sync::OnceCell;
+use raphtory_api::core::storage::graph_folder::{GraphMetadata, GraphPaths};
+use std::{cmp::Ordering, path::PathBuf, sync::Arc};
+use tokio::sync::{OnceCell, OwnedRwLockReadGuard, RwLockReadGuard};
 
 /// Lightweight summary of a stored graph — its name, path, counts, and
 /// filesystem timestamps — served without deserializing the full graph.
@@ -45,7 +47,7 @@ impl Ord for MetaGraph {
 }
 
 impl MetaGraph {
-    pub fn new(path: ExistingGraphFolder) -> Self {
+    pub(crate) fn new(path: ExistingGraphFolder) -> Self {
         Self {
             folder: path,
             meta: Default::default(),
@@ -56,10 +58,15 @@ impl MetaGraph {
         self.folder.local_path()
     }
 
-    async fn meta(&self) -> Result<&GraphMetadata> {
+    async fn meta(&self, data: &Data) -> Result<&GraphMetadata> {
         Ok(self
             .meta
-            .get_or_try_init(|| self.folder.read_metadata_async())
+            .get_or_try_init(|| async {
+                match data.get_cached_graph(self.folder.local_path()).await {
+                    None => self.folder.read_metadata_async().await,
+                    Some(graph) => Ok(build_graph_metadata(graph)),
+                }
+            })
             .await?)
     }
 }
@@ -93,16 +100,18 @@ impl MetaGraph {
     }
 
     /// Returns the number of nodes in the graph.
-    async fn node_count(&self) -> Result<usize> {
-        Ok(self.meta().await?.node_count)
+    async fn node_count(&self, ctx: &Context<'_>) -> Result<usize> {
+        let data: &Data = ctx.data_unchecked();
+        Ok(self.meta(data).await?.node_count)
     }
 
     /// Returns the number of edges in the graph.
     ///
     /// Returns:
     ///     int:
-    async fn edge_count(&self) -> Result<usize> {
-        Ok(self.meta().await?.edge_count)
+    async fn edge_count(&self, ctx: &Context<'_>) -> Result<usize> {
+        let data: &Data = ctx.data_unchecked();
+        Ok(self.meta(data).await?.edge_count)
     }
 
     /// Returns the metadata of the graph.
@@ -123,7 +132,7 @@ impl MetaGraph {
                 .collect());
         }
 
-        if self.meta().await?.is_diskgraph {
+        if self.meta(data).await?.is_diskgraph {
             let graph_path = self
                 .folder
                 .graph_folder()

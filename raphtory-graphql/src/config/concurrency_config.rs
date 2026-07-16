@@ -1,3 +1,4 @@
+use field_types::FieldName;
 use serde::{Deserialize, Serialize};
 
 pub const DEFAULT_EXCLUSIVE_WRITES: bool = false;
@@ -5,7 +6,7 @@ pub const DEFAULT_DISABLE_BATCHING: bool = false;
 pub const DEFAULT_DISABLE_LISTS: bool = false;
 
 /// Controls how Raphtory schedules concurrent GraphQL work.
-#[derive(Debug, Default, Deserialize, PartialEq, Clone, Serialize)]
+#[derive(Debug, Default, Deserialize, PartialEq, Clone, Serialize, FieldName)]
 pub struct ConcurrencyConfig {
     /// Restricts how many expensive graph traversal queries can execute simultaneously.
     /// Covers operations like connected components, edge traversals, and neighbour lookups

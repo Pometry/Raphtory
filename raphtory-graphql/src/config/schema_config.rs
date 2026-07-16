@@ -1,9 +1,10 @@
+use field_types::FieldName;
 use serde::{Deserialize, Serialize};
 
 pub const DEFAULT_DISABLE_INTROSPECTION: bool = false;
 
 /// Controls GraphQL schema-level protections applied when the server builds its schema.
-#[derive(Debug, Default, Deserialize, PartialEq, Clone, Serialize)]
+#[derive(Debug, Default, Deserialize, PartialEq, Clone, Serialize, FieldName)]
 pub struct SchemaConfig {
     /// Limits how deeply nested a query can be. For example, a query like
     /// graph → nodes → page → edges → page → destination → edges → page → destination

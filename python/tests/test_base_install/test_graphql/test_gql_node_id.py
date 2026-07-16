@@ -23,7 +23,7 @@ def test_addnode_and_node_lookup_with_integer_ids():
     GraphQL server. Raphtory enforces a single id type per graph, so this
     test uses integers throughout."""
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, create_index=True).start() as server:
+    with GraphServer(work_dir).start() as server:
         client = server.get_client()
         client.new_graph("g", "EVENT")
 
@@ -62,7 +62,7 @@ def test_addnode_and_node_lookup_with_integer_ids():
 def test_addedge_and_edge_lookup_with_integer_endpoints():
     """Edge mutations and lookups accept integer ids on src/dst."""
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, create_index=True).start() as server:
+    with GraphServer(work_dir).start() as server:
         client = server.get_client()
         client.new_graph("g", "EVENT")
 
@@ -101,7 +101,7 @@ def test_view_transforms_with_integer_node_ids():
     """`subgraph`, `excludeNodes`, and `sharedNeighbours` accept integer
     node ids."""
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, create_index=True).start() as server:
+    with GraphServer(work_dir).start() as server:
         client = server.get_client()
         client.new_graph("g", "EVENT")
 
@@ -140,7 +140,7 @@ def test_view_transforms_with_integer_node_ids():
 def test_batch_addnodes_addedges_with_integer_ids():
     """`addNodes` and `addEdges` accept integer ids in `name`/`src`/`dst`."""
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, create_index=True).start() as server:
+    with GraphServer(work_dir).start() as server:
         client = server.get_client()
         client.new_graph("g", "EVENT")
 
@@ -182,7 +182,7 @@ def test_batch_addnodes_addedges_with_integer_ids():
 def test_view_transforms_with_string_node_ids():
     """`subgraph`, `excludeNodes`, and `sharedNeighbours` accept string node ids."""
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, create_index=True).start() as server:
+    with GraphServer(work_dir).start() as server:
         client = server.get_client()
         client.new_graph("g", "EVENT")
 
@@ -219,7 +219,7 @@ def test_view_transforms_with_string_node_ids():
 def test_batch_addnodes_addedges_with_string_ids():
     """`addNodes` and `addEdges` accept string ids in `name`/`src`/`dst`."""
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, create_index=True).start() as server:
+    with GraphServer(work_dir).start() as server:
         client = server.get_client()
         client.new_graph("g", "EVENT")
 
@@ -262,7 +262,7 @@ def test_string_ids_remain_unchanged_for_existing_clients():
     """Existing clients passing string node ids continue to work without
     modification — the schema change is wire-compatible for strings."""
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, create_index=True).start() as server:
+    with GraphServer(work_dir).start() as server:
         client = server.get_client()
         client.new_graph("g", "EVENT")
 
@@ -293,7 +293,7 @@ def test_string_ids_remain_unchanged_for_existing_clients():
 def test_negative_integer_rejected():
     """Schema rejects negative integers — `NodeId` only accepts non-negative."""
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, create_index=True).start() as server:
+    with GraphServer(work_dir).start() as server:
         client = server.get_client()
         client.new_graph("g", "EVENT")
 

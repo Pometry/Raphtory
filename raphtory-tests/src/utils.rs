@@ -1310,9 +1310,9 @@ pub enum GraphMutation {
         src: u64,
         dst: u64,
         time: i64,
-        layer: Option<Cow<'static, str>>,
         props: Vec<(String, Prop)>,
         metadata: Vec<(String, Prop)>,
+        layer: Option<Cow<'static, str>>,
     },
     DeleteEdge {
         src: u64,

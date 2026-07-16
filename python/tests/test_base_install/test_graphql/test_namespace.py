@@ -185,6 +185,34 @@ def test_namespaces_and_metagraph():
     assert sort_dict(result) == sort_dict(correct)
 
 
+def test_metagraph_updating():
+    with tempfile.TemporaryDirectory() as work_dir:
+        with GraphServer(work_dir).start() as server:
+            client = server.get_client()
+            client.new_graph("test", "EVENT")
+
+            query = """ 
+                {
+                    graphMetadata(path: "test") {
+                        nodeCount
+                        edgeCount
+                    }
+                }
+            """
+
+            result = client.query(query)
+            correct_empty = {"graphMetadata": {"nodeCount": 0, "edgeCount": 0}}
+            assert result == correct_empty
+            client.remote_graph("test").add_node(0, "1")
+
+            result = client.query(query)
+            assert result == {"graphMetadata": {"nodeCount": 1, "edgeCount": 0}}
+
+            client.remote_graph("test").add_edge(1, "2", "3")
+            result = client.query(query)
+            assert result == {"graphMetadata": {"nodeCount": 3, "edgeCount": 1}}
+
+
 def test_counting():
     work_dir = tempfile.mkdtemp()
 

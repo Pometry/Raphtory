@@ -8,7 +8,7 @@ use crate::{
         nodes::GqlNodes,
         path_from_node::GqlPathFromNode,
     },
-    paths::ExistingGraphFolder,
+    paths::{ExistingGraphFolder, UnlockedGraphFolder},
     rayon::blocking_compute,
 };
 use async_graphql::Context;
@@ -29,11 +29,11 @@ use raphtory::db::{
 #[graphql(name = "GraphWindowSet")]
 pub(crate) struct GqlGraphWindowSet {
     pub(crate) ws: WindowSet<'static, DynamicGraph>,
-    path: ExistingGraphFolder,
+    path: UnlockedGraphFolder,
 }
 
 impl GqlGraphWindowSet {
-    pub(crate) fn new(ws: WindowSet<'static, DynamicGraph>, path: ExistingGraphFolder) -> Self {
+    pub(crate) fn new(ws: WindowSet<'static, DynamicGraph>, path: UnlockedGraphFolder) -> Self {
         Self { ws, path }
     }
 }

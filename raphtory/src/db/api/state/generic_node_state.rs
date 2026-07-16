@@ -32,9 +32,13 @@ use arrow_array::{
 use arrow_schema::{ArrowError, DataType, Field, FieldRef, Schema, SchemaBuilder, SortOptions};
 use arrow_select::{concat::concat, take::take};
 use dashmap::DashMap;
+#[cfg(feature = "datafusion")]
 use datafusion_expr_common::groups_accumulator::EmitTo;
+#[cfg(feature = "datafusion")]
 use datafusion_physical_expr::expressions::col;
+#[cfg(feature = "datafusion")]
 use datafusion_physical_expr_common::sort_expr::PhysicalSortExpr;
+#[cfg(feature = "datafusion")]
 use datafusion_physical_plan::aggregates::{group_values::new_group_values, order::GroupOrdering};
 use indexmap::{IndexMap, IndexSet};
 use parquet::{
@@ -86,7 +90,7 @@ pub trait InputNodeStateValue<V>: NodeStateValue + From<V> {}
 impl<T, V> InputNodeStateValue<V> for T where T: NodeStateValue + From<V> {}
 
 // These are the options for merging NodeState indexes/columns
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum MergePriority {
     Left,
     Right,
@@ -165,25 +169,30 @@ where
 }
 
 /// A heap entry: stores the row bytes (for comparison) and the original index.
+#[cfg(feature = "datafusion")]
 struct HeapRow {
     row: Vec<u8>,
     index: usize,
 }
 
+#[cfg(feature = "datafusion")]
 impl PartialEq for HeapRow {
     fn eq(&self, other: &Self) -> bool {
         self.row == other.row
     }
 }
+#[cfg(feature = "datafusion")]
 impl Eq for HeapRow {}
 
 // BinaryHeap is a max-heap. We want to keep the *smallest* k rows,
 // so the max of the heap is the eviction candidate.
+#[cfg(feature = "datafusion")]
 impl PartialOrd for HeapRow {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
+#[cfg(feature = "datafusion")]
 impl Ord for HeapRow {
     fn cmp(&self, other: &Self) -> Ordering {
         self.row.cmp(&other.row)
@@ -811,7 +820,11 @@ impl<
     }
 
     pub fn values_from_rows(&mut self, rows: Vec<V>) {
-        let fields = Vec::<FieldRef>::from_type::<V>(TracingOptions::default()).unwrap();
+        // let fields = Vec::<FieldRef>::from_type::<V>(TracingOptions::default()).unwrap();
+        let fields =
+            Vec::<FieldRef>::from_type::<V>(TracingOptions::default()).unwrap_or_else(|_| {
+                Vec::<FieldRef>::from_samples(&rows, TracingOptions::default()).unwrap()
+            });
         self.state.values = to_record_batch(&fields, &rows).unwrap();
     }
 
@@ -819,6 +832,7 @@ impl<
         (self.converter)(&self.state, value)
     }
 
+    #[cfg(feature = "datafusion")]
     pub fn get_groups(&self, cols: Vec<String>) -> Result<Vec<(T, Nodes<'graph, G>)>, GraphError> {
         let num_rows = self.state.values().num_rows();
         if num_rows == 0 {
@@ -1200,7 +1214,14 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
         >,
     ) -> Self {
         let values: Vec<V> = values.into_iter().map(map).collect();
-        let fields = Vec::<Field>::from_type::<V>(TracingOptions::default()).unwrap();
+        //let fields = Vec::<Field>::from_type::<V>(TracingOptions::default()).unwrap();
+        let fields: Vec<Field> = Vec::<FieldRef>::from_type::<V>(TracingOptions::default())
+            .unwrap_or_else(|_| {
+                Vec::<FieldRef>::from_samples(&values, TracingOptions::default()).unwrap()
+            })
+            .into_iter()
+            .map(|f| Arc::unwrap_or_clone(f))
+            .collect();
         let fields: Vec<_> = fields
             .into_iter()
             .map(|field| FieldRef::new(field.with_nullable(true)))
@@ -1323,6 +1344,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
         }
     }
 
+    #[cfg(feature = "datafusion")]
     fn get_sort_exprs(
         sort_params: IndexMap<String, Option<String>>,
         schema: &Schema,
@@ -1352,6 +1374,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
 
     // NOTE(wyatt): maybe just steal this
     /// Synchronous sort implementation using arrow-row
+    #[cfg(feature = "datafusion")]
     pub fn sort_by(
         &self,
         sort_params: IndexMap<String, Option<String>>,
@@ -1446,6 +1469,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
     ///
     /// The returned batch has at most `k` rows, sorted from lowest to highest
     /// in the order defined by `sort_exprs` (which may individually be ASC or DESC).
+    #[cfg(feature = "datafusion")]
     pub fn top_k(
         &self,
         sort_params: IndexMap<String, Option<String>>,

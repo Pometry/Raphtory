@@ -1,28 +1,31 @@
 use crate::{
     config::{
-        app_config::AppConfigBuilder, auth_config::PUBLIC_KEY_DECODING_ERR_MSG,
+        app_config::{AppConfig, AppConfigBuilder},
+        auth_config::PUBLIC_KEY_DECODING_ERR_MSG,
         otlp_config::TracingLevel,
     },
     python::server::{
         running_server::PyRunningGraphServer, wait_server, BridgeCommand, ServerStarted,
     },
-    server::apply_server_extension,
+    server::{apply_server_extension, ServerError},
     GraphServer,
 };
 use crossbeam_channel::RecvTimeoutError;
 use pyo3::{
     exceptions::{PyAttributeError, PyRuntimeError, PyValueError},
     prelude::*,
+    types::PyDict,
+    BoundObject,
 };
+use pythonize::{depythonize, PythonizeError};
+use raphtory::{db::api::storage::storage::Config, python::utils::block_on};
+#[cfg(feature = "vectors")]
 use raphtory::{
-    db::api::storage::storage::Config,
-    python::{
-        packages::vectors::{PyOpenAIEmbeddings, TemplateConfig},
-        utils::block_on,
-    },
+    python::packages::vectors::{PyOpenAIEmbeddings, TemplateConfig},
     vectors::template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
 };
-use std::{path::PathBuf, thread, time::Duration};
+use raphtory_api::python::error::adapt_err_value;
+use std::{io::Error, path::PathBuf, thread, time::Duration};
 
 /// A class for defining and running a Raphtory GraphQL server
 ///
@@ -65,6 +68,13 @@ impl<'py> IntoPyObject<'py> for GraphServer {
     }
 }
 
+impl From<ServerError> for PyErr {
+    fn from(value: ServerError) -> Self {
+        adapt_err_value(&value)
+    }
+}
+
+#[cfg(feature = "vectors")]
 fn template_from_python(
     nodes: TemplateConfig,
     edges: TemplateConfig,
@@ -86,142 +96,26 @@ impl PyGraphServer {
     #[new]
     #[pyo3(
         signature = (
-            work_dir,
-            cache_capacity = None,
-            log_level = None,
-            tracing=None,
-            tracing_level=None,
-            otlp_agent_host=None,
-            otlp_agent_port=None,
-            otlp_tracing_service_name=None,
-            auth_public_key=None,
-            require_auth_for_reads=None,
-            config_path = None,
-            create_index = None,
-            heavy_query_limit = None,
-            exclusive_writes = None,
-            disable_batching = None,
-            max_batch_size = None,
-            disable_lists = None,
-            max_page_size = None,
-            max_query_depth = None,
-            max_query_complexity = None,
-            max_recursive_depth = None,
-            max_directives_per_field = None,
-            disable_introspection = None,
-            permissions_store_path = None
+            work_dir, config_path=None,permissions_store_path=None, config=None
         )
     )]
     fn py_new(
         work_dir: PathBuf,
-        cache_capacity: Option<u64>,
-        log_level: Option<String>,
-        tracing: Option<bool>,
-        tracing_level: Option<String>,
-        otlp_agent_host: Option<String>,
-        otlp_agent_port: Option<String>,
-        otlp_tracing_service_name: Option<String>,
-        auth_public_key: Option<String>,
-        require_auth_for_reads: Option<bool>,
         config_path: Option<PathBuf>,
-        create_index: Option<bool>,
-        heavy_query_limit: Option<usize>,
-        exclusive_writes: Option<bool>,
-        disable_batching: Option<bool>,
-        max_batch_size: Option<usize>,
-        disable_lists: Option<bool>,
-        max_page_size: Option<usize>,
-        max_query_depth: Option<usize>,
-        max_query_complexity: Option<usize>,
-        max_recursive_depth: Option<usize>,
-        max_directives_per_field: Option<usize>,
-        disable_introspection: Option<bool>,
         permissions_store_path: Option<PathBuf>,
+        config: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<Self> {
         let mut app_config_builder = AppConfigBuilder::new();
-        if let Some(log_level) = log_level {
-            app_config_builder = app_config_builder.with_log_level(log_level);
+        if let Some(config_path) = config_path {
+            app_config_builder
+                .load_from_path(config_path)
+                .map_err(|err| PyRuntimeError::new_err(format!("Invalid config file: {err}")))?;
         }
-        if let Some(tracing) = tracing {
-            app_config_builder = app_config_builder.with_tracing(tracing);
-        }
-        if let Some(tracing_level) = tracing_level {
-            let json = format!("\"{}\"", tracing_level).to_uppercase();
-            let tl: TracingLevel = serde_json::from_str(json.as_str()).map_err(|_| {
-                PyValueError::new_err(format!(
-                    "Invalid tracing level. Allowed levels {} ",
-                    TracingLevel::all_levels_string()
-                ))
-            })?;
-            app_config_builder = app_config_builder.with_tracing_level(tl);
-        }
-        if let Some(otlp_agent_host) = otlp_agent_host {
-            app_config_builder = app_config_builder.with_otlp_agent_host(otlp_agent_host);
-        }
-        if let Some(otlp_agent_port) = otlp_agent_port {
-            app_config_builder = app_config_builder.with_otlp_agent_port(otlp_agent_port);
-        }
-        if let Some(otlp_tracing_service_name) = otlp_tracing_service_name {
-            app_config_builder =
-                app_config_builder.with_otlp_tracing_service_name(otlp_tracing_service_name);
-        }
-        if let Some(cache_capacity) = cache_capacity {
-            app_config_builder = app_config_builder.with_cache_capacity(cache_capacity);
-        }
-        app_config_builder = app_config_builder
-            .with_auth_public_key(auth_public_key)
-            .map_err(|_| PyValueError::new_err(PUBLIC_KEY_DECODING_ERR_MSG))?;
-        if let Some(require_auth_for_reads) = require_auth_for_reads {
-            app_config_builder =
-                app_config_builder.with_require_auth_for_reads(require_auth_for_reads);
-        }
-        #[cfg(feature = "search")]
-        if let Some(create_index) = create_index {
-            app_config_builder = app_config_builder.with_create_index(create_index);
-        }
-        if heavy_query_limit.is_some() {
-            app_config_builder = app_config_builder.with_heavy_query_limit(heavy_query_limit);
-        }
-        if let Some(exclusive_writes) = exclusive_writes {
-            app_config_builder = app_config_builder.with_exclusive_writes(exclusive_writes);
-        }
-        if let Some(disable_batching) = disable_batching {
-            app_config_builder = app_config_builder.with_disable_batching(disable_batching);
-        }
-        if max_batch_size.is_some() {
-            app_config_builder = app_config_builder.with_max_batch_size(max_batch_size);
-        }
-        if let Some(disable_lists) = disable_lists {
-            app_config_builder = app_config_builder.with_disable_lists(disable_lists);
-        }
-        if max_page_size.is_some() {
-            app_config_builder = app_config_builder.with_max_page_size(max_page_size);
-        }
-        if max_query_depth.is_some() {
-            app_config_builder = app_config_builder.with_max_query_depth(max_query_depth);
-        }
-        if max_query_complexity.is_some() {
-            app_config_builder = app_config_builder.with_max_query_complexity(max_query_complexity);
-        }
-        if max_recursive_depth.is_some() {
-            app_config_builder = app_config_builder.with_max_recursive_depth(max_recursive_depth);
-        }
-        if max_directives_per_field.is_some() {
-            app_config_builder =
-                app_config_builder.with_max_directives_per_field(max_directives_per_field);
-        }
-        if let Some(disable_introspection) = disable_introspection {
-            app_config_builder =
-                app_config_builder.with_disable_introspection(disable_introspection);
+        if let Some(config) = config {
+            app_config_builder.update_from_json(depythonize(config.as_any())?)?;
         }
         let app_config = Some(app_config_builder.build());
-
-        let server = block_on(GraphServer::new(
-            work_dir,
-            app_config,
-            config_path,
-            Config::default(),
-        ))?;
+        let server = block_on(GraphServer::new(work_dir, app_config, Config::default()))?;
         let server = apply_server_extension(server, permissions_store_path.as_deref());
         Ok(PyGraphServer(server))
     }
@@ -245,6 +139,7 @@ impl PyGraphServer {
     ///
     /// Returns:
     ///     None:
+    #[cfg(feature = "vectors")]
     #[pyo3(
         signature = (name, embeddings, nodes = TemplateConfig::Bool(true), edges = TemplateConfig::Bool(true))
     )]
@@ -277,6 +172,7 @@ impl PyGraphServer {
     ///
     /// Returns:
     ///     None:
+    #[cfg(feature = "vectors")]
     #[pyo3(
         signature = (embeddings, nodes = TemplateConfig::Bool(true), edges = TemplateConfig::Bool(true))
     )]
@@ -348,19 +244,28 @@ impl PyGraphServer {
             })
         });
 
-        let ServerStarted { port } = start_receiver
-            .recv_timeout(Duration::from_millis(timeout_ms))
-            .map_err(|err| {
-                let _ = sender.try_send(BridgeCommand::StopServer); // best effort cleanup
+        let port = match start_receiver.recv_timeout(Duration::from_millis(timeout_ms)) {
+            Ok(msg) => msg.port,
+            Err(err) => {
                 match err {
-                    RecvTimeoutError::Timeout => PyRuntimeError::new_err(format!(
-                        "Failed to start server in {timeout_ms} milliseconds"
-                    )),
+                    RecvTimeoutError::Timeout => {
+                        return Err(PyRuntimeError::new_err(format!(
+                            "Failed to start server in {timeout_ms} milliseconds"
+                        )))
+                    }
                     RecvTimeoutError::Disconnected => {
-                        PyRuntimeError::new_err("Failed to start server")
+                        // failure in server start, extract the error
+                        let result = join_handle.join().unwrap(); // propagate any panic
+                        let err = match result {
+                            Ok(_) => PyRuntimeError::new_err("Failed to start server"),
+                            Err(err) => adapt_err_value(&err),
+                        };
+                        return Err(err);
                     }
                 }
-            })?;
+            }
+        };
+
         let server = PyRunningGraphServer::new(join_handle, sender, port)?;
         Ok(server)
     }

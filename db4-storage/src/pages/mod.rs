@@ -12,13 +12,16 @@ use crate::{
     state::StateIndex,
     wal::{GraphWalOps, WalOps},
 };
+use drop_logging::drop_error;
 use edge_page::writer::EdgeWriter;
 use edge_store::EdgeStorageInner;
 use graph_prop_store::GraphPropStorageInner;
 use node_page::writer::NodeWriter;
 use node_store::NodeStorageInner;
 use parking_lot::RwLockWriteGuard;
-use raphtory_api::core::entities::properties::meta::Meta;
+use raphtory_api::core::{
+    entities::properties::meta::Meta, storage::graph_folder::InnerGraphFolder,
+};
 use rayon::prelude::*;
 use std::{
     path::{Path, PathBuf},
@@ -41,20 +44,6 @@ pub mod session;
 
 #[cfg(any(test, feature = "test-utils"))]
 pub mod test_utils;
-
-#[cfg(any(test, feature = "panic-on-drop"))]
-macro_rules! drop_error {
-    ($($arg:tt)*) => {{
-        panic!($($arg)*)
-    }};
-}
-
-#[cfg(not(any(test, feature = "panic-on-drop")))]
-macro_rules! drop_error {
-    ($($arg:tt)*) => {{
-        eprintln!($($arg)*)
-    }};
-}
 
 // graph // (node/edges) // segment // layer_ids (0, 1, 2, ...) // actual graphy bits
 #[derive(Debug)]
@@ -90,6 +79,20 @@ impl<
         self.nodes.flush()?;
         self.edges.flush()?;
         self.graph_props.flush()?;
+
+        // Refresh the graph metadata file (.meta) for disk-backed graphs
+        if let Some(graph_dir) = self.graph_dir.as_ref() {
+            if let (Some(data_folder), Some(graph_path)) = (
+                graph_dir.parent(),
+                graph_dir.file_name().and_then(|name| name.to_str()),
+            ) {
+                InnerGraphFolder::new(data_folder).refresh_metadata(
+                    graph_path,
+                    self.nodes.num_nodes(),
+                    self.edges.num_edges(),
+                )?;
+            }
+        }
 
         Ok(())
     }
@@ -377,6 +380,16 @@ impl<
         let wal = self.ext.wal();
         let control_file = self.ext.control_file();
 
+        // Skip running a clean flush if the DB is in shutdown or crash recovery.
+        // Note that the state can be Shutdown after load is called and before recovery is complete.
+        // A clean flush is performed even when state is WalDisabled or NotSupported.
+        if matches!(
+            control_file.db_state(),
+            DBState::Shutdown | DBState::CrashRecovery
+        ) {
+            return;
+        }
+
         match self.flush() {
             Ok(_) => {
                 // Log a checkpoint record in the WAL, indicating that the DB was shutdown
@@ -476,11 +489,5 @@ mod test {
         ];
 
         assert_eq!(actual, expected);
-    }
-
-    #[test]
-    #[should_panic]
-    fn test_drop_error() {
-        drop_error!("failed");
     }
 }

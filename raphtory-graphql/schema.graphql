@@ -2667,6 +2667,108 @@ type MutRoot {
 		path: String!
 	): Boolean!
 	"""
+	Load nodes
+	"""
+	loadNodes(
+		"""
+		Graph path relative to the root namespace.
+		"""
+		graphPath: String!,
+		"""
+		Path to the parquet directory.
+		"""
+		dataPath: String!,
+		"""
+		The column name for the timestamps.
+		"""
+		time: String!,
+		"""
+		The column name for the node IDs.
+		"""
+		id: String!,
+		"""
+		A value to use as the node type for all nodes. Cannot be used in combination with node_type_col.
+		"""
+		nodeType: String,
+		"""
+		The node type column name in a dataframe. Cannot be used in combination with node_type.
+		"""
+		nodeTypeCol: String,
+		"""
+		List of node property column names.
+		"""
+		properties: [String!],
+		"""
+		List of node metadata column names.
+		"""
+		metadata: [String!],
+		"""
+		A JSON-formatted dict of {'column_name': column_type} to cast columns to. Defaults to None.
+		"""
+		schema: String,
+		"""
+		The column name for the secondary index.
+		"""
+		eventId: String,
+		"""
+		A value to use as the layer for all nodes. Cannot be used in combination with layer_col.
+		"""
+		layer: String,
+		"""
+		The node layer column name in a dataframe. Cannot be used in combination with layer.
+		"""
+		layerCol: String
+	): Boolean!
+	"""
+	Load edges
+	"""
+	loadEdges(
+		"""
+		Graph path relative to the root namespace.
+		"""
+		graphPath: String!,
+		"""
+		Path to the parquet directory.
+		"""
+		dataPath: String!,
+		"""
+		The column name for the update timestamps.
+		"""
+		time: String!,
+		"""
+		The column name for the source node IDs.
+		"""
+		src: String!,
+		"""
+		The column name for the destination node IDs.
+		"""
+		dst: String!,
+		"""
+		List of edge property column names. Defaults to None.
+		"""
+		properties: [String!],
+		"""
+		List of edge metadata column names. Defaults to None.
+		"""
+		metadata: [String!],
+		"""
+		A JSON-formatted dict of {'column_name': column_type} to cast columns to. Defaults to None.
+		"""
+		schema: String,
+		"""
+		The column name for the secondary index.
+		"""
+		eventId: String,
+		"""
+		A value to use as the layer for all edges. Cannot be used in combination with layer_col. Defaults to None.
+		"""
+		layer: String,
+		"""
+		The edge layer column name in a dataframe. Cannot be used in combination with layer. Defaults to None.
+		"""
+		layerCol: String
+	): Boolean!
+	"""
 	Creates a new graph.
 	"""
 	newGraph(
@@ -2816,6 +2918,15 @@ type MutRoot {
 		Optional spec selecting which node/edge property fields to index. Omit to index a default set.
 		"""
 		indexSpec: IndexSpecInput,		inRam: Boolean!
+	): Boolean!
+	"""
+	Flush any pending writes for the graph at `graphPath` to disk.
+	"""
+	flush(
+		"""
+		Graph path relative to the root namespace.
+		"""
+		graphPath: String!
 	): Boolean!
 }
 
@@ -5401,12 +5512,6 @@ input Value @oneOf {
 	decimal: String
 }
 
-"""
-A working set of documents / nodes / edges built up via similarity
-searches on a `VectorisedGraph`. Selections are mutable: you can grow
-them with more hops (`expand*`), dereference the contents (`nodes`,
-`edges`, `getDocuments`), or start fresh with `emptySelection`.
-"""
 type VectorSelection {
 	"""
 	Returns a list of nodes in the current selection.
@@ -5513,28 +5618,9 @@ type VectorSelection {
 	): VectorSelection!
 }
 
-"""
-A graph with embedded vector representations for its nodes and edges.
-Exposes similarity search over documents, nodes, and edges, plus
-selection building (`emptySelection`) and index maintenance
-(`optimizeIndex`).
-"""
 type VectorisedGraph {
-	"""
-	Rebuild (or incrementally update) the on-disk vector indexes for nodes
-	and edges so subsequent similarity searches hit the fresh embeddings.
-	Safe to call repeatedly; returns true on success.
-	"""
 	optimizeIndex: Boolean!
-	"""
-	Returns an empty selection of documents.
-	"""
 	emptySelection: VectorSelection!
-	"""
-	Find the highest-scoring nodes *and* edges (mixed) by similarity to a
-	natural-language query. The query is embedded server-side and matched
-	against indexed entity vectors.
-	"""
 	entitiesBySimilarity(
 		"""
 		Natural-language search string; embedded by the server.
@@ -5549,11 +5635,6 @@ type VectorisedGraph {
 		"""
 		window: VectorisedGraphWindow
 	): VectorSelection!
-	"""
-	Find the highest-scoring nodes by similarity to a natural-language
-	query. The query is embedded server-side and matched against indexed
-	node vectors.
-	"""
 	nodesBySimilarity(
 		"""
 		Natural-language search string; embedded by the server.
@@ -5568,11 +5649,6 @@ type VectorisedGraph {
 		"""
 		window: VectorisedGraphWindow
 	): VectorSelection!
-	"""
-	Find the highest-scoring edges by similarity to a natural-language
-	query. The query is embedded server-side and matched against indexed
-	edge vectors.
-	"""
 	edgesBySimilarity(
 		"""
 		Natural-language search string; embedded by the server.

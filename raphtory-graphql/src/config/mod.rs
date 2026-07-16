@@ -6,14 +6,12 @@ pub mod concurrency_config;
 pub mod index_config;
 pub mod log_config;
 pub mod otlp_config;
+pub mod parquet_config;
 pub mod schema_config;
 
 #[cfg(test)]
 mod tests {
-    use crate::config::{
-        app_config::{load_config, AppConfigBuilder},
-        otlp_config::TracingLevel,
-    };
+    use crate::config::{app_config::AppConfigBuilder, otlp_config::TracingLevel};
     use std::fs;
     use tempfile::NamedTempFile;
 
@@ -24,11 +22,11 @@ mod tests {
             log_level = "DEBUG"
 
             [tracing]
-            tracing_enabled = true
-            tracing_level = "Essential"
+            enabled = true
+            level = "Essential"
 
             [cache]
-            tti_seconds = 1000
+            capacity = 20
 
             [auth]
             public_key = "MCowBQYDK2VwAyEADdrWr1kTLj+wSHlr45eneXmOjlHo3N1DjLIvDa2ozno="
@@ -37,28 +35,22 @@ mod tests {
         let config_path = config_file.path();
         fs::write(&config_path, config_toml).unwrap();
 
-        let result = load_config(None, Some(config_path.to_path_buf()));
+        let result = AppConfigBuilder::new()
+            .load_from_path(config_path)
+            .unwrap()
+            .build();
 
         let expected_config = AppConfigBuilder::new()
             .with_log_level("DEBUG".to_string())
             .with_tracing(true)
             .with_tracing_level(TracingLevel::ESSENTIAL)
-            .with_cache_capacity(30)
+            .with_cache_capacity(20)
             .with_auth_public_key(Some(
                 "MCowBQYDK2VwAyEADdrWr1kTLj+wSHlr45eneXmOjlHo3N1DjLIvDa2ozno=".to_owned(),
             ))
             .unwrap()
             .build();
 
-        assert_eq!(result.unwrap(), expected_config);
-    }
-
-    #[test]
-    fn test_load_config_with_custom_cache() {
-        let app_config = AppConfigBuilder::new().with_cache_capacity(50).build();
-
-        let result = load_config(Some(app_config.clone()), None);
-
-        assert_eq!(result.unwrap(), app_config);
+        assert_eq!(result, expected_config);
     }
 }

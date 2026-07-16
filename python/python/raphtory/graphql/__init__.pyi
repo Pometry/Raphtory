@@ -86,29 +86,9 @@ class GraphServer(object):
     def __new__(
         cls,
         work_dir: str | PathLike,
-        cache_capacity: Optional[int] = None,
-        log_level: Optional[str] = None,
-        tracing: Optional[bool] = None,
-        tracing_level: Optional[str] = None,
-        otlp_agent_host: Optional[str] = None,
-        otlp_agent_port: Optional[str] = None,
-        otlp_tracing_service_name: Optional[str] = None,
-        auth_public_key: Optional[str] = None,
-        require_auth_for_reads: Optional[bool] = None,
         config_path: Optional[str | PathLike] = None,
-        create_index: Optional[bool] = None,
-        heavy_query_limit: Optional[int] = None,
-        exclusive_writes: Optional[bool] = None,
-        disable_batching: Optional[bool] = None,
-        max_batch_size: Optional[int] = None,
-        disable_lists: Optional[bool] = None,
-        max_page_size: Optional[int] = None,
-        max_query_depth: Optional[int] = None,
-        max_query_complexity: Optional[int] = None,
-        max_recursive_depth: Optional[int] = None,
-        max_directives_per_field: Optional[int] = None,
-        disable_introspection: Optional[bool] = None,
         permissions_store_path: Optional[str | PathLike] = None,
+        config=None,
     ) -> GraphServer:
         """Create and return a new object.  See help(type) for accurate signature."""
 
@@ -145,44 +125,6 @@ class GraphServer(object):
     def turn_off_index(self) -> None:
         """
         Turn off index for all graphs.
-
-        Returns:
-            None:
-        """
-
-    def vectorise_all_graphs(
-        self,
-        embeddings: OpenAIEmbeddings,
-        nodes: bool | str = True,
-        edges: bool | str = True,
-    ) -> None:
-        """
-        Vectorise all graphs in the server working directory.
-
-        Arguments:
-            embeddings (OpenAIEmbeddings): the embeddings to use
-            nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
-            edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
-
-        Returns:
-            None:
-        """
-
-    def vectorise_graph(
-        self,
-        name: list[str],
-        embeddings: OpenAIEmbeddings,
-        nodes: bool | str = True,
-        edges: bool | str = True,
-    ) -> None:
-        """
-        Vectorise the graph name in the server working directory.
-
-        Arguments:
-            name (list[str]): the name of the graph to vectorise.
-            embeddings (OpenAIEmbeddings): the embeddings to use
-            nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
-            edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
 
         Returns:
             None:
@@ -417,6 +359,7 @@ class RemoteGraph(object):
         id: str | int,
         properties: Optional[dict] = None,
         node_type: Optional[str] = None,
+        layer: Optional[str] = None,
     ) -> RemoteNode:
         """
         Adds a new node with the given id and properties to the remote graph.
@@ -426,6 +369,7 @@ class RemoteGraph(object):
             id (str | int): The id of the node.
             properties (dict, optional): The properties of the node.
             node_type (str, optional): The optional string which will be used as a node type
+            layer (str, optional): The optional layer where the node update should be written
 
         Returns:
             RemoteNode: the new remote node
