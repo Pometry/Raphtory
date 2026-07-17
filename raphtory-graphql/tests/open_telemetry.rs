@@ -1,12 +1,16 @@
 // OpenTelemetry Tests must be separated into their own binary to prevent polluting other tests since the span and log exporters are set globally.
-use raphtory::db::api::storage::storage::Config;
-use raphtory::prelude::{Graph, StableEncode};
-use raphtory_graphql::client::raphtory_client::RaphtoryGraphQLClient;
-use raphtory_graphql::config::{
-    app_config::AppConfigBuilder,
-    otlp_config::{TracingLevel, TracingProtocol, GLOBAL_EXPORTERS},
+use raphtory::{
+    db::api::storage::storage::Config,
+    prelude::{Graph, StableEncode},
 };
-use raphtory_graphql::server::{GraphServer, RunningGraphServer};
+use raphtory_graphql::{
+    client::raphtory_client::RaphtoryGraphQLClient,
+    config::{
+        app_config::AppConfigBuilder,
+        otlp_config::{TracingLevel, TracingProtocol, GLOBAL_EXPORTERS},
+    },
+    server::{GraphServer, RunningGraphServer},
+};
 use std::collections::{HashMap, HashSet};
 use tempfile::{tempdir, TempDir};
 use url::Url;

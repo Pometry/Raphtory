@@ -1,14 +1,20 @@
 use mock_collector::{MockServer, Protocol};
-use raphtory::db::api::storage::storage::Config;
-use raphtory::prelude::{Graph, StableEncode};
-use raphtory_graphql::client::raphtory_client::RaphtoryGraphQLClient;
-use raphtory_graphql::config::{
-    app_config::AppConfigBuilder,
-    otlp_config::{TracingLevel, TracingProtocol},
+use raphtory::{
+    db::api::storage::storage::Config,
+    prelude::{Graph, StableEncode},
 };
-use raphtory_graphql::server::GraphServer;
-use std::collections::{HashMap, HashSet};
-use std::time::Duration;
+use raphtory_graphql::{
+    client::raphtory_client::RaphtoryGraphQLClient,
+    config::{
+        app_config::AppConfigBuilder,
+        otlp_config::{TracingLevel, TracingProtocol},
+    },
+    server::GraphServer,
+};
+use std::{
+    collections::{HashMap, HashSet},
+    time::Duration,
+};
 use tempfile::tempdir;
 use url::Url;
 
