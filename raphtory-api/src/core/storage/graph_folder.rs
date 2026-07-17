@@ -416,9 +416,7 @@ impl GraphFolder {
         path_file.write_all(meta.as_bytes())?;
         fs::create_dir_all(self.root.join(relative_data_path))?;
 
-        Ok(WriteableGraphFolder {
-            path: self.root,
-        })
+        Ok(WriteableGraphFolder { path: self.root })
     }
 
     /// Prepare a new data folder for an atomic swap via a `.dirty` file.
@@ -470,9 +468,7 @@ impl GraphFolder {
 
         fs::create_dir_all(swap_path)?;
 
-        Ok(WriteableGraphFolder {
-            path: self.root,
-        })
+        Ok(WriteableGraphFolder { path: self.root })
     }
 
     /// Clears the folder of any contents.
@@ -507,9 +503,7 @@ impl GraphFolder {
         if self.root.exists() {
             let non_empty = self.root.read_dir()?.next().is_some();
             if non_empty {
-                return Err(GraphFolderError::NonEmptyGraphFolder(
-                    self.root.clone(),
-                ));
+                return Err(GraphFolderError::NonEmptyGraphFolder(self.root.clone()));
             }
         } else {
             fs::create_dir(&self.root)?
@@ -530,10 +524,7 @@ impl GraphFolder {
             io::copy(&mut reader, &mut writer)?;
         } else {
             let mut zip = ZipWriter::new(writer);
-            for entry in WalkDir::new(&self.root)
-                .into_iter()
-                .filter_map(Result::ok)
-            {
+            for entry in WalkDir::new(&self.root).into_iter().filter_map(Result::ok) {
                 let path = entry.path();
                 let rel_path = path.strip_prefix(&self.root).map_err(|e| {
                     GraphFolderError::IOErrorMsg(format!("Failed to strip prefix from path: {}", e))

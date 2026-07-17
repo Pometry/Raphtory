@@ -28,7 +28,7 @@ use std::{
     io::{ErrorKind, Read, Seek, Write},
     ops::Deref,
     panic::Location,
-    path::{Component, Path, PathBuf, StripPrefixError}
+    path::{Component, Path, PathBuf, StripPrefixError},
 };
 use tracing::{error, warn};
 use zip::ZipArchive;

@@ -4,7 +4,7 @@ use crate::{
     prelude::{GraphViewOps, ParquetEncoder},
 };
 use raphtory_api::core::storage::graph_folder::{
-    make_path_pointer, GraphFolder, GraphMetadata, GraphPaths, DataFolder, Metadata,
+    make_path_pointer, DataFolder, GraphFolder, GraphMetadata, GraphPaths, Metadata,
     GRAPH_META_PATH, GRAPH_PATH,
 };
 

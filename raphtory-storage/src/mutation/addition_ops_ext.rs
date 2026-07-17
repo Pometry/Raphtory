@@ -1,9 +1,11 @@
 use crate::{
     durability_ops::DurabilityOps,
     mutation::{
-        MutationError, NodeWriterT, addition_ops::{EdgeWriteLock, InternalAdditionOps, NodeWriteLock, SessionAdditionOps}
+        addition_ops::{EdgeWriteLock, InternalAdditionOps, NodeWriteLock, SessionAdditionOps},
+        MutationError, NodeWriterT,
     },
-    recovery_ops::RecoveryOps, staging_ops::{StagedGraph, StagingError, StagingOps},
+    recovery_ops::RecoveryOps,
+    staging_ops::{StagedGraph, StagingError, StagingOps},
 };
 use db4_graph::{TemporalGraph, WriteLockedGraph};
 use raphtory_api::core::{
@@ -14,8 +16,7 @@ use raphtory_api::core::{
         },
         LayerId,
     },
-    storage::dict_mapper::MaybeNew,
-    storage::graph_folder::GraphFolder,
+    storage::{dict_mapper::MaybeNew, graph_folder::GraphFolder},
 };
 use raphtory_core::{
     entities::{
