@@ -11,6 +11,7 @@ use clap::{Parser, Subcommand};
 use raphtory::db::api::storage::storage::Config;
 use std::{collections::HashMap, io, path::PathBuf};
 use tokio::io::Result as IoResult;
+use serde_json::Value;
 
 fn parse_json_map(input: &str) -> Result<HashMap<String, String>, serde_json::Error> {
     serde_json::from_str(input)
@@ -36,7 +37,7 @@ enum Commands {
     #[command(about = "Print the GraphQL schema")]
     Schema,
 }
-#[derive(clap::Args, Debug)]
+#[derive(clap::Args, Debug, serde::Serialize)]
 struct ServerArgs {
     #[arg(long, help = "Path to stored config.")]
     config_file: Option<PathBuf>,
@@ -203,7 +204,7 @@ struct ServerArgs {
     graph_config: Config,
 }
 
-fn parse_cli_arguments<I, T>(args_iter: I) -> IoResult<Option<(ServerArgs, AppConfig)>>
+fn generate_config<I, T>(args_iter: I) -> IoResult<Option<(ServerArgs, AppConfig)>>
 where
     I: IntoIterator<Item = T>,
     T: Into<std::ffi::OsString> + Clone 
@@ -308,7 +309,7 @@ where
     I: IntoIterator<Item = T>,
     T: Into<std::ffi::OsString> + Clone,
 {
-    if let Some((server_args, app_config)) = parse_cli_arguments(args_iter)? {
+    if let Some((server_args, app_config)) = generate_config(args_iter)? {
         let server = GraphServer::new(
             server_args.work_dir,
             Some(app_config),
@@ -349,6 +350,51 @@ pub fn python_cli() -> pyo3::PyResult<()> {
         .map_err(|err| pyo3::exceptions::PyIOError::new_err(err.to_string()))
 }
 
+
+#[cfg(feature = "python")]
+#[pyo3::pyfunction(name = "generate_config")]
+pub fn python_generate_config() -> pyo3::PyResult<Option<HashMap<String, HashMap<String, String>>>> {
+    // Replace argv[0] with "raphtory" so clap doesn't interpret the script path as a subcommand
+
+    let args = std::iter::once("raphtory".to_string()).chain(std::env::args().skip(2));
+    let result = generate_config(args).map_err(|err| pyo3::exceptions::PyIOError::new_err(err.to_string()))?;
+    if let Some((server_args, app_config)) = result {
+        let app_config_hashmap: HashMap<String, String> = serde_json::to_value(&app_config)
+            .ok()
+            .and_then(|v| {
+                if let Value::Object(map) = v {
+                    Some(map.into_iter()
+                        .map(|(k, v)| (k, v.to_string()))
+                        .collect())
+                } else {
+                    None
+                }
+            })
+            .unwrap_or_default();
+
+        let server_args_hashmap: HashMap<String, String> = serde_json::to_value(&server_args)
+            .ok()
+            .and_then(|v| {
+                if let Value::Object(map) = v {
+                    Some(map.into_iter()
+                        .map(|(k, v)| (k, v.to_string()))
+                        .collect())
+                } else {
+                    None
+                }
+            })
+            .unwrap_or_default();
+
+        Ok(Some(
+            [("server_args".to_string(), server_args_hashmap), ("app_config".to_string(), app_config_hashmap)]
+                .into_iter()
+                .collect(),
+        ))
+    } else {
+        Ok(None)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -373,38 +419,38 @@ mod tests {
     }
 
     async fn test_cli_parsing_no_arguments() {
-        let args: Vec<String> = vec![r"target\\debug\\raphtory-server.exe".to_string(), "server".to_string()];
+        let args: Vec<String> = vec![r"target\\debug\\raphtory-server".to_string(), "server".to_string()];
         std::env::remove_var("RAPHTORY_CACHE_CAPACITY");
-        let (_s, app_config) = parse_cli_arguments(args).unwrap().unwrap();
+        let (_s, app_config) = generate_config(args).unwrap().unwrap();
         assert!(app_config.cache.capacity == DEFAULT_CACHE_CAPACITY);
     } 
 
     async fn test_cli_parsing_with_config_file() {
         let config_file = config_file();
         let args: Vec<String> = vec![
-            r"target\\debug\\raphtory-server.exe".to_string(),
+            r"target\\debug\\raphtory-server.".to_string(),
             "server".to_string(),
             "--config-file".to_string(),
             config_file.path().to_str().unwrap().to_string(),
         ];
         std::env::remove_var("RAPHTORY_CACHE_CAPACITY");
-        let (_s, app_config) = parse_cli_arguments(args).unwrap().unwrap();
+        let (_s, app_config) = generate_config(args).unwrap().unwrap();
         assert!(app_config.cache.capacity == 123);
     }
 
     async fn test_cli_parsing_with_env_var() {
         let config_file = config_file();
-        let args: Vec<String> = vec![r"target\\debug\\raphtory-server.exe".to_string(), "server".to_string(), "--config-file".to_string(), config_file.path().to_str().unwrap().to_string()];
+        let args: Vec<String> = vec![r"target\\debug\\raphtory-server".to_string(), "server".to_string(), "--config-file".to_string(), config_file.path().to_str().unwrap().to_string()];
         std::env::set_var("RAPHTORY_CACHE_CAPACITY", "456");
-        let (_s, app_config) = parse_cli_arguments(args).unwrap().unwrap();
+        let (_s, app_config) = generate_config(args).unwrap().unwrap();
         assert!(app_config.cache.capacity == 456);
     }
 
     async fn test_cli_parsing_with_command_line_arg() {
         let config_file = config_file();
-        let args: Vec<String> = vec![r"target\\debug\\raphtory-server.exe".to_string(), "server".to_string(), "--config-file".to_string(), config_file.path().to_str().unwrap().to_string(), "--cache-capacity".to_string(), "789".to_string()];
+        let args: Vec<String> = vec![r"target\\debug\\raphtory-server".to_string(), "server".to_string(), "--config-file".to_string(), config_file.path().to_str().unwrap().to_string(), "--cache-capacity".to_string(), "789".to_string()];
         std::env::set_var("RAPHTORY_CACHE_CAPACITY", "456");
-        let (_s, app_config) = parse_cli_arguments(args).unwrap().unwrap();
+        let (_s, app_config) = generate_config(args).unwrap().unwrap();
         assert!(app_config.cache.capacity == 789);
     }
 
