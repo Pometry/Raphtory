@@ -351,50 +351,6 @@ pub fn python_cli() -> pyo3::PyResult<()> {
 }
 
 
-#[cfg(feature = "python")]
-#[pyo3::pyfunction(name = "generate_config")]
-pub fn python_generate_config() -> pyo3::PyResult<Option<HashMap<String, HashMap<String, String>>>> {
-    // Replace argv[0] with "raphtory" so clap doesn't interpret the script path as a subcommand
-
-    let args = std::iter::once("raphtory".to_string()).chain(std::env::args().skip(2));
-    let result = generate_config(args).map_err(|err| pyo3::exceptions::PyIOError::new_err(err.to_string()))?;
-    if let Some((server_args, app_config)) = result {
-        let app_config_hashmap: HashMap<String, String> = serde_json::to_value(&app_config)
-            .ok()
-            .and_then(|v| {
-                if let Value::Object(map) = v {
-                    Some(map.into_iter()
-                        .map(|(k, v)| (k, v.to_string()))
-                        .collect())
-                } else {
-                    None
-                }
-            })
-            .unwrap_or_default();
-
-        let server_args_hashmap: HashMap<String, String> = serde_json::to_value(&server_args)
-            .ok()
-            .and_then(|v| {
-                if let Value::Object(map) = v {
-                    Some(map.into_iter()
-                        .map(|(k, v)| (k, v.to_string()))
-                        .collect())
-                } else {
-                    None
-                }
-            })
-            .unwrap_or_default();
-
-        Ok(Some(
-            [("server_args".to_string(), server_args_hashmap), ("app_config".to_string(), app_config_hashmap)]
-                .into_iter()
-                .collect(),
-        ))
-    } else {
-        Ok(None)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
