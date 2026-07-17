@@ -1,21 +1,11 @@
 #[cfg(feature = "search")]
 use crate::config::index_config::DEFAULT_CREATE_INDEX;
 use crate::{
-    config::{
-        app_config::AppConfigBuilder,
-        auth_config::DEFAULT_REQUIRE_AUTH_FOR_READS,
-        cache_config::DEFAULT_CACHE_CAPACITY,
-        concurrency_config::{DEFAULT_DISABLE_BATCHING, DEFAULT_EXCLUSIVE_WRITES},
-        log_config::DEFAULT_LOG_LEVEL,
-        otlp_config::{
-            TracingLevel, TracingProtocol, DEFAULT_OTLP_TRACING_SERVICE_NAME,
-            DEFAULT_OTLP_TRANSPORT_PROTOCOL, DEFAULT_TRACING_ENABLED, DEFAULT_TRACING_LEVEL,
-        },
-        schema_config::DEFAULT_DISABLE_INTROSPECTION,
-    },
-    model::App,
-    server::{apply_server_extension, DEFAULT_PORT},
-    GraphServer,
+    GraphServer, config::{
+        app_config::{AppConfig, AppConfigBuilder}, auth_config::DEFAULT_REQUIRE_AUTH_FOR_READS, cache_config::DEFAULT_CACHE_CAPACITY, concurrency_config::{DEFAULT_DISABLE_BATCHING, DEFAULT_EXCLUSIVE_WRITES}, log_config::DEFAULT_LOG_LEVEL, otlp_config::{
+            DEFAULT_OTLP_TRACING_SERVICE_NAME, DEFAULT_OTLP_TRANSPORT_PROTOCOL, DEFAULT_TRACING_ENABLED, DEFAULT_TRACING_LEVEL, TracingLevel, TracingProtocol,
+        }, schema_config::DEFAULT_DISABLE_INTROSPECTION,
+    }, model::App, server::{DEFAULT_PORT, apply_server_extension},
 };
 use clap::{Parser, Subcommand};
 use raphtory::db::api::storage::storage::Config;
@@ -213,56 +203,56 @@ struct ServerArgs {
     graph_config: Config,
 }
 
-pub(crate) async fn cli_with_args<I, T>(args_iter: I) -> IoResult<()>
+fn parse_cli_arguments<I, T>(args_iter: I) -> IoResult<Option<(ServerArgs, AppConfig)>>
 where
     I: IntoIterator<Item = T>,
-    T: Into<std::ffi::OsString> + Clone,
+    T: Into<std::ffi::OsString> + Clone 
 {
     let args = Args::parse_from(args_iter);
-
     match args.command {
         Commands::Schema => {
             let schema = App::create_schema().finish().unwrap();
             println!("{}", schema.sdl());
+            return Ok(None);
         }
         Commands::Server(server_args) => {
             let mut builder = AppConfigBuilder::new();
-            if let Some(config_file) = server_args.config_file {
+            if let Some(config_file) = server_args.config_file.clone() {
                 builder.load_from_path(config_file)?;
             };
             if let Some(cache_capacity) = server_args.cache_capacity {
                 builder.with_cache_capacity(cache_capacity);
             }
-            if let Some(log_level) = server_args.log_level {
+            if let Some(log_level) = server_args.log_level.clone() {
                 builder.with_log_level(log_level);
             }
             if let Some(tracing) = server_args.tracing {
                 builder.with_tracing(tracing);
             }
-            if let Some(tracing_level) = server_args.tracing_level {
+            if let Some(tracing_level) = server_args.tracing_level.clone() {
                 builder.with_tracing_level(tracing_level);
             }
-            if let Some(otlp_agent_host) = server_args.otlp_agent_host {
+            if let Some(otlp_agent_host) = server_args.otlp_agent_host.clone() {
                 builder.with_otlp_agent_host(Some(otlp_agent_host));
             }
-            if let Some(otlp_tracing_service_name) = server_args.otlp_tracing_service_name {
+            if let Some(otlp_tracing_service_name) = server_args.otlp_tracing_service_name.clone() {
                 builder.with_otlp_tracing_service_name(otlp_tracing_service_name);
             }
-            if let Some(otlp_transport_protocol) = server_args.otlp_transport_protocol {
+            if let Some(otlp_transport_protocol) = server_args.otlp_transport_protocol.clone() {
                 builder.with_otlp_transport_protocol(otlp_transport_protocol);
             }
-            if let Some(otlp_transport_headers) = server_args.otlp_transport_headers {
+            if let Some(otlp_transport_headers) = server_args.otlp_transport_headers.clone() {
                 builder.with_otlp_transport_headers(otlp_transport_headers);
             }
-            if let Some(otlp_transport_certificate) = server_args.otlp_transport_certificate {
+            if let Some(otlp_transport_certificate) = server_args.otlp_transport_certificate.clone() {
                 builder.with_otlp_transport_certificate(Some(otlp_transport_certificate));
             }
-            if let Some(auth_public_key) = server_args.auth_public_key {
+            if let Some(auth_public_key) = server_args.auth_public_key.clone() {
                 builder
                     .with_auth_public_key(Some(auth_public_key))
                     .map_err(|err| io::Error::new(io::ErrorKind::Other, err))?;
             }
-            if let Some(public_dir) = server_args.public_dir {
+            if let Some(public_dir) = server_args.public_dir.clone() {
                 builder.with_public_dir(Some(public_dir));
             }
             if let Some(require_auth_for_reads) = server_args.require_auth_for_reads {
@@ -307,24 +297,32 @@ where
                     builder.with_create_index(create_index);
                 }
             }
+           let app_config = builder.build();
+           return Ok(Some((server_args, app_config)));
+        }
+    }
+}
 
-            let app_config = builder.build();
-
-            let server = GraphServer::new(
-                server_args.work_dir,
-                Some(app_config),
-                server_args.graph_config,
-            )
-            .await?;
-            let server =
-                apply_server_extension(server, server_args.permissions_store_path.as_deref());
-            match server_args.port {
-                None => {
-                    server.run().await?;
-                }
-                Some(port) => {
-                    server.run_with_port(port).await?;
-                }
+pub(crate) async fn cli_with_args<I, T>(args_iter: I) -> IoResult<()>
+where
+    I: IntoIterator<Item = T>,
+    T: Into<std::ffi::OsString> + Clone,
+{
+    if let Some((server_args, app_config)) = parse_cli_arguments(args_iter)? {
+        let server = GraphServer::new(
+            server_args.work_dir,
+            Some(app_config),
+            server_args.graph_config,
+        )
+        .await?;
+        let server =
+            apply_server_extension(server, server_args.permissions_store_path.as_deref());
+        match server_args.port {
+            None => {
+                server.run().await?;
+            }
+            Some(port) => {
+                server.run_with_port(port).await?;
             }
         }
     }
@@ -349,4 +347,72 @@ pub fn python_cli() -> pyo3::PyResult<()> {
     runtime
         .block_on(cli_with_args(args))
         .map_err(|err| pyo3::exceptions::PyIOError::new_err(err.to_string()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+    use tempfile::Builder;
+    use std::io::Write;
+
+    fn config_file() -> tempfile::NamedTempFile {
+        let mut config_file = Builder::new()
+            .suffix(".toml")
+            .tempfile()
+            .expect("failed to create temporary config file for CLI test");
+        write!(
+            config_file,
+            "[cache]\ncapacity = 123\n"
+        )
+        .expect("failed to write temporary cache config");
+        config_file
+            .flush()
+            .expect("failed to flush temporary cache config");
+        config_file
+    }
+
+    async fn test_cli_parsing_no_arguments() {
+        let args: Vec<String> = vec![r"target\\debug\\raphtory-server.exe".to_string(), "server".to_string()];
+        std::env::remove_var("RAPHTORY_CACHE_CAPACITY");
+        let (_s, app_config) = parse_cli_arguments(args).unwrap().unwrap();
+        assert!(app_config.cache.capacity == DEFAULT_CACHE_CAPACITY);
+    } 
+
+    async fn test_cli_parsing_with_config_file() {
+        let config_file = config_file();
+        let args: Vec<String> = vec![
+            r"target\\debug\\raphtory-server.exe".to_string(),
+            "server".to_string(),
+            "--config-file".to_string(),
+            config_file.path().to_str().unwrap().to_string(),
+        ];
+        std::env::remove_var("RAPHTORY_CACHE_CAPACITY");
+        let (_s, app_config) = parse_cli_arguments(args).unwrap().unwrap();
+        assert!(app_config.cache.capacity == 123);
+    }
+
+    async fn test_cli_parsing_with_env_var() {
+        let config_file = config_file();
+        let args: Vec<String> = vec![r"target\\debug\\raphtory-server.exe".to_string(), "server".to_string(), "--config-file".to_string(), config_file.path().to_str().unwrap().to_string()];
+        std::env::set_var("RAPHTORY_CACHE_CAPACITY", "456");
+        let (_s, app_config) = parse_cli_arguments(args).unwrap().unwrap();
+        assert!(app_config.cache.capacity == 456);
+    }
+
+    async fn test_cli_parsing_with_command_line_arg() {
+        let config_file = config_file();
+        let args: Vec<String> = vec![r"target\\debug\\raphtory-server.exe".to_string(), "server".to_string(), "--config-file".to_string(), config_file.path().to_str().unwrap().to_string(), "--cache-capacity".to_string(), "789".to_string()];
+        std::env::set_var("RAPHTORY_CACHE_CAPACITY", "456");
+        let (_s, app_config) = parse_cli_arguments(args).unwrap().unwrap();
+        assert!(app_config.cache.capacity == 789);
+    }
+
+    #[tokio::test]
+    async fn test_cli_parsing() {
+        test_cli_parsing_no_arguments().await; 
+        test_cli_parsing_with_config_file().await;
+        test_cli_parsing_with_env_var().await;
+        test_cli_parsing_with_command_line_arg().await;
+    }
 }
