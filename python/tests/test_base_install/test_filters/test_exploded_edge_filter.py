@@ -448,9 +448,9 @@ def test_all_property_types(GraphClass):
     print()
     for i, (expr, expected) in enumerate(test_cases):
         result = g.filter(expr).edges.explode()
-        assert len(result) == expected, (
-            f"Test {i} failed: expected {expected}, got {len(result)}"
-        )
+        assert (
+            len(result) == expected
+        ), f"Test {i} failed: expected {expected}, got {len(result)}"
 
     nonsense_filter_cases = [
         # Integers (weight)
@@ -911,9 +911,9 @@ def test_temporal_constant(GraphClass):
 
     for i, (expr, expected) in enumerate(test_cases):
         result = g.filter(expr).edges.explode()
-        assert len(result) == expected, (
-            f"Test {i} failed: expected {expected}, got {len(result)}"
-        )
+        assert (
+            len(result) == expected
+        ), f"Test {i} failed: expected {expected}, got {len(result)}"
 
     g = GraphClass()
     g.add_edge(1, 1, 2, layer="blue")
@@ -941,6 +941,6 @@ def test_temporal_constant(GraphClass):
     for i, (expr, expected) in enumerate(test_cases):
         result = g.filter(expr).edges.explode()
         print(g.edges.explode().metadata.get("weight"))
-        assert len(result) == expected, (
-            f"Test {i} failed: expected {expected}, got {len(result)}"
-        )
+        assert (
+            len(result) == expected
+        ), f"Test {i} failed: expected {expected}, got {len(result)}"

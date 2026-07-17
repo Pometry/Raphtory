@@ -36,26 +36,26 @@ def assert_filter(graph, filter_expr, metric, manual_expr, context):
     )
 
     filtered_event_nodes = sort_vids(graph.filter(filter_expr).nodes.id)
-    assert filtered_event_nodes == expected_filter_nodes, (
-        f"{context} failed for event graph"
-    )
+    assert (
+        filtered_event_nodes == expected_filter_nodes
+    ), f"{context} failed for event graph"
 
     selected_event_nodes = sort_vids(graph.nodes[filter_expr].id)
-    assert selected_event_nodes == expected_select_nodes, (
-        f"{context} failed for event graph select"
-    )
+    assert (
+        selected_event_nodes == expected_select_nodes
+    ), f"{context} failed for event graph select"
 
     persistent_graph = graph.persistent_graph()
 
     filtered_persistent_nodes = sort_vids(persistent_graph.filter(filter_expr).nodes.id)
-    assert filtered_persistent_nodes == expected_filter_nodes, (
-        f"{context} failed for persistent graph"
-    )
+    assert (
+        filtered_persistent_nodes == expected_filter_nodes
+    ), f"{context} failed for persistent graph"
 
     selected_persistent_nodes = sort_vids(persistent_graph.nodes[filter_expr].id)
-    assert selected_persistent_nodes == expected_select_nodes, (
-        f"{context} failed for persistent graph select"
-    )
+    assert (
+        selected_persistent_nodes == expected_select_nodes
+    ), f"{context} failed for persistent graph select"
 
 
 @pytest.mark.parametrize("value", range(0, 15))

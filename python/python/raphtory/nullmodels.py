@@ -26,12 +26,12 @@ def shuffle_column(
         AssertionError: If both col_number and col_name are provided.
 
     """
-    assert col_number is not None or col_name is not None, (
-        f"No column number or name provided."
-    )
-    assert not (col_name is not None and col_number is not None), (
-        f"Cannot have both a column number and a column name."
-    )
+    assert (
+        col_number is not None or col_name is not None
+    ), f"No column number or name provided."
+    assert not (
+        col_name is not None and col_number is not None
+    ), f"Cannot have both a column number and a column name."
 
     if inplace:
         df = graph_df
@@ -74,12 +74,12 @@ def shuffle_multiple_columns(
         AssertionError: If both col_numbers and col_names are provided.
 
     """
-    assert col_numbers is not None or col_names is not None, (
-        f"No column numbers or names provided."
-    )
-    assert not (col_names is not None and col_numbers is not None), (
-        f"Cannot have both column numbers and column names."
-    )
+    assert (
+        col_numbers is not None or col_names is not None
+    ), f"No column numbers or names provided."
+    assert not (
+        col_names is not None and col_numbers is not None
+    ), f"Cannot have both column numbers and column names."
 
     if col_numbers is not None:
         for n in col_numbers:
