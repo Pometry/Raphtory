@@ -8,7 +8,7 @@ use crate::{
             windowset::GqlEdgesWindowSet,
             GqlAlignmentUnit, WindowDuration,
         },
-        sorting::{EdgeSortBy, SortByTime},
+        sorting::{compare_node, EdgeSortBy, SortByTime},
     },
     rayon::blocking_compute,
 };
@@ -331,7 +331,7 @@ impl GqlEdges {
     async fn sorted(
         &self,
         #[graphql(
-            desc = "Ordered list of sort keys. Each entry chooses exactly one of `src` / `dst` / `time` / `property`, with an optional `reverse: true` to flip order."
+            desc = "Ordered list of sort keys. Each entry chooses exactly one of `src` / `dst` / `neighbour` / `time` / `property`, with an optional `reverse: true` to flip order."
         )]
         sort_bys: Vec<EdgeSortBy>,
     ) -> Self {
@@ -345,6 +345,13 @@ impl GqlEdges {
                         Ordering::Equal,
                         |current_ordering, sort_by| {
                             current_ordering.then_with(|| {
+                                if let Some(neighbour_sort) = sort_by.neighbour.as_ref() {
+                                    return compare_node(
+                                        &first_edge.nbr(),
+                                        &second_edge.nbr(),
+                                        neighbour_sort,
+                                    );
+                                }
                                 let ordering = if sort_by.src == Some(true) {
                                     first_edge.src().id().partial_cmp(&second_edge.src().id())
                                 } else if sort_by.dst == Some(true) {

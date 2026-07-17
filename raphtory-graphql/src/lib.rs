@@ -3233,4 +3233,168 @@ mod graphql_test {
             ] } } } })
         );
     }
+
+    async fn neighbour_sort_setup(tmp: &std::path::Path) -> crate::test_support::TestSetup {
+        // Anchor "hub" with edges in BOTH directions to typed + untyped neighbours.
+        let g = Graph::new();
+        g.add_node(1, "hub", NO_PROPS, None, None).unwrap();
+        g.add_node(1, "x", [("score", 3i64)], Some("B"), None).unwrap();
+        g.add_node(1, "y", [("score", 1i64)], Some("A"), None).unwrap();
+        g.add_node(1, "w", [("score", 2i64)], Some("A"), None).unwrap();
+        g.add_node(1, "z", [("score", 4i64)], None, None).unwrap(); // untyped
+        g.add_edge(10, "hub", "x", NO_PROPS, None).unwrap(); // out -> nbr x (B)
+        g.add_edge(11, "y", "hub", NO_PROPS, None).unwrap(); // in  -> nbr y (A)
+        g.add_edge(12, "w", "hub", NO_PROPS, None).unwrap(); // in  -> nbr w (A)
+        g.add_edge(13, "hub", "z", NO_PROPS, None).unwrap(); // out -> nbr z (untyped)
+
+        let graph: MaterializedGraph = g.into();
+        setup_with_graphs(&[("g", graph)], tmp).await
+    }
+
+    #[tokio::test]
+    async fn test_edges_sorted_by_neighbour_type_then_name() {
+        let tmp_dir = tempdir().unwrap();
+        let setup = neighbour_sort_setup(tmp_dir.path()).await;
+
+        // type asc (None < "A" < "B"), then name asc: z(None), w(A), y(A), x(B)
+        let query = r#"
+        {
+          graph(path: "g") {
+            node(name: "hub") {
+              edges {
+                explodeLayers {
+                  sorted(sortBys: [
+                    { neighbour: { type: true } },
+                    { neighbour: { name: true } },
+                    { time: LATEST }
+                  ]) {
+                    count
+                    page(limit: 10) { nbr { name nodeType } }
+                  }
+                }
+              }
+            }
+          }
+        }
+        "#;
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        let data = res.data.into_json().unwrap();
+        assert_eq!(
+            data,
+            json!({ "graph": { "node": { "edges": { "explodeLayers": { "sorted": {
+                "count": 4,
+                "page": [
+                    { "nbr": { "name": "z", "nodeType": null } },
+                    { "nbr": { "name": "w", "nodeType": "A" } },
+                    { "nbr": { "name": "y", "nodeType": "A" } },
+                    { "nbr": { "name": "x", "nodeType": "B" } }
+                ]
+            } } } } } })
+        );
+    }
+
+    #[tokio::test]
+    async fn test_edges_sorted_by_neighbour_property() {
+        let tmp_dir = tempdir().unwrap();
+        let setup = neighbour_sort_setup(tmp_dir.path()).await;
+
+        // neighbour "score" ascending: y(1), w(2), x(3), z(4)
+        let query = r#"
+        {
+          graph(path: "g") {
+            node(name: "hub") {
+              edges {
+                explodeLayers {
+                  sorted(sortBys: [{ neighbour: { property: "score" } }]) {
+                    page(limit: 10) { nbr { name } }
+                  }
+                }
+              }
+            }
+          }
+        }
+        "#;
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        let data = res.data.into_json().unwrap();
+        assert_eq!(
+            data,
+            json!({ "graph": { "node": { "edges": { "explodeLayers": { "sorted": {
+                "page": [
+                    { "nbr": { "name": "y" } }, { "nbr": { "name": "w" } },
+                    { "nbr": { "name": "x" } }, { "nbr": { "name": "z" } }
+                ]
+            } } } } } })
+        );
+    }
+
+    #[tokio::test]
+    async fn test_graph_edges_neighbour_id_equals_dst() {
+        // At graph level every ref is Dir::Out, so neighbour == dst.
+        let tmp_dir = tempdir().unwrap();
+        let setup = neighbour_sort_setup(tmp_dir.path()).await;
+
+        let query = r#"
+        {
+          graph(path: "g") {
+            edges {
+              sorted(sortBys: [{ neighbour: { id: true } }]) {
+                page(limit: 10) { dst { name } }
+              }
+            }
+          }
+        }
+        "#;
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        let data = res.data.into_json().unwrap();
+        // dst ids ascending: hub, hub, x, z
+        assert_eq!(
+            data,
+            json!({ "graph": { "edges": { "sorted": {
+                "page": [
+                    { "dst": { "name": "hub" } }, { "dst": { "name": "hub" } },
+                    { "dst": { "name": "x" } }, { "dst": { "name": "z" } }
+                ]
+            } } } })
+        );
+    }
+
+    #[tokio::test]
+    async fn test_edges_sorted_by_neighbour_name_reverse() {
+        let tmp_dir = tempdir().unwrap();
+        let setup = neighbour_sort_setup(tmp_dir.path()).await;
+
+        // Neighbour name DESCENDING via the nested `reverse`; the outer
+        // `reverse: true` must be ignored (the neighbour arm early-returns).
+        // hub's neighbours are w, x, y, z -> descending: z, y, x, w.
+        let query = r#"
+        {
+          graph(path: "g") {
+            node(name: "hub") {
+              edges {
+                explodeLayers {
+                  sorted(sortBys: [{ reverse: true, neighbour: { name: true, reverse: true } }]) {
+                    page(limit: 10) { nbr { name } }
+                  }
+                }
+              }
+            }
+          }
+        }
+        "#;
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        let data = res.data.into_json().unwrap();
+        assert_eq!(
+            data,
+            json!({ "graph": { "node": { "edges": { "explodeLayers": { "sorted": {
+                "page": [
+                    { "nbr": { "name": "z" } }, { "nbr": { "name": "y" } },
+                    { "nbr": { "name": "x" } }, { "nbr": { "name": "w" } }
+                ]
+            } } } } } })
+        );
+    }
 }

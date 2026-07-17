@@ -10,6 +10,11 @@ pub struct EdgeSortBy {
     pub src: Option<bool>,
     /// Destination
     pub dst: Option<bool>,
+    /// Sort by the neighbour node (the endpoint that is NOT the node these
+    /// edges were traversed from; the destination for a graph-level edge
+    /// collection). Direction is controlled by this nested key's own
+    /// `reverse`; the outer `EdgeSortBy.reverse` does not apply to it.
+    pub neighbour: Option<NodeSortBy>,
     /// Time
     pub time: Option<SortByTime>,
     /// Property
