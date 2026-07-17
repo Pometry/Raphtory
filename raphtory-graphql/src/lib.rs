@@ -3134,4 +3134,103 @@ mod graphql_test {
         assert_eq!(res.errors, vec![], "flush mutation returned errors");
         assert_eq!(res.data.into_json().unwrap(), json!({"flush": true}));
     }
+
+    #[tokio::test]
+    async fn test_nodes_sorted_by_type_then_name() {
+        let g = Graph::new();
+        g.add_node(1, "b", NO_PROPS, Some("Person"), None).unwrap();
+        g.add_node(1, "a", NO_PROPS, Some("Person"), None).unwrap();
+        g.add_node(1, "c", NO_PROPS, Some("Company"), None).unwrap();
+        g.add_node(1, "d", NO_PROPS, None, None).unwrap(); // untyped
+
+        let graph: MaterializedGraph = g.into();
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", graph)], tmp_dir.path()).await;
+
+        // type ascending: None < "Company" < "Person"; then name ascending.
+        let query = r#"
+        {
+          graph(path: "g") {
+            nodes {
+              sorted(sortBys: [{ type: true }, { name: true }]) {
+                list { name }
+              }
+            }
+          }
+        }
+        "#;
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        let data = res.data.into_json().unwrap();
+        assert_eq!(
+            data,
+            json!({ "graph": { "nodes": { "sorted": { "list": [
+                { "name": "d" }, { "name": "c" }, { "name": "a" }, { "name": "b" }
+            ] } } } })
+        );
+    }
+
+    #[tokio::test]
+    async fn test_nodes_sorted_by_type_reverse() {
+        let g = Graph::new();
+        g.add_node(1, "b", NO_PROPS, Some("Person"), None).unwrap();
+        g.add_node(1, "a", NO_PROPS, Some("Person"), None).unwrap();
+        g.add_node(1, "c", NO_PROPS, Some("Company"), None).unwrap();
+        g.add_node(1, "d", NO_PROPS, None, None).unwrap(); // untyped
+
+        let graph: MaterializedGraph = g.into();
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", graph)], tmp_dir.path()).await;
+
+        // type descending (reverse: true): "Person" > "Company" > None; then name ascending.
+        let query = r#"
+        {
+          graph(path: "g") {
+            nodes {
+              sorted(sortBys: [{ type: true, reverse: true }, { name: true }]) {
+                list { name }
+              }
+            }
+          }
+        }
+        "#;
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        let data = res.data.into_json().unwrap();
+        assert_eq!(
+            data,
+            json!({ "graph": { "nodes": { "sorted": { "list": [
+                { "name": "a" }, { "name": "b" }, { "name": "c" }, { "name": "d" }
+            ] } } } })
+        );
+    }
+
+    #[tokio::test]
+    async fn test_nodes_sorted_by_id_regression() {
+        let g = Graph::new();
+        g.add_node(1, "c", NO_PROPS, None, None).unwrap();
+        g.add_node(1, "a", NO_PROPS, None, None).unwrap();
+        g.add_node(1, "b", NO_PROPS, None, None).unwrap();
+
+        let graph: MaterializedGraph = g.into();
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", graph)], tmp_dir.path()).await;
+
+        let query = r#"
+        {
+          graph(path: "g") {
+            nodes { sorted(sortBys: [{ id: true }]) { list { name } } }
+          }
+        }
+        "#;
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        let data = res.data.into_json().unwrap();
+        assert_eq!(
+            data,
+            json!({ "graph": { "nodes": { "sorted": { "list": [
+                { "name": "a" }, { "name": "b" }, { "name": "c" }
+            ] } } } })
+        );
+    }
 }
