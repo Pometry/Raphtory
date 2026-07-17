@@ -8,13 +8,16 @@ use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, SimpleObject, Union}
 use raphtory::{
     db::{
         api::{
-            state::{NodeStateOutput, NodeStateValue, OutputTypedNodeState, TypedNodeState},
+            state::{
+                NodeStateOutput, NodeStateValue, OutputTypedNodeState, PropMap, TypedNodeState,
+            },
             view::{BoxableGraphView, DynamicGraph},
         },
         graph::node::NodeView,
     },
     prelude::{NodeStateOps, Prop},
 };
+use raphtory_api::core::entities::properties::prop::PropUnwrap;
 use std::{cmp::Ordering, sync::Arc};
 
 /// A mapping from the nodes of a graph to the values computed for them by an algorithm.
@@ -100,47 +103,76 @@ pub(crate) struct GqlNodeStateItem {
     value: GqlPropertyOutputVal,
 }
 
+/// Function for total order over rows by `column`'s value: empty cells always lose.
+/// `nulls_last` puts them last (for min); `false` puts them first (for max) and incomparable pairs tie.
+fn column_cmp<'a>(
+    column: &'a str,
+    nulls_last: bool,
+) -> impl Fn(&PropMap, &PropMap) -> Ordering + Sync + 'a {
+    move |a, b| {
+        let a = a.get(column).and_then(|v| v.as_ref());
+        let b = b.get(column).and_then(|v| v.as_ref());
+        match (a, b) {
+            (Some(a), Some(b)) => a.0.partial_cmp(&b.0).unwrap_or(Ordering::Equal),
+            (None, None) => Ordering::Equal,
+            (None, Some(_)) => {
+                if nulls_last {
+                    Ordering::Greater
+                } else {
+                    Ordering::Less
+                }
+            }
+            (Some(_), None) => {
+                if nulls_last {
+                    Ordering::Less
+                } else {
+                    Ordering::Greater
+                }
+            }
+        }
+    }
+}
+
 impl GqlNodeState {
-    /// The `(node, value)` pairs of a plain-prop column, skipping empty cells. Useful for aggregate operations.
+    /// Iterator over the non-empty values of a plain-prop column.
     /// None if the column does not exist or contains nodes.
-    fn column_items(&self, column: &str) -> Option<Vec<(NodeView<'static, DynamicGraph>, Prop)>> {
+    fn column_value_iter<'a>(&'a self, column: &'a str) -> Option<impl Iterator<Item = Prop> + 'a> {
         if self.state.state.node_cols.contains_key(column) {
             return None;
         }
-        self.state.state.values_ref().schema().index_of(column).ok()?;
+        self.state
+            .state
+            .values_ref()
+            .schema()
+            .index_of(column)
+            .ok()?;
         Some(
             self.state
                 .iter()
-                .filter_map(|(node, mut row)| {
-                    let value = row.swap_remove(column)??;
-                    Some((node.cloned(), value.into()))
-                })
-                .collect(),
+                .filter_map(move |(_, mut row)| Some(row.swap_remove(column)??.into())),
         )
     }
 
-    /// Reduces a column to the item winning all `pick` comparisons. Basically executes a simple aggregate operation.
-    /// None if the column is empty or its dtype is not comparable.
-    fn reduce_column(
+    /// Checks that `column` is a plain-prop column with at least one non-empty, comparable value;
+    /// used as the guard for the `*_item_by` aggregates. None if not comparable.
+    fn check_comparable(&self, column: &str) -> Option<()> {
+        self.column_value_iter(column)?
+            .next()
+            .filter(|first| first.dtype().has_cmp())
+            .map(|_| ())
+    }
+
+    /// Wraps a `(node, row)` item into the output item; None if the cell is empty or nonexistent.
+    fn item_from_row(
         &self,
         column: &str,
-        pick: impl Fn(Ordering) -> bool,
+        item: (NodeView<'_, &DynamicGraph>, PropMap),
     ) -> Option<GqlNodeStateItem> {
-        let mut items = self.column_items(column)?.into_iter();
-        let mut acc = items.next()?;
-        // we only check this once because, in practice, the entire Arrow column has the same type,
-        // so we expect Props to have the same dtype.
-        if !acc.1.dtype().has_cmp() {
-            return None;
-        }
-        for item in items {
-            if !pick(acc.1.partial_cmp(&item.1)?) {
-                acc = item;
-            }
-        }
+        let (node, mut row) = item;
+        let value: Prop = row.swap_remove(column)??.into();
         Some(GqlNodeStateItem {
-            node: acc.0.into(),
-            value: GqlPropertyOutputVal(acc.1),
+            node: node.cloned().into(),
+            value: GqlPropertyOutputVal(value),
         })
     }
 }
@@ -194,7 +226,12 @@ impl GqlNodeState {
         #[graphql(desc = "Column name.")] column: String,
     ) -> Option<GqlNodeStateItem> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.reduce_column(&column, Ordering::is_le)).await
+        blocking_compute(move || {
+            self_clone.check_comparable(&column)?;
+            let item = self_clone.state.min_item_by(column_cmp(&column, true))?;
+            self_clone.item_from_row(&column, item)
+        })
+        .await
     }
 
     /// Maximum `(node, value)` of a column. Null if the column does not exist, is empty,
@@ -204,28 +241,66 @@ impl GqlNodeState {
         #[graphql(desc = "Column name.")] column: String,
     ) -> Option<GqlNodeStateItem> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.reduce_column(&column, Ordering::is_ge)).await
+        blocking_compute(move || {
+            self_clone.check_comparable(&column)?;
+            let item = self_clone.state.max_item_by(column_cmp(&column, false))?;
+            self_clone.item_from_row(&column, item)
+        })
+        .await
     }
 
-    /// Median `(node, value)` of a column (lower median on even lengths). Null if the column
-    /// does not exist, is empty, or its values are not comparable (e.g. contains nodes).
+    /// Sum of a column's values, skipping empty cells. Null if the column does not exist, is empty,
+    /// or is not additive (e.g. contains nodes).
+    async fn sum(
+        &self,
+        #[graphql(desc = "Column name.")] column: String,
+    ) -> Option<GqlPropertyOutputVal> {
+        let self_clone = self.clone();
+        blocking_compute(move || {
+            let mut values = self_clone.column_value_iter(&column)?;
+            let mut acc = values.next()?;
+            if !acc.dtype().has_add() {
+                return None;
+            }
+            for value in values {
+                acc = acc.add(value)?;
+            }
+            Some(GqlPropertyOutputVal(acc))
+        })
+        .await
+    }
+
+    /// Mean of a column's values as a float, skipping empty cells. Null if the column does not exist,
+    /// is empty, or has any non-numeric value.
+    async fn mean(
+        &self,
+        #[graphql(desc = "Column name.")] column: String,
+    ) -> Option<GqlPropertyOutputVal> {
+        let self_clone = self.clone();
+        blocking_compute(move || {
+            let mut values = self_clone.column_value_iter(&column)?;
+            let mut sum = values.next()?.as_f64()?;
+            let mut count = 1usize;
+            for value in values {
+                sum += value.as_f64()?;
+                count += 1;
+            }
+            Some(GqlPropertyOutputVal(Prop::F64(sum / count as f64)))
+        })
+        .await
+    }
+
+    /// Median `(node, value)` of a column (upper median on even lengths). Null if the column
+    /// does not exist, is empty, or is not comparable (e.g. contains nodes).
     async fn median(
         &self,
         #[graphql(desc = "Column name.")] column: String,
     ) -> Option<GqlNodeStateItem> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let mut items = self_clone.column_items(&column)?;
-            if !items.first()?.1.dtype().has_cmp() {
-                return None;
-            }
-            items.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(Ordering::Equal));
-            let len = items.len();
-            let (node, value) = items.swap_remove((len - 1) / 2);
-            Some(GqlNodeStateItem {
-                node: node.into(),
-                value: GqlPropertyOutputVal(value),
-            })
+            self_clone.check_comparable(&column)?;
+            let item = self_clone.state.median_item_by(column_cmp(&column, true))?;
+            self_clone.item_from_row(&column, item)
         })
         .await
     }

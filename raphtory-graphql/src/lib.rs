@@ -666,6 +666,9 @@ mod graphql_test {
                 min(column: "pagerank_score") { node { name } value }
                 max(column: "pagerank_score") { node { name } value }
                 median(column: "pagerank_score") { node { name } value }
+                sum(column: "pagerank_score")
+                mean(column: "pagerank_score")
+                average(column: "pagerank_score")
                 missing: min(column: "not_a_column") { value }
               }
             }
@@ -693,6 +696,9 @@ mod graphql_test {
                                 "node": { "name": "b" },
                                 "value": 0.28155081033755053
                             },
+                            "sum": 1.0,
+                            "mean": 0.3333333333333333,
+                            "average": 0.3333333333333333,
                             "missing": null
                         }
                     }
