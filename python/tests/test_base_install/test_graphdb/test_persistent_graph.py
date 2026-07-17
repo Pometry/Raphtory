@@ -277,7 +277,9 @@ def test_filtering_valid():
     ]  # property values the same
 
     f = filter.ExplodedEdge.property("weight") > 5
-    e = g.filter(f).edge(
+    e = g.filter(
+        f
+    ).edge(
         1, 2
     )  # this should be probably be filtered out (along with edges that only have deletions) as we discussed
     assert list(e.properties.temporal.get("weight").values()) == []

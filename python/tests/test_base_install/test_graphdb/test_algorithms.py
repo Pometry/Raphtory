@@ -369,9 +369,9 @@ def test_weighted_page_rank():
         ("3", 0.42311),
         ("4", 0.07837),
     ]:
-        assert (
-            abs(actual[node]["pagerank_score"] - expected) < 1e-5
-        ), f"node {node}: {actual[node]} != {expected}"
+        assert abs(actual[node]["pagerank_score"] - expected) < 1e-5, (
+            f"node {node}: {actual[node]} != {expected}"
+        )
 
 
 def test_weighted_page_rank_none_matches_unweighted():

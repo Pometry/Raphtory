@@ -451,9 +451,9 @@ def test_different_data_sources():
     # sanity check, make sure we ingested the same nodes each time
     print(f"Number of tests ran: {len(nodes_list)}")
     for i in range(len(nodes_list) - 1):
-        assert (
-            nodes_list[0] == nodes_list[i + 1]
-        ), f"Nodes list assertion failed at item i={i}"
+        assert nodes_list[0] == nodes_list[i + 1], (
+            f"Nodes list assertion failed at item i={i}"
+        )
 
 
 @pytest.mark.parametrize("graph_type", [Graph, PersistentGraph])

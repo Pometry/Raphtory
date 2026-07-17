@@ -673,7 +673,6 @@ I64_MAX = np.int64((1 << 63) - 1)  # 9223372036854775807
 
 
 def create_test_graph2(g: Graph):
-
     df = pd.DataFrame(
         {
             "time": [1, 1, 2, 2],

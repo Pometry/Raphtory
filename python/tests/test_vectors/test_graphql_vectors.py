@@ -118,7 +118,8 @@ def test_vectorised_graph_window_accepts_time_input_shapes():
                 """)
 
             def run(window_literal: str):
-                q = """
+                q = (
+                    """
                     {
                         vectorisedGraph(path: "abb") {
                             entitiesBySimilarity(query: "aab", limit: 5, window: %s) {
@@ -126,7 +127,9 @@ def test_vectorised_graph_window_accepts_time_input_shapes():
                             }
                         }
                     }
-                    """ % window_literal
+                    """
+                    % window_literal
+                )
                 return client.query(q)
 
             # Same time bounds, three different input shapes — all should be

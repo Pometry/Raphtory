@@ -309,6 +309,6 @@ def test_negative_integer_rejected():
                 "Expected schema-level rejection for negative integer NodeId"
             )
         except Exception as e:
-            assert "NodeId" in str(e) or "non-negative" in str(
-                e
-            ), f"Expected NodeId rejection, got: {e}"
+            assert "NodeId" in str(e) or "non-negative" in str(e), (
+                f"Expected NodeId rejection, got: {e}"
+            )

@@ -82,9 +82,9 @@ def test_read_only_blocks_all_mutation_paths():
         with pytest.raises(Exception) as exc:
             mutate()
         msg = str(exc.value).lower()
-        assert (
-            "locked" in msg or "immutable" in msg
-        ), f"{name} did not raise a locked/immutable error: {exc.value}"
+        assert "locked" in msg or "immutable" in msg, (
+            f"{name} did not raise a locked/immutable error: {exc.value}"
+        )
 
 
 def test_multiple_read_only_handles_share_data():
