@@ -3400,4 +3400,90 @@ mod graphql_test {
             } } } } } })
         );
     }
+
+    #[tokio::test]
+    async fn test_edges_sorted_by_neighbour_self_loop() {
+        // Self-loop hub->hub must resolve nbr to the anchor itself, sorting
+        // under its own type ("M"), not treated specially.
+        let g = Graph::new();
+        g.add_node(1, "hub", NO_PROPS, Some("M"), None).unwrap();
+        g.add_node(1, "a", NO_PROPS, Some("A"), None).unwrap();
+        g.add_edge(10, "hub", "a", NO_PROPS, None).unwrap();
+        g.add_edge(11, "hub", "hub", NO_PROPS, None).unwrap();
+
+        let graph: MaterializedGraph = g.into();
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", graph)], tmp_dir.path()).await;
+
+        let query = r#"
+        {
+          graph(path: "g") {
+            node(name: "hub") {
+              edges {
+                explodeLayers {
+                  sorted(sortBys: [{ neighbour: { type: true } }]) {
+                    count
+                    page(limit: 10) { nbr { name nodeType } }
+                  }
+                }
+              }
+            }
+          }
+        }
+        "#;
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        let data = res.data.into_json().unwrap();
+        assert_eq!(
+            data,
+            json!({ "graph": { "node": { "edges": { "explodeLayers": { "sorted": {
+                "count": 2,
+                "page": [
+                    { "nbr": { "name": "a", "nodeType": "A" } },
+                    { "nbr": { "name": "hub", "nodeType": "M" } }
+                ]
+            } } } } } })
+        );
+    }
+
+    #[tokio::test]
+    async fn test_edges_sorted_by_neighbour_type_reverse_untyped_last() {
+        let tmp_dir = tempdir().unwrap();
+        let setup = neighbour_sort_setup(tmp_dir.path()).await;
+
+        // neighbour type DESCENDING (untyped sorts last, not first), then
+        // neighbour name ascending to break the "A" tie: x(B), w(A), y(A), z(None)
+        let query = r#"
+        {
+          graph(path: "g") {
+            node(name: "hub") {
+              edges {
+                explodeLayers {
+                  sorted(sortBys: [
+                      { neighbour: { type: true, reverse: true } },
+                      { neighbour: { name: true } }
+                  ]) {
+                    page(limit: 10) { nbr { name nodeType } }
+                  }
+                }
+              }
+            }
+          }
+        }
+        "#;
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        let data = res.data.into_json().unwrap();
+        assert_eq!(
+            data,
+            json!({ "graph": { "node": { "edges": { "explodeLayers": { "sorted": {
+                "page": [
+                    { "nbr": { "name": "x", "nodeType": "B" } },
+                    { "nbr": { "name": "w", "nodeType": "A" } },
+                    { "nbr": { "name": "y", "nodeType": "A" } },
+                    { "nbr": { "name": "z", "nodeType": null } }
+                ]
+            } } } } } })
+        );
+    }
 }
