@@ -8,10 +8,8 @@ use crate::{
         App,
     },
     observability::open_telemetry::OpenTelemetry,
-    paths::ExistingGraphFolder,
     routes::{health, version, PublicFilesEndpoint},
     server::ServerError::SchemaError,
-    GQLError,
 };
 use config::ConfigError;
 use once_cell::sync::Lazy;
@@ -51,7 +49,6 @@ use tokio::{
         mpsc,
         mpsc::{Receiver, Sender},
     },
-    task,
     task::JoinHandle,
 };
 use tracing::{debug, error, info, warn};
@@ -479,7 +476,7 @@ async fn server_termination(
     }
     match tp {
         None => {}
-        Some((tp, lp)) => {
+        Some((_tp, _lp)) => {
             /* Avoid shutting down global tracing exporters on server shutdown during integration tests
                since they are reused across multiple tests.
             */
@@ -506,10 +503,7 @@ mod server_tests {
     use chrono::prelude::*;
     #[cfg(feature = "vectors")]
     use raphtory::vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate};
-    use raphtory::{
-        db::api::storage::storage::Config,
-        prelude::{AdditionOps, Graph, StableEncode, NO_PROPS},
-    };
+    use raphtory::db::api::storage::storage::Config;
     use raphtory_api::core::utils::logging::global_info_logger;
     use tempfile::tempdir;
     use tokio::time::{sleep, Duration};

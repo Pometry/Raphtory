@@ -266,7 +266,7 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
         let layer_col_resolved = layer.resolve_layer(layer_id_values, graph, false)?;
 
         let (src_vids, dst_vids, gid_str_cache) = if resolve_nodes {
-            let mut cache = node_resolve_cache
+            let cache = node_resolve_cache
                 .get_or_insert_with(|| NodeResolveCache::new(df.len(), src_col.dtype()));
             resolve_node_vids_with_quick_cache(
                 graph,

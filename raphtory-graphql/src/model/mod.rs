@@ -24,7 +24,6 @@ use dynamic_graphql::{
     ResolvedObjectFields, Result, Upload,
 };
 use itertools::Itertools;
-use minijinja::functions::namespace;
 #[cfg(feature = "vectors")]
 use raphtory::vectors::{
     cache::CachedEmbeddingModel,
@@ -40,7 +39,7 @@ use raphtory::{
         },
         graph::views::deletion_graph::PersistentGraph,
     },
-    errors::{GraphError, GraphResult},
+    errors::GraphError,
     io::parquet_loaders::{load_edges_from_parquet, load_nodes_from_parquet},
     prelude::*,
     version,

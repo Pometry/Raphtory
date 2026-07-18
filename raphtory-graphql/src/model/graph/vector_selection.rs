@@ -3,7 +3,7 @@ use super::{
     edge::GqlEdge,
     node::GqlNode,
     node_id::GqlNodeId,
-    vectorised_graph::{IntoWindowTuple, VectorisedGraphWindow},
+    vectorised_graph::VectorisedGraphWindow,
 };
 #[cfg(feature = "vectors")]
 use crate::rayon::blocking_compute;

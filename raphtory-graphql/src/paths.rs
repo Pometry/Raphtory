@@ -29,7 +29,6 @@ use std::{
     ops::Deref,
     panic::Location,
     path::{Component, Path, PathBuf, StripPrefixError},
-    time::{SystemTime, UNIX_EPOCH},
 };
 use tracing::{error, warn};
 use zip::ZipArchive;

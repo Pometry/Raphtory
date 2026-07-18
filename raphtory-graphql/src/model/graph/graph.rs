@@ -18,7 +18,7 @@ use crate::{
         plugins::graph_algorithm_plugin::GraphAlgorithmPlugin,
         schema::graph_schema::GraphSchema,
     },
-    paths::{ExistingGraphFolder, PathValidationError, UnlockedGraphFolder, ValidGraphPaths},
+    paths::{PathValidationError, UnlockedGraphFolder, ValidGraphPaths},
     rayon::blocking_compute,
 };
 use async_graphql::Context;

@@ -1,7 +1,4 @@
-use crate::model::{
-    graph::{node_id::GqlNodeId, property::Value, timeindex::GqlTimeInput},
-    plugins::operation,
-};
+use crate::model::graph::{node_id::GqlNodeId, property::Value, timeindex::GqlTimeInput};
 use async_graphql::dynamic::ValueAccessor;
 use dynamic_graphql::{
     internal::{
@@ -10,9 +7,7 @@ use dynamic_graphql::{
     Enum, InputObject, OneOfInput,
 };
 use raphtory::{
-    db::{
-        api::{state::ops::Degree, view::internal::filtered_edge},
-        graph::views::filter::model::{
+    db::graph::views::filter::model::{
             degree_filter::DegreeFilter,
             edge_filter::{CompositeEdgeFilter, EdgeFilter},
             filter::{Filter, FilterValue},
@@ -31,7 +26,6 @@ use raphtory::{
             windowed_filter::Windowed,
             ComposableFilter, DynFilter, DynView, NoFilter, ViewWrapOps,
         },
-    },
     errors::GraphError,
 };
 use raphtory_api::core::{

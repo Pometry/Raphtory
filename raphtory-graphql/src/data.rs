@@ -8,7 +8,6 @@ use crate::{
         blocking_io,
         graph::{
             filtering::{GraphAccessFilter, GraphRowFilter, HiddenKeys},
-            meta_graph::MetaGraph,
             namespace::Namespace,
             namespaced_item::NamespacedItem,
             vectorised_graph::GqlVectorisedGraph,
@@ -49,7 +48,7 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
-use tokio::sync::{OwnedRwLockReadGuard, OwnedRwLockWriteGuard, RwLock, RwLockReadGuard};
+use tokio::sync::{OwnedRwLockReadGuard, OwnedRwLockWriteGuard, RwLock};
 use tracing::{error, warn};
 use walkdir::WalkDir;
 

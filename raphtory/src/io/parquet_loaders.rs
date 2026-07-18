@@ -439,7 +439,7 @@ pub fn read_parquet_file(
         .fields
         .into_iter()
         .enumerate()
-        .filter(|&(idx, field)| col_names
+        .filter(|&(_idx, field)| col_names
                 .is_none_or(|filter| filter.contains(&field.name().as_str()))).map(|(idx, field)| (idx, field.name().clone()))
         .unzip();
     let projection = ProjectionMask::roots(builder.parquet_schema(), idx);

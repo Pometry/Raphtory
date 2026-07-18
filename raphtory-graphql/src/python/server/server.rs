@@ -1,9 +1,5 @@
 use crate::{
-    config::{
-        app_config::{AppConfig, AppConfigBuilder},
-        auth_config::PUBLIC_KEY_DECODING_ERR_MSG,
-        otlp_config::TracingLevel,
-    },
+    config::app_config::AppConfigBuilder,
     python::server::{
         running_server::PyRunningGraphServer, wait_server, BridgeCommand, ServerStarted,
     },
@@ -12,12 +8,11 @@ use crate::{
 };
 use crossbeam_channel::RecvTimeoutError;
 use pyo3::{
-    exceptions::{PyAttributeError, PyRuntimeError, PyValueError},
+    exceptions::PyRuntimeError,
     prelude::*,
     types::PyDict,
-    BoundObject,
 };
-use pythonize::{depythonize, PythonizeError};
+use pythonize::depythonize;
 use raphtory::{db::api::storage::storage::Config, python::utils::block_on};
 #[cfg(feature = "vectors")]
 use raphtory::{
@@ -25,7 +20,7 @@ use raphtory::{
     vectors::template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
 };
 use raphtory_api::python::error::adapt_err_value;
-use std::{io::Error, path::PathBuf, thread, time::Duration};
+use std::{path::PathBuf, thread, time::Duration};
 
 /// A class for defining and running a Raphtory GraphQL server
 ///
