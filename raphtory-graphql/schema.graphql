@@ -758,6 +758,13 @@ input EdgeSortBy {
 	"""
 	dst: Boolean
 	"""
+	Sort by the neighbour node (the endpoint that is NOT the node these
+	edges were traversed from; the destination for a graph-level edge
+	collection). Direction is controlled by this nested key's own
+	`reverse`; the outer `EdgeSortBy.reverse` does not apply to it.
+	"""
+	neighbour: NodeSortBy
+	"""
 	Time
 	"""
 	time: SortByTime
@@ -1124,7 +1131,7 @@ type Edges {
 	"""
 	sorted(
 		"""
-		Ordered list of sort keys. Each entry chooses exactly one of `src` / `dst` / `time` / `property`, with an optional `reverse: true` to flip order.
+		Ordered list of sort keys. Each entry chooses exactly one of `src` / `dst` / `neighbour` / `time` / `property`, with an optional `reverse: true` to flip order.
 		"""
 		sortBys: [EdgeSortBy!]!
 	): Edges!
@@ -3885,6 +3892,14 @@ input NodeSortBy {
 	"""
 	id: Boolean
 	"""
+	Node type. Untyped nodes sort first (before any named type).
+	"""
+	type: Boolean
+	"""
+	Node name
+	"""
+	name: Boolean
+	"""
 	Time
 	"""
 	time: SortByTime
@@ -4250,7 +4265,7 @@ type Nodes {
 	"""
 	sorted(
 		"""
-		Ordered list of sort keys. Each entry chooses exactly one of `id` / `time` / `property`, with an optional `reverse: true` to flip order.
+		Ordered list of sort keys. Each entry chooses exactly one of `id` / `type` / `name` / `time` / `property`, with an optional `reverse: true` to flip order.
 		"""
 		sortBys: [NodeSortBy!]!
 	): Nodes!
