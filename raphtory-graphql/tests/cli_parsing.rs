@@ -48,28 +48,28 @@ fn test_cli_parsing_no_arguments() {
         .parent()
         .expect("raphtory-graphql should live inside the workspace root")
         .to_path_buf();
-
-    let server_bin = std::env::var("CARGO_BIN_EXE_raphtory-server")
-        .map(std::path::PathBuf::from)
-        .unwrap_or_else(|_| {
-            workspace_root
-                .join("target")
-                .join("debug")
-                .join(format!("raphtory-server{}", std::env::consts::EXE_SUFFIX))
-        });
+    let server_bin = if let Some(bin) = std::env::var_os("CARGO_BIN_EXE_raphtory-server") {
+        std::path::PathBuf::from(bin)
+    } else {
+        let current_exe = std::env::current_exe().expect("failed to locate current test binary");
+        let target_dir = current_exe
+            .parent()
+            .and_then(|path| path.parent())
+            .expect("failed to locate cargo target directory from test binary");
+        target_dir.join(format!("raphtory-server{}", std::env::consts::EXE_SUFFIX))
+    };
 
     let mut child = Command::new(server_bin)
-        .current_dir(&workspace_root)
-        .env_remove("RAPHTORY_CACHE_CAPACITY")
+        .current_dir(workspace_root)
         .args(["server", "--log-level", "debug"])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
+        .env_remove("RAPHTORY_CACHE_CAPACITY")
         .spawn()
         .expect("failed to spawn raphtory-server CLI");
 
     std::thread::sleep(Duration::from_secs(1));
     child.kill().expect("failed to kill raphtory-server CLI");
-
     let output = child
         .wait_with_output()
         .expect("failed to collect raphtory-server CLI output");
@@ -88,19 +88,19 @@ fn test_cli_parsing_with_config_file() {
         .parent()
         .expect("raphtory-graphql should live inside the workspace root")
         .to_path_buf();
-
-    let server_bin = std::env::var("CARGO_BIN_EXE_raphtory-server")
-        .map(std::path::PathBuf::from)
-        .unwrap_or_else(|_| {
-            workspace_root
-                .join("target")
-                .join("debug")
-                .join(format!("raphtory-server{}", std::env::consts::EXE_SUFFIX))
-        });
+    let server_bin = if let Some(bin) = std::env::var_os("CARGO_BIN_EXE_raphtory-server") {
+        std::path::PathBuf::from(bin)
+    } else {
+        let current_exe = std::env::current_exe().expect("failed to locate current test binary");
+        let target_dir = current_exe
+            .parent()
+            .and_then(|path| path.parent())
+            .expect("failed to locate cargo target directory from test binary");
+        target_dir.join(format!("raphtory-server{}", std::env::consts::EXE_SUFFIX))
+    };
 
     let mut child = Command::new(server_bin)
-        .current_dir(&workspace_root)
-        .env_remove("RAPHTORY_CACHE_CAPACITY")
+        .current_dir(workspace_root)
         .args([
             "server",
             "--log-level",
@@ -110,12 +110,12 @@ fn test_cli_parsing_with_config_file() {
         ])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
+        .env_remove("RAPHTORY_CACHE_CAPACITY")
         .spawn()
         .expect("failed to spawn raphtory-server CLI");
 
     std::thread::sleep(Duration::from_secs(1));
     child.kill().expect("failed to kill raphtory-server CLI");
-
     let output = child
         .wait_with_output()
         .expect("failed to collect raphtory-server CLI output");
@@ -134,19 +134,19 @@ fn test_cli_parsing_with_env_variable() {
         .parent()
         .expect("raphtory-graphql should live inside the workspace root")
         .to_path_buf();
-
-    let server_bin = std::env::var("CARGO_BIN_EXE_raphtory-server")
-        .map(std::path::PathBuf::from)
-        .unwrap_or_else(|_| {
-            workspace_root
-                .join("target")
-                .join("debug")
-                .join(format!("raphtory-server{}", std::env::consts::EXE_SUFFIX))
-        });
+    let server_bin = if let Some(bin) = std::env::var_os("CARGO_BIN_EXE_raphtory-server") {
+        std::path::PathBuf::from(bin)
+    } else {
+        let current_exe = std::env::current_exe().expect("failed to locate current test binary");
+        let target_dir = current_exe
+            .parent()
+            .and_then(|path| path.parent())
+            .expect("failed to locate cargo target directory from test binary");
+        target_dir.join(format!("raphtory-server{}", std::env::consts::EXE_SUFFIX))
+    };
 
     let mut child = Command::new(server_bin)
-        .current_dir(&workspace_root)
-        .env("RAPHTORY_CACHE_CAPACITY", "456")
+        .current_dir(workspace_root)
         .args([
             "server",
             "--log-level",
@@ -156,12 +156,12 @@ fn test_cli_parsing_with_env_variable() {
         ])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
+        .env("RAPHTORY_CACHE_CAPACITY", "456")
         .spawn()
         .expect("failed to spawn raphtory-server CLI");
 
     std::thread::sleep(Duration::from_secs(1));
     child.kill().expect("failed to kill raphtory-server CLI");
-
     let output = child
         .wait_with_output()
         .expect("failed to collect raphtory-server CLI output");
@@ -180,19 +180,19 @@ fn test_cli_parsing_with_server_argument() {
         .parent()
         .expect("raphtory-graphql should live inside the workspace root")
         .to_path_buf();
-
-    let server_bin = std::env::var("CARGO_BIN_EXE_raphtory-server")
-        .map(std::path::PathBuf::from)
-        .unwrap_or_else(|_| {
-            workspace_root
-                .join("target")
-                .join("debug")
-                .join(format!("raphtory-server{}", std::env::consts::EXE_SUFFIX))
-        });
+    let server_bin = if let Some(bin) = std::env::var_os("CARGO_BIN_EXE_raphtory-server") {
+        std::path::PathBuf::from(bin)
+    } else {
+        let current_exe = std::env::current_exe().expect("failed to locate current test binary");
+        let target_dir = current_exe
+            .parent()
+            .and_then(|path| path.parent())
+            .expect("failed to locate cargo target directory from test binary");
+        target_dir.join(format!("raphtory-server{}", std::env::consts::EXE_SUFFIX))
+    };
 
     let mut child = Command::new(server_bin)
-        .current_dir(&workspace_root)
-        .env("RAPHTORY_CACHE_CAPACITY", "456")
+        .current_dir(workspace_root)
         .args([
             "server",
             "--log-level",
@@ -204,12 +204,12 @@ fn test_cli_parsing_with_server_argument() {
         ])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
+        .env("RAPHTORY_CACHE_CAPACITY", "456")
         .spawn()
         .expect("failed to spawn raphtory-server CLI");
 
     std::thread::sleep(Duration::from_secs(1));
     child.kill().expect("failed to kill raphtory-server CLI");
-
     let output = child
         .wait_with_output()
         .expect("failed to collect raphtory-server CLI output");
