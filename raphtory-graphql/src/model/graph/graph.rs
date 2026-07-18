@@ -428,7 +428,6 @@ impl GqlGraph {
                 .graph
                 .edges()
                 .earliest_time()
-                .into_iter()
                 .filter_map(|edge_time| edge_time.filter(|&time| include_negative || time.t() >= 0))
                 .min()
                 .into()
@@ -452,7 +451,6 @@ impl GqlGraph {
                 .graph
                 .edges()
                 .latest_time()
-                .into_iter()
                 .filter_map(|edge_time| edge_time.filter(|&time| include_negative || time.t() >= 0))
                 .max()
                 .into()

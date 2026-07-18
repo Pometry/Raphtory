@@ -347,7 +347,7 @@ fn split_into_chunks(batch: &RecordBatch, indices: &[usize]) -> Vec<Result<DFChu
     // means the progress bar will update reasonably (every CHUNK_SIZE rows)
     let num_rows = batch.num_rows();
     if num_rows > CHUNK_SIZE {
-        let num_chunks = (num_rows + CHUNK_SIZE - 1) / CHUNK_SIZE;
+        let num_chunks = num_rows.div_ceil(CHUNK_SIZE);
         let mut result = Vec::with_capacity(num_chunks);
         for i in 0..num_chunks {
             let offset = i * CHUNK_SIZE;

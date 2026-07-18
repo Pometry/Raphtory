@@ -215,7 +215,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
     }
 
     pub fn edges_path(&self) -> Option<&Path> {
-        self.edges_path.as_ref().map(|path| path.as_path())
+        self.edges_path.as_deref()
     }
 
     pub fn earliest(&self) -> Option<EventTime> {

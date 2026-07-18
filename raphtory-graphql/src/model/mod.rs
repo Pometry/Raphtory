@@ -362,7 +362,7 @@ impl QueryRoot {
 
     /// Returns a plugin.
     async fn plugins<'a>() -> QueryPlugin {
-        QueryPlugin::default()
+        QueryPlugin
     }
 
     /// Encodes graph and returns as string.
@@ -396,7 +396,7 @@ pub(crate) struct Mut(MutRoot);
 impl Mut {
     /// Returns a collection of mutation plugins.
     async fn plugins<'a>(_ctx: &Context<'a>) -> MutationPlugin {
-        MutationPlugin::default()
+        MutationPlugin
     }
 
     /// Delete graph from a path on the server.

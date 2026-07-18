@@ -520,7 +520,7 @@ impl LatestDateTimeView {
         });
         // both the min_item_by and Result outputs can be None, they both return None to python
         match min {
-            Some((n, Ok(Some(o)))) => Ok(Some((n.cloned(), o.clone()))),
+            Some((n, Ok(Some(o)))) => Ok(Some((n.cloned(), o))),
             Some((_, Ok(None))) => Ok(None),
             Some((_, Err(e))) => Err(PyErr::from(e.clone())),
             None => Ok(None),
@@ -548,7 +548,7 @@ impl LatestDateTimeView {
         });
         // both the max_item_by and Result outputs can be None, they both return None to python
         match max {
-            Some((n, Ok(Some(o)))) => Ok(Some((n.cloned(), o.clone()))),
+            Some((n, Ok(Some(o)))) => Ok(Some((n.cloned(), o))),
             Some((_, Ok(None))) => Ok(None),
             Some((_, Err(e))) => Err(PyErr::from(e.clone())),
             None => Ok(None),
@@ -581,7 +581,7 @@ impl LatestDateTimeView {
             .inner
             .par_iter()
             .filter_map(|(n, result)| match result {
-                Ok(Some(o)) => Some((n.cloned(), o.clone())),
+                Ok(Some(o)) => Some((n.cloned(), o)),
                 _ => None,
             })
             .collect();
@@ -591,7 +591,7 @@ impl LatestDateTimeView {
         }
         values.par_sort_by(|(_, v1), (_, v2)| v1.cmp(v2));
         let median_index = len / 2;
-        values.into_iter().nth(median_index).map(|(n, o)| (n, o)) // nodeview and datetime have already been cloned
+        values.into_iter().nth(median_index) // nodeview and datetime have already been cloned
     }
 
     /// Group by value

@@ -242,7 +242,7 @@ impl HistoryView {
                 && self
                     .inner
                     .iter_values()
-                    .zip(other.into_iter())
+                    .zip(other)
                     .all(|(left, right)| left.iter().eq(right.iter()))
         } else if let Ok(other) =
             other.extract::<HashMap<PyNodeRef, History<'static, Arc<dyn InternalHistoryOps>>>>()
@@ -582,7 +582,7 @@ impl NodeStateHistory {
                 && self
                     .inner
                     .iter_values()
-                    .zip(other.into_iter())
+                    .zip(other)
                     .all(|(left, right)| left.iter().eq(right.iter()))
         } else if let Ok(other) =
             other.extract::<HashMap<PyNodeRef, History<'static, Arc<dyn InternalHistoryOps>>>>()

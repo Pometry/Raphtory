@@ -976,7 +976,7 @@ where
         other.len() == self.len()
             && other
                 .iter()
-                .all(|(k, rhs)| !self.get_by_node(k).filter(|lhs| lhs == rhs).is_none())
+                .all(|(k, rhs)| self.get_by_node(k).filter(|lhs| lhs == rhs).is_some())
     }
 }
 
