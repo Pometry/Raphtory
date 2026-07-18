@@ -67,7 +67,9 @@ pub(crate) fn compare_node<'graph, G: GraphViewOps<'graph>>(
         };
         first.partial_cmp(&second)
     } else if let Some(prop) = sort_by.property.as_ref() {
-        a.properties().get(prop).partial_cmp(&b.properties().get(prop))
+        a.properties()
+            .get(prop)
+            .partial_cmp(&b.properties().get(prop))
     } else {
         None
     };

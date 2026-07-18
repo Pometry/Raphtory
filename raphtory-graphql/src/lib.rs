@@ -3238,9 +3238,12 @@ mod graphql_test {
         // Anchor "hub" with edges in BOTH directions to typed + untyped neighbours.
         let g = Graph::new();
         g.add_node(1, "hub", NO_PROPS, None, None).unwrap();
-        g.add_node(1, "x", [("score", 3i64)], Some("B"), None).unwrap();
-        g.add_node(1, "y", [("score", 1i64)], Some("A"), None).unwrap();
-        g.add_node(1, "w", [("score", 2i64)], Some("A"), None).unwrap();
+        g.add_node(1, "x", [("score", 3i64)], Some("B"), None)
+            .unwrap();
+        g.add_node(1, "y", [("score", 1i64)], Some("A"), None)
+            .unwrap();
+        g.add_node(1, "w", [("score", 2i64)], Some("A"), None)
+            .unwrap();
         g.add_node(1, "z", [("score", 4i64)], None, None).unwrap(); // untyped
         g.add_edge(10, "hub", "x", NO_PROPS, None).unwrap(); // out -> nbr x (B)
         g.add_edge(11, "y", "hub", NO_PROPS, None).unwrap(); // in  -> nbr y (A)

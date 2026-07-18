@@ -345,9 +345,12 @@ impl GqlNodes {
                 .nn
                 .iter()
                 .sorted_by(|first_node, second_node| {
-                    sort_bys.iter().fold(Ordering::Equal, |current_ordering, sort_by| {
-                        current_ordering.then_with(|| compare_node(first_node, second_node, sort_by))
-                    })
+                    sort_bys
+                        .iter()
+                        .fold(Ordering::Equal, |current_ordering, sort_by| {
+                            current_ordering
+                                .then_with(|| compare_node(first_node, second_node, sort_by))
+                        })
                 })
                 .map(|node_view| node_view.node)
                 .collect();
