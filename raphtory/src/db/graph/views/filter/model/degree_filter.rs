@@ -73,7 +73,7 @@ impl CreateFilter for DegreeFilter {
         self,
         graph: G,
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
-        if self.ops.len() > 0 {
+        if !self.ops.is_empty() {
             return Err(GraphError::InvalidFilter(
                 "degree filter does not support expressions".to_string(),
             ));
@@ -99,7 +99,7 @@ impl CreateFilter for DegreeFilter {
                 let casted_val = prop_val.clone().try_cast(PropType::U64).ok_or_else(|| {
                     GraphError::InvalidFilter(format!(
                         "degree filter expects an integer value, got {}",
-                        prop_val.to_string()
+                        prop_val
                     ))
                 })?;
 
@@ -112,7 +112,7 @@ impl CreateFilter for DegreeFilter {
                         val.clone().try_cast(PropType::U64).ok_or_else(|| {
                             GraphError::InvalidFilter(format!(
                                 "degree filter expects an integer value, got {}",
-                                val.to_string()
+                                val
                             ))
                         })
                     })
@@ -212,7 +212,7 @@ impl Display for DegreeFilter {
         let property_filter = PropertyFilter {
             prop_ref: property_ref(&self.direction),
             prop_value: self.value.clone(),
-            operator: self.operator.clone(),
+            operator: self.operator,
             ops: self.ops.clone(),
             entity: NodeFilter,
         };

@@ -20,7 +20,6 @@ use raphtory_storage::mutation::addition_ops::{InternalAdditionOps, SessionAddit
 use rayon::prelude::*;
 use std::{
     collections::HashMap,
-    env,
     sync::atomic::{AtomicUsize, Ordering},
 };
 use storage::pages::resolve_pos;
@@ -31,7 +30,7 @@ pub mod nodes;
 
 #[cfg(feature = "progress")]
 fn progress_bars_enabled() -> bool {
-    env::var("RAPHTORY_PROGRESS_BARS_ENABLED")
+    std::env::var("RAPHTORY_PROGRESS_BARS_ENABLED")
         .ok()
         .and_then(|value| {
             let value = value.trim().to_ascii_lowercase();

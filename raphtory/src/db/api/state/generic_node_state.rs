@@ -21,17 +21,15 @@ use crate::{
 };
 use arrow::{
     array::AsArray,
-    compute::{cast_with_options, interleave_record_batch, CastOptions},
+    compute::{cast_with_options, CastOptions},
     datatypes::UInt64Type,
-    row::{RowConverter, SortField},
 };
 use arrow_array::{
-    builder::UInt64Builder, Array, ArrayRef, LargeStringArray, RecordBatch, UInt32Array,
+    builder::UInt64Builder, Array, ArrayRef, LargeStringArray, RecordBatch,
     UInt64Array,
 };
-use arrow_schema::{ArrowError, DataType, Field, FieldRef, Schema, SchemaBuilder, SortOptions};
+use arrow_schema::{DataType, Field, FieldRef, Schema, SchemaBuilder};
 use arrow_select::{concat::concat, take::take};
-use dashmap::DashMap;
 #[cfg(feature = "datafusion")]
 use datafusion_expr_common::groups_accumulator::EmitTo;
 #[cfg(feature = "datafusion")]
@@ -61,8 +59,8 @@ use serde_arrow::{
     to_record_batch, Deserializer,
 };
 use std::{
-    cmp::{Ordering, PartialEq},
-    collections::{BinaryHeap, HashMap},
+    cmp::PartialEq,
+    collections::HashMap,
     fmt::{Debug, Formatter},
     fs::File,
     hash::BuildHasher,
@@ -290,9 +288,7 @@ where
 
     fn next(&mut self) -> Option<Self::Item> {
         let res = self.deserializer.get(self.idx);
-        if res.is_none() {
-            return None;
-        }
+        res.as_ref()?;
         let item = T::deserialize(res.unwrap()).unwrap();
         self.idx += 1;
         Some(item)
@@ -329,7 +325,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
             base_graph,
             values,
             keys,
-            node_cols: node_cols.unwrap_or(HashMap::new()),
+            node_cols: node_cols.unwrap_or_default(),
             _marker: PhantomData,
         }
     }
@@ -707,7 +703,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
             let col_name = column.name();
             if column_merge_priority_map
                 .as_ref()
-                .map_or(true, |map| map.contains_key(col_name) == false)
+                .is_none_or(|map| !map.contains_key(col_name))
             {
                 if default_node_cols.contains_key(col_name) {
                     merge_node_cols.insert(
@@ -980,7 +976,7 @@ where
         other.len() == self.len()
             && other
                 .iter()
-                .all(|(k, rhs)| self.get_by_node(k).filter(|lhs| lhs == rhs).is_none() == false)
+                .all(|(k, rhs)| !self.get_by_node(k).filter(|lhs| lhs == rhs).is_none())
     }
 }
 
@@ -1172,7 +1168,7 @@ impl<
             Some(self.state.node_cols.clone()),
         );
         TypedNodeState::<'graph, V, Self::Graph, T> {
-            state: state,
+            state,
             converter: self.converter,
             _v_marker: PhantomData,
             _t_marker: PhantomData,
@@ -1220,7 +1216,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
                 Vec::<FieldRef>::from_samples(&values, TracingOptions::default()).unwrap()
             })
             .into_iter()
-            .map(|f| Arc::unwrap_or_clone(f))
+            .map(Arc::unwrap_or_clone)
             .collect();
         let fields: Vec<_> = fields
             .into_iter()

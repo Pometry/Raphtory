@@ -31,8 +31,8 @@ use std::{
 
 pub(crate) fn is_parquet_path(path: &PathBuf) -> Result<bool, std::io::Error> {
     if path.is_dir() {
-        Ok(fs::read_dir(&path)?.any(|entry| {
-            entry.map_or(false, |e| {
+        Ok(fs::read_dir(path)?.any(|entry| {
+            entry.is_ok_and(|e| {
                 e.path().extension().and_then(OsStr::to_str) == Some("parquet")
             })
         }))
@@ -439,11 +439,8 @@ pub fn read_parquet_file(
         .fields
         .into_iter()
         .enumerate()
-        .filter_map(|(idx, field)| {
-            col_names
-                .is_none_or(|filter| filter.contains(&field.name().as_str()))
-                .then(|| (idx, field.name().clone()))
-        })
+        .filter(|&(idx, field)| col_names
+                .is_none_or(|filter| filter.contains(&field.name().as_str()))).map(|(idx, field)| (idx, field.name().clone()))
         .unzip();
     let projection = ProjectionMask::roots(builder.parquet_schema(), idx);
     Ok((names, builder.with_projection(projection), num_rows))

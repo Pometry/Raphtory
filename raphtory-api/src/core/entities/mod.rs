@@ -189,7 +189,7 @@ impl EDID {
     }
 
     pub fn into_deletion(mut self) -> Self {
-        self.0 = self.0 | DELETION_FLAG;
+        self.0 |= DELETION_FLAG;
         self
     }
 }

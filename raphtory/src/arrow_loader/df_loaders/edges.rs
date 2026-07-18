@@ -270,7 +270,7 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                 .get_or_insert_with(|| NodeResolveCache::new(df.len(), src_col.dtype()));
             resolve_node_vids_with_quick_cache(
                 graph,
-                &mut cache,
+                cache,
                 &mut src_col_resolved,
                 &mut dst_col_resolved,
                 &src_col,
@@ -639,10 +639,9 @@ impl<'b, G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> LockedCacheS
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
 fn resolve_node_vids_with_quick_cache<
     'a,
-    'b,
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
 >(
-    graph: &'b G,
+    graph: &G,
     locked_node_cache: &mut NodeResolveCache,
     src_col_resolved: &'a mut Vec<VID>,
     dst_col_resolved: &'a mut Vec<VID>,
