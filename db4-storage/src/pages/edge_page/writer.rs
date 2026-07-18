@@ -123,13 +123,12 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
         c_props: impl IntoIterator<Item = (usize, P)>,
         t_props: impl IntoIterator<Item = (usize, P)>,
     ) {
-        if !edge_exists {
-            if self
+        if !edge_exists
+            && self
                 .writer
                 .insert_static_edge_internal(edge_pos, src, dst, STATIC_GRAPH_LAYER_ID)
-            {
-                self.increment_layer_num_edges(STATIC_GRAPH_LAYER_ID);
-            }
+        {
+            self.increment_layer_num_edges(STATIC_GRAPH_LAYER_ID);
         }
 
         if self
@@ -155,13 +154,12 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
         exists: bool,
         layer_id: LayerId,
     ) {
-        if !exists {
-            if self
+        if !exists
+            && self
                 .writer
                 .insert_static_edge_internal(edge_pos, src, dst, STATIC_GRAPH_LAYER_ID)
-            {
-                self.increment_layer_num_edges(STATIC_GRAPH_LAYER_ID);
-            }
+        {
+            self.increment_layer_num_edges(STATIC_GRAPH_LAYER_ID);
         }
 
         self.graph_stats.update_time(t.t());

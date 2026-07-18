@@ -454,7 +454,7 @@ impl NodeStateHistory {
     pub fn iter(
         &self,
     ) -> impl Iterator<Item = History<'static, NodeView<'static, DynamicGraph>>> + '_ {
-        self.inner.iter_values().map(|v| v.clone())
+        self.inner.iter_values().cloned()
     }
 }
 
@@ -623,7 +623,7 @@ impl NodeStateHistory {
         py_borrowing_iter!(
             self.inner.clone(),
             NodeState<'static, History<'static, NodeView<'static, DynamicGraph>>, DynamicGraph>,
-            |inner| inner.iter_values().map(|v| v.clone())
+            |inner| inner.iter_values().cloned()
         )
     }
 
@@ -649,8 +649,7 @@ impl NodeStateHistory {
     ) -> PyResult<History<'static, NodeView<'static, DynamicGraph>>> {
         let node = node.as_node_ref();
         self.inner
-            .get_by_node(node)
-            .map(|v| v.clone())
+            .get_by_node(node).cloned()
             .ok_or_else(|| match node {
                 NodeRef::External(id) => {
                     PyKeyError::new_err(format!("Missing value for node with id {id}"))
@@ -721,7 +720,7 @@ impl From<NodeState<'static, History<'static, NodeView<'static, DynamicGraph>>, 
     fn from(
         inner: NodeState<'static, History<'static, NodeView<'static, DynamicGraph>>, DynamicGraph>,
     ) -> Self {
-        NodeStateHistory { inner: inner }
+        NodeStateHistory { inner }
     }
 }
 

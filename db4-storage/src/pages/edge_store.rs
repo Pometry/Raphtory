@@ -30,7 +30,7 @@ use std::{
     sync::{Arc, LazyLock},
 };
 
-pub static N: LazyLock<usize> = LazyLock::new(|| rayon::current_num_threads());
+pub static N: LazyLock<usize> = LazyLock::new(rayon::current_num_threads);
 
 #[derive(Debug)]
 pub struct EdgeStorageInner<ES, EXT> {
@@ -368,7 +368,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
             segments: pages,
             edges_path: Some(edges_path.to_path_buf()),
             layer_counter: stats.into(),
-            free_pages: free_pages.try_into().unwrap(),
+            free_pages: free_pages.into(),
             prop_meta: meta,
             ext,
         })

@@ -276,7 +276,7 @@ impl GraphStorage {
     }
 
     pub fn unfiltered_layer_ids(&self) -> impl Iterator<Item = LayerId> {
-        (1..=self.unfiltered_num_layers()).map(move |layer_id| LayerId(layer_id))
+        (1..=self.unfiltered_num_layers()).map(LayerId)
     }
 
     pub fn node_meta(&self) -> &Meta {

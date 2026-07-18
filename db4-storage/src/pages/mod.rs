@@ -81,8 +81,8 @@ impl<
         self.graph_props.flush()?;
 
         // Refresh the graph metadata file (.meta) for disk-backed graphs
-        if let Some(graph_dir) = self.graph_dir.as_ref() {
-            if let (Some(data_folder), Some(graph_path)) = (
+        if let Some(graph_dir) = self.graph_dir.as_ref()
+            && let (Some(data_folder), Some(graph_path)) = (
                 graph_dir.parent(),
                 graph_dir.file_name().and_then(|name| name.to_str()),
             ) {
@@ -92,7 +92,6 @@ impl<
                     self.edges.num_edges(),
                 )?;
             }
-        }
 
         Ok(())
     }

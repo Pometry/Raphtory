@@ -87,7 +87,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         src_pos: impl Into<LocalPOS>,
         dst: impl Into<VID>,
         e_id: impl Into<ELID>,
-        mut layer_counter: impl FnMut(LayerId) -> (),
+        mut layer_counter: impl FnMut(LayerId),
     ) {
         let src_pos = src_pos.into();
         let dst = dst.into();
@@ -141,7 +141,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         dst_pos: impl Into<LocalPOS>,
         src: impl Into<VID>,
         e_id: impl Into<ELID>,
-        mut layer_counter: impl FnMut(LayerId) -> (),
+        mut layer_counter: impl FnMut(LayerId),
     ) {
         let e_id = e_id.into();
         let src = src.into();
@@ -200,7 +200,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         pos: LocalPOS,
         layer_id: LayerId,
         props: impl IntoIterator<Item = (usize, P)>,
-        mut layer_counter: impl FnMut(LayerId) -> (),
+        mut layer_counter: impl FnMut(LayerId),
     ) {
         let (is_new_node, add) = self.mut_segment.update_metadata(pos, layer_id, props);
         self.mut_segment.increment_est_size(add);

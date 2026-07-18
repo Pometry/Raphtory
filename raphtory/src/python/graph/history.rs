@@ -582,7 +582,7 @@ impl PyHistoryDateTime {
             return self.history_dt.iter().eq(py_hist.get().history_dt.iter());
         }
         if let Some(iterator) = dt_iter_opt {
-            return self.history_dt.iter().eq(iterator.map(|dt| Ok(dt)));
+            return self.history_dt.iter().eq(iterator.map(Ok));
         }
         false
     }

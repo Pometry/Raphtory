@@ -197,7 +197,7 @@ pub fn assert_valid_graph(fixture: &GraphFixture, graph: &Graph) {
         expected_node_ids, actual_node_ids
     );
 
-    for ((_, _, layer), _) in &expected_edge_layer_updates {
+    for (_, _, layer) in expected_edge_layer_updates.keys() {
         assert!(
             graph.has_layer(layer.as_ref()),
             "graph missing expected layer {:?}",
@@ -1208,7 +1208,7 @@ pub fn build_graph_layer(graph_fix: &GraphFixture, layers: &[&str]) -> Arc<Stora
         let node_layer = updates.node_layer.as_str();
         let visible = match node_layer {
             None => true,
-            Some(l) => layers.contains(&l),
+            Some(l) => layers.contains(l),
         };
         if visible {
             for (t, props) in updates.props.t_props.iter() {

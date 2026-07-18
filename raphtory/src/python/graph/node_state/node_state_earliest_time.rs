@@ -192,7 +192,7 @@ impl EarliestDateTimeView {
         } else if let Ok(other) = other.extract::<Vec<Option<DateTime<Utc>>>>() {
             self.inner
                 .iter_values()
-                .eq(other.into_iter().map(|o| Ok(o)))
+                .eq(other.into_iter().map(Ok))
         } else if let Ok(other) = other.extract::<HashMap<PyNodeRef, Option<DateTime<Utc>>>>() {
             self.inner.len() == other.len()
                 && other

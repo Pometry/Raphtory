@@ -74,7 +74,7 @@ impl<'a, ES: EdgeSegmentOps> LockedEdgePage<'a, ES> {
     }
 
     pub fn page(&self) -> &ES {
-        &self.page
+        self.page
     }
 }
 #[derive(Debug)]
