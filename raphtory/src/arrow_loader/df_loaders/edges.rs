@@ -525,12 +525,6 @@ impl NodeResolveCache {
             }
         }
     }
-
-    fn len(&self) -> usize {
-        match self {
-            NodeResolveCache::Str { len, .. } | NodeResolveCache::U64 { len, .. } => *len,
-        }
-    }
 }
 
 impl NodeResolveCache {

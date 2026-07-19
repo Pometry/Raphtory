@@ -394,7 +394,7 @@ impl PropColumn {
             PropColumn::U64(col) => col.get_opt(index).map(|prop| PropRef::from(*prop)),
             PropColumn::F32(col) => col.get_opt(index).map(|prop| PropRef::from(*prop)),
             PropColumn::F64(col) => col.get_opt(index).map(|prop| PropRef::from(*prop)),
-            PropColumn::Str(col) => col.get_opt(index).map(|prop| PropRef::Str(prop)),
+            PropColumn::Str(col) => col.get_opt(index).map(PropRef::Str),
             PropColumn::U8(col) => col.get_opt(index).map(|prop| PropRef::from(*prop)),
             PropColumn::U16(col) => col.get_opt(index).map(|prop| PropRef::from(*prop)),
             PropColumn::I32(col) => col.get_opt(index).map(|prop| PropRef::from(*prop)),
