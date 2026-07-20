@@ -6,48 +6,28 @@ use std::{
 
 use raphtory_graphql::config::{app_config::AppConfig, cache_config::DEFAULT_CACHE_CAPACITY};
 use serde::Deserialize;
-use tempfile::Builder;
 use serde_json::Value;
+use tempfile::Builder;
 
 fn workspace_root() -> std::path::PathBuf {
     std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
-        .expect("raphtory-graphql should live inside the workspace root")
+        .expect("raphtory-server should live inside the workspace root")
         .to_path_buf()
 }
 
 fn server_bin() -> std::path::PathBuf {
-    let binary_name = format!("raphtory-server{}", std::env::consts::EXE_SUFFIX);
-
-    for env_var in ["NEXTEST_BIN_EXE_raphtory-server", "CARGO_BIN_EXE_raphtory-server"] {
-        if let Some(path) = std::env::var_os(env_var) {
-            let path = std::path::PathBuf::from(path);
-            if path.is_file() {
-                return path;
-            }
-        }
-    }
-
-    let workspace_root = workspace_root();
-    let target_root = std::env::var_os("CARGO_TARGET_DIR")
+    std::env::var_os("NEXTEST_BIN_EXE_raphtory-server")
+        .or_else(|| std::env::var_os("CARGO_BIN_EXE_raphtory-server"))
         .map(std::path::PathBuf::from)
-        .unwrap_or_else(|| workspace_root.join("target"));
-
-    for profile in ["build-fast", "debug", "release"] {
-        let candidate = target_root.join(profile).join(&binary_name);
-        if candidate.is_file() {
-            return candidate;
-        }
-    }
-
-    panic!(
-        "failed to locate raphtory-server binary via NEXTEST_BIN_EXE_raphtory-server, CARGO_BIN_EXE_raphtory-server, or target profiles under {}",
-        target_root.display()
-    );
+        .expect(
+            "failed to locate raphtory-server binary via NEXTEST_BIN_EXE_raphtory-server or CARGO_BIN_EXE_raphtory-server",
+        )
 }
 
 fn get_app_config(stdout: String) -> AppConfig {
-    let server_config_serialized = stdout.lines()
+    let server_config_serialized = stdout
+        .lines()
         .find(|line| line.contains("Server configurations:"))
         .expect("failed to find app config in CLI output")
         .split_once("Server configurations: ")
@@ -56,27 +36,22 @@ fn get_app_config(stdout: String) -> AppConfig {
     let json_start = server_config_serialized.find('{').expect("no JSON found");
     let json_end = server_config_serialized.rfind('}').expect("no JSON end found") + 1;
     let json_str = &server_config_serialized[json_start..json_end];
-    
-    let server_config_json: Value = serde_json::from_str(json_str)
-    .expect("failed to parse config JSON");
+
+    let server_config_json: Value = serde_json::from_str(json_str).expect("failed to parse config JSON");
     let config = &server_config_json["config"];
     AppConfig::deserialize(config).expect("failed to deserialize AppConfig")
 }
 
 fn config_file() -> tempfile::NamedTempFile {
-        let mut config_file = Builder::new()
-            .suffix(".toml")
-            .tempfile()
-            .expect("failed to create temporary config file for CLI test");
-        write!(
-            config_file,
-            "[cache]\ncapacity = 123\n"
-        )
-        .expect("failed to write temporary cache config");
-        config_file
-            .flush()
-            .expect("failed to flush temporary cache config");
-        config_file
+    let mut config_file = Builder::new()
+        .suffix(".toml")
+        .tempfile()
+        .expect("failed to create temporary config file for CLI test");
+    write!(config_file, "[cache]\ncapacity = 123\n").expect("failed to write temporary cache config");
+    config_file
+        .flush()
+        .expect("failed to flush temporary cache config");
+    config_file
 }
 
 #[test]
@@ -100,7 +75,7 @@ fn test_cli_parsing_no_arguments() {
         .expect("failed to collect raphtory-server CLI output");
 
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-    let config = get_app_config(stdout.clone()); 
+    let config = get_app_config(stdout.clone());
     let cache_capacity = config.cache.capacity;
     assert_eq!(cache_capacity, DEFAULT_CACHE_CAPACITY);
 }
@@ -134,7 +109,7 @@ fn test_cli_parsing_with_config_file() {
         .expect("failed to collect raphtory-server CLI output");
 
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-    let config = get_app_config(stdout.clone()); 
+    let config = get_app_config(stdout.clone());
     let cache_capacity = config.cache.capacity;
     assert_eq!(cache_capacity, 123);
 }
@@ -168,7 +143,7 @@ fn test_cli_parsing_with_env_variable() {
         .expect("failed to collect raphtory-server CLI output");
 
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-    let config = get_app_config(stdout.clone()); 
+    let config = get_app_config(stdout.clone());
     let cache_capacity = config.cache.capacity;
     assert_eq!(cache_capacity, 456);
 }
@@ -204,7 +179,7 @@ fn test_cli_parsing_with_server_argument() {
         .expect("failed to collect raphtory-server CLI output");
 
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-    let config = get_app_config(stdout.clone()); 
+    let config = get_app_config(stdout.clone());
     let cache_capacity = config.cache.capacity;
     assert_eq!(cache_capacity, 789);
 }
