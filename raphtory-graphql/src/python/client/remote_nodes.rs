@@ -2,8 +2,8 @@ use crate::{
     client::{remote_nodes::RemoteNodes, ClientError},
     python::client::{remote_node::PyRemoteNode, remote_sorting::PyNodeSortBy},
 };
-use pyo3::{pyclass, pymethods, PyRef, PyRefMut};
-use raphtory::python::utils::execute_async_task;
+use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyRef, PyRefMut, PyResult};
+use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
 use std::sync::Arc;
 
 /// A handle to a remote collection of nodes.
@@ -108,6 +108,53 @@ impl PyRemoteNodes {
     /// Lazy — no RPC.
     pub fn type_filter(&self, node_types: Vec<String>) -> PyRemoteNodes {
         PyRemoteNodes::new(self.nodes.type_filter(node_types))
+    }
+
+    /// Filter this collection by a filter expression from `raphtory.filter`
+    /// (the same builder used by local graphs). The filter **propagates**:
+    /// it narrows the current collection AND applies to downstream
+    /// traversals from the matching nodes (e.g. their `.neighbours`,
+    /// `.edges`). For a narrow-here-only variant, use `.select(...)`.
+    /// Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     filter (FilterExpr): a filter expression from `raphtory.filter`.
+    ///
+    /// Returns:
+    ///     RemoteNodes: a new collection with the filter applied.
+    ///
+    /// Raises:
+    ///     ValueError: if the filter cannot be represented as a GraphQL
+    ///         `NodeFilter` (e.g. references edge fields, or uses an
+    ///         unsupported operator like `FuzzySearch`).
+    pub fn filter(&self, filter: PyFilterExpr) -> PyResult<PyRemoteNodes> {
+        let composite = filter
+            .try_as_node_filter()
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        let gql_filter = composite
+            .try_into()
+            .map_err(|e: raphtory::errors::GraphError| PyValueError::new_err(e.to_string()))?;
+        Ok(PyRemoteNodes::new(self.nodes.filter(gql_filter)))
+    }
+
+    /// Narrow this collection's membership by a filter expression. Unlike
+    /// `.filter()`, the filter applies **only at this step** — downstream
+    /// traversals from the matching nodes see the unfiltered graph. Use
+    /// `.filter()` for the propagating variant. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     filter (FilterExpr): a filter expression from `raphtory.filter`.
+    ///
+    /// Returns:
+    ///     RemoteNodes: a new collection narrowed to matching nodes.
+    pub fn select(&self, filter: PyFilterExpr) -> PyResult<PyRemoteNodes> {
+        let composite = filter
+            .try_as_node_filter()
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        let gql_filter = composite
+            .try_into()
+            .map_err(|e: raphtory::errors::GraphError| PyValueError::new_err(e.to_string()))?;
+        Ok(PyRemoteNodes::new(self.nodes.select(gql_filter)))
     }
 
     /// Reorder this collection by an ordered list of sort keys. Multi-key

@@ -1,9 +1,12 @@
-use crate::client::{
-    op::{NodeSortBy, Op, ReadExpr},
-    remote_graph::{expect_i64, expect_optional_i64, expect_string_list},
-    remote_node::RemoteNode,
-    transport::Transport,
-    ClientError,
+use crate::{
+    client::{
+        op::{NodeSortBy, Op, ReadExpr},
+        remote_graph::{expect_i64, expect_optional_i64, expect_string_list},
+        remote_node::RemoteNode,
+        transport::Transport,
+        ClientError,
+    },
+    model::graph::filtering::GqlNodeFilter,
 };
 use std::sync::Arc;
 
@@ -199,6 +202,39 @@ impl RemoteNodes {
             expr: ReadExpr::TypeFilter {
                 input: Box::new(self.expr.clone()),
                 node_types,
+            },
+            base_graph: self.base_graph.clone(),
+        }
+    }
+
+    /// Filter this collection by a filter expression. **The filter
+    /// propagates**: it applies to the current collection's membership
+    /// *and* to downstream traversals from the matching nodes (e.g. their
+    /// `.neighbours`, `.edges`). For a narrow-here-only variant, use
+    /// `.select(...)`. Lazy — no RPC.
+    pub fn filter(&self, filter: GqlNodeFilter) -> RemoteNodes {
+        RemoteNodes {
+            path: self.path.clone(),
+            transport: self.transport.clone(),
+            expr: ReadExpr::FilterNodes {
+                input: Box::new(self.expr.clone()),
+                filter,
+            },
+            base_graph: self.base_graph.clone(),
+        }
+    }
+
+    /// Narrow this collection's membership by a filter expression. Unlike
+    /// `.filter()`, the filter applies **only at this step** — downstream
+    /// traversals from the matching nodes see the unfiltered graph.
+    /// Lazy — no RPC.
+    pub fn select(&self, filter: GqlNodeFilter) -> RemoteNodes {
+        RemoteNodes {
+            path: self.path.clone(),
+            transport: self.transport.clone(),
+            expr: ReadExpr::SelectNodes {
+                input: Box::new(self.expr.clone()),
+                filter,
             },
             base_graph: self.base_graph.clone(),
         }

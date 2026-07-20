@@ -748,6 +748,238 @@ fn render_node_sort_bys(sort_bys: &[NodeSortBy]) -> String {
     format!("[{}]", entries.join(", "))
 }
 
+// ============ GqlNodeFilter → GraphQL literal rendering ============
+//
+// We can't go through serde JSON because enum-typed fields (`NodeField`,
+// `DegreeDirection`) need to be emitted as unquoted SCREAMING_SNAKE_CASE
+// identifiers in GQL literal syntax — serde's `rename_all = "camelCase"`
+// gives us `"nodeName"` (quoted, camelCase), which the server rejects.
+//
+// So we walk the typed structure directly, emitting the correct GQL
+// syntax for each variant / field / enum value.
+use crate::model::graph::{
+    filtering::{
+        DegreeDirection, DegreeFilterNew, GqlNodeFilter, NodeField, NodeFieldCondition,
+        NodeFieldFilterNew, NodeLayersExpr, NodeTimeExpr, NodeUnaryExpr, NodeWindowExpr,
+        PropCondition, PropertyFilterNew,
+    },
+    property::{ObjectEntry, Value as GqlValue},
+    timeindex::GqlTimeInput,
+};
+
+fn render_gql_str(s: &str) -> String {
+    // JSON string escape rules — same as GQL string literal.
+    format!("{:?}", s)
+}
+
+fn render_gql_value(v: &GqlValue) -> String {
+    match v {
+        GqlValue::U8(n) => format!("{{u8: {}}}", n),
+        GqlValue::U16(n) => format!("{{u16: {}}}", n),
+        GqlValue::U32(n) => format!("{{u32: {}}}", n),
+        GqlValue::U64(n) => format!("{{u64: {}}}", n),
+        GqlValue::I32(n) => format!("{{i32: {}}}", n),
+        GqlValue::I64(n) => format!("{{i64: {}}}", n),
+        GqlValue::F32(n) => format!("{{f32: {}}}", n),
+        GqlValue::F64(n) => format!("{{f64: {}}}", n),
+        GqlValue::Str(s) => format!("{{str: {}}}", render_gql_str(s)),
+        GqlValue::Bool(b) => format!("{{bool: {}}}", b),
+        GqlValue::List(vs) => {
+            let items: Vec<_> = vs.iter().map(render_gql_value).collect();
+            format!("{{list: [{}]}}", items.join(", "))
+        }
+        GqlValue::Object(entries) => {
+            let items: Vec<_> = entries
+                .iter()
+                .map(|ObjectEntry { key, value }| {
+                    format!(
+                        "{{key: {}, value: {}}}",
+                        render_gql_str(key),
+                        render_gql_value(value)
+                    )
+                })
+                .collect();
+            format!("{{object: [{}]}}", items.join(", "))
+        }
+        GqlValue::DTime(s) => format!("{{dTime: {}}}", render_gql_str(s)),
+        GqlValue::NDTime(s) => format!("{{nDTime: {}}}", render_gql_str(s)),
+        GqlValue::Decimal(s) => format!("{{decimal: {}}}", render_gql_str(s)),
+    }
+}
+
+fn render_node_field(f: NodeField) -> &'static str {
+    match f {
+        NodeField::NodeId => "NODE_ID",
+        NodeField::NodeName => "NODE_NAME",
+        NodeField::NodeType => "NODE_TYPE",
+    }
+}
+
+fn render_degree_direction(d: DegreeDirection) -> &'static str {
+    match d {
+        DegreeDirection::In => "IN",
+        DegreeDirection::Out => "OUT",
+        DegreeDirection::Both => "BOTH",
+    }
+}
+
+fn render_gql_time_input(t: &GqlTimeInput) -> String {
+    // For read-side use we only need the timestamp — GqlTimeInput is a
+    // scalar accepting int or object; server accepts int literal directly.
+    format!("{}", t.t())
+}
+
+fn render_node_field_condition(c: &NodeFieldCondition) -> String {
+    let (tag, val) = match c {
+        NodeFieldCondition::Eq(v) => ("eq", v),
+        NodeFieldCondition::Ne(v) => ("ne", v),
+        NodeFieldCondition::Gt(v) => ("gt", v),
+        NodeFieldCondition::Ge(v) => ("ge", v),
+        NodeFieldCondition::Lt(v) => ("lt", v),
+        NodeFieldCondition::Le(v) => ("le", v),
+        NodeFieldCondition::StartsWith(v) => ("startsWith", v),
+        NodeFieldCondition::EndsWith(v) => ("endsWith", v),
+        NodeFieldCondition::Contains(v) => ("contains", v),
+        NodeFieldCondition::NotContains(v) => ("notContains", v),
+        NodeFieldCondition::IsIn(v) => ("isIn", v),
+        NodeFieldCondition::IsNotIn(v) => ("isNotIn", v),
+    };
+    format!("{{{}: {}}}", tag, render_gql_value(val))
+}
+
+fn render_prop_condition(c: &PropCondition) -> String {
+    match c {
+        PropCondition::Eq(v) => format!("{{eq: {}}}", render_gql_value(v)),
+        PropCondition::Ne(v) => format!("{{ne: {}}}", render_gql_value(v)),
+        PropCondition::Gt(v) => format!("{{gt: {}}}", render_gql_value(v)),
+        PropCondition::Ge(v) => format!("{{ge: {}}}", render_gql_value(v)),
+        PropCondition::Lt(v) => format!("{{lt: {}}}", render_gql_value(v)),
+        PropCondition::Le(v) => format!("{{le: {}}}", render_gql_value(v)),
+        PropCondition::StartsWith(v) => format!("{{startsWith: {}}}", render_gql_value(v)),
+        PropCondition::EndsWith(v) => format!("{{endsWith: {}}}", render_gql_value(v)),
+        PropCondition::Contains(v) => format!("{{contains: {}}}", render_gql_value(v)),
+        PropCondition::NotContains(v) => format!("{{notContains: {}}}", render_gql_value(v)),
+        PropCondition::IsIn(v) => format!("{{isIn: {}}}", render_gql_value(v)),
+        PropCondition::IsNotIn(v) => format!("{{isNotIn: {}}}", render_gql_value(v)),
+        PropCondition::IsSome(b) => format!("{{isSome: {}}}", b),
+        PropCondition::IsNone(b) => format!("{{isNone: {}}}", b),
+        PropCondition::And(cs) => {
+            let items: Vec<_> = cs.iter().map(render_prop_condition).collect();
+            format!("{{and: [{}]}}", items.join(", "))
+        }
+        PropCondition::Or(cs) => {
+            let items: Vec<_> = cs.iter().map(render_prop_condition).collect();
+            format!("{{or: [{}]}}", items.join(", "))
+        }
+        PropCondition::Not(inner) => format!("{{not: {}}}", render_prop_condition(inner)),
+        PropCondition::First(inner) => format!("{{first: {}}}", render_prop_condition(inner)),
+        PropCondition::Last(inner) => format!("{{last: {}}}", render_prop_condition(inner)),
+        PropCondition::Any(inner) => format!("{{any: {}}}", render_prop_condition(inner)),
+        PropCondition::All(inner) => format!("{{all: {}}}", render_prop_condition(inner)),
+        PropCondition::Sum(inner) => format!("{{sum: {}}}", render_prop_condition(inner)),
+        PropCondition::Avg(inner) => format!("{{avg: {}}}", render_prop_condition(inner)),
+        PropCondition::Min(inner) => format!("{{min: {}}}", render_prop_condition(inner)),
+        PropCondition::Max(inner) => format!("{{max: {}}}", render_prop_condition(inner)),
+        PropCondition::Len(inner) => format!("{{len: {}}}", render_prop_condition(inner)),
+    }
+}
+
+fn render_node_field_filter(f: &NodeFieldFilterNew) -> String {
+    format!(
+        "{{field: {}, where: {}}}",
+        render_node_field(f.field),
+        render_node_field_condition(&f.where_),
+    )
+}
+
+fn render_property_filter_new(f: &PropertyFilterNew) -> String {
+    format!(
+        "{{name: {}, where: {}}}",
+        render_gql_str(&f.name),
+        render_prop_condition(&f.where_),
+    )
+}
+
+fn render_degree_filter_new(f: &DegreeFilterNew) -> String {
+    format!(
+        "{{direction: {}, where: {}}}",
+        render_degree_direction(f.direction),
+        render_prop_condition(&f.where_),
+    )
+}
+
+fn render_node_window_expr(e: &NodeWindowExpr) -> String {
+    format!(
+        "{{start: {}, end: {}, expr: {}}}",
+        render_gql_time_input(&e.start),
+        render_gql_time_input(&e.end),
+        render_gql_node_filter(&e.expr),
+    )
+}
+
+fn render_node_time_expr(e: &NodeTimeExpr) -> String {
+    format!(
+        "{{time: {}, expr: {}}}",
+        render_gql_time_input(&e.time),
+        render_gql_node_filter(&e.expr),
+    )
+}
+
+fn render_node_unary_expr(e: &NodeUnaryExpr) -> String {
+    format!("{{expr: {}}}", render_gql_node_filter(&e.expr))
+}
+
+fn render_node_layers_expr(e: &NodeLayersExpr) -> String {
+    let names: Vec<_> = e.names.iter().map(|s| render_gql_str(s)).collect();
+    format!(
+        "{{names: [{}], expr: {}}}",
+        names.join(", "),
+        render_gql_node_filter(&e.expr),
+    )
+}
+
+/// Render a `GqlNodeFilter` as a GraphQL input-object literal.
+/// Walks the typed structure directly — enum-typed fields (`NodeField`,
+/// `DegreeDirection`) come out as unquoted SCREAMING_SNAKE identifiers,
+/// which serde JSON serialization can't produce.
+fn render_gql_node_filter(f: &GqlNodeFilter) -> String {
+    match f {
+        GqlNodeFilter::Node(inner) => format!("{{node: {}}}", render_node_field_filter(inner)),
+        GqlNodeFilter::Property(pf) => {
+            format!("{{property: {}}}", render_property_filter_new(pf))
+        }
+        GqlNodeFilter::Metadata(pf) => {
+            format!("{{metadata: {}}}", render_property_filter_new(pf))
+        }
+        GqlNodeFilter::TemporalProperty(pf) => {
+            format!("{{temporalProperty: {}}}", render_property_filter_new(pf))
+        }
+        GqlNodeFilter::Degree(df) => {
+            format!("{{degree: {}}}", render_degree_filter_new(df))
+        }
+        GqlNodeFilter::IsActive(b) => format!("{{isActive: {}}}", b),
+        GqlNodeFilter::And(fs) => {
+            let items: Vec<_> = fs.iter().map(render_gql_node_filter).collect();
+            format!("{{and: [{}]}}", items.join(", "))
+        }
+        GqlNodeFilter::Or(fs) => {
+            let items: Vec<_> = fs.iter().map(render_gql_node_filter).collect();
+            format!("{{or: [{}]}}", items.join(", "))
+        }
+        GqlNodeFilter::Not(inner) => format!("{{not: {}}}", render_gql_node_filter(inner)),
+        GqlNodeFilter::Window(e) => format!("{{window: {}}}", render_node_window_expr(e)),
+        GqlNodeFilter::At(e) => format!("{{at: {}}}", render_node_time_expr(e)),
+        GqlNodeFilter::Before(e) => format!("{{before: {}}}", render_node_time_expr(e)),
+        GqlNodeFilter::After(e) => format!("{{after: {}}}", render_node_time_expr(e)),
+        GqlNodeFilter::Latest(e) => format!("{{latest: {}}}", render_node_unary_expr(e)),
+        GqlNodeFilter::SnapshotAt(e) => format!("{{snapshotAt: {}}}", render_node_time_expr(e)),
+        GqlNodeFilter::SnapshotLatest(e) => {
+            format!("{{snapshotLatest: {}}}", render_node_unary_expr(e))
+        }
+        GqlNodeFilter::Layers(e) => format!("{{layers: {}}}", render_node_layers_expr(e)),
+    }
+}
+
 /// Same as `render_node_sort_bys` but for `EdgeSortBy` — includes the extra
 /// `src` / `dst` boolean keys.
 fn render_edge_sort_bys(sort_bys: &[EdgeSortBy]) -> String {
@@ -947,6 +1179,27 @@ fn render_read_body(expr: &ReadExpr) -> String {
             render_read_body(input),
             render_edge_sort_bys(sort_bys)
         ),
+        ReadExpr::FilterNodes { input, filter } => {
+            // Server field `filter(expr: NodeFilter!)`: applies to this
+            // collection AND propagates to downstream traversals from these
+            // nodes. Contrast with `SelectNodes` which renders `select` —
+            // narrows membership at this step only.
+            format!(
+                "{} {{ filter(expr: {})",
+                render_read_body(input),
+                render_gql_node_filter(filter),
+            )
+        }
+        ReadExpr::SelectNodes { input, filter } => {
+            // Server field `select(expr: NodeFilter!)`: narrows the current
+            // collection's membership only; downstream traversals see the
+            // unfiltered graph.
+            format!(
+                "{} {{ select(expr: {})",
+                render_read_body(input),
+                render_gql_node_filter(filter),
+            )
+        }
         // Metadata / Properties navigation
         ReadExpr::Metadata { input } => format!("{} {{ metadata", render_read_body(input)),
         ReadExpr::Properties { input } => format!("{} {{ properties", render_read_body(input)),
@@ -1201,6 +1454,8 @@ fn read_depth(expr: &ReadExpr) -> usize {
         | ReadExpr::ExplodeLayers { input }
         | ReadExpr::SortedNodes { input, .. }
         | ReadExpr::SortedEdges { input, .. }
+        | ReadExpr::FilterNodes { input, .. }
+        | ReadExpr::SelectNodes { input, .. }
         | ReadExpr::Metadata { input }
         | ReadExpr::Properties { input }
         | ReadExpr::PropertyGet { input, .. }
@@ -1876,6 +2131,14 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
                 go(input, out);
                 out.push("sorted");
             }
+            ReadExpr::FilterNodes { input, .. } => {
+                go(input, out);
+                out.push("filter");
+            }
+            ReadExpr::SelectNodes { input, .. } => {
+                go(input, out);
+                out.push("select");
+            }
             ReadExpr::Metadata { input } => {
                 go(input, out);
                 out.push("metadata");
@@ -2358,6 +2621,8 @@ fn child_input(expr: &ReadExpr) -> Option<&ReadExpr> {
         | ReadExpr::ExplodeLayers { input }
         | ReadExpr::SortedNodes { input, .. }
         | ReadExpr::SortedEdges { input, .. }
+        | ReadExpr::FilterNodes { input, .. }
+        | ReadExpr::SelectNodes { input, .. }
         | ReadExpr::Metadata { input }
         | ReadExpr::Properties { input }
         | ReadExpr::PropertyGet { input, .. }

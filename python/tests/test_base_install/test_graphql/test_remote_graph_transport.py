@@ -1950,3 +1950,162 @@ def test_shared_neighbours_composes_with_view_chain():
         assert names == ["b", "c"]
     finally:
         server_cm.__exit__(None, None, None)
+
+
+def _make_filter_graph():
+    """Graph with 4 nodes, distinct properties, for filter tests."""
+    work_dir = tempfile.mkdtemp()
+    server_cm = GraphServer(work_dir).start()
+    server = server_cm.__enter__()
+    client = server.get_client()
+    client.new_graph("g", "EVENT")
+    rg = client.remote_graph("g")
+    # Names and a numeric "score" property for filtering.
+    rg.add_node(1, "ben", properties={"score": 10.0})
+    rg.add_node(2, "hamza", properties={"score": 5.0})
+    rg.add_node(3, "alice", properties={"score": 20.0})
+    rg.add_node(4, "bob", properties={"score": 15.0})
+    return server_cm, rg
+
+
+def test_select_nodes_by_name_eq():
+    """`Node.name() == "ben"` narrows to the single matching node."""
+    from raphtory.filter import Node
+
+    server_cm, rg = _make_filter_graph()
+    try:
+        narrowed = rg.nodes.select(Node.name() == "ben").list()
+        assert [n.name() for n in narrowed] == ["ben"]
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_select_nodes_by_name_contains():
+    """`Node.name().contains("b")` matches ben and bob."""
+    from raphtory.filter import Node
+
+    server_cm, rg = _make_filter_graph()
+    try:
+        narrowed = rg.nodes.select(Node.name().contains("b")).list()
+        names = sorted(n.name() for n in narrowed)
+        assert names == ["ben", "bob"]
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_select_nodes_by_property_gt():
+    """`Node.property("score") > 12.0` narrows by numeric property."""
+    from raphtory.filter import Node
+
+    server_cm, rg = _make_filter_graph()
+    try:
+        narrowed = rg.nodes.select(Node.property("score") > 12.0).list()
+        names = sorted(n.name() for n in narrowed)
+        assert names == ["alice", "bob"]
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_select_nodes_and_combinator():
+    """`(name contains "b") & (score > 12)` — only bob."""
+    from raphtory.filter import Node
+
+    server_cm, rg = _make_filter_graph()
+    try:
+        combined = (Node.name().contains("b")) & (Node.property("score") > 12.0)
+        narrowed = rg.nodes.select(combined).list()
+        assert [n.name() for n in narrowed] == ["bob"]
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_select_nodes_or_combinator():
+    """`(name == "ben") | (score < 6)` — ben and hamza."""
+    from raphtory.filter import Node
+
+    server_cm, rg = _make_filter_graph()
+    try:
+        combined = (Node.name() == "ben") | (Node.property("score") < 6.0)
+        narrowed = rg.nodes.select(combined).list()
+        names = sorted(n.name() for n in narrowed)
+        assert names == ["ben", "hamza"]
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_select_nodes_not_combinator():
+    """`~(name == "ben")` — everyone but ben."""
+    from raphtory.filter import Node
+
+    server_cm, rg = _make_filter_graph()
+    try:
+        narrowed = rg.nodes.select(~(Node.name() == "ben")).list()
+        names = sorted(n.name() for n in narrowed)
+        assert names == ["alice", "bob", "hamza"]
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_select_nodes_returns_lazy_handle():
+    """`.select()` returns a `RemoteNodes` — terminals (`.count()`,
+    `.ids()`, `.list()`) all work on it."""
+    from raphtory.filter import Node
+
+    server_cm, rg = _make_filter_graph()
+    try:
+        narrowed = rg.nodes.select(Node.property("score") >= 10.0)
+        assert narrowed.count() == 3
+        assert sorted(narrowed.ids()) == ["alice", "ben", "bob"]
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_select_nodes_composes_with_view_chain():
+    """`.select()` chains with view ops (`.window()`) — both narrow the
+    resulting collection."""
+    from raphtory.filter import Node
+
+    server_cm, rg = _make_filter_graph()
+    try:
+        # Window [0, 3) sees only ben (t=1) and hamza (t=2). Then filter by
+        # score > 6 leaves just ben (score=10).
+        narrowed = (
+            rg.window(0, 3).nodes.select(Node.property("score") > 6.0).list()
+        )
+        assert [n.name() for n in narrowed] == ["ben"]
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_select_nodes_can_chain():
+    """Chained `.select()` calls compose — server applies each in turn."""
+    from raphtory.filter import Node
+
+    server_cm, rg = _make_filter_graph()
+    try:
+        # First select narrows to names containing "b"; second narrows to
+        # score > 12 — only bob remains.
+        narrowed = (
+            rg.nodes.select(Node.name().contains("b"))
+            .select(Node.property("score") > 12.0)
+            .list()
+        )
+        assert [n.name() for n in narrowed] == ["bob"]
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_filter_nodes_preserves_membership():
+    """`.filter()` on `RemoteNodes` does NOT narrow the current collection —
+    the returned collection retains all original members. The filter is
+    retained for downstream traversals. Contrast with `.select()`, which
+    narrows membership at this step (tested above)."""
+    from raphtory.filter import Node
+
+    server_cm, rg = _make_filter_graph()
+    try:
+        # `.filter()` preserves current collection membership.
+        all_ids = sorted(rg.nodes.filter(Node.name() == "ben").ids())
+        assert all_ids == ["alice", "ben", "bob", "hamza"]
+    finally:
+        server_cm.__exit__(None, None, None)

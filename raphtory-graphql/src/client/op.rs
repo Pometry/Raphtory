@@ -4,7 +4,7 @@
 //! hands it to the transport. This module is the single source of truth for
 //! what "an operation" means on the wire.
 
-use crate::client::inner_collection;
+use crate::{client::inner_collection, model::graph::filtering::GqlNodeFilter};
 use raphtory_api::core::entities::properties::prop::Prop;
 use serde::{ser::SerializeStruct, Serialize, Serializer};
 use serde_json::json;
@@ -173,6 +173,27 @@ pub enum ReadExpr {
     SortedEdges {
         input: Box<ReadExpr>,
         sort_bys: Vec<EdgeSortBy>,
+    },
+    /// Filter a `Nodes` collection by a filter expression. Returns `Nodes`
+    /// — chainable with any downstream terminal (`.list`, `.count`, …).
+    /// Server field: `filter(expr: NodeFilter!)` on `Nodes`.
+    ///
+    /// Applies the filter to the current collection **and propagates it
+    /// to downstream traversals** from these nodes (e.g. `.neighbours`,
+    /// `.edges`). Use `SelectNodes` for the narrow-membership-only variant.
+    FilterNodes {
+        input: Box<ReadExpr>,
+        filter: GqlNodeFilter,
+    },
+    /// Narrow a `Nodes` collection's membership by a filter expression.
+    /// Returns `Nodes`. Server field: `select(expr: NodeFilter!)` on
+    /// `Nodes`.
+    ///
+    /// Applies the filter only to this step; downstream traversals from
+    /// the matching nodes see the unfiltered graph.
+    SelectNodes {
+        input: Box<ReadExpr>,
+        filter: GqlNodeFilter,
     },
 
     // ============ Properties / Metadata containers ============
