@@ -22,7 +22,7 @@ def test_algorithm_pagerank():
               name
               values {
                 __typename
-                ... on NodeStateProp { value }
+                ... on NodeStateProp { prop }
               }
             }
           }
@@ -39,9 +39,9 @@ def test_algorithm_pagerank():
                         {
                             "name": "pagerank_score",
                             "values": [
-                                { "__typename": "NodeStateProp", "value": 0.197580035313204 },
-                                { "__typename": "NodeStateProp", "value": 0.28155081033755053 },
-                                { "__typename": "NodeStateProp", "value": 0.5208691543492454 },
+                                { "__typename": "NodeStateProp", "prop": 0.197580035313204 },
+                                { "__typename": "NodeStateProp", "prop": 0.28155081033755053 },
+                                { "__typename": "NodeStateProp", "prop": 0.5208691543492454 },
                             ],
                         }
                     ],

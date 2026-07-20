@@ -57,14 +57,14 @@ pub(crate) enum GqlNodeStateValue {
 #[graphql(name = "NodeStateProp")]
 pub(crate) struct GqlNodeStateProp {
     /// The property value; null if the node has no value in this column.
-    value: Option<GqlPropertyOutputVal>,
+    prop: Option<GqlPropertyOutputVal>,
 }
 
 impl From<NodeStateOutput<'static, Arc<dyn BoxableGraphView>>> for GqlNodeStateValue {
     fn from(value: NodeStateOutput<'static, Arc<dyn BoxableGraphView>>) -> Self {
         match value {
             NodeStateOutput::Prop(prop) => GqlNodeStateValue::Prop(GqlNodeStateProp {
-                value: prop.map(|p| GqlPropertyOutputVal(p.into())),
+                prop: prop.map(|p| GqlPropertyOutputVal(p.into())),
             }),
             NodeStateOutput::Node(node) => GqlNodeStateValue::Node(node.into()),
             NodeStateOutput::Nodes(nodes) => GqlNodeStateValue::Nodes(GqlNodes::new(nodes)),

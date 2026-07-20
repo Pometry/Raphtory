@@ -599,13 +599,13 @@ mod graphql_test {
             algorithm {
               pagerank(iterCount: 20) {
                 get(node: "b") {
-                  name
+                  columnName
                   value {
                     __typename
-                    ... on NodeStateProp { value }
+                    ... on NodeStateProp { prop }
                   }
                 }
-                missing: get(node: "not-a-node") { name }
+                missing: get(node: "not-a-node") { columnName }
                 sortById {
                   nodes { list { name } }
                 }
@@ -626,8 +626,8 @@ mod graphql_test {
                         "pagerank": {
                             "get": [
                                 {
-                                    "name": "pagerank_score",
-                                    "value": { "__typename": "NodeStateProp", "value": 0.3333333333333333 }
+                                    "columnName": "pagerank_score",
+                                    "value": { "__typename": "NodeStateProp", "prop": 0.3333333333333333 }
                                 }
                             ],
                             "missing": null,
@@ -668,12 +668,12 @@ mod graphql_test {
                   node { name }
                   entries {
                     columnName
-                    value { ... on NodeStateProp { value } }
+                    value { ... on NodeStateProp { prop } }
                   }
                 }
                 headlessRows {
                   node { name }
-                  values { ... on NodeStateProp { value } }
+                  values { ... on NodeStateProp { prop } }
                 }
               }
             }
@@ -694,34 +694,34 @@ mod graphql_test {
                                 {
                                     "node": { "name": "a" },
                                     "entries": [
-                                        { "columnName": "pagerank_score", "value": { "value": 0.197580035313204 } }
+                                        { "columnName": "pagerank_score", "value": { "prop": 0.197580035313204 } }
                                     ]
                                 },
                                 {
                                     "node": { "name": "b" },
                                     "entries": [
-                                        { "columnName": "pagerank_score", "value": { "value": 0.28155081033755053 } }
+                                        { "columnName": "pagerank_score", "value": { "prop": 0.28155081033755053 } }
                                     ]
                                 },
                                 {
                                     "node": { "name": "c" },
                                     "entries": [
-                                        { "columnName": "pagerank_score", "value": { "value": 0.5208691543492454 } }
+                                        { "columnName": "pagerank_score", "value": { "prop": 0.5208691543492454 } }
                                     ]
                                 }
                             ],
                             "headlessRows": [
                                 {
                                     "node": { "name": "a" },
-                                    "values": [ { "value": 0.197580035313204 } ]
+                                    "values": [ { "prop": 0.197580035313204 } ]
                                 },
                                 {
                                     "node": { "name": "b" },
-                                    "values": [ { "value": 0.28155081033755053 } ]
+                                    "values": [ { "prop": 0.28155081033755053 } ]
                                 },
                                 {
                                     "node": { "name": "c" },
-                                    "values": [ { "value": 0.5208691543492454 } ]
+                                    "values": [ { "prop": 0.5208691543492454 } ]
                                 }
                             ]
                         }
@@ -810,7 +810,7 @@ mod graphql_test {
                   name
                   values {
                     __typename
-                    ... on NodeStateProp { value }
+                    ... on NodeStateProp { prop }
                   }
                 }
               }
@@ -840,9 +840,9 @@ mod graphql_test {
                                 {
                                     "name": "pagerank_score",
                                     "values": [
-                                        { "__typename": "NodeStateProp", "value": 0.3333333333333333 },
-                                        { "__typename": "NodeStateProp", "value": 0.3333333333333333 },
-                                        { "__typename": "NodeStateProp", "value": 0.3333333333333333 }
+                                        { "__typename": "NodeStateProp", "prop": 0.3333333333333333 },
+                                        { "__typename": "NodeStateProp", "prop": 0.3333333333333333 },
+                                        { "__typename": "NodeStateProp", "prop": 0.3333333333333333 }
                                     ]
                                 }
                             ]
