@@ -13,7 +13,7 @@ use clap::{Parser, Subcommand};
 use raphtory::db::api::storage::storage::Config;
 use std::{collections::HashMap, io, path::PathBuf};
 use tokio::io::Result as IoResult;
-use serde_json::Value;
+use serde::Serialize;
 
 fn parse_json_map(input: &str) -> Result<HashMap<String, String>, serde_json::Error> {
     serde_json::from_str(input)
@@ -39,7 +39,7 @@ enum Commands {
     #[command(about = "Print the GraphQL schema")]
     Schema,
 }
-#[derive(clap::Args, Debug, serde::Serialize)]
+#[derive(clap::Args, Debug, Serialize)]
 struct ServerArgs {
     #[arg(long, help = "Path to stored config.")]
     config_file: Option<PathBuf>,
@@ -356,7 +356,6 @@ pub fn python_cli() -> pyo3::PyResult<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
     use tempfile::Builder;
     use std::io::Write;
 
@@ -377,38 +376,38 @@ mod tests {
     }
 
     async fn test_cli_parsing_no_arguments() {
-        let args: Vec<String> = vec![r"target\\debug\\raphtory-server".to_string(), "server".to_string()];
+        let args: Vec<&str> = vec![r"target\\debug\\raphtory-server", "server"];
         std::env::remove_var("RAPHTORY_CACHE_CAPACITY");
-        let (_s, app_config) = generate_config(args).unwrap().unwrap();
+        let (_, app_config) = generate_config(args).unwrap().unwrap();
         assert!(app_config.cache.capacity == DEFAULT_CACHE_CAPACITY);
     } 
 
     async fn test_cli_parsing_with_config_file() {
         let config_file = config_file();
-        let args: Vec<String> = vec![
-            r"target\\debug\\raphtory-server.".to_string(),
-            "server".to_string(),
-            "--config-file".to_string(),
-            config_file.path().to_str().unwrap().to_string(),
+        let args: Vec<&str> = vec![
+            r"target\\debug\\raphtory-server",
+            "server",
+            "--config-file",
+            config_file.path().to_str().unwrap(),
         ];
         std::env::remove_var("RAPHTORY_CACHE_CAPACITY");
-        let (_s, app_config) = generate_config(args).unwrap().unwrap();
+        let (_, app_config) = generate_config(args).unwrap().unwrap();
         assert!(app_config.cache.capacity == 123);
     }
 
     async fn test_cli_parsing_with_env_var() {
         let config_file = config_file();
-        let args: Vec<String> = vec![r"target\\debug\\raphtory-server".to_string(), "server".to_string(), "--config-file".to_string(), config_file.path().to_str().unwrap().to_string()];
+        let args: Vec<&str> = vec![r"target\\debug\\raphtory-server", "server", "--config-file", config_file.path().to_str().unwrap()];
         std::env::set_var("RAPHTORY_CACHE_CAPACITY", "456");
-        let (_s, app_config) = generate_config(args).unwrap().unwrap();
+        let (_, app_config) = generate_config(args).unwrap().unwrap();
         assert!(app_config.cache.capacity == 456);
     }
 
     async fn test_cli_parsing_with_command_line_arg() {
         let config_file = config_file();
-        let args: Vec<String> = vec![r"target\\debug\\raphtory-server".to_string(), "server".to_string(), "--config-file".to_string(), config_file.path().to_str().unwrap().to_string(), "--cache-capacity".to_string(), "789".to_string()];
+        let args: Vec<&str> = vec![r"target\\debug\\raphtory-server", "server", "--config-file", config_file.path().to_str().unwrap(), "--cache-capacity", "789"];
         std::env::set_var("RAPHTORY_CACHE_CAPACITY", "456");
-        let (_s, app_config) = generate_config(args).unwrap().unwrap();
+        let (_, app_config) = generate_config(args).unwrap().unwrap();
         assert!(app_config.cache.capacity == 789);
     }
 
