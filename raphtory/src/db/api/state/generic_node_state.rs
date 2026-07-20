@@ -25,8 +25,7 @@ use arrow::{
     datatypes::UInt64Type,
 };
 use arrow_array::{
-    builder::UInt64Builder, Array, ArrayRef, LargeStringArray, RecordBatch,
-    UInt64Array,
+    builder::UInt64Builder, Array, ArrayRef, LargeStringArray, RecordBatch, UInt64Array,
 };
 use arrow_schema::{DataType, Field, FieldRef, Schema, SchemaBuilder};
 use arrow_select::{concat::concat, take::take};

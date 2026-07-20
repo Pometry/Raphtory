@@ -291,7 +291,8 @@ pub fn assert_valid_graph(fixture: &GraphFixture, graph: &Graph) {
                 assert!(
                     node.properties()
                         .temporal()
-                        .iter().find(|(_, v)| !v.is_empty())
+                        .iter()
+                        .find(|(_, v)| !v.is_empty())
                         .is_none(),
                     "unexpected temporal props on endpoint-only node {node_id}"
                 );

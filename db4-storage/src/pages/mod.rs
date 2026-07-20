@@ -85,13 +85,14 @@ impl<
             && let (Some(data_folder), Some(graph_path)) = (
                 graph_dir.parent(),
                 graph_dir.file_name().and_then(|name| name.to_str()),
-            ) {
-                InnerGraphFolder::new(data_folder).refresh_metadata(
-                    graph_path,
-                    self.nodes.num_nodes(),
-                    self.edges.num_edges(),
-                )?;
-            }
+            )
+        {
+            InnerGraphFolder::new(data_folder).refresh_metadata(
+                graph_path,
+                self.nodes.num_nodes(),
+                self.edges.num_edges(),
+            )?;
+        }
 
         Ok(())
     }

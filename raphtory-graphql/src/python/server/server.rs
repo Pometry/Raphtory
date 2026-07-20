@@ -7,11 +7,7 @@ use crate::{
     GraphServer,
 };
 use crossbeam_channel::RecvTimeoutError;
-use pyo3::{
-    exceptions::PyRuntimeError,
-    prelude::*,
-    types::PyDict,
-};
+use pyo3::{exceptions::PyRuntimeError, prelude::*, types::PyDict};
 use pythonize::depythonize;
 use raphtory::{db::api::storage::storage::Config, python::utils::block_on};
 #[cfg(feature = "vectors")]

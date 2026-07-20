@@ -649,7 +649,8 @@ impl NodeStateHistory {
     ) -> PyResult<History<'static, NodeView<'static, DynamicGraph>>> {
         let node = node.as_node_ref();
         self.inner
-            .get_by_node(node).cloned()
+            .get_by_node(node)
+            .cloned()
             .ok_or_else(|| match node {
                 NodeRef::External(id) => {
                     PyKeyError::new_err(format!("Missing value for node with id {id}"))

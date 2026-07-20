@@ -211,8 +211,7 @@ impl InternalAdditionOps for GraphStorage {
         id: NodeRef,
         node_type: Option<&str>,
     ) -> Result<MaybeNew<(MaybeNew<VID>, MaybeNew<usize>)>, Self::Error> {
-        self
-            .mutable()?
+        self.mutable()?
             .resolve_and_update_node_and_type(id, node_type)
     }
 
@@ -245,8 +244,8 @@ impl InternalAdditionOps for GraphStorage {
         meta: &Meta,
         prop: impl Iterator<Item = (PN, Prop)>,
     ) -> Result<Vec<(usize, Prop)>, Self::Error> {
-        self.mutable()?
-            .validate_props(is_static, meta, prop)}
+        self.mutable()?.validate_props(is_static, meta, prop)
+    }
 
     fn validate_props_with_status<PN: AsRef<str>>(
         &self,
@@ -255,7 +254,8 @@ impl InternalAdditionOps for GraphStorage {
         props: impl Iterator<Item = (PN, Prop)>,
     ) -> Result<Vec<MaybeNew<(PN, usize, Prop)>>, Self::Error> {
         self.mutable()?
-            .validate_props_with_status(is_static, meta, props)}
+            .validate_props_with_status(is_static, meta, props)
+    }
 
     fn validate_gids<'a>(
         &self,
@@ -269,12 +269,12 @@ impl InternalAdditionOps for GraphStorage {
         id: NodeRef,
         node_type: Option<&str>,
     ) -> Result<(VID, usize), Self::Error> {
-        self.mutable()?
-            .resolve_node_and_type(id, node_type)}
+        self.mutable()?.resolve_node_and_type(id, node_type)
+    }
 
     unsafe fn bulk_load_resolve_node(&self, id: GidRef<'_>) -> Result<VID, Self::Error> {
-        self.mutable()?
-            .bulk_load_resolve_node(id)}
+        self.mutable()?.bulk_load_resolve_node(id)
+    }
 
     fn atomic_add_node(&self, node: NodeRef) -> Result<AtomicAddNode<'_>, Self::Error> {
         self.mutable()?.atomic_add_node(node)

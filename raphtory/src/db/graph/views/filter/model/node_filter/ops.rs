@@ -82,8 +82,7 @@ pub trait NodeIdFilterOps: InternalNodeIdFilterBuilder {
         levenshtein_distance: usize,
         prefix_match: bool,
     ) -> Self::Wrapped<NodeIdFilter> {
-        let filter =
-            Filter::fuzzy_search(self.field_name(), s, levenshtein_distance, prefix_match);
+        let filter = Filter::fuzzy_search(self.field_name(), s, levenshtein_distance, prefix_match);
         self.wrap(NodeIdFilter(filter))
     }
 }

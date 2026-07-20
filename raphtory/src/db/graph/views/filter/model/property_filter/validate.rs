@@ -138,12 +138,13 @@ impl<M> PropertyFilter<M> {
         if matches!(
             self.operator,
             FilterOperator::IsSome | FilterOperator::IsNone
-        )
-            && self.has_elem_qualifier() && !self.has_temporal_first_qualifier() {
-                return Err(GraphError::InvalidFilter(
+        ) && self.has_elem_qualifier()
+            && !self.has_temporal_first_qualifier()
+        {
+            return Err(GraphError::InvalidFilter(
                     "Invalid filter: Operator IS_SOME/IS_NONE is not supported with element qualifiers; apply it to the list itself (without elem qualifiers).".into()
                 ));
-            }
+        }
 
         if self.has_aggregator() {
             match self.operator {

@@ -152,9 +152,10 @@ impl<G: GraphView> FilterOps for G {
                 && !self.node_filter_includes_edge_layer_filter())
             || (self.internal_exploded_edge_filtered()
                 && !self.node_filter_includes_exploded_edge_filter()))
-            && !self.node_time_semantics().node_valid(node, self) {
-                return false;
-            }
+            && !self.node_time_semantics().node_valid(node, self)
+        {
+            return false;
+        }
 
         true
     }
@@ -233,10 +234,9 @@ impl<G: GraphView> FilterOps for G {
             return false;
         }
 
-        if self.internal_nodes_filtered()
-            && !self.filter_edge_from_nodes(edge) {
-                return false;
-            }
+        if self.internal_nodes_filtered() && !self.filter_edge_from_nodes(edge) {
+            return false;
+        }
 
         if (self.window_filtered() && !self.edge_filter_includes_window_filter())
             || (self.internal_edge_layer_filtered()

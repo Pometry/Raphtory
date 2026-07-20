@@ -879,9 +879,10 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         let dst = self.internalise_node(dst.as_node_ref())?;
         let src_node = self.core_node(src);
         if self.internal_nodes_filtered()
-            && !self.internal_filter_node(src_node.as_ref(), layer_ids) {
-                return None;
-            }
+            && !self.internal_filter_node(src_node.as_ref(), layer_ids)
+        {
+            return None;
+        }
         let edge_ref = src_node.find_edge(dst, layer_ids)?;
         match self.filter_state() {
             FilterState::Neither => {}

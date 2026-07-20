@@ -79,8 +79,6 @@ where
         return 0.0f64;
     }
 
-    
-
     SlidingWindows::new(views.into_iter(), window_size)
         .map(|window| intermediate_rich_club_coef(s_k.clone(), window))
         .reduce(f64::max)

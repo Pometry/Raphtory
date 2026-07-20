@@ -213,9 +213,7 @@ impl LatestDateTimeView {
             let other = Bound::get(other);
             self.inner == other.inner
         } else if let Ok(other) = other.extract::<Vec<Option<DateTime<Utc>>>>() {
-            self.inner
-                .iter_values()
-                .eq(other.into_iter().map(Ok))
+            self.inner.iter_values().eq(other.into_iter().map(Ok))
         } else if let Ok(other) = other.extract::<HashMap<PyNodeRef, Option<DateTime<Utc>>>>() {
             self.inner.len() == other.len()
                 && other
