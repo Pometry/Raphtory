@@ -648,6 +648,90 @@ mod graphql_test {
     }
 
     #[tokio::test]
+    async fn test_algorithm_node_state_rows() {
+        let graph = Graph::new();
+        // asymmetric graph so every node has a distinct pagerank
+        graph.add_edge(1, "a", "b", NO_PROPS, None).unwrap();
+        graph.add_edge(2, "a", "c", NO_PROPS, None).unwrap();
+        graph.add_edge(3, "b", "c", NO_PROPS, None).unwrap();
+        let graph: MaterializedGraph = graph.into();
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", graph)], tmp_dir.path()).await;
+
+        let query = r#"
+        {
+          graph(path: "g") {
+            algorithm {
+              pagerank(iterCount: 20) {
+                columnNames
+                rows {
+                  node { name }
+                  entries {
+                    columnName
+                    value { ... on NodeStateProp { value } }
+                  }
+                }
+                headlessRows {
+                  node { name }
+                  values { ... on NodeStateProp { value } }
+                }
+              }
+            }
+          }
+        }
+        "#;
+
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        assert_eq!(
+            res.data.into_json().unwrap(),
+            json!({
+                "graph": {
+                    "algorithm": {
+                        "pagerank": {
+                            "columnNames": ["pagerank_score"],
+                            "rows": [
+                                {
+                                    "node": { "name": "a" },
+                                    "entries": [
+                                        { "columnName": "pagerank_score", "value": { "value": 0.197580035313204 } }
+                                    ]
+                                },
+                                {
+                                    "node": { "name": "b" },
+                                    "entries": [
+                                        { "columnName": "pagerank_score", "value": { "value": 0.28155081033755053 } }
+                                    ]
+                                },
+                                {
+                                    "node": { "name": "c" },
+                                    "entries": [
+                                        { "columnName": "pagerank_score", "value": { "value": 0.5208691543492454 } }
+                                    ]
+                                }
+                            ],
+                            "headlessRows": [
+                                {
+                                    "node": { "name": "a" },
+                                    "values": [ { "value": 0.197580035313204 } ]
+                                },
+                                {
+                                    "node": { "name": "b" },
+                                    "values": [ { "value": 0.28155081033755053 } ]
+                                },
+                                {
+                                    "node": { "name": "c" },
+                                    "values": [ { "value": 0.5208691543492454 } ]
+                                }
+                            ]
+                        }
+                    }
+                }
+            })
+        );
+    }
+
+    #[tokio::test]
     async fn test_algorithm_node_state_aggregates() {
         let graph = Graph::new();
         // asymmetric graph so every node has a distinct pagerank
@@ -668,7 +752,6 @@ mod graphql_test {
                 median(column: "pagerank_score") { node { name } value }
                 sum(column: "pagerank_score")
                 mean(column: "pagerank_score")
-                average(column: "pagerank_score")
                 missing: min(column: "not_a_column") { value }
               }
             }
@@ -698,7 +781,6 @@ mod graphql_test {
                             },
                             "sum": 1.0,
                             "mean": 0.3333333333333333,
-                            "average": 0.3333333333333333,
                             "missing": null
                         }
                     }
