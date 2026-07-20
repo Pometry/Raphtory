@@ -9,7 +9,6 @@ use serde::Deserialize;
 use serde_json::Value;
 use tempfile::Builder;
 
-
 fn server_bin() -> std::path::PathBuf {
     std::env::var_os("NEXTEST_BIN_EXE_raphtory-server")
         .or_else(|| std::env::var_os("CARGO_BIN_EXE_raphtory-server"))
@@ -28,10 +27,14 @@ fn get_app_config(stdout: String) -> AppConfig {
         .expect("failed to parse app config from CLI output")
         .1;
     let json_start = server_config_serialized.find('{').expect("no JSON found");
-    let json_end = server_config_serialized.rfind('}').expect("no JSON end found") + 1;
+    let json_end = server_config_serialized
+        .rfind('}')
+        .expect("no JSON end found")
+        + 1;
     let json_str = &server_config_serialized[json_start..json_end];
 
-    let server_config_json: Value = serde_json::from_str(json_str).expect("failed to parse config JSON");
+    let server_config_json: Value =
+        serde_json::from_str(json_str).expect("failed to parse config JSON");
     let config = &server_config_json["config"];
     AppConfig::deserialize(config).expect("failed to deserialize AppConfig")
 }
@@ -41,7 +44,8 @@ fn config_file() -> tempfile::NamedTempFile {
         .suffix(".toml")
         .tempfile()
         .expect("failed to create temporary config file for CLI test");
-    write!(config_file, "[cache]\ncapacity = 123\n").expect("failed to write temporary cache config");
+    write!(config_file, "[cache]\ncapacity = 123\n")
+        .expect("failed to write temporary cache config");
     config_file
         .flush()
         .expect("failed to flush temporary cache config");

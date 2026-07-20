@@ -1,19 +1,29 @@
 #[cfg(feature = "search")]
 use crate::config::index_config::DEFAULT_CREATE_INDEX;
 use crate::{
-    GraphServer, config::{
-        app_config::{AppConfig, AppConfigBuilder}, auth_config::DEFAULT_REQUIRE_AUTH_FOR_READS, cache_config::DEFAULT_CACHE_CAPACITY, concurrency_config::{
+    config::{
+        app_config::{AppConfig, AppConfigBuilder},
+        auth_config::DEFAULT_REQUIRE_AUTH_FOR_READS,
+        cache_config::DEFAULT_CACHE_CAPACITY,
+        concurrency_config::{
             DEFAULT_DISABLE_BATCHING, DEFAULT_EXCLUSIVE_WRITES, DEFAULT_MAX_BATCH_SIZE,
-        }, log_config::DEFAULT_LOG_LEVEL, otlp_config::{
-            DEFAULT_OTLP_TRACING_SERVICE_NAME, DEFAULT_OTLP_TRANSPORT_PROTOCOL, DEFAULT_TRACING_ENABLED, DEFAULT_TRACING_LEVEL, TracingLevel, TracingProtocol,
-        }, schema_config::DEFAULT_DISABLE_INTROSPECTION,
-    }, model::App, server::{DEFAULT_PORT, apply_server_extension},
+        },
+        log_config::DEFAULT_LOG_LEVEL,
+        otlp_config::{
+            TracingLevel, TracingProtocol, DEFAULT_OTLP_TRACING_SERVICE_NAME,
+            DEFAULT_OTLP_TRANSPORT_PROTOCOL, DEFAULT_TRACING_ENABLED, DEFAULT_TRACING_LEVEL,
+        },
+        schema_config::DEFAULT_DISABLE_INTROSPECTION,
+    },
+    model::App,
+    server::{apply_server_extension, DEFAULT_PORT},
+    GraphServer,
 };
 use clap::{Parser, Subcommand};
 use raphtory::db::api::storage::storage::Config;
+use serde::Serialize;
 use std::{collections::HashMap, io, path::PathBuf};
 use tokio::io::Result as IoResult;
-use serde::Serialize;
 
 fn parse_json_map(input: &str) -> Result<HashMap<String, String>, serde_json::Error> {
     serde_json::from_str(input)
@@ -209,7 +219,7 @@ struct ServerArgs {
 fn generate_config<I, T>(args_iter: I) -> IoResult<Option<(ServerArgs, AppConfig)>>
 where
     I: IntoIterator<Item = T>,
-    T: Into<std::ffi::OsString> + Clone 
+    T: Into<std::ffi::OsString> + Clone,
 {
     let args = Args::parse_from(args_iter);
     match args.command {
@@ -247,7 +257,8 @@ where
             if let Some(otlp_transport_headers) = server_args.otlp_transport_headers.clone() {
                 builder.with_otlp_transport_headers(otlp_transport_headers);
             }
-            if let Some(otlp_transport_certificate) = server_args.otlp_transport_certificate.clone() {
+            if let Some(otlp_transport_certificate) = server_args.otlp_transport_certificate.clone()
+            {
                 builder.with_otlp_transport_certificate(Some(otlp_transport_certificate));
             }
             if let Some(auth_public_key) = server_args.auth_public_key.clone() {
@@ -300,8 +311,8 @@ where
                     builder.with_create_index(create_index);
                 }
             }
-           let app_config = builder.build();
-           return Ok(Some((server_args, app_config)));
+            let app_config = builder.build();
+            return Ok(Some((server_args, app_config)));
         }
     }
 }
@@ -318,8 +329,7 @@ where
             server_args.graph_config,
         )
         .await?;
-        let server =
-            apply_server_extension(server, server_args.permissions_store_path.as_deref());
+        let server = apply_server_extension(server, server_args.permissions_store_path.as_deref());
         match server_args.port {
             None => {
                 server.run().await?;
@@ -352,23 +362,19 @@ pub fn python_cli() -> pyo3::PyResult<()> {
         .map_err(|err| pyo3::exceptions::PyIOError::new_err(err.to_string()))
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::Builder;
     use std::io::Write;
+    use tempfile::Builder;
 
     fn config_file() -> tempfile::NamedTempFile {
         let mut config_file = Builder::new()
             .suffix(".toml")
             .tempfile()
             .expect("failed to create temporary config file for CLI test");
-        write!(
-            config_file,
-            "[cache]\ncapacity = 123\n"
-        )
-        .expect("failed to write temporary cache config");
+        write!(config_file, "[cache]\ncapacity = 123\n")
+            .expect("failed to write temporary cache config");
         config_file
             .flush()
             .expect("failed to flush temporary cache config");
@@ -380,7 +386,7 @@ mod tests {
         std::env::remove_var("RAPHTORY_CACHE_CAPACITY");
         let (_, app_config) = generate_config(args).unwrap().unwrap();
         assert!(app_config.cache.capacity == DEFAULT_CACHE_CAPACITY);
-    } 
+    }
 
     async fn test_cli_parsing_with_config_file() {
         let config_file = config_file();
@@ -397,7 +403,12 @@ mod tests {
 
     async fn test_cli_parsing_with_env_var() {
         let config_file = config_file();
-        let args: Vec<&str> = vec![r"target\\debug\\raphtory-server", "server", "--config-file", config_file.path().to_str().unwrap()];
+        let args: Vec<&str> = vec![
+            r"target\\debug\\raphtory-server",
+            "server",
+            "--config-file",
+            config_file.path().to_str().unwrap(),
+        ];
         std::env::set_var("RAPHTORY_CACHE_CAPACITY", "456");
         let (_, app_config) = generate_config(args).unwrap().unwrap();
         assert!(app_config.cache.capacity == 456);
@@ -405,7 +416,14 @@ mod tests {
 
     async fn test_cli_parsing_with_command_line_arg() {
         let config_file = config_file();
-        let args: Vec<&str> = vec![r"target\\debug\\raphtory-server", "server", "--config-file", config_file.path().to_str().unwrap(), "--cache-capacity", "789"];
+        let args: Vec<&str> = vec![
+            r"target\\debug\\raphtory-server",
+            "server",
+            "--config-file",
+            config_file.path().to_str().unwrap(),
+            "--cache-capacity",
+            "789",
+        ];
         std::env::set_var("RAPHTORY_CACHE_CAPACITY", "456");
         let (_, app_config) = generate_config(args).unwrap().unwrap();
         assert!(app_config.cache.capacity == 789);
@@ -413,8 +431,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_cli_parsing() {
-        // tests must be synchronized so that env variables are not modified in parallel    
-        test_cli_parsing_no_arguments().await; 
+        // tests must be synchronized so that env variables are not modified in parallel
+        test_cli_parsing_no_arguments().await;
         test_cli_parsing_with_config_file().await;
         test_cli_parsing_with_env_var().await;
         test_cli_parsing_with_command_line_arg().await;
