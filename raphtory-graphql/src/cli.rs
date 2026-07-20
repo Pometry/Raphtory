@@ -1,11 +1,23 @@
 #[cfg(feature = "search")]
 use crate::config::index_config::DEFAULT_CREATE_INDEX;
 use crate::{
-    GraphServer, config::{
-        app_config::{AppConfig, AppConfigBuilder}, auth_config::DEFAULT_REQUIRE_AUTH_FOR_READS, cache_config::DEFAULT_CACHE_CAPACITY, concurrency_config::{DEFAULT_DISABLE_BATCHING, DEFAULT_EXCLUSIVE_WRITES}, log_config::DEFAULT_LOG_LEVEL, otlp_config::{
-            DEFAULT_OTLP_TRACING_SERVICE_NAME, DEFAULT_OTLP_TRANSPORT_PROTOCOL, DEFAULT_TRACING_ENABLED, DEFAULT_TRACING_LEVEL, TracingLevel, TracingProtocol,
-        }, schema_config::DEFAULT_DISABLE_INTROSPECTION,
-    }, model::App, server::{DEFAULT_PORT, apply_server_extension},
+    config::{
+        app_config::AppConfigBuilder,
+        auth_config::DEFAULT_REQUIRE_AUTH_FOR_READS,
+        cache_config::DEFAULT_CACHE_CAPACITY,
+        concurrency_config::{
+            DEFAULT_DISABLE_BATCHING, DEFAULT_EXCLUSIVE_WRITES, DEFAULT_MAX_BATCH_SIZE,
+        },
+        log_config::DEFAULT_LOG_LEVEL,
+        otlp_config::{
+            TracingLevel, TracingProtocol, DEFAULT_OTLP_TRACING_SERVICE_NAME,
+            DEFAULT_OTLP_TRANSPORT_PROTOCOL, DEFAULT_TRACING_ENABLED, DEFAULT_TRACING_LEVEL,
+        },
+        schema_config::DEFAULT_DISABLE_INTROSPECTION,
+    },
+    model::App,
+    server::{apply_server_extension, DEFAULT_PORT},
+    GraphServer,
 };
 use clap::{Parser, Subcommand};
 use raphtory::db::api::storage::storage::Config;
@@ -137,7 +149,7 @@ struct ServerArgs {
     #[arg(
         long,
         env = "RAPHTORY_MAX_BATCH_SIZE",
-        help = "Caps the number of queries accepted in a single batched HTTP request. Requests whose batch exceeds this size are rejected."
+        help = help_with_default!("Caps the number of queries accepted in a single batched HTTP request. Requests whose batch exceeds this size are rejected.", DEFAULT_MAX_BATCH_SIZE)
     )]
     max_batch_size: Option<usize>,
 
