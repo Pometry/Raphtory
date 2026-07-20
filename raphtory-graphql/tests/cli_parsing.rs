@@ -9,6 +9,43 @@ use serde::Deserialize;
 use tempfile::Builder;
 use serde_json::Value;
 
+fn workspace_root() -> std::path::PathBuf {
+    std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("raphtory-graphql should live inside the workspace root")
+        .to_path_buf()
+}
+
+fn server_bin() -> std::path::PathBuf {
+    let binary_name = format!("raphtory-server{}", std::env::consts::EXE_SUFFIX);
+
+    for env_var in ["NEXTEST_BIN_EXE_raphtory-server", "CARGO_BIN_EXE_raphtory-server"] {
+        if let Some(path) = std::env::var_os(env_var) {
+            let path = std::path::PathBuf::from(path);
+            if path.is_file() {
+                return path;
+            }
+        }
+    }
+
+    let workspace_root = workspace_root();
+    let target_root = std::env::var_os("CARGO_TARGET_DIR")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| workspace_root.join("target"));
+
+    for profile in ["build-fast", "debug", "release"] {
+        let candidate = target_root.join(profile).join(&binary_name);
+        if candidate.is_file() {
+            return candidate;
+        }
+    }
+
+    panic!(
+        "failed to locate raphtory-server binary via NEXTEST_BIN_EXE_raphtory-server, CARGO_BIN_EXE_raphtory-server, or target profiles under {}",
+        target_root.display()
+    );
+}
+
 fn get_app_config(stdout: String) -> AppConfig {
     let server_config_serialized = stdout.lines()
         .find(|line| line.contains("Server configurations:"))
@@ -44,20 +81,8 @@ fn config_file() -> tempfile::NamedTempFile {
 
 #[test]
 fn test_cli_parsing_no_arguments() {
-    let workspace_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .expect("raphtory-graphql should live inside the workspace root")
-        .to_path_buf();
-    let server_bin = if let Some(bin) = std::env::var_os("CARGO_BIN_EXE_raphtory-server") {
-        std::path::PathBuf::from(bin)
-    } else {
-        let current_exe = std::env::current_exe().expect("failed to locate current test binary");
-        let target_dir = current_exe
-            .parent()
-            .and_then(|path| path.parent())
-            .expect("failed to locate cargo target directory from test binary");
-        target_dir.join(format!("raphtory-server{}", std::env::consts::EXE_SUFFIX))
-    };
+    let workspace_root = workspace_root();
+    let server_bin = server_bin();
 
     let mut child = Command::new(server_bin)
         .current_dir(workspace_root)
@@ -84,20 +109,8 @@ fn test_cli_parsing_no_arguments() {
 fn test_cli_parsing_with_config_file() {
     let config_file = config_file();
 
-    let workspace_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .expect("raphtory-graphql should live inside the workspace root")
-        .to_path_buf();
-    let server_bin = if let Some(bin) = std::env::var_os("CARGO_BIN_EXE_raphtory-server") {
-        std::path::PathBuf::from(bin)
-    } else {
-        let current_exe = std::env::current_exe().expect("failed to locate current test binary");
-        let target_dir = current_exe
-            .parent()
-            .and_then(|path| path.parent())
-            .expect("failed to locate cargo target directory from test binary");
-        target_dir.join(format!("raphtory-server{}", std::env::consts::EXE_SUFFIX))
-    };
+    let workspace_root = workspace_root();
+    let server_bin = server_bin();
 
     let mut child = Command::new(server_bin)
         .current_dir(workspace_root)
@@ -130,20 +143,8 @@ fn test_cli_parsing_with_config_file() {
 fn test_cli_parsing_with_env_variable() {
     let config_file = config_file();
 
-    let workspace_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .expect("raphtory-graphql should live inside the workspace root")
-        .to_path_buf();
-    let server_bin = if let Some(bin) = std::env::var_os("CARGO_BIN_EXE_raphtory-server") {
-        std::path::PathBuf::from(bin)
-    } else {
-        let current_exe = std::env::current_exe().expect("failed to locate current test binary");
-        let target_dir = current_exe
-            .parent()
-            .and_then(|path| path.parent())
-            .expect("failed to locate cargo target directory from test binary");
-        target_dir.join(format!("raphtory-server{}", std::env::consts::EXE_SUFFIX))
-    };
+    let workspace_root = workspace_root();
+    let server_bin = server_bin();
 
     let mut child = Command::new(server_bin)
         .current_dir(workspace_root)
@@ -176,20 +177,8 @@ fn test_cli_parsing_with_env_variable() {
 fn test_cli_parsing_with_server_argument() {
     let config_file = config_file();
 
-    let workspace_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .expect("raphtory-graphql should live inside the workspace root")
-        .to_path_buf();
-    let server_bin = if let Some(bin) = std::env::var_os("CARGO_BIN_EXE_raphtory-server") {
-        std::path::PathBuf::from(bin)
-    } else {
-        let current_exe = std::env::current_exe().expect("failed to locate current test binary");
-        let target_dir = current_exe
-            .parent()
-            .and_then(|path| path.parent())
-            .expect("failed to locate cargo target directory from test binary");
-        target_dir.join(format!("raphtory-server{}", std::env::consts::EXE_SUFFIX))
-    };
+    let workspace_root = workspace_root();
+    let server_bin = server_bin();
 
     let mut child = Command::new(server_bin)
         .current_dir(workspace_root)
