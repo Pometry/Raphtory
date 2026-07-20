@@ -9,12 +9,6 @@ use serde::Deserialize;
 use serde_json::Value;
 use tempfile::Builder;
 
-fn workspace_root() -> std::path::PathBuf {
-    std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .expect("raphtory-server should live inside the workspace root")
-        .to_path_buf()
-}
 
 fn server_bin() -> std::path::PathBuf {
     std::env::var_os("NEXTEST_BIN_EXE_raphtory-server")
@@ -56,11 +50,9 @@ fn config_file() -> tempfile::NamedTempFile {
 
 #[test]
 fn test_cli_parsing_no_arguments() {
-    let workspace_root = workspace_root();
     let server_bin = server_bin();
 
     let mut child = Command::new(server_bin)
-        .current_dir(workspace_root)
         .args(["server", "--log-level", "debug"])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -84,11 +76,9 @@ fn test_cli_parsing_no_arguments() {
 fn test_cli_parsing_with_config_file() {
     let config_file = config_file();
 
-    let workspace_root = workspace_root();
     let server_bin = server_bin();
 
     let mut child = Command::new(server_bin)
-        .current_dir(workspace_root)
         .args([
             "server",
             "--log-level",
@@ -118,11 +108,9 @@ fn test_cli_parsing_with_config_file() {
 fn test_cli_parsing_with_env_variable() {
     let config_file = config_file();
 
-    let workspace_root = workspace_root();
     let server_bin = server_bin();
 
     let mut child = Command::new(server_bin)
-        .current_dir(workspace_root)
         .args([
             "server",
             "--log-level",
@@ -152,11 +140,9 @@ fn test_cli_parsing_with_env_variable() {
 fn test_cli_parsing_with_server_argument() {
     let config_file = config_file();
 
-    let workspace_root = workspace_root();
     let server_bin = server_bin();
 
     let mut child = Command::new(server_bin)
-        .current_dir(workspace_root)
         .args([
             "server",
             "--log-level",
