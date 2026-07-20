@@ -5,7 +5,9 @@ use crate::{
         app_config::AppConfigBuilder,
         auth_config::DEFAULT_REQUIRE_AUTH_FOR_READS,
         cache_config::DEFAULT_CACHE_CAPACITY,
-        concurrency_config::{DEFAULT_DISABLE_BATCHING, DEFAULT_EXCLUSIVE_WRITES},
+        concurrency_config::{
+            DEFAULT_DISABLE_BATCHING, DEFAULT_EXCLUSIVE_WRITES, DEFAULT_MAX_BATCH_SIZE,
+        },
         log_config::DEFAULT_LOG_LEVEL,
         otlp_config::{
             TracingLevel, TracingProtocol, DEFAULT_OTLP_TRACING_SERVICE_NAME,
@@ -146,7 +148,7 @@ struct ServerArgs {
     #[arg(
         long,
         env = "RAPHTORY_MAX_BATCH_SIZE",
-        help = "Caps the number of queries accepted in a single batched HTTP request. Requests whose batch exceeds this size are rejected."
+        help = help_with_default!("Caps the number of queries accepted in a single batched HTTP request. Requests whose batch exceeds this size are rejected.", DEFAULT_MAX_BATCH_SIZE)
     )]
     max_batch_size: Option<usize>,
 
