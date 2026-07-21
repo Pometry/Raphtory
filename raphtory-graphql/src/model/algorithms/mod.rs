@@ -3,6 +3,8 @@
 use crate::{
     model::{
         algorithms::{
+            dijkstra::{GqlDijkstra, GqlDijkstraArgs, GqlDirection},
+            in_components::{GqlInComponents, GqlInComponentsArgs},
             out_components::{GqlOutComponents, GqlOutComponentsArgs},
             pagerank::{GqlPagerank, GqlPagerankArgs},
             single_source_shortest_path::{
@@ -16,6 +18,8 @@ use crate::{
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{db::api::view::DynamicGraph, errors::GraphError};
 
+pub(crate) mod dijkstra;
+pub(crate) mod in_components;
 pub(crate) mod out_components;
 pub(crate) mod pagerank;
 pub(crate) mod single_source_shortest_path;
@@ -89,6 +93,17 @@ impl GqlAlgorithms {
             .await
     }
 
+    /// Returns the in component (all nodes that can reach it following out-edges) of every node.
+    async fn in_components(
+        &self,
+        #[graphql(desc = "Number of threads to use. Defaults to all available.")] threads: Option<
+            usize,
+        >,
+    ) -> Result<GqlNodeState, GraphError> {
+        self.run::<GqlInComponents>(GqlInComponentsArgs { threads })
+            .await
+    }
+
     /// Returns the out component (all reachable nodes following out-edges) of every node.
     async fn out_components(
         &self,
@@ -98,5 +113,25 @@ impl GqlAlgorithms {
     ) -> Result<GqlNodeState, GraphError> {
         self.run::<GqlOutComponents>(GqlOutComponentsArgs { threads })
             .await
+    }
+
+    /// Returns the weighted shortest path from `source` to each of `targets` (Dijkstra).
+    async fn dijkstra(
+        &self,
+        #[graphql(desc = "Source node id.")] source: String,
+        #[graphql(desc = "Target node ids.")] targets: Vec<String>,
+        #[graphql(desc = "Edge property to use as weight. If unset, all edges have weight 1.")]
+        weight: Option<String>,
+        #[graphql(desc = "Edge direction to follow. Defaults to BOTH.")] direction: Option<
+            GqlDirection,
+        >,
+    ) -> Result<GqlNodeState, GraphError> {
+        self.run::<GqlDijkstra>(GqlDijkstraArgs {
+            source,
+            targets,
+            weight,
+            direction: direction.unwrap_or(GqlDirection::Both),
+        })
+        .await
     }
 }
