@@ -1,17 +1,15 @@
-﻿use criterion::{criterion_group, criterion_main, Criterion, SamplingMode};
+use criterion::{criterion_group, criterion_main, Criterion, SamplingMode};
 use rand::{rngs::SmallRng, SeedableRng};
 use raphtory::{
     algorithms::{
         alternating_mask::alternating_mask,
         bipartite::max_weight_matching::max_weight_matching,
         centrality::{
-            betweenness::betweenness_centrality, degree_centrality::degree_centrality,
-            hits::hits, pagerank::page_rank,
+            betweenness::betweenness_centrality, degree_centrality::degree_centrality, hits::hits,
+            pagerank::page_rank,
         },
         community_detection::{
-            label_propagation::label_propagation,
-            louvain::louvain,
-            modularity::ModularityUnDir,
+            label_propagation::label_propagation, louvain::louvain, modularity::ModularityUnDir,
         },
         components::{
             in_component, in_component_filtered, in_components, in_components_filtered,
@@ -19,7 +17,7 @@ use raphtory::{
             strongly_connected_components, weakly_connected_components,
         },
         cores::k_core::{k_core, k_core_set},
-        dynamics::temporal::epidemics::{Number, temporal_SEIR},
+        dynamics::temporal::epidemics::{temporal_SEIR, Number},
         embeddings::fast_rp::fast_rp,
         layout::{
             cohesive_fruchterman_reingold::cohesive_fruchterman_reingold,
@@ -43,13 +41,19 @@ use raphtory::{
             global_temporal_three_node_motifs::{
                 global_temporal_three_node_motif, temporal_three_node_motif_multi,
                 triangle_motifs as global_triangle_motifs_internal,
-            }, local_temporal_three_node_motifs::{
+            },
+            local_temporal_three_node_motifs::{
                 temporal_three_node_motif as local_temporal_three_node_motif,
                 triangle_motifs as local_triangle_motifs_internal,
-            }, local_triangle_count::local_triangle_count, temporal_rich_club_coefficient::temporal_rich_club_coefficient, three_node_motifs::{
+            },
+            local_triangle_count::local_triangle_count,
+            temporal_rich_club_coefficient::temporal_rich_club_coefficient,
+            three_node_motifs::{
                 init_star_count, init_tri_count, init_two_node_count, new_triangle_edge,
                 star_event, two_node_event,
-            }, triangle_count::triangle_count, triplet_count::triplet_count
+            },
+            triangle_count::triangle_count,
+            triplet_count::triplet_count,
         },
         pathing::{
             dijkstra::dijkstra_single_source_shortest_paths,
@@ -61,7 +65,12 @@ use raphtory::{
     db::{
         api::view::{Filter, StaticGraphViewOps},
         graph::views::{
-            filter::{Unfiltered, model::{degree_filter::DegreeFilterFactory, property_filter::ops::PropertyFilterOps}},
+            filter::{
+                model::{
+                    degree_filter::DegreeFilterFactory, property_filter::ops::PropertyFilterOps,
+                },
+                Unfiltered,
+            },
             node_subgraph::NodeSubgraph,
         },
     },
@@ -113,7 +122,15 @@ fn graph_benchmark<G, BuildGraph, Run, Output>(
     BuildGraph: FnOnce() -> G,
     Run: FnMut(&G, &()) -> Output,
 {
-    graph_benchmark_with_setup(c, name, measurement_secs, sample_size, build_graph, |_| (), run)
+    graph_benchmark_with_setup(
+        c,
+        name,
+        measurement_secs,
+        sample_size,
+        build_graph,
+        |_| (),
+        run,
+    )
 }
 
 fn simple_benchmark<Run, Output>(
@@ -149,7 +166,7 @@ fn large_random_attachment_subgraph() -> NodeSubgraph<Graph> {
     let graph = large_random_attachment_graph();
     let subgraph = graph.subgraph(graph.nodes());
     subgraph
-} 
+}
 
 fn first_node_id<G: StaticGraphViewOps>(graph: &G) -> GID {
     graph
