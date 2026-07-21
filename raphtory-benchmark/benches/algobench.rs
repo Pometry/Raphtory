@@ -893,7 +893,7 @@ pub fn graphgen_large_louvain(c: &mut Criterion) {
         20,
         10,
         large_random_attachment_graph,
-        |graph, _| louvain::<ModularityUnDir, _>(graph, 1.0, None, None),
+        |graph, _| louvain::<ModularityUnDir, _>(graph, 1.0, None, None, Some(42)),
     );
     graph_benchmark(
         c,
@@ -901,7 +901,7 @@ pub fn graphgen_large_louvain(c: &mut Criterion) {
         20,
         10,
         large_random_attachment_subgraph,
-        |graph, _| louvain::<ModularityUnDir, _>(graph, 1.0, None, None),
+        |graph, _| louvain::<ModularityUnDir, _>(graph, 1.0, None, None, Some(42)),
     );
     graph_benchmark(
         c,
@@ -909,7 +909,7 @@ pub fn graphgen_large_louvain(c: &mut Criterion) {
         20,
         10,
         large_random_attachment_layered,
-        |graph, _| louvain::<ModularityUnDir, _>(graph, 1.0, None, None),
+        |graph, _| louvain::<ModularityUnDir, _>(graph, 1.0, None, None, Some(42)),
     );
     graph_benchmark(
         c,
@@ -917,7 +917,7 @@ pub fn graphgen_large_louvain(c: &mut Criterion) {
         20,
         10,
         large_random_attachment_filtered,
-        |graph, _| louvain::<ModularityUnDir, _>(graph, 1.0, None, None),
+        |graph, _| louvain::<ModularityUnDir, _>(graph, 1.0, None, None, Some(42)),
     )
 }
 
