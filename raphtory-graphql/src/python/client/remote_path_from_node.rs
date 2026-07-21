@@ -2,8 +2,8 @@ use crate::{
     client::{remote_path_from_node::RemotePathFromNode, ClientError},
     python::client::remote_node::PyRemoteNode,
 };
-use pyo3::{pyclass, pymethods, PyRef, PyRefMut};
-use raphtory::python::utils::execute_async_task;
+use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyRef, PyRefMut, PyResult};
+use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
 use std::sync::Arc;
 
 /// A handle to a "path from node" collection.
@@ -38,6 +38,48 @@ impl PyRemotePathFromNode {
     /// Time-window this collection. Lazy — no RPC.
     pub fn window(&self, start: i64, end: i64) -> PyRemotePathFromNode {
         PyRemotePathFromNode::new(self.path.window(start, end))
+    }
+
+    /// Filter this collection by a node filter. **Propagates** to downstream
+    /// traversals from the matching nodes. Mirrors the local
+    /// `PathFromNode.filter(FilterExpr)`. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     filter (FilterExpr): a node filter expression from `raphtory.filter`.
+    ///
+    /// Returns:
+    ///     RemotePathFromNode: a new collection with the filter applied.
+    ///
+    /// Raises:
+    ///     ValueError: if the filter cannot be represented as a GraphQL
+    ///         `NodeFilter`.
+    pub fn filter(&self, filter: PyFilterExpr) -> PyResult<PyRemotePathFromNode> {
+        let composite = filter
+            .try_as_node_filter()
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        let gql_filter = composite
+            .try_into()
+            .map_err(|e: raphtory::errors::GraphError| PyValueError::new_err(e.to_string()))?;
+        Ok(PyRemotePathFromNode::new(self.path.filter(gql_filter)))
+    }
+
+    /// Narrow this collection's membership by a node filter — applies only at
+    /// this step; downstream traversals see the unfiltered graph. Server-only
+    /// (no local `PathFromNode.select`). Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     filter (FilterExpr): a node filter expression from `raphtory.filter`.
+    ///
+    /// Returns:
+    ///     RemotePathFromNode: a new collection narrowed to matching nodes.
+    pub fn select(&self, filter: PyFilterExpr) -> PyResult<PyRemotePathFromNode> {
+        let composite = filter
+            .try_as_node_filter()
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        let gql_filter = composite
+            .try_into()
+            .map_err(|e: raphtory::errors::GraphError| PyValueError::new_err(e.to_string()))?;
+        Ok(PyRemotePathFromNode::new(self.path.select(gql_filter)))
     }
 
     /// Restrict to a single named layer. Lazy — no RPC.

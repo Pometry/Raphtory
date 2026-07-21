@@ -2283,3 +2283,125 @@ def test_filter_edges_preserves_membership():
         ]
     finally:
         server_cm.__exit__(None, None, None)
+
+
+# --- Batch 12: unified .filter() on Graph / Node / PathFromNode -------------
+
+
+def _make_node_filter_graph():
+    """Hub node 'ben' with three out-neighbours carrying a 'score' property,
+    for Node.filter / PathFromNode.filter/select tests."""
+    work_dir = tempfile.mkdtemp()
+    server_cm = GraphServer(work_dir).start()
+    server = server_cm.__enter__()
+    client = server.get_client()
+    client.new_graph("g", "EVENT")
+    rg = client.remote_graph("g")
+    rg.add_node(1, "ben", properties={"score": 100.0})
+    rg.add_node(1, "hamza", properties={"score": 5.0})
+    rg.add_node(1, "alice", properties={"score": 20.0})
+    rg.add_node(1, "bob", properties={"score": 15.0})
+    rg.add_edge(1, "ben", "hamza")
+    rg.add_edge(1, "ben", "alice")
+    rg.add_edge(1, "ben", "bob")
+    return server_cm, rg
+
+
+def test_graph_filter_dispatches_node_filter():
+    """`RemoteGraph.filter(<node filter>)` routes to the server `filterNodes`
+    field — matching the local unified `Graph.filter`. Keeps matching nodes."""
+    from raphtory.filter import Node
+
+    server_cm, rg = _make_filter_graph()
+    try:
+        # score > 12: alice (20) and bob (15); ben (10) and hamza (5) drop.
+        filtered = rg.filter(Node.property("score") > 12.0)
+        assert sorted(filtered.nodes.ids()) == ["alice", "bob"]
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_graph_filter_dispatches_edge_filter():
+    """`RemoteGraph.filter(<edge filter>)` routes to the server `filterEdges`
+    field. Keeps matching edges; nodes remain even if all their edges drop."""
+    from raphtory.filter import Edge
+
+    server_cm, rg = _make_edge_filter_graph()
+    try:
+        # weight > 12: alice-bob (20) and bob-hamza (15).
+        filtered = rg.filter(Edge.property("weight") > 12.0)
+        assert _edge_pairs(filtered.edges.list()) == [
+            ("alice", "bob"),
+            ("bob", "hamza"),
+        ]
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_graph_filter_composes_with_view_chain():
+    """`.filter()` composes with a graph-level view op."""
+    from raphtory.filter import Node
+
+    server_cm, rg = _make_filter_graph()
+    try:
+        # All four nodes are at t=1..4; window [0,3) keeps ben (t=1) and
+        # hamza (t=2). Filter score > 6 then leaves only ben (10).
+        filtered = rg.window(0, 3).filter(Node.property("score") > 6.0)
+        assert sorted(filtered.nodes.ids()) == ["ben"]
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_node_filter_matches():
+    """`RemoteNode.filter(<node filter>)` mirrors local `Node.filter` — a
+    terminal on a node that matches the filter still resolves."""
+    from raphtory.filter import Node
+
+    server_cm, rg = _make_filter_graph()
+    try:
+        # ben (score=10) matches score > 6; the name terminal still resolves.
+        assert rg.node("ben").filter(Node.property("score") > 6.0).name() == "ben"
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_node_filter_rejects_edge_filter():
+    """Passing an edge filter to `RemoteNode.filter` raises ValueError."""
+    import pytest
+    from raphtory.filter import Edge
+
+    server_cm, rg = _make_filter_graph()
+    try:
+        with pytest.raises(ValueError):
+            rg.node("ben").filter(Edge.property("weight") > 1.0)
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_path_from_node_select_narrows():
+    """`.select()` on a neighbours path narrows membership at this hop."""
+    from raphtory.filter import Node
+
+    server_cm, rg = _make_node_filter_graph()
+    try:
+        # ben's out-neighbours: hamza (5), alice (20), bob (15).
+        # select score > 12 → alice, bob.
+        narrowed = rg.node("ben").out_neighbours.select(
+            Node.property("score") > 12.0
+        )
+        assert sorted(narrowed.ids()) == ["alice", "bob"]
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_path_from_node_filter_preserves_membership():
+    """`.filter()` on a neighbours path preserves membership (propagates to
+    downstream traversals instead of narrowing here)."""
+    from raphtory.filter import Node
+
+    server_cm, rg = _make_node_filter_graph()
+    try:
+        kept = rg.node("ben").out_neighbours.filter(Node.property("score") > 12.0)
+        assert sorted(kept.ids()) == ["alice", "bob", "hamza"]
+    finally:
+        server_cm.__exit__(None, None, None)

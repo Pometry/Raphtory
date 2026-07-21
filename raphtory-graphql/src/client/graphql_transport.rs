@@ -1291,6 +1291,22 @@ fn render_read_body(expr: &ReadExpr) -> String {
                 render_gql_edge_filter(filter),
             )
         }
+        ReadExpr::FilterGraphNodes { input, filter } => {
+            // Server field `filterNodes(expr: NodeFilter!)` on `Graph`.
+            format!(
+                "{} {{ filterNodes(expr: {})",
+                render_read_body(input),
+                render_gql_node_filter(filter),
+            )
+        }
+        ReadExpr::FilterGraphEdges { input, filter } => {
+            // Server field `filterEdges(expr: EdgeFilter!)` on `Graph`.
+            format!(
+                "{} {{ filterEdges(expr: {})",
+                render_read_body(input),
+                render_gql_edge_filter(filter),
+            )
+        }
         // Metadata / Properties navigation
         ReadExpr::Metadata { input } => format!("{} {{ metadata", render_read_body(input)),
         ReadExpr::Properties { input } => format!("{} {{ properties", render_read_body(input)),
@@ -1549,6 +1565,8 @@ fn read_depth(expr: &ReadExpr) -> usize {
         | ReadExpr::SelectNodes { input, .. }
         | ReadExpr::FilterEdges { input, .. }
         | ReadExpr::SelectEdges { input, .. }
+        | ReadExpr::FilterGraphNodes { input, .. }
+        | ReadExpr::FilterGraphEdges { input, .. }
         | ReadExpr::Metadata { input }
         | ReadExpr::Properties { input }
         | ReadExpr::PropertyGet { input, .. }
@@ -2240,6 +2258,14 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
                 go(input, out);
                 out.push("select");
             }
+            ReadExpr::FilterGraphNodes { input, .. } => {
+                go(input, out);
+                out.push("filterNodes");
+            }
+            ReadExpr::FilterGraphEdges { input, .. } => {
+                go(input, out);
+                out.push("filterEdges");
+            }
             ReadExpr::Metadata { input } => {
                 go(input, out);
                 out.push("metadata");
@@ -2726,6 +2752,8 @@ fn child_input(expr: &ReadExpr) -> Option<&ReadExpr> {
         | ReadExpr::SelectNodes { input, .. }
         | ReadExpr::FilterEdges { input, .. }
         | ReadExpr::SelectEdges { input, .. }
+        | ReadExpr::FilterGraphNodes { input, .. }
+        | ReadExpr::FilterGraphEdges { input, .. }
         | ReadExpr::Metadata { input }
         | ReadExpr::Properties { input }
         | ReadExpr::PropertyGet { input, .. }

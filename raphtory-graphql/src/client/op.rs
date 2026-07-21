@@ -219,6 +219,26 @@ pub enum ReadExpr {
         input: Box<ReadExpr>,
         filter: GqlEdgeFilter,
     },
+    /// Filter a `Graph` view by a node filter, returning a filtered `Graph`.
+    /// Server field: `filterNodes(expr: NodeFilter!)` on `Graph` — keeps
+    /// nodes matching the filter; edges survive only if both endpoints do.
+    ///
+    /// This is the node-filter half of the local `Graph.filter(FilterExpr)`
+    /// API; the Python `RemoteGraph.filter` dispatches here for node filters.
+    FilterGraphNodes {
+        input: Box<ReadExpr>,
+        filter: GqlNodeFilter,
+    },
+    /// Filter a `Graph` view by an edge filter, returning a filtered `Graph`.
+    /// Server field: `filterEdges(expr: EdgeFilter!)` on `Graph` — keeps
+    /// edges matching the filter; nodes remain even if all their edges drop.
+    ///
+    /// This is the edge-filter half of the local `Graph.filter(FilterExpr)`
+    /// API; the Python `RemoteGraph.filter` dispatches here for edge filters.
+    FilterGraphEdges {
+        input: Box<ReadExpr>,
+        filter: GqlEdgeFilter,
+    },
 
     // ============ Properties / Metadata containers ============
     /// Navigate to the non-temporal metadata container. Polymorphic:

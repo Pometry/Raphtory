@@ -18,8 +18,8 @@ use crate::{
         PyEdgeAddition, PyNodeAddition,
     },
 };
-use pyo3::{pyclass, pymethods};
-use raphtory::python::utils::execute_async_task;
+use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyResult};
+use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
 use raphtory_api::core::{
     entities::{properties::prop::Prop, GID},
     storage::timeindex::{AsTime, EventTime},
@@ -51,6 +51,44 @@ impl PyRemoteGraph {
         PyRemoteGraph {
             graph: Arc::new(self.graph.window(start, end)),
         }
+    }
+
+    /// Return a filtered graph view. Mirrors the local
+    /// `Graph.filter(FilterExpr)`: pass a node filter to keep matching nodes
+    /// (edges survive only if both endpoints do), or an edge filter to keep
+    /// matching edges (nodes remain even if all their edges drop). Lazy — no
+    /// RPC.
+    ///
+    /// Arguments:
+    ///     filter (FilterExpr): a filter expression from `raphtory.filter`.
+    ///
+    /// Returns:
+    ///     RemoteGraph: a new filtered graph view.
+    ///
+    /// Raises:
+    ///     ValueError: if the filter cannot be represented as a GraphQL
+    ///         `NodeFilter` or `EdgeFilter`.
+    pub fn filter(&self, filter: PyFilterExpr) -> PyResult<PyRemoteGraph> {
+        // Dispatch matches the local unified `Graph.filter`: node filters
+        // route to the server `filterNodes` field, edge filters to
+        // `filterEdges`. Try node first; fall back to edge.
+        if let Ok(node) = filter.try_as_node_filter() {
+            let gql = node
+                .try_into()
+                .map_err(|e: raphtory::errors::GraphError| PyValueError::new_err(e.to_string()))?;
+            return Ok(PyRemoteGraph {
+                graph: Arc::new(self.graph.filter_nodes(gql)),
+            });
+        }
+        let edge = filter
+            .try_as_edge_filter()
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        let gql = edge
+            .try_into()
+            .map_err(|e: raphtory::errors::GraphError| PyValueError::new_err(e.to_string()))?;
+        Ok(PyRemoteGraph {
+            graph: Arc::new(self.graph.filter_edges(gql)),
+        })
     }
 
     /// Restrict to a single named layer. Lazy — no RPC.

@@ -8,8 +8,8 @@ use crate::{
         remote_path_from_node::PyRemotePathFromNode,
     },
 };
-use pyo3::{pyclass, pymethods};
-use raphtory::python::utils::execute_async_task;
+use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyResult};
+use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
 use raphtory_api::core::{entities::properties::prop::Prop, storage::timeindex::EventTime};
 use std::{collections::HashMap, sync::Arc};
 
@@ -41,6 +41,28 @@ impl PyRemoteNode {
     /// Time-window this node. Lazy — no RPC.
     pub fn window(&self, start: i64, end: i64) -> PyRemoteNode {
         PyRemoteNode::new(self.node.window(start, end))
+    }
+
+    /// Return a filtered view of this node — mirrors the local
+    /// `Node.filter(FilterExpr)`. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     filter (FilterExpr): a node filter expression from `raphtory.filter`.
+    ///
+    /// Returns:
+    ///     RemoteNode: a new filtered node view.
+    ///
+    /// Raises:
+    ///     ValueError: if the filter cannot be represented as a GraphQL
+    ///         `NodeFilter` (e.g. references edge fields).
+    pub fn filter(&self, filter: PyFilterExpr) -> PyResult<PyRemoteNode> {
+        let composite = filter
+            .try_as_node_filter()
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        let gql_filter = composite
+            .try_into()
+            .map_err(|e: raphtory::errors::GraphError| PyValueError::new_err(e.to_string()))?;
+        Ok(PyRemoteNode::new(self.node.filter(gql_filter)))
     }
 
     /// Restrict to a single named layer. Lazy — no RPC.

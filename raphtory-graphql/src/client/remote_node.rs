@@ -1,18 +1,21 @@
-use crate::client::{
-    op::{
-        AddNodeMetadata as AddNodeMetadataOp, AddNodeUpdates as AddNodeUpdatesOp, Op, ReadExpr,
-        SetNodeType as SetNodeTypeOp, UpdateNodeMetadata as UpdateNodeMetadataOp, WriteOp,
+use crate::{
+    client::{
+        op::{
+            AddNodeMetadata as AddNodeMetadataOp, AddNodeUpdates as AddNodeUpdatesOp, Op, ReadExpr,
+            SetNodeType as SetNodeTypeOp, UpdateNodeMetadata as UpdateNodeMetadataOp, WriteOp,
+        },
+        remote_edges::RemoteEdges,
+        remote_graph::{
+            expect_bool, expect_i64, expect_optional_i64, expect_optional_string, expect_string,
+        },
+        remote_history::RemoteHistory,
+        remote_metadata::{RemoteMetadata, RemoteProperties},
+        remote_nodes::RemoteNodes,
+        remote_path_from_node::RemotePathFromNode,
+        transport::Transport,
+        ClientError,
     },
-    remote_edges::RemoteEdges,
-    remote_graph::{
-        expect_bool, expect_i64, expect_optional_i64, expect_optional_string, expect_string,
-    },
-    remote_history::RemoteHistory,
-    remote_metadata::{RemoteMetadata, RemoteProperties},
-    remote_nodes::RemoteNodes,
-    remote_path_from_node::RemotePathFromNode,
-    transport::Transport,
-    ClientError,
+    model::graph::filtering::GqlNodeFilter,
 };
 use raphtory_api::core::{
     entities::properties::prop::Prop, storage::timeindex::AsTime, utils::time::IntoTime,
@@ -80,6 +83,23 @@ impl RemoteNode {
             start,
             end,
         })
+    }
+
+    /// Return a filtered view of this node — mirrors the local
+    /// `Node.filter(FilterExpr)`. Wraps only `expr` (the server field
+    /// `filter(expr:)` on `Node`); `base_graph` is graph-level and stays
+    /// unchanged. Lazy — no RPC.
+    pub fn filter(&self, filter: GqlNodeFilter) -> RemoteNode {
+        RemoteNode {
+            path: self.path.clone(),
+            id: self.id.clone(),
+            transport: self.transport.clone(),
+            expr: ReadExpr::FilterNodes {
+                input: Box::new(self.expr.clone()),
+                filter,
+            },
+            base_graph: self.base_graph.clone(),
+        }
     }
 
     /// Restrict to a single named layer. Lazy — no RPC.

@@ -1,9 +1,12 @@
-use crate::client::{
-    op::{Op, ReadExpr},
-    remote_graph::{expect_i64, expect_optional_i64, expect_string_list},
-    remote_node::RemoteNode,
-    transport::Transport,
-    ClientError,
+use crate::{
+    client::{
+        op::{Op, ReadExpr},
+        remote_graph::{expect_i64, expect_optional_i64, expect_string_list},
+        remote_node::RemoteNode,
+        transport::Transport,
+        ClientError,
+    },
+    model::graph::filtering::GqlNodeFilter,
 };
 use std::sync::Arc;
 
@@ -186,6 +189,36 @@ impl RemotePathFromNode {
             expr: ReadExpr::TypeFilter {
                 input: Box::new(self.expr.clone()),
                 node_types,
+            },
+            base_graph: self.base_graph.clone(),
+        }
+    }
+
+    /// Filter this collection by a node filter. **Propagates** to downstream
+    /// traversals from the matching nodes. Mirrors the local
+    /// `PathFromNode.filter(FilterExpr)`. Wraps only `expr`. Lazy — no RPC.
+    pub fn filter(&self, filter: GqlNodeFilter) -> RemotePathFromNode {
+        RemotePathFromNode {
+            path: self.path.clone(),
+            transport: self.transport.clone(),
+            expr: ReadExpr::FilterNodes {
+                input: Box::new(self.expr.clone()),
+                filter,
+            },
+            base_graph: self.base_graph.clone(),
+        }
+    }
+
+    /// Narrow this collection's membership by a node filter — applies only at
+    /// this step; downstream traversals see the unfiltered graph. Server-only
+    /// (`select` has no local `PathFromNode` equivalent). Lazy — no RPC.
+    pub fn select(&self, filter: GqlNodeFilter) -> RemotePathFromNode {
+        RemotePathFromNode {
+            path: self.path.clone(),
+            transport: self.transport.clone(),
+            expr: ReadExpr::SelectNodes {
+                input: Box::new(self.expr.clone()),
+                filter,
             },
             base_graph: self.base_graph.clone(),
         }

@@ -1,21 +1,24 @@
-use crate::client::{
-    graphql_transport::GraphqlTransport,
-    op::{
-        AddEdge as AddEdgeOp, AddGraphMetadata as AddGraphMetadataOp,
-        AddGraphProperty as AddGraphPropertyOp, AddNode as AddNodeOp, CreateNode as CreateNodeOp,
-        DeleteEdge as DeleteEdgeOp, Op, ReadExpr, UpdateGraphMetadata as UpdateGraphMetadataOp,
-        WriteOp,
+use crate::{
+    client::{
+        graphql_transport::GraphqlTransport,
+        op::{
+            AddEdge as AddEdgeOp, AddGraphMetadata as AddGraphMetadataOp,
+            AddGraphProperty as AddGraphPropertyOp, AddNode as AddNodeOp,
+            CreateNode as CreateNodeOp, DeleteEdge as DeleteEdgeOp, Op, ReadExpr,
+            UpdateGraphMetadata as UpdateGraphMetadataOp, WriteOp,
+        },
+        remote_client::RemoteClient,
+        remote_edge::RemoteEdge,
+        remote_edges::RemoteEdges,
+        remote_history::RemoteEventTime,
+        remote_metadata::{RemoteMetadata, RemoteProperties},
+        remote_node::RemoteNode,
+        remote_nodes::RemoteNodes,
+        remote_schema::RemoteGraphSchema,
+        transport::Transport,
+        ClientError,
     },
-    remote_client::RemoteClient,
-    remote_edge::RemoteEdge,
-    remote_edges::RemoteEdges,
-    remote_history::RemoteEventTime,
-    remote_metadata::{RemoteMetadata, RemoteProperties},
-    remote_node::RemoteNode,
-    remote_nodes::RemoteNodes,
-    remote_schema::RemoteGraphSchema,
-    transport::Transport,
-    ClientError,
+    model::graph::filtering::{GqlEdgeFilter, GqlNodeFilter},
 };
 use minijinja::{Environment, Value};
 use raphtory_api::core::{
@@ -607,6 +610,26 @@ impl RemoteGraph {
         self.with_expr(ReadExpr::SubgraphNodeTypes {
             input: Box::new(self.expr.clone()),
             node_types,
+        })
+    }
+
+    /// Return a filtered graph view keeping nodes that match `filter`; edges
+    /// survive only if both endpoints do. The node-filter half of the local
+    /// `Graph.filter(FilterExpr)` API. Lazy — no RPC.
+    pub fn filter_nodes(&self, filter: GqlNodeFilter) -> RemoteGraph {
+        self.with_expr(ReadExpr::FilterGraphNodes {
+            input: Box::new(self.expr.clone()),
+            filter,
+        })
+    }
+
+    /// Return a filtered graph view keeping edges that match `filter`; nodes
+    /// remain even if all their edges drop. The edge-filter half of the local
+    /// `Graph.filter(FilterExpr)` API. Lazy — no RPC.
+    pub fn filter_edges(&self, filter: GqlEdgeFilter) -> RemoteGraph {
+        self.with_expr(ReadExpr::FilterGraphEdges {
+            input: Box::new(self.expr.clone()),
+            filter,
         })
     }
 
