@@ -1,8 +1,8 @@
 use crate::client::{
     op::{Op, ReadExpr},
     remote_graph::{
-        expect_bool, expect_event_time_list, expect_i64, expect_i64_list, expect_optional_f64,
-        expect_optional_i64, expect_string_list,
+        expect_bool, expect_event_time_list, expect_i64, expect_i64_list,
+        expect_optional_event_time, expect_optional_f64, expect_optional_i64, expect_string_list,
     },
     transport::Transport,
     ClientError,
@@ -90,20 +90,20 @@ impl RemoteHistory {
 
     /// Terminal: earliest event time in this history. Returns `None` if the
     /// history is empty. Fires one RPC.
-    pub async fn earliest_time(&self) -> Result<Option<i64>, ClientError> {
+    pub async fn earliest_time(&self) -> Result<Option<RemoteEventTime>, ClientError> {
         let op = Op::Read(ReadExpr::EarliestTime {
             input: Box::new(self.expr.clone()),
         });
-        expect_optional_i64(self.transport.execute(&op).await?, "earliestTime")
+        expect_optional_event_time(self.transport.execute(&op).await?, "earliestTime")
     }
 
     /// Terminal: latest event time in this history. Returns `None` if the
     /// history is empty. Fires one RPC.
-    pub async fn latest_time(&self) -> Result<Option<i64>, ClientError> {
+    pub async fn latest_time(&self) -> Result<Option<RemoteEventTime>, ClientError> {
         let op = Op::Read(ReadExpr::LatestTime {
             input: Box::new(self.expr.clone()),
         });
-        expect_optional_i64(self.transport.execute(&op).await?, "latestTime")
+        expect_optional_event_time(self.transport.execute(&op).await?, "latestTime")
     }
 
     /// Terminal: all events in this history in ascending time order.

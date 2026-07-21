@@ -321,6 +321,24 @@ pub(crate) fn expect_prop_list(v: Option<Prop>, context: &str) -> Result<Vec<Pro
     }
 }
 
+/// Unwrap a `Transport::execute` result expecting a nullable EventTime
+/// terminal (`earliest_time`, `latest_time`, `start`, `end`, `time`). The
+/// transport returns `Some(Prop::Map({timestamp, datetime, eventId}))` for a
+/// present value, or `None` (JSON null) for an absent one (e.g. empty graph).
+pub(crate) fn expect_optional_event_time(
+    v: Option<Prop>,
+    context: &str,
+) -> Result<Option<RemoteEventTime>, ClientError> {
+    match v {
+        None => Ok(None),
+        Some(Prop::Map(map)) => Ok(Some(extract_event_time(&map))),
+        Some(_) => Err(ClientError::InvalidResponse(format!(
+            "`{}` returned unexpected value type",
+            context
+        ))),
+    }
+}
+
 /// Unwrap a `Transport::execute` result expecting a nullable `Prop::F64`
 /// scalar. Used by `IntervalsMean`.
 pub(crate) fn expect_optional_f64(
@@ -659,38 +677,38 @@ impl RemoteGraph {
 
     /// Terminal: earliest event timestamp under the current view. Returns
     /// `None` if the view has no events. Fires one RPC.
-    pub async fn earliest_time(&self) -> Result<Option<i64>, ClientError> {
+    pub async fn earliest_time(&self) -> Result<Option<RemoteEventTime>, ClientError> {
         let op = Op::Read(ReadExpr::EarliestTime {
             input: Box::new(self.expr.clone()),
         });
-        expect_optional_i64(self.transport.execute(&op).await?, "earliestTime")
+        expect_optional_event_time(self.transport.execute(&op).await?, "earliestTime")
     }
 
     /// Terminal: latest event timestamp under the current view. Returns
     /// `None` if the view has no events. Fires one RPC.
-    pub async fn latest_time(&self) -> Result<Option<i64>, ClientError> {
+    pub async fn latest_time(&self) -> Result<Option<RemoteEventTime>, ClientError> {
         let op = Op::Read(ReadExpr::LatestTime {
             input: Box::new(self.expr.clone()),
         });
-        expect_optional_i64(self.transport.execute(&op).await?, "latestTime")
+        expect_optional_event_time(self.transport.execute(&op).await?, "latestTime")
     }
 
     /// Terminal: view start bound. Returns `None` for an unbounded view.
     /// Fires one RPC.
-    pub async fn start(&self) -> Result<Option<i64>, ClientError> {
+    pub async fn start(&self) -> Result<Option<RemoteEventTime>, ClientError> {
         let op = Op::Read(ReadExpr::Start {
             input: Box::new(self.expr.clone()),
         });
-        expect_optional_i64(self.transport.execute(&op).await?, "start")
+        expect_optional_event_time(self.transport.execute(&op).await?, "start")
     }
 
     /// Terminal: view end bound. Returns `None` for an unbounded view.
     /// Fires one RPC.
-    pub async fn end(&self) -> Result<Option<i64>, ClientError> {
+    pub async fn end(&self) -> Result<Option<RemoteEventTime>, ClientError> {
         let op = Op::Read(ReadExpr::End {
             input: Box::new(self.expr.clone()),
         });
-        expect_optional_i64(self.transport.execute(&op).await?, "end")
+        expect_optional_event_time(self.transport.execute(&op).await?, "end")
     }
 
     /// Terminal: does the graph have a node with this id? Fires one RPC.

@@ -96,7 +96,7 @@ def test_node_terminals():
     server_cm, rg = _make_graph_with_edge()
     try:
         ben = rg.node("ben")
-        assert ben.name() == "ben"
+        assert ben.name == "ben"
         assert ben.out_degree() == 1  # ben → hamza
         assert ben.in_degree() == 0
 
@@ -132,21 +132,21 @@ def test_compound_time_terminals():
     server_cm, rg = _make_graph_with_edge()
     try:
         # Unwindowed: earliest is t=1 (ben added), latest is t=3 (edge).
-        assert rg.earliest_time() == 1
-        assert rg.latest_time() == 3
+        assert rg.earliest_time == 1
+        assert rg.latest_time == 3
 
         # Windowed [1, 3): earliest=1, latest=2 (hamza added at t=2; edge excluded).
         rg_win = rg.window(1, 3)
-        assert rg_win.earliest_time() == 1
-        assert rg_win.latest_time() == 2
+        assert rg_win.earliest_time == 1
+        assert rg_win.latest_time == 2
         # Window bounds also come back through the same compound path.
-        assert rg_win.start() == 1
-        assert rg_win.end() == 3
+        assert rg_win.start == 1
+        assert rg_win.end == 3
 
         # On a Node — earliest/latest reflect the node's own events under the view.
         ben = rg.node("ben")
-        assert ben.earliest_time() == 1  # ben added at t=1
-        assert ben.latest_time() == 3    # participated in edge at t=3
+        assert ben.earliest_time == 1  # ben added at t=1
+        assert ben.latest_time == 3    # participated in edge at t=3
     finally:
         server_cm.__exit__(None, None, None)
 
@@ -170,12 +170,12 @@ def test_node_id_type_and_state():
     server_cm, rg = _make_graph_with_edge()
     try:
         ben = rg.node("ben")
-        assert ben.id() == "ben"
-        assert ben.node_type() is None  # type not set
+        assert ben.id == "ben"
+        assert ben.node_type is None  # type not set
 
         # Set a node type via the write path, then re-read.
         ben.set_node_type("person")
-        assert rg.node("ben").node_type() == "person"
+        assert rg.node("ben").node_type == "person"
 
         # Ben participates in the ben→hamza edge → 1 edge history event.
         assert rg.node("ben").edge_history_count() == 1
@@ -269,7 +269,7 @@ def test_nodes_collection():
         # Materialize as RemoteNode handles, then read a scalar off each.
         remote_nodes = nodes.list()
         assert len(remote_nodes) == 2
-        names = sorted(n.name() for n in remote_nodes)
+        names = sorted(n.name for n in remote_nodes)
         assert names == ["ben", "hamza"]
     finally:
         server_cm.__exit__(None, None, None)
@@ -302,7 +302,7 @@ def test_view_chain_propagates_through_collection_list():
         # carry the window, so edge_history_count reflects the windowed view.
         windowed_counts = []
         for n in rg.window(0, 5).nodes:
-            if n.name() == "ben":
+            if n.name == "ben":
                 windowed_counts.append(n.edge_history_count())
         assert windowed_counts == [1], (
             f"expected edge_history_count == 1 under [0,5) window, got {windowed_counts}. "
@@ -321,16 +321,16 @@ def test_nodes_native_iteration():
     """`for n in rg.nodes:` — no explicit `.list()` needed."""
     server_cm, rg = _make_graph_with_edge()
     try:
-        names = sorted(n.name() for n in rg.nodes)
+        names = sorted(n.name for n in rg.nodes)
         assert names == ["ben", "hamza"]
 
         # Native iteration over a navigation collection.
-        out_names = [n.name() for n in rg.node("ben").out_neighbours]
+        out_names = [n.name for n in rg.node("ben").out_neighbours]
         assert out_names == ["hamza"]
 
         # Iterating twice is idempotent (each iter() call fetches fresh).
-        first = [n.name() for n in rg.nodes]
-        second = [n.name() for n in rg.nodes]
+        first = [n.name for n in rg.nodes]
+        second = [n.name for n in rg.nodes]
         assert sorted(first) == sorted(second)
     finally:
         server_cm.__exit__(None, None, None)
@@ -361,12 +361,12 @@ def test_edge_selection_and_navigation():
     try:
         e = rg.edge("ben", "hamza")
         # Navigate back to source/destination nodes and read from them.
-        assert e.src().name() == "ben"
-        assert e.dst().name() == "hamza"
+        assert e.src.name == "ben"
+        assert e.dst.name == "hamza"
         # The navigated-back node handles carry the full view chain — evaluating
         # a terminal on them fires an RPC against the same underlying edge.
-        assert e.src().degree() == 1
-        assert e.dst().degree() == 1
+        assert e.src.degree() == 1
+        assert e.dst.degree() == 1
     finally:
         server_cm.__exit__(None, None, None)
 
@@ -383,7 +383,7 @@ def test_edges_collection():
         # Materialize as RemoteEdge handles; navigate back to endpoints.
         remote_edges = edges.list()
         assert len(remote_edges) == 1
-        pairs = sorted((e.src().name(), e.dst().name()) for e in remote_edges)
+        pairs = sorted((e.src.name, e.dst.name) for e in remote_edges)
         assert pairs == [("ben", "hamza")]
     finally:
         server_cm.__exit__(None, None, None)
@@ -397,12 +397,12 @@ def test_edges_native_iteration():
     rg.add_node(4, "sam")
     rg.add_edge(5, "ben", "sam")
     try:
-        pairs = sorted((e.src().name(), e.dst().name()) for e in rg.edges)
+        pairs = sorted((e.src.name, e.dst.name) for e in rg.edges)
         assert pairs == [("ben", "hamza"), ("ben", "sam")]
 
         # Native iteration over a node's out_edges collection.
         out_pairs = sorted(
-            (e.src().name(), e.dst().name()) for e in rg.node("ben").out_edges
+            (e.src.name, e.dst.name) for e in rg.node("ben").out_edges
         )
         assert out_pairs == [("ben", "hamza"), ("ben", "sam")]
     finally:
@@ -425,7 +425,7 @@ def test_node_edge_collections():
         assert hamza.edges.count() == 1
 
         # The single out-edge from ben goes to hamza.
-        out_pairs = [(e.src().name(), e.dst().name()) for e in ben.out_edges.list()]
+        out_pairs = [(e.src.name, e.dst.name) for e in ben.out_edges.list()]
         assert out_pairs == [("ben", "hamza")]
     finally:
         server_cm.__exit__(None, None, None)
@@ -508,9 +508,9 @@ def test_terminals_error_on_absent_node_or_edge():
         with pytest.raises(Exception, match="Node 'nonexistent' not found"):
             rg.node("nonexistent").degree()
         with pytest.raises(Exception, match="Node 'nonexistent' not found"):
-            rg.node("nonexistent").earliest_time()
+            rg.node("nonexistent").earliest_time
         with pytest.raises(Exception, match="Node 'nonexistent' not found"):
-            rg.node("nonexistent").node_type()
+            rg.node("nonexistent").node_type
 
         # Present in graph, but not visible in this window.
         with pytest.raises(Exception, match="Node 'ben' not found"):
@@ -520,13 +520,13 @@ def test_terminals_error_on_absent_node_or_edge():
 
         # Absent edges (via `.src().name()` — walks through the edge intermediate).
         with pytest.raises(Exception, match=r"Edge \('nonexistent', 'hamza'\) not found"):
-            rg.edge("nonexistent", "hamza").src().name()
+            rg.edge("nonexistent", "hamza").src.name
         with pytest.raises(Exception, match=r"Edge \('ben', 'hamza'\) not found"):
-            rg.window(100, 200).edge("ben", "hamza").src().name()
+            rg.window(100, 200).edge("ben", "hamza").src.name
 
         # Nullable terminal on an *existing* node with genuinely-missing data
         # still returns None (ben exists, no type ever set on him).
-        assert rg.node("ben").node_type() is None
+        assert rg.node("ben").node_type is None
     finally:
         server_cm.__exit__(None, None, None)
 
@@ -611,23 +611,23 @@ def test_edge_read_terminals():
     try:
         e = rg.edge("ben", "hamza")
         # Time-range terminals.
-        assert e.earliest_time() == 3
-        assert e.latest_time() == 8
+        assert e.earliest_time == 3
+        assert e.latest_time == 8
         assert e.first_update() == 3
         assert e.last_update() == 8
 
         # Id — pair of endpoint ids.
-        assert e.id() == ("ben", "hamza")
+        assert e.id == ("ben", "hamza")
 
         # Layer info — layer_names lists all layers this edge appears in.
-        assert e.layer_names() == ["_default"]
+        assert e.layer_names == ["_default"]
         # `.layer_name()` requires an `.explode()`'d view; on a plain edge
         # handle the server returns a GraphQL error which surfaces as
         # ClientError::GraphQLErrors. We surface the message unchanged — the
         # test just asserts we surface *something* with "layer_name" in it.
         import pytest
         with pytest.raises(Exception, match="layer_name"):
-            e.layer_name()
+            e.layer_name
 
         # Bool state.
         assert e.is_active() is True
@@ -637,8 +637,8 @@ def test_edge_read_terminals():
 
         # Windowed view narrows time range.
         e_win = rg.window(0, 5).edge("ben", "hamza")
-        assert e_win.earliest_time() == 3
-        assert e_win.latest_time() == 3
+        assert e_win.earliest_time == 3
+        assert e_win.latest_time == 3
         assert e_win.first_update() == 3
         assert e_win.last_update() == 3
     finally:
@@ -670,7 +670,7 @@ def test_edge_nbr_navigation():
     try:
         e = rg.edge("ben", "hamza")
         # On a plain (out-)edge view, nbr yields the destination.
-        assert e.nbr().name() == "hamza"
+        assert e.nbr.name == "hamza"
     finally:
         server_cm.__exit__(None, None, None)
 
@@ -712,8 +712,8 @@ def test_collection_view_chain_builders():
         assert rg.edges.exclude_layers(["_default"]).count() == 1
 
         # `.start` reflects the collection's own view bound.
-        assert rg.nodes.window(0, 5).start() == 0
-        assert rg.nodes.window(0, 5).end() == 5
+        assert rg.nodes.window(0, 5).start == 0
+        assert rg.nodes.window(0, 5).end == 5
     finally:
         server_cm.__exit__(None, None, None)
 
@@ -729,7 +729,7 @@ def test_collection_view_chain_composes_with_materialization():
         # Iterate over a window-narrowed collection — each yielded handle
         # should see the windowed view.
         for n in rg.nodes.window(0, 5):
-            if n.name() == "ben":
+            if n.name == "ben":
                 # Only the t=3 edge is visible in [0, 5) — ben's history count is 1.
                 assert n.edge_history_count() == 1
     finally:
@@ -747,7 +747,7 @@ def test_node_view_chain_propagates_through_neighbour_materialization():
         # Each neighbour should still see the windowed view — meaning
         # hamza's edge_history_count under that view is 1, not 2.
         for n in rg.node("ben").window(0, 5).out_neighbours:
-            assert n.name() == "hamza"
+            assert n.name == "hamza"
             assert n.edge_history_count() == 1, (
                 "expected 1 under [0,5) window. If this is 2, base_graph is "
                 "not propagating through RemoteNode's view builders."
@@ -1057,20 +1057,18 @@ def test_node_properties_basic():
         # the latest value under the current view (t=10 → score=2.5).
         score = props.get("score")
         assert score is not None
-        assert score.key == "score"
-        assert score.value == 2.5
+        assert score == 2.5
 
         # get on missing key — None.
         assert props.get("nonexistent") is None
 
-        # values — list[RemoteProperty], one per key.
-        vs = props.values()
-        by_key = {p.key: p.value for p in vs}
+        # items — (key, value) pairs.
+        by_key = dict(props.items())
         assert by_key == {"score": 2.5, "active": True}
 
-        # values with whitelist.
+        # values with whitelist — raw values for just the named keys.
         subset = props.values(keys=["score"])
-        assert [p.key for p in subset] == ["score"]
+        assert subset == [2.5]
     finally:
         server_cm.__exit__(None, None, None)
 
@@ -1114,13 +1112,12 @@ def test_node_metadata_basic():
         # get — Optional[RemoteProperty], value is native Python type.
         role = md.get("role")
         assert role is not None
-        assert role.key == "role"
-        assert role.value == "admin"
+        assert role == "admin"
 
         level = md.get("level")
-        assert level.value == 3            # int
+        assert level == 3            # int
         active = md.get("active")
-        assert active.value is True        # bool
+        assert active is True        # bool
 
         # get on missing key — None.
         assert md.get("nonexistent") is None
@@ -1128,12 +1125,12 @@ def test_node_metadata_basic():
         # values — list of RemoteProperty, all entries.
         all_values = md.values()
         assert len(all_values) == 3
-        by_key = {p.key: p.value for p in all_values}
+        by_key = dict(md.items())
         assert by_key == {"role": "admin", "level": 3, "active": True}
 
-        # values with whitelist — filter to specific keys.
+        # values with whitelist — raw values for just the named keys.
         subset = md.values(keys=["role", "level"])
-        assert sorted(p.key for p in subset) == ["level", "role"]
+        assert sorted(subset, key=str) == [3, "admin"]
     finally:
         server_cm.__exit__(None, None, None)
 
@@ -1146,12 +1143,12 @@ def test_graph_and_edge_metadata():
     rg.edge("ben", "hamza").add_metadata({"weight": 5.5})
     try:
         # Graph metadata
-        assert rg.metadata.get("description").value == "test graph"
+        assert rg.metadata.get("description") == "test graph"
 
         # Edge metadata
         weight = rg.edge("ben", "hamza").metadata.get("weight")
         assert weight is not None
-        assert weight.value == 5.5
+        assert weight == 5.5
     finally:
         server_cm.__exit__(None, None, None)
 
@@ -1171,8 +1168,8 @@ def test_edge_explode():
 
         # Each exploded instance still points at (ben, hamza).
         for ex in exploded.list():
-            assert ex.src().name() == "ben"
-            assert ex.dst().name() == "hamza"
+            assert ex.src.name == "ben"
+            assert ex.dst.name == "hamza"
 
         # Layer explode — only one layer here so should be 1 entry.
         by_layer = e.explode_layers()
@@ -1231,7 +1228,7 @@ def test_node_in_out_component():
         assert sorted(windowed.ids()) == ["hamza"]
 
         # Iteration works.
-        names = sorted(n.name() for n in rg.node("ben").out_component)
+        names = sorted(n.name for n in rg.node("ben").out_component)
         assert names == ["hamza", "sam", "tom"]
     finally:
         server_cm.__exit__(None, None, None)
@@ -1296,7 +1293,7 @@ def test_nodes_type_filter_with_windowed_view():
         # design has to handle correctly.
         materialized = pre_windowed.list()
         assert len(materialized) == 1
-        assert materialized[0].name() == "ben"
+        assert materialized[0].name == "ben"
 
         # (b) Sticky-selection: nodes fixed at 3, then windowed view narrows
         # (sticky, count unchanged), then type_filter shrinks to matching type.
@@ -1471,24 +1468,24 @@ def test_collection_view_bounds():
     server_cm, rg = _make_graph_with_edge()
     try:
         # Unbounded — both bounds are None.
-        assert rg.nodes.start() is None
-        assert rg.nodes.end() is None
-        assert rg.edges.start() is None
-        assert rg.edges.end() is None
+        assert rg.nodes.start is None
+        assert rg.nodes.end is None
+        assert rg.edges.start is None
+        assert rg.edges.end is None
 
         # Bounded via graph-level window — inherited by collections.
-        assert rg.window(0, 5).nodes.start() == 0
-        assert rg.window(0, 5).nodes.end() == 5
-        assert rg.window(0, 5).edges.start() == 0
-        assert rg.window(0, 5).edges.end() == 5
+        assert rg.window(0, 5).nodes.start == 0
+        assert rg.window(0, 5).nodes.end == 5
+        assert rg.window(0, 5).edges.start == 0
+        assert rg.window(0, 5).edges.end == 5
 
         # One-sided bounds propagate to collections too.
         # `before(5)` is exclusive upper — end reports the boundary time.
-        assert rg.before(5).nodes.start() is None
-        assert rg.before(5).nodes.end() == 5
+        assert rg.before(5).nodes.start is None
+        assert rg.before(5).nodes.end == 5
         # `after(5)` is exclusive lower — effective start is 6.
-        assert rg.after(5).edges.start() == 6
-        assert rg.after(5).edges.end() is None
+        assert rg.after(5).edges.start == 6
+        assert rg.after(5).edges.end is None
     finally:
         server_cm.__exit__(None, None, None)
 
@@ -1497,12 +1494,12 @@ def test_graph_unique_layers():
     """`unique_layers` returns the list of layer names present in the graph."""
     server_cm, rg = _make_graph_with_edge()
     try:
-        assert rg.unique_layers() == ["_default"]
+        assert rg.unique_layers == ["_default"]
 
         # Add an edge on a distinct layer.
         rg.add_edge(4, "ben", "hamza", layer="secret")
         # Now two layers are present.
-        assert sorted(rg.unique_layers()) == ["_default", "secret"]
+        assert sorted(rg.unique_layers) == ["_default", "secret"]
     finally:
         server_cm.__exit__(None, None, None)
 
@@ -1519,19 +1516,19 @@ def test_edge_view_chain_builders():
         e = rg.edge("ben", "hamza")
 
         # Global time range: [3, 8].
-        assert e.earliest_time() == 3
-        assert e.latest_time() == 8
+        assert e.earliest_time == 3
+        assert e.latest_time == 8
 
         # Windowed narrows the range.
-        assert e.window(0, 5).earliest_time() == 3
-        assert e.window(0, 5).latest_time() == 3
-        assert e.window(6, 10).earliest_time() == 8
+        assert e.window(0, 5).earliest_time == 3
+        assert e.window(0, 5).latest_time == 3
+        assert e.window(6, 10).earliest_time == 8
         # Empty window — edge selection is preserved (we selected first, then
         # windowed), so nullable terminal returns None rather than raising.
         # This differs from `rg.window(...).edge(...)` where the edge itself
         # falls out of view and terminals on it raise NotFound.
-        assert e.window(100, 200).earliest_time() is None
-        assert e.window(100, 200).latest_time() is None
+        assert e.window(100, 200).earliest_time is None
+        assert e.window(100, 200).latest_time is None
         import pytest
 
         # At / snapshot_at.
@@ -1539,10 +1536,10 @@ def test_edge_view_chain_builders():
         assert e.snapshot_at(3).is_active() is True
 
         # Before / after — one-sided views.
-        assert e.before(5).earliest_time() == 3
-        assert e.before(5).latest_time() == 3
-        assert e.after(5).earliest_time() == 8
-        assert e.after(5).latest_time() == 8
+        assert e.before(5).earliest_time == 3
+        assert e.before(5).latest_time == 3
+        assert e.after(5).earliest_time == 8
+        assert e.after(5).latest_time == 8
 
         # Latest / snapshot_latest — non-argumentative view ops.
         assert e.latest().is_active() is True
@@ -1558,11 +1555,11 @@ def test_edge_view_chain_builders():
         assert e.exclude_layers(["_default"]).is_active() is False
 
         # Chained view composes with navigation.
-        assert e.window(0, 5).src().name() == "ben"
-        assert e.window(0, 5).nbr().name() == "hamza"
+        assert e.window(0, 5).src.name == "ben"
+        assert e.window(0, 5).nbr.name == "hamza"
 
         # Commutativity: pre-selection view chain matches post-selection view chain.
-        assert e.window(0, 5).earliest_time() == rg.window(0, 5).edge("ben", "hamza").earliest_time()
+        assert e.window(0, 5).earliest_time == rg.window(0, 5).edge("ben", "hamza").earliest_time
     finally:
         server_cm.__exit__(None, None, None)
 
@@ -1573,14 +1570,14 @@ def test_edge_shrink_builders():
     rg.add_edge(8, "ben", "hamza")
     try:
         wide = rg.edge("ben", "hamza").window(0, 100)
-        assert wide.earliest_time() == 3
-        assert wide.latest_time() == 8
+        assert wide.earliest_time == 3
+        assert wide.latest_time == 8
 
-        assert wide.shrink_window(0, 5).latest_time() == 3
+        assert wide.shrink_window(0, 5).latest_time == 3
         # shrink_start cuts t=3, keeps t=8.
-        assert wide.shrink_start(5).earliest_time() == 8
+        assert wide.shrink_start(5).earliest_time == 8
         # shrink_end keeps t=3, cuts t=8.
-        assert wide.shrink_end(5).latest_time() == 3
+        assert wide.shrink_end(5).latest_time == 3
     finally:
         server_cm.__exit__(None, None, None)
 
@@ -1604,7 +1601,7 @@ def test_edges_view_chain_propagates_through_collection_list():
         # The materialized edge should carry the window — its src() → node
         # should see edge_history_count == 1 under the window.
         for e in windowed_edges:
-            assert e.src().edge_history_count() == 1, (
+            assert e.src.edge_history_count() == 1, (
                 "expected src().edge_history_count() == 1 under [0,5) window. "
                 "If this is 2, the view chain isn't propagating through edges.list()."
             )
@@ -1613,7 +1610,7 @@ def test_edges_view_chain_propagates_through_collection_list():
         windowed_out = list(rg.window(0, 5).node("ben").out_edges)
         assert len(windowed_out) == 1
         for e in windowed_out:
-            assert e.src().edge_history_count() == 1
+            assert e.src.edge_history_count() == 1
     finally:
         server_cm.__exit__(None, None, None)
 
@@ -1684,8 +1681,8 @@ def test_nodes_sorted_is_lazy_and_composable():
         assert sorted_nodes.count() == 2
         # `.list()` returns full node handles in sorted order.
         materialized = sorted_nodes.list()
-        assert [n.name() for n in materialized] == sorted(
-            n.name() for n in materialized
+        assert [n.name for n in materialized] == sorted(
+            n.name for n in materialized
         )
     finally:
         server_cm.__exit__(None, None, None)
@@ -1707,7 +1704,7 @@ def test_edges_sorted_by_src_dst():
         sorted_edges = rg.edges.sorted(
             [EdgeSortBy.by_src(), EdgeSortBy.by_dst()]
         ).list()
-        pairs = [(e.src().name(), e.dst().name()) for e in sorted_edges]
+        pairs = [(e.src.name, e.dst.name) for e in sorted_edges]
         assert pairs == [("a", "b"), ("a", "c"), ("b", "c")], (
             f"expected [(a,b),(a,c),(b,c)] by (src, dst), got {pairs}"
         )
@@ -1733,14 +1730,14 @@ def test_edges_sorted_by_time_and_property():
             [EdgeSortBy.by_time(SortByTime.EARLIEST)]
         ).list()
         # (a,c)@5, (a,b)@10, (b,c)@20
-        pairs = [(e.src().name(), e.dst().name()) for e in by_earliest]
+        pairs = [(e.src.name, e.dst.name) for e in by_earliest]
         assert pairs == [("a", "c"), ("a", "b"), ("b", "c")]
 
         by_weight_desc = rg.edges.sorted(
             [EdgeSortBy.by_property("weight", reverse=True)]
         ).list()
         # weights: 3, 2, 1 -> (a,c), (a,b), (b,c)
-        pairs = [(e.src().name(), e.dst().name()) for e in by_weight_desc]
+        pairs = [(e.src.name, e.dst.name) for e in by_weight_desc]
         assert pairs == [("a", "c"), ("a", "b"), ("b", "c")]
     finally:
         server_cm.__exit__(None, None, None)
@@ -1763,7 +1760,7 @@ def test_edges_sorted_composes_with_view_chain():
         windowed_sorted = rg.window(0, 10).edges.sorted(
             [EdgeSortBy.by_time(SortByTime.EARLIEST)]
         ).list()
-        pairs = [(e.src().name(), e.dst().name()) for e in windowed_sorted]
+        pairs = [(e.src.name, e.dst.name) for e in windowed_sorted]
         # Only the first two edges are in [0, 10). Sorted by earliest time.
         assert pairs == [("a", "b"), ("a", "c")]
     finally:
@@ -1795,7 +1792,7 @@ def test_shared_neighbours_intersection():
     server_cm, rg = _make_shared_neighbours_graph()
     try:
         shared = rg.shared_neighbours(["a", "d"])
-        names = sorted(n.name() for n in shared)
+        names = sorted(n.name for n in shared)
         assert names == ["b", "c"], f"expected [b, c], got {names}"
     finally:
         server_cm.__exit__(None, None, None)
@@ -1806,7 +1803,7 @@ def test_shared_neighbours_single_node():
     server_cm, rg = _make_shared_neighbours_graph()
     try:
         shared = rg.shared_neighbours(["a"])
-        names = sorted(n.name() for n in shared)
+        names = sorted(n.name for n in shared)
         assert names == ["b", "c", "e"]
     finally:
         server_cm.__exit__(None, None, None)
@@ -1822,7 +1819,7 @@ def test_shared_neighbours_empty_and_missing():
 
         # `z` doesn't exist and is dropped — result is `a`'s neighbours.
         with_missing = rg.shared_neighbours(["a", "z"])
-        names = sorted(n.name() for n in with_missing)
+        names = sorted(n.name for n in with_missing)
         assert names == ["b", "c", "e"]
 
         # All ids missing → nothing to intersect → [].
@@ -1870,8 +1867,8 @@ def test_remote_path_from_node_terminals():
         assert ben.out_neighbours.ids() == ["hamza"]
         assert ben.out_neighbours.count() == 1
         materialized = ben.out_neighbours.list()
-        assert [n.name() for n in materialized] == ["hamza"]
-        assert [n.name() for n in ben.out_neighbours] == ["hamza"]
+        assert [n.name for n in materialized] == ["hamza"]
+        assert [n.name for n in ben.out_neighbours] == ["hamza"]
     finally:
         server_cm.__exit__(None, None, None)
 
@@ -1940,13 +1937,13 @@ def test_shared_neighbours_composes_with_view_chain():
         # present. Server drops `d` (missing in view), intersection is over
         # `a` alone → a's in-view neighbours = {b, c, e}.
         shared_windowed = rg.window(0, 4).shared_neighbours(["a", "d"])
-        names = sorted(n.name() for n in shared_windowed)
+        names = sorted(n.name for n in shared_windowed)
         assert names == ["b", "c", "e"]
 
         # Under a broader window that includes all edges, both a and d
         # exist and their common neighbours are [b, c].
         shared_all = rg.window(0, 100).shared_neighbours(["a", "d"])
-        names = sorted(n.name() for n in shared_all)
+        names = sorted(n.name for n in shared_all)
         assert names == ["b", "c"]
     finally:
         server_cm.__exit__(None, None, None)
@@ -1975,7 +1972,7 @@ def test_select_nodes_by_name_eq():
     server_cm, rg = _make_filter_graph()
     try:
         narrowed = rg.nodes.select(Node.name() == "ben").list()
-        assert [n.name() for n in narrowed] == ["ben"]
+        assert [n.name for n in narrowed] == ["ben"]
     finally:
         server_cm.__exit__(None, None, None)
 
@@ -1987,7 +1984,7 @@ def test_select_nodes_by_name_contains():
     server_cm, rg = _make_filter_graph()
     try:
         narrowed = rg.nodes.select(Node.name().contains("b")).list()
-        names = sorted(n.name() for n in narrowed)
+        names = sorted(n.name for n in narrowed)
         assert names == ["ben", "bob"]
     finally:
         server_cm.__exit__(None, None, None)
@@ -2000,7 +1997,7 @@ def test_select_nodes_by_property_gt():
     server_cm, rg = _make_filter_graph()
     try:
         narrowed = rg.nodes.select(Node.property("score") > 12.0).list()
-        names = sorted(n.name() for n in narrowed)
+        names = sorted(n.name for n in narrowed)
         assert names == ["alice", "bob"]
     finally:
         server_cm.__exit__(None, None, None)
@@ -2014,7 +2011,7 @@ def test_select_nodes_and_combinator():
     try:
         combined = (Node.name().contains("b")) & (Node.property("score") > 12.0)
         narrowed = rg.nodes.select(combined).list()
-        assert [n.name() for n in narrowed] == ["bob"]
+        assert [n.name for n in narrowed] == ["bob"]
     finally:
         server_cm.__exit__(None, None, None)
 
@@ -2027,7 +2024,7 @@ def test_select_nodes_or_combinator():
     try:
         combined = (Node.name() == "ben") | (Node.property("score") < 6.0)
         narrowed = rg.nodes.select(combined).list()
-        names = sorted(n.name() for n in narrowed)
+        names = sorted(n.name for n in narrowed)
         assert names == ["ben", "hamza"]
     finally:
         server_cm.__exit__(None, None, None)
@@ -2040,7 +2037,7 @@ def test_select_nodes_not_combinator():
     server_cm, rg = _make_filter_graph()
     try:
         narrowed = rg.nodes.select(~(Node.name() == "ben")).list()
-        names = sorted(n.name() for n in narrowed)
+        names = sorted(n.name for n in narrowed)
         assert names == ["alice", "bob", "hamza"]
     finally:
         server_cm.__exit__(None, None, None)
@@ -2072,7 +2069,7 @@ def test_select_nodes_composes_with_view_chain():
         narrowed = (
             rg.window(0, 3).nodes.select(Node.property("score") > 6.0).list()
         )
-        assert [n.name() for n in narrowed] == ["ben"]
+        assert [n.name for n in narrowed] == ["ben"]
     finally:
         server_cm.__exit__(None, None, None)
 
@@ -2090,7 +2087,7 @@ def test_select_nodes_can_chain():
             .select(Node.property("score") > 12.0)
             .list()
         )
-        assert [n.name() for n in narrowed] == ["bob"]
+        assert [n.name for n in narrowed] == ["bob"]
     finally:
         server_cm.__exit__(None, None, None)
 
@@ -2129,7 +2126,7 @@ def _make_edge_filter_graph():
 
 def _edge_pairs(edges):
     """(src, dst) name pairs for a list of RemoteEdge, sorted."""
-    return sorted((e.src().name(), e.dst().name()) for e in edges)
+    return sorted((e.src.name, e.dst.name) for e in edges)
 
 
 def test_select_edges_by_property_gt():
@@ -2360,7 +2357,7 @@ def test_node_filter_matches():
     server_cm, rg = _make_filter_graph()
     try:
         # ben (score=10) matches score > 6; the name terminal still resolves.
-        assert rg.node("ben").filter(Node.property("score") > 6.0).name() == "ben"
+        assert rg.node("ben").filter(Node.property("score") > 6.0).name == "ben"
     finally:
         server_cm.__exit__(None, None, None)
 

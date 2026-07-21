@@ -1,7 +1,8 @@
 use crate::{
     client::{
         op::{NodeSortBy, Op, ReadExpr},
-        remote_graph::{expect_i64, expect_optional_i64, expect_string_list},
+        remote_graph::{expect_i64, expect_optional_event_time, expect_string_list},
+        remote_history::RemoteEventTime,
         remote_node::RemoteNode,
         transport::Transport,
         ClientError,
@@ -276,20 +277,20 @@ impl RemoteNodes {
 
     /// Terminal: view start bound for this collection — `None` if unbounded.
     /// Fires one RPC.
-    pub async fn start(&self) -> Result<Option<i64>, ClientError> {
+    pub async fn start(&self) -> Result<Option<RemoteEventTime>, ClientError> {
         let op = Op::Read(ReadExpr::Start {
             input: Box::new(self.expr.clone()),
         });
-        expect_optional_i64(self.transport.execute(&op).await?, "start")
+        expect_optional_event_time(self.transport.execute(&op).await?, "start")
     }
 
     /// Terminal: view end bound for this collection — `None` if unbounded.
     /// Fires one RPC.
-    pub async fn end(&self) -> Result<Option<i64>, ClientError> {
+    pub async fn end(&self) -> Result<Option<RemoteEventTime>, ClientError> {
         let op = Op::Read(ReadExpr::End {
             input: Box::new(self.expr.clone()),
         });
-        expect_optional_i64(self.transport.execute(&op).await?, "end")
+        expect_optional_event_time(self.transport.execute(&op).await?, "end")
     }
 
     /// Materialize this collection as a `Vec<RemoteNode>`. Fires one RPC to

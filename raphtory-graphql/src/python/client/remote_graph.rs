@@ -1,16 +1,15 @@
 use crate::{
     client::{
         op::{
-            AddEdges as AddEdgesOp, AddNodes as AddNodesOp, EdgeAddition, NodeAddition, Op,
-            TemporalUpdate, WriteOp,
+            AddEdges as AddEdgesOp, AddNodes as AddNodesOp, EdgeAddition, NodeAddition, Op, WriteOp,
         },
         remote_graph::RemoteGraph,
-        transport::Transport,
         ClientError,
     },
     python::client::{
         remote_edge::PyRemoteEdge,
         remote_edges::PyRemoteEdges,
+        remote_history::PyRemoteEventTime,
         remote_metadata::{PyRemoteMetadata, PyRemoteProperties},
         remote_node::PyRemoteNode,
         remote_nodes::PyRemoteNodes,
@@ -22,7 +21,7 @@ use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyResult};
 use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
 use raphtory_api::core::{
     entities::{properties::prop::Prop, GID},
-    storage::timeindex::{AsTime, EventTime},
+    storage::timeindex::EventTime,
 };
 use std::{collections::HashMap, sync::Arc};
 
@@ -229,29 +228,45 @@ impl PyRemoteGraph {
         execute_async_task(move || async move { graph.count_edges().await })
     }
 
-    /// Terminal: earliest event timestamp under the current view. Returns
-    /// `None` if the view has no events. Fires one RPC.
-    pub fn earliest_time(&self) -> Result<Option<i64>, ClientError> {
+    /// Earliest event time under the current view. `None` if the view has no
+    /// events. Property — attribute access fires one RPC.
+    #[getter]
+    pub fn earliest_time(&self) -> Result<Option<PyRemoteEventTime>, ClientError> {
         let graph = Arc::clone(&self.graph);
-        execute_async_task(move || async move { graph.earliest_time().await })
+        Ok(
+            execute_async_task(move || async move { graph.earliest_time().await })?
+                .map(PyRemoteEventTime::from),
+        )
     }
 
-    /// Terminal: latest event timestamp under the current view. Fires one RPC.
-    pub fn latest_time(&self) -> Result<Option<i64>, ClientError> {
+    /// Latest event time under the current view. Property — fires one RPC.
+    #[getter]
+    pub fn latest_time(&self) -> Result<Option<PyRemoteEventTime>, ClientError> {
         let graph = Arc::clone(&self.graph);
-        execute_async_task(move || async move { graph.latest_time().await })
+        Ok(
+            execute_async_task(move || async move { graph.latest_time().await })?
+                .map(PyRemoteEventTime::from),
+        )
     }
 
-    /// Terminal: view start bound. `None` for an unbounded view. Fires one RPC.
-    pub fn start(&self) -> Result<Option<i64>, ClientError> {
+    /// View start bound. `None` for an unbounded view. Property — fires one RPC.
+    #[getter]
+    pub fn start(&self) -> Result<Option<PyRemoteEventTime>, ClientError> {
         let graph = Arc::clone(&self.graph);
-        execute_async_task(move || async move { graph.start().await })
+        Ok(
+            execute_async_task(move || async move { graph.start().await })?
+                .map(PyRemoteEventTime::from),
+        )
     }
 
-    /// Terminal: view end bound. `None` for an unbounded view. Fires one RPC.
-    pub fn end(&self) -> Result<Option<i64>, ClientError> {
+    /// View end bound. `None` for an unbounded view. Property — fires one RPC.
+    #[getter]
+    pub fn end(&self) -> Result<Option<PyRemoteEventTime>, ClientError> {
         let graph = Arc::clone(&self.graph);
-        execute_async_task(move || async move { graph.end().await })
+        Ok(
+            execute_async_task(move || async move { graph.end().await })?
+                .map(PyRemoteEventTime::from),
+        )
     }
 
     /// Terminal: graph creation timestamp. Fires one RPC.
@@ -272,7 +287,8 @@ impl PyRemoteGraph {
         execute_async_task(move || async move { graph.last_updated().await })
     }
 
-    /// Terminal: list of unique layer names present in this graph. Fires one RPC.
+    /// List of unique layer names present in this graph. Property — fires one RPC.
+    #[getter]
     pub fn unique_layers(&self) -> Result<Vec<String>, ClientError> {
         let graph = Arc::clone(&self.graph);
         execute_async_task(move || async move { graph.unique_layers().await })

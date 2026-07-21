@@ -5,7 +5,10 @@ use crate::client::{
     },
     ClientError,
 };
-use pyo3::{pyclass, pymethods, PyRef, PyRefMut};
+use pyo3::{
+    basic::CompareOp, exceptions::PyValueError, pyclass, pymethods, types::PyAnyMethods, Bound, Py,
+    PyAny, PyRef, PyRefMut, PyResult, Python,
+};
 use raphtory::python::utils::execute_async_task;
 use std::sync::Arc;
 
@@ -42,6 +45,53 @@ impl PyRemoteEventTime {
             "RemoteEventTime(timestamp={:?}, dt={:?}, event_id={:?})",
             self.timestamp, self.dt, self.event_id
         )
+    }
+
+    /// The timestamp as an int (drops `event_id`) — mirrors the local
+    /// `EventTime.__int__`, so `int(node.earliest_time)` works.
+    fn __int__(&self) -> PyResult<i64> {
+        self.timestamp
+            .ok_or_else(|| PyValueError::new_err("EventTime has no timestamp"))
+    }
+
+    fn __hash__(&self) -> u64 {
+        use std::{
+            collections::hash_map::DefaultHasher,
+            hash::{Hash, Hasher},
+        };
+        let mut h = DefaultHasher::new();
+        self.timestamp.hash(&mut h);
+        self.event_id.hash(&mut h);
+        h.finish()
+    }
+
+    /// Compare like the local `EventTime`: against another event time by
+    /// `(timestamp, event_id)`, or against a bare `int` by timestamp (so
+    /// `node.earliest_time == 5` works). Returns `NotImplemented` for other
+    /// types, letting Python fall back / raise as usual.
+    fn __richcmp__(
+        &self,
+        py: Python<'_>,
+        other: &Bound<'_, PyAny>,
+        op: CompareOp,
+    ) -> PyResult<Py<PyAny>> {
+        use pyo3::IntoPyObject;
+        let ordering = if let Ok(o) = other.extract::<PyRef<'_, PyRemoteEventTime>>() {
+            (self.timestamp, self.event_id).cmp(&(o.timestamp, o.event_id))
+        } else if let Ok(o) = other.extract::<i64>() {
+            match self.timestamp {
+                Some(t) => t.cmp(&o),
+                None => return Ok(py.NotImplemented()),
+            }
+        } else {
+            return Ok(py.NotImplemented());
+        };
+        Ok(op
+            .matches(ordering)
+            .into_pyobject(py)?
+            .to_owned()
+            .into_any()
+            .unbind())
     }
 }
 
@@ -92,19 +142,25 @@ impl PyRemoteHistory {
     /// Earliest event time in this history — `None` if empty. Fires one RPC.
     ///
     /// Returns:
-    ///   Optional[int]: the earliest event timestamp, or None.
-    pub fn earliest_time(&self) -> Result<Option<i64>, ClientError> {
+    ///   Optional[RemoteEventTime]: the earliest event time, or None.
+    pub fn earliest_time(&self) -> Result<Option<PyRemoteEventTime>, ClientError> {
         let history = Arc::clone(&self.history);
-        execute_async_task(move || async move { history.earliest_time().await })
+        Ok(
+            execute_async_task(move || async move { history.earliest_time().await })?
+                .map(PyRemoteEventTime::from),
+        )
     }
 
     /// Latest event time in this history — `None` if empty. Fires one RPC.
     ///
     /// Returns:
-    ///   Optional[int]: the latest event timestamp, or None.
-    pub fn latest_time(&self) -> Result<Option<i64>, ClientError> {
+    ///   Optional[RemoteEventTime]: the latest event time, or None.
+    pub fn latest_time(&self) -> Result<Option<PyRemoteEventTime>, ClientError> {
         let history = Arc::clone(&self.history);
-        execute_async_task(move || async move { history.latest_time().await })
+        Ok(
+            execute_async_task(move || async move { history.latest_time().await })?
+                .map(PyRemoteEventTime::from),
+        )
     }
 
     /// All events in this history in ascending time order. Fires one RPC.

@@ -1,6 +1,8 @@
 use crate::{
     client::{remote_edges::RemoteEdges, ClientError},
-    python::client::{remote_edge::PyRemoteEdge, remote_sorting::PyEdgeSortBy},
+    python::client::{
+        remote_edge::PyRemoteEdge, remote_history::PyRemoteEventTime, remote_sorting::PyEdgeSortBy,
+    },
 };
 use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyRef, PyRefMut, PyResult};
 use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
@@ -183,16 +185,26 @@ impl PyRemoteEdges {
         execute_async_task(move || async move { edges.count().await })
     }
 
-    /// View start bound for this collection — `None` if unbounded. Fires one RPC.
-    pub fn start(&self) -> Result<Option<i64>, ClientError> {
+    /// View start bound for this collection — `None` if unbounded. Property —
+    /// attribute access fires one RPC.
+    #[getter]
+    pub fn start(&self) -> Result<Option<PyRemoteEventTime>, ClientError> {
         let edges = Arc::clone(&self.edges);
-        execute_async_task(move || async move { edges.start().await })
+        Ok(
+            execute_async_task(move || async move { edges.start().await })?
+                .map(PyRemoteEventTime::from),
+        )
     }
 
-    /// View end bound for this collection — `None` if unbounded. Fires one RPC.
-    pub fn end(&self) -> Result<Option<i64>, ClientError> {
+    /// View end bound for this collection — `None` if unbounded. Property —
+    /// attribute access fires one RPC.
+    #[getter]
+    pub fn end(&self) -> Result<Option<PyRemoteEventTime>, ClientError> {
         let edges = Arc::clone(&self.edges);
-        execute_async_task(move || async move { edges.end().await })
+        Ok(
+            execute_async_task(move || async move { edges.end().await })?
+                .map(PyRemoteEventTime::from),
+        )
     }
 
     /// Materialize this collection as a list of `RemoteEdge` handles.

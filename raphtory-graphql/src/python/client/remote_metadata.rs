@@ -1,8 +1,8 @@
 use crate::{
     client::{
         remote_metadata::{
-            RemoteMetadata, RemoteProperties, RemoteProperty, RemotePropertyTuple,
-            RemoteTemporalProperties, RemoteTemporalProperty,
+            RemoteMetadata, RemoteProperties, RemotePropertyTuple, RemoteTemporalProperties,
+            RemoteTemporalProperty,
         },
         ClientError,
     },
@@ -10,49 +10,17 @@ use crate::{
 };
 use pyo3::{prelude::*, IntoPyObject, Py, PyAny};
 use raphtory::python::utils::execute_async_task;
+use raphtory_api::core::entities::properties::prop::Prop;
 use std::sync::Arc;
 
-/// A single `(key, value)` property reading. The value is exposed as a
-/// native Python object (int, str, float, bool, list, dict, datetime, ...)
-/// via raphtory's existing `Prop` → Python conversion.
-///
-/// Returned by [RemoteMetadata.get][raphtory.graphql.RemoteMetadata.get] and
-/// by [RemoteMetadata.values][raphtory.graphql.RemoteMetadata.values].
-#[derive(Clone)]
-#[pyclass(name = "RemoteProperty", module = "raphtory.graphql")]
-pub struct PyRemoteProperty {
-    inner: RemoteProperty,
-}
-
-impl PyRemoteProperty {
-    pub(crate) fn new(inner: RemoteProperty) -> Self {
-        Self { inner }
-    }
-}
-
-#[pymethods]
-impl PyRemoteProperty {
-    /// The property name.
-    #[getter]
-    pub fn key(&self) -> String {
-        self.inner.key.clone()
-    }
-
-    /// The property value, converted to a native Python object.
-    #[getter]
-    pub fn value(&self, py: Python<'_>) -> Result<Py<PyAny>, ClientError> {
-        Ok(self
-            .inner
-            .value
-            .clone()
-            .into_pyobject(py)
-            .map_err(|e| ClientError::InvalidResponse(e.to_string()))?
-            .unbind())
-    }
-
-    fn __repr__(&self) -> String {
-        format!("RemoteProperty(key={:?}, value=...)", self.inner.key)
-    }
+/// Convert a `Prop` value into a native Python object — the raw value a local
+/// `Properties`/`Metadata` `.get()`/`.values()` returns (drop-in parity; no
+/// `RemoteProperty` wrapper). Used by the non-temporal containers.
+fn prop_to_py(py: Python<'_>, value: Prop) -> Result<Py<PyAny>, ClientError> {
+    Ok(value
+        .into_pyobject(py)
+        .map_err(|e| ClientError::InvalidResponse(e.to_string()))?
+        .unbind())
 }
 
 /// A handle to the metadata container of a remote graph, node, or edge —
@@ -85,11 +53,11 @@ impl PyRemoteMetadata {
     ///     key (str): the metadata name to look up.
     ///
     /// Returns:
-    ///     Optional[RemoteProperty]: the `(key, value)` pair, or `None`.
-    pub fn get(&self, key: String) -> Result<Option<PyRemoteProperty>, ClientError> {
+    ///     the metadata value as a native Python object, or `None`.
+    pub fn get(&self, py: Python<'_>, key: String) -> Result<Option<Py<PyAny>>, ClientError> {
         let inner = Arc::clone(&self.inner);
         let result = execute_async_task(move || async move { inner.get(key).await })?;
-        Ok(result.map(PyRemoteProperty::new))
+        result.map(|p| prop_to_py(py, p.value)).transpose()
     }
 
     /// Whether a metadata entry with this key exists. Fires one RPC.
@@ -104,19 +72,31 @@ impl PyRemoteMetadata {
         execute_async_task(move || async move { inner.keys().await })
     }
 
-    /// All `(key, value)` metadata entries. If `keys` is provided, only
-    /// entries with those names are returned. Fires one RPC.
-    ///
-    /// Arguments:
-    ///     keys (list[str], optional): whitelist of names to return.
-    ///
-    /// Returns:
-    ///     list[RemoteProperty]: one entry per metadata key.
+    /// All metadata values as native Python objects. If `keys` is provided,
+    /// only entries with those names are returned. Fires one RPC.
     #[pyo3(signature = (keys = None))]
-    pub fn values(&self, keys: Option<Vec<String>>) -> Result<Vec<PyRemoteProperty>, ClientError> {
+    pub fn values(
+        &self,
+        py: Python<'_>,
+        keys: Option<Vec<String>>,
+    ) -> Result<Vec<Py<PyAny>>, ClientError> {
         let inner = Arc::clone(&self.inner);
         let result = execute_async_task(move || async move { inner.values(keys).await })?;
-        Ok(result.into_iter().map(PyRemoteProperty::new).collect())
+        result
+            .into_iter()
+            .map(|p| prop_to_py(py, p.value))
+            .collect()
+    }
+
+    /// All `(key, value)` metadata entries, values as native Python objects.
+    /// Fires one RPC.
+    pub fn items(&self, py: Python<'_>) -> Result<Vec<(String, Py<PyAny>)>, ClientError> {
+        let inner = Arc::clone(&self.inner);
+        let result = execute_async_task(move || async move { inner.values(None).await })?;
+        result
+            .into_iter()
+            .map(|p| Ok((p.key, prop_to_py(py, p.value)?)))
+            .collect()
     }
 }
 
@@ -150,10 +130,10 @@ impl PyRemoteProperties {
     /// Fetch a single property value by key. Returns `None` if the key
     /// isn't present. For a temporal property, yields its most recent value
     /// under the current view. Fires one RPC.
-    pub fn get(&self, key: String) -> Result<Option<PyRemoteProperty>, ClientError> {
+    pub fn get(&self, py: Python<'_>, key: String) -> Result<Option<Py<PyAny>>, ClientError> {
         let inner = Arc::clone(&self.inner);
         let result = execute_async_task(move || async move { inner.get(key).await })?;
-        Ok(result.map(PyRemoteProperty::new))
+        result.map(|p| prop_to_py(py, p.value)).transpose()
     }
 
     /// Whether a property with this key exists. Fires one RPC.
@@ -168,13 +148,32 @@ impl PyRemoteProperties {
         execute_async_task(move || async move { inner.keys().await })
     }
 
-    /// All `(key, value)` property entries. If `keys` is provided, only
-    /// entries with those names are returned. Fires one RPC.
+    /// All property values as native Python objects (temporal properties yield
+    /// their most recent value). If `keys` is provided, only those names are
+    /// returned. Fires one RPC.
     #[pyo3(signature = (keys = None))]
-    pub fn values(&self, keys: Option<Vec<String>>) -> Result<Vec<PyRemoteProperty>, ClientError> {
+    pub fn values(
+        &self,
+        py: Python<'_>,
+        keys: Option<Vec<String>>,
+    ) -> Result<Vec<Py<PyAny>>, ClientError> {
         let inner = Arc::clone(&self.inner);
         let result = execute_async_task(move || async move { inner.values(keys).await })?;
-        Ok(result.into_iter().map(PyRemoteProperty::new).collect())
+        result
+            .into_iter()
+            .map(|p| prop_to_py(py, p.value))
+            .collect()
+    }
+
+    /// All `(key, value)` property entries, values as native Python objects.
+    /// Fires one RPC.
+    pub fn items(&self, py: Python<'_>) -> Result<Vec<(String, Py<PyAny>)>, ClientError> {
+        let inner = Arc::clone(&self.inner);
+        let result = execute_async_task(move || async move { inner.values(None).await })?;
+        result
+            .into_iter()
+            .map(|p| Ok((p.key, prop_to_py(py, p.value)?)))
+            .collect()
     }
 
     /// The temporal-only sub-container — excludes metadata and provides

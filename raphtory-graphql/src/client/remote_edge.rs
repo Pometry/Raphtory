@@ -5,8 +5,11 @@ use crate::client::{
         UpdateEdgeMetadata as UpdateEdgeMetadataOp, WriteOp,
     },
     remote_edges::RemoteEdges,
-    remote_graph::{expect_bool, expect_optional_i64, expect_string, expect_string_list},
-    remote_history::RemoteHistory,
+    remote_graph::{
+        expect_bool, expect_optional_event_time, expect_optional_i64, expect_string,
+        expect_string_list,
+    },
+    remote_history::{RemoteEventTime, RemoteHistory},
     remote_metadata::{RemoteMetadata, RemoteProperties},
     remote_node::RemoteNode,
     transport::Transport,
@@ -322,20 +325,20 @@ impl RemoteEdge {
 
     /// Terminal: earliest event time on this edge under the current view.
     /// Returns `None` if the edge has no events in the view. Fires one RPC.
-    pub async fn earliest_time(&self) -> Result<Option<i64>, ClientError> {
+    pub async fn earliest_time(&self) -> Result<Option<RemoteEventTime>, ClientError> {
         let op = Op::Read(ReadExpr::EarliestTime {
             input: Box::new(self.expr.clone()),
         });
-        expect_optional_i64(self.transport.execute(&op).await?, "earliestTime")
+        expect_optional_event_time(self.transport.execute(&op).await?, "earliestTime")
     }
 
     /// Terminal: latest event time on this edge under the current view.
     /// Fires one RPC.
-    pub async fn latest_time(&self) -> Result<Option<i64>, ClientError> {
+    pub async fn latest_time(&self) -> Result<Option<RemoteEventTime>, ClientError> {
         let op = Op::Read(ReadExpr::LatestTime {
             input: Box::new(self.expr.clone()),
         });
-        expect_optional_i64(self.transport.execute(&op).await?, "latestTime")
+        expect_optional_event_time(self.transport.execute(&op).await?, "latestTime")
     }
 
     /// Terminal: first update timestamp on this edge under the current view.
@@ -358,27 +361,27 @@ impl RemoteEdge {
 
     /// Terminal: the specific event time this exploded edge event happened at.
     /// Meaningful primarily on `explode()`'d edge views. Fires one RPC.
-    pub async fn time(&self) -> Result<Option<i64>, ClientError> {
+    pub async fn time(&self) -> Result<Option<RemoteEventTime>, ClientError> {
         let op = Op::Read(ReadExpr::Time {
             input: Box::new(self.expr.clone()),
         });
-        expect_optional_i64(self.transport.execute(&op).await?, "time")
+        expect_optional_event_time(self.transport.execute(&op).await?, "time")
     }
 
     /// Terminal: view start bound as seen by this edge. Fires one RPC.
-    pub async fn start(&self) -> Result<Option<i64>, ClientError> {
+    pub async fn start(&self) -> Result<Option<RemoteEventTime>, ClientError> {
         let op = Op::Read(ReadExpr::Start {
             input: Box::new(self.expr.clone()),
         });
-        expect_optional_i64(self.transport.execute(&op).await?, "start")
+        expect_optional_event_time(self.transport.execute(&op).await?, "start")
     }
 
     /// Terminal: view end bound as seen by this edge. Fires one RPC.
-    pub async fn end(&self) -> Result<Option<i64>, ClientError> {
+    pub async fn end(&self) -> Result<Option<RemoteEventTime>, ClientError> {
         let op = Op::Read(ReadExpr::End {
             input: Box::new(self.expr.clone()),
         });
-        expect_optional_i64(self.transport.execute(&op).await?, "end")
+        expect_optional_event_time(self.transport.execute(&op).await?, "end")
     }
 
     /// Terminal: edge id as `(src, dst)` pair of endpoint ids. Fires one RPC.

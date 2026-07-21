@@ -2,7 +2,7 @@ use crate::{
     client::{remote_edge::RemoteEdge, ClientError},
     python::client::{
         remote_edges::PyRemoteEdges,
-        remote_history::PyRemoteHistory,
+        remote_history::{PyRemoteEventTime, PyRemoteHistory},
         remote_metadata::{PyRemoteMetadata, PyRemoteProperties},
         remote_node::PyRemoteNode,
     },
@@ -212,35 +212,46 @@ impl PyRemoteEdge {
     ///
     /// Returns:
     ///   RemoteNode: a handle to the source node, carrying the accumulated view chain.
+    #[getter]
     pub fn src(&self) -> PyRemoteNode {
         PyRemoteNode::new(self.edge.src())
     }
 
-    /// Navigate to this edge's destination node. Lazy — no RPC.
+    /// Navigate to this edge's destination node. Property — lazy, no RPC.
     ///
     /// Returns:
     ///   RemoteNode: a handle to the destination node, carrying the accumulated view chain.
+    #[getter]
     pub fn dst(&self) -> PyRemoteNode {
         PyRemoteNode::new(self.edge.dst())
     }
 
     /// Navigate to the "other end" node — destination on out-edges, source
-    /// on in-edges. Lazy — no RPC.
+    /// on in-edges. Property — lazy, no RPC.
+    #[getter]
     pub fn nbr(&self) -> PyRemoteNode {
         PyRemoteNode::new(self.edge.nbr())
     }
 
-    /// Earliest event time on this edge under the current view. Returns
-    /// `None` if the edge has no events in the view. Fires one RPC.
-    pub fn earliest_time(&self) -> Result<Option<i64>, ClientError> {
+    /// Earliest event time on this edge under the current view. `None` if the
+    /// edge has no events in the view. Property — attribute access fires one RPC.
+    #[getter]
+    pub fn earliest_time(&self) -> Result<Option<PyRemoteEventTime>, ClientError> {
         let edge = Arc::clone(&self.edge);
-        execute_async_task(move || async move { edge.earliest_time().await })
+        Ok(
+            execute_async_task(move || async move { edge.earliest_time().await })?
+                .map(PyRemoteEventTime::from),
+        )
     }
 
-    /// Latest event time on this edge under the current view. Fires one RPC.
-    pub fn latest_time(&self) -> Result<Option<i64>, ClientError> {
+    /// Latest event time on this edge under the current view. Property — RPC.
+    #[getter]
+    pub fn latest_time(&self) -> Result<Option<PyRemoteEventTime>, ClientError> {
         let edge = Arc::clone(&self.edge);
-        execute_async_task(move || async move { edge.latest_time().await })
+        Ok(
+            execute_async_task(move || async move { edge.latest_time().await })?
+                .map(PyRemoteEventTime::from),
+        )
     }
 
     /// First update timestamp on this edge under the current view. Fires one RPC.
@@ -256,38 +267,51 @@ impl PyRemoteEdge {
     }
 
     /// The event time this exploded edge event happened at. Meaningful
-    /// primarily on `explode()`'d views. Fires one RPC.
-    pub fn time(&self) -> Result<Option<i64>, ClientError> {
+    /// primarily on `explode()`'d views. Property — attribute access fires one RPC.
+    #[getter]
+    pub fn time(&self) -> Result<Option<PyRemoteEventTime>, ClientError> {
         let edge = Arc::clone(&self.edge);
-        execute_async_task(move || async move { edge.time().await })
+        Ok(
+            execute_async_task(move || async move { edge.time().await })?
+                .map(PyRemoteEventTime::from),
+        )
     }
 
-    /// View start bound as seen by this edge. Fires one RPC.
-    pub fn start(&self) -> Result<Option<i64>, ClientError> {
+    /// View start bound as seen by this edge. Property — fires one RPC.
+    #[getter]
+    pub fn start(&self) -> Result<Option<PyRemoteEventTime>, ClientError> {
         let edge = Arc::clone(&self.edge);
-        execute_async_task(move || async move { edge.start().await })
+        Ok(
+            execute_async_task(move || async move { edge.start().await })?
+                .map(PyRemoteEventTime::from),
+        )
     }
 
-    /// View end bound as seen by this edge. Fires one RPC.
-    pub fn end(&self) -> Result<Option<i64>, ClientError> {
+    /// View end bound as seen by this edge. Property — fires one RPC.
+    #[getter]
+    pub fn end(&self) -> Result<Option<PyRemoteEventTime>, ClientError> {
         let edge = Arc::clone(&self.edge);
-        execute_async_task(move || async move { edge.end().await })
+        Ok(execute_async_task(move || async move { edge.end().await })?
+            .map(PyRemoteEventTime::from))
     }
 
-    /// Edge id as a `(src, dst)` pair of endpoint ids. Fires one RPC.
+    /// Edge id as a `(src, dst)` pair of endpoint ids. Property — fires one RPC.
+    #[getter]
     pub fn id(&self) -> Result<(String, String), ClientError> {
         let edge = Arc::clone(&self.edge);
         execute_async_task(move || async move { edge.id().await })
     }
 
-    /// Layer names this edge is present in. Fires one RPC.
+    /// Layer names this edge is present in. Property — fires one RPC.
+    #[getter]
     pub fn layer_names(&self) -> Result<Vec<String>, ClientError> {
         let edge = Arc::clone(&self.edge);
         execute_async_task(move || async move { edge.layer_names().await })
     }
 
     /// Single layer name for a layer-restricted view of this edge. Raises if
-    /// the edge isn't scoped to exactly one layer. Fires one RPC.
+    /// the edge isn't scoped to exactly one layer. Property — fires one RPC.
+    #[getter]
     pub fn layer_name(&self) -> Result<String, ClientError> {
         let edge = Arc::clone(&self.edge);
         execute_async_task(move || async move { edge.layer_name().await })

@@ -2,7 +2,8 @@ use crate::{
     client::{
         op::{EdgeSortBy, Op, ReadExpr},
         remote_edge::RemoteEdge,
-        remote_graph::{expect_edge_list, expect_i64, expect_optional_i64},
+        remote_graph::{expect_edge_list, expect_i64, expect_optional_event_time},
+        remote_history::RemoteEventTime,
         transport::Transport,
         ClientError,
     },
@@ -278,20 +279,20 @@ impl RemoteEdges {
 
     /// Terminal: view start bound for this collection — `None` if unbounded.
     /// Fires one RPC.
-    pub async fn start(&self) -> Result<Option<i64>, ClientError> {
+    pub async fn start(&self) -> Result<Option<RemoteEventTime>, ClientError> {
         let op = Op::Read(ReadExpr::Start {
             input: Box::new(self.expr.clone()),
         });
-        expect_optional_i64(self.transport.execute(&op).await?, "start")
+        expect_optional_event_time(self.transport.execute(&op).await?, "start")
     }
 
     /// Terminal: view end bound for this collection — `None` if unbounded.
     /// Fires one RPC.
-    pub async fn end(&self) -> Result<Option<i64>, ClientError> {
+    pub async fn end(&self) -> Result<Option<RemoteEventTime>, ClientError> {
         let op = Op::Read(ReadExpr::End {
             input: Box::new(self.expr.clone()),
         });
-        expect_optional_i64(self.transport.execute(&op).await?, "end")
+        expect_optional_event_time(self.transport.execute(&op).await?, "end")
     }
 
     /// Materialize this collection as a `Vec<RemoteEdge>`. Fires one RPC to

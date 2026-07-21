@@ -1,6 +1,6 @@
 use crate::{
     client::{remote_path_from_node::RemotePathFromNode, ClientError},
-    python::client::remote_node::PyRemoteNode,
+    python::client::{remote_history::PyRemoteEventTime, remote_node::PyRemoteNode},
 };
 use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyRef, PyRefMut, PyResult};
 use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
@@ -165,16 +165,24 @@ impl PyRemotePathFromNode {
         execute_async_task(move || async move { path.count().await })
     }
 
-    /// View start bound for this collection — `None` if unbounded. Fires one RPC.
-    pub fn start(&self) -> Result<Option<i64>, ClientError> {
+    /// View start bound for this collection — `None` if unbounded. Property —
+    /// attribute access fires one RPC.
+    #[getter]
+    pub fn start(&self) -> Result<Option<PyRemoteEventTime>, ClientError> {
         let path = Arc::clone(&self.path);
-        execute_async_task(move || async move { path.start().await })
+        Ok(
+            execute_async_task(move || async move { path.start().await })?
+                .map(PyRemoteEventTime::from),
+        )
     }
 
-    /// View end bound for this collection — `None` if unbounded. Fires one RPC.
-    pub fn end(&self) -> Result<Option<i64>, ClientError> {
+    /// View end bound for this collection — `None` if unbounded. Property —
+    /// attribute access fires one RPC.
+    #[getter]
+    pub fn end(&self) -> Result<Option<PyRemoteEventTime>, ClientError> {
         let path = Arc::clone(&self.path);
-        execute_async_task(move || async move { path.end().await })
+        Ok(execute_async_task(move || async move { path.end().await })?
+            .map(PyRemoteEventTime::from))
     }
 
     /// Materialize this collection as a list of `RemoteNode` handles. Fires

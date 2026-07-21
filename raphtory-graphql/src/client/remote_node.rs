@@ -6,9 +6,10 @@ use crate::{
         },
         remote_edges::RemoteEdges,
         remote_graph::{
-            expect_bool, expect_i64, expect_optional_i64, expect_optional_string, expect_string,
+            expect_bool, expect_i64, expect_optional_event_time, expect_optional_i64,
+            expect_optional_string, expect_string,
         },
-        remote_history::RemoteHistory,
+        remote_history::{RemoteEventTime, RemoteHistory},
         remote_metadata::{RemoteMetadata, RemoteProperties},
         remote_nodes::RemoteNodes,
         remote_path_from_node::RemotePathFromNode,
@@ -248,36 +249,36 @@ impl RemoteNode {
 
     /// Terminal: earliest event timestamp on this node under the current view.
     /// Returns `None` if the node has no events in the view. Fires one RPC.
-    pub async fn earliest_time(&self) -> Result<Option<i64>, ClientError> {
+    pub async fn earliest_time(&self) -> Result<Option<RemoteEventTime>, ClientError> {
         let op = Op::Read(ReadExpr::EarliestTime {
             input: Box::new(self.expr.clone()),
         });
-        expect_optional_i64(self.transport.execute(&op).await?, "earliestTime")
+        expect_optional_event_time(self.transport.execute(&op).await?, "earliestTime")
     }
 
     /// Terminal: latest event timestamp on this node under the current view.
     /// Fires one RPC.
-    pub async fn latest_time(&self) -> Result<Option<i64>, ClientError> {
+    pub async fn latest_time(&self) -> Result<Option<RemoteEventTime>, ClientError> {
         let op = Op::Read(ReadExpr::LatestTime {
             input: Box::new(self.expr.clone()),
         });
-        expect_optional_i64(self.transport.execute(&op).await?, "latestTime")
+        expect_optional_event_time(self.transport.execute(&op).await?, "latestTime")
     }
 
     /// Terminal: view start bound as seen by this node. Fires one RPC.
-    pub async fn start(&self) -> Result<Option<i64>, ClientError> {
+    pub async fn start(&self) -> Result<Option<RemoteEventTime>, ClientError> {
         let op = Op::Read(ReadExpr::Start {
             input: Box::new(self.expr.clone()),
         });
-        expect_optional_i64(self.transport.execute(&op).await?, "start")
+        expect_optional_event_time(self.transport.execute(&op).await?, "start")
     }
 
     /// Terminal: view end bound as seen by this node. Fires one RPC.
-    pub async fn end(&self) -> Result<Option<i64>, ClientError> {
+    pub async fn end(&self) -> Result<Option<RemoteEventTime>, ClientError> {
         let op = Op::Read(ReadExpr::End {
             input: Box::new(self.expr.clone()),
         });
-        expect_optional_i64(self.transport.execute(&op).await?, "end")
+        expect_optional_event_time(self.transport.execute(&op).await?, "end")
     }
 
     /// Terminal: the node's id (as a string, even if the graph uses int GIDs).

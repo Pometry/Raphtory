@@ -1,6 +1,8 @@
 use crate::{
     client::{remote_nodes::RemoteNodes, ClientError},
-    python::client::{remote_node::PyRemoteNode, remote_sorting::PyNodeSortBy},
+    python::client::{
+        remote_history::PyRemoteEventTime, remote_node::PyRemoteNode, remote_sorting::PyNodeSortBy,
+    },
 };
 use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyRef, PyRefMut, PyResult};
 use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
@@ -190,16 +192,26 @@ impl PyRemoteNodes {
         execute_async_task(move || async move { nodes.count().await })
     }
 
-    /// View start bound for this collection — `None` if unbounded. Fires one RPC.
-    pub fn start(&self) -> Result<Option<i64>, ClientError> {
+    /// View start bound for this collection — `None` if unbounded. Property —
+    /// attribute access fires one RPC.
+    #[getter]
+    pub fn start(&self) -> Result<Option<PyRemoteEventTime>, ClientError> {
         let nodes = Arc::clone(&self.nodes);
-        execute_async_task(move || async move { nodes.start().await })
+        Ok(
+            execute_async_task(move || async move { nodes.start().await })?
+                .map(PyRemoteEventTime::from),
+        )
     }
 
-    /// View end bound for this collection — `None` if unbounded. Fires one RPC.
-    pub fn end(&self) -> Result<Option<i64>, ClientError> {
+    /// View end bound for this collection — `None` if unbounded. Property —
+    /// attribute access fires one RPC.
+    #[getter]
+    pub fn end(&self) -> Result<Option<PyRemoteEventTime>, ClientError> {
         let nodes = Arc::clone(&self.nodes);
-        execute_async_task(move || async move { nodes.end().await })
+        Ok(
+            execute_async_task(move || async move { nodes.end().await })?
+                .map(PyRemoteEventTime::from),
+        )
     }
 
     /// Materialize this collection as a list of `RemoteNode` handles.

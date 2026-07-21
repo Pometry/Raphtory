@@ -1484,19 +1484,35 @@ fn render_read_body(expr: &ReadExpr) -> String {
         ReadExpr::IsValid { input } => format!("{} {{ isValid", render_read_body(input)),
         ReadExpr::IsDeleted { input } => format!("{} {{ isDeleted", render_read_body(input)),
         ReadExpr::IsSelfLoop { input } => format!("{} {{ isSelfLoop", render_read_body(input)),
-        // Compound terminals — open TWO braces (outer field + `timestamp` sub-field)
+        // EventTime terminals — fetch the full `{ timestamp datetime eventId }`
+        // record so the client can return a `RemoteEventTime` (drop-in parity
+        // with the local API's `EventTime`, which carries the `event_id`).
         ReadExpr::EarliestTime { input } => {
-            format!("{} {{ earliestTime {{ timestamp", render_read_body(input))
+            format!(
+                "{} {{ earliestTime {{ timestamp datetime eventId",
+                render_read_body(input)
+            )
         }
         ReadExpr::LatestTime { input } => {
-            format!("{} {{ latestTime {{ timestamp", render_read_body(input))
+            format!(
+                "{} {{ latestTime {{ timestamp datetime eventId",
+                render_read_body(input)
+            )
         }
         ReadExpr::Start { input } => {
-            format!("{} {{ start {{ timestamp", render_read_body(input))
+            format!(
+                "{} {{ start {{ timestamp datetime eventId",
+                render_read_body(input)
+            )
         }
         ReadExpr::End { input } => {
-            format!("{} {{ end {{ timestamp", render_read_body(input))
+            format!(
+                "{} {{ end {{ timestamp datetime eventId",
+                render_read_body(input)
+            )
         }
+        // Remaining timestamp terminals stay bare `i64` (no local @property
+        // counterpart, so not part of the EventTime drop-in change).
         ReadExpr::EarliestEdgeTime { input } => format!(
             "{} {{ earliestEdgeTime {{ timestamp",
             render_read_body(input)
@@ -1511,7 +1527,10 @@ fn render_read_body(expr: &ReadExpr) -> String {
             format!("{} {{ lastUpdate {{ timestamp", render_read_body(input))
         }
         ReadExpr::Time { input } => {
-            format!("{} {{ time {{ timestamp", render_read_body(input))
+            format!(
+                "{} {{ time {{ timestamp datetime eventId",
+                render_read_body(input)
+            )
         }
     }
 }
@@ -2031,18 +2050,46 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
                     })
             }
         }
-        // Nullable i64-shaped terminals — server can return JSON `null`
-        // (e.g. an empty graph has no `earliestTime.timestamp`). We map JSON
-        // null → Ok(None); a valid number → Ok(Some(Prop::I64(n))).
+        // EventTime terminals — the terminal value is the whole
+        // `{ timestamp, datetime, eventId }` object. Decode it into a
+        // `Prop::Map` (missing fields → absent keys); the client unwraps to a
+        // `RemoteEventTime` via `expect_optional_event_time`. A JSON `null`
+        // object (e.g. an empty graph) maps to `Ok(None)`.
         ReadExpr::EarliestTime { .. }
         | ReadExpr::LatestTime { .. }
         | ReadExpr::Start { .. }
         | ReadExpr::End { .. }
-        | ReadExpr::EarliestEdgeTime { .. }
+        | ReadExpr::Time { .. } => {
+            if terminal_val.is_null() {
+                return Ok(None);
+            }
+            let obj = terminal_val.as_object().ok_or_else(|| {
+                ClientError::InvalidResponse(format!("`{}` not a JSON object", terminal_key))
+            })?;
+            // A present object with a null `timestamp` means "no event in this
+            // view" (e.g. an empty window) — collapse to `None`, matching the
+            // local API's `OptionalEventTime` and the pre-EventTime behavior.
+            match obj.get("timestamp").and_then(|x| x.as_i64()) {
+                None => Ok(None),
+                Some(t) => {
+                    let mut pairs: Vec<(&'static str, Prop)> = vec![("timestamp", Prop::I64(t))];
+                    if let Some(d) = obj.get("datetime").and_then(|x| x.as_str()) {
+                        pairs.push(("datetime", Prop::Str(d.into())));
+                    }
+                    if let Some(e) = obj.get("eventId").and_then(|x| x.as_i64()) {
+                        pairs.push(("eventId", Prop::I64(e)));
+                    }
+                    Ok(Some(Prop::map(pairs)))
+                }
+            }
+        }
+        // Nullable i64-shaped terminals — server can return JSON `null`
+        // (e.g. an empty graph has no `earliestEdgeTime.timestamp`). We map
+        // JSON null → Ok(None); a valid number → Ok(Some(Prop::I64(n))).
+        ReadExpr::EarliestEdgeTime { .. }
         | ReadExpr::LatestEdgeTime { .. }
         | ReadExpr::FirstUpdate { .. }
         | ReadExpr::LastUpdate { .. }
-        | ReadExpr::Time { .. }
         | ReadExpr::IntervalsMedian { .. }
         | ReadExpr::IntervalsMax { .. }
         | ReadExpr::IntervalsMin { .. } => {
@@ -2534,27 +2581,25 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
                 go(input, out);
                 out.push("isSelfLoop");
             }
-            // Compound terminals — push TWO keys (outer field + "timestamp").
+            // EventTime terminals — push ONE key (the object); the parse arm
+            // decodes the whole `{ timestamp, datetime, eventId }` record.
             ReadExpr::EarliestTime { input } => {
                 go(input, out);
                 out.push("earliestTime");
-                out.push("timestamp");
             }
             ReadExpr::LatestTime { input } => {
                 go(input, out);
                 out.push("latestTime");
-                out.push("timestamp");
             }
             ReadExpr::Start { input } => {
                 go(input, out);
                 out.push("start");
-                out.push("timestamp");
             }
             ReadExpr::End { input } => {
                 go(input, out);
                 out.push("end");
-                out.push("timestamp");
             }
+            // Remaining timestamp terminals — push TWO keys (outer + "timestamp").
             ReadExpr::EarliestEdgeTime { input } => {
                 go(input, out);
                 out.push("earliestEdgeTime");
@@ -2578,7 +2623,6 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
             ReadExpr::Time { input } => {
                 go(input, out);
                 out.push("time");
-                out.push("timestamp");
             }
         }
     }

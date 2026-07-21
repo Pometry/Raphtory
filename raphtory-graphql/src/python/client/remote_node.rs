@@ -2,7 +2,7 @@ use crate::{
     client::{remote_node::RemoteNode, ClientError},
     python::client::{
         remote_edges::PyRemoteEdges,
-        remote_history::PyRemoteHistory,
+        remote_history::{PyRemoteEventTime, PyRemoteHistory},
         remote_metadata::{PyRemoteMetadata, PyRemoteProperties},
         remote_nodes::PyRemoteNodes,
         remote_path_from_node::PyRemotePathFromNode,
@@ -235,45 +235,62 @@ impl PyRemoteNode {
         execute_async_task(move || async move { node.out_degree().await })
     }
 
-    /// Returns the node's name. Fires one RPC.
+    /// The node's name. Property — attribute access fires one RPC.
+    #[getter]
     pub fn name(&self) -> Result<String, ClientError> {
         let node = Arc::clone(&self.node);
         execute_async_task(move || async move { node.name().await })
     }
 
-    /// Earliest event timestamp on this node under the current view.
-    /// Returns `None` if the node has no events. Fires one RPC.
-    pub fn earliest_time(&self) -> Result<Option<i64>, ClientError> {
+    /// Earliest event time on this node under the current view. `None` if the
+    /// node has no events. Property — attribute access fires one RPC.
+    #[getter]
+    pub fn earliest_time(&self) -> Result<Option<PyRemoteEventTime>, ClientError> {
         let node = Arc::clone(&self.node);
-        execute_async_task(move || async move { node.earliest_time().await })
+        Ok(
+            execute_async_task(move || async move { node.earliest_time().await })?
+                .map(PyRemoteEventTime::from),
+        )
     }
 
-    /// Latest event timestamp on this node. Fires one RPC.
-    pub fn latest_time(&self) -> Result<Option<i64>, ClientError> {
+    /// Latest event time on this node. Property — attribute access fires one RPC.
+    #[getter]
+    pub fn latest_time(&self) -> Result<Option<PyRemoteEventTime>, ClientError> {
         let node = Arc::clone(&self.node);
-        execute_async_task(move || async move { node.latest_time().await })
+        Ok(
+            execute_async_task(move || async move { node.latest_time().await })?
+                .map(PyRemoteEventTime::from),
+        )
     }
 
-    /// View start bound as seen by this node. Fires one RPC.
-    pub fn start(&self) -> Result<Option<i64>, ClientError> {
+    /// View start bound as seen by this node. Property — fires one RPC.
+    #[getter]
+    pub fn start(&self) -> Result<Option<PyRemoteEventTime>, ClientError> {
         let node = Arc::clone(&self.node);
-        execute_async_task(move || async move { node.start().await })
+        Ok(
+            execute_async_task(move || async move { node.start().await })?
+                .map(PyRemoteEventTime::from),
+        )
     }
 
-    /// View end bound as seen by this node. Fires one RPC.
-    pub fn end(&self) -> Result<Option<i64>, ClientError> {
+    /// View end bound as seen by this node. Property — fires one RPC.
+    #[getter]
+    pub fn end(&self) -> Result<Option<PyRemoteEventTime>, ClientError> {
         let node = Arc::clone(&self.node);
-        execute_async_task(move || async move { node.end().await })
+        Ok(execute_async_task(move || async move { node.end().await })?
+            .map(PyRemoteEventTime::from))
     }
 
     /// The node's id (as a string, even if the graph uses integer GIDs).
-    /// Fires one RPC.
+    /// Property — attribute access fires one RPC.
+    #[getter]
     pub fn id(&self) -> Result<String, ClientError> {
         let node = Arc::clone(&self.node);
         execute_async_task(move || async move { node.id().await })
     }
 
-    /// The node's type. `None` if not set. Fires one RPC.
+    /// The node's type. `None` if not set. Property — fires one RPC.
+    #[getter]
     pub fn node_type(&self) -> Result<Option<String>, ClientError> {
         let node = Arc::clone(&self.node);
         execute_async_task(move || async move { node.node_type().await })
