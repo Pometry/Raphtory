@@ -2,8 +2,8 @@ use crate::{
     client::{remote_edges::RemoteEdges, ClientError},
     python::client::{remote_edge::PyRemoteEdge, remote_sorting::PyEdgeSortBy},
 };
-use pyo3::{pyclass, pymethods, PyRef, PyRefMut};
-use raphtory::python::utils::execute_async_task;
+use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyRef, PyRefMut, PyResult};
+use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
 use std::sync::Arc;
 
 /// A handle to a remote collection of edges.
@@ -127,6 +127,51 @@ impl PyRemoteEdges {
     pub fn sorted(&self, sort_bys: Vec<PyEdgeSortBy>) -> PyRemoteEdges {
         let inner: Vec<_> = sort_bys.into_iter().map(|s| s.inner).collect();
         PyRemoteEdges::new(self.edges.sorted(inner))
+    }
+
+    /// Filter this collection by a filter expression. **The filter
+    /// propagates**: it applies to the current collection's membership *and*
+    /// to downstream traversals from the matching edges. For a
+    /// narrow-here-only variant, use `.select(...)`. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     filter (FilterExpr): a filter expression from `raphtory.filter`.
+    ///
+    /// Returns:
+    ///     RemoteEdges: a new collection with the filter applied.
+    ///
+    /// Raises:
+    ///     ValueError: if the filter cannot be represented as a GraphQL
+    ///         `EdgeFilter` (e.g. uses an unsupported operator like
+    ///         `FuzzySearch`).
+    pub fn filter(&self, filter: PyFilterExpr) -> PyResult<PyRemoteEdges> {
+        let composite = filter
+            .try_as_edge_filter()
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        let gql_filter = composite
+            .try_into()
+            .map_err(|e: raphtory::errors::GraphError| PyValueError::new_err(e.to_string()))?;
+        Ok(PyRemoteEdges::new(self.edges.filter(gql_filter)))
+    }
+
+    /// Narrow this collection's membership by a filter expression. Unlike
+    /// `.filter()`, the filter applies **only at this step** — downstream
+    /// traversals from the matching edges see the unfiltered graph. Use
+    /// `.filter()` for the propagating variant. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     filter (FilterExpr): a filter expression from `raphtory.filter`.
+    ///
+    /// Returns:
+    ///     RemoteEdges: a new collection narrowed to matching edges.
+    pub fn select(&self, filter: PyFilterExpr) -> PyResult<PyRemoteEdges> {
+        let composite = filter
+            .try_as_edge_filter()
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        let gql_filter = composite
+            .try_into()
+            .map_err(|e: raphtory::errors::GraphError| PyValueError::new_err(e.to_string()))?;
+        Ok(PyRemoteEdges::new(self.edges.select(gql_filter)))
     }
 
     /// Returns the number of edges in this collection. Fires one RPC.

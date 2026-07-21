@@ -1,9 +1,12 @@
-use crate::client::{
-    op::{EdgeSortBy, Op, ReadExpr},
-    remote_edge::RemoteEdge,
-    remote_graph::{expect_edge_list, expect_i64, expect_optional_i64},
-    transport::Transport,
-    ClientError,
+use crate::{
+    client::{
+        op::{EdgeSortBy, Op, ReadExpr},
+        remote_edge::RemoteEdge,
+        remote_graph::{expect_edge_list, expect_i64, expect_optional_i64},
+        transport::Transport,
+        ClientError,
+    },
+    model::graph::filtering::GqlEdgeFilter,
 };
 use std::sync::Arc;
 
@@ -228,6 +231,38 @@ impl RemoteEdges {
             expr: ReadExpr::SortedEdges {
                 input: Box::new(self.expr.clone()),
                 sort_bys,
+            },
+            base_graph: self.base_graph.clone(),
+        }
+    }
+
+    /// Filter this collection by a filter expression. **The filter
+    /// propagates**: it applies to the current collection's membership
+    /// *and* to downstream traversals from the matching edges. For a
+    /// narrow-here-only variant, use `.select(...)`. Lazy — no RPC.
+    pub fn filter(&self, filter: GqlEdgeFilter) -> RemoteEdges {
+        RemoteEdges {
+            path: self.path.clone(),
+            transport: self.transport.clone(),
+            expr: ReadExpr::FilterEdges {
+                input: Box::new(self.expr.clone()),
+                filter,
+            },
+            base_graph: self.base_graph.clone(),
+        }
+    }
+
+    /// Narrow this collection's membership by a filter expression. Unlike
+    /// `.filter()`, the filter applies **only at this step** — downstream
+    /// traversals from the matching edges see the unfiltered graph.
+    /// Lazy — no RPC.
+    pub fn select(&self, filter: GqlEdgeFilter) -> RemoteEdges {
+        RemoteEdges {
+            path: self.path.clone(),
+            transport: self.transport.clone(),
+            expr: ReadExpr::SelectEdges {
+                input: Box::new(self.expr.clone()),
+                filter,
             },
             base_graph: self.base_graph.clone(),
         }

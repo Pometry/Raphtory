@@ -2109,3 +2109,177 @@ def test_filter_nodes_preserves_membership():
         assert all_ids == ["alice", "ben", "bob", "hamza"]
     finally:
         server_cm.__exit__(None, None, None)
+
+
+def _make_edge_filter_graph():
+    """Graph with 4 edges carrying a numeric "weight" property, for edge
+    filter tests."""
+    work_dir = tempfile.mkdtemp()
+    server_cm = GraphServer(work_dir).start()
+    server = server_cm.__enter__()
+    client = server.get_client()
+    client.new_graph("g", "EVENT")
+    rg = client.remote_graph("g")
+    rg.add_edge(1, "ben", "hamza", properties={"weight": 10.0})
+    rg.add_edge(2, "ben", "alice", properties={"weight": 5.0})
+    rg.add_edge(3, "alice", "bob", properties={"weight": 20.0})
+    rg.add_edge(4, "bob", "hamza", properties={"weight": 15.0})
+    return server_cm, rg
+
+
+def _edge_pairs(edges):
+    """(src, dst) name pairs for a list of RemoteEdge, sorted."""
+    return sorted((e.src().name(), e.dst().name()) for e in edges)
+
+
+def test_select_edges_by_property_gt():
+    """`Edge.property("weight") > 12.0` narrows by numeric property."""
+    from raphtory.filter import Edge
+
+    server_cm, rg = _make_edge_filter_graph()
+    try:
+        narrowed = rg.edges.select(Edge.property("weight") > 12.0).list()
+        assert _edge_pairs(narrowed) == [("alice", "bob"), ("bob", "hamza")]
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_select_edges_by_src_name():
+    """`Edge.src().name() == "ben"` narrows to edges out of ben."""
+    from raphtory.filter import Edge
+
+    server_cm, rg = _make_edge_filter_graph()
+    try:
+        narrowed = rg.edges.select(Edge.src().name() == "ben").list()
+        assert _edge_pairs(narrowed) == [("ben", "alice"), ("ben", "hamza")]
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_select_edges_by_dst_name():
+    """`Edge.dst().name() == "hamza"` narrows to edges into hamza."""
+    from raphtory.filter import Edge
+
+    server_cm, rg = _make_edge_filter_graph()
+    try:
+        narrowed = rg.edges.select(Edge.dst().name() == "hamza").list()
+        assert _edge_pairs(narrowed) == [("ben", "hamza"), ("bob", "hamza")]
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_select_edges_and_combinator():
+    """`(src == "ben") & (weight > 6)` — only ben-hamza (ben-alice has
+    weight 5)."""
+    from raphtory.filter import Edge
+
+    server_cm, rg = _make_edge_filter_graph()
+    try:
+        combined = (Edge.src().name() == "ben") & (Edge.property("weight") > 6.0)
+        narrowed = rg.edges.select(combined).list()
+        assert _edge_pairs(narrowed) == [("ben", "hamza")]
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_select_edges_or_combinator():
+    """`(weight > 18) | (src == "ben")` — alice-bob, ben-hamza, ben-alice."""
+    from raphtory.filter import Edge
+
+    server_cm, rg = _make_edge_filter_graph()
+    try:
+        combined = (Edge.property("weight") > 18.0) | (Edge.src().name() == "ben")
+        narrowed = rg.edges.select(combined).list()
+        assert _edge_pairs(narrowed) == [
+            ("alice", "bob"),
+            ("ben", "alice"),
+            ("ben", "hamza"),
+        ]
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_select_edges_not_combinator():
+    """`~(dst == "hamza")` — every edge not into hamza."""
+    from raphtory.filter import Edge
+
+    server_cm, rg = _make_edge_filter_graph()
+    try:
+        narrowed = rg.edges.select(~(Edge.dst().name() == "hamza")).list()
+        assert _edge_pairs(narrowed) == [("alice", "bob"), ("ben", "alice")]
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_select_edges_returns_lazy_handle():
+    """`.select()` returns a `RemoteEdges` — terminals (`.count()`, `.list()`)
+    all work on it."""
+    from raphtory.filter import Edge
+
+    server_cm, rg = _make_edge_filter_graph()
+    try:
+        narrowed = rg.edges.select(Edge.property("weight") >= 10.0)
+        assert narrowed.count() == 3
+        assert _edge_pairs(narrowed.list()) == [
+            ("alice", "bob"),
+            ("ben", "hamza"),
+            ("bob", "hamza"),
+        ]
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_select_edges_composes_with_view_chain():
+    """`.select()` chains with view ops (`.window()`) — both narrow the
+    resulting collection."""
+    from raphtory.filter import Edge
+
+    server_cm, rg = _make_edge_filter_graph()
+    try:
+        # Window [0, 3) sees only ben-hamza (t=1) and ben-alice (t=2). Then
+        # filter by weight > 6 leaves just ben-hamza (weight=10).
+        narrowed = (
+            rg.window(0, 3).edges.select(Edge.property("weight") > 6.0).list()
+        )
+        assert _edge_pairs(narrowed) == [("ben", "hamza")]
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_select_edges_can_chain():
+    """Chained `.select()` calls compose — server applies each in turn."""
+    from raphtory.filter import Edge
+
+    server_cm, rg = _make_edge_filter_graph()
+    try:
+        # First select narrows to edges out of ben; second narrows to
+        # weight > 6 — only ben-hamza remains.
+        narrowed = (
+            rg.edges.select(Edge.src().name() == "ben")
+            .select(Edge.property("weight") > 6.0)
+            .list()
+        )
+        assert _edge_pairs(narrowed) == [("ben", "hamza")]
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_filter_edges_preserves_membership():
+    """`.filter()` on `RemoteEdges` does NOT narrow the current collection —
+    the returned collection retains all original members. The filter is
+    retained for downstream traversals. Contrast with `.select()`, which
+    narrows membership at this step (tested above)."""
+    from raphtory.filter import Edge
+
+    server_cm, rg = _make_edge_filter_graph()
+    try:
+        # `.filter()` preserves current collection membership.
+        kept = rg.edges.filter(Edge.src().name() == "ben").list()
+        assert _edge_pairs(kept) == [
+            ("alice", "bob"),
+            ("ben", "alice"),
+            ("ben", "hamza"),
+            ("bob", "hamza"),
+        ]
+    finally:
+        server_cm.__exit__(None, None, None)

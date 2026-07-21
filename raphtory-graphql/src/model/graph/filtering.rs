@@ -2139,3 +2139,71 @@ impl TryFrom<CompositeNodeFilter> for GqlNodeFilter {
         })
     }
 }
+
+impl TryFrom<CompositeEdgeFilter> for GqlEdgeFilter {
+    type Error = GraphError;
+    fn try_from(f: CompositeEdgeFilter) -> Result<Self, Self::Error> {
+        Ok(match f {
+            // Endpoint filters recurse into the node converter — an edge
+            // filter on src/dst wraps a full node filter.
+            CompositeEdgeFilter::Src(nf) => GqlEdgeFilter::Src(wrap(nf.try_into()?)),
+            CompositeEdgeFilter::Dst(nf) => GqlEdgeFilter::Dst(wrap(nf.try_into()?)),
+
+            CompositeEdgeFilter::Property(pf) => {
+                let base = build_base_prop_condition(pf.operator, &pf.prop_value)?;
+                let where_ = apply_ops_to_condition(base, &pf.ops);
+                let name = pf.prop_ref.name().to_string();
+                match pf.prop_ref {
+                    PropertyRef::Property(_) => {
+                        GqlEdgeFilter::Property(PropertyFilterNew { name, where_ })
+                    }
+                    PropertyRef::Metadata(_) => {
+                        GqlEdgeFilter::Metadata(PropertyFilterNew { name, where_ })
+                    }
+                    PropertyRef::TemporalProperty(_) => {
+                        GqlEdgeFilter::TemporalProperty(PropertyFilterNew { name, where_ })
+                    }
+                }
+            }
+
+            CompositeEdgeFilter::IsActiveEdge(_) => GqlEdgeFilter::IsActive(true),
+            CompositeEdgeFilter::IsValidEdge(_) => GqlEdgeFilter::IsValid(true),
+            CompositeEdgeFilter::IsDeletedEdge(_) => GqlEdgeFilter::IsDeleted(true),
+            CompositeEdgeFilter::IsSelfLoopEdge(_) => GqlEdgeFilter::IsSelfLoop(true),
+
+            CompositeEdgeFilter::And(l, r) => {
+                GqlEdgeFilter::And(vec![(*l).try_into()?, (*r).try_into()?])
+            }
+            CompositeEdgeFilter::Or(l, r) => {
+                GqlEdgeFilter::Or(vec![(*l).try_into()?, (*r).try_into()?])
+            }
+            CompositeEdgeFilter::Not(inner) => GqlEdgeFilter::Not(wrap((*inner).try_into()?)),
+
+            CompositeEdgeFilter::Windowed(w) => GqlEdgeFilter::Window(EdgeWindowExpr {
+                start: w.start.t().into(),
+                end: w.end.t().into(),
+                expr: wrap(w.inner.try_into()?),
+            }),
+
+            CompositeEdgeFilter::Latest(l) => GqlEdgeFilter::Latest(EdgeUnaryExpr {
+                expr: wrap(l.inner.try_into()?),
+            }),
+
+            CompositeEdgeFilter::SnapshotAt(s) => GqlEdgeFilter::SnapshotAt(EdgeTimeExpr {
+                time: s.time.t().into(),
+                expr: wrap(s.inner.try_into()?),
+            }),
+
+            CompositeEdgeFilter::SnapshotLatest(s) => {
+                GqlEdgeFilter::SnapshotLatest(EdgeUnaryExpr {
+                    expr: wrap(s.inner.try_into()?),
+                })
+            }
+
+            CompositeEdgeFilter::Layered(l) => GqlEdgeFilter::Layers(EdgeLayersExpr {
+                names: layer_to_names(&l.layer)?,
+                expr: wrap(l.inner.try_into()?),
+            }),
+        })
+    }
+}

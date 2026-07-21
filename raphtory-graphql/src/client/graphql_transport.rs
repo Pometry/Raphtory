@@ -759,7 +759,8 @@ fn render_node_sort_bys(sort_bys: &[NodeSortBy]) -> String {
 // syntax for each variant / field / enum value.
 use crate::model::graph::{
     filtering::{
-        DegreeDirection, DegreeFilterNew, GqlNodeFilter, NodeField, NodeFieldCondition,
+        DegreeDirection, DegreeFilterNew, EdgeLayersExpr, EdgeTimeExpr, EdgeUnaryExpr,
+        EdgeWindowExpr, GqlEdgeFilter, GqlNodeFilter, NodeField, NodeFieldCondition,
         NodeFieldFilterNew, NodeLayersExpr, NodeTimeExpr, NodeUnaryExpr, NodeWindowExpr,
         PropCondition, PropertyFilterNew,
     },
@@ -977,6 +978,78 @@ fn render_gql_node_filter(f: &GqlNodeFilter) -> String {
             format!("{{snapshotLatest: {}}}", render_node_unary_expr(e))
         }
         GqlNodeFilter::Layers(e) => format!("{{layers: {}}}", render_node_layers_expr(e)),
+    }
+}
+
+fn render_edge_window_expr(e: &EdgeWindowExpr) -> String {
+    format!(
+        "{{start: {}, end: {}, expr: {}}}",
+        render_gql_time_input(&e.start),
+        render_gql_time_input(&e.end),
+        render_gql_edge_filter(&e.expr),
+    )
+}
+
+fn render_edge_time_expr(e: &EdgeTimeExpr) -> String {
+    format!(
+        "{{time: {}, expr: {}}}",
+        render_gql_time_input(&e.time),
+        render_gql_edge_filter(&e.expr),
+    )
+}
+
+fn render_edge_unary_expr(e: &EdgeUnaryExpr) -> String {
+    format!("{{expr: {}}}", render_gql_edge_filter(&e.expr))
+}
+
+fn render_edge_layers_expr(e: &EdgeLayersExpr) -> String {
+    let names: Vec<_> = e.names.iter().map(|s| render_gql_str(s)).collect();
+    format!(
+        "{{names: [{}], expr: {}}}",
+        names.join(", "),
+        render_gql_edge_filter(&e.expr),
+    )
+}
+
+/// Render a `GqlEdgeFilter` as a GraphQL input-object literal. Same approach
+/// as `render_gql_node_filter` — `Src`/`Dst` recurse into the node renderer
+/// since an edge endpoint filter wraps a full `NodeFilter`.
+fn render_gql_edge_filter(f: &GqlEdgeFilter) -> String {
+    match f {
+        GqlEdgeFilter::Src(inner) => format!("{{src: {}}}", render_gql_node_filter(inner)),
+        GqlEdgeFilter::Dst(inner) => format!("{{dst: {}}}", render_gql_node_filter(inner)),
+        GqlEdgeFilter::Property(pf) => {
+            format!("{{property: {}}}", render_property_filter_new(pf))
+        }
+        GqlEdgeFilter::Metadata(pf) => {
+            format!("{{metadata: {}}}", render_property_filter_new(pf))
+        }
+        GqlEdgeFilter::TemporalProperty(pf) => {
+            format!("{{temporalProperty: {}}}", render_property_filter_new(pf))
+        }
+        GqlEdgeFilter::IsActive(b) => format!("{{isActive: {}}}", b),
+        GqlEdgeFilter::IsValid(b) => format!("{{isValid: {}}}", b),
+        GqlEdgeFilter::IsDeleted(b) => format!("{{isDeleted: {}}}", b),
+        GqlEdgeFilter::IsSelfLoop(b) => format!("{{isSelfLoop: {}}}", b),
+        GqlEdgeFilter::And(fs) => {
+            let items: Vec<_> = fs.iter().map(render_gql_edge_filter).collect();
+            format!("{{and: [{}]}}", items.join(", "))
+        }
+        GqlEdgeFilter::Or(fs) => {
+            let items: Vec<_> = fs.iter().map(render_gql_edge_filter).collect();
+            format!("{{or: [{}]}}", items.join(", "))
+        }
+        GqlEdgeFilter::Not(inner) => format!("{{not: {}}}", render_gql_edge_filter(inner)),
+        GqlEdgeFilter::Window(e) => format!("{{window: {}}}", render_edge_window_expr(e)),
+        GqlEdgeFilter::At(e) => format!("{{at: {}}}", render_edge_time_expr(e)),
+        GqlEdgeFilter::Before(e) => format!("{{before: {}}}", render_edge_time_expr(e)),
+        GqlEdgeFilter::After(e) => format!("{{after: {}}}", render_edge_time_expr(e)),
+        GqlEdgeFilter::Latest(e) => format!("{{latest: {}}}", render_edge_unary_expr(e)),
+        GqlEdgeFilter::SnapshotAt(e) => format!("{{snapshotAt: {}}}", render_edge_time_expr(e)),
+        GqlEdgeFilter::SnapshotLatest(e) => {
+            format!("{{snapshotLatest: {}}}", render_edge_unary_expr(e))
+        }
+        GqlEdgeFilter::Layers(e) => format!("{{layers: {}}}", render_edge_layers_expr(e)),
     }
 }
 
@@ -1198,6 +1271,24 @@ fn render_read_body(expr: &ReadExpr) -> String {
                 "{} {{ select(expr: {})",
                 render_read_body(input),
                 render_gql_node_filter(filter),
+            )
+        }
+        ReadExpr::FilterEdges { input, filter } => {
+            // Server field `filter(expr: EdgeFilter!)` on `Edges`: applies to
+            // this collection AND propagates to downstream traversals.
+            format!(
+                "{} {{ filter(expr: {})",
+                render_read_body(input),
+                render_gql_edge_filter(filter),
+            )
+        }
+        ReadExpr::SelectEdges { input, filter } => {
+            // Server field `select(expr: EdgeFilter!)` on `Edges`: narrows the
+            // current collection's membership only.
+            format!(
+                "{} {{ select(expr: {})",
+                render_read_body(input),
+                render_gql_edge_filter(filter),
             )
         }
         // Metadata / Properties navigation
@@ -1456,6 +1547,8 @@ fn read_depth(expr: &ReadExpr) -> usize {
         | ReadExpr::SortedEdges { input, .. }
         | ReadExpr::FilterNodes { input, .. }
         | ReadExpr::SelectNodes { input, .. }
+        | ReadExpr::FilterEdges { input, .. }
+        | ReadExpr::SelectEdges { input, .. }
         | ReadExpr::Metadata { input }
         | ReadExpr::Properties { input }
         | ReadExpr::PropertyGet { input, .. }
@@ -2139,6 +2232,14 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
                 go(input, out);
                 out.push("select");
             }
+            ReadExpr::FilterEdges { input, .. } => {
+                go(input, out);
+                out.push("filter");
+            }
+            ReadExpr::SelectEdges { input, .. } => {
+                go(input, out);
+                out.push("select");
+            }
             ReadExpr::Metadata { input } => {
                 go(input, out);
                 out.push("metadata");
@@ -2623,6 +2724,8 @@ fn child_input(expr: &ReadExpr) -> Option<&ReadExpr> {
         | ReadExpr::SortedEdges { input, .. }
         | ReadExpr::FilterNodes { input, .. }
         | ReadExpr::SelectNodes { input, .. }
+        | ReadExpr::FilterEdges { input, .. }
+        | ReadExpr::SelectEdges { input, .. }
         | ReadExpr::Metadata { input }
         | ReadExpr::Properties { input }
         | ReadExpr::PropertyGet { input, .. }
