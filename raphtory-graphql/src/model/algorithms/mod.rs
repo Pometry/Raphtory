@@ -3,6 +3,7 @@
 use crate::{
     model::{
         algorithms::{
+            out_components::{GqlOutComponents, GqlOutComponentsArgs},
             pagerank::{GqlPagerank, GqlPagerankArgs},
             single_source_shortest_path::{
                 GqlSingleSourceShortestPath, GqlSingleSourceShortestPathArgs,
@@ -15,6 +16,7 @@ use crate::{
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{db::api::view::DynamicGraph, errors::GraphError};
 
+pub(crate) mod out_components;
 pub(crate) mod pagerank;
 pub(crate) mod single_source_shortest_path;
 
@@ -84,6 +86,17 @@ impl GqlAlgorithms {
         cutoff: Option<usize>,
     ) -> Result<GqlNodeState, GraphError> {
         self.run::<GqlSingleSourceShortestPath>(GqlSingleSourceShortestPathArgs { source, cutoff })
+            .await
+    }
+
+    /// Returns the out component (all reachable nodes following out-edges) of every node.
+    async fn out_components(
+        &self,
+        #[graphql(desc = "Number of threads to use. Defaults to all available.")] threads: Option<
+            usize,
+        >,
+    ) -> Result<GqlNodeState, GraphError> {
+        self.run::<GqlOutComponents>(GqlOutComponentsArgs { threads })
             .await
     }
 }
