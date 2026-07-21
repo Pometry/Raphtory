@@ -155,6 +155,8 @@ fn simple_benchmark<Run, Output>(
     group.finish()
 }
 
+// Graph Constructors
+
 fn large_random_attachment_graph() -> Graph {
     let graph = Graph::new();
     let seed: [u8; 32] = [1; 32];
@@ -242,6 +244,8 @@ fn large_typed_random_attachment_layered() -> impl StaticGraphViewOps {
     let graph = large_typed_random_attachment_graph();
     graph.default_layer()
 }
+
+// Benchmarks
 
 pub fn local_triangle_count_analysis(c: &mut Criterion) {
     graph_benchmark_with_setup(
