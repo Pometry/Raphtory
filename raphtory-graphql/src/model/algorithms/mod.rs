@@ -2,7 +2,12 @@
 
 use crate::{
     model::{
-        algorithms::pagerank::{GqlPagerank, GqlPagerankArgs},
+        algorithms::{
+            pagerank::{GqlPagerank, GqlPagerankArgs},
+            single_source_shortest_path::{
+                GqlSingleSourceShortestPath, GqlSingleSourceShortestPathArgs,
+            },
+        },
         graph::node_state::GqlNodeState,
     },
     rayon::blocking_compute,
@@ -11,6 +16,7 @@ use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{db::api::view::DynamicGraph, errors::GraphError};
 
 pub(crate) mod pagerank;
+pub(crate) mod single_source_shortest_path;
 
 /// A graph algorithm executable through the GraphQL API.
 pub(crate) trait GqlExecutableAlgorithm: 'static {
@@ -68,5 +74,16 @@ impl GqlAlgorithms {
             weight,
         })
         .await
+    }
+
+    /// Returns the shortest (unweighted) path from `source` to every reachable node.
+    async fn single_source_shortest_path(
+        &self,
+        #[graphql(desc = "Source node id.")] source: String,
+        #[graphql(desc = "Optional maximum path length; stops the search once reached.")]
+        cutoff: Option<usize>,
+    ) -> Result<GqlNodeState, GraphError> {
+        self.run::<GqlSingleSourceShortestPath>(GqlSingleSourceShortestPathArgs { source, cutoff })
+            .await
     }
 }
