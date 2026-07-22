@@ -159,6 +159,12 @@ impl PyRemoteNodes {
         Ok(PyRemoteNodes::new(self.nodes.select(gql_filter)))
     }
 
+    /// `nodes[filter]` — sugar for `.select(filter)` (matches the local
+    /// `Nodes.__getitem__`). Lazy — no RPC.
+    fn __getitem__(&self, filter: PyFilterExpr) -> PyResult<PyRemoteNodes> {
+        self.select(filter)
+    }
+
     /// Reorder this collection by an ordered list of sort keys. Multi-key
     /// sort is lexicographic (ties on key 1 break to key 2). Lazy — no RPC.
     ///

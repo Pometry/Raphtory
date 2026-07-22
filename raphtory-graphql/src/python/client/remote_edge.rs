@@ -7,7 +7,7 @@ use crate::{
         remote_node::PyRemoteNode,
     },
 };
-use pyo3::{pyclass, pymethods};
+use pyo3::{pyclass, pymethods, Py, PyAny, Python};
 use raphtory::python::utils::execute_async_task;
 use raphtory_api::core::{entities::properties::prop::Prop, storage::timeindex::EventTime};
 use std::{collections::HashMap, sync::Arc};
@@ -380,5 +380,12 @@ impl PyRemoteEdge {
     #[getter]
     pub fn properties(&self) -> PyRemoteProperties {
         PyRemoteProperties::new(self.edge.properties())
+    }
+
+    /// `edge[key]` — the property value for `key`, or `None` if absent
+    /// (matches the local `Edge.__getitem__`, which returns `Optional`).
+    /// Fires one RPC.
+    fn __getitem__(&self, py: Python<'_>, name: String) -> Result<Option<Py<PyAny>>, ClientError> {
+        self.properties().get(py, name)
     }
 }

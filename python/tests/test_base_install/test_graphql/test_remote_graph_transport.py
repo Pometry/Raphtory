@@ -2460,3 +2460,43 @@ def test_properties_dict_protocol():
             props["nonexistent"]
     finally:
         server_cm.__exit__(None, None, None)
+
+
+def test_collection_getitem_is_select():
+    """`nodes[filter]` / `edges[filter]` are sugar for `.select(filter)` —
+    matching the local API, where `__getitem__` takes a FilterExpr."""
+    from raphtory.filter import Edge, Node
+
+    server_cm, rg = _make_filter_graph()  # 4 nodes with a score property
+    try:
+        # nodes[<node filter>] == nodes.select(<node filter>)
+        assert sorted(rg.nodes[Node.property("score") > 12.0].ids()) == ["alice", "bob"]
+    finally:
+        server_cm.__exit__(None, None, None)
+
+    server_cm, rg = _make_edge_filter_graph()
+    try:
+        # edges[<edge filter>] == edges.select(<edge filter>)
+        got = _edge_pairs(rg.edges[Edge.property("weight") > 12.0].collect())
+        assert got == [("alice", "bob"), ("bob", "hamza")]
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_node_edge_getitem_property():
+    """`node[key]` / `edge[key]` return the property value. `node[missing]`
+    raises `KeyError`; `edge[missing]` returns `None` (matches local)."""
+    import pytest
+
+    server_cm, rg = _make_graph_with_edge()
+    rg.node("ben").add_updates(5, properties={"score": 2.5})
+    rg.add_edge(6, "ben", "hamza", properties={"weight": 9.0})
+    try:
+        assert rg.node("ben")["score"] == 2.5
+        with pytest.raises(KeyError):
+            rg.node("ben")["nonexistent"]
+
+        assert rg.edge("ben", "hamza")["weight"] == 9.0
+        assert rg.edge("ben", "hamza")["nonexistent"] is None
+    finally:
+        server_cm.__exit__(None, None, None)

@@ -82,6 +82,12 @@ impl PyRemotePathFromNode {
         Ok(PyRemotePathFromNode::new(self.path.select(gql_filter)))
     }
 
+    /// `path[filter]` — sugar for `.select(filter)` (matches the local
+    /// `PathFromNode.__getitem__`). Lazy — no RPC.
+    fn __getitem__(&self, filter: PyFilterExpr) -> PyResult<PyRemotePathFromNode> {
+        self.select(filter)
+    }
+
     /// Restrict to a single named layer. Lazy — no RPC.
     pub fn layer(&self, name: &str) -> PyRemotePathFromNode {
         PyRemotePathFromNode::new(self.path.layer(name))

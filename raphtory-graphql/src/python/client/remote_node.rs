@@ -8,7 +8,10 @@ use crate::{
         remote_path_from_node::PyRemotePathFromNode,
     },
 };
-use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyResult};
+use pyo3::{
+    exceptions::{PyKeyError, PyValueError},
+    pyclass, pymethods, Py, PyAny, PyResult, Python,
+};
 use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
 use raphtory_api::core::{entities::properties::prop::Prop, storage::timeindex::EventTime};
 use std::{collections::HashMap, sync::Arc};
@@ -395,5 +398,14 @@ impl PyRemoteNode {
     #[getter]
     pub fn properties(&self) -> PyRemoteProperties {
         PyRemoteProperties::new(self.node.properties())
+    }
+
+    /// `node[key]` — the property value for `key`, or raises `KeyError` if
+    /// absent (matches the local `Node.__getitem__`). Fires one RPC.
+    fn __getitem__(&self, py: Python<'_>, name: String) -> PyResult<Py<PyAny>> {
+        match self.properties().get(py, name.clone())? {
+            Some(v) => Ok(v),
+            None => Err(PyKeyError::new_err(format!("Unknown property {name}"))),
+        }
     }
 }

@@ -176,6 +176,12 @@ impl PyRemoteEdges {
         Ok(PyRemoteEdges::new(self.edges.select(gql_filter)))
     }
 
+    /// `edges[filter]` — sugar for `.select(filter)` (matches the local
+    /// `Edges.__getitem__`). Lazy — no RPC.
+    fn __getitem__(&self, filter: PyFilterExpr) -> PyResult<PyRemoteEdges> {
+        self.select(filter)
+    }
+
     /// Returns the number of edges in this collection. Fires one RPC.
     ///
     /// Returns:
