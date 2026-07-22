@@ -647,6 +647,116 @@ mod graphql_test {
         );
     }
 
+    fn community_test_graph() -> MaterializedGraph {
+        let graph = Graph::new();
+        // two triangles joined by a single bridge edge (c -> d)
+        for (src, dst) in [
+            ("a", "b"),
+            ("b", "c"),
+            ("c", "a"),
+            ("d", "e"),
+            ("e", "f"),
+            ("f", "d"),
+            ("c", "d"),
+        ] {
+            graph.add_edge(1, src, dst, NO_PROPS, None).unwrap();
+        }
+        graph.into()
+    }
+
+    #[tokio::test]
+    async fn test_algorithm_louvain() {
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", community_test_graph())], tmp_dir.path()).await;
+
+        // fixed rng_seed for deterministic output
+        let query = r#"
+        {
+          graph(path: "g") {
+            algorithm {
+              louvain(rngSeed: 42) {
+                rows {
+                  node { id }
+                  entries {
+                    columnName
+                    value { ... on NodeStateProp { prop } }
+                  }
+                }
+              }
+            }
+          }
+        }
+        "#;
+
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        // two triangles -> two communities: {a,b,c} and {d,e,f}
+        let entry = |id: &str, community| {
+            json!({
+                "node": { "id": id },
+                "entries": [{ "columnName": "community_id", "value": { "prop": community } }]
+            })
+        };
+        assert_eq!(
+            res.data.into_json().unwrap(),
+            json!({
+                "graph": { "algorithm": { "louvain": { "rows": [
+                    entry("a", 0),
+                    entry("b", 0),
+                    entry("c", 0),
+                    entry("d", 1),
+                    entry("e", 1),
+                    entry("f", 1),
+                ] } } }
+            })
+        );
+    }
+
+    #[tokio::test]
+    async fn test_algorithm_label_propagation() {
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", community_test_graph())], tmp_dir.path()).await;
+
+        // threads: 1 for deterministic output (multi-threaded label propagation output is non-deterministic)
+        let query = r#"
+        {
+          graph(path: "g") {
+            algorithm {
+              labelPropagation(threads: 1) {
+                nodes { list { id } }
+                columns {
+                  name
+                  values { ... on NodeStateProp { prop } }
+                }
+              }
+            }
+          }
+        }
+        "#;
+
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        // two triangles -> two communities; ids derive from node index
+        assert_eq!(
+            res.data.into_json().unwrap(),
+            json!({
+                "graph": { "algorithm": { "labelPropagation": {
+                    "nodes": { "list": [
+                        { "id": "a" }, { "id": "b" }, { "id": "c" },
+                        { "id": "d" }, { "id": "e" }, { "id": "f" }
+                    ] },
+                    "columns": [{
+                        "name": "community_id",
+                        "values": [
+                            { "prop": 2 }, { "prop": 2 }, { "prop": 2 },
+                            { "prop": 600002 }, { "prop": 600002 }, { "prop": 600002 }
+                        ]
+                    }]
+                } } }
+            })
+        );
+    }
+
     fn centrality_test_graph() -> MaterializedGraph {
         let graph = Graph::new();
         // path a -> b -> c -> d so nodes get distinct centrality scores

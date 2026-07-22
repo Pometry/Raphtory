@@ -8,6 +8,8 @@ use crate::{
             dijkstra::{GqlDijkstra, GqlDijkstraArgs, GqlDirection},
             hits::{GqlHits, GqlHitsArgs},
             in_components::{GqlInComponents, GqlInComponentsArgs},
+            label_propagation::{GqlLabelPropagation, GqlLabelPropagationArgs},
+            louvain::{GqlLouvain, GqlLouvainArgs},
             out_components::{GqlOutComponents, GqlOutComponentsArgs},
             pagerank::{GqlPagerank, GqlPagerankArgs},
             single_source_shortest_path::{
@@ -26,6 +28,8 @@ pub(crate) mod degree_centrality;
 pub(crate) mod dijkstra;
 pub(crate) mod hits;
 pub(crate) mod in_components;
+pub(crate) mod label_propagation;
+pub(crate) mod louvain;
 pub(crate) mod out_components;
 pub(crate) mod pagerank;
 pub(crate) mod single_source_shortest_path;
@@ -155,6 +159,41 @@ impl GqlAlgorithms {
     ) -> Result<GqlNodeState, GraphError> {
         self.run::<GqlOutComponents>(GqlOutComponentsArgs { threads })
             .await
+    }
+
+    /// Returns the community of every node (Louvain).
+    async fn louvain(
+        &self,
+        #[graphql(desc = "Resolution parameter for modularity. Defaults to 1.0.")]
+        resolution: Option<f64>,
+        #[graphql(desc = "Edge property to use as weight. If unset, all edges have weight 1.")]
+        weight_prop: Option<String>,
+        #[graphql(desc = "Convergence tolerance. Defaults to 1e-8.")] tol: Option<f64>,
+        #[graphql(desc = "Seed for the node-shuffling rng. If unset, seeded from the OS.")]
+        rng_seed: Option<u64>,
+    ) -> Result<GqlNodeState, GraphError> {
+        self.run::<GqlLouvain>(GqlLouvainArgs {
+            resolution: resolution.unwrap_or(1.0),
+            weight_prop,
+            tol,
+            rng_seed,
+        })
+        .await
+    }
+
+    /// Returns the community of every node (label propagation).
+    async fn label_propagation(
+        &self,
+        #[graphql(desc = "Number of iterations to run. Defaults to 20.")] iter_count: Option<usize>,
+        #[graphql(desc = "Number of threads to use. Defaults to all available.")] threads: Option<
+            usize,
+        >,
+    ) -> Result<GqlNodeState, GraphError> {
+        self.run::<GqlLabelPropagation>(GqlLabelPropagationArgs {
+            iter_count: iter_count.unwrap_or(20),
+            threads,
+        })
+        .await
     }
 
     /// Returns the weighted shortest path from `source` to each of `targets` (Dijkstra).
