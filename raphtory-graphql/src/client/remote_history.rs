@@ -10,7 +10,7 @@ use crate::client::{
 use std::sync::Arc;
 
 /// A single event on a node/edge's history — the value type each entry in
-/// `RemoteHistory.list()` / `.list_rev()` decodes to.
+/// `RemoteHistory.collect()` / `.collect_rev()` decodes to.
 ///
 /// All three fields are optional because the server can return null for any
 /// of them (synthetic events, sparse metadata). Matches the shape of the
@@ -37,7 +37,7 @@ pub struct RemoteEventTime {
 /// - `RemoteEdge.deletions` — deletion event times for an edge.
 ///
 /// Holds the accumulated read expression (`expr`) so terminals like `.count()`
-/// and `.list()` evaluate under the full view chain, plus a `base_graph`
+/// and `.collect()` evaluate under the full view chain, plus a `base_graph`
 /// expression representing the parent graph view — used when materializing
 /// members (via sub-container list/page terminals) so descendants inherit the
 /// same view.
@@ -109,7 +109,7 @@ impl RemoteHistory {
     /// Terminal: all events in this history in ascending time order.
     /// Fires one RPC. Each event carries its timestamp, ISO 8601 datetime
     /// string, and internal event id (all optional).
-    pub async fn list(&self) -> Result<Vec<RemoteEventTime>, ClientError> {
+    pub async fn collect(&self) -> Result<Vec<RemoteEventTime>, ClientError> {
         let op = Op::Read(ReadExpr::HistoryList {
             input: Box::new(self.expr.clone()),
         });
@@ -118,7 +118,7 @@ impl RemoteHistory {
 
     /// Terminal: all events in this history in descending time order.
     /// Fires one RPC.
-    pub async fn list_rev(&self) -> Result<Vec<RemoteEventTime>, ClientError> {
+    pub async fn collect_rev(&self) -> Result<Vec<RemoteEventTime>, ClientError> {
         let op = Op::Read(ReadExpr::HistoryListRev {
             input: Box::new(self.expr.clone()),
         });
@@ -231,7 +231,7 @@ pub struct RemoteHistoryTimestamps {
 
 impl RemoteHistoryTimestamps {
     /// Terminal: all timestamps in ascending order. Fires one RPC.
-    pub async fn list(&self) -> Result<Vec<i64>, ClientError> {
+    pub async fn collect(&self) -> Result<Vec<i64>, ClientError> {
         let op = Op::Read(ReadExpr::SubList {
             input: Box::new(self.expr.clone()),
         });
@@ -239,7 +239,7 @@ impl RemoteHistoryTimestamps {
     }
 
     /// Terminal: all timestamps in descending order. Fires one RPC.
-    pub async fn list_rev(&self) -> Result<Vec<i64>, ClientError> {
+    pub async fn collect_rev(&self) -> Result<Vec<i64>, ClientError> {
         let op = Op::Read(ReadExpr::SubListRev {
             input: Box::new(self.expr.clone()),
         });
@@ -291,7 +291,7 @@ pub struct RemoteHistoryEventIds {
 
 impl RemoteHistoryEventIds {
     /// Terminal: all event ids in ascending order. Fires one RPC.
-    pub async fn list(&self) -> Result<Vec<i64>, ClientError> {
+    pub async fn collect(&self) -> Result<Vec<i64>, ClientError> {
         let op = Op::Read(ReadExpr::SubList {
             input: Box::new(self.expr.clone()),
         });
@@ -299,7 +299,7 @@ impl RemoteHistoryEventIds {
     }
 
     /// Terminal: all event ids in descending order. Fires one RPC.
-    pub async fn list_rev(&self) -> Result<Vec<i64>, ClientError> {
+    pub async fn collect_rev(&self) -> Result<Vec<i64>, ClientError> {
         let op = Op::Read(ReadExpr::SubListRev {
             input: Box::new(self.expr.clone()),
         });
@@ -351,7 +351,7 @@ pub struct RemoteHistoryDateTimes {
 
 impl RemoteHistoryDateTimes {
     /// Terminal: all datetimes in ascending order. Fires one RPC.
-    pub async fn list(&self) -> Result<Vec<String>, ClientError> {
+    pub async fn collect(&self) -> Result<Vec<String>, ClientError> {
         let op = Op::Read(ReadExpr::SubList {
             input: Box::new(self.expr.clone()),
         });
@@ -359,7 +359,7 @@ impl RemoteHistoryDateTimes {
     }
 
     /// Terminal: all datetimes in descending order. Fires one RPC.
-    pub async fn list_rev(&self) -> Result<Vec<String>, ClientError> {
+    pub async fn collect_rev(&self) -> Result<Vec<String>, ClientError> {
         let op = Op::Read(ReadExpr::SubListRev {
             input: Box::new(self.expr.clone()),
         });
@@ -412,7 +412,7 @@ pub struct RemoteIntervals {
 
 impl RemoteIntervals {
     /// Terminal: all intervals in ascending order. Fires one RPC.
-    pub async fn list(&self) -> Result<Vec<i64>, ClientError> {
+    pub async fn collect(&self) -> Result<Vec<i64>, ClientError> {
         let op = Op::Read(ReadExpr::SubList {
             input: Box::new(self.expr.clone()),
         });
@@ -420,7 +420,7 @@ impl RemoteIntervals {
     }
 
     /// Terminal: all intervals in descending order. Fires one RPC.
-    pub async fn list_rev(&self) -> Result<Vec<i64>, ClientError> {
+    pub async fn collect_rev(&self) -> Result<Vec<i64>, ClientError> {
         let op = Op::Read(ReadExpr::SubListRev {
             input: Box::new(self.expr.clone()),
         });

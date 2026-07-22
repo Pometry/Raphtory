@@ -214,9 +214,9 @@ impl PyRemoteEdges {
     ///
     /// Returns:
     ///   list[RemoteEdge]: one handle per edge in the collection.
-    pub fn list(&self) -> Result<Vec<PyRemoteEdge>, ClientError> {
+    pub fn collect(&self) -> Result<Vec<PyRemoteEdge>, ClientError> {
         let edges = Arc::clone(&self.edges);
-        let result = execute_async_task(move || async move { edges.list().await })?;
+        let result = execute_async_task(move || async move { edges.collect().await })?;
         Ok(result.into_iter().map(PyRemoteEdge::new).collect())
     }
 
@@ -224,7 +224,7 @@ impl PyRemoteEdges {
     /// one RPC, then yields a `RemoteEdge` handle for each. No per-edge RPC
     /// batching yet; each terminal on a yielded edge fires its own RPC.
     fn __iter__(&self) -> Result<PyRemoteEdgesIter, ClientError> {
-        let list = self.list()?;
+        let list = self.collect()?;
         Ok(PyRemoteEdgesIter {
             inner: list.into_iter(),
         })

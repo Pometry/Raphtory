@@ -838,7 +838,7 @@ impl RemoteGraph {
     /// are still caught downstream via the null-intermediate NotFound path
     /// in `parse_read`.
     ///
-    /// Server-returned handles (from `.nodes.list()`, `.neighbours`, etc.)
+    /// Server-returned handles (from `.nodes.collect()`, `.neighbours`, etc.)
     /// bypass this check — those ids came from the server, so we trust them.
     pub async fn node(&self, id: impl ToString) -> Result<Option<RemoteNode>, ClientError> {
         let id_str = id.to_string();

@@ -21,14 +21,14 @@ use std::sync::Arc;
 /// Holds the accumulated read expression (`expr`) so terminals like `.ids()`
 /// and `.count()` evaluate under the full view chain built up on the parent,
 /// plus a `base_graph` expression representing the parent graph view — used
-/// by `.list()` so materialized `RemoteNode`s carry the same view chain.
+/// by `.collect()` so materialized `RemoteNode`s carry the same view chain.
 #[derive(Clone)]
 pub struct RemoteNodes {
     pub path: String,
     pub transport: Arc<dyn Transport>,
     pub expr: ReadExpr,
     /// The parent graph view under which this collection lives — used when
-    /// materializing members via `.list()` so returned nodes are rebased under
+    /// materializing members via `.collect()` so returned nodes are rebased under
     /// the same view.
     pub base_graph: ReadExpr,
 }
@@ -53,7 +53,7 @@ impl RemoteNodes {
     /// Internal helper: apply the same view op to both `expr` and
     /// `base_graph`. Applying to `expr` narrows the collection's own view;
     /// applying to `base_graph` ensures materialized descendants (via
-    /// `.list()`) inherit the same narrowed graph view.
+    /// `.collect()`) inherit the same narrowed graph view.
     fn with_view_op<F>(&self, wrap: F) -> RemoteNodes
     where
         F: Fn(ReadExpr) -> ReadExpr,
@@ -194,7 +194,7 @@ impl RemoteNodes {
     /// Only updates `expr` (the collection's own view), **not** `base_graph`
     /// — `typeFilter` is a Nodes-only server operation and applying it to
     /// the parent graph view would be a schema error. Materialized nodes
-    /// from `.list()` don't need the filter propagated because their `id`
+    /// from `.collect()` don't need the filter propagated because their `id`
     /// already identifies the specific filtered node.
     pub fn type_filter(&self, node_types: Vec<String>) -> RemoteNodes {
         RemoteNodes {
@@ -244,7 +244,7 @@ impl RemoteNodes {
     /// Reorder this collection by the given sort keys (lexicographic — ties
     /// on the first key break to the second, etc.). Returns a new
     /// `RemoteNodes` handle carrying the sort; the RPC only fires on a
-    /// downstream terminal (`.list()`, `.count()`, `.ids()`, …). Lazy — no
+    /// downstream terminal (`.collect()`, `.count()`, `.ids()`, …). Lazy — no
     /// RPC. `base_graph` is unchanged: sorting affects only this
     /// collection's iteration order, not the view of materialized nodes.
     pub fn sorted(&self, sort_bys: Vec<NodeSortBy>) -> RemoteNodes {
@@ -298,7 +298,7 @@ impl RemoteNodes {
     /// `ReadExpr::Node { input: base_graph, id }` — meaning terminals on
     /// returned nodes evaluate under the same view chain that produced this
     /// collection.
-    pub async fn list(&self) -> Result<Vec<RemoteNode>, ClientError> {
+    pub async fn collect(&self) -> Result<Vec<RemoteNode>, ClientError> {
         let ids = self.ids().await?;
         Ok(ids
             .into_iter()

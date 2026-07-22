@@ -468,7 +468,7 @@ impl RemoteNode {
     }
 
     /// Returns the event history of this node — a `RemoteHistory` container
-    /// with terminals like `.count()`, `.list()`, `.earliest_time()`, and
+    /// with terminals like `.count()`, `.collect()`, `.earliest_time()`, and
     /// sub-container accessors (`.timestamps`, `.intervals`, etc.). Lazy —
     /// no RPC.
     pub fn history(&self) -> RemoteHistory {

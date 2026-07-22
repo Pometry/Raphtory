@@ -167,9 +167,9 @@ impl PyRemoteHistory {
     ///
     /// Returns:
     ///   list[RemoteEventTime]: one event per entry.
-    pub fn list(&self) -> Result<Vec<PyRemoteEventTime>, ClientError> {
+    pub fn collect(&self) -> Result<Vec<PyRemoteEventTime>, ClientError> {
         let history = Arc::clone(&self.history);
-        let result = execute_async_task(move || async move { history.list().await })?;
+        let result = execute_async_task(move || async move { history.collect().await })?;
         Ok(result.into_iter().map(Into::into).collect())
     }
 
@@ -177,9 +177,9 @@ impl PyRemoteHistory {
     ///
     /// Returns:
     ///   list[RemoteEventTime]: one event per entry.
-    pub fn list_rev(&self) -> Result<Vec<PyRemoteEventTime>, ClientError> {
+    pub fn collect_rev(&self) -> Result<Vec<PyRemoteEventTime>, ClientError> {
         let history = Arc::clone(&self.history);
-        let result = execute_async_task(move || async move { history.list_rev().await })?;
+        let result = execute_async_task(move || async move { history.collect_rev().await })?;
         Ok(result.into_iter().map(Into::into).collect())
     }
 
@@ -226,9 +226,9 @@ impl PyRemoteHistory {
     }
 
     /// Enables `for t in remote_history:` — fetches all events in one RPC
-    /// via `.list()`, then yields each `RemoteEventTime` locally.
+    /// via `.collect()`, then yields each `RemoteEventTime` locally.
     fn __iter__(&self) -> Result<PyRemoteHistoryIter, ClientError> {
-        let list = self.list()?;
+        let list = self.collect()?;
         Ok(PyRemoteHistoryIter {
             inner: list.into_iter(),
         })
@@ -303,15 +303,15 @@ pub struct PyRemoteHistoryTimestamps {
 #[pymethods]
 impl PyRemoteHistoryTimestamps {
     /// Fires one RPC.
-    pub fn list(&self) -> Result<Vec<i64>, ClientError> {
+    pub fn collect(&self) -> Result<Vec<i64>, ClientError> {
         let inner = Arc::clone(&self.inner);
-        execute_async_task(move || async move { inner.list().await })
+        execute_async_task(move || async move { inner.collect().await })
     }
 
     /// Fires one RPC.
-    pub fn list_rev(&self) -> Result<Vec<i64>, ClientError> {
+    pub fn collect_rev(&self) -> Result<Vec<i64>, ClientError> {
         let inner = Arc::clone(&self.inner);
-        execute_async_task(move || async move { inner.list_rev().await })
+        execute_async_task(move || async move { inner.collect_rev().await })
     }
 
     /// Fires one RPC.
@@ -353,15 +353,15 @@ pub struct PyRemoteHistoryEventIds {
 #[pymethods]
 impl PyRemoteHistoryEventIds {
     /// Fires one RPC.
-    pub fn list(&self) -> Result<Vec<i64>, ClientError> {
+    pub fn collect(&self) -> Result<Vec<i64>, ClientError> {
         let inner = Arc::clone(&self.inner);
-        execute_async_task(move || async move { inner.list().await })
+        execute_async_task(move || async move { inner.collect().await })
     }
 
     /// Fires one RPC.
-    pub fn list_rev(&self) -> Result<Vec<i64>, ClientError> {
+    pub fn collect_rev(&self) -> Result<Vec<i64>, ClientError> {
         let inner = Arc::clone(&self.inner);
-        execute_async_task(move || async move { inner.list_rev().await })
+        execute_async_task(move || async move { inner.collect_rev().await })
     }
 
     /// Fires one RPC.
@@ -404,15 +404,15 @@ pub struct PyRemoteHistoryDateTimes {
 #[pymethods]
 impl PyRemoteHistoryDateTimes {
     /// Fires one RPC.
-    pub fn list(&self) -> Result<Vec<String>, ClientError> {
+    pub fn collect(&self) -> Result<Vec<String>, ClientError> {
         let inner = Arc::clone(&self.inner);
-        execute_async_task(move || async move { inner.list().await })
+        execute_async_task(move || async move { inner.collect().await })
     }
 
     /// Fires one RPC.
-    pub fn list_rev(&self) -> Result<Vec<String>, ClientError> {
+    pub fn collect_rev(&self) -> Result<Vec<String>, ClientError> {
         let inner = Arc::clone(&self.inner);
-        execute_async_task(move || async move { inner.list_rev().await })
+        execute_async_task(move || async move { inner.collect_rev().await })
     }
 
     /// Fires one RPC.
@@ -451,15 +451,15 @@ pub struct PyRemoteIntervals {
 #[pymethods]
 impl PyRemoteIntervals {
     /// Fires one RPC.
-    pub fn list(&self) -> Result<Vec<i64>, ClientError> {
+    pub fn collect(&self) -> Result<Vec<i64>, ClientError> {
         let inner = Arc::clone(&self.inner);
-        execute_async_task(move || async move { inner.list().await })
+        execute_async_task(move || async move { inner.collect().await })
     }
 
     /// Fires one RPC.
-    pub fn list_rev(&self) -> Result<Vec<i64>, ClientError> {
+    pub fn collect_rev(&self) -> Result<Vec<i64>, ClientError> {
         let inner = Arc::clone(&self.inner);
-        execute_async_task(move || async move { inner.list_rev().await })
+        execute_async_task(move || async move { inner.collect_rev().await })
     }
 
     /// Fires one RPC.

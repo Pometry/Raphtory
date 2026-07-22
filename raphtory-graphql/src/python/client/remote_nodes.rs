@@ -222,9 +222,9 @@ impl PyRemoteNodes {
     ///
     /// Returns:
     ///   list[RemoteNode]: one handle per node in the collection.
-    pub fn list(&self) -> Result<Vec<PyRemoteNode>, ClientError> {
+    pub fn collect(&self) -> Result<Vec<PyRemoteNode>, ClientError> {
         let nodes = Arc::clone(&self.nodes);
-        let result = execute_async_task(move || async move { nodes.list().await })?;
+        let result = execute_async_task(move || async move { nodes.collect().await })?;
         Ok(result.into_iter().map(PyRemoteNode::new).collect())
     }
 
@@ -233,7 +233,7 @@ impl PyRemoteNodes {
     /// (planned as a follow-up); each terminal on a yielded node fires its
     /// own RPC.
     fn __iter__(&self) -> Result<PyRemoteNodesIter, ClientError> {
-        let list = self.list()?;
+        let list = self.collect()?;
         Ok(PyRemoteNodesIter {
             inner: list.into_iter(),
         })

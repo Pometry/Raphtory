@@ -188,16 +188,16 @@ impl PyRemotePathFromNode {
     /// Materialize this collection as a list of `RemoteNode` handles. Fires
     /// one RPC. Each returned node is rebased under the same view chain
     /// that produced this collection.
-    pub fn list(&self) -> Result<Vec<PyRemoteNode>, ClientError> {
+    pub fn collect(&self) -> Result<Vec<PyRemoteNode>, ClientError> {
         let path = Arc::clone(&self.path);
-        let result = execute_async_task(move || async move { path.list().await })?;
+        let result = execute_async_task(move || async move { path.collect().await })?;
         Ok(result.into_iter().map(PyRemoteNode::new).collect())
     }
 
     /// Enables `for n in remote_path_from_node:` — fetches all ids in one
     /// RPC, then yields a `RemoteNode` handle for each.
     fn __iter__(&self) -> Result<PyRemotePathFromNodeIter, ClientError> {
-        let list = self.list()?;
+        let list = self.collect()?;
         Ok(PyRemotePathFromNodeIter {
             inner: list.into_iter(),
         })

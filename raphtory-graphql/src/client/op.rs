@@ -124,7 +124,7 @@ pub enum ReadExpr {
     Nbr { input: Box<ReadExpr> },
     /// Navigate to the event history of a node or edge. Node/Edge → History.
     /// Container-selection: the resulting `RemoteHistory` handle exposes
-    /// terminals like `.count()`, `.list()`, plus sub-container accessors
+    /// terminals like `.count()`, `.collect()`, plus sub-container accessors
     /// (`.timestamps`, `.intervals`, etc.).
     History { input: Box<ReadExpr> },
     /// Navigate to the deletion history of an edge. Edge → History.
@@ -164,7 +164,7 @@ pub enum ReadExpr {
     ExplodeLayers { input: Box<ReadExpr> },
     /// Reorder a `Nodes` collection by an ordered list of sort keys applied
     /// lexicographically. Returns a `Nodes` — chainable with any downstream
-    /// terminal (`.list`, `.count`, `.ids`, …). Server field:
+    /// terminal (`.collect`, `.count`, `.ids`, …). Server field:
     /// `sorted(sortBys: [NodeSortBy!]!)`.
     SortedNodes {
         input: Box<ReadExpr>,
@@ -178,7 +178,7 @@ pub enum ReadExpr {
         sort_bys: Vec<EdgeSortBy>,
     },
     /// Filter a `Nodes` collection by a filter expression. Returns `Nodes`
-    /// — chainable with any downstream terminal (`.list`, `.count`, …).
+    /// — chainable with any downstream terminal (`.collect`, `.count`, …).
     /// Server field: `filter(expr: NodeFilter!)` on `Nodes`.
     ///
     /// Applies the filter to the current collection **and propagates it
@@ -199,7 +199,7 @@ pub enum ReadExpr {
         filter: GqlNodeFilter,
     },
     /// Filter an `Edges` collection by a filter expression. Returns `Edges`
-    /// — chainable with any downstream terminal (`.list`, `.count`, …).
+    /// — chainable with any downstream terminal (`.collect`, `.count`, …).
     /// Server field: `filter(expr: EdgeFilter!)` on `Edges`.
     ///
     /// Applies the filter to the current collection **and propagates it

@@ -19,19 +19,19 @@ use std::sync::Arc;
 ///   incident to a specific node.
 ///
 /// Holds the accumulated read expression (`expr`) so terminals like `.count()`
-/// and `.list()` evaluate under the full view chain built up on the parent,
+/// and `.collect()` evaluate under the full view chain built up on the parent,
 /// plus a `base_graph` expression representing the parent graph view — used
-/// by `.list()` so materialized `RemoteEdge`s carry the same view chain.
+/// by `.collect()` so materialized `RemoteEdge`s carry the same view chain.
 ///
 /// Note: edges are identified by `(src, dst)` pairs — there's no
-/// single-string id, so this collection exposes `.count()` and `.list()`
+/// single-string id, so this collection exposes `.count()` and `.collect()`
 /// but no `.ids()`.
 #[derive(Clone)]
 pub struct RemoteEdges {
     pub path: String,
     pub transport: Arc<dyn Transport>,
     pub expr: ReadExpr,
-    /// The parent graph view — used when materializing members via `.list()`
+    /// The parent graph view — used when materializing members via `.collect()`
     /// so returned edges are rebased under the same view.
     pub base_graph: ReadExpr,
 }
@@ -56,7 +56,7 @@ impl RemoteEdges {
     /// Internal helper: apply the same view op to both `expr` and
     /// `base_graph`. Applying to `expr` narrows the collection's own view;
     /// applying to `base_graph` ensures materialized descendants (via
-    /// `.list()`) inherit the same narrowed graph view.
+    /// `.collect()`) inherit the same narrowed graph view.
     fn with_view_op<F>(&self, wrap: F) -> RemoteEdges
     where
         F: Fn(ReadExpr) -> ReadExpr,
@@ -300,7 +300,7 @@ impl RemoteEdges {
     /// with `ReadExpr::Edge { input: base_graph, src, dst }` — meaning
     /// terminals on returned edges evaluate under the same view chain that
     /// produced this collection.
-    pub async fn list(&self) -> Result<Vec<RemoteEdge>, ClientError> {
+    pub async fn collect(&self) -> Result<Vec<RemoteEdge>, ClientError> {
         let op = Op::Read(ReadExpr::EdgesList {
             input: Box::new(self.expr.clone()),
         });

@@ -260,7 +260,7 @@ def test_default_layer_and_valid():
 
 def test_nodes_collection():
     """`rg.nodes` accessor returns a `RemoteNodes` collection with `.ids()`,
-    `.count()`, and `.list()` terminals."""
+    `.count()`, and `.collect()` terminals."""
     server_cm, rg = _make_graph_with_edge()
     try:
         nodes = rg.nodes
@@ -268,7 +268,7 @@ def test_nodes_collection():
         assert sorted(nodes.ids()) == ["ben", "hamza"]
 
         # Materialize as RemoteNode handles, then read a scalar off each.
-        remote_nodes = nodes.list()
+        remote_nodes = nodes.collect()
         assert len(remote_nodes) == 2
         names = sorted(n.name for n in remote_nodes)
         assert names == ["ben", "hamza"]
@@ -277,7 +277,7 @@ def test_nodes_collection():
 
 
 def test_view_chain_propagates_through_collection_list():
-    """Regression: previously `rg.window(...).nodes.list()` rebased returned
+    """Regression: previously `rg.window(...).nodes.collect()` rebased returned
     nodes at Root, causing view-dependent terminals to silently give wrong
     answers. After the base_graph fix, materialized nodes carry the parent
     view forward.
@@ -307,7 +307,7 @@ def test_view_chain_propagates_through_collection_list():
                 windowed_counts.append(n.edge_history_count())
         assert windowed_counts == [1], (
             f"expected edge_history_count == 1 under [0,5) window, got {windowed_counts}. "
-            "If this is 2, the view chain isn't propagating through .list()."
+            "If this is 2, the view chain isn't propagating through .collect()."
         )
 
         # Also verify via out_neighbours navigation.
@@ -319,7 +319,7 @@ def test_view_chain_propagates_through_collection_list():
 
 
 def test_nodes_native_iteration():
-    """`for n in rg.nodes:` — no explicit `.list()` needed."""
+    """`for n in rg.nodes:` — no explicit `.collect()` needed."""
     server_cm, rg = _make_graph_with_edge()
     try:
         names = sorted(n.name for n in rg.nodes)
@@ -374,7 +374,7 @@ def test_edge_selection_and_navigation():
 
 def test_edges_collection():
     """`rg.edges` accessor returns a `RemoteEdges` collection with `.count()`
-    and `.list()` terminals. Unlike nodes, edges have no `.ids()` — they're
+    and `.collect()` terminals. Unlike nodes, edges have no `.ids()` — they're
     identified by `(src, dst)` pairs."""
     server_cm, rg = _make_graph_with_edge()
     try:
@@ -382,7 +382,7 @@ def test_edges_collection():
         assert edges.count() == 1
 
         # Materialize as RemoteEdge handles; navigate back to endpoints.
-        remote_edges = edges.list()
+        remote_edges = edges.collect()
         assert len(remote_edges) == 1
         pairs = sorted((e.src.name, e.dst.name) for e in remote_edges)
         assert pairs == [("ben", "hamza")]
@@ -392,7 +392,7 @@ def test_edges_collection():
 
 def test_edges_native_iteration():
     """`for e in rg.edges:` yields `RemoteEdge` handles without an explicit
-    `.list()` call."""
+    `.collect()` call."""
     server_cm, rg = _make_graph_with_edge()
     # Add a second edge so we can verify multi-edge iteration.
     rg.add_node(4, "sam")
@@ -426,7 +426,7 @@ def test_node_edge_collections():
         assert hamza.edges.count() == 1
 
         # The single out-edge from ben goes to hamza.
-        out_pairs = [(e.src.name, e.dst.name) for e in ben.out_edges.list()]
+        out_pairs = [(e.src.name, e.dst.name) for e in ben.out_edges.collect()]
         assert out_pairs == [("ben", "hamza")]
     finally:
         server_cm.__exit__(None, None, None)
@@ -708,7 +708,7 @@ def test_collection_view_chain_builders():
 def test_collection_view_chain_composes_with_materialization():
     """Materialized handles from a view-narrowed collection carry the view
     forward — tests `base_graph` propagation through view builders on the
-    collection. `for n in ...:` uses `__iter__` which delegates to `.list()`;
+    collection. `for n in ...:` uses `__iter__` which delegates to `.collect()`;
     both paths hit the same base_graph plumbing."""
     server_cm, rg = _make_graph_with_edge()
     rg.add_edge(8, "ben", "hamza")
@@ -792,25 +792,25 @@ def test_history_scalar_terminals_on_edge():
 
 
 def test_history_list_and_iter():
-    """`history.list()` returns `List[RemoteEventTime]` sorted ascending by
-    time; `.list_rev()` returns them descending. `for t in history:` iterates
-    via `__iter__` which delegates to `.list()`."""
+    """`history.collect()` returns `List[RemoteEventTime]` sorted ascending by
+    time; `.collect_rev()` returns them descending. `for t in history:` iterates
+    via `__iter__` which delegates to `.collect()`."""
     server_cm, rg = _make_graph_with_edge()
     # ben has events at t=1 (add_node) and t=3 (add_edge). Add another at t=8.
     rg.add_edge(8, "ben", "hamza")
     try:
         h = rg.node("ben").history
-        events = h.list()
+        events = h.collect()
         assert len(events) == 3
         # Extract timestamps — dt/event_id are also populated but shape-check
         # them separately below.
         assert [e.timestamp for e in events] == [1, 3, 8]
 
         # list_rev
-        events_rev = h.list_rev()
+        events_rev = h.collect_rev()
         assert [e.timestamp for e in events_rev] == [8, 3, 1]
 
-        # Iterator delegates to .list() — same order.
+        # Iterator delegates to .collect() — same order.
         via_iter = [e.timestamp for e in h]
         assert via_iter == [1, 3, 8]
 
@@ -824,12 +824,12 @@ def test_history_list_and_iter():
 
 
 def test_history_list_on_empty_view():
-    """`.list()` on an empty history returns an empty list, not None."""
+    """`.collect()` on an empty history returns an empty list, not None."""
     server_cm, rg = _make_graph_with_edge()
     try:
         empty = rg.node("ben").window(100, 200).history
-        assert empty.list() == []
-        assert empty.list_rev() == []
+        assert empty.collect() == []
+        assert empty.collect_rev() == []
         assert list(empty) == []                       # iteration also empty
     finally:
         server_cm.__exit__(None, None, None)
@@ -1017,7 +1017,7 @@ def test_temporal_property_terminals():
         # history — reuses RemoteHistory
         hist = score.history
         assert hist.count() == 3
-        assert hist.list()[0].timestamp == 5
+        assert hist.collect()[0].timestamp == 5
     finally:
         server_cm.__exit__(None, None, None)
 
@@ -1154,7 +1154,7 @@ def test_edge_explode():
         assert exploded.count() == 3
 
         # Each exploded instance still points at (ben, hamza).
-        for ex in exploded.list():
+        for ex in exploded.collect():
             assert ex.src.name == "ben"
             assert ex.dst.name == "hamza"
 
@@ -1274,11 +1274,11 @@ def test_nodes_type_filter_with_windowed_view():
         assert pre_windowed.count() == 1
         assert pre_windowed.ids() == ["ben"]
 
-        # Materialize under the windowed filter — `.list()` returns handles
+        # Materialize under the windowed filter — `.collect()` returns handles
         # rebased under the windowed graph. This is the regression path that
         # the base_graph propagation on view builders + Nodes-only filter
         # design has to handle correctly.
-        materialized = pre_windowed.list()
+        materialized = pre_windowed.collect()
         assert len(materialized) == 1
         assert materialized[0].name == "ben"
 
@@ -1305,21 +1305,21 @@ def test_history_sub_containers():
         h = rg.node("ben").history
 
         # Timestamps view — plain ints
-        assert h.timestamps.list() == [1, 3, 5, 9]
-        assert h.timestamps.list_rev() == [9, 5, 3, 1]
+        assert h.timestamps.collect() == [1, 3, 5, 9]
+        assert h.timestamps.collect_rev() == [9, 5, 3, 1]
 
         # DateTimes view — ISO strings, positionally aligned with timestamps
-        dts = h.datetimes.list()
+        dts = h.datetimes.collect()
         assert len(dts) == 4
         for s in dts:
             assert "T" in s   # RFC 3339 separator
 
         # Event IDs view — plain ints; server picks per-timestamp
-        eids = h.event_id.list()
+        eids = h.event_id.collect()
         assert len(eids) == 4
 
         # Intervals view — deltas between consecutive events: 3-1=2, 5-3=2, 9-5=4
-        intervals = h.intervals.list()
+        intervals = h.intervals.collect()
         assert intervals == [2, 2, 4]
     finally:
         server_cm.__exit__(None, None, None)
@@ -1357,7 +1357,7 @@ def test_sub_container_paging():
     try:
         ts = rg.node("ben").history.timestamps
         # Full events: [1, 3, 5, 7, 9]
-        assert ts.list() == [1, 3, 5, 7, 9]
+        assert ts.collect() == [1, 3, 5, 7, 9]
         assert ts.page(limit=2) == [1, 3]
         assert ts.page(limit=2, offset=2) == [5, 7]
         assert ts.page(limit=2, page_index=1) == [5, 7]   # equivalent
@@ -1412,7 +1412,7 @@ def test_history_page_and_page_rev():
 
 
 def test_edge_history_and_deletions_lists():
-    """Edge history and deletions both expose `.list()` returning
+    """Edge history and deletions both expose `.collect()` returning
     `RemoteEventTime`s under the same shape."""
     server_cm, rg = _make_graph_with_edge()
     # Add a deletion event at t=10.
@@ -1421,12 +1421,12 @@ def test_edge_history_and_deletions_lists():
         e = rg.edge("ben", "hamza")
 
         # Deletions has exactly one entry at t=10.
-        deletion_events = e.deletions.list()
+        deletion_events = e.deletions.collect()
         assert len(deletion_events) == 1
         assert deletion_events[0].timestamp == 10
 
         # History exposes non-deletion events.
-        history_events = e.history.list()
+        history_events = e.history.collect()
         assert len(history_events) >= 1
         assert all(ev.timestamp is not None for ev in history_events)
     finally:
@@ -1590,7 +1590,7 @@ def test_edges_view_chain_propagates_through_collection_list():
         for e in windowed_edges:
             assert e.src.edge_history_count() == 1, (
                 "expected src().edge_history_count() == 1 under [0,5) window. "
-                "If this is 2, the view chain isn't propagating through edges.list()."
+                "If this is 2, the view chain isn't propagating through edges.collect()."
             )
 
         # Also verify via node → out_edges navigation.
@@ -1660,14 +1660,14 @@ def test_nodes_sorted_by_property_and_time():
 
 def test_nodes_sorted_is_lazy_and_composable():
     """`.sorted()` doesn't fire an RPC on its own; it returns a `RemoteNodes`
-    that composes with downstream terminals like `.count()` and `.list()`."""
+    that composes with downstream terminals like `.count()` and `.collect()`."""
     server_cm, rg = _make_graph_with_edge()
     try:
         sorted_nodes = rg.nodes.sorted([NodeSortBy.by_id()])
         # Terminal still works — count == 2.
         assert sorted_nodes.count() == 2
-        # `.list()` returns full node handles in sorted order.
-        materialized = sorted_nodes.list()
+        # `.collect()` returns full node handles in sorted order.
+        materialized = sorted_nodes.collect()
         assert [n.name for n in materialized] == sorted(
             n.name for n in materialized
         )
@@ -1690,7 +1690,7 @@ def test_edges_sorted_by_src_dst():
 
         sorted_edges = rg.edges.sorted(
             [EdgeSortBy.by_src(), EdgeSortBy.by_dst()]
-        ).list()
+        ).collect()
         pairs = [(e.src.name, e.dst.name) for e in sorted_edges]
         assert pairs == [("a", "b"), ("a", "c"), ("b", "c")], (
             f"expected [(a,b),(a,c),(b,c)] by (src, dst), got {pairs}"
@@ -1715,14 +1715,14 @@ def test_edges_sorted_by_time_and_property():
 
         by_earliest = rg.edges.sorted(
             [EdgeSortBy.by_time(SortByTime.EARLIEST)]
-        ).list()
+        ).collect()
         # (a,c)@5, (a,b)@10, (b,c)@20
         pairs = [(e.src.name, e.dst.name) for e in by_earliest]
         assert pairs == [("a", "c"), ("a", "b"), ("b", "c")]
 
         by_weight_desc = rg.edges.sorted(
             [EdgeSortBy.by_property("weight", reverse=True)]
-        ).list()
+        ).collect()
         # weights: 3, 2, 1 -> (a,c), (a,b), (b,c)
         pairs = [(e.src.name, e.dst.name) for e in by_weight_desc]
         assert pairs == [("a", "c"), ("a", "b"), ("b", "c")]
@@ -1746,7 +1746,7 @@ def test_edges_sorted_composes_with_view_chain():
 
         windowed_sorted = rg.window(0, 10).edges.sorted(
             [EdgeSortBy.by_time(SortByTime.EARLIEST)]
-        ).list()
+        ).collect()
         pairs = [(e.src.name, e.dst.name) for e in windowed_sorted]
         # Only the first two edges are in [0, 10). Sorted by earliest time.
         assert pairs == [("a", "b"), ("a", "c")]
@@ -1853,7 +1853,7 @@ def test_remote_path_from_node_terminals():
         ben = rg.node("ben")
         assert ben.out_neighbours.ids() == ["hamza"]
         assert ben.out_neighbours.count() == 1
-        materialized = ben.out_neighbours.list()
+        materialized = ben.out_neighbours.collect()
         assert [n.name for n in materialized] == ["hamza"]
         assert [n.name for n in ben.out_neighbours] == ["hamza"]
     finally:
@@ -1958,7 +1958,7 @@ def test_select_nodes_by_name_eq():
 
     server_cm, rg = _make_filter_graph()
     try:
-        narrowed = rg.nodes.select(Node.name() == "ben").list()
+        narrowed = rg.nodes.select(Node.name() == "ben").collect()
         assert [n.name for n in narrowed] == ["ben"]
     finally:
         server_cm.__exit__(None, None, None)
@@ -1970,7 +1970,7 @@ def test_select_nodes_by_name_contains():
 
     server_cm, rg = _make_filter_graph()
     try:
-        narrowed = rg.nodes.select(Node.name().contains("b")).list()
+        narrowed = rg.nodes.select(Node.name().contains("b")).collect()
         names = sorted(n.name for n in narrowed)
         assert names == ["ben", "bob"]
     finally:
@@ -1983,7 +1983,7 @@ def test_select_nodes_by_property_gt():
 
     server_cm, rg = _make_filter_graph()
     try:
-        narrowed = rg.nodes.select(Node.property("score") > 12.0).list()
+        narrowed = rg.nodes.select(Node.property("score") > 12.0).collect()
         names = sorted(n.name for n in narrowed)
         assert names == ["alice", "bob"]
     finally:
@@ -1997,7 +1997,7 @@ def test_select_nodes_and_combinator():
     server_cm, rg = _make_filter_graph()
     try:
         combined = (Node.name().contains("b")) & (Node.property("score") > 12.0)
-        narrowed = rg.nodes.select(combined).list()
+        narrowed = rg.nodes.select(combined).collect()
         assert [n.name for n in narrowed] == ["bob"]
     finally:
         server_cm.__exit__(None, None, None)
@@ -2010,7 +2010,7 @@ def test_select_nodes_or_combinator():
     server_cm, rg = _make_filter_graph()
     try:
         combined = (Node.name() == "ben") | (Node.property("score") < 6.0)
-        narrowed = rg.nodes.select(combined).list()
+        narrowed = rg.nodes.select(combined).collect()
         names = sorted(n.name for n in narrowed)
         assert names == ["ben", "hamza"]
     finally:
@@ -2023,7 +2023,7 @@ def test_select_nodes_not_combinator():
 
     server_cm, rg = _make_filter_graph()
     try:
-        narrowed = rg.nodes.select(~(Node.name() == "ben")).list()
+        narrowed = rg.nodes.select(~(Node.name() == "ben")).collect()
         names = sorted(n.name for n in narrowed)
         assert names == ["alice", "bob", "hamza"]
     finally:
@@ -2032,7 +2032,7 @@ def test_select_nodes_not_combinator():
 
 def test_select_nodes_returns_lazy_handle():
     """`.select()` returns a `RemoteNodes` — terminals (`.count()`,
-    `.ids()`, `.list()`) all work on it."""
+    `.ids()`, `.collect()`) all work on it."""
     from raphtory.filter import Node
 
     server_cm, rg = _make_filter_graph()
@@ -2054,7 +2054,7 @@ def test_select_nodes_composes_with_view_chain():
         # Window [0, 3) sees only ben (t=1) and hamza (t=2). Then filter by
         # score > 6 leaves just ben (score=10).
         narrowed = (
-            rg.window(0, 3).nodes.select(Node.property("score") > 6.0).list()
+            rg.window(0, 3).nodes.select(Node.property("score") > 6.0).collect()
         )
         assert [n.name for n in narrowed] == ["ben"]
     finally:
@@ -2072,7 +2072,7 @@ def test_select_nodes_can_chain():
         narrowed = (
             rg.nodes.select(Node.name().contains("b"))
             .select(Node.property("score") > 12.0)
-            .list()
+            .collect()
         )
         assert [n.name for n in narrowed] == ["bob"]
     finally:
@@ -2122,7 +2122,7 @@ def test_select_edges_by_property_gt():
 
     server_cm, rg = _make_edge_filter_graph()
     try:
-        narrowed = rg.edges.select(Edge.property("weight") > 12.0).list()
+        narrowed = rg.edges.select(Edge.property("weight") > 12.0).collect()
         assert _edge_pairs(narrowed) == [("alice", "bob"), ("bob", "hamza")]
     finally:
         server_cm.__exit__(None, None, None)
@@ -2134,7 +2134,7 @@ def test_select_edges_by_src_name():
 
     server_cm, rg = _make_edge_filter_graph()
     try:
-        narrowed = rg.edges.select(Edge.src().name() == "ben").list()
+        narrowed = rg.edges.select(Edge.src().name() == "ben").collect()
         assert _edge_pairs(narrowed) == [("ben", "alice"), ("ben", "hamza")]
     finally:
         server_cm.__exit__(None, None, None)
@@ -2146,7 +2146,7 @@ def test_select_edges_by_dst_name():
 
     server_cm, rg = _make_edge_filter_graph()
     try:
-        narrowed = rg.edges.select(Edge.dst().name() == "hamza").list()
+        narrowed = rg.edges.select(Edge.dst().name() == "hamza").collect()
         assert _edge_pairs(narrowed) == [("ben", "hamza"), ("bob", "hamza")]
     finally:
         server_cm.__exit__(None, None, None)
@@ -2160,7 +2160,7 @@ def test_select_edges_and_combinator():
     server_cm, rg = _make_edge_filter_graph()
     try:
         combined = (Edge.src().name() == "ben") & (Edge.property("weight") > 6.0)
-        narrowed = rg.edges.select(combined).list()
+        narrowed = rg.edges.select(combined).collect()
         assert _edge_pairs(narrowed) == [("ben", "hamza")]
     finally:
         server_cm.__exit__(None, None, None)
@@ -2173,7 +2173,7 @@ def test_select_edges_or_combinator():
     server_cm, rg = _make_edge_filter_graph()
     try:
         combined = (Edge.property("weight") > 18.0) | (Edge.src().name() == "ben")
-        narrowed = rg.edges.select(combined).list()
+        narrowed = rg.edges.select(combined).collect()
         assert _edge_pairs(narrowed) == [
             ("alice", "bob"),
             ("ben", "alice"),
@@ -2189,14 +2189,14 @@ def test_select_edges_not_combinator():
 
     server_cm, rg = _make_edge_filter_graph()
     try:
-        narrowed = rg.edges.select(~(Edge.dst().name() == "hamza")).list()
+        narrowed = rg.edges.select(~(Edge.dst().name() == "hamza")).collect()
         assert _edge_pairs(narrowed) == [("alice", "bob"), ("ben", "alice")]
     finally:
         server_cm.__exit__(None, None, None)
 
 
 def test_select_edges_returns_lazy_handle():
-    """`.select()` returns a `RemoteEdges` — terminals (`.count()`, `.list()`)
+    """`.select()` returns a `RemoteEdges` — terminals (`.count()`, `.collect()`)
     all work on it."""
     from raphtory.filter import Edge
 
@@ -2204,7 +2204,7 @@ def test_select_edges_returns_lazy_handle():
     try:
         narrowed = rg.edges.select(Edge.property("weight") >= 10.0)
         assert narrowed.count() == 3
-        assert _edge_pairs(narrowed.list()) == [
+        assert _edge_pairs(narrowed.collect()) == [
             ("alice", "bob"),
             ("ben", "hamza"),
             ("bob", "hamza"),
@@ -2223,7 +2223,7 @@ def test_select_edges_composes_with_view_chain():
         # Window [0, 3) sees only ben-hamza (t=1) and ben-alice (t=2). Then
         # filter by weight > 6 leaves just ben-hamza (weight=10).
         narrowed = (
-            rg.window(0, 3).edges.select(Edge.property("weight") > 6.0).list()
+            rg.window(0, 3).edges.select(Edge.property("weight") > 6.0).collect()
         )
         assert _edge_pairs(narrowed) == [("ben", "hamza")]
     finally:
@@ -2241,7 +2241,7 @@ def test_select_edges_can_chain():
         narrowed = (
             rg.edges.select(Edge.src().name() == "ben")
             .select(Edge.property("weight") > 6.0)
-            .list()
+            .collect()
         )
         assert _edge_pairs(narrowed) == [("ben", "hamza")]
     finally:
@@ -2258,7 +2258,7 @@ def test_filter_edges_preserves_membership():
     server_cm, rg = _make_edge_filter_graph()
     try:
         # `.filter()` preserves current collection membership.
-        kept = rg.edges.filter(Edge.src().name() == "ben").list()
+        kept = rg.edges.filter(Edge.src().name() == "ben").collect()
         assert _edge_pairs(kept) == [
             ("alice", "bob"),
             ("ben", "alice"),
@@ -2314,7 +2314,7 @@ def test_graph_filter_dispatches_edge_filter():
     try:
         # weight > 12: alice-bob (20) and bob-hamza (15).
         filtered = rg.filter(Edge.property("weight") > 12.0)
-        assert _edge_pairs(filtered.edges.list()) == [
+        assert _edge_pairs(filtered.edges.collect()) == [
             ("alice", "bob"),
             ("bob", "hamza"),
         ]

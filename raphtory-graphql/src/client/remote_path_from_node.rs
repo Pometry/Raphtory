@@ -260,7 +260,7 @@ impl RemotePathFromNode {
     }
 
     /// Materialize as `Vec<RemoteNode>`. Fires one RPC.
-    pub async fn list(&self) -> Result<Vec<RemoteNode>, ClientError> {
+    pub async fn collect(&self) -> Result<Vec<RemoteNode>, ClientError> {
         let ids = self.ids().await?;
         Ok(ids
             .into_iter()

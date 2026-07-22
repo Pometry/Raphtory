@@ -25,7 +25,7 @@ use std::{collections::HashMap, sync::Arc};
 /// Holds the accumulated read expression (`expr`) so that navigations like
 /// `.src()` / `.dst()` compose under the full view chain, plus a `base_graph`
 /// expression representing the parent graph view — used to correctly rebase
-/// materialized descendants (e.g. `src().neighbours().list()`).
+/// materialized descendants (e.g. `src().neighbours().collect()`).
 #[derive(Clone)]
 pub struct RemoteEdge {
     pub path: String,
@@ -268,7 +268,7 @@ impl RemoteEdge {
     }
 
     /// Returns the event history of this edge — a `RemoteHistory` container
-    /// with terminals like `.count()`, `.list()`, `.earliest_time()`, and
+    /// with terminals like `.count()`, `.collect()`, `.earliest_time()`, and
     /// sub-container accessors. Lazy — no RPC.
     pub fn history(&self) -> RemoteHistory {
         RemoteHistory::with_expr(
