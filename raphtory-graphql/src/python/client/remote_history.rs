@@ -12,17 +12,18 @@ use pyo3::{
 use raphtory::python::utils::execute_async_task;
 use std::sync::Arc;
 
-/// A single event on a node/edge's history. All three fields are optional
-/// because the server can return null for any of them.
+/// A single event time — mirrors the local `EventTime`. Exposes `timestamp`,
+/// `dt` (a real `datetime.datetime`), `event_id`, and `as_tuple`; comparable to
+/// ints (by timestamp) and to other event times (by `(timestamp, event_id)`).
 ///
-/// `dt` is an RFC 3339 datetime string (e.g. `"1970-01-01T00:00:00.003+00:00"`);
-/// parse it to `datetime.datetime` client-side if you need a typed object.
+/// Fields are optional because the server can return null for any of them.
 #[derive(Clone)]
-#[pyclass(name = "RemoteEventTime", module = "raphtory.graphql", get_all)]
+#[pyclass(name = "RemoteEventTime", module = "raphtory.graphql")]
 pub struct PyRemoteEventTime {
     /// The event's timestamp in the graph's native time unit.
     pub timestamp: Option<i64>,
-    /// RFC 3339 datetime string for the event.
+    /// RFC 3339 datetime string for the event (the on-wire form; the `dt`
+    /// getter parses this into a Python `datetime`).
     pub dt: Option<String>,
     /// The event's internal id.
     pub event_id: Option<i64>,
@@ -45,6 +46,44 @@ impl PyRemoteEventTime {
             "RemoteEventTime(timestamp={:?}, dt={:?}, event_id={:?})",
             self.timestamp, self.dt, self.event_id
         )
+    }
+
+    /// The event's timestamp in the graph's native time unit (`None` if absent).
+    #[getter]
+    fn timestamp(&self) -> Option<i64> {
+        self.timestamp
+    }
+
+    /// The event's internal id used to order events within a timestamp
+    /// (`None` if absent).
+    #[getter]
+    fn event_id(&self) -> Option<i64> {
+        self.event_id
+    }
+
+    /// The UTC `datetime` for this event (`None` if the event has no
+    /// datetime). Mirrors the local `EventTime.dt`.
+    #[getter]
+    fn dt(&self, py: Python<'_>) -> PyResult<Option<Py<PyAny>>> {
+        use pyo3::IntoPyObject;
+        match &self.dt {
+            Some(s) => {
+                let parsed = chrono::DateTime::parse_from_rfc3339(s)
+                    .map_err(|e| PyValueError::new_err(format!("invalid datetime {s:?}: {e}")))?;
+                Ok(Some(parsed.into_pyobject(py)?.into_any().unbind()))
+            }
+            None => Ok(None),
+        }
+    }
+
+    /// `(timestamp, event_id)` — mirrors the local `EventTime.as_tuple`.
+    /// `None` if either component is absent.
+    #[getter]
+    fn as_tuple(&self) -> Option<(i64, i64)> {
+        match (self.timestamp, self.event_id) {
+            (Some(t), Some(e)) => Some((t, e)),
+            _ => None,
+        }
     }
 
     /// The timestamp as an int (drops `event_id`) — mirrors the local

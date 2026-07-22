@@ -814,11 +814,13 @@ def test_history_list_and_iter():
         via_iter = [e.timestamp for e in h]
         assert via_iter == [1, 3, 8]
 
-        # All three fields populated by the server. dt is RFC 3339.
+        # All three fields populated by the server. dt is a real datetime.
+        import datetime as _dt
+
         for e in events:
             assert e.timestamp is not None
             assert e.event_id is not None
-            assert e.dt is not None and "T" in e.dt   # ISO 8601 has 'T' separator
+            assert isinstance(e.dt, _dt.datetime)
     finally:
         server_cm.__exit__(None, None, None)
 
@@ -2498,5 +2500,25 @@ def test_node_edge_getitem_property():
 
         assert rg.edge("ben", "hamza")["weight"] == 9.0
         assert rg.edge("ben", "hamza")["nonexistent"] is None
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_event_time_fields():
+    """`EventTime` exposes `.timestamp`, `.event_id`, `.dt` (a real
+    `datetime`), and `.as_tuple` — mirroring the local `EventTime`."""
+    import datetime as _dt
+
+    server_cm, rg = _make_graph_with_edge()  # ben added at t=1
+    try:
+        et = rg.node("ben").earliest_time  # property → RemoteEventTime
+        assert et.timestamp == 1
+        assert et == 1  # richcmp against int (by timestamp)
+        assert isinstance(et.event_id, int)
+        # .dt is a real datetime (not a string), matching local EventTime.dt
+        assert isinstance(et.dt, _dt.datetime)
+        assert et.dt.year == 1970
+        # .as_tuple == (timestamp, event_id)
+        assert et.as_tuple == (et.timestamp, et.event_id)
     finally:
         server_cm.__exit__(None, None, None)

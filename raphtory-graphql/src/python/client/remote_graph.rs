@@ -570,13 +570,13 @@ impl PyRemoteGraph {
     ///
     /// Returns:
     ///     None:
-    pub fn add_property(
+    pub fn add_properties(
         &self,
         timestamp: EventTime,
         properties: HashMap<String, Prop>,
     ) -> Result<(), ClientError> {
         let graph = Arc::clone(&self.graph);
-        execute_async_task(move || async move { graph.add_property(timestamp, properties).await })
+        execute_async_task(move || async move { graph.add_properties(timestamp, properties).await })
     }
 
     /// Adds metadata to the remote graph.

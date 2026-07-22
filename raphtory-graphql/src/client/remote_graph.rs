@@ -1115,7 +1115,7 @@ impl RemoteGraph {
     /// the given timestamp. Distinct from `add_metadata`, which is non-temporal.
     ///
     /// Fires one RPC.
-    pub async fn add_property(
+    pub async fn add_properties(
         &self,
         timestamp: EventTime,
         properties: HashMap<String, Prop>,
