@@ -15,6 +15,12 @@ use crate::{
             single_source_shortest_path::{
                 GqlSingleSourceShortestPath, GqlSingleSourceShortestPathArgs,
             },
+            strongly_connected_components::{
+                GqlStronglyConnectedComponents, GqlStronglyConnectedComponentsArgs,
+            },
+            weakly_connected_components::{
+                GqlWeaklyConnectedComponents, GqlWeaklyConnectedComponentsArgs,
+            },
         },
         graph::node_state::GqlNodeState,
     },
@@ -33,6 +39,8 @@ pub(crate) mod louvain;
 pub(crate) mod out_components;
 pub(crate) mod pagerank;
 pub(crate) mod single_source_shortest_path;
+pub(crate) mod strongly_connected_components;
+pub(crate) mod weakly_connected_components;
 
 /// A graph algorithm executable through the GraphQL API.
 pub(crate) trait GqlExecutableAlgorithm: 'static {
@@ -158,6 +166,18 @@ impl GqlAlgorithms {
         >,
     ) -> Result<GqlNodeState, GraphError> {
         self.run::<GqlOutComponents>(GqlOutComponentsArgs { threads })
+            .await
+    }
+
+    /// Returns the weakly connected component id of every node.
+    async fn weakly_connected_components(&self) -> Result<GqlNodeState, GraphError> {
+        self.run::<GqlWeaklyConnectedComponents>(GqlWeaklyConnectedComponentsArgs)
+            .await
+    }
+
+    /// Returns the strongly connected component id of every node.
+    async fn strongly_connected_components(&self) -> Result<GqlNodeState, GraphError> {
+        self.run::<GqlStronglyConnectedComponents>(GqlStronglyConnectedComponentsArgs)
             .await
     }
 

@@ -647,6 +647,101 @@ mod graphql_test {
         );
     }
 
+    fn components_test_graph() -> MaterializedGraph {
+        let graph = Graph::new();
+        // cycle a -> b -> c -> a (one SCC), plus d -> a (d reaches the cycle but not vice versa)
+        for (src, dst) in [("a", "b"), ("b", "c"), ("c", "a"), ("d", "a")] {
+            graph.add_edge(1, src, dst, NO_PROPS, None).unwrap();
+        }
+        graph.into()
+    }
+
+    #[tokio::test]
+    async fn test_algorithm_weakly_connected_components() {
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", components_test_graph())], tmp_dir.path()).await;
+
+        // whole graph is weakly connected -> all nodes share one component
+        let query = r#"
+        {
+          graph(path: "g") {
+            algorithm {
+              weaklyConnectedComponents {
+                nodes { list { id } }
+                columns {
+                  name
+                  values { ... on NodeStateProp { prop } }
+                }
+              }
+            }
+          }
+        }
+        "#;
+
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        // all four nodes are weakly connected -> one component
+        assert_eq!(
+            res.data.into_json().unwrap(),
+            json!({
+                "graph": { "algorithm": { "weaklyConnectedComponents": {
+                    "nodes": { "list": [
+                        { "id": "a" }, { "id": "b" }, { "id": "c" }, { "id": "d" }
+                    ] },
+                    "columns": [{
+                        "name": "component_id",
+                        "values": [{ "prop": 0 }, { "prop": 0 }, { "prop": 0 }, { "prop": 0 }]
+                    }]
+                } } }
+            })
+        );
+    }
+
+    #[tokio::test]
+    async fn test_algorithm_strongly_connected_components() {
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", components_test_graph())], tmp_dir.path()).await;
+
+        // {a,b,c} form one SCC (the cycle); d is its own
+        let query = r#"
+        {
+          graph(path: "g") {
+            algorithm {
+              stronglyConnectedComponents {
+                rows {
+                  node { id }
+                  entries {
+                    columnName
+                    value { ... on NodeStateProp { prop } }
+                  }
+                }
+              }
+            }
+          }
+        }
+        "#;
+
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        let entry = |id: &str, component| {
+            json!({
+                "node": { "id": id },
+                "entries": [{ "columnName": "component_id", "value": { "prop": component } }]
+            })
+        };
+        assert_eq!(
+            res.data.into_json().unwrap(),
+            json!({
+                "graph": { "algorithm": { "stronglyConnectedComponents": { "rows": [
+                    entry("a", 0),
+                    entry("b", 0),
+                    entry("c", 0),
+                    entry("d", 1),
+                ] } } }
+            })
+        );
+    }
+
     fn community_test_graph() -> MaterializedGraph {
         let graph = Graph::new();
         // two triangles joined by a single bridge edge (c -> d)
