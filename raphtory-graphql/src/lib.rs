@@ -647,6 +647,142 @@ mod graphql_test {
         );
     }
 
+    #[tokio::test]
+    async fn test_algorithm_all_local_reciprocity() {
+        let graph = Graph::new();
+        // a<->b reciprocated, a->c not
+        graph.add_edge(1, "a", "b", NO_PROPS, None).unwrap();
+        graph.add_edge(2, "b", "a", NO_PROPS, None).unwrap();
+        graph.add_edge(3, "a", "c", NO_PROPS, None).unwrap();
+        let graph: MaterializedGraph = graph.into();
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", graph)], tmp_dir.path()).await;
+
+        let query = r#"
+        {
+          graph(path: "g") {
+            algorithm {
+              allLocalReciprocity {
+                rows {
+                  node { id }
+                  entries { columnName value { ... on NodeStateProp { prop } } }
+                }
+              }
+            }
+          }
+        }
+        "#;
+
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        // a: 2 of 3 edges reciprocated; b: fully reciprocated; c: none
+        let entry = |id: &str, reciprocity| {
+            json!({
+                "node": { "id": id },
+                "entries": [{ "columnName": "reciprocity", "value": { "prop": reciprocity } }]
+            })
+        };
+        assert_eq!(
+            res.data.into_json().unwrap(),
+            json!({
+                "graph": { "algorithm": { "allLocalReciprocity": { "rows": [
+                    entry("a", 0.6666666666666666),
+                    entry("b", 1.0),
+                    entry("c", 0.0),
+                ] } } }
+            })
+        );
+    }
+
+    #[tokio::test]
+    async fn test_algorithm_balance() {
+        let graph = Graph::new();
+        graph
+            .add_edge(1, "a", "b", [("weight", 5.0)], None)
+            .unwrap();
+        graph
+            .add_edge(2, "c", "a", [("weight", 3.0)], None)
+            .unwrap();
+        let graph: MaterializedGraph = graph.into();
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", graph)], tmp_dir.path()).await;
+
+        let query = r#"
+        {
+          graph(path: "g") {
+            algorithm {
+              balance(name: "weight", direction: BOTH) {
+                nodes { list { id } }
+                columns { name values { ... on NodeStateProp { prop } } }
+              }
+            }
+          }
+        }
+        "#;
+
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        // BOTH: a = in 3 - out 5 = -2, b = +5, c = -3
+        assert_eq!(
+            res.data.into_json().unwrap(),
+            json!({
+                "graph": { "algorithm": { "balance": {
+                    "nodes": { "list": [{ "id": "a" }, { "id": "b" }, { "id": "c" }] },
+                    "columns": [{
+                        "name": "balance",
+                        "values": [{ "prop": -2.0 }, { "prop": 5.0 }, { "prop": -3.0 }]
+                    }]
+                } } }
+            })
+        );
+    }
+
+    #[tokio::test]
+    async fn test_algorithm_local_clustering_coefficient_batch() {
+        let graph = Graph::new();
+        // triangle a-b-c
+        graph.add_edge(1, "a", "b", NO_PROPS, None).unwrap();
+        graph.add_edge(2, "b", "c", NO_PROPS, None).unwrap();
+        graph.add_edge(3, "c", "a", NO_PROPS, None).unwrap();
+        let graph: MaterializedGraph = graph.into();
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", graph)], tmp_dir.path()).await;
+
+        let query = r#"
+        {
+          graph(path: "g") {
+            algorithm {
+              localClusteringCoefficientBatch(nodes: ["a", "b"]) {
+                rows {
+                  node { id }
+                  entries { columnName value { ... on NodeStateProp { prop } } }
+                }
+              }
+            }
+          }
+        }
+        "#;
+
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        // only the queried nodes are present; each is in a triangle -> coefficient 1.0
+        let entry = |id: &str| {
+            json!({
+                "node": { "id": id },
+                "entries": [{ "columnName": "lcc", "value": { "prop": 1.0 } }]
+            })
+        };
+        assert_eq!(
+            res.data.into_json().unwrap(),
+            json!({
+                "graph": { "algorithm": { "localClusteringCoefficientBatch": { "rows": [
+                    entry("a"),
+                    entry("b"),
+                ] } } }
+            })
+        );
+    }
+
     fn components_test_graph() -> MaterializedGraph {
         let graph = Graph::new();
         // cycle a -> b -> c -> a (one SCC), plus d -> a (d reaches the cycle but not vice versa)

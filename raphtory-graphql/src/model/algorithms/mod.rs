@@ -3,12 +3,17 @@
 use crate::{
     model::{
         algorithms::{
+            all_local_reciprocity::{GqlAllLocalReciprocity, GqlAllLocalReciprocityArgs},
+            balance::{GqlBalance, GqlBalanceArgs},
             betweenness_centrality::{GqlBetweennessCentrality, GqlBetweennessCentralityArgs},
             degree_centrality::{GqlDegreeCentrality, GqlDegreeCentralityArgs},
-            dijkstra::{GqlDijkstra, GqlDijkstraArgs, GqlDirection},
+            dijkstra::{GqlDijkstra, GqlDijkstraArgs},
             hits::{GqlHits, GqlHitsArgs},
             in_components::{GqlInComponents, GqlInComponentsArgs},
             label_propagation::{GqlLabelPropagation, GqlLabelPropagationArgs},
+            local_clustering_coefficient_batch::{
+                GqlLocalClusteringCoefficientBatch, GqlLocalClusteringCoefficientBatchArgs,
+            },
             louvain::{GqlLouvain, GqlLouvainArgs},
             out_components::{GqlOutComponents, GqlOutComponentsArgs},
             pagerank::{GqlPagerank, GqlPagerankArgs},
@@ -26,15 +31,19 @@ use crate::{
     },
     rayon::blocking_compute,
 };
-use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
+use dynamic_graphql::{Enum, ResolvedObject, ResolvedObjectFields};
 use raphtory::{db::api::view::DynamicGraph, errors::GraphError};
+use raphtory_api::core::Direction;
 
+pub(crate) mod all_local_reciprocity;
+pub(crate) mod balance;
 pub(crate) mod betweenness_centrality;
 pub(crate) mod degree_centrality;
 pub(crate) mod dijkstra;
 pub(crate) mod hits;
 pub(crate) mod in_components;
 pub(crate) mod label_propagation;
+pub(crate) mod local_clustering_coefficient_batch;
 pub(crate) mod louvain;
 pub(crate) mod out_components;
 pub(crate) mod pagerank;
@@ -64,6 +73,25 @@ pub(crate) struct GqlAlgorithms {
 impl From<DynamicGraph> for GqlAlgorithms {
     fn from(graph: DynamicGraph) -> Self {
         Self { graph }
+    }
+}
+
+/// Edge direction to follow during traversal.
+#[derive(Enum, Copy, Clone)]
+#[graphql(name = "Direction")]
+pub(crate) enum GqlDirection {
+    Out,
+    In,
+    Both,
+}
+
+impl From<GqlDirection> for Direction {
+    fn from(direction: GqlDirection) -> Self {
+        match direction {
+            GqlDirection::Out => Direction::OUT,
+            GqlDirection::In => Direction::IN,
+            GqlDirection::Both => Direction::BOTH,
+        }
     }
 }
 
@@ -232,6 +260,40 @@ impl GqlAlgorithms {
             targets,
             weight,
             direction: direction.unwrap_or(GqlDirection::Both),
+        })
+        .await
+    }
+
+    /// Returns the local reciprocity of every node.
+    async fn all_local_reciprocity(&self) -> Result<GqlNodeState, GraphError> {
+        self.run::<GqlAllLocalReciprocity>(GqlAllLocalReciprocityArgs)
+            .await
+    }
+
+    /// Returns the net sum of edge weights (balance) of every node.
+    async fn balance(
+        &self,
+        #[graphql(desc = "Edge property to use as weight. Defaults to `weight`.")] name: Option<
+            String,
+        >,
+        #[graphql(desc = "Edge direction to consider. Defaults to BOTH.")] direction: Option<
+            GqlDirection,
+        >,
+    ) -> Result<GqlNodeState, GraphError> {
+        self.run::<GqlBalance>(GqlBalanceArgs {
+            name: name.unwrap_or_else(|| "weight".to_string()),
+            direction: direction.unwrap_or(GqlDirection::Both),
+        })
+        .await
+    }
+
+    /// Returns the local clustering coefficient of each of the given nodes.
+    async fn local_clustering_coefficient_batch(
+        &self,
+        #[graphql(desc = "Node ids to compute the coefficient for.")] nodes: Vec<String>,
+    ) -> Result<GqlNodeState, GraphError> {
+        self.run::<GqlLocalClusteringCoefficientBatch>(GqlLocalClusteringCoefficientBatchArgs {
+            nodes,
         })
         .await
     }
