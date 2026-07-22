@@ -562,21 +562,28 @@ impl PyRemoteGraph {
         Ok(PyRemoteNode::new(node))
     }
 
-    /// Adds properties to the remote graph.
+    /// Adds temporal properties to the remote graph.
     ///
     /// Arguments:
     ///     timestamp (int | str | datetime): The timestamp of the temporal property.
     ///     properties (dict): The temporal properties of the graph.
+    ///     event_id (int, optional): Secondary index to disambiguate multiple
+    ///         updates at the same timestamp. If omitted, the server
+    ///         auto-increments it.
     ///
     /// Returns:
     ///     None:
+    #[pyo3(signature = (timestamp, properties, event_id = None))]
     pub fn add_properties(
         &self,
         timestamp: EventTime,
         properties: HashMap<String, Prop>,
+        event_id: Option<usize>,
     ) -> Result<(), ClientError> {
         let graph = Arc::clone(&self.graph);
-        execute_async_task(move || async move { graph.add_properties(timestamp, properties).await })
+        execute_async_task(move || async move {
+            graph.add_properties(timestamp, properties, event_id).await
+        })
     }
 
     /// Adds metadata to the remote graph.

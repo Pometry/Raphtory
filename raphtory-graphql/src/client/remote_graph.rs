@@ -1119,10 +1119,12 @@ impl RemoteGraph {
         &self,
         timestamp: EventTime,
         properties: HashMap<String, Prop>,
+        event_id: Option<usize>,
     ) -> Result<(), ClientError> {
         let op = Op::Write(WriteOp::AddGraphProperty(AddGraphPropertyOp {
             path: self.path.clone(),
             time: timestamp.into_time().t(),
+            event_id,
             properties,
         }));
         self.transport.execute(&op).await?;

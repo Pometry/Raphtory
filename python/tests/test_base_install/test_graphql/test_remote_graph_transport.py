@@ -2522,3 +2522,23 @@ def test_event_time_fields():
         assert et.as_tuple == (et.timestamp, et.event_id)
     finally:
         server_cm.__exit__(None, None, None)
+
+
+def test_add_properties_event_id():
+    """`add_properties(..., event_id=N)` locks the secondary index — proven by
+    reading it back through the graph property's event history."""
+    server_cm, rg = _make_graph_with_edge()
+    try:
+        rg.add_properties(100, {"score": 1.5}, event_id=7)
+
+        tp = rg.properties.temporal.get("score")
+        assert tp is not None
+        at_100 = [e for e in tp.history.collect() if e.timestamp == 100]
+        assert len(at_100) == 1
+        assert at_100[0].event_id == 7  # the locked index, not an auto-increment
+
+        # Omitting event_id still works (server auto-increments).
+        rg.add_properties(101, {"score": 2.5})
+        assert rg.properties.get("score") == 2.5
+    finally:
+        server_cm.__exit__(None, None, None)

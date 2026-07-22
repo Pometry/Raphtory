@@ -214,9 +214,17 @@ impl GraphqlTransport {
         }
         "#;
 
+        // When an explicit event_id is given, send the object time-input form
+        // `{timestamp, eventId}` so the server locks the secondary index;
+        // otherwise send the bare timestamp and let it auto-increment.
+        let t_literal = match args.event_id {
+            Some(event_id) => format!("{{timestamp: {}, eventId: {}}}", args.time, event_id),
+            None => args.time.to_string(),
+        };
+
         let ctx = context! {
             path => args.path,
-            t => args.time,
+            t => t_literal,
             properties => build_property_string(args.properties.clone()),
         };
 

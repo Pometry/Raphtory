@@ -610,11 +610,14 @@ pub struct AddEdge {
     pub layer: Option<String>,
 }
 
-/// Arguments for `RemoteGraph::add_property` — adds temporal properties on the
-/// graph itself (not on a node/edge).
+/// Arguments for `RemoteGraph::add_properties` — adds temporal properties on
+/// the graph itself (not on a node/edge). `event_id` locks the secondary index
+/// explicitly (sent as the `{timestamp, eventId}` time-input object); `None`
+/// lets the server auto-increment.
 pub struct AddGraphProperty {
     pub path: String,
     pub time: i64,
+    pub event_id: Option<usize>,
     pub properties: HashMap<String, Prop>,
 }
 
