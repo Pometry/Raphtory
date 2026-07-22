@@ -363,11 +363,11 @@ impl PyRemoteGraph {
     ///
     /// Returns:
     ///     RemoteNode: the remote node reference
-    pub fn node(&self, id: GID) -> Result<PyRemoteNode, ClientError> {
+    pub fn node(&self, id: GID) -> Result<Option<PyRemoteNode>, ClientError> {
         let graph = Arc::clone(&self.graph);
         let id_str = id.to_string();
         let node = execute_async_task(move || async move { graph.node(id_str).await })?;
-        Ok(PyRemoteNode::new(node))
+        Ok(node.map(PyRemoteNode::new))
     }
 
     /// Gets a remote edge with the specified source and destination nodes.
@@ -382,12 +382,12 @@ impl PyRemoteGraph {
     /// Returns:
     ///     RemoteEdge: the remote edge reference
     #[pyo3(signature = (src, dst))]
-    pub fn edge(&self, src: GID, dst: GID) -> Result<PyRemoteEdge, ClientError> {
+    pub fn edge(&self, src: GID, dst: GID) -> Result<Option<PyRemoteEdge>, ClientError> {
         let graph = Arc::clone(&self.graph);
         let src_str = src.to_string();
         let dst_str = dst.to_string();
         let edge = execute_async_task(move || async move { graph.edge(src_str, dst_str).await })?;
-        Ok(PyRemoteEdge::new(edge))
+        Ok(edge.map(PyRemoteEdge::new))
     }
 
     /// The collection of all nodes in this graph under the current view.

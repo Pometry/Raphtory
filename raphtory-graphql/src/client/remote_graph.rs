@@ -840,7 +840,7 @@ impl RemoteGraph {
     ///
     /// Server-returned handles (from `.nodes.list()`, `.neighbours`, etc.)
     /// bypass this check — those ids came from the server, so we trust them.
-    pub async fn node(&self, id: impl ToString) -> Result<RemoteNode, ClientError> {
+    pub async fn node(&self, id: impl ToString) -> Result<Option<RemoteNode>, ClientError> {
         let id_str = id.to_string();
         let check = Op::Read(ReadExpr::HasNode {
             input: Box::new(self.expr.clone()),
@@ -848,9 +848,9 @@ impl RemoteGraph {
         });
         let exists = expect_bool(self.transport.execute(&check).await?, "hasNode")?;
         if !exists {
-            return Err(ClientError::NotFound(format!("Node '{}'", id_str)));
+            return Ok(None);
         }
-        Ok(RemoteNode::with_expr(
+        Ok(Some(RemoteNode::with_expr(
             self.path.clone(),
             id_str.clone(),
             self.transport.clone(),
@@ -859,7 +859,7 @@ impl RemoteGraph {
                 id: id_str,
             },
             self.expr.clone(),
-        ))
+        )))
     }
 
     /// Returns the collection of all nodes in the graph, evaluated under the
@@ -974,7 +974,7 @@ impl RemoteGraph {
         &self,
         src: impl ToString,
         dst: impl ToString,
-    ) -> Result<RemoteEdge, ClientError> {
+    ) -> Result<Option<RemoteEdge>, ClientError> {
         let src_str = src.to_string();
         let dst_str = dst.to_string();
         let check = Op::Read(ReadExpr::HasEdge {
@@ -984,12 +984,9 @@ impl RemoteGraph {
         });
         let exists = expect_bool(self.transport.execute(&check).await?, "hasEdge")?;
         if !exists {
-            return Err(ClientError::NotFound(format!(
-                "Edge ('{}', '{}')",
-                src_str, dst_str
-            )));
+            return Ok(None);
         }
-        Ok(RemoteEdge::with_expr(
+        Ok(Some(RemoteEdge::with_expr(
             self.path.clone(),
             src_str.clone(),
             dst_str.clone(),
@@ -1000,7 +997,7 @@ impl RemoteGraph {
                 dst: dst_str,
             },
             self.expr.clone(),
-        ))
+        )))
     }
 
     /// Add a node to the graph at the given timestamp.

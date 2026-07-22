@@ -2956,8 +2956,16 @@ mod tests {
 
         // Read path: composed expression through Transport
         // g.node("ben").degree() — after edge (ben -> hamza), ben has degree 1.
-        // `.node()` now fires a hasNode validation RPC before returning the handle.
-        let degree = rg.node("ben").await.unwrap().degree().await.unwrap();
+        // `.node()` fires a hasNode check and returns `Some(node)` when present,
+        // `None` when absent (mirrors the local `Graph.node -> Optional[Node]`).
+        let degree = rg
+            .node("ben")
+            .await
+            .unwrap()
+            .unwrap()
+            .degree()
+            .await
+            .unwrap();
         assert_eq!(degree, 1, "ben should have degree 1 (single edge to hamza)");
 
         // With a windowed view, we can restrict to a time range.
@@ -2966,6 +2974,7 @@ mod tests {
             .window(0, 5)
             .node("ben")
             .await
+            .unwrap()
             .unwrap()
             .degree()
             .await
@@ -2979,20 +2988,19 @@ mod tests {
             .node("ben")
             .await
             .unwrap()
+            .unwrap()
             .degree()
             .await
             .unwrap();
         assert_eq!(degree_before_edge, 0);
 
         // A window that excludes ben's add_node event entirely — `.node()`
-        // validates against the view chain and raises NotFound.
-        match rg.window(100, 200).node("ben").await {
-            Err(ClientError::NotFound(msg)) => {
-                assert!(msg.contains("ben"), "expected 'ben' in message, got: {msg}");
-            }
-            Err(e) => panic!("expected NotFound for ben under window [100, 200), got {e:?}"),
-            Ok(_) => panic!("expected NotFound for ben under window [100, 200), got Ok"),
-        }
+        // validates against the view chain and returns `None` (not an error).
+        let absent = rg.window(100, 200).node("ben").await.unwrap();
+        assert!(
+            absent.is_none(),
+            "expected None for ben under window [100, 200), got Some"
+        );
 
         running.stop().await;
     }

@@ -6,7 +6,8 @@ Op::Write/Op::Read → GraphqlTransport → GraphQL server → response back.
 RPC model:
 - View-op builders (`.window()`, `.layer()`, `.at()`, ...) are lazy — no RPC.
 - Selection methods `.node()` / `.edge()` fire one validation RPC each (via
-  hasNode / hasEdge) and raise `NotFound` if the id isn't visible.
+  hasNode / hasEdge) and return `None` if the id isn't present in the current
+  view (matching the local `Graph.node -> Optional[Node]`).
 - Terminals (`.degree()`, `.earliest_time()`, `.count()`, ...) fire one RPC
   evaluating the accumulated read expression.
 - Writes (`.add_node()`, `.add_edge()`, ...) always fire an RPC.
@@ -494,35 +495,24 @@ def test_node_update_time_terminals():
         server_cm.__exit__(None, None, None)
 
 
-def test_terminals_error_on_absent_node_or_edge():
-    """Any terminal on a node/edge that isn't visible under the current view
-    raises with a semantic `not found in view` message — both nullable and
-    non-nullable terminals treat the intermediate-null response as an error,
-    since the server can't distinguish absent-from-graph vs. absent-from-view.
-    """
-    import pytest
-
+def test_absent_node_or_edge_returns_none():
+    """`.node()` / `.edge()` return `None` when the id isn't present in the
+    current view — matching the local `Graph.node -> Optional[Node]` — rather
+    than raising. Covers both absent-from-graph and absent-from-window; the
+    server can't distinguish the two, so both collapse to `None`."""
     server_cm, rg = _make_graph_with_edge()
     try:
-        # Absent from graph entirely.
-        with pytest.raises(Exception, match="Node 'nonexistent' not found"):
-            rg.node("nonexistent").degree()
-        with pytest.raises(Exception, match="Node 'nonexistent' not found"):
-            rg.node("nonexistent").earliest_time
-        with pytest.raises(Exception, match="Node 'nonexistent' not found"):
-            rg.node("nonexistent").node_type
+        # Absent from graph entirely → None.
+        assert rg.node("nonexistent") is None
 
-        # Present in graph, but not visible in this window.
-        with pytest.raises(Exception, match="Node 'ben' not found"):
-            rg.window(100, 200).node("ben").degree()
-        with pytest.raises(Exception, match="Node 'ben' not found"):
-            rg.window(100, 200).node("ben").first_update()
+        # Present in graph, but not visible in this window → None.
+        assert rg.window(100, 200).node("ben") is None
 
-        # Absent edges (via `.src().name()` — walks through the edge intermediate).
-        with pytest.raises(Exception, match=r"Edge \('nonexistent', 'hamza'\) not found"):
-            rg.edge("nonexistent", "hamza").src.name
-        with pytest.raises(Exception, match=r"Edge \('ben', 'hamza'\) not found"):
-            rg.window(100, 200).edge("ben", "hamza").src.name
+        # Absent edge (pair not present) → None.
+        assert rg.edge("nonexistent", "hamza") is None
+
+        # Edge present in graph but not visible in this window → None.
+        assert rg.window(100, 200).edge("ben", "hamza") is None
 
         # Nullable terminal on an *existing* node with genuinely-missing data
         # still returns None (ben exists, no type ever set on him).
@@ -646,9 +636,7 @@ def test_edge_read_terminals():
 
 
 def test_edge_self_loop_and_absent():
-    """`is_self_loop` returns True for src == dst; absent edges error."""
-    import pytest
-
+    """`is_self_loop` returns True for src == dst; absent edges return None."""
     server_cm, rg = _make_graph_with_edge()
     # A self-loop edge.
     rg.add_edge(4, "ben", "ben")
@@ -656,9 +644,8 @@ def test_edge_self_loop_and_absent():
         assert rg.edge("ben", "ben").is_self_loop() is True
         assert rg.edge("ben", "hamza").is_self_loop() is False
 
-        # Absent edge → NotFound.
-        with pytest.raises(Exception, match=r"Edge \('nonexistent', 'hamza'\) not found"):
-            rg.edge("nonexistent", "hamza").is_active()
+        # Absent edge → None (not an error).
+        assert rg.edge("nonexistent", "hamza") is None
     finally:
         server_cm.__exit__(None, None, None)
 
@@ -1524,9 +1511,9 @@ def test_edge_view_chain_builders():
         assert e.window(0, 5).latest_time == 3
         assert e.window(6, 10).earliest_time == 8
         # Empty window — edge selection is preserved (we selected first, then
-        # windowed), so nullable terminal returns None rather than raising.
-        # This differs from `rg.window(...).edge(...)` where the edge itself
-        # falls out of view and terminals on it raise NotFound.
+        # windowed), so nullable terminals return None. This differs from
+        # `rg.window(...).edge(...)`, where the edge isn't present in the
+        # windowed view at selection time so `.edge()` itself returns None.
         assert e.window(100, 200).earliest_time is None
         assert e.window(100, 200).latest_time is None
         import pytest
