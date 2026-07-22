@@ -2389,3 +2389,74 @@ def test_path_from_node_filter_preserves_membership():
         assert sorted(kept.ids()) == ["alice", "bob", "hamza"]
     finally:
         server_cm.__exit__(None, None, None)
+
+
+# --- collection ergonomics: len()/bool() + dict-protocol ---------------------
+
+
+def test_collection_len_and_bool():
+    """`len()` / `bool()` on remote collections map to `.count()`."""
+    server_cm, rg = _make_filter_graph()  # 4 nodes, no edges
+    try:
+        assert len(rg.nodes) == 4
+        assert bool(rg.nodes) is True
+        # No edges in this graph.
+        assert len(rg.edges) == 0
+        assert bool(rg.edges) is False
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_path_from_node_len():
+    """`len()` on a neighbours path (`RemotePathFromNode`)."""
+    server_cm, rg = _make_node_filter_graph()  # ben -> hamza, alice, bob
+    try:
+        assert len(rg.node("ben").out_neighbours) == 3
+        assert bool(rg.node("ben").out_neighbours) is True
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_metadata_dict_protocol():
+    """`RemoteMetadata` is dict-like: `md[k]`, `k in md`, `len(md)`,
+    `for k in md`, `md.as_dict()`; `md[missing]` raises `KeyError`."""
+    import pytest
+
+    server_cm, rg = _make_graph_with_edge()
+    rg.node("ben").add_metadata({"role": "admin", "level": 3, "active": True})
+    try:
+        md = rg.node("ben").metadata
+        assert md["role"] == "admin"          # __getitem__ → raw value
+        assert md["level"] == 3
+        assert md["active"] is True
+        assert "role" in md                   # __contains__
+        assert "nonexistent" not in md
+        assert len(md) == 3                    # __len__
+        assert sorted(md) == ["active", "level", "role"]  # __iter__ over keys
+        assert md.as_dict() == {"role": "admin", "level": 3, "active": True}
+        with pytest.raises(KeyError):          # strict, unlike .get()
+            md["nonexistent"]
+        assert md.get("nonexistent") is None
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_properties_dict_protocol():
+    """`RemoteProperties` is dict-like too; values are the latest temporal
+    value under the current view."""
+    import pytest
+
+    server_cm, rg = _make_graph_with_edge()
+    rg.node("ben").add_updates(5, properties={"score": 2.5})
+    try:
+        props = rg.node("ben").properties
+        assert props["score"] == 2.5
+        assert "score" in props
+        assert "nonexistent" not in props
+        assert len(props) == 1
+        assert list(props) == ["score"]
+        assert props.as_dict() == {"score": 2.5}
+        with pytest.raises(KeyError):
+            props["nonexistent"]
+    finally:
+        server_cm.__exit__(None, None, None)

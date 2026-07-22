@@ -185,6 +185,18 @@ impl PyRemoteEdges {
         execute_async_task(move || async move { edges.count().await })
     }
 
+    /// `len(edges)` — number of edges in the collection. Fires one RPC.
+    pub fn __len__(&self) -> Result<usize, ClientError> {
+        let edges = Arc::clone(&self.edges);
+        Ok(execute_async_task(move || async move { edges.count().await })?.max(0) as usize)
+    }
+
+    /// `bool(edges)` — whether the collection is non-empty. Fires one RPC.
+    pub fn __bool__(&self) -> Result<bool, ClientError> {
+        let edges = Arc::clone(&self.edges);
+        Ok(execute_async_task(move || async move { edges.count().await })? > 0)
+    }
+
     /// View start bound for this collection — `None` if unbounded. Property —
     /// attribute access fires one RPC.
     #[getter]

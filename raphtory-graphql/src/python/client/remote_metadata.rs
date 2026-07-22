@@ -8,7 +8,12 @@ use crate::{
     },
     python::client::remote_history::{PyRemoteEventTime, PyRemoteHistory},
 };
-use pyo3::{prelude::*, IntoPyObject, Py, PyAny};
+use pyo3::{
+    exceptions::PyKeyError,
+    prelude::*,
+    types::{PyDict, PyList},
+    IntoPyObject, Py, PyAny,
+};
 use raphtory::python::utils::execute_async_task;
 use raphtory_api::core::entities::properties::prop::Prop;
 use std::sync::Arc;
@@ -98,6 +103,48 @@ impl PyRemoteMetadata {
             .map(|p| Ok((p.key, prop_to_py(py, p.value)?)))
             .collect()
     }
+
+    /// `md[key]` — the metadata value, or raises `KeyError` if absent. Fires
+    /// one RPC. Contrast with `.get(key)`, which returns `None`.
+    fn __getitem__(&self, py: Python<'_>, key: String) -> PyResult<Py<PyAny>> {
+        let inner = Arc::clone(&self.inner);
+        let lookup = key.clone();
+        let result = execute_async_task(move || async move { inner.get(lookup).await })?;
+        match result {
+            Some(p) => Ok(prop_to_py(py, p.value)?),
+            None => Err(PyKeyError::new_err(key)),
+        }
+    }
+
+    /// `key in md` — whether a metadata entry with this key exists. Fires one RPC.
+    fn __contains__(&self, key: String) -> Result<bool, ClientError> {
+        let inner = Arc::clone(&self.inner);
+        execute_async_task(move || async move { inner.contains(key).await })
+    }
+
+    /// `len(md)` — number of metadata keys. Fires one RPC.
+    fn __len__(&self) -> Result<usize, ClientError> {
+        let inner = Arc::clone(&self.inner);
+        Ok(execute_async_task(move || async move { inner.keys().await })?.len())
+    }
+
+    /// `for k in md` — iterate metadata keys. Fires one RPC (fetches all keys).
+    fn __iter__(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        let inner = Arc::clone(&self.inner);
+        let keys = execute_async_task(move || async move { inner.keys().await })?;
+        Ok(PyList::new(py, keys)?.try_iter()?.into_any().unbind())
+    }
+
+    /// All `(key, value)` entries as a native Python `dict`. Fires one RPC.
+    fn as_dict(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        let inner = Arc::clone(&self.inner);
+        let items = execute_async_task(move || async move { inner.values(None).await })?;
+        let dict = PyDict::new(py);
+        for p in items {
+            dict.set_item(p.key, prop_to_py(py, p.value)?)?;
+        }
+        Ok(dict.into_any().unbind())
+    }
 }
 
 /// A handle to the full properties container of a remote graph, node, or
@@ -183,6 +230,49 @@ impl PyRemoteProperties {
         PyRemoteTemporalProperties {
             inner: Arc::new(self.inner.temporal()),
         }
+    }
+
+    /// `props[key]` — the property value, or raises `KeyError` if absent.
+    /// Fires one RPC. Contrast with `.get(key)`, which returns `None`.
+    fn __getitem__(&self, py: Python<'_>, key: String) -> PyResult<Py<PyAny>> {
+        let inner = Arc::clone(&self.inner);
+        let lookup = key.clone();
+        let result = execute_async_task(move || async move { inner.get(lookup).await })?;
+        match result {
+            Some(p) => Ok(prop_to_py(py, p.value)?),
+            None => Err(PyKeyError::new_err(key)),
+        }
+    }
+
+    /// `key in props` — whether a property with this key exists. Fires one RPC.
+    fn __contains__(&self, key: String) -> Result<bool, ClientError> {
+        let inner = Arc::clone(&self.inner);
+        execute_async_task(move || async move { inner.contains(key).await })
+    }
+
+    /// `len(props)` — number of property keys. Fires one RPC.
+    fn __len__(&self) -> Result<usize, ClientError> {
+        let inner = Arc::clone(&self.inner);
+        Ok(execute_async_task(move || async move { inner.keys().await })?.len())
+    }
+
+    /// `for k in props` — iterate property keys. Fires one RPC (fetches all keys).
+    fn __iter__(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        let inner = Arc::clone(&self.inner);
+        let keys = execute_async_task(move || async move { inner.keys().await })?;
+        Ok(PyList::new(py, keys)?.try_iter()?.into_any().unbind())
+    }
+
+    /// All `(key, value)` entries as a native Python `dict` (temporal
+    /// properties yield their most recent value). Fires one RPC.
+    fn as_dict(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        let inner = Arc::clone(&self.inner);
+        let items = execute_async_task(move || async move { inner.values(None).await })?;
+        let dict = PyDict::new(py);
+        for p in items {
+            dict.set_item(p.key, prop_to_py(py, p.value)?)?;
+        }
+        Ok(dict.into_any().unbind())
     }
 }
 

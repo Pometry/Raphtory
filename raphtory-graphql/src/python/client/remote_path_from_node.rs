@@ -165,6 +165,18 @@ impl PyRemotePathFromNode {
         execute_async_task(move || async move { path.count().await })
     }
 
+    /// `len(path)` — number of nodes in the collection. Fires one RPC.
+    pub fn __len__(&self) -> Result<usize, ClientError> {
+        let path = Arc::clone(&self.path);
+        Ok(execute_async_task(move || async move { path.count().await })?.max(0) as usize)
+    }
+
+    /// `bool(path)` — whether the collection is non-empty. Fires one RPC.
+    pub fn __bool__(&self) -> Result<bool, ClientError> {
+        let path = Arc::clone(&self.path);
+        Ok(execute_async_task(move || async move { path.count().await })? > 0)
+    }
+
     /// View start bound for this collection — `None` if unbounded. Property —
     /// attribute access fires one RPC.
     #[getter]

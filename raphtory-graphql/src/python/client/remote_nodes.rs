@@ -192,6 +192,18 @@ impl PyRemoteNodes {
         execute_async_task(move || async move { nodes.count().await })
     }
 
+    /// `len(nodes)` — number of nodes in the collection. Fires one RPC.
+    pub fn __len__(&self) -> Result<usize, ClientError> {
+        let nodes = Arc::clone(&self.nodes);
+        Ok(execute_async_task(move || async move { nodes.count().await })?.max(0) as usize)
+    }
+
+    /// `bool(nodes)` — whether the collection is non-empty. Fires one RPC.
+    pub fn __bool__(&self) -> Result<bool, ClientError> {
+        let nodes = Arc::clone(&self.nodes);
+        Ok(execute_async_task(move || async move { nodes.count().await })? > 0)
+    }
+
     /// View start bound for this collection — `None` if unbounded. Property —
     /// attribute access fires one RPC.
     #[getter]
