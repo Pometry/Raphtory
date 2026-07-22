@@ -3,7 +3,10 @@
 use crate::{
     model::{
         algorithms::{
+            betweenness_centrality::{GqlBetweennessCentrality, GqlBetweennessCentralityArgs},
+            degree_centrality::{GqlDegreeCentrality, GqlDegreeCentralityArgs},
             dijkstra::{GqlDijkstra, GqlDijkstraArgs, GqlDirection},
+            hits::{GqlHits, GqlHitsArgs},
             in_components::{GqlInComponents, GqlInComponentsArgs},
             out_components::{GqlOutComponents, GqlOutComponentsArgs},
             pagerank::{GqlPagerank, GqlPagerankArgs},
@@ -18,7 +21,10 @@ use crate::{
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{db::api::view::DynamicGraph, errors::GraphError};
 
+pub(crate) mod betweenness_centrality;
+pub(crate) mod degree_centrality;
 pub(crate) mod dijkstra;
+pub(crate) mod hits;
 pub(crate) mod in_components;
 pub(crate) mod out_components;
 pub(crate) mod pagerank;
@@ -78,6 +84,42 @@ impl GqlAlgorithms {
             tol,
             damping_factor,
             weight,
+        })
+        .await
+    }
+
+    /// Returns the degree centrality of every node.
+    async fn degree_centrality(&self) -> Result<GqlNodeState, GraphError> {
+        self.run::<GqlDegreeCentrality>(GqlDegreeCentralityArgs)
+            .await
+    }
+
+    /// Returns the betweenness centrality of every node.
+    async fn betweenness_centrality(
+        &self,
+        #[graphql(desc = "Number of nodes to sample. Defaults to all nodes.")] k: Option<usize>,
+        #[graphql(desc = "Whether to normalize the values. Defaults to true.")] normalized: Option<
+            bool,
+        >,
+    ) -> Result<GqlNodeState, GraphError> {
+        self.run::<GqlBetweennessCentrality>(GqlBetweennessCentralityArgs {
+            k,
+            normalized: normalized.unwrap_or(true),
+        })
+        .await
+    }
+
+    /// Returns the HITS hub and authority scores of every node.
+    async fn hits(
+        &self,
+        #[graphql(desc = "Number of iterations to run. Defaults to 20.")] iter_count: Option<usize>,
+        #[graphql(desc = "Number of threads to use. Defaults to all available.")] threads: Option<
+            usize,
+        >,
+    ) -> Result<GqlNodeState, GraphError> {
+        self.run::<GqlHits>(GqlHitsArgs {
+            iter_count: iter_count.unwrap_or(20),
+            threads,
         })
         .await
     }

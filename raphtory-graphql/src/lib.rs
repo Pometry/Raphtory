@@ -647,6 +647,153 @@ mod graphql_test {
         );
     }
 
+    fn centrality_test_graph() -> MaterializedGraph {
+        let graph = Graph::new();
+        // path a -> b -> c -> d so nodes get distinct centrality scores
+        graph.add_edge(1, "a", "b", NO_PROPS, None).unwrap();
+        graph.add_edge(2, "b", "c", NO_PROPS, None).unwrap();
+        graph.add_edge(3, "c", "d", NO_PROPS, None).unwrap();
+        graph.into()
+    }
+
+    #[tokio::test]
+    async fn test_algorithm_degree_centrality() {
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", centrality_test_graph())], tmp_dir.path()).await;
+
+        let query = r#"
+        {
+          graph(path: "g") {
+            algorithm {
+              degreeCentrality {
+                rows {
+                  node { id }
+                  entries {
+                    columnName
+                    value { ... on NodeStateProp { prop } }
+                  }
+                }
+              }
+            }
+          }
+        }
+        "#;
+
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        // degree/max_degree: endpoints 0.5, middle nodes 1.0
+        let entry = |id: &str, prop| {
+            json!({
+                "node": { "id": id },
+                "entries": [{ "columnName": "degree_centrality", "value": { "prop": prop } }]
+            })
+        };
+        assert_eq!(
+            res.data.into_json().unwrap(),
+            json!({
+                "graph": { "algorithm": { "degreeCentrality": { "rows": [
+                    entry("a", 0.5),
+                    entry("b", 1.0),
+                    entry("c", 1.0),
+                    entry("d", 0.5),
+                ] } } }
+            })
+        );
+    }
+
+    #[tokio::test]
+    async fn test_algorithm_betweenness_centrality() {
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", centrality_test_graph())], tmp_dir.path()).await;
+
+        let query = r#"
+        {
+          graph(path: "g") {
+            algorithm {
+              betweennessCentrality {
+                nodes { list { id } }
+                columns {
+                  name
+                  values { ... on NodeStateProp { prop } }
+                }
+              }
+            }
+          }
+        }
+        "#;
+
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        // endpoints lie on no shortest path (0.0); middle nodes b,c each on one (1/3 normalized)
+        assert_eq!(
+            res.data.into_json().unwrap(),
+            json!({
+                "graph": { "algorithm": { "betweennessCentrality": {
+                    "nodes": { "list": [{ "id": "a" }, { "id": "b" }, { "id": "c" }, { "id": "d" }] },
+                    "columns": [{
+                        "name": "betweenness_centrality",
+                        "values": [
+                            { "prop": 0.0 },
+                            { "prop": 0.3333333333333333 },
+                            { "prop": 0.3333333333333333 },
+                            { "prop": 0.0 }
+                        ]
+                    }]
+                } } }
+            })
+        );
+    }
+
+    #[tokio::test]
+    async fn test_algorithm_hits() {
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", centrality_test_graph())], tmp_dir.path()).await;
+
+        // hits has two columns (hub_score, auth_score)
+        let query = r#"
+        {
+          graph(path: "g") {
+            algorithm {
+              hits(iterCount: 20) {
+                rows {
+                  node { id }
+                  entries {
+                    columnName
+                    value { ... on NodeStateProp { prop } }
+                  }
+                }
+              }
+            }
+          }
+        }
+        "#;
+
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        // f32 scores promoted to f64; source has no auth, sink has no hub
+        let s = 0.3333333432674408;
+        let row = |id: &str, hub, auth| {
+            json!({
+                "node": { "id": id },
+                "entries": [
+                    { "columnName": "hub_score", "value": { "prop": hub } },
+                    { "columnName": "auth_score", "value": { "prop": auth } }
+                ]
+            })
+        };
+        assert_eq!(
+            res.data.into_json().unwrap(),
+            json!({
+                "graph": { "algorithm": { "hits": { "rows": [
+                    row("a", s, 0.0),
+                    row("b", s, s),
+                    row("c", s, s),
+                    row("d", 0.0, s),
+                ] } } }
+            })
+        );
+    }
+
     #[tokio::test]
     async fn test_algorithm_in_components() {
         let graph = Graph::new();
