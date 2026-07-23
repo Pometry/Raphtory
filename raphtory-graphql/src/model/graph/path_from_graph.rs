@@ -2,6 +2,7 @@ use crate::{
     model::graph::{
         collection::{check_list_allowed, check_page_limit},
         filtering::{GqlNodeFilter, PathFromNodeViewCollection},
+        nested_edges::GqlNestedEdges,
         path_from_node::GqlPathFromNode,
         timeindex::{GqlEventTime, GqlTimeInput},
     },
@@ -346,5 +347,63 @@ impl GqlPathFromGraph {
             Ok(self_clone.update(filtered.into_dyn()))
         })
         .await
+    }
+
+    /////////////////////
+    //// Traversals /////
+    /////////////////////
+
+    /// Returns the neighbouring nodes reachable one further hop from each source
+    /// path (both directions), as a nested `PathFromGraph`.
+    async fn neighbours(&self, select: Option<GqlNodeFilter>) -> Result<Self, GraphError> {
+        let base = self.nn.neighbours();
+        if let Some(expr) = select {
+            let nf: CompositeNodeFilter = expr.try_into()?;
+            let narrowed = blocking_compute(move || base.select(nf)).await?;
+            return Ok(GqlPathFromGraph::new(narrowed));
+        }
+        Ok(GqlPathFromGraph::new(base))
+    }
+
+    /// Returns the in-neighbours reachable one further hop from each source
+    /// path, as a nested `PathFromGraph`.
+    async fn in_neighbours(&self, select: Option<GqlNodeFilter>) -> Result<Self, GraphError> {
+        let base = self.nn.in_neighbours();
+        if let Some(expr) = select {
+            let nf: CompositeNodeFilter = expr.try_into()?;
+            let narrowed = blocking_compute(move || base.select(nf)).await?;
+            return Ok(GqlPathFromGraph::new(narrowed));
+        }
+        Ok(GqlPathFromGraph::new(base))
+    }
+
+    /// Returns the out-neighbours reachable one further hop from each source
+    /// path, as a nested `PathFromGraph`.
+    async fn out_neighbours(&self, select: Option<GqlNodeFilter>) -> Result<Self, GraphError> {
+        let base = self.nn.out_neighbours();
+        if let Some(expr) = select {
+            let nf: CompositeNodeFilter = expr.try_into()?;
+            let narrowed = blocking_compute(move || base.select(nf)).await?;
+            return Ok(GqlPathFromGraph::new(narrowed));
+        }
+        Ok(GqlPathFromGraph::new(base))
+    }
+
+    /// Returns the incident edges (both directions) of each source path, as a
+    /// nested `NestedEdges` collection.
+    async fn edges(&self) -> GqlNestedEdges {
+        GqlNestedEdges::new(self.nn.edges())
+    }
+
+    /// Returns the incoming edges of each source path, as a nested `NestedEdges`
+    /// collection.
+    async fn in_edges(&self) -> GqlNestedEdges {
+        GqlNestedEdges::new(self.nn.in_edges())
+    }
+
+    /// Returns the outgoing edges of each source path, as a nested `NestedEdges`
+    /// collection.
+    async fn out_edges(&self) -> GqlNestedEdges {
+        GqlNestedEdges::new(self.nn.out_edges())
     }
 }

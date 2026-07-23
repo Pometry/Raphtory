@@ -1,6 +1,7 @@
 use crate::{
     model::graph::{
         collection::{check_list_allowed, check_page_limit},
+        edges::GqlEdges,
         filtering::{GqlNodeFilter, PathFromNodeViewCollection},
         node::GqlNode,
         timeindex::{GqlEventTime, GqlTimeInput},
@@ -422,5 +423,72 @@ impl GqlPathFromNode {
             Ok(self_clone.update(filtered.into_dyn()))
         })
         .await
+    }
+
+    /////////////////////
+    //// Traversals /////
+    /////////////////////
+
+    /// Returns the neighbouring nodes reachable one further hop from this path
+    /// (both directions), as a flat `PathFromNode`.
+    async fn neighbours(
+        &self,
+        select: Option<GqlNodeFilter>,
+    ) -> Result<GqlPathFromNode, GraphError> {
+        let base = self.nn.neighbours();
+        if let Some(expr) = select {
+            let nf: CompositeNodeFilter = expr.try_into()?;
+            let narrowed = blocking_compute(move || base.select(nf)).await?;
+            return Ok(GqlPathFromNode::new(narrowed));
+        }
+        Ok(GqlPathFromNode::new(base))
+    }
+
+    /// Returns the in-neighbours reachable one further hop from this path, as a
+    /// flat `PathFromNode`.
+    async fn in_neighbours(
+        &self,
+        select: Option<GqlNodeFilter>,
+    ) -> Result<GqlPathFromNode, GraphError> {
+        let base = self.nn.in_neighbours();
+        if let Some(expr) = select {
+            let nf: CompositeNodeFilter = expr.try_into()?;
+            let narrowed = blocking_compute(move || base.select(nf)).await?;
+            return Ok(GqlPathFromNode::new(narrowed));
+        }
+        Ok(GqlPathFromNode::new(base))
+    }
+
+    /// Returns the out-neighbours reachable one further hop from this path, as a
+    /// flat `PathFromNode`.
+    async fn out_neighbours(
+        &self,
+        select: Option<GqlNodeFilter>,
+    ) -> Result<GqlPathFromNode, GraphError> {
+        let base = self.nn.out_neighbours();
+        if let Some(expr) = select {
+            let nf: CompositeNodeFilter = expr.try_into()?;
+            let narrowed = blocking_compute(move || base.select(nf)).await?;
+            return Ok(GqlPathFromNode::new(narrowed));
+        }
+        Ok(GqlPathFromNode::new(base))
+    }
+
+    /// Returns the incident edges (both directions) of the nodes in this path,
+    /// as a flat `Edges` collection.
+    async fn edges(&self) -> GqlEdges {
+        GqlEdges::new(self.nn.edges())
+    }
+
+    /// Returns the incoming edges of the nodes in this path, as a flat `Edges`
+    /// collection.
+    async fn in_edges(&self) -> GqlEdges {
+        GqlEdges::new(self.nn.in_edges())
+    }
+
+    /// Returns the outgoing edges of the nodes in this path, as a flat `Edges`
+    /// collection.
+    async fn out_edges(&self) -> GqlEdges {
+        GqlEdges::new(self.nn.out_edges())
     }
 }

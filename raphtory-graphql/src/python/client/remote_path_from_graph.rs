@@ -1,6 +1,9 @@
 use crate::{
     client::{remote_path_from_graph::RemotePathFromGraph, ClientError},
-    python::client::{remote_history::PyRemoteEventTime, remote_node::PyRemoteNode},
+    python::client::{
+        remote_history::PyRemoteEventTime, remote_nested_edges::PyRemoteNestedEdges,
+        remote_node::PyRemoteNode,
+    },
 };
 use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyRef, PyRefMut, PyResult};
 use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
@@ -155,6 +158,48 @@ impl PyRemotePathFromGraph {
     /// list. Lazy — no RPC.
     pub fn type_filter(&self, node_types: Vec<String>) -> PyRemotePathFromGraph {
         PyRemotePathFromGraph::new(self.path.type_filter(node_types))
+    }
+
+    /// The neighbours (both directions) reachable one further hop from each
+    /// source path, as a nested `RemotePathFromGraph`. Lazy — no RPC.
+    #[getter]
+    pub fn neighbours(&self) -> PyRemotePathFromGraph {
+        PyRemotePathFromGraph::new(self.path.neighbours())
+    }
+
+    /// The in-neighbours reachable one further hop from each source path, as a
+    /// nested `RemotePathFromGraph`. Lazy — no RPC.
+    #[getter]
+    pub fn in_neighbours(&self) -> PyRemotePathFromGraph {
+        PyRemotePathFromGraph::new(self.path.in_neighbours())
+    }
+
+    /// The out-neighbours reachable one further hop from each source path, as a
+    /// nested `RemotePathFromGraph`. Lazy — no RPC.
+    #[getter]
+    pub fn out_neighbours(&self) -> PyRemotePathFromGraph {
+        PyRemotePathFromGraph::new(self.path.out_neighbours())
+    }
+
+    /// The incident edges (both directions) of each source path, as a nested
+    /// `RemoteNestedEdges` collection. Lazy — no RPC.
+    #[getter]
+    pub fn edges(&self) -> PyRemoteNestedEdges {
+        PyRemoteNestedEdges::new(self.path.edges())
+    }
+
+    /// The incoming edges of each source path, as a nested `RemoteNestedEdges`
+    /// collection. Lazy — no RPC.
+    #[getter]
+    pub fn in_edges(&self) -> PyRemoteNestedEdges {
+        PyRemoteNestedEdges::new(self.path.in_edges())
+    }
+
+    /// The outgoing edges of each source path, as a nested `RemoteNestedEdges`
+    /// collection. Lazy — no RPC.
+    #[getter]
+    pub fn out_edges(&self) -> PyRemoteNestedEdges {
+        PyRemoteNestedEdges::new(self.path.out_edges())
     }
 
     /// Returns the nested list of node ids in this collection — one inner list

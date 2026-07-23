@@ -18,7 +18,11 @@ use std::sync::Arc;
 /// collections. There is no `ids()` — edges are identified by `(src, dst)`
 /// pairs, not a single string id.
 #[derive(Clone)]
-#[pyclass(name = "RemoteNestedEdges", module = "raphtory.graphql", from_py_object)]
+#[pyclass(
+    name = "RemoteNestedEdges",
+    module = "raphtory.graphql",
+    from_py_object
+)]
 pub struct PyRemoteNestedEdges {
     pub(crate) edges: Arc<RemoteNestedEdges>,
 }

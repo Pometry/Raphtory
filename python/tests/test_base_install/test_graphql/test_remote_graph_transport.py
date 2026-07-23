@@ -2437,6 +2437,110 @@ def test_nodes_out_neighbours_path_from_graph_count():
         server_cm.__exit__(None, None, None)
 
 
+# --- Phase 3: multi-hop traversal on the two path collection types -----------
+
+
+def test_path_from_node_multi_hop_flat():
+    """`RemoteNode.out_neighbours.out_neighbours` chains (Phase 3) and stays a
+    flat `RemotePathFromNode`; `.collect()` returns a flat `list[RemoteNode]`."""
+    from raphtory.graphql import RemoteNode, RemotePathFromNode
+
+    server_cm, rg = _make_node_filter_graph()  # ben -> hamza, alice, bob
+    try:
+        two_hop = rg.node("ben").out_neighbours.out_neighbours
+        assert isinstance(two_hop, RemotePathFromNode)
+        # hamza/alice/bob have no out-edges → the 2-hop is flat and empty.
+        collected = two_hop.collect()
+        assert isinstance(collected, list)
+        assert collected == []
+        # A non-empty 2-hop stays flat: each of hamza/alice/bob neighbours
+        # (both directions) back to ben, flattened into a single list.
+        back = rg.node("ben").out_neighbours.neighbours.collect()
+        assert isinstance(back, list)
+        assert all(isinstance(n, RemoteNode) for n in back)
+        assert sorted(n.name for n in back) == ["ben", "ben", "ben"]
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_path_from_node_edges_flat():
+    """`RemoteNode.out_neighbours.out_edges` returns a flat `RemoteEdges`."""
+    from raphtory.graphql import RemoteEdges
+
+    server_cm, rg = _make_node_filter_graph()  # ben -> hamza, alice, bob
+    try:
+        out_edges = rg.node("ben").out_neighbours.out_edges
+        assert isinstance(out_edges, RemoteEdges)
+        # hamza/alice/bob have no out-edges.
+        assert out_edges.count() == 0
+        # Their incoming edges are the three ben->X edges, flattened.
+        in_edges = rg.node("ben").out_neighbours.in_edges
+        assert isinstance(in_edges, RemoteEdges)
+        assert _edge_pairs(in_edges.collect()) == [
+            ("ben", "alice"),
+            ("ben", "bob"),
+            ("ben", "hamza"),
+        ]
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_path_from_graph_multi_hop_nested():
+    """`RemoteNodes.out_neighbours.out_neighbours` chains (Phase 3) and stays a
+    nested `RemotePathFromGraph`; `.collect()` → `list[list[RemoteNode]]`."""
+    from raphtory.graphql import RemoteNode, RemotePathFromGraph
+
+    server_cm, rg = _make_node_filter_graph()  # 4 source nodes
+    try:
+        two_hop = rg.nodes.out_neighbours.out_neighbours
+        assert isinstance(two_hop, RemotePathFromGraph)
+        collected = two_hop.collect()
+        # Nested: one inner list per source node (4 sources).
+        assert isinstance(collected, list)
+        assert len(collected) == 4
+        assert all(isinstance(row, list) for row in collected)
+        # Only ben has out-neighbours, and those have no out-neighbours → all
+        # inner lists are empty, but the nesting (per-source rows) is preserved.
+        assert all(row == [] for row in collected)
+        # A non-empty nested 2-hop stays nested list[list[RemoteNode]].
+        back = rg.nodes.out_neighbours.neighbours.collect()
+        assert all(isinstance(row, list) for row in back)
+        assert all(isinstance(n, RemoteNode) for row in back for n in row)
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_path_from_graph_edges_nested():
+    """`RemoteNodes.out_neighbours.out_edges` returns a nested
+    `RemoteNestedEdges`; `.collect()` → `list[list[RemoteEdge]]`."""
+    from raphtory.graphql import RemoteNestedEdges
+
+    server_cm, rg = _make_node_filter_graph()  # ben -> hamza, alice, bob
+    try:
+        nested = rg.nodes.out_neighbours.out_edges
+        assert isinstance(nested, RemoteNestedEdges)
+        collected = nested.collect()
+        # Nested: list of per-source lists of RemoteEdge.
+        assert isinstance(collected, list)
+        assert all(isinstance(row, list) for row in collected)
+        # The incoming edges of every node's out-neighbours are nested too.
+        nested_in = rg.nodes.out_neighbours.in_edges
+        assert isinstance(nested_in, RemoteNestedEdges)
+        in_collected = nested_in.collect()
+        assert isinstance(in_collected, list)
+        assert all(isinstance(row, list) for row in in_collected)
+        # ben's out-neighbours (hamza/alice/bob) each have one incoming ben->X
+        # edge; flattening the nested rows recovers all three.
+        flat_pairs = _edge_pairs(e for row in in_collected for e in row)
+        assert flat_pairs == [
+            ("ben", "alice"),
+            ("ben", "bob"),
+            ("ben", "hamza"),
+        ]
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
 def test_nodes_out_neighbours_path_from_graph():
     """`RemoteNodes.out_neighbours` returns a nested `RemotePathFromGraph`.
 

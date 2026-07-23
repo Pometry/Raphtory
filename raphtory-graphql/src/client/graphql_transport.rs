@@ -1838,15 +1838,12 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
             let rows: Result<Vec<Prop>, ClientError> = outer
                 .iter()
                 .map(|row| {
-                    let inner = row
-                        .get("ids")
-                        .and_then(|v| v.as_array())
-                        .ok_or_else(|| {
-                            ClientError::InvalidResponse(format!(
-                                "`{}` element missing `ids` array",
-                                terminal_key
-                            ))
-                        })?;
+                    let inner = row.get("ids").and_then(|v| v.as_array()).ok_or_else(|| {
+                        ClientError::InvalidResponse(format!(
+                            "`{}` element missing `ids` array",
+                            terminal_key
+                        ))
+                    })?;
                     let items: Result<Vec<Prop>, ClientError> = inner
                         .iter()
                         .map(|v| {

@@ -1,6 +1,8 @@
 use crate::{
     client::{remote_path_from_node::RemotePathFromNode, ClientError},
-    python::client::{remote_history::PyRemoteEventTime, remote_node::PyRemoteNode},
+    python::client::{
+        remote_edges::PyRemoteEdges, remote_history::PyRemoteEventTime, remote_node::PyRemoteNode,
+    },
 };
 use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyRef, PyRefMut, PyResult};
 use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
@@ -157,6 +159,48 @@ impl PyRemotePathFromNode {
     /// list. Lazy — no RPC.
     pub fn type_filter(&self, node_types: Vec<String>) -> PyRemotePathFromNode {
         PyRemotePathFromNode::new(self.path.type_filter(node_types))
+    }
+
+    /// The neighbours (both directions) reachable one further hop from this
+    /// path, as a flat `RemotePathFromNode`. Lazy — no RPC.
+    #[getter]
+    pub fn neighbours(&self) -> PyRemotePathFromNode {
+        PyRemotePathFromNode::new(self.path.neighbours())
+    }
+
+    /// The in-neighbours reachable one further hop from this path, as a flat
+    /// `RemotePathFromNode`. Lazy — no RPC.
+    #[getter]
+    pub fn in_neighbours(&self) -> PyRemotePathFromNode {
+        PyRemotePathFromNode::new(self.path.in_neighbours())
+    }
+
+    /// The out-neighbours reachable one further hop from this path, as a flat
+    /// `RemotePathFromNode`. Lazy — no RPC.
+    #[getter]
+    pub fn out_neighbours(&self) -> PyRemotePathFromNode {
+        PyRemotePathFromNode::new(self.path.out_neighbours())
+    }
+
+    /// The incident edges (both directions) of this path, as a flat
+    /// `RemoteEdges` collection. Lazy — no RPC.
+    #[getter]
+    pub fn edges(&self) -> PyRemoteEdges {
+        PyRemoteEdges::new(self.path.edges())
+    }
+
+    /// The incoming edges of this path, as a flat `RemoteEdges` collection.
+    /// Lazy — no RPC.
+    #[getter]
+    pub fn in_edges(&self) -> PyRemoteEdges {
+        PyRemoteEdges::new(self.path.in_edges())
+    }
+
+    /// The outgoing edges of this path, as a flat `RemoteEdges` collection.
+    /// Lazy — no RPC.
+    #[getter]
+    pub fn out_edges(&self) -> PyRemoteEdges {
+        PyRemoteEdges::new(self.path.out_edges())
     }
 
     /// Returns the list of node ids in this collection. Fires one RPC.

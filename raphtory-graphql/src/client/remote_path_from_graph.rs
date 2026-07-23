@@ -3,6 +3,7 @@ use crate::{
         op::{Op, ReadExpr},
         remote_graph::{expect_i64, expect_nested_string_list, expect_optional_event_time},
         remote_history::RemoteEventTime,
+        remote_nested_edges::RemoteNestedEdges,
         remote_node::RemoteNode,
         transport::Transport,
         ClientError,
@@ -218,6 +219,84 @@ impl RemotePathFromGraph {
             },
             base_graph: self.base_graph.clone(),
         }
+    }
+
+    /// Traverse one further hop to the neighbours (both directions) of each
+    /// source path, as a nested `RemotePathFromGraph`. Lazy — no RPC.
+    pub fn neighbours(&self) -> RemotePathFromGraph {
+        RemotePathFromGraph::with_expr(
+            self.path.clone(),
+            self.transport.clone(),
+            ReadExpr::Neighbours {
+                input: Box::new(self.expr.clone()),
+            },
+            self.base_graph.clone(),
+        )
+    }
+
+    /// Traverse one further hop to the in-neighbours of each source path, as a
+    /// nested `RemotePathFromGraph`. Lazy — no RPC.
+    pub fn in_neighbours(&self) -> RemotePathFromGraph {
+        RemotePathFromGraph::with_expr(
+            self.path.clone(),
+            self.transport.clone(),
+            ReadExpr::InNeighbours {
+                input: Box::new(self.expr.clone()),
+            },
+            self.base_graph.clone(),
+        )
+    }
+
+    /// Traverse one further hop to the out-neighbours of each source path, as a
+    /// nested `RemotePathFromGraph`. Lazy — no RPC.
+    pub fn out_neighbours(&self) -> RemotePathFromGraph {
+        RemotePathFromGraph::with_expr(
+            self.path.clone(),
+            self.transport.clone(),
+            ReadExpr::OutNeighbours {
+                input: Box::new(self.expr.clone()),
+            },
+            self.base_graph.clone(),
+        )
+    }
+
+    /// Returns the incident edges (both directions) of each source path, as a
+    /// nested `RemoteNestedEdges` collection. Lazy — no RPC.
+    pub fn edges(&self) -> RemoteNestedEdges {
+        RemoteNestedEdges::with_expr(
+            self.path.clone(),
+            self.transport.clone(),
+            ReadExpr::NodeEdges {
+                input: Box::new(self.expr.clone()),
+            },
+            self.base_graph.clone(),
+        )
+    }
+
+    /// Returns the incoming edges of each source path, as a nested
+    /// `RemoteNestedEdges` collection. Lazy — no RPC.
+    pub fn in_edges(&self) -> RemoteNestedEdges {
+        RemoteNestedEdges::with_expr(
+            self.path.clone(),
+            self.transport.clone(),
+            ReadExpr::InEdges {
+                input: Box::new(self.expr.clone()),
+            },
+            self.base_graph.clone(),
+        )
+    }
+
+    /// Returns the outgoing edges of each source path, as a nested
+    /// `RemoteNestedEdges` collection. Lazy — no RPC.
+    pub fn out_edges(&self) -> RemoteNestedEdges {
+        RemoteNestedEdges::with_expr(
+            self.path.clone(),
+            self.transport.clone(),
+            ReadExpr::OutEdges {
+                input: Box::new(self.expr.clone()),
+            },
+            self.base_graph.clone(),
+        )
     }
 
     /// Terminal: the nested list of node ids in this collection — one inner
