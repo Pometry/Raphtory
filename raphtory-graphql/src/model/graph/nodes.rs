@@ -335,7 +335,7 @@ impl GqlNodes {
     async fn sorted(
         &self,
         #[graphql(
-            desc = "Ordered list of sort keys. Each entry chooses exactly one of `id` / `type` / `name` / `time` / `property`, with an optional `reverse: true` to flip order."
+            desc = "Ordered list of sort keys. Each entry chooses exactly one of `id` / `name` / `type` / `time` / `property`, with an optional `reverse: true` to flip order."
         )]
         sort_bys: Vec<NodeSortBy>,
     ) -> Self {

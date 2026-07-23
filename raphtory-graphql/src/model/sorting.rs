@@ -27,11 +27,11 @@ pub struct NodeSortBy {
     pub reverse: Option<bool>,
     /// Unique Id
     pub id: Option<bool>,
+    /// Node name
+    pub name: Option<bool>,
     /// Node type. Untyped nodes sort first (before any named type).
     #[graphql(name = "type")]
     pub type_: Option<bool>,
-    /// Node name
-    pub name: Option<bool>,
     /// Time
     pub time: Option<SortByTime>,
     /// Property
@@ -56,10 +56,10 @@ pub(crate) fn compare_node<'graph, G: GraphViewOps<'graph>>(
 ) -> Ordering {
     let ordering = if sort_by.id == Some(true) {
         a.id().partial_cmp(&b.id())
-    } else if sort_by.type_ == Some(true) {
-        a.node_type().partial_cmp(&b.node_type())
     } else if sort_by.name == Some(true) {
         a.name().partial_cmp(&b.name())
+    } else if sort_by.type_ == Some(true) {
+        a.node_type().partial_cmp(&b.node_type())
     } else if let Some(sort_by_time) = sort_by.time.as_ref() {
         let (first, second) = match sort_by_time {
             SortByTime::Latest => (a.latest_time(), b.latest_time()),
