@@ -3020,3 +3020,150 @@ def test_collection_edge_history_count():
         assert sorted(x for row in nested for x in row) == [1, 1, 1]
     finally:
         server_cm.__exit__(None, None, None)
+
+
+# ---------------------------------------------------------------------------
+# Client-only drop-in parity additions: naming aliases, protocol dunders,
+# and TemporalProperties.latest(). All compose existing remote terminals.
+# ---------------------------------------------------------------------------
+
+
+def test_event_time_t_alias():
+    """`RemoteEventTime.t` is a getter aliasing `timestamp` (local `EventTime.t`)."""
+    server_cm, rg = _make_graph_with_edge()
+    try:
+        et = rg.node("ben").history.earliest_time()
+        assert et.t == et.timestamp == 1
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_history_t_dt_aliases():
+    """`History.t`/`History.dt` getters return the same sub-collection types as
+    `timestamps`/`datetimes`."""
+    server_cm, rg = _make_graph_with_edge()
+    try:
+        h = rg.node("ben").history
+        assert type(h.t) is type(h.timestamps)
+        assert type(h.dt) is type(h.datetimes)
+        # same underlying data
+        assert h.t.collect() == h.timestamps.collect()
+        assert h.dt.collect() == h.datetimes.collect()
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_history_sequence_dunders():
+    """`RemoteHistory` sequence protocol: `len`, indexing (incl. negative),
+    membership, and `reversed`."""
+    server_cm, rg = _make_graph_with_edge()
+    rg.add_edge(8, "ben", "hamza")  # ben events now at t=1, 3, 8
+    try:
+        h = rg.node("ben").history
+        assert len(h) == 3
+
+        # __getitem__ returns the i-th RemoteEventTime; negative indexing works.
+        assert h[0].timestamp == 1
+        assert h[2].timestamp == 8
+        assert h[-1].timestamp == 8
+        assert h[-3].timestamp == 1
+
+        with pytest.raises(IndexError):
+            _ = h[3]
+        with pytest.raises(IndexError):
+            _ = h[-4]
+
+        # __contains__ — by RemoteEventTime and by bare int timestamp.
+        first = h[0]
+        assert first in h
+        assert 1 in h
+        assert 999 not in h
+
+        # __reversed__ — descending order.
+        assert [e.timestamp for e in reversed(h)] == [8, 3, 1]
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_history_subcollection_dunders_and_to_list():
+    """Sub-collections (`timestamps`, `event_id`, `intervals`, `datetimes`)
+    support the sequence protocol; the int-valued ones also expose
+    `to_list`/`to_list_rev` aliases of `collect`/`collect_rev`."""
+    server_cm, rg = _make_graph_with_edge()
+    rg.add_edge(8, "ben", "hamza")  # ben events at t=1, 3, 8
+    try:
+        ts = rg.node("ben").history.timestamps
+        assert len(ts) == 3
+        assert ts[0] == 1
+        assert ts[-1] == 8
+        assert list(ts) == [1, 3, 8]
+        assert 3 in ts
+        assert 999 not in ts
+        assert list(reversed(ts)) == [8, 3, 1]
+        with pytest.raises(IndexError):
+            _ = ts[5]
+
+        # to_list / to_list_rev aliases (timestamps, event_id, intervals)
+        assert ts.to_list() == ts.collect() == [1, 3, 8]
+        assert ts.to_list_rev() == ts.collect_rev() == [8, 3, 1]
+
+        eids = rg.node("ben").history.event_id
+        assert len(eids) == 3
+        assert eids.to_list() == eids.collect()
+        assert list(eids) == eids.collect()
+
+        intervals = rg.node("ben").history.intervals
+        # gaps between consecutive events: (3-1), (8-3) = [2, 5]
+        assert intervals.to_list() == intervals.collect() == [2, 5]
+        # to_list_rev is a pure alias of collect_rev (server's own reverse
+        # semantics; don't hard-code the value here).
+        assert intervals.to_list_rev() == intervals.collect_rev()
+        assert len(intervals) == 2
+        assert intervals[0] == 2
+        assert 5 in intervals
+        # __reversed__ composes collect_rev (server reverse semantics).
+        assert list(reversed(intervals)) == intervals.collect_rev()
+
+        # datetimes: sequence protocol but NO to_list (matches local).
+        dts = rg.node("ben").history.datetimes
+        assert len(dts) == 3
+        assert list(dts) == dts.collect()
+        assert dts[0] == dts.collect()[0]
+        assert dts[0] in dts
+        assert list(reversed(dts)) == dts.collect_rev()
+        assert not hasattr(dts, "to_list")
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_temporal_properties_dict_dunders_and_latest():
+    """`RemoteTemporalProperties` dict protocol (`__getitem__`, `__contains__`,
+    `__len__`, `__iter__`) plus `latest()` mapping key -> latest value."""
+    server_cm, rg = _make_graph_with_edge()
+    rg.node("ben").add_updates(5, properties={"score": 1.5, "active": True})
+    rg.node("ben").add_updates(10, properties={"score": 2.5})
+    try:
+        td = rg.node("ben").properties.temporal
+
+        # __getitem__ — returns a RemoteTemporalProperty; KeyError if absent.
+        score = td["score"]
+        assert score.key == "score"
+        with pytest.raises(KeyError):
+            _ = td["nonexistent"]
+
+        # __contains__
+        assert "score" in td
+        assert "nonexistent" not in td
+
+        # __len__
+        assert len(td) == 2
+
+        # __iter__ yields keys
+        assert sorted(list(td)) == ["active", "score"]
+
+        # latest() — dict of key -> latest value
+        latest = td.latest()
+        assert isinstance(latest, dict)
+        assert latest == {"score": 2.5, "active": True}
+    finally:
+        server_cm.__exit__(None, None, None)

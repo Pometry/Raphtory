@@ -364,6 +364,48 @@ impl PyRemoteTemporalProperties {
         }
         Ok(dict.into_any().unbind())
     }
+
+    /// The latest value of every temporal property, as `{key: value}` —
+    /// mirrors the local `TemporalProperties.latest()`. Composed from
+    /// `items()` + each property's `latest()`; fires 1 RPC for the property
+    /// list plus 1 per property. Keys whose property has no update in view
+    /// are omitted (their latest is `None`), matching the local behaviour.
+    pub fn latest(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        let dict = PyDict::new(py);
+        for (key, tp) in self.items()? {
+            if let Some(value) = tp.latest(py)? {
+                dict.set_item(key, value)?;
+            }
+        }
+        Ok(dict.into_any().unbind())
+    }
+
+    /// `td[key]` — the temporal property handle, or raises `KeyError` if
+    /// absent. Fires one RPC (existence check). Contrast with `.get(key)`,
+    /// which returns `None`.
+    fn __getitem__(&self, key: String) -> PyResult<PyRemoteTemporalProperty> {
+        match self.get(key.clone())? {
+            Some(tp) => Ok(tp),
+            None => Err(PyKeyError::new_err(key)),
+        }
+    }
+
+    /// `key in td` — whether a temporal property with this key exists.
+    /// Fires one RPC.
+    fn __contains__(&self, key: String) -> Result<bool, ClientError> {
+        self.contains(key)
+    }
+
+    /// `len(td)` — number of temporal property keys. Fires one RPC.
+    fn __len__(&self) -> Result<usize, ClientError> {
+        Ok(self.keys()?.len())
+    }
+
+    /// `for k in td` — iterate temporal property keys. Fires one RPC.
+    fn __iter__(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        let keys = self.keys()?;
+        Ok(PyList::new(py, keys)?.try_iter()?.into_any().unbind())
+    }
 }
 
 /// A handle to a single temporal property — one key with its full history
