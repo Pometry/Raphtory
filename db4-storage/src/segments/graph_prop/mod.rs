@@ -107,6 +107,10 @@ impl<P: PersistenceStrategy> GraphPropSegmentOps for GraphPropSegmentView<P> {
         Ok(())
     }
 
+    fn copy_to(&self, _dst: &Path) -> Result<(), StorageError> {
+        Ok(())
+    }
+
     fn check_metadata_immut<PR: AsPropRef>(
         &self,
         _props: &[(usize, PR)],

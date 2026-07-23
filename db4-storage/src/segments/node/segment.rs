@@ -28,7 +28,7 @@ use raphtory_core::{
 };
 use std::{
     ops::{Deref, DerefMut},
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::{
         Arc,
         atomic::{AtomicU32, AtomicUsize, Ordering},
@@ -574,6 +574,10 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
     }
 
     fn flush(&self) -> Result<(), StorageError> {
+        Ok(())
+    }
+
+    fn copy_to(&self, _dst: &Path) -> Result<(), StorageError> {
         Ok(())
     }
 

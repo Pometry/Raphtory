@@ -126,6 +126,8 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
 
     fn flush(&self) -> Result<(), StorageError>;
 
+    fn copy_to(&self, dst: &Path) -> Result<(), StorageError>;
+
     fn check_metadata_immut<PR: AsPropRef>(
         &self,
         edge_pos: LocalPOS,

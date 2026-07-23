@@ -47,6 +47,8 @@ where
 
     fn flush(&self) -> Result<(), StorageError>;
 
+    fn copy_to(&self, dst: &Path) -> Result<(), StorageError>;
+
     fn check_metadata_immut<PR: AsPropRef>(
         &self,
         props: &[(usize, PR)],

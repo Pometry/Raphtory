@@ -30,7 +30,7 @@ use raphtory_core::{
 use rayon::prelude::*;
 use std::{
     ops::{Deref, DerefMut},
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::{
         Arc,
         atomic::{self, AtomicU32, AtomicUsize, Ordering},
@@ -624,6 +624,10 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
     }
 
     fn flush(&self) -> Result<(), StorageError> {
+        Ok(())
+    }
+
+    fn copy_to(&self, _dst: &Path) -> Result<(), StorageError> {
         Ok(())
     }
 

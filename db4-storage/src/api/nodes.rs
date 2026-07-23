@@ -117,6 +117,8 @@ pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
 
     fn is_dirty(&self) -> bool;
 
+    fn copy_to(&self, dst: &Path) -> Result<(), StorageError>;
+
     fn vacuum(
         &self,
         locked_head: impl DerefMut<Target = MemNodeSegment>,

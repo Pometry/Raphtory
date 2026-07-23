@@ -26,7 +26,6 @@ use std::{
     sync::{Arc, LazyLock, atomic::AtomicU32},
 };
 
-// graph // (nodes|edges) // graph segments // layers // chunks
 pub static N: LazyLock<usize> = LazyLock::new(|| rayon::current_num_threads());
 
 #[derive(Debug)]
