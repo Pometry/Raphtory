@@ -87,7 +87,7 @@ print("Number of unique clusters:", len(unique_clusters))
 !!! Output
 
     ```output
-    Number of unique clusters: 4
+    Number of unique clusters >= 3
     ```
 
 ```{.python continuation hide}
