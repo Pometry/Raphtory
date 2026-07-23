@@ -1,11 +1,10 @@
 use crate::model::{
-    algorithms::GqlExecutableAlgorithm,
+    algorithms::{GqlDirection, GqlExecutableAlgorithm},
     graph::node_state::GqlNodeState,
 };
 use raphtory::{
     algorithms::metrics::balance::balance, db::api::view::DynamicGraph, errors::GraphError,
 };
-use crate::model::algorithms::GqlDirection;
 
 /// Net sum of edge weights per node, see [`balance`].
 pub(crate) struct GqlBalance;

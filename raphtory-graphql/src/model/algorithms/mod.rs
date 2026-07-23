@@ -6,13 +6,21 @@ use crate::{
             all_local_reciprocity::{GqlAllLocalReciprocity, GqlAllLocalReciprocityArgs},
             balance::{GqlBalance, GqlBalanceArgs},
             betweenness_centrality::{GqlBetweennessCentrality, GqlBetweennessCentralityArgs},
+            cohesive_fruchterman_reingold::{
+                GqlCohesiveFruchtermanReingold, GqlCohesiveFruchtermanReingoldArgs,
+            },
             degree_centrality::{GqlDegreeCentrality, GqlDegreeCentralityArgs},
             dijkstra::{GqlDijkstra, GqlDijkstraArgs},
+            fast_rp::{GqlFastRp, GqlFastRpArgs},
+            fruchterman_reingold::{GqlFruchtermanReingold, GqlFruchtermanReingoldArgs},
             hits::{GqlHits, GqlHitsArgs},
             in_components::{GqlInComponents, GqlInComponentsArgs},
             label_propagation::{GqlLabelPropagation, GqlLabelPropagationArgs},
             local_clustering_coefficient_batch::{
                 GqlLocalClusteringCoefficientBatch, GqlLocalClusteringCoefficientBatchArgs,
+            },
+            local_temporal_three_node_motifs::{
+                GqlLocalTemporalThreeNodeMotifs, GqlLocalTemporalThreeNodeMotifsArgs,
             },
             louvain::{GqlLouvain, GqlLouvainArgs},
             out_components::{GqlOutComponents, GqlOutComponentsArgs},
@@ -22,6 +30,9 @@ use crate::{
             },
             strongly_connected_components::{
                 GqlStronglyConnectedComponents, GqlStronglyConnectedComponentsArgs,
+            },
+            temporally_reachable_nodes::{
+                GqlTemporallyReachableNodes, GqlTemporallyReachableNodesArgs,
             },
             weakly_connected_components::{
                 GqlWeaklyConnectedComponents, GqlWeaklyConnectedComponentsArgs,
@@ -38,17 +49,22 @@ use raphtory_api::core::Direction;
 pub(crate) mod all_local_reciprocity;
 pub(crate) mod balance;
 pub(crate) mod betweenness_centrality;
+pub(crate) mod cohesive_fruchterman_reingold;
 pub(crate) mod degree_centrality;
 pub(crate) mod dijkstra;
+pub(crate) mod fast_rp;
+pub(crate) mod fruchterman_reingold;
 pub(crate) mod hits;
 pub(crate) mod in_components;
 pub(crate) mod label_propagation;
 pub(crate) mod local_clustering_coefficient_batch;
+pub(crate) mod local_temporal_three_node_motifs;
 pub(crate) mod louvain;
 pub(crate) mod out_components;
 pub(crate) mod pagerank;
 pub(crate) mod single_source_shortest_path;
 pub(crate) mod strongly_connected_components;
+pub(crate) mod temporally_reachable_nodes;
 pub(crate) mod weakly_connected_components;
 
 /// A graph algorithm executable through the GraphQL API.
@@ -294,6 +310,106 @@ impl GqlAlgorithms {
     ) -> Result<GqlNodeState, GraphError> {
         self.run::<GqlLocalClusteringCoefficientBatch>(GqlLocalClusteringCoefficientBatchArgs {
             nodes,
+        })
+        .await
+    }
+
+    /// Returns the FastRP embedding of every node.
+    async fn fast_rp(
+        &self,
+        #[graphql(desc = "Dimension of the embedding.")] embedding_dim: usize,
+        #[graphql(desc = "Normalization strength applied to neighbour contributions.")]
+        normalization_strength: f64,
+        #[graphql(desc = "Weight of each iteration's contribution to the embedding.")]
+        iter_weights: Vec<f64>,
+        #[graphql(desc = "Seed for the rng. If unset, seeded from the OS.")] seed: Option<u64>,
+        #[graphql(desc = "Number of threads to use. Defaults to all available.")] threads: Option<
+            usize,
+        >,
+    ) -> Result<GqlNodeState, GraphError> {
+        self.run::<GqlFastRp>(GqlFastRpArgs {
+            embedding_dim,
+            normalization_strength,
+            iter_weights,
+            seed,
+            threads,
+        })
+        .await
+    }
+
+    /// Returns the nodes temporally reachable from `seedNodes` starting at `startTime`.
+    async fn temporally_reachable_nodes(
+        &self,
+        #[graphql(desc = "Maximum number of hops to traverse.")] max_hops: usize,
+        #[graphql(desc = "Time at which the traversal starts.")] start_time: i64,
+        #[graphql(desc = "Node ids to start from.")] seed_nodes: Vec<String>,
+        #[graphql(desc = "Node ids that halt the traversal when reached.")] stop_nodes: Option<
+            Vec<String>,
+        >,
+        #[graphql(desc = "Number of threads to use. Defaults to all available.")] threads: Option<
+            usize,
+        >,
+    ) -> Result<GqlNodeState, GraphError> {
+        self.run::<GqlTemporallyReachableNodes>(GqlTemporallyReachableNodesArgs {
+            max_hops,
+            start_time,
+            seed_nodes,
+            stop_nodes,
+            threads,
+        })
+        .await
+    }
+
+    /// Returns the 2D layout position of every node (Fruchterman-Reingold).
+    async fn fruchterman_reingold(
+        &self,
+        #[graphql(desc = "Number of iterations to run. Defaults to 100.")] iter_count: Option<u64>,
+        #[graphql(desc = "Scale of the layout. Defaults to 1.0.")] scale: Option<f64>,
+        #[graphql(desc = "Initial node size. Defaults to 1.0.")] node_start_size: Option<f64>,
+        #[graphql(desc = "Cooloff factor. Defaults to 0.95.")] cooloff_factor: Option<f64>,
+        #[graphql(desc = "Time step. Defaults to 0.1.")] dt: Option<f64>,
+    ) -> Result<GqlNodeState, GraphError> {
+        self.run::<GqlFruchtermanReingold>(GqlFruchtermanReingoldArgs {
+            iter_count: iter_count.unwrap_or(100),
+            scale: scale.unwrap_or(1.0) as f32,
+            node_start_size: node_start_size.unwrap_or(1.0) as f32,
+            cooloff_factor: cooloff_factor.unwrap_or(0.95) as f32,
+            dt: dt.unwrap_or(0.1) as f32,
+        })
+        .await
+    }
+
+    /// Returns the 2D layout position of every node (cohesive Fruchterman-Reingold).
+    async fn cohesive_fruchterman_reingold(
+        &self,
+        #[graphql(desc = "Number of iterations to run. Defaults to 100.")] iter_count: Option<u64>,
+        #[graphql(desc = "Scale of the layout. Defaults to 1.0.")] scale: Option<f64>,
+        #[graphql(desc = "Initial node size. Defaults to 1.0.")] node_start_size: Option<f64>,
+        #[graphql(desc = "Cooloff factor. Defaults to 0.95.")] cooloff_factor: Option<f64>,
+        #[graphql(desc = "Time step. Defaults to 0.1.")] dt: Option<f64>,
+    ) -> Result<GqlNodeState, GraphError> {
+        self.run::<GqlCohesiveFruchtermanReingold>(GqlCohesiveFruchtermanReingoldArgs {
+            iter_count: iter_count.unwrap_or(100),
+            scale: scale.unwrap_or(1.0) as f32,
+            node_start_size: node_start_size.unwrap_or(1.0) as f32,
+            cooloff_factor: cooloff_factor.unwrap_or(0.95) as f32,
+            dt: dt.unwrap_or(0.1) as f32,
+        })
+        .await
+    }
+
+    /// Returns the local temporal three-node motif counts of every node.
+    async fn local_temporal_three_node_motifs(
+        &self,
+        #[graphql(desc = "Maximum time difference between the first and last edge of a motif.")]
+        delta: i64,
+        #[graphql(desc = "Number of threads to use. Defaults to all available.")] threads: Option<
+            usize,
+        >,
+    ) -> Result<GqlNodeState, GraphError> {
+        self.run::<GqlLocalTemporalThreeNodeMotifs>(GqlLocalTemporalThreeNodeMotifsArgs {
+            delta,
+            threads,
         })
         .await
     }

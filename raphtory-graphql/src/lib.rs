@@ -648,6 +648,256 @@ mod graphql_test {
     }
 
     #[tokio::test]
+    async fn test_algorithm_fast_rp() {
+        let graph = Graph::new();
+        graph.add_edge(1, "a", "b", NO_PROPS, None).unwrap();
+        graph.add_edge(2, "b", "c", NO_PROPS, None).unwrap();
+        graph.add_edge(3, "c", "a", NO_PROPS, None).unwrap();
+        let graph: MaterializedGraph = graph.into();
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", graph)], tmp_dir.path()).await;
+
+        let query = r#"
+        {
+          graph(path: "g") {
+            algorithm {
+              fastRp(embeddingDim: 4, normalizationStrength: 1.0, iterWeights: [1.0, 1.0], seed: 42, threads: 1) {
+                columnNames
+                rows {
+                  node { id }
+                  entries {
+                    columnName
+                    value { ... on NodeStateProp { prop } }
+                  }
+                }
+              }
+            }
+          }
+        }
+        "#;
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        // each embedding is a 4d vector (embeddingDim); values are deterministic given the seed
+        let row = |id: &str, embedding: [f64; 4]| {
+            json!({
+                "node": { "id": id },
+                "entries": [{ "columnName": "embedding_state", "value": { "prop": embedding } }]
+            })
+        };
+        assert_eq!(
+            res.data.into_json().unwrap(),
+            json!({
+                "graph": { "algorithm": { "fastRp": {
+                    "columnNames": ["embedding_state"],
+                    "rows": [
+                        row("a", [-0.9870555097143693, 0.3290185032381231, -1.6450925161906156, 0.0]),
+                        row("b", [0.9870555097143693, 0.3290185032381231, -1.6450925161906156, -0.9870555097143693]),
+                        row("c", [0.0, 1.3160740129524924, -0.6580370064762462, 0.9870555097143693]),
+                    ]
+                } } }
+            })
+        );
+    }
+
+    #[tokio::test]
+    async fn test_algorithm_temporally_reachable_nodes() {
+        let graph = Graph::new();
+        graph.add_edge(1, "a", "b", NO_PROPS, None).unwrap();
+        graph.add_edge(2, "b", "c", NO_PROPS, None).unwrap();
+        let graph: MaterializedGraph = graph.into();
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", graph)], tmp_dir.path()).await;
+
+        let query = r#"
+        {
+          graph(path: "g") {
+            algorithm {
+              temporallyReachableNodes(maxHops: 5, startTime: 0, seedNodes: ["a"], threads: 1) {
+                columnNames
+                rows {
+                  node { id }
+                  entries {
+                    columnName
+                    value { ... on NodeStateProp { prop } }
+                  }
+                }
+              }
+            }
+          }
+        }
+        "#;
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        // each node is tainted by (time, source); tuples serialize as {"0": time, "1": source}
+        let row = |id: &str, taint: serde_json::Value| {
+            json!({
+                "node": { "id": id },
+                "entries": [{ "columnName": "reachable_nodes", "value": { "prop": [taint] } }]
+            })
+        };
+        assert_eq!(
+            res.data.into_json().unwrap(),
+            json!({
+                "graph": { "algorithm": { "temporallyReachableNodes": {
+                    "columnNames": ["reachable_nodes"],
+                    "rows": [
+                        row("a", json!({ "0": 0, "1": "start" })),
+                        row("b", json!({ "0": 1, "1": "a" })),
+                        row("c", json!({ "0": 2, "1": "b" })),
+                    ]
+                } } }
+            })
+        );
+    }
+
+    #[tokio::test]
+    async fn test_algorithm_fruchterman_reingold() {
+        let graph = Graph::new();
+        graph.add_edge(1, "a", "b", NO_PROPS, None).unwrap();
+        graph.add_edge(2, "b", "c", NO_PROPS, None).unwrap();
+        let graph: MaterializedGraph = graph.into();
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", graph)], tmp_dir.path()).await;
+
+        let query = r#"
+        {
+          graph(path: "g") {
+            algorithm {
+              fruchtermanReingold(iterCount: 1) {
+                columnNames
+                nodes {
+                  list { id }
+                }
+                columns {
+                 name
+                 values { ... on NodeStateProp { prop } }
+                }
+              }
+            }
+          }
+        }
+        "#;
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        // layout positions are non-deterministic (random init, no seed), so assert on shape:
+        // two coordinate columns "0" (x) and "1" (y), each with one float per node.
+        let data = res.data.into_json().unwrap();
+        let fr = &data["graph"]["algorithm"]["fruchtermanReingold"];
+        assert_eq!(fr["columnNames"], json!(["0", "1"]));
+        assert_eq!(
+            fr["nodes"]["list"],
+            json!([{ "id": "a" }, { "id": "b" }, { "id": "c" }])
+        );
+        let columns = fr["columns"].as_array().unwrap();
+        assert_eq!(columns.len(), 2);
+        for column in columns {
+            let values = column["values"].as_array().unwrap();
+            assert_eq!(values.len(), 3);
+            assert!(values.iter().all(|v| v["prop"].is_number()));
+        }
+    }
+
+    #[tokio::test]
+    async fn test_algorithm_cohesive_fruchterman_reingold() {
+        let graph = Graph::new();
+        graph.add_edge(1, "a", "b", NO_PROPS, None).unwrap();
+        graph.add_edge(2, "b", "c", NO_PROPS, None).unwrap();
+        let graph: MaterializedGraph = graph.into();
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", graph)], tmp_dir.path()).await;
+
+        let query = r#"
+        {
+          graph(path: "g") {
+            algorithm {
+              cohesiveFruchtermanReingold(iterCount: 1) {
+                columnNames
+                nodes {
+                  list { id }
+                }
+                columns {
+                  name
+                  values { ... on NodeStateProp { prop } }
+                }
+              }
+            }
+          }
+        }
+        "#;
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        // layout positions are non-deterministic (random init, no seed), so assert on shape:
+        // two coordinate columns "0" (x) and "1" (y), each with one float per node.
+        let data = res.data.into_json().unwrap();
+        let cfr = &data["graph"]["algorithm"]["cohesiveFruchtermanReingold"];
+        assert_eq!(cfr["columnNames"], json!(["0", "1"]));
+        assert_eq!(
+            cfr["nodes"]["list"],
+            json!([{ "id": "a" }, { "id": "b" }, { "id": "c" }])
+        );
+        let columns = cfr["columns"].as_array().unwrap();
+        assert_eq!(columns.len(), 2);
+        for column in columns {
+            let values = column["values"].as_array().unwrap();
+            assert_eq!(values.len(), 3);
+            assert!(values.iter().all(|v| v["prop"].is_number()));
+        }
+    }
+
+    #[tokio::test]
+    async fn test_algorithm_local_temporal_three_node_motifs() {
+        let graph = Graph::new();
+        graph.add_edge(1, "a", "b", NO_PROPS, None).unwrap();
+        graph.add_edge(2, "b", "c", NO_PROPS, None).unwrap();
+        graph.add_edge(3, "c", "a", NO_PROPS, None).unwrap();
+        let graph: MaterializedGraph = graph.into();
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", graph)], tmp_dir.path()).await;
+
+        let query = r#"
+        {
+          graph(path: "g") {
+            algorithm {
+              localTemporalThreeNodeMotifs(delta: 10) {
+                columnNames
+                rows {
+                  node { id }
+                  entries {
+                    columnName
+                    value { ... on NodeStateProp { prop } }
+                  }
+                }
+              }
+            }
+          }
+        }
+        "#;
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        // each node gets a 40d motif-count vector; in this triangle each participates in motif 35
+        let motif_counter = {
+            let mut v = vec![0; 40];
+            v[35] = 1;
+            v
+        };
+        let row = |id: &str| {
+            json!({
+                "node": { "id": id },
+                "entries": [{ "columnName": "motif_counter", "value": { "prop": motif_counter } }]
+            })
+        };
+        assert_eq!(
+            res.data.into_json().unwrap(),
+            json!({
+                "graph": { "algorithm": { "localTemporalThreeNodeMotifs": {
+                    "columnNames": ["motif_counter"],
+                    "rows": [row("a"), row("b"), row("c")]
+                } } }
+            })
+        );
+    }
+
+    #[tokio::test]
     async fn test_algorithm_all_local_reciprocity() {
         let graph = Graph::new();
         // a<->b reciprocated, a->c not

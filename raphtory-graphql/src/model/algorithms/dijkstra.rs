@@ -1,9 +1,11 @@
-use crate::model::{algorithms::GqlExecutableAlgorithm, graph::node_state::GqlNodeState};
+use crate::model::{
+    algorithms::{GqlDirection, GqlExecutableAlgorithm},
+    graph::node_state::GqlNodeState,
+};
 use raphtory::{
     algorithms::pathing::dijkstra::dijkstra_single_source_shortest_paths,
     db::api::view::DynamicGraph, errors::GraphError,
 };
-use crate::model::algorithms::GqlDirection;
 
 /// Weighted single source shortest paths (Dijkstra), see [`dijkstra_single_source_shortest_paths`].
 pub(crate) struct GqlDijkstra;
