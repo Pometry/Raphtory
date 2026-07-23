@@ -1,7 +1,9 @@
 use crate::{
     client::{remote_path_from_node::RemotePathFromNode, ClientError},
     python::client::{
-        remote_edges::PyRemoteEdges, remote_history::PyRemoteEventTime, remote_node::PyRemoteNode,
+        remote_edges::PyRemoteEdges,
+        remote_history::{PyRemoteEventTime, PyRemoteHistory},
+        remote_node::PyRemoteNode,
     },
 };
 use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyRef, PyRefMut, PyResult};
@@ -155,6 +157,21 @@ impl PyRemotePathFromNode {
         PyRemotePathFromNode::new(self.path.exclude_layers(names))
     }
 
+    /// Restrict to the given set of valid layers. Lazy — no RPC.
+    pub fn valid_layers(&self, names: Vec<String>) -> PyRemotePathFromNode {
+        PyRemotePathFromNode::new(self.path.valid_layers(names))
+    }
+
+    /// Exclude a specific valid layer from the view. Lazy — no RPC.
+    pub fn exclude_valid_layer(&self, name: &str) -> PyRemotePathFromNode {
+        PyRemotePathFromNode::new(self.path.exclude_valid_layer(name))
+    }
+
+    /// Exclude the given set of valid layers from the view. Lazy — no RPC.
+    pub fn exclude_valid_layers(&self, names: Vec<String>) -> PyRemotePathFromNode {
+        PyRemotePathFromNode::new(self.path.exclude_valid_layers(names))
+    }
+
     /// Restrict this collection to members whose node type is in the given
     /// list. Lazy — no RPC.
     pub fn type_filter(&self, node_types: Vec<String>) -> PyRemotePathFromNode {
@@ -213,6 +230,64 @@ impl PyRemotePathFromNode {
     pub fn count(&self) -> Result<i64, ClientError> {
         let path = Arc::clone(&self.path);
         execute_async_task(move || async move { path.count().await })
+    }
+
+    /// Returns the degree of each node in this path. Fires one RPC.
+    ///
+    /// Returns:
+    ///   list[int]: the per-node degrees, in path order.
+    pub fn degree(&self) -> Result<Vec<i64>, ClientError> {
+        let path = Arc::clone(&self.path);
+        execute_async_task(move || async move { path.degree().await })
+    }
+
+    /// Returns the in-degree of each node in this path. Fires one RPC.
+    ///
+    /// Returns:
+    ///   list[int]: the per-node in-degrees, in path order.
+    pub fn in_degree(&self) -> Result<Vec<i64>, ClientError> {
+        let path = Arc::clone(&self.path);
+        execute_async_task(move || async move { path.in_degree().await })
+    }
+
+    /// Returns the out-degree of each node in this path. Fires one RPC.
+    ///
+    /// Returns:
+    ///   list[int]: the per-node out-degrees, in path order.
+    pub fn out_degree(&self) -> Result<Vec<i64>, ClientError> {
+        let path = Arc::clone(&self.path);
+        execute_async_task(move || async move { path.out_degree().await })
+    }
+
+    /// Returns the number of incident edge updates for each node in this path.
+    /// Fires one RPC.
+    ///
+    /// Returns:
+    ///   list[int]: the per-node edge history counts, in path order.
+    pub fn edge_history_count(&self) -> Result<Vec<i64>, ClientError> {
+        let path = Arc::clone(&self.path);
+        execute_async_task(move || async move { path.edge_history_count().await })
+    }
+
+    /// Check if this view has a layer named `name`. Fires one RPC.
+    pub fn has_layer(&self, name: &str) -> Result<bool, ClientError> {
+        let path = Arc::clone(&self.path);
+        let name = name.to_string();
+        execute_async_task(move || async move { path.has_layer(name).await })
+    }
+
+    /// The size of the window covered by this view (`end - start`), or `None`
+    /// if the view is unbounded. Property — attribute access fires one RPC.
+    #[getter]
+    pub fn window_size(&self) -> Result<Option<i64>, ClientError> {
+        let path = Arc::clone(&self.path);
+        execute_async_task(move || async move { path.window_size().await })
+    }
+
+    /// A single combined event history for all nodes reachable from the source
+    /// in this view — a `RemoteHistory` container. Lazy — no RPC.
+    pub fn combined_history(&self) -> PyRemoteHistory {
+        PyRemoteHistory::new(self.path.combined_history())
     }
 
     /// `len(path)` — number of nodes in the collection. Fires one RPC.

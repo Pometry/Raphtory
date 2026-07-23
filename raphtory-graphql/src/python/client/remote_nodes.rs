@@ -107,6 +107,21 @@ impl PyRemoteNodes {
         PyRemoteNodes::new(self.nodes.exclude_layers(names))
     }
 
+    /// Restrict to the given set of valid layers. Lazy — no RPC.
+    pub fn valid_layers(&self, names: Vec<String>) -> PyRemoteNodes {
+        PyRemoteNodes::new(self.nodes.valid_layers(names))
+    }
+
+    /// Exclude a specific valid layer from the view. Lazy — no RPC.
+    pub fn exclude_valid_layer(&self, name: &str) -> PyRemoteNodes {
+        PyRemoteNodes::new(self.nodes.exclude_valid_layer(name))
+    }
+
+    /// Exclude the given set of valid layers from the view. Lazy — no RPC.
+    pub fn exclude_valid_layers(&self, names: Vec<String>) -> PyRemoteNodes {
+        PyRemoteNodes::new(self.nodes.exclude_valid_layers(names))
+    }
+
     /// Restrict this collection to members whose node type is in the given
     /// list. Filters membership — the returned collection has fewer members.
     /// Lazy — no RPC.
@@ -240,6 +255,58 @@ impl PyRemoteNodes {
     pub fn count(&self) -> Result<i64, ClientError> {
         let nodes = Arc::clone(&self.nodes);
         execute_async_task(move || async move { nodes.count().await })
+    }
+
+    /// Returns the degree of each node in this collection. Fires one RPC.
+    ///
+    /// Returns:
+    ///   list[int]: the per-node degrees, in collection order.
+    pub fn degree(&self) -> Result<Vec<i64>, ClientError> {
+        let nodes = Arc::clone(&self.nodes);
+        execute_async_task(move || async move { nodes.degree().await })
+    }
+
+    /// Returns the in-degree of each node in this collection. Fires one RPC.
+    ///
+    /// Returns:
+    ///   list[int]: the per-node in-degrees, in collection order.
+    pub fn in_degree(&self) -> Result<Vec<i64>, ClientError> {
+        let nodes = Arc::clone(&self.nodes);
+        execute_async_task(move || async move { nodes.in_degree().await })
+    }
+
+    /// Returns the out-degree of each node in this collection. Fires one RPC.
+    ///
+    /// Returns:
+    ///   list[int]: the per-node out-degrees, in collection order.
+    pub fn out_degree(&self) -> Result<Vec<i64>, ClientError> {
+        let nodes = Arc::clone(&self.nodes);
+        execute_async_task(move || async move { nodes.out_degree().await })
+    }
+
+    /// Returns the number of incident edge updates for each node in this
+    /// collection. Fires one RPC.
+    ///
+    /// Returns:
+    ///   list[int]: the per-node edge history counts, in collection order.
+    pub fn edge_history_count(&self) -> Result<Vec<i64>, ClientError> {
+        let nodes = Arc::clone(&self.nodes);
+        execute_async_task(move || async move { nodes.edge_history_count().await })
+    }
+
+    /// Check if this view has a layer named `name`. Fires one RPC.
+    pub fn has_layer(&self, name: &str) -> Result<bool, ClientError> {
+        let nodes = Arc::clone(&self.nodes);
+        let name = name.to_string();
+        execute_async_task(move || async move { nodes.has_layer(name).await })
+    }
+
+    /// The size of the window covered by this view (`end - start`), or `None`
+    /// if the view is unbounded. Property — attribute access fires one RPC.
+    #[getter]
+    pub fn window_size(&self) -> Result<Option<i64>, ClientError> {
+        let nodes = Arc::clone(&self.nodes);
+        execute_async_task(move || async move { nodes.window_size().await })
     }
 
     /// `len(nodes)` — number of nodes in the collection. Fires one RPC.

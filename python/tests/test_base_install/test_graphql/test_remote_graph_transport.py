@@ -988,6 +988,26 @@ def test_temporal_properties_container():
         server_cm.__exit__(None, None, None)
 
 
+def test_temporal_properties_histories():
+    """`.temporal.histories()` returns `{key: [(EventTime, value), ...]}` for
+    every temporal property — mirrors local `TemporalProperties.histories`."""
+    server_cm, rg = _make_graph_with_edge()
+    rg.node("ben").add_updates(5, properties={"score": 1.5})
+    rg.node("ben").add_updates(10, properties={"score": 2.5})
+    try:
+        hs = rg.node("ben").properties.temporal.histories()
+        assert isinstance(hs, dict)
+        assert "score" in hs
+        # score's history: (t=5 → 1.5), (t=10 → 2.5); each entry is
+        # (RemoteEventTime, value) and the EventTime compares to its int ts.
+        score_hist = hs["score"]
+        assert [(t.timestamp, v) for t, v in score_hist] == [(5, 1.5), (10, 2.5)]
+        # consistency: histories()[k] == get(k).items()
+        assert score_hist == rg.node("ben").properties.temporal.get("score").items()
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
 def test_temporal_property_terminals():
     """`RemoteTemporalProperty` core methods: `.history`, `.values()`,
     `.at(t)`, `.latest()`, `.count()`."""
@@ -2751,5 +2771,252 @@ def test_add_properties_event_id():
         # Omitting event_id still works (server auto-increments).
         rg.add_properties(101, {"score": 2.5})
         assert rg.properties.get("score") == 2.5
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_valid_layers_view_ops():
+    """`valid_layers` / `exclude_valid_layer` / `exclude_valid_layers` are lazy
+    view builders present on every view type. They mirror `layers` /
+    `exclude_layers` but require the named layers to exist. All are polymorphic
+    (return the same self-type); assert the returned type and that a terminal
+    runs under the layer restriction."""
+    server_cm, rg = _make_graph_with_edge()
+    # Two layers now exist: "_default" (base edge) and "knows" (added here).
+    rg.add_edge(4, "ben", "hamza", layer="knows")
+    try:
+        # On the graph — returns RemoteGraph.
+        assert type(rg.valid_layers(["_default"])).__name__ == "RemoteGraph"
+        # Restrict to _default (the base edge lives there): ben has degree 1.
+        assert rg.valid_layers(["_default"]).node("ben").degree() == 1
+        # Exclude the "knows" layer — the _default edge is still visible.
+        assert rg.exclude_valid_layer("knows").node("ben").degree() == 1
+        # Exclude _default via the plural form — the "knows" edge remains.
+        assert rg.exclude_valid_layers(["_default"]).node("ben").degree() == 1
+
+        # On a RemoteNodes collection — returns RemoteNodes, terminal runs.
+        nodes = rg.nodes.valid_layers(["_default"])
+        assert type(nodes).__name__ == "RemoteNodes"
+        assert nodes.count() == 2
+
+        # On a RemoteEdges collection — returns RemoteEdges, terminal runs.
+        edges = rg.edges.exclude_valid_layer("knows")
+        assert type(edges).__name__ == "RemoteEdges"
+        assert edges.count() >= 1
+
+        # On a RemoteNode — returns RemoteNode, terminal runs.
+        node = rg.node("ben").valid_layers(["_default", "knows"])
+        assert type(node).__name__ == "RemoteNode"
+        assert node.degree() == 1
+
+        # On a RemoteEdge — returns RemoteEdge, terminal runs.
+        edge = rg.edge("ben", "hamza").exclude_valid_layers(["knows"])
+        assert type(edge).__name__ == "RemoteEdge"
+        assert edge.is_self_loop() is False
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_temporal_properties_items_and_value():
+    """`RemoteTemporalProperties.items()` pairs each key with its handle;
+    `RemoteTemporalProperty.value()` is an alias for `.latest()`."""
+    server_cm, rg = _make_graph_with_edge()
+    rg.node("ben").add_updates(5, properties={"score": 1.5, "active": True})
+    rg.node("ben").add_updates(10, properties={"score": 2.5})
+    try:
+        tp = rg.node("ben").properties.temporal
+
+        # items() — list of (key, handle) pairs.
+        items = tp.items()
+        assert {k for k, _ in items} == {"score", "active"}
+        for key, handle in items:
+            assert handle.key == key
+
+        # value() == latest() for each property.
+        by_key = dict(items)
+        assert by_key["score"].value() == by_key["score"].latest()
+        assert by_key["score"].value() == 2.5
+        assert by_key["active"].value() == by_key["active"].latest()
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_has_layer():
+    """`has_layer(name)` — method firing one RPC — on graph, node, and a
+    node collection. True for present layers (`_default`, `knows`), False
+    otherwise."""
+    server_cm, rg = _make_graph_with_edge()
+    # Add an edge on a distinct `knows` layer.
+    rg.add_edge(4, "ben", "hamza", None, "knows")
+    try:
+        assert rg.has_layer("_default") is True
+        assert rg.has_layer("knows") is True
+        assert rg.has_layer("nope") is False
+
+        # Spot-check on a node and on a collection — same terminal, polymorphic.
+        assert rg.node("ben").has_layer("knows") is True
+        assert rg.node("ben").has_layer("nope") is False
+        assert rg.nodes.has_layer("_default") is True
+        assert rg.nodes.has_layer("nope") is False
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_window_size():
+    """`window_size` — a `@property` (getter). Returns `end - start` under a
+    bounded window, `None` for an unbounded view."""
+    server_cm, rg = _make_graph_with_edge()
+    try:
+        # Bounded window [0, 5) → size 5.
+        assert rg.window(0, 5).window_size == 5
+        # Unbounded view → None.
+        assert rg.window_size is None
+
+        # Polymorphic: node and collection expose the same getter.
+        assert rg.window(0, 5).node("ben").window_size == 5
+        assert rg.node("ben").window_size is None
+        assert rg.window(2, 9).nodes.window_size == 7
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_combined_history():
+    """`PathFromNode.combined_history()` — a method returning a single
+    `RemoteHistory` merging the histories of all reachable nodes."""
+    server_cm, rg = _make_graph_with_edge()
+    try:
+        # ben's out-neighbours == {hamza}; the combined history equals hamza's.
+        ch = rg.node("ben").out_neighbours.combined_history()
+        hamza_hist = rg.node("hamza").history
+
+        assert ch.count() >= 1
+        assert ch.count() == hamza_hist.count()
+        assert sorted(e.timestamp for e in ch.collect()) == sorted(
+            e.timestamp for e in hamza_hist.collect()
+        )
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_history_reverse():
+    """`RemoteHistory.reverse()` — a method returning a new history whose
+    iteration order is flipped. `reverse().collect()` equals `collect_rev()`."""
+    server_cm, rg = _make_graph_with_edge()
+    rg.add_edge(8, "ben", "hamza")
+    try:
+        h = rg.node("ben").history
+        forward = [e.timestamp for e in h.collect()]
+        reversed_collect = [e.timestamp for e in h.reverse().collect()]
+
+        assert reversed_collect == [e.timestamp for e in h.collect_rev()]
+        assert reversed_collect == list(reversed(forward))
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_temporal_property_items():
+    """`RemoteTemporalProperty.items()` zips history event times with values
+    element-wise (2 RPCs). `__iter__` yields the same pairs."""
+    server_cm, rg = _make_graph_with_edge()
+    rg.node("ben").add_updates(5, properties={"score": 1.5})
+    rg.node("ben").add_updates(10, properties={"score": 2.5})
+    rg.node("ben").add_updates(15, properties={"score": 3.5})
+    try:
+        score = rg.node("ben").properties.temporal.get("score")
+
+        items = score.items()
+        hist = score.history.collect()
+        vals = score.values()
+
+        # One pair per update, aligned with history + values.
+        assert len(items) == len(vals) == len(hist)
+        assert [t.timestamp for (t, _v) in items] == [e.timestamp for e in hist]
+        assert [v for (_t, v) in items] == vals
+
+        # __iter__ yields the same pairs.
+        via_iter = [(t.timestamp, v) for (t, v) in score]
+        assert via_iter == [
+            (e.timestamp, v) for e, v in zip(hist, vals)
+        ]
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_nodes_collection_degree_flat():
+    """`RemoteNodes.{degree,in_degree,out_degree}()` return flat `list[int]`,
+    one entry per node. Graph: ben -> hamza, alice, bob."""
+    server_cm, rg = _make_node_filter_graph()  # ben -> hamza, alice, bob
+    try:
+        out_deg = rg.nodes.out_degree()
+        assert isinstance(out_deg, list)
+        assert all(isinstance(x, int) for x in out_deg)
+        # ben has 3 out-edges; hamza/alice/bob have 0. Order may vary.
+        assert sorted(out_deg) == [0, 0, 0, 3]
+
+        in_deg = rg.nodes.in_degree()
+        # ben has 0 incoming; hamza/alice/bob have 1 each.
+        assert sorted(in_deg) == [0, 1, 1, 1]
+
+        deg = rg.nodes.degree()
+        # ben=3, each leaf=1.
+        assert sorted(deg) == [1, 1, 1, 3]
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_path_from_node_degree_flat():
+    """`RemotePathFromNode.degree()` (from `RemoteNode.out_neighbours`) returns
+    a flat `list[int]`, one entry per neighbour node."""
+    server_cm, rg = _make_node_filter_graph()  # ben -> hamza, alice, bob
+    try:
+        # ben's out-neighbours are hamza, alice, bob; each has degree 1.
+        deg = rg.node("ben").out_neighbours.degree()
+        assert isinstance(deg, list)
+        assert all(isinstance(x, int) for x in deg)
+        assert sorted(deg) == [1, 1, 1]
+        # Each out-neighbour has out-degree 0.
+        assert sorted(rg.node("ben").out_neighbours.out_degree()) == [0, 0, 0]
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_path_from_graph_degree_nested():
+    """`RemotePathFromGraph.out_degree()` (from `RemoteNodes.out_neighbours`)
+    returns a nested `list[list[int]]`, one inner list per source node."""
+    server_cm, rg = _make_node_filter_graph()  # ben -> hamza, alice, bob
+    try:
+        nested = rg.nodes.out_neighbours.out_degree()
+        assert isinstance(nested, list)
+        assert all(isinstance(row, list) for row in nested)
+        assert all(isinstance(x, int) for row in nested for x in row)
+        # One inner list per source node (4 sources).
+        assert len(nested) == 4
+        # ben's out-neighbours are hamza/alice/bob (out-degree 0 each) → [0,0,0];
+        # the other three source nodes have no out-neighbours → [].
+        assert sorted(len(row) for row in nested) == [0, 0, 0, 3]
+        assert sorted(x for row in nested for x in row) == [0, 0, 0]
+
+        # degree() nested: ben's out-neighbours each have degree 1.
+        nested_deg = rg.nodes.out_neighbours.degree()
+        assert sorted(x for row in nested_deg for x in row) == [1, 1, 1]
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_collection_edge_history_count():
+    """`edge_history_count()` on the node collections: flat on `RemoteNodes`,
+    nested on `RemotePathFromGraph`."""
+    server_cm, rg = _make_node_filter_graph()  # ben -> hamza, alice, bob
+    try:
+        # Each edge is a single update at t=1; ben has 3 incident edges, the
+        # leaves have 1 each.
+        flat = rg.nodes.edge_history_count()
+        assert isinstance(flat, list)
+        assert sorted(flat) == [1, 1, 1, 3]
+
+        # Nested via PathFromGraph: ben's out-neighbours each see 1 edge update.
+        nested = rg.nodes.out_neighbours.edge_history_count()
+        assert all(isinstance(row, list) for row in nested)
+        assert sorted(x for row in nested for x in row) == [1, 1, 1]
     finally:
         server_cm.__exit__(None, None, None)

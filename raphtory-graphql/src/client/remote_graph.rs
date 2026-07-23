@@ -193,6 +193,41 @@ pub(crate) fn expect_i64_list(v: Option<Prop>, context: &str) -> Result<Vec<i64>
     }
 }
 
+/// Unwrap a `Transport::execute` result expecting a `Prop::List` of
+/// `Prop::List` of `Prop::I64` (a nested list of integers) — e.g. the result
+/// of `.degree()` on a `PathFromGraph` collection, where each inner list holds
+/// the per-node degrees of one source node's neighbours.
+pub(crate) fn expect_nested_i64_list(
+    v: Option<Prop>,
+    context: &str,
+) -> Result<Vec<Vec<i64>>, ClientError> {
+    match v {
+        Some(Prop::List(rows)) => rows
+            .iter()
+            .map(|row| match row {
+                Prop::List(items) => items
+                    .iter()
+                    .map(|p| match p {
+                        Prop::I64(n) => Ok(n),
+                        _ => Err(ClientError::InvalidResponse(format!(
+                            "`{}` inner list contains non-i64 element",
+                            context
+                        ))),
+                    })
+                    .collect::<Result<Vec<i64>, ClientError>>(),
+                _ => Err(ClientError::InvalidResponse(format!(
+                    "`{}` outer list contains non-list element",
+                    context
+                ))),
+            })
+            .collect(),
+        _ => Err(ClientError::InvalidResponse(format!(
+            "`{}` returned unexpected value type",
+            context
+        ))),
+    }
+}
+
 /// Unwrap a `Transport::execute` result expecting a `Prop::Map({key, value})`
 /// wrapped in `Option` — used by `PropertyGet`. Returns `None` if the key
 /// wasn't present in the container.
@@ -724,6 +759,30 @@ impl RemoteGraph {
         })
     }
 
+    /// Restrict to the given set of valid layers. Lazy — no RPC.
+    pub fn valid_layers(&self, names: Vec<String>) -> RemoteGraph {
+        self.with_expr(ReadExpr::ValidLayers {
+            input: Box::new(self.expr.clone()),
+            names,
+        })
+    }
+
+    /// Exclude a specific valid layer from the view. Lazy — no RPC.
+    pub fn exclude_valid_layer(&self, name: impl ToString) -> RemoteGraph {
+        self.with_expr(ReadExpr::ExcludeValidLayer {
+            input: Box::new(self.expr.clone()),
+            name: name.to_string(),
+        })
+    }
+
+    /// Exclude the given set of valid layers from the view. Lazy — no RPC.
+    pub fn exclude_valid_layers(&self, names: Vec<String>) -> RemoteGraph {
+        self.with_expr(ReadExpr::ExcludeValidLayers {
+            input: Box::new(self.expr.clone()),
+            names,
+        })
+    }
+
     /// Restrict to a subgraph induced by the given node ids. Lazy — no RPC.
     pub fn subgraph(&self, nodes: Vec<String>) -> RemoteGraph {
         self.with_expr(ReadExpr::Subgraph {
@@ -907,6 +966,24 @@ impl RemoteGraph {
             input: Box::new(self.expr.clone()),
         });
         expect_string_list(self.transport.execute(&op).await?, "uniqueLayers")
+    }
+
+    /// Terminal: whether this view contains a layer named `name`. Fires one RPC.
+    pub async fn has_layer(&self, name: impl ToString) -> Result<bool, ClientError> {
+        let op = Op::Read(ReadExpr::HasLayer {
+            input: Box::new(self.expr.clone()),
+            name: name.to_string(),
+        });
+        expect_bool(self.transport.execute(&op).await?, "hasLayer")
+    }
+
+    /// Terminal: the size of the window covered by this view (`end - start`),
+    /// or `None` for an unbounded view. Fires one RPC.
+    pub async fn window_size(&self) -> Result<Option<i64>, ClientError> {
+        let op = Op::Read(ReadExpr::WindowSize {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_optional_i64(self.transport.execute(&op).await?, "windowSize")
     }
 
     /// Terminal: earliest edge event time under the current view. Returns

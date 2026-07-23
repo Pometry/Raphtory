@@ -2,6 +2,7 @@ use crate::{
     model::graph::{
         collection::{check_list_allowed, check_page_limit},
         filtering::{GqlNodeFilter, PathFromNodeViewCollection},
+        history::GqlHistory,
         nested_edges::GqlNestedEdges,
         path_from_node::GqlPathFromNode,
         timeindex::{GqlEventTime, GqlTimeInput},
@@ -203,6 +204,24 @@ impl GqlPathFromGraph {
     /// Returns the latest time that this PathFromGraph is valid or None if the PathFromGraph is valid for all times.
     async fn end(&self) -> GqlEventTime {
         self.nn.end().into()
+    }
+
+    /// Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
+    async fn window_size(&self) -> Option<i64> {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.nn.window_size().map(|s| s as i64)).await
+    }
+
+    /// Check if a layer with the given name is present in this view.
+    async fn has_layer(&self, name: String) -> bool {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.nn.has_layer(name)).await
+    }
+
+    /// Returns a single history object combining the time entries of all nodes in this view.
+    async fn combined_history(&self) -> GqlHistory {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.nn.combined_history().into()).await
     }
 
     /////////////////

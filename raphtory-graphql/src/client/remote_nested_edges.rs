@@ -2,7 +2,10 @@ use crate::{
     client::{
         op::{Op, ReadExpr},
         remote_edge::RemoteEdge,
-        remote_graph::{expect_i64, expect_nested_edge_list, expect_optional_event_time},
+        remote_graph::{
+            expect_bool, expect_i64, expect_nested_edge_list, expect_optional_event_time,
+            expect_optional_i64,
+        },
         remote_history::RemoteEventTime,
         transport::Transport,
         ClientError,
@@ -184,6 +187,31 @@ impl RemoteNestedEdges {
         })
     }
 
+    /// Restrict to the given set of valid layers. Lazy — no RPC.
+    pub fn valid_layers(&self, names: Vec<String>) -> RemoteNestedEdges {
+        self.with_view_op(|input| ReadExpr::ValidLayers {
+            input: Box::new(input),
+            names: names.clone(),
+        })
+    }
+
+    /// Exclude a specific valid layer from the view. Lazy — no RPC.
+    pub fn exclude_valid_layer(&self, name: impl ToString) -> RemoteNestedEdges {
+        let name = name.to_string();
+        self.with_view_op(|input| ReadExpr::ExcludeValidLayer {
+            input: Box::new(input),
+            name: name.clone(),
+        })
+    }
+
+    /// Exclude the given set of valid layers from the view. Lazy — no RPC.
+    pub fn exclude_valid_layers(&self, names: Vec<String>) -> RemoteNestedEdges {
+        self.with_view_op(|input| ReadExpr::ExcludeValidLayers {
+            input: Box::new(input),
+            names: names.clone(),
+        })
+    }
+
     /// Filter this collection by an edge filter. **Propagates** to downstream
     /// traversals from the matching edges. Wraps only `expr`. Lazy — no RPC.
     pub fn filter(&self, filter: GqlEdgeFilter) -> RemoteNestedEdges {
@@ -219,6 +247,24 @@ impl RemoteNestedEdges {
             input: Box::new(self.expr.clone()),
         });
         expect_i64(self.transport.execute(&op).await?, "count")
+    }
+
+    /// Terminal: whether this view contains a layer named `name`. Fires one RPC.
+    pub async fn has_layer(&self, name: impl ToString) -> Result<bool, ClientError> {
+        let op = Op::Read(ReadExpr::HasLayer {
+            input: Box::new(self.expr.clone()),
+            name: name.to_string(),
+        });
+        expect_bool(self.transport.execute(&op).await?, "hasLayer")
+    }
+
+    /// Terminal: the size of the window covered by this view (`end - start`),
+    /// or `None` for an unbounded view. Fires one RPC.
+    pub async fn window_size(&self) -> Result<Option<i64>, ClientError> {
+        let op = Op::Read(ReadExpr::WindowSize {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_optional_i64(self.transport.execute(&op).await?, "windowSize")
     }
 
     /// Terminal: view start bound for this collection — `None` if unbounded.

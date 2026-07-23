@@ -138,6 +138,21 @@ impl PyRemoteNode {
         PyRemoteNode::new(self.node.exclude_layers(names))
     }
 
+    /// Restrict to the given set of valid layers. Lazy — no RPC.
+    pub fn valid_layers(&self, names: Vec<String>) -> PyRemoteNode {
+        PyRemoteNode::new(self.node.valid_layers(names))
+    }
+
+    /// Exclude a specific valid layer from the view. Lazy — no RPC.
+    pub fn exclude_valid_layer(&self, name: &str) -> PyRemoteNode {
+        PyRemoteNode::new(self.node.exclude_valid_layer(name))
+    }
+
+    /// Exclude the given set of valid layers from the view. Lazy — no RPC.
+    pub fn exclude_valid_layers(&self, names: Vec<String>) -> PyRemoteNode {
+        PyRemoteNode::new(self.node.exclude_valid_layers(names))
+    }
+
     /// Set the type on the node. This only works if the type has not been previously set, otherwise will
     /// throw an error
     ///
@@ -303,6 +318,21 @@ impl PyRemoteNode {
     pub fn is_active(&self) -> Result<bool, ClientError> {
         let node = Arc::clone(&self.node);
         execute_async_task(move || async move { node.is_active().await })
+    }
+
+    /// Check if this view has a layer named `name`. Fires one RPC.
+    pub fn has_layer(&self, name: &str) -> Result<bool, ClientError> {
+        let node = Arc::clone(&self.node);
+        let name = name.to_string();
+        execute_async_task(move || async move { node.has_layer(name).await })
+    }
+
+    /// The size of the window covered by this view (`end - start`), or `None`
+    /// if the view is unbounded. Property — attribute access fires one RPC.
+    #[getter]
+    pub fn window_size(&self) -> Result<Option<i64>, ClientError> {
+        let node = Arc::clone(&self.node);
+        execute_async_task(move || async move { node.window_size().await })
     }
 
     /// Count of temporal edge events on this node. Fires one RPC.

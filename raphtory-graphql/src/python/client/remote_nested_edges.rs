@@ -157,11 +157,41 @@ impl PyRemoteNestedEdges {
         PyRemoteNestedEdges::new(self.edges.exclude_layers(names))
     }
 
+    /// Restrict to the given set of valid layers. Lazy — no RPC.
+    pub fn valid_layers(&self, names: Vec<String>) -> PyRemoteNestedEdges {
+        PyRemoteNestedEdges::new(self.edges.valid_layers(names))
+    }
+
+    /// Exclude a specific valid layer from the view. Lazy — no RPC.
+    pub fn exclude_valid_layer(&self, name: &str) -> PyRemoteNestedEdges {
+        PyRemoteNestedEdges::new(self.edges.exclude_valid_layer(name))
+    }
+
+    /// Exclude the given set of valid layers from the view. Lazy — no RPC.
+    pub fn exclude_valid_layers(&self, names: Vec<String>) -> PyRemoteNestedEdges {
+        PyRemoteNestedEdges::new(self.edges.exclude_valid_layers(names))
+    }
+
     /// Returns the number of source edge collections in this collection. Fires
     /// one RPC.
     pub fn count(&self) -> Result<i64, ClientError> {
         let edges = Arc::clone(&self.edges);
         execute_async_task(move || async move { edges.count().await })
+    }
+
+    /// Check if this view has a layer named `name`. Fires one RPC.
+    pub fn has_layer(&self, name: &str) -> Result<bool, ClientError> {
+        let edges = Arc::clone(&self.edges);
+        let name = name.to_string();
+        execute_async_task(move || async move { edges.has_layer(name).await })
+    }
+
+    /// The size of the window covered by this view (`end - start`), or `None`
+    /// if the view is unbounded. Property — attribute access fires one RPC.
+    #[getter]
+    pub fn window_size(&self) -> Result<Option<i64>, ClientError> {
+        let edges = Arc::clone(&self.edges);
+        execute_async_task(move || async move { edges.window_size().await })
     }
 
     /// `len(edges)` — number of source edge collections. Fires one RPC.

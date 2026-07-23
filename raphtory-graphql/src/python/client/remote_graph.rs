@@ -195,6 +195,27 @@ impl PyRemoteGraph {
         }
     }
 
+    /// Restrict to the given set of valid layers. Lazy — no RPC.
+    pub fn valid_layers(&self, names: Vec<String>) -> PyRemoteGraph {
+        PyRemoteGraph {
+            graph: Arc::new(self.graph.valid_layers(names)),
+        }
+    }
+
+    /// Exclude a specific valid layer from the view. Lazy — no RPC.
+    pub fn exclude_valid_layer(&self, name: &str) -> PyRemoteGraph {
+        PyRemoteGraph {
+            graph: Arc::new(self.graph.exclude_valid_layer(name)),
+        }
+    }
+
+    /// Exclude the given set of valid layers from the view. Lazy — no RPC.
+    pub fn exclude_valid_layers(&self, names: Vec<String>) -> PyRemoteGraph {
+        PyRemoteGraph {
+            graph: Arc::new(self.graph.exclude_valid_layers(names)),
+        }
+    }
+
     /// Restrict to a subgraph induced by the given node ids. Lazy — no RPC.
     pub fn subgraph(&self, nodes: Vec<String>) -> PyRemoteGraph {
         PyRemoteGraph {
@@ -292,6 +313,27 @@ impl PyRemoteGraph {
     pub fn unique_layers(&self) -> Result<Vec<String>, ClientError> {
         let graph = Arc::clone(&self.graph);
         execute_async_task(move || async move { graph.unique_layers().await })
+    }
+
+    /// Check if this view has a layer named `name`. Fires one RPC.
+    ///
+    /// Arguments:
+    ///   name (str): the name of the layer to check.
+    ///
+    /// Returns:
+    ///   bool: True if the layer is present.
+    pub fn has_layer(&self, name: &str) -> Result<bool, ClientError> {
+        let graph = Arc::clone(&self.graph);
+        let name = name.to_string();
+        execute_async_task(move || async move { graph.has_layer(name).await })
+    }
+
+    /// The size of the window covered by this view (`end - start`), or `None`
+    /// if the view is unbounded. Property — attribute access fires one RPC.
+    #[getter]
+    pub fn window_size(&self) -> Result<Option<i64>, ClientError> {
+        let graph = Arc::clone(&self.graph);
+        execute_async_task(move || async move { graph.window_size().await })
     }
 
     /// Terminal: earliest edge event time under the current view. Returns

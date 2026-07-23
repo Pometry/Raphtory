@@ -82,6 +82,23 @@ pub enum ReadExpr {
         input: Box<ReadExpr>,
         names: Vec<String>,
     },
+    /// Restrict to a specific set of valid layers. The GraphQL server exposes
+    /// valid-layer semantics under the existing `layers` field (backed by the
+    /// graph's `valid_layers`), so this renders as `layers(names: [..])` — no
+    /// separate `validLayers` field exists on the server.
+    ValidLayers {
+        input: Box<ReadExpr>,
+        names: Vec<String>,
+    },
+    /// Exclude a specific valid layer. Renders as the server's `excludeLayer`
+    /// (backed by `exclude_valid_layers`).
+    ExcludeValidLayer { input: Box<ReadExpr>, name: String },
+    /// Exclude a specific set of valid layers. Renders as the server's
+    /// `excludeLayers` (backed by `exclude_valid_layers`).
+    ExcludeValidLayers {
+        input: Box<ReadExpr>,
+        names: Vec<String>,
+    },
     /// Restrict to a subgraph induced by the given node ids.
     Subgraph {
         input: Box<ReadExpr>,
@@ -127,6 +144,15 @@ pub enum ReadExpr {
     /// terminals like `.count()`, `.collect()`, plus sub-container accessors
     /// (`.timestamps`, `.intervals`, etc.).
     History { input: Box<ReadExpr> },
+    /// Navigate to the combined event history of a `PathFromNode` /
+    /// `PathFromGraph` collection — a single `History` container merging the
+    /// time entries of all members. Container-selection like `History`.
+    /// Server field: `combinedHistory`.
+    CombinedHistory { input: Box<ReadExpr> },
+    /// Navigate to the reversed view of a `RemoteHistory` container — a new
+    /// `History` whose iteration order is flipped. Container-selection like
+    /// `History`. Server field: `reverse`.
+    HistoryReverse { input: Box<ReadExpr> },
     /// Navigate to the deletion history of an edge. Edge → History.
     /// Same shape as `History` but reads the `deletions` server field
     /// instead of `history` — deletions are edge-only.
@@ -399,6 +425,14 @@ pub enum ReadExpr {
     LastUpdated { input: Box<ReadExpr> },
     /// Terminal: layer names present in this graph — `Vec<String>`.
     UniqueLayers { input: Box<ReadExpr> },
+    /// Terminal: does this view contain a layer with the given `name`? — `bool`.
+    /// Polymorphic across Graph/Node/Edge and the node/edge collections.
+    /// Server field: `hasLayer(name: String!)`.
+    HasLayer { input: Box<ReadExpr>, name: String },
+    /// Terminal: the size of the window covered by this view (`end - start`),
+    /// or `None` for an unbounded view — `Option<i64>`. Polymorphic across
+    /// Graph/Node/Edge and the node/edge collections. Server field: `windowSize`.
+    WindowSize { input: Box<ReadExpr> },
 
     // ============ Collection terminals (on Nodes/Edges collections) ============
     /// Terminal on a Nodes collection: list of member ids — `Vec<String>`.
@@ -409,6 +443,37 @@ pub enum ReadExpr {
     /// per-source `PathFromNode` yields its own flat `ids`. Parsed as
     /// `Prop::List(Prop::List(Prop::Str))` (outer = per source, inner = ids).
     NestedIds { input: Box<ReadExpr> },
+    /// Terminal on a `Nodes`/`PathFromNode` collection: the per-node degree
+    /// (number of incident edges) as a FLAT list — `Vec<i64>`. Renders
+    /// `degree`. Distinct from the scalar `Degree` (single node); this parses a
+    /// JSON int array via `expect_i64_list`.
+    CollectionDegree { input: Box<ReadExpr> },
+    /// Terminal on a `Nodes`/`PathFromNode` collection: per-node in-degree as a
+    /// FLAT list — `Vec<i64>`. Renders `inDegree`.
+    CollectionInDegree { input: Box<ReadExpr> },
+    /// Terminal on a `Nodes`/`PathFromNode` collection: per-node out-degree as a
+    /// FLAT list — `Vec<i64>`. Renders `outDegree`.
+    CollectionOutDegree { input: Box<ReadExpr> },
+    /// Terminal on a `Nodes`/`PathFromNode` collection: per-node count of
+    /// incident edge updates as a FLAT list — `Vec<i64>`. Renders
+    /// `edgeHistoryCount`.
+    CollectionEdgeHistoryCount { input: Box<ReadExpr> },
+    /// Terminal on a `PathFromGraph` collection: the NESTED per-node degree —
+    /// `Vec<Vec<i64>>` (one inner list per source node). Renders
+    /// `list { degree }`: `PathFromGraph.list` is `[PathFromNode!]!`, and each
+    /// per-source `PathFromNode` yields its own flat `degree`. Mirrors
+    /// `NestedIds`. Parsed via `expect_nested_i64_list`.
+    NestedDegree { input: Box<ReadExpr> },
+    /// Terminal on a `PathFromGraph` collection: the NESTED per-node in-degree —
+    /// `Vec<Vec<i64>>`. Renders `list { inDegree }`. Mirrors `NestedDegree`.
+    NestedInDegree { input: Box<ReadExpr> },
+    /// Terminal on a `PathFromGraph` collection: the NESTED per-node out-degree —
+    /// `Vec<Vec<i64>>`. Renders `list { outDegree }`. Mirrors `NestedDegree`.
+    NestedOutDegree { input: Box<ReadExpr> },
+    /// Terminal on a `PathFromGraph` collection: the NESTED per-node count of
+    /// incident edge updates — `Vec<Vec<i64>>`. Renders
+    /// `list { edgeHistoryCount }`. Mirrors `NestedDegree`.
+    NestedEdgeHistoryCount { input: Box<ReadExpr> },
     /// Terminal on a collection: number of members — `i64`.
     /// Distinct from `CountNodes`/`CountEdges` (which are Graph-scope); this
     /// fires against the collection's `count` field. Also polymorphic on

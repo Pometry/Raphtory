@@ -108,6 +108,21 @@ impl PyRemoteEdge {
         PyRemoteEdge::new(self.edge.exclude_layers(names))
     }
 
+    /// Restrict to the given set of valid layers. Lazy — no RPC.
+    pub fn valid_layers(&self, names: Vec<String>) -> PyRemoteEdge {
+        PyRemoteEdge::new(self.edge.valid_layers(names))
+    }
+
+    /// Exclude a specific valid layer from the view. Lazy — no RPC.
+    pub fn exclude_valid_layer(&self, name: &str) -> PyRemoteEdge {
+        PyRemoteEdge::new(self.edge.exclude_valid_layer(name))
+    }
+
+    /// Exclude the given set of valid layers from the view. Lazy — no RPC.
+    pub fn exclude_valid_layers(&self, names: Vec<String>) -> PyRemoteEdge {
+        PyRemoteEdge::new(self.edge.exclude_valid_layers(names))
+    }
+
     /// Add updates to an edge in the remote graph at a specified time.
     ///
     /// This function allows for the addition of property updates to an edge within the graph.
@@ -339,6 +354,21 @@ impl PyRemoteEdge {
     pub fn is_self_loop(&self) -> Result<bool, ClientError> {
         let edge = Arc::clone(&self.edge);
         execute_async_task(move || async move { edge.is_self_loop().await })
+    }
+
+    /// Check if this view has a layer named `name`. Fires one RPC.
+    pub fn has_layer(&self, name: &str) -> Result<bool, ClientError> {
+        let edge = Arc::clone(&self.edge);
+        let name = name.to_string();
+        execute_async_task(move || async move { edge.has_layer(name).await })
+    }
+
+    /// The size of the window covered by this view (`end - start`), or `None`
+    /// if the view is unbounded. Property — attribute access fires one RPC.
+    #[getter]
+    pub fn window_size(&self) -> Result<Option<i64>, ClientError> {
+        let edge = Arc::clone(&self.edge);
+        execute_async_task(move || async move { edge.window_size().await })
     }
 
     /// The event history of this edge — a `RemoteHistory` container with

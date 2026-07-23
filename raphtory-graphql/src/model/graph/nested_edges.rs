@@ -252,6 +252,18 @@ impl GqlNestedEdges {
         self.nn.end().into()
     }
 
+    /// Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
+    async fn window_size(&self) -> Option<i64> {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.nn.window_size().map(|s| s as i64)).await
+    }
+
+    /// Check if a layer with the given name is present in this view.
+    async fn has_layer(&self, name: String) -> bool {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.nn.has_layer(name)).await
+    }
+
     /////////////////
     //// List ///////
     /////////////////

@@ -3,6 +3,7 @@ use crate::{
         collection::{check_list_allowed, check_page_limit},
         edges::GqlEdges,
         filtering::{GqlNodeFilter, PathFromNodeViewCollection},
+        history::GqlHistory,
         node::GqlNode,
         timeindex::{GqlEventTime, GqlTimeInput},
         windowset::GqlPathFromNodeWindowSet,
@@ -260,6 +261,52 @@ impl GqlPathFromNode {
     /// Returns the latest time that this PathFromNode is valid or None if the PathFromNode is valid for all times.
     async fn end(&self) -> GqlEventTime {
         self.nn.end().into()
+    }
+
+    /// Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
+    async fn window_size(&self) -> Option<i64> {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.nn.window_size().map(|s| s as i64)).await
+    }
+
+    /// Check if a layer with the given name is present in this view.
+    async fn has_layer(&self, name: String) -> bool {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.nn.has_layer(name)).await
+    }
+
+    /// Returns a single history object combining the time entries of all nodes reachable from the source in this view.
+    async fn combined_history(&self) -> GqlHistory {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.nn.combined_history().into()).await
+    }
+
+    ///////////////////
+    //// METRICS //////
+    ///////////////////
+
+    /// The degree (number of incident edges) of every node in the path, in order.
+    async fn degree(&self) -> Vec<usize> {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.nn.degree().collect()).await
+    }
+
+    /// The in-degree (number of incoming edges) of every node in the path, in order.
+    async fn in_degree(&self) -> Vec<usize> {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.nn.in_degree().collect()).await
+    }
+
+    /// The out-degree (number of outgoing edges) of every node in the path, in order.
+    async fn out_degree(&self) -> Vec<usize> {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.nn.out_degree().collect()).await
+    }
+
+    /// The number of edge updates incident to every node in the path, in order.
+    async fn edge_history_count(&self) -> Vec<usize> {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.nn.edge_history_count().collect()).await
     }
 
     /////////////////

@@ -215,6 +215,31 @@ impl RemoteNode {
         })
     }
 
+    /// Restrict to the given set of valid layers. Lazy — no RPC.
+    pub fn valid_layers(&self, names: Vec<String>) -> RemoteNode {
+        self.with_view_op(|input| ReadExpr::ValidLayers {
+            input: Box::new(input),
+            names: names.clone(),
+        })
+    }
+
+    /// Exclude a specific valid layer from the view. Lazy — no RPC.
+    pub fn exclude_valid_layer(&self, name: impl ToString) -> RemoteNode {
+        let name = name.to_string();
+        self.with_view_op(|input| ReadExpr::ExcludeValidLayer {
+            input: Box::new(input),
+            name: name.clone(),
+        })
+    }
+
+    /// Exclude the given set of valid layers from the view. Lazy — no RPC.
+    pub fn exclude_valid_layers(&self, names: Vec<String>) -> RemoteNode {
+        self.with_view_op(|input| ReadExpr::ExcludeValidLayers {
+            input: Box::new(input),
+            names: names.clone(),
+        })
+    }
+
     /// Terminal: node degree (in + out, deduplicated). Fires one RPC.
     pub async fn degree(&self) -> Result<i64, ClientError> {
         let op = Op::Read(ReadExpr::Degree {
@@ -304,6 +329,24 @@ impl RemoteNode {
             input: Box::new(self.expr.clone()),
         });
         expect_bool(self.transport.execute(&op).await?, "isActive")
+    }
+
+    /// Terminal: whether this view contains a layer named `name`. Fires one RPC.
+    pub async fn has_layer(&self, name: impl ToString) -> Result<bool, ClientError> {
+        let op = Op::Read(ReadExpr::HasLayer {
+            input: Box::new(self.expr.clone()),
+            name: name.to_string(),
+        });
+        expect_bool(self.transport.execute(&op).await?, "hasLayer")
+    }
+
+    /// Terminal: the size of the window covered by this view (`end - start`),
+    /// or `None` for an unbounded view. Fires one RPC.
+    pub async fn window_size(&self) -> Result<Option<i64>, ClientError> {
+        let op = Op::Read(ReadExpr::WindowSize {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_optional_i64(self.transport.execute(&op).await?, "windowSize")
     }
 
     /// Terminal: count of temporal edge events on this node. Fires one RPC.

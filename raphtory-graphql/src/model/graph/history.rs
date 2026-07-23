@@ -139,6 +139,12 @@ impl GqlHistory {
         blocking_compute(move || self_clone.history.is_empty()).await
     }
 
+    /// Returns a new history with the iteration order of the entries reversed.
+    async fn reverse(&self) -> GqlHistory {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.history.reverse().into()).await
+    }
+
     /// Get the number of entries contained in the history.
     async fn count(&self) -> u64 {
         let self_clone = self.clone();

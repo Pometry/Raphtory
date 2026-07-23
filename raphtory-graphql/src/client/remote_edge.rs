@@ -197,6 +197,31 @@ impl RemoteEdge {
         })
     }
 
+    /// Restrict to the given set of valid layers. Lazy — no RPC.
+    pub fn valid_layers(&self, names: Vec<String>) -> RemoteEdge {
+        self.with_view_op(|input| ReadExpr::ValidLayers {
+            input: Box::new(input),
+            names: names.clone(),
+        })
+    }
+
+    /// Exclude a specific valid layer from the view. Lazy — no RPC.
+    pub fn exclude_valid_layer(&self, name: impl ToString) -> RemoteEdge {
+        let name = name.to_string();
+        self.with_view_op(|input| ReadExpr::ExcludeValidLayer {
+            input: Box::new(input),
+            name: name.clone(),
+        })
+    }
+
+    /// Exclude the given set of valid layers from the view. Lazy — no RPC.
+    pub fn exclude_valid_layers(&self, names: Vec<String>) -> RemoteEdge {
+        self.with_view_op(|input| ReadExpr::ExcludeValidLayers {
+            input: Box::new(input),
+            names: names.clone(),
+        })
+    }
+
     /// Navigate to the edge's source node, carrying the view chain forward.
     /// Lazy — builds up the read expression, no RPC.
     pub fn src(&self) -> RemoteNode {
@@ -448,6 +473,24 @@ impl RemoteEdge {
             input: Box::new(self.expr.clone()),
         });
         expect_bool(self.transport.execute(&op).await?, "isSelfLoop")
+    }
+
+    /// Terminal: whether this view contains a layer named `name`. Fires one RPC.
+    pub async fn has_layer(&self, name: impl ToString) -> Result<bool, ClientError> {
+        let op = Op::Read(ReadExpr::HasLayer {
+            input: Box::new(self.expr.clone()),
+            name: name.to_string(),
+        });
+        expect_bool(self.transport.execute(&op).await?, "hasLayer")
+    }
+
+    /// Terminal: the size of the window covered by this view (`end - start`),
+    /// or `None` for an unbounded view. Fires one RPC.
+    pub async fn window_size(&self) -> Result<Option<i64>, ClientError> {
+        let op = Op::Read(ReadExpr::WindowSize {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_optional_i64(self.transport.execute(&op).await?, "windowSize")
     }
 
     /// Add temporal updates to the edge at the specified time.

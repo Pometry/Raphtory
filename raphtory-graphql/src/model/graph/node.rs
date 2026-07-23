@@ -367,6 +367,18 @@ impl GqlNode {
         blocking_compute(move || self_clone.vv.is_active()).await
     }
 
+    /// Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
+    async fn window_size(&self) -> Option<i64> {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.vv.window_size().map(|s| s as i64)).await
+    }
+
+    /// Check if a layer with the given name is present in this view.
+    async fn has_layer(&self, name: String) -> bool {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.vv.has_layer(name)).await
+    }
+
     ////////////////////////
     /////// PROPERTIES /////
     ////////////////////////

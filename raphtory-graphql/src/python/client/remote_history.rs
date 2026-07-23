@@ -273,6 +273,15 @@ impl PyRemoteHistory {
         })
     }
 
+    /// A new history with the iteration order of its entries reversed.
+    /// Lazy — no RPC.
+    ///
+    /// Returns:
+    ///   RemoteHistory: the reversed history.
+    pub fn reverse(&self) -> PyRemoteHistory {
+        PyRemoteHistory::new(self.history.reverse())
+    }
+
     /// Sub-container: timestamps view of this history (plain int timestamps).
     /// Lazy — no RPC.
     #[getter]

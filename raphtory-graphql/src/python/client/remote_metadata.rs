@@ -331,6 +331,39 @@ impl PyRemoteTemporalProperties {
             })
             .collect())
     }
+
+    /// All `(key, temporal-property handle)` entries. Fires one RPC (fetches
+    /// the key list); each returned handle fires its own RPCs on subsequent
+    /// method calls.
+    pub fn items(&self) -> Result<Vec<(String, PyRemoteTemporalProperty)>, ClientError> {
+        let inner = Arc::clone(&self.inner);
+        let result = execute_async_task(move || async move { inner.values(None).await })?;
+        Ok(result
+            .into_iter()
+            .map(|tp| {
+                (
+                    tp.key.clone(),
+                    PyRemoteTemporalProperty {
+                        inner: Arc::new(tp),
+                    },
+                )
+            })
+            .collect())
+    }
+
+    /// Every temporal property's full history, as
+    /// `{key: [(RemoteEventTime, value), ...]}` — mirrors the local
+    /// `TemporalProperties.histories`. Composed from `items()` + each
+    /// property's `items()`; fires 1 RPC for the property list plus 2 per
+    /// property (its history + values), so it is heavy for wide containers —
+    /// prefer `.get(key).items()` when you only need one property.
+    pub fn histories(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        let dict = PyDict::new(py);
+        for (key, tp) in self.items()? {
+            dict.set_item(key, tp.items(py)?)?;
+        }
+        Ok(dict.into_any().unbind())
+    }
 }
 
 /// A handle to a single temporal property — one key with its full history
@@ -397,6 +430,13 @@ impl PyRemoteTemporalProperty {
                 .map_err(|e| ClientError::InvalidResponse(e.to_string()))
         })
         .transpose()
+    }
+
+    /// The latest value of the property, or `None` if it has no updates in
+    /// view. Alias for `latest()` (drop-in parity with the local
+    /// `TemporalProperty.value`). Fires one RPC.
+    pub fn value(&self, py: Python<'_>) -> Result<Option<Py<PyAny>>, ClientError> {
+        self.latest(py)
     }
 
     /// Number of updates recorded for this property in the current view.
@@ -491,6 +531,36 @@ impl PyRemoteTemporalProperty {
         let inner = Arc::clone(&self.inner);
         let val = execute_async_task(move || async move { inner.median().await })?;
         Ok(val.map(PyRemotePropertyTuple::from))
+    }
+
+    /// All `(time, value)` pairs this property has taken, in temporal order.
+    /// Mirrors the local `TemporalProperty.items()`. Fires two RPCs — one for
+    /// the history (event times) and one for the values — then pairs them
+    /// element-wise.
+    ///
+    /// Returns:
+    ///   list[Tuple[RemoteEventTime, PropValue]]: one pair per update.
+    pub fn items(
+        &self,
+        py: Python<'_>,
+    ) -> Result<Vec<(PyRemoteEventTime, Py<PyAny>)>, ClientError> {
+        let history = self.inner.history();
+        let times = execute_async_task(move || async move { history.collect().await })?;
+        let inner = Arc::clone(&self.inner);
+        let vals = execute_async_task(move || async move { inner.values().await })?;
+        times
+            .into_iter()
+            .zip(vals)
+            .map(|(t, v)| Ok((PyRemoteEventTime::from(t), prop_to_py(py, v)?)))
+            .collect()
+    }
+
+    /// `for (time, value) in temporal_property:` — iterate the `(time, value)`
+    /// pairs in temporal order. Fires two RPCs (see `items()`), then yields
+    /// each pair locally.
+    fn __iter__(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        let items = self.items(py)?;
+        Ok(PyList::new(py, items)?.try_iter()?.into_any().unbind())
     }
 }
 

@@ -160,6 +160,19 @@ impl RemoteHistory {
         expect_event_time_list(self.transport.execute(&op).await?, "pageRev")
     }
 
+    /// Returns a new history with the iteration order of its entries reversed.
+    /// Lazy — no RPC.
+    pub fn reverse(&self) -> RemoteHistory {
+        RemoteHistory::with_expr(
+            self.path.clone(),
+            self.transport.clone(),
+            ReadExpr::HistoryReverse {
+                input: Box::new(self.expr.clone()),
+            },
+            self.base_graph.clone(),
+        )
+    }
+
     /// Sub-container: timestamps view of this history — plain integer
     /// timestamps instead of full `RemoteEventTime` records. Lazy — no RPC.
     pub fn timestamps(&self) -> RemoteHistoryTimestamps {

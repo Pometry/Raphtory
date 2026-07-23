@@ -408,6 +408,46 @@ impl GqlNodes {
         self.nn.end().into()
     }
 
+    /// Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
+    async fn window_size(&self) -> Option<i64> {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.nn.window_size().map(|s| s as i64)).await
+    }
+
+    /// Check if a layer with the given name is present in this view.
+    async fn has_layer(&self, name: String) -> bool {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.nn.has_layer(name)).await
+    }
+
+    ///////////////////
+    //// METRICS //////
+    ///////////////////
+
+    /// The degree (number of incident edges) of every node, in collection order.
+    async fn degree(&self) -> Vec<usize> {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.nn.degree().collect_vec()).await
+    }
+
+    /// The in-degree (number of incoming edges) of every node, in collection order.
+    async fn in_degree(&self) -> Vec<usize> {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.nn.in_degree().collect_vec()).await
+    }
+
+    /// The out-degree (number of outgoing edges) of every node, in collection order.
+    async fn out_degree(&self) -> Vec<usize> {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.nn.out_degree().collect_vec()).await
+    }
+
+    /// The number of edge updates incident to every node, in collection order.
+    async fn edge_history_count(&self) -> Vec<usize> {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.nn.edge_history_count().collect_vec()).await
+    }
+
     /////////////////
     //// List ///////
     /////////////////

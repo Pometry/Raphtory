@@ -1,8 +1,11 @@
 use crate::{
     client::{
         op::{Op, ReadExpr},
-        remote_graph::{expect_i64, expect_nested_string_list, expect_optional_event_time},
-        remote_history::RemoteEventTime,
+        remote_graph::{
+            expect_bool, expect_i64, expect_nested_i64_list, expect_nested_string_list,
+            expect_optional_event_time, expect_optional_i64,
+        },
+        remote_history::{RemoteEventTime, RemoteHistory},
         remote_nested_edges::RemoteNestedEdges,
         remote_node::RemoteNode,
         transport::Transport,
@@ -178,6 +181,31 @@ impl RemotePathFromGraph {
         })
     }
 
+    /// Restrict to the given set of valid layers. Lazy — no RPC.
+    pub fn valid_layers(&self, names: Vec<String>) -> RemotePathFromGraph {
+        self.with_view_op(|input| ReadExpr::ValidLayers {
+            input: Box::new(input),
+            names: names.clone(),
+        })
+    }
+
+    /// Exclude a specific valid layer from the view. Lazy — no RPC.
+    pub fn exclude_valid_layer(&self, name: impl ToString) -> RemotePathFromGraph {
+        let name = name.to_string();
+        self.with_view_op(|input| ReadExpr::ExcludeValidLayer {
+            input: Box::new(input),
+            name: name.clone(),
+        })
+    }
+
+    /// Exclude the given set of valid layers from the view. Lazy — no RPC.
+    pub fn exclude_valid_layers(&self, names: Vec<String>) -> RemotePathFromGraph {
+        self.with_view_op(|input| ReadExpr::ExcludeValidLayers {
+            input: Box::new(input),
+            names: names.clone(),
+        })
+    }
+
     /// Restrict this collection to members whose node type is in the given
     /// list. Filters membership. Lazy — no RPC. Only updates `expr`; see
     /// `RemoteNodes::type_filter` for reasoning.
@@ -308,12 +336,80 @@ impl RemotePathFromGraph {
         expect_nested_string_list(self.transport.execute(&op).await?, "ids")
     }
 
+    /// Terminal: the nested per-node degree — one inner list per source node,
+    /// each holding that source's per-neighbour degrees — `Vec<Vec<i64>>`.
+    /// Fires one RPC.
+    pub async fn degree(&self) -> Result<Vec<Vec<i64>>, ClientError> {
+        let op = Op::Read(ReadExpr::NestedDegree {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_nested_i64_list(self.transport.execute(&op).await?, "degree")
+    }
+
+    /// Terminal: the nested per-node in-degree — one inner list per source
+    /// node — `Vec<Vec<i64>>`. Fires one RPC.
+    pub async fn in_degree(&self) -> Result<Vec<Vec<i64>>, ClientError> {
+        let op = Op::Read(ReadExpr::NestedInDegree {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_nested_i64_list(self.transport.execute(&op).await?, "inDegree")
+    }
+
+    /// Terminal: the nested per-node out-degree — one inner list per source
+    /// node — `Vec<Vec<i64>>`. Fires one RPC.
+    pub async fn out_degree(&self) -> Result<Vec<Vec<i64>>, ClientError> {
+        let op = Op::Read(ReadExpr::NestedOutDegree {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_nested_i64_list(self.transport.execute(&op).await?, "outDegree")
+    }
+
+    /// Terminal: the nested per-node count of incident edge updates — one
+    /// inner list per source node — `Vec<Vec<i64>>`. Fires one RPC.
+    pub async fn edge_history_count(&self) -> Result<Vec<Vec<i64>>, ClientError> {
+        let op = Op::Read(ReadExpr::NestedEdgeHistoryCount {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_nested_i64_list(self.transport.execute(&op).await?, "edgeHistoryCount")
+    }
+
     /// Terminal: the number of source paths in this collection. Fires one RPC.
     pub async fn count(&self) -> Result<i64, ClientError> {
         let op = Op::Read(ReadExpr::Count {
             input: Box::new(self.expr.clone()),
         });
         expect_i64(self.transport.execute(&op).await?, "count")
+    }
+
+    /// Terminal: whether this view contains a layer named `name`. Fires one RPC.
+    pub async fn has_layer(&self, name: impl ToString) -> Result<bool, ClientError> {
+        let op = Op::Read(ReadExpr::HasLayer {
+            input: Box::new(self.expr.clone()),
+            name: name.to_string(),
+        });
+        expect_bool(self.transport.execute(&op).await?, "hasLayer")
+    }
+
+    /// Terminal: the size of the window covered by this view (`end - start`),
+    /// or `None` for an unbounded view. Fires one RPC.
+    pub async fn window_size(&self) -> Result<Option<i64>, ClientError> {
+        let op = Op::Read(ReadExpr::WindowSize {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_optional_i64(self.transport.execute(&op).await?, "windowSize")
+    }
+
+    /// Returns a single combined event history for all nodes in this view —
+    /// a `RemoteHistory` container. Lazy — no RPC.
+    pub fn combined_history(&self) -> RemoteHistory {
+        RemoteHistory::with_expr(
+            self.path.clone(),
+            self.transport.clone(),
+            ReadExpr::CombinedHistory {
+                input: Box::new(self.expr.clone()),
+            },
+            self.base_graph.clone(),
+        )
     }
 
     /// Terminal: view start bound for this collection — `None` if unbounded.

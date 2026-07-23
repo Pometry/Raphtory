@@ -1151,6 +1151,26 @@ fn render_read_body(expr: &ReadExpr) -> String {
             render_read_body(input),
             render_string_list(names)
         ),
+        // The GraphQL server exposes valid-layer semantics under the existing
+        // `layers` / `excludeLayers` / `excludeLayer` fields (each backed by
+        // the underlying `valid_layers` / `exclude_valid_layers` graph
+        // methods) — there is no separate `validLayers` field. So these render
+        // to the same fields as `Layers` / `ExcludeLayers` / `ExcludeLayer`.
+        ReadExpr::ValidLayers { input, names } => format!(
+            "{} {{ layers(names: [{}])",
+            render_read_body(input),
+            render_string_list(names)
+        ),
+        ReadExpr::ExcludeValidLayer { input, name } => format!(
+            "{} {{ excludeLayer(name: \"{}\")",
+            render_read_body(input),
+            name
+        ),
+        ReadExpr::ExcludeValidLayers { input, names } => format!(
+            "{} {{ excludeLayers(names: [{}])",
+            render_read_body(input),
+            render_string_list(names)
+        ),
         ReadExpr::Subgraph { input, nodes } => format!(
             "{} {{ subgraph(nodes: [{}])",
             render_read_body(input),
@@ -1185,6 +1205,12 @@ fn render_read_body(expr: &ReadExpr) -> String {
         ReadExpr::Dst { input } => format!("{} {{ dst", render_read_body(input)),
         ReadExpr::Nbr { input } => format!("{} {{ nbr", render_read_body(input)),
         ReadExpr::History { input } => format!("{} {{ history", render_read_body(input)),
+        ReadExpr::CombinedHistory { input } => {
+            format!("{} {{ combinedHistory", render_read_body(input))
+        }
+        ReadExpr::HistoryReverse { input } => {
+            format!("{} {{ reverse", render_read_body(input))
+        }
         ReadExpr::Deletions { input } => format!("{} {{ deletions", render_read_body(input)),
         // Sub-container navigations
         ReadExpr::HistoryTimestamps { input } => {
@@ -1427,6 +1453,14 @@ fn render_read_body(expr: &ReadExpr) -> String {
         ReadExpr::LastOpened { input } => format!("{} {{ lastOpened", render_read_body(input)),
         ReadExpr::LastUpdated { input } => format!("{} {{ lastUpdated", render_read_body(input)),
         ReadExpr::UniqueLayers { input } => format!("{} {{ uniqueLayers", render_read_body(input)),
+        ReadExpr::HasLayer { input, name } => {
+            format!(
+                "{} {{ hasLayer(name: \"{}\")",
+                render_read_body(input),
+                name
+            )
+        }
+        ReadExpr::WindowSize { input } => format!("{} {{ windowSize", render_read_body(input)),
         ReadExpr::Ids { input } => format!("{} {{ ids", render_read_body(input)),
         // `PathFromGraph.list` returns `[PathFromNode!]!` — one object per
         // source node. We render `list { ids }` and read each element's `ids`
@@ -1435,6 +1469,37 @@ fn render_read_body(expr: &ReadExpr) -> String {
         // the inner `{ ids }` group is self-balanced. Mirrors `EdgesList`.
         ReadExpr::NestedIds { input } => {
             format!("{} {{ list {{ ids }}", render_read_body(input))
+        }
+        // Flat collection degree terminals — render the scalar-list field
+        // directly on the `Nodes`/`PathFromNode` collection.
+        ReadExpr::CollectionDegree { input } => {
+            format!("{} {{ degree", render_read_body(input))
+        }
+        ReadExpr::CollectionInDegree { input } => {
+            format!("{} {{ inDegree", render_read_body(input))
+        }
+        ReadExpr::CollectionOutDegree { input } => {
+            format!("{} {{ outDegree", render_read_body(input))
+        }
+        ReadExpr::CollectionEdgeHistoryCount { input } => {
+            format!("{} {{ edgeHistoryCount", render_read_body(input))
+        }
+        // Nested collection degree terminals — `PathFromGraph.list` returns
+        // `[PathFromNode!]!`, so we render `list { <field> }` and read each
+        // per-source element's flat degree list. The `list` field opens ONE net
+        // brace (closed by the outer `read_depth`); the inner `{ <field> }`
+        // group is self-balanced. Mirrors `NestedIds`.
+        ReadExpr::NestedDegree { input } => {
+            format!("{} {{ list {{ degree }}", render_read_body(input))
+        }
+        ReadExpr::NestedInDegree { input } => {
+            format!("{} {{ list {{ inDegree }}", render_read_body(input))
+        }
+        ReadExpr::NestedOutDegree { input } => {
+            format!("{} {{ list {{ outDegree }}", render_read_body(input))
+        }
+        ReadExpr::NestedEdgeHistoryCount { input } => {
+            format!("{} {{ list {{ edgeHistoryCount }}", render_read_body(input))
         }
         ReadExpr::Count { input } => format!("{} {{ count", render_read_body(input)),
         // Compound structured terminal: renders as `list { src { name } dst { name } }`.
@@ -1581,6 +1646,9 @@ fn read_depth(expr: &ReadExpr) -> usize {
         | ReadExpr::DefaultLayer { input }
         | ReadExpr::Layers { input, .. }
         | ReadExpr::ExcludeLayers { input, .. }
+        | ReadExpr::ValidLayers { input, .. }
+        | ReadExpr::ExcludeValidLayer { input, .. }
+        | ReadExpr::ExcludeValidLayers { input, .. }
         | ReadExpr::Subgraph { input, .. }
         | ReadExpr::SubgraphNodeTypes { input, .. }
         | ReadExpr::ExcludeNodes { input, .. }
@@ -1591,6 +1659,8 @@ fn read_depth(expr: &ReadExpr) -> usize {
         | ReadExpr::Dst { input }
         | ReadExpr::Nbr { input }
         | ReadExpr::History { input }
+        | ReadExpr::CombinedHistory { input }
+        | ReadExpr::HistoryReverse { input }
         | ReadExpr::Deletions { input }
         | ReadExpr::Nodes { input }
         | ReadExpr::Neighbours { input }
@@ -1635,6 +1705,14 @@ fn read_depth(expr: &ReadExpr) -> usize {
         | ReadExpr::Schema { input }
         | ReadExpr::Ids { input }
         | ReadExpr::NestedIds { input }
+        | ReadExpr::CollectionDegree { input }
+        | ReadExpr::CollectionInDegree { input }
+        | ReadExpr::CollectionOutDegree { input }
+        | ReadExpr::CollectionEdgeHistoryCount { input }
+        | ReadExpr::NestedDegree { input }
+        | ReadExpr::NestedInDegree { input }
+        | ReadExpr::NestedOutDegree { input }
+        | ReadExpr::NestedEdgeHistoryCount { input }
         | ReadExpr::Count { input }
         | ReadExpr::EdgesList { input }
         | ReadExpr::NestedEdgesList { input }
@@ -1658,6 +1736,8 @@ fn read_depth(expr: &ReadExpr) -> usize {
         | ReadExpr::LastOpened { input }
         | ReadExpr::LastUpdated { input }
         | ReadExpr::UniqueLayers { input }
+        | ReadExpr::HasLayer { input, .. }
+        | ReadExpr::WindowSize { input }
         | ReadExpr::EdgeIdPair { input }
         | ReadExpr::LayerNames { input }
         | ReadExpr::LayerName { input }
@@ -1850,6 +1930,73 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
                             v.as_str().map(|s| Prop::Str(s.into())).ok_or_else(|| {
                                 ClientError::InvalidResponse(format!(
                                     "`{}` inner element not a string",
+                                    terminal_key
+                                ))
+                            })
+                        })
+                        .collect();
+                    Ok(Prop::List(items?.into()))
+                })
+                .collect();
+            Ok(Some(Prop::List(rows?.into())))
+        }
+        // Flat collection degree terminals — the JSON is an array of ints
+        // (`degree`/`inDegree`/`outDegree`/`edgeHistoryCount` on a `Nodes`
+        // or `PathFromNode` collection). Parsed as `Prop::List(Prop::I64)`.
+        ReadExpr::CollectionDegree { .. }
+        | ReadExpr::CollectionInDegree { .. }
+        | ReadExpr::CollectionOutDegree { .. }
+        | ReadExpr::CollectionEdgeHistoryCount { .. } => {
+            let arr = terminal_val.as_array().ok_or_else(|| {
+                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
+            })?;
+            let items: Result<Vec<Prop>, ClientError> = arr
+                .iter()
+                .map(|v| {
+                    v.as_i64().map(Prop::I64).ok_or_else(|| {
+                        ClientError::InvalidResponse(format!(
+                            "`{}` element not an i64",
+                            terminal_key
+                        ))
+                    })
+                })
+                .collect();
+            Ok(Some(Prop::List(items?.into())))
+        }
+        // Nested collection degree terminals — `PathFromGraph.list` returns a
+        // JSON array of `PathFromNode` records `[{"degree": [1,2]}, ...]`, one
+        // per source node. We pull each record's flat degree list and rebuild
+        // the nested `Prop::List(Prop::List(Prop::I64))` (outer = per source,
+        // inner = that source's per-node degrees). Mirrors `NestedIds`.
+        ReadExpr::NestedDegree { .. }
+        | ReadExpr::NestedInDegree { .. }
+        | ReadExpr::NestedOutDegree { .. }
+        | ReadExpr::NestedEdgeHistoryCount { .. } => {
+            let field = match expr {
+                ReadExpr::NestedDegree { .. } => "degree",
+                ReadExpr::NestedInDegree { .. } => "inDegree",
+                ReadExpr::NestedOutDegree { .. } => "outDegree",
+                ReadExpr::NestedEdgeHistoryCount { .. } => "edgeHistoryCount",
+                _ => unreachable!(),
+            };
+            let outer = terminal_val.as_array().ok_or_else(|| {
+                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
+            })?;
+            let rows: Result<Vec<Prop>, ClientError> = outer
+                .iter()
+                .map(|row| {
+                    let inner = row.get(field).and_then(|v| v.as_array()).ok_or_else(|| {
+                        ClientError::InvalidResponse(format!(
+                            "`{}` element missing `{}` array",
+                            terminal_key, field
+                        ))
+                    })?;
+                    let items: Result<Vec<Prop>, ClientError> = inner
+                        .iter()
+                        .map(|v| {
+                            v.as_i64().map(Prop::I64).ok_or_else(|| {
+                                ClientError::InvalidResponse(format!(
+                                    "`{}` inner element not an i64",
                                     terminal_key
                                 ))
                             })
@@ -2132,6 +2279,7 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
         | ReadExpr::IsDeleted { .. }
         | ReadExpr::IsSelfLoop { .. }
         | ReadExpr::IsEmpty { .. }
+        | ReadExpr::HasLayer { .. }
         | ReadExpr::PropertyContains { .. } => terminal_val
             .as_bool()
             .map(|b| Some(Prop::Bool(b)))
@@ -2203,6 +2351,7 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
         | ReadExpr::LatestEdgeTime { .. }
         | ReadExpr::FirstUpdate { .. }
         | ReadExpr::LastUpdate { .. }
+        | ReadExpr::WindowSize { .. }
         | ReadExpr::IntervalsMedian { .. }
         | ReadExpr::IntervalsMax { .. }
         | ReadExpr::IntervalsMin { .. } => {
@@ -2302,6 +2451,20 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
                 go(input, out);
                 out.push("excludeLayers");
             }
+            // Server exposes valid-layer semantics under the existing
+            // `layers` / `excludeLayer` / `excludeLayers` fields.
+            ReadExpr::ValidLayers { input, .. } => {
+                go(input, out);
+                out.push("layers");
+            }
+            ReadExpr::ExcludeValidLayer { input, .. } => {
+                go(input, out);
+                out.push("excludeLayer");
+            }
+            ReadExpr::ExcludeValidLayers { input, .. } => {
+                go(input, out);
+                out.push("excludeLayers");
+            }
             ReadExpr::Subgraph { input, .. } => {
                 go(input, out);
                 out.push("subgraph");
@@ -2341,6 +2504,14 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
             ReadExpr::History { input } => {
                 go(input, out);
                 out.push("history");
+            }
+            ReadExpr::CombinedHistory { input } => {
+                go(input, out);
+                out.push("combinedHistory");
+            }
+            ReadExpr::HistoryReverse { input } => {
+                go(input, out);
+                out.push("reverse");
             }
             ReadExpr::Deletions { input } => {
                 go(input, out);
@@ -2518,6 +2689,32 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
                 go(input, out);
                 out.push("list");
             }
+            ReadExpr::CollectionDegree { input } => {
+                go(input, out);
+                out.push("degree");
+            }
+            ReadExpr::CollectionInDegree { input } => {
+                go(input, out);
+                out.push("inDegree");
+            }
+            ReadExpr::CollectionOutDegree { input } => {
+                go(input, out);
+                out.push("outDegree");
+            }
+            ReadExpr::CollectionEdgeHistoryCount { input } => {
+                go(input, out);
+                out.push("edgeHistoryCount");
+            }
+            // Nested degree terminals resolve to the `list` array of
+            // per-source `PathFromNode` records; parse_read reads each
+            // element's flat degree field.
+            ReadExpr::NestedDegree { input }
+            | ReadExpr::NestedInDegree { input }
+            | ReadExpr::NestedOutDegree { input }
+            | ReadExpr::NestedEdgeHistoryCount { input } => {
+                go(input, out);
+                out.push("list");
+            }
             ReadExpr::Count { input } => {
                 go(input, out);
                 out.push("count");
@@ -2593,6 +2790,14 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
             ReadExpr::UniqueLayers { input } => {
                 go(input, out);
                 out.push("uniqueLayers");
+            }
+            ReadExpr::HasLayer { input, .. } => {
+                go(input, out);
+                out.push("hasLayer");
+            }
+            ReadExpr::WindowSize { input } => {
+                go(input, out);
+                out.push("windowSize");
             }
             ReadExpr::Id { input } => {
                 go(input, out);
@@ -2888,6 +3093,9 @@ fn child_input(expr: &ReadExpr) -> Option<&ReadExpr> {
         | ReadExpr::DefaultLayer { input }
         | ReadExpr::Layers { input, .. }
         | ReadExpr::ExcludeLayers { input, .. }
+        | ReadExpr::ValidLayers { input, .. }
+        | ReadExpr::ExcludeValidLayer { input, .. }
+        | ReadExpr::ExcludeValidLayers { input, .. }
         | ReadExpr::Subgraph { input, .. }
         | ReadExpr::SubgraphNodeTypes { input, .. }
         | ReadExpr::ExcludeNodes { input, .. }
@@ -2898,6 +3106,8 @@ fn child_input(expr: &ReadExpr) -> Option<&ReadExpr> {
         | ReadExpr::Dst { input }
         | ReadExpr::Nbr { input }
         | ReadExpr::History { input }
+        | ReadExpr::CombinedHistory { input }
+        | ReadExpr::HistoryReverse { input }
         | ReadExpr::Deletions { input }
         | ReadExpr::Nodes { input }
         | ReadExpr::Neighbours { input }
@@ -2942,6 +3152,14 @@ fn child_input(expr: &ReadExpr) -> Option<&ReadExpr> {
         | ReadExpr::Schema { input }
         | ReadExpr::Ids { input }
         | ReadExpr::NestedIds { input }
+        | ReadExpr::CollectionDegree { input }
+        | ReadExpr::CollectionInDegree { input }
+        | ReadExpr::CollectionOutDegree { input }
+        | ReadExpr::CollectionEdgeHistoryCount { input }
+        | ReadExpr::NestedDegree { input }
+        | ReadExpr::NestedInDegree { input }
+        | ReadExpr::NestedOutDegree { input }
+        | ReadExpr::NestedEdgeHistoryCount { input }
         | ReadExpr::Count { input }
         | ReadExpr::EdgesList { input }
         | ReadExpr::NestedEdgesList { input }
@@ -2965,6 +3183,8 @@ fn child_input(expr: &ReadExpr) -> Option<&ReadExpr> {
         | ReadExpr::LastOpened { input }
         | ReadExpr::LastUpdated { input }
         | ReadExpr::UniqueLayers { input }
+        | ReadExpr::HasLayer { input, .. }
+        | ReadExpr::WindowSize { input }
         | ReadExpr::EarliestTime { input }
         | ReadExpr::LatestTime { input }
         | ReadExpr::Start { input }

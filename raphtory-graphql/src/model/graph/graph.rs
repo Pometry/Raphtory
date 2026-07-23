@@ -410,6 +410,18 @@ impl GqlGraph {
         Ok(self.graph.end().into())
     }
 
+    /// Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
+    async fn window_size(&self) -> Option<i64> {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.graph.window_size().map(|s| s as i64)).await
+    }
+
+    /// Check if a layer with the given name is present in the graph.
+    async fn has_layer(&self, name: String) -> bool {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.graph.has_layer(name)).await
+    }
+
     /// The earliest time at which any edge in this graph is valid.
     ///
     /// * `includeNegative` — if false, edge events with a timestamp `< 0` are
