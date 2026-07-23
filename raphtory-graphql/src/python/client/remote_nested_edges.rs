@@ -1,0 +1,236 @@
+use crate::{
+    client::{remote_nested_edges::RemoteNestedEdges, ClientError},
+    python::client::{remote_edge::PyRemoteEdge, remote_history::PyRemoteEventTime},
+};
+use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyRef, PyRefMut, PyResult};
+use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
+use std::sync::Arc;
+
+/// A handle to a nested edges collection.
+///
+/// Produced by [RemoteNodes.edges][raphtory.graphql.RemoteNodes.edges] /
+/// [RemoteNodes.in_edges][raphtory.graphql.RemoteNodes.in_edges] /
+/// [RemoteNodes.out_edges][raphtory.graphql.RemoteNodes.out_edges].
+///
+/// Distinct from `RemoteEdges` because it is **nested** — the server type
+/// (`GqlNestedEdges`) groups results per source node. `collect()` returns
+/// `list[list[RemoteEdge]]`, and `count()` is the number of source edge
+/// collections. There is no `ids()` — edges are identified by `(src, dst)`
+/// pairs, not a single string id.
+#[derive(Clone)]
+#[pyclass(name = "RemoteNestedEdges", module = "raphtory.graphql", from_py_object)]
+pub struct PyRemoteNestedEdges {
+    pub(crate) edges: Arc<RemoteNestedEdges>,
+}
+
+impl PyRemoteNestedEdges {
+    pub(crate) fn new(edges: RemoteNestedEdges) -> Self {
+        Self {
+            edges: Arc::new(edges),
+        }
+    }
+}
+
+#[pymethods]
+impl PyRemoteNestedEdges {
+    /// Time-window this collection. Lazy — no RPC.
+    pub fn window(&self, start: i64, end: i64) -> PyRemoteNestedEdges {
+        PyRemoteNestedEdges::new(self.edges.window(start, end))
+    }
+
+    /// Filter this collection by an edge filter. **Propagates** to downstream
+    /// traversals from the matching edges. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     filter (FilterExpr): an edge filter expression from `raphtory.filter`.
+    ///
+    /// Returns:
+    ///     RemoteNestedEdges: a new collection with the filter applied.
+    ///
+    /// Raises:
+    ///     ValueError: if the filter cannot be represented as a GraphQL
+    ///         `EdgeFilter`.
+    pub fn filter(&self, filter: PyFilterExpr) -> PyResult<PyRemoteNestedEdges> {
+        let composite = filter
+            .try_as_edge_filter()
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        let gql_filter = composite
+            .try_into()
+            .map_err(|e: raphtory::errors::GraphError| PyValueError::new_err(e.to_string()))?;
+        Ok(PyRemoteNestedEdges::new(self.edges.filter(gql_filter)))
+    }
+
+    /// Narrow this collection's membership by an edge filter — applies only at
+    /// this step; downstream traversals see the unfiltered graph. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     filter (FilterExpr): an edge filter expression from `raphtory.filter`.
+    ///
+    /// Returns:
+    ///     RemoteNestedEdges: a new collection narrowed to matching edges.
+    pub fn select(&self, filter: PyFilterExpr) -> PyResult<PyRemoteNestedEdges> {
+        let composite = filter
+            .try_as_edge_filter()
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        let gql_filter = composite
+            .try_into()
+            .map_err(|e: raphtory::errors::GraphError| PyValueError::new_err(e.to_string()))?;
+        Ok(PyRemoteNestedEdges::new(self.edges.select(gql_filter)))
+    }
+
+    /// `edges[filter]` — sugar for `.select(filter)`. Lazy — no RPC.
+    fn __getitem__(&self, filter: PyFilterExpr) -> PyResult<PyRemoteNestedEdges> {
+        self.select(filter)
+    }
+
+    /// Restrict to a single named layer. Lazy — no RPC.
+    pub fn layer(&self, name: &str) -> PyRemoteNestedEdges {
+        PyRemoteNestedEdges::new(self.edges.layer(name))
+    }
+
+    /// Snapshot at a specific time. Lazy — no RPC.
+    pub fn at(&self, time: i64) -> PyRemoteNestedEdges {
+        PyRemoteNestedEdges::new(self.edges.at(time))
+    }
+
+    /// Restrict to events strictly before the given time. Lazy — no RPC.
+    pub fn before(&self, time: i64) -> PyRemoteNestedEdges {
+        PyRemoteNestedEdges::new(self.edges.before(time))
+    }
+
+    /// Restrict to events strictly after the given time. Lazy — no RPC.
+    pub fn after(&self, time: i64) -> PyRemoteNestedEdges {
+        PyRemoteNestedEdges::new(self.edges.after(time))
+    }
+
+    /// Latest state. Lazy — no RPC.
+    pub fn latest(&self) -> PyRemoteNestedEdges {
+        PyRemoteNestedEdges::new(self.edges.latest())
+    }
+
+    /// Snapshot at the latest time. Lazy — no RPC.
+    pub fn snapshot_latest(&self) -> PyRemoteNestedEdges {
+        PyRemoteNestedEdges::new(self.edges.snapshot_latest())
+    }
+
+    /// Snapshot at a specific time. Lazy — no RPC.
+    pub fn snapshot_at(&self, time: i64) -> PyRemoteNestedEdges {
+        PyRemoteNestedEdges::new(self.edges.snapshot_at(time))
+    }
+
+    /// Exclude a specific layer. Lazy — no RPC.
+    pub fn exclude_layer(&self, name: &str) -> PyRemoteNestedEdges {
+        PyRemoteNestedEdges::new(self.edges.exclude_layer(name))
+    }
+
+    /// Shrink both start and end of the current window. Lazy — no RPC.
+    pub fn shrink_window(&self, start: i64, end: i64) -> PyRemoteNestedEdges {
+        PyRemoteNestedEdges::new(self.edges.shrink_window(start, end))
+    }
+
+    /// Shrink the start of the current window. Lazy — no RPC.
+    pub fn shrink_start(&self, start: i64) -> PyRemoteNestedEdges {
+        PyRemoteNestedEdges::new(self.edges.shrink_start(start))
+    }
+
+    /// Shrink the end of the current window. Lazy — no RPC.
+    pub fn shrink_end(&self, end: i64) -> PyRemoteNestedEdges {
+        PyRemoteNestedEdges::new(self.edges.shrink_end(end))
+    }
+
+    /// Restrict to the default layer. Lazy — no RPC.
+    pub fn default_layer(&self) -> PyRemoteNestedEdges {
+        PyRemoteNestedEdges::new(self.edges.default_layer())
+    }
+
+    /// Restrict to the given set of layers. Lazy — no RPC.
+    pub fn layers(&self, names: Vec<String>) -> PyRemoteNestedEdges {
+        PyRemoteNestedEdges::new(self.edges.layers(names))
+    }
+
+    /// Exclude the given set of layers. Lazy — no RPC.
+    pub fn exclude_layers(&self, names: Vec<String>) -> PyRemoteNestedEdges {
+        PyRemoteNestedEdges::new(self.edges.exclude_layers(names))
+    }
+
+    /// Returns the number of source edge collections in this collection. Fires
+    /// one RPC.
+    pub fn count(&self) -> Result<i64, ClientError> {
+        let edges = Arc::clone(&self.edges);
+        execute_async_task(move || async move { edges.count().await })
+    }
+
+    /// `len(edges)` — number of source edge collections. Fires one RPC.
+    pub fn __len__(&self) -> Result<usize, ClientError> {
+        let edges = Arc::clone(&self.edges);
+        Ok(execute_async_task(move || async move { edges.count().await })?.max(0) as usize)
+    }
+
+    /// `bool(edges)` — whether the collection is non-empty. Fires one RPC.
+    pub fn __bool__(&self) -> Result<bool, ClientError> {
+        let edges = Arc::clone(&self.edges);
+        Ok(execute_async_task(move || async move { edges.count().await })? > 0)
+    }
+
+    /// View start bound for this collection — `None` if unbounded. Property —
+    /// attribute access fires one RPC.
+    #[getter]
+    pub fn start(&self) -> Result<Option<PyRemoteEventTime>, ClientError> {
+        let edges = Arc::clone(&self.edges);
+        Ok(
+            execute_async_task(move || async move { edges.start().await })?
+                .map(PyRemoteEventTime::from),
+        )
+    }
+
+    /// View end bound for this collection — `None` if unbounded. Property —
+    /// attribute access fires one RPC.
+    #[getter]
+    pub fn end(&self) -> Result<Option<PyRemoteEventTime>, ClientError> {
+        let edges = Arc::clone(&self.edges);
+        Ok(
+            execute_async_task(move || async move { edges.end().await })?
+                .map(PyRemoteEventTime::from),
+        )
+    }
+
+    /// Materialize this collection as a nested list of `RemoteEdge` handles —
+    /// one inner list per source node. Fires one RPC. Each returned edge is
+    /// rebased under the same view chain that produced this collection.
+    ///
+    /// Returns:
+    ///   list[list[RemoteEdge]]: the incident edges grouped per source node.
+    pub fn collect(&self) -> Result<Vec<Vec<PyRemoteEdge>>, ClientError> {
+        let edges = Arc::clone(&self.edges);
+        let result = execute_async_task(move || async move { edges.collect().await })?;
+        Ok(result
+            .into_iter()
+            .map(|row| row.into_iter().map(PyRemoteEdge::new).collect())
+            .collect())
+    }
+
+    /// Enables `for row in remote_nested_edges:` — fetches everything in one
+    /// RPC, then yields each per-source `list[RemoteEdge]`.
+    fn __iter__(&self) -> Result<PyRemoteNestedEdgesIter, ClientError> {
+        let list = self.collect()?;
+        Ok(PyRemoteNestedEdgesIter {
+            inner: list.into_iter(),
+        })
+    }
+}
+
+#[pyclass(name = "RemoteNestedEdgesIter", module = "raphtory.graphql")]
+pub struct PyRemoteNestedEdgesIter {
+    inner: std::vec::IntoIter<Vec<PyRemoteEdge>>,
+}
+
+#[pymethods]
+impl PyRemoteNestedEdgesIter {
+    fn __iter__(slf: PyRef<Self>) -> PyRef<Self> {
+        slf
+    }
+
+    fn __next__(mut slf: PyRefMut<Self>) -> Option<Vec<PyRemoteEdge>> {
+        slf.inner.next()
+    }
+}

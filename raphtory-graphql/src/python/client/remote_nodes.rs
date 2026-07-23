@@ -1,8 +1,9 @@
 use crate::{
     client::{remote_nodes::RemoteNodes, ClientError},
     python::client::{
-        remote_history::PyRemoteEventTime, remote_node::PyRemoteNode,
-        remote_path_from_graph::PyRemotePathFromGraph, remote_sorting::PyNodeSortBy,
+        remote_history::PyRemoteEventTime, remote_nested_edges::PyRemoteNestedEdges,
+        remote_node::PyRemoteNode, remote_path_from_graph::PyRemotePathFromGraph,
+        remote_sorting::PyNodeSortBy,
     },
 };
 use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyRef, PyRefMut, PyResult};
@@ -198,6 +199,27 @@ impl PyRemoteNodes {
     #[getter]
     pub fn out_neighbours(&self) -> PyRemotePathFromGraph {
         PyRemotePathFromGraph::new(self.nodes.out_neighbours())
+    }
+
+    /// Each member's incident edges (both directions). Lazy — no RPC. Returns a
+    /// `RemoteNestedEdges` (nested, grouped per source node).
+    #[getter]
+    pub fn edges(&self) -> PyRemoteNestedEdges {
+        PyRemoteNestedEdges::new(self.nodes.edges())
+    }
+
+    /// Each member's incoming edges. Lazy — no RPC. See `edges` for
+    /// return-type notes.
+    #[getter]
+    pub fn in_edges(&self) -> PyRemoteNestedEdges {
+        PyRemoteNestedEdges::new(self.nodes.in_edges())
+    }
+
+    /// Each member's outgoing edges. Lazy — no RPC. See `edges` for
+    /// return-type notes.
+    #[getter]
+    pub fn out_edges(&self) -> PyRemoteNestedEdges {
+        PyRemoteNestedEdges::new(self.nodes.out_edges())
     }
 
     /// Returns the list of node ids in this collection.

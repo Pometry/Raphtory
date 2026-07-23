@@ -495,6 +495,14 @@ pub enum ReadExpr {
     /// Distinct from `Ids` (nodes) because edges have no single-string id;
     /// they're identified by the pair.
     EdgesList { input: Box<ReadExpr> },
+    /// Terminal on a `NestedEdges` collection: the nested list of (src, dst)
+    /// pairs — one inner list per source node. Renders
+    /// `list { list { src { name } dst { name } } }`: `NestedEdges.list` is
+    /// `[Edges!]!`, and each per-source `Edges` yields its own flat edge list.
+    /// Parsed as `Prop::List(Prop::List(Prop::List(Prop::Str, Prop::Str)))`
+    /// (outer = per source, middle = that source's edges, inner = `[src, dst]`).
+    /// Mirrors `EdgesList`, one level deeper.
+    NestedEdgesList { input: Box<ReadExpr> },
 
     // ============ Node scalar terminals ============
     /// Terminal: node id — `String` (server may return int-like GID; treated as string).

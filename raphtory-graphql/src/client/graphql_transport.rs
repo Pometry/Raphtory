@@ -1444,6 +1444,16 @@ fn render_read_body(expr: &ReadExpr) -> String {
             "{} {{ list {{ src {{ name }} dst {{ name }} }}",
             render_read_body(input)
         ),
+        // `NestedEdges.list` returns `[Edges!]!` — one object per source node.
+        // We render `list { list { src { name } dst { name } } }` and read each
+        // per-source `Edges.list` to rebuild the nested `[[(src, dst)]]` shape
+        // client-side. The outer `list` field opens ONE net brace (closed by
+        // the outer `read_depth`); the inner `list { src { name } dst { name } }`
+        // group is self-balanced. Mirrors `EdgesList`, one level deeper.
+        ReadExpr::NestedEdgesList { input } => format!(
+            "{} {{ list {{ list {{ src {{ name }} dst {{ name }} }} }}",
+            render_read_body(input)
+        ),
         // Compound structured terminal on Graph: `sharedNeighbours(selectedNodes: [ids]) { name }`
         // — opens ONE net brace (the outer, before `sharedNeighbours`); the inner
         // `{ name }` is self-balanced.
@@ -1627,6 +1637,7 @@ fn read_depth(expr: &ReadExpr) -> usize {
         | ReadExpr::NestedIds { input }
         | ReadExpr::Count { input }
         | ReadExpr::EdgesList { input }
+        | ReadExpr::NestedEdgesList { input }
         | ReadExpr::SharedNeighbours { input, .. }
         | ReadExpr::CountNodes { input }
         | ReadExpr::CountEdges { input }
@@ -2065,6 +2076,57 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
                 .collect();
             Ok(Some(Prop::List(items?.into())))
         }
+        // Nested edge-list terminal — `NestedEdges.list` returns a JSON array of
+        // `Edges` records `[{"list": [{"src":{"name":..},"dst":{"name":..}}, ..]}, ..]`,
+        // one per source node. We pull each record's `list` and decode each
+        // element into a 2-element inner list `[src, dst]`, rebuilding the
+        // nested `Prop::List(Prop::List(Prop::List(Prop::Str)))` (outer = per
+        // source, middle = that source's edges, inner = `[src, dst]`). Mirrors
+        // `EdgesList`, one level deeper.
+        ReadExpr::NestedEdgesList { .. } => {
+            let outer = terminal_val.as_array().ok_or_else(|| {
+                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
+            })?;
+            let rows: Result<Vec<Prop>, ClientError> = outer
+                .iter()
+                .map(|row| {
+                    let inner = row.get("list").and_then(|v| v.as_array()).ok_or_else(|| {
+                        ClientError::InvalidResponse(format!(
+                            "`{}` element missing `list` array",
+                            terminal_key
+                        ))
+                    })?;
+                    let items: Result<Vec<Prop>, ClientError> = inner
+                        .iter()
+                        .map(|v| {
+                            let src = v
+                                .get("src")
+                                .and_then(|s| s.get("name"))
+                                .and_then(|n| n.as_str())
+                                .ok_or_else(|| {
+                                    ClientError::InvalidResponse(
+                                        "edge element missing `src.name`".into(),
+                                    )
+                                })?;
+                            let dst = v
+                                .get("dst")
+                                .and_then(|d| d.get("name"))
+                                .and_then(|n| n.as_str())
+                                .ok_or_else(|| {
+                                    ClientError::InvalidResponse(
+                                        "edge element missing `dst.name`".into(),
+                                    )
+                                })?;
+                            Ok(Prop::List(
+                                vec![Prop::Str(src.into()), Prop::Str(dst.into())].into(),
+                            ))
+                        })
+                        .collect();
+                    Ok(Prop::List(items?.into()))
+                })
+                .collect();
+            Ok(Some(Prop::List(rows?.into())))
+        }
         // Bool-shaped terminals.
         ReadExpr::HasNode { .. }
         | ReadExpr::HasEdge { .. }
@@ -2464,6 +2526,10 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
                 out.push("count");
             }
             ReadExpr::EdgesList { input } => {
+                go(input, out);
+                out.push("list");
+            }
+            ReadExpr::NestedEdgesList { input } => {
                 go(input, out);
                 out.push("list");
             }
@@ -2881,6 +2947,7 @@ fn child_input(expr: &ReadExpr) -> Option<&ReadExpr> {
         | ReadExpr::NestedIds { input }
         | ReadExpr::Count { input }
         | ReadExpr::EdgesList { input }
+        | ReadExpr::NestedEdgesList { input }
         | ReadExpr::SharedNeighbours { input, .. }
         | ReadExpr::CountNodes { input }
         | ReadExpr::CountEdges { input }

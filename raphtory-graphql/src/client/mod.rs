@@ -7,6 +7,7 @@ pub mod remote_edges;
 pub mod remote_graph;
 pub mod remote_history;
 pub mod remote_metadata;
+pub mod remote_nested_edges;
 pub mod remote_node;
 pub mod remote_nodes;
 pub mod remote_path_from_graph;
@@ -33,6 +34,7 @@ pub use remote_metadata::{
     RemoteMetadata, RemoteProperties, RemoteProperty, RemotePropertyTuple,
     RemoteTemporalProperties, RemoteTemporalProperty,
 };
+pub use remote_nested_edges::RemoteNestedEdges;
 pub use remote_node::RemoteNode;
 pub use remote_nodes::RemoteNodes;
 pub use remote_path_from_graph::RemotePathFromGraph;

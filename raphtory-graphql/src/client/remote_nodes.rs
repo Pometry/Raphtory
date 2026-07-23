@@ -3,6 +3,7 @@ use crate::{
         op::{NodeSortBy, Op, ReadExpr},
         remote_graph::{expect_i64, expect_optional_event_time, expect_string_list},
         remote_history::RemoteEventTime,
+        remote_nested_edges::RemoteNestedEdges,
         remote_node::RemoteNode,
         remote_path_from_graph::RemotePathFromGraph,
         transport::Transport,
@@ -298,6 +299,50 @@ impl RemoteNodes {
             self.path.clone(),
             self.transport.clone(),
             ReadExpr::OutNeighbours {
+                input: Box::new(self.expr.clone()),
+            },
+            self.base_graph.clone(),
+        )
+    }
+
+    /// Returns the nested edges collection of each member's incident edges
+    /// (both directions). Lazy — no RPC. Propagates the base graph view so
+    /// materialized edges are correctly rebased.
+    ///
+    /// Returns a `RemoteNestedEdges` (not `RemoteEdges`) because the server's
+    /// `GqlNestedEdges` type groups results per source node — its terminals
+    /// (`collect`, `list`, `count`) return nested / per-source shapes.
+    pub fn edges(&self) -> RemoteNestedEdges {
+        RemoteNestedEdges::with_expr(
+            self.path.clone(),
+            self.transport.clone(),
+            ReadExpr::NodeEdges {
+                input: Box::new(self.expr.clone()),
+            },
+            self.base_graph.clone(),
+        )
+    }
+
+    /// Returns each member's incoming edges. Lazy — no RPC. See `edges` for why
+    /// this is a `RemoteNestedEdges`.
+    pub fn in_edges(&self) -> RemoteNestedEdges {
+        RemoteNestedEdges::with_expr(
+            self.path.clone(),
+            self.transport.clone(),
+            ReadExpr::InEdges {
+                input: Box::new(self.expr.clone()),
+            },
+            self.base_graph.clone(),
+        )
+    }
+
+    /// Returns each member's outgoing edges. Lazy — no RPC. See `edges` for why
+    /// this is a `RemoteNestedEdges`.
+    pub fn out_edges(&self) -> RemoteNestedEdges {
+        RemoteNestedEdges::with_expr(
+            self.path.clone(),
+            self.transport.clone(),
+            ReadExpr::OutEdges {
                 input: Box::new(self.expr.clone()),
             },
             self.base_graph.clone(),

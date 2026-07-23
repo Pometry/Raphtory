@@ -2490,6 +2490,42 @@ def test_nodes_out_neighbours_path_from_graph():
         server_cm.__exit__(None, None, None)
 
 
+def test_nodes_out_edges_nested_edges():
+    """`RemoteNodes.out_edges` returns a nested `RemoteNestedEdges`.
+
+    Graph: ben -> hamza, alice, bob (4 source nodes total). `collect()` is
+    nested (one inner list per source node); `count()` is the number of source
+    edge collections (== number of source nodes).
+    """
+    from raphtory.graphql import RemoteNestedEdges
+
+    server_cm, rg = _make_node_filter_graph()  # ben -> hamza, alice, bob
+    try:
+        nested = rg.nodes.out_edges
+        assert isinstance(nested, RemoteNestedEdges)
+
+        collected = nested.collect()
+        # Nested: list of per-source lists of RemoteEdge.
+        assert isinstance(collected, list)
+        assert all(isinstance(row, list) for row in collected)
+
+        # One source edge collection per source node.
+        assert nested.count() == 4
+        assert len(collected) == 4
+
+        # ben's out-edges are (ben, hamza), (ben, alice), (ben, bob); the other
+        # three source nodes have none. Exactly one inner list holds all three.
+        ben_row = next(row for row in collected if len(row) == 3)
+        assert all(e.src.name == "ben" for e in ben_row)
+        assert sorted(e.dst.name for e in ben_row) == ["alice", "bob", "hamza"]
+
+        # Native iteration yields each per-source list.
+        iterated = [list(row) for row in nested]
+        assert len(iterated) == 4
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
 def test_metadata_dict_protocol():
     """`RemoteMetadata` is dict-like: `md[k]`, `k in md`, `len(md)`,
     `for k in md`, `md.as_dict()`; `md[missing]` raises `KeyError`."""

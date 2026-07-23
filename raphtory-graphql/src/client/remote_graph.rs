@@ -491,6 +491,80 @@ pub(crate) fn expect_edge_list(
     }
 }
 
+/// Unwrap a `Transport::execute` result expecting a `Prop::List` of
+/// `Prop::List` of `(src, dst)` pairs — a nested list of edge endpoints, one
+/// inner list per source node. Used by `.collect()` on a `NestedEdges`
+/// collection. Mirrors `expect_edge_list`, one level deeper.
+pub(crate) fn expect_nested_edge_list(
+    v: Option<Prop>,
+    context: &str,
+) -> Result<Vec<Vec<(String, String)>>, ClientError> {
+    match v {
+        Some(Prop::List(rows)) => rows
+            .iter()
+            .map(|row| match row {
+                Prop::List(items) => items
+                    .iter()
+                    .map(|p| match p {
+                        Prop::List(pair) => {
+                            let mut it = pair.iter();
+                            let src = it.next().ok_or_else(|| {
+                                ClientError::InvalidResponse(format!(
+                                    "`{}` element missing src",
+                                    context
+                                ))
+                            })?;
+                            let dst = it.next().ok_or_else(|| {
+                                ClientError::InvalidResponse(format!(
+                                    "`{}` element missing dst",
+                                    context
+                                ))
+                            })?;
+                            if it.next().is_some() {
+                                return Err(ClientError::InvalidResponse(format!(
+                                    "`{}` element has more than 2 items",
+                                    context
+                                )));
+                            }
+                            let src = match src {
+                                Prop::Str(s) => s.to_string(),
+                                _ => {
+                                    return Err(ClientError::InvalidResponse(format!(
+                                        "`{}` src not a string",
+                                        context
+                                    )))
+                                }
+                            };
+                            let dst = match dst {
+                                Prop::Str(s) => s.to_string(),
+                                _ => {
+                                    return Err(ClientError::InvalidResponse(format!(
+                                        "`{}` dst not a string",
+                                        context
+                                    )))
+                                }
+                            };
+                            Ok((src, dst))
+                        }
+                        _ => Err(ClientError::InvalidResponse(format!(
+                            "`{}` element not a pair",
+                            context
+                        ))),
+                    })
+                    .collect::<Result<Vec<(String, String)>, ClientError>>(),
+                _ => Err(ClientError::InvalidResponse(format!(
+                    "`{}` outer list contains non-list element",
+                    context
+                ))),
+            })
+            .collect(),
+        _ => Err(ClientError::InvalidResponse(format!(
+            "`{}` returned unexpected value type",
+            context
+        ))),
+    }
+}
+
 /// A handle to a remote graph on the server.
 ///
 /// Holds an accumulating `ReadExpr` for view construction. View-op methods

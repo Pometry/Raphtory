@@ -16,6 +16,7 @@ pub mod namespace;
 pub mod namespaced_item;
 pub(crate) mod node;
 pub(crate) mod node_id;
+pub(crate) mod nested_edges;
 mod nodes;
 pub(crate) mod path_from_graph;
 mod path_from_node;

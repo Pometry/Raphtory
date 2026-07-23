@@ -20,6 +20,7 @@ pub mod remote_edges;
 pub mod remote_graph;
 pub mod remote_history;
 pub mod remote_metadata;
+pub mod remote_nested_edges;
 pub mod remote_node;
 pub mod remote_nodes;
 pub mod remote_path_from_graph;

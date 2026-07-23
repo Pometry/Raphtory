@@ -14,6 +14,7 @@ use crate::{
                 PyRemoteMetadata, PyRemoteProperties, PyRemotePropertyTuple,
                 PyRemoteTemporalProperties, PyRemoteTemporalProperty,
             },
+            remote_nested_edges::PyRemoteNestedEdges,
             remote_node::PyRemoteNode,
             remote_nodes::PyRemoteNodes,
             remote_path_from_graph::PyRemotePathFromGraph,
@@ -53,6 +54,7 @@ pub fn base_graphql_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyErr>
     graphql_module.add_class::<PyRemotePathFromNode>()?;
     graphql_module.add_class::<PyRemotePathFromGraph>()?;
     graphql_module.add_class::<PyRemoteEdges>()?;
+    graphql_module.add_class::<PyRemoteNestedEdges>()?;
     graphql_module.add_class::<PyRemoteHistory>()?;
     graphql_module.add_class::<PyRemoteEventTime>()?;
     graphql_module.add_class::<PyRemoteHistoryTimestamps>()?;
