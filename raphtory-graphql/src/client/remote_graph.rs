@@ -137,6 +137,41 @@ pub(crate) fn expect_string_list(
 }
 
 /// Unwrap a `Transport::execute` result expecting a `Prop::List` of
+/// `Prop::List` of `Prop::Str` (a nested list of node ids) — e.g. the result
+/// of `.ids()` on a `PathFromGraph` collection, where each inner list holds
+/// the neighbours of one source node.
+pub(crate) fn expect_nested_string_list(
+    v: Option<Prop>,
+    context: &str,
+) -> Result<Vec<Vec<String>>, ClientError> {
+    match v {
+        Some(Prop::List(rows)) => rows
+            .iter()
+            .map(|row| match row {
+                Prop::List(items) => items
+                    .iter()
+                    .map(|p| match p {
+                        Prop::Str(s) => Ok(s.to_string()),
+                        _ => Err(ClientError::InvalidResponse(format!(
+                            "`{}` inner list contains non-string element",
+                            context
+                        ))),
+                    })
+                    .collect::<Result<Vec<String>, ClientError>>(),
+                _ => Err(ClientError::InvalidResponse(format!(
+                    "`{}` outer list contains non-list element",
+                    context
+                ))),
+            })
+            .collect(),
+        _ => Err(ClientError::InvalidResponse(format!(
+            "`{}` returned unexpected value type",
+            context
+        ))),
+    }
+}
+
+/// Unwrap a `Transport::execute` result expecting a `Prop::List` of
 /// `Prop::I64`s. Used by sub-container list/page terminals when the parent
 /// is `Timestamps`, `EventIds`, or `Intervals`.
 pub(crate) fn expect_i64_list(v: Option<Prop>, context: &str) -> Result<Vec<i64>, ClientError> {

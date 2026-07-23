@@ -4,6 +4,7 @@ use crate::{
         remote_graph::{expect_i64, expect_optional_event_time, expect_string_list},
         remote_history::RemoteEventTime,
         remote_node::RemoteNode,
+        remote_path_from_graph::RemotePathFromGraph,
         transport::Transport,
         ClientError,
     },
@@ -257,6 +258,50 @@ impl RemoteNodes {
             },
             base_graph: self.base_graph.clone(),
         }
+    }
+
+    /// Returns the "path from graph" collection of each member's neighbours
+    /// (both directions). Lazy — no RPC. Propagates the base graph view so
+    /// materialized nodes are correctly rebased.
+    ///
+    /// Returns a `RemotePathFromGraph` (not `RemoteNodes`) because the server's
+    /// `GqlPathFromGraph` type groups results per source node — its terminals
+    /// (`ids`, `list`, `count`) return nested / per-source shapes.
+    pub fn neighbours(&self) -> RemotePathFromGraph {
+        RemotePathFromGraph::with_expr(
+            self.path.clone(),
+            self.transport.clone(),
+            ReadExpr::Neighbours {
+                input: Box::new(self.expr.clone()),
+            },
+            self.base_graph.clone(),
+        )
+    }
+
+    /// Returns each member's in-neighbours. Lazy — no RPC. See `neighbours`
+    /// for why this is a `RemotePathFromGraph`.
+    pub fn in_neighbours(&self) -> RemotePathFromGraph {
+        RemotePathFromGraph::with_expr(
+            self.path.clone(),
+            self.transport.clone(),
+            ReadExpr::InNeighbours {
+                input: Box::new(self.expr.clone()),
+            },
+            self.base_graph.clone(),
+        )
+    }
+
+    /// Returns each member's out-neighbours. Lazy — no RPC. See `neighbours`
+    /// for why this is a `RemotePathFromGraph`.
+    pub fn out_neighbours(&self) -> RemotePathFromGraph {
+        RemotePathFromGraph::with_expr(
+            self.path.clone(),
+            self.transport.clone(),
+            ReadExpr::OutNeighbours {
+                input: Box::new(self.expr.clone()),
+            },
+            self.base_graph.clone(),
+        )
     }
 
     /// Terminal: the list of node ids in this collection. Fires one RPC.

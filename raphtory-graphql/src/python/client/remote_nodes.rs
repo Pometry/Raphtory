@@ -1,7 +1,8 @@
 use crate::{
     client::{remote_nodes::RemoteNodes, ClientError},
     python::client::{
-        remote_history::PyRemoteEventTime, remote_node::PyRemoteNode, remote_sorting::PyNodeSortBy,
+        remote_history::PyRemoteEventTime, remote_node::PyRemoteNode,
+        remote_path_from_graph::PyRemotePathFromGraph, remote_sorting::PyNodeSortBy,
     },
 };
 use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyRef, PyRefMut, PyResult};
@@ -176,6 +177,27 @@ impl PyRemoteNodes {
     pub fn sorted(&self, sort_bys: Vec<PyNodeSortBy>) -> PyRemoteNodes {
         let inner: Vec<_> = sort_bys.into_iter().map(|s| s.inner).collect();
         PyRemoteNodes::new(self.nodes.sorted(inner))
+    }
+
+    /// Each member's neighbours (both directions). Lazy — no RPC. Returns a
+    /// `RemotePathFromGraph` (nested, grouped per source node).
+    #[getter]
+    pub fn neighbours(&self) -> PyRemotePathFromGraph {
+        PyRemotePathFromGraph::new(self.nodes.neighbours())
+    }
+
+    /// Each member's in-neighbours. Lazy — no RPC. See `neighbours` for
+    /// return-type notes.
+    #[getter]
+    pub fn in_neighbours(&self) -> PyRemotePathFromGraph {
+        PyRemotePathFromGraph::new(self.nodes.in_neighbours())
+    }
+
+    /// Each member's out-neighbours. Lazy — no RPC. See `neighbours` for
+    /// return-type notes.
+    #[getter]
+    pub fn out_neighbours(&self) -> PyRemotePathFromGraph {
+        PyRemotePathFromGraph::new(self.nodes.out_neighbours())
     }
 
     /// Returns the list of node ids in this collection.

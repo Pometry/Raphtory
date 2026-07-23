@@ -4,6 +4,7 @@ use crate::{
             collection::{check_list_allowed, check_page_limit},
             filtering::{GqlNodeFilter, NodesViewCollection},
             node::GqlNode,
+            path_from_graph::GqlPathFromGraph,
             timeindex::{GqlEventTime, GqlTimeInput},
             windowset::GqlNodesWindowSet,
             GqlAlignmentUnit, WindowDuration,
@@ -519,5 +520,51 @@ impl GqlNodes {
             Ok(self_clone.update(filtered.into_dyn()))
         })
         .await
+    }
+
+    /////////////////////
+    //// Traversals /////
+    /////////////////////
+
+    /// Returns the neighbouring nodes of each node in the collection.
+    async fn neighbours(
+        &self,
+        select: Option<GqlNodeFilter>,
+    ) -> Result<GqlPathFromGraph, GraphError> {
+        let base = self.nn.neighbours();
+        if let Some(expr) = select {
+            let nf: CompositeNodeFilter = expr.try_into()?;
+            let narrowed = blocking_compute(move || base.select(nf)).await?;
+            return Ok(GqlPathFromGraph::new(narrowed));
+        }
+        Ok(GqlPathFromGraph::new(base))
+    }
+
+    /// Returns the in-neighbours of each node in the collection.
+    async fn in_neighbours(
+        &self,
+        select: Option<GqlNodeFilter>,
+    ) -> Result<GqlPathFromGraph, GraphError> {
+        let base = self.nn.in_neighbours();
+        if let Some(expr) = select {
+            let nf: CompositeNodeFilter = expr.try_into()?;
+            let narrowed = blocking_compute(move || base.select(nf)).await?;
+            return Ok(GqlPathFromGraph::new(narrowed));
+        }
+        Ok(GqlPathFromGraph::new(base))
+    }
+
+    /// Returns the out-neighbours of each node in the collection.
+    async fn out_neighbours(
+        &self,
+        select: Option<GqlNodeFilter>,
+    ) -> Result<GqlPathFromGraph, GraphError> {
+        let base = self.nn.out_neighbours();
+        if let Some(expr) = select {
+            let nf: CompositeNodeFilter = expr.try_into()?;
+            let narrowed = blocking_compute(move || base.select(nf)).await?;
+            return Ok(GqlPathFromGraph::new(narrowed));
+        }
+        Ok(GqlPathFromGraph::new(base))
     }
 }

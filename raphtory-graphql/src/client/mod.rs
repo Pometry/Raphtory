@@ -9,6 +9,7 @@ pub mod remote_history;
 pub mod remote_metadata;
 pub mod remote_node;
 pub mod remote_nodes;
+pub mod remote_path_from_graph;
 pub mod remote_path_from_node;
 pub mod remote_schema;
 pub mod transport;
@@ -34,6 +35,8 @@ pub use remote_metadata::{
 };
 pub use remote_node::RemoteNode;
 pub use remote_nodes::RemoteNodes;
+pub use remote_path_from_graph::RemotePathFromGraph;
+pub use remote_path_from_node::RemotePathFromNode;
 pub use remote_schema::{
     RemoteEdgeSchema, RemoteGraphSchema, RemoteLayerSchema, RemoteNodeSchema, RemotePropertySchema,
 };

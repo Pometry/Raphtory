@@ -15,6 +15,8 @@ RPC model:
 
 import tempfile
 
+import pytest
+
 from raphtory.graphql import EdgeSortBy, GraphServer, NodeSortBy, SortByTime
 
 
@@ -2415,6 +2417,75 @@ def test_path_from_node_len():
     try:
         assert len(rg.node("ben").out_neighbours) == 3
         assert bool(rg.node("ben").out_neighbours) is True
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_nodes_out_neighbours_path_from_graph_count():
+    """`RemoteNodes.out_neighbours` returns a `RemotePathFromGraph` whose
+    `count()` == the number of source nodes. The nested `ids()` / `collect()`
+    terminals are exercised by `test_nodes_out_neighbours_path_from_graph`."""
+    from raphtory.graphql import RemotePathFromGraph
+
+    server_cm, rg = _make_node_filter_graph()  # ben -> hamza, alice, bob
+    try:
+        path = rg.nodes.out_neighbours
+        assert isinstance(path, RemotePathFromGraph)
+        # 4 source nodes → 4 source paths.
+        assert path.count() == 4
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_nodes_out_neighbours_path_from_graph():
+    """`RemoteNodes.out_neighbours` returns a nested `RemotePathFromGraph`.
+
+    Graph: ben -> hamza, alice, bob (4 source nodes total). `collect()` and
+    `ids()` are nested (one inner list per source node); `count()` is the
+    number of source paths (== number of source nodes).
+    """
+    from raphtory.graphql import RemotePathFromGraph
+
+    server_cm, rg = _make_node_filter_graph()
+    try:
+        path = rg.nodes.out_neighbours
+        assert isinstance(path, RemotePathFromGraph)
+
+        collected = path.collect()
+        # Nested: list of per-source lists of RemoteNode.
+        assert isinstance(collected, list)
+        assert all(isinstance(row, list) for row in collected)
+
+        ids = path.ids()
+        # Nested: list of per-source lists of str.
+        assert isinstance(ids, list)
+        assert all(isinstance(row, list) for row in ids)
+        assert all(isinstance(x, str) for row in ids for x in row)
+
+        # One source path per source node.
+        assert path.count() == 4
+        assert len(ids) == 4
+        assert len(collected) == 4
+
+        # ben's out-neighbours are hamza, alice, bob; the other three source
+        # nodes have none. Exactly one inner list holds all three.
+        assert sorted(next(row for row in ids if len(row) == 3)) == [
+            "alice",
+            "bob",
+            "hamza",
+        ]
+
+        # `collect()` yields RemoteNode handles whose names match the ids.
+        collected_names = [[n.name for n in row] for row in collected]
+        assert sorted(next(row for row in collected_names if len(row) == 3)) == [
+            "alice",
+            "bob",
+            "hamza",
+        ]
+
+        # Native iteration yields each per-source list.
+        iterated = [list(row) for row in path]
+        assert len(iterated) == 4
     finally:
         server_cm.__exit__(None, None, None)
 

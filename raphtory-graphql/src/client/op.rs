@@ -403,6 +403,12 @@ pub enum ReadExpr {
     // ============ Collection terminals (on Nodes/Edges collections) ============
     /// Terminal on a Nodes collection: list of member ids — `Vec<String>`.
     Ids { input: Box<ReadExpr> },
+    /// Terminal on a `PathFromGraph` collection: the nested list of member ids
+    /// — `Vec<Vec<String>>` (one inner list per source node). Renders
+    /// `list { ids }`: `PathFromGraph.list` is `[PathFromNode!]!`, and each
+    /// per-source `PathFromNode` yields its own flat `ids`. Parsed as
+    /// `Prop::List(Prop::List(Prop::Str))` (outer = per source, inner = ids).
+    NestedIds { input: Box<ReadExpr> },
     /// Terminal on a collection: number of members — `i64`.
     /// Distinct from `CountNodes`/`CountEdges` (which are Graph-scope); this
     /// fires against the collection's `count` field. Also polymorphic on

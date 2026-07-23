@@ -17,6 +17,7 @@ pub mod namespaced_item;
 pub(crate) mod node;
 pub(crate) mod node_id;
 mod nodes;
+pub(crate) mod path_from_graph;
 mod path_from_node;
 pub(crate) mod property;
 pub(crate) mod timeindex;

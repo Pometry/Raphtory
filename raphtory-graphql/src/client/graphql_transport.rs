@@ -1428,6 +1428,14 @@ fn render_read_body(expr: &ReadExpr) -> String {
         ReadExpr::LastUpdated { input } => format!("{} {{ lastUpdated", render_read_body(input)),
         ReadExpr::UniqueLayers { input } => format!("{} {{ uniqueLayers", render_read_body(input)),
         ReadExpr::Ids { input } => format!("{} {{ ids", render_read_body(input)),
+        // `PathFromGraph.list` returns `[PathFromNode!]!` — one object per
+        // source node. We render `list { ids }` and read each element's `ids`
+        // scalar-list to rebuild the nested `[[String]]` shape client-side.
+        // The `list` field opens ONE net brace (closed by outer `read_depth`);
+        // the inner `{ ids }` group is self-balanced. Mirrors `EdgesList`.
+        ReadExpr::NestedIds { input } => {
+            format!("{} {{ list {{ ids }}", render_read_body(input))
+        }
         ReadExpr::Count { input } => format!("{} {{ count", render_read_body(input)),
         // Compound structured terminal: renders as `list { src { name } dst { name } }`.
         // The `list` field opens ONE brace that gets closed by the outer `read_depth`;
@@ -1616,6 +1624,7 @@ fn read_depth(expr: &ReadExpr) -> usize {
         | ReadExpr::TemporalPropertyMedian { input }
         | ReadExpr::Schema { input }
         | ReadExpr::Ids { input }
+        | ReadExpr::NestedIds { input }
         | ReadExpr::Count { input }
         | ReadExpr::EdgesList { input }
         | ReadExpr::SharedNeighbours { input, .. }
@@ -1805,6 +1814,43 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
                 })
                 .collect();
             Ok(Some(Prop::List(items?.into())))
+        }
+        // Nested id terminal — `PathFromGraph.list` returns a JSON array of
+        // `PathFromNode` records `[{"ids": ["a","b"]}, ...]`, one per source
+        // node. We pull each record's `ids` scalar-list and rebuild the
+        // nested `Prop::List(Prop::List(Prop::Str))` (outer = per source,
+        // inner = that source's ids). Mirrors `EdgesList`.
+        ReadExpr::NestedIds { .. } => {
+            let outer = terminal_val.as_array().ok_or_else(|| {
+                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
+            })?;
+            let rows: Result<Vec<Prop>, ClientError> = outer
+                .iter()
+                .map(|row| {
+                    let inner = row
+                        .get("ids")
+                        .and_then(|v| v.as_array())
+                        .ok_or_else(|| {
+                            ClientError::InvalidResponse(format!(
+                                "`{}` element missing `ids` array",
+                                terminal_key
+                            ))
+                        })?;
+                    let items: Result<Vec<Prop>, ClientError> = inner
+                        .iter()
+                        .map(|v| {
+                            v.as_str().map(|s| Prop::Str(s.into())).ok_or_else(|| {
+                                ClientError::InvalidResponse(format!(
+                                    "`{}` inner element not a string",
+                                    terminal_key
+                                ))
+                            })
+                        })
+                        .collect();
+                    Ok(Prop::List(items?.into()))
+                })
+                .collect();
+            Ok(Some(Prop::List(rows?.into())))
         }
         // List-of-GID terminal — each element can be a JSON string or int.
         // Used for edge `id` which returns [src, dst] as `Vec<GqlNodeId>`.
@@ -2409,6 +2455,10 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
                 go(input, out);
                 out.push("ids");
             }
+            ReadExpr::NestedIds { input } => {
+                go(input, out);
+                out.push("list");
+            }
             ReadExpr::Count { input } => {
                 go(input, out);
                 out.push("count");
@@ -2828,6 +2878,7 @@ fn child_input(expr: &ReadExpr) -> Option<&ReadExpr> {
         | ReadExpr::TemporalPropertyMedian { input }
         | ReadExpr::Schema { input }
         | ReadExpr::Ids { input }
+        | ReadExpr::NestedIds { input }
         | ReadExpr::Count { input }
         | ReadExpr::EdgesList { input }
         | ReadExpr::SharedNeighbours { input, .. }
