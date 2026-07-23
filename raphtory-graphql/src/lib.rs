@@ -647,6 +647,127 @@ mod graphql_test {
         );
     }
 
+    fn single_component_test_graph() -> MaterializedGraph {
+        let graph = Graph::new();
+        // chain a -> b -> c -> d
+        for (src, dst) in [("a", "b"), ("b", "c"), ("c", "d")] {
+            graph.add_edge(1, src, dst, NO_PROPS, None).unwrap();
+        }
+        graph.into()
+    }
+
+    #[tokio::test]
+    async fn test_algorithm_out_component() {
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", single_component_test_graph())], tmp_dir.path()).await;
+
+        // out component of a: nodes reachable following out-edges, keyed by distance
+        let query = r#"
+        {
+          graph(path: "g") {
+            algorithm {
+              outComponent(node: "a") {
+                rows {
+                  node { id }
+                  entries {
+                    columnName
+                    value { ... on NodeStateProp { prop } }
+                  }
+                }
+              }
+            }
+          }
+        }
+        "#;
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        // a reaches b (1), c (2), d (3); source itself is not included
+        let entry = |id: &str, distance| {
+            json!({
+                "node": { "id": id },
+                "entries": [{ "columnName": "distance", "value": { "prop": distance } }]
+            })
+        };
+        assert_eq!(
+            res.data.into_json().unwrap(),
+            json!({
+                "graph": { "algorithm": { "outComponent": { "rows": [
+                    entry("b", 1),
+                    entry("c", 2),
+                    entry("d", 3),
+                ] } } }
+            })
+        );
+    }
+
+    #[tokio::test]
+    async fn test_algorithm_in_component() {
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", single_component_test_graph())], tmp_dir.path()).await;
+
+        // in component of d: nodes that can reach it, keyed by distance
+        let query = r#"
+        {
+          graph(path: "g") {
+            algorithm {
+              inComponent(node: "d") {
+                nodes { list { id } }
+                columns {
+                  name
+                  values { ... on NodeStateProp { prop } }
+                }
+              }
+            }
+          }
+        }
+        "#;
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        // a (3), b (2), c (1) can reach d; row order follows the key index (a, b, c)
+        assert_eq!(
+            res.data.into_json().unwrap(),
+            json!({
+                "graph": { "algorithm": { "inComponent": {
+                    "nodes": { "list": [{ "id": "a" }, { "id": "b" }, { "id": "c" }] },
+                    "columns": [{
+                        "name": "distance",
+                        "values": [{ "prop": 3 }, { "prop": 2 }, { "prop": 1 }]
+                    }]
+                } } }
+            })
+        );
+    }
+
+    #[tokio::test]
+    async fn test_algorithm_out_component_filtered() {
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", single_component_test_graph())], tmp_dir.path()).await;
+
+        // filter out node c; a can then only reach b (d becomes unreachable)
+        let query = r#"
+        {
+          graph(path: "g") {
+            algorithm {
+              outComponent(node: "a", filter: { node: { field: NODE_NAME, where: { ne: { str: "c" } } } }) {
+                nodes { list { id } }
+              }
+            }
+          }
+        }
+        "#;
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        // with c removed, a only reaches b (d is now unreachable)
+        assert_eq!(
+            res.data.into_json().unwrap(),
+            json!({
+                "graph": { "algorithm": { "outComponent": {
+                    "nodes": { "list": [{ "id": "b" }] }
+                } } }
+            })
+        );
+    }
+
     #[tokio::test]
     async fn test_algorithm_fast_rp() {
         let graph = Graph::new();

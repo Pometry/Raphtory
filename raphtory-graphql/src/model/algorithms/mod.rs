@@ -14,6 +14,7 @@ use crate::{
             fast_rp::{GqlFastRp, GqlFastRpArgs},
             fruchterman_reingold::{GqlFruchtermanReingold, GqlFruchtermanReingoldArgs},
             hits::{GqlHits, GqlHitsArgs},
+            in_component::{GqlInComponent, GqlInComponentArgs},
             in_components::{GqlInComponents, GqlInComponentsArgs},
             label_propagation::{GqlLabelPropagation, GqlLabelPropagationArgs},
             local_clustering_coefficient_batch::{
@@ -23,6 +24,7 @@ use crate::{
                 GqlLocalTemporalThreeNodeMotifs, GqlLocalTemporalThreeNodeMotifsArgs,
             },
             louvain::{GqlLouvain, GqlLouvainArgs},
+            out_component::{GqlOutComponent, GqlOutComponentArgs},
             out_components::{GqlOutComponents, GqlOutComponentsArgs},
             pagerank::{GqlPagerank, GqlPagerankArgs},
             single_source_shortest_path::{
@@ -38,12 +40,18 @@ use crate::{
                 GqlWeaklyConnectedComponents, GqlWeaklyConnectedComponentsArgs,
             },
         },
-        graph::node_state::GqlNodeState,
+        graph::{filtering::GqlNodeFilter, node_id::GqlNodeId, node_state::GqlNodeState},
     },
     rayon::blocking_compute,
 };
 use dynamic_graphql::{Enum, ResolvedObject, ResolvedObjectFields};
-use raphtory::{db::api::view::DynamicGraph, errors::GraphError};
+use raphtory::{
+    db::{
+        api::view::{DynamicGraph, Filter, IntoDynamic},
+        graph::views::filter::model::node_filter::CompositeNodeFilter,
+    },
+    errors::GraphError,
+};
 use raphtory_api::core::Direction;
 
 pub(crate) mod all_local_reciprocity;
@@ -55,11 +63,13 @@ pub(crate) mod dijkstra;
 pub(crate) mod fast_rp;
 pub(crate) mod fruchterman_reingold;
 pub(crate) mod hits;
+pub(crate) mod in_component;
 pub(crate) mod in_components;
 pub(crate) mod label_propagation;
 pub(crate) mod local_clustering_coefficient_batch;
 pub(crate) mod local_temporal_three_node_motifs;
 pub(crate) mod louvain;
+pub(crate) mod out_component;
 pub(crate) mod out_components;
 pub(crate) mod pagerank;
 pub(crate) mod single_source_shortest_path;
@@ -108,6 +118,21 @@ impl From<GqlDirection> for Direction {
             GqlDirection::In => Direction::IN,
             GqlDirection::Both => Direction::BOTH,
         }
+    }
+}
+
+/// Applies an optional node filter, returning the filtered view (or the graph
+/// unchanged if no filter is given). Mirrors `GqlGraph::filter_nodes`.
+pub(crate) fn filtered_view(
+    graph: &DynamicGraph,
+    filter: Option<GqlNodeFilter>,
+) -> Result<DynamicGraph, GraphError> {
+    match filter {
+        Some(filter) => {
+            let filter: CompositeNodeFilter = filter.try_into()?;
+            Ok(graph.filter(filter)?.into_dynamic())
+        }
+        None => Ok(graph.clone()),
     }
 }
 
@@ -210,6 +235,28 @@ impl GqlAlgorithms {
         >,
     ) -> Result<GqlNodeState, GraphError> {
         self.run::<GqlOutComponents>(GqlOutComponentsArgs { threads })
+            .await
+    }
+
+    /// Returns the in component of a single node (nodes that can reach it, with their distance).
+    async fn in_component(
+        &self,
+        #[graphql(desc = "Node id.")] node: GqlNodeId,
+        #[graphql(desc = "Optional node filter; the algorithm runs on the resulting view.")]
+        filter: Option<GqlNodeFilter>,
+    ) -> Result<GqlNodeState, GraphError> {
+        self.run::<GqlInComponent>(GqlInComponentArgs { node, filter })
+            .await
+    }
+
+    /// Returns the out component of a single node (nodes it can reach, with their distance).
+    async fn out_component(
+        &self,
+        #[graphql(desc = "Node id.")] node: GqlNodeId,
+        #[graphql(desc = "Optional node filter; the algorithm runs on the resulting view.")]
+        filter: Option<GqlNodeFilter>,
+    ) -> Result<GqlNodeState, GraphError> {
+        self.run::<GqlOutComponent>(GqlOutComponentArgs { node, filter })
             .await
     }
 
