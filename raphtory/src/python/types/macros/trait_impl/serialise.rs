@@ -39,7 +39,8 @@ macro_rules! impl_serialise {
             /// Returns:
             ///     None:
             fn save_to_zip(&self, path: PathBuf) -> Result<(), GraphError> {
-                let folder = $crate::serialise::GraphFolder::new_as_zip(path);
+                let folder =
+                    $crate::api::core::storage::graph_folder::GraphFolder::new_as_zip(path);
                 $crate::serialise::StableEncode::encode(&self.$field, folder)
             }
 

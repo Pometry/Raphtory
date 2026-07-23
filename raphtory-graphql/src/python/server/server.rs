@@ -18,12 +18,10 @@ use pyo3::{
     BoundObject,
 };
 use pythonize::{depythonize, PythonizeError};
+use raphtory::{db::api::storage::storage::Config, python::utils::block_on};
+#[cfg(feature = "vectors")]
 use raphtory::{
-    db::api::storage::storage::Config,
-    python::{
-        packages::vectors::{PyOpenAIEmbeddings, TemplateConfig},
-        utils::block_on,
-    },
+    python::packages::vectors::{PyOpenAIEmbeddings, TemplateConfig},
     vectors::template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
 };
 use raphtory_api::python::error::adapt_err_value;
@@ -48,7 +46,7 @@ use std::{io::Error, path::PathBuf, thread, time::Duration};
 ///     heavy_query_limit (int, optional): Maximum number of expensive traversal queries (outComponent, inComponent, edges, outEdges, inEdges, neighbours, outNeighbours, inNeighbours) allowed to run simultaneously. Extra queries are parked on a semaphore.
 ///     exclusive_writes (bool, optional): If True, ingestion/write operations run one at a time and block reads until complete.
 ///     disable_batching (bool, optional): If True, batched GraphQL requests are rejected. Prevents bypassing per-request depth/complexity limits.
-///     max_batch_size (int, optional): Caps the number of queries accepted in a single batched request.
+///     max_batch_size (int, optional): Caps the number of queries accepted in a single batched request. Defaults to 10; set to null for unlimited (subject to disable_batching).
 ///     disable_lists (bool, optional): If True, bulk `list` endpoints on collections are disabled. Clients must use `page` instead.
 ///     max_page_size (int, optional): Maximum page size allowed on paged collection queries.
 ///     max_query_depth (int, optional): Maximum nesting depth of a query.
@@ -76,6 +74,7 @@ impl From<ServerError> for PyErr {
     }
 }
 
+#[cfg(feature = "vectors")]
 fn template_from_python(
     nodes: TemplateConfig,
     edges: TemplateConfig,
@@ -140,6 +139,7 @@ impl PyGraphServer {
     ///
     /// Returns:
     ///     None:
+    #[cfg(feature = "vectors")]
     #[pyo3(
         signature = (name, embeddings, nodes = TemplateConfig::Bool(true), edges = TemplateConfig::Bool(true))
     )]
@@ -172,6 +172,7 @@ impl PyGraphServer {
     ///
     /// Returns:
     ///     None:
+    #[cfg(feature = "vectors")]
     #[pyo3(
         signature = (embeddings, nodes = TemplateConfig::Bool(true), edges = TemplateConfig::Bool(true))
     )]

@@ -2,7 +2,8 @@ use crate::{
     client::{ClientError, RemoteGraph},
     url_encode::url_decode_graph,
 };
-use raphtory::{db::api::view::MaterializedGraph, prelude::Config, serialise::GraphFolder};
+use raphtory::{db::api::view::MaterializedGraph, prelude::Config};
+use raphtory_api::core::storage::graph_folder::GraphFolder;
 use reqwest::{multipart, multipart::Part, Client};
 use serde_json::{json, Value as JsonValue};
 use std::{collections::HashMap, io::Cursor};
