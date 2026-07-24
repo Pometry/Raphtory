@@ -20,8 +20,9 @@ use std::sync::Arc;
 /// Distinct from `RemoteEdges` because it is **nested** — the server type
 /// (`GqlNestedEdges`) groups results per source node. `collect()` returns
 /// `list[list[RemoteEdge]]`, and `count()` is the number of source edge
-/// collections. There is no `ids()` — edges are identified by `(src, dst)`
-/// pairs, not a single string id.
+/// collections. Edges are identified by `(src, dst)` pairs rather than a
+/// single string id; the `.id` accessor returns those pairs, nested per
+/// source node.
 #[derive(Clone)]
 #[pyclass(
     name = "RemoteNestedEdges",

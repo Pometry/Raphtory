@@ -18,7 +18,7 @@ use std::sync::Arc;
 /// [RemoteNodes.out_neighbours][raphtory.graphql.RemoteNodes.out_neighbours].
 ///
 /// Distinct from `RemotePathFromNode` because it is **nested** — the server
-/// type (`GqlPathFromGraph`) groups results per source node. `ids()` returns
+/// type (`GqlPathFromGraph`) groups results per source node. `.id` returns
 /// `list[list[str]]`, `collect()` returns `list[list[RemoteNode]]`, and
 /// `count()` is the number of source paths.
 #[derive(Clone)]

@@ -147,7 +147,7 @@ impl PyRemoteMetadata {
 /// Same terminal shape as `RemoteMetadata` (`get`/`contains`/`keys`/`values`).
 /// For temporal properties, `.get(key)` and `.values()` yield the property's
 /// most recent value under the current view; drill into a property's timeline
-/// via `.temporal()` (shipped in a follow-up batch).
+/// via `.temporal()`.
 ///
 /// Returned by [RemoteGraph.properties][raphtory.graphql.RemoteGraph.properties],
 /// [RemoteNode.properties][raphtory.graphql.RemoteNode.properties], and

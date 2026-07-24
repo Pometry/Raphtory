@@ -429,9 +429,8 @@ impl PyRemoteNodes {
     }
 
     /// Enables `for n in remote_nodes:` — fetches all ids in one RPC, then
-    /// yields a `RemoteNode` handle for each. No per-node RPC batching yet
-    /// (planned as a follow-up); each terminal on a yielded node fires its
-    /// own RPC.
+    /// yields a `RemoteNode` handle for each. Node handles are not batched:
+    /// each terminal on a yielded node fires its own RPC.
     fn __iter__(&self) -> Result<PyRemoteNodesIter, ClientError> {
         let list = self.collect()?;
         Ok(PyRemoteNodesIter {

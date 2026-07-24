@@ -192,9 +192,10 @@ def test_node_id_type_and_state():
         server_cm.__exit__(None, None, None)
 
 
-def test_view_ops_batch2():
-    """`.snapshot_at()`, `.latest()`, `.exclude_layer()`, `.shrink_window()` etc.
-    All lazy builders that compose with terminals."""
+def test_snapshot_latest_exclude_shrink_view_ops():
+    """`.snapshot_at()`, `.latest()`, `.snapshot_latest()`, `.exclude_layer()`,
+    `.shrink_window()`, `.shrink_end()` — all lazy builders that compose with
+    terminals."""
     server_cm, rg = _make_graph_with_edge()
     try:
         # `.snapshot_at(3)` — snapshot at t=3, edge is visible.
@@ -223,9 +224,9 @@ def test_graph_string_terminals():
         # and the namespace is the empty root.
         assert rg.name() == "test-graph"
         assert rg.path() == "test-graph"
-        # Namespace of a top-level graph — server returns some form of it; just
-        # confirm it's a string and doesn't error.
-        assert isinstance(rg.namespace(), str)
+        # Namespace is the parent-path prefix of the graph path. A top-level
+        # graph (no "/" in its path) has the empty root namespace.
+        assert rg.namespace() == ""
     finally:
         server_cm.__exit__(None, None, None)
 
@@ -2460,12 +2461,12 @@ def test_nodes_out_neighbours_path_from_graph_count():
         server_cm.__exit__(None, None, None)
 
 
-# --- Phase 3: multi-hop traversal on the two path collection types -----------
+# --- multi-hop traversal on the two path collection types --------------------
 
 
 def test_path_from_node_multi_hop_flat():
-    """`RemoteNode.out_neighbours.out_neighbours` chains (Phase 3) and stays a
-    flat `RemotePathFromNode`; `.collect()` returns a flat `list[RemoteNode]`."""
+    """`RemoteNode.out_neighbours.out_neighbours` chains and stays a flat
+    `RemotePathFromNode`; `.collect()` returns a flat `list[RemoteNode]`."""
     from raphtory.graphql import RemoteNode, RemotePathFromNode
 
     server_cm, rg = _make_node_filter_graph()  # ben -> hamza, alice, bob
@@ -2509,8 +2510,8 @@ def test_path_from_node_edges_flat():
 
 
 def test_path_from_graph_multi_hop_nested():
-    """`RemoteNodes.out_neighbours.out_neighbours` chains (Phase 3) and stays a
-    nested `RemotePathFromGraph`; `.collect()` → `list[list[RemoteNode]]`."""
+    """`RemoteNodes.out_neighbours.out_neighbours` chains and stays a nested
+    `RemotePathFromGraph`; `.collect()` → `list[list[RemoteNode]]`."""
     from raphtory.graphql import RemoteNode, RemotePathFromGraph
 
     server_cm, rg = _make_node_filter_graph()  # 4 source nodes

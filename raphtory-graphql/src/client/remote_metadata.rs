@@ -15,8 +15,8 @@ use std::sync::Arc;
 /// A single `(key, value)` property reading. Value can be any polymorphic
 /// property type — string, int, float, bool, list, map, datetime, etc.
 ///
-/// Constructed by `RemoteMetadata.get()` / `.values()` (and, in the upcoming
-/// Properties batch, by `RemoteProperties.get()` / `.values()`).
+/// Constructed by `RemoteMetadata.get()` / `.values()` and by
+/// `RemoteProperties.get()` / `.values()`.
 #[derive(Clone, Debug, PartialEq)]
 pub struct RemoteProperty {
     /// The property name.
@@ -108,7 +108,7 @@ impl RemoteMetadata {
 ///
 /// Same terminal shape as `RemoteMetadata` (`get`/`contains`/`keys`/`values`),
 /// but each value can be temporal. Callers who want to drill into a
-/// property's timeline reach for `.temporal()` (shipped in a follow-up batch).
+/// property's timeline reach for `.temporal()`.
 ///
 /// Produced by `.properties()` on `RemoteGraph` / `RemoteNode` / `RemoteEdge`.
 #[derive(Clone)]

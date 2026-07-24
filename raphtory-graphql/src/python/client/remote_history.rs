@@ -144,10 +144,10 @@ impl PyRemoteEventTime {
 /// by [RemoteEdge.history][raphtory.graphql.RemoteEdge.history] /
 /// [RemoteEdge.deletions][raphtory.graphql.RemoteEdge.deletions].
 ///
-/// Mirrors the shape of the local Python API's `History` type. This batch
-/// exposes scalar terminals (`count`, `is_empty`, `earliest_time`,
-/// `latest_time`); list/page terminals and sub-container accessors ship in
-/// follow-up batches.
+/// Mirrors the shape of the local Python API's `History` type. Exposes scalar
+/// terminals (`count`, `is_empty`, `earliest_time`, `latest_time`), the
+/// `collect` / `collect_rev` / `page` / `page_rev` list terminals, and the
+/// `.t` / `.dt` / `.event_id` / `.intervals` sub-container accessors.
 #[derive(Clone)]
 #[pyclass(name = "RemoteHistory", module = "raphtory.graphql", from_py_object)]
 pub struct PyRemoteHistory {

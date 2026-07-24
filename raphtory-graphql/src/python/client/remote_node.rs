@@ -410,8 +410,9 @@ impl PyRemoteNode {
     }
 
     /// The event history of this node — a `RemoteHistory` container with
-    /// terminals like `count()`, `list()`, `earliest_time()`, and (in
-    /// follow-up batches) sub-container accessors. Lazy — no RPC.
+    /// terminals like `count()`, `collect()`, `earliest_time()`, and the
+    /// `.t` / `.dt` / `.event_id` / `.intervals` sub-container accessors.
+    /// Lazy — no RPC.
     #[getter]
     pub fn history(&self) -> PyRemoteHistory {
         PyRemoteHistory::new(self.node.history())

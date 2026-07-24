@@ -42,9 +42,10 @@ pub struct RemoteEventTime {
 /// members (via sub-container list/page terminals) so descendants inherit the
 /// same view.
 ///
-/// Mirrors the shape of the local Python API's `History` type. Sub-container
-/// accessors (`.timestamps`, `.datetimes`, `.event_id`, `.intervals`) and
-/// list/page terminals ship in follow-up batches.
+/// Mirrors the shape of the local Python API's `History` type. Exposes the
+/// list/page terminals plus the `timestamps` / `datetimes` / `event_id` /
+/// `intervals` sub-container accessors (surfaced in Python as `.t` / `.dt` /
+/// `.event_id` / `.intervals`).
 #[derive(Clone)]
 pub struct RemoteHistory {
     pub path: String,

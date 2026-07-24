@@ -19,8 +19,9 @@ use std::sync::Arc;
 /// [RemoteNode.in_edges][raphtory.graphql.RemoteNode.in_edges] /
 /// [RemoteNode.out_edges][raphtory.graphql.RemoteNode.out_edges].
 ///
-/// Edges are identified by `(src, dst)` pairs — there's no single-string id,
-/// so this collection exposes `count()` and `list()` but no `ids()`.
+/// Edges are identified by `(src, dst)` pairs rather than a single-string id;
+/// the `.id` accessor returns those `(src, dst)` pairs. Terminals include
+/// `count()` and `collect()`.
 #[derive(Clone)]
 #[pyclass(name = "RemoteEdges", module = "raphtory.graphql", from_py_object)]
 pub struct PyRemoteEdges {
@@ -443,8 +444,8 @@ impl PyRemoteEdges {
     }
 
     /// Enables `for e in remote_edges:` — fetches all `(src, dst)` pairs in
-    /// one RPC, then yields a `RemoteEdge` handle for each. No per-edge RPC
-    /// batching yet; each terminal on a yielded edge fires its own RPC.
+    /// one RPC, then yields a `RemoteEdge` handle for each. Edge handles are
+    /// not batched: each terminal on a yielded edge fires its own RPC.
     fn __iter__(&self) -> Result<PyRemoteEdgesIter, ClientError> {
         let list = self.collect()?;
         Ok(PyRemoteEdgesIter {
