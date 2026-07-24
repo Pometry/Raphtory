@@ -2,9 +2,8 @@ use crate::{
     client::{
         op::{Op, ReadExpr},
         remote_graph::{
-            expect_bool, expect_i64, expect_nested_i64_list,
-            expect_nested_optional_string_list, expect_nested_string_list,
-            expect_optional_event_time, expect_optional_i64,
+            expect_bool, expect_i64, expect_nested_i64_list, expect_nested_optional_string_list,
+            expect_nested_string_list, expect_optional_event_time, expect_optional_i64,
         },
         remote_history::{RemoteEventTime, RemoteHistory},
         remote_nested_edges::RemoteNestedEdges,

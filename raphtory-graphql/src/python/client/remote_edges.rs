@@ -1,7 +1,8 @@
 use crate::{
     client::{remote_edges::RemoteEdges, ClientError},
     python::client::{
-        remote_edge::PyRemoteEdge, remote_history::PyRemoteEventTime, remote_sorting::PyEdgeSortBy,
+        remote_edge::PyRemoteEdge, remote_history::PyRemoteEventTime,
+        remote_path_from_node::PyRemotePathFromNode, remote_sorting::PyEdgeSortBy,
     },
 };
 use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyRef, PyRefMut, PyResult};
@@ -213,6 +214,39 @@ impl PyRemoteEdges {
         execute_async_task(move || async move { edges.has_layer(name).await })
     }
 
+    /// The source node of each edge in this collection, as a flat
+    /// `RemotePathFromNode`. Mirrors the local `Edges.src`. Property — lazy;
+    /// attribute access fires no RPC.
+    ///
+    /// Returns:
+    ///   RemotePathFromNode: the source nodes, in collection order.
+    #[getter]
+    pub fn src(&self) -> PyRemotePathFromNode {
+        PyRemotePathFromNode::new(self.edges.src())
+    }
+
+    /// The destination node of each edge in this collection, as a flat
+    /// `RemotePathFromNode`. Mirrors the local `Edges.dst`. Property — lazy;
+    /// attribute access fires no RPC.
+    ///
+    /// Returns:
+    ///   RemotePathFromNode: the destination nodes, in collection order.
+    #[getter]
+    pub fn dst(&self) -> PyRemotePathFromNode {
+        PyRemotePathFromNode::new(self.edges.dst())
+    }
+
+    /// The node at the other end of each edge (destination for out-edges,
+    /// source for in-edges), as a flat `RemotePathFromNode`. Mirrors the local
+    /// `Edges.nbr`. Property — lazy; attribute access fires no RPC.
+    ///
+    /// Returns:
+    ///   RemotePathFromNode: the other-end nodes, in collection order.
+    #[getter]
+    pub fn nbr(&self) -> PyRemotePathFromNode {
+        PyRemotePathFromNode::new(self.edges.nbr())
+    }
+
     /// The `(src, dst)` id pair of each edge in this collection. Property —
     /// attribute access fires one RPC.
     ///
@@ -255,10 +289,12 @@ impl PyRemoteEdges {
     #[getter]
     pub fn earliest_time(&self) -> Result<Vec<Option<PyRemoteEventTime>>, ClientError> {
         let edges = Arc::clone(&self.edges);
-        Ok(execute_async_task(move || async move { edges.earliest_time().await })?
-            .into_iter()
-            .map(|o| o.map(PyRemoteEventTime::from))
-            .collect())
+        Ok(
+            execute_async_task(move || async move { edges.earliest_time().await })?
+                .into_iter()
+                .map(|o| o.map(PyRemoteEventTime::from))
+                .collect(),
+        )
     }
 
     /// The latest event time of each edge in this collection. Property —
@@ -269,10 +305,12 @@ impl PyRemoteEdges {
     #[getter]
     pub fn latest_time(&self) -> Result<Vec<Option<PyRemoteEventTime>>, ClientError> {
         let edges = Arc::clone(&self.edges);
-        Ok(execute_async_task(move || async move { edges.latest_time().await })?
-            .into_iter()
-            .map(|o| o.map(PyRemoteEventTime::from))
-            .collect())
+        Ok(
+            execute_async_task(move || async move { edges.latest_time().await })?
+                .into_iter()
+                .map(|o| o.map(PyRemoteEventTime::from))
+                .collect(),
+        )
     }
 
     /// The event time of each edge in this collection. Only valid once the
@@ -284,10 +322,12 @@ impl PyRemoteEdges {
     #[getter]
     pub fn time(&self) -> Result<Vec<Option<PyRemoteEventTime>>, ClientError> {
         let edges = Arc::clone(&self.edges);
-        Ok(execute_async_task(move || async move { edges.time().await })?
-            .into_iter()
-            .map(|o| o.map(PyRemoteEventTime::from))
-            .collect())
+        Ok(
+            execute_async_task(move || async move { edges.time().await })?
+                .into_iter()
+                .map(|o| o.map(PyRemoteEventTime::from))
+                .collect(),
+        )
     }
 
     /// Whether each edge is active (has an event) in the current view. Method

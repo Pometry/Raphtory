@@ -1357,7 +1357,11 @@ fn render_read_body(expr: &ReadExpr) -> String {
         }
         ReadExpr::PropertyKeys { input } => format!("{} {{ keys", render_read_body(input)),
         ReadExpr::PropertyGetDtypeOf { input, key } => {
-            format!("{} {{ getDtypeOf(key: \"{}\")", render_read_body(input), key)
+            format!(
+                "{} {{ getDtypeOf(key: \"{}\")",
+                render_read_body(input),
+                key
+            )
         }
         ReadExpr::PropertyValues { input, keys } => match keys {
             Some(ks) => format!(
@@ -1590,16 +1594,28 @@ fn render_read_body(expr: &ReadExpr) -> String {
         }
         // Boolean columnar accessors — NESTED collections render `list { list { <field> } }`.
         ReadExpr::NestedIsActive { input } => {
-            format!("{} {{ list {{ list {{ isActive }} }}", render_read_body(input))
+            format!(
+                "{} {{ list {{ list {{ isActive }} }}",
+                render_read_body(input)
+            )
         }
         ReadExpr::NestedIsValid { input } => {
-            format!("{} {{ list {{ list {{ isValid }} }}", render_read_body(input))
+            format!(
+                "{} {{ list {{ list {{ isValid }} }}",
+                render_read_body(input)
+            )
         }
         ReadExpr::NestedIsDeleted { input } => {
-            format!("{} {{ list {{ list {{ isDeleted }} }}", render_read_body(input))
+            format!(
+                "{} {{ list {{ list {{ isDeleted }} }}",
+                render_read_body(input)
+            )
         }
         ReadExpr::NestedIsSelfLoop { input } => {
-            format!("{} {{ list {{ list {{ isSelfLoop }} }}", render_read_body(input))
+            format!(
+                "{} {{ list {{ list {{ isSelfLoop }} }}",
+                render_read_body(input)
+            )
         }
         // Compound structured terminal on Graph: `sharedNeighbours(selectedNodes: [ids]) { name }`
         // — opens ONE net brace (the outer, before `sharedNeighbours`); the inner
@@ -2371,14 +2387,18 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
                         .and_then(|s| s.get("name"))
                         .and_then(|n| n.as_str())
                         .ok_or_else(|| {
-                            ClientError::InvalidResponse("findEdges element missing `src.name`".into())
+                            ClientError::InvalidResponse(
+                                "findEdges element missing `src.name`".into(),
+                            )
                         })?;
                     let dst = v
                         .get("dst")
                         .and_then(|d| d.get("name"))
                         .and_then(|n| n.as_str())
                         .ok_or_else(|| {
-                            ClientError::InvalidResponse("findEdges element missing `dst.name`".into())
+                            ClientError::InvalidResponse(
+                                "findEdges element missing `dst.name`".into(),
+                            )
                         })?;
                     Ok(Prop::List(
                         vec![Prop::Str(src.into()), Prop::Str(dst.into())].into(),
@@ -2616,7 +2636,9 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
         // `list` array of per-source records, each with its own inner `list`.
         ReadExpr::NestedNames { .. } => build_nested_column(terminal_val, col_name_elem),
         ReadExpr::NestedNodeTypes { .. } => build_nested_column(terminal_val, col_node_type_elem),
-        ReadExpr::NestedLayerNames { .. } => build_nested_column(terminal_val, col_layer_names_elem),
+        ReadExpr::NestedLayerNames { .. } => {
+            build_nested_column(terminal_val, col_layer_names_elem)
+        }
         ReadExpr::NestedLayerName { .. } => build_nested_column(terminal_val, col_layer_name_elem),
         ReadExpr::NestedEarliestTime { .. } => {
             build_nested_column(terminal_val, |v| col_event_time_elem(v, "earliestTime"))

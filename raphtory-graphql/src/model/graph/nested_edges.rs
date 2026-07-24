@@ -3,6 +3,7 @@ use crate::{
         collection::{check_list_allowed, check_page_limit},
         edges::GqlEdges,
         filtering::{EdgesViewCollection, GqlEdgeFilter},
+        path_from_graph::GqlPathFromGraph,
         timeindex::{GqlEventTime, GqlTimeInput},
     },
     rayon::blocking_compute,
@@ -262,6 +263,29 @@ impl GqlNestedEdges {
     async fn has_layer(&self, name: String) -> bool {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.nn.has_layer(name)).await
+    }
+
+    /////////////////////
+    //// Traversals /////
+    /////////////////////
+
+    /// Returns the source node of each edge, grouped per source node, as a
+    /// nested `PathFromGraph`.
+    async fn src(&self) -> GqlPathFromGraph {
+        GqlPathFromGraph::new(self.nn.src())
+    }
+
+    /// Returns the destination node of each edge, grouped per source node, as a
+    /// nested `PathFromGraph`.
+    async fn dst(&self) -> GqlPathFromGraph {
+        GqlPathFromGraph::new(self.nn.dst())
+    }
+
+    /// Returns the node at the other end of each edge (destination for
+    /// out-edges, source for in-edges), grouped per source node, as a nested
+    /// `PathFromGraph`.
+    async fn nbr(&self) -> GqlPathFromGraph {
+        GqlPathFromGraph::new(self.nn.nbr())
     }
 
     /// Expand each source's edges into one edge per update — mirrors the local

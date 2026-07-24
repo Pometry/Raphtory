@@ -481,7 +481,10 @@ impl PyRemoteHistoryTimestamps {
 
     /// `for x in ...` — iterate timestamps. Fires one RPC (`collect()`).
     fn __iter__(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
-        Ok(PyList::new(py, self.collect()?)?.try_iter()?.into_any().unbind())
+        Ok(PyList::new(py, self.collect()?)?
+            .try_iter()?
+            .into_any()
+            .unbind())
     }
 
     /// `item in ...` — membership test. Fires one RPC (`collect()`).
@@ -575,7 +578,10 @@ impl PyRemoteHistoryEventIds {
 
     /// `for x in ...` — iterate event ids. Fires one RPC (`collect()`).
     fn __iter__(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
-        Ok(PyList::new(py, self.collect()?)?.try_iter()?.into_any().unbind())
+        Ok(PyList::new(py, self.collect()?)?
+            .try_iter()?
+            .into_any()
+            .unbind())
     }
 
     /// `item in ...` — membership test. Fires one RPC (`collect()`).
@@ -665,7 +671,10 @@ impl PyRemoteHistoryDateTimes {
 
     /// `for x in ...` — iterate datetimes. Fires one RPC (`collect()`).
     fn __iter__(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
-        Ok(PyList::new(py, self.collect()?)?.try_iter()?.into_any().unbind())
+        Ok(PyList::new(py, self.collect()?)?
+            .try_iter()?
+            .into_any()
+            .unbind())
     }
 
     /// `item in ...` — membership test (against the RFC 3339 string form).
@@ -785,7 +794,10 @@ impl PyRemoteIntervals {
 
     /// `for x in ...` — iterate intervals. Fires one RPC (`collect()`).
     fn __iter__(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
-        Ok(PyList::new(py, self.collect()?)?.try_iter()?.into_any().unbind())
+        Ok(PyList::new(py, self.collect()?)?
+            .try_iter()?
+            .into_any()
+            .unbind())
     }
 
     /// `item in ...` — membership test. Fires one RPC (`collect()`).

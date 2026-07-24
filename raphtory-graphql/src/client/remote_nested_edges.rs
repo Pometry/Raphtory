@@ -8,6 +8,7 @@ use crate::{
             expect_nested_string_list, expect_optional_event_time, expect_optional_i64,
         },
         remote_history::RemoteEventTime,
+        remote_path_from_graph::RemotePathFromGraph,
         transport::Transport,
         ClientError,
     },
@@ -269,6 +270,47 @@ impl RemoteNestedEdges {
             },
             base_graph: self.base_graph.clone(),
         }
+    }
+
+    /// The source node of each edge, grouped per source node, as a nested
+    /// `RemotePathFromGraph`. Mirrors the local `NestedEdges.src`. Lazy — no
+    /// RPC; building the handle only wraps the accumulated expression.
+    pub fn src(&self) -> RemotePathFromGraph {
+        RemotePathFromGraph::with_expr(
+            self.path.clone(),
+            self.transport.clone(),
+            ReadExpr::Src {
+                input: Box::new(self.expr.clone()),
+            },
+            self.base_graph.clone(),
+        )
+    }
+
+    /// The destination node of each edge, grouped per source node, as a nested
+    /// `RemotePathFromGraph`. Mirrors the local `NestedEdges.dst`. Lazy — no RPC.
+    pub fn dst(&self) -> RemotePathFromGraph {
+        RemotePathFromGraph::with_expr(
+            self.path.clone(),
+            self.transport.clone(),
+            ReadExpr::Dst {
+                input: Box::new(self.expr.clone()),
+            },
+            self.base_graph.clone(),
+        )
+    }
+
+    /// The node at the other end of each edge (destination for out-edges,
+    /// source for in-edges), grouped per source node, as a nested
+    /// `RemotePathFromGraph`. Mirrors the local `NestedEdges.nbr`. Lazy — no RPC.
+    pub fn nbr(&self) -> RemotePathFromGraph {
+        RemotePathFromGraph::with_expr(
+            self.path.clone(),
+            self.transport.clone(),
+            ReadExpr::Nbr {
+                input: Box::new(self.expr.clone()),
+            },
+            self.base_graph.clone(),
+        )
     }
 
     /// Terminal: the number of source edge collections in this collection.

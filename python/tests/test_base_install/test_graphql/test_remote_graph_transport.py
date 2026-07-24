@@ -3621,3 +3621,128 @@ def test_properties_get_dtype_of():
         assert l_ep.get_dtype_of("kind") == r_ep.get_dtype_of("kind") == "Str"
     finally:
         server_cm.__exit__(None, None, None)
+
+
+def test_edges_src_dst_nbr():
+    """`RemoteEdges.src` / `.dst` / `.nbr` return a flat `RemotePathFromNode`
+    whose columnar accessors mirror the local `Edges.src` / `.dst` / `.nbr`.
+
+    Keyed by edge id so element order is irrelevant.
+    """
+    server_cm, rg, lg = _make_columnar_graphs()
+    try:
+        redges = rg.edges
+        rids = redges.id  # list[(str, str)]
+        # Local edge ids are already string tuples for string-named nodes.
+        lids = list(lg.edges.id)
+
+        r_src = dict(zip(rids, redges.src.name))
+        r_dst = dict(zip(rids, redges.dst.name))
+        r_nbr = dict(zip(rids, redges.nbr.name))
+        l_src = dict(zip(lids, list(lg.edges.src.name)))
+        l_dst = dict(zip(lids, list(lg.edges.dst.name)))
+        l_nbr = dict(zip(lids, list(lg.edges.nbr.name)))
+
+        assert r_src == l_src
+        assert r_dst == l_dst
+        assert r_nbr == l_nbr
+        # Ground truth: src is the first endpoint; dst / nbr the second (all
+        # edges here are traversed as out-edges, so nbr == dst).
+        assert r_src == {("a", "b"): "a", ("b", "c"): "b", ("c", "a"): "c"}
+        assert r_dst == {("a", "b"): "b", ("b", "c"): "c", ("c", "a"): "a"}
+        assert r_nbr == r_dst
+
+        # id parity on the src path (node GIDs stringified over the transport).
+        r_src_ids = dict(zip(rids, redges.src.id))
+        l_src_ids = dict(zip(lids, [str(i) for i in lg.edges.src.id]))
+        assert r_src_ids == l_src_ids
+
+        # node_type parity on the src path.
+        r_src_types = dict(zip(rids, redges.src.node_type))
+        l_src_types = dict(zip(lids, list(lg.edges.src.node_type)))
+        assert r_src_types == l_src_types
+        assert r_src_types == {("a", "b"): "T1", ("b", "c"): "T2", ("c", "a"): None}
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_edges_src_neighbours_composition():
+    """`rg.edges.src` returns a real `RemotePathFromNode` — chaining a further
+    hop (`.neighbours.name`) works and mirrors the local API."""
+    server_cm, rg, lg = _make_columnar_graphs()
+    try:
+        r = sorted(rg.edges.src.neighbours.name)
+        l = sorted(lg.edges.src.neighbours.name)
+        assert r == l
+        assert len(r) > 0
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_nested_edges_src_dst_nbr():
+    """`RemoteNestedEdges.src` / `.dst` / `.nbr` return a nested
+    `RemotePathFromGraph` whose columnar accessors mirror the local
+    `NestedEdges.src` / `.dst` / `.nbr`.
+
+    Keyed by (source node id, edge id) so ordering within a source is
+    irrelevant.
+    """
+    server_cm, rg, lg = _make_columnar_graphs()
+    try:
+        src_ids = rg.nodes.id
+        rne = rg.nodes.edges
+
+        def keyed_remote(field_vals):
+            out = {}
+            for s, ids, vals in zip(src_ids, rne.id, field_vals):
+                for eid, v in zip(ids, vals):
+                    out[(s, eid)] = v
+            return out
+
+        lsrc = [str(i) for i in lg.nodes.id]
+        lne = lg.nodes.edges
+
+        def keyed_local(field_vals):
+            out = {}
+            for s, ids, vals in zip(
+                lsrc, [list(x) for x in lne.id], [list(x) for x in field_vals]
+            ):
+                for eid, v in zip(ids, list(vals)):
+                    out[(s, eid)] = v
+            return out
+
+        assert keyed_remote(rne.src.name) == keyed_local(lne.src.name)
+        assert keyed_remote(rne.dst.name) == keyed_local(lne.dst.name)
+        # For nested edges `nbr` is anchor-relative (the neighbour reached from
+        # the source node), so it differs from `dst` on incoming edges — the
+        # local parity check above is the ground truth.
+        assert keyed_remote(rne.nbr.name) == keyed_local(lne.nbr.name)
+
+        # node_type parity on the nested src path.
+        assert keyed_remote(rne.src.node_type) == keyed_local(lne.src.node_type)
+
+        # Sanity: node a participates in a->b and c->a, so its incident edges'
+        # sources are {a, c}.
+        by_source = {}
+        for s, ids, names in zip(src_ids, rne.id, rne.src.name):
+            by_source[s] = sorted(names)
+        assert by_source["a"] == ["a", "c"]
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_nested_edges_src_neighbours_composition():
+    """`rg.nodes.edges.src` returns a real `RemotePathFromGraph` — chaining a
+    further hop (`.neighbours.name`) works and mirrors the local API."""
+    server_cm, rg, lg = _make_columnar_graphs()
+    try:
+        src_ids = rg.nodes.id
+        r = {s: sorted(x) for s, x in zip(src_ids, rg.nodes.edges.src.neighbours.name)}
+        lsrc = [str(i) for i in lg.nodes.id]
+        l = {
+            s: sorted(x)
+            for s, x in zip(lsrc, [list(inner) for inner in lg.nodes.edges.src.neighbours.name])
+        }
+        assert r == l
+    finally:
+        server_cm.__exit__(None, None, None)

@@ -131,13 +131,19 @@ pub enum ReadExpr {
         src: String,
         dst: String,
     },
-    /// Navigate to an edge's source node. Edge → Node.
+    /// Navigate to a source node. Polymorphic on the endpoint's collection
+    /// kind — the server field is `src` in every case, so one variant covers
+    /// all of them: Edge → Node, `Edges` → `PathFromNode`, `NestedEdges` →
+    /// `PathFromGraph`. The downstream terminal decides how the result is read.
     Src { input: Box<ReadExpr> },
-    /// Navigate to an edge's destination node. Edge → Node.
+    /// Navigate to a destination node. Polymorphic like `Src` (server field
+    /// `dst`): Edge → Node, `Edges` → `PathFromNode`, `NestedEdges` →
+    /// `PathFromGraph`.
     Dst { input: Box<ReadExpr> },
-    /// Navigate to an edge's "other end" node. Edge → Node.
-    /// Context-sensitive: on an out-edge yields the destination; on an
-    /// in-edge yields the source. Server field: `nbr`.
+    /// Navigate to the "other end" node. Polymorphic like `Src` (server field
+    /// `nbr`): Edge → Node, `Edges` → `PathFromNode`, `NestedEdges` →
+    /// `PathFromGraph`. Context-sensitive per edge: on an out-edge yields the
+    /// destination; on an in-edge yields the source.
     Nbr { input: Box<ReadExpr> },
     /// Navigate to the event history of a node or edge. Node/Edge → History.
     /// Container-selection: the resulting `RemoteHistory` handle exposes

@@ -8,6 +8,7 @@ use crate::{
             expect_string_list,
         },
         remote_history::RemoteEventTime,
+        remote_path_from_node::RemotePathFromNode,
         transport::Transport,
         ClientError,
     },
@@ -296,6 +297,47 @@ impl RemoteEdges {
             },
             base_graph: self.base_graph.clone(),
         }
+    }
+
+    /// The source node of each edge in this collection, as a flat
+    /// `RemotePathFromNode`. Mirrors the local `Edges.src`. Lazy — no RPC;
+    /// building the handle only wraps the accumulated expression.
+    pub fn src(&self) -> RemotePathFromNode {
+        RemotePathFromNode::with_expr(
+            self.path.clone(),
+            self.transport.clone(),
+            ReadExpr::Src {
+                input: Box::new(self.expr.clone()),
+            },
+            self.base_graph.clone(),
+        )
+    }
+
+    /// The destination node of each edge in this collection, as a flat
+    /// `RemotePathFromNode`. Mirrors the local `Edges.dst`. Lazy — no RPC.
+    pub fn dst(&self) -> RemotePathFromNode {
+        RemotePathFromNode::with_expr(
+            self.path.clone(),
+            self.transport.clone(),
+            ReadExpr::Dst {
+                input: Box::new(self.expr.clone()),
+            },
+            self.base_graph.clone(),
+        )
+    }
+
+    /// The node at the other end of each edge (destination for out-edges,
+    /// source for in-edges), as a flat `RemotePathFromNode`. Mirrors the local
+    /// `Edges.nbr`. Lazy — no RPC.
+    pub fn nbr(&self) -> RemotePathFromNode {
+        RemotePathFromNode::with_expr(
+            self.path.clone(),
+            self.transport.clone(),
+            ReadExpr::Nbr {
+                input: Box::new(self.expr.clone()),
+            },
+            self.base_graph.clone(),
+        )
     }
 
     /// Terminal: the number of edges in this collection. Fires one RPC.

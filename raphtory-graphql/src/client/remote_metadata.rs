@@ -188,10 +188,7 @@ impl RemoteProperties {
     /// `PropType` display string (e.g. `"I64"`, `"Str"`, `"List<F64>"`).
     /// Returns `None` when the key isn't present. Mirrors the local
     /// `Properties.get_dtype_of`. Fires one RPC.
-    pub async fn get_dtype_of(
-        &self,
-        key: impl ToString,
-    ) -> Result<Option<String>, ClientError> {
+    pub async fn get_dtype_of(&self, key: impl ToString) -> Result<Option<String>, ClientError> {
         let op = Op::Read(ReadExpr::PropertyGetDtypeOf {
             input: Box::new(self.expr.clone()),
             key: key.to_string(),

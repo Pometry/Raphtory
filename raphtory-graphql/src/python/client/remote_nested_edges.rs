@@ -1,6 +1,9 @@
 use crate::{
     client::{remote_nested_edges::RemoteNestedEdges, ClientError},
-    python::client::{remote_edge::PyRemoteEdge, remote_history::PyRemoteEventTime},
+    python::client::{
+        remote_edge::PyRemoteEdge, remote_history::PyRemoteEventTime,
+        remote_path_from_graph::PyRemotePathFromGraph,
+    },
 };
 use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyRef, PyRefMut, PyResult};
 use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
@@ -198,6 +201,40 @@ impl PyRemoteNestedEdges {
         execute_async_task(move || async move { edges.has_layer(name).await })
     }
 
+    /// The source node of each edge, grouped per source node, as a nested
+    /// `RemotePathFromGraph`. Mirrors the local `NestedEdges.src`. Property —
+    /// lazy; attribute access fires no RPC.
+    ///
+    /// Returns:
+    ///   RemotePathFromGraph: the source nodes, grouped per source node.
+    #[getter]
+    pub fn src(&self) -> PyRemotePathFromGraph {
+        PyRemotePathFromGraph::new(self.edges.src())
+    }
+
+    /// The destination node of each edge, grouped per source node, as a nested
+    /// `RemotePathFromGraph`. Mirrors the local `NestedEdges.dst`. Property —
+    /// lazy; attribute access fires no RPC.
+    ///
+    /// Returns:
+    ///   RemotePathFromGraph: the destination nodes, grouped per source node.
+    #[getter]
+    pub fn dst(&self) -> PyRemotePathFromGraph {
+        PyRemotePathFromGraph::new(self.edges.dst())
+    }
+
+    /// The node at the other end of each edge (destination for out-edges,
+    /// source for in-edges), grouped per source node, as a nested
+    /// `RemotePathFromGraph`. Mirrors the local `NestedEdges.nbr`. Property —
+    /// lazy; attribute access fires no RPC.
+    ///
+    /// Returns:
+    ///   RemotePathFromGraph: the other-end nodes, grouped per source node.
+    #[getter]
+    pub fn nbr(&self) -> PyRemotePathFromGraph {
+        PyRemotePathFromGraph::new(self.edges.nbr())
+    }
+
     /// The `(src, dst)` id pair of each edge, grouped per source node.
     /// Property — attribute access fires one RPC.
     ///
@@ -240,10 +277,16 @@ impl PyRemoteNestedEdges {
     #[getter]
     pub fn earliest_time(&self) -> Result<Vec<Vec<Option<PyRemoteEventTime>>>, ClientError> {
         let edges = Arc::clone(&self.edges);
-        Ok(execute_async_task(move || async move { edges.earliest_time().await })?
-            .into_iter()
-            .map(|row| row.into_iter().map(|o| o.map(PyRemoteEventTime::from)).collect())
-            .collect())
+        Ok(
+            execute_async_task(move || async move { edges.earliest_time().await })?
+                .into_iter()
+                .map(|row| {
+                    row.into_iter()
+                        .map(|o| o.map(PyRemoteEventTime::from))
+                        .collect()
+                })
+                .collect(),
+        )
     }
 
     /// The latest event time of each edge, grouped per source node. Property —
@@ -254,10 +297,16 @@ impl PyRemoteNestedEdges {
     #[getter]
     pub fn latest_time(&self) -> Result<Vec<Vec<Option<PyRemoteEventTime>>>, ClientError> {
         let edges = Arc::clone(&self.edges);
-        Ok(execute_async_task(move || async move { edges.latest_time().await })?
-            .into_iter()
-            .map(|row| row.into_iter().map(|o| o.map(PyRemoteEventTime::from)).collect())
-            .collect())
+        Ok(
+            execute_async_task(move || async move { edges.latest_time().await })?
+                .into_iter()
+                .map(|row| {
+                    row.into_iter()
+                        .map(|o| o.map(PyRemoteEventTime::from))
+                        .collect()
+                })
+                .collect(),
+        )
     }
 
     /// The event time of each edge, grouped per source node. Only valid once
@@ -269,10 +318,16 @@ impl PyRemoteNestedEdges {
     #[getter]
     pub fn time(&self) -> Result<Vec<Vec<Option<PyRemoteEventTime>>>, ClientError> {
         let edges = Arc::clone(&self.edges);
-        Ok(execute_async_task(move || async move { edges.time().await })?
-            .into_iter()
-            .map(|row| row.into_iter().map(|o| o.map(PyRemoteEventTime::from)).collect())
-            .collect())
+        Ok(
+            execute_async_task(move || async move { edges.time().await })?
+                .into_iter()
+                .map(|row| {
+                    row.into_iter()
+                        .map(|o| o.map(PyRemoteEventTime::from))
+                        .collect()
+                })
+                .collect(),
+        )
     }
 
     /// Whether each edge is active (has an event) in the current view, grouped
