@@ -226,7 +226,7 @@ impl GraphIndex {
     pub fn load_from_path(path: &GraphFolder) -> Result<GraphIndex, GraphError> {
         if path.is_zip() {
             let index_path = TempDir::new()?;
-            unzip_index(&path.root(), index_path.path())?;
+            unzip_index(path.root(), index_path.path())?;
 
             let (index, index_spec) = load_indexes(index_path.path())?;
 

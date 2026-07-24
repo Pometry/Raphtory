@@ -4,7 +4,6 @@ import subprocess
 import tempfile
 
 
-
 def get_app_config(stdout: str) -> dict:
     server_line = next(
         (line for line in stdout.splitlines() if "Server configurations:" in line),
@@ -27,7 +26,7 @@ def get_config_file():
 
 def test_raphtory_server_no_arguments():
     env = os.environ.copy()
-    env.pop("RAPHTORY_CACHE_CAPACITY", None) 
+    env.pop("RAPHTORY_CACHE_CAPACITY", None)
 
     process = subprocess.Popen(
         ["raphtory", "server", "--port", "1737", "--log-level", "debug"],
@@ -46,13 +45,23 @@ def test_raphtory_server_no_arguments():
     cache_capacity = app_config["cache"]["capacity"]
     assert cache_capacity == 30
 
+
 def test_raphtory_server_with_config_file():
     env = os.environ.copy()
-    env.pop("RAPHTORY_CACHE_CAPACITY", None) 
+    env.pop("RAPHTORY_CACHE_CAPACITY", None)
     config_file = get_config_file()
 
     process = subprocess.Popen(
-        ["raphtory", "server", "--port", "1737", "--log-level", "debug", "--config-file", config_file.name],
+        [
+            "raphtory",
+            "server",
+            "--port",
+            "1737",
+            "--log-level",
+            "debug",
+            "--config-file",
+            config_file.name,
+        ],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
@@ -68,13 +77,23 @@ def test_raphtory_server_with_config_file():
     cache_capacity = app_config["cache"]["capacity"]
     assert cache_capacity == 123
 
+
 def test_raphtory_server_with_env_variable():
     env = os.environ.copy()
     env["RAPHTORY_CACHE_CAPACITY"] = "456"
     config_file = get_config_file()
 
     process = subprocess.Popen(
-        ["raphtory", "server", "--port", "1737", "--log-level", "debug", "--config-file", config_file.name],
+        [
+            "raphtory",
+            "server",
+            "--port",
+            "1737",
+            "--log-level",
+            "debug",
+            "--config-file",
+            config_file.name,
+        ],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
@@ -89,14 +108,26 @@ def test_raphtory_server_with_env_variable():
     app_config = get_app_config(stdout)
     cache_capacity = app_config["cache"]["capacity"]
     assert cache_capacity == 456
-    
+
+
 def test_raphtory_server_with_command_line_argument():
     env = os.environ.copy()
     env["RAPHTORY_CACHE_CAPACITY"] = "456"
     config_file = get_config_file()
 
     process = subprocess.Popen(
-        ["raphtory", "server", "--port", "1737", "--log-level", "debug", "--config-file", config_file.name, "--cache-capacity", "789"],
+        [
+            "raphtory",
+            "server",
+            "--port",
+            "1737",
+            "--log-level",
+            "debug",
+            "--config-file",
+            config_file.name,
+            "--cache-capacity",
+            "789",
+        ],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
@@ -111,4 +142,3 @@ def test_raphtory_server_with_command_line_argument():
     app_config = get_app_config(stdout)
     cache_capacity = app_config["cache"]["capacity"]
     assert cache_capacity == 789
-

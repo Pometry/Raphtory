@@ -249,7 +249,7 @@ fn create_arrow_writer_sink(
     filename_num_digits: usize,
     key_value_metadata: Option<Vec<KeyValue>>,
 ) -> Result<ArrowWriter<File>, GraphError> {
-    std::fs::create_dir_all(&root_dir)?;
+    std::fs::create_dir_all(root_dir)?;
 
     let writer_properties = WriterProperties::builder()
         .set_compression(Compression::SNAPPY)

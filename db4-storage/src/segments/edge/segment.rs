@@ -94,6 +94,10 @@ impl MemEdgeSegment {
             .fetch_add(increment, Ordering::Relaxed);
     }
 
+    pub fn memory_tracker(&self) -> &Arc<AtomicUsize> {
+        &self.global_memory_tracker
+    }
+
     pub fn edge_meta(&self) -> &Arc<Meta> {
         self.layers[0].meta()
     }

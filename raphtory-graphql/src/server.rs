@@ -8,10 +8,8 @@ use crate::{
         App,
     },
     observability::open_telemetry::OpenTelemetry,
-    paths::ExistingGraphFolder,
     routes::{health, version, PublicFilesEndpoint},
     server::ServerError::SchemaError,
-    GQLError,
 };
 use config::ConfigError;
 use once_cell::sync::Lazy;
@@ -51,7 +49,6 @@ use tokio::{
         mpsc,
         mpsc::{Receiver, Sender},
     },
-    task,
     task::JoinHandle,
 };
 use tracing::{debug, error, info, warn};
@@ -477,14 +474,14 @@ async fn server_termination(
         _ = terminate => {},
         _ = internal_terminate => {},
     }
+    #[cfg(not(feature = "integration-test"))]
     match tp {
         None => {}
         Some((tp, lp)) => {
             /* Avoid shutting down global tracing exporters on server shutdown during integration tests
                since they are reused across multiple tests.
             */
-            #[cfg(not(feature = "integration-test"))]
-            task::spawn_blocking(move || {
+            tokio::task::spawn_blocking(move || {
                 let res = tp.shutdown();
                 if let Err(e) = res {
                     error!("Failed to shut down tracing provider: {:?}", e);
@@ -504,12 +501,9 @@ async fn server_termination(
 mod server_tests {
     use crate::{config::app_config::AppConfigBuilder, server::GraphServer};
     use chrono::prelude::*;
+    use raphtory::db::api::storage::storage::Config;
     #[cfg(feature = "vectors")]
     use raphtory::vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate};
-    use raphtory::{
-        db::api::storage::storage::Config,
-        prelude::{AdditionOps, Graph, StableEncode, NO_PROPS},
-    };
     use raphtory_api::core::utils::logging::global_info_logger;
     use tempfile::tempdir;
     use tokio::time::{sleep, Duration};

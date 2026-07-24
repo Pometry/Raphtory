@@ -222,7 +222,7 @@ impl<
     ) -> Result<(), GraphError> {
         let new_ids: Vec<V> = new_ids.into_iter().collect();
         check_existing_nodes(self, &new_ids, merge)?;
-        for (node, new_node_id) in nodes.into_iter().zip(new_ids.into_iter()) {
+        for (node, new_node_id) in nodes.into_iter().zip(new_ids) {
             self.import_node_as(node.borrow(), new_node_id, merge)?;
         }
         Ok(())

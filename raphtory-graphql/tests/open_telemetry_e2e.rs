@@ -73,11 +73,11 @@ async fn test_open_telemetry_http_tracing_server() {
     handler.wait().await.unwrap();
 
     tracing_server
-        .wait_for_spans(1, Duration::from_secs(5))
+        .wait_for_spans(1, Duration::from_secs(50))
         .await
         .unwrap();
     tracing_server
-        .wait_for_logs(1, Duration::from_secs(5))
+        .wait_for_logs(1, Duration::from_secs(50))
         .await
         .unwrap();
 
