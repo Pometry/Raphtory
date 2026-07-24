@@ -40,7 +40,7 @@ use crate::{
                 GqlWeaklyConnectedComponents, GqlWeaklyConnectedComponentsArgs,
             },
         },
-        graph::{filtering::GqlNodeFilter, node_id::GqlNodeId, node_state::GqlNodeState},
+        graph::{filtering::GqlViewFilter, node_id::GqlNodeId, node_state::GqlNodeState},
     },
     rayon::blocking_compute,
 };
@@ -48,7 +48,9 @@ use dynamic_graphql::{Enum, ResolvedObject, ResolvedObjectFields};
 use raphtory::{
     db::{
         api::view::{DynamicGraph, Filter, IntoDynamic},
-        graph::views::filter::model::node_filter::CompositeNodeFilter,
+        graph::views::filter::model::{
+            edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter, DynView,
+        },
     },
     errors::GraphError,
 };
@@ -121,19 +123,29 @@ impl From<GqlDirection> for Direction {
     }
 }
 
-/// Applies an optional node filter, returning the filtered view (or the graph
-/// unchanged if no filter is given). Mirrors `GqlGraph::filter_nodes`.
+/// Applies an optional composite filter, returning the filtered view (or the
+/// graph unchanged if no filter is given).
 pub(crate) fn filtered_view(
     graph: &DynamicGraph,
-    filter: Option<GqlNodeFilter>,
+    filter: Option<GqlViewFilter>,
 ) -> Result<DynamicGraph, GraphError> {
-    match filter {
-        Some(filter) => {
-            let filter: CompositeNodeFilter = filter.try_into()?;
-            Ok(graph.filter(filter)?.into_dynamic())
-        }
-        None => Ok(graph.clone()),
+    let Some(filter) = filter else {
+        return Ok(graph.clone());
+    };
+    let mut graph = graph.clone();
+    if let Some(nodes) = filter.nodes {
+        let nodes: CompositeNodeFilter = nodes.try_into()?;
+        graph = graph.filter(nodes)?.into_dynamic();
     }
+    if let Some(edges) = filter.edges {
+        let edges: CompositeEdgeFilter = edges.try_into()?;
+        graph = graph.filter(edges)?.into_dynamic();
+    }
+    if let Some(view) = filter.graph {
+        let view: DynView = view.try_into()?;
+        graph = graph.filter(view)?.into_dynamic();
+    }
+    Ok(graph)
 }
 
 impl GqlAlgorithms {
@@ -242,8 +254,10 @@ impl GqlAlgorithms {
     async fn in_component(
         &self,
         #[graphql(desc = "Node id.")] node: GqlNodeId,
-        #[graphql(desc = "Optional node filter; the algorithm runs on the resulting view.")]
-        filter: Option<GqlNodeFilter>,
+        #[graphql(
+            desc = "Optional composite filter (node, edge, and graph-view); the algorithm runs on the resulting view."
+        )]
+        filter: Option<GqlViewFilter>,
     ) -> Result<GqlNodeState, GraphError> {
         self.run::<GqlInComponent>(GqlInComponentArgs { node, filter })
             .await
@@ -253,8 +267,10 @@ impl GqlAlgorithms {
     async fn out_component(
         &self,
         #[graphql(desc = "Node id.")] node: GqlNodeId,
-        #[graphql(desc = "Optional node filter; the algorithm runs on the resulting view.")]
-        filter: Option<GqlNodeFilter>,
+        #[graphql(
+            desc = "Optional composite filter (node, edge, and graph-view); the algorithm runs on the resulting view."
+        )]
+        filter: Option<GqlViewFilter>,
     ) -> Result<GqlNodeState, GraphError> {
         self.run::<GqlOutComponent>(GqlOutComponentArgs { node, filter })
             .await

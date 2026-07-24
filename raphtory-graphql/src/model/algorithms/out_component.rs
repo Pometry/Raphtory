@@ -1,6 +1,6 @@
 use crate::model::{
     algorithms::{filtered_view, GqlExecutableAlgorithm},
-    graph::{filtering::GqlNodeFilter, node_id::GqlNodeId, node_state::GqlNodeState},
+    graph::{filtering::GqlViewFilter, node_id::GqlNodeId, node_state::GqlNodeState},
 };
 use raphtory::{
     algorithms::components::out_component, db::api::view::DynamicGraph, errors::GraphError,
@@ -12,7 +12,7 @@ pub(crate) struct GqlOutComponent;
 
 pub(crate) struct GqlOutComponentArgs {
     pub(crate) node: GqlNodeId,
-    pub(crate) filter: Option<GqlNodeFilter>,
+    pub(crate) filter: Option<GqlViewFilter>,
 }
 
 impl GqlExecutableAlgorithm for GqlOutComponent {

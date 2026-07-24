@@ -659,7 +659,8 @@ mod graphql_test {
     #[tokio::test]
     async fn test_algorithm_out_component() {
         let tmp_dir = tempdir().unwrap();
-        let setup = setup_with_graphs(&[("g", single_component_test_graph())], tmp_dir.path()).await;
+        let setup =
+            setup_with_graphs(&[("g", single_component_test_graph())], tmp_dir.path()).await;
 
         // out component of a: nodes reachable following out-edges, keyed by distance
         let query = r#"
@@ -703,7 +704,8 @@ mod graphql_test {
     #[tokio::test]
     async fn test_algorithm_in_component() {
         let tmp_dir = tempdir().unwrap();
-        let setup = setup_with_graphs(&[("g", single_component_test_graph())], tmp_dir.path()).await;
+        let setup =
+            setup_with_graphs(&[("g", single_component_test_graph())], tmp_dir.path()).await;
 
         // in component of d: nodes that can reach it, keyed by distance
         let query = r#"
@@ -741,14 +743,15 @@ mod graphql_test {
     #[tokio::test]
     async fn test_algorithm_out_component_filtered() {
         let tmp_dir = tempdir().unwrap();
-        let setup = setup_with_graphs(&[("g", single_component_test_graph())], tmp_dir.path()).await;
+        let setup =
+            setup_with_graphs(&[("g", single_component_test_graph())], tmp_dir.path()).await;
 
-        // filter out node c; a can then only reach b (d becomes unreachable)
+        // composite filter with a node filter removing c; a can then only reach b
         let query = r#"
         {
           graph(path: "g") {
             algorithm {
-              outComponent(node: "a", filter: { node: { field: NODE_NAME, where: { ne: { str: "c" } } } }) {
+              outComponent(node: "a", filter: { nodes: { node: { field: NODE_NAME, where: { ne: { str: "c" } } } } }) {
                 nodes { list { id } }
               }
             }
@@ -764,6 +767,193 @@ mod graphql_test {
                 "graph": { "algorithm": { "outComponent": {
                     "nodes": { "list": [{ "id": "b" }] }
                 } } }
+            })
+        );
+    }
+
+    fn star_test_graph() -> MaterializedGraph {
+        let graph = Graph::new();
+        // star out of a: a -> b, a -> c, a -> d
+        for (src, dst) in [("a", "b"), ("a", "c"), ("a", "d")] {
+            graph.add_edge(1, src, dst, NO_PROPS, None).unwrap();
+        }
+        graph.into()
+    }
+
+    #[tokio::test]
+    async fn test_algorithm_out_component_node_filter_composed() {
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", star_test_graph())], tmp_dir.path()).await;
+
+        // NodeFilter and: both clauses must apply. Dropping b AND c leaves only d
+        // in a's out component (dropping just one would leave two nodes).
+        let query = r#"
+        {
+          graph(path: "g") {
+            algorithm {
+              outComponent(node: "a", filter: { nodes: {
+                and: [
+                  { node: { field: NODE_NAME, where: { ne: { str: "b" } } } },
+                  { node: { field: NODE_NAME, where: { ne: { str: "c" } } } }
+                ]
+              } }) {
+                nodes { list { id } }
+              }
+            }
+          }
+        }
+        "#;
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        assert_eq!(
+            res.data.into_json().unwrap(),
+            json!({
+                "graph": { "algorithm": { "outComponent": {
+                    "nodes": { "list": [{ "id": "d" }] }
+                } } }
+            })
+        );
+    }
+
+    #[tokio::test]
+    async fn test_algorithm_out_component_edge_filter_composed() {
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", star_test_graph())], tmp_dir.path()).await;
+
+        // EdgeFilter and: both clauses must apply. Dropping edges to b AND to c
+        // leaves only a -> d, so a reaches only d.
+        let query = r#"
+        {
+          graph(path: "g") {
+            algorithm {
+              outComponent(node: "a", filter: { edges: {
+                and: [
+                  { dst: { node: { field: NODE_NAME, where: { ne: { str: "b" } } } } },
+                  { dst: { node: { field: NODE_NAME, where: { ne: { str: "c" } } } } }
+                ]
+              } }) {
+                nodes { list { id } }
+              }
+            }
+          }
+        }
+        "#;
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        assert_eq!(
+            res.data.into_json().unwrap(),
+            json!({
+                "graph": { "algorithm": { "outComponent": {
+                    "nodes": { "list": [{ "id": "d" }] }
+                } } }
+            })
+        );
+    }
+
+    #[tokio::test]
+    async fn test_algorithm_out_component_graph_filter_composed() {
+        let graph = Graph::new();
+        // edges at increasing times so a graph-view window changes reachability
+        graph.add_edge(1, "a", "b", NO_PROPS, None).unwrap();
+        graph.add_edge(2, "b", "c", NO_PROPS, None).unwrap();
+        graph.add_edge(3, "c", "d", NO_PROPS, None).unwrap();
+        let graph: MaterializedGraph = graph.into();
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", graph)], tmp_dir.path()).await;
+
+        // GraphFilter composes via nested `expr`: window [1,3) then a further before(2).
+        // Only the a -> b edge (t=1) remains, so a reaches only b.
+        let query = r#"
+        {
+          graph(path: "g") {
+            algorithm {
+              outComponent(node: "a", filter: { graph: {
+                window: { start: 1, end: 3, expr: { before: { time: 2 } } }
+              } }) {
+                nodes { list { id } }
+              }
+            }
+          }
+        }
+        "#;
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        assert_eq!(
+            res.data.into_json().unwrap(),
+            json!({
+                "graph": { "algorithm": { "outComponent": {
+                    "nodes": { "list": [{ "id": "b" }] }
+                } } }
+            })
+        );
+    }
+
+    #[tokio::test]
+    async fn test_algorithm_out_component_filter_equivalence() {
+        let tmp_dir = tempdir().unwrap();
+        let setup =
+            setup_with_graphs(&[("g", single_component_test_graph())], tmp_dir.path()).await;
+
+        // filter passed as an algorithm argument
+        let as_argument = r#"
+        {
+          graph(path: "g") {
+            algorithm {
+              outComponent(node: "a", filter: { nodes: {
+                node: { field: NODE_NAME, where: { ne: { str: "c" } } }
+              } }) {
+                rows {
+                  node { id }
+                  entries {
+                    columnName
+                    value { ... on NodeStateProp { prop } }
+                  }
+                }
+              }
+            }
+          }
+        }
+        "#;
+        // same filter applied to the graph view before calling the algorithm (no argument)
+        let pre_filtered = r#"
+        {
+          graph(path: "g") {
+            filterNodes(expr: { node: { field: NODE_NAME, where: { ne: { str: "c" } } } }) {
+              algorithm {
+                outComponent(node: "a") {
+                  rows {
+                    node { id }
+                    entries {
+                      columnName
+                      value { ... on NodeStateProp { prop } }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        "#;
+
+        let arg_res = setup.schema.execute(Request::new(as_argument)).await;
+        assert_eq!(arg_res.errors, vec![], "{:?}", arg_res.errors);
+        let pre_res = setup.schema.execute(Request::new(pre_filtered)).await;
+        assert_eq!(pre_res.errors, vec![], "{:?}", pre_res.errors);
+
+        // both routes reach the same result (b -> unwrap the identical outComponent payload)
+        let arg_out =
+            arg_res.data.into_json().unwrap()["graph"]["algorithm"]["outComponent"].clone();
+        let pre_out = pre_res.data.into_json().unwrap()["graph"]["filterNodes"]["algorithm"]
+            ["outComponent"]
+            .clone();
+        assert_eq!(arg_out, pre_out);
+        assert_eq!(
+            arg_out,
+            json!({
+                "rows": [{
+                    "node": { "id": "b" },
+                    "entries": [{ "columnName": "distance", "value": { "prop": 1 } }]
+                }]
             })
         );
     }

@@ -591,6 +591,20 @@ pub enum GqlGraphFilter {
     Layers(GraphLayersExpr),
 }
 
+/// A composite filter producing a graph view, bundling the graph-view, node,
+/// and edge filters that are otherwise applied via the separate
+/// `filter` / `filterNodes` / `filterEdges` resolvers.
+#[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
+#[graphql(name = "ViewFilter")]
+pub struct GqlViewFilter {
+    /// Graph-view filter (time windows, snapshots, layers).
+    pub graph: Option<GqlGraphFilter>,
+    /// Node filter (field, property, metadata, degree; composes with and/or/not).
+    pub nodes: Option<GqlNodeFilter>,
+    /// Edge filter (src/dst, property, layer; composes with and/or/not).
+    pub edges: Option<GqlEdgeFilter>,
+}
+
 /// Boolean expression over a built-in node field (ID, name, or type).
 ///
 /// This is used by `NodeFieldFilterNew.where_` when filtering a specific
