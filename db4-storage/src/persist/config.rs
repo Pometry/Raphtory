@@ -13,6 +13,8 @@ pub const DEFAULT_MAX_PAGE_LEN_EDGES: u32 = 6_000_000; // 2^20
 pub const CONFIG_FILE_NAME: &str = "config.json";
 
 pub trait ConfigOps: Serialize + DeserializeOwned + Args + Sized {
+    type NewConfigArgs; 
+
     fn max_node_page_len(&self) -> u32;
 
     fn max_edge_page_len(&self) -> u32;
@@ -43,7 +45,7 @@ pub trait ConfigOps: Serialize + DeserializeOwned + Args + Sized {
         Ok(())
     }
 
-    fn update(&mut self, new: Self);
+    fn update(&mut self, new: Self::NewConfigArgs);
 }
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, Args)]
@@ -118,6 +120,8 @@ impl BaseConfig {
 }
 
 impl ConfigOps for BaseConfig {
+    type NewConfigArgs = Self;
+
     fn max_node_page_len(&self) -> u32 {
         self.max_node_page_len
     }
@@ -144,7 +148,7 @@ impl ConfigOps for BaseConfig {
         *self
     }
 
-    fn update(&mut self, _new: Self) {
+    fn update(&mut self, _new: Self::NewConfigArgs) {
         // cannot update page lengths for an existing graph
     }
 }

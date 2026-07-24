@@ -54,7 +54,7 @@ use std::{
     ops::Deref,
     sync::Arc,
 };
-use storage::Extension;
+use storage::{ConfigArgs, Extension};
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Default)]
@@ -190,7 +190,7 @@ impl Graph {
     #[cfg(feature = "io")]
     pub fn new_at_path_with_config(
         path: &(impl GraphPaths + ?Sized),
-        config: Config,
+        config_args: ConfigArgs,
     ) -> Result<Self, GraphError> {
         if !Extension::disk_storage_enabled() {
             return Err(GraphError::DiskGraphNotEnabled);
@@ -198,6 +198,7 @@ impl Graph {
 
         path.init()?;
 
+        let config = config_args.into_config(); 
         let graph = Self {
             inner: Arc::new(Storage::new_at_path_with_config(
                 path.graph_path()?,
@@ -243,11 +244,11 @@ impl Graph {
     #[cfg(feature = "io")]
     pub fn load_with_config(
         path: &(impl GraphPaths + ?Sized),
-        config: Config,
+        config_args: ConfigArgs,
     ) -> Result<Self, GraphError> {
         // TODO: add support for loading indexes and vectors
         Ok(Self {
-            inner: Arc::new(Storage::load_with_config(path.graph_path()?, config)?),
+            inner: Arc::new(Storage::load_with_config(path.graph_path()?, config_args)?),
         })
     }
 
@@ -264,12 +265,12 @@ impl Graph {
     #[cfg(feature = "io")]
     pub fn load_read_only_with_config(
         path: &(impl GraphPaths + ?Sized),
-        config: Config,
+        config_args: ConfigArgs,
     ) -> Result<Self, GraphError> {
         Ok(Self {
             inner: Arc::new(Storage::load_read_only_with_config(
                 path.graph_path()?,
-                config,
+                config_args,
             )?),
         })
     }

@@ -171,11 +171,11 @@ impl PyGraph {
         let graph = match path {
             None => match config {
                 None => Graph::new(),
-                Some(PyConfig(config)) => Graph::new_with_config(config)?,
+                Some(PyConfig(config_args)) => Graph::new_with_config(config_args)?,
             },
             Some(path) => match config {
                 None => Graph::new_at_path(&path)?,
-                Some(PyConfig(config)) => Graph::new_at_path_with_config(&path, config)?,
+                Some(PyConfig(config_args)) => Graph::new_at_path_with_config(&path, config_args)?,
             },
         };
         Ok((
@@ -207,9 +207,9 @@ impl PyGraph {
     ) -> Result<Graph, GraphError> {
         match (config, read_only) {
             (None, false) => Graph::load(&path),
-            (Some(PyConfig(config)), false) => Graph::load_with_config(&path, config),
+            (Some(PyConfig(config_args)), false) => Graph::load_with_config(&path, config_args),
             (None, true) => Graph::load_read_only(&path),
-            (Some(PyConfig(config)), true) => Graph::load_read_only_with_config(&path, config),
+            (Some(PyConfig(config_args)), true) => Graph::load_read_only_with_config(&path, config_args),
         }
     }
 

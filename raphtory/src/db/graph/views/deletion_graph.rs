@@ -33,12 +33,11 @@ use std::{
     sync::Arc,
 };
 use storage::{
-    api::graph_props::{GraphPropEntryOps, GraphPropRefOps},
-    Config,
+    api::graph_props::{GraphPropEntryOps, GraphPropRefOps}, persist::config,
 };
 
 #[cfg(feature = "io")]
-use storage::{persist::strategy::PersistenceStrategy, Extension};
+use storage::{ConfigArgs, Extension, persist::strategy::PersistenceStrategy};
 
 /// A graph view where an edge remains active from the time it is added until it is explicitly marked as deleted.
 ///
@@ -117,7 +116,8 @@ impl PersistentGraph {
     ///
     /// let g = PersistentGraph::new_with_config(Config::default().with_max_node_page_len(262144)).unwrap();
     /// ```
-    pub fn new_with_config(config: Config) -> Result<Self, GraphError> {
+    pub fn new_with_config(config_args: ConfigArgs) -> Result<Self, GraphError> {
+        let config = config_args.into_config();
         Ok(Self(Arc::new(Storage::new_with_config(config)?)))
     }
 
@@ -135,12 +135,13 @@ impl PersistentGraph {
     #[cfg(feature = "io")]
     pub fn new_at_path_with_config(
         path: &(impl GraphPaths + ?Sized),
-        config: Config,
+        config_args: ConfigArgs,
     ) -> Result<Self, GraphError> {
         if !Extension::disk_storage_enabled() {
             return Err(GraphError::DiskGraphNotEnabled);
         }
         path.init()?;
+        let config = config_args.into_config();
         let graph = Self(Arc::new(Storage::new_at_path_with_config(
             path.graph_path()?,
             config,
@@ -206,11 +207,11 @@ impl PersistentGraph {
     #[cfg(feature = "io")]
     pub fn load_with_config(
         path: &(impl GraphPaths + ?Sized),
-        config: Config,
+        config_args: ConfigArgs,
     ) -> Result<Self, GraphError> {
         Ok(Self(Arc::new(Storage::load_with_config(
             path.graph_path()?,
-            config,
+            config_args,
         )?)))
     }
 
@@ -224,11 +225,11 @@ impl PersistentGraph {
     #[cfg(feature = "io")]
     pub fn load_read_only_with_config(
         path: &(impl GraphPaths + ?Sized),
-        config: Config,
+        config_args: ConfigArgs,
     ) -> Result<Self, GraphError> {
         Ok(Self(Arc::new(Storage::load_read_only_with_config(
             path.graph_path()?,
-            config,
+            config_args,
         )?)))
     }
 

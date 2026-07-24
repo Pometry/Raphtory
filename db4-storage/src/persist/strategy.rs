@@ -28,13 +28,14 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
     type GS: GraphPropSegmentOps;
     type Wal: WalOps + GraphWalOps;
     type Config: ConfigOps;
+    type ConfigArgs;
     type ControlFile: ControlFileOps;
 
     fn new(config: Self::Config, graph_dir: Option<&Path>) -> Result<Self, StorageError>;
 
     fn load(graph_dir: &Path) -> Result<Self, StorageError>;
 
-    fn load_with_config(graph_dir: &Path, config: Self::Config) -> Result<Self, StorageError>;
+    fn load_with_config(graph_dir: &Path, config: Self::ConfigArgs) -> Result<Self, StorageError>;
 
     fn config(&self) -> &Self::Config;
 
@@ -96,6 +97,7 @@ impl PersistenceStrategy for NoOpStrategy {
     type GS = GraphPropSegmentView<Self>;
     type Wal = NoWal;
     type Config = BaseConfig;
+    type ConfigArgs = Self;
     type ControlFile = NoControlFile;
 
     fn new(config: BaseConfig, _graph_dir: Option<&Path>) -> Result<Self, StorageError> {
@@ -111,7 +113,7 @@ impl PersistenceStrategy for NoOpStrategy {
         Err(StorageError::DiskStorageNotSupported)
     }
 
-    fn load_with_config(_graph_dir: &Path, _config: Self::Config) -> Result<Self, StorageError> {
+    fn load_with_config(_graph_dir: &Path, _config: Self::ConfigArgs) -> Result<Self, StorageError> {
         Err(StorageError::DiskStorageNotSupported)
     }
 

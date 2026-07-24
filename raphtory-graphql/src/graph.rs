@@ -7,21 +7,15 @@ use raphtory::prelude::IndexMutationOps;
 #[cfg(feature = "vectors")]
 use raphtory::vectors::{storage::LazyDiskVectorCache, vectorised_graph::VectorisedGraph};
 use raphtory::{
-    core::entities::nodes::node_ref::AsNodeRef,
-    db::{
+    core::entities::nodes::node_ref::AsNodeRef, db::{
         api::{
-            storage::storage::Config,
-            view::{
-                internal::{
+            storage::storage::{Config, ConfigArgs}, view::{
+                Base, InheritViewOps, MaterializedGraph, internal::{
                     InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InheritStorageOps, Static,
                 },
-                Base, InheritViewOps, MaterializedGraph,
             },
-        },
-        graph::{edge::EdgeView, node::NodeView},
-    },
-    errors::{GraphError, GraphResult},
-    prelude::{EdgeViewOps, StableDecode},
+        }, graph::{edge::EdgeView, node::NodeView},
+    }, errors::{GraphError, GraphResult}, prelude::{EdgeViewOps, StableDecode},
 };
 use raphtory_api::core::storage::graph_folder::GraphPaths;
 use raphtory_storage::{
@@ -160,16 +154,17 @@ impl GraphWithVectors {
         folder: &ExistingGraphFolder,
         #[cfg(feature = "vectors")] cache: &LazyDiskVectorCache,
         create_index: bool,
-        config: Config,
+        config_args: ConfigArgs,
     ) -> Result<Self, GraphError> {
         let folder_clone = folder.clone();
         let graph_folder = folder.graph_folder();
         let graph = if graph_folder.read_metadata()?.is_diskgraph {
             blocking_compute(move || {
-                MaterializedGraph::load_with_config(folder_clone.graph_folder(), config)
+                MaterializedGraph::load_with_config(folder_clone.graph_folder(), config_args)
             })
             .await?
         } else {
+            let config = config_args.into_config();
             blocking_compute(move || {
                 MaterializedGraph::decode_with_config(folder_clone.graph_folder(), config)
             })

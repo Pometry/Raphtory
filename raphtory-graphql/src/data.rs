@@ -595,6 +595,7 @@ impl Data {
     ) -> Result<GraphWithVectors, GraphError> {
         let create_index = self.create_index;
         let config = self.graph_conf.clone();
+        let config_args = config.into_args();
         #[cfg(feature = "vectors")]
         let cache = self.vector_cache.clone();
         GraphWithVectors::read_from_folder(
@@ -602,7 +603,7 @@ impl Data {
             #[cfg(feature = "vectors")]
             &cache,
             create_index,
-            config,
+            config_args,
         )
         .await
     }
