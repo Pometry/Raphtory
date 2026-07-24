@@ -171,11 +171,11 @@ impl PyGraph {
         let graph = match path {
             None => match config {
                 None => Graph::new(),
-                Some(PyConfig(config_args)) => Graph::new_with_config(config_args)?,
+                Some(PyConfig(config_args)) => Graph::new_with_config(config_args.into_config())?,
             },
             Some(path) => match config {
                 None => Graph::new_at_path(&path)?,
-                Some(PyConfig(config_args)) => Graph::new_at_path_with_config(&path, config_args)?,
+                Some(PyConfig(config_args)) => Graph::new_at_path_with_config(&path, config_args.into_config())?,
             },
         };
         Ok((

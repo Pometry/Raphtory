@@ -45,7 +45,7 @@ pub trait ConfigOps: Serialize + DeserializeOwned + Args + Sized {
         Ok(())
     }
 
-    fn update(&mut self, new: Self::NewConfigArgs);
+    fn update(&mut self, new_args: Self::NewConfigArgs);
 }
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, Args)]
@@ -148,7 +148,7 @@ impl ConfigOps for BaseConfig {
         *self
     }
 
-    fn update(&mut self, _new: Self::NewConfigArgs) {
+    fn update(&mut self, _new_args: Self::NewConfigArgs) {
         // cannot update page lengths for an existing graph
     }
 }
