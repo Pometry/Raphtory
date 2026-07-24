@@ -53,7 +53,7 @@ impl GraphQLRemoteEdge {
             layer => layer
         };
 
-        let query = build_query(template, ctx).map_err(ClientError::from)?;
+        let query = build_query(template, ctx)?;
         self.client.query(&query, HashMap::new()).await.map(|_| ())
     }
 
@@ -81,7 +81,7 @@ impl GraphQLRemoteEdge {
             layer => layer
         };
 
-        let query = build_query(template, ctx).map_err(ClientError::from)?;
+        let query = build_query(template, ctx)?;
         self.client.query(&query, HashMap::new()).await.map(|_| ())
     }
 
@@ -109,7 +109,7 @@ impl GraphQLRemoteEdge {
             layer => layer
         };
 
-        let query = build_query(template, ctx).map_err(ClientError::from)?;
+        let query = build_query(template, ctx)?;
         self.client.query(&query, HashMap::new()).await.map(|_| ())
     }
 
@@ -137,7 +137,7 @@ impl GraphQLRemoteEdge {
             layer => layer
         };
 
-        let query = build_query(template, ctx).map_err(ClientError::from)?;
+        let query = build_query(template, ctx)?;
         self.client.query(&query, HashMap::new()).await.map(|_| ())
     }
 }

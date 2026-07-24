@@ -39,7 +39,7 @@ impl GraphQLRemoteNode {
             new_type => new_type
         };
 
-        let query = build_query(template, ctx).map_err(ClientError::from)?;
+        let query = build_query(template, ctx)?;
         self.client.query(&query, HashMap::new()).await.map(|_| ())
     }
 
@@ -66,7 +66,7 @@ impl GraphQLRemoteNode {
             properties => properties.map(|p| build_property_string(p)),
         };
 
-        let query = build_query(template, ctx).map_err(ClientError::from)?;
+        let query = build_query(template, ctx)?;
         self.client.query(&query, HashMap::new()).await.map(|_| ())
     }
 
@@ -88,7 +88,7 @@ impl GraphQLRemoteNode {
             properties => build_property_string(properties),
         };
 
-        let query = build_query(template, ctx).map_err(ClientError::from)?;
+        let query = build_query(template, ctx)?;
         self.client.query(&query, HashMap::new()).await.map(|_| ())
     }
 
@@ -113,7 +113,7 @@ impl GraphQLRemoteNode {
             properties => build_property_string(properties)
         };
 
-        let query = build_query(template, ctx).map_err(ClientError::from)?;
+        let query = build_query(template, ctx)?;
         self.client.query(&query, HashMap::new()).await.map(|_| ())
     }
 }

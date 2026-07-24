@@ -8,7 +8,7 @@ use crate::{
         nodes::GqlNodes,
         path_from_node::GqlPathFromNode,
     },
-    paths::{ExistingGraphFolder, UnlockedGraphFolder},
+    paths::UnlockedGraphFolder,
     rayon::blocking_compute,
 };
 use async_graphql::Context;

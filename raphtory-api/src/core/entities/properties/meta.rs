@@ -166,7 +166,7 @@ impl Meta {
     pub fn get_or_create_layer_id(&self, name: Option<&str>) -> MaybeNew<LayerId> {
         self.layer_mapper
             .get_or_create_id(name.unwrap_or("_default"))
-            .map(|l| LayerId(l))
+            .map(LayerId)
     }
 
     #[inline]
@@ -181,12 +181,12 @@ impl Meta {
 
     #[inline]
     pub fn get_layer_id(&self, name: &str) -> Option<LayerId> {
-        self.layer_mapper.get_id(name).map(|l| LayerId(l))
+        self.layer_mapper.get_id(name).map(LayerId)
     }
 
     #[inline]
     pub fn get_default_layer_id(&self) -> Option<LayerId> {
-        self.layer_mapper.get_id("_default").map(|id| LayerId(id))
+        self.layer_mapper.get_id("_default").map(LayerId)
     }
 
     #[inline]
@@ -487,7 +487,7 @@ impl<'a> WriteLockedPropMapper<'a> {
             }
             Some(old_dtype) => {
                 let mut unified = false;
-                let unified_type = unify_types(&old_dtype, &dtype, &mut unified)?;
+                let unified_type = unify_types(old_dtype, &dtype, &mut unified)?;
 
                 if unified {
                     // The row size needs to account for the difference in sizes

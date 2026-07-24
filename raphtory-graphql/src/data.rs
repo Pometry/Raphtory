@@ -8,7 +8,6 @@ use crate::{
         blocking_io,
         graph::{
             filtering::{GraphAccessFilter, GraphRowFilter, HiddenKeys},
-            meta_graph::MetaGraph,
             namespace::Namespace,
             namespaced_item::NamespacedItem,
             vectorised_graph::GqlVectorisedGraph,
@@ -49,7 +48,7 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
-use tokio::sync::{OwnedRwLockReadGuard, OwnedRwLockWriteGuard, RwLock, RwLockReadGuard};
+use tokio::sync::{OwnedRwLockReadGuard, OwnedRwLockWriteGuard, RwLock};
 use tracing::{error, warn};
 use walkdir::WalkDir;
 
@@ -373,7 +372,7 @@ impl Data {
     /// `get_graph_with_write_permission` instead.
     async fn get_graph(&self, path: &str) -> Result<GraphWithVectors, GQLError> {
         self.cache
-            .get_or_insert(path.into(), self.read_graph_from_disk(path))
+            .get_or_insert(path, self.read_graph_from_disk(path))
             .await
     }
 
@@ -387,7 +386,7 @@ impl Data {
     }
 
     pub async fn get_cached_graph(&self, path: &str) -> Option<GraphWithVectors> {
-        self.cache.get(path.into())
+        self.cache.get(path)
     }
 
     pub async fn insert_graph(

@@ -58,7 +58,9 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         dst: impl Into<VID>,
         e_id: impl Into<ELID>,
     ) {
-        self.add_outbound_edge_inner(t, src_pos, dst, e_id);
+        self.add_outbound_edge_inner(t, src_pos, dst, e_id, |layer_id| {
+            self.l_counter.increment(layer_id);
+        });
     }
 
     pub fn add_static_outbound_edge(
@@ -73,15 +75,19 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
             src_pos,
             dst,
             e_id.with_layer(STATIC_GRAPH_LAYER_ID),
+            |layer_id| {
+                self.l_counter.increment(layer_id);
+            },
         );
     }
 
-    fn add_outbound_edge_inner<T: AsTime>(
+    pub(crate) fn add_outbound_edge_inner<T: AsTime>(
         &mut self,
         t: Option<T>,
         src_pos: impl Into<LocalPOS>,
         dst: impl Into<VID>,
         e_id: impl Into<ELID>,
+        mut layer_counter: impl FnMut(LayerId),
     ) {
         let src_pos = src_pos.into();
         let dst = dst.into();
@@ -95,7 +101,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         self.mut_segment.increment_est_size(add);
 
         if is_new_node && !self.page.has_node(src_pos, layer_id) {
-            self.l_counter.increment(layer_id);
+            layer_counter(layer_id);
         }
     }
 
@@ -106,7 +112,9 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         src: impl Into<VID>,
         e_id: impl Into<ELID>,
     ) {
-        self.add_inbound_edge_inner(t, dst_pos, src, e_id);
+        self.add_inbound_edge_inner(t, dst_pos, src, e_id, |layer| {
+            self.l_counter.increment(layer);
+        });
     }
 
     pub fn add_static_inbound_edge(
@@ -121,15 +129,19 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
             dst_pos,
             src,
             e_id.with_layer(STATIC_GRAPH_LAYER_ID),
+            |layer| {
+                self.l_counter.increment(layer);
+            },
         );
     }
 
-    fn add_inbound_edge_inner<T: AsTime>(
+    pub(crate) fn add_inbound_edge_inner<T: AsTime>(
         &mut self,
         t: Option<T>,
         dst_pos: impl Into<LocalPOS>,
         src: impl Into<VID>,
         e_id: impl Into<ELID>,
+        mut layer_counter: impl FnMut(LayerId),
     ) {
         let e_id = e_id.into();
         let src = src.into();
@@ -143,7 +155,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         self.mut_segment.increment_est_size(add);
 
         if is_new_node && !self.page.has_node(dst_pos, layer) {
-            self.l_counter.increment(layer);
+            layer_counter(layer);
         }
     }
 
@@ -178,10 +190,22 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         layer_id: LayerId,
         props: impl IntoIterator<Item = (usize, P)>,
     ) {
+        self.update_c_props_inner(pos, layer_id, props, |layer_id| {
+            self.l_counter.increment(layer_id);
+        });
+    }
+
+    pub(crate) fn update_c_props_inner<P: AsPropRef>(
+        &mut self,
+        pos: LocalPOS,
+        layer_id: LayerId,
+        props: impl IntoIterator<Item = (usize, P)>,
+        mut layer_counter: impl FnMut(LayerId),
+    ) {
         let (is_new_node, add) = self.mut_segment.update_metadata(pos, layer_id, props);
         self.mut_segment.increment_est_size(add);
         if is_new_node && !self.page.has_node(pos, layer_id) {
-            self.l_counter.increment(layer_id);
+            layer_counter(layer_id);
         }
     }
 
