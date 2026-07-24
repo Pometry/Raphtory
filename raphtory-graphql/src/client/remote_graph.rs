@@ -326,6 +326,61 @@ pub(crate) fn expect_property_list(
     }
 }
 
+/// Unwrap a flat columnar property/metadata result — a `Prop::List` where each
+/// element is itself a `Prop::List` of `{key, value}` records (one inner list
+/// per collection member). Used by the collection-level `RemoteMetadataView` /
+/// `RemotePropertiesView` on flat collections.
+pub(crate) fn expect_columnar_property_list(
+    v: Option<Prop>,
+    context: &str,
+) -> Result<Vec<Vec<(String, Prop)>>, ClientError> {
+    match v {
+        Some(Prop::List(members)) => members
+            .iter()
+            .map(|member| match member {
+                Prop::List(pairs) => pairs
+                    .iter()
+                    .map(|p| match p {
+                        Prop::Map(map) => extract_key_value_pair(&*map, context),
+                        _ => Err(ClientError::InvalidResponse(format!(
+                            "`{}` entry not a Prop::Map",
+                            context
+                        ))),
+                    })
+                    .collect(),
+                _ => Err(ClientError::InvalidResponse(format!(
+                    "`{}` member not a Prop::List",
+                    context
+                ))),
+            })
+            .collect(),
+        _ => Err(ClientError::InvalidResponse(format!(
+            "`{}` returned unexpected value type",
+            context
+        ))),
+    }
+}
+
+/// Unwrap a nested columnar property/metadata result — a `Prop::List` of
+/// per-source `Prop::List`s, each holding per-member `Prop::List`s of
+/// `{key, value}` records. Used by the collection-level views on nested
+/// collections (`PathFromGraph` / `NestedEdges`).
+pub(crate) fn expect_nested_columnar_property_list(
+    v: Option<Prop>,
+    context: &str,
+) -> Result<Vec<Vec<Vec<(String, Prop)>>>, ClientError> {
+    match v {
+        Some(Prop::List(sources)) => sources
+            .iter()
+            .map(|source| expect_columnar_property_list(Some(source.clone()), context))
+            .collect(),
+        _ => Err(ClientError::InvalidResponse(format!(
+            "`{}` returned unexpected value type",
+            context
+        ))),
+    }
+}
+
 fn extract_key_value_pair(
     map: &rustc_hash::FxHashMap<raphtory_api::core::storage::arc_str::ArcStr, Prop>,
     context: &str,

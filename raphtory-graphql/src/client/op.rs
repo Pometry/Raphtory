@@ -658,6 +658,25 @@ pub enum ReadExpr {
     /// NESTED: per-source per-edge `isSelfLoop` — `Vec<Vec<bool>>`.
     NestedIsSelfLoop { input: Box<ReadExpr> },
 
+    // ============ Columnar property / metadata containers on collections ============
+    // These descend into each collection member's `metadata` / `properties`
+    // container and fetch all `{key, value}` entries, so the client can pivot
+    // them into per-key columns (one value per member, `None` where a member
+    // lacks the key). FLAT variants render `list { <container> { values { key
+    // value } } }` on `Nodes` / `Edges` / `PathFromNode`; NESTED variants render
+    // `list { list { <container> { values { key value } } } }` on `PathFromGraph`
+    // / `NestedEdges`. Each opens ONE net brace (the outer `list`); inner groups
+    // self-balance. For `properties`, temporal values collapse to their latest
+    // under the current view — matching the local columnar property views.
+    /// FLAT: each member's metadata entries — one `[{key, value}]` per member.
+    CollectionMetadataValues { input: Box<ReadExpr> },
+    /// FLAT: each member's property entries (temporal → latest).
+    CollectionPropertiesValues { input: Box<ReadExpr> },
+    /// NESTED: per-source per-member metadata entries.
+    NestedMetadataValues { input: Box<ReadExpr> },
+    /// NESTED: per-source per-member property entries (temporal → latest).
+    NestedPropertiesValues { input: Box<ReadExpr> },
+
     // ============ Node scalar terminals ============
     /// Terminal: node id — `String` (server may return int-like GID; treated as string).
     Id { input: Box<ReadExpr> },

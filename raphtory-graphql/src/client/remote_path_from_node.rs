@@ -1,10 +1,12 @@
 use crate::{
     client::{
         op::{Op, ReadExpr},
+        remote_collection_metadata::{RemoteMetadataView, RemotePropertiesView},
         remote_edges::RemoteEdges,
         remote_graph::{
             expect_bool, expect_i64, expect_i64_list, expect_optional_event_time,
-            expect_optional_i64, expect_optional_string_list, expect_string_list,
+            expect_optional_event_time_list, expect_optional_i64, expect_optional_string_list,
+            expect_string_list,
         },
         remote_history::{RemoteEventTime, RemoteHistory},
         remote_node::RemoteNode,
@@ -164,6 +166,13 @@ impl RemotePathFromNode {
         self.with_view_op(|input| ReadExpr::ShrinkEnd {
             input: Box::new(input),
             end,
+        })
+    }
+
+    /// Restrict to the default layer. Lazy — no RPC.
+    pub fn default_layer(&self) -> RemotePathFromNode {
+        self.with_view_op(|input| ReadExpr::DefaultLayer {
+            input: Box::new(input),
         })
     }
 
@@ -365,6 +374,48 @@ impl RemotePathFromNode {
             input: Box::new(self.expr.clone()),
         });
         expect_optional_string_list(self.transport.execute(&op).await?, "nodeType")
+    }
+
+    /// Columnar accessor: each node's earliest event time — mirrors the local
+    /// `PathFromNode.earliest_time`. Fires one RPC.
+    pub async fn earliest_time(&self) -> Result<Vec<Option<RemoteEventTime>>, ClientError> {
+        let op = Op::Read(ReadExpr::CollectionEarliestTime {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_optional_event_time_list(self.transport.execute(&op).await?, "earliestTime")
+    }
+
+    /// Columnar accessor: each node's latest event time — mirrors the local
+    /// `PathFromNode.latest_time`. Fires one RPC.
+    pub async fn latest_time(&self) -> Result<Vec<Option<RemoteEventTime>>, ClientError> {
+        let op = Op::Read(ReadExpr::CollectionLatestTime {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_optional_event_time_list(self.transport.execute(&op).await?, "latestTime")
+    }
+
+    /// The non-temporal metadata of this path as a columnar view — mirrors the
+    /// local `PathFromNode.metadata`. Lazy — no RPC.
+    pub fn metadata(&self) -> RemoteMetadataView {
+        RemoteMetadataView::with_expr(
+            self.path.clone(),
+            self.transport.clone(),
+            self.expr.clone(),
+            self.base_graph.clone(),
+            false,
+        )
+    }
+
+    /// The properties of this path as a columnar view — mirrors the local
+    /// `PathFromNode.properties`. Lazy — no RPC.
+    pub fn properties(&self) -> RemotePropertiesView {
+        RemotePropertiesView::with_expr(
+            self.path.clone(),
+            self.transport.clone(),
+            self.expr.clone(),
+            self.base_graph.clone(),
+            false,
+        )
     }
 
     /// Terminal: the per-node degree (number of incident edges) of every node

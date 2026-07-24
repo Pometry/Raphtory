@@ -1,8 +1,11 @@
 use crate::{
     client::{remote_edges::RemoteEdges, ClientError},
     python::client::{
-        remote_edge::PyRemoteEdge, remote_history::PyRemoteEventTime,
-        remote_path_from_node::PyRemotePathFromNode, remote_sorting::PyEdgeSortBy,
+        remote_collection_metadata::{PyRemoteMetadataView, PyRemotePropertiesView},
+        remote_edge::PyRemoteEdge,
+        remote_history::PyRemoteEventTime,
+        remote_path_from_node::PyRemotePathFromNode,
+        remote_sorting::PyEdgeSortBy,
     },
 };
 use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyRef, PyRefMut, PyResult};
@@ -368,6 +371,20 @@ impl PyRemoteEdges {
     pub fn is_self_loop(&self) -> Result<Vec<bool>, ClientError> {
         let edges = Arc::clone(&self.edges);
         execute_async_task(move || async move { edges.is_self_loop().await })
+    }
+
+    /// The non-temporal metadata of this collection as a columnar view. Each
+    /// accessor returns one value per edge. Lazy — no RPC.
+    #[getter]
+    pub fn metadata(&self) -> PyRemoteMetadataView {
+        PyRemoteMetadataView::new(self.edges.metadata())
+    }
+
+    /// The properties of this collection as a columnar view. Each accessor
+    /// returns one value per edge. Lazy — no RPC.
+    #[getter]
+    pub fn properties(&self) -> PyRemotePropertiesView {
+        PyRemotePropertiesView::new(self.edges.properties())
     }
 
     /// The size of the window covered by this view (`end - start`), or `None`

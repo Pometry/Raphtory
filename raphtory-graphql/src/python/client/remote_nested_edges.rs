@@ -1,7 +1,9 @@
 use crate::{
     client::{remote_nested_edges::RemoteNestedEdges, ClientError},
     python::client::{
-        remote_edge::PyRemoteEdge, remote_history::PyRemoteEventTime,
+        remote_collection_metadata::{PyRemoteMetadataView, PyRemotePropertiesView},
+        remote_edge::PyRemoteEdge,
+        remote_history::PyRemoteEventTime,
         remote_path_from_graph::PyRemotePathFromGraph,
     },
 };
@@ -328,6 +330,21 @@ impl PyRemoteNestedEdges {
                 })
                 .collect(),
         )
+    }
+
+    /// The non-temporal metadata of this collection as a nested columnar view.
+    /// Each accessor returns one value per edge, grouped per source. Lazy —
+    /// no RPC.
+    #[getter]
+    pub fn metadata(&self) -> PyRemoteMetadataView {
+        PyRemoteMetadataView::new(self.edges.metadata())
+    }
+
+    /// The properties of this collection as a nested columnar view. Each
+    /// accessor returns one value per edge, grouped per source. Lazy — no RPC.
+    #[getter]
+    pub fn properties(&self) -> PyRemotePropertiesView {
+        PyRemotePropertiesView::new(self.edges.properties())
     }
 
     /// Whether each edge is active (has an event) in the current view, grouped

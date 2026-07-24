@@ -1,6 +1,7 @@
 use crate::{
     client::{
         op::{EdgeSortBy, Op, ReadExpr},
+        remote_collection_metadata::{RemoteMetadataView, RemotePropertiesView},
         remote_edge::RemoteEdge,
         remote_graph::{
             expect_bool, expect_bool_list, expect_edge_list, expect_i64, expect_nested_string_list,
@@ -447,6 +448,30 @@ impl RemoteEdges {
             input: Box::new(self.expr.clone()),
         });
         expect_bool_list(self.transport.execute(&op).await?, "isSelfLoop")
+    }
+
+    /// The non-temporal metadata of this collection as a columnar view —
+    /// mirrors the local `Edges.metadata`. Lazy — no RPC.
+    pub fn metadata(&self) -> RemoteMetadataView {
+        RemoteMetadataView::with_expr(
+            self.path.clone(),
+            self.transport.clone(),
+            self.expr.clone(),
+            self.base_graph.clone(),
+            false,
+        )
+    }
+
+    /// The properties of this collection as a columnar view — mirrors the local
+    /// `Edges.properties`. Lazy — no RPC.
+    pub fn properties(&self) -> RemotePropertiesView {
+        RemotePropertiesView::with_expr(
+            self.path.clone(),
+            self.transport.clone(),
+            self.expr.clone(),
+            self.base_graph.clone(),
+            false,
+        )
     }
 
     /// Terminal: the size of the window covered by this view (`end - start`),

@@ -1,8 +1,10 @@
 use crate::{
     client::{
         op::{Op, ReadExpr},
+        remote_collection_metadata::{RemoteMetadataView, RemotePropertiesView},
         remote_graph::{
-            expect_bool, expect_i64, expect_nested_i64_list, expect_nested_optional_string_list,
+            expect_bool, expect_i64, expect_nested_i64_list,
+            expect_nested_optional_event_time_list, expect_nested_optional_string_list,
             expect_nested_string_list, expect_optional_event_time, expect_optional_i64,
         },
         remote_history::{RemoteEventTime, RemoteHistory},
@@ -162,6 +164,13 @@ impl RemotePathFromGraph {
         self.with_view_op(|input| ReadExpr::ShrinkEnd {
             input: Box::new(input),
             end,
+        })
+    }
+
+    /// Restrict to the default layer. Lazy — no RPC.
+    pub fn default_layer(&self) -> RemotePathFromGraph {
+        self.with_view_op(|input| ReadExpr::DefaultLayer {
+            input: Box::new(input),
         })
     }
 
@@ -362,6 +371,50 @@ impl RemotePathFromGraph {
             input: Box::new(self.expr.clone()),
         });
         expect_nested_optional_string_list(self.transport.execute(&op).await?, "nodeType")
+    }
+
+    /// Columnar accessor: the nested per-node earliest event time — one inner
+    /// list per source node — mirrors the local `PathFromGraph.earliest_time`.
+    /// Fires one RPC.
+    pub async fn earliest_time(&self) -> Result<Vec<Vec<Option<RemoteEventTime>>>, ClientError> {
+        let op = Op::Read(ReadExpr::NestedEarliestTime {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_nested_optional_event_time_list(self.transport.execute(&op).await?, "earliestTime")
+    }
+
+    /// Columnar accessor: the nested per-node latest event time — one inner
+    /// list per source node — mirrors the local `PathFromGraph.latest_time`.
+    /// Fires one RPC.
+    pub async fn latest_time(&self) -> Result<Vec<Vec<Option<RemoteEventTime>>>, ClientError> {
+        let op = Op::Read(ReadExpr::NestedLatestTime {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_nested_optional_event_time_list(self.transport.execute(&op).await?, "latestTime")
+    }
+
+    /// The non-temporal metadata of this collection as a nested columnar view —
+    /// mirrors the local `PathFromGraph.metadata`. Lazy — no RPC.
+    pub fn metadata(&self) -> RemoteMetadataView {
+        RemoteMetadataView::with_expr(
+            self.path.clone(),
+            self.transport.clone(),
+            self.expr.clone(),
+            self.base_graph.clone(),
+            true,
+        )
+    }
+
+    /// The properties of this collection as a nested columnar view — mirrors
+    /// the local `PathFromGraph.properties`. Lazy — no RPC.
+    pub fn properties(&self) -> RemotePropertiesView {
+        RemotePropertiesView::with_expr(
+            self.path.clone(),
+            self.transport.clone(),
+            self.expr.clone(),
+            self.base_graph.clone(),
+            true,
+        )
     }
 
     /// Terminal: the nested per-node degree — one inner list per source node,

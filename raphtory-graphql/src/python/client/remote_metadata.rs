@@ -65,7 +65,6 @@ impl PyRemoteMetadata {
         result.map(|p| prop_to_py(py, p.value)).transpose()
     }
 
-
     /// All metadata keys present on this entity. Fires one RPC.
     pub fn keys(&self) -> Result<Vec<String>, ClientError> {
         let inner = Arc::clone(&self.inner);
@@ -177,7 +176,6 @@ impl PyRemoteProperties {
         let result = execute_async_task(move || async move { inner.get(key).await })?;
         result.map(|p| prop_to_py(py, p.value)).transpose()
     }
-
 
     /// All property keys in the current view. Fires one RPC.
     pub fn keys(&self) -> Result<Vec<String>, ClientError> {
@@ -306,7 +304,6 @@ impl PyRemoteTemporalProperties {
             inner: Arc::new(tp),
         }))
     }
-
 
     /// All temporal property keys. Fires one RPC.
     pub fn keys(&self) -> Result<Vec<String>, ClientError> {

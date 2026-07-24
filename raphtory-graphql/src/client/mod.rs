@@ -2,6 +2,7 @@ mod error;
 pub mod graphql_transport;
 pub mod op;
 pub mod remote_client;
+pub mod remote_collection_metadata;
 pub mod remote_edge;
 pub mod remote_edges;
 pub mod remote_graph;
@@ -23,6 +24,7 @@ pub use op::{
     EdgeAddition, NodeAddition, Op, ReadExpr, SetNodeType, TemporalUpdate, UpdateEdgeMetadata,
     UpdateGraphMetadata, UpdateNodeMetadata, WriteOp,
 };
+pub use remote_collection_metadata::{ColumnarProps, RemoteMetadataView, RemotePropertiesView};
 pub use remote_edge::RemoteEdge;
 pub use remote_edges::RemoteEdges;
 pub use remote_graph::RemoteGraph;

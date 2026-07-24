@@ -1921,18 +1921,22 @@ def test_remote_path_from_node_type_filter():
         server_cm.__exit__(None, None, None)
 
 
-def test_remote_path_from_node_lacks_sorted_and_default_layer():
-    """`.sorted` and `.default_layer` are not exposed on `RemotePathFromNode`
-    because the server's `GqlPathFromNode` doesn't support them."""
+def test_remote_path_from_node_lacks_sorted():
+    """`.sorted` is not exposed on `RemotePathFromNode` — matching local
+    `PathFromNode`, which has no `sorted`. `.default_layer`, by contrast, IS
+    exposed (local `PathFromNode` has it as a method)."""
+    from raphtory import PathFromNode
+
     server_cm, rg = _make_graph_with_edge()
     try:
         neighbours = rg.node("ben").out_neighbours
         assert not hasattr(neighbours, "sorted"), (
             "sorted must not be available on RemotePathFromNode"
         )
-        assert not hasattr(neighbours, "default_layer"), (
-            "default_layer must not be available on RemotePathFromNode"
-        )
+        assert not hasattr(PathFromNode, "sorted")
+        # default_layer is part of the local surface, so the remote exposes it.
+        assert hasattr(neighbours, "default_layer")
+        assert hasattr(PathFromNode, "default_layer")
     finally:
         server_cm.__exit__(None, None, None)
 
@@ -3748,5 +3752,393 @@ def test_nested_edges_src_neighbours_composition():
             for s, x in zip(lsrc, [list(inner) for inner in lg.nodes.edges.src.neighbours.name])
         }
         assert r == l
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+# ============================================================================
+# Collection-level earliest_time / latest_time (getters), default_layer
+# (method), and columnar metadata / properties views — parity with local.
+# ============================================================================
+
+
+def _descriptor_kind(cls, name):
+    """Return "getter", "method", or "missing" for attribute `name` on `cls`.
+
+    PyO3 `#[getter]`s surface as `getset_descriptor`; plain `#[pymethods]` as
+    `method_descriptor`. Used to assert the remote descriptor kind matches the
+    local one (property-vs-method parity).
+    """
+    for base in cls.__mro__:
+        if name in base.__dict__:
+            tn = type(base.__dict__[name]).__name__
+            return "getter" if tn in ("getset_descriptor", "property") else "method"
+    return "missing"
+
+
+def _make_columnar_property_graphs():
+    """Build the same property/metadata graph remotely and locally.
+
+    Returns (server_cm, remote_graph, local_graph). Nodes a/b/c with temporal
+    property `p` (a=10, b=20, c none) and metadata `m` (a=1 only). Edges
+    a->b (prop w=5, metadata em=9), a->c (prop w=7), b->c (none).
+    """
+    from raphtory import Graph
+
+    work_dir = tempfile.mkdtemp()
+    server_cm = GraphServer(work_dir).start()
+    server = server_cm.__enter__()
+    client = server.get_client()
+    client.new_graph("pg", "EVENT")
+    rg = client.remote_graph("pg")
+
+    lg = Graph()
+    for g in (rg, lg):
+        g.add_node(1, "a", {"p": 10})
+        g.add_node(1, "b", {"p": 20})
+        g.add_node(1, "c")
+        g.node("a").add_metadata({"m": 1})
+        g.add_edge(1, "a", "b", {"w": 5})
+        g.add_edge(2, "a", "c", {"w": 7})
+        g.add_edge(3, "b", "c")
+        g.edge("a", "b").add_metadata({"em": 9})
+    return server_cm, rg, lg
+
+
+def test_nodes_earliest_latest_time_getters():
+    """`RemoteNodes.earliest_time` / `.latest_time` are getters returning a
+    flat per-node column, matching local `Nodes`."""
+    server_cm, rg, lg = _make_columnar_graphs()
+    try:
+        from raphtory import Nodes
+
+        assert _descriptor_kind(type(rg.nodes), "earliest_time") == "getter"
+        assert _descriptor_kind(Nodes, "earliest_time") == "getter"
+        assert _descriptor_kind(type(rg.nodes), "latest_time") == "getter"
+        assert _descriptor_kind(Nodes, "latest_time") == "getter"
+
+        rids = rg.nodes.id
+        lids = [str(i) for i in lg.nodes.id]
+
+        r_early = dict(zip(rids, _ts(rg.nodes.earliest_time)))
+        l_early = dict(zip(lids, _ts(list(lg.nodes.earliest_time))))
+        assert r_early == l_early
+        # a/b added at t=1; c added as a node at t=3.
+        assert r_early == {"a": 1, "b": 1, "c": 3}
+
+        r_late = dict(zip(rids, _ts(rg.nodes.latest_time)))
+        l_late = dict(zip(lids, _ts(list(lg.nodes.latest_time))))
+        assert r_late == l_late
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_path_from_node_earliest_latest_time_getters():
+    """`RemotePathFromNode.earliest_time` / `.latest_time` are getters
+    returning a flat per-node column, matching local `PathFromNode`."""
+    server_cm, rg, lg = _make_columnar_graphs()
+    try:
+        from raphtory import PathFromNode
+
+        assert _descriptor_kind(type(rg.node("a").neighbours), "earliest_time") == "getter"
+        assert _descriptor_kind(PathFromNode, "earliest_time") == "getter"
+        assert _descriptor_kind(type(rg.node("a").neighbours), "latest_time") == "getter"
+        assert _descriptor_kind(PathFromNode, "latest_time") == "getter"
+
+        rpath = rg.node("a").neighbours
+        lpath = lg.node("a").neighbours
+        rids = rpath.id
+        lids = [str(i) for i in lpath.id]
+
+        assert dict(zip(rids, _ts(rpath.earliest_time))) == dict(
+            zip(lids, _ts(list(lpath.earliest_time)))
+        )
+        assert dict(zip(rids, _ts(rpath.latest_time))) == dict(
+            zip(lids, _ts(list(lpath.latest_time)))
+        )
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_path_from_graph_earliest_latest_time_getters():
+    """`RemotePathFromGraph.earliest_time` / `.latest_time` are getters
+    returning a nested per-source column, matching local `PathFromGraph`."""
+    server_cm, rg, lg = _make_columnar_graphs()
+    try:
+        from raphtory import PathFromGraph
+
+        assert _descriptor_kind(type(rg.nodes.neighbours), "earliest_time") == "getter"
+        assert _descriptor_kind(PathFromGraph, "earliest_time") == "getter"
+        assert _descriptor_kind(type(rg.nodes.neighbours), "latest_time") == "getter"
+        assert _descriptor_kind(PathFromGraph, "latest_time") == "getter"
+
+        r_src = rg.nodes.id
+        l_src = [str(i) for i in lg.nodes.id]
+        rpath = rg.nodes.neighbours
+        lpath = lg.nodes.neighbours
+
+        # Per source, key inner values by neighbour id (inner order not fixed).
+        r_early = {
+            s: dict(zip(nbrs, _ts(vals)))
+            for s, nbrs, vals in zip(r_src, rpath.id, rpath.earliest_time)
+        }
+        l_early = {
+            s: dict(zip([str(i) for i in nbrs], _ts(list(vals))))
+            for s, nbrs, vals in zip(l_src, lpath.id, list(lpath.earliest_time))
+        }
+        assert r_early == l_early
+
+        r_late = {
+            s: dict(zip(nbrs, _ts(vals)))
+            for s, nbrs, vals in zip(r_src, rpath.id, rpath.latest_time)
+        }
+        l_late = {
+            s: dict(zip([str(i) for i in nbrs], _ts(list(vals))))
+            for s, nbrs, vals in zip(l_src, lpath.id, list(lpath.latest_time))
+        }
+        assert r_late == l_late
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_collections_default_layer_is_method():
+    """`default_layer()` is a method on all five remote collections, returns
+    the same collection type, and restricts to the default layer — matching
+    local (which also exposes it as a method)."""
+    server_cm, rg, lg = _make_columnar_graphs()
+    try:
+        from raphtory import Nodes, Edges, PathFromNode, PathFromGraph, NestedEdges
+
+        pairs = [
+            (rg.nodes, Nodes, "RemoteNodes"),
+            (rg.edges, Edges, "RemoteEdges"),
+            (rg.node("a").neighbours, PathFromNode, "RemotePathFromNode"),
+            (rg.nodes.neighbours, PathFromGraph, "RemotePathFromGraph"),
+            (rg.nodes.edges, NestedEdges, "RemoteNestedEdges"),
+        ]
+        for remote_coll, local_cls, tyname in pairs:
+            assert _descriptor_kind(type(remote_coll), "default_layer") == "method"
+            assert _descriptor_kind(local_cls, "default_layer") == "method"
+            assert type(remote_coll.default_layer()).__name__ == tyname
+
+        # `default_layer` is a view op — it restricts the visible events, not
+        # collection membership; the remote edge id set matches local exactly.
+        assert sorted(rg.edges.default_layer().id) == sorted(
+            lg.edges.default_layer().id
+        )
+        # Its earliest_time column matches local under the default-layer view
+        # (a->b has no default-layer events, so None on both).
+        r_early = dict(zip(rg.edges.default_layer().id, _ts(rg.edges.default_layer().earliest_time)))
+        l_early = dict(zip(lg.edges.default_layer().id, _ts(list(lg.edges.default_layer().earliest_time))))
+        assert r_early == l_early
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def _assert_view_internally_consistent(view):
+    """A columnar view's keys/values/items/as_dict must agree with get()."""
+    keys = list(view.keys())
+    d = view.as_dict()
+    assert set(d.keys()) == set(keys)
+    for k in keys:
+        assert d[k] == view.get(k)
+    assert list(view.values()) == [d[k] for k in keys]
+    assert list(view.items()) == [(k, d[k]) for k in keys]
+
+
+def test_nodes_metadata_properties_view():
+    """`RemoteNodes.metadata` / `.properties` are getters returning columnar
+    views whose get/keys/values/items/as_dict mirror local `Nodes`."""
+    server_cm, rg, lg = _make_columnar_property_graphs()
+    try:
+        from raphtory import Nodes
+
+        for name in ("metadata", "properties"):
+            assert _descriptor_kind(type(rg.nodes), name) == "getter"
+            assert _descriptor_kind(Nodes, name) == "getter"
+
+        rids = rg.nodes.id
+        lids = [str(i) for i in lg.nodes.id]
+
+        # metadata.get('m') — column, one per node, None where absent.
+        assert dict(zip(rids, rg.nodes.metadata.get("m"))) == dict(
+            zip(lids, list(lg.nodes.metadata.get("m")))
+        )
+        assert dict(zip(rids, rg.nodes.metadata.get("m"))) == {
+            "a": 1,
+            "b": None,
+            "c": None,
+        }
+        # properties.get('p') — latest temporal value per node.
+        assert dict(zip(rids, rg.nodes.properties.get("p"))) == dict(
+            zip(lids, list(lg.nodes.properties.get("p")))
+        )
+        assert dict(zip(rids, rg.nodes.properties.get("p"))) == {
+            "a": 10,
+            "b": 20,
+            "c": None,
+        }
+        # keys parity (as sets — key ordering is not contractually stable).
+        assert set(rg.nodes.metadata.keys()) == set(lg.nodes.metadata.keys()) == {"m"}
+        assert set(rg.nodes.properties.keys()) == set(lg.nodes.properties.keys()) == {"p"}
+        # get() on an absent key returns None on both, matching local.
+        assert rg.nodes.metadata.get("nope") is None
+        assert lg.nodes.metadata.get("nope") is None
+
+        _assert_view_internally_consistent(rg.nodes.metadata)
+        _assert_view_internally_consistent(rg.nodes.properties)
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_edges_metadata_properties_view():
+    """`RemoteEdges.metadata` / `.properties` mirror local `Edges` (flat)."""
+    server_cm, rg, lg = _make_columnar_property_graphs()
+    try:
+        from raphtory import Edges
+
+        for name in ("metadata", "properties"):
+            assert _descriptor_kind(type(rg.edges), name) == "getter"
+            assert _descriptor_kind(Edges, name) == "getter"
+
+        rids = rg.edges.id
+        lids = list(lg.edges.id)
+
+        assert dict(zip(rids, rg.edges.metadata.get("em"))) == dict(
+            zip(lids, list(lg.edges.metadata.get("em")))
+        )
+        assert dict(zip(rids, rg.edges.metadata.get("em")))[("a", "b")] == 9
+        assert dict(zip(rids, rg.edges.properties.get("w"))) == dict(
+            zip(lids, list(lg.edges.properties.get("w")))
+        )
+        assert dict(zip(rids, rg.edges.properties.get("w"))) == {
+            ("a", "b"): 5,
+            ("a", "c"): 7,
+            ("b", "c"): None,
+        }
+        assert set(rg.edges.properties.keys()) == set(lg.edges.properties.keys()) == {"w"}
+
+        _assert_view_internally_consistent(rg.edges.metadata)
+        _assert_view_internally_consistent(rg.edges.properties)
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_path_from_node_metadata_properties_view():
+    """`RemotePathFromNode.metadata` / `.properties` mirror local
+    `PathFromNode` (flat, one value per neighbour)."""
+    server_cm, rg, lg = _make_columnar_property_graphs()
+    try:
+        from raphtory import PathFromNode
+
+        for name in ("metadata", "properties"):
+            assert _descriptor_kind(type(rg.node("a").neighbours), name) == "getter"
+            assert _descriptor_kind(PathFromNode, name) == "getter"
+
+        # neighbours of b: a (a->b) and c (b->c) — a carries metadata m=1.
+        rpath = rg.node("b").neighbours
+        lpath = lg.node("b").neighbours
+        rids = rpath.id
+        lids = [str(i) for i in lpath.id]
+
+        assert dict(zip(rids, rpath.properties.get("p"))) == dict(
+            zip(lids, list(lpath.properties.get("p")))
+        )
+        # metadata m present on a only → column [a: 1, c: None].
+        assert dict(zip(rids, rpath.metadata.get("m"))) == dict(
+            zip(lids, list(lpath.metadata.get("m")))
+        )
+        assert dict(zip(rids, rpath.metadata.get("m"))) == {"a": 1, "c": None}
+        _assert_view_internally_consistent(rpath.properties)
+        _assert_view_internally_consistent(rpath.metadata)
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_path_from_graph_metadata_properties_view():
+    """`RemotePathFromGraph.metadata` / `.properties` mirror local
+    `PathFromGraph` (nested, per-source columns)."""
+    server_cm, rg, lg = _make_columnar_property_graphs()
+    try:
+        from raphtory import PathFromGraph
+
+        for name in ("metadata", "properties"):
+            assert _descriptor_kind(type(rg.nodes.neighbours), name) == "getter"
+            assert _descriptor_kind(PathFromGraph, name) == "getter"
+
+        r_src = rg.nodes.id
+        l_src = [str(i) for i in lg.nodes.id]
+        rpath = rg.nodes.neighbours
+        lpath = lg.nodes.neighbours
+
+        # properties.get('p'): nested column, keyed per source then per nbr id.
+        r_p = {
+            s: dict(zip(nbrs, vals))
+            for s, nbrs, vals in zip(r_src, rpath.id, rpath.properties.get("p"))
+        }
+        l_p = {
+            s: dict(zip([str(i) for i in nbrs], list(vals)))
+            for s, nbrs, vals in zip(l_src, lpath.id, list(lpath.properties.get("p")))
+        }
+        assert r_p == l_p
+
+        r_m = {
+            s: dict(zip(nbrs, vals))
+            for s, nbrs, vals in zip(r_src, rpath.id, rpath.metadata.get("m"))
+        }
+        l_m = {
+            s: dict(zip([str(i) for i in nbrs], list(vals)))
+            for s, nbrs, vals in zip(l_src, lpath.id, list(lpath.metadata.get("m")))
+        }
+        assert r_m == l_m
+
+        assert set(rg.nodes.neighbours.properties.keys()) == set(
+            lg.nodes.neighbours.properties.keys()
+        )
+        _assert_view_internally_consistent(rpath.properties)
+        _assert_view_internally_consistent(rpath.metadata)
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_nested_edges_metadata_properties_view():
+    """`RemoteNestedEdges.metadata` / `.properties` mirror local `NestedEdges`
+    (nested, per-source columns)."""
+    server_cm, rg, lg = _make_columnar_property_graphs()
+    try:
+        from raphtory import NestedEdges
+
+        for name in ("metadata", "properties"):
+            assert _descriptor_kind(type(rg.nodes.edges), name) == "getter"
+            assert _descriptor_kind(NestedEdges, name) == "getter"
+
+        r_src = rg.nodes.id
+        l_src = [str(i) for i in lg.nodes.id]
+        rne = rg.nodes.edges
+        lne = lg.nodes.edges
+
+        # properties.get('w'): per source, keyed by edge id (src,dst).
+        r_w = {
+            s: dict(zip(eids, vals))
+            for s, eids, vals in zip(r_src, rne.id, rne.properties.get("w"))
+        }
+        l_w = {
+            s: dict(zip(eids, list(vals)))
+            for s, eids, vals in zip(l_src, lne.id, list(lne.properties.get("w")))
+        }
+        assert r_w == l_w
+
+        r_em = {
+            s: dict(zip(eids, vals))
+            for s, eids, vals in zip(r_src, rne.id, rne.metadata.get("em"))
+        }
+        l_em = {
+            s: dict(zip(eids, list(vals)))
+            for s, eids, vals in zip(l_src, lne.id, list(lne.metadata.get("em")))
+        }
+        assert r_em == l_em
+
+        _assert_view_internally_consistent(rne.properties)
+        _assert_view_internally_consistent(rne.metadata)
     finally:
         server_cm.__exit__(None, None, None)

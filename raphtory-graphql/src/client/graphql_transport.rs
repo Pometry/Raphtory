@@ -1617,6 +1617,28 @@ fn render_read_body(expr: &ReadExpr) -> String {
                 render_read_body(input)
             )
         }
+        // Columnar property / metadata accessors — descend per-member into the
+        // `metadata` / `properties` container and read all `{key, value}`
+        // entries. FLAT collections render `list { <container> { values { key
+        // value } } }`.
+        ReadExpr::CollectionMetadataValues { input } => format!(
+            "{} {{ list {{ metadata {{ values {{ key value }} }} }}",
+            render_read_body(input)
+        ),
+        ReadExpr::CollectionPropertiesValues { input } => format!(
+            "{} {{ list {{ properties {{ values {{ key value }} }} }}",
+            render_read_body(input)
+        ),
+        // NESTED collections render `list { list { <container> { values { key
+        // value } } } }`.
+        ReadExpr::NestedMetadataValues { input } => format!(
+            "{} {{ list {{ list {{ metadata {{ values {{ key value }} }} }} }}",
+            render_read_body(input)
+        ),
+        ReadExpr::NestedPropertiesValues { input } => format!(
+            "{} {{ list {{ list {{ properties {{ values {{ key value }} }} }} }}",
+            render_read_body(input)
+        ),
         // Compound structured terminal on Graph: `sharedNeighbours(selectedNodes: [ids]) { name }`
         // — opens ONE net brace (the outer, before `sharedNeighbours`); the inner
         // `{ name }` is self-balanced.
@@ -1853,6 +1875,10 @@ fn read_depth(expr: &ReadExpr) -> usize {
         | ReadExpr::NestedIsValid { input }
         | ReadExpr::NestedIsDeleted { input }
         | ReadExpr::NestedIsSelfLoop { input }
+        | ReadExpr::CollectionMetadataValues { input }
+        | ReadExpr::CollectionPropertiesValues { input }
+        | ReadExpr::NestedMetadataValues { input }
+        | ReadExpr::NestedPropertiesValues { input }
         | ReadExpr::SharedNeighbours { input, .. }
         | ReadExpr::FindNodes { input, .. }
         | ReadExpr::FindEdges { input, .. }
@@ -2053,6 +2079,68 @@ where
             })?;
             let items: Result<Vec<Prop>, ClientError> = inner.iter().map(&elem_fn).collect();
             Ok(Prop::List(items?.into()))
+        })
+        .collect();
+    Ok(Some(Prop::List(rows?.into())))
+}
+
+/// Decode one collection member's property/metadata container into a
+/// `Prop::List` of `{key, value}` records. `container` is the JSON field name
+/// (`metadata` or `properties`); the element shape is
+/// `{ <container>: { values: [ {key, value}, ... ] } }`.
+fn member_property_entries(el: &JsonValue, container: &str) -> Result<Prop, ClientError> {
+    let values = el
+        .get(container)
+        .and_then(|c| c.get("values"))
+        .and_then(|v| v.as_array())
+        .ok_or_else(|| {
+            ClientError::InvalidResponse(format!(
+                "columnar element missing `{}.values` array",
+                container
+            ))
+        })?;
+    let items: Result<Vec<Prop>, ClientError> =
+        values.iter().map(json_to_property_record).collect();
+    Ok(Prop::List(items?.into()))
+}
+
+/// Map a flat `list` array of members into a per-member `Prop::List` of
+/// property/metadata `{key, value}` records.
+fn build_property_column(
+    terminal_val: &JsonValue,
+    container: &str,
+) -> Result<Option<Prop>, ClientError> {
+    let arr = terminal_val
+        .as_array()
+        .ok_or_else(|| ClientError::InvalidResponse("columnar `list` not a JSON array".into()))?;
+    let rows: Result<Vec<Prop>, ClientError> = arr
+        .iter()
+        .map(|el| member_property_entries(el, container))
+        .collect();
+    Ok(Some(Prop::List(rows?.into())))
+}
+
+/// Map the outer per-source `list` array (each element carrying its own inner
+/// `list` of members) into a per-source per-member `Prop::List` of
+/// property/metadata `{key, value}` records.
+fn build_nested_property_column(
+    terminal_val: &JsonValue,
+    container: &str,
+) -> Result<Option<Prop>, ClientError> {
+    let outer = terminal_val
+        .as_array()
+        .ok_or_else(|| ClientError::InvalidResponse("columnar `list` not a JSON array".into()))?;
+    let rows: Result<Vec<Prop>, ClientError> = outer
+        .iter()
+        .map(|row| {
+            let inner = row.get("list").and_then(|v| v.as_array()).ok_or_else(|| {
+                ClientError::InvalidResponse("columnar element missing inner `list` array".into())
+            })?;
+            let members: Result<Vec<Prop>, ClientError> = inner
+                .iter()
+                .map(|el| member_property_entries(el, container))
+                .collect();
+            Ok(Prop::List(members?.into()))
         })
         .collect();
     Ok(Some(Prop::List(rows?.into())))
@@ -2675,6 +2763,24 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
         ReadExpr::NestedIsSelfLoop { .. } => {
             build_nested_column(terminal_val, |v| col_bool_elem(v, "isSelfLoop"))
         }
+        // Columnar property / metadata accessors — FLAT collections. Each `list`
+        // element carries a `<container> { values { key value } }` sub-object;
+        // decode into a per-member `Prop::List` of `{key, value}` records.
+        ReadExpr::CollectionMetadataValues { .. } => {
+            build_property_column(terminal_val, "metadata")
+        }
+        ReadExpr::CollectionPropertiesValues { .. } => {
+            build_property_column(terminal_val, "properties")
+        }
+        // Columnar property / metadata accessors — NESTED collections. The outer
+        // `list` array holds per-source records, each with its own inner `list`
+        // of members.
+        ReadExpr::NestedMetadataValues { .. } => {
+            build_nested_property_column(terminal_val, "metadata")
+        }
+        ReadExpr::NestedPropertiesValues { .. } => {
+            build_nested_property_column(terminal_val, "properties")
+        }
         // Bool-shaped terminals.
         ReadExpr::HasNode { .. }
         | ReadExpr::HasEdge { .. }
@@ -3153,7 +3259,11 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
             | ReadExpr::NestedIsActive { input }
             | ReadExpr::NestedIsValid { input }
             | ReadExpr::NestedIsDeleted { input }
-            | ReadExpr::NestedIsSelfLoop { input } => {
+            | ReadExpr::NestedIsSelfLoop { input }
+            | ReadExpr::CollectionMetadataValues { input }
+            | ReadExpr::CollectionPropertiesValues { input }
+            | ReadExpr::NestedMetadataValues { input }
+            | ReadExpr::NestedPropertiesValues { input } => {
                 go(input, out);
                 out.push("list");
             }
@@ -3631,6 +3741,10 @@ fn child_input(expr: &ReadExpr) -> Option<&ReadExpr> {
         | ReadExpr::NestedIsValid { input }
         | ReadExpr::NestedIsDeleted { input }
         | ReadExpr::NestedIsSelfLoop { input }
+        | ReadExpr::CollectionMetadataValues { input }
+        | ReadExpr::CollectionPropertiesValues { input }
+        | ReadExpr::NestedMetadataValues { input }
+        | ReadExpr::NestedPropertiesValues { input }
         | ReadExpr::SharedNeighbours { input, .. }
         | ReadExpr::FindNodes { input, .. }
         | ReadExpr::FindEdges { input, .. }

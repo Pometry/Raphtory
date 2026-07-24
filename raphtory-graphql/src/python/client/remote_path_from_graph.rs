@@ -1,6 +1,7 @@
 use crate::{
     client::{remote_path_from_graph::RemotePathFromGraph, ClientError},
     python::client::{
+        remote_collection_metadata::{PyRemoteMetadataView, PyRemotePropertiesView},
         remote_history::{PyRemoteEventTime, PyRemoteHistory},
         remote_nested_edges::PyRemoteNestedEdges,
         remote_node::PyRemoteNode,
@@ -145,6 +146,11 @@ impl PyRemotePathFromGraph {
         PyRemotePathFromGraph::new(self.path.shrink_end(end))
     }
 
+    /// Restrict to the default layer. Lazy — no RPC.
+    pub fn default_layer(&self) -> PyRemotePathFromGraph {
+        PyRemotePathFromGraph::new(self.path.default_layer())
+    }
+
     /// Restrict to the given set of layers. Lazy — no RPC.
     pub fn layers(&self, names: Vec<String>) -> PyRemotePathFromGraph {
         PyRemotePathFromGraph::new(self.path.layers(names))
@@ -240,6 +246,63 @@ impl PyRemotePathFromGraph {
     pub fn node_type(&self) -> Result<Vec<Vec<Option<String>>>, ClientError> {
         let path = Arc::clone(&self.path);
         execute_async_task(move || async move { path.node_type().await })
+    }
+
+    /// The earliest event time of each node, grouped per source node. Property
+    /// — attribute access fires one RPC.
+    ///
+    /// Returns:
+    ///   list[list[Optional[EventTime]]]: the earliest times, per source.
+    #[getter]
+    pub fn earliest_time(&self) -> Result<Vec<Vec<Option<PyRemoteEventTime>>>, ClientError> {
+        let path = Arc::clone(&self.path);
+        Ok(
+            execute_async_task(move || async move { path.earliest_time().await })?
+                .into_iter()
+                .map(|inner| {
+                    inner
+                        .into_iter()
+                        .map(|o| o.map(PyRemoteEventTime::from))
+                        .collect()
+                })
+                .collect(),
+        )
+    }
+
+    /// The latest event time of each node, grouped per source node. Property —
+    /// attribute access fires one RPC.
+    ///
+    /// Returns:
+    ///   list[list[Optional[EventTime]]]: the latest times, per source.
+    #[getter]
+    pub fn latest_time(&self) -> Result<Vec<Vec<Option<PyRemoteEventTime>>>, ClientError> {
+        let path = Arc::clone(&self.path);
+        Ok(
+            execute_async_task(move || async move { path.latest_time().await })?
+                .into_iter()
+                .map(|inner| {
+                    inner
+                        .into_iter()
+                        .map(|o| o.map(PyRemoteEventTime::from))
+                        .collect()
+                })
+                .collect(),
+        )
+    }
+
+    /// The non-temporal metadata of this collection as a nested columnar view.
+    /// Each accessor returns one value per node, grouped per source. Lazy —
+    /// no RPC.
+    #[getter]
+    pub fn metadata(&self) -> PyRemoteMetadataView {
+        PyRemoteMetadataView::new(self.path.metadata())
+    }
+
+    /// The properties of this collection as a nested columnar view. Each
+    /// accessor returns one value per node, grouped per source. Lazy — no RPC.
+    #[getter]
+    pub fn properties(&self) -> PyRemotePropertiesView {
+        PyRemotePropertiesView::new(self.path.properties())
     }
 
     /// Returns the number of source paths in this collection. Fires one RPC.

@@ -15,6 +15,7 @@ use serde::Serialize;
 use std::collections::HashMap;
 
 pub mod remote_client;
+pub mod remote_collection_metadata;
 pub mod remote_edge;
 pub mod remote_edges;
 pub mod remote_graph;

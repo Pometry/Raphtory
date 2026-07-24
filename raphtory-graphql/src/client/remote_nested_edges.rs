@@ -1,6 +1,7 @@
 use crate::{
     client::{
         op::{Op, ReadExpr},
+        remote_collection_metadata::{RemoteMetadataView, RemotePropertiesView},
         remote_edge::RemoteEdge,
         remote_graph::{
             expect_bool, expect_double_nested_string_list, expect_i64, expect_nested_bool_list,
@@ -338,6 +339,30 @@ impl RemoteNestedEdges {
             input: Box::new(self.expr.clone()),
         });
         expect_optional_i64(self.transport.execute(&op).await?, "windowSize")
+    }
+
+    /// The non-temporal metadata of this collection as a nested columnar view —
+    /// mirrors the local `NestedEdges.metadata`. Lazy — no RPC.
+    pub fn metadata(&self) -> RemoteMetadataView {
+        RemoteMetadataView::with_expr(
+            self.path.clone(),
+            self.transport.clone(),
+            self.expr.clone(),
+            self.base_graph.clone(),
+            true,
+        )
+    }
+
+    /// The properties of this collection as a nested columnar view — mirrors
+    /// the local `NestedEdges.properties`. Lazy — no RPC.
+    pub fn properties(&self) -> RemotePropertiesView {
+        RemotePropertiesView::with_expr(
+            self.path.clone(),
+            self.transport.clone(),
+            self.expr.clone(),
+            self.base_graph.clone(),
+            true,
+        )
     }
 
     /// Columnar accessor: each source's edge `(src, dst)` id pairs — one inner

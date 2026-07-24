@@ -1,8 +1,11 @@
 use crate::{
     client::{remote_nodes::RemoteNodes, ClientError},
     python::client::{
-        remote_history::PyRemoteEventTime, remote_nested_edges::PyRemoteNestedEdges,
-        remote_node::PyRemoteNode, remote_path_from_graph::PyRemotePathFromGraph,
+        remote_collection_metadata::{PyRemoteMetadataView, PyRemotePropertiesView},
+        remote_history::PyRemoteEventTime,
+        remote_nested_edges::PyRemoteNestedEdges,
+        remote_node::PyRemoteNode,
+        remote_path_from_graph::PyRemotePathFromGraph,
         remote_sorting::PyNodeSortBy,
     },
 };
@@ -268,6 +271,52 @@ impl PyRemoteNodes {
     pub fn node_type(&self) -> Result<Vec<Option<String>>, ClientError> {
         let nodes = Arc::clone(&self.nodes);
         execute_async_task(move || async move { nodes.node_type().await })
+    }
+
+    /// The earliest event time of each node in this collection. Property —
+    /// attribute access fires one RPC.
+    ///
+    /// Returns:
+    ///   list[Optional[EventTime]]: the earliest times, in collection order.
+    #[getter]
+    pub fn earliest_time(&self) -> Result<Vec<Option<PyRemoteEventTime>>, ClientError> {
+        let nodes = Arc::clone(&self.nodes);
+        Ok(
+            execute_async_task(move || async move { nodes.earliest_time().await })?
+                .into_iter()
+                .map(|o| o.map(PyRemoteEventTime::from))
+                .collect(),
+        )
+    }
+
+    /// The latest event time of each node in this collection. Property —
+    /// attribute access fires one RPC.
+    ///
+    /// Returns:
+    ///   list[Optional[EventTime]]: the latest times, in collection order.
+    #[getter]
+    pub fn latest_time(&self) -> Result<Vec<Option<PyRemoteEventTime>>, ClientError> {
+        let nodes = Arc::clone(&self.nodes);
+        Ok(
+            execute_async_task(move || async move { nodes.latest_time().await })?
+                .into_iter()
+                .map(|o| o.map(PyRemoteEventTime::from))
+                .collect(),
+        )
+    }
+
+    /// The non-temporal metadata of this collection as a columnar view. Each
+    /// accessor returns one value per node. Lazy — no RPC.
+    #[getter]
+    pub fn metadata(&self) -> PyRemoteMetadataView {
+        PyRemoteMetadataView::new(self.nodes.metadata())
+    }
+
+    /// The properties of this collection as a columnar view. Each accessor
+    /// returns one value per node. Lazy — no RPC.
+    #[getter]
+    pub fn properties(&self) -> PyRemotePropertiesView {
+        PyRemotePropertiesView::new(self.nodes.properties())
     }
 
     /// Returns the number of nodes in this collection. Fires one RPC.

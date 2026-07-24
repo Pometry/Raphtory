@@ -1,6 +1,7 @@
 use crate::{
     client::{remote_path_from_node::RemotePathFromNode, ClientError},
     python::client::{
+        remote_collection_metadata::{PyRemoteMetadataView, PyRemotePropertiesView},
         remote_edges::PyRemoteEdges,
         remote_history::{PyRemoteEventTime, PyRemoteHistory},
         remote_node::PyRemoteNode,
@@ -147,6 +148,11 @@ impl PyRemotePathFromNode {
         PyRemotePathFromNode::new(self.path.shrink_end(end))
     }
 
+    /// Restrict to the default layer. Lazy — no RPC.
+    pub fn default_layer(&self) -> PyRemotePathFromNode {
+        PyRemotePathFromNode::new(self.path.default_layer())
+    }
+
     /// Restrict to the given set of layers. Lazy — no RPC.
     pub fn layers(&self, names: Vec<String>) -> PyRemotePathFromNode {
         PyRemotePathFromNode::new(self.path.layers(names))
@@ -241,6 +247,52 @@ impl PyRemotePathFromNode {
     pub fn node_type(&self) -> Result<Vec<Option<String>>, ClientError> {
         let path = Arc::clone(&self.path);
         execute_async_task(move || async move { path.node_type().await })
+    }
+
+    /// The earliest event time of each node in this path. Property — attribute
+    /// access fires one RPC.
+    ///
+    /// Returns:
+    ///   list[Optional[EventTime]]: the earliest times, in collection order.
+    #[getter]
+    pub fn earliest_time(&self) -> Result<Vec<Option<PyRemoteEventTime>>, ClientError> {
+        let path = Arc::clone(&self.path);
+        Ok(
+            execute_async_task(move || async move { path.earliest_time().await })?
+                .into_iter()
+                .map(|o| o.map(PyRemoteEventTime::from))
+                .collect(),
+        )
+    }
+
+    /// The latest event time of each node in this path. Property — attribute
+    /// access fires one RPC.
+    ///
+    /// Returns:
+    ///   list[Optional[EventTime]]: the latest times, in collection order.
+    #[getter]
+    pub fn latest_time(&self) -> Result<Vec<Option<PyRemoteEventTime>>, ClientError> {
+        let path = Arc::clone(&self.path);
+        Ok(
+            execute_async_task(move || async move { path.latest_time().await })?
+                .into_iter()
+                .map(|o| o.map(PyRemoteEventTime::from))
+                .collect(),
+        )
+    }
+
+    /// The non-temporal metadata of this path as a columnar view. Each accessor
+    /// returns one value per node. Lazy — no RPC.
+    #[getter]
+    pub fn metadata(&self) -> PyRemoteMetadataView {
+        PyRemoteMetadataView::new(self.path.metadata())
+    }
+
+    /// The properties of this path as a columnar view. Each accessor returns
+    /// one value per node. Lazy — no RPC.
+    #[getter]
+    pub fn properties(&self) -> PyRemotePropertiesView {
+        PyRemotePropertiesView::new(self.path.properties())
     }
 
     /// Returns the number of nodes in this collection. Fires one RPC.

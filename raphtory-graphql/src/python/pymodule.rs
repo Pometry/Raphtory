@@ -3,6 +3,7 @@ use crate::{
     python::{
         client::{
             remote_client::PyRaphtoryClient,
+            remote_collection_metadata::{PyRemoteMetadataView, PyRemotePropertiesView},
             remote_edge::PyRemoteEdge,
             remote_edges::PyRemoteEdges,
             remote_graph::PyRemoteGraph,
@@ -63,6 +64,8 @@ pub fn base_graphql_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyErr>
     graphql_module.add_class::<PyRemoteIntervals>()?;
     graphql_module.add_class::<PyRemoteMetadata>()?;
     graphql_module.add_class::<PyRemoteProperties>()?;
+    graphql_module.add_class::<PyRemoteMetadataView>()?;
+    graphql_module.add_class::<PyRemotePropertiesView>()?;
     graphql_module.add_class::<PyRemoteTemporalProperties>()?;
     graphql_module.add_class::<PyRemoteTemporalProperty>()?;
     graphql_module.add_class::<PyRemotePropertyTuple>()?;
