@@ -10,13 +10,12 @@ use crate::{
 use db4_graph::{TemporalGraph, WriteLockedGraph};
 use raphtory_api::core::{
     entities::{
-        properties::{
-            meta::{Meta, DEFAULT_NODE_TYPE_ID, NODE_TYPE_IDX, STATIC_GRAPH_LAYER_ID},
+        LayerId, properties::{
+            meta::{DEFAULT_NODE_TYPE_ID, Meta, NODE_TYPE_IDX, STATIC_GRAPH_LAYER_ID},
             prop::{Prop, PropType, PropUnwrap},
-        },
-        LayerId,
+        }
     },
-    storage::{dict_mapper::MaybeNew, graph_folder::GraphFolder},
+    storage::{dict_mapper::MaybeNew, graph_folder::{GraphFolder, GraphPaths}},
 };
 use raphtory_core::{
     entities::{
@@ -774,8 +773,10 @@ impl StagingOps for TemporalGraph {
 
         // Create a new data folder to hold the staged graph.
         let writeable_folder = graph_folder.init_swap()?;
+        let graph_path = writeable_folder.graph_path()?;
 
-        // Hard link existing files to the new data folder.
+        // Copy graph to the new data folder.
+        write_locked_graph.copy_to(graph_path)?;
 
         todo!()
     }

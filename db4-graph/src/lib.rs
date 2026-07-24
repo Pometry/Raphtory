@@ -32,7 +32,7 @@ use storage::{
             nodes::WriteLockedNodePages,
         },
     },
-    persist::strategy::PersistenceStrategy,
+    persist::{config::ConfigOps, strategy::PersistenceStrategy},
     resolver::GIDResolverOps,
     transaction::TransactionManager,
     Config, Extension, GIDResolver, Layer, LocalPOS, ReadLockedLayer, ES, GS, NS,
@@ -486,9 +486,13 @@ where
         self.graph.storage().nodes().stats()
     }
 
+    /// Copy graph data to a new directory.
+    ///
+    /// Assumes `dst` is created and graph has been flushed to disk.
     pub fn copy_to(&self, dst: impl AsRef<Path>) -> Result<(), StorageError> {
         let dst = dst.as_ref();
 
+        self.graph.extension().config().save_to_dir(dst)?;
         self.nodes.copy_to(&dst.join("nodes"))?;
         self.edges.copy_to(&dst.join("edges"))?;
         self.graph_props.copy_to(&dst.join("graph_props"))?;
