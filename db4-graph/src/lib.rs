@@ -32,7 +32,9 @@ use storage::{
             nodes::WriteLockedNodePages,
         },
     },
-    persist::{config::ConfigOps, strategy::PersistenceStrategy},
+    persist::{
+        config::ConfigOps, control_file::ControlFileOps, strategy::PersistenceStrategy,
+    },
     resolver::GIDResolverOps,
     transaction::TransactionManager,
     Config, Extension, GIDResolver, Layer, LocalPOS, ReadLockedLayer, ES, GS, NS,
@@ -493,6 +495,9 @@ where
         let dst = dst.as_ref();
 
         self.graph.extension().config().save_to_dir(dst)?;
+        self.graph.extension().control_file().copy_to(dst)?;
+
+        self.graph.logical_to_physical.copy_to(dst.join("gid_resolver"))?;
         self.nodes.copy_to(&dst.join("nodes"))?;
         self.edges.copy_to(&dst.join("edges"))?;
         self.graph_props.copy_to(&dst.join("graph_props"))?;
