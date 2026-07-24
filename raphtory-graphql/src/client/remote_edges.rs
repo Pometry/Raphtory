@@ -3,8 +3,9 @@ use crate::{
         op::{EdgeSortBy, Op, ReadExpr},
         remote_edge::RemoteEdge,
         remote_graph::{
-            expect_bool, expect_edge_list, expect_i64, expect_optional_event_time,
-            expect_optional_i64,
+            expect_bool, expect_bool_list, expect_edge_list, expect_i64, expect_nested_string_list,
+            expect_optional_event_time, expect_optional_event_time_list, expect_optional_i64,
+            expect_string_list,
         },
         remote_history::RemoteEventTime,
         transport::Transport,
@@ -312,6 +313,98 @@ impl RemoteEdges {
             name: name.to_string(),
         });
         expect_bool(self.transport.execute(&op).await?, "hasLayer")
+    }
+
+    /// Columnar accessor: each edge's `(src, dst)` id pair — mirrors the local
+    /// `Edges.id`. Fires one RPC.
+    pub async fn id(&self) -> Result<Vec<(String, String)>, ClientError> {
+        let op = Op::Read(ReadExpr::EdgesList {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_edge_list(self.transport.execute(&op).await?, "id")
+    }
+
+    /// Columnar accessor: each edge's layer names — mirrors the local
+    /// `Edges.layer_names`. Fires one RPC.
+    pub async fn layer_names(&self) -> Result<Vec<Vec<String>>, ClientError> {
+        let op = Op::Read(ReadExpr::CollectionLayerNames {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_nested_string_list(self.transport.execute(&op).await?, "layerNames")
+    }
+
+    /// Columnar accessor: each edge's single layer name — mirrors the local
+    /// `Edges.layer_name`. Only valid on exploded edges; the server raises a
+    /// GraphQL error otherwise. Fires one RPC.
+    pub async fn layer_name(&self) -> Result<Vec<String>, ClientError> {
+        let op = Op::Read(ReadExpr::CollectionLayerName {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_string_list(self.transport.execute(&op).await?, "layerName")
+    }
+
+    /// Columnar accessor: each edge's earliest event time — mirrors the local
+    /// `Edges.earliest_time`. Fires one RPC.
+    pub async fn earliest_time(&self) -> Result<Vec<Option<RemoteEventTime>>, ClientError> {
+        let op = Op::Read(ReadExpr::CollectionEarliestTime {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_optional_event_time_list(self.transport.execute(&op).await?, "earliestTime")
+    }
+
+    /// Columnar accessor: each edge's latest event time — mirrors the local
+    /// `Edges.latest_time`. Fires one RPC.
+    pub async fn latest_time(&self) -> Result<Vec<Option<RemoteEventTime>>, ClientError> {
+        let op = Op::Read(ReadExpr::CollectionLatestTime {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_optional_event_time_list(self.transport.execute(&op).await?, "latestTime")
+    }
+
+    /// Columnar accessor: each edge's event time — mirrors the local
+    /// `Edges.time`. Only valid on exploded edges; the server raises a GraphQL
+    /// error otherwise. Fires one RPC.
+    pub async fn time(&self) -> Result<Vec<Option<RemoteEventTime>>, ClientError> {
+        let op = Op::Read(ReadExpr::CollectionTime {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_optional_event_time_list(self.transport.execute(&op).await?, "time")
+    }
+
+    /// Columnar accessor: whether each edge is active (has an event) in the
+    /// current view — mirrors the local `Edges.is_active`. Fires one RPC.
+    pub async fn is_active(&self) -> Result<Vec<bool>, ClientError> {
+        let op = Op::Read(ReadExpr::CollectionIsActive {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_bool_list(self.transport.execute(&op).await?, "isActive")
+    }
+
+    /// Columnar accessor: whether each edge is valid (not deleted) at the
+    /// current time — mirrors the local `Edges.is_valid`. Fires one RPC.
+    pub async fn is_valid(&self) -> Result<Vec<bool>, ClientError> {
+        let op = Op::Read(ReadExpr::CollectionIsValid {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_bool_list(self.transport.execute(&op).await?, "isValid")
+    }
+
+    /// Columnar accessor: whether each edge has been deleted at the current
+    /// time — mirrors the local `Edges.is_deleted`. Fires one RPC.
+    pub async fn is_deleted(&self) -> Result<Vec<bool>, ClientError> {
+        let op = Op::Read(ReadExpr::CollectionIsDeleted {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_bool_list(self.transport.execute(&op).await?, "isDeleted")
+    }
+
+    /// Columnar accessor: whether each edge is a self-loop (`src == dst`) —
+    /// mirrors the local `Edges.is_self_loop`. Fires one RPC.
+    pub async fn is_self_loop(&self) -> Result<Vec<bool>, ClientError> {
+        let op = Op::Read(ReadExpr::CollectionIsSelfLoop {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_bool_list(self.transport.execute(&op).await?, "isSelfLoop")
     }
 
     /// Terminal: the size of the window covered by this view (`end - start`),

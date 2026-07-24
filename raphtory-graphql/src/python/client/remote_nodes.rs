@@ -248,6 +248,39 @@ impl PyRemoteNodes {
         execute_async_task(move || async move { nodes.ids().await })
     }
 
+    /// The id of each node in this collection. Property — attribute access
+    /// fires one RPC.
+    ///
+    /// Returns:
+    ///   list[str]: the ids, in collection order.
+    #[getter]
+    pub fn id(&self) -> Result<Vec<String>, ClientError> {
+        let nodes = Arc::clone(&self.nodes);
+        execute_async_task(move || async move { nodes.id().await })
+    }
+
+    /// The name of each node in this collection. Property — attribute access
+    /// fires one RPC.
+    ///
+    /// Returns:
+    ///   list[str]: the names, in collection order.
+    #[getter]
+    pub fn name(&self) -> Result<Vec<String>, ClientError> {
+        let nodes = Arc::clone(&self.nodes);
+        execute_async_task(move || async move { nodes.name().await })
+    }
+
+    /// The type of each node in this collection (`None` when unset). Property —
+    /// attribute access fires one RPC.
+    ///
+    /// Returns:
+    ///   list[Optional[str]]: the node types, in collection order.
+    #[getter]
+    pub fn node_type(&self) -> Result<Vec<Option<String>>, ClientError> {
+        let nodes = Arc::clone(&self.nodes);
+        execute_async_task(move || async move { nodes.node_type().await })
+    }
+
     /// Returns the number of nodes in this collection. Fires one RPC.
     ///
     /// Returns:

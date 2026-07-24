@@ -172,6 +172,18 @@ impl PyRemoteNestedEdges {
         PyRemoteNestedEdges::new(self.edges.exclude_valid_layers(names))
     }
 
+    /// Fan out each source's edges into one entry per event. Mirrors the local
+    /// `NestedEdges.explode`. Lazy — no RPC.
+    pub fn explode(&self) -> PyRemoteNestedEdges {
+        PyRemoteNestedEdges::new(self.edges.explode())
+    }
+
+    /// Fan out each source's edges into one entry per layer per edge. Mirrors
+    /// the local `NestedEdges.explode_layers`. Lazy — no RPC.
+    pub fn explode_layers(&self) -> PyRemoteNestedEdges {
+        PyRemoteNestedEdges::new(self.edges.explode_layers())
+    }
+
     /// Returns the number of source edge collections in this collection. Fires
     /// one RPC.
     pub fn count(&self) -> Result<i64, ClientError> {
@@ -184,6 +196,127 @@ impl PyRemoteNestedEdges {
         let edges = Arc::clone(&self.edges);
         let name = name.to_string();
         execute_async_task(move || async move { edges.has_layer(name).await })
+    }
+
+    /// The `(src, dst)` id pair of each edge, grouped per source node.
+    /// Property — attribute access fires one RPC.
+    ///
+    /// Returns:
+    ///   list[list[tuple[str, str]]]: id pairs grouped per source node.
+    #[getter]
+    pub fn id(&self) -> Result<Vec<Vec<(String, String)>>, ClientError> {
+        let edges = Arc::clone(&self.edges);
+        execute_async_task(move || async move { edges.id().await })
+    }
+
+    /// The layer names of each edge, grouped per source node. Property —
+    /// attribute access fires one RPC.
+    ///
+    /// Returns:
+    ///   list[list[list[str]]]: layer names per edge, grouped per source node.
+    #[getter]
+    pub fn layer_names(&self) -> Result<Vec<Vec<Vec<String>>>, ClientError> {
+        let edges = Arc::clone(&self.edges);
+        execute_async_task(move || async move { edges.layer_names().await })
+    }
+
+    /// The single layer name of each edge, grouped per source node. Only valid
+    /// once the edges have been exploded; raises otherwise. Property —
+    /// attribute access fires one RPC.
+    ///
+    /// Returns:
+    ///   list[list[str]]: layer name per edge, grouped per source node.
+    #[getter]
+    pub fn layer_name(&self) -> Result<Vec<Vec<String>>, ClientError> {
+        let edges = Arc::clone(&self.edges);
+        execute_async_task(move || async move { edges.layer_name().await })
+    }
+
+    /// The earliest event time of each edge, grouped per source node.
+    /// Property — attribute access fires one RPC.
+    ///
+    /// Returns:
+    ///   list[list[Optional[EventTime]]]: earliest times, grouped per source node.
+    #[getter]
+    pub fn earliest_time(&self) -> Result<Vec<Vec<Option<PyRemoteEventTime>>>, ClientError> {
+        let edges = Arc::clone(&self.edges);
+        Ok(execute_async_task(move || async move { edges.earliest_time().await })?
+            .into_iter()
+            .map(|row| row.into_iter().map(|o| o.map(PyRemoteEventTime::from)).collect())
+            .collect())
+    }
+
+    /// The latest event time of each edge, grouped per source node. Property —
+    /// attribute access fires one RPC.
+    ///
+    /// Returns:
+    ///   list[list[Optional[EventTime]]]: latest times, grouped per source node.
+    #[getter]
+    pub fn latest_time(&self) -> Result<Vec<Vec<Option<PyRemoteEventTime>>>, ClientError> {
+        let edges = Arc::clone(&self.edges);
+        Ok(execute_async_task(move || async move { edges.latest_time().await })?
+            .into_iter()
+            .map(|row| row.into_iter().map(|o| o.map(PyRemoteEventTime::from)).collect())
+            .collect())
+    }
+
+    /// The event time of each edge, grouped per source node. Only valid once
+    /// the edges have been exploded; raises otherwise. Property — attribute
+    /// access fires one RPC.
+    ///
+    /// Returns:
+    ///   list[list[Optional[EventTime]]]: event times, grouped per source node.
+    #[getter]
+    pub fn time(&self) -> Result<Vec<Vec<Option<PyRemoteEventTime>>>, ClientError> {
+        let edges = Arc::clone(&self.edges);
+        Ok(execute_async_task(move || async move { edges.time().await })?
+            .into_iter()
+            .map(|row| row.into_iter().map(|o| o.map(PyRemoteEventTime::from)).collect())
+            .collect())
+    }
+
+    /// Whether each edge is active (has an event) in the current view, grouped
+    /// per source node. Method — mirrors the local `NestedEdges.is_active`.
+    /// Fires one RPC.
+    ///
+    /// Returns:
+    ///   list[list[bool]]: one flag per edge, grouped per source node.
+    pub fn is_active(&self) -> Result<Vec<Vec<bool>>, ClientError> {
+        let edges = Arc::clone(&self.edges);
+        execute_async_task(move || async move { edges.is_active().await })
+    }
+
+    /// Whether each edge is valid (not deleted) at the current time, grouped
+    /// per source node. Method — mirrors the local `NestedEdges.is_valid`.
+    /// Fires one RPC.
+    ///
+    /// Returns:
+    ///   list[list[bool]]: one flag per edge, grouped per source node.
+    pub fn is_valid(&self) -> Result<Vec<Vec<bool>>, ClientError> {
+        let edges = Arc::clone(&self.edges);
+        execute_async_task(move || async move { edges.is_valid().await })
+    }
+
+    /// Whether each edge has been deleted at the current time, grouped per
+    /// source node. Method — mirrors the local `NestedEdges.is_deleted`. Fires
+    /// one RPC.
+    ///
+    /// Returns:
+    ///   list[list[bool]]: one flag per edge, grouped per source node.
+    pub fn is_deleted(&self) -> Result<Vec<Vec<bool>>, ClientError> {
+        let edges = Arc::clone(&self.edges);
+        execute_async_task(move || async move { edges.is_deleted().await })
+    }
+
+    /// Whether each edge is a self-loop (`src == dst`), grouped per source
+    /// node. Method — mirrors the local `NestedEdges.is_self_loop`. Fires one
+    /// RPC.
+    ///
+    /// Returns:
+    ///   list[list[bool]]: one flag per edge, grouped per source node.
+    pub fn is_self_loop(&self) -> Result<Vec<Vec<bool>>, ClientError> {
+        let edges = Arc::clone(&self.edges);
+        execute_async_task(move || async move { edges.is_self_loop().await })
     }
 
     /// The size of the window covered by this view (`end - start`), or `None`

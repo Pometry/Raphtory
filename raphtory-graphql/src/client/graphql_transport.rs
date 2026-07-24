@@ -1356,6 +1356,9 @@ fn render_read_body(expr: &ReadExpr) -> String {
             format!("{} {{ contains(key: \"{}\")", render_read_body(input), key)
         }
         ReadExpr::PropertyKeys { input } => format!("{} {{ keys", render_read_body(input)),
+        ReadExpr::PropertyGetDtypeOf { input, key } => {
+            format!("{} {{ getDtypeOf(key: \"{}\")", render_read_body(input), key)
+        }
         ReadExpr::PropertyValues { input, keys } => match keys {
             Some(ks) => format!(
                 "{} {{ values(keys: [{}]) {{ key value }}",
@@ -1519,6 +1522,85 @@ fn render_read_body(expr: &ReadExpr) -> String {
             "{} {{ list {{ list {{ src {{ name }} dst {{ name }} }} }}",
             render_read_body(input)
         ),
+        // Columnar accessors — FLAT collections render `list { <field> }`.
+        ReadExpr::CollectionNames { input } => {
+            format!("{} {{ list {{ name }}", render_read_body(input))
+        }
+        ReadExpr::CollectionNodeTypes { input } => {
+            format!("{} {{ list {{ nodeType }}", render_read_body(input))
+        }
+        ReadExpr::CollectionLayerNames { input } => {
+            format!("{} {{ list {{ layerNames }}", render_read_body(input))
+        }
+        ReadExpr::CollectionLayerName { input } => {
+            format!("{} {{ list {{ layerName }}", render_read_body(input))
+        }
+        ReadExpr::CollectionEarliestTime { input } => format!(
+            "{} {{ list {{ earliestTime {{ timestamp datetime eventId }} }}",
+            render_read_body(input)
+        ),
+        ReadExpr::CollectionLatestTime { input } => format!(
+            "{} {{ list {{ latestTime {{ timestamp datetime eventId }} }}",
+            render_read_body(input)
+        ),
+        ReadExpr::CollectionTime { input } => format!(
+            "{} {{ list {{ time {{ timestamp datetime eventId }} }}",
+            render_read_body(input)
+        ),
+        // Columnar accessors — NESTED collections render `list { list { <field> } }`.
+        ReadExpr::NestedNames { input } => {
+            format!("{} {{ list {{ list {{ name }} }}", render_read_body(input))
+        }
+        ReadExpr::NestedNodeTypes { input } => format!(
+            "{} {{ list {{ list {{ nodeType }} }}",
+            render_read_body(input)
+        ),
+        ReadExpr::NestedLayerNames { input } => format!(
+            "{} {{ list {{ list {{ layerNames }} }}",
+            render_read_body(input)
+        ),
+        ReadExpr::NestedLayerName { input } => format!(
+            "{} {{ list {{ list {{ layerName }} }}",
+            render_read_body(input)
+        ),
+        ReadExpr::NestedEarliestTime { input } => format!(
+            "{} {{ list {{ list {{ earliestTime {{ timestamp datetime eventId }} }} }}",
+            render_read_body(input)
+        ),
+        ReadExpr::NestedLatestTime { input } => format!(
+            "{} {{ list {{ list {{ latestTime {{ timestamp datetime eventId }} }} }}",
+            render_read_body(input)
+        ),
+        ReadExpr::NestedTime { input } => format!(
+            "{} {{ list {{ list {{ time {{ timestamp datetime eventId }} }} }}",
+            render_read_body(input)
+        ),
+        // Boolean columnar accessors — FLAT collections render `list { <field> }`.
+        ReadExpr::CollectionIsActive { input } => {
+            format!("{} {{ list {{ isActive }}", render_read_body(input))
+        }
+        ReadExpr::CollectionIsValid { input } => {
+            format!("{} {{ list {{ isValid }}", render_read_body(input))
+        }
+        ReadExpr::CollectionIsDeleted { input } => {
+            format!("{} {{ list {{ isDeleted }}", render_read_body(input))
+        }
+        ReadExpr::CollectionIsSelfLoop { input } => {
+            format!("{} {{ list {{ isSelfLoop }}", render_read_body(input))
+        }
+        // Boolean columnar accessors — NESTED collections render `list { list { <field> } }`.
+        ReadExpr::NestedIsActive { input } => {
+            format!("{} {{ list {{ list {{ isActive }} }}", render_read_body(input))
+        }
+        ReadExpr::NestedIsValid { input } => {
+            format!("{} {{ list {{ list {{ isValid }} }}", render_read_body(input))
+        }
+        ReadExpr::NestedIsDeleted { input } => {
+            format!("{} {{ list {{ list {{ isDeleted }} }}", render_read_body(input))
+        }
+        ReadExpr::NestedIsSelfLoop { input } => {
+            format!("{} {{ list {{ list {{ isSelfLoop }} }}", render_read_body(input))
+        }
         // Compound structured terminal on Graph: `sharedNeighbours(selectedNodes: [ids]) { name }`
         // — opens ONE net brace (the outer, before `sharedNeighbours`); the inner
         // `{ name }` is self-balanced.
@@ -1527,6 +1609,23 @@ fn render_read_body(expr: &ReadExpr) -> String {
             render_read_body(input),
             render_string_list(ids)
         ),
+        // `findNodes(propertiesDict: [{key, value}]) { name }` — opens ONE net
+        // brace (before `findNodes`); inner `{ name }` is self-balanced.
+        ReadExpr::FindNodes { input, properties } => format!(
+            "{} {{ findNodes(propertiesDict: {}) {{ name }}",
+            render_read_body(input),
+            crate::client::build_property_string(properties.clone()),
+        ),
+        // `findEdges(propertiesDict: [{key, value}]) { src { name } dst { name } }`
+        // — opens ONE net brace; the inner `src`/`dst` groups are self-balanced.
+        ReadExpr::FindEdges { input, properties } => format!(
+            "{} {{ findEdges(propertiesDict: {}) {{ src {{ name }} dst {{ name }} }}",
+            render_read_body(input),
+            crate::client::build_property_string(properties.clone()),
+        ),
+        ReadExpr::GetAllNodeTypes { input } => {
+            format!("{} {{ getAllNodeTypes", render_read_body(input))
+        }
         ReadExpr::Id { input } => format!("{} {{ id", render_read_body(input)),
         ReadExpr::NodeType { input } => format!("{} {{ nodeType", render_read_body(input)),
         ReadExpr::IsActive { input } => format!("{} {{ isActive", render_read_body(input)),
@@ -1716,7 +1815,33 @@ fn read_depth(expr: &ReadExpr) -> usize {
         | ReadExpr::Count { input }
         | ReadExpr::EdgesList { input }
         | ReadExpr::NestedEdgesList { input }
+        | ReadExpr::CollectionNames { input }
+        | ReadExpr::CollectionNodeTypes { input }
+        | ReadExpr::CollectionLayerNames { input }
+        | ReadExpr::CollectionLayerName { input }
+        | ReadExpr::CollectionEarliestTime { input }
+        | ReadExpr::CollectionLatestTime { input }
+        | ReadExpr::CollectionTime { input }
+        | ReadExpr::NestedNames { input }
+        | ReadExpr::NestedNodeTypes { input }
+        | ReadExpr::NestedLayerNames { input }
+        | ReadExpr::NestedLayerName { input }
+        | ReadExpr::NestedEarliestTime { input }
+        | ReadExpr::NestedLatestTime { input }
+        | ReadExpr::NestedTime { input }
+        | ReadExpr::CollectionIsActive { input }
+        | ReadExpr::CollectionIsValid { input }
+        | ReadExpr::CollectionIsDeleted { input }
+        | ReadExpr::CollectionIsSelfLoop { input }
+        | ReadExpr::NestedIsActive { input }
+        | ReadExpr::NestedIsValid { input }
+        | ReadExpr::NestedIsDeleted { input }
+        | ReadExpr::NestedIsSelfLoop { input }
         | ReadExpr::SharedNeighbours { input, .. }
+        | ReadExpr::FindNodes { input, .. }
+        | ReadExpr::FindEdges { input, .. }
+        | ReadExpr::GetAllNodeTypes { input }
+        | ReadExpr::PropertyGetDtypeOf { input, .. }
         | ReadExpr::CountNodes { input }
         | ReadExpr::CountEdges { input }
         | ReadExpr::Degree { input }
@@ -1794,6 +1919,129 @@ fn read_depth(expr: &ReadExpr) -> usize {
 /// validation and terminal execution (server-side deletion in between), and
 /// for any future callers that construct a `ReadExpr::Node` / `Edge` without
 /// going through the validated builder.
+// ============ Columnar-accessor element decoders ============
+//
+// Each `col_*_elem` decodes ONE element of a `list { <field> }` array into a
+// `Prop`. Optional scalars use the `Prop::List` wrapper convention: `[]` =
+// None, `[x]` = Some(x) — so the outer column stays a uniform `Prop::List`.
+// `build_column` maps a flat `list` array; `build_nested_column` maps the
+// outer per-source `list` array and each source's inner `list`.
+
+/// `list { name }` element → `Prop::Str`.
+fn col_name_elem(v: &JsonValue) -> Result<Prop, ClientError> {
+    v.get("name")
+        .and_then(|x| x.as_str())
+        .map(|s| Prop::Str(s.into()))
+        .ok_or_else(|| ClientError::InvalidResponse("collection element missing `name`".into()))
+}
+
+/// `list { nodeType }` element → `Prop::List([])` (None) or `[Str]` (Some).
+fn col_node_type_elem(v: &JsonValue) -> Result<Prop, ClientError> {
+    match v.get("nodeType") {
+        None | Some(JsonValue::Null) => Ok(Prop::List(Vec::<Prop>::new().into())),
+        Some(x) => x
+            .as_str()
+            .map(|s| Prop::List(vec![Prop::Str(s.into())].into()))
+            .ok_or_else(|| ClientError::InvalidResponse("`nodeType` not a string".into())),
+    }
+}
+
+/// `list { layerNames }` element → `Prop::List(Prop::Str, ...)`.
+fn col_layer_names_elem(v: &JsonValue) -> Result<Prop, ClientError> {
+    let arr = v
+        .get("layerNames")
+        .and_then(|x| x.as_array())
+        .ok_or_else(|| {
+            ClientError::InvalidResponse("collection element missing `layerNames`".into())
+        })?;
+    let items: Result<Vec<Prop>, ClientError> = arr
+        .iter()
+        .map(|e| {
+            e.as_str().map(|s| Prop::Str(s.into())).ok_or_else(|| {
+                ClientError::InvalidResponse("`layerNames` element not a string".into())
+            })
+        })
+        .collect();
+    Ok(Prop::List(items?.into()))
+}
+
+/// `list { layerName }` element → `Prop::Str`.
+fn col_layer_name_elem(v: &JsonValue) -> Result<Prop, ClientError> {
+    v.get("layerName")
+        .and_then(|x| x.as_str())
+        .map(|s| Prop::Str(s.into()))
+        .ok_or_else(|| {
+            ClientError::InvalidResponse("collection element missing `layerName`".into())
+        })
+}
+
+/// `list { <field> }` element where `<field>` is a boolean → `Prop::Bool`.
+fn col_bool_elem(v: &JsonValue, field: &'static str) -> Result<Prop, ClientError> {
+    v.get(field)
+        .and_then(|x| x.as_bool())
+        .map(Prop::Bool)
+        .ok_or_else(|| {
+            ClientError::InvalidResponse(format!("collection element missing bool `{}`", field))
+        })
+}
+
+/// `list { <field> { timestamp datetime eventId } }` element → `Prop::List([])`
+/// (None — no event in view) or `[Prop::Map]` (Some). Mirrors the single
+/// EventTime decode.
+fn col_event_time_elem(v: &JsonValue, field: &str) -> Result<Prop, ClientError> {
+    let obj = match v.get(field) {
+        None | Some(JsonValue::Null) => return Ok(Prop::List(Vec::<Prop>::new().into())),
+        Some(o) => o,
+    };
+    match obj.get("timestamp").and_then(|x| x.as_i64()) {
+        None => Ok(Prop::List(Vec::<Prop>::new().into())),
+        Some(t) => {
+            let mut pairs: Vec<(&'static str, Prop)> = vec![("timestamp", Prop::I64(t))];
+            if let Some(d) = obj.get("datetime").and_then(|x| x.as_str()) {
+                pairs.push(("datetime", Prop::Str(d.into())));
+            }
+            if let Some(e) = obj.get("eventId").and_then(|x| x.as_i64()) {
+                pairs.push(("eventId", Prop::I64(e)));
+            }
+            Ok(Prop::List(vec![Prop::map(pairs)].into()))
+        }
+    }
+}
+
+/// Map a flat `list` array with `elem_fn`, producing `Prop::List`.
+fn build_column<F>(terminal_val: &JsonValue, elem_fn: F) -> Result<Option<Prop>, ClientError>
+where
+    F: Fn(&JsonValue) -> Result<Prop, ClientError>,
+{
+    let arr = terminal_val
+        .as_array()
+        .ok_or_else(|| ClientError::InvalidResponse("columnar `list` not a JSON array".into()))?;
+    let items: Result<Vec<Prop>, ClientError> = arr.iter().map(elem_fn).collect();
+    Ok(Some(Prop::List(items?.into())))
+}
+
+/// Map the outer per-source `list` array (each element carrying its own inner
+/// `list`) with `elem_fn`, producing `Prop::List(Prop::List(..))`.
+fn build_nested_column<F>(terminal_val: &JsonValue, elem_fn: F) -> Result<Option<Prop>, ClientError>
+where
+    F: Fn(&JsonValue) -> Result<Prop, ClientError>,
+{
+    let outer = terminal_val
+        .as_array()
+        .ok_or_else(|| ClientError::InvalidResponse("columnar `list` not a JSON array".into()))?;
+    let rows: Result<Vec<Prop>, ClientError> = outer
+        .iter()
+        .map(|row| {
+            let inner = row.get("list").and_then(|v| v.as_array()).ok_or_else(|| {
+                ClientError::InvalidResponse("columnar element missing inner `list` array".into())
+            })?;
+            let items: Result<Vec<Prop>, ClientError> = inner.iter().map(&elem_fn).collect();
+            Ok(Prop::List(items?.into()))
+        })
+        .collect();
+    Ok(Some(Prop::List(rows?.into())))
+}
+
 fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientError> {
     let path = build_json_path(expr);
     let mut cursor = root;
@@ -2089,6 +2337,84 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
                 .collect();
             Ok(Some(Prop::List(items?.into())))
         }
+        // `findNodes { name }` — array of `{"name": "..."}` records. Same shape
+        // as `sharedNeighbours`; the client wraps each name in a `RemoteNode`.
+        ReadExpr::FindNodes { .. } => {
+            let arr = terminal_val.as_array().ok_or_else(|| {
+                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
+            })?;
+            let items: Result<Vec<Prop>, ClientError> = arr
+                .iter()
+                .map(|v| {
+                    v.get("name")
+                        .and_then(|x| x.as_str())
+                        .map(|s| Prop::Str(s.into()))
+                        .ok_or_else(|| {
+                            ClientError::InvalidResponse("findNodes element missing `name`".into())
+                        })
+                })
+                .collect();
+            Ok(Some(Prop::List(items?.into())))
+        }
+        // `findEdges { src { name } dst { name } }` — array of edge records.
+        // Decode each into a 2-element inner list `[src, dst]`, matching the
+        // shape used by `EdgesList`; the client wraps each in a `RemoteEdge`.
+        ReadExpr::FindEdges { .. } => {
+            let arr = terminal_val.as_array().ok_or_else(|| {
+                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
+            })?;
+            let items: Result<Vec<Prop>, ClientError> = arr
+                .iter()
+                .map(|v| {
+                    let src = v
+                        .get("src")
+                        .and_then(|s| s.get("name"))
+                        .and_then(|n| n.as_str())
+                        .ok_or_else(|| {
+                            ClientError::InvalidResponse("findEdges element missing `src.name`".into())
+                        })?;
+                    let dst = v
+                        .get("dst")
+                        .and_then(|d| d.get("name"))
+                        .and_then(|n| n.as_str())
+                        .ok_or_else(|| {
+                            ClientError::InvalidResponse("findEdges element missing `dst.name`".into())
+                        })?;
+                    Ok(Prop::List(
+                        vec![Prop::Str(src.into()), Prop::Str(dst.into())].into(),
+                    ))
+                })
+                .collect();
+            Ok(Some(Prop::List(items?.into())))
+        }
+        // `getAllNodeTypes` — a JSON array of strings.
+        ReadExpr::GetAllNodeTypes { .. } => {
+            let arr = terminal_val.as_array().ok_or_else(|| {
+                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
+            })?;
+            let items: Result<Vec<Prop>, ClientError> = arr
+                .iter()
+                .map(|v| {
+                    v.as_str().map(|s| Prop::Str(s.into())).ok_or_else(|| {
+                        ClientError::InvalidResponse("getAllNodeTypes element not a string".into())
+                    })
+                })
+                .collect();
+            Ok(Some(Prop::List(items?.into())))
+        }
+        // `getDtypeOf(key)` — nullable string (the `PropType` display form).
+        ReadExpr::PropertyGetDtypeOf { .. } => {
+            if terminal_val.is_null() {
+                Ok(None)
+            } else {
+                terminal_val
+                    .as_str()
+                    .map(|s| Some(Prop::Str(s.into())))
+                    .ok_or_else(|| {
+                        ClientError::InvalidResponse(format!("`{}` not a string", terminal_key))
+                    })
+            }
+        }
         // Property terminals — each entry is a `{key, value}` record where
         // value is an untagged Prop (JSON number/string/bool/array/object).
         //
@@ -2270,6 +2596,62 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
                 })
                 .collect();
             Ok(Some(Prop::List(rows?.into())))
+        }
+        // Columnar accessors — FLAT collections. `terminal_val` is the `list`
+        // array; each element carries the requested per-member field.
+        ReadExpr::CollectionNames { .. } => build_column(terminal_val, col_name_elem),
+        ReadExpr::CollectionNodeTypes { .. } => build_column(terminal_val, col_node_type_elem),
+        ReadExpr::CollectionLayerNames { .. } => build_column(terminal_val, col_layer_names_elem),
+        ReadExpr::CollectionLayerName { .. } => build_column(terminal_val, col_layer_name_elem),
+        ReadExpr::CollectionEarliestTime { .. } => {
+            build_column(terminal_val, |v| col_event_time_elem(v, "earliestTime"))
+        }
+        ReadExpr::CollectionLatestTime { .. } => {
+            build_column(terminal_val, |v| col_event_time_elem(v, "latestTime"))
+        }
+        ReadExpr::CollectionTime { .. } => {
+            build_column(terminal_val, |v| col_event_time_elem(v, "time"))
+        }
+        // Columnar accessors — NESTED collections. `terminal_val` is the outer
+        // `list` array of per-source records, each with its own inner `list`.
+        ReadExpr::NestedNames { .. } => build_nested_column(terminal_val, col_name_elem),
+        ReadExpr::NestedNodeTypes { .. } => build_nested_column(terminal_val, col_node_type_elem),
+        ReadExpr::NestedLayerNames { .. } => build_nested_column(terminal_val, col_layer_names_elem),
+        ReadExpr::NestedLayerName { .. } => build_nested_column(terminal_val, col_layer_name_elem),
+        ReadExpr::NestedEarliestTime { .. } => {
+            build_nested_column(terminal_val, |v| col_event_time_elem(v, "earliestTime"))
+        }
+        ReadExpr::NestedLatestTime { .. } => {
+            build_nested_column(terminal_val, |v| col_event_time_elem(v, "latestTime"))
+        }
+        ReadExpr::NestedTime { .. } => {
+            build_nested_column(terminal_val, |v| col_event_time_elem(v, "time"))
+        }
+        // Boolean columnar accessors — FLAT collections.
+        ReadExpr::CollectionIsActive { .. } => {
+            build_column(terminal_val, |v| col_bool_elem(v, "isActive"))
+        }
+        ReadExpr::CollectionIsValid { .. } => {
+            build_column(terminal_val, |v| col_bool_elem(v, "isValid"))
+        }
+        ReadExpr::CollectionIsDeleted { .. } => {
+            build_column(terminal_val, |v| col_bool_elem(v, "isDeleted"))
+        }
+        ReadExpr::CollectionIsSelfLoop { .. } => {
+            build_column(terminal_val, |v| col_bool_elem(v, "isSelfLoop"))
+        }
+        // Boolean columnar accessors — NESTED collections.
+        ReadExpr::NestedIsActive { .. } => {
+            build_nested_column(terminal_val, |v| col_bool_elem(v, "isActive"))
+        }
+        ReadExpr::NestedIsValid { .. } => {
+            build_nested_column(terminal_val, |v| col_bool_elem(v, "isValid"))
+        }
+        ReadExpr::NestedIsDeleted { .. } => {
+            build_nested_column(terminal_val, |v| col_bool_elem(v, "isDeleted"))
+        }
+        ReadExpr::NestedIsSelfLoop { .. } => {
+            build_nested_column(terminal_val, |v| col_bool_elem(v, "isSelfLoop"))
         }
         // Bool-shaped terminals.
         ReadExpr::HasNode { .. }
@@ -2727,9 +3109,51 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
                 go(input, out);
                 out.push("list");
             }
+            // Columnar accessors all resolve through the `list` array.
+            ReadExpr::CollectionNames { input }
+            | ReadExpr::CollectionNodeTypes { input }
+            | ReadExpr::CollectionLayerNames { input }
+            | ReadExpr::CollectionLayerName { input }
+            | ReadExpr::CollectionEarliestTime { input }
+            | ReadExpr::CollectionLatestTime { input }
+            | ReadExpr::CollectionTime { input }
+            | ReadExpr::NestedNames { input }
+            | ReadExpr::NestedNodeTypes { input }
+            | ReadExpr::NestedLayerNames { input }
+            | ReadExpr::NestedLayerName { input }
+            | ReadExpr::NestedEarliestTime { input }
+            | ReadExpr::NestedLatestTime { input }
+            | ReadExpr::NestedTime { input }
+            | ReadExpr::CollectionIsActive { input }
+            | ReadExpr::CollectionIsValid { input }
+            | ReadExpr::CollectionIsDeleted { input }
+            | ReadExpr::CollectionIsSelfLoop { input }
+            | ReadExpr::NestedIsActive { input }
+            | ReadExpr::NestedIsValid { input }
+            | ReadExpr::NestedIsDeleted { input }
+            | ReadExpr::NestedIsSelfLoop { input } => {
+                go(input, out);
+                out.push("list");
+            }
             ReadExpr::SharedNeighbours { input, .. } => {
                 go(input, out);
                 out.push("sharedNeighbours");
+            }
+            ReadExpr::FindNodes { input, .. } => {
+                go(input, out);
+                out.push("findNodes");
+            }
+            ReadExpr::FindEdges { input, .. } => {
+                go(input, out);
+                out.push("findEdges");
+            }
+            ReadExpr::GetAllNodeTypes { input } => {
+                go(input, out);
+                out.push("getAllNodeTypes");
+            }
+            ReadExpr::PropertyGetDtypeOf { input, .. } => {
+                go(input, out);
+                out.push("getDtypeOf");
             }
             ReadExpr::CountNodes { input } => {
                 go(input, out);
@@ -3163,7 +3587,33 @@ fn child_input(expr: &ReadExpr) -> Option<&ReadExpr> {
         | ReadExpr::Count { input }
         | ReadExpr::EdgesList { input }
         | ReadExpr::NestedEdgesList { input }
+        | ReadExpr::CollectionNames { input }
+        | ReadExpr::CollectionNodeTypes { input }
+        | ReadExpr::CollectionLayerNames { input }
+        | ReadExpr::CollectionLayerName { input }
+        | ReadExpr::CollectionEarliestTime { input }
+        | ReadExpr::CollectionLatestTime { input }
+        | ReadExpr::CollectionTime { input }
+        | ReadExpr::NestedNames { input }
+        | ReadExpr::NestedNodeTypes { input }
+        | ReadExpr::NestedLayerNames { input }
+        | ReadExpr::NestedLayerName { input }
+        | ReadExpr::NestedEarliestTime { input }
+        | ReadExpr::NestedLatestTime { input }
+        | ReadExpr::NestedTime { input }
+        | ReadExpr::CollectionIsActive { input }
+        | ReadExpr::CollectionIsValid { input }
+        | ReadExpr::CollectionIsDeleted { input }
+        | ReadExpr::CollectionIsSelfLoop { input }
+        | ReadExpr::NestedIsActive { input }
+        | ReadExpr::NestedIsValid { input }
+        | ReadExpr::NestedIsDeleted { input }
+        | ReadExpr::NestedIsSelfLoop { input }
         | ReadExpr::SharedNeighbours { input, .. }
+        | ReadExpr::FindNodes { input, .. }
+        | ReadExpr::FindEdges { input, .. }
+        | ReadExpr::GetAllNodeTypes { input }
+        | ReadExpr::PropertyGetDtypeOf { input, .. }
         | ReadExpr::CountNodes { input }
         | ReadExpr::CountEdges { input }
         | ReadExpr::Degree { input }

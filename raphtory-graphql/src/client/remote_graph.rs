@@ -172,6 +172,63 @@ pub(crate) fn expect_nested_string_list(
 }
 
 /// Unwrap a `Transport::execute` result expecting a `Prop::List` of
+/// `Prop::Bool`s — e.g. the per-edge `is_valid()` / `is_active()` accessors
+/// on a flat `Edges` collection.
+pub(crate) fn expect_bool_list(v: Option<Prop>, context: &str) -> Result<Vec<bool>, ClientError> {
+    match v {
+        Some(Prop::List(items)) => items
+            .iter()
+            .map(|p| match p {
+                Prop::Bool(b) => Ok(b),
+                _ => Err(ClientError::InvalidResponse(format!(
+                    "`{}` list contains non-bool element",
+                    context
+                ))),
+            })
+            .collect(),
+        _ => Err(ClientError::InvalidResponse(format!(
+            "`{}` returned unexpected value type",
+            context
+        ))),
+    }
+}
+
+/// Unwrap a `Transport::execute` result expecting a `Prop::List` of
+/// `Prop::List` of `Prop::Bool` (a nested list of booleans) — e.g. the
+/// per-edge `is_valid()` accessor on a `NestedEdges` collection, where each
+/// inner list holds one source node's incident edges.
+pub(crate) fn expect_nested_bool_list(
+    v: Option<Prop>,
+    context: &str,
+) -> Result<Vec<Vec<bool>>, ClientError> {
+    match v {
+        Some(Prop::List(rows)) => rows
+            .iter()
+            .map(|row| match row {
+                Prop::List(items) => items
+                    .iter()
+                    .map(|p| match p {
+                        Prop::Bool(b) => Ok(b),
+                        _ => Err(ClientError::InvalidResponse(format!(
+                            "`{}` inner list contains non-bool element",
+                            context
+                        ))),
+                    })
+                    .collect::<Result<Vec<bool>, ClientError>>(),
+                _ => Err(ClientError::InvalidResponse(format!(
+                    "`{}` outer list contains non-list element",
+                    context
+                ))),
+            })
+            .collect(),
+        _ => Err(ClientError::InvalidResponse(format!(
+            "`{}` returned unexpected value type",
+            context
+        ))),
+    }
+}
+
+/// Unwrap a `Transport::execute` result expecting a `Prop::List` of
 /// `Prop::I64`s. Used by sub-container list/page terminals when the parent
 /// is `Timestamps`, `EventIds`, or `Intervals`.
 pub(crate) fn expect_i64_list(v: Option<Prop>, context: &str) -> Result<Vec<i64>, ClientError> {
@@ -592,6 +649,125 @@ pub(crate) fn expect_nested_edge_list(
                     context
                 ))),
             })
+            .collect(),
+        _ => Err(ClientError::InvalidResponse(format!(
+            "`{}` returned unexpected value type",
+            context
+        ))),
+    }
+}
+
+/// Unwrap a columnar accessor producing `Vec<Option<String>>` — a flat
+/// `Prop::List` where each element is a `Prop::List` of 0 (`None`) or 1
+/// (`Some`) `Prop::Str`. Used by `Nodes.node_type` / `PathFromNode.node_type`.
+pub(crate) fn expect_optional_string_list(
+    v: Option<Prop>,
+    context: &str,
+) -> Result<Vec<Option<String>>, ClientError> {
+    match v {
+        Some(Prop::List(items)) => items
+            .iter()
+            .map(|elem| match elem {
+                Prop::List(inner) => match inner.iter().next() {
+                    None => Ok(None),
+                    Some(Prop::Str(s)) => Ok(Some(s.to_string())),
+                    Some(_) => Err(ClientError::InvalidResponse(format!(
+                        "`{}` element wrapper contains non-string",
+                        context
+                    ))),
+                },
+                _ => Err(ClientError::InvalidResponse(format!(
+                    "`{}` element not an optional wrapper",
+                    context
+                ))),
+            })
+            .collect(),
+        _ => Err(ClientError::InvalidResponse(format!(
+            "`{}` returned unexpected value type",
+            context
+        ))),
+    }
+}
+
+/// Nested form of `expect_optional_string_list` → `Vec<Vec<Option<String>>>`
+/// (one inner list per source node). Used by `PathFromGraph.node_type`.
+pub(crate) fn expect_nested_optional_string_list(
+    v: Option<Prop>,
+    context: &str,
+) -> Result<Vec<Vec<Option<String>>>, ClientError> {
+    match v {
+        Some(Prop::List(rows)) => rows
+            .iter()
+            .map(|row| expect_optional_string_list(Some(row.clone()), context))
+            .collect(),
+        _ => Err(ClientError::InvalidResponse(format!(
+            "`{}` returned unexpected value type",
+            context
+        ))),
+    }
+}
+
+/// Unwrap a columnar accessor producing `Vec<Option<RemoteEventTime>>` — a flat
+/// `Prop::List` where each element is a `Prop::List` of 0 (`None`) or 1
+/// (`Some`) `Prop::Map`. Used by `Edges.earliest_time` / `latest_time` / `time`.
+pub(crate) fn expect_optional_event_time_list(
+    v: Option<Prop>,
+    context: &str,
+) -> Result<Vec<Option<RemoteEventTime>>, ClientError> {
+    match v {
+        Some(Prop::List(items)) => items
+            .iter()
+            .map(|elem| match elem {
+                Prop::List(inner) => match inner.iter().next() {
+                    None => Ok(None),
+                    Some(Prop::Map(map)) => Ok(Some(extract_event_time(&map))),
+                    Some(_) => Err(ClientError::InvalidResponse(format!(
+                        "`{}` element wrapper contains non-map",
+                        context
+                    ))),
+                },
+                _ => Err(ClientError::InvalidResponse(format!(
+                    "`{}` element not an optional wrapper",
+                    context
+                ))),
+            })
+            .collect(),
+        _ => Err(ClientError::InvalidResponse(format!(
+            "`{}` returned unexpected value type",
+            context
+        ))),
+    }
+}
+
+/// Nested form of `expect_optional_event_time_list` →
+/// `Vec<Vec<Option<RemoteEventTime>>>`. Used by `NestedEdges.earliest_time` etc.
+pub(crate) fn expect_nested_optional_event_time_list(
+    v: Option<Prop>,
+    context: &str,
+) -> Result<Vec<Vec<Option<RemoteEventTime>>>, ClientError> {
+    match v {
+        Some(Prop::List(rows)) => rows
+            .iter()
+            .map(|row| expect_optional_event_time_list(Some(row.clone()), context))
+            .collect(),
+        _ => Err(ClientError::InvalidResponse(format!(
+            "`{}` returned unexpected value type",
+            context
+        ))),
+    }
+}
+
+/// Unwrap a triply-nested string list → `Vec<Vec<Vec<String>>>`. Used by
+/// `NestedEdges.layer_names`, where each edge carries a list of layer names,
+/// grouped per source node.
+pub(crate) fn expect_double_nested_string_list(
+    v: Option<Prop>,
+    context: &str,
+) -> Result<Vec<Vec<Vec<String>>>, ClientError> {
+    match v {
+        Some(Prop::List(rows)) => rows
+            .iter()
+            .map(|row| expect_nested_string_list(Some(row.clone()), context))
             .collect(),
         _ => Err(ClientError::InvalidResponse(format!(
             "`{}` returned unexpected value type",
@@ -1123,6 +1299,77 @@ impl RemoteGraph {
                 )
             })
             .collect())
+    }
+
+    /// Terminal: the nodes whose latest property value equals the given value
+    /// for **every** `(name, value)` entry in `properties_dict`. Mirrors the
+    /// local `Graph.find_nodes`. Fires one RPC. Each returned handle rebases at
+    /// `self.expr`, inheriting the current view chain.
+    pub async fn find_nodes(
+        &self,
+        properties_dict: HashMap<String, Prop>,
+    ) -> Result<Vec<RemoteNode>, ClientError> {
+        let op = Op::Read(ReadExpr::FindNodes {
+            input: Box::new(self.expr.clone()),
+            properties: properties_dict,
+        });
+        let names = expect_string_list(self.transport.execute(&op).await?, "findNodes")?;
+        Ok(names
+            .into_iter()
+            .map(|name| {
+                RemoteNode::with_expr(
+                    self.path.clone(),
+                    name.clone(),
+                    self.transport.clone(),
+                    ReadExpr::Node {
+                        input: Box::new(self.expr.clone()),
+                        id: name,
+                    },
+                    self.expr.clone(),
+                )
+            })
+            .collect())
+    }
+
+    /// Terminal: the edges whose latest property value equals the given value
+    /// for **every** `(name, value)` entry in `properties_dict`. Mirrors the
+    /// local `Graph.find_edges`. Fires one RPC. Each returned handle rebases at
+    /// `self.expr`, inheriting the current view chain.
+    pub async fn find_edges(
+        &self,
+        properties_dict: HashMap<String, Prop>,
+    ) -> Result<Vec<RemoteEdge>, ClientError> {
+        let op = Op::Read(ReadExpr::FindEdges {
+            input: Box::new(self.expr.clone()),
+            properties: properties_dict,
+        });
+        let pairs = expect_edge_list(self.transport.execute(&op).await?, "findEdges")?;
+        Ok(pairs
+            .into_iter()
+            .map(|(src, dst)| {
+                RemoteEdge::with_expr(
+                    self.path.clone(),
+                    src.clone(),
+                    dst.clone(),
+                    self.transport.clone(),
+                    ReadExpr::Edge {
+                        input: Box::new(self.expr.clone()),
+                        src,
+                        dst,
+                    },
+                    self.expr.clone(),
+                )
+            })
+            .collect())
+    }
+
+    /// Terminal: all node types present in the graph. Mirrors the local
+    /// `Graph.get_all_node_types`. Fires one RPC.
+    pub async fn get_all_node_types(&self) -> Result<Vec<String>, ClientError> {
+        let op = Op::Read(ReadExpr::GetAllNodeTypes {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_string_list(self.transport.execute(&op).await?, "getAllNodeTypes")
     }
 
     /// Returns the full properties container of this graph — includes both

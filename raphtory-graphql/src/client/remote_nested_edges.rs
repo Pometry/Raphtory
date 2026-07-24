@@ -3,8 +3,9 @@ use crate::{
         op::{Op, ReadExpr},
         remote_edge::RemoteEdge,
         remote_graph::{
-            expect_bool, expect_i64, expect_nested_edge_list, expect_optional_event_time,
-            expect_optional_i64,
+            expect_bool, expect_double_nested_string_list, expect_i64, expect_nested_bool_list,
+            expect_nested_edge_list, expect_nested_optional_event_time_list,
+            expect_nested_string_list, expect_optional_event_time, expect_optional_i64,
         },
         remote_history::RemoteEventTime,
         transport::Transport,
@@ -240,6 +241,36 @@ impl RemoteNestedEdges {
         }
     }
 
+    /// Fan out each source's edges into one entry per event — returns a new
+    /// `RemoteNestedEdges` where every member is a single-event edge instance.
+    /// Mirrors the local `NestedEdges.explode`. Only updates `expr`, not
+    /// `base_graph` (same reasoning as the flat `RemoteEdges.explode`). Lazy —
+    /// no RPC.
+    pub fn explode(&self) -> RemoteNestedEdges {
+        RemoteNestedEdges {
+            path: self.path.clone(),
+            transport: self.transport.clone(),
+            expr: ReadExpr::Explode {
+                input: Box::new(self.expr.clone()),
+            },
+            base_graph: self.base_graph.clone(),
+        }
+    }
+
+    /// Fan out each source's edges into one entry per layer per edge — returns
+    /// a new `RemoteNestedEdges`. Mirrors the local `NestedEdges.explode_layers`.
+    /// Only updates `expr`, not `base_graph`. Lazy — no RPC.
+    pub fn explode_layers(&self) -> RemoteNestedEdges {
+        RemoteNestedEdges {
+            path: self.path.clone(),
+            transport: self.transport.clone(),
+            expr: ReadExpr::ExplodeLayers {
+                input: Box::new(self.expr.clone()),
+            },
+            base_graph: self.base_graph.clone(),
+        }
+    }
+
     /// Terminal: the number of source edge collections in this collection.
     /// Fires one RPC.
     pub async fn count(&self) -> Result<i64, ClientError> {
@@ -265,6 +296,105 @@ impl RemoteNestedEdges {
             input: Box::new(self.expr.clone()),
         });
         expect_optional_i64(self.transport.execute(&op).await?, "windowSize")
+    }
+
+    /// Columnar accessor: each source's edge `(src, dst)` id pairs — one inner
+    /// list per source node. Mirrors the local `NestedEdges.id`. Fires one RPC.
+    pub async fn id(&self) -> Result<Vec<Vec<(String, String)>>, ClientError> {
+        let op = Op::Read(ReadExpr::NestedEdgesList {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_nested_edge_list(self.transport.execute(&op).await?, "id")
+    }
+
+    /// Columnar accessor: each source's per-edge layer names — one inner list
+    /// per source node. Mirrors the local `NestedEdges.layer_names`. Fires one RPC.
+    pub async fn layer_names(&self) -> Result<Vec<Vec<Vec<String>>>, ClientError> {
+        let op = Op::Read(ReadExpr::NestedLayerNames {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_double_nested_string_list(self.transport.execute(&op).await?, "layerNames")
+    }
+
+    /// Columnar accessor: each source's per-edge single layer name — one inner
+    /// list per source node. Only valid on exploded edges; the server raises a
+    /// GraphQL error otherwise. Mirrors the local `NestedEdges.layer_name`.
+    /// Fires one RPC.
+    pub async fn layer_name(&self) -> Result<Vec<Vec<String>>, ClientError> {
+        let op = Op::Read(ReadExpr::NestedLayerName {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_nested_string_list(self.transport.execute(&op).await?, "layerName")
+    }
+
+    /// Columnar accessor: each source's per-edge earliest event time — one
+    /// inner list per source node. Mirrors the local `NestedEdges.earliest_time`.
+    /// Fires one RPC.
+    pub async fn earliest_time(&self) -> Result<Vec<Vec<Option<RemoteEventTime>>>, ClientError> {
+        let op = Op::Read(ReadExpr::NestedEarliestTime {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_nested_optional_event_time_list(self.transport.execute(&op).await?, "earliestTime")
+    }
+
+    /// Columnar accessor: each source's per-edge latest event time — one inner
+    /// list per source node. Mirrors the local `NestedEdges.latest_time`. Fires
+    /// one RPC.
+    pub async fn latest_time(&self) -> Result<Vec<Vec<Option<RemoteEventTime>>>, ClientError> {
+        let op = Op::Read(ReadExpr::NestedLatestTime {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_nested_optional_event_time_list(self.transport.execute(&op).await?, "latestTime")
+    }
+
+    /// Columnar accessor: each source's per-edge event time — one inner list
+    /// per source node. Only valid on exploded edges; the server raises a
+    /// GraphQL error otherwise. Mirrors the local `NestedEdges.time`. Fires one RPC.
+    pub async fn time(&self) -> Result<Vec<Vec<Option<RemoteEventTime>>>, ClientError> {
+        let op = Op::Read(ReadExpr::NestedTime {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_nested_optional_event_time_list(self.transport.execute(&op).await?, "time")
+    }
+
+    /// Columnar accessor: whether each edge is active (has an event) in the
+    /// current view, grouped per source node — mirrors the local
+    /// `NestedEdges.is_active`. Fires one RPC.
+    pub async fn is_active(&self) -> Result<Vec<Vec<bool>>, ClientError> {
+        let op = Op::Read(ReadExpr::NestedIsActive {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_nested_bool_list(self.transport.execute(&op).await?, "isActive")
+    }
+
+    /// Columnar accessor: whether each edge is valid (not deleted) at the
+    /// current time, grouped per source node — mirrors the local
+    /// `NestedEdges.is_valid`. Fires one RPC.
+    pub async fn is_valid(&self) -> Result<Vec<Vec<bool>>, ClientError> {
+        let op = Op::Read(ReadExpr::NestedIsValid {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_nested_bool_list(self.transport.execute(&op).await?, "isValid")
+    }
+
+    /// Columnar accessor: whether each edge has been deleted at the current
+    /// time, grouped per source node — mirrors the local
+    /// `NestedEdges.is_deleted`. Fires one RPC.
+    pub async fn is_deleted(&self) -> Result<Vec<Vec<bool>>, ClientError> {
+        let op = Op::Read(ReadExpr::NestedIsDeleted {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_nested_bool_list(self.transport.execute(&op).await?, "isDeleted")
+    }
+
+    /// Columnar accessor: whether each edge is a self-loop (`src == dst`),
+    /// grouped per source node — mirrors the local `NestedEdges.is_self_loop`.
+    /// Fires one RPC.
+    pub async fn is_self_loop(&self) -> Result<Vec<Vec<bool>>, ClientError> {
+        let op = Op::Read(ReadExpr::NestedIsSelfLoop {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_nested_bool_list(self.transport.execute(&op).await?, "isSelfLoop")
     }
 
     /// Terminal: view start bound for this collection — `None` if unbounded.

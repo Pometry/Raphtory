@@ -285,6 +285,11 @@ pub enum ReadExpr {
     /// Terminal on a properties/metadata container: `Vec<String>` — all
     /// property keys. Server field: `keys`.
     PropertyKeys { input: Box<ReadExpr> },
+    /// Terminal on a properties container: the data-type of the property's
+    /// latest value by key — `Option<String>`. `None` when the key isn't
+    /// present. The string is the `PropType` display form (e.g. `"I64"`,
+    /// `"Str"`, `"List<F64>"`). Server field: `getDtypeOf(key: String!)`.
+    PropertyGetDtypeOf { input: Box<ReadExpr>, key: String },
     /// Terminal on a properties/metadata container: `Vec<RemoteProperty>` —
     /// each `(key, value)` entry. Optional `keys` whitelist filters the
     /// returned set. Server field: `values(keys: [String!])`.
@@ -361,6 +366,26 @@ pub enum ReadExpr {
         input: Box<ReadExpr>,
         ids: Vec<String>,
     },
+
+    /// Terminal on Graph: the nodes whose latest property values match every
+    /// `(name, value)` entry in `properties`. Returns `Vec<String>` of node
+    /// names — clients wrap each in a `RemoteNode`. Server field:
+    /// `findNodes(propertiesDict: [PropertyInput!]!)`.
+    FindNodes {
+        input: Box<ReadExpr>,
+        properties: HashMap<String, Prop>,
+    },
+    /// Terminal on Graph: the edges whose latest property values match every
+    /// `(name, value)` entry in `properties`. Returns `Vec<(String, String)>`
+    /// of `(src, dst)` name pairs — clients wrap each in a `RemoteEdge`.
+    /// Server field: `findEdges(propertiesDict: [PropertyInput!]!)`.
+    FindEdges {
+        input: Box<ReadExpr>,
+        properties: HashMap<String, Prop>,
+    },
+    /// Terminal on Graph: all node types present in the graph — `Vec<String>`.
+    /// Server field: `getAllNodeTypes`.
+    GetAllNodeTypes { input: Box<ReadExpr> },
 
     // ============ Scalar terminals on Graph ============
     /// Terminal: total node count under the current view — `i64`.
@@ -568,6 +593,64 @@ pub enum ReadExpr {
     /// (outer = per source, middle = that source's edges, inner = `[src, dst]`).
     /// Mirrors `EdgesList`, one level deeper.
     NestedEdgesList { input: Box<ReadExpr> },
+
+    // ============ Columnar accessors on collections (via `list { field }`) ============
+    // Each renders `list { <field> }` on a flat collection (`Nodes` /
+    // `PathFromNode` / `Edges`) and reads the per-element scalar back into a
+    // flat `Prop::List`. The `Nested*` variants render `list { list { <field> } }`
+    // on a nested collection (`PathFromGraph` / `NestedEdges`) and produce a
+    // per-source `Prop::List(Prop::List(..))`. All open ONE net brace (the
+    // outer `list`); inner groups are self-balanced. Optional scalars use the
+    // `Prop::List` wrapper convention: `[]` = None, `[x]` = Some(x).
+    /// FLAT: per-node `name` — `Vec<String>`. Renders `list { name }`.
+    CollectionNames { input: Box<ReadExpr> },
+    /// FLAT: per-node `nodeType` — `Vec<Option<String>>`. Renders `list { nodeType }`.
+    CollectionNodeTypes { input: Box<ReadExpr> },
+    /// FLAT: per-edge `layerNames` — `Vec<Vec<String>>`. Renders `list { layerNames }`.
+    CollectionLayerNames { input: Box<ReadExpr> },
+    /// FLAT: per-edge `layerName` — `Vec<String>` (exploded edges only; the
+    /// server field is `Result`, surfacing as a GraphQL error otherwise).
+    /// Renders `list { layerName }`.
+    CollectionLayerName { input: Box<ReadExpr> },
+    /// FLAT: per-edge `earliestTime` — `Vec<Option<EventTime>>`. Renders
+    /// `list { earliestTime { timestamp datetime eventId } }`.
+    CollectionEarliestTime { input: Box<ReadExpr> },
+    /// FLAT: per-edge `latestTime` — `Vec<Option<EventTime>>`.
+    CollectionLatestTime { input: Box<ReadExpr> },
+    /// FLAT: per-edge `time` — `Vec<Option<EventTime>>` (exploded edges only).
+    CollectionTime { input: Box<ReadExpr> },
+    /// NESTED: per-source per-node `name` — `Vec<Vec<String>>`. Renders
+    /// `list { list { name } }`.
+    NestedNames { input: Box<ReadExpr> },
+    /// NESTED: per-source per-node `nodeType` — `Vec<Vec<Option<String>>>`.
+    NestedNodeTypes { input: Box<ReadExpr> },
+    /// NESTED: per-source per-edge `layerNames` — `Vec<Vec<Vec<String>>>`.
+    NestedLayerNames { input: Box<ReadExpr> },
+    /// NESTED: per-source per-edge `layerName` — `Vec<Vec<String>>` (exploded only).
+    NestedLayerName { input: Box<ReadExpr> },
+    /// NESTED: per-source per-edge `earliestTime` — `Vec<Vec<Option<EventTime>>>`.
+    NestedEarliestTime { input: Box<ReadExpr> },
+    /// NESTED: per-source per-edge `latestTime` — `Vec<Vec<Option<EventTime>>>`.
+    NestedLatestTime { input: Box<ReadExpr> },
+    /// NESTED: per-source per-edge `time` — `Vec<Vec<Option<EventTime>>>` (exploded only).
+    NestedTime { input: Box<ReadExpr> },
+    /// FLAT: per-edge `isActive` — `Vec<bool>`. Renders `list { isActive }`.
+    CollectionIsActive { input: Box<ReadExpr> },
+    /// FLAT: per-edge `isValid` — `Vec<bool>`. Renders `list { isValid }`.
+    CollectionIsValid { input: Box<ReadExpr> },
+    /// FLAT: per-edge `isDeleted` — `Vec<bool>`. Renders `list { isDeleted }`.
+    CollectionIsDeleted { input: Box<ReadExpr> },
+    /// FLAT: per-edge `isSelfLoop` — `Vec<bool>`. Renders `list { isSelfLoop }`.
+    CollectionIsSelfLoop { input: Box<ReadExpr> },
+    /// NESTED: per-source per-edge `isActive` — `Vec<Vec<bool>>`. Renders
+    /// `list { list { isActive } }`.
+    NestedIsActive { input: Box<ReadExpr> },
+    /// NESTED: per-source per-edge `isValid` — `Vec<Vec<bool>>`.
+    NestedIsValid { input: Box<ReadExpr> },
+    /// NESTED: per-source per-edge `isDeleted` — `Vec<Vec<bool>>`.
+    NestedIsDeleted { input: Box<ReadExpr> },
+    /// NESTED: per-source per-edge `isSelfLoop` — `Vec<Vec<bool>>`.
+    NestedIsSelfLoop { input: Box<ReadExpr> },
 
     // ============ Node scalar terminals ============
     /// Terminal: node id — `String` (server may return int-like GID; treated as string).

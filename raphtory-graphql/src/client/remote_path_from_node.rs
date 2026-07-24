@@ -4,7 +4,7 @@ use crate::{
         remote_edges::RemoteEdges,
         remote_graph::{
             expect_bool, expect_i64, expect_i64_list, expect_optional_event_time,
-            expect_optional_i64, expect_string_list,
+            expect_optional_i64, expect_optional_string_list, expect_string_list,
         },
         remote_history::{RemoteEventTime, RemoteHistory},
         remote_node::RemoteNode,
@@ -338,6 +338,33 @@ impl RemotePathFromNode {
             input: Box::new(self.expr.clone()),
         });
         expect_string_list(self.transport.execute(&op).await?, "ids")
+    }
+
+    /// Columnar accessor: each node's id — mirrors the local `PathFromNode.id`.
+    /// Fires one RPC.
+    pub async fn id(&self) -> Result<Vec<String>, ClientError> {
+        let op = Op::Read(ReadExpr::Ids {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_string_list(self.transport.execute(&op).await?, "id")
+    }
+
+    /// Columnar accessor: each node's name — mirrors the local
+    /// `PathFromNode.name`. Fires one RPC.
+    pub async fn name(&self) -> Result<Vec<String>, ClientError> {
+        let op = Op::Read(ReadExpr::CollectionNames {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_string_list(self.transport.execute(&op).await?, "name")
+    }
+
+    /// Columnar accessor: each node's type (`None` when unset) — mirrors the
+    /// local `PathFromNode.node_type`. Fires one RPC.
+    pub async fn node_type(&self) -> Result<Vec<Option<String>>, ClientError> {
+        let op = Op::Read(ReadExpr::CollectionNodeTypes {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_optional_string_list(self.transport.execute(&op).await?, "nodeType")
     }
 
     /// Terminal: the per-node degree (number of incident edges) of every node

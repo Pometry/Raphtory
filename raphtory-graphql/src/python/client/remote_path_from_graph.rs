@@ -228,6 +228,30 @@ impl PyRemotePathFromGraph {
         execute_async_task(move || async move { path.ids().await })
     }
 
+    /// The id of each neighbour, grouped per source node. Property — attribute
+    /// access fires one RPC.
+    #[getter]
+    pub fn id(&self) -> Result<Vec<Vec<String>>, ClientError> {
+        let path = Arc::clone(&self.path);
+        execute_async_task(move || async move { path.id().await })
+    }
+
+    /// The name of each neighbour, grouped per source node. Property —
+    /// attribute access fires one RPC.
+    #[getter]
+    pub fn name(&self) -> Result<Vec<Vec<String>>, ClientError> {
+        let path = Arc::clone(&self.path);
+        execute_async_task(move || async move { path.name().await })
+    }
+
+    /// The type of each neighbour (`None` when unset), grouped per source node.
+    /// Property — attribute access fires one RPC.
+    #[getter]
+    pub fn node_type(&self) -> Result<Vec<Vec<Option<String>>>, ClientError> {
+        let path = Arc::clone(&self.path);
+        execute_async_task(move || async move { path.node_type().await })
+    }
+
     /// Returns the number of source paths in this collection. Fires one RPC.
     pub fn count(&self) -> Result<i64, ClientError> {
         let path = Arc::clone(&self.path);

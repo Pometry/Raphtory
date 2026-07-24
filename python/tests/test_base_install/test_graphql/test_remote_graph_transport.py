@@ -2293,7 +2293,7 @@ def test_filter_edges_preserves_membership():
         server_cm.__exit__(None, None, None)
 
 
-# --- Batch 12: unified .filter() on Graph / Node / PathFromNode -------------
+# --- unified .filter() on Graph / Node / PathFromNode -------------
 
 
 def _make_node_filter_graph():
@@ -3165,5 +3165,459 @@ def test_temporal_properties_dict_dunders_and_latest():
         latest = td.latest()
         assert isinstance(latest, dict)
         assert latest == {"score": 2.5, "active": True}
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+# ============ collection-level columnar accessors ============
+#
+# Verifies the remote columnar accessors (`name`, `node_type`, `id` on
+# node-side collections; `id`, `layer_names`, `layer_name`, `earliest_time`,
+# `latest_time`, `time` on edge-side collections) match what the local
+# `raphtory` API produces for the same graph.
+
+
+def _make_columnar_graphs():
+    """Build the same graph remotely and locally.
+
+    Returns (server_cm, remote_graph, local_graph). Nodes a/b/c (a,b typed),
+    edge a->b in two layers (L1@1, L2@2), b->c@3 (default), c->a@4.
+    """
+    from raphtory import Graph
+
+    work_dir = tempfile.mkdtemp()
+    server_cm = GraphServer(work_dir).start()
+    server = server_cm.__enter__()
+    client = server.get_client()
+    client.new_graph("cg", "EVENT")
+    rg = client.remote_graph("cg")
+
+    lg = Graph()
+    for g, add_node, add_edge in (
+        (rg, rg.add_node, rg.add_edge),
+        (lg, lg.add_node, lg.add_edge),
+    ):
+        add_node(1, "a", node_type="T1")
+        add_node(2, "b", node_type="T2")
+        add_node(3, "c")
+        add_edge(1, "a", "b", layer="L1")
+        add_edge(2, "a", "b", layer="L2")
+        add_edge(3, "b", "c")
+        add_edge(4, "c", "a")
+    return server_cm, rg, lg
+
+
+def _ts(events):
+    """Map a list of (Remote)EventTime|None to their timestamps.
+
+    Both the local `EventTime` and the `RemoteEventTime` expose `.t`.
+    """
+    return [None if e is None else e.t for e in events]
+
+
+def test_nodes_columnar_accessors():
+    """`RemoteNodes.name` / `.node_type` / `.id` mirror local `Nodes`."""
+    server_cm, rg, lg = _make_columnar_graphs()
+    try:
+        nodes = rg.nodes
+        rids = nodes.id
+        # id matches local (string GIDs over the transport).
+        assert set(rids) == {str(i) for i in lg.nodes.id}
+
+        # Keyed by id so element order is irrelevant.
+        rmap_name = dict(zip(rids, nodes.name))
+        lmap_name = dict(zip([str(i) for i in lg.nodes.id], list(lg.nodes.name)))
+        assert rmap_name == lmap_name == {"a": "a", "b": "b", "c": "c"}
+
+        rmap_type = dict(zip(rids, nodes.node_type))
+        lmap_type = dict(
+            zip([str(i) for i in lg.nodes.id], list(lg.nodes.node_type))
+        )
+        assert rmap_type == lmap_type == {"a": "T1", "b": "T2", "c": None}
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_path_from_node_columnar_accessors():
+    """`RemotePathFromNode.name` / `.node_type` / `.id` mirror local
+    `PathFromNode` (flat, one value per neighbour)."""
+    server_cm, rg, lg = _make_columnar_graphs()
+    try:
+        # a's neighbours: b (a->b) and c (c->a).
+        rpath = rg.node("a").neighbours
+        lpath = lg.node("a").neighbours
+
+        assert sorted(rpath.id) == sorted(str(i) for i in lpath.id)
+        assert sorted(rpath.name) == sorted(lpath.name) == ["b", "c"]
+
+        rmap = dict(zip(rpath.id, rpath.node_type))
+        lmap = dict(zip([str(i) for i in lpath.id], list(lpath.node_type)))
+        assert rmap == lmap == {"b": "T2", "c": None}
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_path_from_graph_columnar_accessors():
+    """`RemotePathFromGraph.name` / `.node_type` / `.id` mirror local
+    `PathFromGraph` (nested, per-source lists)."""
+    server_cm, rg, lg = _make_columnar_graphs()
+    try:
+        src_ids = rg.nodes.id
+        rpath = rg.nodes.neighbours
+
+        # Per-source, keyed by source id (order within a source is not
+        # guaranteed, so sort each inner list).
+        r_names = {s: sorted(inner) for s, inner in zip(src_ids, rpath.name)}
+        r_ids = {s: sorted(inner) for s, inner in zip(src_ids, rpath.id)}
+        r_types = {
+            s: sorted(inner, key=lambda x: (x is None, x))
+            for s, inner in zip(src_ids, rpath.node_type)
+        }
+
+        lsrc = [str(i) for i in lg.nodes.id]
+        lpath = lg.nodes.neighbours
+        l_names = {s: sorted(inner) for s, inner in zip(lsrc, [list(x) for x in lpath.name])}
+        l_ids = {
+            s: sorted(str(i) for i in inner)
+            for s, inner in zip(lsrc, [list(x) for x in lpath.id])
+        }
+        l_types = {
+            s: sorted(list(inner), key=lambda x: (x is None, x))
+            for s, inner in zip(lsrc, [list(x) for x in lpath.node_type])
+        }
+
+        assert r_names == l_names
+        assert r_ids == l_ids
+        assert r_types == l_types
+        # Sanity: a neighbours b and c.
+        assert r_names["a"] == ["b", "c"]
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_edges_columnar_accessors():
+    """`RemoteEdges.id` / `.layer_names` / `.earliest_time` / `.latest_time`
+    mirror local `Edges`."""
+    server_cm, rg, lg = _make_columnar_graphs()
+    try:
+        redges = rg.edges
+        rids = redges.id
+        # id: list of (src, dst) tuples — 3 unique edges.
+        assert sorted(rids) == sorted(lg.edges.id) == [("a", "b"), ("b", "c"), ("c", "a")]
+
+        # layer_names keyed by edge id.
+        r_layers = {e: sorted(ls) for e, ls in zip(rids, redges.layer_names)}
+        l_layers = {e: sorted(ls) for e, ls in zip(lg.edges.id, [list(x) for x in lg.edges.layer_names])}
+        assert r_layers == l_layers
+        assert r_layers[("a", "b")] == ["L1", "L2"]
+
+        # earliest / latest time keyed by edge id.
+        r_early = dict(zip(rids, _ts(redges.earliest_time)))
+        l_early = dict(zip(lg.edges.id, _ts(list(lg.edges.earliest_time))))
+        assert r_early == l_early
+        assert r_early[("a", "b")] == 1
+
+        r_late = dict(zip(rids, _ts(redges.latest_time)))
+        l_late = dict(zip(lg.edges.id, _ts(list(lg.edges.latest_time))))
+        assert r_late == l_late
+        assert r_late[("a", "b")] == 2
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_edges_columnar_exploded_layer_name_and_time():
+    """`RemoteEdges.layer_name` / `.time` on exploded edges mirror local."""
+    server_cm, rg, lg = _make_columnar_graphs()
+    try:
+        rexpl = rg.edges.explode()
+        lexpl = lg.edges.explode()
+
+        # Build sorted (src, dst, layer_name, timestamp) tuples for comparison.
+        r_rows = sorted(
+            (src, dst, ln, t.t)
+            for (src, dst), ln, t in zip(
+                rexpl.id, rexpl.layer_name, rexpl.time
+            )
+        )
+        l_rows = sorted(
+            (src, dst, ln, t.t)
+            for (src, dst), ln, t in zip(
+                lexpl.id, list(lexpl.layer_name), list(lexpl.time)
+            )
+        )
+        assert r_rows == l_rows
+        # 4 exploded events: (a,b,L1,1),(a,b,L2,2),(b,c,_default,3),(c,a,_default,4)
+        assert ("a", "b", "L1", 1) in r_rows
+        assert ("a", "b", "L2", 2) in r_rows
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_nested_edges_columnar_accessors():
+    """`RemoteNestedEdges.id` / `.layer_names` / `.earliest_time` mirror local
+    `NestedEdges` (nested, per-source lists)."""
+    server_cm, rg, lg = _make_columnar_graphs()
+    try:
+        src_ids = rg.nodes.id
+        rne = rg.nodes.edges  # incident edges per node
+
+        r_ids = {s: sorted(inner) for s, inner in zip(src_ids, rne.id)}
+        r_layers = {
+            s: sorted(sorted(ls) for ls in inner)
+            for s, inner in zip(src_ids, rne.layer_names)
+        }
+        r_early = {
+            s: sorted(_ts(inner)) for s, inner in zip(src_ids, rne.earliest_time)
+        }
+
+        lsrc = [str(i) for i in lg.nodes.id]
+        lne = lg.nodes.edges
+        l_ids = {
+            s: sorted(inner) for s, inner in zip(lsrc, [list(x) for x in lne.id])
+        }
+        l_layers = {
+            s: sorted(sorted(list(ls)) for ls in inner)
+            for s, inner in zip(lsrc, [list(x) for x in lne.layer_names])
+        }
+        l_early = {
+            s: sorted(_ts(list(inner)))
+            for s, inner in zip(lsrc, [list(x) for x in lne.earliest_time])
+        }
+
+        assert r_ids == l_ids
+        assert r_layers == l_layers
+        assert r_early == l_early
+        # a is incident to (a,b) and (c,a).
+        assert r_ids["a"] == [("a", "b"), ("c", "a")]
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_nested_edges_columnar_exploded_layer_name_and_time():
+    """`RemoteNestedEdges.explode().layer_name` / `.time` mirror local
+    `NestedEdges.explode()`, keyed per source node."""
+    server_cm, rg, lg = _make_columnar_graphs()
+    try:
+        src_ids = rg.nodes.id
+        rexpl = rg.nodes.edges.explode()
+        lexpl = lg.nodes.edges.explode()
+
+        # Per-source sorted (src, dst, layer_name, timestamp) rows.
+        r_rows = {
+            s: sorted(
+                (src, dst, ln, t.t)
+                for (src, dst), ln, t in zip(ids, lns, ts)
+            )
+            for s, ids, lns, ts in zip(
+                src_ids, rexpl.id, rexpl.layer_name, rexpl.time
+            )
+        }
+
+        lsrc = [str(i) for i in lg.nodes.id]
+        l_rows = {
+            s: sorted(
+                (src, dst, ln, t.t)
+                for (src, dst), ln, t in zip(list(ids), list(lns), list(ts))
+            )
+            for s, ids, lns, ts in zip(
+                lsrc,
+                [list(x) for x in lexpl.id],
+                [list(x) for x in lexpl.layer_name],
+                [list(x) for x in lexpl.time],
+            )
+        }
+
+        assert r_rows == l_rows
+        # Source a is incident to a->b (L1@1, L2@2) and c->a (@4).
+        assert r_rows["a"] == sorted(
+            [("a", "b", "L1", 1), ("a", "b", "L2", 2), ("c", "a", "_default", 4)]
+        )
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_nested_edges_columnar_layer_name_requires_explode():
+    """`NestedEdges.layer_name` raises before explode — same specific error in
+    both APIs (message mentions `layer_name`)."""
+    server_cm, rg, lg = _make_columnar_graphs()
+    try:
+        with pytest.raises(Exception, match="layer_name"):
+            list(lg.nodes.edges.layer_name)
+        # Remote surfaces the same server-side error, also mentioning layer_name.
+        with pytest.raises(Exception, match="layer_name"):
+            rg.nodes.edges.layer_name
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_edges_element_predicates():
+    """`RemoteEdges.is_active` / `.is_valid` / `.is_deleted` / `.is_self_loop`
+    mirror local `Edges` (flat `list[bool]`, keyed by edge id)."""
+    server_cm, rg, lg = _make_columnar_graphs()
+    try:
+        redges = rg.edges
+        rids = redges.id
+
+        def keyed_remote(vals):
+            return dict(zip(rids, vals))
+
+        def keyed_local(vals):
+            return dict(zip(lg.edges.id, list(vals)))
+
+        r_active = keyed_remote(redges.is_active())
+        r_valid = keyed_remote(redges.is_valid())
+        r_deleted = keyed_remote(redges.is_deleted())
+        r_self = keyed_remote(redges.is_self_loop())
+
+        l_active = keyed_local(lg.edges.is_active())
+        l_valid = keyed_local(lg.edges.is_valid())
+        l_deleted = keyed_local(lg.edges.is_deleted())
+        l_self = keyed_local(lg.edges.is_self_loop())
+
+        assert r_active == l_active
+        assert r_valid == l_valid
+        assert r_deleted == l_deleted
+        assert r_self == l_self
+        # Ground truth: no self-loops, none deleted, all valid in this graph.
+        assert set(r_deleted.values()) == {False}
+        assert set(r_valid.values()) == {True}
+        assert set(r_self.values()) == {False}
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_nested_edges_element_predicates():
+    """`RemoteNestedEdges.is_active` / `.is_valid` / `.is_deleted` /
+    `.is_self_loop` mirror local `NestedEdges` (nested `list[list[bool]]`,
+    keyed per source node then by edge id)."""
+    server_cm, rg, lg = _make_columnar_graphs()
+    try:
+        src_ids = rg.nodes.id
+        rne = rg.nodes.edges
+
+        # Key each edge's predicate by (source, edge id) so ordering within a
+        # source is irrelevant.
+        def keyed_remote(vals):
+            out = {}
+            for s, ids, flags in zip(src_ids, rne.id, vals):
+                for eid, flag in zip(ids, flags):
+                    out[(s, eid)] = flag
+            return out
+
+        lsrc = [str(i) for i in lg.nodes.id]
+        lne = lg.nodes.edges
+
+        def keyed_local(vals):
+            out = {}
+            for s, ids, flags in zip(
+                lsrc, [list(x) for x in lne.id], [list(x) for x in vals]
+            ):
+                for eid, flag in zip(ids, list(flags)):
+                    out[(s, eid)] = flag
+            return out
+
+        assert keyed_remote(rne.is_active()) == keyed_local(lne.is_active())
+        assert keyed_remote(rne.is_valid()) == keyed_local(lne.is_valid())
+        assert keyed_remote(rne.is_deleted()) == keyed_local(lne.is_deleted())
+        assert keyed_remote(rne.is_self_loop()) == keyed_local(lne.is_self_loop())
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def _make_property_graphs():
+    """Build the same property-bearing graph remotely and locally.
+
+    Returns (server_cm, remote_graph, local_graph). Nodes a/b/c with a `score`
+    property (a=10, b=20, c=10) and types T1/T2/None; edges a->b, b->c (kind
+    "x"), c->a (kind "y") with a float `w`.
+    """
+    from raphtory import Graph
+
+    work_dir = tempfile.mkdtemp()
+    server_cm = GraphServer(work_dir).start()
+    server = server_cm.__enter__()
+    client = server.get_client()
+    client.new_graph("pg", "EVENT")
+    rg = client.remote_graph("pg")
+
+    lg = Graph()
+    for add_node, add_edge in (
+        (rg.add_node, rg.add_edge),
+        (lg.add_node, lg.add_edge),
+    ):
+        add_node(1, "a", {"score": 10}, node_type="T1")
+        add_node(2, "b", {"score": 20}, node_type="T2")
+        add_node(3, "c", {"score": 10})
+        add_edge(1, "a", "b", {"w": 1.0, "kind": "x"})
+        add_edge(2, "b", "c", {"w": 2.0, "kind": "x"})
+        add_edge(3, "c", "a", {"w": 1.0, "kind": "y"})
+    return server_cm, rg, lg
+
+
+def test_graph_find_nodes():
+    """`RemoteGraph.find_nodes` mirrors local `Graph.find_nodes` — nodes whose
+    latest property values match every entry in the dict."""
+    server_cm, rg, lg = _make_property_graphs()
+    try:
+        r = sorted(n.name for n in rg.find_nodes({"score": 10}))
+        l = sorted(n.name for n in lg.find_nodes({"score": 10}))
+        assert r == l == ["a", "c"]
+
+        # No matches.
+        assert rg.find_nodes({"score": 999}) == []
+        # Two-key match narrows to a single node.
+        assert [n.name for n in rg.find_nodes({"score": 20})] == ["b"]
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_graph_find_edges():
+    """`RemoteGraph.find_edges` mirrors local `Graph.find_edges` — edges whose
+    latest property values match every entry in the dict."""
+    server_cm, rg, lg = _make_property_graphs()
+    try:
+        r_kind = sorted(e.id for e in rg.find_edges({"kind": "x"}))
+        l_kind = sorted(e.id for e in lg.find_edges({"kind": "x"}))
+        assert r_kind == l_kind == [("a", "b"), ("b", "c")]
+
+        r_w = sorted(e.id for e in rg.find_edges({"w": 1.0}))
+        l_w = sorted(e.id for e in lg.find_edges({"w": 1.0}))
+        assert r_w == l_w == [("a", "b"), ("c", "a")]
+
+        assert rg.find_edges({"kind": "zzz"}) == []
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_graph_get_all_node_types():
+    """`RemoteGraph.get_all_node_types` mirrors local
+    `Graph.get_all_node_types`."""
+    server_cm, rg, lg = _make_property_graphs()
+    try:
+        assert sorted(rg.get_all_node_types()) == sorted(lg.get_all_node_types())
+        assert sorted(rg.get_all_node_types()) == ["T1", "T2"]
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
+def test_properties_get_dtype_of():
+    """`RemoteProperties.get_dtype_of` mirrors local `Properties.get_dtype_of`
+    (the local `PropType` compares equal to the returned string)."""
+    server_cm, rg, lg = _make_property_graphs()
+    try:
+        # Node property dtype.
+        r_np = rg.node("a").properties
+        l_np = lg.node("a").properties
+        assert l_np.get_dtype_of("score") == r_np.get_dtype_of("score")
+        assert r_np.get_dtype_of("score") == "I64"
+        # Missing key -> None on both.
+        assert r_np.get_dtype_of("nope") is None
+        assert l_np.get_dtype_of("nope") is None
+
+        # Edge property dtypes (float + string).
+        r_ep = rg.edge("a", "b").properties
+        l_ep = lg.edge("a", "b").properties
+        assert l_ep.get_dtype_of("w") == r_ep.get_dtype_of("w") == "F64"
+        assert l_ep.get_dtype_of("kind") == r_ep.get_dtype_of("kind") == "Str"
     finally:
         server_cm.__exit__(None, None, None)

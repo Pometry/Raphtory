@@ -601,6 +601,17 @@ impl GqlProperties {
         self.props.get(&key).is_some()
     }
 
+    /// The data-type of the property's latest value by key, as its `PropType`
+    /// display string (e.g. `"I64"`, `"Str"`, `"List<F64>"`). Returns null when
+    /// the key isn't present. Mirrors the local `Properties.get_dtype_of`.
+
+    async fn get_dtype_of(
+        &self,
+        #[graphql(desc = "The property name.")] key: String,
+    ) -> Option<String> {
+        self.props.get(key.as_str()).map(|p| p.dtype().to_string())
+    }
+
     /// All property keys present in the current view. Does not include metadata
     /// — metadata is exposed separately via the entity's `metadata` field.
     async fn keys(&self) -> Vec<String> {

@@ -2,7 +2,8 @@ use crate::{
     client::{
         op::{Op, ReadExpr},
         remote_graph::{
-            expect_bool, expect_i64, expect_nested_i64_list, expect_nested_string_list,
+            expect_bool, expect_i64, expect_nested_i64_list,
+            expect_nested_optional_string_list, expect_nested_string_list,
             expect_optional_event_time, expect_optional_i64,
         },
         remote_history::{RemoteEventTime, RemoteHistory},
@@ -334,6 +335,34 @@ impl RemotePathFromGraph {
             input: Box::new(self.expr.clone()),
         });
         expect_nested_string_list(self.transport.execute(&op).await?, "ids")
+    }
+
+    /// Columnar accessor: each source's neighbour ids — one inner list per
+    /// source node. Mirrors the local `PathFromGraph.id`. Fires one RPC.
+    pub async fn id(&self) -> Result<Vec<Vec<String>>, ClientError> {
+        let op = Op::Read(ReadExpr::NestedIds {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_nested_string_list(self.transport.execute(&op).await?, "id")
+    }
+
+    /// Columnar accessor: each source's neighbour names — one inner list per
+    /// source node. Mirrors the local `PathFromGraph.name`. Fires one RPC.
+    pub async fn name(&self) -> Result<Vec<Vec<String>>, ClientError> {
+        let op = Op::Read(ReadExpr::NestedNames {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_nested_string_list(self.transport.execute(&op).await?, "name")
+    }
+
+    /// Columnar accessor: each source's neighbour types (`None` when unset) —
+    /// one inner list per source node. Mirrors the local
+    /// `PathFromGraph.node_type`. Fires one RPC.
+    pub async fn node_type(&self) -> Result<Vec<Vec<Option<String>>>, ClientError> {
+        let op = Op::Read(ReadExpr::NestedNodeTypes {
+            input: Box::new(self.expr.clone()),
+        });
+        expect_nested_optional_string_list(self.transport.execute(&op).await?, "nodeType")
     }
 
     /// Terminal: the nested per-node degree — one inner list per source node,

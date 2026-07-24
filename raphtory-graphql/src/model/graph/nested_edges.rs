@@ -264,6 +264,20 @@ impl GqlNestedEdges {
         blocking_compute(move || self_clone.nn.has_layer(name)).await
     }
 
+    /// Expand each source's edges into one edge per update — mirrors the local
+    /// `NestedEdges.explode`. The per-source nesting is preserved; only the
+    /// inner edge lists fan out per event.
+    async fn explode(&self) -> Self {
+        self.update(self.nn.explode())
+    }
+
+    /// Expand each source's edges into one edge per layer — mirrors the local
+    /// `NestedEdges.explode_layers`. Each resulting edge carries only the
+    /// updates from its respective layer.
+    async fn explode_layers(&self) -> Self {
+        self.update(self.nn.explode_layers())
+    }
+
     /////////////////
     //// List ///////
     /////////////////

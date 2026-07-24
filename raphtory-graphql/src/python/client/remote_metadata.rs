@@ -195,6 +195,21 @@ impl PyRemoteProperties {
         execute_async_task(move || async move { inner.keys().await })
     }
 
+    /// The data-type of the property's latest value by key, as its `PropType`
+    /// display string (e.g. `"I64"`, `"Str"`, `"List<F64>"`). Returns `None`
+    /// when the key isn't present. Mirrors the local `Properties.get_dtype_of`
+    /// — the local `PropType` compares equal to this string. Fires one RPC.
+    ///
+    /// Arguments:
+    ///     key (str): the name of the property.
+    ///
+    /// Returns:
+    ///     Optional[str]: the property's data-type, or None if absent.
+    pub fn get_dtype_of(&self, key: String) -> Result<Option<String>, ClientError> {
+        let inner = Arc::clone(&self.inner);
+        execute_async_task(move || async move { inner.get_dtype_of(key).await })
+    }
+
     /// All property values as native Python objects (temporal properties yield
     /// their most recent value). If `keys` is provided, only those names are
     /// returned. Fires one RPC.

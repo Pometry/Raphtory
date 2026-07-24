@@ -184,6 +184,27 @@ impl RemoteProperties {
             .collect())
     }
 
+    /// Terminal: the data-type of the property's latest value by key, as its
+    /// `PropType` display string (e.g. `"I64"`, `"Str"`, `"List<F64>"`).
+    /// Returns `None` when the key isn't present. Mirrors the local
+    /// `Properties.get_dtype_of`. Fires one RPC.
+    pub async fn get_dtype_of(
+        &self,
+        key: impl ToString,
+    ) -> Result<Option<String>, ClientError> {
+        let op = Op::Read(ReadExpr::PropertyGetDtypeOf {
+            input: Box::new(self.expr.clone()),
+            key: key.to_string(),
+        });
+        match self.transport.execute(&op).await? {
+            None => Ok(None),
+            Some(Prop::Str(s)) => Ok(Some(s.to_string())),
+            Some(_) => Err(ClientError::InvalidResponse(
+                "getDtypeOf returned unexpected value type".into(),
+            )),
+        }
+    }
+
     /// Sub-container: the temporal-only view of these properties — excludes
     /// metadata and lets you drill into per-key timelines. Lazy — no RPC.
     pub fn temporal(&self) -> RemoteTemporalProperties {
