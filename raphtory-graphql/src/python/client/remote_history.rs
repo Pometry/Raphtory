@@ -51,14 +51,8 @@ impl PyRemoteEventTime {
         )
     }
 
-    /// The event's timestamp in the graph's native time unit (`None` if absent).
-    #[getter]
-    fn timestamp(&self) -> Option<i64> {
-        self.timestamp
-    }
-
-    /// The event's timestamp in the graph's native time unit — alias of
-    /// `timestamp`, mirroring the local `EventTime.t`. (`None` if absent.)
+    /// The event's timestamp in the graph's native time unit, mirroring the
+    /// local `EventTime.t`. (`None` if absent.)
     #[getter]
     fn t(&self) -> Option<i64> {
         self.timestamp
@@ -336,27 +330,22 @@ impl PyRemoteHistory {
         PyRemoteHistory::new(self.history.reverse())
     }
 
-    /// Sub-container: timestamps view of this history (plain int timestamps).
-    /// Lazy — no RPC.
+    /// Timestamps view of this history (plain int timestamps), mirroring the
+    /// local `History.t`. Lazy — no RPC.
     #[getter]
-    pub fn timestamps(&self) -> PyRemoteHistoryTimestamps {
+    pub fn t(&self) -> PyRemoteHistoryTimestamps {
         PyRemoteHistoryTimestamps {
             inner: Arc::new(self.history.timestamps()),
         }
     }
 
-    /// Timestamps view of this history — alias of `timestamps`, mirroring the
-    /// local `History.t`. Lazy — no RPC.
-    #[getter]
-    pub fn t(&self) -> PyRemoteHistoryTimestamps {
-        self.timestamps()
-    }
-
-    /// Datetime view of this history — alias of `datetimes`, mirroring the
+    /// Datetime view of this history (RFC 3339 strings), mirroring the
     /// local `History.dt`. Lazy — no RPC.
     #[getter]
     pub fn dt(&self) -> PyRemoteHistoryDateTimes {
-        self.datetimes()
+        PyRemoteHistoryDateTimes {
+            inner: Arc::new(self.history.datetimes()),
+        }
     }
 
     /// Sub-container: event-id view of this history. Lazy — no RPC.
@@ -364,15 +353,6 @@ impl PyRemoteHistory {
     pub fn event_id(&self) -> PyRemoteHistoryEventIds {
         PyRemoteHistoryEventIds {
             inner: Arc::new(self.history.event_id()),
-        }
-    }
-
-    /// Sub-container: datetime view of this history (RFC 3339 strings).
-    /// Lazy — no RPC.
-    #[getter]
-    pub fn datetimes(&self) -> PyRemoteHistoryDateTimes {
-        PyRemoteHistoryDateTimes {
-            inner: Arc::new(self.history.datetimes()),
         }
     }
 

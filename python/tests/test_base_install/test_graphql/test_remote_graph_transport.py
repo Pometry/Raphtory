@@ -261,13 +261,13 @@ def test_default_layer_and_valid():
 
 
 def test_nodes_collection():
-    """`rg.nodes` accessor returns a `RemoteNodes` collection with `.ids()`,
+    """`rg.nodes` accessor returns a `RemoteNodes` collection with `.id`,
     `.count()`, and `.collect()` terminals."""
     server_cm, rg = _make_graph_with_edge()
     try:
         nodes = rg.nodes
         assert nodes.count() == 2
-        assert sorted(nodes.ids()) == ["ben", "hamza"]
+        assert sorted(nodes.id) == ["ben", "hamza"]
 
         # Materialize as RemoteNode handles, then read a scalar off each.
         remote_nodes = nodes.collect()
@@ -345,14 +345,14 @@ def test_node_neighbour_collections():
     try:
         ben = rg.node("ben")
         # ben has one out-neighbour (hamza) and zero in-neighbours.
-        assert ben.out_neighbours.ids() == ["hamza"]
-        assert ben.in_neighbours.ids() == []
+        assert ben.out_neighbours.id == ["hamza"]
+        assert ben.in_neighbours.id == []
         # `.neighbours` is directed union — includes hamza.
-        assert ben.neighbours.ids() == ["hamza"]
+        assert ben.neighbours.id == ["hamza"]
 
         hamza = rg.node("hamza")
-        assert hamza.in_neighbours.ids() == ["ben"]
-        assert hamza.out_neighbours.ids() == []
+        assert hamza.in_neighbours.id == ["ben"]
+        assert hamza.out_neighbours.id == []
     finally:
         server_cm.__exit__(None, None, None)
 
@@ -376,8 +376,7 @@ def test_edge_selection_and_navigation():
 
 def test_edges_collection():
     """`rg.edges` accessor returns a `RemoteEdges` collection with `.count()`
-    and `.collect()` terminals. Unlike nodes, edges have no `.ids()` — they're
-    identified by `(src, dst)` pairs."""
+    and `.collect()` terminals. Edge ids are `(src, dst)` pairs, via `.id`."""
     server_cm, rg = _make_graph_with_edge()
     try:
         edges = rg.edges
@@ -564,7 +563,7 @@ def test_node_view_chain_builders():
         assert ben.exclude_layers(["_default"]).degree() == 0
 
         # Chaining works — window then out_neighbours.
-        neighbours = ben.window(0, 5).out_neighbours.ids()
+        neighbours = ben.window(0, 5).out_neighbours.id
         assert neighbours == ["hamza"]
         assert ben.window(100, 200).out_neighbours.count() == 0
 
@@ -806,21 +805,21 @@ def test_history_list_and_iter():
         assert len(events) == 3
         # Extract timestamps — dt/event_id are also populated but shape-check
         # them separately below.
-        assert [e.timestamp for e in events] == [1, 3, 8]
+        assert [e.t for e in events] == [1, 3, 8]
 
         # list_rev
         events_rev = h.collect_rev()
-        assert [e.timestamp for e in events_rev] == [8, 3, 1]
+        assert [e.t for e in events_rev] == [8, 3, 1]
 
         # Iterator delegates to .collect() — same order.
-        via_iter = [e.timestamp for e in h]
+        via_iter = [e.t for e in h]
         assert via_iter == [1, 3, 8]
 
         # All three fields populated by the server. dt is a real datetime.
         import datetime as _dt
 
         for e in events:
-            assert e.timestamp is not None
+            assert e.t is not None
             assert e.event_id is not None
             assert isinstance(e.dt, _dt.datetime)
     finally:
@@ -907,17 +906,17 @@ def test_temporal_property_stats():
         mn = score.min()
         assert mn is not None
         assert mn.value == 1.0
-        assert mn.time.timestamp == 1
+        assert mn.time.t == 1
 
         mx = score.max()
         assert mx is not None
         assert mx.value == 5.0
-        assert mx.time.timestamp == 5
+        assert mx.time.t == 5
 
         med = score.median()
         assert med is not None
         assert med.value == 3.0
-        assert med.time.timestamp == 3
+        assert med.time.t == 3
     finally:
         server_cm.__exit__(None, None, None)
 
@@ -938,14 +937,14 @@ def test_temporal_property_unique_and_dedupe():
         # ordered_dedupe(latest_time=False): (1, 1), (3, 2), (6, 3), (7, 1) — first
         # timestamp of each run.
         first_ts = status.ordered_dedupe(latest_time=False)
-        assert [(p.time.timestamp, p.value) for p in first_ts] == [
+        assert [(p.time.t, p.value) for p in first_ts] == [
             (1, 1), (3, 2), (6, 3), (7, 1)
         ]
 
         # ordered_dedupe(latest_time=True): (2, 1), (5, 2), (6, 3), (7, 1) — last
         # timestamp of each run.
         last_ts = status.ordered_dedupe(latest_time=True)
-        assert [(p.time.timestamp, p.value) for p in last_ts] == [
+        assert [(p.time.t, p.value) for p in last_ts] == [
             (2, 1), (5, 2), (6, 3), (7, 1)
         ]
     finally:
@@ -965,9 +964,9 @@ def test_temporal_properties_container():
         # keys
         assert sorted(tp.keys()) == ["active", "score"]
 
-        # contains
-        assert tp.contains("score") is True
-        assert tp.contains("nonexistent") is False
+        # membership via `in` (local uses the operator, not a .contains method)
+        assert "score" in tp
+        assert "nonexistent" not in tp
 
         # get — Optional[RemoteTemporalProperty]
         score = tp.get("score")
@@ -1001,7 +1000,7 @@ def test_temporal_properties_histories():
         # score's history: (t=5 → 1.5), (t=10 → 2.5); each entry is
         # (RemoteEventTime, value) and the EventTime compares to its int ts.
         score_hist = hs["score"]
-        assert [(t.timestamp, v) for t, v in score_hist] == [(5, 1.5), (10, 2.5)]
+        assert [(t.t, v) for t, v in score_hist] == [(5, 1.5), (10, 2.5)]
         # consistency: histories()[k] == get(k).items()
         assert score_hist == rg.node("ben").properties.temporal.get("score").items()
     finally:
@@ -1041,7 +1040,7 @@ def test_temporal_property_terminals():
         # history — reuses RemoteHistory
         hist = score.history
         assert hist.count() == 3
-        assert hist.collect()[0].timestamp == 5
+        assert hist.collect()[0].t == 5
     finally:
         server_cm.__exit__(None, None, None)
 
@@ -1060,9 +1059,9 @@ def test_node_properties_basic():
         # keys — all temporal property names.
         assert sorted(props.keys()) == ["active", "score"]
 
-        # contains — bool.
-        assert props.contains("score") is True
-        assert props.contains("nonexistent") is False
+        # membership via `in` (local uses the operator, not a .contains method)
+        assert "score" in props
+        assert "nonexistent" not in props
 
         # get — Optional[RemoteProperty]. For a temporal property, returns
         # the latest value under the current view (t=10 → score=2.5).
@@ -1116,9 +1115,9 @@ def test_node_metadata_basic():
         # keys — all names present.
         assert sorted(md.keys()) == ["active", "level", "role"]
 
-        # contains — bool per key.
-        assert md.contains("role") is True
-        assert md.contains("nonexistent") is False
+        # membership via `in` (local uses the operator, not a .contains method)
+        assert "role" in md
+        assert "nonexistent" not in md
 
         # get — Optional[RemoteProperty], value is native Python type.
         role = md.get("role")
@@ -1218,25 +1217,25 @@ def test_node_in_out_component():
     try:
         # Out-component from ben: {hamza, sam, tom} (descendants, excludes ben).
         out = rg.node("ben").out_component
-        assert sorted(out.ids()) == ["hamza", "sam", "tom"]
+        assert sorted(out.id) == ["hamza", "sam", "tom"]
         assert out.count() == 3
 
         # In-component of tom: {ben, hamza, sam}.
         into_tom = rg.node("tom").in_component
-        assert sorted(into_tom.ids()) == ["ben", "hamza", "sam"]
+        assert sorted(into_tom.id) == ["ben", "hamza", "sam"]
 
         # Sam sits in the middle — in-component {ben, hamza}, out-component {tom}.
-        assert sorted(rg.node("sam").in_component.ids()) == ["ben", "hamza"]
-        assert rg.node("sam").out_component.ids() == ["tom"]
+        assert sorted(rg.node("sam").in_component.id) == ["ben", "hamza"]
+        assert rg.node("sam").out_component.id == ["tom"]
 
         # Terminal node in out-direction: tom's out-component is empty.
-        assert rg.node("tom").out_component.ids() == []
+        assert rg.node("tom").out_component.id == []
         assert rg.node("tom").out_component.count() == 0
 
         # Composes with view — under a window that only sees ben->hamza,
         # ben's out-component shrinks to {hamza}.
         windowed = rg.window(0, 4).node("ben").out_component
-        assert sorted(windowed.ids()) == ["hamza"]
+        assert sorted(windowed.id) == ["hamza"]
 
         # Iteration works.
         names = sorted(n.name for n in rg.node("ben").out_component)
@@ -1262,17 +1261,17 @@ def test_nodes_type_filter():
         # Filter to only "user" nodes.
         users = all_nodes.type_filter(["user"])
         assert users.count() == 1
-        assert users.ids() == ["ben"]
+        assert users.id == ["ben"]
 
         # Filter to multiple types.
         both = all_nodes.type_filter(["user", "bot"])
         assert both.count() == 2
-        assert sorted(both.ids()) == ["ben", "hamza"]
+        assert sorted(both.id) == ["ben", "hamza"]
 
         # Filter to nonexistent type — empty collection.
         empty = all_nodes.type_filter(["nonexistent"])
         assert empty.count() == 0
-        assert empty.ids() == []
+        assert empty.id == []
 
         # Filter is composable — narrow further by a window.
         assert all_nodes.type_filter(["user"]).window(0, 5).count() == 1
@@ -1296,7 +1295,7 @@ def test_nodes_type_filter_with_windowed_view():
         # in [0, 5) window.
         pre_windowed = rg.window(0, 5).nodes.type_filter(["user"])
         assert pre_windowed.count() == 1
-        assert pre_windowed.ids() == ["ben"]
+        assert pre_windowed.id == ["ben"]
 
         # Materialize under the windowed filter — `.collect()` returns handles
         # rebased under the windowed graph. This is the regression path that
@@ -1318,7 +1317,7 @@ def test_nodes_type_filter_with_windowed_view():
 
 
 def test_history_sub_containers():
-    """`history.timestamps`, `.datetimes`, `.event_id`, `.intervals` — four
+    """`history.t`, `.dt`, `.event_id`, `.intervals` — four
     parallel projections of the same events. Timestamps/event_id/intervals
     return `list[int]`; datetimes return `list[str]` (RFC 3339)."""
     server_cm, rg = _make_graph_with_edge()
@@ -1329,11 +1328,11 @@ def test_history_sub_containers():
         h = rg.node("ben").history
 
         # Timestamps view — plain ints
-        assert h.timestamps.collect() == [1, 3, 5, 9]
-        assert h.timestamps.collect_rev() == [9, 5, 3, 1]
+        assert h.t.collect() == [1, 3, 5, 9]
+        assert h.t.collect_rev() == [9, 5, 3, 1]
 
         # DateTimes view — ISO strings, positionally aligned with timestamps
-        dts = h.datetimes.collect()
+        dts = h.dt.collect()
         assert len(dts) == 4
         for s in dts:
             assert "T" in s   # RFC 3339 separator
@@ -1379,7 +1378,7 @@ def test_sub_container_paging():
     rg.add_edge(7, "ben", "hamza")
     rg.add_edge(9, "ben", "hamza")
     try:
-        ts = rg.node("ben").history.timestamps
+        ts = rg.node("ben").history.t
         # Full events: [1, 3, 5, 7, 9]
         assert ts.collect() == [1, 3, 5, 7, 9]
         assert ts.page(limit=2) == [1, 3]
@@ -1406,31 +1405,31 @@ def test_history_page_and_page_rev():
 
         # Full first page — limit=2, no offset, no page_index.
         page = h.page(limit=2)
-        assert [e.timestamp for e in page] == [1, 3]
+        assert [e.t for e in page] == [1, 3]
 
         # Explicit offset — skip 2, take 2.
         page_off = h.page(limit=2, offset=2)
-        assert [e.timestamp for e in page_off] == [5, 7]
+        assert [e.t for e in page_off] == [5, 7]
 
         # page_index=1 with limit=2 → skip 2, take 2 (equivalent to offset=2).
         page_idx = h.page(limit=2, page_index=1)
-        assert [e.timestamp for e in page_idx] == [5, 7]
+        assert [e.t for e in page_idx] == [5, 7]
 
         # page_index=1 with limit=2 AND offset=1 → skip 2+1=3, take 2.
         page_combo = h.page(limit=2, offset=1, page_index=1)
-        assert [e.timestamp for e in page_combo] == [7, 9]
+        assert [e.t for e in page_combo] == [7, 9]
 
         # Limit exceeds remaining — returns whatever is left.
         page_last = h.page(limit=10, offset=3)
-        assert [e.timestamp for e in page_last] == [7, 9]
+        assert [e.t for e in page_last] == [7, 9]
 
         # Reverse — first page in descending order.
         page_rev = h.page_rev(limit=2)
-        assert [e.timestamp for e in page_rev] == [9, 7]
+        assert [e.t for e in page_rev] == [9, 7]
 
         # Reverse with offset.
         page_rev_off = h.page_rev(limit=2, offset=1)
-        assert [e.timestamp for e in page_rev_off] == [7, 5]
+        assert [e.t for e in page_rev_off] == [7, 5]
     finally:
         server_cm.__exit__(None, None, None)
 
@@ -1447,12 +1446,12 @@ def test_edge_history_and_deletions_lists():
         # Deletions has exactly one entry at t=10.
         deletion_events = e.deletions.collect()
         assert len(deletion_events) == 1
-        assert deletion_events[0].timestamp == 10
+        assert deletion_events[0].t == 10
 
         # History exposes non-deletion events.
         history_events = e.history.collect()
         assert len(history_events) >= 1
-        assert all(ev.timestamp is not None for ev in history_events)
+        assert all(ev.t is not None for ev in history_events)
     finally:
         server_cm.__exit__(None, None, None)
 
@@ -1628,13 +1627,13 @@ def test_edges_view_chain_propagates_through_collection_list():
 
 def test_nodes_sorted_by_id():
     """`nodes.sorted([NodeSortBy.by_id()])` returns a nodes collection in
-    id order — verified by `.ids()`. `reverse=True` flips it."""
+    id order — verified by `.id`. `reverse=True` flips it."""
     server_cm, rg = _make_graph_with_edge()
     try:
-        asc = rg.nodes.sorted([NodeSortBy.by_id()]).ids()
+        asc = rg.nodes.sorted([NodeSortBy.by_id()]).id
         assert asc == sorted(asc), f"expected ascending ids, got {asc}"
 
-        desc = rg.nodes.sorted([NodeSortBy.by_id(reverse=True)]).ids()
+        desc = rg.nodes.sorted([NodeSortBy.by_id(reverse=True)]).id
         assert desc == sorted(desc, reverse=True), (
             f"expected descending ids, got {desc}"
         )
@@ -1659,24 +1658,24 @@ def test_nodes_sorted_by_property_and_time():
         rg.add_node(2, "hamza", properties={"score": 1.0})
         rg.add_node(3, "zara", properties={"score": 2.0})
 
-        by_score = rg.nodes.sorted([NodeSortBy.by_property("score")]).ids()
+        by_score = rg.nodes.sorted([NodeSortBy.by_property("score")]).id
         assert by_score == ["hamza", "zara", "ben"], (
             f"expected ascending by score: hamza(1), zara(2), ben(3); got {by_score}"
         )
 
         by_score_desc = rg.nodes.sorted(
             [NodeSortBy.by_property("score", reverse=True)]
-        ).ids()
+        ).id
         assert by_score_desc == ["ben", "zara", "hamza"]
 
         by_earliest = rg.nodes.sorted(
             [NodeSortBy.by_time(SortByTime.EARLIEST)]
-        ).ids()
+        ).id
         assert by_earliest == ["ben", "hamza", "zara"]
 
         by_latest_desc = rg.nodes.sorted(
             [NodeSortBy.by_time(SortByTime.LATEST, reverse=True)]
-        ).ids()
+        ).id
         assert by_latest_desc == ["zara", "hamza", "ben"]
     finally:
         server_cm.__exit__(None, None, None)
@@ -1875,7 +1874,7 @@ def test_remote_path_from_node_terminals():
     server_cm, rg = _make_graph_with_edge()
     try:
         ben = rg.node("ben")
-        assert ben.out_neighbours.ids() == ["hamza"]
+        assert ben.out_neighbours.id == ["hamza"]
         assert ben.out_neighbours.count() == 1
         materialized = ben.out_neighbours.collect()
         assert [n.name for n in materialized] == ["hamza"]
@@ -1895,11 +1894,11 @@ def test_remote_path_from_node_view_chain_composes():
         # `.window()` on the path narrows the view — verified via terminals
         # that walk the collection (ids/list).
         narrowed = rg.node("ben").out_neighbours.window(0, 5)
-        assert narrowed.ids() == ["hamza"]
+        assert narrowed.id == ["hamza"]
 
         # Verify chaining preserves the type and lazy semantics.
         chained = rg.node("ben").out_neighbours.window(0, 100).layer("_default")
-        assert chained.ids() == ["hamza"]
+        assert chained.id == ["hamza"]
     finally:
         server_cm.__exit__(None, None, None)
 
@@ -1914,10 +1913,10 @@ def test_remote_path_from_node_type_filter():
         rg.node("hamza").set_node_type("bot")
         filtered = rg.node("ben").out_neighbours.type_filter(["bot"])
         assert isinstance(filtered, RemotePathFromNode)
-        assert filtered.ids() == ["hamza"]
+        assert filtered.id == ["hamza"]
 
         # Filter to a non-matching type — result should be empty.
-        assert rg.node("ben").out_neighbours.type_filter(["human"]).ids() == []
+        assert rg.node("ben").out_neighbours.type_filter(["human"]).id == []
     finally:
         server_cm.__exit__(None, None, None)
 
@@ -2056,14 +2055,14 @@ def test_select_nodes_not_combinator():
 
 def test_select_nodes_returns_lazy_handle():
     """`.select()` returns a `RemoteNodes` — terminals (`.count()`,
-    `.ids()`, `.collect()`) all work on it."""
+    `.id`, `.collect()`) all work on it."""
     from raphtory.filter import Node
 
     server_cm, rg = _make_filter_graph()
     try:
         narrowed = rg.nodes.select(Node.property("score") >= 10.0)
         assert narrowed.count() == 3
-        assert sorted(narrowed.ids()) == ["alice", "ben", "bob"]
+        assert sorted(narrowed.id) == ["alice", "ben", "bob"]
     finally:
         server_cm.__exit__(None, None, None)
 
@@ -2113,7 +2112,7 @@ def test_filter_nodes_preserves_membership():
     server_cm, rg = _make_filter_graph()
     try:
         # `.filter()` preserves current collection membership.
-        all_ids = sorted(rg.nodes.filter(Node.name() == "ben").ids())
+        all_ids = sorted(rg.nodes.filter(Node.name() == "ben").id)
         assert all_ids == ["alice", "ben", "bob", "hamza"]
     finally:
         server_cm.__exit__(None, None, None)
@@ -2324,7 +2323,7 @@ def test_graph_filter_dispatches_node_filter():
     try:
         # score > 12: alice (20) and bob (15); ben (10) and hamza (5) drop.
         filtered = rg.filter(Node.property("score") > 12.0)
-        assert sorted(filtered.nodes.ids()) == ["alice", "bob"]
+        assert sorted(filtered.nodes.id) == ["alice", "bob"]
     finally:
         server_cm.__exit__(None, None, None)
 
@@ -2355,7 +2354,7 @@ def test_graph_filter_composes_with_view_chain():
         # All four nodes are at t=1..4; window [0,3) keeps ben (t=1) and
         # hamza (t=2). Filter score > 6 then leaves only ben (10).
         filtered = rg.window(0, 3).filter(Node.property("score") > 6.0)
-        assert sorted(filtered.nodes.ids()) == ["ben"]
+        assert sorted(filtered.nodes.id) == ["ben"]
     finally:
         server_cm.__exit__(None, None, None)
 
@@ -2397,7 +2396,7 @@ def test_path_from_node_select_narrows():
         narrowed = rg.node("ben").out_neighbours.select(
             Node.property("score") > 12.0
         )
-        assert sorted(narrowed.ids()) == ["alice", "bob"]
+        assert sorted(narrowed.id) == ["alice", "bob"]
     finally:
         server_cm.__exit__(None, None, None)
 
@@ -2410,7 +2409,7 @@ def test_path_from_node_filter_preserves_membership():
     server_cm, rg = _make_node_filter_graph()
     try:
         kept = rg.node("ben").out_neighbours.filter(Node.property("score") > 12.0)
-        assert sorted(kept.ids()) == ["alice", "bob", "hamza"]
+        assert sorted(kept.id) == ["alice", "bob", "hamza"]
     finally:
         server_cm.__exit__(None, None, None)
 
@@ -2580,7 +2579,7 @@ def test_nodes_out_neighbours_path_from_graph():
         assert isinstance(collected, list)
         assert all(isinstance(row, list) for row in collected)
 
-        ids = path.ids()
+        ids = path.id
         # Nested: list of per-source lists of str.
         assert isinstance(ids, list)
         assert all(isinstance(row, list) for row in ids)
@@ -2703,7 +2702,7 @@ def test_collection_getitem_is_select():
     server_cm, rg = _make_filter_graph()  # 4 nodes with a score property
     try:
         # nodes[<node filter>] == nodes.select(<node filter>)
-        assert sorted(rg.nodes[Node.property("score") > 12.0].ids()) == ["alice", "bob"]
+        assert sorted(rg.nodes[Node.property("score") > 12.0].id) == ["alice", "bob"]
     finally:
         server_cm.__exit__(None, None, None)
 
@@ -2736,21 +2735,21 @@ def test_node_edge_getitem_property():
 
 
 def test_event_time_fields():
-    """`EventTime` exposes `.timestamp`, `.event_id`, `.dt` (a real
+    """`EventTime` exposes `.t`, `.event_id`, `.dt` (a real
     `datetime`), and `.as_tuple` — mirroring the local `EventTime`."""
     import datetime as _dt
 
     server_cm, rg = _make_graph_with_edge()  # ben added at t=1
     try:
         et = rg.node("ben").earliest_time  # property → RemoteEventTime
-        assert et.timestamp == 1
+        assert et.t == 1
         assert et == 1  # richcmp against int (by timestamp)
         assert isinstance(et.event_id, int)
         # .dt is a real datetime (not a string), matching local EventTime.dt
         assert isinstance(et.dt, _dt.datetime)
         assert et.dt.year == 1970
         # .as_tuple == (timestamp, event_id)
-        assert et.as_tuple == (et.timestamp, et.event_id)
+        assert et.as_tuple == (et.t, et.event_id)
     finally:
         server_cm.__exit__(None, None, None)
 
@@ -2764,7 +2763,7 @@ def test_add_properties_event_id():
 
         tp = rg.properties.temporal.get("score")
         assert tp is not None
-        at_100 = [e for e in tp.history.collect() if e.timestamp == 100]
+        at_100 = [e for e in tp.history.collect() if e.t == 100]
         assert len(at_100) == 1
         assert at_100[0].event_id == 7  # the locked index, not an auto-increment
 
@@ -2891,8 +2890,8 @@ def test_combined_history():
 
         assert ch.count() >= 1
         assert ch.count() == hamza_hist.count()
-        assert sorted(e.timestamp for e in ch.collect()) == sorted(
-            e.timestamp for e in hamza_hist.collect()
+        assert sorted(e.t for e in ch.collect()) == sorted(
+            e.t for e in hamza_hist.collect()
         )
     finally:
         server_cm.__exit__(None, None, None)
@@ -2905,10 +2904,10 @@ def test_history_reverse():
     rg.add_edge(8, "ben", "hamza")
     try:
         h = rg.node("ben").history
-        forward = [e.timestamp for e in h.collect()]
-        reversed_collect = [e.timestamp for e in h.reverse().collect()]
+        forward = [e.t for e in h.collect()]
+        reversed_collect = [e.t for e in h.reverse().collect()]
 
-        assert reversed_collect == [e.timestamp for e in h.collect_rev()]
+        assert reversed_collect == [e.t for e in h.collect_rev()]
         assert reversed_collect == list(reversed(forward))
     finally:
         server_cm.__exit__(None, None, None)
@@ -2930,13 +2929,13 @@ def test_temporal_property_items():
 
         # One pair per update, aligned with history + values.
         assert len(items) == len(vals) == len(hist)
-        assert [t.timestamp for (t, _v) in items] == [e.timestamp for e in hist]
+        assert [t.t for (t, _v) in items] == [e.t for e in hist]
         assert [v for (_t, v) in items] == vals
 
         # __iter__ yields the same pairs.
-        via_iter = [(t.timestamp, v) for (t, v) in score]
+        via_iter = [(t.t, v) for (t, v) in score]
         assert via_iter == [
-            (e.timestamp, v) for e, v in zip(hist, vals)
+            (e.t, v) for e, v in zip(hist, vals)
         ]
     finally:
         server_cm.__exit__(None, None, None)
@@ -3028,27 +3027,32 @@ def test_collection_edge_history_count():
 # ---------------------------------------------------------------------------
 
 
-def test_event_time_t_alias():
-    """`RemoteEventTime.t` is a getter aliasing `timestamp` (local `EventTime.t`)."""
+def test_event_time_t():
+    """`RemoteEventTime.t` returns the timestamp, mirroring local `EventTime.t`.
+    Local exposes only `.t` — there is no `.timestamp`."""
     server_cm, rg = _make_graph_with_edge()
     try:
         et = rg.node("ben").history.earliest_time()
-        assert et.t == et.timestamp == 1
+        assert et.t == 1
+        # strict parity: the non-local name is gone.
+        assert not hasattr(et, "timestamp")
     finally:
         server_cm.__exit__(None, None, None)
 
 
-def test_history_t_dt_aliases():
-    """`History.t`/`History.dt` getters return the same sub-collection types as
-    `timestamps`/`datetimes`."""
+def test_history_t_dt():
+    """`History.t` / `History.dt` return the timestamp / datetime sub-collections,
+    mirroring local `History.t` / `History.dt`. Local exposes only `.t`/`.dt` —
+    there is no `.timestamps`/`.datetimes`."""
     server_cm, rg = _make_graph_with_edge()
     try:
         h = rg.node("ben").history
-        assert type(h.t) is type(h.timestamps)
-        assert type(h.dt) is type(h.datetimes)
-        # same underlying data
-        assert h.t.collect() == h.timestamps.collect()
-        assert h.dt.collect() == h.datetimes.collect()
+        # `.t` is the int-timestamp view; `.dt` the datetime view.
+        assert h.t.collect() == [e.t for e in h]
+        assert len(h.dt.collect()) == len(h.t.collect())
+        # strict parity: the non-local names are gone.
+        assert not hasattr(h, "timestamps")
+        assert not hasattr(h, "datetimes")
     finally:
         server_cm.__exit__(None, None, None)
 
@@ -3063,10 +3067,10 @@ def test_history_sequence_dunders():
         assert len(h) == 3
 
         # __getitem__ returns the i-th RemoteEventTime; negative indexing works.
-        assert h[0].timestamp == 1
-        assert h[2].timestamp == 8
-        assert h[-1].timestamp == 8
-        assert h[-3].timestamp == 1
+        assert h[0].t == 1
+        assert h[2].t == 8
+        assert h[-1].t == 8
+        assert h[-3].t == 1
 
         with pytest.raises(IndexError):
             _ = h[3]
@@ -3080,19 +3084,19 @@ def test_history_sequence_dunders():
         assert 999 not in h
 
         # __reversed__ — descending order.
-        assert [e.timestamp for e in reversed(h)] == [8, 3, 1]
+        assert [e.t for e in reversed(h)] == [8, 3, 1]
     finally:
         server_cm.__exit__(None, None, None)
 
 
 def test_history_subcollection_dunders_and_to_list():
-    """Sub-collections (`timestamps`, `event_id`, `intervals`, `datetimes`)
-    support the sequence protocol; the int-valued ones also expose
-    `to_list`/`to_list_rev` aliases of `collect`/`collect_rev`."""
+    """Sub-collections (`t`, `event_id`, `intervals`, `dt`) support the sequence
+    protocol; the int-valued ones also expose `to_list`/`to_list_rev` aliases of
+    `collect`/`collect_rev`."""
     server_cm, rg = _make_graph_with_edge()
     rg.add_edge(8, "ben", "hamza")  # ben events at t=1, 3, 8
     try:
-        ts = rg.node("ben").history.timestamps
+        ts = rg.node("ben").history.t
         assert len(ts) == 3
         assert ts[0] == 1
         assert ts[-1] == 8
@@ -3103,7 +3107,7 @@ def test_history_subcollection_dunders_and_to_list():
         with pytest.raises(IndexError):
             _ = ts[5]
 
-        # to_list / to_list_rev aliases (timestamps, event_id, intervals)
+        # to_list / to_list_rev aliases (t, event_id, intervals)
         assert ts.to_list() == ts.collect() == [1, 3, 8]
         assert ts.to_list_rev() == ts.collect_rev() == [8, 3, 1]
 
@@ -3125,7 +3129,7 @@ def test_history_subcollection_dunders_and_to_list():
         assert list(reversed(intervals)) == intervals.collect_rev()
 
         # datetimes: sequence protocol but NO to_list (matches local).
-        dts = rg.node("ben").history.datetimes
+        dts = rg.node("ben").history.dt
         assert len(dts) == 3
         assert list(dts) == dts.collect()
         assert dts[0] == dts.collect()[0]

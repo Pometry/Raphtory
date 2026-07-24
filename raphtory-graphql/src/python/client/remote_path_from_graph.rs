@@ -218,16 +218,6 @@ impl PyRemotePathFromGraph {
         PyRemoteNestedEdges::new(self.path.out_edges())
     }
 
-    /// Returns the nested list of node ids in this collection — one inner list
-    /// per source node. Fires one RPC.
-    ///
-    /// Returns:
-    ///   list[list[str]]: the ids grouped per source node.
-    pub fn ids(&self) -> Result<Vec<Vec<String>>, ClientError> {
-        let path = Arc::clone(&self.path);
-        execute_async_task(move || async move { path.ids().await })
-    }
-
     /// The id of each neighbour, grouped per source node. Property — attribute
     /// access fires one RPC.
     #[getter]

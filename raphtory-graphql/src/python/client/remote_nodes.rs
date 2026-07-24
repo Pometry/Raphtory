@@ -237,17 +237,6 @@ impl PyRemoteNodes {
         PyRemoteNestedEdges::new(self.nodes.out_edges())
     }
 
-    /// Returns the list of node ids in this collection.
-    ///
-    /// Fires one RPC.
-    ///
-    /// Returns:
-    ///   list[str]: the ids of the nodes.
-    pub fn ids(&self) -> Result<Vec<String>, ClientError> {
-        let nodes = Arc::clone(&self.nodes);
-        execute_async_task(move || async move { nodes.ids().await })
-    }
-
     /// The id of each node in this collection. Property — attribute access
     /// fires one RPC.
     ///

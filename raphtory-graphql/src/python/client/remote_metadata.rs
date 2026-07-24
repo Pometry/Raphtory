@@ -65,11 +65,6 @@ impl PyRemoteMetadata {
         result.map(|p| prop_to_py(py, p.value)).transpose()
     }
 
-    /// Whether a metadata entry with this key exists. Fires one RPC.
-    pub fn contains(&self, key: String) -> Result<bool, ClientError> {
-        let inner = Arc::clone(&self.inner);
-        execute_async_task(move || async move { inner.contains(key).await })
-    }
 
     /// All metadata keys present on this entity. Fires one RPC.
     pub fn keys(&self) -> Result<Vec<String>, ClientError> {
@@ -183,11 +178,6 @@ impl PyRemoteProperties {
         result.map(|p| prop_to_py(py, p.value)).transpose()
     }
 
-    /// Whether a property with this key exists. Fires one RPC.
-    pub fn contains(&self, key: String) -> Result<bool, ClientError> {
-        let inner = Arc::clone(&self.inner);
-        execute_async_task(move || async move { inner.contains(key).await })
-    }
 
     /// All property keys in the current view. Fires one RPC.
     pub fn keys(&self) -> Result<Vec<String>, ClientError> {
@@ -317,11 +307,6 @@ impl PyRemoteTemporalProperties {
         }))
     }
 
-    /// Whether a temporal property with this key exists. Fires one RPC.
-    pub fn contains(&self, key: String) -> Result<bool, ClientError> {
-        let inner = Arc::clone(&self.inner);
-        execute_async_task(move || async move { inner.contains(key).await })
-    }
 
     /// All temporal property keys. Fires one RPC.
     pub fn keys(&self) -> Result<Vec<String>, ClientError> {
@@ -408,7 +393,8 @@ impl PyRemoteTemporalProperties {
     /// `key in td` — whether a temporal property with this key exists.
     /// Fires one RPC.
     fn __contains__(&self, key: String) -> Result<bool, ClientError> {
-        self.contains(key)
+        let inner = Arc::clone(&self.inner);
+        execute_async_task(move || async move { inner.contains(key).await })
     }
 
     /// `len(td)` — number of temporal property keys. Fires one RPC.

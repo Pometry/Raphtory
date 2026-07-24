@@ -220,12 +220,6 @@ impl PyRemotePathFromNode {
         PyRemoteEdges::new(self.path.out_edges())
     }
 
-    /// Returns the list of node ids in this collection. Fires one RPC.
-    pub fn ids(&self) -> Result<Vec<String>, ClientError> {
-        let path = Arc::clone(&self.path);
-        execute_async_task(move || async move { path.ids().await })
-    }
-
     /// The id of each node in this path. Property — attribute access fires one RPC.
     #[getter]
     pub fn id(&self) -> Result<Vec<String>, ClientError> {
