@@ -10,7 +10,7 @@ use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::entities::LayerId;
 use raphtory_core::entities::VID;
 use rayon::prelude::*;
-use std::ops::DerefMut;
+use std::{ops::DerefMut, path::Path};
 
 #[derive(Debug)]
 pub struct LockedNodePage<'a, NS> {
@@ -128,6 +128,18 @@ impl<'a, EXT: PersistenceStrategy<NS = NS>, NS: NodeSegmentOps<Extension = EXT>>
             let LockedNodePage { page, lock, .. } = writer;
             page.vacuum(lock.deref_mut())
         })?;
+        Ok(())
+    }
+
+    pub fn copy_to(&self, dst: &Path) -> Result<(), StorageError> {
+        std::fs::create_dir_all(dst)?;
+
+        for writer in &self.writers {
+            let segment_dst = dst.join(writer.segment_id().to_string());
+            std::fs::create_dir_all(&segment_dst)?;
+            writer.segment().copy_to(&segment_dst)?;
+        }
+
         Ok(())
     }
 }

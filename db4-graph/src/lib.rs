@@ -485,4 +485,14 @@ where
     pub fn node_stats(&self) -> &Arc<GraphStats> {
         self.graph.storage().nodes().stats()
     }
+
+    pub fn copy_to(&self, dst: impl AsRef<Path>) -> Result<(), StorageError> {
+        let dst = dst.as_ref();
+
+        self.nodes.copy_to(&dst.join("nodes"))?;
+        self.edges.copy_to(&dst.join("edges"))?;
+        self.graph_props.copy_to(&dst.join("graph_props"))?;
+
+        Ok(())
+    }
 }
