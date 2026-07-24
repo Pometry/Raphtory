@@ -1,6 +1,7 @@
 use arrow_schema::{ArrowError, DataType};
 use serde::{Deserialize, Serialize};
 use std::{
+    cell::LazyCell,
     collections::HashMap,
     fmt::{self, Display, Formatter},
     str::FromStr,
@@ -76,6 +77,18 @@ impl Display for PropType {
     }
 }
 
+const CONTAINER_SIZE: LazyCell<usize> = LazyCell::new(|| {
+    std::env::var("RAPHTORY_PROP_CONTAINER_SIZE")
+        .ok()
+        .map(|size| {
+            size.parse::<usize>().unwrap_or_else(|_| {
+                eprintln!("RAPHTORY_PROP_CONTAINER_SIZE not set or invalid, defaulting to 64");
+                64
+            })
+        })
+        .unwrap_or(64)
+});
+
 impl PropType {
     pub fn inner(&self) -> Option<&PropType> {
         match self {
@@ -142,17 +155,17 @@ impl PropType {
 
     // This is the best guess for the size of one row of properties
     pub fn est_size(&self) -> usize {
-        const CONTAINER_SIZE: usize = 64;
+        let container_size = *CONTAINER_SIZE;
         match self {
-            PropType::Str => CONTAINER_SIZE,
+            PropType::Str => container_size,
             PropType::U8 | PropType::Bool => 1,
             PropType::U16 => 2,
             PropType::I32 | PropType::F32 | PropType::U32 => 4,
             PropType::I64 | PropType::F64 | PropType::U64 => 8,
             PropType::NDTime | PropType::DTime => 8,
-            PropType::List(p_type) => p_type.est_size() * CONTAINER_SIZE,
+            PropType::List(p_type) => p_type.est_size() * container_size,
             PropType::Map(p_map) => {
-                p_map.values().map(|v| v.est_size()).sum::<usize>() * CONTAINER_SIZE
+                p_map.values().map(|v| v.est_size()).sum::<usize>() * container_size
             }
             PropType::Decimal { .. } => 16,
             PropType::Empty => 0,
@@ -241,7 +254,7 @@ impl FromStr for PropType {
 
 pub mod arrow {
     use crate::core::entities::properties::prop::{PropType, EMPTY_MAP_FIELD_NAME};
-    use arrow_schema::{DataType, TimeUnit};
+    use arrow_schema::{DataType, Field, Fields, TimeUnit};
 
     impl From<&DataType> for PropType {
         fn from(value: &DataType) -> Self {
@@ -275,6 +288,55 @@ pub mod arrow {
                 DataType::Null => PropType::Empty,
                 dtype => panic!("unsupported type {dtype:?}"),
             }
+        }
+    }
+
+    impl From<&PropType> for DataType {
+        fn from(value: &PropType) -> Self {
+            match value {
+                PropType::Str => DataType::Utf8View,
+                PropType::U8 => DataType::UInt8,
+                PropType::U16 => DataType::UInt16,
+                PropType::I32 => DataType::Int32,
+                PropType::I64 => DataType::Int64,
+                PropType::U32 => DataType::UInt32,
+                PropType::U64 => DataType::UInt64,
+                PropType::F32 => DataType::Float32,
+                PropType::F64 => DataType::Float64,
+                PropType::Decimal { scale } => {
+                    DataType::Decimal128(38, (*scale).try_into().unwrap())
+                }
+                PropType::Bool => DataType::Boolean,
+                PropType::NDTime => DataType::Timestamp(TimeUnit::Millisecond, None),
+                PropType::DTime => DataType::Timestamp(TimeUnit::Millisecond, Some("UTC".into())),
+                PropType::List(p_type) => DataType::LargeList(
+                    Field::new("data", DataType::from(p_type.as_ref()), true).into(),
+                ),
+                PropType::Map(p_type) => {
+                    let mut fields = p_type
+                        .iter()
+                        .map(|(name, p_type)| Field::new(name, DataType::from(p_type), true))
+                        .collect::<Vec<_>>();
+                    fields.sort_by(|l, r| l.name().cmp(r.name()));
+
+                    if fields.is_empty() {
+                        DataType::Struct(Fields::from_iter([Field::new(
+                            EMPTY_MAP_FIELD_NAME,
+                            DataType::Null,
+                            true,
+                        )]))
+                    } else {
+                        DataType::Struct(fields.into())
+                    }
+                }
+                PropType::Empty => DataType::Null,
+            }
+        }
+    }
+
+    impl From<PropType> for DataType {
+        fn from(value: PropType) -> Self {
+            DataType::from(&value)
         }
     }
 }
@@ -402,6 +464,8 @@ pub fn check_for_unification(l: &PropType, r: &PropType) -> Option<bool> {
 #[cfg(test)]
 mod test {
     use super::*;
+    use arrow_schema::{DataType, Field, Fields, TimeUnit};
+    use proptest::{collection::btree_map, prelude::*};
 
     #[test]
     fn test_unify_types_ne() {
@@ -533,5 +597,75 @@ mod test {
         println!("Map = {size}");
         let size = size_of::<PropError>();
         println!("PropError = {size}")
+    }
+
+    fn field_name() -> impl Strategy<Value = String> {
+        proptest::string::string_regex("[a-z][a-z0-9_]{0,6}")
+            .unwrap()
+            .prop_filter("not the empty map sentinel", |name| {
+                name != crate::core::entities::properties::prop::EMPTY_MAP_FIELD_NAME
+            })
+    }
+
+    fn canonical_data_type() -> impl Strategy<Value = DataType> {
+        let leaf = prop_oneof![
+            Just(DataType::Boolean),
+            Just(DataType::Int32),
+            Just(DataType::Int64),
+            Just(DataType::UInt8),
+            Just(DataType::UInt16),
+            Just(DataType::UInt32),
+            Just(DataType::UInt64),
+            Just(DataType::Float32),
+            Just(DataType::Float64),
+            Just(DataType::Utf8View),
+            Just(DataType::Timestamp(TimeUnit::Millisecond, None)),
+            Just(DataType::Timestamp(
+                TimeUnit::Millisecond,
+                Some("UTC".into())
+            )),
+            (0i8..=38).prop_map(|scale| DataType::Decimal128(38, scale)),
+            Just(DataType::Null),
+        ];
+
+        leaf.prop_recursive(4, 64, 4, |inner| {
+            prop_oneof![
+                inner.clone().prop_map(|data_type| DataType::LargeList(
+                    Field::new("data", data_type, true).into()
+                )),
+                btree_map(field_name(), inner, 0..4).prop_map(|fields| {
+                    if fields.is_empty() {
+                        DataType::Struct(Fields::from_iter([Field::new(
+                            crate::core::entities::properties::prop::EMPTY_MAP_FIELD_NAME,
+                            DataType::Null,
+                            true,
+                        )]))
+                    } else {
+                        DataType::Struct(
+                            fields
+                                .into_iter()
+                                .map(|(name, data_type)| Field::new(name, data_type, true))
+                                .collect::<Vec<_>>()
+                                .into(),
+                        )
+                    }
+                }),
+            ]
+        })
+    }
+
+    proptest! {
+        #[test]
+        fn data_type_to_prop_type_to_data_type_is_transitive(data_type in canonical_data_type()) {
+            prop_assert_eq!(DataType::from(PropType::from(&data_type)), data_type);
+        }
+
+        #[test]
+        fn prop_type_to_data_type_to_prop_type_is_transitive(data_type in canonical_data_type()) {
+            let prop_type = PropType::from(&data_type);
+            let round_tripped: DataType = (&prop_type).into();
+
+            prop_assert_eq!(PropType::from(&round_tripped), prop_type);
+        }
     }
 }

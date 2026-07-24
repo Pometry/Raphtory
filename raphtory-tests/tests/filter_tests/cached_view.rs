@@ -27,17 +27,10 @@ impl GraphTransformer for WindowedCachedGraphTransformer {
 }
 
 mod test_nodes_filters_cached_view_graph {
-    use raphtory::{
-        db::{
-            api::view::StaticGraphViewOps,
-            graph::views::filter::model::{
-                node_filter::NodeFilter, property_filter::ops::PropertyFilterOps,
-                PropertyFilterFactory,
-            },
-        },
-        prelude::AdditionOps,
+    use raphtory::db::graph::views::filter::model::{
+        node_filter::NodeFilter, property_filter::ops::PropertyFilterOps, PropertyFilterFactory,
     };
-    use raphtory_api::core::entities::properties::prop::Prop;
+
     use raphtory_tests::assertions::{
         assert_filter_nodes_results, assert_search_nodes_results, TestGraphVariants, TestVariants,
     };
@@ -111,11 +104,8 @@ mod test_nodes_filters_cached_view_graph {
 }
 
 mod test_edges_filter_cached_view_graph {
-    use raphtory::{
-        db::api::view::StaticGraphViewOps,
-        prelude::{AdditionOps, EdgeFilter},
-    };
-    use raphtory_api::core::entities::properties::prop::Prop;
+    use raphtory::prelude::EdgeFilter;
+
     use raphtory_tests::assertions::{
         assert_filter_edges_results, assert_search_edges_results, TestVariants,
     };

@@ -1,6 +1,5 @@
 use crate::{
-    data::{Data, WorkDirGuard},
-    graph::GraphWithVectors,
+    data::Data,
     model::graph::property::GqlProperty,
     paths::{ExistingGraphFolder, ValidGraphPaths},
 };
@@ -13,8 +12,8 @@ use raphtory::{
     serialise::{metadata::build_graph_metadata, parquet::decode_graph_metadata},
 };
 use raphtory_api::core::storage::graph_folder::{GraphMetadata, GraphPaths};
-use std::{cmp::Ordering, path::PathBuf, sync::Arc};
-use tokio::sync::{OnceCell, OwnedRwLockReadGuard, RwLockReadGuard};
+use std::{cmp::Ordering, sync::Arc};
+use tokio::sync::OnceCell;
 
 /// Lightweight summary of a stored graph — its name, path, counts, and
 /// filesystem timestamps — served without deserializing the full graph.

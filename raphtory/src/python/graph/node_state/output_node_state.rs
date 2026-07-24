@@ -316,7 +316,6 @@ impl PyOutputNodeState {
                                 .clone(),
                         )
                     })
-                    .into_iter()
                     .collect(),
             )
         }

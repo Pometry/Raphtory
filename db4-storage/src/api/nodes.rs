@@ -346,7 +346,7 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
                             current_row.extend(maybe_prop);
                         } else {
                             let mut row = std::mem::take(&mut current_row);
-                            row.sort_unstable_by(|(a, _), (b, _)| a.cmp(b));
+                            row.sort_unstable_by_key(|(a, _)| *a);
                             let out = Some((current_time, layer_id, row));
                             current_row.extend(maybe_prop);
                             current_time = t;
