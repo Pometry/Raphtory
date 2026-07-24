@@ -190,7 +190,7 @@ impl Graph {
     #[cfg(feature = "io")]
     pub fn new_at_path_with_config(
         path: &(impl GraphPaths + ?Sized),
-        config_args: ConfigArgs,
+        config: Config,
     ) -> Result<Self, GraphError> {
         if !Extension::disk_storage_enabled() {
             return Err(GraphError::DiskGraphNotEnabled);
@@ -198,7 +198,6 @@ impl Graph {
 
         path.init()?;
 
-        let config = config_args.into_config(); 
         let graph = Self {
             inner: Arc::new(Storage::new_at_path_with_config(
                 path.graph_path()?,

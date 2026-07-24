@@ -116,8 +116,7 @@ impl PersistentGraph {
     ///
     /// let g = PersistentGraph::new_with_config(Config::default().with_max_node_page_len(262144)).unwrap();
     /// ```
-    pub fn new_with_config(config_args: ConfigArgs) -> Result<Self, GraphError> {
-        let config = config_args.into_config();
+    pub fn new_with_config(config: Config) -> Result<Self, GraphError> {
         Ok(Self(Arc::new(Storage::new_with_config(config)?)))
     }
 
@@ -135,13 +134,12 @@ impl PersistentGraph {
     #[cfg(feature = "io")]
     pub fn new_at_path_with_config(
         path: &(impl GraphPaths + ?Sized),
-        config_args: ConfigArgs,
+        config: Config
     ) -> Result<Self, GraphError> {
         if !Extension::disk_storage_enabled() {
             return Err(GraphError::DiskGraphNotEnabled);
         }
         path.init()?;
-        let config = config_args.into_config();
         let graph = Self(Arc::new(Storage::new_at_path_with_config(
             path.graph_path()?,
             config,
