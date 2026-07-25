@@ -32,7 +32,16 @@ use crate::{
         server::{running_server::PyRunningGraphServer, server::PyGraphServer},
     },
 };
-use pyo3::prelude::*;
+use pyo3::{create_exception, exceptions::PyException, prelude::*};
+
+create_exception!(
+    raphtory.graphql,
+    RemotePermissionError,
+    PyException,
+    "Raised when the server denies a request for lack of permission. A denied \
+     request is distinct from a missing graph: a forbidden-but-hidden graph is \
+     reported as not found, never as this error."
+);
 
 /// Returns True if the permissions extension (raphtory-auth) is compiled in.
 ///
@@ -84,6 +93,11 @@ pub fn base_graphql_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyErr>
     graphql_module.add_class::<PySortByTime>()?;
     graphql_module.add_class::<PyNodeSortBy>()?;
     graphql_module.add_class::<PyEdgeSortBy>()?;
+
+    graphql_module.add(
+        "RemotePermissionError",
+        py.get_type::<RemotePermissionError>(),
+    )?;
 
     graphql_module.add_function(wrap_pyfunction!(encode_graph, &graphql_module)?)?;
     graphql_module.add_function(wrap_pyfunction!(decode_graph, &graphql_module)?)?;

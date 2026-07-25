@@ -14,6 +14,11 @@ pub struct PermissionsEntrypointMut;
 
 /// Conditionally adds the `permissions` field to the root Query type.
 /// Only registers when `register_permissions_query_entrypoint()` has been called.
+///
+/// The entrypoint itself is not admin-gated: each query field under it enforces
+/// its own access check. Admin-only fields (`listRoles`, `getRole`) require write
+/// access, while `myPermissions` returns only the caller's own grants and is
+/// therefore reachable by any authenticated caller.
 pub struct PermissionsEntrypointQuery;
 
 impl Register for PermissionsEntrypointMut {
@@ -47,9 +52,10 @@ impl Register for PermissionsEntrypointQuery {
             obj.field(Field::new(
                 "permissions",
                 TypeRef::named_nn("PermissionsQueryPlugin"),
-                |ctx| {
+                |_ctx| {
                     FieldFuture::new(async move {
-                        require_jwt_write_access_dynamic(&ctx)?;
+                        // Access is enforced per-field: admin-only fields check
+                        // write access themselves; `myPermissions` is self-scoped.
                         Ok(Some(FieldValue::owned_any(
                             PermissionsQueryPlugin::default(),
                         )))

@@ -1,7 +1,10 @@
 use crate::{
     auth::ContextValidation,
     auth_policy::{AuthorizationPolicy, NamespacePermission},
-    data::{parent_namespace, require_graph_write, Data, GqlGraphType, PermissionError},
+    data::{
+        gql_error_with_code, parent_namespace, require_graph_write, Data, GqlGraphType,
+        PermissionError, CODE_ACCESS_DENIED,
+    },
     model::{
         graph::{
             collection::GqlCollection, graph::GqlGraph, index::IndexSpecInput,
@@ -136,7 +139,9 @@ fn require_namespace_write(
     operation: &str,
 ) -> Result<()> {
     match policy {
-        None => ctx.require_jwt_write_access().map_err(Into::into),
+        None => ctx
+            .require_jwt_write_access()
+            .map_err(|e| gql_error_with_code(e.to_string(), CODE_ACCESS_DENIED)),
         Some(p) => {
             if p.namespace_permissions(ctx, ns_path) < Some(NamespacePermission::Write) {
                 return Err(PermissionError::NamespaceWriteRequired {
@@ -144,7 +149,7 @@ fn require_namespace_write(
                     graph: new_path.to_string(),
                     operation: operation.to_string(),
                 }
-                .into());
+                .into_gql_error());
             }
             Ok(())
         }

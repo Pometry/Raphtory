@@ -8,6 +8,12 @@ use serde_json::{json, Value as JsonValue};
 use std::{collections::HashMap, io::Cursor};
 use url::Url;
 
+/// Extract the machine-readable `extensions.code` from a single GraphQL error
+/// object, if present.
+fn error_code(error: &JsonValue) -> Option<&str> {
+    error.get("extensions")?.get("code")?.as_str()
+}
+
 /// Client for interacting with a Raphtory GraphQL server.
 #[derive(Clone, Debug)]
 pub struct RemoteClient {
@@ -51,6 +57,17 @@ impl RemoteClient {
         }
 
         Ok(Self { url, token, client })
+    }
+
+    /// Return a copy of this client that authenticates with `token` instead of
+    /// the current one. Purely client-side — performs no server round-trip and
+    /// reuses the same underlying HTTP connection pool.
+    pub fn with_token(&self, token: impl Into<String>) -> Self {
+        Self {
+            url: self.url.clone(),
+            token: token.into(),
+            client: self.client.clone(),
+        }
     }
 
     /// Returns true if the server could be reached and returns a healthy response.
@@ -108,7 +125,32 @@ impl RemoteClient {
         let mut graphql_result: HashMap<String, JsonValue> = response.json().await?;
 
         if let Some(errors) = graphql_result.remove("errors") {
-            let message = match errors {
+            // Classify by the structured `extensions.code` the server attaches, so
+            // the client keys off structure rather than message wording.
+            let mut access_denied = false;
+            let mut graph_not_found = false;
+            let mut not_found_message: Option<String> = None;
+            if let JsonValue::Array(error_objects) = &errors {
+                for error in error_objects {
+                    match error_code(error) {
+                        Some("ACCESS_DENIED")
+                        | Some("INTROSPECT_ONLY")
+                        | Some("WRITE_REQUIRED") => access_denied = true,
+                        Some("GRAPH_NOT_FOUND") => {
+                            graph_not_found = true;
+                            if not_found_message.is_none() {
+                                not_found_message = error
+                                    .get("message")
+                                    .and_then(|m| m.as_str())
+                                    .map(str::to_owned);
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+
+            let message = match &errors {
                 JsonValue::Array(errors) => errors
                     .iter()
                     .map(|e| format!("{}", e))
@@ -116,6 +158,24 @@ impl RemoteClient {
                     .join("\n\t"),
                 _ => format!("{}", errors),
             };
+
+            // A forbidden-but-hidden graph reports GRAPH_NOT_FOUND exactly as a
+            // genuinely missing graph does. Surface both as the same not-found
+            // error and never as a permission error, so the two stay
+            // indistinguishable to the caller.
+            if graph_not_found && !access_denied {
+                return Err(ClientError::NotFound(
+                    not_found_message.unwrap_or_else(|| "Graph".to_owned()),
+                ));
+            }
+
+            if access_denied {
+                return Err(ClientError::PermissionDenied(format!(
+                    "the server denied the request:\n\t{}",
+                    message
+                )));
+            }
+
             return Err(ClientError::GraphQLErrors(format!(
                 "After sending query to the server:\n\t{}\nGot the following errors:\n\t{}",
                 query, message
@@ -373,5 +433,246 @@ impl RemoteClient {
                 data
             ))),
         }
+    }
+
+    /// Extract the `success` flag from a `{ permissions { <field> { success } } }`
+    /// mutation response. The permission mutations are only present in the schema
+    /// when the server was started with a permissions store, so a missing field
+    /// surfaces as an `InvalidResponse` error.
+    fn permission_success(
+        data: &HashMap<String, JsonValue>,
+        field: &str,
+    ) -> Result<bool, ClientError> {
+        data.get("permissions")
+            .and_then(|p| p.get(field))
+            .and_then(|r| r.get("success"))
+            .and_then(|s| s.as_bool())
+            .ok_or_else(|| {
+                ClientError::InvalidResponse(format!(
+                    "Expected 'permissions.{field}.success' in server response, got: {data:?}"
+                ))
+            })
+    }
+
+    /// Create a role in the permissions store.
+    pub async fn create_role(&self, name: &str) -> Result<bool, ClientError> {
+        let query = r#"
+            mutation CreateRole($name: String!) {
+              permissions { createRole(name: $name) { success } }
+            }"#
+        .to_owned();
+        let variables: HashMap<String, JsonValue> =
+            [("name".to_owned(), json!(name))].into_iter().collect();
+        let data = self.query(&query, variables).await?;
+        Self::permission_success(&data, "createRole")
+    }
+
+    /// Delete a role from the permissions store.
+    pub async fn delete_role(&self, name: &str) -> Result<bool, ClientError> {
+        let query = r#"
+            mutation DeleteRole($name: String!) {
+              permissions { deleteRole(name: $name) { success } }
+            }"#
+        .to_owned();
+        let variables: HashMap<String, JsonValue> =
+            [("name".to_owned(), json!(name))].into_iter().collect();
+        let data = self.query(&query, variables).await?;
+        Self::permission_success(&data, "deleteRole")
+    }
+
+    /// Grant a permission level on a single graph path to a role. `permission`
+    /// must be one of the `GraphPermission` enum literals (`READ`, `WRITE`,
+    /// `INTROSPECT`).
+    pub async fn grant_graph(
+        &self,
+        role: &str,
+        path: &str,
+        permission: &str,
+    ) -> Result<bool, ClientError> {
+        let query = r#"
+            mutation GrantGraph($role: String!, $path: String!, $permission: GraphPermission!) {
+              permissions { grantGraph(role: $role, path: $path, permission: $permission) { success } }
+            }"#
+        .to_owned();
+        let variables: HashMap<String, JsonValue> = [
+            ("role".to_owned(), json!(role)),
+            ("path".to_owned(), json!(path)),
+            ("permission".to_owned(), json!(permission)),
+        ]
+        .into_iter()
+        .collect();
+        let data = self.query(&query, variables).await?;
+        Self::permission_success(&data, "grantGraph")
+    }
+
+    /// Revoke a role's access to a single graph path.
+    pub async fn revoke_graph(&self, role: &str, path: &str) -> Result<bool, ClientError> {
+        let query = r#"
+            mutation RevokeGraph($role: String!, $path: String!) {
+              permissions { revokeGraph(role: $role, path: $path) { success } }
+            }"#
+        .to_owned();
+        let variables: HashMap<String, JsonValue> = [
+            ("role".to_owned(), json!(role)),
+            ("path".to_owned(), json!(path)),
+        ]
+        .into_iter()
+        .collect();
+        let data = self.query(&query, variables).await?;
+        Self::permission_success(&data, "revokeGraph")
+    }
+
+    /// Grant a permission level on a namespace path to a role. `permission`
+    /// must be one of the `GraphPermission` enum literals (`READ`, `WRITE`,
+    /// `INTROSPECT`). When `recursive` is true the grant is applied to every
+    /// currently existing descendant of the namespace.
+    pub async fn grant_namespace(
+        &self,
+        role: &str,
+        path: &str,
+        permission: &str,
+        recursive: bool,
+    ) -> Result<bool, ClientError> {
+        let query = r#"
+            mutation GrantNamespace($role: String!, $path: String!, $permission: GraphPermission!, $recursive: Boolean) {
+              permissions { grantNamespace(role: $role, path: $path, permission: $permission, recursive: $recursive) { success } }
+            }"#
+        .to_owned();
+        let variables: HashMap<String, JsonValue> = [
+            ("role".to_owned(), json!(role)),
+            ("path".to_owned(), json!(path)),
+            ("permission".to_owned(), json!(permission)),
+            ("recursive".to_owned(), json!(recursive)),
+        ]
+        .into_iter()
+        .collect();
+        let data = self.query(&query, variables).await?;
+        Self::permission_success(&data, "grantNamespace")
+    }
+
+    /// Revoke a role's access to a namespace path. When `recursive` is true the
+    /// revoke is applied to every currently existing descendant of the namespace.
+    pub async fn revoke_namespace(
+        &self,
+        role: &str,
+        path: &str,
+        recursive: bool,
+    ) -> Result<bool, ClientError> {
+        let query = r#"
+            mutation RevokeNamespace($role: String!, $path: String!, $recursive: Boolean) {
+              permissions { revokeNamespace(role: $role, path: $path, recursive: $recursive) { success } }
+            }"#
+        .to_owned();
+        let variables: HashMap<String, JsonValue> = [
+            ("role".to_owned(), json!(role)),
+            ("path".to_owned(), json!(path)),
+            ("recursive".to_owned(), json!(recursive)),
+        ]
+        .into_iter()
+        .collect();
+        let data = self.query(&query, variables).await?;
+        Self::permission_success(&data, "revokeNamespace")
+    }
+
+    /// Grant a role read-only access to a graph path, restricted by a
+    /// `GraphAccessFilter`. `filter` must be a JSON value matching the
+    /// `GraphAccessFilter` GraphQL input shape.
+    pub async fn grant_graph_filtered_read_only(
+        &self,
+        role: &str,
+        path: &str,
+        filter: JsonValue,
+    ) -> Result<bool, ClientError> {
+        let query = r#"
+            mutation GrantGraphFilteredReadOnly($role: String!, $path: String!, $filter: GraphAccessFilter!) {
+              permissions { grantGraphFilteredReadOnly(role: $role, path: $path, filter: $filter) { success } }
+            }"#
+        .to_owned();
+        let variables: HashMap<String, JsonValue> = [
+            ("role".to_owned(), json!(role)),
+            ("path".to_owned(), json!(path)),
+            ("filter".to_owned(), filter),
+        ]
+        .into_iter()
+        .collect();
+        let data = self.query(&query, variables).await?;
+        Self::permission_success(&data, "grantGraphFilteredReadOnly")
+    }
+
+    /// Return the calling token's own permission grants. Reads only what the
+    /// caller's role has been granted, so it never discloses other roles or
+    /// graphs. The returned object mirrors the `MyPermissions` GraphQL type:
+    /// `{ role, graphs: [{ path, permission, filtered }], namespaces: [{ path, permission }] }`.
+    /// `role` is null when the token carries no role claim.
+    pub async fn my_permissions(&self) -> Result<JsonValue, ClientError> {
+        let query = r#"
+            query MyPermissions {
+              permissions {
+                myPermissions {
+                  role
+                  graphs { path permission filtered }
+                  namespaces { path permission }
+                }
+              }
+            }"#
+        .to_owned();
+        let data = self.query(&query, HashMap::new()).await?;
+        data.get("permissions")
+            .and_then(|p| p.get("myPermissions"))
+            .cloned()
+            .ok_or_else(|| {
+                ClientError::InvalidResponse(format!(
+                    "Expected 'permissions.myPermissions' in server response, got: {data:?}"
+                ))
+            })
+    }
+
+    /// List every role name in the permissions store. Requires an admin
+    /// (write-access) token.
+    pub async fn list_roles(&self) -> Result<Vec<String>, ClientError> {
+        let query = r#"
+            query ListRoles {
+              permissions { listRoles }
+            }"#
+        .to_owned();
+        let data = self.query(&query, HashMap::new()).await?;
+        match data.get("permissions").and_then(|p| p.get("listRoles")) {
+            Some(JsonValue::Array(items)) => Ok(items
+                .iter()
+                .filter_map(|v| v.as_str().map(str::to_owned))
+                .collect()),
+            _ => Err(ClientError::InvalidResponse(format!(
+                "Expected 'permissions.listRoles' array in server response, got: {data:?}"
+            ))),
+        }
+    }
+
+    /// Fetch a single role's grants by name. Returns `null` (`JsonValue::Null`)
+    /// when the role does not exist. Requires an admin (write-access) token.
+    /// The returned object mirrors the `RoleInfo` GraphQL type:
+    /// `{ name, graphs: [{ path, permission }], namespaces: [{ path, permission }] }`.
+    pub async fn get_role(&self, name: &str) -> Result<JsonValue, ClientError> {
+        let query = r#"
+            query GetRole($name: String!) {
+              permissions {
+                getRole(name: $name) {
+                  name
+                  graphs { path permission }
+                  namespaces { path permission }
+                }
+              }
+            }"#
+        .to_owned();
+        let variables: HashMap<String, JsonValue> =
+            [("name".to_owned(), json!(name))].into_iter().collect();
+        let data = self.query(&query, variables).await?;
+        data.get("permissions")
+            .and_then(|p| p.get("getRole"))
+            .cloned()
+            .ok_or_else(|| {
+                ClientError::InvalidResponse(format!(
+                    "Expected 'permissions.getRole' in server response, got: {data:?}"
+                ))
+            })
     }
 }

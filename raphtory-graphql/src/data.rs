@@ -21,7 +21,7 @@ use crate::{
     rayon::blocking_compute,
     GQLError,
 };
-use async_graphql::Context;
+use async_graphql::{Context, ErrorExtensions};
 use dynamic_graphql::Enum;
 use raphtory::{
     db::{
@@ -597,6 +597,46 @@ pub(crate) enum PermissionError {
     },
 }
 
+/// Machine-readable `extensions.code` values attached to authorization errors so
+/// the client classifies failures by structure rather than by message wording.
+///
+/// `GRAPH_NOT_FOUND` must be emitted for both a genuinely missing graph and a
+/// forbidden-but-hidden graph, so the two are byte-for-byte indistinguishable to
+/// an unauthorized caller.
+pub(crate) const CODE_ACCESS_DENIED: &str = "ACCESS_DENIED";
+pub(crate) const CODE_GRAPH_NOT_FOUND: &str = "GRAPH_NOT_FOUND";
+
+/// Build an `async_graphql::Error` carrying a `code` in its extensions. The
+/// human-readable message is preserved unchanged; only the structured code is
+/// added, so the client can branch on it without parsing message text.
+pub(crate) fn gql_error_with_code(
+    message: impl Into<String>,
+    code: &'static str,
+) -> async_graphql::Error {
+    async_graphql::Error::new(message.into()).extend_with(|_, ext| ext.set("code", code))
+}
+
+impl PermissionError {
+    /// The `extensions.code` this denial surfaces to the client. `GraphNotFound`
+    /// deliberately shares the code a genuinely missing graph produces so a
+    /// forbidden graph cannot be distinguished from a nonexistent one.
+    pub(crate) fn code(&self) -> &'static str {
+        match self {
+            PermissionError::GraphNotFound => CODE_GRAPH_NOT_FOUND,
+            PermissionError::IntrospectOnly { .. }
+            | PermissionError::GraphWriteRequired { .. }
+            | PermissionError::GraphUnfilteredReadRequired { .. }
+            | PermissionError::NamespaceWriteRequired { .. } => CODE_ACCESS_DENIED,
+        }
+    }
+
+    /// Convert into an `async_graphql::Error` tagged with the matching `code`.
+    pub(crate) fn into_gql_error(self) -> async_graphql::Error {
+        let code = self.code();
+        gql_error_with_code(self.to_string(), code)
+    }
+}
+
 #[derive(Enum)]
 #[graphql(name = "GraphType")]
 pub enum GqlGraphType {
@@ -627,9 +667,9 @@ fn require_at_least_read(
                 warn!(graph = path, "Access denied by auth policy");
                 let ns = parent_namespace(path);
                 if policy.namespace_permissions(ctx, ns).is_some() {
-                    Err(msg.into())
+                    Err(gql_error_with_code(msg.to_string(), CODE_ACCESS_DENIED))
                 } else {
-                    Err(PermissionError::GraphNotFound.into())
+                    Err(PermissionError::GraphNotFound.into_gql_error())
                 }
             }
             Ok(perm) => {
@@ -643,7 +683,7 @@ fn require_at_least_read(
                     Err(PermissionError::IntrospectOnly {
                         graph: path.to_string(),
                     }
-                    .into())
+                    .into_gql_error())
                 }
             }
         };
@@ -657,15 +697,18 @@ pub(crate) fn require_graph_write(
     path: &str,
 ) -> async_graphql::Result<()> {
     match policy {
-        None => ctx.require_jwt_write_access().map_err(Into::into),
+        None => ctx
+            .require_jwt_write_access()
+            .map_err(|e| gql_error_with_code(e.to_string(), CODE_ACCESS_DENIED)),
         Some(p) => {
             p.graph_permissions(ctx, path)
-                .map_err(async_graphql::Error::from)?
+                .map_err(|e| gql_error_with_code(e.to_string(), CODE_ACCESS_DENIED))?
                 .at_least_write()
                 .ok_or_else(|| {
-                    async_graphql::Error::from(PermissionError::GraphWriteRequired {
+                    PermissionError::GraphWriteRequired {
                         graph: path.to_string(),
-                    })
+                    }
+                    .into_gql_error()
                 })?;
             Ok(())
         }
@@ -823,9 +866,10 @@ impl Data {
     ) -> async_graphql::Result<GraphWithVectors> {
         let res = require_at_least_read(ctx, &self.auth_policy, path)?;
         if res.level() < PermissionLevel::Read {
-            Err(PermissionError::GraphUnfilteredReadRequired {
+            return Err(PermissionError::GraphUnfilteredReadRequired {
                 graph: path.to_string(),
-            })?;
+            }
+            .into_gql_error());
         }
         let graph = self.get_graph(path).await?;
         Ok(graph)

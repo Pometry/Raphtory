@@ -59,7 +59,7 @@ pub(crate) fn translate_map_to_python(
     Ok(dict)
 }
 
-fn translate_to_python(py: Python, value: serde_json::Value) -> PyResult<Bound<PyAny>> {
+pub(crate) fn translate_to_python(py: Python, value: serde_json::Value) -> PyResult<Bound<PyAny>> {
     match value {
         JsonValue::Number(num) => {
             if num.is_i64() {

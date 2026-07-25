@@ -1,13 +1,22 @@
 use crate::{
     client::{is_online, remote_client::RemoteClient, ClientError},
+    model::graph::filtering::{GqlEdgeFilter, GqlNodeFilter},
     python::{
         client::{remote_graph::PyRemoteGraph, PyRemoteIndexSpec},
-        encode_graph, translate_from_python, translate_map_to_python,
+        encode_graph, translate_from_python, translate_map_to_python, translate_to_python,
     },
 };
-use pyo3::{exceptions::PyException, prelude::*, types::PyDict};
-use raphtory::{db::api::view::MaterializedGraph, python::utils::execute_async_task};
-use serde_json::Value as JsonValue;
+use pyo3::{
+    exceptions::{PyException, PyValueError},
+    prelude::*,
+    types::PyDict,
+};
+use raphtory::{
+    db::api::view::MaterializedGraph,
+    errors::GraphError,
+    python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task},
+};
+use serde_json::{json, Value as JsonValue};
 use std::{collections::HashMap, future::Future, sync::Arc};
 use tracing::debug;
 use url::Url;
@@ -21,6 +30,19 @@ use url::Url;
 #[pyclass(name = "RaphtoryClient", module = "raphtory.graphql", from_py_object)]
 pub struct PyRaphtoryClient {
     pub(crate) client: RemoteClient,
+}
+
+/// Map a case-insensitive permission string to the `GraphPermission` GraphQL
+/// enum literal understood by the server.
+fn permission_literal(permission: &str) -> PyResult<&'static str> {
+    match permission.to_ascii_lowercase().as_str() {
+        "read" => Ok("READ"),
+        "write" => Ok("WRITE"),
+        "introspect" => Ok("INTROSPECT"),
+        other => Err(PyValueError::new_err(format!(
+            "invalid permission '{other}': expected one of 'read', 'write', 'introspect'"
+        ))),
+    }
 }
 
 impl PyRaphtoryClient {
@@ -55,6 +77,24 @@ impl PyRaphtoryClient {
         let client =
             execute_async_task(|| RemoteClient::connect(url, token)).map_err(PyErr::from)?;
         Ok(Self { client })
+    }
+
+    /// Return a new client identical to this one but authenticating with a
+    /// different bearer token.
+    ///
+    /// Purely client-side: no server round-trip is made. Useful for acting as a
+    /// different principal (for example, an admin dropping to a reader token)
+    /// without reconstructing the client.
+    ///
+    /// Arguments:
+    ///     token (str): the bearer token the returned client should send.
+    ///
+    /// Returns:
+    ///     RaphtoryClient: a new client using the given token.
+    fn with_token(&self, token: String) -> Self {
+        Self {
+            client: self.client.with_token(token),
+        }
     }
 
     /// Check if the server is online.
@@ -229,5 +269,228 @@ impl PyRaphtoryClient {
         self.run_async(
             move |client| async move { client.create_index(&path, spec_value, in_ram).await },
         )
+    }
+
+    /// Create a role in the server's permissions store.
+    ///
+    /// Requires an admin (write-access) token. Only available when the server
+    /// was started with a permissions store.
+    ///
+    /// Arguments:
+    ///     name (str): the name of the role to create
+    ///
+    /// Returns:
+    ///     bool: True if the role was created.
+    fn create_role(&self, name: String) -> PyResult<bool> {
+        self.run_async(move |client| async move { client.create_role(&name).await })
+    }
+
+    /// Delete a role from the server's permissions store.
+    ///
+    /// Requires an admin (write-access) token.
+    ///
+    /// Arguments:
+    ///     name (str): the name of the role to delete
+    ///
+    /// Returns:
+    ///     bool: True if the role was deleted.
+    fn delete_role(&self, name: String) -> PyResult<bool> {
+        self.run_async(move |client| async move { client.delete_role(&name).await })
+    }
+
+    /// Grant a role access to a single graph.
+    ///
+    /// Requires an admin (write-access) token.
+    ///
+    /// Arguments:
+    ///     role (str): the role to grant access to
+    ///     path (str): the path of the graph
+    ///     permission (str): one of "read", "write", "introspect" (case-insensitive)
+    ///
+    /// Returns:
+    ///     bool: True if the grant was applied.
+    ///
+    /// Raises:
+    ///     ValueError: if permission is not one of "read", "write", "introspect".
+    fn grant_graph(&self, role: String, path: String, permission: String) -> PyResult<bool> {
+        let perm = permission_literal(&permission)?;
+        self.run_async(move |client| async move { client.grant_graph(&role, &path, perm).await })
+    }
+
+    /// Revoke a role's access to a single graph.
+    ///
+    /// Requires an admin (write-access) token.
+    ///
+    /// Arguments:
+    ///     role (str): the role to revoke access from
+    ///     path (str): the path of the graph
+    ///
+    /// Returns:
+    ///     bool: True if the access was revoked.
+    fn revoke_graph(&self, role: String, path: String) -> PyResult<bool> {
+        self.run_async(move |client| async move { client.revoke_graph(&role, &path).await })
+    }
+
+    /// Grant a role access to a namespace.
+    ///
+    /// Requires an admin (write-access) token.
+    ///
+    /// Arguments:
+    ///     role (str): the role to grant access to
+    ///     path (str): the namespace path
+    ///     permission (str): one of "read", "write", "introspect" (case-insensitive)
+    ///     recursive (bool): also grant every currently existing descendant of the
+    ///         namespace individually. Defaults to False.
+    ///
+    /// Returns:
+    ///     bool: True if the grant was applied.
+    ///
+    /// Raises:
+    ///     ValueError: if permission is not one of "read", "write", "introspect".
+    #[pyo3(signature = (role, path, permission, recursive = false))]
+    fn grant_namespace(
+        &self,
+        role: String,
+        path: String,
+        permission: String,
+        recursive: bool,
+    ) -> PyResult<bool> {
+        let perm = permission_literal(&permission)?;
+        self.run_async(move |client| async move {
+            client.grant_namespace(&role, &path, perm, recursive).await
+        })
+    }
+
+    /// Revoke a role's access to a namespace.
+    ///
+    /// Requires an admin (write-access) token.
+    ///
+    /// Arguments:
+    ///     role (str): the role to revoke access from
+    ///     path (str): the namespace path
+    ///     recursive (bool): also revoke every currently existing descendant of the
+    ///         namespace individually. Defaults to False.
+    ///
+    /// Returns:
+    ///     bool: True if the access was revoked.
+    #[pyo3(signature = (role, path, recursive = false))]
+    fn revoke_namespace(&self, role: String, path: String, recursive: bool) -> PyResult<bool> {
+        self.run_async(move |client| async move {
+            client.revoke_namespace(&role, &path, recursive).await
+        })
+    }
+
+    /// Grant a role read-only access to a graph, restricted by a filter.
+    ///
+    /// The reader (a `{"access": "ro"}` token bearing this role) sees only the
+    /// nodes/edges matching `filter`, with the given property/metadata keys hidden.
+    /// Requires an admin (write-access) token.
+    ///
+    /// Arguments:
+    ///     role (str): the role to grant filtered access to
+    ///     path (str): the path of the graph
+    ///     filter (FilterExpr): a filter expression from `raphtory.filter`; a node
+    ///         filter restricts visible nodes, an edge filter restricts visible edges.
+    ///     hidden_properties (dict[str, list[str]], optional): temporal property keys
+    ///         to hide, keyed by "node", "edge", and/or "graph".
+    ///     hidden_metadata (dict[str, list[str]], optional): metadata keys to hide,
+    ///         keyed by "node", "edge", and/or "graph".
+    ///
+    /// Returns:
+    ///     bool: True if the grant was applied.
+    ///
+    /// Raises:
+    ///     ValueError: if the filter cannot be represented as a GraphQL node or
+    ///         edge filter.
+    #[pyo3(signature = (role, path, filter, hidden_properties = None, hidden_metadata = None))]
+    fn grant_graph_filtered_read_only(
+        &self,
+        role: String,
+        path: String,
+        filter: PyFilterExpr,
+        hidden_properties: Option<HashMap<String, Vec<String>>>,
+        hidden_metadata: Option<HashMap<String, Vec<String>>>,
+    ) -> PyResult<bool> {
+        // Reuse the RemoteGraph `.filter()` conversion path: try node first,
+        // fall back to edge, then serialize the resulting GraphQL filter type.
+        let row_filter = if let Ok(node) = filter.try_as_node_filter() {
+            let gql: GqlNodeFilter = node
+                .try_into()
+                .map_err(|e: GraphError| PyValueError::new_err(e.to_string()))?;
+            let node_json =
+                serde_json::to_value(&gql).map_err(|e| PyValueError::new_err(e.to_string()))?;
+            json!({ "node": node_json })
+        } else {
+            let edge = filter
+                .try_as_edge_filter()
+                .map_err(|e| PyValueError::new_err(e.to_string()))?;
+            let gql: GqlEdgeFilter = edge
+                .try_into()
+                .map_err(|e: GraphError| PyValueError::new_err(e.to_string()))?;
+            let edge_json =
+                serde_json::to_value(&gql).map_err(|e| PyValueError::new_err(e.to_string()))?;
+            json!({ "edge": edge_json })
+        };
+
+        let mut access_filter = serde_json::Map::new();
+        access_filter.insert("filter".to_owned(), row_filter);
+        if let Some(hp) = hidden_properties {
+            access_filter.insert("hiddenProperties".to_owned(), json!(hp));
+        }
+        if let Some(hm) = hidden_metadata {
+            access_filter.insert("hiddenMetadata".to_owned(), json!(hm));
+        }
+        let filter_value = JsonValue::Object(access_filter);
+
+        self.run_async(move |client| async move {
+            client
+                .grant_graph_filtered_read_only(&role, &path, filter_value)
+                .await
+        })
+    }
+
+    /// Return this token's own permission grants.
+    ///
+    /// Reads only what the calling role has been granted, so it never discloses
+    /// other roles or graphs. Available to any authenticated caller (does not
+    /// require an admin token). Only available when the server was started with
+    /// a permissions store.
+    ///
+    /// Returns:
+    ///     dict[str, Any]: a mapping with keys ``role`` (str or None),
+    ///     ``graphs`` (list of ``{"path", "permission", "filtered"}``) and
+    ///     ``namespaces`` (list of ``{"path", "permission"}``). ``role`` is None
+    ///     when the token carries no role claim, in which case both lists are empty.
+    fn my_permissions<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        let value =
+            py.detach(|| self.run_async(|client| async move { client.my_permissions().await }))?;
+        translate_to_python(py, value)
+    }
+
+    /// List every role name in the server's permissions store.
+    ///
+    /// Requires an admin (write-access) token.
+    ///
+    /// Returns:
+    ///     list[str]: the role names.
+    fn list_roles(&self, py: Python<'_>) -> PyResult<Vec<String>> {
+        py.detach(|| self.run_async(|client| async move { client.list_roles().await }))
+    }
+
+    /// Fetch a single role's grants by name.
+    ///
+    /// Requires an admin (write-access) token.
+    ///
+    /// Arguments:
+    ///     name (str): the role to look up
+    ///
+    /// Returns:
+    ///     dict[str, Any] | None: a mapping with keys ``name``, ``graphs``
+    ///     (list of ``{"path", "permission"}``) and ``namespaces``
+    ///     (list of ``{"path", "permission"}``), or None if the role does not exist.
+    fn get_role<'py>(&self, py: Python<'py>, name: String) -> PyResult<Bound<'py, PyAny>> {
+        let value = py
+            .detach(|| self.run_async(move |client| async move { client.get_role(&name).await }))?;
+        translate_to_python(py, value)
     }
 }

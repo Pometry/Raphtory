@@ -1,6 +1,9 @@
-use crate::client::{
-    op::{EdgeAddition, NodeAddition, TemporalUpdate},
-    ClientError,
+use crate::{
+    client::{
+        op::{EdgeAddition, NodeAddition, TemporalUpdate},
+        ClientError,
+    },
+    python::pymodule::RemotePermissionError,
 };
 use pyo3::{exceptions::PyValueError, prelude::*, pyclass, pymethods};
 use raphtory_api::{
@@ -244,10 +247,16 @@ impl PyRemoteIndexSpec {
     }
 }
 
-// Takes care of the ClientError -> PyException conversion
+// Takes care of the ClientError -> PyException conversion.
+// A permission denial maps to the distinct `RemotePermissionError` type so
+// callers can catch it specifically; everything else (including a missing graph)
+// stays a generic exception.
 impl From<ClientError> for PyErr {
     fn from(err: ClientError) -> Self {
-        adapt_err_value(&err)
+        match &err {
+            ClientError::PermissionDenied(msg) => RemotePermissionError::new_err(msg.clone()),
+            _ => adapt_err_value(&err),
+        }
     }
 }
 

@@ -13,6 +13,12 @@ pub enum ClientError {
     #[error("GraphQL errors: {0}")]
     GraphQLErrors(String),
 
+    /// The server denied the request for lack of permission. Distinguished from
+    /// other GraphQL errors by a structured `extensions.code` in the response, so
+    /// it never fires for a missing graph (which stays `NotFound`).
+    #[error("Permission denied: {0}")]
+    PermissionDenied(String),
+
     #[error("Invalid response: {0}")]
     InvalidResponse(String),
 
