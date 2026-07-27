@@ -114,7 +114,7 @@ fn test_get_materialize_snb_sf1_time() {
     let materialized_graph = materialize_impl(
         &g,
         Some(&rb_materialize_graph_path),
-        g.core_graph().extension().config().clone(),
+        g.core_graph().extension().config().clone().into_args(),
     )
     .unwrap();
     let materialize_elapsed = materialize_start.elapsed();
@@ -195,7 +195,7 @@ fn test_materialize_filtered_sf1_matches() {
     let materialized_graph = materialize_impl(
         &filtered,
         Some(&rb_materialize_graph_path),
-        g.core_graph().extension().config().clone(),
+        g.core_graph().extension().config().clone().into_args(),
     )
     .unwrap();
     let materialize_elapsed = materialize_start.elapsed();
@@ -233,7 +233,7 @@ fn get_materialize_time(graph_path: &Path, materialize_graph_path: &Path) -> Dur
     let _materialized_graph = materialize_impl(
         &sf10_graph,
         Some(&materialize_graph_path),
-        sf10_graph.core_graph().extension().config().clone(),
+        sf10_graph.core_graph().extension().config().clone().into_args(),
     )
     .unwrap();
     let materialize_elapsed = materialize_start.elapsed();
@@ -282,7 +282,7 @@ fn get_parquet_decode_time(
     let _parquet_graph = MaterializedGraph::decode_parquet(
         &parquet_path,
         Some(&decode_graph_path),
-        sf10_extension_config,
+        sf10_extension_config.into_args(),
     )
     .unwrap();
     let parquet_decode_elapsed = parquet_decode_start.elapsed();
@@ -373,7 +373,7 @@ fn get_parquet_df_loader_time(
     drop(sf10_graph);
 
     let replay_graph =
-        Graph::new_at_path_with_config(load_graph_path, sf10_extension_config).unwrap();
+        Graph::new_at_path_with_config(load_graph_path, sf10_extension_config.into_args()).unwrap();
     println!("Starting SF10 parquet loader replay at {}", Local::now());
     let parquet_load_start = Instant::now();
 

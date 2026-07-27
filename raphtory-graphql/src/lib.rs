@@ -1239,7 +1239,7 @@ mod graphql_test {
         let graph_encoded = res_json.get("receiveGraph").unwrap().as_str().unwrap();
         let temp_dir = tempdir().unwrap();
         let graph_roundtrip =
-            url_decode_graph_at(graph_encoded, temp_dir.path(), Config::default())
+            url_decode_graph_at(graph_encoded, temp_dir.path(), ConfigArgs::default())
                 .unwrap()
                 .into_dynamic();
         assert_eq!(g, graph_roundtrip);

@@ -494,7 +494,7 @@ impl ValidWriteableGraphFolder {
     fn write_graph_data_inner(
         &self,
         graph: MaterializedGraph,
-        config: Config,
+        config_args: ConfigArgs,
     ) -> Result<(bool, MaterializedGraph), InternalPathValidationError> {
         let is_dirty = if Extension::disk_storage_enabled() {
             let graph_path = self.graph_folder().graph_path()?;
@@ -509,7 +509,7 @@ impl ValidWriteableGraphFolder {
                 self.global_path.write_metadata(meta)?;
                 (true, graph)
             } else {
-                let new_graph = graph.materialize_at_with_config(self.graph_folder(), config)?;
+                let new_graph = graph.materialize_at_with_config(self.graph_folder(), config_args)?;
                 (true, new_graph)
             }
         } else {
@@ -521,9 +521,9 @@ impl ValidWriteableGraphFolder {
     pub fn write_graph_data(
         &self,
         graph: MaterializedGraph,
-        config: Config,
+        config_args: ConfigArgs,
     ) -> Result<(bool, MaterializedGraph), PathValidationError> {
-        self.write_graph_data_inner(graph, config)
+        self.write_graph_data_inner(graph, config_args)
             .with_path(self.local_path())
     }
 
