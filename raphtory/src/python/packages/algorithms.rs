@@ -916,10 +916,10 @@ pub fn louvain(
 pub fn fruchterman_reingold(
     graph: &PyGraphView,
     iterations: u64,
-    scale: f32,
-    node_start_size: f32,
-    cooloff_factor: f32,
-    dt: f32,
+    scale: f64,
+    node_start_size: f64,
+    cooloff_factor: f64,
+    dt: f64,
 ) -> OutputTypedNodeState<'static, DynamicGraph> {
     fruchterman_reingold_rs(
         &graph.graph,
@@ -949,10 +949,10 @@ pub fn fruchterman_reingold(
 pub fn cohesive_fruchterman_reingold(
     graph: &PyGraphView,
     iter_count: u64,
-    scale: f32,
-    node_start_size: f32,
-    cooloff_factor: f32,
-    dt: f32,
+    scale: f64,
+    node_start_size: f64,
+    cooloff_factor: f64,
+    dt: f64,
 ) -> OutputTypedNodeState<'static, DynamicGraph> {
     cohesive_fruchterman_reingold_rs(
         &graph.graph,

@@ -9,10 +9,10 @@ pub(crate) struct GqlCohesiveFruchtermanReingold;
 
 pub(crate) struct GqlCohesiveFruchtermanReingoldArgs {
     pub(crate) iter_count: u64,
-    pub(crate) scale: f32,
-    pub(crate) node_start_size: f32,
-    pub(crate) cooloff_factor: f32,
-    pub(crate) dt: f32,
+    pub(crate) scale: f64,
+    pub(crate) node_start_size: f64,
+    pub(crate) cooloff_factor: f64,
+    pub(crate) dt: f64,
 }
 
 impl GqlExecutableAlgorithm for GqlCohesiveFruchtermanReingold {

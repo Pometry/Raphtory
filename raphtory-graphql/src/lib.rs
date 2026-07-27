@@ -1672,8 +1672,8 @@ mod graphql_test {
 
         let res = setup.schema.execute(Request::new(query)).await;
         assert_eq!(res.errors, vec![], "{:?}", res.errors);
-        // f32 scores promoted to f64; source has no auth, sink has no hub
-        let s = 0.3333333432674408;
+        // source has no auth, sink has no hub
+        let s = 0.3333333333333333;
         let row = |id: &str, hub, auth| {
             json!({
                 "node": { "id": id },

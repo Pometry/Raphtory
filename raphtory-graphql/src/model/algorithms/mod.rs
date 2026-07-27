@@ -434,10 +434,10 @@ impl GqlAlgorithms {
     ) -> Result<GqlNodeState, GraphError> {
         self.run::<GqlFruchtermanReingold>(GqlFruchtermanReingoldArgs {
             iter_count: iter_count.unwrap_or(100),
-            scale: scale.unwrap_or(1.0) as f32,
-            node_start_size: node_start_size.unwrap_or(1.0) as f32,
-            cooloff_factor: cooloff_factor.unwrap_or(0.95) as f32,
-            dt: dt.unwrap_or(0.1) as f32,
+            scale: scale.unwrap_or(1.0),
+            node_start_size: node_start_size.unwrap_or(1.0),
+            cooloff_factor: cooloff_factor.unwrap_or(0.95),
+            dt: dt.unwrap_or(0.1),
         })
         .await
     }
@@ -453,10 +453,10 @@ impl GqlAlgorithms {
     ) -> Result<GqlNodeState, GraphError> {
         self.run::<GqlCohesiveFruchtermanReingold>(GqlCohesiveFruchtermanReingoldArgs {
             iter_count: iter_count.unwrap_or(100),
-            scale: scale.unwrap_or(1.0) as f32,
-            node_start_size: node_start_size.unwrap_or(1.0) as f32,
-            cooloff_factor: cooloff_factor.unwrap_or(0.95) as f32,
-            dt: dt.unwrap_or(0.1) as f32,
+            scale: scale.unwrap_or(1.0),
+            node_start_size: node_start_size.unwrap_or(1.0),
+            cooloff_factor: cooloff_factor.unwrap_or(0.95),
+            dt: dt.unwrap_or(0.1),
         })
         .await
     }
