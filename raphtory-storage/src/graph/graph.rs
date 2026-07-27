@@ -127,13 +127,6 @@ impl GraphStorage {
         }
     }
 
-    pub fn gid_resolver(&self) -> &GIDResolver {
-        match self {
-            GraphStorage::Mem(graph) => &graph.graph.gid_resolver,
-            GraphStorage::Unlocked(graph) => &graph.gid_resolver,
-        }
-    }
-
     #[inline(always)]
     pub fn nodes(&self) -> NodesStorageEntry<'_> {
         match self {
