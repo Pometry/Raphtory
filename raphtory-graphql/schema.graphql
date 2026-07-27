@@ -417,6 +417,14 @@ type Edge {
 	"""
 	end: EventTime!
 	"""
+	Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
+	"""
+	windowSize: Int
+	"""
+	Check if a layer with the given name is present in this view.
+	"""
+	hasLayer(name: String!): Boolean!
+	"""
 	Returns the source node of the edge.
 	
 	Returns:
@@ -516,6 +524,50 @@ type Edge {
 		Composite edge filter (by property, layer, src/dst, etc.).
 		"""
 		expr: EdgeFilter!
+	): Edge!
+	"""
+	Apply a node filter in place, returning an edge view whose node
+	traversals (src, dst, nbr and everything reached through them) only
+	see nodes matching the filter. The edge itself stays addressable
+	regardless of whether its endpoints match.
+	"""
+	filterNodes(
+		"""
+		Composite node filter (by property, name, type, etc.).
+		"""
+		expr: NodeFilter!
+	): Edge!
+	"""
+	Pin this edge to a single event — the exploded instance recorded at
+	the given event time, optionally restricted to a layer. Matches the
+	members of `explode`: the returned edge answers `time` and `layerName`
+	and its properties are those of that one update. An Int or DateTime
+	String matches the first event at that timestamp; pass the object form
+	`{timestamp, eventId}` to select an exact event when several share a
+	timestamp. Errors if the edge has no matching event under the current
+	view.
+	"""
+	event(
+		"""
+		Event time to pin to — Int, DateTime String, or `{timestamp, eventId}`.
+		"""
+		time: TimeInput!,
+		"""
+		Optional layer name the event must belong to.
+		"""
+		layer: String
+	): Edge!
+	"""
+	Pin this edge to a single layer-exploded instance by layer name — the
+	analogue of `event(...)` for `explodeLayers()`. The returned edge has a
+	resolved `layerName`; `time` is unavailable on it, matching the local
+	`explode_layers()` semantics (a layer instance spans all of its events).
+	"""
+	eventLayer(
+		"""
+		Layer name to pin to.
+		"""
+		name: String!
 	): Edge!
 }
 
@@ -1137,6 +1189,27 @@ type Edges {
 	"""
 	end: EventTime!
 	"""
+	Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
+	"""
+	windowSize: Int
+	"""
+	Check if a layer with the given name is present in this view.
+	"""
+	hasLayer(name: String!): Boolean!
+	"""
+	Returns the source node of each edge, as a flat `PathFromNode`.
+	"""
+	src: PathFromNode!
+	"""
+	Returns the destination node of each edge, as a flat `PathFromNode`.
+	"""
+	dst: PathFromNode!
+	"""
+	Returns the node at the other end of each edge (destination for
+	out-edges, source for in-edges), as a flat `PathFromNode`.
+	"""
+	nbr: PathFromNode!
+	"""
 	Returns the number of edges.
 	
 	Returns:
@@ -1627,6 +1700,14 @@ type Graph {
 	"""
 	end: EventTime!
 	"""
+	Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
+	"""
+	windowSize: Int
+	"""
+	Check if a layer with the given name is present in the graph.
+	"""
+	hasLayer(name: String!): Boolean!
+	"""
 	The earliest time at which any edge in this graph is valid.
 	
 	* `includeNegative` — if false, edge events with a timestamp `< 0` are
@@ -1773,6 +1854,31 @@ type Graph {
 		"""
 		selectedNodes: [NodeId!]!
 	): [Node!]!
+	"""
+	The nodes whose latest property value matches every `(key, value)`
+	entry in `propertiesDict`. Mirrors the local `Graph.find_nodes`.
+	"""
+	findNodes(
+		"""
+		`{key, value}` property entries every returned node must match.
+		"""
+		propertiesDict: [PropertyInput!]!
+	): [Node!]!
+	"""
+	The edges whose latest property value matches every `(key, value)`
+	entry in `propertiesDict`. Mirrors the local `Graph.find_edges`.
+	"""
+	findEdges(
+		"""
+		`{key, value}` property entries every returned edge must match.
+		"""
+		propertiesDict: [PropertyInput!]!
+	): [Edge!]!
+	"""
+	All node types present in the graph. Mirrors the local
+	`Graph.get_all_node_types`.
+	"""
+	getAllNodeTypes: [String!]!
 	"""
 	Copy all nodes and edges of the current graph view into another already-
 	existing graph stored on the server. The destination graph is preserved
@@ -2204,6 +2310,10 @@ type History {
 	Returns True if the history is empty.
 	"""
 	isEmpty: Boolean!
+	"""
+	Returns a new history with the iteration order of the entries reversed.
+	"""
+	reverse: History!
 	"""
 	Get the number of entries contained in the history.
 	"""
@@ -3335,6 +3445,255 @@ type Namespace {
 union NamespacedItem = Namespace | MetaGraph
 
 """
+A nested collection of edges anchored to a source collection — the result of
+collection-level traversals like `nodes.edges`, `inEdges`, or `outEdges`.
+Each source node yields its own list of incident edges, so results are
+shaped as a list of per-source edge collections. Supports the usual view
+transforms (window, layer, filter, ...).
+"""
+type NestedEdges {
+	"""
+	Returns a collection containing only edges in the default edge layer.
+	"""
+	defaultLayer: NestedEdges!
+	"""
+	Returns a collection containing only edges belonging to the listed layers.
+	"""
+	layers(
+		"""
+		Layer names to include.
+		"""
+		names: [String!]!
+	): NestedEdges!
+	"""
+	Returns a collection containing edges belonging to all layers except the excluded list of layers.
+	"""
+	excludeLayers(
+		"""
+		Layer names to exclude.
+		"""
+		names: [String!]!
+	): NestedEdges!
+	"""
+	Returns a collection containing edges belonging to the specified layer.
+	"""
+	layer(
+		"""
+		Layer name to include.
+		"""
+		name: String!
+	): NestedEdges!
+	"""
+	Returns a collection containing edges belonging to all layers except the excluded layer specified.
+	"""
+	excludeLayer(
+		"""
+		Layer name to exclude.
+		"""
+		name: String!
+	): NestedEdges!
+	"""
+	Creates a view of the NestedEdges including all events between the specified start (inclusive) and end (exclusive).
+	"""
+	window(
+		"""
+		Inclusive lower bound.
+		"""
+		start: TimeInput!,
+		"""
+		Exclusive upper bound.
+		"""
+		end: TimeInput!
+	): NestedEdges!
+	"""
+	Creates a view of the NestedEdges including all events at a specified time.
+	"""
+	at(
+		"""
+		Instant to pin the view to.
+		"""
+		time: TimeInput!
+	): NestedEdges!
+	"""
+	View showing only the latest state of each edge (equivalent to `at(latestTime)`).
+	"""
+	latest: NestedEdges!
+	"""
+	Creates a view of the NestedEdges including all events that are valid at time.
+	"""
+	snapshotAt(
+		"""
+		Instant at which entities must be valid.
+		"""
+		time: TimeInput!
+	): NestedEdges!
+	"""
+	Creates a view of the NestedEdges including all events that are valid at the latest time.
+	"""
+	snapshotLatest: NestedEdges!
+	"""
+	Creates a view of the NestedEdges including all events before a specified end (exclusive).
+	"""
+	before(
+		"""
+		Exclusive upper bound.
+		"""
+		time: TimeInput!
+	): NestedEdges!
+	"""
+	Creates a view of the NestedEdges including all events after a specified start (exclusive).
+	"""
+	after(
+		"""
+		Exclusive lower bound.
+		"""
+		time: TimeInput!
+	): NestedEdges!
+	"""
+	Shrinks both the start and end of the window.
+	"""
+	shrinkWindow(
+		"""
+		Proposed new start (TimeInput); ignored if it would widen the window.
+		"""
+		start: TimeInput!,
+		"""
+		Proposed new end (TimeInput); ignored if it would widen the window.
+		"""
+		end: TimeInput!
+	): NestedEdges!
+	"""
+	Set the start of the window.
+	"""
+	shrinkStart(
+		"""
+		Proposed new start (TimeInput); ignored if it would widen the window.
+		"""
+		start: TimeInput!
+	): NestedEdges!
+	"""
+	Set the end of the window.
+	"""
+	shrinkEnd(
+		"""
+		Proposed new end (TimeInput); ignored if it would widen the window.
+		"""
+		end: TimeInput!
+	): NestedEdges!
+	"""
+	Takes a specified selection of views and applies them in order given.
+	"""
+	applyViews(
+		"""
+		Ordered list of view operations; each entry is a one-of variant (`window`, `layer`, `filter`, ...) applied to the running result.
+		"""
+		views: [EdgesViewCollection!]!
+	): NestedEdges!
+	"""
+	Returns the earliest time that this NestedEdges is valid or None if valid for all times.
+	"""
+	start: EventTime!
+	"""
+	Returns the latest time that this NestedEdges is valid or None if valid for all times.
+	"""
+	end: EventTime!
+	"""
+	Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
+	"""
+	windowSize: Int
+	"""
+	Check if a layer with the given name is present in this view.
+	"""
+	hasLayer(name: String!): Boolean!
+	"""
+	Returns the source node of each edge, grouped per source node, as a
+	nested `PathFromGraph`.
+	"""
+	src: PathFromGraph!
+	"""
+	Returns the destination node of each edge, grouped per source node, as a
+	nested `PathFromGraph`.
+	"""
+	dst: PathFromGraph!
+	"""
+	Returns the node at the other end of each edge (destination for
+	out-edges, source for in-edges), grouped per source node, as a nested
+	`PathFromGraph`.
+	"""
+	nbr: PathFromGraph!
+	"""
+	Expand each source's edges into one edge per update — mirrors the local
+	`NestedEdges.explode`. The per-source nesting is preserved; only the
+	inner edge lists fan out per event.
+	"""
+	explode: NestedEdges!
+	"""
+	Expand each source's edges into one edge per layer — mirrors the local
+	`NestedEdges.explode_layers`. Each resulting edge carries only the
+	updates from its respective layer.
+	"""
+	explodeLayers: NestedEdges!
+	"""
+	Number of source edge collections in this collection (one per source node).
+	"""
+	count: Int!
+	"""
+	Fetch one page of source edge collections up to a specified limit, optionally offset by a specified amount.
+	The page_index sets the number of pages to skip (defaults to 0).
+	
+	For example, if page(5, 2, 1) is called, a page with 5 source collections, offset by 11 (2 pages of 5 + 1),
+	will be returned. Each entry is the per-source list of incident edges.
+	"""
+	page(
+		"""
+		Maximum number of source edge collections to return on this page.
+		"""
+		limit: Int!,
+		"""
+		Extra source edge collections to skip on top of `pageIndex` paging (default 0).
+		"""
+		offset: Int,
+		"""
+		Zero-based page number; multiplies `limit` to determine where to start (default 0).
+		"""
+		pageIndex: Int
+	): [Edges!]!
+	"""
+	Materialise every source edge collection — one `Edges` per source node,
+	each holding that source's incident-edge list. Read
+	`list { list { src { name } dst { name } } }` to reach the per-source
+	edges. Rejected by the server when bulk list endpoints are disabled; use
+	`page` for paginated access instead.
+	"""
+	list: [Edges!]!
+	"""
+	Narrow the edge set to edges matching `expr`. The filter sticks to the
+	returned collection — every subsequent traversal continues to see the
+	filtered scope.
+	
+	Contrast with `select`, which applies here and is not carried through.
+	"""
+	filter(
+		"""
+		Composite edge filter (by property, layer, src/dst, etc.).
+		"""
+		expr: EdgeFilter!
+	): NestedEdges!
+	"""
+	Narrow the edge set to edges matching `expr`, but only at this hop —
+	further traversals out of these edges see the unfiltered graph again.
+	
+	Contrast with `filter`, which persists the scope through subsequent ops.
+	"""
+	select(
+		"""
+		Composite edge filter (by property, layer, src/dst, etc.).
+		"""
+		expr: EdgeFilter!
+	): NestedEdges!
+}
+
+"""
 Raphtory graph node.
 """
 type Node {
@@ -3557,6 +3916,14 @@ type Node {
 	"""
 	isActive: Boolean!
 	"""
+	Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
+	"""
+	windowSize: Int
+	"""
+	Check if a layer with the given name is present in this view.
+	"""
+	hasLayer(name: String!): Boolean!
+	"""
 	Returns the type of node.
 	"""
 	nodeType: String
@@ -3607,6 +3974,18 @@ type Node {
 	"""
 	outNeighbours(select: NodeFilter): PathFromNode!
 	filter(expr: NodeFilter!): Node!
+	"""
+	Apply an edge filter in place, returning a node view whose edge
+	traversals (degree, edges, neighbours and everything reached through
+	them) only see edges matching the filter. The node itself stays
+	addressable regardless of the filter.
+	"""
+	filterEdges(
+		"""
+		Composite edge filter (by property, layer, src/dst, etc.).
+		"""
+		expr: EdgeFilter!
+	): Node!
 }
 
 input NodeAddition {
@@ -4263,6 +4642,30 @@ type Nodes {
 	"""
 	end: EventTime!
 	"""
+	Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
+	"""
+	windowSize: Int
+	"""
+	Check if a layer with the given name is present in this view.
+	"""
+	hasLayer(name: String!): Boolean!
+	"""
+	The degree (number of incident edges) of every node, in collection order.
+	"""
+	degree: [Int!]!
+	"""
+	The in-degree (number of incoming edges) of every node, in collection order.
+	"""
+	inDegree: [Int!]!
+	"""
+	The out-degree (number of outgoing edges) of every node, in collection order.
+	"""
+	outDegree: [Int!]!
+	"""
+	The number of edge updates incident to every node, in collection order.
+	"""
+	edgeHistoryCount: [Int!]!
+	"""
 	Number of nodes in the current view.
 	"""
 	count: Int!
@@ -4345,6 +4748,30 @@ type Nodes {
 		"""
 		expr: NodeFilter!
 	): Nodes!
+	"""
+	Returns the neighbouring nodes of each node in the collection.
+	"""
+	neighbours(select: NodeFilter): PathFromGraph!
+	"""
+	Returns the in-neighbours of each node in the collection.
+	"""
+	inNeighbours(select: NodeFilter): PathFromGraph!
+	"""
+	Returns the out-neighbours of each node in the collection.
+	"""
+	outNeighbours(select: NodeFilter): PathFromGraph!
+	"""
+	Returns the incident edges (both directions) of each node in the collection.
+	"""
+	edges(select: EdgeFilter): NestedEdges!
+	"""
+	Returns the incoming edges of each node in the collection.
+	"""
+	inEdges(select: EdgeFilter): NestedEdges!
+	"""
+	Returns the outgoing edges of each node in the collection.
+	"""
+	outEdges(select: EdgeFilter): NestedEdges!
 }
 
 input NodesViewCollection @oneOf {
@@ -4478,6 +4905,267 @@ PageRank score.
 type PagerankOutput {
 	name: String!
 	rank: Float!
+}
+
+"""
+A nested collection of nodes anchored to a source collection — the result of
+collection-level traversals like `nodes.neighbours`, `inNeighbours`, or
+`outNeighbours`. Each source node yields its own list of neighbour nodes, so
+results are shaped as a list of per-source node lists. Supports all the usual
+view transforms (window, layer, filter, ...) and can be chained to walk
+further hops.
+"""
+type PathFromGraph {
+	"""
+	Returns a view of PathFromGraph containing the specified layers, errors if any of the layers do not exist.
+	"""
+	layers(
+		"""
+		Layer names to include.
+		"""
+		names: [String!]!
+	): PathFromGraph!
+	"""
+	Return a view of PathFromGraph containing all layers except the specified excluded layers, errors if any of the layers do not exist.
+	"""
+	excludeLayers(
+		"""
+		Layer names to exclude.
+		"""
+		names: [String!]!
+	): PathFromGraph!
+	"""
+	Return a view of PathFromGraph containing the specified layer, errors if the layer does not exist.
+	"""
+	layer(
+		"""
+		Layer name to include.
+		"""
+		name: String!
+	): PathFromGraph!
+	"""
+	Return a view of PathFromGraph containing all layers except the specified excluded layer, errors if the layer does not exist.
+	"""
+	excludeLayer(
+		"""
+		Layer name to exclude.
+		"""
+		name: String!
+	): PathFromGraph!
+	"""
+	Create a view of the PathFromGraph including all events between a specified start (inclusive) and end (exclusive).
+	"""
+	window(
+		"""
+		Inclusive lower bound.
+		"""
+		start: TimeInput!,
+		"""
+		Exclusive upper bound.
+		"""
+		end: TimeInput!
+	): PathFromGraph!
+	"""
+	Create a view of the PathFromGraph including all events at time.
+	"""
+	at(
+		"""
+		Instant to pin the view to.
+		"""
+		time: TimeInput!
+	): PathFromGraph!
+	"""
+	Create a view of the PathFromGraph including all events that are valid at the latest time.
+	"""
+	snapshotLatest: PathFromGraph!
+	"""
+	Create a view of the PathFromGraph including all events that are valid at the specified time.
+	"""
+	snapshotAt(
+		"""
+		Instant at which entities must be valid.
+		"""
+		time: TimeInput!
+	): PathFromGraph!
+	"""
+	Create a view of the PathFromGraph including all events at the latest time.
+	"""
+	latest: PathFromGraph!
+	"""
+	Create a view of the PathFromGraph including all events before the specified end (exclusive).
+	"""
+	before(
+		"""
+		Exclusive upper bound.
+		"""
+		time: TimeInput!
+	): PathFromGraph!
+	"""
+	Create a view of the PathFromGraph including all events after the specified start (exclusive).
+	"""
+	after(
+		"""
+		Exclusive lower bound.
+		"""
+		time: TimeInput!
+	): PathFromGraph!
+	"""
+	Shrink both the start and end of the window.
+	"""
+	shrinkWindow(
+		"""
+		Proposed new start (TimeInput); ignored if it would widen the window.
+		"""
+		start: TimeInput!,
+		"""
+		Proposed new end (TimeInput); ignored if it would widen the window.
+		"""
+		end: TimeInput!
+	): PathFromGraph!
+	"""
+	Set the start of the window to the larger of the specified start and self.start().
+	"""
+	shrinkStart(
+		"""
+		Proposed new start (TimeInput); ignored if it would widen the window.
+		"""
+		start: TimeInput!
+	): PathFromGraph!
+	"""
+	Set the end of the window to the smaller of the specified end and self.end().
+	"""
+	shrinkEnd(
+		"""
+		Proposed new end (TimeInput); ignored if it would widen the window.
+		"""
+		end: TimeInput!
+	): PathFromGraph!
+	"""
+	Narrow this path to neighbours whose node type is in the given set.
+	"""
+	typeFilter(
+		"""
+		Node types to keep.
+		"""
+		nodeTypes: [String!]!
+	): PathFromGraph!
+	"""
+	Returns the earliest time that this PathFromGraph is valid or None if the PathFromGraph is valid for all times.
+	"""
+	start: EventTime!
+	"""
+	Returns the latest time that this PathFromGraph is valid or None if the PathFromGraph is valid for all times.
+	"""
+	end: EventTime!
+	"""
+	Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
+	"""
+	windowSize: Int
+	"""
+	Check if a layer with the given name is present in this view.
+	"""
+	hasLayer(name: String!): Boolean!
+	"""
+	Returns a single history object combining the time entries of all nodes in this view.
+	"""
+	combinedHistory: History!
+	"""
+	Number of source paths in this collection (one per source node).
+	"""
+	count: Int!
+	"""
+	Fetch one page of source paths up to a specified limit, optionally offset by a specified amount.
+	The page_index sets the number of pages to skip (defaults to 0).
+	
+	For example, if page(5, 2, 1) is called, a page with 5 source paths, offset by 11 (2 pages of 5 + 1),
+	will be returned. Each entry is the per-source list of neighbour nodes.
+	"""
+	page(
+		"""
+		Maximum number of source paths to return on this page.
+		"""
+		limit: Int!,
+		"""
+		Extra source paths to skip on top of `pageIndex` paging (default 0).
+		"""
+		offset: Int,
+		"""
+		Zero-based page number; multiplies `limit` to determine where to start (default 0).
+		"""
+		pageIndex: Int
+	): [PathFromNode!]!
+	"""
+	Materialise every source path — one `PathFromNode` per source node,
+	each holding that source's neighbour list. Read `list { ids }` /
+	`list { list { name } }` to reach the per-source neighbours. Rejected
+	by the server when bulk list endpoints are disabled; use `page` for
+	paginated access instead.
+	"""
+	list: [PathFromNode!]!
+	"""
+	Takes a specified selection of views and applies them in given order.
+	"""
+	applyViews(
+		"""
+		Ordered list of view operations; each entry is a one-of variant (`window`, `layer`, `filter`, ...) applied to the running result.
+		"""
+		views: [PathFromNodeViewCollection!]!
+	): PathFromGraph!
+	"""
+	Narrow the neighbour set to nodes matching `expr`. The filter sticks to
+	the returned path — every subsequent traversal (further hops, edges,
+	properties) continues to see the filtered scope.
+	
+	Contrast with `select`, which applies here and is not carried through.
+	"""
+	filter(
+		"""
+		Composite node filter (by name, property, type, etc.).
+		"""
+		expr: NodeFilter!
+	): PathFromGraph!
+	"""
+	Narrow the neighbour set to nodes matching `expr`, but only at this hop
+	— further traversals out of these nodes see the unfiltered graph again.
+	
+	Contrast with `filter`, which persists the scope through subsequent ops.
+	"""
+	select(
+		"""
+		Composite node filter (by name, property, type, etc.).
+		"""
+		expr: NodeFilter!
+	): PathFromGraph!
+	"""
+	Returns the neighbouring nodes reachable one further hop from each source
+	path (both directions), as a nested `PathFromGraph`.
+	"""
+	neighbours(select: NodeFilter): PathFromGraph!
+	"""
+	Returns the in-neighbours reachable one further hop from each source
+	path, as a nested `PathFromGraph`.
+	"""
+	inNeighbours(select: NodeFilter): PathFromGraph!
+	"""
+	Returns the out-neighbours reachable one further hop from each source
+	path, as a nested `PathFromGraph`.
+	"""
+	outNeighbours(select: NodeFilter): PathFromGraph!
+	"""
+	Returns the incident edges (both directions) of each source path, as a
+	nested `NestedEdges` collection.
+	"""
+	edges: NestedEdges!
+	"""
+	Returns the incoming edges of each source path, as a nested `NestedEdges`
+	collection.
+	"""
+	inEdges: NestedEdges!
+	"""
+	Returns the outgoing edges of each source path, as a nested `NestedEdges`
+	collection.
+	"""
+	outEdges: NestedEdges!
 }
 
 """
@@ -4673,6 +5361,34 @@ type PathFromNode {
 	"""
 	end: EventTime!
 	"""
+	Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
+	"""
+	windowSize: Int
+	"""
+	Check if a layer with the given name is present in this view.
+	"""
+	hasLayer(name: String!): Boolean!
+	"""
+	Returns a single history object combining the time entries of all nodes reachable from the source in this view.
+	"""
+	combinedHistory: History!
+	"""
+	The degree (number of incident edges) of every node in the path, in order.
+	"""
+	degree: [Int!]!
+	"""
+	The in-degree (number of incoming edges) of every node in the path, in order.
+	"""
+	inDegree: [Int!]!
+	"""
+	The out-degree (number of outgoing edges) of every node in the path, in order.
+	"""
+	outDegree: [Int!]!
+	"""
+	The number of edge updates incident to every node in the path, in order.
+	"""
+	edgeHistoryCount: [Int!]!
+	"""
 	Number of neighbour nodes reachable from the source in this view.
 	"""
 	count: Int!
@@ -4761,6 +5477,36 @@ type PathFromNode {
 		"""
 		expr: NodeFilter!
 	): PathFromNode!
+	"""
+	Returns the neighbouring nodes reachable one further hop from this path
+	(both directions), as a flat `PathFromNode`.
+	"""
+	neighbours(select: NodeFilter): PathFromNode!
+	"""
+	Returns the in-neighbours reachable one further hop from this path, as a
+	flat `PathFromNode`.
+	"""
+	inNeighbours(select: NodeFilter): PathFromNode!
+	"""
+	Returns the out-neighbours reachable one further hop from this path, as a
+	flat `PathFromNode`.
+	"""
+	outNeighbours(select: NodeFilter): PathFromNode!
+	"""
+	Returns the incident edges (both directions) of the nodes in this path,
+	as a flat `Edges` collection.
+	"""
+	edges: Edges!
+	"""
+	Returns the incoming edges of the nodes in this path, as a flat `Edges`
+	collection.
+	"""
+	inEdges: Edges!
+	"""
+	Returns the outgoing edges of the nodes in this path, as a flat `Edges`
+	collection.
+	"""
+	outEdges: Edges!
 }
 
 input PathFromNodeViewCollection @oneOf {
@@ -5012,6 +5758,17 @@ type Properties {
 		"""
 		key: String!
 	): Boolean!
+	"""
+	The data-type of the property's latest value by key, as its `PropType`
+	display string (e.g. `"I64"`, `"Str"`, `"List<F64>"`). Returns null when
+	the key isn't present. Mirrors the local `Properties.get_dtype_of`.
+	"""
+	getDtypeOf(
+		"""
+		The property name.
+		"""
+		key: String!
+	): String
 	"""
 	All property keys present in the current view. Does not include metadata
 	— metadata is exposed separately via the entity's `metadata` field.
@@ -5720,4 +6477,3 @@ schema {
 	query: QueryRoot
 	mutation: MutRoot
 }
-
