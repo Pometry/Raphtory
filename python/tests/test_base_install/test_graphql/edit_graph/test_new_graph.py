@@ -67,4 +67,6 @@ def test_client_new_graph_broken_type():
         client = server.get_client()
         with pytest.raises(Exception) as excinfo:
             client.new_graph("path/to/event_graph", "EVENdddT")
-        assert "Invalid value for argument" in str(excinfo.value)
+        # The client validates the graph type against an allowlist before it is
+        # spliced into the query as an (unquoted) GraphQL enum.
+        assert "invalid graph type" in str(excinfo.value)
