@@ -133,11 +133,11 @@ impl PyPersistentGraph {
         let graph = match path {
             Some(path) => match config {
                 None => PersistentGraph::new_at_path(&path)?,
-                Some(PyConfig(config_args)) => PersistentGraph::new_at_path_with_config(&path, config_args.into_config())?,
+                Some(PyConfig(config_args)) => PersistentGraph::new_at_path_with_config(&path, config_args)?,
             },
             None => match config {
                 None => PersistentGraph::new(),
-                Some(PyConfig(config_args)) => PersistentGraph::new_with_config(config_args.into_config())?,
+                Some(PyConfig(config_args)) => PersistentGraph::new_with_config(config_args)?,
             },
         };
         Ok((

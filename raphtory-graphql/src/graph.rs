@@ -9,7 +9,7 @@ use raphtory::vectors::{storage::LazyDiskVectorCache, vectorised_graph::Vectoris
 use raphtory::{
     core::entities::nodes::node_ref::AsNodeRef, db::{
         api::{
-            storage::storage::{Config, ConfigArgs}, view::{
+            storage::storage::ConfigArgs, view::{
                 Base, InheritViewOps, MaterializedGraph, internal::{
                     InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InheritStorageOps, Static,
                 },
@@ -164,9 +164,8 @@ impl GraphWithVectors {
             })
             .await?
         } else {
-            let config = config_args.into_config();
             blocking_compute(move || {
-                MaterializedGraph::decode_with_config(folder_clone.graph_folder(), config)
+                MaterializedGraph::decode_with_config(folder_clone.graph_folder(), config_args)
             })
             .await?
         };

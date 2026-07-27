@@ -532,8 +532,7 @@ impl ValidWriteableGraphFolder {
             if self.graph_folder().read_metadata()?.is_diskgraph {
                 MaterializedGraph::load_with_config(self.graph_folder(), config_args)
             } else {
-                let config = config_args.into_config();
-                MaterializedGraph::decode_with_config(self.graph_folder(), config)
+                MaterializedGraph::decode_with_config(self.graph_folder(), config_args)
             }
         })
     }
@@ -548,7 +547,7 @@ impl ValidWriteableGraphFolder {
                 MaterializedGraph::decode_from_zip_at(
                     ZipArchive::new(bytes)?,
                     self.graph_folder(),
-                    config,
+                    config.into_args(),
                 )?
                 .flush()?;
             } else {

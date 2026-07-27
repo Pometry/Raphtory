@@ -156,7 +156,7 @@ pub mod prelude {
 
     pub use crate::db::graph::views::filter::model::{node_filter::NodeFilter, EdgeFilter};
 
-    pub use storage::{persist::config::ConfigOps, Config};
+    pub use storage::{persist::config::ConfigOps, Config, ConfigArgs};
 
     #[cfg(feature = "io")]
     pub use crate::serialise::{

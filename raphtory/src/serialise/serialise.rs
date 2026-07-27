@@ -18,7 +18,7 @@ use std::{
     fs::File,
     io::{Cursor, Read, Seek, Write},
 };
-use storage::{Config, Extension};
+use storage::{ConfigArgs, Extension};
 use zip::{write::SimpleFileOptions, ZipArchive, ZipWriter};
 
 pub trait StableEncode: StaticGraphViewOps + AdditionOps {
@@ -86,72 +86,72 @@ impl<T: ParquetEncoder + StaticGraphViewOps + AdditionOps> StableEncode for T {
 pub trait StableDecode: StaticGraphViewOps + AdditionOps {
     // Decode the graph from the given bytes array.
     // `path_for_decoded_graph` gets passed to the newly created graph.
-    fn decode_from_bytes_with_config(bytes: &[u8], config: Config) -> Result<Self, GraphError>;
+    fn decode_from_bytes_with_config(bytes: &[u8], config_args: ConfigArgs) -> Result<Self, GraphError>;
 
     fn decode_from_bytes(bytes: &[u8]) -> Result<Self, GraphError> {
-        Self::decode_from_bytes_with_config(bytes, Config::default())
+        Self::decode_from_bytes_with_config(bytes, ConfigArgs::default())
     }
 
     fn decode_from_bytes_at(
         bytes: &[u8],
         target: &(impl GraphPaths + ?Sized),
-        config: Config,
+        config_args: ConfigArgs,
     ) -> Result<Self, GraphError>;
 
     fn decode_from_zip_with_config<R: Read + Seek>(
         reader: ZipArchive<R>,
-        config: Config,
+        config_args: ConfigArgs,
     ) -> Result<Self, GraphError>;
 
     fn decode_from_zip<R: Read + Seek>(reader: ZipArchive<R>) -> Result<Self, GraphError> {
-        Self::decode_from_zip_with_config(reader, Config::default())
+        Self::decode_from_zip_with_config(reader, ConfigArgs::default())
     }
 
     fn decode_from_zip_at<R: Read + Seek>(
         reader: ZipArchive<R>,
         target: &(impl GraphPaths + ?Sized),
-        config: Config,
+        config_args: ConfigArgs,
     ) -> Result<Self, GraphError>;
 
     // Decode the graph from the given path.
     // `path_for_decoded_graph` gets passed to the newly created graph.
     fn decode(path: &(impl GraphPaths + ?Sized)) -> Result<Self, GraphError> {
-        Self::decode_with_config(path, Config::default())
+        Self::decode_with_config(path, ConfigArgs::default())
     }
 
     fn decode_with_config(
         path: &(impl GraphPaths + ?Sized),
-        config: Config,
+        config_args: ConfigArgs,
     ) -> Result<Self, GraphError>;
 
     fn decode_at(
         path: &(impl GraphPaths + ?Sized),
         target: &(impl GraphPaths + ?Sized),
-        config: Config,
+        config_args: ConfigArgs,
     ) -> Result<Self, GraphError>;
 }
 
 impl<T: ParquetDecoder + StaticGraphViewOps + AdditionOps> StableDecode for T {
-    fn decode_from_bytes_with_config(bytes: &[u8], config: Config) -> Result<Self, GraphError> {
+    fn decode_from_bytes_with_config(bytes: &[u8], config_args: ConfigArgs) -> Result<Self, GraphError> {
         let cursor = Cursor::new(bytes);
-        Self::decode_from_zip_with_config(ZipArchive::new(cursor)?, config)
+        Self::decode_from_zip_with_config(ZipArchive::new(cursor)?, config_args)
     }
 
     fn decode_from_bytes_at(
         bytes: &[u8],
         target: &(impl GraphPaths + ?Sized),
-        config: Config,
+        config_args: ConfigArgs,
     ) -> Result<Self, GraphError> {
         let cursor = Cursor::new(bytes);
-        Self::decode_from_zip_at(ZipArchive::new(cursor)?, target, config)
+        Self::decode_from_zip_at(ZipArchive::new(cursor)?, target, config_args)
     }
 
     fn decode_from_zip_with_config<R: Read + Seek>(
         mut reader: ZipArchive<R>,
-        config: Config,
+        config_args: ConfigArgs,
     ) -> Result<Self, GraphError> {
         let graph_prefix = get_zip_graph_path(&mut reader)?;
-        let graph = Self::decode_parquet_from_zip(&mut reader, None, graph_prefix, config)?;
+        let graph = Self::decode_parquet_from_zip(&mut reader, None, graph_prefix, config_args)?;
 
         //TODO: graph.load_index_from_zip(&mut reader, prefix)
 
@@ -161,7 +161,7 @@ impl<T: ParquetDecoder + StaticGraphViewOps + AdditionOps> StableDecode for T {
     fn decode_from_zip_at<R: Read + Seek>(
         mut reader: ZipArchive<R>,
         target: &(impl GraphPaths + ?Sized),
-        config: Config,
+        config_args: ConfigArgs,
     ) -> Result<Self, GraphError> {
         if !Extension::disk_storage_enabled() {
             return Err(GraphError::DiskGraphNotEnabled);
@@ -172,7 +172,7 @@ impl<T: ParquetDecoder + StaticGraphViewOps + AdditionOps> StableDecode for T {
             &mut reader,
             Some(target.graph_path()?.as_path()),
             graph_prefix,
-            config,
+            config_args,
         )?;
 
         //TODO: graph.load_index_from_zip(&mut reader, prefix)
@@ -186,13 +186,13 @@ impl<T: ParquetDecoder + StaticGraphViewOps + AdditionOps> StableDecode for T {
 
     fn decode_with_config(
         path: &(impl GraphPaths + ?Sized),
-        config: Config,
+        config_args: ConfigArgs,
     ) -> Result<Self, GraphError> {
         if path.is_zip() {
             let reader = path.read_zip()?;
-            Self::decode_from_zip_with_config(reader, config)
+            Self::decode_from_zip_with_config(reader, config_args)
         } else {
-            Self::decode_parquet(&path.graph_path()?, None, config)
+            Self::decode_parquet(&path.graph_path()?, None, config_args)
             // TODO: Fix index loading:
             // #[cfg(feature = "search")]
             // graph.load_index(&path)?;
@@ -202,18 +202,18 @@ impl<T: ParquetDecoder + StaticGraphViewOps + AdditionOps> StableDecode for T {
     fn decode_at(
         path: &(impl GraphPaths + ?Sized),
         target: &(impl GraphPaths + ?Sized),
-        config: Config,
+        config_args: ConfigArgs,
     ) -> Result<Self, GraphError> {
         target.init()?;
         let graph;
         if path.is_zip() {
             let reader = path.read_zip()?;
-            graph = Self::decode_from_zip_at(reader, target, config)?;
+            graph = Self::decode_from_zip_at(reader, target, config_args)?;
         } else {
             graph = Self::decode_parquet(
                 path.graph_path()?,
                 Some(target.graph_path()?.as_path()),
-                config,
+                config_args,
             )?;
         }
         let meta = Metadata {

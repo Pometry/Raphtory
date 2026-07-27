@@ -14,7 +14,6 @@ use raphtory_storage::{graph::graph::GraphStorage, mutation::InheritMutationOps}
 #[cfg(feature = "io")]
 use storage::ConfigArgs;
 use std::ops::Range;
-use storage::Config;
 
 #[derive(Clone)]
 pub enum MaterializedGraph {

@@ -22,7 +22,7 @@ use crate::{
     db::{
         api::{
             state::ops::NodeFilterOp,
-            storage::storage::{Config, PersistenceStrategy, Storage},
+            storage::storage::{PersistenceStrategy, Storage},
             view::{
                 internal::{
                     GraphView, InheritEdgeHistoryFilter, InheritNodeHistoryFilter,
@@ -146,11 +146,11 @@ impl Graph {
     /// ```
     /// use raphtory::prelude::*;
     ///
-    /// let g = Graph::new_with_config(Config::default().with_max_node_page_len(262144)).unwrap();
+    /// let g = Graph::new_with_config(ConfigArgs::default().with_max_node_page_len(262144)).unwrap();
     /// ```
-    pub fn new_with_config(config: Config) -> Result<Self, GraphError> {
+    pub fn new_with_config(config_args: ConfigArgs) -> Result<Self, GraphError> {
         Ok(Self {
-            inner: Arc::new(Storage::new_with_config(config)?),
+            inner: Arc::new(Storage::new_with_config(config_args)?),
         })
     }
 
@@ -190,7 +190,7 @@ impl Graph {
     #[cfg(feature = "io")]
     pub fn new_at_path_with_config(
         path: &(impl GraphPaths + ?Sized),
-        config: Config,
+        config_args: ConfigArgs,
     ) -> Result<Self, GraphError> {
         if !Extension::disk_storage_enabled() {
             return Err(GraphError::DiskGraphNotEnabled);
@@ -201,7 +201,7 @@ impl Graph {
         let graph = Self {
             inner: Arc::new(Storage::new_at_path_with_config(
                 path.graph_path()?,
-                config,
+                config_args,
             )?),
         };
 

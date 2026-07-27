@@ -32,12 +32,11 @@ use std::{
     ops::Range,
     sync::Arc,
 };
-use storage::{
-    api::graph_props::{GraphPropEntryOps, GraphPropRefOps}, persist::config,
-};
+use storage::api::graph_props::{GraphPropEntryOps, GraphPropRefOps};
 
+use storage::ConfigArgs;
 #[cfg(feature = "io")]
-use storage::{ConfigArgs, Extension, persist::strategy::PersistenceStrategy};
+use storage::{Extension, persist::strategy::PersistenceStrategy};
 
 /// A graph view where an edge remains active from the time it is added until it is explicitly marked as deleted.
 ///
@@ -114,10 +113,10 @@ impl PersistentGraph {
     /// ```
     /// use raphtory::prelude::*;
     ///
-    /// let g = PersistentGraph::new_with_config(Config::default().with_max_node_page_len(262144)).unwrap();
+    /// let g = PersistentGraph::new_with_config(ConfigArgs::default().with_max_node_page_len(262144)).unwrap();
     /// ```
-    pub fn new_with_config(config: Config) -> Result<Self, GraphError> {
-        Ok(Self(Arc::new(Storage::new_with_config(config)?)))
+    pub fn new_with_config(config_args: ConfigArgs) -> Result<Self, GraphError> {
+        Ok(Self(Arc::new(Storage::new_with_config(config_args)?)))
     }
 
     /// Create a new persistent graph at a specific path
@@ -134,7 +133,7 @@ impl PersistentGraph {
     #[cfg(feature = "io")]
     pub fn new_at_path_with_config(
         path: &(impl GraphPaths + ?Sized),
-        config: Config
+        config_args: ConfigArgs
     ) -> Result<Self, GraphError> {
         if !Extension::disk_storage_enabled() {
             return Err(GraphError::DiskGraphNotEnabled);
@@ -142,7 +141,7 @@ impl PersistentGraph {
         path.init()?;
         let graph = Self(Arc::new(Storage::new_at_path_with_config(
             path.graph_path()?,
-            config,
+            config_args,
         )?));
         let meta = Metadata {
             path: path.relative_graph_path()?,
