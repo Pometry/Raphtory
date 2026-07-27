@@ -4,7 +4,7 @@ use crate::{
         op::{
             AddEdge as AddEdgeOp, AddGraphMetadata as AddGraphMetadataOp,
             AddGraphProperty as AddGraphPropertyOp, AddNode as AddNodeOp,
-            CreateNode as CreateNodeOp, DeleteEdge as DeleteEdgeOp, Op, ReadExpr,
+            CreateNode as CreateNodeOp, DeleteEdge as DeleteEdgeOp, HandleCtx, Op, ReadExpr,
             UpdateGraphMetadata as UpdateGraphMetadataOp, WriteOp,
         },
         remote_client::RemoteClient,
@@ -633,6 +633,159 @@ pub(crate) fn expect_edge_list(
                 }
                 _ => Err(ClientError::InvalidResponse(format!(
                     "`{}` element not a pair",
+                    context
+                ))),
+            })
+            .collect(),
+        _ => Err(ClientError::InvalidResponse(format!(
+            "`{}` returned unexpected value type",
+            context
+        ))),
+    }
+}
+
+/// One member of an exploded-edge fetch: `(src, dst, time, event_id,
+/// layer_name)` — everything needed to pin a handle to the event.
+pub(crate) type ExplodedEdgeRecord = (String, String, i64, i64, String);
+
+/// Decode one 5-element `[src, dst, timestamp, event_id, layer_name]` inner
+/// list produced by the `ExplodedEdgesList` terminals.
+fn exploded_edge_record(p: &Prop, context: &str) -> Result<ExplodedEdgeRecord, ClientError> {
+    let items: Vec<Prop> = match p {
+        Prop::List(items) => items.iter().collect(),
+        _ => Vec::new(),
+    };
+    if items.len() != 5 {
+        return Err(ClientError::InvalidResponse(format!(
+            "`{}` element not a 5-element exploded-edge record",
+            context
+        )));
+    }
+    let str_at = |idx: usize, what: &str| match &items[idx] {
+        Prop::Str(s) => Ok(s.to_string()),
+        _ => Err(ClientError::InvalidResponse(format!(
+            "`{}` {} not a string",
+            context, what
+        ))),
+    };
+    let i64_at = |idx: usize, what: &str| match &items[idx] {
+        Prop::I64(i) => Ok(*i),
+        _ => Err(ClientError::InvalidResponse(format!(
+            "`{}` {} not an int",
+            context, what
+        ))),
+    };
+    Ok((
+        str_at(0, "src")?,
+        str_at(1, "dst")?,
+        i64_at(2, "timestamp")?,
+        i64_at(3, "event_id")?,
+        str_at(4, "layer_name")?,
+    ))
+}
+
+/// Unwrap a `Transport::execute` result expecting a `Prop::List` of exploded
+/// edge records. Used by `.collect()` on an exploded `Edges` collection.
+pub(crate) fn expect_exploded_edge_list(
+    v: Option<Prop>,
+    context: &str,
+) -> Result<Vec<ExplodedEdgeRecord>, ClientError> {
+    match v {
+        Some(Prop::List(items)) => items
+            .iter()
+            .map(|p| exploded_edge_record(&p, context))
+            .collect(),
+        _ => Err(ClientError::InvalidResponse(format!(
+            "`{}` returned unexpected value type",
+            context
+        ))),
+    }
+}
+
+/// Decode one `[src, dst, layer]` layer-exploded-edge record.
+fn layers_edge_record(p: &Prop, context: &str) -> Result<(String, String, String), ClientError> {
+    let items: Vec<Prop> = match p {
+        Prop::List(items) => items.iter().collect(),
+        _ => Vec::new(),
+    };
+    if items.len() != 3 {
+        return Err(ClientError::InvalidResponse(format!(
+            "`{}` element not a 3-element layer-exploded-edge record",
+            context
+        )));
+    }
+    let str_at = |idx: usize, what: &str| match &items[idx] {
+        Prop::Str(s) => Ok(s.to_string()),
+        _ => Err(ClientError::InvalidResponse(format!(
+            "`{}` {} not a string",
+            context, what
+        ))),
+    };
+    Ok((str_at(0, "src")?, str_at(1, "dst")?, str_at(2, "layer")?))
+}
+
+/// Unwrap a `Transport::execute` result for `ExplodedLayersEdgesList` — a
+/// `Prop::List` of `[src, dst, layer]` inner lists (no time). Used by
+/// `.collect()` on a layer-exploded `Edges` collection.
+pub(crate) fn expect_exploded_layers_edge_list(
+    v: Option<Prop>,
+    context: &str,
+) -> Result<Vec<(String, String, String)>, ClientError> {
+    match v {
+        Some(Prop::List(items)) => items
+            .iter()
+            .map(|p| layers_edge_record(&p, context))
+            .collect(),
+        _ => Err(ClientError::InvalidResponse(format!(
+            "`{}` returned unexpected value type",
+            context
+        ))),
+    }
+}
+
+/// Nested variant — one inner list of `[src, dst, layer]` records per source
+/// node. Used by `.collect()` on a layer-exploded `NestedEdges` collection.
+pub(crate) fn expect_nested_exploded_layers_edge_list(
+    v: Option<Prop>,
+    context: &str,
+) -> Result<Vec<Vec<(String, String, String)>>, ClientError> {
+    match v {
+        Some(Prop::List(rows)) => rows
+            .iter()
+            .map(|row| match row {
+                Prop::List(items) => items
+                    .iter()
+                    .map(|p| layers_edge_record(&p, context))
+                    .collect(),
+                _ => Err(ClientError::InvalidResponse(format!(
+                    "`{}` row not a list",
+                    context
+                ))),
+            })
+            .collect(),
+        _ => Err(ClientError::InvalidResponse(format!(
+            "`{}` returned unexpected value type",
+            context
+        ))),
+    }
+}
+
+/// Nested variant of `expect_exploded_edge_list` — one inner list per source
+/// node. Used by `.collect()` on an exploded `NestedEdges` collection.
+pub(crate) fn expect_nested_exploded_edge_list(
+    v: Option<Prop>,
+    context: &str,
+) -> Result<Vec<Vec<ExplodedEdgeRecord>>, ClientError> {
+    match v {
+        Some(Prop::List(rows)) => rows
+            .iter()
+            .map(|row| match row {
+                Prop::List(items) => items
+                    .iter()
+                    .map(|p| exploded_edge_record(&p, context))
+                    .collect(),
+                _ => Err(ClientError::InvalidResponse(format!(
+                    "`{}` row not a list",
                     context
                 ))),
             })
@@ -1281,7 +1434,7 @@ impl RemoteGraph {
                 input: Box::new(self.expr.clone()),
                 id: id_str,
             },
-            self.expr.clone(),
+            HandleCtx::new(self.expr.clone()),
         )))
     }
 
@@ -1294,7 +1447,7 @@ impl RemoteGraph {
             ReadExpr::Nodes {
                 input: Box::new(self.expr.clone()),
             },
-            self.expr.clone(),
+            HandleCtx::new(self.expr.clone()),
         )
     }
 
@@ -1307,7 +1460,7 @@ impl RemoteGraph {
             ReadExpr::Metadata {
                 input: Box::new(self.expr.clone()),
             },
-            self.expr.clone(),
+            HandleCtx::new(self.expr.clone()),
         )
     }
 
@@ -1356,7 +1509,7 @@ impl RemoteGraph {
                         input: Box::new(self.expr.clone()),
                         id: name,
                     },
-                    self.expr.clone(),
+                    HandleCtx::new(self.expr.clone()),
                 )
             })
             .collect())
@@ -1386,7 +1539,7 @@ impl RemoteGraph {
                         input: Box::new(self.expr.clone()),
                         id: name,
                     },
-                    self.expr.clone(),
+                    HandleCtx::new(self.expr.clone()),
                 )
             })
             .collect())
@@ -1418,7 +1571,7 @@ impl RemoteGraph {
                         src,
                         dst,
                     },
-                    self.expr.clone(),
+                    HandleCtx::new(self.expr.clone()),
                 )
             })
             .collect())
@@ -1442,7 +1595,7 @@ impl RemoteGraph {
             ReadExpr::Properties {
                 input: Box::new(self.expr.clone()),
             },
-            self.expr.clone(),
+            HandleCtx::new(self.expr.clone()),
         )
     }
 
@@ -1455,7 +1608,7 @@ impl RemoteGraph {
             ReadExpr::Edges {
                 input: Box::new(self.expr.clone()),
             },
-            self.expr.clone(),
+            HandleCtx::new(self.expr.clone()),
         )
     }
 
@@ -1490,7 +1643,7 @@ impl RemoteGraph {
                 src: src_str,
                 dst: dst_str,
             },
-            self.expr.clone(),
+            HandleCtx::new(self.expr.clone()),
         )))
     }
 
@@ -1528,7 +1681,7 @@ impl RemoteGraph {
                 input: Box::new(self.expr.clone()),
                 id: id_str,
             },
-            self.expr.clone(),
+            HandleCtx::new(self.expr.clone()),
         ))
     }
 
@@ -1561,7 +1714,7 @@ impl RemoteGraph {
                 input: Box::new(self.expr.clone()),
                 id: id_str,
             },
-            self.expr.clone(),
+            HandleCtx::new(self.expr.clone()),
         ))
     }
 
@@ -1601,7 +1754,7 @@ impl RemoteGraph {
                 src: src_str,
                 dst: dst_str,
             },
-            self.expr.clone(),
+            HandleCtx::new(self.expr.clone()),
         ))
     }
 
@@ -1687,7 +1840,7 @@ impl RemoteGraph {
                 src: src_str,
                 dst: dst_str,
             },
-            self.expr.clone(),
+            HandleCtx::new(self.expr.clone()),
         ))
     }
 }

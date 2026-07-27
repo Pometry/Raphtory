@@ -1,5 +1,5 @@
 use crate::client::{
-    op::{Op, ReadExpr},
+    op::{HandleCtx, Op, ReadExpr},
     remote_graph::{
         expect_bool, expect_i64, expect_optional_prop, expect_optional_property,
         expect_optional_property_tuple, expect_prop_list, expect_property_list,
@@ -39,7 +39,7 @@ pub struct RemoteMetadata {
     pub expr: ReadExpr,
     /// The parent graph view — carried for future propagation into
     /// materialized descendants once the container tree ships more types.
-    pub base_graph: ReadExpr,
+    pub ctx: HandleCtx,
 }
 
 impl RemoteMetadata {
@@ -47,13 +47,13 @@ impl RemoteMetadata {
         path: String,
         transport: Arc<dyn Transport>,
         expr: ReadExpr,
-        base_graph: ReadExpr,
+        ctx: HandleCtx,
     ) -> Self {
         Self {
             path,
             transport,
             expr,
-            base_graph,
+            ctx,
         }
     }
 
@@ -116,7 +116,7 @@ pub struct RemoteProperties {
     pub path: String,
     pub transport: Arc<dyn Transport>,
     pub expr: ReadExpr,
-    pub base_graph: ReadExpr,
+    pub ctx: HandleCtx,
 }
 
 impl RemoteProperties {
@@ -124,13 +124,13 @@ impl RemoteProperties {
         path: String,
         transport: Arc<dyn Transport>,
         expr: ReadExpr,
-        base_graph: ReadExpr,
+        ctx: HandleCtx,
     ) -> Self {
         Self {
             path,
             transport,
             expr,
-            base_graph,
+            ctx,
         }
     }
 
@@ -211,7 +211,7 @@ impl RemoteProperties {
             expr: ReadExpr::TemporalProperties {
                 input: Box::new(self.expr.clone()),
             },
-            base_graph: self.base_graph.clone(),
+            ctx: self.ctx.clone(),
         }
     }
 }
@@ -226,7 +226,7 @@ pub struct RemoteTemporalProperties {
     pub path: String,
     pub transport: Arc<dyn Transport>,
     pub expr: ReadExpr,
-    pub base_graph: ReadExpr,
+    pub ctx: HandleCtx,
 }
 
 impl RemoteTemporalProperties {
@@ -255,7 +255,7 @@ impl RemoteTemporalProperties {
                 input: Box::new(self.expr.clone()),
                 key: key_str,
             },
-            base_graph: self.base_graph.clone(),
+            ctx: self.ctx.clone(),
         }))
     }
 
@@ -299,7 +299,7 @@ impl RemoteTemporalProperties {
                     input: Box::new(self.expr.clone()),
                     key,
                 },
-                base_graph: self.base_graph.clone(),
+                ctx: self.ctx.clone(),
             })
             .collect())
     }
@@ -318,7 +318,7 @@ pub struct RemoteTemporalProperty {
     /// fire an RPC just to recover it.
     pub key: String,
     pub expr: ReadExpr,
-    pub base_graph: ReadExpr,
+    pub ctx: HandleCtx,
 }
 
 impl RemoteTemporalProperty {
@@ -332,7 +332,7 @@ impl RemoteTemporalProperty {
             ReadExpr::History {
                 input: Box::new(self.expr.clone()),
             },
-            self.base_graph.clone(),
+            self.ctx.clone(),
         )
     }
 

@@ -517,6 +517,25 @@ impl GqlNode {
         })
         .await
     }
+
+    /// Apply an edge filter in place, returning a node view whose edge
+    /// traversals (degree, edges, neighbours and everything reached through
+    /// them) only see edges matching the filter. The node itself stays
+    /// addressable regardless of the filter.
+
+    async fn filter_edges(
+        &self,
+        #[graphql(desc = "Composite edge filter (by property, layer, src/dst, etc.).")]
+        expr: GqlEdgeFilter,
+    ) -> Result<Self, GraphError> {
+        let self_clone = self.clone();
+        blocking_compute(move || {
+            let filter: CompositeEdgeFilter = expr.try_into()?;
+            let filtered = self_clone.vv.filter(filter)?;
+            Ok(self_clone.update(filtered.into_dynamic()))
+        })
+        .await
+    }
 }
 
 impl GqlNode {

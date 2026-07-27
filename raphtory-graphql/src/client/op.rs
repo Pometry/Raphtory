@@ -11,7 +11,7 @@ use crate::{
 use raphtory_api::core::entities::properties::prop::Prop;
 use serde::{ser::SerializeStruct, Serialize, Serializer};
 use serde_json::json;
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 /// Top-level split between reads (recursive expressions returning values) and
 /// writes (self-contained commands with side effects). Matches Ben's V2 doc
@@ -271,6 +271,45 @@ pub enum ReadExpr {
         input: Box<ReadExpr>,
         filter: GqlEdgeFilter,
     },
+    /// Filter a single `Node` handle's *edge* traversals by an edge filter,
+    /// returning a `Node`. The node itself stays addressable; its degree /
+    /// edges / neighbours only see matching edges. Server field:
+    /// `filterEdges(expr: EdgeFilter!)` on `Node`. Used when replaying an
+    /// edge-collection filter onto node handles materialized through it
+    /// (e.g. `edges.filter(f).src().collect()`).
+    NodeFilterEdges {
+        input: Box<ReadExpr>,
+        filter: GqlEdgeFilter,
+    },
+    /// Filter a single `Edge` handle's *node* traversals by a node filter,
+    /// returning an `Edge`. The edge itself stays addressable regardless of
+    /// whether its endpoints match. Server field:
+    /// `filterNodes(expr: NodeFilter!)` on `Edge`. Used when replaying a
+    /// node-collection filter onto edge handles materialized through it
+    /// (e.g. `nodes.filter(f).edges().collect()`).
+    EdgeFilterNodes {
+        input: Box<ReadExpr>,
+        filter: GqlNodeFilter,
+    },
+    /// Pin a single `Edge` handle to one event — the exploded instance at
+    /// exactly `(time, event_id)`, optionally restricted to `layer`.
+    /// Returns an `Edge` that answers `time` / `layerName` like a member of
+    /// `explode`. Server field: `event(time: TimeInput!, layer: String)` on
+    /// `Edge` — `event_id: Some(_)` renders the exact `{timestamp, eventId}`
+    /// object form. Used by `collect()` on exploded collections.
+    EdgeEvent {
+        input: Box<ReadExpr>,
+        time: i64,
+        event_id: Option<i64>,
+        layer: Option<String>,
+    },
+
+    /// Pin a single `Edge` handle to one layer-exploded instance by layer name
+    /// — the analogue of `EdgeEvent` for `explodeLayers`. Returns an `Edge` that
+    /// answers `layerName` like a member of `explodeLayers` (`time` is
+    /// unavailable, matching local). Server field: `eventLayer(name: String!)`
+    /// on `Edge`. Used by `collect()` on layer-exploded collections.
+    EdgeLayerEvent { input: Box<ReadExpr>, layer: String },
 
     // ============ Properties / Metadata containers ============
     /// Navigate to the non-temporal metadata container. Polymorphic:
@@ -599,6 +638,27 @@ pub enum ReadExpr {
     /// (outer = per source, middle = that source's edges, inner = `[src, dst]`).
     /// Mirrors `EdgesList`, one level deeper.
     NestedEdgesList { input: Box<ReadExpr> },
+    /// Terminal on an *exploded* `Edges` collection: each member's full event
+    /// identity, fetched in ONE RPC so the handle pins can't skew against a
+    /// concurrent write. Renders
+    /// `list { src { name } dst { name } time { timestamp eventId } layerName }`.
+    /// Parsed as an outer `Prop::List` with one 5-element inner list per
+    /// member: `[src, dst, timestamp, event_id, layer_name]` (`Str, Str, I64,
+    /// I64, Str`). Used by `collect()` on exploded collections to build
+    /// `EdgeEvent`-pinned handles.
+    ExplodedEdgesList { input: Box<ReadExpr> },
+    /// Terminal on an exploded `NestedEdges` collection: the nested variant of
+    /// `ExplodedEdgesList` — one inner list per source node. Renders
+    /// `list { list { src { name } dst { name } time { timestamp eventId } layerName } }`.
+    NestedExplodedEdgesList { input: Box<ReadExpr> },
+    /// Terminal on a layer-exploded `Edges` collection: one `(src, dst, layer)`
+    /// per member. Renders `list { src { name } dst { name } layerName }`. Used
+    /// by `collect()` to pin each layer instance (no time — `explodeLayers`
+    /// members have a layer but not a single event time).
+    ExplodedLayersEdgesList { input: Box<ReadExpr> },
+    /// Nested variant of `ExplodedLayersEdgesList` — one inner list per source
+    /// node. Renders `list { list { src { name } dst { name } layerName } }`.
+    NestedExplodedLayersEdgesList { input: Box<ReadExpr> },
 
     // ============ Columnar accessors on collections (via `list { field }`) ============
     // Each renders `list { <field> }` on a flat collection (`Nodes` /
@@ -705,6 +765,173 @@ pub enum ReadExpr {
     IsDeleted { input: Box<ReadExpr> },
     /// Terminal: whether the edge's `src == dst` — `bool`.
     IsSelfLoop { input: Box<ReadExpr> },
+}
+
+/// How a collection has been fanned out into per-instance members, if at all.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Fanout {
+    /// One member per event (`explode`). Members are re-addressable as
+    /// handles via the server's `Edge.event` field.
+    Events,
+    /// One member per layer (`explodeLayers`). Members are re-addressable as
+    /// handles via the server's `Edge.eventLayer` field (pinned by layer name).
+    Layers,
+}
+
+/// The per-member pin `collect()` substitutes at the `Fanout` marker when
+/// materializing an exploded edge handle.
+#[derive(Clone, Debug)]
+pub enum EdgePin {
+    /// A time-exploded instance (`explode`) — pinned by `(time, event_id?)`,
+    /// optionally within `layer`. Renders `EdgeEvent`.
+    Event {
+        time: i64,
+        event_id: Option<i64>,
+        layer: Option<String>,
+    },
+    /// A layer-exploded instance (`explodeLayers`) — pinned by layer name.
+    /// Renders `EdgeLayerEvent`.
+    Layer { layer: String },
+}
+
+/// One collection-level operation deferred for replay onto materialized
+/// entity handles. `collect()` rebuilds each member as a fresh entity
+/// selection (`node(id)` / `edge(src, dst)`) anchored on the parent graph
+/// view, then replays these ops in application order, so the handle
+/// evaluates under the same composed view as collection-level reads.
+///
+/// Order is load-bearing: filters capture the view they were created on, so
+/// `.filter(f).window(w)` and `.window(w).filter(f)` differ for temporal
+/// property filters — replay must preserve the user's call order.
+#[derive(Clone)]
+pub enum HandleOp {
+    /// A pure view op (window / layer / at / …). Stores the same `ReadExpr`
+    /// constructor the collection applied to its own `expr`, so replay is
+    /// definitionally identical. Every collection view op has a same-named
+    /// server field on `Node` and `Edge`, so replay always renders.
+    View(Arc<dyn Fn(ReadExpr) -> ReadExpr + Send + Sync>),
+    /// An anchor-relative node filter. Replays as `filter(expr:)` on node
+    /// handles and `filterNodes(expr:)` on edge handles.
+    NodeFilter(GqlNodeFilter),
+    /// An anchor-relative edge filter. Replays as `filter(expr:)` on edge
+    /// handles and `filterEdges(expr:)` on node handles.
+    EdgeFilter(GqlEdgeFilter),
+    /// Positional marker recording where `explode` / `explodeLayers` was
+    /// applied in the op chain. Ops before the marker shape the view the
+    /// instances were enumerated from; ops after it wrap the pinned handle.
+    /// `collect()` substitutes each member's `EdgeEvent` pin at this position.
+    Fanout(Fanout),
+}
+
+/// Materialization context carried by every remote collection and entity
+/// handle. `graph` is the view chain accumulated *before* entering the
+/// collection (graph-level ops); `ops` are the collection-level ops applied
+/// *after* it, replayed per member by `collect()`. Flows down unchanged into
+/// child collections (`.neighbours()`, `.edges()`, …) so filters keep
+/// propagating to descendants exactly like the local one-hop semantics.
+#[derive(Clone)]
+pub struct HandleCtx {
+    /// The parent graph view under which the collection lives.
+    pub graph: ReadExpr,
+    /// Ordered entity-level ops to replay when materializing handles.
+    pub ops: Vec<HandleOp>,
+}
+
+impl HandleCtx {
+    pub fn new(graph: ReadExpr) -> Self {
+        Self {
+            graph,
+            ops: Vec::new(),
+        }
+    }
+
+    /// A copy of this context with one more op appended.
+    pub fn with_op(&self, op: HandleOp) -> Self {
+        let mut ops = self.ops.clone();
+        ops.push(op);
+        Self {
+            graph: self.graph.clone(),
+            ops,
+        }
+    }
+
+    /// The first fanout marker in the op chain, if any. Later markers are
+    /// no-ops server-side (exploding an already-pinned instance yields
+    /// itself), so only the first decides how `collect()` materializes.
+    pub fn fanout(&self) -> Option<Fanout> {
+        self.ops.iter().find_map(|op| match op {
+            HandleOp::Fanout(f) => Some(*f),
+            _ => None,
+        })
+    }
+
+    /// Replay the op chain onto a single-node anchor. Fanout markers never
+    /// occur in node collections and are ignored.
+    pub fn node_handle_expr(&self, id: String) -> ReadExpr {
+        let mut expr = ReadExpr::Node {
+            input: Box::new(self.graph.clone()),
+            id,
+        };
+        for op in &self.ops {
+            expr = match op {
+                HandleOp::View(wrap) => wrap(expr),
+                HandleOp::NodeFilter(filter) => ReadExpr::FilterNodes {
+                    input: Box::new(expr),
+                    filter: filter.clone(),
+                },
+                HandleOp::EdgeFilter(filter) => ReadExpr::NodeFilterEdges {
+                    input: Box::new(expr),
+                    filter: filter.clone(),
+                },
+                HandleOp::Fanout(_) => expr,
+            };
+        }
+        expr
+    }
+
+    /// Replay the op chain onto a single-edge anchor, optionally pinning an
+    /// event at the position of the first fanout marker. `event` is
+    /// `(time, event_id, layer)` as fetched by `ExplodedEdgesList`; callers
+    /// materializing a non-exploded collection pass `None`.
+    pub fn edge_handle_expr(&self, src: String, dst: String, pin: Option<EdgePin>) -> ReadExpr {
+        let mut expr = ReadExpr::Edge {
+            input: Box::new(self.graph.clone()),
+            src,
+            dst,
+        };
+        let mut pin = pin;
+        for op in &self.ops {
+            expr = match op {
+                HandleOp::View(wrap) => wrap(expr),
+                HandleOp::EdgeFilter(filter) => ReadExpr::FilterEdges {
+                    input: Box::new(expr),
+                    filter: filter.clone(),
+                },
+                HandleOp::NodeFilter(filter) => ReadExpr::EdgeFilterNodes {
+                    input: Box::new(expr),
+                    filter: filter.clone(),
+                },
+                HandleOp::Fanout(_) => match pin.take() {
+                    Some(EdgePin::Event {
+                        time,
+                        event_id,
+                        layer,
+                    }) => ReadExpr::EdgeEvent {
+                        input: Box::new(expr),
+                        time,
+                        event_id,
+                        layer,
+                    },
+                    Some(EdgePin::Layer { layer }) => ReadExpr::EdgeLayerEvent {
+                        input: Box::new(expr),
+                        layer,
+                    },
+                    None => expr,
+                },
+            };
+        }
+        expr
+    }
 }
 
 /// Sort-key variant for `SortedNodes`. Mirrors the server's `NodeSortBy`

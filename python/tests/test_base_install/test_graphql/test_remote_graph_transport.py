@@ -3459,6 +3459,37 @@ def test_nested_edges_columnar_layer_name_requires_explode():
         server_cm.__exit__(None, None, None)
 
 
+def _layer_rows(coll):
+    """(src, dst, layer_name, time-availability) per member — `.time` is
+    expected to raise on a layer-exploded edge in both APIs."""
+    out = []
+    for e in coll:
+        try:
+            e.time
+            t = "no-raise"
+        except Exception:
+            t = "raises"
+        out.append((e.src.name, e.dst.name, e.layer_name, t))
+    return sorted(out)
+
+
+def test_edges_explode_layers_collect_pins_layers():
+    """`edges.explode_layers().collect()` handles are pinned to their layer —
+    `.src`/`.dst`/`.layer_name` match local per member and `.time` raises
+    (a layer instance spans all its events, matching local). Flat + nested."""
+    server_cm, rg, lg = _make_columnar_graphs()
+    try:
+        r = _layer_rows(rg.edges.explode_layers().collect())
+        assert r == _layer_rows(lg.edges.explode_layers().collect())
+        assert all(t == "raises" for *_, t in r)
+        # nested (per source node)
+        r_nested = [_layer_rows(inner) for inner in rg.nodes.edges.explode_layers().collect()]
+        l_nested = [_layer_rows(inner) for inner in lg.nodes.edges.explode_layers().collect()]
+        assert r_nested == l_nested
+    finally:
+        server_cm.__exit__(None, None, None)
+
+
 def test_edges_element_predicates():
     """`RemoteEdges.is_active` / `.is_valid` / `.is_deleted` / `.is_self_loop`
     mirror local `Edges` (flat `list[bool]`, keyed by edge id)."""

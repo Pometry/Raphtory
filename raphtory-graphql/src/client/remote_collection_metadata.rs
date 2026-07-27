@@ -12,7 +12,7 @@
 //! values collapse to their latest under the current view — matching local.
 
 use crate::client::{
-    op::{Op, ReadExpr},
+    op::{HandleCtx, Op, ReadExpr},
     remote_graph::{expect_columnar_property_list, expect_nested_columnar_property_list},
     transport::Transport,
     ClientError,
@@ -75,7 +75,7 @@ pub struct RemoteMetadataView {
     pub transport: Arc<dyn Transport>,
     /// The accumulated collection read expression.
     pub expr: ReadExpr,
-    pub base_graph: ReadExpr,
+    pub ctx: HandleCtx,
     /// `true` for nested collections (`PathFromGraph` / `NestedEdges`).
     pub nested: bool,
 }
@@ -85,14 +85,14 @@ impl RemoteMetadataView {
         path: String,
         transport: Arc<dyn Transport>,
         expr: ReadExpr,
-        base_graph: ReadExpr,
+        ctx: HandleCtx,
         nested: bool,
     ) -> Self {
         Self {
             path,
             transport,
             expr,
-            base_graph,
+            ctx,
             nested,
         }
     }
@@ -128,7 +128,7 @@ pub struct RemotePropertiesView {
     pub path: String,
     pub transport: Arc<dyn Transport>,
     pub expr: ReadExpr,
-    pub base_graph: ReadExpr,
+    pub ctx: HandleCtx,
     pub nested: bool,
 }
 
@@ -137,14 +137,14 @@ impl RemotePropertiesView {
         path: String,
         transport: Arc<dyn Transport>,
         expr: ReadExpr,
-        base_graph: ReadExpr,
+        ctx: HandleCtx,
         nested: bool,
     ) -> Self {
         Self {
             path,
             transport,
             expr,
-            base_graph,
+            ctx,
             nested,
         }
     }

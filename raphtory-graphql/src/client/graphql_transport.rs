@@ -1419,6 +1419,55 @@ fn render_read_body(expr: &ReadExpr) -> Result<String, ClientError> {
                 render_gql_edge_filter(filter)?,
             )
         }
+        ReadExpr::NodeFilterEdges { input, filter } => {
+            // Server field `filterEdges(expr: EdgeFilter!)` on `Node` —
+            // filters the node's edge traversals; the node stays addressable.
+            format!(
+                "{} {{ filterEdges(expr: {})",
+                render_read_body(input)?,
+                render_gql_edge_filter(filter)?,
+            )
+        }
+        ReadExpr::EdgeFilterNodes { input, filter } => {
+            // Server field `filterNodes(expr: NodeFilter!)` on `Edge` —
+            // filters the edge's node traversals; the edge stays addressable.
+            format!(
+                "{} {{ filterNodes(expr: {})",
+                render_read_body(input)?,
+                render_gql_node_filter(filter)?,
+            )
+        }
+        ReadExpr::EdgeEvent {
+            input,
+            time,
+            event_id,
+            layer,
+        } => {
+            // Server field `event(time: TimeInput!, layer: String)` on `Edge`.
+            // With an event id we render the exact `{timestamp, eventId}`
+            // object form; otherwise the bare timestamp matches the first
+            // event at that time.
+            let time_arg = match event_id {
+                Some(i) => format!("{{timestamp: {}, eventId: {}}}", time, i),
+                None => time.to_string(),
+            };
+            match layer {
+                Some(l) => format!(
+                    "{} {{ event(time: {}, layer: {})",
+                    render_read_body(input)?,
+                    time_arg,
+                    render_gql_str(l)
+                ),
+                None => format!("{} {{ event(time: {})", render_read_body(input)?, time_arg),
+            }
+        }
+        // Server field `eventLayer(name: String!)` on `Edge` — pins a single
+        // layer-exploded instance.
+        ReadExpr::EdgeLayerEvent { input, layer } => format!(
+            "{} {{ eventLayer(name: {})",
+            render_read_body(input)?,
+            render_gql_str(layer)
+        ),
         // Metadata / Properties navigation
         ReadExpr::Metadata { input } => format!("{} {{ metadata", render_read_body(input)?),
         ReadExpr::Properties { input } => format!("{} {{ properties", render_read_body(input)?),
@@ -1617,6 +1666,28 @@ fn render_read_body(expr: &ReadExpr) -> Result<String, ClientError> {
         // group is self-balanced. Mirrors `EdgesList`, one level deeper.
         ReadExpr::NestedEdgesList { input } => format!(
             "{} {{ list {{ list {{ src {{ name }} dst {{ name }} }} }}",
+            render_read_body(input)?
+        ),
+        // Exploded-collection variant of `EdgesList`: adds each member's
+        // event identity (`time { timestamp eventId }`, `layerName`) so
+        // handles can be pinned from ONE response. Same brace accounting —
+        // the outer `list` opens one net brace, inner groups self-balance.
+        ReadExpr::ExplodedEdgesList { input } => format!(
+            "{} {{ list {{ src {{ name }} dst {{ name }} time {{ timestamp eventId }} layerName }}",
+            render_read_body(input)?
+        ),
+        // Nested variant of `ExplodedEdgesList` — mirrors `NestedEdgesList`.
+        ReadExpr::NestedExplodedEdgesList { input } => format!(
+            "{} {{ list {{ list {{ src {{ name }} dst {{ name }} time {{ timestamp eventId }} layerName }} }}",
+            render_read_body(input)?
+        ),
+        // Layer-exploded members — `(src, dst, layer)` per member (no time).
+        ReadExpr::ExplodedLayersEdgesList { input } => format!(
+            "{} {{ list {{ src {{ name }} dst {{ name }} layerName }}",
+            render_read_body(input)?
+        ),
+        ReadExpr::NestedExplodedLayersEdgesList { input } => format!(
+            "{} {{ list {{ list {{ src {{ name }} dst {{ name }} layerName }} }}",
             render_read_body(input)?
         ),
         // Columnar accessors — FLAT collections render `list { <field> }`.
@@ -1949,6 +2020,14 @@ fn read_depth(expr: &ReadExpr) -> usize {
         | ReadExpr::Count { input }
         | ReadExpr::EdgesList { input }
         | ReadExpr::NestedEdgesList { input }
+        | ReadExpr::ExplodedEdgesList { input }
+        | ReadExpr::NestedExplodedEdgesList { input }
+        | ReadExpr::ExplodedLayersEdgesList { input }
+        | ReadExpr::NestedExplodedLayersEdgesList { input }
+        | ReadExpr::NodeFilterEdges { input, .. }
+        | ReadExpr::EdgeFilterNodes { input, .. }
+        | ReadExpr::EdgeEvent { input, .. }
+        | ReadExpr::EdgeLayerEvent { input, .. }
         | ReadExpr::CollectionNames { input }
         | ReadExpr::CollectionNodeTypes { input }
         | ReadExpr::CollectionLayerNames { input }
@@ -2801,6 +2880,73 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
                 .collect();
             Ok(Some(Prop::List(rows?.into())))
         }
+        // Exploded edge-list terminal — JSON shape is
+        // `[{"src":{"name":..},"dst":{"name":..},"time":{"timestamp":..,"eventId":..},"layerName":..}, ..]`.
+        // Decode each element into a 5-element inner list
+        // `[src, dst, timestamp, event_id, layer_name]`.
+        ReadExpr::ExplodedEdgesList { .. } => {
+            let arr = terminal_val.as_array().ok_or_else(|| {
+                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
+            })?;
+            let items: Result<Vec<Prop>, ClientError> =
+                arr.iter().map(exploded_edge_elem).collect();
+            Ok(Some(Prop::List(items?.into())))
+        }
+        // Layer-exploded edge-list terminal — each element `{src, dst, layerName}`
+        // decodes to `[src, dst, layer_name]`.
+        ReadExpr::ExplodedLayersEdgesList { .. } => {
+            let arr = terminal_val.as_array().ok_or_else(|| {
+                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
+            })?;
+            let items: Result<Vec<Prop>, ClientError> =
+                arr.iter().map(exploded_layers_edge_elem).collect();
+            Ok(Some(Prop::List(items?.into())))
+        }
+        // Nested exploded edge-list terminal — one per-source record each
+        // holding its own `list` of exploded elements. Mirrors
+        // `NestedEdgesList`, with the exploded element decoding.
+        ReadExpr::NestedExplodedEdgesList { .. } => {
+            let outer = terminal_val.as_array().ok_or_else(|| {
+                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
+            })?;
+            let rows: Result<Vec<Prop>, ClientError> = outer
+                .iter()
+                .map(|row| {
+                    let inner = row.get("list").and_then(|v| v.as_array()).ok_or_else(|| {
+                        ClientError::InvalidResponse(format!(
+                            "`{}` element missing `list` array",
+                            terminal_key
+                        ))
+                    })?;
+                    let items: Result<Vec<Prop>, ClientError> =
+                        inner.iter().map(exploded_edge_elem).collect();
+                    Ok(Prop::List(items?.into()))
+                })
+                .collect();
+            Ok(Some(Prop::List(rows?.into())))
+        }
+        // Nested layer-exploded edge-list — like `NestedExplodedEdgesList` but
+        // each inner element is `{src, dst, layerName}`.
+        ReadExpr::NestedExplodedLayersEdgesList { .. } => {
+            let outer = terminal_val.as_array().ok_or_else(|| {
+                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
+            })?;
+            let rows: Result<Vec<Prop>, ClientError> = outer
+                .iter()
+                .map(|row| {
+                    let inner = row.get("list").and_then(|v| v.as_array()).ok_or_else(|| {
+                        ClientError::InvalidResponse(format!(
+                            "`{}` element missing `list` array",
+                            terminal_key
+                        ))
+                    })?;
+                    let items: Result<Vec<Prop>, ClientError> =
+                        inner.iter().map(exploded_layers_edge_elem).collect();
+                    Ok(Prop::List(items?.into()))
+                })
+                .collect();
+            Ok(Some(Prop::List(rows?.into())))
+        }
         // Columnar accessors — FLAT collections. `terminal_val` is the `list`
         // array; each element carries the requested per-member field.
         ReadExpr::CollectionNames { .. } => build_column(terminal_val, col_name_elem),
@@ -3333,6 +3479,38 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
                 go(input, out);
                 out.push("list");
             }
+            ReadExpr::ExplodedEdgesList { input } => {
+                go(input, out);
+                out.push("list");
+            }
+            ReadExpr::NestedExplodedEdgesList { input } => {
+                go(input, out);
+                out.push("list");
+            }
+            ReadExpr::ExplodedLayersEdgesList { input } => {
+                go(input, out);
+                out.push("list");
+            }
+            ReadExpr::NestedExplodedLayersEdgesList { input } => {
+                go(input, out);
+                out.push("list");
+            }
+            ReadExpr::NodeFilterEdges { input, .. } => {
+                go(input, out);
+                out.push("filterEdges");
+            }
+            ReadExpr::EdgeFilterNodes { input, .. } => {
+                go(input, out);
+                out.push("filterNodes");
+            }
+            ReadExpr::EdgeEvent { input, .. } => {
+                go(input, out);
+                out.push("event");
+            }
+            ReadExpr::EdgeLayerEvent { input, .. } => {
+                go(input, out);
+                out.push("eventLayer");
+            }
             // Columnar accessors all resolve through the `list` array.
             ReadExpr::CollectionNames { input }
             | ReadExpr::CollectionNodeTypes { input }
@@ -3700,6 +3878,78 @@ fn json_to_property_record(v: &JsonValue) -> Result<Prop, ClientError> {
 /// Build a `NotFound` error describing which Node/Edge/Graph selection
 /// returned `null` in the response. Walks the `expr` tree from outermost
 /// inward to find the variant whose json key matches `null_key`.
+/// Decode one exploded-edge record — `{"src":{"name":..},"dst":{"name":..},
+/// "time":{"timestamp":..,"eventId":..},"layerName":..}` — into the
+/// 5-element list `[src, dst, timestamp, event_id, layer_name]` used by the
+/// `ExplodedEdgesList` / `NestedExplodedEdgesList` terminals.
+fn exploded_edge_elem(v: &JsonValue) -> Result<Prop, ClientError> {
+    let src = v
+        .get("src")
+        .and_then(|s| s.get("name"))
+        .and_then(|n| n.as_str())
+        .ok_or_else(|| ClientError::InvalidResponse("edge element missing `src.name`".into()))?;
+    let dst = v
+        .get("dst")
+        .and_then(|d| d.get("name"))
+        .and_then(|n| n.as_str())
+        .ok_or_else(|| ClientError::InvalidResponse("edge element missing `dst.name`".into()))?;
+    let time = v.get("time").ok_or_else(|| {
+        ClientError::InvalidResponse("exploded edge element missing `time`".into())
+    })?;
+    let timestamp = time
+        .get("timestamp")
+        .and_then(|t| t.as_i64())
+        .ok_or_else(|| {
+            ClientError::InvalidResponse("exploded edge element missing `time.timestamp`".into())
+        })?;
+    let event_id = time
+        .get("eventId")
+        .and_then(|i| i.as_i64())
+        .ok_or_else(|| {
+            ClientError::InvalidResponse("exploded edge element missing `time.eventId`".into())
+        })?;
+    let layer = v.get("layerName").and_then(|l| l.as_str()).ok_or_else(|| {
+        ClientError::InvalidResponse("exploded edge element missing `layerName`".into())
+    })?;
+    Ok(Prop::List(
+        vec![
+            Prop::Str(src.into()),
+            Prop::Str(dst.into()),
+            Prop::I64(timestamp),
+            Prop::I64(event_id),
+            Prop::Str(layer.into()),
+        ]
+        .into(),
+    ))
+}
+
+/// Decode one `ExplodedLayersEdgesList` element — `{src{name}, dst{name},
+/// layerName}` — into `[src, dst, layer]` (no time; layer-exploded members have
+/// a layer but not a single event time).
+fn exploded_layers_edge_elem(v: &JsonValue) -> Result<Prop, ClientError> {
+    let src = v
+        .get("src")
+        .and_then(|s| s.get("name"))
+        .and_then(|n| n.as_str())
+        .ok_or_else(|| ClientError::InvalidResponse("edge element missing `src.name`".into()))?;
+    let dst = v
+        .get("dst")
+        .and_then(|d| d.get("name"))
+        .and_then(|n| n.as_str())
+        .ok_or_else(|| ClientError::InvalidResponse("edge element missing `dst.name`".into()))?;
+    let layer = v.get("layerName").and_then(|l| l.as_str()).ok_or_else(|| {
+        ClientError::InvalidResponse("layer-exploded edge element missing `layerName`".into())
+    })?;
+    Ok(Prop::List(
+        vec![
+            Prop::Str(src.into()),
+            Prop::Str(dst.into()),
+            Prop::Str(layer.into()),
+        ]
+        .into(),
+    ))
+}
+
 fn build_not_found_error(expr: &ReadExpr, null_key: &str) -> ClientError {
     let desc = find_selection(expr, null_key)
         .unwrap_or_else(|| format!("unexpected null at `{}`", null_key));
@@ -3815,6 +4065,14 @@ fn child_input(expr: &ReadExpr) -> Option<&ReadExpr> {
         | ReadExpr::Count { input }
         | ReadExpr::EdgesList { input }
         | ReadExpr::NestedEdgesList { input }
+        | ReadExpr::ExplodedEdgesList { input }
+        | ReadExpr::NestedExplodedEdgesList { input }
+        | ReadExpr::ExplodedLayersEdgesList { input }
+        | ReadExpr::NestedExplodedLayersEdgesList { input }
+        | ReadExpr::NodeFilterEdges { input, .. }
+        | ReadExpr::EdgeFilterNodes { input, .. }
+        | ReadExpr::EdgeEvent { input, .. }
+        | ReadExpr::EdgeLayerEvent { input, .. }
         | ReadExpr::CollectionNames { input }
         | ReadExpr::CollectionNodeTypes { input }
         | ReadExpr::CollectionLayerNames { input }
@@ -4128,6 +4386,222 @@ mod tests {
             absent.is_none(),
             "expected None for ben under window [100, 200), got Some"
         );
+
+        running.stop().await;
+    }
+
+    /// End-to-end parity: handles from `collect()` must evaluate under the
+    /// same composed view as the columnar accessors — the anchor-relative
+    /// one-hop semantics of the local `nodes.filter(f)`:
+    /// every node stays a member (and addressable), but each node's
+    /// traversals only see neighbours that match the filter.
+    ///
+    /// Fixture: a(score=10), b(score=20), c(score=30); edges a-b, b-c, c-a;
+    /// f = score > 15. Local ground truth: membership [a, b, c];
+    /// degrees a=2 (b, c both match), b=1 (a dropped), c=1 (a dropped).
+    #[tokio::test]
+    async fn test_filtered_collect_matches_columnar_reads() {
+        use crate::{client::remote_client::RemoteClient, server::GraphServer};
+        use raphtory::db::api::storage::storage::Config;
+        use reqwest::Url;
+        use std::collections::HashMap as Map;
+        use tempfile::tempdir;
+
+        let tmp_dir = tempdir().unwrap();
+        let server = GraphServer::new(tmp_dir.path().to_path_buf(), None, Config::default())
+            .await
+            .unwrap();
+        let running = server.start_with_port(0).await.unwrap();
+        let url = Url::parse(&format!("http://localhost:{}", running.port())).unwrap();
+        let client = RemoteClient::new(url, None);
+        client.new_graph("parity-filter", "EVENT").await.unwrap();
+        let rg = client.remote_graph("parity-filter".into());
+
+        for (name, score) in [("a", 10i64), ("b", 20), ("c", 30)] {
+            let props: Map<String, Prop> = [("score".to_string(), Prop::I64(score))].into();
+            rg.add_node(1i64, name, Some(props), None, None)
+                .await
+                .unwrap();
+        }
+        rg.add_edge(1i64, "a", "b", None, None).await.unwrap();
+        rg.add_edge(2i64, "b", "c", None, None).await.unwrap();
+        rg.add_edge(3i64, "c", "a", None, None).await.unwrap();
+
+        let score_gt_15 = GqlNodeFilter::Property(PropertyFilterNew {
+            name: "score".into(),
+            where_: PropCondition::Gt(GqlValue::I64(15)),
+        });
+
+        // Membership: filter keeps every node addressable — including `a`,
+        // which fails the filter itself.
+        let filtered = rg.nodes().filter(score_gt_15.clone());
+        let mut ids = filtered.ids().await.unwrap();
+        ids.sort();
+        assert_eq!(ids, ["a", "b", "c"], "filter must not narrow membership");
+
+        // Handles from collect() must agree with the columnar degree.
+        let columnar: Map<String, i64> = filtered
+            .ids()
+            .await
+            .unwrap()
+            .into_iter()
+            .zip(filtered.degree().await.unwrap())
+            .collect();
+        for handle in filtered.collect().await.unwrap() {
+            let got = handle.degree().await.unwrap();
+            assert_eq!(
+                got, columnar[&handle.id],
+                "collect()[{}].degree() disagrees with columnar",
+                handle.id
+            );
+        }
+        assert_eq!(columnar["a"], 2, "a keeps both matching neighbours");
+        assert_eq!(columnar["b"], 1, "a (score=10) dropped from b's edges");
+        assert_eq!(columnar["c"], 1, "a (score=10) dropped from c's edges");
+
+        // The filter keeps propagating through traversals on the handle.
+        let by_id: Map<String, _> = filtered
+            .collect()
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|n| (n.id.clone(), n))
+            .collect();
+        let b_neighbours = by_id["b"].neighbours().ids().await.unwrap();
+        assert_eq!(b_neighbours, ["c"], "b's neighbours under f exclude a");
+
+        // select() narrows membership only — handles see the unfiltered graph.
+        let selected = rg.nodes().select(score_gt_15.clone());
+        let mut selected_ids = selected.ids().await.unwrap();
+        selected_ids.sort();
+        assert_eq!(selected_ids, ["b", "c"], "select narrows membership");
+        for handle in selected.collect().await.unwrap() {
+            assert_eq!(
+                handle.degree().await.unwrap(),
+                2,
+                "select() handles must see the unfiltered graph"
+            );
+        }
+
+        // A directly-fetched node's filter must propagate into descendants
+        // materialized through it: b.filter(f).neighbours() is [c], and the
+        // materialized c still evaluates under f (degree 1, not 2).
+        let b = rg.node("b").await.unwrap().unwrap().filter(score_gt_15);
+        let c_handles = b.neighbours().collect().await.unwrap();
+        assert_eq!(c_handles.len(), 1);
+        assert_eq!(c_handles[0].id, "c");
+        assert_eq!(
+            c_handles[0].degree().await.unwrap(),
+            1,
+            "filter must survive materialization through node traversals"
+        );
+
+        // Cross-entity: edge handles materialized under a node filter replay
+        // it via the server's `filterNodes` field. b's only surviving edge is
+        // b-c, and its src (b) still evaluates under f.
+        let nested = rg
+            .nodes()
+            .filter(GqlNodeFilter::Property(PropertyFilterNew {
+                name: "score".into(),
+                where_: PropCondition::Gt(GqlValue::I64(15)),
+            }));
+        let rows = nested.edges().collect().await.unwrap();
+        let ids_in_order = nested.ids().await.unwrap();
+        let b_row = &rows[ids_in_order.iter().position(|id| id == "b").unwrap()];
+        assert_eq!(b_row.len(), 1, "b keeps only the edge to c under f");
+        assert_eq!((b_row[0].src.as_str(), b_row[0].dst.as_str()), ("b", "c"));
+        assert_eq!(
+            b_row[0].src().degree().await.unwrap(),
+            1,
+            "edge handle's node traversals must evaluate under f"
+        );
+
+        running.stop().await;
+    }
+
+    /// End-to-end parity: `explode().collect()` handles must be pinned to
+    /// their event — `.time()` / `.layer_name()` / properties answer like
+    /// local exploded edges — and `explode_layers().collect()` handles are
+    /// pinned to their layer (`.layer_name()` resolves, `.time()` unavailable).
+    #[tokio::test]
+    async fn test_exploded_collect_pins_events() {
+        use crate::{client::remote_client::RemoteClient, server::GraphServer};
+        use raphtory::db::api::storage::storage::Config;
+        use reqwest::Url;
+        use std::collections::HashMap as Map;
+        use tempfile::tempdir;
+
+        let tmp_dir = tempdir().unwrap();
+        let server = GraphServer::new(tmp_dir.path().to_path_buf(), None, Config::default())
+            .await
+            .unwrap();
+        let running = server.start_with_port(0).await.unwrap();
+        let url = Url::parse(&format!("http://localhost:{}", running.port())).unwrap();
+        let client = RemoteClient::new(url, None);
+        client.new_graph("parity-explode", "EVENT").await.unwrap();
+        let rg = client.remote_graph("parity-explode".into());
+
+        for (t, w) in [(1i64, 1i64), (5, 2)] {
+            let props: Map<String, Prop> = [("weight".to_string(), Prop::I64(w))].into();
+            rg.add_edge(t, "x", "y", Some(props), None).await.unwrap();
+        }
+
+        let exploded = rg.edges().explode();
+
+        // Columnar ground truth: one member per event, in event order.
+        let times: Vec<i64> = exploded
+            .time()
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|t| t.unwrap().timestamp.unwrap())
+            .collect();
+        assert_eq!(times, [1, 5]);
+
+        // Handles are pinned: same times, per-event property values, and a
+        // working layer_name — none of which a whole-edge handle can answer.
+        let handles = exploded.collect().await.unwrap();
+        assert_eq!(handles.len(), 2);
+        for (handle, (expect_t, expect_w)) in handles.iter().zip([(1i64, 1i64), (5, 2)]) {
+            let t = handle.time().await.unwrap().unwrap().timestamp.unwrap();
+            assert_eq!(t, expect_t, "handle not pinned to its event");
+            let w = handle
+                .properties()
+                .get("weight")
+                .await
+                .unwrap()
+                .expect("weight present")
+                .value;
+            assert_eq!(w, Prop::I64(expect_w), "per-event property value");
+            let layer = handle.layer_name().await.unwrap();
+            assert_eq!(layer, "_default");
+        }
+
+        // Single-edge explode goes through the same pinning path.
+        let e = rg.edge("x", "y").await.unwrap().unwrap();
+        let single = e.explode().collect().await.unwrap();
+        assert_eq!(single.len(), 2);
+        assert_eq!(
+            single[1].time().await.unwrap().unwrap().timestamp.unwrap(),
+            5
+        );
+
+        // Layer-exploded members are re-addressable via the server's
+        // `eventLayer` field: each handle resolves its `layer_name`, while
+        // `time()` is unavailable (a layer instance spans all its events —
+        // matching local `explode_layers()` semantics).
+        let layered = rg.edges().explode_layers().collect().await.unwrap();
+        assert!(!layered.is_empty());
+        for h in &layered {
+            assert!(
+                h.layer_name().await.is_ok(),
+                "layer_name must resolve on a layer-pinned handle"
+            );
+            assert!(
+                h.time().await.is_err(),
+                "time() must be unavailable on a layer-exploded handle (matches local)"
+            );
+        }
 
         running.stop().await;
     }

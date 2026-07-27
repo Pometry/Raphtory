@@ -1,5 +1,5 @@
 use crate::client::{
-    op::{Op, ReadExpr},
+    op::{HandleCtx, Op, ReadExpr},
     remote_graph::{
         expect_bool, expect_event_time_list, expect_i64, expect_i64_list,
         expect_optional_event_time, expect_optional_f64, expect_optional_i64, expect_string_list,
@@ -37,10 +37,10 @@ pub struct RemoteEventTime {
 /// - `RemoteEdge.deletions` — deletion event times for an edge.
 ///
 /// Holds the accumulated read expression (`expr`) so terminals like `.count()`
-/// and `.collect()` evaluate under the full view chain, plus a `base_graph`
-/// expression representing the parent graph view — used when materializing
-/// members (via sub-container list/page terminals) so descendants inherit the
-/// same view.
+/// and `.collect()` evaluate under the full view chain, plus a
+/// materialization context (`ctx`) recording the parent graph view — used
+/// when materializing members (via sub-container list/page terminals) so
+/// descendants inherit the same view.
 ///
 /// Mirrors the shape of the local Python API's `History` type. Exposes the
 /// list/page terminals plus the `timestamps` / `datetimes` / `event_id` /
@@ -53,7 +53,7 @@ pub struct RemoteHistory {
     pub expr: ReadExpr,
     /// The parent graph view — used by sub-containers and list materialization
     /// to rebase descendants under the same view chain.
-    pub base_graph: ReadExpr,
+    pub ctx: HandleCtx,
 }
 
 impl RemoteHistory {
@@ -63,13 +63,13 @@ impl RemoteHistory {
         path: String,
         transport: Arc<dyn Transport>,
         expr: ReadExpr,
-        base_graph: ReadExpr,
+        ctx: HandleCtx,
     ) -> Self {
         Self {
             path,
             transport,
             expr,
-            base_graph,
+            ctx,
         }
     }
 
@@ -170,7 +170,7 @@ impl RemoteHistory {
             ReadExpr::HistoryReverse {
                 input: Box::new(self.expr.clone()),
             },
-            self.base_graph.clone(),
+            self.ctx.clone(),
         )
     }
 
@@ -183,7 +183,7 @@ impl RemoteHistory {
             expr: ReadExpr::HistoryTimestamps {
                 input: Box::new(self.expr.clone()),
             },
-            base_graph: self.base_graph.clone(),
+            ctx: self.ctx.clone(),
         }
     }
 
@@ -195,7 +195,7 @@ impl RemoteHistory {
             expr: ReadExpr::HistoryEventIds {
                 input: Box::new(self.expr.clone()),
             },
-            base_graph: self.base_graph.clone(),
+            ctx: self.ctx.clone(),
         }
     }
 
@@ -208,7 +208,7 @@ impl RemoteHistory {
             expr: ReadExpr::HistoryDateTimes {
                 input: Box::new(self.expr.clone()),
             },
-            base_graph: self.base_graph.clone(),
+            ctx: self.ctx.clone(),
         }
     }
 
@@ -221,14 +221,14 @@ impl RemoteHistory {
             expr: ReadExpr::HistoryIntervals {
                 input: Box::new(self.expr.clone()),
             },
-            base_graph: self.base_graph.clone(),
+            ctx: self.ctx.clone(),
         }
     }
 }
 
 // ============ Sub-container types ============
 //
-// All four sub-containers share the same shape: `expr` + `base_graph` +
+// All four sub-containers share the same shape: `expr` + `ctx` +
 // four list/page terminals rendered as `list` / `listRev` / `page(...)` /
 // `pageRev(...)` on the server. Return type differs by parent — parsed
 // polymorphically in `parse_read` via dispatch on the parent selection.
@@ -240,7 +240,7 @@ pub struct RemoteHistoryTimestamps {
     pub path: String,
     pub transport: Arc<dyn Transport>,
     pub expr: ReadExpr,
-    pub base_graph: ReadExpr,
+    pub ctx: HandleCtx,
 }
 
 impl RemoteHistoryTimestamps {
@@ -300,7 +300,7 @@ pub struct RemoteHistoryEventIds {
     pub path: String,
     pub transport: Arc<dyn Transport>,
     pub expr: ReadExpr,
-    pub base_graph: ReadExpr,
+    pub ctx: HandleCtx,
 }
 
 impl RemoteHistoryEventIds {
@@ -360,7 +360,7 @@ pub struct RemoteHistoryDateTimes {
     pub path: String,
     pub transport: Arc<dyn Transport>,
     pub expr: ReadExpr,
-    pub base_graph: ReadExpr,
+    pub ctx: HandleCtx,
 }
 
 impl RemoteHistoryDateTimes {
@@ -421,7 +421,7 @@ pub struct RemoteIntervals {
     pub path: String,
     pub transport: Arc<dyn Transport>,
     pub expr: ReadExpr,
-    pub base_graph: ReadExpr,
+    pub ctx: HandleCtx,
 }
 
 impl RemoteIntervals {

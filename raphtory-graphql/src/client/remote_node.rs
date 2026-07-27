@@ -1,8 +1,9 @@
 use crate::{
     client::{
         op::{
-            AddNodeMetadata as AddNodeMetadataOp, AddNodeUpdates as AddNodeUpdatesOp, Op, ReadExpr,
-            SetNodeType as SetNodeTypeOp, UpdateNodeMetadata as UpdateNodeMetadataOp, WriteOp,
+            AddNodeMetadata as AddNodeMetadataOp, AddNodeUpdates as AddNodeUpdatesOp, HandleCtx,
+            HandleOp, Op, ReadExpr, SetNodeType as SetNodeTypeOp,
+            UpdateNodeMetadata as UpdateNodeMetadataOp, WriteOp,
         },
         remote_edges::RemoteEdges,
         remote_graph::{
@@ -27,59 +28,60 @@ use std::{collections::HashMap, sync::Arc};
 ///
 /// Holds the accumulated read expression (`expr`) so that terminals like
 /// `degree()` evaluate under the full view chain built up on the parent
-/// `RemoteGraph`, plus a `base_graph` expression representing the graph view
-/// this node lives under — used when navigating to child collections
-/// (`neighbours`, etc.) so those children evaluate under the same view chain.
+/// `RemoteGraph`, plus a materialization context (`ctx`) recording the parent
+/// graph view and the entity-level ops applied to this handle — passed to
+/// child collections (`neighbours`, etc.) so members they materialize via
+/// `.collect()` replay the same ops and evaluate under the same view chain.
 #[derive(Clone)]
 pub struct RemoteNode {
     pub path: String,
     pub id: String,
     pub transport: Arc<dyn Transport>,
     pub expr: ReadExpr,
-    /// The parent graph view — used by child collections (`neighbours`, etc.)
-    /// to correctly rebase materialized descendants under the same view chain.
-    pub base_graph: ReadExpr,
+    /// Materialization context — inherited by child collections so their
+    /// `.collect()` handles replay this node's ops (view ops, filters).
+    pub ctx: HandleCtx,
 }
 
 impl RemoteNode {
     /// Construct with an explicit transport, pre-built read expression, and
-    /// parent graph view.
+    /// materialization context.
     pub fn with_expr(
         path: String,
         id: String,
         transport: Arc<dyn Transport>,
         expr: ReadExpr,
-        base_graph: ReadExpr,
+        ctx: HandleCtx,
     ) -> Self {
         Self {
             path,
             id,
             transport,
             expr,
-            base_graph,
+            ctx,
         }
     }
 
-    /// Internal helper: apply the same view op to both `expr` and
-    /// `base_graph`. Applying to `expr` narrows the node's own view;
-    /// applying to `base_graph` ensures descendants navigated via
-    /// `.neighbours`, `.edges`, etc. inherit the same narrowed graph view.
+    /// Internal helper: apply a view op to `expr` (narrowing the node's own
+    /// view) and record it in `ctx` so descendants navigated via
+    /// `.neighbours`, `.edges`, etc. replay it when materializing handles.
     fn with_view_op<F>(&self, wrap: F) -> RemoteNode
     where
-        F: Fn(ReadExpr) -> ReadExpr,
+        F: Fn(ReadExpr) -> ReadExpr + Send + Sync + 'static,
     {
+        let wrap = Arc::new(wrap);
         RemoteNode {
             path: self.path.clone(),
             id: self.id.clone(),
             transport: self.transport.clone(),
             expr: wrap(self.expr.clone()),
-            base_graph: wrap(self.base_graph.clone()),
+            ctx: self.ctx.with_op(HandleOp::View(wrap)),
         }
     }
 
     /// Time-window this node. Lazy — no RPC.
     pub fn window(&self, start: i64, end: i64) -> RemoteNode {
-        self.with_view_op(|input| ReadExpr::Window {
+        self.with_view_op(move |input| ReadExpr::Window {
             input: Box::new(input),
             start,
             end,
@@ -87,9 +89,9 @@ impl RemoteNode {
     }
 
     /// Return a filtered view of this node — mirrors the local
-    /// `Node.filter(FilterExpr)`. Wraps only `expr` (the server field
-    /// `filter(expr:)` on `Node`); `base_graph` is graph-level and stays
-    /// unchanged. Lazy — no RPC.
+    /// `Node.filter(FilterExpr)`. Wraps `expr` (the server field
+    /// `filter(expr:)` on `Node`) and records the filter in `ctx` so
+    /// descendants materialized through this node replay it. Lazy — no RPC.
     pub fn filter(&self, filter: GqlNodeFilter) -> RemoteNode {
         RemoteNode {
             path: self.path.clone(),
@@ -97,16 +99,16 @@ impl RemoteNode {
             transport: self.transport.clone(),
             expr: ReadExpr::FilterNodes {
                 input: Box::new(self.expr.clone()),
-                filter,
+                filter: filter.clone(),
             },
-            base_graph: self.base_graph.clone(),
+            ctx: self.ctx.with_op(HandleOp::NodeFilter(filter)),
         }
     }
 
     /// Restrict to a single named layer. Lazy — no RPC.
     pub fn layer(&self, name: impl ToString) -> RemoteNode {
         let name = name.to_string();
-        self.with_view_op(|input| ReadExpr::Layer {
+        self.with_view_op(move |input| ReadExpr::Layer {
             input: Box::new(input),
             name: name.clone(),
         })
@@ -114,7 +116,7 @@ impl RemoteNode {
 
     /// Snapshot at a specific time. Lazy — no RPC.
     pub fn at(&self, time: i64) -> RemoteNode {
-        self.with_view_op(|input| ReadExpr::At {
+        self.with_view_op(move |input| ReadExpr::At {
             input: Box::new(input),
             time,
         })
@@ -122,7 +124,7 @@ impl RemoteNode {
 
     /// Restrict to events strictly before the given time. Lazy — no RPC.
     pub fn before(&self, time: i64) -> RemoteNode {
-        self.with_view_op(|input| ReadExpr::Before {
+        self.with_view_op(move |input| ReadExpr::Before {
             input: Box::new(input),
             time,
         })
@@ -130,7 +132,7 @@ impl RemoteNode {
 
     /// Restrict to events at or after the given time. Lazy — no RPC.
     pub fn after(&self, time: i64) -> RemoteNode {
-        self.with_view_op(|input| ReadExpr::After {
+        self.with_view_op(move |input| ReadExpr::After {
             input: Box::new(input),
             time,
         })
@@ -138,21 +140,21 @@ impl RemoteNode {
 
     /// Latest state. Lazy — no RPC.
     pub fn latest(&self) -> RemoteNode {
-        self.with_view_op(|input| ReadExpr::Latest {
+        self.with_view_op(move |input| ReadExpr::Latest {
             input: Box::new(input),
         })
     }
 
     /// Snapshot at the latest time. Lazy — no RPC.
     pub fn snapshot_latest(&self) -> RemoteNode {
-        self.with_view_op(|input| ReadExpr::SnapshotLatest {
+        self.with_view_op(move |input| ReadExpr::SnapshotLatest {
             input: Box::new(input),
         })
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
     pub fn snapshot_at(&self, time: i64) -> RemoteNode {
-        self.with_view_op(|input| ReadExpr::SnapshotAt {
+        self.with_view_op(move |input| ReadExpr::SnapshotAt {
             input: Box::new(input),
             time,
         })
@@ -161,7 +163,7 @@ impl RemoteNode {
     /// Exclude a specific layer from the view. Lazy — no RPC.
     pub fn exclude_layer(&self, name: impl ToString) -> RemoteNode {
         let name = name.to_string();
-        self.with_view_op(|input| ReadExpr::ExcludeLayer {
+        self.with_view_op(move |input| ReadExpr::ExcludeLayer {
             input: Box::new(input),
             name: name.clone(),
         })
@@ -169,7 +171,7 @@ impl RemoteNode {
 
     /// Shrink both start and end of the current window. Lazy — no RPC.
     pub fn shrink_window(&self, start: i64, end: i64) -> RemoteNode {
-        self.with_view_op(|input| ReadExpr::ShrinkWindow {
+        self.with_view_op(move |input| ReadExpr::ShrinkWindow {
             input: Box::new(input),
             start,
             end,
@@ -178,7 +180,7 @@ impl RemoteNode {
 
     /// Shrink the start of the current window. Lazy — no RPC.
     pub fn shrink_start(&self, start: i64) -> RemoteNode {
-        self.with_view_op(|input| ReadExpr::ShrinkStart {
+        self.with_view_op(move |input| ReadExpr::ShrinkStart {
             input: Box::new(input),
             start,
         })
@@ -186,7 +188,7 @@ impl RemoteNode {
 
     /// Shrink the end of the current window. Lazy — no RPC.
     pub fn shrink_end(&self, end: i64) -> RemoteNode {
-        self.with_view_op(|input| ReadExpr::ShrinkEnd {
+        self.with_view_op(move |input| ReadExpr::ShrinkEnd {
             input: Box::new(input),
             end,
         })
@@ -194,14 +196,14 @@ impl RemoteNode {
 
     /// Restrict to the default layer. Lazy — no RPC.
     pub fn default_layer(&self) -> RemoteNode {
-        self.with_view_op(|input| ReadExpr::DefaultLayer {
+        self.with_view_op(move |input| ReadExpr::DefaultLayer {
             input: Box::new(input),
         })
     }
 
     /// Restrict to the given set of layers. Lazy — no RPC.
     pub fn layers(&self, names: Vec<String>) -> RemoteNode {
-        self.with_view_op(|input| ReadExpr::Layers {
+        self.with_view_op(move |input| ReadExpr::Layers {
             input: Box::new(input),
             names: names.clone(),
         })
@@ -209,7 +211,7 @@ impl RemoteNode {
 
     /// Exclude the given set of layers from the view. Lazy — no RPC.
     pub fn exclude_layers(&self, names: Vec<String>) -> RemoteNode {
-        self.with_view_op(|input| ReadExpr::ExcludeLayers {
+        self.with_view_op(move |input| ReadExpr::ExcludeLayers {
             input: Box::new(input),
             names: names.clone(),
         })
@@ -217,7 +219,7 @@ impl RemoteNode {
 
     /// Restrict to the given set of valid layers. Lazy — no RPC.
     pub fn valid_layers(&self, names: Vec<String>) -> RemoteNode {
-        self.with_view_op(|input| ReadExpr::ValidLayers {
+        self.with_view_op(move |input| ReadExpr::ValidLayers {
             input: Box::new(input),
             names: names.clone(),
         })
@@ -226,7 +228,7 @@ impl RemoteNode {
     /// Exclude a specific valid layer from the view. Lazy — no RPC.
     pub fn exclude_valid_layer(&self, name: impl ToString) -> RemoteNode {
         let name = name.to_string();
-        self.with_view_op(|input| ReadExpr::ExcludeValidLayer {
+        self.with_view_op(move |input| ReadExpr::ExcludeValidLayer {
             input: Box::new(input),
             name: name.clone(),
         })
@@ -234,7 +236,7 @@ impl RemoteNode {
 
     /// Exclude the given set of valid layers from the view. Lazy — no RPC.
     pub fn exclude_valid_layers(&self, names: Vec<String>) -> RemoteNode {
-        self.with_view_op(|input| ReadExpr::ExcludeValidLayers {
+        self.with_view_op(move |input| ReadExpr::ExcludeValidLayers {
             input: Box::new(input),
             names: names.clone(),
         })
@@ -389,7 +391,7 @@ impl RemoteNode {
             ReadExpr::Neighbours {
                 input: Box::new(self.expr.clone()),
             },
-            self.base_graph.clone(),
+            self.ctx.clone(),
         )
     }
 
@@ -402,7 +404,7 @@ impl RemoteNode {
             ReadExpr::InNeighbours {
                 input: Box::new(self.expr.clone()),
             },
-            self.base_graph.clone(),
+            self.ctx.clone(),
         )
     }
 
@@ -415,7 +417,7 @@ impl RemoteNode {
             ReadExpr::OutNeighbours {
                 input: Box::new(self.expr.clone()),
             },
-            self.base_graph.clone(),
+            self.ctx.clone(),
         )
     }
 
@@ -429,7 +431,7 @@ impl RemoteNode {
             ReadExpr::InComponent {
                 input: Box::new(self.expr.clone()),
             },
-            self.base_graph.clone(),
+            self.ctx.clone(),
         )
     }
 
@@ -443,7 +445,7 @@ impl RemoteNode {
             ReadExpr::OutComponent {
                 input: Box::new(self.expr.clone()),
             },
-            self.base_graph.clone(),
+            self.ctx.clone(),
         )
     }
 
@@ -456,7 +458,7 @@ impl RemoteNode {
             ReadExpr::NodeEdges {
                 input: Box::new(self.expr.clone()),
             },
-            self.base_graph.clone(),
+            self.ctx.clone(),
         )
     }
 
@@ -468,7 +470,7 @@ impl RemoteNode {
             ReadExpr::InEdges {
                 input: Box::new(self.expr.clone()),
             },
-            self.base_graph.clone(),
+            self.ctx.clone(),
         )
     }
 
@@ -480,7 +482,7 @@ impl RemoteNode {
             ReadExpr::OutEdges {
                 input: Box::new(self.expr.clone()),
             },
-            self.base_graph.clone(),
+            self.ctx.clone(),
         )
     }
 
@@ -493,7 +495,7 @@ impl RemoteNode {
             ReadExpr::Metadata {
                 input: Box::new(self.expr.clone()),
             },
-            self.base_graph.clone(),
+            self.ctx.clone(),
         )
     }
 
@@ -506,7 +508,7 @@ impl RemoteNode {
             ReadExpr::Properties {
                 input: Box::new(self.expr.clone()),
             },
-            self.base_graph.clone(),
+            self.ctx.clone(),
         )
     }
 
@@ -521,7 +523,7 @@ impl RemoteNode {
             ReadExpr::History {
                 input: Box::new(self.expr.clone()),
             },
-            self.base_graph.clone(),
+            self.ctx.clone(),
         )
     }
 
