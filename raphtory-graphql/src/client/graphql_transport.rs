@@ -375,7 +375,8 @@ impl GraphqlTransport {
         };
 
         let query = build_query(template, ctx)?;
-        self.client.query(&query, HashMap::new()).await?;
+        let res = self.client.query(&query, HashMap::new()).await?;
+        ensure_write_target_present(&res, "node", format!("node '{}'", args.id))?;
         Ok(None)
     }
 
@@ -401,7 +402,8 @@ impl GraphqlTransport {
         };
 
         let query = build_query(template, ctx)?;
-        self.client.query(&query, HashMap::new()).await?;
+        let res = self.client.query(&query, HashMap::new()).await?;
+        ensure_write_target_present(&res, "node", format!("node '{}'", args.id))?;
         Ok(None)
     }
 
@@ -426,7 +428,8 @@ impl GraphqlTransport {
         };
 
         let query = build_query(template, ctx)?;
-        self.client.query(&query, HashMap::new()).await?;
+        let res = self.client.query(&query, HashMap::new()).await?;
+        ensure_write_target_present(&res, "node", format!("node '{}'", args.id))?;
         Ok(None)
     }
 
@@ -451,7 +454,8 @@ impl GraphqlTransport {
         };
 
         let query = build_query(template, ctx)?;
-        self.client.query(&query, HashMap::new()).await?;
+        let res = self.client.query(&query, HashMap::new()).await?;
+        ensure_write_target_present(&res, "node", format!("node '{}'", args.id))?;
         Ok(None)
     }
 
@@ -479,7 +483,12 @@ impl GraphqlTransport {
         };
 
         let query = build_query(template, ctx)?;
-        self.client.query(&query, HashMap::new()).await?;
+        let res = self.client.query(&query, HashMap::new()).await?;
+        ensure_write_target_present(
+            &res,
+            "edge",
+            format!("edge '{}' -> '{}'", args.src, args.dst),
+        )?;
         Ok(None)
     }
 
@@ -506,7 +515,12 @@ impl GraphqlTransport {
         };
 
         let query = build_query(template, ctx)?;
-        self.client.query(&query, HashMap::new()).await?;
+        let res = self.client.query(&query, HashMap::new()).await?;
+        ensure_write_target_present(
+            &res,
+            "edge",
+            format!("edge '{}' -> '{}'", args.src, args.dst),
+        )?;
         Ok(None)
     }
 
@@ -533,7 +547,12 @@ impl GraphqlTransport {
         };
 
         let query = build_query(template, ctx)?;
-        self.client.query(&query, HashMap::new()).await?;
+        let res = self.client.query(&query, HashMap::new()).await?;
+        ensure_write_target_present(
+            &res,
+            "edge",
+            format!("edge '{}' -> '{}'", args.src, args.dst),
+        )?;
         Ok(None)
     }
 
@@ -560,7 +579,12 @@ impl GraphqlTransport {
         };
 
         let query = build_query(template, ctx)?;
-        self.client.query(&query, HashMap::new()).await?;
+        let res = self.client.query(&query, HashMap::new()).await?;
+        ensure_write_target_present(
+            &res,
+            "edge",
+            format!("edge '{}' -> '{}'", args.src, args.dst),
+        )?;
         Ok(None)
     }
 
@@ -782,6 +806,28 @@ fn render_gql_str(s: &str) -> String {
     // GraphQL string literal — quotes, backslashes, control chars, and unicode
     // are all escaped correctly. Callers must NOT add their own quotes.
     serde_json::to_string(s).expect("string serialization is infallible")
+}
+
+/// Node/edge-scoped writes address their target as `updateGraph { node(name) }`
+/// / `edge(src, dst)`. When the target doesn't exist under the current view the
+/// server resolves that field to `null` with no error and silently does
+/// nothing — so a bare `Ok(())` would report success for a write that never
+/// happened. Surface the missing target as `NotFound` instead.
+fn ensure_write_target_present(
+    res: &HashMap<String, serde_json::Value>,
+    field: &str,
+    target: String,
+) -> Result<(), ClientError> {
+    let present = res
+        .get("updateGraph")
+        .and_then(|g| g.as_object())
+        .and_then(|g| g.get(field))
+        .is_some_and(|v| !v.is_null());
+    if present {
+        Ok(())
+    } else {
+        Err(ClientError::NotFound(target))
+    }
 }
 
 fn render_gql_value(v: &GqlValue) -> Result<String, ClientError> {
@@ -3922,6 +3968,40 @@ mod tests {
     fn filter_value_position_is_escaped() {
         let v = render_gql_value(&GqlValue::Str("O\"Brien".into())).unwrap();
         assert_eq!(v, r#"{str: "O\"Brien"}"#);
+    }
+
+    #[test]
+    fn scoped_write_to_missing_target_is_not_found() {
+        // A node/edge-scoped write against a target that doesn't exist under the
+        // current view: the server resolves the field to `null` with no error.
+        // The client must surface that as `NotFound`, not a silent success.
+        let missing_node: HashMap<String, serde_json::Value> = [(
+            "updateGraph".to_string(),
+            serde_json::json!({ "node": null }),
+        )]
+        .into();
+        assert!(matches!(
+            ensure_write_target_present(&missing_node, "node", "node 'ghost'".into()),
+            Err(ClientError::NotFound(_))
+        ));
+
+        let missing_edge: HashMap<String, serde_json::Value> = [(
+            "updateGraph".to_string(),
+            serde_json::json!({ "edge": null }),
+        )]
+        .into();
+        assert!(matches!(
+            ensure_write_target_present(&missing_edge, "edge", "edge 'a' -> 'z'".into()),
+            Err(ClientError::NotFound(_))
+        ));
+
+        // A present target (the field is a non-null object) is a success.
+        let present: HashMap<String, serde_json::Value> = [(
+            "updateGraph".to_string(),
+            serde_json::json!({ "node": { "setNodeType": true } }),
+        )]
+        .into();
+        assert!(ensure_write_target_present(&present, "node", "node 'a'".into()).is_ok());
     }
 
     #[test]
