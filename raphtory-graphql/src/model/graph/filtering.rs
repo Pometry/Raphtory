@@ -1998,7 +1998,12 @@ fn build_base_prop_condition(
 /// The `ops` are applied inside-out: `ops = [First, Sum]` becomes
 /// `Sum(First(base))`.
 fn apply_ops_to_condition(base: PropCondition, ops: &[Op]) -> PropCondition {
-    ops.iter().fold(base, |acc, op| match op {
+    // `ops` are collected outermost-first when the condition is decomposed
+    // (`peel_prop_wrappers_and_collect_ops`), so a `.first().sum()` tree
+    // `Sum(First(base))` yields `[Sum, First]`. Reconstruct by folding in
+    // reverse — otherwise the nesting inverts and the chain runs backwards
+    // (`.first().sum()` would execute as `.sum().first()`).
+    ops.iter().rev().fold(base, |acc, op| match op {
         Op::First => PropCondition::First(wrap(acc)),
         Op::Last => PropCondition::Last(wrap(acc)),
         Op::Len => PropCondition::Len(wrap(acc)),
@@ -2199,5 +2204,35 @@ impl TryFrom<CompositeEdgeFilter> for GqlEdgeFilter {
                 expr: wrap(l.inner.try_into()?),
             }),
         })
+    }
+}
+
+#[cfg(test)]
+mod op_chain_tests {
+    use super::*;
+
+    #[test]
+    fn multi_op_prop_condition_round_trips() {
+        // `.first().sum()` — `sum` is the outermost (last-applied) reduction, so
+        // the tree is `Sum(First(leaf))`.
+        let tree = PropCondition::Sum(wrap(PropCondition::First(wrap(PropCondition::IsSome(
+            true,
+        )))));
+
+        // Decompose exactly as the wire encoder does — peel outermost-first.
+        let mut ops = Vec::new();
+        let mut cursor = &tree;
+        while let Some(inner) = peel_prop_wrappers_and_collect_ops(cursor, &mut ops) {
+            cursor = inner;
+        }
+
+        // Reconstruct: with the fold-in-reverse fix this round-trips. Before the
+        // fix it produced the inverted `First(Sum(leaf))` (i.e. `.sum().first()`).
+        let rebuilt = apply_ops_to_condition(cursor.clone(), &ops);
+        assert_eq!(
+            format!("{tree:?}"),
+            format!("{rebuilt:?}"),
+            "op chain did not round-trip — nesting inverted"
+        );
     }
 }
