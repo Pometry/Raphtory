@@ -127,10 +127,10 @@ impl GraphStorage {
         }
     }
 
-    pub fn logical_to_physical(&self) -> &GIDResolver {
+    pub fn gid_resolver(&self) -> &GIDResolver {
         match self {
-            GraphStorage::Mem(graph) => &graph.graph.logical_to_physical,
-            GraphStorage::Unlocked(graph) => &graph.logical_to_physical,
+            GraphStorage::Mem(graph) => &graph.graph.gid_resolver,
+            GraphStorage::Unlocked(graph) => &graph.gid_resolver,
         }
     }
 

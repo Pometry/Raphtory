@@ -50,10 +50,14 @@ where
     ES<EXT>: EdgeSegmentOps<Extension = EXT>,
     GS<EXT>: GraphPropSegmentOps<Extension = EXT>,
 {
-    // mapping between logical and physical ids
-    pub logical_to_physical: Arc<GIDResolver>,
     pub round_robin_counter: AtomicUsize,
     storage: Arc<Layer<EXT>>,
+    // NOTE: Do not change the order of fields as this affects storage correctness during drop.
+    // The resolver needs to be dropped before storage to ensure that node IDs are not lost
+    // on recovery.
+    // TODO: Move resolver inside storage?
+    /// Stores mapping between logical to physical node IDs.
+    pub gid_resolver: Arc<GIDResolver>,
     graph_dir: Option<GraphDir>,
     pub transaction_manager: Arc<TransactionManager>,
 }
@@ -120,7 +124,7 @@ where
             .and_then(|dtype| GidType::from_prop_type(dtype));
 
         let gid_resolver_dir = graph_dir.as_ref().map(|dir| dir.gid_resolver_dir());
-        let logical_to_physical = match gid_resolver_dir {
+        let gid_resolver = match gid_resolver_dir {
             Some(gid_resolver_dir) => GIDResolver::new_with_path(gid_resolver_dir, id_type)?,
             None => GIDResolver::new()?,
         }
@@ -136,7 +140,7 @@ where
 
         Ok(Self {
             graph_dir,
-            logical_to_physical,
+            gid_resolver,
             storage: Arc::new(storage),
             transaction_manager: Arc::new(TransactionManager::new()),
             round_robin_counter: AtomicUsize::new(0),
@@ -172,14 +176,14 @@ where
         Ok(Self {
             graph_dir: Some(path.into()),
             round_robin_counter: AtomicUsize::new(0),
-            logical_to_physical: resolver.into(),
+            gid_resolver: resolver.into(),
             storage: Arc::new(storage),
             transaction_manager: Arc::new(TransactionManager::new()),
         })
     }
 
     pub fn flush(&self) -> Result<(), StorageError> {
-        self.logical_to_physical.flush()?;
+        self.gid_resolver.flush()?;
         self.storage.flush()
     }
 
@@ -213,11 +217,11 @@ where
     pub fn resolve_node_ref(&self, node: NodeRef) -> Option<VID> {
         let vid = match node {
             NodeRef::Internal(vid) => Some(vid),
-            NodeRef::External(GidRef::U64(gid)) => self.logical_to_physical.get_u64(gid),
+            NodeRef::External(GidRef::U64(gid)) => self.gid_resolver.get_u64(gid),
             NodeRef::External(GidRef::Str(string)) => self
-                .logical_to_physical
+                .gid_resolver
                 .get_str(string)
-                .or_else(|| self.logical_to_physical.get_u64(string.id())),
+                .or_else(|| self.gid_resolver.get_u64(string.id())),
         }?;
 
         // VIDs in the resolver may not be initialised yet, need to double-check the node actually exists!
@@ -493,7 +497,7 @@ where
     pub fn flush(&mut self) -> Result<(), StorageError> {
         self.graph.storage.save_config()?;
 
-        self.graph.logical_to_physical.flush()?;
+        self.graph.gid_resolver.flush()?;
         self.nodes.flush()?;
         self.edges.flush()?;
         self.graph_props.flush()?;
@@ -510,7 +514,7 @@ where
         self.graph.extension().config().save_to_dir(dst)?;
         self.graph.extension().control_file().copy_to(dst)?;
 
-        self.graph.logical_to_physical.copy_to(dst.join("gid_resolver"))?;
+        self.graph.gid_resolver.copy_to(dst.join("gid_resolver"))?;
         self.nodes.copy_to(&dst.join("nodes"))?;
         self.edges.copy_to(&dst.join("edges"))?;
         self.graph_props.copy_to(&dst.join("graph_props"))?;

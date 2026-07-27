@@ -46,13 +46,13 @@ where
         // Insert node ids into resolver.
         if let Some(src_name) = src_name.as_ref() {
             self.graph()
-                .logical_to_physical
+                .gid_resolver
                 .set(src_name.as_ref(), src_id)?;
         }
 
         if let Some(dst_name) = dst_name.as_ref() {
             self.graph()
-                .logical_to_physical
+                .gid_resolver
                 .set(dst_name.as_ref(), dst_id)?;
         }
 
@@ -287,13 +287,13 @@ where
         // Insert node ids into resolver.
         if let Some(src_name) = src_name.as_ref() {
             self.graph()
-                .logical_to_physical
+                .gid_resolver
                 .set(src_name.as_ref(), src_id)?;
         }
 
         if let Some(dst_name) = dst_name.as_ref() {
             self.graph()
-                .logical_to_physical
+                .gid_resolver
                 .set(dst_name.as_ref(), dst_id)?;
         }
 
@@ -463,7 +463,7 @@ where
         // Insert node id into resolver.
         if let Some(ref name) = node_name {
             self.graph()
-                .logical_to_physical
+                .gid_resolver
                 .set(name.as_ref(), node_id)?;
         }
 

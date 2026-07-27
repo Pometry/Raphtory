@@ -33,7 +33,7 @@ pub trait CoreGraphOps: Send + Sync {
     fn id_type(&self) -> Option<GidType> {
         match self.core_graph() {
             GraphStorage::Mem(LockedGraph { graph, .. }) | GraphStorage::Unlocked(graph) => {
-                graph.logical_to_physical.dtype()
+                graph.gid_resolver.dtype()
             }
         }
     }
