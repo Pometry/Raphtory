@@ -4,6 +4,7 @@ use crate::{
     model::{
         algorithms::{
             all_local_reciprocity::{GqlAllLocalReciprocity, GqlAllLocalReciprocityArgs},
+            average_degree::{GqlAverageDegree, GqlAverageDegreeArgs},
             balance::{GqlBalance, GqlBalanceArgs},
             betweenness_centrality::{GqlBetweennessCentrality, GqlBetweennessCentralityArgs},
             cohesive_fruchterman_reingold::{
@@ -11,8 +12,13 @@ use crate::{
             },
             degree_centrality::{GqlDegreeCentrality, GqlDegreeCentralityArgs},
             dijkstra::{GqlDijkstra, GqlDijkstraArgs},
+            directed_graph_density::{GqlDirectedGraphDensity, GqlDirectedGraphDensityArgs},
             fast_rp::{GqlFastRp, GqlFastRpArgs},
             fruchterman_reingold::{GqlFruchtermanReingold, GqlFruchtermanReingoldArgs},
+            global_clustering_coefficient::{
+                GqlGlobalClusteringCoefficient, GqlGlobalClusteringCoefficientArgs,
+            },
+            global_reciprocity::{GqlGlobalReciprocity, GqlGlobalReciprocityArgs},
             hits::{GqlHits, GqlHitsArgs},
             in_component::{GqlInComponent, GqlInComponentArgs},
             in_components::{GqlInComponents, GqlInComponentsArgs},
@@ -57,13 +63,17 @@ use raphtory::{
 use raphtory_api::core::Direction;
 
 pub(crate) mod all_local_reciprocity;
+pub(crate) mod average_degree;
 pub(crate) mod balance;
 pub(crate) mod betweenness_centrality;
 pub(crate) mod cohesive_fruchterman_reingold;
 pub(crate) mod degree_centrality;
 pub(crate) mod dijkstra;
+pub(crate) mod directed_graph_density;
 pub(crate) mod fast_rp;
 pub(crate) mod fruchterman_reingold;
+pub(crate) mod global_clustering_coefficient;
+pub(crate) mod global_reciprocity;
 pub(crate) mod hits;
 pub(crate) mod in_component;
 pub(crate) mod in_components;
@@ -375,6 +385,29 @@ impl GqlAlgorithms {
             nodes,
         })
         .await
+    }
+
+    /// Returns the global clustering coefficient of the graph.
+    async fn global_clustering_coefficient(&self) -> Result<f64, GraphError> {
+        self.run::<GqlGlobalClusteringCoefficient>(GqlGlobalClusteringCoefficientArgs)
+            .await
+    }
+
+    /// Returns the directed graph density (fraction of possible directed edges present).
+    async fn directed_graph_density(&self) -> Result<f64, GraphError> {
+        self.run::<GqlDirectedGraphDensity>(GqlDirectedGraphDensityArgs)
+            .await
+    }
+
+    /// Returns the global reciprocity of the graph.
+    async fn global_reciprocity(&self) -> Result<f64, GraphError> {
+        self.run::<GqlGlobalReciprocity>(GqlGlobalReciprocityArgs)
+            .await
+    }
+
+    /// Returns the average (undirected) degree of the graph's nodes.
+    async fn average_degree(&self) -> Result<f64, GraphError> {
+        self.run::<GqlAverageDegree>(GqlAverageDegreeArgs).await
     }
 
     /// Returns the FastRP embedding of every node.

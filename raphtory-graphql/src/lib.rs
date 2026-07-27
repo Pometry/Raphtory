@@ -1549,6 +1549,49 @@ mod graphql_test {
         );
     }
 
+    fn scalar_metrics_test_graph() -> MaterializedGraph {
+        let graph = Graph::new();
+        // a <-> b reciprocated, b -> c -> a forming a triangle with a-b, and c -> d as a pendant edge,
+        // so density/reciprocity/clustering/degree are all non-trivial
+        for (src, dst) in [("a", "b"), ("b", "a"), ("b", "c"), ("c", "a"), ("c", "d")] {
+            graph.add_edge(1, src, dst, NO_PROPS, None).unwrap();
+        }
+        graph.into()
+    }
+
+    #[tokio::test]
+    async fn test_algorithm_scalar_metrics() {
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", scalar_metrics_test_graph())], tmp_dir.path()).await;
+
+        let query = r#"
+        {
+          graph(path: "g") {
+            algorithm {
+              globalClusteringCoefficient
+              directedGraphDensity
+              globalReciprocity
+              averageDegree
+            }
+          }
+        }
+        "#;
+
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        assert_eq!(
+            res.data.into_json().unwrap(),
+            json!({
+                "graph": { "algorithm": {
+                    "globalClusteringCoefficient": 0.6,
+                    "directedGraphDensity": 0.4166666666666667,
+                    "globalReciprocity": 0.4,
+                    "averageDegree": 2.0
+                } }
+            })
+        );
+    }
+
     fn centrality_test_graph() -> MaterializedGraph {
         let graph = Graph::new();
         // path a -> b -> c -> d so nodes get distinct centrality scores
