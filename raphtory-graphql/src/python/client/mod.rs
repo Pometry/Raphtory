@@ -64,12 +64,13 @@ impl Serialize for PyUpdate {
             let properties_list: Vec<serde_json::Value> = properties
                 .iter()
                 .map(|(key, value)| {
-                    json!({
+                    Ok(json!({
                         "key": key,
-                        "value": inner_collection(value),
-                    })
+                        "value": inner_collection(value)?,
+                    }))
                 })
-                .collect();
+                .collect::<Result<_, ClientError>>()
+                .map_err(serde::ser::Error::custom)?;
             state.serialize_field("properties", &properties_list)?;
         }
 

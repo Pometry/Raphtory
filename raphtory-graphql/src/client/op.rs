@@ -5,7 +5,7 @@
 //! what "an operation" means on the wire.
 
 use crate::{
-    client::inner_collection,
+    client::{inner_collection, ClientError},
     model::graph::filtering::{GqlEdgeFilter, GqlNodeFilter},
 };
 use raphtory_api::core::entities::properties::prop::Prop;
@@ -966,8 +966,9 @@ impl Serialize for TemporalUpdate {
         if let Some(ref props) = self.properties {
             let items: Vec<serde_json::Value> = props
                 .iter()
-                .map(|(k, v)| json!({ "key": k, "value": inner_collection(v) }))
-                .collect();
+                .map(|(k, v)| Ok(json!({ "key": k, "value": inner_collection(v)? })))
+                .collect::<Result<_, ClientError>>()
+                .map_err(serde::ser::Error::custom)?;
             state.serialize_field("properties", &items)?;
         }
         state.end()
@@ -997,8 +998,9 @@ impl Serialize for NodeAddition {
         if let Some(ref meta) = self.metadata {
             let items: Vec<serde_json::Value> = meta
                 .iter()
-                .map(|(k, v)| json!({ "key": k, "value": inner_collection(v) }))
-                .collect();
+                .map(|(k, v)| Ok(json!({ "key": k, "value": inner_collection(v)? })))
+                .collect::<Result<_, ClientError>>()
+                .map_err(serde::ser::Error::custom)?;
             state.serialize_field("metadata", &items)?;
         }
         if let Some(ref updates) = self.updates {
@@ -1032,8 +1034,9 @@ impl Serialize for EdgeAddition {
         if let Some(ref meta) = self.metadata {
             let items: Vec<serde_json::Value> = meta
                 .iter()
-                .map(|(k, v)| json!({ "key": k, "value": inner_collection(v) }))
-                .collect();
+                .map(|(k, v)| Ok(json!({ "key": k, "value": inner_collection(v)? })))
+                .collect::<Result<_, ClientError>>()
+                .map_err(serde::ser::Error::custom)?;
             state.serialize_field("metadata", &items)?;
         }
         if let Some(ref updates) = self.updates {

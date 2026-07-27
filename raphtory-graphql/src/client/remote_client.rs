@@ -380,6 +380,18 @@ impl RemoteClient {
 
     /// Create a new empty graph on the server.
     pub async fn new_graph(&self, path: &str, graph_type: &str) -> Result<(), ClientError> {
+        // `graph_type` is spliced into the query as an unquoted GraphQL enum
+        // literal, so it must be validated against the known variants rather
+        // than blindly interpolated.
+        let graph_type = match graph_type {
+            "EVENT" => "EVENT",
+            "PERSISTENT" => "PERSISTENT",
+            other => {
+                return Err(ClientError::InvalidInput(format!(
+                    "invalid graph type `{other}`: expected \"EVENT\" or \"PERSISTENT\""
+                )))
+            }
+        };
         let query = r#"
             mutation NewGraph($path: String!) {
               newGraph(path: $path, graphType: EVENT)

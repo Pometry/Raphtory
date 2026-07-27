@@ -33,6 +33,12 @@ use std::{collections::HashMap, sync::Arc};
 /// has its own inline template).
 pub fn build_query(template: &str, context: Value) -> Result<String, ClientError> {
     let mut env = Environment::new();
+    // minijinja's default environment does NOT auto-escape, so any user string
+    // spliced straight into a template would break the GraphQL query. The
+    // `gqlstr` filter renders a value as a fully-quoted, escaped GraphQL string
+    // literal (a JSON string literal is a valid GraphQL string literal) — so
+    // templates use `{{ x | gqlstr }}` with no surrounding quotes of their own.
+    env.add_filter("gqlstr", |s: String| serde_json::to_string(&s).unwrap());
     env.add_template("template", template)
         .map_err(|e| ClientError::JinjaError(e.to_string()))?;
     let query = env

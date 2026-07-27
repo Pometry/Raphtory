@@ -4143,3 +4143,64 @@ def test_nested_edges_metadata_properties_view():
         _assert_view_internally_consistent(rne.metadata)
     finally:
         server_cm.__exit__(None, None, None)
+
+
+# ============ String-escaping round-trip (drop-in parity) ============
+# User-supplied strings (node names, property keys, filter values) are spliced
+# into GraphQL queries and must survive an ids -> node round-trip byte-for-byte.
+# Each name below breaks a naively-quoted query: a bare double-quote, a
+# backslash, a newline, non-ASCII unicode, and a control char (BEL, U+0007).
+@pytest.mark.parametrize(
+    "name",
+    ['O"Brien', "back\\slash", "multi\nline", "🌟", "a\x07b"],
+)
+def test_special_chars_roundtrip(name):
+    """A tricky node name + a quoted property key must round-trip identically
+    on the remote graph and match a local twin."""
+    from raphtory import Graph
+    from raphtory.filter import Node
+
+    quoted_key = 'k"ey'
+    expected_val = "value"
+
+    # Local twin graph — the source of truth for expected behaviour.
+    lg = Graph()
+    lg.add_node(1, name, properties={quoted_key: expected_val})
+    lg.add_node(2, "anchor")
+    lg.add_edge(3, name, "anchor")
+
+    work_dir = tempfile.mkdtemp()
+    server_cm = GraphServer(work_dir).start()
+    server = server_cm.__enter__()
+    try:
+        client = server.get_client()
+        client.new_graph("escape-graph", "EVENT")
+        rg = client.remote_graph("escape-graph")
+        rg.add_node(1, name, properties={quoted_key: expected_val})
+        rg.add_node(2, "anchor")
+        rg.add_edge(3, name, "anchor")
+
+        # Collection names must match the local twin (order-independent).
+        assert sorted(rg.nodes.name) == sorted(lg.nodes.name)
+        assert name in list(rg.nodes.name)
+
+        # ids -> node round-trip: `.node(name)` validates via hasNode (the name
+        # is escaped into the query) and the degree must match the local twin.
+        assert rg.node(name).degree() == lg.node(name).degree() == 1
+
+        # Property whose KEY also contains a quote — escaped into `get(key: ...)`.
+        assert rg.node(name).properties.get(quoted_key) == expected_val
+        assert rg.node(name).properties.get(quoted_key) == lg.node(name).properties.get(
+            quoted_key
+        )
+
+        # A filter carrying the tricky value must resolve it correctly. `.filter`
+        # is the drop-in-parity method; read the result columnarly (`.id`, which
+        # keeps the filter in the query expression) rather than materializing
+        # handles, so this stays a pure filter-value escaping check.
+        assert (
+            rg.nodes.filter(Node.name() == name).id
+            == lg.nodes.filter(Node.name() == name).id
+        )
+    finally:
+        server_cm.__exit__(None, None, None)

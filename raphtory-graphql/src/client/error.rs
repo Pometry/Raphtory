@@ -23,6 +23,11 @@ pub enum ClientError {
     #[error("Invalid response: {0}")]
     InvalidResponse(String),
 
+    /// A user-supplied value cannot be rendered into a valid GraphQL query —
+    /// e.g. a non-finite float (NaN / infinity), or an unrecognised graph type.
+    #[error("Invalid input: {0}")]
+    InvalidInput(String),
+
     /// The read expression referenced a node or edge that isn't visible under
     /// the current view (either absent from the graph entirely, or filtered
     /// out by the accumulated view chain). Fired when a terminal RPC returns
