@@ -124,7 +124,10 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
     /// Returns the latest lsn for the immutable part of this segment.
     fn immut_lsn(&self) -> LSN;
 
-    fn flush(&self) -> Result<(), StorageError>;
+    fn flush(
+        &self,
+        locked_head: impl DerefMut<Target = MemEdgeSegment>,
+    ) -> Result<(), StorageError>;
 
     fn copy_to(&self, dst: &Path) -> Result<(), StorageError>;
 

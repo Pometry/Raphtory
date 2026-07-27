@@ -5,7 +5,7 @@ use crate::{
 use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::entities::properties::prop::Prop;
 use raphtory_core::storage::timeindex::AsTime;
-use std::path::Path;
+use std::{ops::DerefMut, path::Path};
 
 pub struct LockedGraphPropPage<'a, GS: GraphPropSegmentOps> {
     page: &'a GS,
@@ -70,6 +70,11 @@ impl<'a, GS: GraphPropSegmentOps> WriteLockedGraphPropPages<'a, GS> {
 
     pub fn writer(&mut self) -> &mut LockedGraphPropPage<'a, GS> {
         &mut self.writer
+    }
+
+    pub fn flush(&mut self) -> Result<(), StorageError> {
+        let LockedGraphPropPage { page, lock } = &mut self.writer;
+        page.flush(lock.deref_mut())
     }
 
     pub fn copy_to(&self, dst: &Path) -> Result<(), StorageError> {

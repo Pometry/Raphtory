@@ -131,6 +131,15 @@ impl<'a, EXT: PersistenceStrategy<NS = NS>, NS: NodeSegmentOps<Extension = EXT>>
         Ok(())
     }
 
+    pub fn flush(&mut self) -> Result<(), StorageError> {
+        self.writers.par_iter_mut().try_for_each(|writer| {
+            let LockedNodePage { page, lock, .. } = writer;
+            page.flush(lock.deref_mut())
+        })?;
+
+        Ok(())
+    }
+
     pub fn copy_to(&self, dst: &Path) -> Result<(), StorageError> {
         std::fs::create_dir_all(dst)?;
 

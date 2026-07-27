@@ -113,7 +113,10 @@ pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
 
     fn locked(&self) -> Self::ArcLockedSegment;
 
-    fn flush(&self) -> Result<(), StorageError>;
+    fn flush(
+        &self,
+        locked_head: impl DerefMut<Target = MemNodeSegment>,
+    ) -> Result<(), StorageError>;
 
     fn is_dirty(&self) -> bool;
 

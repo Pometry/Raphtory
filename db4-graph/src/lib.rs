@@ -179,8 +179,8 @@ where
     }
 
     pub fn flush(&self) -> Result<(), StorageError> {
-        self.storage.flush()?;
-        self.logical_to_physical.flush()
+        self.logical_to_physical.flush()?;
+        self.storage.flush()
     }
 
     pub fn vacuum(&self) -> Result<(), StorageError> {
@@ -486,6 +486,19 @@ where
 
     pub fn node_stats(&self) -> &Arc<GraphStats> {
         self.graph.storage().nodes().stats()
+    }
+
+    /// Flush dirty in-memory segments to disk using the existing segment
+    /// write locks.
+    pub fn flush(&mut self) -> Result<(), StorageError> {
+        self.graph.storage.save_config()?;
+
+        self.graph.logical_to_physical.flush()?;
+        self.nodes.flush()?;
+        self.edges.flush()?;
+        self.graph_props.flush()?;
+
+        self.graph.storage.refresh_metadata()
     }
 
     /// Copy graph data to a new directory.

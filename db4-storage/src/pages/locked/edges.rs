@@ -134,6 +134,15 @@ impl<'a, EXT: PersistenceStrategy<ES = ES>, ES: EdgeSegmentOps<Extension = EXT>>
         Ok(())
     }
 
+    pub fn flush(&mut self) -> Result<(), StorageError> {
+        self.writers.par_iter_mut().try_for_each(|writer| {
+            let LockedEdgePage { page, lock, .. } = writer;
+            page.flush(lock.deref_mut())
+        })?;
+
+        Ok(())
+    }
+
     pub fn len(&self) -> usize {
         self.writers.len()
     }

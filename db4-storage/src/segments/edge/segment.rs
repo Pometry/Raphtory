@@ -623,7 +623,10 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
         0
     }
 
-    fn flush(&self) -> Result<(), StorageError> {
+    fn flush(
+        &self,
+        _locked_head: impl DerefMut<Target = MemEdgeSegment>,
+    ) -> Result<(), StorageError> {
         Ok(())
     }
 

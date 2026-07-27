@@ -76,6 +76,7 @@ impl<GS: GraphPropSegmentOps<Extension = EXT>, EXT: PersistenceStrategy>
     }
 
     pub fn flush(&self) -> Result<(), StorageError> {
-        self.page.flush()
+        let head = self.page.head_mut();
+        self.page.flush(head)
     }
 }

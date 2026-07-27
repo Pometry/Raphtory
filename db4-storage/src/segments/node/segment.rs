@@ -573,7 +573,10 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
         ArcLockedSegmentView::new(self.inner.read_arc(), self.num_nodes())
     }
 
-    fn flush(&self) -> Result<(), StorageError> {
+    fn flush(
+        &self,
+        _locked_head: impl DerefMut<Target = MemNodeSegment>,
+    ) -> Result<(), StorageError> {
         Ok(())
     }
 
