@@ -540,14 +540,14 @@ impl ValidWriteableGraphFolder {
     pub fn write_graph_bytes<R: Read + Seek + Send + 'static>(
         &self,
         bytes: R,
-        config: Config,
+        config_args: ConfigArgs,
     ) -> Result<(), PathValidationError> {
         self.with_internal_errors(|| {
             if Extension::disk_storage_enabled() {
                 MaterializedGraph::decode_from_zip_at(
                     ZipArchive::new(bytes)?,
                     self.graph_folder(),
-                    config.into_args(),
+                    config_args,
                 )?
                 .flush()?;
             } else {

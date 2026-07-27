@@ -709,7 +709,7 @@ impl Mut {
         let config = data.graph_conf.clone();
         let folder_clone = folder.clone();
         let g: MaterializedGraph = blocking_compute(move || {
-            url_decode_graph_at(graph, folder_clone.graph_folder(), config)
+            url_decode_graph_at(graph, folder_clone.graph_folder(), config.into_args())
         })
         .await?;
         data.insert_graph(folder, g).await?;
