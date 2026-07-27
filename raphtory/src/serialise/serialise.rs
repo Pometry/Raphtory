@@ -86,7 +86,10 @@ impl<T: ParquetEncoder + StaticGraphViewOps + AdditionOps> StableEncode for T {
 pub trait StableDecode: StaticGraphViewOps + AdditionOps {
     // Decode the graph from the given bytes array.
     // `path_for_decoded_graph` gets passed to the newly created graph.
-    fn decode_from_bytes_with_config(bytes: &[u8], config_args: ConfigArgs) -> Result<Self, GraphError>;
+    fn decode_from_bytes_with_config(
+        bytes: &[u8],
+        config_args: ConfigArgs,
+    ) -> Result<Self, GraphError>;
 
     fn decode_from_bytes(bytes: &[u8]) -> Result<Self, GraphError> {
         Self::decode_from_bytes_with_config(bytes, ConfigArgs::default())
@@ -132,7 +135,10 @@ pub trait StableDecode: StaticGraphViewOps + AdditionOps {
 }
 
 impl<T: ParquetDecoder + StaticGraphViewOps + AdditionOps> StableDecode for T {
-    fn decode_from_bytes_with_config(bytes: &[u8], config_args: ConfigArgs) -> Result<Self, GraphError> {
+    fn decode_from_bytes_with_config(
+        bytes: &[u8],
+        config_args: ConfigArgs,
+    ) -> Result<Self, GraphError> {
         let cursor = Cursor::new(bytes);
         Self::decode_from_zip_with_config(ZipArchive::new(cursor)?, config_args)
     }

@@ -2,7 +2,10 @@ use crate::{
     client::{ClientError, GraphQLRemoteGraph},
     url_encode::url_decode_graph,
 };
-use raphtory::{db::api::{storage::storage::ConfigArgs, view::MaterializedGraph}, prelude::Config};
+use raphtory::{
+    db::api::{storage::storage::ConfigArgs, view::MaterializedGraph},
+    prelude::Config,
+};
 use raphtory_api::core::storage::graph_folder::GraphFolder;
 use reqwest::{multipart, multipart::Part, Client};
 use serde_json::{json, Value as JsonValue};

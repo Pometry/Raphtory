@@ -34,7 +34,7 @@ use std::{
     path::Path,
     sync::Arc,
 };
-use storage::{wal::LSN};
+use storage::wal::LSN;
 
 #[cfg(feature = "search")]
 use raphtory_api::core::storage::graph_folder::{GraphFolder, GraphPaths};
@@ -56,7 +56,8 @@ use {
 };
 // Re-export for raphtory dependencies to use when creating graphs.
 pub use storage::{
-    persist::strategy::PersistenceStrategy, read_constant_graph_properties, Config, ConfigArgs, Extension,
+    persist::strategy::PersistenceStrategy, read_constant_graph_properties, Config, ConfigArgs,
+    Extension,
 };
 
 #[derive(Debug, Default)]
@@ -173,7 +174,10 @@ impl Storage {
         Self::load_with_extension(path, ext)
     }
 
-    pub fn load_with_config(path: impl AsRef<Path>, config_args: ConfigArgs) -> Result<Self, GraphError> {
+    pub fn load_with_config(
+        path: impl AsRef<Path>,
+        config_args: ConfigArgs,
+    ) -> Result<Self, GraphError> {
         let path = path.as_ref();
         let ext = Extension::load_with_config(path, config_args)?;
 

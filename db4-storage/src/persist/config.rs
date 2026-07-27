@@ -13,7 +13,7 @@ pub const DEFAULT_MAX_PAGE_LEN_EDGES: u32 = 6_000_000; // 2^20
 pub const CONFIG_FILE_NAME: &str = "config.json";
 
 pub trait ConfigOps: Serialize + DeserializeOwned + Args + Sized {
-    type NewConfigArgs; 
+    type NewConfigArgs;
 
     fn max_node_page_len(&self) -> u32;
 

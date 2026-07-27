@@ -113,7 +113,10 @@ impl PersistenceStrategy for NoOpStrategy {
         Err(StorageError::DiskStorageNotSupported)
     }
 
-    fn load_with_config(_graph_dir: &Path, _config: Self::ConfigArgs) -> Result<Self, StorageError> {
+    fn load_with_config(
+        _graph_dir: &Path,
+        _config: Self::ConfigArgs,
+    ) -> Result<Self, StorageError> {
         Err(StorageError::DiskStorageNotSupported)
     }
 

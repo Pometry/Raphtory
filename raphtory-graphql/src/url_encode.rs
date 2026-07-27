@@ -1,8 +1,11 @@
 use base64::{prelude::BASE64_URL_SAFE, DecodeError, Engine};
 use raphtory::{
     db::api::{
-        storage::storage::{Config, ConfigArgs, Extension, PersistenceStrategy}, view::MaterializedGraph,
-    }, errors::GraphError, prelude::{StableDecode, StableEncode},
+        storage::storage::{Config, ConfigArgs, Extension, PersistenceStrategy},
+        view::MaterializedGraph,
+    },
+    errors::GraphError,
+    prelude::{StableDecode, StableEncode},
 };
 use raphtory_api::core::storage::graph_folder::GraphPaths;
 

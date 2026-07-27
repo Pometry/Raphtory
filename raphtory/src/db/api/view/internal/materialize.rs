@@ -11,9 +11,9 @@ use crate::{
 use raphtory_api::core::storage::graph_folder::GraphPaths;
 use raphtory_api::{iter::BoxedLIter, GraphType};
 use raphtory_storage::{graph::graph::GraphStorage, mutation::InheritMutationOps};
+use std::ops::Range;
 #[cfg(feature = "io")]
 use storage::ConfigArgs;
-use std::ops::Range;
 
 #[derive(Clone)]
 pub enum MaterializedGraph {
@@ -121,9 +121,10 @@ impl MaterializedGraph {
         let meta = path.read_metadata()?;
         if meta.is_diskgraph {
             match meta.graph_type {
-                GraphType::EventGraph => {
-                    Ok(Self::EventGraph(Graph::load_with_config(path, config_args)?))
-                }
+                GraphType::EventGraph => Ok(Self::EventGraph(Graph::load_with_config(
+                    path,
+                    config_args,
+                )?)),
                 GraphType::PersistentGraph => Ok(Self::PersistentGraph(
                     PersistentGraph::load_with_config(path, config_args)?,
                 )),

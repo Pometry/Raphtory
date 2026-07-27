@@ -36,7 +36,7 @@ use storage::api::graph_props::{GraphPropEntryOps, GraphPropRefOps};
 
 use storage::ConfigArgs;
 #[cfg(feature = "io")]
-use storage::{Extension, persist::strategy::PersistenceStrategy};
+use storage::{persist::strategy::PersistenceStrategy, Extension};
 
 /// A graph view where an edge remains active from the time it is added until it is explicitly marked as deleted.
 ///
@@ -133,7 +133,7 @@ impl PersistentGraph {
     #[cfg(feature = "io")]
     pub fn new_at_path_with_config(
         path: &(impl GraphPaths + ?Sized),
-        config_args: ConfigArgs
+        config_args: ConfigArgs,
     ) -> Result<Self, GraphError> {
         if !Extension::disk_storage_enabled() {
             return Err(GraphError::DiskGraphNotEnabled);

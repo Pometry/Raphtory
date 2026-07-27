@@ -209,7 +209,9 @@ impl PyGraph {
             (None, false) => Graph::load(&path),
             (Some(PyConfig(config_args)), false) => Graph::load_with_config(&path, config_args),
             (None, true) => Graph::load_read_only(&path),
-            (Some(PyConfig(config_args)), true) => Graph::load_read_only_with_config(&path, config_args),
+            (Some(PyConfig(config_args)), true) => {
+                Graph::load_read_only_with_config(&path, config_args)
+            }
         }
     }
 

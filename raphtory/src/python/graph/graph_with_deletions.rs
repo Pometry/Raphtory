@@ -133,7 +133,9 @@ impl PyPersistentGraph {
         let graph = match path {
             Some(path) => match config {
                 None => PersistentGraph::new_at_path(&path)?,
-                Some(PyConfig(config_args)) => PersistentGraph::new_at_path_with_config(&path, config_args)?,
+                Some(PyConfig(config_args)) => {
+                    PersistentGraph::new_at_path_with_config(&path, config_args)?
+                }
             },
             None => match config {
                 None => PersistentGraph::new(),
@@ -169,7 +171,9 @@ impl PyPersistentGraph {
     ) -> Result<PersistentGraph, GraphError> {
         match (config, read_only) {
             (None, false) => PersistentGraph::load(&path),
-            (Some(PyConfig(config_args)), false) => PersistentGraph::load_with_config(&path, config_args),
+            (Some(PyConfig(config_args)), false) => {
+                PersistentGraph::load_with_config(&path, config_args)
+            }
             (None, true) => PersistentGraph::load_read_only(&path),
             (Some(PyConfig(config_args)), true) => {
                 PersistentGraph::load_read_only_with_config(&path, config_args)

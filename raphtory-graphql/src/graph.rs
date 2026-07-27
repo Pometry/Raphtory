@@ -7,15 +7,21 @@ use raphtory::prelude::IndexMutationOps;
 #[cfg(feature = "vectors")]
 use raphtory::vectors::{storage::LazyDiskVectorCache, vectorised_graph::VectorisedGraph};
 use raphtory::{
-    core::entities::nodes::node_ref::AsNodeRef, db::{
+    core::entities::nodes::node_ref::AsNodeRef,
+    db::{
         api::{
-            storage::storage::ConfigArgs, view::{
-                Base, InheritViewOps, MaterializedGraph, internal::{
+            storage::storage::ConfigArgs,
+            view::{
+                internal::{
                     InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InheritStorageOps, Static,
                 },
+                Base, InheritViewOps, MaterializedGraph,
             },
-        }, graph::{edge::EdgeView, node::NodeView},
-    }, errors::{GraphError, GraphResult}, prelude::{EdgeViewOps, StableDecode},
+        },
+        graph::{edge::EdgeView, node::NodeView},
+    },
+    errors::{GraphError, GraphResult},
+    prelude::{EdgeViewOps, StableDecode},
 };
 use raphtory_api::core::storage::graph_folder::GraphPaths;
 use raphtory_storage::{
