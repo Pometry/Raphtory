@@ -151,7 +151,7 @@ pub trait GraphWalOps {
         props: Vec<(&str, usize, Prop)>,
     ) -> Result<LSN, StorageError>;
 
-    /// Logs a checkpoint indicating that all LSN < `redo` are persisted.
+    /// Logs a checkpoint indicating that all records with `LSN < redo` are persisted.
     /// On recovery, replay will start from `redo` in the WAL stream.
     fn log_checkpoint(&self, redo: LSN) -> Result<LSN, StorageError>;
 
