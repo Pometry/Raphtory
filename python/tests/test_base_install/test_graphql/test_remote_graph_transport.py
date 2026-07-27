@@ -149,7 +149,7 @@ def test_compound_time_terminals():
         # On a Node — earliest/latest reflect the node's own events under the view.
         ben = rg.node("ben")
         assert ben.earliest_time == 1  # ben added at t=1
-        assert ben.latest_time == 3    # participated in edge at t=3
+        assert ben.latest_time == 3  # participated in edge at t=3
     finally:
         server_cm.__exit__(None, None, None)
 
@@ -404,9 +404,7 @@ def test_edges_native_iteration():
         assert pairs == [("ben", "hamza"), ("ben", "sam")]
 
         # Native iteration over a node's out_edges collection.
-        out_pairs = sorted(
-            (e.src.name, e.dst.name) for e in rg.node("ben").out_edges
-        )
+        out_pairs = sorted((e.src.name, e.dst.name) for e in rg.node("ben").out_edges)
         assert out_pairs == [("ben", "hamza"), ("ben", "sam")]
     finally:
         server_cm.__exit__(None, None, None)
@@ -536,18 +534,18 @@ def test_node_view_chain_builders():
         ben = rg.node("ben")
 
         # Global vs windowed on the same node handle.
-        assert ben.edge_history_count() == 2      # two edge events total
+        assert ben.edge_history_count() == 2  # two edge events total
         assert ben.window(0, 5).edge_history_count() == 1
         assert ben.window(6, 10).edge_history_count() == 1
         assert ben.window(100, 200).edge_history_count() == 0
 
         # At — snapshot at a specific time.
         assert ben.at(3).is_active() is True
-        assert ben.at(5).is_active() is False     # window [5, 6) — no events
+        assert ben.at(5).is_active() is False  # window [5, 6) — no events
 
         # Before / after — one-sided views.
-        assert ben.before(5).edge_history_count() == 1   # only t=3
-        assert ben.after(5).edge_history_count() == 1    # only t=8
+        assert ben.before(5).edge_history_count() == 1  # only t=3
+        assert ben.after(5).edge_history_count() == 1  # only t=8
         assert ben.before(0).edge_history_count() == 0
         assert ben.after(100).edge_history_count() == 0
 
@@ -618,6 +616,7 @@ def test_edge_read_terminals():
         # ClientError::GraphQLErrors. We surface the message unchanged — the
         # test just asserts we surface *something* with "layer_name" in it.
         import pytest
+
         with pytest.raises(Exception, match="layer_name"):
             e.layer_name
 
@@ -678,12 +677,12 @@ def test_collection_view_chain_builders():
         # Contrast with pre-selection (`rg.window(...).nodes`) where the graph-
         # level view filters membership. Same semantics as node/edge selection.
         assert rg.nodes.window(0, 5).count() == 2
-        assert rg.nodes.window(100, 200).count() == 2   # sticky!
-        assert rg.window(100, 200).nodes.count() == 0   # graph-level filters
+        assert rg.nodes.window(100, 200).count() == 2  # sticky!
+        assert rg.window(100, 200).nodes.count() == 0  # graph-level filters
         # Same story on edges — collection membership sticks; view narrows.
         assert rg.edges.window(0, 5).count() == 1
-        assert rg.edges.window(100, 200).count() == 1   # sticky
-        assert rg.window(100, 200).edges.count() == 0   # graph-level filters
+        assert rg.edges.window(100, 200).count() == 1  # sticky
+        assert rg.window(100, 200).edges.count() == 0  # graph-level filters
 
         # at / before / after / latest / snapshot compose without membership change on nodes.
         assert rg.nodes.at(3).count() == 2
@@ -752,7 +751,7 @@ def test_history_scalar_terminals_on_node():
     server_cm, rg = _make_graph_with_edge()
     # Node ben: add_node at t=1, add_edge (ben, hamza) at t=3 → 2 events.
     try:
-        h = rg.node("ben").history        # property, not method
+        h = rg.node("ben").history  # property, not method
         assert h.count() == 2
         assert h.is_empty() is False
         assert h.earliest_time() == 1
@@ -834,7 +833,7 @@ def test_history_list_on_empty_view():
         empty = rg.node("ben").window(100, 200).history
         assert empty.collect() == []
         assert empty.collect_rev() == []
-        assert list(empty) == []                       # iteration also empty
+        assert list(empty) == []  # iteration also empty
     finally:
         server_cm.__exit__(None, None, None)
 
@@ -860,9 +859,7 @@ def test_graph_schema():
 
         # user node type has a "score" temporal property
         user_schema = next(n for n in schema.nodes if n.type_name == "user")
-        score_prop = next(
-            (p for p in user_schema.properties if p.key == "score"), None
-        )
+        score_prop = next((p for p in user_schema.properties if p.key == "score"), None)
         assert score_prop is not None
         assert score_prop.property_type  # some type string
 
@@ -879,9 +876,7 @@ def test_graph_schema():
         edge_schema = default_layer.edges[0]
         assert edge_schema.src_type in {"user", "bot"}
         assert edge_schema.dst_type in {"user", "bot"}
-        weight_meta = next(
-            (p for p in edge_schema.metadata if p.key == "weight"), None
-        )
+        weight_meta = next((p for p in edge_schema.metadata if p.key == "weight"), None)
         assert weight_meta is not None
     finally:
         server_cm.__exit__(None, None, None)
@@ -939,14 +934,20 @@ def test_temporal_property_unique_and_dedupe():
         # timestamp of each run.
         first_ts = status.ordered_dedupe(latest_time=False)
         assert [(p.time.t, p.value) for p in first_ts] == [
-            (1, 1), (3, 2), (6, 3), (7, 1)
+            (1, 1),
+            (3, 2),
+            (6, 3),
+            (7, 1),
         ]
 
         # ordered_dedupe(latest_time=True): (2, 1), (5, 2), (6, 3), (7, 1) — last
         # timestamp of each run.
         last_ts = status.ordered_dedupe(latest_time=True)
         assert [(p.time.t, p.value) for p in last_ts] == [
-            (2, 1), (5, 2), (6, 3), (7, 1)
+            (2, 1),
+            (5, 2),
+            (6, 3),
+            (7, 1),
         ]
     finally:
         server_cm.__exit__(None, None, None)
@@ -1031,7 +1032,7 @@ def test_temporal_property_terminals():
 
         # at(t) — value at or before t
         assert score.at(5) == 1.5
-        assert score.at(7) == 1.5   # no update at 7 → latest before is at t=5
+        assert score.at(7) == 1.5  # no update at 7 → latest before is at t=5
         assert score.at(10) == 2.5
         assert score.at(100) == 3.5  # latest before 100 is 3.5
 
@@ -1089,8 +1090,8 @@ def test_properties_vs_metadata_separation():
     temporal. Server exposes them as separate containers — no overlap in
     keys."""
     server_cm, rg = _make_graph_with_edge()
-    rg.node("ben").add_metadata({"role": "admin"})            # non-temporal
-    rg.node("ben").add_updates(5, properties={"score": 1.0})   # temporal
+    rg.node("ben").add_metadata({"role": "admin"})  # non-temporal
+    rg.node("ben").add_updates(5, properties={"score": 1.0})  # temporal
     try:
         # Metadata has "role", properties has "score" — no cross-contamination.
         assert rg.node("ben").metadata.keys() == ["role"]
@@ -1126,9 +1127,9 @@ def test_node_metadata_basic():
         assert role == "admin"
 
         level = md.get("level")
-        assert level == 3            # int
+        assert level == 3  # int
         active = md.get("active")
-        assert active is True        # bool
+        assert active is True  # bool
 
         # get on missing key — None.
         assert md.get("nonexistent") is None
@@ -1336,7 +1337,7 @@ def test_history_sub_containers():
         dts = h.dt.collect()
         assert len(dts) == 4
         for s in dts:
-            assert "T" in s   # RFC 3339 separator
+            assert "T" in s  # RFC 3339 separator
 
         # Event IDs view — plain ints; server picks per-timestamp
         eids = h.event_id.collect()
@@ -1384,7 +1385,7 @@ def test_sub_container_paging():
         assert ts.collect() == [1, 3, 5, 7, 9]
         assert ts.page(limit=2) == [1, 3]
         assert ts.page(limit=2, offset=2) == [5, 7]
-        assert ts.page(limit=2, page_index=1) == [5, 7]   # equivalent
+        assert ts.page(limit=2, page_index=1) == [5, 7]  # equivalent
         assert ts.page_rev(limit=2) == [9, 7]
     finally:
         server_cm.__exit__(None, None, None)
@@ -1570,7 +1571,10 @@ def test_edge_view_chain_builders():
         assert e.window(0, 5).nbr.name == "hamza"
 
         # Commutativity: pre-selection view chain matches post-selection view chain.
-        assert e.window(0, 5).earliest_time == rg.window(0, 5).edge("ben", "hamza").earliest_time
+        assert (
+            e.window(0, 5).earliest_time
+            == rg.window(0, 5).edge("ben", "hamza").earliest_time
+        )
     finally:
         server_cm.__exit__(None, None, None)
 
@@ -1635,9 +1639,9 @@ def test_nodes_sorted_by_id():
         assert asc == sorted(asc), f"expected ascending ids, got {asc}"
 
         desc = rg.nodes.sorted([NodeSortBy.by_id(reverse=True)]).id
-        assert desc == sorted(desc, reverse=True), (
-            f"expected descending ids, got {desc}"
-        )
+        assert desc == sorted(
+            desc, reverse=True
+        ), f"expected descending ids, got {desc}"
         # Same members, both orderings.
         assert set(asc) == set(desc) == {"ben", "hamza"}
     finally:
@@ -1660,18 +1664,18 @@ def test_nodes_sorted_by_property_and_time():
         rg.add_node(3, "zara", properties={"score": 2.0})
 
         by_score = rg.nodes.sorted([NodeSortBy.by_property("score")]).id
-        assert by_score == ["hamza", "zara", "ben"], (
-            f"expected ascending by score: hamza(1), zara(2), ben(3); got {by_score}"
-        )
+        assert by_score == [
+            "hamza",
+            "zara",
+            "ben",
+        ], f"expected ascending by score: hamza(1), zara(2), ben(3); got {by_score}"
 
         by_score_desc = rg.nodes.sorted(
             [NodeSortBy.by_property("score", reverse=True)]
         ).id
         assert by_score_desc == ["ben", "zara", "hamza"]
 
-        by_earliest = rg.nodes.sorted(
-            [NodeSortBy.by_time(SortByTime.EARLIEST)]
-        ).id
+        by_earliest = rg.nodes.sorted([NodeSortBy.by_time(SortByTime.EARLIEST)]).id
         assert by_earliest == ["ben", "hamza", "zara"]
 
         by_latest_desc = rg.nodes.sorted(
@@ -1692,9 +1696,7 @@ def test_nodes_sorted_is_lazy_and_composable():
         assert sorted_nodes.count() == 2
         # `.collect()` returns full node handles in sorted order.
         materialized = sorted_nodes.collect()
-        assert [n.name for n in materialized] == sorted(
-            n.name for n in materialized
-        )
+        assert [n.name for n in materialized] == sorted(n.name for n in materialized)
     finally:
         server_cm.__exit__(None, None, None)
 
@@ -1716,9 +1718,11 @@ def test_edges_sorted_by_src_dst():
             [EdgeSortBy.by_src(), EdgeSortBy.by_dst()]
         ).collect()
         pairs = [(e.src.name, e.dst.name) for e in sorted_edges]
-        assert pairs == [("a", "b"), ("a", "c"), ("b", "c")], (
-            f"expected [(a,b),(a,c),(b,c)] by (src, dst), got {pairs}"
-        )
+        assert pairs == [
+            ("a", "b"),
+            ("a", "c"),
+            ("b", "c"),
+        ], f"expected [(a,b),(a,c),(b,c)] by (src, dst), got {pairs}"
     finally:
         server_cm.__exit__(None, None, None)
 
@@ -1768,9 +1772,11 @@ def test_edges_sorted_composes_with_view_chain():
         rg.add_edge(5, "a", "c")
         rg.add_edge(20, "b", "c")
 
-        windowed_sorted = rg.window(0, 10).edges.sorted(
-            [EdgeSortBy.by_time(SortByTime.EARLIEST)]
-        ).collect()
+        windowed_sorted = (
+            rg.window(0, 10)
+            .edges.sorted([EdgeSortBy.by_time(SortByTime.EARLIEST)])
+            .collect()
+        )
         pairs = [(e.src.name, e.dst.name) for e in windowed_sorted]
         # Only the first two edges are in [0, 10). Sorted by earliest time.
         assert pairs == [("a", "b"), ("a", "c")]
@@ -1790,10 +1796,10 @@ def _make_shared_neighbours_graph():
     rg = client.remote_graph("g")
     rg.add_edge(1, "a", "b")
     rg.add_edge(2, "a", "c")
-    rg.add_edge(3, "a", "e")   # a only
+    rg.add_edge(3, "a", "e")  # a only
     rg.add_edge(4, "d", "b")
     rg.add_edge(5, "d", "c")
-    rg.add_edge(6, "d", "f")   # d only
+    rg.add_edge(6, "d", "f")  # d only
     return server_cm, rg
 
 
@@ -1931,9 +1937,9 @@ def test_remote_path_from_node_lacks_sorted():
     server_cm, rg = _make_graph_with_edge()
     try:
         neighbours = rg.node("ben").out_neighbours
-        assert not hasattr(neighbours, "sorted"), (
-            "sorted must not be available on RemotePathFromNode"
-        )
+        assert not hasattr(
+            neighbours, "sorted"
+        ), "sorted must not be available on RemotePathFromNode"
         assert not hasattr(PathFromNode, "sorted")
         # default_layer is part of the local surface, so the remote exposes it.
         assert hasattr(neighbours, "default_layer")
@@ -2081,9 +2087,7 @@ def test_select_nodes_composes_with_view_chain():
     try:
         # Window [0, 3) sees only ben (t=1) and hamza (t=2). Then filter by
         # score > 6 leaves just ben (score=10).
-        narrowed = (
-            rg.window(0, 3).nodes.select(Node.property("score") > 6.0).collect()
-        )
+        narrowed = rg.window(0, 3).nodes.select(Node.property("score") > 6.0).collect()
         assert [n.name for n in narrowed] == ["ben"]
     finally:
         server_cm.__exit__(None, None, None)
@@ -2250,9 +2254,7 @@ def test_select_edges_composes_with_view_chain():
     try:
         # Window [0, 3) sees only ben-hamza (t=1) and ben-alice (t=2). Then
         # filter by weight > 6 leaves just ben-hamza (weight=10).
-        narrowed = (
-            rg.window(0, 3).edges.select(Edge.property("weight") > 6.0).collect()
-        )
+        narrowed = rg.window(0, 3).edges.select(Edge.property("weight") > 6.0).collect()
         assert _edge_pairs(narrowed) == [("ben", "hamza")]
     finally:
         server_cm.__exit__(None, None, None)
@@ -2398,9 +2400,7 @@ def test_path_from_node_select_narrows():
     try:
         # ben's out-neighbours: hamza (5), alice (20), bob (15).
         # select score > 12 → alice, bob.
-        narrowed = rg.node("ben").out_neighbours.select(
-            Node.property("score") > 12.0
-        )
+        narrowed = rg.node("ben").out_neighbours.select(Node.property("score") > 12.0)
         assert sorted(narrowed.id) == ["alice", "bob"]
     finally:
         server_cm.__exit__(None, None, None)
@@ -2663,15 +2663,15 @@ def test_metadata_dict_protocol():
     rg.node("ben").add_metadata({"role": "admin", "level": 3, "active": True})
     try:
         md = rg.node("ben").metadata
-        assert md["role"] == "admin"          # __getitem__ → raw value
+        assert md["role"] == "admin"  # __getitem__ → raw value
         assert md["level"] == 3
         assert md["active"] is True
-        assert "role" in md                   # __contains__
+        assert "role" in md  # __contains__
         assert "nonexistent" not in md
-        assert len(md) == 3                    # __len__
+        assert len(md) == 3  # __len__
         assert sorted(md) == ["active", "level", "role"]  # __iter__ over keys
         assert md.as_dict() == {"role": "admin", "level": 3, "active": True}
-        with pytest.raises(KeyError):          # strict, unlike .get()
+        with pytest.raises(KeyError):  # strict, unlike .get()
             md["nonexistent"]
         assert md.get("nonexistent") is None
     finally:
@@ -2939,9 +2939,7 @@ def test_temporal_property_items():
 
         # __iter__ yields the same pairs.
         via_iter = [(t.t, v) for (t, v) in score]
-        assert via_iter == [
-            (e.t, v) for e, v in zip(hist, vals)
-        ]
+        assert via_iter == [(e.t, v) for e, v in zip(hist, vals)]
     finally:
         server_cm.__exit__(None, None, None)
 
@@ -3239,9 +3237,7 @@ def test_nodes_columnar_accessors():
         assert rmap_name == lmap_name == {"a": "a", "b": "b", "c": "c"}
 
         rmap_type = dict(zip(rids, nodes.node_type))
-        lmap_type = dict(
-            zip([str(i) for i in lg.nodes.id], list(lg.nodes.node_type))
-        )
+        lmap_type = dict(zip([str(i) for i in lg.nodes.id], list(lg.nodes.node_type)))
         assert rmap_type == lmap_type == {"a": "T1", "b": "T2", "c": None}
     finally:
         server_cm.__exit__(None, None, None)
@@ -3285,7 +3281,9 @@ def test_path_from_graph_columnar_accessors():
 
         lsrc = [str(i) for i in lg.nodes.id]
         lpath = lg.nodes.neighbours
-        l_names = {s: sorted(inner) for s, inner in zip(lsrc, [list(x) for x in lpath.name])}
+        l_names = {
+            s: sorted(inner) for s, inner in zip(lsrc, [list(x) for x in lpath.name])
+        }
         l_ids = {
             s: sorted(str(i) for i in inner)
             for s, inner in zip(lsrc, [list(x) for x in lpath.id])
@@ -3312,11 +3310,16 @@ def test_edges_columnar_accessors():
         redges = rg.edges
         rids = redges.id
         # id: list of (src, dst) tuples — 3 unique edges.
-        assert sorted(rids) == sorted(lg.edges.id) == [("a", "b"), ("b", "c"), ("c", "a")]
+        assert (
+            sorted(rids) == sorted(lg.edges.id) == [("a", "b"), ("b", "c"), ("c", "a")]
+        )
 
         # layer_names keyed by edge id.
         r_layers = {e: sorted(ls) for e, ls in zip(rids, redges.layer_names)}
-        l_layers = {e: sorted(ls) for e, ls in zip(lg.edges.id, [list(x) for x in lg.edges.layer_names])}
+        l_layers = {
+            e: sorted(ls)
+            for e, ls in zip(lg.edges.id, [list(x) for x in lg.edges.layer_names])
+        }
         assert r_layers == l_layers
         assert r_layers[("a", "b")] == ["L1", "L2"]
 
@@ -3344,9 +3347,7 @@ def test_edges_columnar_exploded_layer_name_and_time():
         # Build sorted (src, dst, layer_name, timestamp) tuples for comparison.
         r_rows = sorted(
             (src, dst, ln, t.t)
-            for (src, dst), ln, t in zip(
-                rexpl.id, rexpl.layer_name, rexpl.time
-            )
+            for (src, dst), ln, t in zip(rexpl.id, rexpl.layer_name, rexpl.time)
         )
         l_rows = sorted(
             (src, dst, ln, t.t)
@@ -3381,9 +3382,7 @@ def test_nested_edges_columnar_accessors():
 
         lsrc = [str(i) for i in lg.nodes.id]
         lne = lg.nodes.edges
-        l_ids = {
-            s: sorted(inner) for s, inner in zip(lsrc, [list(x) for x in lne.id])
-        }
+        l_ids = {s: sorted(inner) for s, inner in zip(lsrc, [list(x) for x in lne.id])}
         l_layers = {
             s: sorted(sorted(list(ls)) for ls in inner)
             for s, inner in zip(lsrc, [list(x) for x in lne.layer_names])
@@ -3413,13 +3412,8 @@ def test_nested_edges_columnar_exploded_layer_name_and_time():
 
         # Per-source sorted (src, dst, layer_name, timestamp) rows.
         r_rows = {
-            s: sorted(
-                (src, dst, ln, t.t)
-                for (src, dst), ln, t in zip(ids, lns, ts)
-            )
-            for s, ids, lns, ts in zip(
-                src_ids, rexpl.id, rexpl.layer_name, rexpl.time
-            )
+            s: sorted((src, dst, ln, t.t) for (src, dst), ln, t in zip(ids, lns, ts))
+            for s, ids, lns, ts in zip(src_ids, rexpl.id, rexpl.layer_name, rexpl.time)
         }
 
         lsrc = [str(i) for i in lg.nodes.id]
@@ -3483,8 +3477,12 @@ def test_edges_explode_layers_collect_pins_layers():
         assert r == _layer_rows(lg.edges.explode_layers().collect())
         assert all(t == "raises" for *_, t in r)
         # nested (per source node)
-        r_nested = [_layer_rows(inner) for inner in rg.nodes.edges.explode_layers().collect()]
-        l_nested = [_layer_rows(inner) for inner in lg.nodes.edges.explode_layers().collect()]
+        r_nested = [
+            _layer_rows(inner) for inner in rg.nodes.edges.explode_layers().collect()
+        ]
+        l_nested = [
+            _layer_rows(inner) for inner in lg.nodes.edges.explode_layers().collect()
+        ]
         assert r_nested == l_nested
     finally:
         server_cm.__exit__(None, None, None)
@@ -3781,7 +3779,9 @@ def test_nested_edges_src_neighbours_composition():
         lsrc = [str(i) for i in lg.nodes.id]
         l = {
             s: sorted(x)
-            for s, x in zip(lsrc, [list(inner) for inner in lg.nodes.edges.src.neighbours.name])
+            for s, x in zip(
+                lsrc, [list(inner) for inner in lg.nodes.edges.src.neighbours.name]
+            )
         }
         assert r == l
     finally:
@@ -3872,9 +3872,13 @@ def test_path_from_node_earliest_latest_time_getters():
     try:
         from raphtory import PathFromNode
 
-        assert _descriptor_kind(type(rg.node("a").neighbours), "earliest_time") == "getter"
+        assert (
+            _descriptor_kind(type(rg.node("a").neighbours), "earliest_time") == "getter"
+        )
         assert _descriptor_kind(PathFromNode, "earliest_time") == "getter"
-        assert _descriptor_kind(type(rg.node("a").neighbours), "latest_time") == "getter"
+        assert (
+            _descriptor_kind(type(rg.node("a").neighbours), "latest_time") == "getter"
+        )
         assert _descriptor_kind(PathFromNode, "latest_time") == "getter"
 
         rpath = rg.node("a").neighbours
@@ -3960,8 +3964,17 @@ def test_collections_default_layer_is_method():
         )
         # Its earliest_time column matches local under the default-layer view
         # (a->b has no default-layer events, so None on both).
-        r_early = dict(zip(rg.edges.default_layer().id, _ts(rg.edges.default_layer().earliest_time)))
-        l_early = dict(zip(lg.edges.default_layer().id, _ts(list(lg.edges.default_layer().earliest_time))))
+        r_early = dict(
+            zip(
+                rg.edges.default_layer().id, _ts(rg.edges.default_layer().earliest_time)
+            )
+        )
+        l_early = dict(
+            zip(
+                lg.edges.default_layer().id,
+                _ts(list(lg.edges.default_layer().earliest_time)),
+            )
+        )
         assert r_early == l_early
     finally:
         server_cm.__exit__(None, None, None)
@@ -4012,7 +4025,9 @@ def test_nodes_metadata_properties_view():
         }
         # keys parity (as sets — key ordering is not contractually stable).
         assert set(rg.nodes.metadata.keys()) == set(lg.nodes.metadata.keys()) == {"m"}
-        assert set(rg.nodes.properties.keys()) == set(lg.nodes.properties.keys()) == {"p"}
+        assert (
+            set(rg.nodes.properties.keys()) == set(lg.nodes.properties.keys()) == {"p"}
+        )
         # get() on an absent key returns None on both, matching local.
         assert rg.nodes.metadata.get("nope") is None
         assert lg.nodes.metadata.get("nope") is None
@@ -4048,7 +4063,9 @@ def test_edges_metadata_properties_view():
             ("a", "c"): 7,
             ("b", "c"): None,
         }
-        assert set(rg.edges.properties.keys()) == set(lg.edges.properties.keys()) == {"w"}
+        assert (
+            set(rg.edges.properties.keys()) == set(lg.edges.properties.keys()) == {"w"}
+        )
 
         _assert_view_internally_consistent(rg.edges.metadata)
         _assert_view_internally_consistent(rg.edges.properties)
