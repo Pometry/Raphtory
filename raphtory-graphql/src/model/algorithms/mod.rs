@@ -30,6 +30,12 @@ use crate::{
                 GqlLocalTemporalThreeNodeMotifs, GqlLocalTemporalThreeNodeMotifsArgs,
             },
             louvain::{GqlLouvain, GqlLouvainArgs},
+            max_degree::{GqlMaxDegree, GqlMaxDegreeArgs},
+            max_in_degree::{GqlMaxInDegree, GqlMaxInDegreeArgs},
+            max_out_degree::{GqlMaxOutDegree, GqlMaxOutDegreeArgs},
+            min_degree::{GqlMinDegree, GqlMinDegreeArgs},
+            min_in_degree::{GqlMinInDegree, GqlMinInDegreeArgs},
+            min_out_degree::{GqlMinOutDegree, GqlMinOutDegreeArgs},
             out_component::{GqlOutComponent, GqlOutComponentArgs},
             out_components::{GqlOutComponents, GqlOutComponentsArgs},
             pagerank::{GqlPagerank, GqlPagerankArgs},
@@ -42,6 +48,8 @@ use crate::{
             temporally_reachable_nodes::{
                 GqlTemporallyReachableNodes, GqlTemporallyReachableNodesArgs,
             },
+            triangle_count::{GqlTriangleCount, GqlTriangleCountArgs},
+            triplet_count::{GqlTripletCount, GqlTripletCountArgs},
             weakly_connected_components::{
                 GqlWeaklyConnectedComponents, GqlWeaklyConnectedComponentsArgs,
             },
@@ -81,12 +89,20 @@ pub(crate) mod label_propagation;
 pub(crate) mod local_clustering_coefficient_batch;
 pub(crate) mod local_temporal_three_node_motifs;
 pub(crate) mod louvain;
+pub(crate) mod max_degree;
+pub(crate) mod max_in_degree;
+pub(crate) mod max_out_degree;
+pub(crate) mod min_degree;
+pub(crate) mod min_in_degree;
+pub(crate) mod min_out_degree;
 pub(crate) mod out_component;
 pub(crate) mod out_components;
 pub(crate) mod pagerank;
 pub(crate) mod single_source_shortest_path;
 pub(crate) mod strongly_connected_components;
 pub(crate) mod temporally_reachable_nodes;
+pub(crate) mod triangle_count;
+pub(crate) mod triplet_count;
 pub(crate) mod weakly_connected_components;
 
 /// A graph algorithm executable through the GraphQL API.
@@ -408,6 +424,58 @@ impl GqlAlgorithms {
     /// Returns the average (undirected) degree of the graph's nodes.
     async fn average_degree(&self) -> Result<f64, GraphError> {
         self.run::<GqlAverageDegree>(GqlAverageDegreeArgs).await
+    }
+
+    /// Returns the maximum (undirected) degree of any node in the graph.
+    async fn max_degree(&self) -> Result<usize, GraphError> {
+        self.run::<GqlMaxDegree>(GqlMaxDegreeArgs).await
+    }
+
+    /// Returns the minimum (undirected) degree of any node in the graph.
+    async fn min_degree(&self) -> Result<usize, GraphError> {
+        self.run::<GqlMinDegree>(GqlMinDegreeArgs).await
+    }
+
+    /// Returns the maximum out-degree of any node in the graph.
+    async fn max_out_degree(&self) -> Result<usize, GraphError> {
+        self.run::<GqlMaxOutDegree>(GqlMaxOutDegreeArgs).await
+    }
+
+    /// Returns the maximum in-degree of any node in the graph.
+    async fn max_in_degree(&self) -> Result<usize, GraphError> {
+        self.run::<GqlMaxInDegree>(GqlMaxInDegreeArgs).await
+    }
+
+    /// Returns the minimum out-degree of any node in the graph.
+    async fn min_out_degree(&self) -> Result<usize, GraphError> {
+        self.run::<GqlMinOutDegree>(GqlMinOutDegreeArgs).await
+    }
+
+    /// Returns the minimum in-degree of any node in the graph.
+    async fn min_in_degree(&self) -> Result<usize, GraphError> {
+        self.run::<GqlMinInDegree>(GqlMinInDegreeArgs).await
+    }
+
+    /// Returns the number of connected triplets (paths of length 2) in the graph.
+    async fn triplet_count(
+        &self,
+        #[graphql(desc = "Number of threads to use. Defaults to all available.")] threads: Option<
+            usize,
+        >,
+    ) -> Result<usize, GraphError> {
+        self.run::<GqlTripletCount>(GqlTripletCountArgs { threads })
+            .await
+    }
+
+    /// Returns the number of triangles in the graph.
+    async fn triangle_count(
+        &self,
+        #[graphql(desc = "Number of threads to use. Defaults to all available.")] threads: Option<
+            usize,
+        >,
+    ) -> Result<usize, GraphError> {
+        self.run::<GqlTriangleCount>(GqlTriangleCountArgs { threads })
+            .await
     }
 
     /// Returns the FastRP embedding of every node.

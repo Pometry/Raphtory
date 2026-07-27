@@ -1572,6 +1572,14 @@ mod graphql_test {
               directedGraphDensity
               globalReciprocity
               averageDegree
+              maxDegree
+              minDegree
+              maxOutDegree
+              maxInDegree
+              minOutDegree
+              minInDegree
+              tripletCount
+              triangleCount
             }
           }
         }
@@ -1586,7 +1594,15 @@ mod graphql_test {
                     "globalClusteringCoefficient": 0.6,
                     "directedGraphDensity": 0.4166666666666667,
                     "globalReciprocity": 0.4,
-                    "averageDegree": 2.0
+                    "averageDegree": 2.0,
+                    "maxDegree": 3,
+                    "minDegree": 1,
+                    "maxOutDegree": 2,
+                    "maxInDegree": 2,
+                    "minOutDegree": 0,
+                    "minInDegree": 1,
+                    "tripletCount": 5,
+                    "triangleCount": 1
                 } }
             })
         );
