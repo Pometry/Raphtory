@@ -153,14 +153,16 @@ pub trait GraphWalOps {
 
     /// Logs a checkpoint indicating that all records with `LSN < redo` are persisted.
     /// On recovery, replay will start from `redo` in the WAL stream.
-    fn log_checkpoint(&self, redo: LSN) -> Result<LSN, StorageError>;
+    /// `None` means there is nothing to redo.
+    fn log_checkpoint(&self, redo: Option<LSN>) -> Result<LSN, StorageError>;
 
     /// Logs a shutdown checkpoint indicating a clean shutdown with all writes persisted.
     fn log_shutdown_checkpoint(&self) -> Result<LSN, StorageError>;
 
     /// Reads and decodes the WAL entry at the given LSN and validates that it is a checkpoint.
     /// Returns the checkpoint redo LSN, denoting where replay should start from.
-    fn read_checkpoint(&self, lsn: LSN) -> Result<LSN, StorageError>;
+    /// `None` means there is nothing to redo.
+    fn read_checkpoint(&self, lsn: LSN) -> Result<Option<LSN>, StorageError>;
 
     /// Reads and decodes the WAL entry at the given LSN and validates that it is a shutdown checkpoint.
     /// Returns the LSN immediately after this record, marking the end of the WAL stream.

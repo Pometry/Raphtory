@@ -18,26 +18,19 @@ use std::{
     sync::{atomic::AtomicUsize, Arc},
 };
 use storage::{
-    api::{
+    Config, ES, Extension, GIDResolver, GS, Layer, LocalPOS, NS, ReadLockedLayer, api::{
         edges::EdgeSegmentOps,
         graph_props::GraphPropSegmentOps,
         nodes::{LockedNSSegment, NodeRefOps, NodeSegmentOps},
-    },
-    dir::GraphDir,
-    error::StorageError,
-    pages::{
+    }, dir::GraphDir, error::StorageError, pages::{
         layer_counter::GraphStats,
         locked::{
             edges::WriteLockedEdgePages, graph_props::WriteLockedGraphPropPages,
             nodes::WriteLockedNodePages,
         },
-    },
-    persist::{
+    }, persist::{
         config::ConfigOps, control_file::ControlFileOps, strategy::PersistenceStrategy,
-    },
-    resolver::GIDResolverOps,
-    transaction::TransactionManager,
-    Config, Extension, GIDResolver, Layer, LocalPOS, ReadLockedLayer, ES, GS, NS,
+    }, resolver::GIDResolverOps, transaction::TransactionManager, wal::{GraphWalOps, WalOps}
 };
 
 mod replay;
@@ -512,12 +505,23 @@ where
         let dst = dst.as_ref();
 
         self.graph.extension().config().save_to_dir(dst)?;
-        self.graph.extension().control_file().copy_to(dst)?;
 
         self.graph.gid_resolver.copy_to(dst.join("gid_resolver"))?;
         self.nodes.copy_to(&dst.join("nodes"))?;
         self.edges.copy_to(&dst.join("edges"))?;
         self.graph_props.copy_to(&dst.join("graph_props"))?;
+
+        // All segments have been flushed, mark checkpoint event in the WAL and control file.
+        let wal = self.graph.extension().wal();
+        let redo_lsn = None; // Nothing to redo since all segments have been flushed.
+        let checkpoint_lsn = wal.log_checkpoint(redo_lsn)?;
+
+        let control_file = self.graph.extension().control_file();
+        control_file.set_checkpoint(checkpoint_lsn);
+        control_file.save()?;
+        control_file.copy_to(dst)?;
+
+        // wal.copy_tail_to(dst)?;
 
         Ok(())
     }
