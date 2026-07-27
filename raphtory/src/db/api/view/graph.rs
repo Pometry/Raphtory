@@ -1,5 +1,5 @@
 #[cfg(feature = "io")]
-use crate::serialise::GraphPaths;
+use crate::serialise::metadata::build_graph_metadata;
 use crate::{
     arrow_loader::{
         dataframe::{DFChunk, DFView},
@@ -43,6 +43,10 @@ use ahash::HashSet;
 use arrow::array::RecordBatch;
 use db4_graph::TemporalGraph;
 use either::Either;
+#[cfg(feature = "io")]
+use raphtory_api::core::storage::graph_folder::GraphPaths;
+#[cfg(feature = "io")]
+use raphtory_api::core::storage::graph_folder::Metadata as GraphFolderMetadata;
 use raphtory_api::core::{
     entities::properties::meta::{Meta, PropMapper},
     storage::{arc_str::ArcStr, timeindex::EventTime},
@@ -626,11 +630,11 @@ pub fn materialize_impl(
                 break Err(err);
             }
         };
-        let _ = consumer_result?;
+        consumer_result?;
 
         drop(rx);
 
-        let _ = producer_handle.join().unwrap_or_else(|e| {
+        producer_handle.join().unwrap_or_else(|e| {
             Err(GraphError::IOErrorMsg(format!(
                 "Producer thread panicked: {:?}",
                 panic_message(&e)
@@ -681,7 +685,11 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
             path.init()?;
             let graph_path = path.graph_path()?;
             let graph = materialize_impl(self, Some(graph_path.as_ref()), config)?;
-            path.write_metadata(&graph)?;
+            let meta = GraphFolderMetadata {
+                path: path.relative_graph_path()?,
+                meta: build_graph_metadata(&graph),
+            };
+            path.write_metadata(meta)?;
             Ok(graph)
         } else {
             Err(GraphError::DiskGraphNotEnabled)
@@ -870,10 +878,10 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         let src = self.internalise_node(src.as_node_ref())?;
         let dst = self.internalise_node(dst.as_node_ref())?;
         let src_node = self.core_node(src);
-        if self.internal_nodes_filtered() {
-            if !self.internal_filter_node(src_node.as_ref(), layer_ids) {
-                return None;
-            }
+        if self.internal_nodes_filtered()
+            && !self.internal_filter_node(src_node.as_ref(), layer_ids)
+        {
+            return None;
         }
         let edge_ref = src_node.find_edge(dst, layer_ids)?;
         match self.filter_state() {

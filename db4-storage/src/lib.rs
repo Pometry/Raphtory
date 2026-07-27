@@ -83,7 +83,10 @@ pub mod error {
     use std::{io, panic::Location, path::PathBuf, sync::Arc};
 
     use crate::resolver::mapping_resolver::InvalidNodeId;
-    use raphtory_api::core::{entities::properties::prop::PropError, utils::time::ParseTimeError};
+    use raphtory_api::core::{
+        entities::properties::prop::PropError, storage::graph_folder::GraphFolderError,
+        utils::time::ParseTimeError,
+    };
     use raphtory_core::entities::properties::props::MetadataError;
 
     #[derive(thiserror::Error, Debug)]
@@ -116,6 +119,8 @@ pub mod error {
         // MutationError(#[from] MutationError),
         #[error("Unnamed Failure: {0}")]
         GenericFailure(String),
+        #[error(transparent)]
+        GraphFolder(#[from] GraphFolderError),
         #[error(transparent)]
         InvalidNodeId(#[from] InvalidNodeId),
 
@@ -153,6 +158,12 @@ impl From<usize> for LocalPOS {
     fn from(value: usize) -> Self {
         assert!(value <= u32::MAX as usize);
         LocalPOS(value as u32)
+    }
+}
+
+impl From<LocalPOS> for usize {
+    fn from(id: LocalPOS) -> Self {
+        id.0 as usize
     }
 }
 
@@ -233,16 +244,4 @@ pub fn read_constant_graph_properties(
     error::StorageError,
 > {
     Ok(Vec::new())
-}
-
-/// Matches `db4_disk_storage::meta_file::GRAPH_META_PATH`
-pub const GRAPH_META_PATH: &str = ".meta";
-
-/// No-op shim for when we have db4-storage instead of db4-disk-storage
-pub fn refresh_disk_graph_metadata(
-    _disk_graph_path: &Path,
-    _node_count: usize,
-    _edge_count: usize,
-) -> Result<(), error::StorageError> {
-    Ok(())
 }

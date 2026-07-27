@@ -93,6 +93,7 @@ pub(crate) fn run_encode_indexed<
     encode_fn: impl Fn(II, &G, &mut Decoder, &mut S) -> Result<(), GraphError> + Sync,
 ) -> Result<(), GraphError> {
     let schema = derive_schema(meta, g.id_type(), default_fields_fn)?;
+
     let num_digits = 8;
 
     items.try_for_each(|(chunk, items)| {

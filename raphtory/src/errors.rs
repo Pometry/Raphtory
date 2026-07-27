@@ -8,7 +8,7 @@ use arrow::{datatypes::DataType, error::ArrowError};
 use itertools::Itertools;
 use parquet::errors::ParquetError;
 use raphtory_api::core::entities::{
-    properties::prop::{InvalidPropertyTypeErr, PropError, PropType},
+    properties::prop::{InvalidPropertyTypeErr, PropError, PropType, PropTypeParseError},
     GidType, GID, VID,
 };
 use raphtory_core::entities::{
@@ -31,7 +31,7 @@ use raphtory_api::core::utils::time::ParseTimeError;
 #[cfg(feature = "search")]
 use {tantivy, tantivy::query::QueryParserError};
 
-use raphtory_api::core::storage::timeindex::TimeError;
+use raphtory_api::core::storage::{graph_folder::GraphFolderError, timeindex::TimeError};
 use storage::{error::StorageError, resolver::mapping_resolver::InvalidNodeId};
 #[cfg(feature = "io")]
 use zip::result::ZipError;
@@ -261,14 +261,8 @@ pub enum GraphError {
         location: &'static Location<'static>,
     },
 
-    #[error("Not a zip archive")]
-    NotAZip,
-
     #[error("Not a disk graph")]
     NotADiskGraph,
-
-    #[error("Graph folder is not initialised for writing")]
-    NoWriteInProgress,
 
     #[error("Failed to load graph: {0}")]
     LoadFailure(String),
@@ -322,10 +316,6 @@ pub enum GraphError {
 
     #[error("Illegal set error {0}")]
     IllegalSet(String),
-
-    #[cfg(feature = "io")]
-    #[error("Cannot write graph into non empty folder {0}")]
-    NonEmptyGraphFolder(PathBuf),
 
     #[error("Immutable graph is .. immutable!")]
     AttemptToMutateImmutableGraph,
@@ -430,22 +420,20 @@ pub enum GraphError {
     #[error("Your window and step must be of the same type: duration (string) or epoch (int)")]
     MismatchedIntervalTypes,
 
-    #[error("Cannot swap zipped graph data")]
-    ZippedGraphCannotBeSwapped,
-
     #[error("{source} at {location}")]
     StripPrefixError {
         source: StripPrefixError,
         location: &'static Location<'static>,
     },
-    #[error("Path {0} is not a valid relative data path")]
-    InvalidRelativePath(String),
 
     #[error(transparent)]
     StorageError(#[from] StorageError),
 
     #[error("Fatal write error: {0}")]
     FatalWriteError(StorageError),
+
+    #[error(transparent)]
+    GraphFolder(#[from] GraphFolderError),
 }
 
 impl From<MetadataError> for GraphError {
@@ -547,5 +535,13 @@ impl From<InvalidPropertyTypeErr> for LoadError {
 impl From<InvalidPropertyTypeErr> for GraphError {
     fn from(value: InvalidPropertyTypeErr) -> Self {
         GraphError::from(LoadError::from(value))
+    }
+}
+
+impl From<PropTypeParseError> for GraphError {
+    fn from(value: PropTypeParseError) -> Self {
+        GraphError::InvalidProperty {
+            reason: value.to_string(),
+        }
     }
 }

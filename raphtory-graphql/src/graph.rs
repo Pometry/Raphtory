@@ -4,6 +4,8 @@ use crate::{
 };
 #[cfg(feature = "search")]
 use raphtory::prelude::IndexMutationOps;
+#[cfg(feature = "vectors")]
+use raphtory::vectors::{storage::LazyDiskVectorCache, vectorised_graph::VectorisedGraph};
 use raphtory::{
     core::entities::nodes::node_ref::AsNodeRef,
     db::{
@@ -20,9 +22,8 @@ use raphtory::{
     },
     errors::{GraphError, GraphResult},
     prelude::{EdgeViewOps, StableDecode},
-    serialise::GraphPaths,
-    vectors::{storage::LazyDiskVectorCache, vectorised_graph::VectorisedGraph},
 };
+use raphtory_api::core::storage::graph_folder::GraphPaths;
 use raphtory_storage::{
     core_ops::InheritCoreGraphOps, layer_ops::InheritLayerOps, mutation::InheritMutationOps,
 };
@@ -35,6 +36,15 @@ use std::{
     task::Poll,
 };
 
+/// The element stored in the optional vectors slot of a graph. With the
+/// `vectors` feature this is a real `VectorisedGraph`; without it the slot is
+/// uninhabited so it is always empty, keeping `GraphWithVectors` and all its
+/// call sites identical across both builds.
+#[cfg(feature = "vectors")]
+pub type GraphVectors = VectorisedGraph<MaterializedGraph>;
+#[cfg(not(feature = "vectors"))]
+pub type GraphVectors = std::convert::Infallible;
+
 #[derive(Clone)]
 pub struct GraphWithVectors {
     inner: Arc<GraphWithVectorsInner>,
@@ -42,7 +52,7 @@ pub struct GraphWithVectors {
 
 pub struct GraphWithVectorsInner {
     pub graph: MaterializedGraph,
-    pub vectors: Option<VectorisedGraph<MaterializedGraph>>,
+    pub vectors: Option<GraphVectors>,
     pub folder: UnlockedGraphFolder,
     pub is_dirty: AtomicBool,
     pub is_flushing: AtomicBool,
@@ -51,7 +61,7 @@ pub struct GraphWithVectorsInner {
 impl GraphWithVectors {
     pub fn new(
         graph: MaterializedGraph,
-        vectors: Option<VectorisedGraph<MaterializedGraph>>,
+        vectors: Option<GraphVectors>,
         folder: ExistingGraphFolder,
     ) -> Self {
         let inner = Arc::new(GraphWithVectorsInner {
@@ -89,7 +99,7 @@ impl GraphWithVectors {
         &self.inner.graph
     }
 
-    pub fn vectors(&self) -> Option<&VectorisedGraph<MaterializedGraph>> {
+    pub fn vectors(&self) -> Option<&GraphVectors> {
         self.inner.vectors.as_ref()
     }
 
@@ -121,9 +131,12 @@ impl GraphWithVectors {
         &self,
         nodes: Vec<T>,
     ) -> GraphResult<()> {
+        #[cfg(feature = "vectors")]
         if let Some(vectors) = &self.inner.vectors {
             vectors.update_nodes(nodes).await?;
         }
+        #[cfg(not(feature = "vectors"))]
+        let _ = nodes;
 
         Ok(())
     }
@@ -133,16 +146,19 @@ impl GraphWithVectors {
         &self,
         edges: Vec<(T, T)>,
     ) -> GraphResult<()> {
+        #[cfg(feature = "vectors")]
         if let Some(vectors) = &self.inner.vectors {
             vectors.update_edges(edges).await?;
         }
+        #[cfg(not(feature = "vectors"))]
+        let _ = edges;
 
         Ok(())
     }
 
     pub(crate) async fn read_from_folder(
         folder: &ExistingGraphFolder,
-        cache: &LazyDiskVectorCache,
+        #[cfg(feature = "vectors")] cache: &LazyDiskVectorCache,
         create_index: bool,
         config: Config,
     ) -> Result<Self, GraphError> {
@@ -159,10 +175,13 @@ impl GraphWithVectors {
             })
             .await?
         };
+        #[cfg(feature = "vectors")]
         let vectors =
             VectorisedGraph::read_from_path(&folder.vectors_path()?, graph.clone(), cache)
                 .await
                 .ok();
+        #[cfg(not(feature = "vectors"))]
+        let vectors = None;
 
         println!("Graph loaded = {}", folder.local_path());
         #[cfg(feature = "search")]

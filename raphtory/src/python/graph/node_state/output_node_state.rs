@@ -181,6 +181,7 @@ impl PyOutputNodeState {
     ///
     /// Returns:
     ///     OutputNodeState: Sorted NodeState
+    #[cfg(feature = "datafusion")]
     fn sort_by(
         &self,
         sort_params: IndexMap<String, Option<String>>,
@@ -200,6 +201,7 @@ impl PyOutputNodeState {
     ///
     /// Returns:
     ///     OutputNodeState: Sorted NodeState
+    #[cfg(feature = "datafusion")]
     fn top_k(
         &self,
         sort_params: IndexMap<String, Option<String>>,
@@ -219,6 +221,7 @@ impl PyOutputNodeState {
     ///
     /// Returns:
     ///     list[tuple[dict, Nodes]]: The grouped nodes
+    #[cfg(feature = "datafusion")]
     fn groups(
         &self,
         cols: Vec<String>,
@@ -313,7 +316,6 @@ impl PyOutputNodeState {
                                 .clone(),
                         )
                     })
-                    .into_iter()
                     .collect(),
             )
         }

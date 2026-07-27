@@ -7,10 +7,15 @@ use crate::{
     errors::GraphError,
     prelude::*,
     search::{edge_index::EdgeIndex, node_index::NodeIndex, searcher::Searcher},
-    serialise::{GraphFolder, GraphPaths, InnerGraphFolder},
 };
 use parking_lot::RwLock;
-use raphtory_api::core::{entities::LayerId, storage::dict_mapper::MaybeNew};
+use raphtory_api::core::{
+    entities::LayerId,
+    storage::{
+        dict_mapper::MaybeNew,
+        graph_folder::{GraphFolder, GraphPaths, InnerGraphFolder},
+    },
+};
 use raphtory_storage::graph::graph::GraphStorage;
 use std::{
     ffi::OsStr,
@@ -221,7 +226,7 @@ impl GraphIndex {
     pub fn load_from_path(path: &GraphFolder) -> Result<GraphIndex, GraphError> {
         if path.is_zip() {
             let index_path = TempDir::new()?;
-            unzip_index(&path.root(), index_path.path())?;
+            unzip_index(path.root(), index_path.path())?;
 
             let (index, index_spec) = load_indexes(index_path.path())?;
 

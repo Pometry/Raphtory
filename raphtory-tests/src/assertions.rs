@@ -24,9 +24,9 @@ pub enum TestGraphVariants {
     PersistentGraph,
 }
 
-impl Into<Vec<TestGraphVariants>> for TestGraphVariants {
-    fn into(self) -> Vec<TestGraphVariants> {
-        vec![self]
+impl From<TestGraphVariants> for Vec<TestGraphVariants> {
+    fn from(val: TestGraphVariants) -> Self {
+        vec![val]
     }
 }
 
@@ -135,7 +135,7 @@ impl<F: TryAsCompositeFilter + CreateFilter + Clone> ApplyFilter for SearchNodes
                 .map(|nv| nv.name())
                 .collect::<Vec<_>>();
             results.sort();
-            return results;
+            results
         }
         #[cfg(not(feature = "search"))]
         Vec::<String>::new()
@@ -187,7 +187,7 @@ impl<F: TryAsCompositeFilter + CreateFilter + Clone> ApplyFilter for SearchEdges
                 .map(|ev| format!("{}->{}", ev.src().name(), ev.dst().name()))
                 .collect::<Vec<_>>();
             results.sort();
-            return results;
+            results
         }
         #[cfg(not(feature = "search"))]
         Vec::<String>::new()

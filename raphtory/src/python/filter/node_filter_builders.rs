@@ -22,7 +22,7 @@ use crate::{
     },
 };
 use pyo3::{pyclass, pymethods, Bound, IntoPyObject, PyResult, Python};
-use raphtory_api::core::{entities::GID, storage::timeindex::EventTime, Direction};
+use raphtory_api::core::{entities::GID, storage::timeindex::EventTime};
 use std::sync::Arc;
 
 /// Filters nodes by their ID value.
@@ -405,7 +405,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.FilterOps
     #[staticmethod]
-    fn in_degree<'py>(py: Python<'py>) -> PyPropertyExprBuilder {
+    fn in_degree<'py>(_py: Python<'py>) -> PyPropertyExprBuilder {
         PyPropertyExprBuilder(Arc::new(NodeFilter.in_degree()))
     }
 
@@ -414,7 +414,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.FilterOps
     #[staticmethod]
-    fn degree<'py>(py: Python<'py>) -> PyPropertyExprBuilder {
+    fn degree<'py>(_py: Python<'py>) -> PyPropertyExprBuilder {
         PyPropertyExprBuilder(Arc::new(NodeFilter.degree()))
     }
 
@@ -423,7 +423,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.FilterOps
     #[staticmethod]
-    fn out_degree<'py>(py: Python<'py>) -> PyPropertyExprBuilder {
+    fn out_degree<'py>(_py: Python<'py>) -> PyPropertyExprBuilder {
         PyPropertyExprBuilder(Arc::new(NodeFilter.out_degree()))
     }
 

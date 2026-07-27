@@ -23,7 +23,7 @@ impl<T> ToOwnedValue<T> for T {
     }
 }
 
-impl<'a, T: Clone> ToOwnedValue<T> for &'a T {
+impl<T: Clone> ToOwnedValue<T> for &T {
     fn to_owned_value(self) -> T {
         self.clone()
     }

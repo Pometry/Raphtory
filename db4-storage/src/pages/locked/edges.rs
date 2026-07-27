@@ -4,7 +4,11 @@ use crate::{
     LocalPOS,
     api::edges::EdgeSegmentOps,
     error::StorageError,
-    pages::{edge_page::writer::EdgeWriter, layer_counter::GraphStats, resolve_pos},
+    pages::{
+        edge_page::{bulk_writer::BulkEdgeWriter, writer::EdgeWriter},
+        layer_counter::GraphStats,
+        resolve_pos,
+    },
     persist::strategy::PersistenceStrategy,
     segments::edge::segment::MemEdgeSegment,
 };
@@ -45,6 +49,11 @@ impl<'a, ES: EdgeSegmentOps> LockedEdgePage<'a, ES> {
     }
 
     #[inline(always)]
+    pub fn bulk_writer(&mut self) -> BulkEdgeWriter<'_, &mut MemEdgeSegment, ES> {
+        EdgeWriter::new(self.num_edges, self.page, self.lock.deref_mut()).into()
+    }
+
+    #[inline(always)]
     pub fn page_id(&self) -> usize {
         self.page_id
     }
@@ -65,7 +74,7 @@ impl<'a, ES: EdgeSegmentOps> LockedEdgePage<'a, ES> {
     }
 
     pub fn page(&self) -> &ES {
-        &self.page
+        self.page
     }
 }
 #[derive(Debug)]

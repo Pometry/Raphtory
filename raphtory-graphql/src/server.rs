@@ -8,10 +8,8 @@ use crate::{
         App,
     },
     observability::open_telemetry::OpenTelemetry,
-    paths::ExistingGraphFolder,
     routes::{health, version, PublicFilesEndpoint},
     server::ServerError::SchemaError,
-    GQLError,
 };
 use config::ConfigError;
 use once_cell::sync::Lazy;
@@ -19,7 +17,7 @@ use opentelemetry::trace::TracerProvider;
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
 use opentelemetry_sdk::{
     logs::SdkLoggerProvider,
-    trace::{SdkTracerProvider as TP, SdkTracerProvider, Tracer},
+    trace::{SdkTracerProvider, Tracer},
 };
 use poem::{
     get,
@@ -28,10 +26,9 @@ use poem::{
     web::CompressionLevel,
     EndpointExt, Route, Server,
 };
-use raphtory::{
-    db::api::storage::storage::Config,
-    vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate},
-};
+use raphtory::db::api::storage::storage::Config;
+#[cfg(feature = "vectors")]
+use raphtory::vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate};
 use serde_json::json;
 use std::{
     fs::create_dir_all,
@@ -52,12 +49,14 @@ use tokio::{
         mpsc,
         mpsc::{Receiver, Sender},
     },
-    task,
     task::JoinHandle,
 };
 use tracing::{debug, error, info, warn};
 use tracing_subscriber::{
-    fmt, fmt::format::FmtSpan, layer::SubscriberExt, util::SubscriberInitExt, Registry,
+    fmt::{self, format::FmtSpan},
+    layer::SubscriberExt,
+    util::SubscriberInitExt,
+    Registry,
 };
 use url::ParseError;
 
@@ -211,6 +210,7 @@ impl GraphServer {
     ///
     /// Returns:
     /// A new server object containing the vectorised graphs.
+    #[cfg(feature = "vectors")]
     pub async fn vectorise_all_graphs(
         &self,
         template: &DocumentTemplate,
@@ -231,6 +231,7 @@ impl GraphServer {
     /// Arguments:
     ///   * path - the path of the graph to vectorise.
     ///   * template - the template to use for creating documents.
+    #[cfg(feature = "vectors")]
     pub async fn vectorise_graph(
         &self,
         path: &str,
@@ -473,10 +474,14 @@ async fn server_termination(
         _ = terminate => {},
         _ = internal_terminate => {},
     }
+    #[cfg(not(feature = "integration-test"))]
     match tp {
         None => {}
         Some((tp, lp)) => {
-            task::spawn_blocking(move || {
+            /* Avoid shutting down global tracing exporters on server shutdown during integration tests
+               since they are reused across multiple tests.
+            */
+            tokio::task::spawn_blocking(move || {
                 let res = tp.shutdown();
                 if let Err(e) = res {
                     error!("Failed to shut down tracing provider: {:?}", e);
@@ -494,17 +499,125 @@ async fn server_termination(
 
 #[cfg(test)]
 mod server_tests {
-    use crate::server::GraphServer;
+    use crate::{config::app_config::AppConfigBuilder, server::GraphServer};
     use chrono::prelude::*;
-    use raphtory::{
-        db::api::storage::storage::Config,
-        prelude::{AdditionOps, Graph, StableEncode, NO_PROPS},
-        vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate},
-    };
+    use raphtory::db::api::storage::storage::Config;
+    #[cfg(feature = "vectors")]
+    use raphtory::vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate};
     use raphtory_api::core::utils::logging::global_info_logger;
     use tempfile::tempdir;
     use tokio::time::{sleep, Duration};
     use tracing::info;
+
+    #[tokio::test]
+    async fn test_public_dir_serves_index_for_subpages() {
+        let work_dir = tempdir().unwrap();
+        let public_dir = tempdir().unwrap();
+        std::fs::write(public_dir.path().join("index.html"), "<html>ui</html>").unwrap();
+
+        let app_config = AppConfigBuilder::new()
+            .with_public_dir(Some(public_dir.path().to_path_buf()))
+            .build();
+        let server = GraphServer::new(
+            work_dir.path().to_path_buf(),
+            Some(app_config),
+            Config::default(),
+        )
+        .await
+        .unwrap();
+        let running = server.start_with_port(0).await.unwrap();
+        let port = running.port();
+
+        for path in ["/", "/graphs", "/graphs/nested/route"] {
+            let resp = reqwest::get(format!("http://localhost:{port}{path}"))
+                .await
+                .unwrap();
+            assert_eq!(resp.status(), 200, "GET {path}");
+            assert_eq!(resp.text().await.unwrap(), "<html>ui</html>", "GET {path}");
+        }
+
+        running.stop().await
+    }
+
+    // Builds a GraphQL batch request body containing `n` trivial queries.
+    fn batch_body(n: usize) -> String {
+        let queries = std::iter::repeat(r#"{"query":"{__typename}"}"#)
+            .take(n)
+            .collect::<Vec<_>>()
+            .join(",");
+        format!("[{queries}]")
+    }
+
+    async fn post_batch(port: u16, n: usize) -> reqwest::StatusCode {
+        reqwest::Client::new()
+            .post(format!("http://localhost:{port}/"))
+            .header("content-type", "application/json")
+            .body(batch_body(n))
+            .send()
+            .await
+            .unwrap()
+            .status()
+    }
+
+    // Regression test for the batch-amplification DoS: a single HTTP request must not
+    // be able to smuggle an unbounded number of GraphQL operations past request-level
+    // throttling. Verifies both the secure default cap and an explicit override.
+    #[tokio::test]
+    async fn test_batch_size_limit_enforced() {
+        let work_dir = tempdir().unwrap();
+        // Default config: max_batch_size defaults to 10.
+        let server = GraphServer::new(work_dir.path().to_path_buf(), None, Config::default())
+            .await
+            .unwrap();
+        let running = server.start_with_port(0).await.unwrap();
+        let port = running.port();
+
+        // At the default cap: allowed.
+        assert_eq!(post_batch(port, 10).await, reqwest::StatusCode::OK);
+        // One over the default cap: rejected.
+        assert_eq!(post_batch(port, 11).await, reqwest::StatusCode::BAD_REQUEST);
+        running.stop().await;
+
+        // Explicit lower cap is honoured.
+        let work_dir = tempdir().unwrap();
+        let app_config = AppConfigBuilder::new().with_max_batch_size(Some(2)).build();
+        let server = GraphServer::new(
+            work_dir.path().to_path_buf(),
+            Some(app_config),
+            Config::default(),
+        )
+        .await
+        .unwrap();
+        let running = server.start_with_port(0).await.unwrap();
+        let port = running.port();
+
+        assert_eq!(post_batch(port, 2).await, reqwest::StatusCode::OK);
+        assert_eq!(post_batch(port, 3).await, reqwest::StatusCode::BAD_REQUEST);
+        running.stop().await;
+
+        // A single (non-batched) query is never treated as a batch and is unaffected.
+        let work_dir = tempdir().unwrap();
+        let app_config = AppConfigBuilder::new().with_max_batch_size(Some(2)).build();
+        let server = GraphServer::new(
+            work_dir.path().to_path_buf(),
+            Some(app_config),
+            Config::default(),
+        )
+        .await
+        .unwrap();
+        let running = server.start_with_port(0).await.unwrap();
+        let port = running.port();
+        let status = reqwest::Client::new()
+            .post(format!("http://localhost:{}/", port))
+            .header("content-type", "application/json")
+            .body(r#"{"query":"{__typename}"}"#)
+            .send()
+            .await
+            .unwrap()
+            .status();
+        assert_eq!(status, reqwest::StatusCode::OK);
+        running.stop().await;
+    }
 
     #[tokio::test]
     async fn test_server_start_stop() {
@@ -520,6 +633,7 @@ mod server_tests {
         handler.await.unwrap().stop().await
     }
 
+    #[cfg(feature = "vectors")]
     #[tokio::test]
     async fn test_server_start_with_failing_embedding() {
         let tmp_dir = tempdir().unwrap();

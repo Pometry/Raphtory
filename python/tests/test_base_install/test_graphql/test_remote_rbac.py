@@ -368,3 +368,29 @@ def test_list_roles_and_get_role_are_admin_only():
             reader.list_roles()
         with pytest.raises(Exception, match="write access required"):
             reader.get_role("R")
+
+
+def test_store_less_server_after_permissions_server_loads_schema():
+    """A store-less server started after a permissions-backed one, in the same
+    process, must still build its schema and serve normally.
+
+    Registering the permissions plugin drains a process-global op registry, and
+    a sticky "RBAC was configured" flag previously made every later server try
+    to re-register the entrypoint. A store-less server (which never repopulates
+    the registry) would then declare an empty permissions object and fail to
+    load its schema — breaking any process that creates a permissions-backed
+    server before a store-less one.
+    """
+    # A permissions-backed server first: populates then drains the global
+    # permissions op registries during its schema build.
+    with _server() as store_server:
+        admin = RaphtoryClient(url=_url(store_server.port()), token=ADMIN_JWT)
+        admin.create_role("R")
+
+    # A store-less server in the same process must still load and serve.
+    with GraphServer(
+        tempfile.mkdtemp(), config={"auth": {"public_key": PUB_KEY}}
+    ).start() as plain:
+        client = RaphtoryClient(url=_url(plain.port()), token=ADMIN_JWT)
+        client.new_graph("g", "EVENT")
+        assert client.remote_graph("g").nodes.id == []

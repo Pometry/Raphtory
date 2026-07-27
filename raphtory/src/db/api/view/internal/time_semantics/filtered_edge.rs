@@ -309,7 +309,7 @@ pub trait FilteredEdgeStorageOps<'a> {
         layer_id: LayerId,
         prop_id: usize,
         view: G,
-    ) -> impl TPropOps<'a> + Sync + 'a;
+    ) -> impl TPropOps<'a> + 'a;
 
     fn filtered_temporal_prop_iter<G: GraphView + 'a>(
         self,
@@ -334,7 +334,6 @@ impl<'a> FilteredEdgeStorageOps<'a> for EdgeEntryRef<'a> {
     ) -> impl Iterator<Item = LayerId> + 'a {
         self.layer_ids_iter(layer_ids)
             .filter(move |layer_id| view.internal_filter_edge_layer(self, *layer_id))
-            .map(|layer_id| layer_id)
     }
 
     fn filtered_additions_iter<G: GraphView + 'a>(
@@ -407,7 +406,7 @@ impl<'a> FilteredEdgeStorageOps<'a> for EdgeEntryRef<'a> {
         layer_id: LayerId,
         prop_id: usize,
         view: G,
-    ) -> impl TPropOps<'a> + Sync + 'a {
+    ) -> impl TPropOps<'a> + 'a {
         FilteredEdgeTProp {
             eid: self.eid().with_layer(layer_id),
             view,

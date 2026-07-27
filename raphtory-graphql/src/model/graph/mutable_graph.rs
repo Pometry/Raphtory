@@ -853,7 +853,7 @@ impl GqlMutableEdge {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "vectors"))]
 mod tests {
     use super::*;
     use crate::{config::app_config::AppConfig, data::Data, paths::ExistingGraphFolder};

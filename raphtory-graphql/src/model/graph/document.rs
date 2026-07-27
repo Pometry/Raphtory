@@ -1,4 +1,5 @@
 use dynamic_graphql::{SimpleObject, Union};
+#[cfg(feature = "vectors")]
 use raphtory::{
     db::api::view::{IntoDynamic, StaticGraphViewOps},
     vectors::DocumentEntity,
@@ -16,6 +17,7 @@ pub(crate) enum GqlDocumentEntity {
     Edge(GqlEdge),
 }
 
+#[cfg(feature = "vectors")]
 impl<G: StaticGraphViewOps + IntoDynamic> From<DocumentEntity<G>> for GqlDocumentEntity {
     fn from(value: DocumentEntity<G>) -> Self {
         match value {
