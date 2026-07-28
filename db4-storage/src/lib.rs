@@ -56,6 +56,7 @@ pub type Layer<P> = GraphStore<NS<P>, ES<P>, GS<P>, P>;
 pub type Wal = <Extension as PersistenceStrategy>::Wal;
 pub type ControlFile = <Extension as PersistenceStrategy>::ControlFile;
 pub type Config = <Extension as PersistenceStrategy>::Config;
+pub type ConfigArgs = <Extension as PersistenceStrategy>::ConfigArgs; 
 pub type GIDResolver = MappingResolver;
 
 pub type ReadLockedLayer<P> = ReadLockedGraphStore<NS<P>, ES<P>, GS<P>, P>;
