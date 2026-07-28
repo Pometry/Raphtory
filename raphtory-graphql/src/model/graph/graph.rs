@@ -3,6 +3,7 @@ use crate::{
     graph::GraphWithVectors,
     model::{
         graph::{
+            collection::check_list_allowed,
             edge::GqlEdge,
             edges::GqlEdges,
             filtering::{GqlEdgeFilter, GqlGraphFilter, GqlNodeFilter, GraphViewCollection},
@@ -698,9 +699,13 @@ impl GqlGraph {
 
     async fn find_nodes(
         &self,
+        ctx: &Context<'_>,
         #[graphql(desc = "`{key, value}` property entries every returned node must match.")]
         properties_dict: Vec<GqlPropertyInput>,
     ) -> Result<Vec<GqlNode>> {
+        // Unbounded scan over every node — honour the same list guard as
+        // `nodes.list` so `disable_lists` can't be bypassed via find.
+        check_list_allowed(ctx)?;
         let props: HashMap<String, Prop> = as_properties(properties_dict)?.collect();
         let self_clone = self.clone();
         Ok(blocking_compute(move || {
@@ -725,9 +730,13 @@ impl GqlGraph {
 
     async fn find_edges(
         &self,
+        ctx: &Context<'_>,
         #[graphql(desc = "`{key, value}` property entries every returned edge must match.")]
         properties_dict: Vec<GqlPropertyInput>,
     ) -> Result<Vec<GqlEdge>> {
+        // Unbounded scan over every edge — honour the same list guard as
+        // `edges.list` so `disable_lists` can't be bypassed via find.
+        check_list_allowed(ctx)?;
         let props: HashMap<String, Prop> = as_properties(properties_dict)?.collect();
         let self_clone = self.clone();
         Ok(blocking_compute(move || {

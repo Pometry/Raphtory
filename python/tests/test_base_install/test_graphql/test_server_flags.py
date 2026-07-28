@@ -103,6 +103,14 @@ LIST_QUERIES = [
     ("GqlNodes.ids", '{ graph(path: "g") { nodes { ids } } }'),
     ("GqlEdges", '{ graph(path: "g") { edges { list { src { name } } } } }'),
     (
+        "Graph.findNodes",
+        '{ graph(path: "g") { findNodes(propertiesDict: []) { name } } }',
+    ),
+    (
+        "Graph.findEdges",
+        '{ graph(path: "g") { findEdges(propertiesDict: []) { src { name } } } }',
+    ),
+    (
         "GqlPathFromNode",
         '{ graph(path: "g") { node(name: "ben") { neighbours { list { name } } } } }',
     ),
