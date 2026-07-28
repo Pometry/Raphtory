@@ -4387,7 +4387,13 @@ mod tests {
             "expected None for ben under window [100, 200), got Some"
         );
 
+        // stop() only signals shutdown; wait() awaits the server task, whose
+        // completion drops the graph cache and flushes dirty graphs
+        // (DataInner::drop → flush_and_clear). Without it the tempdir is
+        // deleted while background flushes are still writing into it, which
+        // panics under panic-on-drop builds.
         running.stop().await;
+        running.wait().await.unwrap();
     }
 
     /// End-to-end parity: handles from `collect()` must evaluate under the
@@ -4516,7 +4522,13 @@ mod tests {
             "edge handle's node traversals must evaluate under f"
         );
 
+        // stop() only signals shutdown; wait() awaits the server task, whose
+        // completion drops the graph cache and flushes dirty graphs
+        // (DataInner::drop → flush_and_clear). Without it the tempdir is
+        // deleted while background flushes are still writing into it, which
+        // panics under panic-on-drop builds.
         running.stop().await;
+        running.wait().await.unwrap();
     }
 
     /// End-to-end parity: `explode().collect()` handles must be pinned to
@@ -4603,6 +4615,12 @@ mod tests {
             );
         }
 
+        // stop() only signals shutdown; wait() awaits the server task, whose
+        // completion drops the graph cache and flushes dirty graphs
+        // (DataInner::drop → flush_and_clear). Without it the tempdir is
+        // deleted while background flushes are still writing into it, which
+        // panics under panic-on-drop builds.
         running.stop().await;
+        running.wait().await.unwrap();
     }
 }
