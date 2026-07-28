@@ -352,7 +352,7 @@ impl PyRemoteTemporalProperties {
     }
 
     /// Every temporal property's full history, as
-    /// `{key: [(RemoteEventTime, value), ...]}` — mirrors the local
+    /// `{key: [(EventTime, value), ...]}` — mirrors the local
     /// `TemporalProperties.histories`. Composed from `items()` + each
     /// property's `items()`; fires 1 RPC for the property list plus 2 per
     /// property (its history + values), so it is heavy for wide containers —
@@ -583,7 +583,7 @@ impl PyRemoteTemporalProperty {
     /// element-wise.
     ///
     /// Returns:
-    ///   list[Tuple[RemoteEventTime, PropValue]]: one pair per update.
+    ///   list[Tuple[EventTime, PropValue]]: one pair per update.
     pub fn items(&self, py: Python<'_>) -> Result<Vec<(EventTime, Py<PyAny>)>, ClientError> {
         let history = self.inner.history();
         let times = execute_async_task(move || async move { history.collect().await })?;

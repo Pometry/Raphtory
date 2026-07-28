@@ -43,7 +43,6 @@ __all__ = [
     "RemoteEdges",
     "RemoteNestedEdges",
     "RemoteHistory",
-    "RemoteEventTime",
     "RemoteHistoryTimestamps",
     "RemoteHistoryEventIds",
     "RemoteHistoryDateTimes",
@@ -530,6 +529,7 @@ class RemoteGraph(object):
         dst: str | int,
         properties: Optional[dict] = None,
         layer: Optional[str] = None,
+        event_id: Optional[int] = None,
     ) -> RemoteEdge:
         """
         Adds a new edge with the given source and destination nodes and properties to the remote graph.
@@ -540,6 +540,8 @@ class RemoteGraph(object):
             dst (str | int): The id of the destination node.
             properties (dict, optional): The properties of the edge, as a dict of string and properties.
             layer (str, optional): The layer of the edge.
+            event_id (int, optional): Secondary index to disambiguate multiple
+                updates at the same timestamp. If omitted, the server auto-increments it.
 
         Returns:
             RemoteEdge: the remote edge
@@ -573,6 +575,7 @@ class RemoteGraph(object):
         id: str | int,
         properties: Optional[dict] = None,
         node_type: Optional[str] = None,
+        event_id: Optional[int] = None,
         layer: Optional[str] = None,
     ) -> RemoteNode:
         """
@@ -583,6 +586,8 @@ class RemoteGraph(object):
             id (str | int): The id of the node.
             properties (dict, optional): The properties of the node.
             node_type (str, optional): The optional string which will be used as a node type
+            event_id (int, optional): Secondary index to disambiguate multiple
+                updates at the same timestamp. If omitted, the server auto-increments it.
             layer (str, optional): The optional layer where the node update should be written
 
         Returns:
@@ -647,6 +652,8 @@ class RemoteGraph(object):
         id: str | int,
         properties: Optional[dict] = None,
         node_type: Optional[str] = None,
+        event_id: Optional[int] = None,
+        layer: Optional[str] = None,
     ) -> RemoteNode:
         """
         Create a new node with the given id and properties to the remote graph and fail if the node already exists.
@@ -656,6 +663,9 @@ class RemoteGraph(object):
             id (str | int): The id of the node.
             properties (dict, optional): The properties of the node.
             node_type (str, optional): The optional string which will be used as a node type
+            event_id (int, optional): Secondary index to disambiguate multiple
+                updates at the same timestamp. If omitted, the server auto-increments it.
+            layer (str, optional): The optional layer where the node update should be written
 
         Returns:
             RemoteNode: the new remote node
@@ -970,7 +980,9 @@ class RemoteGraph(object):
     def valid_layers(self, names):
         """Restrict to the given set of valid layers. Lazy — no RPC."""
 
-    def window(self, start: int, end: int) -> RemoteGraph:
+    def window(
+        self, start: int | str | datetime, end: int | str | datetime
+    ) -> RemoteGraph:
         """
         Restrict the graph to a time window `[start, end)`.
 
@@ -980,8 +992,8 @@ class RemoteGraph(object):
         view chain.
 
         Arguments:
-            start (int): inclusive start of the window
-            end (int): exclusive end of the window
+            start (int | str | datetime): inclusive start of the window
+            end (int | str | datetime): exclusive end of the window
 
         Returns:
             RemoteGraph: a new remote graph view restricted to the window
@@ -3089,20 +3101,20 @@ class RemoteHistory(object):
         Fires one RPC (`collect_rev()`), then yields each locally.
         """
 
-    def collect(self) -> list[RemoteEventTime]:
+    def collect(self) -> list[EventTime]:
         """
         All events in this history in ascending time order. Fires one RPC.
 
         Returns:
-          list[RemoteEventTime]: one event per entry.
+          list[EventTime]: one event per entry.
         """
 
-    def collect_rev(self) -> list[RemoteEventTime]:
+    def collect_rev(self) -> list[EventTime]:
         """
         All events in this history in descending time order. Fires one RPC.
 
         Returns:
-          list[RemoteEventTime]: one event per entry.
+          list[EventTime]: one event per entry.
         """
 
     def count(self) -> int:
@@ -3120,12 +3132,12 @@ class RemoteHistory(object):
         local `History.dt`. Lazy — no RPC.
         """
 
-    def earliest_time(self) -> Optional[RemoteEventTime]:
+    def earliest_time(self) -> Optional[EventTime]:
         """
         Earliest event time in this history — `None` if empty. Fires one RPC.
 
         Returns:
-          Optional[RemoteEventTime]: the earliest event time, or None.
+          Optional[EventTime]: the earliest event time, or None.
         """
 
     @property
@@ -3147,17 +3159,17 @@ class RemoteHistory(object):
           bool: True if empty.
         """
 
-    def latest_time(self) -> Optional[RemoteEventTime]:
+    def latest_time(self) -> Optional[EventTime]:
         """
         Latest event time in this history — `None` if empty. Fires one RPC.
 
         Returns:
-          Optional[RemoteEventTime]: the latest event time, or None.
+          Optional[EventTime]: the latest event time, or None.
         """
 
     def page(
         self, limit: int, offset: Optional[int] = None, page_index: Optional[int] = None
-    ) -> list[RemoteEventTime]:
+    ) -> list[EventTime]:
         """
         A page of events in ascending time order — at most `limit` items,
         starting `page_index * limit + offset` items in. Both `offset` and
@@ -3169,7 +3181,7 @@ class RemoteHistory(object):
           page_index (int, optional): 0-based page number. Defaults to 0.
 
         Returns:
-          list[RemoteEventTime]: at most `limit` events.
+          list[EventTime]: at most `limit` events.
         """
 
     def page_rev(self, limit, offset=None, page_index=None):
@@ -3192,70 +3204,6 @@ class RemoteHistory(object):
         """
         Timestamps view of this history (plain int timestamps), mirroring the
         local `History.t`. Lazy — no RPC.
-        """
-
-class RemoteEventTime(object):
-    """
-    A single event time — mirrors the local `EventTime`. Exposes `timestamp`,
-    `dt` (a real `datetime.datetime`), `event_id`, and `as_tuple`; comparable to
-    ints (by timestamp) and to other event times (by `(timestamp, event_id)`).
-
-    Fields are optional because the server can return null for any of them.
-    """
-
-    def __eq__(self, value):
-        """Return self==value."""
-
-    def __ge__(self, value):
-        """Return self>=value."""
-
-    def __gt__(self, value):
-        """Return self>value."""
-
-    def __hash__(self):
-        """Return hash(self)."""
-
-    def __int__(self):
-        """int(self)"""
-
-    def __le__(self, value):
-        """Return self<=value."""
-
-    def __lt__(self, value):
-        """Return self<value."""
-
-    def __ne__(self, value):
-        """Return self!=value."""
-
-    def __repr__(self):
-        """Return repr(self)."""
-
-    @property
-    def as_tuple(self):
-        """
-        `(timestamp, event_id)` — mirrors the local `EventTime.as_tuple`.
-        `None` if either component is absent.
-        """
-
-    @property
-    def dt(self):
-        """
-        The UTC `datetime` for this event (`None` if the event has no
-        datetime). Mirrors the local `EventTime.dt`.
-        """
-
-    @property
-    def event_id(self):
-        """
-        The event's internal id used to order events within a timestamp
-        (`None` if absent).
-        """
-
-    @property
-    def t(self):
-        """
-        The event's timestamp in the graph's native time unit, mirroring the
-        local `EventTime.t`. (`None` if absent.)
         """
 
 class RemoteHistoryTimestamps(object):
@@ -3665,7 +3613,7 @@ class RemoteTemporalProperties(object):
     def histories(self):
         """
         Every temporal property's full history, as
-        `{key: [(RemoteEventTime, value), ...]}` — mirrors the local
+        `{key: [(EventTime, value), ...]}` — mirrors the local
         `TemporalProperties.histories`. Composed from `items()` + each
         property's `items()`; fires 1 RPC for the property list plus 2 per
         property (its history + values), so it is heavy for wide containers —
@@ -3729,7 +3677,7 @@ class RemoteTemporalProperty(object):
     def history(self):
         """The event history of this property. Lazy — no RPC."""
 
-    def items(self) -> list[Tuple[RemoteEventTime, PropValue]]:
+    def items(self) -> list[Tuple[EventTime, PropValue]]:
         """
         All `(time, value)` pairs this property has taken, in temporal order.
         Mirrors the local `TemporalProperty.items()`. Fires two RPCs — one for
@@ -3737,7 +3685,7 @@ class RemoteTemporalProperty(object):
         element-wise.
 
         Returns:
-          list[Tuple[RemoteEventTime, PropValue]]: one pair per update.
+          list[Tuple[EventTime, PropValue]]: one pair per update.
         """
 
     @property

@@ -147,7 +147,7 @@ impl PyRemoteHistory {
     }
 
     /// Enables `for t in remote_history:` — fetches all events in one RPC
-    /// via `.collect()`, then yields each `RemoteEventTime` locally.
+    /// via `.collect()`, then yields each `EventTime` locally.
     fn __iter__(&self) -> Result<PyRemoteHistoryIter, ClientError> {
         let list = self.collect()?;
         Ok(PyRemoteHistoryIter {
