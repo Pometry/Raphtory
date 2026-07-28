@@ -993,31 +993,37 @@ pub enum WriteOp {
     UpdateEdgeMetadata(UpdateEdgeMetadata),
 }
 
-/// Arguments for `RemoteGraph::add_node`.
+/// Arguments for `RemoteGraph::add_node`. `event_id` locks the secondary index
+/// explicitly (sent as the `{timestamp, eventId}` time-input object); `None`
+/// lets the server auto-increment.
 pub struct AddNode {
     pub path: String,
     pub time: i64,
+    pub event_id: Option<usize>,
     pub id: String,
     pub properties: Option<HashMap<String, Prop>>,
     pub node_type: Option<String>,
     pub layer: Option<String>,
 }
 
-/// Arguments for `RemoteGraph::create_node`. Same as `AddNode` minus `layer` —
-/// distinct because it maps to the server's `createNode` mutation which fails
-/// if the node already exists (vs `addNode` which is upsert-like).
+/// Arguments for `RemoteGraph::create_node` — maps to the server's `createNode`
+/// mutation which fails if the node already exists (vs `addNode` which is
+/// upsert-like). `event_id` as in `AddNode`.
 pub struct CreateNode {
     pub path: String,
     pub time: i64,
+    pub event_id: Option<usize>,
     pub id: String,
     pub properties: Option<HashMap<String, Prop>>,
     pub node_type: Option<String>,
+    pub layer: Option<String>,
 }
 
-/// Arguments for `RemoteGraph::add_edge`.
+/// Arguments for `RemoteGraph::add_edge`. `event_id` as in `AddNode`.
 pub struct AddEdge {
     pub path: String,
     pub time: i64,
+    pub event_id: Option<usize>,
     pub src: String,
     pub dst: String,
     pub properties: Option<HashMap<String, Prop>>,

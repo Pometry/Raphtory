@@ -595,17 +595,20 @@ impl PyRemoteGraph {
     ///     id (str | int): The id of the node.
     ///     properties (dict, optional): The properties of the node.
     ///     node_type (str, optional): The optional string which will be used as a node type
+    ///     event_id (int, optional): Secondary index to disambiguate multiple
+    ///         updates at the same timestamp. If omitted, the server auto-increments it.
     ///     layer (str, optional): The optional layer where the node update should be written
     ///
     /// Returns:
     ///     RemoteNode: the new remote node
-    #[pyo3(signature = (timestamp, id, properties = None, node_type = None, layer = None))]
+    #[pyo3(signature = (timestamp, id, properties = None, node_type = None, event_id = None, layer = None))]
     pub fn add_node(
         &self,
         timestamp: EventTime,
         id: GID,
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<&str>,
+        event_id: Option<usize>,
         layer: Option<&str>,
     ) -> Result<PyRemoteNode, ClientError> {
         let graph = Arc::clone(&self.graph);
@@ -614,7 +617,7 @@ impl PyRemoteGraph {
 
         let node = execute_async_task(move || async move {
             graph
-                .add_node(timestamp, id, properties, node_type, layer)
+                .add_node(timestamp, id, properties, node_type, layer, event_id)
                 .await
         })?;
 
@@ -628,23 +631,29 @@ impl PyRemoteGraph {
     ///     id (str | int): The id of the node.
     ///     properties (dict, optional): The properties of the node.
     ///     node_type (str, optional): The optional string which will be used as a node type
+    ///     event_id (int, optional): Secondary index to disambiguate multiple
+    ///         updates at the same timestamp. If omitted, the server auto-increments it.
+    ///     layer (str, optional): The optional layer where the node update should be written
     ///
     /// Returns:
     ///     RemoteNode: the new remote node
-    #[pyo3(signature = (timestamp, id, properties = None, node_type = None))]
+    #[pyo3(signature = (timestamp, id, properties = None, node_type = None, event_id = None, layer = None))]
     pub fn create_node(
         &self,
         timestamp: EventTime,
         id: GID,
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<&str>,
+        event_id: Option<usize>,
+        layer: Option<&str>,
     ) -> Result<PyRemoteNode, ClientError> {
         let graph = Arc::clone(&self.graph);
         let node_type = node_type.map(|s| s.to_string());
+        let layer = layer.map(|s| s.to_string());
 
         let node = execute_async_task(move || async move {
             graph
-                .create_node(timestamp, id, properties, node_type)
+                .create_node(timestamp, id, properties, node_type, layer, event_id)
                 .await
         })?;
 
@@ -707,10 +716,12 @@ impl PyRemoteGraph {
     ///     dst (str | int): The id of the destination node.
     ///     properties (dict, optional): The properties of the edge, as a dict of string and properties.
     ///     layer (str, optional): The layer of the edge.
+    ///     event_id (int, optional): Secondary index to disambiguate multiple
+    ///         updates at the same timestamp. If omitted, the server auto-increments it.
     ///
     /// Returns:
     ///     RemoteEdge: the remote edge
-    #[pyo3(signature = (timestamp, src, dst, properties = None, layer = None))]
+    #[pyo3(signature = (timestamp, src, dst, properties = None, layer = None, event_id = None))]
     pub fn add_edge(
         &self,
         timestamp: EventTime,
@@ -718,12 +729,15 @@ impl PyRemoteGraph {
         dst: GID,
         properties: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
+        event_id: Option<usize>,
     ) -> Result<PyRemoteEdge, ClientError> {
         let graph = Arc::clone(&self.graph);
         let layer = layer.map(|s| s.to_string());
 
         let edge = execute_async_task(move || async move {
-            graph.add_edge(timestamp, src, dst, properties, layer).await
+            graph
+                .add_edge(timestamp, src, dst, properties, layer, event_id)
+                .await
         })?;
 
         Ok(PyRemoteEdge::new(edge))

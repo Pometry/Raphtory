@@ -89,7 +89,7 @@ impl GraphqlTransport {
 
         let ctx = context! {
             path => args.path,
-            time => args.time,
+            time => write_time_literal(args.time, args.event_id),
             name => args.id,
             properties => args.properties.as_ref().map(|p| build_property_string(p.clone())).transpose()?,
             node_type => args.node_type,
@@ -124,6 +124,7 @@ impl GraphqlTransport {
                     name: {{ name | gqlstr }}
                     {% if properties is not none %}, properties: {{ properties | safe }}{% endif %}
                     {% if node_type is not none %}, nodeType: {{ node_type | gqlstr }}{% endif %}
+                    {% if layer is not none %}, layer: {{ layer | gqlstr }}{% endif %}
                 ) {
                     success
                 }
@@ -133,10 +134,11 @@ impl GraphqlTransport {
 
         let ctx = context! {
             path => args.path,
-            time => args.time,
+            time => write_time_literal(args.time, args.event_id),
             name => args.id,
             properties => args.properties.as_ref().map(|p| build_property_string(p.clone())).transpose()?,
             node_type => args.node_type,
+            layer => args.layer,
         };
 
         let query = build_query(template, ctx)?;
@@ -177,7 +179,7 @@ impl GraphqlTransport {
 
         let ctx = context! {
             path => args.path,
-            time => args.time,
+            time => write_time_literal(args.time, args.event_id),
             src => args.src,
             dst => args.dst,
             properties => args.properties.as_ref().map(|p| build_property_string(p.clone())).transpose()?,
@@ -215,13 +217,7 @@ impl GraphqlTransport {
         }
         "#;
 
-        // When an explicit event_id is given, send the object time-input form
-        // `{timestamp, eventId}` so the server locks the secondary index;
-        // otherwise send the bare timestamp and let it auto-increment.
-        let t_literal = match args.event_id {
-            Some(event_id) => format!("{{timestamp: {}, eventId: {}}}", args.time, event_id),
-            None => args.time.to_string(),
-        };
+        let t_literal = write_time_literal(args.time, args.event_id);
 
         let ctx = context! {
             path => args.path,
@@ -806,6 +802,17 @@ fn render_gql_str(s: &str) -> String {
     // GraphQL string literal — quotes, backslashes, control chars, and unicode
     // are all escaped correctly. Callers must NOT add their own quotes.
     serde_json::to_string(s).expect("string serialization is infallible")
+}
+
+/// Render a write-path `time` argument for the `TimeInput` scalar. With an
+/// explicit `event_id`, emit the object form `{timestamp, eventId}` so the
+/// server locks the secondary index; otherwise emit the bare timestamp and let
+/// the server auto-increment the event id.
+fn write_time_literal(time: i64, event_id: Option<usize>) -> String {
+    match event_id {
+        Some(event_id) => format!("{{timestamp: {time}, eventId: {event_id}}}"),
+        None => time.to_string(),
+    }
 }
 
 /// Node/edge-scoped writes address their target as `updateGraph { node(name) }`
@@ -4335,9 +4342,15 @@ mod tests {
         let rg = client.remote_graph("test-graph".into());
 
         // Write path: add_node routes through Transport
-        rg.add_node(1i64, "ben", None, None, None).await.unwrap();
-        rg.add_node(2i64, "hamza", None, None, None).await.unwrap();
-        rg.add_edge(3i64, "ben", "hamza", None, None).await.unwrap();
+        rg.add_node(1i64, "ben", None, None, None, None)
+            .await
+            .unwrap();
+        rg.add_node(2i64, "hamza", None, None, None, None)
+            .await
+            .unwrap();
+        rg.add_edge(3i64, "ben", "hamza", None, None, None)
+            .await
+            .unwrap();
 
         // Read path: composed expression through Transport
         // g.node("ben").degree() — after edge (ben -> hamza), ben has degree 1.
@@ -4425,13 +4438,13 @@ mod tests {
 
         for (name, score) in [("a", 10i64), ("b", 20), ("c", 30)] {
             let props: Map<String, Prop> = [("score".to_string(), Prop::I64(score))].into();
-            rg.add_node(1i64, name, Some(props), None, None)
+            rg.add_node(1i64, name, Some(props), None, None, None)
                 .await
                 .unwrap();
         }
-        rg.add_edge(1i64, "a", "b", None, None).await.unwrap();
-        rg.add_edge(2i64, "b", "c", None, None).await.unwrap();
-        rg.add_edge(3i64, "c", "a", None, None).await.unwrap();
+        rg.add_edge(1i64, "a", "b", None, None, None).await.unwrap();
+        rg.add_edge(2i64, "b", "c", None, None, None).await.unwrap();
+        rg.add_edge(3i64, "c", "a", None, None, None).await.unwrap();
 
         let score_gt_15 = GqlNodeFilter::Property(PropertyFilterNew {
             name: "score".into(),
@@ -4555,7 +4568,9 @@ mod tests {
 
         for (t, w) in [(1i64, 1i64), (5, 2)] {
             let props: Map<String, Prop> = [("weight".to_string(), Prop::I64(w))].into();
-            rg.add_edge(t, "x", "y", Some(props), None).await.unwrap();
+            rg.add_edge(t, "x", "y", Some(props), None, None)
+                .await
+                .unwrap();
         }
 
         let exploded = rg.edges().explode();

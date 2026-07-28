@@ -1662,11 +1662,13 @@ impl RemoteGraph {
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<String>,
         layer: Option<String>,
+        event_id: Option<usize>,
     ) -> Result<RemoteNode, ClientError> {
         let id_str = id.to_string();
         let op = Op::Write(WriteOp::AddNode(AddNodeOp {
             path: self.path.clone(),
             time: timestamp.into_time().t(),
+            event_id,
             id: id_str.clone(),
             properties,
             node_type,
@@ -1696,14 +1698,18 @@ impl RemoteGraph {
         id: G,
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<String>,
+        layer: Option<String>,
+        event_id: Option<usize>,
     ) -> Result<RemoteNode, ClientError> {
         let id_str = id.to_string();
         let op = Op::Write(WriteOp::CreateNode(CreateNodeOp {
             path: self.path.clone(),
             time: timestamp.into_time().t(),
+            event_id,
             id: id_str.clone(),
             properties,
             node_type,
+            layer,
         }));
         self.transport.execute(&op).await?;
         Ok(RemoteNode::with_expr(
@@ -1732,12 +1738,14 @@ impl RemoteGraph {
         dst: G,
         properties: Option<HashMap<String, Prop>>,
         layer: Option<String>,
+        event_id: Option<usize>,
     ) -> Result<RemoteEdge, ClientError> {
         let src_str = src.to_string();
         let dst_str = dst.to_string();
         let op = Op::Write(WriteOp::AddEdge(AddEdgeOp {
             path: self.path.clone(),
             time: timestamp.into_time().t(),
+            event_id,
             src: src_str.clone(),
             dst: dst_str.clone(),
             properties,

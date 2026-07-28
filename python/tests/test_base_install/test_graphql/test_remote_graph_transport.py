@@ -48,6 +48,33 @@ def test_add_and_degree():
         server_cm.__exit__(None, None, None)
 
 
+def test_event_id_secondary_index():
+    """`event_id` disambiguates multiple updates at the same timestamp on
+    `add_edge` / `add_node` / `create_node` — parity with the local write API,
+    where an explicit event id locks the secondary index instead of
+    auto-incrementing."""
+    work_dir = tempfile.mkdtemp()
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
+        client.new_graph("g", "EVENT")
+        rg = client.remote_graph("g")
+        # Two edges at the same timestamp with distinct event ids both persist.
+        rg.add_edge(1, "a", "b", event_id=0)
+        rg.add_edge(1, "a", "c", event_id=1)
+        rg.add_node(5, "x", node_type="person", event_id=2)
+        rg.create_node(6, "y", node_type="robot", layer="L1", event_id=3)
+
+        g = client.receive_graph("g")
+        assert sorted((e.src.name, e.dst.name) for e in g.edges) == [
+            ("a", "b"),
+            ("a", "c"),
+        ]
+        assert g.node("x").earliest_time.event_id == 2
+        assert g.node("y").earliest_time.event_id == 3
+        # create_node's layer argument (new to the client) reached the server.
+        assert "L1" in g.unique_layers
+
+
 def test_windowed_degree():
     """`.window()` composes with `.node().degree()` — RPC is fired only at `.degree()`."""
     server_cm, rg = _make_graph_with_edge()
