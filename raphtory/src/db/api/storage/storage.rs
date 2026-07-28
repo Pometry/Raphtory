@@ -114,8 +114,7 @@ impl Storage {
         })
     }
 
-    pub(crate) fn new_with_config(config_args: ConfigArgs) -> Result<Self, GraphError> {
-        let config = config_args.into_config();
+    pub(crate) fn new_with_config(config: Config) -> Result<Self, GraphError> {
         let ext = Extension::new(config, None)?;
         let temporal_graph = TemporalGraph::new(ext)?;
         Ok(Self {
@@ -127,9 +126,8 @@ impl Storage {
 
     pub(crate) fn new_at_path_with_config(
         path: impl AsRef<Path>,
-        config_args: ConfigArgs,
+        config: Config,
     ) -> Result<Self, GraphError> {
-        let config = config_args.into_config();
         let ext = Extension::new(config, Some(path.as_ref()))?;
         let temporal_graph = TemporalGraph::new_at_path_with_ext(path, ext)?;
 

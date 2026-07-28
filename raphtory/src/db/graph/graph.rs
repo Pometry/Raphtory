@@ -54,7 +54,7 @@ use std::{
     ops::Deref,
     sync::Arc,
 };
-use storage::{ConfigArgs, Extension};
+use storage::{persist::config::ConfigArgsOps, ConfigArgs, Extension};
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Default)]
@@ -150,7 +150,7 @@ impl Graph {
     /// ```
     pub fn new_with_config(config_args: ConfigArgs) -> Result<Self, GraphError> {
         Ok(Self {
-            inner: Arc::new(Storage::new_with_config(config_args)?),
+            inner: Arc::new(Storage::new_with_config(config_args.into_config())?),
         })
     }
 
@@ -201,7 +201,7 @@ impl Graph {
         let graph = Self {
             inner: Arc::new(Storage::new_at_path_with_config(
                 path.graph_path()?,
-                config_args,
+                config_args.into_config(),
             )?),
         };
 

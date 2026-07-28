@@ -34,7 +34,7 @@ use std::{
 };
 use storage::api::graph_props::{GraphPropEntryOps, GraphPropRefOps};
 
-use storage::ConfigArgs;
+use storage::{persist::config::ConfigArgsOps, ConfigArgs};
 #[cfg(feature = "io")]
 use storage::{persist::strategy::PersistenceStrategy, Extension};
 
@@ -116,7 +116,9 @@ impl PersistentGraph {
     /// let g = PersistentGraph::new_with_config(ConfigArgs::default().with_max_node_page_len(262144)).unwrap();
     /// ```
     pub fn new_with_config(config_args: ConfigArgs) -> Result<Self, GraphError> {
-        Ok(Self(Arc::new(Storage::new_with_config(config_args)?)))
+        Ok(Self(Arc::new(Storage::new_with_config(
+            config_args.into_config(),
+        )?)))
     }
 
     /// Create a new persistent graph at a specific path
@@ -141,7 +143,7 @@ impl PersistentGraph {
         path.init()?;
         let graph = Self(Arc::new(Storage::new_at_path_with_config(
             path.graph_path()?,
-            config_args,
+            config_args.into_config(),
         )?));
         let meta = Metadata {
             path: path.relative_graph_path()?,
