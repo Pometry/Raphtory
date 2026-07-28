@@ -12,8 +12,26 @@ pub const DEFAULT_MAX_PAGE_LEN_NODES: u32 = 600_000; // 2^17
 pub const DEFAULT_MAX_PAGE_LEN_EDGES: u32 = 6_000_000; // 2^20
 pub const CONFIG_FILE_NAME: &str = "config.json";
 
+pub trait ConfigArgsOps: Sized {
+    type Config: ConfigOps;
+
+    fn max_node_page_len(&self) -> Option<u32>;
+
+    fn max_edge_page_len(&self) -> Option<u32>;
+
+    fn node_types(&self) -> &[String];
+
+    fn with_max_node_page_len(self, page_len: u32) -> Self;
+
+    fn with_max_edge_page_len(self, page_len: u32) -> Self;
+
+    fn with_node_types(&self, node_types: impl IntoIterator<Item = impl AsRef<str>>) -> Self;
+
+    fn into_config(self) -> Self::Config;
+}
+
 pub trait ConfigOps: Serialize + DeserializeOwned + Args + Sized {
-    type NewConfigArgs;
+    type NewConfigArgs: ConfigArgsOps;
 
     fn max_node_page_len(&self) -> u32;
 
@@ -46,6 +64,8 @@ pub trait ConfigOps: Serialize + DeserializeOwned + Args + Sized {
     }
 
     fn update(&mut self, new_args: Self::NewConfigArgs);
+
+    fn into_args(self) -> Self::NewConfigArgs; 
 }
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, Args)]
@@ -57,6 +77,55 @@ pub struct BaseConfig {
     #[arg(long, default_value_t=DEFAULT_MAX_PAGE_LEN_EDGES, env="RAPHTORY_MAX_EDGE_PAGE_LEN")]
     max_edge_page_len: u32,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct BaseConfigArgs {
+    max_node_page_len: Option<u32>,
+    max_edge_page_len: Option<u32>,
+}
+
+impl ConfigArgsOps for BaseConfigArgs {
+    type Config = BaseConfig;
+
+    fn max_node_page_len(&self) -> Option<u32> {
+        self.max_node_page_len
+    }
+
+    fn max_edge_page_len(&self) -> Option<u32> {
+        self.max_edge_page_len
+    }
+
+    fn node_types(&self) -> &[String] {
+        &[]
+    }
+
+    fn with_max_node_page_len(mut self, page_len: u32) -> Self {
+        self.max_node_page_len = Some(page_len);
+        self
+    }
+
+    fn with_max_edge_page_len(mut self, page_len: u32) -> Self {
+        self.max_edge_page_len = Some(page_len);
+        self
+    }
+
+    fn with_node_types(&self, _node_types: impl IntoIterator<Item = impl AsRef<str>>) -> Self {
+        self.clone()
+    }
+
+    fn into_config(self) -> Self::Config {
+        let mut config = BaseConfig::default();
+        if let Some(page_len) = self.max_node_page_len {
+            config = config.with_max_node_page_len(page_len);
+        }
+        if let Some(page_len) = self.max_edge_page_len {
+            config = config.with_max_edge_page_len(page_len);
+        }
+        config
+    }
+}
+
+
 
 pub trait ClapDefault: Args {
     fn clap_default() -> Self;
@@ -118,7 +187,7 @@ impl BaseConfig {
 }
 
 impl ConfigOps for BaseConfig {
-    type NewConfigArgs = Self;
+    type NewConfigArgs = BaseConfigArgs;
 
     fn max_node_page_len(&self) -> u32 {
         self.max_node_page_len
@@ -148,6 +217,13 @@ impl ConfigOps for BaseConfig {
 
     fn update(&mut self, _new_args: Self::NewConfigArgs) {
         // cannot update page lengths for an existing graph
+    }
+
+    fn into_args(self) -> Self::NewConfigArgs {
+        BaseConfigArgs {
+            max_node_page_len: Some(self.max_node_page_len),
+            max_edge_page_len: Some(self.max_edge_page_len),
+        }
     }
 }
 

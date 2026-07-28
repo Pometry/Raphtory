@@ -31,7 +31,7 @@ use raphtory::vectors::{
 use raphtory::{
     db::{
         api::{
-            storage::storage::Config,
+            storage::storage::{Config, ConfigOps},
             view::{DynamicGraph, Filter, GraphViewOps, IntoDynamic, MaterializedGraph},
         },
         graph::views::{filter::model::DynFilter, property_redacted_graph::PropertyRedaction},

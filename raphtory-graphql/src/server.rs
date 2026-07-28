@@ -26,7 +26,7 @@ use poem::{
     web::CompressionLevel,
     EndpointExt, Route, Server,
 };
-use raphtory::db::api::storage::storage::{Config, ConfigArgs};
+use raphtory::db::api::storage::storage::{Config, ConfigArgs, ConfigArgsOps};
 #[cfg(feature = "vectors")]
 use raphtory::vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate};
 use serde_json::json;
@@ -501,7 +501,7 @@ async fn server_termination(
 mod server_tests {
     use crate::{config::app_config::AppConfigBuilder, server::GraphServer};
     use chrono::prelude::*;
-    use raphtory::db::api::storage::storage::{Config, ConfigArgs};
+    use raphtory::db::api::storage::storage::{Config, ConfigArgs, ConfigArgsOps};
     #[cfg(feature = "vectors")]
     use raphtory::vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate};
     use raphtory_api::core::utils::logging::global_info_logger;

@@ -1,16 +1,11 @@
 use crate::{
-    api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
-    error::StorageError,
-    persist::{
-        config::{BaseConfig, ConfigOps},
-        control_file::{ControlFileOps, NoControlFile},
-    },
-    segments::{
+    api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps}, error::StorageError, persist::{
+        config::{BaseConfig, BaseConfigArgs, ConfigArgsOps, ConfigOps}, control_file::{ControlFileOps, NoControlFile},
+    }, segments::{
         edge::segment::{EdgeSegmentView, MemEdgeSegment},
         graph_prop::{GraphPropSegmentView, segment::MemGraphPropSegment},
         node::segment::{MemNodeSegment, NodeSegmentView},
-    },
-    wal::{GraphWalOps, WalOps, no_wal::NoWal},
+    }, wal::{GraphWalOps, WalOps, no_wal::NoWal},
 };
 use std::{
     fmt::Debug,
@@ -28,7 +23,7 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
     type GS: GraphPropSegmentOps;
     type Wal: WalOps + GraphWalOps;
     type Config: ConfigOps;
-    type ConfigArgs;
+    type ConfigArgs: ConfigArgsOps;
     type ControlFile: ControlFileOps;
 
     fn new(config: Self::Config, graph_dir: Option<&Path>) -> Result<Self, StorageError>;
@@ -97,7 +92,7 @@ impl PersistenceStrategy for NoOpStrategy {
     type GS = GraphPropSegmentView<Self>;
     type Wal = NoWal;
     type Config = BaseConfig;
-    type ConfigArgs = ();
+    type ConfigArgs = BaseConfigArgs;
     type ControlFile = NoControlFile;
 
     fn new(config: BaseConfig, _graph_dir: Option<&Path>) -> Result<Self, StorageError> {

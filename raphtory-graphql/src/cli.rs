@@ -20,7 +20,7 @@ use crate::{
     GraphServer,
 };
 use clap::{Parser, Subcommand};
-use raphtory::db::api::storage::storage::Config;
+use raphtory::db::api::storage::storage::{Config, ConfigOps};
 use serde::Serialize;
 use std::{collections::HashMap, io, path::PathBuf};
 use tokio::io::Result as IoResult;
