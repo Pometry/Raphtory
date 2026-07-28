@@ -502,24 +502,26 @@ where
     ///
     /// Assumes `dst` is created and graph has been flushed to disk.
     pub fn copy_to(&self, dst: impl AsRef<Path>) -> Result<(), StorageError> {
-        let dst = dst.as_ref();
+        let dst = GraphDir::from(dst.as_ref());
 
-        self.graph.extension().config().save_to_dir(dst)?;
+        let config = self.graph.extension().config();
+        config.save_to_dir(dst.path())?;
 
-        self.graph.gid_resolver.copy_to(dst.join("gid_resolver"))?;
-        self.nodes.copy_to(&dst.join("nodes"))?;
-        self.edges.copy_to(&dst.join("edges"))?;
-        self.graph_props.copy_to(&dst.join("graph_props"))?;
+        self.graph.gid_resolver.copy_to(dst.gid_resolver_dir())?;
+        self.nodes.copy_to(&dst.nodes_dir())?;
+        self.edges.copy_to(&dst.edges_dir())?;
+        self.graph_props.copy_to(&dst.graph_props_dir())?;
 
         // All segments have been flushed, mark checkpoint event in the WAL and control file.
         let wal = self.graph.extension().wal();
         let redo_lsn = None; // Nothing to redo since all segments have been flushed.
         let checkpoint_lsn = wal.log_checkpoint(redo_lsn)?;
+        wal.flush(checkpoint_lsn)?;
 
         let control_file = self.graph.extension().control_file();
         control_file.set_checkpoint(checkpoint_lsn);
         control_file.save()?;
-        control_file.copy_to(dst)?;
+        control_file.copy_to(dst.path())?;
 
         // wal.copy_tail_to(dst)?;
 

@@ -416,10 +416,7 @@ impl<
                     }
                 };
 
-                // Flush up to the end of the WAL stream.
-                let flush_lsn = wal.position();
-
-                if let Err(err) = wal.flush(flush_lsn) {
+                if let Err(err) = wal.flush(checkpoint_lsn) {
                     drop_error!("Failed to flush checkpoint record in drop: {err}");
                     // this is unreachable with panic-on-drop
                     #[allow(unreachable_code)]

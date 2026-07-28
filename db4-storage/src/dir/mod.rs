@@ -11,6 +11,18 @@ impl GraphDir {
         &self.0
     }
 
+    pub fn nodes_dir(&self) -> PathBuf {
+        self.path().join("nodes")
+    }
+
+    pub fn edges_dir(&self) -> PathBuf {
+        self.path().join("edges")
+    }
+
+    pub fn graph_props_dir(&self) -> PathBuf {
+        self.path().join("graph_props")
+    }
+
     pub fn gid_resolver_dir(&self) -> PathBuf {
         self.path().join("gid_resolver")
     }
