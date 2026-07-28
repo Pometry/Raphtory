@@ -3960,7 +3960,16 @@ fn exploded_layers_edge_elem(v: &JsonValue) -> Result<Prop, ClientError> {
 fn build_not_found_error(expr: &ReadExpr, null_key: &str) -> ClientError {
     let desc = find_selection(expr, null_key)
         .unwrap_or_else(|| format!("unexpected null at `{}`", null_key));
-    ClientError::NotFound(desc)
+    // A null at the graph root means the graph is missing — or hidden from the
+    // caller, which the server reports identically (RBAC non-disclosure). That
+    // is not a view-scoping failure, so surface it as `GraphNotFound` (message
+    // reads "... does not exist") rather than `NotFound` (suffixed "not found
+    // in view", which only makes sense for a node/edge outside the view).
+    if null_key == "graph" {
+        ClientError::GraphNotFound(format!("{desc} does not exist"))
+    } else {
+        ClientError::NotFound(desc)
+    }
 }
 
 /// Descend the expr tree, returning a describing string for the selection

@@ -48,7 +48,7 @@ use std::{
     sync::Arc,
 };
 use tokio::sync::{OwnedRwLockReadGuard, OwnedRwLockWriteGuard, RwLock};
-use tracing::{error, warn};
+use tracing::{debug, error, warn};
 use walkdir::WalkDir;
 
 #[derive(thiserror::Error, Debug)]
@@ -712,7 +712,7 @@ fn require_at_least_read(
     if let Some(policy) = policy {
         return match policy.graph_permissions(ctx, path) {
             Err(msg) => {
-                warn!(graph = path, "Access denied by auth policy");
+                debug!(graph = path, "Access denied by auth policy");
                 let ns = parent_namespace(path);
                 if policy.namespace_permissions(ctx, ns).is_some() {
                     Err(gql_error_with_code(msg.to_string(), CODE_ACCESS_DENIED))
@@ -724,7 +724,7 @@ fn require_at_least_read(
                 if let Some(p) = perm.at_least_read() {
                     Ok(p)
                 } else {
-                    warn!(
+                    debug!(
                         graph = path,
                         "Introspect-only access — graph() denied; use graphMetadata() instead"
                     );

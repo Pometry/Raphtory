@@ -44,6 +44,15 @@ pub enum ClientError {
     #[error("{0} not found in view")]
     NotFound(String),
 
+    /// The target graph does not exist — or exists but the caller lacks the
+    /// namespace visibility to know it does. The server reports both as the
+    /// same `GRAPH_NOT_FOUND` code with an identical message, so the two stay
+    /// indistinguishable (RBAC existence non-disclosure). The message is the
+    /// server's verbatim (e.g. `Graph does not exist`); unlike `NotFound` it is
+    /// not about a view, so it is surfaced as-is rather than suffixed.
+    #[error("{0}")]
+    GraphNotFound(String),
+
     #[error("JSON parse error: {0}")]
     Json(#[from] serde_json::Error),
 

@@ -165,8 +165,8 @@ impl RemoteClient {
             // error and never as a permission error, so the two stay
             // indistinguishable to the caller.
             if graph_not_found && !access_denied {
-                return Err(ClientError::NotFound(
-                    not_found_message.unwrap_or_else(|| "Graph".to_owned()),
+                return Err(ClientError::GraphNotFound(
+                    not_found_message.unwrap_or_else(|| "Graph does not exist".to_owned()),
                 ));
             }
 
