@@ -23,12 +23,16 @@ use crate::{
             in_component::{GqlInComponent, GqlInComponentArgs},
             in_components::{GqlInComponents, GqlInComponentsArgs},
             label_propagation::{GqlLabelPropagation, GqlLabelPropagationArgs},
+            local_clustering_coefficient::{
+                GqlLocalClusteringCoefficient, GqlLocalClusteringCoefficientArgs,
+            },
             local_clustering_coefficient_batch::{
                 GqlLocalClusteringCoefficientBatch, GqlLocalClusteringCoefficientBatchArgs,
             },
             local_temporal_three_node_motifs::{
                 GqlLocalTemporalThreeNodeMotifs, GqlLocalTemporalThreeNodeMotifsArgs,
             },
+            local_triangle_count::{GqlLocalTriangleCount, GqlLocalTriangleCountArgs},
             louvain::{GqlLouvain, GqlLouvainArgs},
             max_degree::{GqlMaxDegree, GqlMaxDegreeArgs},
             max_in_degree::{GqlMaxInDegree, GqlMaxInDegreeArgs},
@@ -86,8 +90,10 @@ pub(crate) mod hits;
 pub(crate) mod in_component;
 pub(crate) mod in_components;
 pub(crate) mod label_propagation;
+pub(crate) mod local_clustering_coefficient;
 pub(crate) mod local_clustering_coefficient_batch;
 pub(crate) mod local_temporal_three_node_motifs;
+pub(crate) mod local_triangle_count;
 pub(crate) mod louvain;
 pub(crate) mod max_degree;
 pub(crate) mod max_in_degree;
@@ -300,6 +306,37 @@ impl GqlAlgorithms {
     ) -> Result<GqlNodeState, GraphError> {
         self.run::<GqlOutComponent>(GqlOutComponentArgs { node, filter })
             .await
+    }
+
+    /// Returns the local triangle count of a single node (0 if it has degree < 2), or null if
+    /// the node does not exist in the view.
+    async fn local_triangle_count(
+        &self,
+        #[graphql(desc = "Node id.")] node: GqlNodeId,
+        #[graphql(
+            desc = "Optional composite filter (node, edge, and graph-view); the algorithm runs on the resulting view."
+        )]
+        filter: Option<GqlViewFilter>,
+    ) -> Result<Option<usize>, GraphError> {
+        self.run::<GqlLocalTriangleCount>(GqlLocalTriangleCountArgs { node, filter })
+            .await
+    }
+
+    /// Returns the local clustering coefficient of a single node (0 if it has degree < 2), or
+    /// null if the node does not exist in the view.
+    async fn local_clustering_coefficient(
+        &self,
+        #[graphql(desc = "Node id.")] node: GqlNodeId,
+        #[graphql(
+            desc = "Optional composite filter (node, edge, and graph-view); the algorithm runs on the resulting view."
+        )]
+        filter: Option<GqlViewFilter>,
+    ) -> Result<Option<f64>, GraphError> {
+        self.run::<GqlLocalClusteringCoefficient>(GqlLocalClusteringCoefficientArgs {
+            node,
+            filter,
+        })
+        .await
     }
 
     /// Returns the weakly connected component id of every node.
