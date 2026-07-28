@@ -20,7 +20,7 @@ use crate::{
     GraphServer,
 };
 use clap::{Parser, Subcommand};
-use raphtory::db::api::storage::storage::{Config, ConfigOps};
+use raphtory::db::api::storage::storage::Config;
 use serde::Serialize;
 use std::{collections::HashMap, io, path::PathBuf};
 use tokio::io::Result as IoResult;
@@ -326,7 +326,7 @@ where
         let server = GraphServer::new(
             server_args.work_dir,
             Some(app_config),
-            server_args.graph_config.into_args(),
+            server_args.graph_config,
         )
         .await?;
         let server = apply_server_extension(server, server_args.permissions_store_path.as_deref());

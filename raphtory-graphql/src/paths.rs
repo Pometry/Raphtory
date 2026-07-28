@@ -6,7 +6,7 @@ use crate::{
 use futures_util::io;
 use raphtory::{
     db::api::{
-        storage::storage::{Config, ConfigArgs, Extension, PersistenceStrategy},
+        storage::storage::{Config, ConfigArgs, ConfigOps, Extension, PersistenceStrategy},
         view::{internal::InternalStorageOps, MaterializedGraph},
     },
     errors::{GraphError, InvalidPathReason},
@@ -494,7 +494,7 @@ impl ValidWriteableGraphFolder {
     fn write_graph_data_inner(
         &self,
         graph: MaterializedGraph,
-        config_args: ConfigArgs,
+        config: Config,
     ) -> Result<(bool, MaterializedGraph), InternalPathValidationError> {
         let is_dirty = if Extension::disk_storage_enabled() {
             let graph_path = self.graph_folder().graph_path()?;
@@ -509,8 +509,8 @@ impl ValidWriteableGraphFolder {
                 self.global_path.write_metadata(meta)?;
                 (true, graph)
             } else {
-                let new_graph =
-                    graph.materialize_at_with_config(self.graph_folder(), config_args)?;
+                let new_graph = graph
+                    .materialize_at_with_config(self.graph_folder(), config.into_args())?;
                 (true, new_graph)
             }
         } else {
@@ -519,12 +519,13 @@ impl ValidWriteableGraphFolder {
         };
         Ok(is_dirty)
     }
+
     pub fn write_graph_data(
         &self,
         graph: MaterializedGraph,
-        config_args: ConfigArgs,
+        config: Config,
     ) -> Result<(bool, MaterializedGraph), PathValidationError> {
-        self.write_graph_data_inner(graph, config_args)
+        self.write_graph_data_inner(graph, config)
             .with_path(self.local_path())
     }
 

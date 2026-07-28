@@ -28,10 +28,20 @@ pub trait ConfigArgsOps: Sized {
     fn with_node_types(&self, node_types: impl IntoIterator<Item = impl AsRef<str>>) -> Self;
 
     fn into_config(self) -> Self::Config;
+
+    /// Load the on-disk config from `dir` and merge these args into it.
+    fn load_from_path(self, dir: &Path) -> Result<Self::Config, StorageError>
+    where
+        Self::Config: ConfigOps<ConfigArgs = Self>,
+    {
+        let mut config = Self::Config::load_from_dir(dir)?;
+        config.update(self);
+        Ok(config)
+    }
 }
 
 pub trait ConfigOps: Serialize + DeserializeOwned + Args + Sized {
-    type NewConfigArgs: ConfigArgsOps;
+    type ConfigArgs: ConfigArgsOps;
 
     fn max_node_page_len(&self) -> u32;
 
@@ -63,9 +73,9 @@ pub trait ConfigOps: Serialize + DeserializeOwned + Args + Sized {
         Ok(())
     }
 
-    fn update(&mut self, new_args: Self::NewConfigArgs);
+    fn update(&mut self, new_args: Self::ConfigArgs);
 
-    fn into_args(self) -> Self::NewConfigArgs; 
+    fn into_args(self) -> Self::ConfigArgs;
 }
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, Args)]
@@ -127,6 +137,32 @@ impl ConfigArgsOps for BaseConfigArgs {
 
 
 
+impl ConfigArgsOps for () {
+    type Config = BaseConfig;
+
+    fn max_node_page_len(&self) -> Option<u32> {
+        None
+    }
+
+    fn max_edge_page_len(&self) -> Option<u32> {
+        None
+    }
+
+    fn node_types(&self) -> &[String] {
+        &[]
+    }
+
+    fn with_max_node_page_len(self, _page_len: u32) -> Self {}
+
+    fn with_max_edge_page_len(self, _page_len: u32) -> Self {}
+
+    fn with_node_types(&self, _node_types: impl IntoIterator<Item = impl AsRef<str>>) -> Self {}
+
+    fn into_config(self) -> Self::Config {
+        BaseConfig::default()
+    }
+}
+
 pub trait ClapDefault: Args {
     fn clap_default() -> Self;
 }
@@ -187,7 +223,7 @@ impl BaseConfig {
 }
 
 impl ConfigOps for BaseConfig {
-    type NewConfigArgs = BaseConfigArgs;
+    type ConfigArgs = ();
 
     fn max_node_page_len(&self) -> u32 {
         self.max_node_page_len
@@ -215,16 +251,11 @@ impl ConfigOps for BaseConfig {
         *self
     }
 
-    fn update(&mut self, _new_args: Self::NewConfigArgs) {
+    fn update(&mut self, _new_args: Self::ConfigArgs) {
         // cannot update page lengths for an existing graph
     }
 
-    fn into_args(self) -> Self::NewConfigArgs {
-        BaseConfigArgs {
-            max_node_page_len: Some(self.max_node_page_len),
-            max_edge_page_len: Some(self.max_edge_page_len),
-        }
-    }
+    fn into_args(self) -> Self::ConfigArgs {}
 }
 
 #[cfg(test)]

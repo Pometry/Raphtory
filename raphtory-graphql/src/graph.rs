@@ -10,7 +10,7 @@ use raphtory::{
     core::entities::nodes::node_ref::AsNodeRef,
     db::{
         api::{
-            storage::storage::ConfigArgs,
+            storage::storage::{Config, ConfigOps},
             view::{
                 internal::{
                     InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InheritStorageOps, Static,
@@ -160,18 +160,18 @@ impl GraphWithVectors {
         folder: &ExistingGraphFolder,
         #[cfg(feature = "vectors")] cache: &LazyDiskVectorCache,
         create_index: bool,
-        config_args: ConfigArgs,
+        config: Config,
     ) -> Result<Self, GraphError> {
         let folder_clone = folder.clone();
         let graph_folder = folder.graph_folder();
         let graph = if graph_folder.read_metadata()?.is_diskgraph {
             blocking_compute(move || {
-                MaterializedGraph::load_with_config(folder_clone.graph_folder(), config_args)
+                MaterializedGraph::load_with_config(folder_clone.graph_folder(), config.into_args())
             })
             .await?
         } else {
             blocking_compute(move || {
-                MaterializedGraph::decode_with_config(folder_clone.graph_folder(), config_args)
+                MaterializedGraph::decode_with_config(folder_clone.graph_folder(), config.into_args())
             })
             .await?
         };

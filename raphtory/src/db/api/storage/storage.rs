@@ -175,12 +175,9 @@ impl Storage {
         Self::load_with_extension(path, ext)
     }
 
-    pub fn load_with_config(
-        path: impl AsRef<Path>,
-        config_args: ConfigArgs,
-    ) -> Result<Self, GraphError> {
+    pub fn load_with_config(path: impl AsRef<Path>, config: Config) -> Result<Self, GraphError> {
         let path = path.as_ref();
-        let ext = Extension::load_with_config(path, config_args)?;
+        let ext = Extension::load_with_config(path, config)?;
 
         Self::load_with_extension(path, ext)
     }
@@ -197,10 +194,10 @@ impl Storage {
 
     pub fn load_read_only_with_config(
         path: impl AsRef<Path>,
-        config_args: ConfigArgs,
+        config: Config,
     ) -> Result<Self, GraphError> {
         let path = path.as_ref();
-        let ext = Extension::load_with_config(path, config_args)?;
+        let ext = Extension::load_with_config(path, config)?;
 
         Self::load_read_only_with_extension(path, ext)
     }

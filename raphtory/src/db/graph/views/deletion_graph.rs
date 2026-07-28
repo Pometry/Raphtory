@@ -208,9 +208,10 @@ impl PersistentGraph {
         path: &(impl GraphPaths + ?Sized),
         config_args: ConfigArgs,
     ) -> Result<Self, GraphError> {
+        let graph_path = path.graph_path()?;
+        let config = config_args.load_from_path(&graph_path)?;
         Ok(Self(Arc::new(Storage::load_with_config(
-            path.graph_path()?,
-            config_args,
+            graph_path, config,
         )?)))
     }
 
@@ -226,9 +227,10 @@ impl PersistentGraph {
         path: &(impl GraphPaths + ?Sized),
         config_args: ConfigArgs,
     ) -> Result<Self, GraphError> {
+        let graph_path = path.graph_path()?;
+        let config = config_args.load_from_path(&graph_path)?;
         Ok(Self(Arc::new(Storage::load_read_only_with_config(
-            path.graph_path()?,
-            config_args,
+            graph_path, config,
         )?)))
     }
 

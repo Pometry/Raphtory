@@ -400,8 +400,7 @@ impl Data {
             .insert_or_replace_with(&key, |old_graph| async {
                 invalidate_graph(old_graph).await;
                 blocking_compute(move || {
-                    let (is_dirty, new_graph) =
-                        writeable_folder.write_graph_data(graph, config.into_args())?;
+                    let (is_dirty, new_graph) = writeable_folder.write_graph_data(graph, config)?;
                     let folder = writeable_folder.finish()?;
                     let graph = GraphWithVectors::new(new_graph, None, folder.as_existing()?);
                     graph.set_dirty(is_dirty);
@@ -595,7 +594,6 @@ impl Data {
     ) -> Result<GraphWithVectors, GraphError> {
         let create_index = self.create_index;
         let config = self.graph_conf.clone();
-        let config_args = config.into_args();
         #[cfg(feature = "vectors")]
         let cache = self.vector_cache.clone();
         GraphWithVectors::read_from_folder(
@@ -603,7 +601,7 @@ impl Data {
             #[cfg(feature = "vectors")]
             &cache,
             create_index,
-            config_args,
+            config,
         )
         .await
     }

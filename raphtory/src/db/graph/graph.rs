@@ -246,8 +246,10 @@ impl Graph {
         config_args: ConfigArgs,
     ) -> Result<Self, GraphError> {
         // TODO: add support for loading indexes and vectors
+        let graph_path = path.graph_path()?;
+        let config = config_args.load_from_path(&graph_path)?;
         Ok(Self {
-            inner: Arc::new(Storage::load_with_config(path.graph_path()?, config_args)?),
+            inner: Arc::new(Storage::load_with_config(graph_path, config)?),
         })
     }
 
@@ -266,11 +268,10 @@ impl Graph {
         path: &(impl GraphPaths + ?Sized),
         config_args: ConfigArgs,
     ) -> Result<Self, GraphError> {
+        let graph_path = path.graph_path()?;
+        let config = config_args.load_from_path(&graph_path)?;
         Ok(Self {
-            inner: Arc::new(Storage::load_read_only_with_config(
-                path.graph_path()?,
-                config_args,
-            )?),
+            inner: Arc::new(Storage::load_read_only_with_config(graph_path, config)?),
         })
     }
 
