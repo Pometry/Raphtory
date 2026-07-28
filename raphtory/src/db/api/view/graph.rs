@@ -90,7 +90,10 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
         &self,
         path: &(impl GraphPaths + ?Sized),
     ) -> Result<MaterializedGraph, GraphError> {
-        self.materialize_at_with_config(path, self.core_graph().extension().config().clone().into_args())
+        self.materialize_at_with_config(
+            path,
+            self.core_graph().extension().config().clone().into_args(),
+        )
     }
 
     /// Materializes the view into a new graph.
@@ -672,7 +675,11 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
     }
 
     fn materialize(&self) -> Result<MaterializedGraph, GraphError> {
-        materialize_impl(self, None, self.core_graph().extension().config().clone().into_args())
+        materialize_impl(
+            self,
+            None,
+            self.core_graph().extension().config().clone().into_args(),
+        )
     }
 
     #[cfg(feature = "io")]

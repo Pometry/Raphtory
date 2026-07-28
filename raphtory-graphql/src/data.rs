@@ -400,7 +400,8 @@ impl Data {
             .insert_or_replace_with(&key, |old_graph| async {
                 invalidate_graph(old_graph).await;
                 blocking_compute(move || {
-                    let (is_dirty, new_graph) = writeable_folder.write_graph_data(graph, config.into_args())?;
+                    let (is_dirty, new_graph) =
+                        writeable_folder.write_graph_data(graph, config.into_args())?;
                     let folder = writeable_folder.finish()?;
                     let graph = GraphWithVectors::new(new_graph, None, folder.as_existing()?);
                     graph.set_dirty(is_dirty);

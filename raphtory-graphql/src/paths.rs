@@ -509,7 +509,8 @@ impl ValidWriteableGraphFolder {
                 self.global_path.write_metadata(meta)?;
                 (true, graph)
             } else {
-                let new_graph = graph.materialize_at_with_config(self.graph_folder(), config_args)?;
+                let new_graph =
+                    graph.materialize_at_with_config(self.graph_folder(), config_args)?;
                 (true, new_graph)
             }
         } else {

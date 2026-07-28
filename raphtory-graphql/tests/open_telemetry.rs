@@ -1,6 +1,7 @@
 // OpenTelemetry Tests must be separated into their own binary to prevent polluting other tests since the span and log exporters are set globally.
 use raphtory::{
-    db::api::storage::storage::{Config, ConfigArgs}, prelude::{Graph, StableEncode},
+    db::api::storage::storage::{Config, ConfigArgs},
+    prelude::{Graph, StableEncode},
 };
 use raphtory_graphql::{
     client::raphtory_client::RaphtoryGraphQLClient,

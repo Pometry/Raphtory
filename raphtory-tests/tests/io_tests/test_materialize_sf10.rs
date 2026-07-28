@@ -233,7 +233,12 @@ fn get_materialize_time(graph_path: &Path, materialize_graph_path: &Path) -> Dur
     let _materialized_graph = materialize_impl(
         &sf10_graph,
         Some(&materialize_graph_path),
-        sf10_graph.core_graph().extension().config().clone().into_args(),
+        sf10_graph
+            .core_graph()
+            .extension()
+            .config()
+            .clone()
+            .into_args(),
     )
     .unwrap();
     let materialize_elapsed = materialize_start.elapsed();

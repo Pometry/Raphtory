@@ -1,6 +1,7 @@
 use mock_collector::{MockServer, Protocol};
 use raphtory::{
-    db::api::storage::storage::{Config, ConfigArgs}, prelude::{Graph, StableEncode},
+    db::api::storage::storage::{Config, ConfigArgs},
+    prelude::{Graph, StableEncode},
 };
 use raphtory_graphql::{
     client::raphtory_client::RaphtoryGraphQLClient,
