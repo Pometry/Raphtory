@@ -8,8 +8,8 @@ use crate::{
             remote_edges::PyRemoteEdges,
             remote_graph::PyRemoteGraph,
             remote_history::{
-                PyRemoteEventTime, PyRemoteHistory, PyRemoteHistoryDateTimes,
-                PyRemoteHistoryEventIds, PyRemoteHistoryTimestamps, PyRemoteIntervals,
+                PyRemoteHistory, PyRemoteHistoryDateTimes, PyRemoteHistoryEventIds,
+                PyRemoteHistoryTimestamps, PyRemoteIntervals,
             },
             remote_metadata::{
                 PyRemoteMetadata, PyRemoteProperties, PyRemotePropertyTuple,
@@ -66,7 +66,6 @@ pub fn base_graphql_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyErr>
     graphql_module.add_class::<PyRemoteEdges>()?;
     graphql_module.add_class::<PyRemoteNestedEdges>()?;
     graphql_module.add_class::<PyRemoteHistory>()?;
-    graphql_module.add_class::<PyRemoteEventTime>()?;
     graphql_module.add_class::<PyRemoteHistoryTimestamps>()?;
     graphql_module.add_class::<PyRemoteHistoryEventIds>()?;
     graphql_module.add_class::<PyRemoteHistoryDateTimes>()?;

@@ -7,6 +7,7 @@ use crate::client::{
     transport::Transport,
     ClientError,
 };
+use raphtory_api::core::storage::timeindex::EventTime;
 use std::sync::Arc;
 
 /// A single event on a node/edge's history — the value type each entry in
@@ -27,6 +28,19 @@ pub struct RemoteEventTime {
     /// The event's internal id — a monotonically-increasing counter used to
     /// disambiguate multiple events at the same timestamp.
     pub event_id: Option<i64>,
+}
+
+impl RemoteEventTime {
+    /// Convert this wire record into a concrete [`EventTime`], the same type
+    /// the local API exposes. Returns `None` when there is no timestamp —
+    /// the server's representation of "no event time" (e.g. `earliest_time`
+    /// on an empty view), which the local API models as an absent value
+    /// rather than an `EventTime` with null fields. A missing `event_id`
+    /// defaults to `0`; the server only omits it alongside the timestamp.
+    pub fn to_event_time(&self) -> Option<EventTime> {
+        self.timestamp
+            .map(|t| EventTime::new(t, self.event_id.unwrap_or(0) as usize))
+    }
 }
 
 /// A handle to the event history of a node or edge on the server.

@@ -6,7 +6,7 @@ use crate::{
         },
         ClientError,
     },
-    python::client::remote_history::{PyRemoteEventTime, PyRemoteHistory},
+    python::client::remote_history::PyRemoteHistory,
 };
 use pyo3::{
     exceptions::PyKeyError,
@@ -15,7 +15,10 @@ use pyo3::{
     IntoPyObject, Py, PyAny,
 };
 use raphtory::python::utils::execute_async_task;
-use raphtory_api::core::entities::properties::prop::Prop;
+use raphtory_api::core::{
+    entities::properties::prop::Prop,
+    storage::timeindex::{AsTime, EventTime},
+};
 use std::sync::Arc;
 
 /// Convert a `Prop` value into a native Python object — the raw value a local
@@ -448,8 +451,9 @@ impl PyRemoteTemporalProperty {
 
     /// Value at or before time `t`, as a native Python object. Returns
     /// `None` if no update exists on or before `t`. Fires one RPC.
-    pub fn at(&self, py: Python<'_>, t: i64) -> Result<Option<Py<PyAny>>, ClientError> {
+    pub fn at(&self, py: Python<'_>, t: EventTime) -> Result<Option<Py<PyAny>>, ClientError> {
         let inner = Arc::clone(&self.inner);
+        let t = t.t();
         let val = execute_async_task(move || async move { inner.at(t).await })?;
         val.map(|p| {
             p.into_pyobject(py)
@@ -580,10 +584,7 @@ impl PyRemoteTemporalProperty {
     ///
     /// Returns:
     ///   list[Tuple[RemoteEventTime, PropValue]]: one pair per update.
-    pub fn items(
-        &self,
-        py: Python<'_>,
-    ) -> Result<Vec<(PyRemoteEventTime, Py<PyAny>)>, ClientError> {
+    pub fn items(&self, py: Python<'_>) -> Result<Vec<(EventTime, Py<PyAny>)>, ClientError> {
         let history = self.inner.history();
         let times = execute_async_task(move || async move { history.collect().await })?;
         let inner = Arc::clone(&self.inner);
@@ -591,7 +592,12 @@ impl PyRemoteTemporalProperty {
         times
             .into_iter()
             .zip(vals)
-            .map(|(t, v)| Ok((PyRemoteEventTime::from(t), prop_to_py(py, v)?)))
+            .map(|(t, v)| {
+                Ok((
+                    t.to_event_time().unwrap_or(EventTime::MIN),
+                    prop_to_py(py, v)?,
+                ))
+            })
             .collect()
     }
 
@@ -623,8 +629,10 @@ impl From<RemotePropertyTuple> for PyRemotePropertyTuple {
 impl PyRemotePropertyTuple {
     /// The event time at which this value was observed.
     #[getter]
-    pub fn time(&self) -> PyRemoteEventTime {
-        self.inner.time.clone().into()
+    pub fn time(&self) -> EventTime {
+        // A stored temporal value always carries a timestamp; MIN is an
+        // unreachable fallback for a malformed server response.
+        self.inner.time.to_event_time().unwrap_or(EventTime::MIN)
     }
 
     /// The property value at that time, as a native Python object.

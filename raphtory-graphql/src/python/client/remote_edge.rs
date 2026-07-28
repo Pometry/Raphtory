@@ -2,14 +2,17 @@ use crate::{
     client::{remote_edge::RemoteEdge, ClientError},
     python::client::{
         remote_edges::PyRemoteEdges,
-        remote_history::{PyRemoteEventTime, PyRemoteHistory},
+        remote_history::PyRemoteHistory,
         remote_metadata::{PyRemoteMetadata, PyRemoteProperties},
         remote_node::PyRemoteNode,
     },
 };
 use pyo3::{pyclass, pymethods, Py, PyAny, Python};
 use raphtory::python::utils::execute_async_task;
-use raphtory_api::core::{entities::properties::prop::Prop, storage::timeindex::EventTime};
+use raphtory_api::core::{
+    entities::properties::prop::Prop,
+    storage::timeindex::{AsTime, EventTime},
+};
 use std::{collections::HashMap, sync::Arc};
 
 /// A remote edge reference
@@ -34,8 +37,8 @@ impl PyRemoteEdge {
 #[pymethods]
 impl PyRemoteEdge {
     /// Time-window this edge. Lazy — no RPC.
-    pub fn window(&self, start: i64, end: i64) -> PyRemoteEdge {
-        PyRemoteEdge::new(self.edge.window(start, end))
+    pub fn window(&self, start: EventTime, end: EventTime) -> PyRemoteEdge {
+        PyRemoteEdge::new(self.edge.window(start.t(), end.t()))
     }
 
     /// Restrict to a single named layer. Lazy — no RPC.
@@ -44,18 +47,18 @@ impl PyRemoteEdge {
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
-    pub fn at(&self, time: i64) -> PyRemoteEdge {
-        PyRemoteEdge::new(self.edge.at(time))
+    pub fn at(&self, time: EventTime) -> PyRemoteEdge {
+        PyRemoteEdge::new(self.edge.at(time.t()))
     }
 
     /// Restrict to events strictly before the given time. Lazy — no RPC.
-    pub fn before(&self, time: i64) -> PyRemoteEdge {
-        PyRemoteEdge::new(self.edge.before(time))
+    pub fn before(&self, time: EventTime) -> PyRemoteEdge {
+        PyRemoteEdge::new(self.edge.before(time.t()))
     }
 
     /// Restrict to events at or after the given time. Lazy — no RPC.
-    pub fn after(&self, time: i64) -> PyRemoteEdge {
-        PyRemoteEdge::new(self.edge.after(time))
+    pub fn after(&self, time: EventTime) -> PyRemoteEdge {
+        PyRemoteEdge::new(self.edge.after(time.t()))
     }
 
     /// Latest state. Lazy — no RPC.
@@ -69,8 +72,8 @@ impl PyRemoteEdge {
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
-    pub fn snapshot_at(&self, time: i64) -> PyRemoteEdge {
-        PyRemoteEdge::new(self.edge.snapshot_at(time))
+    pub fn snapshot_at(&self, time: EventTime) -> PyRemoteEdge {
+        PyRemoteEdge::new(self.edge.snapshot_at(time.t()))
     }
 
     /// Exclude a specific layer from the view. Lazy — no RPC.
@@ -79,18 +82,18 @@ impl PyRemoteEdge {
     }
 
     /// Shrink both start and end of the current window. Lazy — no RPC.
-    pub fn shrink_window(&self, start: i64, end: i64) -> PyRemoteEdge {
-        PyRemoteEdge::new(self.edge.shrink_window(start, end))
+    pub fn shrink_window(&self, start: EventTime, end: EventTime) -> PyRemoteEdge {
+        PyRemoteEdge::new(self.edge.shrink_window(start.t(), end.t()))
     }
 
     /// Shrink the start of the current window. Lazy — no RPC.
-    pub fn shrink_start(&self, start: i64) -> PyRemoteEdge {
-        PyRemoteEdge::new(self.edge.shrink_start(start))
+    pub fn shrink_start(&self, start: EventTime) -> PyRemoteEdge {
+        PyRemoteEdge::new(self.edge.shrink_start(start.t()))
     }
 
     /// Shrink the end of the current window. Lazy — no RPC.
-    pub fn shrink_end(&self, end: i64) -> PyRemoteEdge {
-        PyRemoteEdge::new(self.edge.shrink_end(end))
+    pub fn shrink_end(&self, end: EventTime) -> PyRemoteEdge {
+        PyRemoteEdge::new(self.edge.shrink_end(end.t()))
     }
 
     /// Restrict to the default layer. Lazy — no RPC.
@@ -251,21 +254,21 @@ impl PyRemoteEdge {
     /// Earliest event time on this edge under the current view. `None` if the
     /// edge has no events in the view. Property — attribute access fires one RPC.
     #[getter]
-    pub fn earliest_time(&self) -> Result<Option<PyRemoteEventTime>, ClientError> {
+    pub fn earliest_time(&self) -> Result<Option<EventTime>, ClientError> {
         let edge = Arc::clone(&self.edge);
         Ok(
             execute_async_task(move || async move { edge.earliest_time().await })?
-                .map(PyRemoteEventTime::from),
+                .and_then(|t| t.to_event_time()),
         )
     }
 
     /// Latest event time on this edge under the current view. Property — RPC.
     #[getter]
-    pub fn latest_time(&self) -> Result<Option<PyRemoteEventTime>, ClientError> {
+    pub fn latest_time(&self) -> Result<Option<EventTime>, ClientError> {
         let edge = Arc::clone(&self.edge);
         Ok(
             execute_async_task(move || async move { edge.latest_time().await })?
-                .map(PyRemoteEventTime::from),
+                .and_then(|t| t.to_event_time()),
         )
     }
 
@@ -284,30 +287,30 @@ impl PyRemoteEdge {
     /// The event time this exploded edge event happened at. Meaningful
     /// primarily on `explode()`'d views. Property — attribute access fires one RPC.
     #[getter]
-    pub fn time(&self) -> Result<Option<PyRemoteEventTime>, ClientError> {
+    pub fn time(&self) -> Result<Option<EventTime>, ClientError> {
         let edge = Arc::clone(&self.edge);
         Ok(
             execute_async_task(move || async move { edge.time().await })?
-                .map(PyRemoteEventTime::from),
+                .and_then(|t| t.to_event_time()),
         )
     }
 
     /// View start bound as seen by this edge. Property — fires one RPC.
     #[getter]
-    pub fn start(&self) -> Result<Option<PyRemoteEventTime>, ClientError> {
+    pub fn start(&self) -> Result<Option<EventTime>, ClientError> {
         let edge = Arc::clone(&self.edge);
         Ok(
             execute_async_task(move || async move { edge.start().await })?
-                .map(PyRemoteEventTime::from),
+                .and_then(|t| t.to_event_time()),
         )
     }
 
     /// View end bound as seen by this edge. Property — fires one RPC.
     #[getter]
-    pub fn end(&self) -> Result<Option<PyRemoteEventTime>, ClientError> {
+    pub fn end(&self) -> Result<Option<EventTime>, ClientError> {
         let edge = Arc::clone(&self.edge);
         Ok(execute_async_task(move || async move { edge.end().await })?
-            .map(PyRemoteEventTime::from))
+            .and_then(|t| t.to_event_time()))
     }
 
     /// Edge id as a `(src, dst)` pair of endpoint ids. Property — fires one RPC.

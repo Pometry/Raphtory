@@ -2,13 +2,14 @@ use crate::{
     client::{remote_path_from_graph::RemotePathFromGraph, ClientError},
     python::client::{
         remote_collection_metadata::{PyRemoteMetadataView, PyRemotePropertiesView},
-        remote_history::{PyRemoteEventTime, PyRemoteHistory},
+        remote_history::PyRemoteHistory,
         remote_nested_edges::PyRemoteNestedEdges,
         remote_node::PyRemoteNode,
     },
 };
 use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyRef, PyRefMut, PyResult};
 use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
+use raphtory_api::core::storage::timeindex::{AsTime, EventTime};
 use std::sync::Arc;
 
 /// A handle to a "path from graph" collection.
@@ -42,8 +43,8 @@ impl PyRemotePathFromGraph {
 #[pymethods]
 impl PyRemotePathFromGraph {
     /// Time-window this collection. Lazy — no RPC.
-    pub fn window(&self, start: i64, end: i64) -> PyRemotePathFromGraph {
-        PyRemotePathFromGraph::new(self.path.window(start, end))
+    pub fn window(&self, start: EventTime, end: EventTime) -> PyRemotePathFromGraph {
+        PyRemotePathFromGraph::new(self.path.window(start.t(), end.t()))
     }
 
     /// Filter this collection by a node filter. **Propagates** to downstream
@@ -97,18 +98,18 @@ impl PyRemotePathFromGraph {
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
-    pub fn at(&self, time: i64) -> PyRemotePathFromGraph {
-        PyRemotePathFromGraph::new(self.path.at(time))
+    pub fn at(&self, time: EventTime) -> PyRemotePathFromGraph {
+        PyRemotePathFromGraph::new(self.path.at(time.t()))
     }
 
     /// Restrict to events strictly before the given time. Lazy — no RPC.
-    pub fn before(&self, time: i64) -> PyRemotePathFromGraph {
-        PyRemotePathFromGraph::new(self.path.before(time))
+    pub fn before(&self, time: EventTime) -> PyRemotePathFromGraph {
+        PyRemotePathFromGraph::new(self.path.before(time.t()))
     }
 
     /// Restrict to events strictly after the given time. Lazy — no RPC.
-    pub fn after(&self, time: i64) -> PyRemotePathFromGraph {
-        PyRemotePathFromGraph::new(self.path.after(time))
+    pub fn after(&self, time: EventTime) -> PyRemotePathFromGraph {
+        PyRemotePathFromGraph::new(self.path.after(time.t()))
     }
 
     /// Latest state. Lazy — no RPC.
@@ -122,8 +123,8 @@ impl PyRemotePathFromGraph {
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
-    pub fn snapshot_at(&self, time: i64) -> PyRemotePathFromGraph {
-        PyRemotePathFromGraph::new(self.path.snapshot_at(time))
+    pub fn snapshot_at(&self, time: EventTime) -> PyRemotePathFromGraph {
+        PyRemotePathFromGraph::new(self.path.snapshot_at(time.t()))
     }
 
     /// Exclude a specific layer. Lazy — no RPC.
@@ -132,18 +133,18 @@ impl PyRemotePathFromGraph {
     }
 
     /// Shrink both start and end of the current window. Lazy — no RPC.
-    pub fn shrink_window(&self, start: i64, end: i64) -> PyRemotePathFromGraph {
-        PyRemotePathFromGraph::new(self.path.shrink_window(start, end))
+    pub fn shrink_window(&self, start: EventTime, end: EventTime) -> PyRemotePathFromGraph {
+        PyRemotePathFromGraph::new(self.path.shrink_window(start.t(), end.t()))
     }
 
     /// Shrink the start of the current window. Lazy — no RPC.
-    pub fn shrink_start(&self, start: i64) -> PyRemotePathFromGraph {
-        PyRemotePathFromGraph::new(self.path.shrink_start(start))
+    pub fn shrink_start(&self, start: EventTime) -> PyRemotePathFromGraph {
+        PyRemotePathFromGraph::new(self.path.shrink_start(start.t()))
     }
 
     /// Shrink the end of the current window. Lazy — no RPC.
-    pub fn shrink_end(&self, end: i64) -> PyRemotePathFromGraph {
-        PyRemotePathFromGraph::new(self.path.shrink_end(end))
+    pub fn shrink_end(&self, end: EventTime) -> PyRemotePathFromGraph {
+        PyRemotePathFromGraph::new(self.path.shrink_end(end.t()))
     }
 
     /// Restrict to the default layer. Lazy — no RPC.
@@ -254,7 +255,7 @@ impl PyRemotePathFromGraph {
     /// Returns:
     ///   list[list[Optional[EventTime]]]: the earliest times, per source.
     #[getter]
-    pub fn earliest_time(&self) -> Result<Vec<Vec<Option<PyRemoteEventTime>>>, ClientError> {
+    pub fn earliest_time(&self) -> Result<Vec<Vec<Option<EventTime>>>, ClientError> {
         let path = Arc::clone(&self.path);
         Ok(
             execute_async_task(move || async move { path.earliest_time().await })?
@@ -262,7 +263,7 @@ impl PyRemotePathFromGraph {
                 .map(|inner| {
                     inner
                         .into_iter()
-                        .map(|o| o.map(PyRemoteEventTime::from))
+                        .map(|o| o.and_then(|t| t.to_event_time()))
                         .collect()
                 })
                 .collect(),
@@ -275,7 +276,7 @@ impl PyRemotePathFromGraph {
     /// Returns:
     ///   list[list[Optional[EventTime]]]: the latest times, per source.
     #[getter]
-    pub fn latest_time(&self) -> Result<Vec<Vec<Option<PyRemoteEventTime>>>, ClientError> {
+    pub fn latest_time(&self) -> Result<Vec<Vec<Option<EventTime>>>, ClientError> {
         let path = Arc::clone(&self.path);
         Ok(
             execute_async_task(move || async move { path.latest_time().await })?
@@ -283,7 +284,7 @@ impl PyRemotePathFromGraph {
                 .map(|inner| {
                     inner
                         .into_iter()
-                        .map(|o| o.map(PyRemoteEventTime::from))
+                        .map(|o| o.and_then(|t| t.to_event_time()))
                         .collect()
                 })
                 .collect(),
@@ -384,21 +385,21 @@ impl PyRemotePathFromGraph {
     /// View start bound for this collection — `None` if unbounded. Property —
     /// attribute access fires one RPC.
     #[getter]
-    pub fn start(&self) -> Result<Option<PyRemoteEventTime>, ClientError> {
+    pub fn start(&self) -> Result<Option<EventTime>, ClientError> {
         let path = Arc::clone(&self.path);
         Ok(
             execute_async_task(move || async move { path.start().await })?
-                .map(PyRemoteEventTime::from),
+                .and_then(|t| t.to_event_time()),
         )
     }
 
     /// View end bound for this collection — `None` if unbounded. Property —
     /// attribute access fires one RPC.
     #[getter]
-    pub fn end(&self) -> Result<Option<PyRemoteEventTime>, ClientError> {
+    pub fn end(&self) -> Result<Option<EventTime>, ClientError> {
         let path = Arc::clone(&self.path);
         Ok(execute_async_task(move || async move { path.end().await })?
-            .map(PyRemoteEventTime::from))
+            .and_then(|t| t.to_event_time()))
     }
 
     /// Materialize this collection as a nested list of `RemoteNode` handles —

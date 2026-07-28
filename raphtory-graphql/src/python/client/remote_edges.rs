@@ -3,13 +3,13 @@ use crate::{
     python::client::{
         remote_collection_metadata::{PyRemoteMetadataView, PyRemotePropertiesView},
         remote_edge::PyRemoteEdge,
-        remote_history::PyRemoteEventTime,
         remote_path_from_node::PyRemotePathFromNode,
         remote_sorting::PyEdgeSortBy,
     },
 };
 use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyRef, PyRefMut, PyResult};
 use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
+use raphtory_api::core::storage::timeindex::{AsTime, EventTime};
 use std::sync::Arc;
 
 /// A handle to a remote collection of edges.
@@ -39,8 +39,8 @@ impl PyRemoteEdges {
 #[pymethods]
 impl PyRemoteEdges {
     /// Time-window this collection. Lazy — no RPC.
-    pub fn window(&self, start: i64, end: i64) -> PyRemoteEdges {
-        PyRemoteEdges::new(self.edges.window(start, end))
+    pub fn window(&self, start: EventTime, end: EventTime) -> PyRemoteEdges {
+        PyRemoteEdges::new(self.edges.window(start.t(), end.t()))
     }
 
     /// Restrict to a single named layer. Lazy — no RPC.
@@ -49,18 +49,18 @@ impl PyRemoteEdges {
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
-    pub fn at(&self, time: i64) -> PyRemoteEdges {
-        PyRemoteEdges::new(self.edges.at(time))
+    pub fn at(&self, time: EventTime) -> PyRemoteEdges {
+        PyRemoteEdges::new(self.edges.at(time.t()))
     }
 
     /// Restrict to events strictly before the given time. Lazy — no RPC.
-    pub fn before(&self, time: i64) -> PyRemoteEdges {
-        PyRemoteEdges::new(self.edges.before(time))
+    pub fn before(&self, time: EventTime) -> PyRemoteEdges {
+        PyRemoteEdges::new(self.edges.before(time.t()))
     }
 
     /// Restrict to events strictly after the given time. Lazy — no RPC.
-    pub fn after(&self, time: i64) -> PyRemoteEdges {
-        PyRemoteEdges::new(self.edges.after(time))
+    pub fn after(&self, time: EventTime) -> PyRemoteEdges {
+        PyRemoteEdges::new(self.edges.after(time.t()))
     }
 
     /// Latest state. Lazy — no RPC.
@@ -74,8 +74,8 @@ impl PyRemoteEdges {
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
-    pub fn snapshot_at(&self, time: i64) -> PyRemoteEdges {
-        PyRemoteEdges::new(self.edges.snapshot_at(time))
+    pub fn snapshot_at(&self, time: EventTime) -> PyRemoteEdges {
+        PyRemoteEdges::new(self.edges.snapshot_at(time.t()))
     }
 
     /// Exclude a specific layer. Lazy — no RPC.
@@ -84,18 +84,18 @@ impl PyRemoteEdges {
     }
 
     /// Shrink both start and end of the current window. Lazy — no RPC.
-    pub fn shrink_window(&self, start: i64, end: i64) -> PyRemoteEdges {
-        PyRemoteEdges::new(self.edges.shrink_window(start, end))
+    pub fn shrink_window(&self, start: EventTime, end: EventTime) -> PyRemoteEdges {
+        PyRemoteEdges::new(self.edges.shrink_window(start.t(), end.t()))
     }
 
     /// Shrink the start of the current window. Lazy — no RPC.
-    pub fn shrink_start(&self, start: i64) -> PyRemoteEdges {
-        PyRemoteEdges::new(self.edges.shrink_start(start))
+    pub fn shrink_start(&self, start: EventTime) -> PyRemoteEdges {
+        PyRemoteEdges::new(self.edges.shrink_start(start.t()))
     }
 
     /// Shrink the end of the current window. Lazy — no RPC.
-    pub fn shrink_end(&self, end: i64) -> PyRemoteEdges {
-        PyRemoteEdges::new(self.edges.shrink_end(end))
+    pub fn shrink_end(&self, end: EventTime) -> PyRemoteEdges {
+        PyRemoteEdges::new(self.edges.shrink_end(end.t()))
     }
 
     /// Restrict to the default layer. Lazy — no RPC.
@@ -291,12 +291,12 @@ impl PyRemoteEdges {
     /// Returns:
     ///   list[Optional[EventTime]]: the earliest times, in collection order.
     #[getter]
-    pub fn earliest_time(&self) -> Result<Vec<Option<PyRemoteEventTime>>, ClientError> {
+    pub fn earliest_time(&self) -> Result<Vec<Option<EventTime>>, ClientError> {
         let edges = Arc::clone(&self.edges);
         Ok(
             execute_async_task(move || async move { edges.earliest_time().await })?
                 .into_iter()
-                .map(|o| o.map(PyRemoteEventTime::from))
+                .map(|o| o.and_then(|t| t.to_event_time()))
                 .collect(),
         )
     }
@@ -307,12 +307,12 @@ impl PyRemoteEdges {
     /// Returns:
     ///   list[Optional[EventTime]]: the latest times, in collection order.
     #[getter]
-    pub fn latest_time(&self) -> Result<Vec<Option<PyRemoteEventTime>>, ClientError> {
+    pub fn latest_time(&self) -> Result<Vec<Option<EventTime>>, ClientError> {
         let edges = Arc::clone(&self.edges);
         Ok(
             execute_async_task(move || async move { edges.latest_time().await })?
                 .into_iter()
-                .map(|o| o.map(PyRemoteEventTime::from))
+                .map(|o| o.and_then(|t| t.to_event_time()))
                 .collect(),
         )
     }
@@ -324,12 +324,12 @@ impl PyRemoteEdges {
     /// Returns:
     ///   list[Optional[EventTime]]: the event times, in collection order.
     #[getter]
-    pub fn time(&self) -> Result<Vec<Option<PyRemoteEventTime>>, ClientError> {
+    pub fn time(&self) -> Result<Vec<Option<EventTime>>, ClientError> {
         let edges = Arc::clone(&self.edges);
         Ok(
             execute_async_task(move || async move { edges.time().await })?
                 .into_iter()
-                .map(|o| o.map(PyRemoteEventTime::from))
+                .map(|o| o.and_then(|t| t.to_event_time()))
                 .collect(),
         )
     }
@@ -411,22 +411,22 @@ impl PyRemoteEdges {
     /// View start bound for this collection — `None` if unbounded. Property —
     /// attribute access fires one RPC.
     #[getter]
-    pub fn start(&self) -> Result<Option<PyRemoteEventTime>, ClientError> {
+    pub fn start(&self) -> Result<Option<EventTime>, ClientError> {
         let edges = Arc::clone(&self.edges);
         Ok(
             execute_async_task(move || async move { edges.start().await })?
-                .map(PyRemoteEventTime::from),
+                .and_then(|t| t.to_event_time()),
         )
     }
 
     /// View end bound for this collection — `None` if unbounded. Property —
     /// attribute access fires one RPC.
     #[getter]
-    pub fn end(&self) -> Result<Option<PyRemoteEventTime>, ClientError> {
+    pub fn end(&self) -> Result<Option<EventTime>, ClientError> {
         let edges = Arc::clone(&self.edges);
         Ok(
             execute_async_task(move || async move { edges.end().await })?
-                .map(PyRemoteEventTime::from),
+                .and_then(|t| t.to_event_time()),
         )
     }
 

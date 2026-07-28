@@ -9,7 +9,6 @@ use crate::{
     python::client::{
         remote_edge::PyRemoteEdge,
         remote_edges::PyRemoteEdges,
-        remote_history::PyRemoteEventTime,
         remote_metadata::{PyRemoteMetadata, PyRemoteProperties},
         remote_node::PyRemoteNode,
         remote_nodes::PyRemoteNodes,
@@ -21,7 +20,7 @@ use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyResult};
 use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
 use raphtory_api::core::{
     entities::{properties::prop::Prop, GID},
-    storage::timeindex::EventTime,
+    storage::timeindex::{AsTime, EventTime},
 };
 use std::{collections::HashMap, sync::Arc};
 
@@ -41,14 +40,14 @@ impl PyRemoteGraph {
     /// view chain.
     ///
     /// Arguments:
-    ///     start (int): inclusive start of the window
-    ///     end (int): exclusive end of the window
+    ///     start (int | str | datetime): inclusive start of the window
+    ///     end (int | str | datetime): exclusive end of the window
     ///
     /// Returns:
     ///     RemoteGraph: a new remote graph view restricted to the window
-    pub fn window(&self, start: i64, end: i64) -> PyRemoteGraph {
+    pub fn window(&self, start: EventTime, end: EventTime) -> PyRemoteGraph {
         PyRemoteGraph {
-            graph: Arc::new(self.graph.window(start, end)),
+            graph: Arc::new(self.graph.window(start.t(), end.t())),
         }
     }
 
@@ -98,23 +97,23 @@ impl PyRemoteGraph {
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
-    pub fn at(&self, time: i64) -> PyRemoteGraph {
+    pub fn at(&self, time: EventTime) -> PyRemoteGraph {
         PyRemoteGraph {
-            graph: Arc::new(self.graph.at(time)),
+            graph: Arc::new(self.graph.at(time.t())),
         }
     }
 
     /// Restrict to events strictly before the given time. Lazy — no RPC.
-    pub fn before(&self, time: i64) -> PyRemoteGraph {
+    pub fn before(&self, time: EventTime) -> PyRemoteGraph {
         PyRemoteGraph {
-            graph: Arc::new(self.graph.before(time)),
+            graph: Arc::new(self.graph.before(time.t())),
         }
     }
 
     /// Restrict to events at or after the given time. Lazy — no RPC.
-    pub fn after(&self, time: i64) -> PyRemoteGraph {
+    pub fn after(&self, time: EventTime) -> PyRemoteGraph {
         PyRemoteGraph {
-            graph: Arc::new(self.graph.after(time)),
+            graph: Arc::new(self.graph.after(time.t())),
         }
     }
 
@@ -133,9 +132,9 @@ impl PyRemoteGraph {
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
-    pub fn snapshot_at(&self, time: i64) -> PyRemoteGraph {
+    pub fn snapshot_at(&self, time: EventTime) -> PyRemoteGraph {
         PyRemoteGraph {
-            graph: Arc::new(self.graph.snapshot_at(time)),
+            graph: Arc::new(self.graph.snapshot_at(time.t())),
         }
     }
 
@@ -147,23 +146,23 @@ impl PyRemoteGraph {
     }
 
     /// Shrink both start and end of the current window. Lazy — no RPC.
-    pub fn shrink_window(&self, start: i64, end: i64) -> PyRemoteGraph {
+    pub fn shrink_window(&self, start: EventTime, end: EventTime) -> PyRemoteGraph {
         PyRemoteGraph {
-            graph: Arc::new(self.graph.shrink_window(start, end)),
+            graph: Arc::new(self.graph.shrink_window(start.t(), end.t())),
         }
     }
 
     /// Shrink the start of the current window. Lazy — no RPC.
-    pub fn shrink_start(&self, start: i64) -> PyRemoteGraph {
+    pub fn shrink_start(&self, start: EventTime) -> PyRemoteGraph {
         PyRemoteGraph {
-            graph: Arc::new(self.graph.shrink_start(start)),
+            graph: Arc::new(self.graph.shrink_start(start.t())),
         }
     }
 
     /// Shrink the end of the current window. Lazy — no RPC.
-    pub fn shrink_end(&self, end: i64) -> PyRemoteGraph {
+    pub fn shrink_end(&self, end: EventTime) -> PyRemoteGraph {
         PyRemoteGraph {
-            graph: Arc::new(self.graph.shrink_end(end)),
+            graph: Arc::new(self.graph.shrink_end(end.t())),
         }
     }
 
@@ -252,41 +251,41 @@ impl PyRemoteGraph {
     /// Earliest event time under the current view. `None` if the view has no
     /// events. Property — attribute access fires one RPC.
     #[getter]
-    pub fn earliest_time(&self) -> Result<Option<PyRemoteEventTime>, ClientError> {
+    pub fn earliest_time(&self) -> Result<Option<EventTime>, ClientError> {
         let graph = Arc::clone(&self.graph);
         Ok(
             execute_async_task(move || async move { graph.earliest_time().await })?
-                .map(PyRemoteEventTime::from),
+                .and_then(|t| t.to_event_time()),
         )
     }
 
     /// Latest event time under the current view. Property — fires one RPC.
     #[getter]
-    pub fn latest_time(&self) -> Result<Option<PyRemoteEventTime>, ClientError> {
+    pub fn latest_time(&self) -> Result<Option<EventTime>, ClientError> {
         let graph = Arc::clone(&self.graph);
         Ok(
             execute_async_task(move || async move { graph.latest_time().await })?
-                .map(PyRemoteEventTime::from),
+                .and_then(|t| t.to_event_time()),
         )
     }
 
     /// View start bound. `None` for an unbounded view. Property — fires one RPC.
     #[getter]
-    pub fn start(&self) -> Result<Option<PyRemoteEventTime>, ClientError> {
+    pub fn start(&self) -> Result<Option<EventTime>, ClientError> {
         let graph = Arc::clone(&self.graph);
         Ok(
             execute_async_task(move || async move { graph.start().await })?
-                .map(PyRemoteEventTime::from),
+                .and_then(|t| t.to_event_time()),
         )
     }
 
     /// View end bound. `None` for an unbounded view. Property — fires one RPC.
     #[getter]
-    pub fn end(&self) -> Result<Option<PyRemoteEventTime>, ClientError> {
+    pub fn end(&self) -> Result<Option<EventTime>, ClientError> {
         let graph = Arc::clone(&self.graph);
         Ok(
             execute_async_task(move || async move { graph.end().await })?
-                .map(PyRemoteEventTime::from),
+                .and_then(|t| t.to_event_time()),
         )
     }
 

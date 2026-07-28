@@ -10,133 +10,11 @@ use pyo3::{
     exceptions::{PyIndexError, PyValueError},
     pyclass, pymethods,
     types::{PyAnyMethods, PyList},
-    Bound, Py, PyAny, PyRef, PyRefMut, PyResult, Python,
+    Bound, IntoPyObject, Py, PyAny, PyRef, PyRefMut, PyResult, Python,
 };
 use raphtory::python::utils::execute_async_task;
+use raphtory_api::core::storage::timeindex::EventTime;
 use std::sync::Arc;
-
-/// A single event time — mirrors the local `EventTime`. Exposes `timestamp`,
-/// `dt` (a real `datetime.datetime`), `event_id`, and `as_tuple`; comparable to
-/// ints (by timestamp) and to other event times (by `(timestamp, event_id)`).
-///
-/// Fields are optional because the server can return null for any of them.
-#[derive(Clone)]
-#[pyclass(name = "RemoteEventTime", module = "raphtory.graphql")]
-pub struct PyRemoteEventTime {
-    /// The event's timestamp in the graph's native time unit.
-    pub timestamp: Option<i64>,
-    /// RFC 3339 datetime string for the event (the on-wire form; the `dt`
-    /// getter parses this into a Python `datetime`).
-    pub dt: Option<String>,
-    /// The event's internal id.
-    pub event_id: Option<i64>,
-}
-
-impl From<RemoteEventTime> for PyRemoteEventTime {
-    fn from(t: RemoteEventTime) -> Self {
-        Self {
-            timestamp: t.timestamp,
-            dt: t.dt,
-            event_id: t.event_id,
-        }
-    }
-}
-
-#[pymethods]
-impl PyRemoteEventTime {
-    fn __repr__(&self) -> String {
-        format!(
-            "RemoteEventTime(timestamp={:?}, dt={:?}, event_id={:?})",
-            self.timestamp, self.dt, self.event_id
-        )
-    }
-
-    /// The event's timestamp in the graph's native time unit, mirroring the
-    /// local `EventTime.t`. (`None` if absent.)
-    #[getter]
-    fn t(&self) -> Option<i64> {
-        self.timestamp
-    }
-
-    /// The event's internal id used to order events within a timestamp
-    /// (`None` if absent).
-    #[getter]
-    fn event_id(&self) -> Option<i64> {
-        self.event_id
-    }
-
-    /// The UTC `datetime` for this event (`None` if the event has no
-    /// datetime). Mirrors the local `EventTime.dt`.
-    #[getter]
-    fn dt(&self, py: Python<'_>) -> PyResult<Option<Py<PyAny>>> {
-        use pyo3::IntoPyObject;
-        match &self.dt {
-            Some(s) => {
-                let parsed = chrono::DateTime::parse_from_rfc3339(s)
-                    .map_err(|e| PyValueError::new_err(format!("invalid datetime {s:?}: {e}")))?;
-                Ok(Some(parsed.into_pyobject(py)?.into_any().unbind()))
-            }
-            None => Ok(None),
-        }
-    }
-
-    /// `(timestamp, event_id)` — mirrors the local `EventTime.as_tuple`.
-    /// `None` if either component is absent.
-    #[getter]
-    fn as_tuple(&self) -> Option<(i64, i64)> {
-        match (self.timestamp, self.event_id) {
-            (Some(t), Some(e)) => Some((t, e)),
-            _ => None,
-        }
-    }
-
-    /// The timestamp as an int (drops `event_id`) — mirrors the local
-    /// `EventTime.__int__`, so `int(node.earliest_time)` works.
-    fn __int__(&self) -> PyResult<i64> {
-        self.timestamp
-            .ok_or_else(|| PyValueError::new_err("EventTime has no timestamp"))
-    }
-
-    fn __hash__(&self) -> u64 {
-        use std::{
-            collections::hash_map::DefaultHasher,
-            hash::{Hash, Hasher},
-        };
-        let mut h = DefaultHasher::new();
-        self.timestamp.hash(&mut h);
-        self.event_id.hash(&mut h);
-        h.finish()
-    }
-
-    /// Compare like the local `EventTime`: against another event time by
-    /// `(timestamp, event_id)`, or against a bare `int` by timestamp (so
-    /// `node.earliest_time == 5` works). Returns `NotImplemented` for other
-    /// types, letting Python fall back / raise as usual.
-    fn __richcmp__(
-        &self,
-        py: Python<'_>,
-        other: &Bound<'_, PyAny>,
-        op: CompareOp,
-    ) -> PyResult<Py<PyAny>> {
-        use pyo3::IntoPyObject;
-        let ordering = if let Ok(o) = other.extract::<PyRef<'_, PyRemoteEventTime>>() {
-            (self.timestamp, self.event_id).cmp(&(o.timestamp, o.event_id))
-        } else if let Ok(o) = other.extract::<i64>() {
-            match self.timestamp {
-                Some(t) => t.cmp(&o),
-                None => return Ok(py.NotImplemented()),
-            }
-        } else {
-            return Ok(py.NotImplemented());
-        };
-        Ok(op
-            .matches(ordering)
-            .into_pyobject(py)?
-            .to_owned()
-            .into_any()
-            .unbind())
-    }
-}
 
 /// A handle to the event history of a remote node or edge.
 ///
@@ -185,45 +63,45 @@ impl PyRemoteHistory {
     /// Earliest event time in this history — `None` if empty. Fires one RPC.
     ///
     /// Returns:
-    ///   Optional[RemoteEventTime]: the earliest event time, or None.
-    pub fn earliest_time(&self) -> Result<Option<PyRemoteEventTime>, ClientError> {
+    ///   Optional[EventTime]: the earliest event time, or None.
+    pub fn earliest_time(&self) -> Result<Option<EventTime>, ClientError> {
         let history = Arc::clone(&self.history);
         Ok(
             execute_async_task(move || async move { history.earliest_time().await })?
-                .map(PyRemoteEventTime::from),
+                .and_then(|t| t.to_event_time()),
         )
     }
 
     /// Latest event time in this history — `None` if empty. Fires one RPC.
     ///
     /// Returns:
-    ///   Optional[RemoteEventTime]: the latest event time, or None.
-    pub fn latest_time(&self) -> Result<Option<PyRemoteEventTime>, ClientError> {
+    ///   Optional[EventTime]: the latest event time, or None.
+    pub fn latest_time(&self) -> Result<Option<EventTime>, ClientError> {
         let history = Arc::clone(&self.history);
         Ok(
             execute_async_task(move || async move { history.latest_time().await })?
-                .map(PyRemoteEventTime::from),
+                .and_then(|t| t.to_event_time()),
         )
     }
 
     /// All events in this history in ascending time order. Fires one RPC.
     ///
     /// Returns:
-    ///   list[RemoteEventTime]: one event per entry.
-    pub fn collect(&self) -> Result<Vec<PyRemoteEventTime>, ClientError> {
+    ///   list[EventTime]: one event per entry.
+    pub fn collect(&self) -> Result<Vec<EventTime>, ClientError> {
         let history = Arc::clone(&self.history);
         let result = execute_async_task(move || async move { history.collect().await })?;
-        Ok(result.into_iter().map(Into::into).collect())
+        Ok(result.iter().filter_map(|t| t.to_event_time()).collect())
     }
 
     /// All events in this history in descending time order. Fires one RPC.
     ///
     /// Returns:
-    ///   list[RemoteEventTime]: one event per entry.
-    pub fn collect_rev(&self) -> Result<Vec<PyRemoteEventTime>, ClientError> {
+    ///   list[EventTime]: one event per entry.
+    pub fn collect_rev(&self) -> Result<Vec<EventTime>, ClientError> {
         let history = Arc::clone(&self.history);
         let result = execute_async_task(move || async move { history.collect_rev().await })?;
-        Ok(result.into_iter().map(Into::into).collect())
+        Ok(result.iter().filter_map(|t| t.to_event_time()).collect())
     }
 
     /// A page of events in ascending time order — at most `limit` items,
@@ -236,20 +114,20 @@ impl PyRemoteHistory {
     ///   page_index (int, optional): 0-based page number. Defaults to 0.
     ///
     /// Returns:
-    ///   list[RemoteEventTime]: at most `limit` events.
+    ///   list[EventTime]: at most `limit` events.
     #[pyo3(signature = (limit, offset = None, page_index = None))]
     pub fn page(
         &self,
         limit: usize,
         offset: Option<usize>,
         page_index: Option<usize>,
-    ) -> Result<Vec<PyRemoteEventTime>, ClientError> {
+    ) -> Result<Vec<EventTime>, ClientError> {
         let history = Arc::clone(&self.history);
         let result =
             execute_async_task(
                 move || async move { history.page(limit, offset, page_index).await },
             )?;
-        Ok(result.into_iter().map(Into::into).collect())
+        Ok(result.iter().filter_map(|t| t.to_event_time()).collect())
     }
 
     /// A page of events in descending time order. Same args as `page()`.
@@ -260,12 +138,12 @@ impl PyRemoteHistory {
         limit: usize,
         offset: Option<usize>,
         page_index: Option<usize>,
-    ) -> Result<Vec<PyRemoteEventTime>, ClientError> {
+    ) -> Result<Vec<EventTime>, ClientError> {
         let history = Arc::clone(&self.history);
         let result = execute_async_task(move || async move {
             history.page_rev(limit, offset, page_index).await
         })?;
-        Ok(result.into_iter().map(Into::into).collect())
+        Ok(result.iter().filter_map(|t| t.to_event_time()).collect())
     }
 
     /// Enables `for t in remote_history:` — fetches all events in one RPC
@@ -285,7 +163,7 @@ impl PyRemoteHistory {
     /// `history[i]` — the i-th event in ascending time order. Supports
     /// negative indices. Raises `IndexError` if out of range. Fires one RPC
     /// (`collect()`).
-    fn __getitem__(&self, index: isize) -> PyResult<PyRemoteEventTime> {
+    fn __getitem__(&self, index: isize) -> PyResult<EventTime> {
         let events = self.collect()?;
         let len = events.len() as isize;
         let idx = if index < 0 { index + len } else { index };
@@ -294,18 +172,18 @@ impl PyRemoteHistory {
                 "Index {index} out of bounds"
             )));
         }
-        Ok(events[idx as usize].clone())
+        Ok(events[idx as usize])
     }
 
     /// `item in history` — whether an event equal to `item` is present.
-    /// `item` may be a `RemoteEventTime` (compared by `(timestamp, event_id)`)
+    /// `item` may be an `EventTime` (compared by `(timestamp, event_id)`)
     /// or a bare `int` (compared by timestamp), mirroring the local
     /// `History.__contains__`. Fires one RPC (`collect()`).
     fn __contains__(&self, py: Python<'_>, item: &Bound<'_, PyAny>) -> PyResult<bool> {
         let events = self.collect()?;
         for e in events {
-            let obj = Py::new(py, e)?;
-            if obj.bind(py).eq(item)? {
+            let obj = e.into_pyobject(py)?.into_any();
+            if obj.eq(item)? {
                 return Ok(true);
             }
         }
@@ -369,7 +247,7 @@ impl PyRemoteHistory {
 /// Opaque iterator returned by `PyRemoteHistory::__iter__`.
 #[pyclass(name = "RemoteHistoryIter", module = "raphtory.graphql")]
 pub struct PyRemoteHistoryIter {
-    inner: std::vec::IntoIter<PyRemoteEventTime>,
+    inner: std::vec::IntoIter<EventTime>,
 }
 
 #[pymethods]
@@ -378,7 +256,7 @@ impl PyRemoteHistoryIter {
         slf
     }
 
-    fn __next__(mut slf: PyRefMut<Self>) -> Option<PyRemoteEventTime> {
+    fn __next__(mut slf: PyRefMut<Self>) -> Option<EventTime> {
         slf.inner.next()
     }
 }
