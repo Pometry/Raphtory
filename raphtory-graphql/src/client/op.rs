@@ -999,34 +999,10 @@ impl HandleCtx {
     }
 }
 
-/// Sort-key variant for `SortedNodes`. Mirrors the server's `NodeSortBy`
-/// input object. Exactly one of `id` / `time` / `property` should be set per
-/// entry; the client-side Python constructors enforce this at build time.
-#[derive(Clone, Debug)]
-pub struct NodeSortBy {
-    pub reverse: Option<bool>,
-    pub id: Option<bool>,
-    pub time: Option<SortByTime>,
-    pub property: Option<String>,
-}
-
-/// Sort-key variant for `SortedEdges`. Mirrors the server's `EdgeSortBy`
-/// input object. Adds `src` / `dst` to the node key set.
-#[derive(Clone, Debug)]
-pub struct EdgeSortBy {
-    pub reverse: Option<bool>,
-    pub src: Option<bool>,
-    pub dst: Option<bool>,
-    pub time: Option<SortByTime>,
-    pub property: Option<String>,
-}
-
-/// Which time boundary of a member to sort by. Mirrors the server enum.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum SortByTime {
-    Latest,
-    Earliest,
-}
+/// Sort keys for `SortedNodes`/`SortedEdges` are the server's own input types,
+/// re-exported so callers keep using `op::{NodeSortBy, EdgeSortBy, SortByTime}`
+/// and a new sort key is defined in exactly one place (`model::sorting`).
+pub use crate::model::sorting::{EdgeSortBy, NodeSortBy, SortByTime};
 
 /// Write operations. Each variant is a self-contained command with all its
 /// arguments upfront — no composition, no wrapping.

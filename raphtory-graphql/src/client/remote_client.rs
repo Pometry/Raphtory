@@ -1,5 +1,6 @@
 use crate::{
     client::{ClientError, RemoteGraph},
+    data::{CODE_ACCESS_DENIED, CODE_GRAPH_NOT_FOUND},
     url_encode::url_decode_graph,
 };
 use raphtory::{db::api::view::MaterializedGraph, prelude::Config};
@@ -30,10 +31,8 @@ fn classify_graphql_errors(errors: &JsonValue, query: &str) -> ClientError {
     if let JsonValue::Array(error_objects) = errors {
         for error in error_objects {
             match error_code(error) {
-                Some("ACCESS_DENIED") | Some("INTROSPECT_ONLY") | Some("WRITE_REQUIRED") => {
-                    access_denied = true
-                }
-                Some("GRAPH_NOT_FOUND") => {
+                Some(CODE_ACCESS_DENIED) => access_denied = true,
+                Some(CODE_GRAPH_NOT_FOUND) => {
                     graph_not_found = true;
                     if not_found_message.is_none() {
                         not_found_message = error
