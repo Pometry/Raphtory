@@ -5,6 +5,7 @@ use crate::{
         remote_edge::PyRemoteEdge,
         remote_path_from_node::PyRemotePathFromNode,
         remote_sorting::PyEdgeSortBy,
+        ReadTime,
     },
 };
 use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyRef, PyRefMut, PyResult};
@@ -39,7 +40,7 @@ impl PyRemoteEdges {
 #[pymethods]
 impl PyRemoteEdges {
     /// Time-window this collection. Lazy — no RPC.
-    pub fn window(&self, start: EventTime, end: EventTime) -> PyRemoteEdges {
+    pub fn window(&self, start: ReadTime, end: ReadTime) -> PyRemoteEdges {
         PyRemoteEdges::new(self.edges.window(start.t(), end.t()))
     }
 
@@ -49,17 +50,17 @@ impl PyRemoteEdges {
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
-    pub fn at(&self, time: EventTime) -> PyRemoteEdges {
+    pub fn at(&self, time: ReadTime) -> PyRemoteEdges {
         PyRemoteEdges::new(self.edges.at(time.t()))
     }
 
     /// Restrict to events strictly before the given time. Lazy — no RPC.
-    pub fn before(&self, time: EventTime) -> PyRemoteEdges {
+    pub fn before(&self, time: ReadTime) -> PyRemoteEdges {
         PyRemoteEdges::new(self.edges.before(time.t()))
     }
 
     /// Restrict to events strictly after the given time. Lazy — no RPC.
-    pub fn after(&self, time: EventTime) -> PyRemoteEdges {
+    pub fn after(&self, time: ReadTime) -> PyRemoteEdges {
         PyRemoteEdges::new(self.edges.after(time.t()))
     }
 
@@ -74,7 +75,7 @@ impl PyRemoteEdges {
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
-    pub fn snapshot_at(&self, time: EventTime) -> PyRemoteEdges {
+    pub fn snapshot_at(&self, time: ReadTime) -> PyRemoteEdges {
         PyRemoteEdges::new(self.edges.snapshot_at(time.t()))
     }
 
@@ -84,17 +85,17 @@ impl PyRemoteEdges {
     }
 
     /// Shrink both start and end of the current window. Lazy — no RPC.
-    pub fn shrink_window(&self, start: EventTime, end: EventTime) -> PyRemoteEdges {
+    pub fn shrink_window(&self, start: ReadTime, end: ReadTime) -> PyRemoteEdges {
         PyRemoteEdges::new(self.edges.shrink_window(start.t(), end.t()))
     }
 
     /// Shrink the start of the current window. Lazy — no RPC.
-    pub fn shrink_start(&self, start: EventTime) -> PyRemoteEdges {
+    pub fn shrink_start(&self, start: ReadTime) -> PyRemoteEdges {
         PyRemoteEdges::new(self.edges.shrink_start(start.t()))
     }
 
     /// Shrink the end of the current window. Lazy — no RPC.
-    pub fn shrink_end(&self, end: EventTime) -> PyRemoteEdges {
+    pub fn shrink_end(&self, end: ReadTime) -> PyRemoteEdges {
         PyRemoteEdges::new(self.edges.shrink_end(end.t()))
     }
 

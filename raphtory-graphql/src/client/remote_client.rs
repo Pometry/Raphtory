@@ -15,6 +15,118 @@ fn error_code(error: &JsonValue) -> Option<&str> {
     error.get("extensions")?.get("code")?.as_str()
 }
 
+/// Turn a GraphQL `errors` array into the appropriate `ClientError`, keying off
+/// the structured `extensions.code` the server attaches rather than message
+/// wording.
+///
+/// A forbidden-but-hidden graph reports `GRAPH_NOT_FOUND` exactly as a genuinely
+/// missing one does, so both map to `GraphNotFound` and **never** to a
+/// permission error — the two stay indistinguishable to the caller (RBAC
+/// existence non-disclosure).
+fn classify_graphql_errors(errors: &JsonValue, query: &str) -> ClientError {
+    let mut access_denied = false;
+    let mut graph_not_found = false;
+    let mut not_found_message: Option<String> = None;
+    if let JsonValue::Array(error_objects) = errors {
+        for error in error_objects {
+            match error_code(error) {
+                Some("ACCESS_DENIED") | Some("INTROSPECT_ONLY") | Some("WRITE_REQUIRED") => {
+                    access_denied = true
+                }
+                Some("GRAPH_NOT_FOUND") => {
+                    graph_not_found = true;
+                    if not_found_message.is_none() {
+                        not_found_message = error
+                            .get("message")
+                            .and_then(|m| m.as_str())
+                            .map(str::to_owned);
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    let message = match errors {
+        JsonValue::Array(errors) => errors
+            .iter()
+            .map(|e| format!("{}", e))
+            .collect::<Vec<_>>()
+            .join("\n\t"),
+        _ => format!("{}", errors),
+    };
+
+    if graph_not_found && !access_denied {
+        return ClientError::GraphNotFound(
+            not_found_message.unwrap_or_else(|| "Graph does not exist".to_owned()),
+        );
+    }
+    if access_denied {
+        return ClientError::PermissionDenied(format!(
+            "the server denied the request:\n\t{}",
+            message
+        ));
+    }
+    ClientError::GraphQLErrors(format!(
+        "After sending query to the server:\n\t{}\nGot the following errors:\n\t{}",
+        query, message
+    ))
+}
+
+#[cfg(test)]
+mod error_classification_tests {
+    use super::*;
+    use serde_json::json;
+
+    /// RBAC existence non-disclosure: a forbidden graph and a genuinely missing
+    /// one both surface as `GraphNotFound` with the same message — never as a
+    /// `PermissionDenied` — so an unauthorized caller can't tell them apart.
+    #[test]
+    fn forbidden_and_missing_graph_are_indistinguishable() {
+        // What the server sends for a graph hidden by policy AND for one that
+        // doesn't exist: identical GRAPH_NOT_FOUND with the same message.
+        let hidden = json!([{"message": "Graph does not exist",
+                             "extensions": {"code": "GRAPH_NOT_FOUND"}}]);
+        let missing = json!([{"message": "Graph does not exist",
+                              "extensions": {"code": "GRAPH_NOT_FOUND"}}]);
+
+        let hidden_err = classify_graphql_errors(&hidden, "q");
+        let missing_err = classify_graphql_errors(&missing, "q");
+
+        assert!(matches!(hidden_err, ClientError::GraphNotFound(_)));
+        assert!(matches!(missing_err, ClientError::GraphNotFound(_)));
+        // Never a permission error — that would leak existence.
+        assert!(!matches!(hidden_err, ClientError::PermissionDenied(_)));
+        // Byte-for-byte identical to the caller.
+        assert_eq!(format!("{hidden_err}"), format!("{missing_err}"));
+    }
+
+    #[test]
+    fn access_denied_maps_to_permission_denied() {
+        let denied = json!([{"message": "no", "extensions": {"code": "ACCESS_DENIED"}}]);
+        assert!(matches!(
+            classify_graphql_errors(&denied, "q"),
+            ClientError::PermissionDenied(_)
+        ));
+    }
+
+    #[test]
+    fn graph_not_found_display_has_no_view_suffix() {
+        let err = ClientError::GraphNotFound("Graph 'g' does not exist".to_owned());
+        assert_eq!(format!("{err}"), "Graph 'g' does not exist");
+        assert!(!format!("{err}").contains("not found in view"));
+    }
+
+    #[test]
+    fn uncoded_errors_fall_through_to_graphql_errors() {
+        let other = json!([{"message": "boom"}]);
+        assert!(matches!(
+            classify_graphql_errors(&other, "q"),
+            ClientError::GraphQLErrors(_)
+        ));
+    }
+}
+
 /// Client for interacting with a Raphtory GraphQL server.
 #[derive(Clone, Debug)]
 pub struct RemoteClient {
@@ -126,61 +238,7 @@ impl RemoteClient {
         let mut graphql_result: HashMap<String, JsonValue> = response.json().await?;
 
         if let Some(errors) = graphql_result.remove("errors") {
-            // Classify by the structured `extensions.code` the server attaches, so
-            // the client keys off structure rather than message wording.
-            let mut access_denied = false;
-            let mut graph_not_found = false;
-            let mut not_found_message: Option<String> = None;
-            if let JsonValue::Array(error_objects) = &errors {
-                for error in error_objects {
-                    match error_code(error) {
-                        Some("ACCESS_DENIED")
-                        | Some("INTROSPECT_ONLY")
-                        | Some("WRITE_REQUIRED") => access_denied = true,
-                        Some("GRAPH_NOT_FOUND") => {
-                            graph_not_found = true;
-                            if not_found_message.is_none() {
-                                not_found_message = error
-                                    .get("message")
-                                    .and_then(|m| m.as_str())
-                                    .map(str::to_owned);
-                            }
-                        }
-                        _ => {}
-                    }
-                }
-            }
-
-            let message = match &errors {
-                JsonValue::Array(errors) => errors
-                    .iter()
-                    .map(|e| format!("{}", e))
-                    .collect::<Vec<_>>()
-                    .join("\n\t"),
-                _ => format!("{}", errors),
-            };
-
-            // A forbidden-but-hidden graph reports GRAPH_NOT_FOUND exactly as a
-            // genuinely missing graph does. Surface both as the same not-found
-            // error and never as a permission error, so the two stay
-            // indistinguishable to the caller.
-            if graph_not_found && !access_denied {
-                return Err(ClientError::GraphNotFound(
-                    not_found_message.unwrap_or_else(|| "Graph does not exist".to_owned()),
-                ));
-            }
-
-            if access_denied {
-                return Err(ClientError::PermissionDenied(format!(
-                    "the server denied the request:\n\t{}",
-                    message
-                )));
-            }
-
-            return Err(ClientError::GraphQLErrors(format!(
-                "After sending query to the server:\n\t{}\nGot the following errors:\n\t{}",
-                query, message
-            )));
+            return Err(classify_graphql_errors(&errors, query));
         }
 
         match graphql_result.remove("data") {
@@ -233,17 +291,14 @@ impl RemoteClient {
         let mut buffer = Vec::new();
         folder.zip_from_folder(Cursor::new(&mut buffer))?;
 
-        let variables = format!(
-            r#""path": "{}", "overwrite": {}, "graph": null"#,
-            path, overwrite
-        );
-        let operations = format!(
-            r#"{{
-            "query": "mutation UploadGraph($path: String!, $graph: Upload!, $overwrite: Boolean!) {{ uploadGraph(path: $path, graph: $graph, overwrite: $overwrite) }}",
-            "variables": {{ {} }}
-        }}"#,
-            variables
-        );
+        // Build the operations object with `json!` so `path` is escaped — a path
+        // containing a quote or backslash would otherwise break out of the
+        // hand-written JSON string.
+        let operations = json!({
+            "query": "mutation UploadGraph($path: String!, $graph: Upload!, $overwrite: Boolean!) { uploadGraph(path: $path, graph: $graph, overwrite: $overwrite) }",
+            "variables": { "path": path, "overwrite": overwrite, "graph": null },
+        })
+        .to_string();
 
         let form = multipart::Form::new()
             .text("operations", operations)

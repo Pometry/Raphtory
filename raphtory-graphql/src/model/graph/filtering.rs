@@ -1995,8 +1995,8 @@ fn build_base_prop_condition(
 }
 
 /// Wrap a base `PropCondition` in aggregator/selector `Op`s (First/Sum/…).
-/// The `ops` are applied inside-out: `ops = [First, Sum]` becomes
-/// `Sum(First(base))`.
+/// The `ops` are collected outermost-first (see the inline note below), so
+/// `ops = [Sum, First]` reconstructs `Sum(First(base))` — i.e. `.first().sum()`.
 fn apply_ops_to_condition(base: PropCondition, ops: &[Op]) -> PropCondition {
     // `ops` are collected outermost-first when the condition is decomposed
     // (`peel_prop_wrappers_and_collect_ops`), so a `.first().sum()` tree
@@ -2233,6 +2233,28 @@ mod op_chain_tests {
             format!("{tree:?}"),
             format!("{rebuilt:?}"),
             "op chain did not round-trip — nesting inverted"
+        );
+    }
+
+    #[test]
+    fn apply_ops_pins_explicit_nesting_and_is_direction_sensitive() {
+        // A round-trip alone is self-consistent even if decompose+reconstruct
+        // were both wrong, so pin the exact tree and assert the two orderings
+        // genuinely differ — otherwise a future edit could silently re-invert.
+        let leaf = || PropCondition::IsSome(true);
+
+        // Decomposed outermost-first from `.first().sum()` → ops = [Sum, First],
+        // which must reconstruct as `Sum(First(leaf))`, not `First(Sum(leaf))`.
+        let rebuilt = apply_ops_to_condition(leaf(), &[Op::Sum, Op::First]);
+        let expected = PropCondition::Sum(wrap(PropCondition::First(wrap(leaf()))));
+        assert_eq!(format!("{expected:?}"), format!("{rebuilt:?}"));
+
+        // The reverse op order produces a genuinely different tree.
+        let reversed = apply_ops_to_condition(leaf(), &[Op::First, Op::Sum]);
+        assert_ne!(
+            format!("{rebuilt:?}"),
+            format!("{reversed:?}"),
+            "op ordering must be direction-sensitive"
         );
     }
 }

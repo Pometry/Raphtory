@@ -869,8 +869,11 @@ fn render_gql_value(v: &GqlValue) -> Result<String, ClientError> {
                 .collect::<Result<Vec<_>, ClientError>>()?;
             format!("{{object: [{}]}}", items.join(", "))
         }
-        GqlValue::DTime(s) => format!("{{dTime: {}}}", render_gql_str(s)),
-        GqlValue::NDTime(s) => format!("{{nDTime: {}}}", render_gql_str(s)),
+        // Field names must match the server schema exactly (`dtime`/`ndtime`),
+        // not the camelCase the variant names suggest — otherwise the server
+        // rejects every datetime filter value.
+        GqlValue::DTime(s) => format!("{{dtime: {}}}", render_gql_str(s)),
+        GqlValue::NDTime(s) => format!("{{ndtime: {}}}", render_gql_str(s)),
         GqlValue::Decimal(s) => format!("{{decimal: {}}}", render_gql_str(s)),
     })
 }

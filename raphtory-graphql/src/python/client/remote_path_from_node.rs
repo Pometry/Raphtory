@@ -5,6 +5,7 @@ use crate::{
         remote_edges::PyRemoteEdges,
         remote_history::PyRemoteHistory,
         remote_node::PyRemoteNode,
+        ReadTime,
     },
 };
 use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyRef, PyRefMut, PyResult};
@@ -42,7 +43,7 @@ impl PyRemotePathFromNode {
 #[pymethods]
 impl PyRemotePathFromNode {
     /// Time-window this collection. Lazy — no RPC.
-    pub fn window(&self, start: EventTime, end: EventTime) -> PyRemotePathFromNode {
+    pub fn window(&self, start: ReadTime, end: ReadTime) -> PyRemotePathFromNode {
         PyRemotePathFromNode::new(self.path.window(start.t(), end.t()))
     }
 
@@ -100,17 +101,17 @@ impl PyRemotePathFromNode {
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
-    pub fn at(&self, time: EventTime) -> PyRemotePathFromNode {
+    pub fn at(&self, time: ReadTime) -> PyRemotePathFromNode {
         PyRemotePathFromNode::new(self.path.at(time.t()))
     }
 
     /// Restrict to events strictly before the given time. Lazy — no RPC.
-    pub fn before(&self, time: EventTime) -> PyRemotePathFromNode {
+    pub fn before(&self, time: ReadTime) -> PyRemotePathFromNode {
         PyRemotePathFromNode::new(self.path.before(time.t()))
     }
 
     /// Restrict to events strictly after the given time. Lazy — no RPC.
-    pub fn after(&self, time: EventTime) -> PyRemotePathFromNode {
+    pub fn after(&self, time: ReadTime) -> PyRemotePathFromNode {
         PyRemotePathFromNode::new(self.path.after(time.t()))
     }
 
@@ -125,7 +126,7 @@ impl PyRemotePathFromNode {
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
-    pub fn snapshot_at(&self, time: EventTime) -> PyRemotePathFromNode {
+    pub fn snapshot_at(&self, time: ReadTime) -> PyRemotePathFromNode {
         PyRemotePathFromNode::new(self.path.snapshot_at(time.t()))
     }
 
@@ -135,17 +136,17 @@ impl PyRemotePathFromNode {
     }
 
     /// Shrink both start and end of the current window. Lazy — no RPC.
-    pub fn shrink_window(&self, start: EventTime, end: EventTime) -> PyRemotePathFromNode {
+    pub fn shrink_window(&self, start: ReadTime, end: ReadTime) -> PyRemotePathFromNode {
         PyRemotePathFromNode::new(self.path.shrink_window(start.t(), end.t()))
     }
 
     /// Shrink the start of the current window. Lazy — no RPC.
-    pub fn shrink_start(&self, start: EventTime) -> PyRemotePathFromNode {
+    pub fn shrink_start(&self, start: ReadTime) -> PyRemotePathFromNode {
         PyRemotePathFromNode::new(self.path.shrink_start(start.t()))
     }
 
     /// Shrink the end of the current window. Lazy — no RPC.
-    pub fn shrink_end(&self, end: EventTime) -> PyRemotePathFromNode {
+    pub fn shrink_end(&self, end: ReadTime) -> PyRemotePathFromNode {
         PyRemotePathFromNode::new(self.path.shrink_end(end.t()))
     }
 

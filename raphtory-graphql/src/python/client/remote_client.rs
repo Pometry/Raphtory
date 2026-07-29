@@ -25,7 +25,8 @@ use url::Url;
 ///
 /// Arguments:
 ///     url (str): the URL of the Raphtory GraphQL server
-///     token:
+///     token (str, optional): a bearer token sent with every request; omit for
+///         an unauthenticated server.
 #[derive(Clone)]
 #[pyclass(name = "RaphtoryClient", module = "raphtory.graphql", from_py_object)]
 pub struct PyRaphtoryClient {
@@ -138,7 +139,7 @@ impl PyRaphtoryClient {
     ///     overwrite (bool): overwrite existing graph. Defaults to False.
     ///
     /// Returns:
-    ///     dict[str, Any]: The data field from the graphQL response after executing the mutation.
+    ///     None:
     #[pyo3(signature = (path, graph, overwrite = false))]
     fn send_graph(&self, path: String, graph: MaterializedGraph, overwrite: bool) -> PyResult<()> {
         let encoded_graph = encode_graph(graph)?;

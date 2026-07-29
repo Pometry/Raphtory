@@ -6,6 +6,7 @@ use crate::{
         remote_node::PyRemoteNode,
         remote_path_from_graph::PyRemotePathFromGraph,
         remote_sorting::PyNodeSortBy,
+        ReadTime,
     },
 };
 use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyRef, PyRefMut, PyResult};
@@ -36,7 +37,7 @@ impl PyRemoteNodes {
 #[pymethods]
 impl PyRemoteNodes {
     /// Time-window this collection. Lazy — no RPC.
-    pub fn window(&self, start: EventTime, end: EventTime) -> PyRemoteNodes {
+    pub fn window(&self, start: ReadTime, end: ReadTime) -> PyRemoteNodes {
         PyRemoteNodes::new(self.nodes.window(start.t(), end.t()))
     }
 
@@ -46,17 +47,17 @@ impl PyRemoteNodes {
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
-    pub fn at(&self, time: EventTime) -> PyRemoteNodes {
+    pub fn at(&self, time: ReadTime) -> PyRemoteNodes {
         PyRemoteNodes::new(self.nodes.at(time.t()))
     }
 
     /// Restrict to events strictly before the given time. Lazy — no RPC.
-    pub fn before(&self, time: EventTime) -> PyRemoteNodes {
+    pub fn before(&self, time: ReadTime) -> PyRemoteNodes {
         PyRemoteNodes::new(self.nodes.before(time.t()))
     }
 
     /// Restrict to events strictly after the given time. Lazy — no RPC.
-    pub fn after(&self, time: EventTime) -> PyRemoteNodes {
+    pub fn after(&self, time: ReadTime) -> PyRemoteNodes {
         PyRemoteNodes::new(self.nodes.after(time.t()))
     }
 
@@ -71,7 +72,7 @@ impl PyRemoteNodes {
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
-    pub fn snapshot_at(&self, time: EventTime) -> PyRemoteNodes {
+    pub fn snapshot_at(&self, time: ReadTime) -> PyRemoteNodes {
         PyRemoteNodes::new(self.nodes.snapshot_at(time.t()))
     }
 
@@ -81,17 +82,17 @@ impl PyRemoteNodes {
     }
 
     /// Shrink both start and end of the current window. Lazy — no RPC.
-    pub fn shrink_window(&self, start: EventTime, end: EventTime) -> PyRemoteNodes {
+    pub fn shrink_window(&self, start: ReadTime, end: ReadTime) -> PyRemoteNodes {
         PyRemoteNodes::new(self.nodes.shrink_window(start.t(), end.t()))
     }
 
     /// Shrink the start of the current window. Lazy — no RPC.
-    pub fn shrink_start(&self, start: EventTime) -> PyRemoteNodes {
+    pub fn shrink_start(&self, start: ReadTime) -> PyRemoteNodes {
         PyRemoteNodes::new(self.nodes.shrink_start(start.t()))
     }
 
     /// Shrink the end of the current window. Lazy — no RPC.
-    pub fn shrink_end(&self, end: EventTime) -> PyRemoteNodes {
+    pub fn shrink_end(&self, end: ReadTime) -> PyRemoteNodes {
         PyRemoteNodes::new(self.nodes.shrink_end(end.t()))
     }
 

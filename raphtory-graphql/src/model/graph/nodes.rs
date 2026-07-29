@@ -425,27 +425,39 @@ impl GqlNodes {
     ///////////////////
 
     /// The degree (number of incident edges) of every node, in collection order.
-    async fn degree(&self) -> Vec<usize> {
+    async fn degree(&self, ctx: &Context<'_>) -> Result<Vec<usize>> {
+        // Columnar metric over every member — unbounded, so honour the
+        // same list guard as `list`/`ids`.
+        check_list_allowed(ctx)?;
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.nn.degree().collect_vec()).await
+        Ok(blocking_compute(move || self_clone.nn.degree().collect_vec()).await)
     }
 
     /// The in-degree (number of incoming edges) of every node, in collection order.
-    async fn in_degree(&self) -> Vec<usize> {
+    async fn in_degree(&self, ctx: &Context<'_>) -> Result<Vec<usize>> {
+        // Columnar metric over every member — unbounded, so honour the
+        // same list guard as `list`/`ids`.
+        check_list_allowed(ctx)?;
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.nn.in_degree().collect_vec()).await
+        Ok(blocking_compute(move || self_clone.nn.in_degree().collect_vec()).await)
     }
 
     /// The out-degree (number of outgoing edges) of every node, in collection order.
-    async fn out_degree(&self) -> Vec<usize> {
+    async fn out_degree(&self, ctx: &Context<'_>) -> Result<Vec<usize>> {
+        // Columnar metric over every member — unbounded, so honour the
+        // same list guard as `list`/`ids`.
+        check_list_allowed(ctx)?;
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.nn.out_degree().collect_vec()).await
+        Ok(blocking_compute(move || self_clone.nn.out_degree().collect_vec()).await)
     }
 
     /// The number of edge updates incident to every node, in collection order.
-    async fn edge_history_count(&self) -> Vec<usize> {
+    async fn edge_history_count(&self, ctx: &Context<'_>) -> Result<Vec<usize>> {
+        // Columnar metric over every member — unbounded, so honour the
+        // same list guard as `list`/`ids`.
+        check_list_allowed(ctx)?;
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.nn.edge_history_count().collect_vec()).await
+        Ok(blocking_compute(move || self_clone.nn.edge_history_count().collect_vec()).await)
     }
 
     /////////////////

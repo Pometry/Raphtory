@@ -111,6 +111,18 @@ LIST_QUERIES = [
         '{ graph(path: "g") { findEdges(propertiesDict: []) { src { name } } } }',
     ),
     (
+        "GqlNodes.degree (columnar)",
+        '{ graph(path: "g") { nodes { degree } } }',
+    ),
+    (
+        "GqlNodes.edgeHistoryCount (columnar)",
+        '{ graph(path: "g") { nodes { edgeHistoryCount } } }',
+    ),
+    (
+        "GqlPathFromNode.degree (columnar)",
+        '{ graph(path: "g") { node(name: "ben") { neighbours { degree } } } }',
+    ),
+    (
         "GqlPathFromNode",
         '{ graph(path: "g") { node(name: "ben") { neighbours { list { name } } } } }',
     ),

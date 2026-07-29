@@ -60,6 +60,20 @@ def test_view_boundary_semantics():
         assert rg.before(10).edges.count() == 1  # only ben->hamza (t=3)
 
 
+def test_view_op_rejects_event_id_tuple():
+    """A read view op given a `(timestamp, event_id)` tuple with a non-zero
+    event id raises rather than silently truncating to timestamp precision —
+    the remote transport windows by timestamp only, so a silent drop would
+    diverge from local, which honours the event id."""
+    with _make_graph_with_edge() as rg:
+        # Plain forms — and the tuple form with event id 0 — are accepted.
+        assert rg.window(0, 5).nodes.count() >= 0
+        assert rg.after((3, 0)).nodes.count() >= 0
+        # A non-zero event id in the tuple form is rejected loudly.
+        with pytest.raises(ValueError, match="event-id-precise"):
+            rg.window((5, 2), (5, 7))
+
+
 def test_empty_graph_reads():
     """Reads on a graph with no nodes or edges return empties, never errors:
     counts are 0, collections are empty, and the graph's earliest/latest time
@@ -1223,7 +1237,10 @@ def test_nodes_type_filter_with_windowed_view():
 def test_history_sub_containers():
     """`history.t`, `.dt`, `.event_id`, `.intervals` — four
     parallel projections of the same events. Timestamps/event_id/intervals
-    return `list[int]`; datetimes return `list[str]` (RFC 3339)."""
+    return `list[int]`; datetimes return `list[datetime]`, matching the local
+    `History.dt`."""
+    import datetime as _dt
+
     with _make_graph_with_edge() as rg:
         # ben events: add_node t=1, add_edge t=3. Add more so intervals are non-trivial.
         rg.add_edge(5, "ben", "hamza")
@@ -1234,11 +1251,15 @@ def test_history_sub_containers():
         assert h.t.collect() == [1, 3, 5, 9]
         assert h.t.collect_rev() == [9, 5, 3, 1]
 
-        # DateTimes view — ISO strings, positionally aligned with timestamps
+        # DateTimes view — real datetimes, positionally aligned with timestamps
+        # (local parity: not RFC 3339 strings).
         dts = h.dt.collect()
         assert len(dts) == 4
-        for s in dts:
-            assert "T" in s  # RFC 3339 separator
+        assert all(isinstance(d, _dt.datetime) for d in dts)
+        # t=1 ms since epoch -> 1970-01-01T00:00:00.001Z
+        assert dts[0] == _dt.datetime(
+            1970, 1, 1, 0, 0, 0, 1000, tzinfo=_dt.timezone.utc
+        )
 
         # Event IDs view — plain ints; server picks per-timestamp
         eids = h.event_id.collect()
@@ -1902,15 +1923,18 @@ def test_select_nodes_can_chain():
 
 
 def test_filter_nodes_preserves_membership():
-    """`.filter()` on `RemoteNodes` does NOT narrow the current collection —
-    the returned collection retains all original members. The filter is
-    retained for downstream traversals. Contrast with `.select()`, which
-    narrows membership at this step (tested above)."""
+    """A *property* `.filter()` on `RemoteNodes` does NOT narrow the current
+    collection — the returned collection retains all original members; the
+    predicate is retained for downstream traversals. Contrast with `.select()`,
+    which narrows membership at this step, and with a node-id filter (e.g.
+    `Node.name() == ...`), which the engine applies as a graph view and so does
+    narrow — matching local raphtory."""
     from raphtory.filter import Node
 
     with _make_filter_graph() as rg:
-        # `.filter()` preserves current collection membership.
-        all_ids = sorted(rg.nodes.filter(Node.name() == "ben").id)
+        # score > 8.0 excludes hamza (5.0), but `.filter()` keeps every member —
+        # the predicate is deferred to traversals, not applied to membership.
+        all_ids = sorted(rg.nodes.filter(Node.property("score") > 8.0).id)
         assert all_ids == ["alice", "ben", "bob", "hamza"]
 
 
@@ -2101,6 +2125,22 @@ def test_graph_filter_dispatches_edge_filter():
             ("alice", "bob"),
             ("bob", "hamza"),
         ]
+
+
+def test_datetime_property_filter_is_accepted():
+    """Filter values that are datetimes must render with the schema's field
+    casing (`dtime`/`ndtime`). Before the fix the read path emitted camelCase
+    (`dTime`/`nDTime`) and the server rejected every datetime filter value."""
+    from datetime import datetime, timezone
+    from raphtory.filter import Node
+
+    with _make_graph_with_edge() as rg:
+        aware = datetime(2020, 1, 1, tzinfo=timezone.utc)  # -> {dtime: ...}
+        naive = datetime(2021, 6, 1)  # -> {ndtime: ...}
+        rg.node("ben").add_updates(5, properties={"created": aware, "seen": naive})
+        # Both must be accepted by the server (no GraphQL error) and select ben.
+        assert sorted(rg.filter(Node.property("created") == aware).nodes.id) == ["ben"]
+        assert sorted(rg.filter(Node.property("seen") == naive).nodes.id) == ["ben"]
 
 
 def test_graph_filter_composes_with_view_chain():

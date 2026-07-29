@@ -186,10 +186,11 @@ class RaphtoryClient(object):
 
     Arguments:
         url (str): the URL of the Raphtory GraphQL server
-        token:
+        token (str, optional): a bearer token sent with every request; omit for
+            an unauthenticated server.
     """
 
-    def __new__(cls, url: str, token: Any = None) -> RaphtoryClient:
+    def __new__(cls, url: str, token: Optional[str] = None) -> RaphtoryClient:
         """Create and return a new object.  See help(type) for accurate signature."""
 
     def copy_graph(self, path: str, new_path: str) -> None:
@@ -477,7 +478,7 @@ class RaphtoryClient(object):
 
     def send_graph(
         self, path: str, graph: Graph | PersistentGraph, overwrite: bool = False
-    ) -> dict[str, Any]:
+    ) -> None:
         """
         Send a graph to the server
 
@@ -487,7 +488,7 @@ class RaphtoryClient(object):
             overwrite (bool): overwrite existing graph. Defaults to False.
 
         Returns:
-            dict[str, Any]: The data field from the graphQL response after executing the mutation.
+            None:
         """
 
     def upload_graph(
@@ -626,7 +627,7 @@ class RemoteGraph(object):
         """
 
     def after(self, time):
-        """Restrict to events at or after the given time. Lazy — no RPC."""
+        """Restrict to events strictly after the given time (exclusive). Lazy — no RPC."""
 
     def at(self, time):
         """Snapshot at a specific time. Lazy — no RPC."""
@@ -710,19 +711,19 @@ class RemoteGraph(object):
         events. Property — attribute access fires one RPC.
         """
 
-    def edge(self, src: str | int, dst: str | int) -> RemoteEdge:
+    def edge(self, src: str | int, dst: str | int) -> Optional[RemoteEdge]:
         """
         Gets a remote edge with the specified source and destination nodes.
 
         Fires one RPC — a `hasEdge` check against the current view chain.
-        Raises `NotFound` if the edge isn't visible under the current view.
 
         Arguments:
             src (str | int): the source node id
             dst (str | int): the destination node id
 
         Returns:
-            RemoteEdge: the remote edge reference
+            Optional[RemoteEdge]: the remote edge, or `None` if it isn't visible
+                under the current view.
         """
 
     @property
@@ -865,7 +866,7 @@ class RemoteGraph(object):
     def namespace(self):
         """Terminal: the parent namespace of the graph path. Fires one RPC."""
 
-    def node(self, id: str | int) -> RemoteNode:
+    def node(self, id: str | int) -> Optional[RemoteNode]:
         """
         Gets a remote node with the specified id.
 
@@ -874,13 +875,13 @@ class RemoteGraph(object):
         the same view context.
 
         Fires one RPC — a `hasNode` check against the current view chain.
-        Raises `NotFound` if the node isn't visible under the current view.
 
         Arguments:
             id (str | int): the node id
 
         Returns:
-            RemoteNode: the remote node reference
+            Optional[RemoteNode]: the remote node, or `None` if it isn't visible
+                under the current view.
         """
 
     @property
@@ -1056,7 +1057,7 @@ class RemoteEdge(object):
         """
 
     def after(self, time):
-        """Restrict to events at or after the given time. Lazy — no RPC."""
+        """Restrict to events strictly after the given time (exclusive). Lazy — no RPC."""
 
     def at(self, time):
         """Snapshot at a specific time. Lazy — no RPC."""
@@ -1307,7 +1308,7 @@ class RemoteNode(object):
         """
 
     def after(self, time):
-        """Restrict to events at or after the given time. Lazy — no RPC."""
+        """Restrict to events strictly after the given time (exclusive). Lazy — no RPC."""
 
     def at(self, time):
         """Snapshot at a specific time. Lazy — no RPC."""
@@ -3300,8 +3301,8 @@ class RemoteHistoryEventIds(object):
 
 class RemoteHistoryDateTimes(object):
     """
-    Datetime view of a `RemoteHistory`. Lists / pages return `list[str]`
-    (RFC 3339 formatted).
+    Datetime view of a `RemoteHistory`. Lists / pages return `list[datetime]`
+    (UTC), mirroring the local `History.dt`.
     """
 
     def __contains__(self, key):
@@ -3938,7 +3939,7 @@ class SomePropertySpec(object):
 class AllPropertySpec(object):
     """
     Specifies that **all** properties should be included when creating an index.
-    Use one of the predefined variants: ALL , ALL_METADATA , or ALL_TEMPORAL .
+    Use one of the predefined variants: `ALL`, `ALL_METADATA`, or `ALL_PROPERTIES`.
     """
 
     def __eq__(self, value):

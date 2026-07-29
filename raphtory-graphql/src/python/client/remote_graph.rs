@@ -13,7 +13,7 @@ use crate::{
         remote_node::PyRemoteNode,
         remote_nodes::PyRemoteNodes,
         remote_schema::PyRemoteGraphSchema,
-        PyEdgeAddition, PyNodeAddition,
+        PyEdgeAddition, PyNodeAddition, ReadTime,
     },
 };
 use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyResult};
@@ -45,7 +45,7 @@ impl PyRemoteGraph {
     ///
     /// Returns:
     ///     RemoteGraph: a new remote graph view restricted to the window
-    pub fn window(&self, start: EventTime, end: EventTime) -> PyRemoteGraph {
+    pub fn window(&self, start: ReadTime, end: ReadTime) -> PyRemoteGraph {
         PyRemoteGraph {
             graph: Arc::new(self.graph.window(start.t(), end.t())),
         }
@@ -97,21 +97,21 @@ impl PyRemoteGraph {
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
-    pub fn at(&self, time: EventTime) -> PyRemoteGraph {
+    pub fn at(&self, time: ReadTime) -> PyRemoteGraph {
         PyRemoteGraph {
             graph: Arc::new(self.graph.at(time.t())),
         }
     }
 
     /// Restrict to events strictly before the given time. Lazy — no RPC.
-    pub fn before(&self, time: EventTime) -> PyRemoteGraph {
+    pub fn before(&self, time: ReadTime) -> PyRemoteGraph {
         PyRemoteGraph {
             graph: Arc::new(self.graph.before(time.t())),
         }
     }
 
-    /// Restrict to events at or after the given time. Lazy — no RPC.
-    pub fn after(&self, time: EventTime) -> PyRemoteGraph {
+    /// Restrict to events strictly after the given time (exclusive). Lazy — no RPC.
+    pub fn after(&self, time: ReadTime) -> PyRemoteGraph {
         PyRemoteGraph {
             graph: Arc::new(self.graph.after(time.t())),
         }
@@ -132,7 +132,7 @@ impl PyRemoteGraph {
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
-    pub fn snapshot_at(&self, time: EventTime) -> PyRemoteGraph {
+    pub fn snapshot_at(&self, time: ReadTime) -> PyRemoteGraph {
         PyRemoteGraph {
             graph: Arc::new(self.graph.snapshot_at(time.t())),
         }
@@ -146,21 +146,21 @@ impl PyRemoteGraph {
     }
 
     /// Shrink both start and end of the current window. Lazy — no RPC.
-    pub fn shrink_window(&self, start: EventTime, end: EventTime) -> PyRemoteGraph {
+    pub fn shrink_window(&self, start: ReadTime, end: ReadTime) -> PyRemoteGraph {
         PyRemoteGraph {
             graph: Arc::new(self.graph.shrink_window(start.t(), end.t())),
         }
     }
 
     /// Shrink the start of the current window. Lazy — no RPC.
-    pub fn shrink_start(&self, start: EventTime) -> PyRemoteGraph {
+    pub fn shrink_start(&self, start: ReadTime) -> PyRemoteGraph {
         PyRemoteGraph {
             graph: Arc::new(self.graph.shrink_start(start.t())),
         }
     }
 
     /// Shrink the end of the current window. Lazy — no RPC.
-    pub fn shrink_end(&self, end: EventTime) -> PyRemoteGraph {
+    pub fn shrink_end(&self, end: ReadTime) -> PyRemoteGraph {
         PyRemoteGraph {
             graph: Arc::new(self.graph.shrink_end(end.t())),
         }
@@ -397,13 +397,13 @@ impl PyRemoteGraph {
     /// the same view context.
     ///
     /// Fires one RPC — a `hasNode` check against the current view chain.
-    /// Raises `NotFound` if the node isn't visible under the current view.
     ///
     /// Arguments:
     ///     id (str | int): the node id
     ///
     /// Returns:
-    ///     RemoteNode: the remote node reference
+    ///     Optional[RemoteNode]: the remote node, or `None` if it isn't visible
+    ///         under the current view.
     pub fn node(&self, id: GID) -> Result<Option<PyRemoteNode>, ClientError> {
         let graph = Arc::clone(&self.graph);
         let id_str = id.to_string();
@@ -414,14 +414,14 @@ impl PyRemoteGraph {
     /// Gets a remote edge with the specified source and destination nodes.
     ///
     /// Fires one RPC — a `hasEdge` check against the current view chain.
-    /// Raises `NotFound` if the edge isn't visible under the current view.
     ///
     /// Arguments:
     ///     src (str | int): the source node id
     ///     dst (str | int): the destination node id
     ///
     /// Returns:
-    ///     RemoteEdge: the remote edge reference
+    ///     Optional[RemoteEdge]: the remote edge, or `None` if it isn't visible
+    ///         under the current view.
     #[pyo3(signature = (src, dst))]
     pub fn edge(&self, src: GID, dst: GID) -> Result<Option<PyRemoteEdge>, ClientError> {
         let graph = Arc::clone(&self.graph);

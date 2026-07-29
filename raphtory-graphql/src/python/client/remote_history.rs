@@ -5,6 +5,7 @@ use crate::client::{
     },
     ClientError,
 };
+use chrono::{DateTime, Utc};
 use pyo3::{
     basic::CompareOp,
     exceptions::{PyIndexError, PyValueError},
@@ -457,8 +458,21 @@ impl PyRemoteHistoryEventIds {
     }
 }
 
-/// Datetime view of a `RemoteHistory`. Lists / pages return `list[str]`
-/// (RFC 3339 formatted).
+/// Parse the server's RFC 3339 datetime strings into UTC `datetime`s, matching
+/// the local `History.dt`, which returns `list[datetime]` rather than strings.
+fn parse_rfc3339(strings: Vec<String>) -> Result<Vec<DateTime<Utc>>, ClientError> {
+    strings
+        .into_iter()
+        .map(|s| {
+            DateTime::parse_from_rfc3339(&s)
+                .map(|dt| dt.with_timezone(&Utc))
+                .map_err(|e| ClientError::InvalidResponse(format!("invalid datetime {s:?}: {e}")))
+        })
+        .collect()
+}
+
+/// Datetime view of a `RemoteHistory`. Lists / pages return `list[datetime]`
+/// (UTC), mirroring the local `History.dt`.
 #[derive(Clone)]
 #[pyclass(
     name = "RemoteHistoryDateTimes",
@@ -472,15 +486,19 @@ pub struct PyRemoteHistoryDateTimes {
 #[pymethods]
 impl PyRemoteHistoryDateTimes {
     /// Fires one RPC.
-    pub fn collect(&self) -> Result<Vec<String>, ClientError> {
+    pub fn collect(&self) -> Result<Vec<DateTime<Utc>>, ClientError> {
         let inner = Arc::clone(&self.inner);
-        execute_async_task(move || async move { inner.collect().await })
+        parse_rfc3339(execute_async_task(
+            move || async move { inner.collect().await },
+        )?)
     }
 
     /// Fires one RPC.
-    pub fn collect_rev(&self) -> Result<Vec<String>, ClientError> {
+    pub fn collect_rev(&self) -> Result<Vec<DateTime<Utc>>, ClientError> {
         let inner = Arc::clone(&self.inner);
-        execute_async_task(move || async move { inner.collect_rev().await })
+        parse_rfc3339(execute_async_task(move || async move {
+            inner.collect_rev().await
+        })?)
     }
 
     /// Fires one RPC.
@@ -490,9 +508,11 @@ impl PyRemoteHistoryDateTimes {
         limit: usize,
         offset: Option<usize>,
         page_index: Option<usize>,
-    ) -> Result<Vec<String>, ClientError> {
+    ) -> Result<Vec<DateTime<Utc>>, ClientError> {
         let inner = Arc::clone(&self.inner);
-        execute_async_task(move || async move { inner.page(limit, offset, page_index).await })
+        parse_rfc3339(execute_async_task(move || async move {
+            inner.page(limit, offset, page_index).await
+        })?)
     }
 
     /// Fires one RPC.
@@ -502,9 +522,11 @@ impl PyRemoteHistoryDateTimes {
         limit: usize,
         offset: Option<usize>,
         page_index: Option<usize>,
-    ) -> Result<Vec<String>, ClientError> {
+    ) -> Result<Vec<DateTime<Utc>>, ClientError> {
         let inner = Arc::clone(&self.inner);
-        execute_async_task(move || async move { inner.page_rev(limit, offset, page_index).await })
+        parse_rfc3339(execute_async_task(move || async move {
+            inner.page_rev(limit, offset, page_index).await
+        })?)
     }
 
     /// `len(...)` — number of datetimes. Fires one RPC (`collect()`).
@@ -512,10 +534,9 @@ impl PyRemoteHistoryDateTimes {
         Ok(self.collect()?.len())
     }
 
-    /// `x[i]` — the i-th datetime (RFC 3339 string). Supports negative
-    /// indices; raises `IndexError` if out of range. Fires one RPC
-    /// (`collect()`).
-    fn __getitem__(&self, index: isize) -> PyResult<String> {
+    /// `x[i]` — the i-th datetime. Supports negative indices; raises
+    /// `IndexError` if out of range. Fires one RPC (`collect()`).
+    fn __getitem__(&self, index: isize) -> PyResult<DateTime<Utc>> {
         let items = self.collect()?;
         let len = items.len() as isize;
         let idx = if index < 0 { index + len } else { index };
@@ -524,7 +545,7 @@ impl PyRemoteHistoryDateTimes {
                 "Index {index} out of bounds"
             )));
         }
-        Ok(items[idx as usize].clone())
+        Ok(items[idx as usize])
     }
 
     /// `for x in ...` — iterate datetimes. Fires one RPC (`collect()`).
@@ -535,9 +556,9 @@ impl PyRemoteHistoryDateTimes {
             .unbind())
     }
 
-    /// `item in ...` — membership test (against the RFC 3339 string form).
-    /// Fires one RPC (`collect()`).
-    fn __contains__(&self, item: String) -> Result<bool, ClientError> {
+    /// `item in ...` — membership test against the datetimes. Fires one RPC
+    /// (`collect()`).
+    fn __contains__(&self, item: DateTime<Utc>) -> Result<bool, ClientError> {
         Ok(self.collect()?.contains(&item))
     }
 
