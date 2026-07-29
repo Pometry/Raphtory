@@ -5,7 +5,7 @@
 //! what "an operation" means on the wire.
 
 use crate::{
-    client::{inner_collection, ClientError},
+    client::properties_to_input,
     model::graph::filtering::{GqlEdgeFilter, GqlNodeFilter},
 };
 use raphtory_api::core::{
@@ -13,7 +13,6 @@ use raphtory_api::core::{
     storage::timeindex::{AsTime, EventTime},
 };
 use serde::{ser::SerializeStruct, Serialize, Serializer};
-use serde_json::json;
 use std::{collections::HashMap, sync::Arc};
 
 /// A time bound for a view op (`window`/`at`/`before`/…). Carries the
@@ -1246,33 +1245,27 @@ pub struct TemporalUpdate {
 }
 
 // ============ Serialize impls for batch mutation types ============
-// These produce the JSON shape the Jinja templates in `graphql_transport.rs`
-// expect: `metadata` and `properties` render as `[{ key, value }, ...]` where
-// `value` is the pre-baked GraphQL syntax string produced by `inner_collection`
-// (e.g. `{ str: "foo" }`, `{ i64: 3 }`).
+// These serialize to the schema input shapes (`NodeAddition`/`EdgeAddition`/
+// `TemporalPropertyInput`) as JSON variables — camelCase field names, and
+// `metadata`/`properties` as `[{key, value}]` where `value` is the `Value`
+// @oneOf JSON (produced by `Value`'s own serializer, which rejects non-finite
+// floats). Absent optionals serialize as JSON `null`, which GraphQL treats the
+// same as omitted for an optional input field.
 
 impl Serialize for TemporalUpdate {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
-        // Every Option field is emitted (as JSON `null` when absent) rather
-        // than skipped: a skipped field renders as `undefined` in the Jinja
-        // templates, and minijinja's `X is not none` test is *true* for
-        // `undefined`, so an absent field would leak into the query.
-        let mut state = serializer.serialize_struct("TemporalUpdate", 2)?;
+        let properties = self
+            .properties
+            .as_ref()
+            .map(properties_to_input)
+            .transpose()
+            .map_err(serde::ser::Error::custom)?;
+        let mut state = serializer.serialize_struct("TemporalPropertyInput", 2)?;
         state.serialize_field("time", &self.time)?;
-        match &self.properties {
-            Some(props) => {
-                let items: Vec<serde_json::Value> = props
-                    .iter()
-                    .map(|(k, v)| Ok(json!({ "key": k, "value": inner_collection(v)? })))
-                    .collect::<Result<_, ClientError>>()
-                    .map_err(serde::ser::Error::custom)?;
-                state.serialize_field("properties", &items)?;
-            }
-            None => state.serialize_field("properties", &json!(null))?,
-        }
+        state.serialize_field("properties", &properties)?;
         state.end()
     }
 }
@@ -1282,25 +1275,17 @@ impl Serialize for NodeAddition {
     where
         S: Serializer,
     {
-        // Emit every Option field (null when absent); see `TemporalUpdate`.
+        let metadata = self
+            .metadata
+            .as_ref()
+            .map(properties_to_input)
+            .transpose()
+            .map_err(serde::ser::Error::custom)?;
         let mut state = serializer.serialize_struct("NodeAddition", 4)?;
         state.serialize_field("name", &self.name)?;
-        state.serialize_field("node_type", &self.node_type)?;
-        match &self.metadata {
-            Some(meta) => {
-                let items: Vec<serde_json::Value> = meta
-                    .iter()
-                    .map(|(k, v)| Ok(json!({ "key": k, "value": inner_collection(v)? })))
-                    .collect::<Result<_, ClientError>>()
-                    .map_err(serde::ser::Error::custom)?;
-                state.serialize_field("metadata", &items)?;
-            }
-            None => state.serialize_field("metadata", &json!(null))?,
-        }
-        match &self.updates {
-            Some(updates) => state.serialize_field("updates", updates)?,
-            None => state.serialize_field("updates", &json!(null))?,
-        }
+        state.serialize_field("nodeType", &self.node_type)?;
+        state.serialize_field("metadata", &metadata)?;
+        state.serialize_field("updates", &self.updates)?;
         state.end()
     }
 }
@@ -1310,26 +1295,18 @@ impl Serialize for EdgeAddition {
     where
         S: Serializer,
     {
-        // Emit every Option field (null when absent); see `TemporalUpdate`.
+        let metadata = self
+            .metadata
+            .as_ref()
+            .map(properties_to_input)
+            .transpose()
+            .map_err(serde::ser::Error::custom)?;
         let mut state = serializer.serialize_struct("EdgeAddition", 5)?;
         state.serialize_field("src", &self.src)?;
         state.serialize_field("dst", &self.dst)?;
         state.serialize_field("layer", &self.layer)?;
-        match &self.metadata {
-            Some(meta) => {
-                let items: Vec<serde_json::Value> = meta
-                    .iter()
-                    .map(|(k, v)| Ok(json!({ "key": k, "value": inner_collection(v)? })))
-                    .collect::<Result<_, ClientError>>()
-                    .map_err(serde::ser::Error::custom)?;
-                state.serialize_field("metadata", &items)?;
-            }
-            None => state.serialize_field("metadata", &json!(null))?,
-        }
-        match &self.updates {
-            Some(updates) => state.serialize_field("updates", updates)?,
-            None => state.serialize_field("updates", &json!(null))?,
-        }
+        state.serialize_field("metadata", &metadata)?;
+        state.serialize_field("updates", &self.updates)?;
         state.end()
     }
 }

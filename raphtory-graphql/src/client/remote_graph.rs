@@ -20,34 +20,12 @@ use crate::{
     },
     model::graph::filtering::{GqlEdgeFilter, GqlNodeFilter},
 };
-use minijinja::{Environment, Value};
 use raphtory_api::core::{
     entities::{properties::prop::Prop, GID},
     storage::timeindex::{AsTime, EventTime},
     utils::time::IntoTime,
 };
 use std::{collections::HashMap, sync::Arc};
-
-/// Render a Jinja template against the given context into a GraphQL query
-/// string. Used by the write path in `graphql_transport.rs` (each mutation
-/// has its own inline template).
-pub fn build_query(template: &str, context: Value) -> Result<String, ClientError> {
-    let mut env = Environment::new();
-    // minijinja's default environment does NOT auto-escape, so any user string
-    // spliced straight into a template would break the GraphQL query. The
-    // `gqlstr` filter renders a value as a fully-quoted, escaped GraphQL string
-    // literal (a JSON string literal is a valid GraphQL string literal) — so
-    // templates use `{{ x | gqlstr }}` with no surrounding quotes of their own.
-    env.add_filter("gqlstr", |s: String| serde_json::to_string(&s).unwrap());
-    env.add_template("template", template)
-        .map_err(|e| ClientError::JinjaError(e.to_string()))?;
-    let query = env
-        .get_template("template")
-        .map_err(|e| ClientError::JinjaError(e.to_string()))?
-        .render(context)
-        .map_err(|e| ClientError::JinjaError(e.to_string()))?;
-    Ok(query)
-}
 
 /// Unwrap a `Transport::execute` result expecting a `Prop::I64` scalar.
 /// `context` is used for the error message if the shape doesn't match.

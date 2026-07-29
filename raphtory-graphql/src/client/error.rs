@@ -52,9 +52,6 @@ pub enum ClientError {
     #[error("Graph encode/decode error: {0}")]
     Graph(#[from] raphtory::errors::GraphError),
 
-    #[error("An error when parsing Jinja query templates: {0}")]
-    JinjaError(String),
-
     #[error("The request did not succeed.")]
     UnsuccessfulResponse,
 
