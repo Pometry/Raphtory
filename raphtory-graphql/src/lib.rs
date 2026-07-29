@@ -2,7 +2,7 @@
 
 pub use crate::{
     auth::{require_jwt_write_access_dynamic, Access, TokenClaimValues},
-    model::graph::filtering::GraphAccessFilter,
+    model::graph::{filtering::GraphAccessFilter, property::Value},
     server::GraphServer,
 };
 use crate::{data::InsertionError, paths::PathValidationError};
