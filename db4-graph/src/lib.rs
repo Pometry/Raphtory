@@ -523,7 +523,8 @@ where
         control_file.save()?;
         control_file.copy_to(dst.path())?;
 
-        // wal.copy_tail_to(dst)?;
+        // After checkpointing, copy over the latest WAL file to the destination.
+        wal.copy_tail_to(&dst.wal_dir())?;
 
         Ok(())
     }

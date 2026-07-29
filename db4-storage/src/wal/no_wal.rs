@@ -2,6 +2,7 @@ use crate::{
     error::StorageError,
     wal::{LSN, ReplayRecord, WalOps},
 };
+use std::path::Path;
 
 /// `NoWAL` is a no-op WAL implementation that discards all writes.
 /// Used for in-memory only graphs.
@@ -39,5 +40,9 @@ impl WalOps for NoWal {
         Err(StorageError::GenericFailure(
             "set_position is not supported for NoWAL".to_string(),
         ))
+    }
+
+    fn copy_tail_to(&self, _dst: &Path) -> Result<(), StorageError> {
+        Ok(())
     }
 }

@@ -779,6 +779,6 @@ impl StagingOps for TemporalGraph {
         // Copy graph to the new data folder.
         write_locked_graph.copy_to(graph_path)?;
 
-        todo!()
+        Ok(StagedGraph::new(write_locked_graph))
     }
 }

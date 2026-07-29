@@ -4,6 +4,7 @@ use raphtory_core::{
     entities::{EID, GID, VID},
     storage::timeindex::EventTime,
 };
+use std::path::Path;
 
 pub mod entry;
 pub mod no_wal;
@@ -36,6 +37,13 @@ pub trait WalOps {
 
     /// Sets the position in the WAL stream.
     fn set_position(&self, lsn: LSN) -> Result<(), StorageError>;
+
+    /// Copies the latest WAL log file to `dst`.
+    ///
+    /// Used after a checkpoint is completed, since recovery now only needs the
+    /// WAL file containing the checkpoint. Older files are omitted from the copy
+    /// so the destination WAL is pruned.
+    fn copy_tail_to(&self, dst: &Path) -> Result<(), StorageError>;
 }
 
 #[derive(Debug)]
