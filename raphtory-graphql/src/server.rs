@@ -506,12 +506,13 @@ mod server_tests {
     use crate::{config::app_config::AppConfigBuilder, server::GraphServer};
     use chrono::prelude::*;
     use raphtory::db::api::storage::storage::Config;
-    #[cfg(feature = "vectors")]
-    use raphtory::vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate};
     use raphtory_api::core::utils::logging::global_info_logger;
     use tempfile::tempdir;
     use tokio::time::{sleep, Duration};
     use tracing::info;
+
+    #[cfg(feature = "vectors")]
+    use raphtory::{vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate}, prelude::*};
 
     #[tokio::test]
     async fn test_public_dir_serves_index_for_subpages() {
