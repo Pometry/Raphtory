@@ -60,18 +60,46 @@ def test_view_boundary_semantics():
         assert rg.before(10).edges.count() == 1  # only ben->hamza (t=3)
 
 
-def test_view_op_rejects_event_id_tuple():
-    """A read view op given a `(timestamp, event_id)` tuple with a non-zero
-    event id raises rather than silently truncating to timestamp precision —
-    the remote transport windows by timestamp only, so a silent drop would
-    diverge from local, which honours the event id."""
-    with _make_graph_with_edge() as rg:
-        # Plain forms — and the tuple form with event id 0 — are accepted.
-        assert rg.window(0, 5).nodes.count() >= 0
-        assert rg.after((3, 0)).nodes.count() >= 0
-        # A non-zero event id in the tuple form is rejected loudly.
-        with pytest.raises(ValueError, match="event-id-precise"):
-            rg.window((5, 2), (5, 7))
+def test_event_id_precise_windowing():
+    """A `(timestamp, event_id)` tuple bound windows by the full `EventTime`,
+    matching local raphtory: the event id refines the boundary rather than
+    being truncated to timestamp precision. Verified against a local twin,
+    including through materialization (the event id survives replay onto
+    collected members)."""
+    from raphtory import Graph
+
+    def build(g):
+        # (a,b) and (c,d) share timestamp 5, distinguished only by event_id.
+        g.add_edge(5, "a", "b", event_id=0)  # EventTime(5, 0)
+        g.add_edge(5, "c", "d", event_id=1)  # EventTime(5, 1)
+
+    local = Graph()
+    build(local)
+
+    with GraphServer(tempfile.mkdtemp()).start() as server:
+        client = server.get_client()
+        client.new_graph("g", "EVENT")
+        rg = client.remote_graph("g")
+        build(rg)
+
+        def redges(view):
+            return sorted((e.src.name, e.dst.name) for e in view.edges.collect())
+
+        # A bare timestamp (and an event id of 0) keep both same-timestamp edges.
+        assert redges(rg.window(5, 10)) == [("a", "b"), ("c", "d")]
+        assert redges(rg.window((5, 0), 10)) == [("a", "b"), ("c", "d")]
+        # A non-zero event id in the start bound excludes the (5,0) event —
+        # exactly what the local twin returns.
+        assert redges(rg.window((5, 1), 10)) == [("c", "d")]
+        assert redges(rg.window((5, 1), 10)) == sorted(
+            (e.src.name, e.dst.name) for e in local.window((5, 1), 10).edges
+        )
+        # Materialization: the event id survives HandleCtx replay onto the
+        # collected members (this is the round-trip that a partial fix breaks).
+        assert sorted(n.name for n in rg.window((5, 1), 10).nodes.collect()) == [
+            "c",
+            "d",
+        ]
 
 
 def test_empty_graph_reads():

@@ -2,7 +2,7 @@ use crate::{
     client::{
         op::{
             AddNodeMetadata as AddNodeMetadataOp, AddNodeUpdates as AddNodeUpdatesOp, HandleCtx,
-            HandleOp, Op, ReadExpr, SetNodeType as SetNodeTypeOp,
+            HandleOp, Op, ReadExpr, SetNodeType as SetNodeTypeOp, TimeBound,
             UpdateNodeMetadata as UpdateNodeMetadataOp, WriteOp,
         },
         remote_edges::RemoteEdges,
@@ -80,7 +80,7 @@ impl RemoteNode {
     }
 
     /// Time-window this node. Lazy — no RPC.
-    pub fn window(&self, start: i64, end: i64) -> RemoteNode {
+    pub fn window(&self, start: TimeBound, end: TimeBound) -> RemoteNode {
         self.with_view_op(move |input| ReadExpr::Window {
             input: Box::new(input),
             start,
@@ -115,7 +115,7 @@ impl RemoteNode {
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
-    pub fn at(&self, time: i64) -> RemoteNode {
+    pub fn at(&self, time: TimeBound) -> RemoteNode {
         self.with_view_op(move |input| ReadExpr::At {
             input: Box::new(input),
             time,
@@ -123,7 +123,7 @@ impl RemoteNode {
     }
 
     /// Restrict to events strictly before the given time. Lazy — no RPC.
-    pub fn before(&self, time: i64) -> RemoteNode {
+    pub fn before(&self, time: TimeBound) -> RemoteNode {
         self.with_view_op(move |input| ReadExpr::Before {
             input: Box::new(input),
             time,
@@ -131,7 +131,7 @@ impl RemoteNode {
     }
 
     /// Restrict to events at or after the given time. Lazy — no RPC.
-    pub fn after(&self, time: i64) -> RemoteNode {
+    pub fn after(&self, time: TimeBound) -> RemoteNode {
         self.with_view_op(move |input| ReadExpr::After {
             input: Box::new(input),
             time,
@@ -153,7 +153,7 @@ impl RemoteNode {
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
-    pub fn snapshot_at(&self, time: i64) -> RemoteNode {
+    pub fn snapshot_at(&self, time: TimeBound) -> RemoteNode {
         self.with_view_op(move |input| ReadExpr::SnapshotAt {
             input: Box::new(input),
             time,
@@ -170,7 +170,7 @@ impl RemoteNode {
     }
 
     /// Shrink both start and end of the current window. Lazy — no RPC.
-    pub fn shrink_window(&self, start: i64, end: i64) -> RemoteNode {
+    pub fn shrink_window(&self, start: TimeBound, end: TimeBound) -> RemoteNode {
         self.with_view_op(move |input| ReadExpr::ShrinkWindow {
             input: Box::new(input),
             start,
@@ -179,7 +179,7 @@ impl RemoteNode {
     }
 
     /// Shrink the start of the current window. Lazy — no RPC.
-    pub fn shrink_start(&self, start: i64) -> RemoteNode {
+    pub fn shrink_start(&self, start: TimeBound) -> RemoteNode {
         self.with_view_op(move |input| ReadExpr::ShrinkStart {
             input: Box::new(input),
             start,
@@ -187,7 +187,7 @@ impl RemoteNode {
     }
 
     /// Shrink the end of the current window. Lazy — no RPC.
-    pub fn shrink_end(&self, end: i64) -> RemoteNode {
+    pub fn shrink_end(&self, end: TimeBound) -> RemoteNode {
         self.with_view_op(move |input| ReadExpr::ShrinkEnd {
             input: Box::new(input),
             end,

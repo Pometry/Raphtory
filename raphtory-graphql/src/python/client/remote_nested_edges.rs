@@ -4,7 +4,6 @@ use crate::{
         remote_collection_metadata::{PyRemoteMetadataView, PyRemotePropertiesView},
         remote_edge::PyRemoteEdge,
         remote_path_from_graph::PyRemotePathFromGraph,
-        ReadTime,
     },
 };
 use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyRef, PyRefMut, PyResult};
@@ -45,8 +44,8 @@ impl PyRemoteNestedEdges {
 #[pymethods]
 impl PyRemoteNestedEdges {
     /// Time-window this collection. Lazy — no RPC.
-    pub fn window(&self, start: ReadTime, end: ReadTime) -> PyRemoteNestedEdges {
-        PyRemoteNestedEdges::new(self.edges.window(start.t(), end.t()))
+    pub fn window(&self, start: EventTime, end: EventTime) -> PyRemoteNestedEdges {
+        PyRemoteNestedEdges::new(self.edges.window(start.into(), end.into()))
     }
 
     /// Filter this collection by an edge filter. **Propagates** to downstream
@@ -100,18 +99,18 @@ impl PyRemoteNestedEdges {
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
-    pub fn at(&self, time: ReadTime) -> PyRemoteNestedEdges {
-        PyRemoteNestedEdges::new(self.edges.at(time.t()))
+    pub fn at(&self, time: EventTime) -> PyRemoteNestedEdges {
+        PyRemoteNestedEdges::new(self.edges.at(time.into()))
     }
 
     /// Restrict to events strictly before the given time. Lazy — no RPC.
-    pub fn before(&self, time: ReadTime) -> PyRemoteNestedEdges {
-        PyRemoteNestedEdges::new(self.edges.before(time.t()))
+    pub fn before(&self, time: EventTime) -> PyRemoteNestedEdges {
+        PyRemoteNestedEdges::new(self.edges.before(time.into()))
     }
 
     /// Restrict to events strictly after the given time. Lazy — no RPC.
-    pub fn after(&self, time: ReadTime) -> PyRemoteNestedEdges {
-        PyRemoteNestedEdges::new(self.edges.after(time.t()))
+    pub fn after(&self, time: EventTime) -> PyRemoteNestedEdges {
+        PyRemoteNestedEdges::new(self.edges.after(time.into()))
     }
 
     /// Latest state. Lazy — no RPC.
@@ -125,8 +124,8 @@ impl PyRemoteNestedEdges {
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
-    pub fn snapshot_at(&self, time: ReadTime) -> PyRemoteNestedEdges {
-        PyRemoteNestedEdges::new(self.edges.snapshot_at(time.t()))
+    pub fn snapshot_at(&self, time: EventTime) -> PyRemoteNestedEdges {
+        PyRemoteNestedEdges::new(self.edges.snapshot_at(time.into()))
     }
 
     /// Exclude a specific layer. Lazy — no RPC.
@@ -135,18 +134,18 @@ impl PyRemoteNestedEdges {
     }
 
     /// Shrink both start and end of the current window. Lazy — no RPC.
-    pub fn shrink_window(&self, start: ReadTime, end: ReadTime) -> PyRemoteNestedEdges {
-        PyRemoteNestedEdges::new(self.edges.shrink_window(start.t(), end.t()))
+    pub fn shrink_window(&self, start: EventTime, end: EventTime) -> PyRemoteNestedEdges {
+        PyRemoteNestedEdges::new(self.edges.shrink_window(start.into(), end.into()))
     }
 
     /// Shrink the start of the current window. Lazy — no RPC.
-    pub fn shrink_start(&self, start: ReadTime) -> PyRemoteNestedEdges {
-        PyRemoteNestedEdges::new(self.edges.shrink_start(start.t()))
+    pub fn shrink_start(&self, start: EventTime) -> PyRemoteNestedEdges {
+        PyRemoteNestedEdges::new(self.edges.shrink_start(start.into()))
     }
 
     /// Shrink the end of the current window. Lazy — no RPC.
-    pub fn shrink_end(&self, end: ReadTime) -> PyRemoteNestedEdges {
-        PyRemoteNestedEdges::new(self.edges.shrink_end(end.t()))
+    pub fn shrink_end(&self, end: EventTime) -> PyRemoteNestedEdges {
+        PyRemoteNestedEdges::new(self.edges.shrink_end(end.into()))
     }
 
     /// Restrict to the default layer. Lazy — no RPC.

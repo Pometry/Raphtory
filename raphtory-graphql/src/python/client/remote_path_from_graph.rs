@@ -5,7 +5,6 @@ use crate::{
         remote_history::PyRemoteHistory,
         remote_nested_edges::PyRemoteNestedEdges,
         remote_node::PyRemoteNode,
-        ReadTime,
     },
 };
 use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyRef, PyRefMut, PyResult};
@@ -44,8 +43,8 @@ impl PyRemotePathFromGraph {
 #[pymethods]
 impl PyRemotePathFromGraph {
     /// Time-window this collection. Lazy — no RPC.
-    pub fn window(&self, start: ReadTime, end: ReadTime) -> PyRemotePathFromGraph {
-        PyRemotePathFromGraph::new(self.path.window(start.t(), end.t()))
+    pub fn window(&self, start: EventTime, end: EventTime) -> PyRemotePathFromGraph {
+        PyRemotePathFromGraph::new(self.path.window(start.into(), end.into()))
     }
 
     /// Filter this collection by a node filter. **Propagates** to downstream
@@ -99,18 +98,18 @@ impl PyRemotePathFromGraph {
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
-    pub fn at(&self, time: ReadTime) -> PyRemotePathFromGraph {
-        PyRemotePathFromGraph::new(self.path.at(time.t()))
+    pub fn at(&self, time: EventTime) -> PyRemotePathFromGraph {
+        PyRemotePathFromGraph::new(self.path.at(time.into()))
     }
 
     /// Restrict to events strictly before the given time. Lazy — no RPC.
-    pub fn before(&self, time: ReadTime) -> PyRemotePathFromGraph {
-        PyRemotePathFromGraph::new(self.path.before(time.t()))
+    pub fn before(&self, time: EventTime) -> PyRemotePathFromGraph {
+        PyRemotePathFromGraph::new(self.path.before(time.into()))
     }
 
     /// Restrict to events strictly after the given time. Lazy — no RPC.
-    pub fn after(&self, time: ReadTime) -> PyRemotePathFromGraph {
-        PyRemotePathFromGraph::new(self.path.after(time.t()))
+    pub fn after(&self, time: EventTime) -> PyRemotePathFromGraph {
+        PyRemotePathFromGraph::new(self.path.after(time.into()))
     }
 
     /// Latest state. Lazy — no RPC.
@@ -124,8 +123,8 @@ impl PyRemotePathFromGraph {
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
-    pub fn snapshot_at(&self, time: ReadTime) -> PyRemotePathFromGraph {
-        PyRemotePathFromGraph::new(self.path.snapshot_at(time.t()))
+    pub fn snapshot_at(&self, time: EventTime) -> PyRemotePathFromGraph {
+        PyRemotePathFromGraph::new(self.path.snapshot_at(time.into()))
     }
 
     /// Exclude a specific layer. Lazy — no RPC.
@@ -134,18 +133,18 @@ impl PyRemotePathFromGraph {
     }
 
     /// Shrink both start and end of the current window. Lazy — no RPC.
-    pub fn shrink_window(&self, start: ReadTime, end: ReadTime) -> PyRemotePathFromGraph {
-        PyRemotePathFromGraph::new(self.path.shrink_window(start.t(), end.t()))
+    pub fn shrink_window(&self, start: EventTime, end: EventTime) -> PyRemotePathFromGraph {
+        PyRemotePathFromGraph::new(self.path.shrink_window(start.into(), end.into()))
     }
 
     /// Shrink the start of the current window. Lazy — no RPC.
-    pub fn shrink_start(&self, start: ReadTime) -> PyRemotePathFromGraph {
-        PyRemotePathFromGraph::new(self.path.shrink_start(start.t()))
+    pub fn shrink_start(&self, start: EventTime) -> PyRemotePathFromGraph {
+        PyRemotePathFromGraph::new(self.path.shrink_start(start.into()))
     }
 
     /// Shrink the end of the current window. Lazy — no RPC.
-    pub fn shrink_end(&self, end: ReadTime) -> PyRemotePathFromGraph {
-        PyRemotePathFromGraph::new(self.path.shrink_end(end.t()))
+    pub fn shrink_end(&self, end: EventTime) -> PyRemotePathFromGraph {
+        PyRemotePathFromGraph::new(self.path.shrink_end(end.into()))
     }
 
     /// Restrict to the default layer. Lazy — no RPC.

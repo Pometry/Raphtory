@@ -13,7 +13,7 @@ use crate::{
         remote_node::PyRemoteNode,
         remote_nodes::PyRemoteNodes,
         remote_schema::PyRemoteGraphSchema,
-        PyEdgeAddition, PyNodeAddition, ReadTime,
+        PyEdgeAddition, PyNodeAddition,
     },
 };
 use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyResult};
@@ -45,9 +45,9 @@ impl PyRemoteGraph {
     ///
     /// Returns:
     ///     RemoteGraph: a new remote graph view restricted to the window
-    pub fn window(&self, start: ReadTime, end: ReadTime) -> PyRemoteGraph {
+    pub fn window(&self, start: EventTime, end: EventTime) -> PyRemoteGraph {
         PyRemoteGraph {
-            graph: Arc::new(self.graph.window(start.t(), end.t())),
+            graph: Arc::new(self.graph.window(start.into(), end.into())),
         }
     }
 
@@ -97,23 +97,23 @@ impl PyRemoteGraph {
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
-    pub fn at(&self, time: ReadTime) -> PyRemoteGraph {
+    pub fn at(&self, time: EventTime) -> PyRemoteGraph {
         PyRemoteGraph {
-            graph: Arc::new(self.graph.at(time.t())),
+            graph: Arc::new(self.graph.at(time.into())),
         }
     }
 
     /// Restrict to events strictly before the given time. Lazy — no RPC.
-    pub fn before(&self, time: ReadTime) -> PyRemoteGraph {
+    pub fn before(&self, time: EventTime) -> PyRemoteGraph {
         PyRemoteGraph {
-            graph: Arc::new(self.graph.before(time.t())),
+            graph: Arc::new(self.graph.before(time.into())),
         }
     }
 
     /// Restrict to events strictly after the given time (exclusive). Lazy — no RPC.
-    pub fn after(&self, time: ReadTime) -> PyRemoteGraph {
+    pub fn after(&self, time: EventTime) -> PyRemoteGraph {
         PyRemoteGraph {
-            graph: Arc::new(self.graph.after(time.t())),
+            graph: Arc::new(self.graph.after(time.into())),
         }
     }
 
@@ -132,9 +132,9 @@ impl PyRemoteGraph {
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
-    pub fn snapshot_at(&self, time: ReadTime) -> PyRemoteGraph {
+    pub fn snapshot_at(&self, time: EventTime) -> PyRemoteGraph {
         PyRemoteGraph {
-            graph: Arc::new(self.graph.snapshot_at(time.t())),
+            graph: Arc::new(self.graph.snapshot_at(time.into())),
         }
     }
 
@@ -146,23 +146,23 @@ impl PyRemoteGraph {
     }
 
     /// Shrink both start and end of the current window. Lazy — no RPC.
-    pub fn shrink_window(&self, start: ReadTime, end: ReadTime) -> PyRemoteGraph {
+    pub fn shrink_window(&self, start: EventTime, end: EventTime) -> PyRemoteGraph {
         PyRemoteGraph {
-            graph: Arc::new(self.graph.shrink_window(start.t(), end.t())),
+            graph: Arc::new(self.graph.shrink_window(start.into(), end.into())),
         }
     }
 
     /// Shrink the start of the current window. Lazy — no RPC.
-    pub fn shrink_start(&self, start: ReadTime) -> PyRemoteGraph {
+    pub fn shrink_start(&self, start: EventTime) -> PyRemoteGraph {
         PyRemoteGraph {
-            graph: Arc::new(self.graph.shrink_start(start.t())),
+            graph: Arc::new(self.graph.shrink_start(start.into())),
         }
     }
 
     /// Shrink the end of the current window. Lazy — no RPC.
-    pub fn shrink_end(&self, end: ReadTime) -> PyRemoteGraph {
+    pub fn shrink_end(&self, end: EventTime) -> PyRemoteGraph {
         PyRemoteGraph {
-            graph: Arc::new(self.graph.shrink_end(end.t())),
+            graph: Arc::new(self.graph.shrink_end(end.into())),
         }
     }
 

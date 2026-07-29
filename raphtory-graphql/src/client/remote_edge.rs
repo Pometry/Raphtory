@@ -2,7 +2,7 @@ use crate::client::{
     op::{
         AddEdgeMetadata as AddEdgeMetadataOp, AddEdgeUpdates as AddEdgeUpdatesOp,
         DeleteEdgeAtTime as DeleteEdgeAtTimeOp, Fanout, HandleCtx, HandleOp, Op, ReadExpr,
-        UpdateEdgeMetadata as UpdateEdgeMetadataOp, WriteOp,
+        TimeBound, UpdateEdgeMetadata as UpdateEdgeMetadataOp, WriteOp,
     },
     remote_edges::RemoteEdges,
     remote_graph::{
@@ -79,7 +79,7 @@ impl RemoteEdge {
     }
 
     /// Time-window this edge. Lazy — no RPC.
-    pub fn window(&self, start: i64, end: i64) -> RemoteEdge {
+    pub fn window(&self, start: TimeBound, end: TimeBound) -> RemoteEdge {
         self.with_view_op(move |input| ReadExpr::Window {
             input: Box::new(input),
             start,
@@ -97,7 +97,7 @@ impl RemoteEdge {
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
-    pub fn at(&self, time: i64) -> RemoteEdge {
+    pub fn at(&self, time: TimeBound) -> RemoteEdge {
         self.with_view_op(move |input| ReadExpr::At {
             input: Box::new(input),
             time,
@@ -105,7 +105,7 @@ impl RemoteEdge {
     }
 
     /// Restrict to events strictly before the given time. Lazy — no RPC.
-    pub fn before(&self, time: i64) -> RemoteEdge {
+    pub fn before(&self, time: TimeBound) -> RemoteEdge {
         self.with_view_op(move |input| ReadExpr::Before {
             input: Box::new(input),
             time,
@@ -113,7 +113,7 @@ impl RemoteEdge {
     }
 
     /// Restrict to events at or after the given time. Lazy — no RPC.
-    pub fn after(&self, time: i64) -> RemoteEdge {
+    pub fn after(&self, time: TimeBound) -> RemoteEdge {
         self.with_view_op(move |input| ReadExpr::After {
             input: Box::new(input),
             time,
@@ -135,7 +135,7 @@ impl RemoteEdge {
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
-    pub fn snapshot_at(&self, time: i64) -> RemoteEdge {
+    pub fn snapshot_at(&self, time: TimeBound) -> RemoteEdge {
         self.with_view_op(move |input| ReadExpr::SnapshotAt {
             input: Box::new(input),
             time,
@@ -152,7 +152,7 @@ impl RemoteEdge {
     }
 
     /// Shrink both start and end of the current window. Lazy — no RPC.
-    pub fn shrink_window(&self, start: i64, end: i64) -> RemoteEdge {
+    pub fn shrink_window(&self, start: TimeBound, end: TimeBound) -> RemoteEdge {
         self.with_view_op(move |input| ReadExpr::ShrinkWindow {
             input: Box::new(input),
             start,
@@ -161,7 +161,7 @@ impl RemoteEdge {
     }
 
     /// Shrink the start of the current window. Lazy — no RPC.
-    pub fn shrink_start(&self, start: i64) -> RemoteEdge {
+    pub fn shrink_start(&self, start: TimeBound) -> RemoteEdge {
         self.with_view_op(move |input| ReadExpr::ShrinkStart {
             input: Box::new(input),
             start,
@@ -169,7 +169,7 @@ impl RemoteEdge {
     }
 
     /// Shrink the end of the current window. Lazy — no RPC.
-    pub fn shrink_end(&self, end: i64) -> RemoteEdge {
+    pub fn shrink_end(&self, end: TimeBound) -> RemoteEdge {
         self.with_view_op(move |input| ReadExpr::ShrinkEnd {
             input: Box::new(input),
             end,

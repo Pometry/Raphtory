@@ -1176,8 +1176,8 @@ fn render_read_body(expr: &ReadExpr) -> Result<String, ClientError> {
         ReadExpr::Window { input, start, end } => format!(
             "{} {{ window(start: {}, end: {})",
             render_read_body(input)?,
-            start,
-            end
+            start.render(),
+            end.render()
         ),
         ReadExpr::Layer { input, name } => {
             format!(
@@ -1187,20 +1187,20 @@ fn render_read_body(expr: &ReadExpr) -> Result<String, ClientError> {
             )
         }
         ReadExpr::At { input, time } => {
-            format!("{} {{ at(time: {})", render_read_body(input)?, time)
+            format!("{} {{ at(time: {})", render_read_body(input)?, time.render())
         }
         ReadExpr::Before { input, time } => {
-            format!("{} {{ before(time: {})", render_read_body(input)?, time)
+            format!("{} {{ before(time: {})", render_read_body(input)?, time.render())
         }
         ReadExpr::After { input, time } => {
-            format!("{} {{ after(time: {})", render_read_body(input)?, time)
+            format!("{} {{ after(time: {})", render_read_body(input)?, time.render())
         }
         ReadExpr::Latest { input } => format!("{} {{ latest", render_read_body(input)?),
         ReadExpr::SnapshotLatest { input } => {
             format!("{} {{ snapshotLatest", render_read_body(input)?)
         }
         ReadExpr::SnapshotAt { input, time } => {
-            format!("{} {{ snapshotAt(time: {})", render_read_body(input)?, time)
+            format!("{} {{ snapshotAt(time: {})", render_read_body(input)?, time.render())
         }
         ReadExpr::ExcludeLayer { input, name } => format!(
             "{} {{ excludeLayer(name: {})",
@@ -1210,16 +1210,16 @@ fn render_read_body(expr: &ReadExpr) -> Result<String, ClientError> {
         ReadExpr::ShrinkWindow { input, start, end } => format!(
             "{} {{ shrinkWindow(start: {}, end: {})",
             render_read_body(input)?,
-            start,
-            end
+            start.render(),
+            end.render()
         ),
         ReadExpr::ShrinkStart { input, start } => format!(
             "{} {{ shrinkStart(start: {})",
             render_read_body(input)?,
-            start
+            start.render()
         ),
         ReadExpr::ShrinkEnd { input, end } => {
-            format!("{} {{ shrinkEnd(end: {})", render_read_body(input)?, end)
+            format!("{} {{ shrinkEnd(end: {})", render_read_body(input)?, end.render())
         }
         ReadExpr::Valid { input } => format!("{} {{ valid", render_read_body(input)?),
         ReadExpr::DefaultLayer { input } => {
@@ -4191,8 +4191,8 @@ mod tests {
             input: Box::new(ReadExpr::Node {
                 input: Box::new(ReadExpr::Window {
                     input: Box::new(ReadExpr::Root { path: "g".into() }),
-                    start: 0,
-                    end: 10,
+                    start: 0.into(),
+                    end: 10.into(),
                 }),
                 id: "ben".into(),
             }),
@@ -4381,7 +4381,7 @@ mod tests {
         // With a windowed view, we can restrict to a time range.
         // Window (0, 5) includes the edge added at time 3, so degree is still 1.
         let degree_windowed = rg
-            .window(0, 5)
+            .window(0.into(), 5.into())
             .node("ben")
             .await
             .unwrap()
@@ -4394,7 +4394,7 @@ mod tests {
         // Window (0, 2) excludes the edge (added at time 3), but ben himself
         // was added at t=1 so he's still in the view — his degree is 0.
         let degree_before_edge = rg
-            .window(0, 2)
+            .window(0.into(), 2.into())
             .node("ben")
             .await
             .unwrap()
@@ -4406,7 +4406,7 @@ mod tests {
 
         // A window that excludes ben's add_node event entirely — `.node()`
         // validates against the view chain and returns `None` (not an error).
-        let absent = rg.window(100, 200).node("ben").await.unwrap();
+        let absent = rg.window(100.into(), 200.into()).node("ben").await.unwrap();
         assert!(
             absent.is_none(),
             "expected None for ben under window [100, 200), got Some"

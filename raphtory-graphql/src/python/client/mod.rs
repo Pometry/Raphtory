@@ -19,34 +19,6 @@ use serde::{ser::SerializeStruct, Serialize, Serializer};
 use serde_json::json;
 use std::collections::HashMap;
 
-/// Time argument for a *read* view op (`window`/`at`/`before`/`after`/…).
-///
-/// Accepts the same `int | str | datetime` inputs as any time, but rejects the
-/// `(timestamp, event_id)` tuple form with a non-zero event id: the remote read
-/// transport windows by timestamp only, so silently dropping the event id would
-/// diverge from the local API (which honours it). We raise loudly instead.
-pub struct ReadTime(i64);
-
-impl ReadTime {
-    pub fn t(&self) -> i64 {
-        self.0
-    }
-}
-
-impl<'source> FromPyObject<'_, 'source> for ReadTime {
-    type Error = PyErr;
-    fn extract(time: Borrowed<'_, 'source, PyAny>) -> PyResult<Self> {
-        let event_time = EventTime::extract(time)?;
-        if event_time.i() != 0 {
-            return Err(PyValueError::new_err(
-                "event-id-precise windowing (the (timestamp, event_id) tuple form) is not \
-                 supported over the remote transport — pass a plain timestamp",
-            ));
-        }
-        Ok(ReadTime(event_time.t()))
-    }
-}
-
 pub mod remote_client;
 pub mod remote_collection_metadata;
 pub mod remote_edge;

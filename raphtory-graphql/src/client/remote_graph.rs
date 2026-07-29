@@ -5,7 +5,7 @@ use crate::{
             AddEdge as AddEdgeOp, AddGraphMetadata as AddGraphMetadataOp,
             AddGraphProperty as AddGraphPropertyOp, AddNode as AddNodeOp,
             CreateNode as CreateNodeOp, DeleteEdge as DeleteEdgeOp, HandleCtx, Op, ReadExpr,
-            UpdateGraphMetadata as UpdateGraphMetadataOp, WriteOp,
+            TimeBound, UpdateGraphMetadata as UpdateGraphMetadataOp, WriteOp,
         },
         remote_client::RemoteClient,
         remote_edge::RemoteEdge,
@@ -1023,7 +1023,7 @@ impl RemoteGraph {
     }
 
     /// Time-window the graph. Lazy — builds up the read expression, no RPC.
-    pub fn window(&self, start: i64, end: i64) -> RemoteGraph {
+    pub fn window(&self, start: TimeBound, end: TimeBound) -> RemoteGraph {
         self.with_expr(ReadExpr::Window {
             input: Box::new(self.expr.clone()),
             start,
@@ -1040,7 +1040,7 @@ impl RemoteGraph {
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
-    pub fn at(&self, time: i64) -> RemoteGraph {
+    pub fn at(&self, time: TimeBound) -> RemoteGraph {
         self.with_expr(ReadExpr::At {
             input: Box::new(self.expr.clone()),
             time,
@@ -1048,7 +1048,7 @@ impl RemoteGraph {
     }
 
     /// Restrict to events strictly before the given time. Lazy — no RPC.
-    pub fn before(&self, time: i64) -> RemoteGraph {
+    pub fn before(&self, time: TimeBound) -> RemoteGraph {
         self.with_expr(ReadExpr::Before {
             input: Box::new(self.expr.clone()),
             time,
@@ -1056,7 +1056,7 @@ impl RemoteGraph {
     }
 
     /// Restrict to events at or after the given time. Lazy — no RPC.
-    pub fn after(&self, time: i64) -> RemoteGraph {
+    pub fn after(&self, time: TimeBound) -> RemoteGraph {
         self.with_expr(ReadExpr::After {
             input: Box::new(self.expr.clone()),
             time,
@@ -1078,7 +1078,7 @@ impl RemoteGraph {
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
-    pub fn snapshot_at(&self, time: i64) -> RemoteGraph {
+    pub fn snapshot_at(&self, time: TimeBound) -> RemoteGraph {
         self.with_expr(ReadExpr::SnapshotAt {
             input: Box::new(self.expr.clone()),
             time,
@@ -1095,7 +1095,7 @@ impl RemoteGraph {
 
     /// Shrink both start and end of the current window (intersection, never widens).
     /// Lazy — no RPC.
-    pub fn shrink_window(&self, start: i64, end: i64) -> RemoteGraph {
+    pub fn shrink_window(&self, start: TimeBound, end: TimeBound) -> RemoteGraph {
         self.with_expr(ReadExpr::ShrinkWindow {
             input: Box::new(self.expr.clone()),
             start,
@@ -1104,7 +1104,7 @@ impl RemoteGraph {
     }
 
     /// Shrink the start of the current window. Lazy — no RPC.
-    pub fn shrink_start(&self, start: i64) -> RemoteGraph {
+    pub fn shrink_start(&self, start: TimeBound) -> RemoteGraph {
         self.with_expr(ReadExpr::ShrinkStart {
             input: Box::new(self.expr.clone()),
             start,
@@ -1112,7 +1112,7 @@ impl RemoteGraph {
     }
 
     /// Shrink the end of the current window. Lazy — no RPC.
-    pub fn shrink_end(&self, end: i64) -> RemoteGraph {
+    pub fn shrink_end(&self, end: TimeBound) -> RemoteGraph {
         self.with_expr(ReadExpr::ShrinkEnd {
             input: Box::new(self.expr.clone()),
             end,

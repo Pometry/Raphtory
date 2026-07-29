@@ -8,10 +8,58 @@ use crate::{
     client::{inner_collection, ClientError},
     model::graph::filtering::{GqlEdgeFilter, GqlNodeFilter},
 };
-use raphtory_api::core::entities::properties::prop::Prop;
+use raphtory_api::core::{
+    entities::properties::prop::Prop,
+    storage::timeindex::{AsTime, EventTime},
+};
 use serde::{ser::SerializeStruct, Serialize, Serializer};
 use serde_json::json;
 use std::{collections::HashMap, sync::Arc};
+
+/// A time bound for a view op (`window`/`at`/`before`/…). Carries the
+/// timestamp plus an optional secondary `event_id`, so event-id-precise
+/// boundaries (the `(timestamp, event_id)` tuple form) survive to the server —
+/// which windows by the full `EventTime` when given the indexed time input.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct TimeBound {
+    pub timestamp: i64,
+    pub event_id: Option<usize>,
+}
+
+impl From<i64> for TimeBound {
+    fn from(timestamp: i64) -> Self {
+        Self {
+            timestamp,
+            event_id: None,
+        }
+    }
+}
+
+impl From<EventTime> for TimeBound {
+    fn from(event_time: EventTime) -> Self {
+        // event_id 0 is the default/auto index — treat it as "no explicit id"
+        // so a plain timestamp still renders as a bare int.
+        let event_id = event_time.i();
+        Self {
+            timestamp: event_time.t(),
+            event_id: (event_id != 0).then_some(event_id),
+        }
+    }
+}
+
+impl TimeBound {
+    /// Render as a GraphQL `TimeInput` scalar: the indexed object form
+    /// `{timestamp, eventId}` when an event id is present (so the server windows
+    /// by the full `EventTime`), otherwise a bare integer.
+    pub fn render(&self) -> String {
+        match self.event_id {
+            Some(event_id) => {
+                format!("{{timestamp: {}, eventId: {}}}", self.timestamp, event_id)
+            }
+            None => self.timestamp.to_string(),
+        }
+    }
+}
 
 /// Top-level split between reads (recursive expressions returning values) and
 /// writes (self-contained commands with side effects). Matches Ben's V2 doc
@@ -39,35 +87,53 @@ pub enum ReadExpr {
     /// Time-window a graph. Composes.
     Window {
         input: Box<ReadExpr>,
-        start: i64,
-        end: i64,
+        start: TimeBound,
+        end: TimeBound,
     },
     /// Restrict to a single layer.
     Layer { input: Box<ReadExpr>, name: String },
     /// Snapshot at a single timestamp.
-    At { input: Box<ReadExpr>, time: i64 },
+    At {
+        input: Box<ReadExpr>,
+        time: TimeBound,
+    },
     /// Restrict to events strictly before the given time.
-    Before { input: Box<ReadExpr>, time: i64 },
+    Before {
+        input: Box<ReadExpr>,
+        time: TimeBound,
+    },
     /// Restrict to events at or after the given time.
-    After { input: Box<ReadExpr>, time: i64 },
+    After {
+        input: Box<ReadExpr>,
+        time: TimeBound,
+    },
     /// Latest state — no args. Composes.
     Latest { input: Box<ReadExpr> },
     /// Snapshot at the latest time. Composes.
     SnapshotLatest { input: Box<ReadExpr> },
     /// Snapshot at a specific time. Composes.
-    SnapshotAt { input: Box<ReadExpr>, time: i64 },
+    SnapshotAt {
+        input: Box<ReadExpr>,
+        time: TimeBound,
+    },
     /// Exclude a specific layer.
     ExcludeLayer { input: Box<ReadExpr>, name: String },
     /// Shrink both start and end of the window.
     ShrinkWindow {
         input: Box<ReadExpr>,
-        start: i64,
-        end: i64,
+        start: TimeBound,
+        end: TimeBound,
     },
     /// Shrink the start of the window.
-    ShrinkStart { input: Box<ReadExpr>, start: i64 },
+    ShrinkStart {
+        input: Box<ReadExpr>,
+        start: TimeBound,
+    },
     /// Shrink the end of the window.
-    ShrinkEnd { input: Box<ReadExpr>, end: i64 },
+    ShrinkEnd {
+        input: Box<ReadExpr>,
+        end: TimeBound,
+    },
     /// Restrict to the "valid" subgraph (event-graph filter). No args. Composes.
     Valid { input: Box<ReadExpr> },
     /// Restrict to the default layer. No args. Composes.
