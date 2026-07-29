@@ -2229,7 +2229,7 @@ mod op_chain_tests {
         }
 
         // Reconstruct: with the fold-in-reverse fix this round-trips. Before the
-        // fix it produced the inverted `First(Sum(leaf))` (i.e. `.sum().first()`).
+        // fix it produced the inverted `First(Sum(leaf))` (i.e. `.first().sum()`).
         let rebuilt = apply_ops_to_condition(cursor.clone(), &ops);
         assert_eq!(
             format!("{tree:?}"),

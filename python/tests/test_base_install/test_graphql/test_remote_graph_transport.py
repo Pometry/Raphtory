@@ -2015,6 +2015,46 @@ def test_filter_nodes_narrows_on_node_id():
         assert sorted(rg.nodes.filter(Node.name() == "ben").id) == ["ben"]
 
 
+def test_temporal_multi_op_filter_preserves_op_order_e2e():
+    """End-to-end guard that a multi-op temporal filter keeps its op-order
+    through the wire — the client serializes it via `apply_ops_to_condition`
+    (filtering.rs), so an inversion there would corrupt the query.
+
+    On a list-valued temporal property, `.first().sum()` is shape-valid: First
+    picks the first snapshot's list, Sum reduces it to a scalar. The inversion
+    `.sum().first()` reduces a sequence-of-lists (→ None) and can never match,
+    so any op-order flip in the wire turns `["n"]` into `[]`. Uses the narrowing
+    `graph.filter()` path (not sticky `nodes.filter`) with a distractor node,
+    and pins the remote result against a local twin.
+    """
+    from raphtory import Graph
+    from raphtory.filter import Node
+
+    def build(g):
+        # n: first snapshot [1, 2] (sum 3); d: first snapshot [8, 9] (sum 17).
+        g.add_node(0, "n", properties={"x": [1, 2]})
+        g.add_node(1, "n", properties={"x": [3, 4]})
+        g.add_node(0, "d", properties={"x": [8, 9]})
+        g.add_node(1, "d", properties={"x": [10, 11]})
+
+    first_sum_3 = Node.property("x").temporal().first().sum() == 3
+    first_sum_17 = Node.property("x").temporal().first().sum() == 17
+
+    local = Graph()
+    build(local)
+    assert sorted(local.filter(first_sum_3).nodes.id) == ["n"]
+
+    with GraphServer(tempfile.mkdtemp()).start() as server:
+        client = server.get_client()
+        client.new_graph("g", "EVENT")
+        rg = client.remote_graph("g")
+        build(rg)
+        # Remote must agree with the local twin. An op-order inversion in the
+        # wire would sum-then-first (seq-of-lists → None) and return [].
+        assert sorted(rg.filter(first_sum_3).nodes.id) == ["n"]
+        assert sorted(rg.filter(first_sum_17).nodes.id) == ["d"]
+
+
 @contextlib.contextmanager
 def _make_edge_filter_graph():
     """Graph with 4 edges carrying a numeric "weight" property, for edge
