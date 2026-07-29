@@ -1994,22 +1994,16 @@ fn build_base_prop_condition(
     })
 }
 
-/// Wrap a base `PropCondition` in aggregator/selector `Op`s (First/Sum/…),
-/// rebuilding the exact nesting the wire decoder peeled apart.
+/// Rebuild the wire tree from `ops`. Both the peel (`peel_prop_wrappers_and_
+/// collect_ops`) and core eval (`evaluate.rs`) treat the OUTERMOST tree node
+/// as the FIRST-applied op: tree `First(Sum(x))` ⇔ ops `[First, Sum]` ⇔ chain
+/// `.first().sum()`. Since folding wraps inside-out (each wrap becomes the new
+/// outermost), we iterate `ops` in REVERSE so that `ops[0]` ends up outermost.
 ///
-/// `peel_prop_wrappers_and_collect_ops` pushes the OUTERMOST wrapper first, so
-/// the tree `Sum(First(base))` decomposes to `ops = [Sum, First]` (the list is
-/// peel-order — the *reverse* of the order the ops are applied). We therefore
-/// fold in REVERSE (`[First, Sum]`) to restore the identical tree: build
-/// `First(base)`, then `Sum(First(base))`. Folding forward instead would give
-/// `First(Sum(base))` — a different, wrong tree.
-///
-/// Method-chain equivalence (for reference): the core applies ops left-to-right
-/// (`for op in &self.ops`), so `Sum(First(x))` is the chain `.first().sum()` —
-/// First applied first, Sum last — and `First(Sum(x))` is `.sum().first()`.
+/// Beware: core's `Display` prints the OPPOSITE nesting (`[First, Sum]` prints
+/// as `"sum(first(x))"`) — don't validate this mapping against Display strings.
 fn apply_ops_to_condition(base: PropCondition, ops: &[Op]) -> PropCondition {
-    // See the doc comment: `ops` is peel-order (outermost-first), so fold in
-    // reverse to rebuild the original nesting rather than inverting it.
+    // Fold reversed so `ops[0]` becomes the outermost wrapper (see doc comment).
     ops.iter().rev().fold(base, |acc, op| match op {
         Op::First => PropCondition::First(wrap(acc)),
         Op::Last => PropCondition::Last(wrap(acc)),
@@ -2220,9 +2214,9 @@ mod op_chain_tests {
 
     #[test]
     fn multi_op_prop_condition_round_trips() {
-        // Tree `Sum(First(leaf))`: First is innermost (applied first), Sum
-        // outermost (applied last) — i.e. the chain `.first().sum()`. Peeling
-        // outermost-first yields `[Sum, First]`, the reverse of apply-order.
+        // Tree `Sum(First(leaf))`: the OUTERMOST node (Sum) is the first-applied
+        // op. Peeling outermost-first yields ops `[Sum, First]`, and core eval
+        // runs ops[0] first — so this tree is the chain `.sum().first()`.
         let tree = PropCondition::Sum(wrap(PropCondition::First(wrap(PropCondition::IsSome(
             true,
         )))));
@@ -2251,8 +2245,9 @@ mod op_chain_tests {
         // genuinely differ — otherwise a future edit could silently re-invert.
         let leaf = || PropCondition::IsSome(true);
 
-        // Decomposed outermost-first from `.first().sum()` → ops = [Sum, First],
-        // which must reconstruct as `Sum(First(leaf))`, not `First(Sum(leaf))`.
+        // ops = [Sum, First] (peeled outermost-first from tree `Sum(First(leaf))`,
+        // the chain `.sum().first()`) must reconstruct as `Sum(First(leaf))`, not
+        // `First(Sum(leaf))`.
         let rebuilt = apply_ops_to_condition(leaf(), &[Op::Sum, Op::First]);
         let expected = PropCondition::Sum(wrap(PropCondition::First(wrap(leaf()))));
         assert_eq!(format!("{expected:?}"), format!("{rebuilt:?}"));
