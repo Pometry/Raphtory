@@ -19,6 +19,13 @@ use crate::{
                 GqlGlobalClusteringCoefficient, GqlGlobalClusteringCoefficientArgs,
             },
             global_reciprocity::{GqlGlobalReciprocity, GqlGlobalReciprocityArgs},
+            global_temporal_three_node_motif::{
+                GqlGlobalTemporalThreeNodeMotif, GqlGlobalTemporalThreeNodeMotifArgs,
+            },
+            global_temporal_three_node_motif_multi::{
+                GqlGlobalTemporalThreeNodeMotifMulti, GqlGlobalTemporalThreeNodeMotifMultiArgs,
+                GqlMotifCounts,
+            },
             hits::{GqlHits, GqlHitsArgs},
             in_component::{GqlInComponent, GqlInComponentArgs},
             in_components::{GqlInComponents, GqlInComponentsArgs},
@@ -37,6 +44,7 @@ use crate::{
             max_degree::{GqlMaxDegree, GqlMaxDegreeArgs},
             max_in_degree::{GqlMaxInDegree, GqlMaxInDegreeArgs},
             max_out_degree::{GqlMaxOutDegree, GqlMaxOutDegreeArgs},
+            max_weight_matching::{GqlMaxWeightMatching, GqlMaxWeightMatchingArgs},
             min_degree::{GqlMinDegree, GqlMinDegreeArgs},
             min_in_degree::{GqlMinInDegree, GqlMinInDegreeArgs},
             min_out_degree::{GqlMinOutDegree, GqlMinOutDegreeArgs},
@@ -58,7 +66,10 @@ use crate::{
                 GqlWeaklyConnectedComponents, GqlWeaklyConnectedComponentsArgs,
             },
         },
-        graph::{filtering::GqlViewFilter, node_id::GqlNodeId, node_state::GqlNodeState},
+        graph::{
+            filtering::GqlViewFilter, matching::GqlMatching, node_id::GqlNodeId,
+            node_state::GqlNodeState,
+        },
     },
     rayon::blocking_compute,
 };
@@ -86,6 +97,8 @@ pub(crate) mod fast_rp;
 pub(crate) mod fruchterman_reingold;
 pub(crate) mod global_clustering_coefficient;
 pub(crate) mod global_reciprocity;
+pub(crate) mod global_temporal_three_node_motif;
+pub(crate) mod global_temporal_three_node_motif_multi;
 pub(crate) mod hits;
 pub(crate) mod in_component;
 pub(crate) mod in_components;
@@ -98,6 +111,7 @@ pub(crate) mod louvain;
 pub(crate) mod max_degree;
 pub(crate) mod max_in_degree;
 pub(crate) mod max_out_degree;
+pub(crate) mod max_weight_matching;
 pub(crate) mod min_degree;
 pub(crate) mod min_in_degree;
 pub(crate) mod min_out_degree;
@@ -611,6 +625,59 @@ impl GqlAlgorithms {
         self.run::<GqlLocalTemporalThreeNodeMotifs>(GqlLocalTemporalThreeNodeMotifsArgs {
             delta,
             threads,
+        })
+        .await
+    }
+
+    /// Returns the graph-wide temporal three-node motif counts: 40 counts in a
+    /// fixed order (8 two-node, 24 star, then 8 triangle motifs).
+    async fn global_temporal_three_node_motif(
+        &self,
+        #[graphql(desc = "Maximum time difference between the first and last edge of a motif.")]
+        delta: i64,
+        #[graphql(desc = "Number of threads to use. Defaults to all available.")] threads: Option<
+            usize,
+        >,
+    ) -> Result<Vec<usize>, GraphError> {
+        self.run::<GqlGlobalTemporalThreeNodeMotif>(GqlGlobalTemporalThreeNodeMotifArgs {
+            delta,
+            threads,
+        })
+        .await
+    }
+
+    /// Returns the graph-wide temporal three-node motif counts for each of
+    /// `deltas`, one row of 40 counts per delta, in the order given.
+    async fn global_temporal_three_node_motif_multi(
+        &self,
+        #[graphql(desc = "Maximum time differences to compute the motif counts for.")] deltas: Vec<
+            i64,
+        >,
+        #[graphql(desc = "Number of threads to use. Defaults to all available.")] threads: Option<
+            usize,
+        >,
+    ) -> Result<Vec<GqlMotifCounts>, GraphError> {
+        self.run::<GqlGlobalTemporalThreeNodeMotifMulti>(GqlGlobalTemporalThreeNodeMotifMultiArgs {
+            deltas,
+            threads,
+        })
+        .await
+    }
+
+    /// Returns a maximum weight matching of the graph, treated as undirected.
+    async fn max_weight_matching(
+        &self,
+        #[graphql(desc = "Edge property to use as weight. If unset, all edges have weight 1.")]
+        weight_prop: Option<String>,
+        #[graphql(desc = "Only consider maximum-cardinality matchings. Defaults to false.")]
+        max_cardinality: Option<bool>,
+        #[graphql(desc = "Verify that the matching found is optimum. Defaults to false.")]
+        verify_optimum: Option<bool>,
+    ) -> Result<GqlMatching, GraphError> {
+        self.run::<GqlMaxWeightMatching>(GqlMaxWeightMatchingArgs {
+            weight_prop,
+            max_cardinality: max_cardinality.unwrap_or(false),
+            verify_optimum: verify_optimum.unwrap_or(false),
         })
         .await
     }
