@@ -95,7 +95,7 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     ) -> Result<MaterializedGraph, GraphError> {
         self.materialize_at_with_config(
             path,
-            self.core_graph().extension().config().clone().into_args(),
+            self.core_graph().extension().config().clone(),
         )
     }
 
@@ -106,7 +106,7 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     fn materialize_at_with_config(
         &self,
         path: &(impl GraphPaths + ?Sized),
-        config_args: ConfigArgs,
+        config: Config,
     ) -> Result<MaterializedGraph, GraphError>;
 
     fn materialize(&self) -> Result<MaterializedGraph, GraphError>;
@@ -348,7 +348,7 @@ impl RecordBatchSink for ChannelRecordBatchSink {
 pub fn materialize_impl(
     graph: &impl GraphView,
     path: Option<&Path>,
-    config_args: ConfigArgs,
+    config: Config,
 ) -> Result<MaterializedGraph, GraphError> {
     let mut node_meta = Meta::new_for_nodes();
     let mut edge_meta = Meta::new_for_edges();
@@ -388,7 +388,7 @@ pub fn materialize_impl(
     }
     node_meta.set_layer_mapper(layer_meta.deep_clone());
 
-    let ext = Extension::new(config_args.into_config(), path)?;
+    let ext = Extension::new(config, path)?;
     let temporal_graph = TemporalGraph::new_with_meta(
         path.map(|p| p.into()),
         node_meta,
@@ -681,7 +681,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         materialize_impl(
             self,
             None,
-            self.core_graph().extension().config().clone().into_args(),
+            self.core_graph().extension().config().clone(),
         )
     }
 
@@ -689,12 +689,12 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
     fn materialize_at_with_config(
         &self,
         path: &(impl GraphPaths + ?Sized),
-        config_args: ConfigArgs,
+        config: Config,
     ) -> Result<MaterializedGraph, GraphError> {
         if Extension::disk_storage_enabled() {
             path.init()?;
             let graph_path = path.graph_path()?;
-            let graph = materialize_impl(self, Some(graph_path.as_ref()), config_args)?;
+            let graph = materialize_impl(self, Some(graph_path.as_ref()), config)?;
             let meta = GraphFolderMetadata {
                 path: path.relative_graph_path()?,
                 meta: build_graph_metadata(&graph),

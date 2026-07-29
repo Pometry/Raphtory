@@ -166,12 +166,12 @@ impl GraphWithVectors {
         let graph_folder = folder.graph_folder();
         let graph = if graph_folder.read_metadata()?.is_diskgraph {
             blocking_compute(move || {
-                MaterializedGraph::load_with_config(folder_clone.graph_folder(), config.into_args())
+                MaterializedGraph::load_with_config(folder_clone.graph_folder(), config)
             })
             .await?
         } else {
             blocking_compute(move || {
-                MaterializedGraph::decode_with_config(folder_clone.graph_folder(), config.into_args())
+                MaterializedGraph::decode_with_config(folder_clone.graph_folder(), config)
             })
             .await?
         };

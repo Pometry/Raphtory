@@ -510,7 +510,7 @@ impl ValidWriteableGraphFolder {
                 (true, graph)
             } else {
                 let new_graph = graph
-                    .materialize_at_with_config(self.graph_folder(), config.into_args())?;
+                    .materialize_at_with_config(self.graph_folder(), config)?;
                 (true, new_graph)
             }
         } else {
@@ -531,13 +531,13 @@ impl ValidWriteableGraphFolder {
 
     pub fn read_graph(
         &self,
-        config_args: ConfigArgs,
+        config: Config,
     ) -> Result<MaterializedGraph, PathValidationError> {
         self.with_internal_errors(|| {
             if self.graph_folder().read_metadata()?.is_diskgraph {
-                MaterializedGraph::load_with_config(self.graph_folder(), config_args)
+                MaterializedGraph::load_with_config(self.graph_folder(), config)
             } else {
-                MaterializedGraph::decode_with_config(self.graph_folder(), config_args)
+                MaterializedGraph::decode_with_config(self.graph_folder(), config)
             }
         })
     }
@@ -545,14 +545,14 @@ impl ValidWriteableGraphFolder {
     pub fn write_graph_bytes<R: Read + Seek + Send + 'static>(
         &self,
         bytes: R,
-        config_args: ConfigArgs,
+        config: Config,
     ) -> Result<(), PathValidationError> {
         self.with_internal_errors(|| {
             if Extension::disk_storage_enabled() {
                 MaterializedGraph::decode_from_zip_at(
                     ZipArchive::new(bytes)?,
                     self.graph_folder(),
-                    config_args,
+                    config,
                 )?
                 .flush()?;
             } else {

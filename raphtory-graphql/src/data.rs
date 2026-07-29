@@ -423,7 +423,7 @@ impl Data {
             .invalidate_with(&folder.local_path().to_string(), |old_graph| async {
                 invalidate_graph(old_graph).await;
                 blocking_io(move || {
-                    folder.write_graph_bytes(bytes, conf.into_args())?;
+                    folder.write_graph_bytes(bytes, conf)?;
                     folder.finish()
                 })
                 .await

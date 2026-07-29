@@ -13,7 +13,7 @@ pub const DEFAULT_MAX_PAGE_LEN_EDGES: u32 = 6_000_000; // 2^20
 pub const CONFIG_FILE_NAME: &str = "config.json";
 
 pub trait ConfigArgsOps: Serialize + DeserializeOwned + Sized + Clone {
-    type Config: ConfigOps;
+    type Config: ConfigOps + From<Self>;
 
     fn load_from_dir(dir: &Path) -> Result<Self, StorageError> {
         let config_file = dir.join(CONFIG_FILE_NAME);
@@ -25,7 +25,7 @@ pub trait ConfigArgsOps: Serialize + DeserializeOwned + Sized + Clone {
     fn save_to_dir(&self, dir: &Path) -> Result<(), StorageError> {
         let config_path = dir.join(CONFIG_FILE_NAME);
         let mut tmp_file = NamedTempFile::new_in(dir)?;
-        let config = self.clone().into_config();
+        let config: Self::Config = self.clone().into();
         serde_json::to_writer_pretty(&mut tmp_file, &config)?;
         tmp_file.as_file().sync_all()?;
         tmp_file
@@ -35,14 +35,9 @@ pub trait ConfigArgsOps: Serialize + DeserializeOwned + Sized + Clone {
     }
 
     fn update(&mut self, new_args: Self);
-
-
-    fn into_config(self) -> Self::Config;
 }
 
 pub trait ConfigOps: Serialize + DeserializeOwned + Args + Sized {
-    type ConfigArgs: ConfigArgsOps;
-
     fn max_node_page_len(&self) -> u32;
 
     fn max_edge_page_len(&self) -> u32;
@@ -54,8 +49,6 @@ pub trait ConfigOps: Serialize + DeserializeOwned + Args + Sized {
     fn with_max_edge_page_len(self, page_len: u32) -> Self;
 
     fn with_node_types(&self, node_types: impl IntoIterator<Item = impl AsRef<str>>) -> Self;
-
-    fn into_args(self) -> Self::ConfigArgs;
 }
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, Args)]
@@ -162,8 +155,6 @@ impl BaseConfig {
 }
 
 impl ConfigOps for BaseConfig {
-    type ConfigArgs = ();
-
     fn max_node_page_len(&self) -> u32 {
         self.max_node_page_len
     }
@@ -189,10 +180,6 @@ impl ConfigOps for BaseConfig {
     fn with_node_types(&self, _node_types: impl IntoIterator<Item = impl AsRef<str>>) -> Self {
         *self
     }
-
-    
-
-    fn into_args(self) -> Self::ConfigArgs {}
 }
 
 #[cfg(test)]

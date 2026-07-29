@@ -22,6 +22,7 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
     type ES: EdgeSegmentOps;
     type GS: GraphPropSegmentOps;
     type Wal: WalOps + GraphWalOps;
+    type ConfigArgs;
     type Config: ConfigOps;
     type ControlFile: ControlFileOps;
 
@@ -91,6 +92,7 @@ impl PersistenceStrategy for NoOpStrategy {
     type GS = GraphPropSegmentView<Self>;
     type Wal = NoWal;
     type Config = BaseConfig;
+    type ConfigArgs = ();
     type ControlFile = NoControlFile;
 
     fn new(config: BaseConfig, _graph_dir: Option<&Path>) -> Result<Self, StorageError> {

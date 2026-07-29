@@ -114,7 +114,7 @@ fn test_get_materialize_snb_sf1_time() {
     let materialized_graph = materialize_impl(
         &g,
         Some(&rb_materialize_graph_path),
-        g.core_graph().extension().config().clone().into_args(),
+        g.core_graph().extension().config().clone(),
     )
     .unwrap();
     let materialize_elapsed = materialize_start.elapsed();
@@ -195,7 +195,7 @@ fn test_materialize_filtered_sf1_matches() {
     let materialized_graph = materialize_impl(
         &filtered,
         Some(&rb_materialize_graph_path),
-        g.core_graph().extension().config().clone().into_args(),
+        g.core_graph().extension().config().clone(),
     )
     .unwrap();
     let materialize_elapsed = materialize_start.elapsed();
@@ -238,7 +238,6 @@ fn get_materialize_time(graph_path: &Path, materialize_graph_path: &Path) -> Dur
             .extension()
             .config()
             .clone()
-            .into_args(),
     )
     .unwrap();
     let materialize_elapsed = materialize_start.elapsed();
@@ -287,7 +286,7 @@ fn get_parquet_decode_time(
     let _parquet_graph = MaterializedGraph::decode_parquet(
         &parquet_path,
         Some(&decode_graph_path),
-        sf10_extension_config.into_args(),
+        sf10_extension_config,
     )
     .unwrap();
     let parquet_decode_elapsed = parquet_decode_start.elapsed();
