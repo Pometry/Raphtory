@@ -162,7 +162,7 @@ pest = "2.8.6"
 pest_derive = "2.8.6"
 minijinja = "2.18.0"
 minijinja-contrib = { version = "2.18.0", features = ["datetime"] }
-lancedb = { version = "0.31.0", features = [] }
+lancedb = { version = "0.33.0", features = [] }
 heed = "0.22.0"
 sqlparser = "0.62.0"
 futures = "0.3"
