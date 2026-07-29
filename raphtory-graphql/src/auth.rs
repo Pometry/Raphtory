@@ -15,7 +15,7 @@ use poem::{
 };
 use reqwest::header::AUTHORIZATION;
 use serde::Deserialize;
-use std::{sync::Arc, time::Duration};
+use std::{collections::HashMap, sync::Arc, time::Duration};
 use tokio::sync::{RwLock, Semaphore};
 use tracing::{debug, warn};
 
@@ -31,6 +31,22 @@ pub(crate) struct TokenClaims {
     pub(crate) access: Access,
     #[serde(default)]
     pub(crate) role: Option<String>,
+    /// Every other claim in the token, kept verbatim so authorization policies can read claims
+    /// this crate has no opinion about (`sub`, tenant identifiers, and so on).
+    #[serde(flatten)]
+    pub(crate) other: HashMap<String, serde_json::Value>,
+}
+
+/// The validated token's claims beyond `access`/`role`, injected into the GraphQL context for
+/// authorization policies to consult. Empty when no token was presented.
+#[derive(Clone, Debug, Default)]
+pub struct TokenClaimValues(pub HashMap<String, serde_json::Value>);
+
+impl TokenClaimValues {
+    /// Convenience accessor for a string-valued claim.
+    pub fn string(&self, name: &str) -> Option<&str> {
+        self.0.get(name).and_then(|v| v.as_str())
+    }
 }
 
 // TODO: maybe this should be renamed as it doens't only take care of auth anymore
@@ -124,7 +140,7 @@ where
 
     async fn call(&self, req: Request) -> Result<Self::Output> {
         // here ANY error when trying to validate the Authorization header is equivalent to it not being present at all
-        let (access, role) = match &self.config.auth.public_key {
+        let (access, role, claim_values) = match &self.config.auth.public_key {
             Some(public_key) => {
                 let claims = req
                     .header(AUTHORIZATION)
@@ -132,7 +148,11 @@ where
                 match claims {
                     Some(claims) => {
                         debug!(role = ?claims.role, "JWT validated successfully");
-                        (claims.access, claims.role)
+                        (
+                            claims.access,
+                            claims.role,
+                            TokenClaimValues(claims.other),
+                        )
                     }
                     None => {
                         if self.config.auth.require_auth_for_reads {
@@ -140,12 +160,13 @@ where
                             return Err(Unauthorized(AuthError::RequireRead));
                         } else {
                             debug!("No valid JWT but require_auth_for_reads=false — granting read access");
-                            (Access::Ro, None)
+                            (Access::Ro, None, TokenClaimValues::default())
                         }
                     }
                 }
             }
-            None => (Access::Rw, None), // if auth is not setup, we give write access to all requests
+            // if auth is not setup, we give write access to all requests
+            None => (Access::Rw, None, TokenClaimValues::default()),
         };
 
         let is_accept_multipart_mixed = req
@@ -156,7 +177,7 @@ where
         if is_accept_multipart_mixed {
             let (req, mut body) = req.split();
             let req = GraphQLRequest::from_request(&req, &mut body).await?;
-            let req = req.0.data(access).data(role);
+            let req = req.0.data(access).data(role).data(claim_values);
             let stream = self.executor.execute_stream(req, None);
             Ok(Response::builder()
                 .header("content-type", "multipart/mixed; boundary=graphql")
@@ -180,7 +201,7 @@ where
                 }
             }
 
-            let req = batch_req.data(access).data(role);
+            let req = batch_req.data(access).data(role).data(claim_values);
 
             let contains_update = match &req {
                 BatchRequest::Single(request) => is_exclusive_write(&request.query),

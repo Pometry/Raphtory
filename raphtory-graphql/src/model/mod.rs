@@ -181,10 +181,9 @@ fn require_namespace_write(
         }
     }
 }
-
 #[derive(ResolvedObject)]
 #[graphql(root)]
-pub(crate) struct QueryRoot;
+pub struct QueryRoot;
 
 #[derive(OneOfInput, Clone, Debug)]
 pub enum Template {
