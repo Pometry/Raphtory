@@ -29,7 +29,7 @@ auth = { workspace = true }
 
 
 [features]
-default = ["datafusion"]
+default = ["datafusion", "vectors"]
 extension-module = ["pyo3/extension-module"]
 datafusion = ["raphtory/datafusion"]
 search = ["raphtory/search", "raphtory-graphql/search"]
