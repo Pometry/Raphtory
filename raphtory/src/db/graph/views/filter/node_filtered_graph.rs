@@ -5,9 +5,10 @@ use crate::{
         },
         state::ops::NodeFilterOp,
         view::internal::{
-            Immutable, InheritAllEdgeFilterOps, InheritEdgeHistoryFilter, InheritLayerOps,
-            InheritListOps, InheritMaterialize, InheritNodeHistoryFilter, InheritStorageOps,
-            InheritTimeSemantics, InternalNodeFilterOps, Static,
+            EdgeList, GraphView, Immutable, InheritAllEdgeFilterOps, InheritEdgeHistoryFilter,
+            InheritLayerOps, InheritListOps, InheritMaterialize, InheritNodeHistoryFilter,
+            InheritStorageOps, InheritTimeSemantics, InternalNodeFilterOps, ListOps, NodeList,
+            Static,
         },
     },
     prelude::GraphViewOps,
@@ -50,7 +51,6 @@ impl<'graph, G: GraphViewOps<'graph>, F: NodeFilterOp> InheritStorageOps
 {
 }
 impl<'graph, G: GraphViewOps<'graph>, F: NodeFilterOp> InheritLayerOps for NodeFilteredGraph<G, F> {}
-impl<'graph, G: GraphViewOps<'graph>, F: NodeFilterOp> InheritListOps for NodeFilteredGraph<G, F> {}
 impl<'graph, G: GraphViewOps<'graph>, F: NodeFilterOp> InheritMaterialize
     for NodeFilteredGraph<G, F>
 {
@@ -95,5 +95,22 @@ impl<'graph, G: GraphViewOps<'graph>, F: NodeFilterOp> InternalNodeFilterOps
     fn internal_filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
         self.graph.internal_filter_node(node, layer_ids)
             && self.filter.apply(self.graph.core_graph(), node.vid())
+    }
+
+    fn internal_node_list_trusted(&self) -> bool {
+        self.graph.internal_node_list_trusted()
+            && self.filter.const_value_in_domain().is_some_and(|v| v)
+    }
+}
+
+impl<G: GraphView, F: NodeFilterOp> ListOps for NodeFilteredGraph<G, F> {
+    fn node_list(&self) -> NodeList {
+        self.filter
+            .domain(self.graph.core_graph())
+            .intersection(&self.graph.node_list())
+    }
+
+    fn edge_list(&self) -> EdgeList {
+        self.graph.edge_list()
     }
 }
