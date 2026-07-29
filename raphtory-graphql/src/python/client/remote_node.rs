@@ -13,10 +13,7 @@ use pyo3::{
     pyclass, pymethods, Py, PyAny, PyResult, Python,
 };
 use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
-use raphtory_api::core::{
-    entities::properties::prop::Prop,
-    storage::timeindex::{AsTime, EventTime},
-};
+use raphtory_api::core::{entities::properties::prop::Prop, storage::timeindex::EventTime};
 use std::{collections::HashMap, sync::Arc};
 
 #[derive(Clone)]
@@ -179,18 +176,21 @@ impl PyRemoteNode {
     /// Arguments:
     ///   t (int | str | datetime): The timestamp at which the updates should be applied.
     ///   properties (dict[str, PropValue], optional): A dictionary of properties to update.
+    ///   event_id (int, optional): Secondary index to disambiguate multiple
+    ///       updates at the same timestamp. If omitted, the server auto-increments it.
     ///
     /// Returns:
     ///   None:
-    #[pyo3(signature = (t, properties=None))]
+    #[pyo3(signature = (t, properties=None, event_id=None))]
     pub fn add_updates(
         &self,
         t: EventTime,
         properties: Option<HashMap<String, Prop>>,
+        event_id: Option<usize>,
     ) -> Result<(), ClientError> {
         let node = Arc::clone(&self.node);
 
-        let task = move || async move { node.add_updates(t, properties).await };
+        let task = move || async move { node.add_updates(t, properties, event_id).await };
         execute_async_task(task)?;
 
         Ok(())

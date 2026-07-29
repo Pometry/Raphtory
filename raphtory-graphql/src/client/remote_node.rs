@@ -130,7 +130,7 @@ impl RemoteNode {
         })
     }
 
-    /// Restrict to events at or after the given time. Lazy — no RPC.
+    /// Restrict to events strictly after the given time (exclusive). Lazy — no RPC.
     pub fn after(&self, time: TimeBound) -> RemoteNode {
         self.with_view_op(move |input| ReadExpr::After {
             input: Box::new(input),
@@ -538,16 +538,22 @@ impl RemoteNode {
         Ok(())
     }
 
-    /// Add temporal updates to the node at the specified time.
+    /// Add temporal updates to the node at the specified time. `event_id` locks
+    /// the secondary index (as on `add_node`); `None` lets the server
+    /// auto-increment.
     pub async fn add_updates<T: IntoTime>(
         &self,
         t: T,
         properties: Option<HashMap<String, Prop>>,
+        event_id: Option<usize>,
     ) -> Result<(), ClientError> {
         let op = Op::Write(WriteOp::AddNodeUpdates(AddNodeUpdatesOp {
             path: self.path.clone(),
             id: self.id.clone(),
-            time: t.into_time().t(),
+            time: TimeBound {
+                timestamp: t.into_time().t(),
+                event_id,
+            },
             properties,
         }));
         self.transport.execute(&op).await?;

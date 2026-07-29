@@ -173,7 +173,7 @@ impl PyEdgeAddition {
 }
 
 /// Specifies that **all** properties should be included when creating an index.
-/// Use one of the predefined variants: `ALL`, `ALL_METADATA`, or `ALL_PROPERTIES`.
+/// Use one of the predefined variants: `All`, `AllMetadata`, or `AllProperties`.
 #[derive(Clone, Serialize, PartialEq)]
 #[pyclass(
     name = "AllPropertySpec",

@@ -491,9 +491,7 @@ class RaphtoryClient(object):
             None:
         """
 
-    def upload_graph(
-        self, path: str, file_path: str, overwrite: bool = False
-    ) -> dict[str, Any]:
+    def upload_graph(self, path: str, file_path: str, overwrite: bool = False) -> None:
         """
         Upload graph file from a path file_path on the client
 
@@ -503,7 +501,7 @@ class RaphtoryClient(object):
             overwrite (bool): overwrite existing graph. Defaults to False.
 
         Returns:
-            dict[str, Any]: The data field from the graphQL response after executing the mutation.
+            None:
         """
 
     def with_token(self, token: str) -> RaphtoryClient:
@@ -1040,6 +1038,7 @@ class RemoteEdge(object):
         t: int | str | datetime,
         properties: Optional[dict[str, PropValue]] = None,
         layer: Optional[str] = None,
+        event_id: Optional[int] = None,
     ) -> None:
         """
         Add updates to an edge in the remote graph at a specified time.
@@ -1051,6 +1050,8 @@ class RemoteEdge(object):
           t (int | str | datetime): The timestamp at which the updates should be applied.
           properties (dict[str, PropValue], optional): A dictionary of properties to update.
           layer (str, optional): The layer you want the updates to be applied.
+          event_id (int, optional): Secondary index to disambiguate multiple
+              updates at the same timestamp. If omitted, the server auto-increments it.
 
         Returns:
           None:
@@ -1068,13 +1069,20 @@ class RemoteEdge(object):
     def default_layer(self):
         """Restrict to the default layer. Lazy — no RPC."""
 
-    def delete(self, t: int | str | datetime, layer: Optional[str] = None) -> None:
+    def delete(
+        self,
+        t: int | str | datetime,
+        layer: Optional[str] = None,
+        event_id: Optional[int] = None,
+    ) -> None:
         """
         Mark the edge as deleted at the specified time.
 
         Arguments:
           t (int | str | datetime): The timestamp at which the deletion should be applied.
           layer (str, optional): The layer you want the deletion applied to.
+          event_id (int, optional): Secondary index to disambiguate multiple
+              updates at the same timestamp. If omitted, the server auto-increments it.
 
         Returns:
           None:
@@ -1293,7 +1301,10 @@ class RemoteNode(object):
         """
 
     def add_updates(
-        self, t: int | str | datetime, properties: Optional[dict[str, PropValue]] = None
+        self,
+        t: int | str | datetime,
+        properties: Optional[dict[str, PropValue]] = None,
+        event_id: Optional[int] = None,
     ) -> None:
         """
         Add updates to a node in the remote graph at a specified time.
@@ -1302,6 +1313,8 @@ class RemoteNode(object):
         Arguments:
           t (int | str | datetime): The timestamp at which the updates should be applied.
           properties (dict[str, PropValue], optional): A dictionary of properties to update.
+          event_id (int, optional): Secondary index to disambiguate multiple
+              updates at the same timestamp. If omitted, the server auto-increments it.
 
         Returns:
           None:
@@ -1877,8 +1890,7 @@ class RemotePathFromNode(object):
     [RemoteNode.out_neighbours][raphtory.graphql.RemoteNode.out_neighbours].
 
     Distinct from `RemoteNodes` because the server type (`GqlPathFromNode`)
-    exposes a strict subset of `GqlNodes`. **`sorted` and `default_layer`
-    are not available here.**
+    exposes a strict subset of `GqlNodes`. **`sorted` is not available here.**
     """
 
     def __bool__(self):
@@ -3939,7 +3951,7 @@ class SomePropertySpec(object):
 class AllPropertySpec(object):
     """
     Specifies that **all** properties should be included when creating an index.
-    Use one of the predefined variants: `ALL`, `ALL_METADATA`, or `ALL_PROPERTIES`.
+    Use one of the predefined variants: `All`, `AllMetadata`, or `AllProperties`.
     """
 
     def __eq__(self, value):

@@ -102,7 +102,7 @@ pub enum ReadExpr {
         input: Box<ReadExpr>,
         time: TimeBound,
     },
-    /// Restrict to events at or after the given time.
+    /// Restrict to events strictly after the given time (exclusive).
     After {
         input: Box<ReadExpr>,
         time: TimeBound,
@@ -1144,7 +1144,7 @@ pub struct SetNodeType {
 pub struct AddNodeUpdates {
     pub path: String,
     pub id: String,
-    pub time: i64,
+    pub time: TimeBound,
     pub properties: Option<HashMap<String, Prop>>,
 }
 
@@ -1170,7 +1170,7 @@ pub struct AddEdgeUpdates {
     pub path: String,
     pub src: String,
     pub dst: String,
-    pub time: i64,
+    pub time: TimeBound,
     pub properties: Option<HashMap<String, Prop>>,
     pub layer: Option<String>,
 }
@@ -1182,7 +1182,7 @@ pub struct DeleteEdgeAtTime {
     pub path: String,
     pub src: String,
     pub dst: String,
-    pub time: i64,
+    pub time: TimeBound,
     pub layer: Option<String>,
 }
 

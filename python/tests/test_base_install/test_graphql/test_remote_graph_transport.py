@@ -94,12 +94,47 @@ def test_event_id_precise_windowing():
         assert redges(rg.window((5, 1), 10)) == sorted(
             (e.src.name, e.dst.name) for e in local.window((5, 1), 10).edges
         )
+        # The END bound is event-id precise too (and exclusive): `[0, (5,1))`
+        # keeps the (5,0) event but excludes (5,1).
+        assert redges(rg.window(0, (5, 1))) == [("a", "b")]
+        assert redges(rg.window(0, (5, 1))) == sorted(
+            (e.src.name, e.dst.name) for e in local.window(0, (5, 1)).edges
+        )
         # Materialization: the event id survives HandleCtx replay onto the
         # collected members (this is the round-trip that a partial fix breaks).
         assert sorted(n.name for n in rg.window((5, 1), 10).nodes.collect()) == [
             "c",
             "d",
         ]
+
+
+def test_view_ops_accept_str_and_datetime():
+    """Remote view ops accept `int | str | datetime` bounds, matching local —
+    the conversion is the shared `EventTime` `FromPyObject`. Pins the parity
+    claim that was previously untested."""
+    import datetime as _dt
+
+    with _make_graph_with_edge() as rg:
+        # ben->hamza is at t=3 (ms since epoch → 1970-01-01T00:00:00.003Z).
+        assert rg.window("1970-01-01", "2000-01-01").edges.count() == 1  # ISO strings
+        aware = _dt.datetime(1970, 1, 1, tzinfo=_dt.timezone.utc)  # epoch 0
+        assert rg.after(aware).edges.count() == 1  # t=3 is after epoch start
+        assert rg.before("1970-01-01").edges.count() == 0  # nothing before epoch
+
+
+def test_add_updates_event_id_precise():
+    """`add_updates` carries the `(timestamp, event_id)` secondary index to the
+    server (matching local + the read path) rather than truncating it."""
+    with GraphServer(tempfile.mkdtemp()).start() as server:
+        client = server.get_client()
+        client.new_graph("g", "EVENT")
+        rg = client.remote_graph("g")
+        rg.add_node(1, "n")
+        rg.node("n").add_updates(5, properties={"p": 1}, event_id=0)
+        rg.node("n").add_updates(5, properties={"p": 2}, event_id=1)
+        g = client.receive_graph("g")
+        # Two updates share t=5 but differ by event_id → both persist.
+        assert sorted(et.event_id for et in g.node("n").history if et.t == 5) == [0, 1]
 
 
 def test_empty_graph_reads():
@@ -1812,9 +1847,13 @@ def test_remote_path_from_node_lacks_sorted():
             neighbours, "sorted"
         ), "sorted must not be available on RemotePathFromNode"
         assert not hasattr(PathFromNode, "sorted")
-        # default_layer is part of the local surface, so the remote exposes it.
+        # default_layer is part of the local surface, so the remote exposes it
+        # AND it must actually round-trip to the server (not a phantom field).
         assert hasattr(neighbours, "default_layer")
         assert hasattr(PathFromNode, "default_layer")
+        assert sorted(n.name for n in neighbours.default_layer()) == sorted(
+            n.name for n in neighbours
+        )
 
 
 def test_shared_neighbours_composes_with_view_chain():
@@ -1964,6 +2003,16 @@ def test_filter_nodes_preserves_membership():
         # the predicate is deferred to traversals, not applied to membership.
         all_ids = sorted(rg.nodes.filter(Node.property("score") > 8.0).id)
         assert all_ids == ["alice", "ben", "bob", "hamza"]
+
+
+def test_filter_nodes_narrows_on_node_id():
+    """#2690: a node-id filter (name/id) is applied as a graph view, so it DOES
+    narrow collection membership — unlike the property filter above. Pins the
+    new behavior (and its parity with local) so a regression is visible."""
+    from raphtory.filter import Node
+
+    with _make_filter_graph() as rg:
+        assert sorted(rg.nodes.filter(Node.name() == "ben").id) == ["ben"]
 
 
 @contextlib.contextmanager

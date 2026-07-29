@@ -9,10 +9,7 @@ use crate::{
 };
 use pyo3::{pyclass, pymethods, Py, PyAny, Python};
 use raphtory::python::utils::execute_async_task;
-use raphtory_api::core::{
-    entities::properties::prop::Prop,
-    storage::timeindex::{AsTime, EventTime},
-};
+use raphtory_api::core::{entities::properties::prop::Prop, storage::timeindex::EventTime};
 use std::{collections::HashMap, sync::Arc};
 
 /// A remote edge reference
@@ -135,20 +132,24 @@ impl PyRemoteEdge {
     ///   t (int | str | datetime): The timestamp at which the updates should be applied.
     ///   properties (dict[str, PropValue], optional): A dictionary of properties to update.
     ///   layer (str, optional): The layer you want the updates to be applied.
+    ///   event_id (int, optional): Secondary index to disambiguate multiple
+    ///       updates at the same timestamp. If omitted, the server auto-increments it.
     ///
     /// Returns:
     ///   None:
-    #[pyo3(signature = (t, properties=None, layer=None))]
+    #[pyo3(signature = (t, properties=None, layer=None, event_id=None))]
     fn add_updates(
         &self,
         t: EventTime,
         properties: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
+        event_id: Option<usize>,
     ) -> Result<(), ClientError> {
         let edge = Arc::clone(&self.edge);
         let layer_str = layer.map(|s| s.to_string());
 
-        let task = move || async move { edge.add_updates(t, properties, layer_str).await };
+        let task =
+            move || async move { edge.add_updates(t, properties, layer_str, event_id).await };
         execute_async_task(task)?;
 
         Ok(())
@@ -159,18 +160,25 @@ impl PyRemoteEdge {
     /// Arguments:
     ///   t (int | str | datetime): The timestamp at which the deletion should be applied.
     ///   layer (str, optional): The layer you want the deletion applied to.
+    ///   event_id (int, optional): Secondary index to disambiguate multiple
+    ///       updates at the same timestamp. If omitted, the server auto-increments it.
     ///
     /// Returns:
     ///   None:
     ///
     /// Raises:
     ///   GraphError: If the operation fails.
-    #[pyo3(signature = (t, layer=None))]
-    fn delete(&self, t: EventTime, layer: Option<&str>) -> Result<(), ClientError> {
+    #[pyo3(signature = (t, layer=None, event_id=None))]
+    fn delete(
+        &self,
+        t: EventTime,
+        layer: Option<&str>,
+        event_id: Option<usize>,
+    ) -> Result<(), ClientError> {
         let edge = Arc::clone(&self.edge);
         let layer_str = layer.map(|s| s.to_string());
 
-        let task = move || async move { edge.delete(t, layer_str).await };
+        let task = move || async move { edge.delete(t, layer_str, event_id).await };
         execute_async_task(task)?;
 
         Ok(())

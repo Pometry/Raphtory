@@ -393,7 +393,7 @@ impl GraphqlTransport {
         let ctx = context! {
             path => args.path,
             name => args.id,
-            t => args.time,
+            t => args.time.render(),
             properties => args.properties.as_ref().map(|p| build_property_string(p.clone())).transpose()?,
         };
 
@@ -473,7 +473,7 @@ impl GraphqlTransport {
             path => args.path,
             src => args.src,
             dst => args.dst,
-            t => args.time,
+            t => args.time.render(),
             properties => args.properties.as_ref().map(|p| build_property_string(p.clone())).transpose()?,
             layer => args.layer,
         };
@@ -506,7 +506,7 @@ impl GraphqlTransport {
             path => args.path,
             src => args.src,
             dst => args.dst,
-            t => args.time,
+            t => args.time.render(),
             layer => args.layer,
         };
 

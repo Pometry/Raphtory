@@ -20,7 +20,7 @@ use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyResult};
 use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
 use raphtory_api::core::{
     entities::{properties::prop::Prop, GID},
-    storage::timeindex::{AsTime, EventTime},
+    storage::timeindex::EventTime,
 };
 use std::{collections::HashMap, sync::Arc};
 

@@ -327,11 +327,12 @@ impl RemoteClient {
         let mut data: HashMap<String, JsonValue> = serde_json::from_str(&text)?;
         match data.remove("data") {
             Some(JsonValue::Object(_)) => Ok(()),
+            // Route errors through the shared classifier so `ACCESS_DENIED` /
+            // `GRAPH_NOT_FOUND` map to `PermissionDenied` / `GraphNotFound` here
+            // too — keeping the existence-non-disclosure shape consistent with
+            // every other op instead of a bare `GraphQLErrors`.
             _ => match data.remove("errors") {
-                Some(JsonValue::Array(errors)) => Err(ClientError::GraphQLErrors(format!(
-                    "Error Uploading Graph. Got errors:\n\t{:#?}",
-                    errors
-                ))),
+                Some(errors) => Err(classify_graphql_errors(&errors, "uploadGraph")),
                 _ => Err(ClientError::InvalidResponse(format!(
                     "Error Uploading Graph. Unexpected response: {}",
                     text

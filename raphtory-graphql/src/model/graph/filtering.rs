@@ -1994,15 +1994,22 @@ fn build_base_prop_condition(
     })
 }
 
-/// Wrap a base `PropCondition` in aggregator/selector `Op`s (First/Sum/…).
-/// The `ops` are collected outermost-first (see the inline note below), so
-/// `ops = [Sum, First]` reconstructs `Sum(First(base))` — i.e. `.first().sum()`.
+/// Wrap a base `PropCondition` in aggregator/selector `Op`s (First/Sum/…),
+/// rebuilding the exact nesting the wire decoder peeled apart.
+///
+/// `peel_prop_wrappers_and_collect_ops` pushes the OUTERMOST wrapper first, so
+/// the tree `Sum(First(base))` decomposes to `ops = [Sum, First]` (the list is
+/// peel-order — the *reverse* of the order the ops are applied). We therefore
+/// fold in REVERSE (`[First, Sum]`) to restore the identical tree: build
+/// `First(base)`, then `Sum(First(base))`. Folding forward instead would give
+/// `First(Sum(base))` — a different, wrong tree.
+///
+/// Method-chain equivalence (for reference): the core applies ops left-to-right
+/// (`for op in &self.ops`), so `Sum(First(x))` is the chain `.first().sum()` —
+/// First applied first, Sum last — and `First(Sum(x))` is `.sum().first()`.
 fn apply_ops_to_condition(base: PropCondition, ops: &[Op]) -> PropCondition {
-    // `ops` are collected outermost-first when the condition is decomposed
-    // (`peel_prop_wrappers_and_collect_ops`), so a `.first().sum()` tree
-    // `Sum(First(base))` yields `[Sum, First]`. Reconstruct by folding in
-    // reverse — otherwise the nesting inverts and the chain runs backwards
-    // (`.first().sum()` would execute as `.sum().first()`).
+    // See the doc comment: `ops` is peel-order (outermost-first), so fold in
+    // reverse to rebuild the original nesting rather than inverting it.
     ops.iter().rev().fold(base, |acc, op| match op {
         Op::First => PropCondition::First(wrap(acc)),
         Op::Last => PropCondition::Last(wrap(acc)),
@@ -2213,8 +2220,9 @@ mod op_chain_tests {
 
     #[test]
     fn multi_op_prop_condition_round_trips() {
-        // `.first().sum()` — `sum` is the outermost (last-applied) reduction, so
-        // the tree is `Sum(First(leaf))`.
+        // Tree `Sum(First(leaf))`: First is innermost (applied first), Sum
+        // outermost (applied last) — i.e. the chain `.first().sum()`. Peeling
+        // outermost-first yields `[Sum, First]`, the reverse of apply-order.
         let tree = PropCondition::Sum(wrap(PropCondition::First(wrap(PropCondition::IsSome(
             true,
         )))));

@@ -161,7 +161,7 @@ impl PyRaphtoryClient {
     ///     overwrite (bool): overwrite existing graph. Defaults to False.
     ///
     /// Returns:
-    ///     dict[str, Any]: The data field from the graphQL response after executing the mutation.
+    ///     None:
     #[pyo3(signature = (path, file_path, overwrite = false))]
     fn upload_graph(&self, path: String, file_path: String, overwrite: bool) -> PyResult<()> {
         self.run_async(move |client| async move {

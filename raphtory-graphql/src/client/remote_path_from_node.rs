@@ -25,10 +25,10 @@ use std::sync::Arc;
 ///
 /// Distinct from `RemoteNodes` because the server-side type
 /// (`GqlPathFromNode`) exposes a **subset** of `GqlNodes`' fields:
-/// - **Missing**: `sorted`, `default_layer` — these methods are simply not
-///   available; the server has no field for them here.
-/// - **Present**: view chain (`window`, `at`, `layer`, ...), `type_filter`,
-///   and terminals (`ids`, `count`, `list`, `start`, `end`).
+/// - **Missing**: `sorted` — this method is simply not available; the server
+///   has no field for it here.
+/// - **Present**: view chain (`window`, `at`, `layer`, `default_layer`, ...),
+///   `type_filter`, and terminals (`ids`, `count`, `list`, `start`, `end`).
 ///
 /// Structurally identical to `RemoteNodes` — same `expr` + `ctx`
 /// fields, same view-op wiring — but the type distinction is what gives

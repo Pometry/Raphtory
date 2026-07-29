@@ -1055,7 +1055,7 @@ impl RemoteGraph {
         })
     }
 
-    /// Restrict to events at or after the given time. Lazy — no RPC.
+    /// Restrict to events strictly after the given time (exclusive). Lazy — no RPC.
     pub fn after(&self, time: TimeBound) -> RemoteGraph {
         self.with_expr(ReadExpr::After {
             input: Box::new(self.expr.clone()),

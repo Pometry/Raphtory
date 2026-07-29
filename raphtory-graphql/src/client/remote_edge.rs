@@ -112,7 +112,7 @@ impl RemoteEdge {
         })
     }
 
-    /// Restrict to events at or after the given time. Lazy — no RPC.
+    /// Restrict to events strictly after the given time (exclusive). Lazy — no RPC.
     pub fn after(&self, time: TimeBound) -> RemoteEdge {
         self.with_view_op(move |input| ReadExpr::After {
             input: Box::new(input),
@@ -339,9 +339,8 @@ impl RemoteEdge {
 
     /// Fan out this edge into one entry per layer — returns a `RemoteEdges`
     /// collection where each member is a single-layer edge instance.
-    /// `.collect()` on the result is unsupported (no server field
-    /// re-addresses a layer-pinned member); columnar accessors work as
-    /// usual. Lazy — no RPC.
+    /// `.collect()` materializes each layer-pinned member (via the server's
+    /// `eventLayer` field), and columnar accessors work as usual. Lazy — no RPC.
     pub fn explode_layers(&self) -> RemoteEdges {
         RemoteEdges::with_expr(
             self.path.clone(),
@@ -498,18 +497,23 @@ impl RemoteEdge {
         expect_optional_i64(self.transport.execute(&op).await?, "windowSize")
     }
 
-    /// Add temporal updates to the edge at the specified time.
+    /// Add temporal updates to the edge at the specified time. `event_id` locks
+    /// the secondary index; `None` lets the server auto-increment.
     pub async fn add_updates<T: IntoTime>(
         &self,
         t: T,
         properties: Option<HashMap<String, Prop>>,
         layer: Option<String>,
+        event_id: Option<usize>,
     ) -> Result<(), ClientError> {
         let op = Op::Write(WriteOp::AddEdgeUpdates(AddEdgeUpdatesOp {
             path: self.path.clone(),
             src: self.src.clone(),
             dst: self.dst.clone(),
-            time: t.into_time().t(),
+            time: TimeBound {
+                timestamp: t.into_time().t(),
+                event_id,
+            },
             properties,
             layer,
         }));
@@ -517,17 +521,22 @@ impl RemoteEdge {
         Ok(())
     }
 
-    /// Mark the edge as deleted at the specified time.
+    /// Mark the edge as deleted at the specified time. `event_id` locks the
+    /// secondary index; `None` lets the server auto-increment.
     pub async fn delete<T: IntoTime>(
         &self,
         t: T,
         layer: Option<String>,
+        event_id: Option<usize>,
     ) -> Result<(), ClientError> {
         let op = Op::Write(WriteOp::DeleteEdgeAtTime(DeleteEdgeAtTimeOp {
             path: self.path.clone(),
             src: self.src.clone(),
             dst: self.dst.clone(),
-            time: t.into_time().t(),
+            time: TimeBound {
+                timestamp: t.into_time().t(),
+                event_id,
+            },
             layer,
         }));
         self.transport.execute(&op).await?;

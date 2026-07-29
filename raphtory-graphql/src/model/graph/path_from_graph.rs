@@ -73,6 +73,12 @@ impl GqlPathFromGraph {
         blocking_compute(move || self_clone.update(self_clone.nn.valid_layers(names))).await
     }
 
+    /// Return a view of PathFromGraph restricted to the default layer.
+    async fn default_layer(&self) -> Self {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.update(self_clone.nn.default_layer())).await
+    }
+
     /// Return a view of PathFromGraph containing all layers except the specified excluded layers, errors if any of the layers do not exist.
 
     async fn exclude_layers(

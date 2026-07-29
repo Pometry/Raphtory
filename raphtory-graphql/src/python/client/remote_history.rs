@@ -557,9 +557,14 @@ impl PyRemoteHistoryDateTimes {
     }
 
     /// `item in ...` — membership test against the datetimes. Fires one RPC
-    /// (`collect()`).
-    fn __contains__(&self, item: DateTime<Utc>) -> Result<bool, ClientError> {
-        Ok(self.collect()?.contains(&item))
+    /// (`collect()`). Anything that isn't a UTC-convertible datetime is simply
+    /// not a member (returns `False`), matching Python's `in` — rather than
+    /// raising on a naive datetime or a string.
+    fn __contains__(&self, item: &Bound<'_, PyAny>) -> Result<bool, ClientError> {
+        match item.extract::<DateTime<Utc>>() {
+            Ok(dt) => Ok(self.collect()?.contains(&dt)),
+            Err(_) => Ok(false),
+        }
     }
 
     /// `reversed(...)` — iterate datetimes in reverse. Fires one RPC

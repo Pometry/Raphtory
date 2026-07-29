@@ -28,13 +28,6 @@ pub enum ClientError {
     #[error("Invalid input: {0}")]
     InvalidInput(String),
 
-    /// The operation works locally but cannot yet be expressed over the
-    /// remote transport — there is no server field that re-addresses the
-    /// entity the way a materialized handle would need. A transport
-    /// limitation, not a semantic one; the message names the workaround.
-    #[error("Not yet supported over the remote transport: {0}")]
-    Unsupported(String),
-
     /// The read expression referenced a node or edge that isn't visible under
     /// the current view (either absent from the graph entirely, or filtered
     /// out by the accumulated view chain). Fired when a terminal RPC returns
