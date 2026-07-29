@@ -55,12 +55,12 @@ jobs:
           RUSTFLAGS: -Awarnings
           TEMPDIR: ${{ runner.temp }}
         run: |
-          cargo nextest run --workspace --no-default-features --cargo-profile build-fast
+          cargo nextest run --workspace --all-features --cargo-profile build-fast
       - name: Check all features
         env:
           RUSTFLAGS: -Awarnings
         run: |
-          cargo hack check --workspace --all-targets --each-feature  --skip extension-module,default,vectors,datafusion
+          cargo hack check --workspace --all-targets --each-feature
   doc-test:
     if: ${{ !inputs.skip_tests }}
     name: "Doc tests"
