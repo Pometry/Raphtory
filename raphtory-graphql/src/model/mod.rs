@@ -24,12 +24,6 @@ use dynamic_graphql::{
     ResolvedObjectFields, Result, Upload,
 };
 use itertools::Itertools;
-#[cfg(feature = "vectors")]
-use raphtory::vectors::{
-    cache::CachedEmbeddingModel,
-    storage::OpenAIEmbeddings,
-    template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
-};
 use raphtory::{
     arrow_loader::df_loaders::edges::ColumnNames,
     db::{
@@ -47,6 +41,16 @@ use raphtory::{
 use raphtory_api::core::entities::properties::prop::PropType;
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 use tracing::warn;
+
+#[cfg(feature = "vectors")]
+use raphtory::{
+    errors::GraphResult,
+    vectors::{
+        cache::CachedEmbeddingModel,
+        storage::OpenAIEmbeddings,
+        template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
+    },
+};
 
 pub mod graph;
 pub mod plugins;

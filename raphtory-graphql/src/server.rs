@@ -27,8 +27,6 @@ use poem::{
     EndpointExt, Route, Server,
 };
 use raphtory::db::api::storage::storage::Config;
-#[cfg(feature = "vectors")]
-use raphtory::vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate};
 use serde_json::json;
 use std::{
     fs::create_dir_all,
@@ -59,6 +57,12 @@ use tracing_subscriber::{
     Registry,
 };
 use url::ParseError;
+
+#[cfg(feature = "vectors")]
+use {
+    crate::{paths::ExistingGraphFolder, GQLError},
+    raphtory::vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate},
+};
 
 pub const DEFAULT_PORT: u16 = 1736;
 
