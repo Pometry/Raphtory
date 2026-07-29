@@ -12,32 +12,32 @@ pub const DEFAULT_MAX_PAGE_LEN_NODES: u32 = 600_000; // 2^17
 pub const DEFAULT_MAX_PAGE_LEN_EDGES: u32 = 6_000_000; // 2^20
 pub const CONFIG_FILE_NAME: &str = "config.json";
 
-pub trait ConfigArgsOps: Sized {
+pub trait ConfigArgsOps: Serialize + DeserializeOwned + Sized + Clone {
     type Config: ConfigOps;
 
-    fn max_node_page_len(&self) -> Option<u32>;
-
-    fn max_edge_page_len(&self) -> Option<u32>;
-
-    fn node_types(&self) -> &[String];
-
-    fn with_max_node_page_len(self, page_len: u32) -> Self;
-
-    fn with_max_edge_page_len(self, page_len: u32) -> Self;
-
-    fn with_node_types(&self, node_types: impl IntoIterator<Item = impl AsRef<str>>) -> Self;
-
-    fn into_config(self) -> Self::Config;
-
-    /// Load the on-disk config from `dir` and merge these args into it.
-    fn load_from_path(self, dir: &Path) -> Result<Self::Config, StorageError>
-    where
-        Self::Config: ConfigOps<ConfigArgs = Self>,
-    {
-        let mut config = Self::Config::load_from_dir(dir)?;
-        config.update(self);
+    fn load_from_dir(dir: &Path) -> Result<Self, StorageError> {
+        let config_file = dir.join(CONFIG_FILE_NAME);
+        let config_file = std::fs::File::open(config_file)?;
+        let config = serde_json::from_reader(config_file)?;
         Ok(config)
     }
+
+    fn save_to_dir(&self, dir: &Path) -> Result<(), StorageError> {
+        let config_path = dir.join(CONFIG_FILE_NAME);
+        let mut tmp_file = NamedTempFile::new_in(dir)?;
+        let config = self.clone().into_config();
+        serde_json::to_writer_pretty(&mut tmp_file, &config)?;
+        tmp_file.as_file().sync_all()?;
+        tmp_file
+            .persist(&config_path)
+            .map_err(std::io::Error::from)?;
+        Ok(())
+    }
+
+    fn update(&mut self, new_args: Self);
+
+
+    fn into_config(self) -> Self::Config;
 }
 
 pub trait ConfigOps: Serialize + DeserializeOwned + Args + Sized {
@@ -54,26 +54,6 @@ pub trait ConfigOps: Serialize + DeserializeOwned + Args + Sized {
     fn with_max_edge_page_len(self, page_len: u32) -> Self;
 
     fn with_node_types(&self, node_types: impl IntoIterator<Item = impl AsRef<str>>) -> Self;
-
-    fn load_from_dir(dir: &Path) -> Result<Self, StorageError> {
-        let config_file = dir.join(CONFIG_FILE_NAME);
-        let config_file = std::fs::File::open(config_file)?;
-        let config = serde_json::from_reader(config_file)?;
-        Ok(config)
-    }
-
-    fn save_to_dir(&self, dir: &Path) -> Result<(), StorageError> {
-        let config_path = dir.join(CONFIG_FILE_NAME);
-        let mut tmp_file = NamedTempFile::new_in(dir)?;
-        serde_json::to_writer_pretty(&mut tmp_file, self)?;
-        tmp_file.as_file().sync_all()?;
-        tmp_file
-            .persist(&config_path)
-            .map_err(std::io::Error::from)?;
-        Ok(())
-    }
-
-    fn update(&mut self, new_args: Self::ConfigArgs);
 
     fn into_args(self) -> Self::ConfigArgs;
 }
@@ -94,72 +74,31 @@ pub struct BaseConfigArgs {
     max_edge_page_len: Option<u32>,
 }
 
-impl ConfigArgsOps for BaseConfigArgs {
-    type Config = BaseConfig;
-
-    fn max_node_page_len(&self) -> Option<u32> {
+impl BaseConfigArgs {
+    pub fn max_node_page_len(&self) -> Option<u32> {
         self.max_node_page_len
     }
 
-    fn max_edge_page_len(&self) -> Option<u32> {
+    pub fn max_edge_page_len(&self) -> Option<u32> {
         self.max_edge_page_len
     }
 
-    fn node_types(&self) -> &[String] {
+    pub fn node_types(&self) -> &[String] {
         &[]
     }
 
-    fn with_max_node_page_len(mut self, page_len: u32) -> Self {
+    pub fn with_max_node_page_len(mut self, page_len: u32) -> Self {
         self.max_node_page_len = Some(page_len);
         self
     }
 
-    fn with_max_edge_page_len(mut self, page_len: u32) -> Self {
+    pub fn with_max_edge_page_len(mut self, page_len: u32) -> Self {
         self.max_edge_page_len = Some(page_len);
         self
     }
 
-    fn with_node_types(&self, _node_types: impl IntoIterator<Item = impl AsRef<str>>) -> Self {
+    pub fn with_node_types(&self, _node_types: impl IntoIterator<Item = impl AsRef<str>>) -> Self {
         self.clone()
-    }
-
-    fn into_config(self) -> Self::Config {
-        let mut config = BaseConfig::default();
-        if let Some(page_len) = self.max_node_page_len {
-            config = config.with_max_node_page_len(page_len);
-        }
-        if let Some(page_len) = self.max_edge_page_len {
-            config = config.with_max_edge_page_len(page_len);
-        }
-        config
-    }
-}
-
-
-
-impl ConfigArgsOps for () {
-    type Config = BaseConfig;
-
-    fn max_node_page_len(&self) -> Option<u32> {
-        None
-    }
-
-    fn max_edge_page_len(&self) -> Option<u32> {
-        None
-    }
-
-    fn node_types(&self) -> &[String] {
-        &[]
-    }
-
-    fn with_max_node_page_len(self, _page_len: u32) -> Self {}
-
-    fn with_max_edge_page_len(self, _page_len: u32) -> Self {}
-
-    fn with_node_types(&self, _node_types: impl IntoIterator<Item = impl AsRef<str>>) -> Self {}
-
-    fn into_config(self) -> Self::Config {
-        BaseConfig::default()
     }
 }
 
@@ -251,9 +190,7 @@ impl ConfigOps for BaseConfig {
         *self
     }
 
-    fn update(&mut self, _new_args: Self::ConfigArgs) {
-        // cannot update page lengths for an existing graph
-    }
+    
 
     fn into_args(self) -> Self::ConfigArgs {}
 }
