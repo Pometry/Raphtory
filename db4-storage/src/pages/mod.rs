@@ -1,16 +1,7 @@
 use crate::{
-    EID, LocalPOS, VID,
-    api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
-    error::StorageError,
-    pages::{edge_store::ReadLockedEdgeStorage, node_store::ReadLockedNodeStorage},
-    persist::{
-        config::ConfigOps,
-        control_file::{ControlFileOps, DBState},
-        strategy::PersistenceStrategy,
-    },
-    segments::{edge::segment::MemEdgeSegment, node::segment::MemNodeSegment},
-    state::StateIndex,
-    wal::{GraphWalOps, WalOps},
+    EID, LocalPOS, VID, api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps}, error::StorageError, pages::{edge_store::ReadLockedEdgeStorage, node_store::ReadLockedNodeStorage}, persist::{
+        config::{ConfigArgsOps, ConfigOps}, control_file::{ControlFileOps, DBState}, strategy::PersistenceStrategy,
+    }, segments::{edge::segment::MemEdgeSegment, node::segment::MemNodeSegment}, state::StateIndex, wal::{GraphWalOps, WalOps},
 };
 use drop_logging::drop_error;
 use edge_page::writer::EdgeWriter;
@@ -73,7 +64,8 @@ impl<
         let config = self.ext.config().with_node_types(node_types);
 
         if let Some(graph_dir) = self.graph_dir.as_ref() {
-            config.save_to_dir(graph_dir)?;
+            let config_args: EXT::ConfigArgs = config.into(); 
+            config_args.save_to_dir(graph_dir)?;
         }
 
         self.nodes.flush()?;

@@ -377,7 +377,7 @@ fn get_parquet_df_loader_time(
     drop(sf10_graph);
 
     let replay_graph =
-        Graph::new_at_path_with_config(load_graph_path, sf10_extension_config.into_args()).unwrap();
+        Graph::new_at_path_with_config(load_graph_path, sf10_extension_config.into()).unwrap();
     println!("Starting SF10 parquet loader replay at {}", Local::now());
     let parquet_load_start = Instant::now();
 

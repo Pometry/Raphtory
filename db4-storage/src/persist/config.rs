@@ -95,6 +95,28 @@ impl BaseConfigArgs {
     }
 }
 
+impl From<BaseConfigArgs> for BaseConfig {
+    fn from(args: BaseConfigArgs) -> Self {
+        let mut config = BaseConfig::default();
+        if let Some(v) = args.max_node_page_len {
+            config = config.with_max_node_page_len(v);
+        }
+        if let Some(v) = args.max_edge_page_len {
+            config = config.with_max_edge_page_len(v);
+        }
+        config
+    }
+}
+
+impl From<BaseConfig> for BaseConfigArgs {
+    fn from(config: BaseConfig) -> Self {
+        Self {
+            max_node_page_len: Some(config.max_node_page_len),
+            max_edge_page_len: Some(config.max_edge_page_len),
+        }
+    }
+}
+
 pub trait ClapDefault: Args {
     fn clap_default() -> Self;
 }
