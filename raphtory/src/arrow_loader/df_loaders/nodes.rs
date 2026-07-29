@@ -25,6 +25,7 @@ use rayon::prelude::*;
 use std::{
     collections::HashMap,
     sync::atomic::{AtomicBool, Ordering},
+    fmt::Debug,
 };
 use storage::{
     api::nodes::NodeSegmentOps,
@@ -50,7 +51,7 @@ use kdam::BarExt;
 /// If layer_id_col is provided, then layer_col must also be provided
 #[allow(clippy::too_many_arguments)]
 pub fn load_nodes_from_df<
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + std::fmt::Debug,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + Debug,
 >(
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>> + Send>,
     time: &str,
@@ -260,7 +261,7 @@ pub fn load_nodes_from_df<
 #[allow(clippy::too_many_arguments)]
 pub fn load_node_props_from_df<
     'a,
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + std::fmt::Debug,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + Debug,
 >(
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
     node_id: &str,

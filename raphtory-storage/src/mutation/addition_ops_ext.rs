@@ -773,12 +773,12 @@ impl StagingOps for TemporalGraph {
         let graph_folder = GraphFolder::from_graph_path(graph_path)?;
 
         // Create a new data folder to hold the staged graph.
-        let writeable_folder = graph_folder.init_swap()?;
+        let writeable_folder = graph_folder.clone().init_swap()?;
         let graph_path = writeable_folder.graph_path()?;
 
         // Copy graph to the new data folder.
         write_locked_graph.copy_to(graph_path)?;
 
-        Ok(StagedGraph::new(write_locked_graph))
+        Ok(StagedGraph::new(write_locked_graph, graph_folder, writeable_folder))
     }
 }
