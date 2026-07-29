@@ -171,7 +171,10 @@ impl GraphWithVectors {
             .await?
         } else {
             blocking_compute(move || {
-                MaterializedGraph::decode_with_config(folder_clone.graph_folder(), config.into_args())
+                MaterializedGraph::decode_with_config(
+                    folder_clone.graph_folder(),
+                    config.into_args(),
+                )
             })
             .await?
         };

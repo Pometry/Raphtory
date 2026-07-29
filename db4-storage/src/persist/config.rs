@@ -135,8 +135,6 @@ impl ConfigArgsOps for BaseConfigArgs {
     }
 }
 
-
-
 impl ConfigArgsOps for () {
     type Config = BaseConfig;
 

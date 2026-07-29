@@ -71,8 +71,7 @@ mod tests {
         let bytes = url_encode_graph(graph.clone()).unwrap();
         let tempdir = tempfile::tempdir().unwrap();
         let storage_path = tempdir.path().to_path_buf();
-        let decoded_graph =
-            url_decode_graph_at(bytes, &storage_path, Config::default()).unwrap();
+        let decoded_graph = url_decode_graph_at(bytes, &storage_path, Config::default()).unwrap();
 
         let g2 = decoded_graph.into_events().unwrap();
 
