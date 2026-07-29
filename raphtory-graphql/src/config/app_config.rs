@@ -5,6 +5,7 @@ use crate::{
     config::{
         cache_config::{CacheConfig, CacheConfigFieldName},
         concurrency_config::{ConcurrencyConfig, ConcurrencyConfigFieldName},
+        ldap_config::LdapConfig,
         log_config::{LoggingConfig, LoggingConfigFieldName},
         otlp_config::{TracingConfig, TracingConfigFieldName, TracingLevel, TracingProtocol},
         parquet_config::{ParquetConfig, ParquetConfigFieldName},
@@ -33,6 +34,7 @@ pub struct AppConfig {
     pub schema: SchemaConfig,
     pub parquet: ParquetConfig,
     pub public_dir: Option<PathBuf>,
+    pub ldap: LdapConfig,
     #[cfg(feature = "search")]
     pub index: IndexConfig,
 }
@@ -302,6 +304,10 @@ impl AppConfigBuilder {
                     self.with_public_dir(
                         Deserialize::deserialize(value).map_err(|e| invalid_value([path], e))?,
                     );
+                }
+                AppConfigFieldName::Ldap => {
+                    self.config.ldap =
+                        Deserialize::deserialize(value).map_err(|e| invalid_value([path], e))?;
                 }
                 #[cfg(feature = "search")]
                 AppConfigFieldName::Index => {

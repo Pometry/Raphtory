@@ -178,6 +178,11 @@ impl GraphServer {
         &self.work_dir
     }
 
+    /// Returns the resolved application config.
+    pub fn config(&self) -> &AppConfig {
+        &self.config
+    }
+
     pub fn turn_off_index(&mut self) {
         self.data.create_index = false; // FIXME: why does this exist yet?
     }

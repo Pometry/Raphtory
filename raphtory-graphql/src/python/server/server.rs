@@ -46,6 +46,7 @@ use std::{path::PathBuf, thread, time::Duration};
 ///     max_directives_per_field (int, optional): Maximum number of directives on any single field.
 ///     disable_introspection (bool, optional): If True, schema introspection is disabled entirely.
 ///     permissions_store_path (str | PathLike, optional): Path to the permissions store (used by the optional auth extension).
+///     ldap (dict, optional): LDAP/Active Directory role synchronisation settings, under the `ldap` config key. Keys: enabled (bool), url, bind_dn, bind_password_env, group_base_dn, group_filter, mapping_path, sync_interval_secs. Inert unless enabled is true.
 #[pyclass(name = "GraphServer", module = "raphtory.graphql")]
 pub struct PyGraphServer(GraphServer);
 
