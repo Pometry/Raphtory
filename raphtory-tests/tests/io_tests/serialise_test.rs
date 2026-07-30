@@ -39,7 +39,6 @@ mod serialise_test {
         assert_graph_equal(&g1, &g2);
     }
 
-    #[cfg(feature = "search")]
     #[test]
     fn test_node_name() {
         use raphtory::db::api::view::MaterializedGraph;

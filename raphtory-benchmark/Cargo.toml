@@ -65,24 +65,13 @@ name = "decode"
 harness = false
 
 [[bench]]
-name = "search_bench"
-harness = false
-required-features = ["search"]
-
-[[bench]]
 name = "vectors"
 harness = false
 required-features = ["vectors"]
-
-[[bench]]
-name = "index_bench"
-harness = false
-required-features = ["search"]
 
 [[bench]]
 name = "temporal_props"
 harness = false
 
 [features]
-search = ["raphtory/search"]
 vectors = ["raphtory/vectors"]

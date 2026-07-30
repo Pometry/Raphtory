@@ -39,7 +39,7 @@ pub mod test_nodes_filters_layer_graph {
 
     use crate::filter_tests::{init_graph, Edges, Nodes};
     use raphtory_tests::assertions::{
-        assert_filter_nodes_results, assert_search_nodes_results, TestGraphVariants, TestVariants,
+        assert_filter_nodes_results, TestGraphVariants, TestVariants,
     };
 
     // Layers don't have any effect on the number of nodes in a graph.
@@ -56,13 +56,6 @@ pub mod test_nodes_filters_layer_graph {
             &expected_results,
             TestVariants::All,
         );
-        assert_search_nodes_results(
-            |graph| init_graph(graph, Nodes::Typed, Edges::Layered),
-            LayeredGraphTransformer(layers),
-            filter,
-            &expected_results,
-            TestVariants::All,
-        );
 
         let layers: Vec<String> = vec!["layer1".into()];
         let filter = NodeFilter.property("p1").ge(2u64);
@@ -71,13 +64,6 @@ pub mod test_nodes_filters_layer_graph {
             |graph| init_graph(graph, Nodes::Typed, Edges::Layered),
             LayeredGraphTransformer(layers.clone()),
             filter.clone(),
-            &expected_results,
-            TestVariants::All,
-        );
-        assert_search_nodes_results(
-            |graph| init_graph(graph, Nodes::Typed, Edges::Layered),
-            LayeredGraphTransformer(layers),
-            filter,
             &expected_results,
             TestVariants::All,
         );
@@ -92,13 +78,6 @@ pub mod test_nodes_filters_layer_graph {
             &expected_results,
             TestVariants::All,
         );
-        assert_search_nodes_results(
-            |graph| init_graph(graph, Nodes::Typed, Edges::Layered),
-            LayeredGraphTransformer(layers),
-            filter,
-            &expected_results,
-            TestVariants::All,
-        );
 
         let layers: Vec<String> = vec!["layer1".into()];
         let filter = NodeFilter.property("p1").lt(2u64);
@@ -107,13 +86,6 @@ pub mod test_nodes_filters_layer_graph {
             |graph| init_graph(graph, Nodes::Typed, Edges::Layered),
             LayeredGraphTransformer(layers.clone()),
             filter.clone(),
-            &expected_results,
-            TestVariants::All,
-        );
-        assert_search_nodes_results(
-            |graph| init_graph(graph, Nodes::Typed, Edges::Layered),
-            LayeredGraphTransformer(layers),
-            filter,
             &expected_results,
             TestVariants::All,
         );
@@ -128,18 +100,10 @@ pub mod test_nodes_filters_layer_graph {
             &expected_results,
             TestVariants::All,
         );
-        assert_search_nodes_results(
-            |graph| init_graph(graph, Nodes::Typed, Edges::Layered),
-            LayeredGraphTransformer(layers),
-            filter,
-            &expected_results,
-            TestVariants::All,
-        );
     }
 
     #[test]
     fn test_nodes_filters_w() {
-        // TODO: Enable event_disk_graph for filter_nodes once bug fixed: https://github.com/Pometry/Raphtory/issues/2098
         let layers: Vec<String> = vec!["layer1".into(), "layer2".into()];
         let filter = NodeFilter.property("p1").eq(1u64);
         let expected_results = vec!["N1", "N3", "N6"];
@@ -147,13 +111,6 @@ pub mod test_nodes_filters_layer_graph {
             |graph| init_graph(graph, Nodes::Typed, Edges::Layered),
             LayeredGraphWindowTransformer(layers.clone(), 6..9),
             filter.clone(),
-            &expected_results,
-            vec![TestGraphVariants::Graph],
-        );
-        assert_search_nodes_results(
-            |graph| init_graph(graph, Nodes::Typed, Edges::Layered),
-            LayeredGraphWindowTransformer(layers.clone(), 6..9),
-            filter,
             &expected_results,
             TestVariants::EventOnly,
         );
@@ -166,13 +123,6 @@ pub mod test_nodes_filters_layer_graph {
             LayeredGraphWindowTransformer(layers.clone(), 6..9),
             filter.clone(),
             &expected_results,
-            vec![TestGraphVariants::Graph],
-        );
-        assert_search_nodes_results(
-            |graph| init_graph(graph, Nodes::Typed, Edges::Layered),
-            LayeredGraphWindowTransformer(layers.clone(), 6..9),
-            filter,
-            &expected_results,
             TestVariants::EventOnly,
         );
 
@@ -183,13 +133,6 @@ pub mod test_nodes_filters_layer_graph {
             |graph| init_graph(graph, Nodes::Typed, Edges::Layered),
             LayeredGraphWindowTransformer(layers.clone(), 6..9),
             filter.clone(),
-            &expected_results,
-            vec![TestGraphVariants::Graph],
-        );
-        assert_search_nodes_results(
-            |graph| init_graph(graph, Nodes::Typed, Edges::Layered),
-            LayeredGraphWindowTransformer(layers.clone(), 6..9),
-            filter,
             &expected_results,
             TestVariants::EventOnly,
         );
@@ -207,13 +150,6 @@ pub mod test_nodes_filters_layer_graph {
             &expected_results,
             TestVariants::PersistentOnly,
         );
-        assert_search_nodes_results(
-            |graph| init_graph(graph, Nodes::Typed, Edges::Layered),
-            LayeredGraphWindowTransformer(layers.clone(), 6..9),
-            filter,
-            &expected_results,
-            TestVariants::PersistentOnly,
-        );
 
         let layers: Vec<String> = vec!["layer1".into()];
         let filter = NodeFilter.property("p1").lt(2u64);
@@ -222,13 +158,6 @@ pub mod test_nodes_filters_layer_graph {
             |graph| init_graph(graph, Nodes::Typed, Edges::Layered),
             LayeredGraphWindowTransformer(layers.clone(), 6..9),
             filter.clone(),
-            &expected_results,
-            TestVariants::PersistentOnly,
-        );
-        assert_search_nodes_results(
-            |graph| init_graph(graph, Nodes::Typed, Edges::Layered),
-            LayeredGraphWindowTransformer(layers.clone(), 6..9),
-            filter,
             &expected_results,
             TestVariants::PersistentOnly,
         );
@@ -243,37 +172,27 @@ pub mod test_nodes_filters_layer_graph {
             &expected_results,
             TestVariants::PersistentOnly,
         );
-        assert_search_nodes_results(
-            |graph| init_graph(graph, Nodes::Typed, Edges::Layered),
-            LayeredGraphWindowTransformer(layers.clone(), 6..9),
-            filter,
-            &expected_results,
-            TestVariants::PersistentOnly,
-        );
     }
 }
 
 mod test_edges_filters_layer_graph {
+    use crate::filter_tests::{
+        init_graph,
+        test_layers::{LayeredGraphTransformer, LayeredGraphWindowTransformer},
+        Edges, Nodes,
+    };
     use raphtory::{
         db::graph::views::filter::model::{
             property_filter::ops::PropertyFilterOps, PropertyFilterFactory,
         },
         prelude::EdgeFilter,
     };
-
     use raphtory_tests::assertions::{
-        assert_filter_edges_results, assert_search_edges_results, TestGraphVariants, TestVariants,
+        assert_filter_edges_results, TestGraphVariants, TestVariants,
     };
-
-    use crate::filter_tests::test_layers::{
-        LayeredGraphTransformer, LayeredGraphWindowTransformer,
-    };
-
-    use crate::filter_tests::{init_graph, Edges, Nodes};
 
     #[test]
     fn test_edges_filters() {
-        // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph.
         let layers: Vec<String> = vec!["layer1".into(), "layer2".into()];
         let filter = EdgeFilter.property("p1").eq(1u64);
         let expected_results = vec!["N1->N2", "N3->N4", "N4->N5", "N6->N7", "N7->N8"];
@@ -281,13 +200,6 @@ mod test_edges_filters_layer_graph {
             |graph| init_graph(graph, Nodes::None, Edges::Layered),
             LayeredGraphTransformer(layers.clone()),
             filter.clone(),
-            &expected_results,
-            TestVariants::EventOnly,
-        );
-        assert_search_edges_results(
-            |graph| init_graph(graph, Nodes::None, Edges::Layered),
-            LayeredGraphTransformer(layers),
-            filter,
             &expected_results,
             TestVariants::All,
         );
@@ -302,13 +214,6 @@ mod test_edges_filters_layer_graph {
             LayeredGraphTransformer(layers.clone()),
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
-        );
-        assert_search_edges_results(
-            |graph| init_graph(graph, Nodes::None, Edges::Layered),
-            LayeredGraphTransformer(layers),
-            filter,
-            &expected_results,
             TestVariants::All,
         );
 
@@ -319,13 +224,6 @@ mod test_edges_filters_layer_graph {
             |graph| init_graph(graph, Nodes::None, Edges::Layered),
             LayeredGraphTransformer(layers.clone()),
             filter.clone(),
-            &expected_results,
-            TestVariants::EventOnly,
-        );
-        assert_search_edges_results(
-            |graph| init_graph(graph, Nodes::None, Edges::Layered),
-            LayeredGraphTransformer(layers),
-            filter,
             &expected_results,
             TestVariants::All,
         );
@@ -340,13 +238,6 @@ mod test_edges_filters_layer_graph {
             LayeredGraphTransformer(layers.clone()),
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
-        );
-        assert_search_edges_results(
-            |graph| init_graph(graph, Nodes::None, Edges::Layered),
-            LayeredGraphTransformer(layers),
-            filter,
-            &expected_results,
             TestVariants::All,
         );
 
@@ -357,13 +248,6 @@ mod test_edges_filters_layer_graph {
             |graph| init_graph(graph, Nodes::None, Edges::Layered),
             LayeredGraphTransformer(layers.clone()),
             filter.clone(),
-            &expected_results,
-            TestVariants::EventOnly,
-        );
-        assert_search_edges_results(
-            |graph| init_graph(graph, Nodes::None, Edges::Layered),
-            LayeredGraphTransformer(layers),
-            filter,
             &expected_results,
             TestVariants::All,
         );
@@ -385,13 +269,6 @@ mod test_edges_filters_layer_graph {
             &expected_results,
             TestVariants::EventOnly,
         );
-        assert_search_edges_results(
-            |graph| init_graph(graph, Nodes::None, Edges::Layered),
-            LayeredGraphWindowTransformer(layers, 6..9),
-            filter,
-            &expected_results,
-            TestVariants::EventOnly,
-        );
 
         // Edge Property Semantics:
         // When filtering by specific layer, filter criteria (p1==1) and latest semantics is applicable
@@ -406,13 +283,6 @@ mod test_edges_filters_layer_graph {
             &expected_results,
             TestVariants::EventOnly,
         );
-        assert_search_edges_results(
-            |graph| init_graph(graph, Nodes::None, Edges::Layered),
-            LayeredGraphWindowTransformer(layers, 6..9),
-            filter,
-            &expected_results,
-            TestVariants::EventOnly,
-        );
 
         let layers: Vec<String> = vec!["layer2".into()];
         let filter = EdgeFilter.property("p1").gt(1u64);
@@ -424,18 +294,10 @@ mod test_edges_filters_layer_graph {
             &expected_results,
             TestVariants::EventOnly,
         );
-        assert_search_edges_results(
-            |graph| init_graph(graph, Nodes::None, Edges::Layered),
-            LayeredGraphWindowTransformer(layers, 6..9),
-            filter,
-            &expected_results,
-            TestVariants::EventOnly,
-        );
     }
 
     #[test]
     fn test_edges_filters_pg_w() {
-        // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph.
         let layers: Vec<String> = vec!["layer1".into(), "layer2".into()];
         let filter = EdgeFilter.property("p1").eq(1u64);
 
@@ -455,14 +317,7 @@ mod test_edges_filters_layer_graph {
             LayeredGraphWindowTransformer(layers.clone(), 6..9),
             filter.clone(),
             &expected_results,
-            vec![TestGraphVariants::PersistentGraph],
-        );
-        assert_search_edges_results(
-            |graph| init_graph(graph, Nodes::None, Edges::Layered),
-            LayeredGraphWindowTransformer(layers, 6..9),
-            filter,
-            &expected_results,
-            vec![TestGraphVariants::PersistentGraph],
+            TestVariants::PersistentOnly,
         );
 
         let layers: Vec<String> = vec!["layer1".into()];
@@ -473,14 +328,7 @@ mod test_edges_filters_layer_graph {
             LayeredGraphWindowTransformer(layers.clone(), 6..9),
             filter.clone(),
             &expected_results,
-            vec![TestGraphVariants::PersistentGraph],
-        );
-        assert_search_edges_results(
-            |graph| init_graph(graph, Nodes::None, Edges::Layered),
-            LayeredGraphWindowTransformer(layers, 6..9),
-            filter,
-            &expected_results,
-            vec![TestGraphVariants::PersistentGraph],
+            TestVariants::PersistentOnly,
         );
 
         let layers: Vec<String> = vec!["layer2".into()];
@@ -491,14 +339,7 @@ mod test_edges_filters_layer_graph {
             LayeredGraphWindowTransformer(layers.clone(), 6..9),
             filter.clone(),
             &expected_results,
-            vec![TestGraphVariants::PersistentGraph],
-        );
-        assert_search_edges_results(
-            |graph| init_graph(graph, Nodes::None, Edges::Layered),
-            LayeredGraphWindowTransformer(layers, 6..9),
-            filter,
-            &expected_results,
-            vec![TestGraphVariants::PersistentGraph],
+            TestVariants::PersistentOnly,
         );
     }
 }

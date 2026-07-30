@@ -182,10 +182,6 @@ impl GraphServer {
         &self.work_dir
     }
 
-    pub fn turn_off_index(&mut self) {
-        self.data.create_index = false; // FIXME: why does this exist yet?
-    }
-
     /// Set the authorization policy used for graph access checks.
     pub fn with_auth_policy(mut self, policy: std::sync::Arc<dyn AuthorizationPolicy>) -> Self {
         self.data.set_auth_policy(policy);
@@ -512,7 +508,10 @@ mod server_tests {
     use tracing::info;
 
     #[cfg(feature = "vectors")]
-    use raphtory::{vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate}, prelude::*};
+    use raphtory::{
+        prelude::*,
+        vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate},
+    };
 
     #[tokio::test]
     async fn test_public_dir_serves_index_for_subpages() {

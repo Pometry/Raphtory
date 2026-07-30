@@ -9,7 +9,6 @@ mod edges;
 pub mod filtering;
 pub(crate) mod graph;
 pub(crate) mod history;
-pub(crate) mod index;
 pub mod meta_graph;
 pub(crate) mod mutable_graph;
 pub mod namespace;

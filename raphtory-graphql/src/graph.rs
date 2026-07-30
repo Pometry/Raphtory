@@ -2,10 +2,6 @@ use crate::{
     paths::{ExistingGraphFolder, UnlockedGraphFolder, ValidGraphPaths},
     rayon::blocking_compute,
 };
-#[cfg(feature = "search")]
-use raphtory::prelude::IndexMutationOps;
-#[cfg(feature = "vectors")]
-use raphtory::vectors::{storage::LazyDiskVectorCache, vectorised_graph::VectorisedGraph};
 use raphtory::{
     core::entities::nodes::node_ref::AsNodeRef,
     db::{
@@ -35,6 +31,9 @@ use std::{
     },
     task::Poll,
 };
+use tracing::debug;
+#[cfg(feature = "vectors")]
+use raphtory::vectors::{storage::LazyDiskVectorCache, vectorised_graph::VectorisedGraph};
 
 /// The element stored in the optional vectors slot of a graph. With the
 /// `vectors` feature this is a real `VectorisedGraph`; without it the slot is
@@ -159,7 +158,6 @@ impl GraphWithVectors {
     pub(crate) async fn read_from_folder(
         folder: &ExistingGraphFolder,
         #[cfg(feature = "vectors")] cache: &LazyDiskVectorCache,
-        create_index: bool,
         config: Config,
     ) -> Result<Self, GraphError> {
         let folder_clone = folder.clone();
@@ -183,11 +181,7 @@ impl GraphWithVectors {
         #[cfg(not(feature = "vectors"))]
         let vectors = None;
 
-        println!("Graph loaded = {}", folder.local_path());
-        #[cfg(feature = "search")]
-        if create_index {
-            graph.create_index()?;
-        }
+        debug!("Graph loaded = {}", folder.local_path());
 
         Ok(Self::new(graph, vectors, folder.clone()))
     }

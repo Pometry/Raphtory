@@ -189,3 +189,12 @@ impl GqlVectorSelection {
         self.0.get_vectorised_graph().embed_text(text).await
     }
 }
+
+#[cfg(not(feature = "vectors"))]
+#[derive(ResolvedObject)]
+#[graphql(name = "VectorSelection")]
+pub struct GqlVectorSelection;
+
+#[cfg(not(feature = "vectors"))]
+#[ResolvedObjectFields]
+impl GqlVectorSelection {}

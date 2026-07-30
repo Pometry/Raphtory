@@ -115,15 +115,6 @@ impl PyGraphServer {
         Ok(PyGraphServer(server))
     }
 
-    // TODO: remove this, should be config
-    /// Turn off index for all graphs.
-    ///
-    /// Returns:
-    ///     None:
-    fn turn_off_index(mut slf: PyRefMut<Self>) {
-        slf.0.turn_off_index()
-    }
-
     /// Vectorise the graph name in the server working directory.
     ///
     /// Arguments:

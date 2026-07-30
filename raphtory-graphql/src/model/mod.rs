@@ -4,10 +4,9 @@ use crate::{
     data::{parent_namespace, require_graph_write, Data, GqlGraphType, PermissionError},
     model::{
         graph::{
-            collection::GqlCollection, graph::GqlGraph, index::IndexSpecInput,
-            meta_graph::MetaGraph, mutable_graph::GqlMutableGraph, namespace::Namespace,
-            namespaced_item::NamespacedItem, node_id::GqlNodeId,
-            vectorised_graph::GqlVectorisedGraph,
+            collection::GqlCollection, graph::GqlGraph, meta_graph::MetaGraph,
+            mutable_graph::GqlMutableGraph, namespace::Namespace, namespaced_item::NamespacedItem,
+            node_id::GqlNodeId, vectorised_graph::GqlVectorisedGraph,
         },
         plugins::{
             mutation_plugin::MutationPlugin, query_plugin::QueryPlugin, PermissionsEntrypointMut,
@@ -823,50 +822,6 @@ impl Mut {
             return Err(e);
         }
         Ok(new_path)
-    }
-
-    /// (Experimental) Creates search index.
-    async fn create_index<'a>(
-        ctx: &Context<'a>,
-        #[graphql(desc = "Graph path relative to the root namespace.")] path: &str,
-        #[graphql(
-            desc = "Optional spec selecting which node/edge property fields to index. Omit to index a default set."
-        )]
-        index_spec: Option<IndexSpecInput>,
-        in_ram: bool,
-    ) -> Result<bool> {
-        let data = ctx.data_unchecked::<Data>();
-        #[cfg(feature = "search")]
-        {
-            let graph = data
-                .get_graph_with_write_permission(ctx, path)
-                .await?
-                .graph()
-                .clone();
-            match index_spec {
-                Some(index_spec) => {
-                    let index_spec = index_spec.to_index_spec(graph.clone())?;
-                    if in_ram {
-                        graph.create_index_in_ram_with_spec(index_spec)
-                    } else {
-                        graph.create_index_with_spec(index_spec)
-                    }
-                }
-                None => {
-                    if in_ram {
-                        graph.create_index_in_ram()
-                    } else {
-                        graph.create_index()
-                    }
-                }
-            }?;
-
-            Ok(true)
-        }
-        #[cfg(not(feature = "search"))]
-        {
-            Err(GraphError::IndexingNotSupported.into())
-        }
     }
 
     /// Flush any pending writes for the graph at `graphPath` to disk.

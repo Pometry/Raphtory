@@ -76,9 +76,6 @@ reqwest = { workspace = true, features = ["blocking"], optional = true }
 tokio = { workspace = true, optional = true }
 kdam = { workspace = true, optional = true }
 
-# search optional dependencies
-tantivy = { workspace = true, optional = true }
-
 # vectors optional dependencies
 futures-util = { workspace = true, optional = true }
 async-trait = { workspace = true, optional = true }
@@ -132,7 +129,7 @@ io = [
 ]
 
 # search
-search = ["dep:tantivy", "dep:tempfile", "io"]
+# search = ["dep:tantivy", "dep:tempfile", "io"]
 
 # datafusion-backed node-state sort/group_by ops (enabled by default)
 datafusion = [

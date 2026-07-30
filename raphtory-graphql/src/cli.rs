@@ -1,5 +1,3 @@
-#[cfg(feature = "search")]
-use crate::config::index_config::DEFAULT_CREATE_INDEX;
 use crate::{
     config::{
         app_config::{AppConfig, AppConfigBuilder},
@@ -208,10 +206,6 @@ struct ServerArgs {
     #[arg(long, env = "RAPHTORY_PERMISSIONS_STORE_PATH", default_value = None, help = "Path to the JSON permissions store file.")]
     permissions_store_path: Option<PathBuf>,
 
-    #[cfg(feature = "search")]
-    #[arg(long, env = "RAPHTORY_CREATE_INDEX", help = help_with_default!("Enable index creation.", DEFAULT_CREATE_INDEX))]
-    create_index: Option<bool>,
-
     #[command(flatten)]
     graph_config: Config,
 }
@@ -305,12 +299,7 @@ where
             if let Some(disable_introspection) = server_args.disable_introspection {
                 builder.with_disable_introspection(disable_introspection);
             }
-            #[cfg(feature = "search")]
-            {
-                if let Some(create_index) = server_args.create_index {
-                    builder.with_create_index(create_index);
-                }
-            }
+
             let app_config = builder.build();
             return Ok(Some((server_args, app_config)));
         }

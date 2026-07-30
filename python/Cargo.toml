@@ -31,7 +31,7 @@ auth = { workspace = true }
 [features]
 default = ["datafusion", "vectors"]
 datafusion = ["raphtory/datafusion"]
-search = ["raphtory/search", "raphtory-graphql/search"]
+# search = ["raphtory/search", "raphtory-graphql/search"]
 vectors = ["raphtory/vectors", "raphtory-graphql/vectors"]
 test = ["raphtory/panic-on-drop"]
 

@@ -1,23 +1,19 @@
 use raphtory::{
-    db::api::view::{filter_ops::Filter, StaticGraphViewOps},
-    prelude::{EdgeViewOps, Graph, GraphViewOps, NodeViewOps},
-};
-use std::ops::Range;
-
-#[cfg(feature = "search")]
-use raphtory::prelude::{IndexMutationOps, SearchableGraphOps};
-use raphtory::{
     db::{
-        api::view::filter_ops::{EdgeSelect, NodeSelect},
+        api::view::{
+            filter_ops::{EdgeSelect, Filter, NodeSelect},
+            StaticGraphViewOps,
+        },
         graph::views::{
             filter::{model::TryAsCompositeFilter, CreateFilter},
             window_graph::WindowedGraph,
         },
     },
     errors::GraphError,
-    prelude::TimeOps,
+    prelude::{EdgeViewOps, Graph, GraphViewOps, NodeViewOps, TimeOps},
 };
 use raphtory_api::core::Direction;
+use std::ops::Range;
 
 pub enum TestGraphVariants {
     Graph,
@@ -122,26 +118,6 @@ impl<F: TryAsCompositeFilter + CreateFilter + Clone> ApplyFilter for FilterNeigh
     }
 }
 
-pub struct SearchNodes<F: TryAsCompositeFilter + CreateFilter + Clone>(F);
-
-impl<F: TryAsCompositeFilter + CreateFilter + Clone> ApplyFilter for SearchNodes<F> {
-    fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String> {
-        #[cfg(feature = "search")]
-        {
-            let mut results = graph
-                .search_nodes(self.0.clone(), 20, 0)
-                .unwrap()
-                .into_iter()
-                .map(|nv| nv.name())
-                .collect::<Vec<_>>();
-            results.sort();
-            results
-        }
-        #[cfg(not(feature = "search"))]
-        Vec::<String>::new()
-    }
-}
-
 pub struct FilterEdges<F: TryAsCompositeFilter + CreateFilter + Clone>(F);
 
 impl<F: TryAsCompositeFilter + CreateFilter + Clone> ApplyFilter for FilterEdges<F> {
@@ -171,26 +147,6 @@ impl<F: TryAsCompositeFilter + CreateFilter + Clone> ApplyFilter for SelectEdges
             .collect::<Vec<_>>();
         results.sort();
         results
-    }
-}
-
-pub struct SearchEdges<F: TryAsCompositeFilter + CreateFilter + Clone>(F);
-
-impl<F: TryAsCompositeFilter + CreateFilter + Clone> ApplyFilter for SearchEdges<F> {
-    fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String> {
-        #[cfg(feature = "search")]
-        {
-            let mut results = graph
-                .search_edges(self.0.clone(), 20, 0)
-                .unwrap()
-                .into_iter()
-                .map(|ev| format!("{}->{}", ev.src().name(), ev.dst().name()))
-                .collect::<Vec<_>>();
-            results.sort();
-            results
-        }
-        #[cfg(not(feature = "search"))]
-        Vec::<String>::new()
     }
 }
 
@@ -296,27 +252,6 @@ pub fn assert_filter_neighbours_results(
 }
 
 #[track_caller]
-pub fn assert_search_nodes_results(
-    init_graph: impl FnOnce(Graph) -> Graph,
-    transform: impl GraphTransformer,
-    filter: impl TryAsCompositeFilter + CreateFilter + Clone,
-    expected: &[&str],
-    variants: impl Into<Vec<TestGraphVariants>>,
-) {
-    #[cfg(feature = "search")]
-    {
-        assert_results(
-            init_graph,
-            |graph: &Graph| graph.create_index_in_ram().unwrap(),
-            transform,
-            expected,
-            variants.into(),
-            SearchNodes(filter),
-        )
-    }
-}
-
-#[track_caller]
 pub fn assert_filter_edges_results(
     init_graph: impl FnOnce(Graph) -> Graph,
     transform: impl GraphTransformer,
@@ -350,27 +285,6 @@ pub fn assert_select_edges_results(
         variants.into(),
         SelectEdges(filter),
     )
-}
-
-#[track_caller]
-pub fn assert_search_edges_results(
-    init_graph: impl FnOnce(Graph) -> Graph,
-    transform: impl GraphTransformer,
-    filter: impl TryAsCompositeFilter + CreateFilter + Clone,
-    expected: &[&str],
-    variants: impl Into<Vec<TestGraphVariants>>,
-) {
-    #[cfg(feature = "search")]
-    {
-        assert_results(
-            init_graph,
-            |graph: &Graph| graph.create_index_in_ram().unwrap(),
-            transform,
-            expected,
-            variants.into(),
-            SearchEdges(filter),
-        )
-    }
 }
 
 #[track_caller]
@@ -426,36 +340,12 @@ pub fn filter_nodes(graph: &Graph, filter: impl CreateFilter) -> Vec<String> {
     results
 }
 
-#[cfg(feature = "search")]
-pub fn search_nodes(graph: &Graph, filter: impl TryAsCompositeFilter) -> Vec<String> {
-    let mut results = graph
-        .search_nodes(filter, 10, 0)
-        .expect("Failed to search nodes")
-        .into_iter()
-        .map(|v| v.name())
-        .collect::<Vec<_>>();
-    results.sort();
-    results
-}
-
 pub fn filter_edges(graph: &Graph, filter: impl CreateFilter) -> Vec<String> {
     let mut results = graph
         .filter(filter)
         .unwrap()
         .edges()
         .iter()
-        .map(|e| format!("{}->{}", e.src().name(), e.dst().name()))
-        .collect::<Vec<_>>();
-    results.sort();
-    results
-}
-
-#[cfg(feature = "search")]
-pub fn search_edges(graph: &Graph, filter: impl TryAsCompositeFilter) -> Vec<String> {
-    let mut results = graph
-        .search_edges(filter, 10, 0)
-        .expect("Failed to filter edges")
-        .into_iter()
         .map(|e| format!("{}->{}", e.src().name(), e.dst().name()))
         .collect::<Vec<_>>();
     results.sort();

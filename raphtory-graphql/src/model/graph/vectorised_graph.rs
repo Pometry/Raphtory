@@ -1,13 +1,13 @@
-use crate::model::graph::timeindex::GqlTimeInput;
-#[cfg(feature = "vectors")]
-use crate::rayon::blocking_compute;
-
-use super::vector_selection::GqlVectorSelection;
+use crate::model::graph::{timeindex::GqlTimeInput, vector_selection::GqlVectorSelection};
 use dynamic_graphql::{InputObject, ResolvedObject, ResolvedObjectFields};
 use raphtory::errors::GraphResult;
-#[cfg(feature = "vectors")]
-use raphtory::{db::api::view::MaterializedGraph, vectors::vectorised_graph::VectorisedGraph};
 use raphtory_api::core::{storage::timeindex::AsTime, utils::time::IntoTime};
+
+#[cfg(feature = "vectors")]
+use {
+    crate::rayon::blocking_compute,
+    raphtory::{db::api::view::MaterializedGraph, vectors::vectorised_graph::VectorisedGraph},
+};
 
 #[derive(InputObject)]
 pub(super) struct VectorisedGraphWindow {
@@ -125,53 +125,8 @@ impl GqlVectorisedGraph {
 #[cfg(not(feature = "vectors"))]
 #[derive(ResolvedObject)]
 #[graphql(name = "VectorisedGraph")]
-pub(crate) struct GqlVectorisedGraph(#[allow(dead_code)] std::convert::Infallible);
+pub(crate) struct GqlVectorisedGraph;
 
 #[cfg(not(feature = "vectors"))]
 #[ResolvedObjectFields]
-#[allow(unused_variables)]
-impl GqlVectorisedGraph {
-    async fn optimize_index(&self) -> GraphResult<bool> {
-        unreachable!("vectors feature disabled")
-    }
-
-    async fn empty_selection(&self) -> GqlVectorSelection {
-        unreachable!("vectors feature disabled")
-    }
-
-    async fn entities_by_similarity(
-        &self,
-        #[graphql(desc = "Natural-language search string; embedded by the server.")] query: String,
-        #[graphql(desc = "Maximum number of results to return.")] limit: usize,
-        #[graphql(
-            desc = "Optional `{start, end}` to restrict matches to entities active in that interval."
-        )]
-        window: Option<VectorisedGraphWindow>,
-    ) -> GraphResult<GqlVectorSelection> {
-        unreachable!("vectors feature disabled")
-    }
-
-    async fn nodes_by_similarity(
-        &self,
-        #[graphql(desc = "Natural-language search string; embedded by the server.")] query: String,
-        #[graphql(desc = "Maximum number of nodes to return.")] limit: usize,
-        #[graphql(
-            desc = "Optional `{start, end}` to restrict matches to nodes active in that interval."
-        )]
-        window: Option<VectorisedGraphWindow>,
-    ) -> GraphResult<GqlVectorSelection> {
-        unreachable!("vectors feature disabled")
-    }
-
-    async fn edges_by_similarity(
-        &self,
-        #[graphql(desc = "Natural-language search string; embedded by the server.")] query: String,
-        #[graphql(desc = "Maximum number of edges to return.")] limit: usize,
-        #[graphql(
-            desc = "Optional `{start, end}` to restrict matches to edges active in that interval."
-        )]
-        window: Option<VectorisedGraphWindow>,
-    ) -> GraphResult<GqlVectorSelection> {
-        unreachable!("vectors feature disabled")
-    }
-}
+impl GqlVectorisedGraph {}
