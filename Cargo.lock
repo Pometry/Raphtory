@@ -6839,6 +6839,7 @@ dependencies = [
  "pyo3",
  "pythonize",
  "quick_cache",
+ "rand 0.9.4",
  "raphtory",
  "raphtory-api",
  "raphtory-graphql",

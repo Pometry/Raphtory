@@ -24,6 +24,7 @@ jsonwebtoken = { workspace = true }
 spki = { workspace = true }
 thiserror = { workspace = true }
 itertools = { workspace = true }
+rand = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 once_cell = { workspace = true }

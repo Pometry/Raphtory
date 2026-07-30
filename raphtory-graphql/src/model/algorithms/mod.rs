@@ -4,6 +4,7 @@ use crate::{
     model::{
         algorithms::{
             all_local_reciprocity::{GqlAllLocalReciprocity, GqlAllLocalReciprocityArgs},
+            alternating_mask::{GqlAlternatingMask, GqlAlternatingMaskArgs},
             average_degree::{GqlAverageDegree, GqlAverageDegreeArgs},
             balance::{GqlBalance, GqlBalanceArgs},
             betweenness_centrality::{GqlBetweennessCentrality, GqlBetweennessCentralityArgs},
@@ -57,6 +58,7 @@ use crate::{
             strongly_connected_components::{
                 GqlStronglyConnectedComponents, GqlStronglyConnectedComponentsArgs,
             },
+            temporal_seir::{GqlSeeds, GqlTemporalSeir, GqlTemporalSeirArgs},
             temporally_reachable_nodes::{
                 GqlTemporallyReachableNodes, GqlTemporallyReachableNodesArgs,
             },
@@ -68,7 +70,7 @@ use crate::{
         },
         graph::{
             filtering::GqlViewFilter, matching::GqlMatching, node_id::GqlNodeId,
-            node_state::GqlNodeState,
+            node_state::GqlNodeState, timeindex::GqlTimeInput,
         },
     },
     rayon::blocking_compute,
@@ -86,6 +88,7 @@ use raphtory::{
 use raphtory_api::core::Direction;
 
 pub(crate) mod all_local_reciprocity;
+pub(crate) mod alternating_mask;
 pub(crate) mod average_degree;
 pub(crate) mod balance;
 pub(crate) mod betweenness_centrality;
@@ -120,6 +123,7 @@ pub(crate) mod out_components;
 pub(crate) mod pagerank;
 pub(crate) mod single_source_shortest_path;
 pub(crate) mod strongly_connected_components;
+pub(crate) mod temporal_seir;
 pub(crate) mod temporally_reachable_nodes;
 pub(crate) mod triangle_count;
 pub(crate) mod triplet_count;
@@ -660,6 +664,42 @@ impl GqlAlgorithms {
         self.run::<GqlGlobalTemporalThreeNodeMotifMulti>(GqlGlobalTemporalThreeNodeMotifMultiArgs {
             deltas,
             threads,
+        })
+        .await
+    }
+
+    /// Returns an alternating boolean mask over the nodes.
+    async fn alternating_mask(&self) -> Result<GqlNodeState, GraphError> {
+        self.run::<GqlAlternatingMask>(GqlAlternatingMaskArgs)
+            .await
+    }
+
+    /// Simulates an SEIR epidemic, returning the infection, activation and
+    /// recovery times of every node that was infected.
+    async fn temporal_seir(
+        &self,
+        #[graphql(desc = "How the initially infected nodes are chosen.")] seeds: GqlSeeds,
+        #[graphql(desc = "Probability that an encounter between an active and a susceptible node infects it.")]
+        infection_prob: f64,
+        #[graphql(desc = "Time of the initial infection.")] initial_infection: GqlTimeInput,
+        #[graphql(
+            desc = "Rate at which infected nodes recover. If unset, nodes never recover."
+        )]
+        recovery_rate: Option<f64>,
+        #[graphql(
+            desc = "Rate at which infected nodes become infectious. If unset, they are infectious immediately."
+        )]
+        incubation_rate: Option<f64>,
+        #[graphql(desc = "Seed for the random number generator. If unset, seeded from the OS.")]
+        rng_seed: Option<u64>,
+    ) -> Result<GqlNodeState, GraphError> {
+        self.run::<GqlTemporalSeir>(GqlTemporalSeirArgs {
+            seeds,
+            infection_prob,
+            initial_infection,
+            recovery_rate,
+            incubation_rate,
+            rng_seed,
         })
         .await
     }
