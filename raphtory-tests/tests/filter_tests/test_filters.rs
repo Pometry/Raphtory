@@ -993,6 +993,154 @@ fn init_nodes_graph<
     graph
 }
 
+fn init_nodes_layers_graph<
+    G: StaticGraphViewOps
+        + AdditionOps
+        + InternalAdditionOps
+        + InternalPropertyAdditionOps
+        + PropertyAdditionOps,
+>(
+    graph: G,
+) -> G {
+    let nodes = [
+        (
+            1,
+            "1",
+            vec![
+                ("p1", "shivam_kapoor".into_prop()),
+                ("p9", 5u64.into_prop()),
+                ("p10", "Paper_airplane".into_prop()),
+                ("p20", "Gold_ship".into_prop()),
+                ("p30", "Gold_ship".into_prop()),
+                ("p40", 5u64.into_prop()),
+            ],
+            Some("fire_nation"),
+        ),
+        (
+            2,
+            "2",
+            vec![
+                ("p1", "prop12".into_prop()),
+                ("p2", 2u64.into_prop()),
+                ("p10", "Paper_ship".into_prop()),
+                ("p20", "Gold_boat".into_prop()),
+                ("p30", "Old_boat".into_prop()),
+                ("p40", 10u64.into_prop()),
+            ],
+            Some("air_nomads"),
+        ),
+        (
+            3,
+            "2",
+            vec![
+                ("p20", "Gold_ship".into_prop()),
+                ("p30", "Gold_ship".into_prop()),
+                ("p40", 15u64.into_prop()),
+            ],
+            Some("air_nomads"),
+        ),
+        (
+            4,
+            "2",
+            vec![
+                ("p20", "Gold_ship".into_prop()),
+                ("p30", "Gold_ship".into_prop()),
+                ("p40", 20u64.into_prop()),
+            ],
+            Some("air_nomads"),
+        ),
+        (
+            3,
+            "1",
+            vec![
+                ("p1", "shivam_kapoor".into_prop()),
+                ("p9", 5u64.into_prop()),
+                ("p20", "Gold_ship".into_prop()),
+                ("p30", "Gold_ship".into_prop()),
+                ("p40", 10u64.into_prop()),
+            ],
+            Some("fire_nation"),
+        ),
+        (
+            3,
+            "3",
+            vec![
+                ("p2", 6u64.into_prop()),
+                ("p3", 1u64.into_prop()),
+                ("p10", "Paper_airplane".into_prop()),
+            ],
+            Some("fire_nation"),
+        ),
+        (
+            4,
+            "1",
+            vec![
+                ("p1", "shivam_kapoor".into_prop()),
+                ("p9", 5u64.into_prop()),
+                ("p20", "Gold_ship".into_prop()),
+                ("p30", "Gold_ship".into_prop()),
+                ("p40", 15u64.into_prop()),
+            ],
+            Some("fire_nation"),
+        ),
+        (
+            3,
+            "4",
+            vec![
+                ("p4", "pometry".into_prop()),
+                ("p20", "Gold_ship".into_prop()),
+                ("p30", "Gold_ship".into_prop()),
+            ],
+            None,
+        ),
+        (
+            4,
+            "4",
+            vec![
+                ("p5", 12u64.into_prop()),
+                ("p20", "Gold_boat".into_prop()),
+                ("p30", "Old_ship".into_prop()),
+            ],
+            None,
+        ),
+    ];
+
+    for (time, id, props, node_type) in nodes {
+        graph.add_node(time, id, props, None, node_type).unwrap();
+    }
+
+    let metadata = [
+        (
+            "1",
+            vec![
+                ("m1", "pometry".into_prop()),
+                ("m2", "raphtory".into_prop()),
+            ],
+        ),
+        ("2", vec![("m1", "raphtory".into_prop())]),
+        (
+            "3",
+            vec![
+                ("m2", "pometry".into_prop()),
+                ("m3", "raphtory".into_prop()),
+            ],
+        ),
+        (
+            "4",
+            vec![
+                ("m3", "pometry".into_prop()),
+                ("m4", "raphtory".into_prop()),
+            ],
+        ),
+    ];
+
+    for (node_id, md) in metadata {
+        graph.node(node_id).unwrap().add_metadata(md).unwrap();
+    }
+
+    graph
+}
+
 fn init_nodes_graph_with_num_ids<
     G: StaticGraphViewOps
         + AdditionOps
@@ -2830,7 +2978,9 @@ mod test_node_filter {
 }
 
 mod test_node_property_filter {
-    use crate::filter_tests::test_filters::{init_nodes_graph, IdentityGraphTransformer};
+    use crate::filter_tests::test_filters::{
+        init_nodes_graph, init_nodes_layers_graph, IdentityGraphTransformer,
+    };
     use raphtory::db::graph::views::filter::model::{
         graph_filter::GraphFilter,
         node_filter::NodeFilter,
@@ -4074,10 +4224,11 @@ mod test_node_property_filter {
 
     #[test]
     fn test_graph_filter_layer() {
+        // Note: Default layer is currently always included for nodes!
         let filter = GraphFilter.layer("fire_nation");
-        let expected_results = vec!["1", "3"];
+        let expected_results = vec!["1", "3", "4"];
         assert_filter_nodes_results(
-            init_nodes_graph,
+            init_nodes_layers_graph,
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
@@ -4085,9 +4236,9 @@ mod test_node_property_filter {
         );
 
         let filter = GraphFilter.layer("air_nomads");
-        let expected_results = vec!["2"];
+        let expected_results = vec!["2", "4"];
         assert_filter_nodes_results(
-            init_nodes_graph,
+            init_nodes_layers_graph,
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
@@ -4098,19 +4249,19 @@ mod test_node_property_filter {
     #[test]
     fn test_graph_filter_window_then_layer() {
         let filter = GraphFilter.window(1, 3).layer("fire_nation");
-        let expected_results = vec!["1", "3"];
+        let expected_results = vec!["1"];
         assert_filter_nodes_results(
-            init_nodes_graph,
+            init_nodes_layers_graph,
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
             TestVariants::All,
         );
 
-        let filter = GraphFilter.window(4, 4).layer("air_nomads");
+        let filter = GraphFilter.window(2, 3).layer("air_nomads");
         let expected_results = vec!["2"];
         assert_filter_nodes_results(
-            init_nodes_graph,
+            init_nodes_layers_graph,
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
@@ -4121,9 +4272,19 @@ mod test_node_property_filter {
     #[test]
     fn test_graph_filter_layer_then_window() {
         let filter = GraphFilter.layer("fire_nation").window(1, 3);
-        let expected_results = vec!["1", "3"];
+        let expected_results = vec!["1"];
         assert_filter_nodes_results(
-            init_nodes_graph,
+            init_nodes_layers_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::All,
+        );
+
+        let filter = GraphFilter.layer("air_nomads").window(2, 3);
+        let expected_results = vec!["2"];
+        assert_filter_nodes_results(
+            init_nodes_layers_graph,
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,

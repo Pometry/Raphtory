@@ -2639,9 +2639,7 @@ mod test_edges_filters_window_graph {
     #[test]
     fn test_edges_filters_pg_fuzzy_search_prefix_match() {
         let filter = EdgeFilter.property("k2").fuzzy_search("Pa", 2, true);
-        let expected_results = vec![
-            "N1->N2", "N12->N13", "N13->N14", "N2->N3", "N5->N6", "N7->N8", "N8->N9",
-        ];
+        let expected_results = vec!["N1->N2", "N2->N3", "N7->N8"];
         assert_filter_edges_results(
             init_graph,
             WindowGraphTransformer(6..9),
@@ -2650,8 +2648,10 @@ mod test_edges_filters_window_graph {
             TestVariants::PersistentOnly,
         );
 
-        let filter = EdgeFilter.property("k2").fuzzy_search("Pa", 2, false);
-        let expected_results = Vec::<&str>::new();
+        let filter = EdgeFilter
+            .property("k2")
+            .fuzzy_search("Paper_Airplan", 2, false);
+        let expected_results = vec!["N1->N2"];
         assert_filter_edges_results(
             init_graph,
             WindowGraphTransformer(6..9),

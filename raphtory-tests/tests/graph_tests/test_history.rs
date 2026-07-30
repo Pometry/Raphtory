@@ -7,7 +7,6 @@ use raphtory_api::core::{
     entities::properties::prop::Prop,
     storage::timeindex::{AsTime, EventTime},
 };
-use std::error::Error;
 
 #[test]
 fn test_neighbours_history() {
