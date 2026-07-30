@@ -1,14 +1,13 @@
 use crate::client::{
     remote_history::{
-        RemoteEventTime, RemoteHistory, RemoteHistoryDateTimes, RemoteHistoryEventIds,
-        RemoteHistoryTimestamps, RemoteIntervals,
+        RemoteHistory, RemoteHistoryDateTimes, RemoteHistoryEventIds, RemoteHistoryTimestamps,
+        RemoteIntervals,
     },
     ClientError,
 };
 use chrono::{DateTime, Utc};
 use pyo3::{
-    basic::CompareOp,
-    exceptions::{PyIndexError, PyValueError},
+    exceptions::PyIndexError,
     pyclass, pymethods,
     types::{PyAnyMethods, PyList},
     Bound, IntoPyObject, Py, PyAny, PyRef, PyRefMut, PyResult, Python,
@@ -162,24 +161,24 @@ impl PyRemoteHistory {
     }
 
     /// `history[i]` — the i-th event in ascending time order. Supports
-    /// negative indices. Raises `IndexError` if out of range. Fires one RPC
-    /// (`collect()`).
+    /// negative indices. Raises `IndexError` if out of range. Fires ONE small
+    /// RPC (`page`/`page_rev` with `limit=1`) — fetches just the requested
+    /// element, not the whole history.
     fn __getitem__(&self, index: isize) -> PyResult<EventTime> {
-        let events = self.collect()?;
-        let len = events.len() as isize;
-        let idx = if index < 0 { index + len } else { index };
-        if idx < 0 || idx >= len {
-            return Err(PyIndexError::new_err(format!(
-                "Index {index} out of bounds"
-            )));
-        }
-        Ok(events[idx as usize])
+        let (rev, offset) = page_offset(index);
+        let page = if rev {
+            self.page_rev(1, Some(offset), None)?
+        } else {
+            self.page(1, Some(offset), None)?
+        };
+        single_from_page(page, index)
     }
 
     /// `item in history` — whether an event equal to `item` is present.
     /// `item` may be an `EventTime` (compared by `(timestamp, event_id)`)
     /// or a bare `int` (compared by timestamp), mirroring the local
-    /// `History.__contains__`. Fires one RPC (`collect()`).
+    /// `History.__contains__`. Fires one RPC and scans the full history
+    /// (`collect()`) — O(history); there is no server-side membership terminal.
     fn __contains__(&self, py: Python<'_>, item: &Bound<'_, PyAny>) -> PyResult<bool> {
         let events = self.collect()?;
         for e in events {
@@ -332,10 +331,16 @@ impl PyRemoteHistoryTimestamps {
     }
 
     /// `x[i]` — the i-th timestamp. Supports negative indices; raises
-    /// `IndexError` if out of range. Fires one RPC (`collect()`).
+    /// `IndexError` if out of range. Fires ONE small RPC (`page`/`page_rev`
+    /// with `limit=1`) — fetches just the requested element.
     fn __getitem__(&self, index: isize) -> PyResult<i64> {
-        let items = self.collect()?;
-        index_i64(&items, index)
+        let (rev, offset) = page_offset(index);
+        let page = if rev {
+            self.page_rev(1, Some(offset), None)?
+        } else {
+            self.page(1, Some(offset), None)?
+        };
+        single_from_page(page, index)
     }
 
     /// `for x in ...` — iterate timestamps. Fires one RPC (`collect()`).
@@ -346,7 +351,8 @@ impl PyRemoteHistoryTimestamps {
             .unbind())
     }
 
-    /// `item in ...` — membership test. Fires one RPC (`collect()`).
+    /// `item in ...` — membership test. Fires one RPC and scans the full list
+    /// (`collect()`) — O(history); there is no server-side membership terminal.
     fn __contains__(&self, item: i64) -> Result<bool, ClientError> {
         Ok(self.collect()?.contains(&item))
     }
@@ -429,10 +435,16 @@ impl PyRemoteHistoryEventIds {
     }
 
     /// `x[i]` — the i-th event id. Supports negative indices; raises
-    /// `IndexError` if out of range. Fires one RPC (`collect()`).
+    /// `IndexError` if out of range. Fires ONE small RPC (`page`/`page_rev`
+    /// with `limit=1`) — fetches just the requested element.
     fn __getitem__(&self, index: isize) -> PyResult<i64> {
-        let items = self.collect()?;
-        index_i64(&items, index)
+        let (rev, offset) = page_offset(index);
+        let page = if rev {
+            self.page_rev(1, Some(offset), None)?
+        } else {
+            self.page(1, Some(offset), None)?
+        };
+        single_from_page(page, index)
     }
 
     /// `for x in ...` — iterate event ids. Fires one RPC (`collect()`).
@@ -443,7 +455,8 @@ impl PyRemoteHistoryEventIds {
             .unbind())
     }
 
-    /// `item in ...` — membership test. Fires one RPC (`collect()`).
+    /// `item in ...` — membership test. Fires one RPC and scans the full list
+    /// (`collect()`) — O(history); there is no server-side membership terminal.
     fn __contains__(&self, item: i64) -> Result<bool, ClientError> {
         Ok(self.collect()?.contains(&item))
     }
@@ -535,17 +548,16 @@ impl PyRemoteHistoryDateTimes {
     }
 
     /// `x[i]` — the i-th datetime. Supports negative indices; raises
-    /// `IndexError` if out of range. Fires one RPC (`collect()`).
+    /// `IndexError` if out of range. Fires ONE small RPC (`page`/`page_rev`
+    /// with `limit=1`) — fetches just the requested element.
     fn __getitem__(&self, index: isize) -> PyResult<DateTime<Utc>> {
-        let items = self.collect()?;
-        let len = items.len() as isize;
-        let idx = if index < 0 { index + len } else { index };
-        if idx < 0 || idx >= len {
-            return Err(PyIndexError::new_err(format!(
-                "Index {index} out of bounds"
-            )));
-        }
-        Ok(items[idx as usize])
+        let (rev, offset) = page_offset(index);
+        let page = if rev {
+            self.page_rev(1, Some(offset), None)?
+        } else {
+            self.page(1, Some(offset), None)?
+        };
+        single_from_page(page, index)
     }
 
     /// `for x in ...` — iterate datetimes. Fires one RPC (`collect()`).
@@ -557,9 +569,10 @@ impl PyRemoteHistoryDateTimes {
     }
 
     /// `item in ...` — membership test against the datetimes. Fires one RPC
-    /// (`collect()`). Anything that isn't a UTC-convertible datetime is simply
-    /// not a member (returns `False`), matching Python's `in` — rather than
-    /// raising on a naive datetime or a string.
+    /// and scans the full list (`collect()`) — O(history). Anything that isn't
+    /// a UTC-convertible datetime is simply not a member (returns `False`),
+    /// matching Python's `in` — rather than raising on a naive datetime or a
+    /// string.
     fn __contains__(&self, item: &Bound<'_, PyAny>) -> Result<bool, ClientError> {
         match item.extract::<DateTime<Utc>>() {
             Ok(dt) => Ok(self.collect()?.contains(&dt)),
@@ -670,10 +683,16 @@ impl PyRemoteIntervals {
     }
 
     /// `x[i]` — the i-th interval. Supports negative indices; raises
-    /// `IndexError` if out of range. Fires one RPC (`collect()`).
+    /// `IndexError` if out of range. Fires ONE small RPC (`page`/`page_rev`
+    /// with `limit=1`) — fetches just the requested element.
     fn __getitem__(&self, index: isize) -> PyResult<i64> {
-        let items = self.collect()?;
-        index_i64(&items, index)
+        let (rev, offset) = page_offset(index);
+        let page = if rev {
+            self.page_rev(1, Some(offset), None)?
+        } else {
+            self.page(1, Some(offset), None)?
+        };
+        single_from_page(page, index)
     }
 
     /// `for x in ...` — iterate intervals. Fires one RPC (`collect()`).
@@ -684,7 +703,8 @@ impl PyRemoteIntervals {
             .unbind())
     }
 
-    /// `item in ...` — membership test. Fires one RPC (`collect()`).
+    /// `item in ...` — membership test. Fires one RPC and scans the full list
+    /// (`collect()`) — O(history); there is no server-side membership terminal.
     fn __contains__(&self, item: i64) -> Result<bool, ClientError> {
         Ok(self.collect()?.contains(&item))
     }
@@ -702,13 +722,25 @@ impl PyRemoteIntervals {
 /// Shared helper for `__getitem__` on the int-valued sub-collections:
 /// resolves a (possibly negative) index into `items`, raising `IndexError`
 /// when out of range.
-fn index_i64(items: &[i64], index: isize) -> PyResult<i64> {
-    let len = items.len() as isize;
-    let idx = if index < 0 { index + len } else { index };
-    if idx < 0 || idx >= len {
-        return Err(PyIndexError::new_err(format!(
-            "Index {index} out of bounds"
-        )));
+/// Map a Python index to a single-element page fetch: `(use_page_rev, offset)`.
+/// A non-negative index is the `offset`-th item from the front (`page`); a
+/// negative index is the `offset`-th from the end (`page_rev`, so `[-1]` costs
+/// one RPC with no `count()`).
+fn page_offset(index: isize) -> (bool, usize) {
+    if index >= 0 {
+        (false, index as usize)
+    } else {
+        // unsigned_abs (not negation) so isize::MIN can't overflow; the -1
+        // can't underflow since index < 0 guarantees unsigned_abs() >= 1.
+        (true, index.unsigned_abs() - 1)
     }
-    Ok(items[idx as usize])
+}
+
+/// Unwrap the single element of a `page(1, …)` result, mapping an empty page
+/// (index past the end) to `IndexError` — matching the old `collect()`-based
+/// bounds check.
+fn single_from_page<T>(page: Vec<T>, index: isize) -> PyResult<T> {
+    page.into_iter()
+        .next()
+        .ok_or_else(|| PyIndexError::new_err(format!("Index {index} out of bounds")))
 }
