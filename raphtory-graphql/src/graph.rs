@@ -32,6 +32,7 @@ use std::{
     task::Poll,
 };
 use tracing::debug;
+
 #[cfg(feature = "vectors")]
 use raphtory::vectors::{storage::LazyDiskVectorCache, vectorised_graph::VectorisedGraph};
 
@@ -42,7 +43,7 @@ use raphtory::vectors::{storage::LazyDiskVectorCache, vectorised_graph::Vectoris
 #[cfg(feature = "vectors")]
 pub type GraphVectors = VectorisedGraph<MaterializedGraph>;
 #[cfg(not(feature = "vectors"))]
-pub type GraphVectors = std::convert::Infallible;
+pub type GraphVectors = ();
 
 #[derive(Clone)]
 pub struct GraphWithVectors {

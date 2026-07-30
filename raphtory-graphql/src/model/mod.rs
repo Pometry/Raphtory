@@ -6,7 +6,7 @@ use crate::{
         graph::{
             collection::GqlCollection, graph::GqlGraph, meta_graph::MetaGraph,
             mutable_graph::GqlMutableGraph, namespace::Namespace, namespaced_item::NamespacedItem,
-            node_id::GqlNodeId, vectorised_graph::GqlVectorisedGraph,
+            node_id::GqlNodeId,
         },
         plugins::{
             mutation_plugin::MutationPlugin, query_plugin::QueryPlugin, PermissionsEntrypointMut,
@@ -42,14 +42,7 @@ use std::{collections::HashMap, path::PathBuf, sync::Arc};
 use tracing::warn;
 
 #[cfg(feature = "vectors")]
-use raphtory::{
-    errors::GraphResult,
-    vectors::{
-        cache::CachedEmbeddingModel,
-        storage::OpenAIEmbeddings,
-        template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
-    },
-};
+use crate::model::graph::vectorised_graph::GqlVectorisedGraph;
 
 pub mod graph;
 pub mod plugins;
@@ -79,48 +72,6 @@ pub(crate) fn parse_json_schema(
         })
         .collect::<Result<HashMap<_, _>, _>>()
         .map(Some)
-}
-
-#[derive(InputObject, Debug, Clone, Default)]
-pub struct OpenAIConfig {
-    model: String,
-    api_base: Option<String>,
-    api_key_env: Option<String>,
-    org_id: Option<String>,
-    project_id: Option<String>,
-}
-
-#[derive(OneOfInput, Clone, Debug)]
-pub enum EmbeddingModel {
-    /// OpenAI embedding models or compatible providers
-    OpenAI(OpenAIConfig),
-}
-
-#[cfg(feature = "vectors")]
-impl EmbeddingModel {
-    async fn cache<'a>(self, ctx: &Context<'a>) -> GraphResult<CachedEmbeddingModel> {
-        let data = ctx.data_unchecked::<Data>();
-        match self {
-            Self::OpenAI(OpenAIConfig {
-                model,
-                api_base,
-                api_key_env,
-                org_id,
-                project_id,
-            }) => {
-                let embeddings = OpenAIEmbeddings {
-                    model,
-                    api_base,
-                    api_key_env,
-                    org_id,
-                    project_id,
-                    dim: None,
-                };
-                let vector_cache = data.vector_cache.resolve().await?;
-                vector_cache.openai(embeddings.into()).await
-            }
-        }
-    }
 }
 
 /// a thin wrapper around spawn_blocking that unwraps the join handle
@@ -276,56 +227,6 @@ impl QueryRoot {
             .into();
 
         Ok(graph)
-    }
-
-    /// Update graph query, has side effects to update graph state
-    ///
-    /// Returns:: GqlMutableGraph
-    async fn vectorise_graph<'a>(
-        ctx: &Context<'a>,
-        #[graphql(desc = "Graph path relative to the root namespace.")] path: String,
-        #[graphql(desc = "Optional embedding model; defaults to OpenAI's standard model.")]
-        model: Option<EmbeddingModel>,
-        #[graphql(
-            desc = "Optional node-document template (which fields go into each node's text representation); defaults to the built-in template."
-        )]
-        nodes: Option<Template>,
-        #[graphql(desc = "Optional edge-document template; defaults to the built-in template.")]
-        edges: Option<Template>,
-    ) -> Result<bool> {
-        #[cfg(feature = "vectors")]
-        {
-            ctx.require_jwt_write_access()?;
-            let data = ctx.data_unchecked::<Data>();
-            let template = DocumentTemplate {
-                node_template: resolve(nodes, DEFAULT_NODE_TEMPLATE),
-                edge_template: resolve(edges, DEFAULT_EDGE_TEMPLATE),
-            };
-            let cached_model = model
-                .unwrap_or(EmbeddingModel::OpenAI(Default::default()))
-                .cache(ctx)
-                .await?;
-            let folder = ExistingGraphFolder::try_from(data.work_dir_read().await, &path)?;
-            data.vectorise_folder(&folder, &template, cached_model)
-                .await?;
-            Ok(true)
-        }
-        #[cfg(not(feature = "vectors"))]
-        {
-            let _ = (ctx, path, model, nodes, edges);
-            Err(async_graphql::Error::new("vectors feature not enabled"))
-        }
-    }
-
-    /// Create vectorised graph in the format used for queries
-    ///
-    /// Returns:: GqlVectorisedGraph
-    async fn vectorised_graph<'a>(
-        ctx: &Context<'a>,
-        #[graphql(desc = "Graph path relative to the root namespace.")] path: &str,
-    ) -> Result<Option<GqlVectorisedGraph>> {
-        let data = ctx.data_unchecked::<Data>();
-        data.get_vectors_with_read_permission(ctx, path).await
     }
 
     /// Returns all namespaces using recursive search

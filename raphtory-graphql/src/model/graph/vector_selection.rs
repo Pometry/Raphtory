@@ -2,16 +2,12 @@ use super::{
     document::GqlDocument, edge::GqlEdge, node::GqlNode, node_id::GqlNodeId,
     vectorised_graph::VectorisedGraphWindow,
 };
+use crate::{model::graph::vectorised_graph::IntoWindowTuple, rayon::blocking_compute};
 use dynamic_graphql::{InputObject, ResolvedObject, ResolvedObjectFields};
-use raphtory::errors::GraphResult;
-
-#[cfg(feature = "vectors")]
-use {
-    crate::{model::graph::vectorised_graph::IntoWindowTuple, rayon::blocking_compute},
-    raphtory::{
-        db::api::view::MaterializedGraph,
-        vectors::{vector_selection::VectorSelection, Embedding},
-    },
+use raphtory::{
+    db::api::view::MaterializedGraph,
+    errors::GraphResult,
+    vectors::{vector_selection::VectorSelection, Embedding},
 };
 
 #[derive(InputObject)]
@@ -26,19 +22,16 @@ pub(super) struct InputEdge {
 /// searches on a `VectorisedGraph`. Selections are mutable: you can grow
 /// them with more hops (`expand*`), dereference the contents (`nodes`,
 /// `edges`, `getDocuments`), or start fresh with `emptySelection`.
-#[cfg(feature = "vectors")]
 #[derive(ResolvedObject)]
 #[graphql(name = "VectorSelection")]
 pub(crate) struct GqlVectorSelection(VectorSelection<MaterializedGraph>);
 
-#[cfg(feature = "vectors")]
 impl From<VectorSelection<MaterializedGraph>> for GqlVectorSelection {
     fn from(value: VectorSelection<MaterializedGraph>) -> Self {
         Self(value)
     }
 }
 
-#[cfg(feature = "vectors")]
 #[ResolvedObjectFields]
 impl GqlVectorSelection {
     /// Returns a list of nodes in the current selection.
@@ -179,7 +172,6 @@ impl GqlVectorSelection {
     }
 }
 
-#[cfg(feature = "vectors")]
 impl GqlVectorSelection {
     fn cloned(&self) -> VectorSelection<MaterializedGraph> {
         self.0.clone()
@@ -189,12 +181,3 @@ impl GqlVectorSelection {
         self.0.get_vectorised_graph().embed_text(text).await
     }
 }
-
-#[cfg(not(feature = "vectors"))]
-#[derive(ResolvedObject)]
-#[graphql(name = "VectorSelection")]
-pub struct GqlVectorSelection;
-
-#[cfg(not(feature = "vectors"))]
-#[ResolvedObjectFields]
-impl GqlVectorSelection {}

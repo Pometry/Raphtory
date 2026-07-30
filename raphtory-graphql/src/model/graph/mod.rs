@@ -19,7 +19,11 @@ mod nodes;
 mod path_from_node;
 pub(crate) mod property;
 pub(crate) mod timeindex;
+
+#[cfg(feature = "vectors")]
 pub(crate) mod vector_selection;
+
+#[cfg(feature = "vectors")]
 pub(crate) mod vectorised_graph;
 mod windowset;
 
