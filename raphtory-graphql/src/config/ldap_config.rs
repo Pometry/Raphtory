@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
 
 /// Optional LDAP/Active Directory connection and schedule settings. Disabled by default.
 #[derive(Debug, Default, Deserialize, PartialEq, Clone, Serialize)]
@@ -17,8 +16,8 @@ pub struct LdapConfig {
     pub group_base_dn: Option<String>,
     /// LDAP filter selecting group objects (e.g. `(objectClass=group)`).
     pub group_filter: Option<String>,
-    /// Path to the mapping file.
-    pub mapping_path: Option<PathBuf>,
+    /// Attribute on each entry holding the role's grant spec as JSON. Defaults to `description`.
+    pub permissions_attribute: Option<String>,
     /// Re-sync interval, in seconds.
     pub sync_interval_secs: Option<u64>,
 }
