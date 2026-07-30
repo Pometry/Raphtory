@@ -1,7 +1,6 @@
 use crate::model::{algorithms::GqlExecutableAlgorithm, graph::node_state::GqlNodeState};
 use raphtory::{
-    algorithms::alternating_mask::alternating_mask, db::api::view::DynamicGraph,
-    errors::GraphError,
+    algorithms::alternating_mask::alternating_mask, db::api::view::DynamicGraph, errors::GraphError,
 };
 
 /// Alternating boolean mask over the nodes, see [`alternating_mask`].

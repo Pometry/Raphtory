@@ -58,6 +58,9 @@ use crate::{
             strongly_connected_components::{
                 GqlStronglyConnectedComponents, GqlStronglyConnectedComponentsArgs,
             },
+            temporal_rich_club_coefficient::{
+                GqlTemporalRichClubCoefficient, GqlTemporalRichClubCoefficientArgs,
+            },
             temporal_seir::{GqlSeeds, GqlTemporalSeir, GqlTemporalSeirArgs},
             temporally_reachable_nodes::{
                 GqlTemporallyReachableNodes, GqlTemporallyReachableNodesArgs,
@@ -70,7 +73,7 @@ use crate::{
         },
         graph::{
             filtering::GqlViewFilter, matching::GqlMatching, node_id::GqlNodeId,
-            node_state::GqlNodeState, timeindex::GqlTimeInput,
+            node_state::GqlNodeState, timeindex::GqlTimeInput, WindowDuration,
         },
     },
     rayon::blocking_compute,
@@ -123,6 +126,7 @@ pub(crate) mod out_components;
 pub(crate) mod pagerank;
 pub(crate) mod single_source_shortest_path;
 pub(crate) mod strongly_connected_components;
+pub(crate) mod temporal_rich_club_coefficient;
 pub(crate) mod temporal_seir;
 pub(crate) mod temporally_reachable_nodes;
 pub(crate) mod triangle_count;
@@ -668,10 +672,33 @@ impl GqlAlgorithms {
         .await
     }
 
+    /// Returns the temporal rich club coefficient: the maximal density among the
+    /// nodes of degree at least `k` that persists over `windowSize` consecutive
+    /// snapshots. The snapshots are the rolling windows described by
+    /// `rollingWindow` / `rollingStep`.
+    async fn temporal_rich_club_coefficient(
+        &self,
+        #[graphql(desc = "Minimum degree a node must have to be in the rich club.")] k: usize,
+        #[graphql(desc = "Number of consecutive snapshots the edges must persist over.")]
+        window_size: usize,
+        #[graphql(desc = "Width of each snapshot.")] rolling_window: WindowDuration,
+        #[graphql(
+            desc = "Optional gap between the start of one snapshot and the next. Defaults to `rollingWindow`, i.e. non-overlapping snapshots."
+        )]
+        rolling_step: Option<WindowDuration>,
+    ) -> Result<f64, GraphError> {
+        self.run::<GqlTemporalRichClubCoefficient>(GqlTemporalRichClubCoefficientArgs {
+            k,
+            window_size,
+            rolling_window,
+            rolling_step,
+        })
+        .await
+    }
+
     /// Returns an alternating boolean mask over the nodes.
     async fn alternating_mask(&self) -> Result<GqlNodeState, GraphError> {
-        self.run::<GqlAlternatingMask>(GqlAlternatingMaskArgs)
-            .await
+        self.run::<GqlAlternatingMask>(GqlAlternatingMaskArgs).await
     }
 
     /// Simulates an SEIR epidemic, returning the infection, activation and
@@ -679,12 +706,12 @@ impl GqlAlgorithms {
     async fn temporal_seir(
         &self,
         #[graphql(desc = "How the initially infected nodes are chosen.")] seeds: GqlSeeds,
-        #[graphql(desc = "Probability that an encounter between an active and a susceptible node infects it.")]
+        #[graphql(
+            desc = "Probability that an encounter between an active and a susceptible node infects it."
+        )]
         infection_prob: f64,
         #[graphql(desc = "Time of the initial infection.")] initial_infection: GqlTimeInput,
-        #[graphql(
-            desc = "Rate at which infected nodes recover. If unset, nodes never recover."
-        )]
+        #[graphql(desc = "Rate at which infected nodes recover. If unset, nodes never recover.")]
         recovery_rate: Option<f64>,
         #[graphql(
             desc = "Rate at which infected nodes become infectious. If unset, they are infectious immediately."

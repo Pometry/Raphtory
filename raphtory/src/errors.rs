@@ -31,11 +31,11 @@ use raphtory_api::core::utils::time::ParseTimeError;
 #[cfg(feature = "search")]
 use {tantivy, tantivy::query::QueryParserError};
 
+use crate::algorithms::dynamics::temporal::epidemics::SeedError;
 use raphtory_api::core::storage::{graph_folder::GraphFolderError, timeindex::TimeError};
 use storage::{error::StorageError, resolver::mapping_resolver::InvalidNodeId};
 #[cfg(feature = "io")]
 use zip::result::ZipError;
-use crate::algorithms::dynamics::temporal::epidemics::SeedError;
 
 #[derive(thiserror::Error, Debug)]
 pub enum InvalidPathReason {

@@ -3,6 +3,7 @@ use crate::model::{
     graph::{node_id::GqlNodeId, node_state::GqlNodeState, timeindex::GqlTimeInput},
 };
 use dynamic_graphql::OneOfInput;
+use rand::{rngs::StdRng, Rng, SeedableRng};
 use raphtory::{
     algorithms::dynamics::temporal::epidemics::{
         temporal_SEIR, IntoSeeds, Number, Probability, SeedError,
@@ -11,7 +12,6 @@ use raphtory::{
     db::api::view::{DynamicGraph, StaticGraphViewOps},
     errors::GraphError,
 };
-use rand::{rngs::StdRng, Rng, SeedableRng};
 use raphtory_api::core::utils::time::IntoTime;
 
 /// How the initially infected nodes are chosen.
