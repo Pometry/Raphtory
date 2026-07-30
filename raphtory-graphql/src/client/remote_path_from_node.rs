@@ -75,7 +75,7 @@ impl RemotePathFromNode {
     /// Time-window this collection. Lazy — no RPC.
     pub fn window(&self, start: InputTime, end: InputTime) -> RemotePathFromNode {
         self.with_view_op(move |input| ReadExpr::Window {
-            input: Box::new(input),
+            input: Arc::new(input),
             start,
             end,
         })
@@ -85,7 +85,7 @@ impl RemotePathFromNode {
     pub fn layer(&self, name: impl ToString) -> RemotePathFromNode {
         let name = name.to_string();
         self.with_view_op(move |input| ReadExpr::Layer {
-            input: Box::new(input),
+            input: Arc::new(input),
             name: name.clone(),
         })
     }
@@ -93,7 +93,7 @@ impl RemotePathFromNode {
     /// Snapshot at a specific time. Lazy — no RPC.
     pub fn at(&self, time: InputTime) -> RemotePathFromNode {
         self.with_view_op(move |input| ReadExpr::At {
-            input: Box::new(input),
+            input: Arc::new(input),
             time,
         })
     }
@@ -101,7 +101,7 @@ impl RemotePathFromNode {
     /// Restrict to events strictly before the given time. Lazy — no RPC.
     pub fn before(&self, time: InputTime) -> RemotePathFromNode {
         self.with_view_op(move |input| ReadExpr::Before {
-            input: Box::new(input),
+            input: Arc::new(input),
             time,
         })
     }
@@ -109,7 +109,7 @@ impl RemotePathFromNode {
     /// Restrict to events strictly after the given time. Lazy — no RPC.
     pub fn after(&self, time: InputTime) -> RemotePathFromNode {
         self.with_view_op(move |input| ReadExpr::After {
-            input: Box::new(input),
+            input: Arc::new(input),
             time,
         })
     }
@@ -117,21 +117,21 @@ impl RemotePathFromNode {
     /// Latest state. Lazy — no RPC.
     pub fn latest(&self) -> RemotePathFromNode {
         self.with_view_op(move |input| ReadExpr::Latest {
-            input: Box::new(input),
+            input: Arc::new(input),
         })
     }
 
     /// Snapshot at the latest time. Lazy — no RPC.
     pub fn snapshot_latest(&self) -> RemotePathFromNode {
         self.with_view_op(move |input| ReadExpr::SnapshotLatest {
-            input: Box::new(input),
+            input: Arc::new(input),
         })
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
     pub fn snapshot_at(&self, time: InputTime) -> RemotePathFromNode {
         self.with_view_op(move |input| ReadExpr::SnapshotAt {
-            input: Box::new(input),
+            input: Arc::new(input),
             time,
         })
     }
@@ -140,7 +140,7 @@ impl RemotePathFromNode {
     pub fn exclude_layer(&self, name: impl ToString) -> RemotePathFromNode {
         let name = name.to_string();
         self.with_view_op(move |input| ReadExpr::ExcludeLayer {
-            input: Box::new(input),
+            input: Arc::new(input),
             name: name.clone(),
         })
     }
@@ -148,7 +148,7 @@ impl RemotePathFromNode {
     /// Shrink both start and end of the current window. Lazy — no RPC.
     pub fn shrink_window(&self, start: InputTime, end: InputTime) -> RemotePathFromNode {
         self.with_view_op(move |input| ReadExpr::ShrinkWindow {
-            input: Box::new(input),
+            input: Arc::new(input),
             start,
             end,
         })
@@ -157,7 +157,7 @@ impl RemotePathFromNode {
     /// Shrink the start of the current window. Lazy — no RPC.
     pub fn shrink_start(&self, start: InputTime) -> RemotePathFromNode {
         self.with_view_op(move |input| ReadExpr::ShrinkStart {
-            input: Box::new(input),
+            input: Arc::new(input),
             start,
         })
     }
@@ -165,7 +165,7 @@ impl RemotePathFromNode {
     /// Shrink the end of the current window. Lazy — no RPC.
     pub fn shrink_end(&self, end: InputTime) -> RemotePathFromNode {
         self.with_view_op(move |input| ReadExpr::ShrinkEnd {
-            input: Box::new(input),
+            input: Arc::new(input),
             end,
         })
     }
@@ -173,30 +173,33 @@ impl RemotePathFromNode {
     /// Restrict to the default layer. Lazy — no RPC.
     pub fn default_layer(&self) -> RemotePathFromNode {
         self.with_view_op(move |input| ReadExpr::DefaultLayer {
-            input: Box::new(input),
+            input: Arc::new(input),
         })
     }
 
     /// Restrict to the given set of layers. Lazy — no RPC.
     pub fn layers(&self, names: Vec<String>) -> RemotePathFromNode {
+        let names: Arc<[String]> = names.into();
         self.with_view_op(move |input| ReadExpr::Layers {
-            input: Box::new(input),
+            input: Arc::new(input),
             names: names.clone(),
         })
     }
 
     /// Exclude the given set of layers. Lazy — no RPC.
     pub fn exclude_layers(&self, names: Vec<String>) -> RemotePathFromNode {
+        let names: Arc<[String]> = names.into();
         self.with_view_op(move |input| ReadExpr::ExcludeLayers {
-            input: Box::new(input),
+            input: Arc::new(input),
             names: names.clone(),
         })
     }
 
     /// Restrict to the given set of valid layers. Lazy — no RPC.
     pub fn valid_layers(&self, names: Vec<String>) -> RemotePathFromNode {
+        let names: Arc<[String]> = names.into();
         self.with_view_op(move |input| ReadExpr::ValidLayers {
-            input: Box::new(input),
+            input: Arc::new(input),
             names: names.clone(),
         })
     }
@@ -205,15 +208,16 @@ impl RemotePathFromNode {
     pub fn exclude_valid_layer(&self, name: impl ToString) -> RemotePathFromNode {
         let name = name.to_string();
         self.with_view_op(move |input| ReadExpr::ExcludeValidLayer {
-            input: Box::new(input),
+            input: Arc::new(input),
             name: name.clone(),
         })
     }
 
     /// Exclude the given set of valid layers from the view. Lazy — no RPC.
     pub fn exclude_valid_layers(&self, names: Vec<String>) -> RemotePathFromNode {
+        let names: Arc<[String]> = names.into();
         self.with_view_op(move |input| ReadExpr::ExcludeValidLayers {
-            input: Box::new(input),
+            input: Arc::new(input),
             names: names.clone(),
         })
     }
@@ -227,8 +231,8 @@ impl RemotePathFromNode {
             path: self.path.clone(),
             transport: self.transport.clone(),
             expr: ReadExpr::TypeFilter {
-                input: Box::new(self.expr.clone()),
-                node_types,
+                input: Arc::new(self.expr.clone()),
+                node_types: node_types.into(),
             },
             ctx: self.ctx.clone(),
         }
@@ -239,11 +243,12 @@ impl RemotePathFromNode {
     /// `PathFromNode.filter(FilterExpr)`. Recorded in `ctx` so members
     /// materialized via `.collect()` replay it per handle. Lazy — no RPC.
     pub fn filter(&self, filter: GqlNodeFilter) -> RemotePathFromNode {
+        let filter = Arc::new(filter);
         RemotePathFromNode {
             path: self.path.clone(),
             transport: self.transport.clone(),
             expr: ReadExpr::FilterNodes {
-                input: Box::new(self.expr.clone()),
+                input: Arc::new(self.expr.clone()),
                 filter: filter.clone(),
             },
             ctx: self.ctx.with_op(HandleOp::NodeFilter(filter)),
@@ -254,11 +259,12 @@ impl RemotePathFromNode {
     /// this step; downstream traversals see the unfiltered graph. Server-only
     /// (`select` has no local `PathFromNode` equivalent). Lazy — no RPC.
     pub fn select(&self, filter: GqlNodeFilter) -> RemotePathFromNode {
+        let filter = Arc::new(filter);
         RemotePathFromNode {
             path: self.path.clone(),
             transport: self.transport.clone(),
             expr: ReadExpr::SelectNodes {
-                input: Box::new(self.expr.clone()),
+                input: Arc::new(self.expr.clone()),
                 filter,
             },
             ctx: self.ctx.clone(),
@@ -272,7 +278,7 @@ impl RemotePathFromNode {
             self.path.clone(),
             self.transport.clone(),
             ReadExpr::Neighbours {
-                input: Box::new(self.expr.clone()),
+                input: Arc::new(self.expr.clone()),
             },
             self.ctx.clone(),
         )
@@ -285,7 +291,7 @@ impl RemotePathFromNode {
             self.path.clone(),
             self.transport.clone(),
             ReadExpr::InNeighbours {
-                input: Box::new(self.expr.clone()),
+                input: Arc::new(self.expr.clone()),
             },
             self.ctx.clone(),
         )
@@ -298,7 +304,7 @@ impl RemotePathFromNode {
             self.path.clone(),
             self.transport.clone(),
             ReadExpr::OutNeighbours {
-                input: Box::new(self.expr.clone()),
+                input: Arc::new(self.expr.clone()),
             },
             self.ctx.clone(),
         )
@@ -311,7 +317,7 @@ impl RemotePathFromNode {
             self.path.clone(),
             self.transport.clone(),
             ReadExpr::NodeEdges {
-                input: Box::new(self.expr.clone()),
+                input: Arc::new(self.expr.clone()),
             },
             self.ctx.clone(),
         )
@@ -324,7 +330,7 @@ impl RemotePathFromNode {
             self.path.clone(),
             self.transport.clone(),
             ReadExpr::InEdges {
-                input: Box::new(self.expr.clone()),
+                input: Arc::new(self.expr.clone()),
             },
             self.ctx.clone(),
         )
@@ -337,7 +343,7 @@ impl RemotePathFromNode {
             self.path.clone(),
             self.transport.clone(),
             ReadExpr::OutEdges {
-                input: Box::new(self.expr.clone()),
+                input: Arc::new(self.expr.clone()),
             },
             self.ctx.clone(),
         )
@@ -346,7 +352,7 @@ impl RemotePathFromNode {
     /// Terminal: the list of node ids in this collection. Fires one RPC.
     pub async fn ids(&self) -> Result<Vec<String>, ClientError> {
         let op = Op::Read(ReadExpr::Ids {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
         });
         expect_string_list(self.transport.execute(&op).await?, "ids")
     }
@@ -355,7 +361,7 @@ impl RemotePathFromNode {
     /// Fires one RPC.
     pub async fn id(&self) -> Result<Vec<String>, ClientError> {
         let op = Op::Read(ReadExpr::Ids {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
         });
         expect_string_list(self.transport.execute(&op).await?, "id")
     }
@@ -364,7 +370,7 @@ impl RemotePathFromNode {
     /// `PathFromNode.name`. Fires one RPC.
     pub async fn name(&self) -> Result<Vec<String>, ClientError> {
         let op = Op::Read(ReadExpr::CollectionNames {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
         });
         expect_string_list(self.transport.execute(&op).await?, "name")
     }
@@ -373,7 +379,7 @@ impl RemotePathFromNode {
     /// local `PathFromNode.node_type`. Fires one RPC.
     pub async fn node_type(&self) -> Result<Vec<Option<String>>, ClientError> {
         let op = Op::Read(ReadExpr::CollectionNodeTypes {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
         });
         expect_optional_string_list(self.transport.execute(&op).await?, "nodeType")
     }
@@ -382,7 +388,7 @@ impl RemotePathFromNode {
     /// `PathFromNode.earliest_time`. Fires one RPC.
     pub async fn earliest_time(&self) -> Result<Vec<Option<RemoteEventTime>>, ClientError> {
         let op = Op::Read(ReadExpr::CollectionEarliestTime {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
         });
         expect_optional_event_time_list(self.transport.execute(&op).await?, "earliestTime")
     }
@@ -391,7 +397,7 @@ impl RemotePathFromNode {
     /// `PathFromNode.latest_time`. Fires one RPC.
     pub async fn latest_time(&self) -> Result<Vec<Option<RemoteEventTime>>, ClientError> {
         let op = Op::Read(ReadExpr::CollectionLatestTime {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
         });
         expect_optional_event_time_list(self.transport.execute(&op).await?, "latestTime")
     }
@@ -424,7 +430,7 @@ impl RemotePathFromNode {
     /// in this path, in order — a flat `Vec<i64>`. Fires one RPC.
     pub async fn degree(&self) -> Result<Vec<i64>, ClientError> {
         let op = Op::Read(ReadExpr::CollectionDegree {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
         });
         expect_i64_list(self.transport.execute(&op).await?, "degree")
     }
@@ -433,7 +439,7 @@ impl RemotePathFromNode {
     /// a flat `Vec<i64>`. Fires one RPC.
     pub async fn in_degree(&self) -> Result<Vec<i64>, ClientError> {
         let op = Op::Read(ReadExpr::CollectionInDegree {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
         });
         expect_i64_list(self.transport.execute(&op).await?, "inDegree")
     }
@@ -442,7 +448,7 @@ impl RemotePathFromNode {
     /// a flat `Vec<i64>`. Fires one RPC.
     pub async fn out_degree(&self) -> Result<Vec<i64>, ClientError> {
         let op = Op::Read(ReadExpr::CollectionOutDegree {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
         });
         expect_i64_list(self.transport.execute(&op).await?, "outDegree")
     }
@@ -451,7 +457,7 @@ impl RemotePathFromNode {
     /// this path, in order — a flat `Vec<i64>`. Fires one RPC.
     pub async fn edge_history_count(&self) -> Result<Vec<i64>, ClientError> {
         let op = Op::Read(ReadExpr::CollectionEdgeHistoryCount {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
         });
         expect_i64_list(self.transport.execute(&op).await?, "edgeHistoryCount")
     }
@@ -459,7 +465,7 @@ impl RemotePathFromNode {
     /// Terminal: the number of nodes in this collection. Fires one RPC.
     pub async fn count(&self) -> Result<i64, ClientError> {
         let op = Op::Read(ReadExpr::Count {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
         });
         expect_i64(self.transport.execute(&op).await?, "count")
     }
@@ -467,7 +473,7 @@ impl RemotePathFromNode {
     /// Terminal: whether this view contains a layer named `name`. Fires one RPC.
     pub async fn has_layer(&self, name: impl ToString) -> Result<bool, ClientError> {
         let op = Op::Read(ReadExpr::HasLayer {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
             name: name.to_string(),
         });
         expect_bool(self.transport.execute(&op).await?, "hasLayer")
@@ -477,7 +483,7 @@ impl RemotePathFromNode {
     /// or `None` for an unbounded view. Fires one RPC.
     pub async fn window_size(&self) -> Result<Option<i64>, ClientError> {
         let op = Op::Read(ReadExpr::WindowSize {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
         });
         expect_optional_i64(self.transport.execute(&op).await?, "windowSize")
     }
@@ -489,7 +495,7 @@ impl RemotePathFromNode {
             self.path.clone(),
             self.transport.clone(),
             ReadExpr::CombinedHistory {
-                input: Box::new(self.expr.clone()),
+                input: Arc::new(self.expr.clone()),
             },
             self.ctx.clone(),
         )
@@ -499,7 +505,7 @@ impl RemotePathFromNode {
     /// Fires one RPC.
     pub async fn start(&self) -> Result<Option<RemoteEventTime>, ClientError> {
         let op = Op::Read(ReadExpr::Start {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
         });
         expect_optional_event_time(self.transport.execute(&op).await?, "start")
     }
@@ -508,7 +514,7 @@ impl RemotePathFromNode {
     /// Fires one RPC.
     pub async fn end(&self) -> Result<Option<RemoteEventTime>, ClientError> {
         let op = Op::Read(ReadExpr::End {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
         });
         expect_optional_event_time(self.transport.execute(&op).await?, "end")
     }

@@ -1003,7 +1003,7 @@ impl RemoteGraph {
     /// Time-window the graph. Lazy — builds up the read expression, no RPC.
     pub fn window(&self, start: InputTime, end: InputTime) -> RemoteGraph {
         self.with_expr(ReadExpr::Window {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
             start,
             end,
         })
@@ -1012,7 +1012,7 @@ impl RemoteGraph {
     /// Restrict to a single named layer. Lazy — no RPC.
     pub fn layer(&self, name: impl ToString) -> RemoteGraph {
         self.with_expr(ReadExpr::Layer {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
             name: name.to_string(),
         })
     }
@@ -1020,7 +1020,7 @@ impl RemoteGraph {
     /// Snapshot at a specific time. Lazy — no RPC.
     pub fn at(&self, time: InputTime) -> RemoteGraph {
         self.with_expr(ReadExpr::At {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
             time,
         })
     }
@@ -1028,7 +1028,7 @@ impl RemoteGraph {
     /// Restrict to events strictly before the given time. Lazy — no RPC.
     pub fn before(&self, time: InputTime) -> RemoteGraph {
         self.with_expr(ReadExpr::Before {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
             time,
         })
     }
@@ -1036,7 +1036,7 @@ impl RemoteGraph {
     /// Restrict to events strictly after the given time (exclusive). Lazy — no RPC.
     pub fn after(&self, time: InputTime) -> RemoteGraph {
         self.with_expr(ReadExpr::After {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
             time,
         })
     }
@@ -1044,21 +1044,21 @@ impl RemoteGraph {
     /// Restrict to the latest state — no args. Lazy — no RPC.
     pub fn latest(&self) -> RemoteGraph {
         self.with_expr(ReadExpr::Latest {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
         })
     }
 
     /// Snapshot at the latest time. Lazy — no RPC.
     pub fn snapshot_latest(&self) -> RemoteGraph {
         self.with_expr(ReadExpr::SnapshotLatest {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
         })
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
     pub fn snapshot_at(&self, time: InputTime) -> RemoteGraph {
         self.with_expr(ReadExpr::SnapshotAt {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
             time,
         })
     }
@@ -1066,7 +1066,7 @@ impl RemoteGraph {
     /// Exclude a specific layer from the view. Lazy — no RPC.
     pub fn exclude_layer(&self, name: impl ToString) -> RemoteGraph {
         self.with_expr(ReadExpr::ExcludeLayer {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
             name: name.to_string(),
         })
     }
@@ -1075,7 +1075,7 @@ impl RemoteGraph {
     /// Lazy — no RPC.
     pub fn shrink_window(&self, start: InputTime, end: InputTime) -> RemoteGraph {
         self.with_expr(ReadExpr::ShrinkWindow {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
             start,
             end,
         })
@@ -1084,7 +1084,7 @@ impl RemoteGraph {
     /// Shrink the start of the current window. Lazy — no RPC.
     pub fn shrink_start(&self, start: InputTime) -> RemoteGraph {
         self.with_expr(ReadExpr::ShrinkStart {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
             start,
         })
     }
@@ -1092,7 +1092,7 @@ impl RemoteGraph {
     /// Shrink the end of the current window. Lazy — no RPC.
     pub fn shrink_end(&self, end: InputTime) -> RemoteGraph {
         self.with_expr(ReadExpr::ShrinkEnd {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
             end,
         })
     }
@@ -1100,45 +1100,45 @@ impl RemoteGraph {
     /// Restrict to the "valid" subgraph (event-graph filter). Lazy — no RPC.
     pub fn valid(&self) -> RemoteGraph {
         self.with_expr(ReadExpr::Valid {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
         })
     }
 
     /// Restrict to the default layer. Lazy — no RPC.
     pub fn default_layer(&self) -> RemoteGraph {
         self.with_expr(ReadExpr::DefaultLayer {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
         })
     }
 
     /// Restrict to the given set of layers. Lazy — no RPC.
     pub fn layers(&self, names: Vec<String>) -> RemoteGraph {
         self.with_expr(ReadExpr::Layers {
-            input: Box::new(self.expr.clone()),
-            names,
+            input: Arc::new(self.expr.clone()),
+            names: names.into(),
         })
     }
 
     /// Exclude the given set of layers from the view. Lazy — no RPC.
     pub fn exclude_layers(&self, names: Vec<String>) -> RemoteGraph {
         self.with_expr(ReadExpr::ExcludeLayers {
-            input: Box::new(self.expr.clone()),
-            names,
+            input: Arc::new(self.expr.clone()),
+            names: names.into(),
         })
     }
 
     /// Restrict to the given set of valid layers. Lazy — no RPC.
     pub fn valid_layers(&self, names: Vec<String>) -> RemoteGraph {
         self.with_expr(ReadExpr::ValidLayers {
-            input: Box::new(self.expr.clone()),
-            names,
+            input: Arc::new(self.expr.clone()),
+            names: names.into(),
         })
     }
 
     /// Exclude a specific valid layer from the view. Lazy — no RPC.
     pub fn exclude_valid_layer(&self, name: impl ToString) -> RemoteGraph {
         self.with_expr(ReadExpr::ExcludeValidLayer {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
             name: name.to_string(),
         })
     }
@@ -1146,24 +1146,24 @@ impl RemoteGraph {
     /// Exclude the given set of valid layers from the view. Lazy — no RPC.
     pub fn exclude_valid_layers(&self, names: Vec<String>) -> RemoteGraph {
         self.with_expr(ReadExpr::ExcludeValidLayers {
-            input: Box::new(self.expr.clone()),
-            names,
+            input: Arc::new(self.expr.clone()),
+            names: names.into(),
         })
     }
 
     /// Restrict to a subgraph induced by the given node ids. Lazy — no RPC.
     pub fn subgraph(&self, nodes: Vec<String>) -> RemoteGraph {
         self.with_expr(ReadExpr::Subgraph {
-            input: Box::new(self.expr.clone()),
-            nodes,
+            input: Arc::new(self.expr.clone()),
+            nodes: nodes.into(),
         })
     }
 
     /// Restrict to nodes matching one of the given node types. Lazy — no RPC.
     pub fn subgraph_node_types(&self, node_types: Vec<String>) -> RemoteGraph {
         self.with_expr(ReadExpr::SubgraphNodeTypes {
-            input: Box::new(self.expr.clone()),
-            node_types,
+            input: Arc::new(self.expr.clone()),
+            node_types: node_types.into(),
         })
     }
 
@@ -1172,8 +1172,8 @@ impl RemoteGraph {
     /// `Graph.filter(FilterExpr)` API. Lazy — no RPC.
     pub fn filter_nodes(&self, filter: GqlNodeFilter) -> RemoteGraph {
         self.with_expr(ReadExpr::FilterGraphNodes {
-            input: Box::new(self.expr.clone()),
-            filter,
+            input: Arc::new(self.expr.clone()),
+            filter: Arc::new(filter),
         })
     }
 
@@ -1182,23 +1182,23 @@ impl RemoteGraph {
     /// `Graph.filter(FilterExpr)` API. Lazy — no RPC.
     pub fn filter_edges(&self, filter: GqlEdgeFilter) -> RemoteGraph {
         self.with_expr(ReadExpr::FilterGraphEdges {
-            input: Box::new(self.expr.clone()),
-            filter,
+            input: Arc::new(self.expr.clone()),
+            filter: Arc::new(filter),
         })
     }
 
     /// Exclude the given nodes from the view. Lazy — no RPC.
     pub fn exclude_nodes(&self, nodes: Vec<String>) -> RemoteGraph {
         self.with_expr(ReadExpr::ExcludeNodes {
-            input: Box::new(self.expr.clone()),
-            nodes,
+            input: Arc::new(self.expr.clone()),
+            nodes: nodes.into(),
         })
     }
 
     /// Terminal: count of nodes under the current view. Fires one RPC.
     pub async fn count_nodes(&self) -> Result<i64, ClientError> {
         let op = Op::Read(ReadExpr::CountNodes {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
         });
         expect_i64(self.transport.execute(&op).await?, "countNodes")
     }
@@ -1206,7 +1206,7 @@ impl RemoteGraph {
     /// Terminal: count of edges under the current view. Fires one RPC.
     pub async fn count_edges(&self) -> Result<i64, ClientError> {
         let op = Op::Read(ReadExpr::CountEdges {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
         });
         expect_i64(self.transport.execute(&op).await?, "countEdges")
     }
@@ -1215,7 +1215,7 @@ impl RemoteGraph {
     /// `None` if the view has no events. Fires one RPC.
     pub async fn earliest_time(&self) -> Result<Option<RemoteEventTime>, ClientError> {
         let op = Op::Read(ReadExpr::EarliestTime {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
         });
         expect_optional_event_time(self.transport.execute(&op).await?, "earliestTime")
     }
@@ -1224,7 +1224,7 @@ impl RemoteGraph {
     /// `None` if the view has no events. Fires one RPC.
     pub async fn latest_time(&self) -> Result<Option<RemoteEventTime>, ClientError> {
         let op = Op::Read(ReadExpr::LatestTime {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
         });
         expect_optional_event_time(self.transport.execute(&op).await?, "latestTime")
     }
@@ -1233,7 +1233,7 @@ impl RemoteGraph {
     /// Fires one RPC.
     pub async fn start(&self) -> Result<Option<RemoteEventTime>, ClientError> {
         let op = Op::Read(ReadExpr::Start {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
         });
         expect_optional_event_time(self.transport.execute(&op).await?, "start")
     }
@@ -1242,7 +1242,7 @@ impl RemoteGraph {
     /// Fires one RPC.
     pub async fn end(&self) -> Result<Option<RemoteEventTime>, ClientError> {
         let op = Op::Read(ReadExpr::End {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
         });
         expect_optional_event_time(self.transport.execute(&op).await?, "end")
     }
@@ -1250,7 +1250,7 @@ impl RemoteGraph {
     /// Terminal: does the graph have a node with this id? Fires one RPC.
     pub async fn has_node(&self, id: impl ToString) -> Result<bool, ClientError> {
         let op = Op::Read(ReadExpr::HasNode {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
             id: id.to_string(),
         });
         expect_bool(self.transport.execute(&op).await?, "hasNode")
@@ -1263,7 +1263,7 @@ impl RemoteGraph {
         dst: impl ToString,
     ) -> Result<bool, ClientError> {
         let op = Op::Read(ReadExpr::HasEdge {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
             src: src.to_string(),
             dst: dst.to_string(),
         });
@@ -1274,7 +1274,7 @@ impl RemoteGraph {
     /// Fires one RPC.
     pub async fn count_temporal_edges(&self) -> Result<i64, ClientError> {
         let op = Op::Read(ReadExpr::CountTemporalEdges {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
         });
         expect_i64(self.transport.execute(&op).await?, "countTemporalEdges")
     }
@@ -1282,7 +1282,7 @@ impl RemoteGraph {
     /// Terminal: graph name. Fires one RPC.
     pub async fn name(&self) -> Result<String, ClientError> {
         let op = Op::Read(ReadExpr::Name {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
         });
         expect_string(self.transport.execute(&op).await?, "name")
     }
@@ -1290,7 +1290,7 @@ impl RemoteGraph {
     /// Terminal: graph path. Fires one RPC.
     pub async fn path(&self) -> Result<String, ClientError> {
         let op = Op::Read(ReadExpr::Path {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
         });
         expect_string(self.transport.execute(&op).await?, "path")
     }
@@ -1298,7 +1298,7 @@ impl RemoteGraph {
     /// Terminal: parent namespace of the graph path. Fires one RPC.
     pub async fn namespace(&self) -> Result<String, ClientError> {
         let op = Op::Read(ReadExpr::Namespace {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
         });
         expect_string(self.transport.execute(&op).await?, "namespace")
     }
@@ -1307,7 +1307,7 @@ impl RemoteGraph {
     /// Fires one RPC.
     pub async fn created(&self) -> Result<i64, ClientError> {
         let op = Op::Read(ReadExpr::Created {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
         });
         expect_i64(self.transport.execute(&op).await?, "created")
     }
@@ -1315,7 +1315,7 @@ impl RemoteGraph {
     /// Terminal: graph last-opened timestamp — never null. Fires one RPC.
     pub async fn last_opened(&self) -> Result<i64, ClientError> {
         let op = Op::Read(ReadExpr::LastOpened {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
         });
         expect_i64(self.transport.execute(&op).await?, "lastOpened")
     }
@@ -1323,7 +1323,7 @@ impl RemoteGraph {
     /// Terminal: graph last-updated timestamp — never null. Fires one RPC.
     pub async fn last_updated(&self) -> Result<i64, ClientError> {
         let op = Op::Read(ReadExpr::LastUpdated {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
         });
         expect_i64(self.transport.execute(&op).await?, "lastUpdated")
     }
@@ -1331,7 +1331,7 @@ impl RemoteGraph {
     /// Terminal: list of unique layer names present in this graph. Fires one RPC.
     pub async fn unique_layers(&self) -> Result<Vec<String>, ClientError> {
         let op = Op::Read(ReadExpr::UniqueLayers {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
         });
         expect_string_list(self.transport.execute(&op).await?, "uniqueLayers")
     }
@@ -1339,7 +1339,7 @@ impl RemoteGraph {
     /// Terminal: whether this view contains a layer named `name`. Fires one RPC.
     pub async fn has_layer(&self, name: impl ToString) -> Result<bool, ClientError> {
         let op = Op::Read(ReadExpr::HasLayer {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
             name: name.to_string(),
         });
         expect_bool(self.transport.execute(&op).await?, "hasLayer")
@@ -1349,7 +1349,7 @@ impl RemoteGraph {
     /// or `None` for an unbounded view. Fires one RPC.
     pub async fn window_size(&self) -> Result<Option<i64>, ClientError> {
         let op = Op::Read(ReadExpr::WindowSize {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
         });
         expect_optional_i64(self.transport.execute(&op).await?, "windowSize")
     }
@@ -1358,7 +1358,7 @@ impl RemoteGraph {
     /// `None` if the view has no edge events. Fires one RPC.
     pub async fn earliest_edge_time(&self) -> Result<Option<i64>, ClientError> {
         let op = Op::Read(ReadExpr::EarliestEdgeTime {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
         });
         expect_optional_i64(self.transport.execute(&op).await?, "earliestEdgeTime")
     }
@@ -1367,7 +1367,7 @@ impl RemoteGraph {
     /// `None` if the view has no edge events. Fires one RPC.
     pub async fn latest_edge_time(&self) -> Result<Option<i64>, ClientError> {
         let op = Op::Read(ReadExpr::LatestEdgeTime {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
         });
         expect_optional_i64(self.transport.execute(&op).await?, "latestEdgeTime")
     }
@@ -1397,7 +1397,7 @@ impl RemoteGraph {
     pub async fn node(&self, id: impl ToString) -> Result<Option<RemoteNode>, ClientError> {
         let id_str = id.to_string();
         let check = Op::Read(ReadExpr::HasNode {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
             id: id_str.clone(),
         });
         let exists = expect_bool(self.transport.execute(&check).await?, "hasNode")?;
@@ -1409,7 +1409,7 @@ impl RemoteGraph {
             id_str.clone(),
             self.transport.clone(),
             ReadExpr::Node {
-                input: Box::new(self.expr.clone()),
+                input: Arc::new(self.expr.clone()),
                 id: id_str,
             },
             HandleCtx::new(self.expr.clone()),
@@ -1423,7 +1423,7 @@ impl RemoteGraph {
             self.path.clone(),
             self.transport.clone(),
             ReadExpr::Nodes {
-                input: Box::new(self.expr.clone()),
+                input: Arc::new(self.expr.clone()),
             },
             HandleCtx::new(self.expr.clone()),
         )
@@ -1436,7 +1436,7 @@ impl RemoteGraph {
             self.path.clone(),
             self.transport.clone(),
             ReadExpr::Metadata {
-                input: Box::new(self.expr.clone()),
+                input: Arc::new(self.expr.clone()),
             },
             HandleCtx::new(self.expr.clone()),
         )
@@ -1448,7 +1448,7 @@ impl RemoteGraph {
     /// which lazy-fetch on demand).
     pub async fn schema(&self) -> Result<RemoteGraphSchema, ClientError> {
         let op = Op::Read(ReadExpr::Schema {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
         });
         let prop = self
             .transport
@@ -1472,7 +1472,7 @@ impl RemoteGraph {
         ids: Vec<String>,
     ) -> Result<Vec<RemoteNode>, ClientError> {
         let op = Op::Read(ReadExpr::SharedNeighbours {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
             ids,
         });
         let names = expect_string_list(self.transport.execute(&op).await?, "sharedNeighbours")?;
@@ -1484,7 +1484,7 @@ impl RemoteGraph {
                     name.clone(),
                     self.transport.clone(),
                     ReadExpr::Node {
-                        input: Box::new(self.expr.clone()),
+                        input: Arc::new(self.expr.clone()),
                         id: name,
                     },
                     HandleCtx::new(self.expr.clone()),
@@ -1502,7 +1502,7 @@ impl RemoteGraph {
         properties_dict: HashMap<String, Prop>,
     ) -> Result<Vec<RemoteNode>, ClientError> {
         let op = Op::Read(ReadExpr::FindNodes {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
             properties: properties_dict,
         });
         let names = expect_string_list(self.transport.execute(&op).await?, "findNodes")?;
@@ -1514,7 +1514,7 @@ impl RemoteGraph {
                     name.clone(),
                     self.transport.clone(),
                     ReadExpr::Node {
-                        input: Box::new(self.expr.clone()),
+                        input: Arc::new(self.expr.clone()),
                         id: name,
                     },
                     HandleCtx::new(self.expr.clone()),
@@ -1532,7 +1532,7 @@ impl RemoteGraph {
         properties_dict: HashMap<String, Prop>,
     ) -> Result<Vec<RemoteEdge>, ClientError> {
         let op = Op::Read(ReadExpr::FindEdges {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
             properties: properties_dict,
         });
         let pairs = expect_edge_list(self.transport.execute(&op).await?, "findEdges")?;
@@ -1545,7 +1545,7 @@ impl RemoteGraph {
                     dst.clone(),
                     self.transport.clone(),
                     ReadExpr::Edge {
-                        input: Box::new(self.expr.clone()),
+                        input: Arc::new(self.expr.clone()),
                         src,
                         dst,
                     },
@@ -1559,7 +1559,7 @@ impl RemoteGraph {
     /// `Graph.get_all_node_types`. Fires one RPC.
     pub async fn get_all_node_types(&self) -> Result<Vec<String>, ClientError> {
         let op = Op::Read(ReadExpr::GetAllNodeTypes {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
         });
         expect_string_list(self.transport.execute(&op).await?, "getAllNodeTypes")
     }
@@ -1571,7 +1571,7 @@ impl RemoteGraph {
             self.path.clone(),
             self.transport.clone(),
             ReadExpr::Properties {
-                input: Box::new(self.expr.clone()),
+                input: Arc::new(self.expr.clone()),
             },
             HandleCtx::new(self.expr.clone()),
         )
@@ -1584,7 +1584,7 @@ impl RemoteGraph {
             self.path.clone(),
             self.transport.clone(),
             ReadExpr::Edges {
-                input: Box::new(self.expr.clone()),
+                input: Arc::new(self.expr.clone()),
             },
             HandleCtx::new(self.expr.clone()),
         )
@@ -1603,7 +1603,7 @@ impl RemoteGraph {
         let src_str = src.to_string();
         let dst_str = dst.to_string();
         let check = Op::Read(ReadExpr::HasEdge {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
             src: src_str.clone(),
             dst: dst_str.clone(),
         });
@@ -1617,7 +1617,7 @@ impl RemoteGraph {
             dst_str.clone(),
             self.transport.clone(),
             ReadExpr::Edge {
-                input: Box::new(self.expr.clone()),
+                input: Arc::new(self.expr.clone()),
                 src: src_str,
                 dst: dst_str,
             },
@@ -1658,7 +1658,7 @@ impl RemoteGraph {
             id_str.clone(),
             self.transport.clone(),
             ReadExpr::Node {
-                input: Box::new(self.expr.clone()),
+                input: Arc::new(self.expr.clone()),
                 id: id_str,
             },
             HandleCtx::new(self.expr.clone()),
@@ -1695,7 +1695,7 @@ impl RemoteGraph {
             id_str.clone(),
             self.transport.clone(),
             ReadExpr::Node {
-                input: Box::new(self.expr.clone()),
+                input: Arc::new(self.expr.clone()),
                 id: id_str,
             },
             HandleCtx::new(self.expr.clone()),
@@ -1736,7 +1736,7 @@ impl RemoteGraph {
             dst_str.clone(),
             self.transport.clone(),
             ReadExpr::Edge {
-                input: Box::new(self.expr.clone()),
+                input: Arc::new(self.expr.clone()),
                 src: src_str,
                 dst: dst_str,
             },
@@ -1822,7 +1822,7 @@ impl RemoteGraph {
             dst_str.clone(),
             self.transport.clone(),
             ReadExpr::Edge {
-                input: Box::new(self.expr.clone()),
+                input: Arc::new(self.expr.clone()),
                 src: src_str,
                 dst: dst_str,
             },

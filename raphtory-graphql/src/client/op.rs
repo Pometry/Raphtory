@@ -57,114 +57,114 @@ pub enum ReadExpr {
     // ============ View chaining (Graph → Graph) ============
     /// Time-window a graph. Composes.
     Window {
-        input: Box<ReadExpr>,
+        input: Arc<ReadExpr>,
         start: InputTime,
         end: InputTime,
     },
     /// Restrict to a single layer.
-    Layer { input: Box<ReadExpr>, name: String },
+    Layer { input: Arc<ReadExpr>, name: String },
     /// Snapshot at a single timestamp.
     At {
-        input: Box<ReadExpr>,
+        input: Arc<ReadExpr>,
         time: InputTime,
     },
     /// Restrict to events strictly before the given time.
     Before {
-        input: Box<ReadExpr>,
+        input: Arc<ReadExpr>,
         time: InputTime,
     },
     /// Restrict to events strictly after the given time (exclusive).
     After {
-        input: Box<ReadExpr>,
+        input: Arc<ReadExpr>,
         time: InputTime,
     },
     /// Latest state — no args. Composes.
-    Latest { input: Box<ReadExpr> },
+    Latest { input: Arc<ReadExpr> },
     /// Snapshot at the latest time. Composes.
-    SnapshotLatest { input: Box<ReadExpr> },
+    SnapshotLatest { input: Arc<ReadExpr> },
     /// Snapshot at a specific time. Composes.
     SnapshotAt {
-        input: Box<ReadExpr>,
+        input: Arc<ReadExpr>,
         time: InputTime,
     },
     /// Exclude a specific layer.
-    ExcludeLayer { input: Box<ReadExpr>, name: String },
+    ExcludeLayer { input: Arc<ReadExpr>, name: String },
     /// Shrink both start and end of the window.
     ShrinkWindow {
-        input: Box<ReadExpr>,
+        input: Arc<ReadExpr>,
         start: InputTime,
         end: InputTime,
     },
     /// Shrink the start of the window.
     ShrinkStart {
-        input: Box<ReadExpr>,
+        input: Arc<ReadExpr>,
         start: InputTime,
     },
     /// Shrink the end of the window.
     ShrinkEnd {
-        input: Box<ReadExpr>,
+        input: Arc<ReadExpr>,
         end: InputTime,
     },
     /// Restrict to the "valid" subgraph (event-graph filter). No args. Composes.
-    Valid { input: Box<ReadExpr> },
+    Valid { input: Arc<ReadExpr> },
     /// Restrict to the default layer. No args. Composes.
-    DefaultLayer { input: Box<ReadExpr> },
+    DefaultLayer { input: Arc<ReadExpr> },
     /// Restrict to a specific set of layers.
     Layers {
-        input: Box<ReadExpr>,
-        names: Vec<String>,
+        input: Arc<ReadExpr>,
+        names: Arc<[String]>,
     },
     /// Exclude a specific set of layers.
     ExcludeLayers {
-        input: Box<ReadExpr>,
-        names: Vec<String>,
+        input: Arc<ReadExpr>,
+        names: Arc<[String]>,
     },
     /// Restrict to a specific set of valid layers. The GraphQL server exposes
     /// valid-layer semantics under the existing `layers` field (backed by the
     /// graph's `valid_layers`), so this renders as `layers(names: [..])` — no
     /// separate `validLayers` field exists on the server.
     ValidLayers {
-        input: Box<ReadExpr>,
-        names: Vec<String>,
+        input: Arc<ReadExpr>,
+        names: Arc<[String]>,
     },
     /// Exclude a specific valid layer. Renders as the server's `excludeLayer`
     /// (backed by `exclude_valid_layers`).
-    ExcludeValidLayer { input: Box<ReadExpr>, name: String },
+    ExcludeValidLayer { input: Arc<ReadExpr>, name: String },
     /// Exclude a specific set of valid layers. Renders as the server's
     /// `excludeLayers` (backed by `exclude_valid_layers`).
     ExcludeValidLayers {
-        input: Box<ReadExpr>,
-        names: Vec<String>,
+        input: Arc<ReadExpr>,
+        names: Arc<[String]>,
     },
     /// Restrict to a subgraph induced by the given node ids.
     Subgraph {
-        input: Box<ReadExpr>,
-        nodes: Vec<String>,
+        input: Arc<ReadExpr>,
+        nodes: Arc<[String]>,
     },
     /// Restrict to nodes matching one of the given node types.
     SubgraphNodeTypes {
-        input: Box<ReadExpr>,
-        node_types: Vec<String>,
+        input: Arc<ReadExpr>,
+        node_types: Arc<[String]>,
     },
     /// Exclude the given nodes from the view.
     ExcludeNodes {
-        input: Box<ReadExpr>,
-        nodes: Vec<String>,
+        input: Arc<ReadExpr>,
+        nodes: Arc<[String]>,
     },
     /// Restrict a `RemoteNodes` collection to members with one of the given
     /// node types. Unlike view ops, this actually filters membership — the
     /// returned collection has fewer members. Server field: `typeFilter`.
     TypeFilter {
-        input: Box<ReadExpr>,
-        node_types: Vec<String>,
+        input: Arc<ReadExpr>,
+        node_types: Arc<[String]>,
     },
 
     // ============ Selection ============
     /// Narrow to a single node by id. Graph → Node.
-    Node { input: Box<ReadExpr>, id: String },
+    Node { input: Arc<ReadExpr>, id: String },
     /// Narrow to a single edge by (src, dst). Graph → Edge.
     Edge {
-        input: Box<ReadExpr>,
+        input: Arc<ReadExpr>,
         src: String,
         dst: String,
     },
@@ -172,78 +172,78 @@ pub enum ReadExpr {
     /// kind — the server field is `src` in every case, so one variant covers
     /// all of them: Edge → Node, `Edges` → `PathFromNode`, `NestedEdges` →
     /// `PathFromGraph`. The downstream terminal decides how the result is read.
-    Src { input: Box<ReadExpr> },
+    Src { input: Arc<ReadExpr> },
     /// Navigate to a destination node. Polymorphic like `Src` (server field
     /// `dst`): Edge → Node, `Edges` → `PathFromNode`, `NestedEdges` →
     /// `PathFromGraph`.
-    Dst { input: Box<ReadExpr> },
+    Dst { input: Arc<ReadExpr> },
     /// Navigate to the "other end" node. Polymorphic like `Src` (server field
     /// `nbr`): Edge → Node, `Edges` → `PathFromNode`, `NestedEdges` →
     /// `PathFromGraph`. Context-sensitive per edge: on an out-edge yields the
     /// destination; on an in-edge yields the source.
-    Nbr { input: Box<ReadExpr> },
+    Nbr { input: Arc<ReadExpr> },
     /// Navigate to the event history of a node or edge. Node/Edge → History.
     /// Container-selection: the resulting `RemoteHistory` handle exposes
     /// terminals like `.count()`, `.collect()`, plus sub-container accessors
     /// (`.timestamps`, `.intervals`, etc.).
-    History { input: Box<ReadExpr> },
+    History { input: Arc<ReadExpr> },
     /// Navigate to the combined event history of a `PathFromNode` /
     /// `PathFromGraph` collection — a single `History` container merging the
     /// time entries of all members. Container-selection like `History`.
     /// Server field: `combinedHistory`.
-    CombinedHistory { input: Box<ReadExpr> },
+    CombinedHistory { input: Arc<ReadExpr> },
     /// Navigate to the reversed view of a `RemoteHistory` container — a new
     /// `History` whose iteration order is flipped. Container-selection like
     /// `History`. Server field: `reverse`.
-    HistoryReverse { input: Box<ReadExpr> },
+    HistoryReverse { input: Arc<ReadExpr> },
     /// Navigate to the deletion history of an edge. Edge → History.
     /// Same shape as `History` but reads the `deletions` server field
     /// instead of `history` — deletions are edge-only.
-    Deletions { input: Box<ReadExpr> },
+    Deletions { input: Arc<ReadExpr> },
     /// Graph → the collection of all nodes in the (view-restricted) graph.
-    Nodes { input: Box<ReadExpr> },
+    Nodes { input: Arc<ReadExpr> },
     /// Node → the collection of the node's neighbours (both directions).
-    Neighbours { input: Box<ReadExpr> },
+    Neighbours { input: Arc<ReadExpr> },
     /// Node → the collection of the node's in-neighbours.
-    InNeighbours { input: Box<ReadExpr> },
+    InNeighbours { input: Arc<ReadExpr> },
     /// Node → the collection of the node's out-neighbours.
-    OutNeighbours { input: Box<ReadExpr> },
+    OutNeighbours { input: Arc<ReadExpr> },
     /// Graph → the collection of all edges in the (view-restricted) graph.
-    Edges { input: Box<ReadExpr> },
+    Edges { input: Arc<ReadExpr> },
     /// Node → the collection of the node's edges (both directions).
-    NodeEdges { input: Box<ReadExpr> },
+    NodeEdges { input: Arc<ReadExpr> },
     /// Node → the collection of the node's incoming edges.
-    InEdges { input: Box<ReadExpr> },
+    InEdges { input: Arc<ReadExpr> },
     /// Node → the collection of the node's outgoing edges.
-    OutEdges { input: Box<ReadExpr> },
+    OutEdges { input: Arc<ReadExpr> },
     /// Node → the collection of nodes reachable *into* this node via incoming
     /// edges (i.e., the node's ancestors in the directed graph). Server
     /// field: `inComponent`.
-    InComponent { input: Box<ReadExpr> },
+    InComponent { input: Arc<ReadExpr> },
     /// Node → the collection of nodes reachable *out from* this node via
     /// outgoing edges (i.e., the node's descendants). Server field: `outComponent`.
-    OutComponent { input: Box<ReadExpr> },
+    OutComponent { input: Arc<ReadExpr> },
     /// Fan out an edge / edge collection into one instance per event.
     /// Polymorphic: on a single `Edge` produces an `Edges` collection with
     /// one entry per event; on an `Edges` collection produces an `Edges`
     /// collection with all events across all members. Server field: `explode`.
-    Explode { input: Box<ReadExpr> },
+    Explode { input: Arc<ReadExpr> },
     /// Fan out an edge / edge collection into one instance per layer.
     /// Polymorphic on `Edge` and `Edges`. Server field: `explodeLayers`.
-    ExplodeLayers { input: Box<ReadExpr> },
+    ExplodeLayers { input: Arc<ReadExpr> },
     /// Reorder a `Nodes` collection by an ordered list of sort keys applied
     /// lexicographically. Returns a `Nodes` — chainable with any downstream
     /// terminal (`.collect`, `.count`, `.ids`, …). Server field:
     /// `sorted(sortBys: [NodeSortBy!]!)`.
     SortedNodes {
-        input: Box<ReadExpr>,
+        input: Arc<ReadExpr>,
         sort_bys: Vec<NodeSortBy>,
     },
     /// Reorder an `Edges` collection. Same shape as `SortedNodes` with the
     /// edge-specific sort key set (adds `src` / `dst`). Server field:
     /// `sorted(sortBys: [EdgeSortBy!]!)`.
     SortedEdges {
-        input: Box<ReadExpr>,
+        input: Arc<ReadExpr>,
         sort_bys: Vec<EdgeSortBy>,
     },
     /// Filter a `Nodes` collection by a filter expression. Returns `Nodes`
@@ -254,8 +254,8 @@ pub enum ReadExpr {
     /// to downstream traversals** from these nodes (e.g. `.neighbours`,
     /// `.edges`). Use `SelectNodes` for the narrow-membership-only variant.
     FilterNodes {
-        input: Box<ReadExpr>,
-        filter: GqlNodeFilter,
+        input: Arc<ReadExpr>,
+        filter: Arc<GqlNodeFilter>,
     },
     /// Narrow a `Nodes` collection's membership by a filter expression.
     /// Returns `Nodes`. Server field: `select(expr: NodeFilter!)` on
@@ -264,8 +264,8 @@ pub enum ReadExpr {
     /// Applies the filter only to this step; downstream traversals from
     /// the matching nodes see the unfiltered graph.
     SelectNodes {
-        input: Box<ReadExpr>,
-        filter: GqlNodeFilter,
+        input: Arc<ReadExpr>,
+        filter: Arc<GqlNodeFilter>,
     },
     /// Filter an `Edges` collection by a filter expression. Returns `Edges`
     /// — chainable with any downstream terminal (`.collect`, `.count`, …).
@@ -275,8 +275,8 @@ pub enum ReadExpr {
     /// to downstream traversals** from these edges. Use `SelectEdges` for
     /// the narrow-membership-only variant.
     FilterEdges {
-        input: Box<ReadExpr>,
-        filter: GqlEdgeFilter,
+        input: Arc<ReadExpr>,
+        filter: Arc<GqlEdgeFilter>,
     },
     /// Narrow an `Edges` collection's membership by a filter expression.
     /// Returns `Edges`. Server field: `select(expr: EdgeFilter!)` on
@@ -285,8 +285,8 @@ pub enum ReadExpr {
     /// Applies the filter only to this step; downstream traversals from
     /// the matching edges see the unfiltered graph.
     SelectEdges {
-        input: Box<ReadExpr>,
-        filter: GqlEdgeFilter,
+        input: Arc<ReadExpr>,
+        filter: Arc<GqlEdgeFilter>,
     },
     /// Filter a `Graph` view by a node filter, returning a filtered `Graph`.
     /// Server field: `filterNodes(expr: NodeFilter!)` on `Graph` — keeps
@@ -295,8 +295,8 @@ pub enum ReadExpr {
     /// This is the node-filter half of the local `Graph.filter(FilterExpr)`
     /// API; the Python `RemoteGraph.filter` dispatches here for node filters.
     FilterGraphNodes {
-        input: Box<ReadExpr>,
-        filter: GqlNodeFilter,
+        input: Arc<ReadExpr>,
+        filter: Arc<GqlNodeFilter>,
     },
     /// Filter a `Graph` view by an edge filter, returning a filtered `Graph`.
     /// Server field: `filterEdges(expr: EdgeFilter!)` on `Graph` — keeps
@@ -305,8 +305,8 @@ pub enum ReadExpr {
     /// This is the edge-filter half of the local `Graph.filter(FilterExpr)`
     /// API; the Python `RemoteGraph.filter` dispatches here for edge filters.
     FilterGraphEdges {
-        input: Box<ReadExpr>,
-        filter: GqlEdgeFilter,
+        input: Arc<ReadExpr>,
+        filter: Arc<GqlEdgeFilter>,
     },
     /// Filter a single `Node` handle's *edge* traversals by an edge filter,
     /// returning a `Node`. The node itself stays addressable; its degree /
@@ -315,8 +315,8 @@ pub enum ReadExpr {
     /// edge-collection filter onto node handles materialized through it
     /// (e.g. `edges.filter(f).src().collect()`).
     NodeFilterEdges {
-        input: Box<ReadExpr>,
-        filter: GqlEdgeFilter,
+        input: Arc<ReadExpr>,
+        filter: Arc<GqlEdgeFilter>,
     },
     /// Filter a single `Edge` handle's *node* traversals by a node filter,
     /// returning an `Edge`. The edge itself stays addressable regardless of
@@ -325,8 +325,8 @@ pub enum ReadExpr {
     /// node-collection filter onto edge handles materialized through it
     /// (e.g. `nodes.filter(f).edges().collect()`).
     EdgeFilterNodes {
-        input: Box<ReadExpr>,
-        filter: GqlNodeFilter,
+        input: Arc<ReadExpr>,
+        filter: Arc<GqlNodeFilter>,
     },
     /// Pin a single `Edge` handle to one event — the exploded instance at
     /// exactly `(time, event_id)`, optionally restricted to `layer`.
@@ -335,7 +335,7 @@ pub enum ReadExpr {
     /// `Edge` — `event_id: Some(_)` renders the exact `{timestamp, eventId}`
     /// object form. Used by `collect()` on exploded collections.
     EdgeEvent {
-        input: Box<ReadExpr>,
+        input: Arc<ReadExpr>,
         time: i64,
         event_id: Option<i64>,
         layer: Option<String>,
@@ -346,98 +346,98 @@ pub enum ReadExpr {
     /// answers `layerName` like a member of `explodeLayers` (`time` is
     /// unavailable, matching local). Server field: `eventLayer(name: String!)`
     /// on `Edge`. Used by `collect()` on layer-exploded collections.
-    EdgeLayerEvent { input: Box<ReadExpr>, layer: String },
+    EdgeLayerEvent { input: Arc<ReadExpr>, layer: String },
 
     // ============ Properties / Metadata containers ============
     /// Navigate to the non-temporal metadata container. Polymorphic:
     /// Graph/Node/Edge → Metadata. Server field: `metadata`.
-    Metadata { input: Box<ReadExpr> },
+    Metadata { input: Arc<ReadExpr> },
     /// Navigate to the full properties container (temporal + non-temporal).
     /// Polymorphic: Graph/Node/Edge → Properties. Server field: `properties`.
-    Properties { input: Box<ReadExpr> },
+    Properties { input: Arc<ReadExpr> },
     /// Terminal on a properties/metadata container: fetch a single property
     /// by key. Returns `Option<RemoteProperty>` — the server returns `null`
     /// when the key isn't present, decoded to `None` client-side rather
     /// than raising `NotFound` (see nullable-intermediate handling in
     /// `parse_read`). Server field: `get(key: String!)`.
-    PropertyGet { input: Box<ReadExpr>, key: String },
+    PropertyGet { input: Arc<ReadExpr>, key: String },
     /// Terminal on a properties/metadata container: `bool` — does a
     /// property with this key exist? Server field: `contains(key: String!)`.
-    PropertyContains { input: Box<ReadExpr>, key: String },
+    PropertyContains { input: Arc<ReadExpr>, key: String },
     /// Terminal on a properties/metadata container: `Vec<String>` — all
     /// property keys. Server field: `keys`.
-    PropertyKeys { input: Box<ReadExpr> },
+    PropertyKeys { input: Arc<ReadExpr> },
     /// Terminal on a properties container: the data-type of the property's
     /// latest value by key — `Option<String>`. `None` when the key isn't
     /// present. The string is the `PropType` display form (e.g. `"I64"`,
     /// `"Str"`, `"List<F64>"`). Server field: `getDtypeOf(key: String!)`.
-    PropertyGetDtypeOf { input: Box<ReadExpr>, key: String },
+    PropertyGetDtypeOf { input: Arc<ReadExpr>, key: String },
     /// Terminal on a properties/metadata container: `Vec<RemoteProperty>` —
     /// each `(key, value)` entry. Optional `keys` whitelist filters the
     /// returned set. Server field: `values(keys: [String!])`.
     PropertyValues {
-        input: Box<ReadExpr>,
+        input: Arc<ReadExpr>,
         keys: Option<Vec<String>>,
     },
     /// Navigate to the temporal-only view of a properties container.
     /// Properties → TemporalProperties. Server field: `temporal`.
-    TemporalProperties { input: Box<ReadExpr> },
+    TemporalProperties { input: Arc<ReadExpr> },
     /// Select a single temporal property by key. TemporalProperties →
     /// TemporalProperty. Server field: `get(key)` — but rendered without
     /// inner sub-selection so downstream terminals nest their own.
-    TemporalPropertyByKey { input: Box<ReadExpr>, key: String },
+    TemporalPropertyByKey { input: Arc<ReadExpr>, key: String },
     /// Terminal on a TemporalProperties container: `Vec<String>` — the keys
     /// of each temporal property, optionally filtered. Server field:
     /// `values(keys) { key }` — we extract just the key from each record.
     TemporalPropertyList {
-        input: Box<ReadExpr>,
+        input: Arc<ReadExpr>,
         keys: Option<Vec<String>>,
     },
     /// Terminal on a TemporalProperty: `Vec<Prop>` — all values this
     /// property has ever taken, in temporal order. Server field: `values`.
-    TemporalPropertyValueList { input: Box<ReadExpr> },
+    TemporalPropertyValueList { input: Arc<ReadExpr> },
     /// Terminal on a TemporalProperty: value at or before the given time.
     /// Server field: `at(t)`. Nullable — returns `None` if no update
     /// exists on or before `t`.
-    TemporalPropertyAt { input: Box<ReadExpr>, time: i64 },
+    TemporalPropertyAt { input: Arc<ReadExpr>, time: i64 },
     /// Terminal on a TemporalProperty: the most recent value. Server field:
     /// `latest`. Nullable — `None` if the property has no updates in view.
-    TemporalPropertyLatest { input: Box<ReadExpr> },
+    TemporalPropertyLatest { input: Arc<ReadExpr> },
     /// Terminal on a TemporalProperty: the set of distinct values (order
     /// not guaranteed). Server field: `unique`.
-    TemporalPropertyUnique { input: Box<ReadExpr> },
+    TemporalPropertyUnique { input: Arc<ReadExpr> },
     /// Terminal on a TemporalProperty: collapse consecutive-equal updates
     /// into a single `(time, value)` pair. `latest_time = true` picks the
     /// last timestamp of each run; `false` picks the first. Server field:
     /// `orderedDedupe(latestTime: bool)`.
     TemporalPropertyOrderedDedupe {
-        input: Box<ReadExpr>,
+        input: Arc<ReadExpr>,
         latest_time: bool,
     },
     /// Terminal on a TemporalProperty: sum of all updates. Server field:
     /// `sum`. Nullable.
-    TemporalPropertySum { input: Box<ReadExpr> },
+    TemporalPropertySum { input: Arc<ReadExpr> },
     /// Terminal on a TemporalProperty: mean of all updates. Server field:
     /// `mean`. Nullable.
-    TemporalPropertyMean { input: Box<ReadExpr> },
+    TemporalPropertyMean { input: Arc<ReadExpr> },
     /// Terminal on a TemporalProperty: mean (alias). Server field: `average`.
     /// Nullable.
-    TemporalPropertyAverage { input: Box<ReadExpr> },
+    TemporalPropertyAverage { input: Arc<ReadExpr> },
     /// Terminal on a TemporalProperty: minimum `(time, value)` pair.
     /// Server field: `min`. Nullable.
-    TemporalPropertyMin { input: Box<ReadExpr> },
+    TemporalPropertyMin { input: Arc<ReadExpr> },
     /// Terminal on a TemporalProperty: maximum `(time, value)` pair.
     /// Server field: `max`. Nullable.
-    TemporalPropertyMax { input: Box<ReadExpr> },
+    TemporalPropertyMax { input: Arc<ReadExpr> },
     /// Terminal on a TemporalProperty: median `(time, value)` pair.
     /// Server field: `median`. Nullable.
-    TemporalPropertyMedian { input: Box<ReadExpr> },
+    TemporalPropertyMedian { input: Arc<ReadExpr> },
 
     /// Terminal on Graph: the full schema tree (node types + edge layers +
     /// their property schemas). Compound-structured — the entire nested
     /// tree is fetched in one RPC and materialized as plain data structs.
     /// Server field: `schema`.
-    Schema { input: Box<ReadExpr> },
+    Schema { input: Arc<ReadExpr> },
 
     /// Terminal on Graph: given a set of node ids, return the nodes that
     /// are common neighbours of *all* of them (set intersection). Empty
@@ -445,7 +445,7 @@ pub enum ReadExpr {
     /// `Vec<String>` of names — clients wrap each in a `RemoteNode`.
     /// Server field: `sharedNeighbours(selectedNodes: [NodeId!]!)`.
     SharedNeighbours {
-        input: Box<ReadExpr>,
+        input: Arc<ReadExpr>,
         ids: Vec<String>,
     },
 
@@ -454,7 +454,7 @@ pub enum ReadExpr {
     /// names — clients wrap each in a `RemoteNode`. Server field:
     /// `findNodes(propertiesDict: [PropertyInput!]!)`.
     FindNodes {
-        input: Box<ReadExpr>,
+        input: Arc<ReadExpr>,
         properties: HashMap<String, Prop>,
     },
     /// Terminal on Graph: the edges whose latest property values match every
@@ -462,145 +462,145 @@ pub enum ReadExpr {
     /// of `(src, dst)` name pairs — clients wrap each in a `RemoteEdge`.
     /// Server field: `findEdges(propertiesDict: [PropertyInput!]!)`.
     FindEdges {
-        input: Box<ReadExpr>,
+        input: Arc<ReadExpr>,
         properties: HashMap<String, Prop>,
     },
     /// Terminal on Graph: all node types present in the graph — `Vec<String>`.
     /// Server field: `getAllNodeTypes`.
-    GetAllNodeTypes { input: Box<ReadExpr> },
+    GetAllNodeTypes { input: Arc<ReadExpr> },
 
     // ============ Scalar terminals on Graph ============
     /// Terminal: total node count under the current view — `i64`.
-    CountNodes { input: Box<ReadExpr> },
+    CountNodes { input: Arc<ReadExpr> },
     /// Terminal: total edge count under the current view — `i64`.
-    CountEdges { input: Box<ReadExpr> },
+    CountEdges { input: Arc<ReadExpr> },
 
     // ============ Scalar terminals on Node ============
     /// Terminal: node degree — `i64`.
-    Degree { input: Box<ReadExpr> },
+    Degree { input: Arc<ReadExpr> },
     /// Terminal: in-degree — `i64`.
-    InDegree { input: Box<ReadExpr> },
+    InDegree { input: Arc<ReadExpr> },
     /// Terminal: out-degree — `i64`.
-    OutDegree { input: Box<ReadExpr> },
+    OutDegree { input: Arc<ReadExpr> },
     /// Terminal: node name — `String`.
-    Name { input: Box<ReadExpr> },
+    Name { input: Arc<ReadExpr> },
 
     // ============ Compound terminals on Graph or Node → Option<i64> ============
     // Server returns an `EventTime` object; we query `<field> { timestamp }`
     // and unwrap the (possibly-null) `timestamp` field.
     /// Terminal: earliest event time — `Option<i64>`. Works on Graph and Node.
-    EarliestTime { input: Box<ReadExpr> },
+    EarliestTime { input: Arc<ReadExpr> },
     /// Terminal: latest event time — `Option<i64>`. Works on Graph and Node.
-    LatestTime { input: Box<ReadExpr> },
+    LatestTime { input: Arc<ReadExpr> },
     /// Terminal: view start bound — `Option<i64>`. Works on Graph and Node.
-    Start { input: Box<ReadExpr> },
+    Start { input: Arc<ReadExpr> },
     /// Terminal: view end bound — `Option<i64>`. Works on Graph and Node.
-    End { input: Box<ReadExpr> },
+    End { input: Arc<ReadExpr> },
     /// Terminal: earliest edge event time under this view — `Option<i64>`. Graph only.
-    EarliestEdgeTime { input: Box<ReadExpr> },
+    EarliestEdgeTime { input: Arc<ReadExpr> },
     /// Terminal: latest edge event time under this view — `Option<i64>`. Graph only.
-    LatestEdgeTime { input: Box<ReadExpr> },
+    LatestEdgeTime { input: Arc<ReadExpr> },
     /// Terminal: first update time on this node — `Option<i64>`. Node only.
-    FirstUpdate { input: Box<ReadExpr> },
+    FirstUpdate { input: Arc<ReadExpr> },
     /// Terminal: last update time on this node — `Option<i64>`. Node only.
-    LastUpdate { input: Box<ReadExpr> },
+    LastUpdate { input: Arc<ReadExpr> },
     /// Terminal: the time an edge event occurred — `Option<i64>`. Edge only.
     /// Server field is `Result<GqlEventTime, GraphError>`; the client treats
     /// server-side errors as `ClientError::GraphQLErrors`.
-    Time { input: Box<ReadExpr> },
+    Time { input: Arc<ReadExpr> },
 
     // ============ Graph scalar terminals ============
     /// Terminal: check if a node with `id` exists in the view — `bool`.
-    HasNode { input: Box<ReadExpr>, id: String },
+    HasNode { input: Arc<ReadExpr>, id: String },
     /// Terminal: check if an edge with `(src, dst)` exists in the view — `bool`.
     HasEdge {
-        input: Box<ReadExpr>,
+        input: Arc<ReadExpr>,
         src: String,
         dst: String,
     },
     /// Terminal: total count of temporal edges (edge updates) — `i64`.
-    CountTemporalEdges { input: Box<ReadExpr> },
+    CountTemporalEdges { input: Arc<ReadExpr> },
     /// Terminal: graph path — `String`.
-    Path { input: Box<ReadExpr> },
+    Path { input: Arc<ReadExpr> },
     /// Terminal: parent namespace of the graph path — `String`.
-    Namespace { input: Box<ReadExpr> },
+    Namespace { input: Arc<ReadExpr> },
     /// Terminal: graph creation timestamp — `i64` (metadata, always set).
-    Created { input: Box<ReadExpr> },
+    Created { input: Arc<ReadExpr> },
     /// Terminal: graph last-opened timestamp — `i64` (metadata, always set).
-    LastOpened { input: Box<ReadExpr> },
+    LastOpened { input: Arc<ReadExpr> },
     /// Terminal: graph last-updated timestamp — `i64` (metadata, always set).
-    LastUpdated { input: Box<ReadExpr> },
+    LastUpdated { input: Arc<ReadExpr> },
     /// Terminal: layer names present in this graph — `Vec<String>`.
-    UniqueLayers { input: Box<ReadExpr> },
+    UniqueLayers { input: Arc<ReadExpr> },
     /// Terminal: does this view contain a layer with the given `name`? — `bool`.
     /// Polymorphic across Graph/Node/Edge and the node/edge collections.
     /// Server field: `hasLayer(name: String!)`.
-    HasLayer { input: Box<ReadExpr>, name: String },
+    HasLayer { input: Arc<ReadExpr>, name: String },
     /// Terminal: the size of the window covered by this view (`end - start`),
     /// or `None` for an unbounded view — `Option<i64>`. Polymorphic across
     /// Graph/Node/Edge and the node/edge collections. Server field: `windowSize`.
-    WindowSize { input: Box<ReadExpr> },
+    WindowSize { input: Arc<ReadExpr> },
 
     // ============ Collection terminals (on Nodes/Edges collections) ============
     /// Terminal on a Nodes collection: list of member ids — `Vec<String>`.
-    Ids { input: Box<ReadExpr> },
+    Ids { input: Arc<ReadExpr> },
     /// Terminal on a `PathFromGraph` collection: the nested list of member ids
     /// — `Vec<Vec<String>>` (one inner list per source node). Renders
     /// `list { ids }`: `PathFromGraph.list` is `[PathFromNode!]!`, and each
     /// per-source `PathFromNode` yields its own flat `ids`. Parsed as
     /// `Prop::List(Prop::List(Prop::Str))` (outer = per source, inner = ids).
-    NestedIds { input: Box<ReadExpr> },
+    NestedIds { input: Arc<ReadExpr> },
     /// Terminal on a `Nodes`/`PathFromNode` collection: the per-node degree
     /// (number of incident edges) as a FLAT list — `Vec<i64>`. Renders
     /// `degree`. Distinct from the scalar `Degree` (single node); this parses a
     /// JSON int array via `expect_i64_list`.
-    CollectionDegree { input: Box<ReadExpr> },
+    CollectionDegree { input: Arc<ReadExpr> },
     /// Terminal on a `Nodes`/`PathFromNode` collection: per-node in-degree as a
     /// FLAT list — `Vec<i64>`. Renders `inDegree`.
-    CollectionInDegree { input: Box<ReadExpr> },
+    CollectionInDegree { input: Arc<ReadExpr> },
     /// Terminal on a `Nodes`/`PathFromNode` collection: per-node out-degree as a
     /// FLAT list — `Vec<i64>`. Renders `outDegree`.
-    CollectionOutDegree { input: Box<ReadExpr> },
+    CollectionOutDegree { input: Arc<ReadExpr> },
     /// Terminal on a `Nodes`/`PathFromNode` collection: per-node count of
     /// incident edge updates as a FLAT list — `Vec<i64>`. Renders
     /// `edgeHistoryCount`.
-    CollectionEdgeHistoryCount { input: Box<ReadExpr> },
+    CollectionEdgeHistoryCount { input: Arc<ReadExpr> },
     /// Terminal on a `PathFromGraph` collection: the NESTED per-node degree —
     /// `Vec<Vec<i64>>` (one inner list per source node). Renders
     /// `list { degree }`: `PathFromGraph.list` is `[PathFromNode!]!`, and each
     /// per-source `PathFromNode` yields its own flat `degree`. Mirrors
     /// `NestedIds`. Parsed via `expect_nested_i64_list`.
-    NestedDegree { input: Box<ReadExpr> },
+    NestedDegree { input: Arc<ReadExpr> },
     /// Terminal on a `PathFromGraph` collection: the NESTED per-node in-degree —
     /// `Vec<Vec<i64>>`. Renders `list { inDegree }`. Mirrors `NestedDegree`.
-    NestedInDegree { input: Box<ReadExpr> },
+    NestedInDegree { input: Arc<ReadExpr> },
     /// Terminal on a `PathFromGraph` collection: the NESTED per-node out-degree —
     /// `Vec<Vec<i64>>`. Renders `list { outDegree }`. Mirrors `NestedDegree`.
-    NestedOutDegree { input: Box<ReadExpr> },
+    NestedOutDegree { input: Arc<ReadExpr> },
     /// Terminal on a `PathFromGraph` collection: the NESTED per-node count of
     /// incident edge updates — `Vec<Vec<i64>>`. Renders
     /// `list { edgeHistoryCount }`. Mirrors `NestedDegree`.
-    NestedEdgeHistoryCount { input: Box<ReadExpr> },
+    NestedEdgeHistoryCount { input: Arc<ReadExpr> },
     /// Terminal on a collection: number of members — `i64`.
     /// Distinct from `CountNodes`/`CountEdges` (which are Graph-scope); this
     /// fires against the collection's `count` field. Also polymorphic on
     /// `RemoteHistory` — same server field name (`count`).
-    Count { input: Box<ReadExpr> },
+    Count { input: Arc<ReadExpr> },
     /// Terminal on a `RemoteHistory` container: whether the history is empty
     /// — `bool`. Server field name is `isEmpty`.
-    IsEmpty { input: Box<ReadExpr> },
+    IsEmpty { input: Arc<ReadExpr> },
     /// Terminal on a `RemoteHistory` container: list all events in ascending
     /// order — `Vec<RemoteEventTime>`. Server field is `list`; queries the
     /// compound sub-fields `timestamp`, `dt`, `eventId` per record.
-    HistoryList { input: Box<ReadExpr> },
+    HistoryList { input: Arc<ReadExpr> },
     /// Terminal on a `RemoteHistory` container: list all events in descending
     /// order — `Vec<RemoteEventTime>`. Server field is `listRev`.
-    HistoryListRev { input: Box<ReadExpr> },
+    HistoryListRev { input: Arc<ReadExpr> },
     /// Terminal on a `RemoteHistory` container: paginated list of events in
     /// ascending order — `Vec<RemoteEventTime>`. `offset` and `page_index`
     /// are optional; each defaults to 0 server-side.
     HistoryPage {
-        input: Box<ReadExpr>,
+        input: Arc<ReadExpr>,
         limit: usize,
         offset: Option<usize>,
         page_index: Option<usize>,
@@ -608,7 +608,7 @@ pub enum ReadExpr {
     /// Terminal on a `RemoteHistory` container: paginated list of events in
     /// descending order — `Vec<RemoteEventTime>`. Same args as `HistoryPage`.
     HistoryPageRev {
-        input: Box<ReadExpr>,
+        input: Arc<ReadExpr>,
         limit: usize,
         offset: Option<usize>,
         page_index: Option<usize>,
@@ -617,16 +617,16 @@ pub enum ReadExpr {
     // ============ RemoteHistory sub-container selection ============
     /// Navigate to the timestamps view of a history. History → HistoryTimestamps.
     /// Server field: `timestamps`.
-    HistoryTimestamps { input: Box<ReadExpr> },
+    HistoryTimestamps { input: Arc<ReadExpr> },
     /// Navigate to the event-id view of a history. History → HistoryEventIds.
     /// Server field: `eventId`.
-    HistoryEventIds { input: Box<ReadExpr> },
+    HistoryEventIds { input: Arc<ReadExpr> },
     /// Navigate to the datetime view of a history. History → HistoryDateTimes.
     /// Server field: `datetimes` (no format arg — server default RFC 3339).
-    HistoryDateTimes { input: Box<ReadExpr> },
+    HistoryDateTimes { input: Arc<ReadExpr> },
     /// Navigate to the intervals view of a history — inter-event gaps.
     /// History → HistoryIntervals. Server field: `intervals`.
-    HistoryIntervals { input: Box<ReadExpr> },
+    HistoryIntervals { input: Arc<ReadExpr> },
 
     // ============ Sub-container list/page terminals (polymorphic) ============
     // These four variants render as `list` / `listRev` / `page(...)` /
@@ -634,19 +634,19 @@ pub enum ReadExpr {
     // determined by `parse_read` based on the parent selection variant:
     // int list for Timestamps/EventIds/Intervals, string list for DateTimes.
     /// Terminal on any sub-container: list in ascending order.
-    SubList { input: Box<ReadExpr> },
+    SubList { input: Arc<ReadExpr> },
     /// Terminal on any sub-container: list in descending order.
-    SubListRev { input: Box<ReadExpr> },
+    SubListRev { input: Arc<ReadExpr> },
     /// Terminal on any sub-container: paginated ascending list.
     SubPage {
-        input: Box<ReadExpr>,
+        input: Arc<ReadExpr>,
         limit: usize,
         offset: Option<usize>,
         page_index: Option<usize>,
     },
     /// Terminal on any sub-container: paginated descending list.
     SubPageRev {
-        input: Box<ReadExpr>,
+        input: Arc<ReadExpr>,
         limit: usize,
         offset: Option<usize>,
         page_index: Option<usize>,
@@ -654,19 +654,19 @@ pub enum ReadExpr {
 
     // ============ Intervals scalar stats ============
     /// Terminal on `HistoryIntervals`: mean of inter-event gaps. `Option<f64>`.
-    IntervalsMean { input: Box<ReadExpr> },
+    IntervalsMean { input: Arc<ReadExpr> },
     /// Terminal on `HistoryIntervals`: median of inter-event gaps. `Option<i64>`.
-    IntervalsMedian { input: Box<ReadExpr> },
+    IntervalsMedian { input: Arc<ReadExpr> },
     /// Terminal on `HistoryIntervals`: max inter-event gap. `Option<i64>`.
-    IntervalsMax { input: Box<ReadExpr> },
+    IntervalsMax { input: Arc<ReadExpr> },
     /// Terminal on `HistoryIntervals`: min inter-event gap. `Option<i64>`.
-    IntervalsMin { input: Box<ReadExpr> },
+    IntervalsMin { input: Arc<ReadExpr> },
     /// Terminal on an Edges collection: list of (src, dst) pairs.
     /// Returned as `Prop::List(Prop::List(Prop::Str, Prop::Str), ...)` on the
     /// wire — each outer element is a 2-element inner list `[src, dst]`.
     /// Distinct from `Ids` (nodes) because edges have no single-string id;
     /// they're identified by the pair.
-    EdgesList { input: Box<ReadExpr> },
+    EdgesList { input: Arc<ReadExpr> },
     /// Terminal on a `NestedEdges` collection: the nested list of (src, dst)
     /// pairs — one inner list per source node. Renders
     /// `list { list { src { name } dst { name } } }`: `NestedEdges.list` is
@@ -674,7 +674,7 @@ pub enum ReadExpr {
     /// Parsed as `Prop::List(Prop::List(Prop::List(Prop::Str, Prop::Str)))`
     /// (outer = per source, middle = that source's edges, inner = `[src, dst]`).
     /// Mirrors `EdgesList`, one level deeper.
-    NestedEdgesList { input: Box<ReadExpr> },
+    NestedEdgesList { input: Arc<ReadExpr> },
     /// Terminal on an *exploded* `Edges` collection: each member's full event
     /// identity, fetched in ONE RPC so the handle pins can't skew against a
     /// concurrent write. Renders
@@ -683,19 +683,19 @@ pub enum ReadExpr {
     /// member: `[src, dst, timestamp, event_id, layer_name]` (`Str, Str, I64,
     /// I64, Str`). Used by `collect()` on exploded collections to build
     /// `EdgeEvent`-pinned handles.
-    ExplodedEdgesList { input: Box<ReadExpr> },
+    ExplodedEdgesList { input: Arc<ReadExpr> },
     /// Terminal on an exploded `NestedEdges` collection: the nested variant of
     /// `ExplodedEdgesList` — one inner list per source node. Renders
     /// `list { list { src { name } dst { name } time { timestamp eventId } layerName } }`.
-    NestedExplodedEdgesList { input: Box<ReadExpr> },
+    NestedExplodedEdgesList { input: Arc<ReadExpr> },
     /// Terminal on a layer-exploded `Edges` collection: one `(src, dst, layer)`
     /// per member. Renders `list { src { name } dst { name } layerName }`. Used
     /// by `collect()` to pin each layer instance (no time — `explodeLayers`
     /// members have a layer but not a single event time).
-    ExplodedLayersEdgesList { input: Box<ReadExpr> },
+    ExplodedLayersEdgesList { input: Arc<ReadExpr> },
     /// Nested variant of `ExplodedLayersEdgesList` — one inner list per source
     /// node. Renders `list { list { src { name } dst { name } layerName } }`.
-    NestedExplodedLayersEdgesList { input: Box<ReadExpr> },
+    NestedExplodedLayersEdgesList { input: Arc<ReadExpr> },
 
     // ============ Columnar accessors on collections (via `list { field }`) ============
     // Each renders `list { <field> }` on a flat collection (`Nodes` /
@@ -706,54 +706,54 @@ pub enum ReadExpr {
     // outer `list`); inner groups are self-balanced. Optional scalars use the
     // `Prop::List` wrapper convention: `[]` = None, `[x]` = Some(x).
     /// FLAT: per-node `name` — `Vec<String>`. Renders `list { name }`.
-    CollectionNames { input: Box<ReadExpr> },
+    CollectionNames { input: Arc<ReadExpr> },
     /// FLAT: per-node `nodeType` — `Vec<Option<String>>`. Renders `list { nodeType }`.
-    CollectionNodeTypes { input: Box<ReadExpr> },
+    CollectionNodeTypes { input: Arc<ReadExpr> },
     /// FLAT: per-edge `layerNames` — `Vec<Vec<String>>`. Renders `list { layerNames }`.
-    CollectionLayerNames { input: Box<ReadExpr> },
+    CollectionLayerNames { input: Arc<ReadExpr> },
     /// FLAT: per-edge `layerName` — `Vec<String>` (exploded edges only; the
     /// server field is `Result`, surfacing as a GraphQL error otherwise).
     /// Renders `list { layerName }`.
-    CollectionLayerName { input: Box<ReadExpr> },
+    CollectionLayerName { input: Arc<ReadExpr> },
     /// FLAT: per-edge `earliestTime` — `Vec<Option<EventTime>>`. Renders
     /// `list { earliestTime { timestamp datetime eventId } }`.
-    CollectionEarliestTime { input: Box<ReadExpr> },
+    CollectionEarliestTime { input: Arc<ReadExpr> },
     /// FLAT: per-edge `latestTime` — `Vec<Option<EventTime>>`.
-    CollectionLatestTime { input: Box<ReadExpr> },
+    CollectionLatestTime { input: Arc<ReadExpr> },
     /// FLAT: per-edge `time` — `Vec<Option<EventTime>>` (exploded edges only).
-    CollectionTime { input: Box<ReadExpr> },
+    CollectionTime { input: Arc<ReadExpr> },
     /// NESTED: per-source per-node `name` — `Vec<Vec<String>>`. Renders
     /// `list { list { name } }`.
-    NestedNames { input: Box<ReadExpr> },
+    NestedNames { input: Arc<ReadExpr> },
     /// NESTED: per-source per-node `nodeType` — `Vec<Vec<Option<String>>>`.
-    NestedNodeTypes { input: Box<ReadExpr> },
+    NestedNodeTypes { input: Arc<ReadExpr> },
     /// NESTED: per-source per-edge `layerNames` — `Vec<Vec<Vec<String>>>`.
-    NestedLayerNames { input: Box<ReadExpr> },
+    NestedLayerNames { input: Arc<ReadExpr> },
     /// NESTED: per-source per-edge `layerName` — `Vec<Vec<String>>` (exploded only).
-    NestedLayerName { input: Box<ReadExpr> },
+    NestedLayerName { input: Arc<ReadExpr> },
     /// NESTED: per-source per-edge `earliestTime` — `Vec<Vec<Option<EventTime>>>`.
-    NestedEarliestTime { input: Box<ReadExpr> },
+    NestedEarliestTime { input: Arc<ReadExpr> },
     /// NESTED: per-source per-edge `latestTime` — `Vec<Vec<Option<EventTime>>>`.
-    NestedLatestTime { input: Box<ReadExpr> },
+    NestedLatestTime { input: Arc<ReadExpr> },
     /// NESTED: per-source per-edge `time` — `Vec<Vec<Option<EventTime>>>` (exploded only).
-    NestedTime { input: Box<ReadExpr> },
+    NestedTime { input: Arc<ReadExpr> },
     /// FLAT: per-edge `isActive` — `Vec<bool>`. Renders `list { isActive }`.
-    CollectionIsActive { input: Box<ReadExpr> },
+    CollectionIsActive { input: Arc<ReadExpr> },
     /// FLAT: per-edge `isValid` — `Vec<bool>`. Renders `list { isValid }`.
-    CollectionIsValid { input: Box<ReadExpr> },
+    CollectionIsValid { input: Arc<ReadExpr> },
     /// FLAT: per-edge `isDeleted` — `Vec<bool>`. Renders `list { isDeleted }`.
-    CollectionIsDeleted { input: Box<ReadExpr> },
+    CollectionIsDeleted { input: Arc<ReadExpr> },
     /// FLAT: per-edge `isSelfLoop` — `Vec<bool>`. Renders `list { isSelfLoop }`.
-    CollectionIsSelfLoop { input: Box<ReadExpr> },
+    CollectionIsSelfLoop { input: Arc<ReadExpr> },
     /// NESTED: per-source per-edge `isActive` — `Vec<Vec<bool>>`. Renders
     /// `list { list { isActive } }`.
-    NestedIsActive { input: Box<ReadExpr> },
+    NestedIsActive { input: Arc<ReadExpr> },
     /// NESTED: per-source per-edge `isValid` — `Vec<Vec<bool>>`.
-    NestedIsValid { input: Box<ReadExpr> },
+    NestedIsValid { input: Arc<ReadExpr> },
     /// NESTED: per-source per-edge `isDeleted` — `Vec<Vec<bool>>`.
-    NestedIsDeleted { input: Box<ReadExpr> },
+    NestedIsDeleted { input: Arc<ReadExpr> },
     /// NESTED: per-source per-edge `isSelfLoop` — `Vec<Vec<bool>>`.
-    NestedIsSelfLoop { input: Box<ReadExpr> },
+    NestedIsSelfLoop { input: Arc<ReadExpr> },
 
     // ============ Columnar property / metadata containers on collections ============
     // These descend into each collection member's `metadata` / `properties`
@@ -766,42 +766,42 @@ pub enum ReadExpr {
     // self-balance. For `properties`, temporal values collapse to their latest
     // under the current view — matching the local columnar property views.
     /// FLAT: each member's metadata entries — one `[{key, value}]` per member.
-    CollectionMetadataValues { input: Box<ReadExpr> },
+    CollectionMetadataValues { input: Arc<ReadExpr> },
     /// FLAT: each member's property entries (temporal → latest).
-    CollectionPropertiesValues { input: Box<ReadExpr> },
+    CollectionPropertiesValues { input: Arc<ReadExpr> },
     /// NESTED: per-source per-member metadata entries.
-    NestedMetadataValues { input: Box<ReadExpr> },
+    NestedMetadataValues { input: Arc<ReadExpr> },
     /// NESTED: per-source per-member property entries (temporal → latest).
-    NestedPropertiesValues { input: Box<ReadExpr> },
+    NestedPropertiesValues { input: Arc<ReadExpr> },
 
     // ============ Node scalar terminals ============
     /// Terminal: node id — `String` (server may return int-like GID; treated as string).
-    Id { input: Box<ReadExpr> },
+    Id { input: Arc<ReadExpr> },
     /// Terminal: node type — `Option<String>` (null if not set).
-    NodeType { input: Box<ReadExpr> },
+    NodeType { input: Arc<ReadExpr> },
     /// Terminal: whether the node has any events in the current view — `bool`.
     /// Also polymorphic on Edge — same server field name.
-    IsActive { input: Box<ReadExpr> },
+    IsActive { input: Arc<ReadExpr> },
     /// Terminal: count of temporal edge events on this node — `i64`.
-    EdgeHistoryCount { input: Box<ReadExpr> },
+    EdgeHistoryCount { input: Arc<ReadExpr> },
 
     // ============ Edge scalar terminals ============
     /// Terminal: edge id — pair of endpoint ids as `Vec<String>` of length 2.
     /// Distinct from Node's `Id` (single string): server field is the same
     /// name (`id`) but returns `Vec<GqlNodeId>` for edges.
-    EdgeIdPair { input: Box<ReadExpr> },
+    EdgeIdPair { input: Arc<ReadExpr> },
     /// Terminal: layer names the edge is present in — `Vec<String>`.
-    LayerNames { input: Box<ReadExpr> },
+    LayerNames { input: Arc<ReadExpr> },
     /// Terminal: single layer name for a layer-restricted edge view — `String`.
     /// Server field is `Result<String, GraphError>`; server-side error surfaces
     /// as `ClientError::GraphQLErrors`.
-    LayerName { input: Box<ReadExpr> },
+    LayerName { input: Arc<ReadExpr> },
     /// Terminal: whether the edge is valid at the current time — `bool`.
-    IsValid { input: Box<ReadExpr> },
+    IsValid { input: Arc<ReadExpr> },
     /// Terminal: whether the edge has been deleted at the current time — `bool`.
-    IsDeleted { input: Box<ReadExpr> },
+    IsDeleted { input: Arc<ReadExpr> },
     /// Terminal: whether the edge's `src == dst` — `bool`.
-    IsSelfLoop { input: Box<ReadExpr> },
+    IsSelfLoop { input: Arc<ReadExpr> },
 }
 
 /// How a collection has been fanned out into per-instance members, if at all.
@@ -849,10 +849,10 @@ pub enum HandleOp {
     View(Arc<dyn Fn(ReadExpr) -> ReadExpr + Send + Sync>),
     /// An anchor-relative node filter. Replays as `filter(expr:)` on node
     /// handles and `filterNodes(expr:)` on edge handles.
-    NodeFilter(GqlNodeFilter),
+    NodeFilter(Arc<GqlNodeFilter>),
     /// An anchor-relative edge filter. Replays as `filter(expr:)` on edge
     /// handles and `filterEdges(expr:)` on node handles.
-    EdgeFilter(GqlEdgeFilter),
+    EdgeFilter(Arc<GqlEdgeFilter>),
     /// Positional marker recording where `explode` / `explodeLayers` was
     /// applied in the op chain. Ops before the marker shape the view the
     /// instances were enumerated from; ops after it wrap the pinned handle.
@@ -869,7 +869,7 @@ pub enum HandleOp {
 #[derive(Clone)]
 pub struct HandleCtx {
     /// The parent graph view under which the collection lives.
-    pub graph: ReadExpr,
+    pub graph: Arc<ReadExpr>,
     /// Ordered entity-level ops to replay when materializing handles.
     pub ops: Vec<HandleOp>,
 }
@@ -877,7 +877,7 @@ pub struct HandleCtx {
 impl HandleCtx {
     pub fn new(graph: ReadExpr) -> Self {
         Self {
-            graph,
+            graph: Arc::new(graph),
             ops: Vec::new(),
         }
     }
@@ -906,18 +906,18 @@ impl HandleCtx {
     /// occur in node collections and are ignored.
     pub fn node_handle_expr(&self, id: String) -> ReadExpr {
         let mut expr = ReadExpr::Node {
-            input: Box::new(self.graph.clone()),
+            input: self.graph.clone(),
             id,
         };
         for op in &self.ops {
             expr = match op {
                 HandleOp::View(wrap) => wrap(expr),
                 HandleOp::NodeFilter(filter) => ReadExpr::FilterNodes {
-                    input: Box::new(expr),
+                    input: Arc::new(expr),
                     filter: filter.clone(),
                 },
                 HandleOp::EdgeFilter(filter) => ReadExpr::NodeFilterEdges {
-                    input: Box::new(expr),
+                    input: Arc::new(expr),
                     filter: filter.clone(),
                 },
                 HandleOp::Fanout(_) => expr,
@@ -932,7 +932,7 @@ impl HandleCtx {
     /// materializing a non-exploded collection pass `None`.
     pub fn edge_handle_expr(&self, src: String, dst: String, pin: Option<EdgePin>) -> ReadExpr {
         let mut expr = ReadExpr::Edge {
-            input: Box::new(self.graph.clone()),
+            input: self.graph.clone(),
             src,
             dst,
         };
@@ -941,11 +941,11 @@ impl HandleCtx {
             expr = match op {
                 HandleOp::View(wrap) => wrap(expr),
                 HandleOp::EdgeFilter(filter) => ReadExpr::FilterEdges {
-                    input: Box::new(expr),
+                    input: Arc::new(expr),
                     filter: filter.clone(),
                 },
                 HandleOp::NodeFilter(filter) => ReadExpr::EdgeFilterNodes {
-                    input: Box::new(expr),
+                    input: Arc::new(expr),
                     filter: filter.clone(),
                 },
                 HandleOp::Fanout(_) => match pin.take() {
@@ -954,13 +954,13 @@ impl HandleCtx {
                         event_id,
                         layer,
                     }) => ReadExpr::EdgeEvent {
-                        input: Box::new(expr),
+                        input: Arc::new(expr),
                         time,
                         event_id,
                         layer,
                     },
                     Some(EdgePin::Layer { layer }) => ReadExpr::EdgeLayerEvent {
-                        input: Box::new(expr),
+                        input: Arc::new(expr),
                         layer,
                     },
                     None => expr,

@@ -3843,15 +3843,16 @@ mod tests {
         filtering::{PropCondition, PropertyFilterNew},
         property::Value as GqlValue,
     };
+    use std::sync::Arc;
 
     // ============ Unit tests for the read pipeline ============
 
     #[test]
     fn render_read_produces_nested_graphql() {
         let expr = ReadExpr::Degree {
-            input: Box::new(ReadExpr::Node {
-                input: Box::new(ReadExpr::Window {
-                    input: Box::new(ReadExpr::Root { path: "g".into() }),
+            input: Arc::new(ReadExpr::Node {
+                input: Arc::new(ReadExpr::Window {
+                    input: Arc::new(ReadExpr::Root { path: "g".into() }),
                     start: InputTime::Simple(0),
                     end: InputTime::Simple(10),
                 }),
@@ -3895,7 +3896,7 @@ mod tests {
     #[test]
     fn node_name_position_is_escaped() {
         let expr = ReadExpr::HasNode {
-            input: Box::new(ReadExpr::Root { path: "g".into() }),
+            input: Arc::new(ReadExpr::Root { path: "g".into() }),
             id: "O\"Brien".into(),
         };
         let (q, _vars) = render_read(&expr).unwrap();
@@ -3987,14 +3988,14 @@ mod tests {
             })
         };
         let expr = ReadExpr::Ids {
-            input: Box::new(ReadExpr::FilterNodes {
-                input: Box::new(ReadExpr::FilterNodes {
-                    input: Box::new(ReadExpr::Nodes {
-                        input: Box::new(ReadExpr::Root { path: "g".into() }),
+            input: Arc::new(ReadExpr::FilterNodes {
+                input: Arc::new(ReadExpr::FilterNodes {
+                    input: Arc::new(ReadExpr::Nodes {
+                        input: Arc::new(ReadExpr::Root { path: "g".into() }),
                     }),
-                    filter: prop_filter("inner"),
+                    filter: Arc::new(prop_filter("inner")),
                 }),
-                filter: prop_filter("outer"),
+                filter: Arc::new(prop_filter("outer")),
             }),
         };
 
@@ -4058,8 +4059,8 @@ mod tests {
     #[test]
     fn parse_read_walks_to_terminal_value() {
         let expr = ReadExpr::Degree {
-            input: Box::new(ReadExpr::Node {
-                input: Box::new(ReadExpr::Root { path: "g".into() }),
+            input: Arc::new(ReadExpr::Node {
+                input: Arc::new(ReadExpr::Root { path: "g".into() }),
                 id: "ben".into(),
             }),
         };

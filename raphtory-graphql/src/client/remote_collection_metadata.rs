@@ -102,7 +102,7 @@ impl RemoteMetadataView {
     pub async fn fetch(&self) -> Result<ColumnarProps, ClientError> {
         if self.nested {
             let op = Op::Read(ReadExpr::NestedMetadataValues {
-                input: Box::new(self.expr.clone()),
+                input: Arc::new(self.expr.clone()),
             });
             let data = expect_nested_columnar_property_list(
                 self.transport.execute(&op).await?,
@@ -111,7 +111,7 @@ impl RemoteMetadataView {
             Ok(ColumnarProps::Nested(data))
         } else {
             let op = Op::Read(ReadExpr::CollectionMetadataValues {
-                input: Box::new(self.expr.clone()),
+                input: Arc::new(self.expr.clone()),
             });
             let data =
                 expect_columnar_property_list(self.transport.execute(&op).await?, "metadata")?;
@@ -155,7 +155,7 @@ impl RemotePropertiesView {
     pub async fn fetch(&self) -> Result<ColumnarProps, ClientError> {
         if self.nested {
             let op = Op::Read(ReadExpr::NestedPropertiesValues {
-                input: Box::new(self.expr.clone()),
+                input: Arc::new(self.expr.clone()),
             });
             let data = expect_nested_columnar_property_list(
                 self.transport.execute(&op).await?,
@@ -164,7 +164,7 @@ impl RemotePropertiesView {
             Ok(ColumnarProps::Nested(data))
         } else {
             let op = Op::Read(ReadExpr::CollectionPropertiesValues {
-                input: Box::new(self.expr.clone()),
+                input: Arc::new(self.expr.clone()),
             });
             let data =
                 expect_columnar_property_list(self.transport.execute(&op).await?, "properties")?;

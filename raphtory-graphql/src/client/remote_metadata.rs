@@ -61,7 +61,7 @@ impl RemoteMetadata {
     /// key isn't present. Fires one RPC.
     pub async fn get(&self, key: impl ToString) -> Result<Option<RemoteProperty>, ClientError> {
         let op = Op::Read(ReadExpr::PropertyGet {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
             key: key.to_string(),
         });
         expect_optional_property(self.transport.execute(&op).await?, "get")
@@ -71,7 +71,7 @@ impl RemoteMetadata {
     /// Terminal: check whether a metadata entry with this key exists. Fires one RPC.
     pub async fn contains(&self, key: impl ToString) -> Result<bool, ClientError> {
         let op = Op::Read(ReadExpr::PropertyContains {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
             key: key.to_string(),
         });
         expect_bool(self.transport.execute(&op).await?, "contains")
@@ -80,7 +80,7 @@ impl RemoteMetadata {
     /// Terminal: all metadata keys present on this entity. Fires one RPC.
     pub async fn keys(&self) -> Result<Vec<String>, ClientError> {
         let op = Op::Read(ReadExpr::PropertyKeys {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
         });
         expect_string_list(self.transport.execute(&op).await?, "keys")
     }
@@ -92,7 +92,7 @@ impl RemoteMetadata {
         keys: Option<Vec<String>>,
     ) -> Result<Vec<RemoteProperty>, ClientError> {
         let op = Op::Read(ReadExpr::PropertyValues {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
             keys,
         });
         let pairs = expect_property_list(self.transport.execute(&op).await?, "values")?;
@@ -139,7 +139,7 @@ impl RemoteProperties {
     /// this yields its most recent value under the view. Fires one RPC.
     pub async fn get(&self, key: impl ToString) -> Result<Option<RemoteProperty>, ClientError> {
         let op = Op::Read(ReadExpr::PropertyGet {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
             key: key.to_string(),
         });
         expect_optional_property(self.transport.execute(&op).await?, "get")
@@ -149,7 +149,7 @@ impl RemoteProperties {
     /// Terminal: whether a property with this key exists. Fires one RPC.
     pub async fn contains(&self, key: impl ToString) -> Result<bool, ClientError> {
         let op = Op::Read(ReadExpr::PropertyContains {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
             key: key.to_string(),
         });
         expect_bool(self.transport.execute(&op).await?, "contains")
@@ -160,7 +160,7 @@ impl RemoteProperties {
     /// one RPC.
     pub async fn keys(&self) -> Result<Vec<String>, ClientError> {
         let op = Op::Read(ReadExpr::PropertyKeys {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
         });
         expect_string_list(self.transport.execute(&op).await?, "keys")
     }
@@ -174,7 +174,7 @@ impl RemoteProperties {
         keys: Option<Vec<String>>,
     ) -> Result<Vec<RemoteProperty>, ClientError> {
         let op = Op::Read(ReadExpr::PropertyValues {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
             keys,
         });
         let pairs = expect_property_list(self.transport.execute(&op).await?, "values")?;
@@ -190,7 +190,7 @@ impl RemoteProperties {
     /// `Properties.get_dtype_of`. Fires one RPC.
     pub async fn get_dtype_of(&self, key: impl ToString) -> Result<Option<String>, ClientError> {
         let op = Op::Read(ReadExpr::PropertyGetDtypeOf {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
             key: key.to_string(),
         });
         match self.transport.execute(&op).await? {
@@ -209,7 +209,7 @@ impl RemoteProperties {
             path: self.path.clone(),
             transport: self.transport.clone(),
             expr: ReadExpr::TemporalProperties {
-                input: Box::new(self.expr.clone()),
+                input: Arc::new(self.expr.clone()),
             },
             ctx: self.ctx.clone(),
         }
@@ -240,7 +240,7 @@ impl RemoteTemporalProperties {
     ) -> Result<Option<RemoteTemporalProperty>, ClientError> {
         let key_str = key.to_string();
         let op = Op::Read(ReadExpr::PropertyContains {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
             key: key_str.clone(),
         });
         let exists = expect_bool(self.transport.execute(&op).await?, "contains")?;
@@ -252,7 +252,7 @@ impl RemoteTemporalProperties {
             transport: self.transport.clone(),
             key: key_str.clone(),
             expr: ReadExpr::TemporalPropertyByKey {
-                input: Box::new(self.expr.clone()),
+                input: Arc::new(self.expr.clone()),
                 key: key_str,
             },
             ctx: self.ctx.clone(),
@@ -262,7 +262,7 @@ impl RemoteTemporalProperties {
     /// Terminal: whether a temporal property with this key exists. Fires one RPC.
     pub async fn contains(&self, key: impl ToString) -> Result<bool, ClientError> {
         let op = Op::Read(ReadExpr::PropertyContains {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
             key: key.to_string(),
         });
         expect_bool(self.transport.execute(&op).await?, "contains")
@@ -271,7 +271,7 @@ impl RemoteTemporalProperties {
     /// Terminal: all temporal property keys. Fires one RPC.
     pub async fn keys(&self) -> Result<Vec<String>, ClientError> {
         let op = Op::Read(ReadExpr::PropertyKeys {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
         });
         expect_string_list(self.transport.execute(&op).await?, "keys")
     }
@@ -285,7 +285,7 @@ impl RemoteTemporalProperties {
         keys: Option<Vec<String>>,
     ) -> Result<Vec<RemoteTemporalProperty>, ClientError> {
         let op = Op::Read(ReadExpr::TemporalPropertyList {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
             keys,
         });
         let key_list = expect_string_list(self.transport.execute(&op).await?, "values")?;
@@ -296,7 +296,7 @@ impl RemoteTemporalProperties {
                 transport: self.transport.clone(),
                 key: key.clone(),
                 expr: ReadExpr::TemporalPropertyByKey {
-                    input: Box::new(self.expr.clone()),
+                    input: Arc::new(self.expr.clone()),
                     key,
                 },
                 ctx: self.ctx.clone(),
@@ -330,7 +330,7 @@ impl RemoteTemporalProperty {
             self.path.clone(),
             self.transport.clone(),
             ReadExpr::History {
-                input: Box::new(self.expr.clone()),
+                input: Arc::new(self.expr.clone()),
             },
             self.ctx.clone(),
         )
@@ -340,7 +340,7 @@ impl RemoteTemporalProperty {
     /// (one per update). Fires one RPC.
     pub async fn values(&self) -> Result<Vec<Prop>, ClientError> {
         let op = Op::Read(ReadExpr::TemporalPropertyValueList {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
         });
         expect_prop_list(self.transport.execute(&op).await?, "values")
     }
@@ -349,7 +349,7 @@ impl RemoteTemporalProperty {
     /// `t`). Returns `None` if no update exists on or before `t`. Fires one RPC.
     pub async fn at(&self, time: i64) -> Result<Option<Prop>, ClientError> {
         let op = Op::Read(ReadExpr::TemporalPropertyAt {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
             time,
         });
         expect_optional_prop(self.transport.execute(&op).await?, "at")
@@ -359,7 +359,7 @@ impl RemoteTemporalProperty {
     /// been set in this view. Fires one RPC.
     pub async fn latest(&self) -> Result<Option<Prop>, ClientError> {
         let op = Op::Read(ReadExpr::TemporalPropertyLatest {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
         });
         expect_optional_prop(self.transport.execute(&op).await?, "latest")
     }
@@ -368,7 +368,7 @@ impl RemoteTemporalProperty {
     /// view. Fires one RPC.
     pub async fn count(&self) -> Result<i64, ClientError> {
         let op = Op::Read(ReadExpr::Count {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
         });
         expect_i64(self.transport.execute(&op).await?, "count")
     }
@@ -377,7 +377,7 @@ impl RemoteTemporalProperty {
     /// guaranteed. Fires one RPC.
     pub async fn unique(&self) -> Result<Vec<Prop>, ClientError> {
         let op = Op::Read(ReadExpr::TemporalPropertyUnique {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
         });
         expect_prop_list(self.transport.execute(&op).await?, "unique")
     }
@@ -390,7 +390,7 @@ impl RemoteTemporalProperty {
         latest_time: bool,
     ) -> Result<Vec<RemotePropertyTuple>, ClientError> {
         let op = Op::Read(ReadExpr::TemporalPropertyOrderedDedupe {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
             latest_time,
         });
         let tuples =
@@ -404,7 +404,7 @@ impl RemoteTemporalProperty {
     /// Terminal: sum of all updates. `None` if not additive. Fires one RPC.
     pub async fn sum(&self) -> Result<Option<Prop>, ClientError> {
         let op = Op::Read(ReadExpr::TemporalPropertySum {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
         });
         expect_optional_prop(self.transport.execute(&op).await?, "sum")
     }
@@ -413,7 +413,7 @@ impl RemoteTemporalProperty {
     /// Fires one RPC.
     pub async fn mean(&self) -> Result<Option<Prop>, ClientError> {
         let op = Op::Read(ReadExpr::TemporalPropertyMean {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
         });
         expect_optional_prop(self.transport.execute(&op).await?, "mean")
     }
@@ -421,7 +421,7 @@ impl RemoteTemporalProperty {
     /// Terminal: alias for `mean`. Fires one RPC.
     pub async fn average(&self) -> Result<Option<Prop>, ClientError> {
         let op = Op::Read(ReadExpr::TemporalPropertyAverage {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
         });
         expect_optional_prop(self.transport.execute(&op).await?, "average")
     }
@@ -430,7 +430,7 @@ impl RemoteTemporalProperty {
     /// empty. Fires one RPC.
     pub async fn min(&self) -> Result<Option<RemotePropertyTuple>, ClientError> {
         let op = Op::Read(ReadExpr::TemporalPropertyMin {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
         });
         expect_optional_property_tuple(self.transport.execute(&op).await?, "min")
             .map(|opt| opt.map(|(time, value)| RemotePropertyTuple { time, value }))
@@ -440,7 +440,7 @@ impl RemoteTemporalProperty {
     /// empty. Fires one RPC.
     pub async fn max(&self) -> Result<Option<RemotePropertyTuple>, ClientError> {
         let op = Op::Read(ReadExpr::TemporalPropertyMax {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
         });
         expect_optional_property_tuple(self.transport.execute(&op).await?, "max")
             .map(|opt| opt.map(|(time, value)| RemotePropertyTuple { time, value }))
@@ -450,7 +450,7 @@ impl RemoteTemporalProperty {
     /// inputs). `None` if not comparable or empty. Fires one RPC.
     pub async fn median(&self) -> Result<Option<RemotePropertyTuple>, ClientError> {
         let op = Op::Read(ReadExpr::TemporalPropertyMedian {
-            input: Box::new(self.expr.clone()),
+            input: Arc::new(self.expr.clone()),
         });
         expect_optional_property_tuple(self.transport.execute(&op).await?, "median")
             .map(|opt| opt.map(|(time, value)| RemotePropertyTuple { time, value }))
