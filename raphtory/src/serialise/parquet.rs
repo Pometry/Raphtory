@@ -177,12 +177,7 @@ impl ParquetDecoder for Graph {
         config: Config,
     ) -> Result<Self, GraphError> {
         let batch_size = None;
-        let storage = decode_graph_storage(
-            &path,
-            batch_size,
-            path_for_decoded_graph,
-            config,
-        )?;
+        let storage = decode_graph_storage(&path, batch_size, path_for_decoded_graph, config)?;
         Ok(Graph::from_storage(storage))
     }
 }
@@ -194,12 +189,7 @@ impl ParquetDecoder for PersistentGraph {
         config: Config,
     ) -> Result<Self, GraphError> {
         let batch_size = None;
-        let storage = decode_graph_storage(
-            &path,
-            batch_size,
-            path_for_decoded_graph,
-            config,
-        )?;
+        let storage = decode_graph_storage(&path, batch_size, path_for_decoded_graph, config)?;
         Ok(PersistentGraph(storage))
     }
 }
@@ -212,12 +202,7 @@ impl ParquetDecoder for MaterializedGraph {
     ) -> Result<Self, GraphError> {
         let batch_size = None;
         let graph_type = decode_graph_type(&path)?;
-        let storage = decode_graph_storage(
-            &path,
-            batch_size,
-            path_for_decoded_graph,
-            config,
-        )?;
+        let storage = decode_graph_storage(&path, batch_size, path_for_decoded_graph, config)?;
 
         match graph_type {
             GraphType::EventGraph => {

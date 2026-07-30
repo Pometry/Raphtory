@@ -509,8 +509,7 @@ impl ValidWriteableGraphFolder {
                 self.global_path.write_metadata(meta)?;
                 (true, graph)
             } else {
-                let new_graph = graph
-                    .materialize_at_with_config(self.graph_folder(), config)?;
+                let new_graph = graph.materialize_at_with_config(self.graph_folder(), config)?;
                 (true, new_graph)
             }
         } else {
@@ -529,10 +528,7 @@ impl ValidWriteableGraphFolder {
             .with_path(self.local_path())
     }
 
-    pub fn read_graph(
-        &self,
-        config: Config,
-    ) -> Result<MaterializedGraph, PathValidationError> {
+    pub fn read_graph(&self, config: Config) -> Result<MaterializedGraph, PathValidationError> {
         self.with_internal_errors(|| {
             if self.graph_folder().read_metadata()?.is_diskgraph {
                 MaterializedGraph::load_with_config(self.graph_folder(), config)

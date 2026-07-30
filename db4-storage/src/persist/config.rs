@@ -4,7 +4,7 @@ use clap::{
     error::{ContextKind, ContextValue},
 };
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
-use std::{iter, path::{Path}};
+use std::{iter, path::Path};
 use tempfile::NamedTempFile;
 use tracing::error;
 
@@ -16,7 +16,7 @@ pub trait ConfigArgsOps: Serialize + DeserializeOwned + Sized + Clone {
     type Config: ConfigOps + From<Self>;
 
     fn override_graph_config_in_dir(self, dir: &Path) -> Result<Self, StorageError> {
-        let mut cur_config_args = Self::load_from_dir(dir)?; 
+        let mut cur_config_args = Self::load_from_dir(dir)?;
         cur_config_args.update(self);
         cur_config_args.save_to_dir(dir)?;
         Ok(cur_config_args)
@@ -45,7 +45,7 @@ pub trait ConfigArgsOps: Serialize + DeserializeOwned + Sized + Clone {
 }
 
 pub trait ConfigOps: Serialize + DeserializeOwned + Args + Sized {
-    type ConfigArgs: ConfigArgsOps<Config = Self> + From<Self>; 
+    type ConfigArgs: ConfigArgsOps<Config = Self> + From<Self>;
 
     fn max_node_page_len(&self) -> u32;
 

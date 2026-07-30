@@ -86,10 +86,7 @@ impl<T: ParquetEncoder + StaticGraphViewOps + AdditionOps> StableEncode for T {
 pub trait StableDecode: StaticGraphViewOps + AdditionOps {
     // Decode the graph from the given bytes array.
     // `path_for_decoded_graph` gets passed to the newly created graph.
-    fn decode_from_bytes_with_config(
-        bytes: &[u8],
-        config: Config,
-    ) -> Result<Self, GraphError>;
+    fn decode_from_bytes_with_config(bytes: &[u8], config: Config) -> Result<Self, GraphError>;
 
     fn decode_from_bytes(bytes: &[u8]) -> Result<Self, GraphError> {
         Self::decode_from_bytes_with_config(bytes, Config::default())
@@ -135,10 +132,7 @@ pub trait StableDecode: StaticGraphViewOps + AdditionOps {
 }
 
 impl<T: ParquetDecoder + StaticGraphViewOps + AdditionOps> StableDecode for T {
-    fn decode_from_bytes_with_config(
-        bytes: &[u8],
-        config: Config,
-    ) -> Result<Self, GraphError> {
+    fn decode_from_bytes_with_config(bytes: &[u8], config: Config) -> Result<Self, GraphError> {
         let cursor = Cursor::new(bytes);
         Self::decode_from_zip_with_config(ZipArchive::new(cursor)?, config)
     }
@@ -157,8 +151,7 @@ impl<T: ParquetDecoder + StaticGraphViewOps + AdditionOps> StableDecode for T {
         config: Config,
     ) -> Result<Self, GraphError> {
         let graph_prefix = get_zip_graph_path(&mut reader)?;
-        let graph =
-            Self::decode_parquet_from_zip(&mut reader, None, graph_prefix, config)?;
+        let graph = Self::decode_parquet_from_zip(&mut reader, None, graph_prefix, config)?;
 
         //TODO: graph.load_index_from_zip(&mut reader, prefix)
 

@@ -1,11 +1,16 @@
 use crate::{
-    api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps}, error::StorageError, persist::{
-        config::{BaseConfig, ConfigOps}, control_file::{ControlFileOps, NoControlFile},
-    }, segments::{
+    api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
+    error::StorageError,
+    persist::{
+        config::{BaseConfig, ConfigOps},
+        control_file::{ControlFileOps, NoControlFile},
+    },
+    segments::{
         edge::segment::{EdgeSegmentView, MemEdgeSegment},
         graph_prop::{GraphPropSegmentView, segment::MemGraphPropSegment},
         node::segment::{MemNodeSegment, NodeSegmentView},
-    }, wal::{GraphWalOps, WalOps, no_wal::NoWal},
+    },
+    wal::{GraphWalOps, WalOps, no_wal::NoWal},
 };
 use std::{
     fmt::Debug,
