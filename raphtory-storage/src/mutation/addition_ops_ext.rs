@@ -767,7 +767,7 @@ impl StagingOps for TemporalGraph {
         let write_locked_graph = self.write_locked_graph();
 
         // Make sure graph is on disk before creating hard links.
-        self.flush()?;
+        write_locked_graph.flush()?;
 
         let graph_path = self.graph_dir().ok_or(StagingError::MissingGraphDir)?;
         let graph_folder = GraphFolder::from_graph_path(graph_path)?;
