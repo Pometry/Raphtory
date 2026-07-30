@@ -14,7 +14,7 @@ const PROP_NAME: &str = "bench_prop";
 const RNG_SEED: u64 = 42;
 
 /// Sample a time from a normal distribution centered at mid, clamped to [earliest, latest]
-fn sample_time(rng: &mut impl rand::Rng, earliest: i64, latest: i64) -> i64 {
+fn sample_time(rng: &mut impl Rng, earliest: i64, latest: i64) -> i64 {
     let mid = earliest + (latest - earliest) / 2;
     let std_dev = ((latest - earliest) / 6) as f64; // ~99.7% within range
     let normal = Normal::new(mid as f64, std_dev).unwrap();

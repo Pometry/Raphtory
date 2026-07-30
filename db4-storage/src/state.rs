@@ -34,7 +34,7 @@ pub struct StateIndex<I = usize> {
     /// Maximum items per chunk
     max_page_len: u32,
     /// Phantom data for index type
-    _marker: std::marker::PhantomData<I>,
+    _marker: PhantomData<I>,
 }
 
 impl<I> From<SegmentCounts<I>> for StateIndex<I>
@@ -68,7 +68,7 @@ impl<I: From<usize> + Into<usize>> StateIndex<I> {
         Self {
             offsets: offsets.into_boxed_slice(),
             max_page_len,
-            _marker: std::marker::PhantomData,
+            _marker: PhantomData,
         }
     }
 

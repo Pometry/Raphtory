@@ -163,7 +163,7 @@ impl AsPropRef for Prop {
             Prop::F32(v) => PropRef::Num(PropNum::F32(*v)),
             Prop::F64(v) => PropRef::Num(PropNum::F64(*v)),
             Prop::Bool(b) => PropRef::Bool(*b),
-            Prop::List(lst) => PropRef::List(std::borrow::Cow::Borrowed(lst)),
+            Prop::List(lst) => PropRef::List(Cow::Borrowed(lst)),
             Prop::Map(map) => PropRef::Map(PropMapRef::Mem(map)),
             Prop::NDTime(dt) => PropRef::NDTime(*dt),
             Prop::DTime(dt) => PropRef::DTime(*dt),

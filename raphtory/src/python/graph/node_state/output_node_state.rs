@@ -285,7 +285,7 @@ impl PyOutputNodeState {
         default_column_merge_priority: String,
         column_merge_priority_map: Option<HashMap<String, String>>,
         py: Python<'py>,
-    ) -> Result<Bound<'py, PyAny>, pyo3::PyErr> {
+    ) -> Result<Bound<'py, PyAny>, PyErr> {
         // hashmap of string to enum
         let merge_priority_enum_map: HashMap<String, MergePriority> = HashMap::from([
             ("left".to_string(), MergePriority::Left),

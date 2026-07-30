@@ -221,7 +221,7 @@ mod test_filters_node_type_filtered_subgraph {
             db::graph::views::filter::model::PropertyFilterFactory, prelude::NodeFilter,
         };
         use raphtory_tests::assertions::{
-            assert_filter_nodes_results, TestGraphVariants,
+            assert_filter_nodes_results,
             TestVariants,
         };
         #[test]

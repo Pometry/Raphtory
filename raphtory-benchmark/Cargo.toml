@@ -17,7 +17,6 @@ rand_distr = { workspace = true }
 rayon = { workspace = true }
 tempfile = { workspace = true }
 tracing = { workspace = true }
-once_cell = { workspace = true }
 serde = { workspace = true }
 fake = { workspace = true }
 csv = { workspace = true }

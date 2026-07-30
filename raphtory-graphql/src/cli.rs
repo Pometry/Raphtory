@@ -220,7 +220,7 @@ where
         Commands::Schema => {
             let schema = App::create_schema().finish().unwrap();
             println!("{}", schema.sdl());
-            return Ok(None);
+            Ok(None)
         }
         Commands::Server(server_args) => {
             let mut builder = AppConfigBuilder::new();
@@ -301,7 +301,7 @@ where
             }
 
             let app_config = builder.build();
-            return Ok(Some((server_args, app_config)));
+            Ok(Some((server_args, app_config)))
         }
     }
 }
@@ -345,7 +345,7 @@ pub fn python_cli() -> pyo3::PyResult<()> {
     // Replace argv[0] with "raphtory" so clap doesn't interpret the script path as a subcommand
     let args = std::iter::once("raphtory".to_string()).chain(std::env::args().skip(2));
 
-    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let runtime = tokio::runtime::Runtime::new()?;
     runtime
         .block_on(cli_with_args(args))
         .map_err(|err| pyo3::exceptions::PyIOError::new_err(err.to_string()))
@@ -374,7 +374,7 @@ mod tests {
         let args: Vec<&str> = vec![r"target\\debug\\raphtory-server", "server"];
         std::env::remove_var("RAPHTORY_CACHE_CAPACITY");
         let (_, app_config) = generate_config(args).unwrap().unwrap();
-        assert!(app_config.cache.capacity == DEFAULT_CACHE_CAPACITY);
+        assert_eq!(app_config.cache.capacity, DEFAULT_CACHE_CAPACITY);
     }
 
     async fn test_cli_parsing_with_config_file() {
@@ -387,7 +387,7 @@ mod tests {
         ];
         std::env::remove_var("RAPHTORY_CACHE_CAPACITY");
         let (_, app_config) = generate_config(args).unwrap().unwrap();
-        assert!(app_config.cache.capacity == 123);
+        assert_eq!(app_config.cache.capacity, 123);
     }
 
     async fn test_cli_parsing_with_env_var() {
@@ -400,7 +400,7 @@ mod tests {
         ];
         std::env::set_var("RAPHTORY_CACHE_CAPACITY", "456");
         let (_, app_config) = generate_config(args).unwrap().unwrap();
-        assert!(app_config.cache.capacity == 456);
+        assert_eq!(app_config.cache.capacity, 456);
     }
 
     async fn test_cli_parsing_with_command_line_arg() {
@@ -415,7 +415,7 @@ mod tests {
         ];
         std::env::set_var("RAPHTORY_CACHE_CAPACITY", "456");
         let (_, app_config) = generate_config(args).unwrap().unwrap();
-        assert!(app_config.cache.capacity == 789);
+        assert_eq!(app_config.cache.capacity, 789);
     }
 
     #[tokio::test]

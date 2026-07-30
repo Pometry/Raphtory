@@ -105,7 +105,7 @@ pub trait NodeStateOps<'a, 'graph: 'a>:
             )
         });
 
-        let (keys, values): (IndexSet<_, ahash::RandomState>, Vec<_>) = state
+        let (keys, values): (IndexSet<_, RandomState>, Vec<_>) = state
             .into_par_iter()
             .map(|(n1, v1)| (n1, v1.to_owned_value()))
             .unzip();
@@ -158,7 +158,7 @@ pub trait NodeStateOps<'a, 'graph: 'a>:
             |(_, v1), (_, v2)| cmp(v1.borrow(), v2.borrow()),
             k,
         );
-        let (keys, values): (IndexSet<_, ahash::RandomState>, Vec<_>) = values
+        let (keys, values): (IndexSet<_, RandomState>, Vec<_>) = values
             .into_iter()
             .map(|(n, v)| (n.node, v.to_owned_value()))
             .unzip();

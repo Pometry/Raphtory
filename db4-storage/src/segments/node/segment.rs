@@ -278,8 +278,8 @@ impl MemNodeSegment {
             self.update_timestamp_inner(t, row, e_id);
         }
         let layer_est_size = self.layers[layer_id.0].est_size();
-        let added_size = (layer_est_size - est_size)
-            + (is_new_edge as usize * std::mem::size_of::<(VID, VID)>());
+        let added_size =
+            (layer_est_size - est_size) + (is_new_edge as usize * size_of::<(VID, VID)>());
         (new_entry, added_size)
     }
 
@@ -313,8 +313,8 @@ impl MemNodeSegment {
             self.update_timestamp_inner(t, row, e_id);
         }
         let layer_est_size = self.layers[layer_id.0].est_size();
-        let added_size = (layer_est_size - est_size)
-            + (is_new_edge as usize * std::mem::size_of::<(VID, VID)>());
+        let added_size =
+            (layer_est_size - est_size) + (is_new_edge as usize * size_of::<(VID, VID)>());
         (new_entry, added_size)
     }
 

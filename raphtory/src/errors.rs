@@ -258,7 +258,7 @@ pub enum GraphError {
     #[cfg(feature = "io")]
     #[error("zip operation failed")]
     ZipError {
-        source: zip::result::ZipError,
+        source: ZipError,
         location: &'static Location<'static>,
     },
 

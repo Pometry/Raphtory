@@ -423,7 +423,7 @@ mod test_property_semantics {
             addition_ops::InternalAdditionOps, property_addition_ops::InternalPropertyAdditionOps,
         };
         use raphtory_tests::assertions::{
-            assert_filter_edges_results, TestGraphVariants, TestVariants, WindowGraphTransformer,
+            assert_filter_edges_results, TestVariants, WindowGraphTransformer,
         };
 
         fn init_graph<
@@ -9154,9 +9154,7 @@ mod test_edge_property_filter {
     };
 
     use raphtory_api::core::entities::properties::prop::Prop;
-    use raphtory_tests::assertions::{
-        assert_filter_edges_results, TestGraphVariants, TestVariants,
-    };
+    use raphtory_tests::assertions::{assert_filter_edges_results, TestVariants};
 
     #[test]
     fn test_filter_edges_for_property_eq() {
@@ -10439,9 +10437,7 @@ mod test_edge_composite_filter {
         property_filter::ops::PropertyFilterOps, ComposableFilter, PropertyFilterFactory,
         TryAsCompositeFilter,
     };
-    use raphtory_tests::assertions::{
-        assert_filter_edges_results, TestGraphVariants, TestVariants,
-    };
+    use raphtory_tests::assertions::{assert_filter_edges_results, TestVariants};
 
     use crate::filter_tests::test_filters::{init_edges_graph, IdentityGraphTransformer};
 

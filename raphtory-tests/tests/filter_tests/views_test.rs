@@ -16,7 +16,7 @@ mod test_nodes_filters_window_graph {
         addition_ops::InternalAdditionOps, property_addition_ops::InternalPropertyAdditionOps,
     };
     use raphtory_tests::assertions::{
-        assert_filter_nodes_results, TestGraphVariants, TestVariants, WindowGraphTransformer,
+        assert_filter_nodes_results, TestVariants, WindowGraphTransformer,
     };
 
     fn init_graph<G: StaticGraphViewOps + AdditionOps + PropertyAdditionOps>(graph: G) -> G {
@@ -1402,7 +1402,7 @@ mod test_edges_filters_window_graph {
     };
     use raphtory_api::core::{entities::properties::prop::Prop, storage::arc_str::ArcStr};
     use raphtory_tests::assertions::{
-        assert_filter_edges_results, TestGraphVariants, TestVariants, WindowGraphTransformer,
+        assert_filter_edges_results, TestVariants, WindowGraphTransformer,
     };
 
     fn init_graph<G: StaticGraphViewOps + AdditionOps + PropertyAdditionOps>(graph: G) -> G {

@@ -38,9 +38,7 @@ pub mod test_nodes_filters_layer_graph {
     use raphtory::{db::graph::views::filter::model::PropertyFilterFactory, prelude::NodeFilter};
 
     use crate::filter_tests::{init_graph, Edges, Nodes};
-    use raphtory_tests::assertions::{
-        assert_filter_nodes_results, TestGraphVariants, TestVariants,
-    };
+    use raphtory_tests::assertions::{assert_filter_nodes_results, TestVariants};
 
     // Layers don't have any effect on the number of nodes in a graph.
     // In other words, it is as good as applying no layer filters.
@@ -187,9 +185,7 @@ mod test_edges_filters_layer_graph {
         },
         prelude::EdgeFilter,
     };
-    use raphtory_tests::assertions::{
-        assert_filter_edges_results, TestGraphVariants, TestVariants,
-    };
+    use raphtory_tests::assertions::{assert_filter_edges_results, TestVariants};
 
     #[test]
     fn test_edges_filters() {

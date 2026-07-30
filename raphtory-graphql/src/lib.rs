@@ -1132,7 +1132,7 @@ mod graphql_test {
     async fn test_graph_injection() {
         let g = PersistentGraph::new();
         g.add_node(0, 1, NO_PROPS, None, None).unwrap();
-        let tmp_dir = tempfile::TempDir::new().unwrap();
+        let tmp_dir = TempDir::new().unwrap();
         let zip_path = tmp_dir.path().join("graph.zip");
         g.encode(GraphFolder::new_as_zip(&zip_path)).unwrap();
         let file = fs::File::open(&zip_path).unwrap();
@@ -2253,7 +2253,7 @@ mod graphql_test {
 
             let cases = ["", ".hidden/x", "x/.hidden", "../escape", "a//b"];
 
-            let snapshot_before = std::fs::read_dir(work_dir.path())
+            let snapshot_before = fs::read_dir(work_dir.path())
                 .unwrap()
                 .map(|e| e.unwrap().file_name())
                 .collect::<HashSet<_>>();
@@ -2272,7 +2272,7 @@ mod graphql_test {
                 );
             }
 
-            let snapshot_after = std::fs::read_dir(work_dir.path())
+            let snapshot_after = fs::read_dir(work_dir.path())
                 .unwrap()
                 .map(|e| e.unwrap().file_name())
                 .collect::<HashSet<_>>();
@@ -3085,7 +3085,7 @@ mod graphql_test {
         let tmp_dir = tempdir().unwrap();
         // Create a subdirectory inside the allowed root.
         let sub_dir = tmp_dir.path().join("subdir");
-        std::fs::create_dir_all(&sub_dir).unwrap();
+        fs::create_dir_all(&sub_dir).unwrap();
         let parquet_path = write_nodes_parquet(&sub_dir);
 
         // The allowlist only contains the top-level directory, not subdir directly.
