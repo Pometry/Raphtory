@@ -1296,13 +1296,12 @@ fn render_read_body(expr: &ReadExpr, vars: &mut VarCollector) -> Result<String, 
         }
         ReadExpr::WindowSize { input } => format!("{} {{ windowSize", render_read_body(input, vars)?),
         ReadExpr::Ids { input } => format!("{} {{ ids", render_read_body(input, vars)?),
-        // `PathFromGraph.list` returns `[PathFromNode!]!` — one object per
-        // source node. We render `list { ids }` and read each element's `ids`
-        // scalar-list to rebuild the nested `[[String]]` shape client-side.
-        // The `list` field opens ONE net brace (closed by outer `read_depth`);
-        // the inner `{ ids }` group is self-balanced. Mirrors `EdgesList`.
+        // `PathFromGraph.ids` is a columnar `[[String]]` field computed in ONE
+        // server-side `blocking_compute` (vs `list { ids }`, which resolves one
+        // `PathFromNode` object + its own `blocking_compute` per source). Opens
+        // ONE net brace, same as `Ids`.
         ReadExpr::NestedIds { input } => {
-            format!("{} {{ list {{ ids }}", render_read_body(input, vars)?)
+            format!("{} {{ ids", render_read_body(input, vars)?)
         }
         // Flat collection degree terminals — render the scalar-list field
         // directly on the `Nodes`/`PathFromNode` collection.
@@ -1318,19 +1317,17 @@ fn render_read_body(expr: &ReadExpr, vars: &mut VarCollector) -> Result<String, 
         ReadExpr::CollectionEdgeHistoryCount { input } => {
             format!("{} {{ edgeHistoryCount", render_read_body(input, vars)?)
         }
-        // Nested collection degree terminals — `PathFromGraph.list` returns
-        // `[PathFromNode!]!`, so we render `list { <field> }` and read each
-        // per-source element's flat degree list. The `list` field opens ONE net
-        // brace (closed by the outer `read_depth`); the inner `{ <field> }`
-        // group is self-balanced. Mirrors `NestedIds`.
+        // Columnar `[[Int]]` fields on `PathFromGraph`, computed in ONE
+        // server-side `blocking_compute` (vs `list { degree }` per source).
+        // Mirror `NestedIds`.
         ReadExpr::NestedDegree { input } => {
-            format!("{} {{ list {{ degree }}", render_read_body(input, vars)?)
+            format!("{} {{ degree", render_read_body(input, vars)?)
         }
         ReadExpr::NestedInDegree { input } => {
-            format!("{} {{ list {{ inDegree }}", render_read_body(input, vars)?)
+            format!("{} {{ inDegree", render_read_body(input, vars)?)
         }
         ReadExpr::NestedOutDegree { input } => {
-            format!("{} {{ list {{ outDegree }}", render_read_body(input, vars)?)
+            format!("{} {{ outDegree", render_read_body(input, vars)?)
         }
         ReadExpr::NestedEdgeHistoryCount { input } => {
             format!(
@@ -2121,21 +2118,19 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
                 .collect();
             Ok(Some(Prop::List(items?.into())))
         }
-        // Nested id terminal — `PathFromGraph.list` returns a JSON array of
-        // `PathFromNode` records `[{"ids": ["a","b"]}, ...]`, one per source
-        // node. We pull each record's `ids` scalar-list and rebuild the
-        // nested `Prop::List(Prop::List(Prop::Str))` (outer = per source,
-        // inner = that source's ids). Mirrors `EdgesList`.
+        // Nested id terminal — `PathFromGraph.ids` is a columnar `[[String]]`
+        // (outer = per source, inner = that source's ids). Parse straight into
+        // `Prop::List(Prop::List(Prop::Str))`.
         ReadExpr::NestedIds { .. } => {
             let outer = terminal_val.as_array().ok_or_else(|| {
                 ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
             })?;
             let rows: Result<Vec<Prop>, ClientError> = outer
                 .iter()
-                .map(|row| {
-                    let inner = row.get("ids").and_then(|v| v.as_array()).ok_or_else(|| {
+                .map(|inner_val| {
+                    let inner = inner_val.as_array().ok_or_else(|| {
                         ClientError::InvalidResponse(format!(
-                            "`{}` element missing `ids` array",
+                            "`{}` element not a JSON array",
                             terminal_key
                         ))
                     })?;
@@ -2178,34 +2173,61 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
                 .collect();
             Ok(Some(Prop::List(items?.into())))
         }
-        // Nested collection degree terminals — `PathFromGraph.list` returns a
-        // JSON array of `PathFromNode` records `[{"degree": [1,2]}, ...]`, one
-        // per source node. We pull each record's flat degree list and rebuild
-        // the nested `Prop::List(Prop::List(Prop::I64))` (outer = per source,
-        // inner = that source's per-node degrees). Mirrors `NestedIds`.
+        // Columnar nested degree terminals — `PathFromGraph.{degree,inDegree,
+        // outDegree}` are `[[Int]]` fields (outer = per source, inner = that
+        // source's per-node degrees). Parse straight into
+        // `Prop::List(Prop::List(Prop::I64))`.
         ReadExpr::NestedDegree { .. }
         | ReadExpr::NestedInDegree { .. }
-        | ReadExpr::NestedOutDegree { .. }
-        | ReadExpr::NestedEdgeHistoryCount { .. } => {
-            let field = match expr {
-                ReadExpr::NestedDegree { .. } => "degree",
-                ReadExpr::NestedInDegree { .. } => "inDegree",
-                ReadExpr::NestedOutDegree { .. } => "outDegree",
-                ReadExpr::NestedEdgeHistoryCount { .. } => "edgeHistoryCount",
-                _ => unreachable!(),
-            };
+        | ReadExpr::NestedOutDegree { .. } => {
+            let outer = terminal_val.as_array().ok_or_else(|| {
+                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
+            })?;
+            let rows: Result<Vec<Prop>, ClientError> = outer
+                .iter()
+                .map(|inner_val| {
+                    let inner = inner_val.as_array().ok_or_else(|| {
+                        ClientError::InvalidResponse(format!(
+                            "`{}` element not a JSON array",
+                            terminal_key
+                        ))
+                    })?;
+                    let items: Result<Vec<Prop>, ClientError> = inner
+                        .iter()
+                        .map(|v| {
+                            v.as_i64().map(Prop::I64).ok_or_else(|| {
+                                ClientError::InvalidResponse(format!(
+                                    "`{}` inner element not an i64",
+                                    terminal_key
+                                ))
+                            })
+                        })
+                        .collect();
+                    Ok(Prop::List(items?.into()))
+                })
+                .collect();
+            Ok(Some(Prop::List(rows?.into())))
+        }
+        // Nested edgeHistoryCount (PathFromGraph → per-source PathFromNode)
+        // still resolves via the `list` array of records
+        // `[{"edgeHistoryCount": [1,2]}, ...]` — GqlPathFromGraph has no
+        // columnar `edgeHistoryCount` field (only ids/degree/inDegree/outDegree).
+        ReadExpr::NestedEdgeHistoryCount { .. } => {
             let outer = terminal_val.as_array().ok_or_else(|| {
                 ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
             })?;
             let rows: Result<Vec<Prop>, ClientError> = outer
                 .iter()
                 .map(|row| {
-                    let inner = row.get(field).and_then(|v| v.as_array()).ok_or_else(|| {
-                        ClientError::InvalidResponse(format!(
-                            "`{}` element missing `{}` array",
-                            terminal_key, field
-                        ))
-                    })?;
+                    let inner = row
+                        .get("edgeHistoryCount")
+                        .and_then(|v| v.as_array())
+                        .ok_or_else(|| {
+                            ClientError::InvalidResponse(format!(
+                                "`{}` element missing `edgeHistoryCount` array",
+                                terminal_key
+                            ))
+                        })?;
                     let items: Result<Vec<Prop>, ClientError> = inner
                         .iter()
                         .map(|v| {
@@ -3127,7 +3149,7 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
             }
             ReadExpr::NestedIds { input } => {
                 go(input, out);
-                out.push("list");
+                out.push("ids");
             }
             ReadExpr::CollectionDegree { input } => {
                 go(input, out);
@@ -3145,13 +3167,23 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
                 go(input, out);
                 out.push("edgeHistoryCount");
             }
-            // Nested degree terminals resolve to the `list` array of
-            // per-source `PathFromNode` records; parse_read reads each
-            // element's flat degree field.
-            ReadExpr::NestedDegree { input }
-            | ReadExpr::NestedInDegree { input }
-            | ReadExpr::NestedOutDegree { input }
-            | ReadExpr::NestedEdgeHistoryCount { input } => {
+            // Columnar nested degree terminals resolve to the `[[Int]]` field
+            // directly (one `blocking_compute` server-side).
+            ReadExpr::NestedDegree { input } => {
+                go(input, out);
+                out.push("degree");
+            }
+            ReadExpr::NestedInDegree { input } => {
+                go(input, out);
+                out.push("inDegree");
+            }
+            ReadExpr::NestedOutDegree { input } => {
+                go(input, out);
+                out.push("outDegree");
+            }
+            // `edgeHistoryCount` is on nested EDGES (not this columnar path) —
+            // still resolves via the per-source `list` array.
+            ReadExpr::NestedEdgeHistoryCount { input } => {
                 go(input, out);
                 out.push("list");
             }

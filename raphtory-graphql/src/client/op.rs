@@ -545,10 +545,10 @@ pub enum ReadExpr {
     /// Terminal on a Nodes collection: list of member ids — `Vec<String>`.
     Ids { input: Arc<ReadExpr> },
     /// Terminal on a `PathFromGraph` collection: the nested list of member ids
-    /// — `Vec<Vec<String>>` (one inner list per source node). Renders
-    /// `list { ids }`: `PathFromGraph.list` is `[PathFromNode!]!`, and each
-    /// per-source `PathFromNode` yields its own flat `ids`. Parsed as
-    /// `Prop::List(Prop::List(Prop::Str))` (outer = per source, inner = ids).
+    /// — `Vec<Vec<String>>` (one inner list per source node). Renders the
+    /// columnar `ids` field (whole nested result in one server-side compute,
+    /// not one per source). Parsed as `Prop::List(Prop::List(Prop::Str))`
+    /// (outer = per source, inner = ids).
     NestedIds { input: Arc<ReadExpr> },
     /// Terminal on a `Nodes`/`PathFromNode` collection: the per-node degree
     /// (number of incident edges) as a FLAT list — `Vec<i64>`. Renders
@@ -566,20 +566,22 @@ pub enum ReadExpr {
     /// `edgeHistoryCount`.
     CollectionEdgeHistoryCount { input: Arc<ReadExpr> },
     /// Terminal on a `PathFromGraph` collection: the NESTED per-node degree —
-    /// `Vec<Vec<i64>>` (one inner list per source node). Renders
-    /// `list { degree }`: `PathFromGraph.list` is `[PathFromNode!]!`, and each
-    /// per-source `PathFromNode` yields its own flat `degree`. Mirrors
-    /// `NestedIds`. Parsed via `expect_nested_i64_list`.
+    /// `Vec<Vec<i64>>` (one inner list per source node). Renders the columnar
+    /// `degree` field. Mirrors `NestedIds`. Parsed via
+    /// `expect_nested_i64_list`.
     NestedDegree { input: Arc<ReadExpr> },
     /// Terminal on a `PathFromGraph` collection: the NESTED per-node in-degree —
-    /// `Vec<Vec<i64>>`. Renders `list { inDegree }`. Mirrors `NestedDegree`.
+    /// `Vec<Vec<i64>>`. Renders the columnar `inDegree` field. Mirrors
+    /// `NestedDegree`.
     NestedInDegree { input: Arc<ReadExpr> },
     /// Terminal on a `PathFromGraph` collection: the NESTED per-node out-degree —
-    /// `Vec<Vec<i64>>`. Renders `list { outDegree }`. Mirrors `NestedDegree`.
+    /// `Vec<Vec<i64>>`. Renders the columnar `outDegree` field. Mirrors
+    /// `NestedDegree`.
     NestedOutDegree { input: Arc<ReadExpr> },
     /// Terminal on a `PathFromGraph` collection: the NESTED per-node count of
-    /// incident edge updates — `Vec<Vec<i64>>`. Renders
-    /// `list { edgeHistoryCount }`. Mirrors `NestedDegree`.
+    /// incident edge updates — `Vec<Vec<i64>>`. Renders `list { edgeHistoryCount }`
+    /// (per-source `PathFromNode` records — no columnar `edgeHistoryCount` field
+    /// exists on the server's `PathFromGraph`). Mirrors `NestedDegree` in shape.
     NestedEdgeHistoryCount { input: Arc<ReadExpr> },
     /// Terminal on a collection: number of members — `i64`.
     /// Distinct from `CountNodes`/`CountEdges` (which are Graph-scope); this
