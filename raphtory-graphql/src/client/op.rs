@@ -1013,8 +1013,7 @@ pub enum WriteOp {
 /// lets the server auto-increment.
 pub struct AddNode {
     pub path: String,
-    pub time: i64,
-    pub event_id: Option<usize>,
+    pub time: InputTime,
     pub id: String,
     pub properties: Option<HashMap<String, Prop>>,
     pub node_type: Option<String>,
@@ -1026,8 +1025,7 @@ pub struct AddNode {
 /// upsert-like). `event_id` as in `AddNode`.
 pub struct CreateNode {
     pub path: String,
-    pub time: i64,
-    pub event_id: Option<usize>,
+    pub time: InputTime,
     pub id: String,
     pub properties: Option<HashMap<String, Prop>>,
     pub node_type: Option<String>,
@@ -1037,8 +1035,7 @@ pub struct CreateNode {
 /// Arguments for `RemoteGraph::add_edge`. `event_id` as in `AddNode`.
 pub struct AddEdge {
     pub path: String,
-    pub time: i64,
-    pub event_id: Option<usize>,
+    pub time: InputTime,
     pub src: String,
     pub dst: String,
     pub properties: Option<HashMap<String, Prop>>,
@@ -1051,8 +1048,7 @@ pub struct AddEdge {
 /// lets the server auto-increment.
 pub struct AddGraphProperty {
     pub path: String,
-    pub time: i64,
-    pub event_id: Option<usize>,
+    pub time: InputTime,
     pub properties: HashMap<String, Prop>,
 }
 
@@ -1074,7 +1070,7 @@ pub struct UpdateGraphMetadata {
 /// given time (optionally on a specific layer).
 pub struct DeleteEdge {
     pub path: String,
-    pub time: i64,
+    pub time: InputTime,
     pub src: String,
     pub dst: String,
     pub layer: Option<String>,

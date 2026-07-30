@@ -2,7 +2,7 @@ use crate::{
     client::{
         graphql_transport::GraphqlTransport,
         op::{
-            AddEdge as AddEdgeOp, AddGraphMetadata as AddGraphMetadataOp,
+            input_time_from_parts, AddEdge as AddEdgeOp, AddGraphMetadata as AddGraphMetadataOp,
             AddGraphProperty as AddGraphPropertyOp, AddNode as AddNodeOp,
             CreateNode as CreateNodeOp, DeleteEdge as DeleteEdgeOp, HandleCtx, InputTime, Op,
             ReadExpr, UpdateGraphMetadata as UpdateGraphMetadataOp, WriteOp,
@@ -1645,8 +1645,7 @@ impl RemoteGraph {
         let id_str = id.to_string();
         let op = Op::Write(WriteOp::AddNode(AddNodeOp {
             path: self.path.clone(),
-            time: timestamp.into_time().t(),
-            event_id,
+            time: input_time_from_parts(timestamp.into_time().t(), event_id),
             id: id_str.clone(),
             properties,
             node_type,
@@ -1682,8 +1681,7 @@ impl RemoteGraph {
         let id_str = id.to_string();
         let op = Op::Write(WriteOp::CreateNode(CreateNodeOp {
             path: self.path.clone(),
-            time: timestamp.into_time().t(),
-            event_id,
+            time: input_time_from_parts(timestamp.into_time().t(), event_id),
             id: id_str.clone(),
             properties,
             node_type,
@@ -1722,8 +1720,7 @@ impl RemoteGraph {
         let dst_str = dst.to_string();
         let op = Op::Write(WriteOp::AddEdge(AddEdgeOp {
             path: self.path.clone(),
-            time: timestamp.into_time().t(),
-            event_id,
+            time: input_time_from_parts(timestamp.into_time().t(), event_id),
             src: src_str.clone(),
             dst: dst_str.clone(),
             properties,
@@ -1756,8 +1753,7 @@ impl RemoteGraph {
     ) -> Result<(), ClientError> {
         let op = Op::Write(WriteOp::AddGraphProperty(AddGraphPropertyOp {
             path: self.path.clone(),
-            time: timestamp.into_time().t(),
-            event_id,
+            time: input_time_from_parts(timestamp.into_time().t(), event_id),
             properties,
         }));
         self.transport.execute(&op).await?;
@@ -1810,7 +1806,7 @@ impl RemoteGraph {
         let dst_str = dst.to_string();
         let op = Op::Write(WriteOp::DeleteEdge(DeleteEdgeOp {
             path: self.path.clone(),
-            time: timestamp.into_time().t(),
+            time: input_time_from_parts(timestamp.into_time().t(), None),
             src: src_str.clone(),
             dst: dst_str.clone(),
             layer,

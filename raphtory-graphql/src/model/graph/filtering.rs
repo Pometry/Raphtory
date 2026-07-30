@@ -2268,3 +2268,71 @@ mod op_chain_tests {
         );
     }
 }
+
+#[cfg(test)]
+mod filter_serde_goldens {
+    use super::*;
+
+    // The wire format is the single source of truth — async-graphql input
+    // coercion, the persisted auth-store `GraphAccessFilter`, and the client
+    // all depend on these EXACT shapes. Pin them so a stray `#[serde(rename)]`
+    // is caught here, not at e2e time or by an invalidated permission store.
+
+    #[test]
+    fn node_field_filter_golden() {
+        let f = GqlNodeFilter::Node(NodeFieldFilterNew {
+            field: NodeField::NodeName,
+            where_: NodeFieldCondition::Eq(Value::Str("alice".into())),
+        });
+        assert_eq!(
+            serde_json::to_value(&f).unwrap(),
+            serde_json::json!({"node": {"field": "NODE_NAME", "where": {"eq": {"str": "alice"}}}})
+        );
+    }
+
+    #[test]
+    fn property_filter_golden() {
+        let f = GqlNodeFilter::Property(PropertyFilterNew {
+            name: "score".into(),
+            where_: PropCondition::Gt(Value::F64(6.0)),
+        });
+        assert_eq!(
+            serde_json::to_value(&f).unwrap(),
+            serde_json::json!({"property": {"name": "score", "where": {"gt": {"f64": 6.0}}}})
+        );
+    }
+
+    #[test]
+    fn logical_and_golden() {
+        let f = GqlNodeFilter::And(vec![GqlNodeFilter::IsActive(true)]);
+        assert_eq!(
+            serde_json::to_value(&f).unwrap(),
+            serde_json::json!({"and": [{"isActive": true}]})
+        );
+    }
+
+    #[test]
+    fn datetime_value_golden_and_legacy_alias() {
+        // Serialization uses the schema field name `dtime`...
+        let v = Value::DTime("2020-01-01T00:00:00Z".into());
+        assert_eq!(
+            serde_json::to_value(&v).unwrap(),
+            serde_json::json!({"dtime": "2020-01-01T00:00:00Z"})
+        );
+        // ...and a permission filter persisted under the OLD camelCase key still loads.
+        let legacy: Value =
+            serde_json::from_value(serde_json::json!({"dTime": "2020-01-01T00:00:00Z"})).unwrap();
+        assert!(matches!(legacy, Value::DTime(_)));
+    }
+
+    #[test]
+    fn node_field_legacy_camelcase_alias_loads() {
+        // A permission store written before the SCREAMING_SNAKE `NodeField`
+        // rename must still deserialize (`nodeName` -> `NODE_NAME`).
+        let f: GqlNodeFilter = serde_json::from_value(
+            serde_json::json!({"node": {"field": "nodeName", "where": {"eq": {"str": "alice"}}}}),
+        )
+        .unwrap();
+        assert!(matches!(f, GqlNodeFilter::Node(_)));
+    }
+}

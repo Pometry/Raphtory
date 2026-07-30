@@ -138,7 +138,7 @@ impl GraphqlTransport {
 
         let variables = HashMap::from([
             ("path".to_string(), json!(args.path)),
-            ("time".to_string(), time_input_var(args.time, args.event_id)),
+            ("time".to_string(), input_time_var(&args.time)),
             ("name".to_string(), json!(args.id)),
             (
                 "properties".to_string(),
@@ -149,20 +149,8 @@ impl GraphqlTransport {
         ]);
         let res = self.client.query(query, variables).await?;
 
-        let success = res
-            .get("updateGraph")
-            .and_then(|x| x.as_object())
-            .and_then(|x| x.get("addNode"))
-            .and_then(|x| x.as_object())
-            .and_then(|x| x.get("success"))
-            .and_then(|x| x.as_bool())
-            .is_some_and(|x| x);
-
-        if success {
-            Ok(None)
-        } else {
-            Err(ClientError::UnsuccessfulResponse)
-        }
+        expect_update_success(&res, "addNode")?;
+        Ok(None)
     }
 
     async fn apply_create_node(&self, args: &CreateNode) -> Result<Option<Prop>, ClientError> {
@@ -180,7 +168,7 @@ impl GraphqlTransport {
 
         let variables = HashMap::from([
             ("path".to_string(), json!(args.path)),
-            ("time".to_string(), time_input_var(args.time, args.event_id)),
+            ("time".to_string(), input_time_var(&args.time)),
             ("name".to_string(), json!(args.id)),
             (
                 "properties".to_string(),
@@ -191,20 +179,8 @@ impl GraphqlTransport {
         ]);
         let res = self.client.query(query, variables).await?;
 
-        let success = res
-            .get("updateGraph")
-            .and_then(|x| x.as_object())
-            .and_then(|x| x.get("createNode"))
-            .and_then(|x| x.as_object())
-            .and_then(|x| x.get("success"))
-            .and_then(|x| x.as_bool())
-            .is_some_and(|x| x);
-
-        if success {
-            Ok(None)
-        } else {
-            Err(ClientError::UnsuccessfulResponse)
-        }
+        expect_update_success(&res, "createNode")?;
+        Ok(None)
     }
 
     async fn apply_add_edge(&self, args: &AddEdge) -> Result<Option<Prop>, ClientError> {
@@ -222,7 +198,7 @@ impl GraphqlTransport {
 
         let variables = HashMap::from([
             ("path".to_string(), json!(args.path)),
-            ("time".to_string(), time_input_var(args.time, args.event_id)),
+            ("time".to_string(), input_time_var(&args.time)),
             ("src".to_string(), json!(args.src)),
             ("dst".to_string(), json!(args.dst)),
             (
@@ -233,20 +209,8 @@ impl GraphqlTransport {
         ]);
         let res = self.client.query(query, variables).await?;
 
-        let success = res
-            .get("updateGraph")
-            .and_then(|x| x.as_object())
-            .and_then(|x| x.get("addEdge"))
-            .and_then(|x| x.as_object())
-            .and_then(|x| x.get("success"))
-            .and_then(|x| x.as_bool())
-            .is_some_and(|x| x);
-
-        if success {
-            Ok(None)
-        } else {
-            Err(ClientError::UnsuccessfulResponse)
-        }
+        expect_update_success(&res, "addEdge")?;
+        Ok(None)
     }
 
     async fn apply_add_graph_property(
@@ -263,23 +227,13 @@ impl GraphqlTransport {
 
         let variables = HashMap::from([
             ("path".to_string(), json!(args.path)),
-            ("t".to_string(), time_input_var(args.time, args.event_id)),
+            ("t".to_string(), input_time_var(&args.time)),
             ("properties".to_string(), properties_var(&args.properties)?),
         ]);
         let res = self.client.query(query, variables).await?;
 
-        let success = res
-            .get("updateGraph")
-            .and_then(|x| x.as_object())
-            .and_then(|x| x.get("addProperties"))
-            .and_then(|x| x.as_bool())
-            .is_some_and(|x| x);
-
-        if success {
-            Ok(None)
-        } else {
-            Err(ClientError::UnsuccessfulResponse)
-        }
+        expect_update_bool(&res, "addProperties")?;
+        Ok(None)
     }
 
     async fn apply_add_graph_metadata(
@@ -300,18 +254,8 @@ impl GraphqlTransport {
         ]);
         let res = self.client.query(query, variables).await?;
 
-        let success = res
-            .get("updateGraph")
-            .and_then(|x| x.as_object())
-            .and_then(|x| x.get("addMetadata"))
-            .and_then(|x| x.as_bool())
-            .is_some_and(|x| x);
-
-        if success {
-            Ok(None)
-        } else {
-            Err(ClientError::UnsuccessfulResponse)
-        }
+        expect_update_bool(&res, "addMetadata")?;
+        Ok(None)
     }
 
     async fn apply_update_graph_metadata(
@@ -332,18 +276,8 @@ impl GraphqlTransport {
         ]);
         let res = self.client.query(query, variables).await?;
 
-        let success = res
-            .get("updateGraph")
-            .and_then(|x| x.as_object())
-            .and_then(|x| x.get("updateMetadata"))
-            .and_then(|x| x.as_bool())
-            .is_some_and(|x| x);
-
-        if success {
-            Ok(None)
-        } else {
-            Err(ClientError::UnsuccessfulResponse)
-        }
+        expect_update_bool(&res, "updateMetadata")?;
+        Ok(None)
     }
 
     async fn apply_delete_edge(&self, args: &DeleteEdge) -> Result<Option<Prop>, ClientError> {
@@ -360,27 +294,15 @@ impl GraphqlTransport {
 
         let variables = HashMap::from([
             ("path".to_string(), json!(args.path)),
-            ("time".to_string(), json!(args.time)),
+            ("time".to_string(), input_time_var(&args.time)),
             ("src".to_string(), json!(args.src)),
             ("dst".to_string(), json!(args.dst)),
             ("layer".to_string(), json!(args.layer)),
         ]);
         let res = self.client.query(query, variables).await?;
 
-        let success = res
-            .get("updateGraph")
-            .and_then(|x| x.as_object())
-            .and_then(|x| x.get("deleteEdge"))
-            .and_then(|x| x.as_object())
-            .and_then(|x| x.get("success"))
-            .and_then(|x| x.as_bool())
-            .is_some_and(|x| x);
-
-        if success {
-            Ok(None)
-        } else {
-            Err(ClientError::UnsuccessfulResponse)
-        }
+        expect_update_success(&res, "deleteEdge")?;
+        Ok(None)
     }
 
     async fn apply_set_node_type(&self, args: &SetNodeType) -> Result<Option<Prop>, ClientError> {
@@ -624,7 +546,8 @@ impl GraphqlTransport {
             ("path".to_string(), json!(args.path)),
             ("nodes".to_string(), to_var(&args.nodes)?),
         ]);
-        self.client.query(query, variables).await?;
+        let res = self.client.query(query, variables).await?;
+        expect_update_bool(&res, "addNodes")?;
         Ok(None)
     }
 
@@ -641,7 +564,8 @@ impl GraphqlTransport {
             ("path".to_string(), json!(args.path)),
             ("edges".to_string(), to_var(&args.edges)?),
         ]);
-        self.client.query(query, variables).await?;
+        let res = self.client.query(query, variables).await?;
+        expect_update_bool(&res, "addEdges")?;
         Ok(None)
     }
 }
@@ -816,6 +740,50 @@ fn ensure_write_target_present(
         Ok(())
     } else {
         Err(ClientError::NotFound(target))
+    }
+}
+
+/// A graph-scoped write whose server field returns `{ success }` (single
+/// `addNode`/`createNode`/`addEdge`/`deleteEdge`): read
+/// `updateGraph.<field>.success` and surface a `false`/absent result as
+/// `UnsuccessfulResponse`.
+fn expect_update_success(
+    res: &HashMap<String, serde_json::Value>,
+    field: &str,
+) -> Result<(), ClientError> {
+    let ok = res
+        .get("updateGraph")
+        .and_then(|g| g.as_object())
+        .and_then(|g| g.get(field))
+        .and_then(|f| f.as_object())
+        .and_then(|f| f.get("success"))
+        .and_then(|s| s.as_bool())
+        .is_some_and(|s| s);
+    if ok {
+        Ok(())
+    } else {
+        Err(ClientError::UnsuccessfulResponse)
+    }
+}
+
+/// A graph-scoped write whose server field returns a bare `Boolean!`
+/// (`addProperties`/`addMetadata`/`updateMetadata`/`addNodes`/`addEdges`):
+/// read `updateGraph.<field>` and surface a `false`/absent result as
+/// `UnsuccessfulResponse` — so a server `false` isn't a silent client success.
+fn expect_update_bool(
+    res: &HashMap<String, serde_json::Value>,
+    field: &str,
+) -> Result<(), ClientError> {
+    let ok = res
+        .get("updateGraph")
+        .and_then(|g| g.as_object())
+        .and_then(|g| g.get(field))
+        .and_then(|v| v.as_bool())
+        .is_some_and(|v| v);
+    if ok {
+        Ok(())
+    } else {
+        Err(ClientError::UnsuccessfulResponse)
     }
 }
 
