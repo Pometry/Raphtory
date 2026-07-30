@@ -258,7 +258,11 @@ impl ScalarValue for GqlPropertyOutputVal {
     }
 }
 
-fn gql_to_prop(value: GqlValue) -> Result<Prop, Error> {
+/// Decode an `async_graphql::Value` into a `Prop` (lossy: number → I64/F64,
+/// object → Map). The single source of truth for JSON→`Prop` value semantics —
+/// the client's response decoder (`json_to_prop`) delegates here after
+/// converting `serde_json::Value` via `Value::from_json`.
+pub(crate) fn gql_to_prop(value: GqlValue) -> Result<Prop, Error> {
     match value {
         GqlValue::Number(n) => {
             if let Some(n) = n.as_i64() {

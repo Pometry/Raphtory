@@ -4,19 +4,22 @@
 //! parses responses back into `Option<Prop>`. All wire logic lives here so
 //! client wrappers (`RemoteGraph`, `RemoteNode`, ...) stay transport-agnostic.
 
-use crate::client::{
-    op::{
-        AddEdge, AddEdgeMetadata, AddEdgeUpdates, AddEdges, AddGraphMetadata, AddGraphProperty,
-        AddNode, AddNodeMetadata, AddNodeUpdates, AddNodes, CreateNode, DeleteEdge,
-        DeleteEdgeAtTime, EdgeSortBy, NodeSortBy, Op, ReadExpr, SetNodeType, SortByTime,
-        UpdateEdgeMetadata, UpdateGraphMetadata, UpdateNodeMetadata, WriteOp,
+use crate::{
+    client::{
+        op::{
+            AddEdge, AddEdgeMetadata, AddEdgeUpdates, AddEdges, AddGraphMetadata, AddGraphProperty,
+            AddNode, AddNodeMetadata, AddNodeUpdates, AddNodes, CreateNode, DeleteEdge,
+            DeleteEdgeAtTime, EdgeSortBy, NodeSortBy, Op, ReadExpr, SetNodeType, SortByTime,
+            UpdateEdgeMetadata, UpdateGraphMetadata, UpdateNodeMetadata, WriteOp,
+        },
+        properties_to_input,
+        remote_client::RemoteClient,
+        transport::Transport,
+        ClientError,
     },
-    properties_to_input,
-    remote_client::RemoteClient,
-    transport::Transport,
-    ClientError,
+    model::graph::property::gql_to_prop,
 };
-use async_graphql::async_trait;
+use async_graphql::{async_trait, Value as GqlValue};
 use raphtory_api::core::entities::properties::prop::Prop;
 use serde::Serialize;
 use serde_json::{json, Value as JsonValue};
@@ -3466,34 +3469,13 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
 /// bool / array / object) with no type tag. Recovering the exact original
 /// variant isn't possible for numbers (I64 vs F64 vs DTime all wire as
 /// numbers) — we pick the widest fitting variant.
+/// Decode a leaf property value from a JSON response. Delegates to the model's
+/// `gql_to_prop` (the single source of truth for JSON→`Prop` value semantics)
+/// after lifting `serde_json::Value` into `async_graphql::Value`.
 fn json_to_prop(v: &JsonValue) -> Result<Prop, ClientError> {
-    match v {
-        JsonValue::Bool(b) => Ok(Prop::Bool(*b)),
-        JsonValue::Number(n) => {
-            if let Some(i) = n.as_i64() {
-                Ok(Prop::I64(i))
-            } else if let Some(f) = n.as_f64() {
-                Ok(Prop::F64(f))
-            } else {
-                Err(ClientError::InvalidResponse(
-                    "prop number not representable as i64 or f64".into(),
-                ))
-            }
-        }
-        JsonValue::String(s) => Ok(Prop::Str(s.as_str().into())),
-        JsonValue::Array(arr) => {
-            let items: Result<Vec<Prop>, ClientError> = arr.iter().map(json_to_prop).collect();
-            Ok(Prop::List(items?.into()))
-        }
-        JsonValue::Object(obj) => {
-            let pairs: Result<Vec<(&str, Prop)>, ClientError> = obj
-                .iter()
-                .map(|(k, v)| json_to_prop(v).map(|p| (k.as_str(), p)))
-                .collect();
-            Ok(Prop::map(pairs?))
-        }
-        JsonValue::Null => Err(ClientError::InvalidResponse("prop is null".into())),
-    }
+    let gql =
+        GqlValue::from_json(v.clone()).map_err(|e| ClientError::InvalidResponse(e.to_string()))?;
+    gql_to_prop(gql).map_err(|e| ClientError::InvalidResponse(e.message))
 }
 
 /// Decode a `{ time: {timestamp, datetime, eventId}, value }` JSON record
