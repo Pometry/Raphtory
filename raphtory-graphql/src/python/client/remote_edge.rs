@@ -9,7 +9,9 @@ use crate::{
 };
 use pyo3::{pyclass, pymethods, Py, PyAny, Python};
 use raphtory::python::utils::execute_async_task;
-use raphtory_api::core::{entities::properties::prop::Prop, storage::timeindex::EventTime};
+use raphtory_api::core::{
+    entities::properties::prop::Prop, storage::timeindex::EventTime, utils::time::InputTime,
+};
 use std::{collections::HashMap, sync::Arc};
 
 /// A remote edge reference
@@ -34,8 +36,8 @@ impl PyRemoteEdge {
 #[pymethods]
 impl PyRemoteEdge {
     /// Time-window this edge. Lazy — no RPC.
-    pub fn window(&self, start: EventTime, end: EventTime) -> PyRemoteEdge {
-        PyRemoteEdge::new(self.edge.window(start.into(), end.into()))
+    pub fn window(&self, start: InputTime, end: InputTime) -> PyRemoteEdge {
+        PyRemoteEdge::new(self.edge.window(start, end))
     }
 
     /// Restrict to a single named layer. Lazy — no RPC.
@@ -44,18 +46,18 @@ impl PyRemoteEdge {
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
-    pub fn at(&self, time: EventTime) -> PyRemoteEdge {
-        PyRemoteEdge::new(self.edge.at(time.into()))
+    pub fn at(&self, time: InputTime) -> PyRemoteEdge {
+        PyRemoteEdge::new(self.edge.at(time))
     }
 
     /// Restrict to events strictly before the given time. Lazy — no RPC.
-    pub fn before(&self, time: EventTime) -> PyRemoteEdge {
-        PyRemoteEdge::new(self.edge.before(time.into()))
+    pub fn before(&self, time: InputTime) -> PyRemoteEdge {
+        PyRemoteEdge::new(self.edge.before(time))
     }
 
     /// Restrict to events strictly after the given time (exclusive). Lazy — no RPC.
-    pub fn after(&self, time: EventTime) -> PyRemoteEdge {
-        PyRemoteEdge::new(self.edge.after(time.into()))
+    pub fn after(&self, time: InputTime) -> PyRemoteEdge {
+        PyRemoteEdge::new(self.edge.after(time))
     }
 
     /// Latest state. Lazy — no RPC.
@@ -69,8 +71,8 @@ impl PyRemoteEdge {
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
-    pub fn snapshot_at(&self, time: EventTime) -> PyRemoteEdge {
-        PyRemoteEdge::new(self.edge.snapshot_at(time.into()))
+    pub fn snapshot_at(&self, time: InputTime) -> PyRemoteEdge {
+        PyRemoteEdge::new(self.edge.snapshot_at(time))
     }
 
     /// Exclude a specific layer from the view. Lazy — no RPC.
@@ -79,18 +81,18 @@ impl PyRemoteEdge {
     }
 
     /// Shrink both start and end of the current window. Lazy — no RPC.
-    pub fn shrink_window(&self, start: EventTime, end: EventTime) -> PyRemoteEdge {
-        PyRemoteEdge::new(self.edge.shrink_window(start.into(), end.into()))
+    pub fn shrink_window(&self, start: InputTime, end: InputTime) -> PyRemoteEdge {
+        PyRemoteEdge::new(self.edge.shrink_window(start, end))
     }
 
     /// Shrink the start of the current window. Lazy — no RPC.
-    pub fn shrink_start(&self, start: EventTime) -> PyRemoteEdge {
-        PyRemoteEdge::new(self.edge.shrink_start(start.into()))
+    pub fn shrink_start(&self, start: InputTime) -> PyRemoteEdge {
+        PyRemoteEdge::new(self.edge.shrink_start(start))
     }
 
     /// Shrink the end of the current window. Lazy — no RPC.
-    pub fn shrink_end(&self, end: EventTime) -> PyRemoteEdge {
-        PyRemoteEdge::new(self.edge.shrink_end(end.into()))
+    pub fn shrink_end(&self, end: InputTime) -> PyRemoteEdge {
+        PyRemoteEdge::new(self.edge.shrink_end(end))
     }
 
     /// Restrict to the default layer. Lazy — no RPC.

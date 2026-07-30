@@ -10,7 +10,7 @@ use crate::{
 };
 use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyRef, PyRefMut, PyResult};
 use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
-use raphtory_api::core::storage::timeindex::EventTime;
+use raphtory_api::core::{storage::timeindex::EventTime, utils::time::InputTime};
 use std::sync::Arc;
 
 /// A handle to a remote collection of nodes.
@@ -36,8 +36,8 @@ impl PyRemoteNodes {
 #[pymethods]
 impl PyRemoteNodes {
     /// Time-window this collection. Lazy — no RPC.
-    pub fn window(&self, start: EventTime, end: EventTime) -> PyRemoteNodes {
-        PyRemoteNodes::new(self.nodes.window(start.into(), end.into()))
+    pub fn window(&self, start: InputTime, end: InputTime) -> PyRemoteNodes {
+        PyRemoteNodes::new(self.nodes.window(start, end))
     }
 
     /// Restrict to a single named layer. Lazy — no RPC.
@@ -46,18 +46,18 @@ impl PyRemoteNodes {
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
-    pub fn at(&self, time: EventTime) -> PyRemoteNodes {
-        PyRemoteNodes::new(self.nodes.at(time.into()))
+    pub fn at(&self, time: InputTime) -> PyRemoteNodes {
+        PyRemoteNodes::new(self.nodes.at(time))
     }
 
     /// Restrict to events strictly before the given time. Lazy — no RPC.
-    pub fn before(&self, time: EventTime) -> PyRemoteNodes {
-        PyRemoteNodes::new(self.nodes.before(time.into()))
+    pub fn before(&self, time: InputTime) -> PyRemoteNodes {
+        PyRemoteNodes::new(self.nodes.before(time))
     }
 
     /// Restrict to events strictly after the given time. Lazy — no RPC.
-    pub fn after(&self, time: EventTime) -> PyRemoteNodes {
-        PyRemoteNodes::new(self.nodes.after(time.into()))
+    pub fn after(&self, time: InputTime) -> PyRemoteNodes {
+        PyRemoteNodes::new(self.nodes.after(time))
     }
 
     /// Latest state. Lazy — no RPC.
@@ -71,8 +71,8 @@ impl PyRemoteNodes {
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
-    pub fn snapshot_at(&self, time: EventTime) -> PyRemoteNodes {
-        PyRemoteNodes::new(self.nodes.snapshot_at(time.into()))
+    pub fn snapshot_at(&self, time: InputTime) -> PyRemoteNodes {
+        PyRemoteNodes::new(self.nodes.snapshot_at(time))
     }
 
     /// Exclude a specific layer. Lazy — no RPC.
@@ -81,18 +81,18 @@ impl PyRemoteNodes {
     }
 
     /// Shrink both start and end of the current window. Lazy — no RPC.
-    pub fn shrink_window(&self, start: EventTime, end: EventTime) -> PyRemoteNodes {
-        PyRemoteNodes::new(self.nodes.shrink_window(start.into(), end.into()))
+    pub fn shrink_window(&self, start: InputTime, end: InputTime) -> PyRemoteNodes {
+        PyRemoteNodes::new(self.nodes.shrink_window(start, end))
     }
 
     /// Shrink the start of the current window. Lazy — no RPC.
-    pub fn shrink_start(&self, start: EventTime) -> PyRemoteNodes {
-        PyRemoteNodes::new(self.nodes.shrink_start(start.into()))
+    pub fn shrink_start(&self, start: InputTime) -> PyRemoteNodes {
+        PyRemoteNodes::new(self.nodes.shrink_start(start))
     }
 
     /// Shrink the end of the current window. Lazy — no RPC.
-    pub fn shrink_end(&self, end: EventTime) -> PyRemoteNodes {
-        PyRemoteNodes::new(self.nodes.shrink_end(end.into()))
+    pub fn shrink_end(&self, end: InputTime) -> PyRemoteNodes {
+        PyRemoteNodes::new(self.nodes.shrink_end(end))
     }
 
     /// Restrict to the default layer. Lazy — no RPC.

@@ -1,8 +1,9 @@
 use crate::client::{
     op::{
-        AddEdgeMetadata as AddEdgeMetadataOp, AddEdgeUpdates as AddEdgeUpdatesOp,
-        DeleteEdgeAtTime as DeleteEdgeAtTimeOp, Fanout, HandleCtx, HandleOp, Op, ReadExpr,
-        TimeBound, UpdateEdgeMetadata as UpdateEdgeMetadataOp, WriteOp,
+        input_time_from_parts, AddEdgeMetadata as AddEdgeMetadataOp,
+        AddEdgeUpdates as AddEdgeUpdatesOp, DeleteEdgeAtTime as DeleteEdgeAtTimeOp, Fanout,
+        HandleCtx, HandleOp, InputTime, Op, ReadExpr, UpdateEdgeMetadata as UpdateEdgeMetadataOp,
+        WriteOp,
     },
     remote_edges::RemoteEdges,
     remote_graph::{
@@ -79,7 +80,7 @@ impl RemoteEdge {
     }
 
     /// Time-window this edge. Lazy — no RPC.
-    pub fn window(&self, start: TimeBound, end: TimeBound) -> RemoteEdge {
+    pub fn window(&self, start: InputTime, end: InputTime) -> RemoteEdge {
         self.with_view_op(move |input| ReadExpr::Window {
             input: Box::new(input),
             start,
@@ -97,7 +98,7 @@ impl RemoteEdge {
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
-    pub fn at(&self, time: TimeBound) -> RemoteEdge {
+    pub fn at(&self, time: InputTime) -> RemoteEdge {
         self.with_view_op(move |input| ReadExpr::At {
             input: Box::new(input),
             time,
@@ -105,7 +106,7 @@ impl RemoteEdge {
     }
 
     /// Restrict to events strictly before the given time. Lazy — no RPC.
-    pub fn before(&self, time: TimeBound) -> RemoteEdge {
+    pub fn before(&self, time: InputTime) -> RemoteEdge {
         self.with_view_op(move |input| ReadExpr::Before {
             input: Box::new(input),
             time,
@@ -113,7 +114,7 @@ impl RemoteEdge {
     }
 
     /// Restrict to events strictly after the given time (exclusive). Lazy — no RPC.
-    pub fn after(&self, time: TimeBound) -> RemoteEdge {
+    pub fn after(&self, time: InputTime) -> RemoteEdge {
         self.with_view_op(move |input| ReadExpr::After {
             input: Box::new(input),
             time,
@@ -135,7 +136,7 @@ impl RemoteEdge {
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
-    pub fn snapshot_at(&self, time: TimeBound) -> RemoteEdge {
+    pub fn snapshot_at(&self, time: InputTime) -> RemoteEdge {
         self.with_view_op(move |input| ReadExpr::SnapshotAt {
             input: Box::new(input),
             time,
@@ -152,7 +153,7 @@ impl RemoteEdge {
     }
 
     /// Shrink both start and end of the current window. Lazy — no RPC.
-    pub fn shrink_window(&self, start: TimeBound, end: TimeBound) -> RemoteEdge {
+    pub fn shrink_window(&self, start: InputTime, end: InputTime) -> RemoteEdge {
         self.with_view_op(move |input| ReadExpr::ShrinkWindow {
             input: Box::new(input),
             start,
@@ -161,7 +162,7 @@ impl RemoteEdge {
     }
 
     /// Shrink the start of the current window. Lazy — no RPC.
-    pub fn shrink_start(&self, start: TimeBound) -> RemoteEdge {
+    pub fn shrink_start(&self, start: InputTime) -> RemoteEdge {
         self.with_view_op(move |input| ReadExpr::ShrinkStart {
             input: Box::new(input),
             start,
@@ -169,7 +170,7 @@ impl RemoteEdge {
     }
 
     /// Shrink the end of the current window. Lazy — no RPC.
-    pub fn shrink_end(&self, end: TimeBound) -> RemoteEdge {
+    pub fn shrink_end(&self, end: InputTime) -> RemoteEdge {
         self.with_view_op(move |input| ReadExpr::ShrinkEnd {
             input: Box::new(input),
             end,
@@ -510,10 +511,7 @@ impl RemoteEdge {
             path: self.path.clone(),
             src: self.src.clone(),
             dst: self.dst.clone(),
-            time: TimeBound {
-                timestamp: t.into_time().t(),
-                event_id,
-            },
+            time: input_time_from_parts(t.into_time().t(), event_id),
             properties,
             layer,
         }));
@@ -533,10 +531,7 @@ impl RemoteEdge {
             path: self.path.clone(),
             src: self.src.clone(),
             dst: self.dst.clone(),
-            time: TimeBound {
-                timestamp: t.into_time().t(),
-                event_id,
-            },
+            time: input_time_from_parts(t.into_time().t(), event_id),
             layer,
         }));
         self.transport.execute(&op).await?;

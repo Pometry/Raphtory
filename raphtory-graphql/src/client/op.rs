@@ -8,55 +8,27 @@ use crate::{
     client::properties_to_input,
     model::graph::filtering::{GqlEdgeFilter, GqlNodeFilter},
 };
-use raphtory_api::core::{
-    entities::properties::prop::Prop,
-    storage::timeindex::{AsTime, EventTime},
-};
+use raphtory_api::core::entities::properties::prop::Prop;
+// Re-exported so the client transport wrappers import the op tree's time type
+// from one place (`op::InputTime`), same as `ReadExpr`/`WriteOp`.
+pub use raphtory_api::core::utils::time::InputTime;
 use serde::{ser::SerializeStruct, Serialize, Serializer};
 use std::{collections::HashMap, sync::Arc};
 
-/// A time bound for a view op (`window`/`at`/`before`/…). Carries the
-/// timestamp plus an optional secondary `event_id`, so event-id-precise
-/// boundaries (the `(timestamp, event_id)` tuple form) survive to the server —
-/// which windows by the full `EventTime` when given the indexed time input.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct TimeBound {
-    pub timestamp: i64,
-    pub event_id: Option<usize>,
-}
+// View-op and write times are `InputTime` (`Simple(t)` / `Indexed(t, id)`)
+// directly — the Python bindings extract that shape, preserving whether an
+// event id was provided (a plain timestamp → `Simple`, a `(t, id)` tuple →
+// `Indexed`). Rendering/serializing to the wire lives in the transport, not
+// here (see `render_input_time` / `input_time_var` in `graphql_transport.rs`).
 
-impl From<i64> for TimeBound {
-    fn from(timestamp: i64) -> Self {
-        Self {
-            timestamp,
-            event_id: None,
-        }
-    }
-}
-
-impl From<EventTime> for TimeBound {
-    fn from(event_time: EventTime) -> Self {
-        // event_id 0 is the default/auto index — treat it as "no explicit id"
-        // so a plain timestamp still renders as a bare int.
-        let event_id = event_time.i();
-        Self {
-            timestamp: event_time.t(),
-            event_id: (event_id != 0).then_some(event_id),
-        }
-    }
-}
-
-impl TimeBound {
-    /// Render as a GraphQL `TimeInput` scalar: the indexed object form
-    /// `{timestamp, eventId}` when an event id is present (so the server windows
-    /// by the full `EventTime`), otherwise a bare integer.
-    pub fn render(&self) -> String {
-        match self.event_id {
-            Some(event_id) => {
-                format!("{{timestamp: {}, eventId: {}}}", self.timestamp, event_id)
-            }
-            None => self.timestamp.to_string(),
-        }
+/// Build an `InputTime` from a timestamp plus an optional explicit event id.
+/// Used by the write path, where `event_id` arrives as a separate kwarg (not a
+/// tuple): `Some(id)` locks the secondary index, `None` lets the server
+/// auto-increment it.
+pub fn input_time_from_parts(timestamp: i64, event_id: Option<usize>) -> InputTime {
+    match event_id {
+        Some(id) => InputTime::Indexed(timestamp, id),
+        None => InputTime::Simple(timestamp),
     }
 }
 
@@ -86,25 +58,25 @@ pub enum ReadExpr {
     /// Time-window a graph. Composes.
     Window {
         input: Box<ReadExpr>,
-        start: TimeBound,
-        end: TimeBound,
+        start: InputTime,
+        end: InputTime,
     },
     /// Restrict to a single layer.
     Layer { input: Box<ReadExpr>, name: String },
     /// Snapshot at a single timestamp.
     At {
         input: Box<ReadExpr>,
-        time: TimeBound,
+        time: InputTime,
     },
     /// Restrict to events strictly before the given time.
     Before {
         input: Box<ReadExpr>,
-        time: TimeBound,
+        time: InputTime,
     },
     /// Restrict to events strictly after the given time (exclusive).
     After {
         input: Box<ReadExpr>,
-        time: TimeBound,
+        time: InputTime,
     },
     /// Latest state — no args. Composes.
     Latest { input: Box<ReadExpr> },
@@ -113,25 +85,25 @@ pub enum ReadExpr {
     /// Snapshot at a specific time. Composes.
     SnapshotAt {
         input: Box<ReadExpr>,
-        time: TimeBound,
+        time: InputTime,
     },
     /// Exclude a specific layer.
     ExcludeLayer { input: Box<ReadExpr>, name: String },
     /// Shrink both start and end of the window.
     ShrinkWindow {
         input: Box<ReadExpr>,
-        start: TimeBound,
-        end: TimeBound,
+        start: InputTime,
+        end: InputTime,
     },
     /// Shrink the start of the window.
     ShrinkStart {
         input: Box<ReadExpr>,
-        start: TimeBound,
+        start: InputTime,
     },
     /// Shrink the end of the window.
     ShrinkEnd {
         input: Box<ReadExpr>,
-        end: TimeBound,
+        end: InputTime,
     },
     /// Restrict to the "valid" subgraph (event-graph filter). No args. Composes.
     Valid { input: Box<ReadExpr> },
@@ -1119,7 +1091,7 @@ pub struct SetNodeType {
 pub struct AddNodeUpdates {
     pub path: String,
     pub id: String,
-    pub time: TimeBound,
+    pub time: InputTime,
     pub properties: Option<HashMap<String, Prop>>,
 }
 
@@ -1145,7 +1117,7 @@ pub struct AddEdgeUpdates {
     pub path: String,
     pub src: String,
     pub dst: String,
-    pub time: TimeBound,
+    pub time: InputTime,
     pub properties: Option<HashMap<String, Prop>>,
     pub layer: Option<String>,
 }
@@ -1157,7 +1129,7 @@ pub struct DeleteEdgeAtTime {
     pub path: String,
     pub src: String,
     pub dst: String,
-    pub time: TimeBound,
+    pub time: InputTime,
     pub layer: Option<String>,
 }
 

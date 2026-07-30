@@ -9,8 +9,8 @@ use crate::{
         op::{
             AddEdge, AddEdgeMetadata, AddEdgeUpdates, AddEdges, AddGraphMetadata, AddGraphProperty,
             AddNode, AddNodeMetadata, AddNodeUpdates, AddNodes, CreateNode, DeleteEdge,
-            DeleteEdgeAtTime, EdgeSortBy, NodeSortBy, Op, ReadExpr, SetNodeType, SortByTime,
-            UpdateEdgeMetadata, UpdateGraphMetadata, UpdateNodeMetadata, WriteOp,
+            DeleteEdgeAtTime, EdgeSortBy, InputTime, NodeSortBy, Op, ReadExpr, SetNodeType,
+            SortByTime, UpdateEdgeMetadata, UpdateGraphMetadata, UpdateNodeMetadata, WriteOp,
         },
         properties_to_input,
         remote_client::RemoteClient,
@@ -31,6 +31,26 @@ fn time_input_var(time: i64, event_id: Option<usize>) -> JsonValue {
     match event_id {
         Some(event_id) => json!({ "timestamp": time, "eventId": event_id }),
         None => json!(time),
+    }
+}
+
+/// Render an `InputTime` as a `TimeInput` GraphQL **literal** (for view-op args
+/// spliced into the query text): a bare int for `Simple`, or the object form
+/// `{timestamp, eventId}` for `Indexed`. `Simple` vs `Indexed` comes straight
+/// from what the caller passed (plain timestamp vs `(t, id)` tuple), so a plain
+/// timestamp stays a bare int with no heuristic.
+fn render_input_time(t: &InputTime) -> String {
+    match t {
+        InputTime::Simple(ts) => ts.to_string(),
+        InputTime::Indexed(ts, id) => format!("{{timestamp: {ts}, eventId: {id}}}"),
+    }
+}
+
+/// Build the `TimeInput` variable value from an `InputTime` (write-path times).
+fn input_time_var(t: &InputTime) -> JsonValue {
+    match t {
+        InputTime::Simple(ts) => time_input_var(*ts, None),
+        InputTime::Indexed(ts, id) => time_input_var(*ts, Some(*id)),
     }
 }
 
@@ -402,10 +422,7 @@ impl GraphqlTransport {
         let variables = HashMap::from([
             ("path".to_string(), json!(args.path)),
             ("name".to_string(), json!(args.id)),
-            (
-                "time".to_string(),
-                time_input_var(args.time.timestamp, args.time.event_id),
-            ),
+            ("time".to_string(), input_time_var(&args.time)),
             (
                 "properties".to_string(),
                 opt_properties_var(&args.properties)?,
@@ -483,10 +500,7 @@ impl GraphqlTransport {
             ("path".to_string(), json!(args.path)),
             ("src".to_string(), json!(args.src)),
             ("dst".to_string(), json!(args.dst)),
-            (
-                "time".to_string(),
-                time_input_var(args.time.timestamp, args.time.event_id),
-            ),
+            ("time".to_string(), input_time_var(&args.time)),
             (
                 "properties".to_string(),
                 opt_properties_var(&args.properties)?,
@@ -521,10 +535,7 @@ impl GraphqlTransport {
             ("path".to_string(), json!(args.path)),
             ("src".to_string(), json!(args.src)),
             ("dst".to_string(), json!(args.dst)),
-            (
-                "time".to_string(),
-                time_input_var(args.time.timestamp, args.time.event_id),
-            ),
+            ("time".to_string(), input_time_var(&args.time)),
             ("layer".to_string(), json!(args.layer)),
         ]);
         let res = self.client.query(query, variables).await?;
@@ -843,8 +854,8 @@ fn render_read_body(expr: &ReadExpr, vars: &mut VarCollector) -> Result<String, 
         ReadExpr::Window { input, start, end } => format!(
             "{} {{ window(start: {}, end: {})",
             render_read_body(input, vars)?,
-            start.render(),
-            end.render()
+            render_input_time(&start),
+            render_input_time(&end)
         ),
         ReadExpr::Layer { input, name } => {
             format!(
@@ -854,20 +865,20 @@ fn render_read_body(expr: &ReadExpr, vars: &mut VarCollector) -> Result<String, 
             )
         }
         ReadExpr::At { input, time } => {
-            format!("{} {{ at(time: {})", render_read_body(input, vars)?, time.render())
+            format!("{} {{ at(time: {})", render_read_body(input, vars)?, render_input_time(&time))
         }
         ReadExpr::Before { input, time } => {
-            format!("{} {{ before(time: {})", render_read_body(input, vars)?, time.render())
+            format!("{} {{ before(time: {})", render_read_body(input, vars)?, render_input_time(&time))
         }
         ReadExpr::After { input, time } => {
-            format!("{} {{ after(time: {})", render_read_body(input, vars)?, time.render())
+            format!("{} {{ after(time: {})", render_read_body(input, vars)?, render_input_time(&time))
         }
         ReadExpr::Latest { input } => format!("{} {{ latest", render_read_body(input, vars)?),
         ReadExpr::SnapshotLatest { input } => {
             format!("{} {{ snapshotLatest", render_read_body(input, vars)?)
         }
         ReadExpr::SnapshotAt { input, time } => {
-            format!("{} {{ snapshotAt(time: {})", render_read_body(input, vars)?, time.render())
+            format!("{} {{ snapshotAt(time: {})", render_read_body(input, vars)?, render_input_time(&time))
         }
         ReadExpr::ExcludeLayer { input, name } => format!(
             "{} {{ excludeLayer(name: {})",
@@ -877,16 +888,16 @@ fn render_read_body(expr: &ReadExpr, vars: &mut VarCollector) -> Result<String, 
         ReadExpr::ShrinkWindow { input, start, end } => format!(
             "{} {{ shrinkWindow(start: {}, end: {})",
             render_read_body(input, vars)?,
-            start.render(),
-            end.render()
+            render_input_time(&start),
+            render_input_time(&end)
         ),
         ReadExpr::ShrinkStart { input, start } => format!(
             "{} {{ shrinkStart(start: {})",
             render_read_body(input, vars)?,
-            start.render()
+            render_input_time(&start)
         ),
         ReadExpr::ShrinkEnd { input, end } => {
-            format!("{} {{ shrinkEnd(end: {})", render_read_body(input, vars)?, end.render())
+            format!("{} {{ shrinkEnd(end: {})", render_read_body(input, vars)?, render_input_time(&end))
         }
         ReadExpr::Valid { input } => format!("{} {{ valid", render_read_body(input, vars)?),
         ReadExpr::DefaultLayer { input } => {
@@ -3841,8 +3852,8 @@ mod tests {
             input: Box::new(ReadExpr::Node {
                 input: Box::new(ReadExpr::Window {
                     input: Box::new(ReadExpr::Root { path: "g".into() }),
-                    start: 0.into(),
-                    end: 10.into(),
+                    start: InputTime::Simple(0),
+                    end: InputTime::Simple(10),
                 }),
                 id: "ben".into(),
             }),
@@ -4114,7 +4125,7 @@ mod tests {
         // With a windowed view, we can restrict to a time range.
         // Window (0, 5) includes the edge added at time 3, so degree is still 1.
         let degree_windowed = rg
-            .window(0.into(), 5.into())
+            .window(InputTime::Simple(0), InputTime::Simple(5))
             .node("ben")
             .await
             .unwrap()
@@ -4127,7 +4138,7 @@ mod tests {
         // Window (0, 2) excludes the edge (added at time 3), but ben himself
         // was added at t=1 so he's still in the view — his degree is 0.
         let degree_before_edge = rg
-            .window(0.into(), 2.into())
+            .window(InputTime::Simple(0), InputTime::Simple(2))
             .node("ben")
             .await
             .unwrap()
@@ -4139,7 +4150,11 @@ mod tests {
 
         // A window that excludes ben's add_node event entirely — `.node()`
         // validates against the view chain and returns `None` (not an error).
-        let absent = rg.window(100.into(), 200.into()).node("ben").await.unwrap();
+        let absent = rg
+            .window(InputTime::Simple(100), InputTime::Simple(200))
+            .node("ben")
+            .await
+            .unwrap();
         assert!(
             absent.is_none(),
             "expected None for ben under window [100, 200), got Some"

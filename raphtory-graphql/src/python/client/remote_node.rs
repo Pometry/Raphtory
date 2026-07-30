@@ -13,7 +13,9 @@ use pyo3::{
     pyclass, pymethods, Py, PyAny, PyResult, Python,
 };
 use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
-use raphtory_api::core::{entities::properties::prop::Prop, storage::timeindex::EventTime};
+use raphtory_api::core::{
+    entities::properties::prop::Prop, storage::timeindex::EventTime, utils::time::InputTime,
+};
 use std::{collections::HashMap, sync::Arc};
 
 #[derive(Clone)]
@@ -42,8 +44,8 @@ impl PyRemoteNode {
 #[pymethods]
 impl PyRemoteNode {
     /// Time-window this node. Lazy — no RPC.
-    pub fn window(&self, start: EventTime, end: EventTime) -> PyRemoteNode {
-        PyRemoteNode::new(self.node.window(start.into(), end.into()))
+    pub fn window(&self, start: InputTime, end: InputTime) -> PyRemoteNode {
+        PyRemoteNode::new(self.node.window(start, end))
     }
 
     /// Return a filtered view of this node — mirrors the local
@@ -74,18 +76,18 @@ impl PyRemoteNode {
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
-    pub fn at(&self, time: EventTime) -> PyRemoteNode {
-        PyRemoteNode::new(self.node.at(time.into()))
+    pub fn at(&self, time: InputTime) -> PyRemoteNode {
+        PyRemoteNode::new(self.node.at(time))
     }
 
     /// Restrict to events strictly before the given time. Lazy — no RPC.
-    pub fn before(&self, time: EventTime) -> PyRemoteNode {
-        PyRemoteNode::new(self.node.before(time.into()))
+    pub fn before(&self, time: InputTime) -> PyRemoteNode {
+        PyRemoteNode::new(self.node.before(time))
     }
 
     /// Restrict to events strictly after the given time (exclusive). Lazy — no RPC.
-    pub fn after(&self, time: EventTime) -> PyRemoteNode {
-        PyRemoteNode::new(self.node.after(time.into()))
+    pub fn after(&self, time: InputTime) -> PyRemoteNode {
+        PyRemoteNode::new(self.node.after(time))
     }
 
     /// Latest state. Lazy — no RPC.
@@ -99,8 +101,8 @@ impl PyRemoteNode {
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
-    pub fn snapshot_at(&self, time: EventTime) -> PyRemoteNode {
-        PyRemoteNode::new(self.node.snapshot_at(time.into()))
+    pub fn snapshot_at(&self, time: InputTime) -> PyRemoteNode {
+        PyRemoteNode::new(self.node.snapshot_at(time))
     }
 
     /// Exclude a specific layer from the view. Lazy — no RPC.
@@ -109,18 +111,18 @@ impl PyRemoteNode {
     }
 
     /// Shrink both start and end of the current window. Lazy — no RPC.
-    pub fn shrink_window(&self, start: EventTime, end: EventTime) -> PyRemoteNode {
-        PyRemoteNode::new(self.node.shrink_window(start.into(), end.into()))
+    pub fn shrink_window(&self, start: InputTime, end: InputTime) -> PyRemoteNode {
+        PyRemoteNode::new(self.node.shrink_window(start, end))
     }
 
     /// Shrink the start of the current window. Lazy — no RPC.
-    pub fn shrink_start(&self, start: EventTime) -> PyRemoteNode {
-        PyRemoteNode::new(self.node.shrink_start(start.into()))
+    pub fn shrink_start(&self, start: InputTime) -> PyRemoteNode {
+        PyRemoteNode::new(self.node.shrink_start(start))
     }
 
     /// Shrink the end of the current window. Lazy — no RPC.
-    pub fn shrink_end(&self, end: EventTime) -> PyRemoteNode {
-        PyRemoteNode::new(self.node.shrink_end(end.into()))
+    pub fn shrink_end(&self, end: InputTime) -> PyRemoteNode {
+        PyRemoteNode::new(self.node.shrink_end(end))
     }
 
     /// Restrict to the default layer. Lazy — no RPC.
