@@ -64,7 +64,7 @@ impl<
         let config = self.ext.config().with_node_types(node_types);
 
         if let Some(graph_dir) = self.graph_dir.as_ref() {
-            let config_args: EXT::ConfigArgs = config.into(); 
+            let config_args: <EXT::Config as ConfigOps>::ConfigArgs = config.into();
             config_args.save_to_dir(graph_dir)?;
         }
 

@@ -34,7 +34,7 @@ use std::{
 };
 use storage::api::graph_props::{GraphPropEntryOps, GraphPropRefOps};
 
-use storage::{ConfigArgsOps, ConfigArgs};
+use storage::{persist::config::ConfigArgsOps, ConfigArgs};
 #[cfg(feature = "io")]
 use storage::{persist::strategy::PersistenceStrategy, Extension};
 
@@ -143,7 +143,7 @@ impl PersistentGraph {
         path.init()?;
         let graph = Self(Arc::new(Storage::new_at_path_with_config(
             path.graph_path()?,
-            config_args.into_config(),
+            config_args.into(),
         )?));
         let meta = Metadata {
             path: path.relative_graph_path()?,
@@ -209,7 +209,7 @@ impl PersistentGraph {
         config_args: ConfigArgs,
     ) -> Result<Self, GraphError> {
         let graph_path = path.graph_path()?;
-        let config = config_args(&graph_path)?;
+        let config: Config = config_args.override_graph_config_in_dir(&graph_path)?.into();
         Ok(Self(Arc::new(Storage::load_with_config(
             graph_path, config,
         )?)))
@@ -228,7 +228,7 @@ impl PersistentGraph {
         config_args: ConfigArgs,
     ) -> Result<Self, GraphError> {
         let graph_path = path.graph_path()?;
-        let config = config_args.load_from_path(&graph_path)?;
+        let config: Config = config_args.override_graph_config_in_dir(&graph_path)?.into();
         Ok(Self(Arc::new(Storage::load_read_only_with_config(
             graph_path, config,
         )?)))

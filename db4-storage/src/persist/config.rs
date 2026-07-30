@@ -4,7 +4,7 @@ use clap::{
     error::{ContextKind, ContextValue},
 };
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
-use std::{iter, path::Path};
+use std::{iter, path::{Path}};
 use tempfile::NamedTempFile;
 use tracing::error;
 
@@ -14,6 +14,13 @@ pub const CONFIG_FILE_NAME: &str = "config.json";
 
 pub trait ConfigArgsOps: Serialize + DeserializeOwned + Sized + Clone {
     type Config: ConfigOps + From<Self>;
+
+    fn override_graph_config_in_dir(self, dir: &Path) -> Result<Self, StorageError> {
+        let mut cur_config_args = Self::load_from_dir(dir)?; 
+        cur_config_args.update(self);
+        cur_config_args.save_to_dir(dir)?;
+        Ok(cur_config_args)
+    }
 
     fn load_from_dir(dir: &Path) -> Result<Self, StorageError> {
         let config_file = dir.join(CONFIG_FILE_NAME);
@@ -38,6 +45,8 @@ pub trait ConfigArgsOps: Serialize + DeserializeOwned + Sized + Clone {
 }
 
 pub trait ConfigOps: Serialize + DeserializeOwned + Args + Sized {
+    type ConfigArgs: ConfigArgsOps<Config = Self> + From<Self>; 
+
     fn max_node_page_len(&self) -> u32;
 
     fn max_edge_page_len(&self) -> u32;
@@ -117,6 +126,19 @@ impl From<BaseConfig> for BaseConfigArgs {
     }
 }
 
+impl ConfigArgsOps for BaseConfigArgs {
+    type Config = BaseConfig;
+
+    fn update(&mut self, new_args: Self) {
+        if let Some(v) = new_args.max_node_page_len {
+            self.max_node_page_len = Some(v);
+        }
+        if let Some(v) = new_args.max_edge_page_len {
+            self.max_edge_page_len = Some(v);
+        }
+    }
+}
+
 pub trait ClapDefault: Args {
     fn clap_default() -> Self;
 }
@@ -177,6 +199,8 @@ impl BaseConfig {
 }
 
 impl ConfigOps for BaseConfig {
+    type ConfigArgs = BaseConfigArgs;
+
     fn max_node_page_len(&self) -> u32 {
         self.max_node_page_len
     }

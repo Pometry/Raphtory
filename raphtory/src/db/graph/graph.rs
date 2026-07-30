@@ -150,7 +150,7 @@ impl Graph {
     /// ```
     pub fn new_with_config(config_args: ConfigArgs) -> Result<Self, GraphError> {
         Ok(Self {
-            inner: Arc::new(Storage::new_with_config(config_args.into_config())?),
+            inner: Arc::new(Storage::new_with_config(config_args.into())?),
         })
     }
 
@@ -201,7 +201,7 @@ impl Graph {
         let graph = Self {
             inner: Arc::new(Storage::new_at_path_with_config(
                 path.graph_path()?,
-                config_args.into_config(),
+                config_args.into(),
             )?),
         };
 
@@ -247,7 +247,7 @@ impl Graph {
     ) -> Result<Self, GraphError> {
         // TODO: add support for loading indexes and vectors
         let graph_path = path.graph_path()?;
-        let config = config_args.load_from_path(&graph_path)?;
+        let config: Config = config_args.override_graph_config_in_dir(&graph_path)?.into();
         Ok(Self {
             inner: Arc::new(Storage::load_with_config(graph_path, config)?),
         })
@@ -269,7 +269,7 @@ impl Graph {
         config_args: ConfigArgs,
     ) -> Result<Self, GraphError> {
         let graph_path = path.graph_path()?;
-        let config = config_args.load_from_path(&graph_path)?;
+        let config: Config = config_args.override_graph_config_in_dir(&graph_path)?.into();
         Ok(Self {
             inner: Arc::new(Storage::load_read_only_with_config(graph_path, config)?),
         })
