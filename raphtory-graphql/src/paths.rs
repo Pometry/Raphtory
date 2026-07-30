@@ -519,6 +519,7 @@ impl ValidWriteableGraphFolder {
         };
         Ok(is_dirty)
     }
+
     pub fn write_graph_data(
         &self,
         graph: MaterializedGraph,

@@ -34,7 +34,7 @@ impl<'a> StagedGraph<'a> {
     pub fn commit(self) -> Result<(), StagingError> {
         // FIXME: Update metadata here.
 
-        self.writeable_folder.finish()?;
+        self.writeable_folder.finish().map_err(StagingError::Commit)?;
 
         Ok(())
     }
@@ -46,8 +46,14 @@ impl<'a> StagedGraph<'a> {
 
 #[derive(Debug, Error)]
 pub enum StagingError {
-    #[error("Graph directory is missing")]
+    #[error("graph directory is missing")]
     MissingGraphDir,
+
+    #[error("failed to initialise staging directory")]
+    InitStagingDir(#[source] GraphFolderError),
+
+    #[error("failed to commit staged graph")]
+    Commit(#[source] GraphFolderError),
 
     #[error(transparent)]
     GraphFolder(#[from] GraphFolderError),

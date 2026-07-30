@@ -764,7 +764,7 @@ impl RecoveryOps for TemporalGraph {}
 impl StagingOps for TemporalGraph {
     fn stage(&self) -> Result<StagedGraph<'_>, StagingError> {
         // Acquire full write lock to prevent modifications during staging.
-        let write_locked_graph = self.write_locked_graph();
+        let mut write_locked_graph = self.write_locked_graph();
 
         // Make sure graph is on disk before creating hard links.
         write_locked_graph.flush()?;
@@ -773,8 +773,17 @@ impl StagingOps for TemporalGraph {
         let graph_folder = GraphFolder::from_graph_path(graph_path)?;
 
         // Create a new data folder to hold the staged graph.
-        let writeable_folder = graph_folder.clone().init_swap()?;
-        let graph_path = writeable_folder.graph_path()?;
+        let writeable_folder = graph_folder
+            .clone()
+            .init_swap()
+            .map_err(StagingError::InitStagingDir)?;
+
+        let graph_path = writeable_folder
+            .graph_path()
+            .map_err(StagingError::InitStagingDir)?;
+
+        std::fs::create_dir_all(&graph_path)
+            .map_err(|e| StagingError::InitStagingDir(e.into()))?;
 
         // Copy graph to the new data folder.
         write_locked_graph.copy_to(graph_path)?;
