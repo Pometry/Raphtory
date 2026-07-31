@@ -18,5 +18,5 @@ raphtory-graphql = { workspace = true, default-features = false, features = ["in
 tempfile.workspace = true
 opentelemetry_sdk = { workspace = true, features = ["rt-tokio", "testing"] }
 url.workspace = true
-tokio = { workspace = true, }
+tokio = { workspace = true }
 mock-collector = { workspace = true }
