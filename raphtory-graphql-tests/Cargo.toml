@@ -1,3 +1,5 @@
+# Intergration tests for raphtory-graphql (separate crate to avoid self-dependency with the "integration-test" feature)
+
 [package]
 name = "raphtory-graphql-tests"
 version.workspace = true
