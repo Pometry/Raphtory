@@ -18,7 +18,7 @@ use raphtory_api::core::entities::{
 use raphtory_core::entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef};
 use std::{fmt::Debug, iter, path::Path, sync::Arc};
 use storage::{
-    error::StorageError, pages::SegmentCounts, state::StateIndex, Extension, GIDResolver,
+    pages::SegmentCounts, state::StateIndex, Extension,
     GraphPropEntry,
 };
 use thiserror::Error;
@@ -103,20 +103,6 @@ impl GraphStorage {
                 GraphStorage::Mem(locked)
             }
             _ => self.clone(),
-        }
-    }
-
-    pub fn flush(&self) -> Result<(), StorageError> {
-        match self {
-            GraphStorage::Mem(graph) => graph.flush(),
-            GraphStorage::Unlocked(graph) => graph.flush(),
-        }
-    }
-
-    pub fn vacuum(&self) -> Result<(), StorageError> {
-        match self {
-            GraphStorage::Mem(graph) => graph.vacuum(),
-            GraphStorage::Unlocked(graph) => graph.vacuum(),
         }
     }
 

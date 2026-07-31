@@ -1,7 +1,8 @@
 use db4_graph::TemporalGraph;
 use std::sync::Arc;
-use storage::{error::StorageError, Extension, ReadLockedEdges, ReadLockedNodes};
+use storage::{Extension, ReadLockedEdges, ReadLockedNodes};
 
+/// A fully locked, read-only graph.
 #[derive(Debug)]
 pub struct LockedGraph {
     pub(crate) nodes: Arc<ReadLockedNodes<Extension>>,
@@ -18,14 +19,6 @@ impl LockedGraph {
             edges,
             graph,
         }
-    }
-
-    pub fn flush(&self) -> Result<(), StorageError> {
-        self.graph.flush()
-    }
-
-    pub fn vacuum(&self) -> Result<(), StorageError> {
-        self.graph.vacuum()
     }
 }
 
