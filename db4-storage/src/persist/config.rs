@@ -60,7 +60,7 @@ pub trait ConfigOps: Serialize + DeserializeOwned + Args + Sized {
     fn with_node_types(&self, node_types: impl IntoIterator<Item = impl AsRef<str>>) -> Self;
 }
 
-#[derive(Debug, Copy, Clone, Serialize, Deserialize, Args)]
+#[derive(Debug, Clone, Serialize, Deserialize, Args)]
 #[serde(default)]
 pub struct BaseConfig {
     #[arg(long, default_value_t=DEFAULT_MAX_PAGE_LEN_NODES, env="RAPHTORY_MAX_NODE_PAGE_LEN")]
@@ -68,12 +68,16 @@ pub struct BaseConfig {
 
     #[arg(long, default_value_t=DEFAULT_MAX_PAGE_LEN_EDGES, env="RAPHTORY_MAX_EDGE_PAGE_LEN")]
     max_edge_page_len: u32,
+
+    #[arg(skip)]
+    node_types: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct BaseConfigArgs {
     max_node_page_len: Option<u32>,
     max_edge_page_len: Option<u32>,
+    node_types: Option<Vec<String>>,
 }
 
 impl BaseConfigArgs {
@@ -86,7 +90,7 @@ impl BaseConfigArgs {
     }
 
     pub fn node_types(&self) -> &[String] {
-        &[]
+        self.node_types.as_deref().unwrap_or(&[])
     }
 
     pub fn with_max_node_page_len(mut self, page_len: u32) -> Self {
@@ -99,8 +103,15 @@ impl BaseConfigArgs {
         self
     }
 
-    pub fn with_node_types(&self, _node_types: impl IntoIterator<Item = impl AsRef<str>>) -> Self {
-        self.clone()
+    pub fn with_node_types(&self, node_types: impl IntoIterator<Item = impl AsRef<str>>) -> Self {
+        let mut new = self.clone();
+        new.node_types = Some(
+            node_types
+                .into_iter()
+                .map(|s| s.as_ref().to_owned())
+                .collect(),
+        );
+        new
     }
 }
 
@@ -113,6 +124,9 @@ impl From<BaseConfigArgs> for BaseConfig {
         if let Some(v) = args.max_edge_page_len {
             config = config.with_max_edge_page_len(v);
         }
+        if let Some(v) = args.node_types {
+            config = config.with_node_types(v);
+        }
         config
     }
 }
@@ -122,6 +136,7 @@ impl From<BaseConfig> for BaseConfigArgs {
         Self {
             max_node_page_len: Some(config.max_node_page_len),
             max_edge_page_len: Some(config.max_edge_page_len),
+            node_types: Some(config.node_types),
         }
     }
 }
@@ -135,6 +150,9 @@ impl ConfigArgsOps for BaseConfigArgs {
         }
         if let Some(v) = new_args.max_edge_page_len {
             self.max_edge_page_len = Some(v);
+        }
+        if let Some(v) = new_args.node_types {
+            self.node_types = Some(v);
         }
     }
 }
@@ -194,6 +212,7 @@ impl BaseConfig {
         Self {
             max_node_page_len,
             max_edge_page_len,
+            node_types: Vec::new(),
         }
     }
 }
@@ -220,11 +239,13 @@ impl ConfigOps for BaseConfig {
     }
 
     fn node_types(&self) -> &[String] {
-        &[]
+        &self.node_types
     }
 
-    fn with_node_types(&self, _node_types: impl IntoIterator<Item = impl AsRef<str>>) -> Self {
-        *self
+    fn with_node_types(&self, node_types: impl IntoIterator<Item = impl AsRef<str>>) -> Self {
+        let mut new = self.clone();
+        new.node_types = node_types.into_iter().map(|s| s.as_ref().to_owned()).collect();
+        new
     }
 }
 
