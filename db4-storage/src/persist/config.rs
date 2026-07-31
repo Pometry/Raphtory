@@ -32,8 +32,7 @@ pub trait ConfigArgsOps: Serialize + DeserializeOwned + Sized + Clone {
     fn save_to_dir(&self, dir: &Path) -> Result<(), StorageError> {
         let config_path = dir.join(CONFIG_FILE_NAME);
         let mut tmp_file = NamedTempFile::new_in(dir)?;
-        let config: Self::Config = self.clone().into();
-        serde_json::to_writer_pretty(&mut tmp_file, &config)?;
+        serde_json::to_writer_pretty(&mut tmp_file, self)?;
         tmp_file.as_file().sync_all()?;
         tmp_file
             .persist(&config_path)
