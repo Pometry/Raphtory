@@ -4,10 +4,10 @@ pub mod cache_config;
 pub mod concurrency_config;
 #[cfg(feature = "search")]
 pub mod index_config;
-pub mod ldap_config;
 pub mod log_config;
 pub mod otlp_config;
 pub mod parquet_config;
+pub mod rbac_config;
 pub mod schema_config;
 
 #[cfg(test)]

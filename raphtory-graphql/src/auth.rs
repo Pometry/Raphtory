@@ -1,4 +1,6 @@
-use crate::config::{app_config::AppConfig, auth_config::PublicKey};
+use crate::config::app_config::AppConfig;
+use futures_util::future::BoxFuture;
+use jsonwebtoken::{Algorithm, DecodingKey};
 use async_graphql::{
     async_trait,
     extensions::{Extension, ExtensionContext, ExtensionFactory, NextParseQuery},
@@ -8,7 +10,7 @@ use async_graphql::{
 };
 use async_graphql_poem::{GraphQLBatchRequest, GraphQLBatchResponse, GraphQLRequest};
 use futures_util::StreamExt;
-use jsonwebtoken::{decode, Validation};
+use jsonwebtoken::{decode, decode_header, Validation};
 use poem::{
     error::{BadRequest, TooManyRequests, Unauthorized},
     Body, Endpoint, FromRequest, IntoResponse, Request, Response, Result,
@@ -49,17 +51,57 @@ impl TokenClaimValues {
     }
 }
 
+/// Resolves the JWT decoding key(s) used to verify a bearer token. The default
+/// [`StaticKeyResolver`] returns a single configured key; an extension may register a resolver that
+/// fetches keys dynamically (e.g. SSO/OIDC JWKS by `kid`).
+pub trait KeyResolver: Send + Sync {
+    /// The decoding key and the algorithm(s) permitted for a token carrying `kid` (`None` when the
+    /// token has no `kid`), or `None` if no key matches.
+    fn resolve<'a>(
+        &'a self,
+        kid: Option<&'a str>,
+    ) -> BoxFuture<'a, Option<(DecodingKey, Vec<Algorithm>)>>;
+}
+
+/// The default resolver: one statically-configured key (`auth.public_key`), used for every token.
+pub struct StaticKeyResolver {
+    key: DecodingKey,
+    algorithms: Vec<Algorithm>,
+}
+
+impl StaticKeyResolver {
+    pub fn new(key: DecodingKey, algorithms: Vec<Algorithm>) -> Self {
+        Self { key, algorithms }
+    }
+}
+
+impl KeyResolver for StaticKeyResolver {
+    fn resolve<'a>(
+        &'a self,
+        _kid: Option<&'a str>,
+    ) -> BoxFuture<'a, Option<(DecodingKey, Vec<Algorithm>)>> {
+        Box::pin(async move { Some((self.key.clone(), self.algorithms.clone())) })
+    }
+}
+
 // TODO: maybe this should be renamed as it doens't only take care of auth anymore
 pub struct AuthenticatedGraphQL<E> {
     executor: E,
     config: AppConfig,
     semaphore: Option<Semaphore>,
     lock: Option<tokio::sync::RwLock<()>>,
+    /// Resolves the JWT verification key. `None` when no auth is configured.
+    key_resolver: Option<Arc<dyn KeyResolver>>,
 }
 
 impl<E> AuthenticatedGraphQL<E> {
-    /// Create a GraphQL endpoint.
-    pub fn new(executor: E, config: AppConfig) -> Self {
+    /// Create a GraphQL endpoint. `key_resolver` is a resolver registered by an extension (e.g. an
+    /// SSO/JWKS resolver); when `None`, a static key from `auth.public_key` is used if configured.
+    pub fn new(
+        executor: E,
+        config: AppConfig,
+        key_resolver: Option<Arc<dyn KeyResolver>>,
+    ) -> Self {
         let semaphore = config.concurrency.heavy_query_limit.map(|limit| {
             println!("Server running with concurrency limited to {limit} for heavy queries");
             Semaphore::new(limit)
@@ -70,11 +112,21 @@ impl<E> AuthenticatedGraphQL<E> {
         } else {
             None
         };
+        // A registered resolver (e.g. SSO/JWKS) wins; otherwise fall back to the static public key.
+        let key_resolver = key_resolver.or_else(|| {
+            config.auth.public_key.as_ref().map(|pk| {
+                Arc::new(StaticKeyResolver::new(
+                    pk.decoding_key.clone(),
+                    pk.algorithms.clone(),
+                )) as Arc<dyn KeyResolver>
+            })
+        });
         Self {
             executor,
             config,
             semaphore,
             lock,
+            key_resolver,
         }
     }
 }
@@ -140,22 +192,31 @@ where
 
     async fn call(&self, req: Request) -> Result<Self::Output> {
         // here ANY error when trying to validate the Authorization header is equivalent to it not being present at all
-        let (access, role, claim_values) = match &self.config.auth.public_key {
-            Some(public_key) => {
-                let claims = req
-                    .header(AUTHORIZATION)
-                    .and_then(|header| extract_claims_from_header(header, public_key));
+        let auth = &self.config.auth;
+        let (access, role, claim_values) = match &self.key_resolver {
+            // if auth is not setup, we give write access to all requests
+            None => (Access::Rw, None, TokenClaimValues::default()),
+            Some(resolver) => {
+                let claims = match req.header(AUTHORIZATION) {
+                    Some(header) => {
+                        extract_claims(
+                            header,
+                            resolver.as_ref(),
+                            auth.audience.as_deref(),
+                            auth.issuer.as_deref(),
+                            auth.role_claim.as_deref(),
+                        )
+                        .await
+                    }
+                    None => None,
+                };
                 match claims {
                     Some(claims) => {
                         debug!(role = ?claims.role, "JWT validated successfully");
-                        (
-                            claims.access,
-                            claims.role,
-                            TokenClaimValues(claims.other),
-                        )
+                        (claims.access, claims.role, TokenClaimValues(claims.other))
                     }
                     None => {
-                        if self.config.auth.require_auth_for_reads {
+                        if auth.require_auth_for_reads {
                             warn!("Request missing valid JWT — rejecting (require_auth_for_reads=true)");
                             return Err(Unauthorized(AuthError::RequireRead));
                         } else {
@@ -165,8 +226,6 @@ where
                     }
                 }
             }
-            // if auth is not setup, we give write access to all requests
-            None => (Access::Rw, None, TokenClaimValues::default()),
         };
 
         let is_accept_multipart_mixed = req
@@ -249,24 +308,60 @@ fn is_query_heavy(query: &str) -> bool {
         || query.contains("inNeighbours")
 }
 
-fn extract_claims_from_header(header: &str, public_key: &PublicKey) -> Option<TokenClaims> {
-    if header.starts_with("Bearer ") {
-        let jwt = header.replace("Bearer ", "");
-        let mut validation = Validation::new(public_key.algorithms[0]);
-        validation.algorithms = public_key.algorithms.clone();
-        validation.set_required_spec_claims::<String>(&[]); // we don't require 'exp' to be present
-        validation.validate_nbf = true; // reject not-yet-valid tokens (nbf in the future)
-        let decoded = decode::<TokenClaims>(&jwt, &public_key.decoding_key, &validation);
-        match decoded {
-            Ok(token_data) => Some(token_data.claims),
-            Err(e) => {
-                warn!(error = %e, "JWT signature validation failed");
-                None
-            }
-        }
-    } else {
+/// Verify a bearer token: select the decoding key via the [`KeyResolver`] (by the token's `kid`),
+/// validate signature + `nbf` + `aud` + `iss`, and return the claims (with the role remapped from a
+/// custom claim if configured).
+async fn extract_claims(
+    header: &str,
+    resolver: &dyn KeyResolver,
+    audience: Option<&str>,
+    issuer: Option<&str>,
+    role_claim: Option<&str>,
+) -> Option<TokenClaims> {
+    let jwt = header.strip_prefix("Bearer ").or_else(|| {
         warn!("Authorization header is missing or does not start with 'Bearer '");
         None
+    })?;
+    let kid = decode_header(jwt).ok()?.kid;
+    let (decoding_key, algorithms) = resolver.resolve(kid.as_deref()).await?;
+
+    let mut validation = Validation::new(algorithms[0]);
+    validation.algorithms = algorithms;
+    validation.set_required_spec_claims::<String>(&[]); // we don't require 'exp' to be present
+    validation.validate_nbf = true; // reject not-yet-valid tokens (nbf in the future)
+    // Validate `aud` against the configured audience, or disable the check so SSO/OIDC tokens
+    // (which always carry an `aud`) are accepted.
+    match audience {
+        Some(aud) => validation.set_audience(&[aud]),
+        None => validation.validate_aud = false,
+    }
+    if let Some(iss) = issuer {
+        validation.set_issuer(&[iss]);
+    }
+    match decode::<TokenClaims>(jwt, &decoding_key, &validation) {
+        Ok(token_data) => Some(remap_role(token_data.claims, role_claim)),
+        Err(e) => {
+            warn!(error = %e, "JWT validation failed");
+            None
+        }
+    }
+}
+
+/// The role may live under a custom claim name (e.g. an Entra app-role claim) rather than `role`.
+fn remap_role(mut claims: TokenClaims, role_claim: Option<&str>) -> TokenClaims {
+    if let Some(name) = role_claim.filter(|n| *n != "role") {
+        claims.role = claims.other.get(name).and_then(role_from_value);
+    }
+    claims
+}
+
+/// The role from a claim that is either a string or an array of strings. For an array claim (e.g.
+/// an SSO `roles`/`groups` claim) the first entry is used as the single effective role.
+fn role_from_value(v: &serde_json::Value) -> Option<String> {
+    match v {
+        serde_json::Value::String(s) => Some(s.clone()),
+        serde_json::Value::Array(items) => items.first().and_then(|x| x.as_str()).map(String::from),
+        _ => None,
     }
 }
 
