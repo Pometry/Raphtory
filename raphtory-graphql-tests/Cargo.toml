@@ -11,6 +11,7 @@ authors.workspace = true
 rust-version.workspace = true
 edition.workspace = true
 categories.workspace = true
+publish = false
 
 [dependencies]
 raphtory = { workspace = true, features = ["panic-on-drop"] }
