@@ -1,0 +1,22 @@
+[package]
+name = "raphtory-graphql-tests"
+version.workspace = true
+documentation.workspace = true
+repository.workspace = true
+license.workspace = true
+readme.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+edition.workspace = true
+categories.workspace = true
+
+[dependencies]
+raphtory = { workspace = true, features = ["panic-on-drop"] }
+raphtory-graphql = { workspace = true, default-features = false, features = ["integration-test", "panic-on-drop"] }
+tempfile.workspace = true
+opentelemetry_sdk = { workspace = true, features = ["rt-tokio", "testing"] }
+url.workspace = true
+tokio = { workspace = true, }
+mock-collector = { workspace = true }

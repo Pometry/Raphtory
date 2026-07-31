@@ -6825,7 +6825,6 @@ dependencies = [
  "itertools 0.14.0",
  "jsonwebtoken",
  "minijinja",
- "mock-collector",
  "once_cell",
  "opentelemetry 0.32.0",
  "opentelemetry-appender-tracing",
@@ -6841,7 +6840,6 @@ dependencies = [
  "quick_cache",
  "raphtory",
  "raphtory-api",
- "raphtory-graphql",
  "raphtory-storage",
  "rayon",
  "reqwest 0.13.4",
@@ -6861,6 +6859,19 @@ dependencies = [
  "url",
  "walkdir",
  "zip",
+]
+
+[[package]]
+name = "raphtory-graphql-tests"
+version = "0.18.0"
+dependencies = [
+ "mock-collector",
+ "opentelemetry_sdk 0.32.1",
+ "raphtory",
+ "raphtory-graphql",
+ "tempfile",
+ "tokio",
+ "url",
 ]
 
 [[package]]
