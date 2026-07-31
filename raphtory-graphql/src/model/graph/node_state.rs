@@ -248,11 +248,7 @@ impl GqlNodeState {
 
 // TODO: add paging: `columns`/`nodes`/`rows` currently dump every row.
 
-// TODO: still to be implemented, blocked on the datafusion feature gate (CVE):
-// `sortBy` (`GenericNodeState::sort_by`), `topK` (`GenericNodeState::top_k`),
-// `groupBy` (`TypedNodeState::get_groups`).
-//
-// Not exposed: `merge` (takes a second NodeState, which cannot be a query argument)
+// FIXME: Not exposed: `merge` (takes a second NodeState, which cannot be a query argument)
 // and `to_parquet`/`from_parquet` (avoid server-side filesystem access).
 #[ResolvedObjectFields]
 impl GqlNodeState {
