@@ -180,13 +180,13 @@ where
 
         let immut_lsn = segment.immut_lsn();
 
+        // Insert prop ids into edge meta. Must run unconditionally since edge_meta is
+        // rebuilt fresh on reload and is not covered by the segment's immut_lsn.
+        let edge_meta = self.graph().edge_meta();
+        unify_types(edge_meta, &props, true)?;
+
         // Replay this entry only if it doesn't exist in immut.
         if immut_lsn < lsn {
-            let edge_meta = self.graph().edge_meta();
-
-            // Insert prop ids into edge meta.
-            unify_types(edge_meta, &props, true)?;
-
             let edge_writer = self.edges.get_mut(edge_segment_id).ok_or_else(|| {
                 StorageError::GenericFailure(format!(
                     "Edge segment {edge_segment_id} not found during replay_add_edge"
@@ -242,7 +242,7 @@ where
 
         let immut_lsn = segment.immut_lsn();
 
-        if immut_lsn < lsn {
+        // Must run unconditionally since edge_meta is rebuilt fresh on reload and is not
             let edge_meta = self.graph().edge_meta();
 
             unify_types(edge_meta, &props, false)?;
