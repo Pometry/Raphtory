@@ -345,6 +345,24 @@ impl GqlEdges {
                         Ordering::Equal,
                         |current_ordering, sort_by| {
                             current_ordering.then_with(|| {
+                                // Node keys resolve their endpoint and delegate
+                                // to `compare_node`, which applies the nested
+                                // `NodeSortBy.reverse`; they return directly so
+                                // the outer `reverse` below never double-negates.
+                                if let Some(src_sort) = sort_by.src.as_ref() {
+                                    return compare_node(
+                                        &first_edge.src(),
+                                        &second_edge.src(),
+                                        src_sort,
+                                    );
+                                }
+                                if let Some(dst_sort) = sort_by.dst.as_ref() {
+                                    return compare_node(
+                                        &first_edge.dst(),
+                                        &second_edge.dst(),
+                                        dst_sort,
+                                    );
+                                }
                                 if let Some(neighbour_sort) = sort_by.neighbour.as_ref() {
                                     return compare_node(
                                         &first_edge.nbr(),
@@ -352,11 +370,7 @@ impl GqlEdges {
                                         neighbour_sort,
                                     );
                                 }
-                                let ordering = if sort_by.src == Some(true) {
-                                    first_edge.src().id().partial_cmp(&second_edge.src().id())
-                                } else if sort_by.dst == Some(true) {
-                                    first_edge.dst().id().partial_cmp(&second_edge.dst().id())
-                                } else if let Some(sort_by_time) = sort_by.time {
+                                let ordering = if let Some(sort_by_time) = sort_by.time {
                                     let (first_time, second_time) = match sort_by_time {
                                         SortByTime::Latest => {
                                             (first_edge.latest_time(), second_edge.latest_time())

@@ -3486,4 +3486,49 @@ mod graphql_test {
             } } } } } })
         );
     }
+
+    #[tokio::test]
+    async fn test_graph_edges_sorted_by_src_node() {
+        // Sort a graph-level edge collection by the src node (type, then name).
+        // Enabled by making `src` take a NodeSortBy; a bare id flag could not
+        // express this.
+        let g = Graph::new();
+        g.add_node(1, "a", NO_PROPS, Some("Z"), None).unwrap();
+        g.add_node(1, "b", NO_PROPS, Some("A"), None).unwrap();
+        g.add_node(1, "c", NO_PROPS, None, None).unwrap(); // untyped
+        g.add_node(1, "x", NO_PROPS, None, None).unwrap();
+        g.add_edge(10, "a", "x", NO_PROPS, None).unwrap();
+        g.add_edge(11, "b", "x", NO_PROPS, None).unwrap();
+        g.add_edge(12, "c", "x", NO_PROPS, None).unwrap();
+
+        let graph: MaterializedGraph = g.into();
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", graph)], tmp_dir.path()).await;
+
+        // src type ascending, untyped first: None(c) < "A"(b) < "Z"(a)
+        let query = r#"
+        {
+          graph(path: "g") {
+            edges {
+              sorted(sortBys: [{ src: { type: true } }, { src: { name: true } }]) {
+                page(limit: 10) { src { name nodeType } }
+              }
+            }
+          }
+        }
+        "#;
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        let data = res.data.into_json().unwrap();
+        assert_eq!(
+            data,
+            json!({ "graph": { "edges": { "sorted": {
+                "page": [
+                    { "src": { "name": "c", "nodeType": null } },
+                    { "src": { "name": "b", "nodeType": "A" } },
+                    { "src": { "name": "a", "nodeType": "Z" } }
+                ]
+            } } } })
+        );
+    }
 }

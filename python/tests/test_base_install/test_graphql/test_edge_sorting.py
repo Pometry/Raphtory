@@ -147,7 +147,7 @@ def test_graph_edge_sort_by_src(graph):
     query {
       graph(path: "g") {
         edges {
-          sorted(sortBys: [{ src: true }]) {
+          sorted(sortBys: [{ src: { id: true } }]) {
             list {
               src {
                 id
@@ -182,7 +182,7 @@ def test_graph_edge_sort_by_dst(graph):
     query {
       graph(path: "g") {
         edges {
-          sorted(sortBys: [{ dst: true }]) {
+          sorted(sortBys: [{ dst: { id: true } }]) {
             list {
               dst {
                 id
@@ -635,7 +635,7 @@ def test_graph_edge_sort_by_combined_2(graph):
     query {
       graph(path: "g") {
         edges {
-          sorted(sortBys: [{ dst: true }, { time: EARLIEST }, { property: "eprop3" }, { time: LATEST, reverse: true }]) {
+          sorted(sortBys: [{ dst: { id: true } }, { time: EARLIEST }, { property: "eprop3" }, { time: LATEST, reverse: true }]) {
             list {
               src {
                 id

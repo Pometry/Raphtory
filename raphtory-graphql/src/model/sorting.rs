@@ -4,16 +4,17 @@ use std::cmp::Ordering;
 
 #[derive(InputObject, Clone, Debug, Eq, PartialEq)]
 pub struct EdgeSortBy {
-    /// Reverse order
+    /// Reverse order. Applies to the `time` / `property` keys; the node keys
+    /// (`src` / `dst` / `neighbour`) carry their own `reverse` inside the
+    /// nested `NodeSortBy` and ignore this flag.
     pub reverse: Option<bool>,
-    /// Source node
-    pub src: Option<bool>,
-    /// Destination
-    pub dst: Option<bool>,
-    /// Sort by the neighbour node (the endpoint that is NOT the node these
-    /// edges were traversed from; the destination for a graph-level edge
-    /// collection). Direction is controlled by this nested key's own
-    /// `reverse`; the outer `EdgeSortBy.reverse` does not apply to it.
+    /// Sort by the source node.
+    pub src: Option<NodeSortBy>,
+    /// Sort by the destination node.
+    pub dst: Option<NodeSortBy>,
+    /// Sort by the neighbour node: the endpoint that is NOT the node these
+    /// edges were traversed from (the destination for a graph-level edge
+    /// collection).
     pub neighbour: Option<NodeSortBy>,
     /// Time
     pub time: Option<SortByTime>,
