@@ -18,7 +18,11 @@ use raphtory::{
     prelude::{NodeStateOps, Prop},
 };
 use raphtory_api::core::entities::properties::prop::PropUnwrap;
-use std::{cmp::Ordering, sync::Arc};
+use std::{
+    cmp::Ordering,
+    hash::{Hash, Hasher},
+    sync::Arc,
+};
 
 /// A mapping from the nodes of a graph to the values computed for them by an algorithm.
 ///
@@ -113,6 +117,16 @@ pub(crate) struct GqlNodeStateRow {
     entries: Vec<GqlNodeStateEntry>,
 }
 
+/// The nodes sharing one value of a column, as returned by `groupBy`.
+#[derive(SimpleObject, Clone)]
+#[graphql(name = "NodeStateGroup")]
+pub(crate) struct GqlNodeStateGroup {
+    /// The value shared by the nodes in this group; null if their cell is empty.
+    value: Option<GqlPropertyOutputVal>,
+    /// The nodes holding that value.
+    nodes: GqlNodes,
+}
+
 /// A node's full row in the node state without the column names: `values[i]`
 /// belongs to the column `NodeState.columnNames[i]`.
 #[derive(SimpleObject, Clone)]
@@ -154,24 +168,58 @@ fn column_cmp<'a>(
     }
 }
 
+/// A column value used as a `group_by` key. `Prop` is only `PartialEq`, so both
+/// equality and hashing go through its debug representation, which distinguishes
+/// variants as well as values. Computed once per row rather than per comparison.
+/// Note that this groups `NaN` with itself, unlike `PartialEq` on floats.
+#[derive(Clone, Debug)]
+struct GroupKey {
+    value: Option<Prop>,
+    repr: String,
+}
+
+impl GroupKey {
+    fn new(value: Option<Prop>) -> Self {
+        let repr = format!("{value:?}");
+        Self { value, repr }
+    }
+}
+
+impl PartialEq for GroupKey {
+    fn eq(&self, other: &Self) -> bool {
+        self.repr == other.repr
+    }
+}
+
+impl Eq for GroupKey {}
+
+impl Hash for GroupKey {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.repr.hash(state);
+    }
+}
+
 impl GqlNodeState {
+    /// Whether `column` exists and holds plain property values rather than nodes.
+    fn is_prop_column(&self, column: &str) -> bool {
+        !self.node_state.state.node_cols.contains_key(column)
+            && self
+                .node_state
+                .state
+                .values_ref()
+                .schema()
+                .index_of(column)
+                .is_ok()
+    }
+
     /// Iterator over the non-empty values of a plain-prop column.
     /// None if the column does not exist or contains nodes.
     fn column_value_iter<'a>(&'a self, column: &'a str) -> Option<impl Iterator<Item = Prop> + 'a> {
-        if self.node_state.state.node_cols.contains_key(column) {
-            return None;
-        }
-        self.node_state
-            .state
-            .values_ref()
-            .schema()
-            .index_of(column)
-            .ok()?;
-        Some(
+        self.is_prop_column(column).then(|| {
             self.node_state
                 .iter()
-                .filter_map(move |(_, mut row)| Some(row.swap_remove(column)??.into())),
-        )
+                .filter_map(move |(_, mut row)| Some(row.swap_remove(column)??.into()))
+        })
     }
 
     /// Checks that `column` is a plain-prop column with at least one non-empty, comparable value;
@@ -198,7 +246,7 @@ impl GqlNodeState {
     }
 }
 
-// TODO: add paging: `columns`/`nodes` currently dump every row.
+// TODO: add paging: `columns`/`nodes`/`rows` currently dump every row.
 
 // TODO: still to be implemented, blocked on the datafusion feature gate (CVE):
 // `sortBy` (`GenericNodeState::sort_by`), `topK` (`GenericNodeState::top_k`),
@@ -386,6 +434,100 @@ impl GqlNodeState {
                 .node_state
                 .median_item_by(column_cmp(&column, true))?;
             self_clone.item_from_row(&column, item)
+        })
+        .await
+    }
+
+    /// Returns the `k` rows with the largest values in a column. Empty cells rank
+    /// lowest, so they are only included if fewer than `k` rows have a value.
+    /// Null if the column does not exist, is empty, or is not comparable.
+    async fn top_k(
+        &self,
+        #[graphql(desc = "Column name.")] column: String,
+        #[graphql(desc = "Number of rows to return.")] k: usize,
+    ) -> Option<GqlNodeState> {
+        let self_clone = self.clone();
+        blocking_compute(move || {
+            self_clone.check_comparable(&column)?;
+            Some(GqlNodeState {
+                node_state: self_clone
+                    .node_state
+                    .top_k_by(column_cmp(&column, false), k),
+            })
+        })
+        .await
+    }
+
+    /// Returns the `k` rows with the smallest values in a column. Empty cells rank
+    /// highest, so they are only included if fewer than `k` rows have a value.
+    /// Null if the column does not exist, is empty, or is not comparable.
+    async fn bottom_k(
+        &self,
+        #[graphql(desc = "Column name.")] column: String,
+        #[graphql(desc = "Number of rows to return.")] k: usize,
+    ) -> Option<GqlNodeState> {
+        let self_clone = self.clone();
+        blocking_compute(move || {
+            self_clone.check_comparable(&column)?;
+            Some(GqlNodeState {
+                node_state: self_clone
+                    .node_state
+                    .bottom_k_by(column_cmp(&column, true), k),
+            })
+        })
+        .await
+    }
+
+    /// Returns a view of this node state with the rows sorted by a column's values,
+    /// ascending with empty cells last. `reverse` flips the whole ordering, putting
+    /// empty cells first. Null if the column does not exist, is empty, or is not
+    /// comparable.
+    async fn sort_by_values(
+        &self,
+        #[graphql(desc = "Column name.")] column: String,
+        #[graphql(desc = "Sort in descending order instead. Defaults to false.")] reverse: Option<
+            bool,
+        >,
+    ) -> Option<GqlNodeState> {
+        let self_clone = self.clone();
+        blocking_compute(move || {
+            self_clone.check_comparable(&column)?;
+            let cmp = column_cmp(&column, true);
+            let node_state = if reverse.unwrap_or(false) {
+                self_clone
+                    .node_state
+                    .sort_by_values_by(|a, b| cmp(a, b).reverse())
+            } else {
+                self_clone.node_state.sort_by_values_by(cmp)
+            };
+            Some(GqlNodeState { node_state })
+        })
+        .await
+    }
+
+    /// Groups the nodes by their value in a column. Nodes with an empty cell form
+    /// their own group. Null if the column does not exist or contains nodes.
+    async fn group_by(
+        &self,
+        #[graphql(desc = "Column name.")] column: String,
+    ) -> Option<Vec<GqlNodeStateGroup>> {
+        let self_clone = self.clone();
+        blocking_compute(move || {
+            if !self_clone.is_prop_column(&column) {
+                return None;
+            }
+            let groups = self_clone.node_state.group_by(|mut row| {
+                GroupKey::new(row.swap_remove(&column).flatten().map(|value| value.0))
+            });
+            Some(
+                groups
+                    .into_iter_groups()
+                    .map(|(key, nodes)| GqlNodeStateGroup {
+                        value: key.value.map(GqlPropertyOutputVal),
+                        nodes: GqlNodes::new(nodes),
+                    })
+                    .collect(),
+            )
         })
         .await
     }

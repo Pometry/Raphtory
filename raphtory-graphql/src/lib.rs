@@ -2507,6 +2507,114 @@ mod graphql_test {
     }
 
     #[tokio::test]
+    async fn test_algorithm_node_state_top_k_and_sorting() {
+        let graph = Graph::new();
+        // asymmetric graph so every node has a distinct pagerank:
+        // a = 0.1976, b = 0.2816, c = 0.5209
+        graph.add_edge(1, "a", "b", NO_PROPS, None).unwrap();
+        graph.add_edge(2, "a", "c", NO_PROPS, None).unwrap();
+        graph.add_edge(3, "b", "c", NO_PROPS, None).unwrap();
+        let graph: MaterializedGraph = graph.into();
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", graph)], tmp_dir.path()).await;
+
+        let query = r#"
+        {
+          graph(path: "g") {
+            algorithm {
+              pagerank(iterCount: 20) {
+                topTwo: topK(column: "pagerank_score", k: 2) { nodes { ids } }
+                bottomTwo: bottomK(column: "pagerank_score", k: 2) { nodes { ids } }
+                ascending: sortByValues(column: "pagerank_score") { nodes { ids } }
+                descending: sortByValues(column: "pagerank_score", reverse: true) { nodes { ids } }
+                missingColumn: topK(column: "nope", k: 2) { count }
+              }
+            }
+          }
+        }
+        "#;
+
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        assert_eq!(
+            res.data.into_json().unwrap(),
+            json!({
+                "graph": { "algorithm": { "pagerank": {
+                    // largest first, smallest first
+                    "topTwo": { "nodes": { "ids": ["c", "b"] } },
+                    "bottomTwo": { "nodes": { "ids": ["a", "b"] } },
+                    "ascending": { "nodes": { "ids": ["a", "b", "c"] } },
+                    "descending": { "nodes": { "ids": ["c", "b", "a"] } },
+                    "missingColumn": null
+                } } }
+            })
+        );
+    }
+
+    #[tokio::test]
+    async fn test_algorithm_node_state_group_by() {
+        let graph = Graph::new();
+        // two connected components, so wcc gives two distinct component ids
+        graph.add_edge(1, "a", "b", NO_PROPS, None).unwrap();
+        graph.add_edge(2, "c", "d", NO_PROPS, None).unwrap();
+        let graph: MaterializedGraph = graph.into();
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", graph)], tmp_dir.path()).await;
+
+        let query = r#"
+        {
+          graph(path: "g") {
+            algorithm {
+              weaklyConnectedComponents {
+                groupBy(column: "component_id") {
+                  value
+                  nodes { ids }
+                }
+              }
+            }
+          }
+        }
+        "#;
+
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        // group order and node order within a group are both unordered
+        let mut data = res.data.into_json().unwrap();
+        let groups = data["graph"]["algorithm"]["weaklyConnectedComponents"]["groupBy"]
+            .as_array_mut()
+            .unwrap();
+        for group in groups.iter_mut() {
+            group["nodes"]["ids"]
+                .as_array_mut()
+                .unwrap()
+                .sort_by_key(|id| id.as_str().unwrap().to_string());
+        }
+        groups.sort_by_key(|group| group["nodes"]["ids"][0].as_str().unwrap().to_string());
+        // a-b and c-d each form their own component
+        assert_eq!(groups.len(), 2);
+        assert_eq!(groups[0]["nodes"]["ids"], json!(["a", "b"]));
+        assert_eq!(groups[1]["nodes"]["ids"], json!(["c", "d"]));
+        assert_ne!(groups[0]["value"], groups[1]["value"]);
+
+        // grouping a node-valued column is rejected
+        let query = r#"
+        {
+          graph(path: "g") {
+            algorithm {
+              outComponents { groupBy(column: "out_components") { value } }
+            }
+          }
+        }
+        "#;
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        assert_eq!(
+            res.data.into_json().unwrap(),
+            json!({ "graph": { "algorithm": { "outComponents": { "groupBy": null } } } })
+        );
+    }
+
+    #[tokio::test]
     async fn test_algorithm_node_state_aggregates() {
         let graph = Graph::new();
         // asymmetric graph so every node has a distinct pagerank
