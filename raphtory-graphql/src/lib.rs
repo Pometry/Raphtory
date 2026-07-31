@@ -2071,7 +2071,7 @@ mod graphql_test {
         // Drop and reload data to mimic server restart.
         drop(data);
 
-        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
+        let data: Data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
         let schema = App::create_schema().data(data).finish().unwrap();
 
         let query = format!(
