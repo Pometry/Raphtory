@@ -1,11 +1,8 @@
 use crate::{model::blocking_io, server::ServerError};
-use clap::{Args, ValueEnum};
+use clap::ValueEnum;
 use config::ConfigError;
 use field_types::FieldName;
 use opentelemetry::KeyValue;
-use opentelemetry_appender_tracing::layer::{
-    OpenTelemetryTracingBridge, OpenTelemetryTracingBridgeBuilder,
-};
 use opentelemetry_otlp::{LogExporter, Protocol, SpanExporter, WithExportConfig, WithHttpConfig};
 #[cfg(feature = "integration-test")]
 use opentelemetry_sdk::{logs::InMemoryLogExporter, trace::InMemorySpanExporter};
@@ -18,7 +15,7 @@ use raphtory_api::core::storage::arc_str::OptionAsStr;
 use reqwest::{blocking::ClientBuilder, Certificate};
 use serde::Deserialize;
 use std::{
-    collections::HashMap, env, fs::File, io::Read, path::PathBuf, sync::LazyLock, time::Duration,
+    collections::HashMap, fs::File, io::Read, path::PathBuf, sync::LazyLock, time::Duration,
 };
 use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter, EnumString, IntoStaticStr};

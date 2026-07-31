@@ -1,3 +1,4 @@
+use bytemuck::{Pod, Zeroable};
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -24,7 +25,10 @@ impl fmt::Display for TimeError {
 
 impl std::error::Error for TimeError {}
 
-#[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq, Ord, PartialOrd, Eq, Hash)]
+#[derive(
+    Debug, Copy, Clone, Serialize, Deserialize, PartialEq, Ord, PartialOrd, Eq, Hash, Pod, Zeroable,
+)]
+#[repr(C)]
 pub struct EventTime(pub i64, pub usize);
 
 impl PartialEq<i64> for EventTime {
@@ -181,11 +185,11 @@ impl<'a, L: TimeIndexOps<'a>, R: TimeIndexOps<'a, IndexType = L::IndexType>> Tim
     }
 
     fn first(&self) -> Option<Self::IndexType> {
-        self.0.first().into_iter().chain(self.1.first()).min()
+        Iterator::min(self.0.first().into_iter().chain(self.1.first())) // rust-analyzer
     }
 
     fn last(&self) -> Option<Self::IndexType> {
-        self.0.last().into_iter().chain(self.1.last()).max()
+        Iterator::max(self.0.last().into_iter().chain(self.1.last())) // rust-analyzer
     }
 
     fn iter(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a {

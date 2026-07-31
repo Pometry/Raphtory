@@ -20,9 +20,9 @@ use raphtory_storage::mutation::addition_ops::{InternalAdditionOps, SessionAddit
 use rayon::prelude::*;
 use std::{
     collections::HashMap,
-    env,
     sync::atomic::{AtomicUsize, Ordering},
 };
+use storage::pages::resolve_pos;
 
 pub mod edge_props;
 pub mod edges;
@@ -30,7 +30,7 @@ pub mod nodes;
 
 #[cfg(feature = "progress")]
 fn progress_bars_enabled() -> bool {
-    env::var("RAPHTORY_PROGRESS_BARS_ENABLED")
+    std::env::var("RAPHTORY_PROGRESS_BARS_ENABLED")
         .ok()
         .and_then(|value| {
             let value = value.trim().to_ascii_lowercase();
@@ -356,4 +356,28 @@ fn resolve_nodes_with_cache_generic<'a, V: Send + Sync>(
             Ok::<(), GraphError>(())
         })?;
     Ok(gid_str_cache)
+}
+
+pub(crate) fn group_rows_by_vid_segment(
+    vids: &[VID],
+    max_segment_len: u32,
+    num_segments: usize,
+) -> Vec<Vec<usize>> {
+    let mut rows_by_segment = vec![Vec::new(); num_segments];
+    for (row, vid) in vids.iter().enumerate() {
+        let (segment_id, _) = resolve_pos(vid.index(), max_segment_len);
+        let rows = rows_by_segment
+            .get_mut(segment_id)
+            .expect("segment not found while grouping by vid");
+        rows.push(row);
+    }
+    rows_by_segment
+}
+
+#[inline(always)]
+fn secondary_index_at(col: &SecondaryIndexCol, row: usize) -> usize {
+    match col {
+        SecondaryIndexCol::DataFrame(arr) => arr.value(row) as usize,
+        SecondaryIndexCol::Range(range) => range.start + row,
+    }
 }

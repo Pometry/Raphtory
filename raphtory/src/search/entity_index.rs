@@ -89,7 +89,7 @@ impl EntityIndex {
         }
         // Create a new PropertyIndex if it doesn't exist
         if indexes[prop_id].is_none() {
-            let mut schema_builder = PropertyIndex::schema_builder(&*prop_name, prop_type.clone());
+            let mut schema_builder = PropertyIndex::schema_builder(&prop_name, prop_type.clone());
             add_schema_fields(&mut schema_builder);
             let schema = schema_builder.build();
             let prop_index_path = index_path.as_deref().map(|p| p.join(prop_id.to_string()));

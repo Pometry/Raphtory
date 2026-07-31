@@ -1,9 +1,6 @@
 use super::{
-    document::GqlDocument,
-    edge::GqlEdge,
-    node::GqlNode,
-    node_id::GqlNodeId,
-    vectorised_graph::{IntoWindowTuple, VectorisedGraphWindow},
+    document::GqlDocument, edge::GqlEdge, node::GqlNode, node_id::GqlNodeId,
+    vectorised_graph::VectorisedGraphWindow,
 };
 #[cfg(feature = "vectors")]
 use crate::rayon::blocking_compute;
