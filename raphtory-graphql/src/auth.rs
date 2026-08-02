@@ -2,8 +2,6 @@ use crate::{
     config::{app_config::AppConfig, auth_config::PublicKey},
     data::{gql_error_with_code, CODE_ACCESS_DENIED},
 };
-use futures_util::future::BoxFuture;
-use jsonwebtoken::{Algorithm, DecodingKey};
 use async_graphql::{
     async_trait,
     extensions::{Extension, ExtensionContext, ExtensionFactory, NextParseQuery},
@@ -12,8 +10,8 @@ use async_graphql::{
     BatchRequest, Context, Executor, ServerError, ServerResult, Variables,
 };
 use async_graphql_poem::{GraphQLBatchRequest, GraphQLBatchResponse, GraphQLRequest};
-use futures_util::StreamExt;
-use jsonwebtoken::{decode, decode_header, Validation};
+use futures_util::{future::BoxFuture, StreamExt};
+use jsonwebtoken::{decode, decode_header, Algorithm, DecodingKey, Validation};
 use poem::{
     error::{BadRequest, TooManyRequests, Unauthorized},
     Body, Endpoint, FromRequest, IntoResponse, Request, Response, Result,
@@ -112,11 +110,7 @@ pub struct AuthenticatedGraphQL<E> {
 impl<E> AuthenticatedGraphQL<E> {
     /// Create a GraphQL endpoint. `key_resolver` is a resolver registered by an extension (e.g. an
     /// SSO/JWKS resolver); when `None`, a static key from `auth.public_key` is used if configured.
-    pub fn new(
-        executor: E,
-        config: AppConfig,
-        key_resolver: Option<Arc<dyn KeyResolver>>,
-    ) -> Self {
+    pub fn new(executor: E, config: AppConfig, key_resolver: Option<Arc<dyn KeyResolver>>) -> Self {
         let semaphore = config.concurrency.heavy_query_limit.map(|limit| {
             println!("Server running with concurrency limited to {limit} for heavy queries");
             Semaphore::new(limit)
@@ -343,8 +337,8 @@ async fn extract_claims(
     let mut validation = Validation::new(algorithms[0]);
     validation.algorithms = algorithms;
     validation.validate_nbf = true; // reject not-yet-valid tokens (nbf in the future)
-    // Require the claims we validate to be present, so a token that simply omits a configured
-    // audience/issuer is rejected rather than skipping the check. `exp` stays optional.
+                                    // Require the claims we validate to be present, so a token that simply omits a configured
+                                    // audience/issuer is rejected rather than skipping the check. `exp` stays optional.
     let mut required: Vec<&str> = Vec::new();
     // Validate `aud` against the configured audience, or disable the check so SSO/OIDC tokens
     // (which always carry an `aud`) are accepted.
@@ -391,9 +385,10 @@ fn effective_roles(claims: &TokenClaims, role_claim: Option<&str>) -> Vec<String
 fn roles_from_value(v: &serde_json::Value) -> Vec<String> {
     match v {
         serde_json::Value::String(s) => vec![s.clone()],
-        serde_json::Value::Array(items) => {
-            items.iter().filter_map(|x| x.as_str().map(String::from)).collect()
-        }
+        serde_json::Value::Array(items) => items
+            .iter()
+            .filter_map(|x| x.as_str().map(String::from))
+            .collect(),
         _ => Vec::new(),
     }
 }
