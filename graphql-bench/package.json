@@ -16,8 +16,8 @@
     "@genql/cli": "^6.3.3",
     "@types/k6": "^1.6.0",
     "@types/node": "^25.3.5",
-    "concurrently": "^9.2.1",
-    "tsup": "8.5.1",
+    "concurrently": "^9.2.4",
+    "tsup": "8.3.5",
     "typescript": "^5.9.3"
   },
   "dependencies": {
