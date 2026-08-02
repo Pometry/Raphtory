@@ -1,0 +1,1263 @@
+//! Client-side operation types shipped to a `Transport` for execution.
+//!
+//! Every method on `RemoteGraph`/`RemoteNode`/`RemoteEdge` builds an `Op` and
+//! hands it to the transport. This module is the single source of truth for
+//! what "an operation" means on the wire.
+
+use crate::{
+    client::{inner_collection, ClientError},
+    model::graph::filtering::{GqlEdgeFilter, GqlNodeFilter},
+};
+use raphtory_api::core::entities::properties::prop::Prop;
+use serde::{ser::SerializeStruct, Serialize, Serializer};
+use serde_json::json;
+use std::{collections::HashMap, sync::Arc};
+
+/// Top-level split between reads (recursive expressions returning values) and
+/// writes (self-contained commands with side effects). Matches Ben's V2 doc
+/// distinction between `Eval` and `Apply`.
+pub enum Op {
+    Read(ReadExpr),
+    Write(WriteOp),
+}
+
+/// Recursive read expression. Composable: every non-terminal variant wraps its
+/// input, forming a tree. Terminals (e.g. `Degree`, `CountNodes`, `Name`) fire
+/// the RPC on the server.
+///
+/// New variants land as demand arises. Structural pattern per variant:
+/// - `render_read_body` case in `graphql_transport.rs` — emit the GraphQL fragment
+/// - `read_depth` case — count how many `{` this variant opens (usually 1)
+/// - `build_json_path` case — push the JSON key(s) that navigate to this level
+/// - For terminals only: `parse_read` case to unwrap the JSON value into a `Prop`
+#[derive(Clone)]
+pub enum ReadExpr {
+    /// Start of every read tree — names the graph.
+    Root { path: String },
+
+    // ============ View chaining (Graph → Graph) ============
+    /// Time-window a graph. Composes.
+    Window {
+        input: Box<ReadExpr>,
+        start: i64,
+        end: i64,
+    },
+    /// Restrict to a single layer.
+    Layer { input: Box<ReadExpr>, name: String },
+    /// Snapshot at a single timestamp.
+    At { input: Box<ReadExpr>, time: i64 },
+    /// Restrict to events strictly before the given time.
+    Before { input: Box<ReadExpr>, time: i64 },
+    /// Restrict to events at or after the given time.
+    After { input: Box<ReadExpr>, time: i64 },
+    /// Latest state — no args. Composes.
+    Latest { input: Box<ReadExpr> },
+    /// Snapshot at the latest time. Composes.
+    SnapshotLatest { input: Box<ReadExpr> },
+    /// Snapshot at a specific time. Composes.
+    SnapshotAt { input: Box<ReadExpr>, time: i64 },
+    /// Exclude a specific layer.
+    ExcludeLayer { input: Box<ReadExpr>, name: String },
+    /// Shrink both start and end of the window.
+    ShrinkWindow {
+        input: Box<ReadExpr>,
+        start: i64,
+        end: i64,
+    },
+    /// Shrink the start of the window.
+    ShrinkStart { input: Box<ReadExpr>, start: i64 },
+    /// Shrink the end of the window.
+    ShrinkEnd { input: Box<ReadExpr>, end: i64 },
+    /// Restrict to the "valid" subgraph (event-graph filter). No args. Composes.
+    Valid { input: Box<ReadExpr> },
+    /// Restrict to the default layer. No args. Composes.
+    DefaultLayer { input: Box<ReadExpr> },
+    /// Restrict to a specific set of layers.
+    Layers {
+        input: Box<ReadExpr>,
+        names: Vec<String>,
+    },
+    /// Exclude a specific set of layers.
+    ExcludeLayers {
+        input: Box<ReadExpr>,
+        names: Vec<String>,
+    },
+    /// Restrict to a specific set of valid layers. The GraphQL server exposes
+    /// valid-layer semantics under the existing `layers` field (backed by the
+    /// graph's `valid_layers`), so this renders as `layers(names: [..])` — no
+    /// separate `validLayers` field exists on the server.
+    ValidLayers {
+        input: Box<ReadExpr>,
+        names: Vec<String>,
+    },
+    /// Exclude a specific valid layer. Renders as the server's `excludeLayer`
+    /// (backed by `exclude_valid_layers`).
+    ExcludeValidLayer { input: Box<ReadExpr>, name: String },
+    /// Exclude a specific set of valid layers. Renders as the server's
+    /// `excludeLayers` (backed by `exclude_valid_layers`).
+    ExcludeValidLayers {
+        input: Box<ReadExpr>,
+        names: Vec<String>,
+    },
+    /// Restrict to a subgraph induced by the given node ids.
+    Subgraph {
+        input: Box<ReadExpr>,
+        nodes: Vec<String>,
+    },
+    /// Restrict to nodes matching one of the given node types.
+    SubgraphNodeTypes {
+        input: Box<ReadExpr>,
+        node_types: Vec<String>,
+    },
+    /// Exclude the given nodes from the view.
+    ExcludeNodes {
+        input: Box<ReadExpr>,
+        nodes: Vec<String>,
+    },
+    /// Restrict a `RemoteNodes` collection to members with one of the given
+    /// node types. Unlike view ops, this actually filters membership — the
+    /// returned collection has fewer members. Server field: `typeFilter`.
+    TypeFilter {
+        input: Box<ReadExpr>,
+        node_types: Vec<String>,
+    },
+
+    // ============ Selection ============
+    /// Narrow to a single node by id. Graph → Node.
+    Node { input: Box<ReadExpr>, id: String },
+    /// Narrow to a single edge by (src, dst). Graph → Edge.
+    Edge {
+        input: Box<ReadExpr>,
+        src: String,
+        dst: String,
+    },
+    /// Navigate to a source node. Polymorphic on the endpoint's collection
+    /// kind — the server field is `src` in every case, so one variant covers
+    /// all of them: Edge → Node, `Edges` → `PathFromNode`, `NestedEdges` →
+    /// `PathFromGraph`. The downstream terminal decides how the result is read.
+    Src { input: Box<ReadExpr> },
+    /// Navigate to a destination node. Polymorphic like `Src` (server field
+    /// `dst`): Edge → Node, `Edges` → `PathFromNode`, `NestedEdges` →
+    /// `PathFromGraph`.
+    Dst { input: Box<ReadExpr> },
+    /// Navigate to the "other end" node. Polymorphic like `Src` (server field
+    /// `nbr`): Edge → Node, `Edges` → `PathFromNode`, `NestedEdges` →
+    /// `PathFromGraph`. Context-sensitive per edge: on an out-edge yields the
+    /// destination; on an in-edge yields the source.
+    Nbr { input: Box<ReadExpr> },
+    /// Navigate to the event history of a node or edge. Node/Edge → History.
+    /// Container-selection: the resulting `RemoteHistory` handle exposes
+    /// terminals like `.count()`, `.collect()`, plus sub-container accessors
+    /// (`.timestamps`, `.intervals`, etc.).
+    History { input: Box<ReadExpr> },
+    /// Navigate to the combined event history of a `PathFromNode` /
+    /// `PathFromGraph` collection — a single `History` container merging the
+    /// time entries of all members. Container-selection like `History`.
+    /// Server field: `combinedHistory`.
+    CombinedHistory { input: Box<ReadExpr> },
+    /// Navigate to the reversed view of a `RemoteHistory` container — a new
+    /// `History` whose iteration order is flipped. Container-selection like
+    /// `History`. Server field: `reverse`.
+    HistoryReverse { input: Box<ReadExpr> },
+    /// Navigate to the deletion history of an edge. Edge → History.
+    /// Same shape as `History` but reads the `deletions` server field
+    /// instead of `history` — deletions are edge-only.
+    Deletions { input: Box<ReadExpr> },
+    /// Graph → the collection of all nodes in the (view-restricted) graph.
+    Nodes { input: Box<ReadExpr> },
+    /// Node → the collection of the node's neighbours (both directions).
+    Neighbours { input: Box<ReadExpr> },
+    /// Node → the collection of the node's in-neighbours.
+    InNeighbours { input: Box<ReadExpr> },
+    /// Node → the collection of the node's out-neighbours.
+    OutNeighbours { input: Box<ReadExpr> },
+    /// Graph → the collection of all edges in the (view-restricted) graph.
+    Edges { input: Box<ReadExpr> },
+    /// Node → the collection of the node's edges (both directions).
+    NodeEdges { input: Box<ReadExpr> },
+    /// Node → the collection of the node's incoming edges.
+    InEdges { input: Box<ReadExpr> },
+    /// Node → the collection of the node's outgoing edges.
+    OutEdges { input: Box<ReadExpr> },
+    /// Node → the collection of nodes reachable *into* this node via incoming
+    /// edges (i.e., the node's ancestors in the directed graph). Server
+    /// field: `inComponent`.
+    InComponent { input: Box<ReadExpr> },
+    /// Node → the collection of nodes reachable *out from* this node via
+    /// outgoing edges (i.e., the node's descendants). Server field: `outComponent`.
+    OutComponent { input: Box<ReadExpr> },
+    /// Fan out an edge / edge collection into one instance per event.
+    /// Polymorphic: on a single `Edge` produces an `Edges` collection with
+    /// one entry per event; on an `Edges` collection produces an `Edges`
+    /// collection with all events across all members. Server field: `explode`.
+    Explode { input: Box<ReadExpr> },
+    /// Fan out an edge / edge collection into one instance per layer.
+    /// Polymorphic on `Edge` and `Edges`. Server field: `explodeLayers`.
+    ExplodeLayers { input: Box<ReadExpr> },
+    /// Reorder a `Nodes` collection by an ordered list of sort keys applied
+    /// lexicographically. Returns a `Nodes` — chainable with any downstream
+    /// terminal (`.collect`, `.count`, `.ids`, …). Server field:
+    /// `sorted(sortBys: [NodeSortBy!]!)`.
+    SortedNodes {
+        input: Box<ReadExpr>,
+        sort_bys: Vec<NodeSortBy>,
+    },
+    /// Reorder an `Edges` collection. Same shape as `SortedNodes` with the
+    /// edge-specific sort key set (adds `src` / `dst`). Server field:
+    /// `sorted(sortBys: [EdgeSortBy!]!)`.
+    SortedEdges {
+        input: Box<ReadExpr>,
+        sort_bys: Vec<EdgeSortBy>,
+    },
+    /// Filter a `Nodes` collection by a filter expression. Returns `Nodes`
+    /// — chainable with any downstream terminal (`.collect`, `.count`, …).
+    /// Server field: `filter(expr: NodeFilter!)` on `Nodes`.
+    ///
+    /// Applies the filter to the current collection **and propagates it
+    /// to downstream traversals** from these nodes (e.g. `.neighbours`,
+    /// `.edges`). Use `SelectNodes` for the narrow-membership-only variant.
+    FilterNodes {
+        input: Box<ReadExpr>,
+        filter: GqlNodeFilter,
+    },
+    /// Narrow a `Nodes` collection's membership by a filter expression.
+    /// Returns `Nodes`. Server field: `select(expr: NodeFilter!)` on
+    /// `Nodes`.
+    ///
+    /// Applies the filter only to this step; downstream traversals from
+    /// the matching nodes see the unfiltered graph.
+    SelectNodes {
+        input: Box<ReadExpr>,
+        filter: GqlNodeFilter,
+    },
+    /// Filter an `Edges` collection by a filter expression. Returns `Edges`
+    /// — chainable with any downstream terminal (`.collect`, `.count`, …).
+    /// Server field: `filter(expr: EdgeFilter!)` on `Edges`.
+    ///
+    /// Applies the filter to the current collection **and propagates it
+    /// to downstream traversals** from these edges. Use `SelectEdges` for
+    /// the narrow-membership-only variant.
+    FilterEdges {
+        input: Box<ReadExpr>,
+        filter: GqlEdgeFilter,
+    },
+    /// Narrow an `Edges` collection's membership by a filter expression.
+    /// Returns `Edges`. Server field: `select(expr: EdgeFilter!)` on
+    /// `Edges`.
+    ///
+    /// Applies the filter only to this step; downstream traversals from
+    /// the matching edges see the unfiltered graph.
+    SelectEdges {
+        input: Box<ReadExpr>,
+        filter: GqlEdgeFilter,
+    },
+    /// Filter a `Graph` view by a node filter, returning a filtered `Graph`.
+    /// Server field: `filterNodes(expr: NodeFilter!)` on `Graph` — keeps
+    /// nodes matching the filter; edges survive only if both endpoints do.
+    ///
+    /// This is the node-filter half of the local `Graph.filter(FilterExpr)`
+    /// API; the Python `RemoteGraph.filter` dispatches here for node filters.
+    FilterGraphNodes {
+        input: Box<ReadExpr>,
+        filter: GqlNodeFilter,
+    },
+    /// Filter a `Graph` view by an edge filter, returning a filtered `Graph`.
+    /// Server field: `filterEdges(expr: EdgeFilter!)` on `Graph` — keeps
+    /// edges matching the filter; nodes remain even if all their edges drop.
+    ///
+    /// This is the edge-filter half of the local `Graph.filter(FilterExpr)`
+    /// API; the Python `RemoteGraph.filter` dispatches here for edge filters.
+    FilterGraphEdges {
+        input: Box<ReadExpr>,
+        filter: GqlEdgeFilter,
+    },
+    /// Filter a single `Node` handle's *edge* traversals by an edge filter,
+    /// returning a `Node`. The node itself stays addressable; its degree /
+    /// edges / neighbours only see matching edges. Server field:
+    /// `filterEdges(expr: EdgeFilter!)` on `Node`. Used when replaying an
+    /// edge-collection filter onto node handles materialized through it
+    /// (e.g. `edges.filter(f).src().collect()`).
+    NodeFilterEdges {
+        input: Box<ReadExpr>,
+        filter: GqlEdgeFilter,
+    },
+    /// Filter a single `Edge` handle's *node* traversals by a node filter,
+    /// returning an `Edge`. The edge itself stays addressable regardless of
+    /// whether its endpoints match. Server field:
+    /// `filterNodes(expr: NodeFilter!)` on `Edge`. Used when replaying a
+    /// node-collection filter onto edge handles materialized through it
+    /// (e.g. `nodes.filter(f).edges().collect()`).
+    EdgeFilterNodes {
+        input: Box<ReadExpr>,
+        filter: GqlNodeFilter,
+    },
+    /// Pin a single `Edge` handle to one event — the exploded instance at
+    /// exactly `(time, event_id)`, optionally restricted to `layer`.
+    /// Returns an `Edge` that answers `time` / `layerName` like a member of
+    /// `explode`. Server field: `event(time: TimeInput!, layer: String)` on
+    /// `Edge` — `event_id: Some(_)` renders the exact `{timestamp, eventId}`
+    /// object form. Used by `collect()` on exploded collections.
+    EdgeEvent {
+        input: Box<ReadExpr>,
+        time: i64,
+        event_id: Option<i64>,
+        layer: Option<String>,
+    },
+
+    /// Pin a single `Edge` handle to one layer-exploded instance by layer name
+    /// — the analogue of `EdgeEvent` for `explodeLayers`. Returns an `Edge` that
+    /// answers `layerName` like a member of `explodeLayers` (`time` is
+    /// unavailable, matching local). Server field: `eventLayer(name: String!)`
+    /// on `Edge`. Used by `collect()` on layer-exploded collections.
+    EdgeLayerEvent { input: Box<ReadExpr>, layer: String },
+
+    // ============ Properties / Metadata containers ============
+    /// Navigate to the non-temporal metadata container. Polymorphic:
+    /// Graph/Node/Edge → Metadata. Server field: `metadata`.
+    Metadata { input: Box<ReadExpr> },
+    /// Navigate to the full properties container (temporal + non-temporal).
+    /// Polymorphic: Graph/Node/Edge → Properties. Server field: `properties`.
+    Properties { input: Box<ReadExpr> },
+    /// Terminal on a properties/metadata container: fetch a single property
+    /// by key. Returns `Option<RemoteProperty>` — the server returns `null`
+    /// when the key isn't present, decoded to `None` client-side rather
+    /// than raising `NotFound` (see nullable-intermediate handling in
+    /// `parse_read`). Server field: `get(key: String!)`.
+    PropertyGet { input: Box<ReadExpr>, key: String },
+    /// Terminal on a properties/metadata container: `bool` — does a
+    /// property with this key exist? Server field: `contains(key: String!)`.
+    PropertyContains { input: Box<ReadExpr>, key: String },
+    /// Terminal on a properties/metadata container: `Vec<String>` — all
+    /// property keys. Server field: `keys`.
+    PropertyKeys { input: Box<ReadExpr> },
+    /// Terminal on a properties container: the data-type of the property's
+    /// latest value by key — `Option<String>`. `None` when the key isn't
+    /// present. The string is the `PropType` display form (e.g. `"I64"`,
+    /// `"Str"`, `"List<F64>"`). Server field: `getDtypeOf(key: String!)`.
+    PropertyGetDtypeOf { input: Box<ReadExpr>, key: String },
+    /// Terminal on a properties/metadata container: `Vec<RemoteProperty>` —
+    /// each `(key, value)` entry. Optional `keys` whitelist filters the
+    /// returned set. Server field: `values(keys: [String!])`.
+    PropertyValues {
+        input: Box<ReadExpr>,
+        keys: Option<Vec<String>>,
+    },
+    /// Navigate to the temporal-only view of a properties container.
+    /// Properties → TemporalProperties. Server field: `temporal`.
+    TemporalProperties { input: Box<ReadExpr> },
+    /// Select a single temporal property by key. TemporalProperties →
+    /// TemporalProperty. Server field: `get(key)` — but rendered without
+    /// inner sub-selection so downstream terminals nest their own.
+    TemporalPropertyByKey { input: Box<ReadExpr>, key: String },
+    /// Terminal on a TemporalProperties container: `Vec<String>` — the keys
+    /// of each temporal property, optionally filtered. Server field:
+    /// `values(keys) { key }` — we extract just the key from each record.
+    TemporalPropertyList {
+        input: Box<ReadExpr>,
+        keys: Option<Vec<String>>,
+    },
+    /// Terminal on a TemporalProperty: `Vec<Prop>` — all values this
+    /// property has ever taken, in temporal order. Server field: `values`.
+    TemporalPropertyValueList { input: Box<ReadExpr> },
+    /// Terminal on a TemporalProperty: value at or before the given time.
+    /// Server field: `at(t)`. Nullable — returns `None` if no update
+    /// exists on or before `t`.
+    TemporalPropertyAt { input: Box<ReadExpr>, time: i64 },
+    /// Terminal on a TemporalProperty: the most recent value. Server field:
+    /// `latest`. Nullable — `None` if the property has no updates in view.
+    TemporalPropertyLatest { input: Box<ReadExpr> },
+    /// Terminal on a TemporalProperty: the set of distinct values (order
+    /// not guaranteed). Server field: `unique`.
+    TemporalPropertyUnique { input: Box<ReadExpr> },
+    /// Terminal on a TemporalProperty: collapse consecutive-equal updates
+    /// into a single `(time, value)` pair. `latest_time = true` picks the
+    /// last timestamp of each run; `false` picks the first. Server field:
+    /// `orderedDedupe(latestTime: bool)`.
+    TemporalPropertyOrderedDedupe {
+        input: Box<ReadExpr>,
+        latest_time: bool,
+    },
+    /// Terminal on a TemporalProperty: sum of all updates. Server field:
+    /// `sum`. Nullable.
+    TemporalPropertySum { input: Box<ReadExpr> },
+    /// Terminal on a TemporalProperty: mean of all updates. Server field:
+    /// `mean`. Nullable.
+    TemporalPropertyMean { input: Box<ReadExpr> },
+    /// Terminal on a TemporalProperty: mean (alias). Server field: `average`.
+    /// Nullable.
+    TemporalPropertyAverage { input: Box<ReadExpr> },
+    /// Terminal on a TemporalProperty: minimum `(time, value)` pair.
+    /// Server field: `min`. Nullable.
+    TemporalPropertyMin { input: Box<ReadExpr> },
+    /// Terminal on a TemporalProperty: maximum `(time, value)` pair.
+    /// Server field: `max`. Nullable.
+    TemporalPropertyMax { input: Box<ReadExpr> },
+    /// Terminal on a TemporalProperty: median `(time, value)` pair.
+    /// Server field: `median`. Nullable.
+    TemporalPropertyMedian { input: Box<ReadExpr> },
+
+    /// Terminal on Graph: the full schema tree (node types + edge layers +
+    /// their property schemas). Compound-structured — the entire nested
+    /// tree is fetched in one RPC and materialized as plain data structs.
+    /// Server field: `schema`.
+    Schema { input: Box<ReadExpr> },
+
+    /// Terminal on Graph: given a set of node ids, return the nodes that
+    /// are common neighbours of *all* of them (set intersection). Empty
+    /// result if any input id doesn't exist or the list is empty. Returns
+    /// `Vec<String>` of names — clients wrap each in a `RemoteNode`.
+    /// Server field: `sharedNeighbours(selectedNodes: [NodeId!]!)`.
+    SharedNeighbours {
+        input: Box<ReadExpr>,
+        ids: Vec<String>,
+    },
+
+    /// Terminal on Graph: the nodes whose latest property values match every
+    /// `(name, value)` entry in `properties`. Returns `Vec<String>` of node
+    /// names — clients wrap each in a `RemoteNode`. Server field:
+    /// `findNodes(propertiesDict: [PropertyInput!]!)`.
+    FindNodes {
+        input: Box<ReadExpr>,
+        properties: HashMap<String, Prop>,
+    },
+    /// Terminal on Graph: the edges whose latest property values match every
+    /// `(name, value)` entry in `properties`. Returns `Vec<(String, String)>`
+    /// of `(src, dst)` name pairs — clients wrap each in a `RemoteEdge`.
+    /// Server field: `findEdges(propertiesDict: [PropertyInput!]!)`.
+    FindEdges {
+        input: Box<ReadExpr>,
+        properties: HashMap<String, Prop>,
+    },
+    /// Terminal on Graph: all node types present in the graph — `Vec<String>`.
+    /// Server field: `getAllNodeTypes`.
+    GetAllNodeTypes { input: Box<ReadExpr> },
+
+    // ============ Scalar terminals on Graph ============
+    /// Terminal: total node count under the current view — `i64`.
+    CountNodes { input: Box<ReadExpr> },
+    /// Terminal: total edge count under the current view — `i64`.
+    CountEdges { input: Box<ReadExpr> },
+
+    // ============ Scalar terminals on Node ============
+    /// Terminal: node degree — `i64`.
+    Degree { input: Box<ReadExpr> },
+    /// Terminal: in-degree — `i64`.
+    InDegree { input: Box<ReadExpr> },
+    /// Terminal: out-degree — `i64`.
+    OutDegree { input: Box<ReadExpr> },
+    /// Terminal: node name — `String`.
+    Name { input: Box<ReadExpr> },
+
+    // ============ Compound terminals on Graph or Node → Option<i64> ============
+    // Server returns an `EventTime` object; we query `<field> { timestamp }`
+    // and unwrap the (possibly-null) `timestamp` field.
+    /// Terminal: earliest event time — `Option<i64>`. Works on Graph and Node.
+    EarliestTime { input: Box<ReadExpr> },
+    /// Terminal: latest event time — `Option<i64>`. Works on Graph and Node.
+    LatestTime { input: Box<ReadExpr> },
+    /// Terminal: view start bound — `Option<i64>`. Works on Graph and Node.
+    Start { input: Box<ReadExpr> },
+    /// Terminal: view end bound — `Option<i64>`. Works on Graph and Node.
+    End { input: Box<ReadExpr> },
+    /// Terminal: earliest edge event time under this view — `Option<i64>`. Graph only.
+    EarliestEdgeTime { input: Box<ReadExpr> },
+    /// Terminal: latest edge event time under this view — `Option<i64>`. Graph only.
+    LatestEdgeTime { input: Box<ReadExpr> },
+    /// Terminal: first update time on this node — `Option<i64>`. Node only.
+    FirstUpdate { input: Box<ReadExpr> },
+    /// Terminal: last update time on this node — `Option<i64>`. Node only.
+    LastUpdate { input: Box<ReadExpr> },
+    /// Terminal: the time an edge event occurred — `Option<i64>`. Edge only.
+    /// Server field is `Result<GqlEventTime, GraphError>`; the client treats
+    /// server-side errors as `ClientError::GraphQLErrors`.
+    Time { input: Box<ReadExpr> },
+
+    // ============ Graph scalar terminals ============
+    /// Terminal: check if a node with `id` exists in the view — `bool`.
+    HasNode { input: Box<ReadExpr>, id: String },
+    /// Terminal: check if an edge with `(src, dst)` exists in the view — `bool`.
+    HasEdge {
+        input: Box<ReadExpr>,
+        src: String,
+        dst: String,
+    },
+    /// Terminal: total count of temporal edges (edge updates) — `i64`.
+    CountTemporalEdges { input: Box<ReadExpr> },
+    /// Terminal: graph path — `String`.
+    Path { input: Box<ReadExpr> },
+    /// Terminal: parent namespace of the graph path — `String`.
+    Namespace { input: Box<ReadExpr> },
+    /// Terminal: graph creation timestamp — `i64` (metadata, always set).
+    Created { input: Box<ReadExpr> },
+    /// Terminal: graph last-opened timestamp — `i64` (metadata, always set).
+    LastOpened { input: Box<ReadExpr> },
+    /// Terminal: graph last-updated timestamp — `i64` (metadata, always set).
+    LastUpdated { input: Box<ReadExpr> },
+    /// Terminal: layer names present in this graph — `Vec<String>`.
+    UniqueLayers { input: Box<ReadExpr> },
+    /// Terminal: does this view contain a layer with the given `name`? — `bool`.
+    /// Polymorphic across Graph/Node/Edge and the node/edge collections.
+    /// Server field: `hasLayer(name: String!)`.
+    HasLayer { input: Box<ReadExpr>, name: String },
+    /// Terminal: the size of the window covered by this view (`end - start`),
+    /// or `None` for an unbounded view — `Option<i64>`. Polymorphic across
+    /// Graph/Node/Edge and the node/edge collections. Server field: `windowSize`.
+    WindowSize { input: Box<ReadExpr> },
+
+    // ============ Collection terminals (on Nodes/Edges collections) ============
+    /// Terminal on a Nodes collection: list of member ids — `Vec<String>`.
+    Ids { input: Box<ReadExpr> },
+    /// Terminal on a `PathFromGraph` collection: the nested list of member ids
+    /// — `Vec<Vec<String>>` (one inner list per source node). Renders
+    /// `list { ids }`: `PathFromGraph.list` is `[PathFromNode!]!`, and each
+    /// per-source `PathFromNode` yields its own flat `ids`. Parsed as
+    /// `Prop::List(Prop::List(Prop::Str))` (outer = per source, inner = ids).
+    NestedIds { input: Box<ReadExpr> },
+    /// Terminal on a `Nodes`/`PathFromNode` collection: the per-node degree
+    /// (number of incident edges) as a FLAT list — `Vec<i64>`. Renders
+    /// `degree`. Distinct from the scalar `Degree` (single node); this parses a
+    /// JSON int array via `expect_i64_list`.
+    CollectionDegree { input: Box<ReadExpr> },
+    /// Terminal on a `Nodes`/`PathFromNode` collection: per-node in-degree as a
+    /// FLAT list — `Vec<i64>`. Renders `inDegree`.
+    CollectionInDegree { input: Box<ReadExpr> },
+    /// Terminal on a `Nodes`/`PathFromNode` collection: per-node out-degree as a
+    /// FLAT list — `Vec<i64>`. Renders `outDegree`.
+    CollectionOutDegree { input: Box<ReadExpr> },
+    /// Terminal on a `Nodes`/`PathFromNode` collection: per-node count of
+    /// incident edge updates as a FLAT list — `Vec<i64>`. Renders
+    /// `edgeHistoryCount`.
+    CollectionEdgeHistoryCount { input: Box<ReadExpr> },
+    /// Terminal on a `PathFromGraph` collection: the NESTED per-node degree —
+    /// `Vec<Vec<i64>>` (one inner list per source node). Renders
+    /// `list { degree }`: `PathFromGraph.list` is `[PathFromNode!]!`, and each
+    /// per-source `PathFromNode` yields its own flat `degree`. Mirrors
+    /// `NestedIds`. Parsed via `expect_nested_i64_list`.
+    NestedDegree { input: Box<ReadExpr> },
+    /// Terminal on a `PathFromGraph` collection: the NESTED per-node in-degree —
+    /// `Vec<Vec<i64>>`. Renders `list { inDegree }`. Mirrors `NestedDegree`.
+    NestedInDegree { input: Box<ReadExpr> },
+    /// Terminal on a `PathFromGraph` collection: the NESTED per-node out-degree —
+    /// `Vec<Vec<i64>>`. Renders `list { outDegree }`. Mirrors `NestedDegree`.
+    NestedOutDegree { input: Box<ReadExpr> },
+    /// Terminal on a `PathFromGraph` collection: the NESTED per-node count of
+    /// incident edge updates — `Vec<Vec<i64>>`. Renders
+    /// `list { edgeHistoryCount }`. Mirrors `NestedDegree`.
+    NestedEdgeHistoryCount { input: Box<ReadExpr> },
+    /// Terminal on a collection: number of members — `i64`.
+    /// Distinct from `CountNodes`/`CountEdges` (which are Graph-scope); this
+    /// fires against the collection's `count` field. Also polymorphic on
+    /// `RemoteHistory` — same server field name (`count`).
+    Count { input: Box<ReadExpr> },
+    /// Terminal on a `RemoteHistory` container: whether the history is empty
+    /// — `bool`. Server field name is `isEmpty`.
+    IsEmpty { input: Box<ReadExpr> },
+    /// Terminal on a `RemoteHistory` container: list all events in ascending
+    /// order — `Vec<RemoteEventTime>`. Server field is `list`; queries the
+    /// compound sub-fields `timestamp`, `dt`, `eventId` per record.
+    HistoryList { input: Box<ReadExpr> },
+    /// Terminal on a `RemoteHistory` container: list all events in descending
+    /// order — `Vec<RemoteEventTime>`. Server field is `listRev`.
+    HistoryListRev { input: Box<ReadExpr> },
+    /// Terminal on a `RemoteHistory` container: paginated list of events in
+    /// ascending order — `Vec<RemoteEventTime>`. `offset` and `page_index`
+    /// are optional; each defaults to 0 server-side.
+    HistoryPage {
+        input: Box<ReadExpr>,
+        limit: usize,
+        offset: Option<usize>,
+        page_index: Option<usize>,
+    },
+    /// Terminal on a `RemoteHistory` container: paginated list of events in
+    /// descending order — `Vec<RemoteEventTime>`. Same args as `HistoryPage`.
+    HistoryPageRev {
+        input: Box<ReadExpr>,
+        limit: usize,
+        offset: Option<usize>,
+        page_index: Option<usize>,
+    },
+
+    // ============ RemoteHistory sub-container selection ============
+    /// Navigate to the timestamps view of a history. History → HistoryTimestamps.
+    /// Server field: `timestamps`.
+    HistoryTimestamps { input: Box<ReadExpr> },
+    /// Navigate to the event-id view of a history. History → HistoryEventIds.
+    /// Server field: `eventId`.
+    HistoryEventIds { input: Box<ReadExpr> },
+    /// Navigate to the datetime view of a history. History → HistoryDateTimes.
+    /// Server field: `datetimes` (no format arg — server default RFC 3339).
+    HistoryDateTimes { input: Box<ReadExpr> },
+    /// Navigate to the intervals view of a history — inter-event gaps.
+    /// History → HistoryIntervals. Server field: `intervals`.
+    HistoryIntervals { input: Box<ReadExpr> },
+
+    // ============ Sub-container list/page terminals (polymorphic) ============
+    // These four variants render as `list` / `listRev` / `page(...)` /
+    // `pageRev(...)` on the underlying sub-container. Return type is
+    // determined by `parse_read` based on the parent selection variant:
+    // int list for Timestamps/EventIds/Intervals, string list for DateTimes.
+    /// Terminal on any sub-container: list in ascending order.
+    SubList { input: Box<ReadExpr> },
+    /// Terminal on any sub-container: list in descending order.
+    SubListRev { input: Box<ReadExpr> },
+    /// Terminal on any sub-container: paginated ascending list.
+    SubPage {
+        input: Box<ReadExpr>,
+        limit: usize,
+        offset: Option<usize>,
+        page_index: Option<usize>,
+    },
+    /// Terminal on any sub-container: paginated descending list.
+    SubPageRev {
+        input: Box<ReadExpr>,
+        limit: usize,
+        offset: Option<usize>,
+        page_index: Option<usize>,
+    },
+
+    // ============ Intervals scalar stats ============
+    /// Terminal on `HistoryIntervals`: mean of inter-event gaps. `Option<f64>`.
+    IntervalsMean { input: Box<ReadExpr> },
+    /// Terminal on `HistoryIntervals`: median of inter-event gaps. `Option<i64>`.
+    IntervalsMedian { input: Box<ReadExpr> },
+    /// Terminal on `HistoryIntervals`: max inter-event gap. `Option<i64>`.
+    IntervalsMax { input: Box<ReadExpr> },
+    /// Terminal on `HistoryIntervals`: min inter-event gap. `Option<i64>`.
+    IntervalsMin { input: Box<ReadExpr> },
+    /// Terminal on an Edges collection: list of (src, dst) pairs.
+    /// Returned as `Prop::List(Prop::List(Prop::Str, Prop::Str), ...)` on the
+    /// wire — each outer element is a 2-element inner list `[src, dst]`.
+    /// Distinct from `Ids` (nodes) because edges have no single-string id;
+    /// they're identified by the pair.
+    EdgesList { input: Box<ReadExpr> },
+    /// Terminal on a `NestedEdges` collection: the nested list of (src, dst)
+    /// pairs — one inner list per source node. Renders
+    /// `list { list { src { name } dst { name } } }`: `NestedEdges.list` is
+    /// `[Edges!]!`, and each per-source `Edges` yields its own flat edge list.
+    /// Parsed as `Prop::List(Prop::List(Prop::List(Prop::Str, Prop::Str)))`
+    /// (outer = per source, middle = that source's edges, inner = `[src, dst]`).
+    /// Mirrors `EdgesList`, one level deeper.
+    NestedEdgesList { input: Box<ReadExpr> },
+    /// Terminal on an *exploded* `Edges` collection: each member's full event
+    /// identity, fetched in ONE RPC so the handle pins can't skew against a
+    /// concurrent write. Renders
+    /// `list { src { name } dst { name } time { timestamp eventId } layerName }`.
+    /// Parsed as an outer `Prop::List` with one 5-element inner list per
+    /// member: `[src, dst, timestamp, event_id, layer_name]` (`Str, Str, I64,
+    /// I64, Str`). Used by `collect()` on exploded collections to build
+    /// `EdgeEvent`-pinned handles.
+    ExplodedEdgesList { input: Box<ReadExpr> },
+    /// Terminal on an exploded `NestedEdges` collection: the nested variant of
+    /// `ExplodedEdgesList` — one inner list per source node. Renders
+    /// `list { list { src { name } dst { name } time { timestamp eventId } layerName } }`.
+    NestedExplodedEdgesList { input: Box<ReadExpr> },
+    /// Terminal on a layer-exploded `Edges` collection: one `(src, dst, layer)`
+    /// per member. Renders `list { src { name } dst { name } layerName }`. Used
+    /// by `collect()` to pin each layer instance (no time — `explodeLayers`
+    /// members have a layer but not a single event time).
+    ExplodedLayersEdgesList { input: Box<ReadExpr> },
+    /// Nested variant of `ExplodedLayersEdgesList` — one inner list per source
+    /// node. Renders `list { list { src { name } dst { name } layerName } }`.
+    NestedExplodedLayersEdgesList { input: Box<ReadExpr> },
+
+    // ============ Columnar accessors on collections (via `list { field }`) ============
+    // Each renders `list { <field> }` on a flat collection (`Nodes` /
+    // `PathFromNode` / `Edges`) and reads the per-element scalar back into a
+    // flat `Prop::List`. The `Nested*` variants render `list { list { <field> } }`
+    // on a nested collection (`PathFromGraph` / `NestedEdges`) and produce a
+    // per-source `Prop::List(Prop::List(..))`. All open ONE net brace (the
+    // outer `list`); inner groups are self-balanced. Optional scalars use the
+    // `Prop::List` wrapper convention: `[]` = None, `[x]` = Some(x).
+    /// FLAT: per-node `name` — `Vec<String>`. Renders `list { name }`.
+    CollectionNames { input: Box<ReadExpr> },
+    /// FLAT: per-node `nodeType` — `Vec<Option<String>>`. Renders `list { nodeType }`.
+    CollectionNodeTypes { input: Box<ReadExpr> },
+    /// FLAT: per-edge `layerNames` — `Vec<Vec<String>>`. Renders `list { layerNames }`.
+    CollectionLayerNames { input: Box<ReadExpr> },
+    /// FLAT: per-edge `layerName` — `Vec<String>` (exploded edges only; the
+    /// server field is `Result`, surfacing as a GraphQL error otherwise).
+    /// Renders `list { layerName }`.
+    CollectionLayerName { input: Box<ReadExpr> },
+    /// FLAT: per-edge `earliestTime` — `Vec<Option<EventTime>>`. Renders
+    /// `list { earliestTime { timestamp datetime eventId } }`.
+    CollectionEarliestTime { input: Box<ReadExpr> },
+    /// FLAT: per-edge `latestTime` — `Vec<Option<EventTime>>`.
+    CollectionLatestTime { input: Box<ReadExpr> },
+    /// FLAT: per-edge `time` — `Vec<Option<EventTime>>` (exploded edges only).
+    CollectionTime { input: Box<ReadExpr> },
+    /// NESTED: per-source per-node `name` — `Vec<Vec<String>>`. Renders
+    /// `list { list { name } }`.
+    NestedNames { input: Box<ReadExpr> },
+    /// NESTED: per-source per-node `nodeType` — `Vec<Vec<Option<String>>>`.
+    NestedNodeTypes { input: Box<ReadExpr> },
+    /// NESTED: per-source per-edge `layerNames` — `Vec<Vec<Vec<String>>>`.
+    NestedLayerNames { input: Box<ReadExpr> },
+    /// NESTED: per-source per-edge `layerName` — `Vec<Vec<String>>` (exploded only).
+    NestedLayerName { input: Box<ReadExpr> },
+    /// NESTED: per-source per-edge `earliestTime` — `Vec<Vec<Option<EventTime>>>`.
+    NestedEarliestTime { input: Box<ReadExpr> },
+    /// NESTED: per-source per-edge `latestTime` — `Vec<Vec<Option<EventTime>>>`.
+    NestedLatestTime { input: Box<ReadExpr> },
+    /// NESTED: per-source per-edge `time` — `Vec<Vec<Option<EventTime>>>` (exploded only).
+    NestedTime { input: Box<ReadExpr> },
+    /// FLAT: per-edge `isActive` — `Vec<bool>`. Renders `list { isActive }`.
+    CollectionIsActive { input: Box<ReadExpr> },
+    /// FLAT: per-edge `isValid` — `Vec<bool>`. Renders `list { isValid }`.
+    CollectionIsValid { input: Box<ReadExpr> },
+    /// FLAT: per-edge `isDeleted` — `Vec<bool>`. Renders `list { isDeleted }`.
+    CollectionIsDeleted { input: Box<ReadExpr> },
+    /// FLAT: per-edge `isSelfLoop` — `Vec<bool>`. Renders `list { isSelfLoop }`.
+    CollectionIsSelfLoop { input: Box<ReadExpr> },
+    /// NESTED: per-source per-edge `isActive` — `Vec<Vec<bool>>`. Renders
+    /// `list { list { isActive } }`.
+    NestedIsActive { input: Box<ReadExpr> },
+    /// NESTED: per-source per-edge `isValid` — `Vec<Vec<bool>>`.
+    NestedIsValid { input: Box<ReadExpr> },
+    /// NESTED: per-source per-edge `isDeleted` — `Vec<Vec<bool>>`.
+    NestedIsDeleted { input: Box<ReadExpr> },
+    /// NESTED: per-source per-edge `isSelfLoop` — `Vec<Vec<bool>>`.
+    NestedIsSelfLoop { input: Box<ReadExpr> },
+
+    // ============ Columnar property / metadata containers on collections ============
+    // These descend into each collection member's `metadata` / `properties`
+    // container and fetch all `{key, value}` entries, so the client can pivot
+    // them into per-key columns (one value per member, `None` where a member
+    // lacks the key). FLAT variants render `list { <container> { values { key
+    // value } } }` on `Nodes` / `Edges` / `PathFromNode`; NESTED variants render
+    // `list { list { <container> { values { key value } } } }` on `PathFromGraph`
+    // / `NestedEdges`. Each opens ONE net brace (the outer `list`); inner groups
+    // self-balance. For `properties`, temporal values collapse to their latest
+    // under the current view — matching the local columnar property views.
+    /// FLAT: each member's metadata entries — one `[{key, value}]` per member.
+    CollectionMetadataValues { input: Box<ReadExpr> },
+    /// FLAT: each member's property entries (temporal → latest).
+    CollectionPropertiesValues { input: Box<ReadExpr> },
+    /// NESTED: per-source per-member metadata entries.
+    NestedMetadataValues { input: Box<ReadExpr> },
+    /// NESTED: per-source per-member property entries (temporal → latest).
+    NestedPropertiesValues { input: Box<ReadExpr> },
+
+    // ============ Node scalar terminals ============
+    /// Terminal: node id — `String` (server may return int-like GID; treated as string).
+    Id { input: Box<ReadExpr> },
+    /// Terminal: node type — `Option<String>` (null if not set).
+    NodeType { input: Box<ReadExpr> },
+    /// Terminal: whether the node has any events in the current view — `bool`.
+    /// Also polymorphic on Edge — same server field name.
+    IsActive { input: Box<ReadExpr> },
+    /// Terminal: count of temporal edge events on this node — `i64`.
+    EdgeHistoryCount { input: Box<ReadExpr> },
+
+    // ============ Edge scalar terminals ============
+    /// Terminal: edge id — pair of endpoint ids as `Vec<String>` of length 2.
+    /// Distinct from Node's `Id` (single string): server field is the same
+    /// name (`id`) but returns `Vec<GqlNodeId>` for edges.
+    EdgeIdPair { input: Box<ReadExpr> },
+    /// Terminal: layer names the edge is present in — `Vec<String>`.
+    LayerNames { input: Box<ReadExpr> },
+    /// Terminal: single layer name for a layer-restricted edge view — `String`.
+    /// Server field is `Result<String, GraphError>`; server-side error surfaces
+    /// as `ClientError::GraphQLErrors`.
+    LayerName { input: Box<ReadExpr> },
+    /// Terminal: whether the edge is valid at the current time — `bool`.
+    IsValid { input: Box<ReadExpr> },
+    /// Terminal: whether the edge has been deleted at the current time — `bool`.
+    IsDeleted { input: Box<ReadExpr> },
+    /// Terminal: whether the edge's `src == dst` — `bool`.
+    IsSelfLoop { input: Box<ReadExpr> },
+}
+
+/// How a collection has been fanned out into per-instance members, if at all.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Fanout {
+    /// One member per event (`explode`). Members are re-addressable as
+    /// handles via the server's `Edge.event` field.
+    Events,
+    /// One member per layer (`explodeLayers`). Members are re-addressable as
+    /// handles via the server's `Edge.eventLayer` field (pinned by layer name).
+    Layers,
+}
+
+/// The per-member pin `collect()` substitutes at the `Fanout` marker when
+/// materializing an exploded edge handle.
+#[derive(Clone, Debug)]
+pub enum EdgePin {
+    /// A time-exploded instance (`explode`) — pinned by `(time, event_id?)`,
+    /// optionally within `layer`. Renders `EdgeEvent`.
+    Event {
+        time: i64,
+        event_id: Option<i64>,
+        layer: Option<String>,
+    },
+    /// A layer-exploded instance (`explodeLayers`) — pinned by layer name.
+    /// Renders `EdgeLayerEvent`.
+    Layer { layer: String },
+}
+
+/// One collection-level operation deferred for replay onto materialized
+/// entity handles. `collect()` rebuilds each member as a fresh entity
+/// selection (`node(id)` / `edge(src, dst)`) anchored on the parent graph
+/// view, then replays these ops in application order, so the handle
+/// evaluates under the same composed view as collection-level reads.
+///
+/// Order is load-bearing: filters capture the view they were created on, so
+/// `.filter(f).window(w)` and `.window(w).filter(f)` differ for temporal
+/// property filters — replay must preserve the user's call order.
+#[derive(Clone)]
+pub enum HandleOp {
+    /// A pure view op (window / layer / at / …). Stores the same `ReadExpr`
+    /// constructor the collection applied to its own `expr`, so replay is
+    /// definitionally identical. Every collection view op has a same-named
+    /// server field on `Node` and `Edge`, so replay always renders.
+    View(Arc<dyn Fn(ReadExpr) -> ReadExpr + Send + Sync>),
+    /// An anchor-relative node filter. Replays as `filter(expr:)` on node
+    /// handles and `filterNodes(expr:)` on edge handles.
+    NodeFilter(GqlNodeFilter),
+    /// An anchor-relative edge filter. Replays as `filter(expr:)` on edge
+    /// handles and `filterEdges(expr:)` on node handles.
+    EdgeFilter(GqlEdgeFilter),
+    /// Positional marker recording where `explode` / `explodeLayers` was
+    /// applied in the op chain. Ops before the marker shape the view the
+    /// instances were enumerated from; ops after it wrap the pinned handle.
+    /// `collect()` substitutes each member's `EdgeEvent` pin at this position.
+    Fanout(Fanout),
+}
+
+/// Materialization context carried by every remote collection and entity
+/// handle. `graph` is the view chain accumulated *before* entering the
+/// collection (graph-level ops); `ops` are the collection-level ops applied
+/// *after* it, replayed per member by `collect()`. Flows down unchanged into
+/// child collections (`.neighbours()`, `.edges()`, …) so filters keep
+/// propagating to descendants exactly like the local one-hop semantics.
+#[derive(Clone)]
+pub struct HandleCtx {
+    /// The parent graph view under which the collection lives.
+    pub graph: ReadExpr,
+    /// Ordered entity-level ops to replay when materializing handles.
+    pub ops: Vec<HandleOp>,
+}
+
+impl HandleCtx {
+    pub fn new(graph: ReadExpr) -> Self {
+        Self {
+            graph,
+            ops: Vec::new(),
+        }
+    }
+
+    /// A copy of this context with one more op appended.
+    pub fn with_op(&self, op: HandleOp) -> Self {
+        let mut ops = self.ops.clone();
+        ops.push(op);
+        Self {
+            graph: self.graph.clone(),
+            ops,
+        }
+    }
+
+    /// The first fanout marker in the op chain, if any. Later markers are
+    /// no-ops server-side (exploding an already-pinned instance yields
+    /// itself), so only the first decides how `collect()` materializes.
+    pub fn fanout(&self) -> Option<Fanout> {
+        self.ops.iter().find_map(|op| match op {
+            HandleOp::Fanout(f) => Some(*f),
+            _ => None,
+        })
+    }
+
+    /// Replay the op chain onto a single-node anchor. Fanout markers never
+    /// occur in node collections and are ignored.
+    pub fn node_handle_expr(&self, id: String) -> ReadExpr {
+        let mut expr = ReadExpr::Node {
+            input: Box::new(self.graph.clone()),
+            id,
+        };
+        for op in &self.ops {
+            expr = match op {
+                HandleOp::View(wrap) => wrap(expr),
+                HandleOp::NodeFilter(filter) => ReadExpr::FilterNodes {
+                    input: Box::new(expr),
+                    filter: filter.clone(),
+                },
+                HandleOp::EdgeFilter(filter) => ReadExpr::NodeFilterEdges {
+                    input: Box::new(expr),
+                    filter: filter.clone(),
+                },
+                HandleOp::Fanout(_) => expr,
+            };
+        }
+        expr
+    }
+
+    /// Replay the op chain onto a single-edge anchor, optionally pinning an
+    /// event at the position of the first fanout marker. `event` is
+    /// `(time, event_id, layer)` as fetched by `ExplodedEdgesList`; callers
+    /// materializing a non-exploded collection pass `None`.
+    pub fn edge_handle_expr(&self, src: String, dst: String, pin: Option<EdgePin>) -> ReadExpr {
+        let mut expr = ReadExpr::Edge {
+            input: Box::new(self.graph.clone()),
+            src,
+            dst,
+        };
+        let mut pin = pin;
+        for op in &self.ops {
+            expr = match op {
+                HandleOp::View(wrap) => wrap(expr),
+                HandleOp::EdgeFilter(filter) => ReadExpr::FilterEdges {
+                    input: Box::new(expr),
+                    filter: filter.clone(),
+                },
+                HandleOp::NodeFilter(filter) => ReadExpr::EdgeFilterNodes {
+                    input: Box::new(expr),
+                    filter: filter.clone(),
+                },
+                HandleOp::Fanout(_) => match pin.take() {
+                    Some(EdgePin::Event {
+                        time,
+                        event_id,
+                        layer,
+                    }) => ReadExpr::EdgeEvent {
+                        input: Box::new(expr),
+                        time,
+                        event_id,
+                        layer,
+                    },
+                    Some(EdgePin::Layer { layer }) => ReadExpr::EdgeLayerEvent {
+                        input: Box::new(expr),
+                        layer,
+                    },
+                    None => expr,
+                },
+            };
+        }
+        expr
+    }
+}
+
+/// Sort-key variant for `SortedNodes`. Mirrors the server's `NodeSortBy`
+/// input object. Exactly one of `id` / `time` / `property` should be set per
+/// entry; the client-side Python constructors enforce this at build time.
+#[derive(Clone, Debug)]
+pub struct NodeSortBy {
+    pub reverse: Option<bool>,
+    pub id: Option<bool>,
+    pub time: Option<SortByTime>,
+    pub property: Option<String>,
+}
+
+/// Sort-key variant for `SortedEdges`. Mirrors the server's `EdgeSortBy`
+/// input object. Adds `src` / `dst` to the node key set.
+#[derive(Clone, Debug)]
+pub struct EdgeSortBy {
+    pub reverse: Option<bool>,
+    pub src: Option<bool>,
+    pub dst: Option<bool>,
+    pub time: Option<SortByTime>,
+    pub property: Option<String>,
+}
+
+/// Which time boundary of a member to sort by. Mirrors the server enum.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SortByTime {
+    Latest,
+    Earliest,
+}
+
+/// Write operations. Each variant is a self-contained command with all its
+/// arguments upfront — no composition, no wrapping.
+pub enum WriteOp {
+    // On the graph — single mutations
+    AddNode(AddNode),
+    CreateNode(CreateNode),
+    AddEdge(AddEdge),
+    AddGraphProperty(AddGraphProperty),
+    AddGraphMetadata(AddGraphMetadata),
+    UpdateGraphMetadata(UpdateGraphMetadata),
+    DeleteEdge(DeleteEdge),
+
+    // On the graph — batch mutations
+    AddNodes(AddNodes),
+    AddEdges(AddEdges),
+
+    // On a node
+    SetNodeType(SetNodeType),
+    AddNodeUpdates(AddNodeUpdates),
+    AddNodeMetadata(AddNodeMetadata),
+    UpdateNodeMetadata(UpdateNodeMetadata),
+
+    // On an edge (via `RemoteEdge` handle — GraphQL path is
+    // `updateGraph.edge(src, dst).xxx`, distinct from graph-scope mutations)
+    AddEdgeUpdates(AddEdgeUpdates),
+    DeleteEdgeAtTime(DeleteEdgeAtTime),
+    AddEdgeMetadata(AddEdgeMetadata),
+    UpdateEdgeMetadata(UpdateEdgeMetadata),
+}
+
+/// Arguments for `RemoteGraph::add_node`.
+pub struct AddNode {
+    pub path: String,
+    pub time: i64,
+    pub id: String,
+    pub properties: Option<HashMap<String, Prop>>,
+    pub node_type: Option<String>,
+    pub layer: Option<String>,
+}
+
+/// Arguments for `RemoteGraph::create_node`. Same as `AddNode` minus `layer` —
+/// distinct because it maps to the server's `createNode` mutation which fails
+/// if the node already exists (vs `addNode` which is upsert-like).
+pub struct CreateNode {
+    pub path: String,
+    pub time: i64,
+    pub id: String,
+    pub properties: Option<HashMap<String, Prop>>,
+    pub node_type: Option<String>,
+}
+
+/// Arguments for `RemoteGraph::add_edge`.
+pub struct AddEdge {
+    pub path: String,
+    pub time: i64,
+    pub src: String,
+    pub dst: String,
+    pub properties: Option<HashMap<String, Prop>>,
+    pub layer: Option<String>,
+}
+
+/// Arguments for `RemoteGraph::add_properties` — adds temporal properties on
+/// the graph itself (not on a node/edge). `event_id` locks the secondary index
+/// explicitly (sent as the `{timestamp, eventId}` time-input object); `None`
+/// lets the server auto-increment.
+pub struct AddGraphProperty {
+    pub path: String,
+    pub time: i64,
+    pub event_id: Option<usize>,
+    pub properties: HashMap<String, Prop>,
+}
+
+/// Arguments for `RemoteGraph::add_metadata` — adds (non-temporal) metadata on
+/// the graph itself.
+pub struct AddGraphMetadata {
+    pub path: String,
+    pub properties: HashMap<String, Prop>,
+}
+
+/// Arguments for `RemoteGraph::update_metadata` — overwrites existing metadata
+/// on the graph.
+pub struct UpdateGraphMetadata {
+    pub path: String,
+    pub properties: HashMap<String, Prop>,
+}
+
+/// Arguments for `RemoteGraph::delete_edge`. Marks the edge as deleted at the
+/// given time (optionally on a specific layer).
+pub struct DeleteEdge {
+    pub path: String,
+    pub time: i64,
+    pub src: String,
+    pub dst: String,
+    pub layer: Option<String>,
+}
+
+/// Arguments for `RemoteNode::set_node_type` — sets the node's type (only
+/// works if the type has not been previously set).
+pub struct SetNodeType {
+    pub path: String,
+    pub id: String,
+    pub new_type: String,
+}
+
+/// Arguments for `RemoteNode::add_updates` — adds temporal updates to a node
+/// at a specific time.
+pub struct AddNodeUpdates {
+    pub path: String,
+    pub id: String,
+    pub time: i64,
+    pub properties: Option<HashMap<String, Prop>>,
+}
+
+/// Arguments for `RemoteNode::add_metadata` — adds non-temporal metadata to a
+/// specific node.
+pub struct AddNodeMetadata {
+    pub path: String,
+    pub id: String,
+    pub properties: HashMap<String, Prop>,
+}
+
+/// Arguments for `RemoteNode::update_metadata` — overwrites existing metadata
+/// on a specific node.
+pub struct UpdateNodeMetadata {
+    pub path: String,
+    pub id: String,
+    pub properties: HashMap<String, Prop>,
+}
+
+/// Arguments for `RemoteEdge::add_updates` — adds temporal updates to an
+/// existing edge at a specific time.
+pub struct AddEdgeUpdates {
+    pub path: String,
+    pub src: String,
+    pub dst: String,
+    pub time: i64,
+    pub properties: Option<HashMap<String, Prop>>,
+    pub layer: Option<String>,
+}
+
+/// Arguments for `RemoteEdge::delete` — marks an edge as deleted at a specific
+/// time. Distinct from graph-scope `DeleteEdge` because it uses the nested
+/// `updateGraph.edge(src,dst).delete(time, layer)` mutation.
+pub struct DeleteEdgeAtTime {
+    pub path: String,
+    pub src: String,
+    pub dst: String,
+    pub time: i64,
+    pub layer: Option<String>,
+}
+
+/// Arguments for `RemoteEdge::add_metadata` — adds non-temporal metadata to a
+/// specific edge (optionally on a specific layer).
+pub struct AddEdgeMetadata {
+    pub path: String,
+    pub src: String,
+    pub dst: String,
+    pub properties: HashMap<String, Prop>,
+    pub layer: Option<String>,
+}
+
+/// Arguments for `RemoteEdge::update_metadata` — overwrites existing metadata
+/// on a specific edge (optionally on a specific layer).
+pub struct UpdateEdgeMetadata {
+    pub path: String,
+    pub src: String,
+    pub dst: String,
+    pub properties: HashMap<String, Prop>,
+    pub layer: Option<String>,
+}
+
+// ============ Batch mutation types ============
+
+/// Arguments for `RemoteGraph::add_nodes` — batch node updates.
+pub struct AddNodes {
+    pub path: String,
+    pub nodes: Vec<NodeAddition>,
+}
+
+/// Arguments for `RemoteGraph::add_edges` — batch edge updates.
+pub struct AddEdges {
+    pub path: String,
+    pub edges: Vec<EdgeAddition>,
+}
+
+/// One node in a batch add. `metadata` = non-temporal props; `updates` =
+/// temporal events attached to the node at specific times.
+pub struct NodeAddition {
+    pub name: String,
+    pub node_type: Option<String>,
+    pub metadata: Option<HashMap<String, Prop>>,
+    pub updates: Option<Vec<TemporalUpdate>>,
+}
+
+/// One edge in a batch add.
+pub struct EdgeAddition {
+    pub src: String,
+    pub dst: String,
+    pub layer: Option<String>,
+    pub metadata: Option<HashMap<String, Prop>>,
+    pub updates: Option<Vec<TemporalUpdate>>,
+}
+
+/// A temporal update on a node or edge — property values attached at a
+/// specific event time.
+pub struct TemporalUpdate {
+    pub time: i64,
+    pub properties: Option<HashMap<String, Prop>>,
+}
+
+// ============ Serialize impls for batch mutation types ============
+// These produce the JSON shape the Jinja templates in `graphql_transport.rs`
+// expect: `metadata` and `properties` render as `[{ key, value }, ...]` where
+// `value` is the pre-baked GraphQL syntax string produced by `inner_collection`
+// (e.g. `{ str: "foo" }`, `{ i64: 3 }`).
+
+impl Serialize for TemporalUpdate {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        // Every Option field is emitted (as JSON `null` when absent) rather
+        // than skipped: a skipped field renders as `undefined` in the Jinja
+        // templates, and minijinja's `X is not none` test is *true* for
+        // `undefined`, so an absent field would leak into the query.
+        let mut state = serializer.serialize_struct("TemporalUpdate", 2)?;
+        state.serialize_field("time", &self.time)?;
+        match &self.properties {
+            Some(props) => {
+                let items: Vec<serde_json::Value> = props
+                    .iter()
+                    .map(|(k, v)| Ok(json!({ "key": k, "value": inner_collection(v)? })))
+                    .collect::<Result<_, ClientError>>()
+                    .map_err(serde::ser::Error::custom)?;
+                state.serialize_field("properties", &items)?;
+            }
+            None => state.serialize_field("properties", &json!(null))?,
+        }
+        state.end()
+    }
+}
+
+impl Serialize for NodeAddition {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        // Emit every Option field (null when absent); see `TemporalUpdate`.
+        let mut state = serializer.serialize_struct("NodeAddition", 4)?;
+        state.serialize_field("name", &self.name)?;
+        state.serialize_field("node_type", &self.node_type)?;
+        match &self.metadata {
+            Some(meta) => {
+                let items: Vec<serde_json::Value> = meta
+                    .iter()
+                    .map(|(k, v)| Ok(json!({ "key": k, "value": inner_collection(v)? })))
+                    .collect::<Result<_, ClientError>>()
+                    .map_err(serde::ser::Error::custom)?;
+                state.serialize_field("metadata", &items)?;
+            }
+            None => state.serialize_field("metadata", &json!(null))?,
+        }
+        match &self.updates {
+            Some(updates) => state.serialize_field("updates", updates)?,
+            None => state.serialize_field("updates", &json!(null))?,
+        }
+        state.end()
+    }
+}
+
+impl Serialize for EdgeAddition {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        // Emit every Option field (null when absent); see `TemporalUpdate`.
+        let mut state = serializer.serialize_struct("EdgeAddition", 5)?;
+        state.serialize_field("src", &self.src)?;
+        state.serialize_field("dst", &self.dst)?;
+        state.serialize_field("layer", &self.layer)?;
+        match &self.metadata {
+            Some(meta) => {
+                let items: Vec<serde_json::Value> = meta
+                    .iter()
+                    .map(|(k, v)| Ok(json!({ "key": k, "value": inner_collection(v)? })))
+                    .collect::<Result<_, ClientError>>()
+                    .map_err(serde::ser::Error::custom)?;
+                state.serialize_field("metadata", &items)?;
+            }
+            None => state.serialize_field("metadata", &json!(null))?,
+        }
+        match &self.updates {
+            Some(updates) => state.serialize_field("updates", updates)?,
+            None => state.serialize_field("updates", &json!(null))?,
+        }
+        state.end()
+    }
+}

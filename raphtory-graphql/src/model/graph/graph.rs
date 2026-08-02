@@ -7,6 +7,7 @@ use crate::{
             edges::GqlEdges,
             filtering::{GqlEdgeFilter, GqlGraphFilter, GqlNodeFilter, GraphViewCollection},
             index::GqlIndexSpec,
+            mutable_graph::{as_properties, GqlPropertyInput},
             node::GqlNode,
             node_id::GqlNodeId,
             nodes::GqlNodes,
@@ -48,8 +49,9 @@ use raphtory::{
     prelude::*,
 };
 use raphtory_api::core::{storage::timeindex::AsTime, utils::time::IntoTime};
+use raphtory_storage::core_ops::CoreGraphOps;
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     convert::{Into, TryInto},
     sync::Arc,
 };
@@ -410,6 +412,18 @@ impl GqlGraph {
         Ok(self.graph.end().into())
     }
 
+    /// Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
+    async fn window_size(&self) -> Option<i64> {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.graph.window_size().map(|s| s as i64)).await
+    }
+
+    /// Check if a layer with the given name is present in the graph.
+    async fn has_layer(&self, name: String) -> bool {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.graph.has_layer(name)).await
+    }
+
     /// The earliest time at which any edge in this graph is valid.
     ///
     /// * `includeNegative` — if false, edge events with a timestamp `< 0` are
@@ -677,6 +691,75 @@ impl GqlGraph {
             }
         })
         .await)
+    }
+
+    /// The nodes whose latest property value matches every `(key, value)`
+    /// entry in `propertiesDict`. Mirrors the local `Graph.find_nodes`.
+
+    async fn find_nodes(
+        &self,
+        #[graphql(desc = "`{key, value}` property entries every returned node must match.")]
+        properties_dict: Vec<GqlPropertyInput>,
+    ) -> Result<Vec<GqlNode>> {
+        let props: HashMap<String, Prop> = as_properties(properties_dict)?.collect();
+        let self_clone = self.clone();
+        Ok(blocking_compute(move || {
+            self_clone
+                .graph
+                .nodes()
+                .into_iter()
+                .filter(|n| {
+                    let node_props = n.properties();
+                    props
+                        .iter()
+                        .all(|(k, v)| node_props.get(k).as_ref() == Some(v))
+                })
+                .map(|n| n.into())
+                .collect()
+        })
+        .await)
+    }
+
+    /// The edges whose latest property value matches every `(key, value)`
+    /// entry in `propertiesDict`. Mirrors the local `Graph.find_edges`.
+
+    async fn find_edges(
+        &self,
+        #[graphql(desc = "`{key, value}` property entries every returned edge must match.")]
+        properties_dict: Vec<GqlPropertyInput>,
+    ) -> Result<Vec<GqlEdge>> {
+        let props: HashMap<String, Prop> = as_properties(properties_dict)?.collect();
+        let self_clone = self.clone();
+        Ok(blocking_compute(move || {
+            self_clone
+                .graph
+                .edges()
+                .into_iter()
+                .filter(|e| {
+                    let edge_props = e.properties();
+                    props
+                        .iter()
+                        .all(|(k, v)| edge_props.get(k).as_ref() == Some(v))
+                })
+                .map(|e| e.into())
+                .collect()
+        })
+        .await)
+    }
+
+    /// All node types present in the graph. Mirrors the local
+    /// `Graph.get_all_node_types`.
+    async fn get_all_node_types(&self) -> Vec<String> {
+        let self_clone = self.clone();
+        blocking_compute(move || {
+            self_clone
+                .graph
+                .get_all_node_types()
+                .into_iter()
+                .map(|t| t.to_string())
+                .collect()
+        })
+        .await
     }
 
     /// Copy all nodes and edges of the current graph view into another already-

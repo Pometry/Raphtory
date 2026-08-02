@@ -61,7 +61,8 @@ impl<'a> ResolveOwned<'a> for PermissionsPlugin {
     }
 }
 
-/// Read-only entry point for permissions queries (admin-gated via require_jwt_write_access_dynamic).
+/// Read-only entry point for permissions queries. Access is enforced per field:
+/// `listRoles`/`getRole` require write access, `myPermissions` is self-scoped.
 #[derive(Clone, Default)]
 pub struct PermissionsQueryPlugin;
 

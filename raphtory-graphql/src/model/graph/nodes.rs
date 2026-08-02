@@ -2,8 +2,10 @@ use crate::{
     model::{
         graph::{
             collection::{check_list_allowed, check_page_limit},
-            filtering::{GqlNodeFilter, NodesViewCollection},
+            filtering::{GqlEdgeFilter, GqlNodeFilter, NodesViewCollection},
+            nested_edges::GqlNestedEdges,
             node::GqlNode,
+            path_from_graph::GqlPathFromGraph,
             timeindex::{GqlEventTime, GqlTimeInput},
             windowset::GqlNodesWindowSet,
             GqlAlignmentUnit, WindowDuration,
@@ -20,11 +22,13 @@ use raphtory::{
     db::{
         api::{
             state::{ops::DynNodeFilter, Index},
-            view::{filter_ops::NodeSelect, DynamicGraph, Filter},
+            view::{filter_ops::NodeSelect, DynamicGraph, EdgeSelect, Filter},
         },
         graph::{
             nodes::{IntoDynNodes, Nodes},
-            views::filter::model::node_filter::CompositeNodeFilter,
+            views::filter::model::{
+                edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter,
+            },
         },
     },
     errors::GraphError,
@@ -404,6 +408,46 @@ impl GqlNodes {
         self.nn.end().into()
     }
 
+    /// Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
+    async fn window_size(&self) -> Option<i64> {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.nn.window_size().map(|s| s as i64)).await
+    }
+
+    /// Check if a layer with the given name is present in this view.
+    async fn has_layer(&self, name: String) -> bool {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.nn.has_layer(name)).await
+    }
+
+    ///////////////////
+    //// METRICS //////
+    ///////////////////
+
+    /// The degree (number of incident edges) of every node, in collection order.
+    async fn degree(&self) -> Vec<usize> {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.nn.degree().collect_vec()).await
+    }
+
+    /// The in-degree (number of incoming edges) of every node, in collection order.
+    async fn in_degree(&self) -> Vec<usize> {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.nn.in_degree().collect_vec()).await
+    }
+
+    /// The out-degree (number of outgoing edges) of every node, in collection order.
+    async fn out_degree(&self) -> Vec<usize> {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.nn.out_degree().collect_vec()).await
+    }
+
+    /// The number of edge updates incident to every node, in collection order.
+    async fn edge_history_count(&self) -> Vec<usize> {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.nn.edge_history_count().collect_vec()).await
+    }
+
     /////////////////
     //// List ///////
     /////////////////
@@ -519,5 +563,84 @@ impl GqlNodes {
             Ok(self_clone.update(filtered.into_dyn()))
         })
         .await
+    }
+
+    /////////////////////
+    //// Traversals /////
+    /////////////////////
+
+    /// Returns the neighbouring nodes of each node in the collection.
+    async fn neighbours(
+        &self,
+        select: Option<GqlNodeFilter>,
+    ) -> Result<GqlPathFromGraph, GraphError> {
+        let base = self.nn.neighbours();
+        if let Some(expr) = select {
+            let nf: CompositeNodeFilter = expr.try_into()?;
+            let narrowed = blocking_compute(move || base.select(nf)).await?;
+            return Ok(GqlPathFromGraph::new(narrowed));
+        }
+        Ok(GqlPathFromGraph::new(base))
+    }
+
+    /// Returns the in-neighbours of each node in the collection.
+    async fn in_neighbours(
+        &self,
+        select: Option<GqlNodeFilter>,
+    ) -> Result<GqlPathFromGraph, GraphError> {
+        let base = self.nn.in_neighbours();
+        if let Some(expr) = select {
+            let nf: CompositeNodeFilter = expr.try_into()?;
+            let narrowed = blocking_compute(move || base.select(nf)).await?;
+            return Ok(GqlPathFromGraph::new(narrowed));
+        }
+        Ok(GqlPathFromGraph::new(base))
+    }
+
+    /// Returns the out-neighbours of each node in the collection.
+    async fn out_neighbours(
+        &self,
+        select: Option<GqlNodeFilter>,
+    ) -> Result<GqlPathFromGraph, GraphError> {
+        let base = self.nn.out_neighbours();
+        if let Some(expr) = select {
+            let nf: CompositeNodeFilter = expr.try_into()?;
+            let narrowed = blocking_compute(move || base.select(nf)).await?;
+            return Ok(GqlPathFromGraph::new(narrowed));
+        }
+        Ok(GqlPathFromGraph::new(base))
+    }
+
+    /// Returns the incident edges (both directions) of each node in the collection.
+    async fn edges(&self, select: Option<GqlEdgeFilter>) -> Result<GqlNestedEdges, GraphError> {
+        let base = self.nn.edges();
+        if let Some(expr) = select {
+            let ef: CompositeEdgeFilter = expr.try_into()?;
+            let narrowed = blocking_compute(move || base.select(ef)).await?;
+            return Ok(GqlNestedEdges::new(narrowed));
+        }
+        Ok(GqlNestedEdges::new(base))
+    }
+
+    /// Returns the incoming edges of each node in the collection.
+    async fn in_edges(&self, select: Option<GqlEdgeFilter>) -> Result<GqlNestedEdges, GraphError> {
+        let base = self.nn.in_edges();
+        if let Some(expr) = select {
+            let ef: CompositeEdgeFilter = expr.try_into()?;
+            let narrowed = blocking_compute(move || base.select(ef)).await?;
+            return Ok(GqlNestedEdges::new(narrowed));
+        }
+        Ok(GqlNestedEdges::new(base))
+    }
+
+    /// Returns the outgoing edges of each node in the collection.
+    async fn out_edges(&self, select: Option<GqlEdgeFilter>) -> Result<GqlNestedEdges, GraphError> {
+        let base = self.nn.out_edges();
+        if let Some(expr) = select {
+            let ef: CompositeEdgeFilter = expr.try_into()?;
+            let narrowed = blocking_compute(move || base.select(ef)).await?;
+            return Ok(GqlNestedEdges::new(narrowed));
+        }
+        Ok(GqlNestedEdges::new(base))
     }
 }

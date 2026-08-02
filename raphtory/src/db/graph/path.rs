@@ -44,6 +44,28 @@ impl<'graph, G: GraphViewOps<'graph>> PathFromGraph<'graph, G> {
     }
 }
 
+impl<'graph, G: IntoDynamic> PathFromGraph<'graph, G> {
+    pub fn into_dyn(self) -> PathFromGraph<'graph, DynamicGraph> {
+        PathFromGraph {
+            base_graph: self.base_graph.into_dynamic(),
+            nodes: self.nodes,
+            op: self.op,
+        }
+    }
+}
+
+impl<G: StaticGraphViewOps + IntoDynamic + Static> From<PathFromGraph<'static, G>>
+    for PathFromGraph<'static, DynamicGraph>
+{
+    fn from(value: PathFromGraph<'static, G>) -> Self {
+        PathFromGraph {
+            base_graph: value.base_graph.into(),
+            nodes: value.nodes.clone(),
+            op: value.op.clone(),
+        }
+    }
+}
+
 impl<'graph, G: GraphViewOps<'graph>> PathFromGraph<'graph, G> {
     fn new_filtered<OP: Fn(VID) -> BoxedLIter<'graph, VID> + Send + Sync + 'graph>(
         base_graph: G,

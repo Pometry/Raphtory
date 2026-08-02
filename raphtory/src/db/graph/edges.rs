@@ -266,6 +266,28 @@ impl<'graph, G: GraphViewOps<'graph>> NestedEdges<'graph, G> {
     }
 }
 
+impl<'graph, G: IntoDynamic> NestedEdges<'graph, G> {
+    pub fn into_dyn(self) -> NestedEdges<'graph, DynamicGraph> {
+        NestedEdges {
+            graph: self.graph.into_dynamic(),
+            nodes: self.nodes,
+            edges: self.edges,
+        }
+    }
+}
+
+impl<G: StaticGraphViewOps + IntoDynamic + Static> From<NestedEdges<'static, G>>
+    for NestedEdges<'static, DynamicGraph>
+{
+    fn from(value: NestedEdges<'static, G>) -> Self {
+        NestedEdges {
+            graph: value.graph.into_dynamic(),
+            nodes: value.nodes,
+            edges: value.edges,
+        }
+    }
+}
+
 impl<'graph, Current> InternalFilter<'graph> for NestedEdges<'graph, Current>
 where
     Current: GraphViewOps<'graph>,

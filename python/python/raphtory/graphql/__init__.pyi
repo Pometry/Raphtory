@@ -194,6 +194,20 @@ class RaphtoryClient(object):
 
         """
 
+    def create_role(self, name: str) -> bool:
+        """
+        Create a role in the server's permissions store.
+
+        Requires an admin (write-access) token. Only available when the server
+        was started with a permissions store.
+
+        Arguments:
+            name (str): the name of the role to create
+
+        Returns:
+            bool: True if the role was created.
+        """
+
     def delete_graph(self, path: str) -> None:
         """
         Delete graph from a path path on the server
@@ -205,12 +219,123 @@ class RaphtoryClient(object):
             None:
         """
 
+    def delete_role(self, name: str) -> bool:
+        """
+        Delete a role from the server's permissions store.
+
+        Requires an admin (write-access) token.
+
+        Arguments:
+            name (str): the name of the role to delete
+
+        Returns:
+            bool: True if the role was deleted.
+        """
+
+    def get_role(self, name: str) -> dict[str, Any] | None:
+        """
+        Fetch a single role's grants by name.
+
+        Requires an admin (write-access) token.
+
+        Arguments:
+            name (str): the role to look up
+
+        Returns:
+            dict[str, Any] | None: a mapping with keys "name", "graphs" (list of
+            {"path", "permission"}) and "namespaces" (list of {"path", "permission"}),
+            or None if the role does not exist.
+        """
+
+    def grant_graph(self, role: str, path: str, permission: str) -> bool:
+        """
+        Grant a role access to a single graph.
+
+        Requires an admin (write-access) token.
+
+        Arguments:
+            role (str): the role to grant access to
+            path (str): the path of the graph
+            permission (str): one of "read", "write", "introspect" (case-insensitive)
+
+        Returns:
+            bool: True if the grant was applied.
+
+        Raises:
+            ValueError: if permission is not one of "read", "write", "introspect".
+        """
+
+    def grant_graph_filtered_read_only(
+        self,
+        role: str,
+        path: str,
+        filter: filter.FilterExpr,
+        hidden_properties: Optional[dict[str, list[str]]] = None,
+        hidden_metadata: Optional[dict[str, list[str]]] = None,
+    ) -> bool:
+        """
+        Grant a role read-only access to a graph, restricted by a filter.
+
+        The reader (a `{"access": "ro"}` token bearing this role) sees only the
+        nodes/edges matching filter, with the given property/metadata keys hidden.
+        Requires an admin (write-access) token.
+
+        Arguments:
+            role (str): the role to grant filtered access to
+            path (str): the path of the graph
+            filter (filter.FilterExpr): a filter expression from `raphtory.filter`; a node
+                filter restricts visible nodes, an edge filter restricts visible edges.
+            hidden_properties (dict[str, list[str]], optional): temporal property keys
+                to hide, keyed by "node", "edge", and/or "graph".
+            hidden_metadata (dict[str, list[str]], optional): metadata keys to hide,
+                keyed by "node", "edge", and/or "graph".
+
+        Returns:
+            bool: True if the grant was applied.
+
+        Raises:
+            ValueError: if the filter cannot be represented as a GraphQL node or
+                edge filter.
+        """
+
+    def grant_namespace(
+        self, role: str, path: str, permission: str, recursive: bool = False
+    ) -> bool:
+        """
+        Grant a role access to a namespace.
+
+        Requires an admin (write-access) token.
+
+        Arguments:
+            role (str): the role to grant access to
+            path (str): the namespace path
+            permission (str): one of "read", "write", "introspect" (case-insensitive)
+            recursive (bool): also grant every currently existing descendant of the
+                namespace individually. Defaults to False.
+
+        Returns:
+            bool: True if the grant was applied.
+
+        Raises:
+            ValueError: if permission is not one of "read", "write", "introspect".
+        """
+
     def is_server_online(self) -> bool:
         """
         Check if the server is online.
 
         Returns:
             bool: Returns true if server is online otherwise false.
+        """
+
+    def list_roles(self) -> list[str]:
+        """
+        List every role name in the server's permissions store.
+
+        Requires an admin (write-access) token.
+
+        Returns:
+            list[str]: the role names.
         """
 
     def move_graph(self, path: str, new_path: str) -> None:
@@ -223,6 +348,22 @@ class RaphtoryClient(object):
 
         Returns:
             None:
+        """
+
+    def my_permissions(self) -> dict[str, Any]:
+        """
+        Return this token's own permission grants.
+
+        Reads only what the calling role has been granted, so it never discloses
+        other roles or graphs. Available to any authenticated caller (does not
+        require an admin token). Only available when the server was started with a
+        permissions store.
+
+        Returns:
+            dict[str, Any]: a mapping with keys "role" (str or None), "graphs"
+            (list of {"path", "permission", "filtered"}) and "namespaces" (list of
+            {"path", "permission"}). "role" is None when the token carries no role
+            claim, in which case both lists are empty.
         """
 
     def new_graph(self, path: str, graph_type: Literal["EVENT", "PERSISTENT"]) -> None:
@@ -276,6 +417,38 @@ class RaphtoryClient(object):
         Returns:
             RemoteGraph: the remote graph reference
 
+        """
+
+    def revoke_graph(self, role: str, path: str) -> bool:
+        """
+        Revoke a role's access to a single graph.
+
+        Requires an admin (write-access) token.
+
+        Arguments:
+            role (str): the role to revoke access from
+            path (str): the path of the graph
+
+        Returns:
+            bool: True if the access was revoked.
+        """
+
+    def revoke_namespace(
+        self, role: str, path: str, recursive: bool = False
+    ) -> bool:
+        """
+        Revoke a role's access to a namespace.
+
+        Requires an admin (write-access) token.
+
+        Arguments:
+            role (str): the role to revoke access from
+            path (str): the namespace path
+            recursive (bool): also revoke every currently existing descendant of the
+                namespace individually. Defaults to False.
+
+        Returns:
+            bool: True if the access was revoked.
         """
 
     def send_graph(
@@ -440,7 +613,7 @@ class RemoteGraph(object):
 
     def edge(self, src: str | int, dst: str | int) -> RemoteEdge:
         """
-        Gets a remote edge with the specified source and destination nodes
+        Gets a remote edge with the specified source and destination nodes.
 
         Arguments:
             src (str | int): the source node id
@@ -452,7 +625,11 @@ class RemoteGraph(object):
 
     def node(self, id: str | int) -> RemoteNode:
         """
-        Gets a remote node with the specified id
+        Gets a remote node with the specified id.
+
+        Inherits any view chain built up on the parent `RemoteGraph` (e.g. after
+        `rg.window(...)`) so subsequent terminals like `degree()` evaluate under
+        the same view context.
 
         Arguments:
             id (str | int): the node id
@@ -470,6 +647,23 @@ class RemoteGraph(object):
 
         Returns:
             None:
+        """
+
+    def window(self, start: int, end: int) -> RemoteGraph:
+        """
+        Restrict the graph to a time window `[start, end)`.
+
+        Lazy: builds up a read expression on the returned `RemoteGraph` without
+        firing an RPC. Terminals invoked on child references (e.g.
+        `rg.window(0, 10).node("ben").degree()`) evaluate under the accumulated
+        view chain.
+
+        Arguments:
+            start (int): inclusive start of the window
+            end (int): exclusive end of the window
+
+        Returns:
+            RemoteGraph: a new remote graph view restricted to the window
         """
 
 class RemoteEdge(object):
@@ -576,6 +770,17 @@ class RemoteNode(object):
 
         Returns:
           None:
+        """
+
+    def degree(self) -> int:
+        """
+        Returns the degree of the node, evaluated under the current view chain
+        (e.g. under any `rg.window(...)` applied on the parent graph).
+
+        Fires one RPC to the server.
+
+        Returns:
+          int: the node's degree
         """
 
     def set_node_type(self, new_type: str) -> None:

@@ -1,4 +1,7 @@
-use crate::config::app_config::AppConfig;
+use crate::{
+    config::{app_config::AppConfig, auth_config::PublicKey},
+    data::{gql_error_with_code, CODE_ACCESS_DENIED},
+};
 use futures_util::future::BoxFuture;
 use jsonwebtoken::{Algorithm, DecodingKey};
 use async_graphql::{
@@ -408,8 +411,9 @@ pub fn require_jwt_write_access_dynamic(
     if ctx.data::<Access>().is_ok_and(|a| a == &Access::Rw) {
         Ok(())
     } else {
-        Err(async_graphql::Error::new(
+        Err(gql_error_with_code(
             "Access denied: write access required",
+            CODE_ACCESS_DENIED,
         ))
     }
 }

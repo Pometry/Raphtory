@@ -168,6 +168,44 @@ fn value_to_prop(value: Value) -> Result<Prop, GraphError> {
     }
 }
 
+impl TryFrom<&Prop> for Value {
+    type Error = GraphError;
+
+    fn try_from(prop: &Prop) -> Result<Self, Self::Error> {
+        prop_to_value(prop)
+    }
+}
+
+/// A `Prop` from the engine → GQL wire `Value`. Mirror of [`value_to_prop`];
+/// non-lossy for scalars. `Prop::Map` has no single wire `Value` representation.
+fn prop_to_value(p: &Prop) -> Result<Value, GraphError> {
+    Ok(match p {
+        Prop::Str(s) => Value::Str(s.to_string()),
+        Prop::U8(v) => Value::U8(*v),
+        Prop::U16(v) => Value::U16(*v),
+        Prop::U32(v) => Value::U32(*v),
+        Prop::U64(v) => Value::U64(*v),
+        Prop::I32(v) => Value::I32(*v),
+        Prop::I64(v) => Value::I64(*v),
+        Prop::F32(v) => Value::F32(*v),
+        Prop::F64(v) => Value::F64(*v),
+        Prop::Bool(v) => Value::Bool(*v),
+        Prop::NDTime(v) => Value::NDTime(v.to_string()),
+        Prop::DTime(v) => Value::DTime(v.to_rfc3339()),
+        Prop::Decimal(v) => Value::Decimal(v.to_string()),
+        Prop::List(arr) => {
+            let items: Result<Vec<Value>, GraphError> =
+                arr.iter().map(|p| prop_to_value(&p)).collect();
+            Value::List(items?)
+        }
+        Prop::Map(_) => {
+            return Err(GraphError::InvalidGqlFilter(
+                "map-valued prop not supported in filter conversion".into(),
+            ))
+        }
+    })
+}
+
 #[derive(Clone, Debug, Scalar)]
 #[graphql(name = "PropertyOutput")]
 pub struct GqlPropertyOutputVal(pub Prop);
@@ -561,6 +599,17 @@ impl GqlProperties {
         #[graphql(desc = "The property name to look up.")] key: String,
     ) -> bool {
         self.props.get(&key).is_some()
+    }
+
+    /// The data-type of the property's latest value by key, as its `PropType`
+    /// display string (e.g. `"I64"`, `"Str"`, `"List<F64>"`). Returns null when
+    /// the key isn't present. Mirrors the local `Properties.get_dtype_of`.
+
+    async fn get_dtype_of(
+        &self,
+        #[graphql(desc = "The property name.")] key: String,
+    ) -> Option<String> {
+        self.props.get(key.as_str()).map(|p| p.dtype().to_string())
     }
 
     /// All property keys present in the current view. Does not include metadata
