@@ -28,11 +28,23 @@ pub enum Access {
     Rw,
 }
 
+impl Default for Access {
+    /// Tokens from an external IdP (SSO/OIDC) carry no `access` claim; they are read-only and
+    /// subject to RBAC. Write/admin access requires an explicit `"access": "rw"`.
+    fn default() -> Self {
+        Access::Ro
+    }
+}
+
 #[derive(Deserialize, Debug, Clone)]
 pub(crate) struct TokenClaims {
-    pub(crate) access: Access,
+    /// Defaults to read-only when absent — external IdP tokens don't carry this claim.
     #[serde(default)]
-    pub(crate) role: Option<String>,
+    pub(crate) access: Access,
+    /// The `role` claim, either a string or an array of strings. Read via [`roles_from_value`]; a
+    /// custom claim name may be selected with `role_claim`.
+    #[serde(default)]
+    pub(crate) role: Option<serde_json::Value>,
     /// Every other claim in the token, kept verbatim so authorization policies can read claims
     /// this crate has no opinion about (`sub`, tenant identifiers, and so on).
     #[serde(flatten)]
@@ -193,9 +205,9 @@ where
     async fn call(&self, req: Request) -> Result<Self::Output> {
         // here ANY error when trying to validate the Authorization header is equivalent to it not being present at all
         let auth = &self.config.auth;
-        let (access, role, claim_values) = match &self.key_resolver {
+        let (access, roles, claim_values) = match &self.key_resolver {
             // if auth is not setup, we give write access to all requests
-            None => (Access::Rw, None, TokenClaimValues::default()),
+            None => (Access::Rw, Vec::new(), TokenClaimValues::default()),
             Some(resolver) => {
                 let claims = match req.header(AUTHORIZATION) {
                     Some(header) => {
@@ -211,9 +223,9 @@ where
                     None => None,
                 };
                 match claims {
-                    Some(claims) => {
-                        debug!(role = ?claims.role, "JWT validated successfully");
-                        (claims.access, claims.role, TokenClaimValues(claims.other))
+                    Some((access, roles, other)) => {
+                        debug!(roles = ?roles, "JWT validated successfully");
+                        (access, roles, TokenClaimValues(other))
                     }
                     None => {
                         if auth.require_auth_for_reads {
@@ -221,7 +233,7 @@ where
                             return Err(Unauthorized(AuthError::RequireRead));
                         } else {
                             debug!("No valid JWT but require_auth_for_reads=false — granting read access");
-                            (Access::Ro, None, TokenClaimValues::default())
+                            (Access::Ro, Vec::new(), TokenClaimValues::default())
                         }
                     }
                 }
@@ -236,7 +248,7 @@ where
         if is_accept_multipart_mixed {
             let (req, mut body) = req.split();
             let req = GraphQLRequest::from_request(&req, &mut body).await?;
-            let req = req.0.data(access).data(role).data(claim_values);
+            let req = req.0.data(access).data(roles).data(claim_values);
             let stream = self.executor.execute_stream(req, None);
             Ok(Response::builder()
                 .header("content-type", "multipart/mixed; boundary=graphql")
@@ -260,7 +272,7 @@ where
                 }
             }
 
-            let req = batch_req.data(access).data(role).data(claim_values);
+            let req = batch_req.data(access).data(roles).data(claim_values);
 
             let contains_update = match &req {
                 BatchRequest::Single(request) => is_exclusive_write(&request.query),
@@ -317,7 +329,7 @@ async fn extract_claims(
     audience: Option<&str>,
     issuer: Option<&str>,
     role_claim: Option<&str>,
-) -> Option<TokenClaims> {
+) -> Option<(Access, Vec<String>, HashMap<String, serde_json::Value>)> {
     let jwt = header.strip_prefix("Bearer ").or_else(|| {
         warn!("Authorization header is missing or does not start with 'Bearer '");
         None
@@ -327,19 +339,30 @@ async fn extract_claims(
 
     let mut validation = Validation::new(algorithms[0]);
     validation.algorithms = algorithms;
-    validation.set_required_spec_claims::<String>(&[]); // we don't require 'exp' to be present
     validation.validate_nbf = true; // reject not-yet-valid tokens (nbf in the future)
+    // Require the claims we validate to be present, so a token that simply omits a configured
+    // audience/issuer is rejected rather than skipping the check. `exp` stays optional.
+    let mut required: Vec<&str> = Vec::new();
     // Validate `aud` against the configured audience, or disable the check so SSO/OIDC tokens
     // (which always carry an `aud`) are accepted.
     match audience {
-        Some(aud) => validation.set_audience(&[aud]),
+        Some(aud) => {
+            validation.set_audience(&[aud]);
+            required.push("aud");
+        }
         None => validation.validate_aud = false,
     }
     if let Some(iss) = issuer {
         validation.set_issuer(&[iss]);
+        required.push("iss");
     }
+    validation.set_required_spec_claims(&required);
     match decode::<TokenClaims>(jwt, &decoding_key, &validation) {
-        Ok(token_data) => Some(remap_role(token_data.claims, role_claim)),
+        Ok(token_data) => {
+            let claims = token_data.claims;
+            let roles = effective_roles(&claims, role_claim);
+            Some((claims.access, roles, claims.other))
+        }
         Err(e) => {
             warn!(error = %e, "JWT validation failed");
             None
@@ -347,21 +370,28 @@ async fn extract_claims(
     }
 }
 
-/// The role may live under a custom claim name (e.g. an Entra app-role claim) rather than `role`.
-fn remap_role(mut claims: TokenClaims, role_claim: Option<&str>) -> TokenClaims {
-    if let Some(name) = role_claim.filter(|n| *n != "role") {
-        claims.role = claims.other.get(name).and_then(role_from_value);
-    }
-    claims
+/// The caller's roles, read from the `role` claim or a custom claim named by `role_claim`. The claim
+/// may be a single string or an array of strings (e.g. an SSO `roles`/`groups` claim); every entry
+/// becomes a role, and the authorization policy merges their grants.
+fn effective_roles(claims: &TokenClaims, role_claim: Option<&str>) -> Vec<String> {
+    let name = role_claim.unwrap_or("role");
+    let value = if name == "role" {
+        claims.role.as_ref()
+    } else {
+        claims.other.get(name)
+    };
+    value.map(roles_from_value).unwrap_or_default()
 }
 
-/// The role from a claim that is either a string or an array of strings. For an array claim (e.g.
-/// an SSO `roles`/`groups` claim) the first entry is used as the single effective role.
-fn role_from_value(v: &serde_json::Value) -> Option<String> {
+/// The roles carried by a claim that is either a string or an array of strings. Non-string array
+/// entries are ignored.
+fn roles_from_value(v: &serde_json::Value) -> Vec<String> {
     match v {
-        serde_json::Value::String(s) => Some(s.clone()),
-        serde_json::Value::Array(items) => items.first().and_then(|x| x.as_str()).map(String::from),
-        _ => None,
+        serde_json::Value::String(s) => vec![s.clone()],
+        serde_json::Value::Array(items) => {
+            items.iter().filter_map(|x| x.as_str().map(String::from)).collect()
+        }
+        _ => Vec::new(),
     }
 }
 

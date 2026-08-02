@@ -121,9 +121,9 @@ pub struct AuthConfig {
     pub audience: Option<String>,
     /// Expected `iss`. Validated when set.
     pub issuer: Option<String>,
-    /// Name of the claim carrying the caller's role. Defaults to `role`. The claim may be a string,
-    /// or an array of strings (e.g. Entra's `roles`/`groups`), in which case the first entry is
-    /// used as the effective role.
+    /// Name of the claim carrying the caller's role(s). Defaults to `role`. The claim may be a
+    /// string, or an array of strings (e.g. Entra's `roles`/`groups`); every entry is taken as a
+    /// role and the authorization policy merges their grants (most-permissive-wins).
     pub role_claim: Option<String>,
     /// JWKS endpoint for dynamic key discovery (SSO/OIDC). When set, signing keys are fetched from
     /// here and selected by the token's `kid`. If unset but `issuer` is set, the JWKS URI is

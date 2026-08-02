@@ -241,10 +241,10 @@ impl QueryRoot {
         let data = ctx.data_unchecked::<Data>();
 
         if let Some(policy) = &data.auth_policy {
-            let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
             if let Err(_) = policy.graph_permissions(ctx, &path) {
+                let roles = ctx.data::<Vec<String>>().map(Vec::as_slice).unwrap_or(&[]);
                 warn!(
-                    role = role.unwrap_or("<no role>"),
+                    roles = ?roles,
                     graph = path.as_str(),
                     "Access denied by auth policy"
                 );

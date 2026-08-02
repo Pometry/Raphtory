@@ -25,8 +25,12 @@ pub struct LdapSourceConfig {
     pub url: Option<String>,
     /// Bind (service-account) DN.
     pub bind_dn: Option<String>,
-    /// Name of the environment variable holding the bind password.
+    /// Name of the environment variable holding the bind password. Takes precedence over
+    /// `bind_password` when both are set.
     pub bind_password_env: Option<String>,
+    /// Bind password given inline. Prefer `bind_password_env` to keep secrets out of the config
+    /// file; this is provided for deployments that inject the config from a secret store.
+    pub bind_password: Option<String>,
     /// Base DN for the role subtree search.
     pub group_base_dn: Option<String>,
     /// Filter selecting role entries (e.g. `(objectClass=group)`).
