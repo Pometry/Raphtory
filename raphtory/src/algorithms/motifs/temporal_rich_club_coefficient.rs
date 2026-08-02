@@ -79,12 +79,10 @@ where
         return 0.0f64;
     }
 
-    let temp_rich_club_val = SlidingWindows::new(views.into_iter(), window_size)
+    SlidingWindows::new(views.into_iter(), window_size)
         .map(|window| intermediate_rich_club_coef(s_k.clone(), window))
         .reduce(f64::max)
-        .unwrap_or(0.0);
-
-    temp_rich_club_val
+        .unwrap_or(0.0)
 }
 
 fn intermediate_rich_club_coef<'a, I, G1>(s_k: HashSet<VID>, views: I) -> f64

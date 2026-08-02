@@ -210,14 +210,7 @@ mod test_filters_node_type_filtered_subgraph {
     }
 
     mod test_nodes_filters_node_type_filtered_subgraph {
-        use raphtory::{
-            db::{
-                api::view::StaticGraphViewOps,
-                graph::views::filter::model::property_filter::ops::PropertyFilterOps,
-            },
-            prelude::AdditionOps,
-        };
-        use raphtory_api::core::entities::properties::prop::Prop;
+        use raphtory::db::graph::views::filter::model::property_filter::ops::PropertyFilterOps;
 
         use crate::filter_tests::{init_graph, Edges, Nodes};
 

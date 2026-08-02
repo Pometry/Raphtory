@@ -15,7 +15,7 @@ use crate::{
 use config::{Config, ConfigError, File};
 use field_types::FieldName;
 use itertools::Itertools;
-use serde::{de::DeserializeSeed, Deserialize, Deserializer, Serialize};
+use serde::{de::DeserializeSeed, Deserialize, Serialize};
 use std::{
     collections::HashMap,
     error::Error,

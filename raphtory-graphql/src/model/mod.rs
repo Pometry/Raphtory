@@ -24,7 +24,6 @@ use dynamic_graphql::{
     ResolvedObjectFields, Result, Upload,
 };
 use itertools::Itertools;
-use minijinja::functions::namespace;
 #[cfg(feature = "vectors")]
 use raphtory::vectors::{
     cache::CachedEmbeddingModel,
@@ -40,7 +39,7 @@ use raphtory::{
         },
         graph::views::deletion_graph::PersistentGraph,
     },
-    errors::{GraphError, GraphResult},
+    errors::GraphError,
     io::parquet_loaders::{load_edges_from_parquet, load_nodes_from_parquet},
     prelude::*,
     version,
@@ -363,7 +362,7 @@ impl QueryRoot {
 
     /// Returns a plugin.
     async fn plugins<'a>() -> QueryPlugin {
-        QueryPlugin::default()
+        QueryPlugin
     }
 
     /// Encodes graph and returns as string.
@@ -397,7 +396,7 @@ pub(crate) struct Mut(MutRoot);
 impl Mut {
     /// Returns a collection of mutation plugins.
     async fn plugins<'a>(_ctx: &Context<'a>) -> MutationPlugin {
-        MutationPlugin::default()
+        MutationPlugin
     }
 
     /// Delete graph from a path on the server.

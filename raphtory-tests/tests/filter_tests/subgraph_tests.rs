@@ -40,15 +40,12 @@ mod test_nodes_filters_node_subgraph {
         NodeSubgraphTransformer, WindowedNodeSubgraphTransformer,
     };
     use raphtory::{
-        db::{
-            api::view::StaticGraphViewOps,
-            graph::views::filter::model::{
-                property_filter::ops::PropertyFilterOps, PropertyFilterFactory,
-            },
+        db::graph::views::filter::model::{
+            property_filter::ops::PropertyFilterOps, PropertyFilterFactory,
         },
-        prelude::{AdditionOps, NodeFilter},
+        prelude::NodeFilter,
     };
-    use raphtory_api::core::entities::properties::prop::Prop;
+
     use raphtory_tests::assertions::{
         assert_filter_nodes_results, assert_search_nodes_results, TestGraphVariants, TestVariants,
     };
@@ -175,15 +172,12 @@ mod test_nodes_filters_node_subgraph {
 
 mod test_edges_filters_node_subgraph {
     use raphtory::{
-        db::{
-            api::view::StaticGraphViewOps,
-            graph::views::filter::model::{
-                property_filter::ops::PropertyFilterOps, PropertyFilterFactory,
-            },
+        db::graph::views::filter::model::{
+            property_filter::ops::PropertyFilterOps, PropertyFilterFactory,
         },
-        prelude::{AdditionOps, EdgeFilter},
+        prelude::EdgeFilter,
     };
-    use raphtory_api::core::entities::properties::prop::Prop;
+
     use raphtory_tests::assertions::{
         assert_filter_edges_results, assert_search_edges_results, TestVariants,
     };

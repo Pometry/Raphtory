@@ -147,14 +147,14 @@ impl<G: AdditionOps> IndexMutationOps for G {
             .map_or(Err(GraphError::IndexingNotSupported), |storage| {
                 if path.is_zip() {
                     if has_index(path.root())? {
-                        storage.load_index_if_empty(&path)?;
+                        storage.load_index_if_empty(path)?;
                     } else {
                         return Ok(()); // Skip if no index in zip
                     }
                 } else {
                     let index_path = path.index_path()?;
                     if index_path.exists() && index_path.read_dir()?.next().is_some() {
-                        storage.load_index_if_empty(&path)?;
+                        storage.load_index_if_empty(path)?;
                     }
                 }
 
