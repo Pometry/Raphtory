@@ -65,10 +65,10 @@ pub fn local_clustering_coefficient_analysis(c: &mut Criterion) {
     );
 }
 
-pub fn graphgen_large_directed_density(c: &mut Criterion) {
+pub fn graphgen_directed_density(c: &mut Criterion) {
     graph_benchmark(
         c,
-        "graphgen_large_directed_density",
+        "graphgen_directed_density",
         2,
         10,
         large_random_attachment_graph,
@@ -76,7 +76,7 @@ pub fn graphgen_large_directed_density(c: &mut Criterion) {
     );
     graph_benchmark(
         c,
-        "graphgen_large_directed_density_subgraph",
+        "graphgen_directed_density_subgraph",
         3,
         10,
         large_random_attachment_subgraph,
@@ -84,7 +84,7 @@ pub fn graphgen_large_directed_density(c: &mut Criterion) {
     );
     graph_benchmark(
         c,
-        "graphgen_large_directed_density_layered",
+        "graphgen_directed_density_layered",
         3,
         10,
         large_random_attachment_layered,
@@ -92,7 +92,7 @@ pub fn graphgen_large_directed_density(c: &mut Criterion) {
     );
     graph_benchmark(
         c,
-        "graphgen_large_directed_density_graph_filtered",
+        "graphgen_directed_density_graph_filtered",
         5,
         10,
         large_random_attachment_filtered,
@@ -100,10 +100,10 @@ pub fn graphgen_large_directed_density(c: &mut Criterion) {
     )
 }
 
-pub fn graphgen_large_degree_centrality(c: &mut Criterion) {
+pub fn graphgen_degree_centrality(c: &mut Criterion) {
     graph_benchmark(
         c,
-        "graphgen_large_degree_centrality",
+        "graphgen_degree_centrality",
         3,
         10,
         large_random_attachment_graph,
@@ -111,10 +111,10 @@ pub fn graphgen_large_degree_centrality(c: &mut Criterion) {
     );
 }
 
-pub fn graphgen_large_concomp(c: &mut Criterion) {
+pub fn graphgen_concomp(c: &mut Criterion) {
     graph_benchmark(
         c,
-        "graphgen_large_concomp",
+        "graphgen_concomp",
         5,
         10,
         large_random_attachment_graph,
@@ -122,10 +122,10 @@ pub fn graphgen_large_concomp(c: &mut Criterion) {
     );
 }
 
-pub fn graphgen_large_alternating_mask(c: &mut Criterion) {
+pub fn graphgen_alternating_mask(c: &mut Criterion) {
     graph_benchmark(
         c,
-        "graphgen_large_alternating_mask",
+        "graphgen_alternating_mask",
         3,
         10,
         large_random_attachment_graph,
@@ -133,10 +133,10 @@ pub fn graphgen_large_alternating_mask(c: &mut Criterion) {
     );
 }
 
-pub fn graphgen_large_max_degree(c: &mut Criterion) {
+pub fn graphgen_max_degree(c: &mut Criterion) {
     graph_benchmark(
         c,
-        "graphgen_large_max_degree",
+        "graphgen_max_degree",
         3,
         10,
         large_random_attachment_graph,
@@ -144,10 +144,10 @@ pub fn graphgen_large_max_degree(c: &mut Criterion) {
     );
 }
 
-pub fn graphgen_large_min_degree(c: &mut Criterion) {
+pub fn graphgen_min_degree(c: &mut Criterion) {
     graph_benchmark(
         c,
-        "graphgen_large_min_degree",
+        "graphgen_min_degree",
         3,
         10,
         large_random_attachment_graph,
@@ -155,10 +155,10 @@ pub fn graphgen_large_min_degree(c: &mut Criterion) {
     );
 }
 
-pub fn graphgen_large_max_out_degree(c: &mut Criterion) {
+pub fn graphgen_max_out_degree(c: &mut Criterion) {
     graph_benchmark(
         c,
-        "graphgen_large_max_out_degree",
+        "graphgen_max_out_degree",
         3,
         10,
         large_random_attachment_graph,
@@ -166,10 +166,10 @@ pub fn graphgen_large_max_out_degree(c: &mut Criterion) {
     );
 }
 
-pub fn graphgen_large_max_in_degree(c: &mut Criterion) {
+pub fn graphgen_max_in_degree(c: &mut Criterion) {
     graph_benchmark(
         c,
-        "graphgen_large_max_in_degree",
+        "graphgen_max_in_degree",
         3,
         10,
         large_random_attachment_graph,
@@ -177,10 +177,10 @@ pub fn graphgen_large_max_in_degree(c: &mut Criterion) {
     );
 }
 
-pub fn graphgen_large_min_out_degree(c: &mut Criterion) {
+pub fn graphgen_min_out_degree(c: &mut Criterion) {
     graph_benchmark(
         c,
-        "graphgen_large_min_out_degree",
+        "graphgen_min_out_degree",
         3,
         10,
         large_random_attachment_graph,
@@ -188,10 +188,10 @@ pub fn graphgen_large_min_out_degree(c: &mut Criterion) {
     );
 }
 
-pub fn graphgen_large_min_in_degree(c: &mut Criterion) {
+pub fn graphgen_min_in_degree(c: &mut Criterion) {
     graph_benchmark(
         c,
-        "graphgen_large_min_in_degree",
+        "graphgen_min_in_degree",
         3,
         10,
         large_random_attachment_graph,
@@ -199,10 +199,10 @@ pub fn graphgen_large_min_in_degree(c: &mut Criterion) {
     );
 }
 
-pub fn graphgen_large_average_degree(c: &mut Criterion) {
+pub fn graphgen_average_degree(c: &mut Criterion) {
     graph_benchmark(
         c,
-        "graphgen_large_average_degree",
+        "graphgen_average_degree",
         3,
         10,
         large_random_attachment_graph,
@@ -210,10 +210,10 @@ pub fn graphgen_large_average_degree(c: &mut Criterion) {
     );
 }
 
-pub fn graphgen_large_local_clustering_coefficient_batch(c: &mut Criterion) {
+pub fn graphgen_local_clustering_coefficient_batch(c: &mut Criterion) {
     graph_benchmark_with_setup(
         c,
-        "graphgen_large_local_clustering_coefficient_batch",
+        "graphgen_local_clustering_coefficient_batch",
         3,
         10,
         large_random_attachment_graph,
@@ -222,10 +222,10 @@ pub fn graphgen_large_local_clustering_coefficient_batch(c: &mut Criterion) {
     );
 }
 
-pub fn graphgen_large_temporally_reachable_nodes(c: &mut Criterion) {
+pub fn graphgen_temporally_reachable_nodes(c: &mut Criterion) {
     graph_benchmark_with_setup(
         c,
-        "graphgen_large_temporally_reachable_nodes",
+        "graphgen_temporally_reachable_nodes",
         3,
         10,
         large_random_attachment_graph,
@@ -234,10 +234,10 @@ pub fn graphgen_large_temporally_reachable_nodes(c: &mut Criterion) {
     );
 }
 
-pub fn graphgen_large_out_component(c: &mut Criterion) {
+pub fn graphgen_out_component(c: &mut Criterion) {
     graph_benchmark_with_setup(
         c,
-        "graphgen_large_out_component",
+        "graphgen_out_component",
         3,
         10,
         large_random_attachment_graph,
@@ -249,10 +249,10 @@ pub fn graphgen_large_out_component(c: &mut Criterion) {
     );
 }
 
-pub fn graphgen_large_out_component_filtered(c: &mut Criterion) {
+pub fn graphgen_out_component_filtered(c: &mut Criterion) {
     graph_benchmark_with_setup(
         c,
-        "graphgen_large_out_component_filtered",
+        "graphgen_out_component_filtered",
         3,
         10,
         large_random_attachment_graph,
@@ -264,10 +264,10 @@ pub fn graphgen_large_out_component_filtered(c: &mut Criterion) {
     );
 }
 
-pub fn graphgen_large_temporal_seir(c: &mut Criterion) {
+pub fn graphgen_temporal_seir(c: &mut Criterion) {
     graph_benchmark(
         c,
-        "graphgen_large_temporal_seir",
+        "graphgen_temporal_seir",
         3,
         10,
         large_random_attachment_graph,
@@ -318,22 +318,22 @@ criterion_group!(
     benches,
     local_triangle_count_analysis,
     local_clustering_coefficient_analysis,
-    graphgen_large_directed_density,
-    graphgen_large_degree_centrality,
-    graphgen_large_concomp,
-    graphgen_large_alternating_mask,
-    graphgen_large_max_degree,
-    graphgen_large_min_degree,
-    graphgen_large_max_out_degree,
-    graphgen_large_max_in_degree,
-    graphgen_large_min_out_degree,
-    graphgen_large_min_in_degree,
-    graphgen_large_average_degree,
-    graphgen_large_local_clustering_coefficient_batch,
-    graphgen_large_temporally_reachable_nodes,
-    graphgen_large_out_component,
-    graphgen_large_out_component_filtered,
-    graphgen_large_temporal_seir,
+    graphgen_directed_density,
+    graphgen_degree_centrality,
+    graphgen_concomp,
+    graphgen_alternating_mask,
+    graphgen_max_degree,
+    graphgen_min_degree,
+    graphgen_max_out_degree,
+    graphgen_max_in_degree,
+    graphgen_min_out_degree,
+    graphgen_min_in_degree,
+    graphgen_average_degree,
+    graphgen_local_clustering_coefficient_batch,
+    graphgen_temporally_reachable_nodes,
+    graphgen_out_component,
+    graphgen_out_component_filtered,
+    graphgen_temporal_seir,
     graphgen_internal_two_node_event,
     graphgen_internal_init_two_node_count,
     graphgen_internal_star_event,

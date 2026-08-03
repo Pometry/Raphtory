@@ -28,10 +28,10 @@ use raphtory_benchmark::algobench_common::{
     tiny_random_attachment_layered, tiny_random_attachment_subgraph,
 };
 
-pub fn graphgen_large_betweenness(c: &mut Criterion) {
+pub fn graphgen_betweenness(c: &mut Criterion) {
     graph_benchmark(
         c,
-        "graphgen_large_betweenness",
+        "graphgen_betweenness",
         20,
         10,
         tiny_random_attachment_graph,
@@ -39,7 +39,7 @@ pub fn graphgen_large_betweenness(c: &mut Criterion) {
     );
     graph_benchmark(
         c,
-        "graphgen_large_betweenness_subgraph",
+        "graphgen_betweenness_subgraph",
         20,
         10,
         tiny_random_attachment_subgraph,
@@ -47,7 +47,7 @@ pub fn graphgen_large_betweenness(c: &mut Criterion) {
     );
     graph_benchmark(
         c,
-        "graphgen_large_betweenness_layered",
+        "graphgen_betweenness_layered",
         20,
         10,
         tiny_random_attachment_layered,
@@ -55,7 +55,7 @@ pub fn graphgen_large_betweenness(c: &mut Criterion) {
     );
     graph_benchmark(
         c,
-        "graphgen_large_betweenness_graph_filtered",
+        "graphgen_betweenness_graph_filtered",
         20,
         10,
         tiny_random_attachment_filtered,
@@ -63,10 +63,10 @@ pub fn graphgen_large_betweenness(c: &mut Criterion) {
     )
 }
 
-pub fn graphgen_large_in_components(c: &mut Criterion) {
+pub fn graphgen_in_components(c: &mut Criterion) {
     graph_benchmark(
         c,
-        "graphgen_large_in_components",
+        "graphgen_in_components",
         20,
         10,
         tiny_random_attachment_graph,
@@ -74,10 +74,10 @@ pub fn graphgen_large_in_components(c: &mut Criterion) {
     );
 }
 
-pub fn graphgen_large_out_components(c: &mut Criterion) {
+pub fn graphgen_out_components(c: &mut Criterion) {
     graph_benchmark(
         c,
-        "graphgen_large_out_components",
+        "graphgen_out_components",
         20,
         10,
         tiny_random_attachment_graph,
@@ -85,10 +85,10 @@ pub fn graphgen_large_out_components(c: &mut Criterion) {
     );
 }
 
-pub fn graphgen_large_in_components_filtered(c: &mut Criterion) {
+pub fn graphgen_in_components_filtered(c: &mut Criterion) {
     graph_benchmark(
         c,
-        "graphgen_large_in_components_filtered",
+        "graphgen_in_components_filtered",
         20,
         10,
         tiny_random_attachment_graph,
@@ -96,10 +96,10 @@ pub fn graphgen_large_in_components_filtered(c: &mut Criterion) {
     );
 }
 
-pub fn graphgen_large_out_components_filtered(c: &mut Criterion) {
+pub fn graphgen_out_components_filtered(c: &mut Criterion) {
     graph_benchmark(
         c,
-        "graphgen_large_out_components_filtered",
+        "graphgen_out_components_filtered",
         20,
         10,
         tiny_random_attachment_graph,
@@ -107,10 +107,10 @@ pub fn graphgen_large_out_components_filtered(c: &mut Criterion) {
     );
 }
 
-pub fn graphgen_large_temporal_rich_club(c: &mut Criterion) {
+pub fn graphgen_temporal_rich_club(c: &mut Criterion) {
     graph_benchmark(
         c,
-        "graphgen_large_temporal_rich_club",
+        "graphgen_temporal_rich_club",
         20,
         10,
         tiny_random_attachment_graph,
@@ -121,10 +121,10 @@ pub fn graphgen_large_temporal_rich_club(c: &mut Criterion) {
     );
 }
 
-pub fn graphgen_large_fruchterman_reingold(c: &mut Criterion) {
+pub fn graphgen_fruchterman_reingold(c: &mut Criterion) {
     graph_benchmark(
         c,
-        "graphgen_large_fruchterman_reingold",
+        "graphgen_fruchterman_reingold",
         20,
         10,
         tiny_random_attachment_graph,
@@ -132,10 +132,10 @@ pub fn graphgen_large_fruchterman_reingold(c: &mut Criterion) {
     );
 }
 
-pub fn graphgen_large_cohesive_fruchterman_reingold(c: &mut Criterion) {
+pub fn graphgen_cohesive_fruchterman_reingold(c: &mut Criterion) {
     graph_benchmark(
         c,
-        "graphgen_large_cohesive_fruchterman_reingold",
+        "graphgen_cohesive_fruchterman_reingold",
         20,
         10,
         tiny_random_attachment_graph,
@@ -143,10 +143,10 @@ pub fn graphgen_large_cohesive_fruchterman_reingold(c: &mut Criterion) {
     );
 }
 
-pub fn graphgen_large_max_weight_matching(c: &mut Criterion) {
+pub fn graphgen_max_weight_matching(c: &mut Criterion) {
     graph_benchmark(
         c,
-        "graphgen_large_max_weight_matching",
+        "graphgen_max_weight_matching",
         20,
         10,
         tiny_random_attachment_graph,
@@ -156,14 +156,14 @@ pub fn graphgen_large_max_weight_matching(c: &mut Criterion) {
 
 criterion_group!(
     benches,
-    graphgen_large_betweenness,
-    graphgen_large_in_components,
-    graphgen_large_out_components,
-    graphgen_large_in_components_filtered,
-    graphgen_large_out_components_filtered,
-    graphgen_large_temporal_rich_club,
-    graphgen_large_fruchterman_reingold,
-    graphgen_large_cohesive_fruchterman_reingold,
-    graphgen_large_max_weight_matching,
+    graphgen_betweenness,
+    graphgen_in_components,
+    graphgen_out_components,
+    graphgen_in_components_filtered,
+    graphgen_out_components_filtered,
+    graphgen_temporal_rich_club,
+    graphgen_fruchterman_reingold,
+    graphgen_cohesive_fruchterman_reingold,
+    graphgen_max_weight_matching,
 );
 criterion_main!(benches);

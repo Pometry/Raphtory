@@ -49,10 +49,10 @@ use raphtory_benchmark::algobench_common::{
     medium_weighted_random_attachment_graph,
 };
 
-pub fn graphgen_medium_clustering_coeff(c: &mut Criterion) {
+pub fn graphgen_clustering_coeff(c: &mut Criterion) {
     graph_benchmark(
         c,
-        "graphgen_medium_clustering_coeff",
+        "graphgen_clustering_coeff",
         10,
         10,
         medium_random_attachment_graph,
@@ -60,10 +60,10 @@ pub fn graphgen_medium_clustering_coeff(c: &mut Criterion) {
     );
 }
 
-pub fn graphgen_medium_pagerank(c: &mut Criterion) {
+pub fn graphgen_pagerank(c: &mut Criterion) {
     graph_benchmark(
         c,
-        "graphgen_medium_pagerank",
+        "graphgen_pagerank",
         10,
         10,
         medium_random_attachment_graph,
@@ -71,7 +71,7 @@ pub fn graphgen_medium_pagerank(c: &mut Criterion) {
     );
     graph_benchmark(
         c,
-        "graphgen_medium_pagerank_subgraph",
+        "graphgen_pagerank_subgraph",
         10,
         10,
         medium_random_attachment_subgraph,
@@ -79,7 +79,7 @@ pub fn graphgen_medium_pagerank(c: &mut Criterion) {
     );
     graph_benchmark(
         c,
-        "graphgen_medium_pagerank_layered",
+        "graphgen_pagerank_layered",
         10,
         10,
         medium_random_attachment_layered,
@@ -87,7 +87,7 @@ pub fn graphgen_medium_pagerank(c: &mut Criterion) {
     );
     graph_benchmark(
         c,
-        "graphgen_medium_pagerank_graph_filtered",
+        "graphgen_pagerank_graph_filtered",
         20,
         10,
         medium_random_attachment_filtered,
@@ -95,10 +95,10 @@ pub fn graphgen_medium_pagerank(c: &mut Criterion) {
     )
 }
 
-pub fn graphgen_medium_hits(c: &mut Criterion) {
+pub fn graphgen_hits(c: &mut Criterion) {
     graph_benchmark(
         c,
-        "graphgen_medium_hits",
+        "graphgen_hits",
         5,
         10,
         medium_random_attachment_graph,
@@ -106,10 +106,10 @@ pub fn graphgen_medium_hits(c: &mut Criterion) {
     );
 }
 
-pub fn graphgen_medium_triangle_count(c: &mut Criterion) {
+pub fn graphgen_triangle_count(c: &mut Criterion) {
     graph_benchmark(
         c,
-        "graphgen_medium_triangle_count",
+        "graphgen_triangle_count",
         10,
         10,
         medium_random_attachment_graph,
@@ -117,10 +117,10 @@ pub fn graphgen_medium_triangle_count(c: &mut Criterion) {
     );
 }
 
-pub fn graphgen_medium_triplet_count(c: &mut Criterion) {
+pub fn graphgen_triplet_count(c: &mut Criterion) {
     graph_benchmark(
         c,
-        "graphgen_medium_triplet_count",
+        "graphgen_triplet_count",
         5,
         10,
         medium_random_attachment_graph,
@@ -128,10 +128,10 @@ pub fn graphgen_medium_triplet_count(c: &mut Criterion) {
     );
 }
 
-pub fn graphgen_medium_reciprocity(c: &mut Criterion) {
+pub fn graphgen_reciprocity(c: &mut Criterion) {
     graph_benchmark(
         c,
-        "graphgen_medium_reciprocity",
+        "graphgen_reciprocity",
         5,
         10,
         medium_random_attachment_graph,
@@ -139,10 +139,10 @@ pub fn graphgen_medium_reciprocity(c: &mut Criterion) {
     );
 }
 
-pub fn graphgen_medium_scc(c: &mut Criterion) {
+pub fn graphgen_scc(c: &mut Criterion) {
     graph_benchmark(
         c,
-        "graphgen_medium_scc",
+        "graphgen_scc",
         5,
         10,
         medium_random_attachment_graph,
@@ -150,10 +150,10 @@ pub fn graphgen_medium_scc(c: &mut Criterion) {
     );
 }
 
-pub fn graphgen_medium_label_propagation(c: &mut Criterion) {
+pub fn graphgen_label_propagation(c: &mut Criterion) {
     graph_benchmark(
         c,
-        "graphgen_medium_label_propagation",
+        "graphgen_label_propagation",
         20,
         10,
         medium_random_attachment_graph,
@@ -161,10 +161,10 @@ pub fn graphgen_medium_label_propagation(c: &mut Criterion) {
     );
 }
 
-pub fn graphgen_medium_louvain(c: &mut Criterion) {
+pub fn graphgen_louvain(c: &mut Criterion) {
     graph_benchmark(
         c,
-        "graphgen_medium_louvain",
+        "graphgen_louvain",
         20,
         10,
         medium_random_attachment_graph,
@@ -172,10 +172,10 @@ pub fn graphgen_medium_louvain(c: &mut Criterion) {
     );
 }
 
-pub fn graphgen_medium_all_local_reciprocity(c: &mut Criterion) {
+pub fn graphgen_all_local_reciprocity(c: &mut Criterion) {
     graph_benchmark(
         c,
-        "graphgen_medium_all_local_reciprocity",
+        "graphgen_all_local_reciprocity",
         5,
         10,
         medium_random_attachment_graph,
@@ -183,10 +183,10 @@ pub fn graphgen_medium_all_local_reciprocity(c: &mut Criterion) {
     );
 }
 
-pub fn graphgen_medium_balance(c: &mut Criterion) {
+pub fn graphgen_balance(c: &mut Criterion) {
     graph_benchmark(
         c,
-        "graphgen_medium_balance",
+        "graphgen_balance",
         5,
         10,
         medium_weighted_random_attachment_graph,
@@ -194,10 +194,10 @@ pub fn graphgen_medium_balance(c: &mut Criterion) {
     );
 }
 
-pub fn graphgen_medium_temporal_motif_multi(c: &mut Criterion) {
+pub fn graphgen_temporal_motif_multi(c: &mut Criterion) {
     graph_benchmark(
         c,
-        "graphgen_medium_temporal_motif_multi",
+        "graphgen_temporal_motif_multi",
         20,
         10,
         medium_random_attachment_graph,
@@ -205,10 +205,10 @@ pub fn graphgen_medium_temporal_motif_multi(c: &mut Criterion) {
     );
 }
 
-pub fn graphgen_medium_local_temporal_motif(c: &mut Criterion) {
+pub fn graphgen_local_temporal_motif(c: &mut Criterion) {
     graph_benchmark(
         c,
-        "graphgen_medium_local_temporal_motif",
+        "graphgen_local_temporal_motif",
         20,
         10,
         medium_random_attachment_graph,
@@ -216,10 +216,10 @@ pub fn graphgen_medium_local_temporal_motif(c: &mut Criterion) {
     );
 }
 
-pub fn graphgen_medium_dijkstra(c: &mut Criterion) {
+pub fn graphgen_dijkstra(c: &mut Criterion) {
     graph_benchmark_with_setup(
         c,
-        "graphgen_medium_dijkstra",
+        "graphgen_dijkstra",
         5,
         10,
         medium_random_attachment_graph,
@@ -237,10 +237,10 @@ pub fn graphgen_medium_dijkstra(c: &mut Criterion) {
     );
 }
 
-pub fn graphgen_medium_single_source_shortest_path(c: &mut Criterion) {
+pub fn graphgen_single_source_shortest_path(c: &mut Criterion) {
     graph_benchmark_with_setup(
         c,
-        "graphgen_medium_single_source_shortest_path",
+        "graphgen_single_source_shortest_path",
         5,
         10,
         medium_random_attachment_graph,
@@ -249,10 +249,10 @@ pub fn graphgen_medium_single_source_shortest_path(c: &mut Criterion) {
     );
 }
 
-pub fn graphgen_medium_in_component(c: &mut Criterion) {
+pub fn graphgen_in_component(c: &mut Criterion) {
     graph_benchmark_with_setup(
         c,
-        "graphgen_medium_in_component",
+        "graphgen_in_component",
         5,
         10,
         medium_random_attachment_graph,
@@ -264,10 +264,10 @@ pub fn graphgen_medium_in_component(c: &mut Criterion) {
     );
 }
 
-pub fn graphgen_medium_in_component_filtered(c: &mut Criterion) {
+pub fn graphgen_in_component_filtered(c: &mut Criterion) {
     graph_benchmark_with_setup(
         c,
-        "graphgen_medium_in_component_filtered",
+        "graphgen_in_component_filtered",
         5,
         10,
         medium_random_attachment_graph,
@@ -301,10 +301,10 @@ pub fn graphgen_internal_local_triangle_motifs(c: &mut Criterion) {
     );
 }
 
-pub fn graphgen_medium_k_core_set(c: &mut Criterion) {
+pub fn graphgen_k_core_set(c: &mut Criterion) {
     graph_benchmark(
         c,
-        "graphgen_medium_k_core_set",
+        "graphgen_k_core_set",
         5,
         10,
         medium_random_attachment_graph,
@@ -312,10 +312,10 @@ pub fn graphgen_medium_k_core_set(c: &mut Criterion) {
     );
 }
 
-pub fn graphgen_medium_k_core(c: &mut Criterion) {
+pub fn graphgen_k_core(c: &mut Criterion) {
     graph_benchmark(
         c,
-        "graphgen_medium_k_core",
+        "graphgen_k_core",
         5,
         10,
         medium_random_attachment_graph,
@@ -323,10 +323,10 @@ pub fn graphgen_medium_k_core(c: &mut Criterion) {
     );
 }
 
-pub fn graphgen_medium_fast_rp(c: &mut Criterion) {
+pub fn graphgen_fast_rp(c: &mut Criterion) {
     graph_benchmark(
         c,
-        "graphgen_medium_fast_rp",
+        "graphgen_fast_rp",
         10,
         10,
         medium_random_attachment_graph,
@@ -334,10 +334,10 @@ pub fn graphgen_medium_fast_rp(c: &mut Criterion) {
     );
 }
 
-pub fn graphgen_medium_temporal_bipartite_projection(c: &mut Criterion) {
+pub fn graphgen_temporal_bipartite_projection(c: &mut Criterion) {
     graph_benchmark(
         c,
-        "graphgen_medium_temporal_bipartite_projection",
+        "graphgen_temporal_bipartite_projection",
         20,
         10,
         medium_typed_random_attachment_graph,
@@ -358,29 +358,29 @@ pub fn temporal_motifs(c: &mut Criterion) {
 
 criterion_group!(
     benches,
-    graphgen_medium_clustering_coeff,
-    graphgen_medium_pagerank,
-    graphgen_medium_hits,
-    graphgen_medium_triangle_count,
-    graphgen_medium_triplet_count,
-    graphgen_medium_reciprocity,
-    graphgen_medium_scc,
-    graphgen_medium_label_propagation,
-    graphgen_medium_louvain,
-    graphgen_medium_all_local_reciprocity,
-    graphgen_medium_balance,
-    graphgen_medium_temporal_motif_multi,
-    graphgen_medium_local_temporal_motif,
-    graphgen_medium_dijkstra,
-    graphgen_medium_single_source_shortest_path,
-    graphgen_medium_in_component,
-    graphgen_medium_in_component_filtered,
+    graphgen_clustering_coeff,
+    graphgen_pagerank,
+    graphgen_hits,
+    graphgen_triangle_count,
+    graphgen_triplet_count,
+    graphgen_reciprocity,
+    graphgen_scc,
+    graphgen_label_propagation,
+    graphgen_louvain,
+    graphgen_all_local_reciprocity,
+    graphgen_balance,
+    graphgen_temporal_motif_multi,
+    graphgen_local_temporal_motif,
+    graphgen_dijkstra,
+    graphgen_single_source_shortest_path,
+    graphgen_in_component,
+    graphgen_in_component_filtered,
     graphgen_internal_global_triangle_motifs,
     graphgen_internal_local_triangle_motifs,
-    graphgen_medium_k_core_set,
-    graphgen_medium_k_core,
-    graphgen_medium_fast_rp,
-    graphgen_medium_temporal_bipartite_projection,
+    graphgen_k_core_set,
+    graphgen_k_core,
+    graphgen_fast_rp,
+    graphgen_temporal_bipartite_projection,
     temporal_motifs,
 );
 criterion_main!(benches);
