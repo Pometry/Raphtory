@@ -55,7 +55,7 @@ jobs:
       - name: Start sccache server
         run: sccache --start-server
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v7
         with:
           python-version: "3.11"
           cache: 'pip'

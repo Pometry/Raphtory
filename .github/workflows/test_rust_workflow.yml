@@ -47,7 +47,7 @@ jobs:
         uses: taiki-e/install-action@nextest
       - name: Install cargo-hack
         uses: taiki-e/install-action@cargo-hack
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - name: Run all Tests (no disk_graph)
