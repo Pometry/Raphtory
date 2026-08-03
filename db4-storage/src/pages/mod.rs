@@ -81,17 +81,17 @@ impl<
         self.graph_props.flush()?;
 
         // Refresh the graph metadata file (.meta) for disk-backed graphs
-        if let Some(graph_dir) = self.graph_dir.as_ref() {
-            if let (Some(data_folder), Some(graph_path)) = (
+        if let Some(graph_dir) = self.graph_dir.as_ref()
+            && let (Some(data_folder), Some(graph_path)) = (
                 graph_dir.parent(),
                 graph_dir.file_name().and_then(|name| name.to_str()),
-            ) {
-                InnerGraphFolder::new(data_folder).refresh_metadata(
-                    graph_path,
-                    self.nodes.num_nodes(),
-                    self.edges.num_edges(),
-                )?;
-            }
+            )
+        {
+            InnerGraphFolder::new(data_folder).refresh_metadata(
+                graph_path,
+                self.nodes.num_nodes(),
+                self.edges.num_edges(),
+            )?;
         }
 
         Ok(())
@@ -449,7 +449,7 @@ pub fn row_group_par_iter<I: From<usize>>(
 ) -> impl IndexedParallelIterator<Item = (usize, impl Iterator<Item = I>)> {
     let (num_chunks, chunk_size) = if num_segments != 0 {
         let chunk_size = (chunk_size / num_segments).max(1);
-        let num_chunks = (max_seg_len as usize + chunk_size - 1) / chunk_size;
+        let num_chunks = (max_seg_len as usize).div_ceil(chunk_size);
         (num_chunks, chunk_size)
     } else {
         (0, 0)

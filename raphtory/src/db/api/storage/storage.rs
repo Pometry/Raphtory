@@ -260,16 +260,13 @@ impl Storage {
 
     pub(crate) fn load_index_if_empty(&self, path: &GraphFolder) -> Result<(), GraphError> {
         let guard = self.index.read_recursive();
-        match guard.deref() {
-            GraphIndex::Empty => {
-                drop(guard);
-                let mut guard = self.index.write();
-                if let e @ GraphIndex::Empty = guard.deref_mut() {
-                    let index = GraphIndex::load_from_path(&path)?;
-                    *e = index;
-                }
+        if let GraphIndex::Empty = guard.deref() {
+            drop(guard);
+            let mut guard = self.index.write();
+            if let e @ GraphIndex::Empty = guard.deref_mut() {
+                let index = GraphIndex::load_from_path(path)?;
+                *e = index;
             }
-            _ => {}
         }
         Ok(())
     }
@@ -277,16 +274,13 @@ impl Storage {
     pub(crate) fn create_index_if_empty(&self, index_spec: IndexSpec) -> Result<(), GraphError> {
         {
             let guard = self.index.read_recursive();
-            match guard.deref() {
-                GraphIndex::Empty => {
-                    drop(guard);
-                    let mut guard = self.index.write();
-                    if let e @ GraphIndex::Empty = guard.deref_mut() {
-                        let index = GraphIndex::create(&self.graph, false, None)?;
-                        *e = index;
-                    }
+            if let GraphIndex::Empty = guard.deref() {
+                drop(guard);
+                let mut guard = self.index.write();
+                if let e @ GraphIndex::Empty = guard.deref_mut() {
+                    let index = GraphIndex::create(&self.graph, false, None)?;
+                    *e = index;
                 }
-                _ => {}
             }
         }
         self.if_index_mut(|index| index.update(&self.graph, index_spec))?;
@@ -299,16 +293,13 @@ impl Storage {
     ) -> Result<(), GraphError> {
         {
             let guard = self.index.read_recursive();
-            match guard.deref() {
-                GraphIndex::Empty => {
-                    drop(guard);
-                    let mut guard = self.index.write();
-                    if let e @ GraphIndex::Empty = guard.deref_mut() {
-                        let index = GraphIndex::create(&self.graph, true, None)?;
-                        *e = index;
-                    }
+            if let GraphIndex::Empty = guard.deref() {
+                drop(guard);
+                let mut guard = self.index.write();
+                if let e @ GraphIndex::Empty = guard.deref_mut() {
+                    let index = GraphIndex::create(&self.graph, true, None)?;
+                    *e = index;
                 }
-                _ => {}
             }
         }
         if self.index.read_recursive().path().is_some() {

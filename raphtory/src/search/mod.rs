@@ -116,7 +116,7 @@ pub(crate) fn indexed_props(
     props
         .iter()
         .cloned()
-        .filter(|(id, _)| indexes.get(*id).map_or(false, |entry| entry.is_some()))
+        .filter(|(id, _)| indexes.get(*id).is_some_and(|entry| entry.is_some()))
         .collect()
 }
 
