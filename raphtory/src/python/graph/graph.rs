@@ -16,7 +16,7 @@ use crate::{
     io::parquet_loaders::*,
     prelude::*,
     python::{
-        config::PyConfig,
+        config::PyArgs,
         graph::{
             edge::PyEdge,
             graph_with_deletions::PyPersistentGraph,
@@ -166,16 +166,16 @@ impl PyGraph {
     #[pyo3(signature = (path = None, config=None))]
     pub fn py_new(
         path: Option<PathBuf>,
-        config: Option<PyConfig>,
+        config: Option<PyArgs>,
     ) -> Result<(Self, PyGraphView), GraphError> {
         let graph = match path {
             None => match config {
                 None => Graph::new(),
-                Some(PyConfig(config_args)) => Graph::new_with_config(config_args)?,
+                Some(PyArgs(args)) => Graph::new_with_config(args)?,
             },
             Some(path) => match config {
                 None => Graph::new_at_path(&path)?,
-                Some(PyConfig(config_args)) => Graph::new_at_path_with_config(&path, config_args)?,
+                Some(PyArgs(args)) => Graph::new_at_path_with_config(&path, args)?,
             },
         };
         Ok((
@@ -202,15 +202,15 @@ impl PyGraph {
     #[staticmethod]
     pub fn load(
         path: PathBuf,
-        config: Option<PyConfig>,
+        config: Option<PyArgs>,
         read_only: bool,
     ) -> Result<Graph, GraphError> {
         match (config, read_only) {
             (None, false) => Graph::load(&path),
-            (Some(PyConfig(config_args)), false) => Graph::load_with_config(&path, config_args),
+            (Some(PyArgs(args)), false) => Graph::load_with_config(&path, args),
             (None, true) => Graph::load_read_only(&path),
-            (Some(PyConfig(config_args)), true) => {
-                Graph::load_read_only_with_config(&path, config_args)
+            (Some(PyArgs(args)), true) => {
+                Graph::load_read_only_with_config(&path, args)
             }
         }
     }

@@ -49,7 +49,7 @@ use std::{
     sync::Arc,
 };
 
-use crate::{arrow_loader::df_loaders::edges::ColumnNames, python::config::PyConfig};
+use crate::{arrow_loader::df_loaders::edges::ColumnNames, python::config::PyArgs};
 #[cfg(feature = "search")]
 use crate::{prelude::IndexMutationOps, python::graph::index::PyIndexSpec};
 
@@ -128,18 +128,18 @@ impl PyPersistentGraph {
     #[pyo3(signature = (path = None, config=None))]
     pub fn py_new(
         path: Option<PathBuf>,
-        config: Option<PyConfig>,
+        config: Option<PyArgs>,
     ) -> Result<(Self, PyGraphView), GraphError> {
         let graph = match path {
             Some(path) => match config {
                 None => PersistentGraph::new_at_path(&path)?,
-                Some(PyConfig(config_args)) => {
-                    PersistentGraph::new_at_path_with_config(&path, config_args)?
+                Some(PyArgs(args)) => {
+                    PersistentGraph::new_at_path_with_config(&path, args)?
                 }
             },
             None => match config {
                 None => PersistentGraph::new(),
-                Some(PyConfig(config_args)) => PersistentGraph::new_with_config(config_args)?,
+                Some(PyArgs(args)) => PersistentGraph::new_with_config(args)?,
             },
         };
         Ok((
@@ -166,17 +166,17 @@ impl PyPersistentGraph {
     #[staticmethod]
     pub fn load(
         path: PathBuf,
-        config: Option<PyConfig>,
+        config: Option<PyArgs>,
         read_only: bool,
     ) -> Result<PersistentGraph, GraphError> {
         match (config, read_only) {
             (None, false) => PersistentGraph::load(&path),
-            (Some(PyConfig(config_args)), false) => {
-                PersistentGraph::load_with_config(&path, config_args)
+            (Some(PyArgs(args)), false) => {
+                PersistentGraph::load_with_config(&path, args)
             }
             (None, true) => PersistentGraph::load_read_only(&path),
-            (Some(PyConfig(config_args)), true) => {
-                PersistentGraph::load_read_only_with_config(&path, config_args)
+            (Some(PyArgs(args)), true) => {
+                PersistentGraph::load_read_only_with_config(&path, args)
             }
         }
     }

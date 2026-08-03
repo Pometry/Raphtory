@@ -13,7 +13,7 @@ use raphtory_api::{iter::BoxedLIter, GraphType};
 use raphtory_storage::{graph::graph::GraphStorage, mutation::InheritMutationOps};
 use std::ops::Range;
 #[cfg(feature = "io")]
-use storage::ConfigArgs;
+use storage::Args;
 
 #[derive(Clone)]
 pub enum MaterializedGraph {

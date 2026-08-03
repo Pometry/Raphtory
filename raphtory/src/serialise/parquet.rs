@@ -41,7 +41,7 @@ use std::{
         Arc,
     },
 };
-use storage::{persist::config::ConfigArgsOps, Config, ConfigArgs};
+use storage::{persist::config::ArgsOps, Config, Args};
 use tracing::error;
 use walkdir::WalkDir;
 use zip::{write::FileOptions, ZipArchive, ZipWriter};

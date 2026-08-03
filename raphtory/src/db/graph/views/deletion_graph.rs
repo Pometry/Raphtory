@@ -34,7 +34,7 @@ use std::{
 };
 use storage::api::graph_props::{GraphPropEntryOps, GraphPropRefOps};
 
-use storage::{persist::config::ConfigArgsOps, ConfigArgs};
+use storage::{persist::config::ArgsOps, Args};
 #[cfg(feature = "io")]
 use storage::{persist::strategy::PersistenceStrategy, Extension};
 
@@ -113,11 +113,11 @@ impl PersistentGraph {
     /// ```
     /// use raphtory::prelude::*;
     ///
-    /// let g = PersistentGraph::new_with_config(ConfigArgs::default().with_max_node_page_len(262144)).unwrap();
+    /// let g = PersistentGraph::new_with_config(Args::default().with_max_node_page_len(262144)).unwrap();
     /// ```
-    pub fn new_with_config(config_args: ConfigArgs) -> Result<Self, GraphError> {
+    pub fn new_with_config(args: Args) -> Result<Self, GraphError> {
         Ok(Self(Arc::new(Storage::new_with_config(
-            config_args.into(),
+            args.into(),
         )?)))
     }
 
@@ -135,7 +135,7 @@ impl PersistentGraph {
     #[cfg(feature = "io")]
     pub fn new_at_path_with_config(
         path: &(impl GraphPaths + ?Sized),
-        config_args: ConfigArgs,
+        args: Args,
     ) -> Result<Self, GraphError> {
         if !Extension::disk_storage_enabled() {
             return Err(GraphError::DiskGraphNotEnabled);
@@ -143,7 +143,7 @@ impl PersistentGraph {
         path.init()?;
         let graph = Self(Arc::new(Storage::new_at_path_with_config(
             path.graph_path()?,
-            config_args.into(),
+            args.into(),
         )?));
         let meta = Metadata {
             path: path.relative_graph_path()?,
@@ -206,11 +206,11 @@ impl PersistentGraph {
     #[cfg(feature = "io")]
     pub fn load_with_config(
         path: &(impl GraphPaths + ?Sized),
-        config_args: ConfigArgs,
+        args: Args,
     ) -> Result<Self, GraphError> {
         let graph_path = path.graph_path()?;
-        let config: Config = config_args
-            .override_graph_config_in_dir(&graph_path)?
+        let config: Config = args
+            .update_in_dir(&graph_path)?
             .into();
         Ok(Self(Arc::new(Storage::load_with_config(
             graph_path, config,
@@ -227,11 +227,11 @@ impl PersistentGraph {
     #[cfg(feature = "io")]
     pub fn load_read_only_with_config(
         path: &(impl GraphPaths + ?Sized),
-        config_args: ConfigArgs,
+        args: Args,
     ) -> Result<Self, GraphError> {
         let graph_path = path.graph_path()?;
-        let config: Config = config_args
-            .override_graph_config_in_dir(&graph_path)?
+        let config: Config = args
+            .update_in_dir(&graph_path)?
             .into();
         Ok(Self(Arc::new(Storage::load_read_only_with_config(
             graph_path, config,

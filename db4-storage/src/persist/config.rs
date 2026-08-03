@@ -1,6 +1,6 @@
 use crate::error::StorageError;
 use clap::{
-    Args, Command,
+    Args as ClapArgs, Command,
     error::{ContextKind, ContextValue},
 };
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
@@ -12,14 +12,18 @@ pub const DEFAULT_MAX_PAGE_LEN_NODES: u32 = 600_000; // 2^17
 pub const DEFAULT_MAX_PAGE_LEN_EDGES: u32 = 6_000_000; // 2^20
 pub const CONFIG_FILE_NAME: &str = "config.json";
 
-pub trait ConfigArgsOps: Serialize + DeserializeOwned + Sized + Clone {
+/// Trait for managing user-provided config arguments.
+pub trait ArgsOps: Serialize + DeserializeOwned + Sized + Clone {
     type Config: ConfigOps + From<Self>;
 
-    fn override_graph_config_in_dir(self, dir: &Path) -> Result<Self, StorageError> {
-        let mut cur_config_args = Self::load_from_dir(dir)?;
-        cur_config_args.update(self);
-        cur_config_args.save_to_dir(dir)?;
-        Ok(cur_config_args)
+    /// Update the config arguments stored in `dir` with the arguments in `self`.
+    fn update_in_dir(self, dir: &Path) -> Result<Self, StorageError> {
+        let mut args_in_dir = Self::load_from_dir(dir)?;
+
+        args_in_dir.update(self);
+        args_in_dir.save_to_dir(dir)?;
+
+        Ok(args_in_dir)
     }
 
     fn load_from_dir(dir: &Path) -> Result<Self, StorageError> {
@@ -43,8 +47,9 @@ pub trait ConfigArgsOps: Serialize + DeserializeOwned + Sized + Clone {
     fn update(&mut self, new_args: Self);
 }
 
-pub trait ConfigOps: Serialize + DeserializeOwned + Args + Sized {
-    type ConfigArgs: ConfigArgsOps<Config = Self> + From<Self>;
+/// Trait for graph storage configuration.
+pub trait ConfigOps: Serialize + DeserializeOwned + ClapArgs + Sized {
+    type Args: ArgsOps<Config = Self> + From<Self>;
 
     fn max_node_page_len(&self) -> u32;
 
@@ -59,7 +64,7 @@ pub trait ConfigOps: Serialize + DeserializeOwned + Args + Sized {
     fn with_node_types(&self, node_types: impl IntoIterator<Item = impl AsRef<str>>) -> Self;
 }
 
-#[derive(Debug, Copy, Clone, Serialize, Deserialize, Args)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, ClapArgs)]
 #[serde(default)]
 pub struct BaseConfig {
     #[arg(long, default_value_t=DEFAULT_MAX_PAGE_LEN_NODES, env="RAPHTORY_MAX_NODE_PAGE_LEN")]
@@ -70,12 +75,12 @@ pub struct BaseConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct BaseConfigArgs {
+pub struct BaseArgs {
     max_node_page_len: Option<u32>,
     max_edge_page_len: Option<u32>,
 }
 
-impl BaseConfigArgs {
+impl BaseArgs {
     pub fn max_node_page_len(&self) -> Option<u32> {
         self.max_node_page_len
     }
@@ -103,8 +108,8 @@ impl BaseConfigArgs {
     }
 }
 
-impl From<BaseConfigArgs> for BaseConfig {
-    fn from(args: BaseConfigArgs) -> Self {
+impl From<BaseArgs> for BaseConfig {
+    fn from(args: BaseArgs) -> Self {
         let mut config = BaseConfig::default();
         if let Some(v) = args.max_node_page_len {
             config = config.with_max_node_page_len(v);
@@ -116,7 +121,7 @@ impl From<BaseConfigArgs> for BaseConfig {
     }
 }
 
-impl From<BaseConfig> for BaseConfigArgs {
+impl From<BaseConfig> for BaseArgs {
     fn from(config: BaseConfig) -> Self {
         Self {
             max_node_page_len: Some(config.max_node_page_len),
@@ -125,7 +130,7 @@ impl From<BaseConfig> for BaseConfigArgs {
     }
 }
 
-impl ConfigArgsOps for BaseConfigArgs {
+impl ArgsOps for BaseArgs {
     type Config = BaseConfig;
 
     fn update(&mut self, new_args: Self) {
@@ -138,7 +143,7 @@ impl ConfigArgsOps for BaseConfigArgs {
     }
 }
 
-pub trait ClapDefault: Args {
+pub trait ClapDefault: ClapArgs {
     fn clap_default() -> Self;
 }
 
@@ -162,7 +167,7 @@ fn display_error(err: &clap::Error, cm: &Command) -> String {
     err.to_string()
 }
 
-impl<T: Args + Default> ClapDefault for T {
+impl<T: ClapArgs + Default> ClapDefault for T {
     fn clap_default() -> Self {
         let cm = Self::augment_args(Command::default().no_binary_name(true));
         cm.clone()
@@ -198,7 +203,7 @@ impl BaseConfig {
 }
 
 impl ConfigOps for BaseConfig {
-    type ConfigArgs = BaseConfigArgs;
+    type Args = BaseArgs;
 
     fn max_node_page_len(&self) -> u32 {
         self.max_node_page_len
