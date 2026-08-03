@@ -41,7 +41,7 @@ jobs:
       - name: Run benchmark (Unix)
         run: |
           set -o pipefail
-          cargo bench --bench base --bench algobench -p raphtory-benchmark -- --output-format=bencher | tee benchmark-result.txt
+          cargo bench --bench base --bench algobench_fast --bench algobench_medium --bench algobench_slow -p raphtory-benchmark -- --output-format=bencher | tee benchmark-result.txt
       - name: Restore Cargo.lock to avoid dirty working tree
         run: git checkout -- Cargo.lock
       - name: Store benchmark results from master branch
