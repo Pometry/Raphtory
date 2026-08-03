@@ -139,17 +139,20 @@ where
     // `patience` iterations since the improvement was no better than `rel_tol`.
     let rel_tol = rel_tol.unwrap_or(3e-4);
     let patience = patience.unwrap_or(10);
-    // (best, stale): Check is Fn + called once/iter single-threaded, so the Mutex is uncontended
-    let convergence_state = Arc::new(Mutex::new((usize::MAX, 0usize)));
+    // (best, stale, n_iter): Check is Fn + called once/iter single-threaded, so the Mutex is uncontended
+    let convergence_state = Arc::new(Mutex::new((usize::MAX, 0usize, 0usize)));
     let step4 = Job::Check(Box::new(move |state: &GlobalState<ComputeStateVec>| {
         let diff = state.read(&global_diff);
-        let (best, stale) = &mut *convergence_state.lock().unwrap();
+        let (best, stale, n_iter) = &mut *convergence_state.lock().unwrap();
+        *n_iter += 1;
         // check for improvement
         let improved = (diff as f64) < (*best as f64) * (1.0 - rel_tol);
         *best = (*best).min(diff);
         *stale = if improved { 0 } else { *stale + 1 };
         // Stop once fully converged (diff == 0) or the changed-node count has plateaued.
         if diff == 0 || *stale >= patience {
+            let pct = 100.0 * diff as f64 / num_nodes as f64;
+            println!("label_propagation: stopped after {n_iter} iters; diff={diff} ({pct:.2}%)");
             Step::Done
         } else {
             Step::Continue
