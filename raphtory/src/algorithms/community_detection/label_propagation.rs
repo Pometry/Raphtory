@@ -15,10 +15,12 @@ use crate::{
     prelude::*,
 };
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc,
+use std::{
+    collections::HashMap,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, Mutex,
+    },
 };
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
@@ -26,6 +28,7 @@ pub struct LabelPropState {
     #[serde(skip)]
     nbors: HashMap<usize, usize>,
     pub community_id: usize,
+    pub alternate_id: Option<usize>, // set to previous value when community_id has changed; None once settled
     #[serde(skip)]
     is_changed: bool, // derive(Default) initializes to false
 }
@@ -39,10 +42,14 @@ pub struct LabelPropState {
 /// - `seed` - (Optional) Array of 32 bytes of u8 which is set as the rng seed
 /// - `threads` - (Optional) Number of threads to use
 /// - `init_state` - (Optional) HashMap of node index to community ID for warm-starting the algorithm
+/// - `rel_tol` - (Optional) Relative-improvement threshold to track convergence. An iteration counts
+///   as progress only if its changed-node count drops below `best * (1 - rel_tol)`. Defaults to 3e-4.
+/// - `patience` - (Optional) Stop after this many consecutive iterations without progress. Defaults to 10.
 ///
 /// # Returns
 ///
-/// A vector of hashsets each containing nodes
+/// A `TypedNodeState` mapping each node to its `LabelPropState`: its `community_id`, plus
+/// `alternate_id` (the previous label it swaps with while oscillating, or `None` once converged).
 ///
 pub fn label_propagation<G>(
     g: &G,
@@ -50,6 +57,8 @@ pub fn label_propagation<G>(
     _seed: Option<[u8; 32]>,
     threads: Option<usize>,
     init_state: Option<HashMap<usize, usize>>,
+    rel_tol: Option<f64>,
+    patience: Option<usize>,
 ) -> TypedNodeState<'static, LabelPropState, G>
 where
     G: StaticGraphViewOps,
@@ -87,8 +96,10 @@ where
     let step3 = ATask::new(move |s: &mut EvalNodeView<_, LabelPropState>| {
         // Gate: consume this node's activation flag atomically.
         if !active_step3[s.state_pos].swap(false, Ordering::AcqRel) {
-            s.get_mut().is_changed = false;
-            // NB: this leaves community_id unchanged
+            let state = s.get_mut();
+            state.is_changed = false;
+            state.alternate_id = None; // clear any stale value from a prior iter
+                                       // NB: state.community_id unchanged
             return Step::Continue;
         }
 
@@ -99,9 +110,11 @@ where
         // get labels from neighbors
         for nbor in nbor_iter {
             let nbor_id = nbor.prev().community_id;
+            // below could be written instead as:
+            // *state.nbors.entry(nbor_id).or_insert(0) += 1;
             state
                 .nbors
-                .insert(nbor_id, *state.nbors.get(&nbor_id).unwrap_or(&(0)) + 1);
+                .insert(nbor_id, *state.nbors.get(&nbor_id).unwrap_or(&0) + 1);
         }
         // get max label (use usize ID to resolve tie)
         if let Some((&label, _)) = state
@@ -113,16 +126,33 @@ where
         }
         state.is_changed = state.community_id != prev_id;
         if state.is_changed {
+            state.alternate_id = Some(prev_id);
             s.global_update(&global_diff, 1);
+        } else {
+            state.alternate_id = None;
         }
         Step::Continue
     });
 
+    // Synchronous LPA never reaches global_diff == 0 on graphs with locally-bipartite pockets
+    // (results in ~period-2 oscillations), so the stopping criterion we use is to wait for
+    // `patience` iterations since the improvement was no better than `rel_tol`.
+    let rel_tol = rel_tol.unwrap_or(3e-4);
+    let patience = patience.unwrap_or(10);
+    // (best, stale): Check is Fn + called once/iter single-threaded, so the Mutex is uncontended
+    let convergence_state = Arc::new(Mutex::new((usize::MAX, 0usize)));
     let step4 = Job::Check(Box::new(move |state: &GlobalState<ComputeStateVec>| {
-        if state.read(&global_diff) > 0 {
-            Step::Continue
-        } else {
+        let diff = state.read(&global_diff);
+        let (best, stale) = &mut *convergence_state.lock().unwrap();
+        // check for improvement
+        let improved = (diff as f64) < (*best as f64) * (1.0 - rel_tol);
+        *best = (*best).min(diff);
+        *stale = if improved { 0 } else { *stale + 1 };
+        // Stop once fully converged (diff == 0) or the changed-node count has plateaued.
+        if diff == 0 || *stale >= patience {
             Step::Done
+        } else {
+            Step::Continue
         }
     }));
 

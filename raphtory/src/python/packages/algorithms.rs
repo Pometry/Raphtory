@@ -72,10 +72,10 @@ use crate::{
     },
 };
 use pyo3::{prelude::*, types::PyList};
-use std::collections::HashMap;
 use rand::{prelude::StdRng, SeedableRng};
 use raphtory_api::core::{entities::LayerIds, storage::timeindex::EventTime, Direction};
 use raphtory_storage::core_ops::CoreGraphOps;
+use std::collections::HashMap;
 
 /// Helper function to parse single-vertex or multi-vertex parameters to a Vec of vertices
 fn process_node_param(param: &Bound<PyAny>) -> PyResult<Vec<PyNodeRef>> {
@@ -778,17 +778,21 @@ pub fn betweenness_centrality(
 ///     iter_count (int): Number of iterations. Defaults to 20.
 ///     seed (bytes, optional): Array of 32 bytes of u8 which is set as the rng seed
 ///     init_state (OutputNodeState, optional): Node state from a previous run used as the initial community assignment
+///     rel_tol (float, optional): Relative-improvement threshold for the plateau stop. An iteration counts as progress only if its changed-node count drops below best * (1 - rel_tol). Defaults to 3e-4.
+///     patience (int, optional): Stop after this many consecutive iterations without progress. Defaults to 10.
 ///
 /// Returns:
 ///     OutputNodeState: NodeState mapping nodes to community id
 ///
 #[pyfunction]
-#[pyo3[signature = (graph, iter_count=20, seed=None, init_state=None)]]
+#[pyo3[signature = (graph, iter_count=20, seed=None, init_state=None, rel_tol=None, patience=None)]]
 pub fn label_propagation(
     graph: &PyGraphView,
     iter_count: usize,
     seed: Option<[u8; 32]>,
     init_state: Option<&PyOutputNodeState>,
+    rel_tol: Option<f64>,
+    patience: Option<usize>,
 ) -> OutputTypedNodeState<'static, DynamicGraph> {
     let init_map: Option<HashMap<usize, usize>> = init_state.map(|state| {
         state
@@ -804,7 +808,16 @@ pub fn label_propagation(
             })
             .collect()
     });
-    label_propagation_rs(&graph.graph, iter_count, seed, None, init_map).to_output_nodestate()
+    label_propagation_rs(
+        &graph.graph,
+        iter_count,
+        seed,
+        None,
+        init_map,
+        rel_tol,
+        patience,
+    )
+    .to_output_nodestate()
     // match  {
     //Ok(result) => Ok(result),
     //Err(err_msg) => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(err_msg)),
