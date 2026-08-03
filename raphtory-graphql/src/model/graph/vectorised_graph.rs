@@ -66,7 +66,7 @@ impl EmbeddingModel {
 }
 
 #[derive(ExpandObject)]
-struct VectorQuery<'a>(&'a QueryRoot); // expand Query object type
+pub struct VectorQuery<'a>(&'a QueryRoot); // expand Query object type
 
 #[ExpandObjectFields]
 impl<'b> VectorQuery<'b> {

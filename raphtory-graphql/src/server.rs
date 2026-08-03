@@ -60,8 +60,8 @@ use url::ParseError;
 
 #[cfg(feature = "vectors")]
 use {
-    crate::{paths::ExistingGraphFolder, GQLError},
-    raphtory::vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate},
+    crate::{model::graph::vectorised_graph::VectorQuery, paths::ExistingGraphFolder, GQLError},
+    raphtory::vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate, VectorsQuery},
 };
 
 pub const DEFAULT_PORT: u16 = 1736;
@@ -335,9 +335,11 @@ impl GraphServer {
         tracer: Option<Tracer>,
     ) -> Result<CompressionEndpoint<CorsEndpoint<Route>>, ServerError> {
         let schema_cfg = &self.config.schema;
+
         let mut schema_builder = App::create_schema()
             .data(self.data.clone())
             .data(self.config.concurrency.clone());
+
         for inject in &self.schema_data {
             schema_builder = inject(schema_builder);
         }

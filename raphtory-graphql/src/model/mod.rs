@@ -43,6 +43,7 @@ use tracing::warn;
 
 #[cfg(feature = "vectors")]
 use crate::model::graph::vectorised_graph::GqlVectorisedGraph;
+use crate::model::graph::vectorised_graph::VectorQuery;
 
 pub mod graph;
 pub mod plugins;
@@ -138,7 +139,7 @@ fn require_namespace_write(
 
 #[derive(ResolvedObject)]
 #[graphql(root)]
-pub(crate) struct QueryRoot;
+pub struct QueryRoot;
 
 #[derive(OneOfInput, Clone, Debug)]
 pub enum Template {
@@ -745,6 +746,7 @@ impl Mut {
 pub struct App(
     QueryRoot,
     MutRoot,
+    #[cfg(feature = "vectors")] VectorQuery<'static>,
     Mut,
     PermissionsEntrypointMut,
     PermissionsEntrypointQuery,
