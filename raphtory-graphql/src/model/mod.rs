@@ -42,8 +42,7 @@ use std::{collections::HashMap, path::PathBuf, sync::Arc};
 use tracing::warn;
 
 #[cfg(feature = "vectors")]
-use crate::model::graph::vectorised_graph::GqlVectorisedGraph;
-use crate::model::graph::vectorised_graph::VectorQuery;
+use crate::model::graph::vectorised_graph::{GqlVectorisedGraph, VectorQuery};
 
 pub mod graph;
 pub mod plugins;
