@@ -1,13 +1,119 @@
-use crate::model::graph::timeindex::GqlTimeInput;
-#[cfg(feature = "vectors")]
-use crate::rayon::blocking_compute;
-
-use super::vector_selection::GqlVectorSelection;
-use dynamic_graphql::{InputObject, ResolvedObject, ResolvedObjectFields};
-use raphtory::errors::GraphResult;
-#[cfg(feature = "vectors")]
-use raphtory::{db::api::view::MaterializedGraph, vectors::vectorised_graph::VectorisedGraph};
+use crate::{
+    auth::ContextValidation,
+    data::Data,
+    model::{
+        graph::{timeindex::GqlTimeInput, vector_selection::GqlVectorSelection},
+        resolve, QueryRoot, Template,
+    },
+    paths::ExistingGraphFolder,
+    rayon::blocking_compute,
+};
+use async_graphql::Context;
+use dynamic_graphql::{
+    ExpandObject, ExpandObjectFields, InputObject, OneOfInput, ResolvedObject, ResolvedObjectFields,
+};
+use raphtory::{
+    db::api::view::MaterializedGraph,
+    errors::GraphResult,
+    vectors::{
+        cache::CachedEmbeddingModel,
+        storage::OpenAIEmbeddings,
+        template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
+        vectorised_graph::VectorisedGraph,
+    },
+};
 use raphtory_api::core::{storage::timeindex::AsTime, utils::time::IntoTime};
+
+#[derive(InputObject, Debug, Clone, Default)]
+pub struct OpenAIConfig {
+    model: String,
+    api_base: Option<String>,
+    api_key_env: Option<String>,
+    org_id: Option<String>,
+    project_id: Option<String>,
+}
+
+#[derive(OneOfInput, Clone, Debug)]
+pub enum EmbeddingModel {
+    /// OpenAI embedding models or compatible providers
+    OpenAI(OpenAIConfig),
+}
+
+impl EmbeddingModel {
+    async fn cache<'a>(self, ctx: &Context<'a>) -> GraphResult<CachedEmbeddingModel> {
+        let data = ctx.data_unchecked::<Data>();
+        match self {
+            Self::OpenAI(OpenAIConfig {
+                model,
+                api_base,
+                api_key_env,
+                org_id,
+                project_id,
+            }) => {
+                let embeddings = OpenAIEmbeddings {
+                    model,
+                    api_base,
+                    api_key_env,
+                    org_id,
+                    project_id,
+                    dim: None,
+                };
+                let vector_cache = data.vector_cache.resolve().await?;
+                vector_cache.openai(embeddings.into()).await
+            }
+        }
+    }
+}
+
+#[derive(ExpandObject)]
+pub struct VectorQuery<'a>(&'a QueryRoot); // expand Query object type
+
+#[ExpandObjectFields]
+impl<'b> VectorQuery<'b> {
+    /// Update graph query, has side effects to update graph state
+    ///
+    /// Returns:: GqlMutableGraph
+    async fn vectorise_graph<'a>(
+        ctx: &Context<'a>,
+        #[graphql(desc = "Graph path relative to the root namespace.")] path: String,
+        #[graphql(desc = "Optional embedding model; defaults to OpenAI's standard model.")]
+        model: Option<EmbeddingModel>,
+        #[graphql(
+            desc = "Optional node-document template (which fields go into each node's text representation); defaults to the built-in template."
+        )]
+        nodes: Option<Template>,
+        #[graphql(desc = "Optional edge-document template; defaults to the built-in template.")]
+        edges: Option<Template>,
+    ) -> async_graphql::Result<bool> {
+        {
+            ctx.require_jwt_write_access()?;
+            let data = ctx.data_unchecked::<Data>();
+            let template = DocumentTemplate {
+                node_template: resolve(nodes, DEFAULT_NODE_TEMPLATE),
+                edge_template: resolve(edges, DEFAULT_EDGE_TEMPLATE),
+            };
+            let cached_model = model
+                .unwrap_or(EmbeddingModel::OpenAI(Default::default()))
+                .cache(ctx)
+                .await?;
+            let folder = ExistingGraphFolder::try_from(data.work_dir_read().await, &path)?;
+            data.vectorise_folder(&folder, &template, cached_model)
+                .await?;
+            Ok(true)
+        }
+    }
+
+    /// Create vectorised graph in the format used for queries
+    ///
+    /// Returns:: GqlVectorisedGraph
+    async fn vectorised_graph<'a>(
+        ctx: &Context<'a>,
+        #[graphql(desc = "Graph path relative to the root namespace.")] path: &str,
+    ) -> async_graphql::Result<Option<GqlVectorisedGraph>> {
+        let data = ctx.data_unchecked::<Data>();
+        data.get_vectors_with_read_permission(ctx, path).await
+    }
+}
 
 #[derive(InputObject)]
 pub(super) struct VectorisedGraphWindow {
@@ -31,19 +137,16 @@ impl IntoWindowTuple for Option<VectorisedGraphWindow> {
 /// Exposes similarity search over documents, nodes, and edges, plus
 /// selection building (`emptySelection`) and index maintenance
 /// (`optimizeIndex`).
-#[cfg(feature = "vectors")]
 #[derive(ResolvedObject)]
 #[graphql(name = "VectorisedGraph")]
 pub(crate) struct GqlVectorisedGraph(VectorisedGraph<MaterializedGraph>);
 
-#[cfg(feature = "vectors")]
 impl From<VectorisedGraph<MaterializedGraph>> for GqlVectorisedGraph {
     fn from(value: VectorisedGraph<MaterializedGraph>) -> Self {
         Self(value.clone())
     }
 }
 
-#[cfg(feature = "vectors")]
 #[ResolvedObjectFields]
 impl GqlVectorisedGraph {
     /// Rebuild (or incrementally update) the on-disk vector indexes for nodes
@@ -115,63 +218,5 @@ impl GqlVectorisedGraph {
         let cloned = self.0.clone();
         let query = blocking_compute(move || cloned.edges_by_similarity(&vector, limit, w)).await;
         Ok(query.execute().await?.into())
-    }
-}
-
-// When the `vectors` feature is disabled the type still exists so the GraphQL
-// schema shape is identical, but it is uninhabited and can never be
-// constructed: the `vectorisedGraph` query errors before producing one, so
-// none of these resolvers are ever reached.
-#[cfg(not(feature = "vectors"))]
-#[derive(ResolvedObject)]
-#[graphql(name = "VectorisedGraph")]
-pub(crate) struct GqlVectorisedGraph(#[allow(dead_code)] std::convert::Infallible);
-
-#[cfg(not(feature = "vectors"))]
-#[ResolvedObjectFields]
-#[allow(unused_variables)]
-impl GqlVectorisedGraph {
-    async fn optimize_index(&self) -> GraphResult<bool> {
-        unreachable!("vectors feature disabled")
-    }
-
-    async fn empty_selection(&self) -> GqlVectorSelection {
-        unreachable!("vectors feature disabled")
-    }
-
-    async fn entities_by_similarity(
-        &self,
-        #[graphql(desc = "Natural-language search string; embedded by the server.")] query: String,
-        #[graphql(desc = "Maximum number of results to return.")] limit: usize,
-        #[graphql(
-            desc = "Optional `{start, end}` to restrict matches to entities active in that interval."
-        )]
-        window: Option<VectorisedGraphWindow>,
-    ) -> GraphResult<GqlVectorSelection> {
-        unreachable!("vectors feature disabled")
-    }
-
-    async fn nodes_by_similarity(
-        &self,
-        #[graphql(desc = "Natural-language search string; embedded by the server.")] query: String,
-        #[graphql(desc = "Maximum number of nodes to return.")] limit: usize,
-        #[graphql(
-            desc = "Optional `{start, end}` to restrict matches to nodes active in that interval."
-        )]
-        window: Option<VectorisedGraphWindow>,
-    ) -> GraphResult<GqlVectorSelection> {
-        unreachable!("vectors feature disabled")
-    }
-
-    async fn edges_by_similarity(
-        &self,
-        #[graphql(desc = "Natural-language search string; embedded by the server.")] query: String,
-        #[graphql(desc = "Maximum number of edges to return.")] limit: usize,
-        #[graphql(
-            desc = "Optional `{start, end}` to restrict matches to edges active in that interval."
-        )]
-        window: Option<VectorisedGraphWindow>,
-    ) -> GraphResult<GqlVectorSelection> {
-        unreachable!("vectors feature disabled")
     }
 }

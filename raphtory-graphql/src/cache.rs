@@ -44,9 +44,6 @@ impl Lifecycle<String, GraphWithVectors> for ArcPinned {
     }
 
     #[inline]
-    fn begin_request(&self) -> Self::RequestState {}
-
-    #[inline]
     fn on_evict(&self, _state: &mut Self::RequestState, _key: String, graph: GraphWithVectors) {
         debug_assert_eq!(
             graph.ref_count(),

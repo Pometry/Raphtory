@@ -9,7 +9,6 @@ mod edges;
 pub mod filtering;
 pub(crate) mod graph;
 pub(crate) mod history;
-pub(crate) mod index;
 pub mod meta_graph;
 pub(crate) mod mutable_graph;
 pub mod namespace;
@@ -20,7 +19,11 @@ mod nodes;
 mod path_from_node;
 pub(crate) mod property;
 pub(crate) mod timeindex;
+
+#[cfg(feature = "vectors")]
 pub(crate) mod vector_selection;
+
+#[cfg(feature = "vectors")]
 pub(crate) mod vectorised_graph;
 mod windowset;
 

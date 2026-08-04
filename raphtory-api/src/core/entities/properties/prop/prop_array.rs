@@ -314,10 +314,8 @@ pub fn arrow_dtype_from_prop_type(prop_type: &PropType) -> DataType {
         PropType::F32 => DataType::Float32,
         PropType::F64 => DataType::Float64,
         PropType::Bool => DataType::Boolean,
-        PropType::NDTime => DataType::Timestamp(arrow_schema::TimeUnit::Millisecond, None),
-        PropType::DTime => {
-            DataType::Timestamp(arrow_schema::TimeUnit::Millisecond, Some("UTC".into()))
-        }
+        PropType::NDTime => DataType::Timestamp(TimeUnit::Millisecond, None),
+        PropType::DTime => DataType::Timestamp(TimeUnit::Millisecond, Some("UTC".into())),
         PropType::List(d_type) => {
             DataType::LargeList(Field::new("data", arrow_dtype_from_prop_type(d_type), true).into())
         }

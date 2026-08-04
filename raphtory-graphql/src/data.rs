@@ -10,7 +10,6 @@ use crate::{
             filtering::{GraphAccessFilter, GraphRowFilter, HiddenKeys},
             namespace::Namespace,
             namespaced_item::NamespacedItem,
-            vectorised_graph::GqlVectorisedGraph,
         },
     },
     paths::{
@@ -20,14 +19,8 @@ use crate::{
     rayon::blocking_compute,
     GQLError,
 };
-
 use async_graphql::Context;
 use dynamic_graphql::Enum;
-#[cfg(feature = "vectors")]
-use raphtory::vectors::{
-    cache::CachedEmbeddingModel, storage::LazyDiskVectorCache, template::DocumentTemplate,
-    vectorisable::Vectorisable, vectorised_graph::VectorisedGraph,
-};
 use raphtory::{
     db::{
         api::{
@@ -51,6 +44,15 @@ use std::{
 use tokio::sync::{OwnedRwLockReadGuard, OwnedRwLockWriteGuard, RwLock};
 use tracing::{error, warn};
 use walkdir::WalkDir;
+
+#[cfg(feature = "vectors")]
+use {
+    crate::model::graph::vectorised_graph::GqlVectorisedGraph,
+    raphtory::vectors::{
+        cache::CachedEmbeddingModel, storage::LazyDiskVectorCache, template::DocumentTemplate,
+        vectorisable::Vectorisable, vectorised_graph::VectorisedGraph,
+    },
+};
 
 #[derive(thiserror::Error, Debug)]
 pub enum ParquetPathError {
@@ -264,7 +266,6 @@ impl WorkDirGuard {
 #[derive(Clone)]
 pub struct Data {
     inner: Arc<DataInner>,
-    pub(crate) create_index: bool,
 }
 
 impl Deref for Data {
@@ -297,13 +298,6 @@ impl Data {
 
         let cache = GraphCache::new(cache_configs.capacity as usize);
 
-        #[cfg(feature = "search")]
-        let create_index = configs.index.create_index;
-        #[cfg(not(feature = "search"))]
-        let create_index = false;
-
-        // TODO: make vector feature optional?
-
         Self {
             inner: Arc::new(DataInner {
                 work_dir: Arc::new(RwLock::new(work_dir.to_path_buf())),
@@ -314,7 +308,6 @@ impl Data {
                 auth_policy: None,
                 allowed_parquet_paths: configs.parquet.allowed_paths.clone(),
             }),
-            create_index,
         }
     }
 
@@ -592,7 +585,6 @@ impl Data {
         &self,
         folder: ExistingGraphFolder,
     ) -> Result<GraphWithVectors, GraphError> {
-        let create_index = self.create_index;
         let config = self.graph_conf.clone();
         #[cfg(feature = "vectors")]
         let cache = self.vector_cache.clone();
@@ -600,7 +592,6 @@ impl Data {
             &folder,
             #[cfg(feature = "vectors")]
             &cache,
-            create_index,
             config,
         )
         .await
@@ -894,6 +885,7 @@ impl Data {
     /// Checks read permission then returns the vectorised graph, if any.
     /// Returns `None` for filtered-access users: embeddings are computed from the full graph
     /// and search results cannot be retroactively row-filtered.
+    #[cfg(feature = "vectors")]
     pub(crate) async fn get_vectors_with_read_permission(
         &self,
         ctx: &Context<'_>,
@@ -903,16 +895,8 @@ impl Data {
         if matches!(perm, GraphPermission::Read { filter: Some(_) }) {
             return Ok(None);
         }
-        #[cfg(feature = "vectors")]
-        {
-            let graph = self.get_graph(path).await?;
-            Ok(graph.vectors().cloned().map(|g| g.into()))
-        }
-        #[cfg(not(feature = "vectors"))]
-        {
-            let _ = path;
-            Err(async_graphql::Error::new("vectors feature not enabled"))
-        }
+        let graph = self.get_graph(path).await?;
+        Ok(graph.vectors().cloned().map(|g| g.into()))
     }
 }
 

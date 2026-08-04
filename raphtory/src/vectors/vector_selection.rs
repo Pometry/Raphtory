@@ -85,13 +85,13 @@ pub type QueryPair = (
 pub trait BlockingExecutor<Fut>:
     Fn(Box<dyn FnOnce() -> QueryPair + Send + 'static>) -> Fut + Send + Sync + Clone + 'static
 where
-    Fut: std::future::Future<Output = QueryPair> + Send,
+    Fut: Future<Output = QueryPair> + Send,
 {
 }
 
 impl<Fut, T> BlockingExecutor<Fut> for T
 where
-    Fut: std::future::Future<Output = QueryPair> + Send,
+    Fut: Future<Output = QueryPair> + Send,
     T: Fn(Box<dyn FnOnce() -> QueryPair + Send + 'static>) -> Fut + Send + Sync + Clone + 'static,
 {
 }

@@ -27,19 +27,16 @@ impl GraphTransformer for WindowedCachedGraphTransformer {
 }
 
 mod test_nodes_filters_cached_view_graph {
+    use crate::filter_tests::{
+        cached_view::{CachedGraphTransformer, WindowedCachedGraphTransformer},
+        init_graph, Edges, Nodes,
+    };
     use raphtory::db::graph::views::filter::model::{
         node_filter::NodeFilter, property_filter::ops::PropertyFilterOps, PropertyFilterFactory,
     };
-
     use raphtory_tests::assertions::{
-        assert_filter_nodes_results, assert_search_nodes_results, TestGraphVariants, TestVariants,
+        assert_filter_nodes_results, TestGraphVariants, TestVariants,
     };
-
-    use crate::filter_tests::cached_view::{
-        CachedGraphTransformer, WindowedCachedGraphTransformer,
-    };
-
-    use crate::filter_tests::{init_graph, Edges, Nodes};
 
     #[test]
     fn test_nodes_filters() {
@@ -49,13 +46,6 @@ mod test_nodes_filters_cached_view_graph {
             |graph| init_graph(graph, Nodes::Typed, Edges::None),
             CachedGraphTransformer,
             filter.clone(),
-            &expected_results,
-            TestVariants::EventOnly,
-        );
-        assert_search_nodes_results(
-            |graph| init_graph(graph, Nodes::Typed, Edges::None),
-            CachedGraphTransformer,
-            filter,
             &expected_results,
             TestVariants::EventOnly,
         );
@@ -73,13 +63,6 @@ mod test_nodes_filters_cached_view_graph {
             &expected_results,
             vec![TestGraphVariants::Graph],
         );
-        assert_search_nodes_results(
-            |graph| init_graph(graph, Nodes::Typed, Edges::None),
-            WindowedCachedGraphTransformer(6..9),
-            filter,
-            &expected_results,
-            TestVariants::EventOnly,
-        );
     }
 
     #[test]
@@ -93,22 +76,13 @@ mod test_nodes_filters_cached_view_graph {
             &expected_results,
             TestVariants::PersistentOnly,
         );
-        assert_search_nodes_results(
-            |graph| init_graph(graph, Nodes::Typed, Edges::None),
-            WindowedCachedGraphTransformer(6..9),
-            filter,
-            &expected_results,
-            TestVariants::PersistentOnly,
-        );
     }
 }
 
 mod test_edges_filter_cached_view_graph {
     use raphtory::prelude::EdgeFilter;
 
-    use raphtory_tests::assertions::{
-        assert_filter_edges_results, assert_search_edges_results, TestVariants,
-    };
+    use raphtory_tests::assertions::{assert_filter_edges_results, TestVariants};
 
     use crate::filter_tests::cached_view::{
         CachedGraphTransformer, WindowedCachedGraphTransformer,
@@ -121,20 +95,12 @@ mod test_edges_filter_cached_view_graph {
 
     #[test]
     fn test_edges_filters() {
-        // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
         let filter = EdgeFilter.property("p1").eq(1u64);
         let expected_results = vec!["N1->N2", "N3->N4", "N4->N5", "N6->N7", "N7->N8"];
         assert_filter_edges_results(
             |graph| init_graph(graph, Nodes::None, Edges::Unlayered),
             CachedGraphTransformer,
             filter.clone(),
-            &expected_results,
-            TestVariants::EventOnly,
-        );
-        assert_search_edges_results(
-            |graph| init_graph(graph, Nodes::None, Edges::Unlayered),
-            CachedGraphTransformer,
-            filter,
             &expected_results,
             TestVariants::All,
         );
@@ -151,18 +117,10 @@ mod test_edges_filter_cached_view_graph {
             &expected_results,
             TestVariants::EventOnly,
         );
-        assert_search_edges_results(
-            |graph| init_graph(graph, Nodes::None, Edges::Unlayered),
-            WindowedCachedGraphTransformer(6..9),
-            filter,
-            &expected_results,
-            TestVariants::EventOnly,
-        );
     }
 
     #[test]
     fn test_edges_filters_pg_w() {
-        // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
         let filter = EdgeFilter.property("p1").ge(2u64);
         let expected_results = vec!["N2->N3", "N5->N6", "N8->N1"];
         assert_filter_edges_results(
@@ -171,13 +129,6 @@ mod test_edges_filter_cached_view_graph {
             filter.clone(),
             &expected_results,
             vec![],
-        );
-        assert_search_edges_results(
-            |graph| init_graph(graph, Nodes::None, Edges::Unlayered),
-            WindowedCachedGraphTransformer(6..9),
-            filter,
-            &expected_results,
-            TestVariants::PersistentOnly,
         );
     }
 }

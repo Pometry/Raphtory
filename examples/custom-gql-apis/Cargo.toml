@@ -19,9 +19,5 @@ async-graphql = { workspace = true, features = ["dynamic-schema"] }
 futures-util = { workspace = true }
 pyo3 = { workspace = true, features = ["multiple-pymethods"] }
 
-
-[features]
-extension-module = ["pyo3/extension-module"]
-
 [build-dependencies]
 pyo3-build-config = { workspace = true }

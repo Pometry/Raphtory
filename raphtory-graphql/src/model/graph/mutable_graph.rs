@@ -984,7 +984,7 @@ mod tests {
                 .await;
 
             assert!(result.is_ok());
-            assert!(result.unwrap().get_documents().await.unwrap().len() == 2);
+            assert_eq!(result.unwrap().get_documents().await.unwrap().len(), 2);
             context.embedding_server.stop().await;
         }
     }
@@ -1064,7 +1064,7 @@ mod tests {
                 .await;
 
             assert!(result.is_ok());
-            assert!(result.unwrap().get_documents().await.unwrap().len() == 3);
+            assert_eq!(result.unwrap().get_documents().await.unwrap().len(), 3);
             context.embedding_server.stop().await;
         }
     }
@@ -1149,7 +1149,7 @@ mod tests {
                 .await;
 
             assert!(result.is_ok());
-            assert!(result.unwrap().get_documents().await.unwrap().len() == 2);
+            assert_eq!(result.unwrap().get_documents().await.unwrap().len(), 2);
             context.embedding_server.stop().await;
         }
     }

@@ -64,7 +64,7 @@ fn test_cli_parsing_no_arguments() {
         .spawn()
         .expect("failed to spawn raphtory-server CLI");
 
-    std::thread::sleep(Duration::from_secs(1));
+    std::thread::sleep(Duration::from_secs(5));
     child.kill().expect("failed to kill raphtory-server CLI");
     let output = child
         .wait_with_output()
@@ -96,7 +96,7 @@ fn test_cli_parsing_with_config_file() {
         .spawn()
         .expect("failed to spawn raphtory-server CLI");
 
-    std::thread::sleep(Duration::from_secs(1));
+    std::thread::sleep(Duration::from_secs(5));
     child.kill().expect("failed to kill raphtory-server CLI");
     let output = child
         .wait_with_output()
@@ -128,7 +128,7 @@ fn test_cli_parsing_with_env_variable() {
         .spawn()
         .expect("failed to spawn raphtory-server CLI");
 
-    std::thread::sleep(Duration::from_secs(1));
+    std::thread::sleep(Duration::from_secs(5));
     child.kill().expect("failed to kill raphtory-server CLI");
     let output = child
         .wait_with_output()
@@ -162,7 +162,7 @@ fn test_cli_parsing_with_server_argument() {
         .spawn()
         .expect("failed to spawn raphtory-server CLI");
 
-    std::thread::sleep(Duration::from_secs(1));
+    std::thread::sleep(Duration::from_secs(5));
     child.kill().expect("failed to kill raphtory-server CLI");
     let output = child
         .wait_with_output()

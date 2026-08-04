@@ -221,7 +221,7 @@ mod test_filters_node_type_filtered_subgraph {
             db::graph::views::filter::model::PropertyFilterFactory, prelude::NodeFilter,
         };
         use raphtory_tests::assertions::{
-            assert_filter_nodes_results, assert_search_nodes_results, TestGraphVariants,
+            assert_filter_nodes_results,
             TestVariants,
         };
         #[test]
@@ -232,13 +232,6 @@ mod test_filters_node_type_filtered_subgraph {
                 |graph| init_graph(graph, Nodes::Typed, Edges::None),
                 NodeTypeGraphTransformer(None),
                 filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-            assert_search_nodes_results(
-                |graph| init_graph(graph, Nodes::Typed, Edges::None),
-                NodeTypeGraphTransformer(None),
-                filter,
                 &expected_results,
                 TestVariants::All,
             );
@@ -254,31 +247,16 @@ mod test_filters_node_type_filtered_subgraph {
                 &expected_results,
                 TestVariants::All,
             );
-            assert_search_nodes_results(
-                |graph| init_graph(graph, Nodes::Typed, Edges::None),
-                NodeTypeGraphTransformer(node_types),
-                filter,
-                &expected_results,
-                TestVariants::All,
-            );
         }
 
         #[test]
         fn test_nodes_filters_w() {
-            // TODO: Enable event_disk_graph for filter_nodes once bug fixed: https://github.com/Pometry/Raphtory/issues/2098
             let filter = NodeFilter.property("p1").eq(1u64);
             let expected_results = vec!["N1", "N3", "N6"];
             assert_filter_nodes_results(
                 |graph| init_graph(graph, Nodes::Typed, Edges::None),
                 WindowedNodeTypeGraphTransformer(None, 6..9),
                 filter.clone(),
-                &expected_results,
-                vec![TestGraphVariants::Graph],
-            );
-            assert_search_nodes_results(
-                |graph| init_graph(graph, Nodes::Typed, Edges::None),
-                WindowedNodeTypeGraphTransformer(None, 6..9),
-                filter,
                 &expected_results,
                 TestVariants::EventOnly,
             );
@@ -291,13 +269,6 @@ mod test_filters_node_type_filtered_subgraph {
                 |graph| init_graph(graph, Nodes::Typed, Edges::None),
                 WindowedNodeTypeGraphTransformer(node_types.clone(), 6..9),
                 filter.clone(),
-                &expected_results,
-                vec![TestGraphVariants::Graph],
-            );
-            assert_search_nodes_results(
-                |graph| init_graph(graph, Nodes::Typed, Edges::None),
-                WindowedNodeTypeGraphTransformer(node_types, 6..9),
-                filter,
                 &expected_results,
                 TestVariants::EventOnly,
             );
@@ -314,13 +285,6 @@ mod test_filters_node_type_filtered_subgraph {
                 &expected_results,
                 TestVariants::PersistentOnly,
             );
-            assert_search_nodes_results(
-                |graph| init_graph(graph, Nodes::Typed, Edges::None),
-                WindowedNodeTypeGraphTransformer(None, 6..9),
-                filter,
-                &expected_results,
-                TestVariants::PersistentOnly,
-            );
 
             let node_types: Option<Vec<String>> =
                 Some(vec!["air_nomad".into(), "water_tribe".into()]);
@@ -330,13 +294,6 @@ mod test_filters_node_type_filtered_subgraph {
                 |graph| init_graph(graph, Nodes::Typed, Edges::None),
                 WindowedNodeTypeGraphTransformer(node_types.clone(), 6..9),
                 filter.clone(),
-                &expected_results,
-                TestVariants::PersistentOnly,
-            );
-            assert_search_nodes_results(
-                |graph| init_graph(graph, Nodes::Typed, Edges::None),
-                WindowedNodeTypeGraphTransformer(node_types, 6..9),
-                filter,
                 &expected_results,
                 TestVariants::PersistentOnly,
             );
@@ -465,9 +422,7 @@ mod test_filters_node_type_filtered_subgraph {
             db::graph::views::filter::model::PropertyFilterFactory, prelude::EdgeFilter,
         };
 
-        use raphtory_tests::assertions::{
-            assert_filter_edges_results, assert_search_edges_results, TestVariants,
-        };
+        use raphtory_tests::assertions::{assert_filter_edges_results, TestVariants};
         #[test]
         fn test_edges_filters() {
             let filter = EdgeFilter.property("p1").eq(1u64);
@@ -476,13 +431,6 @@ mod test_filters_node_type_filtered_subgraph {
                 init_graph,
                 NodeTypeGraphTransformer(None),
                 filter.clone(),
-                &expected_results,
-                TestVariants::EventOnly,
-            );
-            assert_search_edges_results(
-                init_graph,
-                NodeTypeGraphTransformer(None),
-                filter,
                 &expected_results,
                 TestVariants::All,
             );
@@ -496,13 +444,6 @@ mod test_filters_node_type_filtered_subgraph {
                 NodeTypeGraphTransformer(node_types.clone()),
                 filter.clone(),
                 &expected_results,
-                TestVariants::EventOnly,
-            );
-            assert_search_edges_results(
-                init_graph,
-                NodeTypeGraphTransformer(node_types.clone()),
-                filter.clone(),
-                &expected_results,
                 TestVariants::All,
             );
 
@@ -512,13 +453,6 @@ mod test_filters_node_type_filtered_subgraph {
                 init_graph,
                 LayeredNodeTypeGraphTransformer(node_types.clone(), layers.clone()),
                 filter.clone(),
-                &expected_results,
-                TestVariants::EventOnly,
-            );
-            assert_search_edges_results(
-                init_graph,
-                LayeredNodeTypeGraphTransformer(node_types.clone(), layers),
-                filter,
                 &expected_results,
                 TestVariants::All,
             );
@@ -535,13 +469,6 @@ mod test_filters_node_type_filtered_subgraph {
                 &expected_results,
                 TestVariants::EventOnly,
             );
-            assert_search_edges_results(
-                init_graph,
-                WindowedNodeTypeGraphTransformer(None, 6..9),
-                filter,
-                &expected_results,
-                TestVariants::EventOnly,
-            );
 
             let node_types: Option<Vec<String>> =
                 Some(vec!["air_nomad".into(), "water_tribe".into()]);
@@ -554,26 +481,12 @@ mod test_filters_node_type_filtered_subgraph {
                 &expected_results,
                 TestVariants::EventOnly,
             );
-            assert_search_edges_results(
-                init_graph,
-                WindowedNodeTypeGraphTransformer(node_types.clone(), 6..9),
-                filter.clone(),
-                &expected_results,
-                TestVariants::EventOnly,
-            );
 
             let layers = vec!["fire_nation".to_string()];
             let expected_results = vec!["N3->N4"];
             assert_filter_edges_results(
                 init_graph,
                 LayeredWindowedNodeTypeGraphTransformer(node_types.clone(), 6..9, layers.clone()),
-                filter.clone(),
-                &expected_results,
-                TestVariants::EventOnly,
-            );
-            assert_search_edges_results(
-                init_graph,
-                LayeredWindowedNodeTypeGraphTransformer(node_types.clone(), 6..9, layers),
                 filter.clone(),
                 &expected_results,
                 TestVariants::EventOnly,
@@ -591,13 +504,6 @@ mod test_filters_node_type_filtered_subgraph {
                 &expected_results,
                 TestVariants::PersistentOnly,
             );
-            assert_search_edges_results(
-                init_graph,
-                WindowedNodeTypeGraphTransformer(None, 6..9),
-                filter.clone(),
-                &expected_results,
-                TestVariants::PersistentOnly,
-            );
 
             let node_types: Option<Vec<String>> =
                 Some(vec!["air_nomad".into(), "water_tribe".into()]);
@@ -610,26 +516,12 @@ mod test_filters_node_type_filtered_subgraph {
                 &expected_results,
                 TestVariants::PersistentOnly,
             );
-            assert_search_edges_results(
-                init_graph,
-                WindowedNodeTypeGraphTransformer(node_types.clone(), 6..9),
-                filter.clone(),
-                &expected_results,
-                TestVariants::PersistentOnly,
-            );
 
             let layers = vec!["fire_nation".to_string()];
             let expected_results = vec!["N3->N4"];
             assert_filter_edges_results(
                 init_graph,
                 LayeredWindowedNodeTypeGraphTransformer(node_types.clone(), 6..9, layers.clone()),
-                filter.clone(),
-                &expected_results,
-                vec![],
-            );
-            assert_search_edges_results(
-                init_graph,
-                LayeredWindowedNodeTypeGraphTransformer(node_types.clone(), 6..9, layers),
                 filter.clone(),
                 &expected_results,
                 TestVariants::PersistentOnly,

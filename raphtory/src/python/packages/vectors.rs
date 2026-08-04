@@ -159,7 +159,7 @@ pub struct PyEmbeddingServer {
 
 impl PyEmbeddingServer {
     fn create_running_server(&self, host: Option<&str>, port: u16) -> (Runtime, EmbeddingServer) {
-        let runtime = tokio::runtime::Runtime::new().unwrap();
+        let runtime = Runtime::new().unwrap();
         let execution = runtime.block_on(serve_custom_embedding(host, port, self.function.clone()));
         (runtime, execution)
     }
