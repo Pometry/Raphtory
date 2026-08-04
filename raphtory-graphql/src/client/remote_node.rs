@@ -3,7 +3,8 @@ use crate::{
         op::{
             input_time_from_parts, AddNodeMetadata as AddNodeMetadataOp,
             AddNodeUpdates as AddNodeUpdatesOp, HandleCtx, HandleOp, InputTime, Op, ReadExpr,
-            SetNodeType as SetNodeTypeOp, UpdateNodeMetadata as UpdateNodeMetadataOp, WriteOp,
+            SetNodeType as SetNodeTypeOp, UpdateNodeMetadata as UpdateNodeMetadataOp, ViewOp,
+            WriteOp,
         },
         remote_edges::RemoteEdges,
         remote_graph::{
@@ -65,27 +66,19 @@ impl RemoteNode {
     /// Internal helper: apply a view op to `expr` (narrowing the node's own
     /// view) and record it in `ctx` so descendants navigated via
     /// `.neighbours`, `.edges`, etc. replay it when materializing handles.
-    fn with_view_op<F>(&self, wrap: F) -> RemoteNode
-    where
-        F: Fn(ReadExpr) -> ReadExpr + Send + Sync + 'static,
-    {
-        let wrap = Arc::new(wrap);
+    fn with_view_op(&self, op: ViewOp) -> RemoteNode {
         RemoteNode {
             path: self.path.clone(),
             id: self.id.clone(),
             transport: self.transport.clone(),
-            expr: Arc::new(wrap((*self.expr).clone())),
-            ctx: self.ctx.with_op(HandleOp::View(wrap)),
+            expr: Arc::new(op.apply(self.expr.clone())),
+            ctx: self.ctx.with_op(HandleOp::View(op)),
         }
     }
 
     /// Time-window this node. Lazy — no RPC.
     pub fn window(&self, start: InputTime, end: InputTime) -> RemoteNode {
-        self.with_view_op(move |input| ReadExpr::Window {
-            input: Arc::new(input),
-            start,
-            end,
-        })
+        self.with_view_op(ViewOp::Window { start, end })
     }
 
     /// Return a filtered view of this node — mirrors the local
@@ -108,142 +101,100 @@ impl RemoteNode {
 
     /// Restrict to a single named layer. Lazy — no RPC.
     pub fn layer(&self, name: impl ToString) -> RemoteNode {
-        let name = name.to_string();
-        self.with_view_op(move |input| ReadExpr::Layer {
-            input: Arc::new(input),
-            name: name.clone(),
+        self.with_view_op(ViewOp::Layer {
+            name: name.to_string(),
         })
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
     pub fn at(&self, time: InputTime) -> RemoteNode {
-        self.with_view_op(move |input| ReadExpr::At {
-            input: Arc::new(input),
-            time,
-        })
+        self.with_view_op(ViewOp::At { time })
     }
 
     /// Restrict to events strictly before the given time. Lazy — no RPC.
     pub fn before(&self, time: InputTime) -> RemoteNode {
-        self.with_view_op(move |input| ReadExpr::Before {
-            input: Arc::new(input),
-            time,
-        })
+        self.with_view_op(ViewOp::Before { time })
     }
 
     /// Restrict to events strictly after the given time (exclusive). Lazy — no RPC.
     pub fn after(&self, time: InputTime) -> RemoteNode {
-        self.with_view_op(move |input| ReadExpr::After {
-            input: Arc::new(input),
-            time,
-        })
+        self.with_view_op(ViewOp::After { time })
     }
 
     /// Latest state. Lazy — no RPC.
     pub fn latest(&self) -> RemoteNode {
-        self.with_view_op(move |input| ReadExpr::Latest {
-            input: Arc::new(input),
-        })
+        self.with_view_op(ViewOp::Latest)
     }
 
     /// Snapshot at the latest time. Lazy — no RPC.
     pub fn snapshot_latest(&self) -> RemoteNode {
-        self.with_view_op(move |input| ReadExpr::SnapshotLatest {
-            input: Arc::new(input),
-        })
+        self.with_view_op(ViewOp::SnapshotLatest)
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
     pub fn snapshot_at(&self, time: InputTime) -> RemoteNode {
-        self.with_view_op(move |input| ReadExpr::SnapshotAt {
-            input: Arc::new(input),
-            time,
-        })
+        self.with_view_op(ViewOp::SnapshotAt { time })
     }
 
     /// Exclude a specific layer from the view. Lazy — no RPC.
     pub fn exclude_layer(&self, name: impl ToString) -> RemoteNode {
-        let name = name.to_string();
-        self.with_view_op(move |input| ReadExpr::ExcludeLayer {
-            input: Arc::new(input),
-            name: name.clone(),
+        self.with_view_op(ViewOp::ExcludeLayer {
+            name: name.to_string(),
         })
     }
 
     /// Shrink both start and end of the current window. Lazy — no RPC.
     pub fn shrink_window(&self, start: InputTime, end: InputTime) -> RemoteNode {
-        self.with_view_op(move |input| ReadExpr::ShrinkWindow {
-            input: Arc::new(input),
-            start,
-            end,
-        })
+        self.with_view_op(ViewOp::ShrinkWindow { start, end })
     }
 
     /// Shrink the start of the current window. Lazy — no RPC.
     pub fn shrink_start(&self, start: InputTime) -> RemoteNode {
-        self.with_view_op(move |input| ReadExpr::ShrinkStart {
-            input: Arc::new(input),
-            start,
-        })
+        self.with_view_op(ViewOp::ShrinkStart { start })
     }
 
     /// Shrink the end of the current window. Lazy — no RPC.
     pub fn shrink_end(&self, end: InputTime) -> RemoteNode {
-        self.with_view_op(move |input| ReadExpr::ShrinkEnd {
-            input: Arc::new(input),
-            end,
-        })
+        self.with_view_op(ViewOp::ShrinkEnd { end })
     }
 
     /// Restrict to the default layer. Lazy — no RPC.
     pub fn default_layer(&self) -> RemoteNode {
-        self.with_view_op(move |input| ReadExpr::DefaultLayer {
-            input: Arc::new(input),
-        })
+        self.with_view_op(ViewOp::DefaultLayer)
     }
 
     /// Restrict to the given set of layers. Lazy — no RPC.
     pub fn layers(&self, names: Vec<String>) -> RemoteNode {
-        let names: Arc<[String]> = names.into();
-        self.with_view_op(move |input| ReadExpr::Layers {
-            input: Arc::new(input),
-            names: names.clone(),
+        self.with_view_op(ViewOp::Layers {
+            names: names.into(),
         })
     }
 
     /// Exclude the given set of layers from the view. Lazy — no RPC.
     pub fn exclude_layers(&self, names: Vec<String>) -> RemoteNode {
-        let names: Arc<[String]> = names.into();
-        self.with_view_op(move |input| ReadExpr::ExcludeLayers {
-            input: Arc::new(input),
-            names: names.clone(),
+        self.with_view_op(ViewOp::ExcludeLayers {
+            names: names.into(),
         })
     }
 
     /// Restrict to the given set of valid layers. Lazy — no RPC.
     pub fn valid_layers(&self, names: Vec<String>) -> RemoteNode {
-        let names: Arc<[String]> = names.into();
-        self.with_view_op(move |input| ReadExpr::ValidLayers {
-            input: Arc::new(input),
-            names: names.clone(),
+        self.with_view_op(ViewOp::ValidLayers {
+            names: names.into(),
         })
     }
 
     /// Exclude a specific valid layer from the view. Lazy — no RPC.
     pub fn exclude_valid_layer(&self, name: impl ToString) -> RemoteNode {
-        let name = name.to_string();
-        self.with_view_op(move |input| ReadExpr::ExcludeValidLayer {
-            input: Arc::new(input),
-            name: name.clone(),
+        self.with_view_op(ViewOp::ExcludeValidLayer {
+            name: name.to_string(),
         })
     }
 
     /// Exclude the given set of valid layers from the view. Lazy — no RPC.
     pub fn exclude_valid_layers(&self, names: Vec<String>) -> RemoteNode {
-        let names: Arc<[String]> = names.into();
-        self.with_view_op(move |input| ReadExpr::ExcludeValidLayers {
-            input: Arc::new(input),
-            names: names.clone(),
+        self.with_view_op(ViewOp::ExcludeValidLayers {
+            names: names.into(),
         })
     }
 

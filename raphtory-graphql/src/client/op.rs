@@ -49,93 +49,19 @@ pub enum Op {
 /// - `read_depth` case — count how many `{` this variant opens (usually 1)
 /// - `build_json_path` case — push the JSON key(s) that navigate to this level
 /// - For terminals only: `parse_read` case to unwrap the JSON value into a `Prop`
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum ReadExpr {
     /// Start of every read tree — names the graph.
     Root { path: String },
 
     // ============ View chaining (Graph → Graph) ============
-    /// Time-window a graph. Composes.
-    Window {
-        input: Arc<ReadExpr>,
-        start: InputTime,
-        end: InputTime,
-    },
-    /// Restrict to a single layer.
-    Layer { input: Arc<ReadExpr>, name: String },
-    /// Snapshot at a single timestamp.
-    At {
-        input: Arc<ReadExpr>,
-        time: InputTime,
-    },
-    /// Restrict to events strictly before the given time.
-    Before {
-        input: Arc<ReadExpr>,
-        time: InputTime,
-    },
-    /// Restrict to events strictly after the given time (exclusive).
-    After {
-        input: Arc<ReadExpr>,
-        time: InputTime,
-    },
-    /// Latest state — no args. Composes.
-    Latest { input: Arc<ReadExpr> },
-    /// Snapshot at the latest time. Composes.
-    SnapshotLatest { input: Arc<ReadExpr> },
-    /// Snapshot at a specific time. Composes.
-    SnapshotAt {
-        input: Arc<ReadExpr>,
-        time: InputTime,
-    },
-    /// Exclude a specific layer.
-    ExcludeLayer { input: Arc<ReadExpr>, name: String },
-    /// Shrink both start and end of the window.
-    ShrinkWindow {
-        input: Arc<ReadExpr>,
-        start: InputTime,
-        end: InputTime,
-    },
-    /// Shrink the start of the window.
-    ShrinkStart {
-        input: Arc<ReadExpr>,
-        start: InputTime,
-    },
-    /// Shrink the end of the window.
-    ShrinkEnd {
-        input: Arc<ReadExpr>,
-        end: InputTime,
-    },
+    /// A composable graph-view operation (window / layer / at / …) applied
+    /// to the input. The op itself is data (`ViewOp`); the transport renders
+    /// it to the same-named server field. One variant covers the entire
+    /// shared view vocabulary — see `ViewOp`.
+    View { input: Arc<ReadExpr>, op: ViewOp },
     /// Restrict to the "valid" subgraph (event-graph filter). No args. Composes.
     Valid { input: Arc<ReadExpr> },
-    /// Restrict to the default layer. No args. Composes.
-    DefaultLayer { input: Arc<ReadExpr> },
-    /// Restrict to a specific set of layers.
-    Layers {
-        input: Arc<ReadExpr>,
-        names: Arc<[String]>,
-    },
-    /// Exclude a specific set of layers.
-    ExcludeLayers {
-        input: Arc<ReadExpr>,
-        names: Arc<[String]>,
-    },
-    /// Restrict to a specific set of valid layers. The GraphQL server exposes
-    /// valid-layer semantics under the existing `layers` field (backed by the
-    /// graph's `valid_layers`), so this renders as `layers(names: [..])` — no
-    /// separate `validLayers` field exists on the server.
-    ValidLayers {
-        input: Arc<ReadExpr>,
-        names: Arc<[String]>,
-    },
-    /// Exclude a specific valid layer. Renders as the server's `excludeLayer`
-    /// (backed by `exclude_valid_layers`).
-    ExcludeValidLayer { input: Arc<ReadExpr>, name: String },
-    /// Exclude a specific set of valid layers. Renders as the server's
-    /// `excludeLayers` (backed by `exclude_valid_layers`).
-    ExcludeValidLayers {
-        input: Arc<ReadExpr>,
-        names: Arc<[String]>,
-    },
     /// Restrict to a subgraph induced by the given node ids.
     Subgraph {
         input: Arc<ReadExpr>,
@@ -853,13 +779,14 @@ pub enum EdgePin {
 /// Order is load-bearing: filters capture the view they were created on, so
 /// `.filter(f).window(w)` and `.window(w).filter(f)` differ for temporal
 /// property filters — replay must preserve the user's call order.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum HandleOp {
-    /// A pure view op (window / layer / at / …). Stores the same `ReadExpr`
-    /// constructor the collection applied to its own `expr`, so replay is
-    /// definitionally identical. Every collection view op has a same-named
-    /// server field on `Node` and `Edge`, so replay always renders.
-    View(Arc<dyn Fn(ReadExpr) -> ReadExpr + Send + Sync>),
+    /// A pure view op (window / layer / at / …). Stores the op as data, so
+    /// replay applies the same `ReadExpr` node the collection applied to its
+    /// own `expr` — definitionally identical, and inspectable in tests. Every
+    /// collection view op has a same-named server field on `Node` and `Edge`,
+    /// so replay always renders.
+    View(ViewOp),
     /// An anchor-relative node filter. Replays as `filter(expr:)` on node
     /// handles and `filterNodes(expr:)` on edge handles.
     NodeFilter(Arc<GqlNodeFilter>),
@@ -873,13 +800,49 @@ pub enum HandleOp {
     Fanout(Fanout),
 }
 
+/// The view-op vocabulary shared by every remote collection/entity handle —
+/// the data form of `window`/`layer`/`at`/…, stored in `HandleCtx` so
+/// `collect()` can replay the exact chain per member. Being data (not a
+/// closure), a recorded chain can be printed, compared, and asserted on.
+#[derive(Clone, Debug, PartialEq)]
+pub enum ViewOp {
+    Window { start: InputTime, end: InputTime },
+    At { time: InputTime },
+    Before { time: InputTime },
+    After { time: InputTime },
+    Latest,
+    SnapshotLatest,
+    SnapshotAt { time: InputTime },
+    ShrinkWindow { start: InputTime, end: InputTime },
+    ShrinkStart { start: InputTime },
+    ShrinkEnd { end: InputTime },
+    Layer { name: String },
+    ExcludeLayer { name: String },
+    Layers { names: Arc<[String]> },
+    ExcludeLayers { names: Arc<[String]> },
+    ValidLayers { names: Arc<[String]> },
+    ExcludeValidLayer { name: String },
+    ExcludeValidLayers { names: Arc<[String]> },
+    DefaultLayer,
+}
+
+impl ViewOp {
+    /// Wrap `input` in this op's `ReadExpr` node.
+    pub fn apply(&self, input: Arc<ReadExpr>) -> ReadExpr {
+        ReadExpr::View {
+            input,
+            op: self.clone(),
+        }
+    }
+}
+
 /// Materialization context carried by every remote collection and entity
 /// handle. `graph` is the view chain accumulated *before* entering the
 /// collection (graph-level ops); `ops` are the collection-level ops applied
 /// *after* it, replayed per member by `collect()`. Flows down unchanged into
 /// child collections (`.neighbours()`, `.edges()`, …) so filters keep
 /// propagating to descendants exactly like the local one-hop semantics.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct HandleCtx {
     /// The parent graph view under which the collection lives.
     pub graph: Arc<ReadExpr>,
@@ -924,7 +887,7 @@ impl HandleCtx {
         };
         for op in &self.ops {
             expr = match op {
-                HandleOp::View(wrap) => wrap(expr),
+                HandleOp::View(op) => op.apply(Arc::new(expr)),
                 HandleOp::NodeFilter(filter) => ReadExpr::FilterNodes {
                     input: Arc::new(expr),
                     filter: filter.clone(),
@@ -952,7 +915,7 @@ impl HandleCtx {
         let mut pin = pin;
         for op in &self.ops {
             expr = match op {
-                HandleOp::View(wrap) => wrap(expr),
+                HandleOp::View(op) => op.apply(Arc::new(expr)),
                 HandleOp::EdgeFilter(filter) => ReadExpr::FilterEdges {
                     input: Arc::new(expr),
                     filter: filter.clone(),
@@ -1265,5 +1228,44 @@ impl Serialize for EdgeAddition {
         state.serialize_field("metadata", &metadata)?;
         state.serialize_field("updates", &self.updates)?;
         state.end()
+    }
+}
+
+#[cfg(test)]
+mod handle_ctx_tests {
+    use super::*;
+
+    // `ViewOp` is data, not a closure: a recorded chain can be pattern-matched,
+    // compared, and printed — and replay applies it in recorded order.
+    #[test]
+    fn recorded_view_ops_are_inspectable_and_replay_in_order() {
+        let ctx = HandleCtx::new(ReadExpr::Root { path: "g".into() })
+            .with_op(HandleOp::View(ViewOp::Window {
+                start: InputTime::Simple(0),
+                end: InputTime::Simple(10),
+            }))
+            .with_op(HandleOp::View(ViewOp::Layer { name: "a".into() }));
+
+        assert_eq!(ctx.ops.len(), 2);
+        assert!(matches!(&ctx.ops[0], HandleOp::View(ViewOp::Window { .. })));
+        let HandleOp::View(second) = &ctx.ops[1] else {
+            panic!("second op should be a view op");
+        };
+        assert_eq!(*second, ViewOp::Layer { name: "a".into() });
+
+        // Replay onto a member anchor: ops wrap outward in recorded order, so
+        // the LAST-applied op is the outermost tree node.
+        let expr = ctx.node_handle_expr("n".into());
+        let ReadExpr::View { input, op } = expr else {
+            panic!("outermost node should be the last-applied op");
+        };
+        assert_eq!(op, ViewOp::Layer { name: "a".into() });
+        assert!(matches!(
+            &*input,
+            ReadExpr::View {
+                op: ViewOp::Window { .. },
+                ..
+            }
+        ));
     }
 }

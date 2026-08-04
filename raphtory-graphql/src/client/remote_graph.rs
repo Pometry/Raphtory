@@ -5,7 +5,7 @@ use crate::{
             input_time_from_parts, AddEdge as AddEdgeOp, AddGraphMetadata as AddGraphMetadataOp,
             AddGraphProperty as AddGraphPropertyOp, AddNode as AddNodeOp,
             CreateNode as CreateNodeOp, DeleteEdge as DeleteEdgeOp, HandleCtx, InputTime, Op,
-            ReadExpr, UpdateGraphMetadata as UpdateGraphMetadataOp, WriteOp,
+            ReadExpr, UpdateGraphMetadata as UpdateGraphMetadataOp, ViewOp, WriteOp,
         },
         remote_client::RemoteClient,
         remote_edge::RemoteEdge,
@@ -985,99 +985,73 @@ impl RemoteGraph {
 
     /// Time-window the graph. Lazy — builds up the read expression, no RPC.
     pub fn window(&self, start: InputTime, end: InputTime) -> RemoteGraph {
-        self.with_expr(ReadExpr::Window {
-            input: self.expr.clone(),
-            start,
-            end,
-        })
+        self.with_expr(ViewOp::Window { start, end }.apply(self.expr.clone()))
     }
 
     /// Restrict to a single named layer. Lazy — no RPC.
     pub fn layer(&self, name: impl ToString) -> RemoteGraph {
-        self.with_expr(ReadExpr::Layer {
-            input: self.expr.clone(),
-            name: name.to_string(),
-        })
+        self.with_expr(
+            ViewOp::Layer {
+                name: name.to_string(),
+            }
+            .apply(self.expr.clone()),
+        )
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
     pub fn at(&self, time: InputTime) -> RemoteGraph {
-        self.with_expr(ReadExpr::At {
-            input: self.expr.clone(),
-            time,
-        })
+        self.with_expr(ViewOp::At { time }.apply(self.expr.clone()))
     }
 
     /// Restrict to events strictly before the given time. Lazy — no RPC.
     pub fn before(&self, time: InputTime) -> RemoteGraph {
-        self.with_expr(ReadExpr::Before {
-            input: self.expr.clone(),
-            time,
-        })
+        self.with_expr(ViewOp::Before { time }.apply(self.expr.clone()))
     }
 
     /// Restrict to events strictly after the given time (exclusive). Lazy — no RPC.
     pub fn after(&self, time: InputTime) -> RemoteGraph {
-        self.with_expr(ReadExpr::After {
-            input: self.expr.clone(),
-            time,
-        })
+        self.with_expr(ViewOp::After { time }.apply(self.expr.clone()))
     }
 
     /// Restrict to the latest state — no args. Lazy — no RPC.
     pub fn latest(&self) -> RemoteGraph {
-        self.with_expr(ReadExpr::Latest {
-            input: self.expr.clone(),
-        })
+        self.with_expr(ViewOp::Latest.apply(self.expr.clone()))
     }
 
     /// Snapshot at the latest time. Lazy — no RPC.
     pub fn snapshot_latest(&self) -> RemoteGraph {
-        self.with_expr(ReadExpr::SnapshotLatest {
-            input: self.expr.clone(),
-        })
+        self.with_expr(ViewOp::SnapshotLatest.apply(self.expr.clone()))
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
     pub fn snapshot_at(&self, time: InputTime) -> RemoteGraph {
-        self.with_expr(ReadExpr::SnapshotAt {
-            input: self.expr.clone(),
-            time,
-        })
+        self.with_expr(ViewOp::SnapshotAt { time }.apply(self.expr.clone()))
     }
 
     /// Exclude a specific layer from the view. Lazy — no RPC.
     pub fn exclude_layer(&self, name: impl ToString) -> RemoteGraph {
-        self.with_expr(ReadExpr::ExcludeLayer {
-            input: self.expr.clone(),
-            name: name.to_string(),
-        })
+        self.with_expr(
+            ViewOp::ExcludeLayer {
+                name: name.to_string(),
+            }
+            .apply(self.expr.clone()),
+        )
     }
 
     /// Shrink both start and end of the current window (intersection, never widens).
     /// Lazy — no RPC.
     pub fn shrink_window(&self, start: InputTime, end: InputTime) -> RemoteGraph {
-        self.with_expr(ReadExpr::ShrinkWindow {
-            input: self.expr.clone(),
-            start,
-            end,
-        })
+        self.with_expr(ViewOp::ShrinkWindow { start, end }.apply(self.expr.clone()))
     }
 
     /// Shrink the start of the current window. Lazy — no RPC.
     pub fn shrink_start(&self, start: InputTime) -> RemoteGraph {
-        self.with_expr(ReadExpr::ShrinkStart {
-            input: self.expr.clone(),
-            start,
-        })
+        self.with_expr(ViewOp::ShrinkStart { start }.apply(self.expr.clone()))
     }
 
     /// Shrink the end of the current window. Lazy — no RPC.
     pub fn shrink_end(&self, end: InputTime) -> RemoteGraph {
-        self.with_expr(ReadExpr::ShrinkEnd {
-            input: self.expr.clone(),
-            end,
-        })
+        self.with_expr(ViewOp::ShrinkEnd { end }.apply(self.expr.clone()))
     }
 
     /// Restrict to the "valid" subgraph (event-graph filter). Lazy — no RPC.
@@ -1089,49 +1063,57 @@ impl RemoteGraph {
 
     /// Restrict to the default layer. Lazy — no RPC.
     pub fn default_layer(&self) -> RemoteGraph {
-        self.with_expr(ReadExpr::DefaultLayer {
-            input: self.expr.clone(),
-        })
+        self.with_expr(ViewOp::DefaultLayer.apply(self.expr.clone()))
     }
 
     /// Restrict to the given set of layers. Lazy — no RPC.
     pub fn layers(&self, names: Vec<String>) -> RemoteGraph {
-        self.with_expr(ReadExpr::Layers {
-            input: self.expr.clone(),
-            names: names.into(),
-        })
+        self.with_expr(
+            ViewOp::Layers {
+                names: names.into(),
+            }
+            .apply(self.expr.clone()),
+        )
     }
 
     /// Exclude the given set of layers from the view. Lazy — no RPC.
     pub fn exclude_layers(&self, names: Vec<String>) -> RemoteGraph {
-        self.with_expr(ReadExpr::ExcludeLayers {
-            input: self.expr.clone(),
-            names: names.into(),
-        })
+        self.with_expr(
+            ViewOp::ExcludeLayers {
+                names: names.into(),
+            }
+            .apply(self.expr.clone()),
+        )
     }
 
     /// Restrict to the given set of valid layers. Lazy — no RPC.
     pub fn valid_layers(&self, names: Vec<String>) -> RemoteGraph {
-        self.with_expr(ReadExpr::ValidLayers {
-            input: self.expr.clone(),
-            names: names.into(),
-        })
+        self.with_expr(
+            ViewOp::ValidLayers {
+                names: names.into(),
+            }
+            .apply(self.expr.clone()),
+        )
     }
 
     /// Exclude a specific valid layer from the view. Lazy — no RPC.
     pub fn exclude_valid_layer(&self, name: impl ToString) -> RemoteGraph {
-        self.with_expr(ReadExpr::ExcludeValidLayer {
-            input: self.expr.clone(),
-            name: name.to_string(),
-        })
+        self.with_expr(
+            ViewOp::ExcludeValidLayer {
+                name: name.to_string(),
+            }
+            .apply(self.expr.clone()),
+        )
     }
 
     /// Exclude the given set of valid layers from the view. Lazy — no RPC.
     pub fn exclude_valid_layers(&self, names: Vec<String>) -> RemoteGraph {
-        self.with_expr(ReadExpr::ExcludeValidLayers {
-            input: self.expr.clone(),
-            names: names.into(),
-        })
+        self.with_expr(
+            ViewOp::ExcludeValidLayers {
+                names: names.into(),
+            }
+            .apply(self.expr.clone()),
+        )
     }
 
     /// Restrict to a subgraph induced by the given node ids. Lazy — no RPC.

@@ -10,7 +10,8 @@ use crate::{
             AddEdge, AddEdgeMetadata, AddEdgeUpdates, AddEdges, AddGraphMetadata, AddGraphProperty,
             AddNode, AddNodeMetadata, AddNodeUpdates, AddNodes, CreateNode, DeleteEdge,
             DeleteEdgeAtTime, EdgeSortBy, InputTime, NodeSortBy, Op, ReadExpr, SetNodeType,
-            SortByTime, UpdateEdgeMetadata, UpdateGraphMetadata, UpdateNodeMetadata, WriteOp,
+            SortByTime, UpdateEdgeMetadata, UpdateGraphMetadata, UpdateNodeMetadata, ViewOp,
+            WriteOp,
         },
         properties_to_input,
         remote_client::RemoteClient,
@@ -824,92 +825,84 @@ fn render_edge_sort_bys(sort_bys: &[EdgeSortBy]) -> String {
     format!("[{}]", entries.join(", "))
 }
 
+/// Render a view op as its server field plus arguments. Valid-layer ops
+/// render to the same `layers` / `excludeLayer(s)` fields as the plain layer
+/// ops — the server backs those fields with `valid_layers` /
+/// `exclude_valid_layers` and exposes no separate `validLayers` field.
+fn render_view_op(op: &ViewOp) -> String {
+    match op {
+        ViewOp::Window { start, end } => format!(
+            "window(start: {}, end: {})",
+            render_input_time(start),
+            render_input_time(end)
+        ),
+        ViewOp::At { time } => format!("at(time: {})", render_input_time(time)),
+        ViewOp::Before { time } => format!("before(time: {})", render_input_time(time)),
+        ViewOp::After { time } => format!("after(time: {})", render_input_time(time)),
+        ViewOp::Latest => "latest".to_string(),
+        ViewOp::SnapshotLatest => "snapshotLatest".to_string(),
+        ViewOp::SnapshotAt { time } => format!("snapshotAt(time: {})", render_input_time(time)),
+        ViewOp::ShrinkWindow { start, end } => format!(
+            "shrinkWindow(start: {}, end: {})",
+            render_input_time(start),
+            render_input_time(end)
+        ),
+        ViewOp::ShrinkStart { start } => {
+            format!("shrinkStart(start: {})", render_input_time(start))
+        }
+        ViewOp::ShrinkEnd { end } => format!("shrinkEnd(end: {})", render_input_time(end)),
+        ViewOp::Layer { name } => format!("layer(name: {})", render_gql_str(name)),
+        ViewOp::ExcludeLayer { name } => format!("excludeLayer(name: {})", render_gql_str(name)),
+        ViewOp::DefaultLayer => "defaultLayer".to_string(),
+        ViewOp::Layers { names } => format!("layers(names: [{}])", render_string_list(names)),
+        ViewOp::ExcludeLayers { names } => {
+            format!("excludeLayers(names: [{}])", render_string_list(names))
+        }
+        ViewOp::ValidLayers { names } => format!("layers(names: [{}])", render_string_list(names)),
+        ViewOp::ExcludeValidLayer { name } => {
+            format!("excludeLayer(name: {})", render_gql_str(name))
+        }
+        ViewOp::ExcludeValidLayers { names } => {
+            format!("excludeLayers(names: [{}])", render_string_list(names))
+        }
+    }
+}
+
+/// The response key a view op's field appears under — the field name emitted
+/// by `render_view_op`, without arguments.
+fn view_op_json_key(op: &ViewOp) -> &'static str {
+    match op {
+        ViewOp::Window { .. } => "window",
+        ViewOp::At { .. } => "at",
+        ViewOp::Before { .. } => "before",
+        ViewOp::After { .. } => "after",
+        ViewOp::Latest => "latest",
+        ViewOp::SnapshotLatest => "snapshotLatest",
+        ViewOp::SnapshotAt { .. } => "snapshotAt",
+        ViewOp::ShrinkWindow { .. } => "shrinkWindow",
+        ViewOp::ShrinkStart { .. } => "shrinkStart",
+        ViewOp::ShrinkEnd { .. } => "shrinkEnd",
+        ViewOp::Layer { .. } => "layer",
+        ViewOp::ExcludeLayer { .. } => "excludeLayer",
+        ViewOp::DefaultLayer => "defaultLayer",
+        ViewOp::Layers { .. } => "layers",
+        ViewOp::ExcludeLayers { .. } => "excludeLayers",
+        ViewOp::ValidLayers { .. } => "layers",
+        ViewOp::ExcludeValidLayer { .. } => "excludeLayer",
+        ViewOp::ExcludeValidLayers { .. } => "excludeLayers",
+    }
+}
+
 fn render_read_body(expr: &ReadExpr, vars: &mut VarCollector) -> Result<String, ClientError> {
     Ok(match expr {
         ReadExpr::Root { path } => format!("graph(path: {})", render_gql_str(path)),
         // View chaining
-        ReadExpr::Window { input, start, end } => format!(
-            "{} {{ window(start: {}, end: {})",
+        ReadExpr::View { input, op } => format!(
+            "{} {{ {}",
             render_read_body(input, vars)?,
-            render_input_time(&start),
-            render_input_time(&end)
+            render_view_op(op)
         ),
-        ReadExpr::Layer { input, name } => {
-            format!(
-                "{} {{ layer(name: {})",
-                render_read_body(input, vars)?,
-                render_gql_str(name)
-            )
-        }
-        ReadExpr::At { input, time } => {
-            format!("{} {{ at(time: {})", render_read_body(input, vars)?, render_input_time(&time))
-        }
-        ReadExpr::Before { input, time } => {
-            format!("{} {{ before(time: {})", render_read_body(input, vars)?, render_input_time(&time))
-        }
-        ReadExpr::After { input, time } => {
-            format!("{} {{ after(time: {})", render_read_body(input, vars)?, render_input_time(&time))
-        }
-        ReadExpr::Latest { input } => format!("{} {{ latest", render_read_body(input, vars)?),
-        ReadExpr::SnapshotLatest { input } => {
-            format!("{} {{ snapshotLatest", render_read_body(input, vars)?)
-        }
-        ReadExpr::SnapshotAt { input, time } => {
-            format!("{} {{ snapshotAt(time: {})", render_read_body(input, vars)?, render_input_time(&time))
-        }
-        ReadExpr::ExcludeLayer { input, name } => format!(
-            "{} {{ excludeLayer(name: {})",
-            render_read_body(input, vars)?,
-            render_gql_str(name)
-        ),
-        ReadExpr::ShrinkWindow { input, start, end } => format!(
-            "{} {{ shrinkWindow(start: {}, end: {})",
-            render_read_body(input, vars)?,
-            render_input_time(&start),
-            render_input_time(&end)
-        ),
-        ReadExpr::ShrinkStart { input, start } => format!(
-            "{} {{ shrinkStart(start: {})",
-            render_read_body(input, vars)?,
-            render_input_time(&start)
-        ),
-        ReadExpr::ShrinkEnd { input, end } => {
-            format!("{} {{ shrinkEnd(end: {})", render_read_body(input, vars)?, render_input_time(&end))
-        }
         ReadExpr::Valid { input } => format!("{} {{ valid", render_read_body(input, vars)?),
-        ReadExpr::DefaultLayer { input } => {
-            format!("{} {{ defaultLayer", render_read_body(input, vars)?)
-        }
-        ReadExpr::Layers { input, names } => format!(
-            "{} {{ layers(names: [{}])",
-            render_read_body(input, vars)?,
-            render_string_list(names)
-        ),
-        ReadExpr::ExcludeLayers { input, names } => format!(
-            "{} {{ excludeLayers(names: [{}])",
-            render_read_body(input, vars)?,
-            render_string_list(names)
-        ),
-        // The GraphQL server exposes valid-layer semantics under the existing
-        // `layers` / `excludeLayers` / `excludeLayer` fields (each backed by
-        // the underlying `valid_layers` / `exclude_valid_layers` graph
-        // methods) — there is no separate `validLayers` field. So these render
-        // to the same fields as `Layers` / `ExcludeLayers` / `ExcludeLayer`.
-        ReadExpr::ValidLayers { input, names } => format!(
-            "{} {{ layers(names: [{}])",
-            render_read_body(input, vars)?,
-            render_string_list(names)
-        ),
-        ReadExpr::ExcludeValidLayer { input, name } => format!(
-            "{} {{ excludeLayer(name: {})",
-            render_read_body(input, vars)?,
-            render_gql_str(name)
-        ),
-        ReadExpr::ExcludeValidLayers { input, names } => format!(
-            "{} {{ excludeLayers(names: [{}])",
-            render_read_body(input, vars)?,
-            render_string_list(names)
-        ),
         ReadExpr::Subgraph { input, nodes } => format!(
             "{} {{ subgraph(nodes: [{}])",
             render_read_body(input, vars)?,
@@ -1606,25 +1599,8 @@ fn read_depth(expr: &ReadExpr) -> usize {
     match expr {
         ReadExpr::Root { .. } => 0,
         // Single-brace variants — open one `{` each.
-        ReadExpr::Window { input, .. }
-        | ReadExpr::Layer { input, .. }
-        | ReadExpr::At { input, .. }
-        | ReadExpr::Before { input, .. }
-        | ReadExpr::After { input, .. }
-        | ReadExpr::Latest { input }
-        | ReadExpr::SnapshotLatest { input }
-        | ReadExpr::SnapshotAt { input, .. }
-        | ReadExpr::ExcludeLayer { input, .. }
-        | ReadExpr::ShrinkWindow { input, .. }
-        | ReadExpr::ShrinkStart { input, .. }
-        | ReadExpr::ShrinkEnd { input, .. }
+        ReadExpr::View { input, .. }
         | ReadExpr::Valid { input }
-        | ReadExpr::DefaultLayer { input }
-        | ReadExpr::Layers { input, .. }
-        | ReadExpr::ExcludeLayers { input, .. }
-        | ReadExpr::ValidLayers { input, .. }
-        | ReadExpr::ExcludeValidLayer { input, .. }
-        | ReadExpr::ExcludeValidLayers { input, .. }
         | ReadExpr::Subgraph { input, .. }
         | ReadExpr::SubgraphNodeTypes { input, .. }
         | ReadExpr::ExcludeNodes { input, .. }
@@ -2863,83 +2839,13 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
     fn go(expr: &ReadExpr, out: &mut Vec<&'static str>) {
         match expr {
             ReadExpr::Root { .. } => out.push("graph"),
-            ReadExpr::Window { input, .. } => {
+            ReadExpr::View { input, op } => {
                 go(input, out);
-                out.push("window");
-            }
-            ReadExpr::Layer { input, .. } => {
-                go(input, out);
-                out.push("layer");
-            }
-            ReadExpr::At { input, .. } => {
-                go(input, out);
-                out.push("at");
-            }
-            ReadExpr::Before { input, .. } => {
-                go(input, out);
-                out.push("before");
-            }
-            ReadExpr::After { input, .. } => {
-                go(input, out);
-                out.push("after");
-            }
-            ReadExpr::Latest { input } => {
-                go(input, out);
-                out.push("latest");
-            }
-            ReadExpr::SnapshotLatest { input } => {
-                go(input, out);
-                out.push("snapshotLatest");
-            }
-            ReadExpr::SnapshotAt { input, .. } => {
-                go(input, out);
-                out.push("snapshotAt");
-            }
-            ReadExpr::ExcludeLayer { input, .. } => {
-                go(input, out);
-                out.push("excludeLayer");
-            }
-            ReadExpr::ShrinkWindow { input, .. } => {
-                go(input, out);
-                out.push("shrinkWindow");
-            }
-            ReadExpr::ShrinkStart { input, .. } => {
-                go(input, out);
-                out.push("shrinkStart");
-            }
-            ReadExpr::ShrinkEnd { input, .. } => {
-                go(input, out);
-                out.push("shrinkEnd");
+                out.push(view_op_json_key(op));
             }
             ReadExpr::Valid { input } => {
                 go(input, out);
                 out.push("valid");
-            }
-            ReadExpr::DefaultLayer { input } => {
-                go(input, out);
-                out.push("defaultLayer");
-            }
-            ReadExpr::Layers { input, .. } => {
-                go(input, out);
-                out.push("layers");
-            }
-            ReadExpr::ExcludeLayers { input, .. } => {
-                go(input, out);
-                out.push("excludeLayers");
-            }
-            // Server exposes valid-layer semantics under the existing
-            // `layers` / `excludeLayer` / `excludeLayers` fields.
-            ReadExpr::ValidLayers { input, .. } => {
-                go(input, out);
-                out.push("layers");
-            }
-            ReadExpr::ExcludeValidLayer { input, .. } => {
-                go(input, out);
-                out.push("excludeLayer");
-            }
-            ReadExpr::ExcludeValidLayers { input, .. } => {
-                go(input, out);
-                out.push("excludeLayers");
             }
             ReadExpr::Subgraph { input, .. } => {
                 go(input, out);
@@ -3701,25 +3607,8 @@ fn find_selection(expr: &ReadExpr, null_key: &str) -> Option<String> {
 fn child_input(expr: &ReadExpr) -> Option<&ReadExpr> {
     match expr {
         ReadExpr::Root { .. } => None,
-        ReadExpr::Window { input, .. }
-        | ReadExpr::Layer { input, .. }
-        | ReadExpr::At { input, .. }
-        | ReadExpr::Before { input, .. }
-        | ReadExpr::After { input, .. }
-        | ReadExpr::Latest { input }
-        | ReadExpr::SnapshotLatest { input }
-        | ReadExpr::SnapshotAt { input, .. }
-        | ReadExpr::ExcludeLayer { input, .. }
-        | ReadExpr::ShrinkWindow { input, .. }
-        | ReadExpr::ShrinkStart { input, .. }
-        | ReadExpr::ShrinkEnd { input, .. }
+        ReadExpr::View { input, .. }
         | ReadExpr::Valid { input }
-        | ReadExpr::DefaultLayer { input }
-        | ReadExpr::Layers { input, .. }
-        | ReadExpr::ExcludeLayers { input, .. }
-        | ReadExpr::ValidLayers { input, .. }
-        | ReadExpr::ExcludeValidLayer { input, .. }
-        | ReadExpr::ExcludeValidLayers { input, .. }
         | ReadExpr::Subgraph { input, .. }
         | ReadExpr::SubgraphNodeTypes { input, .. }
         | ReadExpr::ExcludeNodes { input, .. }
@@ -3898,10 +3787,12 @@ mod tests {
     fn render_read_produces_nested_graphql() {
         let expr = ReadExpr::Degree {
             input: Arc::new(ReadExpr::Node {
-                input: Arc::new(ReadExpr::Window {
+                input: Arc::new(ReadExpr::View {
                     input: Arc::new(ReadExpr::Root { path: "g".into() }),
-                    start: InputTime::Simple(0),
-                    end: InputTime::Simple(10),
+                    op: ViewOp::Window {
+                        start: InputTime::Simple(0),
+                        end: InputTime::Simple(10),
+                    },
                 }),
                 id: "ben".into(),
             }),
