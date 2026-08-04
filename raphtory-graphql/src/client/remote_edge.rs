@@ -6,14 +6,13 @@ use crate::client::{
         ViewOp, WriteOp,
     },
     remote_edges::RemoteEdges,
-    remote_graph::{
-        expect_bool, expect_optional_event_time, expect_optional_i64, expect_string,
-        expect_string_list,
-    },
     remote_history::{RemoteEventTime, RemoteHistory},
     remote_metadata::{RemoteMetadata, RemoteProperties},
     remote_node::RemoteNode,
-    transport::Transport,
+    transport::{
+        expect_bool, expect_optional_event_time, expect_optional_i64, expect_string,
+        expect_string_list, Transport,
+    },
     ClientError,
 };
 use raphtory_api::core::{

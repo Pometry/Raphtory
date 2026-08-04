@@ -1,10 +1,10 @@
 use crate::client::{
     op::{HandleCtx, Op, ReadExpr},
-    remote_graph::{
+    transport::{
         expect_bool, expect_event_time_list, expect_i64, expect_i64_list,
         expect_optional_event_time, expect_optional_f64, expect_optional_i64, expect_string_list,
+        Transport,
     },
-    transport::Transport,
     ClientError,
 };
 use raphtory_api::core::storage::timeindex::EventTime;

@@ -13,8 +13,7 @@
 
 use crate::client::{
     op::{HandleCtx, Op, ReadExpr},
-    remote_graph::{expect_columnar_property_list, expect_nested_columnar_property_list},
-    transport::Transport,
+    transport::{expect_columnar_property_list, expect_nested_columnar_property_list, Transport},
     ClientError,
 };
 use raphtory_api::core::entities::properties::prop::Prop;

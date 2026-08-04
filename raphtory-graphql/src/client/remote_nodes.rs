@@ -2,16 +2,15 @@ use crate::{
     client::{
         op::{HandleCtx, HandleOp, InputTime, NodeSortBy, Op, ReadExpr, ViewOp},
         remote_collection_metadata::{RemoteMetadataView, RemotePropertiesView},
-        remote_graph::{
-            expect_bool, expect_i64, expect_i64_list, expect_optional_event_time,
-            expect_optional_event_time_list, expect_optional_i64, expect_optional_string_list,
-            expect_string_list,
-        },
         remote_history::RemoteEventTime,
         remote_nested_edges::RemoteNestedEdges,
         remote_node::RemoteNode,
         remote_path_from_graph::RemotePathFromGraph,
-        transport::Transport,
+        transport::{
+            expect_bool, expect_i64, expect_i64_list, expect_optional_event_time,
+            expect_optional_event_time_list, expect_optional_i64, expect_optional_string_list,
+            expect_string_list, Transport,
+        },
         ClientError,
     },
     model::graph::filtering::GqlNodeFilter,
