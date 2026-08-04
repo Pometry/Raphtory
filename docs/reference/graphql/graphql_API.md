@@ -4490,6 +4490,16 @@ int:
 </td>
 </tr>
 <tr>
+<td colspan="2" valign="top"><strong id="metagraph.graphtype">graphType</strong></td>
+<td valign="top"><a href="#graphtype">GraphType</a>!</td>
+<td>
+
+Whether the stored graph carries event or persistent semantics.
+Served from the cached metadata, so it costs no graph load.
+
+</td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="metagraph.metadata">metadata</strong></td>
 <td valign="top">[<a href="#property">Property</a>!]!</td>
 <td>

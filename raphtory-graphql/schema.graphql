@@ -2521,6 +2521,11 @@ type MetaGraph {
 	"""
 	edgeCount: Int!
 	"""
+	Whether the stored graph carries event or persistent semantics.
+	Served from the cached metadata, so it costs no graph load.
+	"""
+	graphType: GraphType!
+	"""
 	Returns the metadata of the graph.
 	
 	Reads metadata without forcing a full graph load: from the

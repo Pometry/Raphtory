@@ -2541,6 +2541,49 @@ mod graphql_test {
     }
 
     #[tokio::test]
+    async fn test_meta_graph_exposes_graph_type() {
+        let graph_dir = tempdir().unwrap();
+        let data = Data::new(graph_dir.path(), &Default::default(), Config::default());
+
+        for (path, graph) in [
+            ("event", MaterializedGraph::from(Graph::new())),
+            (
+                "persistent",
+                MaterializedGraph::from(PersistentGraph::new()),
+            ),
+        ] {
+            let folder = data
+                .work_dir_write()
+                .await
+                .validate_path_for_insert(path, false)
+                .unwrap();
+            data.insert_graph(folder, graph).await.unwrap();
+        }
+
+        let schema = App::create_schema().data(data).finish().unwrap();
+        let res = schema
+            .execute(
+                Request::new(
+                    r#"{
+                        event: graphMetadata(path: "event") { graphType }
+                        persistent: graphMetadata(path: "persistent") { graphType }
+                    }"#,
+                )
+                .data(Access::Rw),
+            )
+            .await;
+
+        assert_eq!(res.errors, vec![], "graphMetadata query returned errors");
+        assert_eq!(
+            res.data.into_json().unwrap(),
+            json!({
+                "event": {"graphType": "EVENT"},
+                "persistent": {"graphType": "PERSISTENT"},
+            })
+        );
+    }
+
+    #[tokio::test]
     async fn test_load_edges_from_parquet() {
         use crate::config::app_config::AppConfigBuilder;
         use arrow::{
