@@ -38,7 +38,7 @@ use std::sync::Arc;
 pub struct RemoteEdges {
     pub path: String,
     pub transport: Arc<dyn Transport>,
-    pub expr: ReadExpr,
+    pub expr: Arc<ReadExpr>,
     /// Materialization context: the parent graph view plus the ordered
     /// collection-level ops (view ops, filters, explode markers) replayed
     /// per member by `.collect()`.
@@ -51,13 +51,13 @@ impl RemoteEdges {
     pub fn with_expr(
         path: String,
         transport: Arc<dyn Transport>,
-        expr: ReadExpr,
+        expr: impl Into<Arc<ReadExpr>>,
         ctx: HandleCtx,
     ) -> Self {
         Self {
             path,
             transport,
-            expr,
+            expr: expr.into(),
             ctx,
         }
     }
@@ -74,7 +74,7 @@ impl RemoteEdges {
         RemoteEdges {
             path: self.path.clone(),
             transport: self.transport.clone(),
-            expr: wrap(self.expr.clone()),
+            expr: Arc::new(wrap((*self.expr).clone())),
             ctx: self.ctx.with_op(HandleOp::View(wrap)),
         }
     }
@@ -237,9 +237,9 @@ impl RemoteEdges {
         RemoteEdges {
             path: self.path.clone(),
             transport: self.transport.clone(),
-            expr: ReadExpr::Explode {
-                input: Arc::new(self.expr.clone()),
-            },
+            expr: Arc::new(ReadExpr::Explode {
+                input: self.expr.clone(),
+            }),
             ctx: self.ctx.with_op(HandleOp::Fanout(Fanout::Events)),
         }
     }
@@ -253,9 +253,9 @@ impl RemoteEdges {
         RemoteEdges {
             path: self.path.clone(),
             transport: self.transport.clone(),
-            expr: ReadExpr::ExplodeLayers {
-                input: Arc::new(self.expr.clone()),
-            },
+            expr: Arc::new(ReadExpr::ExplodeLayers {
+                input: self.expr.clone(),
+            }),
             ctx: self.ctx.with_op(HandleOp::Fanout(Fanout::Layers)),
         }
     }
@@ -268,10 +268,10 @@ impl RemoteEdges {
         RemoteEdges {
             path: self.path.clone(),
             transport: self.transport.clone(),
-            expr: ReadExpr::SortedEdges {
-                input: Arc::new(self.expr.clone()),
+            expr: Arc::new(ReadExpr::SortedEdges {
+                input: self.expr.clone(),
                 sort_bys,
-            },
+            }),
             ctx: self.ctx.clone(),
         }
     }
@@ -287,10 +287,10 @@ impl RemoteEdges {
         RemoteEdges {
             path: self.path.clone(),
             transport: self.transport.clone(),
-            expr: ReadExpr::FilterEdges {
-                input: Arc::new(self.expr.clone()),
+            expr: Arc::new(ReadExpr::FilterEdges {
+                input: self.expr.clone(),
                 filter: filter.clone(),
-            },
+            }),
             ctx: self.ctx.with_op(HandleOp::EdgeFilter(filter)),
         }
     }
@@ -304,10 +304,10 @@ impl RemoteEdges {
         RemoteEdges {
             path: self.path.clone(),
             transport: self.transport.clone(),
-            expr: ReadExpr::SelectEdges {
-                input: Arc::new(self.expr.clone()),
+            expr: Arc::new(ReadExpr::SelectEdges {
+                input: self.expr.clone(),
                 filter,
-            },
+            }),
             ctx: self.ctx.clone(),
         }
     }
@@ -320,7 +320,7 @@ impl RemoteEdges {
             self.path.clone(),
             self.transport.clone(),
             ReadExpr::Src {
-                input: Arc::new(self.expr.clone()),
+                input: self.expr.clone(),
             },
             self.ctx.clone(),
         )
@@ -333,7 +333,7 @@ impl RemoteEdges {
             self.path.clone(),
             self.transport.clone(),
             ReadExpr::Dst {
-                input: Arc::new(self.expr.clone()),
+                input: self.expr.clone(),
             },
             self.ctx.clone(),
         )
@@ -347,7 +347,7 @@ impl RemoteEdges {
             self.path.clone(),
             self.transport.clone(),
             ReadExpr::Nbr {
-                input: Arc::new(self.expr.clone()),
+                input: self.expr.clone(),
             },
             self.ctx.clone(),
         )
@@ -356,7 +356,7 @@ impl RemoteEdges {
     /// Terminal: the number of edges in this collection. Fires one RPC.
     pub async fn count(&self) -> Result<i64, ClientError> {
         let op = Op::Read(ReadExpr::Count {
-            input: Arc::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_i64(self.transport.execute(&op).await?, "count")
     }
@@ -364,7 +364,7 @@ impl RemoteEdges {
     /// Terminal: whether this view contains a layer named `name`. Fires one RPC.
     pub async fn has_layer(&self, name: impl ToString) -> Result<bool, ClientError> {
         let op = Op::Read(ReadExpr::HasLayer {
-            input: Arc::new(self.expr.clone()),
+            input: self.expr.clone(),
             name: name.to_string(),
         });
         expect_bool(self.transport.execute(&op).await?, "hasLayer")
@@ -374,7 +374,7 @@ impl RemoteEdges {
     /// `Edges.id`. Fires one RPC.
     pub async fn id(&self) -> Result<Vec<(String, String)>, ClientError> {
         let op = Op::Read(ReadExpr::EdgesList {
-            input: Arc::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_edge_list(self.transport.execute(&op).await?, "id")
     }
@@ -383,7 +383,7 @@ impl RemoteEdges {
     /// `Edges.layer_names`. Fires one RPC.
     pub async fn layer_names(&self) -> Result<Vec<Vec<String>>, ClientError> {
         let op = Op::Read(ReadExpr::CollectionLayerNames {
-            input: Arc::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_nested_string_list(self.transport.execute(&op).await?, "layerNames")
     }
@@ -393,7 +393,7 @@ impl RemoteEdges {
     /// GraphQL error otherwise. Fires one RPC.
     pub async fn layer_name(&self) -> Result<Vec<String>, ClientError> {
         let op = Op::Read(ReadExpr::CollectionLayerName {
-            input: Arc::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_string_list(self.transport.execute(&op).await?, "layerName")
     }
@@ -402,7 +402,7 @@ impl RemoteEdges {
     /// `Edges.earliest_time`. Fires one RPC.
     pub async fn earliest_time(&self) -> Result<Vec<Option<RemoteEventTime>>, ClientError> {
         let op = Op::Read(ReadExpr::CollectionEarliestTime {
-            input: Arc::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_optional_event_time_list(self.transport.execute(&op).await?, "earliestTime")
     }
@@ -411,7 +411,7 @@ impl RemoteEdges {
     /// `Edges.latest_time`. Fires one RPC.
     pub async fn latest_time(&self) -> Result<Vec<Option<RemoteEventTime>>, ClientError> {
         let op = Op::Read(ReadExpr::CollectionLatestTime {
-            input: Arc::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_optional_event_time_list(self.transport.execute(&op).await?, "latestTime")
     }
@@ -421,7 +421,7 @@ impl RemoteEdges {
     /// error otherwise. Fires one RPC.
     pub async fn time(&self) -> Result<Vec<Option<RemoteEventTime>>, ClientError> {
         let op = Op::Read(ReadExpr::CollectionTime {
-            input: Arc::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_optional_event_time_list(self.transport.execute(&op).await?, "time")
     }
@@ -430,7 +430,7 @@ impl RemoteEdges {
     /// current view — mirrors the local `Edges.is_active`. Fires one RPC.
     pub async fn is_active(&self) -> Result<Vec<bool>, ClientError> {
         let op = Op::Read(ReadExpr::CollectionIsActive {
-            input: Arc::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_bool_list(self.transport.execute(&op).await?, "isActive")
     }
@@ -439,7 +439,7 @@ impl RemoteEdges {
     /// current time — mirrors the local `Edges.is_valid`. Fires one RPC.
     pub async fn is_valid(&self) -> Result<Vec<bool>, ClientError> {
         let op = Op::Read(ReadExpr::CollectionIsValid {
-            input: Arc::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_bool_list(self.transport.execute(&op).await?, "isValid")
     }
@@ -448,7 +448,7 @@ impl RemoteEdges {
     /// time — mirrors the local `Edges.is_deleted`. Fires one RPC.
     pub async fn is_deleted(&self) -> Result<Vec<bool>, ClientError> {
         let op = Op::Read(ReadExpr::CollectionIsDeleted {
-            input: Arc::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_bool_list(self.transport.execute(&op).await?, "isDeleted")
     }
@@ -457,7 +457,7 @@ impl RemoteEdges {
     /// mirrors the local `Edges.is_self_loop`. Fires one RPC.
     pub async fn is_self_loop(&self) -> Result<Vec<bool>, ClientError> {
         let op = Op::Read(ReadExpr::CollectionIsSelfLoop {
-            input: Arc::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_bool_list(self.transport.execute(&op).await?, "isSelfLoop")
     }
@@ -490,7 +490,7 @@ impl RemoteEdges {
     /// or `None` for an unbounded view. Fires one RPC.
     pub async fn window_size(&self) -> Result<Option<i64>, ClientError> {
         let op = Op::Read(ReadExpr::WindowSize {
-            input: Arc::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_optional_i64(self.transport.execute(&op).await?, "windowSize")
     }
@@ -499,7 +499,7 @@ impl RemoteEdges {
     /// Fires one RPC.
     pub async fn start(&self) -> Result<Option<RemoteEventTime>, ClientError> {
         let op = Op::Read(ReadExpr::Start {
-            input: Arc::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_optional_event_time(self.transport.execute(&op).await?, "start")
     }
@@ -508,7 +508,7 @@ impl RemoteEdges {
     /// Fires one RPC.
     pub async fn end(&self) -> Result<Option<RemoteEventTime>, ClientError> {
         let op = Op::Read(ReadExpr::End {
-            input: Arc::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_optional_event_time(self.transport.execute(&op).await?, "end")
     }
@@ -530,7 +530,7 @@ impl RemoteEdges {
         match self.ctx.fanout() {
             None => {
                 let op = Op::Read(ReadExpr::EdgesList {
-                    input: Arc::new(self.expr.clone()),
+                    input: self.expr.clone(),
                 });
                 let pairs = expect_edge_list(self.transport.execute(&op).await?, "list")?;
                 Ok(pairs
@@ -549,7 +549,7 @@ impl RemoteEdges {
             }
             Some(Fanout::Events) => {
                 let op = Op::Read(ReadExpr::ExplodedEdgesList {
-                    input: Arc::new(self.expr.clone()),
+                    input: self.expr.clone(),
                 });
                 let records =
                     expect_exploded_edge_list(self.transport.execute(&op).await?, "list")?;
@@ -577,7 +577,7 @@ impl RemoteEdges {
             }
             Some(Fanout::Layers) => {
                 let op = Op::Read(ReadExpr::ExplodedLayersEdgesList {
-                    input: Arc::new(self.expr.clone()),
+                    input: self.expr.clone(),
                 });
                 let records =
                     expect_exploded_layers_edge_list(self.transport.execute(&op).await?, "list")?;

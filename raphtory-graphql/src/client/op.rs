@@ -888,9 +888,9 @@ pub struct HandleCtx {
 }
 
 impl HandleCtx {
-    pub fn new(graph: ReadExpr) -> Self {
+    pub fn new(graph: impl Into<Arc<ReadExpr>>) -> Self {
         Self {
-            graph: Arc::new(graph),
+            graph: graph.into(),
             ops: Vec::new(),
         }
     }

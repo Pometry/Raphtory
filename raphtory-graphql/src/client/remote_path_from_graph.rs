@@ -35,7 +35,7 @@ use std::sync::Arc;
 pub struct RemotePathFromGraph {
     pub path: String,
     pub transport: Arc<dyn Transport>,
-    pub expr: ReadExpr,
+    pub expr: Arc<ReadExpr>,
     /// Materialization context — see `RemoteNodes` for details.
     pub ctx: HandleCtx,
 }
@@ -46,13 +46,13 @@ impl RemotePathFromGraph {
     pub fn with_expr(
         path: String,
         transport: Arc<dyn Transport>,
-        expr: ReadExpr,
+        expr: impl Into<Arc<ReadExpr>>,
         ctx: HandleCtx,
     ) -> Self {
         Self {
             path,
             transport,
-            expr,
+            expr: expr.into(),
             ctx,
         }
     }
@@ -65,7 +65,7 @@ impl RemotePathFromGraph {
         RemotePathFromGraph {
             path: self.path.clone(),
             transport: self.transport.clone(),
-            expr: wrap(self.expr.clone()),
+            expr: Arc::new(wrap((*self.expr).clone())),
             ctx: self.ctx.with_op(HandleOp::View(wrap)),
         }
     }
@@ -227,10 +227,10 @@ impl RemotePathFromGraph {
         RemotePathFromGraph {
             path: self.path.clone(),
             transport: self.transport.clone(),
-            expr: ReadExpr::TypeFilter {
-                input: Arc::new(self.expr.clone()),
+            expr: Arc::new(ReadExpr::TypeFilter {
+                input: self.expr.clone(),
                 node_types: node_types.into(),
-            },
+            }),
             ctx: self.ctx.clone(),
         }
     }
@@ -243,10 +243,10 @@ impl RemotePathFromGraph {
         RemotePathFromGraph {
             path: self.path.clone(),
             transport: self.transport.clone(),
-            expr: ReadExpr::FilterNodes {
-                input: Arc::new(self.expr.clone()),
+            expr: Arc::new(ReadExpr::FilterNodes {
+                input: self.expr.clone(),
                 filter: filter.clone(),
-            },
+            }),
             ctx: self.ctx.with_op(HandleOp::NodeFilter(filter)),
         }
     }
@@ -258,10 +258,10 @@ impl RemotePathFromGraph {
         RemotePathFromGraph {
             path: self.path.clone(),
             transport: self.transport.clone(),
-            expr: ReadExpr::SelectNodes {
-                input: Arc::new(self.expr.clone()),
+            expr: Arc::new(ReadExpr::SelectNodes {
+                input: self.expr.clone(),
                 filter,
-            },
+            }),
             ctx: self.ctx.clone(),
         }
     }
@@ -273,7 +273,7 @@ impl RemotePathFromGraph {
             self.path.clone(),
             self.transport.clone(),
             ReadExpr::Neighbours {
-                input: Arc::new(self.expr.clone()),
+                input: self.expr.clone(),
             },
             self.ctx.clone(),
         )
@@ -286,7 +286,7 @@ impl RemotePathFromGraph {
             self.path.clone(),
             self.transport.clone(),
             ReadExpr::InNeighbours {
-                input: Arc::new(self.expr.clone()),
+                input: self.expr.clone(),
             },
             self.ctx.clone(),
         )
@@ -299,7 +299,7 @@ impl RemotePathFromGraph {
             self.path.clone(),
             self.transport.clone(),
             ReadExpr::OutNeighbours {
-                input: Arc::new(self.expr.clone()),
+                input: self.expr.clone(),
             },
             self.ctx.clone(),
         )
@@ -312,7 +312,7 @@ impl RemotePathFromGraph {
             self.path.clone(),
             self.transport.clone(),
             ReadExpr::NodeEdges {
-                input: Arc::new(self.expr.clone()),
+                input: self.expr.clone(),
             },
             self.ctx.clone(),
         )
@@ -325,7 +325,7 @@ impl RemotePathFromGraph {
             self.path.clone(),
             self.transport.clone(),
             ReadExpr::InEdges {
-                input: Arc::new(self.expr.clone()),
+                input: self.expr.clone(),
             },
             self.ctx.clone(),
         )
@@ -338,7 +338,7 @@ impl RemotePathFromGraph {
             self.path.clone(),
             self.transport.clone(),
             ReadExpr::OutEdges {
-                input: Arc::new(self.expr.clone()),
+                input: self.expr.clone(),
             },
             self.ctx.clone(),
         )
@@ -348,7 +348,7 @@ impl RemotePathFromGraph {
     /// list per source node. Fires one RPC.
     pub async fn ids(&self) -> Result<Vec<Vec<String>>, ClientError> {
         let op = Op::Read(ReadExpr::NestedIds {
-            input: Arc::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_nested_string_list(self.transport.execute(&op).await?, "ids")
     }
@@ -357,7 +357,7 @@ impl RemotePathFromGraph {
     /// source node. Mirrors the local `PathFromGraph.id`. Fires one RPC.
     pub async fn id(&self) -> Result<Vec<Vec<String>>, ClientError> {
         let op = Op::Read(ReadExpr::NestedIds {
-            input: Arc::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_nested_string_list(self.transport.execute(&op).await?, "id")
     }
@@ -366,7 +366,7 @@ impl RemotePathFromGraph {
     /// source node. Mirrors the local `PathFromGraph.name`. Fires one RPC.
     pub async fn name(&self) -> Result<Vec<Vec<String>>, ClientError> {
         let op = Op::Read(ReadExpr::NestedNames {
-            input: Arc::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_nested_string_list(self.transport.execute(&op).await?, "name")
     }
@@ -376,7 +376,7 @@ impl RemotePathFromGraph {
     /// `PathFromGraph.node_type`. Fires one RPC.
     pub async fn node_type(&self) -> Result<Vec<Vec<Option<String>>>, ClientError> {
         let op = Op::Read(ReadExpr::NestedNodeTypes {
-            input: Arc::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_nested_optional_string_list(self.transport.execute(&op).await?, "nodeType")
     }
@@ -386,7 +386,7 @@ impl RemotePathFromGraph {
     /// Fires one RPC.
     pub async fn earliest_time(&self) -> Result<Vec<Vec<Option<RemoteEventTime>>>, ClientError> {
         let op = Op::Read(ReadExpr::NestedEarliestTime {
-            input: Arc::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_nested_optional_event_time_list(self.transport.execute(&op).await?, "earliestTime")
     }
@@ -396,7 +396,7 @@ impl RemotePathFromGraph {
     /// Fires one RPC.
     pub async fn latest_time(&self) -> Result<Vec<Vec<Option<RemoteEventTime>>>, ClientError> {
         let op = Op::Read(ReadExpr::NestedLatestTime {
-            input: Arc::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_nested_optional_event_time_list(self.transport.execute(&op).await?, "latestTime")
     }
@@ -430,7 +430,7 @@ impl RemotePathFromGraph {
     /// Fires one RPC.
     pub async fn degree(&self) -> Result<Vec<Vec<i64>>, ClientError> {
         let op = Op::Read(ReadExpr::NestedDegree {
-            input: Arc::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_nested_i64_list(self.transport.execute(&op).await?, "degree")
     }
@@ -439,7 +439,7 @@ impl RemotePathFromGraph {
     /// node — `Vec<Vec<i64>>`. Fires one RPC.
     pub async fn in_degree(&self) -> Result<Vec<Vec<i64>>, ClientError> {
         let op = Op::Read(ReadExpr::NestedInDegree {
-            input: Arc::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_nested_i64_list(self.transport.execute(&op).await?, "inDegree")
     }
@@ -448,7 +448,7 @@ impl RemotePathFromGraph {
     /// node — `Vec<Vec<i64>>`. Fires one RPC.
     pub async fn out_degree(&self) -> Result<Vec<Vec<i64>>, ClientError> {
         let op = Op::Read(ReadExpr::NestedOutDegree {
-            input: Arc::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_nested_i64_list(self.transport.execute(&op).await?, "outDegree")
     }
@@ -457,7 +457,7 @@ impl RemotePathFromGraph {
     /// inner list per source node — `Vec<Vec<i64>>`. Fires one RPC.
     pub async fn edge_history_count(&self) -> Result<Vec<Vec<i64>>, ClientError> {
         let op = Op::Read(ReadExpr::NestedEdgeHistoryCount {
-            input: Arc::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_nested_i64_list(self.transport.execute(&op).await?, "edgeHistoryCount")
     }
@@ -465,7 +465,7 @@ impl RemotePathFromGraph {
     /// Terminal: the number of source paths in this collection. Fires one RPC.
     pub async fn count(&self) -> Result<i64, ClientError> {
         let op = Op::Read(ReadExpr::Count {
-            input: Arc::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_i64(self.transport.execute(&op).await?, "count")
     }
@@ -473,7 +473,7 @@ impl RemotePathFromGraph {
     /// Terminal: whether this view contains a layer named `name`. Fires one RPC.
     pub async fn has_layer(&self, name: impl ToString) -> Result<bool, ClientError> {
         let op = Op::Read(ReadExpr::HasLayer {
-            input: Arc::new(self.expr.clone()),
+            input: self.expr.clone(),
             name: name.to_string(),
         });
         expect_bool(self.transport.execute(&op).await?, "hasLayer")
@@ -483,7 +483,7 @@ impl RemotePathFromGraph {
     /// or `None` for an unbounded view. Fires one RPC.
     pub async fn window_size(&self) -> Result<Option<i64>, ClientError> {
         let op = Op::Read(ReadExpr::WindowSize {
-            input: Arc::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_optional_i64(self.transport.execute(&op).await?, "windowSize")
     }
@@ -495,7 +495,7 @@ impl RemotePathFromGraph {
             self.path.clone(),
             self.transport.clone(),
             ReadExpr::CombinedHistory {
-                input: Arc::new(self.expr.clone()),
+                input: self.expr.clone(),
             },
             self.ctx.clone(),
         )
@@ -505,7 +505,7 @@ impl RemotePathFromGraph {
     /// Fires one RPC.
     pub async fn start(&self) -> Result<Option<RemoteEventTime>, ClientError> {
         let op = Op::Read(ReadExpr::Start {
-            input: Arc::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_optional_event_time(self.transport.execute(&op).await?, "start")
     }
@@ -514,7 +514,7 @@ impl RemotePathFromGraph {
     /// Fires one RPC.
     pub async fn end(&self) -> Result<Option<RemoteEventTime>, ClientError> {
         let op = Op::Read(ReadExpr::End {
-            input: Arc::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_optional_event_time(self.transport.execute(&op).await?, "end")
     }

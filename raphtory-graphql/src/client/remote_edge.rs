@@ -34,7 +34,7 @@ pub struct RemoteEdge {
     pub src: String,
     pub dst: String,
     pub transport: Arc<dyn Transport>,
-    pub expr: ReadExpr,
+    pub expr: Arc<ReadExpr>,
     /// Materialization context — inherited by descendants so their
     /// `.collect()` handles replay this edge's ops (view ops, filters).
     pub ctx: HandleCtx,
@@ -48,7 +48,7 @@ impl RemoteEdge {
         src: String,
         dst: String,
         transport: Arc<dyn Transport>,
-        expr: ReadExpr,
+        expr: impl Into<Arc<ReadExpr>>,
         ctx: HandleCtx,
     ) -> Self {
         Self {
@@ -56,7 +56,7 @@ impl RemoteEdge {
             src,
             dst,
             transport,
-            expr,
+            expr: expr.into(),
             ctx,
         }
     }
@@ -74,7 +74,7 @@ impl RemoteEdge {
             src: self.src.clone(),
             dst: self.dst.clone(),
             transport: self.transport.clone(),
-            expr: wrap(self.expr.clone()),
+            expr: Arc::new(wrap((*self.expr).clone())),
             ctx: self.ctx.with_op(HandleOp::View(wrap)),
         }
     }
@@ -237,7 +237,7 @@ impl RemoteEdge {
             self.src.clone(),
             self.transport.clone(),
             ReadExpr::Src {
-                input: Arc::new(self.expr.clone()),
+                input: self.expr.clone(),
             },
             self.ctx.clone(),
         )
@@ -251,7 +251,7 @@ impl RemoteEdge {
             self.dst.clone(),
             self.transport.clone(),
             ReadExpr::Dst {
-                input: Arc::new(self.expr.clone()),
+                input: self.expr.clone(),
             },
             self.ctx.clone(),
         )
@@ -267,7 +267,7 @@ impl RemoteEdge {
             String::new(),
             self.transport.clone(),
             ReadExpr::Nbr {
-                input: Arc::new(self.expr.clone()),
+                input: self.expr.clone(),
             },
             self.ctx.clone(),
         )
@@ -280,7 +280,7 @@ impl RemoteEdge {
             self.path.clone(),
             self.transport.clone(),
             ReadExpr::Metadata {
-                input: Arc::new(self.expr.clone()),
+                input: self.expr.clone(),
             },
             self.ctx.clone(),
         )
@@ -293,7 +293,7 @@ impl RemoteEdge {
             self.path.clone(),
             self.transport.clone(),
             ReadExpr::Properties {
-                input: Arc::new(self.expr.clone()),
+                input: self.expr.clone(),
             },
             self.ctx.clone(),
         )
@@ -307,7 +307,7 @@ impl RemoteEdge {
             self.path.clone(),
             self.transport.clone(),
             ReadExpr::History {
-                input: Arc::new(self.expr.clone()),
+                input: self.expr.clone(),
             },
             self.ctx.clone(),
         )
@@ -321,7 +321,7 @@ impl RemoteEdge {
             self.path.clone(),
             self.transport.clone(),
             ReadExpr::Deletions {
-                input: Arc::new(self.expr.clone()),
+                input: self.expr.clone(),
             },
             self.ctx.clone(),
         )
@@ -336,7 +336,7 @@ impl RemoteEdge {
             self.path.clone(),
             self.transport.clone(),
             ReadExpr::Explode {
-                input: Arc::new(self.expr.clone()),
+                input: self.expr.clone(),
             },
             self.ctx.with_op(HandleOp::Fanout(Fanout::Events)),
         )
@@ -351,7 +351,7 @@ impl RemoteEdge {
             self.path.clone(),
             self.transport.clone(),
             ReadExpr::ExplodeLayers {
-                input: Arc::new(self.expr.clone()),
+                input: self.expr.clone(),
             },
             self.ctx.with_op(HandleOp::Fanout(Fanout::Layers)),
         )
@@ -361,7 +361,7 @@ impl RemoteEdge {
     /// Returns `None` if the edge has no events in the view. Fires one RPC.
     pub async fn earliest_time(&self) -> Result<Option<RemoteEventTime>, ClientError> {
         let op = Op::Read(ReadExpr::EarliestTime {
-            input: Arc::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_optional_event_time(self.transport.execute(&op).await?, "earliestTime")
     }
@@ -370,7 +370,7 @@ impl RemoteEdge {
     /// Fires one RPC.
     pub async fn latest_time(&self) -> Result<Option<RemoteEventTime>, ClientError> {
         let op = Op::Read(ReadExpr::LatestTime {
-            input: Arc::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_optional_event_time(self.transport.execute(&op).await?, "latestTime")
     }
@@ -379,7 +379,7 @@ impl RemoteEdge {
     /// Fires one RPC.
     pub async fn first_update(&self) -> Result<Option<i64>, ClientError> {
         let op = Op::Read(ReadExpr::FirstUpdate {
-            input: Arc::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_optional_i64(self.transport.execute(&op).await?, "firstUpdate")
     }
@@ -388,7 +388,7 @@ impl RemoteEdge {
     /// Fires one RPC.
     pub async fn last_update(&self) -> Result<Option<i64>, ClientError> {
         let op = Op::Read(ReadExpr::LastUpdate {
-            input: Arc::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_optional_i64(self.transport.execute(&op).await?, "lastUpdate")
     }
@@ -397,7 +397,7 @@ impl RemoteEdge {
     /// Meaningful primarily on `explode()`'d edge views. Fires one RPC.
     pub async fn time(&self) -> Result<Option<RemoteEventTime>, ClientError> {
         let op = Op::Read(ReadExpr::Time {
-            input: Arc::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_optional_event_time(self.transport.execute(&op).await?, "time")
     }
@@ -405,7 +405,7 @@ impl RemoteEdge {
     /// Terminal: view start bound as seen by this edge. Fires one RPC.
     pub async fn start(&self) -> Result<Option<RemoteEventTime>, ClientError> {
         let op = Op::Read(ReadExpr::Start {
-            input: Arc::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_optional_event_time(self.transport.execute(&op).await?, "start")
     }
@@ -413,7 +413,7 @@ impl RemoteEdge {
     /// Terminal: view end bound as seen by this edge. Fires one RPC.
     pub async fn end(&self) -> Result<Option<RemoteEventTime>, ClientError> {
         let op = Op::Read(ReadExpr::End {
-            input: Arc::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_optional_event_time(self.transport.execute(&op).await?, "end")
     }
@@ -421,7 +421,7 @@ impl RemoteEdge {
     /// Terminal: edge id as `(src, dst)` pair of endpoint ids. Fires one RPC.
     pub async fn id(&self) -> Result<(String, String), ClientError> {
         let op = Op::Read(ReadExpr::EdgeIdPair {
-            input: Arc::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         let list = expect_string_list(self.transport.execute(&op).await?, "id")?;
         let mut it = list.into_iter();
@@ -437,7 +437,7 @@ impl RemoteEdge {
     /// Terminal: layer names this edge is present in. Fires one RPC.
     pub async fn layer_names(&self) -> Result<Vec<String>, ClientError> {
         let op = Op::Read(ReadExpr::LayerNames {
-            input: Arc::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_string_list(self.transport.execute(&op).await?, "layerNames")
     }
@@ -447,7 +447,7 @@ impl RemoteEdge {
     /// that surfaces as `ClientError::GraphQLErrors`. Fires one RPC.
     pub async fn layer_name(&self) -> Result<String, ClientError> {
         let op = Op::Read(ReadExpr::LayerName {
-            input: Arc::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_string(self.transport.execute(&op).await?, "layerName")
     }
@@ -455,7 +455,7 @@ impl RemoteEdge {
     /// Terminal: whether the edge has any events in the current view. Fires one RPC.
     pub async fn is_active(&self) -> Result<bool, ClientError> {
         let op = Op::Read(ReadExpr::IsActive {
-            input: Arc::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_bool(self.transport.execute(&op).await?, "isActive")
     }
@@ -463,7 +463,7 @@ impl RemoteEdge {
     /// Terminal: whether the edge is valid at the current time. Fires one RPC.
     pub async fn is_valid(&self) -> Result<bool, ClientError> {
         let op = Op::Read(ReadExpr::IsValid {
-            input: Arc::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_bool(self.transport.execute(&op).await?, "isValid")
     }
@@ -471,7 +471,7 @@ impl RemoteEdge {
     /// Terminal: whether the edge has been deleted at the current time. Fires one RPC.
     pub async fn is_deleted(&self) -> Result<bool, ClientError> {
         let op = Op::Read(ReadExpr::IsDeleted {
-            input: Arc::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_bool(self.transport.execute(&op).await?, "isDeleted")
     }
@@ -479,7 +479,7 @@ impl RemoteEdge {
     /// Terminal: whether the edge is a self-loop (src == dst). Fires one RPC.
     pub async fn is_self_loop(&self) -> Result<bool, ClientError> {
         let op = Op::Read(ReadExpr::IsSelfLoop {
-            input: Arc::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_bool(self.transport.execute(&op).await?, "isSelfLoop")
     }
@@ -487,7 +487,7 @@ impl RemoteEdge {
     /// Terminal: whether this view contains a layer named `name`. Fires one RPC.
     pub async fn has_layer(&self, name: impl ToString) -> Result<bool, ClientError> {
         let op = Op::Read(ReadExpr::HasLayer {
-            input: Arc::new(self.expr.clone()),
+            input: self.expr.clone(),
             name: name.to_string(),
         });
         expect_bool(self.transport.execute(&op).await?, "hasLayer")
@@ -497,7 +497,7 @@ impl RemoteEdge {
     /// or `None` for an unbounded view. Fires one RPC.
     pub async fn window_size(&self) -> Result<Option<i64>, ClientError> {
         let op = Op::Read(ReadExpr::WindowSize {
-            input: Arc::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_optional_i64(self.transport.execute(&op).await?, "windowSize")
     }
