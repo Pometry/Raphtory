@@ -1,9 +1,12 @@
 use super::properties::{PropEntry, Properties};
 use crate::{LocalPOS, error::StorageError};
 use raphtory_api::core::{
-    entities::properties::{
-        meta::Meta,
-        prop::{AsPropRef, Prop},
+    entities::{
+        LayerId,
+        properties::{
+            meta::Meta,
+            prop::{AsPropRef, Prop},
+        },
     },
     storage::dict_mapper::MaybeNew,
 };
@@ -277,6 +280,47 @@ impl<T: HasRow> SegmentContainer<T> {
 
     pub fn properties_mut(&mut self) -> &mut Properties {
         &mut self.properties
+    }
+
+    /// Append temporal props to `local_row`, marking each `(layer_id, prop_id)`
+    /// in this segment's `Meta` per-layer property presence bitset as the
+    /// iterator is consumed.
+    pub(crate) fn mark_and_append_t_props<P: AsPropRef>(
+        &mut self,
+        local_row: usize,
+        layer_id: LayerId,
+        t: EventTime,
+        props: impl IntoIterator<Item = (usize, P)>,
+    ) {
+        let Self {
+            properties, meta, ..
+        } = self;
+        let mapper = meta.temporal_prop_mapper();
+        let props = props
+            .into_iter()
+            .inspect(|(prop_id, _)| mapper.mark_prop_in_layer(layer_id, *prop_id));
+        properties.get_mut_entry(local_row).append_t_props(t, props);
+    }
+
+    /// Append const (metadata) props to `local_row`, marking each
+    /// `(layer_id, prop_id)` in the metadata presence bitset as the iterator is
+    /// consumed. See [`Self::mark_and_append_t_props`].
+    pub(crate) fn mark_and_append_const_props<P: AsPropRef>(
+        &mut self,
+        local_row: usize,
+        layer_id: LayerId,
+        props: impl IntoIterator<Item = (usize, P)>,
+    ) {
+        let Self {
+            properties, meta, ..
+        } = self;
+        let mapper = meta.metadata_mapper();
+        let props = props
+            .into_iter()
+            .inspect(|(prop_id, _)| mapper.mark_prop_in_layer(layer_id, *prop_id));
+        properties
+            .get_mut_entry(local_row)
+            .append_const_props(props);
     }
 
     pub fn check_metadata<P: AsPropRef>(
