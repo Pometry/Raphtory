@@ -60,7 +60,7 @@ pub use storage::{
         config::{ArgsOps, ConfigOps},
         strategy::PersistenceStrategy,
     },
-    read_constant_graph_properties, Config, Args, Extension,
+    read_constant_graph_properties, Args, Config, Extension,
 };
 
 #[derive(Debug, Default)]
@@ -102,21 +102,11 @@ impl Storage {
     pub fn index(&self) -> &RwLock<GraphIndex> {
         &self.index
     }
-    pub(crate) fn new_at_path(path: impl AsRef<Path>) -> Result<Self, GraphError> {
-        let config = Config::default();
-        let ext = Extension::new(config, Some(path.as_ref()))?;
-        let temporal_graph = TemporalGraph::new_at_path_with_ext(path, ext)?;
-
-        Ok(Self {
-            graph: GraphStorage::Unlocked(Arc::new(temporal_graph)),
-            #[cfg(feature = "search")]
-            index: RwLock::new(GraphIndex::Empty),
-        })
-    }
 
     pub(crate) fn new_with_config(config: Config) -> Result<Self, GraphError> {
         let ext = Extension::new(config, None)?;
         let temporal_graph = TemporalGraph::new(ext)?;
+
         Ok(Self {
             graph: GraphStorage::Unlocked(Arc::new(temporal_graph)),
             #[cfg(feature = "search")]

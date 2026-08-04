@@ -32,10 +32,10 @@ use storage::{
             nodes::WriteLockedNodePages,
         },
     },
-    persist::strategy::PersistenceStrategy,
+    persist::{strategy::PersistenceStrategy},
     resolver::GIDResolverOps,
     transaction::TransactionManager,
-    Config, Extension, GIDResolver, Layer, LocalPOS, ReadLockedLayer, ES, GS, NS,
+    Args, Extension, GIDResolver, Layer, LocalPOS, ReadLockedLayer, ES, GS, NS,
 };
 
 mod replay;
@@ -58,7 +58,7 @@ where
 
 impl Default for TemporalGraph<Extension> {
     fn default() -> Self {
-        let config = Config::default();
+        let config = Args::default().into();
         let graph_dir = None;
         Self::new(Extension::new(config, graph_dir).unwrap()).unwrap()
     }

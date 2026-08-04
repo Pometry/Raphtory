@@ -130,6 +130,7 @@ impl Graph {
     /// let g = Graph::new();
     /// ```
     pub fn new() -> Self {
+        // TODO: This should return a Result.
         Self {
             inner: Arc::new(Storage::default()),
         }
@@ -167,24 +168,7 @@ impl Graph {
     /// ```
     #[cfg(feature = "io")]
     pub fn new_at_path(path: &(impl GraphPaths + ?Sized)) -> Result<Self, GraphError> {
-        if !Extension::disk_storage_enabled() {
-            return Err(GraphError::DiskGraphNotEnabled);
-        }
-
-        path.init()?;
-        let graph_storage_path = path.graph_path()?;
-        let storage = Storage::new_at_path(graph_storage_path)?;
-
-        let graph = Self {
-            inner: Arc::new(storage),
-        };
-
-        let meta = GraphFolderMetadata {
-            path: path.relative_graph_path()?,
-            meta: build_graph_metadata(&graph),
-        };
-        path.write_metadata(meta)?;
-        Ok(graph)
+        Self::new_at_path_with_config(path, Args::default())
     }
 
     #[cfg(feature = "io")]
@@ -209,6 +193,7 @@ impl Graph {
             path: path.relative_graph_path()?,
             meta: build_graph_metadata(&graph),
         };
+
         path.write_metadata(meta)?;
         Ok(graph)
     }
@@ -247,9 +232,8 @@ impl Graph {
     ) -> Result<Self, GraphError> {
         // TODO: add support for loading indexes and vectors
         let graph_path = path.graph_path()?;
-        let config: Config = args
-            .update_in_dir(&graph_path)?
-            .into();
+        let config: Config = args.update_in_dir(&graph_path)?.into();
+
         Ok(Self {
             inner: Arc::new(Storage::load_with_config(graph_path, config)?),
         })
@@ -271,9 +255,8 @@ impl Graph {
         args: Args,
     ) -> Result<Self, GraphError> {
         let graph_path = path.graph_path()?;
-        let config: Config = args
-            .update_in_dir(&graph_path)?
-            .into();
+        let config: Config = args.update_in_dir(&graph_path)?.into();
+
         Ok(Self {
             inner: Arc::new(Storage::load_read_only_with_config(graph_path, config)?),
         })

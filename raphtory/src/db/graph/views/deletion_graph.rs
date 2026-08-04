@@ -99,7 +99,8 @@ fn persisted_prop_value_at<'a>(
 
 impl PersistentGraph {
     pub fn new() -> Self {
-        Self::default()
+        // TODO: This should return a Result.
+        Self(Arc::new(Storage::default()))
     }
 
     /// Create a new graph with config
@@ -116,9 +117,23 @@ impl PersistentGraph {
     /// let g = PersistentGraph::new_with_config(Args::default().with_max_node_page_len(262144)).unwrap();
     /// ```
     pub fn new_with_config(args: Args) -> Result<Self, GraphError> {
-        Ok(Self(Arc::new(Storage::new_with_config(
-            args.into(),
-        )?)))
+        Ok(Self(Arc::new(Storage::new_with_config(args.into())?)))
+    }
+
+    /// Create a new persistent graph at a specific path
+    ///
+    /// # Arguments
+    /// * `path` - The path to the storage location
+    /// # Returns
+    /// A raphtory graph with storage at the specified path
+    /// # Example
+    /// ```no_run
+    /// use raphtory::prelude::PersistentGraph;
+    /// let g = PersistentGraph::new_at_path("/path/to/storage");
+    /// ```
+    #[cfg(feature = "io")]
+    pub fn new_at_path(path: &(impl GraphPaths + ?Sized)) -> Result<Self, GraphError> {
+        Self::new_at_path_with_config(path, Args::default())
     }
 
     /// Create a new persistent graph at a specific path
@@ -140,41 +155,19 @@ impl PersistentGraph {
         if !Extension::disk_storage_enabled() {
             return Err(GraphError::DiskGraphNotEnabled);
         }
+
         path.init()?;
+
         let graph = Self(Arc::new(Storage::new_at_path_with_config(
             path.graph_path()?,
             args.into(),
         )?));
-        let meta = Metadata {
-            path: path.relative_graph_path()?,
-            meta: build_graph_metadata(&graph),
-        };
-        path.write_metadata(meta)?;
-        Ok(graph)
-    }
 
-    /// Create a new persistent graph at a specific path
-    ///
-    /// # Arguments
-    /// * `path` - The path to the storage location
-    /// # Returns
-    /// A raphtory graph with storage at the specified path
-    /// # Example
-    /// ```no_run
-    /// use raphtory::prelude::PersistentGraph;
-    /// let g = PersistentGraph::new_at_path("/path/to/storage");
-    /// ```
-    #[cfg(feature = "io")]
-    pub fn new_at_path(path: &(impl GraphPaths + ?Sized)) -> Result<Self, GraphError> {
-        if !Extension::disk_storage_enabled() {
-            return Err(GraphError::DiskGraphNotEnabled);
-        }
-        path.init()?;
-        let graph = Self(Arc::new(Storage::new_at_path(path.graph_path()?)?));
         let meta = Metadata {
             path: path.relative_graph_path()?,
             meta: build_graph_metadata(&graph),
         };
+
         path.write_metadata(meta)?;
         Ok(graph)
     }
@@ -202,16 +195,15 @@ impl PersistentGraph {
     /// # Example
     /// ```no_run
     /// use raphtory::prelude::Graph;
-    /// let g = Graph::load("/path/to/storage");    ///
+    /// let g = Graph::load("/path/to/storage");
     #[cfg(feature = "io")]
     pub fn load_with_config(
         path: &(impl GraphPaths + ?Sized),
         args: Args,
     ) -> Result<Self, GraphError> {
         let graph_path = path.graph_path()?;
-        let config: Config = args
-            .update_in_dir(&graph_path)?
-            .into();
+        let config: Config = args.update_in_dir(&graph_path)?.into();
+
         Ok(Self(Arc::new(Storage::load_with_config(
             graph_path, config,
         )?)))
@@ -230,9 +222,8 @@ impl PersistentGraph {
         args: Args,
     ) -> Result<Self, GraphError> {
         let graph_path = path.graph_path()?;
-        let config: Config = args
-            .update_in_dir(&graph_path)?
-            .into();
+        let config: Config = args.update_in_dir(&graph_path)?.into();
+
         Ok(Self(Arc::new(Storage::load_read_only_with_config(
             graph_path, config,
         )?)))
