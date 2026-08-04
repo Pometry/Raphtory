@@ -34,7 +34,7 @@ use std::{
 };
 use storage::api::graph_props::{GraphPropEntryOps, GraphPropRefOps};
 
-use storage::{persist::config::ArgsOps, Args};
+use storage::{persist::args::ArgsOps, Args};
 #[cfg(feature = "io")]
 use storage::{persist::strategy::PersistenceStrategy, Extension};
 

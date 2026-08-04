@@ -61,7 +61,7 @@ use rayon::prelude::*;
 use rustc_hash::FxHashSet;
 use std::{any::Any, path::Path, sync::Arc};
 use storage::{
-    persist::{config::ArgsOps, strategy::PersistenceStrategy},
+    persist::{strategy::PersistenceStrategy},
     Extension,
 };
 

@@ -4,7 +4,8 @@ use crate::{
     error::StorageError,
     pages::{edge_store::ReadLockedEdgeStorage, node_store::ReadLockedNodeStorage},
     persist::{
-        config::{ArgsOps, ConfigOps},
+        args::ArgsOps,
+        config::ConfigOps,
         control_file::{ControlFileOps, DBState},
         strategy::PersistenceStrategy,
     },

@@ -57,7 +57,8 @@ use {
 // Re-export for raphtory dependencies to use when creating graphs.
 pub use storage::{
     persist::{
-        config::{ArgsOps, ConfigOps},
+        args::ArgsOps,
+        config::ConfigOps,
         strategy::PersistenceStrategy,
     },
     read_constant_graph_properties, Args, Config, Extension,
