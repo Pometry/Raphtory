@@ -562,7 +562,7 @@ where
         if immut_lsn < lsn {
             let node_meta = self.graph().node_meta();
 
-            unify_types(&node_meta, &props, false)?;
+            unify_types(node_meta, &props, false)?;
 
             let node_writer = self.nodes.get_mut(segment_id).ok_or_else(|| {
                 StorageError::GenericFailure(format!(

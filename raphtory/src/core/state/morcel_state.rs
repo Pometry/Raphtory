@@ -145,7 +145,7 @@ impl<CS: ComputeState + Send + Clone> MorcelComputeState<CS> {
         if let Some(state) = self.states.get(&agg_ref.id()) {
             Box::new(state.iter(ss, self.morcel_size).map(Some))
         } else {
-            Box::new(std::iter::repeat(None).take(self.morcel_size))
+            Box::new(std::iter::repeat_n(None, self.morcel_size))
         }
     }
 }

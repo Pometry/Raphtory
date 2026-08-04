@@ -31,7 +31,7 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Set up cargo cache
-        uses: actions/cache@v3
+        uses: actions/cache@v6
         continue-on-error: false
         with:
           path: |
@@ -41,10 +41,10 @@ jobs:
             ~/.cargo/git/db/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.base }}
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v7
         with:
           python-version: |
             3.11
@@ -134,10 +134,10 @@ jobs:
         uses: arduino/setup-protoc@v3
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.base }}
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v7
         with:
           python-version: |
             3.11
@@ -169,7 +169,7 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Set up cargo cache
-        uses: actions/cache@v3
+        uses: actions/cache@v6
         continue-on-error: false
         with:
           path: |
@@ -179,10 +179,10 @@ jobs:
             ~/.cargo/git/db/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.base }}
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v7
         with:
           python-version: |
             3.11

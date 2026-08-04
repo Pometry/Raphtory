@@ -24,8 +24,14 @@ use dynamic_graphql::{
     ResolvedObjectFields, Result, Upload,
 };
 use itertools::Itertools;
-use minijinja::functions::namespace;
+#[cfg(feature = "vectors")]
+use raphtory::vectors::{
+    cache::CachedEmbeddingModel,
+    storage::OpenAIEmbeddings,
+    template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
+};
 use raphtory::{
+    arrow_loader::df_loaders::edges::ColumnNames,
     db::{
         api::{
             storage::storage::{Extension, PersistenceStrategy},
@@ -33,22 +39,44 @@ use raphtory::{
         },
         graph::views::deletion_graph::PersistentGraph,
     },
-    errors::{GraphError, GraphResult},
+    errors::GraphError,
+    io::parquet_loaders::{load_edges_from_parquet, load_nodes_from_parquet},
     prelude::*,
-    vectors::{
-        cache::CachedEmbeddingModel,
-        storage::OpenAIEmbeddings,
-        template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
-    },
     version,
 };
-use std::sync::Arc;
+use raphtory_api::core::entities::properties::prop::PropType;
+use std::{collections::HashMap, path::PathBuf, sync::Arc};
 use tracing::warn;
 
 pub mod graph;
 pub mod plugins;
 pub(crate) mod schema;
 pub(crate) mod sorting;
+
+pub(crate) fn parse_json_schema(
+    json: Option<&str>,
+) -> Result<Option<HashMap<String, PropType>>, GraphError> {
+    let json = match json {
+        None | Some("") => return Ok(None),
+        Some(s) => s,
+    };
+    let map: HashMap<String, String> =
+        serde_json::from_str(json).map_err(|e| GraphError::InvalidProperty {
+            reason: format!("Invalid JSON schema: {e}"),
+        })?;
+    map.into_iter()
+        .map(|(col, type_str)| {
+            let prop_type =
+                type_str
+                    .parse::<PropType>()
+                    .map_err(|e| GraphError::InvalidProperty {
+                        reason: format!("Column '{col}': {e}"),
+                    })?;
+            Ok((col, prop_type))
+        })
+        .collect::<Result<HashMap<_, _>, _>>()
+        .map(Some)
+}
 
 #[derive(InputObject, Debug, Clone, Default)]
 pub struct OpenAIConfig {
@@ -65,6 +93,7 @@ pub enum EmbeddingModel {
     OpenAI(OpenAIConfig),
 }
 
+#[cfg(feature = "vectors")]
 impl EmbeddingModel {
     async fn cache<'a>(self, ctx: &Context<'a>) -> GraphResult<CachedEmbeddingModel> {
         let data = ctx.data_unchecked::<Data>();
@@ -112,6 +141,8 @@ pub enum GqlGraphError {
     InvalidNamespace(String),
     #[error("Failed to create dir {0}")]
     FailedToCreateDir(String),
+    #[error("{0}")]
+    LoadError(String),
 }
 
 /// Auto-grants Write on `path` for the creator's role after a graph is created.
@@ -163,6 +194,7 @@ pub enum Template {
     Custom(String),
 }
 
+#[cfg_attr(not(feature = "vectors"), allow(dead_code))]
 fn resolve(template: Option<Template>, default: &str) -> Option<String> {
     match template? {
         Template::Enabled(false) => None,
@@ -258,20 +290,28 @@ impl QueryRoot {
         #[graphql(desc = "Optional edge-document template; defaults to the built-in template.")]
         edges: Option<Template>,
     ) -> Result<bool> {
-        ctx.require_jwt_write_access()?;
-        let data = ctx.data_unchecked::<Data>();
-        let template = DocumentTemplate {
-            node_template: resolve(nodes, DEFAULT_NODE_TEMPLATE),
-            edge_template: resolve(edges, DEFAULT_EDGE_TEMPLATE),
-        };
-        let cached_model = model
-            .unwrap_or(EmbeddingModel::OpenAI(Default::default()))
-            .cache(ctx)
-            .await?;
-        let folder = ExistingGraphFolder::try_from(data.work_dir_read().await, &path)?;
-        data.vectorise_folder(&folder, &template, cached_model)
-            .await?;
-        Ok(true)
+        #[cfg(feature = "vectors")]
+        {
+            ctx.require_jwt_write_access()?;
+            let data = ctx.data_unchecked::<Data>();
+            let template = DocumentTemplate {
+                node_template: resolve(nodes, DEFAULT_NODE_TEMPLATE),
+                edge_template: resolve(edges, DEFAULT_EDGE_TEMPLATE),
+            };
+            let cached_model = model
+                .unwrap_or(EmbeddingModel::OpenAI(Default::default()))
+                .cache(ctx)
+                .await?;
+            let folder = ExistingGraphFolder::try_from(data.work_dir_read().await, &path)?;
+            data.vectorise_folder(&folder, &template, cached_model)
+                .await?;
+            Ok(true)
+        }
+        #[cfg(not(feature = "vectors"))]
+        {
+            let _ = (ctx, path, model, nodes, edges);
+            Err(async_graphql::Error::new("vectors feature not enabled"))
+        }
     }
 
     /// Create vectorised graph in the format used for queries
@@ -322,7 +362,7 @@ impl QueryRoot {
 
     /// Returns a plugin.
     async fn plugins<'a>() -> QueryPlugin {
-        QueryPlugin::default()
+        QueryPlugin
     }
 
     /// Encodes graph and returns as string.
@@ -356,7 +396,7 @@ pub(crate) struct Mut(MutRoot);
 impl Mut {
     /// Returns a collection of mutation plugins.
     async fn plugins<'a>(_ctx: &Context<'a>) -> MutationPlugin {
-        MutationPlugin::default()
+        MutationPlugin
     }
 
     /// Delete graph from a path on the server.
@@ -369,6 +409,160 @@ impl Mut {
         let src_ns = parent_namespace(&path);
         require_namespace_write(ctx, &data.auth_policy, src_ns, &path, "delete")?;
         data.delete_graph(&path).await?;
+        Ok(true)
+    }
+
+    /// Load nodes
+    async fn load_nodes<'a>(
+        ctx: &Context<'a>,
+        #[graphql(desc = "Graph path relative to the root namespace.")] graph_path: String,
+        #[graphql(desc = "Path to the parquet directory.")] data_path: String,
+        #[graphql(desc = "The column name for the timestamps.")] time: String,
+        #[graphql(desc = "The column name for the node IDs.")] id: String,
+        #[graphql(
+            desc = "A value to use as the node type for all nodes. Cannot be used in combination with node_type_col."
+        )]
+        node_type: Option<String>,
+        #[graphql(
+            desc = "The node type column name in a dataframe. Cannot be used in combination with node_type."
+        )]
+        node_type_col: Option<String>,
+        #[graphql(desc = "List of node property column names.")] properties: Option<Vec<String>>,
+        #[graphql(desc = "List of node metadata column names.")] metadata: Option<Vec<String>>,
+        #[graphql(
+            desc = "A JSON-formatted dict of {'column_name': column_type} to cast columns to. Defaults to None."
+        )]
+        schema: Option<String>,
+        #[graphql(desc = "The column name for the secondary index.")] event_id: Option<String>,
+        #[graphql(
+            desc = "A value to use as the layer for all nodes. Cannot be used in combination with layer_col."
+        )]
+        layer: Option<String>,
+        #[graphql(
+            desc = "The node layer column name in a dataframe. Cannot be used in combination with layer."
+        )]
+        layer_col: Option<String>,
+    ) -> Result<bool> {
+        let data = ctx.data_unchecked::<Data>();
+        // src: require WRITE on graph
+        // require_graph_write(ctx, &data.auth_policy, graph_path)?;
+        let graph = data
+            .get_graph_with_write_permission(ctx, &graph_path)
+            .await?
+            .graph()
+            .clone();
+        // NOTE: skipping shared metadata for now until we figure out parsing of types
+        let properties_owned = properties.unwrap_or_default();
+        let properties: Vec<&str> = properties_owned.iter().map(String::as_str).collect();
+
+        let metadata_owned = metadata.unwrap_or_default();
+        let metadata: Vec<&str> = metadata_owned.iter().map(String::as_str).collect();
+
+        let schema = parse_json_schema(schema.as_deref())?;
+
+        // extracting PathBuf handles Strings too
+        let data_path = PathBuf::from(data_path);
+
+        data.is_parquet_path_allowed(&data_path)
+            .await
+            .map_err(|e| GqlGraphError::LoadError(e.to_string()))?;
+
+        // wrap in Arc to avoid cloning the entire schema for inner loops
+        let arced_schema = schema.map(Arc::new);
+
+        load_nodes_from_parquet(
+            &graph,
+            &data_path,
+            &time,
+            event_id.as_deref(),
+            &id,
+            node_type.as_deref(),
+            node_type_col.as_deref(),
+            properties.as_slice(),
+            metadata.as_slice(),
+            None,
+            layer.as_deref(),
+            layer_col.as_deref(),
+            None,
+            None,
+            true,
+            arced_schema.clone(),
+        )?;
+        Ok(true)
+    }
+
+    /// Load edges
+    async fn load_edges<'a>(
+        ctx: &Context<'a>,
+        #[graphql(desc = "Graph path relative to the root namespace.")] graph_path: String,
+        #[graphql(desc = "Path to the parquet directory.")] data_path: String,
+        #[graphql(desc = "The column name for the update timestamps.")] time: String,
+        #[graphql(desc = "The column name for the source node IDs.")] src: String,
+        #[graphql(desc = "The column name for the destination node IDs.")] dst: String,
+        #[graphql(desc = "List of edge property column names. Defaults to None.")]
+        properties: Option<Vec<String>>,
+        #[graphql(desc = "List of edge metadata column names. Defaults to None.")] metadata: Option<
+            Vec<String>,
+        >,
+        #[graphql(
+            desc = "A JSON-formatted dict of {'column_name': column_type} to cast columns to. Defaults to None."
+        )]
+        schema: Option<String>,
+        #[graphql(desc = "The column name for the secondary index.")] event_id: Option<String>,
+        #[graphql(
+            desc = "A value to use as the layer for all edges. Cannot be used in combination with layer_col. Defaults to None."
+        )]
+        layer: Option<String>,
+        #[graphql(
+            desc = "The edge layer column name in a dataframe. Cannot be used in combination with layer. Defaults to None."
+        )]
+        layer_col: Option<String>,
+    ) -> Result<bool> {
+        let data = ctx.data_unchecked::<Data>();
+        // src: require WRITE on graph
+        // require_graph_write(ctx, &data.auth_policy, graph_path)?;
+        let graph = data
+            .get_graph_with_write_permission(ctx, &graph_path)
+            .await?
+            .graph()
+            .clone();
+        // NOTE: skipping shared metadata for now until we figure out parsing of types
+        let properties_owned = properties.unwrap_or_default();
+        let properties: Vec<&str> = properties_owned.iter().map(String::as_str).collect();
+
+        let metadata_owned = metadata.unwrap_or_default();
+        let metadata: Vec<&str> = metadata_owned.iter().map(String::as_str).collect();
+
+        let schema = parse_json_schema(schema.as_deref())?;
+
+        // extracting PathBuf handles Strings too
+        let data_path = PathBuf::from(data_path);
+
+        data.is_parquet_path_allowed(&data_path)
+            .await
+            .map_err(|e| GqlGraphError::LoadError(e.to_string()))?;
+
+        // wrap in Arc to avoid cloning the entire schema for inner loops
+        let arced_schema = schema.map(Arc::new);
+
+        load_edges_from_parquet(
+            &graph,
+            &data_path,
+            ColumnNames::new(
+                time.as_str(),
+                event_id.as_deref(),
+                src.as_str(),
+                dst.as_str(),
+                layer_col.as_deref(),
+            ),
+            true,
+            properties.as_slice(),
+            metadata.as_slice(),
+            None,
+            layer.as_deref(),
+            None,
+            arced_schema.clone(),
+        )?;
         Ok(true)
     }
 
@@ -617,6 +811,7 @@ impl Mut {
             }
         })
         .await?;
+        new_subgraph.flush()?;
 
         data.insert_graph(folder, new_subgraph).await?;
         if let Err(e) = auto_grant_on_create(ctx, &data.auth_policy, &new_path) {
@@ -668,6 +863,21 @@ impl Mut {
         {
             Err(GraphError::IndexingNotSupported.into())
         }
+    }
+
+    /// Flush any pending writes for the graph at `graphPath` to disk.
+    async fn flush<'a>(
+        ctx: &Context<'a>,
+        #[graphql(desc = "Graph path relative to the root namespace.")] graph_path: String,
+    ) -> Result<bool> {
+        let data = ctx.data_unchecked::<Data>();
+        let graph = data
+            .get_graph_with_write_permission(ctx, &graph_path)
+            .await?
+            .graph()
+            .clone();
+        graph.flush()?;
+        Ok(true)
     }
 }
 

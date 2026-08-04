@@ -31,7 +31,7 @@ jobs:
         os: [ macos-latest, ubuntu-latest, windows-latest ]
     runs-on: '${{ matrix.os }}'
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         name: Checkout
       - uses: maxim-lobanov/setup-xcode@v1
         name: Xcode version
@@ -49,7 +49,7 @@ jobs:
         with:
           cache-all-crates: true
       - name: Setup Python ${{ matrix.python }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python }}
           cache: 'pip'

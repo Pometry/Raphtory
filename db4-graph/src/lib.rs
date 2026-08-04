@@ -115,7 +115,7 @@ where
             .metadata_mapper()
             .d_types()
             .first()
-            .and_then(|dtype| GidType::from_prop_type(dtype));
+            .and_then(GidType::from_prop_type);
 
         let gid_resolver_dir = graph_dir.as_ref().map(|dir| dir.gid_resolver_dir());
         let logical_to_physical = match gid_resolver_dir {

@@ -61,23 +61,21 @@ pub trait ClapDefault: Args {
 }
 
 fn display_error(err: &clap::Error, cm: &Command) -> String {
-    if let Some(ContextValue::String(variable)) = err.get(ContextKind::InvalidArg) {
-        if let Some(ContextValue::String(value)) = err.get(ContextKind::InvalidValue) {
-            if let Some(arg) = cm.get_arguments().find(|arg| {
-                arg.get_long().is_some_and(|long| {
-                    variable.starts_with(&format!("--{long}"))
-                        || arg
-                            .get_short()
-                            .is_some_and(|short| variable.starts_with(&format!("-{short}")))
-                })
-            }) {
-                if let Some(env) = arg.get_env() {
-                    let id = arg.get_id();
-                    let env = env.display();
-                    return format!("Invalid value from environment for '{id}': '{env}={value}'");
-                }
-            }
-        }
+    if let Some(ContextValue::String(variable)) = err.get(ContextKind::InvalidArg)
+        && let Some(ContextValue::String(value)) = err.get(ContextKind::InvalidValue)
+        && let Some(arg) = cm.get_arguments().find(|arg| {
+            arg.get_long().is_some_and(|long| {
+                variable.starts_with(&format!("--{long}"))
+                    || arg
+                        .get_short()
+                        .is_some_and(|short| variable.starts_with(&format!("-{short}")))
+            })
+        })
+        && let Some(env) = arg.get_env()
+    {
+        let id = arg.get_id();
+        let env = env.display();
+        return format!("Invalid value from environment for '{id}': '{env}={value}'");
     }
     err.to_string()
 }
