@@ -3132,4 +3132,64 @@ mod graphql_test {
         assert_eq!(res.errors, vec![], "flush mutation returned errors");
         assert_eq!(res.data.into_json().unwrap(), json!({"flush": true}));
     }
+
+    /// End-to-end reproduction of the stale namespace-listing counts bug:
+    /// create a graph, populate it, and flush — all over GraphQL — then read
+    /// the listing from a cold-cache session (as after a server restart),
+    /// which resolves `nodeCount`/`edgeCount` from the persisted sidecar.
+    /// Before the fix, `updateGraph{ flush }` never rewrote the sidecar, so
+    /// this reported 0/0.
+    #[tokio::test]
+    async fn test_namespace_listing_counts_after_flush() {
+        use crate::test_support::{run_mutation, setup_with_graphs};
+
+        let work_dir = tempdir().unwrap();
+
+        let session = setup_with_graphs(&[], work_dir.path()).await;
+
+        // Graph lives inside the `people` namespace so we can list it below.
+        let created = run_mutation(
+            &session.schema,
+            r#"mutation { newGraph(path: "people/g", graphType: EVENT) }"#,
+        )
+        .await;
+        assert_eq!(created.errors, vec![], "newGraph errored");
+
+        // `updateGraph` is a side-effecting field on the query root.
+        // `addEdge` implicitly creates both endpoints: 2 nodes, 1 edge.
+        let written = run_mutation(
+            &session.schema,
+            r#"query { updateGraph(path: "people/g") { addEdge(time: 0, src: "a", dst: "b") { success } } }"#,
+        )
+        .await;
+        assert_eq!(written.errors, vec![], "addEdge errored");
+
+        // Separate request so `flush` is ordered after the writes.
+        let flushed = run_mutation(
+            &session.schema,
+            r#"query { updateGraph(path: "people/g") { flush } }"#,
+        )
+        .await;
+        assert_eq!(flushed.errors, vec![], "flush errored");
+
+        // Fresh session over the same work dir → cold cache, so the listing
+        // reads counts from the persisted sidecar (the bug surface).
+        let restarted = setup_with_graphs(&[], work_dir.path()).await;
+        let listed = restarted
+            .schema
+            .execute(Request::new(
+                r#"query { namespace(path: "people") { graphs { list { nodeCount edgeCount } } } }"#,
+            ))
+            .await;
+        assert_eq!(listed.errors, vec![], "namespace listing errored");
+
+        let json = listed.data.into_json().unwrap();
+        let row = &json["namespace"]["graphs"]["list"][0];
+        assert_eq!(row["nodeCount"], 2, "listing nodeCount stale after flush");
+        assert_eq!(row["edgeCount"], 1, "listing edgeCount stale after flush");
+
+        // Keep session 1 alive past the assertion: its `Drop` runs
+        // `flush_and_clear`, which would rewrite the sidecar and mask the bug.
+        drop(session);
+    }
 }
