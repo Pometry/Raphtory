@@ -1,7 +1,7 @@
 // Expensive algorithms (several hundred ms to multiple seconds per iteration on the
 // 5000-node large graph). Run against the much smaller 100-node tiny graph instead, to keep
-// total suite runtime reasonable - these algorithms are already the ones most likely to time
-// out criterion's sampling window even at that reduced scale.
+// total suite runtime reasonable - at this scale they run in low milliseconds per iteration,
+// so a short measurement window is enough to collect a stable sample.
 //
 // `betweenness_centrality` is this binary's representative for graph/subgraph/layered/filtered
 // view coverage; every other algorithm here only benchmarks the plain graph.
@@ -32,7 +32,6 @@ pub fn graphgen_betweenness(c: &mut Criterion) {
     graph_benchmark(
         c,
         "graphgen_betweenness",
-        20,
         10,
         tiny_random_attachment_graph,
         |graph, _| betweenness_centrality(graph, None, false),
@@ -40,7 +39,6 @@ pub fn graphgen_betweenness(c: &mut Criterion) {
     graph_benchmark(
         c,
         "graphgen_betweenness_subgraph",
-        20,
         10,
         tiny_random_attachment_subgraph,
         |graph, _| betweenness_centrality(graph, None, false),
@@ -48,7 +46,6 @@ pub fn graphgen_betweenness(c: &mut Criterion) {
     graph_benchmark(
         c,
         "graphgen_betweenness_layered",
-        20,
         10,
         tiny_random_attachment_layered,
         |graph, _| betweenness_centrality(graph, None, false),
@@ -56,7 +53,6 @@ pub fn graphgen_betweenness(c: &mut Criterion) {
     graph_benchmark(
         c,
         "graphgen_betweenness_graph_filtered",
-        20,
         10,
         tiny_random_attachment_filtered,
         |graph, _| betweenness_centrality(graph, None, false),
@@ -67,7 +63,6 @@ pub fn graphgen_in_components(c: &mut Criterion) {
     graph_benchmark(
         c,
         "graphgen_in_components",
-        20,
         10,
         tiny_random_attachment_graph,
         |graph, _| in_components(graph, None),
@@ -78,7 +73,6 @@ pub fn graphgen_out_components(c: &mut Criterion) {
     graph_benchmark(
         c,
         "graphgen_out_components",
-        20,
         10,
         tiny_random_attachment_graph,
         |graph, _| out_components(graph, None),
@@ -89,7 +83,6 @@ pub fn graphgen_in_components_filtered(c: &mut Criterion) {
     graph_benchmark(
         c,
         "graphgen_in_components_filtered",
-        20,
         10,
         tiny_random_attachment_graph,
         |graph, _| in_components_filtered(graph, None, Unfiltered).unwrap(),
@@ -100,7 +93,6 @@ pub fn graphgen_out_components_filtered(c: &mut Criterion) {
     graph_benchmark(
         c,
         "graphgen_out_components_filtered",
-        20,
         10,
         tiny_random_attachment_graph,
         |graph, _| out_components_filtered(graph, None, Unfiltered).unwrap(),
@@ -111,7 +103,6 @@ pub fn graphgen_temporal_rich_club(c: &mut Criterion) {
     graph_benchmark(
         c,
         "graphgen_temporal_rich_club",
-        20,
         10,
         tiny_random_attachment_graph,
         |graph, _| {
@@ -125,7 +116,6 @@ pub fn graphgen_fruchterman_reingold(c: &mut Criterion) {
     graph_benchmark(
         c,
         "graphgen_fruchterman_reingold",
-        20,
         10,
         tiny_random_attachment_graph,
         |graph, _| fruchterman_reingold_unbounded(graph, 5, 1.0, 1.0, 0.9, 0.1),
@@ -136,7 +126,6 @@ pub fn graphgen_cohesive_fruchterman_reingold(c: &mut Criterion) {
     graph_benchmark(
         c,
         "graphgen_cohesive_fruchterman_reingold",
-        20,
         10,
         tiny_random_attachment_graph,
         |graph, _| cohesive_fruchterman_reingold(graph, 5, 1.0, 1.0, 0.9, 0.1),
@@ -147,7 +136,6 @@ pub fn graphgen_max_weight_matching(c: &mut Criterion) {
     graph_benchmark(
         c,
         "graphgen_max_weight_matching",
-        20,
         10,
         tiny_random_attachment_graph,
         |graph, _| max_weight_matching(graph, None, false, false),

@@ -45,7 +45,6 @@ pub fn local_triangle_count_analysis(c: &mut Criterion) {
     graph_benchmark_with_setup(
         c,
         "local_triangle_count",
-        3,
         10,
         large_random_attachment_graph,
         first_node_id,
@@ -57,7 +56,6 @@ pub fn local_clustering_coefficient_analysis(c: &mut Criterion) {
     graph_benchmark_with_setup(
         c,
         "local_clustering_coefficient",
-        3,
         10,
         large_random_attachment_graph,
         first_node_id,
@@ -69,7 +67,6 @@ pub fn graphgen_directed_density(c: &mut Criterion) {
     graph_benchmark(
         c,
         "graphgen_directed_density",
-        2,
         10,
         large_random_attachment_graph,
         |graph, _| directed_graph_density(graph),
@@ -77,7 +74,6 @@ pub fn graphgen_directed_density(c: &mut Criterion) {
     graph_benchmark(
         c,
         "graphgen_directed_density_subgraph",
-        3,
         10,
         large_random_attachment_subgraph,
         |graph, _| directed_graph_density(graph),
@@ -85,7 +81,6 @@ pub fn graphgen_directed_density(c: &mut Criterion) {
     graph_benchmark(
         c,
         "graphgen_directed_density_layered",
-        3,
         10,
         large_random_attachment_layered,
         |graph, _| directed_graph_density(graph),
@@ -93,7 +88,6 @@ pub fn graphgen_directed_density(c: &mut Criterion) {
     graph_benchmark(
         c,
         "graphgen_directed_density_graph_filtered",
-        5,
         10,
         large_random_attachment_filtered,
         |graph, _| directed_graph_density(graph),
@@ -104,7 +98,6 @@ pub fn graphgen_degree_centrality(c: &mut Criterion) {
     graph_benchmark(
         c,
         "graphgen_degree_centrality",
-        3,
         10,
         large_random_attachment_graph,
         |graph, _| degree_centrality(graph),
@@ -115,7 +108,6 @@ pub fn graphgen_concomp(c: &mut Criterion) {
     graph_benchmark(
         c,
         "graphgen_concomp",
-        5,
         10,
         large_random_attachment_graph,
         |graph, _| weakly_connected_components(graph),
@@ -126,7 +118,6 @@ pub fn graphgen_alternating_mask(c: &mut Criterion) {
     graph_benchmark(
         c,
         "graphgen_alternating_mask",
-        3,
         10,
         large_random_attachment_graph,
         |graph, _| alternating_mask(graph),
@@ -137,7 +128,6 @@ pub fn graphgen_max_degree(c: &mut Criterion) {
     graph_benchmark(
         c,
         "graphgen_max_degree",
-        3,
         10,
         large_random_attachment_graph,
         |graph, _| max_degree(graph),
@@ -148,7 +138,6 @@ pub fn graphgen_min_degree(c: &mut Criterion) {
     graph_benchmark(
         c,
         "graphgen_min_degree",
-        3,
         10,
         large_random_attachment_graph,
         |graph, _| min_degree(graph),
@@ -159,7 +148,6 @@ pub fn graphgen_max_out_degree(c: &mut Criterion) {
     graph_benchmark(
         c,
         "graphgen_max_out_degree",
-        3,
         10,
         large_random_attachment_graph,
         |graph, _| max_out_degree(graph),
@@ -170,7 +158,6 @@ pub fn graphgen_max_in_degree(c: &mut Criterion) {
     graph_benchmark(
         c,
         "graphgen_max_in_degree",
-        3,
         10,
         large_random_attachment_graph,
         |graph, _| max_in_degree(graph),
@@ -181,7 +168,6 @@ pub fn graphgen_min_out_degree(c: &mut Criterion) {
     graph_benchmark(
         c,
         "graphgen_min_out_degree",
-        3,
         10,
         large_random_attachment_graph,
         |graph, _| min_out_degree(graph),
@@ -192,7 +178,6 @@ pub fn graphgen_min_in_degree(c: &mut Criterion) {
     graph_benchmark(
         c,
         "graphgen_min_in_degree",
-        3,
         10,
         large_random_attachment_graph,
         |graph, _| min_in_degree(graph),
@@ -203,7 +188,6 @@ pub fn graphgen_average_degree(c: &mut Criterion) {
     graph_benchmark(
         c,
         "graphgen_average_degree",
-        3,
         10,
         large_random_attachment_graph,
         |graph, _| average_degree(graph),
@@ -214,7 +198,6 @@ pub fn graphgen_local_clustering_coefficient_batch(c: &mut Criterion) {
     graph_benchmark_with_setup(
         c,
         "graphgen_local_clustering_coefficient_batch",
-        3,
         10,
         large_random_attachment_graph,
         first_node_id,
@@ -226,7 +209,6 @@ pub fn graphgen_temporally_reachable_nodes(c: &mut Criterion) {
     graph_benchmark_with_setup(
         c,
         "graphgen_temporally_reachable_nodes",
-        3,
         10,
         large_random_attachment_graph,
         first_node_id,
@@ -238,7 +220,6 @@ pub fn graphgen_out_component(c: &mut Criterion) {
     graph_benchmark_with_setup(
         c,
         "graphgen_out_component",
-        3,
         10,
         large_random_attachment_graph,
         first_node_id,
@@ -253,7 +234,6 @@ pub fn graphgen_out_component_filtered(c: &mut Criterion) {
     graph_benchmark_with_setup(
         c,
         "graphgen_out_component_filtered",
-        3,
         10,
         large_random_attachment_graph,
         first_node_id,
@@ -268,7 +248,6 @@ pub fn graphgen_temporal_seir(c: &mut Criterion) {
     graph_benchmark(
         c,
         "graphgen_temporal_seir",
-        3,
         10,
         large_random_attachment_graph,
         |graph, _| {
@@ -279,37 +258,37 @@ pub fn graphgen_temporal_seir(c: &mut Criterion) {
 }
 
 pub fn graphgen_internal_two_node_event(c: &mut Criterion) {
-    simple_benchmark(c, "graphgen_internal_two_node_event", 2, 10, || {
+    simple_benchmark(c, "graphgen_internal_two_node_event", 10, || {
         two_node_event(1, 100)
     })
 }
 
 pub fn graphgen_internal_init_two_node_count(c: &mut Criterion) {
-    simple_benchmark(c, "graphgen_internal_init_two_node_count", 2, 10, || {
+    simple_benchmark(c, "graphgen_internal_init_two_node_count", 10, || {
         init_two_node_count()
     })
 }
 
 pub fn graphgen_internal_star_event(c: &mut Criterion) {
-    simple_benchmark(c, "graphgen_internal_star_event", 2, 10, || {
+    simple_benchmark(c, "graphgen_internal_star_event", 10, || {
         star_event(0, 1, 100)
     })
 }
 
 pub fn graphgen_internal_init_star_count(c: &mut Criterion) {
-    simple_benchmark(c, "graphgen_internal_init_star_count", 2, 10, || {
+    simple_benchmark(c, "graphgen_internal_init_star_count", 10, || {
         init_star_count(128)
     })
 }
 
 pub fn graphgen_internal_new_triangle_edge(c: &mut Criterion) {
-    simple_benchmark(c, "graphgen_internal_new_triangle_edge", 2, 10, || {
+    simple_benchmark(c, "graphgen_internal_new_triangle_edge", 10, || {
         new_triangle_edge(true, 1, 0, 1, 100)
     })
 }
 
 pub fn graphgen_internal_init_tri_count(c: &mut Criterion) {
-    simple_benchmark(c, "graphgen_internal_init_tri_count", 2, 10, || {
+    simple_benchmark(c, "graphgen_internal_init_tri_count", 10, || {
         init_tri_count(128)
     })
 }
