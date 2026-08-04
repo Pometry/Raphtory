@@ -137,17 +137,14 @@ impl GraphqlTransport {
         }
         "#;
 
-        let variables = HashMap::from([
-            ("path".to_string(), json!(args.path)),
-            ("time".to_string(), input_time_var(&args.time)),
-            ("name".to_string(), json!(args.id)),
-            (
-                "properties".to_string(),
-                opt_properties_var(&args.properties)?,
-            ),
-            ("nodeType".to_string(), json!(args.node_type)),
-            ("layer".to_string(), json!(args.layer)),
-        ]);
+        let variables = json!({
+            "path": json!(args.path),
+            "time": input_time_var(&args.time),
+            "name": json!(args.id),
+            "properties": opt_properties_var(&args.properties)?,
+            "nodeType": json!(args.node_type),
+            "layer": json!(args.layer),
+        });
         let res = self.client.query(query, variables).await?;
 
         expect_update_success(&res, "addNode")?;
@@ -167,17 +164,14 @@ impl GraphqlTransport {
         }
         "#;
 
-        let variables = HashMap::from([
-            ("path".to_string(), json!(args.path)),
-            ("time".to_string(), input_time_var(&args.time)),
-            ("name".to_string(), json!(args.id)),
-            (
-                "properties".to_string(),
-                opt_properties_var(&args.properties)?,
-            ),
-            ("nodeType".to_string(), json!(args.node_type)),
-            ("layer".to_string(), json!(args.layer)),
-        ]);
+        let variables = json!({
+            "path": json!(args.path),
+            "time": input_time_var(&args.time),
+            "name": json!(args.id),
+            "properties": opt_properties_var(&args.properties)?,
+            "nodeType": json!(args.node_type),
+            "layer": json!(args.layer),
+        });
         let res = self.client.query(query, variables).await?;
 
         expect_update_success(&res, "createNode")?;
@@ -197,17 +191,14 @@ impl GraphqlTransport {
         }
         "#;
 
-        let variables = HashMap::from([
-            ("path".to_string(), json!(args.path)),
-            ("time".to_string(), input_time_var(&args.time)),
-            ("src".to_string(), json!(args.src)),
-            ("dst".to_string(), json!(args.dst)),
-            (
-                "properties".to_string(),
-                opt_properties_var(&args.properties)?,
-            ),
-            ("layer".to_string(), json!(args.layer)),
-        ]);
+        let variables = json!({
+            "path": json!(args.path),
+            "time": input_time_var(&args.time),
+            "src": json!(args.src),
+            "dst": json!(args.dst),
+            "properties": opt_properties_var(&args.properties)?,
+            "layer": json!(args.layer),
+        });
         let res = self.client.query(query, variables).await?;
 
         expect_update_success(&res, "addEdge")?;
@@ -226,11 +217,11 @@ impl GraphqlTransport {
         }
         "#;
 
-        let variables = HashMap::from([
-            ("path".to_string(), json!(args.path)),
-            ("t".to_string(), input_time_var(&args.time)),
-            ("properties".to_string(), properties_var(&args.properties)?),
-        ]);
+        let variables = json!({
+            "path": json!(args.path),
+            "t": input_time_var(&args.time),
+            "properties": properties_var(&args.properties)?,
+        });
         let res = self.client.query(query, variables).await?;
 
         expect_update_bool(&res, "addProperties")?;
@@ -249,10 +240,10 @@ impl GraphqlTransport {
         }
         "#;
 
-        let variables = HashMap::from([
-            ("path".to_string(), json!(args.path)),
-            ("properties".to_string(), properties_var(&args.properties)?),
-        ]);
+        let variables = json!({
+            "path": json!(args.path),
+            "properties": properties_var(&args.properties)?,
+        });
         let res = self.client.query(query, variables).await?;
 
         expect_update_bool(&res, "addMetadata")?;
@@ -271,10 +262,10 @@ impl GraphqlTransport {
         }
         "#;
 
-        let variables = HashMap::from([
-            ("path".to_string(), json!(args.path)),
-            ("properties".to_string(), properties_var(&args.properties)?),
-        ]);
+        let variables = json!({
+            "path": json!(args.path),
+            "properties": properties_var(&args.properties)?,
+        });
         let res = self.client.query(query, variables).await?;
 
         expect_update_bool(&res, "updateMetadata")?;
@@ -293,13 +284,13 @@ impl GraphqlTransport {
         }
         "#;
 
-        let variables = HashMap::from([
-            ("path".to_string(), json!(args.path)),
-            ("time".to_string(), input_time_var(&args.time)),
-            ("src".to_string(), json!(args.src)),
-            ("dst".to_string(), json!(args.dst)),
-            ("layer".to_string(), json!(args.layer)),
-        ]);
+        let variables = json!({
+            "path": json!(args.path),
+            "time": input_time_var(&args.time),
+            "src": json!(args.src),
+            "dst": json!(args.dst),
+            "layer": json!(args.layer),
+        });
         let res = self.client.query(query, variables).await?;
 
         expect_update_success(&res, "deleteEdge")?;
@@ -317,11 +308,11 @@ impl GraphqlTransport {
             }
         "#;
 
-        let variables = HashMap::from([
-            ("path".to_string(), json!(args.path)),
-            ("name".to_string(), json!(args.id)),
-            ("newType".to_string(), json!(args.new_type)),
-        ]);
+        let variables = json!({
+            "path": json!(args.path),
+            "name": json!(args.id),
+            "newType": json!(args.new_type),
+        });
         let res = self.client.query(query, variables).await?;
         ensure_write_target_present(&res, "node", format!("node '{}'", args.id))?;
         Ok(None)
@@ -342,15 +333,12 @@ impl GraphqlTransport {
             }
         "#;
 
-        let variables = HashMap::from([
-            ("path".to_string(), json!(args.path)),
-            ("name".to_string(), json!(args.id)),
-            ("time".to_string(), input_time_var(&args.time)),
-            (
-                "properties".to_string(),
-                opt_properties_var(&args.properties)?,
-            ),
-        ]);
+        let variables = json!({
+            "path": json!(args.path),
+            "name": json!(args.id),
+            "time": input_time_var(&args.time),
+            "properties": opt_properties_var(&args.properties)?,
+        });
         let res = self.client.query(query, variables).await?;
         ensure_write_target_present(&res, "node", format!("node '{}'", args.id))?;
         Ok(None)
@@ -370,11 +358,11 @@ impl GraphqlTransport {
             }
         "#;
 
-        let variables = HashMap::from([
-            ("path".to_string(), json!(args.path)),
-            ("name".to_string(), json!(args.id)),
-            ("properties".to_string(), properties_var(&args.properties)?),
-        ]);
+        let variables = json!({
+            "path": json!(args.path),
+            "name": json!(args.id),
+            "properties": properties_var(&args.properties)?,
+        });
         let res = self.client.query(query, variables).await?;
         ensure_write_target_present(&res, "node", format!("node '{}'", args.id))?;
         Ok(None)
@@ -394,11 +382,11 @@ impl GraphqlTransport {
             }
         "#;
 
-        let variables = HashMap::from([
-            ("path".to_string(), json!(args.path)),
-            ("name".to_string(), json!(args.id)),
-            ("properties".to_string(), properties_var(&args.properties)?),
-        ]);
+        let variables = json!({
+            "path": json!(args.path),
+            "name": json!(args.id),
+            "properties": properties_var(&args.properties)?,
+        });
         let res = self.client.query(query, variables).await?;
         ensure_write_target_present(&res, "node", format!("node '{}'", args.id))?;
         Ok(None)
@@ -419,17 +407,14 @@ impl GraphqlTransport {
             }
         "#;
 
-        let variables = HashMap::from([
-            ("path".to_string(), json!(args.path)),
-            ("src".to_string(), json!(args.src)),
-            ("dst".to_string(), json!(args.dst)),
-            ("time".to_string(), input_time_var(&args.time)),
-            (
-                "properties".to_string(),
-                opt_properties_var(&args.properties)?,
-            ),
-            ("layer".to_string(), json!(args.layer)),
-        ]);
+        let variables = json!({
+            "path": json!(args.path),
+            "src": json!(args.src),
+            "dst": json!(args.dst),
+            "time": input_time_var(&args.time),
+            "properties": opt_properties_var(&args.properties)?,
+            "layer": json!(args.layer),
+        });
         let res = self.client.query(query, variables).await?;
         ensure_write_target_present(
             &res,
@@ -454,13 +439,13 @@ impl GraphqlTransport {
             }
         "#;
 
-        let variables = HashMap::from([
-            ("path".to_string(), json!(args.path)),
-            ("src".to_string(), json!(args.src)),
-            ("dst".to_string(), json!(args.dst)),
-            ("time".to_string(), input_time_var(&args.time)),
-            ("layer".to_string(), json!(args.layer)),
-        ]);
+        let variables = json!({
+            "path": json!(args.path),
+            "src": json!(args.src),
+            "dst": json!(args.dst),
+            "time": input_time_var(&args.time),
+            "layer": json!(args.layer),
+        });
         let res = self.client.query(query, variables).await?;
         ensure_write_target_present(
             &res,
@@ -485,13 +470,13 @@ impl GraphqlTransport {
             }
         "#;
 
-        let variables = HashMap::from([
-            ("path".to_string(), json!(args.path)),
-            ("src".to_string(), json!(args.src)),
-            ("dst".to_string(), json!(args.dst)),
-            ("properties".to_string(), properties_var(&args.properties)?),
-            ("layer".to_string(), json!(args.layer)),
-        ]);
+        let variables = json!({
+            "path": json!(args.path),
+            "src": json!(args.src),
+            "dst": json!(args.dst),
+            "properties": properties_var(&args.properties)?,
+            "layer": json!(args.layer),
+        });
         let res = self.client.query(query, variables).await?;
         ensure_write_target_present(
             &res,
@@ -516,13 +501,13 @@ impl GraphqlTransport {
             }
         "#;
 
-        let variables = HashMap::from([
-            ("path".to_string(), json!(args.path)),
-            ("src".to_string(), json!(args.src)),
-            ("dst".to_string(), json!(args.dst)),
-            ("properties".to_string(), properties_var(&args.properties)?),
-            ("layer".to_string(), json!(args.layer)),
-        ]);
+        let variables = json!({
+            "path": json!(args.path),
+            "src": json!(args.src),
+            "dst": json!(args.dst),
+            "properties": properties_var(&args.properties)?,
+            "layer": json!(args.layer),
+        });
         let res = self.client.query(query, variables).await?;
         ensure_write_target_present(
             &res,
@@ -543,10 +528,10 @@ impl GraphqlTransport {
         }
         "#;
 
-        let variables = HashMap::from([
-            ("path".to_string(), json!(args.path)),
-            ("nodes".to_string(), to_var(&args.nodes)?),
-        ]);
+        let variables = json!({
+            "path": json!(args.path),
+            "nodes": to_var(&args.nodes)?,
+        });
         let res = self.client.query(query, variables).await?;
         expect_update_bool(&res, "addNodes")?;
         Ok(None)
@@ -561,10 +546,10 @@ impl GraphqlTransport {
         }
         "#;
 
-        let variables = HashMap::from([
-            ("path".to_string(), json!(args.path)),
-            ("edges".to_string(), to_var(&args.edges)?),
-        ]);
+        let variables = json!({
+            "path": json!(args.path),
+            "edges": to_var(&args.edges)?,
+        });
         let res = self.client.query(query, variables).await?;
         expect_update_bool(&res, "addEdges")?;
         Ok(None)
@@ -576,7 +561,10 @@ impl GraphqlTransport {
 impl GraphqlTransport {
     async fn eval_read(&self, expr: &ReadExpr) -> Result<Option<Prop>, ClientError> {
         let (query, variables) = render_read(expr)?;
-        let res = self.client.query(&query, variables).await?;
+        let res = self
+            .client
+            .query(&query, JsonValue::Object(variables))
+            .await?;
         let root =
             serde_json::to_value(&res).map_err(|e| ClientError::InvalidResponse(e.to_string()))?;
         parse_read(expr, &root)
@@ -593,7 +581,7 @@ impl GraphqlTransport {
 /// as literals — they carry no injection surface.
 #[derive(Default)]
 struct VarCollector {
-    vars: HashMap<String, JsonValue>,
+    vars: serde_json::Map<String, JsonValue>,
     /// Accumulated variable declarations, already comma-joined
     /// (`"$f0: NodeFilter!, $f1: EdgeFilter!"`) — appended in place rather than
     /// collected into a `Vec` and joined at the end.
@@ -647,7 +635,9 @@ impl VarCollector {
 /// `{ graph(path: "g") { window(start: 0, end: 10) { node(name: "ben") { degree } } } }`.
 /// Filter-bearing reads gain a `query($f0: NodeFilter!, …) { … }` signature and
 /// a matching variables map.
-fn render_read(expr: &ReadExpr) -> Result<(String, HashMap<String, JsonValue>), ClientError> {
+fn render_read(
+    expr: &ReadExpr,
+) -> Result<(String, serde_json::Map<String, JsonValue>), ClientError> {
     let mut vars = VarCollector::default();
     let body = render_read_body(expr, &mut vars)?;
     let closes = "}".repeat(read_depth(expr));

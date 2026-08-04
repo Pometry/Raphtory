@@ -211,7 +211,7 @@ impl RemoteClient {
     pub async fn query(
         &self,
         query: &str,
-        variables: HashMap<String, JsonValue>,
+        variables: JsonValue,
     ) -> Result<HashMap<String, JsonValue>, ClientError> {
         let request_body = json!({
             "query": query,
@@ -261,13 +261,11 @@ impl RemoteClient {
             }
         "#
         .to_owned();
-        let variables: HashMap<String, JsonValue> = [
-            ("path".to_owned(), json!(path)),
-            ("graph".to_owned(), json!(encoded_graph)),
-            ("overwrite".to_owned(), json!(overwrite)),
-        ]
-        .into_iter()
-        .collect();
+        let variables = json!({
+            "path": json!(path),
+            "graph": json!(encoded_graph),
+            "overwrite": json!(overwrite),
+        });
 
         let data = self.query(&query, variables).await?;
         match data.get("sendGraph") {
@@ -347,12 +345,10 @@ impl RemoteClient {
               copyGraph(path: $path, newPath: $newPath)
             }"#
         .to_owned();
-        let variables: HashMap<String, JsonValue> = [
-            ("path".to_owned(), json!(path)),
-            ("newPath".to_owned(), json!(new_path)),
-        ]
-        .into_iter()
-        .collect();
+        let variables = json!({
+            "path": json!(path),
+            "newPath": json!(new_path),
+        });
 
         let data = self.query(&query, variables).await?;
         match data.get("copyGraph") {
@@ -370,12 +366,10 @@ impl RemoteClient {
               moveGraph(path: $path, newPath: $newPath)
             }"#
         .to_owned();
-        let variables: HashMap<String, JsonValue> = [
-            ("path".to_owned(), json!(path)),
-            ("newPath".to_owned(), json!(new_path)),
-        ]
-        .into_iter()
-        .collect();
+        let variables = json!({
+            "path": json!(path),
+            "newPath": json!(new_path),
+        });
 
         let data = self.query(&query, variables).await?;
         match data.get("moveGraph") {
@@ -393,8 +387,9 @@ impl RemoteClient {
               deleteGraph(path: $path)
             }"#
         .to_owned();
-        let variables: HashMap<String, JsonValue> =
-            [("path".to_owned(), json!(path))].into_iter().collect();
+        let variables = json!({
+            "path": json!(path),
+        });
 
         let data = self.query(&query, variables).await?;
         match data.get("deleteGraph") {
@@ -412,8 +407,9 @@ impl RemoteClient {
                 receiveGraph(path: $path)
             }"#
         .to_owned();
-        let variables: HashMap<String, JsonValue> =
-            [("path".to_owned(), json!(path))].into_iter().collect();
+        let variables = json!({
+            "path": json!(path),
+        });
 
         let data = self.query(&query, variables).await?;
         match data.get("receiveGraph") {
@@ -454,8 +450,9 @@ impl RemoteClient {
         .to_owned()
         .replace("EVENT", graph_type);
 
-        let variables: HashMap<String, JsonValue> =
-            [("path".to_owned(), json!(path))].into_iter().collect();
+        let variables = json!({
+            "path": json!(path),
+        });
 
         let data = self.query(&query, variables).await?;
         match data.get("newGraph") {
@@ -485,13 +482,11 @@ impl RemoteClient {
         "#
         .to_owned();
 
-        let variables: HashMap<String, JsonValue> = [
-            ("path".to_string(), json!(path)),
-            ("indexSpec".to_string(), index_spec),
-            ("inRam".to_string(), json!(in_ram)),
-        ]
-        .into_iter()
-        .collect();
+        let variables = json!({
+            "path": json!(path),
+            "indexSpec": index_spec,
+            "inRam": json!(in_ram),
+        });
 
         let data = self.query(&query, variables).await?;
         match data.get("createIndex") {
@@ -529,8 +524,9 @@ impl RemoteClient {
               permissions { createRole(name: $name) { success } }
             }"#
         .to_owned();
-        let variables: HashMap<String, JsonValue> =
-            [("name".to_owned(), json!(name))].into_iter().collect();
+        let variables = json!({
+            "name": json!(name),
+        });
         let data = self.query(&query, variables).await?;
         Self::permission_success(&data, "createRole")
     }
@@ -542,8 +538,9 @@ impl RemoteClient {
               permissions { deleteRole(name: $name) { success } }
             }"#
         .to_owned();
-        let variables: HashMap<String, JsonValue> =
-            [("name".to_owned(), json!(name))].into_iter().collect();
+        let variables = json!({
+            "name": json!(name),
+        });
         let data = self.query(&query, variables).await?;
         Self::permission_success(&data, "deleteRole")
     }
@@ -562,13 +559,11 @@ impl RemoteClient {
               permissions { grantGraph(role: $role, path: $path, permission: $permission) { success } }
             }"#
         .to_owned();
-        let variables: HashMap<String, JsonValue> = [
-            ("role".to_owned(), json!(role)),
-            ("path".to_owned(), json!(path)),
-            ("permission".to_owned(), json!(permission)),
-        ]
-        .into_iter()
-        .collect();
+        let variables = json!({
+            "role": json!(role),
+            "path": json!(path),
+            "permission": json!(permission),
+        });
         let data = self.query(&query, variables).await?;
         Self::permission_success(&data, "grantGraph")
     }
@@ -580,12 +575,10 @@ impl RemoteClient {
               permissions { revokeGraph(role: $role, path: $path) { success } }
             }"#
         .to_owned();
-        let variables: HashMap<String, JsonValue> = [
-            ("role".to_owned(), json!(role)),
-            ("path".to_owned(), json!(path)),
-        ]
-        .into_iter()
-        .collect();
+        let variables = json!({
+            "role": json!(role),
+            "path": json!(path),
+        });
         let data = self.query(&query, variables).await?;
         Self::permission_success(&data, "revokeGraph")
     }
@@ -606,14 +599,12 @@ impl RemoteClient {
               permissions { grantNamespace(role: $role, path: $path, permission: $permission, recursive: $recursive) { success } }
             }"#
         .to_owned();
-        let variables: HashMap<String, JsonValue> = [
-            ("role".to_owned(), json!(role)),
-            ("path".to_owned(), json!(path)),
-            ("permission".to_owned(), json!(permission)),
-            ("recursive".to_owned(), json!(recursive)),
-        ]
-        .into_iter()
-        .collect();
+        let variables = json!({
+            "role": json!(role),
+            "path": json!(path),
+            "permission": json!(permission),
+            "recursive": json!(recursive),
+        });
         let data = self.query(&query, variables).await?;
         Self::permission_success(&data, "grantNamespace")
     }
@@ -631,13 +622,11 @@ impl RemoteClient {
               permissions { revokeNamespace(role: $role, path: $path, recursive: $recursive) { success } }
             }"#
         .to_owned();
-        let variables: HashMap<String, JsonValue> = [
-            ("role".to_owned(), json!(role)),
-            ("path".to_owned(), json!(path)),
-            ("recursive".to_owned(), json!(recursive)),
-        ]
-        .into_iter()
-        .collect();
+        let variables = json!({
+            "role": json!(role),
+            "path": json!(path),
+            "recursive": json!(recursive),
+        });
         let data = self.query(&query, variables).await?;
         Self::permission_success(&data, "revokeNamespace")
     }
@@ -656,13 +645,11 @@ impl RemoteClient {
               permissions { grantGraphFilteredReadOnly(role: $role, path: $path, filter: $filter) { success } }
             }"#
         .to_owned();
-        let variables: HashMap<String, JsonValue> = [
-            ("role".to_owned(), json!(role)),
-            ("path".to_owned(), json!(path)),
-            ("filter".to_owned(), filter),
-        ]
-        .into_iter()
-        .collect();
+        let variables = json!({
+            "role": json!(role),
+            "path": json!(path),
+            "filter": filter,
+        });
         let data = self.query(&query, variables).await?;
         Self::permission_success(&data, "grantGraphFilteredReadOnly")
     }
@@ -684,7 +671,7 @@ impl RemoteClient {
               }
             }"#
         .to_owned();
-        let data = self.query(&query, HashMap::new()).await?;
+        let data = self.query(&query, json!({})).await?;
         data.get("permissions")
             .and_then(|p| p.get("myPermissions"))
             .cloned()
@@ -703,7 +690,7 @@ impl RemoteClient {
               permissions { listRoles }
             }"#
         .to_owned();
-        let data = self.query(&query, HashMap::new()).await?;
+        let data = self.query(&query, json!({})).await?;
         match data.get("permissions").and_then(|p| p.get("listRoles")) {
             Some(JsonValue::Array(items)) => Ok(items
                 .iter()
@@ -731,8 +718,9 @@ impl RemoteClient {
               }
             }"#
         .to_owned();
-        let variables: HashMap<String, JsonValue> =
-            [("name".to_owned(), json!(name))].into_iter().collect();
+        let variables = json!({
+            "name": json!(name),
+        });
         let data = self.query(&query, variables).await?;
         data.get("permissions")
             .and_then(|p| p.get("getRole"))

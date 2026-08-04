@@ -63,9 +63,11 @@ impl PyRaphtoryClient {
     pub(crate) fn query_with_json_variables(
         &self,
         query: String,
-        variables: HashMap<String, JsonValue>,
+        variables: serde_json::Map<String, JsonValue>,
     ) -> PyResult<HashMap<String, JsonValue>> {
-        self.run_async(move |client| async move { client.query(&query, variables).await })
+        self.run_async(move |client| async move {
+            client.query(&query, JsonValue::Object(variables)).await
+        })
     }
 }
 
@@ -121,8 +123,8 @@ impl PyRaphtoryClient {
         query: String,
         variables: Option<HashMap<String, Bound<'py, PyAny>>>,
     ) -> PyResult<Bound<'py, PyDict>> {
-        let variables = variables.unwrap_or_else(|| HashMap::new());
-        let mut json_variables = HashMap::new();
+        let variables = variables.unwrap_or_default();
+        let mut json_variables = serde_json::Map::new();
         for (key, value) in variables {
             let json_value = translate_from_python(value)?;
             json_variables.insert(key, json_value);
