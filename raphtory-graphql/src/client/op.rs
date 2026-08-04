@@ -356,10 +356,11 @@ pub enum ReadExpr {
     /// Polymorphic: Graph/Node/Edge → Properties. Server field: `properties`.
     Properties { input: Arc<ReadExpr> },
     /// Terminal on a properties/metadata container: fetch a single property
-    /// by key. Returns `Option<RemoteProperty>` — the server returns `null`
-    /// when the key isn't present, decoded to `None` client-side rather
-    /// than raising `NotFound` (see nullable-intermediate handling in
-    /// `parse_read`). Server field: `get(key: String!)`.
+    /// value by key — `Option<Prop>`. Only `{ value }` is selected (the caller
+    /// already knows the key). The server returns `null` when the key isn't
+    /// present, decoded to `None` client-side rather than raising `NotFound`
+    /// (see nullable-intermediate handling in `parse_read`). Server field:
+    /// `get(key: String!)`.
     PropertyGet { input: Arc<ReadExpr>, key: String },
     /// Terminal on a properties/metadata container: `bool` — does a
     /// property with this key exist? Server field: `contains(key: String!)`.
@@ -372,10 +373,20 @@ pub enum ReadExpr {
     /// present. The string is the `PropType` display form (e.g. `"I64"`,
     /// `"Str"`, `"List<F64>"`). Server field: `getDtypeOf(key: String!)`.
     PropertyGetDtypeOf { input: Arc<ReadExpr>, key: String },
-    /// Terminal on a properties/metadata container: `Vec<RemoteProperty>` —
-    /// each `(key, value)` entry. Optional `keys` whitelist filters the
-    /// returned set. Server field: `values(keys: [String!])`.
+    /// Terminal on a properties/metadata container: `Vec<Prop>` — the property
+    /// values only (`{ value }` selected per record; keys aren't fetched —
+    /// use `PropertyItems` when pairs are needed). Optional `keys` whitelist
+    /// filters the returned set. Server field: `values(keys: [String!])`.
     PropertyValues {
+        input: Arc<ReadExpr>,
+        keys: Option<Vec<String>>,
+    },
+    /// Terminal on a properties/metadata container: `Vec<(String, Prop)>` —
+    /// full `(key, value)` pairs (`{ key value }` selected per record). The
+    /// pair-fetching sibling of `PropertyValues`; backs `.items()`. Optional
+    /// `keys` whitelist filters the returned set. Server field:
+    /// `values(keys: [String!])`.
+    PropertyItems {
         input: Arc<ReadExpr>,
         keys: Option<Vec<String>>,
     },

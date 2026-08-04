@@ -429,7 +429,7 @@ impl PyRemoteEdge {
     /// `edge[key]` — the property value for `key`, or `None` if absent
     /// (matches the local `Edge.__getitem__`, which returns `Optional`).
     /// Fires one RPC.
-    fn __getitem__(&self, py: Python<'_>, name: String) -> Result<Option<Py<PyAny>>, ClientError> {
-        self.properties().get(py, name)
+    fn __getitem__(&self, name: String) -> Result<Option<Prop>, ClientError> {
+        self.properties().get(name)
     }
 }

@@ -269,23 +269,6 @@ pub(crate) fn expect_nested_i64_list(
     }
 }
 
-/// Unwrap a `Transport::execute` result expecting a `Prop::Map({key, value})`
-/// wrapped in `Option` — used by `PropertyGet`. Returns `None` if the key
-/// wasn't present in the container.
-pub(crate) fn expect_optional_property(
-    v: Option<Prop>,
-    context: &str,
-) -> Result<Option<(String, Prop)>, ClientError> {
-    match v {
-        None => Ok(None),
-        Some(Prop::Map(map)) => extract_key_value_pair(&*map, context).map(Some),
-        Some(_) => Err(ClientError::InvalidResponse(format!(
-            "`{}` returned unexpected value type",
-            context
-        ))),
-    }
-}
-
 /// Unwrap a `Transport::execute` result expecting a `Prop::List` of
 /// `Prop::Map({key, value})` records — used by `PropertyValues`.
 pub(crate) fn expect_property_list(

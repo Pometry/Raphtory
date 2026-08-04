@@ -33,8 +33,8 @@ pub use remote_history::{
     RemoteHistoryTimestamps, RemoteIntervals,
 };
 pub use remote_metadata::{
-    RemoteMetadata, RemoteProperties, RemoteProperty, RemotePropertyTuple,
-    RemoteTemporalProperties, RemoteTemporalProperty,
+    RemoteMetadata, RemoteProperties, RemotePropertyTuple, RemoteTemporalProperties,
+    RemoteTemporalProperty,
 };
 pub use remote_nested_edges::RemoteNestedEdges;
 pub use remote_node::RemoteNode;

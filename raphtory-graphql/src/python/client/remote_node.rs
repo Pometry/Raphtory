@@ -438,8 +438,8 @@ impl PyRemoteNode {
 
     /// `node[key]` — the property value for `key`, or raises `KeyError` if
     /// absent (matches the local `Node.__getitem__`). Fires one RPC.
-    fn __getitem__(&self, py: Python<'_>, name: String) -> PyResult<Py<PyAny>> {
-        match self.properties().get(py, name.clone())? {
+    fn __getitem__(&self, name: String) -> PyResult<Prop> {
+        match self.properties().get(name.clone())? {
             Some(v) => Ok(v),
             None => Err(PyKeyError::new_err(format!("Unknown property {name}"))),
         }

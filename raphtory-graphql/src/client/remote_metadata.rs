@@ -1,9 +1,8 @@
 use crate::client::{
     op::{HandleCtx, Op, ReadExpr},
     remote_graph::{
-        expect_bool, expect_i64, expect_optional_prop, expect_optional_property,
-        expect_optional_property_tuple, expect_prop_list, expect_property_list,
-        expect_property_tuple_list, expect_string_list,
+        expect_bool, expect_i64, expect_optional_prop, expect_optional_property_tuple,
+        expect_prop_list, expect_property_list, expect_property_tuple_list, expect_string_list,
     },
     remote_history::{RemoteEventTime, RemoteHistory},
     transport::Transport,
@@ -11,21 +10,6 @@ use crate::client::{
 };
 use raphtory_api::core::entities::properties::prop::Prop;
 use std::sync::Arc;
-
-/// A single `(key, value)` property reading. Value can be any polymorphic
-/// property type — string, int, float, bool, list, map, datetime, etc.
-///
-/// Constructed by `RemoteMetadata.get()` / `.values()` and by
-/// `RemoteProperties.get()` / `.values()`.
-#[derive(Clone, Debug, PartialEq)]
-pub struct RemoteProperty {
-    /// The property name.
-    pub key: String,
-    /// The property value. `Prop` is raphtory's polymorphic value enum;
-    /// PyO3 converts it to a native Python type when returned across the FFI
-    /// boundary.
-    pub value: Prop,
-}
 
 /// A handle to the metadata container of a remote graph, node, or edge —
 /// the non-temporal properties whose values don't change over the graph's
@@ -59,13 +43,12 @@ impl RemoteMetadata {
 
     /// Terminal: fetch a single metadata value by key. Returns `None` if the
     /// key isn't present. Fires one RPC.
-    pub async fn get(&self, key: impl ToString) -> Result<Option<RemoteProperty>, ClientError> {
+    pub async fn get(&self, key: impl ToString) -> Result<Option<Prop>, ClientError> {
         let op = Op::Read(ReadExpr::PropertyGet {
             input: Arc::new(self.expr.clone()),
             key: key.to_string(),
         });
-        expect_optional_property(self.transport.execute(&op).await?, "get")
-            .map(|opt| opt.map(|(key, value)| RemoteProperty { key, value }))
+        expect_optional_prop(self.transport.execute(&op).await?, "get")
     }
 
     /// Terminal: check whether a metadata entry with this key exists. Fires one RPC.
@@ -85,21 +68,30 @@ impl RemoteMetadata {
         expect_string_list(self.transport.execute(&op).await?, "keys")
     }
 
-    /// Terminal: all `(key, value)` metadata entries. If `keys` is `Some`,
-    /// only entries with those names are returned. Fires one RPC.
-    pub async fn values(
-        &self,
-        keys: Option<Vec<String>>,
-    ) -> Result<Vec<RemoteProperty>, ClientError> {
+    /// Terminal: all metadata values (no keys — see `items()` for pairs).
+    /// If `keys` is `Some`, only values for those names are returned. Fires
+    /// one RPC.
+    pub async fn values(&self, keys: Option<Vec<String>>) -> Result<Vec<Prop>, ClientError> {
         let op = Op::Read(ReadExpr::PropertyValues {
             input: Arc::new(self.expr.clone()),
             keys,
         });
-        let pairs = expect_property_list(self.transport.execute(&op).await?, "values")?;
-        Ok(pairs
-            .into_iter()
-            .map(|(key, value)| RemoteProperty { key, value })
-            .collect())
+        expect_prop_list(self.transport.execute(&op).await?, "values")
+    }
+
+    /// Terminal: all `(key, value)` entries as pairs. If `keys` is `Some`,
+    /// only entries with those names are returned. Unlike `values()`, this
+    /// fetches the keys too — use it only when the pairs are needed. Fires
+    /// one RPC.
+    pub async fn items(
+        &self,
+        keys: Option<Vec<String>>,
+    ) -> Result<Vec<(String, Prop)>, ClientError> {
+        let op = Op::Read(ReadExpr::PropertyItems {
+            input: Arc::new(self.expr.clone()),
+            keys,
+        });
+        expect_property_list(self.transport.execute(&op).await?, "items")
     }
 }
 
@@ -137,13 +129,12 @@ impl RemoteProperties {
     /// Terminal: fetch a single property value by key. Returns `None` if
     /// the key isn't present in the current view. For a temporal property,
     /// this yields its most recent value under the view. Fires one RPC.
-    pub async fn get(&self, key: impl ToString) -> Result<Option<RemoteProperty>, ClientError> {
+    pub async fn get(&self, key: impl ToString) -> Result<Option<Prop>, ClientError> {
         let op = Op::Read(ReadExpr::PropertyGet {
             input: Arc::new(self.expr.clone()),
             key: key.to_string(),
         });
-        expect_optional_property(self.transport.execute(&op).await?, "get")
-            .map(|opt| opt.map(|(key, value)| RemoteProperty { key, value }))
+        expect_optional_prop(self.transport.execute(&op).await?, "get")
     }
 
     /// Terminal: whether a property with this key exists. Fires one RPC.
@@ -165,23 +156,31 @@ impl RemoteProperties {
         expect_string_list(self.transport.execute(&op).await?, "keys")
     }
 
-    /// Terminal: all `(key, value)` property entries. If `keys` is `Some`,
-    /// only entries with those names are returned. For temporal properties,
-    /// each entry's `value` is the property's most recent value under the
-    /// view. Fires one RPC.
-    pub async fn values(
-        &self,
-        keys: Option<Vec<String>>,
-    ) -> Result<Vec<RemoteProperty>, ClientError> {
+    /// Terminal: all property values (no keys — see `items()` for pairs).
+    /// If `keys` is `Some`, only values for those names are returned. For
+    /// temporal properties, each value is the property's most recent value
+    /// under the view. Fires one RPC.
+    pub async fn values(&self, keys: Option<Vec<String>>) -> Result<Vec<Prop>, ClientError> {
         let op = Op::Read(ReadExpr::PropertyValues {
             input: Arc::new(self.expr.clone()),
             keys,
         });
-        let pairs = expect_property_list(self.transport.execute(&op).await?, "values")?;
-        Ok(pairs
-            .into_iter()
-            .map(|(key, value)| RemoteProperty { key, value })
-            .collect())
+        expect_prop_list(self.transport.execute(&op).await?, "values")
+    }
+
+    /// Terminal: all `(key, value)` entries as pairs. If `keys` is `Some`,
+    /// only entries with those names are returned. Unlike `values()`, this
+    /// fetches the keys too — use it only when the pairs are needed. Fires
+    /// one RPC.
+    pub async fn items(
+        &self,
+        keys: Option<Vec<String>>,
+    ) -> Result<Vec<(String, Prop)>, ClientError> {
+        let op = Op::Read(ReadExpr::PropertyItems {
+            input: Arc::new(self.expr.clone()),
+            keys,
+        });
+        expect_property_list(self.transport.execute(&op).await?, "items")
     }
 
     /// Terminal: the data-type of the property's latest value by key, as its

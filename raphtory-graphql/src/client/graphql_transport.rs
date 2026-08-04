@@ -1136,11 +1136,13 @@ fn render_read_body(expr: &ReadExpr, vars: &mut VarCollector) -> Result<String, 
         // Metadata / Properties navigation
         ReadExpr::Metadata { input } => format!("{} {{ metadata", render_read_body(input, vars)?),
         ReadExpr::Properties { input } => format!("{} {{ properties", render_read_body(input, vars)?),
-        // Property terminals — `get`/`values` are compound (return {key, value}
-        // records). Inner braces `{ key value }` are self-balanced; outer
-        // `get` / `values` opens one net brace, contributing 1 to read_depth.
+        // Property terminals — `values` is compound (returns {key, value}
+        // records); `get` selects only `{ value }` — the caller already knows
+        // the key, so fetching it back is wasted bytes. Inner braces are
+        // self-balanced; outer `get` / `values` opens one net brace,
+        // contributing 1 to read_depth.
         ReadExpr::PropertyGet { input, key } => format!(
-            "{} {{ get(key: {}) {{ key value }}",
+            "{} {{ get(key: {}) {{ value }}",
             render_read_body(input, vars)?,
             render_gql_str(key)
         ),
@@ -1160,6 +1162,14 @@ fn render_read_body(expr: &ReadExpr, vars: &mut VarCollector) -> Result<String, 
             )
         }
         ReadExpr::PropertyValues { input, keys } => match keys {
+            Some(ks) => format!(
+                "{} {{ values(keys: [{}]) {{ value }}",
+                render_read_body(input, vars)?,
+                render_string_list(ks)
+            ),
+            None => format!("{} {{ values {{ value }}", render_read_body(input, vars)?),
+        },
+        ReadExpr::PropertyItems { input, keys } => match keys {
             Some(ks) => format!(
                 "{} {{ values(keys: [{}]) {{ key value }}",
                 render_read_body(input, vars)?,
@@ -1654,6 +1664,7 @@ fn read_depth(expr: &ReadExpr) -> usize {
         | ReadExpr::PropertyContains { input, .. }
         | ReadExpr::PropertyKeys { input }
         | ReadExpr::PropertyValues { input, .. }
+        | ReadExpr::PropertyItems { input, .. }
         | ReadExpr::TemporalProperties { input }
         | ReadExpr::TemporalPropertyByKey { input, .. }
         | ReadExpr::TemporalPropertyList { input, .. }
@@ -2388,17 +2399,43 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
         // Property terminals — each entry is a `{key, value}` record where
         // value is an untagged Prop (JSON number/string/bool/array/object).
         //
-        // `PropertyGet`: single record or null. Terminal value is null when
+        // `PropertyGet`: single `{ value }` record or null (only the value is
+        // selected — the caller supplied the key). Terminal value is null when
         // the key isn't present in the container — decode as `Ok(None)`.
         ReadExpr::PropertyGet { .. } => {
             if terminal_val.is_null() {
                 Ok(None)
             } else {
-                Ok(Some(json_to_property_record(terminal_val)?))
+                let value_json = terminal_val
+                    .as_object()
+                    .and_then(|o| o.get("value"))
+                    .ok_or_else(|| {
+                        ClientError::InvalidResponse("property record missing `value`".into())
+                    })?;
+                Ok(Some(json_to_prop(value_json)?))
             }
         }
-        // `PropertyValues`: array of `{key, value}` records → `Prop::List(...)`.
+        // `PropertyValues`: array of `{value}` records (values only) →
+        // `Prop::List(...)` of the bare values.
         ReadExpr::PropertyValues { .. } => {
+            let arr = terminal_val.as_array().ok_or_else(|| {
+                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
+            })?;
+            let items: Result<Vec<Prop>, ClientError> = arr
+                .iter()
+                .map(|v| {
+                    let value_json =
+                        v.as_object().and_then(|o| o.get("value")).ok_or_else(|| {
+                            ClientError::InvalidResponse("property record missing `value`".into())
+                        })?;
+                    json_to_prop(value_json)
+                })
+                .collect();
+            Ok(Some(Prop::List(items?.into())))
+        }
+        // `PropertyItems`: array of `{key, value}` records → `Prop::List(...)`
+        // of `Prop::Map({key, value})`.
+        ReadExpr::PropertyItems { .. } => {
             let arr = terminal_val.as_array().ok_or_else(|| {
                 ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
             })?;
@@ -3056,7 +3093,7 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
                 go(input, out);
                 out.push("keys");
             }
-            ReadExpr::PropertyValues { input, .. } => {
+            ReadExpr::PropertyValues { input, .. } | ReadExpr::PropertyItems { input, .. } => {
                 go(input, out);
                 out.push("values");
             }
@@ -3722,6 +3759,7 @@ fn child_input(expr: &ReadExpr) -> Option<&ReadExpr> {
         | ReadExpr::PropertyContains { input, .. }
         | ReadExpr::PropertyKeys { input }
         | ReadExpr::PropertyValues { input, .. }
+        | ReadExpr::PropertyItems { input, .. }
         | ReadExpr::TemporalProperties { input }
         | ReadExpr::TemporalPropertyByKey { input, .. }
         | ReadExpr::TemporalPropertyList { input, .. }
@@ -4367,8 +4405,7 @@ mod tests {
                 .get("weight")
                 .await
                 .unwrap()
-                .expect("weight present")
-                .value;
+                .expect("weight present");
             assert_eq!(w, Prop::I64(expect_w), "per-event property value");
             let layer = handle.layer_name().await.unwrap();
             assert_eq!(layer, "_default");
