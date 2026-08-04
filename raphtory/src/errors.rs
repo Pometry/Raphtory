@@ -1,5 +1,3 @@
-#[cfg(feature = "vectors")]
-use crate::vectors::embeddings::EmbeddingError;
 use crate::{
     core::storage::lazy_vec::IllegalSet,
     db::graph::views::filter::model::filter_operator::FilterOperator, prelude::GraphViewOps,
@@ -7,9 +5,13 @@ use crate::{
 use arrow::{datatypes::DataType, error::ArrowError};
 use itertools::Itertools;
 use parquet::errors::ParquetError;
-use raphtory_api::core::entities::{
-    properties::prop::{InvalidPropertyTypeErr, PropError, PropType, PropTypeParseError},
-    GidType, GID, VID,
+use raphtory_api::core::{
+    entities::{
+        properties::prop::{InvalidPropertyTypeErr, PropError, PropType, PropTypeParseError},
+        GidType, GID, VID,
+    },
+    storage::{graph_folder::GraphFolderError, timeindex::TimeError},
+    utils::time::ParseTimeError,
 };
 use raphtory_core::entities::{
     graph::tgraph::InvalidLayer,
@@ -24,18 +26,17 @@ use std::{
     sync::Arc,
     time::SystemTimeError,
 };
+use storage::{error::StorageError, resolver::mapping_resolver::InvalidNodeId};
 
 #[cfg(feature = "python")]
 use pyo3::PyErr;
-use raphtory_api::core::utils::time::ParseTimeError;
-#[cfg(feature = "search")]
-use {tantivy, tantivy::query::QueryParserError};
 
 use crate::algorithms::dynamics::temporal::epidemics::SeedError;
-use raphtory_api::core::storage::{graph_folder::GraphFolderError, timeindex::TimeError};
-use storage::{error::StorageError, resolver::mapping_resolver::InvalidNodeId};
 #[cfg(feature = "io")]
 use zip::result::ZipError;
+
+#[cfg(feature = "vectors")]
+use crate::vectors::embeddings::EmbeddingError;
 
 #[derive(thiserror::Error, Debug)]
 pub enum InvalidPathReason {
@@ -261,7 +262,7 @@ pub enum GraphError {
     #[cfg(feature = "io")]
     #[error("zip operation failed")]
     ZipError {
-        source: zip::result::ZipError,
+        source: ZipError,
         location: &'static Location<'static>,
     },
 
@@ -276,17 +277,6 @@ pub enum GraphError {
     )]
     ColumnDoesNotExist(String),
 
-    #[cfg(feature = "search")]
-    #[error("Index operation failed: {source}")]
-    IndexError {
-        #[from]
-        source: tantivy::TantivyError,
-    },
-
-    #[cfg(feature = "search")]
-    #[error("Index operation failed: {0}")]
-    IndexErrorMsg(String),
-
     #[cfg(feature = "vectors")]
     #[error("Embedding operation failed")]
     EmbeddingError {
@@ -297,13 +287,6 @@ pub enum GraphError {
     #[cfg(feature = "vectors")]
     #[error("Model has not been initialised with a sample, so dimension cannot be inferred. Please provide a sample embedding when initializing the model, or set the dimension explicitly in the model config.")]
     UnresolvedModel,
-
-    #[cfg(feature = "search")]
-    #[error("Index operation failed")]
-    QueryError {
-        #[from]
-        source: QueryParserError,
-    },
 
     #[error("The layer_name function is only available once an edge has been exploded via .explode_layers() or .explode(). If you want to retrieve the layers for this edge you can use .layer_names")]
     LayerNameAPIError,

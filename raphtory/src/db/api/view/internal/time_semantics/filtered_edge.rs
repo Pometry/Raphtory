@@ -67,7 +67,7 @@ impl<'a, TS: TimeIndexOps<'a, IndexType = EventTime, RangeType = TS>, G: GraphVi
             eid: self.eid,
             time_index: self.time_index.range(w),
             view: self.view.clone(),
-            _marker: std::marker::PhantomData,
+            _marker: PhantomData,
         }
     }
 
@@ -392,7 +392,7 @@ impl<'a> FilteredEdgeStorageOps<'a> for EdgeEntryRef<'a> {
         self,
         layer_id: LayerId,
         view: G,
-    ) -> FilteredEdgeTimeIndex<'a, G, storage::EdgeDeletions<'a>> {
+    ) -> FilteredEdgeTimeIndex<'a, G, EdgeDeletions<'a>> {
         FilteredEdgeTimeIndex {
             eid: self.eid().with_layer_deletion(layer_id),
             time_index: self.deletions(layer_id),
