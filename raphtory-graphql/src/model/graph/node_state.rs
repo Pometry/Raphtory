@@ -615,3 +615,430 @@ impl GqlNodeState {
         .await
     }
 }
+
+#[cfg(test)]
+mod graphql_test {
+    use crate::test_support::setup_with_graphs;
+    use dynamic_graphql::Request;
+    use raphtory::{db::api::view::MaterializedGraph, prelude::*};
+    use serde_json::json;
+    use tempfile::tempdir;
+
+    #[tokio::test]
+    async fn test_algorithm_node_state_ops() {
+        let graph = Graph::new();
+        // insert out of id order so sortById is meaningful
+        graph.add_edge(1, "c", "b", NO_PROPS, None).unwrap();
+        graph.add_edge(2, "b", "a", NO_PROPS, None).unwrap();
+        graph.add_edge(3, "a", "c", NO_PROPS, None).unwrap();
+        let graph: MaterializedGraph = graph.into();
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", graph)], tmp_dir.path()).await;
+
+        let query = r#"
+        {
+          graph(path: "g") {
+            algorithm {
+              pagerank(iterCount: 20) {
+                get(node: "b") {
+                  columnName
+                  value {
+                    __typename
+                    ... on NodeStateProp { prop }
+                  }
+                }
+                missing: get(node: "not-a-node") { columnName }
+                sortById {
+                  nodes { list { name } }
+                }
+              }
+            }
+          }
+        }
+        "#;
+
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        // in a 3-cycle all nodes have the same rank of 1/3
+        assert_eq!(
+            res.data.into_json().unwrap(),
+            json!({
+                "graph": {
+                    "algorithm": {
+                        "pagerank": {
+                            "get": [
+                                {
+                                    "columnName": "pagerank_score",
+                                    "value": { "__typename": "NodeStateProp", "prop": 0.3333333333333333 }
+                                }
+                            ],
+                            "missing": null,
+                            "sortById": {
+                                "nodes": {
+                                    "list": [
+                                        { "name": "a" },
+                                        { "name": "b" },
+                                        { "name": "c" }
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                }
+            })
+        );
+    }
+
+    #[tokio::test]
+    async fn test_algorithm_node_state_rows() {
+        let graph = Graph::new();
+        // asymmetric graph so every node has a distinct pagerank
+        graph.add_edge(1, "a", "b", NO_PROPS, None).unwrap();
+        graph.add_edge(2, "a", "c", NO_PROPS, None).unwrap();
+        graph.add_edge(3, "b", "c", NO_PROPS, None).unwrap();
+        let graph: MaterializedGraph = graph.into();
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", graph)], tmp_dir.path()).await;
+
+        let query = r#"
+        {
+          graph(path: "g") {
+            algorithm {
+              pagerank(iterCount: 20) {
+                columnNames
+                rows {
+                  node { name }
+                  entries {
+                    columnName
+                    value { ... on NodeStateProp { prop } }
+                  }
+                }
+                headlessRows {
+                  node { name }
+                  values { ... on NodeStateProp { prop } }
+                }
+              }
+            }
+          }
+        }
+        "#;
+
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        assert_eq!(
+            res.data.into_json().unwrap(),
+            json!({
+                "graph": {
+                    "algorithm": {
+                        "pagerank": {
+                            "columnNames": ["pagerank_score"],
+                            "rows": [
+                                {
+                                    "node": { "name": "a" },
+                                    "entries": [
+                                        { "columnName": "pagerank_score", "value": { "prop": 0.197580035313204 } }
+                                    ]
+                                },
+                                {
+                                    "node": { "name": "b" },
+                                    "entries": [
+                                        { "columnName": "pagerank_score", "value": { "prop": 0.28155081033755053 } }
+                                    ]
+                                },
+                                {
+                                    "node": { "name": "c" },
+                                    "entries": [
+                                        { "columnName": "pagerank_score", "value": { "prop": 0.5208691543492454 } }
+                                    ]
+                                }
+                            ],
+                            "headlessRows": [
+                                {
+                                    "node": { "name": "a" },
+                                    "values": [ { "prop": 0.197580035313204 } ]
+                                },
+                                {
+                                    "node": { "name": "b" },
+                                    "values": [ { "prop": 0.28155081033755053 } ]
+                                },
+                                {
+                                    "node": { "name": "c" },
+                                    "values": [ { "prop": 0.5208691543492454 } ]
+                                }
+                            ]
+                        }
+                    }
+                }
+            })
+        );
+    }
+
+    #[tokio::test]
+    async fn test_algorithm_node_state_page() {
+        let graph = Graph::new();
+        // a chain a -> b -> c -> d -> e, so the state has 5 rows
+        for (src, dst) in [("a", "b"), ("b", "c"), ("c", "d"), ("d", "e")] {
+            graph.add_edge(1, src, dst, NO_PROPS, None).unwrap();
+        }
+        let graph: MaterializedGraph = graph.into();
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", graph)], tmp_dir.path()).await;
+
+        // a page is itself a NodeState, so nodes/columns on it stay row-aligned
+        let query = r#"
+        {
+          graph(path: "g") {
+            algorithm {
+              degreeCentrality {
+                first: page(limit: 2) {
+                  count
+                  nodes { ids }
+                  columns { name values { ... on NodeStateProp { prop } } }
+                }
+                second: page(limit: 2, pageIndex: 1) { nodes { ids } }
+                withOffset: page(limit: 2, offset: 1) { nodes { ids } }
+                lastPartial: page(limit: 2, pageIndex: 2) { nodes { ids } }
+                pastEnd: page(limit: 2, pageIndex: 99) { count nodes { ids } }
+              }
+            }
+          }
+        }
+        "#;
+
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        // the first page holds the first two nodes with their values still aligned,
+        // `offset` shifts by rows rather than pages, the final page is short rather
+        // than padded, and paging past the end is empty rather than an error
+        assert_eq!(
+            res.data.into_json().unwrap(),
+            json!({
+                "graph": { "algorithm": { "degreeCentrality": {
+                    "first": {
+                        "count": 2,
+                        "nodes": { "ids": ["a", "b"] },
+                        "columns": [{
+                            "name": "degree_centrality",
+                            "values": [{ "prop": 0.5 }, { "prop": 1.0 }]
+                        }]
+                    },
+                    "second": { "nodes": { "ids": ["c", "d"] } },
+                    "withOffset": { "nodes": { "ids": ["b", "c"] } },
+                    "lastPartial": { "nodes": { "ids": ["e"] } },
+                    "pastEnd": { "count": 0, "nodes": { "ids": [] } }
+                } } }
+            })
+        );
+    }
+
+    #[tokio::test]
+    async fn test_algorithm_node_state_page_composes() {
+        let graph = Graph::new();
+        // asymmetric graph so every node has a distinct pagerank:
+        // a = 0.1976, b = 0.2816, c = 0.5209
+        graph.add_edge(1, "a", "b", NO_PROPS, None).unwrap();
+        graph.add_edge(2, "a", "c", NO_PROPS, None).unwrap();
+        graph.add_edge(3, "b", "c", NO_PROPS, None).unwrap();
+        let graph: MaterializedGraph = graph.into();
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", graph)], tmp_dir.path()).await;
+
+        // a page is a NodeState, so it chains with the other operations
+        let query = r#"
+        {
+          graph(path: "g") {
+            algorithm {
+              pagerank(iterCount: 20) {
+                sortedThenPaged: sortByValues(column: "pagerank_score", reverse: true) {
+                  page(limit: 2) { nodes { ids } }
+                }
+                pagedThenAggregated: page(limit: 2) {
+                  max(column: "pagerank_score") { node { id } }
+                }
+              }
+            }
+          }
+        }
+        "#;
+
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        assert_eq!(
+            res.data.into_json().unwrap(),
+            json!({
+                "graph": { "algorithm": { "pagerank": {
+                    // top two by score, descending
+                    "sortedThenPaged": { "page": { "nodes": { "ids": ["c", "b"] } } },
+                    // the aggregate only sees the page's rows (a, b), so b wins
+                    "pagedThenAggregated": { "max": { "node": { "id": "b" } } }
+                } } }
+            })
+        );
+    }
+
+    #[tokio::test]
+    async fn test_algorithm_node_state_top_k_and_sorting() {
+        let graph = Graph::new();
+        // asymmetric graph so every node has a distinct pagerank:
+        // a = 0.1976, b = 0.2816, c = 0.5209
+        graph.add_edge(1, "a", "b", NO_PROPS, None).unwrap();
+        graph.add_edge(2, "a", "c", NO_PROPS, None).unwrap();
+        graph.add_edge(3, "b", "c", NO_PROPS, None).unwrap();
+        let graph: MaterializedGraph = graph.into();
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", graph)], tmp_dir.path()).await;
+
+        let query = r#"
+        {
+          graph(path: "g") {
+            algorithm {
+              pagerank(iterCount: 20) {
+                topTwo: topK(column: "pagerank_score", k: 2) { nodes { ids } }
+                bottomTwo: bottomK(column: "pagerank_score", k: 2) { nodes { ids } }
+                ascending: sortByValues(column: "pagerank_score") { nodes { ids } }
+                descending: sortByValues(column: "pagerank_score", reverse: true) { nodes { ids } }
+                missingColumn: topK(column: "nope", k: 2) { count }
+              }
+            }
+          }
+        }
+        "#;
+
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        assert_eq!(
+            res.data.into_json().unwrap(),
+            json!({
+                "graph": { "algorithm": { "pagerank": {
+                    // largest first, smallest first
+                    "topTwo": { "nodes": { "ids": ["c", "b"] } },
+                    "bottomTwo": { "nodes": { "ids": ["a", "b"] } },
+                    "ascending": { "nodes": { "ids": ["a", "b", "c"] } },
+                    "descending": { "nodes": { "ids": ["c", "b", "a"] } },
+                    "missingColumn": null
+                } } }
+            })
+        );
+    }
+
+    #[tokio::test]
+    async fn test_algorithm_node_state_group_by() {
+        let graph = Graph::new();
+        // two connected components, so wcc gives two distinct component ids
+        graph.add_edge(1, "a", "b", NO_PROPS, None).unwrap();
+        graph.add_edge(2, "c", "d", NO_PROPS, None).unwrap();
+        let graph: MaterializedGraph = graph.into();
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", graph)], tmp_dir.path()).await;
+
+        let query = r#"
+        {
+          graph(path: "g") {
+            algorithm {
+              weaklyConnectedComponents {
+                groupBy(column: "component_id") {
+                  value
+                  nodes { ids }
+                }
+              }
+            }
+          }
+        }
+        "#;
+
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        // group order and node order within a group are both unordered
+        let mut data = res.data.into_json().unwrap();
+        let groups = data["graph"]["algorithm"]["weaklyConnectedComponents"]["groupBy"]
+            .as_array_mut()
+            .unwrap();
+        for group in groups.iter_mut() {
+            group["nodes"]["ids"]
+                .as_array_mut()
+                .unwrap()
+                .sort_by_key(|id| id.as_str().unwrap().to_string());
+        }
+        groups.sort_by_key(|group| group["nodes"]["ids"][0].as_str().unwrap().to_string());
+        // a-b and c-d each form their own component
+        assert_eq!(groups.len(), 2);
+        assert_eq!(groups[0]["nodes"]["ids"], json!(["a", "b"]));
+        assert_eq!(groups[1]["nodes"]["ids"], json!(["c", "d"]));
+        assert_ne!(groups[0]["value"], groups[1]["value"]);
+
+        // grouping a node-valued column is rejected
+        let query = r#"
+        {
+          graph(path: "g") {
+            algorithm {
+              outComponents { groupBy(column: "out_components") { value } }
+            }
+          }
+        }
+        "#;
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        assert_eq!(
+            res.data.into_json().unwrap(),
+            json!({ "graph": { "algorithm": { "outComponents": { "groupBy": null } } } })
+        );
+    }
+
+    #[tokio::test]
+    async fn test_algorithm_node_state_aggregates() {
+        let graph = Graph::new();
+        // asymmetric graph so every node has a distinct pagerank
+        graph.add_edge(1, "a", "b", NO_PROPS, None).unwrap();
+        graph.add_edge(2, "a", "c", NO_PROPS, None).unwrap();
+        graph.add_edge(3, "b", "c", NO_PROPS, None).unwrap();
+        let graph: MaterializedGraph = graph.into();
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", graph)], tmp_dir.path()).await;
+
+        let query = r#"
+        {
+          graph(path: "g") {
+            algorithm {
+              pagerank(iterCount: 20) {
+                min(column: "pagerank_score") { node { name } value }
+                max(column: "pagerank_score") { node { name } value }
+                median(column: "pagerank_score") { node { name } value }
+                sum(column: "pagerank_score")
+                mean(column: "pagerank_score")
+                missing: min(column: "not_a_column") { value }
+              }
+            }
+          }
+        }
+        "#;
+
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        assert_eq!(
+            res.data.into_json().unwrap(),
+            json!({
+                "graph": {
+                    "algorithm": {
+                        "pagerank": {
+                            "min": {
+                                "node": { "name": "a" },
+                                "value": 0.197580035313204
+                            },
+                            "max": {
+                                "node": { "name": "c" },
+                                "value": 0.5208691543492454
+                            },
+                            "median": {
+                                "node": { "name": "b" },
+                                "value": 0.28155081033755053
+                            },
+                            "sum": 1.0,
+                            "mean": 0.3333333333333333,
+                            "missing": null
+                        }
+                    }
+                }
+            })
+        );
+    }
+}
