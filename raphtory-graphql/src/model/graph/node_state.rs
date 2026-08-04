@@ -1,15 +1,18 @@
 use crate::{
     model::graph::{
-        node::GqlNode, node_id::GqlNodeId, nodes::GqlNodes, property::GqlPropertyOutputVal,
+        collection::check_page_limit, node::GqlNode, node_id::GqlNodeId, nodes::GqlNodes,
+        property::GqlPropertyOutputVal,
     },
     rayon::blocking_compute,
 };
-use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, SimpleObject, Union};
+use async_graphql::Context;
+use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, Result, SimpleObject, Union};
 use raphtory::{
     db::{
         api::{
             state::{
-                NodeStateOutput, NodeStateValue, OutputTypedNodeState, PropMap, TypedNodeState,
+                GenericNodeState, Index, NodeStateOutput, NodeStateValue, OutputTypedNodeState,
+                PropMap, TypedNodeState,
             },
             view::{BoxableGraphView, DynamicGraph},
         },
@@ -17,7 +20,7 @@ use raphtory::{
     },
     prelude::{NodeStateOps, Prop},
 };
-use raphtory_api::core::entities::properties::prop::PropUnwrap;
+use raphtory_api::core::entities::{properties::prop::PropUnwrap, VID};
 use std::{
     cmp::Ordering,
     hash::{Hash, Hasher},
@@ -200,6 +203,24 @@ impl Hash for GroupKey {
 }
 
 impl GqlNodeState {
+    /// A slice of `limit` rows starting at `start`, as a node state of its own.
+    fn slice(&self, start: usize, limit: usize) -> GqlNodeState {
+        let state = &self.node_state.state;
+        let start = start.min(self.node_state.len());
+        let limit = limit.min(self.node_state.len() - start);
+        let values = state.values_ref().slice(start, limit);
+        let keys: Index<VID> = state.keys_ref().iter().skip(start).take(limit).collect();
+        GqlNodeState {
+            node_state: GenericNodeState::new(
+                state.base_graph.clone(),
+                values,
+                keys,
+                Some(state.node_cols.clone()),
+            )
+            .to_output_nodestate(),
+        }
+    }
+
     /// Whether `column` exists and holds plain property values rather than nodes.
     fn is_prop_column(&self, column: &str) -> bool {
         !self.node_state.state.node_cols.contains_key(column)
@@ -526,6 +547,32 @@ impl GqlNodeState {
             )
         })
         .await
+    }
+
+    /// Returns one page of this node state as a node state of its own, so that
+    /// `nodes` / `rows` / `columns` on it stay row-aligned with each other.
+    /// Pages past the end are empty rather than an error.
+    ///
+    /// For example, if page(limit: 5, offset: 1, page_index: 2) is called, a page with 5 items,
+    /// offset by 11 items (2 pages of 5 + 1), will be returned.
+    async fn page(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(desc = "Maximum number of rows to return on this page.")] limit: usize,
+        #[graphql(desc = "Extra rows to skip on top of `pageIndex` paging (default 0).")]
+        offset: Option<usize>,
+        #[graphql(
+            desc = "Zero-based page number; multiplies `limit` to determine where to start (default 0)."
+        )]
+        page_index: Option<usize>,
+    ) -> Result<GqlNodeState> {
+        check_page_limit(ctx, limit)?;
+        let self_clone = self.clone();
+        Ok(blocking_compute(move || {
+            let start = page_index.unwrap_or(0) * limit + offset.unwrap_or(0);
+            self_clone.slice(start, limit)
+        })
+        .await)
     }
 
     /// Returns a view of this node state with the rows sorted by node id.

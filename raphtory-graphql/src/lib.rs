@@ -2507,6 +2507,109 @@ mod graphql_test {
     }
 
     #[tokio::test]
+    async fn test_algorithm_node_state_page() {
+        let graph = Graph::new();
+        // a chain a -> b -> c -> d -> e, so the state has 5 rows
+        for (src, dst) in [("a", "b"), ("b", "c"), ("c", "d"), ("d", "e")] {
+            graph.add_edge(1, src, dst, NO_PROPS, None).unwrap();
+        }
+        let graph: MaterializedGraph = graph.into();
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", graph)], tmp_dir.path()).await;
+
+        // a page is itself a NodeState, so nodes/columns on it stay row-aligned
+        let query = r#"
+        {
+          graph(path: "g") {
+            algorithm {
+              degreeCentrality {
+                first: page(limit: 2) {
+                  count
+                  nodes { ids }
+                  columns { name values { ... on NodeStateProp { prop } } }
+                }
+                second: page(limit: 2, pageIndex: 1) { nodes { ids } }
+                withOffset: page(limit: 2, offset: 1) { nodes { ids } }
+                lastPartial: page(limit: 2, pageIndex: 2) { nodes { ids } }
+                pastEnd: page(limit: 2, pageIndex: 99) { count nodes { ids } }
+              }
+            }
+          }
+        }
+        "#;
+
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        // the first page holds the first two nodes with their values still aligned,
+        // `offset` shifts by rows rather than pages, the final page is short rather
+        // than padded, and paging past the end is empty rather than an error
+        assert_eq!(
+            res.data.into_json().unwrap(),
+            json!({
+                "graph": { "algorithm": { "degreeCentrality": {
+                    "first": {
+                        "count": 2,
+                        "nodes": { "ids": ["a", "b"] },
+                        "columns": [{
+                            "name": "degree_centrality",
+                            "values": [{ "prop": 0.5 }, { "prop": 1.0 }]
+                        }]
+                    },
+                    "second": { "nodes": { "ids": ["c", "d"] } },
+                    "withOffset": { "nodes": { "ids": ["b", "c"] } },
+                    "lastPartial": { "nodes": { "ids": ["e"] } },
+                    "pastEnd": { "count": 0, "nodes": { "ids": [] } }
+                } } }
+            })
+        );
+    }
+
+    #[tokio::test]
+    async fn test_algorithm_node_state_page_composes() {
+        let graph = Graph::new();
+        // asymmetric graph so every node has a distinct pagerank:
+        // a = 0.1976, b = 0.2816, c = 0.5209
+        graph.add_edge(1, "a", "b", NO_PROPS, None).unwrap();
+        graph.add_edge(2, "a", "c", NO_PROPS, None).unwrap();
+        graph.add_edge(3, "b", "c", NO_PROPS, None).unwrap();
+        let graph: MaterializedGraph = graph.into();
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", graph)], tmp_dir.path()).await;
+
+        // a page is a NodeState, so it chains with the other operations
+        let query = r#"
+        {
+          graph(path: "g") {
+            algorithm {
+              pagerank(iterCount: 20) {
+                sortedThenPaged: sortByValues(column: "pagerank_score", reverse: true) {
+                  page(limit: 2) { nodes { ids } }
+                }
+                pagedThenAggregated: page(limit: 2) {
+                  max(column: "pagerank_score") { node { id } }
+                }
+              }
+            }
+          }
+        }
+        "#;
+
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        assert_eq!(
+            res.data.into_json().unwrap(),
+            json!({
+                "graph": { "algorithm": { "pagerank": {
+                    // top two by score, descending
+                    "sortedThenPaged": { "page": { "nodes": { "ids": ["c", "b"] } } },
+                    // the aggregate only sees the page's rows (a, b), so b wins
+                    "pagedThenAggregated": { "max": { "node": { "id": "b" } } }
+                } } }
+            })
+        );
+    }
+
+    #[tokio::test]
     async fn test_algorithm_node_state_top_k_and_sorting() {
         let graph = Graph::new();
         // asymmetric graph so every node has a distinct pagerank:
