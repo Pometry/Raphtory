@@ -712,7 +712,7 @@ fn require_at_least_read(
     if let Some(policy) = policy {
         return match policy.graph_permissions(ctx, path) {
             Err(msg) => {
-                debug!(graph = path, "Access denied by auth policy");
+                warn!(graph = path, "Access denied by auth policy");
                 let ns = parent_namespace(path);
                 if policy.namespace_permissions(ctx, ns).is_some() {
                     Err(gql_error_with_code(msg.to_string(), CODE_ACCESS_DENIED))
@@ -724,9 +724,11 @@ fn require_at_least_read(
                 if let Some(p) = perm.at_least_read() {
                     Ok(p)
                 } else {
+                    warn!(graph = path, "Permission denied: introspect-only access");
                     debug!(
                         graph = path,
-                        "Introspect-only access — graph() denied; use graphMetadata() instead"
+                        "Introspect-only grants can read graphMetadata() but not graph(); \
+                         use graphMetadata() instead or request a read grant"
                     );
                     Err(PermissionError::IntrospectOnly {
                         graph: path.to_string(),

@@ -593,7 +593,10 @@ impl GraphqlTransport {
 #[derive(Default)]
 struct VarCollector {
     vars: HashMap<String, JsonValue>,
-    decls: Vec<String>,
+    /// Accumulated variable declarations, already comma-joined
+    /// (`"$f0: NodeFilter!, $f1: EdgeFilter!"`) — appended in place rather than
+    /// collected into a `Vec` and joined at the end.
+    decls: String,
     counter: usize,
 }
 
@@ -625,7 +628,13 @@ impl VarCollector {
         let json = serde_json::to_value(value).map_err(|e| {
             ClientError::InvalidInput(format!("filter value cannot be sent to the server: {e}"))
         })?;
-        self.decls.push(format!("${name}: {gql_type}"));
+        if !self.decls.is_empty() {
+            self.decls.push_str(", ");
+        }
+        self.decls.push('$');
+        self.decls.push_str(&name);
+        self.decls.push_str(": ");
+        self.decls.push_str(gql_type);
         self.vars.insert(name.clone(), json);
         Ok(format!("${name}"))
     }
@@ -644,7 +653,7 @@ fn render_read(expr: &ReadExpr) -> Result<(String, HashMap<String, JsonValue>), 
     let query = if vars.decls.is_empty() {
         format!("{{ {} {} }}", body, closes)
     } else {
-        format!("query({}) {{ {} {} }}", vars.decls.join(", "), body, closes)
+        format!("query({}) {{ {} {} }}", vars.decls, body, closes)
     };
     Ok((query, vars.vars))
 }
@@ -3917,7 +3926,7 @@ mod tests {
         let mut vars = VarCollector::default();
         let reference = vars.add_node_filter(&filter).unwrap();
         assert_eq!(reference, "$f0");
-        assert_eq!(vars.decls, vec!["$f0: NodeFilter!".to_string()]);
+        assert_eq!(vars.decls, "$f0: NodeFilter!");
         // The value lives in the variables map as JSON data, quote intact.
         let json = serde_json::to_string(&vars.vars["f0"]).unwrap();
         assert!(
