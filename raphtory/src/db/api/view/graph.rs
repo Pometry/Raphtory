@@ -60,10 +60,7 @@ use raphtory_storage::graph::{
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
 use std::{any::Any, path::Path, sync::Arc};
-use storage::{
-    persist::{strategy::PersistenceStrategy},
-    Extension,
-};
+use storage::{persist::strategy::PersistenceStrategy, Extension};
 
 #[cfg(feature = "search")]
 use crate::{

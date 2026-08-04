@@ -30,7 +30,7 @@ use std::{
     path::{Path, PathBuf},
     time::{Duration, Instant},
 };
-use storage::persist::{strategy::PersistenceStrategy};
+use storage::persist::strategy::PersistenceStrategy;
 
 fn default_sf10_graph_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))

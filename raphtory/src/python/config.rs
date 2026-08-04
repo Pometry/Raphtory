@@ -1,7 +1,6 @@
 use pyo3::{Borrowed, BoundObject, FromPyObject, PyAny};
 use pythonize::{depythonize, PythonizeError};
-use storage::Args;
-use storage::persist::args::ArgsOps;
+use storage::{persist::args::ArgsOps, Args};
 
 pub struct PyArgs(pub Args);
 

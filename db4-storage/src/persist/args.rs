@@ -1,7 +1,7 @@
 use crate::{
     error::StorageError,
     persist::config::{
-        BaseConfig, ConfigOps, CONFIG_FILE_NAME, DEFAULT_MAX_PAGE_LEN_EDGES,
+        BaseConfig, CONFIG_FILE_NAME, ConfigOps, DEFAULT_MAX_PAGE_LEN_EDGES,
         DEFAULT_MAX_PAGE_LEN_NODES,
     },
 };
@@ -148,10 +148,8 @@ impl BaseArgs {
 impl From<BaseArgs> for BaseConfig {
     fn from(args: BaseArgs) -> Self {
         Self::new(
-            args.max_node_page_len
-                .unwrap_or(DEFAULT_MAX_PAGE_LEN_NODES),
-            args.max_edge_page_len
-                .unwrap_or(DEFAULT_MAX_PAGE_LEN_EDGES),
+            args.max_node_page_len.unwrap_or(DEFAULT_MAX_PAGE_LEN_NODES),
+            args.max_edge_page_len.unwrap_or(DEFAULT_MAX_PAGE_LEN_EDGES),
         )
     }
 }

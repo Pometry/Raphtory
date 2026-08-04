@@ -32,7 +32,7 @@ use storage::{
             nodes::WriteLockedNodePages,
         },
     },
-    persist::{strategy::PersistenceStrategy},
+    persist::strategy::PersistenceStrategy,
     resolver::GIDResolverOps,
     transaction::TransactionManager,
     Args, Extension, GIDResolver, Layer, LocalPOS, ReadLockedLayer, ES, GS, NS,

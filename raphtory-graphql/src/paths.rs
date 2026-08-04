@@ -6,7 +6,7 @@ use crate::{
 use futures_util::io;
 use raphtory::{
     db::api::{
-        storage::storage::{Config, Args, ConfigOps, Extension, PersistenceStrategy},
+        storage::storage::{Args, Config, ConfigOps, Extension, PersistenceStrategy},
         view::{internal::InternalStorageOps, MaterializedGraph},
     },
     errors::{GraphError, InvalidPathReason},
