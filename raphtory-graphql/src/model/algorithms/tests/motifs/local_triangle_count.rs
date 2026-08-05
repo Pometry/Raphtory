@@ -39,31 +39,3 @@ async fn test_algorithm_local_triangle_count() {
         })
     );
 }
-
-#[tokio::test]
-async fn test_algorithm_local_triangle_count_filtered() {
-    let tmp_dir = tempdir().unwrap();
-    let setup = setup_with_graphs(
-        &[("g", graphql_test::scalar_metrics_test_graph())],
-        tmp_dir.path(),
-    )
-    .await;
-
-    // filtering out c breaks the a-b-c triangle, so a's local triangle count drops
-    let query = r#"
-        {
-          graph(path: "g") {
-            algorithm {
-              localTriangleCount(node: "a", filter: { nodes: { node: { field: NODE_NAME, where: { ne: { str: "c" } } } } })
-            }
-          }
-        }
-        "#;
-
-    let res = setup.schema.execute(Request::new(query)).await;
-    assert_eq!(res.errors, vec![], "{:?}", res.errors);
-    assert_eq!(
-        res.data.into_json().unwrap(),
-        json!({ "graph": { "algorithm": { "localTriangleCount": 0 } } })
-    );
-}

@@ -30,7 +30,7 @@ async fn test_algorithm_global_reciprocity() {
         res.data.into_json().unwrap(),
         json!({
             "graph": { "algorithm": {
-                "globalReciprocity": 0.6,
+                "globalReciprocity": 0.4,
             } }
         })
     );

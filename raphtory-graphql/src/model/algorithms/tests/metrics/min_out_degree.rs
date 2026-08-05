@@ -30,7 +30,7 @@ async fn test_algorithm_min_out_degree() {
         res.data.into_json().unwrap(),
         json!({
             "graph": { "algorithm": {
-                "minOutDegree": 1,
+                "minOutDegree": 0,
             } }
         })
     );

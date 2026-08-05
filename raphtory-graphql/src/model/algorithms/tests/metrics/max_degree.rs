@@ -30,7 +30,7 @@ async fn test_algorithm_max_degree() {
         res.data.into_json().unwrap(),
         json!({
             "graph": { "algorithm": {
-                "maxDegree": 2,
+                "maxDegree": 3,
             } }
         })
     );

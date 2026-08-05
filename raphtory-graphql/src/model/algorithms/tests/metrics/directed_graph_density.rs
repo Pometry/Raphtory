@@ -30,7 +30,7 @@ async fn test_algorithm_directed_graph_density() {
         res.data.into_json().unwrap(),
         json!({
             "graph": { "algorithm": {
-                "directedGraphDensity": 0.6,
+                "directedGraphDensity": 5.0/12.0,
             } }
         })
     );

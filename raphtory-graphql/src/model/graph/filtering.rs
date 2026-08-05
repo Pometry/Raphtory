@@ -2975,7 +2975,8 @@ mod graphql_test {
         let pre_filtered = r#"
         {
           graph(path: "g") {
-            filterNodes(expr: { node: { field: NODE_NAME, where: { ne: { str: "c" } } } }) {
+            filter(expr: { nodes: {
+                node: { field: NODE_NAME, where: { ne: { str: "c" } } }} }) {
               algorithm {
                 outComponent(node: "a") {
                   rows {
@@ -3000,7 +3001,7 @@ mod graphql_test {
         // both routes reach the same result (b -> unwrap the identical outComponent payload)
         let arg_out =
             arg_res.data.into_json().unwrap()["graph"]["algorithm"]["outComponent"].clone();
-        let pre_out = pre_res.data.into_json().unwrap()["graph"]["filterNodes"]["algorithm"]
+        let pre_out = pre_res.data.into_json().unwrap()["graph"]["filter"]["algorithm"]
             ["outComponent"]
             .clone();
         assert_eq!(arg_out, pre_out);
