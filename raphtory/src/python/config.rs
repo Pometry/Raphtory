@@ -13,9 +13,9 @@ impl<'a, 'py> FromPyObject<'a, 'py> for PyArgs {
         // sync args_with_env base config with args since args_from_env.update does not do it
         if let Some(max_node_page_len) = args.max_node_page_len() {
             args_from_env = args_from_env.with_max_node_page_len(max_node_page_len);
-        } 
+        }
         if let Some(max_edge_page_len) = args.max_edge_page_len() {
-            args_from_env = args_from_env.with_max_edge_page_len(max_edge_page_len); 
+            args_from_env = args_from_env.with_max_edge_page_len(max_edge_page_len);
         }
 
         // Read values from env first, then apply args on top.
