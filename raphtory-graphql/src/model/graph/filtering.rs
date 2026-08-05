@@ -596,7 +596,8 @@ pub enum GqlGraphFilter {
 /// filter (`graph`, e.g. a layer or window restriction), or an `and`/`or` combination of these
 /// (which may mix kinds). Used where an operation accepts any filter, such as scoping a component
 /// walk.
-#[derive(OneOfInput, Clone, Debug)]
+#[derive(OneOfInput, Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum GqlFilter {
     Nodes(GqlNodeFilter),
     Edges(GqlEdgeFilter),
@@ -605,6 +606,8 @@ pub enum GqlFilter {
     And(Vec<GqlFilter>),
     /// At least one sub-filter must pass.
     Or(Vec<GqlFilter>),
+    /// Inverts the nested filter.
+    Not(Wrapped<GqlFilter>),
 }
 
 impl TryFrom<GqlFilter> for DynFilter {
@@ -638,6 +641,10 @@ impl TryFrom<GqlFilter> for DynFilter {
                 filters.try_fold(first, |combined, filter| {
                     Ok::<_, GraphError>(Arc::new(combined.or(filter?)) as DynFilter)
                 })?
+            }
+            GqlFilter::Not(inner) => {
+                let inner = DynFilter::try_from(inner.deref().clone())?;
+                Arc::new(inner.not()) as DynFilter
             }
         };
         Ok(filter)
@@ -2442,5 +2449,68 @@ mod empty_combinator_tests {
             GraphRowFilter::Node(node_filter())
         ]))
         .is_ok());
+    }
+}
+
+#[cfg(test)]
+mod gql_filter_serde_tests {
+    use super::*;
+
+    fn node_prop_eq(name: &str, v: i64) -> GqlNodeFilter {
+        GqlNodeFilter::Property(PropertyFilterNew {
+            name: name.into(),
+            where_: PropCondition::Eq(Value::I64(v)),
+        })
+    }
+
+    // Golden fixtures: `GqlFilter`'s serde output IS the wire contract (GraphQL
+    // variables) and the future stored-filter shape — it must match what
+    // async-graphql's OneOfInput coercion accepts (externally tagged,
+    // camelCase). A rename or tagging change here breaks the wire and any
+    // persisted filter; these tests make that a compile-time-adjacent failure
+    // instead of a production incident.
+    #[test]
+    fn serializes_to_the_oneof_wire_shape() {
+        let cases = [
+            (
+                GqlFilter::Nodes(node_prop_eq("x", 1)),
+                r#"{"nodes":{"property":{"name":"x","where":{"eq":{"i64":1}}}}}"#,
+            ),
+            (
+                GqlFilter::And(vec![GqlFilter::Nodes(node_prop_eq("x", 1))]),
+                r#"{"and":[{"nodes":{"property":{"name":"x","where":{"eq":{"i64":1}}}}}]}"#,
+            ),
+            (
+                GqlFilter::Or(vec![GqlFilter::Nodes(node_prop_eq("x", 1))]),
+                r#"{"or":[{"nodes":{"property":{"name":"x","where":{"eq":{"i64":1}}}}}]}"#,
+            ),
+            (
+                GqlFilter::Not(wrap(GqlFilter::Nodes(node_prop_eq("x", 1)))),
+                r#"{"not":{"nodes":{"property":{"name":"x","where":{"eq":{"i64":1}}}}}}"#,
+            ),
+        ];
+        for (filter, expected) in cases {
+            assert_eq!(serde_json::to_string(&filter).unwrap(), expected);
+        }
+    }
+
+    #[test]
+    fn round_trips_through_serde() {
+        let filter = GqlFilter::And(vec![
+            GqlFilter::Nodes(node_prop_eq("a", 1)),
+            GqlFilter::Not(wrap(GqlFilter::Or(vec![GqlFilter::Nodes(node_prop_eq(
+                "b", 2,
+            ))]))),
+        ]);
+        let json = serde_json::to_string(&filter).unwrap();
+        let back: GqlFilter = serde_json::from_str(&json).unwrap();
+        assert_eq!(serde_json::to_string(&back).unwrap(), json);
+    }
+
+    // `not` composes end-to-end into a core filter.
+    #[test]
+    fn not_variant_converts_to_dyn_filter() {
+        let filter = GqlFilter::Not(wrap(GqlFilter::Nodes(node_prop_eq("x", 1))));
+        assert!(DynFilter::try_from(filter).is_ok());
     }
 }

@@ -1438,6 +1438,30 @@ type EventTime {
 }
 
 """
+A general filter expression — a node filter (`nodes`), an edge filter (`edges`), a graph/view
+filter (`graph`, e.g. a layer or window restriction), or an `and`/`or` combination of these
+(which may mix kinds). Used where an operation accepts any filter, such as scoping a component
+walk.
+"""
+input GqlFilter @oneOf {
+	nodes: NodeFilter
+	edges: EdgeFilter
+	graph: GraphFilter
+	"""
+	All sub-filters must pass.
+	"""
+	and: [GqlFilter!]
+	"""
+	At least one sub-filter must pass.
+	"""
+	or: [GqlFilter!]
+	"""
+	Inverts the nested filter.
+	"""
+	not: GqlFilter
+}
+
+"""
 A view of a Raphtory graph. Every field here returns either data from the
 view or a derived view (`window`, `layer`, `at`, `filter`, ...) that you can
 keep chaining. Views are cheap — they don't copy the underlying data.
@@ -3963,8 +3987,20 @@ type Node {
 	Returns the number edges with this node as the destination.
 	"""
 	inDegree: Int!
-	inComponent: Nodes!
-	outComponent: Nodes!
+	"""
+	Nodes that can reach this one via out-edges. `select` is a general filter expression — a node
+	filter, an edge filter, or a graph (layer/window) filter — scoping which nodes/edges the walk
+	steps through. The returned nodes are on the full graph so their other-layer neighbours stay
+	queryable.
+	"""
+	inComponent(select: GqlFilter): Nodes!
+	"""
+	Nodes reachable from this one via out-edges. `select` is a general filter expression — a node
+	filter, an edge filter, or a graph (layer/window) filter — scoping which nodes/edges the walk
+	steps through. The returned nodes are on the full (unfiltered) graph, so their other-layer
+	neighbours remain queryable.
+	"""
+	outComponent(select: GqlFilter): Nodes!
 	"""
 	Returns all connected edges.
 	"""
