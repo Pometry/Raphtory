@@ -20,7 +20,7 @@ use crate::{
     GraphServer,
 };
 use clap::{Parser, Subcommand};
-use raphtory::db::api::storage::storage::Args as GraphConfigArgs;
+use raphtory::db::api::storage::storage::Args as GraphArgs;
 use serde::Serialize;
 use std::{collections::HashMap, io, path::PathBuf};
 use tokio::io::Result as IoResult;
@@ -213,7 +213,7 @@ struct ServerArgs {
     create_index: Option<bool>,
 
     #[command(flatten)]
-    graph_config: GraphConfigArgs,
+    graph_args: GraphArgs,
 }
 
 fn generate_config<I, T>(args_iter: I) -> IoResult<Option<(ServerArgs, AppConfig)>>
@@ -327,7 +327,7 @@ where
         let server = GraphServer::new(
             server_args.work_dir,
             Some(app_config),
-            server_args.graph_config,
+            server_args.graph_args,
         )
         .await?;
         let server = apply_server_extension(server, server_args.permissions_store_path.as_deref());

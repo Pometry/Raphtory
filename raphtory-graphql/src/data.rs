@@ -161,7 +161,7 @@ pub struct DataInner {
     pub(crate) cache: GraphCache,
     #[cfg(feature = "vectors")]
     pub(crate) vector_cache: LazyDiskVectorCache,
-    pub(crate) graph_conf: Args,
+    pub(crate) graph_args: Args,
     pub(crate) auth_policy: Option<Arc<dyn AuthorizationPolicy>>,
     pub(crate) allowed_parquet_paths: Vec<PathBuf>,
 }
@@ -292,7 +292,7 @@ async fn invalidate_graph(old_graph: Option<GraphWithVectors>) {
 }
 
 impl Data {
-    pub fn new(work_dir: &Path, configs: &AppConfig, graph_conf: Args) -> Self {
+    pub fn new(work_dir: &Path, configs: &AppConfig, graph_args: Args) -> Self {
         let cache_configs = &configs.cache;
 
         let cache = GraphCache::new(cache_configs.capacity as usize);
@@ -310,7 +310,7 @@ impl Data {
                 cache,
                 #[cfg(feature = "vectors")]
                 vector_cache: LazyDiskVectorCache::new(work_dir.join(".vector-cache")),
-                graph_conf,
+                graph_args,
                 auth_policy: None,
                 allowed_parquet_paths: configs.parquet.allowed_paths.clone(),
             }),
@@ -395,12 +395,13 @@ impl Data {
         graph: MaterializedGraph,
     ) -> Result<(), InsertionError> {
         let key = writeable_folder.local_path().to_owned();
-        let config = self.graph_conf.clone();
+        let args = self.graph_args.clone();
+
         self.cache
             .insert_or_replace_with(&key, |old_graph| async {
                 invalidate_graph(old_graph).await;
                 blocking_compute(move || {
-                    let (is_dirty, new_graph) = writeable_folder.write_graph_data(graph, config)?;
+                    let (is_dirty, new_graph) = writeable_folder.write_graph_data(graph, args)?;
                     let folder = writeable_folder.finish()?;
                     let graph = GraphWithVectors::new(new_graph, None, folder.as_existing()?);
                     graph.set_dirty(is_dirty);
@@ -418,12 +419,13 @@ impl Data {
         folder: ValidWriteableGraphFolder,
         bytes: R,
     ) -> Result<(), InsertionError> {
-        let conf = self.graph_conf.clone();
+        let args = self.graph_args.clone();
+
         self.cache
             .invalidate_with(&folder.local_path().to_string(), |old_graph| async {
                 invalidate_graph(old_graph).await;
                 blocking_io(move || {
-                    folder.write_graph_bytes(bytes, conf)?;
+                    folder.write_graph_bytes(bytes, args)?;
                     folder.finish()
                 })
                 .await
@@ -593,7 +595,7 @@ impl Data {
         folder: ExistingGraphFolder,
     ) -> Result<GraphWithVectors, GraphError> {
         let create_index = self.create_index;
-        let config = self.graph_conf.clone();
+        let args = self.graph_args.clone();
         #[cfg(feature = "vectors")]
         let cache = self.vector_cache.clone();
         GraphWithVectors::read_from_folder(
@@ -601,7 +603,7 @@ impl Data {
             #[cfg(feature = "vectors")]
             &cache,
             create_index,
-            config,
+            args,
         )
         .await
     }

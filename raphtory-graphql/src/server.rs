@@ -158,13 +158,13 @@ impl GraphServer {
     pub async fn new(
         work_dir: PathBuf,
         app_config: Option<AppConfig>,
-        graph_config: Args,
+        graph_args: Args,
     ) -> IoResult<Self> {
         if !work_dir.exists() {
             create_dir_all(&work_dir)?;
         }
         let config = app_config.unwrap_or_default();
-        let data = Data::new(work_dir.as_path(), &config, graph_config);
+        let data = Data::new(work_dir.as_path(), &config, graph_args);
         Ok(Self {
             work_dir,
             data,
