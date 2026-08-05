@@ -741,6 +741,26 @@ fn require_at_least_read(
     Ok(GraphPermission::Write)
 }
 
+/// Gives the policy an asynchronous pass at an already-granted permission before its filter is
+/// applied (see [`AuthorizationPolicy::refine_permission`]). A no-op without a policy.
+async fn refine(
+    ctx: &Context<'_>,
+    policy: &Option<Arc<dyn AuthorizationPolicy>>,
+    path: &str,
+    perm: GraphPermission,
+) -> async_graphql::Result<GraphPermission> {
+    match policy {
+        Some(policy) => policy
+            .refine_permission(ctx, path, perm)
+            .await
+            .map_err(|msg| {
+                warn!(graph = path, "Access denied while refining permission");
+                msg.into()
+            }),
+        None => Ok(perm),
+    }
+}
+
 pub(crate) fn require_graph_write(
     ctx: &Context<'_>,
     policy: &Option<Arc<dyn AuthorizationPolicy>>,
@@ -886,7 +906,11 @@ impl Data {
         graph_type: Option<GqlGraphType>,
     ) -> async_graphql::Result<Option<(UnlockedGraphFolder, DynamicGraph)>> {
         match require_at_least_read(ctx, &self.auth_policy, path) {
-            Ok(perm) => self.load_and_filter(path, perm, graph_type).await.map(Some),
+            Ok(perm) => match refine(ctx, &self.auth_policy, path, perm).await {
+                Ok(perm) => self.load_and_filter(path, perm, graph_type).await.map(Some),
+                // Refinement denied access — hide the graph, as with any other read denial.
+                Err(_) => Ok(None),
+            },
             Err(_) => Ok(None),
         }
     }
@@ -902,6 +926,7 @@ impl Data {
         graph_type: Option<GqlGraphType>,
     ) -> async_graphql::Result<(UnlockedGraphFolder, DynamicGraph)> {
         let perm = require_at_least_read(ctx, &self.auth_policy, path)?;
+        let perm = refine(ctx, &self.auth_policy, path, perm).await?;
         self.load_and_filter(path, perm, graph_type).await
     }
 

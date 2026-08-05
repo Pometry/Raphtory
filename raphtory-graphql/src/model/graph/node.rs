@@ -1,7 +1,7 @@
 use crate::{
     model::graph::{
         edges::GqlEdges,
-        filtering::{GqlEdgeFilter, GqlNodeFilter, NodeViewCollection},
+        filtering::{GqlEdgeFilter, GqlFilter, GqlNodeFilter, NodeViewCollection},
         history::GqlHistory,
         node_id::GqlNodeId,
         nodes::GqlNodes,
@@ -15,7 +15,9 @@ use crate::{
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
-    algorithms::components::{in_component, out_component},
+    algorithms::components::{
+        in_component, in_component_filtered, out_component, out_component_filtered,
+    },
     core::utils::time::TryIntoInterval,
     db::{
         api::{
@@ -25,7 +27,7 @@ use raphtory::{
         graph::{
             node::NodeView,
             views::filter::model::{
-                edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter,
+                edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter, DynFilter,
             },
         },
     },
@@ -423,14 +425,48 @@ impl GqlNode {
         blocking_compute(move || self_clone.vv.in_degree()).await
     }
 
-    async fn in_component(&self) -> GqlNodes {
+    /// Nodes that can reach this one via out-edges. `select` is a general filter expression — a node
+    /// filter, an edge filter, or a graph (layer/window) filter — scoping which nodes/edges the walk
+    /// steps through. The returned nodes are on the full graph so their other-layer neighbours stay
+    /// queryable.
+    async fn in_component(&self, select: Option<GqlFilter>) -> Result<GqlNodes, GraphError> {
         let self_clone = self.clone();
-        blocking_compute(move || GqlNodes::new(in_component(self_clone.vv.clone()).nodes())).await
+        match select {
+            Some(select) => {
+                let filter: DynFilter = select.try_into()?;
+                blocking_compute(move || {
+                    in_component_filtered(self_clone.vv.clone(), filter)
+                        .map(|state| GqlNodes::new(state.nodes()))
+                })
+                .await
+            }
+            None => Ok(blocking_compute(move || {
+                GqlNodes::new(in_component(self_clone.vv.clone()).nodes())
+            })
+            .await),
+        }
     }
 
-    async fn out_component(&self) -> GqlNodes {
+    /// Nodes reachable from this one via out-edges. `select` is a general filter expression — a node
+    /// filter, an edge filter, or a graph (layer/window) filter — scoping which nodes/edges the walk
+    /// steps through. The returned nodes are on the full (unfiltered) graph, so their other-layer
+    /// neighbours remain queryable.
+    async fn out_component(&self, select: Option<GqlFilter>) -> Result<GqlNodes, GraphError> {
         let self_clone = self.clone();
-        blocking_compute(move || GqlNodes::new(out_component(self_clone.vv.clone()).nodes())).await
+        match select {
+            Some(select) => {
+                let filter: DynFilter = select.try_into()?;
+                blocking_compute(move || {
+                    out_component_filtered(self_clone.vv.clone(), filter)
+                        .map(|state| GqlNodes::new(state.nodes()))
+                })
+                .await
+            }
+            None => Ok(blocking_compute(move || {
+                GqlNodes::new(out_component(self_clone.vv.clone()).nodes())
+            })
+            .await),
+        }
     }
 
     /// Returns all connected edges.

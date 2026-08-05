@@ -128,6 +128,7 @@ pub struct GraphServer {
     work_dir: PathBuf,
     config: AppConfig,
     schema_data: Vec<SchemaDataInjector>,
+    key_resolver: Option<std::sync::Arc<dyn crate::auth::KeyResolver>>,
 }
 
 pub fn register_query_plugin<
@@ -170,12 +171,28 @@ impl GraphServer {
             data,
             config,
             schema_data: Vec::new(),
+            key_resolver: None,
         })
     }
 
     /// Returns the working directory for this server.
     pub fn work_dir(&self) -> &Path {
         &self.work_dir
+    }
+
+    /// Register a custom JWT key resolver (e.g. an SSO/JWKS resolver from an auth extension). When
+    /// set, it replaces the static `auth.public_key` for token verification.
+    pub fn with_key_resolver(
+        mut self,
+        resolver: std::sync::Arc<dyn crate::auth::KeyResolver>,
+    ) -> Self {
+        self.key_resolver = Some(resolver);
+        self
+    }
+
+    /// Returns the resolved application config.
+    pub fn config(&self) -> &AppConfig {
+        &self.config
     }
 
     pub fn turn_off_index(&mut self) {
@@ -372,7 +389,11 @@ impl GraphServer {
                 "/",
                 PublicFilesEndpoint::new(
                     self.config.public_dir.clone(),
-                    AuthenticatedGraphQL::new(schema, self.config.clone()),
+                    AuthenticatedGraphQL::new(
+                        schema,
+                        self.config.clone(),
+                        self.key_resolver.clone(),
+                    ),
                 ),
             )
             .at("/health", get(health))

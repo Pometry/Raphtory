@@ -592,6 +592,52 @@ pub enum GqlGraphFilter {
     Layers(GraphLayersExpr),
 }
 
+/// A general filter expression — a node filter (`nodes`), an edge filter (`edges`), a graph/view
+/// filter (`graph`, e.g. a layer or window restriction), or an `and`/`or` combination of these
+/// (which may mix kinds). Used where an operation accepts any filter, such as scoping a component
+/// walk.
+#[derive(OneOfInput, Clone, Debug)]
+pub enum GqlFilter {
+    Nodes(GqlNodeFilter),
+    Edges(GqlEdgeFilter),
+    Graph(GqlGraphFilter),
+    /// All sub-filters must pass.
+    And(Vec<GqlFilter>),
+    /// At least one sub-filter must pass.
+    Or(Vec<GqlFilter>),
+}
+
+impl TryFrom<GqlFilter> for DynFilter {
+    type Error = GraphError;
+
+    fn try_from(value: GqlFilter) -> Result<Self, Self::Error> {
+        let filter = match value {
+            GqlFilter::Nodes(f) => Arc::new(CompositeNodeFilter::try_from(f)?) as DynFilter,
+            GqlFilter::Edges(f) => Arc::new(CompositeEdgeFilter::try_from(f)?) as DynFilter,
+            GqlFilter::Graph(f) => DynView::try_from(f)?,
+            GqlFilter::And(filters) => {
+                let mut filters = filters.into_iter().map(DynFilter::try_from);
+                match filters.next().transpose()? {
+                    Some(first) => filters.try_fold(first, |combined, filter| {
+                        Ok::<_, GraphError>(Arc::new(combined.and(filter?)) as DynFilter)
+                    })?,
+                    None => Arc::new(NoFilter) as DynFilter,
+                }
+            }
+            GqlFilter::Or(filters) => {
+                let mut filters = filters.into_iter().map(DynFilter::try_from);
+                match filters.next().transpose()? {
+                    Some(first) => filters.try_fold(first, |combined, filter| {
+                        Ok::<_, GraphError>(Arc::new(combined.or(filter?)) as DynFilter)
+                    })?,
+                    None => Arc::new(NoFilter) as DynFilter,
+                }
+            }
+        };
+        Ok(filter)
+    }
+}
+
 /// Boolean expression over a built-in node field (ID, name, or type).
 ///
 /// This is used by `NodeFieldFilterNew.where_` when filtering a specific
