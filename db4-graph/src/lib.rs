@@ -438,9 +438,9 @@ where
     ES<EXT>: EdgeSegmentOps<Extension = EXT>,
     GS<EXT>: GraphPropSegmentOps<Extension = EXT>,
 {
-    pub nodes: WriteLockedNodePages<'a, storage::NS<EXT>>,
-    pub edges: WriteLockedEdgePages<'a, storage::ES<EXT>>,
-    pub graph_props: WriteLockedGraphPropPages<'a, storage::GS<EXT>>,
+    pub nodes: WriteLockedNodePages<'a, NS<EXT>>,
+    pub edges: WriteLockedEdgePages<'a, ES<EXT>>,
+    pub graph_props: WriteLockedGraphPropPages<'a, GS<EXT>>,
     pub graph: &'a TemporalGraph<EXT>,
 }
 

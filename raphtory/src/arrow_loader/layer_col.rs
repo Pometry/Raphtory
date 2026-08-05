@@ -10,7 +10,6 @@ use iter_enum::{
     DoubleEndedIterator, ExactSizeIterator, IndexedParallelIterator, Iterator, ParallelIterator,
 };
 use raphtory_api::core::entities::properties::meta::DEFAULT_NODE_TYPE_ID;
-use rayon::prelude::*;
 
 #[derive(Copy, Clone, Debug)]
 pub(crate) enum LayerCol<'a> {

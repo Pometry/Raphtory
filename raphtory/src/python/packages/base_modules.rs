@@ -63,9 +63,6 @@ use crate::python::{
     types::wrappers::document::{PyDocument, PyEmbedding},
 };
 
-#[cfg(feature = "search")]
-use crate::python::graph::index::{PyIndexSpec, PyIndexSpecBuilder};
-
 pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
     //Graph classes
     add_classes!(
@@ -101,9 +98,6 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
         PyWindowSet,
         PyProp
     );
-
-    #[cfg(feature = "search")]
-    add_classes!(m, PyIndexSpecBuilder, PyIndexSpec);
 
     #[pyfunction]
     /// Return Raphtory version.
