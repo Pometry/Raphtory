@@ -16,9 +16,10 @@ use crate::{
                     property_filter::{builders::PropertyExprBuilderInput, PropertyFilterInput},
                     windowed_filter::Windowed,
                     CombinedFilter, ComposableFilter, CompositeExplodedEdgeFilter,
-                    CompositeNodeFilter, EdgeViewFilterOps, InternalPropertyFilterBuilder,
-                    InternalPropertyFilterFactory, InternalViewWrapOps, NodeViewFilterOps, Op,
-                    PropertyRef, TemporalPropertyFilterFactory, TryAsCompositeFilter, Wrap,
+                    CompositeNodeFilter, EdgeViewFilterOps, FilterTree, GraphViewOp,
+                    InternalPropertyFilterBuilder, InternalPropertyFilterFactory,
+                    InternalViewWrapOps, NodeViewFilterOps, Op, PropertyRef,
+                    TemporalPropertyFilterFactory, TryAsCompositeFilter, Wrap,
                 },
                 CreateFilter,
             },
@@ -97,6 +98,25 @@ impl<T: InternalPropertyFilterBuilder> InternalPropertyFilterBuilder for Latest<
 }
 
 impl<T: TryAsCompositeFilter> TryAsCompositeFilter for Latest<T> {
+    fn try_as_filter_tree(&self) -> Result<FilterTree, GraphError> {
+        // Single-kind inners keep their composite form (the wrapper becomes a
+        // windowed/layered/... composite variant); only graph-level view
+        // chains export as `View` ops. Anything else (a view wrapping a
+        // mixed-kind tree) has no wire representation yet.
+        if let Ok(f) = self.try_as_composite_node_filter() {
+            return Ok(FilterTree::Node(f));
+        }
+        if let Ok(f) = self.try_as_composite_edge_filter() {
+            return Ok(FilterTree::Edge(f));
+        }
+        let FilterTree::View(ops) = self.inner.try_as_filter_tree()? else {
+            return Err(GraphError::NotSupported);
+        };
+        let mut chain = vec![GraphViewOp::Latest];
+        chain.extend(ops);
+        Ok(FilterTree::View(chain))
+    }
+
     fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
         Ok(CompositeNodeFilter::Latest(Box::new(Latest::new(
             self.inner.try_as_composite_node_filter()?,

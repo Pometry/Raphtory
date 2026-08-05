@@ -60,10 +60,10 @@ impl PyRemotePathFromGraph {
     ///     ValueError: if the filter cannot be represented as a GraphQL
     ///         `NodeFilter`.
     pub fn filter(&self, filter: PyFilterExpr) -> PyResult<PyRemotePathFromGraph> {
-        let composite = filter
-            .try_as_node_filter()
+        let tree = filter
+            .try_as_filter_tree()
             .map_err(|e| PyValueError::new_err(e.to_string()))?;
-        Ok(PyRemotePathFromGraph::new(self.path.filter(composite)?))
+        Ok(PyRemotePathFromGraph::new(self.path.filter(tree)?))
     }
 
     /// Narrow this collection's membership by a node filter — applies only at

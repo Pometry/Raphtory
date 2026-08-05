@@ -61,10 +61,10 @@ impl PyRemoteNode {
     ///     ValueError: if the filter cannot be represented as a GraphQL
     ///         `NodeFilter` (e.g. references edge fields).
     pub fn filter(&self, filter: PyFilterExpr) -> PyResult<PyRemoteNode> {
-        let composite = filter
-            .try_as_node_filter()
+        let tree = filter
+            .try_as_filter_tree()
             .map_err(|e| PyValueError::new_err(e.to_string()))?;
-        Ok(PyRemoteNode::new(self.node.filter(composite)?))
+        Ok(PyRemoteNode::new(self.node.filter(tree)?))
     }
 
     /// Restrict to a single named layer. Lazy — no RPC.

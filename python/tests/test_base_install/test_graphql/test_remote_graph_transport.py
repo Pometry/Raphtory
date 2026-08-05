@@ -2255,14 +2255,17 @@ def test_node_filter_matches():
         assert rg.node("ben").filter(Node.property("score") > 6.0).name == "ben"
 
 
-def test_node_filter_rejects_edge_filter():
-    """Passing an edge filter to `RemoteNode.filter` raises ValueError."""
-    import pytest
+def test_node_filter_accepts_edge_filter():
+    """An edge filter on a node view is valid (matching local semantics): the
+    node stays addressable and the filter propagates to its edge traversals."""
     from raphtory.filter import Edge
 
-    with _make_filter_graph() as rg:
-        with pytest.raises(ValueError):
-            rg.node("ben").filter(Edge.property("weight") > 1.0)
+    with _remote_graph("g") as rg:
+        rg.add_edge(2, "ben", "hamza", properties={"weight": 2.0})
+        rg.add_edge(3, "ben", "alice", properties={"weight": 0.5})
+        filtered = rg.node("ben").filter(Edge.property("weight") > 1.0)
+        assert filtered.degree() == 1
+        assert rg.node("ben").degree() == 2
 
 
 def test_path_from_node_select_narrows():
@@ -3919,3 +3922,49 @@ def test_special_chars_roundtrip(name):
             rg.nodes.filter(Node.name() == name).id
             == lg.nodes.filter(Node.name() == name).id
         )
+
+
+def test_graph_view_filter_expression_remote():
+    """`filter.Graph.*` expressions (graph-level view restrictions) carry to
+    the server through the filter tree export — parity with local
+    `Graph.filter`, including chained view ops."""
+    from raphtory import Graph
+    from raphtory import filter as flt
+
+    with _remote_graph("g") as rg:
+        lg = Graph()
+        for g in (rg, lg):
+            g.add_edge(1, "a", "b", layer="L1")
+            g.add_edge(5, "b", "c", layer="L2")
+            g.add_edge(9, "c", "a", layer="L1")
+
+        for expr in (
+            flt.Graph.window(0, 6),
+            flt.Graph.window(0, 6).layer("L1"),
+            flt.Graph.at(5),
+        ):
+            local_ids = sorted(lg.filter(expr).nodes.id)
+            remote_ids = sorted(rg.filter(expr).nodes.id)
+            assert remote_ids == local_ids, f"{expr}: {remote_ids} != {local_ids}"
+
+
+def test_mixed_kind_filter_expression_remote():
+    """A node∧edge expression exports structurally (no single composite kind
+    can hold it) and evaluates with intersection semantics — parity with
+    local `Graph.filter(node_expr & edge_expr)`."""
+    from raphtory import Graph
+    from raphtory import filter as flt
+
+    with _remote_graph("g") as rg:
+        lg = Graph()
+        for g in (rg, lg):
+            g.add_node(1, "a", properties={"score": 10})
+            g.add_node(1, "b", properties={"score": 20})
+            g.add_node(1, "c", properties={"score": 30})
+            g.add_edge(2, "a", "b", properties={"w": 1})
+            g.add_edge(3, "b", "c", properties={"w": 5})
+
+        expr = (flt.Node.property("score") > 15) & (flt.Edge.property("w") > 2)
+        local_ids = sorted(lg.filter(expr).nodes.id)
+        remote_ids = sorted(rg.filter(expr).nodes.id)
+        assert remote_ids == local_ids, f"{remote_ids} != {local_ids}"

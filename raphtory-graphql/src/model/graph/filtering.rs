@@ -24,7 +24,7 @@ use raphtory::{
         property_filter::{Op, PropertyFilter, PropertyFilterValue, PropertyRef},
         snapshot_filter::{SnapshotAt as SnapshotAtWrap, SnapshotLatest as SnapshotLatestWrap},
         windowed_filter::Windowed,
-        ComposableFilter, DynFilter, DynView, ViewWrapOps,
+        ComposableFilter, DynFilter, DynView, FilterTree, GraphViewOp, ViewWrapOps,
     },
     errors::GraphError,
 };
@@ -677,6 +677,72 @@ impl TryFrom<CompositeEdgeFilter> for GqlFilter {
     type Error = GraphError;
     fn try_from(f: CompositeEdgeFilter) -> Result<Self, Self::Error> {
         Ok(GqlFilter::Edges(f.try_into()?))
+    }
+}
+
+/// Build the nested wire form of a graph-view chain (outermost-first ops →
+/// nested `expr` fields). `Layer::All` ops restrict nothing and are dropped.
+fn view_ops_to_graph_filter(ops: Vec<GraphViewOp>) -> Result<GqlGraphFilter, GraphError> {
+    let time_input = |t: EventTime| {
+        GqlTimeInput(raphtory_api::core::utils::time::InputTime::Indexed(
+            t.t(),
+            t.i(),
+        ))
+    };
+    let mut acc: Option<GqlGraphFilter> = None;
+    for op in ops.into_iter().rev() {
+        let expr = acc.take().map(wrap);
+        let next = match op {
+            GraphViewOp::Window { start, end } => GqlGraphFilter::Window(GraphWindowExpr {
+                start: time_input(start),
+                end: time_input(end),
+                expr,
+            }),
+            GraphViewOp::Latest => GqlGraphFilter::Latest(GraphUnaryExpr { expr }),
+            GraphViewOp::SnapshotAt(t) => GqlGraphFilter::SnapshotAt(GraphTimeExpr {
+                time: time_input(t),
+                expr,
+            }),
+            GraphViewOp::SnapshotLatest => GqlGraphFilter::SnapshotLatest(GraphUnaryExpr { expr }),
+            GraphViewOp::Layers(layer) => {
+                if matches!(layer, Layer::All) {
+                    // No restriction — skip the op, keep the accumulated chain.
+                    acc = expr.map(|w| w.deref().clone());
+                    continue;
+                }
+                GqlGraphFilter::Layers(GraphLayersExpr {
+                    names: layer_to_names(&layer)?,
+                    expr,
+                })
+            }
+        };
+        acc = Some(next);
+    }
+    acc.ok_or_else(|| GraphError::InvalidGqlFilter("graph-view filter with no restrictions".into()))
+}
+
+impl TryFrom<FilterTree> for GqlFilter {
+    type Error = GraphError;
+
+    fn try_from(tree: FilterTree) -> Result<Self, Self::Error> {
+        Ok(match tree {
+            FilterTree::Node(f) => GqlFilter::Nodes(f.try_into()?),
+            FilterTree::Edge(f) => GqlFilter::Edges(f.try_into()?),
+            FilterTree::View(ops) => GqlFilter::Graph(view_ops_to_graph_filter(ops)?),
+            FilterTree::And(items) => GqlFilter::And(
+                items
+                    .into_iter()
+                    .map(TryInto::try_into)
+                    .collect::<Result<Vec<_>, _>>()?,
+            ),
+            FilterTree::Or(items) => GqlFilter::Or(
+                items
+                    .into_iter()
+                    .map(TryInto::try_into)
+                    .collect::<Result<Vec<_>, _>>()?,
+            ),
+            FilterTree::Not(inner) => GqlFilter::Not(wrap((*inner).try_into()?)),
+        })
     }
 }
 
@@ -2757,5 +2823,65 @@ mod stored_access_filter_compat_tests {
         )))
         .unwrap();
         assert!(json.starts_with(r#"{"nodes":"#));
+    }
+}
+
+#[cfg(test)]
+mod filter_tree_tests {
+    use super::*;
+    use raphtory::db::graph::views::filter::model::{
+        edge_filter::EdgeFilter as EdgeFilterBuilder, graph_filter::GraphFilter,
+        node_filter::NodeFilter as NodeFilterBuilder, property_filter::ops::PropertyFilterOps,
+        ComposableFilter, PropertyFilterFactory, TryAsCompositeFilter, ViewWrapOps,
+    };
+
+    // A same-kind combination stays in composite form — no structural tree.
+    #[test]
+    fn same_kind_and_exports_as_a_composite() {
+        let a = NodeFilterBuilder.property("x").eq(1i64);
+        let b = NodeFilterBuilder.property("y").eq(2i64);
+        let tree = a.and(b).try_as_filter_tree().unwrap();
+        assert!(matches!(tree, FilterTree::Node(_)));
+    }
+
+    // A mixed node∧edge combination exports structurally and converts to the
+    // wire form — the case the single-kind exports cannot represent.
+    #[test]
+    fn mixed_and_exports_structurally_and_converts() {
+        let n = NodeFilterBuilder.property("x").eq(1i64);
+        let e = EdgeFilterBuilder.property("w").eq(2i64);
+        let tree = n.and(e).try_as_filter_tree().unwrap();
+        let FilterTree::And(ref items) = tree else {
+            panic!("expected structural And, got {tree:?}");
+        };
+        assert!(matches!(items[0], FilterTree::Node(_)));
+        assert!(matches!(items[1], FilterTree::Edge(_)));
+
+        let gql = GqlFilter::try_from(tree).unwrap();
+        let GqlFilter::And(items) = gql else {
+            panic!("expected GqlFilter::And");
+        };
+        assert!(matches!(items[0], GqlFilter::Nodes(_)));
+        assert!(matches!(items[1], GqlFilter::Edges(_)));
+    }
+
+    // A graph-view chain exports outermost-first and converts to the nested
+    // wire form.
+    #[test]
+    fn graph_view_chain_exports_and_converts() {
+        let f = GraphFilter.window(1i64, 5i64).layer("x");
+        let tree = f.try_as_filter_tree().unwrap();
+        let FilterTree::View(ref ops) = tree else {
+            panic!("expected View chain, got {tree:?}");
+        };
+        assert!(matches!(ops[0], GraphViewOp::Layers(_)));
+        assert!(matches!(ops[1], GraphViewOp::Window { .. }));
+
+        let gql = GqlFilter::try_from(tree).unwrap();
+        let GqlFilter::Graph(GqlGraphFilter::Layers(ref l)) = gql else {
+            panic!("expected Graph(Layers), got {gql:?}");
+        };
+        assert_eq!(l.names, vec!["x"]);
+        assert!(matches!(l.expr.as_deref(), Some(GqlGraphFilter::Window(_))));
     }
 }

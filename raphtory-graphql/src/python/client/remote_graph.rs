@@ -69,20 +69,11 @@ impl PyRemoteGraph {
     ///     ValueError: if the filter cannot be represented as a GraphQL
     ///         `NodeFilter` or `EdgeFilter`.
     pub fn filter(&self, filter: PyFilterExpr) -> PyResult<PyRemoteGraph> {
-        // Both kinds route to the server's unified `filter(expr:)` field,
-        // wrapped in the matching `GqlFilter` variant. Try node first; fall
-        // back to edge. (Graph-view and mixed-kind expressions require the
-        // core-side tagged export — not yet supported remotely.)
-        let graph = if let Ok(node) = filter.try_as_node_filter() {
-            self.graph.filter(node)?
-        } else {
-            let edge = filter
-                .try_as_edge_filter()
-                .map_err(|e| PyValueError::new_err(e.to_string()))?;
-            self.graph.filter(edge)?
-        };
+        let tree = filter
+            .try_as_filter_tree()
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
         Ok(PyRemoteGraph {
-            graph: Arc::new(graph),
+            graph: Arc::new(self.graph.filter(tree)?),
         })
     }
 

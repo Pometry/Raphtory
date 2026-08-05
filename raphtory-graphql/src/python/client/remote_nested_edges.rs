@@ -61,10 +61,10 @@ impl PyRemoteNestedEdges {
     ///     ValueError: if the filter cannot be represented as a GraphQL
     ///         `EdgeFilter`.
     pub fn filter(&self, filter: PyFilterExpr) -> PyResult<PyRemoteNestedEdges> {
-        let composite = filter
-            .try_as_edge_filter()
+        let tree = filter
+            .try_as_filter_tree()
             .map_err(|e| PyValueError::new_err(e.to_string()))?;
-        Ok(PyRemoteNestedEdges::new(self.edges.filter(composite)?))
+        Ok(PyRemoteNestedEdges::new(self.edges.filter(tree)?))
     }
 
     /// Narrow this collection's membership by an edge filter — applies only at
