@@ -22,16 +22,38 @@ from raphtory.graphql import EdgeSortBy, GraphServer, NodeSortBy, SortByTime
 
 
 @contextlib.contextmanager
+def _remote_graph_and_client(name="g", graph_type="EVENT"):
+    """Start a GraphServer in a self-cleaning temp dir, create one graph on
+    it, and yield `(RemoteGraph, RaphtoryClient)`.
+
+    The single server fixture every test goes through: population differs per
+    test, so callers add their own nodes/edges to the yielded handle. The temp
+    dir is removed on exit (`TemporaryDirectory`, not `mkdtemp` — no leaked
+    directories), which is safe because the server's `__exit__` joins the
+    server task before we get here.
+    """
+    with tempfile.TemporaryDirectory() as work_dir:
+        with GraphServer(work_dir).start() as server:
+            client = server.get_client()
+            client.new_graph(name, graph_type)
+            yield client.remote_graph(name), client
+
+
+@contextlib.contextmanager
+def _remote_graph(name="g", graph_type="EVENT"):
+    """As `_remote_graph_and_client`, yielding just the `RemoteGraph` — the
+    fixture nearly every test wants."""
+    with _remote_graph_and_client(name, graph_type) as (rg, _client):
+        yield rg
+
+
+@contextlib.contextmanager
 def _make_graph_with_edge():
     """Yield a RemoteGraph for a graph with two nodes and an edge at t=3.
 
     A context manager — the server is started on enter and torn down on exit.
     """
-    work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start() as server:
-        client = server.get_client()
-        client.new_graph("test-graph", "EVENT")
-        rg = client.remote_graph("test-graph")
+    with _remote_graph("test-graph") as rg:
         rg.add_node(1, "ben")
         rg.add_node(2, "hamza")
         rg.add_edge(3, "ben", "hamza")
@@ -76,10 +98,7 @@ def test_event_id_precise_windowing():
     local = Graph()
     build(local)
 
-    with GraphServer(tempfile.mkdtemp()).start() as server:
-        client = server.get_client()
-        client.new_graph("g", "EVENT")
-        rg = client.remote_graph("g")
+    with _remote_graph("g") as rg:
         build(rg)
 
         def redges(view):
@@ -125,10 +144,7 @@ def test_view_ops_accept_str_and_datetime():
 def test_add_updates_event_id_precise():
     """`add_updates` carries the `(timestamp, event_id)` secondary index to the
     server (matching local + the read path) rather than truncating it."""
-    with GraphServer(tempfile.mkdtemp()).start() as server:
-        client = server.get_client()
-        client.new_graph("g", "EVENT")
-        rg = client.remote_graph("g")
+    with _remote_graph_and_client("g") as (rg, client):
         rg.add_node(1, "n")
         rg.node("n").add_updates(5, properties={"p": 1}, event_id=0)
         rg.node("n").add_updates(5, properties={"p": 2}, event_id=1)
@@ -141,10 +157,7 @@ def test_empty_graph_reads():
     """Reads on a graph with no nodes or edges return empties, never errors:
     counts are 0, collections are empty, and the graph's earliest/latest time
     are `None` (not a phantom event time)."""
-    with GraphServer(tempfile.mkdtemp()).start() as server:
-        client = server.get_client()
-        client.new_graph("empty", "EVENT")
-        rg = client.remote_graph("empty")
+    with _remote_graph("empty") as rg:
         assert rg.nodes.count() == 0
         assert rg.edges.count() == 0
         assert rg.nodes.collect() == []
@@ -158,11 +171,7 @@ def test_event_id_secondary_index():
     `add_edge` / `add_node` / `create_node` — parity with the local write API,
     where an explicit event id locks the secondary index instead of
     auto-incrementing."""
-    work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start() as server:
-        client = server.get_client()
-        client.new_graph("g", "EVENT")
-        rg = client.remote_graph("g")
+    with _remote_graph_and_client("g") as (rg, client):
         # Two edges at the same timestamp with distinct event ids both persist.
         rg.add_edge(1, "a", "b", event_id=0)
         rg.add_edge(1, "a", "c", event_id=1)
@@ -1601,11 +1610,7 @@ def test_nodes_sorted_by_id():
 def test_nodes_sorted_by_property_and_time():
     """Sort by a temporal property and by time. Multi-key lexicographic
     sort — tiebreak on the second key when the first ties."""
-    work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start() as server:
-        client = server.get_client()
-        client.new_graph("g", "EVENT")
-        rg = client.remote_graph("g")
+    with _remote_graph("g") as rg:
         # Three nodes with distinct scores; ben earlier than hamza & zara.
         rg.add_node(1, "ben", properties={"score": 3.0})
         rg.add_node(2, "hamza", properties={"score": 1.0})
@@ -1646,11 +1651,7 @@ def test_nodes_sorted_is_lazy_and_composable():
 
 def test_edges_sorted_by_src_dst():
     """Sort edges by src then dst — lexicographic multi-key."""
-    work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start() as server:
-        client = server.get_client()
-        client.new_graph("g", "EVENT")
-        rg = client.remote_graph("g")
+    with _remote_graph("g") as rg:
         rg.add_edge(1, "b", "c")
         rg.add_edge(2, "a", "c")
         rg.add_edge(3, "a", "b")
@@ -1668,11 +1669,7 @@ def test_edges_sorted_by_src_dst():
 
 def test_edges_sorted_by_time_and_property():
     """Sort edges by earliest observed time; also by an edge property."""
-    work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start() as server:
-        client = server.get_client()
-        client.new_graph("g", "EVENT")
-        rg = client.remote_graph("g")
+    with _remote_graph("g") as rg:
         # Three edges at different times, with a weight property.
         rg.add_edge(10, "a", "b", properties={"weight": 2.0})
         rg.add_edge(5, "a", "c", properties={"weight": 3.0})
@@ -1696,11 +1693,7 @@ def test_edges_sorted_by_time_and_property():
 def test_edges_sorted_composes_with_view_chain():
     """`.sorted()` composes with a windowed view — sort applies only to
     edges visible in the window."""
-    work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start() as server:
-        client = server.get_client()
-        client.new_graph("g", "EVENT")
-        rg = client.remote_graph("g")
+    with _remote_graph("g") as rg:
         rg.add_edge(1, "a", "b")
         rg.add_edge(5, "a", "c")
         rg.add_edge(20, "b", "c")
@@ -1720,11 +1713,7 @@ def _make_shared_neighbours_graph():
     """Two hub nodes (a, d) that share neighbours (b, c) plus a
     non-shared neighbour on each side (e touches only a; f touches only d).
     Shared: {b, c}. Non-shared: e (only a), f (only d)."""
-    work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start() as server:
-        client = server.get_client()
-        client.new_graph("g", "EVENT")
-        rg = client.remote_graph("g")
+    with _remote_graph("g") as rg:
         rg.add_edge(1, "a", "b")
         rg.add_edge(2, "a", "c")
         rg.add_edge(3, "a", "e")  # a only
@@ -1878,11 +1867,7 @@ def test_shared_neighbours_composes_with_view_chain():
 @contextlib.contextmanager
 def _make_filter_graph():
     """Graph with 4 nodes, distinct properties, for filter tests."""
-    work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start() as server:
-        client = server.get_client()
-        client.new_graph("g", "EVENT")
-        rg = client.remote_graph("g")
+    with _remote_graph("g") as rg:
         # Names and a numeric "score" property for filtering.
         rg.add_node(1, "ben", properties={"score": 10.0})
         rg.add_node(2, "hamza", properties={"score": 5.0})
@@ -2044,10 +2029,7 @@ def test_temporal_multi_op_filter_preserves_op_order_e2e():
     build(local)
     assert sorted(local.filter(first_sum_3).nodes.id) == ["n"]
 
-    with GraphServer(tempfile.mkdtemp()).start() as server:
-        client = server.get_client()
-        client.new_graph("g", "EVENT")
-        rg = client.remote_graph("g")
+    with _remote_graph("g") as rg:
         build(rg)
         # Remote must agree with the local twin. An op-order inversion in the
         # wire would sum-then-first (seq-of-lists → None) and return [].
@@ -2059,11 +2041,7 @@ def test_temporal_multi_op_filter_preserves_op_order_e2e():
 def _make_edge_filter_graph():
     """Graph with 4 edges carrying a numeric "weight" property, for edge
     filter tests."""
-    work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start() as server:
-        client = server.get_client()
-        client.new_graph("g", "EVENT")
-        rg = client.remote_graph("g")
+    with _remote_graph("g") as rg:
         rg.add_edge(1, "ben", "hamza", properties={"weight": 10.0})
         rg.add_edge(2, "ben", "alice", properties={"weight": 5.0})
         rg.add_edge(3, "alice", "bob", properties={"weight": 20.0})
@@ -2204,11 +2182,7 @@ def test_filter_edges_preserves_membership():
 def _make_node_filter_graph():
     """Hub node 'ben' with three out-neighbours carrying a 'score' property,
     for Node.filter / PathFromNode.filter/select tests."""
-    work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start() as server:
-        client = server.get_client()
-        client.new_graph("g", "EVENT")
-        rg = client.remote_graph("g")
+    with _remote_graph("g") as rg:
         rg.add_node(1, "ben", properties={"score": 100.0})
         rg.add_node(1, "hamza", properties={"score": 5.0})
         rg.add_node(1, "alice", properties={"score": 20.0})
@@ -2990,11 +2964,7 @@ def _make_columnar_graphs():
     """
     from raphtory import Graph
 
-    work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start() as server:
-        client = server.get_client()
-        client.new_graph("cg", "EVENT")
-        rg = client.remote_graph("cg")
+    with _remote_graph("cg") as rg:
 
         lg = Graph()
         for g, add_node, add_edge in (
@@ -3336,11 +3306,7 @@ def _make_property_graphs():
     """
     from raphtory import Graph
 
-    work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start() as server:
-        client = server.get_client()
-        client.new_graph("pg", "EVENT")
-        rg = client.remote_graph("pg")
+    with _remote_graph("pg") as rg:
 
         lg = Graph()
         for add_node, add_edge in (
@@ -3558,11 +3524,7 @@ def _make_columnar_property_graphs():
     """
     from raphtory import Graph
 
-    work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start() as server:
-        client = server.get_client()
-        client.new_graph("pg", "EVENT")
-        rg = client.remote_graph("pg")
+    with _remote_graph("pg") as rg:
 
         lg = Graph()
         for g in (rg, lg):
@@ -3930,11 +3892,7 @@ def test_special_chars_roundtrip(name):
     lg.add_node(2, "anchor")
     lg.add_edge(3, name, "anchor")
 
-    work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start() as server:
-        client = server.get_client()
-        client.new_graph("escape-graph", "EVENT")
-        rg = client.remote_graph("escape-graph")
+    with _remote_graph("escape-graph") as rg:
         rg.add_node(1, name, properties={quoted_key: expected_val})
         rg.add_node(2, "anchor")
         rg.add_edge(3, name, "anchor")
