@@ -1,17 +1,20 @@
 //! The `Graph.algorithm` field resolvers: one per algorithm exposed through the GraphQL API.
 
-use crate::model::{
-    algorithms::{
-        executable::GqlAlgorithms,
-        inputs::{GqlDirection, GqlSeeds},
+use crate::{
+    model::{
+        algorithms::{
+            inputs::{GqlDirection, GqlSeeds},
+            outputs::{GqlMatching, GqlMotifCounts},
+        },
+        graph::{
+            filtering::GqlFilter, node_id::GqlNodeId, node_state::GqlNodeState,
+            timeindex::GqlTimeInput, WindowDuration,
+        },
     },
-    graph::{
-        filtering::GqlFilter, matching::GqlMatching, node_id::GqlNodeId, node_state::GqlNodeState,
-        timeindex::GqlTimeInput, WindowDuration,
-    },
+    rayon::blocking_compute,
 };
-use dynamic_graphql::{OneOfInput, ResolvedObjectFields, SimpleObject};
-use rand::{prelude::StdRng, Rng, SeedableRng};
+use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
+use rand::{prelude::StdRng, SeedableRng};
 use raphtory::{
     algorithms::{
         bipartite::max_weight_matching::max_weight_matching,
@@ -23,11 +26,11 @@ use raphtory::{
             label_propagation::label_propagation, louvain::louvain, modularity::ModularityUnDir,
         },
         components::{
-            in_component, in_component_filtered, in_components, out_component,
-            out_component_filtered, out_components, strongly_connected_components,
-            weakly_connected_components,
+            in_component, in_component_filtered, in_components, in_components_filtered,
+            out_component, out_component_filtered, out_components, out_components_filtered,
+            strongly_connected_components, weakly_connected_components,
         },
-        dynamics::temporal::epidemics::{temporal_SEIR, IntoSeeds, Number, Probability, SeedError},
+        dynamics::temporal::epidemics::temporal_SEIR,
         embeddings::fast_rp::fast_rp,
         layout::{
             cohesive_fruchterman_reingold::cohesive_fruchterman_reingold,
@@ -64,14 +67,11 @@ use raphtory::{
         },
     },
     core::entities::nodes::node_ref::AsNodeRef,
-    db::{
-        api::view::{DynamicGraph, StaticGraphViewOps},
-        graph::node::NodeView,
-    },
+    db::{api::view::DynamicGraph, graph::node::NodeView},
     errors::GraphError,
     prelude::{GraphViewOps, TimeOps},
 };
-use raphtory_api::core::{entities::VID, storage::arc_str::OptionAsStr};
+use raphtory_api::core::storage::arc_str::OptionAsStr;
 
 fn get_node(
     graph: DynamicGraph,
@@ -84,18 +84,29 @@ fn get_node(
     Ok(node)
 }
 
-/// The motif counts for a single delta. Wraps the counts in an object because
-/// the schema builder does not support nested lists of scalars.
-#[derive(SimpleObject)]
-#[graphql(name = "MotifCounts")]
-pub(crate) struct GqlMotifCounts {
-    /// The delta these counts were computed for.
-    delta: i64,
-    /// The 40 motif counts, positionally ordered (see the core docs).
-    counts: Vec<usize>,
+/// The algorithms that can be run on a graph view.
+#[derive(ResolvedObject, Clone)]
+#[graphql(name = "Algorithms")]
+pub struct GqlAlgorithms {
+    pub(crate) graph: DynamicGraph,
 }
 
-/// How the initially infected nodes are chosen.
+impl From<DynamicGraph> for GqlAlgorithms {
+    fn from(graph: DynamicGraph) -> Self {
+        Self { graph }
+    }
+}
+
+impl GqlAlgorithms {
+    /// Runs algorithm on the blocking thread pool.
+    pub(crate) async fn run<F: FnOnce(DynamicGraph) -> O + Send + 'static, O: Send + 'static>(
+        &self,
+        algo: F,
+    ) -> O {
+        let graph = self.graph.clone();
+        blocking_compute(move || algo(graph)).await
+    }
+}
 
 #[ResolvedObjectFields]
 impl GqlAlgorithms {
@@ -170,23 +181,41 @@ impl GqlAlgorithms {
     /// Returns the in component (all nodes that can reach it following out-edges) of every node.
     async fn in_components(
         &self,
+        #[graphql(
+            desc = "Optional composite filter (node, edge, and graph-view); the algorithm runs on the resulting view."
+        )]
+        filter: Option<GqlFilter>,
         #[graphql(desc = "Number of threads to use. Defaults to all available.")] threads: Option<
             usize,
         >,
-    ) -> GqlNodeState {
-        self.run(move |graph| in_components(&graph, threads).into())
-            .await
+    ) -> Result<GqlNodeState, GraphError> {
+        Ok(self
+            .run(move |graph| match filter {
+                None => Ok(in_components(&graph, threads)),
+                Some(filter) => in_components_filtered(&graph, threads, filter),
+            })
+            .await?
+            .into())
     }
 
     /// Returns the out component (all reachable nodes following out-edges) of every node.
     async fn out_components(
         &self,
+        #[graphql(
+            desc = "Optional composite filter (node, edge, and graph-view); the algorithm runs on the resulting view."
+        )]
+        filter: Option<GqlFilter>,
         #[graphql(desc = "Number of threads to use. Defaults to all available.")] threads: Option<
             usize,
         >,
-    ) -> GqlNodeState {
-        self.run(move |graph| out_components(&graph, threads).into())
-            .await
+    ) -> Result<GqlNodeState, GraphError> {
+        Ok(self
+            .run(move |graph| match filter {
+                None => Ok(out_components(&graph, threads)),
+                Some(filter) => out_components_filtered(&graph, threads, filter),
+            })
+            .await?
+            .into())
     }
 
     /// Returns the in component of a single node (nodes that can reach it, with their distance).

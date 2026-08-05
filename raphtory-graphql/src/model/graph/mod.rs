@@ -5,7 +5,7 @@ use raphtory_api::core::utils::time::ParseTimeError;
 pub(crate) mod collection;
 mod document;
 pub(crate) mod edge;
-mod edges;
+pub mod edges;
 pub mod filtering;
 pub(crate) mod graph;
 pub(crate) mod history;

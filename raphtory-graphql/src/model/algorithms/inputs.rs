@@ -29,6 +29,7 @@ impl From<GqlDirection> for Direction {
     }
 }
 
+/// How the initially infected nodes are chosen.
 #[derive(OneOfInput, Clone)]
 #[graphql(name = "Seeds")]
 pub(crate) enum GqlSeeds {

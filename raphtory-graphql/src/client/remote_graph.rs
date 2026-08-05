@@ -21,7 +21,7 @@ use crate::{
         },
         ClientError,
     },
-    model::graph::filtering::{GqlEdgeFilter, GqlFilter, GqlNodeFilter},
+    model::graph::filtering::GqlFilter,
 };
 use raphtory_api::core::{
     entities::{properties::prop::Prop, GID},

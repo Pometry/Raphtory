@@ -7,9 +7,7 @@ use crate::{
             collection::check_list_allowed,
             edge::GqlEdge,
             edges::GqlEdges,
-            filtering::{
-                GqlEdgeFilter, GqlFilter, GqlNodeFilter, GraphViewCollection,
-            },
+            filtering::{GqlEdgeFilter, GqlFilter, GqlNodeFilter, GraphViewCollection},
             mutable_graph::{as_properties, GqlPropertyInput},
             node::GqlNode,
             node_id::GqlNodeId,
