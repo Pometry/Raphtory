@@ -1,15 +1,8 @@
-use crate::{
-    graphql_test,
-    model::{algorithms::GqlExecutableAlgorithm, graph::node_state::GqlNodeState},
-    test_support::setup_with_graphs,
-};
-use async_graphql::Request;
+use crate::model::{algorithms::GqlExecutableAlgorithm, graph::node_state::GqlNodeState};
 use raphtory::{
     algorithms::centrality::degree_centrality::degree_centrality, db::api::view::DynamicGraph,
     errors::GraphError,
 };
-use serde_json::json;
-use tempfile::tempdir;
 
 /// Degree centrality, see [`degree_centrality`].
 pub(crate) struct GqlDegreeCentrality;

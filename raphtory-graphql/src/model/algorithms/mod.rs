@@ -3,72 +3,88 @@
 use crate::{
     model::{
         algorithms::{
-            all_local_reciprocity::{GqlAllLocalReciprocity, GqlAllLocalReciprocityArgs},
             alternating_mask::{GqlAlternatingMask, GqlAlternatingMaskArgs},
-            average_degree::{GqlAverageDegree, GqlAverageDegreeArgs},
-            balance::{GqlBalance, GqlBalanceArgs},
-            betweenness_centrality::{GqlBetweennessCentrality, GqlBetweennessCentralityArgs},
-            cohesive_fruchterman_reingold::{
-                GqlCohesiveFruchtermanReingold, GqlCohesiveFruchtermanReingoldArgs,
+            bipartite::max_weight_matching::{GqlMaxWeightMatching, GqlMaxWeightMatchingArgs},
+            centrality::{
+                betweenness_centrality::{GqlBetweennessCentrality, GqlBetweennessCentralityArgs},
+                degree_centrality::{GqlDegreeCentrality, GqlDegreeCentralityArgs},
+                hits::{GqlHits, GqlHitsArgs},
+                pagerank::{GqlPagerank, GqlPagerankArgs},
             },
-            degree_centrality::{GqlDegreeCentrality, GqlDegreeCentralityArgs},
-            dijkstra::{GqlDijkstra, GqlDijkstraArgs},
-            directed_graph_density::{GqlDirectedGraphDensity, GqlDirectedGraphDensityArgs},
-            fast_rp::{GqlFastRp, GqlFastRpArgs},
-            fruchterman_reingold::{GqlFruchtermanReingold, GqlFruchtermanReingoldArgs},
-            global_clustering_coefficient::{
-                GqlGlobalClusteringCoefficient, GqlGlobalClusteringCoefficientArgs,
+            community_detection::{
+                label_propagation::{GqlLabelPropagation, GqlLabelPropagationArgs},
+                louvain::{GqlLouvain, GqlLouvainArgs},
             },
-            global_reciprocity::{GqlGlobalReciprocity, GqlGlobalReciprocityArgs},
-            global_temporal_three_node_motif::{
-                GqlGlobalTemporalThreeNodeMotif, GqlGlobalTemporalThreeNodeMotifArgs,
+            components::{
+                in_component::{GqlInComponent, GqlInComponentArgs},
+                in_components::{GqlInComponents, GqlInComponentsArgs},
+                out_component::{GqlOutComponent, GqlOutComponentArgs},
+                out_components::{GqlOutComponents, GqlOutComponentsArgs},
+                strongly_connected_components::{
+                    GqlStronglyConnectedComponents, GqlStronglyConnectedComponentsArgs,
+                },
+                weakly_connected_components::{
+                    GqlWeaklyConnectedComponents, GqlWeaklyConnectedComponentsArgs,
+                },
             },
-            global_temporal_three_node_motif_multi::{
-                GqlGlobalTemporalThreeNodeMotifMulti, GqlGlobalTemporalThreeNodeMotifMultiArgs,
-                GqlMotifCounts,
+            dynamics::temporal::temporal_seir::{GqlSeeds, GqlTemporalSeir, GqlTemporalSeirArgs},
+            embeddings::fast_rp::{GqlFastRp, GqlFastRpArgs},
+            layout::{
+                cohesive_fruchterman_reingold::{
+                    GqlCohesiveFruchtermanReingold, GqlCohesiveFruchtermanReingoldArgs,
+                },
+                fruchterman_reingold::{GqlFruchtermanReingold, GqlFruchtermanReingoldArgs},
             },
-            hits::{GqlHits, GqlHitsArgs},
-            in_component::{GqlInComponent, GqlInComponentArgs},
-            in_components::{GqlInComponents, GqlInComponentsArgs},
-            label_propagation::{GqlLabelPropagation, GqlLabelPropagationArgs},
-            local_clustering_coefficient::{
-                GqlLocalClusteringCoefficient, GqlLocalClusteringCoefficientArgs,
+            metrics::{
+                all_local_reciprocity::{GqlAllLocalReciprocity, GqlAllLocalReciprocityArgs},
+                average_degree::{GqlAverageDegree, GqlAverageDegreeArgs},
+                balance::{GqlBalance, GqlBalanceArgs},
+                clustering_coefficient::{
+                    global_clustering_coefficient::{
+                        GqlGlobalClusteringCoefficient, GqlGlobalClusteringCoefficientArgs,
+                    },
+                    local_clustering_coefficient::{
+                        GqlLocalClusteringCoefficient, GqlLocalClusteringCoefficientArgs,
+                    },
+                    local_clustering_coefficient_batch::{
+                        GqlLocalClusteringCoefficientBatch, GqlLocalClusteringCoefficientBatchArgs,
+                    },
+                },
+                directed_graph_density::{GqlDirectedGraphDensity, GqlDirectedGraphDensityArgs},
+                global_reciprocity::{GqlGlobalReciprocity, GqlGlobalReciprocityArgs},
+                max_degree::{GqlMaxDegree, GqlMaxDegreeArgs},
+                max_in_degree::{GqlMaxInDegree, GqlMaxInDegreeArgs},
+                max_out_degree::{GqlMaxOutDegree, GqlMaxOutDegreeArgs},
+                min_degree::{GqlMinDegree, GqlMinDegreeArgs},
+                min_in_degree::{GqlMinInDegree, GqlMinInDegreeArgs},
+                min_out_degree::{GqlMinOutDegree, GqlMinOutDegreeArgs},
             },
-            local_clustering_coefficient_batch::{
-                GqlLocalClusteringCoefficientBatch, GqlLocalClusteringCoefficientBatchArgs,
+            motifs::{
+                global_temporal_three_node_motif::{
+                    GqlGlobalTemporalThreeNodeMotif, GqlGlobalTemporalThreeNodeMotifArgs,
+                },
+                global_temporal_three_node_motif_multi::{
+                    GqlGlobalTemporalThreeNodeMotifMulti, GqlGlobalTemporalThreeNodeMotifMultiArgs,
+                    GqlMotifCounts,
+                },
+                local_temporal_three_node_motifs::{
+                    GqlLocalTemporalThreeNodeMotifs, GqlLocalTemporalThreeNodeMotifsArgs,
+                },
+                local_triangle_count::{GqlLocalTriangleCount, GqlLocalTriangleCountArgs},
+                temporal_rich_club_coefficient::{
+                    GqlTemporalRichClubCoefficient, GqlTemporalRichClubCoefficientArgs,
+                },
+                triangle_count::{GqlTriangleCount, GqlTriangleCountArgs},
+                triplet_count::{GqlTripletCount, GqlTripletCountArgs},
             },
-            local_temporal_three_node_motifs::{
-                GqlLocalTemporalThreeNodeMotifs, GqlLocalTemporalThreeNodeMotifsArgs,
-            },
-            local_triangle_count::{GqlLocalTriangleCount, GqlLocalTriangleCountArgs},
-            louvain::{GqlLouvain, GqlLouvainArgs},
-            max_degree::{GqlMaxDegree, GqlMaxDegreeArgs},
-            max_in_degree::{GqlMaxInDegree, GqlMaxInDegreeArgs},
-            max_out_degree::{GqlMaxOutDegree, GqlMaxOutDegreeArgs},
-            max_weight_matching::{GqlMaxWeightMatching, GqlMaxWeightMatchingArgs},
-            min_degree::{GqlMinDegree, GqlMinDegreeArgs},
-            min_in_degree::{GqlMinInDegree, GqlMinInDegreeArgs},
-            min_out_degree::{GqlMinOutDegree, GqlMinOutDegreeArgs},
-            out_component::{GqlOutComponent, GqlOutComponentArgs},
-            out_components::{GqlOutComponents, GqlOutComponentsArgs},
-            pagerank::{GqlPagerank, GqlPagerankArgs},
-            single_source_shortest_path::{
-                GqlSingleSourceShortestPath, GqlSingleSourceShortestPathArgs,
-            },
-            strongly_connected_components::{
-                GqlStronglyConnectedComponents, GqlStronglyConnectedComponentsArgs,
-            },
-            temporal_rich_club_coefficient::{
-                GqlTemporalRichClubCoefficient, GqlTemporalRichClubCoefficientArgs,
-            },
-            temporal_seir::{GqlSeeds, GqlTemporalSeir, GqlTemporalSeirArgs},
-            temporally_reachable_nodes::{
-                GqlTemporallyReachableNodes, GqlTemporallyReachableNodesArgs,
-            },
-            triangle_count::{GqlTriangleCount, GqlTriangleCountArgs},
-            triplet_count::{GqlTripletCount, GqlTripletCountArgs},
-            weakly_connected_components::{
-                GqlWeaklyConnectedComponents, GqlWeaklyConnectedComponentsArgs,
+            pathing::{
+                dijkstra::{GqlDijkstra, GqlDijkstraArgs},
+                single_source_shortest_path::{
+                    GqlSingleSourceShortestPath, GqlSingleSourceShortestPathArgs,
+                },
+                temporally_reachable_nodes::{
+                    GqlTemporallyReachableNodes, GqlTemporallyReachableNodesArgs,
+                },
             },
         },
         graph::{
@@ -90,48 +106,17 @@ use raphtory::{
 };
 use raphtory_api::core::Direction;
 
-pub(crate) mod all_local_reciprocity;
 pub(crate) mod alternating_mask;
-pub(crate) mod average_degree;
-pub(crate) mod balance;
-pub(crate) mod betweenness_centrality;
-pub(crate) mod cohesive_fruchterman_reingold;
-pub(crate) mod degree_centrality;
-pub(crate) mod dijkstra;
-pub(crate) mod directed_graph_density;
-pub(crate) mod fast_rp;
-pub(crate) mod fruchterman_reingold;
-pub(crate) mod global_clustering_coefficient;
-pub(crate) mod global_reciprocity;
-pub(crate) mod global_temporal_three_node_motif;
-pub(crate) mod global_temporal_three_node_motif_multi;
-pub(crate) mod hits;
-pub(crate) mod in_component;
-pub(crate) mod in_components;
-pub(crate) mod label_propagation;
-pub(crate) mod local_clustering_coefficient;
-pub(crate) mod local_clustering_coefficient_batch;
-pub(crate) mod local_temporal_three_node_motifs;
-pub(crate) mod local_triangle_count;
-pub(crate) mod louvain;
-pub(crate) mod max_degree;
-pub(crate) mod max_in_degree;
-pub(crate) mod max_out_degree;
-pub(crate) mod max_weight_matching;
-pub(crate) mod min_degree;
-pub(crate) mod min_in_degree;
-pub(crate) mod min_out_degree;
-pub(crate) mod out_component;
-pub(crate) mod out_components;
-pub(crate) mod pagerank;
-pub(crate) mod single_source_shortest_path;
-pub(crate) mod strongly_connected_components;
-pub(crate) mod temporal_rich_club_coefficient;
-pub(crate) mod temporal_seir;
-pub(crate) mod temporally_reachable_nodes;
-pub(crate) mod triangle_count;
-pub(crate) mod triplet_count;
-pub(crate) mod weakly_connected_components;
+pub(crate) mod bipartite;
+pub(crate) mod centrality;
+pub(crate) mod community_detection;
+pub(crate) mod components;
+pub(crate) mod dynamics;
+pub(crate) mod embeddings;
+pub(crate) mod layout;
+pub(crate) mod metrics;
+pub(crate) mod motifs;
+pub(crate) mod pathing;
 
 /// A graph algorithm executable through the GraphQL API.
 pub(crate) trait GqlExecutableAlgorithm: 'static {
