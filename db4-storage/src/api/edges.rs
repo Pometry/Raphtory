@@ -111,7 +111,7 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
         &'a self,
         edge_pos: LocalPOS,
         layer_id: LayerId,
-        locked_head: Option<parking_lot::RwLockReadGuard<'a, MemEdgeSegment>>,
+        locked_head: Option<RwLockReadGuard<'a, MemEdgeSegment>>,
     ) -> Option<Self::Entry<'a>>;
 
     fn locked(self: &Arc<Self>) -> Self::ArcLockedSegment;

@@ -96,9 +96,6 @@ pub mod python;
 #[cfg(feature = "io")]
 pub mod graph_loader;
 
-#[cfg(feature = "search")]
-pub mod search;
-
 #[cfg(feature = "vectors")]
 pub mod vectors;
 
@@ -166,9 +163,6 @@ pub mod prelude {
         parquet::{ParquetDecoder, ParquetEncoder},
         StableDecode, StableEncode,
     };
-
-    #[cfg(feature = "search")]
-    pub use crate::db::api::{mutation::IndexMutationOps, view::SearchableGraphOps};
 }
 
 pub use raphtory_api::{atomic_extra, core::utils::logging};

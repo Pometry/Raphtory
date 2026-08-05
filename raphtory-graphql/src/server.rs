@@ -27,8 +27,6 @@ use poem::{
     EndpointExt, Route, Server,
 };
 use raphtory::db::api::storage::storage::Args;
-#[cfg(feature = "vectors")]
-use raphtory::vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate};
 use serde_json::json;
 use std::{
     fs::create_dir_all,
@@ -59,6 +57,12 @@ use tracing_subscriber::{
     Registry,
 };
 use url::ParseError;
+
+#[cfg(feature = "vectors")]
+use {
+    crate::{model::graph::vectorised_graph::VectorQuery, paths::ExistingGraphFolder, GQLError},
+    raphtory::vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate, VectorsQuery},
+};
 
 pub const DEFAULT_PORT: u16 = 1736;
 
@@ -176,10 +180,6 @@ impl GraphServer {
     /// Returns the working directory for this server.
     pub fn work_dir(&self) -> &Path {
         &self.work_dir
-    }
-
-    pub fn turn_off_index(&mut self) {
-        self.data.create_index = false; // FIXME: why does this exist yet?
     }
 
     /// Set the authorization policy used for graph access checks.
@@ -335,9 +335,11 @@ impl GraphServer {
         tracer: Option<Tracer>,
     ) -> Result<CompressionEndpoint<CorsEndpoint<Route>>, ServerError> {
         let schema_cfg = &self.config.schema;
+
         let mut schema_builder = App::create_schema()
             .data(self.data.clone())
             .data(self.config.concurrency.clone());
+
         for inject in &self.schema_data {
             schema_builder = inject(schema_builder);
         }
@@ -502,12 +504,16 @@ mod server_tests {
     use crate::{config::app_config::AppConfigBuilder, server::GraphServer};
     use chrono::prelude::*;
     use raphtory::db::api::storage::storage::Args;
-    #[cfg(feature = "vectors")]
-    use raphtory::vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate};
     use raphtory_api::core::utils::logging::global_info_logger;
     use tempfile::tempdir;
     use tokio::time::{sleep, Duration};
     use tracing::info;
+
+    #[cfg(feature = "vectors")]
+    use raphtory::{
+        prelude::*,
+        vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate},
+    };
 
     #[tokio::test]
     async fn test_public_dir_serves_index_for_subpages() {

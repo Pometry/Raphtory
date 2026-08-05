@@ -3,8 +3,6 @@
 //! This is the base class used to create a temporal graph, add nodes and edges,
 //! create windows, and query the graph with a variety of algorithms.
 //! In Python, this class wraps around the rust graph.
-#[cfg(feature = "search")]
-use crate::python::graph::index::PyIndexSpec;
 use crate::{
     algorithms::components::LargestConnectedComponent,
     arrow_loader::df_loaders::edges::ColumnNames,
@@ -167,7 +165,7 @@ impl PyGraph {
     pub fn py_new(
         path: Option<PathBuf>,
         config: Option<PyArgs>,
-    ) -> Result<(Self, PyGraphView), GraphError> {
+    ) -> Result<PyClassInitializer<Self>, GraphError> {
         let graph = match path {
             None => match config {
                 None => Graph::new(),
@@ -178,12 +176,7 @@ impl PyGraph {
                 Some(PyArgs(args)) => Graph::new_at_path_with_config(&path, args)?,
             },
         };
-        Ok((
-            Self {
-                graph: graph.clone(),
-            },
-            PyGraphView::from(graph),
-        ))
+        Ok(PyClassInitializer::from(PyGraphView::from(graph.clone())).add_subclass(Self { graph }))
     }
 
     /// Load a disk graph from path
@@ -1170,57 +1163,5 @@ impl PyGraph {
         } else {
             Err(GraphError::PythonError(PyValueError::new_err("Argument 'data' invalid. Valid data sources are: a single Parquet or CSV file, a directory containing Parquet or CSV files, and objects that implement an __arrow_c_stream__ method.")))
         }
-    }
-
-    /// Create graph index
-    ///
-    /// Returns:
-    ///     None:
-    #[cfg(feature = "search")]
-    fn create_index(&self) -> Result<(), GraphError> {
-        self.graph.create_index()
-    }
-
-    /// Create graph index with the provided index spec.
-    ///
-    /// Arguments:
-    ///     py_spec: - The specification for the in-memory index to be created.
-    ///
-    /// Returns:
-    ///     None:
-    #[cfg(feature = "search")]
-    fn create_index_with_spec(&self, py_spec: &PyIndexSpec) -> Result<(), GraphError> {
-        self.graph.create_index_with_spec(py_spec.spec.clone())
-    }
-
-    /// Creates a graph index in memory (RAM).
-    ///
-    /// This is primarily intended for use in tests and should not be used in production environments,
-    /// as the index will not be persisted to disk.
-    ///
-    /// Returns:
-    ///     None:
-    #[cfg(feature = "search")]
-    fn create_index_in_ram(&self) -> Result<(), GraphError> {
-        self.graph.create_index_in_ram()
-    }
-
-    /// Creates a graph index in memory (RAM) with the provided index spec.
-    ///
-    /// This is primarily intended for use in tests and should not be used in production environments,
-    /// as the index will not be persisted to disk.
-    ///
-    /// Arguments:
-    ///     py_spec: The specification for the in-memory index to be created.
-    ///
-    /// Arguments:
-    ///     py_spec (IndexSpec): - The specification for the in-memory index to be created.
-    ///
-    /// Returns:
-    ///     None:
-    #[cfg(feature = "search")]
-    fn create_index_in_ram_with_spec(&self, py_spec: &PyIndexSpec) -> Result<(), GraphError> {
-        self.graph
-            .create_index_in_ram_with_spec(py_spec.spec.clone())
     }
 }

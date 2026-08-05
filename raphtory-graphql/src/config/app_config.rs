@@ -1,6 +1,4 @@
 use super::auth_config::{AuthConfig, AuthConfigFieldName, PublicKeyError};
-#[cfg(feature = "search")]
-use crate::config::index_config::{IndexConfig, IndexConfigFieldName};
 use crate::{
     config::{
         cache_config::{CacheConfig, CacheConfigFieldName},
@@ -33,8 +31,6 @@ pub struct AppConfig {
     pub schema: SchemaConfig,
     pub parquet: ParquetConfig,
     pub public_dir: Option<PathBuf>,
-    #[cfg(feature = "search")]
-    pub index: IndexConfig,
 }
 
 pub struct AppConfigBuilder {
@@ -303,24 +299,6 @@ impl AppConfigBuilder {
                         Deserialize::deserialize(value).map_err(|e| invalid_value([path], e))?,
                     );
                 }
-                #[cfg(feature = "search")]
-                AppConfigFieldName::Index => {
-                    let map = value.as_object().ok_or_else(|| {
-                        ConfigError::Message(format!("Invalid index config: {value}"))
-                    })?;
-                    for (sub_path, value) in map {
-                        match IndexConfigFieldName::by_name(sub_path)
-                            .ok_or_else(|| invalid_path([path, sub_path]))?
-                        {
-                            IndexConfigFieldName::CreateIndex => {
-                                self.with_create_index(
-                                    Deserialize::deserialize(value)
-                                        .map_err(|e| invalid_value([path, sub_path], e))?,
-                                );
-                            }
-                        }
-                    }
-                }
             }
         }
 
@@ -466,12 +444,6 @@ impl AppConfigBuilder {
 
     pub fn with_public_dir(&mut self, public_dir: Option<PathBuf>) -> &mut Self {
         self.config.public_dir = public_dir;
-        self
-    }
-
-    #[cfg(feature = "search")]
-    pub fn with_create_index(&mut self, create_index: bool) -> &mut Self {
-        self.config.index.create_index = create_index;
         self
     }
 

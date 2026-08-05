@@ -7,6 +7,7 @@
 //! In Python, this class wraps around the rust graph.
 use super::graph::{PyGraph, PyGraphEncoder};
 use crate::{
+    arrow_loader::df_loaders::edges::ColumnNames,
     db::{
         api::mutation::{AdditionOps, PropertyAdditionOps},
         graph::{edge::EdgeView, node::NodeView, views::deletion_graph::PersistentGraph},
@@ -15,6 +16,7 @@ use crate::{
     io::parquet_loaders::*,
     prelude::{DeletionOps, GraphViewOps, ImportOps, ParquetEncoder},
     python::{
+        config::PyConfig,
         graph::{
             edge::PyEdge,
             io::arrow_loaders::{
@@ -50,8 +52,6 @@ use std::{
 };
 
 use crate::{arrow_loader::df_loaders::edges::ColumnNames, python::config::PyArgs};
-#[cfg(feature = "search")]
-use crate::{prelude::IndexMutationOps, python::graph::index::PyIndexSpec};
 
 /// A temporal graph that allows edges and nodes to be deleted.
 ///
@@ -129,7 +129,7 @@ impl PyPersistentGraph {
     pub fn py_new(
         path: Option<PathBuf>,
         config: Option<PyArgs>,
-    ) -> Result<(Self, PyGraphView), GraphError> {
+    ) -> Result<PyClassInitializer<Self>, GraphError> {
         let graph = match path {
             Some(path) => match config {
                 None => PersistentGraph::new_at_path(&path)?,
@@ -140,12 +140,7 @@ impl PyPersistentGraph {
                 Some(PyArgs(args)) => PersistentGraph::new_with_config(args)?,
             },
         };
-        Ok((
-            Self {
-                graph: graph.clone(),
-            },
-            PyGraphView::from(graph),
-        ))
+        Ok(PyClassInitializer::from(PyGraphView::from(graph.clone())).add_subclass(Self { graph }))
     }
 
     /// Load a disk graph from path
@@ -1289,56 +1284,5 @@ impl PyPersistentGraph {
         } else {
             Err(GraphError::PythonError(PyValueError::new_err("Argument 'data' invalid. Valid data sources are: a single Parquet file, a directory containing Parquet files, and objects that implement an __arrow_c_stream__ method.")))
         }
-    }
-
-    /// Create graph index
-    ///
-    /// Returns:
-    ///     None:
-    #[cfg(feature = "search")]
-    fn create_index(&self) -> Result<(), GraphError> {
-        self.graph.create_index()
-    }
-
-    /// Create graph index with the provided index spec.
-    /// Arguments:
-    ///     py_spec: - The specification for the in-memory index to be created.
-    ///
-    /// Returns:
-    ///     None:
-    #[cfg(feature = "search")]
-    fn create_index_with_spec(&self, py_spec: &PyIndexSpec) -> Result<(), GraphError> {
-        self.graph.create_index_with_spec(py_spec.spec.clone())
-    }
-
-    /// Creates a graph index in memory (RAM).
-    ///
-    /// This is primarily intended for use in tests and should not be used in production environments,
-    /// as the index will not be persisted to disk.
-    ///
-    /// Returns:
-    ///     None:
-    #[cfg(feature = "search")]
-    fn create_index_in_ram(&self) -> Result<(), GraphError> {
-        self.graph.create_index_in_ram()
-    }
-
-    /// Creates a graph index in memory (RAM) with the provided index spec.
-    ///
-    /// This is primarily intended for use in tests and should not be used in production environments,
-    /// as the index will not be persisted to disk.
-    ///
-    /// Arguments:
-    ///     py_spec: The specification for the in-memory index to be created.
-    ///
-    ///  Arguments:
-    ///     py_spec (IndexSpec): The specification for the in-memory index to be created.
-    ///
-    /// Returns:
-    ///     None:
-    #[cfg(feature = "search")]
-    fn create_index_in_ram_with_spec(&self, py_spec: &PyIndexSpec) -> Result<(), GraphError> {
-        self.graph
-            .create_index_in_ram_with_spec(py_spec.spec.clone())
     }
 }

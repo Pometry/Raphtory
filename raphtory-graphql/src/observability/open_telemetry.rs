@@ -174,8 +174,7 @@ where
         info: ResolveInfo<'_>,
         next: NextResolve<'_>,
     ) -> ServerResult<Option<Value>> {
-        let span: Option<<T as opentelemetry::trace::Tracer>::Span> = if !info.is_for_introspection
-        {
+        let span: Option<<T as Tracer>::Span> = if !info.is_for_introspection {
             let attributes = vec![
                 KeyValue::new(KEY_PARENT_TYPE, info.parent_type.to_string()),
                 KeyValue::new(KEY_RETURN_TYPE, info.return_type.to_string()),

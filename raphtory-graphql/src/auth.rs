@@ -38,7 +38,7 @@ pub struct AuthenticatedGraphQL<E> {
     executor: E,
     config: AppConfig,
     semaphore: Option<Semaphore>,
-    lock: Option<tokio::sync::RwLock<()>>,
+    lock: Option<RwLock<()>>,
 }
 
 impl<E> AuthenticatedGraphQL<E> {

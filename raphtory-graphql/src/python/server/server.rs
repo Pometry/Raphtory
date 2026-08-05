@@ -10,13 +10,17 @@ use crossbeam_channel::RecvTimeoutError;
 use pyo3::{exceptions::PyRuntimeError, prelude::*, types::PyDict};
 use pythonize::depythonize;
 use raphtory::{db::api::storage::storage::Args, python::utils::block_on};
-#[cfg(feature = "vectors")]
-use raphtory::{
-    python::packages::vectors::{PyOpenAIEmbeddings, TemplateConfig},
-    vectors::template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
-};
 use raphtory_api::python::error::adapt_err_value;
 use std::{path::PathBuf, thread, time::Duration};
+
+#[cfg(feature = "vectors")]
+use {
+    pyo3::exceptions::PyAttributeError,
+    raphtory::{
+        python::packages::vectors::{PyOpenAIEmbeddings, TemplateConfig},
+        vectors::template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
+    },
+};
 
 /// A class for defining and running a Raphtory GraphQL server
 ///
@@ -109,15 +113,6 @@ impl PyGraphServer {
         let server = block_on(GraphServer::new(work_dir, app_config, Args::default()))?;
         let server = apply_server_extension(server, permissions_store_path.as_deref());
         Ok(PyGraphServer(server))
-    }
-
-    // TODO: remove this, should be config
-    /// Turn off index for all graphs.
-    ///
-    /// Returns:
-    ///     None:
-    fn turn_off_index(mut slf: PyRefMut<Self>) {
-        slf.0.turn_off_index()
     }
 
     /// Vectorise the graph name in the server working directory.

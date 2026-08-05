@@ -1,5 +1,3 @@
-#[cfg(feature = "search")]
-use crate::prelude::IndexMutationOps;
 use crate::{
     db::api::{
         mutation::AdditionOps, storage::storage::PersistenceStrategy, view::StaticGraphViewOps,
@@ -48,7 +46,6 @@ impl<T: ParquetEncoder + StaticGraphViewOps + AdditionOps> StableEncode for T {
         })?)?;
         let graph_prefix = [DEFAULT_DATA_PATH, DEFAULT_GRAPH_PATH].join("/");
         self.encode_parquet_to_zip(&mut writer, graph_prefix)?;
-        // TODO: Encode Index to zip
         writer.finish()?;
         Ok(())
     }
@@ -69,8 +66,6 @@ impl<T: ParquetEncoder + StaticGraphViewOps + AdditionOps> StableEncode for T {
         } else {
             let write_folder = folder.init_write()?;
             self.encode_parquet(write_folder.graph_path()?)?;
-            #[cfg(feature = "search")]
-            self.persist_index_to_disk(&write_folder)?;
             let data_folder = write_folder.data_path()?;
             let meta = Metadata {
                 path: data_folder.relative_graph_path()?,
@@ -153,8 +148,6 @@ impl<T: ParquetDecoder + StaticGraphViewOps + AdditionOps> StableDecode for T {
         let graph_prefix = get_zip_graph_path(&mut reader)?;
         let graph = Self::decode_parquet_from_zip(&mut reader, None, graph_prefix, args)?;
 
-        //TODO: graph.load_index_from_zip(&mut reader, prefix)
-
         Ok(graph)
     }
 
@@ -174,8 +167,6 @@ impl<T: ParquetDecoder + StaticGraphViewOps + AdditionOps> StableDecode for T {
             graph_prefix,
             args,
         )?;
-
-        //TODO: graph.load_index_from_zip(&mut reader, prefix)
         let meta = Metadata {
             path: target.relative_graph_path()?,
             meta: build_graph_metadata(&graph),
@@ -193,9 +184,6 @@ impl<T: ParquetDecoder + StaticGraphViewOps + AdditionOps> StableDecode for T {
             Self::decode_from_zip_with_config(reader, args)
         } else {
             Self::decode_parquet(&path.graph_path()?, None, args)
-            // TODO: Fix index loading:
-            // #[cfg(feature = "search")]
-            // graph.load_index(&path)?;
         }
     }
 
