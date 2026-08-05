@@ -69,6 +69,7 @@ __all__ = [
     "algorithms",
     "graph_loader",
     "graph_gen",
+    "vectors",
     "node_state",
     "filter",
     "iterables",
@@ -668,6 +669,26 @@ class GraphView(object):
              GraphView: The layered view
         """
 
+    def vectorise(
+        self,
+        model: VectorCache,
+        nodes: bool | str = True,
+        edges: bool | str = True,
+        verbose: bool = False,
+    ) -> VectorisedGraph:
+        """
+        Create a VectorisedGraph from the current graph.
+
+        Args:
+          model (VectorCache): Cache wrapping the embedding model used to embed documents.
+          nodes (bool | str): Enable for nodes to be embedded, disable for nodes to not be embedded or specify a custom document property to use if a string is provided. Defaults to True.
+          edges (bool | str): Enable for edges to be embedded, disable for edges to not be embedded or specify a custom document property to use if a string is provided. Defaults to True.
+          verbose (bool): Enable to print logs reporting progress. Defaults to False.
+
+        Returns:
+          VectorisedGraph: A VectorisedGraph with all the documents and their embeddings, with an initial empty selection.
+        """
+
     def window(self, start: TimeInput, end: TimeInput) -> GraphView:
         """
          Create a view of the GraphView including all events between `start` (inclusive) and `end` (exclusive)
@@ -695,11 +716,11 @@ class Graph(GraphView):
 
     Arguments:
         path (str | PathLike, optional): The path for persisting the graph (only works with disk storage enabled)
-        config (Config, optional): The configuration options for the graph
+        config (Args, optional): The configuration options for the graph
     """
 
     def __new__(
-        cls, path: Optional[str | PathLike] = None, config: Optional[Config] = None
+        cls, path: Optional[str | PathLike] = None, config: Any = None
     ) -> Graph:
         """Create and return a new object.  See help(type) for accurate signature."""
 
@@ -1065,14 +1086,14 @@ class Graph(GraphView):
 
     @staticmethod
     def load(
-        path: str | PathLike, config: Optional[Config] = None, read_only: bool = False
+        path: str | PathLike, config: Any = None, read_only: bool = False
     ) -> Graph:
         """
         Load a disk graph from path
 
         Arguments:
             path (str | PathLike): the path of the graph folder
-            config (Config, optional): specify a new config to override the values saved for the graph
+            config (Args, optional): specify a new config to override the values saved for the graph
                                        (note that the page sizes cannot be overridden and are ignored)
             read_only (bool): open as a read-only snapshot. Multiple processes can hold
                               a read-only handle to the same graph directory concurrently;
@@ -1360,12 +1381,12 @@ class PersistentGraph(GraphView):
 
     Arguments:
         path (str | PathLike, optional): The path for persisting the graph (only works with disk storage enabled). Defaults to None.
-        config (Config, optional): Storage/config overrides. Defaults to None.
+        config (Args, optional): Storage/config overrides. Defaults to None.
 
     """
 
     def __new__(
-        cls, path: Optional[str | PathLike] = None, config: Optional[Config] = None
+        cls, path: Optional[str | PathLike] = None, config: Any = None
     ) -> PersistentGraph:
         """Create and return a new object.  See help(type) for accurate signature."""
 
@@ -1712,14 +1733,14 @@ class PersistentGraph(GraphView):
 
     @staticmethod
     def load(
-        path: str | PathLike, config: Optional[Config] = None, read_only: bool = False
+        path: str | PathLike, config: Any = None, read_only: bool = False
     ) -> PersistentGraph:
         """
         Load a disk graph from path
 
         Arguments:
             path (str | PathLike): the path of the graph folder
-            config (Config, optional): specify a new config to override the values saved for the graph
+            config (Args, optional): specify a new config to override the values saved for the graph
                                        (note that the page sizes cannot be overridden and are ignored)
             read_only (bool): open as a read-only snapshot. Multiple processes can hold
                               a read-only handle to the same graph directory concurrently;
