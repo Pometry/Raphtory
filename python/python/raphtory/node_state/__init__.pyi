@@ -7818,6 +7818,17 @@ class OutputNodeState(object):
             Optional[dict]: the value for the node or the default value
         """
 
+    def groups(self, cols: list[str]) -> list[tuple[dict, Nodes]]:
+        """
+        Group by value
+
+        Arguments:
+            cols (list[str]): columns by which to group nodes
+
+        Returns:
+            list[tuple[dict, Nodes]]: The grouped nodes
+        """
+
     def items(self) -> Iterator[Tuple[Node, Dict]]:
         """
         Iterate over items
@@ -7854,6 +7865,17 @@ class OutputNodeState(object):
             Nodes: The nodes
         """
 
+    def sort_by(self, sort_params: Dict) -> OutputNodeState:
+        """
+        Get value for node
+
+        Arguments:
+            sort_params (Dict): Map of sort keys to sort option ('asc' or 'desc'). None defaults to 'asc'
+
+        Returns:
+            OutputNodeState: Sorted NodeState
+        """
+
     def to_parquet(self, file_path: str, id_column: str = "id") -> None:
         """
         Convert OutputNodeState to Parquet
@@ -7864,6 +7886,18 @@ class OutputNodeState(object):
 
         Returns:
             None:
+        """
+
+    def top_k(self, sort_params: Dict, k: int) -> OutputNodeState:
+        """
+        Get value for node
+
+        Arguments:
+            sort_params (Dict): Map of sort keys to sort option ('asc' or 'desc'). None defaults to 'asc'
+            k (int): Number of top entries to return.
+
+        Returns:
+            OutputNodeState: Sorted NodeState
         """
 
     def values(self) -> Iterator[Dict]:
