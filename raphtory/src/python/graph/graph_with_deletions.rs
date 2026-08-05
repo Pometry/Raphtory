@@ -16,7 +16,7 @@ use crate::{
     io::parquet_loaders::*,
     prelude::{DeletionOps, GraphViewOps, ImportOps, ParquetEncoder},
     python::{
-        config::PyConfig,
+        config::PyArgs,
         graph::{
             edge::PyEdge,
             io::arrow_loaders::{
@@ -50,8 +50,6 @@ use std::{
     path::PathBuf,
     sync::Arc,
 };
-
-use crate::{arrow_loader::df_loaders::edges::ColumnNames, python::config::PyArgs};
 
 /// A temporal graph that allows edges and nodes to be deleted.
 ///
