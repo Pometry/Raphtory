@@ -158,8 +158,11 @@ impl PersistentGraph {
 
         path.init()?;
 
+        let graph_path = path.graph_path()?;
+        args.save_to_dir(&graph_path)?;
+
         let graph = Self(Arc::new(Storage::new_at_path_with_config(
-            path.graph_path()?,
+            graph_path,
             args.into(),
         )?));
 
