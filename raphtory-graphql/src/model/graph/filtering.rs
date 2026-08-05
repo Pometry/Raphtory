@@ -1161,16 +1161,6 @@ fn require_prop_list_value(op: &str, v: &Value) -> Result<PropertyFilterValue, G
     }
 }
 
-fn require_u64_value(op: &str, v: &Value) -> Result<u64, GraphError> {
-    if let Value::U64(i) = v {
-        Ok(*i)
-    } else {
-        Err(GraphError::InvalidGqlFilter(format!(
-            "{op} requires a u64 value, got {v}"
-        )))
-    }
-}
-
 fn parse_node_id_scalar(op: &str, v: &Value) -> Result<FilterValue, GraphError> {
     match v {
         Value::U64(i) => Ok(FilterValue::ID(GID::U64(*i))),
@@ -1250,26 +1240,10 @@ fn translate_node_field_where(
     Ok(match (field, cond) {
         (NodeId, Eq(v)) => (field_name, parse_node_id_scalar(op, v)?, FO::Eq),
         (NodeId, Ne(v)) => (field_name, parse_node_id_scalar(op, v)?, FO::Ne),
-        (NodeId, Gt(v)) => (
-            field_name,
-            FilterValue::ID(GID::U64(require_u64_value(op, v)?)),
-            FO::Gt,
-        ),
-        (NodeId, Ge(v)) => (
-            field_name,
-            FilterValue::ID(GID::U64(require_u64_value(op, v)?)),
-            FO::Ge,
-        ),
-        (NodeId, Lt(v)) => (
-            field_name,
-            FilterValue::ID(GID::U64(require_u64_value(op, v)?)),
-            FO::Lt,
-        ),
-        (NodeId, Le(v)) => (
-            field_name,
-            FilterValue::ID(GID::U64(require_u64_value(op, v)?)),
-            FO::Le,
-        ),
+        (NodeId, Gt(v)) => (field_name, parse_node_id_scalar(op, v)?, FO::Gt),
+        (NodeId, Ge(v)) => (field_name, parse_node_id_scalar(op, v)?, FO::Ge),
+        (NodeId, Lt(v)) => (field_name, parse_node_id_scalar(op, v)?, FO::Lt),
+        (NodeId, Le(v)) => (field_name, parse_node_id_scalar(op, v)?, FO::Le),
 
         (NodeId, StartsWith(v)) => (
             field_name,
@@ -1460,6 +1434,10 @@ fn translate_prop_leaf_to_filter(
 
         IsSome(true) => (FO::IsSome, PropertyFilterValue::None),
         IsNone(true) => (FO::IsNone, PropertyFilterValue::None),
+        // `isSome: false` is exactly `isNone: true` (and vice versa) — lower
+        // to the dual operator instead of rejecting.
+        IsSome(false) => (FO::IsNone, PropertyFilterValue::None),
+        IsNone(false) => (FO::IsSome, PropertyFilterValue::None),
 
         FuzzySearch(f) => (
             FO::FuzzySearch {
@@ -1470,7 +1448,7 @@ fn translate_prop_leaf_to_filter(
         ),
 
         And(_) | Or(_) | Not(_) | First(_) | Last(_) | Any(_) | All(_) | Sum(_) | Avg(_)
-        | Min(_) | Max(_) | Len(_) | IsSome(false) | IsNone(false) => {
+        | Min(_) | Max(_) | Len(_) => {
             let op = cmp.op_name();
             return Err(GraphError::InvalidGqlFilter(format!(
                 "Expected comparison at leaf for {name_for_errors}; got '{op}'"
@@ -1562,8 +1540,20 @@ impl TryFrom<GqlNodeFilter> for CompositeNodeFilter {
                 let field_name: String = degree.direction.into();
 
                 let mut ops = Vec::new();
-                peel_prop_wrappers_and_collect_ops(&degree.where_, &mut ops);
-                let (operator, value) = translate_prop_leaf_to_filter(&field_name, &degree.where_)?;
+                let mut cursor = &degree.where_;
+                while let Some(inner) = peel_prop_wrappers_and_collect_ops(cursor, &mut ops) {
+                    cursor = inner;
+                }
+                // Degree is a scalar — aggregation/selector ops (sum/first/…)
+                // have nothing to operate on, and the core filter rejects them
+                // at evaluation time. Fail at conversion with a clear message.
+                if !ops.is_empty() {
+                    return Err(GraphError::InvalidGqlFilter(
+                        "degree filters take a plain comparison; aggregation ops are not supported"
+                            .into(),
+                    ));
+                }
+                let (operator, value) = translate_prop_leaf_to_filter(&field_name, cursor)?;
                 Ok(CompositeNodeFilter::Degree(DegreeFilter {
                     direction: core_direction,
                     operator,
@@ -2199,10 +2189,14 @@ fn layer_to_names(layer: &Layer) -> Result<Vec<String>, GraphError> {
         Layer::One(name) => Ok(vec![name.to_string()]),
         Layer::Multiple(names) => Ok(names.iter().map(|s| s.to_string()).collect()),
         Layer::Default => Ok(vec!["_default".to_string()]),
-        Layer::All | Layer::None => Err(GraphError::InvalidGqlFilter(format!(
-            "Layer::{:?} has no single-name wire representation",
-            layer
-        ))),
+        // No layers — the empty name list (`Layer::from_iter([])` maps back
+        // to `Layer::None`, so the round-trip is exact).
+        Layer::None => Ok(vec![]),
+        // All layers is no restriction at all — callers drop the layer
+        // wrapper entirely instead of rendering it.
+        Layer::All => Err(GraphError::InvalidGqlFilter(
+            "Layer::All is no layer restriction — omit the layer wrapper".into(),
+        )),
     }
 }
 
@@ -2271,10 +2265,18 @@ impl TryFrom<CompositeNodeFilter> for GqlNodeFilter {
                 })
             }
 
-            CompositeNodeFilter::Layered(l) => GqlNodeFilter::Layers(NodeLayersExpr {
-                names: layer_to_names(&l.layer)?,
-                expr: wrap(l.inner.try_into()?),
-            }),
+            CompositeNodeFilter::Layered(l) => {
+                if matches!(l.layer, Layer::All) {
+                    // Restricting to ALL layers restricts nothing — drop the
+                    // wrapper and convert the inner filter directly.
+                    l.inner.try_into()?
+                } else {
+                    GqlNodeFilter::Layers(NodeLayersExpr {
+                        names: layer_to_names(&l.layer)?,
+                        expr: wrap(l.inner.try_into()?),
+                    })
+                }
+            }
         })
     }
 }
@@ -2339,10 +2341,16 @@ impl TryFrom<CompositeEdgeFilter> for GqlEdgeFilter {
                 })
             }
 
-            CompositeEdgeFilter::Layered(l) => GqlEdgeFilter::Layers(EdgeLayersExpr {
-                names: layer_to_names(&l.layer)?,
-                expr: wrap(l.inner.try_into()?),
-            }),
+            CompositeEdgeFilter::Layered(l) => {
+                if matches!(l.layer, Layer::All) {
+                    l.inner.try_into()?
+                } else {
+                    GqlEdgeFilter::Layers(EdgeLayersExpr {
+                        names: layer_to_names(&l.layer)?,
+                        expr: wrap(l.inner.try_into()?),
+                    })
+                }
+            }
         })
     }
 }
@@ -2649,6 +2657,69 @@ mod fuzzy_search_tests {
         assert_eq!(
             (f.value.as_str(), f.levenshtein_distance, f.prefix_match),
             ("ben", 1, true)
+        );
+    }
+}
+
+#[cfg(test)]
+mod conversion_hole_tests {
+    use super::*;
+
+    // `isSome: false` lowers to the IsNone operator (and vice versa) instead
+    // of erroring — the two spellings are the same predicate.
+    #[test]
+    fn is_some_false_lowers_to_the_dual_operator() {
+        let (op, _) = translate_prop_leaf_to_filter("p", &PropCondition::IsSome(false)).unwrap();
+        assert_eq!(op, FilterOperator::IsNone);
+        let (op, _) = translate_prop_leaf_to_filter("p", &PropCondition::IsNone(false)).unwrap();
+        assert_eq!(op, FilterOperator::IsSome);
+    }
+
+    // Node-id ordering comparisons accept string GIDs, matching the local
+    // builder's `V: Into<GID>` bound.
+    #[test]
+    fn node_id_ordering_accepts_string_gids() {
+        let filter = GqlNodeFilter::Node(NodeFieldFilterNew {
+            field: NodeField::NodeId,
+            where_: NodeFieldCondition::Gt(Value::Str("m".into())),
+        });
+        assert!(CompositeNodeFilter::try_from(filter).is_ok());
+    }
+
+    // Aggregation ops on a degree filter fail at conversion time with a clear
+    // message (previously they slipped through and failed at evaluation).
+    #[test]
+    fn degree_rejects_aggregation_ops_at_conversion() {
+        let filter = GqlNodeFilter::Degree(DegreeFilterNew {
+            direction: DegreeDirection::Both,
+            where_: PropCondition::Sum(wrap(PropCondition::Eq(Value::I64(3)))),
+        });
+        let Err(err) = CompositeNodeFilter::try_from(filter) else {
+            panic!("degree with an op chain must be rejected at conversion");
+        };
+        assert!(
+            err.to_string()
+                .contains("aggregation ops are not supported"),
+            "unexpected error: {err}"
+        );
+    }
+
+    // Layer round-trip semantics: `None` is the empty name list (exact
+    // round-trip via `Layer::from_iter([])`); `All` is no restriction, so the
+    // reverse conversion drops the wrapper entirely.
+    #[test]
+    fn layer_none_and_all_normalize() {
+        assert_eq!(layer_to_names(&Layer::None).unwrap(), Vec::<String>::new());
+
+        let inner = CompositeNodeFilter::Node(Filter::eq("node_name", "a"));
+        let layered = CompositeNodeFilter::Layered(Box::new(Layered {
+            layer: Layer::All,
+            inner,
+        }));
+        let gql = GqlNodeFilter::try_from(layered).unwrap();
+        assert!(
+            matches!(gql, GqlNodeFilter::Node(_)),
+            "Layer::All should drop the layer wrapper, got {gql:?}"
         );
     }
 }
