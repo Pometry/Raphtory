@@ -67,6 +67,12 @@ impl GqlPathFromNode {
         blocking_compute(move || self_clone.update(self_clone.nn.valid_layers(names))).await
     }
 
+    /// Return a view of PathFromNode restricted to the default layer.
+    async fn default_layer(&self) -> Self {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.update(self_clone.nn.default_layer())).await
+    }
+
     /// Return a view of PathFromNode containing all layers except the specified excluded layers, errors if any of the layers do not exist.
 
     async fn exclude_layers(
@@ -286,27 +292,39 @@ impl GqlPathFromNode {
     ///////////////////
 
     /// The degree (number of incident edges) of every node in the path, in order.
-    async fn degree(&self) -> Vec<usize> {
+    async fn degree(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<usize>> {
+        // Columnar metric over every member — unbounded, so honour the
+        // same list guard as `list`/`ids`.
+        check_list_allowed(ctx)?;
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.nn.degree().collect()).await
+        Ok(blocking_compute(move || self_clone.nn.degree().collect()).await)
     }
 
     /// The in-degree (number of incoming edges) of every node in the path, in order.
-    async fn in_degree(&self) -> Vec<usize> {
+    async fn in_degree(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<usize>> {
+        // Columnar metric over every member — unbounded, so honour the
+        // same list guard as `list`/`ids`.
+        check_list_allowed(ctx)?;
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.nn.in_degree().collect()).await
+        Ok(blocking_compute(move || self_clone.nn.in_degree().collect()).await)
     }
 
     /// The out-degree (number of outgoing edges) of every node in the path, in order.
-    async fn out_degree(&self) -> Vec<usize> {
+    async fn out_degree(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<usize>> {
+        // Columnar metric over every member — unbounded, so honour the
+        // same list guard as `list`/`ids`.
+        check_list_allowed(ctx)?;
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.nn.out_degree().collect()).await
+        Ok(blocking_compute(move || self_clone.nn.out_degree().collect()).await)
     }
 
     /// The number of edge updates incident to every node in the path, in order.
-    async fn edge_history_count(&self) -> Vec<usize> {
+    async fn edge_history_count(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<usize>> {
+        // Columnar metric over every member — unbounded, so honour the
+        // same list guard as `list`/`ids`.
+        check_list_allowed(ctx)?;
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.nn.edge_history_count().collect()).await
+        Ok(blocking_compute(move || self_clone.nn.edge_history_count().collect()).await)
     }
 
     /////////////////

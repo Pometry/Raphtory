@@ -1,142 +1,20 @@
 use crate::client::{
     remote_history::{
-        RemoteEventTime, RemoteHistory, RemoteHistoryDateTimes, RemoteHistoryEventIds,
-        RemoteHistoryTimestamps, RemoteIntervals,
+        RemoteHistory, RemoteHistoryDateTimes, RemoteHistoryEventIds, RemoteHistoryTimestamps,
+        RemoteIntervals,
     },
     ClientError,
 };
+use chrono::{DateTime, Utc};
 use pyo3::{
-    basic::CompareOp,
-    exceptions::{PyIndexError, PyValueError},
+    exceptions::PyIndexError,
     pyclass, pymethods,
     types::{PyAnyMethods, PyList},
-    Bound, Py, PyAny, PyRef, PyRefMut, PyResult, Python,
+    Bound, IntoPyObject, Py, PyAny, PyRef, PyRefMut, PyResult, Python,
 };
 use raphtory::python::utils::execute_async_task;
+use raphtory_api::core::storage::timeindex::EventTime;
 use std::sync::Arc;
-
-/// A single event time — mirrors the local `EventTime`. Exposes `timestamp`,
-/// `dt` (a real `datetime.datetime`), `event_id`, and `as_tuple`; comparable to
-/// ints (by timestamp) and to other event times (by `(timestamp, event_id)`).
-///
-/// Fields are optional because the server can return null for any of them.
-#[derive(Clone)]
-#[pyclass(name = "RemoteEventTime", module = "raphtory.graphql")]
-pub struct PyRemoteEventTime {
-    /// The event's timestamp in the graph's native time unit.
-    pub timestamp: Option<i64>,
-    /// RFC 3339 datetime string for the event (the on-wire form; the `dt`
-    /// getter parses this into a Python `datetime`).
-    pub dt: Option<String>,
-    /// The event's internal id.
-    pub event_id: Option<i64>,
-}
-
-impl From<RemoteEventTime> for PyRemoteEventTime {
-    fn from(t: RemoteEventTime) -> Self {
-        Self {
-            timestamp: t.timestamp,
-            dt: t.dt,
-            event_id: t.event_id,
-        }
-    }
-}
-
-#[pymethods]
-impl PyRemoteEventTime {
-    fn __repr__(&self) -> String {
-        format!(
-            "RemoteEventTime(timestamp={:?}, dt={:?}, event_id={:?})",
-            self.timestamp, self.dt, self.event_id
-        )
-    }
-
-    /// The event's timestamp in the graph's native time unit, mirroring the
-    /// local `EventTime.t`. (`None` if absent.)
-    #[getter]
-    fn t(&self) -> Option<i64> {
-        self.timestamp
-    }
-
-    /// The event's internal id used to order events within a timestamp
-    /// (`None` if absent).
-    #[getter]
-    fn event_id(&self) -> Option<i64> {
-        self.event_id
-    }
-
-    /// The UTC `datetime` for this event (`None` if the event has no
-    /// datetime). Mirrors the local `EventTime.dt`.
-    #[getter]
-    fn dt(&self, py: Python<'_>) -> PyResult<Option<Py<PyAny>>> {
-        use pyo3::IntoPyObject;
-        match &self.dt {
-            Some(s) => {
-                let parsed = chrono::DateTime::parse_from_rfc3339(s)
-                    .map_err(|e| PyValueError::new_err(format!("invalid datetime {s:?}: {e}")))?;
-                Ok(Some(parsed.into_pyobject(py)?.into_any().unbind()))
-            }
-            None => Ok(None),
-        }
-    }
-
-    /// `(timestamp, event_id)` — mirrors the local `EventTime.as_tuple`.
-    /// `None` if either component is absent.
-    #[getter]
-    fn as_tuple(&self) -> Option<(i64, i64)> {
-        match (self.timestamp, self.event_id) {
-            (Some(t), Some(e)) => Some((t, e)),
-            _ => None,
-        }
-    }
-
-    /// The timestamp as an int (drops `event_id`) — mirrors the local
-    /// `EventTime.__int__`, so `int(node.earliest_time)` works.
-    fn __int__(&self) -> PyResult<i64> {
-        self.timestamp
-            .ok_or_else(|| PyValueError::new_err("EventTime has no timestamp"))
-    }
-
-    fn __hash__(&self) -> u64 {
-        use std::{
-            collections::hash_map::DefaultHasher,
-            hash::{Hash, Hasher},
-        };
-        let mut h = DefaultHasher::new();
-        self.timestamp.hash(&mut h);
-        self.event_id.hash(&mut h);
-        h.finish()
-    }
-
-    /// Compare like the local `EventTime`: against another event time by
-    /// `(timestamp, event_id)`, or against a bare `int` by timestamp (so
-    /// `node.earliest_time == 5` works). Returns `NotImplemented` for other
-    /// types, letting Python fall back / raise as usual.
-    fn __richcmp__(
-        &self,
-        py: Python<'_>,
-        other: &Bound<'_, PyAny>,
-        op: CompareOp,
-    ) -> PyResult<Py<PyAny>> {
-        use pyo3::IntoPyObject;
-        let ordering = if let Ok(o) = other.extract::<PyRef<'_, PyRemoteEventTime>>() {
-            (self.timestamp, self.event_id).cmp(&(o.timestamp, o.event_id))
-        } else if let Ok(o) = other.extract::<i64>() {
-            match self.timestamp {
-                Some(t) => t.cmp(&o),
-                None => return Ok(py.NotImplemented()),
-            }
-        } else {
-            return Ok(py.NotImplemented());
-        };
-        Ok(op
-            .matches(ordering)
-            .into_pyobject(py)?
-            .to_owned()
-            .into_any()
-            .unbind())
-    }
-}
 
 /// A handle to the event history of a remote node or edge.
 ///
@@ -185,45 +63,45 @@ impl PyRemoteHistory {
     /// Earliest event time in this history — `None` if empty. Fires one RPC.
     ///
     /// Returns:
-    ///   Optional[RemoteEventTime]: the earliest event time, or None.
-    pub fn earliest_time(&self) -> Result<Option<PyRemoteEventTime>, ClientError> {
+    ///   Optional[EventTime]: the earliest event time, or None.
+    pub fn earliest_time(&self) -> Result<Option<EventTime>, ClientError> {
         let history = Arc::clone(&self.history);
         Ok(
             execute_async_task(move || async move { history.earliest_time().await })?
-                .map(PyRemoteEventTime::from),
+                .and_then(|t| t.to_event_time()),
         )
     }
 
     /// Latest event time in this history — `None` if empty. Fires one RPC.
     ///
     /// Returns:
-    ///   Optional[RemoteEventTime]: the latest event time, or None.
-    pub fn latest_time(&self) -> Result<Option<PyRemoteEventTime>, ClientError> {
+    ///   Optional[EventTime]: the latest event time, or None.
+    pub fn latest_time(&self) -> Result<Option<EventTime>, ClientError> {
         let history = Arc::clone(&self.history);
         Ok(
             execute_async_task(move || async move { history.latest_time().await })?
-                .map(PyRemoteEventTime::from),
+                .and_then(|t| t.to_event_time()),
         )
     }
 
     /// All events in this history in ascending time order. Fires one RPC.
     ///
     /// Returns:
-    ///   list[RemoteEventTime]: one event per entry.
-    pub fn collect(&self) -> Result<Vec<PyRemoteEventTime>, ClientError> {
+    ///   list[EventTime]: one event per entry.
+    pub fn collect(&self) -> Result<Vec<EventTime>, ClientError> {
         let history = Arc::clone(&self.history);
         let result = execute_async_task(move || async move { history.collect().await })?;
-        Ok(result.into_iter().map(Into::into).collect())
+        Ok(result.iter().filter_map(|t| t.to_event_time()).collect())
     }
 
     /// All events in this history in descending time order. Fires one RPC.
     ///
     /// Returns:
-    ///   list[RemoteEventTime]: one event per entry.
-    pub fn collect_rev(&self) -> Result<Vec<PyRemoteEventTime>, ClientError> {
+    ///   list[EventTime]: one event per entry.
+    pub fn collect_rev(&self) -> Result<Vec<EventTime>, ClientError> {
         let history = Arc::clone(&self.history);
         let result = execute_async_task(move || async move { history.collect_rev().await })?;
-        Ok(result.into_iter().map(Into::into).collect())
+        Ok(result.iter().filter_map(|t| t.to_event_time()).collect())
     }
 
     /// A page of events in ascending time order — at most `limit` items,
@@ -236,20 +114,20 @@ impl PyRemoteHistory {
     ///   page_index (int, optional): 0-based page number. Defaults to 0.
     ///
     /// Returns:
-    ///   list[RemoteEventTime]: at most `limit` events.
+    ///   list[EventTime]: at most `limit` events.
     #[pyo3(signature = (limit, offset = None, page_index = None))]
     pub fn page(
         &self,
         limit: usize,
         offset: Option<usize>,
         page_index: Option<usize>,
-    ) -> Result<Vec<PyRemoteEventTime>, ClientError> {
+    ) -> Result<Vec<EventTime>, ClientError> {
         let history = Arc::clone(&self.history);
         let result =
             execute_async_task(
                 move || async move { history.page(limit, offset, page_index).await },
             )?;
-        Ok(result.into_iter().map(Into::into).collect())
+        Ok(result.iter().filter_map(|t| t.to_event_time()).collect())
     }
 
     /// A page of events in descending time order. Same args as `page()`.
@@ -260,16 +138,16 @@ impl PyRemoteHistory {
         limit: usize,
         offset: Option<usize>,
         page_index: Option<usize>,
-    ) -> Result<Vec<PyRemoteEventTime>, ClientError> {
+    ) -> Result<Vec<EventTime>, ClientError> {
         let history = Arc::clone(&self.history);
         let result = execute_async_task(move || async move {
             history.page_rev(limit, offset, page_index).await
         })?;
-        Ok(result.into_iter().map(Into::into).collect())
+        Ok(result.iter().filter_map(|t| t.to_event_time()).collect())
     }
 
     /// Enables `for t in remote_history:` — fetches all events in one RPC
-    /// via `.collect()`, then yields each `RemoteEventTime` locally.
+    /// via `.collect()`, then yields each `EventTime` locally.
     fn __iter__(&self) -> Result<PyRemoteHistoryIter, ClientError> {
         let list = self.collect()?;
         Ok(PyRemoteHistoryIter {
@@ -283,29 +161,29 @@ impl PyRemoteHistory {
     }
 
     /// `history[i]` — the i-th event in ascending time order. Supports
-    /// negative indices. Raises `IndexError` if out of range. Fires one RPC
-    /// (`collect()`).
-    fn __getitem__(&self, index: isize) -> PyResult<PyRemoteEventTime> {
-        let events = self.collect()?;
-        let len = events.len() as isize;
-        let idx = if index < 0 { index + len } else { index };
-        if idx < 0 || idx >= len {
-            return Err(PyIndexError::new_err(format!(
-                "Index {index} out of bounds"
-            )));
-        }
-        Ok(events[idx as usize].clone())
+    /// negative indices. Raises `IndexError` if out of range. Fires ONE small
+    /// RPC (`page`/`page_rev` with `limit=1`) — fetches just the requested
+    /// element, not the whole history.
+    fn __getitem__(&self, index: isize) -> PyResult<EventTime> {
+        let (rev, offset) = page_offset(index);
+        let page = if rev {
+            self.page_rev(1, Some(offset), None)?
+        } else {
+            self.page(1, Some(offset), None)?
+        };
+        single_from_page(page, index)
     }
 
     /// `item in history` — whether an event equal to `item` is present.
-    /// `item` may be a `RemoteEventTime` (compared by `(timestamp, event_id)`)
+    /// `item` may be an `EventTime` (compared by `(timestamp, event_id)`)
     /// or a bare `int` (compared by timestamp), mirroring the local
-    /// `History.__contains__`. Fires one RPC (`collect()`).
+    /// `History.__contains__`. Fires one RPC and scans the full history
+    /// (`collect()`) — O(history); there is no server-side membership terminal.
     fn __contains__(&self, py: Python<'_>, item: &Bound<'_, PyAny>) -> PyResult<bool> {
         let events = self.collect()?;
         for e in events {
-            let obj = Py::new(py, e)?;
-            if obj.bind(py).eq(item)? {
+            let obj = e.into_pyobject(py)?.into_any();
+            if obj.eq(item)? {
                 return Ok(true);
             }
         }
@@ -369,7 +247,7 @@ impl PyRemoteHistory {
 /// Opaque iterator returned by `PyRemoteHistory::__iter__`.
 #[pyclass(name = "RemoteHistoryIter", module = "raphtory.graphql")]
 pub struct PyRemoteHistoryIter {
-    inner: std::vec::IntoIter<PyRemoteEventTime>,
+    inner: std::vec::IntoIter<EventTime>,
 }
 
 #[pymethods]
@@ -378,7 +256,7 @@ impl PyRemoteHistoryIter {
         slf
     }
 
-    fn __next__(mut slf: PyRefMut<Self>) -> Option<PyRemoteEventTime> {
+    fn __next__(mut slf: PyRefMut<Self>) -> Option<EventTime> {
         slf.inner.next()
     }
 }
@@ -453,10 +331,16 @@ impl PyRemoteHistoryTimestamps {
     }
 
     /// `x[i]` — the i-th timestamp. Supports negative indices; raises
-    /// `IndexError` if out of range. Fires one RPC (`collect()`).
+    /// `IndexError` if out of range. Fires ONE small RPC (`page`/`page_rev`
+    /// with `limit=1`) — fetches just the requested element.
     fn __getitem__(&self, index: isize) -> PyResult<i64> {
-        let items = self.collect()?;
-        index_i64(&items, index)
+        let (rev, offset) = page_offset(index);
+        let page = if rev {
+            self.page_rev(1, Some(offset), None)?
+        } else {
+            self.page(1, Some(offset), None)?
+        };
+        single_from_page(page, index)
     }
 
     /// `for x in ...` — iterate timestamps. Fires one RPC (`collect()`).
@@ -467,7 +351,8 @@ impl PyRemoteHistoryTimestamps {
             .unbind())
     }
 
-    /// `item in ...` — membership test. Fires one RPC (`collect()`).
+    /// `item in ...` — membership test. Fires one RPC and scans the full list
+    /// (`collect()`) — O(history); there is no server-side membership terminal.
     fn __contains__(&self, item: i64) -> Result<bool, ClientError> {
         Ok(self.collect()?.contains(&item))
     }
@@ -550,10 +435,16 @@ impl PyRemoteHistoryEventIds {
     }
 
     /// `x[i]` — the i-th event id. Supports negative indices; raises
-    /// `IndexError` if out of range. Fires one RPC (`collect()`).
+    /// `IndexError` if out of range. Fires ONE small RPC (`page`/`page_rev`
+    /// with `limit=1`) — fetches just the requested element.
     fn __getitem__(&self, index: isize) -> PyResult<i64> {
-        let items = self.collect()?;
-        index_i64(&items, index)
+        let (rev, offset) = page_offset(index);
+        let page = if rev {
+            self.page_rev(1, Some(offset), None)?
+        } else {
+            self.page(1, Some(offset), None)?
+        };
+        single_from_page(page, index)
     }
 
     /// `for x in ...` — iterate event ids. Fires one RPC (`collect()`).
@@ -564,7 +455,8 @@ impl PyRemoteHistoryEventIds {
             .unbind())
     }
 
-    /// `item in ...` — membership test. Fires one RPC (`collect()`).
+    /// `item in ...` — membership test. Fires one RPC and scans the full list
+    /// (`collect()`) — O(history); there is no server-side membership terminal.
     fn __contains__(&self, item: i64) -> Result<bool, ClientError> {
         Ok(self.collect()?.contains(&item))
     }
@@ -579,8 +471,21 @@ impl PyRemoteHistoryEventIds {
     }
 }
 
-/// Datetime view of a `RemoteHistory`. Lists / pages return `list[str]`
-/// (RFC 3339 formatted).
+/// Parse the server's RFC 3339 datetime strings into UTC `datetime`s, matching
+/// the local `History.dt`, which returns `list[datetime]` rather than strings.
+fn parse_rfc3339(strings: Vec<String>) -> Result<Vec<DateTime<Utc>>, ClientError> {
+    strings
+        .into_iter()
+        .map(|s| {
+            DateTime::parse_from_rfc3339(&s)
+                .map(|dt| dt.with_timezone(&Utc))
+                .map_err(|e| ClientError::InvalidResponse(format!("invalid datetime {s:?}: {e}")))
+        })
+        .collect()
+}
+
+/// Datetime view of a `RemoteHistory`. Lists / pages return `list[datetime]`
+/// (UTC), mirroring the local `History.dt`.
 #[derive(Clone)]
 #[pyclass(
     name = "RemoteHistoryDateTimes",
@@ -594,15 +499,19 @@ pub struct PyRemoteHistoryDateTimes {
 #[pymethods]
 impl PyRemoteHistoryDateTimes {
     /// Fires one RPC.
-    pub fn collect(&self) -> Result<Vec<String>, ClientError> {
+    pub fn collect(&self) -> Result<Vec<DateTime<Utc>>, ClientError> {
         let inner = Arc::clone(&self.inner);
-        execute_async_task(move || async move { inner.collect().await })
+        parse_rfc3339(execute_async_task(
+            move || async move { inner.collect().await },
+        )?)
     }
 
     /// Fires one RPC.
-    pub fn collect_rev(&self) -> Result<Vec<String>, ClientError> {
+    pub fn collect_rev(&self) -> Result<Vec<DateTime<Utc>>, ClientError> {
         let inner = Arc::clone(&self.inner);
-        execute_async_task(move || async move { inner.collect_rev().await })
+        parse_rfc3339(execute_async_task(move || async move {
+            inner.collect_rev().await
+        })?)
     }
 
     /// Fires one RPC.
@@ -612,9 +521,11 @@ impl PyRemoteHistoryDateTimes {
         limit: usize,
         offset: Option<usize>,
         page_index: Option<usize>,
-    ) -> Result<Vec<String>, ClientError> {
+    ) -> Result<Vec<DateTime<Utc>>, ClientError> {
         let inner = Arc::clone(&self.inner);
-        execute_async_task(move || async move { inner.page(limit, offset, page_index).await })
+        parse_rfc3339(execute_async_task(move || async move {
+            inner.page(limit, offset, page_index).await
+        })?)
     }
 
     /// Fires one RPC.
@@ -624,9 +535,11 @@ impl PyRemoteHistoryDateTimes {
         limit: usize,
         offset: Option<usize>,
         page_index: Option<usize>,
-    ) -> Result<Vec<String>, ClientError> {
+    ) -> Result<Vec<DateTime<Utc>>, ClientError> {
         let inner = Arc::clone(&self.inner);
-        execute_async_task(move || async move { inner.page_rev(limit, offset, page_index).await })
+        parse_rfc3339(execute_async_task(move || async move {
+            inner.page_rev(limit, offset, page_index).await
+        })?)
     }
 
     /// `len(...)` — number of datetimes. Fires one RPC (`collect()`).
@@ -634,19 +547,17 @@ impl PyRemoteHistoryDateTimes {
         Ok(self.collect()?.len())
     }
 
-    /// `x[i]` — the i-th datetime (RFC 3339 string). Supports negative
-    /// indices; raises `IndexError` if out of range. Fires one RPC
-    /// (`collect()`).
-    fn __getitem__(&self, index: isize) -> PyResult<String> {
-        let items = self.collect()?;
-        let len = items.len() as isize;
-        let idx = if index < 0 { index + len } else { index };
-        if idx < 0 || idx >= len {
-            return Err(PyIndexError::new_err(format!(
-                "Index {index} out of bounds"
-            )));
-        }
-        Ok(items[idx as usize].clone())
+    /// `x[i]` — the i-th datetime. Supports negative indices; raises
+    /// `IndexError` if out of range. Fires ONE small RPC (`page`/`page_rev`
+    /// with `limit=1`) — fetches just the requested element.
+    fn __getitem__(&self, index: isize) -> PyResult<DateTime<Utc>> {
+        let (rev, offset) = page_offset(index);
+        let page = if rev {
+            self.page_rev(1, Some(offset), None)?
+        } else {
+            self.page(1, Some(offset), None)?
+        };
+        single_from_page(page, index)
     }
 
     /// `for x in ...` — iterate datetimes. Fires one RPC (`collect()`).
@@ -657,10 +568,16 @@ impl PyRemoteHistoryDateTimes {
             .unbind())
     }
 
-    /// `item in ...` — membership test (against the RFC 3339 string form).
-    /// Fires one RPC (`collect()`).
-    fn __contains__(&self, item: String) -> Result<bool, ClientError> {
-        Ok(self.collect()?.contains(&item))
+    /// `item in ...` — membership test against the datetimes. Fires one RPC
+    /// and scans the full list (`collect()`) — O(history). Anything that isn't
+    /// a UTC-convertible datetime is simply not a member (returns `False`),
+    /// matching Python's `in` — rather than raising on a naive datetime or a
+    /// string.
+    fn __contains__(&self, item: &Bound<'_, PyAny>) -> Result<bool, ClientError> {
+        match item.extract::<DateTime<Utc>>() {
+            Ok(dt) => Ok(self.collect()?.contains(&dt)),
+            Err(_) => Ok(false),
+        }
     }
 
     /// `reversed(...)` — iterate datetimes in reverse. Fires one RPC
@@ -766,10 +683,16 @@ impl PyRemoteIntervals {
     }
 
     /// `x[i]` — the i-th interval. Supports negative indices; raises
-    /// `IndexError` if out of range. Fires one RPC (`collect()`).
+    /// `IndexError` if out of range. Fires ONE small RPC (`page`/`page_rev`
+    /// with `limit=1`) — fetches just the requested element.
     fn __getitem__(&self, index: isize) -> PyResult<i64> {
-        let items = self.collect()?;
-        index_i64(&items, index)
+        let (rev, offset) = page_offset(index);
+        let page = if rev {
+            self.page_rev(1, Some(offset), None)?
+        } else {
+            self.page(1, Some(offset), None)?
+        };
+        single_from_page(page, index)
     }
 
     /// `for x in ...` — iterate intervals. Fires one RPC (`collect()`).
@@ -780,7 +703,8 @@ impl PyRemoteIntervals {
             .unbind())
     }
 
-    /// `item in ...` — membership test. Fires one RPC (`collect()`).
+    /// `item in ...` — membership test. Fires one RPC and scans the full list
+    /// (`collect()`) — O(history); there is no server-side membership terminal.
     fn __contains__(&self, item: i64) -> Result<bool, ClientError> {
         Ok(self.collect()?.contains(&item))
     }
@@ -798,13 +722,25 @@ impl PyRemoteIntervals {
 /// Shared helper for `__getitem__` on the int-valued sub-collections:
 /// resolves a (possibly negative) index into `items`, raising `IndexError`
 /// when out of range.
-fn index_i64(items: &[i64], index: isize) -> PyResult<i64> {
-    let len = items.len() as isize;
-    let idx = if index < 0 { index + len } else { index };
-    if idx < 0 || idx >= len {
-        return Err(PyIndexError::new_err(format!(
-            "Index {index} out of bounds"
-        )));
+/// Map a Python index to a single-element page fetch: `(use_page_rev, offset)`.
+/// A non-negative index is the `offset`-th item from the front (`page`); a
+/// negative index is the `offset`-th from the end (`page_rev`, so `[-1]` costs
+/// one RPC with no `count()`).
+fn page_offset(index: isize) -> (bool, usize) {
+    if index >= 0 {
+        (false, index as usize)
+    } else {
+        // unsigned_abs (not negation) so isize::MIN can't overflow; the -1
+        // can't underflow since index < 0 guarantees unsigned_abs() >= 1.
+        (true, index.unsigned_abs() - 1)
     }
-    Ok(items[idx as usize])
+}
+
+/// Unwrap the single element of a `page(1, …)` result, mapping an empty page
+/// (index past the end) to `IndexError` — matching the old `collect()`-based
+/// bounds check.
+fn single_from_page<T>(page: Vec<T>, index: isize) -> PyResult<T> {
+    page.into_iter()
+        .next()
+        .ok_or_else(|| PyIndexError::new_err(format!("Index {index} out of bounds")))
 }

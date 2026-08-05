@@ -4,25 +4,79 @@
 //! parses responses back into `Option<Prop>`. All wire logic lives here so
 //! client wrappers (`RemoteGraph`, `RemoteNode`, ...) stay transport-agnostic.
 
-use crate::client::{
-    build_property_string,
-    op::{
-        AddEdge, AddEdgeMetadata, AddEdgeUpdates, AddEdges, AddGraphMetadata, AddGraphProperty,
-        AddNode, AddNodeMetadata, AddNodeUpdates, AddNodes, CreateNode, DeleteEdge,
-        DeleteEdgeAtTime, EdgeSortBy, NodeSortBy, Op, ReadExpr, SetNodeType, SortByTime,
-        UpdateEdgeMetadata, UpdateGraphMetadata, UpdateNodeMetadata, WriteOp,
+use crate::{
+    client::{
+        op::{
+            AddEdge, AddEdgeMetadata, AddEdgeUpdates, AddEdges, AddGraphMetadata, AddGraphProperty,
+            AddNode, AddNodeMetadata, AddNodeUpdates, AddNodes, CreateNode, DeleteEdge,
+            DeleteEdgeAtTime, EdgeSortBy, InputTime, NodeSortBy, Op, ReadExpr, SetNodeType,
+            SortByTime, UpdateEdgeMetadata, UpdateGraphMetadata, UpdateNodeMetadata, ViewOp,
+            WriteOp,
+        },
+        properties_to_input,
+        remote_client::RemoteClient,
+        transport::Transport,
+        ClientError,
     },
-    reject_non_finite,
-    remote_client::RemoteClient,
-    remote_graph::build_query,
-    transport::Transport,
-    ClientError,
+    model::graph::property::gql_to_prop,
 };
-use async_graphql::async_trait;
-use minijinja::context;
+use async_graphql::{async_trait, Value as GqlValue};
 use raphtory_api::core::entities::properties::prop::Prop;
-use serde_json::Value as JsonValue;
+use serde::Serialize;
+use serde_json::{json, Value as JsonValue};
 use std::collections::HashMap;
+
+/// Build the `TimeInput` variable value: a bare int, or `{timestamp, eventId}`
+/// when an explicit secondary index is given.
+fn time_input_var(time: i64, event_id: Option<usize>) -> JsonValue {
+    match event_id {
+        Some(event_id) => json!({ "timestamp": time, "eventId": event_id }),
+        None => json!(time),
+    }
+}
+
+/// Render an `InputTime` as a `TimeInput` GraphQL **literal** (for view-op args
+/// spliced into the query text): a bare int for `Simple`, or the object form
+/// `{timestamp, eventId}` for `Indexed`. `Simple` vs `Indexed` comes straight
+/// from what the caller passed (plain timestamp vs `(t, id)` tuple), so a plain
+/// timestamp stays a bare int with no heuristic.
+fn render_input_time(t: &InputTime) -> String {
+    match t {
+        InputTime::Simple(ts) => ts.to_string(),
+        InputTime::Indexed(ts, id) => format!("{{timestamp: {ts}, eventId: {id}}}"),
+    }
+}
+
+/// Build the `TimeInput` variable value from an `InputTime` (write-path times).
+fn input_time_var(t: &InputTime) -> JsonValue {
+    match t {
+        InputTime::Simple(ts) => time_input_var(*ts, None),
+        InputTime::Indexed(ts, id) => time_input_var(*ts, Some(*id)),
+    }
+}
+
+/// Serialize a variable payload, surfacing serialization failures (e.g. a
+/// non-finite float rejected by `Value`'s serializer) as `InvalidInput`.
+/// `json!` would panic on the same failure — never use it for fallible types.
+fn to_var<T: Serialize>(value: &T) -> Result<JsonValue, ClientError> {
+    serde_json::to_value(value).map_err(|e| ClientError::InvalidInput(e.to_string()))
+}
+
+/// Build a `[PropertyInput!]` variable value from a property map.
+fn properties_var(properties: &HashMap<String, Prop>) -> Result<JsonValue, ClientError> {
+    to_var(&properties_to_input(properties)?)
+}
+
+/// Build an optional `[PropertyInput!]` variable — JSON `null` when absent,
+/// which GraphQL treats the same as an omitted optional argument.
+fn opt_properties_var(
+    properties: &Option<HashMap<String, Prop>>,
+) -> Result<JsonValue, ClientError> {
+    match properties {
+        Some(p) => properties_var(p),
+        None => Ok(JsonValue::Null),
+    }
+}
 
 /// V1 transport: renders ops as GraphQL, sends over HTTP via `RemoteClient`.
 pub struct GraphqlTransport {
@@ -71,311 +125,195 @@ impl GraphqlTransport {
     }
 
     async fn apply_add_node(&self, args: &AddNode) -> Result<Option<Prop>, ClientError> {
-        let template = r#"
-        {
-            updateGraph(path: {{ path | gqlstr }}) {
-                addNode(
-                    time: {{ time }},
-                    name: {{ name | gqlstr }}
-                    {% if properties is not none %}, properties: {{ properties | safe }}{% endif %}
-                    {% if node_type is not none %}, nodeType: {{ node_type | gqlstr }}{% endif %}
-                    {% if layer is not none %}, layer: {{ layer | gqlstr }}{% endif %}
-                ) {
+        let query = r#"
+        query($path: String!, $time: TimeInput!, $name: NodeId!,
+                 $properties: [PropertyInput!], $nodeType: String, $layer: String) {
+            updateGraph(path: $path) {
+                addNode(time: $time, name: $name, properties: $properties,
+                        nodeType: $nodeType, layer: $layer) {
                     success
                 }
             }
         }
         "#;
 
-        let ctx = context! {
-            path => args.path,
-            time => args.time,
-            name => args.id,
-            properties => args.properties.as_ref().map(|p| build_property_string(p.clone())).transpose()?,
-            node_type => args.node_type,
-            layer => args.layer,
-        };
+        let variables = json!({
+            "path": json!(args.path),
+            "time": input_time_var(&args.time),
+            "name": json!(args.id),
+            "properties": opt_properties_var(&args.properties)?,
+            "nodeType": json!(args.node_type),
+            "layer": json!(args.layer),
+        });
+        let res = self.client.query(query, variables).await?;
 
-        let query = build_query(template, ctx)?;
-        let res = self.client.query(&query, HashMap::new()).await?;
-
-        let success = res
-            .get("updateGraph")
-            .and_then(|x| x.as_object())
-            .and_then(|x| x.get("addNode"))
-            .and_then(|x| x.as_object())
-            .and_then(|x| x.get("success"))
-            .and_then(|x| x.as_bool())
-            .is_some_and(|x| x);
-
-        if success {
-            Ok(None)
-        } else {
-            Err(ClientError::UnsuccessfulResponse)
-        }
+        expect_update_success(&res, "addNode")?;
+        Ok(None)
     }
 
     async fn apply_create_node(&self, args: &CreateNode) -> Result<Option<Prop>, ClientError> {
-        let template = r#"
-        {
-            updateGraph(path: {{ path | gqlstr }}) {
-                createNode(
-                    time: {{ time }},
-                    name: {{ name | gqlstr }}
-                    {% if properties is not none %}, properties: {{ properties | safe }}{% endif %}
-                    {% if node_type is not none %}, nodeType: {{ node_type | gqlstr }}{% endif %}
-                ) {
+        let query = r#"
+        query($path: String!, $time: TimeInput!, $name: NodeId!,
+                 $properties: [PropertyInput!], $nodeType: String, $layer: String) {
+            updateGraph(path: $path) {
+                createNode(time: $time, name: $name, properties: $properties,
+                           nodeType: $nodeType, layer: $layer) {
                     success
                 }
             }
         }
         "#;
 
-        let ctx = context! {
-            path => args.path,
-            time => args.time,
-            name => args.id,
-            properties => args.properties.as_ref().map(|p| build_property_string(p.clone())).transpose()?,
-            node_type => args.node_type,
-        };
+        let variables = json!({
+            "path": json!(args.path),
+            "time": input_time_var(&args.time),
+            "name": json!(args.id),
+            "properties": opt_properties_var(&args.properties)?,
+            "nodeType": json!(args.node_type),
+            "layer": json!(args.layer),
+        });
+        let res = self.client.query(query, variables).await?;
 
-        let query = build_query(template, ctx)?;
-        let res = self.client.query(&query, HashMap::new()).await?;
-
-        let success = res
-            .get("updateGraph")
-            .and_then(|x| x.as_object())
-            .and_then(|x| x.get("createNode"))
-            .and_then(|x| x.as_object())
-            .and_then(|x| x.get("success"))
-            .and_then(|x| x.as_bool())
-            .is_some_and(|x| x);
-
-        if success {
-            Ok(None)
-        } else {
-            Err(ClientError::UnsuccessfulResponse)
-        }
+        expect_update_success(&res, "createNode")?;
+        Ok(None)
     }
 
     async fn apply_add_edge(&self, args: &AddEdge) -> Result<Option<Prop>, ClientError> {
-        let template = r#"
-        {
-            updateGraph(path: {{ path | gqlstr }}) {
-                addEdge(
-                    time: {{ time }},
-                    src: {{ src | gqlstr }},
-                    dst: {{ dst | gqlstr }}
-                    {% if properties is not none %}, properties: {{ properties | safe }}{% endif %}
-                    {% if layer is not none %}, layer: {{ layer | gqlstr }}{% endif %}
-                ) {
+        let query = r#"
+        query($path: String!, $time: TimeInput!, $src: NodeId!, $dst: NodeId!,
+                 $properties: [PropertyInput!], $layer: String) {
+            updateGraph(path: $path) {
+                addEdge(time: $time, src: $src, dst: $dst,
+                        properties: $properties, layer: $layer) {
                     success
                 }
             }
         }
         "#;
 
-        let ctx = context! {
-            path => args.path,
-            time => args.time,
-            src => args.src,
-            dst => args.dst,
-            properties => args.properties.as_ref().map(|p| build_property_string(p.clone())).transpose()?,
-            layer => args.layer,
-        };
+        let variables = json!({
+            "path": json!(args.path),
+            "time": input_time_var(&args.time),
+            "src": json!(args.src),
+            "dst": json!(args.dst),
+            "properties": opt_properties_var(&args.properties)?,
+            "layer": json!(args.layer),
+        });
+        let res = self.client.query(query, variables).await?;
 
-        let query = build_query(template, ctx)?;
-        let res = self.client.query(&query, HashMap::new()).await?;
-
-        let success = res
-            .get("updateGraph")
-            .and_then(|x| x.as_object())
-            .and_then(|x| x.get("addEdge"))
-            .and_then(|x| x.as_object())
-            .and_then(|x| x.get("success"))
-            .and_then(|x| x.as_bool())
-            .is_some_and(|x| x);
-
-        if success {
-            Ok(None)
-        } else {
-            Err(ClientError::UnsuccessfulResponse)
-        }
+        expect_update_success(&res, "addEdge")?;
+        Ok(None)
     }
 
     async fn apply_add_graph_property(
         &self,
         args: &AddGraphProperty,
     ) -> Result<Option<Prop>, ClientError> {
-        let template = r#"
-        {
-          updateGraph(path: {{ path | gqlstr }}) {
-            addProperties(t: {{t}} properties: {{ properties | safe }})
+        let query = r#"
+        query($path: String!, $t: TimeInput!, $properties: [PropertyInput!]!) {
+          updateGraph(path: $path) {
+            addProperties(t: $t, properties: $properties)
           }
         }
         "#;
 
-        // When an explicit event_id is given, send the object time-input form
-        // `{timestamp, eventId}` so the server locks the secondary index;
-        // otherwise send the bare timestamp and let it auto-increment.
-        let t_literal = match args.event_id {
-            Some(event_id) => format!("{{timestamp: {}, eventId: {}}}", args.time, event_id),
-            None => args.time.to_string(),
-        };
+        let variables = json!({
+            "path": json!(args.path),
+            "t": input_time_var(&args.time),
+            "properties": properties_var(&args.properties)?,
+        });
+        let res = self.client.query(query, variables).await?;
 
-        let ctx = context! {
-            path => args.path,
-            t => t_literal,
-            properties => build_property_string(args.properties.clone())?,
-        };
-
-        let query = build_query(template, ctx)?;
-        let res = self.client.query(&query, HashMap::new()).await?;
-
-        let success = res
-            .get("updateGraph")
-            .and_then(|x| x.as_object())
-            .and_then(|x| x.get("addProperties"))
-            .and_then(|x| x.as_bool())
-            .is_some_and(|x| x);
-
-        if success {
-            Ok(None)
-        } else {
-            Err(ClientError::UnsuccessfulResponse)
-        }
+        expect_update_bool(&res, "addProperties")?;
+        Ok(None)
     }
 
     async fn apply_add_graph_metadata(
         &self,
         args: &AddGraphMetadata,
     ) -> Result<Option<Prop>, ClientError> {
-        let template = r#"
-        {
-          updateGraph(path: {{ path | gqlstr }}) {
-            addMetadata(properties: {{ properties | safe }})
+        let query = r#"
+        query($path: String!, $properties: [PropertyInput!]!) {
+          updateGraph(path: $path) {
+            addMetadata(properties: $properties)
           }
         }
         "#;
 
-        let ctx = context! {
-            path => args.path,
-            properties => build_property_string(args.properties.clone())?,
-        };
+        let variables = json!({
+            "path": json!(args.path),
+            "properties": properties_var(&args.properties)?,
+        });
+        let res = self.client.query(query, variables).await?;
 
-        let query = build_query(template, ctx)?;
-        let res = self.client.query(&query, HashMap::new()).await?;
-
-        let success = res
-            .get("updateGraph")
-            .and_then(|x| x.as_object())
-            .and_then(|x| x.get("addMetadata"))
-            .and_then(|x| x.as_bool())
-            .is_some_and(|x| x);
-
-        if success {
-            Ok(None)
-        } else {
-            Err(ClientError::UnsuccessfulResponse)
-        }
+        expect_update_bool(&res, "addMetadata")?;
+        Ok(None)
     }
 
     async fn apply_update_graph_metadata(
         &self,
         args: &UpdateGraphMetadata,
     ) -> Result<Option<Prop>, ClientError> {
-        let template = r#"
-        {
-          updateGraph(path: {{ path | gqlstr }}) {
-            updateMetadata(properties: {{ properties | safe }})
+        let query = r#"
+        query($path: String!, $properties: [PropertyInput!]!) {
+          updateGraph(path: $path) {
+            updateMetadata(properties: $properties)
           }
         }
         "#;
 
-        let ctx = context! {
-            path => args.path,
-            properties => build_property_string(args.properties.clone())?,
-        };
+        let variables = json!({
+            "path": json!(args.path),
+            "properties": properties_var(&args.properties)?,
+        });
+        let res = self.client.query(query, variables).await?;
 
-        let query = build_query(template, ctx)?;
-        let res = self.client.query(&query, HashMap::new()).await?;
-
-        let success = res
-            .get("updateGraph")
-            .and_then(|x| x.as_object())
-            .and_then(|x| x.get("updateMetadata"))
-            .and_then(|x| x.as_bool())
-            .is_some_and(|x| x);
-
-        if success {
-            Ok(None)
-        } else {
-            Err(ClientError::UnsuccessfulResponse)
-        }
+        expect_update_bool(&res, "updateMetadata")?;
+        Ok(None)
     }
 
     async fn apply_delete_edge(&self, args: &DeleteEdge) -> Result<Option<Prop>, ClientError> {
-        let template = r#"
-        {
-            updateGraph(path: {{ path | gqlstr }}) {
-                deleteEdge(
-                    time: {{ time }},
-                    src: {{ src | gqlstr }},
-                    dst: {{ dst | gqlstr }}
-                    {% if layer is not none %}, layer: {{ layer | gqlstr }}{% endif %}
-                ) {
+        let query = r#"
+        query($path: String!, $time: TimeInput!, $src: NodeId!, $dst: NodeId!,
+                 $layer: String) {
+            updateGraph(path: $path) {
+                deleteEdge(time: $time, src: $src, dst: $dst, layer: $layer) {
                     success
                 }
             }
         }
         "#;
 
-        let ctx = context! {
-            path => args.path,
-            time => args.time,
-            src => args.src,
-            dst => args.dst,
-            layer => args.layer,
-        };
+        let variables = json!({
+            "path": json!(args.path),
+            "time": input_time_var(&args.time),
+            "src": json!(args.src),
+            "dst": json!(args.dst),
+            "layer": json!(args.layer),
+        });
+        let res = self.client.query(query, variables).await?;
 
-        let query = build_query(template, ctx)?;
-        let res = self.client.query(&query, HashMap::new()).await?;
-
-        let success = res
-            .get("updateGraph")
-            .and_then(|x| x.as_object())
-            .and_then(|x| x.get("deleteEdge"))
-            .and_then(|x| x.as_object())
-            .and_then(|x| x.get("success"))
-            .and_then(|x| x.as_bool())
-            .is_some_and(|x| x);
-
-        if success {
-            Ok(None)
-        } else {
-            Err(ClientError::UnsuccessfulResponse)
-        }
+        expect_update_success(&res, "deleteEdge")?;
+        Ok(None)
     }
 
     async fn apply_set_node_type(&self, args: &SetNodeType) -> Result<Option<Prop>, ClientError> {
-        let template = r#"
-            {
-              updateGraph(path: {{path | gqlstr}}) {
-                node(name: {{name | gqlstr}}) {
-                  setNodeType(newType: {{new_type | gqlstr}})
+        let query = r#"
+            query($path: String!, $name: NodeId!, $newType: String!) {
+              updateGraph(path: $path) {
+                node(name: $name) {
+                  setNodeType(newType: $newType)
                 }
               }
             }
         "#;
 
-        let ctx = context! {
-            path => args.path,
-            name => args.id,
-            new_type => args.new_type,
-        };
-
-        let query = build_query(template, ctx)?;
-        let res = self.client.query(&query, HashMap::new()).await?;
+        let variables = json!({
+            "path": json!(args.path),
+            "name": json!(args.id),
+            "newType": json!(args.new_type),
+        });
+        let res = self.client.query(query, variables).await?;
         ensure_write_target_present(&res, "node", format!("node '{}'", args.id))?;
         Ok(None)
     }
@@ -384,25 +322,24 @@ impl GraphqlTransport {
         &self,
         args: &AddNodeUpdates,
     ) -> Result<Option<Prop>, ClientError> {
-        let template = r#"
-            {
-              updateGraph(path: {{path | gqlstr}}) {
-                node(name: {{name | gqlstr}}) {
-                  addUpdates(time: {{t}} {% if properties is not none %}, properties:  {{ properties | safe }} {% endif %})
+        let query = r#"
+            query($path: String!, $name: NodeId!, $time: TimeInput!,
+                     $properties: [PropertyInput!]) {
+              updateGraph(path: $path) {
+                node(name: $name) {
+                  addUpdates(time: $time, properties: $properties)
                 }
               }
             }
         "#;
 
-        let ctx = context! {
-            path => args.path,
-            name => args.id,
-            t => args.time,
-            properties => args.properties.as_ref().map(|p| build_property_string(p.clone())).transpose()?,
-        };
-
-        let query = build_query(template, ctx)?;
-        let res = self.client.query(&query, HashMap::new()).await?;
+        let variables = json!({
+            "path": json!(args.path),
+            "name": json!(args.id),
+            "time": input_time_var(&args.time),
+            "properties": opt_properties_var(&args.properties)?,
+        });
+        let res = self.client.query(query, variables).await?;
         ensure_write_target_present(&res, "node", format!("node '{}'", args.id))?;
         Ok(None)
     }
@@ -411,24 +348,22 @@ impl GraphqlTransport {
         &self,
         args: &AddNodeMetadata,
     ) -> Result<Option<Prop>, ClientError> {
-        let template = r#"
-            {
-              updateGraph(path: {{path | gqlstr}}) {
-                node(name: {{name | gqlstr}}) {
-                  addMetadata(properties: {{ properties | safe }} )
+        let query = r#"
+            query($path: String!, $name: NodeId!, $properties: [PropertyInput!]!) {
+              updateGraph(path: $path) {
+                node(name: $name) {
+                  addMetadata(properties: $properties)
                 }
               }
             }
         "#;
 
-        let ctx = context! {
-            path => args.path,
-            name => args.id,
-            properties => build_property_string(args.properties.clone())?,
-        };
-
-        let query = build_query(template, ctx)?;
-        let res = self.client.query(&query, HashMap::new()).await?;
+        let variables = json!({
+            "path": json!(args.path),
+            "name": json!(args.id),
+            "properties": properties_var(&args.properties)?,
+        });
+        let res = self.client.query(query, variables).await?;
         ensure_write_target_present(&res, "node", format!("node '{}'", args.id))?;
         Ok(None)
     }
@@ -437,24 +372,22 @@ impl GraphqlTransport {
         &self,
         args: &UpdateNodeMetadata,
     ) -> Result<Option<Prop>, ClientError> {
-        let template = r#"
-            {
-              updateGraph(path: {{path | gqlstr}}) {
-                node(name: {{name | gqlstr}}) {
-                  updateMetadata(properties: {{ properties | safe }} )
+        let query = r#"
+            query($path: String!, $name: NodeId!, $properties: [PropertyInput!]!) {
+              updateGraph(path: $path) {
+                node(name: $name) {
+                  updateMetadata(properties: $properties)
                 }
               }
             }
         "#;
 
-        let ctx = context! {
-            path => args.path,
-            name => args.id,
-            properties => build_property_string(args.properties.clone())?,
-        };
-
-        let query = build_query(template, ctx)?;
-        let res = self.client.query(&query, HashMap::new()).await?;
+        let variables = json!({
+            "path": json!(args.path),
+            "name": json!(args.id),
+            "properties": properties_var(&args.properties)?,
+        });
+        let res = self.client.query(query, variables).await?;
         ensure_write_target_present(&res, "node", format!("node '{}'", args.id))?;
         Ok(None)
     }
@@ -463,27 +396,26 @@ impl GraphqlTransport {
         &self,
         args: &AddEdgeUpdates,
     ) -> Result<Option<Prop>, ClientError> {
-        let template = r#"
-            {
-              updateGraph(path: {{path | gqlstr}}) {
-                edge(src: {{src | gqlstr}},dst: {{dst | gqlstr}}) {
-                  addUpdates(time: {{t}} {% if properties is not none %}, properties: {{ properties | safe }} {% endif %} {% if layer is not none %}, layer:  {{layer | gqlstr}} {% endif %})
+        let query = r#"
+            query($path: String!, $src: NodeId!, $dst: NodeId!, $time: TimeInput!,
+                     $properties: [PropertyInput!], $layer: String) {
+              updateGraph(path: $path) {
+                edge(src: $src, dst: $dst) {
+                  addUpdates(time: $time, properties: $properties, layer: $layer)
                 }
               }
             }
         "#;
 
-        let ctx = context! {
-            path => args.path,
-            src => args.src,
-            dst => args.dst,
-            t => args.time,
-            properties => args.properties.as_ref().map(|p| build_property_string(p.clone())).transpose()?,
-            layer => args.layer,
-        };
-
-        let query = build_query(template, ctx)?;
-        let res = self.client.query(&query, HashMap::new()).await?;
+        let variables = json!({
+            "path": json!(args.path),
+            "src": json!(args.src),
+            "dst": json!(args.dst),
+            "time": input_time_var(&args.time),
+            "properties": opt_properties_var(&args.properties)?,
+            "layer": json!(args.layer),
+        });
+        let res = self.client.query(query, variables).await?;
         ensure_write_target_present(
             &res,
             "edge",
@@ -496,26 +428,25 @@ impl GraphqlTransport {
         &self,
         args: &DeleteEdgeAtTime,
     ) -> Result<Option<Prop>, ClientError> {
-        let template = r#"
-            {
-              updateGraph(path: {{path | gqlstr}}) {
-                edge(src: {{src | gqlstr}},dst: {{dst | gqlstr}}) {
-                  delete(time: {{t}}{% if layer is not none %}, layer:  {{layer | gqlstr}}{% endif %})
+        let query = r#"
+            query($path: String!, $src: NodeId!, $dst: NodeId!, $time: TimeInput!,
+                     $layer: String) {
+              updateGraph(path: $path) {
+                edge(src: $src, dst: $dst) {
+                  delete(time: $time, layer: $layer)
                 }
               }
             }
         "#;
 
-        let ctx = context! {
-            path => args.path,
-            src => args.src,
-            dst => args.dst,
-            t => args.time,
-            layer => args.layer,
-        };
-
-        let query = build_query(template, ctx)?;
-        let res = self.client.query(&query, HashMap::new()).await?;
+        let variables = json!({
+            "path": json!(args.path),
+            "src": json!(args.src),
+            "dst": json!(args.dst),
+            "time": input_time_var(&args.time),
+            "layer": json!(args.layer),
+        });
+        let res = self.client.query(query, variables).await?;
         ensure_write_target_present(
             &res,
             "edge",
@@ -528,26 +459,25 @@ impl GraphqlTransport {
         &self,
         args: &AddEdgeMetadata,
     ) -> Result<Option<Prop>, ClientError> {
-        let template = r#"
-            {
-              updateGraph(path: {{path | gqlstr}}) {
-                edge(src: {{src | gqlstr}},dst: {{dst | gqlstr}}) {
-                  addMetadata(properties:  {{ properties | safe }} {% if layer is not none %}, layer:  {{layer | gqlstr}} {% endif %})
+        let query = r#"
+            query($path: String!, $src: NodeId!, $dst: NodeId!,
+                     $properties: [PropertyInput!]!, $layer: String) {
+              updateGraph(path: $path) {
+                edge(src: $src, dst: $dst) {
+                  addMetadata(properties: $properties, layer: $layer)
                 }
               }
             }
         "#;
 
-        let ctx = context! {
-            path => args.path,
-            src => args.src,
-            dst => args.dst,
-            properties => build_property_string(args.properties.clone())?,
-            layer => args.layer,
-        };
-
-        let query = build_query(template, ctx)?;
-        let res = self.client.query(&query, HashMap::new()).await?;
+        let variables = json!({
+            "path": json!(args.path),
+            "src": json!(args.src),
+            "dst": json!(args.dst),
+            "properties": properties_var(&args.properties)?,
+            "layer": json!(args.layer),
+        });
+        let res = self.client.query(query, variables).await?;
         ensure_write_target_present(
             &res,
             "edge",
@@ -560,26 +490,25 @@ impl GraphqlTransport {
         &self,
         args: &UpdateEdgeMetadata,
     ) -> Result<Option<Prop>, ClientError> {
-        let template = r#"
-            {
-              updateGraph(path: {{path | gqlstr}}) {
-                edge(src: {{src | gqlstr}},dst: {{dst | gqlstr}}) {
-                  updateMetadata(properties:  {{ properties | safe }} {% if layer is not none %}, layer:  {{layer | gqlstr}} {% endif %})
+        let query = r#"
+            query($path: String!, $src: NodeId!, $dst: NodeId!,
+                     $properties: [PropertyInput!]!, $layer: String) {
+              updateGraph(path: $path) {
+                edge(src: $src, dst: $dst) {
+                  updateMetadata(properties: $properties, layer: $layer)
                 }
               }
             }
         "#;
 
-        let ctx = context! {
-            path => args.path,
-            src => args.src,
-            dst => args.dst,
-            properties => build_property_string(args.properties.clone())?,
-            layer => args.layer,
-        };
-
-        let query = build_query(template, ctx)?;
-        let res = self.client.query(&query, HashMap::new()).await?;
+        let variables = json!({
+            "path": json!(args.path),
+            "src": json!(args.src),
+            "dst": json!(args.dst),
+            "properties": properties_var(&args.properties)?,
+            "layer": json!(args.layer),
+        });
+        let res = self.client.query(query, variables).await?;
         ensure_write_target_present(
             &res,
             "edge",
@@ -589,109 +518,40 @@ impl GraphqlTransport {
     }
 
     async fn apply_add_nodes(&self, args: &AddNodes) -> Result<Option<Prop>, ClientError> {
-        let template = r#"
-        {
-            updateGraph(path: {{ path | gqlstr }}) {
-                addNodes(
-                    nodes: [
-                        {% for node in nodes %}
-                        {
-                            name: {{ node.name | gqlstr }}
-                            {% if node.node_type is not none %}, nodeType: {{ node.node_type | gqlstr }}{% endif %}
-                            {% if node.updates is not none %},
-                            updates: [
-                                {% for tprop in node.updates %}
-                                {
-                                    time: {{ tprop.time }}
-                                    {% if tprop.properties is not none %}, properties: [
-                                        {% for prop in tprop.properties %}
-                                        { key: {{ prop.key | gqlstr }}, value: {{ prop.value | safe }} }
-                                        {% if not loop.last %},{% endif %}
-                                        {% endfor %}
-                                    ]{% endif %}
-                                }
-                                {% if not loop.last %},{% endif %}
-                                {% endfor %}
-                            ]
-                            {% endif %}
-                            {% if node.metadata is not none %},
-                            metadata: [
-                                {% for cprop in node.metadata %}
-                                { key: {{ cprop.key | gqlstr }}, value: {{ cprop.value | safe }} }
-                                {% if not loop.last %},{% endif %}
-                                {% endfor %}
-                            ]
-                            {% endif %}
-                        }
-                        {% if not loop.last %},{% endif %}
-                        {% endfor %}
-                    ]
-                )
+        // `NodeAddition` serializes to the schema input shape (camelCase fields,
+        // `Value`-typed property values) — see its `Serialize` impl in `op.rs`.
+        let query = r#"
+        query($path: String!, $nodes: [NodeAddition!]!) {
+            updateGraph(path: $path) {
+                addNodes(nodes: $nodes)
             }
         }
         "#;
 
-        let ctx = context! {
-            path => args.path,
-            nodes => args.nodes,
-        };
-
-        let query = build_query(template, ctx)?;
-        self.client.query(&query, HashMap::new()).await?;
+        let variables = json!({
+            "path": json!(args.path),
+            "nodes": to_var(&args.nodes)?,
+        });
+        let res = self.client.query(query, variables).await?;
+        expect_update_bool(&res, "addNodes")?;
         Ok(None)
     }
 
     async fn apply_add_edges(&self, args: &AddEdges) -> Result<Option<Prop>, ClientError> {
-        let template = r#"
-        {
-            updateGraph(path: {{ path | gqlstr }}) {
-                addEdges(
-                    edges: [
-                        {% for edge in edges %}
-                        {
-                            src: {{ edge.src | gqlstr }}
-                            dst: {{ edge.dst | gqlstr }}
-                            {% if edge.layer is not none %}, layer: {{ edge.layer | gqlstr }}{% endif %}
-                            {% if edge.updates is not none %},
-                            updates: [
-                                {% for tprop in edge.updates %}
-                                {
-                                    time: {{ tprop.time }}
-                                    {% if tprop.properties is not none %}, properties: [
-                                        {% for prop in tprop.properties %}
-                                        { key: {{ prop.key | gqlstr }}, value: {{ prop.value | safe }} }
-                                        {% if not loop.last %},{% endif %}
-                                        {% endfor %}
-                                    ]{% endif %}
-                                }
-                                {% if not loop.last %},{% endif %}
-                                {% endfor %}
-                            ]
-                            {% endif %}
-                            {% if edge.metadata is not none %},
-                            metadata: [
-                                {% for cprop in edge.metadata %}
-                                { key: {{ cprop.key | gqlstr }}, value: {{ cprop.value | safe }} }
-                                {% if not loop.last %},{% endif %}
-                                {% endfor %}
-                            ]
-                            {% endif %}
-                        }
-                        {% if not loop.last %},{% endif %}
-                        {% endfor %}
-                    ]
-                )
+        let query = r#"
+        query($path: String!, $edges: [EdgeAddition!]!) {
+            updateGraph(path: $path) {
+                addEdges(edges: $edges)
             }
         }
         "#;
 
-        let ctx = context! {
-            path => args.path,
-            edges => args.edges,
-        };
-
-        let query = build_query(template, ctx)?;
-        self.client.query(&query, HashMap::new()).await?;
+        let variables = json!({
+            "path": json!(args.path),
+            "edges": to_var(&args.edges)?,
+        });
+        let res = self.client.query(query, variables).await?;
+        expect_update_bool(&res, "addEdges")?;
         Ok(None)
     }
 }
@@ -700,22 +560,93 @@ impl GraphqlTransport {
 
 impl GraphqlTransport {
     async fn eval_read(&self, expr: &ReadExpr) -> Result<Option<Prop>, ClientError> {
-        let query = render_read(expr)?;
-        let res = self.client.query(&query, HashMap::new()).await?;
+        let (query, variables) = render_read(expr)?;
+        let res = self
+            .client
+            .query(&query, JsonValue::Object(variables))
+            .await?;
         let root =
             serde_json::to_value(&res).map_err(|e| ClientError::InvalidResponse(e.to_string()))?;
         parse_read(expr, &root)
     }
 }
 
-/// Renders a read expression tree as a nested GraphQL query.
+/// Collects GraphQL query variables while rendering a read tree.
+///
+/// Complex arguments (node/edge filters) are shipped as JSON variables rather
+/// than spliced into the query text: each `add_*_filter` serializes the typed
+/// filter via serde (the single wire-format source of truth), stashes it under
+/// a fresh `$fN` name, records the operation-signature declaration, and returns
+/// the `$fN` reference to inline. Scalar view-op args (times, layer names) stay
+/// as literals — they carry no injection surface.
+#[derive(Default)]
+struct VarCollector {
+    vars: serde_json::Map<String, JsonValue>,
+    /// Accumulated variable declarations, already comma-joined
+    /// (`"$f0: NodeFilter!, $f1: EdgeFilter!"`) — appended in place rather than
+    /// collected into a `Vec` and joined at the end.
+    decls: String,
+    counter: usize,
+}
+
+impl VarCollector {
+    fn add_node_filter(&mut self, f: &GqlNodeFilter) -> Result<String, ClientError> {
+        self.add("NodeFilter!", f)
+    }
+
+    fn add_edge_filter(&mut self, f: &GqlEdgeFilter) -> Result<String, ClientError> {
+        self.add("EdgeFilter!", f)
+    }
+
+    /// Register a property dict (`findNodes`/`findEdges` `propertiesDict` arg)
+    /// as a `[PropertyInput!]!` variable.
+    fn add_properties(&mut self, props: &HashMap<String, Prop>) -> Result<String, ClientError> {
+        self.add("[PropertyInput!]!", &properties_to_input(props)?)
+    }
+
+    /// Serialize `value`, register it as `$fN: <gql_type>`, and return `$fN`.
+    /// A serialization failure (e.g. a non-finite float in a filter value) maps
+    /// to `InvalidInput` — the same class the literal renderer rejected.
+    fn add<T: serde::Serialize>(
+        &mut self,
+        gql_type: &str,
+        value: &T,
+    ) -> Result<String, ClientError> {
+        let name = format!("f{}", self.counter);
+        self.counter += 1;
+        let json = serde_json::to_value(value).map_err(|e| {
+            ClientError::InvalidInput(format!("filter value cannot be sent to the server: {e}"))
+        })?;
+        if !self.decls.is_empty() {
+            self.decls.push_str(", ");
+        }
+        self.decls.push('$');
+        self.decls.push_str(&name);
+        self.decls.push_str(": ");
+        self.decls.push_str(gql_type);
+        self.vars.insert(name.clone(), json);
+        Ok(format!("${name}"))
+    }
+}
+
+/// Renders a read expression tree as a nested GraphQL query plus its variables.
 ///
 /// Example: `Degree(Node(Window(Root("g"), 0, 10), "ben"))` becomes
 /// `{ graph(path: "g") { window(start: 0, end: 10) { node(name: "ben") { degree } } } }`.
-fn render_read(expr: &ReadExpr) -> Result<String, ClientError> {
-    let body = render_read_body(expr)?;
+/// Filter-bearing reads gain a `query($f0: NodeFilter!, …) { … }` signature and
+/// a matching variables map.
+fn render_read(
+    expr: &ReadExpr,
+) -> Result<(String, serde_json::Map<String, JsonValue>), ClientError> {
+    let mut vars = VarCollector::default();
+    let body = render_read_body(expr, &mut vars)?;
     let closes = "}".repeat(read_depth(expr));
-    Ok(format!("{{ {} {} }}", body, closes))
+    let query = if vars.decls.is_empty() {
+        format!("{{ {} {} }}", body, closes)
+    } else {
+        format!("query({}) {{ {} {} }}", vars.decls, body, closes)
+    };
+    Ok((query, vars.vars))
 }
 
 /// Render the argument list for a `page` / `page_rev` server field:
@@ -781,25 +712,7 @@ fn render_node_sort_bys(sort_bys: &[NodeSortBy]) -> String {
     format!("[{}]", entries.join(", "))
 }
 
-// ============ GqlNodeFilter → GraphQL literal rendering ============
-//
-// We can't go through serde JSON because enum-typed fields (`NodeField`,
-// `DegreeDirection`) need to be emitted as unquoted SCREAMING_SNAKE_CASE
-// identifiers in GQL literal syntax — serde's `rename_all = "camelCase"`
-// gives us `"nodeName"` (quoted, camelCase), which the server rejects.
-//
-// So we walk the typed structure directly, emitting the correct GQL
-// syntax for each variant / field / enum value.
-use crate::model::graph::{
-    filtering::{
-        DegreeDirection, DegreeFilterNew, EdgeLayersExpr, EdgeTimeExpr, EdgeUnaryExpr,
-        EdgeWindowExpr, GqlEdgeFilter, GqlNodeFilter, NodeField, NodeFieldCondition,
-        NodeFieldFilterNew, NodeLayersExpr, NodeTimeExpr, NodeUnaryExpr, NodeWindowExpr,
-        PropCondition, PropertyFilterNew,
-    },
-    property::{ObjectEntry, Value as GqlValue},
-    timeindex::GqlTimeInput,
-};
+use crate::model::graph::filtering::{GqlEdgeFilter, GqlNodeFilter};
 
 fn render_gql_str(s: &str) -> String {
     // A JSON string literal (including its surrounding quotes) is a valid
@@ -830,305 +743,48 @@ fn ensure_write_target_present(
     }
 }
 
-fn render_gql_value(v: &GqlValue) -> Result<String, ClientError> {
-    Ok(match v {
-        GqlValue::U8(n) => format!("{{u8: {}}}", n),
-        GqlValue::U16(n) => format!("{{u16: {}}}", n),
-        GqlValue::U32(n) => format!("{{u32: {}}}", n),
-        GqlValue::U64(n) => format!("{{u64: {}}}", n),
-        GqlValue::I32(n) => format!("{{i32: {}}}", n),
-        GqlValue::I64(n) => format!("{{i64: {}}}", n),
-        GqlValue::F32(n) => format!("{{f32: {}}}", reject_non_finite(*n as f64).map(|_| n)?),
-        GqlValue::F64(n) => format!("{{f64: {}}}", reject_non_finite(*n)?),
-        GqlValue::Str(s) => format!("{{str: {}}}", render_gql_str(s)),
-        GqlValue::Bool(b) => format!("{{bool: {}}}", b),
-        GqlValue::List(vs) => {
-            let items: Vec<_> = vs
-                .iter()
-                .map(render_gql_value)
-                .collect::<Result<Vec<_>, _>>()?;
-            format!("{{list: [{}]}}", items.join(", "))
-        }
-        GqlValue::Object(entries) => {
-            let items: Vec<_> = entries
-                .iter()
-                .map(|ObjectEntry { key, value }| {
-                    Ok(format!(
-                        "{{key: {}, value: {}}}",
-                        render_gql_str(key),
-                        render_gql_value(value)?
-                    ))
-                })
-                .collect::<Result<Vec<_>, ClientError>>()?;
-            format!("{{object: [{}]}}", items.join(", "))
-        }
-        GqlValue::DTime(s) => format!("{{dTime: {}}}", render_gql_str(s)),
-        GqlValue::NDTime(s) => format!("{{nDTime: {}}}", render_gql_str(s)),
-        GqlValue::Decimal(s) => format!("{{decimal: {}}}", render_gql_str(s)),
-    })
-}
-
-fn render_node_field(f: NodeField) -> &'static str {
-    match f {
-        NodeField::NodeId => "NODE_ID",
-        NodeField::NodeName => "NODE_NAME",
-        NodeField::NodeType => "NODE_TYPE",
+/// A graph-scoped write whose server field returns `{ success }` (single
+/// `addNode`/`createNode`/`addEdge`/`deleteEdge`): read
+/// `updateGraph.<field>.success` and surface a `false`/absent result as
+/// `UnsuccessfulResponse`.
+fn expect_update_success(
+    res: &HashMap<String, serde_json::Value>,
+    field: &str,
+) -> Result<(), ClientError> {
+    let ok = res
+        .get("updateGraph")
+        .and_then(|g| g.as_object())
+        .and_then(|g| g.get(field))
+        .and_then(|f| f.as_object())
+        .and_then(|f| f.get("success"))
+        .and_then(|s| s.as_bool())
+        .is_some_and(|s| s);
+    if ok {
+        Ok(())
+    } else {
+        Err(ClientError::UnsuccessfulResponse)
     }
 }
 
-fn render_degree_direction(d: DegreeDirection) -> &'static str {
-    match d {
-        DegreeDirection::In => "IN",
-        DegreeDirection::Out => "OUT",
-        DegreeDirection::Both => "BOTH",
+/// A graph-scoped write whose server field returns a bare `Boolean!`
+/// (`addProperties`/`addMetadata`/`updateMetadata`/`addNodes`/`addEdges`):
+/// read `updateGraph.<field>` and surface a `false`/absent result as
+/// `UnsuccessfulResponse` — so a server `false` isn't a silent client success.
+fn expect_update_bool(
+    res: &HashMap<String, serde_json::Value>,
+    field: &str,
+) -> Result<(), ClientError> {
+    let ok = res
+        .get("updateGraph")
+        .and_then(|g| g.as_object())
+        .and_then(|g| g.get(field))
+        .and_then(|v| v.as_bool())
+        .is_some_and(|v| v);
+    if ok {
+        Ok(())
+    } else {
+        Err(ClientError::UnsuccessfulResponse)
     }
-}
-
-fn render_gql_time_input(t: &GqlTimeInput) -> String {
-    // For read-side use we only need the timestamp — GqlTimeInput is a
-    // scalar accepting int or object; server accepts int literal directly.
-    format!("{}", t.t())
-}
-
-fn render_node_field_condition(c: &NodeFieldCondition) -> Result<String, ClientError> {
-    let (tag, val) = match c {
-        NodeFieldCondition::Eq(v) => ("eq", v),
-        NodeFieldCondition::Ne(v) => ("ne", v),
-        NodeFieldCondition::Gt(v) => ("gt", v),
-        NodeFieldCondition::Ge(v) => ("ge", v),
-        NodeFieldCondition::Lt(v) => ("lt", v),
-        NodeFieldCondition::Le(v) => ("le", v),
-        NodeFieldCondition::StartsWith(v) => ("startsWith", v),
-        NodeFieldCondition::EndsWith(v) => ("endsWith", v),
-        NodeFieldCondition::Contains(v) => ("contains", v),
-        NodeFieldCondition::NotContains(v) => ("notContains", v),
-        NodeFieldCondition::IsIn(v) => ("isIn", v),
-        NodeFieldCondition::IsNotIn(v) => ("isNotIn", v),
-    };
-    Ok(format!("{{{}: {}}}", tag, render_gql_value(val)?))
-}
-
-fn render_prop_condition(c: &PropCondition) -> Result<String, ClientError> {
-    Ok(match c {
-        PropCondition::Eq(v) => format!("{{eq: {}}}", render_gql_value(v)?),
-        PropCondition::Ne(v) => format!("{{ne: {}}}", render_gql_value(v)?),
-        PropCondition::Gt(v) => format!("{{gt: {}}}", render_gql_value(v)?),
-        PropCondition::Ge(v) => format!("{{ge: {}}}", render_gql_value(v)?),
-        PropCondition::Lt(v) => format!("{{lt: {}}}", render_gql_value(v)?),
-        PropCondition::Le(v) => format!("{{le: {}}}", render_gql_value(v)?),
-        PropCondition::StartsWith(v) => format!("{{startsWith: {}}}", render_gql_value(v)?),
-        PropCondition::EndsWith(v) => format!("{{endsWith: {}}}", render_gql_value(v)?),
-        PropCondition::Contains(v) => format!("{{contains: {}}}", render_gql_value(v)?),
-        PropCondition::NotContains(v) => format!("{{notContains: {}}}", render_gql_value(v)?),
-        PropCondition::IsIn(v) => format!("{{isIn: {}}}", render_gql_value(v)?),
-        PropCondition::IsNotIn(v) => format!("{{isNotIn: {}}}", render_gql_value(v)?),
-        PropCondition::IsSome(b) => format!("{{isSome: {}}}", b),
-        PropCondition::IsNone(b) => format!("{{isNone: {}}}", b),
-        PropCondition::And(cs) => {
-            let items: Vec<_> = cs
-                .iter()
-                .map(render_prop_condition)
-                .collect::<Result<Vec<_>, _>>()?;
-            format!("{{and: [{}]}}", items.join(", "))
-        }
-        PropCondition::Or(cs) => {
-            let items: Vec<_> = cs
-                .iter()
-                .map(render_prop_condition)
-                .collect::<Result<Vec<_>, _>>()?;
-            format!("{{or: [{}]}}", items.join(", "))
-        }
-        PropCondition::Not(inner) => format!("{{not: {}}}", render_prop_condition(inner)?),
-        PropCondition::First(inner) => format!("{{first: {}}}", render_prop_condition(inner)?),
-        PropCondition::Last(inner) => format!("{{last: {}}}", render_prop_condition(inner)?),
-        PropCondition::Any(inner) => format!("{{any: {}}}", render_prop_condition(inner)?),
-        PropCondition::All(inner) => format!("{{all: {}}}", render_prop_condition(inner)?),
-        PropCondition::Sum(inner) => format!("{{sum: {}}}", render_prop_condition(inner)?),
-        PropCondition::Avg(inner) => format!("{{avg: {}}}", render_prop_condition(inner)?),
-        PropCondition::Min(inner) => format!("{{min: {}}}", render_prop_condition(inner)?),
-        PropCondition::Max(inner) => format!("{{max: {}}}", render_prop_condition(inner)?),
-        PropCondition::Len(inner) => format!("{{len: {}}}", render_prop_condition(inner)?),
-    })
-}
-
-fn render_node_field_filter(f: &NodeFieldFilterNew) -> Result<String, ClientError> {
-    Ok(format!(
-        "{{field: {}, where: {}}}",
-        render_node_field(f.field),
-        render_node_field_condition(&f.where_)?,
-    ))
-}
-
-fn render_property_filter_new(f: &PropertyFilterNew) -> Result<String, ClientError> {
-    Ok(format!(
-        "{{name: {}, where: {}}}",
-        render_gql_str(&f.name),
-        render_prop_condition(&f.where_)?,
-    ))
-}
-
-fn render_degree_filter_new(f: &DegreeFilterNew) -> Result<String, ClientError> {
-    Ok(format!(
-        "{{direction: {}, where: {}}}",
-        render_degree_direction(f.direction),
-        render_prop_condition(&f.where_)?,
-    ))
-}
-
-fn render_node_window_expr(e: &NodeWindowExpr) -> Result<String, ClientError> {
-    Ok(format!(
-        "{{start: {}, end: {}, expr: {}}}",
-        render_gql_time_input(&e.start),
-        render_gql_time_input(&e.end),
-        render_gql_node_filter(&e.expr)?,
-    ))
-}
-
-fn render_node_time_expr(e: &NodeTimeExpr) -> Result<String, ClientError> {
-    Ok(format!(
-        "{{time: {}, expr: {}}}",
-        render_gql_time_input(&e.time),
-        render_gql_node_filter(&e.expr)?,
-    ))
-}
-
-fn render_node_unary_expr(e: &NodeUnaryExpr) -> Result<String, ClientError> {
-    Ok(format!("{{expr: {}}}", render_gql_node_filter(&e.expr)?))
-}
-
-fn render_node_layers_expr(e: &NodeLayersExpr) -> Result<String, ClientError> {
-    let names: Vec<_> = e.names.iter().map(|s| render_gql_str(s)).collect();
-    Ok(format!(
-        "{{names: [{}], expr: {}}}",
-        names.join(", "),
-        render_gql_node_filter(&e.expr)?,
-    ))
-}
-
-/// Render a `GqlNodeFilter` as a GraphQL input-object literal.
-/// Walks the typed structure directly — enum-typed fields (`NodeField`,
-/// `DegreeDirection`) come out as unquoted SCREAMING_SNAKE identifiers,
-/// which serde JSON serialization can't produce.
-fn render_gql_node_filter(f: &GqlNodeFilter) -> Result<String, ClientError> {
-    Ok(match f {
-        GqlNodeFilter::Node(inner) => format!("{{node: {}}}", render_node_field_filter(inner)?),
-        GqlNodeFilter::Property(pf) => {
-            format!("{{property: {}}}", render_property_filter_new(pf)?)
-        }
-        GqlNodeFilter::Metadata(pf) => {
-            format!("{{metadata: {}}}", render_property_filter_new(pf)?)
-        }
-        GqlNodeFilter::TemporalProperty(pf) => {
-            format!("{{temporalProperty: {}}}", render_property_filter_new(pf)?)
-        }
-        GqlNodeFilter::Degree(df) => {
-            format!("{{degree: {}}}", render_degree_filter_new(df)?)
-        }
-        GqlNodeFilter::IsActive(b) => format!("{{isActive: {}}}", b),
-        GqlNodeFilter::And(fs) => {
-            let items: Vec<_> = fs
-                .iter()
-                .map(render_gql_node_filter)
-                .collect::<Result<Vec<_>, _>>()?;
-            format!("{{and: [{}]}}", items.join(", "))
-        }
-        GqlNodeFilter::Or(fs) => {
-            let items: Vec<_> = fs
-                .iter()
-                .map(render_gql_node_filter)
-                .collect::<Result<Vec<_>, _>>()?;
-            format!("{{or: [{}]}}", items.join(", "))
-        }
-        GqlNodeFilter::Not(inner) => format!("{{not: {}}}", render_gql_node_filter(inner)?),
-        GqlNodeFilter::Window(e) => format!("{{window: {}}}", render_node_window_expr(e)?),
-        GqlNodeFilter::At(e) => format!("{{at: {}}}", render_node_time_expr(e)?),
-        GqlNodeFilter::Before(e) => format!("{{before: {}}}", render_node_time_expr(e)?),
-        GqlNodeFilter::After(e) => format!("{{after: {}}}", render_node_time_expr(e)?),
-        GqlNodeFilter::Latest(e) => format!("{{latest: {}}}", render_node_unary_expr(e)?),
-        GqlNodeFilter::SnapshotAt(e) => format!("{{snapshotAt: {}}}", render_node_time_expr(e)?),
-        GqlNodeFilter::SnapshotLatest(e) => {
-            format!("{{snapshotLatest: {}}}", render_node_unary_expr(e)?)
-        }
-        GqlNodeFilter::Layers(e) => format!("{{layers: {}}}", render_node_layers_expr(e)?),
-    })
-}
-
-fn render_edge_window_expr(e: &EdgeWindowExpr) -> Result<String, ClientError> {
-    Ok(format!(
-        "{{start: {}, end: {}, expr: {}}}",
-        render_gql_time_input(&e.start),
-        render_gql_time_input(&e.end),
-        render_gql_edge_filter(&e.expr)?,
-    ))
-}
-
-fn render_edge_time_expr(e: &EdgeTimeExpr) -> Result<String, ClientError> {
-    Ok(format!(
-        "{{time: {}, expr: {}}}",
-        render_gql_time_input(&e.time),
-        render_gql_edge_filter(&e.expr)?,
-    ))
-}
-
-fn render_edge_unary_expr(e: &EdgeUnaryExpr) -> Result<String, ClientError> {
-    Ok(format!("{{expr: {}}}", render_gql_edge_filter(&e.expr)?))
-}
-
-fn render_edge_layers_expr(e: &EdgeLayersExpr) -> Result<String, ClientError> {
-    let names: Vec<_> = e.names.iter().map(|s| render_gql_str(s)).collect();
-    Ok(format!(
-        "{{names: [{}], expr: {}}}",
-        names.join(", "),
-        render_gql_edge_filter(&e.expr)?,
-    ))
-}
-
-/// Render a `GqlEdgeFilter` as a GraphQL input-object literal. Same approach
-/// as `render_gql_node_filter` — `Src`/`Dst` recurse into the node renderer
-/// since an edge endpoint filter wraps a full `NodeFilter`.
-fn render_gql_edge_filter(f: &GqlEdgeFilter) -> Result<String, ClientError> {
-    Ok(match f {
-        GqlEdgeFilter::Src(inner) => format!("{{src: {}}}", render_gql_node_filter(inner)?),
-        GqlEdgeFilter::Dst(inner) => format!("{{dst: {}}}", render_gql_node_filter(inner)?),
-        GqlEdgeFilter::Property(pf) => {
-            format!("{{property: {}}}", render_property_filter_new(pf)?)
-        }
-        GqlEdgeFilter::Metadata(pf) => {
-            format!("{{metadata: {}}}", render_property_filter_new(pf)?)
-        }
-        GqlEdgeFilter::TemporalProperty(pf) => {
-            format!("{{temporalProperty: {}}}", render_property_filter_new(pf)?)
-        }
-        GqlEdgeFilter::IsActive(b) => format!("{{isActive: {}}}", b),
-        GqlEdgeFilter::IsValid(b) => format!("{{isValid: {}}}", b),
-        GqlEdgeFilter::IsDeleted(b) => format!("{{isDeleted: {}}}", b),
-        GqlEdgeFilter::IsSelfLoop(b) => format!("{{isSelfLoop: {}}}", b),
-        GqlEdgeFilter::And(fs) => {
-            let items: Vec<_> = fs
-                .iter()
-                .map(render_gql_edge_filter)
-                .collect::<Result<Vec<_>, _>>()?;
-            format!("{{and: [{}]}}", items.join(", "))
-        }
-        GqlEdgeFilter::Or(fs) => {
-            let items: Vec<_> = fs
-                .iter()
-                .map(render_gql_edge_filter)
-                .collect::<Result<Vec<_>, _>>()?;
-            format!("{{or: [{}]}}", items.join(", "))
-        }
-        GqlEdgeFilter::Not(inner) => format!("{{not: {}}}", render_gql_edge_filter(inner)?),
-        GqlEdgeFilter::Window(e) => format!("{{window: {}}}", render_edge_window_expr(e)?),
-        GqlEdgeFilter::At(e) => format!("{{at: {}}}", render_edge_time_expr(e)?),
-        GqlEdgeFilter::Before(e) => format!("{{before: {}}}", render_edge_time_expr(e)?),
-        GqlEdgeFilter::After(e) => format!("{{after: {}}}", render_edge_time_expr(e)?),
-        GqlEdgeFilter::Latest(e) => format!("{{latest: {}}}", render_edge_unary_expr(e)?),
-        GqlEdgeFilter::SnapshotAt(e) => format!("{{snapshotAt: {}}}", render_edge_time_expr(e)?),
-        GqlEdgeFilter::SnapshotLatest(e) => {
-            format!("{{snapshotLatest: {}}}", render_edge_unary_expr(e)?)
-        }
-        GqlEdgeFilter::Layers(e) => format!("{{layers: {}}}", render_edge_layers_expr(e)?),
-    })
 }
 
 /// Same as `render_node_sort_bys` but for `EdgeSortBy` — includes the extra
@@ -1159,154 +815,146 @@ fn render_edge_sort_bys(sort_bys: &[EdgeSortBy]) -> String {
     format!("[{}]", entries.join(", "))
 }
 
-fn render_read_body(expr: &ReadExpr) -> Result<String, ClientError> {
+/// Render a view op as its server field plus arguments. Valid-layer ops
+/// render to the same `layers` / `excludeLayer(s)` fields as the plain layer
+/// ops — the server backs those fields with `valid_layers` /
+/// `exclude_valid_layers` and exposes no separate `validLayers` field.
+fn render_view_op(op: &ViewOp) -> String {
+    match op {
+        ViewOp::Window { start, end } => format!(
+            "window(start: {}, end: {})",
+            render_input_time(start),
+            render_input_time(end)
+        ),
+        ViewOp::At { time } => format!("at(time: {})", render_input_time(time)),
+        ViewOp::Before { time } => format!("before(time: {})", render_input_time(time)),
+        ViewOp::After { time } => format!("after(time: {})", render_input_time(time)),
+        ViewOp::Latest => "latest".to_string(),
+        ViewOp::SnapshotLatest => "snapshotLatest".to_string(),
+        ViewOp::SnapshotAt { time } => format!("snapshotAt(time: {})", render_input_time(time)),
+        ViewOp::ShrinkWindow { start, end } => format!(
+            "shrinkWindow(start: {}, end: {})",
+            render_input_time(start),
+            render_input_time(end)
+        ),
+        ViewOp::ShrinkStart { start } => {
+            format!("shrinkStart(start: {})", render_input_time(start))
+        }
+        ViewOp::ShrinkEnd { end } => format!("shrinkEnd(end: {})", render_input_time(end)),
+        ViewOp::Layer { name } => format!("layer(name: {})", render_gql_str(name)),
+        ViewOp::ExcludeLayer { name } => format!("excludeLayer(name: {})", render_gql_str(name)),
+        ViewOp::DefaultLayer => "defaultLayer".to_string(),
+        ViewOp::Layers { names } => format!("layers(names: [{}])", render_string_list(names)),
+        ViewOp::ExcludeLayers { names } => {
+            format!("excludeLayers(names: [{}])", render_string_list(names))
+        }
+        ViewOp::ValidLayers { names } => format!("layers(names: [{}])", render_string_list(names)),
+        ViewOp::ExcludeValidLayer { name } => {
+            format!("excludeLayer(name: {})", render_gql_str(name))
+        }
+        ViewOp::ExcludeValidLayers { names } => {
+            format!("excludeLayers(names: [{}])", render_string_list(names))
+        }
+    }
+}
+
+/// The response key a view op's field appears under — the field name emitted
+/// by `render_view_op`, without arguments.
+fn view_op_json_key(op: &ViewOp) -> &'static str {
+    match op {
+        ViewOp::Window { .. } => "window",
+        ViewOp::At { .. } => "at",
+        ViewOp::Before { .. } => "before",
+        ViewOp::After { .. } => "after",
+        ViewOp::Latest => "latest",
+        ViewOp::SnapshotLatest => "snapshotLatest",
+        ViewOp::SnapshotAt { .. } => "snapshotAt",
+        ViewOp::ShrinkWindow { .. } => "shrinkWindow",
+        ViewOp::ShrinkStart { .. } => "shrinkStart",
+        ViewOp::ShrinkEnd { .. } => "shrinkEnd",
+        ViewOp::Layer { .. } => "layer",
+        ViewOp::ExcludeLayer { .. } => "excludeLayer",
+        ViewOp::DefaultLayer => "defaultLayer",
+        ViewOp::Layers { .. } => "layers",
+        ViewOp::ExcludeLayers { .. } => "excludeLayers",
+        ViewOp::ValidLayers { .. } => "layers",
+        ViewOp::ExcludeValidLayer { .. } => "excludeLayer",
+        ViewOp::ExcludeValidLayers { .. } => "excludeLayers",
+    }
+}
+
+fn render_read_body(expr: &ReadExpr, vars: &mut VarCollector) -> Result<String, ClientError> {
     Ok(match expr {
         ReadExpr::Root { path } => format!("graph(path: {})", render_gql_str(path)),
         // View chaining
-        ReadExpr::Window { input, start, end } => format!(
-            "{} {{ window(start: {}, end: {})",
-            render_read_body(input)?,
-            start,
-            end
+        ReadExpr::View { input, op } => format!(
+            "{} {{ {}",
+            render_read_body(input, vars)?,
+            render_view_op(op)
         ),
-        ReadExpr::Layer { input, name } => {
-            format!(
-                "{} {{ layer(name: {})",
-                render_read_body(input)?,
-                render_gql_str(name)
-            )
-        }
-        ReadExpr::At { input, time } => {
-            format!("{} {{ at(time: {})", render_read_body(input)?, time)
-        }
-        ReadExpr::Before { input, time } => {
-            format!("{} {{ before(time: {})", render_read_body(input)?, time)
-        }
-        ReadExpr::After { input, time } => {
-            format!("{} {{ after(time: {})", render_read_body(input)?, time)
-        }
-        ReadExpr::Latest { input } => format!("{} {{ latest", render_read_body(input)?),
-        ReadExpr::SnapshotLatest { input } => {
-            format!("{} {{ snapshotLatest", render_read_body(input)?)
-        }
-        ReadExpr::SnapshotAt { input, time } => {
-            format!("{} {{ snapshotAt(time: {})", render_read_body(input)?, time)
-        }
-        ReadExpr::ExcludeLayer { input, name } => format!(
-            "{} {{ excludeLayer(name: {})",
-            render_read_body(input)?,
-            render_gql_str(name)
-        ),
-        ReadExpr::ShrinkWindow { input, start, end } => format!(
-            "{} {{ shrinkWindow(start: {}, end: {})",
-            render_read_body(input)?,
-            start,
-            end
-        ),
-        ReadExpr::ShrinkStart { input, start } => format!(
-            "{} {{ shrinkStart(start: {})",
-            render_read_body(input)?,
-            start
-        ),
-        ReadExpr::ShrinkEnd { input, end } => {
-            format!("{} {{ shrinkEnd(end: {})", render_read_body(input)?, end)
-        }
-        ReadExpr::Valid { input } => format!("{} {{ valid", render_read_body(input)?),
-        ReadExpr::DefaultLayer { input } => {
-            format!("{} {{ defaultLayer", render_read_body(input)?)
-        }
-        ReadExpr::Layers { input, names } => format!(
-            "{} {{ layers(names: [{}])",
-            render_read_body(input)?,
-            render_string_list(names)
-        ),
-        ReadExpr::ExcludeLayers { input, names } => format!(
-            "{} {{ excludeLayers(names: [{}])",
-            render_read_body(input)?,
-            render_string_list(names)
-        ),
-        // The GraphQL server exposes valid-layer semantics under the existing
-        // `layers` / `excludeLayers` / `excludeLayer` fields (each backed by
-        // the underlying `valid_layers` / `exclude_valid_layers` graph
-        // methods) — there is no separate `validLayers` field. So these render
-        // to the same fields as `Layers` / `ExcludeLayers` / `ExcludeLayer`.
-        ReadExpr::ValidLayers { input, names } => format!(
-            "{} {{ layers(names: [{}])",
-            render_read_body(input)?,
-            render_string_list(names)
-        ),
-        ReadExpr::ExcludeValidLayer { input, name } => format!(
-            "{} {{ excludeLayer(name: {})",
-            render_read_body(input)?,
-            render_gql_str(name)
-        ),
-        ReadExpr::ExcludeValidLayers { input, names } => format!(
-            "{} {{ excludeLayers(names: [{}])",
-            render_read_body(input)?,
-            render_string_list(names)
-        ),
+        ReadExpr::Valid { input } => format!("{} {{ valid", render_read_body(input, vars)?),
         ReadExpr::Subgraph { input, nodes } => format!(
             "{} {{ subgraph(nodes: [{}])",
-            render_read_body(input)?,
+            render_read_body(input, vars)?,
             render_string_list(nodes)
         ),
         ReadExpr::SubgraphNodeTypes { input, node_types } => format!(
             "{} {{ subgraphNodeTypes(nodeTypes: [{}])",
-            render_read_body(input)?,
+            render_read_body(input, vars)?,
             render_string_list(node_types)
         ),
         ReadExpr::ExcludeNodes { input, nodes } => format!(
             "{} {{ excludeNodes(nodes: [{}])",
-            render_read_body(input)?,
+            render_read_body(input, vars)?,
             render_string_list(nodes)
         ),
         ReadExpr::TypeFilter { input, node_types } => format!(
             "{} {{ typeFilter(nodeTypes: [{}])",
-            render_read_body(input)?,
+            render_read_body(input, vars)?,
             render_string_list(node_types)
         ),
         // Selection
         ReadExpr::Node { input, id } => {
             format!(
                 "{} {{ node(name: {})",
-                render_read_body(input)?,
+                render_read_body(input, vars)?,
                 render_gql_str(id)
             )
         }
         ReadExpr::Edge { input, src, dst } => format!(
             "{} {{ edge(src: {}, dst: {})",
-            render_read_body(input)?,
+            render_read_body(input, vars)?,
             render_gql_str(src),
             render_gql_str(dst)
         ),
-        ReadExpr::Src { input } => format!("{} {{ src", render_read_body(input)?),
-        ReadExpr::Dst { input } => format!("{} {{ dst", render_read_body(input)?),
-        ReadExpr::Nbr { input } => format!("{} {{ nbr", render_read_body(input)?),
-        ReadExpr::History { input } => format!("{} {{ history", render_read_body(input)?),
+        ReadExpr::Src { input } => format!("{} {{ src", render_read_body(input, vars)?),
+        ReadExpr::Dst { input } => format!("{} {{ dst", render_read_body(input, vars)?),
+        ReadExpr::Nbr { input } => format!("{} {{ nbr", render_read_body(input, vars)?),
+        ReadExpr::History { input } => format!("{} {{ history", render_read_body(input, vars)?),
         ReadExpr::CombinedHistory { input } => {
-            format!("{} {{ combinedHistory", render_read_body(input)?)
+            format!("{} {{ combinedHistory", render_read_body(input, vars)?)
         }
         ReadExpr::HistoryReverse { input } => {
-            format!("{} {{ reverse", render_read_body(input)?)
+            format!("{} {{ reverse", render_read_body(input, vars)?)
         }
-        ReadExpr::Deletions { input } => format!("{} {{ deletions", render_read_body(input)?),
+        ReadExpr::Deletions { input } => format!("{} {{ deletions", render_read_body(input, vars)?),
         // Sub-container navigations
         ReadExpr::HistoryTimestamps { input } => {
-            format!("{} {{ timestamps", render_read_body(input)?)
+            format!("{} {{ timestamps", render_read_body(input, vars)?)
         }
         ReadExpr::HistoryEventIds { input } => {
-            format!("{} {{ eventId", render_read_body(input)?)
+            format!("{} {{ eventId", render_read_body(input, vars)?)
         }
         ReadExpr::HistoryDateTimes { input } => {
-            format!("{} {{ datetimes", render_read_body(input)?)
+            format!("{} {{ datetimes", render_read_body(input, vars)?)
         }
         ReadExpr::HistoryIntervals { input } => {
-            format!("{} {{ intervals", render_read_body(input)?)
+            format!("{} {{ intervals", render_read_body(input, vars)?)
         }
         // Polymorphic sub-container terminals — render field names only;
         // return type is decided by the parent selection in `parse_read`.
-        ReadExpr::SubList { input } => format!("{} {{ list", render_read_body(input)?),
-        ReadExpr::SubListRev { input } => format!("{} {{ listRev", render_read_body(input)?),
+        ReadExpr::SubList { input } => format!("{} {{ list", render_read_body(input, vars)?),
+        ReadExpr::SubListRev { input } => format!("{} {{ listRev", render_read_body(input, vars)?),
         ReadExpr::SubPage {
             input,
             limit,
@@ -1314,7 +962,7 @@ fn render_read_body(expr: &ReadExpr) -> Result<String, ClientError> {
             page_index,
         } => format!(
             "{} {{ page({})",
-            render_read_body(input)?,
+            render_read_body(input, vars)?,
             render_page_args(*limit, *offset, *page_index),
         ),
         ReadExpr::SubPageRev {
@@ -1324,44 +972,44 @@ fn render_read_body(expr: &ReadExpr) -> Result<String, ClientError> {
             page_index,
         } => format!(
             "{} {{ pageRev({})",
-            render_read_body(input)?,
+            render_read_body(input, vars)?,
             render_page_args(*limit, *offset, *page_index),
         ),
         // Intervals stats
-        ReadExpr::IntervalsMean { input } => format!("{} {{ mean", render_read_body(input)?),
-        ReadExpr::IntervalsMedian { input } => format!("{} {{ median", render_read_body(input)?),
-        ReadExpr::IntervalsMax { input } => format!("{} {{ max", render_read_body(input)?),
-        ReadExpr::IntervalsMin { input } => format!("{} {{ min", render_read_body(input)?),
-        ReadExpr::Nodes { input } => format!("{} {{ nodes", render_read_body(input)?),
-        ReadExpr::Neighbours { input } => format!("{} {{ neighbours", render_read_body(input)?),
+        ReadExpr::IntervalsMean { input } => format!("{} {{ mean", render_read_body(input, vars)?),
+        ReadExpr::IntervalsMedian { input } => format!("{} {{ median", render_read_body(input, vars)?),
+        ReadExpr::IntervalsMax { input } => format!("{} {{ max", render_read_body(input, vars)?),
+        ReadExpr::IntervalsMin { input } => format!("{} {{ min", render_read_body(input, vars)?),
+        ReadExpr::Nodes { input } => format!("{} {{ nodes", render_read_body(input, vars)?),
+        ReadExpr::Neighbours { input } => format!("{} {{ neighbours", render_read_body(input, vars)?),
         ReadExpr::InNeighbours { input } => {
-            format!("{} {{ inNeighbours", render_read_body(input)?)
+            format!("{} {{ inNeighbours", render_read_body(input, vars)?)
         }
         ReadExpr::OutNeighbours { input } => {
-            format!("{} {{ outNeighbours", render_read_body(input)?)
+            format!("{} {{ outNeighbours", render_read_body(input, vars)?)
         }
-        ReadExpr::Edges { input } => format!("{} {{ edges", render_read_body(input)?),
-        ReadExpr::NodeEdges { input } => format!("{} {{ edges", render_read_body(input)?),
-        ReadExpr::InEdges { input } => format!("{} {{ inEdges", render_read_body(input)?),
-        ReadExpr::OutEdges { input } => format!("{} {{ outEdges", render_read_body(input)?),
+        ReadExpr::Edges { input } => format!("{} {{ edges", render_read_body(input, vars)?),
+        ReadExpr::NodeEdges { input } => format!("{} {{ edges", render_read_body(input, vars)?),
+        ReadExpr::InEdges { input } => format!("{} {{ inEdges", render_read_body(input, vars)?),
+        ReadExpr::OutEdges { input } => format!("{} {{ outEdges", render_read_body(input, vars)?),
         ReadExpr::InComponent { input } => {
-            format!("{} {{ inComponent", render_read_body(input)?)
+            format!("{} {{ inComponent", render_read_body(input, vars)?)
         }
         ReadExpr::OutComponent { input } => {
-            format!("{} {{ outComponent", render_read_body(input)?)
+            format!("{} {{ outComponent", render_read_body(input, vars)?)
         }
-        ReadExpr::Explode { input } => format!("{} {{ explode", render_read_body(input)?),
+        ReadExpr::Explode { input } => format!("{} {{ explode", render_read_body(input, vars)?),
         ReadExpr::ExplodeLayers { input } => {
-            format!("{} {{ explodeLayers", render_read_body(input)?)
+            format!("{} {{ explodeLayers", render_read_body(input, vars)?)
         }
         ReadExpr::SortedNodes { input, sort_bys } => format!(
             "{} {{ sorted(sortBys: {})",
-            render_read_body(input)?,
+            render_read_body(input, vars)?,
             render_node_sort_bys(sort_bys)
         ),
         ReadExpr::SortedEdges { input, sort_bys } => format!(
             "{} {{ sorted(sortBys: {})",
-            render_read_body(input)?,
+            render_read_body(input, vars)?,
             render_edge_sort_bys(sort_bys)
         ),
         ReadExpr::FilterNodes { input, filter } => {
@@ -1371,8 +1019,8 @@ fn render_read_body(expr: &ReadExpr) -> Result<String, ClientError> {
             // narrows membership at this step only.
             format!(
                 "{} {{ filter(expr: {})",
-                render_read_body(input)?,
-                render_gql_node_filter(filter)?,
+                render_read_body(input, vars)?,
+                vars.add_node_filter(filter)?,
             )
         }
         ReadExpr::SelectNodes { input, filter } => {
@@ -1381,8 +1029,8 @@ fn render_read_body(expr: &ReadExpr) -> Result<String, ClientError> {
             // unfiltered graph.
             format!(
                 "{} {{ select(expr: {})",
-                render_read_body(input)?,
-                render_gql_node_filter(filter)?,
+                render_read_body(input, vars)?,
+                vars.add_node_filter(filter)?,
             )
         }
         ReadExpr::FilterEdges { input, filter } => {
@@ -1390,8 +1038,8 @@ fn render_read_body(expr: &ReadExpr) -> Result<String, ClientError> {
             // this collection AND propagates to downstream traversals.
             format!(
                 "{} {{ filter(expr: {})",
-                render_read_body(input)?,
-                render_gql_edge_filter(filter)?,
+                render_read_body(input, vars)?,
+                vars.add_edge_filter(filter)?,
             )
         }
         ReadExpr::SelectEdges { input, filter } => {
@@ -1399,24 +1047,24 @@ fn render_read_body(expr: &ReadExpr) -> Result<String, ClientError> {
             // current collection's membership only.
             format!(
                 "{} {{ select(expr: {})",
-                render_read_body(input)?,
-                render_gql_edge_filter(filter)?,
+                render_read_body(input, vars)?,
+                vars.add_edge_filter(filter)?,
             )
         }
         ReadExpr::FilterGraphNodes { input, filter } => {
             // Server field `filterNodes(expr: NodeFilter!)` on `Graph`.
             format!(
                 "{} {{ filterNodes(expr: {})",
-                render_read_body(input)?,
-                render_gql_node_filter(filter)?,
+                render_read_body(input, vars)?,
+                vars.add_node_filter(filter)?,
             )
         }
         ReadExpr::FilterGraphEdges { input, filter } => {
             // Server field `filterEdges(expr: EdgeFilter!)` on `Graph`.
             format!(
                 "{} {{ filterEdges(expr: {})",
-                render_read_body(input)?,
-                render_gql_edge_filter(filter)?,
+                render_read_body(input, vars)?,
+                vars.add_edge_filter(filter)?,
             )
         }
         ReadExpr::NodeFilterEdges { input, filter } => {
@@ -1424,8 +1072,8 @@ fn render_read_body(expr: &ReadExpr) -> Result<String, ClientError> {
             // filters the node's edge traversals; the node stays addressable.
             format!(
                 "{} {{ filterEdges(expr: {})",
-                render_read_body(input)?,
-                render_gql_edge_filter(filter)?,
+                render_read_body(input, vars)?,
+                vars.add_edge_filter(filter)?,
             )
         }
         ReadExpr::EdgeFilterNodes { input, filter } => {
@@ -1433,8 +1081,8 @@ fn render_read_body(expr: &ReadExpr) -> Result<String, ClientError> {
             // filters the edge's node traversals; the edge stays addressable.
             format!(
                 "{} {{ filterNodes(expr: {})",
-                render_read_body(input)?,
-                render_gql_node_filter(filter)?,
+                render_read_body(input, vars)?,
+                vars.add_node_filter(filter)?,
             )
         }
         ReadExpr::EdgeEvent {
@@ -1454,61 +1102,71 @@ fn render_read_body(expr: &ReadExpr) -> Result<String, ClientError> {
             match layer {
                 Some(l) => format!(
                     "{} {{ event(time: {}, layer: {})",
-                    render_read_body(input)?,
+                    render_read_body(input, vars)?,
                     time_arg,
                     render_gql_str(l)
                 ),
-                None => format!("{} {{ event(time: {})", render_read_body(input)?, time_arg),
+                None => format!("{} {{ event(time: {})", render_read_body(input, vars)?, time_arg),
             }
         }
         // Server field `eventLayer(name: String!)` on `Edge` — pins a single
         // layer-exploded instance.
         ReadExpr::EdgeLayerEvent { input, layer } => format!(
             "{} {{ eventLayer(name: {})",
-            render_read_body(input)?,
+            render_read_body(input, vars)?,
             render_gql_str(layer)
         ),
         // Metadata / Properties navigation
-        ReadExpr::Metadata { input } => format!("{} {{ metadata", render_read_body(input)?),
-        ReadExpr::Properties { input } => format!("{} {{ properties", render_read_body(input)?),
-        // Property terminals — `get`/`values` are compound (return {key, value}
-        // records). Inner braces `{ key value }` are self-balanced; outer
-        // `get` / `values` opens one net brace, contributing 1 to read_depth.
+        ReadExpr::Metadata { input } => format!("{} {{ metadata", render_read_body(input, vars)?),
+        ReadExpr::Properties { input } => format!("{} {{ properties", render_read_body(input, vars)?),
+        // Property terminals — `values` is compound (returns {key, value}
+        // records); `get` selects only `{ value }` — the caller already knows
+        // the key, so fetching it back is wasted bytes. Inner braces are
+        // self-balanced; outer `get` / `values` opens one net brace,
+        // contributing 1 to read_depth.
         ReadExpr::PropertyGet { input, key } => format!(
-            "{} {{ get(key: {}) {{ key value }}",
-            render_read_body(input)?,
+            "{} {{ get(key: {}) {{ value }}",
+            render_read_body(input, vars)?,
             render_gql_str(key)
         ),
         ReadExpr::PropertyContains { input, key } => {
             format!(
                 "{} {{ contains(key: {})",
-                render_read_body(input)?,
+                render_read_body(input, vars)?,
                 render_gql_str(key)
             )
         }
-        ReadExpr::PropertyKeys { input } => format!("{} {{ keys", render_read_body(input)?),
+        ReadExpr::PropertyKeys { input } => format!("{} {{ keys", render_read_body(input, vars)?),
         ReadExpr::PropertyGetDtypeOf { input, key } => {
             format!(
                 "{} {{ getDtypeOf(key: {})",
-                render_read_body(input)?,
+                render_read_body(input, vars)?,
                 render_gql_str(key)
             )
         }
         ReadExpr::PropertyValues { input, keys } => match keys {
             Some(ks) => format!(
-                "{} {{ values(keys: [{}]) {{ key value }}",
-                render_read_body(input)?,
+                "{} {{ values(keys: [{}]) {{ value }}",
+                render_read_body(input, vars)?,
                 render_string_list(ks)
             ),
-            None => format!("{} {{ values {{ key value }}", render_read_body(input)?),
+            None => format!("{} {{ values {{ value }}", render_read_body(input, vars)?),
+        },
+        ReadExpr::PropertyItems { input, keys } => match keys {
+            Some(ks) => format!(
+                "{} {{ values(keys: [{}]) {{ key value }}",
+                render_read_body(input, vars)?,
+                render_string_list(ks)
+            ),
+            None => format!("{} {{ values {{ key value }}", render_read_body(input, vars)?),
         },
         ReadExpr::TemporalProperties { input } => {
-            format!("{} {{ temporal", render_read_body(input)?)
+            format!("{} {{ temporal", render_read_body(input, vars)?)
         }
         ReadExpr::TemporalPropertyByKey { input, key } => {
             format!(
                 "{} {{ get(key: {})",
-                render_read_body(input)?,
+                render_read_body(input, vars)?,
                 render_gql_str(key)
             )
         }
@@ -1517,48 +1175,48 @@ fn render_read_body(expr: &ReadExpr) -> Result<String, ClientError> {
         ReadExpr::TemporalPropertyList { input, keys } => match keys {
             Some(ks) => format!(
                 "{} {{ values(keys: [{}]) {{ key }}",
-                render_read_body(input)?,
+                render_read_body(input, vars)?,
                 render_string_list(ks)
             ),
-            None => format!("{} {{ values {{ key }}", render_read_body(input)?),
+            None => format!("{} {{ values {{ key }}", render_read_body(input, vars)?),
         },
         ReadExpr::TemporalPropertyValueList { input } => {
-            format!("{} {{ values", render_read_body(input)?)
+            format!("{} {{ values", render_read_body(input, vars)?)
         }
         ReadExpr::TemporalPropertyAt { input, time } => {
-            format!("{} {{ at(t: {})", render_read_body(input)?, time)
+            format!("{} {{ at(t: {})", render_read_body(input, vars)?, time)
         }
         ReadExpr::TemporalPropertyLatest { input } => {
-            format!("{} {{ latest", render_read_body(input)?)
+            format!("{} {{ latest", render_read_body(input, vars)?)
         }
         ReadExpr::TemporalPropertyUnique { input } => {
-            format!("{} {{ unique", render_read_body(input)?)
+            format!("{} {{ unique", render_read_body(input, vars)?)
         }
         ReadExpr::TemporalPropertyOrderedDedupe { input, latest_time } => format!(
             "{} {{ orderedDedupe(latestTime: {}) {{ time {{ timestamp datetime eventId }} value }}",
-            render_read_body(input)?,
+            render_read_body(input, vars)?,
             latest_time
         ),
         ReadExpr::TemporalPropertySum { input } => {
-            format!("{} {{ sum", render_read_body(input)?)
+            format!("{} {{ sum", render_read_body(input, vars)?)
         }
         ReadExpr::TemporalPropertyMean { input } => {
-            format!("{} {{ mean", render_read_body(input)?)
+            format!("{} {{ mean", render_read_body(input, vars)?)
         }
         ReadExpr::TemporalPropertyAverage { input } => {
-            format!("{} {{ average", render_read_body(input)?)
+            format!("{} {{ average", render_read_body(input, vars)?)
         }
         ReadExpr::TemporalPropertyMin { input } => format!(
             "{} {{ min {{ time {{ timestamp datetime eventId }} value }}",
-            render_read_body(input)?
+            render_read_body(input, vars)?
         ),
         ReadExpr::TemporalPropertyMax { input } => format!(
             "{} {{ max {{ time {{ timestamp datetime eventId }} value }}",
-            render_read_body(input)?
+            render_read_body(input, vars)?
         ),
         ReadExpr::TemporalPropertyMedian { input } => format!(
             "{} {{ median {{ time {{ timestamp datetime eventId }} value }}",
-            render_read_body(input)?
+            render_read_body(input, vars)?
         ),
         // Compound-structured tree — one RPC fetches everything.
         ReadExpr::Schema { input } => format!(
@@ -1568,95 +1226,92 @@ fn render_read_body(expr: &ReadExpr) -> Result<String, ClientError> {
                 layers {{ name edges {{ srcType dstType \
                     properties {{ key propertyType variants }} \
                     metadata {{ key propertyType variants }} }} }} }}",
-            render_read_body(input)?,
+            render_read_body(input, vars)?,
         ),
         // Terminals — no args after the field name
-        ReadExpr::CountNodes { input } => format!("{} {{ countNodes", render_read_body(input)?),
-        ReadExpr::CountEdges { input } => format!("{} {{ countEdges", render_read_body(input)?),
-        ReadExpr::Degree { input } => format!("{} {{ degree", render_read_body(input)?),
-        ReadExpr::InDegree { input } => format!("{} {{ inDegree", render_read_body(input)?),
-        ReadExpr::OutDegree { input } => format!("{} {{ outDegree", render_read_body(input)?),
-        ReadExpr::Name { input } => format!("{} {{ name", render_read_body(input)?),
+        ReadExpr::CountNodes { input } => format!("{} {{ countNodes", render_read_body(input, vars)?),
+        ReadExpr::CountEdges { input } => format!("{} {{ countEdges", render_read_body(input, vars)?),
+        ReadExpr::Degree { input } => format!("{} {{ degree", render_read_body(input, vars)?),
+        ReadExpr::InDegree { input } => format!("{} {{ inDegree", render_read_body(input, vars)?),
+        ReadExpr::OutDegree { input } => format!("{} {{ outDegree", render_read_body(input, vars)?),
+        ReadExpr::Name { input } => format!("{} {{ name", render_read_body(input, vars)?),
         ReadExpr::HasNode { input, id } => {
             format!(
                 "{} {{ hasNode(name: {})",
-                render_read_body(input)?,
+                render_read_body(input, vars)?,
                 render_gql_str(id)
             )
         }
         ReadExpr::HasEdge { input, src, dst } => format!(
             "{} {{ hasEdge(src: {}, dst: {})",
-            render_read_body(input)?,
+            render_read_body(input, vars)?,
             render_gql_str(src),
             render_gql_str(dst)
         ),
         ReadExpr::CountTemporalEdges { input } => {
-            format!("{} {{ countTemporalEdges", render_read_body(input)?)
+            format!("{} {{ countTemporalEdges", render_read_body(input, vars)?)
         }
-        ReadExpr::Path { input } => format!("{} {{ path", render_read_body(input)?),
-        ReadExpr::Namespace { input } => format!("{} {{ namespace", render_read_body(input)?),
-        ReadExpr::Created { input } => format!("{} {{ created", render_read_body(input)?),
-        ReadExpr::LastOpened { input } => format!("{} {{ lastOpened", render_read_body(input)?),
-        ReadExpr::LastUpdated { input } => format!("{} {{ lastUpdated", render_read_body(input)?),
-        ReadExpr::UniqueLayers { input } => format!("{} {{ uniqueLayers", render_read_body(input)?),
+        ReadExpr::Path { input } => format!("{} {{ path", render_read_body(input, vars)?),
+        ReadExpr::Namespace { input } => format!("{} {{ namespace", render_read_body(input, vars)?),
+        ReadExpr::Created { input } => format!("{} {{ created", render_read_body(input, vars)?),
+        ReadExpr::LastOpened { input } => format!("{} {{ lastOpened", render_read_body(input, vars)?),
+        ReadExpr::LastUpdated { input } => format!("{} {{ lastUpdated", render_read_body(input, vars)?),
+        ReadExpr::UniqueLayers { input } => format!("{} {{ uniqueLayers", render_read_body(input, vars)?),
         ReadExpr::HasLayer { input, name } => {
             format!(
                 "{} {{ hasLayer(name: {})",
-                render_read_body(input)?,
+                render_read_body(input, vars)?,
                 render_gql_str(name)
             )
         }
-        ReadExpr::WindowSize { input } => format!("{} {{ windowSize", render_read_body(input)?),
-        ReadExpr::Ids { input } => format!("{} {{ ids", render_read_body(input)?),
-        // `PathFromGraph.list` returns `[PathFromNode!]!` — one object per
-        // source node. We render `list { ids }` and read each element's `ids`
-        // scalar-list to rebuild the nested `[[String]]` shape client-side.
-        // The `list` field opens ONE net brace (closed by outer `read_depth`);
-        // the inner `{ ids }` group is self-balanced. Mirrors `EdgesList`.
+        ReadExpr::WindowSize { input } => format!("{} {{ windowSize", render_read_body(input, vars)?),
+        ReadExpr::Ids { input } => format!("{} {{ ids", render_read_body(input, vars)?),
+        // `PathFromGraph.ids` is a columnar `[[String]]` field computed in ONE
+        // server-side `blocking_compute` (vs `list { ids }`, which resolves one
+        // `PathFromNode` object + its own `blocking_compute` per source). Opens
+        // ONE net brace, same as `Ids`.
         ReadExpr::NestedIds { input } => {
-            format!("{} {{ list {{ ids }}", render_read_body(input)?)
+            format!("{} {{ ids", render_read_body(input, vars)?)
         }
         // Flat collection degree terminals — render the scalar-list field
         // directly on the `Nodes`/`PathFromNode` collection.
         ReadExpr::CollectionDegree { input } => {
-            format!("{} {{ degree", render_read_body(input)?)
+            format!("{} {{ degree", render_read_body(input, vars)?)
         }
         ReadExpr::CollectionInDegree { input } => {
-            format!("{} {{ inDegree", render_read_body(input)?)
+            format!("{} {{ inDegree", render_read_body(input, vars)?)
         }
         ReadExpr::CollectionOutDegree { input } => {
-            format!("{} {{ outDegree", render_read_body(input)?)
+            format!("{} {{ outDegree", render_read_body(input, vars)?)
         }
         ReadExpr::CollectionEdgeHistoryCount { input } => {
-            format!("{} {{ edgeHistoryCount", render_read_body(input)?)
+            format!("{} {{ edgeHistoryCount", render_read_body(input, vars)?)
         }
-        // Nested collection degree terminals — `PathFromGraph.list` returns
-        // `[PathFromNode!]!`, so we render `list { <field> }` and read each
-        // per-source element's flat degree list. The `list` field opens ONE net
-        // brace (closed by the outer `read_depth`); the inner `{ <field> }`
-        // group is self-balanced. Mirrors `NestedIds`.
+        // Columnar `[[Int]]` fields on `PathFromGraph`, computed in ONE
+        // server-side `blocking_compute` (vs `list { degree }` per source).
+        // Mirror `NestedIds`.
         ReadExpr::NestedDegree { input } => {
-            format!("{} {{ list {{ degree }}", render_read_body(input)?)
+            format!("{} {{ degree", render_read_body(input, vars)?)
         }
         ReadExpr::NestedInDegree { input } => {
-            format!("{} {{ list {{ inDegree }}", render_read_body(input)?)
+            format!("{} {{ inDegree", render_read_body(input, vars)?)
         }
         ReadExpr::NestedOutDegree { input } => {
-            format!("{} {{ list {{ outDegree }}", render_read_body(input)?)
+            format!("{} {{ outDegree", render_read_body(input, vars)?)
         }
         ReadExpr::NestedEdgeHistoryCount { input } => {
             format!(
                 "{} {{ list {{ edgeHistoryCount }}",
-                render_read_body(input)?
+                render_read_body(input, vars)?
             )
         }
-        ReadExpr::Count { input } => format!("{} {{ count", render_read_body(input)?),
+        ReadExpr::Count { input } => format!("{} {{ count", render_read_body(input, vars)?),
         // Compound structured terminal: renders as `list { src { name } dst { name } }`.
         // The `list` field opens ONE brace that gets closed by the outer `read_depth`;
         // the inner `src { name }` / `dst { name }` groups are self-balanced.
         ReadExpr::EdgesList { input } => format!(
             "{} {{ list {{ src {{ name }} dst {{ name }} }}",
-            render_read_body(input)?
+            render_read_body(input, vars)?
         ),
         // `NestedEdges.list` returns `[Edges!]!` — one object per source node.
         // We render `list { list { src { name } dst { name } } }` and read each
@@ -1666,7 +1321,7 @@ fn render_read_body(expr: &ReadExpr) -> Result<String, ClientError> {
         // group is self-balanced. Mirrors `EdgesList`, one level deeper.
         ReadExpr::NestedEdgesList { input } => format!(
             "{} {{ list {{ list {{ src {{ name }} dst {{ name }} }} }}",
-            render_read_body(input)?
+            render_read_body(input, vars)?
         ),
         // Exploded-collection variant of `EdgesList`: adds each member's
         // event identity (`time { timestamp eventId }`, `layerName`) so
@@ -1674,111 +1329,111 @@ fn render_read_body(expr: &ReadExpr) -> Result<String, ClientError> {
         // the outer `list` opens one net brace, inner groups self-balance.
         ReadExpr::ExplodedEdgesList { input } => format!(
             "{} {{ list {{ src {{ name }} dst {{ name }} time {{ timestamp eventId }} layerName }}",
-            render_read_body(input)?
+            render_read_body(input, vars)?
         ),
         // Nested variant of `ExplodedEdgesList` — mirrors `NestedEdgesList`.
         ReadExpr::NestedExplodedEdgesList { input } => format!(
             "{} {{ list {{ list {{ src {{ name }} dst {{ name }} time {{ timestamp eventId }} layerName }} }}",
-            render_read_body(input)?
+            render_read_body(input, vars)?
         ),
         // Layer-exploded members — `(src, dst, layer)` per member (no time).
         ReadExpr::ExplodedLayersEdgesList { input } => format!(
             "{} {{ list {{ src {{ name }} dst {{ name }} layerName }}",
-            render_read_body(input)?
+            render_read_body(input, vars)?
         ),
         ReadExpr::NestedExplodedLayersEdgesList { input } => format!(
             "{} {{ list {{ list {{ src {{ name }} dst {{ name }} layerName }} }}",
-            render_read_body(input)?
+            render_read_body(input, vars)?
         ),
         // Columnar accessors — FLAT collections render `list { <field> }`.
         ReadExpr::CollectionNames { input } => {
-            format!("{} {{ list {{ name }}", render_read_body(input)?)
+            format!("{} {{ list {{ name }}", render_read_body(input, vars)?)
         }
         ReadExpr::CollectionNodeTypes { input } => {
-            format!("{} {{ list {{ nodeType }}", render_read_body(input)?)
+            format!("{} {{ list {{ nodeType }}", render_read_body(input, vars)?)
         }
         ReadExpr::CollectionLayerNames { input } => {
-            format!("{} {{ list {{ layerNames }}", render_read_body(input)?)
+            format!("{} {{ list {{ layerNames }}", render_read_body(input, vars)?)
         }
         ReadExpr::CollectionLayerName { input } => {
-            format!("{} {{ list {{ layerName }}", render_read_body(input)?)
+            format!("{} {{ list {{ layerName }}", render_read_body(input, vars)?)
         }
         ReadExpr::CollectionEarliestTime { input } => format!(
             "{} {{ list {{ earliestTime {{ timestamp datetime eventId }} }}",
-            render_read_body(input)?
+            render_read_body(input, vars)?
         ),
         ReadExpr::CollectionLatestTime { input } => format!(
             "{} {{ list {{ latestTime {{ timestamp datetime eventId }} }}",
-            render_read_body(input)?
+            render_read_body(input, vars)?
         ),
         ReadExpr::CollectionTime { input } => format!(
             "{} {{ list {{ time {{ timestamp datetime eventId }} }}",
-            render_read_body(input)?
+            render_read_body(input, vars)?
         ),
         // Columnar accessors — NESTED collections render `list { list { <field> } }`.
         ReadExpr::NestedNames { input } => {
-            format!("{} {{ list {{ list {{ name }} }}", render_read_body(input)?)
+            format!("{} {{ list {{ list {{ name }} }}", render_read_body(input, vars)?)
         }
         ReadExpr::NestedNodeTypes { input } => format!(
             "{} {{ list {{ list {{ nodeType }} }}",
-            render_read_body(input)?
+            render_read_body(input, vars)?
         ),
         ReadExpr::NestedLayerNames { input } => format!(
             "{} {{ list {{ list {{ layerNames }} }}",
-            render_read_body(input)?
+            render_read_body(input, vars)?
         ),
         ReadExpr::NestedLayerName { input } => format!(
             "{} {{ list {{ list {{ layerName }} }}",
-            render_read_body(input)?
+            render_read_body(input, vars)?
         ),
         ReadExpr::NestedEarliestTime { input } => format!(
             "{} {{ list {{ list {{ earliestTime {{ timestamp datetime eventId }} }} }}",
-            render_read_body(input)?
+            render_read_body(input, vars)?
         ),
         ReadExpr::NestedLatestTime { input } => format!(
             "{} {{ list {{ list {{ latestTime {{ timestamp datetime eventId }} }} }}",
-            render_read_body(input)?
+            render_read_body(input, vars)?
         ),
         ReadExpr::NestedTime { input } => format!(
             "{} {{ list {{ list {{ time {{ timestamp datetime eventId }} }} }}",
-            render_read_body(input)?
+            render_read_body(input, vars)?
         ),
         // Boolean columnar accessors — FLAT collections render `list { <field> }`.
         ReadExpr::CollectionIsActive { input } => {
-            format!("{} {{ list {{ isActive }}", render_read_body(input)?)
+            format!("{} {{ list {{ isActive }}", render_read_body(input, vars)?)
         }
         ReadExpr::CollectionIsValid { input } => {
-            format!("{} {{ list {{ isValid }}", render_read_body(input)?)
+            format!("{} {{ list {{ isValid }}", render_read_body(input, vars)?)
         }
         ReadExpr::CollectionIsDeleted { input } => {
-            format!("{} {{ list {{ isDeleted }}", render_read_body(input)?)
+            format!("{} {{ list {{ isDeleted }}", render_read_body(input, vars)?)
         }
         ReadExpr::CollectionIsSelfLoop { input } => {
-            format!("{} {{ list {{ isSelfLoop }}", render_read_body(input)?)
+            format!("{} {{ list {{ isSelfLoop }}", render_read_body(input, vars)?)
         }
         // Boolean columnar accessors — NESTED collections render `list { list { <field> } }`.
         ReadExpr::NestedIsActive { input } => {
             format!(
                 "{} {{ list {{ list {{ isActive }} }}",
-                render_read_body(input)?
+                render_read_body(input, vars)?
             )
         }
         ReadExpr::NestedIsValid { input } => {
             format!(
                 "{} {{ list {{ list {{ isValid }} }}",
-                render_read_body(input)?
+                render_read_body(input, vars)?
             )
         }
         ReadExpr::NestedIsDeleted { input } => {
             format!(
                 "{} {{ list {{ list {{ isDeleted }} }}",
-                render_read_body(input)?
+                render_read_body(input, vars)?
             )
         }
         ReadExpr::NestedIsSelfLoop { input } => {
             format!(
                 "{} {{ list {{ list {{ isSelfLoop }} }}",
-                render_read_body(input)?
+                render_read_body(input, vars)?
             )
         }
         // Columnar property / metadata accessors — descend per-member into the
@@ -1787,51 +1442,51 @@ fn render_read_body(expr: &ReadExpr) -> Result<String, ClientError> {
         // value } } }`.
         ReadExpr::CollectionMetadataValues { input } => format!(
             "{} {{ list {{ metadata {{ values {{ key value }} }} }}",
-            render_read_body(input)?
+            render_read_body(input, vars)?
         ),
         ReadExpr::CollectionPropertiesValues { input } => format!(
             "{} {{ list {{ properties {{ values {{ key value }} }} }}",
-            render_read_body(input)?
+            render_read_body(input, vars)?
         ),
         // NESTED collections render `list { list { <container> { values { key
         // value } } } }`.
         ReadExpr::NestedMetadataValues { input } => format!(
             "{} {{ list {{ list {{ metadata {{ values {{ key value }} }} }} }}",
-            render_read_body(input)?
+            render_read_body(input, vars)?
         ),
         ReadExpr::NestedPropertiesValues { input } => format!(
             "{} {{ list {{ list {{ properties {{ values {{ key value }} }} }} }}",
-            render_read_body(input)?
+            render_read_body(input, vars)?
         ),
         // Compound structured terminal on Graph: `sharedNeighbours(selectedNodes: [ids]) { name }`
         // — opens ONE net brace (the outer, before `sharedNeighbours`); the inner
         // `{ name }` is self-balanced.
         ReadExpr::SharedNeighbours { input, ids } => format!(
             "{} {{ sharedNeighbours(selectedNodes: [{}]) {{ name }}",
-            render_read_body(input)?,
+            render_read_body(input, vars)?,
             render_string_list(ids)
         ),
         // `findNodes(propertiesDict: [{key, value}]) { name }` — opens ONE net
         // brace (before `findNodes`); inner `{ name }` is self-balanced.
         ReadExpr::FindNodes { input, properties } => format!(
             "{} {{ findNodes(propertiesDict: {}) {{ name }}",
-            render_read_body(input)?,
-            build_property_string(properties.clone())?,
+            render_read_body(input, vars)?,
+            vars.add_properties(properties)?,
         ),
         // `findEdges(propertiesDict: [{key, value}]) { src { name } dst { name } }`
         // — opens ONE net brace; the inner `src`/`dst` groups are self-balanced.
         ReadExpr::FindEdges { input, properties } => format!(
             "{} {{ findEdges(propertiesDict: {}) {{ src {{ name }} dst {{ name }} }}",
-            render_read_body(input)?,
-            build_property_string(properties.clone())?,
+            render_read_body(input, vars)?,
+            vars.add_properties(properties)?,
         ),
         ReadExpr::GetAllNodeTypes { input } => {
-            format!("{} {{ getAllNodeTypes", render_read_body(input)?)
+            format!("{} {{ getAllNodeTypes", render_read_body(input, vars)?)
         }
-        ReadExpr::Id { input } => format!("{} {{ id", render_read_body(input)?),
-        ReadExpr::NodeType { input } => format!("{} {{ nodeType", render_read_body(input)?),
-        ReadExpr::IsActive { input } => format!("{} {{ isActive", render_read_body(input)?),
-        ReadExpr::IsEmpty { input } => format!("{} {{ isEmpty", render_read_body(input)?),
+        ReadExpr::Id { input } => format!("{} {{ id", render_read_body(input, vars)?),
+        ReadExpr::NodeType { input } => format!("{} {{ nodeType", render_read_body(input, vars)?),
+        ReadExpr::IsActive { input } => format!("{} {{ isActive", render_read_body(input, vars)?),
+        ReadExpr::IsEmpty { input } => format!("{} {{ isEmpty", render_read_body(input, vars)?),
         // Compound structured terminal: `list { timestamp datetime eventId }`
         // returns a list of records. Inner braces are self-balanced; the outer
         // `list` brace opens one net brace, contributing 1 to read_depth.
@@ -1840,11 +1495,11 @@ fn render_read_body(expr: &ReadExpr) -> Result<String, ClientError> {
         // (defaults to RFC 3339). We pass no arg to get the default.
         ReadExpr::HistoryList { input } => format!(
             "{} {{ list {{ timestamp datetime eventId }}",
-            render_read_body(input)?
+            render_read_body(input, vars)?
         ),
         ReadExpr::HistoryListRev { input } => format!(
             "{} {{ listRev {{ timestamp datetime eventId }}",
-            render_read_body(input)?
+            render_read_body(input, vars)?
         ),
         ReadExpr::HistoryPage {
             input,
@@ -1853,7 +1508,7 @@ fn render_read_body(expr: &ReadExpr) -> Result<String, ClientError> {
             page_index,
         } => format!(
             "{} {{ page({}) {{ timestamp datetime eventId }}",
-            render_read_body(input)?,
+            render_read_body(input, vars)?,
             render_page_args(*limit, *offset, *page_index),
         ),
         ReadExpr::HistoryPageRev {
@@ -1863,68 +1518,68 @@ fn render_read_body(expr: &ReadExpr) -> Result<String, ClientError> {
             page_index,
         } => format!(
             "{} {{ pageRev({}) {{ timestamp datetime eventId }}",
-            render_read_body(input)?,
+            render_read_body(input, vars)?,
             render_page_args(*limit, *offset, *page_index),
         ),
         ReadExpr::EdgeHistoryCount { input } => {
-            format!("{} {{ edgeHistoryCount", render_read_body(input)?)
+            format!("{} {{ edgeHistoryCount", render_read_body(input, vars)?)
         }
         // Edge-specific terminals
-        ReadExpr::EdgeIdPair { input } => format!("{} {{ id", render_read_body(input)?),
-        ReadExpr::LayerNames { input } => format!("{} {{ layerNames", render_read_body(input)?),
-        ReadExpr::LayerName { input } => format!("{} {{ layerName", render_read_body(input)?),
-        ReadExpr::IsValid { input } => format!("{} {{ isValid", render_read_body(input)?),
-        ReadExpr::IsDeleted { input } => format!("{} {{ isDeleted", render_read_body(input)?),
-        ReadExpr::IsSelfLoop { input } => format!("{} {{ isSelfLoop", render_read_body(input)?),
+        ReadExpr::EdgeIdPair { input } => format!("{} {{ id", render_read_body(input, vars)?),
+        ReadExpr::LayerNames { input } => format!("{} {{ layerNames", render_read_body(input, vars)?),
+        ReadExpr::LayerName { input } => format!("{} {{ layerName", render_read_body(input, vars)?),
+        ReadExpr::IsValid { input } => format!("{} {{ isValid", render_read_body(input, vars)?),
+        ReadExpr::IsDeleted { input } => format!("{} {{ isDeleted", render_read_body(input, vars)?),
+        ReadExpr::IsSelfLoop { input } => format!("{} {{ isSelfLoop", render_read_body(input, vars)?),
         // EventTime terminals — fetch the full `{ timestamp datetime eventId }`
         // record so the client can return a `RemoteEventTime` (drop-in parity
         // with the local API's `EventTime`, which carries the `event_id`).
         ReadExpr::EarliestTime { input } => {
             format!(
                 "{} {{ earliestTime {{ timestamp datetime eventId",
-                render_read_body(input)?
+                render_read_body(input, vars)?
             )
         }
         ReadExpr::LatestTime { input } => {
             format!(
                 "{} {{ latestTime {{ timestamp datetime eventId",
-                render_read_body(input)?
+                render_read_body(input, vars)?
             )
         }
         ReadExpr::Start { input } => {
             format!(
                 "{} {{ start {{ timestamp datetime eventId",
-                render_read_body(input)?
+                render_read_body(input, vars)?
             )
         }
         ReadExpr::End { input } => {
             format!(
                 "{} {{ end {{ timestamp datetime eventId",
-                render_read_body(input)?
+                render_read_body(input, vars)?
             )
         }
         // Remaining timestamp terminals stay bare `i64` (no local @property
         // counterpart, so not part of the EventTime drop-in change).
         ReadExpr::EarliestEdgeTime { input } => format!(
             "{} {{ earliestEdgeTime {{ timestamp",
-            render_read_body(input)?
+            render_read_body(input, vars)?
         ),
         ReadExpr::LatestEdgeTime { input } => {
             format!(
                 "{} {{ latestEdgeTime {{ timestamp",
-                render_read_body(input)?
+                render_read_body(input, vars)?
             )
         }
         ReadExpr::FirstUpdate { input } => {
-            format!("{} {{ firstUpdate {{ timestamp", render_read_body(input)?)
+            format!("{} {{ firstUpdate {{ timestamp", render_read_body(input, vars)?)
         }
         ReadExpr::LastUpdate { input } => {
-            format!("{} {{ lastUpdate {{ timestamp", render_read_body(input)?)
+            format!("{} {{ lastUpdate {{ timestamp", render_read_body(input, vars)?)
         }
         ReadExpr::Time { input } => {
             format!(
                 "{} {{ time {{ timestamp datetime eventId",
-                render_read_body(input)?
+                render_read_body(input, vars)?
             )
         }
     })
@@ -1934,25 +1589,8 @@ fn read_depth(expr: &ReadExpr) -> usize {
     match expr {
         ReadExpr::Root { .. } => 0,
         // Single-brace variants — open one `{` each.
-        ReadExpr::Window { input, .. }
-        | ReadExpr::Layer { input, .. }
-        | ReadExpr::At { input, .. }
-        | ReadExpr::Before { input, .. }
-        | ReadExpr::After { input, .. }
-        | ReadExpr::Latest { input }
-        | ReadExpr::SnapshotLatest { input }
-        | ReadExpr::SnapshotAt { input, .. }
-        | ReadExpr::ExcludeLayer { input, .. }
-        | ReadExpr::ShrinkWindow { input, .. }
-        | ReadExpr::ShrinkStart { input, .. }
-        | ReadExpr::ShrinkEnd { input, .. }
+        ReadExpr::View { input, .. }
         | ReadExpr::Valid { input }
-        | ReadExpr::DefaultLayer { input }
-        | ReadExpr::Layers { input, .. }
-        | ReadExpr::ExcludeLayers { input, .. }
-        | ReadExpr::ValidLayers { input, .. }
-        | ReadExpr::ExcludeValidLayer { input, .. }
-        | ReadExpr::ExcludeValidLayers { input, .. }
         | ReadExpr::Subgraph { input, .. }
         | ReadExpr::SubgraphNodeTypes { input, .. }
         | ReadExpr::ExcludeNodes { input, .. }
@@ -1992,6 +1630,7 @@ fn read_depth(expr: &ReadExpr) -> usize {
         | ReadExpr::PropertyContains { input, .. }
         | ReadExpr::PropertyKeys { input }
         | ReadExpr::PropertyValues { input, .. }
+        | ReadExpr::PropertyItems { input, .. }
         | ReadExpr::TemporalProperties { input }
         | ReadExpr::TemporalPropertyByKey { input, .. }
         | ReadExpr::TemporalPropertyList { input, .. }
@@ -2433,21 +2072,19 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
                 .collect();
             Ok(Some(Prop::List(items?.into())))
         }
-        // Nested id terminal — `PathFromGraph.list` returns a JSON array of
-        // `PathFromNode` records `[{"ids": ["a","b"]}, ...]`, one per source
-        // node. We pull each record's `ids` scalar-list and rebuild the
-        // nested `Prop::List(Prop::List(Prop::Str))` (outer = per source,
-        // inner = that source's ids). Mirrors `EdgesList`.
+        // Nested id terminal — `PathFromGraph.ids` is a columnar `[[String]]`
+        // (outer = per source, inner = that source's ids). Parse straight into
+        // `Prop::List(Prop::List(Prop::Str))`.
         ReadExpr::NestedIds { .. } => {
             let outer = terminal_val.as_array().ok_or_else(|| {
                 ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
             })?;
             let rows: Result<Vec<Prop>, ClientError> = outer
                 .iter()
-                .map(|row| {
-                    let inner = row.get("ids").and_then(|v| v.as_array()).ok_or_else(|| {
+                .map(|inner_val| {
+                    let inner = inner_val.as_array().ok_or_else(|| {
                         ClientError::InvalidResponse(format!(
-                            "`{}` element missing `ids` array",
+                            "`{}` element not a JSON array",
                             terminal_key
                         ))
                     })?;
@@ -2490,34 +2127,61 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
                 .collect();
             Ok(Some(Prop::List(items?.into())))
         }
-        // Nested collection degree terminals — `PathFromGraph.list` returns a
-        // JSON array of `PathFromNode` records `[{"degree": [1,2]}, ...]`, one
-        // per source node. We pull each record's flat degree list and rebuild
-        // the nested `Prop::List(Prop::List(Prop::I64))` (outer = per source,
-        // inner = that source's per-node degrees). Mirrors `NestedIds`.
+        // Columnar nested degree terminals — `PathFromGraph.{degree,inDegree,
+        // outDegree}` are `[[Int]]` fields (outer = per source, inner = that
+        // source's per-node degrees). Parse straight into
+        // `Prop::List(Prop::List(Prop::I64))`.
         ReadExpr::NestedDegree { .. }
         | ReadExpr::NestedInDegree { .. }
-        | ReadExpr::NestedOutDegree { .. }
-        | ReadExpr::NestedEdgeHistoryCount { .. } => {
-            let field = match expr {
-                ReadExpr::NestedDegree { .. } => "degree",
-                ReadExpr::NestedInDegree { .. } => "inDegree",
-                ReadExpr::NestedOutDegree { .. } => "outDegree",
-                ReadExpr::NestedEdgeHistoryCount { .. } => "edgeHistoryCount",
-                _ => unreachable!(),
-            };
+        | ReadExpr::NestedOutDegree { .. } => {
+            let outer = terminal_val.as_array().ok_or_else(|| {
+                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
+            })?;
+            let rows: Result<Vec<Prop>, ClientError> = outer
+                .iter()
+                .map(|inner_val| {
+                    let inner = inner_val.as_array().ok_or_else(|| {
+                        ClientError::InvalidResponse(format!(
+                            "`{}` element not a JSON array",
+                            terminal_key
+                        ))
+                    })?;
+                    let items: Result<Vec<Prop>, ClientError> = inner
+                        .iter()
+                        .map(|v| {
+                            v.as_i64().map(Prop::I64).ok_or_else(|| {
+                                ClientError::InvalidResponse(format!(
+                                    "`{}` inner element not an i64",
+                                    terminal_key
+                                ))
+                            })
+                        })
+                        .collect();
+                    Ok(Prop::List(items?.into()))
+                })
+                .collect();
+            Ok(Some(Prop::List(rows?.into())))
+        }
+        // Nested edgeHistoryCount (PathFromGraph → per-source PathFromNode)
+        // still resolves via the `list` array of records
+        // `[{"edgeHistoryCount": [1,2]}, ...]` — GqlPathFromGraph has no
+        // columnar `edgeHistoryCount` field (only ids/degree/inDegree/outDegree).
+        ReadExpr::NestedEdgeHistoryCount { .. } => {
             let outer = terminal_val.as_array().ok_or_else(|| {
                 ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
             })?;
             let rows: Result<Vec<Prop>, ClientError> = outer
                 .iter()
                 .map(|row| {
-                    let inner = row.get(field).and_then(|v| v.as_array()).ok_or_else(|| {
-                        ClientError::InvalidResponse(format!(
-                            "`{}` element missing `{}` array",
-                            terminal_key, field
-                        ))
-                    })?;
+                    let inner = row
+                        .get("edgeHistoryCount")
+                        .and_then(|v| v.as_array())
+                        .ok_or_else(|| {
+                            ClientError::InvalidResponse(format!(
+                                "`{}` element missing `edgeHistoryCount` array",
+                                terminal_key
+                            ))
+                        })?;
                     let items: Result<Vec<Prop>, ClientError> = inner
                         .iter()
                         .map(|v| {
@@ -2701,17 +2365,43 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
         // Property terminals — each entry is a `{key, value}` record where
         // value is an untagged Prop (JSON number/string/bool/array/object).
         //
-        // `PropertyGet`: single record or null. Terminal value is null when
+        // `PropertyGet`: single `{ value }` record or null (only the value is
+        // selected — the caller supplied the key). Terminal value is null when
         // the key isn't present in the container — decode as `Ok(None)`.
         ReadExpr::PropertyGet { .. } => {
             if terminal_val.is_null() {
                 Ok(None)
             } else {
-                Ok(Some(json_to_property_record(terminal_val)?))
+                let value_json = terminal_val
+                    .as_object()
+                    .and_then(|o| o.get("value"))
+                    .ok_or_else(|| {
+                        ClientError::InvalidResponse("property record missing `value`".into())
+                    })?;
+                Ok(Some(json_to_prop(value_json)?))
             }
         }
-        // `PropertyValues`: array of `{key, value}` records → `Prop::List(...)`.
+        // `PropertyValues`: array of `{value}` records (values only) →
+        // `Prop::List(...)` of the bare values.
         ReadExpr::PropertyValues { .. } => {
+            let arr = terminal_val.as_array().ok_or_else(|| {
+                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
+            })?;
+            let items: Result<Vec<Prop>, ClientError> = arr
+                .iter()
+                .map(|v| {
+                    let value_json =
+                        v.as_object().and_then(|o| o.get("value")).ok_or_else(|| {
+                            ClientError::InvalidResponse("property record missing `value`".into())
+                        })?;
+                    json_to_prop(value_json)
+                })
+                .collect();
+            Ok(Some(Prop::List(items?.into())))
+        }
+        // `PropertyItems`: array of `{key, value}` records → `Prop::List(...)`
+        // of `Prop::Map({key, value})`.
+        ReadExpr::PropertyItems { .. } => {
             let arr = terminal_val.as_array().ok_or_else(|| {
                 ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
             })?;
@@ -3139,83 +2829,13 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
     fn go(expr: &ReadExpr, out: &mut Vec<&'static str>) {
         match expr {
             ReadExpr::Root { .. } => out.push("graph"),
-            ReadExpr::Window { input, .. } => {
+            ReadExpr::View { input, op } => {
                 go(input, out);
-                out.push("window");
-            }
-            ReadExpr::Layer { input, .. } => {
-                go(input, out);
-                out.push("layer");
-            }
-            ReadExpr::At { input, .. } => {
-                go(input, out);
-                out.push("at");
-            }
-            ReadExpr::Before { input, .. } => {
-                go(input, out);
-                out.push("before");
-            }
-            ReadExpr::After { input, .. } => {
-                go(input, out);
-                out.push("after");
-            }
-            ReadExpr::Latest { input } => {
-                go(input, out);
-                out.push("latest");
-            }
-            ReadExpr::SnapshotLatest { input } => {
-                go(input, out);
-                out.push("snapshotLatest");
-            }
-            ReadExpr::SnapshotAt { input, .. } => {
-                go(input, out);
-                out.push("snapshotAt");
-            }
-            ReadExpr::ExcludeLayer { input, .. } => {
-                go(input, out);
-                out.push("excludeLayer");
-            }
-            ReadExpr::ShrinkWindow { input, .. } => {
-                go(input, out);
-                out.push("shrinkWindow");
-            }
-            ReadExpr::ShrinkStart { input, .. } => {
-                go(input, out);
-                out.push("shrinkStart");
-            }
-            ReadExpr::ShrinkEnd { input, .. } => {
-                go(input, out);
-                out.push("shrinkEnd");
+                out.push(view_op_json_key(op));
             }
             ReadExpr::Valid { input } => {
                 go(input, out);
                 out.push("valid");
-            }
-            ReadExpr::DefaultLayer { input } => {
-                go(input, out);
-                out.push("defaultLayer");
-            }
-            ReadExpr::Layers { input, .. } => {
-                go(input, out);
-                out.push("layers");
-            }
-            ReadExpr::ExcludeLayers { input, .. } => {
-                go(input, out);
-                out.push("excludeLayers");
-            }
-            // Server exposes valid-layer semantics under the existing
-            // `layers` / `excludeLayer` / `excludeLayers` fields.
-            ReadExpr::ValidLayers { input, .. } => {
-                go(input, out);
-                out.push("layers");
-            }
-            ReadExpr::ExcludeValidLayer { input, .. } => {
-                go(input, out);
-                out.push("excludeLayer");
-            }
-            ReadExpr::ExcludeValidLayers { input, .. } => {
-                go(input, out);
-                out.push("excludeLayers");
             }
             ReadExpr::Subgraph { input, .. } => {
                 go(input, out);
@@ -3369,7 +2989,7 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
                 go(input, out);
                 out.push("keys");
             }
-            ReadExpr::PropertyValues { input, .. } => {
+            ReadExpr::PropertyValues { input, .. } | ReadExpr::PropertyItems { input, .. } => {
                 go(input, out);
                 out.push("values");
             }
@@ -3439,7 +3059,7 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
             }
             ReadExpr::NestedIds { input } => {
                 go(input, out);
-                out.push("list");
+                out.push("ids");
             }
             ReadExpr::CollectionDegree { input } => {
                 go(input, out);
@@ -3457,13 +3077,23 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
                 go(input, out);
                 out.push("edgeHistoryCount");
             }
-            // Nested degree terminals resolve to the `list` array of
-            // per-source `PathFromNode` records; parse_read reads each
-            // element's flat degree field.
-            ReadExpr::NestedDegree { input }
-            | ReadExpr::NestedInDegree { input }
-            | ReadExpr::NestedOutDegree { input }
-            | ReadExpr::NestedEdgeHistoryCount { input } => {
+            // Columnar nested degree terminals resolve to the `[[Int]]` field
+            // directly (one `blocking_compute` server-side).
+            ReadExpr::NestedDegree { input } => {
+                go(input, out);
+                out.push("degree");
+            }
+            ReadExpr::NestedInDegree { input } => {
+                go(input, out);
+                out.push("inDegree");
+            }
+            ReadExpr::NestedOutDegree { input } => {
+                go(input, out);
+                out.push("outDegree");
+            }
+            // `edgeHistoryCount` is on nested EDGES (not this columnar path) —
+            // still resolves via the per-source `list` array.
+            ReadExpr::NestedEdgeHistoryCount { input } => {
                 go(input, out);
                 out.push("list");
             }
@@ -3792,34 +3422,13 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
 /// bool / array / object) with no type tag. Recovering the exact original
 /// variant isn't possible for numbers (I64 vs F64 vs DTime all wire as
 /// numbers) — we pick the widest fitting variant.
+/// Decode a leaf property value from a JSON response. Delegates to the model's
+/// `gql_to_prop` (the single source of truth for JSON→`Prop` value semantics)
+/// after lifting `serde_json::Value` into `async_graphql::Value`.
 fn json_to_prop(v: &JsonValue) -> Result<Prop, ClientError> {
-    match v {
-        JsonValue::Bool(b) => Ok(Prop::Bool(*b)),
-        JsonValue::Number(n) => {
-            if let Some(i) = n.as_i64() {
-                Ok(Prop::I64(i))
-            } else if let Some(f) = n.as_f64() {
-                Ok(Prop::F64(f))
-            } else {
-                Err(ClientError::InvalidResponse(
-                    "prop number not representable as i64 or f64".into(),
-                ))
-            }
-        }
-        JsonValue::String(s) => Ok(Prop::Str(s.as_str().into())),
-        JsonValue::Array(arr) => {
-            let items: Result<Vec<Prop>, ClientError> = arr.iter().map(json_to_prop).collect();
-            Ok(Prop::List(items?.into()))
-        }
-        JsonValue::Object(obj) => {
-            let pairs: Result<Vec<(&str, Prop)>, ClientError> = obj
-                .iter()
-                .map(|(k, v)| json_to_prop(v).map(|p| (k.as_str(), p)))
-                .collect();
-            Ok(Prop::map(pairs?))
-        }
-        JsonValue::Null => Err(ClientError::InvalidResponse("prop is null".into())),
-    }
+    let gql =
+        GqlValue::from_json(v.clone()).map_err(|e| ClientError::InvalidResponse(e.to_string()))?;
+    gql_to_prop(gql).map_err(|e| ClientError::InvalidResponse(e.message))
 }
 
 /// Decode a `{ time: {timestamp, datetime, eventId}, value }` JSON record
@@ -3953,7 +3562,16 @@ fn exploded_layers_edge_elem(v: &JsonValue) -> Result<Prop, ClientError> {
 fn build_not_found_error(expr: &ReadExpr, null_key: &str) -> ClientError {
     let desc = find_selection(expr, null_key)
         .unwrap_or_else(|| format!("unexpected null at `{}`", null_key));
-    ClientError::NotFound(desc)
+    // A null at the graph root means the graph is missing — or hidden from the
+    // caller, which the server reports identically (RBAC non-disclosure). That
+    // is not a view-scoping failure, so surface it as `GraphNotFound` (message
+    // reads "... does not exist") rather than `NotFound` (suffixed "not found
+    // in view", which only makes sense for a node/edge outside the view).
+    if null_key == "graph" {
+        ClientError::GraphNotFound(format!("{desc} does not exist"))
+    } else {
+        ClientError::NotFound(desc)
+    }
 }
 
 /// Descend the expr tree, returning a describing string for the selection
@@ -3979,25 +3597,8 @@ fn find_selection(expr: &ReadExpr, null_key: &str) -> Option<String> {
 fn child_input(expr: &ReadExpr) -> Option<&ReadExpr> {
     match expr {
         ReadExpr::Root { .. } => None,
-        ReadExpr::Window { input, .. }
-        | ReadExpr::Layer { input, .. }
-        | ReadExpr::At { input, .. }
-        | ReadExpr::Before { input, .. }
-        | ReadExpr::After { input, .. }
-        | ReadExpr::Latest { input }
-        | ReadExpr::SnapshotLatest { input }
-        | ReadExpr::SnapshotAt { input, .. }
-        | ReadExpr::ExcludeLayer { input, .. }
-        | ReadExpr::ShrinkWindow { input, .. }
-        | ReadExpr::ShrinkStart { input, .. }
-        | ReadExpr::ShrinkEnd { input, .. }
+        ReadExpr::View { input, .. }
         | ReadExpr::Valid { input }
-        | ReadExpr::DefaultLayer { input }
-        | ReadExpr::Layers { input, .. }
-        | ReadExpr::ExcludeLayers { input, .. }
-        | ReadExpr::ValidLayers { input, .. }
-        | ReadExpr::ExcludeValidLayer { input, .. }
-        | ReadExpr::ExcludeValidLayers { input, .. }
         | ReadExpr::Subgraph { input, .. }
         | ReadExpr::SubgraphNodeTypes { input, .. }
         | ReadExpr::ExcludeNodes { input, .. }
@@ -4037,6 +3638,7 @@ fn child_input(expr: &ReadExpr) -> Option<&ReadExpr> {
         | ReadExpr::PropertyContains { input, .. }
         | ReadExpr::PropertyKeys { input }
         | ReadExpr::PropertyValues { input, .. }
+        | ReadExpr::PropertyItems { input, .. }
         | ReadExpr::TemporalProperties { input }
         | ReadExpr::TemporalPropertyByKey { input, .. }
         | ReadExpr::TemporalPropertyList { input, .. }
@@ -4163,22 +3765,31 @@ fn child_input(expr: &ReadExpr) -> Option<&ReadExpr> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::model::graph::{
+        filtering::{PropCondition, PropertyFilterNew},
+        property::Value as GqlValue,
+    };
+    use std::sync::Arc;
 
     // ============ Unit tests for the read pipeline ============
 
     #[test]
     fn render_read_produces_nested_graphql() {
         let expr = ReadExpr::Degree {
-            input: Box::new(ReadExpr::Node {
-                input: Box::new(ReadExpr::Window {
-                    input: Box::new(ReadExpr::Root { path: "g".into() }),
-                    start: 0,
-                    end: 10,
+            input: Arc::new(ReadExpr::Node {
+                input: Arc::new(ReadExpr::View {
+                    input: Arc::new(ReadExpr::Root { path: "g".into() }),
+                    op: ViewOp::Window {
+                        start: InputTime::Simple(0),
+                        end: InputTime::Simple(10),
+                    },
                 }),
                 id: "ben".into(),
             }),
         };
-        let query = render_read(&expr).unwrap();
+        let (query, vars) = render_read(&expr).unwrap();
+        // A filter-free read carries no variables.
+        assert!(vars.is_empty());
         // Not asserting exact whitespace — just the structural shape.
         assert!(query.contains("graph(path: \"g\")"));
         assert!(query.contains("window(start: 0, end: 10)"));
@@ -4213,19 +3824,34 @@ mod tests {
     #[test]
     fn node_name_position_is_escaped() {
         let expr = ReadExpr::HasNode {
-            input: Box::new(ReadExpr::Root { path: "g".into() }),
+            input: Arc::new(ReadExpr::Root { path: "g".into() }),
             id: "O\"Brien".into(),
         };
-        let q = render_read(&expr).unwrap();
+        let (q, _vars) = render_read(&expr).unwrap();
         // The escaped form must appear — and the naive bare-quote form must not.
         assert!(q.contains(r#"hasNode(name: "O\"Brien")"#), "got: {q}");
         assert!(!q.contains(r#"name: "O"Brien""#), "bare quote leaked: {q}");
     }
 
     #[test]
-    fn filter_value_position_is_escaped() {
-        let v = render_gql_value(&GqlValue::Str("O\"Brien".into())).unwrap();
-        assert_eq!(v, r#"{str: "O\"Brien"}"#);
+    fn filter_rides_a_json_variable_not_a_literal() {
+        // A filter with a quote-bearing string value: it must be shipped as a
+        // `$fN` JSON variable (escaping inherent, no query-string splicing to
+        // break out of), not rendered into the query text.
+        let filter = GqlNodeFilter::Property(PropertyFilterNew {
+            name: "score".into(),
+            where_: PropCondition::Eq(GqlValue::Str("O\"Brien".into())),
+        });
+        let mut vars = VarCollector::default();
+        let reference = vars.add_node_filter(&filter).unwrap();
+        assert_eq!(reference, "$f0");
+        assert_eq!(vars.decls, "$f0: NodeFilter!");
+        // The value lives in the variables map as JSON data, quote intact.
+        let json = serde_json::to_string(&vars.vars["f0"]).unwrap();
+        assert!(
+            json.contains(r#"O\"Brien"#),
+            "value not carried as JSON: {json}"
+        );
     }
 
     #[test]
@@ -4263,40 +3889,106 @@ mod tests {
     }
 
     #[test]
-    fn property_key_position_is_escaped() {
+    fn property_key_rides_json_variable_intact() {
+        // A quote-bearing property KEY is carried as JSON data too.
         let filter = GqlNodeFilter::Property(PropertyFilterNew {
             name: "wei\"rd".into(),
             where_: PropCondition::Eq(GqlValue::Str("v".into())),
         });
-        let rendered = render_gql_node_filter(&filter).unwrap();
-        assert!(rendered.contains(r#"name: "wei\"rd""#), "got: {rendered}");
-
-        // A control char in the key must be JSON-escaped too.
-        let filter = GqlNodeFilter::Property(PropertyFilterNew {
-            name: "a\u{7}b".into(),
-            where_: PropCondition::Eq(GqlValue::Str("v".into())),
-        });
-        let rendered = render_gql_node_filter(&filter).unwrap();
+        let mut vars = VarCollector::default();
+        vars.add_node_filter(&filter).unwrap();
+        let json = serde_json::to_string(&vars.vars["f0"]).unwrap();
         assert!(
-            rendered.contains("\\u0007"),
-            "control char leaked: {rendered}"
+            json.contains(r#"wei\"rd"#),
+            "key not carried as JSON: {json}"
         );
     }
 
     #[test]
-    fn non_finite_floats_are_rejected() {
-        assert!(render_gql_value(&GqlValue::F64(f64::NAN)).is_err());
-        assert!(render_gql_value(&GqlValue::F64(f64::INFINITY)).is_err());
-        assert!(render_gql_value(&GqlValue::F32(f32::NEG_INFINITY)).is_err());
-        // A finite float still renders.
-        assert_eq!(render_gql_value(&GqlValue::F64(1.5)).unwrap(), "{f64: 1.5}");
+    fn two_filters_in_one_chain_get_distinct_variables() {
+        // Two filters in one composed read must render as two declarations
+        // with each field arg referencing its own variable — the payloads must
+        // not collide or swap.
+        let prop_filter = |name: &str| {
+            GqlNodeFilter::Property(PropertyFilterNew {
+                name: name.into(),
+                where_: PropCondition::Eq(GqlValue::Str("x".into())),
+            })
+        };
+        let expr = ReadExpr::Ids {
+            input: Arc::new(ReadExpr::FilterNodes {
+                input: Arc::new(ReadExpr::FilterNodes {
+                    input: Arc::new(ReadExpr::Nodes {
+                        input: Arc::new(ReadExpr::Root { path: "g".into() }),
+                    }),
+                    filter: Arc::new(prop_filter("inner")),
+                }),
+                filter: Arc::new(prop_filter("outer")),
+            }),
+        };
+
+        let (query, vars) = render_read(&expr).unwrap();
+        assert!(
+            query.contains("$f0: NodeFilter!") && query.contains("$f1: NodeFilter!"),
+            "missing declarations in: {query}"
+        );
+        assert!(
+            query.contains("filter(expr: $f0)") && query.contains("filter(expr: $f1)"),
+            "field args don't reference both variables: {query}"
+        );
+        // Inner filter renders first, so it owns $f0; payloads pinned per slot.
+        let f0 = serde_json::to_string(&vars["f0"]).unwrap();
+        let f1 = serde_json::to_string(&vars["f1"]).unwrap();
+        assert!(f0.contains("inner"), "wrong payload in $f0: {f0}");
+        assert!(f1.contains("outer"), "wrong payload in $f1: {f1}");
+    }
+
+    #[test]
+    fn non_finite_write_property_is_invalid_input_not_a_panic() {
+        // The write path must surface a NaN property as `InvalidInput`, not
+        // panic inside `json!` when `Value`'s serializer rejects it.
+        let props: HashMap<String, Prop> = [("bad".to_string(), Prop::F64(f64::NAN))].into();
+        assert!(matches!(
+            properties_var(&props),
+            Err(ClientError::InvalidInput(_))
+        ));
+    }
+
+    #[test]
+    fn non_finite_filter_values_are_rejected() {
+        // serde_json cannot represent NaN/Infinity, so a filter carrying one
+        // fails serialization — surfaced as `InvalidInput`, the same class the
+        // old literal renderer rejected.
+        for bad in [
+            GqlValue::F64(f64::NAN),
+            GqlValue::F64(f64::INFINITY),
+            GqlValue::F32(f32::NEG_INFINITY),
+        ] {
+            let filter = GqlNodeFilter::Property(PropertyFilterNew {
+                name: "x".into(),
+                where_: PropCondition::Eq(bad),
+            });
+            let mut vars = VarCollector::default();
+            assert!(matches!(
+                vars.add_node_filter(&filter),
+                Err(ClientError::InvalidInput(_))
+            ));
+        }
+
+        // A finite float serializes fine.
+        let filter = GqlNodeFilter::Property(PropertyFilterNew {
+            name: "x".into(),
+            where_: PropCondition::Eq(GqlValue::F64(1.5)),
+        });
+        let mut vars = VarCollector::default();
+        assert!(vars.add_node_filter(&filter).is_ok());
     }
 
     #[test]
     fn parse_read_walks_to_terminal_value() {
         let expr = ReadExpr::Degree {
-            input: Box::new(ReadExpr::Node {
-                input: Box::new(ReadExpr::Root { path: "g".into() }),
+            input: Arc::new(ReadExpr::Node {
+                input: Arc::new(ReadExpr::Root { path: "g".into() }),
                 id: "ben".into(),
             }),
         };
@@ -4335,9 +4027,15 @@ mod tests {
         let rg = client.remote_graph("test-graph".into());
 
         // Write path: add_node routes through Transport
-        rg.add_node(1i64, "ben", None, None, None).await.unwrap();
-        rg.add_node(2i64, "hamza", None, None, None).await.unwrap();
-        rg.add_edge(3i64, "ben", "hamza", None, None).await.unwrap();
+        rg.add_node(1i64, "ben", None, None, None, None)
+            .await
+            .unwrap();
+        rg.add_node(2i64, "hamza", None, None, None, None)
+            .await
+            .unwrap();
+        rg.add_edge(3i64, "ben", "hamza", None, None, None)
+            .await
+            .unwrap();
 
         // Read path: composed expression through Transport
         // g.node("ben").degree() — after edge (ben -> hamza), ben has degree 1.
@@ -4356,7 +4054,7 @@ mod tests {
         // With a windowed view, we can restrict to a time range.
         // Window (0, 5) includes the edge added at time 3, so degree is still 1.
         let degree_windowed = rg
-            .window(0, 5)
+            .window(InputTime::Simple(0), InputTime::Simple(5))
             .node("ben")
             .await
             .unwrap()
@@ -4369,7 +4067,7 @@ mod tests {
         // Window (0, 2) excludes the edge (added at time 3), but ben himself
         // was added at t=1 so he's still in the view — his degree is 0.
         let degree_before_edge = rg
-            .window(0, 2)
+            .window(InputTime::Simple(0), InputTime::Simple(2))
             .node("ben")
             .await
             .unwrap()
@@ -4381,13 +4079,23 @@ mod tests {
 
         // A window that excludes ben's add_node event entirely — `.node()`
         // validates against the view chain and returns `None` (not an error).
-        let absent = rg.window(100, 200).node("ben").await.unwrap();
+        let absent = rg
+            .window(InputTime::Simple(100), InputTime::Simple(200))
+            .node("ben")
+            .await
+            .unwrap();
         assert!(
             absent.is_none(),
             "expected None for ben under window [100, 200), got Some"
         );
 
+        // stop() only signals shutdown; wait() awaits the server task, whose
+        // completion drops the graph cache and flushes dirty graphs
+        // (DataInner::drop → flush_and_clear). Without it the tempdir is
+        // deleted while background flushes are still writing into it, which
+        // panics under panic-on-drop builds.
         running.stop().await;
+        running.wait().await.unwrap();
     }
 
     /// End-to-end parity: handles from `collect()` must evaluate under the
@@ -4419,13 +4127,13 @@ mod tests {
 
         for (name, score) in [("a", 10i64), ("b", 20), ("c", 30)] {
             let props: Map<String, Prop> = [("score".to_string(), Prop::I64(score))].into();
-            rg.add_node(1i64, name, Some(props), None, None)
+            rg.add_node(1i64, name, Some(props), None, None, None)
                 .await
                 .unwrap();
         }
-        rg.add_edge(1i64, "a", "b", None, None).await.unwrap();
-        rg.add_edge(2i64, "b", "c", None, None).await.unwrap();
-        rg.add_edge(3i64, "c", "a", None, None).await.unwrap();
+        rg.add_edge(1i64, "a", "b", None, None, None).await.unwrap();
+        rg.add_edge(2i64, "b", "c", None, None, None).await.unwrap();
+        rg.add_edge(3i64, "c", "a", None, None, None).await.unwrap();
 
         let score_gt_15 = GqlNodeFilter::Property(PropertyFilterNew {
             name: "score".into(),
@@ -4516,7 +4224,13 @@ mod tests {
             "edge handle's node traversals must evaluate under f"
         );
 
+        // stop() only signals shutdown; wait() awaits the server task, whose
+        // completion drops the graph cache and flushes dirty graphs
+        // (DataInner::drop → flush_and_clear). Without it the tempdir is
+        // deleted while background flushes are still writing into it, which
+        // panics under panic-on-drop builds.
         running.stop().await;
+        running.wait().await.unwrap();
     }
 
     /// End-to-end parity: `explode().collect()` handles must be pinned to
@@ -4543,7 +4257,9 @@ mod tests {
 
         for (t, w) in [(1i64, 1i64), (5, 2)] {
             let props: Map<String, Prop> = [("weight".to_string(), Prop::I64(w))].into();
-            rg.add_edge(t, "x", "y", Some(props), None).await.unwrap();
+            rg.add_edge(t, "x", "y", Some(props), None, None)
+                .await
+                .unwrap();
         }
 
         let exploded = rg.edges().explode();
@@ -4570,8 +4286,7 @@ mod tests {
                 .get("weight")
                 .await
                 .unwrap()
-                .expect("weight present")
-                .value;
+                .expect("weight present");
             assert_eq!(w, Prop::I64(expect_w), "per-event property value");
             let layer = handle.layer_name().await.unwrap();
             assert_eq!(layer, "_default");
@@ -4603,6 +4318,12 @@ mod tests {
             );
         }
 
+        // stop() only signals shutdown; wait() awaits the server task, whose
+        // completion drops the graph cache and flushes dirty graphs
+        // (DataInner::drop → flush_and_clear). Without it the tempdir is
+        // deleted while background flushes are still writing into it, which
+        // panics under panic-on-drop builds.
         running.stop().await;
+        running.wait().await.unwrap();
     }
 }

@@ -25,7 +25,8 @@ use url::Url;
 ///
 /// Arguments:
 ///     url (str): the URL of the Raphtory GraphQL server
-///     token:
+///     token (str, optional): a bearer token sent with every request; omit for
+///         an unauthenticated server.
 #[derive(Clone)]
 #[pyclass(name = "RaphtoryClient", module = "raphtory.graphql", from_py_object)]
 pub struct PyRaphtoryClient {
@@ -62,9 +63,11 @@ impl PyRaphtoryClient {
     pub(crate) fn query_with_json_variables(
         &self,
         query: String,
-        variables: HashMap<String, JsonValue>,
+        variables: serde_json::Map<String, JsonValue>,
     ) -> PyResult<HashMap<String, JsonValue>> {
-        self.run_async(move |client| async move { client.query(&query, variables).await })
+        self.run_async(move |client| async move {
+            client.query(&query, JsonValue::Object(variables)).await
+        })
     }
 }
 
@@ -120,8 +123,8 @@ impl PyRaphtoryClient {
         query: String,
         variables: Option<HashMap<String, Bound<'py, PyAny>>>,
     ) -> PyResult<Bound<'py, PyDict>> {
-        let variables = variables.unwrap_or_else(|| HashMap::new());
-        let mut json_variables = HashMap::new();
+        let variables = variables.unwrap_or_default();
+        let mut json_variables = serde_json::Map::new();
         for (key, value) in variables {
             let json_value = translate_from_python(value)?;
             json_variables.insert(key, json_value);
@@ -138,7 +141,7 @@ impl PyRaphtoryClient {
     ///     overwrite (bool): overwrite existing graph. Defaults to False.
     ///
     /// Returns:
-    ///     dict[str, Any]: The data field from the graphQL response after executing the mutation.
+    ///     None:
     #[pyo3(signature = (path, graph, overwrite = false))]
     fn send_graph(&self, path: String, graph: MaterializedGraph, overwrite: bool) -> PyResult<()> {
         let encoded_graph = encode_graph(graph)?;
@@ -160,7 +163,7 @@ impl PyRaphtoryClient {
     ///     overwrite (bool): overwrite existing graph. Defaults to False.
     ///
     /// Returns:
-    ///     dict[str, Any]: The data field from the graphQL response after executing the mutation.
+    ///     None:
     #[pyo3(signature = (path, file_path, overwrite = false))]
     fn upload_graph(&self, path: String, file_path: String, overwrite: bool) -> PyResult<()> {
         self.run_async(move |client| async move {

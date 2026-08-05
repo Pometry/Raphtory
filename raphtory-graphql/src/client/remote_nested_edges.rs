@@ -1,17 +1,16 @@
 use crate::{
     client::{
-        op::{EdgePin, Fanout, HandleCtx, HandleOp, Op, ReadExpr},
+        op::{EdgePin, Fanout, HandleCtx, HandleOp, InputTime, Op, ReadExpr, ViewOp},
         remote_collection_metadata::{RemoteMetadataView, RemotePropertiesView},
         remote_edge::RemoteEdge,
-        remote_graph::{
+        remote_history::RemoteEventTime,
+        remote_path_from_graph::RemotePathFromGraph,
+        transport::{
             expect_bool, expect_double_nested_string_list, expect_i64, expect_nested_bool_list,
             expect_nested_edge_list, expect_nested_exploded_edge_list,
             expect_nested_exploded_layers_edge_list, expect_nested_optional_event_time_list,
-            expect_nested_string_list, expect_optional_event_time, expect_optional_i64,
+            expect_nested_string_list, expect_optional_event_time, expect_optional_i64, Transport,
         },
-        remote_history::RemoteEventTime,
-        remote_path_from_graph::RemotePathFromGraph,
-        transport::Transport,
         ClientError,
     },
     model::graph::filtering::GqlEdgeFilter,
@@ -36,7 +35,7 @@ use std::sync::Arc;
 pub struct RemoteNestedEdges {
     pub path: String,
     pub transport: Arc<dyn Transport>,
-    pub expr: ReadExpr,
+    pub expr: Arc<ReadExpr>,
     /// Materialization context — see `RemoteEdges` for details.
     pub ctx: HandleCtx,
 }
@@ -47,173 +46,127 @@ impl RemoteNestedEdges {
     pub fn with_expr(
         path: String,
         transport: Arc<dyn Transport>,
-        expr: ReadExpr,
+        expr: impl Into<Arc<ReadExpr>>,
         ctx: HandleCtx,
     ) -> Self {
         Self {
             path,
             transport,
-            expr,
+            expr: expr.into(),
             ctx,
         }
     }
 
-    fn with_view_op<F>(&self, wrap: F) -> RemoteNestedEdges
-    where
-        F: Fn(ReadExpr) -> ReadExpr + Send + Sync + 'static,
-    {
-        let wrap = Arc::new(wrap);
+    fn with_view_op(&self, op: ViewOp) -> RemoteNestedEdges {
         RemoteNestedEdges {
             path: self.path.clone(),
             transport: self.transport.clone(),
-            expr: wrap(self.expr.clone()),
-            ctx: self.ctx.with_op(HandleOp::View(wrap)),
+            expr: Arc::new(op.apply(self.expr.clone())),
+            ctx: self.ctx.with_op(HandleOp::View(op)),
         }
     }
 
     /// Time-window this collection. Lazy — no RPC.
-    pub fn window(&self, start: i64, end: i64) -> RemoteNestedEdges {
-        self.with_view_op(move |input| ReadExpr::Window {
-            input: Box::new(input),
-            start,
-            end,
-        })
+    pub fn window(&self, start: InputTime, end: InputTime) -> RemoteNestedEdges {
+        self.with_view_op(ViewOp::Window { start, end })
     }
 
     /// Restrict to a single named layer. Lazy — no RPC.
     pub fn layer(&self, name: impl ToString) -> RemoteNestedEdges {
-        let name = name.to_string();
-        self.with_view_op(move |input| ReadExpr::Layer {
-            input: Box::new(input),
-            name: name.clone(),
+        self.with_view_op(ViewOp::Layer {
+            name: name.to_string(),
         })
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
-    pub fn at(&self, time: i64) -> RemoteNestedEdges {
-        self.with_view_op(move |input| ReadExpr::At {
-            input: Box::new(input),
-            time,
-        })
+    pub fn at(&self, time: InputTime) -> RemoteNestedEdges {
+        self.with_view_op(ViewOp::At { time })
     }
 
     /// Restrict to events strictly before the given time. Lazy — no RPC.
-    pub fn before(&self, time: i64) -> RemoteNestedEdges {
-        self.with_view_op(move |input| ReadExpr::Before {
-            input: Box::new(input),
-            time,
-        })
+    pub fn before(&self, time: InputTime) -> RemoteNestedEdges {
+        self.with_view_op(ViewOp::Before { time })
     }
 
     /// Restrict to events strictly after the given time. Lazy — no RPC.
-    pub fn after(&self, time: i64) -> RemoteNestedEdges {
-        self.with_view_op(move |input| ReadExpr::After {
-            input: Box::new(input),
-            time,
-        })
+    pub fn after(&self, time: InputTime) -> RemoteNestedEdges {
+        self.with_view_op(ViewOp::After { time })
     }
 
     /// Latest state. Lazy — no RPC.
     pub fn latest(&self) -> RemoteNestedEdges {
-        self.with_view_op(move |input| ReadExpr::Latest {
-            input: Box::new(input),
-        })
+        self.with_view_op(ViewOp::Latest)
     }
 
     /// Snapshot at the latest time. Lazy — no RPC.
     pub fn snapshot_latest(&self) -> RemoteNestedEdges {
-        self.with_view_op(move |input| ReadExpr::SnapshotLatest {
-            input: Box::new(input),
-        })
+        self.with_view_op(ViewOp::SnapshotLatest)
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
-    pub fn snapshot_at(&self, time: i64) -> RemoteNestedEdges {
-        self.with_view_op(move |input| ReadExpr::SnapshotAt {
-            input: Box::new(input),
-            time,
-        })
+    pub fn snapshot_at(&self, time: InputTime) -> RemoteNestedEdges {
+        self.with_view_op(ViewOp::SnapshotAt { time })
     }
 
     /// Exclude a specific layer. Lazy — no RPC.
     pub fn exclude_layer(&self, name: impl ToString) -> RemoteNestedEdges {
-        let name = name.to_string();
-        self.with_view_op(move |input| ReadExpr::ExcludeLayer {
-            input: Box::new(input),
-            name: name.clone(),
+        self.with_view_op(ViewOp::ExcludeLayer {
+            name: name.to_string(),
         })
     }
 
     /// Shrink both start and end of the current window. Lazy — no RPC.
-    pub fn shrink_window(&self, start: i64, end: i64) -> RemoteNestedEdges {
-        self.with_view_op(move |input| ReadExpr::ShrinkWindow {
-            input: Box::new(input),
-            start,
-            end,
-        })
+    pub fn shrink_window(&self, start: InputTime, end: InputTime) -> RemoteNestedEdges {
+        self.with_view_op(ViewOp::ShrinkWindow { start, end })
     }
 
     /// Shrink the start of the current window. Lazy — no RPC.
-    pub fn shrink_start(&self, start: i64) -> RemoteNestedEdges {
-        self.with_view_op(move |input| ReadExpr::ShrinkStart {
-            input: Box::new(input),
-            start,
-        })
+    pub fn shrink_start(&self, start: InputTime) -> RemoteNestedEdges {
+        self.with_view_op(ViewOp::ShrinkStart { start })
     }
 
     /// Shrink the end of the current window. Lazy — no RPC.
-    pub fn shrink_end(&self, end: i64) -> RemoteNestedEdges {
-        self.with_view_op(move |input| ReadExpr::ShrinkEnd {
-            input: Box::new(input),
-            end,
-        })
+    pub fn shrink_end(&self, end: InputTime) -> RemoteNestedEdges {
+        self.with_view_op(ViewOp::ShrinkEnd { end })
     }
 
     /// Restrict to the default layer. Lazy — no RPC.
     pub fn default_layer(&self) -> RemoteNestedEdges {
-        self.with_view_op(move |input| ReadExpr::DefaultLayer {
-            input: Box::new(input),
-        })
+        self.with_view_op(ViewOp::DefaultLayer)
     }
 
     /// Restrict to the given set of layers. Lazy — no RPC.
     pub fn layers(&self, names: Vec<String>) -> RemoteNestedEdges {
-        self.with_view_op(move |input| ReadExpr::Layers {
-            input: Box::new(input),
-            names: names.clone(),
+        self.with_view_op(ViewOp::Layers {
+            names: names.into(),
         })
     }
 
     /// Exclude the given set of layers. Lazy — no RPC.
     pub fn exclude_layers(&self, names: Vec<String>) -> RemoteNestedEdges {
-        self.with_view_op(move |input| ReadExpr::ExcludeLayers {
-            input: Box::new(input),
-            names: names.clone(),
+        self.with_view_op(ViewOp::ExcludeLayers {
+            names: names.into(),
         })
     }
 
     /// Restrict to the given set of valid layers. Lazy — no RPC.
     pub fn valid_layers(&self, names: Vec<String>) -> RemoteNestedEdges {
-        self.with_view_op(move |input| ReadExpr::ValidLayers {
-            input: Box::new(input),
-            names: names.clone(),
+        self.with_view_op(ViewOp::ValidLayers {
+            names: names.into(),
         })
     }
 
     /// Exclude a specific valid layer from the view. Lazy — no RPC.
     pub fn exclude_valid_layer(&self, name: impl ToString) -> RemoteNestedEdges {
-        let name = name.to_string();
-        self.with_view_op(move |input| ReadExpr::ExcludeValidLayer {
-            input: Box::new(input),
-            name: name.clone(),
+        self.with_view_op(ViewOp::ExcludeValidLayer {
+            name: name.to_string(),
         })
     }
 
     /// Exclude the given set of valid layers from the view. Lazy — no RPC.
     pub fn exclude_valid_layers(&self, names: Vec<String>) -> RemoteNestedEdges {
-        self.with_view_op(move |input| ReadExpr::ExcludeValidLayers {
-            input: Box::new(input),
-            names: names.clone(),
+        self.with_view_op(ViewOp::ExcludeValidLayers {
+            names: names.into(),
         })
     }
 
@@ -221,13 +174,14 @@ impl RemoteNestedEdges {
     /// traversals from the matching edges. Recorded in `ctx` so members
     /// materialized via `.collect()` replay it per handle. Lazy — no RPC.
     pub fn filter(&self, filter: GqlEdgeFilter) -> RemoteNestedEdges {
+        let filter = Arc::new(filter);
         RemoteNestedEdges {
             path: self.path.clone(),
             transport: self.transport.clone(),
-            expr: ReadExpr::FilterEdges {
-                input: Box::new(self.expr.clone()),
+            expr: Arc::new(ReadExpr::FilterEdges {
+                input: self.expr.clone(),
                 filter: filter.clone(),
-            },
+            }),
             ctx: self.ctx.with_op(HandleOp::EdgeFilter(filter)),
         }
     }
@@ -235,13 +189,14 @@ impl RemoteNestedEdges {
     /// Narrow this collection's membership by an edge filter — applies only at
     /// this step; downstream traversals see the unfiltered graph. Lazy — no RPC.
     pub fn select(&self, filter: GqlEdgeFilter) -> RemoteNestedEdges {
+        let filter = Arc::new(filter);
         RemoteNestedEdges {
             path: self.path.clone(),
             transport: self.transport.clone(),
-            expr: ReadExpr::SelectEdges {
-                input: Box::new(self.expr.clone()),
+            expr: Arc::new(ReadExpr::SelectEdges {
+                input: self.expr.clone(),
                 filter,
-            },
+            }),
             ctx: self.ctx.clone(),
         }
     }
@@ -255,9 +210,9 @@ impl RemoteNestedEdges {
         RemoteNestedEdges {
             path: self.path.clone(),
             transport: self.transport.clone(),
-            expr: ReadExpr::Explode {
-                input: Box::new(self.expr.clone()),
-            },
+            expr: Arc::new(ReadExpr::Explode {
+                input: self.expr.clone(),
+            }),
             ctx: self.ctx.with_op(HandleOp::Fanout(Fanout::Events)),
         }
     }
@@ -272,9 +227,9 @@ impl RemoteNestedEdges {
         RemoteNestedEdges {
             path: self.path.clone(),
             transport: self.transport.clone(),
-            expr: ReadExpr::ExplodeLayers {
-                input: Box::new(self.expr.clone()),
-            },
+            expr: Arc::new(ReadExpr::ExplodeLayers {
+                input: self.expr.clone(),
+            }),
             ctx: self.ctx.with_op(HandleOp::Fanout(Fanout::Layers)),
         }
     }
@@ -287,7 +242,7 @@ impl RemoteNestedEdges {
             self.path.clone(),
             self.transport.clone(),
             ReadExpr::Src {
-                input: Box::new(self.expr.clone()),
+                input: self.expr.clone(),
             },
             self.ctx.clone(),
         )
@@ -300,7 +255,7 @@ impl RemoteNestedEdges {
             self.path.clone(),
             self.transport.clone(),
             ReadExpr::Dst {
-                input: Box::new(self.expr.clone()),
+                input: self.expr.clone(),
             },
             self.ctx.clone(),
         )
@@ -314,7 +269,7 @@ impl RemoteNestedEdges {
             self.path.clone(),
             self.transport.clone(),
             ReadExpr::Nbr {
-                input: Box::new(self.expr.clone()),
+                input: self.expr.clone(),
             },
             self.ctx.clone(),
         )
@@ -324,7 +279,7 @@ impl RemoteNestedEdges {
     /// Fires one RPC.
     pub async fn count(&self) -> Result<i64, ClientError> {
         let op = Op::Read(ReadExpr::Count {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_i64(self.transport.execute(&op).await?, "count")
     }
@@ -332,7 +287,7 @@ impl RemoteNestedEdges {
     /// Terminal: whether this view contains a layer named `name`. Fires one RPC.
     pub async fn has_layer(&self, name: impl ToString) -> Result<bool, ClientError> {
         let op = Op::Read(ReadExpr::HasLayer {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
             name: name.to_string(),
         });
         expect_bool(self.transport.execute(&op).await?, "hasLayer")
@@ -342,7 +297,7 @@ impl RemoteNestedEdges {
     /// or `None` for an unbounded view. Fires one RPC.
     pub async fn window_size(&self) -> Result<Option<i64>, ClientError> {
         let op = Op::Read(ReadExpr::WindowSize {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_optional_i64(self.transport.execute(&op).await?, "windowSize")
     }
@@ -375,7 +330,7 @@ impl RemoteNestedEdges {
     /// list per source node. Mirrors the local `NestedEdges.id`. Fires one RPC.
     pub async fn id(&self) -> Result<Vec<Vec<(String, String)>>, ClientError> {
         let op = Op::Read(ReadExpr::NestedEdgesList {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_nested_edge_list(self.transport.execute(&op).await?, "id")
     }
@@ -384,7 +339,7 @@ impl RemoteNestedEdges {
     /// per source node. Mirrors the local `NestedEdges.layer_names`. Fires one RPC.
     pub async fn layer_names(&self) -> Result<Vec<Vec<Vec<String>>>, ClientError> {
         let op = Op::Read(ReadExpr::NestedLayerNames {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_double_nested_string_list(self.transport.execute(&op).await?, "layerNames")
     }
@@ -395,7 +350,7 @@ impl RemoteNestedEdges {
     /// Fires one RPC.
     pub async fn layer_name(&self) -> Result<Vec<Vec<String>>, ClientError> {
         let op = Op::Read(ReadExpr::NestedLayerName {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_nested_string_list(self.transport.execute(&op).await?, "layerName")
     }
@@ -405,7 +360,7 @@ impl RemoteNestedEdges {
     /// Fires one RPC.
     pub async fn earliest_time(&self) -> Result<Vec<Vec<Option<RemoteEventTime>>>, ClientError> {
         let op = Op::Read(ReadExpr::NestedEarliestTime {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_nested_optional_event_time_list(self.transport.execute(&op).await?, "earliestTime")
     }
@@ -415,7 +370,7 @@ impl RemoteNestedEdges {
     /// one RPC.
     pub async fn latest_time(&self) -> Result<Vec<Vec<Option<RemoteEventTime>>>, ClientError> {
         let op = Op::Read(ReadExpr::NestedLatestTime {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_nested_optional_event_time_list(self.transport.execute(&op).await?, "latestTime")
     }
@@ -425,7 +380,7 @@ impl RemoteNestedEdges {
     /// GraphQL error otherwise. Mirrors the local `NestedEdges.time`. Fires one RPC.
     pub async fn time(&self) -> Result<Vec<Vec<Option<RemoteEventTime>>>, ClientError> {
         let op = Op::Read(ReadExpr::NestedTime {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_nested_optional_event_time_list(self.transport.execute(&op).await?, "time")
     }
@@ -435,7 +390,7 @@ impl RemoteNestedEdges {
     /// `NestedEdges.is_active`. Fires one RPC.
     pub async fn is_active(&self) -> Result<Vec<Vec<bool>>, ClientError> {
         let op = Op::Read(ReadExpr::NestedIsActive {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_nested_bool_list(self.transport.execute(&op).await?, "isActive")
     }
@@ -445,7 +400,7 @@ impl RemoteNestedEdges {
     /// `NestedEdges.is_valid`. Fires one RPC.
     pub async fn is_valid(&self) -> Result<Vec<Vec<bool>>, ClientError> {
         let op = Op::Read(ReadExpr::NestedIsValid {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_nested_bool_list(self.transport.execute(&op).await?, "isValid")
     }
@@ -455,7 +410,7 @@ impl RemoteNestedEdges {
     /// `NestedEdges.is_deleted`. Fires one RPC.
     pub async fn is_deleted(&self) -> Result<Vec<Vec<bool>>, ClientError> {
         let op = Op::Read(ReadExpr::NestedIsDeleted {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_nested_bool_list(self.transport.execute(&op).await?, "isDeleted")
     }
@@ -465,7 +420,7 @@ impl RemoteNestedEdges {
     /// Fires one RPC.
     pub async fn is_self_loop(&self) -> Result<Vec<Vec<bool>>, ClientError> {
         let op = Op::Read(ReadExpr::NestedIsSelfLoop {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_nested_bool_list(self.transport.execute(&op).await?, "isSelfLoop")
     }
@@ -474,7 +429,7 @@ impl RemoteNestedEdges {
     /// Fires one RPC.
     pub async fn start(&self) -> Result<Option<RemoteEventTime>, ClientError> {
         let op = Op::Read(ReadExpr::Start {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_optional_event_time(self.transport.execute(&op).await?, "start")
     }
@@ -483,7 +438,7 @@ impl RemoteNestedEdges {
     /// Fires one RPC.
     pub async fn end(&self) -> Result<Option<RemoteEventTime>, ClientError> {
         let op = Op::Read(ReadExpr::End {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_optional_event_time(self.transport.execute(&op).await?, "end")
     }
@@ -499,7 +454,7 @@ impl RemoteNestedEdges {
         match self.ctx.fanout() {
             None => {
                 let op = Op::Read(ReadExpr::NestedEdgesList {
-                    input: Box::new(self.expr.clone()),
+                    input: self.expr.clone(),
                 });
                 let nested = expect_nested_edge_list(self.transport.execute(&op).await?, "list")?;
                 Ok(nested
@@ -522,7 +477,7 @@ impl RemoteNestedEdges {
             }
             Some(Fanout::Events) => {
                 let op = Op::Read(ReadExpr::NestedExplodedEdgesList {
-                    input: Box::new(self.expr.clone()),
+                    input: self.expr.clone(),
                 });
                 let nested =
                     expect_nested_exploded_edge_list(self.transport.execute(&op).await?, "list")?;
@@ -554,7 +509,7 @@ impl RemoteNestedEdges {
             }
             Some(Fanout::Layers) => {
                 let op = Op::Read(ReadExpr::NestedExplodedLayersEdgesList {
-                    input: Box::new(self.expr.clone()),
+                    input: self.expr.clone(),
                 });
                 let nested = expect_nested_exploded_layers_edge_list(
                     self.transport.execute(&op).await?,

@@ -6,7 +6,7 @@ use crate::{
         },
         ClientError,
     },
-    python::client::remote_history::{PyRemoteEventTime, PyRemoteHistory},
+    python::client::remote_history::PyRemoteHistory,
 };
 use pyo3::{
     exceptions::PyKeyError,
@@ -15,18 +15,11 @@ use pyo3::{
     IntoPyObject, Py, PyAny,
 };
 use raphtory::python::utils::execute_async_task;
-use raphtory_api::core::entities::properties::prop::Prop;
+use raphtory_api::core::{
+    entities::properties::prop::Prop,
+    storage::timeindex::{AsTime, EventTime},
+};
 use std::sync::Arc;
-
-/// Convert a `Prop` value into a native Python object — the raw value a local
-/// `Properties`/`Metadata` `.get()`/`.values()` returns (drop-in parity; no
-/// `RemoteProperty` wrapper). Used by the non-temporal containers.
-fn prop_to_py(py: Python<'_>, value: Prop) -> Result<Py<PyAny>, ClientError> {
-    Ok(value
-        .into_pyobject(py)
-        .map_err(|e| ClientError::InvalidResponse(e.to_string()))?
-        .unbind())
-}
 
 /// A handle to the metadata container of a remote graph, node, or edge —
 /// the non-temporal properties whose values don't change over the graph's
@@ -59,10 +52,9 @@ impl PyRemoteMetadata {
     ///
     /// Returns:
     ///     the metadata value as a native Python object, or `None`.
-    pub fn get(&self, py: Python<'_>, key: String) -> Result<Option<Py<PyAny>>, ClientError> {
+    pub fn get(&self, key: String) -> Result<Option<Prop>, ClientError> {
         let inner = Arc::clone(&self.inner);
-        let result = execute_async_task(move || async move { inner.get(key).await })?;
-        result.map(|p| prop_to_py(py, p.value)).transpose()
+        execute_async_task(move || async move { inner.get(key).await })
     }
 
     /// All metadata keys present on this entity. Fires one RPC.
@@ -74,40 +66,25 @@ impl PyRemoteMetadata {
     /// All metadata values as native Python objects. If `keys` is provided,
     /// only entries with those names are returned. Fires one RPC.
     #[pyo3(signature = (keys = None))]
-    pub fn values(
-        &self,
-        py: Python<'_>,
-        keys: Option<Vec<String>>,
-    ) -> Result<Vec<Py<PyAny>>, ClientError> {
+    pub fn values(&self, keys: Option<Vec<String>>) -> Result<Vec<Prop>, ClientError> {
         let inner = Arc::clone(&self.inner);
-        let result = execute_async_task(move || async move { inner.values(keys).await })?;
-        result
-            .into_iter()
-            .map(|p| prop_to_py(py, p.value))
-            .collect()
+        execute_async_task(move || async move { inner.values(keys).await })
     }
 
     /// All `(key, value)` metadata entries, values as native Python objects.
     /// Fires one RPC.
-    pub fn items(&self, py: Python<'_>) -> Result<Vec<(String, Py<PyAny>)>, ClientError> {
+    pub fn items(&self) -> Result<Vec<(String, Prop)>, ClientError> {
         let inner = Arc::clone(&self.inner);
-        let result = execute_async_task(move || async move { inner.values(None).await })?;
-        result
-            .into_iter()
-            .map(|p| Ok((p.key, prop_to_py(py, p.value)?)))
-            .collect()
+        execute_async_task(move || async move { inner.items(None).await })
     }
 
     /// `md[key]` — the metadata value, or raises `KeyError` if absent. Fires
     /// one RPC. Contrast with `.get(key)`, which returns `None`.
-    fn __getitem__(&self, py: Python<'_>, key: String) -> PyResult<Py<PyAny>> {
+    fn __getitem__(&self, key: String) -> PyResult<Prop> {
         let inner = Arc::clone(&self.inner);
         let lookup = key.clone();
         let result = execute_async_task(move || async move { inner.get(lookup).await })?;
-        match result {
-            Some(p) => Ok(prop_to_py(py, p.value)?),
-            None => Err(PyKeyError::new_err(key)),
-        }
+        result.ok_or_else(|| PyKeyError::new_err(key))
     }
 
     /// `key in md` — whether a metadata entry with this key exists. Fires one RPC.
@@ -132,10 +109,10 @@ impl PyRemoteMetadata {
     /// All `(key, value)` entries as a native Python `dict`. Fires one RPC.
     fn as_dict(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         let inner = Arc::clone(&self.inner);
-        let items = execute_async_task(move || async move { inner.values(None).await })?;
+        let items = execute_async_task(move || async move { inner.items(None).await })?;
         let dict = PyDict::new(py);
-        for p in items {
-            dict.set_item(p.key, prop_to_py(py, p.value)?)?;
+        for (key, value) in items {
+            dict.set_item(key, value)?;
         }
         Ok(dict.into_any().unbind())
     }
@@ -171,10 +148,9 @@ impl PyRemoteProperties {
     /// Fetch a single property value by key. Returns `None` if the key
     /// isn't present. For a temporal property, yields its most recent value
     /// under the current view. Fires one RPC.
-    pub fn get(&self, py: Python<'_>, key: String) -> Result<Option<Py<PyAny>>, ClientError> {
+    pub fn get(&self, key: String) -> Result<Option<Prop>, ClientError> {
         let inner = Arc::clone(&self.inner);
-        let result = execute_async_task(move || async move { inner.get(key).await })?;
-        result.map(|p| prop_to_py(py, p.value)).transpose()
+        execute_async_task(move || async move { inner.get(key).await })
     }
 
     /// All property keys in the current view. Fires one RPC.
@@ -202,28 +178,16 @@ impl PyRemoteProperties {
     /// their most recent value). If `keys` is provided, only those names are
     /// returned. Fires one RPC.
     #[pyo3(signature = (keys = None))]
-    pub fn values(
-        &self,
-        py: Python<'_>,
-        keys: Option<Vec<String>>,
-    ) -> Result<Vec<Py<PyAny>>, ClientError> {
+    pub fn values(&self, keys: Option<Vec<String>>) -> Result<Vec<Prop>, ClientError> {
         let inner = Arc::clone(&self.inner);
-        let result = execute_async_task(move || async move { inner.values(keys).await })?;
-        result
-            .into_iter()
-            .map(|p| prop_to_py(py, p.value))
-            .collect()
+        execute_async_task(move || async move { inner.values(keys).await })
     }
 
     /// All `(key, value)` property entries, values as native Python objects.
     /// Fires one RPC.
-    pub fn items(&self, py: Python<'_>) -> Result<Vec<(String, Py<PyAny>)>, ClientError> {
+    pub fn items(&self) -> Result<Vec<(String, Prop)>, ClientError> {
         let inner = Arc::clone(&self.inner);
-        let result = execute_async_task(move || async move { inner.values(None).await })?;
-        result
-            .into_iter()
-            .map(|p| Ok((p.key, prop_to_py(py, p.value)?)))
-            .collect()
+        execute_async_task(move || async move { inner.items(None).await })
     }
 
     /// The temporal-only sub-container — excludes metadata and provides
@@ -237,14 +201,11 @@ impl PyRemoteProperties {
 
     /// `props[key]` — the property value, or raises `KeyError` if absent.
     /// Fires one RPC. Contrast with `.get(key)`, which returns `None`.
-    fn __getitem__(&self, py: Python<'_>, key: String) -> PyResult<Py<PyAny>> {
+    fn __getitem__(&self, key: String) -> PyResult<Prop> {
         let inner = Arc::clone(&self.inner);
         let lookup = key.clone();
         let result = execute_async_task(move || async move { inner.get(lookup).await })?;
-        match result {
-            Some(p) => Ok(prop_to_py(py, p.value)?),
-            None => Err(PyKeyError::new_err(key)),
-        }
+        result.ok_or_else(|| PyKeyError::new_err(key))
     }
 
     /// `key in props` — whether a property with this key exists. Fires one RPC.
@@ -270,10 +231,10 @@ impl PyRemoteProperties {
     /// properties yield their most recent value). Fires one RPC.
     fn as_dict(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         let inner = Arc::clone(&self.inner);
-        let items = execute_async_task(move || async move { inner.values(None).await })?;
+        let items = execute_async_task(move || async move { inner.items(None).await })?;
         let dict = PyDict::new(py);
-        for p in items {
-            dict.set_item(p.key, prop_to_py(py, p.value)?)?;
+        for (key, value) in items {
+            dict.set_item(key, value)?;
         }
         Ok(dict.into_any().unbind())
     }
@@ -349,7 +310,7 @@ impl PyRemoteTemporalProperties {
     }
 
     /// Every temporal property's full history, as
-    /// `{key: [(RemoteEventTime, value), ...]}` — mirrors the local
+    /// `{key: [(EventTime, value), ...]}` — mirrors the local
     /// `TemporalProperties.histories`. Composed from `items()` + each
     /// property's `items()`; fires 1 RPC for the property list plus 2 per
     /// property (its history + values), so it is heavy for wide containers —
@@ -357,7 +318,7 @@ impl PyRemoteTemporalProperties {
     pub fn histories(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         let dict = PyDict::new(py);
         for (key, tp) in self.items()? {
-            dict.set_item(key, tp.items(py)?)?;
+            dict.set_item(key, tp.items()?)?;
         }
         Ok(dict.into_any().unbind())
     }
@@ -448,8 +409,9 @@ impl PyRemoteTemporalProperty {
 
     /// Value at or before time `t`, as a native Python object. Returns
     /// `None` if no update exists on or before `t`. Fires one RPC.
-    pub fn at(&self, py: Python<'_>, t: i64) -> Result<Option<Py<PyAny>>, ClientError> {
+    pub fn at(&self, py: Python<'_>, t: EventTime) -> Result<Option<Py<PyAny>>, ClientError> {
         let inner = Arc::clone(&self.inner);
+        let t = t.t();
         let val = execute_async_task(move || async move { inner.at(t).await })?;
         val.map(|p| {
             p.into_pyobject(py)
@@ -579,27 +541,24 @@ impl PyRemoteTemporalProperty {
     /// element-wise.
     ///
     /// Returns:
-    ///   list[Tuple[RemoteEventTime, PropValue]]: one pair per update.
-    pub fn items(
-        &self,
-        py: Python<'_>,
-    ) -> Result<Vec<(PyRemoteEventTime, Py<PyAny>)>, ClientError> {
+    ///   list[Tuple[EventTime, PropValue]]: one pair per update.
+    pub fn items(&self) -> Result<Vec<(EventTime, Prop)>, ClientError> {
         let history = self.inner.history();
         let times = execute_async_task(move || async move { history.collect().await })?;
         let inner = Arc::clone(&self.inner);
         let vals = execute_async_task(move || async move { inner.values().await })?;
-        times
+        Ok(times
             .into_iter()
             .zip(vals)
-            .map(|(t, v)| Ok((PyRemoteEventTime::from(t), prop_to_py(py, v)?)))
-            .collect()
+            .map(|(t, v)| (t.to_event_time().unwrap_or(EventTime::MIN), v))
+            .collect())
     }
 
     /// `for (time, value) in temporal_property:` — iterate the `(time, value)`
     /// pairs in temporal order. Fires two RPCs (see `items()`), then yields
     /// each pair locally.
     fn __iter__(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
-        let items = self.items(py)?;
+        let items = self.items()?;
         Ok(PyList::new(py, items)?.try_iter()?.into_any().unbind())
     }
 }
@@ -623,8 +582,10 @@ impl From<RemotePropertyTuple> for PyRemotePropertyTuple {
 impl PyRemotePropertyTuple {
     /// The event time at which this value was observed.
     #[getter]
-    pub fn time(&self) -> PyRemoteEventTime {
-        self.inner.time.clone().into()
+    pub fn time(&self) -> EventTime {
+        // A stored temporal value always carries a timestamp; MIN is an
+        // unreachable fallback for a malformed server response.
+        self.inner.time.to_event_time().unwrap_or(EventTime::MIN)
     }
 
     /// The property value at that time, as a native Python object.

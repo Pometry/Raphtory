@@ -1556,6 +1556,29 @@ Returns the end time of the window. Returns none if no window is applied.
 </td>
 </tr>
 <tr>
+<td colspan="2" valign="top"><strong id="edge.windowsize">windowSize</strong></td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edge.haslayer">hasLayer</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a>!</td>
+<td>
+
+Check if a layer with the given name is present in this view.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">name</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td></td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="edge.src">src</strong></td>
 <td valign="top"><a href="#node">Node</a>!</td>
 <td>
@@ -1742,6 +1765,82 @@ metadata / history are restricted to the matching subset.
 <td>
 
 Composite edge filter (by property, layer, src/dst, etc.).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edge.filternodes">filterNodes</strong></td>
+<td valign="top"><a href="#edge">Edge</a>!</td>
+<td>
+
+Apply a node filter in place, returning an edge view whose node
+traversals (src, dst, nbr and everything reached through them) only
+see nodes matching the filter. The edge itself stays addressable
+regardless of whether its endpoints match.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">expr</td>
+<td valign="top"><a href="#nodefilter">NodeFilter</a>!</td>
+<td>
+
+Composite node filter (by property, name, type, etc.).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edge.event">event</strong></td>
+<td valign="top"><a href="#edge">Edge</a>!</td>
+<td>
+
+Pin this edge to a single event — the exploded instance recorded at
+the given event time, optionally restricted to a layer. Matches the
+members of `explode`: the returned edge answers `time` and `layerName`
+and its properties are those of that one update. An Int or DateTime
+String matches the first event at that timestamp; pass the object form
+`{timestamp, eventId}` to select an exact event when several share a
+timestamp. Errors if the edge has no matching event under the current
+view.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">time</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Event time to pin to — Int, DateTime String, or `{timestamp, eventId}`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">layer</td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+Optional layer name the event must belong to.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edge.eventlayer">eventLayer</strong></td>
+<td valign="top"><a href="#edge">Edge</a>!</td>
+<td>
+
+Pin this edge to a single layer-exploded instance by layer name — the
+analogue of `event(...)` for `explodeLayers()`. The returned edge has a
+resolved `layerName`; `time` is unavailable on it, matching the local
+`explode_layers()` semantics (a layer instance spans all of its events).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">name</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Layer name to pin to.
 
 </td>
 </tr>
@@ -2310,6 +2409,57 @@ Returns the start time of the window or none if there is no window.
 <td>
 
 Returns the end time of the window or none if there is no window.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edges.windowsize">windowSize</strong></td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edges.haslayer">hasLayer</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a>!</td>
+<td>
+
+Check if a layer with the given name is present in this view.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">name</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edges.src">src</strong></td>
+<td valign="top"><a href="#pathfromnode">PathFromNode</a>!</td>
+<td>
+
+Returns the source node of each edge, as a flat `PathFromNode`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edges.dst">dst</strong></td>
+<td valign="top"><a href="#pathfromnode">PathFromNode</a>!</td>
+<td>
+
+Returns the destination node of each edge, as a flat `PathFromNode`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edges.nbr">nbr</strong></td>
+<td valign="top"><a href="#pathfromnode">PathFromNode</a>!</td>
+<td>
+
+Returns the node at the other end of each edge (destination for
+out-edges, source for in-edges), as a flat `PathFromNode`.
 
 </td>
 </tr>
@@ -3100,6 +3250,29 @@ Returns the end time of the window. Errors if there is no window.
 </td>
 </tr>
 <tr>
+<td colspan="2" valign="top"><strong id="graph.windowsize">windowSize</strong></td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="graph.haslayer">hasLayer</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a>!</td>
+<td>
+
+Check if a layer with the given name is present in the graph.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">name</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td></td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="graph.earliestedgetime">earliestEdgeTime</strong></td>
 <td valign="top"><a href="#eventtime">EventTime</a>!</td>
 <td>
@@ -3389,6 +3562,54 @@ intersection of each selected node's neighbour set (undirected).
 <td>
 
 Node ids whose common neighbours you want. Returns an empty list if `selectedNodes` is empty or any id does not exist.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="graph.findnodes">findNodes</strong></td>
+<td valign="top">[<a href="#node">Node</a>!]!</td>
+<td>
+
+The nodes whose latest property value matches every `(key, value)`
+entry in `propertiesDict`. Mirrors the local `Graph.find_nodes`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">propertiesDict</td>
+<td valign="top">[<a href="#propertyinput">PropertyInput</a>!]!</td>
+<td>
+
+`{key, value}` property entries every returned node must match.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="graph.findedges">findEdges</strong></td>
+<td valign="top">[<a href="#edge">Edge</a>!]!</td>
+<td>
+
+The edges whose latest property value matches every `(key, value)`
+entry in `propertiesDict`. Mirrors the local `Graph.find_edges`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">propertiesDict</td>
+<td valign="top">[<a href="#propertyinput">PropertyInput</a>!]!</td>
+<td>
+
+`{key, value}` property entries every returned edge must match.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="graph.getallnodetypes">getAllNodeTypes</strong></td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td>
+
+All node types present in the graph. Mirrors the local
+`Graph.get_all_node_types`.
 
 </td>
 </tr>
@@ -3879,6 +4100,15 @@ Zero-based page number; multiplies `limit` to determine where to start (default 
 <td>
 
 Returns True if the history is empty.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="history.reverse">reverse</strong></td>
+<td valign="top"><a href="#history">History</a>!</td>
+<td>
+
+Returns a new history with the iteration order of the entries reversed.
 
 </td>
 </tr>
@@ -5581,6 +5811,505 @@ Filtered by permissions.
 </tbody>
 </table>
 
+### NestedEdges
+
+A nested collection of edges anchored to a source collection — the result of
+collection-level traversals like `nodes.edges`, `inEdges`, or `outEdges`.
+Each source node yields its own list of incident edges, so results are
+shaped as a list of per-source edge collections. Supports the usual view
+transforms (window, layer, filter, ...).
+
+<table>
+<thead>
+<tr>
+<th align="left">Field</th>
+<th align="right">Argument</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.defaultlayer">defaultLayer</strong></td>
+<td valign="top"><a href="#nestededges">NestedEdges</a>!</td>
+<td>
+
+Returns a collection containing only edges in the default edge layer.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.layers">layers</strong></td>
+<td valign="top"><a href="#nestededges">NestedEdges</a>!</td>
+<td>
+
+Returns a collection containing only edges belonging to the listed layers.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">names</td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td>
+
+Layer names to include.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.excludelayers">excludeLayers</strong></td>
+<td valign="top"><a href="#nestededges">NestedEdges</a>!</td>
+<td>
+
+Returns a collection containing edges belonging to all layers except the excluded list of layers.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">names</td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td>
+
+Layer names to exclude.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.layer">layer</strong></td>
+<td valign="top"><a href="#nestededges">NestedEdges</a>!</td>
+<td>
+
+Returns a collection containing edges belonging to the specified layer.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">name</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Layer name to include.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.excludelayer">excludeLayer</strong></td>
+<td valign="top"><a href="#nestededges">NestedEdges</a>!</td>
+<td>
+
+Returns a collection containing edges belonging to all layers except the excluded layer specified.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">name</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Layer name to exclude.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.window">window</strong></td>
+<td valign="top"><a href="#nestededges">NestedEdges</a>!</td>
+<td>
+
+Creates a view of the NestedEdges including all events between the specified start (inclusive) and end (exclusive).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">start</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Inclusive lower bound.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">end</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Exclusive upper bound.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.at">at</strong></td>
+<td valign="top"><a href="#nestededges">NestedEdges</a>!</td>
+<td>
+
+Creates a view of the NestedEdges including all events at a specified time.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">time</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Instant to pin the view to.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.latest">latest</strong></td>
+<td valign="top"><a href="#nestededges">NestedEdges</a>!</td>
+<td>
+
+View showing only the latest state of each edge (equivalent to `at(latestTime)`).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.snapshotat">snapshotAt</strong></td>
+<td valign="top"><a href="#nestededges">NestedEdges</a>!</td>
+<td>
+
+Creates a view of the NestedEdges including all events that are valid at time.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">time</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Instant at which entities must be valid.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.snapshotlatest">snapshotLatest</strong></td>
+<td valign="top"><a href="#nestededges">NestedEdges</a>!</td>
+<td>
+
+Creates a view of the NestedEdges including all events that are valid at the latest time.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.before">before</strong></td>
+<td valign="top"><a href="#nestededges">NestedEdges</a>!</td>
+<td>
+
+Creates a view of the NestedEdges including all events before a specified end (exclusive).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">time</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Exclusive upper bound.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.after">after</strong></td>
+<td valign="top"><a href="#nestededges">NestedEdges</a>!</td>
+<td>
+
+Creates a view of the NestedEdges including all events after a specified start (exclusive).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">time</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Exclusive lower bound.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.shrinkwindow">shrinkWindow</strong></td>
+<td valign="top"><a href="#nestededges">NestedEdges</a>!</td>
+<td>
+
+Shrinks both the start and end of the window.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">start</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Proposed new start (TimeInput); ignored if it would widen the window.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">end</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Proposed new end (TimeInput); ignored if it would widen the window.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.shrinkstart">shrinkStart</strong></td>
+<td valign="top"><a href="#nestededges">NestedEdges</a>!</td>
+<td>
+
+Set the start of the window.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">start</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Proposed new start (TimeInput); ignored if it would widen the window.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.shrinkend">shrinkEnd</strong></td>
+<td valign="top"><a href="#nestededges">NestedEdges</a>!</td>
+<td>
+
+Set the end of the window.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">end</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Proposed new end (TimeInput); ignored if it would widen the window.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.applyviews">applyViews</strong></td>
+<td valign="top"><a href="#nestededges">NestedEdges</a>!</td>
+<td>
+
+Takes a specified selection of views and applies them in order given.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">views</td>
+<td valign="top">[<a href="#edgesviewcollection">EdgesViewCollection</a>!]!</td>
+<td>
+
+Ordered list of view operations; each entry is a one-of variant (`window`, `layer`, `filter`, ...) applied to the running result.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.start">start</strong></td>
+<td valign="top"><a href="#eventtime">EventTime</a>!</td>
+<td>
+
+Returns the earliest time that this NestedEdges is valid or None if valid for all times.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.end">end</strong></td>
+<td valign="top"><a href="#eventtime">EventTime</a>!</td>
+<td>
+
+Returns the latest time that this NestedEdges is valid or None if valid for all times.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.windowsize">windowSize</strong></td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.haslayer">hasLayer</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a>!</td>
+<td>
+
+Check if a layer with the given name is present in this view.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">name</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.src">src</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Returns the source node of each edge, grouped per source node, as a
+nested `PathFromGraph`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.dst">dst</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Returns the destination node of each edge, grouped per source node, as a
+nested `PathFromGraph`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.nbr">nbr</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Returns the node at the other end of each edge (destination for
+out-edges, source for in-edges), grouped per source node, as a nested
+`PathFromGraph`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.explode">explode</strong></td>
+<td valign="top"><a href="#nestededges">NestedEdges</a>!</td>
+<td>
+
+Expand each source's edges into one edge per update — mirrors the local
+`NestedEdges.explode`. The per-source nesting is preserved; only the
+inner edge lists fan out per event.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.explodelayers">explodeLayers</strong></td>
+<td valign="top"><a href="#nestededges">NestedEdges</a>!</td>
+<td>
+
+Expand each source's edges into one edge per layer — mirrors the local
+`NestedEdges.explode_layers`. Each resulting edge carries only the
+updates from its respective layer.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.count">count</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Number of source edge collections in this collection (one per source node).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.page">page</strong></td>
+<td valign="top">[<a href="#edges">Edges</a>!]!</td>
+<td>
+
+Fetch one page of source edge collections up to a specified limit, optionally offset by a specified amount.
+The page_index sets the number of pages to skip (defaults to 0).
+
+For example, if page(5, 2, 1) is called, a page with 5 source collections, offset by 11 (2 pages of 5 + 1),
+will be returned. Each entry is the per-source list of incident edges.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">limit</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Maximum number of source edge collections to return on this page.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">offset</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Extra source edge collections to skip on top of `pageIndex` paging (default 0).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">pageIndex</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Zero-based page number; multiplies `limit` to determine where to start (default 0).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.list">list</strong></td>
+<td valign="top">[<a href="#edges">Edges</a>!]!</td>
+<td>
+
+Materialise every source edge collection — one `Edges` per source node,
+each holding that source's incident-edge list. Read
+`list { list { src { name } dst { name } } }` to reach the per-source
+edges. Rejected by the server when bulk list endpoints are disabled; use
+`page` for paginated access instead.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.filter">filter</strong></td>
+<td valign="top"><a href="#nestededges">NestedEdges</a>!</td>
+<td>
+
+Narrow the edge set to edges matching `expr`. The filter sticks to the
+returned collection — every subsequent traversal continues to see the
+filtered scope.
+
+Contrast with `select`, which applies here and is not carried through.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">expr</td>
+<td valign="top"><a href="#edgefilter">EdgeFilter</a>!</td>
+<td>
+
+Composite edge filter (by property, layer, src/dst, etc.).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.select">select</strong></td>
+<td valign="top"><a href="#nestededges">NestedEdges</a>!</td>
+<td>
+
+Narrow the edge set to edges matching `expr`, but only at this hop —
+further traversals out of these edges see the unfiltered graph again.
+
+Contrast with `filter`, which persists the scope through subsequent ops.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">expr</td>
+<td valign="top"><a href="#edgefilter">EdgeFilter</a>!</td>
+<td>
+
+Composite edge filter (by property, layer, src/dst, etc.).
+
+</td>
+</tr>
+</tbody>
+</table>
+
 ### Node
 
 Raphtory graph node.
@@ -6044,6 +6773,29 @@ Check if the node is active and it's history is not empty.
 </td>
 </tr>
 <tr>
+<td colspan="2" valign="top"><strong id="node.windowsize">windowSize</strong></td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="node.haslayer">hasLayer</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a>!</td>
+<td>
+
+Check if a layer with the given name is present in this view.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">name</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td></td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="node.nodetype">nodeType</strong></td>
 <td valign="top"><a href="#string">String</a></td>
 <td>
@@ -6200,6 +6952,27 @@ Returns the number of neighbours that have at least one out-going edge from this
 <td colspan="2" align="right" valign="top">expr</td>
 <td valign="top"><a href="#nodefilter">NodeFilter</a>!</td>
 <td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="node.filteredges">filterEdges</strong></td>
+<td valign="top"><a href="#node">Node</a>!</td>
+<td>
+
+Apply an edge filter in place, returning a node view whose edge
+traversals (degree, edges, neighbours and everything reached through
+them) only see edges matching the filter. The node itself stays
+addressable regardless of the filter.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">expr</td>
+<td valign="top"><a href="#edgefilter">EdgeFilter</a>!</td>
+<td>
+
+Composite edge filter (by property, layer, src/dst, etc.).
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -6763,6 +7536,65 @@ Returns the end time of the window. Errors if there is no window.
 </td>
 </tr>
 <tr>
+<td colspan="2" valign="top"><strong id="nodes.windowsize">windowSize</strong></td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodes.haslayer">hasLayer</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a>!</td>
+<td>
+
+Check if a layer with the given name is present in this view.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">name</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodes.degree">degree</strong></td>
+<td valign="top">[<a href="#int">Int</a>!]!</td>
+<td>
+
+The degree (number of incident edges) of every node, in collection order.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodes.indegree">inDegree</strong></td>
+<td valign="top">[<a href="#int">Int</a>!]!</td>
+<td>
+
+The in-degree (number of incoming edges) of every node, in collection order.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodes.outdegree">outDegree</strong></td>
+<td valign="top">[<a href="#int">Int</a>!]!</td>
+<td>
+
+The out-degree (number of outgoing edges) of every node, in collection order.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodes.edgehistorycount">edgeHistoryCount</strong></td>
+<td valign="top">[<a href="#int">Int</a>!]!</td>
+<td>
+
+The number of edge updates incident to every node, in collection order.
+
+</td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="nodes.count">count</strong></td>
 <td valign="top"><a href="#int">Int</a>!</td>
 <td>
@@ -6897,6 +7729,90 @@ Composite node filter (by name, property, type, etc.).
 
 </td>
 </tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodes.neighbours">neighbours</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Returns the neighbouring nodes of each node in the collection.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">select</td>
+<td valign="top"><a href="#nodefilter">NodeFilter</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodes.inneighbours">inNeighbours</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Returns the in-neighbours of each node in the collection.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">select</td>
+<td valign="top"><a href="#nodefilter">NodeFilter</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodes.outneighbours">outNeighbours</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Returns the out-neighbours of each node in the collection.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">select</td>
+<td valign="top"><a href="#nodefilter">NodeFilter</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodes.edges">edges</strong></td>
+<td valign="top"><a href="#nestededges">NestedEdges</a>!</td>
+<td>
+
+Returns the incident edges (both directions) of each node in the collection.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">select</td>
+<td valign="top"><a href="#edgefilter">EdgeFilter</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodes.inedges">inEdges</strong></td>
+<td valign="top"><a href="#nestededges">NestedEdges</a>!</td>
+<td>
+
+Returns the incoming edges of each node in the collection.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">select</td>
+<td valign="top"><a href="#edgefilter">EdgeFilter</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodes.outedges">outEdges</strong></td>
+<td valign="top"><a href="#nestededges">NestedEdges</a>!</td>
+<td>
+
+Returns the outgoing edges of each node in the collection.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">select</td>
+<td valign="top"><a href="#edgefilter">EdgeFilter</a></td>
+<td></td>
+</tr>
 </tbody>
 </table>
 
@@ -7006,6 +7922,595 @@ PageRank score.
 </tbody>
 </table>
 
+### PathFromGraph
+
+A nested collection of nodes anchored to a source collection — the result of
+collection-level traversals like `nodes.neighbours`, `inNeighbours`, or
+`outNeighbours`. Each source node yields its own list of neighbour nodes, so
+results are shaped as a list of per-source node lists. Supports all the usual
+view transforms (window, layer, filter, ...) and can be chained to walk
+further hops.
+
+<table>
+<thead>
+<tr>
+<th align="left">Field</th>
+<th align="right">Argument</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.layers">layers</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Returns a view of PathFromGraph containing the specified layers, errors if any of the layers do not exist.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">names</td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td>
+
+Layer names to include.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.defaultlayer">defaultLayer</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Return a view of PathFromGraph restricted to the default layer.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.excludelayers">excludeLayers</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Return a view of PathFromGraph containing all layers except the specified excluded layers, errors if any of the layers do not exist.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">names</td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td>
+
+Layer names to exclude.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.layer">layer</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Return a view of PathFromGraph containing the specified layer, errors if the layer does not exist.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">name</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Layer name to include.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.excludelayer">excludeLayer</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Return a view of PathFromGraph containing all layers except the specified excluded layer, errors if the layer does not exist.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">name</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Layer name to exclude.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.window">window</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Create a view of the PathFromGraph including all events between a specified start (inclusive) and end (exclusive).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">start</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Inclusive lower bound.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">end</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Exclusive upper bound.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.at">at</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Create a view of the PathFromGraph including all events at time.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">time</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Instant to pin the view to.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.snapshotlatest">snapshotLatest</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Create a view of the PathFromGraph including all events that are valid at the latest time.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.snapshotat">snapshotAt</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Create a view of the PathFromGraph including all events that are valid at the specified time.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">time</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Instant at which entities must be valid.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.latest">latest</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Create a view of the PathFromGraph including all events at the latest time.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.before">before</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Create a view of the PathFromGraph including all events before the specified end (exclusive).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">time</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Exclusive upper bound.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.after">after</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Create a view of the PathFromGraph including all events after the specified start (exclusive).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">time</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Exclusive lower bound.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.shrinkwindow">shrinkWindow</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Shrink both the start and end of the window.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">start</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Proposed new start (TimeInput); ignored if it would widen the window.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">end</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Proposed new end (TimeInput); ignored if it would widen the window.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.shrinkstart">shrinkStart</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Set the start of the window to the larger of the specified start and self.start().
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">start</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Proposed new start (TimeInput); ignored if it would widen the window.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.shrinkend">shrinkEnd</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Set the end of the window to the smaller of the specified end and self.end().
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">end</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Proposed new end (TimeInput); ignored if it would widen the window.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.typefilter">typeFilter</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Narrow this path to neighbours whose node type is in the given set.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">nodeTypes</td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td>
+
+Node types to keep.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.start">start</strong></td>
+<td valign="top"><a href="#eventtime">EventTime</a>!</td>
+<td>
+
+Returns the earliest time that this PathFromGraph is valid or None if the PathFromGraph is valid for all times.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.end">end</strong></td>
+<td valign="top"><a href="#eventtime">EventTime</a>!</td>
+<td>
+
+Returns the latest time that this PathFromGraph is valid or None if the PathFromGraph is valid for all times.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.windowsize">windowSize</strong></td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.haslayer">hasLayer</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a>!</td>
+<td>
+
+Check if a layer with the given name is present in this view.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">name</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.combinedhistory">combinedHistory</strong></td>
+<td valign="top"><a href="#history">History</a>!</td>
+<td>
+
+Returns a single history object combining the time entries of all nodes in this view.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.count">count</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Number of source paths in this collection (one per source node).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.page">page</strong></td>
+<td valign="top">[<a href="#pathfromnode">PathFromNode</a>!]!</td>
+<td>
+
+Fetch one page of source paths up to a specified limit, optionally offset by a specified amount.
+The page_index sets the number of pages to skip (defaults to 0).
+
+For example, if page(5, 2, 1) is called, a page with 5 source paths, offset by 11 (2 pages of 5 + 1),
+will be returned. Each entry is the per-source list of neighbour nodes.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">limit</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Maximum number of source paths to return on this page.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">offset</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Extra source paths to skip on top of `pageIndex` paging (default 0).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">pageIndex</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Zero-based page number; multiplies `limit` to determine where to start (default 0).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.list">list</strong></td>
+<td valign="top">[<a href="#pathfromnode">PathFromNode</a>!]!</td>
+<td>
+
+Materialise every source path — one `PathFromNode` per source node,
+each holding that source's neighbour list. Read `list { ids }` /
+`list { list { name } }` to reach the per-source neighbours. Rejected
+by the server when bulk list endpoints are disabled; use `page` for
+paginated access instead.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.ids">ids</strong></td>
+<td valign="top"><a href="#nestedstringlist">NestedStringList</a>!</td>
+<td>
+
+Columnar `ids`: every source node's neighbour ids as `[[String]]`,
+computed in ONE `blocking_compute`. Fast-path equivalent of
+`list { ids }`, which resolves one `PathFromNode` object — and its own
+`blocking_compute` — per source.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.degree">degree</strong></td>
+<td valign="top"><a href="#nestedintlist">NestedIntList</a>!</td>
+<td>
+
+Columnar `degree`: each source node's per-neighbour degrees as `[[Int]]`,
+computed in ONE `blocking_compute`. Fast-path for `list { degree }`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.indegree">inDegree</strong></td>
+<td valign="top"><a href="#nestedintlist">NestedIntList</a>!</td>
+<td>
+
+Columnar `inDegree`. Fast-path for `list { inDegree }`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.outdegree">outDegree</strong></td>
+<td valign="top"><a href="#nestedintlist">NestedIntList</a>!</td>
+<td>
+
+Columnar `outDegree`. Fast-path for `list { outDegree }`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.applyviews">applyViews</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Takes a specified selection of views and applies them in given order.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">views</td>
+<td valign="top">[<a href="#pathfromnodeviewcollection">PathFromNodeViewCollection</a>!]!</td>
+<td>
+
+Ordered list of view operations; each entry is a one-of variant (`window`, `layer`, `filter`, ...) applied to the running result.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.filter">filter</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Narrow the neighbour set to nodes matching `expr`. The filter sticks to
+the returned path — every subsequent traversal (further hops, edges,
+properties) continues to see the filtered scope.
+
+Contrast with `select`, which applies here and is not carried through.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">expr</td>
+<td valign="top"><a href="#nodefilter">NodeFilter</a>!</td>
+<td>
+
+Composite node filter (by name, property, type, etc.).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.select">select</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Narrow the neighbour set to nodes matching `expr`, but only at this hop
+— further traversals out of these nodes see the unfiltered graph again.
+
+Contrast with `filter`, which persists the scope through subsequent ops.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">expr</td>
+<td valign="top"><a href="#nodefilter">NodeFilter</a>!</td>
+<td>
+
+Composite node filter (by name, property, type, etc.).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.neighbours">neighbours</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Returns the neighbouring nodes reachable one further hop from each source
+path (both directions), as a nested `PathFromGraph`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">select</td>
+<td valign="top"><a href="#nodefilter">NodeFilter</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.inneighbours">inNeighbours</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Returns the in-neighbours reachable one further hop from each source
+path, as a nested `PathFromGraph`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">select</td>
+<td valign="top"><a href="#nodefilter">NodeFilter</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.outneighbours">outNeighbours</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Returns the out-neighbours reachable one further hop from each source
+path, as a nested `PathFromGraph`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">select</td>
+<td valign="top"><a href="#nodefilter">NodeFilter</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.edges">edges</strong></td>
+<td valign="top"><a href="#nestededges">NestedEdges</a>!</td>
+<td>
+
+Returns the incident edges (both directions) of each source path, as a
+nested `NestedEdges` collection.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.inedges">inEdges</strong></td>
+<td valign="top"><a href="#nestededges">NestedEdges</a>!</td>
+<td>
+
+Returns the incoming edges of each source path, as a nested `NestedEdges`
+collection.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.outedges">outEdges</strong></td>
+<td valign="top"><a href="#nestededges">NestedEdges</a>!</td>
+<td>
+
+Returns the outgoing edges of each source path, as a nested `NestedEdges`
+collection.
+
+</td>
+</tr>
+</tbody>
+</table>
+
 ### PathFromNode
 
 A collection of nodes anchored to a source node — the result of traversals
@@ -7038,6 +8543,15 @@ Returns a view of PathFromNode containing the specified layer, errors if the lay
 <td>
 
 Layer names to include.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromnode.defaultlayer">defaultLayer</strong></td>
+<td valign="top"><a href="#pathfromnode">PathFromNode</a>!</td>
+<td>
+
+Return a view of PathFromNode restricted to the default layer.
 
 </td>
 </tr>
@@ -7389,6 +8903,74 @@ Returns the latest time that this PathFromNode is valid or None if the PathFromN
 </td>
 </tr>
 <tr>
+<td colspan="2" valign="top"><strong id="pathfromnode.windowsize">windowSize</strong></td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromnode.haslayer">hasLayer</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a>!</td>
+<td>
+
+Check if a layer with the given name is present in this view.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">name</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromnode.combinedhistory">combinedHistory</strong></td>
+<td valign="top"><a href="#history">History</a>!</td>
+<td>
+
+Returns a single history object combining the time entries of all nodes reachable from the source in this view.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromnode.degree">degree</strong></td>
+<td valign="top">[<a href="#int">Int</a>!]!</td>
+<td>
+
+The degree (number of incident edges) of every node in the path, in order.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromnode.indegree">inDegree</strong></td>
+<td valign="top">[<a href="#int">Int</a>!]!</td>
+<td>
+
+The in-degree (number of incoming edges) of every node in the path, in order.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromnode.outdegree">outDegree</strong></td>
+<td valign="top">[<a href="#int">Int</a>!]!</td>
+<td>
+
+The out-degree (number of outgoing edges) of every node in the path, in order.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromnode.edgehistorycount">edgeHistoryCount</strong></td>
+<td valign="top">[<a href="#int">Int</a>!]!</td>
+<td>
+
+The number of edge updates incident to every node in the path, in order.
+
+</td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="pathfromnode.count">count</strong></td>
 <td valign="top"><a href="#int">Int</a>!</td>
 <td>
@@ -7538,6 +9120,81 @@ Composite node filter (by name, property, type, etc.).
 
 </td>
 </tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromnode.neighbours">neighbours</strong></td>
+<td valign="top"><a href="#pathfromnode">PathFromNode</a>!</td>
+<td>
+
+Returns the neighbouring nodes reachable one further hop from this path
+(both directions), as a flat `PathFromNode`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">select</td>
+<td valign="top"><a href="#nodefilter">NodeFilter</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromnode.inneighbours">inNeighbours</strong></td>
+<td valign="top"><a href="#pathfromnode">PathFromNode</a>!</td>
+<td>
+
+Returns the in-neighbours reachable one further hop from this path, as a
+flat `PathFromNode`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">select</td>
+<td valign="top"><a href="#nodefilter">NodeFilter</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromnode.outneighbours">outNeighbours</strong></td>
+<td valign="top"><a href="#pathfromnode">PathFromNode</a>!</td>
+<td>
+
+Returns the out-neighbours reachable one further hop from this path, as a
+flat `PathFromNode`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">select</td>
+<td valign="top"><a href="#nodefilter">NodeFilter</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromnode.edges">edges</strong></td>
+<td valign="top"><a href="#edges">Edges</a>!</td>
+<td>
+
+Returns the incident edges (both directions) of the nodes in this path,
+as a flat `Edges` collection.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromnode.inedges">inEdges</strong></td>
+<td valign="top"><a href="#edges">Edges</a>!</td>
+<td>
+
+Returns the incoming edges of the nodes in this path, as a flat `Edges`
+collection.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromnode.outedges">outEdges</strong></td>
+<td valign="top"><a href="#edges">Edges</a>!</td>
+<td>
+
+Returns the outgoing edges of the nodes in this path, as a flat `Edges`
+collection.
+
+</td>
+</tr>
 </tbody>
 </table>
 
@@ -7670,6 +9327,26 @@ Returns true if a property with the given key exists in this view.
 <td>
 
 The property name to look up.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="properties.getdtypeof">getDtypeOf</strong></td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+The data-type of the property's latest value by key, as its `PropType`
+display string (e.g. `"I64"`, `"Str"`, `"List<F64>"`). Returns null when
+the key isn't present. Mirrors the local `Properties.get_dtype_of`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">key</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+The property name.
 
 </td>
 </tr>
@@ -11976,6 +13653,20 @@ The `Float` scalar type represents signed double-precision fractional values as 
 ### Int
 
 The `Int` scalar type represents non-fractional signed whole numeric values. Int can represent values between -(2^31) and 2^31 - 1.
+
+### NestedIntList
+
+Like [`NestedStringList`] but for integer results (`[[Int]]`) — the
+columnar `degree`/`inDegree`/`outDegree` nested terminals.
+
+### NestedStringList
+
+Output-only scalars for the columnar nested terminals below. They carry a
+`[[..]]` result (one inner list per source node) in a SINGLE field so the
+whole thing is computed in one `blocking_compute`, instead of the
+`list { ids }` shape which resolves one `PathFromNode` object — and its own
+`blocking_compute` — per source. The derive macro can't register a nested
+list type directly, hence the custom scalar.
 
 ### NodeId
 

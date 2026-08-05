@@ -2,7 +2,6 @@ use crate::{
     client::{remote_nodes::RemoteNodes, ClientError},
     python::client::{
         remote_collection_metadata::{PyRemoteMetadataView, PyRemotePropertiesView},
-        remote_history::PyRemoteEventTime,
         remote_nested_edges::PyRemoteNestedEdges,
         remote_node::PyRemoteNode,
         remote_path_from_graph::PyRemotePathFromGraph,
@@ -11,6 +10,7 @@ use crate::{
 };
 use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyRef, PyRefMut, PyResult};
 use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
+use raphtory_api::core::{storage::timeindex::EventTime, utils::time::InputTime};
 use std::sync::Arc;
 
 /// A handle to a remote collection of nodes.
@@ -36,7 +36,7 @@ impl PyRemoteNodes {
 #[pymethods]
 impl PyRemoteNodes {
     /// Time-window this collection. Lazy — no RPC.
-    pub fn window(&self, start: i64, end: i64) -> PyRemoteNodes {
+    pub fn window(&self, start: InputTime, end: InputTime) -> PyRemoteNodes {
         PyRemoteNodes::new(self.nodes.window(start, end))
     }
 
@@ -46,17 +46,17 @@ impl PyRemoteNodes {
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
-    pub fn at(&self, time: i64) -> PyRemoteNodes {
+    pub fn at(&self, time: InputTime) -> PyRemoteNodes {
         PyRemoteNodes::new(self.nodes.at(time))
     }
 
     /// Restrict to events strictly before the given time. Lazy — no RPC.
-    pub fn before(&self, time: i64) -> PyRemoteNodes {
+    pub fn before(&self, time: InputTime) -> PyRemoteNodes {
         PyRemoteNodes::new(self.nodes.before(time))
     }
 
     /// Restrict to events strictly after the given time. Lazy — no RPC.
-    pub fn after(&self, time: i64) -> PyRemoteNodes {
+    pub fn after(&self, time: InputTime) -> PyRemoteNodes {
         PyRemoteNodes::new(self.nodes.after(time))
     }
 
@@ -71,7 +71,7 @@ impl PyRemoteNodes {
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
-    pub fn snapshot_at(&self, time: i64) -> PyRemoteNodes {
+    pub fn snapshot_at(&self, time: InputTime) -> PyRemoteNodes {
         PyRemoteNodes::new(self.nodes.snapshot_at(time))
     }
 
@@ -81,17 +81,17 @@ impl PyRemoteNodes {
     }
 
     /// Shrink both start and end of the current window. Lazy — no RPC.
-    pub fn shrink_window(&self, start: i64, end: i64) -> PyRemoteNodes {
+    pub fn shrink_window(&self, start: InputTime, end: InputTime) -> PyRemoteNodes {
         PyRemoteNodes::new(self.nodes.shrink_window(start, end))
     }
 
     /// Shrink the start of the current window. Lazy — no RPC.
-    pub fn shrink_start(&self, start: i64) -> PyRemoteNodes {
+    pub fn shrink_start(&self, start: InputTime) -> PyRemoteNodes {
         PyRemoteNodes::new(self.nodes.shrink_start(start))
     }
 
     /// Shrink the end of the current window. Lazy — no RPC.
-    pub fn shrink_end(&self, end: i64) -> PyRemoteNodes {
+    pub fn shrink_end(&self, end: InputTime) -> PyRemoteNodes {
         PyRemoteNodes::new(self.nodes.shrink_end(end))
     }
 
@@ -279,12 +279,12 @@ impl PyRemoteNodes {
     /// Returns:
     ///   list[Optional[EventTime]]: the earliest times, in collection order.
     #[getter]
-    pub fn earliest_time(&self) -> Result<Vec<Option<PyRemoteEventTime>>, ClientError> {
+    pub fn earliest_time(&self) -> Result<Vec<Option<EventTime>>, ClientError> {
         let nodes = Arc::clone(&self.nodes);
         Ok(
             execute_async_task(move || async move { nodes.earliest_time().await })?
                 .into_iter()
-                .map(|o| o.map(PyRemoteEventTime::from))
+                .map(|o| o.and_then(|t| t.to_event_time()))
                 .collect(),
         )
     }
@@ -295,12 +295,12 @@ impl PyRemoteNodes {
     /// Returns:
     ///   list[Optional[EventTime]]: the latest times, in collection order.
     #[getter]
-    pub fn latest_time(&self) -> Result<Vec<Option<PyRemoteEventTime>>, ClientError> {
+    pub fn latest_time(&self) -> Result<Vec<Option<EventTime>>, ClientError> {
         let nodes = Arc::clone(&self.nodes);
         Ok(
             execute_async_task(move || async move { nodes.latest_time().await })?
                 .into_iter()
-                .map(|o| o.map(PyRemoteEventTime::from))
+                .map(|o| o.and_then(|t| t.to_event_time()))
                 .collect(),
         )
     }
@@ -395,22 +395,22 @@ impl PyRemoteNodes {
     /// View start bound for this collection — `None` if unbounded. Property —
     /// attribute access fires one RPC.
     #[getter]
-    pub fn start(&self) -> Result<Option<PyRemoteEventTime>, ClientError> {
+    pub fn start(&self) -> Result<Option<EventTime>, ClientError> {
         let nodes = Arc::clone(&self.nodes);
         Ok(
             execute_async_task(move || async move { nodes.start().await })?
-                .map(PyRemoteEventTime::from),
+                .and_then(|t| t.to_event_time()),
         )
     }
 
     /// View end bound for this collection — `None` if unbounded. Property —
     /// attribute access fires one RPC.
     #[getter]
-    pub fn end(&self) -> Result<Option<PyRemoteEventTime>, ClientError> {
+    pub fn end(&self) -> Result<Option<EventTime>, ClientError> {
         let nodes = Arc::clone(&self.nodes);
         Ok(
             execute_async_task(move || async move { nodes.end().await })?
-                .map(PyRemoteEventTime::from),
+                .and_then(|t| t.to_event_time()),
         )
     }
 

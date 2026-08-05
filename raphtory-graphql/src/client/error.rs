@@ -28,13 +28,6 @@ pub enum ClientError {
     #[error("Invalid input: {0}")]
     InvalidInput(String),
 
-    /// The operation works locally but cannot yet be expressed over the
-    /// remote transport — there is no server field that re-addresses the
-    /// entity the way a materialized handle would need. A transport
-    /// limitation, not a semantic one; the message names the workaround.
-    #[error("Not yet supported over the remote transport: {0}")]
-    Unsupported(String),
-
     /// The read expression referenced a node or edge that isn't visible under
     /// the current view (either absent from the graph entirely, or filtered
     /// out by the accumulated view chain). Fired when a terminal RPC returns
@@ -44,14 +37,20 @@ pub enum ClientError {
     #[error("{0} not found in view")]
     NotFound(String),
 
+    /// The target graph does not exist — or exists but the caller lacks the
+    /// namespace visibility to know it does. The server reports both as the
+    /// same `GRAPH_NOT_FOUND` code with an identical message, so the two stay
+    /// indistinguishable (RBAC existence non-disclosure). The message is the
+    /// server's verbatim (e.g. `Graph does not exist`); unlike `NotFound` it is
+    /// not about a view, so it is surfaced as-is rather than suffixed.
+    #[error("{0}")]
+    GraphNotFound(String),
+
     #[error("JSON parse error: {0}")]
     Json(#[from] serde_json::Error),
 
     #[error("Graph encode/decode error: {0}")]
     Graph(#[from] raphtory::errors::GraphError),
-
-    #[error("An error when parsing Jinja query templates: {0}")]
-    JinjaError(String),
 
     #[error("The request did not succeed.")]
     UnsuccessfulResponse,

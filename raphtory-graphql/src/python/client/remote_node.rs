@@ -2,7 +2,7 @@ use crate::{
     client::{remote_node::RemoteNode, ClientError},
     python::client::{
         remote_edges::PyRemoteEdges,
-        remote_history::{PyRemoteEventTime, PyRemoteHistory},
+        remote_history::PyRemoteHistory,
         remote_metadata::{PyRemoteMetadata, PyRemoteProperties},
         remote_nodes::PyRemoteNodes,
         remote_path_from_node::PyRemotePathFromNode,
@@ -13,7 +13,9 @@ use pyo3::{
     pyclass, pymethods, Py, PyAny, PyResult, Python,
 };
 use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
-use raphtory_api::core::{entities::properties::prop::Prop, storage::timeindex::EventTime};
+use raphtory_api::core::{
+    entities::properties::prop::Prop, storage::timeindex::EventTime, utils::time::InputTime,
+};
 use std::{collections::HashMap, sync::Arc};
 
 #[derive(Clone)]
@@ -42,7 +44,7 @@ impl PyRemoteNode {
 #[pymethods]
 impl PyRemoteNode {
     /// Time-window this node. Lazy — no RPC.
-    pub fn window(&self, start: i64, end: i64) -> PyRemoteNode {
+    pub fn window(&self, start: InputTime, end: InputTime) -> PyRemoteNode {
         PyRemoteNode::new(self.node.window(start, end))
     }
 
@@ -74,17 +76,17 @@ impl PyRemoteNode {
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
-    pub fn at(&self, time: i64) -> PyRemoteNode {
+    pub fn at(&self, time: InputTime) -> PyRemoteNode {
         PyRemoteNode::new(self.node.at(time))
     }
 
     /// Restrict to events strictly before the given time. Lazy — no RPC.
-    pub fn before(&self, time: i64) -> PyRemoteNode {
+    pub fn before(&self, time: InputTime) -> PyRemoteNode {
         PyRemoteNode::new(self.node.before(time))
     }
 
-    /// Restrict to events at or after the given time. Lazy — no RPC.
-    pub fn after(&self, time: i64) -> PyRemoteNode {
+    /// Restrict to events strictly after the given time (exclusive). Lazy — no RPC.
+    pub fn after(&self, time: InputTime) -> PyRemoteNode {
         PyRemoteNode::new(self.node.after(time))
     }
 
@@ -99,7 +101,7 @@ impl PyRemoteNode {
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
-    pub fn snapshot_at(&self, time: i64) -> PyRemoteNode {
+    pub fn snapshot_at(&self, time: InputTime) -> PyRemoteNode {
         PyRemoteNode::new(self.node.snapshot_at(time))
     }
 
@@ -109,17 +111,17 @@ impl PyRemoteNode {
     }
 
     /// Shrink both start and end of the current window. Lazy — no RPC.
-    pub fn shrink_window(&self, start: i64, end: i64) -> PyRemoteNode {
+    pub fn shrink_window(&self, start: InputTime, end: InputTime) -> PyRemoteNode {
         PyRemoteNode::new(self.node.shrink_window(start, end))
     }
 
     /// Shrink the start of the current window. Lazy — no RPC.
-    pub fn shrink_start(&self, start: i64) -> PyRemoteNode {
+    pub fn shrink_start(&self, start: InputTime) -> PyRemoteNode {
         PyRemoteNode::new(self.node.shrink_start(start))
     }
 
     /// Shrink the end of the current window. Lazy — no RPC.
-    pub fn shrink_end(&self, end: i64) -> PyRemoteNode {
+    pub fn shrink_end(&self, end: InputTime) -> PyRemoteNode {
         PyRemoteNode::new(self.node.shrink_end(end))
     }
 
@@ -176,18 +178,21 @@ impl PyRemoteNode {
     /// Arguments:
     ///   t (int | str | datetime): The timestamp at which the updates should be applied.
     ///   properties (dict[str, PropValue], optional): A dictionary of properties to update.
+    ///   event_id (int, optional): Secondary index to disambiguate multiple
+    ///       updates at the same timestamp. If omitted, the server auto-increments it.
     ///
     /// Returns:
     ///   None:
-    #[pyo3(signature = (t, properties=None))]
+    #[pyo3(signature = (t, properties=None, event_id=None))]
     pub fn add_updates(
         &self,
         t: EventTime,
         properties: Option<HashMap<String, Prop>>,
+        event_id: Option<usize>,
     ) -> Result<(), ClientError> {
         let node = Arc::clone(&self.node);
 
-        let task = move || async move { node.add_updates(t, properties).await };
+        let task = move || async move { node.add_updates(t, properties, event_id).await };
         execute_async_task(task)?;
 
         Ok(())
@@ -263,40 +268,40 @@ impl PyRemoteNode {
     /// Earliest event time on this node under the current view. `None` if the
     /// node has no events. Property — attribute access fires one RPC.
     #[getter]
-    pub fn earliest_time(&self) -> Result<Option<PyRemoteEventTime>, ClientError> {
+    pub fn earliest_time(&self) -> Result<Option<EventTime>, ClientError> {
         let node = Arc::clone(&self.node);
         Ok(
             execute_async_task(move || async move { node.earliest_time().await })?
-                .map(PyRemoteEventTime::from),
+                .and_then(|t| t.to_event_time()),
         )
     }
 
     /// Latest event time on this node. Property — attribute access fires one RPC.
     #[getter]
-    pub fn latest_time(&self) -> Result<Option<PyRemoteEventTime>, ClientError> {
+    pub fn latest_time(&self) -> Result<Option<EventTime>, ClientError> {
         let node = Arc::clone(&self.node);
         Ok(
             execute_async_task(move || async move { node.latest_time().await })?
-                .map(PyRemoteEventTime::from),
+                .and_then(|t| t.to_event_time()),
         )
     }
 
     /// View start bound as seen by this node. Property — fires one RPC.
     #[getter]
-    pub fn start(&self) -> Result<Option<PyRemoteEventTime>, ClientError> {
+    pub fn start(&self) -> Result<Option<EventTime>, ClientError> {
         let node = Arc::clone(&self.node);
         Ok(
             execute_async_task(move || async move { node.start().await })?
-                .map(PyRemoteEventTime::from),
+                .and_then(|t| t.to_event_time()),
         )
     }
 
     /// View end bound as seen by this node. Property — fires one RPC.
     #[getter]
-    pub fn end(&self) -> Result<Option<PyRemoteEventTime>, ClientError> {
+    pub fn end(&self) -> Result<Option<EventTime>, ClientError> {
         let node = Arc::clone(&self.node);
         Ok(execute_async_task(move || async move { node.end().await })?
-            .map(PyRemoteEventTime::from))
+            .and_then(|t| t.to_event_time()))
     }
 
     /// The node's id (as a string, even if the graph uses integer GIDs).
@@ -433,8 +438,8 @@ impl PyRemoteNode {
 
     /// `node[key]` — the property value for `key`, or raises `KeyError` if
     /// absent (matches the local `Node.__getitem__`). Fires one RPC.
-    fn __getitem__(&self, py: Python<'_>, name: String) -> PyResult<Py<PyAny>> {
-        match self.properties().get(py, name.clone())? {
+    fn __getitem__(&self, name: String) -> PyResult<Prop> {
+        match self.properties().get(name.clone())? {
             Some(v) => Ok(v),
             None => Err(PyKeyError::new_err(format!("Unknown property {name}"))),
         }

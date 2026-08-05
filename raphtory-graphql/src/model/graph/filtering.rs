@@ -264,20 +264,27 @@ pub enum PathFromNodeViewCollection {
     ShrinkEnd(GqlTimeInput),
 }
 
+// Serialized as a GraphQL enum VALUE (not a field-name key). When sent as a
+// query variable it must match the schema's SCREAMING_SNAKE_CASE names
+// (`NODE_ID`/`NODE_NAME`/`NODE_TYPE`) that async_graphql's `Enum` derive emits.
+// Aliases keep any filter JSON stored under the old camelCase readable.
 #[derive(Enum, Copy, Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum NodeField {
     /// Node ID field.
     ///
     /// Represents the graph’s node identifier (numeric or string-backed in the API).
+    #[serde(alias = "nodeId")]
     NodeId,
     /// Node name field.
     ///
     /// Represents the human-readable node name (string).
+    #[serde(alias = "nodeName")]
     NodeName,
     /// Node type field.
     ///
     /// Represents the optional node type assigned at node creation (string).
+    #[serde(alias = "nodeType")]
     NodeType,
 }
 
@@ -2040,15 +2047,16 @@ fn build_base_prop_condition(
     })
 }
 
-/// Wrap a base `PropCondition` in aggregator/selector `Op`s (First/Sum/…).
-/// The `ops` are applied inside-out: `ops = [First, Sum]` becomes
-/// `Sum(First(base))`.
+/// Rebuild the wire tree from `ops`. Both the peel (`peel_prop_wrappers_and_
+/// collect_ops`) and core eval (`evaluate.rs`) treat the OUTERMOST tree node
+/// as the FIRST-applied op: tree `First(Sum(x))` ⇔ ops `[First, Sum]` ⇔ chain
+/// `.first().sum()`. Since folding wraps inside-out (each wrap becomes the new
+/// outermost), we iterate `ops` in REVERSE so that `ops[0]` ends up outermost.
+///
+/// Beware: core's `Display` prints the OPPOSITE nesting (`[First, Sum]` prints
+/// as `"sum(first(x))"`) — don't validate this mapping against Display strings.
 fn apply_ops_to_condition(base: PropCondition, ops: &[Op]) -> PropCondition {
-    // `ops` are collected outermost-first when the condition is decomposed
-    // (`peel_prop_wrappers_and_collect_ops`), so a `.first().sum()` tree
-    // `Sum(First(base))` yields `[Sum, First]`. Reconstruct by folding in
-    // reverse — otherwise the nesting inverts and the chain runs backwards
-    // (`.first().sum()` would execute as `.sum().first()`).
+    // Fold reversed so `ops[0]` becomes the outermost wrapper (see doc comment).
     ops.iter().rev().fold(base, |acc, op| match op {
         Op::First => PropCondition::First(wrap(acc)),
         Op::Last => PropCondition::Last(wrap(acc)),
@@ -2259,8 +2267,9 @@ mod op_chain_tests {
 
     #[test]
     fn multi_op_prop_condition_round_trips() {
-        // `.first().sum()` — `sum` is the outermost (last-applied) reduction, so
-        // the tree is `Sum(First(leaf))`.
+        // Tree `Sum(First(leaf))`: the OUTERMOST node (Sum) is the first-applied
+        // op. Peeling outermost-first yields ops `[Sum, First]`, and core eval
+        // runs ops[0] first — so this tree is the chain `.sum().first()`.
         let tree = PropCondition::Sum(wrap(PropCondition::First(wrap(PropCondition::IsSome(
             true,
         )))));
@@ -2273,12 +2282,103 @@ mod op_chain_tests {
         }
 
         // Reconstruct: with the fold-in-reverse fix this round-trips. Before the
-        // fix it produced the inverted `First(Sum(leaf))` (i.e. `.sum().first()`).
+        // fix it produced the inverted `First(Sum(leaf))` (i.e. `.first().sum()`).
         let rebuilt = apply_ops_to_condition(cursor.clone(), &ops);
         assert_eq!(
             format!("{tree:?}"),
             format!("{rebuilt:?}"),
             "op chain did not round-trip — nesting inverted"
         );
+    }
+
+    #[test]
+    fn apply_ops_pins_explicit_nesting_and_is_direction_sensitive() {
+        // A round-trip alone is self-consistent even if decompose+reconstruct
+        // were both wrong, so pin the exact tree and assert the two orderings
+        // genuinely differ — otherwise a future edit could silently re-invert.
+        let leaf = || PropCondition::IsSome(true);
+
+        // ops = [Sum, First] (peeled outermost-first from tree `Sum(First(leaf))`,
+        // the chain `.sum().first()`) must reconstruct as `Sum(First(leaf))`, not
+        // `First(Sum(leaf))`.
+        let rebuilt = apply_ops_to_condition(leaf(), &[Op::Sum, Op::First]);
+        let expected = PropCondition::Sum(wrap(PropCondition::First(wrap(leaf()))));
+        assert_eq!(format!("{expected:?}"), format!("{rebuilt:?}"));
+
+        // The reverse op order produces a genuinely different tree.
+        let reversed = apply_ops_to_condition(leaf(), &[Op::First, Op::Sum]);
+        assert_ne!(
+            format!("{rebuilt:?}"),
+            format!("{reversed:?}"),
+            "op ordering must be direction-sensitive"
+        );
+    }
+}
+
+#[cfg(test)]
+mod filter_serde_goldens {
+    use super::*;
+
+    // The wire format is the single source of truth — async-graphql input
+    // coercion, the persisted auth-store `GraphAccessFilter`, and the client
+    // all depend on these EXACT shapes. Pin them so a stray `#[serde(rename)]`
+    // is caught here, not at e2e time or by an invalidated permission store.
+
+    #[test]
+    fn node_field_filter_golden() {
+        let f = GqlNodeFilter::Node(NodeFieldFilterNew {
+            field: NodeField::NodeName,
+            where_: NodeFieldCondition::Eq(Value::Str("alice".into())),
+        });
+        assert_eq!(
+            serde_json::to_value(&f).unwrap(),
+            serde_json::json!({"node": {"field": "NODE_NAME", "where": {"eq": {"str": "alice"}}}})
+        );
+    }
+
+    #[test]
+    fn property_filter_golden() {
+        let f = GqlNodeFilter::Property(PropertyFilterNew {
+            name: "score".into(),
+            where_: PropCondition::Gt(Value::F64(6.0)),
+        });
+        assert_eq!(
+            serde_json::to_value(&f).unwrap(),
+            serde_json::json!({"property": {"name": "score", "where": {"gt": {"f64": 6.0}}}})
+        );
+    }
+
+    #[test]
+    fn logical_and_golden() {
+        let f = GqlNodeFilter::And(vec![GqlNodeFilter::IsActive(true)]);
+        assert_eq!(
+            serde_json::to_value(&f).unwrap(),
+            serde_json::json!({"and": [{"isActive": true}]})
+        );
+    }
+
+    #[test]
+    fn datetime_value_golden_and_legacy_alias() {
+        // Serialization uses the schema field name `dtime`...
+        let v = Value::DTime("2020-01-01T00:00:00Z".into());
+        assert_eq!(
+            serde_json::to_value(&v).unwrap(),
+            serde_json::json!({"dtime": "2020-01-01T00:00:00Z"})
+        );
+        // ...and a permission filter persisted under the OLD camelCase key still loads.
+        let legacy: Value =
+            serde_json::from_value(serde_json::json!({"dTime": "2020-01-01T00:00:00Z"})).unwrap();
+        assert!(matches!(legacy, Value::DTime(_)));
+    }
+
+    #[test]
+    fn node_field_legacy_camelcase_alias_loads() {
+        // A permission store written before the SCREAMING_SNAKE `NodeField`
+        // rename must still deserialize (`nodeName` -> `NODE_NAME`).
+        let f: GqlNodeFilter = serde_json::from_value(
+            serde_json::json!({"node": {"field": "nodeName", "where": {"eq": {"str": "alice"}}}}),
+        )
+        .unwrap();
+        assert!(matches!(f, GqlNodeFilter::Node(_)));
     }
 }

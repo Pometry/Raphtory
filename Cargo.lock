@@ -6824,7 +6824,6 @@ dependencies = [
  "futures-util",
  "itertools 0.14.0",
  "jsonwebtoken",
- "minijinja",
  "mock-collector",
  "once_cell",
  "opentelemetry 0.32.0",

@@ -9,7 +9,6 @@ use crate::{
     python::client::{
         remote_edge::PyRemoteEdge,
         remote_edges::PyRemoteEdges,
-        remote_history::PyRemoteEventTime,
         remote_metadata::{PyRemoteMetadata, PyRemoteProperties},
         remote_node::PyRemoteNode,
         remote_nodes::PyRemoteNodes,
@@ -22,6 +21,7 @@ use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_t
 use raphtory_api::core::{
     entities::{properties::prop::Prop, GID},
     storage::timeindex::EventTime,
+    utils::time::InputTime,
 };
 use std::{collections::HashMap, sync::Arc};
 
@@ -41,12 +41,12 @@ impl PyRemoteGraph {
     /// view chain.
     ///
     /// Arguments:
-    ///     start (int): inclusive start of the window
-    ///     end (int): exclusive end of the window
+    ///     start (int | str | datetime): inclusive start of the window
+    ///     end (int | str | datetime): exclusive end of the window
     ///
     /// Returns:
     ///     RemoteGraph: a new remote graph view restricted to the window
-    pub fn window(&self, start: i64, end: i64) -> PyRemoteGraph {
+    pub fn window(&self, start: InputTime, end: InputTime) -> PyRemoteGraph {
         PyRemoteGraph {
             graph: Arc::new(self.graph.window(start, end)),
         }
@@ -98,21 +98,21 @@ impl PyRemoteGraph {
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
-    pub fn at(&self, time: i64) -> PyRemoteGraph {
+    pub fn at(&self, time: InputTime) -> PyRemoteGraph {
         PyRemoteGraph {
             graph: Arc::new(self.graph.at(time)),
         }
     }
 
     /// Restrict to events strictly before the given time. Lazy — no RPC.
-    pub fn before(&self, time: i64) -> PyRemoteGraph {
+    pub fn before(&self, time: InputTime) -> PyRemoteGraph {
         PyRemoteGraph {
             graph: Arc::new(self.graph.before(time)),
         }
     }
 
-    /// Restrict to events at or after the given time. Lazy — no RPC.
-    pub fn after(&self, time: i64) -> PyRemoteGraph {
+    /// Restrict to events strictly after the given time (exclusive). Lazy — no RPC.
+    pub fn after(&self, time: InputTime) -> PyRemoteGraph {
         PyRemoteGraph {
             graph: Arc::new(self.graph.after(time)),
         }
@@ -133,7 +133,7 @@ impl PyRemoteGraph {
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
-    pub fn snapshot_at(&self, time: i64) -> PyRemoteGraph {
+    pub fn snapshot_at(&self, time: InputTime) -> PyRemoteGraph {
         PyRemoteGraph {
             graph: Arc::new(self.graph.snapshot_at(time)),
         }
@@ -147,21 +147,21 @@ impl PyRemoteGraph {
     }
 
     /// Shrink both start and end of the current window. Lazy — no RPC.
-    pub fn shrink_window(&self, start: i64, end: i64) -> PyRemoteGraph {
+    pub fn shrink_window(&self, start: InputTime, end: InputTime) -> PyRemoteGraph {
         PyRemoteGraph {
             graph: Arc::new(self.graph.shrink_window(start, end)),
         }
     }
 
     /// Shrink the start of the current window. Lazy — no RPC.
-    pub fn shrink_start(&self, start: i64) -> PyRemoteGraph {
+    pub fn shrink_start(&self, start: InputTime) -> PyRemoteGraph {
         PyRemoteGraph {
             graph: Arc::new(self.graph.shrink_start(start)),
         }
     }
 
     /// Shrink the end of the current window. Lazy — no RPC.
-    pub fn shrink_end(&self, end: i64) -> PyRemoteGraph {
+    pub fn shrink_end(&self, end: InputTime) -> PyRemoteGraph {
         PyRemoteGraph {
             graph: Arc::new(self.graph.shrink_end(end)),
         }
@@ -252,41 +252,41 @@ impl PyRemoteGraph {
     /// Earliest event time under the current view. `None` if the view has no
     /// events. Property — attribute access fires one RPC.
     #[getter]
-    pub fn earliest_time(&self) -> Result<Option<PyRemoteEventTime>, ClientError> {
+    pub fn earliest_time(&self) -> Result<Option<EventTime>, ClientError> {
         let graph = Arc::clone(&self.graph);
         Ok(
             execute_async_task(move || async move { graph.earliest_time().await })?
-                .map(PyRemoteEventTime::from),
+                .and_then(|t| t.to_event_time()),
         )
     }
 
     /// Latest event time under the current view. Property — fires one RPC.
     #[getter]
-    pub fn latest_time(&self) -> Result<Option<PyRemoteEventTime>, ClientError> {
+    pub fn latest_time(&self) -> Result<Option<EventTime>, ClientError> {
         let graph = Arc::clone(&self.graph);
         Ok(
             execute_async_task(move || async move { graph.latest_time().await })?
-                .map(PyRemoteEventTime::from),
+                .and_then(|t| t.to_event_time()),
         )
     }
 
     /// View start bound. `None` for an unbounded view. Property — fires one RPC.
     #[getter]
-    pub fn start(&self) -> Result<Option<PyRemoteEventTime>, ClientError> {
+    pub fn start(&self) -> Result<Option<EventTime>, ClientError> {
         let graph = Arc::clone(&self.graph);
         Ok(
             execute_async_task(move || async move { graph.start().await })?
-                .map(PyRemoteEventTime::from),
+                .and_then(|t| t.to_event_time()),
         )
     }
 
     /// View end bound. `None` for an unbounded view. Property — fires one RPC.
     #[getter]
-    pub fn end(&self) -> Result<Option<PyRemoteEventTime>, ClientError> {
+    pub fn end(&self) -> Result<Option<EventTime>, ClientError> {
         let graph = Arc::clone(&self.graph);
         Ok(
             execute_async_task(move || async move { graph.end().await })?
-                .map(PyRemoteEventTime::from),
+                .and_then(|t| t.to_event_time()),
         )
     }
 
@@ -398,13 +398,13 @@ impl PyRemoteGraph {
     /// the same view context.
     ///
     /// Fires one RPC — a `hasNode` check against the current view chain.
-    /// Raises `NotFound` if the node isn't visible under the current view.
     ///
     /// Arguments:
     ///     id (str | int): the node id
     ///
     /// Returns:
-    ///     RemoteNode: the remote node reference
+    ///     Optional[RemoteNode]: the remote node, or `None` if it isn't visible
+    ///         under the current view.
     pub fn node(&self, id: GID) -> Result<Option<PyRemoteNode>, ClientError> {
         let graph = Arc::clone(&self.graph);
         let id_str = id.to_string();
@@ -415,14 +415,14 @@ impl PyRemoteGraph {
     /// Gets a remote edge with the specified source and destination nodes.
     ///
     /// Fires one RPC — a `hasEdge` check against the current view chain.
-    /// Raises `NotFound` if the edge isn't visible under the current view.
     ///
     /// Arguments:
     ///     src (str | int): the source node id
     ///     dst (str | int): the destination node id
     ///
     /// Returns:
-    ///     RemoteEdge: the remote edge reference
+    ///     Optional[RemoteEdge]: the remote edge, or `None` if it isn't visible
+    ///         under the current view.
     #[pyo3(signature = (src, dst))]
     pub fn edge(&self, src: GID, dst: GID) -> Result<Option<PyRemoteEdge>, ClientError> {
         let graph = Arc::clone(&self.graph);
@@ -596,17 +596,20 @@ impl PyRemoteGraph {
     ///     id (str | int): The id of the node.
     ///     properties (dict, optional): The properties of the node.
     ///     node_type (str, optional): The optional string which will be used as a node type
+    ///     event_id (int, optional): Secondary index to disambiguate multiple
+    ///         updates at the same timestamp. If omitted, the server auto-increments it.
     ///     layer (str, optional): The optional layer where the node update should be written
     ///
     /// Returns:
     ///     RemoteNode: the new remote node
-    #[pyo3(signature = (timestamp, id, properties = None, node_type = None, layer = None))]
+    #[pyo3(signature = (timestamp, id, properties = None, node_type = None, event_id = None, layer = None))]
     pub fn add_node(
         &self,
         timestamp: EventTime,
         id: GID,
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<&str>,
+        event_id: Option<usize>,
         layer: Option<&str>,
     ) -> Result<PyRemoteNode, ClientError> {
         let graph = Arc::clone(&self.graph);
@@ -615,7 +618,7 @@ impl PyRemoteGraph {
 
         let node = execute_async_task(move || async move {
             graph
-                .add_node(timestamp, id, properties, node_type, layer)
+                .add_node(timestamp, id, properties, node_type, layer, event_id)
                 .await
         })?;
 
@@ -629,23 +632,29 @@ impl PyRemoteGraph {
     ///     id (str | int): The id of the node.
     ///     properties (dict, optional): The properties of the node.
     ///     node_type (str, optional): The optional string which will be used as a node type
+    ///     event_id (int, optional): Secondary index to disambiguate multiple
+    ///         updates at the same timestamp. If omitted, the server auto-increments it.
+    ///     layer (str, optional): The optional layer where the node update should be written
     ///
     /// Returns:
     ///     RemoteNode: the new remote node
-    #[pyo3(signature = (timestamp, id, properties = None, node_type = None))]
+    #[pyo3(signature = (timestamp, id, properties = None, node_type = None, event_id = None, layer = None))]
     pub fn create_node(
         &self,
         timestamp: EventTime,
         id: GID,
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<&str>,
+        event_id: Option<usize>,
+        layer: Option<&str>,
     ) -> Result<PyRemoteNode, ClientError> {
         let graph = Arc::clone(&self.graph);
         let node_type = node_type.map(|s| s.to_string());
+        let layer = layer.map(|s| s.to_string());
 
         let node = execute_async_task(move || async move {
             graph
-                .create_node(timestamp, id, properties, node_type)
+                .create_node(timestamp, id, properties, node_type, layer, event_id)
                 .await
         })?;
 
@@ -708,10 +717,12 @@ impl PyRemoteGraph {
     ///     dst (str | int): The id of the destination node.
     ///     properties (dict, optional): The properties of the edge, as a dict of string and properties.
     ///     layer (str, optional): The layer of the edge.
+    ///     event_id (int, optional): Secondary index to disambiguate multiple
+    ///         updates at the same timestamp. If omitted, the server auto-increments it.
     ///
     /// Returns:
     ///     RemoteEdge: the remote edge
-    #[pyo3(signature = (timestamp, src, dst, properties = None, layer = None))]
+    #[pyo3(signature = (timestamp, src, dst, properties = None, layer = None, event_id = None))]
     pub fn add_edge(
         &self,
         timestamp: EventTime,
@@ -719,12 +730,15 @@ impl PyRemoteGraph {
         dst: GID,
         properties: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
+        event_id: Option<usize>,
     ) -> Result<PyRemoteEdge, ClientError> {
         let graph = Arc::clone(&self.graph);
         let layer = layer.map(|s| s.to_string());
 
         let edge = execute_async_task(move || async move {
-            graph.add_edge(timestamp, src, dst, properties, layer).await
+            graph
+                .add_edge(timestamp, src, dst, properties, layer, event_id)
+                .await
         })?;
 
         Ok(PyRemoteEdge::new(edge))

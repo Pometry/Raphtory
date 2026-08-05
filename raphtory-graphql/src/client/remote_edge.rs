@@ -1,18 +1,18 @@
 use crate::client::{
     op::{
-        AddEdgeMetadata as AddEdgeMetadataOp, AddEdgeUpdates as AddEdgeUpdatesOp,
-        DeleteEdgeAtTime as DeleteEdgeAtTimeOp, Fanout, HandleCtx, HandleOp, Op, ReadExpr,
-        UpdateEdgeMetadata as UpdateEdgeMetadataOp, WriteOp,
+        input_time_from_parts, AddEdgeMetadata as AddEdgeMetadataOp,
+        AddEdgeUpdates as AddEdgeUpdatesOp, DeleteEdgeAtTime as DeleteEdgeAtTimeOp, Fanout,
+        HandleCtx, HandleOp, InputTime, Op, ReadExpr, UpdateEdgeMetadata as UpdateEdgeMetadataOp,
+        ViewOp, WriteOp,
     },
     remote_edges::RemoteEdges,
-    remote_graph::{
-        expect_bool, expect_optional_event_time, expect_optional_i64, expect_string,
-        expect_string_list,
-    },
     remote_history::{RemoteEventTime, RemoteHistory},
     remote_metadata::{RemoteMetadata, RemoteProperties},
     remote_node::RemoteNode,
-    transport::Transport,
+    transport::{
+        expect_bool, expect_optional_event_time, expect_optional_i64, expect_string,
+        expect_string_list, Transport,
+    },
     ClientError,
 };
 use raphtory_api::core::{
@@ -33,7 +33,7 @@ pub struct RemoteEdge {
     pub src: String,
     pub dst: String,
     pub transport: Arc<dyn Transport>,
-    pub expr: ReadExpr,
+    pub expr: Arc<ReadExpr>,
     /// Materialization context — inherited by descendants so their
     /// `.collect()` handles replay this edge's ops (view ops, filters).
     pub ctx: HandleCtx,
@@ -47,7 +47,7 @@ impl RemoteEdge {
         src: String,
         dst: String,
         transport: Arc<dyn Transport>,
-        expr: ReadExpr,
+        expr: impl Into<Arc<ReadExpr>>,
         ctx: HandleCtx,
     ) -> Self {
         Self {
@@ -55,7 +55,7 @@ impl RemoteEdge {
             src,
             dst,
             transport,
-            expr,
+            expr: expr.into(),
             ctx,
         }
     }
@@ -63,164 +63,118 @@ impl RemoteEdge {
     /// Internal helper: apply a view op to `expr` (narrowing the edge's own
     /// view) and record it in `ctx` so descendants navigated via `.src()` /
     /// `.dst()` / `.nbr()` replay it when materializing handles.
-    fn with_view_op<F>(&self, wrap: F) -> RemoteEdge
-    where
-        F: Fn(ReadExpr) -> ReadExpr + Send + Sync + 'static,
-    {
-        let wrap = Arc::new(wrap);
+    fn with_view_op(&self, op: ViewOp) -> RemoteEdge {
         RemoteEdge {
             path: self.path.clone(),
             src: self.src.clone(),
             dst: self.dst.clone(),
             transport: self.transport.clone(),
-            expr: wrap(self.expr.clone()),
-            ctx: self.ctx.with_op(HandleOp::View(wrap)),
+            expr: Arc::new(op.apply(self.expr.clone())),
+            ctx: self.ctx.with_op(HandleOp::View(op)),
         }
     }
 
     /// Time-window this edge. Lazy — no RPC.
-    pub fn window(&self, start: i64, end: i64) -> RemoteEdge {
-        self.with_view_op(move |input| ReadExpr::Window {
-            input: Box::new(input),
-            start,
-            end,
-        })
+    pub fn window(&self, start: InputTime, end: InputTime) -> RemoteEdge {
+        self.with_view_op(ViewOp::Window { start, end })
     }
 
     /// Restrict to a single named layer. Lazy — no RPC.
     pub fn layer(&self, name: impl ToString) -> RemoteEdge {
-        let name = name.to_string();
-        self.with_view_op(move |input| ReadExpr::Layer {
-            input: Box::new(input),
-            name: name.clone(),
+        self.with_view_op(ViewOp::Layer {
+            name: name.to_string(),
         })
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
-    pub fn at(&self, time: i64) -> RemoteEdge {
-        self.with_view_op(move |input| ReadExpr::At {
-            input: Box::new(input),
-            time,
-        })
+    pub fn at(&self, time: InputTime) -> RemoteEdge {
+        self.with_view_op(ViewOp::At { time })
     }
 
     /// Restrict to events strictly before the given time. Lazy — no RPC.
-    pub fn before(&self, time: i64) -> RemoteEdge {
-        self.with_view_op(move |input| ReadExpr::Before {
-            input: Box::new(input),
-            time,
-        })
+    pub fn before(&self, time: InputTime) -> RemoteEdge {
+        self.with_view_op(ViewOp::Before { time })
     }
 
-    /// Restrict to events at or after the given time. Lazy — no RPC.
-    pub fn after(&self, time: i64) -> RemoteEdge {
-        self.with_view_op(move |input| ReadExpr::After {
-            input: Box::new(input),
-            time,
-        })
+    /// Restrict to events strictly after the given time (exclusive). Lazy — no RPC.
+    pub fn after(&self, time: InputTime) -> RemoteEdge {
+        self.with_view_op(ViewOp::After { time })
     }
 
     /// Latest state. Lazy — no RPC.
     pub fn latest(&self) -> RemoteEdge {
-        self.with_view_op(move |input| ReadExpr::Latest {
-            input: Box::new(input),
-        })
+        self.with_view_op(ViewOp::Latest)
     }
 
     /// Snapshot at the latest time. Lazy — no RPC.
     pub fn snapshot_latest(&self) -> RemoteEdge {
-        self.with_view_op(move |input| ReadExpr::SnapshotLatest {
-            input: Box::new(input),
-        })
+        self.with_view_op(ViewOp::SnapshotLatest)
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
-    pub fn snapshot_at(&self, time: i64) -> RemoteEdge {
-        self.with_view_op(move |input| ReadExpr::SnapshotAt {
-            input: Box::new(input),
-            time,
-        })
+    pub fn snapshot_at(&self, time: InputTime) -> RemoteEdge {
+        self.with_view_op(ViewOp::SnapshotAt { time })
     }
 
     /// Exclude a specific layer from the view. Lazy — no RPC.
     pub fn exclude_layer(&self, name: impl ToString) -> RemoteEdge {
-        let name = name.to_string();
-        self.with_view_op(move |input| ReadExpr::ExcludeLayer {
-            input: Box::new(input),
-            name: name.clone(),
+        self.with_view_op(ViewOp::ExcludeLayer {
+            name: name.to_string(),
         })
     }
 
     /// Shrink both start and end of the current window. Lazy — no RPC.
-    pub fn shrink_window(&self, start: i64, end: i64) -> RemoteEdge {
-        self.with_view_op(move |input| ReadExpr::ShrinkWindow {
-            input: Box::new(input),
-            start,
-            end,
-        })
+    pub fn shrink_window(&self, start: InputTime, end: InputTime) -> RemoteEdge {
+        self.with_view_op(ViewOp::ShrinkWindow { start, end })
     }
 
     /// Shrink the start of the current window. Lazy — no RPC.
-    pub fn shrink_start(&self, start: i64) -> RemoteEdge {
-        self.with_view_op(move |input| ReadExpr::ShrinkStart {
-            input: Box::new(input),
-            start,
-        })
+    pub fn shrink_start(&self, start: InputTime) -> RemoteEdge {
+        self.with_view_op(ViewOp::ShrinkStart { start })
     }
 
     /// Shrink the end of the current window. Lazy — no RPC.
-    pub fn shrink_end(&self, end: i64) -> RemoteEdge {
-        self.with_view_op(move |input| ReadExpr::ShrinkEnd {
-            input: Box::new(input),
-            end,
-        })
+    pub fn shrink_end(&self, end: InputTime) -> RemoteEdge {
+        self.with_view_op(ViewOp::ShrinkEnd { end })
     }
 
     /// Restrict to the default layer. Lazy — no RPC.
     pub fn default_layer(&self) -> RemoteEdge {
-        self.with_view_op(move |input| ReadExpr::DefaultLayer {
-            input: Box::new(input),
-        })
+        self.with_view_op(ViewOp::DefaultLayer)
     }
 
     /// Restrict to the given set of layers. Lazy — no RPC.
     pub fn layers(&self, names: Vec<String>) -> RemoteEdge {
-        self.with_view_op(move |input| ReadExpr::Layers {
-            input: Box::new(input),
-            names: names.clone(),
+        self.with_view_op(ViewOp::Layers {
+            names: names.into(),
         })
     }
 
     /// Exclude the given set of layers from the view. Lazy — no RPC.
     pub fn exclude_layers(&self, names: Vec<String>) -> RemoteEdge {
-        self.with_view_op(move |input| ReadExpr::ExcludeLayers {
-            input: Box::new(input),
-            names: names.clone(),
+        self.with_view_op(ViewOp::ExcludeLayers {
+            names: names.into(),
         })
     }
 
     /// Restrict to the given set of valid layers. Lazy — no RPC.
     pub fn valid_layers(&self, names: Vec<String>) -> RemoteEdge {
-        self.with_view_op(move |input| ReadExpr::ValidLayers {
-            input: Box::new(input),
-            names: names.clone(),
+        self.with_view_op(ViewOp::ValidLayers {
+            names: names.into(),
         })
     }
 
     /// Exclude a specific valid layer from the view. Lazy — no RPC.
     pub fn exclude_valid_layer(&self, name: impl ToString) -> RemoteEdge {
-        let name = name.to_string();
-        self.with_view_op(move |input| ReadExpr::ExcludeValidLayer {
-            input: Box::new(input),
-            name: name.clone(),
+        self.with_view_op(ViewOp::ExcludeValidLayer {
+            name: name.to_string(),
         })
     }
 
     /// Exclude the given set of valid layers from the view. Lazy — no RPC.
     pub fn exclude_valid_layers(&self, names: Vec<String>) -> RemoteEdge {
-        self.with_view_op(move |input| ReadExpr::ExcludeValidLayers {
-            input: Box::new(input),
-            names: names.clone(),
+        self.with_view_op(ViewOp::ExcludeValidLayers {
+            names: names.into(),
         })
     }
 
@@ -232,7 +186,7 @@ impl RemoteEdge {
             self.src.clone(),
             self.transport.clone(),
             ReadExpr::Src {
-                input: Box::new(self.expr.clone()),
+                input: self.expr.clone(),
             },
             self.ctx.clone(),
         )
@@ -246,7 +200,7 @@ impl RemoteEdge {
             self.dst.clone(),
             self.transport.clone(),
             ReadExpr::Dst {
-                input: Box::new(self.expr.clone()),
+                input: self.expr.clone(),
             },
             self.ctx.clone(),
         )
@@ -262,7 +216,7 @@ impl RemoteEdge {
             String::new(),
             self.transport.clone(),
             ReadExpr::Nbr {
-                input: Box::new(self.expr.clone()),
+                input: self.expr.clone(),
             },
             self.ctx.clone(),
         )
@@ -275,7 +229,7 @@ impl RemoteEdge {
             self.path.clone(),
             self.transport.clone(),
             ReadExpr::Metadata {
-                input: Box::new(self.expr.clone()),
+                input: self.expr.clone(),
             },
             self.ctx.clone(),
         )
@@ -288,7 +242,7 @@ impl RemoteEdge {
             self.path.clone(),
             self.transport.clone(),
             ReadExpr::Properties {
-                input: Box::new(self.expr.clone()),
+                input: self.expr.clone(),
             },
             self.ctx.clone(),
         )
@@ -302,7 +256,7 @@ impl RemoteEdge {
             self.path.clone(),
             self.transport.clone(),
             ReadExpr::History {
-                input: Box::new(self.expr.clone()),
+                input: self.expr.clone(),
             },
             self.ctx.clone(),
         )
@@ -316,7 +270,7 @@ impl RemoteEdge {
             self.path.clone(),
             self.transport.clone(),
             ReadExpr::Deletions {
-                input: Box::new(self.expr.clone()),
+                input: self.expr.clone(),
             },
             self.ctx.clone(),
         )
@@ -331,7 +285,7 @@ impl RemoteEdge {
             self.path.clone(),
             self.transport.clone(),
             ReadExpr::Explode {
-                input: Box::new(self.expr.clone()),
+                input: self.expr.clone(),
             },
             self.ctx.with_op(HandleOp::Fanout(Fanout::Events)),
         )
@@ -339,15 +293,14 @@ impl RemoteEdge {
 
     /// Fan out this edge into one entry per layer — returns a `RemoteEdges`
     /// collection where each member is a single-layer edge instance.
-    /// `.collect()` on the result is unsupported (no server field
-    /// re-addresses a layer-pinned member); columnar accessors work as
-    /// usual. Lazy — no RPC.
+    /// `.collect()` materializes each layer-pinned member (via the server's
+    /// `eventLayer` field), and columnar accessors work as usual. Lazy — no RPC.
     pub fn explode_layers(&self) -> RemoteEdges {
         RemoteEdges::with_expr(
             self.path.clone(),
             self.transport.clone(),
             ReadExpr::ExplodeLayers {
-                input: Box::new(self.expr.clone()),
+                input: self.expr.clone(),
             },
             self.ctx.with_op(HandleOp::Fanout(Fanout::Layers)),
         )
@@ -357,7 +310,7 @@ impl RemoteEdge {
     /// Returns `None` if the edge has no events in the view. Fires one RPC.
     pub async fn earliest_time(&self) -> Result<Option<RemoteEventTime>, ClientError> {
         let op = Op::Read(ReadExpr::EarliestTime {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_optional_event_time(self.transport.execute(&op).await?, "earliestTime")
     }
@@ -366,7 +319,7 @@ impl RemoteEdge {
     /// Fires one RPC.
     pub async fn latest_time(&self) -> Result<Option<RemoteEventTime>, ClientError> {
         let op = Op::Read(ReadExpr::LatestTime {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_optional_event_time(self.transport.execute(&op).await?, "latestTime")
     }
@@ -375,7 +328,7 @@ impl RemoteEdge {
     /// Fires one RPC.
     pub async fn first_update(&self) -> Result<Option<i64>, ClientError> {
         let op = Op::Read(ReadExpr::FirstUpdate {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_optional_i64(self.transport.execute(&op).await?, "firstUpdate")
     }
@@ -384,7 +337,7 @@ impl RemoteEdge {
     /// Fires one RPC.
     pub async fn last_update(&self) -> Result<Option<i64>, ClientError> {
         let op = Op::Read(ReadExpr::LastUpdate {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_optional_i64(self.transport.execute(&op).await?, "lastUpdate")
     }
@@ -393,7 +346,7 @@ impl RemoteEdge {
     /// Meaningful primarily on `explode()`'d edge views. Fires one RPC.
     pub async fn time(&self) -> Result<Option<RemoteEventTime>, ClientError> {
         let op = Op::Read(ReadExpr::Time {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_optional_event_time(self.transport.execute(&op).await?, "time")
     }
@@ -401,7 +354,7 @@ impl RemoteEdge {
     /// Terminal: view start bound as seen by this edge. Fires one RPC.
     pub async fn start(&self) -> Result<Option<RemoteEventTime>, ClientError> {
         let op = Op::Read(ReadExpr::Start {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_optional_event_time(self.transport.execute(&op).await?, "start")
     }
@@ -409,7 +362,7 @@ impl RemoteEdge {
     /// Terminal: view end bound as seen by this edge. Fires one RPC.
     pub async fn end(&self) -> Result<Option<RemoteEventTime>, ClientError> {
         let op = Op::Read(ReadExpr::End {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_optional_event_time(self.transport.execute(&op).await?, "end")
     }
@@ -417,7 +370,7 @@ impl RemoteEdge {
     /// Terminal: edge id as `(src, dst)` pair of endpoint ids. Fires one RPC.
     pub async fn id(&self) -> Result<(String, String), ClientError> {
         let op = Op::Read(ReadExpr::EdgeIdPair {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         let list = expect_string_list(self.transport.execute(&op).await?, "id")?;
         let mut it = list.into_iter();
@@ -433,7 +386,7 @@ impl RemoteEdge {
     /// Terminal: layer names this edge is present in. Fires one RPC.
     pub async fn layer_names(&self) -> Result<Vec<String>, ClientError> {
         let op = Op::Read(ReadExpr::LayerNames {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_string_list(self.transport.execute(&op).await?, "layerNames")
     }
@@ -443,7 +396,7 @@ impl RemoteEdge {
     /// that surfaces as `ClientError::GraphQLErrors`. Fires one RPC.
     pub async fn layer_name(&self) -> Result<String, ClientError> {
         let op = Op::Read(ReadExpr::LayerName {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_string(self.transport.execute(&op).await?, "layerName")
     }
@@ -451,7 +404,7 @@ impl RemoteEdge {
     /// Terminal: whether the edge has any events in the current view. Fires one RPC.
     pub async fn is_active(&self) -> Result<bool, ClientError> {
         let op = Op::Read(ReadExpr::IsActive {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_bool(self.transport.execute(&op).await?, "isActive")
     }
@@ -459,7 +412,7 @@ impl RemoteEdge {
     /// Terminal: whether the edge is valid at the current time. Fires one RPC.
     pub async fn is_valid(&self) -> Result<bool, ClientError> {
         let op = Op::Read(ReadExpr::IsValid {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_bool(self.transport.execute(&op).await?, "isValid")
     }
@@ -467,7 +420,7 @@ impl RemoteEdge {
     /// Terminal: whether the edge has been deleted at the current time. Fires one RPC.
     pub async fn is_deleted(&self) -> Result<bool, ClientError> {
         let op = Op::Read(ReadExpr::IsDeleted {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_bool(self.transport.execute(&op).await?, "isDeleted")
     }
@@ -475,7 +428,7 @@ impl RemoteEdge {
     /// Terminal: whether the edge is a self-loop (src == dst). Fires one RPC.
     pub async fn is_self_loop(&self) -> Result<bool, ClientError> {
         let op = Op::Read(ReadExpr::IsSelfLoop {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_bool(self.transport.execute(&op).await?, "isSelfLoop")
     }
@@ -483,7 +436,7 @@ impl RemoteEdge {
     /// Terminal: whether this view contains a layer named `name`. Fires one RPC.
     pub async fn has_layer(&self, name: impl ToString) -> Result<bool, ClientError> {
         let op = Op::Read(ReadExpr::HasLayer {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
             name: name.to_string(),
         });
         expect_bool(self.transport.execute(&op).await?, "hasLayer")
@@ -493,23 +446,25 @@ impl RemoteEdge {
     /// or `None` for an unbounded view. Fires one RPC.
     pub async fn window_size(&self) -> Result<Option<i64>, ClientError> {
         let op = Op::Read(ReadExpr::WindowSize {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_optional_i64(self.transport.execute(&op).await?, "windowSize")
     }
 
-    /// Add temporal updates to the edge at the specified time.
+    /// Add temporal updates to the edge at the specified time. `event_id` locks
+    /// the secondary index; `None` lets the server auto-increment.
     pub async fn add_updates<T: IntoTime>(
         &self,
         t: T,
         properties: Option<HashMap<String, Prop>>,
         layer: Option<String>,
+        event_id: Option<usize>,
     ) -> Result<(), ClientError> {
         let op = Op::Write(WriteOp::AddEdgeUpdates(AddEdgeUpdatesOp {
             path: self.path.clone(),
             src: self.src.clone(),
             dst: self.dst.clone(),
-            time: t.into_time().t(),
+            time: input_time_from_parts(t.into_time().t(), event_id),
             properties,
             layer,
         }));
@@ -517,17 +472,19 @@ impl RemoteEdge {
         Ok(())
     }
 
-    /// Mark the edge as deleted at the specified time.
+    /// Mark the edge as deleted at the specified time. `event_id` locks the
+    /// secondary index; `None` lets the server auto-increment.
     pub async fn delete<T: IntoTime>(
         &self,
         t: T,
         layer: Option<String>,
+        event_id: Option<usize>,
     ) -> Result<(), ClientError> {
         let op = Op::Write(WriteOp::DeleteEdgeAtTime(DeleteEdgeAtTimeOp {
             path: self.path.clone(),
             src: self.src.clone(),
             dst: self.dst.clone(),
-            time: t.into_time().t(),
+            time: input_time_from_parts(t.into_time().t(), event_id),
             layer,
         }));
         self.transport.execute(&op).await?;

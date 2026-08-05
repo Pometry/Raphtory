@@ -48,7 +48,7 @@ use std::{
     sync::Arc,
 };
 use tokio::sync::{OwnedRwLockReadGuard, OwnedRwLockWriteGuard, RwLock};
-use tracing::{error, warn};
+use tracing::{debug, error, warn};
 use walkdir::WalkDir;
 
 #[derive(thiserror::Error, Debug)]
@@ -724,9 +724,11 @@ fn require_at_least_read(
                 if let Some(p) = perm.at_least_read() {
                     Ok(p)
                 } else {
-                    warn!(
+                    warn!(graph = path, "Permission denied: introspect-only access");
+                    debug!(
                         graph = path,
-                        "Introspect-only access — graph() denied; use graphMetadata() instead"
+                        "Introspect-only grants can read graphMetadata() but not graph(); \
+                         use graphMetadata() instead or request a read grant"
                     );
                     Err(PermissionError::IntrospectOnly {
                         graph: path.to_string(),

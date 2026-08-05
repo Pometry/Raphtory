@@ -1,6 +1,5 @@
 use crate::{
     client::{
-        inner_collection,
         op::{EdgeAddition, NodeAddition, TemporalUpdate},
         ClientError,
     },
@@ -15,8 +14,7 @@ use raphtory_api::{
     },
     python::{error::adapt_err_value, timeindex::PyEventTime},
 };
-use serde::{ser::SerializeStruct, Serialize, Serializer};
-use serde_json::json;
+use serde::Serialize;
 use std::collections::HashMap;
 
 pub mod remote_client;
@@ -44,38 +42,6 @@ pub mod remote_sorting;
 pub struct PyUpdate {
     time: PyEventTime,
     properties: Option<HashMap<String, Prop>>,
-}
-
-impl Serialize for PyUpdate {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut count = 1;
-        if self.properties.is_some() {
-            count += 1;
-        }
-        let mut state = serializer.serialize_struct("PyUpdate", count)?;
-
-        let time = &self.time;
-        let time = (*time).into_time();
-        state.serialize_field("time", &time)?;
-        if let Some(ref properties) = self.properties {
-            let properties_list: Vec<serde_json::Value> = properties
-                .iter()
-                .map(|(key, value)| {
-                    Ok(json!({
-                        "key": key,
-                        "value": inner_collection(value)?,
-                    }))
-                })
-                .collect::<Result<_, ClientError>>()
-                .map_err(serde::ser::Error::custom)?;
-            state.serialize_field("properties", &properties_list)?;
-        }
-
-        state.end()
-    }
 }
 
 #[pymethods]
@@ -173,7 +139,7 @@ impl PyEdgeAddition {
 }
 
 /// Specifies that **all** properties should be included when creating an index.
-/// Use one of the predefined variants: ALL , ALL_METADATA , or ALL_TEMPORAL .
+/// Use one of the predefined variants: `All`, `AllMetadata`, or `AllProperties`.
 #[derive(Clone, Serialize, PartialEq)]
 #[pyclass(
     name = "AllPropertySpec",

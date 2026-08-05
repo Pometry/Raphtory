@@ -13,8 +13,7 @@
 
 use crate::client::{
     op::{HandleCtx, Op, ReadExpr},
-    remote_graph::{expect_columnar_property_list, expect_nested_columnar_property_list},
-    transport::Transport,
+    transport::{expect_columnar_property_list, expect_nested_columnar_property_list, Transport},
     ClientError,
 };
 use raphtory_api::core::entities::properties::prop::Prop;
@@ -74,7 +73,7 @@ pub struct RemoteMetadataView {
     pub path: String,
     pub transport: Arc<dyn Transport>,
     /// The accumulated collection read expression.
-    pub expr: ReadExpr,
+    pub expr: Arc<ReadExpr>,
     pub ctx: HandleCtx,
     /// `true` for nested collections (`PathFromGraph` / `NestedEdges`).
     pub nested: bool,
@@ -84,14 +83,14 @@ impl RemoteMetadataView {
     pub fn with_expr(
         path: String,
         transport: Arc<dyn Transport>,
-        expr: ReadExpr,
+        expr: impl Into<Arc<ReadExpr>>,
         ctx: HandleCtx,
         nested: bool,
     ) -> Self {
         Self {
             path,
             transport,
-            expr,
+            expr: expr.into(),
             ctx,
             nested,
         }
@@ -102,7 +101,7 @@ impl RemoteMetadataView {
     pub async fn fetch(&self) -> Result<ColumnarProps, ClientError> {
         if self.nested {
             let op = Op::Read(ReadExpr::NestedMetadataValues {
-                input: Box::new(self.expr.clone()),
+                input: self.expr.clone(),
             });
             let data = expect_nested_columnar_property_list(
                 self.transport.execute(&op).await?,
@@ -111,7 +110,7 @@ impl RemoteMetadataView {
             Ok(ColumnarProps::Nested(data))
         } else {
             let op = Op::Read(ReadExpr::CollectionMetadataValues {
-                input: Box::new(self.expr.clone()),
+                input: self.expr.clone(),
             });
             let data =
                 expect_columnar_property_list(self.transport.execute(&op).await?, "metadata")?;
@@ -127,7 +126,7 @@ impl RemoteMetadataView {
 pub struct RemotePropertiesView {
     pub path: String,
     pub transport: Arc<dyn Transport>,
-    pub expr: ReadExpr,
+    pub expr: Arc<ReadExpr>,
     pub ctx: HandleCtx,
     pub nested: bool,
 }
@@ -136,14 +135,14 @@ impl RemotePropertiesView {
     pub fn with_expr(
         path: String,
         transport: Arc<dyn Transport>,
-        expr: ReadExpr,
+        expr: impl Into<Arc<ReadExpr>>,
         ctx: HandleCtx,
         nested: bool,
     ) -> Self {
         Self {
             path,
             transport,
-            expr,
+            expr: expr.into(),
             ctx,
             nested,
         }
@@ -155,7 +154,7 @@ impl RemotePropertiesView {
     pub async fn fetch(&self) -> Result<ColumnarProps, ClientError> {
         if self.nested {
             let op = Op::Read(ReadExpr::NestedPropertiesValues {
-                input: Box::new(self.expr.clone()),
+                input: self.expr.clone(),
             });
             let data = expect_nested_columnar_property_list(
                 self.transport.execute(&op).await?,
@@ -164,7 +163,7 @@ impl RemotePropertiesView {
             Ok(ColumnarProps::Nested(data))
         } else {
             let op = Op::Read(ReadExpr::CollectionPropertiesValues {
-                input: Box::new(self.expr.clone()),
+                input: self.expr.clone(),
             });
             let data =
                 expect_columnar_property_list(self.transport.execute(&op).await?, "properties")?;

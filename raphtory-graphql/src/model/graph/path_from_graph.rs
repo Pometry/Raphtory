@@ -9,8 +9,8 @@ use crate::{
     },
     rayon::blocking_compute,
 };
-use async_graphql::Context;
-use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
+use async_graphql::{Context, Error, Value as GqlValue};
+use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, Scalar, ScalarValue};
 use raphtory::{
     db::{
         api::view::{filter_ops::NodeSelect, DynamicGraph, Filter},
@@ -20,6 +20,54 @@ use raphtory::{
     prelude::*,
 };
 use raphtory_api::core::utils::time::IntoTime;
+
+/// Output-only scalars for the columnar nested terminals below. They carry a
+/// `[[..]]` result (one inner list per source node) in a SINGLE field so the
+/// whole thing is computed in one `blocking_compute`, instead of the
+/// `list { ids }` shape which resolves one `PathFromNode` object — and its own
+/// `blocking_compute` — per source. The derive macro can't register a nested
+/// list type directly, hence the custom scalar.
+#[derive(Clone, Debug, Scalar)]
+#[graphql(name = "NestedStringList")]
+pub(crate) struct NestedStringList(pub Vec<Vec<String>>);
+
+impl ScalarValue for NestedStringList {
+    fn from_value(_value: GqlValue) -> Result<Self, Error> {
+        Err(Error::new("NestedStringList is an output-only scalar"))
+    }
+
+    fn to_value(&self) -> GqlValue {
+        GqlValue::List(
+            self.0
+                .iter()
+                .map(|inner| {
+                    GqlValue::List(inner.iter().map(|s| GqlValue::String(s.clone())).collect())
+                })
+                .collect(),
+        )
+    }
+}
+
+/// Like [`NestedStringList`] but for integer results (`[[Int]]`) — the
+/// columnar `degree`/`inDegree`/`outDegree` nested terminals.
+#[derive(Clone, Debug, Scalar)]
+#[graphql(name = "NestedIntList")]
+pub(crate) struct NestedIntList(pub Vec<Vec<i64>>);
+
+impl ScalarValue for NestedIntList {
+    fn from_value(_value: GqlValue) -> Result<Self, Error> {
+        Err(Error::new("NestedIntList is an output-only scalar"))
+    }
+
+    fn to_value(&self) -> GqlValue {
+        GqlValue::List(
+            self.0
+                .iter()
+                .map(|inner| GqlValue::List(inner.iter().map(|n| GqlValue::from(*n)).collect()))
+                .collect(),
+        )
+    }
+}
 
 /// A nested collection of nodes anchored to a source collection — the result of
 /// collection-level traversals like `nodes.neighbours`, `inNeighbours`, or
@@ -71,6 +119,12 @@ impl GqlPathFromGraph {
     ) -> Self {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.update(self_clone.nn.valid_layers(names))).await
+    }
+
+    /// Return a view of PathFromGraph restricted to the default layer.
+    async fn default_layer(&self) -> Self {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.update(self_clone.nn.default_layer())).await
     }
 
     /// Return a view of PathFromGraph containing all layers except the specified excluded layers, errors if any of the layers do not exist.
@@ -275,6 +329,74 @@ impl GqlPathFromGraph {
         check_list_allowed(ctx)?;
         let self_clone = self.clone();
         Ok(blocking_compute(move || self_clone.per_source()).await)
+    }
+
+    /// Columnar `ids`: every source node's neighbour ids as `[[String]]`,
+    /// computed in ONE `blocking_compute`. Fast-path equivalent of
+    /// `list { ids }`, which resolves one `PathFromNode` object — and its own
+    /// `blocking_compute` — per source.
+    async fn ids(&self, ctx: &Context<'_>) -> async_graphql::Result<NestedStringList> {
+        check_list_allowed(ctx)?;
+        let self_clone = self.clone();
+        Ok(blocking_compute(move || {
+            NestedStringList(
+                self_clone
+                    .nn
+                    .iter()
+                    .map(|(_src, path)| path.name().collect())
+                    .collect(),
+            )
+        })
+        .await)
+    }
+
+    /// Columnar `degree`: each source node's per-neighbour degrees as `[[Int]]`,
+    /// computed in ONE `blocking_compute`. Fast-path for `list { degree }`.
+    async fn degree(&self, ctx: &Context<'_>) -> async_graphql::Result<NestedIntList> {
+        check_list_allowed(ctx)?;
+        let self_clone = self.clone();
+        Ok(blocking_compute(move || {
+            NestedIntList(
+                self_clone
+                    .nn
+                    .iter()
+                    .map(|(_src, path)| path.degree().map(|d| d as i64).collect())
+                    .collect(),
+            )
+        })
+        .await)
+    }
+
+    /// Columnar `inDegree`. Fast-path for `list { inDegree }`.
+    async fn in_degree(&self, ctx: &Context<'_>) -> async_graphql::Result<NestedIntList> {
+        check_list_allowed(ctx)?;
+        let self_clone = self.clone();
+        Ok(blocking_compute(move || {
+            NestedIntList(
+                self_clone
+                    .nn
+                    .iter()
+                    .map(|(_src, path)| path.in_degree().map(|d| d as i64).collect())
+                    .collect(),
+            )
+        })
+        .await)
+    }
+
+    /// Columnar `outDegree`. Fast-path for `list { outDegree }`.
+    async fn out_degree(&self, ctx: &Context<'_>) -> async_graphql::Result<NestedIntList> {
+        check_list_allowed(ctx)?;
+        let self_clone = self.clone();
+        Ok(blocking_compute(move || {
+            NestedIntList(
+                self_clone
+                    .nn
+                    .iter()
+                    .map(|(_src, path)| path.out_degree().map(|d| d as i64).collect())
+                    .collect(),
+            )
+        })
+        .await)
     }
 
     /// Takes a specified selection of views and applies them in given order.

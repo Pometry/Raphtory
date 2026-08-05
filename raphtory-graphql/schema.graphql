@@ -3694,6 +3694,22 @@ type NestedEdges {
 }
 
 """
+Like [`NestedStringList`] but for integer results (`[[Int]]`) — the
+columnar `degree`/`inDegree`/`outDegree` nested terminals.
+"""
+scalar NestedIntList
+
+"""
+Output-only scalars for the columnar nested terminals below. They carry a
+`[[..]]` result (one inner list per source node) in a SINGLE field so the
+whole thing is computed in one `blocking_compute`, instead of the
+`list { ids }` shape which resolves one `PathFromNode` object — and its own
+`blocking_compute` — per source. The derive macro can't register a nested
+list type directly, hence the custom scalar.
+"""
+scalar NestedStringList
+
+"""
 Raphtory graph node.
 """
 type Node {
@@ -4926,6 +4942,10 @@ type PathFromGraph {
 		names: [String!]!
 	): PathFromGraph!
 	"""
+	Return a view of PathFromGraph restricted to the default layer.
+	"""
+	defaultLayer: PathFromGraph!
+	"""
 	Return a view of PathFromGraph containing all layers except the specified excluded layers, errors if any of the layers do not exist.
 	"""
 	excludeLayers(
@@ -5103,6 +5123,26 @@ type PathFromGraph {
 	"""
 	list: [PathFromNode!]!
 	"""
+	Columnar `ids`: every source node's neighbour ids as `[[String]]`,
+	computed in ONE `blocking_compute`. Fast-path equivalent of
+	`list { ids }`, which resolves one `PathFromNode` object — and its own
+	`blocking_compute` — per source.
+	"""
+	ids: NestedStringList!
+	"""
+	Columnar `degree`: each source node's per-neighbour degrees as `[[Int]]`,
+	computed in ONE `blocking_compute`. Fast-path for `list { degree }`.
+	"""
+	degree: NestedIntList!
+	"""
+	Columnar `inDegree`. Fast-path for `list { inDegree }`.
+	"""
+	inDegree: NestedIntList!
+	"""
+	Columnar `outDegree`. Fast-path for `list { outDegree }`.
+	"""
+	outDegree: NestedIntList!
+	"""
 	Takes a specified selection of views and applies them in given order.
 	"""
 	applyViews(
@@ -5184,6 +5224,10 @@ type PathFromNode {
 		"""
 		names: [String!]!
 	): PathFromNode!
+	"""
+	Return a view of PathFromNode restricted to the default layer.
+	"""
+	defaultLayer: PathFromNode!
 	"""
 	Return a view of PathFromNode containing all layers except the specified excluded layers, errors if any of the layers do not exist.
 	"""
@@ -6477,3 +6521,4 @@ schema {
 	query: QueryRoot
 	mutation: MutRoot
 }
+

@@ -1,12 +1,13 @@
 use crate::client::{
     op::{HandleCtx, Op, ReadExpr},
-    remote_graph::{
+    transport::{
         expect_bool, expect_event_time_list, expect_i64, expect_i64_list,
         expect_optional_event_time, expect_optional_f64, expect_optional_i64, expect_string_list,
+        Transport,
     },
-    transport::Transport,
     ClientError,
 };
+use raphtory_api::core::storage::timeindex::EventTime;
 use std::sync::Arc;
 
 /// A single event on a node/edge's history — the value type each entry in
@@ -27,6 +28,19 @@ pub struct RemoteEventTime {
     /// The event's internal id — a monotonically-increasing counter used to
     /// disambiguate multiple events at the same timestamp.
     pub event_id: Option<i64>,
+}
+
+impl RemoteEventTime {
+    /// Convert this wire record into a concrete [`EventTime`], the same type
+    /// the local API exposes. Returns `None` when there is no timestamp —
+    /// the server's representation of "no event time" (e.g. `earliest_time`
+    /// on an empty view), which the local API models as an absent value
+    /// rather than an `EventTime` with null fields. A missing `event_id`
+    /// defaults to `0`; the server only omits it alongside the timestamp.
+    pub fn to_event_time(&self) -> Option<EventTime> {
+        self.timestamp
+            .map(|t| EventTime::new(t, self.event_id.unwrap_or(0) as usize))
+    }
 }
 
 /// A handle to the event history of a node or edge on the server.
@@ -50,7 +64,7 @@ pub struct RemoteEventTime {
 pub struct RemoteHistory {
     pub path: String,
     pub transport: Arc<dyn Transport>,
-    pub expr: ReadExpr,
+    pub expr: Arc<ReadExpr>,
     /// The parent graph view — used by sub-containers and list materialization
     /// to rebase descendants under the same view chain.
     pub ctx: HandleCtx,
@@ -62,13 +76,13 @@ impl RemoteHistory {
     pub fn with_expr(
         path: String,
         transport: Arc<dyn Transport>,
-        expr: ReadExpr,
+        expr: impl Into<Arc<ReadExpr>>,
         ctx: HandleCtx,
     ) -> Self {
         Self {
             path,
             transport,
-            expr,
+            expr: expr.into(),
             ctx,
         }
     }
@@ -76,7 +90,7 @@ impl RemoteHistory {
     /// Terminal: number of events in this history. Fires one RPC.
     pub async fn count(&self) -> Result<i64, ClientError> {
         let op = Op::Read(ReadExpr::Count {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_i64(self.transport.execute(&op).await?, "count")
     }
@@ -84,7 +98,7 @@ impl RemoteHistory {
     /// Terminal: whether this history has no events. Fires one RPC.
     pub async fn is_empty(&self) -> Result<bool, ClientError> {
         let op = Op::Read(ReadExpr::IsEmpty {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_bool(self.transport.execute(&op).await?, "isEmpty")
     }
@@ -93,7 +107,7 @@ impl RemoteHistory {
     /// history is empty. Fires one RPC.
     pub async fn earliest_time(&self) -> Result<Option<RemoteEventTime>, ClientError> {
         let op = Op::Read(ReadExpr::EarliestTime {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_optional_event_time(self.transport.execute(&op).await?, "earliestTime")
     }
@@ -102,7 +116,7 @@ impl RemoteHistory {
     /// history is empty. Fires one RPC.
     pub async fn latest_time(&self) -> Result<Option<RemoteEventTime>, ClientError> {
         let op = Op::Read(ReadExpr::LatestTime {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_optional_event_time(self.transport.execute(&op).await?, "latestTime")
     }
@@ -112,7 +126,7 @@ impl RemoteHistory {
     /// string, and internal event id (all optional).
     pub async fn collect(&self) -> Result<Vec<RemoteEventTime>, ClientError> {
         let op = Op::Read(ReadExpr::HistoryList {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_event_time_list(self.transport.execute(&op).await?, "list")
     }
@@ -121,7 +135,7 @@ impl RemoteHistory {
     /// Fires one RPC.
     pub async fn collect_rev(&self) -> Result<Vec<RemoteEventTime>, ClientError> {
         let op = Op::Read(ReadExpr::HistoryListRev {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_event_time_list(self.transport.execute(&op).await?, "listRev")
     }
@@ -136,7 +150,7 @@ impl RemoteHistory {
         page_index: Option<usize>,
     ) -> Result<Vec<RemoteEventTime>, ClientError> {
         let op = Op::Read(ReadExpr::HistoryPage {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
             limit,
             offset,
             page_index,
@@ -153,7 +167,7 @@ impl RemoteHistory {
         page_index: Option<usize>,
     ) -> Result<Vec<RemoteEventTime>, ClientError> {
         let op = Op::Read(ReadExpr::HistoryPageRev {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
             limit,
             offset,
             page_index,
@@ -168,7 +182,7 @@ impl RemoteHistory {
             self.path.clone(),
             self.transport.clone(),
             ReadExpr::HistoryReverse {
-                input: Box::new(self.expr.clone()),
+                input: self.expr.clone(),
             },
             self.ctx.clone(),
         )
@@ -180,9 +194,9 @@ impl RemoteHistory {
         RemoteHistoryTimestamps {
             path: self.path.clone(),
             transport: self.transport.clone(),
-            expr: ReadExpr::HistoryTimestamps {
-                input: Box::new(self.expr.clone()),
-            },
+            expr: Arc::new(ReadExpr::HistoryTimestamps {
+                input: self.expr.clone(),
+            }),
             ctx: self.ctx.clone(),
         }
     }
@@ -192,9 +206,9 @@ impl RemoteHistory {
         RemoteHistoryEventIds {
             path: self.path.clone(),
             transport: self.transport.clone(),
-            expr: ReadExpr::HistoryEventIds {
-                input: Box::new(self.expr.clone()),
-            },
+            expr: Arc::new(ReadExpr::HistoryEventIds {
+                input: self.expr.clone(),
+            }),
             ctx: self.ctx.clone(),
         }
     }
@@ -205,9 +219,9 @@ impl RemoteHistory {
         RemoteHistoryDateTimes {
             path: self.path.clone(),
             transport: self.transport.clone(),
-            expr: ReadExpr::HistoryDateTimes {
-                input: Box::new(self.expr.clone()),
-            },
+            expr: Arc::new(ReadExpr::HistoryDateTimes {
+                input: self.expr.clone(),
+            }),
             ctx: self.ctx.clone(),
         }
     }
@@ -218,9 +232,9 @@ impl RemoteHistory {
         RemoteIntervals {
             path: self.path.clone(),
             transport: self.transport.clone(),
-            expr: ReadExpr::HistoryIntervals {
-                input: Box::new(self.expr.clone()),
-            },
+            expr: Arc::new(ReadExpr::HistoryIntervals {
+                input: self.expr.clone(),
+            }),
             ctx: self.ctx.clone(),
         }
     }
@@ -239,7 +253,7 @@ impl RemoteHistory {
 pub struct RemoteHistoryTimestamps {
     pub path: String,
     pub transport: Arc<dyn Transport>,
-    pub expr: ReadExpr,
+    pub expr: Arc<ReadExpr>,
     pub ctx: HandleCtx,
 }
 
@@ -247,7 +261,7 @@ impl RemoteHistoryTimestamps {
     /// Terminal: all timestamps in ascending order. Fires one RPC.
     pub async fn collect(&self) -> Result<Vec<i64>, ClientError> {
         let op = Op::Read(ReadExpr::SubList {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_i64_list(self.transport.execute(&op).await?, "list")
     }
@@ -255,7 +269,7 @@ impl RemoteHistoryTimestamps {
     /// Terminal: all timestamps in descending order. Fires one RPC.
     pub async fn collect_rev(&self) -> Result<Vec<i64>, ClientError> {
         let op = Op::Read(ReadExpr::SubListRev {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_i64_list(self.transport.execute(&op).await?, "listRev")
     }
@@ -268,7 +282,7 @@ impl RemoteHistoryTimestamps {
         page_index: Option<usize>,
     ) -> Result<Vec<i64>, ClientError> {
         let op = Op::Read(ReadExpr::SubPage {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
             limit,
             offset,
             page_index,
@@ -284,7 +298,7 @@ impl RemoteHistoryTimestamps {
         page_index: Option<usize>,
     ) -> Result<Vec<i64>, ClientError> {
         let op = Op::Read(ReadExpr::SubPageRev {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
             limit,
             offset,
             page_index,
@@ -299,7 +313,7 @@ impl RemoteHistoryTimestamps {
 pub struct RemoteHistoryEventIds {
     pub path: String,
     pub transport: Arc<dyn Transport>,
-    pub expr: ReadExpr,
+    pub expr: Arc<ReadExpr>,
     pub ctx: HandleCtx,
 }
 
@@ -307,7 +321,7 @@ impl RemoteHistoryEventIds {
     /// Terminal: all event ids in ascending order. Fires one RPC.
     pub async fn collect(&self) -> Result<Vec<i64>, ClientError> {
         let op = Op::Read(ReadExpr::SubList {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_i64_list(self.transport.execute(&op).await?, "list")
     }
@@ -315,7 +329,7 @@ impl RemoteHistoryEventIds {
     /// Terminal: all event ids in descending order. Fires one RPC.
     pub async fn collect_rev(&self) -> Result<Vec<i64>, ClientError> {
         let op = Op::Read(ReadExpr::SubListRev {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_i64_list(self.transport.execute(&op).await?, "listRev")
     }
@@ -328,7 +342,7 @@ impl RemoteHistoryEventIds {
         page_index: Option<usize>,
     ) -> Result<Vec<i64>, ClientError> {
         let op = Op::Read(ReadExpr::SubPage {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
             limit,
             offset,
             page_index,
@@ -344,7 +358,7 @@ impl RemoteHistoryEventIds {
         page_index: Option<usize>,
     ) -> Result<Vec<i64>, ClientError> {
         let op = Op::Read(ReadExpr::SubPageRev {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
             limit,
             offset,
             page_index,
@@ -359,7 +373,7 @@ impl RemoteHistoryEventIds {
 pub struct RemoteHistoryDateTimes {
     pub path: String,
     pub transport: Arc<dyn Transport>,
-    pub expr: ReadExpr,
+    pub expr: Arc<ReadExpr>,
     pub ctx: HandleCtx,
 }
 
@@ -367,7 +381,7 @@ impl RemoteHistoryDateTimes {
     /// Terminal: all datetimes in ascending order. Fires one RPC.
     pub async fn collect(&self) -> Result<Vec<String>, ClientError> {
         let op = Op::Read(ReadExpr::SubList {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_string_list(self.transport.execute(&op).await?, "list")
     }
@@ -375,7 +389,7 @@ impl RemoteHistoryDateTimes {
     /// Terminal: all datetimes in descending order. Fires one RPC.
     pub async fn collect_rev(&self) -> Result<Vec<String>, ClientError> {
         let op = Op::Read(ReadExpr::SubListRev {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_string_list(self.transport.execute(&op).await?, "listRev")
     }
@@ -388,7 +402,7 @@ impl RemoteHistoryDateTimes {
         page_index: Option<usize>,
     ) -> Result<Vec<String>, ClientError> {
         let op = Op::Read(ReadExpr::SubPage {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
             limit,
             offset,
             page_index,
@@ -404,7 +418,7 @@ impl RemoteHistoryDateTimes {
         page_index: Option<usize>,
     ) -> Result<Vec<String>, ClientError> {
         let op = Op::Read(ReadExpr::SubPageRev {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
             limit,
             offset,
             page_index,
@@ -420,7 +434,7 @@ impl RemoteHistoryDateTimes {
 pub struct RemoteIntervals {
     pub path: String,
     pub transport: Arc<dyn Transport>,
-    pub expr: ReadExpr,
+    pub expr: Arc<ReadExpr>,
     pub ctx: HandleCtx,
 }
 
@@ -428,7 +442,7 @@ impl RemoteIntervals {
     /// Terminal: all intervals in ascending order. Fires one RPC.
     pub async fn collect(&self) -> Result<Vec<i64>, ClientError> {
         let op = Op::Read(ReadExpr::SubList {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_i64_list(self.transport.execute(&op).await?, "list")
     }
@@ -436,7 +450,7 @@ impl RemoteIntervals {
     /// Terminal: all intervals in descending order. Fires one RPC.
     pub async fn collect_rev(&self) -> Result<Vec<i64>, ClientError> {
         let op = Op::Read(ReadExpr::SubListRev {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_i64_list(self.transport.execute(&op).await?, "listRev")
     }
@@ -449,7 +463,7 @@ impl RemoteIntervals {
         page_index: Option<usize>,
     ) -> Result<Vec<i64>, ClientError> {
         let op = Op::Read(ReadExpr::SubPage {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
             limit,
             offset,
             page_index,
@@ -465,7 +479,7 @@ impl RemoteIntervals {
         page_index: Option<usize>,
     ) -> Result<Vec<i64>, ClientError> {
         let op = Op::Read(ReadExpr::SubPageRev {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
             limit,
             offset,
             page_index,
@@ -477,7 +491,7 @@ impl RemoteIntervals {
     /// Fires one RPC.
     pub async fn mean(&self) -> Result<Option<f64>, ClientError> {
         let op = Op::Read(ReadExpr::IntervalsMean {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_optional_f64(self.transport.execute(&op).await?, "mean")
     }
@@ -485,7 +499,7 @@ impl RemoteIntervals {
     /// Terminal: median interval. `None` if fewer than 2 events. Fires one RPC.
     pub async fn median(&self) -> Result<Option<i64>, ClientError> {
         let op = Op::Read(ReadExpr::IntervalsMedian {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_optional_i64(self.transport.execute(&op).await?, "median")
     }
@@ -493,7 +507,7 @@ impl RemoteIntervals {
     /// Terminal: max interval. `None` if fewer than 2 events. Fires one RPC.
     pub async fn max(&self) -> Result<Option<i64>, ClientError> {
         let op = Op::Read(ReadExpr::IntervalsMax {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_optional_i64(self.transport.execute(&op).await?, "max")
     }
@@ -501,7 +515,7 @@ impl RemoteIntervals {
     /// Terminal: min interval. `None` if fewer than 2 events. Fires one RPC.
     pub async fn min(&self) -> Result<Option<i64>, ClientError> {
         let op = Op::Read(ReadExpr::IntervalsMin {
-            input: Box::new(self.expr.clone()),
+            input: self.expr.clone(),
         });
         expect_optional_i64(self.transport.execute(&op).await?, "min")
     }
