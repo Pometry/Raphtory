@@ -1,18 +1,14 @@
 //! Shared GraphQL argument types for algorithms, and their conversion into the
 //! core types the algorithms take.
 
-use crate::model::graph::filtering::GqlViewFilter;
-use dynamic_graphql::Enum;
+use crate::model::graph::node_id::GqlNodeId;
+use dynamic_graphql::{Enum, OneOfInput};
+use rand::Rng;
 use raphtory::{
-    db::{
-        api::view::{DynamicGraph, Filter, IntoDynamic},
-        graph::views::filter::model::{
-            edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter, DynView,
-        },
-    },
-    errors::GraphError,
+    algorithms::dynamics::temporal::epidemics::{IntoSeeds, Number, Probability, SeedError},
+    db::api::view::StaticGraphViewOps,
 };
-use raphtory_api::core::Direction;
+use raphtory_api::core::{entities::VID, Direction};
 
 /// Edge direction to follow during traversal.
 #[derive(Enum, Copy, Clone)]
@@ -33,27 +29,29 @@ impl From<GqlDirection> for Direction {
     }
 }
 
-/// Applies an optional composite filter, returning the filtered view (or the
-/// graph unchanged if no filter is given).
-pub(crate) fn filtered_view(
-    graph: &DynamicGraph,
-    filter: Option<GqlViewFilter>,
-) -> Result<DynamicGraph, GraphError> {
-    let Some(filter) = filter else {
-        return Ok(graph.clone());
-    };
-    let mut graph = graph.clone();
-    if let Some(nodes) = filter.nodes {
-        let nodes: CompositeNodeFilter = nodes.try_into()?;
-        graph = graph.filter(nodes)?.into_dynamic();
+#[derive(OneOfInput, Clone)]
+#[graphql(name = "Seeds")]
+pub(crate) enum GqlSeeds {
+    /// Infect exactly these nodes.
+    Nodes(Vec<GqlNodeId>),
+    /// Infect this many randomly chosen nodes.
+    Number(usize),
+    /// Infect this fraction of the nodes, chosen at random.
+    Probability(f64),
+}
+
+impl IntoSeeds for GqlSeeds {
+    fn into_initial_list<G: StaticGraphViewOps, R: Rng + ?Sized>(
+        self,
+        graph: &G,
+        rng: &mut R,
+    ) -> Result<Vec<VID>, SeedError> {
+        match self {
+            GqlSeeds::Nodes(nodes) => nodes.into_initial_list(graph, rng),
+            GqlSeeds::Number(number) => Number(number).into_initial_list(graph, rng),
+            GqlSeeds::Probability(probability) => {
+                Probability::try_from(probability)?.into_initial_list(graph, rng)
+            }
+        }
     }
-    if let Some(edges) = filter.edges {
-        let edges: CompositeEdgeFilter = edges.try_into()?;
-        graph = graph.filter(edges)?.into_dynamic();
-    }
-    if let Some(view) = filter.graph {
-        let view: DynView = view.try_into()?;
-        graph = graph.filter(view)?.into_dynamic();
-    }
-    Ok(graph)
 }
