@@ -25,7 +25,7 @@ jobs:
         with:
           cache-all-crates: true
       - name: Install maturin
-        run: pip install maturin==1.8.3
+        run: pip install maturin==1.9.4
       - name: Build raphtory
         run: |
           make install-python clean

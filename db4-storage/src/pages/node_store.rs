@@ -105,7 +105,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
 
     pub fn par_iter(
         &self,
-    ) -> impl rayon::iter::ParallelIterator<
+    ) -> impl ParallelIterator<
         Item = <<NS as NodeSegmentOps>::ArcLockedSegment as LockedNSSegment>::EntryRef<'_>,
     > + '_ {
         self.locked_segments

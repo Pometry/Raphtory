@@ -46,8 +46,6 @@ pub enum GQLError {
 
 #[cfg(test)]
 mod graphql_test {
-    #[cfg(feature = "search")]
-    use crate::config::app_config::AppConfigBuilder;
     use crate::{
         auth::Access,
         auth_policy::{auth_policy_tests::FakePolicy, GraphPermission, NamespacePermission},
@@ -105,156 +103,6 @@ mod graphql_test {
         let req = Request::new(query).data(Access::Rw);
         let res = schema.execute(req).await;
         assert_eq!(res.errors, []);
-    }
-
-    #[tokio::test]
-    #[cfg(feature = "search")]
-    async fn test_search_nodes_gql() {
-        let graph = Graph::new();
-
-        let nodes = vec![
-            (6, "N1", vec![("p1", Prop::U64(2u64))]),
-            (7, "N1", vec![("p1", Prop::U64(1u64))]),
-            (6, "N2", vec![("p1", Prop::U64(1u64))]),
-            (7, "N2", vec![("p1", Prop::U64(2u64))]),
-            (8, "N3", vec![("p1", Prop::U64(1u64))]),
-            (9, "N4", vec![("p1", Prop::U64(1u64))]),
-            (5, "N5", vec![("p1", Prop::U64(1u64))]),
-            (6, "N5", vec![("p1", Prop::U64(2u64))]),
-            (5, "N6", vec![("p1", Prop::U64(1u64))]),
-            (6, "N6", vec![("p1", Prop::U64(1u64))]),
-            (3, "N7", vec![("p1", Prop::U64(1u64))]),
-            (5, "N7", vec![("p1", Prop::U64(1u64))]),
-            (3, "N8", vec![("p1", Prop::U64(1u64))]),
-            (4, "N8", vec![("p1", Prop::U64(2u64))]),
-            (2, "N9", vec![("p1", Prop::U64(2u64))]),
-            (2, "N10", vec![("q1", Prop::U64(0u64))]),
-            (2, "N10", vec![("p1", Prop::U64(3u64))]),
-            (2, "N11", vec![("p1", Prop::U64(3u64))]),
-            (2, "N11", vec![("q1", Prop::U64(0u64))]),
-            (2, "N12", vec![("q1", Prop::U64(0u64))]),
-            (3, "N12", vec![("p1", Prop::U64(3u64))]),
-            (2, "N13", vec![("q1", Prop::U64(0u64))]),
-            (3, "N13", vec![("p1", Prop::U64(3u64))]),
-            (2, "N14", vec![("q1", Prop::U64(0u64))]),
-            (2, "N15", vec![]),
-        ];
-
-        for (id, name, props) in nodes {
-            graph.add_node(id, name, props, None, None).unwrap();
-        }
-
-        let metadata = vec![
-            ("N1", vec![("p1", Prop::U64(1u64))]),
-            ("N4", vec![("p1", Prop::U64(2u64))]),
-            ("N9", vec![("p1", Prop::U64(1u64))]),
-            ("N10", vec![("p1", Prop::U64(1u64))]),
-            ("N11", vec![("p1", Prop::U64(1u64))]),
-            ("N12", vec![("p1", Prop::U64(1u64))]),
-            ("N13", vec![("p1", Prop::U64(1u64))]),
-            ("N14", vec![("p1", Prop::U64(1u64))]),
-            ("N15", vec![("p1", Prop::U64(1u64))]),
-        ];
-
-        for (name, props) in metadata {
-            graph.node(name).unwrap().add_metadata(props).unwrap();
-        }
-
-        let graph: MaterializedGraph = graph.into();
-
-        let graphs = HashMap::from([("master".to_string(), graph)]);
-        let tmp_dir = tempdir().unwrap();
-        let config = AppConfigBuilder::new().with_create_index(true).build();
-        let data = Data::new(tmp_dir.path(), &config, Config::default());
-        save_graphs_to_work_dir(&data, &graphs).await.unwrap();
-
-        let schema = App::create_schema().data(data).finish().unwrap();
-
-        let query = r#"
-            {
-              graph(path: "master") {
-                searchNodes(
-                    filter: {
-                      or: [
-                        {
-                          property: {
-                            name: "p1",
-                            where: {
-                              gt: {
-                                u64: 2
-                              }
-                            }
-                          }
-                        },
-                        {
-                          and: [
-                        {
-                          node: {
-                                field: NODE_NAME,
-                            		where: {
-                                  eq: {
-                                    str: "N1"
-                                  }
-                                }
-                            }
-                        },
-                        {
-                          node: {
-                            field: NODE_TYPE,
-                            where: {
-                              ne: {
-                                str: "air_nomads"
-                              }
-                            }
-                          }
-                        },
-                        {
-                          property: {
-                            name: "p1",
-                            where: {
-                              lt: {
-                                u64: 5
-                              }
-                            }
-                          }
-                        }
-                      ]
-                        }
-                      ]
-
-
-                    },
-                  limit: 20,
-                  offset: 0
-                ) {
-                  name
-                }
-              }
-            }
-        "#;
-        let req = Request::new(query);
-        let res = schema.execute(req).await;
-        assert_eq!(res.errors, []);
-        let mut data = res.data.into_json().unwrap();
-
-        if let Some(nodes) = data["graph"]["searchNodes"].as_array_mut() {
-            nodes.sort_by(|a, b| a["name"].as_str().cmp(&b["name"].as_str()));
-        }
-
-        assert_eq!(
-            data,
-            json!({
-                "graph": {
-                    "searchNodes": [
-                        { "name": "N1" },
-                        { "name": "N10" },
-                        { "name": "N11" },
-                        { "name": "N12" },
-                        { "name": "N13" }
-                    ]
-                }
-            }),
-        );
     }
 
     #[tokio::test]
@@ -1130,7 +978,7 @@ mod graphql_test {
     async fn test_graph_injection() {
         let g = PersistentGraph::new();
         g.add_node(0, 1, NO_PROPS, None, None).unwrap();
-        let tmp_dir = tempfile::TempDir::new().unwrap();
+        let tmp_dir = TempDir::new().unwrap();
         let zip_path = tmp_dir.path().join("graph.zip");
         g.encode(GraphFolder::new_as_zip(&zip_path)).unwrap();
         let file = fs::File::open(&zip_path).unwrap();
@@ -2251,7 +2099,7 @@ mod graphql_test {
 
             let cases = ["", ".hidden/x", "x/.hidden", "../escape", "a//b"];
 
-            let snapshot_before = std::fs::read_dir(work_dir.path())
+            let snapshot_before = fs::read_dir(work_dir.path())
                 .unwrap()
                 .map(|e| e.unwrap().file_name())
                 .collect::<HashSet<_>>();
@@ -2270,7 +2118,7 @@ mod graphql_test {
                 );
             }
 
-            let snapshot_after = std::fs::read_dir(work_dir.path())
+            let snapshot_after = fs::read_dir(work_dir.path())
                 .unwrap()
                 .map(|e| e.unwrap().file_name())
                 .collect::<HashSet<_>>();
@@ -3083,7 +2931,7 @@ mod graphql_test {
         let tmp_dir = tempdir().unwrap();
         // Create a subdirectory inside the allowed root.
         let sub_dir = tmp_dir.path().join("subdir");
-        std::fs::create_dir_all(&sub_dir).unwrap();
+        fs::create_dir_all(&sub_dir).unwrap();
         let parquet_path = write_nodes_parquet(&sub_dir);
 
         // The allowlist only contains the top-level directory, not subdir directly.

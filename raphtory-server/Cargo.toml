@@ -8,9 +8,6 @@ name = "raphtory-server"
 path = "src/main.rs"
 
 [dependencies]
-# NOTE: "vectors" temporarily disabled for the arrow-59/pyo3-0.29 upgrade
-# (lancedb/lance are pinned to arrow 58). Restore `features = ["vectors"]` once
-# the arrow-58 stack supports arrow 59 again.
 raphtory-graphql = { workspace = true }
 auth = { workspace = true }
 tokio = { workspace = true }
@@ -19,3 +16,6 @@ tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tempfile = { workspace = true }
+
+[features]
+vectors = ["raphtory-graphql/vectors"]
