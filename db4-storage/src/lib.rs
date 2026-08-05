@@ -8,8 +8,10 @@ use crate::{
         GraphStore, ReadLockedGraphStore, edge_store::ReadLockedEdgeStorage,
         node_store::ReadLockedNodeStorage,
     },
-    persist::strategy::{NoOpStrategy, PersistenceStrategy},
-    persist::config::ConfigOps,
+    persist::{
+        config::ConfigOps,
+        strategy::{NoOpStrategy, PersistenceStrategy},
+    },
     resolver::mapping_resolver::MappingResolver,
     segments::{
         edge::{
