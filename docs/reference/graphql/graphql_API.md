@@ -7960,6 +7960,15 @@ Layer names to include.
 </td>
 </tr>
 <tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.defaultlayer">defaultLayer</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Return a view of PathFromGraph restricted to the default layer.
+
+</td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="pathfromgraph.excludelayers">excludeLayers</strong></td>
 <td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
 <td>
@@ -8324,6 +8333,46 @@ paginated access instead.
 </td>
 </tr>
 <tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.ids">ids</strong></td>
+<td valign="top"><a href="#nestedstringlist">NestedStringList</a>!</td>
+<td>
+
+Columnar `ids`: every source node's neighbour ids as `[[String]]`,
+computed in ONE `blocking_compute`. Fast-path equivalent of
+`list { ids }`, which resolves one `PathFromNode` object — and its own
+`blocking_compute` — per source.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.degree">degree</strong></td>
+<td valign="top"><a href="#nestedintlist">NestedIntList</a>!</td>
+<td>
+
+Columnar `degree`: each source node's per-neighbour degrees as `[[Int]]`,
+computed in ONE `blocking_compute`. Fast-path for `list { degree }`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.indegree">inDegree</strong></td>
+<td valign="top"><a href="#nestedintlist">NestedIntList</a>!</td>
+<td>
+
+Columnar `inDegree`. Fast-path for `list { inDegree }`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.outdegree">outDegree</strong></td>
+<td valign="top"><a href="#nestedintlist">NestedIntList</a>!</td>
+<td>
+
+Columnar `outDegree`. Fast-path for `list { outDegree }`.
+
+</td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="pathfromgraph.applyviews">applyViews</strong></td>
 <td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
 <td>
@@ -8494,6 +8543,15 @@ Returns a view of PathFromNode containing the specified layer, errors if the lay
 <td>
 
 Layer names to include.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromnode.defaultlayer">defaultLayer</strong></td>
+<td valign="top"><a href="#pathfromnode">PathFromNode</a>!</td>
+<td>
+
+Return a view of PathFromNode restricted to the default layer.
 
 </td>
 </tr>
@@ -13595,6 +13653,20 @@ The `Float` scalar type represents signed double-precision fractional values as 
 ### Int
 
 The `Int` scalar type represents non-fractional signed whole numeric values. Int can represent values between -(2^31) and 2^31 - 1.
+
+### NestedIntList
+
+Like [`NestedStringList`] but for integer results (`[[Int]]`) — the
+columnar `degree`/`inDegree`/`outDegree` nested terminals.
+
+### NestedStringList
+
+Output-only scalars for the columnar nested terminals below. They carry a
+`[[..]]` result (one inner list per source node) in a SINGLE field so the
+whole thing is computed in one `blocking_compute`, instead of the
+`list { ids }` shape which resolves one `PathFromNode` object — and its own
+`blocking_compute` — per source. The derive macro can't register a nested
+list type directly, hence the custom scalar.
 
 ### NodeId
 
