@@ -315,6 +315,7 @@ fn is_query_heavy(query: &str) -> bool {
         || query.contains("neighbours")
         || query.contains("outNeighbours")
         || query.contains("inNeighbours")
+        || query.contains("algorithm")
 }
 
 /// Verify a bearer token: select the decoding key via the [`KeyResolver`] (by the token's `kid`),
