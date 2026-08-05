@@ -4,18 +4,6 @@ use crate::rayon::blocking_compute;
 use dynamic_graphql::ResolvedObject;
 use raphtory::{db::api::view::DynamicGraph, errors::GraphError};
 
-/// A graph algorithm executable through the GraphQL API.
-pub(crate) trait GqlExecutableAlgorithm: 'static {
-    /// The algorithm's arguments, assembled from the GraphQL field arguments
-    type Args: Send + 'static;
-
-    /// The GraphQL-facing result, typically a GqlNodeState but can be different (e.g. scalars)
-    type Output: Send + 'static;
-
-    /// Runs the algorithm on the given graph view
-    fn execute(graph: &DynamicGraph, args: Self::Args) -> Result<Self::Output, GraphError>;
-}
-
 /// The algorithms that can be run on a graph view.
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "Algorithms")]
@@ -30,12 +18,12 @@ impl From<DynamicGraph> for GqlAlgorithms {
 }
 
 impl GqlAlgorithms {
-    /// Runs algorithm `A` on the blocking thread pool.
-    pub(crate) async fn run<A: GqlExecutableAlgorithm>(
+    /// Runs algorithm on the blocking thread pool.
+    pub(crate) async fn run<F: FnOnce(DynamicGraph) -> O + Send + 'static, O: Send + 'static>(
         &self,
-        args: A::Args,
-    ) -> Result<A::Output, GraphError> {
+        algo: F,
+    ) -> O {
         let graph = self.graph.clone();
-        blocking_compute(move || A::execute(&graph, args)).await
+        blocking_compute(move || algo(graph)).await
     }
 }

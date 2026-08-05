@@ -94,7 +94,20 @@ use crate::model::{
     },
 };
 use dynamic_graphql::ResolvedObjectFields;
-use raphtory::errors::GraphError;
+use raphtory::{
+    algorithms::{
+        centrality::{
+            betweenness::betweenness_centrality, degree_centrality::degree_centrality, hits::hits,
+            pagerank::page_rank,
+        },
+        pathing::single_source_shortest_path::single_source_shortest_path,
+    },
+    errors::GraphError,
+};
+use raphtory::algorithms::components::{in_component, in_component_filtered, in_components, out_components};
+use raphtory::core::entities::nodes::node_ref::AsNodeRef;
+use raphtory::prelude::GraphViewOps;
+use raphtory_api::core::storage::arc_str::OptionAsStr;
 
 #[ResolvedObjectFields]
 impl GqlAlgorithms {
@@ -110,21 +123,25 @@ impl GqlAlgorithms {
         damping_factor: Option<f64>,
         #[graphql(desc = "Edge property to use as weight. If unset, all edges have weight 1.")]
         weight: Option<String>,
-    ) -> Result<GqlNodeState, GraphError> {
-        self.run::<GqlPagerank>(GqlPagerankArgs {
-            iter_count,
-            threads,
-            tol,
-            damping_factor,
-            weight,
+    ) -> GqlNodeState {
+        self.run(move |graph| {
+            page_rank(
+                &graph,
+                weight.as_str(),
+                iter_count,
+                threads,
+                tol,
+                true,
+                damping_factor,
+            )
         })
         .await
+        .into()
     }
 
     /// Returns the degree centrality of every node.
-    async fn degree_centrality(&self) -> Result<GqlNodeState, GraphError> {
-        self.run::<GqlDegreeCentrality>(GqlDegreeCentralityArgs)
-            .await
+    async fn degree_centrality(&self) -> GqlNodeState {
+        self.run(|graph| degree_centrality(&graph)).await.into()
     }
 
     /// Returns the betweenness centrality of every node.
@@ -134,12 +151,10 @@ impl GqlAlgorithms {
         #[graphql(desc = "Whether to normalize the values. Defaults to true.")] normalized: Option<
             bool,
         >,
-    ) -> Result<GqlNodeState, GraphError> {
-        self.run::<GqlBetweennessCentrality>(GqlBetweennessCentralityArgs {
-            k,
-            normalized: normalized.unwrap_or(true),
-        })
-        .await
+    ) -> GqlNodeState {
+        self.run(move |graph| betweenness_centrality(&graph, k, normalized.unwrap_or(true)))
+            .await
+            .into()
     }
 
     /// Returns the HITS hub and authority scores of every node.
@@ -149,12 +164,10 @@ impl GqlAlgorithms {
         #[graphql(desc = "Number of threads to use. Defaults to all available.")] threads: Option<
             usize,
         >,
-    ) -> Result<GqlNodeState, GraphError> {
-        self.run::<GqlHits>(GqlHitsArgs {
-            iter_count: iter_count.unwrap_or(20),
-            threads,
-        })
-        .await
+    ) -> GqlNodeState {
+        self.run(move |graph| hits(&graph, iter_count.unwrap_or(20), threads))
+            .await
+            .into()
     }
 
     /// Returns the shortest (unweighted) path from `source` to every reachable node.
@@ -163,9 +176,10 @@ impl GqlAlgorithms {
         #[graphql(desc = "Source node id.")] source: String,
         #[graphql(desc = "Optional maximum path length; stops the search once reached.")]
         cutoff: Option<usize>,
-    ) -> Result<GqlNodeState, GraphError> {
-        self.run::<GqlSingleSourceShortestPath>(GqlSingleSourceShortestPathArgs { source, cutoff })
+    ) -> GqlNodeState {
+        self.run(move |graph| single_source_shortest_path(&graph, source, cutoff))
             .await
+            .into()
     }
 
     /// Returns the in component (all nodes that can reach it following out-edges) of every node.
@@ -174,9 +188,10 @@ impl GqlAlgorithms {
         #[graphql(desc = "Number of threads to use. Defaults to all available.")] threads: Option<
             usize,
         >,
-    ) -> Result<GqlNodeState, GraphError> {
-        self.run::<GqlInComponents>(GqlInComponentsArgs { threads })
-            .await
+    ) -> GqlNodeState {
+        self.run(move |graph| {
+            in_components(&graph, threads)
+        }).await.into()
     }
 
     /// Returns the out component (all reachable nodes following out-edges) of every node.
@@ -185,9 +200,10 @@ impl GqlAlgorithms {
         #[graphql(desc = "Number of threads to use. Defaults to all available.")] threads: Option<
             usize,
         >,
-    ) -> Result<GqlNodeState, GraphError> {
-        self.run::<GqlOutComponents>(GqlOutComponentsArgs { threads })
-            .await
+    ) -> GqlNodeState {
+        self.run(move |graph| {
+            out_components(&graph, threads)
+        }).await.into()
     }
 
     /// Returns the in component of a single node (nodes that can reach it, with their distance).
@@ -199,8 +215,15 @@ impl GqlAlgorithms {
         )]
         filter: Option<GqlViewFilter>,
     ) -> Result<GqlNodeState, GraphError> {
-        self.run::<GqlInComponent>(GqlInComponentArgs { node, filter })
-            .await
+        Ok(self.run(move |graph| {
+            let node_id = node.0;
+            let node = graph.node(node_id.as_node_ref()).ok_or(GraphError::NodeMissingError(node_id))?;
+            match filter {
+                None => {Ok(in_component(node))}
+                Some(filter) => {in_component_filtered(node, filter.)}
+            }
+        }).await?.into())
+
     }
 
     /// Returns the out component of a single node (nodes it can reach, with their distance).
