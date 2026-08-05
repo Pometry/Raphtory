@@ -603,12 +603,23 @@ pub enum GqlGraphFilter {
 #[derive(OneOfInput, Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum GqlFilter {
+    /// Filter by node properties, fields, or temporal state.
+    /// (Persisted filters may use the legacy `node` key.)
+    #[serde(alias = "node")]
     Nodes(GqlNodeFilter),
+    /// Filter by edge properties, source/destination, or temporal state.
+    /// (Persisted filters may use the legacy `edge` key.)
+    #[serde(alias = "edge")]
     Edges(GqlEdgeFilter),
+    /// Apply a graph-level view (window, snapshot, layer restriction, …).
     Graph(GqlGraphFilter),
-    /// All sub-filters must pass.
+    /// All sub-filters must pass (intersection).
     And(Vec<GqlFilter>),
-    /// At least one sub-filter must pass.
+    /// At least one sub-filter must pass (union).
+    /// Cross-type sub-filters (e.g. `nodes` and `edges` together) produce a
+    /// proper graph union: a node is visible if it matches the node filter or
+    /// has a visible edge, and an edge is visible if it matches the edge
+    /// filter or both its endpoints are visible.
     Or(Vec<GqlFilter>),
     /// Inverts the nested filter.
     Not(Wrapped<GqlFilter>),
@@ -1923,64 +1934,6 @@ impl TryFrom<GqlGraphFilter> for DynView {
     }
 }
 
-/// Row-level visibility filter for `grantGraphFilteredReadOnly`.
-/// Compose node, edge, and graph-level sub-filters with `and` / `or`.
-#[derive(OneOfInput, Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub enum GraphRowFilter {
-    /// Filter by node properties, fields, or temporal state.
-    Node(GqlNodeFilter),
-    /// Filter by edge properties, source/destination, or temporal state.
-    Edge(GqlEdgeFilter),
-    /// Apply a graph-level view (window, snapshot, layer restriction, …).
-    Graph(GqlGraphFilter),
-    /// All sub-filters must pass (intersection).
-    And(Vec<GraphRowFilter>),
-    /// At least one sub-filter must pass (union).
-    /// Cross-type sub-filters (e.g. `Node` and `Edge` together) produce a proper graph union:
-    /// a node is visible if it matches the node filter or has a visible edge,
-    /// and an edge is visible if it matches the edge filter or both its endpoints are visible.
-    Or(Vec<GraphRowFilter>),
-}
-
-impl TryFrom<GraphRowFilter> for DynFilter {
-    type Error = GraphError;
-
-    fn try_from(value: GraphRowFilter) -> Result<Self, Self::Error> {
-        let filter = match value {
-            GraphRowFilter::Node(filter) => {
-                Arc::new(CompositeNodeFilter::try_from(filter)?) as DynFilter
-            }
-            GraphRowFilter::Edge(filter) => {
-                Arc::new(CompositeEdgeFilter::try_from(filter)?) as DynFilter
-            }
-            GraphRowFilter::Graph(filter) => DynView::try_from(filter)?,
-            GraphRowFilter::And(filters) => {
-                let mut filters = filters.into_iter().map(DynFilter::try_from);
-                // Reject empty combinators — see the `GqlFilter` conversion:
-                // an empty `or` previously fell back to match-everything, a
-                // fail-open for the stored access filters this type feeds.
-                let first = filters.next().transpose()?.ok_or_else(|| {
-                    GraphError::InvalidGqlFilter("Filter 'and' requires non-empty list".into())
-                })?;
-                filters.try_fold(first, |combined, filter| {
-                    Ok::<_, GraphError>(Arc::new(combined.and(filter?)) as DynFilter)
-                })?
-            }
-            GraphRowFilter::Or(filters) => {
-                let mut filters = filters.into_iter().map(DynFilter::try_from);
-                let first = filters.next().transpose()?.ok_or_else(|| {
-                    GraphError::InvalidGqlFilter("Filter 'or' requires non-empty list".into())
-                })?;
-                filters.try_fold(first, |combined, filter| {
-                    Ok::<_, GraphError>(Arc::new(combined.or(filter?)) as DynFilter)
-                })?
-            }
-        };
-        Ok(filter)
-    }
-}
-
 /// Property/metadata keys to hide per entity type.
 #[derive(InputObject, Clone, Debug, Default, Serialize, Deserialize)]
 pub struct HiddenKeys {
@@ -2002,7 +1955,7 @@ pub struct HiddenKeys {
 pub struct GraphAccessFilter {
     /// Row-level filter: which nodes/edges/graph-view are visible.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub filter: Option<GraphRowFilter>,
+    pub filter: Option<GqlFilter>,
     /// Temporal property keys to hide per entity type.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub hidden_properties: Option<HiddenKeys>,
@@ -2499,18 +2452,6 @@ mod empty_combinator_tests {
                 "GqlFilter {name}: unexpected error {err}"
             );
         }
-        for (name, filter) in [
-            ("and", GraphRowFilter::And(vec![])),
-            ("or", GraphRowFilter::Or(vec![])),
-        ] {
-            let Err(err) = DynFilter::try_from(filter) else {
-                panic!("GraphRowFilter {name}: empty combinator must be rejected");
-            };
-            assert!(
-                err.to_string().contains("requires non-empty list"),
-                "GraphRowFilter {name}: unexpected error {err}"
-            );
-        }
     }
 
     // Single-element combinators still convert — the rejection is only about
@@ -2525,10 +2466,6 @@ mod empty_combinator_tests {
         };
         assert!(DynFilter::try_from(GqlFilter::And(vec![GqlFilter::Nodes(node_filter())])).is_ok());
         assert!(DynFilter::try_from(GqlFilter::Or(vec![GqlFilter::Nodes(node_filter())])).is_ok());
-        assert!(DynFilter::try_from(GraphRowFilter::Or(vec![
-            GraphRowFilter::Node(node_filter())
-        ]))
-        .is_ok());
     }
 }
 
@@ -2721,5 +2658,40 @@ mod conversion_hole_tests {
             matches!(gql, GqlNodeFilter::Node(_)),
             "Layer::All should drop the layer wrapper, got {gql:?}"
         );
+    }
+}
+
+#[cfg(test)]
+mod stored_access_filter_compat_tests {
+    use super::*;
+
+    // Permission stores written before the row-filter/GqlFilter merge used
+    // `node`/`edge` keys; the serde aliases must keep those loading, while new
+    // writes use the `nodes`/`edges` spelling.
+    #[test]
+    fn legacy_row_filter_keys_still_deserialize() {
+        let legacy = r#"{
+            "filter": {"or": [
+                {"node": {"property": {"name": "team", "where": {"eq": {"str": "sales"}}}}},
+                {"edge": {"property": {"name": "kind", "where": {"eq": {"str": "public"}}}}}
+            ]},
+            "hidden_properties": {"node": ["salary"]}
+        }"#;
+        let parsed: GraphAccessFilter = serde_json::from_str(legacy).unwrap();
+        let Some(GqlFilter::Or(items)) = parsed.filter else {
+            panic!("expected an or-filter");
+        };
+        assert!(matches!(items[0], GqlFilter::Nodes(_)));
+        assert!(matches!(items[1], GqlFilter::Edges(_)));
+
+        // Re-serialization uses the current spelling.
+        let json = serde_json::to_string(&GqlFilter::Nodes(GqlNodeFilter::Property(
+            PropertyFilterNew {
+                name: "x".into(),
+                where_: PropCondition::Eq(Value::I64(1)),
+            },
+        )))
+        .unwrap();
+        assert!(json.starts_with(r#"{"nodes":"#));
     }
 }

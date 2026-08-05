@@ -1464,15 +1464,30 @@ filter (`graph`, e.g. a layer or window restriction), or an `and`/`or` combinati
 walk.
 """
 input GqlFilter @oneOf {
+	"""
+	Filter by node properties, fields, or temporal state.
+	(Persisted filters may use the legacy `node` key.)
+	"""
 	nodes: NodeFilter
+	"""
+	Filter by edge properties, source/destination, or temporal state.
+	(Persisted filters may use the legacy `edge` key.)
+	"""
 	edges: EdgeFilter
+	"""
+	Apply a graph-level view (window, snapshot, layer restriction, …).
+	"""
 	graph: GraphFilter
 	"""
-	All sub-filters must pass.
+	All sub-filters must pass (intersection).
 	"""
 	and: [GqlFilter!]
 	"""
-	At least one sub-filter must pass.
+	At least one sub-filter must pass (union).
+	Cross-type sub-filters (e.g. `nodes` and `edges` together) produce a
+	proper graph union: a node is visible if it matches the node filter or
+	has a visible edge, and an edge is visible if it matches the edge
+	filter or both its endpoints are visible.
 	"""
 	or: [GqlFilter!]
 	"""

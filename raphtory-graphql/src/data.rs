@@ -7,7 +7,7 @@ use crate::{
     model::{
         blocking_io,
         graph::{
-            filtering::{GraphAccessFilter, GraphRowFilter, HiddenKeys},
+            filtering::{GqlFilter, GraphAccessFilter, HiddenKeys},
             namespace::Namespace,
             namespaced_item::NamespacedItem,
             vectorised_graph::GqlVectorisedGraph,
@@ -785,21 +785,21 @@ pub(crate) fn require_graph_write(
     }
 }
 
-/// Applies a `GraphRowFilter` to a `DynamicGraph`.
+/// Applies a row-level `GqlFilter` to a `DynamicGraph`.
 async fn apply_graph_filter(
     graph: DynamicGraph,
-    row_filter: GraphRowFilter,
+    row_filter: GqlFilter,
 ) -> async_graphql::Result<DynamicGraph> {
     blocking_compute(move || apply_row_filter_sync(graph, row_filter)).await
 }
 
 fn apply_row_filter_sync(
     graph: DynamicGraph,
-    filter: GraphRowFilter,
+    filter: GqlFilter,
 ) -> async_graphql::Result<DynamicGraph> {
     // And sub-filters are applied sequentially so that DynView (window/snapshot/layer)
     // sub-filters wrap the graph view before subsequent node/edge predicate filters run.
-    if let GraphRowFilter::And(filters) = filter {
+    if let GqlFilter::And(filters) = filter {
         return filters
             .into_iter()
             .try_fold(graph, |g, f| apply_row_filter_sync(g, f));
