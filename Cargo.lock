@@ -6517,7 +6517,6 @@ dependencies = [
  "futures-util",
  "itertools 0.15.0",
  "jsonwebtoken",
- "minijinja",
  "once_cell",
  "opentelemetry",
  "opentelemetry-appender-tracing",

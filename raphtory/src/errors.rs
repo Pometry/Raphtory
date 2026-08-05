@@ -208,6 +208,12 @@ pub enum GraphError {
     #[error("No Edge between {src} and {dst}")]
     EdgeMissingError { src: GID, dst: GID },
 
+    #[error("No event at time {time} on edge ({src}, {dst})")]
+    EventMissingError { src: GID, dst: GID, time: i64 },
+
+    #[error("No layer '{layer}' on edge ({src}, {dst})")]
+    EdgeLayerMissingError { src: GID, dst: GID, layer: String },
+
     #[error("Property {0} does not exist")]
     PropertyMissingError(String),
 

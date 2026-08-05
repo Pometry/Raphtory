@@ -3,7 +3,8 @@ use crate::{
         graph::{
             collection::{check_list_allowed, check_page_limit},
             edge::GqlEdge,
-            filtering::EdgesViewCollection,
+            filtering::{EdgesViewCollection, GqlFilter},
+            path_from_node::GqlPathFromNode,
             timeindex::{GqlEventTime, GqlTimeInput},
             windowset::GqlEdgesWindowSet,
             GqlAlignmentUnit, WindowDuration,
@@ -19,7 +20,7 @@ use raphtory::{
     core::utils::time::TryIntoInterval,
     db::{
         api::view::{internal::InternalFilter, DynamicGraph, EdgeSelect},
-        graph::edges::Edges,
+        graph::{edges::Edges, views::filter::model::DynFilter},
     },
     errors::GraphError,
     prelude::*,
@@ -304,7 +305,9 @@ impl GqlEdges {
                 }
                 EdgesViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await,
                 EdgesViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
-                EdgesViewCollection::EdgeFilter(filter) => return_view.filter(filter).await?,
+                EdgesViewCollection::EdgeFilter(filter) => {
+                    return_view.filter(GqlFilter::Edges(filter)).await?
+                }
             }
         }
 
@@ -409,6 +412,38 @@ impl GqlEdges {
         self.ee.end().into()
     }
 
+    /// Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
+    async fn window_size(&self) -> Option<i64> {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.ee.window_size().map(|s| s as i64)).await
+    }
+
+    /// Check if a layer with the given name is present in this view.
+    async fn has_layer(&self, name: String) -> bool {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.ee.has_layer(name)).await
+    }
+
+    /////////////////////
+    //// Traversals /////
+    /////////////////////
+
+    /// Returns the source node of each edge, as a flat `PathFromNode`.
+    async fn src(&self) -> GqlPathFromNode {
+        GqlPathFromNode::new(self.ee.src())
+    }
+
+    /// Returns the destination node of each edge, as a flat `PathFromNode`.
+    async fn dst(&self) -> GqlPathFromNode {
+        GqlPathFromNode::new(self.ee.dst())
+    }
+
+    /// Returns the node at the other end of each edge (destination for
+    /// out-edges, source for in-edges), as a flat `PathFromNode`.
+    async fn nbr(&self) -> GqlPathFromNode {
+        GqlPathFromNode::new(self.ee.nbr())
+    }
+
     /////////////////
     //// List ///////
     /////////////////
@@ -473,12 +508,14 @@ impl GqlEdges {
 
     async fn filter(
         &self,
-        #[graphql(desc = "Composite edge filter (by property, layer, src/dst, etc.).")]
-        expr: GqlEdgeFilter,
+        #[graphql(
+            desc = "Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection)."
+        )]
+        expr: GqlFilter,
     ) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let filter: CompositeEdgeFilter = expr.try_into()?;
+            let filter: DynFilter = expr.try_into()?;
             let filtered = self_clone.ee.filter(filter)?;
             Ok(self_clone.update(filtered.into_dyn()))
         })

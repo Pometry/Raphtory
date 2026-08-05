@@ -84,9 +84,9 @@ def test_add_properties():
         # rather than `datetime.now()` so the test is deterministic.
         aware_dt = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
         naive_dt = datetime(2024, 1, 1, 12, 0, 0)
-        rg.add_property(1, props)
-        rg.add_property(aware_dt, props)
-        rg.add_property(naive_dt, props)
+        rg.add_properties(1, props)
+        rg.add_properties(aware_dt, props)
+        rg.add_properties(naive_dt, props)
         g = client.receive_graph("path/to/event_graph")
         assert_has_properties(g, props)
 

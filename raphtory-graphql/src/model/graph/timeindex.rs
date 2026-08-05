@@ -5,7 +5,12 @@ use raphtory_api::core::{
     storage::timeindex::{AsTime, EventTime},
     utils::time::{InputTime, IntoTime, TryIntoTime},
 };
-use serde::{Deserialize, Serialize};
+use serde::{
+    de::{self, MapAccess, Visitor},
+    ser::SerializeMap,
+    Deserializer, Serializer,
+};
+use std::fmt;
 
 /// Input for primary time component. Expects Int, DateTime formatted String, or Object { timestamp, eventId }
 /// where the timestamp is either an Int or a DateTime formatted String, and eventId is a non-negative Int.
@@ -16,9 +21,89 @@ use serde::{Deserialize, Serialize};
 /// `addProperties`, etc.) can preserve auto-increment of `event_id` when only
 /// a timestamp is given. Pass the object form `{timestamp, eventId}` to lock
 /// the event_id explicitly.
-#[derive(Scalar, Clone, Debug, Serialize, Deserialize)]
+#[derive(Scalar, Clone, Debug)]
 #[graphql(name = "TimeInput")]
 pub struct GqlTimeInput(pub InputTime);
+
+// Serialize to the wire form the `TimeInput` scalar accepts (a bare int, or an
+// object `{timestamp, eventId}` for the indexed case) — NOT the derived
+// external-tag `{"Simple": n}`, which the server's `ScalarValue::from_value`
+// rejects. `StoredGraphFilter` round-trips these via serde, so `Deserialize`
+// below mirrors this exactly.
+impl serde::Serialize for GqlTimeInput {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        match self.0 {
+            InputTime::Simple(ts) => serializer.serialize_i64(ts),
+            InputTime::Indexed(ts, idx) => {
+                let mut map = serializer.serialize_map(Some(2))?;
+                map.serialize_entry("timestamp", &ts)?;
+                map.serialize_entry("eventId", &idx)?;
+                map.end()
+            }
+        }
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for GqlTimeInput {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        struct GqlTimeInputVisitor;
+
+        impl<'de> Visitor<'de> for GqlTimeInputVisitor {
+            type Value = GqlTimeInput;
+
+            fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                f.write_str(
+                    "an integer timestamp, a datetime string, or an object { timestamp, eventId }",
+                )
+            }
+
+            fn visit_i64<E: de::Error>(self, v: i64) -> Result<Self::Value, E> {
+                Ok(GqlTimeInput(InputTime::Simple(v)))
+            }
+
+            fn visit_u64<E: de::Error>(self, v: u64) -> Result<Self::Value, E> {
+                Ok(GqlTimeInput(InputTime::Simple(v as i64)))
+            }
+
+            fn visit_str<E: de::Error>(self, v: &str) -> Result<Self::Value, E> {
+                v.try_into_time()
+                    .map(|t| GqlTimeInput(InputTime::Simple(t.t())))
+                    .map_err(E::custom)
+            }
+
+            fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<Self::Value, A::Error> {
+                let mut ts: Option<i64> = None;
+                let mut idx: Option<usize> = None;
+                while let Some(key) = map.next_key::<String>()? {
+                    match key.as_str() {
+                        "timestamp" | "time" => ts = Some(map.next_value()?),
+                        "eventId" | "id" => idx = Some(map.next_value()?),
+                        // Legacy shapes: stored `GraphAccessFilter` JSON written
+                        // before the custom serde used `InputTime`'s derived
+                        // external-tag encoding ({"Simple": t} / {"Indexed": [t, i]}).
+                        // Keep reading them so old permission stores load.
+                        "Simple" => ts = Some(map.next_value()?),
+                        "Indexed" => {
+                            let (t, i): (i64, usize) = map.next_value()?;
+                            ts = Some(t);
+                            idx = Some(i);
+                        }
+                        _ => {
+                            map.next_value::<de::IgnoredAny>()?;
+                        }
+                    }
+                }
+                let ts = ts.ok_or_else(|| de::Error::missing_field("timestamp"))?;
+                match idx {
+                    Some(idx) => Ok(GqlTimeInput(InputTime::Indexed(ts, idx))),
+                    None => Ok(GqlTimeInput(InputTime::Simple(ts))),
+                }
+            }
+        }
+
+        deserializer.deserialize_any(GqlTimeInputVisitor)
+    }
+}
 
 impl ScalarValue for GqlTimeInput {
     fn from_value(value: GqlValue) -> Result<Self, Error> {
@@ -194,5 +279,61 @@ impl From<EventTime> for GqlEventTime {
 impl From<GqlEventTime> for Option<EventTime> {
     fn from(value: GqlEventTime) -> Self {
         value.inner
+    }
+}
+
+#[cfg(test)]
+mod time_input_serde_tests {
+    use super::*;
+    use raphtory_api::core::utils::time::InputTime;
+
+    // The wire form must be the scalar `TimeInput` shape the server's
+    // `ScalarValue::from_value` accepts — a bare int, or `{timestamp, eventId}`
+    // — NOT the derived external-tag `{"Simple": n}`.
+    #[test]
+    fn simple_serializes_as_bare_int() {
+        let v = serde_json::to_value(GqlTimeInput(InputTime::Simple(5))).unwrap();
+        assert_eq!(v, serde_json::json!(5));
+    }
+
+    #[test]
+    fn indexed_serializes_as_timestamp_event_id_object() {
+        let v = serde_json::to_value(GqlTimeInput(InputTime::Indexed(5, 2))).unwrap();
+        assert_eq!(v, serde_json::json!({ "timestamp": 5, "eventId": 2 }));
+    }
+
+    #[test]
+    fn round_trips_through_serde() {
+        for t in [
+            InputTime::Simple(-3),
+            InputTime::Indexed(7, 0),
+            InputTime::Indexed(9, 4),
+        ] {
+            let json = serde_json::to_value(GqlTimeInput(t)).unwrap();
+            let back: GqlTimeInput = serde_json::from_value(json).unwrap();
+            assert_eq!(back.0, t);
+        }
+    }
+
+    #[test]
+    fn deserializes_bare_int_and_object() {
+        let a: GqlTimeInput = serde_json::from_value(serde_json::json!(5)).unwrap();
+        assert_eq!(a.0, InputTime::Simple(5));
+        let b: GqlTimeInput =
+            serde_json::from_value(serde_json::json!({ "timestamp": 5, "eventId": 2 })).unwrap();
+        assert_eq!(b.0, InputTime::Indexed(5, 2));
+    }
+
+    // Stored `GraphAccessFilter` JSON written before the custom serde carries
+    // `InputTime`'s derived external-tag encoding; old permission stores must
+    // keep loading.
+    #[test]
+    fn deserializes_legacy_derived_shapes() {
+        let simple: GqlTimeInput =
+            serde_json::from_value(serde_json::json!({ "Simple": 5 })).unwrap();
+        assert_eq!(simple.0, InputTime::Simple(5));
+        let indexed: GqlTimeInput =
+            serde_json::from_value(serde_json::json!({ "Indexed": [5, 2] })).unwrap();
+        assert_eq!(indexed.0, InputTime::Indexed(5, 2));
     }
 }

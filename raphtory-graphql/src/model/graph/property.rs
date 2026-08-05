@@ -28,7 +28,7 @@ use raphtory_api::core::{
     utils::time::{IntoTime, TryIntoTime},
 };
 use rustc_hash::FxHashMap;
-use serde::{Deserialize, Serialize};
+use serde::{ser::Error as SerError, Deserialize, Serialize, Serializer};
 use serde_json::Number;
 use std::{
     collections::HashMap,
@@ -63,8 +63,10 @@ pub enum Value {
     /// 64 bit signed integer.
     I64(i64),
     /// 32 bit float.
+    #[serde(serialize_with = "serialize_finite_f32")]
     F32(f32),
     /// 64 bit float.
+    #[serde(serialize_with = "serialize_finite_f64")]
     F64(f64),
     /// String.
     Str(String),
@@ -75,11 +77,36 @@ pub enum Value {
     /// Object.
     Object(Vec<ObjectEntry>),
     /// Timezone-aware datetime.
+    #[serde(rename = "dtime", alias = "dTime")]
     DTime(String),
     /// Naive datetime (no timezone).
+    #[serde(rename = "ndtime", alias = "nDTime")]
     NDTime(String),
     /// BigDecimal number (string representation, e.g. "3.14159" or "123e-5").
     Decimal(String),
+}
+
+// JSON has no NaN/Infinity — `serde_json` would silently coerce them to `null`,
+// sending a malformed filter value. Reject non-finite floats at serialization
+// so a bad value surfaces as an error instead of a silent `null` on the wire.
+fn serialize_finite_f64<S: Serializer>(v: &f64, serializer: S) -> Result<S::Ok, S::Error> {
+    if v.is_finite() {
+        serializer.serialize_f64(*v)
+    } else {
+        Err(SerError::custom(
+            "non-finite float (NaN/Infinity) is not a valid value",
+        ))
+    }
+}
+
+fn serialize_finite_f32<S: Serializer>(v: &f32, serializer: S) -> Result<S::Ok, S::Error> {
+    if v.is_finite() {
+        serializer.serialize_f32(*v)
+    } else {
+        Err(SerError::custom(
+            "non-finite float (NaN/Infinity) is not a valid value",
+        ))
+    }
 }
 
 impl Display for Value {
@@ -168,6 +195,55 @@ fn value_to_prop(value: Value) -> Result<Prop, GraphError> {
     }
 }
 
+impl TryFrom<&Prop> for Value {
+    type Error = GraphError;
+
+    fn try_from(prop: &Prop) -> Result<Self, Self::Error> {
+        prop_to_value(prop)
+    }
+}
+
+/// A `Prop` from the engine → GQL wire `Value`. Mirror of [`value_to_prop`];
+/// non-lossy for scalars. Naive datetimes truncate to millisecond precision —
+/// the server's time parser accepts at most 3 fractional digits.
+fn prop_to_value(p: &Prop) -> Result<Value, GraphError> {
+    Ok(match p {
+        Prop::Str(s) => Value::Str(s.to_string()),
+        Prop::U8(v) => Value::U8(*v),
+        Prop::U16(v) => Value::U16(*v),
+        Prop::U32(v) => Value::U32(*v),
+        Prop::U64(v) => Value::U64(*v),
+        Prop::I32(v) => Value::I32(*v),
+        Prop::I64(v) => Value::I64(*v),
+        Prop::F32(v) => Value::F32(*v),
+        Prop::F64(v) => Value::F64(*v),
+        Prop::Bool(v) => Value::Bool(*v),
+        Prop::NDTime(v) => Value::NDTime(v.format("%Y-%m-%dT%H:%M:%S%.3f").to_string()),
+        Prop::DTime(v) => Value::DTime(v.to_rfc3339()),
+        Prop::Decimal(v) => Value::Decimal(v.to_string()),
+        Prop::List(arr) => {
+            let items: Result<Vec<Value>, GraphError> =
+                arr.iter().map(|p| prop_to_value(&p)).collect();
+            Value::List(items?)
+        }
+        Prop::Map(map) => {
+            let mut entries = map
+                .iter()
+                .map(|(k, v)| {
+                    Ok(ObjectEntry {
+                        key: k.to_string(),
+                        value: prop_to_value(v)?,
+                    })
+                })
+                .collect::<Result<Vec<_>, GraphError>>()?;
+            // Map iteration order is nondeterministic — sort so the same prop
+            // always produces the same wire payload.
+            entries.sort_by(|a, b| a.key.cmp(&b.key));
+            Value::Object(entries)
+        }
+    })
+}
+
 #[derive(Clone, Debug, Scalar)]
 #[graphql(name = "PropertyOutput")]
 pub struct GqlPropertyOutputVal(pub Prop);
@@ -182,7 +258,11 @@ impl ScalarValue for GqlPropertyOutputVal {
     }
 }
 
-fn gql_to_prop(value: GqlValue) -> Result<Prop, Error> {
+/// Decode an `async_graphql::Value` into a `Prop` (lossy: number → I64/F64,
+/// object → Map). The single source of truth for JSON→`Prop` value semantics —
+/// the client's response decoder (`json_to_prop`) delegates here after
+/// converting `serde_json::Value` via `Value::from_json`.
+pub(crate) fn gql_to_prop(value: GqlValue) -> Result<Prop, Error> {
     match value {
         GqlValue::Number(n) => {
             if let Some(n) = n.as_i64() {
@@ -563,6 +643,17 @@ impl GqlProperties {
         self.props.get(&key).is_some()
     }
 
+    /// The data-type of the property's latest value by key, as its `PropType`
+    /// display string (e.g. `"I64"`, `"Str"`, `"List<F64>"`). Returns null when
+    /// the key isn't present. Mirrors the local `Properties.get_dtype_of`.
+
+    async fn get_dtype_of(
+        &self,
+        #[graphql(desc = "The property name.")] key: String,
+    ) -> Option<String> {
+        self.props.get(key.as_str()).map(|p| p.dtype().to_string())
+    }
+
     /// All property keys present in the current view. Does not include metadata
     /// — metadata is exposed separately via the entity's `metadata` field.
     async fn keys(&self) -> Vec<String> {
@@ -731,5 +822,85 @@ impl GqlTemporalProperties {
                 .collect(),
         })
         .await
+    }
+}
+
+#[cfg(test)]
+mod value_serde_tests {
+    use super::*;
+
+    // Datetime variants must serialize to the schema field names `dtime`/`ndtime`
+    // (the OneOfInput @oneOf shape), NOT camelCase `dTime`/`nDTime`.
+    #[test]
+    fn datetime_variants_use_schema_field_names() {
+        let d = serde_json::to_value(Value::DTime("2020-01-01T00:00:00Z".to_owned())).unwrap();
+        assert_eq!(d, serde_json::json!({ "dtime": "2020-01-01T00:00:00Z" }));
+        let nd = serde_json::to_value(Value::NDTime("2020-01-01T00:00:00".to_owned())).unwrap();
+        assert_eq!(nd, serde_json::json!({ "ndtime": "2020-01-01T00:00:00" }));
+    }
+
+    // Aliases keep any filter JSON stored under the old camelCase keys readable.
+    #[test]
+    fn datetime_variants_accept_legacy_camelcase_aliases() {
+        let d: Value =
+            serde_json::from_value(serde_json::json!({ "dTime": "2020-01-01T00:00:00Z" })).unwrap();
+        assert!(matches!(d, Value::DTime(_)));
+        let nd: Value =
+            serde_json::from_value(serde_json::json!({ "nDTime": "2020-01-01T00:00:00" })).unwrap();
+        assert!(matches!(nd, Value::NDTime(_)));
+    }
+
+    #[test]
+    fn scalar_variants_keep_lowercase_names() {
+        assert_eq!(
+            serde_json::to_value(Value::F64(6.0)).unwrap(),
+            serde_json::json!({ "f64": 6.0 })
+        );
+        assert_eq!(
+            serde_json::to_value(Value::Str("x".to_owned())).unwrap(),
+            serde_json::json!({ "str": "x" })
+        );
+    }
+
+    // Map-valued props are writable: they convert to the wire `object` form
+    // (key-sorted for a deterministic payload) and round-trip back to the
+    // same `Prop::Map`.
+    #[test]
+    fn map_prop_round_trips_as_object() {
+        let map: FxHashMap<ArcStr, Prop> = [
+            (ArcStr::from("b"), Prop::I64(2)),
+            (ArcStr::from("a"), Prop::str("x")),
+        ]
+        .into_iter()
+        .collect();
+        let prop = Prop::Map(Arc::new(map));
+
+        let value = Value::try_from(&prop).unwrap();
+        let Value::Object(entries) = &value else {
+            panic!("expected Object, got {value:?}");
+        };
+        let keys: Vec<&str> = entries.iter().map(|e| e.key.as_str()).collect();
+        assert_eq!(keys, vec!["a", "b"]);
+
+        assert_eq!(value_to_prop(value.clone()).unwrap(), prop);
+    }
+
+    // The server's time parser accepts at most 3 fractional digits, so naive
+    // datetimes truncate to millis on the wire — and the truncated form must
+    // parse back server-side.
+    #[test]
+    fn ndtime_prop_truncates_to_millis_on_the_wire() {
+        use chrono::NaiveDateTime;
+
+        let dt: NaiveDateTime = "2020-01-01T00:00:00.123456".parse().unwrap();
+        let value = Value::try_from(&Prop::NDTime(dt)).unwrap();
+        let Value::NDTime(s) = &value else {
+            panic!("expected NDTime, got {value:?}");
+        };
+        assert_eq!(s, "2020-01-01T00:00:00.123");
+
+        let round_tripped = value_to_prop(value.clone()).unwrap();
+        let expected: NaiveDateTime = "2020-01-01T00:00:00.123".parse().unwrap();
+        assert_eq!(round_tripped, Prop::NDTime(expected));
     }
 }

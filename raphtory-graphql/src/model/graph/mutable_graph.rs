@@ -138,7 +138,7 @@ impl From<GraphWithVectors> for GqlMutableGraph {
     }
 }
 
-fn as_properties(
+pub(crate) fn as_properties(
     properties: Vec<GqlPropertyInput>,
 ) -> Result<impl ExactSizeIterator<Item = (String, Prop)>, GraphError> {
     let props: Result<Vec<(String, Prop)>, GraphError> = properties

@@ -4,7 +4,7 @@ use raphtory::{
     prelude::{Graph, StableEncode},
 };
 use raphtory_graphql::{
-    client::raphtory_client::RaphtoryGraphQLClient,
+    client::remote_client::RemoteClient,
     config::{
         app_config::AppConfigBuilder,
         otlp_config::{TracingLevel, TracingProtocol},
@@ -47,7 +47,7 @@ async fn test_open_telemetry_http_tracing_server() {
     let handler = server.start_with_port(0).await.unwrap();
 
     let endpoint = Url::parse(&format!("http://localhost:{}/", handler.port())).unwrap();
-    let client = RaphtoryGraphQLClient::new(endpoint, None);
+    let client = RemoteClient::new(endpoint, None);
     let open_telemetry_query = "query {
 	updateGraph(path: \"g\") {
 		addNode(time: 1, name: 1, properties: [{ key: \"seed\", value: { str: \"yes\" } }], nodeType: \"seed\", layer: \"main\") {

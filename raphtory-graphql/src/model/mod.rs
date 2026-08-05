@@ -1,7 +1,10 @@
 use crate::{
     auth::ContextValidation,
     auth_policy::{AuthorizationPolicy, NamespacePermission},
-    data::{parent_namespace, require_graph_write, Data, GqlGraphType, PermissionError},
+    data::{
+        gql_error_with_code, parent_namespace, require_graph_write, Data, GqlGraphType,
+        PermissionError, CODE_ACCESS_DENIED,
+    },
     model::{
         graph::{
             collection::GqlCollection, graph::GqlGraph, meta_graph::MetaGraph,
@@ -122,7 +125,9 @@ fn require_namespace_write(
     operation: &str,
 ) -> Result<()> {
     match policy {
-        None => ctx.require_jwt_write_access().map_err(Into::into),
+        None => ctx
+            .require_jwt_write_access()
+            .map_err(|e| gql_error_with_code(e.to_string(), CODE_ACCESS_DENIED)),
         Some(p) => {
             if p.namespace_permissions(ctx, ns_path) < Some(NamespacePermission::Write) {
                 return Err(PermissionError::NamespaceWriteRequired {
@@ -130,13 +135,12 @@ fn require_namespace_write(
                     graph: new_path.to_string(),
                     operation: operation.to_string(),
                 }
-                .into());
+                .into_gql_error());
             }
             Ok(())
         }
     }
 }
-
 #[derive(ResolvedObject)]
 #[graphql(root)]
 pub struct QueryRoot;
@@ -197,10 +201,10 @@ impl QueryRoot {
         let data = ctx.data_unchecked::<Data>();
 
         if let Some(policy) = &data.auth_policy {
-            let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
             if let Err(_) = policy.graph_permissions(ctx, &path) {
+                let roles = ctx.data::<Vec<String>>().map(Vec::as_slice).unwrap_or(&[]);
                 warn!(
-                    role = role.unwrap_or("<no role>"),
+                    roles = ?roles,
                     graph = path.as_str(),
                     "Access denied by auth policy"
                 );

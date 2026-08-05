@@ -1,8 +1,8 @@
 #![recursion_limit = "256"]
 
 pub use crate::{
-    auth::{require_jwt_write_access_dynamic, Access},
-    model::graph::filtering::GraphAccessFilter,
+    auth::{require_jwt_write_access_dynamic, Access, TokenClaimValues},
+    model::graph::{filtering::GraphAccessFilter, property::Value},
     server::GraphServer,
 };
 use crate::{data::InsertionError, paths::PathValidationError};
@@ -12,6 +12,8 @@ use std::sync::Arc;
 
 mod auth;
 pub mod auth_policy;
+
+pub use auth::{KeyResolver, StaticKeyResolver};
 pub mod cache;
 pub mod cli;
 pub mod client;
@@ -551,7 +553,9 @@ mod graphql_test {
         let query = r#"
         {
           graph(path: "g") {
-            filterNodes(expr: { degree: { direction: BOTH, where: { gt: { u64: 0 } } } }) {
+            filterNodes: filter(
+                expr: { nodes: { degree: { direction: BOTH, where: { gt: { u64: 0 } } } } }
+            ) {
               nodes {
                 list {
                   name
