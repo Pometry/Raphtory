@@ -57,7 +57,7 @@ pub fn graph_benchmark_with_setup<G, BuildGraph, Setup, Run, SetupData, Output>(
             black_box(result);
         });
     });
-    group.finish()
+    group.finish();
 }
 
 pub fn graph_benchmark<G, BuildGraph, Run, Output>(
@@ -166,7 +166,8 @@ pub fn large_weighted_random_attachment_graph() -> Graph {
 
 pub fn build_large_typed_random_attachment_graph() -> Graph {
     let graph = build_large_random_attachment_graph();
-    for id in graph.nodes().id().iter_values() {
+    let ids = graph.nodes().id().iter_values().collect::<Vec<_>>();
+    for id in ids {
         graph
             .add_node(0, id, NO_PROPS, Some("Right"), None)
             .expect("unable to set node type");
@@ -236,7 +237,8 @@ pub fn medium_weighted_random_attachment_graph() -> Graph {
 
 pub fn build_medium_typed_random_attachment_graph() -> Graph {
     let graph = build_medium_random_attachment_graph();
-    for id in graph.nodes().id().iter_values() {
+    let ids = graph.nodes().id().iter_values().collect::<Vec<_>>();
+    for id in ids {
         graph
             .add_node(0, id, NO_PROPS, Some("Right"), None)
             .expect("unable to set node type");
