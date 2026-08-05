@@ -24,7 +24,7 @@ use raphtory::{
         property_filter::{Op, PropertyFilter, PropertyFilterValue, PropertyRef},
         snapshot_filter::{SnapshotAt as SnapshotAtWrap, SnapshotLatest as SnapshotLatestWrap},
         windowed_filter::Windowed,
-        ComposableFilter, DynFilter, DynView, NoFilter, ViewWrapOps,
+        ComposableFilter, DynFilter, DynView, ViewWrapOps,
     },
     errors::GraphError,
 };
@@ -617,21 +617,27 @@ impl TryFrom<GqlFilter> for DynFilter {
             GqlFilter::Graph(f) => DynView::try_from(f)?,
             GqlFilter::And(filters) => {
                 let mut filters = filters.into_iter().map(DynFilter::try_from);
-                match filters.next().transpose()? {
-                    Some(first) => filters.try_fold(first, |combined, filter| {
-                        Ok::<_, GraphError>(Arc::new(combined.and(filter?)) as DynFilter)
-                    })?,
-                    None => Arc::new(NoFilter) as DynFilter,
-                }
+                // An empty combinator is almost always a caller bug (a filter
+                // list built from an empty source). Reject it rather than
+                // guessing an identity — for `or` in particular, the previous
+                // fallback (match-everything) inverted the caller's intent,
+                // which is a fail-open when the filter scopes access control.
+                // Matches the composite conversions' convention above.
+                let first = filters.next().transpose()?.ok_or_else(|| {
+                    GraphError::InvalidGqlFilter("Filter 'and' requires non-empty list".into())
+                })?;
+                filters.try_fold(first, |combined, filter| {
+                    Ok::<_, GraphError>(Arc::new(combined.and(filter?)) as DynFilter)
+                })?
             }
             GqlFilter::Or(filters) => {
                 let mut filters = filters.into_iter().map(DynFilter::try_from);
-                match filters.next().transpose()? {
-                    Some(first) => filters.try_fold(first, |combined, filter| {
-                        Ok::<_, GraphError>(Arc::new(combined.or(filter?)) as DynFilter)
-                    })?,
-                    None => Arc::new(NoFilter) as DynFilter,
-                }
+                let first = filters.next().transpose()?.ok_or_else(|| {
+                    GraphError::InvalidGqlFilter("Filter 'or' requires non-empty list".into())
+                })?;
+                filters.try_fold(first, |combined, filter| {
+                    Ok::<_, GraphError>(Arc::new(combined.or(filter?)) as DynFilter)
+                })?
             }
         };
         Ok(filter)
@@ -1907,23 +1913,24 @@ impl TryFrom<GraphRowFilter> for DynFilter {
             GraphRowFilter::Graph(filter) => DynView::try_from(filter)?,
             GraphRowFilter::And(filters) => {
                 let mut filters = filters.into_iter().map(DynFilter::try_from);
-                let first = filters.next().transpose()?;
-                match first {
-                    Some(first) => filters.try_fold(first, |combined, filter| {
-                        Ok::<_, GraphError>(Arc::new(combined.and(filter?)) as DynFilter)
-                    })?,
-                    None => Arc::new(NoFilter) as DynFilter,
-                }
+                // Reject empty combinators — see the `GqlFilter` conversion:
+                // an empty `or` previously fell back to match-everything, a
+                // fail-open for the stored access filters this type feeds.
+                let first = filters.next().transpose()?.ok_or_else(|| {
+                    GraphError::InvalidGqlFilter("Filter 'and' requires non-empty list".into())
+                })?;
+                filters.try_fold(first, |combined, filter| {
+                    Ok::<_, GraphError>(Arc::new(combined.and(filter?)) as DynFilter)
+                })?
             }
             GraphRowFilter::Or(filters) => {
                 let mut filters = filters.into_iter().map(DynFilter::try_from);
-                let first = filters.next().transpose()?;
-                match first {
-                    Some(first) => filters.try_fold(first, |combined, filter| {
-                        Ok::<_, GraphError>(Arc::new(combined.or(filter?)) as DynFilter)
-                    })?,
-                    None => Arc::new(NoFilter) as DynFilter,
-                }
+                let first = filters.next().transpose()?.ok_or_else(|| {
+                    GraphError::InvalidGqlFilter("Filter 'or' requires non-empty list".into())
+                })?;
+                filters.try_fold(first, |combined, filter| {
+                    Ok::<_, GraphError>(Arc::new(combined.or(filter?)) as DynFilter)
+                })?
             }
         };
         Ok(filter)
@@ -2380,5 +2387,60 @@ mod filter_serde_goldens {
         )
         .unwrap();
         assert!(matches!(f, GqlNodeFilter::Node(_)));
+    }
+}
+
+#[cfg(test)]
+mod empty_combinator_tests {
+    use super::*;
+
+    // Empty `and`/`or` lists are rejected in every conversion — critically for
+    // `or`, whose previous fallback (match-everything) inverted the caller's
+    // intent and was a fail-open where these filters scope access control
+    // (`GraphRowFilter` feeds the stored `GraphAccessFilter`).
+    #[test]
+    fn empty_combinators_are_rejected() {
+        for (name, filter) in [
+            ("and", GqlFilter::And(vec![])),
+            ("or", GqlFilter::Or(vec![])),
+        ] {
+            let Err(err) = DynFilter::try_from(filter) else {
+                panic!("GqlFilter {name}: empty combinator must be rejected");
+            };
+            assert!(
+                err.to_string().contains("requires non-empty list"),
+                "GqlFilter {name}: unexpected error {err}"
+            );
+        }
+        for (name, filter) in [
+            ("and", GraphRowFilter::And(vec![])),
+            ("or", GraphRowFilter::Or(vec![])),
+        ] {
+            let Err(err) = DynFilter::try_from(filter) else {
+                panic!("GraphRowFilter {name}: empty combinator must be rejected");
+            };
+            assert!(
+                err.to_string().contains("requires non-empty list"),
+                "GraphRowFilter {name}: unexpected error {err}"
+            );
+        }
+    }
+
+    // Single-element combinators still convert — the rejection is only about
+    // empty lists, not about unary composition.
+    #[test]
+    fn single_element_combinators_convert() {
+        let node_filter = || {
+            GqlNodeFilter::Property(PropertyFilterNew {
+                name: "x".into(),
+                where_: PropCondition::Eq(Value::I64(1)),
+            })
+        };
+        assert!(DynFilter::try_from(GqlFilter::And(vec![GqlFilter::Nodes(node_filter())])).is_ok());
+        assert!(DynFilter::try_from(GqlFilter::Or(vec![GqlFilter::Nodes(node_filter())])).is_ok());
+        assert!(DynFilter::try_from(GraphRowFilter::Or(vec![
+            GraphRowFilter::Node(node_filter())
+        ]))
+        .is_ok());
     }
 }
