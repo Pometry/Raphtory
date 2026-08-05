@@ -1438,6 +1438,26 @@ type EventTime {
 }
 
 """
+Fuzzy string match: passes when the candidate is within `levenshteinDistance`
+edits of `value` (optionally also matching by prefix). Mirrors the local
+`fuzzy_search(value, levenshtein_distance, prefix_match)` builder.
+"""
+input FuzzySearchExpr {
+	"""
+	The string to match against.
+	"""
+	value: String!
+	"""
+	Maximum Levenshtein edit distance for a match.
+	"""
+	levenshteinDistance: Int!
+	"""
+	Whether a prefix match within the distance also passes.
+	"""
+	prefixMatch: Boolean!
+}
+
+"""
 A general filter expression — a node filter (`nodes`), an edge filter (`edges`), a graph/view
 filter (`graph`, e.g. a layer or window restriction), or an `and`/`or` combination of these
 (which may mix kinds). Used where an operation accepts any filter, such as scoping a component
@@ -4135,6 +4155,10 @@ input NodeFieldCondition @oneOf {
 	"""
 	notContains: Value
 	"""
+	Fuzzy string match (Levenshtein distance, optional prefix matching).
+	"""
+	fuzzySearch: FuzzySearchExpr
+	"""
 	Set membership.
 	"""
 	isIn: Value
@@ -5743,6 +5767,10 @@ input PropCondition @oneOf {
 	Negated substring match against the property's string representation.
 	"""
 	notContains: Value
+	"""
+	Fuzzy string match (Levenshtein distance, optional prefix matching).
+	"""
+	fuzzySearch: FuzzySearchExpr
 	"""
 	Set membership: property value is contained in the given list of values.
 	"""

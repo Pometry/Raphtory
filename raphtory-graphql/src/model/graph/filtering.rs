@@ -419,6 +419,9 @@ pub enum PropCondition {
     /// Negated substring match against the property's string representation.
     NotContains(Value),
 
+    /// Fuzzy string match (Levenshtein distance, optional prefix matching).
+    FuzzySearch(FuzzySearchExpr),
+
     /// Set membership: property value is contained in the given list of values.
     IsIn(Value),
     /// Negated set membership: property value is not contained in the given list of values.
@@ -476,6 +479,7 @@ impl PropCondition {
             EndsWith(_) => "endsWith",
             Contains(_) => "contains",
             NotContains(_) => "notContains",
+            FuzzySearch(_) => "fuzzySearch",
 
             IsIn(_) => "isIn",
             IsNotIn(_) => "isNotIn",
@@ -683,6 +687,9 @@ pub enum NodeFieldCondition {
     /// Negated substring match.
     NotContains(Value),
 
+    /// Fuzzy string match (Levenshtein distance, optional prefix matching).
+    FuzzySearch(FuzzySearchExpr),
+
     /// Set membership.
     IsIn(Value),
     /// Negated set membership.
@@ -703,6 +710,7 @@ impl NodeFieldCondition {
             EndsWith(_) => "endsWith",
             Contains(_) => "contains",
             NotContains(_) => "notContains",
+            FuzzySearch(_) => "fuzzySearch",
             IsIn(_) => "isIn",
             IsNotIn(_) => "isNotIn",
         }
@@ -1044,6 +1052,20 @@ impl<T> Deref for Wrapped<T> {
     }
 }
 
+/// Fuzzy string match: passes when the candidate is within `levenshteinDistance`
+/// edits of `value` (optionally also matching by prefix). Mirrors the local
+/// `fuzzy_search(value, levenshtein_distance, prefix_match)` builder.
+#[derive(InputObject, Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FuzzySearchExpr {
+    /// The string to match against.
+    pub value: String,
+    /// Maximum Levenshtein edit distance for a match.
+    pub levenshtein_distance: usize,
+    /// Whether a prefix match within the distance also passes.
+    pub prefix_match: bool,
+}
+
 impl<T: Register + 'static> Register for Wrapped<T> {
     fn register(registry: Registry) -> Registry {
         registry.register::<T>()
@@ -1273,6 +1295,23 @@ fn translate_node_field_where(
         (NodeId, IsIn(v)) => (field_name, parse_node_id_list(op, v)?, FO::IsIn),
         (NodeId, IsNotIn(v)) => (field_name, parse_node_id_list(op, v)?, FO::IsNotIn),
 
+        (NodeId, FuzzySearch(f)) => (
+            field_name,
+            FilterValue::ID(GID::Str(f.value.clone())),
+            FO::FuzzySearch {
+                levenshtein_distance: f.levenshtein_distance,
+                prefix_match: f.prefix_match,
+            },
+        ),
+        (NodeName, FuzzySearch(f)) | (NodeType, FuzzySearch(f)) => (
+            field_name,
+            FilterValue::Single(f.value.clone()),
+            FO::FuzzySearch {
+                levenshtein_distance: f.levenshtein_distance,
+                prefix_match: f.prefix_match,
+            },
+        ),
+
         (NodeName, Eq(v)) => (
             field_name,
             FilterValue::Single(require_string_value(op, v)?),
@@ -1421,6 +1460,14 @@ fn translate_prop_leaf_to_filter(
 
         IsSome(true) => (FO::IsSome, PropertyFilterValue::None),
         IsNone(true) => (FO::IsNone, PropertyFilterValue::None),
+
+        FuzzySearch(f) => (
+            FO::FuzzySearch {
+                levenshtein_distance: f.levenshtein_distance,
+                prefix_match: f.prefix_match,
+            },
+            PropertyFilterValue::Single(Prop::Str(f.value.clone().into())),
+        ),
 
         And(_) | Or(_) | Not(_) | First(_) | Last(_) | Any(_) | All(_) | Sum(_) | Avg(_)
         | Min(_) | Max(_) | Len(_) | IsSome(false) | IsNone(false) => {
@@ -2053,10 +2100,20 @@ fn build_base_prop_condition(
         FO::IsNotIn => PropCondition::IsNotIn(prop_filter_value_to_value(value)?),
         FO::IsSome => PropCondition::IsSome(true),
         FO::IsNone => PropCondition::IsNone(true),
-        FO::FuzzySearch { .. } => {
-            return Err(GraphError::InvalidGqlFilter(
-                "FuzzySearch not supported in RemoteGraph filter conversion".into(),
-            ))
+        FO::FuzzySearch {
+            levenshtein_distance,
+            prefix_match,
+        } => {
+            let PropertyFilterValue::Single(Prop::Str(v)) = value else {
+                return Err(GraphError::InvalidGqlFilter(
+                    "fuzzySearch requires a string value".into(),
+                ));
+            };
+            PropCondition::FuzzySearch(FuzzySearchExpr {
+                value: v.to_string(),
+                levenshtein_distance,
+                prefix_match,
+            })
         }
     })
 }
@@ -2111,6 +2168,21 @@ fn filter_to_node_field(f: Filter) -> Result<NodeFieldFilterNew, GraphError> {
         FilterOperator::NotContains => NodeFieldCondition::NotContains(val),
         FilterOperator::IsIn => NodeFieldCondition::IsIn(val),
         FilterOperator::IsNotIn => NodeFieldCondition::IsNotIn(val),
+        FilterOperator::FuzzySearch {
+            levenshtein_distance,
+            prefix_match,
+        } => {
+            let Value::Str(v) = val else {
+                return Err(GraphError::InvalidGqlFilter(
+                    "fuzzySearch requires a string value".into(),
+                ));
+            };
+            NodeFieldCondition::FuzzySearch(FuzzySearchExpr {
+                value: v,
+                levenshtein_distance,
+                prefix_match,
+            })
+        }
         other => {
             return Err(GraphError::InvalidGqlFilter(format!(
                 "unsupported operator for node field: {:?}",
@@ -2512,5 +2584,71 @@ mod gql_filter_serde_tests {
     fn not_variant_converts_to_dyn_filter() {
         let filter = GqlFilter::Not(wrap(GqlFilter::Nodes(node_prop_eq("x", 1))));
         assert!(DynFilter::try_from(filter).is_ok());
+    }
+}
+
+#[cfg(test)]
+mod fuzzy_search_tests {
+    use super::*;
+    use raphtory::db::graph::views::filter::model::node_filter::{
+        ops::NodeFilterOps, NodeFilter as NodeFilterBuilder,
+    };
+
+    // The wire shape is externally tagged camelCase, like every other condition.
+    #[test]
+    fn serializes_to_the_wire_shape() {
+        let cond = PropCondition::FuzzySearch(FuzzySearchExpr {
+            value: "shivam".into(),
+            levenshtein_distance: 2,
+            prefix_match: false,
+        });
+        assert_eq!(
+            serde_json::to_string(&cond).unwrap(),
+            r#"{"fuzzySearch":{"value":"shivam","levenshteinDistance":2,"prefixMatch":false}}"#
+        );
+    }
+
+    // Wire condition → core (operator, value) and back — the remote client's
+    // round-trip for property fuzzy matching.
+    #[test]
+    fn property_fuzzy_round_trips_through_the_conversions() {
+        let cond = PropCondition::FuzzySearch(FuzzySearchExpr {
+            value: "graph enthusiast".into(),
+            levenshtein_distance: 3,
+            prefix_match: true,
+        });
+
+        let (operator, value) = translate_prop_leaf_to_filter("bio", &cond).unwrap();
+        assert_eq!(
+            operator,
+            FilterOperator::FuzzySearch {
+                levenshtein_distance: 3,
+                prefix_match: true,
+            }
+        );
+
+        let back = build_base_prop_condition(operator, &value).unwrap();
+        let PropCondition::FuzzySearch(f) = back else {
+            panic!("expected fuzzySearch back, got something else");
+        };
+        assert_eq!(
+            (f.value.as_str(), f.levenshtein_distance, f.prefix_match),
+            ("graph enthusiast", 3, true)
+        );
+    }
+
+    // Local node-name builder → wire condition (the reverse conversion the
+    // Python remote client rides) preserves the fuzzy parameters.
+    #[test]
+    fn node_name_fuzzy_round_trips_through_the_wire() {
+        let core = NodeFilterBuilder::name().fuzzy_search("ben", 1, true);
+        let wire = filter_to_node_field(core.0).unwrap();
+        let NodeFieldCondition::FuzzySearch(ref f) = wire.where_ else {
+            panic!("expected fuzzySearch condition, got {:?}", wire.where_);
+        };
+        assert_eq!(
+            (f.value.as_str(), f.levenshtein_distance, f.prefix_match),
+            ("ben", 1, true)
+        );
     }
 }
