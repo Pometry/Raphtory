@@ -28,22 +28,12 @@ use raphtory::{
     graphgen::random_attachment::random_attachment,
     prelude::*,
 };
-use std::{
-    hint::black_box,
-    sync::OnceLock,
-    time::{Duration, Instant},
-};
-
-// Criterion normally chooses how many times to call the benchmarked routine per sample based
-// on the measurement time budget, which is what let algobench_slow balloon to 500-1,000 real
-// algorithm calls per benchmark even with a short measurement window. Pinning this instead
-// guarantees every algobench benchmark does exactly `sample_size * ITERS_PER_SAMPLE` real runs
-// of the algorithm, independent of how Criterion's timing estimate comes out.
-const ITERS_PER_SAMPLE: u64 = 10;
+use std::{hint::black_box, sync::OnceLock};
 
 pub fn graph_benchmark_with_setup<G, BuildGraph, Setup, Run, SetupData, Output>(
     c: &mut Criterion,
     name: &str,
+    measurement_secs: u64,
     sample_size: usize,
     build_graph: BuildGraph,
     setup: Setup,
@@ -59,16 +49,12 @@ pub fn graph_benchmark_with_setup<G, BuildGraph, Setup, Run, SetupData, Output>(
     let setup_data = setup(&graph);
 
     group.sampling_mode(SamplingMode::Flat);
-    group.warm_up_time(Duration::from_millis(200));
+    group.measurement_time(std::time::Duration::from_secs(measurement_secs));
     group.sample_size(sample_size);
     group.bench_function(name, |b| {
-        b.iter_custom(|iters| {
-            let start = Instant::now();
-            for _ in 0..ITERS_PER_SAMPLE {
-                let result = run(&graph, &setup_data);
-                black_box(result);
-            }
-            start.elapsed().mul_f64(iters as f64 / ITERS_PER_SAMPLE as f64)
+        b.iter(|| {
+            let result = run(&graph, &setup_data);
+            black_box(result);
         });
     });
     group.finish()
@@ -77,6 +63,7 @@ pub fn graph_benchmark_with_setup<G, BuildGraph, Setup, Run, SetupData, Output>(
 pub fn graph_benchmark<G, BuildGraph, Run, Output>(
     c: &mut Criterion,
     name: &str,
+    measurement_secs: u64,
     sample_size: usize,
     build_graph: BuildGraph,
     run: Run,
@@ -85,12 +72,21 @@ pub fn graph_benchmark<G, BuildGraph, Run, Output>(
     BuildGraph: FnOnce() -> G,
     Run: FnMut(&G, &()) -> Output,
 {
-    graph_benchmark_with_setup(c, name, sample_size, build_graph, |_| (), run)
+    graph_benchmark_with_setup(
+        c,
+        name,
+        measurement_secs,
+        sample_size,
+        build_graph,
+        |_| (),
+        run,
+    )
 }
 
 pub fn simple_benchmark<Run, Output>(
     c: &mut Criterion,
     name: &str,
+    measurement_secs: u64,
     sample_size: usize,
     mut run: Run,
 ) where
@@ -98,16 +94,12 @@ pub fn simple_benchmark<Run, Output>(
 {
     let mut group = c.benchmark_group(name);
     group.sampling_mode(SamplingMode::Flat);
-    group.warm_up_time(Duration::from_millis(200));
+    group.measurement_time(std::time::Duration::from_secs(measurement_secs));
     group.sample_size(sample_size);
     group.bench_function(name, |b| {
-        b.iter_custom(|iters| {
-            let start = Instant::now();
-            for _ in 0..ITERS_PER_SAMPLE {
-                let result = run();
-                black_box(result);
-            }
-            start.elapsed().mul_f64(iters as f64 / ITERS_PER_SAMPLE as f64)
+        b.iter(|| {
+            let result = run();
+            black_box(result);
         });
     });
     group.finish()
@@ -196,7 +188,7 @@ pub fn large_typed_random_attachment_graph() -> Graph {
 pub fn build_medium_random_attachment_graph() -> Graph {
     let graph = Graph::new();
     let seed: [u8; 32] = [1; 32];
-    random_attachment(&graph, 5000, 4, Some(seed));
+    random_attachment(&graph, 1500, 4, Some(seed));
     graph
 }
 
@@ -265,7 +257,7 @@ pub fn medium_typed_random_attachment_graph() -> Graph {
 pub fn build_tiny_random_attachment_graph() -> Graph {
     let graph = Graph::new();
     let seed: [u8; 32] = [1; 32];
-    random_attachment(&graph, 5000, 4, Some(seed));
+    random_attachment(&graph, 100, 4, Some(seed));
     graph
 }
 
