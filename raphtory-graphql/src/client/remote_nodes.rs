@@ -15,6 +15,7 @@ use crate::{
     },
     model::graph::filtering::{GqlFilter, GqlNodeFilter},
 };
+use raphtory::errors::GraphError;
 use std::sync::Arc;
 
 /// A handle to a remote collection of nodes on the server.
@@ -202,9 +203,12 @@ impl RemoteNodes {
     /// `.select(...)`. Recorded in `ctx` so members materialized via
     /// `.collect()` replay it per handle (server field `filter` on `Node`).
     /// Lazy — no RPC.
-    pub fn filter(&self, filter: GqlFilter) -> RemoteNodes {
-        let filter = Arc::new(filter);
-        RemoteNodes {
+    pub fn filter(
+        &self,
+        filter: impl TryInto<GqlFilter, Error = GraphError>,
+    ) -> Result<RemoteNodes, ClientError> {
+        let filter = Arc::new(filter.try_into()?);
+        Ok(RemoteNodes {
             path: self.path.clone(),
             transport: self.transport.clone(),
             expr: Arc::new(ReadExpr::Filtered {
@@ -212,7 +216,7 @@ impl RemoteNodes {
                 filter: filter.clone(),
             }),
             ctx: self.ctx.with_op(HandleOp::Filter(filter)),
-        }
+        })
     }
 
     /// Narrow this collection's membership by a filter expression. Unlike

@@ -645,6 +645,27 @@ pub enum GqlFilter {
     Layers(GraphLayersExpr),
 }
 
+impl TryFrom<GqlNodeFilter> for GqlFilter {
+    type Error = GraphError;
+    fn try_from(f: GqlNodeFilter) -> Result<Self, Self::Error> {
+        Ok(GqlFilter::Nodes(f))
+    }
+}
+
+impl TryFrom<GqlEdgeFilter> for GqlFilter {
+    type Error = GraphError;
+    fn try_from(f: GqlEdgeFilter) -> Result<Self, Self::Error> {
+        Ok(GqlFilter::Edges(f))
+    }
+}
+
+impl TryFrom<GqlGraphFilter> for GqlFilter {
+    type Error = GraphError;
+    fn try_from(f: GqlGraphFilter) -> Result<Self, Self::Error> {
+        Ok(GqlFilter::Graph(f))
+    }
+}
+
 impl TryFrom<CompositeNodeFilter> for GqlFilter {
     type Error = GraphError;
     fn try_from(f: CompositeNodeFilter) -> Result<Self, Self::Error> {

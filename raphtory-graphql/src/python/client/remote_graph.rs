@@ -73,18 +73,16 @@ impl PyRemoteGraph {
         // wrapped in the matching `GqlFilter` variant. Try node first; fall
         // back to edge. (Graph-view and mixed-kind expressions require the
         // core-side tagged export — not yet supported remotely.)
-        let gql: GqlFilter = if let Ok(node) = filter.try_as_node_filter() {
-            node.try_into()
-                .map_err(|e: raphtory::errors::GraphError| PyValueError::new_err(e.to_string()))?
+        let graph = if let Ok(node) = filter.try_as_node_filter() {
+            self.graph.filter(node)?
         } else {
             let edge = filter
                 .try_as_edge_filter()
                 .map_err(|e| PyValueError::new_err(e.to_string()))?;
-            edge.try_into()
-                .map_err(|e: raphtory::errors::GraphError| PyValueError::new_err(e.to_string()))?
+            self.graph.filter(edge)?
         };
         Ok(PyRemoteGraph {
-            graph: Arc::new(self.graph.filter(gql)),
+            graph: Arc::new(graph),
         })
     }
 

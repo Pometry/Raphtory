@@ -15,6 +15,7 @@ use crate::{
     },
     model::graph::filtering::{GqlEdgeFilter, GqlFilter},
 };
+use raphtory::errors::GraphError;
 use std::sync::Arc;
 
 /// A handle to a remote collection of edges on the server.
@@ -231,9 +232,12 @@ impl RemoteEdges {
     /// narrow-here-only variant, use `.select(...)`. Recorded in `ctx` so
     /// members materialized via `.collect()` replay it per handle (server
     /// field `filter` on `Edge`). Lazy — no RPC.
-    pub fn filter(&self, filter: GqlFilter) -> RemoteEdges {
-        let filter = Arc::new(filter);
-        RemoteEdges {
+    pub fn filter(
+        &self,
+        filter: impl TryInto<GqlFilter, Error = GraphError>,
+    ) -> Result<RemoteEdges, ClientError> {
+        let filter = Arc::new(filter.try_into()?);
+        Ok(RemoteEdges {
             path: self.path.clone(),
             transport: self.transport.clone(),
             expr: Arc::new(ReadExpr::Filtered {
@@ -241,7 +245,7 @@ impl RemoteEdges {
                 filter: filter.clone(),
             }),
             ctx: self.ctx.with_op(HandleOp::Filter(filter)),
-        }
+        })
     }
 
     /// Narrow this collection's membership by a filter expression. Unlike

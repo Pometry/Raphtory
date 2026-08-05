@@ -23,6 +23,7 @@ use crate::{
     },
     model::graph::filtering::{GqlEdgeFilter, GqlFilter, GqlNodeFilter},
 };
+use raphtory::errors::GraphError;
 use raphtory_api::core::{
     entities::{properties::prop::Prop, GID},
     storage::timeindex::{AsTime, EventTime},
@@ -215,11 +216,14 @@ impl RemoteGraph {
     /// node/edge predicates, graph views, or and/or/not combinations of them
     /// (`and` is an intersection). Mirrors the local `Graph.filter`. Lazy —
     /// no RPC.
-    pub fn filter(&self, filter: GqlFilter) -> RemoteGraph {
-        self.with_expr(ReadExpr::Filtered {
+    pub fn filter(
+        &self,
+        filter: impl TryInto<GqlFilter, Error = GraphError>,
+    ) -> Result<RemoteGraph, ClientError> {
+        Ok(self.with_expr(ReadExpr::Filtered {
             input: self.expr.clone(),
-            filter: Arc::new(filter),
-        })
+            filter: Arc::new(filter.try_into()?),
+        }))
     }
 
     /// Exclude the given nodes from the view. Lazy — no RPC.

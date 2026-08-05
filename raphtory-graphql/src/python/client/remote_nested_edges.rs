@@ -64,10 +64,7 @@ impl PyRemoteNestedEdges {
         let composite = filter
             .try_as_edge_filter()
             .map_err(|e| PyValueError::new_err(e.to_string()))?;
-        let gql_filter = composite
-            .try_into()
-            .map_err(|e: raphtory::errors::GraphError| PyValueError::new_err(e.to_string()))?;
-        Ok(PyRemoteNestedEdges::new(self.edges.filter(gql_filter)))
+        Ok(PyRemoteNestedEdges::new(self.edges.filter(composite)?))
     }
 
     /// Narrow this collection's membership by an edge filter — applies only at
