@@ -52,7 +52,7 @@ use std::{
 ///
 /// Arguments:
 ///     path (str | PathLike, optional): The path for persisting the graph (only works with disk storage enabled)
-///     config (Config, optional): The configuration options for the graph
+///     config (Args, optional): The configuration options for the graph
 #[derive(Clone)]
 #[pyclass(name = "Graph", extends = PyGraphView, module = "raphtory", frozen, from_py_object)]
 pub struct PyGraph {
@@ -190,7 +190,7 @@ impl PyGraph {
     ///
     /// Arguments:
     ///     path (str | PathLike): the path of the graph folder
-    ///     config (Config, optional): specify a new config to override the values saved for the graph
+    ///     config (Args, optional): specify a new config to override the values saved for the graph
     ///                                (note that the page sizes cannot be overridden and are ignored)
     ///     read_only (bool): open as a read-only snapshot. Multiple processes can hold
     ///                       a read-only handle to the same graph directory concurrently;

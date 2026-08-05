@@ -57,7 +57,7 @@ use crate::{prelude::IndexMutationOps, python::graph::index::PyIndexSpec};
 ///
 /// Arguments:
 ///     path (str | PathLike, optional): The path for persisting the graph (only works with disk storage enabled). Defaults to None.
-///     config (Config, optional): Storage/config overrides. Defaults to None.
+///     config (Args, optional): Storage/config overrides. Defaults to None.
 ///
 #[pyclass(name = "PersistentGraph", extends = PyGraphView, frozen, module="raphtory")]
 pub struct PyPersistentGraph {
@@ -121,7 +121,7 @@ impl PyPersistentGraph {
 ///
 /// Arguments:
 ///     path (str | PathLike, optional): the path to persist the graph (only works with disk storage enabled)
-///     config (Config, optional): the configuration options for the graph
+///     config (Args, optional): the configuration options for the graph
 #[pymethods]
 impl PyPersistentGraph {
     #[new]
@@ -152,7 +152,7 @@ impl PyPersistentGraph {
     ///
     /// Arguments:
     ///     path (str | PathLike): the path of the graph folder
-    ///     config (Config, optional): specify a new config to override the values saved for the graph
+    ///     config (Args, optional): specify a new config to override the values saved for the graph
     ///                                (note that the page sizes cannot be overridden and are ignored)
     ///     read_only (bool): open as a read-only snapshot. Multiple processes can hold
     ///                       a read-only handle to the same graph directory concurrently;

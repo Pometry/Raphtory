@@ -327,7 +327,7 @@ where
         let server = GraphServer::new(
             server_args.work_dir,
             Some(app_config),
-            server_args.graph_config.into(),
+            server_args.graph_config,
         )
         .await?;
         let server = apply_server_extension(server, server_args.permissions_store_path.as_deref());

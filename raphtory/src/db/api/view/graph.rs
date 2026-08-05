@@ -90,7 +90,7 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
         &self,
         path: &(impl GraphPaths + ?Sized),
     ) -> Result<MaterializedGraph, GraphError> {
-        self.materialize_at_with_config(path, self.core_graph().extension().config().clone())
+        self.materialize_at_with_config(path, self.core_graph().extension().config().clone().into())
     }
 
     /// Materializes the view into a new graph.
@@ -100,7 +100,7 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     fn materialize_at_with_config(
         &self,
         path: &(impl GraphPaths + ?Sized),
-        config: Config,
+        args: Args,
     ) -> Result<MaterializedGraph, GraphError>;
 
     fn materialize(&self) -> Result<MaterializedGraph, GraphError>;
@@ -679,16 +679,18 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
     fn materialize_at_with_config(
         &self,
         path: &(impl GraphPaths + ?Sized),
-        config: Config,
+        args: Args,
     ) -> Result<MaterializedGraph, GraphError> {
         if Extension::disk_storage_enabled() {
             path.init()?;
+
             let graph_path = path.graph_path()?;
-            let graph = materialize_impl(self, Some(graph_path.as_ref()), config)?;
+            let graph = materialize_impl(self, Some(graph_path.as_ref()), args.into())?;
             let meta = GraphFolderMetadata {
                 path: path.relative_graph_path()?,
                 meta: build_graph_metadata(&graph),
             };
+
             path.write_metadata(meta)?;
             Ok(graph)
         } else {

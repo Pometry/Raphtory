@@ -26,7 +26,7 @@ use poem::{
     web::CompressionLevel,
     EndpointExt, Route, Server,
 };
-use raphtory::db::api::storage::storage::Config;
+use raphtory::db::api::storage::storage::Args;
 #[cfg(feature = "vectors")]
 use raphtory::vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate};
 use serde_json::json;
@@ -158,7 +158,7 @@ impl GraphServer {
     pub async fn new(
         work_dir: PathBuf,
         app_config: Option<AppConfig>,
-        graph_config: Config,
+        graph_config: Args,
     ) -> IoResult<Self> {
         if !work_dir.exists() {
             create_dir_all(&work_dir)?;
@@ -501,7 +501,7 @@ async fn server_termination(
 mod server_tests {
     use crate::{config::app_config::AppConfigBuilder, server::GraphServer};
     use chrono::prelude::*;
-    use raphtory::db::api::storage::storage::Config;
+    use raphtory::db::api::storage::storage::Args;
     #[cfg(feature = "vectors")]
     use raphtory::vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate};
     use raphtory_api::core::utils::logging::global_info_logger;
@@ -521,7 +521,7 @@ mod server_tests {
         let server = GraphServer::new(
             work_dir.path().to_path_buf(),
             Some(app_config),
-            Config::default(),
+            Args::default(),
         )
         .await
         .unwrap();
@@ -566,7 +566,7 @@ mod server_tests {
     async fn test_batch_size_limit_enforced() {
         let work_dir = tempdir().unwrap();
         // Default config: max_batch_size defaults to 10.
-        let server = GraphServer::new(work_dir.path().to_path_buf(), None, Config::default())
+        let server = GraphServer::new(work_dir.path().to_path_buf(), None, Args::default())
             .await
             .unwrap();
         let running = server.start_with_port(0).await.unwrap();
@@ -584,7 +584,7 @@ mod server_tests {
         let server = GraphServer::new(
             work_dir.path().to_path_buf(),
             Some(app_config),
-            Config::default(),
+            Args::default(),
         )
         .await
         .unwrap();
@@ -601,7 +601,7 @@ mod server_tests {
         let server = GraphServer::new(
             work_dir.path().to_path_buf(),
             Some(app_config),
-            Config::default(),
+            Args::default(),
         )
         .await
         .unwrap();
@@ -623,7 +623,7 @@ mod server_tests {
     async fn test_server_start_stop() {
         global_info_logger();
         let tmp_dir = tempdir().unwrap();
-        let server = GraphServer::new(tmp_dir.path().to_path_buf(), None, Config::default())
+        let server = GraphServer::new(tmp_dir.path().to_path_buf(), None, Args::default())
             .await
             .unwrap();
         info!("Calling start at time {}", Local::now());
@@ -642,7 +642,7 @@ mod server_tests {
         graph.encode(tmp_dir.path().join("g")).unwrap();
 
         global_info_logger();
-        let server = GraphServer::new(tmp_dir.path().to_path_buf(), None, Config::default())
+        let server = GraphServer::new(tmp_dir.path().to_path_buf(), None, Args::default())
             .await
             .unwrap();
         let template = DocumentTemplate {

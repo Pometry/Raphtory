@@ -9,7 +9,7 @@ use crate::{
 use crossbeam_channel::RecvTimeoutError;
 use pyo3::{exceptions::PyRuntimeError, prelude::*, types::PyDict};
 use pythonize::depythonize;
-use raphtory::{db::api::storage::storage::Config, python::utils::block_on};
+use raphtory::{db::api::storage::storage::Args, python::utils::block_on};
 #[cfg(feature = "vectors")]
 use raphtory::{
     python::packages::vectors::{PyOpenAIEmbeddings, TemplateConfig},
@@ -106,7 +106,7 @@ impl PyGraphServer {
             app_config_builder.update_from_json(depythonize(config.as_any())?)?;
         }
         let app_config = Some(app_config_builder.build());
-        let server = block_on(GraphServer::new(work_dir, app_config, Config::default()))?;
+        let server = block_on(GraphServer::new(work_dir, app_config, Args::default()))?;
         let server = apply_server_extension(server, permissions_store_path.as_deref());
         Ok(PyGraphServer(server))
     }

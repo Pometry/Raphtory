@@ -31,7 +31,7 @@ use raphtory::vectors::{
 use raphtory::{
     db::{
         api::{
-            storage::storage::{Config, ConfigOps},
+            storage::storage::Args,
             view::{DynamicGraph, Filter, GraphViewOps, IntoDynamic, MaterializedGraph},
         },
         graph::views::{filter::model::DynFilter, property_redacted_graph::PropertyRedaction},
@@ -161,7 +161,7 @@ pub struct DataInner {
     pub(crate) cache: GraphCache,
     #[cfg(feature = "vectors")]
     pub(crate) vector_cache: LazyDiskVectorCache,
-    pub(crate) graph_conf: Config,
+    pub(crate) graph_conf: Args,
     pub(crate) auth_policy: Option<Arc<dyn AuthorizationPolicy>>,
     pub(crate) allowed_parquet_paths: Vec<PathBuf>,
 }
@@ -292,7 +292,7 @@ async fn invalidate_graph(old_graph: Option<GraphWithVectors>) {
 }
 
 impl Data {
-    pub fn new(work_dir: &Path, configs: &AppConfig, graph_conf: Config) -> Self {
+    pub fn new(work_dir: &Path, configs: &AppConfig, graph_conf: Args) -> Self {
         let cache_configs = &configs.cache;
 
         let cache = GraphCache::new(cache_configs.capacity as usize);

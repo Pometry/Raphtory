@@ -282,7 +282,7 @@ fn get_parquet_decode_time(
     let _parquet_graph = MaterializedGraph::decode_parquet(
         &parquet_path,
         Some(&decode_graph_path),
-        sf10_extension_config,
+        sf10_extension_config.into(),
     )
     .unwrap();
     let parquet_decode_elapsed = parquet_decode_start.elapsed();

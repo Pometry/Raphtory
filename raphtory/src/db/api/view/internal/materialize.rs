@@ -116,17 +116,14 @@ impl MaterializedGraph {
     #[cfg(feature = "io")]
     pub fn load_with_config(
         path: &(impl GraphPaths + ?Sized),
-        config: Config,
+        args: Args,
     ) -> Result<Self, GraphError> {
         let meta = path.read_metadata()?;
         if meta.is_diskgraph {
             match meta.graph_type {
-                GraphType::EventGraph => Ok(Self::EventGraph(Graph::load_with_config(
-                    path,
-                    config.into(),
-                )?)),
+                GraphType::EventGraph => Ok(Self::EventGraph(Graph::load_with_config(path, args)?)),
                 GraphType::PersistentGraph => Ok(Self::PersistentGraph(
-                    PersistentGraph::load_with_config(path, config.into())?,
+                    PersistentGraph::load_with_config(path, args)?,
                 )),
             }
         } else {

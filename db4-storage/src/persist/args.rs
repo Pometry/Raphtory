@@ -17,9 +17,12 @@ use tracing::error;
 /// Trait for managing user-provided config arguments.
 ///
 /// `Args` represent the input config values passed by the user through
-/// the CLI, env vars, or config file.
+/// the CLI, env vars, or a config file. Public-facing methods should always
+/// use `Args` to accept config values from the user.
 ///
-/// `Config` represents the internal config values transformed from `Args`.
+/// `Config` represents the final config values derived from `Args`, where fields
+/// that are not set by the user are filled with default values. `Config` is then used
+/// internally to configure the storage implementation.
 pub trait ArgsOps: Serialize + DeserializeOwned + Sized + Clone + ClapArgs {
     type Config: ConfigOps + From<Self>;
 
