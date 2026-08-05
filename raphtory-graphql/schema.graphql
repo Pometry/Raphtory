@@ -521,21 +521,9 @@ type Edge {
 	"""
 	filter(
 		"""
-		Composite edge filter (by property, layer, src/dst, etc.).
+		Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
 		"""
-		expr: EdgeFilter!
-	): Edge!
-	"""
-	Apply a node filter in place, returning an edge view whose node
-	traversals (src, dst, nbr and everything reached through them) only
-	see nodes matching the filter. The edge itself stays addressable
-	regardless of whether its endpoints match.
-	"""
-	filterNodes(
-		"""
-		Composite node filter (by property, name, type, etc.).
-		"""
-		expr: NodeFilter!
+		expr: GqlFilter!
 	): Edge!
 	"""
 	Pin this edge to a single event — the exploded instance recorded at
@@ -1260,9 +1248,9 @@ type Edges {
 	"""
 	filter(
 		"""
-		Composite edge filter (by property, layer, src/dst, etc.).
+		Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
 		"""
-		expr: EdgeFilter!
+		expr: GqlFilter!
 	): Edges!
 	"""
 	Narrow the collection to edges matching `expr`, but only at this step —
@@ -1494,6 +1482,38 @@ input GqlFilter @oneOf {
 	Inverts the nested filter.
 	"""
 	not: GqlFilter
+	"""
+	Restrict evaluation to a time window (inclusive start, exclusive end).
+	"""
+	window: GraphWindowExpr
+	"""
+	Restrict evaluation to a single point in time.
+	"""
+	at: GraphTimeExpr
+	"""
+	Restrict evaluation to times strictly before the given time.
+	"""
+	before: GraphTimeExpr
+	"""
+	Restrict evaluation to times strictly after the given time.
+	"""
+	after: GraphTimeExpr
+	"""
+	Evaluate against the latest available state.
+	"""
+	latest: GraphUnaryExpr
+	"""
+	Evaluate against a snapshot of the graph at a given time.
+	"""
+	snapshotAt: GraphTimeExpr
+	"""
+	Evaluate against the most recent snapshot of the graph.
+	"""
+	snapshotLatest: GraphUnaryExpr
+	"""
+	Restrict evaluation to one or more layers.
+	"""
+	layers: GraphLayersExpr
 }
 
 """
@@ -1955,29 +1975,9 @@ type Graph {
 	"""
 	filter(
 		"""
-		Optional composite filter combining node, edge, property, and metadata conditions. If omitted, applies the identity filter (equivalent to no filtering).
+		Optional filter expression: node/edge predicates, graph views (window, layer, ...), or and/or/not combinations of them. `and` is an intersection: each leg is evaluated independently and the results intersect — to evaluate a predicate *inside* a view, scope the predicate itself (e.g. a windowed property condition). If omitted, applies the identity filter.
 		"""
-		expr: GraphFilter
-	): Graph!
-	"""
-	Returns a graph view restricted to nodes that match the given filter; edges
-	are kept only if both endpoints survive.
-	"""
-	filterNodes(
-		"""
-		Composite node filter (by name, property, type, etc.).
-		"""
-		expr: NodeFilter!
-	): Graph!
-	"""
-	Returns a graph view restricted to edges that match the given filter. Nodes
-	remain in the view even if all their edges are filtered out.
-	"""
-	filterEdges(
-		"""
-		Composite edge filter (by property, layer, src/dst, etc.).
-		"""
-		expr: EdgeFilter!
+		expr: GqlFilter
 	): Graph!
 	"""
 	(Experimental) Get index specification.
@@ -3734,9 +3734,9 @@ type NestedEdges {
 	"""
 	filter(
 		"""
-		Composite edge filter (by property, layer, src/dst, etc.).
+		Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
 		"""
-		expr: EdgeFilter!
+		expr: GqlFilter!
 	): NestedEdges!
 	"""
 	Narrow the edge set to edges matching `expr`, but only at this hop —
@@ -4060,18 +4060,11 @@ type Node {
 	Returns the number of neighbours that have at least one out-going edge from this node.
 	"""
 	outNeighbours(select: NodeFilter): PathFromNode!
-	filter(expr: NodeFilter!): Node!
-	"""
-	Apply an edge filter in place, returning a node view whose edge
-	traversals (degree, edges, neighbours and everything reached through
-	them) only see edges matching the filter. The node itself stays
-	addressable regardless of the filter.
-	"""
-	filterEdges(
+	filter(
 		"""
-		Composite edge filter (by property, layer, src/dst, etc.).
+		Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
 		"""
-		expr: EdgeFilter!
+		expr: GqlFilter!
 	): Node!
 }
 
@@ -4809,9 +4802,9 @@ type Nodes {
 	"""
 	filter(
 		"""
-		Composite node filter (by name, property, type, etc.).
+		Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
 		"""
-		expr: NodeFilter!
+		expr: GqlFilter!
 	): Nodes!
 	"""
 	Narrow the collection to nodes matching `expr`, but only at this step —
@@ -5235,9 +5228,9 @@ type PathFromGraph {
 	"""
 	filter(
 		"""
-		Composite node filter (by name, property, type, etc.).
+		Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
 		"""
-		expr: NodeFilter!
+		expr: GqlFilter!
 	): PathFromGraph!
 	"""
 	Narrow the neighbour set to nodes matching `expr`, but only at this hop
@@ -5569,9 +5562,9 @@ type PathFromNode {
 	"""
 	filter(
 		"""
-		Composite node filter (by name, property, type, etc.).
+		Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
 		"""
-		expr: NodeFilter!
+		expr: GqlFilter!
 	): PathFromNode!
 	"""
 	Narrow the neighbour set to nodes matching `expr`, but only at this hop

@@ -1,19 +1,22 @@
-use crate::client::{
-    op::{
-        input_time_from_parts, AddEdgeMetadata as AddEdgeMetadataOp,
-        AddEdgeUpdates as AddEdgeUpdatesOp, DeleteEdgeAtTime as DeleteEdgeAtTimeOp, Fanout,
-        HandleCtx, HandleOp, InputTime, Op, ReadExpr, UpdateEdgeMetadata as UpdateEdgeMetadataOp,
-        ViewOp, WriteOp,
+use crate::{
+    client::{
+        op::{
+            input_time_from_parts, AddEdgeMetadata as AddEdgeMetadataOp,
+            AddEdgeUpdates as AddEdgeUpdatesOp, DeleteEdgeAtTime as DeleteEdgeAtTimeOp, Fanout,
+            HandleCtx, HandleOp, InputTime, Op, ReadExpr,
+            UpdateEdgeMetadata as UpdateEdgeMetadataOp, ViewOp, WriteOp,
+        },
+        remote_edges::RemoteEdges,
+        remote_history::{RemoteEventTime, RemoteHistory},
+        remote_metadata::{RemoteMetadata, RemoteProperties},
+        remote_node::RemoteNode,
+        transport::{
+            expect_bool, expect_optional_event_time, expect_optional_i64, expect_string,
+            expect_string_list, Transport,
+        },
+        ClientError,
     },
-    remote_edges::RemoteEdges,
-    remote_history::{RemoteEventTime, RemoteHistory},
-    remote_metadata::{RemoteMetadata, RemoteProperties},
-    remote_node::RemoteNode,
-    transport::{
-        expect_bool, expect_optional_event_time, expect_optional_i64, expect_string,
-        expect_string_list, Transport,
-    },
-    ClientError,
+    model::graph::filtering::GqlFilter,
 };
 use raphtory_api::core::{
     entities::properties::prop::Prop, storage::timeindex::AsTime, utils::time::IntoTime,
@@ -77,6 +80,25 @@ impl RemoteEdge {
     /// Time-window this edge. Lazy — no RPC.
     pub fn window(&self, start: InputTime, end: InputTime) -> RemoteEdge {
         self.with_view_op(ViewOp::Window { start, end })
+    }
+
+    /// Return a filtered view of this edge — mirrors the local
+    /// `Edge.filter(FilterExpr)`. Wraps `expr` (the server field
+    /// `filter(expr:)` on `Edge`) and records the filter in `ctx` so
+    /// descendants materialized through this edge replay it. Lazy — no RPC.
+    pub fn filter(&self, filter: GqlFilter) -> RemoteEdge {
+        let filter = Arc::new(filter);
+        RemoteEdge {
+            path: self.path.clone(),
+            src: self.src.clone(),
+            dst: self.dst.clone(),
+            transport: self.transport.clone(),
+            expr: Arc::new(ReadExpr::Filtered {
+                input: self.expr.clone(),
+                filter: filter.clone(),
+            }),
+            ctx: self.ctx.with_op(HandleOp::Filter(filter)),
+        }
     }
 
     /// Restrict to a single named layer. Lazy — no RPC.

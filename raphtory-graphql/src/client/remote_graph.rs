@@ -21,7 +21,7 @@ use crate::{
         },
         ClientError,
     },
-    model::graph::filtering::{GqlEdgeFilter, GqlNodeFilter},
+    model::graph::filtering::{GqlEdgeFilter, GqlFilter, GqlNodeFilter},
 };
 use raphtory_api::core::{
     entities::{properties::prop::Prop, GID},
@@ -211,21 +211,12 @@ impl RemoteGraph {
         })
     }
 
-    /// Return a filtered graph view keeping nodes that match `filter`; edges
-    /// survive only if both endpoints do. The node-filter half of the local
-    /// `Graph.filter(FilterExpr)` API. Lazy — no RPC.
-    pub fn filter_nodes(&self, filter: GqlNodeFilter) -> RemoteGraph {
-        self.with_expr(ReadExpr::FilterGraphNodes {
-            input: self.expr.clone(),
-            filter: Arc::new(filter),
-        })
-    }
-
-    /// Return a filtered graph view keeping edges that match `filter`; nodes
-    /// remain even if all their edges drop. The edge-filter half of the local
-    /// `Graph.filter(FilterExpr)` API. Lazy — no RPC.
-    pub fn filter_edges(&self, filter: GqlEdgeFilter) -> RemoteGraph {
-        self.with_expr(ReadExpr::FilterGraphEdges {
+    /// Return a filtered graph view. Takes a general filter expression —
+    /// node/edge predicates, graph views, or and/or/not combinations of them
+    /// (`and` is an intersection). Mirrors the local `Graph.filter`. Lazy —
+    /// no RPC.
+    pub fn filter(&self, filter: GqlFilter) -> RemoteGraph {
+        self.with_expr(ReadExpr::Filtered {
             input: self.expr.clone(),
             filter: Arc::new(filter),
         })

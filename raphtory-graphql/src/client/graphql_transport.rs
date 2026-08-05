@@ -590,6 +590,10 @@ struct VarCollector {
 }
 
 impl VarCollector {
+    fn add_filter(&mut self, f: &GqlFilter) -> Result<String, ClientError> {
+        self.add("GqlFilter!", f)
+    }
+
     fn add_node_filter(&mut self, f: &GqlNodeFilter) -> Result<String, ClientError> {
         self.add("NodeFilter!", f)
     }
@@ -712,7 +716,7 @@ fn render_node_sort_bys(sort_bys: &[NodeSortBy]) -> String {
     format!("[{}]", entries.join(", "))
 }
 
-use crate::model::graph::filtering::{GqlEdgeFilter, GqlNodeFilter};
+use crate::model::graph::filtering::{GqlEdgeFilter, GqlFilter, GqlNodeFilter};
 
 fn render_gql_str(s: &str) -> String {
     // A JSON string literal (including its surrounding quotes) is a valid
@@ -1012,15 +1016,15 @@ fn render_read_body(expr: &ReadExpr, vars: &mut VarCollector) -> Result<String, 
             render_read_body(input, vars)?,
             render_edge_sort_bys(sort_bys)
         ),
-        ReadExpr::FilterNodes { input, filter } => {
-            // Server field `filter(expr: NodeFilter!)`: applies to this
-            // collection AND propagates to downstream traversals from these
-            // nodes. Contrast with `SelectNodes` which renders `select` —
-            // narrows membership at this step only.
+        ReadExpr::Filtered { input, filter } => {
+            // Unified server field `filter(expr: GqlFilter!)` — the same field
+            // on Graph, Node, Edge, and every collection. Applies to this view
+            // AND propagates to downstream traversals (contrast `select`,
+            // which narrows membership at one step only).
             format!(
                 "{} {{ filter(expr: {})",
                 render_read_body(input, vars)?,
-                vars.add_node_filter(filter)?,
+                vars.add_filter(filter)?,
             )
         }
         ReadExpr::SelectNodes { input, filter } => {
@@ -1033,15 +1037,6 @@ fn render_read_body(expr: &ReadExpr, vars: &mut VarCollector) -> Result<String, 
                 vars.add_node_filter(filter)?,
             )
         }
-        ReadExpr::FilterEdges { input, filter } => {
-            // Server field `filter(expr: EdgeFilter!)` on `Edges`: applies to
-            // this collection AND propagates to downstream traversals.
-            format!(
-                "{} {{ filter(expr: {})",
-                render_read_body(input, vars)?,
-                vars.add_edge_filter(filter)?,
-            )
-        }
         ReadExpr::SelectEdges { input, filter } => {
             // Server field `select(expr: EdgeFilter!)` on `Edges`: narrows the
             // current collection's membership only.
@@ -1049,40 +1044,6 @@ fn render_read_body(expr: &ReadExpr, vars: &mut VarCollector) -> Result<String, 
                 "{} {{ select(expr: {})",
                 render_read_body(input, vars)?,
                 vars.add_edge_filter(filter)?,
-            )
-        }
-        ReadExpr::FilterGraphNodes { input, filter } => {
-            // Server field `filterNodes(expr: NodeFilter!)` on `Graph`.
-            format!(
-                "{} {{ filterNodes(expr: {})",
-                render_read_body(input, vars)?,
-                vars.add_node_filter(filter)?,
-            )
-        }
-        ReadExpr::FilterGraphEdges { input, filter } => {
-            // Server field `filterEdges(expr: EdgeFilter!)` on `Graph`.
-            format!(
-                "{} {{ filterEdges(expr: {})",
-                render_read_body(input, vars)?,
-                vars.add_edge_filter(filter)?,
-            )
-        }
-        ReadExpr::NodeFilterEdges { input, filter } => {
-            // Server field `filterEdges(expr: EdgeFilter!)` on `Node` —
-            // filters the node's edge traversals; the node stays addressable.
-            format!(
-                "{} {{ filterEdges(expr: {})",
-                render_read_body(input, vars)?,
-                vars.add_edge_filter(filter)?,
-            )
-        }
-        ReadExpr::EdgeFilterNodes { input, filter } => {
-            // Server field `filterNodes(expr: NodeFilter!)` on `Edge` —
-            // filters the edge's node traversals; the edge stays addressable.
-            format!(
-                "{} {{ filterNodes(expr: {})",
-                render_read_body(input, vars)?,
-                vars.add_node_filter(filter)?,
             )
         }
         ReadExpr::EdgeEvent {
@@ -1618,12 +1579,9 @@ fn read_depth(expr: &ReadExpr) -> usize {
         | ReadExpr::ExplodeLayers { input }
         | ReadExpr::SortedNodes { input, .. }
         | ReadExpr::SortedEdges { input, .. }
-        | ReadExpr::FilterNodes { input, .. }
+        | ReadExpr::Filtered { input, .. }
         | ReadExpr::SelectNodes { input, .. }
-        | ReadExpr::FilterEdges { input, .. }
         | ReadExpr::SelectEdges { input, .. }
-        | ReadExpr::FilterGraphNodes { input, .. }
-        | ReadExpr::FilterGraphEdges { input, .. }
         | ReadExpr::Metadata { input }
         | ReadExpr::Properties { input }
         | ReadExpr::PropertyGet { input, .. }
@@ -1663,8 +1621,6 @@ fn read_depth(expr: &ReadExpr) -> usize {
         | ReadExpr::NestedExplodedEdgesList { input }
         | ReadExpr::ExplodedLayersEdgesList { input }
         | ReadExpr::NestedExplodedLayersEdgesList { input }
-        | ReadExpr::NodeFilterEdges { input, .. }
-        | ReadExpr::EdgeFilterNodes { input, .. }
         | ReadExpr::EdgeEvent { input, .. }
         | ReadExpr::EdgeLayerEvent { input, .. }
         | ReadExpr::CollectionNames { input }
@@ -2945,7 +2901,7 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
                 go(input, out);
                 out.push("sorted");
             }
-            ReadExpr::FilterNodes { input, .. } => {
+            ReadExpr::Filtered { input, .. } => {
                 go(input, out);
                 out.push("filter");
             }
@@ -2953,21 +2909,9 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
                 go(input, out);
                 out.push("select");
             }
-            ReadExpr::FilterEdges { input, .. } => {
-                go(input, out);
-                out.push("filter");
-            }
             ReadExpr::SelectEdges { input, .. } => {
                 go(input, out);
                 out.push("select");
-            }
-            ReadExpr::FilterGraphNodes { input, .. } => {
-                go(input, out);
-                out.push("filterNodes");
-            }
-            ReadExpr::FilterGraphEdges { input, .. } => {
-                go(input, out);
-                out.push("filterEdges");
             }
             ReadExpr::Metadata { input } => {
                 go(input, out);
@@ -3124,14 +3068,6 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
             ReadExpr::NestedExplodedLayersEdgesList { input } => {
                 go(input, out);
                 out.push("list");
-            }
-            ReadExpr::NodeFilterEdges { input, .. } => {
-                go(input, out);
-                out.push("filterEdges");
-            }
-            ReadExpr::EdgeFilterNodes { input, .. } => {
-                go(input, out);
-                out.push("filterNodes");
             }
             ReadExpr::EdgeEvent { input, .. } => {
                 go(input, out);
@@ -3626,12 +3562,9 @@ fn child_input(expr: &ReadExpr) -> Option<&ReadExpr> {
         | ReadExpr::ExplodeLayers { input }
         | ReadExpr::SortedNodes { input, .. }
         | ReadExpr::SortedEdges { input, .. }
-        | ReadExpr::FilterNodes { input, .. }
+        | ReadExpr::Filtered { input, .. }
         | ReadExpr::SelectNodes { input, .. }
-        | ReadExpr::FilterEdges { input, .. }
         | ReadExpr::SelectEdges { input, .. }
-        | ReadExpr::FilterGraphNodes { input, .. }
-        | ReadExpr::FilterGraphEdges { input, .. }
         | ReadExpr::Metadata { input }
         | ReadExpr::Properties { input }
         | ReadExpr::PropertyGet { input, .. }
@@ -3671,8 +3604,6 @@ fn child_input(expr: &ReadExpr) -> Option<&ReadExpr> {
         | ReadExpr::NestedExplodedEdgesList { input }
         | ReadExpr::ExplodedLayersEdgesList { input }
         | ReadExpr::NestedExplodedLayersEdgesList { input }
-        | ReadExpr::NodeFilterEdges { input, .. }
-        | ReadExpr::EdgeFilterNodes { input, .. }
         | ReadExpr::EdgeEvent { input, .. }
         | ReadExpr::EdgeLayerEvent { input, .. }
         | ReadExpr::CollectionNames { input }
@@ -3916,20 +3847,20 @@ mod tests {
             })
         };
         let expr = ReadExpr::Ids {
-            input: Arc::new(ReadExpr::FilterNodes {
-                input: Arc::new(ReadExpr::FilterNodes {
+            input: Arc::new(ReadExpr::Filtered {
+                input: Arc::new(ReadExpr::Filtered {
                     input: Arc::new(ReadExpr::Nodes {
                         input: Arc::new(ReadExpr::Root { path: "g".into() }),
                     }),
-                    filter: Arc::new(prop_filter("inner")),
+                    filter: Arc::new(GqlFilter::Nodes(prop_filter("inner"))),
                 }),
-                filter: Arc::new(prop_filter("outer")),
+                filter: Arc::new(GqlFilter::Nodes(prop_filter("outer"))),
             }),
         };
 
         let (query, vars) = render_read(&expr).unwrap();
         assert!(
-            query.contains("$f0: NodeFilter!") && query.contains("$f1: NodeFilter!"),
+            query.contains("$f0: GqlFilter!") && query.contains("$f1: GqlFilter!"),
             "missing declarations in: {query}"
         );
         assert!(
@@ -4142,7 +4073,7 @@ mod tests {
 
         // Membership: filter keeps every node addressable — including `a`,
         // which fails the filter itself.
-        let filtered = rg.nodes().filter(score_gt_15.clone());
+        let filtered = rg.nodes().filter(GqlFilter::Nodes(score_gt_15.clone()));
         let mut ids = filtered.ids().await.unwrap();
         ids.sort();
         assert_eq!(ids, ["a", "b", "c"], "filter must not narrow membership");
@@ -4194,7 +4125,12 @@ mod tests {
         // A directly-fetched node's filter must propagate into descendants
         // materialized through it: b.filter(f).neighbours() is [c], and the
         // materialized c still evaluates under f (degree 1, not 2).
-        let b = rg.node("b").await.unwrap().unwrap().filter(score_gt_15);
+        let b = rg
+            .node("b")
+            .await
+            .unwrap()
+            .unwrap()
+            .filter(GqlFilter::Nodes(score_gt_15));
         let c_handles = b.neighbours().collect().await.unwrap();
         assert_eq!(c_handles.len(), 1);
         assert_eq!(c_handles[0].id, "c");
@@ -4207,12 +4143,12 @@ mod tests {
         // Cross-entity: edge handles materialized under a node filter replay
         // it via the server's `filterNodes` field. b's only surviving edge is
         // b-c, and its src (b) still evaluates under f.
-        let nested = rg
-            .nodes()
-            .filter(GqlNodeFilter::Property(PropertyFilterNew {
+        let nested = rg.nodes().filter(GqlFilter::Nodes(GqlNodeFilter::Property(
+            PropertyFilterNew {
                 name: "score".into(),
                 where_: PropCondition::Gt(GqlValue::I64(15)),
-            }));
+            },
+        )));
         let rows = nested.edges().collect().await.unwrap();
         let ids_in_order = nested.ids().await.unwrap();
         let b_row = &rows[ids_in_order.iter().position(|id| id == "b").unwrap()];

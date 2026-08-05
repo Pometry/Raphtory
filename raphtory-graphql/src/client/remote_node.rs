@@ -17,7 +17,7 @@ use crate::{
         },
         ClientError,
     },
-    model::graph::filtering::GqlNodeFilter,
+    model::graph::filtering::{GqlFilter, GqlNodeFilter},
 };
 use raphtory_api::core::{
     entities::properties::prop::Prop, storage::timeindex::AsTime, utils::time::IntoTime,
@@ -84,17 +84,17 @@ impl RemoteNode {
     /// `Node.filter(FilterExpr)`. Wraps `expr` (the server field
     /// `filter(expr:)` on `Node`) and records the filter in `ctx` so
     /// descendants materialized through this node replay it. Lazy — no RPC.
-    pub fn filter(&self, filter: GqlNodeFilter) -> RemoteNode {
+    pub fn filter(&self, filter: GqlFilter) -> RemoteNode {
         let filter = Arc::new(filter);
         RemoteNode {
             path: self.path.clone(),
             id: self.id.clone(),
             transport: self.transport.clone(),
-            expr: Arc::new(ReadExpr::FilterNodes {
+            expr: Arc::new(ReadExpr::Filtered {
                 input: self.expr.clone(),
                 filter: filter.clone(),
             }),
-            ctx: self.ctx.with_op(HandleOp::NodeFilter(filter)),
+            ctx: self.ctx.with_op(HandleOp::Filter(filter)),
         }
     }
 

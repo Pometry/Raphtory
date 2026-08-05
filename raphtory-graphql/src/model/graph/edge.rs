@@ -1,7 +1,7 @@
 use crate::{
     model::graph::{
         edges::GqlEdges,
-        filtering::{EdgeViewCollection, GqlEdgeFilter, GqlNodeFilter},
+        filtering::{EdgeViewCollection, GqlEdgeFilter, GqlFilter, GqlNodeFilter},
         history::GqlHistory,
         node::GqlNode,
         node_id::GqlNodeId,
@@ -20,7 +20,7 @@ use raphtory::{
         graph::{
             edge::EdgeView,
             views::filter::model::{
-                edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter,
+                edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter, DynFilter,
             },
         },
     },
@@ -324,7 +324,9 @@ impl GqlEdge {
                 }
                 EdgeViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await,
                 EdgeViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
-                EdgeViewCollection::EdgeFilter(filter) => return_view.filter(filter).await?,
+                EdgeViewCollection::EdgeFilter(filter) => {
+                    return_view.filter(GqlFilter::Edges(filter)).await?
+                }
             }
         }
         Ok(return_view)
@@ -504,31 +506,14 @@ impl GqlEdge {
 
     async fn filter(
         &self,
-        #[graphql(desc = "Composite edge filter (by property, layer, src/dst, etc.).")]
-        expr: GqlEdgeFilter,
+        #[graphql(
+            desc = "Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection)."
+        )]
+        expr: GqlFilter,
     ) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let filter: CompositeEdgeFilter = expr.try_into()?;
-            let filtered = self_clone.ee.filter(filter)?;
-            Ok(self_clone.update(filtered.into_dynamic()))
-        })
-        .await
-    }
-
-    /// Apply a node filter in place, returning an edge view whose node
-    /// traversals (src, dst, nbr and everything reached through them) only
-    /// see nodes matching the filter. The edge itself stays addressable
-    /// regardless of whether its endpoints match.
-
-    async fn filter_nodes(
-        &self,
-        #[graphql(desc = "Composite node filter (by property, name, type, etc.).")]
-        expr: GqlNodeFilter,
-    ) -> Result<Self, GraphError> {
-        let self_clone = self.clone();
-        blocking_compute(move || {
-            let filter: CompositeNodeFilter = expr.try_into()?;
+            let filter: DynFilter = expr.try_into()?;
             let filtered = self_clone.ee.filter(filter)?;
             Ok(self_clone.update(filtered.into_dynamic()))
         })

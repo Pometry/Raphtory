@@ -6,7 +6,7 @@
 
 use crate::{
     client::properties_to_input,
-    model::graph::filtering::{GqlEdgeFilter, GqlNodeFilter},
+    model::graph::filtering::{GqlEdgeFilter, GqlFilter, GqlNodeFilter},
 };
 use raphtory_api::core::entities::properties::prop::Prop;
 // Re-exported so the client transport wrappers import the op tree's time type
@@ -172,16 +172,13 @@ pub enum ReadExpr {
         input: Arc<ReadExpr>,
         sort_bys: Vec<EdgeSortBy>,
     },
-    /// Filter a `Nodes` collection by a filter expression. Returns `Nodes`
-    /// — chainable with any downstream terminal (`.collect`, `.count`, …).
-    /// Server field: `filter(expr: NodeFilter!)` on `Nodes`.
-    ///
-    /// Applies the filter to the current collection **and propagates it
-    /// to downstream traversals** from these nodes (e.g. `.neighbours`,
-    /// `.edges`). Use `SelectNodes` for the narrow-membership-only variant.
-    FilterNodes {
+    /// Filter this view by a general filter expression (node/edge predicates,
+    /// graph views, and/or/not combinations). The restriction propagates to
+    /// downstream traversals. One variant serves Graph, Node, Edge, and every
+    /// collection — they all expose the same `filter(expr: GqlFilter!)` field.
+    Filtered {
         input: Arc<ReadExpr>,
-        filter: Arc<GqlNodeFilter>,
+        filter: Arc<GqlFilter>,
     },
     /// Narrow a `Nodes` collection's membership by a filter expression.
     /// Returns `Nodes`. Server field: `select(expr: NodeFilter!)` on
@@ -193,17 +190,6 @@ pub enum ReadExpr {
         input: Arc<ReadExpr>,
         filter: Arc<GqlNodeFilter>,
     },
-    /// Filter an `Edges` collection by a filter expression. Returns `Edges`
-    /// — chainable with any downstream terminal (`.collect`, `.count`, …).
-    /// Server field: `filter(expr: EdgeFilter!)` on `Edges`.
-    ///
-    /// Applies the filter to the current collection **and propagates it
-    /// to downstream traversals** from these edges. Use `SelectEdges` for
-    /// the narrow-membership-only variant.
-    FilterEdges {
-        input: Arc<ReadExpr>,
-        filter: Arc<GqlEdgeFilter>,
-    },
     /// Narrow an `Edges` collection's membership by a filter expression.
     /// Returns `Edges`. Server field: `select(expr: EdgeFilter!)` on
     /// `Edges`.
@@ -213,46 +199,6 @@ pub enum ReadExpr {
     SelectEdges {
         input: Arc<ReadExpr>,
         filter: Arc<GqlEdgeFilter>,
-    },
-    /// Filter a `Graph` view by a node filter, returning a filtered `Graph`.
-    /// Server field: `filterNodes(expr: NodeFilter!)` on `Graph` — keeps
-    /// nodes matching the filter; edges survive only if both endpoints do.
-    ///
-    /// This is the node-filter half of the local `Graph.filter(FilterExpr)`
-    /// API; the Python `RemoteGraph.filter` dispatches here for node filters.
-    FilterGraphNodes {
-        input: Arc<ReadExpr>,
-        filter: Arc<GqlNodeFilter>,
-    },
-    /// Filter a `Graph` view by an edge filter, returning a filtered `Graph`.
-    /// Server field: `filterEdges(expr: EdgeFilter!)` on `Graph` — keeps
-    /// edges matching the filter; nodes remain even if all their edges drop.
-    ///
-    /// This is the edge-filter half of the local `Graph.filter(FilterExpr)`
-    /// API; the Python `RemoteGraph.filter` dispatches here for edge filters.
-    FilterGraphEdges {
-        input: Arc<ReadExpr>,
-        filter: Arc<GqlEdgeFilter>,
-    },
-    /// Filter a single `Node` handle's *edge* traversals by an edge filter,
-    /// returning a `Node`. The node itself stays addressable; its degree /
-    /// edges / neighbours only see matching edges. Server field:
-    /// `filterEdges(expr: EdgeFilter!)` on `Node`. Used when replaying an
-    /// edge-collection filter onto node handles materialized through it
-    /// (e.g. `edges.filter(f).src().collect()`).
-    NodeFilterEdges {
-        input: Arc<ReadExpr>,
-        filter: Arc<GqlEdgeFilter>,
-    },
-    /// Filter a single `Edge` handle's *node* traversals by a node filter,
-    /// returning an `Edge`. The edge itself stays addressable regardless of
-    /// whether its endpoints match. Server field:
-    /// `filterNodes(expr: NodeFilter!)` on `Edge`. Used when replaying a
-    /// node-collection filter onto edge handles materialized through it
-    /// (e.g. `nodes.filter(f).edges().collect()`).
-    EdgeFilterNodes {
-        input: Arc<ReadExpr>,
-        filter: Arc<GqlNodeFilter>,
     },
     /// Pin a single `Edge` handle to one event — the exploded instance at
     /// exactly `(time, event_id)`, optionally restricted to `layer`.
@@ -787,12 +733,9 @@ pub enum HandleOp {
     /// collection view op has a same-named server field on `Node` and `Edge`,
     /// so replay always renders.
     View(ViewOp),
-    /// An anchor-relative node filter. Replays as `filter(expr:)` on node
-    /// handles and `filterNodes(expr:)` on edge handles.
-    NodeFilter(Arc<GqlNodeFilter>),
-    /// An anchor-relative edge filter. Replays as `filter(expr:)` on edge
-    /// handles and `filterEdges(expr:)` on node handles.
-    EdgeFilter(Arc<GqlEdgeFilter>),
+    /// An anchor-relative filter. Replays as the unified `filter(expr:)`
+    /// field on both node and edge handles.
+    Filter(Arc<GqlFilter>),
     /// Positional marker recording where `explode` / `explodeLayers` was
     /// applied in the op chain. Ops before the marker shape the view the
     /// instances were enumerated from; ops after it wrap the pinned handle.
@@ -888,11 +831,7 @@ impl HandleCtx {
         for op in &self.ops {
             expr = match op {
                 HandleOp::View(op) => op.apply(Arc::new(expr)),
-                HandleOp::NodeFilter(filter) => ReadExpr::FilterNodes {
-                    input: Arc::new(expr),
-                    filter: filter.clone(),
-                },
-                HandleOp::EdgeFilter(filter) => ReadExpr::NodeFilterEdges {
+                HandleOp::Filter(filter) => ReadExpr::Filtered {
                     input: Arc::new(expr),
                     filter: filter.clone(),
                 },
@@ -916,11 +855,7 @@ impl HandleCtx {
         for op in &self.ops {
             expr = match op {
                 HandleOp::View(op) => op.apply(Arc::new(expr)),
-                HandleOp::EdgeFilter(filter) => ReadExpr::FilterEdges {
-                    input: Arc::new(expr),
-                    filter: filter.clone(),
-                },
-                HandleOp::NodeFilter(filter) => ReadExpr::EdgeFilterNodes {
+                HandleOp::Filter(filter) => ReadExpr::Filtered {
                     input: Arc::new(expr),
                     filter: filter.clone(),
                 },

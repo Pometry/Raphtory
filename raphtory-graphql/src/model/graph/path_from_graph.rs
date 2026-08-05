@@ -1,7 +1,7 @@
 use crate::{
     model::graph::{
         collection::{check_list_allowed, check_page_limit},
-        filtering::{GqlNodeFilter, PathFromNodeViewCollection},
+        filtering::{GqlFilter, GqlNodeFilter, PathFromNodeViewCollection},
         history::GqlHistory,
         nested_edges::GqlNestedEdges,
         path_from_node::GqlPathFromNode,
@@ -14,7 +14,10 @@ use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, Scalar, ScalarValue}
 use raphtory::{
     db::{
         api::view::{filter_ops::NodeSelect, DynamicGraph, Filter},
-        graph::{path::PathFromGraph, views::filter::model::CompositeNodeFilter},
+        graph::{
+            path::PathFromGraph,
+            views::filter::model::{CompositeNodeFilter, DynFilter},
+        },
     },
     errors::GraphError,
     prelude::*,
@@ -459,12 +462,14 @@ impl GqlPathFromGraph {
 
     async fn filter(
         &self,
-        #[graphql(desc = "Composite node filter (by name, property, type, etc.).")]
-        expr: GqlNodeFilter,
+        #[graphql(
+            desc = "Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection)."
+        )]
+        expr: GqlFilter,
     ) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let filter: CompositeNodeFilter = expr.try_into()?;
+            let filter: DynFilter = expr.try_into()?;
             let filtered = self_clone.nn.filter(filter)?;
             Ok(self_clone.update(filtered.into_dyn()))
         })

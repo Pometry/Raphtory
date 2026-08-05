@@ -13,7 +13,7 @@ use crate::{
         },
         ClientError,
     },
-    model::graph::filtering::GqlEdgeFilter,
+    model::graph::filtering::{GqlEdgeFilter, GqlFilter},
 };
 use std::sync::Arc;
 
@@ -173,16 +173,16 @@ impl RemoteNestedEdges {
     /// Filter this collection by an edge filter. **Propagates** to downstream
     /// traversals from the matching edges. Recorded in `ctx` so members
     /// materialized via `.collect()` replay it per handle. Lazy — no RPC.
-    pub fn filter(&self, filter: GqlEdgeFilter) -> RemoteNestedEdges {
+    pub fn filter(&self, filter: GqlFilter) -> RemoteNestedEdges {
         let filter = Arc::new(filter);
         RemoteNestedEdges {
             path: self.path.clone(),
             transport: self.transport.clone(),
-            expr: Arc::new(ReadExpr::FilterEdges {
+            expr: Arc::new(ReadExpr::Filtered {
                 input: self.expr.clone(),
                 filter: filter.clone(),
             }),
-            ctx: self.ctx.with_op(HandleOp::EdgeFilter(filter)),
+            ctx: self.ctx.with_op(HandleOp::Filter(filter)),
         }
     }
 

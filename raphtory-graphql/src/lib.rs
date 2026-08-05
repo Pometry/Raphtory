@@ -593,7 +593,9 @@ mod graphql_test {
         let query = r#"
         {
           graph(path: "g") {
-            filterNodes(expr: { degree: { direction: BOTH, where: { gt: { u64: 0 } } } }) {
+            filterNodes: filter(
+                expr: { nodes: { degree: { direction: BOTH, where: { gt: { u64: 0 } } } } }
+            ) {
               nodes {
                 list {
                   name

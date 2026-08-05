@@ -308,7 +308,9 @@ impl GqlNode {
                 }
                 NodeViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await,
                 NodeViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
-                NodeViewCollection::NodeFilter(filter) => return_view.filter(filter).await?,
+                NodeViewCollection::NodeFilter(filter) => {
+                    return_view.filter(GqlFilter::Nodes(filter)).await?
+                }
             }
         }
         Ok(return_view)
@@ -544,29 +546,16 @@ impl GqlNode {
         Ok(GqlPathFromNode::new(base))
     }
 
-    async fn filter(&self, expr: GqlNodeFilter) -> Result<Self, GraphError> {
-        let self_clone = self.clone();
-        blocking_compute(move || {
-            let filter: CompositeNodeFilter = expr.try_into()?;
-            let filtered = self_clone.vv.filter(filter)?;
-            Ok(self_clone.update(filtered.into_dynamic()))
-        })
-        .await
-    }
-
-    /// Apply an edge filter in place, returning a node view whose edge
-    /// traversals (degree, edges, neighbours and everything reached through
-    /// them) only see edges matching the filter. The node itself stays
-    /// addressable regardless of the filter.
-
-    async fn filter_edges(
+    async fn filter(
         &self,
-        #[graphql(desc = "Composite edge filter (by property, layer, src/dst, etc.).")]
-        expr: GqlEdgeFilter,
+        #[graphql(
+            desc = "Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection)."
+        )]
+        expr: GqlFilter,
     ) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let filter: CompositeEdgeFilter = expr.try_into()?;
+            let filter: DynFilter = expr.try_into()?;
             let filtered = self_clone.vv.filter(filter)?;
             Ok(self_clone.update(filtered.into_dynamic()))
         })

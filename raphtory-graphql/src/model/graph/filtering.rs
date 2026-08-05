@@ -623,6 +623,40 @@ pub enum GqlFilter {
     Or(Vec<GqlFilter>),
     /// Inverts the nested filter.
     Not(Wrapped<GqlFilter>),
+
+    // Flat graph-view spellings — equivalent to wrapping the same expression
+    // in `graph: {...}`; kept top-level so pre-existing `Graph.filter`
+    // documents (e.g. `filter(expr: {window: ...})`) remain valid.
+    /// Restrict evaluation to a time window (inclusive start, exclusive end).
+    Window(GraphWindowExpr),
+    /// Restrict evaluation to a single point in time.
+    At(GraphTimeExpr),
+    /// Restrict evaluation to times strictly before the given time.
+    Before(GraphTimeExpr),
+    /// Restrict evaluation to times strictly after the given time.
+    After(GraphTimeExpr),
+    /// Evaluate against the latest available state.
+    Latest(GraphUnaryExpr),
+    /// Evaluate against a snapshot of the graph at a given time.
+    SnapshotAt(GraphTimeExpr),
+    /// Evaluate against the most recent snapshot of the graph.
+    SnapshotLatest(GraphUnaryExpr),
+    /// Restrict evaluation to one or more layers.
+    Layers(GraphLayersExpr),
+}
+
+impl TryFrom<CompositeNodeFilter> for GqlFilter {
+    type Error = GraphError;
+    fn try_from(f: CompositeNodeFilter) -> Result<Self, Self::Error> {
+        Ok(GqlFilter::Nodes(f.try_into()?))
+    }
+}
+
+impl TryFrom<CompositeEdgeFilter> for GqlFilter {
+    type Error = GraphError;
+    fn try_from(f: CompositeEdgeFilter) -> Result<Self, Self::Error> {
+        Ok(GqlFilter::Edges(f.try_into()?))
+    }
 }
 
 impl TryFrom<GqlFilter> for DynFilter {
@@ -661,6 +695,15 @@ impl TryFrom<GqlFilter> for DynFilter {
                 let inner = DynFilter::try_from(inner.deref().clone())?;
                 Arc::new(inner.not()) as DynFilter
             }
+            // Flat view spellings delegate to the graph-filter conversion.
+            GqlFilter::Window(w) => DynView::try_from(GqlGraphFilter::Window(w))?,
+            GqlFilter::At(t) => DynView::try_from(GqlGraphFilter::At(t))?,
+            GqlFilter::Before(t) => DynView::try_from(GqlGraphFilter::Before(t))?,
+            GqlFilter::After(t) => DynView::try_from(GqlGraphFilter::After(t))?,
+            GqlFilter::Latest(u) => DynView::try_from(GqlGraphFilter::Latest(u))?,
+            GqlFilter::SnapshotAt(t) => DynView::try_from(GqlGraphFilter::SnapshotAt(t))?,
+            GqlFilter::SnapshotLatest(u) => DynView::try_from(GqlGraphFilter::SnapshotLatest(u))?,
+            GqlFilter::Layers(l) => DynView::try_from(GqlGraphFilter::Layers(l))?,
         };
         Ok(filter)
     }

@@ -6,7 +6,9 @@ use crate::{
             collection::check_list_allowed,
             edge::GqlEdge,
             edges::GqlEdges,
-            filtering::{GqlEdgeFilter, GqlGraphFilter, GqlNodeFilter, GraphViewCollection},
+            filtering::{
+                GqlEdgeFilter, GqlFilter, GqlGraphFilter, GqlNodeFilter, GraphViewCollection,
+            },
             index::GqlIndexSpec,
             mutable_graph::{as_properties, GqlPropertyInput},
             node::GqlNode,
@@ -42,7 +44,7 @@ use raphtory::{
             node::NodeView,
             views::filter::model::{
                 edge_filter::CompositeEdgeFilter, graph_filter::GraphFilter,
-                node_filter::CompositeNodeFilter, DynView,
+                node_filter::CompositeNodeFilter, DynFilter, DynView,
             },
         },
     },
@@ -801,56 +803,16 @@ impl GqlGraph {
     async fn filter(
         &self,
         #[graphql(
-            desc = "Optional composite filter combining node, edge, property, and metadata conditions. If omitted, applies the identity filter (equivalent to no filtering)."
+            desc = "Optional filter expression: node/edge predicates, graph views (window, layer, ...), or and/or/not combinations of them. `and` is an intersection: each leg is evaluated independently and the results intersect — to evaluate a predicate *inside* a view, scope the predicate itself (e.g. a windowed property condition). If omitted, applies the identity filter."
         )]
-        expr: Option<GqlGraphFilter>,
+        expr: Option<GqlFilter>,
     ) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let filter: DynView = match expr {
-                Some(f) => f.try_into()?,
-                None => Arc::new(GraphFilter),
+            let Some(expr) = expr else {
+                return Ok(self_clone.clone());
             };
-            let filtered_graph = self_clone.graph.filter(filter)?;
-            Ok(GqlGraph::new(
-                self_clone.path.clone(),
-                filtered_graph.into_dynamic(),
-            ))
-        })
-        .await
-    }
-
-    /// Returns a graph view restricted to nodes that match the given filter; edges
-    /// are kept only if both endpoints survive.
-
-    async fn filter_nodes(
-        &self,
-        #[graphql(desc = "Composite node filter (by name, property, type, etc.).")]
-        expr: GqlNodeFilter,
-    ) -> Result<Self, GraphError> {
-        let self_clone = self.clone();
-        blocking_compute(move || {
-            let filter: CompositeNodeFilter = expr.try_into()?;
-            let filtered_graph = self_clone.graph.filter(filter)?;
-            Ok(GqlGraph::new(
-                self_clone.path.clone(),
-                filtered_graph.into_dynamic(),
-            ))
-        })
-        .await
-    }
-
-    /// Returns a graph view restricted to edges that match the given filter. Nodes
-    /// remain in the view even if all their edges are filtered out.
-
-    async fn filter_edges(
-        &self,
-        #[graphql(desc = "Composite edge filter (by property, layer, src/dst, etc.).")]
-        expr: GqlEdgeFilter,
-    ) -> Result<Self, GraphError> {
-        let self_clone = self.clone();
-        blocking_compute(move || {
-            let filter: CompositeEdgeFilter = expr.try_into()?;
+            let filter: DynFilter = expr.try_into()?;
             let filtered_graph = self_clone.graph.filter(filter)?;
             Ok(GqlGraph::new(
                 self_clone.path.clone(),
@@ -1004,8 +966,12 @@ impl GqlGraph {
                 }
                 GraphViewCollection::ShrinkStart(start) => return_view.shrink_start(start).await,
                 GraphViewCollection::ShrinkEnd(end) => return_view.shrink_end(end).await,
-                GraphViewCollection::NodeFilter(filter) => return_view.filter_nodes(filter).await?,
-                GraphViewCollection::EdgeFilter(filter) => return_view.filter_edges(filter).await?,
+                GraphViewCollection::NodeFilter(filter) => {
+                    return_view.filter(Some(GqlFilter::Nodes(filter))).await?
+                }
+                GraphViewCollection::EdgeFilter(filter) => {
+                    return_view.filter(Some(GqlFilter::Edges(filter))).await?
+                }
             };
         }
         Ok(return_view)

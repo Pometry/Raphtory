@@ -149,7 +149,7 @@ def test_component_respects_an_external_graph_filter():
     with _served().start() as server:
         client = server.get_client()
         q = (
-            '{ graph(path: "g") { filterNodes(expr: {node: {field: NODE_NAME, where: {ne: {str: "x"}}}}) '
+            '{ graph(path: "g") { filterNodes: filter(expr: {nodes: {node: {field: NODE_NAME, where: {ne: {str: "x"}}}}}) '
             '{ node(name: "a") { outComponent { list { name } } } } } }'
         )
         got = client.query(q)["graph"]["filterNodes"]["node"]["outComponent"]["list"]
@@ -162,7 +162,7 @@ def test_component_external_graph_filter_composed_with_select():
     with _served().start() as server:
         client = server.get_client()
         q = (
-            '{ graph(path: "g") { filterNodes(expr: {node: {field: NODE_NAME, where: {ne: {str: "c"}}}}) '
+            '{ graph(path: "g") { filterNodes: filter(expr: {nodes: {node: {field: NODE_NAME, where: {ne: {str: "c"}}}}}) '
             '{ node(name: "a") { outComponent(select: {edges: {layers: {names: ["owns"], expr: %s}}}) '
             "{ list { name } } } } } }" % PASS_EDGE
         )

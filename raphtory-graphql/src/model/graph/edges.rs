@@ -3,7 +3,7 @@ use crate::{
         graph::{
             collection::{check_list_allowed, check_page_limit},
             edge::GqlEdge,
-            filtering::EdgesViewCollection,
+            filtering::{EdgesViewCollection, GqlFilter},
             path_from_node::GqlPathFromNode,
             timeindex::{GqlEventTime, GqlTimeInput},
             windowset::GqlEdgesWindowSet,
@@ -20,7 +20,7 @@ use raphtory::{
     core::utils::time::TryIntoInterval,
     db::{
         api::view::{internal::InternalFilter, DynamicGraph, EdgeSelect},
-        graph::edges::Edges,
+        graph::{edges::Edges, views::filter::model::DynFilter},
     },
     errors::GraphError,
     prelude::*,
@@ -305,7 +305,9 @@ impl GqlEdges {
                 }
                 EdgesViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await,
                 EdgesViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
-                EdgesViewCollection::EdgeFilter(filter) => return_view.filter(filter).await?,
+                EdgesViewCollection::EdgeFilter(filter) => {
+                    return_view.filter(GqlFilter::Edges(filter)).await?
+                }
             }
         }
 
@@ -506,12 +508,14 @@ impl GqlEdges {
 
     async fn filter(
         &self,
-        #[graphql(desc = "Composite edge filter (by property, layer, src/dst, etc.).")]
-        expr: GqlEdgeFilter,
+        #[graphql(
+            desc = "Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection)."
+        )]
+        expr: GqlFilter,
     ) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let filter: CompositeEdgeFilter = expr.try_into()?;
+            let filter: DynFilter = expr.try_into()?;
             let filtered = self_clone.ee.filter(filter)?;
             Ok(self_clone.update(filtered.into_dyn()))
         })

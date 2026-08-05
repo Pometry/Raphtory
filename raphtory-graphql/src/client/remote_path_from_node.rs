@@ -12,7 +12,7 @@ use crate::{
         },
         ClientError,
     },
-    model::graph::filtering::GqlNodeFilter,
+    model::graph::filtering::{GqlFilter, GqlNodeFilter},
 };
 use std::sync::Arc;
 
@@ -191,16 +191,16 @@ impl RemotePathFromNode {
     /// traversals from the matching nodes. Mirrors the local
     /// `PathFromNode.filter(FilterExpr)`. Recorded in `ctx` so members
     /// materialized via `.collect()` replay it per handle. Lazy — no RPC.
-    pub fn filter(&self, filter: GqlNodeFilter) -> RemotePathFromNode {
+    pub fn filter(&self, filter: GqlFilter) -> RemotePathFromNode {
         let filter = Arc::new(filter);
         RemotePathFromNode {
             path: self.path.clone(),
             transport: self.transport.clone(),
-            expr: Arc::new(ReadExpr::FilterNodes {
+            expr: Arc::new(ReadExpr::Filtered {
                 input: self.expr.clone(),
                 filter: filter.clone(),
             }),
-            ctx: self.ctx.with_op(HandleOp::NodeFilter(filter)),
+            ctx: self.ctx.with_op(HandleOp::Filter(filter)),
         }
     }
 

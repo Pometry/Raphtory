@@ -106,7 +106,8 @@ class GraphServer(object):
         max_recursive_depth (int, optional): Internal safety limit to prevent stack overflows from pathologically structured queries (async-graphql default is 32).
         max_directives_per_field (int, optional): Maximum number of directives on any single field.
         disable_introspection (bool, optional): If True, schema introspection is disabled entirely.
-        permissions_store_path (str | PathLike, optional): Path to the permissions store (used by the optional auth extension).
+        permissions_store_path (str | PathLike, optional): Seed file for admin-managed roles (alias for rbac.admin.seed_path).
+        rbac (dict, optional): Role-management settings, under the `rbac` config key. poll_interval_secs, plus at most one source sub-table: ldap {url, bind_dn, bind_password_env, group_base_dn, group_filter, permissions_attribute}, opa {path, query}, json {path}, or admin {seed_path}. Sources are polled and read-only; admin is update-driven. The live store is materialised under <work_dir>/.permissions/. None set → RBAC off.
     """
 
     def __new__(
@@ -1141,6 +1142,22 @@ class RemoteEdge(object):
         """
         Fan out this edge into one entry per layer — returns a `RemoteEdges`
         with each member a single-layer edge instance. Lazy — no RPC.
+        """
+
+    def filter(self, filter: Any) -> RemoteEdge:
+        """
+        Return a filtered view of this edge — the filter propagates to
+        everything reached through it. Accepts node or edge filter
+        expressions; mirrors the local `Edge.filter`. Lazy — no RPC.
+
+        Arguments:
+            filter (FilterExpr): a filter expression from `raphtory.filter`.
+
+        Returns:
+            RemoteEdge: a new filtered edge view.
+
+        Raises:
+            ValueError: if the filter cannot be represented remotely.
         """
 
     def first_update(self):
