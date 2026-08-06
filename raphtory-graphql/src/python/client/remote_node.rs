@@ -10,7 +10,7 @@ use crate::{
 };
 use pyo3::{
     exceptions::{PyKeyError, PyValueError},
-    pyclass, pymethods, Py, PyAny, PyResult, Python,
+    pyclass, pymethods, PyResult,
 };
 use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
 use raphtory_api::core::{

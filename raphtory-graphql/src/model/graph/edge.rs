@@ -1,7 +1,7 @@
 use crate::{
     model::graph::{
         edges::GqlEdges,
-        filtering::{EdgeViewCollection, GqlEdgeFilter, GqlFilter, GqlNodeFilter},
+        filtering::{EdgeViewCollection, GqlFilter},
         history::GqlHistory,
         node::GqlNode,
         node_id::GqlNodeId,
@@ -17,12 +17,7 @@ use raphtory::{
     core::utils::time::TryIntoInterval,
     db::{
         api::view::{DynamicGraph, EdgeViewOps, Filter, IntoDynamic, StaticGraphViewOps},
-        graph::{
-            edge::EdgeView,
-            views::filter::model::{
-                edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter, DynFilter,
-            },
-        },
+        graph::{edge::EdgeView, views::filter::model::DynFilter},
     },
     errors::GraphError,
     prelude::{LayerOps, TimeOps},

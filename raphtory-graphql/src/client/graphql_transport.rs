@@ -565,8 +565,9 @@ impl GraphqlTransport {
             .client
             .query(&query, JsonValue::Object(variables))
             .await?;
-        let root =
-            serde_json::to_value(&res).map_err(|e| ClientError::InvalidResponse(e.to_string()))?;
+        // Re-wrap the response fields by moving them — `serde_json::to_value`
+        // here would deep-copy the entire payload on every read RPC.
+        let root = JsonValue::Object(res.into_iter().collect());
         parse_read(expr, &root)
     }
 }

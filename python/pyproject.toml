@@ -48,6 +48,11 @@ tox = ["nbmake", "pytest >= 8", "pytest-benchmark >= 5.1.0"]
 python-source = "python"
 module-name = "raphtory._raphtory"
 include = ["motif-images/*"]
+# Required for every wheel build: without pyo3/extension-module the extension
+# links libpython and `import raphtory` segfaults on statically-linked
+# interpreters (e.g. conda). Kept out of Cargo default features so plain
+# `cargo build`/`cargo test` still link.
+features = ["extension-module"]
 
 [tool.pytest.ini_options]
 pythonpath = ["test_utils"] # adds directories to the python path for tests

@@ -8,7 +8,7 @@ use crate::{
         remote_node::PyRemoteNode,
     },
 };
-use pyo3::{exceptions::PyValueError, pyclass, pymethods, Py, PyAny, PyResult, Python};
+use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyResult};
 use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
 use raphtory_api::core::{
     entities::properties::prop::Prop, storage::timeindex::EventTime, utils::time::InputTime,

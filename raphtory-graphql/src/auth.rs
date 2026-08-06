@@ -1,5 +1,5 @@
 use crate::{
-    config::{app_config::AppConfig, auth_config::PublicKey},
+    config::app_config::AppConfig,
     data::{gql_error_with_code, CODE_ACCESS_DENIED},
 };
 use async_graphql::{
