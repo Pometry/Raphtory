@@ -102,7 +102,7 @@ pub struct AuthenticatedGraphQL<E> {
     executor: E,
     config: AppConfig,
     semaphore: Option<Semaphore>,
-    lock: Option<tokio::sync::RwLock<()>>,
+    lock: Option<RwLock<()>>,
     /// Resolves the JWT verification key. `None` when no auth is configured.
     key_resolver: Option<Arc<dyn KeyResolver>>,
 }
@@ -315,6 +315,7 @@ fn is_query_heavy(query: &str) -> bool {
         || query.contains("neighbours")
         || query.contains("outNeighbours")
         || query.contains("inNeighbours")
+        || query.contains("algorithm")
 }
 
 /// Verify a bearer token: select the decoding key via the [`KeyResolver`] (by the token's `kid`),

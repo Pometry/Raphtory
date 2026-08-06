@@ -524,13 +524,10 @@ impl GqlMutableGraph {
     async fn flush(&self) -> Result<bool, GraphError> {
         let self_clone = self.clone();
         blocking_write(move || {
-            self_clone.graph.set_flushing(true);
-            self_clone.graph.set_dirty(false);
-            let res = self_clone.graph.graph().flush();
+            let res = self_clone.graph.persist();
             if res.is_err() {
-                self_clone.graph.set_dirty(true)
+                self_clone.graph.set_dirty(true);
             }
-            self_clone.graph.set_flushing(false);
             res.map(|_| true)
         })
         .await
@@ -987,7 +984,7 @@ mod tests {
                 .await;
 
             assert!(result.is_ok());
-            assert!(result.unwrap().get_documents().await.unwrap().len() == 2);
+            assert_eq!(result.unwrap().get_documents().await.unwrap().len(), 2);
             context.embedding_server.stop().await;
         }
     }
@@ -1067,7 +1064,7 @@ mod tests {
                 .await;
 
             assert!(result.is_ok());
-            assert!(result.unwrap().get_documents().await.unwrap().len() == 3);
+            assert_eq!(result.unwrap().get_documents().await.unwrap().len(), 3);
             context.embedding_server.stop().await;
         }
     }
@@ -1152,7 +1149,7 @@ mod tests {
                 .await;
 
             assert!(result.is_ok());
-            assert!(result.unwrap().get_documents().await.unwrap().len() == 2);
+            assert_eq!(result.unwrap().get_documents().await.unwrap().len(), 2);
             context.embedding_server.stop().await;
         }
     }

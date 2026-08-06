@@ -15,7 +15,8 @@ members = [
     "raphtory-api-macros",
     "raphtory-tests",
     "raphtory-itertools",
-    "drop-logging"]
+    "drop-logging",
+    "raphtory-graphql-tests"]
 default-members = ["raphtory"]
 resolver = "2"
 
@@ -84,11 +85,11 @@ serde = { version = "1.0.228", features = ["derive", "rc"] }
 serde_json = { version = "1.0.149", features = ["float_roundtrip", "preserve_order"] }
 pyo3 = { version = "0.29.0", features = ["multiple-pymethods", "chrono"] }
 pyo3-build-config = "0.29.0"
-pyo3-arrow = "0.19.0"
+pyo3-arrow = { package = "raphtory-pyo3-arrow", version = "0.19.0" }
 numpy = "0.29.0"
-itertools = "0.14.0"
+itertools = "0.15.0"
 rand = "0.9.4"
-quick_cache = "0.6.22"
+quick_cache = "0.7.0"
 rayon = "1.12.0"
 roaring = "0.11.4"
 tokio = { version = "1.50.0", features = ["full"] }
@@ -121,7 +122,6 @@ quad-rand = "0.2.3"
 zip = "8.6.0"
 neo4rs = "0.8.0"
 bzip2 = "0.6.1"
-tantivy = "0.26.1"
 async-trait = "0.1.89"
 async-openai = "0.28.3"
 num = "0.4.3"
@@ -135,8 +135,8 @@ proptest = "1.11.0"
 proptest-derive = "0.8.0"
 criterion = "0.8.2"
 crossbeam-channel = "0.5.15"
-base64 = "0.22.1"
-jsonwebtoken = { version = "10.3.0", features = ["aws_lc_rs"] }
+base64 = "0.23.0"
+jsonwebtoken = { version = "11.0.0", features = ["aws_lc_rs"] }
 spki = "0.8.0"
 poem = { version = "3.1.12", features = ["compression", "embed", "static-files"] }
 rust-embed = { version = "8.11.0", features = ["interpolate-folder-path"] }
@@ -162,27 +162,27 @@ pest = "2.8.6"
 pest_derive = "2.8.6"
 minijinja = "2.18.0"
 minijinja-contrib = { version = "2.18.0", features = ["datetime"] }
-lancedb = { version = "0.30.0", features = [] }
+lancedb = { version = "0.33.0", features = [] }
 heed = "0.22.0"
 sqlparser = "0.62.0"
 futures = "0.3"
-arrow = { version = "59.1.0" }
-parquet = { version = "59.1.0" }
-arrow-json = { version = "59.1.0" }
-arrow-buffer = { version = "59.1.0" }
-arrow-schema = { version = "59.1.0" }
-arrow-csv = { version = "59.1.0" }
-arrow-array = { version = "59.1.0", features = ["chrono-tz"] }
-arrow-cast = { version = "59.1.0" }
-arrow-ipc = { version = "59.1.0" }
-arrow-data = { version = "59.1.0" }
-arrow-select = { version = "59.1.0" }
-serde_arrow = { version = "0.14.2", features = ["arrow-59"] }
-datafusion = { version = "53.1.0" }
-datafusion-physical-expr-common = "53.1.0"
-datafusion-physical-expr = "53.1.0"
-datafusion-physical-plan = "53.1.0"
-datafusion-expr-common = "53.1.0"
+arrow = { version = "58.4.0" }
+parquet = { version = "58.4.0" }
+arrow-json = { version = "58.4.0" }
+arrow-buffer = { version = "58.4.0" }
+arrow-schema = { version = "58.4.0" }
+arrow-csv = { version = "58.4.0" }
+arrow-array = { version = "58.4.0", features = ["chrono-tz"] }
+arrow-cast = { version = "58.4.0" }
+arrow-ipc = { version = "58.4.0" }
+arrow-data = { version = "58.4.0" }
+arrow-select = { version = "58.4.0" }
+serde_arrow = { version = "0.14.2", features = ["arrow-58"] }
+datafusion = { version = "54.1.0" }
+datafusion-physical-expr-common = "54.1.0"
+datafusion-physical-expr = "54.1.0"
+datafusion-physical-plan = "54.1.0"
+datafusion-expr-common = "54.1.0"
 moka = { version = "0.12.15", features = ["future"] }
 indexmap = { version = "2.13.0", features = ["rayon"] }
 fake = { version = "5.1.0", features = ["chrono"] }
@@ -198,6 +198,7 @@ axum = "0.8.9"
 serde-diff = "0.4.1"
 field_types = "1.1.0"
 opentelemetry-appender-tracing = "0.32.0"
+mock-collector = "0.2.14"
 
 [workspace.dependencies.storage]
 package = "db4-storage"

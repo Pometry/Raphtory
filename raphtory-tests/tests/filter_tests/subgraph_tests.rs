@@ -36,8 +36,10 @@ impl GraphTransformer for WindowedNodeSubgraphTransformer {
 }
 
 mod test_nodes_filters_node_subgraph {
-    use crate::filter_tests::subgraph_tests::{
-        NodeSubgraphTransformer, WindowedNodeSubgraphTransformer,
+    use crate::filter_tests::{
+        init_graph,
+        subgraph_tests::{NodeSubgraphTransformer, WindowedNodeSubgraphTransformer},
+        Edges, Nodes,
     };
     use raphtory::{
         db::graph::views::filter::model::{
@@ -45,12 +47,9 @@ mod test_nodes_filters_node_subgraph {
         },
         prelude::NodeFilter,
     };
-
     use raphtory_tests::assertions::{
-        assert_filter_nodes_results, assert_search_nodes_results, TestGraphVariants, TestVariants,
+        assert_filter_nodes_results, TestGraphVariants, TestVariants,
     };
-
-    use crate::filter_tests::{init_graph, Edges, Nodes};
 
     #[test]
     fn test_search_nodes_subgraph() {
@@ -60,13 +59,6 @@ mod test_nodes_filters_node_subgraph {
             |graph| init_graph(graph, Nodes::Untyped, Edges::None),
             NodeSubgraphTransformer(None),
             filter.clone(),
-            &expected_results,
-            TestVariants::All,
-        );
-        assert_search_nodes_results(
-            |graph| init_graph(graph, Nodes::Untyped, Edges::None),
-            NodeSubgraphTransformer(None),
-            filter,
             &expected_results,
             TestVariants::All,
         );
@@ -82,31 +74,16 @@ mod test_nodes_filters_node_subgraph {
             &expected_results,
             TestVariants::All,
         );
-        assert_search_nodes_results(
-            |graph| init_graph(graph, Nodes::Untyped, Edges::None),
-            NodeSubgraphTransformer(node_names),
-            filter,
-            &expected_results,
-            TestVariants::All,
-        );
     }
 
     #[test]
     fn test_search_nodes_subgraph_w() {
-        // TODO: Enable event_disk_graph for filter_nodes once bug fixed: https://github.com/Pometry/Raphtory/issues/2098
         let filter = NodeFilter.property("p1").eq(1u64);
         let expected_results = vec!["N1", "N3", "N6"];
         assert_filter_nodes_results(
             |graph| init_graph(graph, Nodes::Untyped, Edges::None),
             WindowedNodeSubgraphTransformer(None, 6..9),
             filter.clone(),
-            &expected_results,
-            vec![TestGraphVariants::Graph],
-        );
-        assert_search_nodes_results(
-            |graph| init_graph(graph, Nodes::Untyped, Edges::None),
-            WindowedNodeSubgraphTransformer(None, 6..9),
-            filter,
             &expected_results,
             vec![TestGraphVariants::Graph],
         );
@@ -118,13 +95,6 @@ mod test_nodes_filters_node_subgraph {
             |graph| init_graph(graph, Nodes::Untyped, Edges::None),
             WindowedNodeSubgraphTransformer(node_names.clone(), 6..9),
             filter.clone(),
-            &expected_results,
-            vec![TestGraphVariants::Graph],
-        );
-        assert_search_nodes_results(
-            |graph| init_graph(graph, Nodes::Untyped, Edges::None),
-            WindowedNodeSubgraphTransformer(node_names, 6..9),
-            filter,
             &expected_results,
             vec![TestGraphVariants::Graph],
         );
@@ -141,13 +111,6 @@ mod test_nodes_filters_node_subgraph {
             &expected_results,
             TestVariants::PersistentOnly,
         );
-        assert_search_nodes_results(
-            |graph| init_graph(graph, Nodes::Untyped, Edges::None),
-            WindowedNodeSubgraphTransformer(None, 6..9),
-            filter,
-            &expected_results,
-            TestVariants::PersistentOnly,
-        );
 
         let node_names: Option<Vec<String>> =
             Some(vec!["N2".into(), "N3".into(), "N4".into(), "N5".into()]);
@@ -160,50 +123,31 @@ mod test_nodes_filters_node_subgraph {
             &expected_results,
             TestVariants::PersistentOnly,
         );
-        assert_search_nodes_results(
-            |graph| init_graph(graph, Nodes::Untyped, Edges::None),
-            WindowedNodeSubgraphTransformer(node_names, 6..9),
-            filter,
-            &expected_results,
-            TestVariants::PersistentOnly,
-        );
     }
 }
 
 mod test_edges_filters_node_subgraph {
+    use crate::filter_tests::{
+        init_graph,
+        subgraph_tests::{NodeSubgraphTransformer, WindowedNodeSubgraphTransformer},
+        Edges, Nodes,
+    };
     use raphtory::{
         db::graph::views::filter::model::{
             property_filter::ops::PropertyFilterOps, PropertyFilterFactory,
         },
         prelude::EdgeFilter,
     };
-
-    use raphtory_tests::assertions::{
-        assert_filter_edges_results, assert_search_edges_results, TestVariants,
-    };
-
-    use crate::filter_tests::subgraph_tests::{
-        NodeSubgraphTransformer, WindowedNodeSubgraphTransformer,
-    };
-
-    use crate::filter_tests::{init_graph, Edges, Nodes};
+    use raphtory_tests::assertions::{assert_filter_edges_results, TestVariants};
 
     #[test]
     fn test_edges_filters() {
-        // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph.
         let filter = EdgeFilter.property("p1").eq(1u64);
         let expected_results = vec!["N1->N2", "N3->N4", "N4->N5", "N6->N7", "N7->N8"];
         assert_filter_edges_results(
             |graph| init_graph(graph, Nodes::None, Edges::Unlayered),
             NodeSubgraphTransformer(None),
             filter.clone(),
-            &expected_results,
-            TestVariants::EventOnly,
-        );
-        assert_search_edges_results(
-            |graph| init_graph(graph, Nodes::None, Edges::Unlayered),
-            NodeSubgraphTransformer(None),
-            filter,
             &expected_results,
             TestVariants::All,
         );
@@ -216,13 +160,6 @@ mod test_edges_filters_node_subgraph {
             |graph| init_graph(graph, Nodes::None, Edges::Unlayered),
             NodeSubgraphTransformer(node_names.clone()),
             filter.clone(),
-            &expected_results,
-            TestVariants::EventOnly,
-        );
-        assert_search_edges_results(
-            |graph| init_graph(graph, Nodes::None, Edges::Unlayered),
-            NodeSubgraphTransformer(node_names),
-            filter,
             &expected_results,
             TestVariants::All,
         );
@@ -239,13 +176,6 @@ mod test_edges_filters_node_subgraph {
             &expected_results,
             TestVariants::EventOnly,
         );
-        assert_search_edges_results(
-            |graph| init_graph(graph, Nodes::None, Edges::Unlayered),
-            WindowedNodeSubgraphTransformer(None, 6..9),
-            filter,
-            &expected_results,
-            TestVariants::EventOnly,
-        );
 
         let node_names: Option<Vec<String>> =
             Some(vec!["N2".into(), "N3".into(), "N4".into(), "N5".into()]);
@@ -258,31 +188,16 @@ mod test_edges_filters_node_subgraph {
             &expected_results,
             TestVariants::EventOnly,
         );
-        assert_search_edges_results(
-            |graph| init_graph(graph, Nodes::None, Edges::Unlayered),
-            WindowedNodeSubgraphTransformer(node_names, 6..9),
-            filter,
-            &expected_results,
-            TestVariants::EventOnly,
-        );
     }
 
     #[test]
     fn test_edges_filters_pg_w() {
-        // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph.
         let filter = EdgeFilter.property("p1").eq(1u64);
         let expected_results = vec!["N1->N2", "N3->N4", "N6->N7", "N7->N8"];
         assert_filter_edges_results(
             |graph| init_graph(graph, Nodes::None, Edges::Unlayered),
             WindowedNodeSubgraphTransformer(None, 6..9),
             filter.clone(),
-            &expected_results,
-            vec![],
-        );
-        assert_search_edges_results(
-            |graph| init_graph(graph, Nodes::None, Edges::Unlayered),
-            WindowedNodeSubgraphTransformer(None, 6..9),
-            filter,
             &expected_results,
             TestVariants::PersistentOnly,
         );
@@ -300,13 +215,6 @@ mod test_edges_filters_node_subgraph {
             |graph| init_graph(graph, Nodes::None, Edges::Unlayered),
             WindowedNodeSubgraphTransformer(node_names.clone(), 6..9),
             filter.clone(),
-            &expected_results,
-            vec![],
-        );
-        assert_search_edges_results(
-            |graph| init_graph(graph, Nodes::None, Edges::Unlayered),
-            WindowedNodeSubgraphTransformer(node_names, 6..9),
-            filter,
             &expected_results,
             TestVariants::PersistentOnly,
         );

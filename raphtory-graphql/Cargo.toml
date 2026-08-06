@@ -24,6 +24,7 @@ jsonwebtoken = { workspace = true }
 spki = { workspace = true }
 thiserror = { workspace = true }
 itertools = { workspace = true }
+rand = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 once_cell = { workspace = true }
@@ -69,15 +70,12 @@ tempfile = { workspace = true }
 pretty_assertions = { workspace = true }
 arrow = { workspace = true }
 parquet = { workspace = true }
-# Self-reference lets cargo test compile this crate with the `integration-test` feature enabled.
-raphtory-graphql = { workspace = true, default-features = false, features = ["integration-test"] }
-opentelemetry_sdk = { version = "0.32.1", features = ["rt-tokio", "testing"] }
-mock-collector = "0.2"
+
 
 [features]
 default = []
 vectors = ["raphtory/vectors"]
-integration-test = []
+integration-test = ["opentelemetry_sdk/testing"]
 python = ["dep:pyo3", "dep:pythonize", "raphtory/python"]
-search = ["raphtory/search"]
+# search = ["raphtory/search"]
 panic-on-drop = ["raphtory/panic-on-drop"]

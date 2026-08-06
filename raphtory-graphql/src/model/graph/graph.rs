@@ -2,14 +2,12 @@ use crate::{
     data::Data,
     graph::GraphWithVectors,
     model::{
+        algorithms::GqlAlgorithms,
         graph::{
             collection::check_list_allowed,
             edge::GqlEdge,
             edges::GqlEdges,
-            filtering::{
-                GqlEdgeFilter, GqlFilter, GqlGraphFilter, GqlNodeFilter, GraphViewCollection,
-            },
-            index::GqlIndexSpec,
+            filtering::{GqlEdgeFilter, GqlFilter, GqlNodeFilter, GraphViewCollection},
             mutable_graph::{as_properties, GqlPropertyInput},
             node::GqlNode,
             node_id::GqlNodeId,
@@ -28,8 +26,6 @@ use crate::{
 use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, Result};
 use itertools::Itertools;
-#[cfg(feature = "search")]
-use raphtory::db::api::view::SearchableGraphOps;
 use raphtory::{
     core::{
         entities::nodes::node_ref::{AsNodeRef, NodeRef},
@@ -453,7 +449,6 @@ impl GqlGraph {
     }
 
     /// The latest time at which any edge in this graph is valid.
-
     async fn latest_edge_time(
         &self,
         #[graphql(
@@ -507,7 +502,6 @@ impl GqlGraph {
     ////////////////////////
 
     /// Returns true if a node with the given id exists in this view.
-
     async fn has_node(
         &self,
         #[graphql(desc = "Node id to look up.")] name: GqlNodeId,
@@ -517,7 +511,6 @@ impl GqlGraph {
 
     /// Returns true if an edge exists between `src` and `dst` in this view, optionally
     /// restricted to a single layer.
-
     async fn has_edge(
         &self,
         #[graphql(desc = "Source node id.")] src: GqlNodeId,
@@ -543,13 +536,11 @@ impl GqlGraph {
 
     /// Look up a single node by id. Returns null if the node doesn't exist in this
     /// view.
-
     async fn node(&self, #[graphql(desc = "Node id.")] name: GqlNodeId) -> Result<Option<GqlNode>> {
         Ok(self.graph.node(name).map(|node| node.into()))
     }
 
     /// All nodes in this view, optionally narrowed by a filter.
-
     async fn nodes(
         &self,
         #[graphql(
@@ -574,7 +565,6 @@ impl GqlGraph {
 
     /// Look up a single edge by its endpoint ids. Returns null if no edge exists
     /// between `src` and `dst` in this view.
-
     async fn edge(
         &self,
         #[graphql(desc = "Source node id.")] src: GqlNodeId,
@@ -656,9 +646,13 @@ impl GqlGraph {
         self.graph.clone().into()
     }
 
+    /// Access the algorithms that can be run on this graph view.
+    async fn algorithm(&self) -> GqlAlgorithms {
+        self.graph.clone().into()
+    }
+
     /// Nodes that are neighbours of every node in `selectedNodes`. Returns the
     /// intersection of each selected node's neighbour set (undirected).
-
     async fn shared_neighbours(
         &self,
         #[graphql(
@@ -776,7 +770,6 @@ impl GqlGraph {
     /// Copy all nodes and edges of the current graph view into another already-
     /// existing graph stored on the server. The destination graph is preserved
     /// — this only adds; it does not replace.
-
     async fn export_to<'a>(
         &self,
         ctx: &Context<'a>,
@@ -799,7 +792,6 @@ impl GqlGraph {
 
     /// Returns a filtered view of the graph. Applies a mixed node/edge filter
     /// expression and narrows nodes, edges, and their properties to what matches.
-
     async fn filter(
         &self,
         #[graphql(
@@ -822,90 +814,9 @@ impl GqlGraph {
         .await
     }
 
-    ////////////////////////
-    // INDEX SEARCH     ////
-    ////////////////////////
-
-    /// (Experimental) Get index specification.
-    async fn get_index_spec(&self) -> Result<GqlIndexSpec, GraphError> {
-        #[cfg(feature = "search")]
-        {
-            let index_spec = self.graph.get_index_spec()?;
-            let props = index_spec.props(&self.graph);
-
-            Ok(GqlIndexSpec {
-                node_metadata: props.node_metadata,
-                node_properties: props.node_properties,
-                edge_metadata: props.edge_metadata,
-                edge_properties: props.edge_properties,
-            })
-        }
-        #[cfg(not(feature = "search"))]
-        {
-            Err(GraphError::IndexingNotSupported.into())
-        }
-    }
-
-    /// (Experimental) Searches for nodes which match the given filter
-    /// expression. Uses Tantivy's exact search; requires the graph to have
-    /// been indexed.
-
-    async fn search_nodes(
-        &self,
-        #[graphql(desc = "Composite node filter (by name, property, type, etc.).")]
-        filter: GqlNodeFilter,
-        #[graphql(desc = "Maximum number of nodes to return.")] limit: usize,
-        #[graphql(desc = "Number of matches to skip before returning results.")] offset: usize,
-    ) -> Result<Vec<GqlNode>> {
-        #[cfg(feature = "search")]
-        {
-            let self_clone = self.clone();
-            blocking_compute(move || {
-                let f: CompositeNodeFilter = filter.try_into()?;
-                let nodes = self_clone.graph.search_nodes(f, limit, offset)?;
-                let result = nodes.into_iter().map(|vv| vv.into()).collect();
-                Ok(result)
-            })
-            .await
-        }
-        #[cfg(not(feature = "search"))]
-        {
-            Err(GraphError::IndexingNotSupported.into())
-        }
-    }
-
-    /// (Experimental) Searches the index for edges which match the given
-    /// filter expression. Uses Tantivy's exact search; requires the graph to
-    /// have been indexed.
-
-    async fn search_edges(
-        &self,
-        #[graphql(desc = "Composite edge filter (by property, layer, src/dst, etc.).")]
-        filter: GqlEdgeFilter,
-        #[graphql(desc = "Maximum number of edges to return.")] limit: usize,
-        #[graphql(desc = "Number of matches to skip before returning results.")] offset: usize,
-    ) -> Result<Vec<GqlEdge>> {
-        #[cfg(feature = "search")]
-        {
-            let self_clone = self.clone();
-            blocking_compute(move || {
-                let f: CompositeEdgeFilter = filter.try_into()?;
-                let edges = self_clone.graph.search_edges(f, limit, offset)?;
-                let result = edges.into_iter().map(|vv| vv.into()).collect();
-                Ok(result)
-            })
-            .await
-        }
-        #[cfg(not(feature = "search"))]
-        {
-            Err(GraphError::IndexingNotSupported.into())
-        }
-    }
-
     /// Apply a list of view operations in the given order and return the
     /// resulting graph view. Lets callers compose multiple view transforms
     /// (window, layer, filter, snapshot, ...) in a single call.
-
     async fn apply_views(
         &self,
         #[graphql(

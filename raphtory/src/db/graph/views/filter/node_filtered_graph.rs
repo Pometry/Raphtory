@@ -6,9 +6,8 @@ use crate::{
         state::ops::NodeFilterOp,
         view::internal::{
             EdgeList, GraphView, Immutable, InheritAllEdgeFilterOps, InheritEdgeHistoryFilter,
-            InheritLayerOps, InheritListOps, InheritMaterialize, InheritNodeHistoryFilter,
-            InheritStorageOps, InheritTimeSemantics, InternalNodeFilterOps, ListOps, NodeList,
-            Static,
+            InheritLayerOps, InheritMaterialize, InheritNodeHistoryFilter, InheritStorageOps,
+            InheritTimeSemantics, InternalNodeFilterOps, ListOps, NodeList, Static,
         },
     },
     prelude::GraphViewOps,

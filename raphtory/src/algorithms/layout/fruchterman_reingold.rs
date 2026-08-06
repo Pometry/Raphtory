@@ -3,7 +3,7 @@ use crate::{
     db::api::state::{GenericNodeState, TypedNodeState},
     prelude::{GraphViewOps, NodeViewOps},
 };
-use glam::Vec2;
+use glam::DVec2;
 use quad_rand::RandomRange;
 use raphtory_api::core::entities::GID;
 use rayon::prelude::*;
@@ -11,17 +11,17 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
 pub struct CoordinateState {
-    coordinates: [f32; 2],
+    coordinates: [f64; 2],
 }
 
 /// Return the position of the nodes after running Fruchterman Reingold algorithm on the `graph`
 pub fn fruchterman_reingold_unbounded<'graph, G: GraphViewOps<'graph>>(
     g: &G,
     iter_count: u64,
-    scale: f32,
-    node_start_size: f32,
-    cooloff_factor: f32,
-    dt: f32,
+    scale: f64,
+    node_start_size: f64,
+    cooloff_factor: f64,
+    dt: f64,
 ) -> TypedNodeState<'graph, CoordinateState, G> {
     let mut positions = init_positions(g, node_start_size);
     let mut velocities = init_velocities(g);
@@ -43,15 +43,15 @@ fn update_positions<'graph, G: GraphViewOps<'graph>>(
     old_positions: &NodeVectors,
     velocities: &mut NodeVectors,
     graph: &G,
-    scale: f32,
-    cooloff_factor: f32,
-    dt: f32,
+    scale: f64,
+    cooloff_factor: f64,
+    dt: f64,
 ) -> NodeVectors {
     let mut new_positions: NodeVectors = NodeVectors::default();
 
     for (id, old_position) in old_positions {
         // force that will be applied to the node
-        let mut force = Vec2::ZERO;
+        let mut force = DVec2::ZERO;
 
         force += compute_repulsion(id, scale, old_positions);
         force += compute_attraction(id, scale, old_positions, graph);
@@ -67,8 +67,8 @@ fn update_positions<'graph, G: GraphViewOps<'graph>>(
     new_positions
 }
 
-fn compute_repulsion(id: &GID, scale: f32, old_positions: &NodeVectors) -> Vec2 {
-    let mut force = Vec2::ZERO;
+fn compute_repulsion(id: &GID, scale: f64, old_positions: &NodeVectors) -> DVec2 {
+    let mut force = DVec2::ZERO;
     let position = old_positions.get(id).unwrap();
 
     for (alt_id, alt_position) in old_positions {
@@ -83,11 +83,11 @@ fn compute_repulsion(id: &GID, scale: f32, old_positions: &NodeVectors) -> Vec2 
 
 fn compute_attraction<'graph, G: GraphViewOps<'graph>>(
     id: &GID,
-    scale: f32,
+    scale: f64,
     old_positions: &NodeVectors,
     graph: &G,
-) -> Vec2 {
-    let mut force = Vec2::ZERO;
+) -> DVec2 {
+    let mut force = DVec2::ZERO;
     let node = graph.node(id).unwrap();
     let position = old_positions.get(id).unwrap();
 
@@ -100,7 +100,7 @@ fn compute_attraction<'graph, G: GraphViewOps<'graph>>(
     force
 }
 
-fn unit_vector(a: Vec2, b: Vec2) -> Vec2 {
+fn unit_vector(a: DVec2, b: DVec2) -> DVec2 {
     (b - a).normalize_or_zero()
 }
 
@@ -108,17 +108,17 @@ fn init_velocities<'graph, G: GraphViewOps<'graph>>(graph: &G) -> NodeVectors {
     graph
         .nodes()
         .iter()
-        .map(|node| (node.id(), Vec2::ZERO))
+        .map(|node| (node.id(), DVec2::ZERO))
         .collect()
 }
 
-fn init_positions<'graph, G: GraphViewOps<'graph>>(graph: &G, node_start_size: f32) -> NodeVectors {
+fn init_positions<'graph, G: GraphViewOps<'graph>>(graph: &G, node_start_size: f64) -> NodeVectors {
     let half_node_start_width = node_start_size / 2.0;
     graph
         .nodes()
         .iter()
         .map(|node| {
-            let position = Vec2::new(
+            let position = DVec2::new(
                 RandomRange::gen_range(-half_node_start_width, half_node_start_width),
                 RandomRange::gen_range(-half_node_start_width, half_node_start_width),
             );

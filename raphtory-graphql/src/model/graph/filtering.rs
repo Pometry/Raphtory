@@ -7,26 +7,38 @@ use dynamic_graphql::{
     Enum, InputObject, OneOfInput,
 };
 use raphtory::{
-    db::graph::views::filter::model::{
-        degree_filter::DegreeFilter,
-        edge_filter::{CompositeEdgeFilter, EdgeFilter},
-        filter::{Filter, FilterValue},
-        filter_operator::FilterOperator,
-        graph_filter::GraphFilter,
-        is_active_edge_filter::IsActiveEdge,
-        is_active_node_filter::IsActiveNode,
-        is_deleted_filter::IsDeletedEdge,
-        is_self_loop_filter::IsSelfLoopEdge,
-        is_valid_filter::IsValidEdge,
-        latest_filter::Latest as LatestWrap,
-        layered_filter::Layered,
-        node_filter::{CompositeNodeFilter, NodeFilter},
-        property_filter::{Op, PropertyFilter, PropertyFilterValue, PropertyRef},
-        snapshot_filter::{SnapshotAt as SnapshotAtWrap, SnapshotLatest as SnapshotLatestWrap},
-        windowed_filter::Windowed,
-        ComposableFilter, DynFilter, DynView, FilterTree, GraphViewOp, ViewWrapOps,
+    db::{
+        api::{
+            state::NodeOp,
+            view::{internal::GraphView, BoxableGraphView},
+        },
+        graph::views::filter::{
+            model::{
+                degree_filter::DegreeFilter,
+                edge_filter::{CompositeEdgeFilter, EdgeFilter},
+                filter::{Filter, FilterValue},
+                filter_operator::FilterOperator,
+                graph_filter::GraphFilter,
+                is_active_edge_filter::IsActiveEdge,
+                is_active_node_filter::IsActiveNode,
+                is_deleted_filter::IsDeletedEdge,
+                is_self_loop_filter::IsSelfLoopEdge,
+                is_valid_filter::IsValidEdge,
+                latest_filter::Latest as LatestWrap,
+                layered_filter::Layered,
+                node_filter::{CompositeNodeFilter, NodeFilter},
+                property_filter::{Op, PropertyFilter, PropertyFilterValue, PropertyRef},
+                snapshot_filter::{
+                    SnapshotAt as SnapshotAtWrap, SnapshotLatest as SnapshotLatestWrap,
+                },
+                windowed_filter::Windowed,
+                ComposableFilter, DynFilter, DynView, FilterTree, GraphViewOp, ViewWrapOps,
+            },
+            CreateFilter,
+        },
     },
     errors::GraphError,
+    prelude::GraphViewOps,
 };
 use raphtory_api::core::{
     entities::{properties::prop::Prop, Layer, GID},
@@ -663,6 +675,42 @@ impl TryFrom<GqlGraphFilter> for GqlFilter {
     type Error = GraphError;
     fn try_from(f: GqlGraphFilter) -> Result<Self, Self::Error> {
         Ok(GqlFilter::Graph(f))
+    }
+}
+
+impl CreateFilter for GqlFilter {
+    type EntityFiltered<'graph, G: GraphViewOps<'graph>>
+        = Arc<dyn BoxableGraphView + 'graph>
+    where
+        Self: 'graph;
+
+    type NodeFilter<'graph, G: GraphView + 'graph> = Arc<dyn NodeOp<Output = bool> + 'graph>;
+
+    type FilteredGraph<'graph, G>
+        = Arc<dyn BoxableGraphView + 'graph>
+    where
+        Self: 'graph,
+        G: GraphViewOps<'graph>;
+
+    fn create_filter<'graph, G: GraphViewOps<'graph>>(
+        self,
+        graph: G,
+    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
+        DynFilter::try_from(self)?.create_filter(graph)
+    }
+
+    fn create_node_filter<'graph, G: GraphView + 'graph>(
+        self,
+        graph: G,
+    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        DynFilter::try_from(self)?.create_node_filter(graph)
+    }
+
+    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        DynFilter::try_from(self.clone())?.filter_graph_view(graph)
     }
 }
 

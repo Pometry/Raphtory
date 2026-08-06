@@ -4,8 +4,6 @@ pub mod graph_with_deletions;
 
 pub mod edges;
 pub mod history;
-#[cfg(feature = "search")]
-pub mod index;
 pub mod io;
 pub mod node;
 pub mod node_state;

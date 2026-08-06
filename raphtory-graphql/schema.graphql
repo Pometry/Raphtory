@@ -1,4 +1,513 @@
 """
+The algorithms that can be run on a graph view.
+"""
+type Algorithms {
+	"""
+	Returns the PageRank centrality of every node in the graph.
+	"""
+	pagerank(
+		"""
+		Number of iterations to run. Defaults to 20.
+		"""
+		iterCount: Int,
+		"""
+		Number of threads to use. Defaults to all available.
+		"""
+		threads: Int,
+		"""
+		Convergence tolerance. Defaults to 0.000001.
+		"""
+		tol: Float,
+		"""
+		Probability that the spread continues. Defaults to 0.85.
+		"""
+		dampingFactor: Float,
+		"""
+		Edge property to use as weight. If unset, all edges have weight 1.
+		"""
+		weight: String
+	): NodeState!
+	"""
+	Returns the degree centrality of every node.
+	"""
+	degreeCentrality: NodeState!
+	"""
+	Returns the betweenness centrality of every node.
+	"""
+	betweennessCentrality(
+		"""
+		Number of nodes to sample. Defaults to all nodes.
+		"""
+		k: Int,
+		"""
+		Whether to normalize the values. Defaults to true.
+		"""
+		normalized: Boolean
+	): NodeState!
+	"""
+	Returns the HITS hub and authority scores of every node.
+	"""
+	hits(
+		"""
+		Number of iterations to run. Defaults to 20.
+		"""
+		iterCount: Int,
+		"""
+		Number of threads to use. Defaults to all available.
+		"""
+		threads: Int
+	): NodeState!
+	"""
+	Returns the shortest (unweighted) path from `source` to every reachable node.
+	"""
+	singleSourceShortestPath(
+		"""
+		Source node id.
+		"""
+		source: String!,
+		"""
+		Optional maximum path length; stops the search once reached.
+		"""
+		cutoff: Int
+	): NodeState!
+	"""
+	Returns the in component (all nodes that can reach it following out-edges) of every node.
+	"""
+	inComponents(
+		"""
+		Number of threads to use. Defaults to all available.
+		"""
+		threads: Int
+	): NodeState!
+	"""
+	Returns the out component (all reachable nodes following out-edges) of every node.
+	"""
+	outComponents(
+		"""
+		Number of threads to use. Defaults to all available.
+		"""
+		threads: Int
+	): NodeState!
+	"""
+	Returns the in component of a single node (nodes that can reach it, with their distance).
+	"""
+	inComponent(
+		"""
+		Node id.
+		"""
+		node: NodeId!,
+		"""
+		Optional composite filter (node, edge, and graph-view); the algorithm runs on the resulting view.
+		"""
+		filter: ViewFilter
+	): NodeState!
+	"""
+	Returns the out component of a single node (nodes it can reach, with their distance).
+	"""
+	outComponent(
+		"""
+		Node id.
+		"""
+		node: NodeId!,
+		"""
+		Optional composite filter (node, edge, and graph-view); the algorithm runs on the resulting view.
+		"""
+		filter: ViewFilter
+	): NodeState!
+	"""
+	Returns the local triangle count of a single node (0 if it has degree < 2), or null if
+	the node does not exist in the view.
+	"""
+	localTriangleCount(
+		"""
+		Node id.
+		"""
+		node: NodeId!,
+		"""
+		Optional composite filter (node, edge, and graph-view); the algorithm runs on the resulting view.
+		"""
+		filter: ViewFilter
+	): Int
+	"""
+	Returns the local clustering coefficient of a single node (0 if it has degree < 2), or
+	null if the node does not exist in the view.
+	"""
+	localClusteringCoefficient(
+		"""
+		Node id.
+		"""
+		node: NodeId!,
+		"""
+		Optional composite filter (node, edge, and graph-view); the algorithm runs on the resulting view.
+		"""
+		filter: ViewFilter
+	): Float
+	"""
+	Returns the weakly connected component id of every node.
+	"""
+	weaklyConnectedComponents: NodeState!
+	"""
+	Returns the strongly connected component id of every node.
+	"""
+	stronglyConnectedComponents: NodeState!
+	"""
+	Returns the community of every node (Louvain).
+	"""
+	louvain(
+		"""
+		Resolution parameter for modularity. Defaults to 1.0.
+		"""
+		resolution: Float,
+		"""
+		Edge property to use as weight. If unset, all edges have weight 1.
+		"""
+		weightProp: String,
+		"""
+		Convergence tolerance. Defaults to 1e-8.
+		"""
+		tol: Float,
+		"""
+		Seed for the node-shuffling rng. If unset, seeded from the OS.
+		"""
+		rngSeed: Int
+	): NodeState!
+	"""
+	Returns the community of every node (label propagation).
+	"""
+	labelPropagation(
+		"""
+		Number of iterations to run. Defaults to 20.
+		"""
+		iterCount: Int,
+		"""
+		Number of threads to use. Defaults to all available.
+		"""
+		threads: Int
+	): NodeState!
+	"""
+	Returns the weighted shortest path from `source` to each of `targets` (Dijkstra).
+	"""
+	dijkstra(
+		"""
+		Source node id.
+		"""
+		source: String!,
+		"""
+		Target node ids.
+		"""
+		targets: [String!]!,
+		"""
+		Edge property to use as weight. If unset, all edges have weight 1.
+		"""
+		weight: String,
+		"""
+		Edge direction to follow. Defaults to BOTH.
+		"""
+		direction: Direction
+	): NodeState!
+	"""
+	Returns the local reciprocity of every node.
+	"""
+	allLocalReciprocity: NodeState!
+	"""
+	Returns the net sum of edge weights (balance) of every node.
+	"""
+	balance(
+		"""
+		Edge property to use as weight. Defaults to `weight`.
+		"""
+		name: String,
+		"""
+		Edge direction to consider. Defaults to BOTH.
+		"""
+		direction: Direction
+	): NodeState!
+	"""
+	Returns the local clustering coefficient of each of the given nodes.
+	"""
+	localClusteringCoefficientBatch(
+		"""
+		Node ids to compute the coefficient for.
+		"""
+		nodes: [String!]!
+	): NodeState!
+	"""
+	Returns the global clustering coefficient of the graph.
+	"""
+	globalClusteringCoefficient: Float!
+	"""
+	Returns the directed graph density (fraction of possible directed edges present).
+	"""
+	directedGraphDensity: Float!
+	"""
+	Returns the global reciprocity of the graph.
+	"""
+	globalReciprocity: Float!
+	"""
+	Returns the average (undirected) degree of the graph's nodes.
+	"""
+	averageDegree: Float!
+	"""
+	Returns the maximum (undirected) degree of any node in the graph.
+	"""
+	maxDegree: Int!
+	"""
+	Returns the minimum (undirected) degree of any node in the graph.
+	"""
+	minDegree: Int!
+	"""
+	Returns the maximum out-degree of any node in the graph.
+	"""
+	maxOutDegree: Int!
+	"""
+	Returns the maximum in-degree of any node in the graph.
+	"""
+	maxInDegree: Int!
+	"""
+	Returns the minimum out-degree of any node in the graph.
+	"""
+	minOutDegree: Int!
+	"""
+	Returns the minimum in-degree of any node in the graph.
+	"""
+	minInDegree: Int!
+	"""
+	Returns the number of connected triplets (paths of length 2) in the graph.
+	"""
+	tripletCount(
+		"""
+		Number of threads to use. Defaults to all available.
+		"""
+		threads: Int
+	): Int!
+	"""
+	Returns the number of triangles in the graph.
+	"""
+	triangleCount(
+		"""
+		Number of threads to use. Defaults to all available.
+		"""
+		threads: Int
+	): Int!
+	"""
+	Returns the FastRP embedding of every node.
+	"""
+	fastRp(
+		"""
+		Dimension of the embedding.
+		"""
+		embeddingDim: Int!,
+		"""
+		Normalization strength applied to neighbour contributions.
+		"""
+		normalizationStrength: Float!,
+		"""
+		Weight of each iteration's contribution to the embedding.
+		"""
+		iterWeights: [Float!]!,
+		"""
+		Seed for the rng. If unset, seeded from the OS.
+		"""
+		seed: Int,
+		"""
+		Number of threads to use. Defaults to all available.
+		"""
+		threads: Int
+	): NodeState!
+	"""
+	Returns the nodes temporally reachable from `seedNodes` starting at `startTime`.
+	"""
+	temporallyReachableNodes(
+		"""
+		Maximum number of hops to traverse.
+		"""
+		maxHops: Int!,
+		"""
+		Time at which the traversal starts.
+		"""
+		startTime: Int!,
+		"""
+		Node ids to start from.
+		"""
+		seedNodes: [String!]!,
+		"""
+		Node ids that halt the traversal when reached.
+		"""
+		stopNodes: [String!],
+		"""
+		Number of threads to use. Defaults to all available.
+		"""
+		threads: Int
+	): NodeState!
+	"""
+	Returns the 2D layout position of every node (Fruchterman-Reingold).
+	"""
+	fruchtermanReingold(
+		"""
+		Number of iterations to run. Defaults to 100.
+		"""
+		iterCount: Int,
+		"""
+		Scale of the layout. Defaults to 1.0.
+		"""
+		scale: Float,
+		"""
+		Initial node size. Defaults to 1.0.
+		"""
+		nodeStartSize: Float,
+		"""
+		Cooloff factor. Defaults to 0.95.
+		"""
+		cooloffFactor: Float,
+		"""
+		Time step. Defaults to 0.1.
+		"""
+		dt: Float
+	): NodeState!
+	"""
+	Returns the 2D layout position of every node (cohesive Fruchterman-Reingold).
+	"""
+	cohesiveFruchtermanReingold(
+		"""
+		Number of iterations to run. Defaults to 100.
+		"""
+		iterCount: Int,
+		"""
+		Scale of the layout. Defaults to 1.0.
+		"""
+		scale: Float,
+		"""
+		Initial node size. Defaults to 1.0.
+		"""
+		nodeStartSize: Float,
+		"""
+		Cooloff factor. Defaults to 0.95.
+		"""
+		cooloffFactor: Float,
+		"""
+		Time step. Defaults to 0.1.
+		"""
+		dt: Float
+	): NodeState!
+	"""
+	Returns the local temporal three-node motif counts of every node.
+	"""
+	localTemporalThreeNodeMotifs(
+		"""
+		Maximum time difference between the first and last edge of a motif.
+		"""
+		delta: Int!,
+		"""
+		Number of threads to use. Defaults to all available.
+		"""
+		threads: Int
+	): NodeState!
+	"""
+	Returns the graph-wide temporal three-node motif counts: 40 counts in a
+	fixed order (8 two-node, 24 star, then 8 triangle motifs).
+	"""
+	globalTemporalThreeNodeMotif(
+		"""
+		Maximum time difference between the first and last edge of a motif.
+		"""
+		delta: Int!,
+		"""
+		Number of threads to use. Defaults to all available.
+		"""
+		threads: Int
+	): [Int!]!
+	"""
+	Returns the graph-wide temporal three-node motif counts for each of
+	`deltas`, one row of 40 counts per delta, in the order given.
+	"""
+	globalTemporalThreeNodeMotifMulti(
+		"""
+		Maximum time differences to compute the motif counts for.
+		"""
+		deltas: [Int!]!,
+		"""
+		Number of threads to use. Defaults to all available.
+		"""
+		threads: Int
+	): [MotifCounts!]!
+	"""
+	Returns the temporal rich club coefficient: the maximal density among the
+	nodes of degree at least `k` that persists over `windowSize` consecutive
+	snapshots. The snapshots are the rolling windows described by
+	`rollingWindow` / `rollingStep`.
+	"""
+	temporalRichClubCoefficient(
+		"""
+		Minimum degree a node must have to be in the rich club.
+		"""
+		k: Int!,
+		"""
+		Number of consecutive snapshots the edges must persist over.
+		"""
+		windowSize: Int!,
+		"""
+		Width of each snapshot.
+		"""
+		rollingWindow: WindowDuration!,
+		"""
+		Optional gap between the start of one snapshot and the next. Defaults to `rollingWindow`, i.e. non-overlapping snapshots.
+		"""
+		rollingStep: WindowDuration
+	): Float!
+	"""
+	Returns an alternating boolean mask over the nodes.
+	"""
+	alternatingMask: NodeState!
+	"""
+	Simulates an SEIR epidemic, returning the infection, activation and
+	recovery times of every node that was infected.
+	"""
+	temporalSeir(
+		"""
+		How the initially infected nodes are chosen.
+		"""
+		seeds: Seeds!,
+		"""
+		Probability that an encounter between an active and a susceptible node infects it.
+		"""
+		infectionProb: Float!,
+		"""
+		Time of the initial infection.
+		"""
+		initialInfection: TimeInput!,
+		"""
+		Rate at which infected nodes recover. If unset, nodes never recover.
+		"""
+		recoveryRate: Float,
+		"""
+		Rate at which infected nodes become infectious. If unset, they are infectious immediately.
+		"""
+		incubationRate: Float,
+		"""
+		Seed for the random number generator. If unset, seeded from the OS.
+		"""
+		rngSeed: Int
+	): NodeState!
+	"""
+	Returns a maximum weight matching of the graph, treated as undirected.
+	"""
+	maxWeightMatching(
+		"""
+		Edge property to use as weight. If unset, all edges have weight 1.
+		"""
+		weightProp: String,
+		"""
+		Only consider maximum-cardinality matchings. Defaults to false.
+		"""
+		maxCardinality: Boolean,
+		"""
+		Verify that the matching found is optimum. Defaults to false.
+		"""
+		verifyOptimum: Boolean
+	): Matching!
+}
+
+"""
 Alignment unit used to align window boundaries.
 """
 enum AlignmentUnit {
@@ -154,6 +663,15 @@ enum DegreeDirection {
 input DegreeFilterNew {
 	direction: DegreeDirection!
 	where: PropCondition!
+}
+
+"""
+Edge direction to follow during traversal.
+"""
+enum Direction {
+	OUT
+	IN
+	BOTH
 }
 
 """
@@ -1924,6 +2442,10 @@ type Graph {
 	"""
 	algorithms: GraphAlgorithmPlugin!
 	"""
+	Access the algorithms that can be run on this graph view.
+	"""
+	algorithm: Algorithms!
+	"""
 	Nodes that are neighbours of every node in `selectedNodes`. Returns the
 	intersection of each selected node's neighbour set (undirected).
 	"""
@@ -2731,6 +3253,69 @@ type LayerSchema {
 }
 
 """
+A matching of a graph: a set of edges no two of which share a node.
+"""
+type Matching {
+	"""
+	Returns the number of edges in the matching.
+	"""
+	count: Int!
+	"""
+	The edges in the matching.
+	"""
+	edges: Edges!
+	"""
+	The node matched to `dst`, null if it is unmatched.
+	"""
+	src(
+		"""
+		Destination node id.
+		"""
+		dst: NodeId!
+	): Node
+	"""
+	The node matched to `src`, null if it is unmatched.
+	"""
+	dst(
+		"""
+		Source node id.
+		"""
+		src: NodeId!
+	): Node
+	"""
+	The matched edge for `src`, null if it is unmatched.
+	"""
+	edgeForSrc(
+		"""
+		Source node id.
+		"""
+		src: NodeId!
+	): Edge
+	"""
+	The matched edge for `dst`, null if it is unmatched.
+	"""
+	edgeForDst(
+		"""
+		Destination node id.
+		"""
+		dst: NodeId!
+	): Edge
+	"""
+	Whether the `src` to `dst` edge is part of the matching.
+	"""
+	contains(
+		"""
+		Source node id.
+		"""
+		src: NodeId!,
+		"""
+		Destination node id.
+		"""
+		dst: NodeId!
+	): Boolean!
+}
+
+"""
 Lightweight summary of a stored graph — its name, path, counts, and
 filesystem timestamps — served without deserializing the full graph.
 Useful for listing what's available on the server before committing to a
@@ -2819,6 +3404,21 @@ type Metadata {
 		"""
 		keys: [String!]
 	): [Property!]!
+}
+
+"""
+The motif counts for a single delta. Wraps the counts in an object because
+the schema builder does not support nested lists of scalars.
+"""
+type MotifCounts {
+	"""
+	The delta these counts were computed for.
+	"""
+	delta: Int!
+	"""
+	The 40 motif counts, positionally ordered (see the core docs).
+	"""
+	counts: [Int!]!
 }
 
 type MutRoot {
@@ -4356,6 +4956,192 @@ input NodeSortBy {
 	"""
 	property: String
 }
+
+"""
+A mapping from the nodes of a graph to the values computed for them by an algorithm.
+
+The output is columnar: every column of the underlying node state is exposed as
+a `NodeStateColumn` whose `values` are row-aligned with `nodes`.
+"""
+type NodeState {
+	"""
+	Returns the number of nodes with a value in this node state.
+	"""
+	count: Int!
+	"""
+	The nodes with a value in this node state, in row order. Aligned with `values`.
+	"""
+	nodes: Nodes!
+	"""
+	The column names of this node state in order.
+	"""
+	columnNames: [String!]!
+	"""
+	All rows of the node state keyed by node, with one entry per column.
+	"""
+	rows: [NodeStateRow!]!
+	"""
+	All rows of the node state keyed by node, without the column names: the `values` of each row are
+	in `columnNames` order.
+	"""
+	headlessRows: [NodeStateHeadlessRow!]!
+	"""
+	Returns the values for a node, one entry per column; null if the node has no value in this NodeState.
+	"""
+	get(
+		"""
+		Node id.
+		"""
+		node: NodeId!
+	): [NodeStateEntry!]
+	"""
+	Minimum `(node, value)` of a column. Null if the column does not exist, is empty,
+	or its values are not comparable (e.g. contains nodes).
+	"""
+	min(
+		"""
+		Column name.
+		"""
+		column: String!
+	): NodeStateItem
+	"""
+	Maximum `(node, value)` of a column. Null if the column does not exist, is empty,
+	or its values are not comparable (e.g. contains nodes).
+	"""
+	max(
+		"""
+		Column name.
+		"""
+		column: String!
+	): NodeStateItem
+	"""
+	Sum of a column's values, skipping empty cells. Null if the column does not exist, is empty,
+	or is not additive (e.g. contains nodes).
+	"""
+	sum(
+		"""
+		Column name.
+		"""
+		column: String!
+	): PropertyOutput
+	"""
+	Mean of a column's values as a float, skipping empty cells. Null if the column does not exist,
+	is empty, or has any non-numeric value.
+	"""
+	mean(
+		"""
+		Column name.
+		"""
+		column: String!
+	): PropertyOutput
+	"""
+	Median `(node, value)` of a column (upper median on even lengths). Null if the column
+	does not exist, is empty, or is not comparable (e.g. contains nodes).
+	"""
+	median(
+		"""
+		Column name.
+		"""
+		column: String!
+	): NodeStateItem
+	"""
+	Returns a view of this node state with the rows sorted by node id.
+	"""
+	sortById: NodeState!
+	"""
+	The columns of the node state, one per output field of the algorithm.
+	`values` are row-aligned with `nodes`.
+	"""
+	columns: [NodeStateColumn!]!
+}
+
+"""
+One column of a node state: the values of a single output field of the
+algorithm. Row-aligned with `NodeState.nodes`.
+"""
+type NodeStateColumn {
+	"""
+	Name of the column.
+	"""
+	name: String!
+	"""
+	The values of this column; `values[i]` belongs to `NodeState.nodes[i]`.
+	"""
+	values: [NodeStateValue!]!
+}
+
+"""
+One column's value for a single node.
+"""
+type NodeStateEntry {
+	"""
+	Name of the column.
+	"""
+	columnName: String!
+	"""
+	The node's value in this column.
+	"""
+	value: NodeStateValue!
+}
+
+"""
+A node's full row in the node state without the column names: `values[i]`
+belongs to the column `NodeState.columnNames[i]`.
+"""
+type NodeStateHeadlessRow {
+	"""
+	The node this row belongs to.
+	"""
+	node: Node!
+	"""
+	The row's values, in `columnNames` order.
+	"""
+	values: [NodeStateValue!]!
+}
+
+"""
+A `(node, value)` pair, e.g. the result of a column aggregate.
+"""
+type NodeStateItem {
+	"""
+	The node.
+	"""
+	node: Node!
+	"""
+	The node's value.
+	"""
+	value: PropertyOutput!
+}
+
+"""
+A plain property value of a node state cell.
+"""
+type NodeStateProp {
+	"""
+	The property value; null if the node has no value in this column.
+	"""
+	prop: PropertyOutput
+}
+
+"""
+A node's full row in the node state: one entry per column.
+"""
+type NodeStateRow {
+	"""
+	The node this row belongs to.
+	"""
+	node: Node!
+	"""
+	The row's values, one entry per column.
+	"""
+	entries: [NodeStateEntry!]!
+}
+
+"""
+A single cell of a node state column: either a plain property value, a
+node, or a collection of nodes.
+"""
+union NodeStateValue = NodeStateProp | Node | Nodes
 
 """
 Restricts node evaluation to a single time bound and applies a nested `NodeFilter`.
@@ -6125,6 +6911,24 @@ type QueryRoot {
 	version: String!
 }
 
+"""
+How the initially infected nodes are chosen.
+"""
+input Seeds @oneOf {
+	"""
+	Infect exactly these nodes.
+	"""
+	nodes: [NodeId!]
+	"""
+	Infect this many randomly chosen nodes.
+	"""
+	number: Int
+	"""
+	Infect this fraction of the nodes, chosen at random.
+	"""
+	probability: Float
+}
+
 type ShortestPathOutput {
 	target: String!
 	nodes: [String!]!
@@ -6547,6 +7351,26 @@ input VectorisedGraphWindow {
 	Exclusive upper bound of the search window.
 	"""
 	end: TimeInput!
+}
+
+"""
+A composite filter producing a graph view, bundling the graph-view, node,
+and edge filters that are otherwise applied via the separate
+`filter` / `filterNodes` / `filterEdges` resolvers.
+"""
+input ViewFilter {
+	"""
+	Graph-view filter (time windows, snapshots, layers).
+	"""
+	graph: GraphFilter
+	"""
+	Node filter (field, property, metadata, degree; composes with and/or/not).
+	"""
+	nodes: NodeFilter
+	"""
+	Edge filter (src/dst, property, layer; composes with and/or/not).
+	"""
+	edges: EdgeFilter
 }
 
 input Window {
