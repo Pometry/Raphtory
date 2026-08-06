@@ -46,7 +46,7 @@ pub fn graphgen_clustering_coeff(c: &mut Criterion) {
     graph_benchmark(
         c,
         "graphgen_clustering_coeff",
-        10,
+        5,
         10,
         medium_random_attachment_graph,
         |graph, _| global_clustering_coefficient(graph),
@@ -57,7 +57,7 @@ pub fn graphgen_pagerank(c: &mut Criterion) {
     graph_benchmark(
         c,
         "graphgen_pagerank",
-        10,
+        5,
         10,
         medium_random_attachment_graph,
         |graph, _| page_rank(graph, None, Some(100), None, None, true, None),
@@ -65,7 +65,7 @@ pub fn graphgen_pagerank(c: &mut Criterion) {
     graph_benchmark(
         c,
         "graphgen_pagerank_subgraph",
-        10,
+        5,
         10,
         medium_random_attachment_subgraph,
         |graph, _| page_rank(graph, None, Some(100), None, None, true, None),
@@ -73,7 +73,7 @@ pub fn graphgen_pagerank(c: &mut Criterion) {
     graph_benchmark(
         c,
         "graphgen_pagerank_layered",
-        10,
+        5,
         10,
         medium_random_attachment_layered,
         |graph, _| page_rank(graph, None, Some(100), None, None, true, None),
@@ -81,7 +81,7 @@ pub fn graphgen_pagerank(c: &mut Criterion) {
     graph_benchmark(
         c,
         "graphgen_pagerank_graph_filtered",
-        20,
+        5,
         10,
         medium_random_attachment_filtered,
         |graph, _| page_rank(graph, None, Some(100), None, None, true, None),
@@ -103,7 +103,7 @@ pub fn graphgen_triangle_count(c: &mut Criterion) {
     graph_benchmark(
         c,
         "graphgen_triangle_count",
-        10,
+        5,
         10,
         medium_random_attachment_graph,
         |graph, _| triangle_count(graph, None),
@@ -147,7 +147,7 @@ pub fn graphgen_label_propagation(c: &mut Criterion) {
     graph_benchmark(
         c,
         "graphgen_label_propagation",
-        20,
+        5,
         10,
         medium_random_attachment_graph,
         |graph, _| label_propagation(graph, 20, Some([1; 32]), None),
@@ -158,7 +158,7 @@ pub fn graphgen_louvain(c: &mut Criterion) {
     graph_benchmark(
         c,
         "graphgen_louvain",
-        20,
+        5,
         10,
         medium_random_attachment_graph,
         |graph, _| louvain::<ModularityUnDir, _>(graph, 1.0, None, None, Some(42)),
@@ -191,7 +191,7 @@ pub fn graphgen_temporal_motif_multi(c: &mut Criterion) {
     graph_benchmark(
         c,
         "graphgen_temporal_motif_multi",
-        20,
+        5,
         10,
         medium_random_attachment_graph,
         |graph, _| temporal_three_node_motif_multi(graph, vec![100], None),
@@ -202,7 +202,7 @@ pub fn graphgen_local_temporal_motif(c: &mut Criterion) {
     graph_benchmark(
         c,
         "graphgen_local_temporal_motif",
-        20,
+        5,
         10,
         medium_random_attachment_graph,
         |graph, _| local_temporal_three_node_motif(graph, 100, None),
@@ -276,7 +276,7 @@ pub fn graphgen_internal_global_triangle_motifs(c: &mut Criterion) {
     graph_benchmark(
         c,
         "graphgen_internal_global_triangle_motifs",
-        10,
+        5,
         10,
         medium_random_attachment_graph,
         |graph, _| global_triangle_motifs_internal(graph, vec![100], None),
@@ -287,7 +287,7 @@ pub fn graphgen_internal_local_triangle_motifs(c: &mut Criterion) {
     graph_benchmark(
         c,
         "graphgen_internal_local_triangle_motifs",
-        10,
+        5,
         10,
         medium_random_attachment_graph,
         |graph, _| local_triangle_motifs_internal(graph, vec![100], None),
@@ -320,7 +320,7 @@ pub fn graphgen_fast_rp(c: &mut Criterion) {
     graph_benchmark(
         c,
         "graphgen_fast_rp",
-        10,
+        5,
         10,
         medium_random_attachment_graph,
         |graph, _| fast_rp(graph, 32, 0.5, vec![1.0, 1.0, 1.0], Some(1), None),
@@ -331,7 +331,7 @@ pub fn graphgen_temporal_bipartite_projection(c: &mut Criterion) {
     graph_benchmark(
         c,
         "graphgen_temporal_bipartite_projection",
-        20,
+        5,
         10,
         medium_typed_random_attachment_graph,
         |graph, _| temporal_bipartite_projection(graph, 1, "Right".to_string()),
@@ -342,7 +342,7 @@ pub fn temporal_motifs(c: &mut Criterion) {
     graph_benchmark(
         c,
         "temporal_motifs",
-        20,
+        5,
         10,
         medium_random_attachment_graph,
         |graph, _| global_temporal_three_node_motif(graph, 100, None),

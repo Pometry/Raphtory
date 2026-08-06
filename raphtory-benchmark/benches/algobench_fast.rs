@@ -33,7 +33,7 @@ pub fn local_triangle_count_analysis(c: &mut Criterion) {
     graph_benchmark_with_setup(
         c,
         "local_triangle_count",
-        3,
+        5,
         10,
         large_random_attachment_graph,
         first_node_id,
@@ -45,7 +45,7 @@ pub fn local_clustering_coefficient_analysis(c: &mut Criterion) {
     graph_benchmark_with_setup(
         c,
         "local_clustering_coefficient",
-        3,
+        5,
         10,
         large_random_attachment_graph,
         first_node_id,
@@ -57,7 +57,7 @@ pub fn graphgen_directed_density(c: &mut Criterion) {
     graph_benchmark(
         c,
         "graphgen_directed_density",
-        2,
+        5,
         10,
         large_random_attachment_graph,
         |graph, _| directed_graph_density(graph),
@@ -65,7 +65,7 @@ pub fn graphgen_directed_density(c: &mut Criterion) {
     graph_benchmark(
         c,
         "graphgen_directed_density_subgraph",
-        3,
+        5,
         10,
         large_random_attachment_subgraph,
         |graph, _| directed_graph_density(graph),
@@ -73,7 +73,7 @@ pub fn graphgen_directed_density(c: &mut Criterion) {
     graph_benchmark(
         c,
         "graphgen_directed_density_layered",
-        3,
+        5,
         10,
         large_random_attachment_layered,
         |graph, _| directed_graph_density(graph),
@@ -92,7 +92,7 @@ pub fn graphgen_degree_centrality(c: &mut Criterion) {
     graph_benchmark(
         c,
         "graphgen_degree_centrality",
-        3,
+        5,
         10,
         large_random_attachment_graph,
         |graph, _| degree_centrality(graph),
@@ -114,7 +114,7 @@ pub fn graphgen_max_degree(c: &mut Criterion) {
     graph_benchmark(
         c,
         "graphgen_max_degree",
-        3,
+        5,
         10,
         large_random_attachment_graph,
         |graph, _| max_degree(graph),
@@ -125,7 +125,7 @@ pub fn graphgen_min_degree(c: &mut Criterion) {
     graph_benchmark(
         c,
         "graphgen_min_degree",
-        3,
+        5,
         10,
         large_random_attachment_graph,
         |graph, _| min_degree(graph),
@@ -136,7 +136,7 @@ pub fn graphgen_max_out_degree(c: &mut Criterion) {
     graph_benchmark(
         c,
         "graphgen_max_out_degree",
-        3,
+        5,
         10,
         large_random_attachment_graph,
         |graph, _| max_out_degree(graph),
@@ -147,7 +147,7 @@ pub fn graphgen_max_in_degree(c: &mut Criterion) {
     graph_benchmark(
         c,
         "graphgen_max_in_degree",
-        3,
+        5,
         10,
         large_random_attachment_graph,
         |graph, _| max_in_degree(graph),
@@ -158,7 +158,7 @@ pub fn graphgen_min_out_degree(c: &mut Criterion) {
     graph_benchmark(
         c,
         "graphgen_min_out_degree",
-        3,
+        5,
         10,
         large_random_attachment_graph,
         |graph, _| min_out_degree(graph),
@@ -169,7 +169,7 @@ pub fn graphgen_min_in_degree(c: &mut Criterion) {
     graph_benchmark(
         c,
         "graphgen_min_in_degree",
-        3,
+        5,
         10,
         large_random_attachment_graph,
         |graph, _| min_in_degree(graph),
@@ -180,7 +180,7 @@ pub fn graphgen_average_degree(c: &mut Criterion) {
     graph_benchmark(
         c,
         "graphgen_average_degree",
-        3,
+        5,
         10,
         large_random_attachment_graph,
         |graph, _| average_degree(graph),
@@ -191,7 +191,7 @@ pub fn graphgen_local_clustering_coefficient_batch(c: &mut Criterion) {
     graph_benchmark_with_setup(
         c,
         "graphgen_local_clustering_coefficient_batch",
-        3,
+        5,
         10,
         large_random_attachment_graph,
         first_node_id,
@@ -203,7 +203,7 @@ pub fn graphgen_temporally_reachable_nodes(c: &mut Criterion) {
     graph_benchmark_with_setup(
         c,
         "graphgen_temporally_reachable_nodes",
-        3,
+        5,
         10,
         large_random_attachment_graph,
         first_node_id,
@@ -215,7 +215,7 @@ pub fn graphgen_out_component(c: &mut Criterion) {
     graph_benchmark_with_setup(
         c,
         "graphgen_out_component",
-        3,
+        5,
         10,
         large_random_attachment_graph,
         first_node_id,
@@ -230,7 +230,7 @@ pub fn graphgen_out_component_filtered(c: &mut Criterion) {
     graph_benchmark_with_setup(
         c,
         "graphgen_out_component_filtered",
-        3,
+        5,
         10,
         large_random_attachment_graph,
         first_node_id,
@@ -245,7 +245,7 @@ pub fn graphgen_temporal_seir(c: &mut Criterion) {
     graph_benchmark(
         c,
         "graphgen_temporal_seir",
-        3,
+        5,
         10,
         large_random_attachment_graph,
         |graph, _| {
