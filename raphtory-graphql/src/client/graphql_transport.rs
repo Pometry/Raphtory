@@ -924,163 +924,258 @@ fn view_op_json_key(op: &ViewOp) -> &'static str {
 }
 
 fn render_read_body(expr: &ReadExpr, vars: &mut VarCollector) -> Result<String, ClientError> {
-    Ok(match expr {
-        ReadExpr::Root { path } => format!("graph(path: {})", render_gql_str(path)),
+    let mut out = String::with_capacity(256);
+    render_read_into(expr, vars, &mut out)?;
+    Ok(out)
+}
+
+/// Recursive worker for `render_read_body`: renders the input chain first,
+/// then appends this level's fragment, so the whole query accumulates in one
+/// shared buffer.
+fn render_read_into(
+    expr: &ReadExpr,
+    vars: &mut VarCollector,
+    out: &mut String,
+) -> Result<(), ClientError> {
+    use std::fmt::Write;
+    // Writing into a String cannot fail, so `write!` results are ignored.
+    match expr {
+        ReadExpr::Root { path } => {
+            let _ = write!(out, "graph(path: {})", render_gql_str(path));
+        }
         // View chaining
-        ReadExpr::View { input, op } => format!(
-            "{} {{ {}",
-            render_read_body(input, vars)?,
-            render_view_op(op)
-        ),
-        ReadExpr::Valid { input } => format!("{} {{ valid", render_read_body(input, vars)?),
-        ReadExpr::Subgraph { input, nodes } => format!(
-            "{} {{ subgraph(nodes: [{}])",
-            render_read_body(input, vars)?,
-            render_string_list(nodes)
-        ),
-        ReadExpr::SubgraphNodeTypes { input, node_types } => format!(
-            "{} {{ subgraphNodeTypes(nodeTypes: [{}])",
-            render_read_body(input, vars)?,
-            render_string_list(node_types)
-        ),
-        ReadExpr::ExcludeNodes { input, nodes } => format!(
-            "{} {{ excludeNodes(nodes: [{}])",
-            render_read_body(input, vars)?,
-            render_string_list(nodes)
-        ),
-        ReadExpr::TypeFilter { input, node_types } => format!(
-            "{} {{ typeFilter(nodeTypes: [{}])",
-            render_read_body(input, vars)?,
-            render_string_list(node_types)
-        ),
+        ReadExpr::View { input, op } => {
+            render_read_into(input, vars, out)?;
+            let _ = write!(out, " {{ {}", render_view_op(op));
+        }
+        ReadExpr::Valid { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { valid");
+        }
+        ReadExpr::Subgraph { input, nodes } => {
+            render_read_into(input, vars, out)?;
+            let _ = write!(out, " {{ subgraph(nodes: [{}])", render_string_list(nodes));
+        }
+        ReadExpr::SubgraphNodeTypes { input, node_types } => {
+            render_read_into(input, vars, out)?;
+            let _ = write!(
+                out,
+                " {{ subgraphNodeTypes(nodeTypes: [{}])",
+                render_string_list(node_types)
+            );
+        }
+        ReadExpr::ExcludeNodes { input, nodes } => {
+            render_read_into(input, vars, out)?;
+            let _ = write!(
+                out,
+                " {{ excludeNodes(nodes: [{}])",
+                render_string_list(nodes)
+            );
+        }
+        ReadExpr::TypeFilter { input, node_types } => {
+            render_read_into(input, vars, out)?;
+            let _ = write!(
+                out,
+                " {{ typeFilter(nodeTypes: [{}])",
+                render_string_list(node_types)
+            );
+        }
         // Selection
         ReadExpr::Node { input, id } => {
-            format!(
-                "{} {{ node(name: {})",
-                render_read_body(input, vars)?,
-                render_gql_str(id)
-            )
+            render_read_into(input, vars, out)?;
+            let _ = write!(out, " {{ node(name: {})", render_gql_str(id));
         }
-        ReadExpr::Edge { input, src, dst } => format!(
-            "{} {{ edge(src: {}, dst: {})",
-            render_read_body(input, vars)?,
-            render_gql_str(src),
-            render_gql_str(dst)
-        ),
-        ReadExpr::Src { input } => format!("{} {{ src", render_read_body(input, vars)?),
-        ReadExpr::Dst { input } => format!("{} {{ dst", render_read_body(input, vars)?),
-        ReadExpr::Nbr { input } => format!("{} {{ nbr", render_read_body(input, vars)?),
-        ReadExpr::History { input } => format!("{} {{ history", render_read_body(input, vars)?),
+        ReadExpr::Edge { input, src, dst } => {
+            render_read_into(input, vars, out)?;
+            let _ = write!(
+                out,
+                " {{ edge(src: {}, dst: {})",
+                render_gql_str(src),
+                render_gql_str(dst)
+            );
+        }
+        ReadExpr::Src { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { src");
+        }
+        ReadExpr::Dst { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { dst");
+        }
+        ReadExpr::Nbr { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { nbr");
+        }
+        ReadExpr::History { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { history");
+        }
         ReadExpr::CombinedHistory { input } => {
-            format!("{} {{ combinedHistory", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { combinedHistory");
         }
         ReadExpr::HistoryReverse { input } => {
-            format!("{} {{ reverse", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { reverse");
         }
-        ReadExpr::Deletions { input } => format!("{} {{ deletions", render_read_body(input, vars)?),
+        ReadExpr::Deletions { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { deletions");
+        }
         // Sub-container navigations
         ReadExpr::HistoryTimestamps { input } => {
-            format!("{} {{ timestamps", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { timestamps");
         }
         ReadExpr::HistoryEventIds { input } => {
-            format!("{} {{ eventId", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { eventId");
         }
         ReadExpr::HistoryDateTimes { input } => {
-            format!("{} {{ datetimes", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { datetimes");
         }
         ReadExpr::HistoryIntervals { input } => {
-            format!("{} {{ intervals", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { intervals");
         }
         // Polymorphic sub-container terminals — render field names only;
         // return type is decided by the parent selection in `parse_read`.
-        ReadExpr::SubList { input } => format!("{} {{ list", render_read_body(input, vars)?),
-        ReadExpr::SubListRev { input } => format!("{} {{ listRev", render_read_body(input, vars)?),
+        ReadExpr::SubList { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list");
+        }
+        ReadExpr::SubListRev { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { listRev");
+        }
         ReadExpr::SubPage {
             input,
             limit,
             offset,
             page_index,
-        } => format!(
-            "{} {{ page({})",
-            render_read_body(input, vars)?,
-            render_page_args(*limit, *offset, *page_index),
-        ),
+        } => {
+            render_read_into(input, vars, out)?;
+            let _ = write!(
+                out,
+                " {{ page({})",
+                render_page_args(*limit, *offset, *page_index)
+            );
+        }
         ReadExpr::SubPageRev {
             input,
             limit,
             offset,
             page_index,
-        } => format!(
-            "{} {{ pageRev({})",
-            render_read_body(input, vars)?,
-            render_page_args(*limit, *offset, *page_index),
-        ),
+        } => {
+            render_read_into(input, vars, out)?;
+            let _ = write!(
+                out,
+                " {{ pageRev({})",
+                render_page_args(*limit, *offset, *page_index)
+            );
+        }
         // Intervals stats
-        ReadExpr::IntervalsMean { input } => format!("{} {{ mean", render_read_body(input, vars)?),
-        ReadExpr::IntervalsMedian { input } => format!("{} {{ median", render_read_body(input, vars)?),
-        ReadExpr::IntervalsMax { input } => format!("{} {{ max", render_read_body(input, vars)?),
-        ReadExpr::IntervalsMin { input } => format!("{} {{ min", render_read_body(input, vars)?),
-        ReadExpr::Nodes { input } => format!("{} {{ nodes", render_read_body(input, vars)?),
-        ReadExpr::Neighbours { input } => format!("{} {{ neighbours", render_read_body(input, vars)?),
+        ReadExpr::IntervalsMean { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { mean");
+        }
+        ReadExpr::IntervalsMedian { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { median");
+        }
+        ReadExpr::IntervalsMax { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { max");
+        }
+        ReadExpr::IntervalsMin { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { min");
+        }
+        ReadExpr::Nodes { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { nodes");
+        }
+        ReadExpr::Neighbours { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { neighbours");
+        }
         ReadExpr::InNeighbours { input } => {
-            format!("{} {{ inNeighbours", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { inNeighbours");
         }
         ReadExpr::OutNeighbours { input } => {
-            format!("{} {{ outNeighbours", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { outNeighbours");
         }
-        ReadExpr::Edges { input } => format!("{} {{ edges", render_read_body(input, vars)?),
-        ReadExpr::NodeEdges { input } => format!("{} {{ edges", render_read_body(input, vars)?),
-        ReadExpr::InEdges { input } => format!("{} {{ inEdges", render_read_body(input, vars)?),
-        ReadExpr::OutEdges { input } => format!("{} {{ outEdges", render_read_body(input, vars)?),
+        ReadExpr::Edges { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { edges");
+        }
+        ReadExpr::NodeEdges { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { edges");
+        }
+        ReadExpr::InEdges { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { inEdges");
+        }
+        ReadExpr::OutEdges { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { outEdges");
+        }
         ReadExpr::InComponent { input } => {
-            format!("{} {{ inComponent", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { inComponent");
         }
         ReadExpr::OutComponent { input } => {
-            format!("{} {{ outComponent", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { outComponent");
         }
-        ReadExpr::Explode { input } => format!("{} {{ explode", render_read_body(input, vars)?),
+        ReadExpr::Explode { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { explode");
+        }
         ReadExpr::ExplodeLayers { input } => {
-            format!("{} {{ explodeLayers", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { explodeLayers");
         }
-        ReadExpr::SortedNodes { input, sort_bys } => format!(
-            "{} {{ sorted(sortBys: {})",
-            render_read_body(input, vars)?,
-            render_node_sort_bys(sort_bys)
-        ),
-        ReadExpr::SortedEdges { input, sort_bys } => format!(
-            "{} {{ sorted(sortBys: {})",
-            render_read_body(input, vars)?,
-            render_edge_sort_bys(sort_bys)
-        ),
+        ReadExpr::SortedNodes { input, sort_bys } => {
+            render_read_into(input, vars, out)?;
+            let _ = write!(
+                out,
+                " {{ sorted(sortBys: {})",
+                render_node_sort_bys(sort_bys)
+            );
+        }
+        ReadExpr::SortedEdges { input, sort_bys } => {
+            render_read_into(input, vars, out)?;
+            let _ = write!(
+                out,
+                " {{ sorted(sortBys: {})",
+                render_edge_sort_bys(sort_bys)
+            );
+        }
         ReadExpr::Filtered { input, filter } => {
             // Unified server field `filter(expr: GqlFilter!)` — the same field
             // on Graph, Node, Edge, and every collection. Applies to this view
             // AND propagates to downstream traversals (contrast `select`,
             // which narrows membership at one step only).
-            format!(
-                "{} {{ filter(expr: {})",
-                render_read_body(input, vars)?,
-                vars.add_filter(filter)?,
-            )
+            render_read_into(input, vars, out)?;
+            let _ = write!(out, " {{ filter(expr: {})", vars.add_filter(filter)?);
         }
         ReadExpr::SelectNodes { input, filter } => {
             // Server field `select(expr: NodeFilter!)`: narrows the current
             // collection's membership only; downstream traversals see the
             // unfiltered graph.
-            format!(
-                "{} {{ select(expr: {})",
-                render_read_body(input, vars)?,
-                vars.add_node_filter(filter)?,
-            )
+            render_read_into(input, vars, out)?;
+            let _ = write!(out, " {{ select(expr: {})", vars.add_node_filter(filter)?);
         }
         ReadExpr::SelectEdges { input, filter } => {
             // Server field `select(expr: EdgeFilter!)` on `Edges`: narrows the
             // current collection's membership only.
-            format!(
-                "{} {{ select(expr: {})",
-                render_read_body(input, vars)?,
-                vars.add_edge_filter(filter)?,
-            )
+            render_read_into(input, vars, out)?;
+            let _ = write!(out, " {{ select(expr: {})", vars.add_edge_filter(filter)?);
         }
         ReadExpr::EdgeEvent {
             input,
@@ -1096,490 +1191,617 @@ fn render_read_body(expr: &ReadExpr, vars: &mut VarCollector) -> Result<String, 
                 Some(i) => format!("{{timestamp: {}, eventId: {}}}", time, i),
                 None => time.to_string(),
             };
+            render_read_into(input, vars, out)?;
             match layer {
-                Some(l) => format!(
-                    "{} {{ event(time: {}, layer: {})",
-                    render_read_body(input, vars)?,
-                    time_arg,
-                    render_gql_str(l)
-                ),
-                None => format!("{} {{ event(time: {})", render_read_body(input, vars)?, time_arg),
+                Some(l) => {
+                    let _ = write!(
+                        out,
+                        " {{ event(time: {}, layer: {})",
+                        time_arg,
+                        render_gql_str(l)
+                    );
+                }
+                None => {
+                    let _ = write!(out, " {{ event(time: {})", time_arg);
+                }
             }
         }
         // Server field `eventLayer(name: String!)` on `Edge` — pins a single
         // layer-exploded instance.
-        ReadExpr::EdgeLayerEvent { input, layer } => format!(
-            "{} {{ eventLayer(name: {})",
-            render_read_body(input, vars)?,
-            render_gql_str(layer)
-        ),
+        ReadExpr::EdgeLayerEvent { input, layer } => {
+            render_read_into(input, vars, out)?;
+            let _ = write!(out, " {{ eventLayer(name: {})", render_gql_str(layer));
+        }
         // Metadata / Properties navigation
-        ReadExpr::Metadata { input } => format!("{} {{ metadata", render_read_body(input, vars)?),
-        ReadExpr::Properties { input } => format!("{} {{ properties", render_read_body(input, vars)?),
+        ReadExpr::Metadata { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { metadata");
+        }
+        ReadExpr::Properties { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { properties");
+        }
         // Property terminals — `values` is compound (returns {key, value}
         // records); `get` selects only `{ value }` — the caller already knows
         // the key, so fetching it back is wasted bytes. Inner braces are
         // self-balanced; outer `get` / `values` opens one net brace,
         // contributing 1 to read_depth.
-        ReadExpr::PropertyGet { input, key } => format!(
-            "{} {{ get(key: {}) {{ value dtype }}",
-            render_read_body(input, vars)?,
-            render_gql_str(key)
-        ),
+        ReadExpr::PropertyGet { input, key } => {
+            render_read_into(input, vars, out)?;
+            let _ = write!(
+                out,
+                " {{ get(key: {}) {{ value dtype }}",
+                render_gql_str(key)
+            );
+        }
         ReadExpr::PropertyContains { input, key } => {
-            format!(
-                "{} {{ contains(key: {})",
-                render_read_body(input, vars)?,
-                render_gql_str(key)
-            )
+            render_read_into(input, vars, out)?;
+            let _ = write!(out, " {{ contains(key: {})", render_gql_str(key));
         }
-        ReadExpr::PropertyKeys { input } => format!("{} {{ keys", render_read_body(input, vars)?),
+        ReadExpr::PropertyKeys { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { keys");
+        }
         ReadExpr::PropertyGetDtypeOf { input, key } => {
-            format!(
-                "{} {{ get(key: {}) {{ dtype }}",
-                render_read_body(input, vars)?,
-                render_gql_str(key)
-            )
+            render_read_into(input, vars, out)?;
+            let _ = write!(out, " {{ get(key: {}) {{ dtype }}", render_gql_str(key));
         }
-        ReadExpr::PropertyValues { input, keys } => match keys {
-            Some(ks) => format!(
-                "{} {{ values(keys: [{}]) {{ value dtype }}",
-                render_read_body(input, vars)?,
-                render_string_list(ks)
-            ),
-            None => format!("{} {{ values {{ value dtype }}", render_read_body(input, vars)?),
-        },
-        ReadExpr::PropertyItems { input, keys } => match keys {
-            Some(ks) => format!(
-                "{} {{ values(keys: [{}]) {{ key value dtype }}",
-                render_read_body(input, vars)?,
-                render_string_list(ks)
-            ),
-            None => format!("{} {{ values {{ key value dtype }}", render_read_body(input, vars)?),
-        },
+        ReadExpr::PropertyValues { input, keys } => {
+            render_read_into(input, vars, out)?;
+            match keys {
+                Some(ks) => {
+                    let _ = write!(
+                        out,
+                        " {{ values(keys: [{}]) {{ value dtype }}",
+                        render_string_list(ks)
+                    );
+                }
+                None => out.push_str(" { values { value dtype }"),
+            }
+        }
+        ReadExpr::PropertyItems { input, keys } => {
+            render_read_into(input, vars, out)?;
+            match keys {
+                Some(ks) => {
+                    let _ = write!(
+                        out,
+                        " {{ values(keys: [{}]) {{ key value dtype }}",
+                        render_string_list(ks)
+                    );
+                }
+                None => out.push_str(" { values { key value dtype }"),
+            }
+        }
         ReadExpr::TemporalProperties { input } => {
-            format!("{} {{ temporal", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { temporal");
         }
         ReadExpr::TemporalPropertyByKey { input, key } => {
-            format!(
-                "{} {{ get(key: {})",
-                render_read_body(input, vars)?,
-                render_gql_str(key)
-            )
+            render_read_into(input, vars, out)?;
+            let _ = write!(out, " {{ get(key: {})", render_gql_str(key));
         }
         // `values(keys?) { key }` — we only fetch the key from each record;
         // clients build a `RemoteTemporalProperty` handle around each key.
-        ReadExpr::TemporalPropertyList { input, keys } => match keys {
-            Some(ks) => format!(
-                "{} {{ values(keys: [{}]) {{ key }}",
-                render_read_body(input, vars)?,
-                render_string_list(ks)
-            ),
-            None => format!("{} {{ values {{ key }}", render_read_body(input, vars)?),
-        },
+        ReadExpr::TemporalPropertyList { input, keys } => {
+            render_read_into(input, vars, out)?;
+            match keys {
+                Some(ks) => {
+                    let _ = write!(
+                        out,
+                        " {{ values(keys: [{}]) {{ key }}",
+                        render_string_list(ks)
+                    );
+                }
+                None => out.push_str(" { values { key }"),
+            }
+        }
         ReadExpr::TemporalPropertyValueList { input } => {
-            format!("{} {{ dtype values", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { dtype values");
         }
         ReadExpr::TemporalPropertyAt { input, time } => {
-            format!("{} {{ dtype at(t: {})", render_read_body(input, vars)?, time)
+            render_read_into(input, vars, out)?;
+            let _ = write!(out, " {{ dtype at(t: {})", time);
         }
         ReadExpr::TemporalPropertyLatest { input } => {
-            format!("{} {{ dtype latest", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { dtype latest");
         }
         ReadExpr::TemporalPropertyUnique { input } => {
-            format!("{} {{ dtype unique", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { dtype unique");
         }
-        ReadExpr::TemporalPropertyOrderedDedupe { input, latest_time } => format!(
-            "{} {{ dtype orderedDedupe(latestTime: {}) {{ time {{ timestamp datetime eventId }} value }}",
-            render_read_body(input, vars)?,
-            latest_time
-        ),
+        ReadExpr::TemporalPropertyOrderedDedupe { input, latest_time } => {
+            render_read_into(input, vars, out)?;
+            let _ = write!(
+                out,
+                " {{ dtype orderedDedupe(latestTime: {}) {{ time {{ timestamp datetime eventId }} value }}",
+                latest_time
+            );
+        }
         ReadExpr::TemporalPropertySum { input } => {
-            format!("{} {{ sum", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { sum");
         }
         ReadExpr::TemporalPropertyMean { input } => {
-            format!("{} {{ mean", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { mean");
         }
         ReadExpr::TemporalPropertyAverage { input } => {
-            format!("{} {{ average", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { average");
         }
-        ReadExpr::TemporalPropertyMin { input } => format!(
-            "{} {{ dtype min {{ time {{ timestamp datetime eventId }} value }}",
-            render_read_body(input, vars)?
-        ),
-        ReadExpr::TemporalPropertyMax { input } => format!(
-            "{} {{ dtype max {{ time {{ timestamp datetime eventId }} value }}",
-            render_read_body(input, vars)?
-        ),
-        ReadExpr::TemporalPropertyMedian { input } => format!(
-            "{} {{ dtype median {{ time {{ timestamp datetime eventId }} value }}",
-            render_read_body(input, vars)?
-        ),
+        ReadExpr::TemporalPropertyMin { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { dtype min { time { timestamp datetime eventId } value }");
+        }
+        ReadExpr::TemporalPropertyMax { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { dtype max { time { timestamp datetime eventId } value }");
+        }
+        ReadExpr::TemporalPropertyMedian { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { dtype median { time { timestamp datetime eventId } value }");
+        }
         // Compound-structured tree — one RPC fetches everything.
-        ReadExpr::Schema { input } => format!(
-            "{} {{ schema {{ \
-                nodes {{ typeName properties {{ key propertyType variants }} \
-                    metadata {{ key propertyType variants }} }} \
-                layers {{ name edges {{ srcType dstType \
-                    properties {{ key propertyType variants }} \
-                    metadata {{ key propertyType variants }} }} }} }}",
-            render_read_body(input, vars)?,
-        ),
+        ReadExpr::Schema { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(
+                " { schema { \
+                nodes { typeName properties { key propertyType variants } \
+                    metadata { key propertyType variants } } \
+                layers { name edges { srcType dstType \
+                    properties { key propertyType variants } \
+                    metadata { key propertyType variants } } } }",
+            );
+        }
         // Terminals — no args after the field name
-        ReadExpr::CountNodes { input } => format!("{} {{ countNodes", render_read_body(input, vars)?),
-        ReadExpr::CountEdges { input } => format!("{} {{ countEdges", render_read_body(input, vars)?),
-        ReadExpr::Degree { input } => format!("{} {{ degree", render_read_body(input, vars)?),
-        ReadExpr::InDegree { input } => format!("{} {{ inDegree", render_read_body(input, vars)?),
-        ReadExpr::OutDegree { input } => format!("{} {{ outDegree", render_read_body(input, vars)?),
-        ReadExpr::Name { input } => format!("{} {{ name", render_read_body(input, vars)?),
+        ReadExpr::CountNodes { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { countNodes");
+        }
+        ReadExpr::CountEdges { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { countEdges");
+        }
+        ReadExpr::Degree { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { degree");
+        }
+        ReadExpr::InDegree { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { inDegree");
+        }
+        ReadExpr::OutDegree { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { outDegree");
+        }
+        ReadExpr::Name { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { name");
+        }
         ReadExpr::HasNode { input, id } => {
-            format!(
-                "{} {{ hasNode(name: {})",
-                render_read_body(input, vars)?,
-                render_gql_str(id)
-            )
+            render_read_into(input, vars, out)?;
+            let _ = write!(out, " {{ hasNode(name: {})", render_gql_str(id));
         }
-        ReadExpr::HasEdge { input, src, dst } => format!(
-            "{} {{ hasEdge(src: {}, dst: {})",
-            render_read_body(input, vars)?,
-            render_gql_str(src),
-            render_gql_str(dst)
-        ),
+        ReadExpr::HasEdge { input, src, dst } => {
+            render_read_into(input, vars, out)?;
+            let _ = write!(
+                out,
+                " {{ hasEdge(src: {}, dst: {})",
+                render_gql_str(src),
+                render_gql_str(dst)
+            );
+        }
         ReadExpr::CountTemporalEdges { input } => {
-            format!("{} {{ countTemporalEdges", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { countTemporalEdges");
         }
-        ReadExpr::Path { input } => format!("{} {{ path", render_read_body(input, vars)?),
-        ReadExpr::Namespace { input } => format!("{} {{ namespace", render_read_body(input, vars)?),
-        ReadExpr::Created { input } => format!("{} {{ created", render_read_body(input, vars)?),
-        ReadExpr::LastOpened { input } => format!("{} {{ lastOpened", render_read_body(input, vars)?),
-        ReadExpr::LastUpdated { input } => format!("{} {{ lastUpdated", render_read_body(input, vars)?),
-        ReadExpr::UniqueLayers { input } => format!("{} {{ uniqueLayers", render_read_body(input, vars)?),
+        ReadExpr::Path { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { path");
+        }
+        ReadExpr::Namespace { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { namespace");
+        }
+        ReadExpr::Created { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { created");
+        }
+        ReadExpr::LastOpened { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { lastOpened");
+        }
+        ReadExpr::LastUpdated { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { lastUpdated");
+        }
+        ReadExpr::UniqueLayers { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { uniqueLayers");
+        }
         ReadExpr::HasLayer { input, name } => {
-            format!(
-                "{} {{ hasLayer(name: {})",
-                render_read_body(input, vars)?,
-                render_gql_str(name)
-            )
+            render_read_into(input, vars, out)?;
+            let _ = write!(out, " {{ hasLayer(name: {})", render_gql_str(name));
         }
-        ReadExpr::WindowSize { input } => format!("{} {{ windowSize", render_read_body(input, vars)?),
-        ReadExpr::Ids { input } => format!("{} {{ ids", render_read_body(input, vars)?),
+        ReadExpr::WindowSize { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { windowSize");
+        }
+        ReadExpr::Ids { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { ids");
+        }
         // `PathFromGraph.ids` is a columnar `[[String]]` field computed in ONE
         // server-side `blocking_compute` (vs `list { ids }`, which resolves one
         // `PathFromNode` object + its own `blocking_compute` per source). Opens
         // ONE net brace, same as `Ids`.
         ReadExpr::NestedIds { input } => {
-            format!("{} {{ ids", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { ids");
         }
         // Flat collection degree terminals — render the scalar-list field
         // directly on the `Nodes`/`PathFromNode` collection.
         ReadExpr::CollectionDegree { input } => {
-            format!("{} {{ degree", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { degree");
         }
         ReadExpr::CollectionInDegree { input } => {
-            format!("{} {{ inDegree", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { inDegree");
         }
         ReadExpr::CollectionOutDegree { input } => {
-            format!("{} {{ outDegree", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { outDegree");
         }
         ReadExpr::CollectionEdgeHistoryCount { input } => {
-            format!("{} {{ edgeHistoryCount", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { edgeHistoryCount");
         }
         // Columnar `[[Int]]` fields on `PathFromGraph`, computed in ONE
         // server-side `blocking_compute` (vs `list { degree }` per source).
         // Mirror `NestedIds`.
         ReadExpr::NestedDegree { input } => {
-            format!("{} {{ degree", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { degree");
         }
         ReadExpr::NestedInDegree { input } => {
-            format!("{} {{ inDegree", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { inDegree");
         }
         ReadExpr::NestedOutDegree { input } => {
-            format!("{} {{ outDegree", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { outDegree");
         }
         ReadExpr::NestedEdgeHistoryCount { input } => {
-            format!(
-                "{} {{ list {{ edgeHistoryCount }}",
-                render_read_body(input, vars)?
-            )
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { edgeHistoryCount }");
         }
-        ReadExpr::Count { input } => format!("{} {{ count", render_read_body(input, vars)?),
+        ReadExpr::Count { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { count");
+        }
         // Compound structured terminal: renders as `list { src { name } dst { name } }`.
         // The `list` field opens ONE brace that gets closed by the outer `read_depth`;
         // the inner `src { name }` / `dst { name }` groups are self-balanced.
-        ReadExpr::EdgesList { input } => format!(
-            "{} {{ list {{ src {{ name }} dst {{ name }} }}",
-            render_read_body(input, vars)?
-        ),
+        ReadExpr::EdgesList { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { src { name } dst { name } }");
+        }
         // `NestedEdges.list` returns `[Edges!]!` — one object per source node.
         // We render `list { list { src { name } dst { name } } }` and read each
         // per-source `Edges.list` to rebuild the nested `[[(src, dst)]]` shape
         // client-side. The outer `list` field opens ONE net brace (closed by
         // the outer `read_depth`); the inner `list { src { name } dst { name } }`
         // group is self-balanced. Mirrors `EdgesList`, one level deeper.
-        ReadExpr::NestedEdgesList { input } => format!(
-            "{} {{ list {{ list {{ src {{ name }} dst {{ name }} }} }}",
-            render_read_body(input, vars)?
-        ),
+        ReadExpr::NestedEdgesList { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { list { src { name } dst { name } } }");
+        }
         // Exploded-collection variant of `EdgesList`: adds each member's
         // event identity (`time { timestamp eventId }`, `layerName`) so
         // handles can be pinned from ONE response. Same brace accounting —
         // the outer `list` opens one net brace, inner groups self-balance.
-        ReadExpr::ExplodedEdgesList { input } => format!(
-            "{} {{ list {{ src {{ name }} dst {{ name }} time {{ timestamp eventId }} layerName }}",
-            render_read_body(input, vars)?
-        ),
+        ReadExpr::ExplodedEdgesList { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(
+                " { list { src { name } dst { name } time { timestamp eventId } layerName }",
+            );
+        }
         // Nested variant of `ExplodedEdgesList` — mirrors `NestedEdgesList`.
-        ReadExpr::NestedExplodedEdgesList { input } => format!(
-            "{} {{ list {{ list {{ src {{ name }} dst {{ name }} time {{ timestamp eventId }} layerName }} }}",
-            render_read_body(input, vars)?
-        ),
+        ReadExpr::NestedExplodedEdgesList { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(
+                " { list { list { src { name } dst { name } time { timestamp eventId } layerName } }",
+            );
+        }
         // Layer-exploded members — `(src, dst, layer)` per member (no time).
-        ReadExpr::ExplodedLayersEdgesList { input } => format!(
-            "{} {{ list {{ src {{ name }} dst {{ name }} layerName }}",
-            render_read_body(input, vars)?
-        ),
-        ReadExpr::NestedExplodedLayersEdgesList { input } => format!(
-            "{} {{ list {{ list {{ src {{ name }} dst {{ name }} layerName }} }}",
-            render_read_body(input, vars)?
-        ),
+        ReadExpr::ExplodedLayersEdgesList { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { src { name } dst { name } layerName }");
+        }
+        ReadExpr::NestedExplodedLayersEdgesList { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { list { src { name } dst { name } layerName } }");
+        }
         // Columnar accessors — FLAT collections render `list { <field> }`.
         ReadExpr::CollectionNames { input } => {
-            format!("{} {{ list {{ name }}", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { name }");
         }
         ReadExpr::CollectionNodeTypes { input } => {
-            format!("{} {{ list {{ nodeType }}", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { nodeType }");
         }
         ReadExpr::CollectionLayerNames { input } => {
-            format!("{} {{ list {{ layerNames }}", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { layerNames }");
         }
         ReadExpr::CollectionLayerName { input } => {
-            format!("{} {{ list {{ layerName }}", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { layerName }");
         }
-        ReadExpr::CollectionEarliestTime { input } => format!(
-            "{} {{ list {{ earliestTime {{ timestamp datetime eventId }} }}",
-            render_read_body(input, vars)?
-        ),
-        ReadExpr::CollectionLatestTime { input } => format!(
-            "{} {{ list {{ latestTime {{ timestamp datetime eventId }} }}",
-            render_read_body(input, vars)?
-        ),
-        ReadExpr::CollectionTime { input } => format!(
-            "{} {{ list {{ time {{ timestamp datetime eventId }} }}",
-            render_read_body(input, vars)?
-        ),
+        ReadExpr::CollectionEarliestTime { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { earliestTime { timestamp datetime eventId } }");
+        }
+        ReadExpr::CollectionLatestTime { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { latestTime { timestamp datetime eventId } }");
+        }
+        ReadExpr::CollectionTime { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { time { timestamp datetime eventId } }");
+        }
         // Columnar accessors — NESTED collections render `list { list { <field> } }`.
         ReadExpr::NestedNames { input } => {
-            format!("{} {{ list {{ list {{ name }} }}", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { list { name } }");
         }
-        ReadExpr::NestedNodeTypes { input } => format!(
-            "{} {{ list {{ list {{ nodeType }} }}",
-            render_read_body(input, vars)?
-        ),
-        ReadExpr::NestedLayerNames { input } => format!(
-            "{} {{ list {{ list {{ layerNames }} }}",
-            render_read_body(input, vars)?
-        ),
-        ReadExpr::NestedLayerName { input } => format!(
-            "{} {{ list {{ list {{ layerName }} }}",
-            render_read_body(input, vars)?
-        ),
-        ReadExpr::NestedEarliestTime { input } => format!(
-            "{} {{ list {{ list {{ earliestTime {{ timestamp datetime eventId }} }} }}",
-            render_read_body(input, vars)?
-        ),
-        ReadExpr::NestedLatestTime { input } => format!(
-            "{} {{ list {{ list {{ latestTime {{ timestamp datetime eventId }} }} }}",
-            render_read_body(input, vars)?
-        ),
-        ReadExpr::NestedTime { input } => format!(
-            "{} {{ list {{ list {{ time {{ timestamp datetime eventId }} }} }}",
-            render_read_body(input, vars)?
-        ),
+        ReadExpr::NestedNodeTypes { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { list { nodeType } }");
+        }
+        ReadExpr::NestedLayerNames { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { list { layerNames } }");
+        }
+        ReadExpr::NestedLayerName { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { list { layerName } }");
+        }
+        ReadExpr::NestedEarliestTime { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { list { earliestTime { timestamp datetime eventId } } }");
+        }
+        ReadExpr::NestedLatestTime { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { list { latestTime { timestamp datetime eventId } } }");
+        }
+        ReadExpr::NestedTime { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { list { time { timestamp datetime eventId } } }");
+        }
         // Boolean columnar accessors — FLAT collections render `list { <field> }`.
         ReadExpr::CollectionIsActive { input } => {
-            format!("{} {{ list {{ isActive }}", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { isActive }");
         }
         ReadExpr::CollectionIsValid { input } => {
-            format!("{} {{ list {{ isValid }}", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { isValid }");
         }
         ReadExpr::CollectionIsDeleted { input } => {
-            format!("{} {{ list {{ isDeleted }}", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { isDeleted }");
         }
         ReadExpr::CollectionIsSelfLoop { input } => {
-            format!("{} {{ list {{ isSelfLoop }}", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { isSelfLoop }");
         }
         // Boolean columnar accessors — NESTED collections render `list { list { <field> } }`.
         ReadExpr::NestedIsActive { input } => {
-            format!(
-                "{} {{ list {{ list {{ isActive }} }}",
-                render_read_body(input, vars)?
-            )
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { list { isActive } }");
         }
         ReadExpr::NestedIsValid { input } => {
-            format!(
-                "{} {{ list {{ list {{ isValid }} }}",
-                render_read_body(input, vars)?
-            )
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { list { isValid } }");
         }
         ReadExpr::NestedIsDeleted { input } => {
-            format!(
-                "{} {{ list {{ list {{ isDeleted }} }}",
-                render_read_body(input, vars)?
-            )
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { list { isDeleted } }");
         }
         ReadExpr::NestedIsSelfLoop { input } => {
-            format!(
-                "{} {{ list {{ list {{ isSelfLoop }} }}",
-                render_read_body(input, vars)?
-            )
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { list { isSelfLoop } }");
         }
         // Columnar property / metadata accessors — descend per-member into the
         // `metadata` / `properties` container and read all `{key, value}`
         // entries. FLAT collections render `list { <container> { values { key
         // value } } }`.
-        ReadExpr::CollectionMetadataValues { input } => format!(
-            "{} {{ list {{ metadata {{ values {{ key value dtype }} }} }}",
-            render_read_body(input, vars)?
-        ),
-        ReadExpr::CollectionPropertiesValues { input } => format!(
-            "{} {{ list {{ properties {{ values {{ key value dtype }} }} }}",
-            render_read_body(input, vars)?
-        ),
+        ReadExpr::CollectionMetadataValues { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { metadata { values { key value dtype } } }");
+        }
+        ReadExpr::CollectionPropertiesValues { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { properties { values { key value dtype } } }");
+        }
         // NESTED collections render `list { list { <container> { values { key
         // value } } } }`.
-        ReadExpr::NestedMetadataValues { input } => format!(
-            "{} {{ list {{ list {{ metadata {{ values {{ key value dtype }} }} }} }}",
-            render_read_body(input, vars)?
-        ),
-        ReadExpr::NestedPropertiesValues { input } => format!(
-            "{} {{ list {{ list {{ properties {{ values {{ key value dtype }} }} }} }}",
-            render_read_body(input, vars)?
-        ),
+        ReadExpr::NestedMetadataValues { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { list { metadata { values { key value dtype } } } }");
+        }
+        ReadExpr::NestedPropertiesValues { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { list { properties { values { key value dtype } } } }");
+        }
         // Compound structured terminal on Graph: `sharedNeighbours(selectedNodes: [ids]) { name }`
         // — opens ONE net brace (the outer, before `sharedNeighbours`); the inner
         // `{ name }` is self-balanced.
-        ReadExpr::SharedNeighbours { input, ids } => format!(
-            "{} {{ sharedNeighbours(selectedNodes: [{}]) {{ name }}",
-            render_read_body(input, vars)?,
-            render_string_list(ids)
-        ),
+        ReadExpr::SharedNeighbours { input, ids } => {
+            render_read_into(input, vars, out)?;
+            let _ = write!(
+                out,
+                " {{ sharedNeighbours(selectedNodes: [{}]) {{ name }}",
+                render_string_list(ids)
+            );
+        }
         // `findNodes(propertiesDict: [{key, value}]) { name }` — opens ONE net
         // brace (before `findNodes`); inner `{ name }` is self-balanced.
-        ReadExpr::FindNodes { input, properties } => format!(
-            "{} {{ findNodes(propertiesDict: {}) {{ name }}",
-            render_read_body(input, vars)?,
-            vars.add_properties(properties)?,
-        ),
+        ReadExpr::FindNodes { input, properties } => {
+            render_read_into(input, vars, out)?;
+            let _ = write!(
+                out,
+                " {{ findNodes(propertiesDict: {}) {{ name }}",
+                vars.add_properties(properties)?
+            );
+        }
         // `findEdges(propertiesDict: [{key, value}]) { src { name } dst { name } }`
         // — opens ONE net brace; the inner `src`/`dst` groups are self-balanced.
-        ReadExpr::FindEdges { input, properties } => format!(
-            "{} {{ findEdges(propertiesDict: {}) {{ src {{ name }} dst {{ name }} }}",
-            render_read_body(input, vars)?,
-            vars.add_properties(properties)?,
-        ),
-        ReadExpr::GetAllNodeTypes { input } => {
-            format!("{} {{ getAllNodeTypes", render_read_body(input, vars)?)
+        ReadExpr::FindEdges { input, properties } => {
+            render_read_into(input, vars, out)?;
+            let _ = write!(
+                out,
+                " {{ findEdges(propertiesDict: {}) {{ src {{ name }} dst {{ name }} }}",
+                vars.add_properties(properties)?
+            );
         }
-        ReadExpr::Id { input } => format!("{} {{ id", render_read_body(input, vars)?),
-        ReadExpr::NodeType { input } => format!("{} {{ nodeType", render_read_body(input, vars)?),
-        ReadExpr::IsActive { input } => format!("{} {{ isActive", render_read_body(input, vars)?),
-        ReadExpr::IsEmpty { input } => format!("{} {{ isEmpty", render_read_body(input, vars)?),
+        ReadExpr::GetAllNodeTypes { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { getAllNodeTypes");
+        }
+        ReadExpr::Id { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { id");
+        }
+        ReadExpr::NodeType { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { nodeType");
+        }
+        ReadExpr::IsActive { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { isActive");
+        }
+        ReadExpr::IsEmpty { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { isEmpty");
+        }
         // Compound structured terminal: `list { timestamp datetime eventId }`
         // returns a list of records. Inner braces are self-balanced; the outer
         // `list` brace opens one net brace, contributing 1 to read_depth.
         //
         // The server's `datetime` field takes an optional format-string arg
         // (defaults to RFC 3339). We pass no arg to get the default.
-        ReadExpr::HistoryList { input } => format!(
-            "{} {{ list {{ timestamp datetime eventId }}",
-            render_read_body(input, vars)?
-        ),
-        ReadExpr::HistoryListRev { input } => format!(
-            "{} {{ listRev {{ timestamp datetime eventId }}",
-            render_read_body(input, vars)?
-        ),
+        ReadExpr::HistoryList { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { timestamp datetime eventId }");
+        }
+        ReadExpr::HistoryListRev { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { listRev { timestamp datetime eventId }");
+        }
         ReadExpr::HistoryPage {
             input,
             limit,
             offset,
             page_index,
-        } => format!(
-            "{} {{ page({}) {{ timestamp datetime eventId }}",
-            render_read_body(input, vars)?,
-            render_page_args(*limit, *offset, *page_index),
-        ),
+        } => {
+            render_read_into(input, vars, out)?;
+            let _ = write!(
+                out,
+                " {{ page({}) {{ timestamp datetime eventId }}",
+                render_page_args(*limit, *offset, *page_index)
+            );
+        }
         ReadExpr::HistoryPageRev {
             input,
             limit,
             offset,
             page_index,
-        } => format!(
-            "{} {{ pageRev({}) {{ timestamp datetime eventId }}",
-            render_read_body(input, vars)?,
-            render_page_args(*limit, *offset, *page_index),
-        ),
+        } => {
+            render_read_into(input, vars, out)?;
+            let _ = write!(
+                out,
+                " {{ pageRev({}) {{ timestamp datetime eventId }}",
+                render_page_args(*limit, *offset, *page_index)
+            );
+        }
         ReadExpr::EdgeHistoryCount { input } => {
-            format!("{} {{ edgeHistoryCount", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { edgeHistoryCount");
         }
         // Edge-specific terminals
-        ReadExpr::EdgeIdPair { input } => format!("{} {{ id", render_read_body(input, vars)?),
-        ReadExpr::LayerNames { input } => format!("{} {{ layerNames", render_read_body(input, vars)?),
-        ReadExpr::LayerName { input } => format!("{} {{ layerName", render_read_body(input, vars)?),
-        ReadExpr::IsValid { input } => format!("{} {{ isValid", render_read_body(input, vars)?),
-        ReadExpr::IsDeleted { input } => format!("{} {{ isDeleted", render_read_body(input, vars)?),
-        ReadExpr::IsSelfLoop { input } => format!("{} {{ isSelfLoop", render_read_body(input, vars)?),
+        ReadExpr::EdgeIdPair { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { id");
+        }
+        ReadExpr::LayerNames { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { layerNames");
+        }
+        ReadExpr::LayerName { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { layerName");
+        }
+        ReadExpr::IsValid { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { isValid");
+        }
+        ReadExpr::IsDeleted { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { isDeleted");
+        }
+        ReadExpr::IsSelfLoop { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { isSelfLoop");
+        }
         // EventTime terminals — fetch the full `{ timestamp datetime eventId }`
         // record so the client can return a `RemoteEventTime` (drop-in parity
         // with the local API's `EventTime`, which carries the `event_id`).
         ReadExpr::EarliestTime { input } => {
-            format!(
-                "{} {{ earliestTime {{ timestamp datetime eventId",
-                render_read_body(input, vars)?
-            )
+            render_read_into(input, vars, out)?;
+            out.push_str(" { earliestTime { timestamp datetime eventId");
         }
         ReadExpr::LatestTime { input } => {
-            format!(
-                "{} {{ latestTime {{ timestamp datetime eventId",
-                render_read_body(input, vars)?
-            )
+            render_read_into(input, vars, out)?;
+            out.push_str(" { latestTime { timestamp datetime eventId");
         }
         ReadExpr::Start { input } => {
-            format!(
-                "{} {{ start {{ timestamp datetime eventId",
-                render_read_body(input, vars)?
-            )
+            render_read_into(input, vars, out)?;
+            out.push_str(" { start { timestamp datetime eventId");
         }
         ReadExpr::End { input } => {
-            format!(
-                "{} {{ end {{ timestamp datetime eventId",
-                render_read_body(input, vars)?
-            )
+            render_read_into(input, vars, out)?;
+            out.push_str(" { end { timestamp datetime eventId");
         }
         // Remaining timestamp terminals stay bare `i64` (no local @property
         // counterpart, so not part of the EventTime drop-in change).
-        ReadExpr::EarliestEdgeTime { input } => format!(
-            "{} {{ earliestEdgeTime {{ timestamp",
-            render_read_body(input, vars)?
-        ),
+        ReadExpr::EarliestEdgeTime { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { earliestEdgeTime { timestamp");
+        }
         ReadExpr::LatestEdgeTime { input } => {
-            format!(
-                "{} {{ latestEdgeTime {{ timestamp",
-                render_read_body(input, vars)?
-            )
+            render_read_into(input, vars, out)?;
+            out.push_str(" { latestEdgeTime { timestamp");
         }
         ReadExpr::FirstUpdate { input } => {
-            format!("{} {{ firstUpdate {{ timestamp", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { firstUpdate { timestamp");
         }
         ReadExpr::LastUpdate { input } => {
-            format!("{} {{ lastUpdate {{ timestamp", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { lastUpdate { timestamp");
         }
         ReadExpr::Time { input } => {
-            format!(
-                "{} {{ time {{ timestamp datetime eventId",
-                render_read_body(input, vars)?
-            )
+            render_read_into(input, vars, out)?;
+            out.push_str(" { time { timestamp datetime eventId");
         }
-    })
+    }
+    Ok(())
 }
 
 fn read_depth(expr: &ReadExpr) -> usize {
