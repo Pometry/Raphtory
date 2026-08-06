@@ -23,6 +23,7 @@ use raphtory::{
     prelude::{LayerOps, TimeOps},
 };
 use raphtory_api::core::{
+    entities::layers::Layer,
     storage::timeindex::{AsTime, EventTime},
     utils::time::{InputTime, IntoTime},
 };
@@ -534,21 +535,29 @@ impl GqlEdge {
     ) -> Result<GqlEdge, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let matches_time = |et: Option<EventTime>| match (&time.0, et) {
-                (InputTime::Simple(t), Some(et)) => et.t() == *t,
-                (InputTime::Indexed(t, i), Some(et)) => et == EventTime::new(*t, *i),
-                (_, None) => false,
+            // Narrow with indexed views instead of scanning the full exploded
+            // history: layer and time restrictions bound the storage walk, so
+            // exploding yields only the matching event(s). `valid_layers`
+            // treats an unknown layer as "no match" (empty view), preserving
+            // the scan's behaviour of reporting a missing event rather than a
+            // bad layer name.
+            let base = match &layer {
+                Some(name) => self_clone.ee.valid_layers(name.as_str()),
+                None => self_clone.ee.valid_layers(Layer::All),
             };
-            let exploded = self_clone.ee.explode();
-            let found = exploded.iter().find(|e| {
-                matches_time(e.edge.time())
-                    && match &layer {
-                        Some(l) => e.layer_name().is_ok_and(|n| n.as_ref() == l.as_str()),
-                        None => true,
-                    }
-            });
+            let pinned = match &time.0 {
+                // A bare timestamp matches the first event at that time.
+                InputTime::Simple(t) => base.at(*t),
+                // The indexed form pins one exact event.
+                InputTime::Indexed(t, i) => base.window(
+                    EventTime::new(*t, *i),
+                    EventTime::new(*t, i.saturating_add(1)),
+                ),
+            };
+            let exploded = pinned.explode();
+            let found = exploded.iter().next().map(|e| GqlEdge::from_ref(e));
             match found {
-                Some(e) => Ok(GqlEdge::from_ref(e)),
+                Some(e) => Ok(e),
                 None => {
                     let (src, dst) = self_clone.ee.id();
                     Err(GraphError::EventMissingError {
