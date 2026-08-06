@@ -18,7 +18,10 @@ use crate::{
         transport::Transport,
         ClientError,
     },
-    model::graph::property::{gql_to_prop, parse_special_float},
+    model::graph::{
+        filtering::{GqlEdgeFilter, GqlFilter, GqlNodeFilter},
+        property::{gql_to_prop, parse_special_float},
+    },
 };
 use async_graphql::{async_trait, Value as GqlValue};
 use raphtory_api::core::entities::properties::prop::{Prop, PropType};
@@ -695,29 +698,50 @@ fn render_sort_by_time(t: SortByTime) -> &'static str {
 /// `[{property: "score", reverse: true}, {id: true}]`. Empty list renders
 /// as `[]` — server accepts it as a no-op sort.
 fn render_node_sort_bys(sort_bys: &[NodeSortBy]) -> String {
-    let entries: Vec<String> = sort_bys
-        .iter()
-        .map(|sb| {
-            let mut fields = Vec::new();
-            if let Some(rev) = sb.reverse {
-                fields.push(format!("reverse: {}", rev));
-            }
-            if let Some(id) = sb.id {
-                fields.push(format!("id: {}", id));
-            }
-            if let Some(t) = sb.time {
-                fields.push(format!("time: {}", render_sort_by_time(t)));
-            }
-            if let Some(ref p) = sb.property {
-                fields.push(format!("property: {}", render_gql_str(p)));
-            }
-            format!("{{{}}}", fields.join(", "))
-        })
-        .collect();
-    format!("[{}]", entries.join(", "))
+    let mut out = String::from("[");
+    for (i, sb) in sort_bys.iter().enumerate() {
+        if i > 0 {
+            out.push_str(", ");
+        }
+        out.push('{');
+        let mut first = true;
+        if let Some(rev) = sb.reverse {
+            push_sort_field(&mut out, &mut first, format_args!("reverse: {rev}"));
+        }
+        if let Some(id) = sb.id {
+            push_sort_field(&mut out, &mut first, format_args!("id: {id}"));
+        }
+        if let Some(t) = sb.time {
+            push_sort_field(
+                &mut out,
+                &mut first,
+                format_args!("time: {}", render_sort_by_time(t)),
+            );
+        }
+        if let Some(ref p) = sb.property {
+            push_sort_field(
+                &mut out,
+                &mut first,
+                format_args!("property: {}", render_gql_str(p)),
+            );
+        }
+        out.push('}');
+    }
+    out.push(']');
+    out
 }
 
-use crate::model::graph::filtering::{GqlEdgeFilter, GqlFilter, GqlNodeFilter};
+/// Append one `key: value` field to a sort-by object being rendered into
+/// `out`, comma-separating after the first.
+fn push_sort_field(out: &mut String, first: &mut bool, args: std::fmt::Arguments) {
+    use std::fmt::Write;
+    if !*first {
+        out.push_str(", ");
+    }
+    *first = false;
+    // Writing into a String cannot fail.
+    let _ = out.write_fmt(args);
+}
 
 fn render_gql_str(s: &str) -> String {
     // A JSON string literal (including its surrounding quotes) is a valid
@@ -795,29 +819,40 @@ fn expect_update_bool(
 /// Same as `render_node_sort_bys` but for `EdgeSortBy` — includes the extra
 /// `src` / `dst` boolean keys.
 fn render_edge_sort_bys(sort_bys: &[EdgeSortBy]) -> String {
-    let entries: Vec<String> = sort_bys
-        .iter()
-        .map(|sb| {
-            let mut fields = Vec::new();
-            if let Some(rev) = sb.reverse {
-                fields.push(format!("reverse: {}", rev));
-            }
-            if let Some(src) = sb.src {
-                fields.push(format!("src: {}", src));
-            }
-            if let Some(dst) = sb.dst {
-                fields.push(format!("dst: {}", dst));
-            }
-            if let Some(t) = sb.time {
-                fields.push(format!("time: {}", render_sort_by_time(t)));
-            }
-            if let Some(ref p) = sb.property {
-                fields.push(format!("property: {}", render_gql_str(p)));
-            }
-            format!("{{{}}}", fields.join(", "))
-        })
-        .collect();
-    format!("[{}]", entries.join(", "))
+    let mut out = String::from("[");
+    for (i, sb) in sort_bys.iter().enumerate() {
+        if i > 0 {
+            out.push_str(", ");
+        }
+        out.push('{');
+        let mut first = true;
+        if let Some(rev) = sb.reverse {
+            push_sort_field(&mut out, &mut first, format_args!("reverse: {rev}"));
+        }
+        if let Some(src) = sb.src {
+            push_sort_field(&mut out, &mut first, format_args!("src: {src}"));
+        }
+        if let Some(dst) = sb.dst {
+            push_sort_field(&mut out, &mut first, format_args!("dst: {dst}"));
+        }
+        if let Some(t) = sb.time {
+            push_sort_field(
+                &mut out,
+                &mut first,
+                format_args!("time: {}", render_sort_by_time(t)),
+            );
+        }
+        if let Some(ref p) = sb.property {
+            push_sort_field(
+                &mut out,
+                &mut first,
+                format_args!("property: {}", render_gql_str(p)),
+            );
+        }
+        out.push('}');
+    }
+    out.push(']');
+    out
 }
 
 /// Render a view op as its server field plus arguments. Valid-layer ops
