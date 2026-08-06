@@ -165,7 +165,7 @@ impl PropColumn {
         col
     }
 
-    pub(crate) fn dtype(&self) -> PropType {
+    pub(crate) fn dtype_for_error_report(&self) -> PropType {
         match self {
             PropColumn::Empty(_) => PropType::Empty,
             PropColumn::Bool(_) => PropType::Bool,
@@ -230,7 +230,7 @@ impl PropColumn {
             }
             (col, prop) => {
                 Err(IllegalPropType {
-                    expected: col.dtype(),
+                    expected: col.dtype_for_error_report(),
                     actual: prop.into_prop().dtype(),
                 })?;
             }
@@ -261,7 +261,7 @@ impl PropColumn {
             )?,
             (col, prop) => {
                 Err(IllegalPropType {
-                    expected: col.dtype(),
+                    expected: col.dtype_for_error_report(),
                     actual: prop.clone().into_prop().dtype(),
                 })?;
             }
@@ -308,7 +308,7 @@ impl PropColumn {
             }
             (col, prop) => {
                 Err(IllegalPropType {
-                    expected: col.dtype(),
+                    expected: col.dtype_for_error_report(),
                     actual: prop.into_prop().dtype(),
                 })?;
             }
@@ -394,7 +394,7 @@ impl PropColumn {
             PropColumn::U64(col) => col.get_opt(index).map(|prop| PropRef::from(*prop)),
             PropColumn::F32(col) => col.get_opt(index).map(|prop| PropRef::from(*prop)),
             PropColumn::F64(col) => col.get_opt(index).map(|prop| PropRef::from(*prop)),
-            PropColumn::Str(col) => col.get_opt(index).map(|prop| PropRef::Str(prop.as_ref())),
+            PropColumn::Str(col) => col.get_opt(index).map(PropRef::Str),
             PropColumn::U8(col) => col.get_opt(index).map(|prop| PropRef::from(*prop)),
             PropColumn::U16(col) => col.get_opt(index).map(|prop| PropRef::from(*prop)),
             PropColumn::I32(col) => col.get_opt(index).map(|prop| PropRef::from(*prop)),

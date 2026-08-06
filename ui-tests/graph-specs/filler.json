@@ -35,11 +35,9 @@
         { "time": 60, "src": "Hamza", "dst": "Pometry", "layer": "founds" }
     ],
     "metadata": {
-        "_style": {
-            "node_types": {
-                "Person": {
-                    "icon": "https://api.iconify.design/bi/person-fill.svg?color=white"
-                }
+        "_ui_node_type_styles": {
+            "Person": {
+                "icon": "https://api.iconify.design/bi/person-fill.svg?color=white"
             }
         }
     }

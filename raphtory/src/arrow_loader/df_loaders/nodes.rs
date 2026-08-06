@@ -24,7 +24,10 @@ use raphtory_storage::mutation::addition_ops::{InternalAdditionOps, SessionAddit
 use rayon::prelude::*;
 use std::{
     collections::HashMap,
-    sync::atomic::{AtomicBool, Ordering},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        mpsc,
+    },
 };
 use storage::{
     api::nodes::NodeSegmentOps,
@@ -37,7 +40,8 @@ use crate::arrow_loader::df_loaders::build_progress_bar;
 use crate::arrow_loader::{
     dataframe::{DFChunk, DFView},
     df_loaders::{
-        extract_secondary_index_col, process_shared_properties, resolve_nodes_and_type_with_cache,
+        extract_secondary_index_col, group_rows_by_vid_segment, process_shared_properties,
+        resolve_nodes_and_type_with_cache, secondary_index_at,
     },
     layer_col::{lift_layer_col, lift_node_type_col, LayerCol},
     node_col::NodeCol,
@@ -48,6 +52,75 @@ use crate::arrow_loader::{
 use kdam::BarExt;
 
 /// If layer_id_col is provided, then layer_col must also be provided
+#[allow(clippy::too_many_arguments)]
+pub fn load_nodes_from_df_prefetch<
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + std::fmt::Debug,
+    I1: Iterator<Item = Result<DFChunk, GraphError>> + Send,
+>(
+    df_view: DFView<I1>,
+    time: &str,
+    secondary_index: Option<&str>,
+    node_id: &str,
+    properties: &[&str],
+    metadata: &[&str],
+    shared_metadata: Option<&HashMap<String, Prop>>,
+    node_type: Option<&str>,
+    node_type_col: Option<&str>,
+    graph: &G,
+    resolve_nodes: bool,
+    layer: Option<&str>,
+    layer_col: Option<&str>,
+    layer_id_col: Option<&str>,
+) -> Result<(), GraphError> {
+    let DFView {
+        names,
+        chunks,
+        num_rows,
+    } = df_view;
+
+    LOAD_POOL.install(|| {
+        rayon::scope(|s| {
+            let (tx, rx) = mpsc::sync_channel(2);
+
+            s.spawn(move |_| {
+                let sender = tx;
+                for chunk in chunks {
+                    if let Err(e) = sender.send(chunk) {
+                        eprintln!("Error sending chunk to loader: {}", e);
+                        break;
+                    }
+                }
+            });
+
+            let df_view_prefetch = DFView {
+                names,
+                chunks: rx.into_iter(),
+                num_rows,
+            };
+
+            load_nodes_from_df(
+                df_view_prefetch,
+                time,
+                secondary_index,
+                node_id,
+                properties,
+                metadata,
+                shared_metadata,
+                node_type,
+                node_type_col,
+                graph,
+                resolve_nodes,
+                layer,
+                layer_col,
+                layer_id_col,
+            )?;
+            Ok::<(), GraphError>(())
+        })?;
+
+        Ok(())
+    })
+}
+
 #[allow(clippy::too_many_arguments)]
 pub fn load_nodes_from_df<
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + std::fmt::Debug,
@@ -199,20 +272,38 @@ pub fn load_nodes_from_df<
                 node_stats.update_time(time);
             };
 
+            let max_node_segment_len = write_locked_graph
+                .graph()
+                .storage()
+                .nodes()
+                .max_segment_len() as usize;
+            let rows_by_segment = group_rows_by_vid_segment(
+                src_vids,
+                max_node_segment_len as u32,
+                write_locked_graph.nodes.len(),
+            );
+
             write_locked_graph
                 .nodes
                 .par_iter_mut()
                 .enumerate()
                 .try_for_each(|(segment_id, shard)| {
-                    if !node_segments_touched[segment_id].load(Ordering::Relaxed) {
+                    let node_rows = &rows_by_segment[segment_id];
+
+                    if node_rows.is_empty() {
                         // we need to graph a writer nevertheless as it may have old data that needs to flush
                         if shard.segment().is_dirty() {
-                            let mut _writer = shard.writer();
+                            let _writer = shard.writer();
                         }
                         return Ok::<_, GraphError>(());
                     }
                     // Zip all columns for iteration.
-                    let zip = izip!(src_vids.iter(), time_col.iter(), secondary_index_col.iter(),);
+                    let zip = node_rows.iter().map(|&row| {
+                        let vid = &src_vids[row];
+                        let time = time_col[row];
+                        let secondary_index = secondary_index_at(&secondary_index_col, row);
+                        (row, vid, time, secondary_index)
+                    });
 
                     // resolve_nodes=false
                     // assumes we are loading our own graph, via the parquet loaders,
@@ -222,7 +313,7 @@ pub fn load_nodes_from_df<
                     }
                     let mut writer = shard.writer();
 
-                    for (row, (vid, time, secondary_index)) in zip.enumerate() {
+                    for (row, vid, time, secondary_index) in zip {
                         if let Some(mut_node) = writer.resolve_pos(*vid) {
                             let t = EventTime(time, secondary_index);
                             let layer_id = layer_col_resolved

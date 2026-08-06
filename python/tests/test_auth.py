@@ -112,6 +112,89 @@ def test_expired_token():
         assert response.status_code == 401
 
 
+def test_not_yet_valid_token_rejected():
+    """A token whose `nbf` (not-before) is in the future must be rejected now."""
+    work_dir = tempfile.mkdtemp()
+    with GraphServer(
+        work_dir, config={"auth": {"public_key": PUB_KEY}}
+    ).start() as server:
+        port = server.port()
+        nbf = time() + 3600  # only becomes valid an hour from now
+        for access in ("ro", "rw"):
+            token = jwt.encode(
+                {"access": access, "nbf": nbf}, PRIVATE_KEY, algorithm="EdDSA"
+            )
+            headers = {
+                "Authorization": f"Bearer {token}",
+            }
+            response = requests.post(
+                raphtory_url(port),
+                headers=headers,
+                data=json.dumps({"query": QUERY_ROOT}),
+            )
+            assert response.status_code == 401
+
+
+def test_already_valid_nbf_token_accepted():
+    """A token whose `nbf` is in the past is honoured normally (nbf validation must
+    not reject already-valid tokens)."""
+    work_dir = tempfile.mkdtemp()
+    with GraphServer(
+        work_dir, config={"auth": {"public_key": PUB_KEY}}
+    ).start() as server:
+        port = server.port()
+        nbf = time() - 3600  # became valid an hour ago
+        token = jwt.encode({"access": "ro", "nbf": nbf}, PRIVATE_KEY, algorithm="EdDSA")
+        headers = {
+            "Authorization": f"Bearer {token}",
+        }
+        response = requests.post(
+            raphtory_url(port), headers=headers, data=json.dumps({"query": QUERY_ROOT})
+        )
+        assert_successful_response(response)
+
+
+def test_nbf_and_exp_window():
+    """Combine `nbf` and `exp` to define a validity *window* and check the server
+    honours both ends. The default 60s clock-skew leeway applies to both claims."""
+    work_dir = tempfile.mkdtemp()
+    with GraphServer(
+        work_dir, config={"auth": {"public_key": PUB_KEY}}
+    ).start() as server:
+        port = server.port()
+        now = int(time())
+
+        def read_with(claims):
+            token = jwt.encode(claims, PRIVATE_KEY, algorithm="EdDSA")
+            return requests.post(
+                raphtory_url(port),
+                headers={"Authorization": f"Bearer {token}"},
+                data=json.dumps({"query": QUERY_ROOT}),
+            )
+
+        # Valid for one minute, starting 5s from now: the 5s start is inside the 60s
+        # leeway, so the token is already valid and its exp (65s out) hasn't passed.
+        assert_successful_response(
+            read_with({"access": "ro", "nbf": now + 5, "exp": now + 65})
+        )
+
+        # Same one-minute window, placed an hour ahead (well beyond leeway):
+        # not yet valid -> rejected.
+        assert (
+            read_with(
+                {"access": "ro", "nbf": now + 3600, "exp": now + 3660}
+            ).status_code
+            == 401
+        )
+
+        # Same one-minute window, but it closed over a minute ago (beyond leeway):
+        # expired -> rejected.
+        assert (
+            read_with({"access": "ro", "nbf": now - 120, "exp": now - 65}).status_code
+            == 401
+        )
+
+
 @pytest.mark.parametrize("query", TEST_QUERIES)
 def test_default_read_access(query):
     work_dir = tempfile.mkdtemp()

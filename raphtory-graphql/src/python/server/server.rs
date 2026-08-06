@@ -1,9 +1,5 @@
 use crate::{
-    config::{
-        app_config::{AppConfig, AppConfigBuilder},
-        auth_config::PUBLIC_KEY_DECODING_ERR_MSG,
-        otlp_config::TracingLevel,
-    },
+    config::app_config::AppConfigBuilder,
     python::server::{
         running_server::PyRunningGraphServer, wait_server, BridgeCommand, ServerStarted,
     },
@@ -11,23 +7,20 @@ use crate::{
     GraphServer,
 };
 use crossbeam_channel::RecvTimeoutError;
-use pyo3::{
-    exceptions::{PyAttributeError, PyRuntimeError, PyValueError},
-    prelude::*,
-    types::PyDict,
-    BoundObject,
-};
-use pythonize::{depythonize, PythonizeError};
-use raphtory::{
-    db::api::storage::storage::Config,
-    python::{
-        packages::vectors::{PyOpenAIEmbeddings, TemplateConfig},
-        utils::block_on,
-    },
-    vectors::template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
-};
+use pyo3::{exceptions::PyRuntimeError, prelude::*, types::PyDict};
+use pythonize::depythonize;
+use raphtory::{db::api::storage::storage::Config, python::utils::block_on};
 use raphtory_api::python::error::adapt_err_value;
-use std::{io::Error, path::PathBuf, thread, time::Duration};
+use std::{path::PathBuf, thread, time::Duration};
+
+#[cfg(feature = "vectors")]
+use {
+    pyo3::exceptions::PyAttributeError,
+    raphtory::{
+        python::packages::vectors::{PyOpenAIEmbeddings, TemplateConfig},
+        vectors::template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
+    },
+};
 
 /// A class for defining and running a Raphtory GraphQL server
 ///
@@ -48,7 +41,7 @@ use std::{io::Error, path::PathBuf, thread, time::Duration};
 ///     heavy_query_limit (int, optional): Maximum number of expensive traversal queries (outComponent, inComponent, edges, outEdges, inEdges, neighbours, outNeighbours, inNeighbours) allowed to run simultaneously. Extra queries are parked on a semaphore.
 ///     exclusive_writes (bool, optional): If True, ingestion/write operations run one at a time and block reads until complete.
 ///     disable_batching (bool, optional): If True, batched GraphQL requests are rejected. Prevents bypassing per-request depth/complexity limits.
-///     max_batch_size (int, optional): Caps the number of queries accepted in a single batched request.
+///     max_batch_size (int, optional): Caps the number of queries accepted in a single batched request. Defaults to 10; set to null for unlimited (subject to disable_batching).
 ///     disable_lists (bool, optional): If True, bulk `list` endpoints on collections are disabled. Clients must use `page` instead.
 ///     max_page_size (int, optional): Maximum page size allowed on paged collection queries.
 ///     max_query_depth (int, optional): Maximum nesting depth of a query.
@@ -76,6 +69,7 @@ impl From<ServerError> for PyErr {
     }
 }
 
+#[cfg(feature = "vectors")]
 fn template_from_python(
     nodes: TemplateConfig,
     edges: TemplateConfig,
@@ -121,15 +115,6 @@ impl PyGraphServer {
         Ok(PyGraphServer(server))
     }
 
-    // TODO: remove this, should be config
-    /// Turn off index for all graphs.
-    ///
-    /// Returns:
-    ///     None:
-    fn turn_off_index(mut slf: PyRefMut<Self>) {
-        slf.0.turn_off_index()
-    }
-
     /// Vectorise the graph name in the server working directory.
     ///
     /// Arguments:
@@ -140,6 +125,7 @@ impl PyGraphServer {
     ///
     /// Returns:
     ///     None:
+    #[cfg(feature = "vectors")]
     #[pyo3(
         signature = (name, embeddings, nodes = TemplateConfig::Bool(true), edges = TemplateConfig::Bool(true))
     )]
@@ -172,6 +158,7 @@ impl PyGraphServer {
     ///
     /// Returns:
     ///     None:
+    #[cfg(feature = "vectors")]
     #[pyo3(
         signature = (embeddings, nodes = TemplateConfig::Bool(true), edges = TemplateConfig::Bool(true))
     )]

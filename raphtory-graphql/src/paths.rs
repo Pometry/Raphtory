@@ -29,7 +29,6 @@ use std::{
     ops::Deref,
     panic::Location,
     path::{Component, Path, PathBuf, StripPrefixError},
-    time::{SystemTime, UNIX_EPOCH},
 };
 use tracing::{error, warn};
 use zip::ZipArchive;
@@ -383,7 +382,7 @@ pub(crate) fn create_valid_path(
                 if let Some(created_path) = cleanup_marker {
                     created_path.cleanup()?;
                 }
-                return Err(error.into());
+                return Err(error);
             }
         }
     }
@@ -474,7 +473,7 @@ impl ValidWriteableGraphFolder {
                 error,
             },
         )?;
-        if !path.cleanup.is_some() {
+        if path.cleanup.is_none() {
             return Err(PathValidationError::GraphExistsError(
                 relative_path.to_string(),
             ));

@@ -11,7 +11,6 @@ use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use std::{cmp::Ordering, path::PathBuf, sync::Arc};
-use tokio::sync::OwnedRwLockReadGuard;
 use walkdir::WalkDir;
 
 /// A directory-like container for graphs and nested namespaces. Graphs are

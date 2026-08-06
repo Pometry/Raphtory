@@ -4,10 +4,9 @@ use crate::{
     data::{parent_namespace, require_graph_write, Data, GqlGraphType, PermissionError},
     model::{
         graph::{
-            collection::GqlCollection, graph::GqlGraph, index::IndexSpecInput,
-            meta_graph::MetaGraph, mutable_graph::GqlMutableGraph, namespace::Namespace,
-            namespaced_item::NamespacedItem, node_id::GqlNodeId,
-            vectorised_graph::GqlVectorisedGraph,
+            collection::GqlCollection, graph::GqlGraph, meta_graph::MetaGraph,
+            mutable_graph::GqlMutableGraph, namespace::Namespace, namespaced_item::NamespacedItem,
+            node_id::GqlNodeId,
         },
         plugins::{
             mutation_plugin::MutationPlugin, query_plugin::QueryPlugin, PermissionsEntrypointMut,
@@ -15,7 +14,7 @@ use crate::{
         },
     },
     paths::{ExistingGraphFolder, ValidGraphPaths, ValidWriteableGraphFolder},
-    rayon::blocking_compute,
+    rayon::{blocking_compute, blocking_write},
     url_encode::{url_decode_graph_at, url_encode_graph},
 };
 use async_graphql::Context;
@@ -33,19 +32,17 @@ use raphtory::{
         },
         graph::views::deletion_graph::PersistentGraph,
     },
-    errors::{GraphError, GraphResult},
+    errors::GraphError,
     io::parquet_loaders::{load_edges_from_parquet, load_nodes_from_parquet},
     prelude::*,
-    vectors::{
-        cache::CachedEmbeddingModel,
-        storage::OpenAIEmbeddings,
-        template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
-    },
     version,
 };
 use raphtory_api::core::entities::properties::prop::PropType;
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 use tracing::warn;
+
+#[cfg(feature = "vectors")]
+use crate::model::graph::vectorised_graph::{GqlVectorisedGraph, VectorQuery};
 
 pub mod graph;
 pub mod plugins;
@@ -75,47 +72,6 @@ pub(crate) fn parse_json_schema(
         })
         .collect::<Result<HashMap<_, _>, _>>()
         .map(Some)
-}
-
-#[derive(InputObject, Debug, Clone, Default)]
-pub struct OpenAIConfig {
-    model: String,
-    api_base: Option<String>,
-    api_key_env: Option<String>,
-    org_id: Option<String>,
-    project_id: Option<String>,
-}
-
-#[derive(OneOfInput, Clone, Debug)]
-pub enum EmbeddingModel {
-    /// OpenAI embedding models or compatible providers
-    OpenAI(OpenAIConfig),
-}
-
-impl EmbeddingModel {
-    async fn cache<'a>(self, ctx: &Context<'a>) -> GraphResult<CachedEmbeddingModel> {
-        let data = ctx.data_unchecked::<Data>();
-        match self {
-            Self::OpenAI(OpenAIConfig {
-                model,
-                api_base,
-                api_key_env,
-                org_id,
-                project_id,
-            }) => {
-                let embeddings = OpenAIEmbeddings {
-                    model,
-                    api_base,
-                    api_key_env,
-                    org_id,
-                    project_id,
-                    dim: None,
-                };
-                let vector_cache = data.vector_cache.resolve().await?;
-                vector_cache.openai(embeddings.into()).await
-            }
-        }
-    }
 }
 
 /// a thin wrapper around spawn_blocking that unwraps the join handle
@@ -182,7 +138,7 @@ fn require_namespace_write(
 
 #[derive(ResolvedObject)]
 #[graphql(root)]
-pub(crate) struct QueryRoot;
+pub struct QueryRoot;
 
 #[derive(OneOfInput, Clone, Debug)]
 pub enum Template {
@@ -192,6 +148,7 @@ pub enum Template {
     Custom(String),
 }
 
+#[cfg_attr(not(feature = "vectors"), allow(dead_code))]
 fn resolve(template: Option<Template>, default: &str) -> Option<String> {
     match template? {
         Template::Enabled(false) => None,
@@ -272,48 +229,6 @@ impl QueryRoot {
         Ok(graph)
     }
 
-    /// Update graph query, has side effects to update graph state
-    ///
-    /// Returns:: GqlMutableGraph
-    async fn vectorise_graph<'a>(
-        ctx: &Context<'a>,
-        #[graphql(desc = "Graph path relative to the root namespace.")] path: String,
-        #[graphql(desc = "Optional embedding model; defaults to OpenAI's standard model.")]
-        model: Option<EmbeddingModel>,
-        #[graphql(
-            desc = "Optional node-document template (which fields go into each node's text representation); defaults to the built-in template."
-        )]
-        nodes: Option<Template>,
-        #[graphql(desc = "Optional edge-document template; defaults to the built-in template.")]
-        edges: Option<Template>,
-    ) -> Result<bool> {
-        ctx.require_jwt_write_access()?;
-        let data = ctx.data_unchecked::<Data>();
-        let template = DocumentTemplate {
-            node_template: resolve(nodes, DEFAULT_NODE_TEMPLATE),
-            edge_template: resolve(edges, DEFAULT_EDGE_TEMPLATE),
-        };
-        let cached_model = model
-            .unwrap_or(EmbeddingModel::OpenAI(Default::default()))
-            .cache(ctx)
-            .await?;
-        let folder = ExistingGraphFolder::try_from(data.work_dir_read().await, &path)?;
-        data.vectorise_folder(&folder, &template, cached_model)
-            .await?;
-        Ok(true)
-    }
-
-    /// Create vectorised graph in the format used for queries
-    ///
-    /// Returns:: GqlVectorisedGraph
-    async fn vectorised_graph<'a>(
-        ctx: &Context<'a>,
-        #[graphql(desc = "Graph path relative to the root namespace.")] path: &str,
-    ) -> Result<Option<GqlVectorisedGraph>> {
-        let data = ctx.data_unchecked::<Data>();
-        data.get_vectors_with_read_permission(ctx, path).await
-    }
-
     /// Returns all namespaces using recursive search
     ///
     /// Returns::  List of namespaces on root
@@ -351,7 +266,7 @@ impl QueryRoot {
 
     /// Returns a plugin.
     async fn plugins<'a>() -> QueryPlugin {
-        QueryPlugin::default()
+        QueryPlugin
     }
 
     /// Encodes graph and returns as string.
@@ -385,7 +300,7 @@ pub(crate) struct Mut(MutRoot);
 impl Mut {
     /// Returns a collection of mutation plugins.
     async fn plugins<'a>(_ctx: &Context<'a>) -> MutationPlugin {
-        MutationPlugin::default()
+        MutationPlugin
     }
 
     /// Delete graph from a path on the server.
@@ -800,6 +715,7 @@ impl Mut {
             }
         })
         .await?;
+        new_subgraph.flush()?;
 
         data.insert_graph(folder, new_subgraph).await?;
         if let Err(e) = auto_grant_on_create(ctx, &data.auth_policy, &new_path) {
@@ -807,50 +723,6 @@ impl Mut {
             return Err(e);
         }
         Ok(new_path)
-    }
-
-    /// (Experimental) Creates search index.
-    async fn create_index<'a>(
-        ctx: &Context<'a>,
-        #[graphql(desc = "Graph path relative to the root namespace.")] path: &str,
-        #[graphql(
-            desc = "Optional spec selecting which node/edge property fields to index. Omit to index a default set."
-        )]
-        index_spec: Option<IndexSpecInput>,
-        in_ram: bool,
-    ) -> Result<bool> {
-        let data = ctx.data_unchecked::<Data>();
-        #[cfg(feature = "search")]
-        {
-            let graph = data
-                .get_graph_with_write_permission(ctx, path)
-                .await?
-                .graph()
-                .clone();
-            match index_spec {
-                Some(index_spec) => {
-                    let index_spec = index_spec.to_index_spec(graph.clone())?;
-                    if in_ram {
-                        graph.create_index_in_ram_with_spec(index_spec)
-                    } else {
-                        graph.create_index_with_spec(index_spec)
-                    }
-                }
-                None => {
-                    if in_ram {
-                        graph.create_index_in_ram()
-                    } else {
-                        graph.create_index()
-                    }
-                }
-            }?;
-
-            Ok(true)
-        }
-        #[cfg(not(feature = "search"))]
-        {
-            Err(GraphError::IndexingNotSupported.into())
-        }
     }
 
     /// Flush any pending writes for the graph at `graphPath` to disk.
@@ -861,10 +733,15 @@ impl Mut {
         let data = ctx.data_unchecked::<Data>();
         let graph = data
             .get_graph_with_write_permission(ctx, &graph_path)
-            .await?
-            .graph()
-            .clone();
-        graph.flush()?;
+            .await?;
+        blocking_write(move || {
+            let res = graph.persist();
+            if res.is_err() {
+                graph.set_dirty(true);
+            }
+            res
+        })
+        .await?;
         Ok(true)
     }
 }
@@ -873,6 +750,7 @@ impl Mut {
 pub struct App(
     QueryRoot,
     MutRoot,
+    #[cfg(feature = "vectors")] VectorQuery<'static>,
     Mut,
     PermissionsEntrypointMut,
     PermissionsEntrypointQuery,

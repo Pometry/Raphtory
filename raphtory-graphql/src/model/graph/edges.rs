@@ -383,9 +383,9 @@ impl GqlEdges {
                                     first_time.partial_cmp(&second_time)
                                 } else if let Some(sort_by_property) = sort_by.property {
                                     let first_prop_maybe =
-                                        first_edge.properties().get(&*sort_by_property);
+                                        first_edge.properties().get(&sort_by_property);
                                     let second_prop_maybe =
-                                        second_edge.properties().get(&*sort_by_property);
+                                        second_edge.properties().get(&sort_by_property);
                                     first_prop_maybe.partial_cmp(&second_prop_maybe)
                                 } else {
                                     None

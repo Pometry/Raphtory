@@ -51,8 +51,8 @@ impl<I: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> List<I> {
     pub fn intersection(&self, other: &List<I>) -> List<I> {
         match (self, other) {
             (List::All, List::All) => List::All,
-            (List::List { .. }, List::All { .. }) => self.clone(),
-            (List::All { .. }, List::List { .. }) => other.clone(),
+            (List::List { .. }, List::All) => self.clone(),
+            (List::All, List::List { .. }) => other.clone(),
             (List::List { elems: a }, List::List { elems: b }) => {
                 let elems = a.intersection(b);
                 List::List { elems }

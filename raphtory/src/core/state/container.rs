@@ -28,7 +28,7 @@ impl<T> VecArray<T> {
     }
 
     pub(crate) fn current_mut(&mut self, ss: usize) -> &mut Vec<T> {
-        if ss % 2 == 0 {
+        if ss.is_multiple_of(2) {
             &mut self.even
         } else {
             &mut self.odd
@@ -36,7 +36,7 @@ impl<T> VecArray<T> {
     }
 
     pub(crate) fn current(&self, ss: usize) -> &Vec<T> {
-        if ss % 2 == 0 {
+        if ss.is_multiple_of(2) {
             &self.even
         } else {
             &self.odd
@@ -44,7 +44,7 @@ impl<T> VecArray<T> {
     }
 
     fn previous_mut(&mut self, ss: usize) -> &mut Vec<T> {
-        if ss % 2 == 0 {
+        if ss.is_multiple_of(2) {
             &mut self.odd
         } else {
             &mut self.even

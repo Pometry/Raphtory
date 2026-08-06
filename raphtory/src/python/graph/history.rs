@@ -237,7 +237,7 @@ impl PyHistory {
                 .eq(list.into_iter().map(|c| c.t()));
         }
         if let Ok(list) = other.extract::<Vec<EventTime>>() {
-            return self.history.iter().eq(list.into_iter());
+            return self.history.iter().eq(list);
         }
         false
     }
@@ -319,7 +319,7 @@ impl PyHistoryTimestamp {
     ///
     /// Returns:
     ///     list[int]: List of timestamps.
-    pub fn to_list<'py>(&self) -> Vec<i64> {
+    pub fn to_list(&self) -> Vec<i64> {
         self.history_t.collect()
     }
 
@@ -336,7 +336,7 @@ impl PyHistoryTimestamp {
     ///
     /// Returns:
     ///     list[int]: List of timestamps.
-    pub fn to_list_rev<'py>(&self) -> Vec<i64> {
+    pub fn to_list_rev(&self) -> Vec<i64> {
         self.history_t.collect_rev()
     }
 
@@ -396,7 +396,7 @@ impl PyHistoryTimestamp {
             return self.history_t.iter().eq(py_hist.get().history_t.iter());
         }
         if let Ok(list) = other.extract::<Vec<i64>>() {
-            return self.history_t.iter().eq(list.into_iter());
+            return self.history_t.iter().eq(list);
         }
         false
     }
@@ -541,12 +541,12 @@ impl PyHistoryDateTime {
     fn __contains__(&self, item: &Bound<PyAny>) -> bool {
         let dt_opt: Option<DateTime<Utc>> = {
             if let Ok(dt) = item.extract::<DateTime<FixedOffset>>() {
-                Some(dt.with_timezone(&Utc));
+                Some(dt.with_timezone(&Utc))
+            } else if let Ok(ndt) = item.extract::<NaiveDateTime>() {
+                Some(ndt.and_utc())
+            } else {
+                None
             }
-            if let Ok(ndt) = item.extract::<NaiveDateTime>() {
-                Some(ndt.and_utc());
-            }
-            None
         };
         if let Some(target) = dt_opt {
             return self
@@ -571,18 +571,18 @@ impl PyHistoryDateTime {
                     list.into_iter()
                         .map(|d| d.with_timezone(&Utc))
                         .into_dyn_boxed(),
-                );
+                )
+            } else if let Ok(list) = other.extract::<Vec<NaiveDateTime>>() {
+                Some(list.into_iter().map(|d| d.and_utc()).into_dyn_boxed())
+            } else {
+                None
             }
-            if let Ok(list) = other.extract::<Vec<NaiveDateTime>>() {
-                Some(list.into_iter().map(|d| d.and_utc()).into_dyn_boxed());
-            }
-            None
         };
         if let Ok(py_hist) = other.cast::<PyHistoryDateTime>() {
             return self.history_dt.iter().eq(py_hist.get().history_dt.iter());
         }
         if let Some(iterator) = dt_iter_opt {
-            return self.history_dt.iter().eq(iterator.map(|dt| Ok(dt)));
+            return self.history_dt.iter().eq(iterator.map(Ok));
         }
         false
     }
@@ -668,7 +668,7 @@ impl PyHistoryEventId {
     ///
     /// Returns:
     ///     list[int]: List of event ids.
-    pub fn to_list<'py>(&self) -> Vec<usize> {
+    pub fn to_list(&self) -> Vec<usize> {
         self.history_s.collect()
     }
 
@@ -685,7 +685,7 @@ impl PyHistoryEventId {
     ///
     /// Returns:
     ///     list[int]: List of event ids.
-    pub fn to_list_rev<'py>(&self) -> Vec<usize> {
+    pub fn to_list_rev(&self) -> Vec<usize> {
         self.history_s.collect_rev()
     }
 
@@ -745,7 +745,7 @@ impl PyHistoryEventId {
             return self.history_s.iter().eq(py_hist.get().history_s.iter());
         }
         if let Ok(list) = other.extract::<Vec<usize>>() {
-            return self.history_s.iter().eq(list.into_iter());
+            return self.history_s.iter().eq(list);
         }
         false
     }
@@ -831,7 +831,7 @@ impl PyIntervals {
     ///
     /// Returns:
     ///     list[int]: List of intervals in milliseconds.
-    pub fn to_list<'py>(&self) -> Vec<i64> {
+    pub fn to_list(&self) -> Vec<i64> {
         self.intervals.collect()
     }
 
@@ -848,7 +848,7 @@ impl PyIntervals {
     ///
     /// Returns:
     ///     list[int]: List of intervals in milliseconds.
-    pub fn to_list_rev<'py>(&self) -> Vec<i64> {
+    pub fn to_list_rev(&self) -> Vec<i64> {
         self.intervals.collect_rev()
     }
 
@@ -908,7 +908,7 @@ impl PyIntervals {
             return self.intervals.iter().eq(py_hist.get().intervals.iter());
         }
         if let Ok(list) = other.extract::<Vec<i64>>() {
-            return self.intervals.iter().eq(list.into_iter());
+            return self.intervals.iter().eq(list);
         }
         false
     }

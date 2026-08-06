@@ -5528,12 +5528,6 @@ input Value @oneOf {
 	decimal: String
 }
 
-"""
-A working set of documents / nodes / edges built up via similarity
-searches on a `VectorisedGraph`. Selections are mutable: you can grow
-them with more hops (`expand*`), dereference the contents (`nodes`,
-`edges`, `getDocuments`), or start fresh with `emptySelection`.
-"""
 type VectorSelection {
 	"""
 	Returns a list of nodes in the current selection.
@@ -5640,28 +5634,9 @@ type VectorSelection {
 	): VectorSelection!
 }
 
-"""
-A graph with embedded vector representations for its nodes and edges.
-Exposes similarity search over documents, nodes, and edges, plus
-selection building (`emptySelection`) and index maintenance
-(`optimizeIndex`).
-"""
 type VectorisedGraph {
-	"""
-	Rebuild (or incrementally update) the on-disk vector indexes for nodes
-	and edges so subsequent similarity searches hit the fresh embeddings.
-	Safe to call repeatedly; returns true on success.
-	"""
 	optimizeIndex: Boolean!
-	"""
-	Returns an empty selection of documents.
-	"""
 	emptySelection: VectorSelection!
-	"""
-	Find the highest-scoring nodes *and* edges (mixed) by similarity to a
-	natural-language query. The query is embedded server-side and matched
-	against indexed entity vectors.
-	"""
 	entitiesBySimilarity(
 		"""
 		Natural-language search string; embedded by the server.
@@ -5676,11 +5651,6 @@ type VectorisedGraph {
 		"""
 		window: VectorisedGraphWindow
 	): VectorSelection!
-	"""
-	Find the highest-scoring nodes by similarity to a natural-language
-	query. The query is embedded server-side and matched against indexed
-	node vectors.
-	"""
 	nodesBySimilarity(
 		"""
 		Natural-language search string; embedded by the server.
@@ -5695,11 +5665,6 @@ type VectorisedGraph {
 		"""
 		window: VectorisedGraphWindow
 	): VectorSelection!
-	"""
-	Find the highest-scoring edges by similarity to a natural-language
-	query. The query is embedded server-side and matched against indexed
-	edge vectors.
-	"""
 	edgesBySimilarity(
 		"""
 		Natural-language search string; embedded by the server.
@@ -5771,4 +5736,3 @@ schema {
 	query: QueryRoot
 	mutation: MutRoot
 }
-

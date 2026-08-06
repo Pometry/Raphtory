@@ -103,6 +103,10 @@ impl MemNodeSegment {
         self.est_size
     }
 
+    pub fn memory_tracker(&self) -> &Arc<AtomicUsize> {
+        &self.global_mem_tracker
+    }
+
     pub(crate) fn increment_global_est_size(&self, increment: usize) {
         self.global_mem_tracker
             .fetch_add(increment, Ordering::Relaxed);
@@ -261,17 +265,21 @@ impl MemNodeSegment {
         let layer = self.get_or_create_layer(layer_id);
         let est_size = layer.est_size();
 
-        let add_out = layer.reserve_local_row(src_pos);
-        let new_entry = add_out.is_new();
-        let add_out = add_out.inner();
-        let is_new_edge = add_out.adj.add_edge_out(dst, e_id.eid());
-        let row = add_out.row;
+        let (is_new_edge, row, new_entry) = {
+            let add_out = layer.reserve_local_row(src_pos);
+            let new_entry = add_out.is_new();
+            let add_out = add_out.inner();
+            let is_new_edge = add_out.adj.add_edge_out(dst, e_id.eid());
+            let row = add_out.row;
+            (is_new_edge, row, new_entry)
+        };
+        layer.inc_out_count(is_new_edge as usize);
         if let Some(t) = t {
             self.update_timestamp_inner(t, row, e_id);
         }
         let layer_est_size = self.layers[layer_id.0].est_size();
-        let added_size = (layer_est_size - est_size)
-            + (is_new_edge as usize * std::mem::size_of::<(VID, VID)>());
+        let added_size =
+            (layer_est_size - est_size) + (is_new_edge as usize * size_of::<(VID, VID)>());
         (new_entry, added_size)
     }
 
@@ -290,18 +298,23 @@ impl MemNodeSegment {
         let layer = self.get_or_create_layer(layer_id);
         let est_size = layer.est_size();
 
-        let add_in = layer.reserve_local_row(dst_pos);
-        let new_entry = add_in.is_new();
-        let add_in = add_in.inner();
-        let is_new_edge = add_in.adj.add_edge_into(src, e_id.eid());
-        let row = add_in.row;
+        let (is_new_edge, row, new_entry) = {
+            let add_in = layer.reserve_local_row(dst_pos);
+            let new_entry = add_in.is_new();
+            let add_in = add_in.inner();
+            let is_new_edge = add_in.adj.add_edge_into(src, e_id.eid());
+            let row = add_in.row;
+            (is_new_edge, row, new_entry)
+        };
+
+        layer.inc_inb_count(is_new_edge as usize);
 
         if let Some(t) = t {
             self.update_timestamp_inner(t, row, e_id);
         }
         let layer_est_size = self.layers[layer_id.0].est_size();
-        let added_size = (layer_est_size - est_size)
-            + (is_new_edge as usize * std::mem::size_of::<(VID, VID)>());
+        let added_size =
+            (layer_est_size - est_size) + (is_new_edge as usize * size_of::<(VID, VID)>());
         (new_entry, added_size)
     }
 

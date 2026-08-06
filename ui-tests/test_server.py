@@ -128,6 +128,8 @@ def __main__():
         graph_path("vanilla", "temporal_props")
     )
 
+    build_from_spec("numerical").save_to_file(graph_path("vanilla", "numerical"))
+
     server = graphql.GraphServer(work_dir=work_dir)
     server.run(port=port)
 

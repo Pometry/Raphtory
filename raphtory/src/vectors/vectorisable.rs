@@ -68,7 +68,7 @@ impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
                 .new_collection(db_path.clone(), "nodes", dim)
                 .await?,
         );
-        node_db.insert_vector_stream(node_vectors).await.unwrap();
+        node_db.insert_vector_stream(node_vectors).await?;
         node_db.create_or_update_index().await?;
 
         if verbose {
@@ -82,7 +82,7 @@ impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
         });
         let edge_vectors = compute_embeddings(edge_docs, &model);
         let edge_db = EdgeDb(factory.new_collection(db_path, "edges", dim).await?);
-        edge_db.insert_vector_stream(edge_vectors).await.unwrap();
+        edge_db.insert_vector_stream(edge_vectors).await?;
         edge_db.create_or_update_index().await?;
 
         if let Some(path) = path {

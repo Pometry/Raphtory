@@ -25,35 +25,23 @@ use crate::{
             },
             views::graph_view::PyGraphView,
         },
-        packages::{
-            algorithms::*,
-            graph_gen::*,
-            graph_loader::*,
-            vectors::{
-                embedding_server, PyEmbeddingServer, PyOpenAIEmbeddings, PyRunningEmbeddingServer,
-                PyVectorCache, PyVectorSelection, PyVectorisedGraph,
-            },
-        },
+        packages::{algorithms::*, graph_gen::*, graph_loader::*},
         types::{
             result_iterable::{
                 NestedResultOptionUtcDateTimeIterable, NestedResultUtcDateTimeIterable,
                 ResultOptionUtcDateTimeIterable, ResultUtcDateTimeIterable,
             },
-            wrappers::{
-                document::{PyDocument, PyEmbedding},
-                iterables::{
-                    ArcStringIterable, ArcStringVecIterable, BoolIterable, EventTimeIterable,
-                    GIDGIDIterable, GIDIterable, I64Iterable, NestedArcStringIterable,
-                    NestedArcStringVecIterable, NestedBoolIterable, NestedEventTimeIterable,
-                    NestedGIDGIDIterable, NestedGIDIterable, NestedI64Iterable,
-                    NestedI64VecIterable, NestedOptionArcStringIterable,
-                    NestedOptionEventTimeIterable, NestedOptionI64Iterable,
-                    NestedOptionUsizeIterable, NestedStringIterable, NestedUsizeIterable,
-                    NestedUtcDateTimeIterable, NestedVecUtcDateTimeIterable,
-                    OptionArcStringIterable, OptionEventTimeIterable, OptionI64Iterable,
-                    OptionUsizeIterable, OptionUtcDateTimeIterable, OptionVecUtcDateTimeIterable,
-                    PropIterable, StringIterable, U64Iterable, UsizeIterable,
-                },
+            wrappers::iterables::{
+                ArcStringIterable, ArcStringVecIterable, BoolIterable, EventTimeIterable,
+                GIDGIDIterable, GIDIterable, I64Iterable, NestedArcStringIterable,
+                NestedArcStringVecIterable, NestedBoolIterable, NestedEventTimeIterable,
+                NestedGIDGIDIterable, NestedGIDIterable, NestedI64Iterable, NestedI64VecIterable,
+                NestedOptionArcStringIterable, NestedOptionEventTimeIterable,
+                NestedOptionI64Iterable, NestedOptionUsizeIterable, NestedStringIterable,
+                NestedUsizeIterable, NestedUtcDateTimeIterable, NestedVecUtcDateTimeIterable,
+                OptionArcStringIterable, OptionEventTimeIterable, OptionI64Iterable,
+                OptionUsizeIterable, OptionUtcDateTimeIterable, OptionVecUtcDateTimeIterable,
+                PropIterable, StringIterable, U64Iterable, UsizeIterable,
             },
         },
         utils::PyWindowSet,
@@ -66,8 +54,14 @@ use raphtory_api::python::{
     PyProp,
 };
 
-#[cfg(feature = "search")]
-use crate::python::graph::index::{PyIndexSpec, PyIndexSpecBuilder};
+#[cfg(feature = "vectors")]
+use crate::python::{
+    packages::vectors::{
+        embedding_server, PyEmbeddingServer, PyOpenAIEmbeddings, PyRunningEmbeddingServer,
+        PyVectorCache, PyVectorSelection, PyVectorisedGraph,
+    },
+    types::wrappers::document::{PyDocument, PyEmbedding},
+};
 
 pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
     //Graph classes
@@ -104,9 +98,6 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
         PyWindowSet,
         PyProp
     );
-
-    #[cfg(feature = "search")]
-    add_classes!(m, PyIndexSpecBuilder, PyIndexSpec);
 
     #[pyfunction]
     /// Return Raphtory version.
@@ -265,6 +256,7 @@ pub fn base_graph_gen_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyEr
     Ok(graph_gen_module)
 }
 
+#[cfg(feature = "vectors")]
 pub fn base_vectors_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyErr> {
     let vectors_module = PyModule::new(py, "vectors")?;
     add_classes!(

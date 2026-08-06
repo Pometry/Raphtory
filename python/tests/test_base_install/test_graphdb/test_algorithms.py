@@ -596,6 +596,10 @@ def test_balance_algorithm():
     assert result == expected
 
 
+# Uses NodeState.groups([...]) (datafusion-backed group_by), which is temporarily
+# disabled behind the `datafusion` cargo feature during the arrow-59/pyo3-0.29
+# upgrade. Re-enable this test when the `datafusion` feature is turned back on.
+@pytest.mark.skip(reason="datafusion-backed groups() temporarily disabled")
 def test_label_propagation_algorithm():
     g = Graph()
     edges_str = [

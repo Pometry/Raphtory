@@ -107,7 +107,7 @@ impl<Op: NodeOp<Output = bool> + Clone> NodeFilterOp for Op {
     }
 
     fn not(self) -> NotOp<Self> {
-        NotOp { 0: self }
+        NotOp(self)
     }
 }
 

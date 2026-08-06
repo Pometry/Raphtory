@@ -5,12 +5,20 @@ import {
     expectStylingHex,
     expectStylingHexInput,
     fillColorPickerHexInput,
-    hoverEdgeAndExpectTooltip,
-    openTimeline,
+    saveAsWithRandomName,
     setupGraphPage,
-    styleAndSave,
+    style,
 } from './graph.utils';
 import { navigateInSavedGraphs } from './saved-graphs.utils';
+import {
+    getTemporalViewData,
+    hoverEdgeAndExpectTooltip,
+    openTimeline,
+    pinYAxisNode,
+    selectYAxisNode,
+    turnFilterOff,
+    turnFilterOn,
+} from './temporalview.utils';
 import { waitForLayoutToFinish } from './utils';
 
 test('Close temporal view button and open again', async ({ page }) => {
@@ -28,46 +36,47 @@ test('Temporal view hover over edges', async ({ page }) => {
     // wide line that listens to mouse events. Use the edge group's
     // aria-label rather than g:nth-child(N) so the test does not rely on
     // the DOM order of edges, which depends on raphtory iteration order.
-    const sensor = (id: string) => `[aria-label="Edge ID ${id}"] line:last-child`;
+    const sensor = (id: string) =>
+        `[aria-label='Edge ID ${id}'] line:last-child`;
 
     await hoverEdgeAndExpectTooltip(
         page,
-        sensor('Ben->Hamza_meets_1671667200000'),
+        sensor('["Ben","Hamza","meets",1671667200000]'),
         ['Ben → Hamza', 'meets'],
     );
     await hoverEdgeAndExpectTooltip(
         page,
-        sensor('Ben->Pedro_meets_1679356800000'),
+        sensor('["Ben","Pedro","meets",1679356800000]'),
         ['Ben → Pedro', 'meets'],
     );
     await hoverEdgeAndExpectTooltip(
         page,
-        sensor('Hamza->Pometry_founds_1687132800000'),
+        sensor('["Hamza","Pometry","founds",1687132800000]'),
         ['Hamza → Pometry', 'founds'],
     );
     await hoverEdgeAndExpectTooltip(
         page,
-        sensor('Hamza->Pedro_meets_1689734400000'),
+        sensor('["Hamza","Pedro","meets",1689734400000]'),
         ['Hamza → Pedro', 'meets'],
     );
     await hoverEdgeAndExpectTooltip(
         page,
-        sensor('Hamza->Pedro_meets_1697424000000'),
+        sensor('["Hamza","Pedro","meets",1697424000000]'),
         ['Hamza → Pedro', 'meets'],
     );
     await hoverEdgeAndExpectTooltip(
         page,
-        sensor('Hamza->Pedro_transfers_1705017600000'),
+        sensor('["Hamza","Pedro","transfers",1705017600000]'),
         ['Hamza → Pedro', 'transfers'],
     );
     await hoverEdgeAndExpectTooltip(
         page,
-        sensor('Pedro->Hamza_transfers_1707609600000'),
+        sensor('["Pedro","Hamza","transfers",1707609600000]'),
         ['Pedro → Hamza', 'transfers'],
     );
     await hoverEdgeAndExpectTooltip(
         page,
-        sensor('Ben->Hamza_transfers_1710115200000'),
+        sensor('["Ben","Hamza","transfers",1710115200000]'),
         ['Ben → Hamza', 'transfers'],
     );
 });
@@ -79,11 +88,7 @@ test('Pin node and highlight', async ({ page }) => {
     });
     await openTimeline(page);
 
-    await page
-        .locator('g')
-        .filter({ hasText: /^Pometry$/ })
-        .locator('image')
-        .click();
+    await pinYAxisNode(page, 'Pometry');
 
     const pometryY = (await page
         .locator('g')
@@ -97,11 +102,7 @@ test('Pin node and highlight', async ({ page }) => {
         .boundingBox())!.y;
     expect(pometryY).toBeLessThan(benY);
 
-    await page
-        .locator('g')
-        .filter({ hasText: /^Pometry$/ })
-        .locator('circle')
-        .click();
+    await selectYAxisNode(page, 'Pometry');
     await page.getByRole('tab', { name: 'Selected' }).click();
     await expect(
         page.getByRole('heading', { name: 'Pometry', exact: true }),
@@ -130,11 +131,7 @@ test('Highlight node from timeline view', async ({ page }) => {
         graphName: 'event',
     });
     await openTimeline(page);
-    await page
-        .locator('g')
-        .filter({ hasText: /^Ben$/ })
-        .locator('circle')
-        .click();
+    await selectYAxisNode(page, 'Ben');
     await page.getByRole('tab', { name: 'Selected' }).click();
     await expect(
         page.getByRole('heading', { name: 'Ben', exact: true }),
@@ -142,13 +139,7 @@ test('Highlight node from timeline view', async ({ page }) => {
     await expect(page.getByText('PROPERTIES')).toBeVisible();
     await expect(page.getByText('Age', { exact: true })).toBeVisible();
     await expect(page.getByText('30', { exact: true })).toBeVisible();
-    await page
-        .locator('g')
-        .filter({ hasText: /^Hamza$/ })
-        .locator('circle')
-        .click({
-            modifiers: ['Shift'],
-        });
+    await selectYAxisNode(page, 'Hamza', { modifiers: ['Shift'] });
     await expect(
         page.getByRole('heading', { name: 'Hamza', exact: true }),
     ).toBeVisible();
@@ -259,22 +250,16 @@ test('Filter selected hides non-neighbour nodes from y-axis', async ({
     await expect(yAxisName('Hamza')).toBeVisible();
     await expect(yAxisName('Pedro')).toBeVisible();
     await expect(yAxisName('Pometry')).toBeVisible();
+    await selectYAxisNode(page, 'Pometry');
 
-    // Pometry only connects to Hamza, so it is not a neighbour of Ben.
-    await page
-        .locator('g')
-        .filter({ hasText: /^Pometry$/ })
-        .locator('circle')
-        .click();
-
-    await page.getByRole('button', { name: 'Turn filter on' }).click();
+    await turnFilterOn(page);
 
     await expect(yAxisName('Pometry')).toBeVisible();
     await expect(yAxisName('Ben')).toBeVisible();
     await expect(yAxisName('Hamza')).toBeVisible();
     await expect(yAxisName('Pedro')).toBeHidden();
 
-    await page.getByRole('button', { name: 'Turn filter off' }).click();
+    await turnFilterOff(page);
 
     await expect(yAxisName('Pedro')).toBeVisible();
 });
@@ -286,14 +271,16 @@ test('Preview colour of edge on timeline view', async ({ page }) => {
     });
     await openTimeline(page);
 
-    await page.getByLabel('Edge ID Ben->Pedro_meets_1679356800000').click();
+    await page
+        .getByLabel('Edge ID ["Ben","Pedro","meets",1679356800000]')
+        .click();
     await page.getByRole('tab', { name: 'Styling' }).click();
     await fillColorPickerHexInput(page, 'F5A623');
     await page.waitForTimeout(2000);
 
     await expect(
         page
-            .getByLabel('Edge ID Ben->Pedro_meets_1679356800000')
+            .getByLabel('Edge ID ["Ben","Pedro","meets",1679356800000]')
             .locator('path')
             .first(),
     ).toHaveCSS('fill', 'rgb(245, 166, 35)');
@@ -309,16 +296,19 @@ test.describe('Change colour of edge on timeline view', () => {
         await isolatedGraphs.navigateToGraph(page, 'filler');
         await openTimeline(page);
 
-        await styleAndSave(
+        await style(
             page,
-            { kind: 'edge-instance', label: 'Edge ID Ben->Pedro_meets_50' },
+            {
+                kind: 'edge-instance',
+                label: 'Edge ID ["Ben","Pedro","meets",50]',
+            },
             { colourValue: 'F5A623' },
-            'Save edge styles',
         );
+        await saveAsWithRandomName(page, isolatedGraphs.namespace);
         await page.waitForTimeout(2000);
         await expect(
             page
-                .getByLabel('Edge ID Ben->Pedro_meets_50')
+                .getByLabel('Edge ID ["Ben","Pedro","meets",50]')
                 .locator('path')
                 .first(),
         ).toHaveCSS('fill', 'rgb(245, 166, 35)');
@@ -335,16 +325,19 @@ test.describe('Change colour only of exploded edge persists after save', () => {
         await isolatedGraphs.navigateToGraph(page, 'filler');
         await openTimeline(page);
 
-        await styleAndSave(
+        await style(
             page,
-            { kind: 'edge-instance', label: 'Edge ID Ben->Pedro_meets_50' },
+            {
+                kind: 'edge-instance',
+                label: 'Edge ID ["Ben","Pedro","meets",50]',
+            },
             { colourValue: 'F5A623' },
-            'Save edge styles',
         );
+        await saveAsWithRandomName(page, isolatedGraphs.namespace);
         await page.waitForTimeout(2000);
         await expect(
             page
-                .getByLabel('Edge ID Ben->Pedro_meets_50')
+                .getByLabel('Edge ID ["Ben","Pedro","meets",50]')
                 .locator('path')
                 .first(),
         ).toHaveCSS('fill', 'rgb(245, 166, 35)');
@@ -355,14 +348,81 @@ test.describe('Change colour only of exploded edge persists after save', () => {
         await openTimeline(page);
         await expectStylingHex(
             page,
-            { kind: 'edge-instance', label: 'Edge ID Ben->Pedro_meets_50' },
+            {
+                kind: 'edge-instance',
+                label: 'Edge ID ["Ben","Pedro","meets",50]',
+            },
             'F5A623',
         );
         await expect(
             page
-                .getByLabel('Edge ID Ben->Pedro_meets_50')
+                .getByLabel('Edge ID ["Ben","Pedro","meets",50]')
                 .locator('path')
                 .first(),
         ).toHaveCSS('fill', 'rgb(245, 166, 35)');
     });
+});
+
+test('Property events render at the correct node row', async ({ page }) => {
+    await navigateInSavedGraphs(page, {
+        namespace: 'vanilla',
+        graphName: 'temporal_props',
+    });
+    await openTimeline(page);
+
+    const { properties } = await getTemporalViewData(page);
+
+    const sorted = [...properties].sort(
+        (a, b) =>
+            a.node.localeCompare(b.node) || a.time.getTime() - b.time.getTime(),
+    );
+    expect(
+        sorted.map(({ node, key, value }) => ({ node, key, value })),
+    ).toEqual([
+        { node: 'Ben', key: 'STATUS', value: 'joined' },
+        { node: 'Ben', key: 'STATUS', value: 'active' },
+        { node: 'Ben', key: 'STATUS', value: 'promoted' },
+        { node: 'Hamza', key: 'STATUS', value: 'joined' },
+        { node: 'Hamza', key: 'STATUS', value: 'active' },
+    ]);
+
+    // Each event's time is interpolated from its rendered x-position against the
+    // axis ticks, so it validates where the event is drawn — not d3's internal
+    // datum. Allow a few days' slack for pixel rounding; the smallest gap
+    // between distinct event times here is ~89 days, so this stays unambiguous.
+    const DAY_MS = 24 * 60 * 60 * 1000;
+    const expectedTimes = [
+        1648598400000, // Ben joined
+        1656288000000, // Ben active
+        1663977600000, // Ben promoted
+        1648598400000, // Hamza joined
+        1663977600000, // Hamza active
+    ];
+    sorted.forEach((p, i) => {
+        expect(
+            Math.abs(p.time.getTime() - expectedTimes[i]),
+            `time mismatch for ${p.node}/${p.value}`,
+        ).toBeLessThanOrEqual(5 * DAY_MS);
+    });
+});
+
+test('Edges render with src/dst at the correct node rows', async ({ page }) => {
+    await setupGraphPage(page);
+
+    const { edges } = await getTemporalViewData(page);
+
+    const sorted = [...edges].sort(
+        (a, b) => a.time.getTime() - b.time.getTime(),
+    );
+    expect(sorted.map(({ src, dst, layer }) => ({ src, dst, layer }))).toEqual([
+        { src: 'Ben', dst: 'Hamza', layer: 'meets' },
+        { src: 'Ben', dst: 'Pedro', layer: 'meets' },
+        { src: 'Ben', dst: 'Pometry', layer: 'founds' },
+        { src: 'Hamza', dst: 'Pometry', layer: 'founds' },
+        { src: 'Hamza', dst: 'Pedro', layer: 'meets' },
+        { src: 'Hamza', dst: 'Pedro', layer: 'meets' },
+        { src: 'Hamza', dst: 'Pedro', layer: 'transfers' },
+        { src: 'Pedro', dst: 'Hamza', layer: 'transfers' },
+        { src: 'Ben', dst: 'Hamza', layer: 'transfers' },
+    ]);
 });

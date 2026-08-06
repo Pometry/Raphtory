@@ -94,6 +94,10 @@ impl MemEdgeSegment {
             .fetch_add(increment, Ordering::Relaxed);
     }
 
+    pub fn memory_tracker(&self) -> &Arc<AtomicUsize> {
+        &self.global_memory_tracker
+    }
+
     pub fn edge_meta(&self) -> &Arc<Meta> {
         self.layers[0].meta()
     }
@@ -562,7 +566,7 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
     }
 
     fn increment_num_edges(&self) -> u32 {
-        self.num_edges.fetch_add(1, atomic::Ordering::Relaxed)
+        self.num_edges.fetch_add(1, Ordering::Relaxed)
     }
 
     fn has_edge(

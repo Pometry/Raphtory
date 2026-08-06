@@ -62,12 +62,6 @@ use rustc_hash::FxHashSet;
 use std::{any::Any, path::Path, sync::Arc};
 use storage::{persist::strategy::PersistenceStrategy, Config, Extension};
 
-#[cfg(feature = "search")]
-use crate::{
-    db::graph::views::filter::model::TryAsCompositeFilter,
-    search::{fallback_filter_edges, fallback_filter_exploded_edges, fallback_filter_nodes},
-};
-
 /// This trait GraphViewOps defines operations for accessing
 /// information about a graph. The trait has associated types
 /// that are used to define the type of the nodes, edges
@@ -174,34 +168,6 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
 
     /// Get a view of the metadat for this graph
     fn metadata(&self) -> Metadata<'graph, Self>;
-}
-
-#[cfg(feature = "search")]
-pub trait SearchableGraphOps: Sized {
-    fn get_index_spec(&self) -> Result<IndexSpec, GraphError>;
-
-    fn search_nodes<F: TryAsCompositeFilter>(
-        &self,
-        filter: F,
-        limit: usize,
-        offset: usize,
-    ) -> Result<Vec<NodeView<'static, Self>>, GraphError>;
-
-    fn search_edges<F: TryAsCompositeFilter>(
-        &self,
-        filter: F,
-        limit: usize,
-        offset: usize,
-    ) -> Result<Vec<EdgeView<Self>>, GraphError>;
-
-    fn search_exploded_edges<F: TryAsCompositeFilter>(
-        &self,
-        filter: F,
-        limit: usize,
-        offset: usize,
-    ) -> Result<Vec<EdgeView<Self>>, GraphError>;
-
-    fn is_indexed(&self) -> bool;
 }
 
 #[inline]
@@ -630,11 +596,11 @@ pub fn materialize_impl(
                 break Err(err);
             }
         };
-        let _ = consumer_result?;
+        consumer_result?;
 
         drop(rx);
 
-        let _ = producer_handle.join().unwrap_or_else(|e| {
+        producer_handle.join().unwrap_or_else(|e| {
             Err(GraphError::IOErrorMsg(format!(
                 "Producer thread panicked: {:?}",
                 panic_message(&e)
@@ -878,10 +844,10 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         let src = self.internalise_node(src.as_node_ref())?;
         let dst = self.internalise_node(dst.as_node_ref())?;
         let src_node = self.core_node(src);
-        if self.internal_nodes_filtered() {
-            if !self.internal_filter_node(src_node.as_ref(), layer_ids) {
-                return None;
-            }
+        if self.internal_nodes_filtered()
+            && !self.internal_filter_node(src_node.as_ref(), layer_ids)
+        {
+            return None;
         }
         let edge_ref = src_node.find_edge(dst, layer_ids)?;
         match self.filter_state() {
@@ -1221,73 +1187,6 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
             edge_metadata: self.edge_metadata.unwrap_or_default(),
             edge_properties: self.edge_properties.unwrap_or_default(),
         }
-    }
-}
-
-#[cfg(feature = "search")]
-impl<G: StaticGraphViewOps> SearchableGraphOps for G {
-    fn get_index_spec(&self) -> Result<IndexSpec, GraphError> {
-        self.get_storage()
-            .map_or(Err(GraphError::IndexingNotSupported), |storage| {
-                storage.get_index_spec()
-            })
-    }
-
-    fn search_nodes<F: TryAsCompositeFilter>(
-        &self,
-        filter: F,
-        limit: usize,
-        offset: usize,
-    ) -> Result<Vec<NodeView<'static, G>>, GraphError> {
-        if let Some(storage) = self.get_storage() {
-            let guard = storage.get_index().read_recursive();
-            if let Some(searcher) = guard.searcher() {
-                return searcher.search_nodes(self, filter, limit, offset);
-            }
-        }
-
-        fallback_filter_nodes(self, &filter.try_as_composite_node_filter()?, limit, offset)
-    }
-
-    fn search_edges<F: TryAsCompositeFilter>(
-        &self,
-        filter: F,
-        limit: usize,
-        offset: usize,
-    ) -> Result<Vec<EdgeView<Self>>, GraphError> {
-        if let Some(storage) = self.get_storage() {
-            let guard = storage.get_index().read_recursive();
-            if let Some(searcher) = guard.searcher() {
-                return searcher.search_edges(self, filter, limit, offset);
-            }
-        }
-
-        fallback_filter_edges(self, &filter.try_as_composite_edge_filter()?, limit, offset)
-    }
-
-    fn search_exploded_edges<F: TryAsCompositeFilter>(
-        &self,
-        filter: F,
-        limit: usize,
-        offset: usize,
-    ) -> Result<Vec<EdgeView<Self>>, GraphError> {
-        if let Some(storage) = self.get_storage() {
-            let guard = storage.get_index().read();
-            if let Some(searcher) = guard.searcher() {
-                return searcher.search_exploded_edges(self, filter, limit, offset);
-            }
-        }
-
-        fallback_filter_exploded_edges(
-            self,
-            &filter.try_as_composite_exploded_edge_filter()?,
-            limit,
-            offset,
-        )
-    }
-
-    fn is_indexed(&self) -> bool {
-        self.get_storage().is_some_and(|s| s.is_indexed())
     }
 }
 

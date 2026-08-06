@@ -72,7 +72,7 @@ class GraphServer(object):
         heavy_query_limit (int, optional): Maximum number of expensive traversal queries (outComponent, inComponent, edges, outEdges, inEdges, neighbours, outNeighbours, inNeighbours) allowed to run simultaneously. Extra queries are parked on a semaphore.
         exclusive_writes (bool, optional): If True, ingestion/write operations run one at a time and block reads until complete.
         disable_batching (bool, optional): If True, batched GraphQL requests are rejected. Prevents bypassing per-request depth/complexity limits.
-        max_batch_size (int, optional): Caps the number of queries accepted in a single batched request.
+        max_batch_size (int, optional): Caps the number of queries accepted in a single batched request. Defaults to 10; set to null for unlimited (subject to disable_batching).
         disable_lists (bool, optional): If True, bulk `list` endpoints on collections are disabled. Clients must use `page` instead.
         max_page_size (int, optional): Maximum page size allowed on paged collection queries.
         max_query_depth (int, optional): Maximum nesting depth of a query.
@@ -125,44 +125,6 @@ class GraphServer(object):
     def turn_off_index(self) -> None:
         """
         Turn off index for all graphs.
-
-        Returns:
-            None:
-        """
-
-    def vectorise_all_graphs(
-        self,
-        embeddings: OpenAIEmbeddings,
-        nodes: bool | str = True,
-        edges: bool | str = True,
-    ) -> None:
-        """
-        Vectorise all graphs in the server working directory.
-
-        Arguments:
-            embeddings (OpenAIEmbeddings): the embeddings to use
-            nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
-            edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
-
-        Returns:
-            None:
-        """
-
-    def vectorise_graph(
-        self,
-        name: list[str],
-        embeddings: OpenAIEmbeddings,
-        nodes: bool | str = True,
-        edges: bool | str = True,
-    ) -> None:
-        """
-        Vectorise the graph name in the server working directory.
-
-        Arguments:
-            name (list[str]): the name of the graph to vectorise.
-            embeddings (OpenAIEmbeddings): the embeddings to use
-            nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
-            edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
 
         Returns:
             None:

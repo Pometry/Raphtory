@@ -42,7 +42,6 @@ use raphtory_api::core::{
         timeindex::{AsTime, EventTime},
     },
 };
-use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, ops::Deref, sync::Arc};
 
 impl<P: Into<DynTemporalProperties>> From<P> for PyTemporalProperties {

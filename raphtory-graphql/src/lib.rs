@@ -46,8 +46,6 @@ pub enum GQLError {
 
 #[cfg(test)]
 mod graphql_test {
-    #[cfg(feature = "search")]
-    use crate::config::app_config::AppConfigBuilder;
     use crate::{
         auth::Access,
         auth_policy::{auth_policy_tests::FakePolicy, GraphPermission, NamespacePermission},
@@ -105,156 +103,6 @@ mod graphql_test {
         let req = Request::new(query).data(Access::Rw);
         let res = schema.execute(req).await;
         assert_eq!(res.errors, []);
-    }
-
-    #[tokio::test]
-    #[cfg(feature = "search")]
-    async fn test_search_nodes_gql() {
-        let graph = Graph::new();
-
-        let nodes = vec![
-            (6, "N1", vec![("p1", Prop::U64(2u64))]),
-            (7, "N1", vec![("p1", Prop::U64(1u64))]),
-            (6, "N2", vec![("p1", Prop::U64(1u64))]),
-            (7, "N2", vec![("p1", Prop::U64(2u64))]),
-            (8, "N3", vec![("p1", Prop::U64(1u64))]),
-            (9, "N4", vec![("p1", Prop::U64(1u64))]),
-            (5, "N5", vec![("p1", Prop::U64(1u64))]),
-            (6, "N5", vec![("p1", Prop::U64(2u64))]),
-            (5, "N6", vec![("p1", Prop::U64(1u64))]),
-            (6, "N6", vec![("p1", Prop::U64(1u64))]),
-            (3, "N7", vec![("p1", Prop::U64(1u64))]),
-            (5, "N7", vec![("p1", Prop::U64(1u64))]),
-            (3, "N8", vec![("p1", Prop::U64(1u64))]),
-            (4, "N8", vec![("p1", Prop::U64(2u64))]),
-            (2, "N9", vec![("p1", Prop::U64(2u64))]),
-            (2, "N10", vec![("q1", Prop::U64(0u64))]),
-            (2, "N10", vec![("p1", Prop::U64(3u64))]),
-            (2, "N11", vec![("p1", Prop::U64(3u64))]),
-            (2, "N11", vec![("q1", Prop::U64(0u64))]),
-            (2, "N12", vec![("q1", Prop::U64(0u64))]),
-            (3, "N12", vec![("p1", Prop::U64(3u64))]),
-            (2, "N13", vec![("q1", Prop::U64(0u64))]),
-            (3, "N13", vec![("p1", Prop::U64(3u64))]),
-            (2, "N14", vec![("q1", Prop::U64(0u64))]),
-            (2, "N15", vec![]),
-        ];
-
-        for (id, name, props) in nodes {
-            graph.add_node(id, name, props, None, None).unwrap();
-        }
-
-        let metadata = vec![
-            ("N1", vec![("p1", Prop::U64(1u64))]),
-            ("N4", vec![("p1", Prop::U64(2u64))]),
-            ("N9", vec![("p1", Prop::U64(1u64))]),
-            ("N10", vec![("p1", Prop::U64(1u64))]),
-            ("N11", vec![("p1", Prop::U64(1u64))]),
-            ("N12", vec![("p1", Prop::U64(1u64))]),
-            ("N13", vec![("p1", Prop::U64(1u64))]),
-            ("N14", vec![("p1", Prop::U64(1u64))]),
-            ("N15", vec![("p1", Prop::U64(1u64))]),
-        ];
-
-        for (name, props) in metadata {
-            graph.node(name).unwrap().add_metadata(props).unwrap();
-        }
-
-        let graph: MaterializedGraph = graph.into();
-
-        let graphs = HashMap::from([("master".to_string(), graph)]);
-        let tmp_dir = tempdir().unwrap();
-        let config = AppConfigBuilder::new().with_create_index(true).build();
-        let data = Data::new(tmp_dir.path(), &config, Config::default());
-        save_graphs_to_work_dir(&data, &graphs).await.unwrap();
-
-        let schema = App::create_schema().data(data).finish().unwrap();
-
-        let query = r#"
-            {
-              graph(path: "master") {
-                searchNodes(
-                    filter: {
-                      or: [
-                        {
-                          property: {
-                            name: "p1",
-                            where: {
-                              gt: {
-                                u64: 2
-                              }
-                            }
-                          }
-                        },
-                        {
-                          and: [
-                        {
-                          node: {
-                                field: NODE_NAME,
-                            		where: {
-                                  eq: {
-                                    str: "N1"
-                                  }
-                                }
-                            }
-                        },
-                        {
-                          node: {
-                            field: NODE_TYPE,
-                            where: {
-                              ne: {
-                                str: "air_nomads"
-                              }
-                            }
-                          }
-                        },
-                        {
-                          property: {
-                            name: "p1",
-                            where: {
-                              lt: {
-                                u64: 5
-                              }
-                            }
-                          }
-                        }
-                      ]
-                        }
-                      ]
-
-
-                    },
-                  limit: 20,
-                  offset: 0
-                ) {
-                  name
-                }
-              }
-            }
-        "#;
-        let req = Request::new(query);
-        let res = schema.execute(req).await;
-        assert_eq!(res.errors, []);
-        let mut data = res.data.into_json().unwrap();
-
-        if let Some(nodes) = data["graph"]["searchNodes"].as_array_mut() {
-            nodes.sort_by(|a, b| a["name"].as_str().cmp(&b["name"].as_str()));
-        }
-
-        assert_eq!(
-            data,
-            json!({
-                "graph": {
-                    "searchNodes": [
-                        { "name": "N1" },
-                        { "name": "N10" },
-                        { "name": "N11" },
-                        { "name": "N12" },
-                        { "name": "N13" }
-                    ]
-                }
-            }),
-        );
     }
 
     #[tokio::test]
@@ -1132,7 +980,7 @@ mod graphql_test {
     async fn test_graph_injection() {
         let g = PersistentGraph::new();
         g.add_node(0, 1, NO_PROPS, None, None).unwrap();
-        let tmp_dir = tempfile::TempDir::new().unwrap();
+        let tmp_dir = TempDir::new().unwrap();
         let zip_path = tmp_dir.path().join("graph.zip");
         g.encode(GraphFolder::new_as_zip(&zip_path)).unwrap();
         let file = fs::File::open(&zip_path).unwrap();
@@ -2253,7 +2101,7 @@ mod graphql_test {
 
             let cases = ["", ".hidden/x", "x/.hidden", "../escape", "a//b"];
 
-            let snapshot_before = std::fs::read_dir(work_dir.path())
+            let snapshot_before = fs::read_dir(work_dir.path())
                 .unwrap()
                 .map(|e| e.unwrap().file_name())
                 .collect::<HashSet<_>>();
@@ -2272,7 +2120,7 @@ mod graphql_test {
                 );
             }
 
-            let snapshot_after = std::fs::read_dir(work_dir.path())
+            let snapshot_after = fs::read_dir(work_dir.path())
                 .unwrap()
                 .map(|e| e.unwrap().file_name())
                 .collect::<HashSet<_>>();
@@ -3085,7 +2933,7 @@ mod graphql_test {
         let tmp_dir = tempdir().unwrap();
         // Create a subdirectory inside the allowed root.
         let sub_dir = tmp_dir.path().join("subdir");
-        std::fs::create_dir_all(&sub_dir).unwrap();
+        fs::create_dir_all(&sub_dir).unwrap();
         let parquet_path = write_nodes_parquet(&sub_dir);
 
         // The allowlist only contains the top-level directory, not subdir directly.
@@ -3133,6 +2981,66 @@ mod graphql_test {
         let res = run_mutation(&schema, r#"mutation { flush(graphPath: "g") }"#).await;
         assert_eq!(res.errors, vec![], "flush mutation returned errors");
         assert_eq!(res.data.into_json().unwrap(), json!({"flush": true}));
+    }
+
+    /// End-to-end reproduction of the stale namespace-listing counts bug:
+    /// create a graph, populate it, and flush — all over GraphQL — then read
+    /// the listing from a cold-cache session (as after a server restart),
+    /// which resolves `nodeCount`/`edgeCount` from the persisted sidecar.
+    /// Before the fix, `updateGraph{ flush }` never rewrote the sidecar, so
+    /// this reported 0/0.
+    #[tokio::test]
+    async fn test_namespace_listing_counts_after_flush() {
+        use crate::test_support::{run_mutation, setup_with_graphs};
+
+        let work_dir = tempdir().unwrap();
+
+        let session = setup_with_graphs(&[], work_dir.path()).await;
+
+        // Graph lives inside the `people` namespace so we can list it below.
+        let created = run_mutation(
+            &session.schema,
+            r#"mutation { newGraph(path: "people/g", graphType: EVENT) }"#,
+        )
+        .await;
+        assert_eq!(created.errors, vec![], "newGraph errored");
+
+        // `updateGraph` is a side-effecting field on the query root.
+        // `addEdge` implicitly creates both endpoints: 2 nodes, 1 edge.
+        let written = run_mutation(
+            &session.schema,
+            r#"query { updateGraph(path: "people/g") { addEdge(time: 0, src: "a", dst: "b") { success } } }"#,
+        )
+        .await;
+        assert_eq!(written.errors, vec![], "addEdge errored");
+
+        // Separate request so `flush` is ordered after the writes.
+        let flushed = run_mutation(
+            &session.schema,
+            r#"query { updateGraph(path: "people/g") { flush } }"#,
+        )
+        .await;
+        assert_eq!(flushed.errors, vec![], "flush errored");
+
+        // Fresh session over the same work dir → cold cache, so the listing
+        // reads counts from the persisted sidecar (the bug surface).
+        let restarted = setup_with_graphs(&[], work_dir.path()).await;
+        let listed = restarted
+            .schema
+            .execute(Request::new(
+                r#"query { namespace(path: "people") { graphs { list { nodeCount edgeCount } } } }"#,
+            ))
+            .await;
+        assert_eq!(listed.errors, vec![], "namespace listing errored");
+
+        let json = listed.data.into_json().unwrap();
+        let row = &json["namespace"]["graphs"]["list"][0];
+        assert_eq!(row["nodeCount"], 2, "listing nodeCount stale after flush");
+        assert_eq!(row["edgeCount"], 1, "listing edgeCount stale after flush");
+
+        // Keep session 1 alive past the assertion: its `Drop` runs
+        // `flush_and_clear`, which would rewrite the sidecar and mask the bug.
+        drop(session);
     }
 
     #[tokio::test]

@@ -14,7 +14,6 @@ homepage.workspace = true
 
 [dependencies]
 raphtory = { workspace = true, features = [
-    'vectors',
     "io",
 ] }
 tempfile = { workspace = true }
@@ -72,7 +71,11 @@ pretty_assertions = { workspace = true }
 arrow = { workspace = true }
 parquet = { workspace = true }
 
+
 [features]
+default = []
+vectors = ["raphtory/vectors"]
+integration-test = ["opentelemetry_sdk/testing"]
 python = ["dep:pyo3", "dep:pythonize", "raphtory/python"]
-search = ["raphtory/search"]
+# search = ["raphtory/search"]
 panic-on-drop = ["raphtory/panic-on-drop"]

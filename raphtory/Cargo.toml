@@ -61,10 +61,10 @@ arrow-array.workspace = true
 arrow-schema.workspace = true
 arrow-select.workspace = true
 serde_arrow.workspace = true
-datafusion-physical-expr-common = { workspace = true }
-datafusion-physical-expr = { workspace = true }
-datafusion-physical-plan = { workspace = true }
-datafusion-expr-common = { workspace = true }
+datafusion-physical-expr-common = { workspace = true, optional = true }
+datafusion-physical-expr = { workspace = true, optional = true }
+datafusion-physical-plan = { workspace = true, optional = true }
+datafusion-expr-common = { workspace = true, optional = true }
 
 # io optional dependencies
 csv = { workspace = true, optional = true }
@@ -75,9 +75,6 @@ flate2 = { workspace = true, optional = true }
 reqwest = { workspace = true, features = ["blocking"], optional = true }
 tokio = { workspace = true, optional = true }
 kdam = { workspace = true, optional = true }
-
-# search optional dependencies
-tantivy = { workspace = true, optional = true }
 
 # vectors optional dependencies
 futures-util = { workspace = true, optional = true }
@@ -113,7 +110,7 @@ proptest.workspace = true
 tikv-jemallocator.workspace = true
 
 [features]
-default = [] # we can't depend on ourselves but we want to share test-utils
+default = ["datafusion"]
 
 # enables progress bars
 progress = ["dep:kdam"]
@@ -132,7 +129,15 @@ io = [
 ]
 
 # search
-search = ["dep:tantivy", "dep:tempfile", "io"]
+# search = ["dep:tantivy", "dep:tempfile", "io"]
+
+# datafusion-backed node-state sort/group_by ops (enabled by default)
+datafusion = [
+    "dep:datafusion-physical-expr-common",
+    "dep:datafusion-physical-expr",
+    "dep:datafusion-physical-plan",
+    "dep:datafusion-expr-common",
+]
 
 # vectors
 vectors = [
@@ -154,7 +159,6 @@ vectors = [
 python = [
     "io",
     "progress",
-    "vectors",
     "dep:pyo3",
     "dep:numpy",
     "dep:num",

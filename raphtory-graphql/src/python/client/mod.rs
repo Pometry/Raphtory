@@ -41,7 +41,7 @@ impl Serialize for PyUpdate {
         let mut state = serializer.serialize_struct("PyUpdate", count)?;
 
         let time = &self.time;
-        let time = time.clone().into_time();
+        let time = (*time).into_time();
         state.serialize_field("time", &time)?;
         if let Some(ref properties) = self.properties {
             let properties_list: Vec<serde_json::Value> = properties

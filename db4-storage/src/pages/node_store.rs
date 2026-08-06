@@ -27,7 +27,7 @@ use std::{
 };
 
 // graph // (nodes|edges) // graph segments // layers // chunks
-pub static N: LazyLock<usize> = LazyLock::new(|| rayon::current_num_threads());
+pub static N: LazyLock<usize> = LazyLock::new(rayon::current_num_threads);
 
 #[derive(Debug)]
 pub struct NodeStorageInner<NS, EXT> {
@@ -101,7 +101,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
 
     pub fn par_iter(
         &self,
-    ) -> impl rayon::iter::ParallelIterator<
+    ) -> impl ParallelIterator<
         Item = <<NS as NodeSegmentOps>::ArcLockedSegment as LockedNSSegment>::EntryRef<'_>,
     > + '_ {
         self.locked_segments
@@ -536,7 +536,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
 
         Ok(Self {
             segments: pages,
-            free_segments: free_pages.try_into().unwrap(),
+            free_segments: free_pages.into(),
             nodes_path: Some(nodes_path.to_path_buf()),
             stats: stats.into(),
             node_meta,

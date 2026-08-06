@@ -822,9 +822,7 @@ def test_all_property_types(GraphClass):
 
     with pytest.raises(Exception) as e:
         filter.ExplodedEdge.property("name").fuzzy_search(2, 2, False)
-    assert "argument 'prop_value': 'int' object is not an instance of 'str'" in str(
-        e.value
-    )
+    assert "'int' object is not an instance of 'str'" in str(e.value)
 
     missing_prop = [
         (filter.ExplodedEdge.property("blah") == 2),

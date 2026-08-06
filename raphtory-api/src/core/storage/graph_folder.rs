@@ -169,7 +169,7 @@ pub fn get_zip_data_path<R: Read + Seek>(
     zip: &mut ZipArchive<R>,
 ) -> Result<String, GraphFolderError> {
     let file = zip.by_name(ROOT_META_PATH)?;
-    Ok(read_path_from_file(file, DATA_PATH)?)
+    read_path_from_file(file, DATA_PATH)
 }
 
 pub fn get_zip_graph_path<R: Read + Seek>(
@@ -300,7 +300,7 @@ pub trait GraphPaths {
 
     /// Returns true if folder is occupied by a graph.
     fn is_reserved(&self) -> bool {
-        self.meta_path().map_or(false, |path| path.exists())
+        self.meta_path().is_ok_and(|path| path.exists())
     }
 
     /// Initialise the data folder and metadata pointer
@@ -547,7 +547,7 @@ impl GraphPaths for WriteableGraphFolder {
 
     fn relative_graph_path(&self) -> Result<String, GraphFolderError> {
         let path =
-            read_or_default_path_pointer(&self.data_path()?.as_ref(), GRAPH_META_PATH, GRAPH_PATH)?;
+            read_or_default_path_pointer(self.data_path()?.as_ref(), GRAPH_META_PATH, GRAPH_PATH)?;
         Ok(path)
     }
 

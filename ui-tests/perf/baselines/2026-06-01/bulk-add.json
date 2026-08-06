@@ -1,0 +1,26 @@
+{
+    "samples": [
+        {
+            "durationMs": 2136.8999999910593,
+            "nodeCount": 2749
+        },
+        {
+            "durationMs": 3445.8999999910593,
+            "nodeCount": 2749
+        },
+        {
+            "durationMs": 2447.7999999970198,
+            "nodeCount": 2749
+        },
+        {
+            "durationMs": 2482.5,
+            "nodeCount": 2749
+        },
+        {
+            "durationMs": 2413.699999988079,
+            "nodeCount": 2749
+        }
+    ],
+    "medianMs": 2482.5,
+    "p95Ms": 3445.8999999910593
+}

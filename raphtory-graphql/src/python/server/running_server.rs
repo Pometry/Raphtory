@@ -71,7 +71,7 @@ impl PyRunningGraphServer {
         self.apply_if_alive(|handler| {
             let port = handler.port;
             let url = format!("http://localhost:{port}");
-            Ok(PyRaphtoryClient::new(url, None)?)
+            PyRaphtoryClient::new(url, None)
         })
     }
 
