@@ -6701,6 +6701,11 @@ type Property {
 	numbers, booleans as booleans, strings as strings, etc.
 	"""
 	value: PropertyOutput!
+	"""
+	The property's exact type, for type-directed decoding of `value`
+	(`value` alone collapses e.g. all integer widths to one JSON number).
+	"""
+	dtype: PropertyType!
 }
 
 """
@@ -6770,7 +6775,19 @@ type PropertyTuple {
 	booleans as booleans, etc.
 	"""
 	value: PropertyOutput!
+	"""
+	The value's exact type, for type-directed decoding of `value`.
+	"""
+	dtype: PropertyType!
 }
+
+"""
+A property's type, as `PropType`'s serde JSON form — round-trippable,
+unlike the human-readable string from `getDtypeOf`. Scalars are bare
+strings (`"F64"`), containers are tagged objects
+(`{"List": "F64"}`, `{"Map": {"a": "I64"}}`, `{"Decimal": {"scale": 2}}`).
+"""
+scalar PropertyType
 
 type QueryPlugin {
 	NoOps: String!
@@ -6922,6 +6939,18 @@ enum SortByTime {
 	EARLIEST
 }
 
+"""
+Non-finite float values, which JSON cannot represent as numbers.
+
+Follows protobuf's JSON mapping convention of spelling these out
+explicitly rather than silently coercing them to `null`.
+"""
+enum SpecialFloat {
+	NAN
+	INFINITY
+	NEG_INFINITY
+}
+
 input Template @oneOf {
 	"""
 	The default template.
@@ -6985,6 +7014,12 @@ type TemporalProperty {
 	The property key (name).
 	"""
 	key: String!
+	"""
+	The property's declared type, for type-directed decoding of stored
+	values (`values`, `at`, `latest`, `unique`, `min`, `max`, `median`,
+	`orderedDedupe`). Aggregates (`sum`, `mean`, `average`) may widen.
+	"""
+	dtype: PropertyType!
 	"""
 	Event history for this property — one entry per temporal update, in
 	insertion order. Use this to navigate the full timeline: access the
@@ -7122,6 +7157,14 @@ input Value @oneOf {
 	64 bit float.
 	"""
 	f64: Float
+	"""
+	Non-finite 32 bit float (NaN, ±Infinity) — JSON has no number form for these.
+	"""
+	f32Special: SpecialFloat
+	"""
+	Non-finite 64 bit float (NaN, ±Infinity) — JSON has no number form for these.
+	"""
+	f64Special: SpecialFloat
 	"""
 	String.
 	"""

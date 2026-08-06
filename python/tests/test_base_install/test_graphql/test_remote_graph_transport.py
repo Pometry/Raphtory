@@ -2554,6 +2554,36 @@ def test_map_property_preserves_key_order():
     assert list(g.node("n").properties["cfg"]) == ["zeta", "alpha", "mid"]
 
 
+def test_non_finite_floats_round_trip():
+    """NaN and ±Infinity survive a remote write → read round-trip — JSON has
+    no number form for them, so they ride tagged variants on the way in and
+    string sentinels (decoded via dtype) on the way out."""
+    import math
+
+    with _remote_graph() as rg:
+        rg.add_node(1, "n", properties={"nan": float("nan"), "inf": float("inf")})
+        props = rg.node("n").properties
+        assert math.isnan(props["nan"])
+        assert props["inf"] == float("inf")
+
+
+def test_property_dtype_fidelity_remote():
+    """Stored values decode to their exact dtype remotely, not the widest
+    JSON-shaped variant — matching what a local graph reports."""
+    from raphtory import Graph, Prop
+
+    with _remote_graph() as rg:
+        rg.add_node(1, "n", properties={"small": Prop.u8(7), "single": Prop.f32(1.5)})
+        props = rg.node("n").properties
+        assert props.get_dtype_of("small") == "U8"
+        remote_small = props["small"]
+        assert remote_small == 7
+
+    g = Graph()
+    g.add_node(1, "n", properties={"small": Prop.u8(7)})
+    assert g.node("n").properties["small"] == 7
+
+
 def test_collection_getitem_is_select():
     """`nodes[filter]` / `edges[filter]` are sugar for `.select(filter)` —
     matching the local API, where `__getitem__` takes a FilterExpr."""

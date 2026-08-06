@@ -18,11 +18,11 @@ use crate::{
         transport::Transport,
         ClientError,
     },
-    model::graph::property::gql_to_prop,
+    model::graph::property::{gql_to_prop, parse_special_float},
 };
 use async_graphql::{async_trait, Value as GqlValue};
-use raphtory_api::core::entities::properties::prop::Prop;
-use serde::Serialize;
+use raphtory_api::core::entities::properties::prop::{Prop, PropType};
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value as JsonValue};
 use std::collections::HashMap;
 
@@ -1087,7 +1087,7 @@ fn render_read_body(expr: &ReadExpr, vars: &mut VarCollector) -> Result<String, 
         // self-balanced; outer `get` / `values` opens one net brace,
         // contributing 1 to read_depth.
         ReadExpr::PropertyGet { input, key } => format!(
-            "{} {{ get(key: {}) {{ value }}",
+            "{} {{ get(key: {}) {{ value dtype }}",
             render_read_body(input, vars)?,
             render_gql_str(key)
         ),
@@ -1108,19 +1108,19 @@ fn render_read_body(expr: &ReadExpr, vars: &mut VarCollector) -> Result<String, 
         }
         ReadExpr::PropertyValues { input, keys } => match keys {
             Some(ks) => format!(
-                "{} {{ values(keys: [{}]) {{ value }}",
+                "{} {{ values(keys: [{}]) {{ value dtype }}",
                 render_read_body(input, vars)?,
                 render_string_list(ks)
             ),
-            None => format!("{} {{ values {{ value }}", render_read_body(input, vars)?),
+            None => format!("{} {{ values {{ value dtype }}", render_read_body(input, vars)?),
         },
         ReadExpr::PropertyItems { input, keys } => match keys {
             Some(ks) => format!(
-                "{} {{ values(keys: [{}]) {{ key value }}",
+                "{} {{ values(keys: [{}]) {{ key value dtype }}",
                 render_read_body(input, vars)?,
                 render_string_list(ks)
             ),
-            None => format!("{} {{ values {{ key value }}", render_read_body(input, vars)?),
+            None => format!("{} {{ values {{ key value dtype }}", render_read_body(input, vars)?),
         },
         ReadExpr::TemporalProperties { input } => {
             format!("{} {{ temporal", render_read_body(input, vars)?)
@@ -1143,19 +1143,19 @@ fn render_read_body(expr: &ReadExpr, vars: &mut VarCollector) -> Result<String, 
             None => format!("{} {{ values {{ key }}", render_read_body(input, vars)?),
         },
         ReadExpr::TemporalPropertyValueList { input } => {
-            format!("{} {{ values", render_read_body(input, vars)?)
+            format!("{} {{ dtype values", render_read_body(input, vars)?)
         }
         ReadExpr::TemporalPropertyAt { input, time } => {
-            format!("{} {{ at(t: {})", render_read_body(input, vars)?, time)
+            format!("{} {{ dtype at(t: {})", render_read_body(input, vars)?, time)
         }
         ReadExpr::TemporalPropertyLatest { input } => {
-            format!("{} {{ latest", render_read_body(input, vars)?)
+            format!("{} {{ dtype latest", render_read_body(input, vars)?)
         }
         ReadExpr::TemporalPropertyUnique { input } => {
-            format!("{} {{ unique", render_read_body(input, vars)?)
+            format!("{} {{ dtype unique", render_read_body(input, vars)?)
         }
         ReadExpr::TemporalPropertyOrderedDedupe { input, latest_time } => format!(
-            "{} {{ orderedDedupe(latestTime: {}) {{ time {{ timestamp datetime eventId }} value }}",
+            "{} {{ dtype orderedDedupe(latestTime: {}) {{ time {{ timestamp datetime eventId }} value }}",
             render_read_body(input, vars)?,
             latest_time
         ),
@@ -1169,15 +1169,15 @@ fn render_read_body(expr: &ReadExpr, vars: &mut VarCollector) -> Result<String, 
             format!("{} {{ average", render_read_body(input, vars)?)
         }
         ReadExpr::TemporalPropertyMin { input } => format!(
-            "{} {{ min {{ time {{ timestamp datetime eventId }} value }}",
+            "{} {{ dtype min {{ time {{ timestamp datetime eventId }} value }}",
             render_read_body(input, vars)?
         ),
         ReadExpr::TemporalPropertyMax { input } => format!(
-            "{} {{ max {{ time {{ timestamp datetime eventId }} value }}",
+            "{} {{ dtype max {{ time {{ timestamp datetime eventId }} value }}",
             render_read_body(input, vars)?
         ),
         ReadExpr::TemporalPropertyMedian { input } => format!(
-            "{} {{ median {{ time {{ timestamp datetime eventId }} value }}",
+            "{} {{ dtype median {{ time {{ timestamp datetime eventId }} value }}",
             render_read_body(input, vars)?
         ),
         // Compound-structured tree — one RPC fetches everything.
@@ -1403,21 +1403,21 @@ fn render_read_body(expr: &ReadExpr, vars: &mut VarCollector) -> Result<String, 
         // entries. FLAT collections render `list { <container> { values { key
         // value } } }`.
         ReadExpr::CollectionMetadataValues { input } => format!(
-            "{} {{ list {{ metadata {{ values {{ key value }} }} }}",
+            "{} {{ list {{ metadata {{ values {{ key value dtype }} }} }}",
             render_read_body(input, vars)?
         ),
         ReadExpr::CollectionPropertiesValues { input } => format!(
-            "{} {{ list {{ properties {{ values {{ key value }} }} }}",
+            "{} {{ list {{ properties {{ values {{ key value dtype }} }} }}",
             render_read_body(input, vars)?
         ),
         // NESTED collections render `list { list { <container> { values { key
         // value } } } }`.
         ReadExpr::NestedMetadataValues { input } => format!(
-            "{} {{ list {{ list {{ metadata {{ values {{ key value }} }} }} }}",
+            "{} {{ list {{ list {{ metadata {{ values {{ key value dtype }} }} }} }}",
             render_read_body(input, vars)?
         ),
         ReadExpr::NestedPropertiesValues { input } => format!(
-            "{} {{ list {{ list {{ properties {{ values {{ key value }} }} }} }}",
+            "{} {{ list {{ list {{ properties {{ values {{ key value dtype }} }} }} }}",
             render_read_body(input, vars)?
         ),
         // Compound structured terminal on Graph: `sharedNeighbours(selectedNodes: [ids]) { name }`
@@ -2329,13 +2329,13 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
             if terminal_val.is_null() {
                 Ok(None)
             } else {
-                let value_json = terminal_val
-                    .as_object()
-                    .and_then(|o| o.get("value"))
-                    .ok_or_else(|| {
-                        ClientError::InvalidResponse("property record missing `value`".into())
-                    })?;
-                Ok(Some(json_to_prop(value_json)?))
+                let obj = terminal_val.as_object().ok_or_else(|| {
+                    ClientError::InvalidResponse("property record is not a JSON object".into())
+                })?;
+                let value_json = obj.get("value").ok_or_else(|| {
+                    ClientError::InvalidResponse("property record missing `value`".into())
+                })?;
+                Ok(Some(record_value_to_prop(obj, value_json)?))
             }
         }
         // `PropertyValues`: array of `{value}` records (values only) →
@@ -2347,11 +2347,13 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
             let items: Result<Vec<Prop>, ClientError> = arr
                 .iter()
                 .map(|v| {
-                    let value_json =
-                        v.as_object().and_then(|o| o.get("value")).ok_or_else(|| {
-                            ClientError::InvalidResponse("property record missing `value`".into())
-                        })?;
-                    json_to_prop(value_json)
+                    let obj = v.as_object().ok_or_else(|| {
+                        ClientError::InvalidResponse("property record is not a JSON object".into())
+                    })?;
+                    let value_json = obj.get("value").ok_or_else(|| {
+                        ClientError::InvalidResponse("property record missing `value`".into())
+                    })?;
+                    record_value_to_prop(obj, value_json)
                 })
                 .collect();
             Ok(Some(Prop::List(items?.into())))
@@ -2389,19 +2391,32 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
                 .collect();
             Ok(Some(Prop::List(items?.into())))
         }
-        // `TemporalPropertyValueList`: array of untagged Prop values.
+        // `TemporalPropertyValueList`: array of stored values, decoded via the
+        // sibling `dtype` the fragment fetches on the temporal property.
         ReadExpr::TemporalPropertyValueList { .. } => {
             let arr = terminal_val.as_array().ok_or_else(|| {
                 ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
             })?;
-            let items: Result<Vec<Prop>, ClientError> = arr.iter().map(json_to_prop).collect();
+            let dtype = sibling_dtype(cursor)?;
+            let items: Result<Vec<Prop>, ClientError> = arr
+                .iter()
+                .map(|v| decode_with_dtype(dtype.as_ref(), v))
+                .collect();
             Ok(Some(Prop::List(items?.into())))
         }
-        // `TemporalPropertyAt` / `TemporalPropertyLatest` / stats returning
-        // a nullable untagged Prop scalar.
-        ReadExpr::TemporalPropertyAt { .. }
-        | ReadExpr::TemporalPropertyLatest { .. }
-        | ReadExpr::TemporalPropertySum { .. }
+        // `TemporalPropertyAt` / `TemporalPropertyLatest`: nullable stored
+        // value — decoded via the sibling `dtype`.
+        ReadExpr::TemporalPropertyAt { .. } | ReadExpr::TemporalPropertyLatest { .. } => {
+            if terminal_val.is_null() {
+                Ok(None)
+            } else {
+                let dtype = sibling_dtype(cursor)?;
+                Ok(Some(decode_with_dtype(dtype.as_ref(), terminal_val)?))
+            }
+        }
+        // `Sum` / `Mean` / `Average`: computed aggregates — these may widen
+        // beyond the property dtype (e.g. mean of ints), so stay shape-decoded.
+        ReadExpr::TemporalPropertySum { .. }
         | ReadExpr::TemporalPropertyMean { .. }
         | ReadExpr::TemporalPropertyAverage { .. } => {
             if terminal_val.is_null() {
@@ -2410,12 +2425,16 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
                 Ok(Some(json_to_prop(terminal_val)?))
             }
         }
-        // `TemporalPropertyUnique`: array of untagged Prop values.
+        // `TemporalPropertyUnique`: array of stored values, dtype-directed.
         ReadExpr::TemporalPropertyUnique { .. } => {
             let arr = terminal_val.as_array().ok_or_else(|| {
                 ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
             })?;
-            let items: Result<Vec<Prop>, ClientError> = arr.iter().map(json_to_prop).collect();
+            let dtype = sibling_dtype(cursor)?;
+            let items: Result<Vec<Prop>, ClientError> = arr
+                .iter()
+                .map(|v| decode_with_dtype(dtype.as_ref(), v))
+                .collect();
             Ok(Some(Prop::List(items?.into())))
         }
         // `TemporalPropertyMin` / `Max` / `Median`: nullable `{time, value}`
@@ -2427,7 +2446,8 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
             if terminal_val.is_null() {
                 Ok(None)
             } else {
-                Ok(Some(json_to_property_tuple(terminal_val)?))
+                let dtype = sibling_dtype(cursor)?;
+                Ok(Some(json_to_property_tuple(terminal_val, dtype.as_ref())?))
             }
         }
         // `TemporalPropertyOrderedDedupe`: array of `{time, value}` records.
@@ -2435,8 +2455,11 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
             let arr = terminal_val.as_array().ok_or_else(|| {
                 ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
             })?;
-            let items: Result<Vec<Prop>, ClientError> =
-                arr.iter().map(json_to_property_tuple).collect();
+            let dtype = sibling_dtype(cursor)?;
+            let items: Result<Vec<Prop>, ClientError> = arr
+                .iter()
+                .map(|v| json_to_property_tuple(v, dtype.as_ref()))
+                .collect();
             Ok(Some(Prop::List(items?.into())))
         }
         // `Schema`: the full nested schema tree. We reuse `json_to_prop` —
@@ -3368,11 +3391,115 @@ fn json_to_prop(v: &JsonValue) -> Result<Prop, ClientError> {
     gql_to_prop(gql).map_err(|e| ClientError::InvalidResponse(e.message))
 }
 
+/// Decode the serde JSON form of `PropType` served by the `dtype` fields.
+fn json_to_prop_type(v: &JsonValue) -> Result<PropType, ClientError> {
+    PropType::deserialize(v).map_err(|e| ClientError::InvalidResponse(format!("bad dtype: {e}")))
+}
+
+/// Read the `dtype` sibling the fragment fetched on the terminal's parent
+/// (e.g. the temporal-property node). `None` when absent or null — older
+/// servers don't serve it, and an empty property has no declared type.
+fn sibling_dtype(parent: &JsonValue) -> Result<Option<PropType>, ClientError> {
+    match parent.get("dtype") {
+        Some(d) if !d.is_null() => Ok(Some(json_to_prop_type(d)?)),
+        _ => Ok(None),
+    }
+}
+
+/// Type-directed decode when a dtype is known, shape-based fallback otherwise.
+fn decode_with_dtype(dtype: Option<&PropType>, v: &JsonValue) -> Result<Prop, ClientError> {
+    match dtype {
+        Some(d) => json_to_prop_typed(d, v),
+        None => json_to_prop(v),
+    }
+}
+
+/// Type-directed decode of an untagged JSON property value: the server-declared
+/// `dtype` recovers what the JSON shape alone cannot — exact numeric widths
+/// (`U8` instead of `I64`), datetimes (epoch-millis numbers), decimals, and
+/// non-finite floats (protobuf-style `"NaN"`/`"Infinity"`/`"-Infinity"`
+/// sentinels in float positions).
+fn json_to_prop_typed(dtype: &PropType, v: &JsonValue) -> Result<Prop, ClientError> {
+    let mismatch =
+        |want: &str| ClientError::InvalidResponse(format!("dtype says {want}, got `{v}`"));
+    let int = |want: &str| v.as_i64().ok_or_else(|| mismatch(want));
+    let uint = |want: &str| v.as_u64().ok_or_else(|| mismatch(want));
+    let float = |want: &str| {
+        v.as_f64()
+            .or_else(|| v.as_str().and_then(parse_special_float))
+            .ok_or_else(|| mismatch(want))
+    };
+    Ok(match dtype {
+        // No type information recorded — fall back to shape-based decoding.
+        PropType::Empty => json_to_prop(v)?,
+        PropType::Str => Prop::Str(v.as_str().ok_or_else(|| mismatch("Str"))?.into()),
+        PropType::Bool => Prop::Bool(v.as_bool().ok_or_else(|| mismatch("Bool"))?),
+        PropType::U8 => Prop::U8(uint("U8")? as u8),
+        PropType::U16 => Prop::U16(uint("U16")? as u16),
+        PropType::U32 => Prop::U32(uint("U32")? as u32),
+        PropType::U64 => Prop::U64(uint("U64")?),
+        PropType::I32 => Prop::I32(int("I32")? as i32),
+        PropType::I64 => Prop::I64(int("I64")?),
+        PropType::F32 => Prop::F32(float("F32")? as f32),
+        PropType::F64 => Prop::F64(float("F64")?),
+        // The wire carries datetimes as epoch-millis numbers.
+        PropType::NDTime => Prop::NDTime(
+            chrono::DateTime::from_timestamp_millis(int("NDTime")?)
+                .ok_or_else(|| mismatch("NDTime"))?
+                .naive_utc(),
+        ),
+        PropType::DTime => Prop::DTime(
+            chrono::DateTime::from_timestamp_millis(int("DTime")?)
+                .ok_or_else(|| mismatch("DTime"))?,
+        ),
+        PropType::Decimal { .. } => {
+            let s = v.as_str().ok_or_else(|| mismatch("Decimal"))?;
+            Prop::Decimal(s.parse().map_err(|_| mismatch("Decimal"))?)
+        }
+        PropType::List(inner) => {
+            let arr = v.as_array().ok_or_else(|| mismatch("List"))?;
+            Prop::List(
+                arr.iter()
+                    .map(|item| json_to_prop_typed(inner, item))
+                    .collect::<Result<Vec<_>, _>>()?
+                    .into(),
+            )
+        }
+        PropType::Map(fields) => {
+            let obj = v.as_object().ok_or_else(|| mismatch("Map"))?;
+            let entries = obj
+                .iter()
+                .map(|(k, item)| {
+                    let prop = match fields.get(k) {
+                        Some(field_type) => json_to_prop_typed(field_type, item)?,
+                        None => json_to_prop(item)?,
+                    };
+                    Ok::<_, ClientError>((k.as_str(), prop))
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            Prop::map(entries)
+        }
+    })
+}
+
+/// Decode a `{value, dtype?}` record's value, type-directed when the server
+/// sent a `dtype` sibling (older servers may not).
+fn record_value_to_prop(
+    obj: &serde_json::Map<String, JsonValue>,
+    value_json: &JsonValue,
+) -> Result<Prop, ClientError> {
+    let dtype = match obj.get("dtype") {
+        Some(d) if !d.is_null() => Some(json_to_prop_type(d)?),
+        _ => None,
+    };
+    decode_with_dtype(dtype.as_ref(), value_json)
+}
+
 /// Decode a `{ time: {timestamp, datetime, eventId}, value }` JSON record
 /// into a `Prop::Map` with `"time"` (nested Prop::Map matching the event-
 /// time shape used elsewhere) and `"value"` (arbitrary Prop). Used by
 /// TemporalProperty stats (`min`/`max`/`median`) and `ordered_dedupe`.
-fn json_to_property_tuple(v: &JsonValue) -> Result<Prop, ClientError> {
+fn json_to_property_tuple(v: &JsonValue, dtype: Option<&PropType>) -> Result<Prop, ClientError> {
     let obj = v.as_object().ok_or_else(|| {
         ClientError::InvalidResponse("property tuple is not a JSON object".into())
     })?;
@@ -3397,7 +3524,10 @@ fn json_to_property_tuple(v: &JsonValue) -> Result<Prop, ClientError> {
         time_pairs.push(("eventId", Prop::I64(e)));
     }
     let time_map = Prop::map(time_pairs);
-    let value = json_to_prop(value_json)?;
+    let value = match dtype {
+        Some(d) => json_to_prop_typed(d, value_json)?,
+        None => json_to_prop(value_json)?,
+    };
     Ok(Prop::map(vec![("time", time_map), ("value", value)]))
 }
 
@@ -3414,7 +3544,7 @@ fn json_to_property_record(v: &JsonValue) -> Result<Prop, ClientError> {
     let value_json = obj
         .get("value")
         .ok_or_else(|| ClientError::InvalidResponse("property record missing `value`".into()))?;
-    let value = json_to_prop(value_json)?;
+    let value = record_value_to_prop(obj, value_json)?;
     Ok(Prop::map(vec![
         ("key", Prop::Str(key.into())),
         ("value", value),
@@ -3876,14 +4006,15 @@ mod tests {
     }
 
     #[test]
-    fn non_finite_write_property_is_invalid_input_not_a_panic() {
-        // The write path must surface a NaN property as `InvalidInput`, not
-        // panic inside `json!` when `Value`'s serializer rejects it.
-        let props: HashMap<String, Prop> = [("bad".to_string(), Prop::F64(f64::NAN))].into();
-        assert!(matches!(
-            properties_var(&props),
-            Err(ClientError::InvalidInput(_))
-        ));
+    fn non_finite_write_property_rides_the_special_variant() {
+        // NaN has no JSON number form — the write path must ship it in the
+        // tagged `f64Special` variant rather than erroring or emitting `null`.
+        let props: HashMap<String, Prop> = [("v".to_string(), Prop::F64(f64::NAN))].into();
+        let var = properties_var(&props).unwrap();
+        assert_eq!(
+            serde_json::to_value(&var).unwrap(),
+            serde_json::json!([{ "key": "v", "value": { "f64Special": "NAN" } }])
+        );
     }
 
     #[test]
