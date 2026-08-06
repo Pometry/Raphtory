@@ -914,8 +914,8 @@ def test_graph_schema():
 
 def test_temporal_property_stats():
     """`RemoteTemporalProperty` numeric stats: sum, mean, average, min, max,
-    median. Non-numeric aggregates return None. Non-numeric stats return
-    `RemotePropertyTuple` with a time and native-Python value."""
+    median. Non-numeric aggregates return None. Min/max/median return
+    `(EventTime, value)` tuples, matching the local API."""
     with _make_graph_with_edge() as rg:
         # Numeric values: 1, 2, 3, 4, 5
         for i, t in enumerate([1, 2, 3, 4, 5]):
@@ -927,21 +927,18 @@ def test_temporal_property_stats():
         assert score.mean() == 3.0
         assert score.average() == 3.0
 
-        # Min/max/median return RemotePropertyTuple (time + value)
+        # Min/max/median return (EventTime, value) tuples like the local API
         mn = score.min()
         assert mn is not None
-        assert mn.value == 1.0
-        assert mn.time.t == 1
+        assert (mn[0].t, mn[1]) == (1, 1.0)
 
         mx = score.max()
         assert mx is not None
-        assert mx.value == 5.0
-        assert mx.time.t == 5
+        assert (mx[0].t, mx[1]) == (5, 5.0)
 
         med = score.median()
         assert med is not None
-        assert med.value == 3.0
-        assert med.time.t == 3
+        assert (med[0].t, med[1]) == (3, 3.0)
 
 
 def test_temporal_property_unique_and_dedupe():
@@ -959,7 +956,7 @@ def test_temporal_property_unique_and_dedupe():
         # ordered_dedupe(latest_time=False): (1, 1), (3, 2), (6, 3), (7, 1) — first
         # timestamp of each run.
         first_ts = status.ordered_dedupe(latest_time=False)
-        assert [(p.time.t, p.value) for p in first_ts] == [
+        assert [(t.t, v) for (t, v) in first_ts] == [
             (1, 1),
             (3, 2),
             (6, 3),
@@ -969,7 +966,7 @@ def test_temporal_property_unique_and_dedupe():
         # ordered_dedupe(latest_time=True): (2, 1), (5, 2), (6, 3), (7, 1) — last
         # timestamp of each run.
         last_ts = status.ordered_dedupe(latest_time=True)
-        assert [(p.time.t, p.value) for p in last_ts] == [
+        assert [(t.t, v) for (t, v) in last_ts] == [
             (2, 1),
             (5, 2),
             (6, 3),

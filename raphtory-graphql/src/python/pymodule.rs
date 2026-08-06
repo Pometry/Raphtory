@@ -12,8 +12,8 @@ use crate::{
                 PyRemoteHistoryTimestamps, PyRemoteIntervals,
             },
             remote_metadata::{
-                PyRemoteMetadata, PyRemoteProperties, PyRemotePropertyTuple,
-                PyRemoteTemporalProperties, PyRemoteTemporalProperty,
+                PyRemoteMetadata, PyRemoteProperties, PyRemoteTemporalProperties,
+                PyRemoteTemporalProperty,
             },
             remote_nested_edges::PyRemoteNestedEdges,
             remote_node::PyRemoteNode,
@@ -76,7 +76,6 @@ pub fn base_graphql_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyErr>
     graphql_module.add_class::<PyRemotePropertiesView>()?;
     graphql_module.add_class::<PyRemoteTemporalProperties>()?;
     graphql_module.add_class::<PyRemoteTemporalProperty>()?;
-    graphql_module.add_class::<PyRemotePropertyTuple>()?;
     graphql_module.add_class::<PyRemoteGraphSchema>()?;
     graphql_module.add_class::<PyRemoteNodeSchema>()?;
     graphql_module.add_class::<PyRemoteLayerSchema>()?;

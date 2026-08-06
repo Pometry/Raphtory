@@ -462,17 +462,11 @@ impl PyRemoteTemporalProperty {
     /// Collapse consecutive-equal updates into single `(time, value)` pairs.
     /// `latest_time = True` picks the last timestamp of each run; `False`
     /// picks the first. Fires one RPC.
-    pub fn ordered_dedupe(
-        &self,
-        latest_time: bool,
-    ) -> Result<Vec<PyRemotePropertyTuple>, ClientError> {
+    pub fn ordered_dedupe(&self, latest_time: bool) -> Result<Vec<(EventTime, Prop)>, ClientError> {
         let inner = Arc::clone(&self.inner);
         let tuples =
             execute_async_task(move || async move { inner.ordered_dedupe(latest_time).await })?;
-        Ok(tuples
-            .into_iter()
-            .map(PyRemotePropertyTuple::from)
-            .collect())
+        Ok(tuples.into_iter().map(tuple_to_py).collect())
     }
 
     /// Sum of all updates. `None` if not additive. Fires one RPC.
@@ -513,26 +507,26 @@ impl PyRemoteTemporalProperty {
 
     /// Minimum `(time, value)` pair. `None` if not comparable or empty.
     /// Fires one RPC.
-    pub fn min(&self) -> Result<Option<PyRemotePropertyTuple>, ClientError> {
+    pub fn min(&self) -> Result<Option<(EventTime, Prop)>, ClientError> {
         let inner = Arc::clone(&self.inner);
         let val = execute_async_task(move || async move { inner.min().await })?;
-        Ok(val.map(PyRemotePropertyTuple::from))
+        Ok(val.map(tuple_to_py))
     }
 
     /// Maximum `(time, value)` pair. `None` if not comparable or empty.
     /// Fires one RPC.
-    pub fn max(&self) -> Result<Option<PyRemotePropertyTuple>, ClientError> {
+    pub fn max(&self) -> Result<Option<(EventTime, Prop)>, ClientError> {
         let inner = Arc::clone(&self.inner);
         let val = execute_async_task(move || async move { inner.max().await })?;
-        Ok(val.map(PyRemotePropertyTuple::from))
+        Ok(val.map(tuple_to_py))
     }
 
     /// Median `(time, value)` pair. `None` if not comparable or empty.
     /// Fires one RPC.
-    pub fn median(&self) -> Result<Option<PyRemotePropertyTuple>, ClientError> {
+    pub fn median(&self) -> Result<Option<(EventTime, Prop)>, ClientError> {
         let inner = Arc::clone(&self.inner);
         let val = execute_async_task(move || async move { inner.median().await })?;
-        Ok(val.map(PyRemotePropertyTuple::from))
+        Ok(val.map(tuple_to_py))
     }
 
     /// All `(time, value)` pairs this property has taken, in temporal order.
@@ -566,37 +560,9 @@ impl PyRemoteTemporalProperty {
 /// A `(time, value)` snapshot inside a temporal property. Returned by
 /// `min` / `max` / `median` (a single pair) and each entry of
 /// `ordered_dedupe` (a list of pairs).
-#[derive(Clone)]
-#[pyclass(name = "RemotePropertyTuple", module = "raphtory.graphql")]
-pub struct PyRemotePropertyTuple {
-    inner: RemotePropertyTuple,
-}
-
-impl From<RemotePropertyTuple> for PyRemotePropertyTuple {
-    fn from(inner: RemotePropertyTuple) -> Self {
-        Self { inner }
-    }
-}
-
-#[pymethods]
-impl PyRemotePropertyTuple {
-    /// The event time at which this value was observed.
-    #[getter]
-    pub fn time(&self) -> EventTime {
-        // A stored temporal value always carries a timestamp; MIN is an
-        // unreachable fallback for a malformed server response.
-        self.inner.time.to_event_time().unwrap_or(EventTime::MIN)
-    }
-
-    /// The property value at that time, as a native Python object.
-    #[getter]
-    pub fn value(&self, py: Python<'_>) -> Result<Py<PyAny>, ClientError> {
-        Ok(self
-            .inner
-            .value
-            .clone()
-            .into_pyobject(py)
-            .map_err(|e| ClientError::InvalidResponse(e.to_string()))?
-            .unbind())
-    }
+/// A remote `(time, value)` pair as the native tuple the local API returns.
+/// A stored temporal value always carries a timestamp; MIN is an unreachable
+/// fallback for a malformed server response.
+fn tuple_to_py(t: RemotePropertyTuple) -> (EventTime, Prop) {
+    (t.time.to_event_time().unwrap_or(EventTime::MIN), t.value)
 }

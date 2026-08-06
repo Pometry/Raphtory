@@ -30,7 +30,7 @@ import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 from raphtory.iterables import *
 
-__all__ = ['GraphServer', 'RunningGraphServer', 'RaphtoryClient', 'RemoteGraph', 'RemoteEdge', 'RemoteNode', 'RemoteNodes', 'RemotePathFromNode', 'RemotePathFromGraph', 'RemoteEdges', 'RemoteNestedEdges', 'RemoteHistory', 'RemoteHistoryTimestamps', 'RemoteHistoryEventIds', 'RemoteHistoryDateTimes', 'RemoteIntervals', 'RemoteMetadata', 'RemoteProperties', 'RemoteMetadataView', 'RemotePropertiesView', 'RemoteTemporalProperties', 'RemoteTemporalProperty', 'RemotePropertyTuple', 'RemoteGraphSchema', 'RemoteNodeSchema', 'RemoteLayerSchema', 'RemoteEdgeSchema', 'RemotePropertySchema', 'RemoteNodeAddition', 'RemoteUpdate', 'RemoteEdgeAddition', 'RemoteIndexSpec', 'PropsInput', 'SomePropertySpec', 'AllPropertySpec', 'SortByTime', 'NodeSortBy', 'EdgeSortBy', 'RemotePermissionError', 'encode_graph', 'decode_graph', 'schema', 'cli', 'has_permissions_extension']
+__all__ = ['GraphServer', 'RunningGraphServer', 'RaphtoryClient', 'RemoteGraph', 'RemoteEdge', 'RemoteNode', 'RemoteNodes', 'RemotePathFromNode', 'RemotePathFromGraph', 'RemoteEdges', 'RemoteNestedEdges', 'RemoteHistory', 'RemoteHistoryTimestamps', 'RemoteHistoryEventIds', 'RemoteHistoryDateTimes', 'RemoteIntervals', 'RemoteMetadata', 'RemoteProperties', 'RemoteMetadataView', 'RemotePropertiesView', 'RemoteTemporalProperties', 'RemoteTemporalProperty', 'RemoteGraphSchema', 'RemoteNodeSchema', 'RemoteLayerSchema', 'RemoteEdgeSchema', 'RemotePropertySchema', 'RemoteNodeAddition', 'RemoteUpdate', 'RemoteEdgeAddition', 'RemoteIndexSpec', 'PropsInput', 'SomePropertySpec', 'AllPropertySpec', 'SortByTime', 'NodeSortBy', 'EdgeSortBy', 'RemotePermissionError', 'encode_graph', 'decode_graph', 'schema', 'cli', 'has_permissions_extension']
 class GraphServer(object): 
     """
     A class for defining and running a Raphtory GraphQL server
@@ -3674,21 +3674,6 @@ class RemoteTemporalProperty(object):
         All values this property has ever taken, in temporal order.
         Fires one RPC. Returns a list of native Python values.
         """
-
-class RemotePropertyTuple(object): 
-    """
-    A `(time, value)` snapshot inside a temporal property. Returned by
-    `min` / `max` / `median` (a single pair) and each entry of
-    `ordered_dedupe` (a list of pairs).
-    """
-
-    @property
-    def time(self):
-        """The event time at which this value was observed."""
-
-    @property
-    def value(self):
-        """The property value at that time, as a native Python object."""
 
 class RemoteGraphSchema(object): 
     """
