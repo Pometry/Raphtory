@@ -36,7 +36,7 @@ extension-module = ["pyo3/extension-module"]
 datafusion = ["raphtory/datafusion"]
 # search = ["raphtory/search", "raphtory-graphql/search"]
 vectors = ["raphtory/vectors", "raphtory-graphql/vectors"]
-test = ["raphtory/panic-on-drop", "extension-module"]
+test = ["raphtory/panic-on-drop"]
 
 
 [build-dependencies]
