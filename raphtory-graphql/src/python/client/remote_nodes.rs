@@ -150,13 +150,10 @@ impl PyRemoteNodes {
     ///         `NodeFilter` (e.g. references edge fields, or uses an
     ///         unsupported operator like `FuzzySearch`).
     pub fn filter(&self, filter: PyFilterExpr) -> PyResult<PyRemoteNodes> {
-        let composite = filter
-            .try_as_node_filter()
+        let tree = filter
+            .try_as_filter_tree()
             .map_err(|e| PyValueError::new_err(e.to_string()))?;
-        let gql_filter = composite
-            .try_into()
-            .map_err(|e: raphtory::errors::GraphError| PyValueError::new_err(e.to_string()))?;
-        Ok(PyRemoteNodes::new(self.nodes.filter(gql_filter)))
+        Ok(PyRemoteNodes::new(self.nodes.filter(tree)?))
     }
 
     /// Narrow this collection's membership by a filter expression. Unlike

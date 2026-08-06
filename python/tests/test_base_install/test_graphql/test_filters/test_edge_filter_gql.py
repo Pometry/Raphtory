@@ -12,14 +12,14 @@ def test_filter_edges_with_str_ids_for_node_id_eq_gql(graph):
     query = """
     query {
       graph(path: "g") {
-        filterEdges(expr: {
+        filterEdges: filter(expr: { edges: {
           src: {
             node: {
               field: NODE_ID
             	where: { eq: { str: "3" } }
             }
           }
-        }) {
+        } }) {
           edges {
             list {
               src { name }
@@ -54,14 +54,14 @@ def test_filter_edges_with_num_ids_for_node_id_eq_gql(graph):
     query = """
     query {
       graph(path: "g") {
-        filterEdges(expr: {
+        filterEdges: filter(expr: { edges: {
           src: {
             node: {
               field: NODE_ID
               where: { eq: { u64: 1 } }
             }
           }
-        }) {
+        } }) {
           edges {
             list {
               src { name }

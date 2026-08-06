@@ -14,6 +14,7 @@ use crate::{
     },
     model::graph::filtering::{GqlFilter, GqlNodeFilter},
 };
+use raphtory::errors::GraphError;
 use std::sync::Arc;
 
 /// A handle to a "path from node" collection on the server — the nodes
@@ -191,9 +192,12 @@ impl RemotePathFromNode {
     /// traversals from the matching nodes. Mirrors the local
     /// `PathFromNode.filter(FilterExpr)`. Recorded in `ctx` so members
     /// materialized via `.collect()` replay it per handle. Lazy — no RPC.
-    pub fn filter(&self, filter: GqlFilter) -> RemotePathFromNode {
-        let filter = Arc::new(filter);
-        RemotePathFromNode {
+    pub fn filter(
+        &self,
+        filter: impl TryInto<GqlFilter, Error = GraphError>,
+    ) -> Result<RemotePathFromNode, ClientError> {
+        let filter = Arc::new(filter.try_into()?);
+        Ok(RemotePathFromNode {
             path: self.path.clone(),
             transport: self.transport.clone(),
             expr: Arc::new(ReadExpr::Filtered {
@@ -201,7 +205,7 @@ impl RemotePathFromNode {
                 filter: filter.clone(),
             }),
             ctx: self.ctx.with_op(HandleOp::Filter(filter)),
-        }
+        })
     }
 
     /// Narrow this collection's membership by a node filter — applies only at

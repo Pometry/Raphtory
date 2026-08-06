@@ -4073,7 +4073,7 @@ mod tests {
 
         // Membership: filter keeps every node addressable — including `a`,
         // which fails the filter itself.
-        let filtered = rg.nodes().filter(GqlFilter::Nodes(score_gt_15.clone()));
+        let filtered = rg.nodes().filter(score_gt_15.clone()).unwrap();
         let mut ids = filtered.ids().await.unwrap();
         ids.sort();
         assert_eq!(ids, ["a", "b", "c"], "filter must not narrow membership");
@@ -4130,7 +4130,8 @@ mod tests {
             .await
             .unwrap()
             .unwrap()
-            .filter(GqlFilter::Nodes(score_gt_15));
+            .filter(score_gt_15)
+            .unwrap();
         let c_handles = b.neighbours().collect().await.unwrap();
         assert_eq!(c_handles.len(), 1);
         assert_eq!(c_handles[0].id, "c");
@@ -4141,14 +4142,15 @@ mod tests {
         );
 
         // Cross-entity: edge handles materialized under a node filter replay
-        // it via the server's `filterNodes` field. b's only surviving edge is
-        // b-c, and its src (b) still evaluates under f.
-        let nested = rg.nodes().filter(GqlFilter::Nodes(GqlNodeFilter::Property(
-            PropertyFilterNew {
+        // it via the server's unified `filter` field. b's only surviving edge
+        // is b-c, and its src (b) still evaluates under f.
+        let nested = rg
+            .nodes()
+            .filter(GqlNodeFilter::Property(PropertyFilterNew {
                 name: "score".into(),
                 where_: PropCondition::Gt(GqlValue::I64(15)),
-            },
-        )));
+            }))
+            .unwrap();
         let rows = nested.edges().collect().await.unwrap();
         let ids_in_order = nested.ids().await.unwrap();
         let b_row = &rows[ids_in_order.iter().position(|id| id == "b").unwrap()];

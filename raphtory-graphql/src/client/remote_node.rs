@@ -19,6 +19,7 @@ use crate::{
     },
     model::graph::filtering::{GqlFilter, GqlNodeFilter},
 };
+use raphtory::errors::GraphError;
 use raphtory_api::core::{
     entities::properties::prop::Prop, storage::timeindex::AsTime, utils::time::IntoTime,
 };
@@ -84,9 +85,12 @@ impl RemoteNode {
     /// `Node.filter(FilterExpr)`. Wraps `expr` (the server field
     /// `filter(expr:)` on `Node`) and records the filter in `ctx` so
     /// descendants materialized through this node replay it. Lazy — no RPC.
-    pub fn filter(&self, filter: GqlFilter) -> RemoteNode {
-        let filter = Arc::new(filter);
-        RemoteNode {
+    pub fn filter(
+        &self,
+        filter: impl TryInto<GqlFilter, Error = GraphError>,
+    ) -> Result<RemoteNode, ClientError> {
+        let filter = Arc::new(filter.try_into()?);
+        Ok(RemoteNode {
             path: self.path.clone(),
             id: self.id.clone(),
             transport: self.transport.clone(),
@@ -95,7 +99,7 @@ impl RemoteNode {
                 filter: filter.clone(),
             }),
             ctx: self.ctx.with_op(HandleOp::Filter(filter)),
-        }
+        })
     }
 
     /// Restrict to a single named layer. Lazy — no RPC.

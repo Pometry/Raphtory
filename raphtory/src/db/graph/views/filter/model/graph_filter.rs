@@ -4,7 +4,7 @@ use crate::{
         graph::views::filter::{
             model::{
                 edge_filter::CompositeEdgeFilter, windowed_filter::Windowed,
-                CompositeExplodedEdgeFilter, CompositeNodeFilter, InternalViewWrapOps,
+                CompositeExplodedEdgeFilter, CompositeNodeFilter, FilterTree, InternalViewWrapOps,
                 TryAsCompositeFilter, Wrap,
             },
             CreateFilter,
@@ -74,6 +74,11 @@ impl CreateFilter for GraphFilter {
 }
 
 impl TryAsCompositeFilter for GraphFilter {
+    fn try_as_filter_tree(&self) -> Result<FilterTree, GraphError> {
+        // The bare graph anchor restricts nothing — an empty view chain.
+        Ok(FilterTree::View(Vec::new()))
+    }
+
     fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
         Err(GraphError::NotSupported)
     }

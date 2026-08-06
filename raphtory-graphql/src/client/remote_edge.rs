@@ -18,6 +18,7 @@ use crate::{
     },
     model::graph::filtering::GqlFilter,
 };
+use raphtory::errors::GraphError;
 use raphtory_api::core::{
     entities::properties::prop::Prop, storage::timeindex::AsTime, utils::time::IntoTime,
 };
@@ -86,9 +87,12 @@ impl RemoteEdge {
     /// `Edge.filter(FilterExpr)`. Wraps `expr` (the server field
     /// `filter(expr:)` on `Edge`) and records the filter in `ctx` so
     /// descendants materialized through this edge replay it. Lazy — no RPC.
-    pub fn filter(&self, filter: GqlFilter) -> RemoteEdge {
-        let filter = Arc::new(filter);
-        RemoteEdge {
+    pub fn filter(
+        &self,
+        filter: impl TryInto<GqlFilter, Error = GraphError>,
+    ) -> Result<RemoteEdge, ClientError> {
+        let filter = Arc::new(filter.try_into()?);
+        Ok(RemoteEdge {
             path: self.path.clone(),
             src: self.src.clone(),
             dst: self.dst.clone(),
@@ -98,7 +102,7 @@ impl RemoteEdge {
                 filter: filter.clone(),
             }),
             ctx: self.ctx.with_op(HandleOp::Filter(filter)),
-        }
+        })
     }
 
     /// Restrict to a single named layer. Lazy — no RPC.

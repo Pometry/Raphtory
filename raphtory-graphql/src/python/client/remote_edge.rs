@@ -54,17 +54,10 @@ impl PyRemoteEdge {
     /// Raises:
     ///     ValueError: if the filter cannot be represented remotely.
     pub fn filter(&self, filter: PyFilterExpr) -> PyResult<PyRemoteEdge> {
-        let gql: GqlFilter = if let Ok(edge) = filter.try_as_edge_filter() {
-            edge.try_into()
-                .map_err(|e: raphtory::errors::GraphError| PyValueError::new_err(e.to_string()))?
-        } else {
-            let node = filter
-                .try_as_node_filter()
-                .map_err(|e| PyValueError::new_err(e.to_string()))?;
-            node.try_into()
-                .map_err(|e: raphtory::errors::GraphError| PyValueError::new_err(e.to_string()))?
-        };
-        Ok(PyRemoteEdge::new(self.edge.filter(gql)))
+        let tree = filter
+            .try_as_filter_tree()
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        Ok(PyRemoteEdge::new(self.edge.filter(tree)?))
     }
 
     /// Restrict to a single named layer. Lazy — no RPC.

@@ -15,6 +15,7 @@ use crate::{
     },
     model::graph::filtering::{GqlEdgeFilter, GqlFilter},
 };
+use raphtory::errors::GraphError;
 use std::sync::Arc;
 
 /// A handle to a nested edges collection on the server — the edges incident to
@@ -173,9 +174,12 @@ impl RemoteNestedEdges {
     /// Filter this collection by an edge filter. **Propagates** to downstream
     /// traversals from the matching edges. Recorded in `ctx` so members
     /// materialized via `.collect()` replay it per handle. Lazy — no RPC.
-    pub fn filter(&self, filter: GqlFilter) -> RemoteNestedEdges {
-        let filter = Arc::new(filter);
-        RemoteNestedEdges {
+    pub fn filter(
+        &self,
+        filter: impl TryInto<GqlFilter, Error = GraphError>,
+    ) -> Result<RemoteNestedEdges, ClientError> {
+        let filter = Arc::new(filter.try_into()?);
+        Ok(RemoteNestedEdges {
             path: self.path.clone(),
             transport: self.transport.clone(),
             expr: Arc::new(ReadExpr::Filtered {
@@ -183,7 +187,7 @@ impl RemoteNestedEdges {
                 filter: filter.clone(),
             }),
             ctx: self.ctx.with_op(HandleOp::Filter(filter)),
-        }
+        })
     }
 
     /// Narrow this collection's membership by an edge filter — applies only at
