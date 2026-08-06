@@ -57,32 +57,32 @@ pub trait ArgsOps: Serialize + DeserializeOwned + Sized + Clone + ClapArgs {
         Ok(args_in_dir)
     }
 
-    /// Generate values for args from their environment variables.
-    ///
-    /// On invalid env values, logs the error and sets all fields to `None`.
-    fn from_env() -> Self {
-        let cm = Self::augment_args(Command::default().no_binary_name(true));
-
-        // Try to parse arg values from environment variables.
-        cm.clone()
-            .try_get_matches_from(iter::empty::<String>())
-            .and_then(|mut matches| Self::from_arg_matches_mut(&mut matches))
-            .unwrap_or_else(|err| {
-                error!(
-                    "{}, ignoring environment variables.",
-                    display_error(&err, &cm)
-                );
-
-                // On error return arg with all fields set to `None`.
-                cm.mut_args(|arg| arg.env(None))
-                    .try_get_matches_from(iter::empty::<String>())
-                    .and_then(|mut matches| Self::from_arg_matches_mut(&mut matches))
-                    .expect("Reading defaults without environment variables should not fail.")
-            })
-    }
-
     /// Update the config stored in `self` with the values in `new_args`.
     fn update(&mut self, new_args: Self);
+}
+
+/// Generate values for clap [`Args`](ClapArgs) from their environment variables.
+///
+/// On invalid env values, logs the error and sets all fields to `None`.
+pub fn clap_args_from_env<T: ClapArgs>() -> T {
+    let cm = T::augment_args(Command::default().no_binary_name(true));
+
+    // Try to parse arg values from environment variables.
+    cm.clone()
+        .try_get_matches_from(iter::empty::<String>())
+        .and_then(|mut matches| T::from_arg_matches_mut(&mut matches))
+        .unwrap_or_else(|err| {
+            error!(
+                "{}, ignoring environment variables.",
+                display_error(&err, &cm)
+            );
+
+            // On error return arg with all fields set to `None`.
+            cm.mut_args(|arg| arg.env(None))
+                .try_get_matches_from(iter::empty::<String>())
+                .and_then(|mut matches| T::from_arg_matches_mut(&mut matches))
+                .expect("Reading defaults without environment variables should not fail.")
+        })
 }
 
 fn display_error(err: &clap::Error, cm: &Command) -> String {
@@ -106,6 +106,7 @@ fn display_error(err: &clap::Error, cm: &Command) -> String {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ClapArgs)]
+#[serde(default)]
 pub struct BaseArgs {
     #[arg(long, env = "RAPHTORY_MAX_NODE_PAGE_LEN")]
     max_node_page_len: Option<u32>,
@@ -116,7 +117,8 @@ pub struct BaseArgs {
 
 impl Default for BaseArgs {
     fn default() -> Self {
-        Self::from_env()
+        // Use values from env if present.
+        clap_args_from_env()
     }
 }
 
