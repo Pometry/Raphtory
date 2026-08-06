@@ -129,12 +129,9 @@ pub fn neo4j_movie_graph(
     password: String,
     database: String,
 ) -> PyResult<Py<PyGraph>> {
-    let g =
-        Runtime::new()
-            .unwrap()
-            .block_on(crate::graph_loader::neo4j_examples::neo4j_movie_graph(
-                uri, username, password, database,
-            ));
+    let g = Runtime::new()?.block_on(crate::graph_loader::neo4j_examples::neo4j_movie_graph(
+        uri, username, password, database,
+    ));
     PyGraph::py_from_db_graph(g)
 }
 

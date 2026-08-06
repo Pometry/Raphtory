@@ -2,8 +2,6 @@ pub mod app_config;
 pub mod auth_config;
 pub mod cache_config;
 pub mod concurrency_config;
-#[cfg(feature = "search")]
-pub mod index_config;
 pub mod log_config;
 pub mod otlp_config;
 pub mod parquet_config;
