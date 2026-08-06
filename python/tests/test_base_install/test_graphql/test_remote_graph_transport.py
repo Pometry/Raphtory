@@ -2570,12 +2570,12 @@ def test_non_finite_floats_round_trip():
 def test_property_dtype_fidelity_remote():
     """Stored values decode to their exact dtype remotely, not the widest
     JSON-shaped variant — matching what a local graph reports."""
-    from raphtory import Graph, Prop
+    from raphtory import Graph, Prop, PropType
 
     with _remote_graph() as rg:
         rg.add_node(1, "n", properties={"small": Prop.u8(7), "single": Prop.f32(1.5)})
         props = rg.node("n").properties
-        assert props.get_dtype_of("small") == "U8"
+        assert props.get_dtype_of("small") == PropType.u8()
         remote_small = props["small"]
         assert remote_small == 7
 

@@ -1101,7 +1101,7 @@ fn render_read_body(expr: &ReadExpr, vars: &mut VarCollector) -> Result<String, 
         ReadExpr::PropertyKeys { input } => format!("{} {{ keys", render_read_body(input, vars)?),
         ReadExpr::PropertyGetDtypeOf { input, key } => {
             format!(
-                "{} {{ getDtypeOf(key: {})",
+                "{} {{ get(key: {}) {{ dtype }}",
                 render_read_body(input, vars)?,
                 render_gql_str(key)
             )
@@ -2307,16 +2307,19 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
             Ok(Some(Prop::List(items?.into())))
         }
         // `getDtypeOf(key)` — nullable string (the `PropType` display form).
+        // `PropertyGetDtypeOf`: `{ dtype }` record or null. The structured
+        // dtype JSON is carried through the Prop-typed transport as a string
+        // and deserialized to a `PropType` at the handle layer.
         ReadExpr::PropertyGetDtypeOf { .. } => {
             if terminal_val.is_null() {
                 Ok(None)
             } else {
-                terminal_val
-                    .as_str()
-                    .map(|s| Some(Prop::Str(s.into())))
-                    .ok_or_else(|| {
-                        ClientError::InvalidResponse(format!("`{}` not a string", terminal_key))
-                    })
+                let dtype = terminal_val.get("dtype").ok_or_else(|| {
+                    ClientError::InvalidResponse("dtype record missing `dtype`".into())
+                })?;
+                let carrier = serde_json::to_string(dtype)
+                    .map_err(|e| ClientError::InvalidResponse(e.to_string()))?;
+                Ok(Some(Prop::Str(carrier.into())))
             }
         }
         // Property terminals — each entry is a `{key, value}` record where
@@ -3149,7 +3152,7 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
             }
             ReadExpr::PropertyGetDtypeOf { input, .. } => {
                 go(input, out);
-                out.push("getDtypeOf");
+                out.push("get");
             }
             ReadExpr::CountNodes { input } => {
                 go(input, out);

@@ -16,7 +16,7 @@ use pyo3::{
 };
 use raphtory::python::utils::execute_async_task;
 use raphtory_api::core::{
-    entities::properties::prop::Prop,
+    entities::properties::prop::{Prop, PropType},
     storage::timeindex::{AsTime, EventTime},
 };
 use std::sync::Arc;
@@ -159,17 +159,17 @@ impl PyRemoteProperties {
         execute_async_task(move || async move { inner.keys().await })
     }
 
-    /// The data-type of the property's latest value by key, as its `PropType`
-    /// display string (e.g. `"I64"`, `"Str"`, `"List<F64>"`). Returns `None`
-    /// when the key isn't present. Mirrors the local `Properties.get_dtype_of`
-    /// — the local `PropType` compares equal to this string. Fires one RPC.
+    /// The data-type of the property's latest value by key, as a `PropType`.
+    /// Returns `None`
+    /// when the key isn't present. Mirrors the local `Properties.get_dtype_of`.
+    /// Fires one RPC.
     ///
     /// Arguments:
     ///     key (str): the name of the property.
     ///
     /// Returns:
-    ///     Optional[str]: the property's data-type, or None if absent.
-    pub fn get_dtype_of(&self, key: String) -> Result<Option<String>, ClientError> {
+    ///     Optional[PropType]: the property's data-type, or None if absent.
+    pub fn get_dtype_of(&self, key: String) -> Result<Option<PropType>, ClientError> {
         let inner = Arc::clone(&self.inner);
         execute_async_task(move || async move { inner.get_dtype_of(key).await })
     }

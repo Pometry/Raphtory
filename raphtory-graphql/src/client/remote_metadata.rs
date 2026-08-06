@@ -8,7 +8,7 @@ use crate::client::{
     },
     ClientError,
 };
-use raphtory_api::core::entities::properties::prop::Prop;
+use raphtory_api::core::entities::properties::prop::{Prop, PropType};
 use std::sync::Arc;
 
 /// A handle to the metadata container of a remote graph, node, or edge —
@@ -183,20 +183,23 @@ impl RemoteProperties {
         expect_property_list(self.transport.execute(&op).await?, "items")
     }
 
-    /// Terminal: the data-type of the property's latest value by key, as its
-    /// `PropType` display string (e.g. `"I64"`, `"Str"`, `"List<F64>"`).
-    /// Returns `None` when the key isn't present. Mirrors the local
-    /// `Properties.get_dtype_of`. Fires one RPC.
-    pub async fn get_dtype_of(&self, key: impl ToString) -> Result<Option<String>, ClientError> {
+    /// Terminal: the data-type of the property's latest value by key, as a
+    /// real `PropType`. Returns `None` when the key isn't present. Mirrors
+    /// the local `Properties.get_dtype_of`. Fires one RPC.
+    pub async fn get_dtype_of(&self, key: impl ToString) -> Result<Option<PropType>, ClientError> {
         let op = Op::Read(ReadExpr::PropertyGetDtypeOf {
             input: self.expr.clone(),
             key: key.to_string(),
         });
         match self.transport.execute(&op).await? {
             None => Ok(None),
-            Some(Prop::Str(s)) => Ok(Some(s.to_string())),
+            Some(Prop::Str(s)) => {
+                Ok(Some(serde_json::from_str(&s).map_err(|e| {
+                    ClientError::InvalidResponse(format!("bad dtype: {e}"))
+                })?))
+            }
             Some(_) => Err(ClientError::InvalidResponse(
-                "getDtypeOf returned unexpected value type".into(),
+                "dtype fetch returned unexpected value type".into(),
             )),
         }
     }

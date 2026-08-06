@@ -30,54 +30,8 @@ import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 from raphtory.iterables import *
 
-__all__ = [
-    "GraphServer",
-    "RunningGraphServer",
-    "RaphtoryClient",
-    "RemoteGraph",
-    "RemoteEdge",
-    "RemoteNode",
-    "RemoteNodes",
-    "RemotePathFromNode",
-    "RemotePathFromGraph",
-    "RemoteEdges",
-    "RemoteNestedEdges",
-    "RemoteHistory",
-    "RemoteHistoryTimestamps",
-    "RemoteHistoryEventIds",
-    "RemoteHistoryDateTimes",
-    "RemoteIntervals",
-    "RemoteMetadata",
-    "RemoteProperties",
-    "RemoteMetadataView",
-    "RemotePropertiesView",
-    "RemoteTemporalProperties",
-    "RemoteTemporalProperty",
-    "RemotePropertyTuple",
-    "RemoteGraphSchema",
-    "RemoteNodeSchema",
-    "RemoteLayerSchema",
-    "RemoteEdgeSchema",
-    "RemotePropertySchema",
-    "RemoteNodeAddition",
-    "RemoteUpdate",
-    "RemoteEdgeAddition",
-    "RemoteIndexSpec",
-    "PropsInput",
-    "SomePropertySpec",
-    "AllPropertySpec",
-    "SortByTime",
-    "NodeSortBy",
-    "EdgeSortBy",
-    "RemotePermissionError",
-    "encode_graph",
-    "decode_graph",
-    "schema",
-    "cli",
-    "has_permissions_extension",
-]
-
-class GraphServer(object):
+__all__ = ['GraphServer', 'RunningGraphServer', 'RaphtoryClient', 'RemoteGraph', 'RemoteEdge', 'RemoteNode', 'RemoteNodes', 'RemotePathFromNode', 'RemotePathFromGraph', 'RemoteEdges', 'RemoteNestedEdges', 'RemoteHistory', 'RemoteHistoryTimestamps', 'RemoteHistoryEventIds', 'RemoteHistoryDateTimes', 'RemoteIntervals', 'RemoteMetadata', 'RemoteProperties', 'RemoteMetadataView', 'RemotePropertiesView', 'RemoteTemporalProperties', 'RemoteTemporalProperty', 'RemotePropertyTuple', 'RemoteGraphSchema', 'RemoteNodeSchema', 'RemoteLayerSchema', 'RemoteEdgeSchema', 'RemotePropertySchema', 'RemoteNodeAddition', 'RemoteUpdate', 'RemoteEdgeAddition', 'RemoteIndexSpec', 'PropsInput', 'SomePropertySpec', 'AllPropertySpec', 'SortByTime', 'NodeSortBy', 'EdgeSortBy', 'RemotePermissionError', 'encode_graph', 'decode_graph', 'schema', 'cli', 'has_permissions_extension']
+class GraphServer(object): 
     """
     A class for defining and running a Raphtory GraphQL server
 
@@ -110,13 +64,7 @@ class GraphServer(object):
         rbac (dict, optional): Role-management settings, under the `rbac` config key. poll_interval_secs, plus at most one source sub-table: ldap {url, bind_dn, bind_password_env, group_base_dn, group_filter, permissions_attribute}, opa {path, query}, json {path}, or admin {seed_path}. Sources are polled and read-only; admin is update-driven. The live store is materialised under <work_dir>/.permissions/. None set → RBAC off.
     """
 
-    def __new__(
-        cls,
-        work_dir: str | PathLike,
-        config_path: Optional[str | PathLike] = None,
-        permissions_store_path: Optional[str | PathLike] = None,
-        config=None,
-    ) -> GraphServer:
+    def __new__(cls, work_dir: str | PathLike, config_path: Optional[str | PathLike] = None, permissions_store_path: Optional[str | PathLike] = None, config=None) -> GraphServer:
         """Create and return a new object.  See help(type) for accurate signature."""
 
     def run(self, port: Optional[int] = None, timeout_ms: int = 180000) -> None:
@@ -132,9 +80,7 @@ class GraphServer(object):
             None:
         """
 
-    def start(
-        self, port: Optional[int] = None, timeout_ms: int = 5000
-    ) -> RunningGraphServer:
+    def start(self, port: Optional[int] = None, timeout_ms: int = 5000) -> RunningGraphServer:
         """
         Start the server and return a handle to it.
 
@@ -149,19 +95,42 @@ class GraphServer(object):
             RunningGraphServer: The running server
         """
 
-    def turn_off_index(self) -> None:
+    def vectorise_all_graphs(self, embeddings: OpenAIEmbeddings, nodes: bool | str = True, edges: bool | str = True) -> None:
         """
-        Turn off index for all graphs.
+        Vectorise all graphs in the server working directory.
+
+        Arguments:
+            embeddings (OpenAIEmbeddings): the embeddings to use
+            nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
+            edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
 
         Returns:
             None:
         """
 
-class RunningGraphServer(object):
+    def vectorise_graph(self, name: list[str], embeddings: OpenAIEmbeddings, nodes: bool | str = True, edges: bool | str = True) -> None:
+        """
+        Vectorise the graph name in the server working directory.
+
+        Arguments:
+            name (list[str]): the name of the graph to vectorise.
+            embeddings (OpenAIEmbeddings): the embeddings to use
+            nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
+            edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
+
+        Returns:
+            None:
+        """
+
+class RunningGraphServer(object): 
     """A Raphtory server handler that also enables querying the server"""
 
-    def __enter__(self): ...
-    def __exit__(self, _exc_type, _exc_val, _exc_tb): ...
+    def __enter__(self):
+        ...
+
+    def __exit__(self, _exc_type, _exc_val, _exc_tb):
+        ...
+
     def get_client(self) -> RaphtoryClient:
         """
         Get the client for the server.
@@ -181,7 +150,7 @@ class RunningGraphServer(object):
             None:
         """
 
-class RaphtoryClient(object):
+class RaphtoryClient(object): 
     """
     A client for handling GraphQL operations in the context of Raphtory.
 
@@ -206,9 +175,7 @@ class RaphtoryClient(object):
             None:
         """
 
-    def create_index(
-        self, path: str, index_spec: RemoteIndexSpec, in_ram: bool = True
-    ) -> None:
+    def create_index(self, path: str, index_spec: RemoteIndexSpec, in_ram: bool = True) -> None:
         """
         Create Index for graph on the server at 'path'
 
@@ -293,14 +260,7 @@ class RaphtoryClient(object):
             ValueError: if permission is not one of "read", "write", "introspect".
         """
 
-    def grant_graph_filtered_read_only(
-        self,
-        role: str,
-        path: str,
-        filter: Any,
-        hidden_properties: Optional[dict[str, list[str]]] = None,
-        hidden_metadata: Optional[dict[str, list[str]]] = None,
-    ) -> bool:
+    def grant_graph_filtered_read_only(self, role: str, path: str, filter: Any, hidden_properties: Optional[dict[str, list[str]]] = None, hidden_metadata: Optional[dict[str, list[str]]] = None) -> bool:
         """
         Grant a role read-only access to a graph, restricted by a filter.
 
@@ -326,9 +286,7 @@ class RaphtoryClient(object):
                 edge filter.
         """
 
-    def grant_namespace(
-        self, role: str, path: str, permission: str, recursive: bool = False
-    ) -> bool:
+    def grant_namespace(self, role: str, path: str, permission: str, recursive: bool = False) -> bool:
         """
         Grant a role access to a namespace.
 
@@ -407,9 +365,7 @@ class RaphtoryClient(object):
 
         """
 
-    def query(
-        self, query: str, variables: Optional[dict[str, Any]] = None
-    ) -> dict[str, Any]:
+    def query(self, query: str, variables: Optional[dict[str, Any]] = None) -> dict[str, Any]:
         """
         Make a GraphQL query against the server.
 
@@ -477,9 +433,7 @@ class RaphtoryClient(object):
             bool: True if the access was revoked.
         """
 
-    def send_graph(
-        self, path: str, graph: Graph | PersistentGraph, overwrite: bool = False
-    ) -> None:
+    def send_graph(self, path: str, graph: Graph | PersistentGraph, overwrite: bool = False) -> None:
         """
         Send a graph to the server
 
@@ -521,16 +475,9 @@ class RaphtoryClient(object):
             RaphtoryClient: a new client using the given token.
         """
 
-class RemoteGraph(object):
-    def add_edge(
-        self,
-        timestamp: int | str | datetime,
-        src: str | int,
-        dst: str | int,
-        properties: Optional[dict] = None,
-        layer: Optional[str] = None,
-        event_id: Optional[int] = None,
-    ) -> RemoteEdge:
+class RemoteGraph(object): 
+
+    def add_edge(self, timestamp: int | str | datetime, src: str | int, dst: str | int, properties: Optional[dict] = None, layer: Optional[str] = None, event_id: Optional[int] = None) -> RemoteEdge:
         """
         Adds a new edge with the given source and destination nodes and properties to the remote graph.
 
@@ -569,15 +516,7 @@ class RemoteGraph(object):
             None:
         """
 
-    def add_node(
-        self,
-        timestamp: int | str | datetime,
-        id: str | int,
-        properties: Optional[dict] = None,
-        node_type: Optional[str] = None,
-        event_id: Optional[int] = None,
-        layer: Optional[str] = None,
-    ) -> RemoteNode:
+    def add_node(self, timestamp: int | str | datetime, id: str | int, properties: Optional[dict] = None, node_type: Optional[str] = None, event_id: Optional[int] = None, layer: Optional[str] = None) -> RemoteNode:
         """
         Adds a new node with the given id and properties to the remote graph.
 
@@ -605,12 +544,7 @@ class RemoteGraph(object):
             None:
         """
 
-    def add_properties(
-        self,
-        timestamp: int | str | datetime,
-        properties: dict,
-        event_id: Optional[int] = None,
-    ) -> None:
+    def add_properties(self, timestamp: int | str | datetime, properties: dict, event_id: Optional[int] = None) -> None:
         """
         Adds temporal properties to the remote graph.
 
@@ -646,15 +580,7 @@ class RemoteGraph(object):
         view. Fires one RPC.
         """
 
-    def create_node(
-        self,
-        timestamp: int | str | datetime,
-        id: str | int,
-        properties: Optional[dict] = None,
-        node_type: Optional[str] = None,
-        event_id: Optional[int] = None,
-        layer: Optional[str] = None,
-    ) -> RemoteNode:
+    def create_node(self, timestamp: int | str | datetime, id: str | int, properties: Optional[dict] = None, node_type: Optional[str] = None, event_id: Optional[int] = None, layer: Optional[str] = None) -> RemoteNode:
         """
         Create a new node with the given id and properties to the remote graph and fail if the node already exists.
 
@@ -677,13 +603,7 @@ class RemoteGraph(object):
     def default_layer(self):
         """Restrict to the default layer. Lazy — no RPC."""
 
-    def delete_edge(
-        self,
-        timestamp: int,
-        src: str | int,
-        dst: str | int,
-        layer: Optional[str] = None,
-    ) -> RemoteEdge:
+    def delete_edge(self, timestamp: int, src: str | int, dst: str | int, layer: Optional[str] = None) -> RemoteEdge:
         """
         Deletes an edge in the remote graph, given the timestamp, src and dst nodes and layer (optional)
 
@@ -980,9 +900,7 @@ class RemoteGraph(object):
     def valid_layers(self, names):
         """Restrict to the given set of valid layers. Lazy — no RPC."""
 
-    def window(
-        self, start: int | str | datetime, end: int | str | datetime
-    ) -> RemoteGraph:
+    def window(self, start: int | str | datetime, end: int | str | datetime) -> RemoteGraph:
         """
         Restrict the graph to a time window `[start, end)`.
 
@@ -1006,7 +924,7 @@ class RemoteGraph(object):
         if the view is unbounded. Property — attribute access fires one RPC.
         """
 
-class RemoteEdge(object):
+class RemoteEdge(object): 
     """
     A remote edge reference
 
@@ -1018,9 +936,7 @@ class RemoteEdge(object):
     def __getitem__(self, key):
         """Return self[key]."""
 
-    def add_metadata(
-        self, properties: dict[str, PropValue], layer: Optional[str] = None
-    ) -> None:
+    def add_metadata(self, properties: dict[str, PropValue], layer: Optional[str] = None) -> None:
         """
         Add metadata to the edge within the remote graph.
         This function is used to add metadata to an edge that does not
@@ -1034,13 +950,7 @@ class RemoteEdge(object):
           None:
         """
 
-    def add_updates(
-        self,
-        t: int | str | datetime,
-        properties: Optional[dict[str, PropValue]] = None,
-        layer: Optional[str] = None,
-        event_id: Optional[int] = None,
-    ) -> None:
+    def add_updates(self, t: int | str | datetime, properties: Optional[dict[str, PropValue]] = None, layer: Optional[str] = None, event_id: Optional[int] = None) -> None:
         """
         Add updates to an edge in the remote graph at a specified time.
 
@@ -1070,12 +980,7 @@ class RemoteEdge(object):
     def default_layer(self):
         """Restrict to the default layer. Lazy — no RPC."""
 
-    def delete(
-        self,
-        t: int | str | datetime,
-        layer: Optional[str] = None,
-        event_id: Optional[int] = None,
-    ) -> None:
+    def delete(self, t: int | str | datetime, layer: Optional[str] = None, event_id: Optional[int] = None) -> None:
         """
         Mark the edge as deleted at the specified time.
 
@@ -1271,9 +1176,7 @@ class RemoteEdge(object):
         primarily on `explode()`'d views. Property — attribute access fires one RPC.
         """
 
-    def update_metadata(
-        self, properties: dict[str, PropValue], layer: Optional[str] = None
-    ) -> None:
+    def update_metadata(self, properties: dict[str, PropValue], layer: Optional[str] = None) -> None:
         """
         Update metadata of an edge in the remote graph overwriting existing values.
         This function is used to add properties to an edge that does not
@@ -1300,7 +1203,8 @@ class RemoteEdge(object):
         if the view is unbounded. Property — attribute access fires one RPC.
         """
 
-class RemoteNode(object):
+class RemoteNode(object): 
+
     def __getitem__(self, key):
         """Return self[key]."""
 
@@ -1317,12 +1221,7 @@ class RemoteNode(object):
           None:
         """
 
-    def add_updates(
-        self,
-        t: int | str | datetime,
-        properties: Optional[dict[str, PropValue]] = None,
-        event_id: Optional[int] = None,
-    ) -> None:
+    def add_updates(self, t: int | str | datetime, properties: Optional[dict[str, PropValue]] = None, event_id: Optional[int] = None) -> None:
         """
         Add updates to a node in the remote graph at a specified time.
         This function allows for the addition of property updates to a node within the graph. The updates are time-stamped, meaning they are applied at the specified time.
@@ -1585,7 +1484,7 @@ class RemoteNode(object):
         if the view is unbounded. Property — attribute access fires one RPC.
         """
 
-class RemoteNodes(object):
+class RemoteNodes(object): 
     """
     A handle to a remote collection of nodes.
 
@@ -1898,7 +1797,7 @@ class RemoteNodes(object):
         if the view is unbounded. Property — attribute access fires one RPC.
         """
 
-class RemotePathFromNode(object):
+class RemotePathFromNode(object): 
     """
     A handle to a "path from node" collection.
 
@@ -2179,7 +2078,7 @@ class RemotePathFromNode(object):
         if the view is unbounded. Property — attribute access fires one RPC.
         """
 
-class RemotePathFromGraph(object):
+class RemotePathFromGraph(object): 
     """
     A handle to a "path from graph" collection.
 
@@ -2467,7 +2366,7 @@ class RemotePathFromGraph(object):
         if the view is unbounded. Property — attribute access fires one RPC.
         """
 
-class RemoteEdges(object):
+class RemoteEdges(object): 
     """
     A handle to a remote collection of edges.
 
@@ -2786,7 +2685,7 @@ class RemoteEdges(object):
         if the view is unbounded. Property — attribute access fires one RPC.
         """
 
-class RemoteNestedEdges(object):
+class RemoteNestedEdges(object): 
     """
     A handle to a nested edges collection.
 
@@ -3099,7 +2998,7 @@ class RemoteNestedEdges(object):
         if the view is unbounded. Property — attribute access fires one RPC.
         """
 
-class RemoteHistory(object):
+class RemoteHistory(object): 
     """
     A handle to the event history of a remote node or edge.
 
@@ -3197,9 +3096,7 @@ class RemoteHistory(object):
           Optional[EventTime]: the latest event time, or None.
         """
 
-    def page(
-        self, limit: int, offset: Optional[int] = None, page_index: Optional[int] = None
-    ) -> list[EventTime]:
+    def page(self, limit: int, offset: Optional[int] = None, page_index: Optional[int] = None) -> list[EventTime]:
         """
         A page of events in ascending time order — at most `limit` items,
         starting `page_index * limit + offset` items in. Both `offset` and
@@ -3236,7 +3133,7 @@ class RemoteHistory(object):
         local `History.t`. Lazy — no RPC.
         """
 
-class RemoteHistoryTimestamps(object):
+class RemoteHistoryTimestamps(object): 
     """Timestamps view of a `RemoteHistory`. Lists / pages return `list[int]`."""
 
     def __contains__(self, key):
@@ -3282,7 +3179,7 @@ class RemoteHistoryTimestamps(object):
         Fires one RPC.
         """
 
-class RemoteHistoryEventIds(object):
+class RemoteHistoryEventIds(object): 
     """Event-id view of a `RemoteHistory`. Lists / pages return `list[int]`."""
 
     def __contains__(self, key):
@@ -3328,7 +3225,7 @@ class RemoteHistoryEventIds(object):
         Fires one RPC.
         """
 
-class RemoteHistoryDateTimes(object):
+class RemoteHistoryDateTimes(object): 
     """
     Datetime view of a `RemoteHistory`. Lists / pages return `list[datetime]`
     (UTC), mirroring the local `History.dt`.
@@ -3364,7 +3261,7 @@ class RemoteHistoryDateTimes(object):
     def page_rev(self, limit, offset=None, page_index=None):
         """Fires one RPC."""
 
-class RemoteIntervals(object):
+class RemoteIntervals(object): 
     """
     Intervals view of a `RemoteHistory` — inter-event gaps plus summary
     stats (`mean`, `median`, `max`, `min`).
@@ -3437,7 +3334,7 @@ class RemoteIntervals(object):
         one RPC.
         """
 
-class RemoteMetadata(object):
+class RemoteMetadata(object): 
     """
     A handle to the metadata container of a remote graph, node, or edge —
     the non-temporal properties whose values don't change over the graph's
@@ -3490,7 +3387,7 @@ class RemoteMetadata(object):
         only entries with those names are returned. Fires one RPC.
         """
 
-class RemoteProperties(object):
+class RemoteProperties(object): 
     """
     A handle to the full properties container of a remote graph, node, or
     edge — includes both non-temporal metadata and temporal properties.
@@ -3530,18 +3427,18 @@ class RemoteProperties(object):
         under the current view. Fires one RPC.
         """
 
-    def get_dtype_of(self, key: str) -> Optional[str]:
+    def get_dtype_of(self, key: str) -> Optional[PropType]:
         """
-        The data-type of the property's latest value by key, as its `PropType`
-        display string (e.g. `"I64"`, `"Str"`, `"List<F64>"`). Returns `None`
-        when the key isn't present. Mirrors the local `Properties.get_dtype_of`
-        — the local `PropType` compares equal to this string. Fires one RPC.
+        The data-type of the property's latest value by key, as a `PropType`.
+        Returns `None`
+        when the key isn't present. Mirrors the local `Properties.get_dtype_of`.
+        Fires one RPC.
 
         Arguments:
             key (str): the name of the property.
 
         Returns:
-            Optional[str]: the property's data-type, or None if absent.
+            Optional[PropType]: the property's data-type, or None if absent.
         """
 
     def items(self):
@@ -3567,7 +3464,7 @@ class RemoteProperties(object):
         returned. Fires one RPC.
         """
 
-class RemoteMetadataView(object):
+class RemoteMetadataView(object): 
     """
     A columnar view over the non-temporal metadata of a remote node/edge
     collection. Every accessor returns one value per member (nested per source
@@ -3591,7 +3488,7 @@ class RemoteMetadataView(object):
     def values(self):
         """One column per key, in key order. Fires one RPC."""
 
-class RemotePropertiesView(object):
+class RemotePropertiesView(object): 
     """
     A columnar view over the properties of a remote node/edge collection
     (temporal properties yield their most recent value under the current view).
@@ -3614,7 +3511,7 @@ class RemotePropertiesView(object):
     def values(self):
         """One column per key, in key order. Fires one RPC."""
 
-class RemoteTemporalProperties(object):
+class RemoteTemporalProperties(object): 
     """
     A handle to the temporal-only view of a properties container. Each
     property has a full history over time.
@@ -3676,7 +3573,7 @@ class RemoteTemporalProperties(object):
         list); each returned handle fires its own RPCs on subsequent calls.
         """
 
-class RemoteTemporalProperty(object):
+class RemoteTemporalProperty(object): 
     """
     A handle to a single temporal property — one key with its full history
     of updates, plus statistical summaries and time-indexed accessors.
@@ -3778,7 +3675,7 @@ class RemoteTemporalProperty(object):
         Fires one RPC. Returns a list of native Python values.
         """
 
-class RemotePropertyTuple(object):
+class RemotePropertyTuple(object): 
     """
     A `(time, value)` snapshot inside a temporal property. Returned by
     `min` / `max` / `median` (a single pair) and each entry of
@@ -3793,7 +3690,7 @@ class RemotePropertyTuple(object):
     def value(self):
         """The property value at that time, as a native Python object."""
 
-class RemoteGraphSchema(object):
+class RemoteGraphSchema(object): 
     """
     The full schema of a remote graph — the tree of node types, edge
     layers, and their observed property/metadata fields.
@@ -3805,50 +3702,68 @@ class RemoteGraphSchema(object):
         """Return repr(self)."""
 
     @property
-    def layers(self): ...
-    @property
-    def nodes(self): ...
+    def layers(self):
+        ...
 
-class RemoteNodeSchema(object):
+    @property
+    def nodes(self):
+        ...
+
+class RemoteNodeSchema(object): 
     """Schema for nodes of a specific type."""
 
     def __repr__(self):
         """Return repr(self)."""
 
     @property
-    def metadata(self): ...
-    @property
-    def properties(self): ...
-    @property
-    def type_name(self): ...
+    def metadata(self):
+        ...
 
-class RemoteLayerSchema(object):
+    @property
+    def properties(self):
+        ...
+
+    @property
+    def type_name(self):
+        ...
+
+class RemoteLayerSchema(object): 
     """Schema for a single edge layer."""
 
     def __repr__(self):
         """Return repr(self)."""
 
     @property
-    def edges(self): ...
-    @property
-    def name(self): ...
+    def edges(self):
+        ...
 
-class RemoteEdgeSchema(object):
+    @property
+    def name(self):
+        ...
+
+class RemoteEdgeSchema(object): 
     """Schema for edges between a specific `(src_type, dst_type)` pair."""
 
     def __repr__(self):
         """Return repr(self)."""
 
     @property
-    def dst_type(self): ...
-    @property
-    def metadata(self): ...
-    @property
-    def properties(self): ...
-    @property
-    def src_type(self): ...
+    def dst_type(self):
+        ...
 
-class RemotePropertySchema(object):
+    @property
+    def metadata(self):
+        ...
+
+    @property
+    def properties(self):
+        ...
+
+    @property
+    def src_type(self):
+        ...
+
+class RemotePropertySchema(object): 
     """
     One property key on a node/edge type, with its observed property type
     and (for string-valued properties) the set of distinct values seen.
@@ -3858,13 +3773,18 @@ class RemotePropertySchema(object):
         """Return repr(self)."""
 
     @property
-    def key(self): ...
-    @property
-    def property_type(self): ...
-    @property
-    def variants(self): ...
+    def key(self):
+        ...
 
-class RemoteNodeAddition(object):
+    @property
+    def property_type(self):
+        ...
+
+    @property
+    def variants(self):
+        ...
+
+class RemoteNodeAddition(object): 
     """
     Node addition update
 
@@ -3875,16 +3795,10 @@ class RemoteNodeAddition(object):
         updates (list[RemoteUpdate], optional): the temporal updates
     """
 
-    def __new__(
-        cls,
-        name: GID,
-        node_type: Optional[str] = None,
-        metadata: Optional[PropInput] = None,
-        updates: Optional[list[RemoteUpdate]] = None,
-    ) -> RemoteNodeAddition:
+    def __new__(cls, name: GID, node_type: Optional[str] = None, metadata: Optional[PropInput] = None, updates: Optional[list[RemoteUpdate]] = None) -> RemoteNodeAddition:
         """Create and return a new object.  See help(type) for accurate signature."""
 
-class RemoteUpdate(object):
+class RemoteUpdate(object): 
     """
     A temporal update
 
@@ -3893,12 +3807,10 @@ class RemoteUpdate(object):
         properties (PropInput, optional): the properties for the update
     """
 
-    def __new__(
-        cls, time: TimeInput, properties: Optional[PropInput] = None
-    ) -> RemoteUpdate:
+    def __new__(cls, time: TimeInput, properties: Optional[PropInput] = None) -> RemoteUpdate:
         """Create and return a new object.  See help(type) for accurate signature."""
 
-class RemoteEdgeAddition(object):
+class RemoteEdgeAddition(object): 
     """
     An edge update
 
@@ -3910,17 +3822,10 @@ class RemoteEdgeAddition(object):
         updates (list[RemoteUpdate], optional): the temporal updates for the edge
     """
 
-    def __new__(
-        cls,
-        src: GID,
-        dst: GID,
-        layer: Optional[str] = None,
-        metadata: Optional[PropInput] = None,
-        updates: Optional[list[RemoteUpdate]] = None,
-    ) -> RemoteEdgeAddition:
+    def __new__(cls, src: GID, dst: GID, layer: Optional[str] = None, metadata: Optional[PropInput] = None, updates: Optional[list[RemoteUpdate]] = None) -> RemoteEdgeAddition:
         """Create and return a new object.  See help(type) for accurate signature."""
 
-class RemoteIndexSpec(object):
+class RemoteIndexSpec(object): 
     """
     Create a RemoteIndexSpec specifying which node and edge properties to index.
 
@@ -3932,7 +3837,7 @@ class RemoteIndexSpec(object):
     def __new__(cls, node_props: PropsInput, edge_props: PropsInput) -> RemoteIndexSpec:
         """Create and return a new object.  See help(type) for accurate signature."""
 
-class PropsInput(object):
+class PropsInput(object): 
     """
     Create a PropsInput by choosing to include all/some properties explicitly.
 
@@ -3944,14 +3849,10 @@ class PropsInput(object):
         ValueError: If neither all and some are specified.
     """
 
-    def __new__(
-        cls,
-        all: Optional[AllPropertySpec] = None,
-        some: Optional[SomePropertySpec] = None,
-    ) -> PropsInput:
+    def __new__(cls, all: Optional[AllPropertySpec] = None, some: Optional[SomePropertySpec] = None) -> PropsInput:
         """Create and return a new object.  See help(type) for accurate signature."""
 
-class SomePropertySpec(object):
+class SomePropertySpec(object): 
     """
     Create a SomePropertySpec by explicitly listing metadata and/or temporal property names.
 
@@ -3960,12 +3861,10 @@ class SomePropertySpec(object):
         properties (list[str]): Temporal property names. Defaults to [].
     """
 
-    def __new__(
-        cls, metadata: list[str] = [], properties: list[str] = []
-    ) -> SomePropertySpec:
+    def __new__(cls, metadata: list[str] = [], properties: list[str] = []) -> SomePropertySpec:
         """Create and return a new object.  See help(type) for accurate signature."""
 
-class AllPropertySpec(object):
+class AllPropertySpec(object): 
     """
     Specifies that **all** properties should be included when creating an index.
     Use one of the predefined variants: `All`, `AllMetadata`, or `AllProperties`.
@@ -3995,7 +3894,7 @@ class AllPropertySpec(object):
     def __repr__(self):
         """Return repr(self)."""
 
-class SortByTime(object):
+class SortByTime(object): 
     """Which time boundary of a member to sort by."""
 
     def __eq__(self, value):
@@ -4022,7 +3921,7 @@ class SortByTime(object):
     def __repr__(self):
         """Return repr(self)."""
 
-class NodeSortBy(object):
+class NodeSortBy(object): 
     """
     One entry in a `Nodes.sorted(...)` sort key list. Construct with the
     static factories `by_id` / `by_time` / `by_property` — each enforces
@@ -4058,7 +3957,7 @@ class NodeSortBy(object):
             reverse (bool, optional): sort descending. Defaults to False.
         """
 
-class EdgeSortBy(object):
+class EdgeSortBy(object): 
     """
     One entry in an `Edges.sorted(...)` sort key list. Construct with the
     static factories `by_src` / `by_dst` / `by_time` / `by_property`.
@@ -4102,7 +4001,7 @@ class EdgeSortBy(object):
             reverse (bool, optional): sort descending. Defaults to False.
         """
 
-class RemotePermissionError(Exception):
+class RemotePermissionError(Exception): 
     """Raised when the server denies a request for lack of permission. A denied request is distinct from a missing graph: a forbidden-but-hidden graph is reported as not found, never as this error."""
 
     @property

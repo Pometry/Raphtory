@@ -581,12 +581,12 @@ impl GqlEdge {
     ) -> Result<GqlEdge, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let exploded = self_clone.ee.explode_layers();
-            let found = exploded
-                .iter()
-                .find(|e| e.layer_name().is_ok_and(|n| n.as_ref() == name.as_str()));
+            // Restrict to the layer up front — exploding then yields at most
+            // that one instance, instead of scanning every layer instance.
+            let exploded = self_clone.ee.valid_layers(name.as_str()).explode_layers();
+            let found = exploded.iter().next().map(|e| GqlEdge::from_ref(e));
             match found {
-                Some(e) => Ok(GqlEdge::from_ref(e)),
+                Some(e) => Ok(e),
                 None => {
                     let (src, dst) = self_clone.ee.id();
                     Err(GraphError::EdgeLayerMissingError {
