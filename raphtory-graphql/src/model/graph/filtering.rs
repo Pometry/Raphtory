@@ -2162,9 +2162,8 @@ fn filter_value_to_value(v: &FilterValue) -> Result<Value, GraphError> {
     Ok(match v {
         FilterValue::Single(s) => Value::Str(s.clone()),
         FilterValue::Set(strs) => {
-            let mut items: Vec<Value> = strs.iter().map(|s| Value::Str(s.clone())).collect();
-            items.sort_by(|a, b| format!("{:?}", a).cmp(&format!("{:?}", b)));
-            Value::List(items)
+            // Set semantics — element order is irrelevant on the wire.
+            Value::List(strs.iter().map(|s| Value::Str(s.clone())).collect())
         }
         FilterValue::ID(GID::Str(s)) => Value::Str(s.clone()),
         FilterValue::ID(GID::U64(u)) => Value::U64(*u),
@@ -2189,9 +2188,8 @@ fn prop_filter_value_to_value(v: &PropertyFilterValue) -> Result<Value, GraphErr
     match v {
         PropertyFilterValue::Single(p) => Value::try_from(p),
         PropertyFilterValue::Set(ps) => {
-            let mut items: Vec<Value> = ps.iter().map(Value::try_from).collect::<Result<_, _>>()?;
-            // Sort for deterministic output — HashSet iteration order isn't stable.
-            items.sort_by(|a, b| format!("{:?}", a).cmp(&format!("{:?}", b)));
+            // Set semantics — element order is irrelevant on the wire.
+            let items: Vec<Value> = ps.iter().map(Value::try_from).collect::<Result<_, _>>()?;
             Ok(Value::List(items))
         }
         PropertyFilterValue::None => Err(GraphError::InvalidGqlFilter(
