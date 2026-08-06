@@ -86,7 +86,9 @@ pub fn build_large_random_attachment_graph() -> Graph {
 
 pub fn large_random_attachment_graph() -> Graph {
     static GRAPH: OnceLock<Graph> = OnceLock::new();
-    GRAPH.get_or_init(build_large_random_attachment_graph).clone()
+    GRAPH
+        .get_or_init(build_large_random_attachment_graph)
+        .clone()
 }
 
 pub fn large_random_attachment_subgraph() -> NodeSubgraph<Graph> {
@@ -218,7 +220,9 @@ pub fn build_tiny_random_attachment_graph() -> Graph {
 
 pub fn tiny_random_attachment_graph() -> Graph {
     static GRAPH: OnceLock<Graph> = OnceLock::new();
-    GRAPH.get_or_init(build_tiny_random_attachment_graph).clone()
+    GRAPH
+        .get_or_init(build_tiny_random_attachment_graph)
+        .clone()
 }
 
 pub fn tiny_random_attachment_subgraph() -> NodeSubgraph<Graph> {

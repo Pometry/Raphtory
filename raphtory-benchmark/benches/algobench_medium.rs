@@ -1,3 +1,4 @@
+use criterion::{criterion_group, criterion_main, Criterion};
 use raphtory::{
     algorithms::{
         centrality::{hits::hits, pagerank::page_rank},
@@ -33,10 +34,12 @@ use raphtory::{
     db::graph::views::filter::Unfiltered,
     prelude::*,
 };
-use criterion::{criterion_group, criterion_main, Criterion};
 use raphtory_api::core::Direction;
 use raphtory_benchmark::algobench_common::{
-    first_node_id, graph_benchmark, graph_benchmark_with_setup, medium_random_attachment_filtered, medium_random_attachment_graph, medium_random_attachment_layered, medium_random_attachment_subgraph, medium_typed_random_attachment_graph, medium_weighted_random_attachment_graph,
+    first_node_id, graph_benchmark, graph_benchmark_with_setup, medium_random_attachment_filtered,
+    medium_random_attachment_graph, medium_random_attachment_layered,
+    medium_random_attachment_subgraph, medium_typed_random_attachment_graph,
+    medium_weighted_random_attachment_graph,
 };
 
 pub fn graphgen_clustering_coeff(c: &mut Criterion) {

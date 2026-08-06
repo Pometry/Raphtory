@@ -1,3 +1,4 @@
+use criterion::{criterion_group, criterion_main, Criterion};
 use raphtory::{
     algorithms::{
         bipartite::max_weight_matching::max_weight_matching,
@@ -14,7 +15,6 @@ use raphtory::{
     db::graph::views::filter::Unfiltered,
     prelude::*,
 };
-use criterion::{criterion_group, criterion_main, Criterion};
 use raphtory_benchmark::algobench_common::{
     graph_benchmark, tiny_random_attachment_filtered, tiny_random_attachment_graph,
     tiny_random_attachment_layered, tiny_random_attachment_subgraph,

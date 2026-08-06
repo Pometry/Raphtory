@@ -1,7 +1,11 @@
+use criterion::{criterion_group, criterion_main, Criterion};
+use rand::{rngs::SmallRng, SeedableRng};
 use raphtory::{
     algorithms::{
         centrality::degree_centrality::degree_centrality,
+        components::weakly_connected_components,
         components::{out_component, out_component_filtered},
+        dynamics::temporal::epidemics::{temporal_SEIR, Number},
         metrics::{
             clustering_coefficient::{
                 local_clustering_coefficient::local_clustering_coefficient,
@@ -13,22 +17,16 @@ use raphtory::{
             },
             directed_graph_density::directed_graph_density,
         },
-        motifs::{
-            local_triangle_count::local_triangle_count
-        },
+        motifs::local_triangle_count::local_triangle_count,
         pathing::temporal_reachability::temporally_reachable_nodes,
-        components::weakly_connected_components,
-        dynamics::temporal::epidemics::{temporal_SEIR, Number},
     },
     db::graph::views::filter::Unfiltered,
     prelude::*,
 };
-use criterion::{criterion_group, criterion_main, Criterion};
-use rand::{rngs::SmallRng, SeedableRng};
 use raphtory_benchmark::algobench_common::{
     first_node_id, graph_benchmark, graph_benchmark_with_setup, large_random_attachment_filtered,
     large_random_attachment_graph, large_random_attachment_layered,
-    large_random_attachment_subgraph
+    large_random_attachment_subgraph,
 };
 
 pub fn local_triangle_count_analysis(c: &mut Criterion) {
