@@ -223,9 +223,12 @@ impl RemoteNodes {
     /// `.filter()`, the filter applies **only at this step** — downstream
     /// traversals from the matching nodes see the unfiltered graph.
     /// Lazy — no RPC.
-    pub fn select(&self, filter: GqlNodeFilter) -> RemoteNodes {
-        let filter = Arc::new(filter);
-        RemoteNodes {
+    pub fn select(
+        &self,
+        filter: impl TryInto<GqlNodeFilter, Error = GraphError>,
+    ) -> Result<RemoteNodes, ClientError> {
+        let filter = Arc::new(filter.try_into()?);
+        Ok(RemoteNodes {
             path: self.path.clone(),
             transport: self.transport.clone(),
             expr: Arc::new(ReadExpr::SelectNodes {
@@ -233,7 +236,7 @@ impl RemoteNodes {
                 filter,
             }),
             ctx: self.ctx.clone(),
-        }
+        })
     }
 
     /// Reorder this collection by the given sort keys (lexicographic — ties

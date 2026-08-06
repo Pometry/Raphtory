@@ -12,7 +12,7 @@ use pyo3::{
     exceptions::PyKeyError,
     prelude::*,
     types::{PyDict, PyList},
-    IntoPyObject, Py, PyAny,
+    Py, PyAny,
 };
 use raphtory::python::utils::execute_async_task;
 use raphtory_api::core::{
@@ -331,7 +331,7 @@ impl PyRemoteTemporalProperties {
     pub fn latest(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         let dict = PyDict::new(py);
         for (key, tp) in self.items()? {
-            if let Some(value) = tp.latest(py)? {
+            if let Some(value) = tp.latest()? {
                 dict.set_item(key, value)?;
             }
         }
@@ -398,47 +398,31 @@ impl PyRemoteTemporalProperty {
 
     /// All values this property has ever taken, in temporal order.
     /// Fires one RPC. Returns a list of native Python values.
-    pub fn values(&self, py: Python<'_>) -> Result<Py<PyAny>, ClientError> {
+    pub fn values(&self) -> Result<Vec<Prop>, ClientError> {
         let inner = Arc::clone(&self.inner);
-        let vals = execute_async_task(move || async move { inner.values().await })?;
-        Ok(vals
-            .into_pyobject(py)
-            .map_err(|e| ClientError::InvalidResponse(e.to_string()))?
-            .unbind())
+        execute_async_task(move || async move { inner.values().await })
     }
 
     /// Value at or before time `t`, as a native Python object. Returns
     /// `None` if no update exists on or before `t`. Fires one RPC.
-    pub fn at(&self, py: Python<'_>, t: EventTime) -> Result<Option<Py<PyAny>>, ClientError> {
+    pub fn at(&self, t: EventTime) -> Result<Option<Prop>, ClientError> {
         let inner = Arc::clone(&self.inner);
         let t = t.t();
-        let val = execute_async_task(move || async move { inner.at(t).await })?;
-        val.map(|p| {
-            p.into_pyobject(py)
-                .map(|b| b.unbind())
-                .map_err(|e| ClientError::InvalidResponse(e.to_string()))
-        })
-        .transpose()
+        execute_async_task(move || async move { inner.at(t).await })
     }
 
     /// The most recent value, or `None` if the property has no updates
     /// in view. Fires one RPC.
-    pub fn latest(&self, py: Python<'_>) -> Result<Option<Py<PyAny>>, ClientError> {
+    pub fn latest(&self) -> Result<Option<Prop>, ClientError> {
         let inner = Arc::clone(&self.inner);
-        let val = execute_async_task(move || async move { inner.latest().await })?;
-        val.map(|p| {
-            p.into_pyobject(py)
-                .map(|b| b.unbind())
-                .map_err(|e| ClientError::InvalidResponse(e.to_string()))
-        })
-        .transpose()
+        execute_async_task(move || async move { inner.latest().await })
     }
 
     /// The latest value of the property, or `None` if it has no updates in
     /// view. Alias for `latest()` (drop-in parity with the local
     /// `TemporalProperty.value`). Fires one RPC.
-    pub fn value(&self, py: Python<'_>) -> Result<Option<Py<PyAny>>, ClientError> {
-        self.latest(py)
+    pub fn value(&self) -> Result<Option<Prop>, ClientError> {
+        self.latest()
     }
 
     /// Number of updates recorded for this property in the current view.
@@ -450,13 +434,9 @@ impl PyRemoteTemporalProperty {
 
     /// Distinct values this property has ever taken (order not guaranteed).
     /// Fires one RPC.
-    pub fn unique(&self, py: Python<'_>) -> Result<Py<PyAny>, ClientError> {
+    pub fn unique(&self) -> Result<Vec<Prop>, ClientError> {
         let inner = Arc::clone(&self.inner);
-        let vals = execute_async_task(move || async move { inner.unique().await })?;
-        Ok(vals
-            .into_pyobject(py)
-            .map_err(|e| ClientError::InvalidResponse(e.to_string()))?
-            .unbind())
+        execute_async_task(move || async move { inner.unique().await })
     }
 
     /// Collapse consecutive-equal updates into single `(time, value)` pairs.
@@ -470,39 +450,21 @@ impl PyRemoteTemporalProperty {
     }
 
     /// Sum of all updates. `None` if not additive. Fires one RPC.
-    pub fn sum(&self, py: Python<'_>) -> Result<Option<Py<PyAny>>, ClientError> {
+    pub fn sum(&self) -> Result<Option<Prop>, ClientError> {
         let inner = Arc::clone(&self.inner);
-        let val = execute_async_task(move || async move { inner.sum().await })?;
-        val.map(|p| {
-            p.into_pyobject(py)
-                .map(|b| b.unbind())
-                .map_err(|e| ClientError::InvalidResponse(e.to_string()))
-        })
-        .transpose()
+        execute_async_task(move || async move { inner.sum().await })
     }
 
     /// Mean of all updates. `None` if not numeric or empty. Fires one RPC.
-    pub fn mean(&self, py: Python<'_>) -> Result<Option<Py<PyAny>>, ClientError> {
+    pub fn mean(&self) -> Result<Option<Prop>, ClientError> {
         let inner = Arc::clone(&self.inner);
-        let val = execute_async_task(move || async move { inner.mean().await })?;
-        val.map(|p| {
-            p.into_pyobject(py)
-                .map(|b| b.unbind())
-                .map_err(|e| ClientError::InvalidResponse(e.to_string()))
-        })
-        .transpose()
+        execute_async_task(move || async move { inner.mean().await })
     }
 
     /// Alias for `mean`. Fires one RPC.
-    pub fn average(&self, py: Python<'_>) -> Result<Option<Py<PyAny>>, ClientError> {
+    pub fn average(&self) -> Result<Option<Prop>, ClientError> {
         let inner = Arc::clone(&self.inner);
-        let val = execute_async_task(move || async move { inner.average().await })?;
-        val.map(|p| {
-            p.into_pyobject(py)
-                .map(|b| b.unbind())
-                .map_err(|e| ClientError::InvalidResponse(e.to_string()))
-        })
-        .transpose()
+        execute_async_task(move || async move { inner.average().await })
     }
 
     /// Minimum `(time, value)` pair. `None` if not comparable or empty.

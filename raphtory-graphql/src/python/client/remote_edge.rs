@@ -1,6 +1,5 @@
 use crate::{
     client::{remote_edge::RemoteEdge, ClientError},
-    model::graph::filtering::GqlFilter,
     python::client::{
         remote_edges::PyRemoteEdges,
         remote_history::PyRemoteHistory,

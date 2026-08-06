@@ -23,21 +23,13 @@ use raphtory::python::utils::execute_async_task;
 use raphtory_api::core::entities::properties::prop::Prop;
 use std::sync::Arc;
 
-/// Convert a single `Prop` value into a native Python object.
-fn prop_to_py(py: Python<'_>, value: Prop) -> PyResult<Py<PyAny>> {
-    Ok(value
-        .into_pyobject(py)
-        .map_err(|e| ClientError::InvalidResponse(e.to_string()))?
-        .unbind())
-}
-
-/// Look up `key` in one member's `(key, value)` entries, returning its value
-/// as a Python object, or Python `None` when the member lacks the key.
-fn member_value(py: Python<'_>, entries: &[(String, Prop)], key: &str) -> PyResult<Py<PyAny>> {
-    match entries.iter().find(|(k, _)| k == key) {
-        Some((_, v)) => prop_to_py(py, v.clone()),
-        None => Ok(py.None()),
-    }
+/// Look up `key` in one member's `(key, value)` entries, returning its value,
+/// or `None` when the member lacks the key.
+fn member_value(entries: &[(String, Prop)], key: &str) -> Option<Prop> {
+    entries
+        .iter()
+        .find(|(k, _)| k == key)
+        .map(|(_, v)| v.clone())
 }
 
 /// Build the column for `key` — flat (`list`) or nested (`list[list]`) — or
@@ -49,20 +41,15 @@ fn build_column(py: Python<'_>, data: &ColumnarProps, key: &str) -> PyResult<Opt
     }
     let column: Py<PyAny> = match data {
         ColumnarProps::Flat(members) => {
-            let items: Vec<Py<PyAny>> = members
-                .iter()
-                .map(|m| member_value(py, m, key))
-                .collect::<PyResult<_>>()?;
+            let items: Vec<Option<Prop>> = members.iter().map(|m| member_value(m, key)).collect();
             PyList::new(py, items)?.into_any().unbind()
         }
         ColumnarProps::Nested(sources) => {
             let rows: Vec<Py<PyAny>> = sources
                 .iter()
                 .map(|source| {
-                    let inner: Vec<Py<PyAny>> = source
-                        .iter()
-                        .map(|m| member_value(py, m, key))
-                        .collect::<PyResult<_>>()?;
+                    let inner: Vec<Option<Prop>> =
+                        source.iter().map(|m| member_value(m, key)).collect();
                     Ok(PyList::new(py, inner)?.into_any().unbind())
                 })
                 .collect::<PyResult<_>>()?;

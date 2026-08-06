@@ -211,9 +211,12 @@ impl RemotePathFromNode {
     /// Narrow this collection's membership by a node filter — applies only at
     /// this step; downstream traversals see the unfiltered graph. Server-only
     /// (`select` has no local `PathFromNode` equivalent). Lazy — no RPC.
-    pub fn select(&self, filter: GqlNodeFilter) -> RemotePathFromNode {
-        let filter = Arc::new(filter);
-        RemotePathFromNode {
+    pub fn select(
+        &self,
+        filter: impl TryInto<GqlNodeFilter, Error = GraphError>,
+    ) -> Result<RemotePathFromNode, ClientError> {
+        let filter = Arc::new(filter.try_into()?);
+        Ok(RemotePathFromNode {
             path: self.path.clone(),
             transport: self.transport.clone(),
             expr: Arc::new(ReadExpr::SelectNodes {
@@ -221,7 +224,7 @@ impl RemotePathFromNode {
                 filter,
             }),
             ctx: self.ctx.clone(),
-        }
+        })
     }
 
     /// Traverse one further hop to the neighbours (both directions) of this

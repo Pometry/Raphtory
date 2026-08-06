@@ -6,7 +6,6 @@ use crate::{
         remote_graph::RemoteGraph,
         ClientError,
     },
-    model::graph::filtering::GqlFilter,
     python::client::{
         remote_edge::PyRemoteEdge,
         remote_edges::PyRemoteEdges,

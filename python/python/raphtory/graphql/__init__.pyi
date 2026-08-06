@@ -352,7 +352,7 @@ class RaphtoryClient(object):
             when the token carries no role claim, in which case both lists are empty.
         """
 
-    def new_graph(self, path: str, graph_type: Literal["EVENT", "PERSISTENT"]) -> None:
+    def new_graph(self, path: str, graph_type: Literal["EVENT", "PERSISTENT"]) -> RemoteGraph:
         """
         Create a new empty Graph on the server at path
 
@@ -361,7 +361,7 @@ class RaphtoryClient(object):
             graph_type (Literal["EVENT", "PERSISTENT"]): the type of graph that should be created - this can be EVENT or PERSISTENT
 
         Returns:
-            None:
+            RemoteGraph: a reference to the newly created graph.
 
         """
 

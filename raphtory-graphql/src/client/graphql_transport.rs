@@ -4176,7 +4176,10 @@ mod tests {
     #[tokio::test]
     async fn test_filtered_collect_matches_columnar_reads() {
         use crate::{client::remote_client::RemoteClient, server::GraphServer};
-        use raphtory::db::api::storage::storage::Config;
+        use raphtory::db::{
+            api::storage::storage::Config,
+            graph::views::filter::model::node_filter::CompositeNodeFilter,
+        };
         use reqwest::Url;
         use std::collections::HashMap as Map;
         use tempfile::tempdir;
@@ -4245,7 +4248,10 @@ mod tests {
         assert_eq!(b_neighbours, ["c"], "b's neighbours under f exclude a");
 
         // select() narrows membership only — handles see the unfiltered graph.
-        let selected = rg.nodes().select(score_gt_15.clone());
+        // Passed as a composite: reflexive TryInto<GqlNodeFilter> is Infallible,
+        // so a raw Gql filter can't satisfy the `Error = GraphError` bound.
+        let score_gt_15_composite = CompositeNodeFilter::try_from(score_gt_15.clone()).unwrap();
+        let selected = rg.nodes().select(score_gt_15_composite).unwrap();
         let mut selected_ids = selected.ids().await.unwrap();
         selected_ids.sort();
         assert_eq!(selected_ids, ["b", "c"], "select narrows membership");

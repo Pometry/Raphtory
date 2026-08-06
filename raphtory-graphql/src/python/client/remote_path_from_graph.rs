@@ -78,10 +78,7 @@ impl PyRemotePathFromGraph {
         let composite = filter
             .try_as_node_filter()
             .map_err(|e| PyValueError::new_err(e.to_string()))?;
-        let gql_filter = composite
-            .try_into()
-            .map_err(|e: raphtory::errors::GraphError| PyValueError::new_err(e.to_string()))?;
-        Ok(PyRemotePathFromGraph::new(self.path.select(gql_filter)))
+        Ok(PyRemotePathFromGraph::new(self.path.select(composite)?))
     }
 
     /// `path[filter]` — sugar for `.select(filter)`. Lazy — no RPC.

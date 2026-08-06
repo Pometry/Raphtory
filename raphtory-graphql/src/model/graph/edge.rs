@@ -24,7 +24,7 @@ use raphtory::{
 };
 use raphtory_api::core::{
     entities::layers::Layer,
-    storage::timeindex::{AsTime, EventTime},
+    storage::timeindex::EventTime,
     utils::time::{InputTime, IntoTime},
 };
 

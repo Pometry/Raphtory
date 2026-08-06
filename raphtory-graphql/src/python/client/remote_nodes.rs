@@ -170,10 +170,7 @@ impl PyRemoteNodes {
         let composite = filter
             .try_as_node_filter()
             .map_err(|e| PyValueError::new_err(e.to_string()))?;
-        let gql_filter = composite
-            .try_into()
-            .map_err(|e: raphtory::errors::GraphError| PyValueError::new_err(e.to_string()))?;
-        Ok(PyRemoteNodes::new(self.nodes.select(gql_filter)))
+        Ok(PyRemoteNodes::new(self.nodes.select(composite)?))
     }
 
     /// `nodes[filter]` — sugar for `.select(filter)` (matches the local

@@ -230,10 +230,14 @@ impl PyRaphtoryClient {
     ///     graph_type (Literal["EVENT", "PERSISTENT"]): the type of graph that should be created - this can be EVENT or PERSISTENT
     ///
     /// Returns:
-    ///     None:
+    ///     RemoteGraph: a reference to the newly created graph.
     ///
-    fn new_graph(&self, path: String, graph_type: String) -> PyResult<()> {
-        self.run_async(move |client| async move { client.new_graph(&path, &graph_type).await })
+    fn new_graph(&self, path: String, graph_type: String) -> PyResult<PyRemoteGraph> {
+        let create_path = path.clone();
+        self.run_async(
+            move |client| async move { client.new_graph(&create_path, &graph_type).await },
+        )?;
+        Ok(self.remote_graph(path))
     }
 
     /// Get a RemoteGraph reference to a graph on the server at path

@@ -35,8 +35,7 @@ def _remote_graph_and_client(name="g", graph_type="EVENT"):
     with tempfile.TemporaryDirectory() as work_dir:
         with GraphServer(work_dir).start() as server:
             client = server.get_client()
-            client.new_graph(name, graph_type)
-            yield client.remote_graph(name), client
+            yield client.new_graph(name, graph_type), client
 
 
 @contextlib.contextmanager
