@@ -1,10 +1,3 @@
-// Medium complexity algorithms (roughly ~1ms - 200ms), run against a dedicated 1500-node
-// medium graph rather than the large (5000 node) or tiny (100 node) graphs used by the
-// fast/slow tiers.
-//
-// `pagerank` is this binary's representative for graph/subgraph/layered/filtered view
-// coverage; every other algorithm here only benchmarks the plain graph.
-
 use raphtory::{
     algorithms::{
         centrality::{hits::hits, pagerank::page_rank},

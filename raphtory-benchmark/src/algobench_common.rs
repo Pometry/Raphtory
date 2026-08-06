@@ -1,19 +1,3 @@
-#![allow(dead_code)]
-
-// Shared infrastructure for the algobench_* benchmark binaries (see benches/algobench_*.rs).
-//
-// Benchmarks are split across binaries by algorithm speed/complexity (fast / medium / slow)
-// so that a run of the fast or medium tier isn't held hostage by a handful of expensive
-// algorithms, and so slow algorithms can run against a smaller graph to keep wall-clock time
-// reasonable. Only `algobench_views` benchmarks the graph/subgraph/layered/filtered view
-// variants (on a representative algorithm from each speed tier); every other binary only
-// benchmarks the plain graph.
-//
-// The underlying random_attachment graphs are expensive to build, so each variant
-// (plain / weighted / typed, large / tiny) is constructed once per process and cached;
-// every benchmark reuses the cached graph (cheap `Arc` clone) and only builds a cheap view
-// (subgraph/filter/layer) on top of it.
-
 use criterion::{Criterion, SamplingMode};
 use raphtory::{
     db::{
@@ -28,7 +12,7 @@ use raphtory::{
     graphgen::random_attachment::random_attachment,
     prelude::*,
 };
-use std::{hint::black_box, sync::OnceLock};
+use std::sync::OnceLock;
 
 pub fn graph_benchmark_with_setup<G, BuildGraph, Setup, Run, SetupData, Output>(
     c: &mut Criterion,
@@ -53,8 +37,7 @@ pub fn graph_benchmark_with_setup<G, BuildGraph, Setup, Run, SetupData, Output>(
     group.sample_size(sample_size);
     group.bench_function(name, |b| {
         b.iter(|| {
-            let result = run(&graph, &setup_data);
-            black_box(result);
+            run(&graph, &setup_data);
         });
     });
     group.finish();
@@ -83,28 +66,6 @@ pub fn graph_benchmark<G, BuildGraph, Run, Output>(
     )
 }
 
-pub fn simple_benchmark<Run, Output>(
-    c: &mut Criterion,
-    name: &str,
-    measurement_secs: u64,
-    sample_size: usize,
-    mut run: Run,
-) where
-    Run: FnMut() -> Output,
-{
-    let mut group = c.benchmark_group(name);
-    group.sampling_mode(SamplingMode::Flat);
-    group.measurement_time(std::time::Duration::from_secs(measurement_secs));
-    group.sample_size(sample_size);
-    group.bench_function(name, |b| {
-        b.iter(|| {
-            let result = run();
-            black_box(result);
-        });
-    });
-    group.finish()
-}
-
 pub fn first_node_id<G: StaticGraphViewOps>(graph: &G) -> GID {
     graph
         .nodes()
@@ -114,8 +75,7 @@ pub fn first_node_id<G: StaticGraphViewOps>(graph: &G) -> GID {
         .expect("graph has nodes")
 }
 
-// Large graph (5000 nodes) - used by the fast/medium tiers and as the base for the
-// representative fast/medium/trivial algorithms in algobench_views.
+// graph constructors
 
 pub fn build_large_random_attachment_graph() -> Graph {
     let graph = Graph::new();
@@ -137,7 +97,7 @@ pub fn large_random_attachment_subgraph() -> NodeSubgraph<Graph> {
 
 pub fn large_random_attachment_filtered() -> impl StaticGraphViewOps {
     large_random_attachment_graph()
-        .filter(NodeFilter.degree().ge(0u64))
+        .filter(NodeFilter.degree().ge(1u64))
         .unwrap()
 }
 
@@ -181,10 +141,6 @@ pub fn large_typed_random_attachment_graph() -> Graph {
         .get_or_init(build_large_typed_random_attachment_graph)
         .clone()
 }
-
-// Medium graph (1500 nodes) - dedicated to algobench_medium, distinct from the large
-// (5000 node) graph so that binary isn't just running the fast/slow tiers' graph at a
-// different set of algorithms.
 
 pub fn build_medium_random_attachment_graph() -> Graph {
     let graph = Graph::new();
@@ -252,9 +208,6 @@ pub fn medium_typed_random_attachment_graph() -> Graph {
         .get_or_init(build_medium_typed_random_attachment_graph)
         .clone()
 }
-
-// Tiny graph (100 nodes) - dedicated to algorithms too expensive to run at the large
-// graph's 5000-node scale (components, betweenness, temporal rich club, matching, layout).
 
 pub fn build_tiny_random_attachment_graph() -> Graph {
     let graph = Graph::new();

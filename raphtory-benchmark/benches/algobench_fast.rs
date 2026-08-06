@@ -1,11 +1,5 @@
-// Trivial / fast algorithms (sub-millisecond to ~1ms on the 5000-node large graph).
-//
-// `directed_graph_density` is this binary's representative for graph/subgraph/layered/filtered
-// view coverage; every other algorithm here only benchmarks the plain graph.
-
 use raphtory::{
     algorithms::{
-        alternating_mask::alternating_mask,
         centrality::degree_centrality::degree_centrality,
         components::{out_component, out_component_filtered},
         metrics::{
@@ -20,11 +14,7 @@ use raphtory::{
             directed_graph_density::directed_graph_density,
         },
         motifs::{
-            local_triangle_count::local_triangle_count,
-            three_node_motifs::{
-                init_star_count, init_tri_count, init_two_node_count, new_triangle_edge,
-                star_event, two_node_event,
-            },
+            local_triangle_count::local_triangle_count
         },
         pathing::temporal_reachability::temporally_reachable_nodes,
         components::weakly_connected_components,
@@ -38,7 +28,7 @@ use rand::{rngs::SmallRng, SeedableRng};
 use raphtory_benchmark::algobench_common::{
     first_node_id, graph_benchmark, graph_benchmark_with_setup, large_random_attachment_filtered,
     large_random_attachment_graph, large_random_attachment_layered,
-    large_random_attachment_subgraph, simple_benchmark,
+    large_random_attachment_subgraph
 };
 
 pub fn local_triangle_count_analysis(c: &mut Criterion) {
@@ -119,17 +109,6 @@ pub fn graphgen_concomp(c: &mut Criterion) {
         10,
         large_random_attachment_graph,
         |graph, _| weakly_connected_components(graph),
-    );
-}
-
-pub fn graphgen_alternating_mask(c: &mut Criterion) {
-    graph_benchmark(
-        c,
-        "graphgen_alternating_mask",
-        3,
-        10,
-        large_random_attachment_graph,
-        |graph, _| alternating_mask(graph),
     );
 }
 
@@ -278,42 +257,6 @@ pub fn graphgen_temporal_seir(c: &mut Criterion) {
     );
 }
 
-pub fn graphgen_internal_two_node_event(c: &mut Criterion) {
-    simple_benchmark(c, "graphgen_internal_two_node_event", 2, 10, || {
-        two_node_event(1, 100)
-    })
-}
-
-pub fn graphgen_internal_init_two_node_count(c: &mut Criterion) {
-    simple_benchmark(c, "graphgen_internal_init_two_node_count", 2, 10, || {
-        init_two_node_count()
-    })
-}
-
-pub fn graphgen_internal_star_event(c: &mut Criterion) {
-    simple_benchmark(c, "graphgen_internal_star_event", 2, 10, || {
-        star_event(0, 1, 100)
-    })
-}
-
-pub fn graphgen_internal_init_star_count(c: &mut Criterion) {
-    simple_benchmark(c, "graphgen_internal_init_star_count", 2, 10, || {
-        init_star_count(128)
-    })
-}
-
-pub fn graphgen_internal_new_triangle_edge(c: &mut Criterion) {
-    simple_benchmark(c, "graphgen_internal_new_triangle_edge", 2, 10, || {
-        new_triangle_edge(true, 1, 0, 1, 100)
-    })
-}
-
-pub fn graphgen_internal_init_tri_count(c: &mut Criterion) {
-    simple_benchmark(c, "graphgen_internal_init_tri_count", 2, 10, || {
-        init_tri_count(128)
-    })
-}
-
 criterion_group!(
     benches,
     local_triangle_count_analysis,
@@ -321,7 +264,6 @@ criterion_group!(
     graphgen_directed_density,
     graphgen_degree_centrality,
     graphgen_concomp,
-    graphgen_alternating_mask,
     graphgen_max_degree,
     graphgen_min_degree,
     graphgen_max_out_degree,
@@ -334,11 +276,5 @@ criterion_group!(
     graphgen_out_component,
     graphgen_out_component_filtered,
     graphgen_temporal_seir,
-    graphgen_internal_two_node_event,
-    graphgen_internal_init_two_node_count,
-    graphgen_internal_star_event,
-    graphgen_internal_init_star_count,
-    graphgen_internal_new_triangle_edge,
-    graphgen_internal_init_tri_count,
 );
 criterion_main!(benches);

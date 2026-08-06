@@ -1,11 +1,3 @@
-// Expensive algorithms (several hundred ms to multiple seconds per iteration on the
-// 5000-node large graph). Run against the much smaller 100-node tiny graph instead, to keep
-// total suite runtime reasonable - these algorithms are already the ones most likely to time
-// out criterion's sampling window even at that reduced scale.
-//
-// `betweenness_centrality` is this binary's representative for graph/subgraph/layered/filtered
-// view coverage; every other algorithm here only benchmarks the plain graph.
-
 use raphtory::{
     algorithms::{
         bipartite::max_weight_matching::max_weight_matching,
