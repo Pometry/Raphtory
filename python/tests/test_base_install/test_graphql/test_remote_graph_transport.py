@@ -2536,6 +2536,24 @@ def test_properties_dict_protocol():
             props["nonexistent"]
 
 
+def test_map_property_preserves_key_order():
+    """A map-valued property round-trips through the server with its key
+    insertion order intact — same order a local graph would report."""
+    from raphtory import Graph
+
+    cfg = {"zeta": 1, "alpha": 2, "mid": 3}
+
+    with _remote_graph() as rg:
+        rg.add_node(1, "n", properties={"cfg": cfg})
+        remote_cfg = rg.node("n").properties["cfg"]
+        assert remote_cfg == cfg
+        assert list(remote_cfg) == ["zeta", "alpha", "mid"]
+
+    g = Graph()
+    g.add_node(1, "n", properties={"cfg": cfg})
+    assert list(g.node("n").properties["cfg"]) == ["zeta", "alpha", "mid"]
+
+
 def test_collection_getitem_is_select():
     """`nodes[filter]` / `edges[filter]` are sugar for `.select(filter)` —
     matching the local API, where `__getitem__` takes a FilterExpr."""

@@ -11,7 +11,7 @@
 //! `parse_read` decoded.
 
 use crate::client::ClientError;
-use raphtory_api::core::entities::properties::prop::Prop;
+use raphtory_api::core::entities::properties::prop::{Prop, PropMap};
 
 /// A single property schema entry — one key on a node/edge type, with its
 /// observed property type and (for string-valued properties) the set of
@@ -140,13 +140,7 @@ fn decode_property_schemas(prop: Prop) -> Result<Vec<RemotePropertySchema>, Clie
 
 // ============ Prop tree helpers ============
 
-fn expect_map(
-    prop: Prop,
-    context: &str,
-) -> Result<
-    std::sync::Arc<rustc_hash::FxHashMap<raphtory_api::core::storage::arc_str::ArcStr, Prop>>,
-    ClientError,
-> {
+fn expect_map(prop: Prop, context: &str) -> Result<std::sync::Arc<PropMap>, ClientError> {
     match prop {
         Prop::Map(m) => Ok(m),
         _ => Err(ClientError::InvalidResponse(format!(
@@ -176,10 +170,7 @@ fn expect_string(prop: Prop, context: &str) -> Result<String, ClientError> {
     }
 }
 
-fn map_get(
-    map: &rustc_hash::FxHashMap<raphtory_api::core::storage::arc_str::ArcStr, Prop>,
-    key: &str,
-) -> Result<Prop, ClientError> {
+fn map_get(map: &PropMap, key: &str) -> Result<Prop, ClientError> {
     map.get(key)
         .cloned()
         .ok_or_else(|| ClientError::InvalidResponse(format!("schema record missing `{}`", key)))

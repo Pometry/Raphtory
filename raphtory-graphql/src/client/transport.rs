@@ -7,7 +7,7 @@
 
 use crate::client::{op::Op, remote_history::RemoteEventTime, ClientError};
 use async_graphql::async_trait;
-use raphtory_api::core::entities::properties::prop::Prop;
+use raphtory_api::core::entities::properties::prop::{Prop, PropMap};
 
 /// Executes a graph operation against a remote server.
 ///
@@ -358,10 +358,7 @@ pub(crate) fn expect_nested_columnar_property_list(
     }
 }
 
-fn extract_key_value_pair(
-    map: &rustc_hash::FxHashMap<raphtory_api::core::storage::arc_str::ArcStr, Prop>,
-    context: &str,
-) -> Result<(String, Prop), ClientError> {
+fn extract_key_value_pair(map: &PropMap, context: &str) -> Result<(String, Prop), ClientError> {
     let key = match map.get("key") {
         Some(Prop::Str(s)) => s.to_string(),
         _ => {
@@ -428,7 +425,7 @@ pub(crate) fn expect_property_tuple_list(
 }
 
 fn extract_property_tuple(
-    map: &rustc_hash::FxHashMap<raphtory_api::core::storage::arc_str::ArcStr, Prop>,
+    map: &PropMap,
     context: &str,
 ) -> Result<(RemoteEventTime, Prop), ClientError> {
     let time = match map.get("time") {
@@ -446,9 +443,7 @@ fn extract_property_tuple(
     Ok((time, value))
 }
 
-fn extract_event_time(
-    map: &rustc_hash::FxHashMap<raphtory_api::core::storage::arc_str::ArcStr, Prop>,
-) -> RemoteEventTime {
+fn extract_event_time(map: &PropMap) -> RemoteEventTime {
     let timestamp = match map.get("timestamp") {
         Some(Prop::I64(n)) => Some(*n),
         _ => None,

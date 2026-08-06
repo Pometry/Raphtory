@@ -20,18 +20,16 @@ use raphtory::{
     prelude::*,
 };
 use raphtory_api::core::{
-    entities::properties::prop::{IntoPropMap, Prop},
+    entities::properties::prop::{IntoPropMap, Prop, PropMap},
     storage::{
         arc_str::ArcStr,
         timeindex::{AsTime, EventTime},
     },
     utils::time::{IntoTime, TryIntoTime},
 };
-use rustc_hash::FxHashMap;
 use serde::{ser::Error as SerError, Deserialize, Serialize, Serializer};
 use serde_json::Number;
 use std::{
-    collections::HashMap,
     convert::TryFrom,
     fmt,
     fmt::{Display, Formatter},
@@ -168,10 +166,10 @@ fn value_to_prop(value: Value) -> Result<Prop, GraphError> {
             Ok(Prop::List(prop_list.into()))
         }
         Value::Object(object) => {
-            let prop_map: FxHashMap<ArcStr, Prop> = object
+            let prop_map: PropMap = object
                 .into_iter()
                 .map(|oe| Ok::<_, GraphError>((ArcStr::from(oe.key), value_to_prop(oe.value)?)))
-                .collect::<Result<FxHashMap<_, _>, _>>()?;
+                .collect::<Result<PropMap, _>>()?;
             Ok(Prop::Map(Arc::new(prop_map)))
         }
         Value::DTime(s) => {
@@ -227,7 +225,9 @@ fn prop_to_value(p: &Prop) -> Result<Value, GraphError> {
             Value::List(items?)
         }
         Prop::Map(map) => {
-            let mut entries = map
+            // Map props are insertion-ordered, so iteration order is already
+            // deterministic and survives the wire round-trip.
+            let entries = map
                 .iter()
                 .map(|(k, v)| {
                     Ok(ObjectEntry {
@@ -236,9 +236,6 @@ fn prop_to_value(p: &Prop) -> Result<Value, GraphError> {
                     })
                 })
                 .collect::<Result<Vec<_>, GraphError>>()?;
-            // Map iteration order is nondeterministic — sort so the same prop
-            // always produces the same wire payload.
-            entries.sort_by(|a, b| a.key.cmp(&b.key));
             Value::Object(entries)
         }
     })
@@ -277,7 +274,7 @@ pub(crate) fn gql_to_prop(value: GqlValue) -> Result<Prop, Error> {
         GqlValue::Object(obj) => Ok(obj
             .into_iter()
             .map(|(k, v)| gql_to_prop(v).map(|vv| (k.to_string(), vv)))
-            .collect::<Result<HashMap<String, Prop>, Error>>()?
+            .collect::<Result<Vec<(String, Prop)>, Error>>()?
             .into_prop_map()),
         GqlValue::String(s) => Ok(Prop::Str(s.into())),
         GqlValue::List(arr) => Ok(Prop::List(
@@ -863,11 +860,11 @@ mod value_serde_tests {
     }
 
     // Map-valued props are writable: they convert to the wire `object` form
-    // (key-sorted for a deterministic payload) and round-trip back to the
-    // same `Prop::Map`.
+    // (in insertion order) and round-trip back to the same `Prop::Map` with
+    // key order intact.
     #[test]
     fn map_prop_round_trips_as_object() {
-        let map: FxHashMap<ArcStr, Prop> = [
+        let map: PropMap = [
             (ArcStr::from("b"), Prop::I64(2)),
             (ArcStr::from("a"), Prop::str("x")),
         ]
@@ -880,9 +877,15 @@ mod value_serde_tests {
             panic!("expected Object, got {value:?}");
         };
         let keys: Vec<&str> = entries.iter().map(|e| e.key.as_str()).collect();
-        assert_eq!(keys, vec!["a", "b"]);
+        assert_eq!(keys, vec!["b", "a"]);
 
-        assert_eq!(value_to_prop(value.clone()).unwrap(), prop);
+        let round_tripped = value_to_prop(value.clone()).unwrap();
+        assert_eq!(round_tripped, prop);
+        let Prop::Map(rt_map) = round_tripped else {
+            panic!("expected Map");
+        };
+        let rt_keys: Vec<&str> = rt_map.keys().map(|k| k.as_ref()).collect();
+        assert_eq!(rt_keys, vec!["b", "a"]);
     }
 
     // The server's time parser accepts at most 3 fractional digits, so naive
