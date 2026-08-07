@@ -44,7 +44,7 @@ use storage::{persist::strategy::PersistenceStrategy, Args, Extension};
 /// the edge is not considered active at the start of the window, even if there are simultaneous addition events.
 ///
 ///
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct PersistentGraph(pub(crate) Arc<Storage>);
 
 impl Static for PersistentGraph {}
@@ -98,7 +98,7 @@ fn persisted_prop_value_at<'a>(
 impl PersistentGraph {
     pub fn new() -> Self {
         // TODO: This should return a Result.
-        Self(Arc::new(Storage::default()))
+        Self::new_with_config(Args::default()).unwrap()
     }
 
     /// Create a new graph with config

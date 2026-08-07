@@ -42,7 +42,7 @@ pub use storage::{
     read_constant_graph_properties, Args, Config, Extension,
 };
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Storage {
     graph: GraphStorage,
 }
@@ -72,7 +72,7 @@ impl Base for Storage {
 }
 
 impl Storage {
-    pub(crate) fn new_with_config(args: Args) -> Result<Self, GraphError> {
+    pub fn new_with_config(args: Args) -> Result<Self, GraphError> {
         let ext = Extension::new(args.into(), None)?;
         let temporal_graph = TemporalGraph::new(ext)?;
 
@@ -81,7 +81,7 @@ impl Storage {
         })
     }
 
-    pub(crate) fn new_at_path_with_config(
+    pub fn new_at_path_with_config(
         path: impl AsRef<Path>,
         args: Args,
     ) -> Result<Self, GraphError> {
@@ -97,7 +97,7 @@ impl Storage {
         })
     }
 
-    pub(crate) fn load(path: impl AsRef<Path>) -> Result<Self, GraphError> {
+    pub fn load(path: impl AsRef<Path>) -> Result<Self, GraphError> {
         let path = path.as_ref();
         let config = Config::load_from_dir(path)?;
         let ext = Extension::load(path, config)?;
@@ -105,7 +105,7 @@ impl Storage {
         Self::load_with_extension(path, ext)
     }
 
-    pub(crate) fn load_with_config(path: impl AsRef<Path>, args: Args) -> Result<Self, GraphError> {
+    pub fn load_with_config(path: impl AsRef<Path>, args: Args) -> Result<Self, GraphError> {
         let path = path.as_ref();
         let config = Config::load_from_dir(path)?;
         let config = args.apply_to_config(config)?;
@@ -118,7 +118,7 @@ impl Storage {
     /// Load the graph as a read-only snapshot — multiple processes can open
     /// the same graph directory concurrently. Mutating operations on the
     /// returned graph will return errors from the underlying storage.
-    pub(crate) fn load_read_only(path: impl AsRef<Path>) -> Result<Self, GraphError> {
+    pub fn load_read_only(path: impl AsRef<Path>) -> Result<Self, GraphError> {
         let path = path.as_ref();
         let config = Config::load_from_dir(path)?;
         let ext = Extension::load(path, config)?;
@@ -126,7 +126,7 @@ impl Storage {
         Self::load_read_only_with_extension(path, ext)
     }
 
-    pub(crate) fn load_read_only_with_config(
+    pub fn load_read_only_with_config(
         path: impl AsRef<Path>,
         args: Args,
     ) -> Result<Self, GraphError> {
@@ -137,6 +137,21 @@ impl Storage {
         let ext = Extension::load(path, config)?;
 
         Self::load_read_only_with_extension(path, ext)
+    }
+
+    /// Produce a read-only handle backed by the same `TemporalGraph` as
+    /// this storage. Mutations on the returned `Storage` return
+    /// `Immutable::ReadLockedImmutable`. The handle holds read locks on
+    /// every segment, so writers on the original `Storage` will block
+    /// until the read-only handle is dropped — this is not a snapshot.
+    pub fn read_only(&self) -> Self {
+        Self {
+            graph: self.graph.lock(),
+        }
+    }
+
+    pub(crate) fn from_inner(graph: GraphStorage) -> Self {
+        Self { graph }
     }
 
     fn load_with_extension(path: &Path, ext: Extension) -> Result<Self, GraphError> {
@@ -163,21 +178,6 @@ impl Storage {
         Ok(Self {
             graph: GraphStorage::Mem(locked),
         })
-    }
-
-    pub(crate) fn from_inner(graph: GraphStorage) -> Self {
-        Self { graph }
-    }
-
-    /// Produce a read-only handle backed by the same `TemporalGraph` as
-    /// this storage. Mutations on the returned `Storage` return
-    /// `Immutable::ReadLockedImmutable`. The handle holds read locks on
-    /// every segment, so writers on the original `Storage` will block
-    /// until the read-only handle is dropped — this is not a snapshot.
-    pub fn read_only(&self) -> Self {
-        Self {
-            graph: self.graph.lock(),
-        }
     }
 }
 

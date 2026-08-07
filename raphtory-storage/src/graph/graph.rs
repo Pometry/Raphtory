@@ -47,12 +47,6 @@ impl From<TemporalGraph> for GraphStorage {
     }
 }
 
-impl Default for GraphStorage {
-    fn default() -> Self {
-        GraphStorage::Unlocked(Arc::new(TemporalGraph::default()))
-    }
-}
-
 impl std::fmt::Display for GraphStorage {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(

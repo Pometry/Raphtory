@@ -44,7 +44,7 @@ use std::{
 use storage::{Args, Extension};
 
 #[repr(transparent)]
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct Graph {
     pub(crate) inner: Arc<Storage>,
 }
@@ -118,9 +118,7 @@ impl Graph {
     /// ```
     pub fn new() -> Self {
         // TODO: This should return a Result.
-        Self {
-            inner: Arc::new(Storage::default()),
-        }
+        Self::new_with_config(Args::default()).unwrap()
     }
 
     /// Create a new graph with config
@@ -276,10 +274,6 @@ impl Graph {
         PersistentGraph::from_storage(self.inner.clone())
     }
 }
-
-// ###########################################
-// Methods for checking equality of graphs
-// ###########################################
 
 pub fn graph_equal<'graph1, 'graph2, G1: GraphViewOps<'graph1>, G2: GraphViewOps<'graph2>>(
     g1: &G1,
