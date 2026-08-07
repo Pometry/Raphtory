@@ -4,7 +4,6 @@ use crate::{
     error::StorageError,
     pages::{edge_store::ReadLockedEdgeStorage, node_store::ReadLockedNodeStorage},
     persist::{
-        args::ArgsOps,
         config::ConfigOps,
         control_file::{ControlFileOps, DBState},
         strategy::PersistenceStrategy,
@@ -74,8 +73,7 @@ impl<
         let config = self.ext.config().with_node_types(node_types);
 
         if let Some(graph_dir) = self.graph_dir.as_ref() {
-            let args: <EXT::Config as ConfigOps>::Args = config.into();
-            args.save_to_dir(graph_dir)?;
+            config.save_to_dir(graph_dir)?;
         }
 
         self.nodes.flush()?;

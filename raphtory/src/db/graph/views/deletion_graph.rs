@@ -34,9 +34,7 @@ use std::{
 };
 use storage::api::graph_props::{GraphPropEntryOps, GraphPropRefOps};
 
-use storage::{persist::args::ArgsOps, Args};
-#[cfg(feature = "io")]
-use storage::{persist::strategy::PersistenceStrategy, Extension};
+use storage::{persist::strategy::PersistenceStrategy, Args, Extension};
 
 /// A graph view where an edge remains active from the time it is added until it is explicitly marked as deleted.
 ///
@@ -117,7 +115,7 @@ impl PersistentGraph {
     /// let g = PersistentGraph::new_with_config(Args::default().with_max_node_page_len(262144)).unwrap();
     /// ```
     pub fn new_with_config(args: Args) -> Result<Self, GraphError> {
-        Ok(Self(Arc::new(Storage::new_with_config(args.into())?)))
+        Ok(Self(Arc::new(Storage::new_with_config(args)?)))
     }
 
     /// Create a new persistent graph at a specific path
@@ -159,11 +157,8 @@ impl PersistentGraph {
         path.init()?;
 
         let graph_path = path.graph_path()?;
-        args.save_to_dir(&graph_path)?;
-
         let graph = Self(Arc::new(Storage::new_at_path_with_config(
-            graph_path,
-            args.into(),
+            graph_path, args,
         )?));
 
         let meta = Metadata {
@@ -192,7 +187,7 @@ impl PersistentGraph {
     /// Load a graph from a specific path overriding config
     /// # Arguments
     /// * `path` - The path to the storage location
-    /// * `config` - The new config (note that it is not possible to change page sizes)
+    /// * `config` - The new config (page sizes cannot be changed; providing them returns an error)
     /// # Returns
     /// A raphtory graph loaded from the specified path
     /// # Example
@@ -204,11 +199,9 @@ impl PersistentGraph {
         path: &(impl GraphPaths + ?Sized),
         args: Args,
     ) -> Result<Self, GraphError> {
-        let graph_path = path.graph_path()?;
-        let config: Config = args.update_in_dir(&graph_path)?.into();
-
         Ok(Self(Arc::new(Storage::load_with_config(
-            graph_path, config,
+            path.graph_path()?,
+            args,
         )?)))
     }
 
@@ -224,11 +217,9 @@ impl PersistentGraph {
         path: &(impl GraphPaths + ?Sized),
         args: Args,
     ) -> Result<Self, GraphError> {
-        let graph_path = path.graph_path()?;
-        let config: Config = args.update_in_dir(&graph_path)?.into();
-
         Ok(Self(Arc::new(Storage::load_read_only_with_config(
-            graph_path, config,
+            path.graph_path()?,
+            args,
         )?)))
     }
 
@@ -252,10 +243,10 @@ impl PersistentGraph {
         Self(Arc::new(self.0.read_only()))
     }
 
-    /// Get event graph
     pub fn event_graph(&self) -> Graph {
         Graph::from_storage(self.0.clone())
     }
+
     pub fn persistent_graph(&self) -> PersistentGraph {
         self.clone()
     }

@@ -54,7 +54,7 @@ use std::{
     ops::Deref,
     sync::Arc,
 };
-use storage::{persist::args::ArgsOps, Args, Extension};
+use storage::{Args, Extension};
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Default)]
@@ -151,7 +151,7 @@ impl Graph {
     /// ```
     pub fn new_with_config(args: Args) -> Result<Self, GraphError> {
         Ok(Self {
-            inner: Arc::new(Storage::new_with_config(args.into())?),
+            inner: Arc::new(Storage::new_with_config(args)?),
         })
     }
 
@@ -183,10 +183,8 @@ impl Graph {
         path.init()?;
 
         let graph_path = path.graph_path()?;
-        args.save_to_dir(&graph_path)?;
-
         let graph = Self {
-            inner: Arc::new(Storage::new_at_path_with_config(graph_path, args.into())?),
+            inner: Arc::new(Storage::new_at_path_with_config(graph_path, args)?),
         };
 
         let meta = GraphFolderMetadata {
@@ -218,7 +216,7 @@ impl Graph {
     /// Load a graph from a specific path, overriding config
     /// # Arguments
     /// * `path` - The path to the storage location
-    /// * `config` - The new config (note that it is not possible to change the page sizes)
+    /// * `config` - The new config (page sizes cannot be changed; providing them returns an error)
     /// # Returns
     /// A raphtory graph loaded from the specified path
     /// # Example
@@ -231,11 +229,8 @@ impl Graph {
         args: Args,
     ) -> Result<Self, GraphError> {
         // TODO: add support for loading indexes and vectors
-        let graph_path = path.graph_path()?;
-        let config: Config = args.update_in_dir(&graph_path)?.into();
-
         Ok(Self {
-            inner: Arc::new(Storage::load_with_config(graph_path, config)?),
+            inner: Arc::new(Storage::load_with_config(path.graph_path()?, args)?),
         })
     }
 
@@ -254,11 +249,11 @@ impl Graph {
         path: &(impl GraphPaths + ?Sized),
         args: Args,
     ) -> Result<Self, GraphError> {
-        let graph_path = path.graph_path()?;
-        let config: Config = args.update_in_dir(&graph_path)?.into();
-
         Ok(Self {
-            inner: Arc::new(Storage::load_read_only_with_config(graph_path, config)?),
+            inner: Arc::new(Storage::load_read_only_with_config(
+                path.graph_path()?,
+                args,
+            )?),
         })
     }
 

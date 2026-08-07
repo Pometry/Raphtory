@@ -32,9 +32,7 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
 
     fn new(config: Self::Config, graph_dir: Option<&Path>) -> Result<Self, StorageError>;
 
-    fn load(graph_dir: &Path) -> Result<Self, StorageError>;
-
-    fn load_with_config(graph_dir: &Path, config: Self::Config) -> Result<Self, StorageError>;
+    fn load(graph_dir: &Path, config: Self::Config) -> Result<Self, StorageError>;
 
     fn config(&self) -> &Self::Config;
 
@@ -79,6 +77,7 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
 
     /// Called by bulk loaders to decide if a global flush should be triggered
     fn should_flush(&self) -> bool;
+
     fn should_pause(&self) -> bool;
 }
 
@@ -107,11 +106,7 @@ impl PersistenceStrategy for NoOpStrategy {
         })
     }
 
-    fn load(_graph_dir: &Path) -> Result<Self, StorageError> {
-        Err(StorageError::DiskStorageNotSupported)
-    }
-
-    fn load_with_config(_graph_dir: &Path, _config: Self::Config) -> Result<Self, StorageError> {
+    fn load(_graph_dir: &Path, _config: Self::Config) -> Result<Self, StorageError> {
         Err(StorageError::DiskStorageNotSupported)
     }
 

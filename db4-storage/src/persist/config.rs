@@ -2,11 +2,41 @@ pub const DEFAULT_MAX_PAGE_LEN_NODES: u32 = 600_000; // 2^17
 pub const DEFAULT_MAX_PAGE_LEN_EDGES: u32 = 6_000_000; // 2^20
 pub const CONFIG_FILE_NAME: &str = "config.json";
 
-use crate::persist::args::{ArgsOps, BaseArgs};
+use crate::{
+    error::StorageError,
+    persist::args::{ArgsOps, BaseArgs},
+};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use std::path::Path;
+use tempfile::NamedTempFile;
 
 /// Trait for graph storage configuration.
-pub trait ConfigOps: Sized {
+///
+/// `Config` is the resolved configuration used internally and persisted to
+/// `config.json`. User-facing overrides are supplied via [`ArgsOps`].
+pub trait ConfigOps: Serialize + DeserializeOwned + Sized + Clone {
     type Args: ArgsOps<Config = Self> + From<Self>;
+
+    fn load_from_dir(dir: &Path) -> Result<Self, StorageError> {
+        let config_file = dir.join(CONFIG_FILE_NAME);
+        let config_file = std::fs::File::open(config_file)?;
+        let config = serde_json::from_reader(config_file)?;
+
+        Ok(config)
+    }
+
+    fn save_to_dir(&self, dir: &Path) -> Result<(), StorageError> {
+        let config_path = dir.join(CONFIG_FILE_NAME);
+        let mut tmp_file = NamedTempFile::new_in(dir)?;
+
+        serde_json::to_writer_pretty(&mut tmp_file, self)?;
+        tmp_file.as_file().sync_all()?;
+        tmp_file
+            .persist(&config_path)
+            .map_err(std::io::Error::from)?;
+
+        Ok(())
+    }
 
     fn max_node_page_len(&self) -> u32;
 
@@ -21,7 +51,8 @@ pub trait ConfigOps: Sized {
     fn with_node_types(&self, node_types: impl IntoIterator<Item = impl AsRef<str>>) -> Self;
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct BaseConfig {
     max_node_page_len: u32,
     max_edge_page_len: u32,

@@ -41,7 +41,7 @@ use std::{
         Arc,
     },
 };
-use storage::{Args, Config};
+use storage::Args;
 use tracing::error;
 use walkdir::WalkDir;
 use zip::{write::FileOptions, ZipArchive, ZipWriter};
@@ -177,7 +177,7 @@ impl ParquetDecoder for Graph {
         args: Args,
     ) -> Result<Self, GraphError> {
         let batch_size = None;
-        let storage = decode_graph_storage(&path, batch_size, path_for_decoded_graph, args.into())?;
+        let storage = decode_graph_storage(&path, batch_size, path_for_decoded_graph, args)?;
         Ok(Graph::from_storage(storage))
     }
 }
@@ -189,7 +189,7 @@ impl ParquetDecoder for PersistentGraph {
         args: Args,
     ) -> Result<Self, GraphError> {
         let batch_size = None;
-        let storage = decode_graph_storage(&path, batch_size, path_for_decoded_graph, args.into())?;
+        let storage = decode_graph_storage(&path, batch_size, path_for_decoded_graph, args)?;
         Ok(PersistentGraph(storage))
     }
 }
@@ -202,7 +202,7 @@ impl ParquetDecoder for MaterializedGraph {
     ) -> Result<Self, GraphError> {
         let batch_size = None;
         let graph_type = decode_graph_type(&path)?;
-        let storage = decode_graph_storage(&path, batch_size, path_for_decoded_graph, args.into())?;
+        let storage = decode_graph_storage(&path, batch_size, path_for_decoded_graph, args)?;
 
         match graph_type {
             GraphType::EventGraph => {
@@ -354,12 +354,12 @@ fn decode_graph_storage(
     path: impl AsRef<Path>,
     batch_size: Option<usize>,
     path_for_decoded_graph: Option<&Path>,
-    config: Config,
+    args: Args,
 ) -> Result<Arc<Storage>, GraphError> {
     let graph = if let Some(storage_path) = path_for_decoded_graph {
-        Arc::new(Storage::new_at_path_with_config(storage_path, config)?)
+        Arc::new(Storage::new_at_path_with_config(storage_path, args)?)
     } else {
-        Arc::new(Storage::new_with_config(config)?)
+        Arc::new(Storage::new_with_config(args)?)
     };
 
     let c_graph_path = path.as_ref().join(GRAPH_C_PATH);

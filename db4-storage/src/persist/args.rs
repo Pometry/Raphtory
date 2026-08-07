@@ -1,17 +1,15 @@
 use crate::{
     error::StorageError,
     persist::config::{
-        BaseConfig, CONFIG_FILE_NAME, ConfigOps, DEFAULT_MAX_PAGE_LEN_EDGES,
-        DEFAULT_MAX_PAGE_LEN_NODES,
+        BaseConfig, ConfigOps, DEFAULT_MAX_PAGE_LEN_EDGES, DEFAULT_MAX_PAGE_LEN_NODES,
     },
 };
 use clap::{
     Args as ClapArgs, Command,
     error::{ContextKind, ContextValue},
 };
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
-use std::{iter, path::Path};
-use tempfile::NamedTempFile;
+use serde::{Deserialize, Serialize};
+use std::iter;
 use tracing::error;
 
 /// Trait for managing user-provided config arguments.
@@ -23,42 +21,16 @@ use tracing::error;
 /// `Config` represents the final config values derived from `Args`, where fields
 /// that are not set by the user are filled with default values. `Config` is then used
 /// internally to configure the storage implementation.
-pub trait ArgsOps: Serialize + DeserializeOwned + Sized + Clone + ClapArgs {
-    type Config: ConfigOps + From<Self>;
+pub trait ArgsOps: Sized + Clone + ClapArgs {
+    type Config: ConfigOps<Args = Self> + From<Self>;
 
-    fn load_from_dir(dir: &Path) -> Result<Self, StorageError> {
-        let config_file = dir.join(CONFIG_FILE_NAME);
-        let config_file = std::fs::File::open(config_file)?;
-        let config = serde_json::from_reader(config_file)?;
+    /// Merge the `Some` values in `new_args` into `self`.
+    ///
+    /// Fields that are `None` in `new_args` are ignored.
+    fn merge(&mut self, new_args: Self) -> Result<(), StorageError>;
 
-        Ok(config)
-    }
-
-    fn save_to_dir(&self, dir: &Path) -> Result<(), StorageError> {
-        let config_path = dir.join(CONFIG_FILE_NAME);
-        let mut tmp_file = NamedTempFile::new_in(dir)?;
-
-        serde_json::to_writer_pretty(&mut tmp_file, self)?;
-        tmp_file.as_file().sync_all()?;
-        tmp_file
-            .persist(&config_path)
-            .map_err(std::io::Error::from)?;
-
-        Ok(())
-    }
-
-    /// Update the config arguments stored in `dir` with the arguments in `self`.
-    fn update_in_dir(self, dir: &Path) -> Result<Self, StorageError> {
-        let mut args_in_dir = Self::load_from_dir(dir)?;
-
-        args_in_dir.update(self);
-        args_in_dir.save_to_dir(dir)?;
-
-        Ok(args_in_dir)
-    }
-
-    /// Update the config stored in `self` with the values in `new_args`.
-    fn update(&mut self, new_args: Self);
+    /// Apply `self` as overrides on top of the existing `config` and return the result.
+    fn apply_to_config(self, config: Self::Config) -> Result<Self::Config, StorageError>;
 }
 
 /// Generate values for clap [`Args`](ClapArgs) from their environment variables.
@@ -131,10 +103,6 @@ impl BaseArgs {
         self.max_edge_page_len
     }
 
-    pub fn node_types(&self) -> &[String] {
-        &[]
-    }
-
     pub fn with_max_node_page_len(mut self, page_len: u32) -> Self {
         self.max_node_page_len = Some(page_len);
         self
@@ -143,10 +111,6 @@ impl BaseArgs {
     pub fn with_max_edge_page_len(mut self, page_len: u32) -> Self {
         self.max_edge_page_len = Some(page_len);
         self
-    }
-
-    pub fn with_node_types(&self, _node_types: impl IntoIterator<Item = impl AsRef<str>>) -> Self {
-        self.clone()
     }
 }
 
@@ -171,12 +135,27 @@ impl From<BaseConfig> for BaseArgs {
 impl ArgsOps for BaseArgs {
     type Config = BaseConfig;
 
-    fn update(&mut self, new_args: Self) {
+    fn merge(&mut self, new_args: Self) -> Result<(), StorageError> {
         if let Some(v) = new_args.max_node_page_len {
             self.max_node_page_len = Some(v);
         }
         if let Some(v) = new_args.max_edge_page_len {
             self.max_edge_page_len = Some(v);
         }
+
+        Ok(())
+    }
+
+    fn apply_to_config(self, config: Self::Config) -> Result<Self::Config, StorageError> {
+        if self.max_node_page_len.is_some() || self.max_edge_page_len.is_some() {
+            return Err(StorageError::GenericFailure(
+                "Page sizes cannot be overridden after graph creation".to_string(),
+            ));
+        }
+
+        let mut args = Self::from(config);
+        args.merge(self)?;
+        let new_config: BaseConfig = args.into();
+        Ok(new_config)
     }
 }

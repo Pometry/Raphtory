@@ -72,8 +72,8 @@ impl Base for Storage {
 }
 
 impl Storage {
-    pub(crate) fn new_with_config(config: Config) -> Result<Self, GraphError> {
-        let ext = Extension::new(config, None)?;
+    pub(crate) fn new_with_config(args: Args) -> Result<Self, GraphError> {
+        let ext = Extension::new(args.into(), None)?;
         let temporal_graph = TemporalGraph::new(ext)?;
 
         Ok(Self {
@@ -83,14 +83,60 @@ impl Storage {
 
     pub(crate) fn new_at_path_with_config(
         path: impl AsRef<Path>,
-        config: Config,
+        args: Args,
     ) -> Result<Self, GraphError> {
-        let ext = Extension::new(config, Some(path.as_ref()))?;
+        let path = path.as_ref();
+        let config: Config = args.into();
+        config.save_to_dir(path)?;
+
+        let ext = Extension::new(config, Some(path))?;
         let temporal_graph = TemporalGraph::new_at_path_with_ext(path, ext)?;
 
         Ok(Self {
             graph: GraphStorage::Unlocked(Arc::new(temporal_graph)),
         })
+    }
+
+    pub(crate) fn load(path: impl AsRef<Path>) -> Result<Self, GraphError> {
+        let path = path.as_ref();
+        let config = Config::load_from_dir(path)?;
+        let ext = Extension::load(path, config)?;
+
+        Self::load_with_extension(path, ext)
+    }
+
+    pub(crate) fn load_with_config(path: impl AsRef<Path>, args: Args) -> Result<Self, GraphError> {
+        let path = path.as_ref();
+        let config = Config::load_from_dir(path)?;
+        let config = args.apply_to_config(config)?;
+        config.save_to_dir(path)?;
+        let ext = Extension::load(path, config)?;
+
+        Self::load_with_extension(path, ext)
+    }
+
+    /// Load the graph as a read-only snapshot — multiple processes can open
+    /// the same graph directory concurrently. Mutating operations on the
+    /// returned graph will return errors from the underlying storage.
+    pub(crate) fn load_read_only(path: impl AsRef<Path>) -> Result<Self, GraphError> {
+        let path = path.as_ref();
+        let config = Config::load_from_dir(path)?;
+        let ext = Extension::load(path, config)?;
+
+        Self::load_read_only_with_extension(path, ext)
+    }
+
+    pub(crate) fn load_read_only_with_config(
+        path: impl AsRef<Path>,
+        args: Args,
+    ) -> Result<Self, GraphError> {
+        let path = path.as_ref();
+        let config = Config::load_from_dir(path)?;
+        let config = args.apply_to_config(config)?;
+        config.save_to_dir(path)?;
+        let ext = Extension::load(path, config)?;
+
+        Self::load_read_only_with_extension(path, ext)
     }
 
     fn load_with_extension(path: &Path, ext: Extension) -> Result<Self, GraphError> {
@@ -117,40 +163,6 @@ impl Storage {
         Ok(Self {
             graph: GraphStorage::Mem(locked),
         })
-    }
-
-    pub fn load(path: impl AsRef<Path>) -> Result<Self, GraphError> {
-        let path = path.as_ref();
-        let ext = Extension::load(path)?;
-
-        Self::load_with_extension(path, ext)
-    }
-
-    pub fn load_with_config(path: impl AsRef<Path>, config: Config) -> Result<Self, GraphError> {
-        let path = path.as_ref();
-        let ext = Extension::load_with_config(path, config)?;
-
-        Self::load_with_extension(path, ext)
-    }
-
-    /// Load the graph as a read-only snapshot — multiple processes can open
-    /// the same graph directory concurrently. Mutating operations on the
-    /// returned graph will return errors from the underlying storage.
-    pub fn load_read_only(path: impl AsRef<Path>) -> Result<Self, GraphError> {
-        let path = path.as_ref();
-        let ext = Extension::load(path)?;
-
-        Self::load_read_only_with_extension(path, ext)
-    }
-
-    pub fn load_read_only_with_config(
-        path: impl AsRef<Path>,
-        config: Config,
-    ) -> Result<Self, GraphError> {
-        let path = path.as_ref();
-        let ext = Extension::load_with_config(path, config)?;
-
-        Self::load_read_only_with_extension(path, ext)
     }
 
     pub(crate) fn from_inner(graph: GraphStorage) -> Self {
