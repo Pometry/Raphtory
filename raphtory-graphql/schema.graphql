@@ -1285,17 +1285,25 @@ type EdgeSchema {
 
 input EdgeSortBy {
 	"""
-	Reverse order
+	Reverse order. Applies to the `time` / `property` keys; the node keys
+	(`src` / `dst` / `neighbour`) carry their own `reverse` inside the
+	nested `NodeSortBy` and ignore this flag.
 	"""
 	reverse: Boolean
 	"""
-	Source node
+	Sort by the source node.
 	"""
-	src: Boolean
+	src: NodeSortBy
 	"""
-	Destination
+	Sort by the destination node.
 	"""
-	dst: Boolean
+	dst: NodeSortBy
+	"""
+	Sort by the neighbour node: the endpoint that is NOT the node these
+	edges were traversed from (the destination for a graph-level edge
+	collection).
+	"""
+	neighbour: NodeSortBy
 	"""
 	Time
 	"""
@@ -1663,7 +1671,7 @@ type Edges {
 	"""
 	sorted(
 		"""
-		Ordered list of sort keys. Each entry chooses exactly one of `src` / `dst` / `time` / `property`, with an optional `reverse: true` to flip order.
+		Ordered list of sort keys. Each entry chooses exactly one of `src` / `dst` / `neighbour` / `time` / `property`, with an optional `reverse: true` to flip order.
 		"""
 		sortBys: [EdgeSortBy!]!
 	): Edges!
@@ -4844,6 +4852,14 @@ input NodeSortBy {
 	"""
 	id: Boolean
 	"""
+	Node name
+	"""
+	name: Boolean
+	"""
+	Node type. Untyped nodes sort first (before any named type).
+	"""
+	type: Boolean
+	"""
 	Time
 	"""
 	time: SortByTime
@@ -5487,7 +5503,7 @@ type Nodes {
 	"""
 	sorted(
 		"""
-		Ordered list of sort keys. Each entry chooses exactly one of `id` / `time` / `property`, with an optional `reverse: true` to flip order.
+		Ordered list of sort keys. Each entry chooses exactly one of `id` / `name` / `type` / `time` / `property`, with an optional `reverse: true` to flip order.
 		"""
 		sortBys: [NodeSortBy!]!
 	): Nodes!
@@ -7438,3 +7454,4 @@ schema {
 	query: QueryRoot
 	mutation: MutRoot
 }
+

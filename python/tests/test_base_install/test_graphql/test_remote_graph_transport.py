@@ -1646,14 +1646,18 @@ def test_nodes_sorted_is_lazy_and_composable():
 
 
 def test_edges_sorted_by_src_dst():
-    """Sort edges by src then dst — lexicographic multi-key."""
+    """Sort edges by src then dst — lexicographic multi-key. `by_src`/`by_dst`
+    take a nested `NodeSortBy`, so the endpoint's own key/direction applies."""
     with _remote_graph("g") as rg:
         rg.add_edge(1, "b", "c")
         rg.add_edge(2, "a", "c")
         rg.add_edge(3, "a", "b")
 
         sorted_edges = rg.edges.sorted(
-            [EdgeSortBy.by_src(), EdgeSortBy.by_dst()]
+            [
+                EdgeSortBy.by_src(NodeSortBy.by_id()),
+                EdgeSortBy.by_dst(NodeSortBy.by_id()),
+            ]
         ).collect()
         pairs = [(e.src.name, e.dst.name) for e in sorted_edges]
         assert pairs == [
@@ -1661,6 +1665,93 @@ def test_edges_sorted_by_src_dst():
             ("a", "c"),
             ("b", "c"),
         ], f"expected [(a,b),(a,c),(b,c)] by (src, dst), got {pairs}"
+
+        # The nested key's own `reverse` flips just that endpoint: src
+        # descending, dst still ascending.
+        desc_src = rg.edges.sorted(
+            [
+                EdgeSortBy.by_src(NodeSortBy.by_id(reverse=True)),
+                EdgeSortBy.by_dst(NodeSortBy.by_id()),
+            ]
+        ).collect()
+        pairs = [(e.src.name, e.dst.name) for e in desc_src]
+        assert pairs == [
+            ("b", "c"),
+            ("a", "b"),
+            ("a", "c"),
+        ], f"expected src-desc then dst-asc, got {pairs}"
+
+
+def test_edges_sorted_by_src_name_and_type():
+    """`NodeSortBy.by_name()` / `by_type()` nested under `by_src` — a bare
+    id flag could not express either. Untyped nodes sort first."""
+    with _remote_graph("g") as rg:
+        rg.add_node(1, "a", node_type="Z")
+        rg.add_node(1, "b", node_type="A")
+        rg.add_node(1, "c")  # untyped
+        rg.add_edge(10, "a", "x")
+        rg.add_edge(11, "b", "x")
+        rg.add_edge(12, "c", "x")
+
+        by_type = rg.edges.sorted(
+            [
+                EdgeSortBy.by_src(NodeSortBy.by_type()),
+                EdgeSortBy.by_src(NodeSortBy.by_name()),
+            ]
+        ).collect()
+        srcs = [e.src.name for e in by_type]
+        assert srcs == ["c", "b", "a"], f"expected [c, b, a] by src type, got {srcs}"
+
+        by_name_desc = rg.edges.sorted(
+            [EdgeSortBy.by_src(NodeSortBy.by_name(reverse=True))]
+        ).collect()
+        srcs = [e.src.name for e in by_name_desc]
+        assert srcs == [
+            "c",
+            "b",
+            "a",
+        ], f"expected [c, b, a] by src name desc, got {srcs}"
+
+
+def test_edges_sorted_by_neighbour():
+    """`by_neighbour` sorts on the endpoint that is NOT the node the edges
+    were traversed from. On a node's out_edges that is the far end; on a
+    graph-level edge collection it is the destination."""
+    with _remote_graph("g") as rg:
+        rg.add_node(1, "x", properties={"score": 3.0})
+        rg.add_node(1, "y", properties={"score": 1.0})
+        rg.add_node(1, "z", properties={"score": 2.0})
+        rg.add_edge(10, "hub", "x")
+        rg.add_edge(11, "hub", "y")
+        rg.add_edge(12, "hub", "z")
+
+        # Traversed from `hub` — the neighbour is the far endpoint.
+        by_score = (
+            rg.node("hub")
+            .out_edges.sorted(
+                [EdgeSortBy.by_neighbour(NodeSortBy.by_property("score"))]
+            )
+            .collect()
+        )
+        nbrs = [e.dst.name for e in by_score]
+        assert nbrs == ["y", "z", "x"], f"expected [y, z, x] by score, got {nbrs}"
+
+        by_name_desc = (
+            rg.node("hub")
+            .out_edges.sorted(
+                [EdgeSortBy.by_neighbour(NodeSortBy.by_name(reverse=True))]
+            )
+            .collect()
+        )
+        nbrs = [e.dst.name for e in by_name_desc]
+        assert nbrs == ["z", "y", "x"], f"expected [z, y, x] by name desc, got {nbrs}"
+
+        # Graph-level collection: neighbour == dst.
+        graph_level = rg.edges.sorted(
+            [EdgeSortBy.by_neighbour(NodeSortBy.by_name())]
+        ).collect()
+        nbrs = [e.dst.name for e in graph_level]
+        assert nbrs == ["x", "y", "z"], f"expected [x, y, z] by dst name, got {nbrs}"
 
 
 def test_edges_sorted_by_time_and_property():

@@ -703,32 +703,46 @@ fn render_node_sort_bys(sort_bys: &[NodeSortBy]) -> String {
         if i > 0 {
             out.push_str(", ");
         }
-        out.push('{');
-        let mut first = true;
-        if let Some(rev) = sb.reverse {
-            push_sort_field(&mut out, &mut first, format_args!("reverse: {rev}"));
-        }
-        if let Some(id) = sb.id {
-            push_sort_field(&mut out, &mut first, format_args!("id: {id}"));
-        }
-        if let Some(t) = sb.time {
-            push_sort_field(
-                &mut out,
-                &mut first,
-                format_args!("time: {}", render_sort_by_time(t)),
-            );
-        }
-        if let Some(ref p) = sb.property {
-            push_sort_field(
-                &mut out,
-                &mut first,
-                format_args!("property: {}", render_gql_str(p)),
-            );
-        }
-        out.push('}');
+        push_node_sort_by(&mut out, sb);
     }
     out.push(']');
     out
+}
+
+/// Write one `NodeSortBy` — braces included — into `out`. Shared by the
+/// node sort-by list renderer and by the nested `src`/`dst`/`neighbour`
+/// keys of `EdgeSortBy`.
+fn push_node_sort_by(out: &mut String, sb: &NodeSortBy) {
+    out.push('{');
+    let mut first = true;
+    if let Some(rev) = sb.reverse {
+        push_sort_field(out, &mut first, format_args!("reverse: {rev}"));
+    }
+    if let Some(id) = sb.id {
+        push_sort_field(out, &mut first, format_args!("id: {id}"));
+    }
+    if let Some(name) = sb.name {
+        push_sort_field(out, &mut first, format_args!("name: {name}"));
+    }
+    if let Some(type_) = sb.type_ {
+        // GraphQL field name is `type`; `type_` is only the Rust spelling.
+        push_sort_field(out, &mut first, format_args!("type: {type_}"));
+    }
+    if let Some(t) = sb.time {
+        push_sort_field(
+            out,
+            &mut first,
+            format_args!("time: {}", render_sort_by_time(t)),
+        );
+    }
+    if let Some(ref p) = sb.property {
+        push_sort_field(
+            out,
+            &mut first,
+            format_args!("property: {}", render_gql_str(p)),
+        );
+    }
+    out.push('}');
 }
 
 /// Append one `key: value` field to a sort-by object being rendered into
@@ -741,6 +755,13 @@ fn push_sort_field(out: &mut String, first: &mut bool, args: std::fmt::Arguments
     *first = false;
     // Writing into a String cannot fail.
     let _ = out.write_fmt(args);
+}
+
+/// Append one `key: {…}` field — a nested `NodeSortBy` object — to a sort-by
+/// object being rendered into `out`.
+fn push_nested_node_sort_field(out: &mut String, first: &mut bool, key: &str, sb: &NodeSortBy) {
+    push_sort_field(out, first, format_args!("{key}: "));
+    push_node_sort_by(out, sb);
 }
 
 fn render_gql_str(s: &str) -> String {
@@ -817,7 +838,9 @@ fn expect_update_bool(
 }
 
 /// Same as `render_node_sort_bys` but for `EdgeSortBy` — includes the extra
-/// `src` / `dst` boolean keys.
+/// `src` / `dst` / `neighbour` keys, each a nested `NodeSortBy` object.
+/// The top-level `reverse` applies only to `time` / `property`; a node key's
+/// direction lives in its own nested `reverse`.
 fn render_edge_sort_bys(sort_bys: &[EdgeSortBy]) -> String {
     let mut out = String::from("[");
     for (i, sb) in sort_bys.iter().enumerate() {
@@ -829,11 +852,14 @@ fn render_edge_sort_bys(sort_bys: &[EdgeSortBy]) -> String {
         if let Some(rev) = sb.reverse {
             push_sort_field(&mut out, &mut first, format_args!("reverse: {rev}"));
         }
-        if let Some(src) = sb.src {
-            push_sort_field(&mut out, &mut first, format_args!("src: {src}"));
+        if let Some(ref src) = sb.src {
+            push_nested_node_sort_field(&mut out, &mut first, "src", src);
         }
-        if let Some(dst) = sb.dst {
-            push_sort_field(&mut out, &mut first, format_args!("dst: {dst}"));
+        if let Some(ref dst) = sb.dst {
+            push_nested_node_sort_field(&mut out, &mut first, "dst", dst);
+        }
+        if let Some(ref neighbour) = sb.neighbour {
+            push_nested_node_sort_field(&mut out, &mut first, "neighbour", neighbour);
         }
         if let Some(t) = sb.time {
             push_sort_field(
@@ -4121,6 +4147,130 @@ mod tests {
         let opens = query.matches('{').count();
         let closes = query.matches('}').count();
         assert_eq!(opens, closes, "unbalanced braces in: {query}");
+    }
+
+    // ============ Unit tests for sort-by rendering ============
+
+    /// A `NodeSortBy` with no key set — a base for `..` struct update so each
+    /// test names only the key it exercises.
+    fn no_node_key() -> NodeSortBy {
+        NodeSortBy {
+            reverse: None,
+            id: None,
+            name: None,
+            type_: None,
+            time: None,
+            property: None,
+        }
+    }
+
+    fn no_edge_key() -> EdgeSortBy {
+        EdgeSortBy {
+            reverse: None,
+            src: None,
+            dst: None,
+            neighbour: None,
+            time: None,
+            property: None,
+        }
+    }
+
+    #[test]
+    fn render_node_sort_bys_covers_every_key() {
+        let out = render_node_sort_bys(&[
+            NodeSortBy {
+                reverse: Some(true),
+                id: Some(true),
+                ..no_node_key()
+            },
+            NodeSortBy {
+                name: Some(true),
+                ..no_node_key()
+            },
+            // Rust `type_` must render as the GraphQL field `type`.
+            NodeSortBy {
+                type_: Some(true),
+                ..no_node_key()
+            },
+            NodeSortBy {
+                time: Some(SortByTime::Latest),
+                ..no_node_key()
+            },
+            NodeSortBy {
+                property: Some("score".into()),
+                ..no_node_key()
+            },
+        ]);
+        assert_eq!(
+            out,
+            r#"[{reverse: true, id: true}, {name: true}, {type: true}, {time: LATEST}, {property: "score"}]"#
+        );
+        assert_eq!(render_node_sort_bys(&[]), "[]");
+    }
+
+    #[test]
+    fn render_edge_sort_bys_nests_node_keys() {
+        let out = render_edge_sort_bys(&[
+            EdgeSortBy {
+                src: Some(NodeSortBy {
+                    type_: Some(true),
+                    ..no_node_key()
+                }),
+                ..no_edge_key()
+            },
+            EdgeSortBy {
+                dst: Some(NodeSortBy {
+                    reverse: Some(true),
+                    id: Some(true),
+                    ..no_node_key()
+                }),
+                ..no_edge_key()
+            },
+            EdgeSortBy {
+                neighbour: Some(NodeSortBy {
+                    name: Some(true),
+                    ..no_node_key()
+                }),
+                ..no_edge_key()
+            },
+            // Top-level `reverse` belongs to the time/property keys only.
+            EdgeSortBy {
+                reverse: Some(true),
+                time: Some(SortByTime::Earliest),
+                ..no_edge_key()
+            },
+        ]);
+        assert_eq!(
+            out,
+            r#"[{src: {type: true}}, {dst: {reverse: true, id: true}}, {neighbour: {name: true}}, {reverse: true, time: EARLIEST}]"#
+        );
+    }
+
+    #[test]
+    fn sorted_edges_by_neighbour_renders_into_query() {
+        let expr = ReadExpr::SortedEdges {
+            input: Arc::new(ReadExpr::Edges {
+                input: Arc::new(ReadExpr::Root { path: "g".into() }),
+            }),
+            sort_bys: vec![EdgeSortBy {
+                neighbour: Some(NodeSortBy {
+                    property: Some("score".into()),
+                    ..no_node_key()
+                }),
+                ..no_edge_key()
+            }],
+        };
+        let (query, _vars) = render_read(&expr).unwrap();
+        assert!(
+            query.contains(r#"sorted(sortBys: [{neighbour: {property: "score"}}])"#),
+            "got: {query}"
+        );
+        // The nested object must not unbalance the surrounding selection set.
+        assert_eq!(
+            query.matches('{').count(),
+            query.matches('}').count(),
+            "unbalanced braces in: {query}"
+        );
     }
 
     // ============ Unit tests for GraphQL string escaping ============
