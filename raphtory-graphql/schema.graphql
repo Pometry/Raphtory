@@ -13,21 +13,6 @@ enum AlignmentUnit {
 	YEAR
 }
 
-enum AllPropertySpec {
-	"""
-	All properties and metadata.
-	"""
-	ALL
-	"""
-	All metadata.
-	"""
-	ALL_METADATA
-	"""
-	All properties.
-	"""
-	ALL_PROPERTIES
-}
-
 """
 Collection of items
 """
@@ -746,17 +731,25 @@ type EdgeSchema {
 
 input EdgeSortBy {
 	"""
-	Reverse order
+	Reverse order. Applies to the `time` / `property` keys; the node keys
+	(`src` / `dst` / `neighbour`) carry their own `reverse` inside the
+	nested `NodeSortBy` and ignore this flag.
 	"""
 	reverse: Boolean
 	"""
-	Source node
+	Sort by the source node.
 	"""
-	src: Boolean
+	src: NodeSortBy
 	"""
-	Destination
+	Sort by the destination node.
 	"""
-	dst: Boolean
+	dst: NodeSortBy
+	"""
+	Sort by the neighbour node: the endpoint that is NOT the node these
+	edges were traversed from (the destination for a graph-level edge
+	collection).
+	"""
+	neighbour: NodeSortBy
 	"""
 	Time
 	"""
@@ -1124,7 +1117,7 @@ type Edges {
 	"""
 	sorted(
 		"""
-		Ordered list of sort keys. Each entry chooses exactly one of `src` / `dst` / `time` / `property`, with an optional `reverse: true` to flip order.
+		Ordered list of sort keys. Each entry chooses exactly one of `src` / `dst` / `neighbour` / `time` / `property`, with an optional `reverse: true` to flip order.
 		"""
 		sortBys: [EdgeSortBy!]!
 	): Edges!
@@ -1815,48 +1808,6 @@ type Graph {
 		expr: EdgeFilter!
 	): Graph!
 	"""
-	(Experimental) Get index specification.
-	"""
-	getIndexSpec: IndexSpec!
-	"""
-	(Experimental) Searches for nodes which match the given filter
-	expression. Uses Tantivy's exact search; requires the graph to have
-	been indexed.
-	"""
-	searchNodes(
-		"""
-		Composite node filter (by name, property, type, etc.).
-		"""
-		filter: NodeFilter!,
-		"""
-		Maximum number of nodes to return.
-		"""
-		limit: Int!,
-		"""
-		Number of matches to skip before returning results.
-		"""
-		offset: Int!
-	): [Node!]!
-	"""
-	(Experimental) Searches the index for edges which match the given
-	filter expression. Uses Tantivy's exact search; requires the graph to
-	have been indexed.
-	"""
-	searchEdges(
-		"""
-		Composite edge filter (by property, layer, src/dst, etc.).
-		"""
-		filter: EdgeFilter!,
-		"""
-		Maximum number of edges to return.
-		"""
-		limit: Int!,
-		"""
-		Number of matches to skip before returning results.
-		"""
-		offset: Int!
-	): [Edge!]!
-	"""
 	Apply a list of view operations in the given order and return the
 	resulting graph view. Lets callers compose multiple view transforms
 	(window, layer, filter, snapshot, ...) in a single call.
@@ -2433,36 +2384,6 @@ type HistoryTimestamp {
 	): [Int!]!
 }
 
-type IndexSpec {
-	"""
-	Returns node metadata.
-	"""
-	nodeMetadata: [String!]!
-	"""
-	Returns node properties.
-	"""
-	nodeProperties: [String!]!
-	"""
-	Returns edge metadata.
-	"""
-	edgeMetadata: [String!]!
-	"""
-	Returns edge properties.
-	"""
-	edgeProperties: [String!]!
-}
-
-input IndexSpecInput {
-	"""
-	Node properties.
-	"""
-	nodeProps: PropsInput!
-	"""
-	Edge properties.
-	"""
-	edgeProps: PropsInput!
-}
-
 input InputEdge {
 	"""
 	Source node id (string or non-negative integer).
@@ -2906,19 +2827,6 @@ type MutRoot {
 		"""
 		overwrite: Boolean!
 	): String!
-	"""
-	(Experimental) Creates search index.
-	"""
-	createIndex(
-		"""
-		Graph path relative to the root namespace.
-		"""
-		path: String!,
-		"""
-		Optional spec selecting which node/edge property fields to index. Omit to index a default set.
-		"""
-		indexSpec: IndexSpecInput,		inRam: Boolean!
-	): Boolean!
 	"""
 	Flush any pending writes for the graph at `graphPath` to disk.
 	"""
@@ -3885,6 +3793,14 @@ input NodeSortBy {
 	"""
 	id: Boolean
 	"""
+	Node name
+	"""
+	name: Boolean
+	"""
+	Node type. Untyped nodes sort first (before any named type).
+	"""
+	type: Boolean
+	"""
 	Time
 	"""
 	time: SortByTime
@@ -4250,7 +4166,7 @@ type Nodes {
 	"""
 	sorted(
 		"""
-		Ordered list of sort keys. Each entry chooses exactly one of `id` / `time` / `property`, with an optional `reverse: true` to flip order.
+		Ordered list of sort keys. Each entry chooses exactly one of `id` / `name` / `type` / `time` / `property`, with an optional `reverse: true` to flip order.
 		"""
 		sortBys: [NodeSortBy!]!
 	): Nodes!
@@ -5125,17 +5041,6 @@ type PropertyTuple {
 	value: PropertyOutput!
 }
 
-input PropsInput @oneOf {
-	"""
-	All properties and metadata.
-	"""
-	all: AllPropertySpec
-	"""
-	Some properties and metadata.
-	"""
-	some: SomePropertySpec
-}
-
 type QueryPlugin {
 	NoOps: String!
 }
@@ -5180,40 +5085,6 @@ type QueryRoot {
 		path: String!
 	): MutableGraph!
 	"""
-	Update graph query, has side effects to update graph state
-	
-	Returns:: GqlMutableGraph
-	"""
-	vectoriseGraph(
-		"""
-		Graph path relative to the root namespace.
-		"""
-		path: String!,
-		"""
-		Optional embedding model; defaults to OpenAI's standard model.
-		"""
-		model: EmbeddingModel,
-		"""
-		Optional node-document template (which fields go into each node's text representation); defaults to the built-in template.
-		"""
-		nodes: Template,
-		"""
-		Optional edge-document template; defaults to the built-in template.
-		"""
-		edges: Template
-	): Boolean!
-	"""
-	Create vectorised graph in the format used for queries
-	
-	Returns:: GqlVectorisedGraph
-	"""
-	vectorisedGraph(
-		"""
-		Graph path relative to the root namespace.
-		"""
-		path: String!
-	): VectorisedGraph
-	"""
 	Returns all namespaces using recursive search
 	
 	Returns::  List of namespaces on root
@@ -5250,25 +5121,45 @@ type QueryRoot {
 	Version string of the running `raphtory-graphql` server build.
 	"""
 	version: String!
+	"""
+	Update graph query, has side effects to update graph state
+	
+	Returns:: GqlMutableGraph
+	"""
+	vectoriseGraph(
+		"""
+		Graph path relative to the root namespace.
+		"""
+		path: String!,
+		"""
+		Optional embedding model; defaults to OpenAI's standard model.
+		"""
+		model: EmbeddingModel,
+		"""
+		Optional node-document template (which fields go into each node's text representation); defaults to the built-in template.
+		"""
+		nodes: Template,
+		"""
+		Optional edge-document template; defaults to the built-in template.
+		"""
+		edges: Template
+	): Boolean!
+	"""
+	Create vectorised graph in the format used for queries
+	
+	Returns:: GqlVectorisedGraph
+	"""
+	vectorisedGraph(
+		"""
+		Graph path relative to the root namespace.
+		"""
+		path: String!
+	): VectorisedGraph
 }
 
 type ShortestPathOutput {
 	target: String!
 	nodes: [String!]!
-}
-
-"""
-SomePropertySpec object containing lists of metadata and property names.
-"""
-input SomePropertySpec {
-	"""
-	List of metadata.
-	"""
-	metadata: [String!]!
-	"""
-	List of properties.
-	"""
-	properties: [String!]!
 }
 
 enum SortByTime {
@@ -5512,6 +5403,12 @@ input Value @oneOf {
 	decimal: String
 }
 
+"""
+A working set of documents / nodes / edges built up via similarity
+searches on a `VectorisedGraph`. Selections are mutable: you can grow
+them with more hops (`expand*`), dereference the contents (`nodes`,
+`edges`, `getDocuments`), or start fresh with `emptySelection`.
+"""
 type VectorSelection {
 	"""
 	Returns a list of nodes in the current selection.
@@ -5618,9 +5515,28 @@ type VectorSelection {
 	): VectorSelection!
 }
 
+"""
+A graph with embedded vector representations for its nodes and edges.
+Exposes similarity search over documents, nodes, and edges, plus
+selection building (`emptySelection`) and index maintenance
+(`optimizeIndex`).
+"""
 type VectorisedGraph {
+	"""
+	Rebuild (or incrementally update) the on-disk vector indexes for nodes
+	and edges so subsequent similarity searches hit the fresh embeddings.
+	Safe to call repeatedly; returns true on success.
+	"""
 	optimizeIndex: Boolean!
+	"""
+	Returns an empty selection of documents.
+	"""
 	emptySelection: VectorSelection!
+	"""
+	Find the highest-scoring nodes *and* edges (mixed) by similarity to a
+	natural-language query. The query is embedded server-side and matched
+	against indexed entity vectors.
+	"""
 	entitiesBySimilarity(
 		"""
 		Natural-language search string; embedded by the server.
@@ -5635,6 +5551,11 @@ type VectorisedGraph {
 		"""
 		window: VectorisedGraphWindow
 	): VectorSelection!
+	"""
+	Find the highest-scoring nodes by similarity to a natural-language
+	query. The query is embedded server-side and matched against indexed
+	node vectors.
+	"""
 	nodesBySimilarity(
 		"""
 		Natural-language search string; embedded by the server.
@@ -5649,6 +5570,11 @@ type VectorisedGraph {
 		"""
 		window: VectorisedGraphWindow
 	): VectorSelection!
+	"""
+	Find the highest-scoring edges by similarity to a natural-language
+	query. The query is embedded server-side and matched against indexed
+	edge vectors.
+	"""
 	edgesBySimilarity(
 		"""
 		Natural-language search string; embedded by the server.
@@ -5720,3 +5646,4 @@ schema {
 	query: QueryRoot
 	mutation: MutRoot
 }
+
