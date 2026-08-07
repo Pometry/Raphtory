@@ -1,19 +1,18 @@
+//! The client: remote handle types plus the transport plumbing they run on.
+//!
+//! - [`remote`] holds the handle types ([`RemoteGraph`], [`RemoteNode`], …).
+//! - [`op`], [`transport`], [`graphql_transport`] and `error` are the plumbing:
+//!   the operation vocabulary, the transport trait, its GraphQL implementation
+//!   and the error type.
+//!
+//! Everything public in [`remote`] — its submodules included — is re-exported
+//! here, so `client::RemoteGraph`, `client::remote::RemoteGraph` and
+//! `client::remote_graph::RemoteGraph` all name the same type.
+
 mod error;
 pub mod graphql_transport;
 pub mod op;
-pub mod remote_client;
-pub mod remote_collection_metadata;
-pub mod remote_edge;
-pub mod remote_edges;
-pub mod remote_graph;
-pub mod remote_history;
-pub mod remote_metadata;
-pub mod remote_nested_edges;
-pub mod remote_node;
-pub mod remote_nodes;
-pub mod remote_path_from_graph;
-pub mod remote_path_from_node;
-pub mod remote_schema;
+pub mod remote;
 pub mod transport;
 
 pub use error::ClientError;
@@ -24,26 +23,9 @@ pub use op::{
     EdgeAddition, NodeAddition, Op, ReadExpr, SetNodeType, TemporalUpdate, UpdateEdgeMetadata,
     UpdateGraphMetadata, UpdateNodeMetadata, WriteOp,
 };
-pub use remote_collection_metadata::{ColumnarProps, RemoteMetadataView, RemotePropertiesView};
-pub use remote_edge::RemoteEdge;
-pub use remote_edges::RemoteEdges;
-pub use remote_graph::RemoteGraph;
-pub use remote_history::{
-    RemoteEventTime, RemoteHistory, RemoteHistoryDateTimes, RemoteHistoryEventIds,
-    RemoteHistoryTimestamps, RemoteIntervals,
-};
-pub use remote_metadata::{
-    RemoteMetadata, RemoteProperties, RemotePropertyTuple, RemoteTemporalProperties,
-    RemoteTemporalProperty,
-};
-pub use remote_nested_edges::RemoteNestedEdges;
-pub use remote_node::RemoteNode;
-pub use remote_nodes::RemoteNodes;
-pub use remote_path_from_graph::RemotePathFromGraph;
-pub use remote_path_from_node::RemotePathFromNode;
-pub use remote_schema::{
-    RemoteEdgeSchema, RemoteGraphSchema, RemoteLayerSchema, RemoteNodeSchema, RemotePropertySchema,
-};
+// Glob so the handle types *and* their modules keep their pre-move paths under
+// `client::` (e.g. `client::remote_graph::RemoteGraph`).
+pub use remote::*;
 pub use transport::Transport;
 
 use crate::model::graph::property::{ObjectEntry, Value};
