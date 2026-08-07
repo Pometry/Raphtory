@@ -30,9 +30,6 @@ auth = { workspace = true }
 
 [features]
 default = ["datafusion", "vectors"]
-# maturin auto-enables this feature by name; without it pyo3 links libpython
-# into the extension and `import raphtory` segfaults on static-python setups.
-extension-module = ["pyo3/extension-module"]
 datafusion = ["raphtory/datafusion"]
 # search = ["raphtory/search", "raphtory-graphql/search"]
 vectors = ["raphtory/vectors", "raphtory-graphql/vectors"]
