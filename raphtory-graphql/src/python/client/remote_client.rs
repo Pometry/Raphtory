@@ -346,8 +346,9 @@ impl PyRaphtoryClient {
     ///     role (str): the role to grant access to
     ///     path (str): the namespace path
     ///     permission (str): one of "read", "write", "introspect" (case-insensitive)
-    ///     recursive (bool): also grant every currently existing descendant of the
-    ///         namespace individually. Defaults to False.
+    ///     recursive (bool): also grant existing descendants. Defaults to False.
+    ///         Every currently existing descendant of the namespace is granted
+    ///         individually.
     ///
     /// Returns:
     ///     bool: True if the grant was applied.
@@ -375,8 +376,9 @@ impl PyRaphtoryClient {
     /// Arguments:
     ///     role (str): the role to revoke access from
     ///     path (str): the namespace path
-    ///     recursive (bool): also revoke every currently existing descendant of the
-    ///         namespace individually. Defaults to False.
+    ///     recursive (bool): also revoke existing descendants. Defaults to False.
+    ///         Every currently existing descendant of the namespace is revoked
+    ///         individually.
     ///
     /// Returns:
     ///     bool: True if the access was revoked.
@@ -492,7 +494,7 @@ impl PyRaphtoryClient {
     ///     name (str): the role to look up
     ///
     /// Returns:
-    ///     dict[str, Any] | None: a mapping with keys ``name``, ``graphs``
+    ///     Optional[dict[str, Any]]: a mapping with keys ``name``, ``graphs``
     ///     (list of ``{"path", "permission"}``) and ``namespaces``
     ///     (list of ``{"path", "permission"}``), or None if the role does not exist.
     fn get_role<'py>(&self, py: Python<'py>, name: String) -> PyResult<Bound<'py, PyAny>> {

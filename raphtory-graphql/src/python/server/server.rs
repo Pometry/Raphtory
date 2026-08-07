@@ -26,31 +26,51 @@ use {
 ///
 /// Arguments:
 ///     work_dir (str | PathLike): the working directory for the server
-///     cache_capacity (int, optional): the maximum number of graphs to keep in memory at once
-///     cache_tti_seconds (int, optional): the inactive time in seconds after which a graph is evicted from the cache
-///     log_level (str, optional): the log level for the server
-///     tracing (bool, optional): whether tracing should be enabled
-///     tracing_level (str, optional): tracing verbosity (e.g. "ERROR", "WARN", "INFO", "DEBUG", "TRACE").
-///     otlp_agent_host (str, optional): OTLP agent host for tracing
-///     otlp_agent_port(str, optional): OTLP agent port for tracing
-///     otlp_tracing_service_name (str, optional): The OTLP tracing service name
-///     config_path (str | PathLike, optional): Path to the config file
-///     auth_public_key (str, optional): Base64-encoded public key used to verify bearer tokens
-///     require_auth_for_reads (bool, optional): Require auth tokens for read queries
-///     create_index (bool, optional): Build a search index on startup
-///     heavy_query_limit (int, optional): Maximum number of expensive traversal queries (outComponent, inComponent, edges, outEdges, inEdges, neighbours, outNeighbours, inNeighbours) allowed to run simultaneously. Extra queries are parked on a semaphore.
-///     exclusive_writes (bool, optional): If True, ingestion/write operations run one at a time and block reads until complete.
-///     disable_batching (bool, optional): If True, batched GraphQL requests are rejected. Prevents bypassing per-request depth/complexity limits.
-///     max_batch_size (int, optional): Caps the number of queries accepted in a single batched request. Defaults to 10; set to null for unlimited (subject to disable_batching).
-///     disable_lists (bool, optional): If True, bulk `list` endpoints on collections are disabled. Clients must use `page` instead.
-///     max_page_size (int, optional): Maximum page size allowed on paged collection queries.
-///     max_query_depth (int, optional): Maximum nesting depth of a query.
-///     max_query_complexity (int, optional): Maximum estimated cost of a query, based on the number of fields selected.
-///     max_recursive_depth (int, optional): Internal safety limit to prevent stack overflows from pathologically structured queries (async-graphql default is 32).
-///     max_directives_per_field (int, optional): Maximum number of directives on any single field.
-///     disable_introspection (bool, optional): If True, schema introspection is disabled entirely.
-///     permissions_store_path (str | PathLike, optional): Seed file for admin-managed roles (alias for rbac.admin.seed_path).
-///     rbac (dict, optional): Role-management settings, under the `rbac` config key. poll_interval_secs, plus at most one source sub-table: ldap {url, bind_dn, bind_password_env, group_base_dn, group_filter, permissions_attribute}, opa {path, query}, json {path}, or admin {seed_path}. Sources are polled and read-only; admin is update-driven. The live store is materialised under <work_dir>/.permissions/. None set → RBAC off.
+///     config_path (str | PathLike, optional): path to a TOML config file, loaded first
+///     permissions_store_path (str | PathLike, optional): seed file for admin-managed roles
+///                                                        (alias for `rbac.admin.seed_path`)
+///     config (dict, optional): configuration overrides applied on top of `config_path`, as a
+///                              dict of nested sections. Unknown section or field names raise an
+///                              error. The available sections and fields are:
+///
+///                              * `logging`: `log_level` (str)
+///                              * `cache`: `capacity` (int) - maximum number of graphs to keep
+///                                in memory at once
+///                              * `tracing`: `enabled` (bool), `level` (str, e.g. "ERROR",
+///                                "WARN", "INFO", "DEBUG", "TRACE"), `agent_host` (str),
+///                                `service_name` (str), `transport_protocol` (str),
+///                                `transport_headers` (dict[str, str]),
+///                                `transport_certificate` (str | PathLike)
+///                              * `auth`: `public_key` (str, base64-encoded key used to verify
+///                                bearer tokens), `require_auth_for_reads` (bool),
+///                                `audience` (str), `issuer` (str), `role_claim` (str),
+///                                `jwks_uri` (str), `jwks_refresh_secs` (int)
+///                              * `concurrency`: `heavy_query_limit` (int, maximum number of
+///                                expensive traversal queries allowed to run simultaneously;
+///                                extra queries are parked on a semaphore),
+///                                `exclusive_writes` (bool, run write operations one at a time
+///                                and block reads until complete), `disable_batching` (bool,
+///                                reject batched GraphQL requests), `max_batch_size` (int, cap
+///                                on the number of queries in a batched request; null for
+///                                unlimited), `disable_lists` (bool, disable bulk `list`
+///                                endpoints so clients must use `page`), `max_page_size` (int)
+///                              * `schema`: `max_query_depth` (int), `max_query_complexity`
+///                                (int, based on the number of fields selected),
+///                                `max_recursive_depth` (int, safety limit against stack
+///                                overflows from pathologically structured queries),
+///                                `max_directives_per_field` (int),
+///                                `disable_introspection` (bool)
+///                              * `parquet`: `allowed_paths` (list[str | PathLike]) - the paths
+///                                parquet loading is restricted to
+///                              * `public_dir` (str | PathLike): directory served as static
+///                                files
+///                              * `rbac`: `poll_interval_secs` (int), plus at most one source
+///                                sub-table: `ldap` {url, bind_dn, bind_password_env,
+///                                bind_password, group_base_dn, group_filter,
+///                                permissions_attribute}, `opa` {path, query}, `json` {path},
+///                                or `admin` {seed_path}. Sources are polled and read-only;
+///                                admin is update-driven. The live store is materialised under
+///                                <work_dir>/.permissions/. None set means RBAC is off.
 #[pyclass(name = "GraphServer", module = "raphtory.graphql")]
 pub struct PyGraphServer(GraphServer);
 
