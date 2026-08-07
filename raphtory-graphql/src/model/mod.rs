@@ -9,7 +9,7 @@ use crate::{
             node_id::GqlNodeId,
         },
         plugins::{
-            mutation_plugin::MutationPlugin, query_plugin::QueryPlugin, PermissionsEntrypointMut,
+            mutation_plugin::MutationPlugin, query_plugin::Plugins, PermissionsEntrypointMut,
             PermissionsEntrypointQuery,
         },
     },
@@ -265,8 +265,8 @@ impl QueryRoot {
     }
 
     /// Returns a plugin.
-    async fn plugins<'a>() -> QueryPlugin {
-        QueryPlugin
+    async fn plugins<'a>() -> Plugins {
+        Plugins
     }
 
     /// Encodes graph and returns as string.
@@ -752,6 +752,7 @@ pub struct App(
     MutRoot,
     #[cfg(feature = "vectors")] VectorQuery<'static>,
     Mut,
+    Plugins,
     PermissionsEntrypointMut,
     PermissionsEntrypointQuery,
 );

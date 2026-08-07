@@ -8,41 +8,37 @@ use std::{
     sync::{Mutex, MutexGuard},
 };
 
-pub static QUERY_PLUGINS: Lazy<Mutex<IndexMap<String, RegisterFunction>>> =
-    Lazy::new(|| Mutex::new(IndexMap::new()));
+static PLUGINS: Lazy<Mutex<Vec<Box<dyn RegisterPlugin>>>> = Lazy::new(|| Mutex::new(Vec::new()));
 
 #[derive(Clone, Default)]
-pub struct QueryPlugin;
+pub struct Plugins;
 
-impl<'a> EntryPoint<'a> for QueryPlugin {
-    fn predefined_operations() -> IndexMap<&'static str, RegisterFunction> {
-        IndexMap::from([(
-            "NoOps",
-            Box::new(NoOpQuery::register_operation) as RegisterFunction,
-        )])
-    }
-
-    fn lock_plugins() -> MutexGuard<'static, IndexMap<String, RegisterFunction>> {
-        QUERY_PLUGINS.lock().unwrap()
-    }
+pub trait RegisterPlugin {
+    fn register(&self, registry: Registry) -> Registry;
 }
 
-impl Register for QueryPlugin {
-    fn register(registry: Registry) -> Registry {
-        Self::register_operations(registry)
-    }
+/// Register a plugin to extend the graphql schema
+pub fn register_plugin(plugin: impl RegisterPlugin) {
+    PLUGINS
+        .lock()
+        .expect("Plugin registration lock poisoned")
+        .push(Box::new(plugin))
 }
 
-impl TypeName for QueryPlugin {
-    fn get_type_name() -> Cow<'static, str> {
-        "QueryPlugin".into()
-    }
+/// Clear all schema plugins
+pub fn clear_plugins() {
+    PLUGINS
+        .lock()
+        .expect("Plugin registration lock poisoned")
+        .clear();
 }
 
-impl OutputTypeName for QueryPlugin {}
-
-impl<'a> ResolveOwned<'a> for QueryPlugin {
-    fn resolve_owned(self, _ctx: &Context) -> dynamic_graphql::Result<Option<FieldValue<'a>>> {
-        Ok(Some(FieldValue::owned_any(self)))
+impl Register for Plugins {
+    fn register(mut registry: Registry) -> Registry {
+        let plugins = PLUGINS.lock().expect("Plugin registration lock poisoned");
+        for plugin in plugins.iter() {
+            registry = plugin.register(registry);
+        }
+        registry
     }
 }
