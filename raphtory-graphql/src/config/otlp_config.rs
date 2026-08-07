@@ -15,6 +15,9 @@ use raphtory_api::core::storage::arc_str::OptionAsStr;
 use reqwest::{blocking::ClientBuilder, Certificate};
 use serde::Deserialize;
 use std::{collections::HashMap, fs::File, io::Read, path::PathBuf, time::Duration};
+// Only the in-memory test exporters are lazily initialised.
+#[cfg(feature = "integration-test")]
+use std::sync::LazyLock;
 use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter, EnumString, IntoStaticStr};
 
