@@ -202,7 +202,10 @@ impl QueryRoot {
 
         if let Some(policy) = &data.auth_policy {
             if let Err(_) = policy.graph_permissions(ctx, &path) {
-                let roles = ctx.data::<Vec<String>>().map(Vec::as_slice).unwrap_or(&[]);
+                let roles = ctx
+                    .data::<crate::auth::Roles>()
+                    .map(|r| r.0.as_slice())
+                    .unwrap_or(&[]);
                 warn!(
                     roles = ?roles,
                     graph = path.as_str(),

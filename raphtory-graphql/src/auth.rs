@@ -64,6 +64,11 @@ impl TokenClaimValues {
     }
 }
 
+/// The roles carried by the validated token (a request may hold several), injected into the GraphQL
+/// context for authorization policies. Empty when no token was presented.
+#[derive(Clone, Debug, Default)]
+pub struct Roles(pub Vec<String>);
+
 /// Resolves the JWT decoding key(s) used to verify a bearer token. The default
 /// [`StaticKeyResolver`] returns a single configured key; an extension may register a resolver that
 /// fetches keys dynamically (e.g. SSO/OIDC JWKS by `kid`).
@@ -245,7 +250,7 @@ where
         if is_accept_multipart_mixed {
             let (req, mut body) = req.split();
             let req = GraphQLRequest::from_request(&req, &mut body).await?;
-            let req = req.0.data(access).data(roles).data(claim_values);
+            let req = req.0.data(access).data(Roles(roles)).data(claim_values);
             let stream = self.executor.execute_stream(req, None);
             Ok(Response::builder()
                 .header("content-type", "multipart/mixed; boundary=graphql")
@@ -269,7 +274,7 @@ where
                 }
             }
 
-            let req = batch_req.data(access).data(roles).data(claim_values);
+            let req = batch_req.data(access).data(Roles(roles)).data(claim_values);
 
             let contains_update = match &req {
                 BatchRequest::Single(request) => is_exclusive_write(&request.query),
