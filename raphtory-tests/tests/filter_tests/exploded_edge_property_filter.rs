@@ -5,11 +5,11 @@ use raphtory::{
     db::{
         api::view::{Filter, StaticGraphViewOps},
         graph::{
-            edge::EdgeView,
-            graph::{
+            assertions::{
                 assert_graph_equal, assert_node_equal, assert_nodes_equal,
                 assert_persistent_materialize_graph_equal,
             },
+            edge::EdgeView,
             views::{
                 deletion_graph::PersistentGraph,
                 filter::model::{

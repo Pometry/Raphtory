@@ -4,7 +4,7 @@ use raphtory::{
     db::{
         api::view::Filter,
         graph::{
-            graph::{assert_graph_equal, assert_persistent_materialize_graph_equal},
+            assertions::{assert_graph_equal, assert_persistent_materialize_graph_equal},
             views::{
                 deletion_graph::PersistentGraph,
                 filter::model::{

@@ -13,7 +13,7 @@ mod io_tests {
             },
         },
         core::storage::timeindex::EventTime,
-        db::graph::graph::assert_graph_equal,
+        db::graph::assertions::assert_graph_equal,
         errors::GraphError,
         prelude::*,
     };
@@ -787,7 +787,7 @@ mod parquet_tests {
     use proptest::prelude::*;
     use raphtory::{
         db::graph::{
-            graph::{assert_graph_equal, assert_graph_equal_timestamps},
+            assertions::{assert_graph_equal, assert_graph_equal_timestamps},
             views::deletion_graph::PersistentGraph,
         },
         prelude::*,

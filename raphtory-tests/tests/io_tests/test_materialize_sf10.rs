@@ -4,7 +4,7 @@ use raphtory::{
     arrow_loader::df_loaders::edges::ColumnNames,
     db::{
         api::view::{materialize_impl, MaterializedGraph},
-        graph::graph::assert_graph_equal_timestamps,
+        graph::assertions::assert_graph_equal_timestamps,
     },
     io::parquet_loaders::{
         get_parquet_file_paths, load_edge_deletions_from_parquet, load_edge_metadata_from_parquet,

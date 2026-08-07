@@ -53,7 +53,7 @@ pub fn url_decode_graph_at<T: AsRef<[u8]>>(
 
 #[cfg(test)]
 mod tests {
-    use raphtory::{db::graph::graph::assert_graph_equal, prelude::*};
+    use raphtory::{db::graph::assertions::assert_graph_equal, prelude::*};
 
     use super::*;
 
