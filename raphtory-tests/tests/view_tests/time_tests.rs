@@ -3,9 +3,7 @@ use raphtory::{
     db::{
         api::{mutation::AdditionOps, view::WindowSet},
         graph::{
-            assertions::assert_graph_equal,
-            graph::Graph,
-            views::deletion_graph::PersistentGraph,
+            assertions::assert_graph_equal, graph::Graph, views::deletion_graph::PersistentGraph,
         },
     },
     prelude::{DeletionOps, GraphViewOps, LayerOps, TimeOps, NO_PROPS},

@@ -6,7 +6,7 @@ use crate::{
     error::StorageError,
     persist::args::{ArgsOps, BaseArgs},
 };
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::path::Path;
 use tempfile::NamedTempFile;
 
