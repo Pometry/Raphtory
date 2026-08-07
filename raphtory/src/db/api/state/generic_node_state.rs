@@ -29,14 +29,6 @@ use arrow_array::{
 };
 use arrow_schema::{DataType, Field, FieldRef, Schema, SchemaBuilder};
 use arrow_select::{concat::concat, take::take};
-#[cfg(feature = "datafusion")]
-use datafusion_expr_common::groups_accumulator::EmitTo;
-#[cfg(feature = "datafusion")]
-use datafusion_physical_expr::expressions::col;
-#[cfg(feature = "datafusion")]
-use datafusion_physical_expr_common::sort_expr::PhysicalSortExpr;
-#[cfg(feature = "datafusion")]
-use datafusion_physical_plan::aggregates::{group_values::new_group_values, order::GroupOrdering};
 use indexmap::{IndexMap, IndexSet};
 use parquet::{
     arrow::{arrow_reader::ParquetRecordBatchReaderBuilder, ArrowWriter},
@@ -66,6 +58,20 @@ use std::{
     marker::PhantomData,
     path::Path,
     sync::Arc,
+};
+
+#[cfg(feature = "datafusion")]
+use {
+    arrow::row::{RowConverter, SortField},
+    arrow_array::UInt32Array,
+    arrow_schema::{ArrowError, SortOptions},
+    arrow_select::interleave::interleave_record_batch,
+    dashmap::DashMap,
+    datafusion_expr_common::groups_accumulator::EmitTo,
+    datafusion_physical_expr::expressions::col,
+    datafusion_physical_expr_common::sort_expr::PhysicalSortExpr,
+    datafusion_physical_plan::aggregates::{group_values::new_group_values, order::GroupOrdering},
+    std::{cmp::Ordering, collections::BinaryHeap},
 };
 
 // The bundle of traits which are useful/essential for the underlying value types

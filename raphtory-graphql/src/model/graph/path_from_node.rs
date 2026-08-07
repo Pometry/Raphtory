@@ -2,7 +2,7 @@ use crate::{
     model::graph::{
         collection::{check_list_allowed, check_page_limit},
         edges::GqlEdges,
-        filtering::{GqlNodeFilter, PathFromNodeViewCollection},
+        filtering::{GqlFilter, GqlNodeFilter, PathFromNodeViewCollection},
         history::GqlHistory,
         node::GqlNode,
         timeindex::{GqlEventTime, GqlTimeInput},
@@ -17,7 +17,10 @@ use raphtory::{
     core::utils::time::TryIntoInterval,
     db::{
         api::view::{filter_ops::NodeSelect, DynamicGraph, Filter},
-        graph::{path::PathFromNode, views::filter::model::CompositeNodeFilter},
+        graph::{
+            path::PathFromNode,
+            views::filter::model::{CompositeNodeFilter, DynFilter},
+        },
     },
     errors::GraphError,
     prelude::*,
@@ -448,12 +451,14 @@ impl GqlPathFromNode {
 
     async fn filter(
         &self,
-        #[graphql(desc = "Composite node filter (by name, property, type, etc.).")]
-        expr: GqlNodeFilter,
+        #[graphql(
+            desc = "Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection)."
+        )]
+        expr: GqlFilter,
     ) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let filter: CompositeNodeFilter = expr.try_into()?;
+            let filter: DynFilter = expr.try_into()?;
             let filtered = self_clone.nn.filter(filter)?;
             Ok(self_clone.update(filtered.into_dyn()))
         })

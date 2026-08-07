@@ -22,16 +22,37 @@ from raphtory.graphql import EdgeSortBy, GraphServer, NodeSortBy, SortByTime
 
 
 @contextlib.contextmanager
+def _remote_graph_and_client(name="g", graph_type="EVENT"):
+    """Start a GraphServer in a self-cleaning temp dir, create one graph on
+    it, and yield `(RemoteGraph, RaphtoryClient)`.
+
+    The single server fixture every test goes through: population differs per
+    test, so callers add their own nodes/edges to the yielded handle. The temp
+    dir is removed on exit (`TemporaryDirectory`, not `mkdtemp` — no leaked
+    directories), which is safe because the server's `__exit__` joins the
+    server task before we get here.
+    """
+    with tempfile.TemporaryDirectory() as work_dir:
+        with GraphServer(work_dir).start() as server:
+            client = server.get_client()
+            yield client.new_graph(name, graph_type), client
+
+
+@contextlib.contextmanager
+def _remote_graph(name="g", graph_type="EVENT"):
+    """As `_remote_graph_and_client`, yielding just the `RemoteGraph` — the
+    fixture nearly every test wants."""
+    with _remote_graph_and_client(name, graph_type) as (rg, _client):
+        yield rg
+
+
+@contextlib.contextmanager
 def _make_graph_with_edge():
     """Yield a RemoteGraph for a graph with two nodes and an edge at t=3.
 
     A context manager — the server is started on enter and torn down on exit.
     """
-    work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start() as server:
-        client = server.get_client()
-        client.new_graph("test-graph", "EVENT")
-        rg = client.remote_graph("test-graph")
+    with _remote_graph("test-graph") as rg:
         rg.add_node(1, "ben")
         rg.add_node(2, "hamza")
         rg.add_edge(3, "ben", "hamza")
@@ -76,10 +97,7 @@ def test_event_id_precise_windowing():
     local = Graph()
     build(local)
 
-    with GraphServer(tempfile.mkdtemp()).start() as server:
-        client = server.get_client()
-        client.new_graph("g", "EVENT")
-        rg = client.remote_graph("g")
+    with _remote_graph("g") as rg:
         build(rg)
 
         def redges(view):
@@ -125,10 +143,7 @@ def test_view_ops_accept_str_and_datetime():
 def test_add_updates_event_id_precise():
     """`add_updates` carries the `(timestamp, event_id)` secondary index to the
     server (matching local + the read path) rather than truncating it."""
-    with GraphServer(tempfile.mkdtemp()).start() as server:
-        client = server.get_client()
-        client.new_graph("g", "EVENT")
-        rg = client.remote_graph("g")
+    with _remote_graph_and_client("g") as (rg, client):
         rg.add_node(1, "n")
         rg.node("n").add_updates(5, properties={"p": 1}, event_id=0)
         rg.node("n").add_updates(5, properties={"p": 2}, event_id=1)
@@ -141,10 +156,7 @@ def test_empty_graph_reads():
     """Reads on a graph with no nodes or edges return empties, never errors:
     counts are 0, collections are empty, and the graph's earliest/latest time
     are `None` (not a phantom event time)."""
-    with GraphServer(tempfile.mkdtemp()).start() as server:
-        client = server.get_client()
-        client.new_graph("empty", "EVENT")
-        rg = client.remote_graph("empty")
+    with _remote_graph("empty") as rg:
         assert rg.nodes.count() == 0
         assert rg.edges.count() == 0
         assert rg.nodes.collect() == []
@@ -158,11 +170,7 @@ def test_event_id_secondary_index():
     `add_edge` / `add_node` / `create_node` — parity with the local write API,
     where an explicit event id locks the secondary index instead of
     auto-incrementing."""
-    work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start() as server:
-        client = server.get_client()
-        client.new_graph("g", "EVENT")
-        rg = client.remote_graph("g")
+    with _remote_graph_and_client("g") as (rg, client):
         # Two edges at the same timestamp with distinct event ids both persist.
         rg.add_edge(1, "a", "b", event_id=0)
         rg.add_edge(1, "a", "c", event_id=1)
@@ -905,8 +913,8 @@ def test_graph_schema():
 
 def test_temporal_property_stats():
     """`RemoteTemporalProperty` numeric stats: sum, mean, average, min, max,
-    median. Non-numeric aggregates return None. Non-numeric stats return
-    `RemotePropertyTuple` with a time and native-Python value."""
+    median. Non-numeric aggregates return None. Min/max/median return
+    `(EventTime, value)` tuples, matching the local API."""
     with _make_graph_with_edge() as rg:
         # Numeric values: 1, 2, 3, 4, 5
         for i, t in enumerate([1, 2, 3, 4, 5]):
@@ -918,21 +926,18 @@ def test_temporal_property_stats():
         assert score.mean() == 3.0
         assert score.average() == 3.0
 
-        # Min/max/median return RemotePropertyTuple (time + value)
+        # Min/max/median return (EventTime, value) tuples like the local API
         mn = score.min()
         assert mn is not None
-        assert mn.value == 1.0
-        assert mn.time.t == 1
+        assert (mn[0].t, mn[1]) == (1, 1.0)
 
         mx = score.max()
         assert mx is not None
-        assert mx.value == 5.0
-        assert mx.time.t == 5
+        assert (mx[0].t, mx[1]) == (5, 5.0)
 
         med = score.median()
         assert med is not None
-        assert med.value == 3.0
-        assert med.time.t == 3
+        assert (med[0].t, med[1]) == (3, 3.0)
 
 
 def test_temporal_property_unique_and_dedupe():
@@ -950,7 +955,7 @@ def test_temporal_property_unique_and_dedupe():
         # ordered_dedupe(latest_time=False): (1, 1), (3, 2), (6, 3), (7, 1) — first
         # timestamp of each run.
         first_ts = status.ordered_dedupe(latest_time=False)
-        assert [(p.time.t, p.value) for p in first_ts] == [
+        assert [(t.t, v) for (t, v) in first_ts] == [
             (1, 1),
             (3, 2),
             (6, 3),
@@ -960,7 +965,7 @@ def test_temporal_property_unique_and_dedupe():
         # ordered_dedupe(latest_time=True): (2, 1), (5, 2), (6, 3), (7, 1) — last
         # timestamp of each run.
         last_ts = status.ordered_dedupe(latest_time=True)
-        assert [(p.time.t, p.value) for p in last_ts] == [
+        assert [(t.t, v) for (t, v) in last_ts] == [
             (2, 1),
             (5, 2),
             (6, 3),
@@ -1601,11 +1606,7 @@ def test_nodes_sorted_by_id():
 def test_nodes_sorted_by_property_and_time():
     """Sort by a temporal property and by time. Multi-key lexicographic
     sort — tiebreak on the second key when the first ties."""
-    work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start() as server:
-        client = server.get_client()
-        client.new_graph("g", "EVENT")
-        rg = client.remote_graph("g")
+    with _remote_graph("g") as rg:
         # Three nodes with distinct scores; ben earlier than hamza & zara.
         rg.add_node(1, "ben", properties={"score": 3.0})
         rg.add_node(2, "hamza", properties={"score": 1.0})
@@ -1645,18 +1646,18 @@ def test_nodes_sorted_is_lazy_and_composable():
 
 
 def test_edges_sorted_by_src_dst():
-    """Sort edges by src then dst — lexicographic multi-key."""
-    work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start() as server:
-        client = server.get_client()
-        client.new_graph("g", "EVENT")
-        rg = client.remote_graph("g")
+    """Sort edges by src then dst — lexicographic multi-key. `by_src`/`by_dst`
+    take a nested `NodeSortBy`, so the endpoint's own key/direction applies."""
+    with _remote_graph("g") as rg:
         rg.add_edge(1, "b", "c")
         rg.add_edge(2, "a", "c")
         rg.add_edge(3, "a", "b")
 
         sorted_edges = rg.edges.sorted(
-            [EdgeSortBy.by_src(), EdgeSortBy.by_dst()]
+            [
+                EdgeSortBy.by_src(NodeSortBy.by_id()),
+                EdgeSortBy.by_dst(NodeSortBy.by_id()),
+            ]
         ).collect()
         pairs = [(e.src.name, e.dst.name) for e in sorted_edges]
         assert pairs == [
@@ -1665,14 +1666,97 @@ def test_edges_sorted_by_src_dst():
             ("b", "c"),
         ], f"expected [(a,b),(a,c),(b,c)] by (src, dst), got {pairs}"
 
+        # The nested key's own `reverse` flips just that endpoint: src
+        # descending, dst still ascending.
+        desc_src = rg.edges.sorted(
+            [
+                EdgeSortBy.by_src(NodeSortBy.by_id(reverse=True)),
+                EdgeSortBy.by_dst(NodeSortBy.by_id()),
+            ]
+        ).collect()
+        pairs = [(e.src.name, e.dst.name) for e in desc_src]
+        assert pairs == [
+            ("b", "c"),
+            ("a", "b"),
+            ("a", "c"),
+        ], f"expected src-desc then dst-asc, got {pairs}"
+
+
+def test_edges_sorted_by_src_name_and_type():
+    """`NodeSortBy.by_name()` / `by_type()` nested under `by_src` — a bare
+    id flag could not express either. Untyped nodes sort first."""
+    with _remote_graph("g") as rg:
+        rg.add_node(1, "a", node_type="Z")
+        rg.add_node(1, "b", node_type="A")
+        rg.add_node(1, "c")  # untyped
+        rg.add_edge(10, "a", "x")
+        rg.add_edge(11, "b", "x")
+        rg.add_edge(12, "c", "x")
+
+        by_type = rg.edges.sorted(
+            [
+                EdgeSortBy.by_src(NodeSortBy.by_type()),
+                EdgeSortBy.by_src(NodeSortBy.by_name()),
+            ]
+        ).collect()
+        srcs = [e.src.name for e in by_type]
+        assert srcs == ["c", "b", "a"], f"expected [c, b, a] by src type, got {srcs}"
+
+        by_name_desc = rg.edges.sorted(
+            [EdgeSortBy.by_src(NodeSortBy.by_name(reverse=True))]
+        ).collect()
+        srcs = [e.src.name for e in by_name_desc]
+        assert srcs == [
+            "c",
+            "b",
+            "a",
+        ], f"expected [c, b, a] by src name desc, got {srcs}"
+
+
+def test_edges_sorted_by_neighbour():
+    """`by_neighbour` sorts on the endpoint that is NOT the node the edges
+    were traversed from. On a node's out_edges that is the far end; on a
+    graph-level edge collection it is the destination."""
+    with _remote_graph("g") as rg:
+        rg.add_node(1, "x", properties={"score": 3.0})
+        rg.add_node(1, "y", properties={"score": 1.0})
+        rg.add_node(1, "z", properties={"score": 2.0})
+        rg.add_edge(10, "hub", "x")
+        rg.add_edge(11, "hub", "y")
+        rg.add_edge(12, "hub", "z")
+
+        # Traversed from `hub` — the neighbour is the far endpoint.
+        by_score = (
+            rg.node("hub")
+            .out_edges.sorted(
+                [EdgeSortBy.by_neighbour(NodeSortBy.by_property("score"))]
+            )
+            .collect()
+        )
+        nbrs = [e.dst.name for e in by_score]
+        assert nbrs == ["y", "z", "x"], f"expected [y, z, x] by score, got {nbrs}"
+
+        by_name_desc = (
+            rg.node("hub")
+            .out_edges.sorted(
+                [EdgeSortBy.by_neighbour(NodeSortBy.by_name(reverse=True))]
+            )
+            .collect()
+        )
+        nbrs = [e.dst.name for e in by_name_desc]
+        assert nbrs == ["z", "y", "x"], f"expected [z, y, x] by name desc, got {nbrs}"
+
+        # Graph-level collection: neighbour == dst.
+        graph_level = rg.edges.sorted(
+            [EdgeSortBy.by_neighbour(NodeSortBy.by_name())]
+        ).collect()
+        nbrs = [e.dst.name for e in graph_level]
+        assert nbrs == ["x", "y", "z"], f"expected [x, y, z] by dst name, got {nbrs}"
+
 
 def test_edges_sorted_by_time_and_property():
     """Sort edges by earliest observed time; also by an edge property."""
-    work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start() as server:
-        client = server.get_client()
-        client.new_graph("g", "EVENT")
-        rg = client.remote_graph("g")
+    with _remote_graph("g") as rg:
         # Three edges at different times, with a weight property.
         rg.add_edge(10, "a", "b", properties={"weight": 2.0})
         rg.add_edge(5, "a", "c", properties={"weight": 3.0})
@@ -1696,11 +1780,7 @@ def test_edges_sorted_by_time_and_property():
 def test_edges_sorted_composes_with_view_chain():
     """`.sorted()` composes with a windowed view — sort applies only to
     edges visible in the window."""
-    work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start() as server:
-        client = server.get_client()
-        client.new_graph("g", "EVENT")
-        rg = client.remote_graph("g")
+    with _remote_graph("g") as rg:
         rg.add_edge(1, "a", "b")
         rg.add_edge(5, "a", "c")
         rg.add_edge(20, "b", "c")
@@ -1720,11 +1800,7 @@ def _make_shared_neighbours_graph():
     """Two hub nodes (a, d) that share neighbours (b, c) plus a
     non-shared neighbour on each side (e touches only a; f touches only d).
     Shared: {b, c}. Non-shared: e (only a), f (only d)."""
-    work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start() as server:
-        client = server.get_client()
-        client.new_graph("g", "EVENT")
-        rg = client.remote_graph("g")
+    with _remote_graph("g") as rg:
         rg.add_edge(1, "a", "b")
         rg.add_edge(2, "a", "c")
         rg.add_edge(3, "a", "e")  # a only
@@ -1878,11 +1954,7 @@ def test_shared_neighbours_composes_with_view_chain():
 @contextlib.contextmanager
 def _make_filter_graph():
     """Graph with 4 nodes, distinct properties, for filter tests."""
-    work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start() as server:
-        client = server.get_client()
-        client.new_graph("g", "EVENT")
-        rg = client.remote_graph("g")
+    with _remote_graph("g") as rg:
         # Names and a numeric "score" property for filtering.
         rg.add_node(1, "ben", properties={"score": 10.0})
         rg.add_node(2, "hamza", properties={"score": 5.0})
@@ -2044,10 +2116,7 @@ def test_temporal_multi_op_filter_preserves_op_order_e2e():
     build(local)
     assert sorted(local.filter(first_sum_3).nodes.id) == ["n"]
 
-    with GraphServer(tempfile.mkdtemp()).start() as server:
-        client = server.get_client()
-        client.new_graph("g", "EVENT")
-        rg = client.remote_graph("g")
+    with _remote_graph("g") as rg:
         build(rg)
         # Remote must agree with the local twin. An op-order inversion in the
         # wire would sum-then-first (seq-of-lists → None) and return [].
@@ -2059,11 +2128,7 @@ def test_temporal_multi_op_filter_preserves_op_order_e2e():
 def _make_edge_filter_graph():
     """Graph with 4 edges carrying a numeric "weight" property, for edge
     filter tests."""
-    work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start() as server:
-        client = server.get_client()
-        client.new_graph("g", "EVENT")
-        rg = client.remote_graph("g")
+    with _remote_graph("g") as rg:
         rg.add_edge(1, "ben", "hamza", properties={"weight": 10.0})
         rg.add_edge(2, "ben", "alice", properties={"weight": 5.0})
         rg.add_edge(3, "alice", "bob", properties={"weight": 20.0})
@@ -2204,11 +2269,7 @@ def test_filter_edges_preserves_membership():
 def _make_node_filter_graph():
     """Hub node 'ben' with three out-neighbours carrying a 'score' property,
     for Node.filter / PathFromNode.filter/select tests."""
-    work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start() as server:
-        client = server.get_client()
-        client.new_graph("g", "EVENT")
-        rg = client.remote_graph("g")
+    with _remote_graph("g") as rg:
         rg.add_node(1, "ben", properties={"score": 100.0})
         rg.add_node(1, "hamza", properties={"score": 5.0})
         rg.add_node(1, "alice", properties={"score": 20.0})
@@ -2281,14 +2342,17 @@ def test_node_filter_matches():
         assert rg.node("ben").filter(Node.property("score") > 6.0).name == "ben"
 
 
-def test_node_filter_rejects_edge_filter():
-    """Passing an edge filter to `RemoteNode.filter` raises ValueError."""
-    import pytest
+def test_node_filter_accepts_edge_filter():
+    """An edge filter on a node view is valid (matching local semantics): the
+    node stays addressable and the filter propagates to its edge traversals."""
     from raphtory.filter import Edge
 
-    with _make_filter_graph() as rg:
-        with pytest.raises(ValueError):
-            rg.node("ben").filter(Edge.property("weight") > 1.0)
+    with _remote_graph("g") as rg:
+        rg.add_edge(2, "ben", "hamza", properties={"weight": 2.0})
+        rg.add_edge(3, "ben", "alice", properties={"weight": 0.5})
+        filtered = rg.node("ben").filter(Edge.property("weight") > 1.0)
+        assert filtered.degree() == 1
+        assert rg.node("ben").degree() == 2
 
 
 def test_path_from_node_select_narrows():
@@ -2557,6 +2621,54 @@ def test_properties_dict_protocol():
         assert props.as_dict() == {"score": 2.5}
         with pytest.raises(KeyError):
             props["nonexistent"]
+
+
+def test_map_property_preserves_key_order():
+    """A map-valued property round-trips through the server with its key
+    insertion order intact — same order a local graph would report."""
+    from raphtory import Graph
+
+    cfg = {"zeta": 1, "alpha": 2, "mid": 3}
+
+    with _remote_graph() as rg:
+        rg.add_node(1, "n", properties={"cfg": cfg})
+        remote_cfg = rg.node("n").properties["cfg"]
+        assert remote_cfg == cfg
+        assert list(remote_cfg) == ["zeta", "alpha", "mid"]
+
+    g = Graph()
+    g.add_node(1, "n", properties={"cfg": cfg})
+    assert list(g.node("n").properties["cfg"]) == ["zeta", "alpha", "mid"]
+
+
+def test_non_finite_floats_round_trip():
+    """NaN and ±Infinity survive a remote write → read round-trip — JSON has
+    no number form for them, so they ride tagged variants on the way in and
+    string sentinels (decoded via dtype) on the way out."""
+    import math
+
+    with _remote_graph() as rg:
+        rg.add_node(1, "n", properties={"nan": float("nan"), "inf": float("inf")})
+        props = rg.node("n").properties
+        assert math.isnan(props["nan"])
+        assert props["inf"] == float("inf")
+
+
+def test_property_dtype_fidelity_remote():
+    """Stored values decode to their exact dtype remotely, not the widest
+    JSON-shaped variant — matching what a local graph reports."""
+    from raphtory import Graph, Prop, PropType
+
+    with _remote_graph() as rg:
+        rg.add_node(1, "n", properties={"small": Prop.u8(7), "single": Prop.f32(1.5)})
+        props = rg.node("n").properties
+        assert props.get_dtype_of("small") == PropType.u8()
+        remote_small = props["small"]
+        assert remote_small == 7
+
+    g = Graph()
+    g.add_node(1, "n", properties={"small": Prop.u8(7)})
+    assert g.node("n").properties["small"] == 7
 
 
 def test_collection_getitem_is_select():
@@ -2990,11 +3102,7 @@ def _make_columnar_graphs():
     """
     from raphtory import Graph
 
-    work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start() as server:
-        client = server.get_client()
-        client.new_graph("cg", "EVENT")
-        rg = client.remote_graph("cg")
+    with _remote_graph("cg") as rg:
 
         lg = Graph()
         for g, add_node, add_edge in (
@@ -3336,11 +3444,7 @@ def _make_property_graphs():
     """
     from raphtory import Graph
 
-    work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start() as server:
-        client = server.get_client()
-        client.new_graph("pg", "EVENT")
-        rg = client.remote_graph("pg")
+    with _remote_graph("pg") as rg:
 
         lg = Graph()
         for add_node, add_edge in (
@@ -3558,11 +3662,7 @@ def _make_columnar_property_graphs():
     """
     from raphtory import Graph
 
-    work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start() as server:
-        client = server.get_client()
-        client.new_graph("pg", "EVENT")
-        rg = client.remote_graph("pg")
+    with _remote_graph("pg") as rg:
 
         lg = Graph()
         for g in (rg, lg):
@@ -3930,11 +4030,7 @@ def test_special_chars_roundtrip(name):
     lg.add_node(2, "anchor")
     lg.add_edge(3, name, "anchor")
 
-    work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start() as server:
-        client = server.get_client()
-        client.new_graph("escape-graph", "EVENT")
-        rg = client.remote_graph("escape-graph")
+    with _remote_graph("escape-graph") as rg:
         rg.add_node(1, name, properties={quoted_key: expected_val})
         rg.add_node(2, "anchor")
         rg.add_edge(3, name, "anchor")
@@ -3961,3 +4057,49 @@ def test_special_chars_roundtrip(name):
             rg.nodes.filter(Node.name() == name).id
             == lg.nodes.filter(Node.name() == name).id
         )
+
+
+def test_graph_view_filter_expression_remote():
+    """`filter.Graph.*` expressions (graph-level view restrictions) carry to
+    the server through the filter tree export — parity with local
+    `Graph.filter`, including chained view ops."""
+    from raphtory import Graph
+    from raphtory import filter as flt
+
+    with _remote_graph("g") as rg:
+        lg = Graph()
+        for g in (rg, lg):
+            g.add_edge(1, "a", "b", layer="L1")
+            g.add_edge(5, "b", "c", layer="L2")
+            g.add_edge(9, "c", "a", layer="L1")
+
+        for expr in (
+            flt.Graph.window(0, 6),
+            flt.Graph.window(0, 6).layer("L1"),
+            flt.Graph.at(5),
+        ):
+            local_ids = sorted(lg.filter(expr).nodes.id)
+            remote_ids = sorted(rg.filter(expr).nodes.id)
+            assert remote_ids == local_ids, f"{expr}: {remote_ids} != {local_ids}"
+
+
+def test_mixed_kind_filter_expression_remote():
+    """A node∧edge expression exports structurally (no single composite kind
+    can hold it) and evaluates with intersection semantics — parity with
+    local `Graph.filter(node_expr & edge_expr)`."""
+    from raphtory import Graph
+    from raphtory import filter as flt
+
+    with _remote_graph("g") as rg:
+        lg = Graph()
+        for g in (rg, lg):
+            g.add_node(1, "a", properties={"score": 10})
+            g.add_node(1, "b", properties={"score": 20})
+            g.add_node(1, "c", properties={"score": 30})
+            g.add_edge(2, "a", "b", properties={"w": 1})
+            g.add_edge(3, "b", "c", properties={"w": 5})
+
+        expr = (flt.Node.property("score") > 15) & (flt.Edge.property("w") > 2)
+        local_ids = sorted(lg.filter(expr).nodes.id)
+        remote_ids = sorted(rg.filter(expr).nodes.id)
+        assert remote_ids == local_ids, f"{remote_ids} != {local_ids}"

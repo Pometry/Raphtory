@@ -21,14 +21,12 @@ def test_filter_nodes_with_str_ids_for_node_id_eq_gql(graph):
     query = """
     query {
       graph(path: "g") {
-        filterNodes(
-          expr: {
+        filterNodes: filter(expr: { nodes: {
             node: {
               field: NODE_ID
               where: { eq: { str: "1" } }
             }
-          }
-        ) {
+          } }) {
           nodes {
             list { name }
           }
@@ -45,14 +43,12 @@ def test_filter_nodes_with_str_ids_for_node_id_eq_gql2(graph):
     query = """
     query {
       graph(path: "g") {
-        filterNodes(
-          expr: {
+        filterNodes: filter(expr: { nodes: {
             node: {
               field: NODE_ID
               where: { eq: { u64: 1 } }
             }
-          }
-        ) {
+          } }) {
           nodes {
             list { name }
           }
@@ -73,14 +69,12 @@ def test_filter_nodes_with_num_ids_for_node_id_eq_gql(graph):
     query = """
     query {
       graph(path: "g") {
-        filterNodes(
-          expr: {
+        filterNodes: filter(expr: { nodes: {
             node: {
               field: NODE_ID
               where: { eq: { u64: 1 } }
             }
-          }
-        ) {
+          } }) {
           nodes {
             list { name }
           }
@@ -103,9 +97,9 @@ def test_nodes_chained_selection_with_node_filter(graph):
             where: { eq: { str: "fire_nation" } }
           } }) {
             select(expr: { property: { name: "p9", where: { eq:{ i64: 5 } } } }) {
-              filter(expr:{
+              filter(expr: { nodes: {
                 property: { name: "p100", where: { gt: { i64: 30 } } }
-              }) {
+              } }) {
                 list {
                   name
                 }
@@ -209,7 +203,7 @@ def _degree_filter_nodes_query_expected_pair(expr, expected_names):
     query = f"""
   query {{
     graph(path: "g") {{
-    filterNodes(expr: {{ {expr} }}) {{
+    filterNodes: filter(expr: {{ nodes: {{ {expr} }} }}) {{
       nodes {{
       list {{ name }}
       }}
@@ -530,7 +524,7 @@ def test_filter_nodes_degree_invalid_non_numeric_string_values_gql(graph):
         filter_nodes_query = f"""
     query {{
       graph(path: "g") {{
-      filterNodes(expr: {{ {expr} }}) {{
+      filterNodes: filter(expr: {{ nodes: {{ {expr} }} }}) {{
         nodes {{
         list {{ name }}
         }}
@@ -577,7 +571,7 @@ def test_filter_nodes_degree_invalid_expressions_gql(graph):
         filter_nodes_query = f"""
     query {{
       graph(path: "g") {{
-      filterNodes(expr: {{ {expr} }}) {{
+      filterNodes: filter(expr: {{ nodes: {{ {expr} }} }}) {{
         nodes {{
         list {{ name }}
         }}

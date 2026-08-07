@@ -10,7 +10,7 @@ use crate::{
 };
 use pyo3::{
     exceptions::{PyKeyError, PyValueError},
-    pyclass, pymethods, Py, PyAny, PyResult, Python,
+    pyclass, pymethods, PyResult,
 };
 use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
 use raphtory_api::core::{
@@ -61,13 +61,10 @@ impl PyRemoteNode {
     ///     ValueError: if the filter cannot be represented as a GraphQL
     ///         `NodeFilter` (e.g. references edge fields).
     pub fn filter(&self, filter: PyFilterExpr) -> PyResult<PyRemoteNode> {
-        let composite = filter
-            .try_as_node_filter()
+        let tree = filter
+            .try_as_filter_tree()
             .map_err(|e| PyValueError::new_err(e.to_string()))?;
-        let gql_filter = composite
-            .try_into()
-            .map_err(|e: raphtory::errors::GraphError| PyValueError::new_err(e.to_string()))?;
-        Ok(PyRemoteNode::new(self.node.filter(gql_filter)))
+        Ok(PyRemoteNode::new(self.node.filter(tree)?))
     }
 
     /// Restrict to a single named layer. Lazy — no RPC.
@@ -438,8 +435,8 @@ impl PyRemoteNode {
 
     /// `node[key]` — the property value for `key`, or raises `KeyError` if
     /// absent (matches the local `Node.__getitem__`). Fires one RPC.
-    fn __getitem__(&self, py: Python<'_>, name: String) -> PyResult<Py<PyAny>> {
-        match self.properties().get(py, name.clone())? {
+    fn __getitem__(&self, name: String) -> PyResult<Prop> {
+        match self.properties().get(name.clone())? {
             Some(v) => Ok(v),
             None => Err(PyKeyError::new_err(format!("Unknown property {name}"))),
         }

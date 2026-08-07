@@ -95,73 +95,6 @@ Graph path relative to the root namespace.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="queryroot.vectorisegraph">vectoriseGraph</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a>!</td>
-<td>
-
-Update graph query, has side effects to update graph state
-
-Returns:: GqlMutableGraph
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">path</td>
-<td valign="top"><a href="#string">String</a>!</td>
-<td>
-
-Graph path relative to the root namespace.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">model</td>
-<td valign="top"><a href="#embeddingmodel">EmbeddingModel</a></td>
-<td>
-
-Optional embedding model; defaults to OpenAI's standard model.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">nodes</td>
-<td valign="top"><a href="#template">Template</a></td>
-<td>
-
-Optional node-document template (which fields go into each node's text representation); defaults to the built-in template.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">edges</td>
-<td valign="top"><a href="#template">Template</a></td>
-<td>
-
-Optional edge-document template; defaults to the built-in template.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="queryroot.vectorisedgraph">vectorisedGraph</strong></td>
-<td valign="top"><a href="#vectorisedgraph">VectorisedGraph</a></td>
-<td>
-
-Create vectorised graph in the format used for queries
-
-Returns:: GqlVectorisedGraph
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">path</td>
-<td valign="top"><a href="#string">String</a>!</td>
-<td>
-
-Graph path relative to the root namespace.
-
-</td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="queryroot.namespaces">namespaces</strong></td>
 <td valign="top"><a href="#collectionofnamespace">CollectionOfNamespace</a>!</td>
 <td>
@@ -234,6 +167,73 @@ Graph path relative to the root namespace.
 <td>
 
 Version string of the running `raphtory-graphql` server build.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="queryroot.vectorisegraph">vectoriseGraph</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a>!</td>
+<td>
+
+Update graph query, has side effects to update graph state
+
+Returns:: GqlMutableGraph
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">path</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Graph path relative to the root namespace.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">model</td>
+<td valign="top"><a href="#embeddingmodel">EmbeddingModel</a></td>
+<td>
+
+Optional embedding model; defaults to OpenAI's standard model.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">nodes</td>
+<td valign="top"><a href="#template">Template</a></td>
+<td>
+
+Optional node-document template (which fields go into each node's text representation); defaults to the built-in template.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">edges</td>
+<td valign="top"><a href="#template">Template</a></td>
+<td>
+
+Optional edge-document template; defaults to the built-in template.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="queryroot.vectorisedgraph">vectorisedGraph</strong></td>
+<td valign="top"><a href="#vectorisedgraph">VectorisedGraph</a></td>
+<td>
+
+Create vectorised graph in the format used for queries
+
+Returns:: GqlVectorisedGraph
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">path</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Graph path relative to the root namespace.
 
 </td>
 </tr>
@@ -772,38 +772,6 @@ Destination path relative to the root namespace.
 If true, replace any graph already at `newPath`.
 
 </td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="mutroot.createindex">createIndex</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a>!</td>
-<td>
-
-(Experimental) Creates search index.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">path</td>
-<td valign="top"><a href="#string">String</a>!</td>
-<td>
-
-Graph path relative to the root namespace.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">indexSpec</td>
-<td valign="top"><a href="#indexspecinput">IndexSpecInput</a></td>
-<td>
-
-Optional spec selecting which node/edge property fields to index. Omit to index a default set.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">inRam</td>
-<td valign="top"><a href="#boolean">Boolean</a>!</td>
-<td></td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="mutroot.flush">flush</strong></td>
@@ -2390,7 +2358,7 @@ on the first key break to the second, etc.).
 <td valign="top">[<a href="#edgesortby">EdgeSortBy</a>!]!</td>
 <td>
 
-Ordered list of sort keys. Each entry chooses exactly one of `src` / `dst` / `time` / `property`, with an optional `reverse: true` to flip order.
+Ordered list of sort keys. Each entry chooses exactly one of `src` / `dst` / `neighbour` / `time` / `property`, with an optional `reverse: true` to flip order.
 
 </td>
 </tr>
@@ -3691,91 +3659,6 @@ Composite edge filter (by property, layer, src/dst, etc.).
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="graph.getindexspec">getIndexSpec</strong></td>
-<td valign="top"><a href="#indexspec">IndexSpec</a>!</td>
-<td>
-
-(Experimental) Get index specification.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graph.searchnodes">searchNodes</strong></td>
-<td valign="top">[<a href="#node">Node</a>!]!</td>
-<td>
-
-(Experimental) Searches for nodes which match the given filter
-expression. Uses Tantivy's exact search; requires the graph to have
-been indexed.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">filter</td>
-<td valign="top"><a href="#nodefilter">NodeFilter</a>!</td>
-<td>
-
-Composite node filter (by name, property, type, etc.).
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">limit</td>
-<td valign="top"><a href="#int">Int</a>!</td>
-<td>
-
-Maximum number of nodes to return.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">offset</td>
-<td valign="top"><a href="#int">Int</a>!</td>
-<td>
-
-Number of matches to skip before returning results.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graph.searchedges">searchEdges</strong></td>
-<td valign="top">[<a href="#edge">Edge</a>!]!</td>
-<td>
-
-(Experimental) Searches the index for edges which match the given
-filter expression. Uses Tantivy's exact search; requires the graph to
-have been indexed.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">filter</td>
-<td valign="top"><a href="#edgefilter">EdgeFilter</a>!</td>
-<td>
-
-Composite edge filter (by property, layer, src/dst, etc.).
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">limit</td>
-<td valign="top"><a href="#int">Int</a>!</td>
-<td>
-
-Maximum number of edges to return.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">offset</td>
-<td valign="top"><a href="#int">Int</a>!</td>
-<td>
-
-Number of matches to skip before returning results.
-
-</td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="graph.applyviews">applyViews</strong></td>
 <td valign="top"><a href="#graph">Graph</a>!</td>
 <td>
@@ -4560,57 +4443,6 @@ Extra items to skip on top of `pageIndex` paging (default 0).
 <td>
 
 Zero-based page number; multiplies `limit` to determine where to start (default 0).
-
-</td>
-</tr>
-</tbody>
-</table>
-
-### IndexSpec
-
-<table>
-<thead>
-<tr>
-<th align="left">Field</th>
-<th align="right">Argument</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="indexspec.nodemetadata">nodeMetadata</strong></td>
-<td valign="top">[<a href="#string">String</a>!]!</td>
-<td>
-
-Returns node metadata.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="indexspec.nodeproperties">nodeProperties</strong></td>
-<td valign="top">[<a href="#string">String</a>!]!</td>
-<td>
-
-Returns node properties.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="indexspec.edgemetadata">edgeMetadata</strong></td>
-<td valign="top">[<a href="#string">String</a>!]!</td>
-<td>
-
-Returns edge metadata.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="indexspec.edgeproperties">edgeProperties</strong></td>
-<td valign="top">[<a href="#string">String</a>!]!</td>
-<td>
-
-Returns edge properties.
 
 </td>
 </tr>
@@ -7513,7 +7345,7 @@ first key break to the second, etc.).
 <td valign="top">[<a href="#nodesortby">NodeSortBy</a>!]!</td>
 <td>
 
-Ordered list of sort keys. Each entry chooses exactly one of `id` / `time` / `property`, with an optional `reverse: true` to flip order.
+Ordered list of sort keys. Each entry chooses exactly one of `id` / `name` / `type` / `time` / `property`, with an optional `reverse: true` to flip order.
 
 </td>
 </tr>
@@ -7960,6 +7792,15 @@ Layer names to include.
 </td>
 </tr>
 <tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.defaultlayer">defaultLayer</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Return a view of PathFromGraph restricted to the default layer.
+
+</td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="pathfromgraph.excludelayers">excludeLayers</strong></td>
 <td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
 <td>
@@ -8324,6 +8165,46 @@ paginated access instead.
 </td>
 </tr>
 <tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.ids">ids</strong></td>
+<td valign="top"><a href="#nestedstringlist">NestedStringList</a>!</td>
+<td>
+
+Columnar `ids`: every source node's neighbour ids as `[[String]]`,
+computed in ONE `blocking_compute`. Fast-path equivalent of
+`list { ids }`, which resolves one `PathFromNode` object — and its own
+`blocking_compute` — per source.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.degree">degree</strong></td>
+<td valign="top"><a href="#nestedintlist">NestedIntList</a>!</td>
+<td>
+
+Columnar `degree`: each source node's per-neighbour degrees as `[[Int]]`,
+computed in ONE `blocking_compute`. Fast-path for `list { degree }`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.indegree">inDegree</strong></td>
+<td valign="top"><a href="#nestedintlist">NestedIntList</a>!</td>
+<td>
+
+Columnar `inDegree`. Fast-path for `list { inDegree }`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.outdegree">outDegree</strong></td>
+<td valign="top"><a href="#nestedintlist">NestedIntList</a>!</td>
+<td>
+
+Columnar `outDegree`. Fast-path for `list { outDegree }`.
+
+</td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="pathfromgraph.applyviews">applyViews</strong></td>
 <td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
 <td>
@@ -8494,6 +8375,15 @@ Returns a view of PathFromNode containing the specified layer, errors if the lay
 <td>
 
 Layer names to include.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromnode.defaultlayer">defaultLayer</strong></td>
+<td valign="top"><a href="#pathfromnode">PathFromNode</a>!</td>
+<td>
+
+Return a view of PathFromNode restricted to the default layer.
 
 </td>
 </tr>
@@ -9765,6 +9655,11 @@ Number of updates recorded for this property in the current view.
 
 ### VectorSelection
 
+A working set of documents / nodes / edges built up via similarity
+searches on a `VectorisedGraph`. Selections are mutable: you can grow
+them with more hops (`expand*`), dereference the contents (`nodes`,
+`edges`, `getDocuments`), or start fresh with `emptySelection`.
+
 <table>
 <thead>
 <tr>
@@ -9987,6 +9882,11 @@ Optional `{start, end}` to restrict matches to edges active in that interval.
 
 ### VectorisedGraph
 
+A graph with embedded vector representations for its nodes and edges.
+Exposes similarity search over documents, nodes, and edges, plus
+selection building (`emptySelection`) and index maintenance
+(`optimizeIndex`).
+
 <table>
 <thead>
 <tr>
@@ -10000,17 +9900,33 @@ Optional `{start, end}` to restrict matches to edges active in that interval.
 <tr>
 <td colspan="2" valign="top"><strong id="vectorisedgraph.optimizeindex">optimizeIndex</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
-<td></td>
+<td>
+
+Rebuild (or incrementally update) the on-disk vector indexes for nodes
+and edges so subsequent similarity searches hit the fresh embeddings.
+Safe to call repeatedly; returns true on success.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="vectorisedgraph.emptyselection">emptySelection</strong></td>
 <td valign="top"><a href="#vectorselection">VectorSelection</a>!</td>
-<td></td>
+<td>
+
+Returns an empty selection of documents.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="vectorisedgraph.entitiesbysimilarity">entitiesBySimilarity</strong></td>
 <td valign="top"><a href="#vectorselection">VectorSelection</a>!</td>
-<td></td>
+<td>
+
+Find the highest-scoring nodes *and* edges (mixed) by similarity to a
+natural-language query. The query is embedded server-side and matched
+against indexed entity vectors.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">query</td>
@@ -10042,7 +9958,13 @@ Optional `{start, end}` to restrict matches to entities active in that interval.
 <tr>
 <td colspan="2" valign="top"><strong id="vectorisedgraph.nodesbysimilarity">nodesBySimilarity</strong></td>
 <td valign="top"><a href="#vectorselection">VectorSelection</a>!</td>
-<td></td>
+<td>
+
+Find the highest-scoring nodes by similarity to a natural-language
+query. The query is embedded server-side and matched against indexed
+node vectors.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">query</td>
@@ -10074,7 +9996,13 @@ Optional `{start, end}` to restrict matches to nodes active in that interval.
 <tr>
 <td colspan="2" valign="top"><strong id="vectorisedgraph.edgesbysimilarity">edgesBySimilarity</strong></td>
 <td valign="top"><a href="#vectorselection">VectorSelection</a>!</td>
-<td></td>
+<td>
+
+Find the highest-scoring edges by similarity to a natural-language
+query. The query is embedded server-side and matched against indexed
+edge vectors.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">query</td>
@@ -10514,25 +10442,38 @@ Filter evaluated within the layer-restricted view.
 <td valign="top"><a href="#boolean">Boolean</a></td>
 <td>
 
-Reverse order
+Reverse order. Applies to the `time` / `property` keys; the node keys
+(`src` / `dst` / `neighbour`) carry their own `reverse` inside the
+nested `NodeSortBy` and ignore this flag.
 
 </td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgesortby.src">src</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
+<td valign="top"><a href="#nodesortby">NodeSortBy</a></td>
 <td>
 
-Source node
+Sort by the source node.
 
 </td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgesortby.dst">dst</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
+<td valign="top"><a href="#nodesortby">NodeSortBy</a></td>
 <td>
 
-Destination
+Sort by the destination node.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgesortby.neighbour">neighbour</strong></td>
+<td valign="top"><a href="#nodesortby">NodeSortBy</a></td>
+<td>
+
+Sort by the neighbour node: the endpoint that is NOT the node these
+edges were traversed from (the destination for a graph-level edge
+collection).
 
 </td>
 </tr>
@@ -11436,38 +11377,6 @@ Optional nested filter applied after the window restriction.
 </tbody>
 </table>
 
-### IndexSpecInput
-
-<table>
-<thead>
-<tr>
-<th colspan="2" align="left">Field</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="indexspecinput.nodeprops">nodeProps</strong></td>
-<td valign="top"><a href="#propsinput">PropsInput</a>!</td>
-<td>
-
-Node properties.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="indexspecinput.edgeprops">edgeProps</strong></td>
-<td valign="top"><a href="#propsinput">PropsInput</a>!</td>
-<td>
-
-Edge properties.
-
-</td>
-</tr>
-</tbody>
-</table>
-
 ### InputEdge
 
 <table>
@@ -11981,6 +11890,24 @@ Reverse order
 <td>
 
 Unique Id
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodesortby.name">name</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Node name
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodesortby.type">type</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Node type. Untyped nodes sort first (before any named type).
 
 </td>
 </tr>
@@ -12974,72 +12901,6 @@ Value.
 </tbody>
 </table>
 
-### PropsInput
-
-<table>
-<thead>
-<tr>
-<th colspan="2" align="left">Field</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="propsinput.all">all</strong></td>
-<td valign="top"><a href="#allpropertyspec">AllPropertySpec</a></td>
-<td>
-
-All properties and metadata.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="propsinput.some">some</strong></td>
-<td valign="top"><a href="#somepropertyspec">SomePropertySpec</a></td>
-<td>
-
-Some properties and metadata.
-
-</td>
-</tr>
-</tbody>
-</table>
-
-### SomePropertySpec
-
-SomePropertySpec object containing lists of metadata and property names.
-
-<table>
-<thead>
-<tr>
-<th colspan="2" align="left">Field</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="somepropertyspec.metadata">metadata</strong></td>
-<td valign="top">[<a href="#string">String</a>!]!</td>
-<td>
-
-List of metadata.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="somepropertyspec.properties">properties</strong></td>
-<td valign="top">[<a href="#string">String</a>!]!</td>
-<td>
-
-List of properties.
-
-</td>
-</tr>
-</tbody>
-</table>
-
 ### Template
 
 <table>
@@ -13405,43 +13266,6 @@ Alignment unit used to align window boundaries.
 </tbody>
 </table>
 
-### AllPropertySpec
-
-<table>
-<thead>
-<tr>
-<th align="left">Value</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td valign="top"><strong>ALL</strong></td>
-<td>
-
-All properties and metadata.
-
-</td>
-</tr>
-<tr>
-<td valign="top"><strong>ALL_METADATA</strong></td>
-<td>
-
-All metadata.
-
-</td>
-</tr>
-<tr>
-<td valign="top"><strong>ALL_PROPERTIES</strong></td>
-<td>
-
-All properties.
-
-</td>
-</tr>
-</tbody>
-</table>
-
 ### DegreeDirection
 
 Filters nodes by computed degree with a directional scope.
@@ -13595,6 +13419,20 @@ The `Float` scalar type represents signed double-precision fractional values as 
 ### Int
 
 The `Int` scalar type represents non-fractional signed whole numeric values. Int can represent values between -(2^31) and 2^31 - 1.
+
+### NestedIntList
+
+Like [`NestedStringList`] but for integer results (`[[Int]]`) — the
+columnar `degree`/`inDegree`/`outDegree` nested terminals.
+
+### NestedStringList
+
+Output-only scalars for the columnar nested terminals below. They carry a
+`[[..]]` result (one inner list per source node) in a SINGLE field so the
+whole thing is computed in one `blocking_compute`, instead of the
+`list { ids }` shape which resolves one `PathFromNode` object — and its own
+`blocking_compute` — per source. The derive macro can't register a nested
+list type directly, hence the custom scalar.
 
 ### NodeId
 

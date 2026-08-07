@@ -2,7 +2,7 @@ use crate::{
     model::{
         graph::{
             collection::{check_list_allowed, check_page_limit},
-            filtering::{GqlEdgeFilter, GqlNodeFilter, NodesViewCollection},
+            filtering::{GqlEdgeFilter, GqlFilter, GqlNodeFilter, NodesViewCollection},
             nested_edges::GqlNestedEdges,
             node::GqlNode,
             path_from_graph::GqlPathFromGraph,
@@ -10,7 +10,7 @@ use crate::{
             windowset::GqlNodesWindowSet,
             GqlAlignmentUnit, WindowDuration,
         },
-        sorting::{NodeSortBy, SortByTime},
+        sorting::{compare_node, NodeSortBy},
     },
     rayon::blocking_compute,
 };
@@ -27,7 +27,7 @@ use raphtory::{
         graph::{
             nodes::{IntoDynNodes, Nodes},
             views::filter::model::{
-                edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter,
+                edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter, DynFilter,
             },
         },
     },
@@ -320,7 +320,7 @@ impl GqlNodes {
                 NodesViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await,
                 NodesViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
                 NodesViewCollection::NodeFilter(node_filter) => {
-                    return_view.filter(node_filter).await?
+                    return_view.filter(GqlFilter::Nodes(node_filter)).await?
                 }
                 NodesViewCollection::TypeFilter(types) => return_view.type_filter(types).await,
             }
@@ -339,7 +339,7 @@ impl GqlNodes {
     async fn sorted(
         &self,
         #[graphql(
-            desc = "Ordered list of sort keys. Each entry chooses exactly one of `id` / `time` / `property`, with an optional `reverse: true` to flip order."
+            desc = "Ordered list of sort keys. Each entry chooses exactly one of `id` / `name` / `type` / `time` / `property`, with an optional `reverse: true` to flip order."
         )]
         sort_bys: Vec<NodeSortBy>,
     ) -> Self {
@@ -352,39 +352,8 @@ impl GqlNodes {
                     sort_bys
                         .iter()
                         .fold(Ordering::Equal, |current_ordering, sort_by| {
-                            current_ordering.then_with(|| {
-                                let ordering = if sort_by.id == Some(true) {
-                                    first_node.id().partial_cmp(&second_node.id())
-                                } else if let Some(sort_by_time) = sort_by.time.as_ref() {
-                                    let (first_time, second_time) = match sort_by_time {
-                                        SortByTime::Latest => {
-                                            (first_node.latest_time(), second_node.latest_time())
-                                        }
-                                        SortByTime::Earliest => (
-                                            first_node.earliest_time(),
-                                            second_node.earliest_time(),
-                                        ),
-                                    };
-                                    first_time.partial_cmp(&second_time)
-                                } else if let Some(sort_by_property) = sort_by.property.as_ref() {
-                                    let first_prop_maybe =
-                                        first_node.properties().get(sort_by_property);
-                                    let second_prop_maybe =
-                                        second_node.properties().get(sort_by_property);
-                                    first_prop_maybe.partial_cmp(&second_prop_maybe)
-                                } else {
-                                    None
-                                };
-                                if let Some(ordering) = ordering {
-                                    if sort_by.reverse == Some(true) {
-                                        ordering.reverse()
-                                    } else {
-                                        ordering
-                                    }
-                                } else {
-                                    Ordering::Equal
-                                }
-                            })
+                            current_ordering
+                                .then_with(|| compare_node(first_node, second_node, sort_by))
                         })
                 })
                 .map(|node_view| node_view.node)
@@ -532,12 +501,14 @@ impl GqlNodes {
 
     async fn filter(
         &self,
-        #[graphql(desc = "Composite node filter (by name, property, type, etc.).")]
-        expr: GqlNodeFilter,
+        #[graphql(
+            desc = "Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection)."
+        )]
+        expr: GqlFilter,
     ) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let filter: CompositeNodeFilter = expr.try_into()?;
+            let filter: DynFilter = expr.try_into()?;
             let filtered = self_clone.nn.filter(filter)?;
             Ok(self_clone.update(filtered.into_dyn()))
         })

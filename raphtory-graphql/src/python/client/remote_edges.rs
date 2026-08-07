@@ -167,13 +167,10 @@ impl PyRemoteEdges {
     ///         `EdgeFilter` (e.g. uses an unsupported operator like
     ///         `FuzzySearch`).
     pub fn filter(&self, filter: PyFilterExpr) -> PyResult<PyRemoteEdges> {
-        let composite = filter
-            .try_as_edge_filter()
+        let tree = filter
+            .try_as_filter_tree()
             .map_err(|e| PyValueError::new_err(e.to_string()))?;
-        let gql_filter = composite
-            .try_into()
-            .map_err(|e: raphtory::errors::GraphError| PyValueError::new_err(e.to_string()))?;
-        Ok(PyRemoteEdges::new(self.edges.filter(gql_filter)))
+        Ok(PyRemoteEdges::new(self.edges.filter(tree)?))
     }
 
     /// Narrow this collection's membership by a filter expression. Unlike
@@ -190,10 +187,7 @@ impl PyRemoteEdges {
         let composite = filter
             .try_as_edge_filter()
             .map_err(|e| PyValueError::new_err(e.to_string()))?;
-        let gql_filter = composite
-            .try_into()
-            .map_err(|e: raphtory::errors::GraphError| PyValueError::new_err(e.to_string()))?;
-        Ok(PyRemoteEdges::new(self.edges.select(gql_filter)))
+        Ok(PyRemoteEdges::new(self.edges.select(composite)?))
     }
 
     /// `edges[filter]` — sugar for `.select(filter)` (matches the local

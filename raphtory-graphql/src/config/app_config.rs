@@ -1,6 +1,4 @@
 use super::auth_config::{AuthConfig, AuthConfigFieldName, PublicKeyError};
-#[cfg(feature = "search")]
-use crate::config::index_config::{IndexConfig, IndexConfigFieldName};
 use crate::{
     config::{
         cache_config::{CacheConfig, CacheConfigFieldName},
@@ -8,6 +6,7 @@ use crate::{
         log_config::{LoggingConfig, LoggingConfigFieldName},
         otlp_config::{TracingConfig, TracingConfigFieldName, TracingLevel, TracingProtocol},
         parquet_config::{ParquetConfig, ParquetConfigFieldName},
+        rbac_config::RbacConfig,
         schema_config::{SchemaConfig, SchemaConfigFieldName},
     },
     server::ServerError,
@@ -15,7 +14,7 @@ use crate::{
 use config::{Config, ConfigError, File};
 use field_types::FieldName;
 use itertools::Itertools;
-use serde::{de::DeserializeSeed, Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     error::Error,
@@ -33,8 +32,7 @@ pub struct AppConfig {
     pub schema: SchemaConfig,
     pub parquet: ParquetConfig,
     pub public_dir: Option<PathBuf>,
-    #[cfg(feature = "search")]
-    pub index: IndexConfig,
+    pub rbac: RbacConfig,
 }
 
 pub struct AppConfigBuilder {
@@ -190,6 +188,36 @@ impl AppConfigBuilder {
                                         .map_err(|e| invalid_value([path, sub_path], e))?,
                                 );
                             }
+                            AuthConfigFieldName::Audience => {
+                                self.with_auth_audience(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                            AuthConfigFieldName::Issuer => {
+                                self.with_auth_issuer(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                            AuthConfigFieldName::RoleClaim => {
+                                self.with_auth_role_claim(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                            AuthConfigFieldName::JwksUri => {
+                                self.with_auth_jwks_uri(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                            AuthConfigFieldName::JwksRefreshSecs => {
+                                self.with_auth_jwks_refresh_secs(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
                         }
                     }
                 }
@@ -303,23 +331,9 @@ impl AppConfigBuilder {
                         Deserialize::deserialize(value).map_err(|e| invalid_value([path], e))?,
                     );
                 }
-                #[cfg(feature = "search")]
-                AppConfigFieldName::Index => {
-                    let map = value.as_object().ok_or_else(|| {
-                        ConfigError::Message(format!("Invalid index config: {value}"))
-                    })?;
-                    for (sub_path, value) in map {
-                        match IndexConfigFieldName::by_name(sub_path)
-                            .ok_or_else(|| invalid_path([path, sub_path]))?
-                        {
-                            IndexConfigFieldName::CreateIndex => {
-                                self.with_create_index(
-                                    Deserialize::deserialize(value)
-                                        .map_err(|e| invalid_value([path, sub_path], e))?,
-                                );
-                            }
-                        }
-                    }
+                AppConfigFieldName::Rbac => {
+                    self.config.rbac =
+                        Deserialize::deserialize(value).map_err(|e| invalid_value([path], e))?;
                 }
             }
         }
@@ -401,6 +415,31 @@ impl AppConfigBuilder {
         self
     }
 
+    pub fn with_auth_audience(&mut self, audience: Option<String>) -> &mut Self {
+        self.config.auth.audience = audience;
+        self
+    }
+
+    pub fn with_auth_issuer(&mut self, issuer: Option<String>) -> &mut Self {
+        self.config.auth.issuer = issuer;
+        self
+    }
+
+    pub fn with_auth_role_claim(&mut self, role_claim: Option<String>) -> &mut Self {
+        self.config.auth.role_claim = role_claim;
+        self
+    }
+
+    pub fn with_auth_jwks_uri(&mut self, jwks_uri: Option<String>) -> &mut Self {
+        self.config.auth.jwks_uri = jwks_uri;
+        self
+    }
+
+    pub fn with_auth_jwks_refresh_secs(&mut self, secs: Option<u64>) -> &mut Self {
+        self.config.auth.jwks_refresh_secs = secs;
+        self
+    }
+
     pub fn with_heavy_query_limit(&mut self, heavy_query_limit: Option<usize>) -> &mut Self {
         self.config.concurrency.heavy_query_limit = heavy_query_limit;
         self
@@ -466,12 +505,6 @@ impl AppConfigBuilder {
 
     pub fn with_public_dir(&mut self, public_dir: Option<PathBuf>) -> &mut Self {
         self.config.public_dir = public_dir;
-        self
-    }
-
-    #[cfg(feature = "search")]
-    pub fn with_create_index(&mut self, create_index: bool) -> &mut Self {
-        self.config.index.create_index = create_index;
         self
     }
 

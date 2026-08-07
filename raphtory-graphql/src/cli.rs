@@ -1,5 +1,3 @@
-#[cfg(feature = "search")]
-use crate::config::index_config::DEFAULT_CREATE_INDEX;
 use crate::{
     config::{
         app_config::{AppConfig, AppConfigBuilder},
@@ -208,10 +206,6 @@ struct ServerArgs {
     #[arg(long, env = "RAPHTORY_PERMISSIONS_STORE_PATH", default_value = None, help = "Path to the JSON permissions store file.")]
     permissions_store_path: Option<PathBuf>,
 
-    #[cfg(feature = "search")]
-    #[arg(long, env = "RAPHTORY_CREATE_INDEX", help = help_with_default!("Enable index creation.", DEFAULT_CREATE_INDEX))]
-    create_index: Option<bool>,
-
     #[command(flatten)]
     graph_config: Config,
 }
@@ -226,7 +220,7 @@ where
         Commands::Schema => {
             let schema = App::create_schema().finish().unwrap();
             println!("{}", schema.sdl());
-            return Ok(None);
+            Ok(None)
         }
         Commands::Server(server_args) => {
             let mut builder = AppConfigBuilder::new();
@@ -305,14 +299,9 @@ where
             if let Some(disable_introspection) = server_args.disable_introspection {
                 builder.with_disable_introspection(disable_introspection);
             }
-            #[cfg(feature = "search")]
-            {
-                if let Some(create_index) = server_args.create_index {
-                    builder.with_create_index(create_index);
-                }
-            }
+
             let app_config = builder.build();
-            return Ok(Some((server_args, app_config)));
+            Ok(Some((server_args, app_config)))
         }
     }
 }
@@ -356,7 +345,7 @@ pub fn python_cli() -> pyo3::PyResult<()> {
     // Replace argv[0] with "raphtory" so clap doesn't interpret the script path as a subcommand
     let args = std::iter::once("raphtory".to_string()).chain(std::env::args().skip(2));
 
-    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let runtime = tokio::runtime::Runtime::new()?;
     runtime
         .block_on(cli_with_args(args))
         .map_err(|err| pyo3::exceptions::PyIOError::new_err(err.to_string()))
@@ -385,7 +374,7 @@ mod tests {
         let args: Vec<&str> = vec![r"target\\debug\\raphtory-server", "server"];
         std::env::remove_var("RAPHTORY_CACHE_CAPACITY");
         let (_, app_config) = generate_config(args).unwrap().unwrap();
-        assert!(app_config.cache.capacity == DEFAULT_CACHE_CAPACITY);
+        assert_eq!(app_config.cache.capacity, DEFAULT_CACHE_CAPACITY);
     }
 
     async fn test_cli_parsing_with_config_file() {
@@ -398,7 +387,7 @@ mod tests {
         ];
         std::env::remove_var("RAPHTORY_CACHE_CAPACITY");
         let (_, app_config) = generate_config(args).unwrap().unwrap();
-        assert!(app_config.cache.capacity == 123);
+        assert_eq!(app_config.cache.capacity, 123);
     }
 
     async fn test_cli_parsing_with_env_var() {
@@ -411,7 +400,7 @@ mod tests {
         ];
         std::env::set_var("RAPHTORY_CACHE_CAPACITY", "456");
         let (_, app_config) = generate_config(args).unwrap().unwrap();
-        assert!(app_config.cache.capacity == 456);
+        assert_eq!(app_config.cache.capacity, 456);
     }
 
     async fn test_cli_parsing_with_command_line_arg() {
@@ -426,7 +415,7 @@ mod tests {
         ];
         std::env::set_var("RAPHTORY_CACHE_CAPACITY", "456");
         let (_, app_config) = generate_config(args).unwrap().unwrap();
-        assert!(app_config.cache.capacity == 789);
+        assert_eq!(app_config.cache.capacity, 789);
     }
 
     #[tokio::test]

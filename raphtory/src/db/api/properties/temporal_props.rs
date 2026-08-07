@@ -4,7 +4,9 @@ use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDateTime, Utc};
 use raphtory_api::{
     core::{
-        entities::properties::prop::{Prop, PropArray, PropArrayUnwrap, PropType, PropUnwrap},
+        entities::properties::prop::{
+            Prop, PropArray, PropArrayUnwrap, PropMap, PropType, PropUnwrap,
+        },
         storage::{
             arc_str::ArcStr,
             timeindex::{AsTime, EventTime},
@@ -13,7 +15,6 @@ use raphtory_api::{
     },
     iter::BoxedLIter,
 };
-use rustc_hash::FxHashMap;
 use std::{
     collections::{HashMap, HashSet},
     fmt::{Debug, Formatter},
@@ -364,7 +365,7 @@ impl<P: InternalPropertiesOps + Clone> PropUnwrap for TemporalPropertyView<P> {
         self.latest().into_list()
     }
 
-    fn into_map(self) -> Option<Arc<FxHashMap<ArcStr, Prop>>> {
+    fn into_map(self) -> Option<Arc<PropMap>> {
         self.latest().into_map()
     }
 

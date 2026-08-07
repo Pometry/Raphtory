@@ -6,7 +6,7 @@
 
 use crate::{
     client::properties_to_input,
-    model::graph::filtering::{GqlEdgeFilter, GqlNodeFilter},
+    model::graph::filtering::{GqlEdgeFilter, GqlFilter, GqlNodeFilter},
 };
 use raphtory_api::core::entities::properties::prop::Prop;
 // Re-exported so the client transport wrappers import the op tree's time type
@@ -49,93 +49,19 @@ pub enum Op {
 /// - `read_depth` case — count how many `{` this variant opens (usually 1)
 /// - `build_json_path` case — push the JSON key(s) that navigate to this level
 /// - For terminals only: `parse_read` case to unwrap the JSON value into a `Prop`
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum ReadExpr {
     /// Start of every read tree — names the graph.
     Root { path: String },
 
     // ============ View chaining (Graph → Graph) ============
-    /// Time-window a graph. Composes.
-    Window {
-        input: Arc<ReadExpr>,
-        start: InputTime,
-        end: InputTime,
-    },
-    /// Restrict to a single layer.
-    Layer { input: Arc<ReadExpr>, name: String },
-    /// Snapshot at a single timestamp.
-    At {
-        input: Arc<ReadExpr>,
-        time: InputTime,
-    },
-    /// Restrict to events strictly before the given time.
-    Before {
-        input: Arc<ReadExpr>,
-        time: InputTime,
-    },
-    /// Restrict to events strictly after the given time (exclusive).
-    After {
-        input: Arc<ReadExpr>,
-        time: InputTime,
-    },
-    /// Latest state — no args. Composes.
-    Latest { input: Arc<ReadExpr> },
-    /// Snapshot at the latest time. Composes.
-    SnapshotLatest { input: Arc<ReadExpr> },
-    /// Snapshot at a specific time. Composes.
-    SnapshotAt {
-        input: Arc<ReadExpr>,
-        time: InputTime,
-    },
-    /// Exclude a specific layer.
-    ExcludeLayer { input: Arc<ReadExpr>, name: String },
-    /// Shrink both start and end of the window.
-    ShrinkWindow {
-        input: Arc<ReadExpr>,
-        start: InputTime,
-        end: InputTime,
-    },
-    /// Shrink the start of the window.
-    ShrinkStart {
-        input: Arc<ReadExpr>,
-        start: InputTime,
-    },
-    /// Shrink the end of the window.
-    ShrinkEnd {
-        input: Arc<ReadExpr>,
-        end: InputTime,
-    },
+    /// A composable graph-view operation (window / layer / at / …) applied
+    /// to the input. The op itself is data (`ViewOp`); the transport renders
+    /// it to the same-named server field. One variant covers the entire
+    /// shared view vocabulary — see `ViewOp`.
+    View { input: Arc<ReadExpr>, op: ViewOp },
     /// Restrict to the "valid" subgraph (event-graph filter). No args. Composes.
     Valid { input: Arc<ReadExpr> },
-    /// Restrict to the default layer. No args. Composes.
-    DefaultLayer { input: Arc<ReadExpr> },
-    /// Restrict to a specific set of layers.
-    Layers {
-        input: Arc<ReadExpr>,
-        names: Arc<[String]>,
-    },
-    /// Exclude a specific set of layers.
-    ExcludeLayers {
-        input: Arc<ReadExpr>,
-        names: Arc<[String]>,
-    },
-    /// Restrict to a specific set of valid layers. The GraphQL server exposes
-    /// valid-layer semantics under the existing `layers` field (backed by the
-    /// graph's `valid_layers`), so this renders as `layers(names: [..])` — no
-    /// separate `validLayers` field exists on the server.
-    ValidLayers {
-        input: Arc<ReadExpr>,
-        names: Arc<[String]>,
-    },
-    /// Exclude a specific valid layer. Renders as the server's `excludeLayer`
-    /// (backed by `exclude_valid_layers`).
-    ExcludeValidLayer { input: Arc<ReadExpr>, name: String },
-    /// Exclude a specific set of valid layers. Renders as the server's
-    /// `excludeLayers` (backed by `exclude_valid_layers`).
-    ExcludeValidLayers {
-        input: Arc<ReadExpr>,
-        names: Arc<[String]>,
-    },
     /// Restrict to a subgraph induced by the given node ids.
     Subgraph {
         input: Arc<ReadExpr>,
@@ -246,16 +172,13 @@ pub enum ReadExpr {
         input: Arc<ReadExpr>,
         sort_bys: Vec<EdgeSortBy>,
     },
-    /// Filter a `Nodes` collection by a filter expression. Returns `Nodes`
-    /// — chainable with any downstream terminal (`.collect`, `.count`, …).
-    /// Server field: `filter(expr: NodeFilter!)` on `Nodes`.
-    ///
-    /// Applies the filter to the current collection **and propagates it
-    /// to downstream traversals** from these nodes (e.g. `.neighbours`,
-    /// `.edges`). Use `SelectNodes` for the narrow-membership-only variant.
-    FilterNodes {
+    /// Filter this view by a general filter expression (node/edge predicates,
+    /// graph views, and/or/not combinations). The restriction propagates to
+    /// downstream traversals. One variant serves Graph, Node, Edge, and every
+    /// collection — they all expose the same `filter(expr: GqlFilter!)` field.
+    Filtered {
         input: Arc<ReadExpr>,
-        filter: Arc<GqlNodeFilter>,
+        filter: Arc<GqlFilter>,
     },
     /// Narrow a `Nodes` collection's membership by a filter expression.
     /// Returns `Nodes`. Server field: `select(expr: NodeFilter!)` on
@@ -267,17 +190,6 @@ pub enum ReadExpr {
         input: Arc<ReadExpr>,
         filter: Arc<GqlNodeFilter>,
     },
-    /// Filter an `Edges` collection by a filter expression. Returns `Edges`
-    /// — chainable with any downstream terminal (`.collect`, `.count`, …).
-    /// Server field: `filter(expr: EdgeFilter!)` on `Edges`.
-    ///
-    /// Applies the filter to the current collection **and propagates it
-    /// to downstream traversals** from these edges. Use `SelectEdges` for
-    /// the narrow-membership-only variant.
-    FilterEdges {
-        input: Arc<ReadExpr>,
-        filter: Arc<GqlEdgeFilter>,
-    },
     /// Narrow an `Edges` collection's membership by a filter expression.
     /// Returns `Edges`. Server field: `select(expr: EdgeFilter!)` on
     /// `Edges`.
@@ -287,46 +199,6 @@ pub enum ReadExpr {
     SelectEdges {
         input: Arc<ReadExpr>,
         filter: Arc<GqlEdgeFilter>,
-    },
-    /// Filter a `Graph` view by a node filter, returning a filtered `Graph`.
-    /// Server field: `filterNodes(expr: NodeFilter!)` on `Graph` — keeps
-    /// nodes matching the filter; edges survive only if both endpoints do.
-    ///
-    /// This is the node-filter half of the local `Graph.filter(FilterExpr)`
-    /// API; the Python `RemoteGraph.filter` dispatches here for node filters.
-    FilterGraphNodes {
-        input: Arc<ReadExpr>,
-        filter: Arc<GqlNodeFilter>,
-    },
-    /// Filter a `Graph` view by an edge filter, returning a filtered `Graph`.
-    /// Server field: `filterEdges(expr: EdgeFilter!)` on `Graph` — keeps
-    /// edges matching the filter; nodes remain even if all their edges drop.
-    ///
-    /// This is the edge-filter half of the local `Graph.filter(FilterExpr)`
-    /// API; the Python `RemoteGraph.filter` dispatches here for edge filters.
-    FilterGraphEdges {
-        input: Arc<ReadExpr>,
-        filter: Arc<GqlEdgeFilter>,
-    },
-    /// Filter a single `Node` handle's *edge* traversals by an edge filter,
-    /// returning a `Node`. The node itself stays addressable; its degree /
-    /// edges / neighbours only see matching edges. Server field:
-    /// `filterEdges(expr: EdgeFilter!)` on `Node`. Used when replaying an
-    /// edge-collection filter onto node handles materialized through it
-    /// (e.g. `edges.filter(f).src().collect()`).
-    NodeFilterEdges {
-        input: Arc<ReadExpr>,
-        filter: Arc<GqlEdgeFilter>,
-    },
-    /// Filter a single `Edge` handle's *node* traversals by a node filter,
-    /// returning an `Edge`. The edge itself stays addressable regardless of
-    /// whether its endpoints match. Server field:
-    /// `filterNodes(expr: NodeFilter!)` on `Edge`. Used when replaying a
-    /// node-collection filter onto edge handles materialized through it
-    /// (e.g. `nodes.filter(f).edges().collect()`).
-    EdgeFilterNodes {
-        input: Arc<ReadExpr>,
-        filter: Arc<GqlNodeFilter>,
     },
     /// Pin a single `Edge` handle to one event — the exploded instance at
     /// exactly `(time, event_id)`, optionally restricted to `layer`.
@@ -356,10 +228,11 @@ pub enum ReadExpr {
     /// Polymorphic: Graph/Node/Edge → Properties. Server field: `properties`.
     Properties { input: Arc<ReadExpr> },
     /// Terminal on a properties/metadata container: fetch a single property
-    /// by key. Returns `Option<RemoteProperty>` — the server returns `null`
-    /// when the key isn't present, decoded to `None` client-side rather
-    /// than raising `NotFound` (see nullable-intermediate handling in
-    /// `parse_read`). Server field: `get(key: String!)`.
+    /// value by key — `Option<Prop>`. Only `{ value }` is selected (the caller
+    /// already knows the key). The server returns `null` when the key isn't
+    /// present, decoded to `None` client-side rather than raising `NotFound`
+    /// (see nullable-intermediate handling in `parse_read`). Server field:
+    /// `get(key: String!)`.
     PropertyGet { input: Arc<ReadExpr>, key: String },
     /// Terminal on a properties/metadata container: `bool` — does a
     /// property with this key exist? Server field: `contains(key: String!)`.
@@ -372,10 +245,20 @@ pub enum ReadExpr {
     /// present. The string is the `PropType` display form (e.g. `"I64"`,
     /// `"Str"`, `"List<F64>"`). Server field: `getDtypeOf(key: String!)`.
     PropertyGetDtypeOf { input: Arc<ReadExpr>, key: String },
-    /// Terminal on a properties/metadata container: `Vec<RemoteProperty>` —
-    /// each `(key, value)` entry. Optional `keys` whitelist filters the
-    /// returned set. Server field: `values(keys: [String!])`.
+    /// Terminal on a properties/metadata container: `Vec<Prop>` — the property
+    /// values only (`{ value }` selected per record; keys aren't fetched —
+    /// use `PropertyItems` when pairs are needed). Optional `keys` whitelist
+    /// filters the returned set. Server field: `values(keys: [String!])`.
     PropertyValues {
+        input: Arc<ReadExpr>,
+        keys: Option<Vec<String>>,
+    },
+    /// Terminal on a properties/metadata container: `Vec<(String, Prop)>` —
+    /// full `(key, value)` pairs (`{ key value }` selected per record). The
+    /// pair-fetching sibling of `PropertyValues`; backs `.items()`. Optional
+    /// `keys` whitelist filters the returned set. Server field:
+    /// `values(keys: [String!])`.
+    PropertyItems {
         input: Arc<ReadExpr>,
         keys: Option<Vec<String>>,
     },
@@ -842,24 +725,58 @@ pub enum EdgePin {
 /// Order is load-bearing: filters capture the view they were created on, so
 /// `.filter(f).window(w)` and `.window(w).filter(f)` differ for temporal
 /// property filters — replay must preserve the user's call order.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum HandleOp {
-    /// A pure view op (window / layer / at / …). Stores the same `ReadExpr`
-    /// constructor the collection applied to its own `expr`, so replay is
-    /// definitionally identical. Every collection view op has a same-named
-    /// server field on `Node` and `Edge`, so replay always renders.
-    View(Arc<dyn Fn(ReadExpr) -> ReadExpr + Send + Sync>),
-    /// An anchor-relative node filter. Replays as `filter(expr:)` on node
-    /// handles and `filterNodes(expr:)` on edge handles.
-    NodeFilter(Arc<GqlNodeFilter>),
-    /// An anchor-relative edge filter. Replays as `filter(expr:)` on edge
-    /// handles and `filterEdges(expr:)` on node handles.
-    EdgeFilter(Arc<GqlEdgeFilter>),
+    /// A pure view op (window / layer / at / …). Stores the op as data, so
+    /// replay applies the same `ReadExpr` node the collection applied to its
+    /// own `expr` — definitionally identical, and inspectable in tests. Every
+    /// collection view op has a same-named server field on `Node` and `Edge`,
+    /// so replay always renders.
+    View(ViewOp),
+    /// An anchor-relative filter. Replays as the unified `filter(expr:)`
+    /// field on both node and edge handles.
+    Filter(Arc<GqlFilter>),
     /// Positional marker recording where `explode` / `explodeLayers` was
     /// applied in the op chain. Ops before the marker shape the view the
     /// instances were enumerated from; ops after it wrap the pinned handle.
     /// `collect()` substitutes each member's `EdgeEvent` pin at this position.
     Fanout(Fanout),
+}
+
+/// The view-op vocabulary shared by every remote collection/entity handle —
+/// the data form of `window`/`layer`/`at`/…, stored in `HandleCtx` so
+/// `collect()` can replay the exact chain per member. Being data (not a
+/// closure), a recorded chain can be printed, compared, and asserted on.
+#[derive(Clone, Debug, PartialEq)]
+pub enum ViewOp {
+    Window { start: InputTime, end: InputTime },
+    At { time: InputTime },
+    Before { time: InputTime },
+    After { time: InputTime },
+    Latest,
+    SnapshotLatest,
+    SnapshotAt { time: InputTime },
+    ShrinkWindow { start: InputTime, end: InputTime },
+    ShrinkStart { start: InputTime },
+    ShrinkEnd { end: InputTime },
+    Layer { name: String },
+    ExcludeLayer { name: String },
+    Layers { names: Arc<[String]> },
+    ExcludeLayers { names: Arc<[String]> },
+    ValidLayers { names: Arc<[String]> },
+    ExcludeValidLayer { name: String },
+    ExcludeValidLayers { names: Arc<[String]> },
+    DefaultLayer,
+}
+
+impl ViewOp {
+    /// Wrap `input` in this op's `ReadExpr` node.
+    pub fn apply(&self, input: Arc<ReadExpr>) -> ReadExpr {
+        ReadExpr::View {
+            input,
+            op: self.clone(),
+        }
+    }
 }
 
 /// Materialization context carried by every remote collection and entity
@@ -868,7 +785,7 @@ pub enum HandleOp {
 /// *after* it, replayed per member by `collect()`. Flows down unchanged into
 /// child collections (`.neighbours()`, `.edges()`, …) so filters keep
 /// propagating to descendants exactly like the local one-hop semantics.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct HandleCtx {
     /// The parent graph view under which the collection lives.
     pub graph: Arc<ReadExpr>,
@@ -877,9 +794,9 @@ pub struct HandleCtx {
 }
 
 impl HandleCtx {
-    pub fn new(graph: ReadExpr) -> Self {
+    pub fn new(graph: impl Into<Arc<ReadExpr>>) -> Self {
         Self {
-            graph: Arc::new(graph),
+            graph: graph.into(),
             ops: Vec::new(),
         }
     }
@@ -913,12 +830,8 @@ impl HandleCtx {
         };
         for op in &self.ops {
             expr = match op {
-                HandleOp::View(wrap) => wrap(expr),
-                HandleOp::NodeFilter(filter) => ReadExpr::FilterNodes {
-                    input: Arc::new(expr),
-                    filter: filter.clone(),
-                },
-                HandleOp::EdgeFilter(filter) => ReadExpr::NodeFilterEdges {
+                HandleOp::View(op) => op.apply(Arc::new(expr)),
+                HandleOp::Filter(filter) => ReadExpr::Filtered {
                     input: Arc::new(expr),
                     filter: filter.clone(),
                 },
@@ -941,12 +854,8 @@ impl HandleCtx {
         let mut pin = pin;
         for op in &self.ops {
             expr = match op {
-                HandleOp::View(wrap) => wrap(expr),
-                HandleOp::EdgeFilter(filter) => ReadExpr::FilterEdges {
-                    input: Arc::new(expr),
-                    filter: filter.clone(),
-                },
-                HandleOp::NodeFilter(filter) => ReadExpr::EdgeFilterNodes {
+                HandleOp::View(op) => op.apply(Arc::new(expr)),
+                HandleOp::Filter(filter) => ReadExpr::Filtered {
                     input: Arc::new(expr),
                     filter: filter.clone(),
                 },
@@ -1254,5 +1163,44 @@ impl Serialize for EdgeAddition {
         state.serialize_field("metadata", &metadata)?;
         state.serialize_field("updates", &self.updates)?;
         state.end()
+    }
+}
+
+#[cfg(test)]
+mod handle_ctx_tests {
+    use super::*;
+
+    // `ViewOp` is data, not a closure: a recorded chain can be pattern-matched,
+    // compared, and printed — and replay applies it in recorded order.
+    #[test]
+    fn recorded_view_ops_are_inspectable_and_replay_in_order() {
+        let ctx = HandleCtx::new(ReadExpr::Root { path: "g".into() })
+            .with_op(HandleOp::View(ViewOp::Window {
+                start: InputTime::Simple(0),
+                end: InputTime::Simple(10),
+            }))
+            .with_op(HandleOp::View(ViewOp::Layer { name: "a".into() }));
+
+        assert_eq!(ctx.ops.len(), 2);
+        assert!(matches!(&ctx.ops[0], HandleOp::View(ViewOp::Window { .. })));
+        let HandleOp::View(second) = &ctx.ops[1] else {
+            panic!("second op should be a view op");
+        };
+        assert_eq!(*second, ViewOp::Layer { name: "a".into() });
+
+        // Replay onto a member anchor: ops wrap outward in recorded order, so
+        // the LAST-applied op is the outermost tree node.
+        let expr = ctx.node_handle_expr("n".into());
+        let ReadExpr::View { input, op } = expr else {
+            panic!("outermost node should be the last-applied op");
+        };
+        assert_eq!(op, ViewOp::Layer { name: "a".into() });
+        assert!(matches!(
+            &*input,
+            ReadExpr::View {
+                op: ViewOp::Window { .. },
+                ..
+            }
+        ));
     }
 }

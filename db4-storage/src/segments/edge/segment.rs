@@ -33,7 +33,7 @@ use std::{
     path::PathBuf,
     sync::{
         Arc,
-        atomic::{self, AtomicU32, AtomicUsize, Ordering},
+        atomic::{AtomicU32, AtomicUsize, Ordering},
     },
 };
 
@@ -566,7 +566,7 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
     }
 
     fn increment_num_edges(&self) -> u32 {
-        self.num_edges.fetch_add(1, atomic::Ordering::Relaxed)
+        self.num_edges.fetch_add(1, Ordering::Relaxed)
     }
 
     fn has_edge(

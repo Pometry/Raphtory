@@ -27,8 +27,6 @@ use poem::{
     EndpointExt, Route, Server,
 };
 use raphtory::db::api::storage::storage::Config;
-#[cfg(feature = "vectors")]
-use raphtory::vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate};
 use serde_json::json;
 use std::{
     fs::create_dir_all,
@@ -59,6 +57,12 @@ use tracing_subscriber::{
     Registry,
 };
 use url::ParseError;
+
+#[cfg(feature = "vectors")]
+use {
+    crate::{model::graph::vectorised_graph::VectorQuery, paths::ExistingGraphFolder, GQLError},
+    raphtory::vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate, VectorsQuery},
+};
 
 pub const DEFAULT_PORT: u16 = 1736;
 
@@ -128,6 +132,7 @@ pub struct GraphServer {
     work_dir: PathBuf,
     config: AppConfig,
     schema_data: Vec<SchemaDataInjector>,
+    key_resolver: Option<std::sync::Arc<dyn crate::auth::KeyResolver>>,
 }
 
 pub fn register_query_plugin<
@@ -170,6 +175,7 @@ impl GraphServer {
             data,
             config,
             schema_data: Vec::new(),
+            key_resolver: None,
         })
     }
 
@@ -178,8 +184,19 @@ impl GraphServer {
         &self.work_dir
     }
 
-    pub fn turn_off_index(&mut self) {
-        self.data.create_index = false; // FIXME: why does this exist yet?
+    /// Register a custom JWT key resolver (e.g. an SSO/JWKS resolver from an auth extension). When
+    /// set, it replaces the static `auth.public_key` for token verification.
+    pub fn with_key_resolver(
+        mut self,
+        resolver: std::sync::Arc<dyn crate::auth::KeyResolver>,
+    ) -> Self {
+        self.key_resolver = Some(resolver);
+        self
+    }
+
+    /// Returns the resolved application config.
+    pub fn config(&self) -> &AppConfig {
+        &self.config
     }
 
     /// Set the authorization policy used for graph access checks.
@@ -335,9 +352,11 @@ impl GraphServer {
         tracer: Option<Tracer>,
     ) -> Result<CompressionEndpoint<CorsEndpoint<Route>>, ServerError> {
         let schema_cfg = &self.config.schema;
+
         let mut schema_builder = App::create_schema()
             .data(self.data.clone())
             .data(self.config.concurrency.clone());
+
         for inject in &self.schema_data {
             schema_builder = inject(schema_builder);
         }
@@ -372,7 +391,11 @@ impl GraphServer {
                 "/",
                 PublicFilesEndpoint::new(
                     self.config.public_dir.clone(),
-                    AuthenticatedGraphQL::new(schema, self.config.clone()),
+                    AuthenticatedGraphQL::new(
+                        schema,
+                        self.config.clone(),
+                        self.key_resolver.clone(),
+                    ),
                 ),
             )
             .at("/health", get(health))
@@ -502,12 +525,16 @@ mod server_tests {
     use crate::{config::app_config::AppConfigBuilder, server::GraphServer};
     use chrono::prelude::*;
     use raphtory::db::api::storage::storage::Config;
-    #[cfg(feature = "vectors")]
-    use raphtory::vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate};
     use raphtory_api::core::utils::logging::global_info_logger;
     use tempfile::tempdir;
     use tokio::time::{sleep, Duration};
     use tracing::info;
+
+    #[cfg(feature = "vectors")]
+    use raphtory::{
+        prelude::*,
+        vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate},
+    };
 
     #[tokio::test]
     async fn test_public_dir_serves_index_for_subpages() {

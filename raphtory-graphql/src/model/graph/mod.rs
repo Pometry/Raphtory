@@ -5,11 +5,11 @@ use raphtory_api::core::utils::time::ParseTimeError;
 pub(crate) mod collection;
 mod document;
 pub(crate) mod edge;
-mod edges;
+pub mod edges;
 pub mod filtering;
 pub(crate) mod graph;
 pub(crate) mod history;
-pub(crate) mod index;
+pub(crate) mod matching;
 pub mod meta_graph;
 pub(crate) mod mutable_graph;
 pub mod namespace;
@@ -17,12 +17,17 @@ pub mod namespaced_item;
 pub(crate) mod nested_edges;
 pub(crate) mod node;
 pub(crate) mod node_id;
+pub(crate) mod node_state;
 mod nodes;
 pub(crate) mod path_from_graph;
 mod path_from_node;
 pub(crate) mod property;
 pub(crate) mod timeindex;
+
+#[cfg(feature = "vectors")]
 pub(crate) mod vector_selection;
+
+#[cfg(feature = "vectors")]
 pub(crate) mod vectorised_graph;
 mod windowset;
 

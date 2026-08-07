@@ -7,8 +7,8 @@ use crate::{
         remote_node::PyRemoteNode,
     },
 };
-use pyo3::{pyclass, pymethods, Py, PyAny, Python};
-use raphtory::python::utils::execute_async_task;
+use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyResult};
+use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
 use raphtory_api::core::{
     entities::properties::prop::Prop, storage::timeindex::EventTime, utils::time::InputTime,
 };
@@ -38,6 +38,25 @@ impl PyRemoteEdge {
     /// Time-window this edge. Lazy — no RPC.
     pub fn window(&self, start: InputTime, end: InputTime) -> PyRemoteEdge {
         PyRemoteEdge::new(self.edge.window(start, end))
+    }
+
+    /// Return a filtered view of this edge — the filter propagates to
+    /// everything reached through it. Accepts node or edge filter
+    /// expressions; mirrors the local `Edge.filter`. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     filter (FilterExpr): a filter expression from `raphtory.filter`.
+    ///
+    /// Returns:
+    ///     RemoteEdge: a new filtered edge view.
+    ///
+    /// Raises:
+    ///     ValueError: if the filter cannot be represented remotely.
+    pub fn filter(&self, filter: PyFilterExpr) -> PyResult<PyRemoteEdge> {
+        let tree = filter
+            .try_as_filter_tree()
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        Ok(PyRemoteEdge::new(self.edge.filter(tree)?))
     }
 
     /// Restrict to a single named layer. Lazy — no RPC.
@@ -429,7 +448,7 @@ impl PyRemoteEdge {
     /// `edge[key]` — the property value for `key`, or `None` if absent
     /// (matches the local `Edge.__getitem__`, which returns `Optional`).
     /// Fires one RPC.
-    fn __getitem__(&self, py: Python<'_>, name: String) -> Result<Option<Py<PyAny>>, ClientError> {
-        self.properties().get(py, name)
+    fn __getitem__(&self, name: String) -> Result<Option<Prop>, ClientError> {
+        self.properties().get(name)
     }
 }

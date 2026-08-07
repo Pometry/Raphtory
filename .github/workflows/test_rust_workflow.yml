@@ -47,7 +47,7 @@ jobs:
         uses: taiki-e/install-action@nextest
       - name: Install cargo-hack
         uses: taiki-e/install-action@cargo-hack
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - name: Run all Tests (no disk_graph)
@@ -55,12 +55,12 @@ jobs:
           RUSTFLAGS: -Awarnings
           TEMPDIR: ${{ runner.temp }}
         run: |
-          cargo nextest run --workspace --no-default-features --cargo-profile build-fast
+          cargo nextest run --workspace --all-features --cargo-profile build-fast
       - name: Check all features
         env:
           RUSTFLAGS: -Awarnings
         run: |
-          cargo hack check --workspace --all-targets --each-feature  --skip extension-module,default,vectors,datafusion
+          cargo hack check --workspace --all-targets --each-feature
   doc-test:
     if: ${{ !inputs.skip_tests }}
     name: "Doc tests"

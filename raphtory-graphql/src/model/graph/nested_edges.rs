@@ -2,7 +2,7 @@ use crate::{
     model::graph::{
         collection::{check_list_allowed, check_page_limit},
         edges::GqlEdges,
-        filtering::{EdgesViewCollection, GqlEdgeFilter},
+        filtering::{EdgesViewCollection, GqlEdgeFilter, GqlFilter},
         path_from_graph::GqlPathFromGraph,
         timeindex::{GqlEventTime, GqlTimeInput},
     },
@@ -13,7 +13,10 @@ use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
     db::{
         api::view::{DynamicGraph, EdgeSelect, Filter},
-        graph::{edges::NestedEdges, views::filter::model::edge_filter::CompositeEdgeFilter},
+        graph::{
+            edges::NestedEdges,
+            views::filter::model::{edge_filter::CompositeEdgeFilter, DynFilter},
+        },
     },
     errors::GraphError,
     prelude::*,
@@ -232,7 +235,9 @@ impl GqlNestedEdges {
                 }
                 EdgesViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await,
                 EdgesViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
-                EdgesViewCollection::EdgeFilter(filter) => return_view.filter(filter).await?,
+                EdgesViewCollection::EdgeFilter(filter) => {
+                    return_view.filter(GqlFilter::Edges(filter)).await?
+                }
             }
         }
 
@@ -366,12 +371,14 @@ impl GqlNestedEdges {
 
     async fn filter(
         &self,
-        #[graphql(desc = "Composite edge filter (by property, layer, src/dst, etc.).")]
-        expr: GqlEdgeFilter,
+        #[graphql(
+            desc = "Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection)."
+        )]
+        expr: GqlFilter,
     ) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let filter: CompositeEdgeFilter = expr.try_into()?;
+            let filter: DynFilter = expr.try_into()?;
             let filtered = self_clone.nn.filter(filter)?;
             Ok(self_clone.update(filtered.into_dyn()))
         })

@@ -1,4 +1,509 @@
 """
+The algorithms that can be run on a graph view.
+"""
+type Algorithms {
+	"""
+	Returns the PageRank centrality of every node in the graph.
+	"""
+	pagerank(
+		"""
+		Number of iterations to run. Defaults to 20.
+		"""
+		iterCount: Int,
+		"""
+		Number of threads to use. Defaults to all available.
+		"""
+		threads: Int,
+		"""
+		Convergence tolerance. Defaults to 0.000001.
+		"""
+		tol: Float,
+		"""
+		Probability that the spread continues. Defaults to 0.85.
+		"""
+		dampingFactor: Float,
+		"""
+		Edge property to use as weight. If unset, all edges have weight 1.
+		"""
+		weight: String
+	): NodeState!
+	"""
+	Returns the degree centrality of every node.
+	"""
+	degreeCentrality: NodeState!
+	"""
+	Returns the betweenness centrality of every node.
+	"""
+	betweennessCentrality(
+		"""
+		Number of nodes to sample. Defaults to all nodes.
+		"""
+		k: Int,
+		"""
+		Whether to normalize the values. Defaults to true.
+		"""
+		normalized: Boolean
+	): NodeState!
+	"""
+	Returns the HITS hub and authority scores of every node.
+	"""
+	hits(
+		"""
+		Number of iterations to run. Defaults to 20.
+		"""
+		iterCount: Int,
+		"""
+		Number of threads to use. Defaults to all available.
+		"""
+		threads: Int
+	): NodeState!
+	"""
+	Returns the shortest (unweighted) path from `source` to every reachable node.
+	"""
+	singleSourceShortestPath(
+		"""
+		Source node id.
+		"""
+		source: NodeId!,
+		"""
+		Optional maximum path length; stops the search once reached.
+		"""
+		cutoff: Int
+	): NodeState!
+	"""
+	Returns the in component (all nodes that can reach it following out-edges) of every node.
+	"""
+	inComponents(
+		"""
+		Optional composite filter (node, edge, and graph-view); the algorithm runs on the resulting view.
+		"""
+		filter: GqlFilter,
+		"""
+		Number of threads to use. Defaults to all available.
+		"""
+		threads: Int
+	): NodeState!
+	"""
+	Returns the out component (all reachable nodes following out-edges) of every node.
+	"""
+	outComponents(
+		"""
+		Optional composite filter (node, edge, and graph-view); the algorithm runs on the resulting view.
+		"""
+		filter: GqlFilter,
+		"""
+		Number of threads to use. Defaults to all available.
+		"""
+		threads: Int
+	): NodeState!
+	"""
+	Returns the in component of a single node (nodes that can reach it, with their distance).
+	"""
+	inComponent(
+		"""
+		Node id.
+		"""
+		node: NodeId!,
+		"""
+		Optional composite filter (node, edge, and graph-view); the algorithm runs on the resulting view.
+		"""
+		filter: GqlFilter
+	): NodeState!
+	"""
+	Returns the out component of a single node (nodes it can reach, with their distance).
+	"""
+	outComponent(
+		"""
+		Node id.
+		"""
+		node: NodeId!,
+		"""
+		Optional composite filter (node, edge, and graph-view); the algorithm runs on the resulting view.
+		"""
+		filter: GqlFilter
+	): NodeState!
+	"""
+	Returns the local triangle count of a single node (0 if it has degree < 2), or null if
+	the node does not exist in the view.
+	"""
+	localTriangleCount(
+		"""
+		Node id.
+		"""
+		node: NodeId!
+	): Int
+	"""
+	Returns the local clustering coefficient of a single node (0 if it has degree < 2), or
+	null if the node does not exist in the view.
+	"""
+	localClusteringCoefficient(
+		"""
+		Node id.
+		"""
+		node: NodeId!
+	): Float
+	"""
+	Returns the weakly connected component id of every node.
+	"""
+	weaklyConnectedComponents: NodeState!
+	"""
+	Returns the strongly connected component id of every node.
+	"""
+	stronglyConnectedComponents: NodeState!
+	"""
+	Returns the community of every node (Louvain).
+	"""
+	louvain(
+		"""
+		Resolution parameter for modularity. Defaults to 1.0.
+		"""
+		resolution: Float,
+		"""
+		Edge property to use as weight. If unset, all edges have weight 1.
+		"""
+		weightProp: String,
+		"""
+		Convergence tolerance. Defaults to 1e-8.
+		"""
+		tol: Float,
+		"""
+		Seed for the node-shuffling rng. If unset, seeded from the OS.
+		"""
+		rngSeed: Int
+	): NodeState!
+	"""
+	Returns the community of every node (label propagation).
+	"""
+	labelPropagation(
+		"""
+		Number of iterations to run. Defaults to 20.
+		"""
+		iterCount: Int,
+		"""
+		Number of threads to use. Defaults to all available.
+		"""
+		threads: Int
+	): NodeState!
+	"""
+	Returns the weighted shortest path from `source` to each of `targets` (Dijkstra).
+	"""
+	dijkstra(
+		"""
+		Source node id.
+		"""
+		source: NodeId!,
+		"""
+		Target node ids.
+		"""
+		targets: [NodeId!]!,
+		"""
+		Edge property to use as weight. If unset, all edges have weight 1.
+		"""
+		weight: String,
+		"""
+		Edge direction to follow. Defaults to BOTH.
+		"""
+		direction: Direction
+	): NodeState!
+	"""
+	Returns the local reciprocity of every node.
+	"""
+	allLocalReciprocity: NodeState!
+	"""
+	Returns the net sum of edge weights (balance) of every node.
+	"""
+	balance(
+		"""
+		Edge property to use as weight. Defaults to `weight`.
+		"""
+		name: String,
+		"""
+		Edge direction to consider. Defaults to BOTH.
+		"""
+		direction: Direction
+	): NodeState!
+	"""
+	Returns the local clustering coefficient of each of the given nodes.
+	"""
+	localClusteringCoefficientBatch(
+		"""
+		Node ids to compute the coefficient for.
+		"""
+		nodes: [NodeId!]!
+	): NodeState!
+	"""
+	Returns the global clustering coefficient of the graph.
+	"""
+	globalClusteringCoefficient: Float!
+	"""
+	Returns the directed graph density (fraction of possible directed edges present).
+	"""
+	directedGraphDensity: Float!
+	"""
+	Returns the global reciprocity of the graph.
+	"""
+	globalReciprocity: Float!
+	"""
+	Returns the average (undirected) degree of the graph's nodes.
+	"""
+	averageDegree: Float!
+	"""
+	Returns the maximum (undirected) degree of any node in the graph.
+	"""
+	maxDegree: Int!
+	"""
+	Returns the minimum (undirected) degree of any node in the graph.
+	"""
+	minDegree: Int!
+	"""
+	Returns the maximum out-degree of any node in the graph.
+	"""
+	maxOutDegree: Int!
+	"""
+	Returns the maximum in-degree of any node in the graph.
+	"""
+	maxInDegree: Int!
+	"""
+	Returns the minimum out-degree of any node in the graph.
+	"""
+	minOutDegree: Int!
+	"""
+	Returns the minimum in-degree of any node in the graph.
+	"""
+	minInDegree: Int!
+	"""
+	Returns the number of connected triplets (paths of length 2) in the graph.
+	"""
+	tripletCount(
+		"""
+		Number of threads to use. Defaults to all available.
+		"""
+		threads: Int
+	): Int!
+	"""
+	Returns the number of triangles in the graph.
+	"""
+	triangleCount(
+		"""
+		Number of threads to use. Defaults to all available.
+		"""
+		threads: Int
+	): Int!
+	"""
+	Returns the FastRP embedding of every node.
+	"""
+	fastRp(
+		"""
+		Dimension of the embedding.
+		"""
+		embeddingDim: Int!,
+		"""
+		Normalization strength applied to neighbour contributions.
+		"""
+		normalizationStrength: Float!,
+		"""
+		Weight of each iteration's contribution to the embedding.
+		"""
+		iterWeights: [Float!]!,
+		"""
+		Seed for the rng. If unset, seeded from the OS.
+		"""
+		seed: Int,
+		"""
+		Number of threads to use. Defaults to all available.
+		"""
+		threads: Int
+	): NodeState!
+	"""
+	Returns the nodes temporally reachable from `seedNodes` starting at `startTime`.
+	"""
+	temporallyReachableNodes(
+		"""
+		Maximum number of hops to traverse.
+		"""
+		maxHops: Int!,
+		"""
+		Time at which the traversal starts.
+		"""
+		startTime: Int!,
+		"""
+		Node ids to start from.
+		"""
+		seedNodes: [NodeId!]!,
+		"""
+		Node ids that halt the traversal when reached.
+		"""
+		stopNodes: [NodeId!],
+		"""
+		Number of threads to use. Defaults to all available.
+		"""
+		threads: Int
+	): NodeState!
+	"""
+	Returns the 2D layout position of every node (Fruchterman-Reingold).
+	"""
+	fruchtermanReingold(
+		"""
+		Number of iterations to run. Defaults to 100.
+		"""
+		iterCount: Int,
+		"""
+		Scale of the layout. Defaults to 1.0.
+		"""
+		scale: Float,
+		"""
+		Initial node size. Defaults to 1.0.
+		"""
+		nodeStartSize: Float,
+		"""
+		Cooloff factor. Defaults to 0.95.
+		"""
+		cooloffFactor: Float,
+		"""
+		Time step. Defaults to 0.1.
+		"""
+		dt: Float
+	): NodeState!
+	"""
+	Returns the 2D layout position of every node (cohesive Fruchterman-Reingold).
+	"""
+	cohesiveFruchtermanReingold(
+		"""
+		Number of iterations to run. Defaults to 100.
+		"""
+		iterCount: Int,
+		"""
+		Scale of the layout. Defaults to 1.0.
+		"""
+		scale: Float,
+		"""
+		Initial node size. Defaults to 1.0.
+		"""
+		nodeStartSize: Float,
+		"""
+		Cooloff factor. Defaults to 0.95.
+		"""
+		cooloffFactor: Float,
+		"""
+		Time step. Defaults to 0.1.
+		"""
+		dt: Float
+	): NodeState!
+	"""
+	Returns the local temporal three-node motif counts of every node.
+	"""
+	localTemporalThreeNodeMotifs(
+		"""
+		Maximum time difference between the first and last edge of a motif.
+		"""
+		delta: Int!,
+		"""
+		Number of threads to use. Defaults to all available.
+		"""
+		threads: Int
+	): NodeState!
+	"""
+	Returns the graph-wide temporal three-node motif counts: 40 counts in a
+	fixed order (8 two-node, 24 star, then 8 triangle motifs).
+	"""
+	globalTemporalThreeNodeMotif(
+		"""
+		Maximum time difference between the first and last edge of a motif.
+		"""
+		delta: Int!,
+		"""
+		Number of threads to use. Defaults to all available.
+		"""
+		threads: Int
+	): [Int!]!
+	"""
+	Returns the graph-wide temporal three-node motif counts for each of
+	`deltas`, one row of 40 counts per delta, in the order given.
+	"""
+	globalTemporalThreeNodeMotifMulti(
+		"""
+		Maximum time differences to compute the motif counts for.
+		"""
+		deltas: [Int!]!,
+		"""
+		Number of threads to use. Defaults to all available.
+		"""
+		threads: Int
+	): [MotifCounts!]!
+	"""
+	Returns the temporal rich club coefficient: the maximal density among the
+	nodes of degree at least `k` that persists over `windowSize` consecutive
+	snapshots. The snapshots are the rolling windows described by
+	`rollingWindow` / `rollingStep`.
+	"""
+	temporalRichClubCoefficient(
+		"""
+		Minimum degree a node must have to be in the rich club.
+		"""
+		k: Int!,
+		"""
+		Number of consecutive snapshots the edges must persist over.
+		"""
+		windowSize: Int!,
+		"""
+		Width of each snapshot.
+		"""
+		rollingWindow: WindowDuration!,
+		"""
+		Optional gap between the start of one snapshot and the next. Defaults to `rollingWindow`, i.e. non-overlapping snapshots.
+		"""
+		rollingStep: WindowDuration
+	): Float!
+	"""
+	Simulates an SEIR epidemic, returning the infection, activation and
+	recovery times of every node that was infected.
+	"""
+	temporalSeir(
+		"""
+		How the initially infected nodes are chosen.
+		"""
+		seeds: Seeds!,
+		"""
+		Probability that an encounter between an active and a susceptible node infects it.
+		"""
+		infectionProb: Float!,
+		"""
+		Time of the initial infection.
+		"""
+		initialInfection: TimeInput!,
+		"""
+		Rate at which infected nodes recover. If unset, nodes never recover.
+		"""
+		recoveryRate: Float,
+		"""
+		Rate at which infected nodes become infectious. If unset, they are infectious immediately.
+		"""
+		incubationRate: Float,
+		"""
+		Seed for the random number generator. If unset, seeded from the OS.
+		"""
+		rngSeed: Int
+	): NodeState!
+	"""
+	Returns a maximum weight matching of the graph, treated as undirected.
+	"""
+	maxWeightMatching(
+		"""
+		Edge property to use as weight. If unset, all edges have weight 1.
+		"""
+		weightProp: String,
+		"""
+		Only consider maximum-cardinality matchings. Defaults to false.
+		"""
+		maxCardinality: Boolean,
+		"""
+		Verify that the matching found is optimum. Defaults to false.
+		"""
+		verifyOptimum: Boolean
+	): Matching!
+}
+
+"""
 Alignment unit used to align window boundaries.
 """
 enum AlignmentUnit {
@@ -11,21 +516,6 @@ enum AlignmentUnit {
 	WEEK
 	MONTH
 	YEAR
-}
-
-enum AllPropertySpec {
-	"""
-	All properties and metadata.
-	"""
-	ALL
-	"""
-	All metadata.
-	"""
-	ALL_METADATA
-	"""
-	All properties.
-	"""
-	ALL_PROPERTIES
 }
 
 """
@@ -154,6 +644,15 @@ enum DegreeDirection {
 input DegreeFilterNew {
 	direction: DegreeDirection!
 	where: PropCondition!
+}
+
+"""
+Edge direction to follow during traversal.
+"""
+enum Direction {
+	OUT
+	IN
+	BOTH
 }
 
 """
@@ -521,21 +1020,9 @@ type Edge {
 	"""
 	filter(
 		"""
-		Composite edge filter (by property, layer, src/dst, etc.).
+		Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
 		"""
-		expr: EdgeFilter!
-	): Edge!
-	"""
-	Apply a node filter in place, returning an edge view whose node
-	traversals (src, dst, nbr and everything reached through them) only
-	see nodes matching the filter. The edge itself stays addressable
-	regardless of whether its endpoints match.
-	"""
-	filterNodes(
-		"""
-		Composite node filter (by property, name, type, etc.).
-		"""
-		expr: NodeFilter!
+		expr: GqlFilter!
 	): Edge!
 	"""
 	Pin this edge to a single event — the exploded instance recorded at
@@ -798,17 +1285,25 @@ type EdgeSchema {
 
 input EdgeSortBy {
 	"""
-	Reverse order
+	Reverse order. Applies to the `time` / `property` keys; the node keys
+	(`src` / `dst` / `neighbour`) carry their own `reverse` inside the
+	nested `NodeSortBy` and ignore this flag.
 	"""
 	reverse: Boolean
 	"""
-	Source node
+	Sort by the source node.
 	"""
-	src: Boolean
+	src: NodeSortBy
 	"""
-	Destination
+	Sort by the destination node.
 	"""
-	dst: Boolean
+	dst: NodeSortBy
+	"""
+	Sort by the neighbour node: the endpoint that is NOT the node these
+	edges were traversed from (the destination for a graph-level edge
+	collection).
+	"""
+	neighbour: NodeSortBy
 	"""
 	Time
 	"""
@@ -1176,7 +1671,7 @@ type Edges {
 	"""
 	sorted(
 		"""
-		Ordered list of sort keys. Each entry chooses exactly one of `src` / `dst` / `time` / `property`, with an optional `reverse: true` to flip order.
+		Ordered list of sort keys. Each entry chooses exactly one of `src` / `dst` / `neighbour` / `time` / `property`, with an optional `reverse: true` to flip order.
 		"""
 		sortBys: [EdgeSortBy!]!
 	): Edges!
@@ -1260,9 +1755,9 @@ type Edges {
 	"""
 	filter(
 		"""
-		Composite edge filter (by property, layer, src/dst, etc.).
+		Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
 		"""
-		expr: EdgeFilter!
+		expr: GqlFilter!
 	): Edges!
 	"""
 	Narrow the collection to edges matching `expr`, but only at this step —
@@ -1435,6 +1930,97 @@ type EventTime {
 		"""
 		formatString: String
 	): String
+}
+
+"""
+Fuzzy string match: passes when the candidate is within `levenshteinDistance`
+edits of `value` (optionally also matching by prefix). Mirrors the local
+`fuzzy_search(value, levenshtein_distance, prefix_match)` builder.
+"""
+input FuzzySearchExpr {
+	"""
+	The string to match against.
+	"""
+	value: String!
+	"""
+	Maximum Levenshtein edit distance for a match.
+	"""
+	levenshteinDistance: Int!
+	"""
+	Whether a prefix match within the distance also passes.
+	"""
+	prefixMatch: Boolean!
+}
+
+"""
+A general filter expression — a node filter (`nodes`), an edge filter (`edges`), a graph/view
+filter (`graph`, e.g. a layer or window restriction), or an `and`/`or` combination of these
+(which may mix kinds). Used where an operation accepts any filter, such as scoping a component
+walk.
+"""
+input GqlFilter @oneOf {
+	"""
+	Filter by node properties, fields, or temporal state.
+	(Persisted filters may use the legacy `node` key.)
+	"""
+	nodes: NodeFilter
+	"""
+	Filter by edge properties, source/destination, or temporal state.
+	(Persisted filters may use the legacy `edge` key.)
+	"""
+	edges: EdgeFilter
+	"""
+	Apply a graph-level view (window, snapshot, layer restriction, …).
+	"""
+	graph: GraphFilter
+	"""
+	All sub-filters must pass (intersection).
+	"""
+	and: [GqlFilter!]
+	"""
+	At least one sub-filter must pass (union).
+	Cross-type sub-filters (e.g. `nodes` and `edges` together) produce a
+	proper graph union: a node is visible if it matches the node filter or
+	has a visible edge, and an edge is visible if it matches the edge
+	filter or both its endpoints are visible.
+	"""
+	or: [GqlFilter!]
+	"""
+	Inverts the nested filter.
+	"""
+	not: GqlFilter
+	"""
+	Restrict evaluation to a time window (inclusive start, exclusive end).
+	"""
+	window: GraphWindowExpr
+	"""
+	Restrict evaluation to a single point in time.
+	"""
+	at: GraphTimeExpr
+	"""
+	Restrict evaluation to times strictly before the given time.
+	"""
+	before: GraphTimeExpr
+	"""
+	Restrict evaluation to times strictly after the given time.
+	"""
+	after: GraphTimeExpr
+	"""
+	Evaluate against the latest available state.
+	"""
+	latest: GraphUnaryExpr
+	"""
+	Evaluate against a snapshot of the graph at a given time.
+	"""
+	snapshotAt: GraphTimeExpr
+	"""
+	Evaluate against the most recent snapshot of the graph.
+	"""
+	snapshotLatest: GraphUnaryExpr
+	"""
+	Restrict evaluation to one or more layers.
+	"""
+	layers: GraphLayersExpr
 }
 
 """
@@ -1845,6 +2431,10 @@ type Graph {
 	"""
 	algorithms: GraphAlgorithmPlugin!
 	"""
+	Access the algorithms that can be run on this graph view.
+	"""
+	algorithm: Algorithms!
+	"""
 	Nodes that are neighbours of every node in `selectedNodes`. Returns the
 	intersection of each selected node's neighbour set (undirected).
 	"""
@@ -1896,72 +2486,10 @@ type Graph {
 	"""
 	filter(
 		"""
-		Optional composite filter combining node, edge, property, and metadata conditions. If omitted, applies the identity filter (equivalent to no filtering).
+		Optional filter expression: node/edge predicates, graph views (window, layer, ...), or and/or/not combinations of them. `and` is an intersection: each leg is evaluated independently and the results intersect — to evaluate a predicate *inside* a view, scope the predicate itself (e.g. a windowed property condition). If omitted, applies the identity filter.
 		"""
-		expr: GraphFilter
+		expr: GqlFilter
 	): Graph!
-	"""
-	Returns a graph view restricted to nodes that match the given filter; edges
-	are kept only if both endpoints survive.
-	"""
-	filterNodes(
-		"""
-		Composite node filter (by name, property, type, etc.).
-		"""
-		expr: NodeFilter!
-	): Graph!
-	"""
-	Returns a graph view restricted to edges that match the given filter. Nodes
-	remain in the view even if all their edges are filtered out.
-	"""
-	filterEdges(
-		"""
-		Composite edge filter (by property, layer, src/dst, etc.).
-		"""
-		expr: EdgeFilter!
-	): Graph!
-	"""
-	(Experimental) Get index specification.
-	"""
-	getIndexSpec: IndexSpec!
-	"""
-	(Experimental) Searches for nodes which match the given filter
-	expression. Uses Tantivy's exact search; requires the graph to have
-	been indexed.
-	"""
-	searchNodes(
-		"""
-		Composite node filter (by name, property, type, etc.).
-		"""
-		filter: NodeFilter!,
-		"""
-		Maximum number of nodes to return.
-		"""
-		limit: Int!,
-		"""
-		Number of matches to skip before returning results.
-		"""
-		offset: Int!
-	): [Node!]!
-	"""
-	(Experimental) Searches the index for edges which match the given
-	filter expression. Uses Tantivy's exact search; requires the graph to
-	have been indexed.
-	"""
-	searchEdges(
-		"""
-		Composite edge filter (by property, layer, src/dst, etc.).
-		"""
-		filter: EdgeFilter!,
-		"""
-		Maximum number of edges to return.
-		"""
-		limit: Int!,
-		"""
-		Number of matches to skip before returning results.
-		"""
-		offset: Int!
-	): [Edge!]!
 	"""
 	Apply a list of view operations in the given order and return the
 	resulting graph view. Lets callers compose multiple view transforms
@@ -2543,36 +3071,6 @@ type HistoryTimestamp {
 	): [Int!]!
 }
 
-type IndexSpec {
-	"""
-	Returns node metadata.
-	"""
-	nodeMetadata: [String!]!
-	"""
-	Returns node properties.
-	"""
-	nodeProperties: [String!]!
-	"""
-	Returns edge metadata.
-	"""
-	edgeMetadata: [String!]!
-	"""
-	Returns edge properties.
-	"""
-	edgeProperties: [String!]!
-}
-
-input IndexSpecInput {
-	"""
-	Node properties.
-	"""
-	nodeProps: PropsInput!
-	"""
-	Edge properties.
-	"""
-	edgeProps: PropsInput!
-}
-
 input InputEdge {
 	"""
 	Source node id (string or non-negative integer).
@@ -2672,6 +3170,69 @@ type LayerSchema {
 }
 
 """
+A matching of a graph: a set of edges no two of which share a node.
+"""
+type Matching {
+	"""
+	Returns the number of edges in the matching.
+	"""
+	count: Int!
+	"""
+	The edges in the matching.
+	"""
+	edges: Edges!
+	"""
+	The node matched to `dst`, null if it is unmatched.
+	"""
+	src(
+		"""
+		Destination node id.
+		"""
+		dst: NodeId!
+	): Node
+	"""
+	The node matched to `src`, null if it is unmatched.
+	"""
+	dst(
+		"""
+		Source node id.
+		"""
+		src: NodeId!
+	): Node
+	"""
+	The matched edge for `src`, null if it is unmatched.
+	"""
+	edgeForSrc(
+		"""
+		Source node id.
+		"""
+		src: NodeId!
+	): Edge
+	"""
+	The matched edge for `dst`, null if it is unmatched.
+	"""
+	edgeForDst(
+		"""
+		Destination node id.
+		"""
+		dst: NodeId!
+	): Edge
+	"""
+	Whether the `src` to `dst` edge is part of the matching.
+	"""
+	contains(
+		"""
+		Source node id.
+		"""
+		src: NodeId!,
+		"""
+		Destination node id.
+		"""
+		dst: NodeId!
+	): Boolean!
+}
+
+"""
 Lightweight summary of a stored graph — its name, path, counts, and
 filesystem timestamps — served without deserializing the full graph.
 Useful for listing what's available on the server before committing to a
@@ -2760,6 +3321,21 @@ type Metadata {
 		"""
 		keys: [String!]
 	): [Property!]!
+}
+
+"""
+The motif counts for a single delta. Wraps the counts in an object because
+the schema builder does not support nested lists of scalars.
+"""
+type MotifCounts {
+	"""
+	The delta these counts were computed for.
+	"""
+	delta: Int!
+	"""
+	The 40 motif counts, positionally ordered (see the core docs).
+	"""
+	counts: [Int!]!
 }
 
 type MutRoot {
@@ -3016,19 +3592,6 @@ type MutRoot {
 		"""
 		overwrite: Boolean!
 	): String!
-	"""
-	(Experimental) Creates search index.
-	"""
-	createIndex(
-		"""
-		Graph path relative to the root namespace.
-		"""
-		path: String!,
-		"""
-		Optional spec selecting which node/edge property fields to index. Omit to index a default set.
-		"""
-		indexSpec: IndexSpecInput,		inRam: Boolean!
-	): Boolean!
 	"""
 	Flush any pending writes for the graph at `graphPath` to disk.
 	"""
@@ -3675,9 +4238,9 @@ type NestedEdges {
 	"""
 	filter(
 		"""
-		Composite edge filter (by property, layer, src/dst, etc.).
+		Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
 		"""
-		expr: EdgeFilter!
+		expr: GqlFilter!
 	): NestedEdges!
 	"""
 	Narrow the edge set to edges matching `expr`, but only at this hop —
@@ -3963,8 +4526,20 @@ type Node {
 	Returns the number edges with this node as the destination.
 	"""
 	inDegree: Int!
-	inComponent: Nodes!
-	outComponent: Nodes!
+	"""
+	Nodes that can reach this one via out-edges. `select` is a general filter expression — a node
+	filter, an edge filter, or a graph (layer/window) filter — scoping which nodes/edges the walk
+	steps through. The returned nodes are on the full graph so their other-layer neighbours stay
+	queryable.
+	"""
+	inComponent(select: GqlFilter): Nodes!
+	"""
+	Nodes reachable from this one via out-edges. `select` is a general filter expression — a node
+	filter, an edge filter, or a graph (layer/window) filter — scoping which nodes/edges the walk
+	steps through. The returned nodes are on the full (unfiltered) graph, so their other-layer
+	neighbours remain queryable.
+	"""
+	outComponent(select: GqlFilter): Nodes!
 	"""
 	Returns all connected edges.
 	"""
@@ -3989,18 +4564,11 @@ type Node {
 	Returns the number of neighbours that have at least one out-going edge from this node.
 	"""
 	outNeighbours(select: NodeFilter): PathFromNode!
-	filter(expr: NodeFilter!): Node!
-	"""
-	Apply an edge filter in place, returning a node view whose edge
-	traversals (degree, edges, neighbours and everything reached through
-	them) only see edges matching the filter. The node itself stays
-	addressable regardless of the filter.
-	"""
-	filterEdges(
+	filter(
 		"""
-		Composite edge filter (by property, layer, src/dst, etc.).
+		Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
 		"""
-		expr: EdgeFilter!
+		expr: GqlFilter!
 	): Node!
 }
 
@@ -4098,6 +4666,10 @@ input NodeFieldCondition @oneOf {
 	Negated substring match.
 	"""
 	notContains: Value
+	"""
+	Fuzzy string match (Levenshtein distance, optional prefix matching).
+	"""
+	fuzzySearch: FuzzySearchExpr
 	"""
 	Set membership.
 	"""
@@ -4280,6 +4852,14 @@ input NodeSortBy {
 	"""
 	id: Boolean
 	"""
+	Node name
+	"""
+	name: Boolean
+	"""
+	Node type. Untyped nodes sort first (before any named type).
+	"""
+	type: Boolean
+	"""
 	Time
 	"""
 	time: SortByTime
@@ -4288,6 +4868,284 @@ input NodeSortBy {
 	"""
 	property: String
 }
+
+"""
+A mapping from the nodes of a graph to the values computed for them by an algorithm.
+
+The output is columnar: every column of the underlying node state is exposed as
+a `NodeStateColumn` whose `values` are row-aligned with `nodes`.
+"""
+type NodeState {
+	"""
+	Returns the number of nodes with a value in this node state.
+	"""
+	count: Int!
+	"""
+	The nodes with a value in this node state, in row order. Aligned with `values`.
+	"""
+	nodes: Nodes!
+	"""
+	The column names of this node state in order.
+	"""
+	columnNames: [String!]!
+	"""
+	All rows of the node state keyed by node, with one entry per column.
+	"""
+	rows: [NodeStateRow!]!
+	"""
+	All rows of the node state keyed by node, without the column names: the `values` of each row are
+	in `columnNames` order.
+	"""
+	headlessRows: [NodeStateHeadlessRow!]!
+	"""
+	Returns the values for a node, one entry per column; null if the node has no value in this NodeState.
+	"""
+	get(
+		"""
+		Node id.
+		"""
+		node: NodeId!
+	): [NodeStateEntry!]
+	"""
+	Minimum `(node, value)` of a column. Null if the column does not exist, is empty,
+	or its values are not comparable (e.g. contains nodes).
+	"""
+	min(
+		"""
+		Column name.
+		"""
+		column: String!
+	): NodeStateItem
+	"""
+	Maximum `(node, value)` of a column. Null if the column does not exist, is empty,
+	or its values are not comparable (e.g. contains nodes).
+	"""
+	max(
+		"""
+		Column name.
+		"""
+		column: String!
+	): NodeStateItem
+	"""
+	Sum of a column's values, skipping empty cells. Null if the column does not exist, is empty,
+	or is not additive (e.g. contains nodes).
+	"""
+	sum(
+		"""
+		Column name.
+		"""
+		column: String!
+	): PropertyOutput
+	"""
+	Mean of a column's values as a float, skipping empty cells. Null if the column does not exist,
+	is empty, or has any non-numeric value.
+	"""
+	mean(
+		"""
+		Column name.
+		"""
+		column: String!
+	): PropertyOutput
+	"""
+	Median `(node, value)` of a column (upper median on even lengths). Null if the column
+	does not exist, is empty, or is not comparable (e.g. contains nodes).
+	"""
+	median(
+		"""
+		Column name.
+		"""
+		column: String!
+	): NodeStateItem
+	"""
+	Returns the `k` rows with the largest values in a column. Empty cells rank
+	lowest, so they are only included if fewer than `k` rows have a value.
+	Null if the column does not exist, is empty, or is not comparable.
+	"""
+	topK(
+		"""
+		Column name.
+		"""
+		column: String!,
+		"""
+		Number of rows to return.
+		"""
+		k: Int!
+	): NodeState
+	"""
+	Returns the `k` rows with the smallest values in a column. Empty cells rank
+	highest, so they are only included if fewer than `k` rows have a value.
+	Null if the column does not exist, is empty, or is not comparable.
+	"""
+	bottomK(
+		"""
+		Column name.
+		"""
+		column: String!,
+		"""
+		Number of rows to return.
+		"""
+		k: Int!
+	): NodeState
+	"""
+	Returns a view of this node state with the rows sorted by a column's values,
+	ascending with empty cells last. `reverse` flips the whole ordering, putting
+	empty cells first. Null if the column does not exist, is empty, or is not
+	comparable.
+	"""
+	sortByValues(
+		"""
+		Column name.
+		"""
+		column: String!,
+		"""
+		Sort in descending order instead. Defaults to false.
+		"""
+		reverse: Boolean
+	): NodeState
+	"""
+	Groups the nodes by their value in a column. Nodes with an empty cell form
+	their own group. Null if the column does not exist or contains nodes.
+	"""
+	groupBy(
+		"""
+		Column name.
+		"""
+		column: String!
+	): [NodeStateGroup!]
+	"""
+	Returns one page of this node state as a node state of its own, so that
+	`nodes` / `rows` / `columns` on it stay row-aligned with each other.
+	Pages past the end are empty rather than an error.
+	
+	For example, if page(limit: 5, offset: 1, page_index: 2) is called, a page with 5 items,
+	offset by 11 items (2 pages of 5 + 1), will be returned.
+	"""
+	page(
+		"""
+		Maximum number of rows to return on this page.
+		"""
+		limit: Int!,
+		"""
+		Extra rows to skip on top of `pageIndex` paging (default 0).
+		"""
+		offset: Int,
+		"""
+		Zero-based page number; multiplies `limit` to determine where to start (default 0).
+		"""
+		pageIndex: Int
+	): NodeState!
+	"""
+	Returns a view of this node state with the rows sorted by node id.
+	"""
+	sortById: NodeState!
+	"""
+	The columns of the node state, one per output field of the algorithm.
+	`values` are row-aligned with `nodes`.
+	"""
+	columns: [NodeStateColumn!]!
+}
+
+"""
+One column of a node state: the values of a single output field of the
+algorithm. Row-aligned with `NodeState.nodes`.
+"""
+type NodeStateColumn {
+	"""
+	Name of the column.
+	"""
+	name: String!
+	"""
+	The values of this column; `values[i]` belongs to `NodeState.nodes[i]`.
+	"""
+	values: [NodeStateValue!]!
+}
+
+"""
+One column's value for a single node.
+"""
+type NodeStateEntry {
+	"""
+	Name of the column.
+	"""
+	columnName: String!
+	"""
+	The node's value in this column.
+	"""
+	value: NodeStateValue!
+}
+
+"""
+The nodes sharing one value of a column, as returned by `groupBy`.
+"""
+type NodeStateGroup {
+	"""
+	The value shared by the nodes in this group; null if their cell is empty.
+	"""
+	value: PropertyOutput
+	"""
+	The nodes holding that value.
+	"""
+	nodes: Nodes!
+}
+
+"""
+A node's full row in the node state without the column names: `values[i]`
+belongs to the column `NodeState.columnNames[i]`.
+"""
+type NodeStateHeadlessRow {
+	"""
+	The node this row belongs to.
+	"""
+	node: Node!
+	"""
+	The row's values, in `columnNames` order.
+	"""
+	values: [NodeStateValue!]!
+}
+
+"""
+A `(node, value)` pair, e.g. the result of a column aggregate.
+"""
+type NodeStateItem {
+	"""
+	The node.
+	"""
+	node: Node!
+	"""
+	The node's value.
+	"""
+	value: PropertyOutput!
+}
+
+"""
+A plain property value of a node state cell.
+"""
+type NodeStateProp {
+	"""
+	The property value; null if the node has no value in this column.
+	"""
+	prop: PropertyOutput
+}
+
+"""
+A node's full row in the node state: one entry per column.
+"""
+type NodeStateRow {
+	"""
+	The node this row belongs to.
+	"""
+	node: Node!
+	"""
+	The row's values, one entry per column.
+	"""
+	entries: [NodeStateEntry!]!
+}
+
+"""
+A single cell of a node state column: either a plain property value, a
+node, or a collection of nodes.
+"""
+union NodeStateValue = NodeStateProp | Node | Nodes
 
 """
 Restricts node evaluation to a single time bound and applies a nested `NodeFilter`.
@@ -4645,7 +5503,7 @@ type Nodes {
 	"""
 	sorted(
 		"""
-		Ordered list of sort keys. Each entry chooses exactly one of `id` / `time` / `property`, with an optional `reverse: true` to flip order.
+		Ordered list of sort keys. Each entry chooses exactly one of `id` / `name` / `type` / `time` / `property`, with an optional `reverse: true` to flip order.
 		"""
 		sortBys: [NodeSortBy!]!
 	): Nodes!
@@ -4734,9 +5592,9 @@ type Nodes {
 	"""
 	filter(
 		"""
-		Composite node filter (by name, property, type, etc.).
+		Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
 		"""
-		expr: NodeFilter!
+		expr: GqlFilter!
 	): Nodes!
 	"""
 	Narrow the collection to nodes matching `expr`, but only at this step —
@@ -5160,9 +6018,9 @@ type PathFromGraph {
 	"""
 	filter(
 		"""
-		Composite node filter (by name, property, type, etc.).
+		Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
 		"""
-		expr: NodeFilter!
+		expr: GqlFilter!
 	): PathFromGraph!
 	"""
 	Narrow the neighbour set to nodes matching `expr`, but only at this hop
@@ -5494,9 +6352,9 @@ type PathFromNode {
 	"""
 	filter(
 		"""
-		Composite node filter (by name, property, type, etc.).
+		Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
 		"""
-		expr: NodeFilter!
+		expr: GqlFilter!
 	): PathFromNode!
 	"""
 	Narrow the neighbour set to nodes matching `expr`, but only at this hop
@@ -5708,6 +6566,10 @@ input PropCondition @oneOf {
 	"""
 	notContains: Value
 	"""
+	Fuzzy string match (Levenshtein distance, optional prefix matching).
+	"""
+	fuzzySearch: FuzzySearchExpr
+	"""
 	Set membership: property value is contained in the given list of values.
 	"""
 	isIn: Value
@@ -5855,6 +6717,11 @@ type Property {
 	numbers, booleans as booleans, strings as strings, etc.
 	"""
 	value: PropertyOutput!
+	"""
+	The property's exact type, for type-directed decoding of `value`
+	(`value` alone collapses e.g. all integer widths to one JSON number).
+	"""
+	dtype: PropertyType!
 }
 
 """
@@ -5924,18 +6791,19 @@ type PropertyTuple {
 	booleans as booleans, etc.
 	"""
 	value: PropertyOutput!
+	"""
+	The value's exact type, for type-directed decoding of `value`.
+	"""
+	dtype: PropertyType!
 }
 
-input PropsInput @oneOf {
-	"""
-	All properties and metadata.
-	"""
-	all: AllPropertySpec
-	"""
-	Some properties and metadata.
-	"""
-	some: SomePropertySpec
-}
+"""
+A property's type, as `PropType`'s serde JSON form — round-trippable,
+unlike the human-readable string from `getDtypeOf`. Scalars are bare
+strings (`"F64"`), containers are tagged objects
+(`{"List": "F64"}`, `{"Map": {"a": "I64"}}`, `{"Decimal": {"scale": 2}}`).
+"""
+scalar PropertyType
 
 type QueryPlugin {
 	NoOps: String!
@@ -5981,40 +6849,6 @@ type QueryRoot {
 		path: String!
 	): MutableGraph!
 	"""
-	Update graph query, has side effects to update graph state
-	
-	Returns:: GqlMutableGraph
-	"""
-	vectoriseGraph(
-		"""
-		Graph path relative to the root namespace.
-		"""
-		path: String!,
-		"""
-		Optional embedding model; defaults to OpenAI's standard model.
-		"""
-		model: EmbeddingModel,
-		"""
-		Optional node-document template (which fields go into each node's text representation); defaults to the built-in template.
-		"""
-		nodes: Template,
-		"""
-		Optional edge-document template; defaults to the built-in template.
-		"""
-		edges: Template
-	): Boolean!
-	"""
-	Create vectorised graph in the format used for queries
-	
-	Returns:: GqlVectorisedGraph
-	"""
-	vectorisedGraph(
-		"""
-		Graph path relative to the root namespace.
-		"""
-		path: String!
-	): VectorisedGraph
-	"""
 	Returns all namespaces using recursive search
 	
 	Returns::  List of namespaces on root
@@ -6051,25 +6885,63 @@ type QueryRoot {
 	Version string of the running `raphtory-graphql` server build.
 	"""
 	version: String!
+	"""
+	Update graph query, has side effects to update graph state
+	
+	Returns:: GqlMutableGraph
+	"""
+	vectoriseGraph(
+		"""
+		Graph path relative to the root namespace.
+		"""
+		path: String!,
+		"""
+		Optional embedding model; defaults to OpenAI's standard model.
+		"""
+		model: EmbeddingModel,
+		"""
+		Optional node-document template (which fields go into each node's text representation); defaults to the built-in template.
+		"""
+		nodes: Template,
+		"""
+		Optional edge-document template; defaults to the built-in template.
+		"""
+		edges: Template
+	): Boolean!
+	"""
+	Create vectorised graph in the format used for queries
+	
+	Returns:: GqlVectorisedGraph
+	"""
+	vectorisedGraph(
+		"""
+		Graph path relative to the root namespace.
+		"""
+		path: String!
+	): VectorisedGraph
+}
+
+"""
+How the initially infected nodes are chosen.
+"""
+input Seeds @oneOf {
+	"""
+	Infect exactly these nodes.
+	"""
+	nodes: [NodeId!]
+	"""
+	Infect this many randomly chosen nodes.
+	"""
+	number: Int
+	"""
+	Infect this fraction of the nodes, chosen at random.
+	"""
+	probability: Float
 }
 
 type ShortestPathOutput {
 	target: String!
 	nodes: [String!]!
-}
-
-"""
-SomePropertySpec object containing lists of metadata and property names.
-"""
-input SomePropertySpec {
-	"""
-	List of metadata.
-	"""
-	metadata: [String!]!
-	"""
-	List of properties.
-	"""
-	properties: [String!]!
 }
 
 enum SortByTime {
@@ -6081,6 +6953,18 @@ enum SortByTime {
 	Earliest time
 	"""
 	EARLIEST
+}
+
+"""
+Non-finite float values, which JSON cannot represent as numbers.
+
+Follows protobuf's JSON mapping convention of spelling these out
+explicitly rather than silently coercing them to `null`.
+"""
+enum SpecialFloat {
+	NAN
+	INFINITY
+	NEG_INFINITY
 }
 
 input Template @oneOf {
@@ -6146,6 +7030,12 @@ type TemporalProperty {
 	The property key (name).
 	"""
 	key: String!
+	"""
+	The property's declared type, for type-directed decoding of stored
+	values (`values`, `at`, `latest`, `unique`, `min`, `max`, `median`,
+	`orderedDedupe`). Aggregates (`sum`, `mean`, `average`) may widen.
+	"""
+	dtype: PropertyType!
 	"""
 	Event history for this property — one entry per temporal update, in
 	insertion order. Use this to navigate the full timeline: access the
@@ -6284,6 +7174,14 @@ input Value @oneOf {
 	"""
 	f64: Float
 	"""
+	Non-finite 32 bit float (NaN, ±Infinity) — JSON has no number form for these.
+	"""
+	f32Special: SpecialFloat
+	"""
+	Non-finite 64 bit float (NaN, ±Infinity) — JSON has no number form for these.
+	"""
+	f64Special: SpecialFloat
+	"""
 	String.
 	"""
 	str: String
@@ -6313,6 +7211,12 @@ input Value @oneOf {
 	decimal: String
 }
 
+"""
+A working set of documents / nodes / edges built up via similarity
+searches on a `VectorisedGraph`. Selections are mutable: you can grow
+them with more hops (`expand*`), dereference the contents (`nodes`,
+`edges`, `getDocuments`), or start fresh with `emptySelection`.
+"""
 type VectorSelection {
 	"""
 	Returns a list of nodes in the current selection.
@@ -6419,9 +7323,28 @@ type VectorSelection {
 	): VectorSelection!
 }
 
+"""
+A graph with embedded vector representations for its nodes and edges.
+Exposes similarity search over documents, nodes, and edges, plus
+selection building (`emptySelection`) and index maintenance
+(`optimizeIndex`).
+"""
 type VectorisedGraph {
+	"""
+	Rebuild (or incrementally update) the on-disk vector indexes for nodes
+	and edges so subsequent similarity searches hit the fresh embeddings.
+	Safe to call repeatedly; returns true on success.
+	"""
 	optimizeIndex: Boolean!
+	"""
+	Returns an empty selection of documents.
+	"""
 	emptySelection: VectorSelection!
+	"""
+	Find the highest-scoring nodes *and* edges (mixed) by similarity to a
+	natural-language query. The query is embedded server-side and matched
+	against indexed entity vectors.
+	"""
 	entitiesBySimilarity(
 		"""
 		Natural-language search string; embedded by the server.
@@ -6436,6 +7359,11 @@ type VectorisedGraph {
 		"""
 		window: VectorisedGraphWindow
 	): VectorSelection!
+	"""
+	Find the highest-scoring nodes by similarity to a natural-language
+	query. The query is embedded server-side and matched against indexed
+	node vectors.
+	"""
 	nodesBySimilarity(
 		"""
 		Natural-language search string; embedded by the server.
@@ -6450,6 +7378,11 @@ type VectorisedGraph {
 		"""
 		window: VectorisedGraphWindow
 	): VectorSelection!
+	"""
+	Find the highest-scoring edges by similarity to a natural-language
+	query. The query is embedded server-side and matched against indexed
+	edge vectors.
+	"""
 	edgesBySimilarity(
 		"""
 		Natural-language search string; embedded by the server.

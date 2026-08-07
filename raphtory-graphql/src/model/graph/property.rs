@@ -8,7 +8,7 @@ use crate::{
 use async_graphql::{Error, Name, Value as GqlValue};
 use bigdecimal::BigDecimal;
 use dynamic_graphql::{
-    InputObject, OneOfInput, ResolvedObject, ResolvedObjectFields, Scalar, ScalarValue,
+    Enum, InputObject, OneOfInput, ResolvedObject, ResolvedObjectFields, Scalar, ScalarValue,
 };
 use itertools::Itertools;
 use raphtory::{
@@ -20,18 +20,16 @@ use raphtory::{
     prelude::*,
 };
 use raphtory_api::core::{
-    entities::properties::prop::{IntoPropMap, Prop},
+    entities::properties::prop::{IntoPropMap, Prop, PropMap, PropType},
     storage::{
         arc_str::ArcStr,
         timeindex::{AsTime, EventTime},
     },
     utils::time::{IntoTime, TryIntoTime},
 };
-use rustc_hash::FxHashMap;
 use serde::{ser::Error as SerError, Deserialize, Serialize, Serializer};
 use serde_json::Number;
 use std::{
-    collections::HashMap,
     convert::TryFrom,
     fmt,
     fmt::{Display, Formatter},
@@ -45,6 +43,59 @@ pub struct ObjectEntry {
     pub key: String,
     /// Value.
     pub value: Value,
+}
+
+/// Non-finite float values, which JSON cannot represent as numbers.
+///
+/// Follows protobuf's JSON mapping convention of spelling these out
+/// explicitly rather than silently coercing them to `null`.
+#[derive(Enum, Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum SpecialFloat {
+    Nan,
+    Infinity,
+    NegInfinity,
+}
+
+impl SpecialFloat {
+    pub(crate) fn as_f64(self) -> f64 {
+        match self {
+            SpecialFloat::Nan => f64::NAN,
+            SpecialFloat::Infinity => f64::INFINITY,
+            SpecialFloat::NegInfinity => f64::NEG_INFINITY,
+        }
+    }
+
+    /// Classify a non-finite float. Callers must check `!v.is_finite()` first.
+    pub(crate) fn of(v: f64) -> SpecialFloat {
+        if v.is_nan() {
+            SpecialFloat::Nan
+        } else if v > 0.0 {
+            SpecialFloat::Infinity
+        } else {
+            SpecialFloat::NegInfinity
+        }
+    }
+}
+
+/// The untagged-output sentinel for a non-finite float, mirroring protobuf's
+/// JSON mapping. Parsed back by type-directed decoders (`parse_special_float`).
+pub(crate) fn special_float_sentinel(v: f64) -> &'static str {
+    match SpecialFloat::of(v) {
+        SpecialFloat::Nan => "NaN",
+        SpecialFloat::Infinity => "Infinity",
+        SpecialFloat::NegInfinity => "-Infinity",
+    }
+}
+
+/// Parse an untagged-output float sentinel back to the value it encodes.
+pub(crate) fn parse_special_float(s: &str) -> Option<f64> {
+    match s {
+        "NaN" => Some(f64::NAN),
+        "Infinity" => Some(f64::INFINITY),
+        "-Infinity" => Some(f64::NEG_INFINITY),
+        _ => None,
+    }
 }
 
 #[derive(OneOfInput, Clone, Debug, Serialize, Deserialize)]
@@ -68,6 +119,10 @@ pub enum Value {
     /// 64 bit float.
     #[serde(serialize_with = "serialize_finite_f64")]
     F64(f64),
+    /// Non-finite 32 bit float (NaN, ±Infinity) — JSON has no number form for these.
+    F32Special(SpecialFloat),
+    /// Non-finite 64 bit float (NaN, ±Infinity) — JSON has no number form for these.
+    F64Special(SpecialFloat),
     /// String.
     Str(String),
     /// Boolean.
@@ -87,8 +142,10 @@ pub enum Value {
 }
 
 // JSON has no NaN/Infinity — `serde_json` would silently coerce them to `null`,
-// sending a malformed filter value. Reject non-finite floats at serialization
-// so a bad value surfaces as an error instead of a silent `null` on the wire.
+// sending a malformed value. Non-finite floats belong in the `F32Special` /
+// `F64Special` variants (`prop_to_value` routes them there); these guards keep
+// that invariant loud — a non-finite float reaching the numeric variants is a
+// bug, and surfaces as an error instead of a silent `null` on the wire.
 fn serialize_finite_f64<S: Serializer>(v: &f64, serializer: S) -> Result<S::Ok, S::Error> {
     if v.is_finite() {
         serializer.serialize_f64(*v)
@@ -120,6 +177,8 @@ impl Display for Value {
             Value::I64(v) => write!(f, "I64({})", v),
             Value::F32(v) => write!(f, "F32({})", v),
             Value::F64(v) => write!(f, "F64({})", v),
+            Value::F32Special(s) => write!(f, "F32({})", s.as_f64()),
+            Value::F64Special(s) => write!(f, "F64({})", s.as_f64()),
             Value::Str(v) => write!(f, "Str({})", v),
             Value::Bool(v) => write!(f, "Bool({})", v),
             Value::List(vs) => {
@@ -158,6 +217,8 @@ fn value_to_prop(value: Value) -> Result<Prop, GraphError> {
         Value::I64(n) => Ok(Prop::I64(n)),
         Value::F32(n) => Ok(Prop::F32(n)),
         Value::F64(n) => Ok(Prop::F64(n)),
+        Value::F32Special(s) => Ok(Prop::F32(s.as_f64() as f32)),
+        Value::F64Special(s) => Ok(Prop::F64(s.as_f64())),
         Value::Str(s) => Ok(Prop::Str(s.into())),
         Value::Bool(b) => Ok(Prop::Bool(b)),
         Value::List(list) => {
@@ -168,10 +229,10 @@ fn value_to_prop(value: Value) -> Result<Prop, GraphError> {
             Ok(Prop::List(prop_list.into()))
         }
         Value::Object(object) => {
-            let prop_map: FxHashMap<ArcStr, Prop> = object
+            let prop_map: PropMap = object
                 .into_iter()
                 .map(|oe| Ok::<_, GraphError>((ArcStr::from(oe.key), value_to_prop(oe.value)?)))
-                .collect::<Result<FxHashMap<_, _>, _>>()?;
+                .collect::<Result<PropMap, _>>()?;
             Ok(Prop::Map(Arc::new(prop_map)))
         }
         Value::DTime(s) => {
@@ -215,7 +276,9 @@ fn prop_to_value(p: &Prop) -> Result<Value, GraphError> {
         Prop::U64(v) => Value::U64(*v),
         Prop::I32(v) => Value::I32(*v),
         Prop::I64(v) => Value::I64(*v),
+        Prop::F32(v) if !v.is_finite() => Value::F32Special(SpecialFloat::of(*v as f64)),
         Prop::F32(v) => Value::F32(*v),
+        Prop::F64(v) if !v.is_finite() => Value::F64Special(SpecialFloat::of(*v)),
         Prop::F64(v) => Value::F64(*v),
         Prop::Bool(v) => Value::Bool(*v),
         Prop::NDTime(v) => Value::NDTime(v.format("%Y-%m-%dT%H:%M:%S%.3f").to_string()),
@@ -227,7 +290,9 @@ fn prop_to_value(p: &Prop) -> Result<Value, GraphError> {
             Value::List(items?)
         }
         Prop::Map(map) => {
-            let mut entries = map
+            // Map props are insertion-ordered, so iteration order is already
+            // deterministic and survives the wire round-trip.
+            let entries = map
                 .iter()
                 .map(|(k, v)| {
                     Ok(ObjectEntry {
@@ -236,9 +301,6 @@ fn prop_to_value(p: &Prop) -> Result<Value, GraphError> {
                     })
                 })
                 .collect::<Result<Vec<_>, GraphError>>()?;
-            // Map iteration order is nondeterministic — sort so the same prop
-            // always produces the same wire payload.
-            entries.sort_by(|a, b| a.key.cmp(&b.key));
             Value::Object(entries)
         }
     })
@@ -255,6 +317,30 @@ impl ScalarValue for GqlPropertyOutputVal {
 
     fn to_value(&self) -> GqlValue {
         prop_to_gql(&self.0)
+    }
+}
+
+/// A property's type, as `PropType`'s serde JSON form — round-trippable,
+/// unlike the human-readable string from `getDtypeOf`. Scalars are bare
+/// strings (`"F64"`), containers are tagged objects
+/// (`{"List": "F64"}`, `{"Map": {"a": "I64"}}`, `{"Decimal": {"scale": 2}}`).
+#[derive(Clone, Debug, Scalar)]
+#[graphql(name = "PropertyType")]
+pub struct GqlPropTypeOutput(pub PropType);
+
+impl ScalarValue for GqlPropTypeOutput {
+    fn from_value(value: GqlValue) -> Result<GqlPropTypeOutput, Error> {
+        let json = value.into_json().map_err(|e| Error::new(e.to_string()))?;
+        Ok(GqlPropTypeOutput(
+            serde_json::from_value(json).map_err(|e| Error::new(e.to_string()))?,
+        ))
+    }
+
+    fn to_value(&self) -> GqlValue {
+        serde_json::to_value(&self.0)
+            .ok()
+            .and_then(|v| GqlValue::from_json(v).ok())
+            .unwrap_or(GqlValue::Null)
     }
 }
 
@@ -277,7 +363,7 @@ pub(crate) fn gql_to_prop(value: GqlValue) -> Result<Prop, Error> {
         GqlValue::Object(obj) => Ok(obj
             .into_iter()
             .map(|(k, v)| gql_to_prop(v).map(|vv| (k.to_string(), vv)))
-            .collect::<Result<HashMap<String, Prop>, Error>>()?
+            .collect::<Result<Vec<(String, Prop)>, Error>>()?
             .into_prop_map()),
         GqlValue::String(s) => Ok(Prop::Str(s.into())),
         GqlValue::List(arr) => Ok(Prop::List(
@@ -299,12 +385,16 @@ fn prop_to_gql(prop: &Prop) -> GqlValue {
         Prop::I64(u) => GqlValue::Number(Number::from(*u)),
         Prop::U32(u) => GqlValue::Number(Number::from(*u)),
         Prop::U64(u) => GqlValue::Number(Number::from(*u)),
+        // Non-finite floats have no JSON number form — emit protobuf-style
+        // string sentinels ("NaN"/"Infinity"/"-Infinity") instead of a silent
+        // null. Type-directed decoders (which know the field is a float)
+        // convert these back losslessly.
         Prop::F32(u) => Number::from_f64(*u as f64)
-            .map(|number| GqlValue::Number(number))
-            .unwrap_or(GqlValue::Null),
+            .map(GqlValue::Number)
+            .unwrap_or_else(|| GqlValue::String(special_float_sentinel(*u as f64).to_string())),
         Prop::F64(u) => Number::from_f64(*u)
-            .map(|number| GqlValue::Number(number))
-            .unwrap_or(GqlValue::Null),
+            .map(GqlValue::Number)
+            .unwrap_or_else(|| GqlValue::String(special_float_sentinel(*u).to_string())),
         Prop::Bool(b) => GqlValue::Boolean(*b),
         Prop::List(l) => GqlValue::List(l.iter().map(|pp| prop_to_gql(&pp)).collect()),
         Prop::Map(m) => GqlValue::Object(
@@ -359,6 +449,12 @@ impl GqlProperty {
     async fn value(&self) -> GqlPropertyOutputVal {
         GqlPropertyOutputVal(self.prop.clone())
     }
+
+    /// The property's exact type, for type-directed decoding of `value`
+    /// (`value` alone collapses e.g. all integer widths to one JSON number).
+    async fn dtype(&self) -> GqlPropTypeOutput {
+        GqlPropTypeOutput(self.prop.dtype())
+    }
 }
 
 /// A `(time, value)` pair — the output type of temporal-property accessors
@@ -402,6 +498,11 @@ impl GqlPropertyTuple {
     async fn value(&self) -> GqlPropertyOutputVal {
         GqlPropertyOutputVal(self.prop.clone())
     }
+
+    /// The value's exact type, for type-directed decoding of `value`.
+    async fn dtype(&self) -> GqlPropTypeOutput {
+        GqlPropTypeOutput(self.prop.dtype())
+    }
 }
 
 /// The full timeline of a single property key on one entity. Exposes every
@@ -432,6 +533,13 @@ impl GqlTemporalProperty {
     /// The property key (name).
     async fn key(&self) -> String {
         self.key.clone()
+    }
+
+    /// The property's declared type, for type-directed decoding of stored
+    /// values (`values`, `at`, `latest`, `unique`, `min`, `max`, `median`,
+    /// `orderedDedupe`). Aggregates (`sum`, `mean`, `average`) may widen.
+    async fn dtype(&self) -> GqlPropTypeOutput {
+        GqlPropTypeOutput(self.prop.dtype())
     }
 
     /// Event history for this property — one entry per temporal update, in
@@ -863,11 +971,11 @@ mod value_serde_tests {
     }
 
     // Map-valued props are writable: they convert to the wire `object` form
-    // (key-sorted for a deterministic payload) and round-trip back to the
-    // same `Prop::Map`.
+    // (in insertion order) and round-trip back to the same `Prop::Map` with
+    // key order intact.
     #[test]
     fn map_prop_round_trips_as_object() {
-        let map: FxHashMap<ArcStr, Prop> = [
+        let map: PropMap = [
             (ArcStr::from("b"), Prop::I64(2)),
             (ArcStr::from("a"), Prop::str("x")),
         ]
@@ -880,9 +988,53 @@ mod value_serde_tests {
             panic!("expected Object, got {value:?}");
         };
         let keys: Vec<&str> = entries.iter().map(|e| e.key.as_str()).collect();
-        assert_eq!(keys, vec!["a", "b"]);
+        assert_eq!(keys, vec!["b", "a"]);
 
-        assert_eq!(value_to_prop(value.clone()).unwrap(), prop);
+        let round_tripped = value_to_prop(value.clone()).unwrap();
+        assert_eq!(round_tripped, prop);
+        let Prop::Map(rt_map) = round_tripped else {
+            panic!("expected Map");
+        };
+        let rt_keys: Vec<&str> = rt_map.keys().map(|k| k.as_ref()).collect();
+        assert_eq!(rt_keys, vec!["b", "a"]);
+    }
+
+    // Non-finite floats have no JSON number form — they ride in the
+    // `f64Special`/`f32Special` variants and convert back to real floats.
+    #[test]
+    fn non_finite_floats_round_trip_via_special_variants() {
+        for (input, expected) in [
+            (f64::NAN, SpecialFloat::Nan),
+            (f64::INFINITY, SpecialFloat::Infinity),
+            (f64::NEG_INFINITY, SpecialFloat::NegInfinity),
+        ] {
+            let value = Value::try_from(&Prop::F64(input)).unwrap();
+            let Value::F64Special(s) = &value else {
+                panic!("expected F64Special, got {value:?}");
+            };
+            assert_eq!(*s, expected);
+
+            let Prop::F64(back) = value_to_prop(value).unwrap() else {
+                panic!("expected F64 back");
+            };
+            assert!(back.is_nan() == input.is_nan() && (input.is_nan() || back == input));
+        }
+
+        let value = Value::try_from(&Prop::F32(f32::NEG_INFINITY)).unwrap();
+        assert_eq!(
+            serde_json::to_value(&value).unwrap(),
+            serde_json::json!({ "f32Special": "NEG_INFINITY" })
+        );
+        let Prop::F32(back) = value_to_prop(value).unwrap() else {
+            panic!("expected F32 back");
+        };
+        assert_eq!(back, f32::NEG_INFINITY);
+
+        // Finite floats keep the plain numeric form.
+        assert_eq!(
+            serde_json::to_value(Value::try_from(&Prop::F64(1.5)).unwrap()).unwrap(),
+            serde_json::json!({ "f64": 1.5 })
+        );
     }
 
     // The server's time parser accepts at most 3 fractional digits, so naive

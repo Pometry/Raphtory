@@ -10,13 +10,17 @@ use crossbeam_channel::RecvTimeoutError;
 use pyo3::{exceptions::PyRuntimeError, prelude::*, types::PyDict};
 use pythonize::depythonize;
 use raphtory::{db::api::storage::storage::Config, python::utils::block_on};
-#[cfg(feature = "vectors")]
-use raphtory::{
-    python::packages::vectors::{PyOpenAIEmbeddings, TemplateConfig},
-    vectors::template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
-};
 use raphtory_api::python::error::adapt_err_value;
 use std::{path::PathBuf, thread, time::Duration};
+
+#[cfg(feature = "vectors")]
+use {
+    pyo3::exceptions::PyAttributeError,
+    raphtory::{
+        python::packages::vectors::{PyOpenAIEmbeddings, TemplateConfig},
+        vectors::template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
+    },
+};
 
 /// A class for defining and running a Raphtory GraphQL server
 ///
@@ -45,7 +49,8 @@ use std::{path::PathBuf, thread, time::Duration};
 ///     max_recursive_depth (int, optional): Internal safety limit to prevent stack overflows from pathologically structured queries (async-graphql default is 32).
 ///     max_directives_per_field (int, optional): Maximum number of directives on any single field.
 ///     disable_introspection (bool, optional): If True, schema introspection is disabled entirely.
-///     permissions_store_path (str | PathLike, optional): Path to the permissions store (used by the optional auth extension).
+///     permissions_store_path (str | PathLike, optional): Seed file for admin-managed roles (alias for rbac.admin.seed_path).
+///     rbac (dict, optional): Role-management settings, under the `rbac` config key. poll_interval_secs, plus at most one source sub-table: ldap {url, bind_dn, bind_password_env, group_base_dn, group_filter, permissions_attribute}, opa {path, query}, json {path}, or admin {seed_path}. Sources are polled and read-only; admin is update-driven. The live store is materialised under <work_dir>/.permissions/. None set → RBAC off.
 #[pyclass(name = "GraphServer", module = "raphtory.graphql")]
 pub struct PyGraphServer(GraphServer);
 
@@ -109,15 +114,6 @@ impl PyGraphServer {
         let server = block_on(GraphServer::new(work_dir, app_config, Config::default()))?;
         let server = apply_server_extension(server, permissions_store_path.as_deref());
         Ok(PyGraphServer(server))
-    }
-
-    // TODO: remove this, should be config
-    /// Turn off index for all graphs.
-    ///
-    /// Returns:
-    ///     None:
-    fn turn_off_index(mut slf: PyRefMut<Self>) {
-        slf.0.turn_off_index()
     }
 
     /// Vectorise the graph name in the server working directory.

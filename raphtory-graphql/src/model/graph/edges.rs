@@ -3,13 +3,13 @@ use crate::{
         graph::{
             collection::{check_list_allowed, check_page_limit},
             edge::GqlEdge,
-            filtering::EdgesViewCollection,
+            filtering::{EdgesViewCollection, GqlFilter},
             path_from_node::GqlPathFromNode,
             timeindex::{GqlEventTime, GqlTimeInput},
             windowset::GqlEdgesWindowSet,
             GqlAlignmentUnit, WindowDuration,
         },
-        sorting::{EdgeSortBy, SortByTime},
+        sorting::{compare_node, EdgeSortBy, SortByTime},
     },
     rayon::blocking_compute,
 };
@@ -20,7 +20,7 @@ use raphtory::{
     core::utils::time::TryIntoInterval,
     db::{
         api::view::{internal::InternalFilter, DynamicGraph, EdgeSelect},
-        graph::edges::Edges,
+        graph::{edges::Edges, views::filter::model::DynFilter},
     },
     errors::GraphError,
     prelude::*,
@@ -305,7 +305,9 @@ impl GqlEdges {
                 }
                 EdgesViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await,
                 EdgesViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
-                EdgesViewCollection::EdgeFilter(filter) => return_view.filter(filter).await?,
+                EdgesViewCollection::EdgeFilter(filter) => {
+                    return_view.filter(GqlFilter::Edges(filter)).await?
+                }
             }
         }
 
@@ -332,7 +334,7 @@ impl GqlEdges {
     async fn sorted(
         &self,
         #[graphql(
-            desc = "Ordered list of sort keys. Each entry chooses exactly one of `src` / `dst` / `time` / `property`, with an optional `reverse: true` to flip order."
+            desc = "Ordered list of sort keys. Each entry chooses exactly one of `src` / `dst` / `neighbour` / `time` / `property`, with an optional `reverse: true` to flip order."
         )]
         sort_bys: Vec<EdgeSortBy>,
     ) -> Self {
@@ -346,11 +348,32 @@ impl GqlEdges {
                         Ordering::Equal,
                         |current_ordering, sort_by| {
                             current_ordering.then_with(|| {
-                                let ordering = if sort_by.src == Some(true) {
-                                    first_edge.src().id().partial_cmp(&second_edge.src().id())
-                                } else if sort_by.dst == Some(true) {
-                                    first_edge.dst().id().partial_cmp(&second_edge.dst().id())
-                                } else if let Some(sort_by_time) = sort_by.time {
+                                // Node keys resolve their endpoint and delegate
+                                // to `compare_node`, which applies the nested
+                                // `NodeSortBy.reverse`; they return directly so
+                                // the outer `reverse` below never double-negates.
+                                if let Some(src_sort) = sort_by.src.as_ref() {
+                                    return compare_node(
+                                        &first_edge.src(),
+                                        &second_edge.src(),
+                                        src_sort,
+                                    );
+                                }
+                                if let Some(dst_sort) = sort_by.dst.as_ref() {
+                                    return compare_node(
+                                        &first_edge.dst(),
+                                        &second_edge.dst(),
+                                        dst_sort,
+                                    );
+                                }
+                                if let Some(neighbour_sort) = sort_by.neighbour.as_ref() {
+                                    return compare_node(
+                                        &first_edge.nbr(),
+                                        &second_edge.nbr(),
+                                        neighbour_sort,
+                                    );
+                                }
+                                let ordering = if let Some(sort_by_time) = sort_by.time {
                                     let (first_time, second_time) = match sort_by_time {
                                         SortByTime::Latest => {
                                             (first_edge.latest_time(), second_edge.latest_time())
@@ -506,12 +529,14 @@ impl GqlEdges {
 
     async fn filter(
         &self,
-        #[graphql(desc = "Composite edge filter (by property, layer, src/dst, etc.).")]
-        expr: GqlEdgeFilter,
+        #[graphql(
+            desc = "Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection)."
+        )]
+        expr: GqlFilter,
     ) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let filter: CompositeEdgeFilter = expr.try_into()?;
+            let filter: DynFilter = expr.try_into()?;
             let filtered = self_clone.ee.filter(filter)?;
             Ok(self_clone.update(filtered.into_dyn()))
         })

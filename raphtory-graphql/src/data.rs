@@ -7,10 +7,9 @@ use crate::{
     model::{
         blocking_io,
         graph::{
-            filtering::{GraphAccessFilter, GraphRowFilter, HiddenKeys},
+            filtering::{GqlFilter, GraphAccessFilter, HiddenKeys},
             namespace::Namespace,
             namespaced_item::NamespacedItem,
-            vectorised_graph::GqlVectorisedGraph,
         },
     },
     paths::{
@@ -22,11 +21,6 @@ use crate::{
 };
 use async_graphql::{Context, ErrorExtensions};
 use dynamic_graphql::Enum;
-#[cfg(feature = "vectors")]
-use raphtory::vectors::{
-    cache::CachedEmbeddingModel, storage::LazyDiskVectorCache, template::DocumentTemplate,
-    vectorisable::Vectorisable, vectorised_graph::VectorisedGraph,
-};
 use raphtory::{
     db::{
         api::{
@@ -50,6 +44,15 @@ use std::{
 use tokio::sync::{OwnedRwLockReadGuard, OwnedRwLockWriteGuard, RwLock};
 use tracing::{debug, error, warn};
 use walkdir::WalkDir;
+
+#[cfg(feature = "vectors")]
+use {
+    crate::model::graph::vectorised_graph::GqlVectorisedGraph,
+    raphtory::vectors::{
+        cache::CachedEmbeddingModel, storage::LazyDiskVectorCache, template::DocumentTemplate,
+        vectorisable::Vectorisable, vectorised_graph::VectorisedGraph,
+    },
+};
 
 #[derive(thiserror::Error, Debug)]
 pub enum ParquetPathError {
@@ -263,7 +266,6 @@ impl WorkDirGuard {
 #[derive(Clone)]
 pub struct Data {
     inner: Arc<DataInner>,
-    pub(crate) create_index: bool,
 }
 
 impl Deref for Data {
@@ -296,13 +298,6 @@ impl Data {
 
         let cache = GraphCache::new(cache_configs.capacity as usize);
 
-        #[cfg(feature = "search")]
-        let create_index = configs.index.create_index;
-        #[cfg(not(feature = "search"))]
-        let create_index = false;
-
-        // TODO: make vector feature optional?
-
         Self {
             inner: Arc::new(DataInner {
                 work_dir: Arc::new(RwLock::new(work_dir.to_path_buf())),
@@ -313,7 +308,6 @@ impl Data {
                 auth_policy: None,
                 allowed_parquet_paths: configs.parquet.allowed_paths.clone(),
             }),
-            create_index,
         }
     }
 
@@ -591,7 +585,6 @@ impl Data {
         &self,
         folder: ExistingGraphFolder,
     ) -> Result<GraphWithVectors, GraphError> {
-        let create_index = self.create_index;
         let config = self.graph_conf.clone();
         #[cfg(feature = "vectors")]
         let cache = self.vector_cache.clone();
@@ -599,7 +592,6 @@ impl Data {
             &folder,
             #[cfg(feature = "vectors")]
             &cache,
-            create_index,
             config,
         )
         .await
@@ -712,7 +704,7 @@ fn require_at_least_read(
     if let Some(policy) = policy {
         return match policy.graph_permissions(ctx, path) {
             Err(msg) => {
-                debug!(graph = path, "Access denied by auth policy");
+                warn!(graph = path, "Access denied by auth policy");
                 let ns = parent_namespace(path);
                 if policy.namespace_permissions(ctx, ns).is_some() {
                     Err(gql_error_with_code(msg.to_string(), CODE_ACCESS_DENIED))
@@ -724,9 +716,11 @@ fn require_at_least_read(
                 if let Some(p) = perm.at_least_read() {
                     Ok(p)
                 } else {
+                    warn!(graph = path, "Permission denied: introspect-only access");
                     debug!(
                         graph = path,
-                        "Introspect-only access — graph() denied; use graphMetadata() instead"
+                        "Introspect-only grants can read graphMetadata() but not graph(); \
+                         use graphMetadata() instead or request a read grant"
                     );
                     Err(PermissionError::IntrospectOnly {
                         graph: path.to_string(),
@@ -737,6 +731,26 @@ fn require_at_least_read(
         };
     }
     Ok(GraphPermission::Write)
+}
+
+/// Gives the policy an asynchronous pass at an already-granted permission before its filter is
+/// applied (see [`AuthorizationPolicy::refine_permission`]). A no-op without a policy.
+async fn refine(
+    ctx: &Context<'_>,
+    policy: &Option<Arc<dyn AuthorizationPolicy>>,
+    path: &str,
+    perm: GraphPermission,
+) -> async_graphql::Result<GraphPermission> {
+    match policy {
+        Some(policy) => policy
+            .refine_permission(ctx, path, perm)
+            .await
+            .map_err(|msg| {
+                warn!(graph = path, "Access denied while refining permission");
+                msg.into()
+            }),
+        None => Ok(perm),
+    }
 }
 
 pub(crate) fn require_graph_write(
@@ -763,21 +777,21 @@ pub(crate) fn require_graph_write(
     }
 }
 
-/// Applies a `GraphRowFilter` to a `DynamicGraph`.
+/// Applies a row-level `GqlFilter` to a `DynamicGraph`.
 async fn apply_graph_filter(
     graph: DynamicGraph,
-    row_filter: GraphRowFilter,
+    row_filter: GqlFilter,
 ) -> async_graphql::Result<DynamicGraph> {
     blocking_compute(move || apply_row_filter_sync(graph, row_filter)).await
 }
 
 fn apply_row_filter_sync(
     graph: DynamicGraph,
-    filter: GraphRowFilter,
+    filter: GqlFilter,
 ) -> async_graphql::Result<DynamicGraph> {
     // And sub-filters are applied sequentially so that DynView (window/snapshot/layer)
     // sub-filters wrap the graph view before subsequent node/edge predicate filters run.
-    if let GraphRowFilter::And(filters) = filter {
+    if let GqlFilter::And(filters) = filter {
         return filters
             .into_iter()
             .try_fold(graph, |g, f| apply_row_filter_sync(g, f));
@@ -884,7 +898,11 @@ impl Data {
         graph_type: Option<GqlGraphType>,
     ) -> async_graphql::Result<Option<(UnlockedGraphFolder, DynamicGraph)>> {
         match require_at_least_read(ctx, &self.auth_policy, path) {
-            Ok(perm) => self.load_and_filter(path, perm, graph_type).await.map(Some),
+            Ok(perm) => match refine(ctx, &self.auth_policy, path, perm).await {
+                Ok(perm) => self.load_and_filter(path, perm, graph_type).await.map(Some),
+                // Refinement denied access — hide the graph, as with any other read denial.
+                Err(_) => Ok(None),
+            },
             Err(_) => Ok(None),
         }
     }
@@ -900,6 +918,7 @@ impl Data {
         graph_type: Option<GqlGraphType>,
     ) -> async_graphql::Result<(UnlockedGraphFolder, DynamicGraph)> {
         let perm = require_at_least_read(ctx, &self.auth_policy, path)?;
+        let perm = refine(ctx, &self.auth_policy, path, perm).await?;
         self.load_and_filter(path, perm, graph_type).await
     }
 
@@ -937,6 +956,7 @@ impl Data {
     /// Checks read permission then returns the vectorised graph, if any.
     /// Returns `None` for filtered-access users: embeddings are computed from the full graph
     /// and search results cannot be retroactively row-filtered.
+    #[cfg(feature = "vectors")]
     pub(crate) async fn get_vectors_with_read_permission(
         &self,
         ctx: &Context<'_>,
@@ -946,16 +966,8 @@ impl Data {
         if matches!(perm, GraphPermission::Read { filter: Some(_) }) {
             return Ok(None);
         }
-        #[cfg(feature = "vectors")]
-        {
-            let graph = self.get_graph(path).await?;
-            Ok(graph.vectors().cloned().map(|g| g.into()))
-        }
-        #[cfg(not(feature = "vectors"))]
-        {
-            let _ = path;
-            Err(async_graphql::Error::new("vectors feature not enabled"))
-        }
+        let graph = self.get_graph(path).await?;
+        Ok(graph.vectors().cloned().map(|g| g.into()))
     }
 }
 
@@ -1022,6 +1034,77 @@ pub(crate) mod data_tests {
         for graph in graphs.keys() {
             assert!(data.get_graph(graph).await.is_ok(), "could not get {graph}")
         }
+    }
+
+    /// After remote-style mutations, an explicit persist must rewrite the
+    /// metadata sidecar so cache-miss namespace listings report true counts.
+    #[tokio::test]
+    async fn test_persist_refreshes_metadata_sidecar_counts() {
+        use crate::paths::ExistingGraphFolder;
+
+        let tmp_work_dir = tempfile::tempdir().unwrap();
+        let data = Data::new(tmp_work_dir.path(), &Default::default(), Default::default());
+
+        // A fresh empty graph — its sidecar starts at 0 nodes / 0 edges.
+        let path = "people";
+        let folder = data
+            .work_dir_write()
+            .await
+            .validate_path_for_insert(path, false)
+            .unwrap();
+        let empty: MaterializedGraph = Graph::new().into();
+        data.insert_graph(folder, empty).await.unwrap();
+
+        // Remote-style mutations against the resident graph, without touching the sidecar.
+        let graph = data.get_graph_for_test(path).await.unwrap();
+        graph.add_edge(0, "a", "b", NO_PROPS, None).unwrap();
+        graph.add_node(0, "c", NO_PROPS, None, None).unwrap();
+        graph.set_dirty(true);
+
+        graph.persist().unwrap();
+
+        // The persisted sidecar (what cache-miss listings read) must reflect the writes.
+        let read_folder = ExistingGraphFolder::try_from(data.work_dir_read().await, path).unwrap();
+        let meta = read_folder.graph_folder().read_metadata().unwrap();
+        assert_eq!(meta.node_count, 3, "sidecar node_count stale after persist");
+        assert_eq!(meta.edge_count, 1, "sidecar edge_count stale after persist");
+    }
+
+    /// Eviction (here via `flush_and_clear`) must also persist true counts —
+    /// regression guard now that eviction and explicit flush share `persist`.
+    #[tokio::test]
+    async fn test_eviction_persists_metadata_sidecar_counts() {
+        use crate::paths::ExistingGraphFolder;
+
+        let tmp_work_dir = tempfile::tempdir().unwrap();
+        let data = Data::new(tmp_work_dir.path(), &Default::default(), Default::default());
+
+        let path = "people";
+        let folder = data
+            .work_dir_write()
+            .await
+            .validate_path_for_insert(path, false)
+            .unwrap();
+        let empty: MaterializedGraph = Graph::new().into();
+        data.insert_graph(folder, empty).await.unwrap();
+
+        let graph = data.get_graph_for_test(path).await.unwrap();
+        graph.add_edge(0, "a", "b", NO_PROPS, None).unwrap();
+        graph.set_dirty(true);
+        drop(graph);
+
+        data.cache.flush_and_clear();
+
+        let read_folder = ExistingGraphFolder::try_from(data.work_dir_read().await, path).unwrap();
+        let meta = read_folder.graph_folder().read_metadata().unwrap();
+        assert_eq!(
+            meta.node_count, 2,
+            "sidecar node_count stale after eviction"
+        );
+        assert_eq!(
+            meta.edge_count, 1,
+            "sidecar edge_count stale after eviction"
+        );
     }
 
     #[tokio::test]
