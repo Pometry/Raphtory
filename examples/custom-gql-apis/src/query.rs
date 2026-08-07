@@ -3,11 +3,11 @@ use async_graphql::{
     FieldResult,
 };
 use futures_util::future::BoxFuture;
-use raphtory_graphql::model::plugins::{operation::Operation, query_plugin::QueryPlugin};
+use raphtory_graphql::model::plugins::{operation::Operation, query_plugin::Plugins};
 
 pub(crate) struct HelloQuery;
 
-impl<'a> Operation<'a, QueryPlugin> for HelloQuery {
+impl<'a> Operation<'a, Plugins> for HelloQuery {
     type OutputType = String;
 
     fn output_type() -> TypeRef {
@@ -19,7 +19,7 @@ impl<'a> Operation<'a, QueryPlugin> for HelloQuery {
     }
 
     fn apply<'b>(
-        _entry_point: &QueryPlugin,
+        _entry_point: &Plugins,
         ctx: ResolverContext<'b>,
     ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>> {
         let name = ctx
