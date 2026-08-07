@@ -44,7 +44,15 @@ name = "graph_ops"
 harness = false
 
 [[bench]]
-name = "algobench"
+name = "algobench_fast"
+harness = false
+
+[[bench]]
+name = "algobench_medium"
+harness = false
+
+[[bench]]
+name = "algobench_slow"
 harness = false
 
 [[bench]]
