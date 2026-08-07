@@ -67,6 +67,9 @@ macro_rules! columnar_view_methods {
         #[pymethods]
         impl $ty {
             #[doc = concat!("All keys present across the ", $entity, " collection, in first-seen order. Fires one RPC.")]
+            #[doc = ""]
+            #[doc = "Returns:"]
+            #[doc = "    list[str]: the keys, in first-seen order."]
             pub fn keys(&self) -> Result<Vec<String>, ClientError> {
                 let inner = Arc::clone(&self.inner);
                 let data = execute_async_task(move || async move { inner.fetch().await })?;
@@ -74,6 +77,12 @@ macro_rules! columnar_view_methods {
             }
 
             #[doc = concat!("The column of values for `key` — one entry per ", $entity, " member (nested per source for nested collections), `None` where a member lacks the key. Returns `None` if no member has the key. Fires one RPC.")]
+            #[doc = ""]
+            #[doc = "Arguments:"]
+            #[doc = concat!("    key (str): the ", $entity, " name to look up.")]
+            #[doc = ""]
+            #[doc = "Returns:"]
+            #[doc = "    Optional[list]: the column of values, or `None` if no member has the key."]
             pub fn get(&self, py: Python<'_>, key: String) -> PyResult<Option<Py<PyAny>>> {
                 let inner = Arc::clone(&self.inner);
                 let data = execute_async_task(move || async move { inner.fetch().await })?;
@@ -81,6 +90,9 @@ macro_rules! columnar_view_methods {
             }
 
             #[doc = "One column per key, in key order. Fires one RPC."]
+            #[doc = ""]
+            #[doc = "Returns:"]
+            #[doc = "    list: one column per key, in key order."]
             pub fn values(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
                 let inner = Arc::clone(&self.inner);
                 let data = execute_async_task(move || async move { inner.fetch().await })?;
@@ -94,6 +106,9 @@ macro_rules! columnar_view_methods {
             }
 
             #[doc = "All `(key, column)` entries, in key order. Fires one RPC."]
+            #[doc = ""]
+            #[doc = "Returns:"]
+            #[doc = "    list[tuple[str, list]]: the `(key, column)` entries, in key order."]
             pub fn items(&self, py: Python<'_>) -> PyResult<Vec<(String, Py<PyAny>)>> {
                 let inner = Arc::clone(&self.inner);
                 let data = execute_async_task(move || async move { inner.fetch().await })?;
@@ -107,6 +122,9 @@ macro_rules! columnar_view_methods {
             }
 
             #[doc = "All `(key, column)` entries as a native Python `dict`. Fires one RPC."]
+            #[doc = ""]
+            #[doc = "Returns:"]
+            #[doc = "    dict[str, list]: the columns, keyed by key."]
             pub fn as_dict(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
                 let inner = Arc::clone(&self.inner);
                 let data = execute_async_task(move || async move { inner.fetch().await })?;
