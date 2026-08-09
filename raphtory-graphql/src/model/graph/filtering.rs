@@ -276,10 +276,7 @@ pub enum PathFromNodeViewCollection {
     ShrinkEnd(GqlTimeInput),
 }
 
-// Serialized as a GraphQL enum VALUE (not a field-name key), using the
-// SCREAMING_SNAKE_CASE names (`NODE_ID`/`NODE_NAME`/`NODE_TYPE`) that
-// async_graphql's `Enum` derive emits — the same spelling on the input and
-// persisted-filter paths.
+// The node field a filter targets, as a GraphQL enum value (`NODE_ID`/`NODE_NAME`/`NODE_TYPE`).
 #[derive(Enum, Copy, Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum NodeField {
