@@ -75,10 +75,10 @@ pub enum Value {
     /// Object.
     Object(Vec<ObjectEntry>),
     /// Timezone-aware datetime.
-    #[serde(rename = "dtime", alias = "dTime")]
+    #[serde(rename = "dtime")]
     DTime(String),
     /// Naive datetime (no timezone).
-    #[serde(rename = "ndtime", alias = "nDTime")]
+    #[serde(rename = "ndtime")]
     NDTime(String),
     /// BigDecimal number (string representation, e.g. "3.14159" or "123e-5").
     Decimal(String),
@@ -826,25 +826,14 @@ impl GqlTemporalProperties {
 mod value_serde_tests {
     use super::*;
 
-    // Datetime variants must serialize to the schema field names `dtime`/`ndtime`
-    // (the OneOfInput @oneOf shape), NOT camelCase `dTime`/`nDTime`.
+    // Datetime variants serialize to the schema field names `dtime`/`ndtime`
+    // (the OneOfInput @oneOf shape) — the same spelling on every path.
     #[test]
     fn datetime_variants_use_schema_field_names() {
         let d = serde_json::to_value(Value::DTime("2020-01-01T00:00:00Z".to_owned())).unwrap();
         assert_eq!(d, serde_json::json!({ "dtime": "2020-01-01T00:00:00Z" }));
         let nd = serde_json::to_value(Value::NDTime("2020-01-01T00:00:00".to_owned())).unwrap();
         assert_eq!(nd, serde_json::json!({ "ndtime": "2020-01-01T00:00:00" }));
-    }
-
-    // Aliases keep any filter JSON stored under the old camelCase keys readable.
-    #[test]
-    fn datetime_variants_accept_legacy_camelcase_aliases() {
-        let d: Value =
-            serde_json::from_value(serde_json::json!({ "dTime": "2020-01-01T00:00:00Z" })).unwrap();
-        assert!(matches!(d, Value::DTime(_)));
-        let nd: Value =
-            serde_json::from_value(serde_json::json!({ "nDTime": "2020-01-01T00:00:00" })).unwrap();
-        assert!(matches!(nd, Value::NDTime(_)));
     }
 
     #[test]

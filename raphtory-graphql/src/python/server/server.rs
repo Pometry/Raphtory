@@ -96,6 +96,7 @@ impl PyGraphServer {
         )
     )]
     fn py_new(
+        py: Python<'_>,
         work_dir: PathBuf,
         config_path: Option<PathBuf>,
         permissions_store_path: Option<PathBuf>,
@@ -112,7 +113,10 @@ impl PyGraphServer {
         }
         let app_config = Some(app_config_builder.build());
         let server = block_on(GraphServer::new(work_dir, app_config, Config::default()))?;
-        let server = apply_server_extension(server, permissions_store_path.as_deref());
+        // The extension may block during startup; release the GIL so it doesn't freeze the
+        // interpreter and an in-process dependency can still respond.
+        let server =
+            py.detach(|| apply_server_extension(server, permissions_store_path.as_deref()));
         Ok(PyGraphServer(server))
     }
 

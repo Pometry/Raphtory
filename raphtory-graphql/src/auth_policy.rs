@@ -147,6 +147,13 @@ pub trait AuthorizationPolicy: Send + Sync + 'static {
         Box::pin(std::future::ready(Ok(perm)))
     }
 
+    /// Whether the principal has unfiltered read (`Write`, or `Read` with no filter) on the graph.
+    /// Gates the metadata/count summaries that are served from stored metadata without the access
+    /// filter applied. Defaults to the level reported by [`Self::graph_permissions`].
+    fn full_read(&self, ctx: &async_graphql::Context<'_>, path: &str) -> bool {
+        matches!(self.graph_permissions(ctx, path), Ok(p) if p.level() >= PermissionLevel::Read)
+    }
+
     /// Called after a graph is successfully created to auto-grant `Write` for the creator's role.
     /// Returns an error if the grant cannot be persisted; the caller is responsible for rolling
     /// back the graph creation so the store and filesystem stay consistent.

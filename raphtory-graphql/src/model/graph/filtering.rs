@@ -276,27 +276,24 @@ pub enum PathFromNodeViewCollection {
     ShrinkEnd(GqlTimeInput),
 }
 
-// Serialized as a GraphQL enum VALUE (not a field-name key). When sent as a
-// query variable it must match the schema's SCREAMING_SNAKE_CASE names
-// (`NODE_ID`/`NODE_NAME`/`NODE_TYPE`) that async_graphql's `Enum` derive emits.
-// Aliases keep any filter JSON stored under the old camelCase readable.
+// Serialized as a GraphQL enum VALUE (not a field-name key), using the
+// SCREAMING_SNAKE_CASE names (`NODE_ID`/`NODE_NAME`/`NODE_TYPE`) that
+// async_graphql's `Enum` derive emits — the same spelling on the input and
+// persisted-filter paths.
 #[derive(Enum, Copy, Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum NodeField {
     /// Node ID field.
     ///
     /// Represents the graph’s node identifier (numeric or string-backed in the API).
-    #[serde(alias = "nodeId")]
     NodeId,
     /// Node name field.
     ///
     /// Represents the human-readable node name (string).
-    #[serde(alias = "nodeName")]
     NodeName,
     /// Node type field.
     ///
     /// Represents the optional node type assigned at node creation (string).
-    #[serde(alias = "nodeType")]
     NodeType,
 }
 
@@ -616,12 +613,8 @@ pub enum GqlGraphFilter {
 #[serde(rename_all = "camelCase")]
 pub enum GqlFilter {
     /// Filter by node properties, fields, or temporal state.
-    /// (Persisted filters may use the legacy `node` key.)
-    #[serde(alias = "node")]
     Nodes(GqlNodeFilter),
     /// Filter by edge properties, source/destination, or temporal state.
-    /// (Persisted filters may use the legacy `edge` key.)
-    #[serde(alias = "edge")]
     Edges(GqlEdgeFilter),
     /// Apply a graph-level view (window, snapshot, layer restriction, …).
     Graph(GqlGraphFilter),
@@ -2583,28 +2576,13 @@ mod filter_serde_goldens {
     }
 
     #[test]
-    fn datetime_value_golden_and_legacy_alias() {
-        // Serialization uses the schema field name `dtime`...
+    fn datetime_value_golden() {
+        // Serialization uses the schema field name `dtime` — the same on every path.
         let v = Value::DTime("2020-01-01T00:00:00Z".into());
         assert_eq!(
             serde_json::to_value(&v).unwrap(),
             serde_json::json!({"dtime": "2020-01-01T00:00:00Z"})
         );
-        // ...and a permission filter persisted under the OLD camelCase key still loads.
-        let legacy: Value =
-            serde_json::from_value(serde_json::json!({"dTime": "2020-01-01T00:00:00Z"})).unwrap();
-        assert!(matches!(legacy, Value::DTime(_)));
-    }
-
-    #[test]
-    fn node_field_legacy_camelcase_alias_loads() {
-        // A permission store written before the SCREAMING_SNAKE `NodeField`
-        // rename must still deserialize (`nodeName` -> `NODE_NAME`).
-        let f: GqlNodeFilter = serde_json::from_value(
-            serde_json::json!({"node": {"field": "nodeName", "where": {"eq": {"str": "alice"}}}}),
-        )
-        .unwrap();
-        assert!(matches!(f, GqlNodeFilter::Node(_)));
     }
 }
 
@@ -2836,41 +2814,6 @@ mod conversion_hole_tests {
             matches!(gql, GqlNodeFilter::Node(_)),
             "Layer::All should drop the layer wrapper, got {gql:?}"
         );
-    }
-}
-
-#[cfg(test)]
-mod stored_access_filter_compat_tests {
-    use super::*;
-
-    // Permission stores written before the row-filter/GqlFilter merge used
-    // `node`/`edge` keys; the serde aliases must keep those loading, while new
-    // writes use the `nodes`/`edges` spelling.
-    #[test]
-    fn legacy_row_filter_keys_still_deserialize() {
-        let legacy = r#"{
-            "filter": {"or": [
-                {"node": {"property": {"name": "team", "where": {"eq": {"str": "sales"}}}}},
-                {"edge": {"property": {"name": "kind", "where": {"eq": {"str": "public"}}}}}
-            ]},
-            "hidden_properties": {"node": ["salary"]}
-        }"#;
-        let parsed: GraphAccessFilter = serde_json::from_str(legacy).unwrap();
-        let Some(GqlFilter::Or(items)) = parsed.filter else {
-            panic!("expected an or-filter");
-        };
-        assert!(matches!(items[0], GqlFilter::Nodes(_)));
-        assert!(matches!(items[1], GqlFilter::Edges(_)));
-
-        // Re-serialization uses the current spelling.
-        let json = serde_json::to_string(&GqlFilter::Nodes(GqlNodeFilter::Property(
-            PropertyFilterNew {
-                name: "x".into(),
-                where_: PropCondition::Eq(Value::I64(1)),
-            },
-        )))
-        .unwrap();
-        assert!(json.starts_with(r#"{"nodes":"#));
     }
 }
 

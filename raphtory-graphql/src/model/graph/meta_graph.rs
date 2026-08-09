@@ -68,6 +68,14 @@ impl MetaGraph {
             })
             .await?)
     }
+
+    /// Whether the caller has unfiltered read; gates the summary fields below, which are read from
+    /// stored metadata without the access filter applied.
+    fn caller_has_full_read(&self, ctx: &Context<'_>, data: &Data) -> bool {
+        data.auth_policy
+            .as_ref()
+            .map_or(true, |p| p.full_read(ctx, self.folder.local_path()))
+    }
 }
 
 #[ResolvedObjectFields]
@@ -98,37 +106,48 @@ impl MetaGraph {
         Ok(self.folder.last_updated_async().await?)
     }
 
-    /// Returns the number of nodes in the graph.
-    async fn node_count(&self, ctx: &Context<'_>) -> Result<usize> {
+    /// Returns the number of nodes in the graph, or null if the caller lacks unfiltered read.
+    async fn node_count(&self, ctx: &Context<'_>) -> Result<Option<usize>> {
         let data: &Data = ctx.data_unchecked();
-        Ok(self.meta(data).await?.node_count)
+        if !self.caller_has_full_read(ctx, data) {
+            return Ok(None);
+        }
+        Ok(Some(self.meta(data).await?.node_count))
     }
 
-    /// Returns the number of edges in the graph.
+    /// Returns the number of edges in the graph, or null if the caller lacks unfiltered read.
     ///
     /// Returns:
     ///     int:
-    async fn edge_count(&self, ctx: &Context<'_>) -> Result<usize> {
+    async fn edge_count(&self, ctx: &Context<'_>) -> Result<Option<usize>> {
         let data: &Data = ctx.data_unchecked();
-        Ok(self.meta(data).await?.edge_count)
+        if !self.caller_has_full_read(ctx, data) {
+            return Ok(None);
+        }
+        Ok(Some(self.meta(data).await?.edge_count))
     }
 
-    /// Returns the metadata of the graph.
+    /// Returns the metadata of the graph, or null if the caller lacks unfiltered read.
     ///
     /// Reads metadata without forcing a full graph load: from the
     /// in-memory cache if the graph is already loaded, otherwise directly
     /// from disk (parquet metadata for parquet-backed graphs, the
     /// `graph_props` segment for disk-backed graphs). This keeps
     /// `MetaGraph.metadata` cheap for namespace listings of many graphs.
-    async fn metadata(&self, ctx: &Context<'_>) -> Result<Vec<GqlProperty>> {
+    async fn metadata(&self, ctx: &Context<'_>) -> Result<Option<Vec<GqlProperty>>> {
         let data: &Data = ctx.data_unchecked();
+        if !self.caller_has_full_read(ctx, data) {
+            return Ok(None);
+        }
         if let Some(graph) = data.get_cached_graph(self.folder.local_path()).await {
-            return Ok(graph
-                .graph()
-                .metadata()
-                .iter()
-                .filter_map(|(key, value)| value.map(|prop| GqlProperty::new(key.into(), prop)))
-                .collect());
+            return Ok(Some(
+                graph
+                    .graph()
+                    .metadata()
+                    .iter()
+                    .filter_map(|(key, value)| value.map(|prop| GqlProperty::new(key.into(), prop)))
+                    .collect(),
+            ));
         }
 
         if self.meta(data).await?.is_diskgraph {
@@ -138,15 +157,19 @@ impl MetaGraph {
                 .graph_path()
                 .map_err(GraphError::from)?;
             let pairs = read_constant_graph_properties(&graph_path).map_err(GraphError::from)?;
-            return Ok(pairs
-                .into_iter()
-                .map(|(key, prop)| GqlProperty::new(key.to_string(), prop))
-                .collect());
+            return Ok(Some(
+                pairs
+                    .into_iter()
+                    .map(|(key, prop)| GqlProperty::new(key.to_string(), prop))
+                    .collect(),
+            ));
         }
 
-        Ok(decode_graph_metadata(self.folder.graph_folder())?
-            .into_iter()
-            .filter_map(|(key, value)| value.map(|prop| GqlProperty::new(key, prop)))
-            .collect())
+        Ok(Some(
+            decode_graph_metadata(self.folder.graph_folder())?
+                .into_iter()
+                .filter_map(|(key, value)| value.map(|prop| GqlProperty::new(key, prop)))
+                .collect(),
+        ))
     }
 }

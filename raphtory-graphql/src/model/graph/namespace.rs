@@ -198,7 +198,7 @@ fn is_graph_visible(
         .map_or(true, |p| p.graph_permissions(ctx, &g.local_path()).is_ok())
 }
 
-fn is_namespace_visible(
+pub(crate) fn is_namespace_visible(
     ctx: &Context<'_>,
     policy: &Option<Arc<dyn AuthorizationPolicy>>,
     n: &Namespace,
