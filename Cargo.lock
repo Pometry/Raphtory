@@ -6515,6 +6515,7 @@ dependencies = [
  "dynamic-graphql",
  "field_types",
  "futures-util",
+ "indexmap 2.14.0",
  "itertools 0.15.0",
  "jsonwebtoken",
  "minijinja",

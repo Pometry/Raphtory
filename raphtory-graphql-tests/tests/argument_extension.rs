@@ -20,12 +20,7 @@ struct TestArgs {
     test: Option<String>,
 }
 
-#[typetag::serde(name = "test")]
 impl ArgumentExtension for TestArgs {
-    fn dyn_update_from_arg_matches(&mut self, matches: &ArgMatches) -> Result<(), Error> {
-        self.update_from_arg_matches(matches)
-    }
-
     fn process_args(&self, server: GraphServer) -> Result<GraphServer, ServerError> {
         match self.test.clone() {
             None => Ok(server),
@@ -38,8 +33,8 @@ impl ArgumentExtension for TestArgs {
         }
     }
 
-    fn boxed_clone(&self) -> Box<dyn ArgumentExtension> {
-        Box::new(self.clone())
+    fn name(&self) -> &str {
+        "test"
     }
 }
 
@@ -66,16 +61,9 @@ impl RegisterPlugin for TestSchemaPlugin {
 
 struct TestArgPlugin;
 impl ArgumentExtensionPlugin for TestArgPlugin {
-    fn new_args(&self) -> Box<dyn ArgumentExtension> {
-        Box::new(TestArgs::default())
-    }
-
-    fn augment_args(&self, cmd: Command) -> Command {
-        TestArgs::augment_args(cmd)
-    }
-
-    fn augment_args_for_update(&self, cmd: Command) -> Command {
-        TestArgs::augment_args_for_update(cmd)
+    type Extension = TestArgs;
+    fn new_args(&self) -> Self::Extension {
+        TestArgs::default()
     }
 }
 
@@ -162,4 +150,28 @@ async fn test_extension_via_conf() {
         error.message,
         "Unknown field \"test\" on type \"QueryRoot\"."
     );
+}
+
+#[tokio::test]
+async fn test_config_file_support() {
+    register_cli_plugin(TestArgPlugin);
+    let mut cmd = raphtory_graphql::cli::Args::command();
+
+    // check the processing works
+    let args_input: Vec<&str> = vec![r"raphtory-server", "server", "--test", "test"];
+    let args = raphtory_graphql::cli::Args::try_parse_from(args_input).unwrap();
+    let config = match args.command {
+        Commands::Server(server_args) => AppConfigBuilder::new()
+            .update_from_args(&server_args)
+            .unwrap()
+            .build(),
+        Commands::Schema => {
+            panic!("expected server args")
+        }
+    };
+
+    let json_config = json!(config);
+
+    println!("{}", json_config);
+    assert_eq!(json_config["extensions"]["test"]["test"], json!("test"));
 }

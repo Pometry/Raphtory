@@ -1,6 +1,9 @@
 use super::auth_config::{AuthConfig, AuthConfigFieldName, PublicKeyError};
 use crate::{
-    cli::{ArgExtensions, ArgumentExtension, ArgumentExtensionPlugin, ServerArgs},
+    cli::{
+        ArgExtensions, ArgumentExtension, ArgumentExtensionImpl, ArgumentExtensionPlugin,
+        ServerArgs,
+    },
     config::{
         cache_config::{CacheConfig, CacheConfigFieldName},
         concurrency_config::{ConcurrencyConfig, ConcurrencyConfigFieldName},
@@ -11,10 +14,10 @@ use crate::{
     },
     server::ServerError,
 };
+use async_graphql::indexmap::IndexMap;
 use config::{Config, ConfigError, File};
 use field_types::FieldName;
 use itertools::Itertools;
-use opentelemetry::Value;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
@@ -149,6 +152,9 @@ impl AppConfigBuilder {
         }
         if let Some(disable_introspection) = server_args.disable_introspection {
             self.with_disable_introspection(disable_introspection);
+        }
+        for ext in server_args.extensions.iter() {
+            self.with_boxed_extension(ext.boxed_clone());
         }
         Ok(self)
     }
@@ -381,8 +387,8 @@ impl AppConfigBuilder {
                     );
                 }
                 AppConfigFieldName::Extensions => {
-                    let extensions: Vec<Box<dyn ArgumentExtension>> =
-                        Deserialize::deserialize(value).map_err(|e| invalid_value([path], e))?;
+                    let extensions =
+                        ArgExtensions::deserialize(value).map_err(|e| invalid_value([path], e))?;
                     for ext in extensions {
                         self.with_boxed_extension(ext);
                     }
@@ -535,11 +541,11 @@ impl AppConfigBuilder {
         self
     }
 
-    pub fn with_extension(&mut self, extension: impl ArgumentExtension) -> &mut Self {
+    pub fn with_extension(&mut self, extension: impl ArgumentExtensionImpl) -> &mut Self {
         self.with_boxed_extension(Box::new(extension))
     }
 
-    pub fn with_boxed_extension(&mut self, extension: Box<dyn ArgumentExtension>) -> &mut Self {
+    pub fn with_boxed_extension(&mut self, extension: Box<dyn ArgumentExtensionImpl>) -> &mut Self {
         self.config.extensions.push_boxed(extension);
         self
     }
