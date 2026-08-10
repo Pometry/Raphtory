@@ -276,21 +276,24 @@ impl PyRemoteNode {
     /// Arguments:
     ///   t (int | str | datetime): The timestamp at which the updates should be applied.
     ///   properties (dict[str, PropValue], optional): A dictionary of properties to update.
+    ///   layer (str, optional): The layer the updates belong to. Defaults to the
+    ///       graph's default layer.
     ///   event_id (int, optional): Secondary index to disambiguate multiple
     ///       updates at the same timestamp. If omitted, the server auto-increments it.
     ///
     /// Returns:
     ///   None:
-    #[pyo3(signature = (t, properties=None, event_id=None))]
+    #[pyo3(signature = (t, properties=None, layer=None, event_id=None))]
     pub fn add_updates(
         &self,
         t: EventTime,
         properties: Option<HashMap<String, Prop>>,
+        layer: Option<String>,
         event_id: Option<usize>,
     ) -> Result<(), ClientError> {
         let node = Arc::clone(&self.node);
 
-        let task = move || async move { node.add_updates(t, properties, event_id).await };
+        let task = move || async move { node.add_updates(t, properties, layer, event_id).await };
         execute_async_task(task)?;
 
         Ok(())

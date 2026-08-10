@@ -1177,6 +1177,8 @@ pub struct AddNodeUpdates {
     pub id: String,
     pub time: InputTime,
     pub properties: Option<HashMap<String, Prop>>,
+    /// Layer the update belongs to; the server uses the default layer when omitted.
+    pub layer: Option<String>,
 }
 
 /// Arguments for `RemoteNode::add_metadata` — adds non-temporal metadata to a

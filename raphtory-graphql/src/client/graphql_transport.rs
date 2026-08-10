@@ -327,10 +327,10 @@ impl GraphqlTransport {
     ) -> Result<Option<Prop>, ClientError> {
         let query = r#"
             query($path: String!, $name: NodeId!, $time: TimeInput!,
-                     $properties: [PropertyInput!]) {
+                     $properties: [PropertyInput!], $layer: String) {
               updateGraph(path: $path) {
                 node(name: $name) {
-                  addUpdates(time: $time, properties: $properties)
+                  addUpdates(time: $time, properties: $properties, layer: $layer)
                 }
               }
             }
@@ -341,6 +341,7 @@ impl GraphqlTransport {
             "name": json!(args.id),
             "time": input_time_var(&args.time),
             "properties": opt_properties_var(&args.properties)?,
+            "layer": json!(args.layer),
         });
         let res = self.client.query(query, variables).await?;
         ensure_write_target_present(&res, "node", format!("node '{}'", args.id))?;

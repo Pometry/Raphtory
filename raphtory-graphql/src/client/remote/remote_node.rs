@@ -504,6 +504,7 @@ impl RemoteNode {
         &self,
         t: T,
         properties: Option<HashMap<String, Prop>>,
+        layer: Option<String>,
         event_id: Option<usize>,
     ) -> Result<(), ClientError> {
         let op = Op::Write(WriteOp::AddNodeUpdates(AddNodeUpdatesOp {
@@ -511,6 +512,7 @@ impl RemoteNode {
             id: self.id.clone(),
             time: input_time_from_parts(t.into_time().t(), event_id),
             properties,
+            layer,
         }));
         self.transport.execute(&op).await?;
         Ok(())

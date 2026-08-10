@@ -133,9 +133,9 @@ def assert_parity(pair, fn):
         )
         return
 
-    assert canonical(local_result) == canonical(remote_result), (
-        f"value parity mismatch: local={local_result!r} remote={remote_result!r}"
-    )
+    assert canonical(local_result) == canonical(
+        remote_result
+    ), f"value parity mismatch: local={local_result!r} remote={remote_result!r}"
 
 
 # --- divergence ledger ------------------------------------------------------
@@ -153,4 +153,20 @@ KNOWN_GAPS = {
     "path_from_graph.write": "PathFromGraph write mutators missing on remote",
     "nested_edges.write": "NestedEdges write mutators missing on remote",
     "fuzzy_filter": "FuzzySearch filter operator not representable over the wire",
+    # Write-path gaps. These run in the *other* direction to the ones above:
+    # remote has the API and the local `Graph` does not, so the drop-in surface
+    # is still whole — but a graph-agnostic `build` cannot use them, which is
+    # exactly what a ledger entry is for.
+    "graph.add_nodes": (
+        "batch add_nodes exists on RemoteGraph only; local Graph has no batch "
+        "write API, so batch writes are compared against the equivalent loop"
+    ),
+    "graph.add_edges": (
+        "batch add_edges exists on RemoteGraph only; local Graph has no batch "
+        "write API, so batch writes are compared against the equivalent loop"
+    ),
+    "temporal_property.latest": (
+        "RemoteTemporalProperty.latest() has no local TemporalProperty "
+        "equivalent (local exposes latest() on TemporalProperties only)"
+    ),
 }
