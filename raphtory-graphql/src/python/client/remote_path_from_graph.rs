@@ -5,6 +5,7 @@ use crate::{
         remote_history::PyRemoteHistory,
         remote_nested_edges::PyRemoteNestedEdges,
         remote_node::PyRemoteNode,
+        remote_path_from_node::PyRemotePathFromNode,
     },
 };
 use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyRef, PyRefMut, PyResult};
@@ -575,19 +576,30 @@ impl PyRemotePathFromGraph {
             .collect())
     }
 
-    /// Enables `for row in remote_path_from_graph:` — fetches everything in one
-    /// RPC, then yields each per-source `list[RemoteNode]`.
+    /// Enables `for source, path in remote_path_from_graph:` — mirrors the local
+    /// `PathFromGraph`, which pairs each source node with that source's own
+    /// `PathFromNode`. Fetches the source ids in one RPC; the yielded path is a
+    /// lazy handle that still chains (`path.window(..)`, `path.degree()`, ...).
+    ///
+    /// Returns:
+    ///   Iterator[tuple[RemoteNode, RemotePathFromNode]]: one `(source, path)`
+    ///     pair per source node.
     fn __iter__(&self) -> Result<PyRemotePathFromGraphIter, ClientError> {
-        let list = self.collect()?;
+        let path = Arc::clone(&self.path);
+        let pairs = execute_async_task(move || async move { path.pairs().await })?;
         Ok(PyRemotePathFromGraphIter {
-            inner: list.into_iter(),
+            inner: pairs
+                .into_iter()
+                .map(|(source, path)| (PyRemoteNode::new(source), PyRemotePathFromNode::new(path)))
+                .collect::<Vec<_>>()
+                .into_iter(),
         })
     }
 }
 
 #[pyclass(name = "RemotePathFromGraphIter", module = "raphtory.graphql")]
 pub struct PyRemotePathFromGraphIter {
-    inner: std::vec::IntoIter<Vec<PyRemoteNode>>,
+    inner: std::vec::IntoIter<(PyRemoteNode, PyRemotePathFromNode)>,
 }
 
 #[pymethods]
@@ -596,7 +608,7 @@ impl PyRemotePathFromGraphIter {
         slf
     }
 
-    fn __next__(mut slf: PyRefMut<Self>) -> Option<Vec<PyRemoteNode>> {
+    fn __next__(mut slf: PyRefMut<Self>) -> Option<(PyRemoteNode, PyRemotePathFromNode)> {
         slf.inner.next()
     }
 }

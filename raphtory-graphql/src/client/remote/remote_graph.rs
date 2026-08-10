@@ -840,12 +840,13 @@ impl RemoteGraph {
         src: G,
         dst: G,
         layer: Option<String>,
+        event_id: Option<usize>,
     ) -> Result<RemoteEdge, ClientError> {
         let src_str = src.to_string();
         let dst_str = dst.to_string();
         let op = Op::Write(WriteOp::DeleteEdge(DeleteEdgeOp {
             path: self.path.clone(),
-            time: input_time_from_parts(timestamp.into_time().t(), None),
+            time: input_time_from_parts(timestamp.into_time().t(), event_id),
             src: src_str.clone(),
             dst: dst_str.clone(),
             layer,

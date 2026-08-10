@@ -353,6 +353,20 @@ impl GqlPathFromGraph {
         .await)
     }
 
+    /// Columnar `sourceIds`: the id of the source node each path hangs off, in
+    /// the same order as `ids` / `list` — one entry per source path, so entry
+    /// `i` of `sourceIds` and entry `i` of `ids` describe the same pair. Lets a
+    /// client reconstruct the `(source, path)` pairing in ONE request instead of
+    /// one request per source. Computed in ONE `blocking_compute`, like `ids`.
+    async fn source_ids(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<String>> {
+        check_list_allowed(ctx)?;
+        let self_clone = self.clone();
+        Ok(
+            blocking_compute(move || self_clone.nn.iter().map(|(src, _)| src.name()).collect())
+                .await,
+        )
+    }
+
     /// Columnar `degree`: each source node's per-neighbour degrees as `[[Int]]`,
     /// computed in ONE `blocking_compute`. Fast-path for `list { degree }`.
     async fn degree(&self, ctx: &Context<'_>) -> async_graphql::Result<NestedIntList> {

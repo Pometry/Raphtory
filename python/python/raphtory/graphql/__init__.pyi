@@ -603,7 +603,7 @@ class RemoteGraph(object):
     def default_layer(self):
         """Restrict to the default layer. Lazy — no RPC."""
 
-    def delete_edge(self, timestamp: int, src: str | int, dst: str | int, layer: Optional[str] = None) -> RemoteEdge:
+    def delete_edge(self, timestamp: int, src: str | int, dst: str | int, layer: Optional[str] = None, event_id: Optional[int] = None) -> RemoteEdge:
         """
         Deletes an edge in the remote graph, given the timestamp, src and dst nodes and layer (optional)
 
@@ -612,6 +612,8 @@ class RemoteGraph(object):
             src (str | int): The id of the source node.
             dst (str | int): The id of the destination node.
             layer (str, optional): The layer of the edge.
+            event_id (int, optional): Secondary index to disambiguate multiple
+                updates at the same timestamp. If omitted, the server auto-increments it.
 
         Returns:
             RemoteEdge: the remote edge

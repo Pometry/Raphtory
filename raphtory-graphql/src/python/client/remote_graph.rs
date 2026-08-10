@@ -919,22 +919,27 @@ impl PyRemoteGraph {
     ///     src (str | int): The id of the source node.
     ///     dst (str | int): The id of the destination node.
     ///     layer (str, optional): The layer of the edge.
+    ///     event_id (int, optional): Secondary index to disambiguate multiple
+    ///         updates at the same timestamp. If omitted, the server auto-increments it.
     ///
     /// Returns:
     ///     RemoteEdge: the remote edge
-    #[pyo3(signature = (timestamp, src, dst, layer=None))]
+    #[pyo3(signature = (timestamp, src, dst, layer=None, event_id=None))]
     pub fn delete_edge(
         &self,
         timestamp: EventTime,
         src: GID,
         dst: GID,
         layer: Option<&str>,
+        event_id: Option<usize>,
     ) -> Result<PyRemoteEdge, ClientError> {
         let graph = Arc::clone(&self.graph);
         let layer = layer.map(|s| s.to_string());
 
         let edge = execute_async_task(move || async move {
-            graph.delete_edge(timestamp, src, dst, layer).await
+            graph
+                .delete_edge(timestamp, src, dst, layer, event_id)
+                .await
         })?;
 
         Ok(PyRemoteEdge::new(edge))

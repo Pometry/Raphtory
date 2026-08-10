@@ -433,6 +433,12 @@ pub enum ReadExpr {
     /// not one per source). Parsed as `Prop::List(Prop::List(Prop::Str))`
     /// (outer = per source, inner = ids).
     NestedIds { input: Arc<ReadExpr> },
+    /// Terminal on a `PathFromGraph` collection: the ids of the SOURCE nodes the
+    /// paths hang off — `Vec<String>`, one per source, aligned with `NestedIds`'
+    /// outer index. Server field: `sourceIds`. Lets a client pair each source
+    /// with its own path in one RPC (see `HandleCtx::path_handle_expr`) instead
+    /// of one RPC per source.
+    SourceIds { input: Arc<ReadExpr> },
     /// Terminal on a `Nodes`/`PathFromNode` collection: the per-node degree
     /// (number of incident edges) as a FLAT list — `Vec<i64>`. Renders
     /// `degree`. Distinct from the scalar `Degree` (single node); this parses a
@@ -880,6 +886,177 @@ impl HandleCtx {
         }
         expr
     }
+
+    /// Re-root a *nested* collection's read expression at ONE of its source
+    /// nodes, yielding the flat per-source expression — the remote analogue of
+    /// the path half of local `PathFromGraph`'s `(source, path)` iteration.
+    ///
+    /// Where `node_handle_expr` re-anchors at a single node and replays the
+    /// recorded `ops`, this re-anchors the collection's own `expr` tree. That
+    /// tree is the only record of *where* the traversal sits in the op chain —
+    /// `ops` flattens pre- and post-traversal ops into one list (the same
+    /// positional problem `HandleOp::Fanout` solves for exploded edges). The
+    /// node collection the chain starts from (`nodes`, `inComponent`,
+    /// `outComponent`) is swapped for a `Node(id)` selection on this context's
+    /// graph view — the very anchor `node_handle_expr` uses — so every op above
+    /// it lands on the single source, and each nested server type degrades to
+    /// its flat sibling (`PathFromGraph` → `PathFromNode`, `NestedEdges` →
+    /// `Edges`) under the same field names.
+    ///
+    /// Ops that only decide WHICH sources the chain starts from (`typeFilter` /
+    /// `select` / `sorted`, below the first traversal) are dropped, exactly as
+    /// `node_handle_expr` drops them: the source is already pinned, and a single
+    /// `Node` has no such field. The same ops *above* the traversal narrow the
+    /// path itself and are kept.
+    ///
+    /// `None` when the chain contains a step with no single-source counterpart —
+    /// callers surface that as an error rather than pair up wrong data.
+    pub fn path_handle_expr(&self, expr: &ReadExpr, id: &str) -> Option<Arc<ReadExpr>> {
+        rebase_at_source(expr, &self.graph, id).map(|(rebased, _)| rebased)
+    }
+}
+
+/// Rebuild one link of a collection chain around a replacement input.
+type Rebuild<'a> = Box<dyn Fn(Arc<ReadExpr>) -> ReadExpr + 'a>;
+
+/// Worker for `HandleCtx::path_handle_expr`. Returns the re-rooted expression
+/// plus whether the result is still inside the *source-selection* segment —
+/// the part of the chain below the first traversal, where membership ops are
+/// dropped because a single source is already pinned.
+fn rebase_at_source(
+    expr: &ReadExpr,
+    anchor: &Arc<ReadExpr>,
+    id: &str,
+) -> Option<(Arc<ReadExpr>, bool)> {
+    use ReadExpr as E;
+
+    // Bottom of the chain: a node-collection producer. Everything below it is
+    // the graph view, which `anchor` already carries.
+    if matches!(
+        expr,
+        E::Nodes { .. } | E::InComponent { .. } | E::OutComponent { .. }
+    ) {
+        return Some((
+            Arc::new(E::Node {
+                input: anchor.clone(),
+                id: id.to_string(),
+            }),
+            true,
+        ));
+    }
+
+    // `(input, is_traversal, source_only, rebuild)`. `is_traversal` ends the
+    // source-selection segment; `source_only` marks a membership op that is
+    // dropped while still inside it.
+    let (input, is_traversal, source_only, rebuild): (_, _, _, Rebuild) = match expr {
+        // Traversals — polymorphic server fields that yield the flat sibling
+        // type once the input is a single node / flat collection.
+        E::Neighbours { input } => (
+            input,
+            true,
+            false,
+            Box::new(|input| E::Neighbours { input }),
+        ),
+        E::InNeighbours { input } => (
+            input,
+            true,
+            false,
+            Box::new(|input| E::InNeighbours { input }),
+        ),
+        E::OutNeighbours { input } => (
+            input,
+            true,
+            false,
+            Box::new(|input| E::OutNeighbours { input }),
+        ),
+        E::NodeEdges { input } => (input, true, false, Box::new(|input| E::NodeEdges { input })),
+        E::InEdges { input } => (input, true, false, Box::new(|input| E::InEdges { input })),
+        E::OutEdges { input } => (input, true, false, Box::new(|input| E::OutEdges { input })),
+        E::Src { input } => (input, true, false, Box::new(|input| E::Src { input })),
+        E::Dst { input } => (input, true, false, Box::new(|input| E::Dst { input })),
+        E::Nbr { input } => (input, true, false, Box::new(|input| E::Nbr { input })),
+        // Membership ops on a node collection.
+        E::TypeFilter { input, node_types } => (
+            input,
+            false,
+            true,
+            Box::new(|input| E::TypeFilter {
+                input,
+                node_types: node_types.clone(),
+            }),
+        ),
+        E::SelectNodes { input, filter } => (
+            input,
+            false,
+            true,
+            Box::new(|input| E::SelectNodes {
+                input,
+                filter: filter.clone(),
+            }),
+        ),
+        E::SortedNodes { input, sort_bys } => (
+            input,
+            false,
+            true,
+            Box::new(|input| E::SortedNodes {
+                input,
+                sort_bys: sort_bys.clone(),
+            }),
+        ),
+        // View / filter ops, plus the edge-collection ops that can only appear
+        // above a traversal — all carried over unchanged.
+        E::View { input, op } => (
+            input,
+            false,
+            false,
+            Box::new(|input| E::View {
+                input,
+                op: op.clone(),
+            }),
+        ),
+        E::Filtered { input, filter } => (
+            input,
+            false,
+            false,
+            Box::new(|input| E::Filtered {
+                input,
+                filter: filter.clone(),
+            }),
+        ),
+        E::Valid { input } => (input, false, false, Box::new(|input| E::Valid { input })),
+        E::Explode { input } => (input, false, false, Box::new(|input| E::Explode { input })),
+        E::ExplodeLayers { input } => (
+            input,
+            false,
+            false,
+            Box::new(|input| E::ExplodeLayers { input }),
+        ),
+        E::SelectEdges { input, filter } => (
+            input,
+            false,
+            false,
+            Box::new(|input| E::SelectEdges {
+                input,
+                filter: filter.clone(),
+            }),
+        ),
+        E::SortedEdges { input, sort_bys } => (
+            input,
+            false,
+            false,
+            Box::new(|input| E::SortedEdges {
+                input,
+                sort_bys: sort_bys.clone(),
+            }),
+        ),
+        _ => return None,
+    };
+
+    let (inner, in_source_segment) = rebase_at_source(input, anchor, id)?;
+    if source_only && in_source_segment {
+        return Some((inner, in_source_segment));
+    }
+    Some((Arc::new(rebuild(inner)), in_source_segment && !is_traversal))
 }
 
 /// Sort keys for `SortedNodes`/`SortedEdges` are the server's own input types,
@@ -976,7 +1153,7 @@ pub struct UpdateGraphMetadata {
 }
 
 /// Arguments for `RemoteGraph::delete_edge`. Marks the edge as deleted at the
-/// given time (optionally on a specific layer).
+/// given time (optionally on a specific layer). `event_id` as in `AddNode`.
 pub struct DeleteEdge {
     pub path: String,
     pub time: InputTime,
@@ -1202,5 +1379,106 @@ mod handle_ctx_tests {
                 ..
             }
         ));
+    }
+
+    fn ctx() -> HandleCtx {
+        HandleCtx::new(ReadExpr::Root { path: "g".into() })
+    }
+
+    fn nodes() -> Arc<ReadExpr> {
+        Arc::new(ReadExpr::Nodes {
+            input: Arc::new(ReadExpr::Root { path: "g".into() }),
+        })
+    }
+
+    // The source collection becomes a single-node anchor, so the traversal above
+    // it yields that one source's own path instead of the whole nested result.
+    #[test]
+    fn path_handle_expr_reroots_the_traversal_at_one_source() {
+        let expr = ReadExpr::Neighbours { input: nodes() };
+        let rebased = ctx().path_handle_expr(&expr, "a").expect("re-rootable");
+
+        let ReadExpr::Neighbours { input } = &*rebased else {
+            panic!("traversal should be preserved as the outermost node");
+        };
+        let ReadExpr::Node { id, input } = &**input else {
+            panic!("the nodes collection should become a single-node anchor");
+        };
+        assert_eq!(id, "a");
+        assert!(matches!(&**input, ReadExpr::Root { .. }));
+    }
+
+    // Op order is load-bearing: a view op applied BEFORE the traversal must stay
+    // below it, one applied after must stay above.
+    #[test]
+    fn path_handle_expr_keeps_ops_on_their_side_of_the_traversal() {
+        let window = ViewOp::Window {
+            start: InputTime::Simple(0),
+            end: InputTime::Simple(10),
+        };
+        let layer = ViewOp::Layer {
+            name: "knows".into(),
+        };
+        // g.nodes.window(0, 10).neighbours.layer("knows")
+        let expr = layer.apply(Arc::new(ReadExpr::Neighbours {
+            input: Arc::new(window.apply(nodes())),
+        }));
+        let rebased = ctx().path_handle_expr(&expr, "a").expect("re-rootable");
+
+        let ReadExpr::View { input, op } = &*rebased else {
+            panic!("post-traversal view op should stay outermost");
+        };
+        assert_eq!(*op, layer);
+        let ReadExpr::Neighbours { input } = &**input else {
+            panic!("traversal should sit between the two view ops");
+        };
+        let ReadExpr::View { input, op } = &**input else {
+            panic!("pre-traversal view op should stay below the traversal");
+        };
+        assert_eq!(*op, window);
+        assert!(matches!(&**input, ReadExpr::Node { .. }));
+    }
+
+    // `typeFilter` below the traversal only decides WHICH sources exist — once a
+    // source is pinned it is meaningless, and a single `Node` has no such field.
+    // Above the traversal it narrows the path itself, so it is kept.
+    #[test]
+    fn path_handle_expr_drops_source_membership_ops_only_below_the_traversal() {
+        let below = ReadExpr::Neighbours {
+            input: Arc::new(ReadExpr::TypeFilter {
+                input: nodes(),
+                node_types: vec!["ant".to_string()].into(),
+            }),
+        };
+        let rebased = ctx().path_handle_expr(&below, "a").expect("re-rootable");
+        let ReadExpr::Neighbours { input } = &*rebased else {
+            panic!("traversal should be preserved");
+        };
+        assert!(
+            matches!(&**input, ReadExpr::Node { .. }),
+            "typeFilter on the source collection should be dropped"
+        );
+
+        let above = ReadExpr::TypeFilter {
+            input: Arc::new(ReadExpr::Neighbours { input: nodes() }),
+            node_types: vec!["ant".to_string()].into(),
+        };
+        let rebased = ctx().path_handle_expr(&above, "a").expect("re-rootable");
+        assert!(
+            matches!(&*rebased, ReadExpr::TypeFilter { .. }),
+            "typeFilter on the path should be kept"
+        );
+    }
+
+    // A chain with no single-source counterpart is refused rather than silently
+    // re-rooted onto the wrong thing.
+    #[test]
+    fn path_handle_expr_refuses_a_chain_it_cannot_reroot() {
+        let expr = ReadExpr::Neighbours {
+            input: Arc::new(ReadExpr::Edges {
+                input: Arc::new(ReadExpr::Root { path: "g".into() }),
+            }),
+        };
+        assert!(ctx().path_handle_expr(&expr, "a").is_none());
     }
 }

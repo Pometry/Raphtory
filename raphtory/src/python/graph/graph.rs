@@ -455,6 +455,7 @@ impl PyGraph {
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
+    #[pyo3(signature = (timestamp, src, dst, layer = None, event_id = None))]
     pub fn delete_edge(
         &self,
         timestamp: EventTimeComponent,

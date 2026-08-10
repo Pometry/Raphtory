@@ -1467,6 +1467,12 @@ fn render_read_into(
             render_read_into(input, vars, out)?;
             out.push_str(" { ids");
         }
+        // `PathFromGraph.sourceIds` — the flat `[String]` of source node ids,
+        // aligned with `ids`' outer index. Opens ONE net brace, same as `Ids`.
+        ReadExpr::SourceIds { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { sourceIds");
+        }
         // Flat collection degree terminals — render the scalar-list field
         // directly on the `Nodes`/`PathFromNode` collection.
         ReadExpr::CollectionDegree { input } => {
@@ -1890,6 +1896,7 @@ fn read_depth(expr: &ReadExpr) -> usize {
         | ReadExpr::Schema { input }
         | ReadExpr::Ids { input }
         | ReadExpr::NestedIds { input }
+        | ReadExpr::SourceIds { input }
         | ReadExpr::CollectionDegree { input }
         | ReadExpr::CollectionInDegree { input }
         | ReadExpr::CollectionOutDegree { input }
@@ -2293,6 +2300,7 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
         }
         // List-of-string terminal — the JSON is an array of strings.
         ReadExpr::Ids { .. }
+        | ReadExpr::SourceIds { .. }
         | ReadExpr::LayerNames { .. }
         | ReadExpr::UniqueLayers { .. }
         | ReadExpr::PropertyKeys { .. } => {
@@ -3315,6 +3323,10 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
                 go(input, out);
                 out.push("ids");
             }
+            ReadExpr::SourceIds { input } => {
+                go(input, out);
+                out.push("sourceIds");
+            }
             ReadExpr::CollectionDegree { input } => {
                 go(input, out);
                 out.push("degree");
@@ -4006,6 +4018,7 @@ fn child_input(expr: &ReadExpr) -> Option<&ReadExpr> {
         | ReadExpr::Schema { input }
         | ReadExpr::Ids { input }
         | ReadExpr::NestedIds { input }
+        | ReadExpr::SourceIds { input }
         | ReadExpr::CollectionDegree { input }
         | ReadExpr::CollectionInDegree { input }
         | ReadExpr::CollectionOutDegree { input }
