@@ -8,7 +8,7 @@ use clap::{
     Args as ClapArgs, Command,
     error::{ContextKind, ContextValue},
 };
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::iter;
 use tracing::error;
 
@@ -77,7 +77,7 @@ fn display_error(err: &clap::Error, cm: &Command) -> String {
     err.to_string()
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ClapArgs)]
+#[derive(Debug, Clone, Deserialize, ClapArgs)]
 #[serde(default)]
 pub struct BaseArgs {
     #[arg(long, env = "RAPHTORY_MAX_NODE_PAGE_LEN")]
