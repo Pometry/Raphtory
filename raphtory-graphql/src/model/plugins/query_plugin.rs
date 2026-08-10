@@ -13,7 +13,7 @@ static PLUGINS: Lazy<Mutex<Vec<Box<dyn RegisterPlugin>>>> = Lazy::new(|| Mutex::
 #[derive(Clone, Default)]
 pub struct Plugins;
 
-pub trait RegisterPlugin {
+pub trait RegisterPlugin: Send + 'static {
     fn register(&self, registry: Registry) -> Registry;
 }
 

@@ -17,10 +17,10 @@ use crate::{
     rayon::{blocking_compute, blocking_write},
     url_encode::{url_decode_graph_at, url_encode_graph},
 };
-use async_graphql::Context;
+use async_graphql::{dynamic::SchemaBuilder, Context};
 use dynamic_graphql::{
-    App, InputObject, Mutation, MutationFields, MutationRoot, OneOfInput, ResolvedObject,
-    ResolvedObjectFields, Result, Upload,
+    internal::Registry, App, InputObject, Mutation, MutationFields, MutationRoot, OneOfInput,
+    ResolvedObject, ResolvedObjectFields, Result, Upload,
 };
 use itertools::Itertools;
 use raphtory::{
@@ -43,6 +43,7 @@ use tracing::warn;
 
 #[cfg(feature = "vectors")]
 use crate::model::graph::vectorised_graph::{GqlVectorisedGraph, VectorQuery};
+use crate::model::plugins::query_plugin::RegisterPlugin;
 
 pub mod graph;
 pub mod plugins;
@@ -262,11 +263,6 @@ impl QueryRoot {
     async fn root<'a>(ctx: &Context<'a>) -> Namespace {
         let data = ctx.data_unchecked::<Data>();
         Namespace::root(data.work_dir_read().await)
-    }
-
-    /// Returns a plugin.
-    async fn plugins<'a>() -> Plugins {
-        Plugins
     }
 
     /// Encodes graph and returns as string.
@@ -756,3 +752,16 @@ pub struct App(
     PermissionsEntrypointMut,
     PermissionsEntrypointQuery,
 );
+
+impl App {
+    pub fn create_schema_with_plugins(
+        plugins: impl IntoIterator<Item: AsRef<dyn RegisterPlugin>>,
+    ) -> SchemaBuilder {
+        let mut registry = Registry::new();
+        registry = registry.register::<Self>();
+        for plugin in plugins {
+            registry = plugin.as_ref().register(registry);
+        }
+        registry.create_schema()
+    }
+}

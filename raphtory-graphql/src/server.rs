@@ -11,6 +11,7 @@ use crate::{
     routes::{health, version, PublicFilesEndpoint},
     server::ServerError::SchemaError,
 };
+use async_graphql::dynamic::Schema;
 use config::ConfigError;
 use once_cell::sync::Lazy;
 use opentelemetry::trace::TracerProvider;
@@ -58,6 +59,10 @@ use tracing_subscriber::{
 };
 use url::ParseError;
 
+use crate::{
+    cli::ServerArgs, config::app_config::AppConfigBuilder,
+    model::plugins::query_plugin::RegisterPlugin,
+};
 #[cfg(feature = "vectors")]
 use {
     crate::{model::graph::vectorised_graph::VectorQuery, paths::ExistingGraphFolder, GQLError},
@@ -126,12 +131,12 @@ type SchemaDataInjector = std::sync::Arc<
 >;
 
 /// A struct for defining and running a Raphtory GraphQL server
-#[derive(Clone)]
 pub struct GraphServer {
     data: Data,
     work_dir: PathBuf,
     config: AppConfig,
     schema_data: Vec<SchemaDataInjector>,
+    schema_plugins: Vec<Box<dyn RegisterPlugin>>,
 }
 
 pub fn register_query_plugin<
@@ -174,7 +179,16 @@ impl GraphServer {
             data,
             config,
             schema_data: Vec::new(),
+            schema_plugins: Vec::new(),
         })
+    }
+
+    pub async fn new_from_args(args: ServerArgs) -> Result<Self, ServerError> {
+        let app_config = AppConfigBuilder::new().update_from_args(&args)?.build();
+        let work_dir = args.work_dir;
+        let graph_config = args.graph_config;
+        let server = GraphServer::new(work_dir, Some(app_config), graph_config).await?;
+        args.extensions.process(server)
     }
 
     /// Returns the working directory for this server.
@@ -199,6 +213,12 @@ impl GraphServer {
                 .expect("schema data injector called more than once");
             sb.data(data)
         }));
+        self
+    }
+
+    /// Inject resolver plugins into hte GQL schema
+    pub fn with_schema_plugin(mut self, plugin: impl RegisterPlugin) -> Self {
+        self.schema_plugins.push(Box::new(plugin));
         self
     }
 
@@ -330,13 +350,10 @@ impl GraphServer {
         })
     }
 
-    async fn generate_endpoint(
-        &self,
-        tracer: Option<Tracer>,
-    ) -> Result<CompressionEndpoint<CorsEndpoint<Route>>, ServerError> {
+    pub async fn build_schema(&self, tracer: Option<Tracer>) -> Result<Schema, ServerError> {
         let schema_cfg = &self.config.schema;
 
-        let mut schema_builder = App::create_schema()
+        let mut schema_builder = App::create_schema_with_plugins(&self.schema_plugins)
             .data(self.data.clone())
             .data(self.config.concurrency.clone());
 
@@ -360,14 +377,21 @@ impl GraphServer {
             schema_builder = schema_builder.disable_introspection();
         }
         let trace_level = self.config.tracing.level.clone();
-        let schema = if let Some(t) = tracer {
+        if let Some(t) = tracer {
             schema_builder
                 .extension(OpenTelemetry::new(t, trace_level))
                 .finish()
         } else {
             schema_builder.finish()
         }
-        .map_err(|e| SchemaError(e.to_string()))?;
+        .map_err(|e| SchemaError(e.to_string()))
+    }
+
+    async fn generate_endpoint(
+        &self,
+        tracer: Option<Tracer>,
+    ) -> Result<CompressionEndpoint<CorsEndpoint<Route>>, ServerError> {
+        let schema = self.build_schema(tracer).await?;
 
         let app = Route::new()
             .nest(
