@@ -2259,7 +2259,7 @@ on the first key break to the second, etc.).
 <td valign="top">[<a href="#edgesortby">EdgeSortBy</a>!]!</td>
 <td>
 
-Ordered list of sort keys. Each entry chooses exactly one of `src` / `dst` / `time` / `property`, with an optional `reverse: true` to flip order.
+Ordered list of sort keys. Each entry chooses exactly one of `src` / `dst` / `neighbour` / `time` / `property`, with an optional `reverse: true` to flip order.
 
 </td>
 </tr>
@@ -6572,7 +6572,7 @@ first key break to the second, etc.).
 <td valign="top">[<a href="#nodesortby">NodeSortBy</a>!]!</td>
 <td>
 
-Ordered list of sort keys. Each entry chooses exactly one of `id` / `time` / `property`, with an optional `reverse: true` to flip order.
+Ordered list of sort keys. Each entry chooses exactly one of `id` / `name` / `type` / `time` / `property`, with an optional `reverse: true` to flip order.
 
 </td>
 </tr>
@@ -8765,25 +8765,38 @@ Filter evaluated within the layer-restricted view.
 <td valign="top"><a href="#boolean">Boolean</a></td>
 <td>
 
-Reverse order
+Reverse order. Applies to the `time` / `property` keys; the node keys
+(`src` / `dst` / `neighbour`) carry their own `reverse` inside the
+nested `NodeSortBy` and ignore this flag.
 
 </td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgesortby.src">src</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
+<td valign="top"><a href="#nodesortby">NodeSortBy</a></td>
 <td>
 
-Source node
+Sort by the source node.
 
 </td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgesortby.dst">dst</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
+<td valign="top"><a href="#nodesortby">NodeSortBy</a></td>
 <td>
 
-Destination
+Sort by the destination node.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgesortby.neighbour">neighbour</strong></td>
+<td valign="top"><a href="#nodesortby">NodeSortBy</a></td>
+<td>
+
+Sort by the neighbour node: the endpoint that is NOT the node these
+edges were traversed from (the destination for a graph-level edge
+collection).
 
 </td>
 </tr>
@@ -10200,6 +10213,24 @@ Reverse order
 <td>
 
 Unique Id
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodesortby.name">name</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Node name
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodesortby.type">type</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Node type. Untyped nodes sort first (before any named type).
 
 </td>
 </tr>
