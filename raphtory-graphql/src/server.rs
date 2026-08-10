@@ -168,27 +168,28 @@ impl GraphServer {
         work_dir: PathBuf,
         app_config: Option<AppConfig>,
         graph_config: Config,
-    ) -> IoResult<Self> {
+    ) -> Result<Self, ServerError> {
         if !work_dir.exists() {
             create_dir_all(&work_dir)?;
         }
         let config = app_config.unwrap_or_default();
+        let extensions = config.extensions.clone();
         let data = Data::new(work_dir.as_path(), &config, graph_config);
-        Ok(Self {
+        let server = Self {
             work_dir,
             data,
             config,
             schema_data: Vec::new(),
             schema_plugins: Vec::new(),
-        })
+        };
+        extensions.process(server)
     }
 
     pub async fn new_from_args(args: ServerArgs) -> Result<Self, ServerError> {
         let app_config = AppConfigBuilder::new().update_from_args(&args)?.build();
         let work_dir = args.work_dir;
         let graph_config = args.graph_config;
-        let server = GraphServer::new(work_dir, Some(app_config), graph_config).await?;
-        args.extensions.process(server)
+        GraphServer::new(work_dir, Some(app_config), graph_config).await
     }
 
     /// Returns the working directory for this server.
