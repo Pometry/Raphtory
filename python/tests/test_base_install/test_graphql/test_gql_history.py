@@ -243,7 +243,7 @@ def test_history():
     query_1 = """
     {
       graph(path: "g") {
-        filterEdges: filter(expr: { edges: {
+        filterEdges: filter(expr: { edge: {
               property:  {
                 name: "weight"
                 where:  {
@@ -276,7 +276,7 @@ def test_history():
     query_2 = """
     {
       graph(path: "g") {
-        filterEdges: filter(expr: { edges: {
+        filterEdges: filter(expr: { edge: {
               property:  {
                 name: "weight"
                 where:  {
@@ -303,7 +303,7 @@ def test_history():
     query_1 = """
     {
       graph(path: "g") {
-        filterNodes: filter(expr: { nodes: {
+        filterNodes: filter(expr: { node: {
             property:  {
               name: "Age"
               where:  {
@@ -329,7 +329,7 @@ def test_history():
     query_2 = """
     {
       graph(path: "g") {
-        filterNodes: filter(expr: { nodes: {
+        filterNodes: filter(expr: { node: {
               property:  {
                 name: "Age"
                 where:  {
@@ -361,7 +361,7 @@ def test_history():
     query_3 = """
     {
       graph(path: "g") {
-        filterNodes: filter(expr: { nodes: {
+        filterNodes: filter(expr: { node: {
               property:  {
                 name: "Age"
                 where:  {
@@ -387,7 +387,7 @@ def test_history():
     query_4 = """
     {
       graph(path: "g") {
-        filterNodes: filter(expr: { nodes: {
+        filterNodes: filter(expr: { node: {
               property:  {
                 name: "Age"
                 where:  {

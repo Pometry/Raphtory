@@ -309,7 +309,7 @@ impl GqlNode {
                 NodeViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await,
                 NodeViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
                 NodeViewCollection::NodeFilter(filter) => {
-                    return_view.filter(GqlFilter::Nodes(filter)).await?
+                    return_view.filter(GqlFilter::Node(filter)).await?
                 }
             }
         }

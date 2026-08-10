@@ -23,7 +23,7 @@ def test_node_property_filter_equal2(graph):
     query {
       graph(path: "g") {
         nodes {
-          filter(expr: { nodes: {
+          filter(expr: { node: {
               property: {
                 name: "prop5"
                 where: {
@@ -637,7 +637,7 @@ def test_node_property_filter_contains_wrong_value_type_error(graph):
     query = """
     query {
       graph(path: "g") {
-        filterNodes: filter(expr: { nodes: {
+        filterNodes: filter(expr: { node: {
           property: {
             name: "p10"
             where: { contains: { u64: 2 } }
@@ -764,7 +764,7 @@ def test_nodes_property_filter_list_agg(graph):
     query = """
     query {
       graph(path: "g") {
-        filterNodes: filter(expr: { nodes: {
+        filterNodes: filter(expr: { node: {
           property: {
             name: "prop5"
             where: { sum: { eq: { i64: 6 } } }
@@ -784,7 +784,7 @@ def test_nodes_property_filter_list_qualifier(graph):
     query = """
     query {
       graph(path: "g") {
-        filterNodes: filter(expr: { nodes: {
+        filterNodes: filter(expr: { node: {
           property: {
             name: "prop5"
             where: { any: { eq: { i64: 6 } } }
@@ -808,7 +808,7 @@ def test_nodes_temporal_property_filter_agg(graph):
     query = """
     query {
       graph(path: "g") {
-        filterNodes: filter(expr: { nodes: {
+        filterNodes: filter(expr: { node: {
           temporalProperty: {
             name: "p2"
             where: { avg: { lt: { f64: 10.0 } } }
@@ -835,7 +835,7 @@ def test_nodes_temporal_property_filter_any_avg(graph):
     query = """
     query {
       graph(path: "g") {
-        filterNodes: filter(expr: { nodes: {
+        filterNodes: filter(expr: { node: {
           temporalProperty: {
             name: "prop5"
             where: { any: { avg: { lt: { f64: 10.0 } } } }
@@ -919,7 +919,7 @@ def test_nodes_selection_nodes_filter_paired(graph):
     query {
       graph(path: "g") {
         nodes(select: { property: { name: "p100", where: { gt: { i64: 30 } } } }) {
-          filter(expr: { nodes: {
+          filter(expr: { node: {
             property: { name: "p9", where: { eq:{ i64: 5 } } }
           } }) {
             list {
@@ -943,7 +943,7 @@ def test_nodes_selection_nodes_filter_paired2(graph):
     query {
       graph(path: "g") {
         nodes(select: { property: { name: "p100", where: { gt: { i64: 30 } } } }) {
-          filter(expr: { nodes: {
+          filter(expr: { node: {
             property: { name: "p9", where: { eq:{ i64: 5 } } }
           } }) {
             list {
@@ -980,7 +980,7 @@ def test_nodes_chained_selection_node_filter_paired(graph):
       graph(path: "g") {
         nodes(select: { property: { name: "p100", where: { gt: { i64: 30 } } } }) {
           select(expr: { property: { name: "p9", where: { eq:{ i64: 5 } } } }) {
-            filter(expr: { nodes: {
+            filter(expr: { node: {
               node: {
                 field: NODE_TYPE
                 where: { eq: { str: "fire_nation" } }
@@ -1009,7 +1009,7 @@ def test_nodes_chained_selection_node_filter_paired_ver2(graph):
         nodes {
           select(expr: { property: { name: "p100", where: { gt: { i64: 30 } } } }) {
             select(expr: { property: { name: "p9", where: { eq:{ i64: 5 } } } }) {
-              filter(expr: { nodes: {
+              filter(expr: { node: {
                 node: {
                   field: NODE_TYPE
                   where: { eq: { str: "fire_nation" } }
@@ -1042,7 +1042,7 @@ def test_nodes_temporal_property_filter_any_avg_with_window(graph):
     query = """
     query {
       graph(path: "g") {
-        filterNodes: filter(expr: { nodes: {
+        filterNodes: filter(expr: { node: {
           window: {
             start: 1
             end: 3
@@ -1071,7 +1071,7 @@ def test_node_property_layer_filter_not_supported(graph):
     query = """
     query {
       graph(path: "g") {
-        filterNodes: filter(expr: { nodes: {
+        filterNodes: filter(expr: { node: {
           layers: {
             names: ["air_nomads"]
             expr: {
@@ -1101,7 +1101,7 @@ def test_nodes_at_temporal_property(graph):
     query = """
     query {
       graph(path: "g") {
-        filterNodes: filter(expr: { nodes: {
+        filterNodes: filter(expr: { node: {
           at: {
             time: 2
             expr: {
@@ -1126,7 +1126,7 @@ def test_nodes_before_temporal_property(graph):
     query = """
     query {
       graph(path: "g") {
-        filterNodes: filter(expr: { nodes: {
+        filterNodes: filter(expr: { node: {
           before: {
             time: 3
             expr: {
@@ -1153,7 +1153,7 @@ def test_nodes_after_temporal_property(graph):
     query = """
     query {
       graph(path: "g") {
-        filterNodes: filter(expr: { nodes: {
+        filterNodes: filter(expr: { node: {
           after: {
             time: 2
             expr: {
@@ -1180,7 +1180,7 @@ def test_nodes_latest_temporal_property(graph):
     query = """
     query {
       graph(path: "g") {
-        filterNodes: filter(expr: { nodes: {
+        filterNodes: filter(expr: { node: {
           latest: {
             expr: {
               temporalProperty: {
@@ -1204,7 +1204,7 @@ def test_nodes_snapshot_at_temporal_property(graph):
     query = """
     query {
       graph(path: "g") {
-        filterNodes: filter(expr: { nodes: {
+        filterNodes: filter(expr: { node: {
           snapshotAt: {
             time: 2
             expr: {
@@ -1231,7 +1231,7 @@ def test_nodes_snapshot_latest_temporal_property(graph):
     query = """
     query {
       graph(path: "g") {
-        filterNodes: filter(expr: { nodes: {
+        filterNodes: filter(expr: { node: {
           snapshotLatest: {
             expr: {
               temporalProperty: {
@@ -1257,7 +1257,7 @@ def test_nodes_layer_then_latest(graph):
     query = """
     query {
       graph(path: "g") {
-        filterNodes: filter(expr: { nodes: {
+        filterNodes: filter(expr: { node: {
           latest: {
             expr: {
               layers: {
@@ -1286,7 +1286,7 @@ def test_nodes_latest_then_layer(graph):
     query = """
     query {
       graph(path: "g") {
-        filterNodes: filter(expr: { nodes: {
+        filterNodes: filter(expr: { node: {
           layers: {
             names: ["_default"]
             expr: {

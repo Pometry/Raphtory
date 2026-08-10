@@ -554,7 +554,7 @@ mod graphql_test {
         {
           graph(path: "g") {
             filterNodes: filter(
-                expr: { nodes: { degree: { direction: BOTH, where: { gt: { u64: 0 } } } } }
+                expr: { node: { degree: { direction: BOTH, where: { gt: { u64: 0 } } } } }
             ) {
               nodes {
                 list {

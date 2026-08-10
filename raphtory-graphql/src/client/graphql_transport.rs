@@ -3852,9 +3852,9 @@ mod tests {
                     input: Arc::new(ReadExpr::Nodes {
                         input: Arc::new(ReadExpr::Root { path: "g".into() }),
                     }),
-                    filter: Arc::new(GqlFilter::Nodes(prop_filter("inner"))),
+                    filter: Arc::new(GqlFilter::Node(prop_filter("inner"))),
                 }),
-                filter: Arc::new(GqlFilter::Nodes(prop_filter("outer"))),
+                filter: Arc::new(GqlFilter::Node(prop_filter("outer"))),
             }),
         };
 

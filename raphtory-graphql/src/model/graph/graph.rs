@@ -878,10 +878,10 @@ impl GqlGraph {
                 GraphViewCollection::ShrinkStart(start) => return_view.shrink_start(start).await,
                 GraphViewCollection::ShrinkEnd(end) => return_view.shrink_end(end).await,
                 GraphViewCollection::NodeFilter(filter) => {
-                    return_view.filter(Some(GqlFilter::Nodes(filter))).await?
+                    return_view.filter(Some(GqlFilter::Node(filter))).await?
                 }
                 GraphViewCollection::EdgeFilter(filter) => {
-                    return_view.filter(Some(GqlFilter::Edges(filter))).await?
+                    return_view.filter(Some(GqlFilter::Edge(filter))).await?
                 }
             };
         }

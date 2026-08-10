@@ -69,7 +69,7 @@ async fn test_algorithm_out_component_filtered() {
         {
           graph(path: "g") {
             algorithm {
-              outComponent(node: "a", filter: { nodes: { node: { field: NODE_NAME, where: { ne: { str: "c" } } } } }) {
+              outComponent(node: "a", filter: { node: { node: { field: NODE_NAME, where: { ne: { str: "c" } } } } }) {
                 nodes { list { id } }
               }
             }
@@ -100,7 +100,7 @@ async fn test_algorithm_out_component_node_filter_composed() {
         {
           graph(path: "g") {
             algorithm {
-              outComponent(node: "a", filter: { nodes: {
+              outComponent(node: "a", filter: { node: {
                 and: [
                   { node: { field: NODE_NAME, where: { ne: { str: "b" } } } },
                   { node: { field: NODE_NAME, where: { ne: { str: "c" } } } }
@@ -135,7 +135,7 @@ async fn test_algorithm_out_component_edge_filter_composed() {
         {
           graph(path: "g") {
             algorithm {
-              outComponent(node: "a", filter: { edges: {
+              outComponent(node: "a", filter: { edge: {
                 and: [
                   { dst: { node: { field: NODE_NAME, where: { ne: { str: "b" } } } } },
                   { dst: { node: { field: NODE_NAME, where: { ne: { str: "c" } } } } }
@@ -211,7 +211,7 @@ async fn test_algorithm_out_component_filter_equivalence() {
         {
           graph(path: "g") {
             algorithm {
-              outComponent(node: "a", filter: { nodes: {
+              outComponent(node: "a", filter: { node: {
                 node: { field: NODE_NAME, where: { ne: { str: "c" } } }
               } }) {
                 rows {
@@ -230,7 +230,7 @@ async fn test_algorithm_out_component_filter_equivalence() {
     let pre_filtered = r#"
         {
           graph(path: "g") {
-            filter(expr: { nodes: {
+            filter(expr: { node: {
                 node: { field: NODE_NAME, where: { ne: { str: "c" } } }} }) {
               algorithm {
                 outComponent(node: "a") {

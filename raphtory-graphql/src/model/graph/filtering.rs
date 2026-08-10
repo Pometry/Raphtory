@@ -602,7 +602,7 @@ pub enum GqlGraphFilter {
     Layers(GraphLayersExpr),
 }
 
-/// A general filter expression — a node filter (`nodes`), an edge filter (`edges`), a graph/view
+/// A general filter expression — a node filter (`node`), an edge filter (`edge`), a graph/view
 /// filter (`graph`, e.g. a layer or window restriction), or an `and`/`or` combination of these
 /// (which may mix kinds). Used where an operation accepts any filter, such as scoping a component
 /// walk.
@@ -610,15 +610,15 @@ pub enum GqlGraphFilter {
 #[serde(rename_all = "camelCase")]
 pub enum GqlFilter {
     /// Filter by node properties, fields, or temporal state.
-    Nodes(GqlNodeFilter),
+    Node(GqlNodeFilter),
     /// Filter by edge properties, source/destination, or temporal state.
-    Edges(GqlEdgeFilter),
+    Edge(GqlEdgeFilter),
     /// Apply a graph-level view (window, snapshot, layer restriction, …).
     Graph(GqlGraphFilter),
     /// All sub-filters must pass (intersection).
     And(Vec<GqlFilter>),
     /// At least one sub-filter must pass (union).
-    /// Cross-type sub-filters (e.g. `nodes` and `edges` together) produce a
+    /// Cross-type sub-filters (e.g. `node` and `edge` together) produce a
     /// proper graph union: a node is visible if it matches the node filter or
     /// has a visible edge, and an edge is visible if it matches the edge
     /// filter or both its endpoints are visible.
@@ -650,14 +650,14 @@ pub enum GqlFilter {
 impl TryFrom<GqlNodeFilter> for GqlFilter {
     type Error = GraphError;
     fn try_from(f: GqlNodeFilter) -> Result<Self, Self::Error> {
-        Ok(GqlFilter::Nodes(f))
+        Ok(GqlFilter::Node(f))
     }
 }
 
 impl TryFrom<GqlEdgeFilter> for GqlFilter {
     type Error = GraphError;
     fn try_from(f: GqlEdgeFilter) -> Result<Self, Self::Error> {
-        Ok(GqlFilter::Edges(f))
+        Ok(GqlFilter::Edge(f))
     }
 }
 
@@ -707,14 +707,14 @@ impl CreateFilter for GqlFilter {
 impl TryFrom<CompositeNodeFilter> for GqlFilter {
     type Error = GraphError;
     fn try_from(f: CompositeNodeFilter) -> Result<Self, Self::Error> {
-        Ok(GqlFilter::Nodes(f.try_into()?))
+        Ok(GqlFilter::Node(f.try_into()?))
     }
 }
 
 impl TryFrom<CompositeEdgeFilter> for GqlFilter {
     type Error = GraphError;
     fn try_from(f: CompositeEdgeFilter) -> Result<Self, Self::Error> {
-        Ok(GqlFilter::Edges(f.try_into()?))
+        Ok(GqlFilter::Edge(f.try_into()?))
     }
 }
 
@@ -764,8 +764,8 @@ impl TryFrom<FilterTree> for GqlFilter {
 
     fn try_from(tree: FilterTree) -> Result<Self, Self::Error> {
         Ok(match tree {
-            FilterTree::Node(f) => GqlFilter::Nodes(f.try_into()?),
-            FilterTree::Edge(f) => GqlFilter::Edges(f.try_into()?),
+            FilterTree::Node(f) => GqlFilter::Node(f.try_into()?),
+            FilterTree::Edge(f) => GqlFilter::Edge(f.try_into()?),
             FilterTree::View(ops) => GqlFilter::Graph(view_ops_to_graph_filter(ops)?),
             FilterTree::And(items) => GqlFilter::And(
                 items
@@ -789,8 +789,8 @@ impl TryFrom<GqlFilter> for DynFilter {
 
     fn try_from(value: GqlFilter) -> Result<Self, Self::Error> {
         let filter = match value {
-            GqlFilter::Nodes(f) => Arc::new(CompositeNodeFilter::try_from(f)?) as DynFilter,
-            GqlFilter::Edges(f) => Arc::new(CompositeEdgeFilter::try_from(f)?) as DynFilter,
+            GqlFilter::Node(f) => Arc::new(CompositeNodeFilter::try_from(f)?) as DynFilter,
+            GqlFilter::Edge(f) => Arc::new(CompositeEdgeFilter::try_from(f)?) as DynFilter,
             GqlFilter::Graph(f) => DynView::try_from(f)?,
             GqlFilter::And(filters) => {
                 let mut filters = filters.into_iter().map(DynFilter::try_from);
@@ -2617,8 +2617,8 @@ mod empty_combinator_tests {
                 where_: PropCondition::Eq(Value::I64(1)),
             })
         };
-        assert!(DynFilter::try_from(GqlFilter::And(vec![GqlFilter::Nodes(node_filter())])).is_ok());
-        assert!(DynFilter::try_from(GqlFilter::Or(vec![GqlFilter::Nodes(node_filter())])).is_ok());
+        assert!(DynFilter::try_from(GqlFilter::And(vec![GqlFilter::Node(node_filter())])).is_ok());
+        assert!(DynFilter::try_from(GqlFilter::Or(vec![GqlFilter::Node(node_filter())])).is_ok());
     }
 }
 
@@ -2643,20 +2643,20 @@ mod gql_filter_serde_tests {
     fn serializes_to_the_oneof_wire_shape() {
         let cases = [
             (
-                GqlFilter::Nodes(node_prop_eq("x", 1)),
-                r#"{"nodes":{"property":{"name":"x","where":{"eq":{"i64":1}}}}}"#,
+                GqlFilter::Node(node_prop_eq("x", 1)),
+                r#"{"node":{"property":{"name":"x","where":{"eq":{"i64":1}}}}}"#,
             ),
             (
-                GqlFilter::And(vec![GqlFilter::Nodes(node_prop_eq("x", 1))]),
-                r#"{"and":[{"nodes":{"property":{"name":"x","where":{"eq":{"i64":1}}}}}]}"#,
+                GqlFilter::And(vec![GqlFilter::Node(node_prop_eq("x", 1))]),
+                r#"{"and":[{"node":{"property":{"name":"x","where":{"eq":{"i64":1}}}}}]}"#,
             ),
             (
-                GqlFilter::Or(vec![GqlFilter::Nodes(node_prop_eq("x", 1))]),
-                r#"{"or":[{"nodes":{"property":{"name":"x","where":{"eq":{"i64":1}}}}}]}"#,
+                GqlFilter::Or(vec![GqlFilter::Node(node_prop_eq("x", 1))]),
+                r#"{"or":[{"node":{"property":{"name":"x","where":{"eq":{"i64":1}}}}}]}"#,
             ),
             (
-                GqlFilter::Not(wrap(GqlFilter::Nodes(node_prop_eq("x", 1)))),
-                r#"{"not":{"nodes":{"property":{"name":"x","where":{"eq":{"i64":1}}}}}}"#,
+                GqlFilter::Not(wrap(GqlFilter::Node(node_prop_eq("x", 1)))),
+                r#"{"not":{"node":{"property":{"name":"x","where":{"eq":{"i64":1}}}}}}"#,
             ),
         ];
         for (filter, expected) in cases {
@@ -2667,8 +2667,8 @@ mod gql_filter_serde_tests {
     #[test]
     fn round_trips_through_serde() {
         let filter = GqlFilter::And(vec![
-            GqlFilter::Nodes(node_prop_eq("a", 1)),
-            GqlFilter::Not(wrap(GqlFilter::Or(vec![GqlFilter::Nodes(node_prop_eq(
+            GqlFilter::Node(node_prop_eq("a", 1)),
+            GqlFilter::Not(wrap(GqlFilter::Or(vec![GqlFilter::Node(node_prop_eq(
                 "b", 2,
             ))]))),
         ]);
@@ -2680,7 +2680,7 @@ mod gql_filter_serde_tests {
     // `not` composes end-to-end into a core filter.
     #[test]
     fn not_variant_converts_to_dyn_filter() {
-        let filter = GqlFilter::Not(wrap(GqlFilter::Nodes(node_prop_eq("x", 1))));
+        let filter = GqlFilter::Not(wrap(GqlFilter::Node(node_prop_eq("x", 1))));
         assert!(DynFilter::try_from(filter).is_ok());
     }
 }
@@ -2849,8 +2849,8 @@ mod filter_tree_tests {
         let GqlFilter::And(items) = gql else {
             panic!("expected GqlFilter::And");
         };
-        assert!(matches!(items[0], GqlFilter::Nodes(_)));
-        assert!(matches!(items[1], GqlFilter::Edges(_)));
+        assert!(matches!(items[0], GqlFilter::Node(_)));
+        assert!(matches!(items[1], GqlFilter::Edge(_)));
     }
 
     // A graph-view chain exports outermost-first and converts to the nested

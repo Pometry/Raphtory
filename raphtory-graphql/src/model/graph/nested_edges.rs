@@ -236,7 +236,7 @@ impl GqlNestedEdges {
                 EdgesViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await,
                 EdgesViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
                 EdgesViewCollection::EdgeFilter(filter) => {
-                    return_view.filter(GqlFilter::Edges(filter)).await?
+                    return_view.filter(GqlFilter::Edge(filter)).await?
                 }
             }
         }
