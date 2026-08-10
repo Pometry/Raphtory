@@ -44,10 +44,6 @@ pub trait ConfigOps: Serialize + DeserializeOwned + Sized + Clone {
 
     fn node_types(&self) -> &[String];
 
-    fn with_max_node_page_len(self, page_len: u32) -> Self;
-
-    fn with_max_edge_page_len(self, page_len: u32) -> Self;
-
     fn with_node_types(&self, node_types: impl IntoIterator<Item = impl AsRef<str>>) -> Self;
 }
 
@@ -71,6 +67,16 @@ impl BaseConfig {
             max_edge_page_len,
         }
     }
+
+    pub fn with_max_node_page_len(mut self, page_len: u32) -> Self {
+        self.max_node_page_len = page_len;
+        self
+    }
+
+    pub fn with_max_edge_page_len(mut self, page_len: u32) -> Self {
+        self.max_edge_page_len = page_len;
+        self
+    }
 }
 
 impl ConfigOps for BaseConfig {
@@ -82,16 +88,6 @@ impl ConfigOps for BaseConfig {
 
     fn max_edge_page_len(&self) -> u32 {
         self.max_edge_page_len
-    }
-
-    fn with_max_node_page_len(mut self, page_len: u32) -> Self {
-        self.max_node_page_len = page_len;
-        self
-    }
-
-    fn with_max_edge_page_len(mut self, page_len: u32) -> Self {
-        self.max_edge_page_len = page_len;
-        self
     }
 
     fn node_types(&self) -> &[String] {
