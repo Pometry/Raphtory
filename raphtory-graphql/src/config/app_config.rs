@@ -1,5 +1,6 @@
 use super::auth_config::{AuthConfig, AuthConfigFieldName, PublicKeyError};
 use crate::{
+    cli::{ArgExtensions, ArgumentExtension, ArgumentExtensionPlugin, ServerArgs},
     config::{
         cache_config::{CacheConfig, CacheConfigFieldName},
         concurrency_config::{ConcurrencyConfig, ConcurrencyConfigFieldName},
@@ -14,11 +15,13 @@ use crate::{
 use config::{Config, ConfigError, File};
 use field_types::FieldName;
 use itertools::Itertools;
+use opentelemetry::Value;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     error::Error,
     fmt::Display,
+    io,
     path::{Path, PathBuf},
 };
 
@@ -33,6 +36,7 @@ pub struct AppConfig {
     pub parquet: ParquetConfig,
     pub public_dir: Option<PathBuf>,
     pub rbac: RbacConfig,
+    pub extensions: ArgExtensions,
 }
 
 pub struct AppConfigBuilder {
@@ -72,6 +76,83 @@ fn as_boxed_external<E: Error + Send + Sync + 'static>(error: E) -> ServerError 
 impl AppConfigBuilder {
     pub fn new() -> Self {
         AppConfig::default().into()
+    }
+
+    pub fn update_from_args(&mut self, server_args: &ServerArgs) -> Result<&mut Self, ServerError> {
+        if let Some(config_file) = server_args.config_file.clone() {
+            self.load_from_path(config_file)?;
+        };
+        if let Some(cache_capacity) = server_args.cache_capacity {
+            self.with_cache_capacity(cache_capacity);
+        }
+        if let Some(log_level) = server_args.log_level.clone() {
+            self.with_log_level(log_level);
+        }
+        if let Some(tracing) = server_args.tracing {
+            self.with_tracing(tracing);
+        }
+        if let Some(tracing_level) = server_args.tracing_level.clone() {
+            self.with_tracing_level(tracing_level);
+        }
+        if let Some(otlp_agent_host) = server_args.otlp_agent_host.clone() {
+            self.with_otlp_agent_host(Some(otlp_agent_host));
+        }
+        if let Some(otlp_tracing_service_name) = server_args.otlp_tracing_service_name.clone() {
+            self.with_otlp_tracing_service_name(otlp_tracing_service_name);
+        }
+        if let Some(otlp_transport_protocol) = server_args.otlp_transport_protocol.clone() {
+            self.with_otlp_transport_protocol(otlp_transport_protocol);
+        }
+        if let Some(otlp_transport_headers) = server_args.otlp_transport_headers.clone() {
+            self.with_otlp_transport_headers(otlp_transport_headers);
+        }
+        if let Some(otlp_transport_certificate) = server_args.otlp_transport_certificate.clone() {
+            self.with_otlp_transport_certificate(Some(otlp_transport_certificate));
+        }
+        if let Some(auth_public_key) = server_args.auth_public_key.clone() {
+            self.with_auth_public_key(Some(auth_public_key))
+                .map_err(|err| io::Error::new(io::ErrorKind::Other, err))?;
+        }
+        if let Some(public_dir) = server_args.public_dir.clone() {
+            self.with_public_dir(Some(public_dir));
+        }
+        if let Some(require_auth_for_reads) = server_args.require_auth_for_reads {
+            self.with_require_auth_for_reads(require_auth_for_reads);
+        }
+        if let Some(heavy_query_limit) = server_args.heavy_query_limit {
+            self.with_heavy_query_limit(Some(heavy_query_limit));
+        }
+        if let Some(exclusive_writes) = server_args.exclusive_writes {
+            self.with_exclusive_writes(exclusive_writes);
+        }
+        if let Some(disable_batching) = server_args.disable_batching {
+            self.with_disable_batching(disable_batching);
+        }
+        if let Some(max_batch_size) = server_args.max_batch_size {
+            self.with_max_batch_size(Some(max_batch_size));
+        }
+        if let Some(disable_lists) = server_args.disable_lists {
+            self.with_disable_lists(disable_lists);
+        }
+        if let Some(max_page_size) = server_args.max_page_size {
+            self.with_max_page_size(Some(max_page_size));
+        }
+        if let Some(max_query_depth) = server_args.max_query_depth {
+            self.with_max_query_depth(Some(max_query_depth));
+        }
+        if let Some(max_query_complexity) = server_args.max_query_complexity {
+            self.with_max_query_complexity(Some(max_query_complexity));
+        }
+        if let Some(max_recursive_depth) = server_args.max_recursive_depth {
+            self.with_max_recursive_depth(Some(max_recursive_depth));
+        }
+        if let Some(max_directives_per_field) = server_args.max_directives_per_field {
+            self.with_max_directives_per_field(Some(max_directives_per_field));
+        }
+        if let Some(disable_introspection) = server_args.disable_introspection {
+            self.with_disable_introspection(disable_introspection);
+        }
+        Ok(self)
     }
 
     pub fn update_from_json(&mut self, value: serde_json::Value) -> Result<&mut Self, ServerError> {
@@ -341,6 +422,13 @@ impl AppConfigBuilder {
                     self.config.rbac =
                         Deserialize::deserialize(value).map_err(|e| invalid_value([path], e))?;
                 }
+                AppConfigFieldName::Extensions => {
+                    let extensions: Vec<Box<dyn ArgumentExtension>> =
+                        Deserialize::deserialize(value).map_err(|e| invalid_value([path], e))?;
+                    for ext in extensions {
+                        self.with_boxed_extension(ext);
+                    }
+                }
             }
         }
 
@@ -516,6 +604,15 @@ impl AppConfigBuilder {
 
     pub fn with_public_dir(&mut self, public_dir: Option<PathBuf>) -> &mut Self {
         self.config.public_dir = public_dir;
+        self
+    }
+
+    pub fn with_extension(&mut self, extension: impl ArgumentExtension) -> &mut Self {
+        self.with_boxed_extension(Box::new(extension))
+    }
+
+    pub fn with_boxed_extension(&mut self, extension: Box<dyn ArgumentExtension>) -> &mut Self {
+        self.config.extensions.push_boxed(extension);
         self
     }
 

@@ -63,6 +63,7 @@ crossbeam-channel = { workspace = true }
 zip = { workspace = true }
 clap = { workspace = true }
 rust-embed = { workspace = true }
+typetag = { workspace = true }
 
 [dev-dependencies]
 parking_lot = { workspace = true }
