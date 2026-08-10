@@ -156,7 +156,7 @@ impl<T: HasRow> SparseVec<T> {
     }
 }
 
-/// A single layer's data in a Mem(Edge/Node)Segment.
+/// A single layer's data in a Mem(Edge/Node)Segment. Only accessed through a RwLock, so no concurrent writing.
 #[derive(Debug)]
 pub struct SegmentContainer<T> {
     segment_id: usize,
@@ -166,6 +166,28 @@ pub struct SegmentContainer<T> {
     meta: Arc<Meta>,
     out_count: usize, // used to count num edges
     inb_count: usize, // used to count num edges
+    /// Thread-local cache of which temporal prop ids this container has already marked in `Meta`'s
+    /// per-layer property presence bitset, indexed by prop id. Keeps the ingestion hot path lock-free.
+    t_props_seen: Vec<bool>,
+    /// As [`Self::t_props_seen`], for metadata (const) props.
+    c_props_seen: Vec<bool>,
+}
+
+/// Records `prop_id` in `seen`, returning `true` only the first time it is seen.
+///
+/// A free fn rather than a method so callers can pass one destructured field
+/// while the container's other fields stay independently borrowed.
+#[inline]
+fn first_sight(seen: &mut Vec<bool>, prop_id: usize) -> bool {
+    if seen.len() <= prop_id {
+        seen.resize(prop_id + 1, false);
+    }
+    if seen[prop_id] {
+        false
+    } else {
+        seen[prop_id] = true;
+        true
+    }
 }
 
 pub trait HasRow: Default + Send + Sync + Sized {
@@ -186,6 +208,8 @@ impl<T: HasRow> SegmentContainer<T> {
             meta,
             out_count: 0,
             inb_count: 0,
+            t_props_seen: Vec::new(),
+            c_props_seen: Vec::new(),
         }
     }
 
@@ -293,12 +317,19 @@ impl<T: HasRow> SegmentContainer<T> {
         props: impl IntoIterator<Item = (usize, P)>,
     ) {
         let Self {
-            properties, meta, ..
+            properties,
+            meta,
+            t_props_seen,
+            ..
         } = self;
         let mapper = meta.temporal_prop_mapper();
-        let props = props
-            .into_iter()
-            .inspect(|(prop_id, _)| mapper.mark_prop_in_layer(layer_id, *prop_id));
+        let props = props.into_iter().inspect(|(prop_id, _)| {
+            // Only mark props the first time they're seen in this container. Greatly speeds up the
+            // hot path by avoiding acquiring many read_recursive locks which starve the writers (bit flips).
+            if first_sight(t_props_seen, *prop_id) {
+                mapper.mark_prop_in_layer(layer_id, *prop_id);
+            }
+        });
         properties.get_mut_entry(local_row).append_t_props(t, props);
     }
 
@@ -312,12 +343,17 @@ impl<T: HasRow> SegmentContainer<T> {
         props: impl IntoIterator<Item = (usize, P)>,
     ) {
         let Self {
-            properties, meta, ..
+            properties,
+            meta,
+            c_props_seen,
+            ..
         } = self;
         let mapper = meta.metadata_mapper();
-        let props = props
-            .into_iter()
-            .inspect(|(prop_id, _)| mapper.mark_prop_in_layer(layer_id, *prop_id));
+        let props = props.into_iter().inspect(|(prop_id, _)| {
+            if first_sight(c_props_seen, *prop_id) {
+                mapper.mark_prop_in_layer(layer_id, *prop_id);
+            }
+        });
         properties
             .get_mut_entry(local_row)
             .append_const_props(props);
