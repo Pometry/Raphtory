@@ -476,13 +476,12 @@ async fn server_termination(
         _ = terminate => {},
         _ = internal_terminate => {},
     }
+    // Stop global tracing exporters on server shutdown, except for when running
+    // integration tests, where they are reused across multiple tests.
     #[cfg(not(feature = "integration-test"))]
     match tp {
         None => {}
         Some((tp, lp)) => {
-            /* Avoid shutting down global tracing exporters on server shutdown during integration tests
-               since they are reused across multiple tests.
-            */
             tokio::task::spawn_blocking(move || {
                 let res = tp.shutdown();
                 if let Err(e) = res {
