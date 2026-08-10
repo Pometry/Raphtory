@@ -19,7 +19,6 @@ use crate::{
 };
 use clap::{Parser, Subcommand};
 use raphtory::db::api::storage::storage::Args as GraphArgs;
-use serde::Serialize;
 use std::{collections::HashMap, io, path::PathBuf};
 use tokio::io::Result as IoResult;
 
@@ -47,10 +46,11 @@ enum Commands {
     #[command(about = "Print the GraphQL schema")]
     Schema,
 }
-#[derive(clap::Args, Debug, Serialize)]
+#[derive(clap::Args, Debug)]
 struct ServerArgs {
     #[arg(long, help = "Path to stored config.")]
     config_file: Option<PathBuf>,
+
     #[arg(
         long,
         env = "RAPHTORY_WORK_DIR",
@@ -224,6 +224,7 @@ where
         }
         Commands::Server(server_args) => {
             let mut builder = AppConfigBuilder::new();
+
             if let Some(config_file) = server_args.config_file.clone() {
                 builder.load_from_path(config_file)?;
             };
