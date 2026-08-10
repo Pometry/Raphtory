@@ -467,6 +467,23 @@ mod test {
     use arrow_schema::{DataType, Field, Fields, TimeUnit};
     use proptest::{collection::btree_map, prelude::*};
 
+    // `Display` is the stable rendering of a type: map fields come out sorted,
+    // so repeated formatting of the same type is identical. (The derived `Debug`
+    // walks the underlying hash map and does not have this property.)
+    #[test]
+    fn display_of_map_type_is_stable_and_sorted() {
+        let map_type = PropType::map([
+            ("zeta", PropType::I64),
+            ("alpha", PropType::Str),
+            ("mid", PropType::Bool),
+        ]);
+        let rendered = map_type.to_string();
+        assert_eq!(rendered, "Map{ alpha: Str, mid: Bool, zeta: I64 }");
+        for _ in 0..20 {
+            assert_eq!(map_type.to_string(), rendered);
+        }
+    }
+
     #[test]
     fn test_unify_types_ne() {
         let l = PropType::List(Box::new(PropType::U8));
