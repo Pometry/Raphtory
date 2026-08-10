@@ -2,14 +2,17 @@ use clap::{ArgMatches, Args, Command, CommandFactory, Error, FromArgMatches, Par
 use dynamic_graphql::{
     internal::Registry, Context, ExpandObject, ExpandObjectFields, Request, Result,
 };
+use raphtory::prelude::Config;
 use raphtory_graphql::{
     cli::{register_cli_plugin, ArgumentExtension, ArgumentExtensionPlugin, Commands},
+    config::app_config::AppConfigBuilder,
     model::{plugins::query_plugin::RegisterPlugin, QueryRoot},
     server::ServerError,
     GraphServer,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use std::path::PathBuf;
 
 #[derive(clap::Args, Debug, Serialize, Deserialize, Default, Clone)]
 struct TestArgs {
@@ -115,6 +118,40 @@ async fn test_cli_parsing_extension() {
             panic!("expected server args")
         }
     };
+
+    let schema = server.build_schema(None).await.unwrap();
+    let query = r"{ test }";
+    let request = Request::new(query);
+    let result = schema.execute(request).await;
+    let error = result.errors.first().unwrap();
+    assert_eq!(
+        error.message,
+        "Unknown field \"test\" on type \"QueryRoot\"."
+    );
+}
+
+#[tokio::test]
+async fn test_extension_via_conf() {
+    let args = AppConfigBuilder::new()
+        .with_extension(TestArgs {
+            test: Some("test2".to_string()),
+        })
+        .build();
+    let server = GraphServer::new(PathBuf::new(), Some(args), Config::default())
+        .await
+        .unwrap();
+    // check the processing works
+    let schema = server.build_schema(None).await.unwrap();
+    let query = r"{ test }";
+    let request = Request::new(query);
+    let result = schema.execute(request).await;
+    assert_eq!(result.errors, vec![]);
+    assert_eq!(result.data.into_json().unwrap(), json!({ "test": "test2"}));
+
+    // check the plugins are local so a server without the test argument doesn't have the query
+    let server = GraphServer::new(PathBuf::new(), None, Config::default())
+        .await
+        .unwrap();
 
     let schema = server.build_schema(None).await.unwrap();
     let query = r"{ test }";
