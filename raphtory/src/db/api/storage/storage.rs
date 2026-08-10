@@ -83,6 +83,8 @@ impl Storage {
 
     pub fn new_at_path_with_config(path: impl AsRef<Path>, args: Args) -> Result<Self, GraphError> {
         let path = path.as_ref();
+        std::fs::create_dir_all(path)?;
+
         let config: Config = args.into();
         config.save_to_dir(path)?;
 

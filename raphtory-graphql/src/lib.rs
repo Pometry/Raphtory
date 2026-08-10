@@ -1045,6 +1045,7 @@ mod graphql_test {
             sendGraph(path: "test", graph: $graph, overwrite: $overwrite)
         }
         "#;
+
         let req = Request::new(query)
             .variables(Variables::from_json(
                 json!({ "graph": graph_str, "overwrite": false }),
