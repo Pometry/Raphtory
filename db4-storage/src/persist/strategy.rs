@@ -30,7 +30,7 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
     type Config: ConfigOps;
     type ControlFile: ControlFileOps;
 
-    fn new(config: Self::Config, graph_dir: Option<&Path>) -> Result<Self, StorageError>;
+    fn new(graph_dir: Option<&Path>, config: Self::Config) -> Result<Self, StorageError>;
 
     fn load(graph_dir: &Path, config: Self::Config) -> Result<Self, StorageError>;
 
@@ -97,7 +97,7 @@ impl PersistenceStrategy for NoOpStrategy {
     type Config = BaseConfig;
     type ControlFile = NoControlFile;
 
-    fn new(config: BaseConfig, _graph_dir: Option<&Path>) -> Result<Self, StorageError> {
+    fn new(_graph_dir: Option<&Path>, config: BaseConfig) -> Result<Self, StorageError> {
         Ok(Self {
             config,
             wal: NoWal,

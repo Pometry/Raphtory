@@ -73,7 +73,7 @@ impl Base for Storage {
 
 impl Storage {
     pub fn new_with_config(args: Args) -> Result<Self, GraphError> {
-        let ext = Extension::new(args.into(), None)?;
+        let ext = Extension::new(None, args.into())?;
         let temporal_graph = TemporalGraph::new(ext)?;
 
         Ok(Self {
@@ -88,7 +88,7 @@ impl Storage {
         let config: Config = args.into();
         config.save_to_dir(path)?;
 
-        let ext = Extension::new(config, Some(path))?;
+        let ext = Extension::new(Some(path), config)?;
         let temporal_graph = TemporalGraph::new_at_path_with_ext(path, ext)?;
 
         Ok(Self {
