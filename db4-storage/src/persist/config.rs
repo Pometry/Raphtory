@@ -111,4 +111,11 @@ mod tests {
         assert_eq!(default.max_edge_page_len, DEFAULT_MAX_PAGE_LEN_EDGES);
         assert_eq!(default.max_node_page_len, DEFAULT_MAX_PAGE_LEN_NODES);
     }
+
+    #[test]
+    fn test_deserialize() {
+        let default: BaseConfig = serde_json::from_str("{}").unwrap();
+        assert_eq!(default.max_edge_page_len, DEFAULT_MAX_PAGE_LEN_EDGES);
+        assert_eq!(default.max_node_page_len, DEFAULT_MAX_PAGE_LEN_NODES);
+    }
 }
