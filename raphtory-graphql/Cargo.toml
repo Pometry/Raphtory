@@ -56,6 +56,7 @@ bigdecimal = { workspace = true, features = ["serde"] }
 quick_cache = { workspace = true }
 field_types = { workspace = true }
 pythonize = { workspace = true, optional = true }
+indexmap = { workspace = true }
 
 # python binding optional dependencies
 pyo3 = { workspace = true, optional = true }
