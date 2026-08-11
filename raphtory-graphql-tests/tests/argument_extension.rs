@@ -1,12 +1,19 @@
-use clap::{ArgMatches, Args, Command, CommandFactory, Error, FromArgMatches, Parser};
+use clap::{CommandFactory, FromArgMatches, Parser};
 use dynamic_graphql::{
     internal::Registry, Context, ExpandObject, ExpandObjectFields, Request, Result,
 };
 use raphtory::prelude::Config;
 use raphtory_graphql::{
-    cli::{register_cli_plugin, ArgumentExtension, ArgumentExtensionPlugin, Commands},
+    cli::Commands,
     config::app_config::AppConfigBuilder,
-    model::{plugins::query_plugin::RegisterPlugin, QueryRoot},
+    model::QueryRoot,
+    plugin::{
+        schema::RegisterPlugin,
+        server::{
+            extension::ServerExtension,
+            plugin::{register_cli_plugin, ServerPlugin},
+        },
+    },
     server::ServerError,
     GraphServer,
 };
@@ -20,8 +27,8 @@ struct TestArgs {
     test: Option<String>,
 }
 
-impl ArgumentExtension for TestArgs {
-    fn process_args(&self, server: GraphServer) -> Result<GraphServer, ServerError> {
+impl ServerExtension for TestArgs {
+    fn apply(&self, server: GraphServer) -> Result<GraphServer, ServerError> {
         match self.test.clone() {
             None => Ok(server),
             Some(test_value) => {
@@ -60,9 +67,9 @@ impl RegisterPlugin for TestSchemaPlugin {
 }
 
 struct TestArgPlugin;
-impl ArgumentExtensionPlugin for TestArgPlugin {
+impl ServerPlugin for TestArgPlugin {
     type Extension = TestArgs;
-    fn new_args(&self) -> Self::Extension {
+    fn new(&self) -> Self::Extension {
         TestArgs::default()
     }
 }
@@ -155,7 +162,6 @@ async fn test_extension_via_conf() {
 #[tokio::test]
 async fn test_config_file_support() {
     register_cli_plugin(TestArgPlugin);
-    let mut cmd = raphtory_graphql::cli::Args::command();
 
     // check the processing works
     let args_input: Vec<&str> = vec![r"raphtory-server", "server", "--test", "test"];

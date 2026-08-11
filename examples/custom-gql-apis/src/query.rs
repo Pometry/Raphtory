@@ -3,7 +3,7 @@ use async_graphql::{
     FieldResult,
 };
 use futures_util::future::BoxFuture;
-use raphtory_graphql::model::plugins::{operation::Operation, query_plugin::Plugins};
+use raphtory_graphql::model::r#mod::{operation::Operation, schema_plugin::Plugins};
 
 pub(crate) struct HelloQuery;
 

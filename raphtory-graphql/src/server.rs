@@ -3,10 +3,7 @@ use crate::{
     auth_policy::AuthorizationPolicy,
     config::{app_config::AppConfig, auth_config::PublicKeyError},
     data::Data,
-    model::{
-        plugins::{entry_point::EntryPoint, operation::Operation},
-        App,
-    },
+    model::App,
     observability::open_telemetry::OpenTelemetry,
     routes::{health, version, PublicFilesEndpoint},
     server::ServerError::SchemaError,
@@ -60,8 +57,7 @@ use tracing_subscriber::{
 use url::ParseError;
 
 use crate::{
-    cli::ServerArgs, config::app_config::AppConfigBuilder,
-    model::plugins::query_plugin::RegisterPlugin,
+    cli::ServerArgs, config::app_config::AppConfigBuilder, plugin::schema::RegisterPlugin,
 };
 #[cfg(feature = "vectors")]
 use {
@@ -138,26 +134,6 @@ pub struct GraphServer {
     schema_data: Vec<SchemaDataInjector>,
     key_resolver: Option<std::sync::Arc<dyn crate::auth::KeyResolver>>,
     schema_plugins: Vec<Box<dyn RegisterPlugin>>,
-}
-
-pub fn register_query_plugin<
-    'a,
-    E: EntryPoint<'a> + 'static + Send,
-    A: Operation<'a, E> + 'static + Send,
->(
-    name: &str,
-) {
-    E::lock_plugins().insert(name.to_string(), Box::new(A::register_operation));
-}
-
-pub fn register_mutation_plugin<
-    'a,
-    E: EntryPoint<'a> + 'static + Send,
-    A: Operation<'a, E> + 'static + Send,
->(
-    name: &str,
-) {
-    E::lock_plugins().insert(name.to_string(), Box::new(A::register_operation));
 }
 
 impl GraphServer {

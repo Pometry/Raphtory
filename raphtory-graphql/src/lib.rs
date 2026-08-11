@@ -31,6 +31,7 @@ pub mod url_encode;
 #[cfg(feature = "python")]
 pub mod python;
 
+pub mod plugin;
 #[cfg(test)]
 pub(crate) mod test_support;
 

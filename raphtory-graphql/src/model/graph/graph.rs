@@ -17,7 +17,6 @@ use crate::{
             windowset::GqlGraphWindowSet,
             GqlAlignmentUnit, WindowDuration,
         },
-        plugins::graph_algorithm_plugin::GraphAlgorithmPlugin,
         schema::graph_schema::GraphSchema,
     },
     paths::{PathValidationError, UnlockedGraphFolder, ValidGraphPaths},
@@ -635,13 +634,6 @@ impl GqlGraph {
     async fn schema(&self) -> Result<GraphSchema> {
         let self_clone = self.clone();
         Ok(blocking_compute(move || GraphSchema::new(&self_clone.graph)).await)
-    }
-
-    /// Access registered graph algorithms (PageRank, shortest path, etc.) for this
-    /// graph view. The set of available algorithms is defined by the plugin registry
-    /// loaded at server startup.
-    async fn algorithms(&self) -> GraphAlgorithmPlugin {
-        self.graph.clone().into()
     }
 
     /// Access the algorithms that can be run on this graph view.

@@ -5,20 +5,14 @@ use crate::{
         gql_error_with_code, parent_namespace, require_graph_write, Data, GqlGraphType,
         PermissionError, CODE_ACCESS_DENIED,
     },
-    model::{
-        graph::{
-            collection::GqlCollection,
-            graph::GqlGraph,
-            meta_graph::MetaGraph,
-            mutable_graph::GqlMutableGraph,
-            namespace::{is_namespace_visible, Namespace},
-            namespaced_item::NamespacedItem,
-            node_id::GqlNodeId,
-        },
-        plugins::{
-            mutation_plugin::MutationPlugin, query_plugin::Plugins, PermissionsEntrypointMut,
-            PermissionsEntrypointQuery,
-        },
+    model::graph::{
+        collection::GqlCollection,
+        graph::GqlGraph,
+        meta_graph::MetaGraph,
+        mutable_graph::GqlMutableGraph,
+        namespace::{is_namespace_visible, Namespace},
+        namespaced_item::NamespacedItem,
+        node_id::GqlNodeId,
     },
     paths::{ExistingGraphFolder, ValidGraphPaths, ValidWriteableGraphFolder},
     rayon::{blocking_compute, blocking_write},
@@ -26,8 +20,8 @@ use crate::{
 };
 use async_graphql::{dynamic::SchemaBuilder, Context};
 use dynamic_graphql::{
-    internal::Registry, App, InputObject, Mutation, MutationFields, MutationRoot, OneOfInput,
-    ResolvedObject, ResolvedObjectFields, Result, Upload,
+    internal::Registry, App, Mutation, MutationFields, MutationRoot, OneOfInput, ResolvedObject,
+    ResolvedObjectFields, Result, Upload,
 };
 use itertools::Itertools;
 use raphtory::{
@@ -50,7 +44,7 @@ use tracing::warn;
 
 #[cfg(feature = "vectors")]
 use crate::model::graph::vectorised_graph::VectorQuery;
-use crate::model::plugins::query_plugin::RegisterPlugin;
+use crate::{model::plugins::Plugins, plugin::schema::RegisterPlugin};
 
 pub(crate) mod algorithms;
 pub mod graph;
@@ -311,11 +305,6 @@ pub(crate) struct Mut(MutRoot);
 
 #[MutationFields]
 impl Mut {
-    /// Returns a collection of mutation plugins.
-    async fn plugins<'a>(_ctx: &Context<'a>) -> MutationPlugin {
-        MutationPlugin
-    }
-
     /// Delete graph from a path on the server.
     async fn delete_graph<'a>(
         ctx: &Context<'a>,
@@ -766,8 +755,6 @@ pub struct App(
     #[cfg(feature = "vectors")] VectorQuery<'static>,
     Mut,
     Plugins,
-    PermissionsEntrypointMut,
-    PermissionsEntrypointQuery,
 );
 
 impl App {
