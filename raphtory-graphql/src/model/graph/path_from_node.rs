@@ -1,7 +1,9 @@
 use crate::{
     model::graph::{
         collection::{check_list_allowed, check_page_limit},
-        filtering::{GqlNodeFilter, PathFromNodeViewCollection},
+        edges::GqlEdges,
+        filtering::{GqlFilter, GqlNodeFilter, PathFromNodeViewCollection},
+        history::GqlHistory,
         node::GqlNode,
         timeindex::{GqlEventTime, GqlTimeInput},
         windowset::GqlPathFromNodeWindowSet,
@@ -15,7 +17,10 @@ use raphtory::{
     core::utils::time::TryIntoInterval,
     db::{
         api::view::{filter_ops::NodeSelect, DynamicGraph, Filter},
-        graph::{path::PathFromNode, views::filter::model::CompositeNodeFilter},
+        graph::{
+            path::PathFromNode,
+            views::filter::model::{CompositeNodeFilter, DynFilter},
+        },
     },
     errors::GraphError,
     prelude::*,
@@ -63,6 +68,12 @@ impl GqlPathFromNode {
     ) -> Self {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.update(self_clone.nn.valid_layers(names))).await
+    }
+
+    /// Return a view of PathFromNode restricted to the default layer.
+    async fn default_layer(&self) -> Self {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.update(self_clone.nn.default_layer())).await
     }
 
     /// Return a view of PathFromNode containing all layers except the specified excluded layers, errors if any of the layers do not exist.
@@ -261,6 +272,64 @@ impl GqlPathFromNode {
         self.nn.end().into()
     }
 
+    /// Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
+    async fn window_size(&self) -> Option<i64> {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.nn.window_size().map(|s| s as i64)).await
+    }
+
+    /// Check if a layer with the given name is present in this view.
+    async fn has_layer(&self, name: String) -> bool {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.nn.has_layer(name)).await
+    }
+
+    /// Returns a single history object combining the time entries of all nodes reachable from the source in this view.
+    async fn combined_history(&self) -> GqlHistory {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.nn.combined_history().into()).await
+    }
+
+    ///////////////////
+    //// METRICS //////
+    ///////////////////
+
+    /// The degree (number of incident edges) of every node in the path, in order.
+    async fn degree(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<usize>> {
+        // Columnar metric over every member — unbounded, so honour the
+        // same list guard as `list`/`ids`.
+        check_list_allowed(ctx)?;
+        let self_clone = self.clone();
+        Ok(blocking_compute(move || self_clone.nn.degree().collect()).await)
+    }
+
+    /// The in-degree (number of incoming edges) of every node in the path, in order.
+    async fn in_degree(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<usize>> {
+        // Columnar metric over every member — unbounded, so honour the
+        // same list guard as `list`/`ids`.
+        check_list_allowed(ctx)?;
+        let self_clone = self.clone();
+        Ok(blocking_compute(move || self_clone.nn.in_degree().collect()).await)
+    }
+
+    /// The out-degree (number of outgoing edges) of every node in the path, in order.
+    async fn out_degree(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<usize>> {
+        // Columnar metric over every member — unbounded, so honour the
+        // same list guard as `list`/`ids`.
+        check_list_allowed(ctx)?;
+        let self_clone = self.clone();
+        Ok(blocking_compute(move || self_clone.nn.out_degree().collect()).await)
+    }
+
+    /// The number of edge updates incident to every node in the path, in order.
+    async fn edge_history_count(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<usize>> {
+        // Columnar metric over every member — unbounded, so honour the
+        // same list guard as `list`/`ids`.
+        check_list_allowed(ctx)?;
+        let self_clone = self.clone();
+        Ok(blocking_compute(move || self_clone.nn.edge_history_count().collect()).await)
+    }
+
     /////////////////
     //// List ///////
     /////////////////
@@ -382,12 +451,14 @@ impl GqlPathFromNode {
 
     async fn filter(
         &self,
-        #[graphql(desc = "Composite node filter (by name, property, type, etc.).")]
-        expr: GqlNodeFilter,
+        #[graphql(
+            desc = "Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection)."
+        )]
+        expr: GqlFilter,
     ) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let filter: CompositeNodeFilter = expr.try_into()?;
+            let filter: DynFilter = expr.try_into()?;
             let filtered = self_clone.nn.filter(filter)?;
             Ok(self_clone.update(filtered.into_dyn()))
         })
@@ -422,5 +493,72 @@ impl GqlPathFromNode {
             Ok(self_clone.update(filtered.into_dyn()))
         })
         .await
+    }
+
+    /////////////////////
+    //// Traversals /////
+    /////////////////////
+
+    /// Returns the neighbouring nodes reachable one further hop from this path
+    /// (both directions), as a flat `PathFromNode`.
+    async fn neighbours(
+        &self,
+        select: Option<GqlNodeFilter>,
+    ) -> Result<GqlPathFromNode, GraphError> {
+        let base = self.nn.neighbours();
+        if let Some(expr) = select {
+            let nf: CompositeNodeFilter = expr.try_into()?;
+            let narrowed = blocking_compute(move || base.select(nf)).await?;
+            return Ok(GqlPathFromNode::new(narrowed));
+        }
+        Ok(GqlPathFromNode::new(base))
+    }
+
+    /// Returns the in-neighbours reachable one further hop from this path, as a
+    /// flat `PathFromNode`.
+    async fn in_neighbours(
+        &self,
+        select: Option<GqlNodeFilter>,
+    ) -> Result<GqlPathFromNode, GraphError> {
+        let base = self.nn.in_neighbours();
+        if let Some(expr) = select {
+            let nf: CompositeNodeFilter = expr.try_into()?;
+            let narrowed = blocking_compute(move || base.select(nf)).await?;
+            return Ok(GqlPathFromNode::new(narrowed));
+        }
+        Ok(GqlPathFromNode::new(base))
+    }
+
+    /// Returns the out-neighbours reachable one further hop from this path, as a
+    /// flat `PathFromNode`.
+    async fn out_neighbours(
+        &self,
+        select: Option<GqlNodeFilter>,
+    ) -> Result<GqlPathFromNode, GraphError> {
+        let base = self.nn.out_neighbours();
+        if let Some(expr) = select {
+            let nf: CompositeNodeFilter = expr.try_into()?;
+            let narrowed = blocking_compute(move || base.select(nf)).await?;
+            return Ok(GqlPathFromNode::new(narrowed));
+        }
+        Ok(GqlPathFromNode::new(base))
+    }
+
+    /// Returns the incident edges (both directions) of the nodes in this path,
+    /// as a flat `Edges` collection.
+    async fn edges(&self) -> GqlEdges {
+        GqlEdges::new(self.nn.edges())
+    }
+
+    /// Returns the incoming edges of the nodes in this path, as a flat `Edges`
+    /// collection.
+    async fn in_edges(&self) -> GqlEdges {
+        GqlEdges::new(self.nn.in_edges())
+    }
+
+    /// Returns the outgoing edges of the nodes in this path, as a flat `Edges`
+    /// collection.
+    async fn out_edges(&self) -> GqlEdges {
+        GqlEdges::new(self.nn.out_edges())
     }
 }

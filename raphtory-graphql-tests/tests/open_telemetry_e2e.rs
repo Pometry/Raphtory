@@ -4,17 +4,14 @@ use raphtory::{
     prelude::{Graph, StableEncode},
 };
 use raphtory_graphql::{
-    client::raphtory_client::RaphtoryGraphQLClient,
+    client::remote_client::RemoteClient,
     config::{
         app_config::AppConfigBuilder,
         otlp_config::{TracingLevel, TracingProtocol},
     },
     server::GraphServer,
 };
-use std::{
-    collections::{HashMap, HashSet},
-    time::Duration,
-};
+use std::{collections::HashSet, time::Duration};
 use tempfile::tempdir;
 use url::Url;
 
@@ -47,7 +44,7 @@ async fn test_open_telemetry_http_tracing_server() {
     let handler = server.start_with_port(0).await.unwrap();
 
     let endpoint = Url::parse(&format!("http://localhost:{}/", handler.port())).unwrap();
-    let client = RaphtoryGraphQLClient::new(endpoint, None);
+    let client = RemoteClient::new(endpoint, None);
     let open_telemetry_query = "query {
 	updateGraph(path: \"g\") {
 		addNode(time: 1, name: 1, properties: [{ key: \"seed\", value: { str: \"yes\" } }], nodeType: \"seed\", layer: \"main\") {
@@ -65,7 +62,7 @@ async fn test_open_telemetry_http_tracing_server() {
 	}
 }".to_string();
     let _ = client
-        .query(&open_telemetry_query, HashMap::new())
+        .query(&open_telemetry_query, Default::default())
         .await
         .unwrap();
 

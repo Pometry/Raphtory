@@ -7,6 +7,7 @@ use crate::{
         log_config::{LoggingConfig, LoggingConfigFieldName},
         otlp_config::{TracingConfig, TracingConfigFieldName, TracingLevel, TracingProtocol},
         parquet_config::{ParquetConfig, ParquetConfigFieldName},
+        rbac_config::RbacConfig,
         schema_config::{SchemaConfig, SchemaConfigFieldName},
     },
     plugin::server::extension::{ArgExtensions, BoxedExtension, ServerExtensionImpl},
@@ -35,6 +36,7 @@ pub struct AppConfig {
     pub parquet: ParquetConfig,
     pub public_dir: Option<PathBuf>,
     pub extensions: ArgExtensions,
+    pub rbac: RbacConfig,
 }
 
 pub struct AppConfigBuilder {
@@ -270,6 +272,36 @@ impl AppConfigBuilder {
                                         .map_err(|e| invalid_value([path, sub_path], e))?,
                                 );
                             }
+                            AuthConfigFieldName::Audience => {
+                                self.with_auth_audience(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                            AuthConfigFieldName::Issuer => {
+                                self.with_auth_issuer(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                            AuthConfigFieldName::RoleClaim => {
+                                self.with_auth_role_claim(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                            AuthConfigFieldName::JwksUri => {
+                                self.with_auth_jwks_uri(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                            AuthConfigFieldName::JwksRefreshSecs => {
+                                self.with_auth_jwks_refresh_secs(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
                         }
                     }
                 }
@@ -390,6 +422,10 @@ impl AppConfigBuilder {
                         self.with_boxed_extension(ext);
                     }
                 }
+                AppConfigFieldName::Rbac => {
+                    self.config.rbac =
+                        Deserialize::deserialize(value).map_err(|e| invalid_value([path], e))?;
+                }
             }
         }
 
@@ -467,6 +503,31 @@ impl AppConfigBuilder {
 
     pub fn with_require_auth_for_reads(&mut self, require_auth_for_reads: bool) -> &mut Self {
         self.config.auth.require_auth_for_reads = require_auth_for_reads;
+        self
+    }
+
+    pub fn with_auth_audience(&mut self, audience: Option<String>) -> &mut Self {
+        self.config.auth.audience = audience;
+        self
+    }
+
+    pub fn with_auth_issuer(&mut self, issuer: Option<String>) -> &mut Self {
+        self.config.auth.issuer = issuer;
+        self
+    }
+
+    pub fn with_auth_role_claim(&mut self, role_claim: Option<String>) -> &mut Self {
+        self.config.auth.role_claim = role_claim;
+        self
+    }
+
+    pub fn with_auth_jwks_uri(&mut self, jwks_uri: Option<String>) -> &mut Self {
+        self.config.auth.jwks_uri = jwks_uri;
+        self
+    }
+
+    pub fn with_auth_jwks_refresh_secs(&mut self, secs: Option<u64>) -> &mut Self {
+        self.config.auth.jwks_refresh_secs = secs;
         self
     }
 

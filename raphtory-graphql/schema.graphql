@@ -1,4 +1,509 @@
 """
+The algorithms that can be run on a graph view.
+"""
+type Algorithms {
+	"""
+	Returns the PageRank centrality of every node in the graph.
+	"""
+	pagerank(
+		"""
+		Number of iterations to run. Defaults to 20.
+		"""
+		iterCount: Int,
+		"""
+		Number of threads to use. Defaults to all available.
+		"""
+		threads: Int,
+		"""
+		Convergence tolerance. Defaults to 0.000001.
+		"""
+		tol: Float,
+		"""
+		Probability that the spread continues. Defaults to 0.85.
+		"""
+		dampingFactor: Float,
+		"""
+		Edge property to use as weight. If unset, all edges have weight 1.
+		"""
+		weight: String
+	): NodeState!
+	"""
+	Returns the degree centrality of every node.
+	"""
+	degreeCentrality: NodeState!
+	"""
+	Returns the betweenness centrality of every node.
+	"""
+	betweennessCentrality(
+		"""
+		Number of nodes to sample. Defaults to all nodes.
+		"""
+		k: Int,
+		"""
+		Whether to normalize the values. Defaults to true.
+		"""
+		normalized: Boolean
+	): NodeState!
+	"""
+	Returns the HITS hub and authority scores of every node.
+	"""
+	hits(
+		"""
+		Number of iterations to run. Defaults to 20.
+		"""
+		iterCount: Int,
+		"""
+		Number of threads to use. Defaults to all available.
+		"""
+		threads: Int
+	): NodeState!
+	"""
+	Returns the shortest (unweighted) path from `source` to every reachable node.
+	"""
+	singleSourceShortestPath(
+		"""
+		Source node id.
+		"""
+		source: NodeId!,
+		"""
+		Optional maximum path length; stops the search once reached.
+		"""
+		cutoff: Int
+	): NodeState!
+	"""
+	Returns the in component (all nodes that can reach it following out-edges) of every node.
+	"""
+	inComponents(
+		"""
+		Optional composite filter (node, edge, and graph-view); the algorithm runs on the resulting view.
+		"""
+		filter: GqlFilter,
+		"""
+		Number of threads to use. Defaults to all available.
+		"""
+		threads: Int
+	): NodeState!
+	"""
+	Returns the out component (all reachable nodes following out-edges) of every node.
+	"""
+	outComponents(
+		"""
+		Optional composite filter (node, edge, and graph-view); the algorithm runs on the resulting view.
+		"""
+		filter: GqlFilter,
+		"""
+		Number of threads to use. Defaults to all available.
+		"""
+		threads: Int
+	): NodeState!
+	"""
+	Returns the in component of a single node (nodes that can reach it, with their distance).
+	"""
+	inComponent(
+		"""
+		Node id.
+		"""
+		node: NodeId!,
+		"""
+		Optional composite filter (node, edge, and graph-view); the algorithm runs on the resulting view.
+		"""
+		filter: GqlFilter
+	): NodeState!
+	"""
+	Returns the out component of a single node (nodes it can reach, with their distance).
+	"""
+	outComponent(
+		"""
+		Node id.
+		"""
+		node: NodeId!,
+		"""
+		Optional composite filter (node, edge, and graph-view); the algorithm runs on the resulting view.
+		"""
+		filter: GqlFilter
+	): NodeState!
+	"""
+	Returns the local triangle count of a single node (0 if it has degree < 2), or null if
+	the node does not exist in the view.
+	"""
+	localTriangleCount(
+		"""
+		Node id.
+		"""
+		node: NodeId!
+	): Int
+	"""
+	Returns the local clustering coefficient of a single node (0 if it has degree < 2), or
+	null if the node does not exist in the view.
+	"""
+	localClusteringCoefficient(
+		"""
+		Node id.
+		"""
+		node: NodeId!
+	): Float
+	"""
+	Returns the weakly connected component id of every node.
+	"""
+	weaklyConnectedComponents: NodeState!
+	"""
+	Returns the strongly connected component id of every node.
+	"""
+	stronglyConnectedComponents: NodeState!
+	"""
+	Returns the community of every node (Louvain).
+	"""
+	louvain(
+		"""
+		Resolution parameter for modularity. Defaults to 1.0.
+		"""
+		resolution: Float,
+		"""
+		Edge property to use as weight. If unset, all edges have weight 1.
+		"""
+		weightProp: String,
+		"""
+		Convergence tolerance. Defaults to 1e-8.
+		"""
+		tol: Float,
+		"""
+		Seed for the node-shuffling rng. If unset, seeded from the OS.
+		"""
+		rngSeed: Int
+	): NodeState!
+	"""
+	Returns the community of every node (label propagation).
+	"""
+	labelPropagation(
+		"""
+		Number of iterations to run. Defaults to 20.
+		"""
+		iterCount: Int,
+		"""
+		Number of threads to use. Defaults to all available.
+		"""
+		threads: Int
+	): NodeState!
+	"""
+	Returns the weighted shortest path from `source` to each of `targets` (Dijkstra).
+	"""
+	dijkstra(
+		"""
+		Source node id.
+		"""
+		source: NodeId!,
+		"""
+		Target node ids.
+		"""
+		targets: [NodeId!]!,
+		"""
+		Edge property to use as weight. If unset, all edges have weight 1.
+		"""
+		weight: String,
+		"""
+		Edge direction to follow. Defaults to BOTH.
+		"""
+		direction: Direction
+	): NodeState!
+	"""
+	Returns the local reciprocity of every node.
+	"""
+	allLocalReciprocity: NodeState!
+	"""
+	Returns the net sum of edge weights (balance) of every node.
+	"""
+	balance(
+		"""
+		Edge property to use as weight. Defaults to `weight`.
+		"""
+		name: String,
+		"""
+		Edge direction to consider. Defaults to BOTH.
+		"""
+		direction: Direction
+	): NodeState!
+	"""
+	Returns the local clustering coefficient of each of the given nodes.
+	"""
+	localClusteringCoefficientBatch(
+		"""
+		Node ids to compute the coefficient for.
+		"""
+		nodes: [NodeId!]!
+	): NodeState!
+	"""
+	Returns the global clustering coefficient of the graph.
+	"""
+	globalClusteringCoefficient: Float!
+	"""
+	Returns the directed graph density (fraction of possible directed edges present).
+	"""
+	directedGraphDensity: Float!
+	"""
+	Returns the global reciprocity of the graph.
+	"""
+	globalReciprocity: Float!
+	"""
+	Returns the average (undirected) degree of the graph's nodes.
+	"""
+	averageDegree: Float!
+	"""
+	Returns the maximum (undirected) degree of any node in the graph.
+	"""
+	maxDegree: Int!
+	"""
+	Returns the minimum (undirected) degree of any node in the graph.
+	"""
+	minDegree: Int!
+	"""
+	Returns the maximum out-degree of any node in the graph.
+	"""
+	maxOutDegree: Int!
+	"""
+	Returns the maximum in-degree of any node in the graph.
+	"""
+	maxInDegree: Int!
+	"""
+	Returns the minimum out-degree of any node in the graph.
+	"""
+	minOutDegree: Int!
+	"""
+	Returns the minimum in-degree of any node in the graph.
+	"""
+	minInDegree: Int!
+	"""
+	Returns the number of connected triplets (paths of length 2) in the graph.
+	"""
+	tripletCount(
+		"""
+		Number of threads to use. Defaults to all available.
+		"""
+		threads: Int
+	): Int!
+	"""
+	Returns the number of triangles in the graph.
+	"""
+	triangleCount(
+		"""
+		Number of threads to use. Defaults to all available.
+		"""
+		threads: Int
+	): Int!
+	"""
+	Returns the FastRP embedding of every node.
+	"""
+	fastRp(
+		"""
+		Dimension of the embedding.
+		"""
+		embeddingDim: Int!,
+		"""
+		Normalization strength applied to neighbour contributions.
+		"""
+		normalizationStrength: Float!,
+		"""
+		Weight of each iteration's contribution to the embedding.
+		"""
+		iterWeights: [Float!]!,
+		"""
+		Seed for the rng. If unset, seeded from the OS.
+		"""
+		seed: Int,
+		"""
+		Number of threads to use. Defaults to all available.
+		"""
+		threads: Int
+	): NodeState!
+	"""
+	Returns the nodes temporally reachable from `seedNodes` starting at `startTime`.
+	"""
+	temporallyReachableNodes(
+		"""
+		Maximum number of hops to traverse.
+		"""
+		maxHops: Int!,
+		"""
+		Time at which the traversal starts.
+		"""
+		startTime: Int!,
+		"""
+		Node ids to start from.
+		"""
+		seedNodes: [NodeId!]!,
+		"""
+		Node ids that halt the traversal when reached.
+		"""
+		stopNodes: [NodeId!],
+		"""
+		Number of threads to use. Defaults to all available.
+		"""
+		threads: Int
+	): NodeState!
+	"""
+	Returns the 2D layout position of every node (Fruchterman-Reingold).
+	"""
+	fruchtermanReingold(
+		"""
+		Number of iterations to run. Defaults to 100.
+		"""
+		iterCount: Int,
+		"""
+		Scale of the layout. Defaults to 1.0.
+		"""
+		scale: Float,
+		"""
+		Initial node size. Defaults to 1.0.
+		"""
+		nodeStartSize: Float,
+		"""
+		Cooloff factor. Defaults to 0.95.
+		"""
+		cooloffFactor: Float,
+		"""
+		Time step. Defaults to 0.1.
+		"""
+		dt: Float
+	): NodeState!
+	"""
+	Returns the 2D layout position of every node (cohesive Fruchterman-Reingold).
+	"""
+	cohesiveFruchtermanReingold(
+		"""
+		Number of iterations to run. Defaults to 100.
+		"""
+		iterCount: Int,
+		"""
+		Scale of the layout. Defaults to 1.0.
+		"""
+		scale: Float,
+		"""
+		Initial node size. Defaults to 1.0.
+		"""
+		nodeStartSize: Float,
+		"""
+		Cooloff factor. Defaults to 0.95.
+		"""
+		cooloffFactor: Float,
+		"""
+		Time step. Defaults to 0.1.
+		"""
+		dt: Float
+	): NodeState!
+	"""
+	Returns the local temporal three-node motif counts of every node.
+	"""
+	localTemporalThreeNodeMotifs(
+		"""
+		Maximum time difference between the first and last edge of a motif.
+		"""
+		delta: Int!,
+		"""
+		Number of threads to use. Defaults to all available.
+		"""
+		threads: Int
+	): NodeState!
+	"""
+	Returns the graph-wide temporal three-node motif counts: 40 counts in a
+	fixed order (8 two-node, 24 star, then 8 triangle motifs).
+	"""
+	globalTemporalThreeNodeMotif(
+		"""
+		Maximum time difference between the first and last edge of a motif.
+		"""
+		delta: Int!,
+		"""
+		Number of threads to use. Defaults to all available.
+		"""
+		threads: Int
+	): [Int!]!
+	"""
+	Returns the graph-wide temporal three-node motif counts for each of
+	`deltas`, one row of 40 counts per delta, in the order given.
+	"""
+	globalTemporalThreeNodeMotifMulti(
+		"""
+		Maximum time differences to compute the motif counts for.
+		"""
+		deltas: [Int!]!,
+		"""
+		Number of threads to use. Defaults to all available.
+		"""
+		threads: Int
+	): [MotifCounts!]!
+	"""
+	Returns the temporal rich club coefficient: the maximal density among the
+	nodes of degree at least `k` that persists over `windowSize` consecutive
+	snapshots. The snapshots are the rolling windows described by
+	`rollingWindow` / `rollingStep`.
+	"""
+	temporalRichClubCoefficient(
+		"""
+		Minimum degree a node must have to be in the rich club.
+		"""
+		k: Int!,
+		"""
+		Number of consecutive snapshots the edges must persist over.
+		"""
+		windowSize: Int!,
+		"""
+		Width of each snapshot.
+		"""
+		rollingWindow: WindowDuration!,
+		"""
+		Optional gap between the start of one snapshot and the next. Defaults to `rollingWindow`, i.e. non-overlapping snapshots.
+		"""
+		rollingStep: WindowDuration
+	): Float!
+	"""
+	Simulates an SEIR epidemic, returning the infection, activation and
+	recovery times of every node that was infected.
+	"""
+	temporalSeir(
+		"""
+		How the initially infected nodes are chosen.
+		"""
+		seeds: Seeds!,
+		"""
+		Probability that an encounter between an active and a susceptible node infects it.
+		"""
+		infectionProb: Float!,
+		"""
+		Time of the initial infection.
+		"""
+		initialInfection: TimeInput!,
+		"""
+		Rate at which infected nodes recover. If unset, nodes never recover.
+		"""
+		recoveryRate: Float,
+		"""
+		Rate at which infected nodes become infectious. If unset, they are infectious immediately.
+		"""
+		incubationRate: Float,
+		"""
+		Seed for the random number generator. If unset, seeded from the OS.
+		"""
+		rngSeed: Int
+	): NodeState!
+	"""
+	Returns a maximum weight matching of the graph, treated as undirected.
+	"""
+	maxWeightMatching(
+		"""
+		Edge property to use as weight. If unset, all edges have weight 1.
+		"""
+		weightProp: String,
+		"""
+		Only consider maximum-cardinality matchings. Defaults to false.
+		"""
+		maxCardinality: Boolean,
+		"""
+		Verify that the matching found is optimum. Defaults to false.
+		"""
+		verifyOptimum: Boolean
+	): Matching!
+}
+
+"""
 Alignment unit used to align window boundaries.
 """
 enum AlignmentUnit {
@@ -139,6 +644,15 @@ enum DegreeDirection {
 input DegreeFilterNew {
 	direction: DegreeDirection!
 	where: PropCondition!
+}
+
+"""
+Edge direction to follow during traversal.
+"""
+enum Direction {
+	OUT
+	IN
+	BOTH
 }
 
 """
@@ -402,6 +916,14 @@ type Edge {
 	"""
 	end: EventTime!
 	"""
+	Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
+	"""
+	windowSize: Int
+	"""
+	Check if a layer with the given name is present in this view.
+	"""
+	hasLayer(name: String!): Boolean!
+	"""
 	Returns the source node of the edge.
 	
 	Returns:
@@ -498,9 +1020,41 @@ type Edge {
 	"""
 	filter(
 		"""
-		Composite edge filter (by property, layer, src/dst, etc.).
+		Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
 		"""
-		expr: EdgeFilter!
+		expr: GqlFilter!
+	): Edge!
+	"""
+	Pin this edge to a single event — the exploded instance recorded at
+	the given event time, optionally restricted to a layer. Matches the
+	members of `explode`: the returned edge answers `time` and `layerName`
+	and its properties are those of that one update. An Int or DateTime
+	String matches the first event at that timestamp; pass the object form
+	`{timestamp, eventId}` to select an exact event when several share a
+	timestamp. Errors if the edge has no matching event under the current
+	view.
+	"""
+	event(
+		"""
+		Event time to pin to — Int, DateTime String, or `{timestamp, eventId}`.
+		"""
+		time: TimeInput!,
+		"""
+		Optional layer name the event must belong to.
+		"""
+		layer: String
+	): Edge!
+	"""
+	Pin this edge to a single layer-exploded instance by layer name — the
+	analogue of `event(...)` for `explodeLayers()`. The returned edge has a
+	resolved `layerName`; `time` is unavailable on it, matching the local
+	`explode_layers()` semantics (a layer instance spans all of its events).
+	"""
+	eventLayer(
+		"""
+		Layer name to pin to.
+		"""
+		name: String!
 	): Edge!
 }
 
@@ -1130,6 +1684,27 @@ type Edges {
 	"""
 	end: EventTime!
 	"""
+	Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
+	"""
+	windowSize: Int
+	"""
+	Check if a layer with the given name is present in this view.
+	"""
+	hasLayer(name: String!): Boolean!
+	"""
+	Returns the source node of each edge, as a flat `PathFromNode`.
+	"""
+	src: PathFromNode!
+	"""
+	Returns the destination node of each edge, as a flat `PathFromNode`.
+	"""
+	dst: PathFromNode!
+	"""
+	Returns the node at the other end of each edge (destination for
+	out-edges, source for in-edges), as a flat `PathFromNode`.
+	"""
+	nbr: PathFromNode!
+	"""
 	Returns the number of edges.
 	
 	Returns:
@@ -1180,9 +1755,9 @@ type Edges {
 	"""
 	filter(
 		"""
-		Composite edge filter (by property, layer, src/dst, etc.).
+		Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
 		"""
-		expr: EdgeFilter!
+		expr: GqlFilter!
 	): Edges!
 	"""
 	Narrow the collection to edges matching `expr`, but only at this step —
@@ -1355,6 +1930,97 @@ type EventTime {
 		"""
 		formatString: String
 	): String
+}
+
+"""
+Fuzzy string match: passes when the candidate is within `levenshteinDistance`
+edits of `value` (optionally also matching by prefix). Mirrors the local
+`fuzzy_search(value, levenshtein_distance, prefix_match)` builder.
+"""
+input FuzzySearchExpr {
+	"""
+	The string to match against.
+	"""
+	value: String!
+	"""
+	Maximum Levenshtein edit distance for a match.
+	"""
+	levenshteinDistance: Int!
+	"""
+	Whether a prefix match within the distance also passes.
+	"""
+	prefixMatch: Boolean!
+}
+
+"""
+A general filter expression — a node filter (`nodes`), an edge filter (`edges`), a graph/view
+filter (`graph`, e.g. a layer or window restriction), or an `and`/`or` combination of these
+(which may mix kinds). Used where an operation accepts any filter, such as scoping a component
+walk.
+"""
+input GqlFilter @oneOf {
+	"""
+	Filter by node properties, fields, or temporal state.
+	(Persisted filters may use the legacy `node` key.)
+	"""
+	nodes: NodeFilter
+	"""
+	Filter by edge properties, source/destination, or temporal state.
+	(Persisted filters may use the legacy `edge` key.)
+	"""
+	edges: EdgeFilter
+	"""
+	Apply a graph-level view (window, snapshot, layer restriction, …).
+	"""
+	graph: GraphFilter
+	"""
+	All sub-filters must pass (intersection).
+	"""
+	and: [GqlFilter!]
+	"""
+	At least one sub-filter must pass (union).
+	Cross-type sub-filters (e.g. `nodes` and `edges` together) produce a
+	proper graph union: a node is visible if it matches the node filter or
+	has a visible edge, and an edge is visible if it matches the edge
+	filter or both its endpoints are visible.
+	"""
+	or: [GqlFilter!]
+	"""
+	Inverts the nested filter.
+	"""
+	not: GqlFilter
+	"""
+	Restrict evaluation to a time window (inclusive start, exclusive end).
+	"""
+	window: GraphWindowExpr
+	"""
+	Restrict evaluation to a single point in time.
+	"""
+	at: GraphTimeExpr
+	"""
+	Restrict evaluation to times strictly before the given time.
+	"""
+	before: GraphTimeExpr
+	"""
+	Restrict evaluation to times strictly after the given time.
+	"""
+	after: GraphTimeExpr
+	"""
+	Evaluate against the latest available state.
+	"""
+	latest: GraphUnaryExpr
+	"""
+	Evaluate against a snapshot of the graph at a given time.
+	"""
+	snapshotAt: GraphTimeExpr
+	"""
+	Evaluate against the most recent snapshot of the graph.
+	"""
+	snapshotLatest: GraphUnaryExpr
+	"""
+	Restrict evaluation to one or more layers.
+	"""
+	layers: GraphLayersExpr
 }
 
 """
@@ -1620,6 +2286,14 @@ type Graph {
 	"""
 	end: EventTime!
 	"""
+	Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
+	"""
+	windowSize: Int
+	"""
+	Check if a layer with the given name is present in the graph.
+	"""
+	hasLayer(name: String!): Boolean!
+	"""
 	The earliest time at which any edge in this graph is valid.
 	
 	* `includeNegative` — if false, edge events with a timestamp `< 0` are
@@ -1757,6 +2431,10 @@ type Graph {
 	"""
 	algorithms: GraphAlgorithmPlugin!
 	"""
+	Access the algorithms that can be run on this graph view.
+	"""
+	algorithm: Algorithms!
+	"""
 	Nodes that are neighbours of every node in `selectedNodes`. Returns the
 	intersection of each selected node's neighbour set (undirected).
 	"""
@@ -1766,6 +2444,31 @@ type Graph {
 		"""
 		selectedNodes: [NodeId!]!
 	): [Node!]!
+	"""
+	The nodes whose latest property value matches every `(key, value)`
+	entry in `propertiesDict`. Mirrors the local `Graph.find_nodes`.
+	"""
+	findNodes(
+		"""
+		`{key, value}` property entries every returned node must match.
+		"""
+		propertiesDict: [PropertyInput!]!
+	): [Node!]!
+	"""
+	The edges whose latest property value matches every `(key, value)`
+	entry in `propertiesDict`. Mirrors the local `Graph.find_edges`.
+	"""
+	findEdges(
+		"""
+		`{key, value}` property entries every returned edge must match.
+		"""
+		propertiesDict: [PropertyInput!]!
+	): [Edge!]!
+	"""
+	All node types present in the graph. Mirrors the local
+	`Graph.get_all_node_types`.
+	"""
+	getAllNodeTypes: [String!]!
 	"""
 	Copy all nodes and edges of the current graph view into another already-
 	existing graph stored on the server. The destination graph is preserved
@@ -1783,29 +2486,9 @@ type Graph {
 	"""
 	filter(
 		"""
-		Optional composite filter combining node, edge, property, and metadata conditions. If omitted, applies the identity filter (equivalent to no filtering).
+		Optional filter expression: node/edge predicates, graph views (window, layer, ...), or and/or/not combinations of them. `and` is an intersection: each leg is evaluated independently and the results intersect — to evaluate a predicate *inside* a view, scope the predicate itself (e.g. a windowed property condition). If omitted, applies the identity filter.
 		"""
-		expr: GraphFilter
-	): Graph!
-	"""
-	Returns a graph view restricted to nodes that match the given filter; edges
-	are kept only if both endpoints survive.
-	"""
-	filterNodes(
-		"""
-		Composite node filter (by name, property, type, etc.).
-		"""
-		expr: NodeFilter!
-	): Graph!
-	"""
-	Returns a graph view restricted to edges that match the given filter. Nodes
-	remain in the view even if all their edges are filtered out.
-	"""
-	filterEdges(
-		"""
-		Composite edge filter (by property, layer, src/dst, etc.).
-		"""
-		expr: EdgeFilter!
+		expr: GqlFilter
 	): Graph!
 	"""
 	Apply a list of view operations in the given order and return the
@@ -2156,6 +2839,10 @@ type History {
 	"""
 	isEmpty: Boolean!
 	"""
+	Returns a new history with the iteration order of the entries reversed.
+	"""
+	reverse: History!
+	"""
 	Get the number of entries contained in the history.
 	"""
 	count: Int!
@@ -2483,6 +3170,69 @@ type LayerSchema {
 }
 
 """
+A matching of a graph: a set of edges no two of which share a node.
+"""
+type Matching {
+	"""
+	Returns the number of edges in the matching.
+	"""
+	count: Int!
+	"""
+	The edges in the matching.
+	"""
+	edges: Edges!
+	"""
+	The node matched to `dst`, null if it is unmatched.
+	"""
+	src(
+		"""
+		Destination node id.
+		"""
+		dst: NodeId!
+	): Node
+	"""
+	The node matched to `src`, null if it is unmatched.
+	"""
+	dst(
+		"""
+		Source node id.
+		"""
+		src: NodeId!
+	): Node
+	"""
+	The matched edge for `src`, null if it is unmatched.
+	"""
+	edgeForSrc(
+		"""
+		Source node id.
+		"""
+		src: NodeId!
+	): Edge
+	"""
+	The matched edge for `dst`, null if it is unmatched.
+	"""
+	edgeForDst(
+		"""
+		Destination node id.
+		"""
+		dst: NodeId!
+	): Edge
+	"""
+	Whether the `src` to `dst` edge is part of the matching.
+	"""
+	contains(
+		"""
+		Source node id.
+		"""
+		src: NodeId!,
+		"""
+		Destination node id.
+		"""
+		dst: NodeId!
+	): Boolean!
+}
+
+"""
 Lightweight summary of a stored graph — its name, path, counts, and
 filesystem timestamps — served without deserializing the full graph.
 Useful for listing what's available on the server before committing to a
@@ -2571,6 +3321,21 @@ type Metadata {
 		"""
 		keys: [String!]
 	): [Property!]!
+}
+
+"""
+The motif counts for a single delta. Wraps the counts in an object because
+the schema builder does not support nested lists of scalars.
+"""
+type MotifCounts {
+	"""
+	The delta these counts were computed for.
+	"""
+	delta: Int!
+	"""
+	The 40 motif counts, positionally ordered (see the core docs).
+	"""
+	counts: [Int!]!
 }
 
 type MutRoot {
@@ -3243,6 +4008,271 @@ type Namespace {
 union NamespacedItem = Namespace | MetaGraph
 
 """
+A nested collection of edges anchored to a source collection — the result of
+collection-level traversals like `nodes.edges`, `inEdges`, or `outEdges`.
+Each source node yields its own list of incident edges, so results are
+shaped as a list of per-source edge collections. Supports the usual view
+transforms (window, layer, filter, ...).
+"""
+type NestedEdges {
+	"""
+	Returns a collection containing only edges in the default edge layer.
+	"""
+	defaultLayer: NestedEdges!
+	"""
+	Returns a collection containing only edges belonging to the listed layers.
+	"""
+	layers(
+		"""
+		Layer names to include.
+		"""
+		names: [String!]!
+	): NestedEdges!
+	"""
+	Returns a collection containing edges belonging to all layers except the excluded list of layers.
+	"""
+	excludeLayers(
+		"""
+		Layer names to exclude.
+		"""
+		names: [String!]!
+	): NestedEdges!
+	"""
+	Returns a collection containing edges belonging to the specified layer.
+	"""
+	layer(
+		"""
+		Layer name to include.
+		"""
+		name: String!
+	): NestedEdges!
+	"""
+	Returns a collection containing edges belonging to all layers except the excluded layer specified.
+	"""
+	excludeLayer(
+		"""
+		Layer name to exclude.
+		"""
+		name: String!
+	): NestedEdges!
+	"""
+	Creates a view of the NestedEdges including all events between the specified start (inclusive) and end (exclusive).
+	"""
+	window(
+		"""
+		Inclusive lower bound.
+		"""
+		start: TimeInput!,
+		"""
+		Exclusive upper bound.
+		"""
+		end: TimeInput!
+	): NestedEdges!
+	"""
+	Creates a view of the NestedEdges including all events at a specified time.
+	"""
+	at(
+		"""
+		Instant to pin the view to.
+		"""
+		time: TimeInput!
+	): NestedEdges!
+	"""
+	View showing only the latest state of each edge (equivalent to `at(latestTime)`).
+	"""
+	latest: NestedEdges!
+	"""
+	Creates a view of the NestedEdges including all events that are valid at time.
+	"""
+	snapshotAt(
+		"""
+		Instant at which entities must be valid.
+		"""
+		time: TimeInput!
+	): NestedEdges!
+	"""
+	Creates a view of the NestedEdges including all events that are valid at the latest time.
+	"""
+	snapshotLatest: NestedEdges!
+	"""
+	Creates a view of the NestedEdges including all events before a specified end (exclusive).
+	"""
+	before(
+		"""
+		Exclusive upper bound.
+		"""
+		time: TimeInput!
+	): NestedEdges!
+	"""
+	Creates a view of the NestedEdges including all events after a specified start (exclusive).
+	"""
+	after(
+		"""
+		Exclusive lower bound.
+		"""
+		time: TimeInput!
+	): NestedEdges!
+	"""
+	Shrinks both the start and end of the window.
+	"""
+	shrinkWindow(
+		"""
+		Proposed new start (TimeInput); ignored if it would widen the window.
+		"""
+		start: TimeInput!,
+		"""
+		Proposed new end (TimeInput); ignored if it would widen the window.
+		"""
+		end: TimeInput!
+	): NestedEdges!
+	"""
+	Set the start of the window.
+	"""
+	shrinkStart(
+		"""
+		Proposed new start (TimeInput); ignored if it would widen the window.
+		"""
+		start: TimeInput!
+	): NestedEdges!
+	"""
+	Set the end of the window.
+	"""
+	shrinkEnd(
+		"""
+		Proposed new end (TimeInput); ignored if it would widen the window.
+		"""
+		end: TimeInput!
+	): NestedEdges!
+	"""
+	Takes a specified selection of views and applies them in order given.
+	"""
+	applyViews(
+		"""
+		Ordered list of view operations; each entry is a one-of variant (`window`, `layer`, `filter`, ...) applied to the running result.
+		"""
+		views: [EdgesViewCollection!]!
+	): NestedEdges!
+	"""
+	Returns the earliest time that this NestedEdges is valid or None if valid for all times.
+	"""
+	start: EventTime!
+	"""
+	Returns the latest time that this NestedEdges is valid or None if valid for all times.
+	"""
+	end: EventTime!
+	"""
+	Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
+	"""
+	windowSize: Int
+	"""
+	Check if a layer with the given name is present in this view.
+	"""
+	hasLayer(name: String!): Boolean!
+	"""
+	Returns the source node of each edge, grouped per source node, as a
+	nested `PathFromGraph`.
+	"""
+	src: PathFromGraph!
+	"""
+	Returns the destination node of each edge, grouped per source node, as a
+	nested `PathFromGraph`.
+	"""
+	dst: PathFromGraph!
+	"""
+	Returns the node at the other end of each edge (destination for
+	out-edges, source for in-edges), grouped per source node, as a nested
+	`PathFromGraph`.
+	"""
+	nbr: PathFromGraph!
+	"""
+	Expand each source's edges into one edge per update — mirrors the local
+	`NestedEdges.explode`. The per-source nesting is preserved; only the
+	inner edge lists fan out per event.
+	"""
+	explode: NestedEdges!
+	"""
+	Expand each source's edges into one edge per layer — mirrors the local
+	`NestedEdges.explode_layers`. Each resulting edge carries only the
+	updates from its respective layer.
+	"""
+	explodeLayers: NestedEdges!
+	"""
+	Number of source edge collections in this collection (one per source node).
+	"""
+	count: Int!
+	"""
+	Fetch one page of source edge collections up to a specified limit, optionally offset by a specified amount.
+	The page_index sets the number of pages to skip (defaults to 0).
+	
+	For example, if page(5, 2, 1) is called, a page with 5 source collections, offset by 11 (2 pages of 5 + 1),
+	will be returned. Each entry is the per-source list of incident edges.
+	"""
+	page(
+		"""
+		Maximum number of source edge collections to return on this page.
+		"""
+		limit: Int!,
+		"""
+		Extra source edge collections to skip on top of `pageIndex` paging (default 0).
+		"""
+		offset: Int,
+		"""
+		Zero-based page number; multiplies `limit` to determine where to start (default 0).
+		"""
+		pageIndex: Int
+	): [Edges!]!
+	"""
+	Materialise every source edge collection — one `Edges` per source node,
+	each holding that source's incident-edge list. Read
+	`list { list { src { name } dst { name } } }` to reach the per-source
+	edges. Rejected by the server when bulk list endpoints are disabled; use
+	`page` for paginated access instead.
+	"""
+	list: [Edges!]!
+	"""
+	Narrow the edge set to edges matching `expr`. The filter sticks to the
+	returned collection — every subsequent traversal continues to see the
+	filtered scope.
+	
+	Contrast with `select`, which applies here and is not carried through.
+	"""
+	filter(
+		"""
+		Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
+		"""
+		expr: GqlFilter!
+	): NestedEdges!
+	"""
+	Narrow the edge set to edges matching `expr`, but only at this hop —
+	further traversals out of these edges see the unfiltered graph again.
+	
+	Contrast with `filter`, which persists the scope through subsequent ops.
+	"""
+	select(
+		"""
+		Composite edge filter (by property, layer, src/dst, etc.).
+		"""
+		expr: EdgeFilter!
+	): NestedEdges!
+}
+
+"""
+Like [`NestedStringList`] but for integer results (`[[Int]]`) — the
+columnar `degree`/`inDegree`/`outDegree` nested terminals.
+"""
+scalar NestedIntList
+
+"""
+Output-only scalars for the columnar nested terminals below. They carry a
+`[[..]]` result (one inner list per source node) in a SINGLE field so the
+whole thing is computed in one `blocking_compute`, instead of the
+`list { ids }` shape which resolves one `PathFromNode` object — and its own
+`blocking_compute` — per source. The derive macro can't register a nested
+list type directly, hence the custom scalar.
+"""
+scalar NestedStringList
+
+"""
 Raphtory graph node.
 """
 type Node {
@@ -3465,6 +4495,14 @@ type Node {
 	"""
 	isActive: Boolean!
 	"""
+	Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
+	"""
+	windowSize: Int
+	"""
+	Check if a layer with the given name is present in this view.
+	"""
+	hasLayer(name: String!): Boolean!
+	"""
 	Returns the type of node.
 	"""
 	nodeType: String
@@ -3488,8 +4526,20 @@ type Node {
 	Returns the number edges with this node as the destination.
 	"""
 	inDegree: Int!
-	inComponent: Nodes!
-	outComponent: Nodes!
+	"""
+	Nodes that can reach this one via out-edges. `select` is a general filter expression — a node
+	filter, an edge filter, or a graph (layer/window) filter — scoping which nodes/edges the walk
+	steps through. The returned nodes are on the full graph so their other-layer neighbours stay
+	queryable.
+	"""
+	inComponent(select: GqlFilter): Nodes!
+	"""
+	Nodes reachable from this one via out-edges. `select` is a general filter expression — a node
+	filter, an edge filter, or a graph (layer/window) filter — scoping which nodes/edges the walk
+	steps through. The returned nodes are on the full (unfiltered) graph, so their other-layer
+	neighbours remain queryable.
+	"""
+	outComponent(select: GqlFilter): Nodes!
 	"""
 	Returns all connected edges.
 	"""
@@ -3514,7 +4564,12 @@ type Node {
 	Returns the number of neighbours that have at least one out-going edge from this node.
 	"""
 	outNeighbours(select: NodeFilter): PathFromNode!
-	filter(expr: NodeFilter!): Node!
+	filter(
+		"""
+		Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
+		"""
+		expr: GqlFilter!
+	): Node!
 }
 
 input NodeAddition {
@@ -3611,6 +4666,10 @@ input NodeFieldCondition @oneOf {
 	Negated substring match.
 	"""
 	notContains: Value
+	"""
+	Fuzzy string match (Levenshtein distance, optional prefix matching).
+	"""
+	fuzzySearch: FuzzySearchExpr
 	"""
 	Set membership.
 	"""
@@ -3809,6 +4868,284 @@ input NodeSortBy {
 	"""
 	property: String
 }
+
+"""
+A mapping from the nodes of a graph to the values computed for them by an algorithm.
+
+The output is columnar: every column of the underlying node state is exposed as
+a `NodeStateColumn` whose `values` are row-aligned with `nodes`.
+"""
+type NodeState {
+	"""
+	Returns the number of nodes with a value in this node state.
+	"""
+	count: Int!
+	"""
+	The nodes with a value in this node state, in row order. Aligned with `values`.
+	"""
+	nodes: Nodes!
+	"""
+	The column names of this node state in order.
+	"""
+	columnNames: [String!]!
+	"""
+	All rows of the node state keyed by node, with one entry per column.
+	"""
+	rows: [NodeStateRow!]!
+	"""
+	All rows of the node state keyed by node, without the column names: the `values` of each row are
+	in `columnNames` order.
+	"""
+	headlessRows: [NodeStateHeadlessRow!]!
+	"""
+	Returns the values for a node, one entry per column; null if the node has no value in this NodeState.
+	"""
+	get(
+		"""
+		Node id.
+		"""
+		node: NodeId!
+	): [NodeStateEntry!]
+	"""
+	Minimum `(node, value)` of a column. Null if the column does not exist, is empty,
+	or its values are not comparable (e.g. contains nodes).
+	"""
+	min(
+		"""
+		Column name.
+		"""
+		column: String!
+	): NodeStateItem
+	"""
+	Maximum `(node, value)` of a column. Null if the column does not exist, is empty,
+	or its values are not comparable (e.g. contains nodes).
+	"""
+	max(
+		"""
+		Column name.
+		"""
+		column: String!
+	): NodeStateItem
+	"""
+	Sum of a column's values, skipping empty cells. Null if the column does not exist, is empty,
+	or is not additive (e.g. contains nodes).
+	"""
+	sum(
+		"""
+		Column name.
+		"""
+		column: String!
+	): PropertyOutput
+	"""
+	Mean of a column's values as a float, skipping empty cells. Null if the column does not exist,
+	is empty, or has any non-numeric value.
+	"""
+	mean(
+		"""
+		Column name.
+		"""
+		column: String!
+	): PropertyOutput
+	"""
+	Median `(node, value)` of a column (upper median on even lengths). Null if the column
+	does not exist, is empty, or is not comparable (e.g. contains nodes).
+	"""
+	median(
+		"""
+		Column name.
+		"""
+		column: String!
+	): NodeStateItem
+	"""
+	Returns the `k` rows with the largest values in a column. Empty cells rank
+	lowest, so they are only included if fewer than `k` rows have a value.
+	Null if the column does not exist, is empty, or is not comparable.
+	"""
+	topK(
+		"""
+		Column name.
+		"""
+		column: String!,
+		"""
+		Number of rows to return.
+		"""
+		k: Int!
+	): NodeState
+	"""
+	Returns the `k` rows with the smallest values in a column. Empty cells rank
+	highest, so they are only included if fewer than `k` rows have a value.
+	Null if the column does not exist, is empty, or is not comparable.
+	"""
+	bottomK(
+		"""
+		Column name.
+		"""
+		column: String!,
+		"""
+		Number of rows to return.
+		"""
+		k: Int!
+	): NodeState
+	"""
+	Returns a view of this node state with the rows sorted by a column's values,
+	ascending with empty cells last. `reverse` flips the whole ordering, putting
+	empty cells first. Null if the column does not exist, is empty, or is not
+	comparable.
+	"""
+	sortByValues(
+		"""
+		Column name.
+		"""
+		column: String!,
+		"""
+		Sort in descending order instead. Defaults to false.
+		"""
+		reverse: Boolean
+	): NodeState
+	"""
+	Groups the nodes by their value in a column. Nodes with an empty cell form
+	their own group. Null if the column does not exist or contains nodes.
+	"""
+	groupBy(
+		"""
+		Column name.
+		"""
+		column: String!
+	): [NodeStateGroup!]
+	"""
+	Returns one page of this node state as a node state of its own, so that
+	`nodes` / `rows` / `columns` on it stay row-aligned with each other.
+	Pages past the end are empty rather than an error.
+	
+	For example, if page(limit: 5, offset: 1, page_index: 2) is called, a page with 5 items,
+	offset by 11 items (2 pages of 5 + 1), will be returned.
+	"""
+	page(
+		"""
+		Maximum number of rows to return on this page.
+		"""
+		limit: Int!,
+		"""
+		Extra rows to skip on top of `pageIndex` paging (default 0).
+		"""
+		offset: Int,
+		"""
+		Zero-based page number; multiplies `limit` to determine where to start (default 0).
+		"""
+		pageIndex: Int
+	): NodeState!
+	"""
+	Returns a view of this node state with the rows sorted by node id.
+	"""
+	sortById: NodeState!
+	"""
+	The columns of the node state, one per output field of the algorithm.
+	`values` are row-aligned with `nodes`.
+	"""
+	columns: [NodeStateColumn!]!
+}
+
+"""
+One column of a node state: the values of a single output field of the
+algorithm. Row-aligned with `NodeState.nodes`.
+"""
+type NodeStateColumn {
+	"""
+	Name of the column.
+	"""
+	name: String!
+	"""
+	The values of this column; `values[i]` belongs to `NodeState.nodes[i]`.
+	"""
+	values: [NodeStateValue!]!
+}
+
+"""
+One column's value for a single node.
+"""
+type NodeStateEntry {
+	"""
+	Name of the column.
+	"""
+	columnName: String!
+	"""
+	The node's value in this column.
+	"""
+	value: NodeStateValue!
+}
+
+"""
+The nodes sharing one value of a column, as returned by `groupBy`.
+"""
+type NodeStateGroup {
+	"""
+	The value shared by the nodes in this group; null if their cell is empty.
+	"""
+	value: PropertyOutput
+	"""
+	The nodes holding that value.
+	"""
+	nodes: Nodes!
+}
+
+"""
+A node's full row in the node state without the column names: `values[i]`
+belongs to the column `NodeState.columnNames[i]`.
+"""
+type NodeStateHeadlessRow {
+	"""
+	The node this row belongs to.
+	"""
+	node: Node!
+	"""
+	The row's values, in `columnNames` order.
+	"""
+	values: [NodeStateValue!]!
+}
+
+"""
+A `(node, value)` pair, e.g. the result of a column aggregate.
+"""
+type NodeStateItem {
+	"""
+	The node.
+	"""
+	node: Node!
+	"""
+	The node's value.
+	"""
+	value: PropertyOutput!
+}
+
+"""
+A plain property value of a node state cell.
+"""
+type NodeStateProp {
+	"""
+	The property value; null if the node has no value in this column.
+	"""
+	prop: PropertyOutput
+}
+
+"""
+A node's full row in the node state: one entry per column.
+"""
+type NodeStateRow {
+	"""
+	The node this row belongs to.
+	"""
+	node: Node!
+	"""
+	The row's values, one entry per column.
+	"""
+	entries: [NodeStateEntry!]!
+}
+
+"""
+A single cell of a node state column: either a plain property value, a
+node, or a collection of nodes.
+"""
+union NodeStateValue = NodeStateProp | Node | Nodes
 
 """
 Restricts node evaluation to a single time bound and applies a nested `NodeFilter`.
@@ -4179,6 +5516,30 @@ type Nodes {
 	"""
 	end: EventTime!
 	"""
+	Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
+	"""
+	windowSize: Int
+	"""
+	Check if a layer with the given name is present in this view.
+	"""
+	hasLayer(name: String!): Boolean!
+	"""
+	The degree (number of incident edges) of every node, in collection order.
+	"""
+	degree: [Int!]!
+	"""
+	The in-degree (number of incoming edges) of every node, in collection order.
+	"""
+	inDegree: [Int!]!
+	"""
+	The out-degree (number of outgoing edges) of every node, in collection order.
+	"""
+	outDegree: [Int!]!
+	"""
+	The number of edge updates incident to every node, in collection order.
+	"""
+	edgeHistoryCount: [Int!]!
+	"""
 	Number of nodes in the current view.
 	"""
 	count: Int!
@@ -4231,9 +5592,9 @@ type Nodes {
 	"""
 	filter(
 		"""
-		Composite node filter (by name, property, type, etc.).
+		Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
 		"""
-		expr: NodeFilter!
+		expr: GqlFilter!
 	): Nodes!
 	"""
 	Narrow the collection to nodes matching `expr`, but only at this step —
@@ -4261,6 +5622,30 @@ type Nodes {
 		"""
 		expr: NodeFilter!
 	): Nodes!
+	"""
+	Returns the neighbouring nodes of each node in the collection.
+	"""
+	neighbours(select: NodeFilter): PathFromGraph!
+	"""
+	Returns the in-neighbours of each node in the collection.
+	"""
+	inNeighbours(select: NodeFilter): PathFromGraph!
+	"""
+	Returns the out-neighbours of each node in the collection.
+	"""
+	outNeighbours(select: NodeFilter): PathFromGraph!
+	"""
+	Returns the incident edges (both directions) of each node in the collection.
+	"""
+	edges(select: EdgeFilter): NestedEdges!
+	"""
+	Returns the incoming edges of each node in the collection.
+	"""
+	inEdges(select: EdgeFilter): NestedEdges!
+	"""
+	Returns the outgoing edges of each node in the collection.
+	"""
+	outEdges(select: EdgeFilter): NestedEdges!
 }
 
 input NodesViewCollection @oneOf {
@@ -4397,6 +5782,291 @@ type PagerankOutput {
 }
 
 """
+A nested collection of nodes anchored to a source collection — the result of
+collection-level traversals like `nodes.neighbours`, `inNeighbours`, or
+`outNeighbours`. Each source node yields its own list of neighbour nodes, so
+results are shaped as a list of per-source node lists. Supports all the usual
+view transforms (window, layer, filter, ...) and can be chained to walk
+further hops.
+"""
+type PathFromGraph {
+	"""
+	Returns a view of PathFromGraph containing the specified layers, errors if any of the layers do not exist.
+	"""
+	layers(
+		"""
+		Layer names to include.
+		"""
+		names: [String!]!
+	): PathFromGraph!
+	"""
+	Return a view of PathFromGraph restricted to the default layer.
+	"""
+	defaultLayer: PathFromGraph!
+	"""
+	Return a view of PathFromGraph containing all layers except the specified excluded layers, errors if any of the layers do not exist.
+	"""
+	excludeLayers(
+		"""
+		Layer names to exclude.
+		"""
+		names: [String!]!
+	): PathFromGraph!
+	"""
+	Return a view of PathFromGraph containing the specified layer, errors if the layer does not exist.
+	"""
+	layer(
+		"""
+		Layer name to include.
+		"""
+		name: String!
+	): PathFromGraph!
+	"""
+	Return a view of PathFromGraph containing all layers except the specified excluded layer, errors if the layer does not exist.
+	"""
+	excludeLayer(
+		"""
+		Layer name to exclude.
+		"""
+		name: String!
+	): PathFromGraph!
+	"""
+	Create a view of the PathFromGraph including all events between a specified start (inclusive) and end (exclusive).
+	"""
+	window(
+		"""
+		Inclusive lower bound.
+		"""
+		start: TimeInput!,
+		"""
+		Exclusive upper bound.
+		"""
+		end: TimeInput!
+	): PathFromGraph!
+	"""
+	Create a view of the PathFromGraph including all events at time.
+	"""
+	at(
+		"""
+		Instant to pin the view to.
+		"""
+		time: TimeInput!
+	): PathFromGraph!
+	"""
+	Create a view of the PathFromGraph including all events that are valid at the latest time.
+	"""
+	snapshotLatest: PathFromGraph!
+	"""
+	Create a view of the PathFromGraph including all events that are valid at the specified time.
+	"""
+	snapshotAt(
+		"""
+		Instant at which entities must be valid.
+		"""
+		time: TimeInput!
+	): PathFromGraph!
+	"""
+	Create a view of the PathFromGraph including all events at the latest time.
+	"""
+	latest: PathFromGraph!
+	"""
+	Create a view of the PathFromGraph including all events before the specified end (exclusive).
+	"""
+	before(
+		"""
+		Exclusive upper bound.
+		"""
+		time: TimeInput!
+	): PathFromGraph!
+	"""
+	Create a view of the PathFromGraph including all events after the specified start (exclusive).
+	"""
+	after(
+		"""
+		Exclusive lower bound.
+		"""
+		time: TimeInput!
+	): PathFromGraph!
+	"""
+	Shrink both the start and end of the window.
+	"""
+	shrinkWindow(
+		"""
+		Proposed new start (TimeInput); ignored if it would widen the window.
+		"""
+		start: TimeInput!,
+		"""
+		Proposed new end (TimeInput); ignored if it would widen the window.
+		"""
+		end: TimeInput!
+	): PathFromGraph!
+	"""
+	Set the start of the window to the larger of the specified start and self.start().
+	"""
+	shrinkStart(
+		"""
+		Proposed new start (TimeInput); ignored if it would widen the window.
+		"""
+		start: TimeInput!
+	): PathFromGraph!
+	"""
+	Set the end of the window to the smaller of the specified end and self.end().
+	"""
+	shrinkEnd(
+		"""
+		Proposed new end (TimeInput); ignored if it would widen the window.
+		"""
+		end: TimeInput!
+	): PathFromGraph!
+	"""
+	Narrow this path to neighbours whose node type is in the given set.
+	"""
+	typeFilter(
+		"""
+		Node types to keep.
+		"""
+		nodeTypes: [String!]!
+	): PathFromGraph!
+	"""
+	Returns the earliest time that this PathFromGraph is valid or None if the PathFromGraph is valid for all times.
+	"""
+	start: EventTime!
+	"""
+	Returns the latest time that this PathFromGraph is valid or None if the PathFromGraph is valid for all times.
+	"""
+	end: EventTime!
+	"""
+	Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
+	"""
+	windowSize: Int
+	"""
+	Check if a layer with the given name is present in this view.
+	"""
+	hasLayer(name: String!): Boolean!
+	"""
+	Returns a single history object combining the time entries of all nodes in this view.
+	"""
+	combinedHistory: History!
+	"""
+	Number of source paths in this collection (one per source node).
+	"""
+	count: Int!
+	"""
+	Fetch one page of source paths up to a specified limit, optionally offset by a specified amount.
+	The page_index sets the number of pages to skip (defaults to 0).
+	
+	For example, if page(5, 2, 1) is called, a page with 5 source paths, offset by 11 (2 pages of 5 + 1),
+	will be returned. Each entry is the per-source list of neighbour nodes.
+	"""
+	page(
+		"""
+		Maximum number of source paths to return on this page.
+		"""
+		limit: Int!,
+		"""
+		Extra source paths to skip on top of `pageIndex` paging (default 0).
+		"""
+		offset: Int,
+		"""
+		Zero-based page number; multiplies `limit` to determine where to start (default 0).
+		"""
+		pageIndex: Int
+	): [PathFromNode!]!
+	"""
+	Materialise every source path — one `PathFromNode` per source node,
+	each holding that source's neighbour list. Read `list { ids }` /
+	`list { list { name } }` to reach the per-source neighbours. Rejected
+	by the server when bulk list endpoints are disabled; use `page` for
+	paginated access instead.
+	"""
+	list: [PathFromNode!]!
+	"""
+	Columnar `ids`: every source node's neighbour ids as `[[String]]`,
+	computed in ONE `blocking_compute`. Fast-path equivalent of
+	`list { ids }`, which resolves one `PathFromNode` object — and its own
+	`blocking_compute` — per source.
+	"""
+	ids: NestedStringList!
+	"""
+	Columnar `degree`: each source node's per-neighbour degrees as `[[Int]]`,
+	computed in ONE `blocking_compute`. Fast-path for `list { degree }`.
+	"""
+	degree: NestedIntList!
+	"""
+	Columnar `inDegree`. Fast-path for `list { inDegree }`.
+	"""
+	inDegree: NestedIntList!
+	"""
+	Columnar `outDegree`. Fast-path for `list { outDegree }`.
+	"""
+	outDegree: NestedIntList!
+	"""
+	Takes a specified selection of views and applies them in given order.
+	"""
+	applyViews(
+		"""
+		Ordered list of view operations; each entry is a one-of variant (`window`, `layer`, `filter`, ...) applied to the running result.
+		"""
+		views: [PathFromNodeViewCollection!]!
+	): PathFromGraph!
+	"""
+	Narrow the neighbour set to nodes matching `expr`. The filter sticks to
+	the returned path — every subsequent traversal (further hops, edges,
+	properties) continues to see the filtered scope.
+	
+	Contrast with `select`, which applies here and is not carried through.
+	"""
+	filter(
+		"""
+		Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
+		"""
+		expr: GqlFilter!
+	): PathFromGraph!
+	"""
+	Narrow the neighbour set to nodes matching `expr`, but only at this hop
+	— further traversals out of these nodes see the unfiltered graph again.
+	
+	Contrast with `filter`, which persists the scope through subsequent ops.
+	"""
+	select(
+		"""
+		Composite node filter (by name, property, type, etc.).
+		"""
+		expr: NodeFilter!
+	): PathFromGraph!
+	"""
+	Returns the neighbouring nodes reachable one further hop from each source
+	path (both directions), as a nested `PathFromGraph`.
+	"""
+	neighbours(select: NodeFilter): PathFromGraph!
+	"""
+	Returns the in-neighbours reachable one further hop from each source
+	path, as a nested `PathFromGraph`.
+	"""
+	inNeighbours(select: NodeFilter): PathFromGraph!
+	"""
+	Returns the out-neighbours reachable one further hop from each source
+	path, as a nested `PathFromGraph`.
+	"""
+	outNeighbours(select: NodeFilter): PathFromGraph!
+	"""
+	Returns the incident edges (both directions) of each source path, as a
+	nested `NestedEdges` collection.
+	"""
+	edges: NestedEdges!
+	"""
+	Returns the incoming edges of each source path, as a nested `NestedEdges`
+	collection.
+	"""
+	inEdges: NestedEdges!
+	"""
+	Returns the outgoing edges of each source path, as a nested `NestedEdges`
+	collection.
+	"""
+	outEdges: NestedEdges!
+}
+
+"""
 A collection of nodes anchored to a source node — the result of traversals
 like `node.neighbours`, `inNeighbours`, or `outNeighbours`. Supports all
 the usual view transforms (window, layer, filter, ...) and can be chained
@@ -4412,6 +6082,10 @@ type PathFromNode {
 		"""
 		names: [String!]!
 	): PathFromNode!
+	"""
+	Return a view of PathFromNode restricted to the default layer.
+	"""
+	defaultLayer: PathFromNode!
 	"""
 	Return a view of PathFromNode containing all layers except the specified excluded layers, errors if any of the layers do not exist.
 	"""
@@ -4589,6 +6263,34 @@ type PathFromNode {
 	"""
 	end: EventTime!
 	"""
+	Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
+	"""
+	windowSize: Int
+	"""
+	Check if a layer with the given name is present in this view.
+	"""
+	hasLayer(name: String!): Boolean!
+	"""
+	Returns a single history object combining the time entries of all nodes reachable from the source in this view.
+	"""
+	combinedHistory: History!
+	"""
+	The degree (number of incident edges) of every node in the path, in order.
+	"""
+	degree: [Int!]!
+	"""
+	The in-degree (number of incoming edges) of every node in the path, in order.
+	"""
+	inDegree: [Int!]!
+	"""
+	The out-degree (number of outgoing edges) of every node in the path, in order.
+	"""
+	outDegree: [Int!]!
+	"""
+	The number of edge updates incident to every node in the path, in order.
+	"""
+	edgeHistoryCount: [Int!]!
+	"""
 	Number of neighbour nodes reachable from the source in this view.
 	"""
 	count: Int!
@@ -4650,9 +6352,9 @@ type PathFromNode {
 	"""
 	filter(
 		"""
-		Composite node filter (by name, property, type, etc.).
+		Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
 		"""
-		expr: NodeFilter!
+		expr: GqlFilter!
 	): PathFromNode!
 	"""
 	Narrow the neighbour set to nodes matching `expr`, but only at this hop
@@ -4677,6 +6379,36 @@ type PathFromNode {
 		"""
 		expr: NodeFilter!
 	): PathFromNode!
+	"""
+	Returns the neighbouring nodes reachable one further hop from this path
+	(both directions), as a flat `PathFromNode`.
+	"""
+	neighbours(select: NodeFilter): PathFromNode!
+	"""
+	Returns the in-neighbours reachable one further hop from this path, as a
+	flat `PathFromNode`.
+	"""
+	inNeighbours(select: NodeFilter): PathFromNode!
+	"""
+	Returns the out-neighbours reachable one further hop from this path, as a
+	flat `PathFromNode`.
+	"""
+	outNeighbours(select: NodeFilter): PathFromNode!
+	"""
+	Returns the incident edges (both directions) of the nodes in this path,
+	as a flat `Edges` collection.
+	"""
+	edges: Edges!
+	"""
+	Returns the incoming edges of the nodes in this path, as a flat `Edges`
+	collection.
+	"""
+	inEdges: Edges!
+	"""
+	Returns the outgoing edges of the nodes in this path, as a flat `Edges`
+	collection.
+	"""
+	outEdges: Edges!
 }
 
 input PathFromNodeViewCollection @oneOf {
@@ -4834,6 +6566,10 @@ input PropCondition @oneOf {
 	"""
 	notContains: Value
 	"""
+	Fuzzy string match (Levenshtein distance, optional prefix matching).
+	"""
+	fuzzySearch: FuzzySearchExpr
+	"""
 	Set membership: property value is contained in the given list of values.
 	"""
 	isIn: Value
@@ -4929,6 +6665,17 @@ type Properties {
 		key: String!
 	): Boolean!
 	"""
+	The data-type of the property's latest value by key, as its `PropType`
+	display string (e.g. `"I64"`, `"Str"`, `"List<F64>"`). Returns null when
+	the key isn't present. Mirrors the local `Properties.get_dtype_of`.
+	"""
+	getDtypeOf(
+		"""
+		The property name.
+		"""
+		key: String!
+	): String
+	"""
 	All property keys present in the current view. Does not include metadata
 	— metadata is exposed separately via the entity's `metadata` field.
 	"""
@@ -4970,6 +6717,11 @@ type Property {
 	numbers, booleans as booleans, strings as strings, etc.
 	"""
 	value: PropertyOutput!
+	"""
+	The property's exact type, for type-directed decoding of `value`
+	(`value` alone collapses e.g. all integer widths to one JSON number).
+	"""
+	dtype: PropertyType!
 }
 
 """
@@ -5039,7 +6791,19 @@ type PropertyTuple {
 	booleans as booleans, etc.
 	"""
 	value: PropertyOutput!
+	"""
+	The value's exact type, for type-directed decoding of `value`.
+	"""
+	dtype: PropertyType!
 }
+
+"""
+A property's type, as `PropType`'s serde JSON form — round-trippable,
+unlike the human-readable string from `getDtypeOf`. Scalars are bare
+strings (`"F64"`), containers are tagged objects
+(`{"List": "F64"}`, `{"Map": {"a": "I64"}}`, `{"Decimal": {"scale": 2}}`).
+"""
+scalar PropertyType
 
 type QueryPlugin {
 	NoOps: String!
@@ -5157,6 +6921,24 @@ type QueryRoot {
 	): VectorisedGraph
 }
 
+"""
+How the initially infected nodes are chosen.
+"""
+input Seeds @oneOf {
+	"""
+	Infect exactly these nodes.
+	"""
+	nodes: [NodeId!]
+	"""
+	Infect this many randomly chosen nodes.
+	"""
+	number: Int
+	"""
+	Infect this fraction of the nodes, chosen at random.
+	"""
+	probability: Float
+}
+
 type ShortestPathOutput {
 	target: String!
 	nodes: [String!]!
@@ -5171,6 +6953,18 @@ enum SortByTime {
 	Earliest time
 	"""
 	EARLIEST
+}
+
+"""
+Non-finite float values, which JSON cannot represent as numbers.
+
+Follows protobuf's JSON mapping convention of spelling these out
+explicitly rather than silently coercing them to `null`.
+"""
+enum SpecialFloat {
+	NAN
+	INFINITY
+	NEG_INFINITY
 }
 
 input Template @oneOf {
@@ -5236,6 +7030,12 @@ type TemporalProperty {
 	The property key (name).
 	"""
 	key: String!
+	"""
+	The property's declared type, for type-directed decoding of stored
+	values (`values`, `at`, `latest`, `unique`, `min`, `max`, `median`,
+	`orderedDedupe`). Aggregates (`sum`, `mean`, `average`) may widen.
+	"""
+	dtype: PropertyType!
 	"""
 	Event history for this property — one entry per temporal update, in
 	insertion order. Use this to navigate the full timeline: access the
@@ -5373,6 +7173,14 @@ input Value @oneOf {
 	64 bit float.
 	"""
 	f64: Float
+	"""
+	Non-finite 32 bit float (NaN, ±Infinity) — JSON has no number form for these.
+	"""
+	f32Special: SpecialFloat
+	"""
+	Non-finite 64 bit float (NaN, ±Infinity) — JSON has no number form for these.
+	"""
+	f64Special: SpecialFloat
 	"""
 	String.
 	"""

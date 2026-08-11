@@ -1,8 +1,8 @@
 #![recursion_limit = "256"]
 
 pub use crate::{
-    auth::{require_jwt_write_access_dynamic, Access},
-    model::graph::filtering::GraphAccessFilter,
+    auth::{require_jwt_write_access_dynamic, Access, TokenClaimValues},
+    model::graph::{filtering::GraphAccessFilter, property::Value},
     server::GraphServer,
 };
 use crate::{data::InsertionError, paths::PathValidationError};
@@ -12,6 +12,8 @@ use std::sync::Arc;
 
 mod auth;
 pub mod auth_policy;
+
+pub use auth::{KeyResolver, StaticKeyResolver};
 pub mod cache;
 pub mod cli;
 pub mod client;
@@ -431,6 +433,118 @@ mod graphql_test {
         graph
     }
 
+    pub(crate) fn single_component_test_graph() -> MaterializedGraph {
+        let graph = Graph::new();
+        // chain a -> b -> c -> d
+        for (src, dst) in [("a", "b"), ("b", "c"), ("c", "d")] {
+            graph.add_edge(1, src, dst, NO_PROPS, None).unwrap();
+        }
+        graph.into()
+    }
+
+    pub(crate) fn star_test_graph() -> MaterializedGraph {
+        let graph = Graph::new();
+        // star out of a: a -> b, a -> c, a -> d
+        for (src, dst) in [("a", "b"), ("a", "c"), ("a", "d")] {
+            graph.add_edge(1, src, dst, NO_PROPS, None).unwrap();
+        }
+        graph.into()
+    }
+
+    pub(crate) fn components_test_graph() -> MaterializedGraph {
+        let graph = Graph::new();
+        // cycle a -> b -> c -> a (one SCC), plus d -> a (d reaches the cycle but not vice versa)
+        for (src, dst) in [("a", "b"), ("b", "c"), ("c", "a"), ("d", "a")] {
+            graph.add_edge(1, src, dst, NO_PROPS, None).unwrap();
+        }
+        graph.into()
+    }
+
+    pub(crate) fn community_test_graph() -> MaterializedGraph {
+        let graph = Graph::new();
+        // two triangles joined by a single bridge edge (c -> d)
+        for (src, dst) in [
+            ("a", "b"),
+            ("b", "c"),
+            ("c", "a"),
+            ("d", "e"),
+            ("e", "f"),
+            ("f", "d"),
+            ("c", "d"),
+        ] {
+            graph.add_edge(1, src, dst, NO_PROPS, None).unwrap();
+        }
+        graph.into()
+    }
+
+    pub(crate) fn scalar_metrics_test_graph() -> MaterializedGraph {
+        let graph = Graph::new();
+        // a <-> b reciprocated, b -> c -> a forming a triangle with a-b, and c -> d as a pendant edge,
+        // so density/reciprocity/clustering/degree are all non-trivial
+        for (src, dst) in [("a", "b"), ("b", "a"), ("b", "c"), ("c", "a"), ("c", "d")] {
+            graph.add_edge(1, src, dst, NO_PROPS, None).unwrap();
+        }
+        graph.into()
+    }
+
+    pub(crate) fn centrality_test_graph() -> MaterializedGraph {
+        let graph = Graph::new();
+        // path a -> b -> c -> d so nodes get distinct centrality scores
+        graph.add_edge(1, "a", "b", NO_PROPS, None).unwrap();
+        graph.add_edge(2, "b", "c", NO_PROPS, None).unwrap();
+        graph.add_edge(3, "c", "d", NO_PROPS, None).unwrap();
+        graph.into()
+    }
+
+    #[tokio::test]
+    async fn test_algorithm_scalar_metrics() {
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", scalar_metrics_test_graph())], tmp_dir.path()).await;
+
+        let query = r#"
+        {
+          graph(path: "g") {
+            algorithm {
+              globalClusteringCoefficient
+              directedGraphDensity
+              globalReciprocity
+              averageDegree
+              maxDegree
+              minDegree
+              maxOutDegree
+              maxInDegree
+              minOutDegree
+              minInDegree
+              tripletCount
+              triangleCount
+            }
+          }
+        }
+        "#;
+
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        assert_eq!(
+            res.data.into_json().unwrap(),
+            json!({
+                "graph": { "algorithm": {
+                    "globalClusteringCoefficient": 0.6,
+                    "directedGraphDensity": 0.4166666666666667,
+                    "globalReciprocity": 0.4,
+                    "averageDegree": 2.0,
+                    "maxDegree": 3,
+                    "minDegree": 1,
+                    "maxOutDegree": 2,
+                    "maxInDegree": 2,
+                    "minOutDegree": 0,
+                    "minInDegree": 1,
+                    "tripletCount": 5,
+                    "triangleCount": 1
+                } }
+            })
+        );
+    }
+
     #[tokio::test]
     async fn test_degree_filter_nodes_and_select_gql() {
         let graph: MaterializedGraph = degree_graph_with_add_node_and_add_edge().into();
@@ -440,7 +554,9 @@ mod graphql_test {
         let query = r#"
         {
           graph(path: "g") {
-            filterNodes(expr: { degree: { direction: BOTH, where: { gt: { u64: 0 } } } }) {
+            filterNodes: filter(
+                expr: { nodes: { degree: { direction: BOTH, where: { gt: { u64: 0 } } } } }
+            ) {
               nodes {
                 list {
                   name

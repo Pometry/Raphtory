@@ -2,10 +2,13 @@ use crate::{
     data::Data,
     graph::GraphWithVectors,
     model::{
+        algorithms::GqlAlgorithms,
         graph::{
+            collection::check_list_allowed,
             edge::GqlEdge,
             edges::GqlEdges,
-            filtering::{GqlEdgeFilter, GqlGraphFilter, GqlNodeFilter, GraphViewCollection},
+            filtering::{GqlEdgeFilter, GqlFilter, GqlNodeFilter, GraphViewCollection},
+            mutable_graph::{as_properties, GqlPropertyInput},
             node::GqlNode,
             node_id::GqlNodeId,
             nodes::GqlNodes,
@@ -35,8 +38,7 @@ use raphtory::{
         graph::{
             node::NodeView,
             views::filter::model::{
-                edge_filter::CompositeEdgeFilter, graph_filter::GraphFilter,
-                node_filter::CompositeNodeFilter, DynView,
+                edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter, DynFilter,
             },
         },
     },
@@ -44,10 +46,10 @@ use raphtory::{
     prelude::*,
 };
 use raphtory_api::core::{storage::timeindex::AsTime, utils::time::IntoTime};
+use raphtory_storage::core_ops::CoreGraphOps;
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     convert::{Into, TryInto},
-    sync::Arc,
 };
 
 /// A view of a Raphtory graph. Every field here returns either data from the
@@ -406,6 +408,18 @@ impl GqlGraph {
         Ok(self.graph.end().into())
     }
 
+    /// Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
+    async fn window_size(&self) -> Option<i64> {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.graph.window_size().map(|s| s as i64)).await
+    }
+
+    /// Check if a layer with the given name is present in the graph.
+    async fn has_layer(&self, name: String) -> bool {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.graph.has_layer(name)).await
+    }
+
     /// The earliest time at which any edge in this graph is valid.
     ///
     /// * `includeNegative` — if false, edge events with a timestamp `< 0` are
@@ -622,6 +636,11 @@ impl GqlGraph {
         Ok(blocking_compute(move || GraphSchema::new(&self_clone.graph)).await)
     }
 
+    /// Access the algorithms that can be run on this graph view.
+    async fn algorithm(&self) -> GqlAlgorithms {
+        self.graph.clone().into()
+    }
+
     /// Nodes that are neighbours of every node in `selectedNodes`. Returns the
     /// intersection of each selected node's neighbour set (undirected).
     async fn shared_neighbours(
@@ -661,6 +680,83 @@ impl GqlGraph {
         .await)
     }
 
+    /// The nodes whose latest property value matches every `(key, value)`
+    /// entry in `propertiesDict`. Mirrors the local `Graph.find_nodes`.
+
+    async fn find_nodes(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(desc = "`{key, value}` property entries every returned node must match.")]
+        properties_dict: Vec<GqlPropertyInput>,
+    ) -> Result<Vec<GqlNode>> {
+        // Unbounded scan over every node — honour the same list guard as
+        // `nodes.list` so `disable_lists` can't be bypassed via find.
+        check_list_allowed(ctx)?;
+        let props: HashMap<String, Prop> = as_properties(properties_dict)?.collect();
+        let self_clone = self.clone();
+        Ok(blocking_compute(move || {
+            self_clone
+                .graph
+                .nodes()
+                .into_iter()
+                .filter(|n| {
+                    let node_props = n.properties();
+                    props
+                        .iter()
+                        .all(|(k, v)| node_props.get(k).as_ref() == Some(v))
+                })
+                .map(|n| n.into())
+                .collect()
+        })
+        .await)
+    }
+
+    /// The edges whose latest property value matches every `(key, value)`
+    /// entry in `propertiesDict`. Mirrors the local `Graph.find_edges`.
+
+    async fn find_edges(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(desc = "`{key, value}` property entries every returned edge must match.")]
+        properties_dict: Vec<GqlPropertyInput>,
+    ) -> Result<Vec<GqlEdge>> {
+        // Unbounded scan over every edge — honour the same list guard as
+        // `edges.list` so `disable_lists` can't be bypassed via find.
+        check_list_allowed(ctx)?;
+        let props: HashMap<String, Prop> = as_properties(properties_dict)?.collect();
+        let self_clone = self.clone();
+        Ok(blocking_compute(move || {
+            self_clone
+                .graph
+                .edges()
+                .into_iter()
+                .filter(|e| {
+                    let edge_props = e.properties();
+                    props
+                        .iter()
+                        .all(|(k, v)| edge_props.get(k).as_ref() == Some(v))
+                })
+                .map(|e| e.into())
+                .collect()
+        })
+        .await)
+    }
+
+    /// All node types present in the graph. Mirrors the local
+    /// `Graph.get_all_node_types`.
+    async fn get_all_node_types(&self) -> Vec<String> {
+        let self_clone = self.clone();
+        blocking_compute(move || {
+            self_clone
+                .graph
+                .get_all_node_types()
+                .into_iter()
+                .map(|t| t.to_string())
+                .collect()
+        })
+        .await
+    }
+
     /// Copy all nodes and edges of the current graph view into another already-
     /// existing graph stored on the server. The destination graph is preserved
     /// — this only adds; it does not replace.
@@ -689,54 +785,16 @@ impl GqlGraph {
     async fn filter(
         &self,
         #[graphql(
-            desc = "Optional composite filter combining node, edge, property, and metadata conditions. If omitted, applies the identity filter (equivalent to no filtering)."
+            desc = "Optional filter expression: node/edge predicates, graph views (window, layer, ...), or and/or/not combinations of them. `and` is an intersection: each leg is evaluated independently and the results intersect — to evaluate a predicate *inside* a view, scope the predicate itself (e.g. a windowed property condition). If omitted, applies the identity filter."
         )]
-        expr: Option<GqlGraphFilter>,
+        expr: Option<GqlFilter>,
     ) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let filter: DynView = match expr {
-                Some(f) => f.try_into()?,
-                None => Arc::new(GraphFilter),
+            let Some(expr) = expr else {
+                return Ok(self_clone.clone());
             };
-            let filtered_graph = self_clone.graph.filter(filter)?;
-            Ok(GqlGraph::new(
-                self_clone.path.clone(),
-                filtered_graph.into_dynamic(),
-            ))
-        })
-        .await
-    }
-
-    /// Returns a graph view restricted to nodes that match the given filter; edges
-    /// are kept only if both endpoints survive.
-    async fn filter_nodes(
-        &self,
-        #[graphql(desc = "Composite node filter (by name, property, type, etc.).")]
-        expr: GqlNodeFilter,
-    ) -> Result<Self, GraphError> {
-        let self_clone = self.clone();
-        blocking_compute(move || {
-            let filter: CompositeNodeFilter = expr.try_into()?;
-            let filtered_graph = self_clone.graph.filter(filter)?;
-            Ok(GqlGraph::new(
-                self_clone.path.clone(),
-                filtered_graph.into_dynamic(),
-            ))
-        })
-        .await
-    }
-
-    /// Returns a graph view restricted to edges that match the given filter. Nodes
-    /// remain in the view even if all their edges are filtered out.
-    async fn filter_edges(
-        &self,
-        #[graphql(desc = "Composite edge filter (by property, layer, src/dst, etc.).")]
-        expr: GqlEdgeFilter,
-    ) -> Result<Self, GraphError> {
-        let self_clone = self.clone();
-        blocking_compute(move || {
-            let filter: CompositeEdgeFilter = expr.try_into()?;
+            let filter: DynFilter = expr.try_into()?;
             let filtered_graph = self_clone.graph.filter(filter)?;
             Ok(GqlGraph::new(
                 self_clone.path.clone(),
@@ -809,8 +867,12 @@ impl GqlGraph {
                 }
                 GraphViewCollection::ShrinkStart(start) => return_view.shrink_start(start).await,
                 GraphViewCollection::ShrinkEnd(end) => return_view.shrink_end(end).await,
-                GraphViewCollection::NodeFilter(filter) => return_view.filter_nodes(filter).await?,
-                GraphViewCollection::EdgeFilter(filter) => return_view.filter_edges(filter).await?,
+                GraphViewCollection::NodeFilter(filter) => {
+                    return_view.filter(Some(GqlFilter::Nodes(filter))).await?
+                }
+                GraphViewCollection::EdgeFilter(filter) => {
+                    return_view.filter(Some(GqlFilter::Edges(filter))).await?
+                }
             };
         }
         Ok(return_view)

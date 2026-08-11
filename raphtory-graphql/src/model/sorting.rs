@@ -39,7 +39,7 @@ pub struct NodeSortBy {
     pub property: Option<String>,
 }
 
-#[derive(Enum, Clone, Debug, Eq, PartialEq)]
+#[derive(Enum, Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SortByTime {
     /// Latest time
     Latest,

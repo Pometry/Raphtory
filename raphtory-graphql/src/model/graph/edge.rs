@@ -1,7 +1,7 @@
 use crate::{
     model::graph::{
         edges::GqlEdges,
-        filtering::{EdgeViewCollection, GqlEdgeFilter},
+        filtering::{EdgeViewCollection, GqlFilter},
         history::GqlHistory,
         node::GqlNode,
         node_id::GqlNodeId,
@@ -17,12 +17,16 @@ use raphtory::{
     core::utils::time::TryIntoInterval,
     db::{
         api::view::{DynamicGraph, EdgeViewOps, Filter, IntoDynamic, StaticGraphViewOps},
-        graph::{edge::EdgeView, views::filter::model::edge_filter::CompositeEdgeFilter},
+        graph::{edge::EdgeView, views::filter::model::DynFilter},
     },
     errors::GraphError,
     prelude::{LayerOps, TimeOps},
 };
-use raphtory_api::core::utils::time::IntoTime;
+use raphtory_api::core::{
+    entities::layers::Layer,
+    storage::timeindex::EventTime,
+    utils::time::{InputTime, IntoTime},
+};
 
 /// Raphtory graph edge.
 #[derive(ResolvedObject, Clone)]
@@ -316,7 +320,9 @@ impl GqlEdge {
                 }
                 EdgeViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await,
                 EdgeViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
-                EdgeViewCollection::EdgeFilter(filter) => return_view.filter(filter).await?,
+                EdgeViewCollection::EdgeFilter(filter) => {
+                    return_view.filter(GqlFilter::Edges(filter)).await?
+                }
             }
         }
         Ok(return_view)
@@ -363,6 +369,18 @@ impl GqlEdge {
     /// Returns the end time of the window. Returns none if no window is applied.
     async fn end(&self) -> GqlEventTime {
         self.ee.end().into()
+    }
+
+    /// Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
+    async fn window_size(&self) -> Option<i64> {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.ee.window_size().map(|s| s as i64)).await
+    }
+
+    /// Check if a layer with the given name is present in this view.
+    async fn has_layer(&self, name: String) -> bool {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.ee.has_layer(name)).await
     }
 
     /// Returns the source node of the edge.
@@ -484,14 +502,100 @@ impl GqlEdge {
 
     async fn filter(
         &self,
-        #[graphql(desc = "Composite edge filter (by property, layer, src/dst, etc.).")]
-        expr: GqlEdgeFilter,
+        #[graphql(
+            desc = "Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection)."
+        )]
+        expr: GqlFilter,
     ) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let filter: CompositeEdgeFilter = expr.try_into()?;
+            let filter: DynFilter = expr.try_into()?;
             let filtered = self_clone.ee.filter(filter)?;
             Ok(self_clone.update(filtered.into_dynamic()))
+        })
+        .await
+    }
+
+    /// Pin this edge to a single event — the exploded instance recorded at
+    /// the given event time, optionally restricted to a layer. Matches the
+    /// members of `explode`: the returned edge answers `time` and `layerName`
+    /// and its properties are those of that one update. An Int or DateTime
+    /// String matches the first event at that timestamp; pass the object form
+    /// `{timestamp, eventId}` to select an exact event when several share a
+    /// timestamp. Errors if the edge has no matching event under the current
+    /// view.
+
+    async fn event(
+        &self,
+        #[graphql(
+            desc = "Event time to pin to — Int, DateTime String, or `{timestamp, eventId}`."
+        )]
+        time: GqlTimeInput,
+        #[graphql(desc = "Optional layer name the event must belong to.")] layer: Option<String>,
+    ) -> Result<GqlEdge, GraphError> {
+        let self_clone = self.clone();
+        blocking_compute(move || {
+            // Narrow with indexed views instead of scanning the full exploded
+            // history: layer and time restrictions bound the storage walk, so
+            // exploding yields only the matching event(s). `valid_layers`
+            // treats an unknown layer as "no match" (empty view), preserving
+            // the scan's behaviour of reporting a missing event rather than a
+            // bad layer name.
+            let base = match &layer {
+                Some(name) => self_clone.ee.valid_layers(name.as_str()),
+                None => self_clone.ee.valid_layers(Layer::All),
+            };
+            let pinned = match &time.0 {
+                // A bare timestamp matches the first event at that time.
+                InputTime::Simple(t) => base.at(*t),
+                // The indexed form pins one exact event.
+                InputTime::Indexed(t, i) => base.window(
+                    EventTime::new(*t, *i),
+                    EventTime::new(*t, i.saturating_add(1)),
+                ),
+            };
+            let exploded = pinned.explode();
+            let found = exploded.iter().next().map(|e| GqlEdge::from_ref(e));
+            match found {
+                Some(e) => Ok(e),
+                None => {
+                    let (src, dst) = self_clone.ee.id();
+                    Err(GraphError::EventMissingError {
+                        src,
+                        dst,
+                        time: time.t(),
+                    })
+                }
+            }
+        })
+        .await
+    }
+
+    /// Pin this edge to a single layer-exploded instance by layer name — the
+    /// analogue of `event(...)` for `explodeLayers()`. The returned edge has a
+    /// resolved `layerName`; `time` is unavailable on it, matching the local
+    /// `explode_layers()` semantics (a layer instance spans all of its events).
+    async fn event_layer(
+        &self,
+        #[graphql(desc = "Layer name to pin to.")] name: String,
+    ) -> Result<GqlEdge, GraphError> {
+        let self_clone = self.clone();
+        blocking_compute(move || {
+            // Restrict to the layer up front — exploding then yields at most
+            // that one instance, instead of scanning every layer instance.
+            let exploded = self_clone.ee.valid_layers(name.as_str()).explode_layers();
+            let found = exploded.iter().next().map(|e| GqlEdge::from_ref(e));
+            match found {
+                Some(e) => Ok(e),
+                None => {
+                    let (src, dst) = self_clone.ee.id();
+                    Err(GraphError::EdgeLayerMissingError {
+                        src,
+                        dst,
+                        layer: name,
+                    })
+                }
+            }
         })
         .await
     }
