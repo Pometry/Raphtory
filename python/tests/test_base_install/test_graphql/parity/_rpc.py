@@ -86,9 +86,14 @@ def _forwarding_handler(upstream_url, counter):
             payload = upstream.content
             try:
                 self.send_response(upstream.status_code)
+                # Strip CR/LF before echoing an upstream header value: a
+                # header carrying them would let the response be split into
+                # fabricated extra headers or a second response.
                 content_type = upstream.headers.get("Content-Type")
                 if content_type:
-                    self.send_header("Content-Type", content_type)
+                    self.send_header(
+                        "Content-Type", content_type.replace("\r", "").replace("\n", "")
+                    )
                 self.send_header("Content-Length", str(len(payload)))
                 self.end_headers()
                 self.wfile.write(payload)
