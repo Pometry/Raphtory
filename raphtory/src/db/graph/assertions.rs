@@ -12,6 +12,7 @@ use raphtory_api::core::storage::{arc_str::ArcStr, timeindex::AsTime};
 use rayon::prelude::*;
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
+    fmt::Write,
     hint::black_box,
     ops::Deref,
 };
@@ -46,7 +47,6 @@ fn canonical_prop_repr(p: &Prop) -> String {
 }
 
 fn write_canonical_prop(out: &mut String, p: &Prop) {
-    use std::fmt::Write;
     match p {
         Prop::List(arr) => {
             out.push_str("List([");
