@@ -127,6 +127,7 @@ type SchemaDataInjector = std::sync::Arc<
 >;
 
 /// A struct for defining and running a Raphtory GraphQL server
+#[derive(Clone)]
 pub struct GraphServer {
     data: Data,
     work_dir: PathBuf,

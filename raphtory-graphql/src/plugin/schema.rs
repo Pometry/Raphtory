@@ -1,9 +1,12 @@
 use crate::model::plugins::PLUGINS;
+use dyn_clone::{clone_trait_object, DynClone};
 use dynamic_graphql::internal::Registry;
 
-pub trait RegisterPlugin: Send + 'static {
+pub trait RegisterPlugin: DynClone + Send + Sync + 'static {
     fn register(&self, registry: Registry) -> Registry;
 }
+
+clone_trait_object!(RegisterPlugin);
 
 /// Register a global plugin to extend the graphql schema
 pub fn register_schema_plugin(plugin: impl RegisterPlugin) {

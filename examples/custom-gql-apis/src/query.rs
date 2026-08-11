@@ -1,39 +1,12 @@
-use async_graphql::{
-    dynamic::{FieldValue, ResolverContext, TypeRef},
-    FieldResult,
-};
-use futures_util::future::BoxFuture;
-use raphtory_graphql::model::r#mod::{operation::Operation, schema_plugin::Plugins};
+use dynamic_graphql::{ExpandObject, ExpandObjectFields};
+use raphtory_graphql::model::QueryRoot;
 
-pub(crate) struct HelloQuery;
+#[derive(ExpandObject)]
+pub(crate) struct HelloQuery<'a>(&'a QueryRoot);
 
-impl<'a> Operation<'a, Plugins> for HelloQuery {
-    type OutputType = String;
-
-    fn output_type() -> TypeRef {
-        TypeRef::named_nn(TypeRef::STRING)
-    }
-
-    fn args<'b>() -> Vec<(&'b str, TypeRef)> {
-        vec![("name", TypeRef::named_nn(TypeRef::STRING))]
-    }
-
-    fn apply<'b>(
-        _entry_point: &Plugins,
-        ctx: ResolverContext<'b>,
-    ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>> {
-        let name = ctx
-            .args
-            .try_get("name")
-            .unwrap()
-            .string()
-            .unwrap()
-            .to_owned();
-
-        Box::pin(async move {
-            Ok(Some(FieldValue::value(
-                "Hello, ".to_owned() + name.as_str(),
-            )))
-        })
+#[ExpandObjectFields]
+impl<'a> HelloQuery<'a> {
+    async fn hello_query(name: String) -> String {
+        "Hello, ".to_owned() + name.as_str()
     }
 }
