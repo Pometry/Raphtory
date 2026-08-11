@@ -11,7 +11,9 @@ use crate::{
     utils::Iter4,
     wal::LSN,
 };
-use parking_lot::lock_api::ArcRwLockReadGuard;
+use parking_lot::{
+    lock_api::ArcRwLockReadGuard, RawRwLock, RwLock, RwLockReadGuard, RwLockWriteGuard,
+};
 use raphtory_api::core::{
     entities::{
         LayerId, VID,
@@ -370,7 +372,7 @@ impl Drop for MemEdgeSegment {
 // Update EdgeSegmentView implementation to use multiple layers
 #[derive(Debug)]
 pub struct EdgeSegmentView<EXT> {
-    segment: Arc<parking_lot::RwLock<MemEdgeSegment>>,
+    segment: Arc<RwLock<MemEdgeSegment>>,
     segment_id: usize,
     num_edges: AtomicU32,
     ext: EXT,
@@ -378,7 +380,7 @@ pub struct EdgeSegmentView<EXT> {
 
 #[derive(Debug)]
 pub struct ArcLockedSegmentView {
-    inner: ArcRwLockReadGuard<parking_lot::RawRwLock, MemEdgeSegment>,
+    inner: ArcRwLockReadGuard<RawRwLock, MemEdgeSegment>,
     num_edges: u32,
 }
 
@@ -462,7 +464,7 @@ impl LockedESegment for ArcLockedSegmentView {
 impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSegmentView<P> {
     type Extension = P;
 
-    type Entry<'a> = MemEdgeEntry<'a, parking_lot::RwLockReadGuard<'a, MemEdgeSegment>>;
+    type Entry<'a> = MemEdgeEntry<'a, RwLockReadGuard<'a, MemEdgeSegment>>;
 
     type ArcLockedSegment = ArcLockedSegmentView;
 
@@ -511,7 +513,7 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
         let max_page_len = ext.config().max_edge_page_len();
 
         Self {
-            segment: parking_lot::RwLock::new(MemEdgeSegment::new(
+            segment: RwLock::new(MemEdgeSegment::new(
                 page_id,
                 max_page_len,
                 meta,
@@ -536,19 +538,19 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
         self.head().num_updates()
     }
 
-    fn head(&self) -> parking_lot::RwLockReadGuard<'_, MemEdgeSegment> {
+    fn head(&self) -> RwLockReadGuard<'_, MemEdgeSegment> {
         self.segment.read_recursive()
     }
 
-    fn head_arc(&self) -> ArcRwLockReadGuard<parking_lot::RawRwLock, MemEdgeSegment> {
+    fn head_arc(&self) -> ArcRwLockReadGuard<RawRwLock, MemEdgeSegment> {
         self.segment.read_arc_recursive()
     }
 
-    fn head_mut(&self) -> parking_lot::RwLockWriteGuard<'_, MemEdgeSegment> {
+    fn head_mut(&self) -> RwLockWriteGuard<'_, MemEdgeSegment> {
         self.segment.write()
     }
 
-    fn try_head_mut(&self) -> Option<parking_lot::RwLockWriteGuard<'_, MemEdgeSegment>> {
+    fn try_head_mut(&self) -> Option<RwLockWriteGuard<'_, MemEdgeSegment>> {
         self.segment.try_write()
     }
 
@@ -599,7 +601,7 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
         &'a self,
         edge_pos: LocalPOS,
         layer_id: LayerId,
-        locked_head: Option<parking_lot::RwLockReadGuard<'a, MemEdgeSegment>>,
+        locked_head: Option<RwLockReadGuard<'a, MemEdgeSegment>>,
     ) -> Option<Self::Entry<'a>> {
         locked_head.and_then(|locked_head| {
             let layer = locked_head.as_ref().get(layer_id.0)?;

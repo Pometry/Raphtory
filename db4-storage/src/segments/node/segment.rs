@@ -11,7 +11,9 @@ use crate::{
     wal::LSN,
 };
 use either::Either;
-use parking_lot::{RwLock, lock_api::ArcRwLockReadGuard};
+use parking_lot::{
+    lock_api::ArcRwLockReadGuard, RawRwLock, RwLock, RwLockReadGuard, RwLockWriteGuard,
+};
 use raphtory_api::core::{
     Direction,
     entities::{
@@ -432,13 +434,13 @@ pub struct NodeSegmentView<EXT> {
 
 #[derive(Debug)]
 pub struct ArcLockedSegmentView {
-    inner: ArcRwLockReadGuard<parking_lot::RawRwLock, MemNodeSegment>,
+    inner: ArcRwLockReadGuard<RawRwLock, MemNodeSegment>,
     num_nodes: u32,
 }
 
 impl ArcLockedSegmentView {
     pub fn new(
-        inner: ArcRwLockReadGuard<parking_lot::RawRwLock, MemNodeSegment>,
+        inner: ArcRwLockReadGuard<RawRwLock, MemNodeSegment>,
         num_nodes: u32,
     ) -> Self {
         Self { inner, num_nodes }
@@ -461,7 +463,7 @@ impl LockedNSSegment for ArcLockedSegmentView {
 impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSegmentView<P> {
     type Extension = P;
 
-    type Entry<'a> = MemNodeEntry<'a, parking_lot::RwLockReadGuard<'a, MemNodeSegment>>;
+    type Entry<'a> = MemNodeEntry<'a, RwLockReadGuard<'a, MemNodeSegment>>;
 
     type ArcLockedSegment = ArcLockedSegmentView;
 
@@ -525,22 +527,22 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
     }
 
     #[inline(always)]
-    fn head_arc(&self) -> ArcRwLockReadGuard<parking_lot::RawRwLock, MemNodeSegment> {
+    fn head_arc(&self) -> ArcRwLockReadGuard<RawRwLock, MemNodeSegment> {
         self.inner.read_arc_recursive()
     }
 
     #[inline(always)]
-    fn head(&self) -> parking_lot::RwLockReadGuard<'_, MemNodeSegment> {
+    fn head(&self) -> RwLockReadGuard<'_, MemNodeSegment> {
         self.inner.read_recursive()
     }
 
     #[inline(always)]
-    fn head_mut(&self) -> parking_lot::RwLockWriteGuard<'_, MemNodeSegment> {
+    fn head_mut(&self) -> RwLockWriteGuard<'_, MemNodeSegment> {
         loop_lock_write(&self.inner)
     }
 
     #[inline(always)]
-    fn try_head_mut(&self) -> Option<parking_lot::RwLockWriteGuard<'_, MemNodeSegment>> {
+    fn try_head_mut(&self) -> Option<RwLockWriteGuard<'_, MemNodeSegment>> {
         self.inner.try_write()
     }
 
