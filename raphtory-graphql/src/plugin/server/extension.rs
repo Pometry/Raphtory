@@ -16,8 +16,12 @@ pub(crate) use crate::plugin::server::internal::ServerExtensionImpl;
 pub type BoxedExtension = Box<dyn ServerExtensionImpl>;
 pub type ExtensionRef<'a> = &'a dyn ServerExtensionImpl;
 
+/// Interface for defining a server extension
 pub trait ServerExtension: Debug + Send + Sync + 'static {
-    /// name of the extension
+    /// name of the extension (used for registration/serialisation)
+    ///
+    /// Note that registering a new plugin with the same name as an existing one will replace
+    /// the existing plugin!
     fn name(&self) -> &str;
 
     /// hook that gets called on the parsed arguments during server creation
