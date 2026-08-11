@@ -1,4 +1,4 @@
-use clap::{CommandFactory, FromArgMatches, Parser};
+use clap::{CommandFactory, Parser};
 use dynamic_graphql::{
     internal::Registry, Context, ExpandObject, ExpandObjectFields, Request, Result,
 };

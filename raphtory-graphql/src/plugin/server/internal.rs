@@ -1,3 +1,5 @@
+//! Internal interface traits which define a dyn-compatible interface on top of Clap.
+
 use crate::{
     plugin::server::{extension::ServerExtension, plugin::ServerPlugin},
     server::ServerError,
