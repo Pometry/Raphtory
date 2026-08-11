@@ -1,4 +1,7 @@
-use crate::{mutation::HelloMutation, query::HelloQuery};
+use crate::{
+    mutation::HelloMutation,
+    query::{FancyAlgorithm, HelloQuery},
+};
 use dynamic_graphql::internal::Registry;
 use pyo3::prelude::*;
 use raphtory::python::{
@@ -24,6 +27,7 @@ impl RegisterPlugin for SchemaPlugin {
         registry
             .register::<HelloMutation>()
             .register::<HelloQuery<'static>>()
+            .register::<FancyAlgorithm<'static>>()
     }
 }
 

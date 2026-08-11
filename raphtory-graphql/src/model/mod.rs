@@ -43,8 +43,10 @@ use std::{collections::HashMap, path::PathBuf, sync::Arc};
 use tracing::warn;
 
 #[cfg(feature = "vectors")]
-use crate::model::graph::vectorised_graph::VectorQuery;
+pub use crate::model::graph::vectorised_graph::VectorQuery;
 use crate::{model::plugins::Plugins, plugin::schema::RegisterPlugin};
+
+pub use algorithms::GqlAlgorithms;
 
 pub(crate) mod algorithms;
 pub mod graph;
