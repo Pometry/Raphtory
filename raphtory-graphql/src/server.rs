@@ -61,8 +61,8 @@ use crate::{
 };
 #[cfg(feature = "vectors")]
 use {
-    crate::{model::graph::vectorised_graph::VectorQuery, paths::ExistingGraphFolder, GQLError},
-    raphtory::vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate, VectorsQuery},
+    crate::{paths::ExistingGraphFolder, GQLError},
+    raphtory::vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate},
 };
 
 pub const DEFAULT_PORT: u16 = 1736;

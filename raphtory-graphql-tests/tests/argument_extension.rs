@@ -58,6 +58,7 @@ impl<'a> TestQuery<'a> {
     }
 }
 
+#[derive(Clone)]
 struct TestSchemaPlugin;
 
 impl RegisterPlugin for TestSchemaPlugin {

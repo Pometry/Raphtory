@@ -20,6 +20,7 @@ use crate::{
 use clap::{Parser, Subcommand};
 use raphtory::db::api::storage::storage::Config;
 use serde::Serialize;
+use serde_json::json;
 use std::{collections::HashMap, fmt::Debug, path::PathBuf};
 use tokio::io::Result as IoResult;
 
@@ -206,6 +207,9 @@ pub struct ServerArgs {
     #[arg(long, env = "RAPHTORY_PERMISSIONS_STORE_PATH", default_value = None, help = "Path to the JSON permissions store file.")]
     permissions_store_path: Option<PathBuf>,
 
+    #[arg(long, help = "Print the configuration and exit.")]
+    print_config: bool,
+
     #[command(flatten)]
     pub(crate) graph_config: Config,
 
@@ -222,13 +226,19 @@ where
     match args.command {
         Commands::Server(server_args) => {
             let port = server_args.port;
+            let print_config = server_args.print_config;
             let server = GraphServer::new_from_args(server_args).await?;
-            match port {
-                None => {
-                    server.run().await?;
-                }
-                Some(port) => {
-                    server.run_with_port(port).await?;
+            if print_config {
+                let config = json!(server.config());
+                println!("{}", config);
+            } else {
+                match port {
+                    None => {
+                        server.run().await?;
+                    }
+                    Some(port) => {
+                        server.run_with_port(port).await?;
+                    }
                 }
             }
         }
@@ -263,8 +273,22 @@ pub fn python_cli() -> pyo3::PyResult<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::app_config::{AppConfig, AppConfigBuilder};
     use std::io::Write;
     use tempfile::Builder;
+
+    fn generate_config(args: Vec<&str>) -> AppConfig {
+        let args = Args::try_parse_from(args).unwrap();
+        match args.command {
+            Commands::Server(server_args) => AppConfigBuilder::new()
+                .update_from_args(&server_args)
+                .unwrap()
+                .build(),
+            Commands::Schema => {
+                panic!("expected server command")
+            }
+        }
+    }
 
     fn config_file() -> tempfile::NamedTempFile {
         let mut config_file = Builder::new()
@@ -282,7 +306,7 @@ mod tests {
     async fn test_cli_parsing_no_arguments() {
         let args: Vec<&str> = vec![r"raphtory-server", "server"];
         std::env::remove_var("RAPHTORY_CACHE_CAPACITY");
-        let (_, app_config) = generate_config(args).unwrap().unwrap();
+        let app_config = generate_config(args);
         assert_eq!(app_config.cache.capacity, DEFAULT_CACHE_CAPACITY);
     }
 
@@ -295,7 +319,7 @@ mod tests {
             config_file.path().to_str().unwrap(),
         ];
         std::env::remove_var("RAPHTORY_CACHE_CAPACITY");
-        let (_, app_config) = generate_config(args).unwrap().unwrap();
+        let app_config = generate_config(args);
         assert_eq!(app_config.cache.capacity, 123);
     }
 
@@ -308,7 +332,7 @@ mod tests {
             config_file.path().to_str().unwrap(),
         ];
         std::env::set_var("RAPHTORY_CACHE_CAPACITY", "456");
-        let (_, app_config) = generate_config(args).unwrap().unwrap();
+        let app_config = generate_config(args);
         assert_eq!(app_config.cache.capacity, 456);
     }
 
@@ -323,7 +347,7 @@ mod tests {
             "789",
         ];
         std::env::set_var("RAPHTORY_CACHE_CAPACITY", "456");
-        let (_, app_config) = generate_config(args).unwrap().unwrap();
+        let app_config = generate_config(args);
         assert_eq!(app_config.cache.capacity, 789);
     }
 
