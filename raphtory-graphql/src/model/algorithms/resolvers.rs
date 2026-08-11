@@ -99,7 +99,7 @@ impl From<DynamicGraph> for GqlAlgorithms {
 
 impl GqlAlgorithms {
     /// Runs algorithm on the blocking thread pool.
-    pub(crate) async fn run<F: FnOnce(DynamicGraph) -> O + Send + 'static, O: Send + 'static>(
+    pub async fn run<F: FnOnce(DynamicGraph) -> O + Send + 'static, O: Send + 'static>(
         &self,
         algo: F,
     ) -> O {

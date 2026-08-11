@@ -19,3 +19,15 @@ def test_hello_world():
         }"""
         result = client.query(query)
         assert result["helloMutation"] == "Hello, Shivam"
+
+        client.new_graph("test_graph", "EVENT").add_edge(0, 1, 2)
+
+        query = """query {
+                    graph(path: "test_graph") {
+                        algorithm {
+                            fancyNodeCount
+                        }
+                    }
+                }"""
+        result = client.query(query)
+        assert result["graph"]["algorithm"]["fancyNodeCount"] == 2

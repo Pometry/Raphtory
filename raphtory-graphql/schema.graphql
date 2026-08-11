@@ -2425,12 +2425,6 @@ type Graph {
 	"""
 	schema: GraphSchema!
 	"""
-	Access registered graph algorithms (PageRank, shortest path, etc.) for this
-	graph view. The set of available algorithms is defined by the plugin registry
-	loaded at server startup.
-	"""
-	algorithms: GraphAlgorithmPlugin!
-	"""
 	Access the algorithms that can be run on this graph view.
 	"""
 	algorithm: Algorithms!
@@ -2501,11 +2495,6 @@ type Graph {
 		"""
 		views: [GraphViewCollection!]!
 	): Graph!
-}
-
-type GraphAlgorithmPlugin {
-	pagerank(iterCount: Int!, threads: Int, tol: Float, weight: String): [PagerankOutput!]!
-	shortest_path(source: String!, targets: [String!]!, direction: String): [ShortestPathOutput!]!
 }
 
 """
@@ -3340,10 +3329,6 @@ type MotifCounts {
 
 type MutRoot {
 	"""
-	Returns a collection of mutation plugins.
-	"""
-	plugins: MutationPlugin!
-	"""
 	Delete graph from a path on the server.
 	"""
 	deleteGraph(
@@ -3964,10 +3949,6 @@ type MutableNode {
 		"""
 		layer: String
 	): Boolean!
-}
-
-type MutationPlugin {
-	NoOps: String!
 }
 
 """
@@ -5774,14 +5755,6 @@ input OpenAIConfig {
 }
 
 """
-PageRank score.
-"""
-type PagerankOutput {
-	name: String!
-	rank: Float!
-}
-
-"""
 A nested collection of nodes anchored to a source collection — the result of
 collection-level traversals like `nodes.neighbours`, `inNeighbours`, or
 `outNeighbours`. Each source node yields its own list of neighbour nodes, so
@@ -6805,10 +6778,6 @@ strings (`"F64"`), containers are tagged objects
 """
 scalar PropertyType
 
-type QueryPlugin {
-	NoOps: String!
-}
-
 type QueryRoot {
 	"""
 	Hello world demo
@@ -6866,10 +6835,6 @@ type QueryRoot {
 	Returns::  Root namespace
 	"""
 	root: Namespace!
-	"""
-	Returns a plugin.
-	"""
-	plugins: QueryPlugin!
 	"""
 	Encodes graph and returns as string.
 	
@@ -6937,11 +6902,6 @@ input Seeds @oneOf {
 	Infect this fraction of the nodes, chosen at random.
 	"""
 	probability: Float
-}
-
-type ShortestPathOutput {
-	target: String!
-	nodes: [String!]!
 }
 
 enum SortByTime {
@@ -7454,4 +7414,3 @@ schema {
 	query: QueryRoot
 	mutation: MutRoot
 }
-
