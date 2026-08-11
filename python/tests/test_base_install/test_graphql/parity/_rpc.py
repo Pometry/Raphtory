@@ -91,9 +91,8 @@ def _forwarding_handler(upstream_url, counter):
                 # fabricated extra headers or a second response.
                 content_type = upstream.headers.get("Content-Type")
                 if content_type:
-                    self.send_header(
-                        "Content-Type", content_type.replace("\r", "").replace("\n", "")
-                    )
+                    safe_content_type = content_type.replace("\r", "").replace("\n", "")
+                    self.send_header("Content-Type", safe_content_type)
                 self.send_header("Content-Length", str(len(payload)))
                 self.end_headers()
                 self.wfile.write(payload)
