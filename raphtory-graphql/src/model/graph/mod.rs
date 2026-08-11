@@ -3,6 +3,8 @@ use raphtory::core::utils::time::{AlignmentUnit, Interval, TryIntoInterval};
 use raphtory_api::core::utils::time::ParseTimeError;
 
 pub(crate) mod collection;
+
+#[cfg(feature = "vectors")]
 mod document;
 pub(crate) mod edge;
 mod edges;

@@ -1,9 +1,6 @@
 use super::auth_config::{AuthConfig, AuthConfigFieldName, PublicKeyError};
 use crate::{
-    cli::{
-        ArgExtensions, ArgumentExtension, ArgumentExtensionImpl, ArgumentExtensionPlugin,
-        ServerArgs,
-    },
+    cli::ServerArgs,
     config::{
         cache_config::{CacheConfig, CacheConfigFieldName},
         concurrency_config::{ConcurrencyConfig, ConcurrencyConfigFieldName},
@@ -12,9 +9,9 @@ use crate::{
         parquet_config::{ParquetConfig, ParquetConfigFieldName},
         schema_config::{SchemaConfig, SchemaConfigFieldName},
     },
+    plugin::server::extension::{ArgExtensions, BoxedExtension, ServerExtensionImpl},
     server::ServerError,
 };
-use async_graphql::indexmap::IndexMap;
 use config::{Config, ConfigError, File};
 use field_types::FieldName;
 use itertools::Itertools;
@@ -541,11 +538,11 @@ impl AppConfigBuilder {
         self
     }
 
-    pub fn with_extension(&mut self, extension: impl ArgumentExtensionImpl) -> &mut Self {
+    pub fn with_extension(&mut self, extension: impl ServerExtensionImpl) -> &mut Self {
         self.with_boxed_extension(Box::new(extension))
     }
 
-    pub fn with_boxed_extension(&mut self, extension: Box<dyn ArgumentExtensionImpl>) -> &mut Self {
+    pub fn with_boxed_extension(&mut self, extension: BoxedExtension) -> &mut Self {
         self.config.extensions.push_boxed(extension);
         self
     }

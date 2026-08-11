@@ -1,6 +1,5 @@
 use crate::{
     config::{
-        app_config::{AppConfig, AppConfigBuilder},
         auth_config::DEFAULT_REQUIRE_AUTH_FOR_READS,
         cache_config::DEFAULT_CACHE_CAPACITY,
         concurrency_config::{
@@ -14,31 +13,14 @@ use crate::{
         schema_config::DEFAULT_DISABLE_INTROSPECTION,
     },
     model::App,
-    server::{apply_server_extension, ServerError, DEFAULT_PORT},
+    plugin::server::extension::ArgExtensions,
+    server::DEFAULT_PORT,
     GraphServer,
 };
-use async_graphql::indexmap::IndexMap;
-use clap::{ArgMatches, Command, Error, Parser, Subcommand};
-use config::ConfigError;
-use indexmap::map::IntoValues;
-use once_cell::sync::Lazy;
-use raphtory::{db::api::storage::storage::Config, prelude::NodeViewOps};
-use serde::{
-    de,
-    de::{DeserializeOwned, MapAccess, Visitor},
-    ser,
-    ser::SerializeMap,
-    Deserialize, Deserializer, Serialize, Serializer,
-};
-use serde_json::{json, Value};
-use std::{
-    any::Any,
-    collections::HashMap,
-    fmt::{Debug, Formatter},
-    io,
-    path::PathBuf,
-    sync::{Arc, Mutex},
-};
+use clap::{Parser, Subcommand};
+use raphtory::db::api::storage::storage::Config;
+use serde::Serialize;
+use std::{collections::HashMap, fmt::Debug, path::PathBuf};
 use tokio::io::Result as IoResult;
 
 fn parse_json_map(input: &str) -> Result<HashMap<String, String>, serde_json::Error> {
@@ -49,235 +31,6 @@ macro_rules! help_with_default {
     ($help:expr, $default:expr) => {
         format!("{} Default: '{}'", $help, $default)
     };
-}
-
-pub trait ArgumentExtension: Debug + Send + Sync + 'static {
-    /// name of the extension
-    fn name(&self) -> &str;
-
-    /// hook that gets called on the parsed arguments during server creation
-    fn process_args(&self, server: GraphServer) -> Result<GraphServer, ServerError>;
-}
-
-/// Dynamic extension trait for Clap, all implementations will need the `#[typetag::serde]` annotation
-pub trait ArgumentExtensionImpl: ArgumentExtension {
-    /// handle parsing of arguments
-    fn dyn_update_from_arg_matches(&mut self, matches: &ArgMatches) -> Result<(), Error>;
-
-    /// implement clone for dynamic trait objects
-    fn boxed_clone(&self) -> Box<dyn ArgumentExtensionImpl>;
-
-    /// convert to json value for serialization
-    fn to_json(&self) -> Result<Value, ServerError>;
-}
-
-impl<'de, T: ArgumentExtension + clap::FromArgMatches + Clone + Serialize + Deserialize<'de>>
-    ArgumentExtensionImpl for T
-{
-    fn dyn_update_from_arg_matches(&mut self, matches: &ArgMatches) -> Result<(), Error> {
-        self.update_from_arg_matches(matches)
-    }
-
-    fn boxed_clone(&self) -> Box<dyn ArgumentExtensionImpl> {
-        Box::new(self.clone())
-    }
-
-    fn to_json(&self) -> Result<Value, ServerError> {
-        let value =
-            serde_json::to_value(self).map_err(|err| ConfigError::Foreign(Box::new(err)))?;
-        Ok(value)
-    }
-}
-
-pub trait ArgumentExtensionPlugin: Send + Sync + 'static {
-    type Extension: ArgumentExtension + clap::Args + Clone + Serialize + DeserializeOwned;
-
-    fn new_args(&self) -> Self::Extension;
-}
-
-pub trait ArgumentExtensionPluginImpl: Send + Sync + 'static {
-    fn new_boxed_args(&self) -> Box<dyn ArgumentExtensionImpl>;
-
-    fn augment_args(&self, cmd: Command) -> Command;
-
-    fn augment_args_for_update(&self, cmd: Command) -> Command;
-
-    fn from_json(&self, value: Value) -> Result<Box<dyn ArgumentExtensionImpl>, ServerError>;
-}
-
-impl<T: ArgumentExtensionPlugin> ArgumentExtensionPluginImpl for T {
-    fn new_boxed_args(&self) -> Box<dyn ArgumentExtensionImpl> {
-        Box::new(self.new_args())
-    }
-
-    fn augment_args(&self, cmd: Command) -> Command {
-        <T::Extension as clap::Args>::augment_args(cmd)
-    }
-
-    fn augment_args_for_update(&self, cmd: Command) -> Command {
-        <T::Extension as clap::Args>::augment_args_for_update(cmd)
-    }
-
-    fn from_json(&self, value: Value) -> Result<Box<dyn ArgumentExtensionImpl>, ServerError> {
-        Ok(Box::new(
-            T::Extension::deserialize(value).map_err(|err| ConfigError::Foreign(Box::new(err)))?,
-        ))
-    }
-}
-
-static EXTENSIONS: Lazy<Mutex<IndexMap<String, Box<dyn ArgumentExtensionPluginImpl>>>> =
-    Lazy::new(|| Mutex::new(IndexMap::new()));
-
-#[derive(Debug, Default)]
-pub struct ArgExtensions(IndexMap<String, Box<dyn ArgumentExtensionImpl>>);
-
-impl IntoIterator for ArgExtensions {
-    type Item = Box<dyn ArgumentExtensionImpl>;
-    type IntoIter = IntoValues<String, Box<dyn ArgumentExtensionImpl>>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.into_values()
-    }
-}
-
-impl Serialize for ArgExtensions {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut map = serializer
-            .serialize_map(Some(self.0.len()))
-            .map_err(ser::Error::custom)?;
-        for ext in self.iter() {
-            map.serialize_entry(ext.name(), &ext.to_json().map_err(ser::Error::custom)?)?;
-        }
-        map.end()
-    }
-}
-
-impl<'de> Deserialize<'de> for ArgExtensions {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        struct MapVisitor;
-
-        impl<'de> Visitor<'de> for MapVisitor {
-            type Value = ArgExtensions;
-
-            fn expecting(&self, formatter: &mut Formatter) -> std::fmt::Result {
-                write!(formatter, "a map of name and extension config")
-            }
-
-            fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
-            where
-                A: MapAccess<'de>,
-            {
-                let mut exts = ArgExtensions(IndexMap::new());
-                while let Some((key, value)) = map.next_entry::<&str, Value>()? {
-                    let guard = EXTENSIONS.lock().expect("extensions lock poisoned");
-                    let plugin_factory = guard
-                        .get(key)
-                        .ok_or_else(|| de::Error::custom(format!("unknown plugin {key}")))?;
-                    let plugin = plugin_factory.from_json(value).map_err(de::Error::custom)?;
-                    exts.push_boxed(plugin);
-                }
-                Ok(exts)
-            }
-        }
-
-        deserializer.deserialize_map(MapVisitor)
-    }
-}
-
-impl Clone for ArgExtensions {
-    fn clone(&self) -> Self {
-        ArgExtensions(
-            self.0
-                .iter()
-                .map(|(key, extension)| (key.clone(), extension.boxed_clone()))
-                .collect(),
-        )
-    }
-}
-
-impl PartialEq for ArgExtensions {
-    fn eq(&self, other: &Self) -> bool {
-        if let Ok(this_value) = serde_json::to_value(self) {
-            if let Ok(other_value) = serde_json::to_value(other) {
-                return this_value == other_value;
-            }
-        }
-        false
-    }
-}
-
-impl ArgExtensions {
-    pub fn process(&self, mut server: GraphServer) -> Result<GraphServer, ServerError> {
-        for plugin in self.iter() {
-            server = plugin.process_args(server)?;
-        }
-        Ok(server)
-    }
-
-    pub fn push(&mut self, extension: impl ArgumentExtensionImpl) {
-        self.push_boxed(Box::new(extension))
-    }
-
-    pub fn push_boxed(&mut self, extension: Box<dyn ArgumentExtensionImpl>) {
-        self.0.insert(extension.name().to_string(), extension);
-    }
-
-    pub fn iter(&self) -> impl Iterator<Item = &dyn ArgumentExtensionImpl> {
-        self.0.values().map(|ext| ext.as_ref())
-    }
-}
-
-pub fn register_cli_plugin(plugin: impl ArgumentExtensionPlugin) {
-    EXTENSIONS
-        .lock()
-        .expect("plugin lock poisoned")
-        .insert(plugin.new_args().name().to_string(), Box::new(plugin));
-}
-
-impl clap::FromArgMatches for ArgExtensions {
-    fn from_arg_matches(matches: &ArgMatches) -> Result<Self, Error> {
-        Ok(ArgExtensions(
-            EXTENSIONS
-                .lock()
-                .expect("plugin lock poisoned")
-                .iter()
-                .map(|(name, ext)| {
-                    let mut plugin = ext.new_boxed_args();
-                    plugin.dyn_update_from_arg_matches(matches)?;
-                    Ok::<_, Error>((name.clone(), plugin))
-                })
-                .collect::<Result<_, Error>>()?,
-        ))
-    }
-
-    fn update_from_arg_matches(&mut self, matches: &ArgMatches) -> Result<(), Error> {
-        for plugin in self.0.values_mut() {
-            plugin.dyn_update_from_arg_matches(matches)?;
-        }
-        Ok(())
-    }
-}
-
-impl clap::Args for ArgExtensions {
-    fn augment_args(mut cmd: Command) -> Command {
-        for plugin in EXTENSIONS.lock().expect("plugin lock poisoned").values() {
-            cmd = plugin.augment_args(cmd);
-        }
-        cmd
-    }
-
-    fn augment_args_for_update(mut cmd: Command) -> Command {
-        for plugin in EXTENSIONS.lock().expect("plugin lock poisoned").values() {
-            cmd = plugin.augment_args_for_update(cmd);
-        }
-        cmd
-    }
 }
 
 #[derive(Parser, Debug)]
@@ -510,7 +263,6 @@ pub fn python_cli() -> pyo3::PyResult<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use clap::{Args, FromArgMatches};
     use std::io::Write;
     use tempfile::Builder;
 

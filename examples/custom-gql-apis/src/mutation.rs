@@ -3,7 +3,7 @@ use async_graphql::{
     FieldResult,
 };
 use futures_util::future::BoxFuture;
-use raphtory_graphql::model::plugins::{mutation_plugin::MutationPlugin, operation::Operation};
+use raphtory_graphql::model::r#mod::{mutation_plugin::MutationPlugin, operation::Operation};
 
 pub(crate) struct HelloMutation;
 
