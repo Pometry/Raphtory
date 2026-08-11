@@ -19,7 +19,7 @@ use crate::{
         ClientError,
     },
     model::graph::{
-        filtering::{GqlEdgeFilter, GqlFilter, GqlNodeFilter},
+        filtering::GqlFilter,
         property::{gql_to_prop, parse_special_float},
     },
 };
@@ -597,14 +597,6 @@ struct VarCollector {
 impl VarCollector {
     fn add_filter(&mut self, f: &GqlFilter) -> Result<String, ClientError> {
         self.add("GqlFilter!", f)
-    }
-
-    fn add_node_filter(&mut self, f: &GqlNodeFilter) -> Result<String, ClientError> {
-        self.add("NodeFilter!", f)
-    }
-
-    fn add_edge_filter(&mut self, f: &GqlEdgeFilter) -> Result<String, ClientError> {
-        self.add("EdgeFilter!", f)
     }
 
     /// Register a property dict (`findNodes`/`findEdges` `propertiesDict` arg)
@@ -1192,17 +1184,17 @@ fn render_read_into(
             let _ = write!(out, " {{ filter(expr: {})", vars.add_filter(filter)?);
         }
         ReadExpr::SelectNodes { input, filter } => {
-            // Server field `select(expr: NodeFilter!)`: narrows the current
+            // Server field `select(expr: GqlFilter!)`: narrows the current
             // collection's membership only; downstream traversals see the
             // unfiltered graph.
             render_read_into(input, vars, out)?;
-            let _ = write!(out, " {{ select(expr: {})", vars.add_node_filter(filter)?);
+            let _ = write!(out, " {{ select(expr: {})", vars.add_filter(filter)?);
         }
         ReadExpr::SelectEdges { input, filter } => {
-            // Server field `select(expr: EdgeFilter!)` on `Edges`: narrows the
+            // Server field `select(expr: GqlFilter!)` on `Edges`: narrows the
             // current collection's membership only.
             render_read_into(input, vars, out)?;
-            let _ = write!(out, " {{ select(expr: {})", vars.add_edge_filter(filter)?);
+            let _ = write!(out, " {{ select(expr: {})", vars.add_filter(filter)?);
         }
         ReadExpr::EdgeEvent {
             input,
@@ -4128,7 +4120,7 @@ fn child_input(expr: &ReadExpr) -> Option<&ReadExpr> {
 mod tests {
     use super::*;
     use crate::model::graph::{
-        filtering::{PropCondition, PropertyFilterNew},
+        filtering::{GqlNodeFilter, PropCondition, PropertyFilterNew},
         property::Value as GqlValue,
     };
     use std::sync::Arc;
@@ -4324,14 +4316,14 @@ mod tests {
         // A filter with a quote-bearing string value: it must be shipped as a
         // `$fN` JSON variable (escaping inherent, no query-string splicing to
         // break out of), not rendered into the query text.
-        let filter = GqlNodeFilter::Property(PropertyFilterNew {
+        let filter = GqlFilter::Nodes(GqlNodeFilter::Property(PropertyFilterNew {
             name: "score".into(),
             where_: PropCondition::Eq(GqlValue::Str("O\"Brien".into())),
-        });
+        }));
         let mut vars = VarCollector::default();
-        let reference = vars.add_node_filter(&filter).unwrap();
+        let reference = vars.add_filter(&filter).unwrap();
         assert_eq!(reference, "$f0");
-        assert_eq!(vars.decls, "$f0: NodeFilter!");
+        assert_eq!(vars.decls, "$f0: GqlFilter!");
         // The value lives in the variables map as JSON data, quote intact.
         let json = serde_json::to_string(&vars.vars["f0"]).unwrap();
         assert!(
@@ -4377,12 +4369,12 @@ mod tests {
     #[test]
     fn property_key_rides_json_variable_intact() {
         // A quote-bearing property KEY is carried as JSON data too.
-        let filter = GqlNodeFilter::Property(PropertyFilterNew {
+        let filter = GqlFilter::Nodes(GqlNodeFilter::Property(PropertyFilterNew {
             name: "wei\"rd".into(),
             where_: PropCondition::Eq(GqlValue::Str("v".into())),
-        });
+        }));
         let mut vars = VarCollector::default();
-        vars.add_node_filter(&filter).unwrap();
+        vars.add_filter(&filter).unwrap();
         let json = serde_json::to_string(&vars.vars["f0"]).unwrap();
         assert!(
             json.contains(r#"wei\"rd"#),
@@ -4451,24 +4443,24 @@ mod tests {
             GqlValue::F64(f64::INFINITY),
             GqlValue::F32(f32::NEG_INFINITY),
         ] {
-            let filter = GqlNodeFilter::Property(PropertyFilterNew {
+            let filter = GqlFilter::Nodes(GqlNodeFilter::Property(PropertyFilterNew {
                 name: "x".into(),
                 where_: PropCondition::Eq(bad),
-            });
+            }));
             let mut vars = VarCollector::default();
             assert!(matches!(
-                vars.add_node_filter(&filter),
+                vars.add_filter(&filter),
                 Err(ClientError::InvalidInput(_))
             ));
         }
 
         // A finite float serializes fine.
-        let filter = GqlNodeFilter::Property(PropertyFilterNew {
+        let filter = GqlFilter::Nodes(GqlNodeFilter::Property(PropertyFilterNew {
             name: "x".into(),
             where_: PropCondition::Eq(GqlValue::F64(1.5)),
-        });
+        }));
         let mut vars = VarCollector::default();
-        assert!(vars.add_node_filter(&filter).is_ok());
+        assert!(vars.add_filter(&filter).is_ok());
     }
 
     #[test]
@@ -4669,8 +4661,8 @@ mod tests {
         assert_eq!(b_neighbours, ["c"], "b's neighbours under f exclude a");
 
         // select() narrows membership only — handles see the unfiltered graph.
-        // Passed as a composite: reflexive TryInto<GqlNodeFilter> is Infallible,
-        // so a raw Gql filter can't satisfy the `Error = GraphError` bound.
+        // Passed as a composite to pin that kind-typed callers still satisfy
+        // the widened `TryInto<GqlFilter>` bound.
         let score_gt_15_composite = CompositeNodeFilter::try_from(score_gt_15.clone()).unwrap();
         let selected = rg.nodes().select(score_gt_15_composite).unwrap();
         let mut selected_ids = selected.ids().await.unwrap();

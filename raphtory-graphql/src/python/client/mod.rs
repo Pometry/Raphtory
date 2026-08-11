@@ -6,6 +6,10 @@ use crate::{
     python::pymodule::RemotePermissionError,
 };
 use pyo3::{exceptions::PyValueError, prelude::*, pyclass, pymethods};
+use raphtory::{
+    db::graph::views::filter::model::FilterTree, errors::GraphError,
+    python::filter::filter_expr::PyFilterExpr,
+};
 use raphtory_api::{
     core::{
         entities::{properties::prop::Prop, GID},
@@ -31,6 +35,38 @@ pub mod remote_path_from_graph;
 pub mod remote_path_from_node;
 pub mod remote_schema;
 pub mod remote_sorting;
+
+/// True if `tree` tests edges anywhere.
+///
+/// An edge test says nothing about which nodes belong in a node collection, and
+/// the local engine refuses one in a `nodes[...]` subscript.
+fn tests_edges(tree: &FilterTree) -> bool {
+    match tree {
+        FilterTree::Edge(_) => true,
+        FilterTree::Node(_) | FilterTree::View(_) => false,
+        FilterTree::And(items) | FilterTree::Or(items) => items.iter().any(tests_edges),
+        FilterTree::Not(inner) => tests_edges(inner),
+    }
+}
+
+/// Convert a node-collection `select` / `nodes[expr]` subscript into the
+/// filter tree that narrows the collection's membership. Node predicates,
+/// graph views, and their combinations all pass through; the server applies
+/// them with select (membership-narrowing) semantics.
+///
+/// An expression that tests edges is refused eagerly with the same error the
+/// local `Nodes.__getitem__` raises, so one `except` clause catches it on
+/// either backend — and at the same moment: locally the rejection happens at
+/// subscript time, not at first read.
+pub(crate) fn node_subscript(filter: &PyFilterExpr) -> PyResult<FilterTree> {
+    let tree = filter
+        .try_as_filter_tree()
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    if tests_edges(&tree) {
+        return Err(adapt_err_value(&GraphError::NotNodeFilter));
+    }
+    Ok(tree)
+}
 
 /// A temporal update
 ///

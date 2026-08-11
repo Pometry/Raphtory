@@ -271,8 +271,7 @@ impl PyRemoteEdges {
     ///
     /// Raises:
     ///     ValueError: if the filter cannot be represented as a GraphQL
-    ///         `EdgeFilter` (e.g. uses an unsupported operator like
-    ///         `FuzzySearch`).
+    ///         `EdgeFilter` (e.g. references node-only fields).
     pub fn filter(&self, filter: PyFilterExpr) -> PyResult<PyRemoteEdges> {
         let tree = filter
             .try_as_filter_tree()
@@ -280,25 +279,40 @@ impl PyRemoteEdges {
         Ok(PyRemoteEdges::new(self.edges.filter(tree)?))
     }
 
-    /// Narrow this collection's membership by a filter expression. Unlike
-    /// `.filter()`, the filter applies **only at this step** — downstream
-    /// traversals from the matching edges see the unfiltered graph. Use
-    /// `.filter()` for the propagating variant. Lazy — no RPC.
+    /// Narrow this collection's membership by a filter expression — edge or
+    /// node predicates, graph views, or and/or/not combinations of them.
+    /// Unlike `.filter()`, the filter applies **only at this step** —
+    /// downstream traversals from the matching edges see the unfiltered
+    /// graph. Use `.filter()` for the propagating variant. Lazy — no RPC.
     ///
     /// Arguments:
     ///     filter (FilterExpr): a filter expression from `raphtory.filter`.
     ///
     /// Returns:
     ///     RemoteEdges: a new collection narrowed to matching edges.
+    ///
+    /// Raises:
+    ///     ValueError: if the filter cannot be sent over the wire.
     pub fn select(&self, filter: PyFilterExpr) -> PyResult<PyRemoteEdges> {
-        let composite = filter
-            .try_as_edge_filter()
+        let tree = filter
+            .try_as_filter_tree()
             .map_err(|e| PyValueError::new_err(e.to_string()))?;
-        Ok(PyRemoteEdges::new(self.edges.select(composite)?))
+        Ok(PyRemoteEdges::new(self.edges.select(tree)?))
     }
 
-    /// `edges[filter]` — sugar for `.select(filter)` (matches the local
-    /// `Edges.__getitem__`). Lazy — no RPC.
+    /// `edges[filter]` — narrow this collection's membership by a filter
+    /// expression, the sugar form of `.select(filter)` (matches the local
+    /// `Edges.__getitem__`). Edge predicates, node predicates, graph views
+    /// and mixed combinations all apply. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     filter (FilterExpr): a filter expression from `raphtory.filter`.
+    ///
+    /// Returns:
+    ///     RemoteEdges: a new collection narrowed to matching edges.
+    ///
+    /// Raises:
+    ///     ValueError: if the filter cannot be sent over the wire.
     fn __getitem__(&self, filter: PyFilterExpr) -> PyResult<PyRemoteEdges> {
         self.select(filter)
     }

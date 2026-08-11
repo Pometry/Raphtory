@@ -152,7 +152,6 @@ KNOWN_GAPS = {
     "rolling": "rolling() missing on remote for all view types",
     "path_from_graph.write": "PathFromGraph write mutators missing on remote",
     "nested_edges.write": "NestedEdges write mutators missing on remote",
-    "fuzzy_filter": "FuzzySearch filter operator not representable over the wire",
     # Write-path gaps. These run in the *other* direction to the ones above:
     # remote has the API and the local `Graph` does not, so the drop-in surface
     # is still whole — but a graph-agnostic `build` cannot use them, which is
@@ -168,5 +167,56 @@ KNOWN_GAPS = {
     "temporal_property.latest": (
         "RemoteTemporalProperty.latest() has no local TemporalProperty "
         "equivalent (local exposes latest() on TemporalProperties only)"
+    ),
+    # Filter-expression gaps (see test_parity_filters.py). These are genuine
+    # local↔remote *disagreements*: an expression the local engine accepts is
+    # refused by the remote lowering, so the same program means different things
+    # on the two sides.
+    #
+    # All three share one root cause. Locally, `collection[expr]` is *always*
+    # membership selection — it keeps the members the expression leaves visible
+    # and hands them back over the unrestricted graph — and it accepts any
+    # expression, graph views included. On the wire, membership selection is the
+    # `select` field, whose argument is kind-typed (`NodeFilter` / `EdgeFilter`),
+    # so an expression that is not kind-typed has no spelling. The neighbouring
+    # `filter` field is NOT a substitute: it rescopes the collection rather than
+    # narrowing it, so members that the expression excludes stay in the result.
+    # Closing these needs a server field that applies a general `GqlFilter` with
+    # select semantics; there is no client-only lowering.
+    "filter.exploded_edge.props": (
+        "ExplodedEdge property and metadata filters are refused remotely "
+        "(ValueError: Not supported) but accepted locally; the ExplodedEdge "
+        "predicates (is_valid / is_deleted / is_self_loop) do cross the wire "
+        "because they also export as plain edge filters. The property form has "
+        "no wire representation at all: FilterTree (the transportable export) "
+        "has no ExplodedEdge variant, and the GraphQL schema has no "
+        "exploded-edge filter input type"
+    ),
+    # An entity-type-mismatched `[expr]` used to be a fourth entry here: both
+    # sides refused it, but as different exception types. The remote now raises
+    # the same Exception('Node filter expected') the local engine does, so the
+    # case is an ordinary assertion in test_parity_filters.py
+    # (`test_edge_expr_in_a_node_subscript_is_refused_the_same_way`).
+    # Remote-only filter application sites. Like the batch-write entries above,
+    # these run in the other direction: the remote has the API and the local
+    # handle does not, so a graph-agnostic case cannot exercise them.
+    "filter.edges.filter": (
+        "RemoteEdges.filter has no local counterpart; locally filter() is a "
+        "node-view-op plus GraphView, so Edges has no filter method"
+    ),
+    "filter.edge.filter": (
+        "RemoteEdge.filter has no local counterpart (as filter.edges.filter)"
+    ),
+    "filter.nested_edges.filter": (
+        "RemoteNestedEdges.filter has no local counterpart (as " "filter.edges.filter)"
+    ),
+    "filter.collection.select": (
+        "select() — the remote's explicit narrow-here-only form — has no local "
+        "counterpart; locally only the collection[expr] sugar exists"
+    ),
+    "filter.node.by_state_column": (
+        "filter.Node.by_state_column needs a boolean OutputNodeState column, "
+        "and no algorithm on the drop-in surface produces one, so the "
+        "expression cannot be built for either side to apply"
     ),
 }

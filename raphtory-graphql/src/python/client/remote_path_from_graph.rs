@@ -1,6 +1,7 @@
 use crate::{
     client::{remote_path_from_graph::RemotePathFromGraph, ClientError},
     python::client::{
+        node_subscript,
         remote_collection_metadata::{PyRemoteMetadataView, PyRemotePropertiesView},
         remote_history::PyRemoteHistory,
         remote_nested_edges::PyRemoteNestedEdges,
@@ -74,22 +75,43 @@ impl PyRemotePathFromGraph {
         Ok(PyRemotePathFromGraph::new(self.path.filter(tree)?))
     }
 
-    /// Narrow this collection's membership by a node filter — applies only at
-    /// this step; downstream traversals see the unfiltered graph. Lazy — no RPC.
+    /// Narrow this collection's membership by a filter expression — node
+    /// predicates, graph views, or and/or/not combinations of them — applies
+    /// only at this step; downstream traversals see the unfiltered graph.
+    /// Lazy — no RPC.
     ///
     /// Arguments:
-    ///     filter (FilterExpr): a node filter expression from `raphtory.filter`.
+    ///     filter (FilterExpr): a filter expression from `raphtory.filter`.
     ///
     /// Returns:
     ///     RemotePathFromGraph: a new collection narrowed to matching nodes.
+    ///
+    /// Raises:
+    ///     Exception: if the expression tests edges rather than nodes — the
+    ///         same error the local engine raises.
+    ///     ValueError: if the filter cannot be sent over the wire.
     pub fn select(&self, filter: PyFilterExpr) -> PyResult<PyRemotePathFromGraph> {
-        let composite = filter
-            .try_as_node_filter()
-            .map_err(|e| PyValueError::new_err(e.to_string()))?;
-        Ok(PyRemotePathFromGraph::new(self.path.select(composite)?))
+        Ok(PyRemotePathFromGraph::new(
+            self.path.select(node_subscript(&filter)?)?,
+        ))
     }
 
-    /// `path[filter]` — sugar for `.select(filter)`. Lazy — no RPC.
+    /// `path[filter]` — narrow this collection's membership by a filter
+    /// expression, the sugar form of `.select(filter)` (matches the local
+    /// `PathFromGraph.__getitem__`). Node predicates, graph views (which
+    /// narrow membership to the nodes present in the view), and combinations
+    /// all apply. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     filter (FilterExpr): a filter expression from `raphtory.filter`.
+    ///
+    /// Returns:
+    ///     RemotePathFromGraph: a new collection narrowed to matching nodes.
+    ///
+    /// Raises:
+    ///     Exception: if the expression tests edges rather than nodes — the
+    ///         same error the local `PathFromGraph.__getitem__` raises.
+    ///     ValueError: if the filter cannot be sent over the wire.
     fn __getitem__(&self, filter: PyFilterExpr) -> PyResult<PyRemotePathFromGraph> {
         self.select(filter)
     }

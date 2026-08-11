@@ -13,7 +13,7 @@ use crate::{
         },
         ClientError,
     },
-    model::graph::filtering::{GqlEdgeFilter, GqlFilter},
+    model::graph::filtering::GqlFilter,
 };
 use raphtory::errors::GraphError;
 use std::sync::Arc;
@@ -248,13 +248,13 @@ impl RemoteEdges {
         })
     }
 
-    /// Narrow this collection's membership by a filter expression. Unlike
-    /// `.filter()`, the filter applies **only at this step** — downstream
-    /// traversals from the matching edges see the unfiltered graph.
-    /// Lazy — no RPC.
+    /// Narrow this collection's membership by a filter expression (node/edge
+    /// predicates, graph views, and/or/not combinations). Unlike `.filter()`,
+    /// the filter applies **only at this step** — downstream traversals from
+    /// the matching edges see the unfiltered graph. Lazy — no RPC.
     pub fn select(
         &self,
-        filter: impl TryInto<GqlEdgeFilter, Error = GraphError>,
+        filter: impl TryInto<GqlFilter, Error = GraphError>,
     ) -> Result<RemoteEdges, ClientError> {
         let filter = Arc::new(filter.try_into()?);
         Ok(RemoteEdges {

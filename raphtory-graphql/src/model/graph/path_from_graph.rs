@@ -497,13 +497,14 @@ impl GqlPathFromGraph {
 
     async fn select(
         &self,
-        #[graphql(desc = "Composite node filter (by name, property, type, etc.).")]
-        expr: GqlNodeFilter,
+        #[graphql(
+            desc = "Filter expression: node predicates, graph views, or and/or/not combinations (and = intersection). Expressions that test edges are rejected."
+        )]
+        expr: GqlFilter,
     ) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let filter: CompositeNodeFilter = expr.try_into()?;
-            let filtered = self_clone.nn.select(filter)?;
+            let filtered = self_clone.nn.select(expr)?;
             Ok(self_clone.update(filtered.into_dyn()))
         })
         .await

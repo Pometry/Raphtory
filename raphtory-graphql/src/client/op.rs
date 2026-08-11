@@ -4,10 +4,7 @@
 //! hands it to the transport. This module is the single source of truth for
 //! what "an operation" means on the wire.
 
-use crate::{
-    client::properties_to_input,
-    model::graph::filtering::{GqlEdgeFilter, GqlFilter, GqlNodeFilter},
-};
+use crate::{client::properties_to_input, model::graph::filtering::GqlFilter};
 use raphtory_api::core::entities::properties::prop::Prop;
 // Re-exported so the client transport wrappers import the op tree's time type
 // from one place (`op::InputTime`), same as `ReadExpr`/`WriteOp`.
@@ -180,25 +177,27 @@ pub enum ReadExpr {
         input: Arc<ReadExpr>,
         filter: Arc<GqlFilter>,
     },
-    /// Narrow a `Nodes` collection's membership by a filter expression.
-    /// Returns `Nodes`. Server field: `select(expr: NodeFilter!)` on
-    /// `Nodes`.
+    /// Narrow a `Nodes` collection's membership by a filter expression
+    /// (node predicates, graph views, and/or/not combinations — edge tests
+    /// are rejected server-side). Returns `Nodes`. Server field:
+    /// `select(expr: GqlFilter!)` on `Nodes`.
     ///
     /// Applies the filter only to this step; downstream traversals from
     /// the matching nodes see the unfiltered graph.
     SelectNodes {
         input: Arc<ReadExpr>,
-        filter: Arc<GqlNodeFilter>,
+        filter: Arc<GqlFilter>,
     },
-    /// Narrow an `Edges` collection's membership by a filter expression.
-    /// Returns `Edges`. Server field: `select(expr: EdgeFilter!)` on
+    /// Narrow an `Edges` collection's membership by a filter expression
+    /// (node/edge predicates, graph views, and/or/not combinations).
+    /// Returns `Edges`. Server field: `select(expr: GqlFilter!)` on
     /// `Edges`.
     ///
     /// Applies the filter only to this step; downstream traversals from
     /// the matching edges see the unfiltered graph.
     SelectEdges {
         input: Arc<ReadExpr>,
-        filter: Arc<GqlEdgeFilter>,
+        filter: Arc<GqlFilter>,
     },
     /// Pin a single `Edge` handle to one event — the exploded instance at
     /// exactly `(time, event_id)`, optionally restricted to `layer`.

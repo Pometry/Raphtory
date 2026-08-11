@@ -1610,8 +1610,7 @@ class RemoteNodes(object):
 
         Raises:
             ValueError: if the filter cannot be represented as a GraphQL
-                `NodeFilter` (e.g. references edge fields, or uses an
-                unsupported operator like `FuzzySearch`).
+                `NodeFilter` (e.g. references edge fields).
         """
 
     def has_layer(self, name):
@@ -2486,8 +2485,7 @@ class RemoteEdges(object):
 
         Raises:
             ValueError: if the filter cannot be represented as a GraphQL
-                `EdgeFilter` (e.g. uses an unsupported operator like
-                `FuzzySearch`).
+                `EdgeFilter` (e.g. references node-only fields).
         """
 
     def has_layer(self, name):

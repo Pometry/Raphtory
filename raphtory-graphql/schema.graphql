@@ -1781,9 +1781,9 @@ type Edges {
 	"""
 	select(
 		"""
-		Composite edge filter (by property, layer, src/dst, etc.).
+		Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
 		"""
-		expr: EdgeFilter!
+		expr: GqlFilter!
 	): Edges!
 }
 
@@ -4250,9 +4250,9 @@ type NestedEdges {
 	"""
 	select(
 		"""
-		Composite edge filter (by property, layer, src/dst, etc.).
+		Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
 		"""
-		expr: EdgeFilter!
+		expr: GqlFilter!
 	): NestedEdges!
 }
 
@@ -5618,9 +5618,9 @@ type Nodes {
 	"""
 	select(
 		"""
-		Composite node filter (by name, property, type, etc.).
+		Filter expression: node predicates, graph views, or and/or/not combinations (and = intersection). Expressions that test edges are rejected.
 		"""
-		expr: NodeFilter!
+		expr: GqlFilter!
 	): Nodes!
 	"""
 	Returns the neighbouring nodes of each node in the collection.
@@ -6038,9 +6038,9 @@ type PathFromGraph {
 	"""
 	select(
 		"""
-		Composite node filter (by name, property, type, etc.).
+		Filter expression: node predicates, graph views, or and/or/not combinations (and = intersection). Expressions that test edges are rejected.
 		"""
-		expr: NodeFilter!
+		expr: GqlFilter!
 	): PathFromGraph!
 	"""
 	Returns the neighbouring nodes reachable one further hop from each source
@@ -6383,9 +6383,9 @@ type PathFromNode {
 	"""
 	select(
 		"""
-		Composite node filter (by name, property, type, etc.).
+		Filter expression: node predicates, graph views, or and/or/not combinations (and = intersection). Expressions that test edges are rejected.
 		"""
-		expr: NodeFilter!
+		expr: GqlFilter!
 	): PathFromNode!
 	"""
 	Returns the neighbouring nodes reachable one further hop from this path

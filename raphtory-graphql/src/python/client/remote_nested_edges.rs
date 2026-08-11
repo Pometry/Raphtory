@@ -74,22 +74,39 @@ impl PyRemoteNestedEdges {
         Ok(PyRemoteNestedEdges::new(self.edges.filter(tree)?))
     }
 
-    /// Narrow this collection's membership by an edge filter — applies only at
-    /// this step; downstream traversals see the unfiltered graph. Lazy — no RPC.
+    /// Narrow this collection's membership by a filter expression — edge or
+    /// node predicates, graph views, or and/or/not combinations of them —
+    /// applies only at this step; downstream traversals see the unfiltered
+    /// graph. Lazy — no RPC.
     ///
     /// Arguments:
-    ///     filter (FilterExpr): an edge filter expression from `raphtory.filter`.
+    ///     filter (FilterExpr): a filter expression from `raphtory.filter`.
     ///
     /// Returns:
     ///     RemoteNestedEdges: a new collection narrowed to matching edges.
+    ///
+    /// Raises:
+    ///     ValueError: if the filter cannot be sent over the wire.
     pub fn select(&self, filter: PyFilterExpr) -> PyResult<PyRemoteNestedEdges> {
-        let composite = filter
-            .try_as_edge_filter()
+        let tree = filter
+            .try_as_filter_tree()
             .map_err(|e| PyValueError::new_err(e.to_string()))?;
-        Ok(PyRemoteNestedEdges::new(self.edges.select(composite)?))
+        Ok(PyRemoteNestedEdges::new(self.edges.select(tree)?))
     }
 
-    /// `edges[filter]` — sugar for `.select(filter)`. Lazy — no RPC.
+    /// `edges[filter]` — narrow this collection's membership by a filter
+    /// expression, the sugar form of `.select(filter)` (matches the local
+    /// `NestedEdges.__getitem__`). Edge predicates, node predicates, graph
+    /// views and mixed combinations all apply. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     filter (FilterExpr): a filter expression from `raphtory.filter`.
+    ///
+    /// Returns:
+    ///     RemoteNestedEdges: a new collection narrowed to matching edges.
+    ///
+    /// Raises:
+    ///     ValueError: if the filter cannot be sent over the wire.
     fn __getitem__(&self, filter: PyFilterExpr) -> PyResult<PyRemoteNestedEdges> {
         self.select(filter)
     }

@@ -1,6 +1,7 @@
 use crate::{
     client::{remote_nodes::RemoteNodes, ClientError},
     python::client::{
+        node_subscript,
         remote_collection_metadata::{PyRemoteMetadataView, PyRemotePropertiesView},
         remote_nested_edges::PyRemoteNestedEdges,
         remote_node::PyRemoteNode,
@@ -254,8 +255,7 @@ impl PyRemoteNodes {
     ///
     /// Raises:
     ///     ValueError: if the filter cannot be represented as a GraphQL
-    ///         `NodeFilter` (e.g. references edge fields, or uses an
-    ///         unsupported operator like `FuzzySearch`).
+    ///         `NodeFilter` (e.g. references edge fields).
     pub fn filter(&self, filter: PyFilterExpr) -> PyResult<PyRemoteNodes> {
         let tree = filter
             .try_as_filter_tree()
@@ -263,7 +263,8 @@ impl PyRemoteNodes {
         Ok(PyRemoteNodes::new(self.nodes.filter(tree)?))
     }
 
-    /// Narrow this collection's membership by a filter expression. Unlike
+    /// Narrow this collection's membership by a filter expression — node
+    /// predicates, graph views, or and/or/not combinations of them. Unlike
     /// `.filter()`, the filter applies **only at this step** — downstream
     /// traversals from the matching nodes see the unfiltered graph. Use
     /// `.filter()` for the propagating variant. Lazy — no RPC.
@@ -273,15 +274,33 @@ impl PyRemoteNodes {
     ///
     /// Returns:
     ///     RemoteNodes: a new collection narrowed to matching nodes.
+    ///
+    /// Raises:
+    ///     Exception: if the expression tests edges rather than nodes — the
+    ///         same error the local engine raises.
+    ///     ValueError: if the filter cannot be sent over the wire.
     pub fn select(&self, filter: PyFilterExpr) -> PyResult<PyRemoteNodes> {
-        let composite = filter
-            .try_as_node_filter()
-            .map_err(|e| PyValueError::new_err(e.to_string()))?;
-        Ok(PyRemoteNodes::new(self.nodes.select(composite)?))
+        Ok(PyRemoteNodes::new(
+            self.nodes.select(node_subscript(&filter)?)?,
+        ))
     }
 
-    /// `nodes[filter]` — sugar for `.select(filter)` (matches the local
-    /// `Nodes.__getitem__`). Lazy — no RPC.
+    /// `nodes[filter]` — narrow this collection's membership by a filter
+    /// expression, the sugar form of `.select(filter)` (matches the local
+    /// `Nodes.__getitem__`). Node predicates, graph views (which narrow
+    /// membership to the nodes present in the view), and combinations all
+    /// apply. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     filter (FilterExpr): a filter expression from `raphtory.filter`.
+    ///
+    /// Returns:
+    ///     RemoteNodes: a new collection narrowed to matching nodes.
+    ///
+    /// Raises:
+    ///     Exception: if the expression tests edges rather than nodes — the
+    ///         same error the local `Nodes.__getitem__` raises.
+    ///     ValueError: if the filter cannot be sent over the wire.
     fn __getitem__(&self, filter: PyFilterExpr) -> PyResult<PyRemoteNodes> {
         self.select(filter)
     }

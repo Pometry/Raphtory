@@ -14,7 +14,7 @@ use crate::{
         },
         ClientError,
     },
-    model::graph::filtering::{GqlFilter, GqlNodeFilter},
+    model::graph::filtering::GqlFilter,
 };
 use raphtory::errors::GraphError;
 use std::sync::Arc;
@@ -206,11 +206,13 @@ impl RemotePathFromGraph {
         })
     }
 
-    /// Narrow this collection's membership by a node filter — applies only at
-    /// this step; downstream traversals see the unfiltered graph. Lazy — no RPC.
+    /// Narrow this collection's membership by a filter expression (node
+    /// predicates, graph views, and/or/not combinations — expressions that
+    /// test edges are rejected by the server) — applies only at this step;
+    /// downstream traversals see the unfiltered graph. Lazy — no RPC.
     pub fn select(
         &self,
-        filter: impl TryInto<GqlNodeFilter, Error = GraphError>,
+        filter: impl TryInto<GqlFilter, Error = GraphError>,
     ) -> Result<RemotePathFromGraph, ClientError> {
         let filter = Arc::new(filter.try_into()?);
         Ok(RemotePathFromGraph {
