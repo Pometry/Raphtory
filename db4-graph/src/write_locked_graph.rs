@@ -2,9 +2,7 @@ use crate::TemporalGraph;
 use raphtory_core::entities::{EID, VID};
 use std::sync::Arc;
 use storage::{
-    api::{
-        edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps,
-    },
+    api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     pages::{
         layer_counter::GraphStats,
         locked::{
