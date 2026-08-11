@@ -199,6 +199,7 @@ serde-diff = "0.4.1"
 field_types = "1.1.0"
 opentelemetry-appender-tracing = "0.32.0"
 mock-collector = "0.2.14"
+dyn-clone = "1.0.20"
 
 [workspace.dependencies.storage]
 package = "db4-storage"

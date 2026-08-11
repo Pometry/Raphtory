@@ -1,4 +1,5 @@
-use crate::python::py_add_custom_gql_apis;
+use crate::{mutation::HelloMutation, query::HelloQuery};
+use dynamic_graphql::internal::Registry;
 use pyo3::prelude::*;
 use raphtory::python::{
     filter::base_filter_module,
@@ -7,16 +8,30 @@ use raphtory::python::{
         base_graph_loader_module,
     },
 };
-use raphtory_graphql::python::pymodule::base_graphql_module;
-
-pub mod python;
+use raphtory_graphql::{
+    plugin::schema::{register_schema_plugin, RegisterPlugin},
+    python::pymodule::base_graphql_module,
+};
 
 mod mutation;
 mod query;
 
+#[derive(Clone)]
+struct SchemaPlugin;
+
+impl RegisterPlugin for SchemaPlugin {
+    fn register(&self, registry: Registry) -> Registry {
+        registry
+            .register::<HelloMutation>()
+            .register::<HelloQuery<'static>>()
+    }
+}
+
 #[pymodule]
 fn _raphtory_custom(py: Python<'_>, m: &Bound<PyModule>) -> PyResult<()> {
     let _ = add_raphtory_classes(m);
+
+    register_schema_plugin(SchemaPlugin);
 
     let graphql_module = base_graphql_module(py)?;
     let algorithm_module = base_algorithm_module(py)?;
@@ -28,9 +43,6 @@ fn _raphtory_custom(py: Python<'_>, m: &Bound<PyModule>) -> PyResult<()> {
     m.add_submodule(&graph_loader_module)?;
     m.add_submodule(&graph_gen_module)?;
     m.add_submodule(&filter_module)?;
-
-    //new content
-    graphql_module.add_function(wrap_pyfunction!(py_add_custom_gql_apis, m)?)?;
 
     Ok(())
 }

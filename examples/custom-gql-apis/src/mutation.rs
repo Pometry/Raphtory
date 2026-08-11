@@ -1,39 +1,12 @@
-use async_graphql::{
-    dynamic::{FieldValue, ResolverContext, TypeRef},
-    FieldResult,
-};
-use futures_util::future::BoxFuture;
-use raphtory_graphql::model::r#mod::{mutation_plugin::MutationPlugin, operation::Operation};
+use dynamic_graphql::{Mutation, MutationFields};
+use raphtory_graphql::{model::MutRoot, plugin::schema::RegisterPlugin};
 
-pub(crate) struct HelloMutation;
+#[derive(Mutation)]
+pub(crate) struct HelloMutation(MutRoot);
 
-impl<'a> Operation<'a, MutationPlugin> for HelloMutation {
-    type OutputType = String;
-
-    fn output_type() -> TypeRef {
-        TypeRef::named_nn(TypeRef::STRING)
-    }
-
-    fn args<'b>() -> Vec<(&'b str, TypeRef)> {
-        vec![("name", TypeRef::named_nn(TypeRef::STRING))]
-    }
-
-    fn apply<'b>(
-        _entry_point: &MutationPlugin,
-        ctx: ResolverContext<'b>,
-    ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>> {
-        let name = ctx
-            .args
-            .try_get("name")
-            .unwrap()
-            .string()
-            .unwrap()
-            .to_owned();
-
-        Box::pin(async move {
-            Ok(Some(FieldValue::value(
-                "Hello, ".to_owned() + name.as_str(),
-            )))
-        })
+#[MutationFields]
+impl HelloMutation {
+    async fn hello_mutation(name: String) -> String {
+        "Hello, ".to_owned() + name.as_str()
     }
 }

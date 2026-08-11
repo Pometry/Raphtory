@@ -289,10 +289,10 @@ impl QueryRoot {
 }
 
 #[derive(MutationRoot)]
-pub(crate) struct MutRoot;
+pub struct MutRoot;
 
 #[derive(Mutation)]
-pub(crate) struct Mut(MutRoot);
+pub struct Mut(MutRoot);
 
 #[MutationFields]
 impl Mut {

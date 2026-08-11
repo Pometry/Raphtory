@@ -23,7 +23,6 @@ opentelemetry_sdk = { workspace = true, features = ["rt-tokio", "testing"] }
 url.workspace = true
 tokio = { workspace = true }
 mock-collector = { workspace = true }
-typetag = { workspace = true }
 clap = { workspace = true }
 serde = { workspace = true }
 dynamic-graphql = { workspace = true }

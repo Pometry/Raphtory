@@ -57,6 +57,7 @@ quick_cache = { workspace = true }
 field_types = { workspace = true }
 pythonize = { workspace = true, optional = true }
 indexmap = { workspace = true }
+dyn-clone = { workspace = true }
 
 # python binding optional dependencies
 pyo3 = { workspace = true, optional = true }
@@ -64,7 +65,6 @@ crossbeam-channel = { workspace = true }
 zip = { workspace = true }
 clap = { workspace = true }
 rust-embed = { workspace = true }
-typetag = { workspace = true }
 
 [dev-dependencies]
 parking_lot = { workspace = true }
