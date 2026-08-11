@@ -1,6 +1,6 @@
 use crate::{
     LocalPOS,
-    api::edges::{EdgeSegmentOps, LockedESegment},
+    api::edges::{EdgeSegmentOps, LockedEdgeSegment},
     error::StorageError,
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
     properties::PropMutEntry,
@@ -410,7 +410,7 @@ impl ArcLockedSegmentView {
     }
 }
 
-impl LockedESegment for ArcLockedSegmentView {
+impl LockedEdgeSegment for ArcLockedSegmentView {
     type EntryRef<'a> = MemEdgeRef<'a>;
 
     fn entry_ref<'a>(

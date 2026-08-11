@@ -48,7 +48,7 @@ pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
     where
         Self: 'a;
 
-    type ArcLockedSegment: LockedNSSegment;
+    type ArcLockedSegment: LockedNodeSegment;
 
     fn latest(&self) -> Option<EventTime>;
 
@@ -152,7 +152,7 @@ pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
     ) -> Result<(), StorageError>;
 }
 
-pub trait LockedNSSegment: Debug + Send + Sync {
+pub trait LockedNodeSegment: Send + Sync + Debug {
     type EntryRef<'a>: NodeRefOps<'a>
     where
         Self: 'a;

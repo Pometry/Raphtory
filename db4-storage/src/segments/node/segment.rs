@@ -1,6 +1,6 @@
 use crate::{
     LocalPOS,
-    api::nodes::{LockedNSSegment, NodeSegmentOps},
+    api::nodes::{LockedNodeSegment, NodeSegmentOps},
     error::StorageError,
     loop_lock_write,
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
@@ -447,7 +447,7 @@ impl ArcLockedSegmentView {
     }
 }
 
-impl LockedNSSegment for ArcLockedSegmentView {
+impl LockedNodeSegment for ArcLockedSegmentView {
     type EntryRef<'a> = MemNodeRef<'a>;
 
     fn num_nodes(&self) -> u32 {

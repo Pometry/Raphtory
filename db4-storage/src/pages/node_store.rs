@@ -1,7 +1,7 @@
 use super::{node_page::writer::NodeWriter, resolve_pos};
 use crate::{
     LocalPOS,
-    api::nodes::{LockedNSSegment, NodeSegmentOps},
+    api::nodes::{LockedNodeSegment, NodeSegmentOps},
     error::StorageError,
     pages::{
         SegmentCounts,
@@ -54,7 +54,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     pub fn node_ref(
         &self,
         node: impl Into<VID>,
-    ) -> <<NS as NodeSegmentOps>::ArcLockedSegment as LockedNSSegment>::EntryRef<'_> {
+    ) -> <<NS as NodeSegmentOps>::ArcLockedSegment as LockedNodeSegment>::EntryRef<'_> {
         let (segment_id, pos) = self.storage.resolve_pos(node);
         let locked_segment = &self.locked_segments[segment_id];
         locked_segment.entry_ref(pos)
@@ -63,7 +63,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     pub fn try_node_ref(
         &self,
         node: VID,
-    ) -> Option<<<NS as NodeSegmentOps>::ArcLockedSegment as LockedNSSegment>::EntryRef<'_>> {
+    ) -> Option<<<NS as NodeSegmentOps>::ArcLockedSegment as LockedNodeSegment>::EntryRef<'_>> {
         let (segment_id, pos) = self.storage.resolve_pos(node);
         let locked_segment = &self.locked_segments.get(segment_id)?;
         if pos.0 < locked_segment.num_nodes() {
@@ -84,7 +84,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     pub fn iter(
         &self,
     ) -> impl Iterator<
-        Item = <<NS as NodeSegmentOps>::ArcLockedSegment as LockedNSSegment>::EntryRef<'_>,
+        Item = <<NS as NodeSegmentOps>::ArcLockedSegment as LockedNodeSegment>::EntryRef<'_>,
     > + '_ {
         self.locked_segments
             .iter()
@@ -101,7 +101,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     pub fn par_iter(
         &self,
     ) -> impl ParallelIterator<
-        Item = <<NS as NodeSegmentOps>::ArcLockedSegment as LockedNSSegment>::EntryRef<'_>,
+        Item = <<NS as NodeSegmentOps>::ArcLockedSegment as LockedNodeSegment>::EntryRef<'_>,
     > + '_ {
         self.locked_segments
             .par_iter()

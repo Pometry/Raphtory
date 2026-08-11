@@ -18,19 +18,20 @@ use raphtory_core::{
 };
 use rayon::iter::ParallelIterator;
 use std::{
+    fmt::Debug,
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
     sync::{Arc, atomic::AtomicU32},
 };
 
-pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
+pub trait EdgeSegmentOps: Send + Sync + Debug + 'static {
     type Extension: PersistenceStrategy<ES = Self>;
 
     type Entry<'a>: EdgeEntryOps<'a>
     where
         Self: 'a;
 
-    type ArcLockedSegment: LockedESegment;
+    type ArcLockedSegment: LockedEdgeSegment;
 
     fn extension(&self) -> &Self::Extension;
 
@@ -139,7 +140,7 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
     ) -> Result<(), StorageError>;
 }
 
-pub trait LockedESegment: Send + Sync + std::fmt::Debug {
+pub trait LockedEdgeSegment: Send + Sync + Debug {
     type EntryRef<'a>: EdgeRefOps<'a>
     where
         Self: 'a;
