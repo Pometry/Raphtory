@@ -433,12 +433,12 @@ pub struct NodeSegmentView<EXT> {
 }
 
 #[derive(Debug)]
-pub struct ArcLockedSegmentView {
+pub struct ArcLockedNodeSegmentView {
     inner: ArcRwLockReadGuard<RawRwLock, MemNodeSegment>,
     num_nodes: u32,
 }
 
-impl ArcLockedSegmentView {
+impl ArcLockedNodeSegmentView {
     pub fn new(
         inner: ArcRwLockReadGuard<RawRwLock, MemNodeSegment>,
         num_nodes: u32,
@@ -447,7 +447,7 @@ impl ArcLockedSegmentView {
     }
 }
 
-impl LockedNodeSegment for ArcLockedSegmentView {
+impl LockedNodeSegment for ArcLockedNodeSegmentView {
     type EntryRef<'a> = MemNodeRef<'a>;
 
     fn num_nodes(&self) -> u32 {
@@ -465,7 +465,7 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
 
     type Entry<'a> = MemNodeEntry<'a, RwLockReadGuard<'a, MemNodeSegment>>;
 
-    type ArcLockedSegment = ArcLockedSegmentView;
+    type ArcLockedSegment = ArcLockedNodeSegmentView;
 
     fn latest(&self) -> Option<EventTime> {
         self.head().latest()
@@ -585,7 +585,7 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
     }
 
     fn locked(&self) -> Self::ArcLockedSegment {
-        ArcLockedSegmentView::new(self.inner.read_arc(), self.num_nodes())
+        ArcLockedNodeSegmentView::new(self.inner.read_arc(), self.num_nodes())
     }
 
     fn flush(

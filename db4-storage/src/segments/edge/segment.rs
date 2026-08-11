@@ -369,7 +369,6 @@ impl Drop for MemEdgeSegment {
     }
 }
 
-// Update EdgeSegmentView implementation to use multiple layers
 #[derive(Debug)]
 pub struct EdgeSegmentView<EXT> {
     segment: Arc<RwLock<MemEdgeSegment>>,
@@ -379,12 +378,12 @@ pub struct EdgeSegmentView<EXT> {
 }
 
 #[derive(Debug)]
-pub struct ArcLockedSegmentView {
+pub struct ArcLockedEdgeSegmentView {
     inner: ArcRwLockReadGuard<RawRwLock, MemEdgeSegment>,
     num_edges: u32,
 }
 
-impl ArcLockedSegmentView {
+impl ArcLockedEdgeSegmentView {
     fn edge_iter_layer<'a>(
         &'a self,
         layer_id: LayerId,
@@ -410,7 +409,7 @@ impl ArcLockedSegmentView {
     }
 }
 
-impl LockedEdgeSegment for ArcLockedSegmentView {
+impl LockedEdgeSegment for ArcLockedEdgeSegmentView {
     type EntryRef<'a> = MemEdgeRef<'a>;
 
     fn entry_ref<'a>(
@@ -466,7 +465,7 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
 
     type Entry<'a> = MemEdgeEntry<'a, RwLockReadGuard<'a, MemEdgeSegment>>;
 
-    type ArcLockedSegment = ArcLockedSegmentView;
+    type ArcLockedSegment = ArcLockedEdgeSegmentView;
 
     fn extension(&self) -> &Self::Extension {
         &self.ext
@@ -612,7 +611,7 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
     }
 
     fn locked(self: &Arc<Self>) -> Self::ArcLockedSegment {
-        ArcLockedSegmentView {
+        ArcLockedEdgeSegmentView {
             inner: self.head_arc(),
             num_edges: self.num_edges(),
         }
