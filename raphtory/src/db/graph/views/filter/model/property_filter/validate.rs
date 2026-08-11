@@ -138,12 +138,12 @@ impl<M> PropertyFilter<M> {
         if matches!(
             self.operator,
             FilterOperator::IsSome | FilterOperator::IsNone
-        ) {
-            if self.has_elem_qualifier() && !self.has_temporal_first_qualifier() {
-                return Err(GraphError::InvalidFilter(
+        ) && self.has_elem_qualifier()
+            && !self.has_temporal_first_qualifier()
+        {
+            return Err(GraphError::InvalidFilter(
                     "Invalid filter: Operator IS_SOME/IS_NONE is not supported with element qualifiers; apply it to the list itself (without elem qualifiers).".into()
                 ));
-            }
         }
 
         if self.has_aggregator() {
@@ -339,7 +339,7 @@ impl<M> PropertyFilter<M> {
 
                 Op::Len | Op::Sum | Op::Avg | Op::Min | Op::Max => match shape {
                     List(inner) => {
-                        let out = agg_result_dtype(&*inner, op, "over list")?;
+                        let out = agg_result_dtype(&inner, op, "over list")?;
                         Scalar(out)
                     }
                     Shape::Seq(inner) => match *inner {
@@ -348,14 +348,14 @@ impl<M> PropertyFilter<M> {
                             Scalar(out)
                         }
                         List(t) => {
-                            let out = agg_result_dtype(&*t, op, "over time of lists")?;
+                            let out = agg_result_dtype(&t, op, "over time of lists")?;
                             Scalar(out)
                         }
                         Quantified(q_inner, qop) => {
                             let mapped_inner = match *q_inner {
                                 List(t) => {
                                     let out = agg_result_dtype(
-                                        &*t,
+                                        &t,
                                         op,
                                         "under temporal quantifier over list",
                                     )?;
@@ -376,7 +376,7 @@ impl<M> PropertyFilter<M> {
                     Quantified(q_inner, qop) => {
                         let mapped_inner = match *q_inner {
                             List(t) => {
-                                let out = agg_result_dtype(&*t, op, "under quantifier over list")?;
+                                let out = agg_result_dtype(&t, op, "under quantifier over list")?;
                                 Scalar(out)
                             }
                             Scalar(t) => {
@@ -423,7 +423,7 @@ impl<M> PropertyFilter<M> {
                 Scalar(t) => PropType::List(Box::new(t)),
                 List(t) => PropType::List(Box::new(PropType::List(t))),
                 Quantified(_, _) => {
-                    let (base, q_depth_total) = flatten_quantified_depth(&*inner);
+                    let (base, q_depth_total) = flatten_quantified_depth(&inner);
                     let q_depth_lists = q_depth_total.saturating_sub(1); // skip the temporal one
                     match base {
                         List(t) => peel_list_n(PropType::List(t.clone()), q_depth_lists)?,

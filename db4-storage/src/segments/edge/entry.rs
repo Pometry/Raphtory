@@ -171,7 +171,7 @@ impl<'a> EdgeRefOps<'a> for MemEdgeRef<'a> {
         self.es
             .as_ref()
             .get(layer_id.0)
-            .map_or(false, |seg| seg.has_item(self.pos))
+            .is_some_and(|seg| seg.has_item(self.pos))
     }
 
     #[inline]

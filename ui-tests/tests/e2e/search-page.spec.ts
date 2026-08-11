@@ -76,7 +76,7 @@ test('Search for a graph in the query builder, navigate direct connections table
     await expect(page.getByText('Timestamp')).toBeVisible();
     await pedroRow.dblclick();
     await expect(page).toHaveURL(
-        /\/graph\?initialNodes=%5B%22Pedro%22%5D&baseGraph=vanilla%2Fevent/,
+        /\/graph\/vanilla\/event\?initialNodes=%5B%22Pedro%22%5D/,
     );
 });
 
@@ -84,14 +84,7 @@ test('Clear search results in query builder', async ({ page }) => {
     await searchForEntity(page, { type: 'node', nodeType: 'Person' });
     await page.getByRole('button', { name: 'Clear all', exact: true }).click();
     await expect(page.getByText('Start Your Search')).toBeVisible();
-    await page
-        .getByRole('button', {
-            name: 'Select a graph',
-        })
-        .isVisible();
-    await expect(
-        page.getByRole('combobox', { name: 'Select type' }),
-    ).toHaveValue('');
+    await expect(page.getByPlaceholder('Select type')).toBeVisible();
 });
 
 test('Open node from right hand side panel open button', async ({ page }) => {
@@ -107,7 +100,7 @@ test('Open node from right hand side panel open button', async ({ page }) => {
     await expect(openNodeButton).toBeVisible();
     await openNodeButton.click();
     await expect(page).toHaveURL(
-        '/graph?baseGraph=vanilla%2Fevent&initialNodes=%5B%22Pedro%22%5D',
+        '/graph/vanilla/event?initialNodes=%5B%22Pedro%22%5D',
     );
 });
 
@@ -166,7 +159,7 @@ test('View information in right hand side panel and open in graph view button in
     await expect(openInGraphButton).toBeVisible();
     await openInGraphButton.click();
     await expect(page).toHaveURL(
-        '/graph?initialNodes=%5B%22Pedro%22%5D&baseGraph=vanilla%2Fevent',
+        '/graph/vanilla/event?initialNodes=%5B%22Pedro%22%5D',
     );
 });
 
@@ -179,7 +172,7 @@ test('Open all items to new graph button on pinned tab', async ({ page }) => {
     await expect(attachAllButton).toBeVisible();
     await attachAllButton.click();
     await expect(page).toHaveURL(
-        '/graph?initialNodes=%5B%22Pedro%22%5D&baseGraph=vanilla%2Fevent',
+        '/graph/vanilla/event?initialNodes=%5B%22Pedro%22%5D',
     );
 });
 
@@ -219,7 +212,7 @@ test('Search for relationships in query builder', async ({ page }) => {
     await page.getByRole('link', { name: 'Ben' }).click();
     await page.waitForSelector('text=Overview');
     await expect(page).toHaveURL(
-        '/graph?baseGraph=vanilla%2Fevent&initialNodes=%5B%22Ben%22%5D',
+        '/graph/vanilla/event?initialNodes=%5B%22Ben%22%5D',
     );
 });
 

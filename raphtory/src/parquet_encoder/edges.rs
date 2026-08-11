@@ -87,7 +87,7 @@ pub(crate) fn encode_edge_tprop<G: GraphView, S: RecordBatchSink>(
             g,
             g.edge_meta().temporal_prop_mapper(),
             get_edges_par_iter(g, &edges_locked, &nodes_locked, &node_list, &layer_filter),
-            |schema, chunk, num_digits| sink_factory_fn(schema, chunk, num_digits),
+            &sink_factory_fn,
             |id_type| {
                 vec![
                     Field::new(TIME_COL, DataType::Int64, false),
@@ -148,7 +148,7 @@ pub(crate) fn encode_edge_deletions<G: GraphView, S: RecordBatchSink>(
             g,
             g.edge_meta().temporal_prop_mapper(),
             get_edges_par_iter(g, &edges_locked, &nodes_locked, &node_list, &layer_filter),
-            |schema, chunk, num_digits| sink_factory_fn(schema, chunk, num_digits),
+            &sink_factory_fn,
             |id_type| {
                 vec![
                     Field::new(TIME_COL, DataType::Int64, false),
@@ -212,7 +212,7 @@ pub(crate) fn encode_edge_cprop<G: GraphView, S: RecordBatchSink>(
             g,
             g.edge_meta().metadata_mapper(),
             get_edges_par_iter(g, &edges_locked, &nodes_locked, &node_list, &layer_filter),
-            |schema, chunk, num_digits| sink_factory_fn(schema, chunk, num_digits),
+            &sink_factory_fn,
             |id_type| {
                 vec![
                     Field::new(SRC_VID_COL, DataType::UInt64, false),

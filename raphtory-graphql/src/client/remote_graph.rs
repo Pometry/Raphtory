@@ -91,7 +91,7 @@ impl GraphQLRemoteGraph {
             .and_then(|x| x.as_object())
             .and_then(|x| x.get("success"))
             .and_then(|x| x.as_bool())
-            .is_some_and(|x| x == true)
+            .is_some_and(|x| x)
         {
             Ok(GraphQLRemoteNode::new(
                 self.path.clone(),
@@ -143,7 +143,7 @@ impl GraphQLRemoteGraph {
             .and_then(|x| x.as_object())
             .and_then(|x| x.get("success"))
             .and_then(|x| x.as_bool())
-            .is_some_and(|x| x == true)
+            .is_some_and(|x| x)
         {
             Ok(GraphQLRemoteNode::new(
                 self.path.clone(),
@@ -197,7 +197,7 @@ impl GraphQLRemoteGraph {
             .and_then(|x| x.as_object())
             .and_then(|x| x.get("success"))
             .and_then(|x| x.as_bool())
-            .is_some_and(|x| x == true)
+            .is_some_and(|x| x)
         {
             Ok(GraphQLRemoteEdge::new(
                 self.path.clone(),
@@ -236,7 +236,7 @@ impl GraphQLRemoteGraph {
             .and_then(|x| x.as_object())
             .and_then(|x| x.get("addProperties"))
             .and_then(|x| x.as_bool())
-            .is_some_and(|x| x == true)
+            .is_some_and(|x| x)
         {
             Ok(())
         } else {
@@ -265,7 +265,7 @@ impl GraphQLRemoteGraph {
             .and_then(|x| x.as_object())
             .and_then(|x| x.get("addMetadata"))
             .and_then(|x| x.as_bool())
-            .is_some_and(|x| x == true)
+            .is_some_and(|x| x)
         {
             Ok(())
         } else {
@@ -297,7 +297,7 @@ impl GraphQLRemoteGraph {
             .and_then(|x| x.as_object())
             .and_then(|x| x.get("updateMetadata"))
             .and_then(|x| x.as_bool())
-            .is_some_and(|x| x == true)
+            .is_some_and(|x| x)
         {
             Ok(())
         } else {
@@ -345,7 +345,7 @@ impl GraphQLRemoteGraph {
             .and_then(|x| x.as_object())
             .and_then(|x| x.get("success"))
             .and_then(|x| x.as_bool())
-            .is_some_and(|x| x == true)
+            .is_some_and(|x| x)
         {
             Ok(GraphQLRemoteEdge::new(
                 self.path.clone(),

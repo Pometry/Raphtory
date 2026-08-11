@@ -291,7 +291,7 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         let num_chunks = if morcel_size == 0 {
             1
         } else {
-            (num_nodes + morcel_size - 1) / morcel_size
+            num_nodes.div_ceil(morcel_size)
         };
 
         let mut shard_state =
@@ -356,7 +356,7 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         }
 
         let ss: usize = self.ctx.ss();
-        let last_local_state = if ss % 2 == 0 {
+        let last_local_state = if ss.is_multiple_of(2) {
             cur_local_state
         } else {
             prev_local_state

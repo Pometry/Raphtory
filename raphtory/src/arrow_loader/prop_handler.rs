@@ -63,7 +63,7 @@ where
         .collect::<Vec<_>>();
     let prop_ids = props
         .iter()
-        .zip(dtypes.into_iter())
+        .zip(dtypes)
         .map(|(name, dtype)| Ok(prop_id_resolver(name.as_ref(), dtype)?.inner()))
         .collect::<Result<Vec<_>, E>>()?;
 

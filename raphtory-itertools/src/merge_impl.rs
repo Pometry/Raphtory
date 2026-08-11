@@ -346,12 +346,12 @@ where
                 }
                 (Some(l), None) => {
                     self.left.put_back(l);
-                    acc = self.left.fold(acc, |acc, x| f(acc, x));
+                    acc = self.left.fold(acc, &mut f);
                     break;
                 }
                 (None, Some(r)) => {
                     self.right.put_back(r);
-                    acc = self.right.fold(acc, |acc, x| f(acc, x));
+                    acc = self.right.fold(acc, &mut f);
                     break;
                 }
                 (None, None) => {

@@ -306,7 +306,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         self.core_graph()
             .mutable()?
             .flush()
-            .map_err(|err| MutationError::from(err).into())?;
+            .map_err(MutationError::from)?;
 
         Ok(())
     }

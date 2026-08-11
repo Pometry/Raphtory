@@ -4,9 +4,13 @@ use serde::{Deserialize, Serialize};
 pub const DEFAULT_EXCLUSIVE_WRITES: bool = false;
 pub const DEFAULT_DISABLE_BATCHING: bool = false;
 pub const DEFAULT_DISABLE_LISTS: bool = false;
+/// Default cap on the number of queries accepted in a single batched HTTP request.
+/// Chosen to comfortably cover legitimate batching while preventing a single request
+/// from amplifying its computational cost without bound (see `max_batch_size`).
+pub const DEFAULT_MAX_BATCH_SIZE: usize = 10;
 
 /// Controls how Raphtory schedules concurrent GraphQL work.
-#[derive(Debug, Default, Deserialize, PartialEq, Clone, Serialize, FieldName)]
+#[derive(Debug, Deserialize, PartialEq, Clone, Serialize, FieldName)]
 pub struct ConcurrencyConfig {
     /// Restricts how many expensive graph traversal queries can execute simultaneously.
     /// Covers operations like connected components, edge traversals, and neighbour lookups
@@ -25,8 +29,9 @@ pub struct ConcurrencyConfig {
     pub disable_batching: bool,
 
     /// Caps the number of queries accepted in a single batched HTTP request. Requests
-    /// whose batch exceeds this size are rejected. `None` means unlimited (subject to
-    /// `disable_batching`).
+    /// whose batch exceeds this size are rejected. Defaults to `DEFAULT_MAX_BATCH_SIZE`
+    /// so deployments are bounded out-of-the-box; set to `None` for unlimited (subject
+    /// to `disable_batching`).
     pub max_batch_size: Option<usize>,
 
     /// When true, completely disables bulk list endpoints (e.g. `list` on a collection).
@@ -38,4 +43,17 @@ pub struct ConcurrencyConfig {
     /// of `page` so clients can't circumvent `disable_lists` by requesting huge pages.
     /// `None` means unlimited.
     pub max_page_size: Option<usize>,
+}
+
+impl Default for ConcurrencyConfig {
+    fn default() -> Self {
+        Self {
+            heavy_query_limit: None,
+            exclusive_writes: DEFAULT_EXCLUSIVE_WRITES,
+            disable_batching: DEFAULT_DISABLE_BATCHING,
+            max_batch_size: Some(DEFAULT_MAX_BATCH_SIZE),
+            disable_lists: DEFAULT_DISABLE_LISTS,
+            max_page_size: None,
+        }
+    }
 }

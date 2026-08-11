@@ -44,7 +44,7 @@ impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S: 'static, CS: ComputeState +
     EvalGraph<'graph, 'a, G, S, CS>
 {
     pub fn node(&self, n: impl AsNodeRef) -> Option<EvalNodeView<'graph, 'a, G, S, CS>> {
-        let node = (&self.base_graph).node(n)?;
+        let node = self.base_graph.node(n)?;
         let state_pos = self.index.index(&node.node).unwrap_or_else(|| {
             panic!("Internal Error, node {:?} needs to be in index", node.node);
         });
@@ -57,7 +57,7 @@ impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S: 'static, CS: ComputeState +
     }
 
     pub fn edge<N: AsNodeRef>(&self, src: N, dst: N) -> Option<EvalEdgeView<'graph, 'a, G, CS, S>> {
-        let edge = (&self.base_graph).edge(src, dst)?;
+        let edge = self.base_graph.edge(src, dst)?;
         Some(EvalEdgeView::new(
             self.ss,
             edge.clone(),

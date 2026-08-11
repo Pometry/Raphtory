@@ -10,7 +10,6 @@ use iter_enum::{
     DoubleEndedIterator, ExactSizeIterator, IndexedParallelIterator, Iterator, ParallelIterator,
 };
 use raphtory_api::core::entities::properties::meta::DEFAULT_NODE_TYPE_ID;
-use rayon::prelude::*;
 
 #[derive(Copy, Clone, Debug)]
 pub(crate) enum LayerCol<'a> {
@@ -31,30 +30,6 @@ pub enum LayerColVariants<Name, Utf8, LargeUtf8, Utf8View> {
 }
 
 impl<'a> LayerCol<'a> {
-    pub fn par_iter(self) -> impl IndexedParallelIterator<Item = Option<&'a str>> {
-        match self {
-            LayerCol::Name { name, len } => {
-                LayerColVariants::Name((0..len).into_par_iter().map(move |_| name))
-            }
-            LayerCol::Utf8 { col } => LayerColVariants::Utf8(
-                (0..col.len())
-                    .into_par_iter()
-                    .map(|i| col.is_valid(i).then(|| col.value(i))),
-            ),
-            LayerCol::LargeUtf8 { col } => LayerColVariants::LargeUtf8(
-                (0..col.len())
-                    .into_par_iter()
-                    .map(|i| col.is_valid(i).then(|| col.value(i))),
-            ),
-
-            LayerCol::Utf8View { col } => LayerColVariants::Utf8View(
-                (0..col.len())
-                    .into_par_iter()
-                    .map(|i| col.is_valid(i).then(|| col.value(i))),
-            ),
-        }
-    }
-
     #[allow(dead_code)]
     pub fn iter(self) -> impl Iterator<Item = Option<&'a str>> {
         match self {

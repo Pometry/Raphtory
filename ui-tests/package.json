@@ -4,7 +4,8 @@
     "exports": {
         "./e2e-utils": "./tests/e2e/utils.ts",
         "./e2e-graph-utils": "./tests/e2e/graph.utils.ts",
-        "./e2e-saved-graphs-utils": "./tests/e2e/saved-graphs.utils.ts"
+        "./e2e-saved-graphs-utils": "./tests/e2e/saved-graphs.utils.ts",
+        "./e2e-temporalview-utils": "./tests/e2e/temporalview.utils.ts"
     },
     "description": "",
     "homepage": "https://github.com/Pometry/ui-tests",
@@ -25,7 +26,7 @@
         "eslint-check": "eslint . --report-unused-disable-directives --max-warnings 0",
         "install-playwright": "npx playwright install --with-deps",
         "test": "npx playwright test",
-        "test-macos": "npx playwright test -c playwright.macos.config.ts",
+        "test:perf": "playwright test --config=perf/playwright.config.ts",
         "tsc": "tsc",
         "prepare": "husky"
     },

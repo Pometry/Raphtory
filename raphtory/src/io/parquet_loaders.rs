@@ -3,7 +3,7 @@ use crate::{
         dataframe::*,
         df_loaders::{
             edges::{load_edges_from_df_prefetch, ColumnNames},
-            nodes::{load_node_props_from_df, load_nodes_from_df},
+            nodes::{load_node_props_from_df, load_nodes_from_df_prefetch},
             *,
         },
     },
@@ -31,10 +31,8 @@ use std::{
 
 pub(crate) fn is_parquet_path(path: &PathBuf) -> Result<bool, std::io::Error> {
     if path.is_dir() {
-        Ok(fs::read_dir(&path)?.any(|entry| {
-            entry.map_or(false, |e| {
-                e.path().extension().and_then(OsStr::to_str) == Some("parquet")
-            })
+        Ok(fs::read_dir(path)?.any(|entry| {
+            entry.is_ok_and(|e| e.path().extension().and_then(OsStr::to_str) == Some("parquet"))
         }))
     } else {
         Ok(path.extension().and_then(OsStr::to_str) == Some("parquet"))
@@ -89,7 +87,7 @@ pub fn load_nodes_from_parquet<
             schema.clone(),
         )?;
         df_view.check_cols_exist(&cols_to_check)?;
-        load_nodes_from_df(
+        load_nodes_from_df_prefetch(
             df_view,
             time,
             secondary_index,
@@ -439,11 +437,10 @@ pub fn read_parquet_file(
         .fields
         .into_iter()
         .enumerate()
-        .filter_map(|(idx, field)| {
-            col_names
-                .is_none_or(|filter| filter.contains(&field.name().as_str()))
-                .then(|| (idx, field.name().clone()))
+        .filter(|&(_idx, field)| {
+            col_names.is_none_or(|filter| filter.contains(&field.name().as_str()))
         })
+        .map(|(idx, field)| (idx, field.name().clone()))
         .unzip();
     let projection = ProjectionMask::roots(builder.parquet_schema(), idx);
     Ok((names, builder.with_projection(projection), num_rows))

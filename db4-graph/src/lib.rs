@@ -18,19 +18,25 @@ use std::{
     sync::{atomic::AtomicUsize, Arc},
 };
 use storage::{
-    Config, ES, Extension, GIDResolver, GS, Layer, LocalPOS, NS, ReadLockedLayer, api::{
+    api::{
         edges::EdgeSegmentOps,
         graph_props::GraphPropSegmentOps,
         nodes::{LockedNSSegment, NodeRefOps, NodeSegmentOps},
-    }, dir::GraphDir, error::StorageError, pages::{
+    },
+    dir::GraphDir,
+    error::StorageError,
+    pages::{
         layer_counter::GraphStats,
         locked::{
             edges::WriteLockedEdgePages, graph_props::WriteLockedGraphPropPages,
             nodes::WriteLockedNodePages,
         },
-    }, persist::{
-        config::ConfigOps, control_file::ControlFileOps, strategy::PersistenceStrategy,
-    }, resolver::GIDResolverOps, transaction::TransactionManager, wal::{GraphWalOps, WalOps}
+    },
+    persist::{config::ConfigOps, control_file::ControlFileOps, strategy::PersistenceStrategy},
+    resolver::GIDResolverOps,
+    transaction::TransactionManager,
+    wal::{GraphWalOps, WalOps},
+    Config, Extension, GIDResolver, Layer, LocalPOS, ReadLockedLayer, ES, GS, NS,
 };
 
 mod replay;
@@ -114,7 +120,7 @@ where
             .metadata_mapper()
             .d_types()
             .first()
-            .and_then(|dtype| GidType::from_prop_type(dtype));
+            .and_then(GidType::from_prop_type);
 
         let gid_resolver_dir = graph_dir.as_ref().map(|dir| dir.gid_resolver_dir());
         let gid_resolver = match gid_resolver_dir {
@@ -437,9 +443,9 @@ where
     ES<EXT>: EdgeSegmentOps<Extension = EXT>,
     GS<EXT>: GraphPropSegmentOps<Extension = EXT>,
 {
-    pub nodes: WriteLockedNodePages<'a, storage::NS<EXT>>,
-    pub edges: WriteLockedEdgePages<'a, storage::ES<EXT>>,
-    pub graph_props: WriteLockedGraphPropPages<'a, storage::GS<EXT>>,
+    pub nodes: WriteLockedNodePages<'a, NS<EXT>>,
+    pub edges: WriteLockedEdgePages<'a, ES<EXT>>,
+    pub graph_props: WriteLockedGraphPropPages<'a, GS<EXT>>,
     pub graph: &'a TemporalGraph<EXT>,
 }
 

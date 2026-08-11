@@ -16,7 +16,7 @@ test('Saved graphs table is visible', async ({ page }) => {
         page.getByRole('heading', { name: 'vanilla/event', exact: true }),
     ).toBeVisible();
     await expect(page.getByText('PREVIEW')).toBeVisible();
-    await expect(page.getByText('PROPERTIES')).toBeVisible();
+    await expect(page.getByText('METADATA')).toBeVisible();
 });
 
 test(`Card view has N cards per page`, async ({ page }) => {
@@ -25,6 +25,21 @@ test(`Card view has N cards per page`, async ({ page }) => {
     await expect(page.getByRole('button', { name: 'GRAPH' })).toHaveCount(
         PAGE_SIZE,
     );
+});
+
+test('Page index is preserved in URL and survives reload', async ({ page }) => {
+    await navigateInSavedGraphs(page, { namespace: 'vanilla' });
+    await expect(page.getByText(`1-${PAGE_SIZE} of`)).toBeVisible();
+
+    await page.getByRole('button', { name: 'Next page', exact: true }).click();
+    const countOnPage2 = page.getByText(`${PAGE_SIZE + 1}-`);
+    await expect(countOnPage2).toBeVisible();
+    await expect(page).toHaveURL(/[?&]page=1\b/);
+
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+    await expect(page).toHaveURL(/[?&]page=1\b/);
+    await expect(countOnPage2).toBeVisible();
 });
 
 test('Row sorting on saved graphs table by columns', async ({ page }) => {
@@ -112,9 +127,7 @@ test('Open graph by all available methods', async ({ page }) => {
                 method,
             },
         );
-        await expect(page).toHaveURL(
-            /\/graph\/vanilla\/temporal_props\?initialNodes=%5B%5D/,
-        );
+        await expect(page).toHaveURL(/\/graph\/vanilla\/temporal_props/);
     }
 });
 
@@ -178,7 +191,7 @@ test('Switching between previews', async ({ page }) => {
     expect(
         await page
             .getByRole('region', { name: 'Graph preview' })
-            .getByRole('button', { name: 'Open' })
+            .getByRole('link', { name: 'Open' })
             .screenshot(),
     ).toMatchSnapshot('event-preview-first-click.png');
     await clickSavedGraphsGraph(page, 'persistent');
@@ -186,7 +199,7 @@ test('Switching between previews', async ({ page }) => {
     expect(
         await page
             .getByRole('region', { name: 'Graph preview' })
-            .getByRole('button', { name: 'Open' })
+            .getByRole('link', { name: 'Open' })
             .screenshot(),
     ).toMatchSnapshot('persistent-preview-first-click.png');
     await clickSavedGraphsGraph(page, 'event');
@@ -195,7 +208,7 @@ test('Switching between previews', async ({ page }) => {
     expect(
         await page
             .getByRole('region', { name: 'Graph preview' })
-            .getByRole('button', { name: 'Open' })
+            .getByRole('link', { name: 'Open' })
             .screenshot(),
     ).toMatchSnapshot('event-preview-first-click.png');
 });

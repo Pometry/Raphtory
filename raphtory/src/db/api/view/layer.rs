@@ -137,7 +137,7 @@ pub fn diff<'a>(left: &LayerIds, graph: impl GraphViewOps<'a>, other: &LayerIds)
             let all_layer_ids: Vec<_> = graph
                 .unique_layers()
                 .map(|name| graph.get_layer_id(name.as_ref()).unwrap())
-                .filter(|id| !other.contains(&id))
+                .filter(|id| !other.contains(id))
                 .collect();
             match all_layer_ids.len() {
                 0 => LayerIds::None,

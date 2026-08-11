@@ -55,7 +55,7 @@ pub fn make_edges(num_edges: usize, num_nodes: usize) -> impl Strategy<Value = F
 pub type PropsFixture = (Vec<(i64, Vec<(String, Prop)>)>, Vec<(String, Prop)>);
 
 pub fn make_props_strat(num_props: Range<usize>) -> impl Strategy<Value = PropsFixture> {
-    let schema = proptest::collection::hash_map(
+    let schema = collection::hash_map(
         (0i32..10).prop_map(|i| i.to_string()),
         prop_type(),
         num_props.clone(),
@@ -63,7 +63,7 @@ pub fn make_props_strat(num_props: Range<usize>) -> impl Strategy<Value = PropsF
 
     schema.prop_flat_map(move |schema| {
         let (t_props, c_props) = make_props(&schema);
-        let temp_props = proptest::collection::vec((0i64..1000, t_props), num_props.clone());
+        let temp_props = collection::vec((0i64..1000, t_props), num_props.clone());
 
         temp_props.prop_flat_map(move |temp_props| {
             c_props
@@ -75,18 +75,16 @@ pub fn make_props_strat(num_props: Range<usize>) -> impl Strategy<Value = PropsF
 
 pub fn make_nodes(num_nodes: usize) -> impl Strategy<Value = NodeFixture> {
     assert!(num_nodes > 0);
-    let schema =
-        proptest::collection::hash_map((0i32..10).prop_map(|i| i.to_string()), prop_type(), 0..30);
+    let schema = collection::hash_map((0i32..10).prop_map(|i| i.to_string()), prop_type(), 0..30);
 
     schema.prop_flat_map(move |schema| {
         let (t_props, c_props) = make_props(&schema);
-        let temp_props = proptest::collection::vec(
+        let temp_props = collection::vec(
             ((0..num_nodes).prop_map(VID), 0i64..1000, t_props),
             1..=num_nodes,
         );
 
-        let const_props =
-            proptest::collection::vec(((0..num_nodes).prop_map(VID), c_props), 1..=num_nodes);
+        let const_props = collection::vec(((0..num_nodes).prop_map(VID), c_props), 1..=num_nodes);
 
         let const_props = const_props.prop_map(|mut nodes_with_const| {
             nodes_with_const.sort_by(|(vid, _), (vid2, _)| vid.cmp(vid2));
@@ -148,11 +146,11 @@ pub type EdgeValues = (
 );
 
 pub fn build_raw_edges(len: usize, num_nodes: usize) -> impl Strategy<Value = Vec<EdgeValues>> {
-    proptest::collection::hash_map((0i32..1000).prop_map(|i| i.to_string()), prop_type(), 0..20)
+    collection::hash_map((0i32..1000).prop_map(|i| i.to_string()), prop_type(), 0..20)
         .prop_flat_map(move |schema| {
             let (t_props, c_props) = make_props(&schema);
 
-            proptest::collection::vec(
+            collection::vec(
                 (
                     (0..num_nodes).prop_map(VID),
                     (0..num_nodes).prop_map(VID),

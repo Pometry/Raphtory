@@ -97,7 +97,7 @@ pub(super) trait EntityDb: Sized {
                 .collect();
             let ids = vector_result.iter().map(|(id, _)| *id).collect();
             let vectors = vector_result.into_iter().map(|(_, vector)| vector);
-            self.get_db().insert_vectors(ids, vectors).await.unwrap()
+            self.get_db().insert_vectors(ids, vectors).await?
         }
         Ok(())
     }

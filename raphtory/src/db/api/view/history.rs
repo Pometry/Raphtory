@@ -993,9 +993,7 @@ impl<T: InternalHistoryOps> Intervals<T> {
 
     /// Compute the mean interval between consecutive timestamps.
     pub fn mean(&self) -> Option<f64> {
-        if self.iter().next().is_none() {
-            return None;
-        }
+        self.iter().next()?;
         // count and sum in one pass of the iterator
         let (len, sum) = self.iter().fold((0i64, 0f64), |(count, sum), item| {
             (count + 1, sum + (item as f64))
@@ -1006,14 +1004,12 @@ impl<T: InternalHistoryOps> Intervals<T> {
     /// Compute the median interval between consecutive timestamps.
     /// If the number of items is even (thus "2 middle elements") and their average isn't even, then the returned median is their average rounded up to the nearest integer.
     pub fn median(&self) -> Option<i64> {
-        if self.iter().next().is_none() {
-            return None;
-        }
+        self.iter().next()?;
         let mut intervals: Vec<i64> = self.iter().collect();
         intervals.sort_unstable();
 
         let mid = intervals.len() / 2;
-        if intervals.len() % 2 == 0 {
+        if intervals.len().is_multiple_of(2) {
             let mid_sum = intervals[mid - 1] + intervals[mid];
             if mid_sum % 2 == 0 {
                 Some(mid_sum / 2)

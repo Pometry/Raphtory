@@ -161,6 +161,12 @@ impl From<usize> for LocalPOS {
     }
 }
 
+impl From<LocalPOS> for usize {
+    fn from(id: LocalPOS) -> Self {
+        id.0 as usize
+    }
+}
+
 impl LocalPOS {
     pub fn as_vid(self, page_id: usize, max_page_len: u32) -> VID {
         VID(page_id * (max_page_len as usize) + (self.0 as usize))

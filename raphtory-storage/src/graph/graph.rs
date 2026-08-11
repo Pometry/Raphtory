@@ -17,10 +17,7 @@ use raphtory_api::core::entities::{
 };
 use raphtory_core::entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef};
 use std::{fmt::Debug, iter, path::Path, sync::Arc};
-use storage::{
-    pages::SegmentCounts, state::StateIndex, Extension,
-    GraphPropEntry,
-};
+use storage::{pages::SegmentCounts, state::StateIndex, Extension, GraphPropEntry};
 use thiserror::Error;
 
 #[derive(Clone, Debug)]
@@ -255,7 +252,7 @@ impl GraphStorage {
     }
 
     pub fn unfiltered_layer_ids(&self) -> impl Iterator<Item = LayerId> {
-        (1..=self.unfiltered_num_layers()).map(move |layer_id| LayerId(layer_id))
+        (1..=self.unfiltered_num_layers()).map(LayerId)
     }
 
     pub fn node_meta(&self) -> &Meta {
@@ -284,6 +281,10 @@ impl GraphStorage {
             GraphStorage::Mem(storage) => storage.graph.extension(),
             GraphStorage::Unlocked(storage) => storage.extension(),
         }
+    }
+
+    pub fn total_allocated_memory(&self) -> usize {
+        self.extension().estimated_size()
     }
 
     pub fn node_segment_counts(&self) -> SegmentCounts<VID> {

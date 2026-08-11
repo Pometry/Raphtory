@@ -434,7 +434,7 @@ macro_rules! impl_node_state {
 
         impl From<NodeState<'static, $value, DynamicGraph>> for $name {
             fn from(inner: NodeState<'static, $value, DynamicGraph>) -> Self {
-                $name { inner: inner }
+                $name { inner }
             }
         }
 

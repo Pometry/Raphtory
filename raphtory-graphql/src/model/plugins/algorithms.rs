@@ -77,7 +77,7 @@ fn apply_pagerank<'b>(
     let weight = ctx.args.get("weight").map(|v| v.string()).transpose()?;
     let binding = page_rank(
         &entry_point.graph,
-        weight.as_deref(),
+        weight,
         Some(iter_count),
         threads,
         tol,

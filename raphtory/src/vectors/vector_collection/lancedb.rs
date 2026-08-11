@@ -82,7 +82,7 @@ impl VectorCollection for LanceDbCollection {
         &self,
         ids: Vec<u64>,
         vectors: impl IntoIterator<Item = Embedding>,
-    ) -> crate::errors::GraphResult<()> {
+    ) -> GraphResult<()> {
         let mut builder = FixedSizeListBuilder::new(Float32Builder::new(), self.dim as i32);
         for vector in vectors {
             builder.values().append_slice(&vector);
@@ -98,7 +98,7 @@ impl VectorCollection for LanceDbCollection {
         Ok(())
     }
 
-    async fn get_id(&self, id: u64) -> GraphResult<Option<crate::vectors::Embedding>> {
+    async fn get_id(&self, id: u64) -> GraphResult<Option<Embedding>> {
         let query = self.table.query().only_if(format!("id = {id}"));
         let result = query.execute().await?;
         let batches: Vec<_> = result.try_collect().await?;
@@ -116,7 +116,7 @@ impl VectorCollection for LanceDbCollection {
     // with get_id(), although we need this anyways for entities that are forced into the selection
     async fn top_k_with_distances(
         &self,
-        query: &crate::vectors::Embedding,
+        query: &Embedding,
         k: usize,
         candidates: Option<impl IntoIterator<Item = u64>>,
     ) -> GraphResult<impl Iterator<Item = (u64, f32)> + Send> {
@@ -201,7 +201,7 @@ impl VectorCollection for LanceDbCollection {
     }
 }
 
-fn primitive_column<T>(record: &arrow_array::RecordBatch, name: &str) -> Option<PrimitiveArray<T>>
+fn primitive_column<T>(record: &RecordBatch, name: &str) -> Option<PrimitiveArray<T>>
 where
     T: ArrowPrimitiveType,
 {

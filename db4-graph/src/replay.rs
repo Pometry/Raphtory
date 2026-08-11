@@ -45,15 +45,11 @@ where
     ) -> Result<(), StorageError> {
         // Insert node ids into resolver.
         if let Some(src_name) = src_name.as_ref() {
-            self.graph()
-                .gid_resolver
-                .set(src_name.as_ref(), src_id)?;
+            self.graph().gid_resolver.set(src_name.as_ref(), src_id)?;
         }
 
         if let Some(dst_name) = dst_name.as_ref() {
-            self.graph()
-                .gid_resolver
-                .set(dst_name.as_ref(), dst_id)?;
+            self.graph().gid_resolver.set(dst_name.as_ref(), dst_id)?;
         }
 
         // Insert layer id into the layer meta of both edge and node.
@@ -286,15 +282,11 @@ where
     ) -> Result<(), StorageError> {
         // Insert node ids into resolver.
         if let Some(src_name) = src_name.as_ref() {
-            self.graph()
-                .gid_resolver
-                .set(src_name.as_ref(), src_id)?;
+            self.graph().gid_resolver.set(src_name.as_ref(), src_id)?;
         }
 
         if let Some(dst_name) = dst_name.as_ref() {
-            self.graph()
-                .gid_resolver
-                .set(dst_name.as_ref(), dst_id)?;
+            self.graph().gid_resolver.set(dst_name.as_ref(), dst_id)?;
         }
 
         // Insert layer id into the layer meta of both edge and node.
@@ -462,9 +454,7 @@ where
     ) -> Result<(), StorageError> {
         // Insert node id into resolver.
         if let Some(ref name) = node_name {
-            self.graph()
-                .gid_resolver
-                .set(name.as_ref(), node_id)?;
+            self.graph().gid_resolver.set(name.as_ref(), node_id)?;
         }
 
         // Make layer name -> id mapping available to both edge and node meta.
@@ -562,7 +552,7 @@ where
         if immut_lsn < lsn {
             let node_meta = self.graph().node_meta();
 
-            unify_types(&node_meta, &props, false)?;
+            unify_types(node_meta, &props, false)?;
 
             let node_writer = self.nodes.get_mut(segment_id).ok_or_else(|| {
                 StorageError::GenericFailure(format!(

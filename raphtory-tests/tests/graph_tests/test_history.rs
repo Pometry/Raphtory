@@ -7,10 +7,9 @@ use raphtory_api::core::{
     entities::properties::prop::Prop,
     storage::timeindex::{AsTime, EventTime},
 };
-use std::error::Error;
 
 #[test]
-fn test_neighbours_history() -> Result<(), Box<dyn Error>> {
+fn test_neighbours_history() {
     let graph = Graph::new();
     let node = graph.add_node(1, "node", NO_PROPS, None, None).unwrap();
     let node2 = graph.add_node(2, "node2", NO_PROPS, None, None).unwrap();
@@ -30,12 +29,10 @@ fn test_neighbours_history() -> Result<(), Box<dyn Error>> {
     let mut history2_collected = history2.t().collect();
     history2_collected.dedup();
     assert_eq!(history2_collected, [1, 2, 3, 4, 5, 6, 7]);
-
-    Ok(())
 }
 
 #[test]
-fn test_intervals() -> Result<(), Box<dyn Error>> {
+fn test_intervals() {
     let graph = Graph::new();
     let node = graph.add_node(1, "node", NO_PROPS, None, None).unwrap();
     graph.add_node(4, "node", NO_PROPS, None, None).unwrap();
@@ -48,11 +45,10 @@ fn test_intervals() -> Result<(), Box<dyn Error>> {
     let node2 = graph.add_node(1, "node2", NO_PROPS, None, None).unwrap();
     let interval2 = Intervals(&node2);
     assert_eq!(interval2.collect(), Vec::<i64>::new());
-    Ok(())
 }
 
 #[test]
-fn test_intervals_same_timestamp() -> Result<(), Box<dyn Error>> {
+fn test_intervals_same_timestamp() {
     let graph = Graph::new();
     let node = graph.add_node(1, "node", NO_PROPS, None, None).unwrap();
     graph.add_node(1, "node", NO_PROPS, None, None).unwrap();
@@ -61,11 +57,10 @@ fn test_intervals_same_timestamp() -> Result<(), Box<dyn Error>> {
 
     graph.add_node(2, "node", NO_PROPS, None, None).unwrap();
     assert_eq!(interval.collect(), &[0, 1]);
-    Ok(())
 }
 
 #[test]
-fn test_intervals_mean() -> Result<(), Box<dyn Error>> {
+fn test_intervals_mean() {
     let graph = Graph::new();
     let node = graph.add_node(1, "node", NO_PROPS, None, None).unwrap();
     graph.add_node(4, "node", NO_PROPS, None, None).unwrap();
@@ -78,11 +73,10 @@ fn test_intervals_mean() -> Result<(), Box<dyn Error>> {
     let node2 = graph.add_node(1, "node2", NO_PROPS, None, None).unwrap();
     let interval2 = Intervals(&node2);
     assert_eq!(interval2.mean(), None);
-    Ok(())
 }
 
 #[test]
-fn test_intervals_median() -> Result<(), Box<dyn Error>> {
+fn test_intervals_median() {
     let graph = Graph::new();
     let node = graph.add_node(1, "node", NO_PROPS, None, None).unwrap();
     graph.add_node(30, "node", NO_PROPS, None, None).unwrap();
@@ -95,11 +89,10 @@ fn test_intervals_median() -> Result<(), Box<dyn Error>> {
     let node2 = graph.add_node(1, "node2", NO_PROPS, None, None).unwrap();
     let interval2 = Intervals(&node2);
     assert_eq!(interval2.median(), None);
-    Ok(())
 }
 
 #[test]
-fn test_intervals_max() -> Result<(), Box<dyn Error>> {
+fn test_intervals_max() {
     let graph = Graph::new();
     let node = graph.add_node(1, "node", NO_PROPS, None, None).unwrap();
     graph.add_node(30, "node", NO_PROPS, None, None).unwrap();
@@ -112,12 +105,11 @@ fn test_intervals_max() -> Result<(), Box<dyn Error>> {
     let node2 = graph.add_node(1, "node2", NO_PROPS, None, None).unwrap();
     let interval2 = Intervals(&node2);
     assert_eq!(interval2.max(), None);
-    Ok(())
 }
 
 // test nodes and edges
 #[test]
-fn test_basic() -> Result<(), Box<dyn Error>> {
+fn test_basic() {
     let graph = Graph::new();
     let dumbledore_node = graph
         .add_node(
@@ -177,13 +169,11 @@ fn test_basic() -> Result<(), Box<dyn Error>> {
             EventTime::new(3, 2)
         ]
     );
-
-    Ok(())
 }
 
 // test a layer
 #[test]
-fn test_single_layer() -> Result<(), Box<dyn Error>> {
+fn test_single_layer() {
     let graph = Graph::new();
     let dumbledore_node = graph
         .add_node(
@@ -349,12 +339,10 @@ fn test_single_layer() -> Result<(), Box<dyn Error>> {
         broom_dumbledore_magical_history.collect(),
         [EventTime::new(4, 5)]
     );
-
-    Ok(())
 }
 
 #[test]
-fn test_lazy_node_state() -> Result<(), Box<dyn Error>> {
+fn test_lazy_node_state() {
     let graph = Graph::new();
     let _dumbledore_node = graph
         .add_node(
@@ -644,6 +632,4 @@ fn test_lazy_node_state() -> Result<(), Box<dyn Error>> {
         direct_iter,
         direct_iter_rev.into_iter().rev().collect::<Vec<_>>()
     );
-
-    Ok(())
 }

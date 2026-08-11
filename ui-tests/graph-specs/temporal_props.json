@@ -36,5 +36,8 @@
             "dst": "Hamza",
             "layer": "meets"
         }
-    ]
+    ],
+    "metadata": {
+        "_ui_temporal_node_properties": ["status"]
+    }
 }

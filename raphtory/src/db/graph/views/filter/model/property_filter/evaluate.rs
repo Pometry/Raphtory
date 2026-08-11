@@ -211,21 +211,19 @@ pub fn aggregate_values<P: Borrow<Prop>, I: IntoIterator<Item = P>>(
     match op {
         Op::Len => Some(Prop::U64(vals.count() as u64)),
         Op::Sum | Op::Avg | Op::Min | Op::Max => {
-            if vals.peek().is_none() {
-                return None;
-            }
+            vals.peek()?;
             let inner = vals.peek().unwrap().borrow().dtype();
             match inner {
                 PropType::U8 => reduce_unsigned(vals, |x| Prop::U8(x as u8), op),
                 PropType::U16 => reduce_unsigned(vals, |x| Prop::U16(x as u16), op),
                 PropType::U32 => reduce_unsigned(vals, |x| Prop::U32(x as u32), op),
-                PropType::U64 => reduce_unsigned(vals, |x| Prop::U64(x), op),
+                PropType::U64 => reduce_unsigned(vals, Prop::U64, op),
 
                 PropType::I32 => reduce_signed(vals, |x| Prop::I32(x as i32), op),
-                PropType::I64 => reduce_signed(vals, |x| Prop::I64(x), op),
+                PropType::I64 => reduce_signed(vals, Prop::I64, op),
 
                 PropType::F32 => reduce_float(vals, |x| Prop::F32(x as f32), op),
-                PropType::F64 => reduce_float(vals, |x| Prop::F64(x), op),
+                PropType::F64 => reduce_float(vals, Prop::F64, op),
                 _ => None,
             }
         }
@@ -356,7 +354,7 @@ impl<M> PropertyFilter<M> {
             };
             return match q {
                 Op::Any => elems.any(|p| check(&p)),
-                Op::All => !elems.peek().is_none() && elems.all(|p| check(&p)),
+                Op::All => elems.peek().is_some() && elems.all(|p| check(&p)),
                 _ => unreachable!(),
             };
         }

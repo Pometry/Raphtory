@@ -134,7 +134,7 @@ impl PartialEq<Prop> for PropUntagged {
         self.0
             .clone()
             .try_cast(other.dtype())
-            .map_or(false, |p| p == *other)
+            .is_some_and(|p| p == *other)
     }
 }
 
@@ -787,9 +787,7 @@ impl Prop {
             (Prop::U64(a), Prop::U64(b)) if b != 0 => Some(Prop::U64(a / b)),
             (Prop::F32(a), Prop::F32(b)) => Some(Prop::F32(a / b)),
             (Prop::F64(a), Prop::F64(b)) => Some(Prop::F64(a / b)),
-            (Prop::Decimal(a), Prop::Decimal(b)) if b != BigDecimal::from(0) => {
-                Some(Prop::Decimal(a / b))
-            }
+            (Prop::Decimal(a), Prop::Decimal(b)) if b != 0 => Some(Prop::Decimal(a / b)),
             _ => None,
         }
     }

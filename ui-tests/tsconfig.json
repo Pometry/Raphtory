@@ -22,6 +22,6 @@
 
         "types": ["node"]
     },
-    "include": ["tests"],
+    "include": ["tests", "perf"],
     "exclude": ["node_modules"]
 }

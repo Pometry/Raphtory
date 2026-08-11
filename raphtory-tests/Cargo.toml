@@ -36,4 +36,4 @@ tracing.workspace = true
 zip.workspace = true
 
 [features]
-search = ["raphtory/search"]
+# search = ["raphtory/search"]

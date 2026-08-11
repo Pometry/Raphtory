@@ -70,9 +70,15 @@ impl GraphStats {
         self.latest.get()
     }
 
+    #[inline(always)]
     pub fn increment(&self, layer_id: LayerId) -> usize {
+        self.increment_by(layer_id, 1)
+    }
+
+    #[inline(always)]
+    pub fn increment_by(&self, layer_id: LayerId, count: usize) -> usize {
         let counter = self.get_or_create_layer(layer_id);
-        counter.fetch_add(1, std::sync::atomic::Ordering::Release)
+        counter.fetch_add(count, std::sync::atomic::Ordering::Release)
     }
 
     pub fn get(&self, layer_id: LayerId) -> usize {

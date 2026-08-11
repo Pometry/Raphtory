@@ -79,7 +79,7 @@ pub trait ParquetEncoder {
             if path.is_file() {
                 zip_writer.start_file::<_, ()>(zip_entry_name, FileOptions::<()>::default())?;
 
-                let mut file = std::fs::File::open(path)?;
+                let mut file = File::open(path)?;
                 std::io::copy(&mut file, &mut zip_writer)?;
             } else if path.is_dir() {
                 // Add empty directories to the zip
@@ -249,7 +249,7 @@ fn create_arrow_writer_sink(
     filename_num_digits: usize,
     key_value_metadata: Option<Vec<KeyValue>>,
 ) -> Result<ArrowWriter<File>, GraphError> {
-    std::fs::create_dir_all(&root_dir)?;
+    std::fs::create_dir_all(root_dir)?;
 
     let writer_properties = WriterProperties::builder()
         .set_compression(Compression::SNAPPY)

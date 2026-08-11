@@ -10,12 +10,16 @@ use crate::{
 use db4_graph::{TemporalGraph, WriteLockedGraph};
 use raphtory_api::core::{
     entities::{
-        LayerId, properties::{
-            meta::{DEFAULT_NODE_TYPE_ID, Meta, NODE_TYPE_IDX, STATIC_GRAPH_LAYER_ID},
+        properties::{
+            meta::{Meta, DEFAULT_NODE_TYPE_ID, NODE_TYPE_IDX, STATIC_GRAPH_LAYER_ID},
             prop::{Prop, PropType, PropUnwrap},
-        }
+        },
+        LayerId,
     },
-    storage::{dict_mapper::MaybeNew, graph_folder::{GraphFolder, GraphPaths}},
+    storage::{
+        dict_mapper::MaybeNew,
+        graph_folder::{GraphFolder, GraphPaths},
+    },
 };
 use raphtory_core::{
     entities::{
@@ -115,7 +119,8 @@ impl<'a> SessionAdditionOps for UnlockedSession<'a> {
     }
 
     fn set_event_id(&self, event_id: usize) -> Result<(), Self::Error> {
-        Ok(self.graph.storage().set_event_id(event_id))
+        self.graph.storage().set_event_id(event_id);
+        Ok(())
     }
 
     fn next_event_id(&self) -> Result<usize, Self::Error> {
@@ -388,15 +393,10 @@ impl InternalAdditionOps for TemporalGraph {
                         self.gid_resolver.get_or_init(src_gid)?,
                         Some(self.gid_resolver.get_or_init(dst_gid)?),
                     ),
-                    std::cmp::Ordering::Equal => {
-                        (self.gid_resolver.get_or_init(src_gid)?, None)
-                    }
+                    std::cmp::Ordering::Equal => (self.gid_resolver.get_or_init(src_gid)?, None),
                     std::cmp::Ordering::Greater => {
                         let dst_init = self.gid_resolver.get_or_init(dst_gid)?;
-                        (
-                            self.gid_resolver.get_or_init(src_gid)?,
-                            Some(dst_init),
-                        )
+                        (self.gid_resolver.get_or_init(src_gid)?, Some(dst_init))
                     }
                 }
             }
@@ -751,11 +751,11 @@ impl DurabilityOps for TemporalGraph {
     }
 
     fn wal(&self) -> Result<&Wal, MutationError> {
-        Ok(&self.extension().wal())
+        Ok(self.extension().wal())
     }
 
     fn control_file(&self) -> Result<&ControlFile, MutationError> {
-        Ok(&self.extension().control_file())
+        Ok(self.extension().control_file())
     }
 }
 
@@ -782,12 +782,15 @@ impl StagingOps for TemporalGraph {
             .graph_path()
             .map_err(StagingError::InitStagingDir)?;
 
-        std::fs::create_dir_all(&graph_path)
-            .map_err(|e| StagingError::InitStagingDir(e.into()))?;
+        std::fs::create_dir_all(&graph_path).map_err(|e| StagingError::InitStagingDir(e.into()))?;
 
         // Copy graph to the new data folder.
         write_locked_graph.copy_to(graph_path)?;
 
-        Ok(StagedGraph::new(write_locked_graph, graph_folder, writeable_folder))
+        Ok(StagedGraph::new(
+            write_locked_graph,
+            graph_folder,
+            writeable_folder,
+        ))
     }
 }

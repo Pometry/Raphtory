@@ -1,7 +1,4 @@
-use crate::model::{
-    graph::{node_id::GqlNodeId, property::Value, timeindex::GqlTimeInput},
-    plugins::operation,
-};
+use crate::model::graph::{node_id::GqlNodeId, property::Value, timeindex::GqlTimeInput};
 use async_graphql::dynamic::ValueAccessor;
 use dynamic_graphql::{
     internal::{
@@ -10,27 +7,24 @@ use dynamic_graphql::{
     Enum, InputObject, OneOfInput,
 };
 use raphtory::{
-    db::{
-        api::{state::ops::Degree, view::internal::filtered_edge},
-        graph::views::filter::model::{
-            degree_filter::DegreeFilter,
-            edge_filter::{CompositeEdgeFilter, EdgeFilter},
-            filter::{Filter, FilterValue},
-            filter_operator::FilterOperator,
-            graph_filter::GraphFilter,
-            is_active_edge_filter::IsActiveEdge,
-            is_active_node_filter::IsActiveNode,
-            is_deleted_filter::IsDeletedEdge,
-            is_self_loop_filter::IsSelfLoopEdge,
-            is_valid_filter::IsValidEdge,
-            latest_filter::Latest as LatestWrap,
-            layered_filter::Layered,
-            node_filter::{CompositeNodeFilter, NodeFilter},
-            property_filter::{Op, PropertyFilter, PropertyFilterValue, PropertyRef},
-            snapshot_filter::{SnapshotAt as SnapshotAtWrap, SnapshotLatest as SnapshotLatestWrap},
-            windowed_filter::Windowed,
-            ComposableFilter, DynFilter, DynView, NoFilter, ViewWrapOps,
-        },
+    db::graph::views::filter::model::{
+        degree_filter::DegreeFilter,
+        edge_filter::{CompositeEdgeFilter, EdgeFilter},
+        filter::{Filter, FilterValue},
+        filter_operator::FilterOperator,
+        graph_filter::GraphFilter,
+        is_active_edge_filter::IsActiveEdge,
+        is_active_node_filter::IsActiveNode,
+        is_deleted_filter::IsDeletedEdge,
+        is_self_loop_filter::IsSelfLoopEdge,
+        is_valid_filter::IsValidEdge,
+        latest_filter::Latest as LatestWrap,
+        layered_filter::Layered,
+        node_filter::{CompositeNodeFilter, NodeFilter},
+        property_filter::{Op, PropertyFilter, PropertyFilterValue, PropertyRef},
+        snapshot_filter::{SnapshotAt as SnapshotAtWrap, SnapshotLatest as SnapshotLatestWrap},
+        windowed_filter::Windowed,
+        ComposableFilter, DynFilter, DynView, NoFilter, ViewWrapOps,
     },
     errors::GraphError,
 };

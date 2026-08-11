@@ -38,7 +38,7 @@ pub struct AuthenticatedGraphQL<E> {
     executor: E,
     config: AppConfig,
     semaphore: Option<Semaphore>,
-    lock: Option<tokio::sync::RwLock<()>>,
+    lock: Option<RwLock<()>>,
 }
 
 impl<E> AuthenticatedGraphQL<E> {
@@ -234,6 +234,7 @@ fn extract_claims_from_header(header: &str, public_key: &PublicKey) -> Option<To
         let mut validation = Validation::new(public_key.algorithms[0]);
         validation.algorithms = public_key.algorithms.clone();
         validation.set_required_spec_claims::<String>(&[]); // we don't require 'exp' to be present
+        validation.validate_nbf = true; // reject not-yet-valid tokens (nbf in the future)
         let decoded = decode::<TokenClaims>(&jwt, &public_key.decoding_key, &validation);
         match decoded {
             Ok(token_data) => Some(token_data.claims),

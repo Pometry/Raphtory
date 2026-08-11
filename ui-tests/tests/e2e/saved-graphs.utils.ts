@@ -73,13 +73,13 @@ export async function navigateInSavedGraphs(
             break;
         case 'split-button':
             await clickSavedGraphsGraph(page, graphName);
-            await page.getByRole('link', { name: 'Open' }).click();
+            await page.getByRole('link', { name: 'Open' }).first().click();
             break;
         case 'preview-graph':
             await clickSavedGraphsGraph(page, graphName);
             await page
                 .getByRole('region', { name: 'Graph preview' })
-                .getByRole('button', { name: 'Open' })
+                .getByRole('link', { name: 'Open' })
                 .click();
             break;
     }

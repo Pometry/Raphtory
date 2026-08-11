@@ -19,16 +19,16 @@ export async function graphqlMutation<T = unknown>(
     return result.data as T;
 }
 
-export async function deleteGraph(path: string): Promise<void> {
-    await graphqlMutation(
-        'mutation($path: String!) { deleteGraph(path: $path) }',
-        { path },
-    );
-}
-
 export async function copyGraph(path: string, newPath: string): Promise<void> {
     await graphqlMutation(
         'mutation($path: String!, $newPath: String!) { copyGraph(path: $path, newPath: $newPath) }',
         { path, newPath },
+    );
+}
+
+export async function deleteNamespace(path: string): Promise<void> {
+    await graphqlMutation(
+        'mutation($path: String!) { deleteNamespace(path: $path) }',
+        { path },
     );
 }

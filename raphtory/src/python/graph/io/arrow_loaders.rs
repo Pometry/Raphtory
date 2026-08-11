@@ -347,7 +347,7 @@ fn split_into_chunks(batch: &RecordBatch, indices: &[usize]) -> Vec<Result<DFChu
     // means the progress bar will update reasonably (every CHUNK_SIZE rows)
     let num_rows = batch.num_rows();
     if num_rows > CHUNK_SIZE {
-        let num_chunks = (num_rows + CHUNK_SIZE - 1) / CHUNK_SIZE;
+        let num_chunks = num_rows.div_ceil(CHUNK_SIZE);
         let mut result = Vec::with_capacity(num_chunks);
         for i in 0..num_chunks {
             let offset = i * CHUNK_SIZE;
@@ -371,8 +371,8 @@ fn split_into_chunks(batch: &RecordBatch, indices: &[usize]) -> Vec<Result<DFChu
 
 pub(crate) fn is_csv_path(path: &PathBuf) -> Result<bool, std::io::Error> {
     if path.is_dir() {
-        Ok(fs::read_dir(&path)?.any(|entry| {
-            entry.map_or(false, |e| {
+        Ok(fs::read_dir(path)?.any(|entry| {
+            entry.is_ok_and(|e| {
                 let p = e.path();
                 let s = p.to_string_lossy();
                 s.ends_with(".csv") || s.ends_with(".csv.gz") || s.ends_with(".csv.bz2")
@@ -417,9 +417,9 @@ impl<'py> FromPyObject<'_, 'py> for CsvReadOptions {
                 } else if let Ok(b) = val.extract::<u8>() {
                     Ok(Some(b))
                 } else {
-                    return Err(PyValueError::new_err(format!(
+                    Err(PyValueError::new_err(format!(
                         "CSV option '{option}' must be a single character string or int 0-255",
-                    )));
+                    )))
                 }
             }
         };

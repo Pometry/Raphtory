@@ -312,7 +312,7 @@ impl PropCol for DecimalPropCol {
             None
         } else {
             Some(PropRef::Decimal {
-                num: self.arr.value(i).into(),
+                num: self.arr.value(i),
                 scale: self.scale as i8,
             })
         }

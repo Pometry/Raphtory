@@ -5,9 +5,10 @@ use kdam::BarExt;
 
 use crate::{
     arrow_loader::{
-        dataframe::{DFChunk, DFView, SecondaryIndexCol},
+        dataframe::{DFChunk, DFView},
         df_loaders::{
-            extract_secondary_index_col, process_shared_properties, resolve_nodes_with_cache,
+            extract_secondary_index_col, group_rows_by_vid_segment, process_shared_properties,
+            resolve_nodes_with_cache, secondary_index_at,
         },
         layer_col::lift_layer_col,
         node_col::NodeCol,
@@ -265,11 +266,11 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
         let layer_col_resolved = layer.resolve_layer(layer_id_values, graph, false)?;
 
         let (src_vids, dst_vids, gid_str_cache) = if resolve_nodes {
-            let mut cache = node_resolve_cache
+            let cache = node_resolve_cache
                 .get_or_insert_with(|| NodeResolveCache::new(df.len(), src_col.dtype()));
             resolve_node_vids_with_quick_cache(
                 graph,
-                &mut cache,
+                cache,
                 &mut src_col_resolved,
                 &mut dst_col_resolved,
                 &src_col,
@@ -524,12 +525,6 @@ impl NodeResolveCache {
             }
         }
     }
-
-    fn len(&self) -> usize {
-        match self {
-            NodeResolveCache::Str { len, .. } | NodeResolveCache::U64 { len, .. } => *len,
-        }
-    }
 }
 
 impl NodeResolveCache {
@@ -638,10 +633,9 @@ impl<'b, G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> LockedCacheS
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
 fn resolve_node_vids_with_quick_cache<
     'a,
-    'b,
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
 >(
-    graph: &'b G,
+    graph: &G,
     locked_node_cache: &mut NodeResolveCache,
     src_col_resolved: &'a mut Vec<VID>,
     dst_col_resolved: &'a mut Vec<VID>,
@@ -763,7 +757,7 @@ fn update_edge_properties<ES: EdgeSegmentOps<Extension = Extension>>(
 ) {
     let mut t_props = vec![];
     let mut c_props = vec![];
-    let mut writer = shard.writer();
+    let mut writer = shard.bulk_writer();
 
     for (row, src, dst, time, secondary_index, eid, layer, exists) in zip {
         if let Some(eid_pos) = writer.resolve_pos(eid) {
@@ -803,7 +797,7 @@ fn update_inbound_edges<NS: NodeSegmentOps<Extension = Extension>>(
     zip: impl Iterator<Item = (usize, VID, VID, EID, i64, usize, usize, bool, bool)>,
     delete: bool,
 ) {
-    let mut writer = shard.writer();
+    let mut writer = shard.bulk_writer();
     for (
         _row,
         src,
@@ -859,7 +853,7 @@ fn add_and_resolve_outbound_edges<
     locked_page: &mut LockedNodePage<'_, NS>,
     delete: bool,
 ) {
-    let mut writer = locked_page.writer();
+    let mut writer = locked_page.bulk_writer();
     for (row, src, dst, time, secondary_index, layer) in zip {
         if let Some(src_pos) = writer.resolve_pos(src) {
             let t = EventTime(time, secondary_index);
@@ -903,22 +897,6 @@ fn add_and_resolve_outbound_edges<
     }
 }
 
-fn group_rows_by_vid_segment(
-    vids: &[VID],
-    max_segment_len: u32,
-    num_segments: usize,
-) -> Vec<Vec<usize>> {
-    let mut rows_by_segment = vec![Vec::new(); num_segments];
-    for (row, vid) in vids.iter().enumerate() {
-        let (segment_id, _) = resolve_pos(vid.index(), max_segment_len);
-        let rows = rows_by_segment
-            .get_mut(segment_id)
-            .expect("segment not found while grouping by vid");
-        rows.push(row);
-    }
-    rows_by_segment
-}
-
 fn group_rows_by_eid_segment(
     eids: &[EID],
     max_segment_len: u32,
@@ -935,19 +913,11 @@ fn group_rows_by_eid_segment(
     rows_by_segment
 }
 
-#[inline(always)]
-fn secondary_index_at(col: &SecondaryIndexCol, row: usize) -> usize {
-    match col {
-        SecondaryIndexCol::DataFrame(arr) => arr.value(row) as usize,
-        SecondaryIndexCol::Range(range) => range.start + row,
-    }
-}
-
 pub fn store_node_ids<NS: NodeSegmentOps<Extension = Extension>>(
     gid_str_cache: &[(GidRef<'_>, VID)],
     locked_page: &mut LockedNodePage<'_, NS>,
 ) {
-    let mut writer = locked_page.writer();
+    let mut writer = locked_page.bulk_writer();
     for (src_gid, vid) in gid_str_cache.iter() {
         if let Some(src_pos) = writer.resolve_pos(*vid) {
             writer.store_node_id(src_pos, STATIC_GRAPH_LAYER_ID, (*src_gid).into());

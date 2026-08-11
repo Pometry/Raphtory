@@ -307,5 +307,5 @@ impl NodeCol {
 }
 
 pub fn lift_node_col(index: usize, df: &DFChunk) -> Result<NodeCol, LoadError> {
-    (df.chunk[index].as_ref()).try_into()
+    df.chunk[index].as_ref().try_into()
 }

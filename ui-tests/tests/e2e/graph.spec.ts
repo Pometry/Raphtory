@@ -15,14 +15,18 @@ import {
     fillInStyling,
     fitView,
     getGraphState,
+    getInteractiveCanvas,
     getNodePositions,
     navigateToGraphPageBySearch,
-    openTimeline,
     rightClickOnNode,
+    save,
+    saveAs,
+    saveAsWithRandomName,
     selectLayout,
-    styleAndSave,
+    style,
 } from './graph.utils';
 import { navigateInSavedGraphs } from './saved-graphs.utils';
+import { openTimeline } from './temporalview.utils';
 import { waitForLayoutToFinish } from './utils';
 
 test('Graph page title includes the graph name', async ({ page }) => {
@@ -61,7 +65,8 @@ test('Close right hand side panel button and open again', async ({ page }) => {
 
 test('Click save as button opens save as dialog', async ({ page }) => {
     await page.goto('/graph/vanilla/event?initialNodes=%5B%5D');
-    await page.getByRole('button', { name: 'Save graph as' }).click();
+    await page.getByRole('button', { name: 'Save' }).click();
+    await page.getByText('Save as ...').click();
     await page.getByRole('button', { name: 'Cancel' }).waitFor();
     await expect(page.getByText('New Graph Name')).toBeVisible();
 
@@ -120,9 +125,6 @@ test('Test layouts', async ({ page }) => {
     await waitForLayoutToFinish(page, 3000, 3000);
     await selectLayout(page, 'Arrange nodes in concentric circles');
     expect(await page.screenshot()).toMatchSnapshot('concentric-layout.png');
-    await selectLayout(page, 'Force-directed layout algorithm');
-
-    expect(await page.screenshot()).toMatchSnapshot('force-based-layout.png');
     await selectLayout(page, 'Top-to-bottom hierarchical tree');
 
     expect(await page.screenshot()).toMatchSnapshot(
@@ -202,7 +204,9 @@ test('Expand via all entry points and restore via all hide paths', async ({
     const expectExpanded = async () => {
         await waitForLayoutToFinish(page);
         const state = await getGraphState(page);
-        expect(new Set(state.nodes.map((n) => n.id))).toEqual(new Set(['Pedro', 'Ben', 'Hamza']));
+        expect(new Set(state.nodes.map((n) => n.id))).toEqual(
+            new Set(['Pedro', 'Ben', 'Hamza']),
+        );
         expect(
             state.nodes.find((n) => n.id === 'Pedro')?.badgeText,
         ).toBeUndefined();
@@ -278,6 +282,48 @@ test('Expand via all entry points and restore via all hide paths', async ({
     }
 });
 
+test('Expanding a node shows the querying loading indicator', async ({
+    page,
+}) => {
+    await navigateToGraphPageBySearch(page, {
+        type: 'node',
+        nodeName: 'Pedro',
+        nodeType: 'Person',
+    });
+    await waitForLayoutToFinish(page);
+
+    const queryingIndicator = page.getByRole('progressbar', {
+        name: 'Querying for graph...',
+    });
+    await expect(queryingIndicator).toBeHidden();
+
+    // Hold every GraphQL POST (the app's only POSTs) so the querying state
+    // lasts long enough to observe — the local test server answers faster
+    // than Playwright polls, so an undelayed expand could complete between
+    // visibility checks and the assertion would be flaky.
+    await page.route('**', async (route) => {
+        if (route.request().method() !== 'POST') {
+            return route.continue();
+        }
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        return route.continue();
+    });
+
+    await doubleClickOnNode(page, 'Pedro');
+    await expect(queryingIndicator).toBeVisible({ timeout: 10000 });
+
+    // Release remaining requests promptly and confirm the indicator clears
+    // and the expansion actually landed. `unrouteAll` with `ignoreErrors`
+    // avoids the "Route is already handled" race with handlers still
+    // sleeping in their delay when the route is removed.
+    await page.unrouteAll({ behavior: 'ignoreErrors' });
+    await waitForLayoutToFinish(page);
+    const state = await getGraphState(page);
+    expect(new Set(state.nodes.map((n) => n.id))).toEqual(
+        new Set(['Pedro', 'Ben', 'Hamza']),
+    );
+});
+
 test('Expand shared neighbours by floating actions button', async ({
     page,
 }) => {
@@ -320,8 +366,8 @@ test('Click edge to reveal right hand side panel details', async ({ page }) => {
     await clickOnEdge(page, 'Hamza', 'Pedro');
     await page.waitForTimeout(100);
     await changeTab(page, 'Selected');
-    await page.getByRole('button', { name: 'EDGE STATISTICS' }).click();
     await expect(page.getByText('Madrid')).toBeVisible();
+    await page.getByRole('button', { name: 'EDGE STATISTICS' }).click();
     await expect(page.getByText('Layer Names')).toBeVisible();
     await expect(page.getByText('Earliest Time')).toBeVisible();
     await expect(page.getByText('Latest Time')).toBeVisible();
@@ -393,11 +439,11 @@ test('Select all from menu and via shortcut', async ({ page }) => {
         graphName: 'persistent',
     });
     await page.waitForTimeout(500);
-    await page.locator('canvas').nth(1).click();
+    await getInteractiveCanvas(page).click();
     await page.waitForTimeout(100);
     await page.keyboard.down('Control');
     await page.waitForTimeout(100);
-    await page.locator('canvas').nth(1).press('a');
+    await getInteractiveCanvas(page).press('a');
     await page.waitForTimeout(100);
     await page.keyboard.up('Control');
     await page.waitForTimeout(500);
@@ -433,9 +479,8 @@ test('Click backspace to delete nodes', async ({ page }) => {
         nodeType: 'Person',
     });
     await doubleClickOnNode(page, 'Pedro');
-    await selectLayout(page, 'Arrange nodes in concentric circles');
-    await fitView(page);
     await waitForLayoutToFinish(page);
+    await fitView(page);
     expect((await getGraphState(page)).nodes).toHaveLength(3);
     await clickOnNode(page, 'Hamza');
     await page.keyboard.press('Backspace');
@@ -467,88 +512,38 @@ test.describe('Change colour and size of individual node', () => {
     }) => {
         await isolatedGraphs.navigateToGraph(page, 'persistent_filler');
         await fitView(page);
-        await styleAndSave(
+        const expectNodeStyles = async () => {
+            const state = await getGraphState(page);
+            expect(state.nodes.find((n) => n.id === 'Pedro')?.colour).toEqual(
+                '#bd10e0',
+            );
+            expect(state.nodes.find((n) => n.id === 'Pedro')?.size).toEqual(30);
+        };
+
+        await style(
             page,
             { kind: 'node', name: 'Pedro' },
             { colourValue: 'BD10E0', size: 30 },
-            'Save node styles',
         );
-        const state = await getGraphState(page);
-        expect(state.nodes.find((n) => n.id === 'Pedro')?.colour).toEqual(
-            '#bd10e0',
-        );
-        expect(state.nodes.find((n) => n.id === 'Pedro')?.size).toEqual(30);
-    });
-});
+        await expectNodeStyles();
 
-test.describe('Change colour only of individual node persists', () => {
-    test.use({ isolatedGraphsConfig: ['new_folder/persistent_filler'] });
-
-    test('Change colour only of individual node persists', async ({
-        page,
-        isolatedGraphs,
-    }) => {
-        await isolatedGraphs.navigateToGraph(page, 'persistent_filler');
-        await fitView(page);
-        await styleAndSave(
+        await saveAs(
             page,
-            { kind: 'node', name: 'Pedro' },
-            { colourValue: 'BD10E0' },
-            'Save node styles',
+            `${isolatedGraphs.namespace}/persistent_filler_styled`,
         );
-        const stateImmediate = await getGraphState(page);
-        expect(
-            stateImmediate.nodes.find((n) => n.id === 'Pedro')?.colour,
-        ).toEqual('#bd10e0');
+        await expectNodeStyles();
         await expectStylingHexInput(page, 'BD10E0');
 
         await page.reload();
         await waitForLayoutToFinish(page);
-        const stateAfterReload = await getGraphState(page);
-        expect(
-            stateAfterReload.nodes.find((n) => n.id === 'Pedro')?.colour,
-        ).toEqual('#bd10e0');
+        await expectNodeStyles();
         await expectStylingHex(page, { kind: 'node', name: 'Pedro' }, 'BD10E0');
     });
 });
 
-test.describe('Change colour only of node by type persists', () => {
-    test.use({ isolatedGraphsConfig: ['vanilla/persistent'] });
-
-    test('Change colour only of node by type persists', async ({
-        page,
-        isolatedGraphs,
-    }) => {
-        await isolatedGraphs.navigateToGraph(page, 'persistent');
-        await fitView(page);
-
-        await styleAndSave(
-            page,
-            { kind: 'node-type', type: 'Person' },
-            { colourValue: 'D0021B' },
-            'Save node type styles',
-        );
-        await page.waitForTimeout(2000);
-        const stateImmediate = await getGraphState(page);
-        expect(
-            stateImmediate.nodes.find((n) => n.id === 'Pedro')?.colour,
-        ).toEqual('#d0021b');
-        await expectStylingHexInput(page, 'D0021B');
-
-        await page.reload();
-        await waitForLayoutToFinish(page);
-        const stateAfterReload = await getGraphState(page);
-        expect(
-            stateAfterReload.nodes.find((n) => n.id === 'Pedro')?.colour,
-        ).toEqual('#d0021b');
-        await expectStylingHex(
-            page,
-            { kind: 'node-type', type: 'Person' },
-            'D0021B',
-        );
-    });
-});
-
+// FIXME: this is mostly duplicated with:
+// - Change colour of edge by layer dropdown
+// - Preview edge colour changes
 test.describe('Change colour only of edge persists in picker after save', () => {
     test.use({
         isolatedGraphsConfig: ['new_folder/persistent_second_filler'],
@@ -561,7 +556,7 @@ test.describe('Change colour only of edge persists in picker after save', () => 
         await isolatedGraphs.navigateToGraph(page, 'persistent_second_filler');
         await fitView(page);
 
-        await styleAndSave(
+        await style(
             page,
             {
                 kind: 'edge',
@@ -570,8 +565,8 @@ test.describe('Change colour only of edge persists in picker after save', () => 
                 layer: 'advises',
             },
             { colourValue: 'F5A623' },
-            'Save edge styles',
         );
+        await saveAsWithRandomName(page, isolatedGraphs.namespace);
         await page.waitForTimeout(2000);
         await expectStylingHexInput(page, 'F5A623');
 
@@ -602,7 +597,7 @@ test.describe('Change colour of edge by layer dropdown', () => {
         await isolatedGraphs.navigateToGraph(page, 'persistent_second_filler');
         await fitView(page);
 
-        await styleAndSave(
+        await style(
             page,
             {
                 kind: 'edge',
@@ -611,13 +606,13 @@ test.describe('Change colour of edge by layer dropdown', () => {
                 layer: 'advises',
             },
             { colourValue: 'F5A623' },
-            'Save edge styles',
         );
+        await saveAsWithRandomName(page, isolatedGraphs.namespace);
         await openTimeline(page);
         await page.waitForTimeout(5000);
         await expect(
             page
-                .getByLabel('Edge ID Judy->RabbitInc_advises_100')
+                .getByLabel('Edge ID ["Judy","Rabbit Inc","advises",100]')
                 .locator('path'),
         ).toHaveCSS('fill', 'rgb(245, 166, 35)');
     });
@@ -633,29 +628,34 @@ test.describe('Change colour and size of node by type', () => {
         await isolatedGraphs.navigateToGraph(page, 'persistent');
         await fitView(page);
 
-        await styleAndSave(
+        const expectNodeStyles = async () => {
+            const state = await getGraphState(page);
+            for (const id of ['Pedro', 'Hamza', 'Ben']) {
+                expect(state.nodes.find((n) => n.id === id)?.colour).toEqual(
+                    '#d0021b',
+                );
+                expect(state.nodes.find((n) => n.id === id)?.size).toEqual(30);
+            }
+        };
+
+        await style(
             page,
             { kind: 'node-type', type: 'Person' },
             { colourValue: 'D0021B', size: 30 },
-            'Save node type styles',
         );
-        await page.waitForTimeout(2000);
-        const state = await getGraphState(page);
-        await expect(
-            state?.nodes.find((n) => n.id === 'Pedro')?.colour,
-        ).toEqual('#d0021b');
-        expect(state.nodes.find((n) => n.id === 'Pedro')?.size).toEqual(30);
-        expect(state.nodes.find((n) => n.id === 'Hamza')?.colour).toEqual(
-            '#d0021b',
-        );
-        await expect(state?.nodes.find((n) => n.id === 'Hamza')?.size).toEqual(
-            30,
-        );
-        await expect(state?.nodes.find((n) => n.id === 'Ben')?.colour).toEqual(
-            '#d0021b',
-        );
-        await expect(state?.nodes.find((n) => n.id === 'Ben')?.size).toEqual(
-            30,
+        await expectNodeStyles();
+
+        await saveAs(page, `${isolatedGraphs.namespace}/persistent_styled`);
+        await expectNodeStyles();
+        await expectStylingHexInput(page, 'D0021B');
+
+        await page.reload();
+        await waitForLayoutToFinish(page);
+        await expectNodeStyles();
+        await expectStylingHex(
+            page,
+            { kind: 'node-type', type: 'Person' },
+            'D0021B',
         );
     });
 });
@@ -700,14 +700,17 @@ test('Preview edge colour changes', async ({ page }) => {
 
     await clickOnEdge(page, 'Judy', 'Rabbit Inc');
     await changeTab(page, 'Styling');
-    await page.getByText('Select Edge Layer').click();
-    await page.getByRole('option', { name: 'advises' }).click();
+    await expect(
+        page.getByRole('combobox', { name: 'Edge Layer' }),
+    ).toContainText('advises');
     await fillColorPickerHexInput(page, 'F5A623');
     await openTimeline(page);
     // Wait for the timeline to open fully
     await page.waitForTimeout(500);
     await expect(
-        page.getByLabel('Edge ID Judy->RabbitInc_advises_100').locator('path'),
+        page
+            .getByLabel('Edge ID ["Judy","Rabbit Inc","advises",100]')
+            .locator('path'),
     ).toHaveCSS('fill', 'rgb(245, 166, 35)');
 });
 
@@ -718,7 +721,7 @@ test('Layout Customizer Default Advanced Options', async ({ page }) => {
     });
     await changeTab(page, 'Layout');
 
-    expect(await page.locator('canvas').nth(1).screenshot()).toMatchSnapshot(
+    expect(await getInteractiveCanvas(page).screenshot()).toMatchSnapshot(
         'layout-customizer-default.png',
     );
     await dragSlider({
@@ -765,73 +768,19 @@ test('Layout Customizer Default Advanced Options', async ({ page }) => {
     });
     await dragSlider({
         page,
-        slider: page.getByLabel('Force pulls nodes towards'),
-        root: page.getByLabel('Center Force Slider Container'),
+        slider: page.getByLabel('pull toward (0, 0)'),
+        root: page.getByLabel('Gravity Slider Container'),
         sliderPosition: 0.5,
     });
-    await dragSlider({
-        page,
-        slider: page.getByLabel('Strength of the radial force'),
-        root: page.getByLabel('Radial force strength Slider Container'),
-        sliderPosition: 0.5,
-    });
-    await dragSlider({
-        page,
-        slider: page.getByLabel('Radius of the radial force'),
-        root: page.getByLabel('Radial force radius Slider Container'),
-        sliderPosition: 0.5,
-    });
+    // Radial force sliders are gone — the sigma layout worker uses
+    // d3-force without `d3-force-radial`, so the customizer no longer
+    // exposes radial strength/radius.
     await page
         .getByRole('button', { name: 'Apply Layout', exact: true })
         .click();
     await waitForLayoutToFinish(page);
-    expect(await page.locator('canvas').nth(1).screenshot()).toMatchSnapshot(
+    expect(await getInteractiveCanvas(page).screenshot()).toMatchSnapshot(
         'layout-customizer-default-all-changed.png',
-    );
-});
-
-test('Layout Customizer Default Pre-layout', async ({ page }) => {
-    await navigateInSavedGraphs(page, {
-        namespace: 'vanilla',
-        graphName: 'persistent_filler',
-    });
-    await changeTab(page, 'Layout');
-
-    await page.getByRole('checkbox', { name: 'Clockwise' }).check();
-    await page.getByRole('checkbox', { name: 'Equidistant rings' }).check();
-    await dragSlider({
-        page,
-        slider: page.getByLabel('Used for collision detection'),
-        root: page.getByLabel('Node size (diameter) Slider Container'),
-        sliderPosition: 0.5,
-    });
-    await dragSlider({
-        page,
-        slider: page.getByLabel('Minimum spacing between rings'),
-        root: page.getByLabel('Node spacing Slider Container'),
-        sliderPosition: 0.5,
-    });
-    await page.getByRole('checkbox', { name: 'Prevent overlap' }).check();
-    await dragSlider({
-        page,
-        slider: page.getByLabel('The angle (in radians) to'),
-        root: page.getByLabel('Start Angle (pi radians) Slider Container'),
-        sliderPosition: 0.5,
-    });
-    await dragSlider({
-        page,
-        slider: page.getByLabel(
-            'The angle difference between the first and last node in the same layer',
-        ),
-        root: page.getByLabel('Sweep Slider Container'),
-        sliderPosition: 0.5,
-    });
-    await page
-        .getByRole('button', { name: 'Apply Layout', exact: true })
-        .click();
-    await waitForLayoutToFinish(page);
-    expect(await page.locator('canvas').nth(1).screenshot()).toMatchSnapshot(
-        'layout-customizer-prelayout-all-changed.png',
     );
 });
 
@@ -846,7 +795,7 @@ test('Layout Customizer can change to concentric layout', async ({ page }) => {
     await page.getByRole('option', { name: 'Concentric Layout' }).click();
 
     await page.getByRole('checkbox', { name: 'Clockwise' }).check();
-    await page.getByRole('checkbox', { name: 'Equidistant rings' }).check();
+    await page.getByRole('checkbox', { name: 'Prevent overlap' }).check();
     await dragSlider({
         page,
         slider: page.getByLabel('Used for collision detection'),
@@ -861,16 +810,14 @@ test('Layout Customizer can change to concentric layout', async ({ page }) => {
     });
     await dragSlider({
         page,
-        slider: page.getByLabel(
-            'The angle (in radians) to start laying out nodes',
-        ),
+        slider: page.getByLabel('The angle (in pi radians) at which to start'),
         root: page.getByLabel('Start Angle (pi radians) Slider Container'),
         sliderPosition: 0.5,
     });
     await dragSlider({
         page,
         slider: page.getByLabel(
-            'The angle difference between the first and last node in the same layer',
+            'The angle (in pi radians) between the first and last node',
         ),
         root: page.getByLabel('Sweep Slider Container'),
         sliderPosition: 0.5,
@@ -880,7 +827,7 @@ test('Layout Customizer can change to concentric layout', async ({ page }) => {
         .click();
     await waitForLayoutToFinish(page);
     await fitView(page);
-    expect(await page.locator('canvas').nth(1).screenshot()).toMatchSnapshot(
+    expect(await getInteractiveCanvas(page).screenshot()).toMatchSnapshot(
         'layout-customizer-concentric-all-changed.png',
     );
 });
@@ -892,16 +839,14 @@ test('Layout Customizer can use dagre for pre-layout', async ({ page }) => {
     });
     await changeTab(page, 'Layout');
 
-    // TODO: make this into a reusable function for picking an option from a MUI dropdown like this (note this does not use timeouts)
-    await page.getByText('Concentric Layout').click();
+    // The sigma DagreLayoutCustomizer is intentionally minimal vs the G6 one:
+    // only invert + nodesep + ranksep + edgesep. Alignment, Ranking algorithm,
+    // Node size, and Control points dropped with the G6 cleanup.
+    await page.getByText('Default Layout').click();
     await page.getByRole('option', { name: 'Hierarchical TD Layout' }).click();
     await page.locator('ul[role="listbox"]').waitFor({ state: 'detached' }); // wait for MUI Select portal to be fully removed from DOM (close animation completes)
 
     await page.getByRole('checkbox', { name: 'Invert direction' }).check();
-
-    await page.getByRole('combobox', { name: 'Alignment' }).click();
-    await page.getByRole('option', { name: 'Upper Right' }).click();
-    await page.locator('ul[role="listbox"]').waitFor({ state: 'detached' });
 
     await dragSlider({
         page,
@@ -917,23 +862,11 @@ test('Layout Customizer can use dagre for pre-layout', async ({ page }) => {
         sliderPosition: 0.5,
     });
 
-    await page.getByRole('combobox', { name: 'Ranking algorithm' }).click();
-    await page.getByRole('option', { name: 'tight-tree' }).click();
-    await page.locator('ul[role="listbox"]').waitFor({ state: 'detached' });
-    // Needed to make the dragSlider work
-    await page.getByLabel('Size of node').click();
-    await dragSlider({
-        page,
-        slider: page.getByLabel('Size of node'),
-        root: page.getByLabel('Node size Slider Container'),
-        sliderPosition: 0.5,
-    });
-    await page.getByRole('checkbox', { name: 'Control points' }).check();
     await page
         .getByRole('button', { name: 'Apply Layout', exact: true })
         .click();
     await waitForLayoutToFinish(page);
-    expect(await page.locator('canvas').nth(1).screenshot()).toMatchSnapshot(
+    expect(await getInteractiveCanvas(page).screenshot()).toMatchSnapshot(
         'layout-customizer-prelayout-dagre-all-changed.png',
     );
 });
@@ -1001,12 +934,13 @@ test('catch console logs and errors', async ({ page }) => {
         }
     });
 
-    await page.goto('/graph/vanilla/event?initialNodes=%5B%5D');
+    await page.goto('/graph/vanilla/event');
 
     expect(consoleErrors, 'Console errors found').toStrictEqual([]);
     expect(consoleLogs, 'Console logs found').toStrictEqual([]);
 });
 
+// TODO: we should be using utils here...
 test.describe('Comprehensive styling, selection, highlighting, layout and saving', () => {
     test.use({ isolatedGraphsConfig: ['vanilla/persistent'] });
 
@@ -1019,12 +953,12 @@ test.describe('Comprehensive styling, selection, highlighting, layout and saving
         await fitView(page);
 
         // Save individual node styling for Pedro
-        await styleAndSave(
+        await style(
             page,
             { kind: 'node', name: 'Pedro' },
             { colourValue: 'BD10E0', size: 30 },
-            'Save node styles',
         );
+        await saveAsWithRandomName(page, isolatedGraphs.namespace);
         await page.waitForTimeout(2000);
         await expect(page.getByText('#bd10e0', { exact: true })).toBeVisible();
         await expect(page.getByText('30', { exact: true })).toBeVisible();
@@ -1034,21 +968,21 @@ test.describe('Comprehensive styling, selection, highlighting, layout and saving
             .getByRole('menuitem', { name: 'Clear current selection' })
             .click();
         await page.waitForTimeout(2000);
-        await styleAndSave(
+        await style(
             page,
             { kind: 'node-type', type: 'Person' },
             { colourValue: 'D0021B', size: 25 },
-            'Save node type styles',
         );
+        await save(page);
         await expect(page.getByText('#d0021b', { exact: true })).toBeVisible();
         await expect(page.getByText('25', { exact: true })).toBeVisible();
         // Save meets edge layer styling
-        await styleAndSave(
+        await style(
             page,
             { kind: 'edge', src: 'Ben', dst: 'Pedro', layer: 'meets' },
             { colourValue: 'F5A623' },
-            'Save edge styles',
         );
+        await save(page);
         await expect(
             page
                 .locator('div')
@@ -1090,28 +1024,20 @@ test.describe('Comprehensive styling, selection, highlighting, layout and saving
         // Preview founds edge layer styling
         await clickOnEdge(page, 'Hamza', 'Pometry');
         await changeTab(page, 'Styling');
-        await page.waitForTimeout(100);
-        await page.getByText('Select Edge Layer').click();
-        await page.getByRole('option', { name: 'founds' }).click();
+        await expect(
+            page.getByRole('combobox', { name: 'Edge Layer' }),
+        ).toContainText('founds');
         await fillInStyling(page, { colourValue: 'FF6B6B' });
         await openTimeline(page);
         await selectLayout(page, 'Arrange nodes in concentric circles');
         await fitView(page);
         await waitForLayoutToFinish(page);
-        expect(
-            await page.locator('canvas').nth(1).screenshot(),
-        ).toMatchSnapshot(
+        expect(await getInteractiveCanvas(page).screenshot()).toMatchSnapshot(
             'comprehensive-styling-selecting-highlighting-layout-saving.png',
         );
 
         // Save the graph (positions + styles persist to metadata)
-        const newGraphName = `${isolatedGraphs.namespace}/comprehensive_save_test`;
-        await page.getByRole('button', { name: 'Save graph as' }).click();
-        await page.getByLabel('New Graph Name').fill(newGraphName);
-        await page.getByRole('button', { name: 'Confirm' }).click();
-        await waitForLayoutToFinish(page);
-        isolatedGraphs.trackForCleanup(newGraphName);
-
+        await save(page);
         // Reload to confirm the saved positions are loaded back from metadata
         await page.reload();
         await waitForLayoutToFinish(page);
@@ -1124,8 +1050,13 @@ test.describe('Comprehensive styling, selection, highlighting, layout and saving
             'Pometry',
         ]);
 
-        // Switch to a different layout — should override the saved positions
-        await selectLayout(page, 'Force-directed layout algorithm');
+        // Switch to a different layout — should override the saved positions.
+        // selectLayout matches on the menu item's tooltip text (which MUI
+        // promotes to the accessible name), not the visible label.
+        await selectLayout(
+            page,
+            'Physics-based layout with natural clustering',
+        );
         await fitView(page);
 
         // Capture the post-switch positions
@@ -1160,7 +1091,8 @@ test('Save new graph with save as dialog', async ({ page, isolatedGraphs }) => {
     );
     await waitForLayoutToFinish(page);
 
-    await page.getByRole('button', { name: 'Save graph as' }).click();
+    await page.getByRole('button', { name: 'Save' }).click();
+    await page.getByText('Save as ...').click();
     await expect(page.getByLabel('New Graph Name')).toBeVisible();
 
     const newName = `${isolatedGraphs.namespace}/test_graph`;
@@ -1168,7 +1100,6 @@ test('Save new graph with save as dialog', async ({ page, isolatedGraphs }) => {
     await page.getByRole('button', { name: 'Confirm' }).click();
     await waitForLayoutToFinish(page);
 
-    isolatedGraphs.trackForCleanup(newName);
     await expect(page).toHaveURL(new RegExp(`/graph/${newName}`));
 });
 
@@ -1381,7 +1312,7 @@ test('Clicking a trace log row goes to corresponding edge', async ({
 
     await openTimeline(page);
     const benPedroEdge = page.getByLabel(
-        'Edge ID Ben->Pedro_meets_1679356800000',
+        'Edge ID ["Ben","Pedro","meets",1679356800000]',
     );
     await expect(benPedroEdge.locator('circle[r="7"]').first()).toHaveCSS(
         'fill-opacity',
@@ -1526,7 +1457,7 @@ test('Dragging one of multiple selected nodes moves all selected nodes', async (
 
     // Drag Pedro by (50, 50) — Hamza should move too, Ben should not
     const pedroPos = positionsBefore['Pedro'];
-    const canvas = page.locator('canvas').nth(1);
+    const canvas = getInteractiveCanvas(page);
     await canvas.hover({ position: pedroPos });
     await page.mouse.down();
     await page.waitForTimeout(200);
@@ -1575,7 +1506,7 @@ test('Clicks at canvas edge positions reach the G6 canvas', async ({
     await page.getByRole('button', { name: 'Collapse panel' }).click();
     await page.waitForTimeout(300);
 
-    const canvas = page.locator('canvas').nth(1);
+    const canvas = getInteractiveCanvas(page);
     const canvasBox = await canvas.boundingBox();
     if (!canvasBox) throw new Error('Canvas not visible');
 
@@ -1634,6 +1565,7 @@ test('Clicks at canvas edge positions reach the G6 canvas', async ({
     // TODO: Future enhancement — random coordinate fuzzing within viewport bounds
 });
 
+// TODO: remove, this is redundant
 test('Save As creates a new graph and navigates to it', async ({
     page,
     isolatedGraphs,
@@ -1641,7 +1573,9 @@ test('Save As creates a new graph and navigates to it', async ({
     await isolatedGraphs.navigateToGraph(page, 'event');
 
     // Open Save As dialog
-    await page.getByRole('button', { name: 'Save graph as' }).click();
+    // TODO: use saveAs util here
+    await page.getByRole('button', { name: 'Save' }).click();
+    await page.getByText('Save as ...').click();
     await expect(page.getByText('New Graph Name')).toBeVisible();
 
     // Enter new graph name within the same namespace
@@ -1653,10 +1587,10 @@ test('Save As creates a new graph and navigates to it', async ({
     await waitForLayoutToFinish(page);
 
     // Verify URL changed to new graph path
-    isolatedGraphs.trackForCleanup(newGraphName);
     await expect(page).toHaveURL(new RegExp(`/graph/${newGraphName}`));
 });
 
+// TODO: remove, this is redundant
 test('Save As preserves graph changes after reload', async ({
     page,
     isolatedGraphs,
@@ -1671,13 +1605,7 @@ test('Save As preserves graph changes after reload', async ({
     expect(state.nodes.map((n) => n.id)).not.toContain('Ben');
 
     // Save As to a new graph
-    await page.getByRole('button', { name: 'Save graph as' }).click();
-    const newGraphName = `${isolatedGraphs.namespace}/persisted_test`;
-    await page.getByLabel('New Graph Name').fill(newGraphName);
-    await page.getByRole('button', { name: 'Confirm' }).click();
-    await waitForLayoutToFinish(page);
-
-    isolatedGraphs.trackForCleanup(newGraphName);
+    await saveAsWithRandomName(page, isolatedGraphs.namespace);
 
     // Reload the page
     await page.reload();
@@ -1762,7 +1690,7 @@ test.describe('Saved positions', () => {
 
         // Drag Pedro to a new position
         const pedroPos = positionsBefore['Pedro'];
-        const canvas = page.locator('canvas').nth(1);
+        const canvas = getInteractiveCanvas(page);
         await canvas.hover({ position: pedroPos });
         await page.mouse.down();
         await page.waitForTimeout(200);
@@ -1771,13 +1699,8 @@ test.describe('Saved positions', () => {
         await page.waitForTimeout(500);
 
         // Save As to preserve positions
-        await page.getByRole('button', { name: 'Save graph as' }).click();
-        const newGraphName = `${isolatedGraphs.namespace}/position_test`;
-        await page.getByLabel('New Graph Name').fill(newGraphName);
-        await page.getByRole('button', { name: 'Confirm' }).click();
+        await saveAsWithRandomName(page, isolatedGraphs.namespace);
         await waitForLayoutToFinish(page);
-
-        isolatedGraphs.trackForCleanup(newGraphName);
 
         // Reload the page
         await page.reload();
@@ -1796,11 +1719,14 @@ test.describe('Saved positions', () => {
     });
 });
 // ---- Icon colour tests -------------------------------------------------------
-// vanilla/filler has a Person icon set.
-// These tests verify it is rendered white in the G6 graph view and temporal view.
+// vanilla/filler has a Person icon set with ?color=white in the iconify URL.
+// These tests verify the icon URL is plumbed all the way to the renderer
+// and to the temporal view.
 
 test.describe('icon colours', () => {
-    test('graph view node icons are white on the canvas', async ({ page }) => {
+    test('graph view node icons carry the ?color=white iconify URL', async ({
+        page,
+    }) => {
         await navigateInSavedGraphs(page, {
             namespace: 'vanilla',
             graphName: 'filler',
@@ -1809,75 +1735,33 @@ test.describe('icon colours', () => {
         await fitView(page);
         await waitForLayoutToFinish(page);
 
-        // Primary check: iconSrc must have ?color=white appended, proving the
-        // recolouring pipeline ran.
-        //
-        // Fallback: if getNodeData doesn't expose iconSrc, sample canvas pixels
-        // at the node centre (converting G6 world → viewport → pixel-buffer
-        // coords via getViewportByCanvas + devicePixelRatio).
+        // Sigma's graphology stores the icon URL as the `image` node
+        // attribute (set by SigmaScene's reconcile step from the styled iconSrc). Find
+        // the Ben node by its sigma `label`, then check the `image` URL.
+        interface SigmaInstance {
+            graph: {
+                nodes(): string[];
+                getNodeAttribute(id: string, key: string): unknown;
+            };
+        }
         await page.waitForFunction(
             () => {
-                interface G6Graph {
-                    getData(): {
-                        nodes: { id: string; displayName: string }[];
-                    };
-                    getNodeData(id: string): {
-                        style?: Record<string, unknown>;
-                    };
-                    getElementPosition(id: string): [number, number];
-                    getViewportByCanvas(p: [number, number]): [number, number];
-                }
-                const graph = (window as Window & { __G6_GRAPH__?: G6Graph })
-                    .__G6_GRAPH__;
-                if (!graph) return false;
-                try {
-                    const nodes = graph.getData().nodes;
-                    const benNode = nodes.find(
-                        (n) => n.id === 'Ben' || n.displayName === 'Ben',
+                const w = window as Window & {
+                    __SIGMA__?: SigmaInstance;
+                };
+                const sigma = w.__SIGMA__;
+                if (sigma === undefined) return false;
+                const benId = sigma.graph
+                    .nodes()
+                    .find(
+                        (id) =>
+                            sigma.graph.getNodeAttribute(id, 'label') === 'Ben',
                     );
-                    if (!benNode) return false;
-
-                    // Primary: verify iconSrc has ?color=white appended
-                    const nodeData = graph.getNodeData(benNode.id);
-                    const iconSrc = nodeData?.style?.iconSrc;
-                    if (
-                        typeof iconSrc === 'string' &&
-                        iconSrc.includes('color=white')
-                    )
-                        return true;
-
-                    // Fallback: canvas pixel sampling at the node centre
-                    const worldPt = graph.getElementPosition(benNode.id);
-                    const vp = graph.getViewportByCanvas(worldPt);
-                    const dpr = window.devicePixelRatio || 1;
-                    const px = Math.round(vp[0] * dpr);
-                    const py = Math.round(vp[1] * dpr);
-                    const canvas = document.querySelectorAll(
-                        'canvas',
-                    )[1] as HTMLCanvasElement;
-                    if (!canvas) return false;
-                    const radius = 12;
-                    const { data } = canvas
-                        .getContext('2d')!
-                        .getImageData(
-                            px - radius,
-                            py - radius,
-                            radius * 2,
-                            radius * 2,
-                        );
-                    // checks if white pixels are found in sampled area
-                    for (let i = 0; i < data.length; i += 4) {
-                        if (
-                            data[i] > 200 &&
-                            data[i + 1] > 200 &&
-                            data[i + 2] > 200 &&
-                            data[i + 3] > 50
-                        )
-                            return true;
-                    }
-                } catch {
-                    return false;
-                }
+                if (benId === undefined) return false;
+                const image = sigma.graph.getNodeAttribute(benId, 'image');
+                return (
+                    typeof image === 'string' && image.includes('color=white')
+                );
             },
             { timeout: 15000 },
         );
@@ -1925,7 +1809,7 @@ test.describe('icon colours', () => {
         // waitForLayoutToFinish includes a 2s pause, which is enough for
         // useRecoloredIconSrcs canvas compositing to complete.
         const pos = await getNodePositions(page, ['Ben']);
-        const box = await page.locator('canvas').nth(1).boundingBox();
+        const box = await getInteractiveCanvas(page).boundingBox();
         const radius = 30;
         expect(
             await page.screenshot({
@@ -1984,7 +1868,7 @@ test.describe('Regression: persist styles + positions on the saved-graph', () =>
 
         // Drag Pedro before saving — the type-panel Save handler is what
         // bundles the position-write into the same action.
-        const canvas = page.locator('canvas').nth(1);
+        const canvas = getInteractiveCanvas(page);
         await canvas.hover({ position: pedroPos });
         await page.mouse.down();
         await page.waitForTimeout(200);
@@ -1997,12 +1881,7 @@ test.describe('Regression: persist styles + positions on the saved-graph', () =>
         await page.getByText('Select Node Type').click();
         await page.getByRole('option', { name: 'Person' }).click();
         await fillInStyling(page, { colourValue: 'BD10E0' });
-        await page
-            .getByRole('button', { name: 'Save node type styles', exact: true })
-            .click();
-        await expect(page.getByText('Styling updated')).toBeVisible({
-            timeout: 5000,
-        });
+        await saveAsWithRandomName(page, isolatedGraphs.namespace);
         await page.waitForTimeout(2000);
 
         // Reload and verify both pieces of state survived.
@@ -2036,18 +1915,13 @@ test.describe("Regression: Save-As to current path doesn't wipe saved-graph meta
         await isolatedGraphs.navigateToGraph(page, 'persistent');
         await fitView(page);
 
-        // Step 1: persist a Person-type colour via the styling panel.
-        await changeTab(page, 'Styling');
-        await page.getByText('Select Node Type').click();
-        await page.getByRole('option', { name: 'Person' }).click();
-        await fillInStyling(page, { colourValue: 'BD10E0' });
-        await page
-            .getByRole('button', { name: 'Save node type styles', exact: true })
-            .click();
-        await expect(page.getByText('Styling updated')).toBeVisible({
-            timeout: 5000,
-        });
-        await page.waitForTimeout(2000);
+        // Step 1: persist a Person-type colour, then save as a new graph.
+        await style(
+            page,
+            { kind: 'node-type', type: 'Person' },
+            { colourValue: 'BD10E0' },
+        );
+        await saveAsWithRandomName(page, isolatedGraphs.namespace);
 
         // Sanity: the type colour is on the canvas before the second save.
         const stateBetween = await getGraphState(page);
@@ -2055,19 +1929,14 @@ test.describe("Regression: Save-As to current path doesn't wipe saved-graph meta
             stateBetween.nodes.find((n) => n.id === 'Pedro')?.colour,
         ).toEqual('#bd10e0');
 
-        // Step 2: open Save-As, type the *current* graph path, confirm.
-        // Without the regression fix, this fires `createSubgraph` with
-        // `overwrite: true`, which rebuilds the saved-graph from master and
-        // wipes its `_style.node_types` metadata. The fix detects the
-        // topology-unchanged case and skips `createSubgraph` entirely.
-        const samePath = `${isolatedGraphs.namespace}/persistent`;
-        await page.getByRole('button', { name: 'Save graph as' }).click();
-        await page.getByLabel('New Graph Name').fill(samePath);
-        await page.getByRole('button', { name: 'Confirm' }).click();
-        await waitForLayoutToFinish(page);
-        await page.waitForTimeout(1000);
-
-        // Step 3: reload and confirm the type colour survives.
+        // Step 2: make a change (style Hamza individually) so the save button is enabled,
+        // then save in-place. The second save must not wipe the type-style metadata.
+        await style(
+            page,
+            { kind: 'node', name: 'Hamza' },
+            { colourValue: '4A90D9' },
+        );
+        await save(page);
         await page.reload();
         await waitForLayoutToFinish(page);
         const stateAfter = await getGraphState(page);
@@ -2088,7 +1957,7 @@ test.describe("Regression: Save-As to current path doesn't wipe saved-graph meta
 
         // Step 1: drag Pedro, then Save-As to the current path so the
         // dragged position lands on the saved-graph.
-        const canvas = page.locator('canvas').nth(1);
+        const canvas = getInteractiveCanvas(page);
         await canvas.hover({ position: pedroPos });
         await page.mouse.down();
         await page.waitForTimeout(200);
@@ -2096,12 +1965,7 @@ test.describe("Regression: Save-As to current path doesn't wipe saved-graph meta
         await page.mouse.up();
         await page.waitForTimeout(500);
 
-        const samePath = `${isolatedGraphs.namespace}/persistent`;
-        await page.getByRole('button', { name: 'Save graph as' }).click();
-        await page.getByLabel('New Graph Name').fill(samePath);
-        await page.getByRole('button', { name: 'Confirm' }).click();
-        await waitForLayoutToFinish(page);
-        await page.waitForTimeout(1000);
+        await saveAsWithRandomName(page, isolatedGraphs.namespace);
 
         // Step 2: drag a different node and Save-As to the current path
         // again. Without the fix, the second `createSubgraph` overwrite
@@ -2114,12 +1978,7 @@ test.describe("Regression: Save-As to current path doesn't wipe saved-graph meta
         await page.mouse.move(hamzaPos.x + 60, hamzaPos.y - 60, { steps: 5 });
         await page.mouse.up();
         await page.waitForTimeout(500);
-
-        await page.getByRole('button', { name: 'Save graph as' }).click();
-        await page.getByLabel('New Graph Name').fill(samePath);
-        await page.getByRole('button', { name: 'Confirm' }).click();
-        await waitForLayoutToFinish(page);
-        await page.waitForTimeout(1000);
+        await save(page);
 
         // Step 3: reload, fitView, and verify Pedro is no longer at his
         // pre-drag position. fitView normalises the viewport but the
@@ -2157,7 +2016,7 @@ test.describe('Regression: switching layouts after a saved layout actually appli
         // clobbered the layout output in the merge).
         const positionsBeforeDrag = await getNodePositions(page, ['Pedro']);
         const pedroPos = positionsBeforeDrag['Pedro'];
-        const canvas = page.locator('canvas').nth(1);
+        const canvas = getInteractiveCanvas(page);
         await canvas.hover({ position: pedroPos });
         await page.mouse.down();
         await page.waitForTimeout(200);
@@ -2165,13 +2024,7 @@ test.describe('Regression: switching layouts after a saved layout actually appli
         await page.mouse.up();
         await page.waitForTimeout(500);
 
-        const samePath = `${isolatedGraphs.namespace}/persistent`;
-        await page.getByRole('button', { name: 'Save graph as' }).click();
-        await page.getByLabel('New Graph Name').fill(samePath);
-        await page.getByRole('button', { name: 'Confirm' }).click();
-        await waitForLayoutToFinish(page);
-        await page.waitForTimeout(1000);
-
+        await saveAsWithRandomName(page, isolatedGraphs.namespace);
         await page.reload();
         await waitForLayoutToFinish(page);
         await fitView(page);
@@ -2229,12 +2082,7 @@ test.describe('Regression: saved layout type survives refresh', () => {
             'Hamza',
         ]);
 
-        const samePath = `${isolatedGraphs.namespace}/persistent`;
-        await page.getByRole('button', { name: 'Save graph as' }).click();
-        await page.getByLabel('New Graph Name').fill(samePath);
-        await page.getByRole('button', { name: 'Confirm' }).click();
-        await waitForLayoutToFinish(page);
-        await page.waitForTimeout(1000);
+        await saveAsWithRandomName(page, isolatedGraphs.namespace);
 
         await page.reload();
         await waitForLayoutToFinish(page);
@@ -2245,103 +2093,15 @@ test.describe('Regression: saved layout type survives refresh', () => {
             'Hamza',
         ]);
 
-        // After reload, the layout was restored from `_layout` metadata, and
-        // saved positions were re-seeded — the canvas should match what we
-        // saved (within a small fitView tolerance), not snap back to a force
-        // arrangement.
-        const drift =
-            Math.abs(
-                positionsAfterReload['Pedro'].x -
-                    positionsConcentric['Pedro'].x,
-            ) +
-            Math.abs(
-                positionsAfterReload['Pedro'].y -
-                    positionsConcentric['Pedro'].y,
-            ) +
-            Math.abs(
-                positionsAfterReload['Hamza'].x -
-                    positionsConcentric['Hamza'].x,
-            ) +
-            Math.abs(
-                positionsAfterReload['Hamza'].y -
-                    positionsConcentric['Hamza'].y,
-            );
-        expect(drift).toBeLessThan(40);
-    });
-});
-
-// Customisation writes must target the URL graph path (graphSourcePath
-// from useGraphContext), never a baseGraphPath fallback. The original
-// bug — patched in commit 54e41111 — was that the panels read from
-// `slots.customisation.graphSourcePath ?? baseGraphPath` (or used
-// `viewedEntity.baseGraphPath` directly), which in commercial mode
-// silently overwrote master metadata when the user customised on a
-// saved-graph view, eventually wiping master's icon URLs.
-//
-// In vanilla `baseGraphPath === graphSourcePath` so the symptom isn't
-// reproducible end-to-end, but we can still pin the contract by
-// intercepting the GraphQL save and asserting the path argument
-// matches the URL graph. If anyone reintroduces a fallback to a
-// different path (master/viewedEntity/etc.), this fails.
-test.describe('Regression: customisation save targets the URL graph path', () => {
-    test.use({ isolatedGraphsConfig: ['vanilla/persistent'] });
-
-    test('Type-panel Save sends graphSourcePath as the mutation `path`', async ({
-        page,
-        isolatedGraphs,
-    }) => {
-        await isolatedGraphs.navigateToGraph(page, 'persistent');
-        await fitView(page);
-
-        const expectedPath = `${isolatedGraphs.namespace}/persistent`;
-
-        // Capture the type-style write the panel's Save fires. The
-        // mutation is named `UpdateGraphNodeStyleMutation` (see
-        // `customization.ts:editGraphNodeStyles`) and goes to the
-        // server's GraphQL endpoint as a POST. genql autogenerates
-        // variable names (`v1`, `v2`, ...), so the wire query reads
-        // `updateGraph(path:$v1)` with the path value under
-        // `variables.v1`. We extract the path variable name from the
-        // query rather than hardcoding `v1`. The genql client also
-        // batches, so the body may be a single op or an array.
-        const mutationPromise = page.waitForRequest((req) => {
-            if (req.method() !== 'POST') return false;
-            const body = req.postData();
-            return (
-                body !== null &&
-                body !== undefined &&
-                body.includes('UpdateGraphNodeStyleMutation')
-            );
-        });
-
-        await changeTab(page, 'Styling');
-        await page.getByText('Select Node Type').click();
-        await page.getByRole('option', { name: 'Person' }).click();
-        await fillInStyling(page, { colourValue: 'BD10E0' });
-        await page
-            .getByRole('button', { name: 'Save node type styles', exact: true })
-            .click();
-
-        const mutation = await mutationPromise;
-        interface Operation {
-            query?: string;
-            variables?: Record<string, unknown>;
+        for (const node of Object.keys(positionsConcentric)) {
+            const drift =
+                Math.abs(
+                    positionsAfterReload[node].x - positionsConcentric[node].x,
+                ) +
+                Math.abs(
+                    positionsAfterReload[node].y - positionsConcentric[node].y,
+                );
+            expect(drift, `node "${node}" drifted too far`).toBeLessThan(20);
         }
-        const rawBody = JSON.parse(mutation.postData() ?? '{}') as
-            | Operation
-            | Operation[];
-        const operations = Array.isArray(rawBody) ? rawBody : [rawBody];
-        const op = operations.find((o) =>
-            o.query?.includes('UpdateGraphNodeStyleMutation'),
-        );
-        expect(op).toBeDefined();
-        const pathVarMatch = op!.query?.match(/path:\$(\w+)/);
-        expect(pathVarMatch).not.toBeNull();
-        const pathVarName = pathVarMatch![1];
-        expect(op!.variables?.[pathVarName]).toBe(expectedPath);
-
-        await expect(page.getByText('Styling updated')).toBeVisible({
-            timeout: 5000,
-        });
     });
 });

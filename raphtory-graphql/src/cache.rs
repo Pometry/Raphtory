@@ -8,7 +8,6 @@ use quick_cache::{
     sync::{Cache, EntryAction, EntryResult},
     DefaultHashBuilder, Lifecycle, UnitWeighter,
 };
-use raphtory::prelude::AdditionOps;
 use std::future::Future;
 use tracing::{debug, error};
 
@@ -16,16 +15,9 @@ use tracing::{debug, error};
 pub struct ArcPinned;
 
 fn flush_graph(val: GraphWithVectors) -> () {
-    val.set_flushing(true);
-    val.set_dirty(false); // make sure this is reset before the flush so any mutation that gets triggered afterwards will set the graph back to dirty
-    let graph = val.graph();
-    if let Err(e) = graph.flush() {
+    if let Err(e) = val.persist() {
         error!("Failed to flush graph {}: {e}", val.folder().local_path())
     }
-    if let Err(e) = val.folder().replace_graph_data(graph.clone()) {
-        error!("Failed to write graph {}: {e}", val.folder().local_path())
-    }
-    val.set_flushing(false);
 }
 
 impl Lifecycle<String, GraphWithVectors> for ArcPinned {
@@ -50,9 +42,6 @@ impl Lifecycle<String, GraphWithVectors> for ArcPinned {
 
         val.is_flushing()
     }
-
-    #[inline]
-    fn begin_request(&self) -> Self::RequestState {}
 
     #[inline]
     fn on_evict(&self, _state: &mut Self::RequestState, _key: String, graph: GraphWithVectors) {

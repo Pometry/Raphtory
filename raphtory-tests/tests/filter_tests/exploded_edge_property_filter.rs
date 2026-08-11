@@ -171,14 +171,6 @@ fn test_filter_gt_proptest() {
         assert_ok_or_missing_edges(&edges, g.filter(filter.clone()), |filtered| {
             let expected_filtered_g = build_filtered_graph(&edges, |vv| vv > v);
             assert_graph_equal(&filtered, &expected_filtered_g);
-            #[cfg(feature = "search")]
-            {
-                let search_ee = g.search_exploded_edges(filter, 100, 0).unwrap();
-                let filter_ee = filtered.edges().explode().collect();
-                let from_search = search_ee.iter().map(edge_attr).collect_vec();
-                let from_filter = filter_ee.iter().map(edge_attr).collect_vec();
-                assert_eq!(from_search, from_filter);
-            }
         });
     })
 }

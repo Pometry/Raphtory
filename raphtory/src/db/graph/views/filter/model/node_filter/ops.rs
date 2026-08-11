@@ -14,7 +14,7 @@ pub trait NodeIdFilterOps: InternalNodeIdFilterBuilder {
     }
 
     fn ne<T: Into<GID>>(&self, value: T) -> Self::Wrapped<NodeIdFilter> {
-        let filter = Filter::ne_id(self.field_name(), value).into();
+        let filter = Filter::ne_id(self.field_name(), value);
         self.wrap(NodeIdFilter(filter))
     }
 
@@ -23,7 +23,7 @@ pub trait NodeIdFilterOps: InternalNodeIdFilterBuilder {
         I: IntoIterator<Item = T>,
         T: Into<GID>,
     {
-        let filter = Filter::is_in_id(self.field_name(), values).into();
+        let filter = Filter::is_in_id(self.field_name(), values);
         self.wrap(NodeIdFilter(filter))
     }
 
@@ -32,47 +32,47 @@ pub trait NodeIdFilterOps: InternalNodeIdFilterBuilder {
         I: IntoIterator<Item = T>,
         T: Into<GID>,
     {
-        let filter = Filter::is_not_in_id(self.field_name(), values).into();
+        let filter = Filter::is_not_in_id(self.field_name(), values);
         self.wrap(NodeIdFilter(filter))
     }
 
     fn lt<V: Into<GID>>(&self, value: V) -> Self::Wrapped<NodeIdFilter> {
-        let filter = Filter::lt(self.field_name(), value).into();
+        let filter = Filter::lt(self.field_name(), value);
         self.wrap(NodeIdFilter(filter))
     }
 
     fn le<V: Into<GID>>(&self, value: V) -> Self::Wrapped<NodeIdFilter> {
-        let filter = Filter::le(self.field_name(), value).into();
+        let filter = Filter::le(self.field_name(), value);
         self.wrap(NodeIdFilter(filter))
     }
 
     fn gt<V: Into<GID>>(&self, value: V) -> Self::Wrapped<NodeIdFilter> {
-        let filter = Filter::gt(self.field_name(), value).into();
+        let filter = Filter::gt(self.field_name(), value);
         self.wrap(NodeIdFilter(filter))
     }
 
     fn ge<V: Into<GID>>(&self, value: V) -> Self::Wrapped<NodeIdFilter> {
-        let filter = Filter::ge(self.field_name(), value).into();
+        let filter = Filter::ge(self.field_name(), value);
         self.wrap(NodeIdFilter(filter))
     }
 
     fn starts_with<S: Into<String>>(&self, s: S) -> Self::Wrapped<NodeIdFilter> {
-        let filter = Filter::starts_with(self.field_name(), s.into()).into();
+        let filter = Filter::starts_with(self.field_name(), s.into());
         self.wrap(NodeIdFilter(filter))
     }
 
     fn ends_with<S: Into<String>>(&self, s: S) -> Self::Wrapped<NodeIdFilter> {
-        let filter = Filter::ends_with(self.field_name(), s.into()).into();
+        let filter = Filter::ends_with(self.field_name(), s.into());
         self.wrap(NodeIdFilter(filter))
     }
 
     fn contains<S: Into<String>>(&self, s: S) -> Self::Wrapped<NodeIdFilter> {
-        let filter = Filter::contains(self.field_name(), s.into()).into();
+        let filter = Filter::contains(self.field_name(), s.into());
         self.wrap(NodeIdFilter(filter))
     }
 
     fn not_contains<S: Into<String>>(&self, s: S) -> Self::Wrapped<NodeIdFilter> {
-        let filter = Filter::not_contains(self.field_name(), s.into()).into();
+        let filter = Filter::not_contains(self.field_name(), s.into());
         self.wrap(NodeIdFilter(filter))
     }
 
@@ -82,8 +82,7 @@ pub trait NodeIdFilterOps: InternalNodeIdFilterBuilder {
         levenshtein_distance: usize,
         prefix_match: bool,
     ) -> Self::Wrapped<NodeIdFilter> {
-        let filter =
-            Filter::fuzzy_search(self.field_name(), s, levenshtein_distance, prefix_match).into();
+        let filter = Filter::fuzzy_search(self.field_name(), s, levenshtein_distance, prefix_match);
         self.wrap(NodeIdFilter(filter))
     }
 }

@@ -1,11 +1,8 @@
 use super::{
-    document::GqlDocument,
-    edge::GqlEdge,
-    node::GqlNode,
-    node_id::GqlNodeId,
-    vectorised_graph::{IntoWindowTuple, VectorisedGraphWindow},
+    document::GqlDocument, edge::GqlEdge, node::GqlNode, node_id::GqlNodeId,
+    vectorised_graph::VectorisedGraphWindow,
 };
-use crate::rayon::blocking_compute;
+use crate::{model::graph::vectorised_graph::IntoWindowTuple, rayon::blocking_compute};
 use dynamic_graphql::{InputObject, ResolvedObject, ResolvedObjectFields};
 use raphtory::{
     db::api::view::MaterializedGraph,

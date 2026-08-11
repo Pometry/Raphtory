@@ -38,6 +38,7 @@ pub struct Properties {
     has_properties: bool,
     has_deletions: bool,
     pub additions_count: usize,
+    pub deletions_count: usize,
 }
 
 pub(crate) struct PropMutEntry<'a> {
@@ -286,6 +287,10 @@ impl Properties {
         self.t_properties.len()
     }
 
+    pub fn deletions_count(&self) -> usize {
+        self.deletions_count
+    }
+
     pub fn num_updates(&self) -> usize {
         self.t_properties.len()
             + self
@@ -355,6 +360,7 @@ impl<'a> PropMutEntry<'a> {
         }
 
         self.properties.has_deletions = true;
+        self.properties.deletions_count += 1;
 
         let prop_timestamps = &mut self.properties.deletions[self.row];
         prop_timestamps.set(t, edge_id.unwrap_or_default());
