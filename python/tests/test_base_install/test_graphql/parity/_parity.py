@@ -168,34 +168,14 @@ KNOWN_GAPS = {
         "RemoteTemporalProperty.latest() has no local TemporalProperty "
         "equivalent (local exposes latest() on TemporalProperties only)"
     ),
-    # Filter-expression gaps (see test_parity_filters.py). These are genuine
-    # local↔remote *disagreements*: an expression the local engine accepts is
-    # refused by the remote lowering, so the same program means different things
-    # on the two sides.
-    #
-    # All three share one root cause. Locally, `collection[expr]` is *always*
-    # membership selection — it keeps the members the expression leaves visible
-    # and hands them back over the unrestricted graph — and it accepts any
-    # expression, graph views included. On the wire, membership selection is the
-    # `select` field, whose argument is kind-typed (`NodeFilter` / `EdgeFilter`),
-    # so an expression that is not kind-typed has no spelling. The neighbouring
-    # `filter` field is NOT a substitute: it rescopes the collection rather than
-    # narrowing it, so members that the expression excludes stay in the result.
-    # Closing these needs a server field that applies a general `GqlFilter` with
-    # select semantics; there is no client-only lowering.
-    "filter.exploded_edge.props": (
-        "ExplodedEdge property and metadata filters are refused remotely "
-        "(ValueError: Not supported) but accepted locally; the ExplodedEdge "
-        "predicates (is_valid / is_deleted / is_self_loop) do cross the wire "
-        "because they also export as plain edge filters. The property form has "
-        "no wire representation at all: FilterTree (the transportable export) "
-        "has no ExplodedEdge variant, and the GraphQL schema has no "
-        "exploded-edge filter input type"
-    ),
-    # An entity-type-mismatched `[expr]` used to be a fourth entry here: both
-    # sides refused it, but as different exception types. The remote now raises
-    # the same Exception('Node filter expected') the local engine does, so the
-    # case is an ordinary assertion in test_parity_filters.py
+    # Two filter-expression gaps used to be ledgered here. ExplodedEdge
+    # property/metadata filters are now transported (FilterTree gained an
+    # ExplodedEdge kind and the schema an `ExplodedEdgeFilter` input), so they
+    # are ordinary matrix entries in test_parity_filters.py. And an
+    # entity-type-mismatched `[expr]` was refused by both sides but as
+    # different exception types; the remote now raises the same
+    # Exception('Node filter expected') the local engine does, so the case is
+    # an ordinary assertion there too
     # (`test_edge_expr_in_a_node_subscript_is_refused_the_same_way`).
     # Remote-only filter application sites. Like the batch-write entries above,
     # these run in the other direction: the remote has the API and the local

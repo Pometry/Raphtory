@@ -1933,6 +1933,190 @@ type EventTime {
 }
 
 """
+GraphQL input type for filtering **exploded edges** — edge views where each
+temporal event is an individually addressable edge instance, rather than
+one aggregated edge across time.
+
+Predicates are evaluated **per event**: a property condition keeps the
+individual updates that match it (and the edges carrying them), where the
+plain `EdgeFilter` evaluates one aggregated value per edge.
+
+Filters can target edge endpoints, properties/metadata, temporal scope,
+layer membership, and structural edge state, and can be combined
+recursively with `And`/`Or`/`Not` — mirroring `EdgeFilter`.
+"""
+input ExplodedEdgeFilter @oneOf {
+	"""
+	Applies a filter to the **source node** of the exploded edge.
+	"""
+	src: NodeFilter
+	"""
+	Applies a filter to the **destination node** of the exploded edge.
+	"""
+	dst: NodeFilter
+	"""
+	Filters an exploded-edge **property** by name and value, evaluated
+	per event.
+	
+	Example:
+	`{ Property: { name: "weight", gt: 0.5 } }`
+	"""
+	property: PropertyFilterNew
+	"""
+	Filters an exploded-edge **metadata field**.
+	
+	Metadata is shared across all temporal versions of an edge.
+	"""
+	metadata: PropertyFilterNew
+	"""
+	Filters a **temporal exploded-edge property**, evaluated within a
+	temporal context per event.
+	"""
+	temporalProperty: PropertyFilterNew
+	"""
+	Logical **AND** over multiple exploded-edge filters.
+	"""
+	and: [ExplodedEdgeFilter!]
+	"""
+	Logical **OR** over multiple exploded-edge filters.
+	"""
+	or: [ExplodedEdgeFilter!]
+	"""
+	Logical **NOT** over a nested exploded-edge filter.
+	"""
+	not: ExplodedEdgeFilter
+	"""
+	Restricts exploded-edge evaluation to a **time window**
+	(inclusive start, exclusive end).
+	"""
+	window: ExplodedEdgeWindowExpr
+	"""
+	Restricts exploded-edge evaluation to a **single point in time**.
+	"""
+	at: ExplodedEdgeTimeExpr
+	"""
+	Restricts exploded-edge evaluation to times **strictly before** a
+	given time.
+	"""
+	before: ExplodedEdgeTimeExpr
+	"""
+	Restricts exploded-edge evaluation to times **strictly after** a
+	given time.
+	"""
+	after: ExplodedEdgeTimeExpr
+	"""
+	Evaluates exploded-edge predicates against the **latest available
+	state**.
+	"""
+	latest: ExplodedEdgeUnaryExpr
+	"""
+	Evaluates exploded-edge predicates against a **snapshot** of the graph
+	at a specific time.
+	"""
+	snapshotAt: ExplodedEdgeTimeExpr
+	"""
+	Evaluates exploded-edge predicates against the **most recent
+	snapshot** of the graph.
+	"""
+	snapshotLatest: ExplodedEdgeUnaryExpr
+	"""
+	Restricts evaluation to exploded edges belonging to one or more
+	**layers**.
+	"""
+	layers: ExplodedEdgeLayersExpr
+	"""
+	Matches exploded edges that have at least one event in the current
+	view/window.
+	"""
+	isActive: Boolean
+	"""
+	Matches exploded edges that are structurally valid (i.e. not deleted)
+	in the current view/window.
+	"""
+	isValid: Boolean
+	"""
+	Matches exploded edges that have been deleted in the current
+	view/window.
+	"""
+	isDeleted: Boolean
+	"""
+	Matches exploded edges that are **self-loops**
+	(source node == destination node).
+	"""
+	isSelfLoop: Boolean
+}
+
+"""
+Restricts exploded-edge evaluation to one or more layers and applies a
+nested `ExplodedEdgeFilter`.
+
+Used by `GqlExplodedEdgeFilter::Layers`.
+"""
+input ExplodedEdgeLayersExpr {
+	"""
+	Layer names to include.
+	"""
+	names: [String!]!
+	"""
+	Filter evaluated within the layer-restricted view.
+	"""
+	expr: ExplodedEdgeFilter!
+}
+
+"""
+Restricts exploded-edge evaluation to a single time bound and applies a
+nested `ExplodedEdgeFilter`.
+
+Used by `At`, `Before`, `After`, and `SnapshotAt` exploded-edge filters.
+"""
+input ExplodedEdgeTimeExpr {
+	"""
+	Reference time for the operation.
+	"""
+	time: TimeInput!
+	"""
+	Filter evaluated within the restricted time scope.
+	"""
+	expr: ExplodedEdgeFilter!
+}
+
+"""
+Applies a unary edge-view operation and then evaluates a nested
+`ExplodedEdgeFilter`.
+
+Used by `Latest` and `SnapshotLatest` exploded-edge filters.
+"""
+input ExplodedEdgeUnaryExpr {
+	"""
+	Filter evaluated after applying the unary operation.
+	"""
+	expr: ExplodedEdgeFilter!
+}
+
+"""
+Restricts exploded-edge evaluation to a time window and applies a nested
+`ExplodedEdgeFilter`.
+
+Used by `GqlExplodedEdgeFilter::Window`.
+
+The window is inclusive of `start` and exclusive of `end`.
+"""
+input ExplodedEdgeWindowExpr {
+	"""
+	Window start time (inclusive).
+	"""
+	start: TimeInput!
+	"""
+	Window end time (exclusive).
+	"""
+	end: TimeInput!
+	"""
+	Filter evaluated within the restricted window.
+	"""
+	expr: ExplodedEdgeFilter!
+}
+
+"""
 Fuzzy string match: passes when the candidate is within `levenshteinDistance`
 edits of `value` (optionally also matching by prefix). Mirrors the local
 `fuzzy_search(value, levenshtein_distance, prefix_match)` builder.
@@ -1969,6 +2153,11 @@ input GqlFilter @oneOf {
 	(Persisted filters may use the legacy `edge` key.)
 	"""
 	edges: EdgeFilter
+	"""
+	Filter exploded edges — per-event edge instances — by properties,
+	endpoints, or temporal state, evaluated per event.
+	"""
+	explodedEdges: ExplodedEdgeFilter
 	"""
 	Apply a graph-level view (window, snapshot, layer restriction, …).
 	"""

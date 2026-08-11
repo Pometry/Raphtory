@@ -90,6 +90,9 @@ impl<T: TryAsCompositeFilter> TryAsCompositeFilter for NotFilter<T> {
         if let Ok(f) = self.try_as_composite_edge_filter() {
             return Ok(FilterTree::Edge(f));
         }
+        if let Ok(f) = self.try_as_composite_exploded_edge_filter() {
+            return Ok(FilterTree::ExplodedEdge(f));
+        }
         Ok(FilterTree::Not(Box::new(self.0.try_as_filter_tree()?)))
     }
 

@@ -472,6 +472,20 @@ PREDICATE_EXPRS = {
     "pred.exploded.is_self_loop": lambda: f.ExplodedEdge.is_self_loop(),
 }
 
+# Exploded-edge property reads: evaluated per event rather than per aggregated
+# edge, so an edge survives when *some* event matches and is scoped to the
+# matching events (`hub -> spoke2` carries weights 2.5 and 9.5, so `> 2.0`
+# keeps it while `!= "zz"` on the note drops the 9.5 event). Unlike the plain
+# edge metadata read — which is layer-keyed and matches nothing unqualified —
+# the exploded metadata read resolves per event, so the equality bites.
+EXPLODED_EXPRS = {
+    "exploded.prop.gt": lambda: f.ExplodedEdge.property("weight") > 2.0,
+    "exploded.prop.eq": lambda: f.ExplodedEdge.property("weight") == 3.5,
+    "exploded.metadata.eq": lambda: f.ExplodedEdge.metadata("kind") == "strong",
+    "exploded.comb.and": lambda: (f.ExplodedEdge.property("weight") > 2.0)
+    & (f.ExplodedEdge.property("note") != "zz"),
+}
+
 EXPRS = {
     **NODE_PROPERTY_EXPRS,
     **NODE_FIELD_EXPRS,
@@ -483,6 +497,7 @@ EXPRS = {
     **VIEW_EXPRS,
     **SCOPED_EXPRS,
     **PREDICATE_EXPRS,
+    **EXPLODED_EXPRS,
 }
 
 
@@ -527,6 +542,7 @@ _EDGE_AXIS_PREFIXES = (
     "pred.edge.",
     "pred.exploded.",
     "comb.edge_",
+    "exploded.",
 )
 _NODE_AXIS_PREFIXES = (
     "node.",
@@ -827,6 +843,7 @@ SITE_EXPRS = [
     "view.and_node",
     "scoped.node.window",
     "scoped.edge.layer",
+    "exploded.prop.gt",
 ]
 
 _SITE_MATRIX = [(site, name) for site in sorted(FILTER_SITES) for name in SITE_EXPRS]
@@ -900,6 +917,8 @@ GETITEM_SITES = {
             "source.edge.metadata.is_some",
             "comb.edge_or",
             "comb.edge_not",
+            "exploded.prop.gt",
+            "exploded.metadata.eq",
         ],
     ),
 }
@@ -1035,16 +1054,26 @@ NODE_SUBSCRIPT_SITES = {
 @pytest.mark.parametrize(
     "site", sorted(NODE_SUBSCRIPT_SITES), ids=sorted(NODE_SUBSCRIPT_SITES)
 )
-def test_edge_expr_in_a_node_subscript_is_refused_the_same_way(filter_pair, site):
+@pytest.mark.parametrize(
+    "kind,build",
+    [
+        ("edge", lambda: f.Edge.property("weight") > 2.0),
+        ("exploded", lambda: f.ExplodedEdge.property("weight") > 2.0),
+    ],
+    ids=["edge", "exploded"],
+)
+def test_edge_expr_in_a_node_subscript_is_refused_the_same_way(
+    filter_pair, site, kind, build
+):
     """An edge test in `nodes[expr]` raises the same exception on both sides.
 
-    An edge predicate says nothing about which nodes belong in a node
-    collection, so both backends refuse it — and they have to refuse it as the
-    *same* exception with the same reason, or a caller cannot write one `except`
-    clause that works against either graph.
+    An edge predicate — aggregated or exploded — says nothing about which nodes
+    belong in a node collection, so both backends refuse it — and they have to
+    refuse it as the *same* exception with the same reason, or a caller cannot
+    write one `except` clause that works against either graph.
     """
     reach = NODE_SUBSCRIPT_SITES[site]
-    read = lambda g: [n.name for n in reach(g)[f.Edge.property("weight") > 2.0]]
+    read = lambda g: [n.name for n in reach(g)[build()]]
     assert_parity(filter_pair, read)
 
     with pytest.raises(Exception) as local_exc:
@@ -1052,7 +1081,7 @@ def test_edge_expr_in_a_node_subscript_is_refused_the_same_way(filter_pair, site
     with pytest.raises(Exception) as remote_exc:
         read(filter_pair.remote)
     assert str(local_exc.value) in str(remote_exc.value), (
-        f"{site}[edge expr]: the remote rejection lost the local reason\n"
+        f"{site}[{kind} expr]: the remote rejection lost the local reason\n"
         f"  local : {local_exc.value}\n"
         f"  remote: {remote_exc.value}"
     )
@@ -1103,23 +1132,8 @@ def test_is_in_with_a_mistyped_value_matches_nothing_on_both_sides(filter_pair):
 # strict xfail, so the day it closes the suite goes red and the entry has to be
 # deleted here and in `_parity.py`.
 FILTER_GAP_CASES = [
-    # ExplodedEdge *predicates* (is_valid / is_deleted / is_self_loop) do cross
-    # the wire — they are in the matrix above. Its property and metadata reads
-    # do not.
-    (
-        "filter.exploded_edge.props",
-        lambda g: sorted(
-            (e.src.name, e.dst.name)
-            for e in g.filter(f.ExplodedEdge.property("weight") > 2.0).edges
-        ),
-    ),
-    (
-        "filter.exploded_edge.props",
-        lambda g: sorted(
-            (e.src.name, e.dst.name)
-            for e in g.filter(f.ExplodedEdge.metadata("kind") == "strong").edges
-        ),
-    ),
+    # ExplodedEdge expressions — predicates AND property/metadata reads — now
+    # cross the wire; they are in the matrix above (`EXPLODED_EXPRS`).
     # Remote-only application sites: the local Edge / Edges / NestedEdges have
     # no `filter` at all (locally, filtering is a node-view-op plus GraphView).
     (

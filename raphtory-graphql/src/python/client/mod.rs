@@ -42,7 +42,7 @@ pub mod remote_sorting;
 /// the local engine refuses one in a `nodes[...]` subscript.
 fn tests_edges(tree: &FilterTree) -> bool {
     match tree {
-        FilterTree::Edge(_) => true,
+        FilterTree::Edge(_) | FilterTree::ExplodedEdge(_) => true,
         FilterTree::Node(_) | FilterTree::View(_) => false,
         FilterTree::And(items) | FilterTree::Or(items) => items.iter().any(tests_edges),
         FilterTree::Not(inner) => tests_edges(inner),

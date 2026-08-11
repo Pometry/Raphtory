@@ -112,6 +112,9 @@ impl<L: TryAsCompositeFilter, R: TryAsCompositeFilter> TryAsCompositeFilter for 
         if let Ok(f) = self.try_as_composite_edge_filter() {
             return Ok(FilterTree::Edge(f));
         }
+        if let Ok(f) = self.try_as_composite_exploded_edge_filter() {
+            return Ok(FilterTree::ExplodedEdge(f));
+        }
         Ok(FilterTree::And(vec![
             self.left.try_as_filter_tree()?,
             self.right.try_as_filter_tree()?,
