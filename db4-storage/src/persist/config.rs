@@ -15,7 +15,7 @@ use tempfile::NamedTempFile;
 /// `Config` is the resolved configuration used internally and persisted to
 /// `config.json`. User-facing overrides are supplied via [`ArgsOps`].
 pub trait ConfigOps: Serialize + DeserializeOwned + Sized + Clone {
-    type Args: ArgsOps<Config = Self> + From<Self>;
+    type Args: ArgsOps<Config = Self>;
 
     fn load_from_dir(dir: &Path) -> Result<Self, StorageError> {
         let config_file = dir.join(CONFIG_FILE_NAME);

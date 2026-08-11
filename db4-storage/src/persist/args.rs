@@ -22,7 +22,7 @@ use tracing::error;
 /// that are not set by the user are filled with default values. `Config` is then used
 /// internally to configure the storage implementation.
 pub trait ArgsOps: Sized + Clone + ClapArgs {
-    type Config: ConfigOps<Args = Self> + From<Self>;
+    type Config: ConfigOps<Args = Self>;
 
     /// Merge the `Some` values in `new_args` into `self`.
     ///
