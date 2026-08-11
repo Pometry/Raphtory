@@ -1,5 +1,5 @@
 use dynamic_graphql::{Mutation, MutationFields};
-use raphtory_graphql::{model::MutRoot, plugin::schema::RegisterPlugin};
+use raphtory_graphql::model::MutRoot;
 
 #[derive(Mutation)]
 pub(crate) struct HelloMutation(MutRoot);
