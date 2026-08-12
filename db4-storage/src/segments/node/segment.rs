@@ -5,14 +5,17 @@ use crate::{
     loop_lock_write,
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
     segments::{
-        node::{entry::{MemNodeEntry, MemNodeRef}, ArcLockedNodeSegmentView},
         HasRow, SegmentContainer,
+        node::{
+            ArcLockedNodeSegmentView,
+            entry::{MemNodeEntry, MemNodeRef},
+        },
     },
     wal::LSN,
 };
 use either::Either;
 use parking_lot::{
-    lock_api::ArcRwLockReadGuard, RawRwLock, RwLock, RwLockReadGuard, RwLockWriteGuard,
+    RawRwLock, RwLock, RwLockReadGuard, RwLockWriteGuard, lock_api::ArcRwLockReadGuard,
 };
 use raphtory_api::core::{
     Direction,

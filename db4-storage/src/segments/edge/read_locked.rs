@@ -1,19 +1,13 @@
 use crate::{
+    LocalPOS,
     api::edges::LockedEdgeSegment,
     segments::edge::{entry::MemEdgeRef, segment::MemEdgeSegment},
     utils::Iter4,
-    LocalPOS,
 };
-use parking_lot::{
-    lock_api::ArcRwLockReadGuard,
-    RawRwLock,
-};
-use raphtory_api::core::entities::{
-    properties::meta::STATIC_GRAPH_LAYER_ID,
-    LayerId,
-};
+use parking_lot::{RawRwLock, lock_api::ArcRwLockReadGuard};
+use raphtory_api::core::entities::{LayerId, properties::meta::STATIC_GRAPH_LAYER_ID};
 use raphtory_api_macros::box_on_debug_lifetime;
-use raphtory_core::entities::{edges::edge_ref::EdgeRef, LayerIds};
+use raphtory_core::entities::{LayerIds, edges::edge_ref::EdgeRef};
 use rayon::prelude::*;
 
 #[derive(Debug)]

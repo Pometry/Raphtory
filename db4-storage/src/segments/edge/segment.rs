@@ -5,21 +5,18 @@ use crate::{
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
     properties::PropMutEntry,
     segments::{
-        edge::{entry::MemEdgeEntry, ArcLockedEdgeSegmentView},
         HasRow, SegmentContainer,
+        edge::{ArcLockedEdgeSegmentView, entry::MemEdgeEntry},
     },
     wal::LSN,
 };
 use parking_lot::{
-    lock_api::ArcRwLockReadGuard, RawRwLock, RwLock, RwLockReadGuard, RwLockWriteGuard,
+    RawRwLock, RwLock, RwLockReadGuard, RwLockWriteGuard, lock_api::ArcRwLockReadGuard,
 };
 use raphtory_api::core::{
     entities::{
         LayerId, VID,
-        properties::{
-            meta::Meta,
-            prop::AsPropRef,
-        },
+        properties::{meta::Meta, prop::AsPropRef},
     },
     storage::dict_mapper::MaybeNew,
 };

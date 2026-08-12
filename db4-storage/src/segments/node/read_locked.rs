@@ -1,12 +1,9 @@
 use crate::{
+    LocalPOS,
     api::nodes::LockedNodeSegment,
     segments::node::{entry::MemNodeRef, segment::MemNodeSegment},
-    LocalPOS,
 };
-use parking_lot::{
-    lock_api::ArcRwLockReadGuard,
-    RawRwLock,
-};
+use parking_lot::{RawRwLock, lock_api::ArcRwLockReadGuard};
 
 #[derive(Debug)]
 pub struct ArcLockedNodeSegmentView {
