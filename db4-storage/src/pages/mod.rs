@@ -426,12 +426,6 @@ impl<
                     return;
                 }
             }
-            // A missing backing directory means the store's dir was already torn
-            // down (e.g. a temporary graph whose dir was removed first) — there is
-            // nothing left to persist, so skip quietly rather than aborting under
-            // panic-on-drop. Real flush failures, where the dir still exists, still
-            // surface loudly.
-            Err(err) if err.is_missing_path() => {}
             Err(err) => {
                 drop_error!("Failed to flush storage in drop: {err}");
             }

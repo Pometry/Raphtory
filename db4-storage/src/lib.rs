@@ -139,43 +139,6 @@ pub mod error {
         pub fn from_external<E: std::error::Error + Send + Sync + 'static>(error: E) -> Self {
             Self::External(Arc::new(error))
         }
-
-        /// True when this error is ultimately "the path does not exist" (ENOENT).
-        ///
-        /// Flush-on-drop paths use this to tolerate a backing directory that was
-        /// already removed (e.g. a temporary store whose directory was torn down
-        /// before the store itself dropped): there is nothing left to persist, so
-        /// the drop becomes a no-op instead of a hard failure. Genuine flush
-        /// errors — where the directory still exists — are unaffected.
-        pub fn is_missing_path(&self) -> bool {
-            matches!(
-                self,
-                StorageError::IO { source, .. } if source.kind() == io::ErrorKind::NotFound
-            )
-        }
-    }
-
-    #[cfg(test)]
-    mod is_missing_path_tests {
-        use super::StorageError;
-        use std::io;
-
-        #[test]
-        fn detects_not_found() {
-            let err: StorageError = io::Error::from(io::ErrorKind::NotFound).into();
-            assert!(err.is_missing_path());
-        }
-
-        #[test]
-        fn ignores_other_io_errors() {
-            let err: StorageError = io::Error::from(io::ErrorKind::PermissionDenied).into();
-            assert!(!err.is_missing_path());
-        }
-
-        #[test]
-        fn ignores_non_io_errors() {
-            assert!(!StorageError::GenericFailure("boom".into()).is_missing_path());
-        }
     }
 
     impl From<io::Error> for StorageError {
