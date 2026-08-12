@@ -1,15 +1,19 @@
 use crate::{
     auth::{AuthenticatedGraphQL, MutationAuth},
     auth_policy::AuthorizationPolicy,
-    config::{app_config::AppConfig, auth_config::PublicKeyError},
+    cli::ServerArgs,
+    config::{
+        app_config::{AppConfig, AppConfigBuilder},
+        auth_config::PublicKeyError,
+    },
     data::Data,
     model::App,
     observability::open_telemetry::OpenTelemetry,
+    plugin::schema::RegisterPlugin,
     routes::{health, version, PublicFilesEndpoint},
     server::ServerError::SchemaError,
 };
 use async_graphql::dynamic::Schema;
-use config::ConfigError;
 use once_cell::sync::Lazy;
 use opentelemetry::trace::TracerProvider;
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
@@ -27,6 +31,7 @@ use poem::{
 use raphtory::db::api::storage::storage::Config;
 use serde_json::json;
 use std::{
+    error::Error,
     fs::create_dir_all,
     future::Future,
     io::ErrorKind,
@@ -56,14 +61,13 @@ use tracing_subscriber::{
 };
 use url::ParseError;
 
-use crate::{
-    cli::ServerArgs, config::app_config::AppConfigBuilder, plugin::schema::RegisterPlugin,
-};
 #[cfg(feature = "vectors")]
 use {
     crate::{paths::ExistingGraphFolder, GQLError},
     raphtory::vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate},
 };
+
+pub use config::ConfigError;
 
 pub const DEFAULT_PORT: u16 = 1736;
 
@@ -112,6 +116,12 @@ pub enum ServerError {
     SchemaError(String),
     #[error("Failed to create endpoints: {0}")]
     EndpointError(String),
+}
+
+impl ServerError {
+    pub fn config_error(err: impl Error + Send + Sync + 'static) -> Self {
+        Self::ConfigError(ConfigError::Foreign(Box::new(err)))
+    }
 }
 
 impl From<ServerError> for io::Error {
@@ -165,7 +175,7 @@ impl GraphServer {
     }
 
     pub async fn new_from_args(args: ServerArgs) -> Result<Self, ServerError> {
-        let app_config = AppConfigBuilder::new().update_from_args(&args)?.build();
+        let app_config = AppConfigBuilder::new_from_args(args.config_args)?.build();
         let work_dir = args.work_dir;
         let graph_config = args.graph_config;
         GraphServer::new(work_dir, Some(app_config), graph_config).await

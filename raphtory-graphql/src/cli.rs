@@ -48,25 +48,11 @@ pub enum Commands {
     #[command(about = "Print the GraphQL schema")]
     Schema,
 }
+
 #[derive(clap::Args, Debug, Serialize)]
-pub struct ServerArgs {
+pub struct ConfigArgs {
     #[arg(long, help = "Path to stored config.")]
     pub(crate) config_file: Option<PathBuf>,
-    #[arg(
-        long,
-        env = "RAPHTORY_WORK_DIR",
-        default_value = ".",
-        help = help_with_default!("Working directory.", "."),
-        hide_default_value = true
-    )]
-    pub(crate) work_dir: PathBuf,
-
-    #[arg(
-        long,
-        env = "RAPHTORY_PORT",
-        help = help_with_default!("Port for Raphtory to run on.", DEFAULT_PORT)
-    )]
-    port: Option<u16>,
 
     #[arg(long, env = "RAPHTORY_CACHE_CAPACITY", help = help_with_default!("Cache capacity.", DEFAULT_CACHE_CAPACITY))]
     pub(crate) cache_capacity: Option<u64>,
@@ -207,14 +193,36 @@ pub struct ServerArgs {
     #[arg(long, env = "RAPHTORY_PERMISSIONS_STORE_PATH", default_value = None, help = "Path to the JSON permissions store file.")]
     permissions_store_path: Option<PathBuf>,
 
-    #[arg(long, help = "Print the configuration and exit.")]
-    print_config: bool,
-
-    #[command(flatten)]
-    pub(crate) graph_config: Config,
-
     #[command(flatten)]
     pub(crate) extensions: ArgExtensions,
+}
+
+#[derive(clap::Args, Debug, Serialize)]
+pub struct ServerArgs {
+    #[arg(
+        long,
+        env = "RAPHTORY_WORK_DIR",
+        default_value = ".",
+        help = help_with_default!("Working directory.", "."),
+        hide_default_value = true
+    )]
+    pub work_dir: PathBuf,
+
+    #[arg(
+        long,
+        env = "RAPHTORY_PORT",
+        help = help_with_default!("Port for Raphtory to run on.", DEFAULT_PORT)
+    )]
+    pub port: Option<u16>,
+
+    #[arg(long, help = "Print the configuration and exit.")]
+    pub print_config: bool,
+
+    #[command(flatten)]
+    pub config_args: ConfigArgs,
+
+    #[command(flatten)]
+    pub graph_config: Config,
 }
 
 pub async fn cli_with_args<I, T>(args_iter: I) -> IoResult<()>
@@ -280,10 +288,11 @@ mod tests {
     fn generate_config(args: Vec<&str>) -> AppConfig {
         let args = Args::try_parse_from(args).unwrap();
         match args.command {
-            Commands::Server(server_args) => AppConfigBuilder::new()
-                .update_from_args(&server_args)
-                .unwrap()
-                .build(),
+            Commands::Server(server_args) => {
+                AppConfigBuilder::new_from_args(server_args.config_args)
+                    .unwrap()
+                    .build()
+            }
             Commands::Schema => {
                 panic!("expected server command")
             }
