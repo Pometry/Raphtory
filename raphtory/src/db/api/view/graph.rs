@@ -173,10 +173,30 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
 #[inline]
 fn edges_inner<'graph, G: GraphView + 'graph>(g: &G, locked: bool) -> Edges<'graph, G> {
     let graph = g.clone();
+    // The node-list walk below trusts every listed node to be a real source node (it only filters
+    // the far endpoint of each out-edge). That is sound only when the node list is trusted (exact).
+    // An untrusted list — e.g. the intersection of an enumerable filter with a non-enumerable one,
+    // as produced by `AndFilteredGraph::node_list` — is a superset of the actual nodes, so walking a
+    // stale source would surface edges to filtered-out nodes. Fall back to scanning all edges with
+    // `filter_edge` in that case.
+    let trusted_node_list = graph.node_list_trusted();
     let edges: Arc<dyn Fn() -> BoxedLIter<'graph, EdgeRef> + Send + Sync + 'graph> = match graph
         .node_list()
     {
-        NodeList::All { .. } => Arc::new(move || {
+        NodeList::List { elems } if trusted_node_list => Arc::new(move || {
+            let cg = if locked {
+                graph.core_graph().lock()
+            } else {
+                graph.core_graph().clone()
+            };
+            let graph = graph.clone();
+            elems
+                .clone()
+                .into_iter()
+                .flat_map(move |node| node_edges(cg.clone(), graph.clone(), node, Direction::OUT))
+                .into_dyn_boxed()
+        }),
+        _ => Arc::new(move || {
             let layer_ids = graph.layer_ids().clone();
             let graph = graph.clone();
             let gs = if locked {
@@ -195,19 +215,6 @@ fn edges_inner<'graph, G: GraphView + 'graph>(g: &G, locked: bool) -> Edges<'gra
                 }
             })
             .into_dyn_boxed()
-        }),
-        NodeList::List { elems } => Arc::new(move || {
-            let cg = if locked {
-                graph.core_graph().lock()
-            } else {
-                graph.core_graph().clone()
-            };
-            let graph = graph.clone();
-            elems
-                .clone()
-                .into_iter()
-                .flat_map(move |node| node_edges(cg.clone(), graph.clone(), node, Direction::OUT))
-                .into_dyn_boxed()
         }),
     };
     Edges {

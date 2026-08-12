@@ -1,19 +1,16 @@
 """Regression tests: an `and` of node filters must not keep edges to excluded nodes.
 
 Existing composite-filter tests only assert on `nodes.id`, so they never noticed that
-`graph.filter(A & B)` can return an edge whose endpoint is not in the (correctly intersected) node
+`graph.filter(A & B)` could return an edge whose endpoint is not in the (correctly intersected) node
 set. The structural invariant checked here is: for any view, every edge endpoint is a node of the
 view (`view.has_node(endpoint)`).
 
-Marked xfail(strict=True): they currently fail because of the bug; when it is fixed they will pass,
-and strict xfail turns the unexpected pass into a failure, prompting removal of the marker. See
-`ben_docs/filter_and_combinations.py` for the full sweep and `ben_docs/filter_and_edge_leak.py` for
-the minimal case.
+The underlying bug was in `edges_inner` (raphtory/src/db/api/view/graph.rs): it walked an untrusted
+node-list superset and trusted each edge's source, leaking edges to filtered-out nodes.
 """
 
 from itertools import combinations
 
-import pytest
 from raphtory import filter
 from utils import with_variants
 
@@ -53,7 +50,6 @@ def _dangling_edges(view):
     ]
 
 
-@pytest.mark.xfail(reason="`and` of node filters retains edges to excluded nodes", strict=True)
 @with_variants(_init)
 def test_and_filter_keeps_edge_endpoints_minimal():
     def check(graph):
@@ -65,7 +61,6 @@ def test_and_filter_keeps_edge_endpoints_minimal():
     return check
 
 
-@pytest.mark.xfail(reason="`and` of node filters retains edges to excluded nodes", strict=True)
 @with_variants(_init)
 def test_and_filter_combinations_keep_edge_endpoints():
     def check(graph):
