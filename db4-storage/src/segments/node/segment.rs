@@ -1,12 +1,12 @@
 use crate::{
     LocalPOS,
-    api::nodes::{LockedNodeSegment, NodeSegmentOps},
+    api::nodes::NodeSegmentOps,
     error::StorageError,
     loop_lock_write,
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
     segments::{
+        node::{entry::{MemNodeEntry, MemNodeRef}, ArcLockedNodeSegmentView},
         HasRow, SegmentContainer,
-        node::entry::{MemNodeEntry, MemNodeRef},
     },
     wal::LSN,
 };
@@ -430,34 +430,6 @@ pub struct NodeSegmentView<EXT> {
     segment_id: usize,
     max_num_node: AtomicU32,
     _ext: EXT,
-}
-
-#[derive(Debug)]
-pub struct ArcLockedNodeSegmentView {
-    inner: ArcRwLockReadGuard<RawRwLock, MemNodeSegment>,
-    num_nodes: u32,
-}
-
-impl ArcLockedNodeSegmentView {
-    pub fn new(
-        inner: ArcRwLockReadGuard<RawRwLock, MemNodeSegment>,
-        num_nodes: u32,
-    ) -> Self {
-        Self { inner, num_nodes }
-    }
-}
-
-impl LockedNodeSegment for ArcLockedNodeSegmentView {
-    type EntryRef<'a> = MemNodeRef<'a>;
-
-    fn num_nodes(&self) -> u32 {
-        self.num_nodes
-    }
-
-    fn entry_ref<'a>(&'a self, pos: impl Into<LocalPOS>) -> Self::EntryRef<'a> {
-        let pos = pos.into();
-        MemNodeRef::new(pos, &self.inner)
-    }
 }
 
 impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSegmentView<P> {

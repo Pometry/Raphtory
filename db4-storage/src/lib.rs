@@ -217,11 +217,11 @@ pub fn collect_tree_paths(path: &Path) -> Vec<PathBuf> {
     paths
 }
 
-pub fn loop_lock_write<A>(l: &RwLock<A>) -> parking_lot::RwLockWriteGuard<'_, A> {
+pub fn loop_lock_write<A>(lock: &RwLock<A>) -> parking_lot::RwLockWriteGuard<'_, A> {
     const MAX_BACKOFF_US: u64 = 1000; // 1ms max
     let mut backoff_us = 1;
     loop {
-        if let Some(guard) = l.try_write_for(Duration::from_micros(50)) {
+        if let Some(guard) = lock.try_write_for(Duration::from_micros(50)) {
             return guard;
         }
         thread::park_timeout(Duration::from_micros(backoff_us));
