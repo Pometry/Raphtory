@@ -7,7 +7,7 @@ use crate::{
     properties::PropMutEntry,
     segments::{
         HasRow, SegmentContainer,
-        edge::{ArcLockedEdgeSegmentView, entry::MemEdgeEntry},
+        edge::{ReadLockedEdgeSegmentView, entry::MemEdgeEntry},
     },
     wal::LSN,
 };
@@ -378,7 +378,7 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
 
     type Entry<'a> = MemEdgeEntry<'a, RwLockReadGuard<'a, MemEdgeSegment>>;
 
-    type ArcLockedSegment = ArcLockedEdgeSegmentView;
+    type ReadLockedSegment = ReadLockedEdgeSegmentView;
 
     fn extension(&self) -> &Self::Extension {
         &self.ext
@@ -527,8 +527,8 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
         })
     }
 
-    fn locked(self: &Arc<Self>) -> Self::ArcLockedSegment {
-        ArcLockedEdgeSegmentView::new(self.head_arc(), self.num_edges())
+    fn locked(self: &Arc<Self>) -> Self::ReadLockedSegment {
+        ReadLockedEdgeSegmentView::new(self.head_arc(), self.num_edges())
     }
 
     fn vacuum(

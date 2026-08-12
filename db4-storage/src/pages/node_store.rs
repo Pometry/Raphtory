@@ -1,7 +1,7 @@
 use super::{node_page::writer::NodeWriter, resolve_pos};
 use crate::{
     LocalPOS,
-    api::nodes::{LockedNodeSegment, NodeSegmentOps},
+    api::nodes::{ReadLockedNodeSegmentOps, NodeSegmentOps},
     error::StorageError,
     pages::{
         SegmentCounts,
@@ -45,7 +45,7 @@ pub struct NodeStorageInner<NS, EXT> {
 #[derive(Debug)]
 pub struct ReadLockedNodeStorage<NS: NodeSegmentOps<Extension = EXT>, EXT> {
     storage: Arc<NodeStorageInner<NS, EXT>>,
-    locked_segments: Box<[NS::ArcLockedSegment]>,
+    locked_segments: Box<[NS::ReadLockedSegment]>,
 }
 
 impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
@@ -54,7 +54,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     pub fn node_ref(
         &self,
         node: impl Into<VID>,
-    ) -> <<NS as NodeSegmentOps>::ArcLockedSegment as LockedNodeSegment>::EntryRef<'_> {
+    ) -> <<NS as NodeSegmentOps>::ReadLockedSegment as ReadLockedNodeSegmentOps>::EntryRef<'_> {
         let (segment_id, pos) = self.storage.resolve_pos(node);
         let locked_segment = &self.locked_segments[segment_id];
         locked_segment.entry_ref(pos)
@@ -63,7 +63,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     pub fn try_node_ref(
         &self,
         node: VID,
-    ) -> Option<<<NS as NodeSegmentOps>::ArcLockedSegment as LockedNodeSegment>::EntryRef<'_>> {
+    ) -> Option<<<NS as NodeSegmentOps>::ReadLockedSegment as ReadLockedNodeSegmentOps>::EntryRef<'_>> {
         let (segment_id, pos) = self.storage.resolve_pos(node);
         let locked_segment = &self.locked_segments.get(segment_id)?;
         if pos.0 < locked_segment.num_nodes() {
@@ -84,7 +84,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     pub fn iter(
         &self,
     ) -> impl Iterator<
-        Item = <<NS as NodeSegmentOps>::ArcLockedSegment as LockedNodeSegment>::EntryRef<'_>,
+        Item = <<NS as NodeSegmentOps>::ReadLockedSegment as ReadLockedNodeSegmentOps>::EntryRef<'_>,
     > + '_ {
         self.locked_segments
             .iter()
@@ -101,7 +101,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     pub fn par_iter(
         &self,
     ) -> impl ParallelIterator<
-        Item = <<NS as NodeSegmentOps>::ArcLockedSegment as LockedNodeSegment>::EntryRef<'_>,
+        Item = <<NS as NodeSegmentOps>::ReadLockedSegment as ReadLockedNodeSegmentOps>::EntryRef<'_>,
     > + '_ {
         self.locked_segments
             .par_iter()
@@ -241,6 +241,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
             .segments_iter()
             .map(|segment| segment.locked())
             .collect::<Box<_>>();
+
         ReadLockedNodeStorage {
             storage: self.clone(),
             locked_segments,

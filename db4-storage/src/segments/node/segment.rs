@@ -7,7 +7,7 @@ use crate::{
     segments::{
         HasRow, SegmentContainer,
         node::{
-            ArcLockedNodeSegmentView,
+            ReadLockedNodeSegmentView,
             entry::{MemNodeEntry, MemNodeRef},
         },
     },
@@ -441,7 +441,7 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
 
     type Entry<'a> = MemNodeEntry<'a, RwLockReadGuard<'a, MemNodeSegment>>;
 
-    type ArcLockedSegment = ArcLockedNodeSegmentView;
+    type ReadLockedSegment = ReadLockedNodeSegmentView;
 
     fn latest(&self) -> Option<EventTime> {
         self.head().latest()
@@ -565,8 +565,8 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
         MemNodeEntry::new(pos, self.head())
     }
 
-    fn locked(&self) -> Self::ArcLockedSegment {
-        ArcLockedNodeSegmentView::new(self.inner.read_arc(), self.num_nodes())
+    fn locked(&self) -> Self::ReadLockedSegment {
+        ReadLockedNodeSegmentView::new(self.inner.read_arc(), self.num_nodes())
     }
 
     fn flush(

@@ -51,7 +51,7 @@ pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
     where
         Self: 'a;
 
-    type ArcLockedSegment: LockedNodeSegment;
+    type ReadLockedSegment: ReadLockedNodeSegmentOps;
 
     fn latest(&self) -> Option<EventTime>;
 
@@ -116,7 +116,7 @@ pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
 
     fn entry(&self, pos: impl Into<LocalPOS>) -> Self::Entry<'_>;
 
-    fn locked(&self) -> Self::ArcLockedSegment;
+    fn locked(&self) -> Self::ReadLockedSegment;
 
     fn flush(
         &self,
@@ -157,7 +157,7 @@ pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
     ) -> Result<(), StorageError>;
 }
 
-pub trait LockedNodeSegment: Send + Sync + Debug {
+pub trait ReadLockedNodeSegmentOps: Send + Sync + Debug {
     type EntryRef<'a>: NodeRefOps<'a>
     where
         Self: 'a;

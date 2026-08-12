@@ -146,6 +146,7 @@ impl<EXT: PersistenceStrategy<NS = NS>, NS: NodeSegmentOps<Extension = EXT>>
             let LockedNodePage { page, lock, .. } = writer;
             page.vacuum(lock.deref_mut())
         })?;
+
         Ok(())
     }
 

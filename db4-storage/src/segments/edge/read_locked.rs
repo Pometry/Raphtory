@@ -1,6 +1,6 @@
 use crate::{
     LocalPOS,
-    api::edges::LockedEdgeSegment,
+    api::edges::ReadLockedEdgeSegmentOps,
     segments::edge::{entry::MemEdgeRef, segment::MemEdgeSegment},
     utils::Iter4,
 };
@@ -11,12 +11,12 @@ use raphtory_core::entities::{LayerIds, edges::edge_ref::EdgeRef};
 use rayon::prelude::*;
 
 #[derive(Debug)]
-pub struct ArcLockedEdgeSegmentView {
+pub struct ReadLockedEdgeSegmentView {
     inner: ArcRwLockReadGuard<RawRwLock, MemEdgeSegment>,
     num_edges: u32,
 }
 
-impl ArcLockedEdgeSegmentView {
+impl ReadLockedEdgeSegmentView {
     pub(crate) fn new(
         inner: ArcRwLockReadGuard<RawRwLock, MemEdgeSegment>,
         num_edges: u32,
@@ -47,7 +47,7 @@ impl ArcLockedEdgeSegmentView {
     }
 }
 
-impl LockedEdgeSegment for ArcLockedEdgeSegmentView {
+impl ReadLockedEdgeSegmentOps for ReadLockedEdgeSegmentView {
     type EntryRef<'a> = MemEdgeRef<'a>;
 
     fn entry_ref<'a>(

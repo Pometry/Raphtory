@@ -1,7 +1,7 @@
 use super::{edge_page::writer::EdgeWriter, resolve_pos};
 use crate::{
     LocalPOS,
-    api::edges::{EdgeRefOps, EdgeSegmentOps, LockedEdgeSegment},
+    api::edges::{EdgeRefOps, EdgeSegmentOps, ReadLockedEdgeSegmentOps},
     error::StorageError,
     pages::{
         SegmentCounts,
@@ -45,7 +45,7 @@ pub struct EdgeStorageInner<ES, EXT> {
 #[derive(Debug)]
 pub struct ReadLockedEdgeStorage<ES: EdgeSegmentOps<Extension = EXT>, EXT> {
     storage: Arc<EdgeStorageInner<ES, EXT>>,
-    locked_pages: Box<[ES::ArcLockedSegment]>,
+    locked_pages: Box<[ES::ReadLockedSegment]>,
 }
 
 impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
@@ -58,7 +58,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
     pub fn edge_ref(
         &self,
         e_id_ref: Either<EID, EdgeRef>,
-    ) -> <<ES as EdgeSegmentOps>::ArcLockedSegment as LockedEdgeSegment>::EntryRef<'_> {
+    ) -> <<ES as EdgeSegmentOps>::ReadLockedSegment as ReadLockedEdgeSegmentOps>::EntryRef<'_> {
         let e_id = e_id_ref.either(|eid| eid, |eref| eref.pid());
         let (page_id, pos) = self.storage.resolve_pos(e_id);
         let locked_page = &self.locked_pages[page_id];
@@ -69,7 +69,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
         &'a self,
         layer_ids: &'b LayerIds,
     ) -> impl Iterator<
-        Item = <<ES as EdgeSegmentOps>::ArcLockedSegment as LockedEdgeSegment>::EntryRef<'a>,
+        Item = <<ES as EdgeSegmentOps>::ReadLockedSegment as ReadLockedEdgeSegmentOps>::EntryRef<'a>,
     > + 'a {
         self.locked_pages
             .iter()
@@ -80,7 +80,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
         &'a self,
         layer_ids: &'b LayerIds,
     ) -> impl ParallelIterator<
-        Item = <<ES as EdgeSegmentOps>::ArcLockedSegment as LockedEdgeSegment>::EntryRef<'a>,
+        Item = <<ES as EdgeSegmentOps>::ReadLockedSegment as ReadLockedEdgeSegmentOps>::EntryRef<'a>,
     > + 'a {
         self.locked_pages
             .par_iter()

@@ -34,7 +34,7 @@ pub trait EdgeSegmentOps: Send + Sync + Debug + 'static {
     where
         Self: 'a;
 
-    type ArcLockedSegment: LockedEdgeSegment;
+    type ReadLockedSegment: ReadLockedEdgeSegmentOps;
 
     fn extension(&self) -> &Self::Extension;
 
@@ -120,7 +120,7 @@ pub trait EdgeSegmentOps: Send + Sync + Debug + 'static {
         locked_head: Option<RwLockReadGuard<'a, MemEdgeSegment>>,
     ) -> Option<Self::Entry<'a>>;
 
-    fn locked(self: &Arc<Self>) -> Self::ArcLockedSegment;
+    fn locked(self: &Arc<Self>) -> Self::ReadLockedSegment;
 
     fn vacuum(
         &self,
@@ -145,7 +145,7 @@ pub trait EdgeSegmentOps: Send + Sync + Debug + 'static {
     ) -> Result<(), StorageError>;
 }
 
-pub trait LockedEdgeSegment: Send + Sync + Debug {
+pub trait ReadLockedEdgeSegmentOps: Send + Sync + Debug {
     type EntryRef<'a>: EdgeRefOps<'a>
     where
         Self: 'a;

@@ -22,7 +22,7 @@ use storage::{
     api::{
         edges::EdgeSegmentOps,
         graph_props::GraphPropSegmentOps,
-        nodes::{LockedNodeSegment, NodeRefOps, NodeSegmentOps},
+        nodes::{ReadLockedNodeSegmentOps, NodeRefOps, NodeSegmentOps},
     },
     dir::GraphDir,
     error::StorageError,
