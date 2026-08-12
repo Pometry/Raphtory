@@ -4,6 +4,7 @@ use crate::core::{
 };
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDateTime, Utc};
+use num_traits::ToPrimitive;
 use std::sync::Arc;
 
 pub trait PropUnwrap: Sized {
@@ -275,6 +276,7 @@ impl PropUnwrap for Prop {
             Prop::U64(v) => Some(*v as f64),
             Prop::F32(v) => Some(*v as f64),
             Prop::F64(v) => Some(*v),
+            Prop::Decimal(d) => d.to_f64(),
             _ => None,
         }
     }

@@ -596,6 +596,56 @@ def test_balance_algorithm():
     assert result == expected
 
 
+def test_balance_uses_decimal_weights_by_value():
+    """Regression: a `Decimal` edge weight must be summed by its value, not treated as missing.
+    Before `Prop::as_f64` handled `Decimal`, `balance`'s `.as_f64().unwrap_or(1.0)` dropped every
+    Decimal weight to `1.0` (so `a` below would read `-2.0`, `b`/`c` `1.0`)."""
+    from decimal import Decimal
+
+    from raphtory import Prop
+
+    g = Graph()
+    g.add_edge(0, "a", "b", {"w": Prop.decimal(Decimal("2.5"))})
+    g.add_edge(0, "a", "c", {"w": Prop.decimal(Decimal("4.0"))})
+
+    out = algorithms.balance(g, "w", "out")
+    assert out["a"]["balance"] == -6.5  # -(2.5 + 4.0), not the -2.0 of a 1.0-per-edge fallback
+
+    inn = algorithms.balance(g, "w", "in")
+    assert inn["b"]["balance"] == 2.5
+    assert inn["c"]["balance"] == 4.0
+
+
+def test_pagerank_uses_decimal_weights_by_value():
+    """Regression: Decimal edge weights must count in weighted pagerank. Before `Prop::as_f64`
+    handled `Decimal`, `.as_f64().unwrap_or(1.0)` dropped them to 1.0 — i.e. silently unweighted."""
+    from decimal import Decimal
+
+    from raphtory import Prop
+
+    def build(wctor):
+        g = Graph()
+        g.add_edge(0, "a", "b", {"w": wctor(1)})
+        g.add_edge(0, "a", "c", {"w": wctor(9)})  # heavy edge skews score toward c
+        g.add_edge(0, "b", "a", {"w": wctor(1)})
+        g.add_edge(0, "c", "a", {"w": wctor(1)})
+        return g
+
+    dec = algorithms.pagerank(build(lambda x: Prop.decimal(Decimal(x))), weight="w")
+    flt = algorithms.pagerank(build(lambda x: Prop.f64(float(x))), weight="w")
+    unw = algorithms.pagerank(build(lambda x: Prop.decimal(Decimal(x))))  # weight=None
+
+    def score(res, n):
+        return res[n]["pagerank_score"]
+
+    # Decimal weights produce exactly the float-weighted result (both read via as_f64) ...
+    for n in ("a", "b", "c"):
+        assert score(dec, n) == score(flt, n), n
+    # ... and genuinely differ from unweighted, so the weights are actually being applied.
+    assert score(dec, "b") != score(unw, "b")
+    assert score(dec, "c") != score(unw, "c")
+
+
 # Uses NodeState.groups([...]) (datafusion-backed group_by), which is temporarily
 # disabled behind the `datafusion` cargo feature during the arrow-59/pyo3-0.29
 # upgrade. Re-enable this test when the `datafusion` feature is turned back on.
