@@ -1,5 +1,7 @@
+pub(crate) use crate::plugin::server::internal::ServerExtensionImpl;
 use crate::{plugin::server::EXTENSIONS, server::ServerError, GraphServer};
 use clap::{ArgMatches, Command};
+use config::ConfigError;
 use indexmap::{map::IntoValues, IndexMap};
 use serde::{
     de,
@@ -10,8 +12,6 @@ use serde::{
 };
 use serde_json::Value;
 use std::fmt::{Debug, Formatter};
-
-pub(crate) use crate::plugin::server::internal::ServerExtensionImpl;
 
 pub type BoxedExtension = Box<dyn ServerExtensionImpl>;
 pub type ExtensionRef<'a> = &'a dyn ServerExtensionImpl;
@@ -26,6 +26,16 @@ pub trait ServerExtension: Debug + Send + Sync + 'static {
 
     /// hook that gets called on the parsed arguments during server creation
     fn apply(&self, server: GraphServer) -> Result<GraphServer, ServerError>;
+
+    /// hook that gets called when deserialising config
+    ///
+    /// When parsing command-line arguments with the `--config-file` option specified, this hook is
+    /// called on the extension after parsing the command-line arguments. The extension needs to
+    /// handle the precedence of arguments accordingly!
+    fn update_from_json(&mut self, value: &Value) -> Result<(), ServerError>;
+
+    /// serialise config to json
+    fn to_json(&self) -> Result<Value, ServerError>;
 }
 
 #[derive(Debug, Default)]
@@ -79,7 +89,8 @@ impl<'de> Deserialize<'de> for ArgExtensions {
                     let plugin_factory = guard
                         .get(key)
                         .ok_or_else(|| de::Error::custom(format!("unknown plugin {key}")))?;
-                    let plugin = plugin_factory.from_json(value).map_err(de::Error::custom)?;
+                    let mut plugin = plugin_factory.new_boxed_args();
+                    plugin.update_from_json(&value).map_err(de::Error::custom)?;
                     exts.push_boxed(plugin);
                 }
                 Ok(exts)
@@ -130,6 +141,39 @@ impl ArgExtensions {
 
     pub fn iter(&self) -> impl Iterator<Item = ExtensionRef<'_>> {
         self.0.values().map(|ext| ext.as_ref())
+    }
+
+    /// update or insert extensions from json map
+    pub fn update_from_json(&mut self, value: &Value) -> Result<(), ServerError> {
+        match value {
+            Value::Object(map) => {
+                for (name, value) in map {
+                    match self.0.get_mut(name) {
+                        None => {
+                            let mut ext = EXTENSIONS
+                                .lock()
+                                .expect("plugin lock poisoned")
+                                .get(name)
+                                .ok_or_else(|| {
+                                    ConfigError::Message(format!("Unknown plugin {name}"))
+                                })?
+                                .new_boxed_args();
+                            ext.update_from_json(value)?;
+                            self.push_boxed(ext);
+                        }
+                        Some(ext) => {
+                            ext.update_from_json(value)?;
+                        }
+                    }
+                }
+            }
+            _ => {
+                Err(ConfigError::Message(
+                    "expected a map for extensions".to_string(),
+                ))?;
+            }
+        }
+        Ok(())
     }
 }
 

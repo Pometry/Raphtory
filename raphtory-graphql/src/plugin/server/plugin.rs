@@ -1,10 +1,9 @@
 use crate::plugin::server::{extension::ServerExtension, EXTENSIONS};
-use serde::{de::DeserializeOwned, Serialize};
 
 /// Interface for defining a command-line plugin. This only defines the constructor for the actual
 /// plugin, the actual parsing is defined by `Self::Extension`.
 pub trait ServerPlugin: Send + Sync + 'static {
-    type Extension: ServerExtension + clap::Args + Clone + Serialize + DeserializeOwned;
+    type Extension: ServerExtension + clap::Args + Clone;
 
     /// Create a new plugin instance
 

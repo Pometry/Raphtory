@@ -18,8 +18,9 @@ use raphtory_graphql::{
     GraphServer,
 };
 use serde::{Deserialize, Serialize};
-use serde_json::json;
-use std::path::PathBuf;
+use serde_json::{json, to_value, Value};
+use std::{io::Write, path::PathBuf};
+use tempfile::NamedTempFile;
 
 #[derive(clap::Args, Debug, Serialize, Deserialize, Default, Clone)]
 struct TestArgs {
@@ -42,6 +43,18 @@ impl ServerExtension for TestArgs {
 
     fn name(&self) -> &str {
         "test"
+    }
+
+    fn update_from_json(&mut self, value: &Value) -> std::result::Result<(), ServerError> {
+        // only update if test is not already specified via command-line
+        if self.test.is_none() {
+            *self = Self::deserialize(value).map_err(ServerError::config_error)?;
+        }
+        Ok(())
+    }
+
+    fn to_json(&self) -> std::result::Result<Value, ServerError> {
+        to_value(self).map_err(ServerError::config_error)
     }
 }
 
@@ -161,24 +174,82 @@ async fn test_extension_via_conf() {
 }
 
 #[tokio::test]
-async fn test_config_file_support() {
+async fn test_config_file_cmd_override() {
     register_cli_plugin(TestArgPlugin);
 
+    let mut config_file = NamedTempFile::with_suffix(".toml").unwrap();
+    write!(
+        &mut config_file,
+        r#"
+    [extensions.test]
+    test = "test_from_file"
+    "#
+    )
+    .unwrap();
+    config_file.flush().unwrap();
     // check the processing works
-    let args_input: Vec<&str> = vec![r"raphtory-server", "server", "--test", "test"];
+    let args_input: Vec<&str> = vec![
+        r"raphtory-server",
+        "server",
+        "--test",
+        "test",
+        "--config-file",
+        config_file.path().to_str().unwrap(),
+    ];
     let args = raphtory_graphql::cli::Args::try_parse_from(args_input).unwrap();
-    let config = match args.command {
-        Commands::Server(server_args) => AppConfigBuilder::new()
-            .update_from_args(&server_args)
-            .unwrap()
-            .build(),
+    let server = match args.command {
+        Commands::Server(server_args) => GraphServer::new_from_args(server_args).await.unwrap(),
         Commands::Schema => {
             panic!("expected server args")
         }
     };
 
-    let json_config = json!(config);
+    // check the processing works
+    let schema = server.build_schema(None).await.unwrap();
+    let query = r"{ test }";
+    let request = Request::new(query);
+    let result = schema.execute(request).await;
+    assert_eq!(result.errors, vec![]);
+    assert_eq!(result.data.into_json().unwrap(), json!({ "test": "test"}));
+}
 
-    println!("{}", json_config);
-    assert_eq!(json_config["extensions"]["test"]["test"], json!("test"));
+#[tokio::test]
+async fn test_config_file() {
+    register_cli_plugin(TestArgPlugin);
+
+    let mut config_file = NamedTempFile::with_suffix(".toml").unwrap();
+    write!(
+        &mut config_file,
+        r#"
+    [extensions.test]
+    test = "test_from_file"
+    "#
+    )
+    .unwrap();
+    config_file.flush().unwrap();
+    // check the processing works
+    let args_input: Vec<&str> = vec![
+        r"raphtory-server",
+        "server",
+        "--config-file",
+        config_file.path().to_str().unwrap(),
+    ];
+    let args = raphtory_graphql::cli::Args::try_parse_from(args_input).unwrap();
+    let server = match args.command {
+        Commands::Server(server_args) => GraphServer::new_from_args(server_args).await.unwrap(),
+        Commands::Schema => {
+            panic!("expected server args")
+        }
+    };
+
+    // check the processing works
+    let schema = server.build_schema(None).await.unwrap();
+    let query = r"{ test }";
+    let request = Request::new(query);
+    let result = schema.execute(request).await;
+    assert_eq!(result.errors, vec![]);
+    assert_eq!(
+        result.data.into_json().unwrap(),
+        json!({ "test": "test_from_file"})
+    );
 }
