@@ -39,8 +39,7 @@ use raphtory::{
         graph::{
             node::NodeView,
             views::filter::model::{
-                edge_filter::CompositeEdgeFilter, graph_filter::GraphFilter,
-                node_filter::CompositeNodeFilter, DynFilter, DynView,
+                edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter, DynFilter,
             },
         },
     },
@@ -52,7 +51,6 @@ use raphtory_storage::core_ops::CoreGraphOps;
 use std::{
     collections::{HashMap, HashSet},
     convert::{Into, TryInto},
-    sync::Arc,
 };
 
 /// A view of a Raphtory graph. Every field here returns either data from the

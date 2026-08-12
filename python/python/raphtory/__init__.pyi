@@ -69,6 +69,7 @@ __all__ = [
     "algorithms",
     "graph_loader",
     "graph_gen",
+    "vectors",
     "node_state",
     "filter",
     "iterables",
@@ -668,6 +669,26 @@ class GraphView(object):
              GraphView: The layered view
         """
 
+    def vectorise(
+        self,
+        model: VectorCache,
+        nodes: bool | str = True,
+        edges: bool | str = True,
+        verbose: bool = False,
+    ) -> VectorisedGraph:
+        """
+        Create a VectorisedGraph from the current graph.
+
+        Args:
+          model (VectorCache): Cache wrapping the embedding model used to embed documents.
+          nodes (bool | str): Enable for nodes to be embedded, disable for nodes to not be embedded or specify a custom document property to use if a string is provided. Defaults to True.
+          edges (bool | str): Enable for edges to be embedded, disable for edges to not be embedded or specify a custom document property to use if a string is provided. Defaults to True.
+          verbose (bool): Enable to print logs reporting progress. Defaults to False.
+
+        Returns:
+          VectorisedGraph: A VectorisedGraph with all the documents and their embeddings, with an initial empty selection.
+        """
+
     def window(self, start: TimeInput, end: TimeInput) -> GraphView:
         """
          Create a view of the GraphView including all events between `start` (inclusive) and `end` (exclusive)
@@ -1074,9 +1095,9 @@ class Graph(GraphView):
             path (str | PathLike): the path of the graph folder
             config (Config, optional): specify a new config to override the values saved for the graph
                                        (note that the page sizes cannot be overridden and are ignored)
-            read_only (bool): open as a read-only snapshot. Multiple processes can hold
-                              a read-only handle to the same graph directory concurrently;
-                              mutating the returned graph will fail. Defaults to ``False``.
+            read_only (bool): open as a read-only snapshot. Defaults to False.
+                              Multiple processes can hold a read-only handle to the same graph
+                              directory concurrently; mutating the returned graph will fail.
 
         Returns:
             Graph: the graph
@@ -1721,9 +1742,9 @@ class PersistentGraph(GraphView):
             path (str | PathLike): the path of the graph folder
             config (Config, optional): specify a new config to override the values saved for the graph
                                        (note that the page sizes cannot be overridden and are ignored)
-            read_only (bool): open as a read-only snapshot. Multiple processes can hold
-                              a read-only handle to the same graph directory concurrently;
-                              mutating the returned graph will fail. Defaults to ``False``.
+            read_only (bool): open as a read-only snapshot. Defaults to False.
+                              Multiple processes can hold a read-only handle to the same graph
+                              directory concurrently; mutating the returned graph will fail.
 
         Returns:
             PersistentGraph: the graph
@@ -5810,7 +5831,21 @@ class PyPropValueList(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def arrow_compute(self, graph, col_name): ...
+    def arrow_compute(self, graph: GraphView, col_name: str) -> OutputNodeState:
+        """
+        Collect the property values into an arrow-backed node state with a single column.
+
+        The values are taken in order and aligned with the nodes of `graph`, so this is only
+        meaningful when the list was produced by iterating over the nodes of the same graph.
+
+        Arguments:
+            graph (GraphView): the graph whose nodes the values are aligned with
+            col_name (str): the name to give the column holding the property values
+
+        Returns:
+            OutputNodeState: the values as a node state with one column named `col_name`
+        """
+
     def average(self) -> PropValue:
         """
         Compute the average of all property values. Alias for mean().

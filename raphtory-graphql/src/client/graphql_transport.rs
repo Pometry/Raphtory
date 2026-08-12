@@ -18,11 +18,14 @@ use crate::{
         transport::Transport,
         ClientError,
     },
-    model::graph::property::gql_to_prop,
+    model::graph::{
+        filtering::{GqlEdgeFilter, GqlFilter, GqlNodeFilter},
+        property::{gql_to_prop, parse_special_float},
+    },
 };
 use async_graphql::{async_trait, Value as GqlValue};
-use raphtory_api::core::entities::properties::prop::Prop;
-use serde::Serialize;
+use raphtory_api::core::entities::properties::prop::{Prop, PropType};
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value as JsonValue};
 use std::collections::HashMap;
 
@@ -565,8 +568,9 @@ impl GraphqlTransport {
             .client
             .query(&query, JsonValue::Object(variables))
             .await?;
-        let root =
-            serde_json::to_value(&res).map_err(|e| ClientError::InvalidResponse(e.to_string()))?;
+        // Re-wrap the response fields by moving them — `serde_json::to_value`
+        // here would deep-copy the entire payload on every read RPC.
+        let root = JsonValue::Object(res.into_iter().collect());
         parse_read(expr, &root)
     }
 }
@@ -694,29 +698,71 @@ fn render_sort_by_time(t: SortByTime) -> &'static str {
 /// `[{property: "score", reverse: true}, {id: true}]`. Empty list renders
 /// as `[]` — server accepts it as a no-op sort.
 fn render_node_sort_bys(sort_bys: &[NodeSortBy]) -> String {
-    let entries: Vec<String> = sort_bys
-        .iter()
-        .map(|sb| {
-            let mut fields = Vec::new();
-            if let Some(rev) = sb.reverse {
-                fields.push(format!("reverse: {}", rev));
-            }
-            if let Some(id) = sb.id {
-                fields.push(format!("id: {}", id));
-            }
-            if let Some(t) = sb.time {
-                fields.push(format!("time: {}", render_sort_by_time(t)));
-            }
-            if let Some(ref p) = sb.property {
-                fields.push(format!("property: {}", render_gql_str(p)));
-            }
-            format!("{{{}}}", fields.join(", "))
-        })
-        .collect();
-    format!("[{}]", entries.join(", "))
+    let mut out = String::from("[");
+    for (i, sb) in sort_bys.iter().enumerate() {
+        if i > 0 {
+            out.push_str(", ");
+        }
+        push_node_sort_by(&mut out, sb);
+    }
+    out.push(']');
+    out
 }
 
-use crate::model::graph::filtering::{GqlEdgeFilter, GqlFilter, GqlNodeFilter};
+/// Write one `NodeSortBy` — braces included — into `out`. Shared by the
+/// node sort-by list renderer and by the nested `src`/`dst`/`neighbour`
+/// keys of `EdgeSortBy`.
+fn push_node_sort_by(out: &mut String, sb: &NodeSortBy) {
+    out.push('{');
+    let mut first = true;
+    if let Some(rev) = sb.reverse {
+        push_sort_field(out, &mut first, format_args!("reverse: {rev}"));
+    }
+    if let Some(id) = sb.id {
+        push_sort_field(out, &mut first, format_args!("id: {id}"));
+    }
+    if let Some(name) = sb.name {
+        push_sort_field(out, &mut first, format_args!("name: {name}"));
+    }
+    if let Some(type_) = sb.type_ {
+        // GraphQL field name is `type`; `type_` is only the Rust spelling.
+        push_sort_field(out, &mut first, format_args!("type: {type_}"));
+    }
+    if let Some(t) = sb.time {
+        push_sort_field(
+            out,
+            &mut first,
+            format_args!("time: {}", render_sort_by_time(t)),
+        );
+    }
+    if let Some(ref p) = sb.property {
+        push_sort_field(
+            out,
+            &mut first,
+            format_args!("property: {}", render_gql_str(p)),
+        );
+    }
+    out.push('}');
+}
+
+/// Append one `key: value` field to a sort-by object being rendered into
+/// `out`, comma-separating after the first.
+fn push_sort_field(out: &mut String, first: &mut bool, args: std::fmt::Arguments) {
+    use std::fmt::Write;
+    if !*first {
+        out.push_str(", ");
+    }
+    *first = false;
+    // Writing into a String cannot fail.
+    let _ = out.write_fmt(args);
+}
+
+/// Append one `key: {…}` field — a nested `NodeSortBy` object — to a sort-by
+/// object being rendered into `out`.
+fn push_nested_node_sort_field(out: &mut String, first: &mut bool, key: &str, sb: &NodeSortBy) {
+    push_sort_field(out, first, format_args!("{key}: "));
+    push_node_sort_by(out, sb);
+}
 
 fn render_gql_str(s: &str) -> String {
     // A JSON string literal (including its surrounding quotes) is a valid
@@ -792,31 +838,47 @@ fn expect_update_bool(
 }
 
 /// Same as `render_node_sort_bys` but for `EdgeSortBy` — includes the extra
-/// `src` / `dst` boolean keys.
+/// `src` / `dst` / `neighbour` keys, each a nested `NodeSortBy` object.
+/// The top-level `reverse` applies only to `time` / `property`; a node key's
+/// direction lives in its own nested `reverse`.
 fn render_edge_sort_bys(sort_bys: &[EdgeSortBy]) -> String {
-    let entries: Vec<String> = sort_bys
-        .iter()
-        .map(|sb| {
-            let mut fields = Vec::new();
-            if let Some(rev) = sb.reverse {
-                fields.push(format!("reverse: {}", rev));
-            }
-            if let Some(src) = sb.src {
-                fields.push(format!("src: {}", src));
-            }
-            if let Some(dst) = sb.dst {
-                fields.push(format!("dst: {}", dst));
-            }
-            if let Some(t) = sb.time {
-                fields.push(format!("time: {}", render_sort_by_time(t)));
-            }
-            if let Some(ref p) = sb.property {
-                fields.push(format!("property: {}", render_gql_str(p)));
-            }
-            format!("{{{}}}", fields.join(", "))
-        })
-        .collect();
-    format!("[{}]", entries.join(", "))
+    let mut out = String::from("[");
+    for (i, sb) in sort_bys.iter().enumerate() {
+        if i > 0 {
+            out.push_str(", ");
+        }
+        out.push('{');
+        let mut first = true;
+        if let Some(rev) = sb.reverse {
+            push_sort_field(&mut out, &mut first, format_args!("reverse: {rev}"));
+        }
+        if let Some(ref src) = sb.src {
+            push_nested_node_sort_field(&mut out, &mut first, "src", src);
+        }
+        if let Some(ref dst) = sb.dst {
+            push_nested_node_sort_field(&mut out, &mut first, "dst", dst);
+        }
+        if let Some(ref neighbour) = sb.neighbour {
+            push_nested_node_sort_field(&mut out, &mut first, "neighbour", neighbour);
+        }
+        if let Some(t) = sb.time {
+            push_sort_field(
+                &mut out,
+                &mut first,
+                format_args!("time: {}", render_sort_by_time(t)),
+            );
+        }
+        if let Some(ref p) = sb.property {
+            push_sort_field(
+                &mut out,
+                &mut first,
+                format_args!("property: {}", render_gql_str(p)),
+            );
+        }
+        out.push('}');
+    }
+    out.push(']');
+    out
 }
 
 /// Render a view op as its server field plus arguments. Valid-layer ops
@@ -888,163 +950,258 @@ fn view_op_json_key(op: &ViewOp) -> &'static str {
 }
 
 fn render_read_body(expr: &ReadExpr, vars: &mut VarCollector) -> Result<String, ClientError> {
-    Ok(match expr {
-        ReadExpr::Root { path } => format!("graph(path: {})", render_gql_str(path)),
+    let mut out = String::with_capacity(256);
+    render_read_into(expr, vars, &mut out)?;
+    Ok(out)
+}
+
+/// Recursive worker for `render_read_body`: renders the input chain first,
+/// then appends this level's fragment, so the whole query accumulates in one
+/// shared buffer.
+fn render_read_into(
+    expr: &ReadExpr,
+    vars: &mut VarCollector,
+    out: &mut String,
+) -> Result<(), ClientError> {
+    use std::fmt::Write;
+    // Writing into a String cannot fail, so `write!` results are ignored.
+    match expr {
+        ReadExpr::Root { path } => {
+            let _ = write!(out, "graph(path: {})", render_gql_str(path));
+        }
         // View chaining
-        ReadExpr::View { input, op } => format!(
-            "{} {{ {}",
-            render_read_body(input, vars)?,
-            render_view_op(op)
-        ),
-        ReadExpr::Valid { input } => format!("{} {{ valid", render_read_body(input, vars)?),
-        ReadExpr::Subgraph { input, nodes } => format!(
-            "{} {{ subgraph(nodes: [{}])",
-            render_read_body(input, vars)?,
-            render_string_list(nodes)
-        ),
-        ReadExpr::SubgraphNodeTypes { input, node_types } => format!(
-            "{} {{ subgraphNodeTypes(nodeTypes: [{}])",
-            render_read_body(input, vars)?,
-            render_string_list(node_types)
-        ),
-        ReadExpr::ExcludeNodes { input, nodes } => format!(
-            "{} {{ excludeNodes(nodes: [{}])",
-            render_read_body(input, vars)?,
-            render_string_list(nodes)
-        ),
-        ReadExpr::TypeFilter { input, node_types } => format!(
-            "{} {{ typeFilter(nodeTypes: [{}])",
-            render_read_body(input, vars)?,
-            render_string_list(node_types)
-        ),
+        ReadExpr::View { input, op } => {
+            render_read_into(input, vars, out)?;
+            let _ = write!(out, " {{ {}", render_view_op(op));
+        }
+        ReadExpr::Valid { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { valid");
+        }
+        ReadExpr::Subgraph { input, nodes } => {
+            render_read_into(input, vars, out)?;
+            let _ = write!(out, " {{ subgraph(nodes: [{}])", render_string_list(nodes));
+        }
+        ReadExpr::SubgraphNodeTypes { input, node_types } => {
+            render_read_into(input, vars, out)?;
+            let _ = write!(
+                out,
+                " {{ subgraphNodeTypes(nodeTypes: [{}])",
+                render_string_list(node_types)
+            );
+        }
+        ReadExpr::ExcludeNodes { input, nodes } => {
+            render_read_into(input, vars, out)?;
+            let _ = write!(
+                out,
+                " {{ excludeNodes(nodes: [{}])",
+                render_string_list(nodes)
+            );
+        }
+        ReadExpr::TypeFilter { input, node_types } => {
+            render_read_into(input, vars, out)?;
+            let _ = write!(
+                out,
+                " {{ typeFilter(nodeTypes: [{}])",
+                render_string_list(node_types)
+            );
+        }
         // Selection
         ReadExpr::Node { input, id } => {
-            format!(
-                "{} {{ node(name: {})",
-                render_read_body(input, vars)?,
-                render_gql_str(id)
-            )
+            render_read_into(input, vars, out)?;
+            let _ = write!(out, " {{ node(name: {})", render_gql_str(id));
         }
-        ReadExpr::Edge { input, src, dst } => format!(
-            "{} {{ edge(src: {}, dst: {})",
-            render_read_body(input, vars)?,
-            render_gql_str(src),
-            render_gql_str(dst)
-        ),
-        ReadExpr::Src { input } => format!("{} {{ src", render_read_body(input, vars)?),
-        ReadExpr::Dst { input } => format!("{} {{ dst", render_read_body(input, vars)?),
-        ReadExpr::Nbr { input } => format!("{} {{ nbr", render_read_body(input, vars)?),
-        ReadExpr::History { input } => format!("{} {{ history", render_read_body(input, vars)?),
+        ReadExpr::Edge { input, src, dst } => {
+            render_read_into(input, vars, out)?;
+            let _ = write!(
+                out,
+                " {{ edge(src: {}, dst: {})",
+                render_gql_str(src),
+                render_gql_str(dst)
+            );
+        }
+        ReadExpr::Src { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { src");
+        }
+        ReadExpr::Dst { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { dst");
+        }
+        ReadExpr::Nbr { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { nbr");
+        }
+        ReadExpr::History { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { history");
+        }
         ReadExpr::CombinedHistory { input } => {
-            format!("{} {{ combinedHistory", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { combinedHistory");
         }
         ReadExpr::HistoryReverse { input } => {
-            format!("{} {{ reverse", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { reverse");
         }
-        ReadExpr::Deletions { input } => format!("{} {{ deletions", render_read_body(input, vars)?),
+        ReadExpr::Deletions { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { deletions");
+        }
         // Sub-container navigations
         ReadExpr::HistoryTimestamps { input } => {
-            format!("{} {{ timestamps", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { timestamps");
         }
         ReadExpr::HistoryEventIds { input } => {
-            format!("{} {{ eventId", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { eventId");
         }
         ReadExpr::HistoryDateTimes { input } => {
-            format!("{} {{ datetimes", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { datetimes");
         }
         ReadExpr::HistoryIntervals { input } => {
-            format!("{} {{ intervals", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { intervals");
         }
         // Polymorphic sub-container terminals — render field names only;
         // return type is decided by the parent selection in `parse_read`.
-        ReadExpr::SubList { input } => format!("{} {{ list", render_read_body(input, vars)?),
-        ReadExpr::SubListRev { input } => format!("{} {{ listRev", render_read_body(input, vars)?),
+        ReadExpr::SubList { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list");
+        }
+        ReadExpr::SubListRev { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { listRev");
+        }
         ReadExpr::SubPage {
             input,
             limit,
             offset,
             page_index,
-        } => format!(
-            "{} {{ page({})",
-            render_read_body(input, vars)?,
-            render_page_args(*limit, *offset, *page_index),
-        ),
+        } => {
+            render_read_into(input, vars, out)?;
+            let _ = write!(
+                out,
+                " {{ page({})",
+                render_page_args(*limit, *offset, *page_index)
+            );
+        }
         ReadExpr::SubPageRev {
             input,
             limit,
             offset,
             page_index,
-        } => format!(
-            "{} {{ pageRev({})",
-            render_read_body(input, vars)?,
-            render_page_args(*limit, *offset, *page_index),
-        ),
+        } => {
+            render_read_into(input, vars, out)?;
+            let _ = write!(
+                out,
+                " {{ pageRev({})",
+                render_page_args(*limit, *offset, *page_index)
+            );
+        }
         // Intervals stats
-        ReadExpr::IntervalsMean { input } => format!("{} {{ mean", render_read_body(input, vars)?),
-        ReadExpr::IntervalsMedian { input } => format!("{} {{ median", render_read_body(input, vars)?),
-        ReadExpr::IntervalsMax { input } => format!("{} {{ max", render_read_body(input, vars)?),
-        ReadExpr::IntervalsMin { input } => format!("{} {{ min", render_read_body(input, vars)?),
-        ReadExpr::Nodes { input } => format!("{} {{ nodes", render_read_body(input, vars)?),
-        ReadExpr::Neighbours { input } => format!("{} {{ neighbours", render_read_body(input, vars)?),
+        ReadExpr::IntervalsMean { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { mean");
+        }
+        ReadExpr::IntervalsMedian { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { median");
+        }
+        ReadExpr::IntervalsMax { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { max");
+        }
+        ReadExpr::IntervalsMin { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { min");
+        }
+        ReadExpr::Nodes { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { nodes");
+        }
+        ReadExpr::Neighbours { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { neighbours");
+        }
         ReadExpr::InNeighbours { input } => {
-            format!("{} {{ inNeighbours", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { inNeighbours");
         }
         ReadExpr::OutNeighbours { input } => {
-            format!("{} {{ outNeighbours", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { outNeighbours");
         }
-        ReadExpr::Edges { input } => format!("{} {{ edges", render_read_body(input, vars)?),
-        ReadExpr::NodeEdges { input } => format!("{} {{ edges", render_read_body(input, vars)?),
-        ReadExpr::InEdges { input } => format!("{} {{ inEdges", render_read_body(input, vars)?),
-        ReadExpr::OutEdges { input } => format!("{} {{ outEdges", render_read_body(input, vars)?),
+        ReadExpr::Edges { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { edges");
+        }
+        ReadExpr::NodeEdges { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { edges");
+        }
+        ReadExpr::InEdges { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { inEdges");
+        }
+        ReadExpr::OutEdges { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { outEdges");
+        }
         ReadExpr::InComponent { input } => {
-            format!("{} {{ inComponent", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { inComponent");
         }
         ReadExpr::OutComponent { input } => {
-            format!("{} {{ outComponent", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { outComponent");
         }
-        ReadExpr::Explode { input } => format!("{} {{ explode", render_read_body(input, vars)?),
+        ReadExpr::Explode { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { explode");
+        }
         ReadExpr::ExplodeLayers { input } => {
-            format!("{} {{ explodeLayers", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { explodeLayers");
         }
-        ReadExpr::SortedNodes { input, sort_bys } => format!(
-            "{} {{ sorted(sortBys: {})",
-            render_read_body(input, vars)?,
-            render_node_sort_bys(sort_bys)
-        ),
-        ReadExpr::SortedEdges { input, sort_bys } => format!(
-            "{} {{ sorted(sortBys: {})",
-            render_read_body(input, vars)?,
-            render_edge_sort_bys(sort_bys)
-        ),
+        ReadExpr::SortedNodes { input, sort_bys } => {
+            render_read_into(input, vars, out)?;
+            let _ = write!(
+                out,
+                " {{ sorted(sortBys: {})",
+                render_node_sort_bys(sort_bys)
+            );
+        }
+        ReadExpr::SortedEdges { input, sort_bys } => {
+            render_read_into(input, vars, out)?;
+            let _ = write!(
+                out,
+                " {{ sorted(sortBys: {})",
+                render_edge_sort_bys(sort_bys)
+            );
+        }
         ReadExpr::Filtered { input, filter } => {
             // Unified server field `filter(expr: GqlFilter!)` — the same field
             // on Graph, Node, Edge, and every collection. Applies to this view
             // AND propagates to downstream traversals (contrast `select`,
             // which narrows membership at one step only).
-            format!(
-                "{} {{ filter(expr: {})",
-                render_read_body(input, vars)?,
-                vars.add_filter(filter)?,
-            )
+            render_read_into(input, vars, out)?;
+            let _ = write!(out, " {{ filter(expr: {})", vars.add_filter(filter)?);
         }
         ReadExpr::SelectNodes { input, filter } => {
             // Server field `select(expr: NodeFilter!)`: narrows the current
             // collection's membership only; downstream traversals see the
             // unfiltered graph.
-            format!(
-                "{} {{ select(expr: {})",
-                render_read_body(input, vars)?,
-                vars.add_node_filter(filter)?,
-            )
+            render_read_into(input, vars, out)?;
+            let _ = write!(out, " {{ select(expr: {})", vars.add_node_filter(filter)?);
         }
         ReadExpr::SelectEdges { input, filter } => {
             // Server field `select(expr: EdgeFilter!)` on `Edges`: narrows the
             // current collection's membership only.
-            format!(
-                "{} {{ select(expr: {})",
-                render_read_body(input, vars)?,
-                vars.add_edge_filter(filter)?,
-            )
+            render_read_into(input, vars, out)?;
+            let _ = write!(out, " {{ select(expr: {})", vars.add_edge_filter(filter)?);
         }
         ReadExpr::EdgeEvent {
             input,
@@ -1060,490 +1217,617 @@ fn render_read_body(expr: &ReadExpr, vars: &mut VarCollector) -> Result<String, 
                 Some(i) => format!("{{timestamp: {}, eventId: {}}}", time, i),
                 None => time.to_string(),
             };
+            render_read_into(input, vars, out)?;
             match layer {
-                Some(l) => format!(
-                    "{} {{ event(time: {}, layer: {})",
-                    render_read_body(input, vars)?,
-                    time_arg,
-                    render_gql_str(l)
-                ),
-                None => format!("{} {{ event(time: {})", render_read_body(input, vars)?, time_arg),
+                Some(l) => {
+                    let _ = write!(
+                        out,
+                        " {{ event(time: {}, layer: {})",
+                        time_arg,
+                        render_gql_str(l)
+                    );
+                }
+                None => {
+                    let _ = write!(out, " {{ event(time: {})", time_arg);
+                }
             }
         }
         // Server field `eventLayer(name: String!)` on `Edge` — pins a single
         // layer-exploded instance.
-        ReadExpr::EdgeLayerEvent { input, layer } => format!(
-            "{} {{ eventLayer(name: {})",
-            render_read_body(input, vars)?,
-            render_gql_str(layer)
-        ),
+        ReadExpr::EdgeLayerEvent { input, layer } => {
+            render_read_into(input, vars, out)?;
+            let _ = write!(out, " {{ eventLayer(name: {})", render_gql_str(layer));
+        }
         // Metadata / Properties navigation
-        ReadExpr::Metadata { input } => format!("{} {{ metadata", render_read_body(input, vars)?),
-        ReadExpr::Properties { input } => format!("{} {{ properties", render_read_body(input, vars)?),
+        ReadExpr::Metadata { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { metadata");
+        }
+        ReadExpr::Properties { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { properties");
+        }
         // Property terminals — `values` is compound (returns {key, value}
         // records); `get` selects only `{ value }` — the caller already knows
         // the key, so fetching it back is wasted bytes. Inner braces are
         // self-balanced; outer `get` / `values` opens one net brace,
         // contributing 1 to read_depth.
-        ReadExpr::PropertyGet { input, key } => format!(
-            "{} {{ get(key: {}) {{ value }}",
-            render_read_body(input, vars)?,
-            render_gql_str(key)
-        ),
+        ReadExpr::PropertyGet { input, key } => {
+            render_read_into(input, vars, out)?;
+            let _ = write!(
+                out,
+                " {{ get(key: {}) {{ value dtype }}",
+                render_gql_str(key)
+            );
+        }
         ReadExpr::PropertyContains { input, key } => {
-            format!(
-                "{} {{ contains(key: {})",
-                render_read_body(input, vars)?,
-                render_gql_str(key)
-            )
+            render_read_into(input, vars, out)?;
+            let _ = write!(out, " {{ contains(key: {})", render_gql_str(key));
         }
-        ReadExpr::PropertyKeys { input } => format!("{} {{ keys", render_read_body(input, vars)?),
+        ReadExpr::PropertyKeys { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { keys");
+        }
         ReadExpr::PropertyGetDtypeOf { input, key } => {
-            format!(
-                "{} {{ getDtypeOf(key: {})",
-                render_read_body(input, vars)?,
-                render_gql_str(key)
-            )
+            render_read_into(input, vars, out)?;
+            let _ = write!(out, " {{ get(key: {}) {{ dtype }}", render_gql_str(key));
         }
-        ReadExpr::PropertyValues { input, keys } => match keys {
-            Some(ks) => format!(
-                "{} {{ values(keys: [{}]) {{ value }}",
-                render_read_body(input, vars)?,
-                render_string_list(ks)
-            ),
-            None => format!("{} {{ values {{ value }}", render_read_body(input, vars)?),
-        },
-        ReadExpr::PropertyItems { input, keys } => match keys {
-            Some(ks) => format!(
-                "{} {{ values(keys: [{}]) {{ key value }}",
-                render_read_body(input, vars)?,
-                render_string_list(ks)
-            ),
-            None => format!("{} {{ values {{ key value }}", render_read_body(input, vars)?),
-        },
+        ReadExpr::PropertyValues { input, keys } => {
+            render_read_into(input, vars, out)?;
+            match keys {
+                Some(ks) => {
+                    let _ = write!(
+                        out,
+                        " {{ values(keys: [{}]) {{ value dtype }}",
+                        render_string_list(ks)
+                    );
+                }
+                None => out.push_str(" { values { value dtype }"),
+            }
+        }
+        ReadExpr::PropertyItems { input, keys } => {
+            render_read_into(input, vars, out)?;
+            match keys {
+                Some(ks) => {
+                    let _ = write!(
+                        out,
+                        " {{ values(keys: [{}]) {{ key value dtype }}",
+                        render_string_list(ks)
+                    );
+                }
+                None => out.push_str(" { values { key value dtype }"),
+            }
+        }
         ReadExpr::TemporalProperties { input } => {
-            format!("{} {{ temporal", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { temporal");
         }
         ReadExpr::TemporalPropertyByKey { input, key } => {
-            format!(
-                "{} {{ get(key: {})",
-                render_read_body(input, vars)?,
-                render_gql_str(key)
-            )
+            render_read_into(input, vars, out)?;
+            let _ = write!(out, " {{ get(key: {})", render_gql_str(key));
         }
         // `values(keys?) { key }` — we only fetch the key from each record;
         // clients build a `RemoteTemporalProperty` handle around each key.
-        ReadExpr::TemporalPropertyList { input, keys } => match keys {
-            Some(ks) => format!(
-                "{} {{ values(keys: [{}]) {{ key }}",
-                render_read_body(input, vars)?,
-                render_string_list(ks)
-            ),
-            None => format!("{} {{ values {{ key }}", render_read_body(input, vars)?),
-        },
+        ReadExpr::TemporalPropertyList { input, keys } => {
+            render_read_into(input, vars, out)?;
+            match keys {
+                Some(ks) => {
+                    let _ = write!(
+                        out,
+                        " {{ values(keys: [{}]) {{ key }}",
+                        render_string_list(ks)
+                    );
+                }
+                None => out.push_str(" { values { key }"),
+            }
+        }
         ReadExpr::TemporalPropertyValueList { input } => {
-            format!("{} {{ values", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { dtype values");
         }
         ReadExpr::TemporalPropertyAt { input, time } => {
-            format!("{} {{ at(t: {})", render_read_body(input, vars)?, time)
+            render_read_into(input, vars, out)?;
+            let _ = write!(out, " {{ dtype at(t: {})", time);
         }
         ReadExpr::TemporalPropertyLatest { input } => {
-            format!("{} {{ latest", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { dtype latest");
         }
         ReadExpr::TemporalPropertyUnique { input } => {
-            format!("{} {{ unique", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { dtype unique");
         }
-        ReadExpr::TemporalPropertyOrderedDedupe { input, latest_time } => format!(
-            "{} {{ orderedDedupe(latestTime: {}) {{ time {{ timestamp datetime eventId }} value }}",
-            render_read_body(input, vars)?,
-            latest_time
-        ),
+        ReadExpr::TemporalPropertyOrderedDedupe { input, latest_time } => {
+            render_read_into(input, vars, out)?;
+            let _ = write!(
+                out,
+                " {{ dtype orderedDedupe(latestTime: {}) {{ time {{ timestamp datetime eventId }} value }}",
+                latest_time
+            );
+        }
         ReadExpr::TemporalPropertySum { input } => {
-            format!("{} {{ sum", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { sum");
         }
         ReadExpr::TemporalPropertyMean { input } => {
-            format!("{} {{ mean", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { mean");
         }
         ReadExpr::TemporalPropertyAverage { input } => {
-            format!("{} {{ average", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { average");
         }
-        ReadExpr::TemporalPropertyMin { input } => format!(
-            "{} {{ min {{ time {{ timestamp datetime eventId }} value }}",
-            render_read_body(input, vars)?
-        ),
-        ReadExpr::TemporalPropertyMax { input } => format!(
-            "{} {{ max {{ time {{ timestamp datetime eventId }} value }}",
-            render_read_body(input, vars)?
-        ),
-        ReadExpr::TemporalPropertyMedian { input } => format!(
-            "{} {{ median {{ time {{ timestamp datetime eventId }} value }}",
-            render_read_body(input, vars)?
-        ),
+        ReadExpr::TemporalPropertyMin { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { dtype min { time { timestamp datetime eventId } value }");
+        }
+        ReadExpr::TemporalPropertyMax { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { dtype max { time { timestamp datetime eventId } value }");
+        }
+        ReadExpr::TemporalPropertyMedian { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { dtype median { time { timestamp datetime eventId } value }");
+        }
         // Compound-structured tree — one RPC fetches everything.
-        ReadExpr::Schema { input } => format!(
-            "{} {{ schema {{ \
-                nodes {{ typeName properties {{ key propertyType variants }} \
-                    metadata {{ key propertyType variants }} }} \
-                layers {{ name edges {{ srcType dstType \
-                    properties {{ key propertyType variants }} \
-                    metadata {{ key propertyType variants }} }} }} }}",
-            render_read_body(input, vars)?,
-        ),
+        ReadExpr::Schema { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(
+                " { schema { \
+                nodes { typeName properties { key propertyType variants } \
+                    metadata { key propertyType variants } } \
+                layers { name edges { srcType dstType \
+                    properties { key propertyType variants } \
+                    metadata { key propertyType variants } } } }",
+            );
+        }
         // Terminals — no args after the field name
-        ReadExpr::CountNodes { input } => format!("{} {{ countNodes", render_read_body(input, vars)?),
-        ReadExpr::CountEdges { input } => format!("{} {{ countEdges", render_read_body(input, vars)?),
-        ReadExpr::Degree { input } => format!("{} {{ degree", render_read_body(input, vars)?),
-        ReadExpr::InDegree { input } => format!("{} {{ inDegree", render_read_body(input, vars)?),
-        ReadExpr::OutDegree { input } => format!("{} {{ outDegree", render_read_body(input, vars)?),
-        ReadExpr::Name { input } => format!("{} {{ name", render_read_body(input, vars)?),
+        ReadExpr::CountNodes { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { countNodes");
+        }
+        ReadExpr::CountEdges { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { countEdges");
+        }
+        ReadExpr::Degree { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { degree");
+        }
+        ReadExpr::InDegree { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { inDegree");
+        }
+        ReadExpr::OutDegree { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { outDegree");
+        }
+        ReadExpr::Name { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { name");
+        }
         ReadExpr::HasNode { input, id } => {
-            format!(
-                "{} {{ hasNode(name: {})",
-                render_read_body(input, vars)?,
-                render_gql_str(id)
-            )
+            render_read_into(input, vars, out)?;
+            let _ = write!(out, " {{ hasNode(name: {})", render_gql_str(id));
         }
-        ReadExpr::HasEdge { input, src, dst } => format!(
-            "{} {{ hasEdge(src: {}, dst: {})",
-            render_read_body(input, vars)?,
-            render_gql_str(src),
-            render_gql_str(dst)
-        ),
+        ReadExpr::HasEdge { input, src, dst } => {
+            render_read_into(input, vars, out)?;
+            let _ = write!(
+                out,
+                " {{ hasEdge(src: {}, dst: {})",
+                render_gql_str(src),
+                render_gql_str(dst)
+            );
+        }
         ReadExpr::CountTemporalEdges { input } => {
-            format!("{} {{ countTemporalEdges", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { countTemporalEdges");
         }
-        ReadExpr::Path { input } => format!("{} {{ path", render_read_body(input, vars)?),
-        ReadExpr::Namespace { input } => format!("{} {{ namespace", render_read_body(input, vars)?),
-        ReadExpr::Created { input } => format!("{} {{ created", render_read_body(input, vars)?),
-        ReadExpr::LastOpened { input } => format!("{} {{ lastOpened", render_read_body(input, vars)?),
-        ReadExpr::LastUpdated { input } => format!("{} {{ lastUpdated", render_read_body(input, vars)?),
-        ReadExpr::UniqueLayers { input } => format!("{} {{ uniqueLayers", render_read_body(input, vars)?),
+        ReadExpr::Path { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { path");
+        }
+        ReadExpr::Namespace { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { namespace");
+        }
+        ReadExpr::Created { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { created");
+        }
+        ReadExpr::LastOpened { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { lastOpened");
+        }
+        ReadExpr::LastUpdated { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { lastUpdated");
+        }
+        ReadExpr::UniqueLayers { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { uniqueLayers");
+        }
         ReadExpr::HasLayer { input, name } => {
-            format!(
-                "{} {{ hasLayer(name: {})",
-                render_read_body(input, vars)?,
-                render_gql_str(name)
-            )
+            render_read_into(input, vars, out)?;
+            let _ = write!(out, " {{ hasLayer(name: {})", render_gql_str(name));
         }
-        ReadExpr::WindowSize { input } => format!("{} {{ windowSize", render_read_body(input, vars)?),
-        ReadExpr::Ids { input } => format!("{} {{ ids", render_read_body(input, vars)?),
+        ReadExpr::WindowSize { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { windowSize");
+        }
+        ReadExpr::Ids { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { ids");
+        }
         // `PathFromGraph.ids` is a columnar `[[String]]` field computed in ONE
         // server-side `blocking_compute` (vs `list { ids }`, which resolves one
         // `PathFromNode` object + its own `blocking_compute` per source). Opens
         // ONE net brace, same as `Ids`.
         ReadExpr::NestedIds { input } => {
-            format!("{} {{ ids", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { ids");
         }
         // Flat collection degree terminals — render the scalar-list field
         // directly on the `Nodes`/`PathFromNode` collection.
         ReadExpr::CollectionDegree { input } => {
-            format!("{} {{ degree", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { degree");
         }
         ReadExpr::CollectionInDegree { input } => {
-            format!("{} {{ inDegree", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { inDegree");
         }
         ReadExpr::CollectionOutDegree { input } => {
-            format!("{} {{ outDegree", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { outDegree");
         }
         ReadExpr::CollectionEdgeHistoryCount { input } => {
-            format!("{} {{ edgeHistoryCount", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { edgeHistoryCount");
         }
         // Columnar `[[Int]]` fields on `PathFromGraph`, computed in ONE
         // server-side `blocking_compute` (vs `list { degree }` per source).
         // Mirror `NestedIds`.
         ReadExpr::NestedDegree { input } => {
-            format!("{} {{ degree", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { degree");
         }
         ReadExpr::NestedInDegree { input } => {
-            format!("{} {{ inDegree", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { inDegree");
         }
         ReadExpr::NestedOutDegree { input } => {
-            format!("{} {{ outDegree", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { outDegree");
         }
         ReadExpr::NestedEdgeHistoryCount { input } => {
-            format!(
-                "{} {{ list {{ edgeHistoryCount }}",
-                render_read_body(input, vars)?
-            )
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { edgeHistoryCount }");
         }
-        ReadExpr::Count { input } => format!("{} {{ count", render_read_body(input, vars)?),
+        ReadExpr::Count { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { count");
+        }
         // Compound structured terminal: renders as `list { src { name } dst { name } }`.
         // The `list` field opens ONE brace that gets closed by the outer `read_depth`;
         // the inner `src { name }` / `dst { name }` groups are self-balanced.
-        ReadExpr::EdgesList { input } => format!(
-            "{} {{ list {{ src {{ name }} dst {{ name }} }}",
-            render_read_body(input, vars)?
-        ),
+        ReadExpr::EdgesList { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { src { name } dst { name } }");
+        }
         // `NestedEdges.list` returns `[Edges!]!` — one object per source node.
         // We render `list { list { src { name } dst { name } } }` and read each
         // per-source `Edges.list` to rebuild the nested `[[(src, dst)]]` shape
         // client-side. The outer `list` field opens ONE net brace (closed by
         // the outer `read_depth`); the inner `list { src { name } dst { name } }`
         // group is self-balanced. Mirrors `EdgesList`, one level deeper.
-        ReadExpr::NestedEdgesList { input } => format!(
-            "{} {{ list {{ list {{ src {{ name }} dst {{ name }} }} }}",
-            render_read_body(input, vars)?
-        ),
+        ReadExpr::NestedEdgesList { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { list { src { name } dst { name } } }");
+        }
         // Exploded-collection variant of `EdgesList`: adds each member's
         // event identity (`time { timestamp eventId }`, `layerName`) so
         // handles can be pinned from ONE response. Same brace accounting —
         // the outer `list` opens one net brace, inner groups self-balance.
-        ReadExpr::ExplodedEdgesList { input } => format!(
-            "{} {{ list {{ src {{ name }} dst {{ name }} time {{ timestamp eventId }} layerName }}",
-            render_read_body(input, vars)?
-        ),
+        ReadExpr::ExplodedEdgesList { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(
+                " { list { src { name } dst { name } time { timestamp eventId } layerName }",
+            );
+        }
         // Nested variant of `ExplodedEdgesList` — mirrors `NestedEdgesList`.
-        ReadExpr::NestedExplodedEdgesList { input } => format!(
-            "{} {{ list {{ list {{ src {{ name }} dst {{ name }} time {{ timestamp eventId }} layerName }} }}",
-            render_read_body(input, vars)?
-        ),
+        ReadExpr::NestedExplodedEdgesList { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(
+                " { list { list { src { name } dst { name } time { timestamp eventId } layerName } }",
+            );
+        }
         // Layer-exploded members — `(src, dst, layer)` per member (no time).
-        ReadExpr::ExplodedLayersEdgesList { input } => format!(
-            "{} {{ list {{ src {{ name }} dst {{ name }} layerName }}",
-            render_read_body(input, vars)?
-        ),
-        ReadExpr::NestedExplodedLayersEdgesList { input } => format!(
-            "{} {{ list {{ list {{ src {{ name }} dst {{ name }} layerName }} }}",
-            render_read_body(input, vars)?
-        ),
+        ReadExpr::ExplodedLayersEdgesList { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { src { name } dst { name } layerName }");
+        }
+        ReadExpr::NestedExplodedLayersEdgesList { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { list { src { name } dst { name } layerName } }");
+        }
         // Columnar accessors — FLAT collections render `list { <field> }`.
         ReadExpr::CollectionNames { input } => {
-            format!("{} {{ list {{ name }}", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { name }");
         }
         ReadExpr::CollectionNodeTypes { input } => {
-            format!("{} {{ list {{ nodeType }}", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { nodeType }");
         }
         ReadExpr::CollectionLayerNames { input } => {
-            format!("{} {{ list {{ layerNames }}", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { layerNames }");
         }
         ReadExpr::CollectionLayerName { input } => {
-            format!("{} {{ list {{ layerName }}", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { layerName }");
         }
-        ReadExpr::CollectionEarliestTime { input } => format!(
-            "{} {{ list {{ earliestTime {{ timestamp datetime eventId }} }}",
-            render_read_body(input, vars)?
-        ),
-        ReadExpr::CollectionLatestTime { input } => format!(
-            "{} {{ list {{ latestTime {{ timestamp datetime eventId }} }}",
-            render_read_body(input, vars)?
-        ),
-        ReadExpr::CollectionTime { input } => format!(
-            "{} {{ list {{ time {{ timestamp datetime eventId }} }}",
-            render_read_body(input, vars)?
-        ),
+        ReadExpr::CollectionEarliestTime { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { earliestTime { timestamp datetime eventId } }");
+        }
+        ReadExpr::CollectionLatestTime { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { latestTime { timestamp datetime eventId } }");
+        }
+        ReadExpr::CollectionTime { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { time { timestamp datetime eventId } }");
+        }
         // Columnar accessors — NESTED collections render `list { list { <field> } }`.
         ReadExpr::NestedNames { input } => {
-            format!("{} {{ list {{ list {{ name }} }}", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { list { name } }");
         }
-        ReadExpr::NestedNodeTypes { input } => format!(
-            "{} {{ list {{ list {{ nodeType }} }}",
-            render_read_body(input, vars)?
-        ),
-        ReadExpr::NestedLayerNames { input } => format!(
-            "{} {{ list {{ list {{ layerNames }} }}",
-            render_read_body(input, vars)?
-        ),
-        ReadExpr::NestedLayerName { input } => format!(
-            "{} {{ list {{ list {{ layerName }} }}",
-            render_read_body(input, vars)?
-        ),
-        ReadExpr::NestedEarliestTime { input } => format!(
-            "{} {{ list {{ list {{ earliestTime {{ timestamp datetime eventId }} }} }}",
-            render_read_body(input, vars)?
-        ),
-        ReadExpr::NestedLatestTime { input } => format!(
-            "{} {{ list {{ list {{ latestTime {{ timestamp datetime eventId }} }} }}",
-            render_read_body(input, vars)?
-        ),
-        ReadExpr::NestedTime { input } => format!(
-            "{} {{ list {{ list {{ time {{ timestamp datetime eventId }} }} }}",
-            render_read_body(input, vars)?
-        ),
+        ReadExpr::NestedNodeTypes { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { list { nodeType } }");
+        }
+        ReadExpr::NestedLayerNames { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { list { layerNames } }");
+        }
+        ReadExpr::NestedLayerName { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { list { layerName } }");
+        }
+        ReadExpr::NestedEarliestTime { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { list { earliestTime { timestamp datetime eventId } } }");
+        }
+        ReadExpr::NestedLatestTime { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { list { latestTime { timestamp datetime eventId } } }");
+        }
+        ReadExpr::NestedTime { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { list { time { timestamp datetime eventId } } }");
+        }
         // Boolean columnar accessors — FLAT collections render `list { <field> }`.
         ReadExpr::CollectionIsActive { input } => {
-            format!("{} {{ list {{ isActive }}", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { isActive }");
         }
         ReadExpr::CollectionIsValid { input } => {
-            format!("{} {{ list {{ isValid }}", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { isValid }");
         }
         ReadExpr::CollectionIsDeleted { input } => {
-            format!("{} {{ list {{ isDeleted }}", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { isDeleted }");
         }
         ReadExpr::CollectionIsSelfLoop { input } => {
-            format!("{} {{ list {{ isSelfLoop }}", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { isSelfLoop }");
         }
         // Boolean columnar accessors — NESTED collections render `list { list { <field> } }`.
         ReadExpr::NestedIsActive { input } => {
-            format!(
-                "{} {{ list {{ list {{ isActive }} }}",
-                render_read_body(input, vars)?
-            )
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { list { isActive } }");
         }
         ReadExpr::NestedIsValid { input } => {
-            format!(
-                "{} {{ list {{ list {{ isValid }} }}",
-                render_read_body(input, vars)?
-            )
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { list { isValid } }");
         }
         ReadExpr::NestedIsDeleted { input } => {
-            format!(
-                "{} {{ list {{ list {{ isDeleted }} }}",
-                render_read_body(input, vars)?
-            )
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { list { isDeleted } }");
         }
         ReadExpr::NestedIsSelfLoop { input } => {
-            format!(
-                "{} {{ list {{ list {{ isSelfLoop }} }}",
-                render_read_body(input, vars)?
-            )
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { list { isSelfLoop } }");
         }
         // Columnar property / metadata accessors — descend per-member into the
         // `metadata` / `properties` container and read all `{key, value}`
         // entries. FLAT collections render `list { <container> { values { key
         // value } } }`.
-        ReadExpr::CollectionMetadataValues { input } => format!(
-            "{} {{ list {{ metadata {{ values {{ key value }} }} }}",
-            render_read_body(input, vars)?
-        ),
-        ReadExpr::CollectionPropertiesValues { input } => format!(
-            "{} {{ list {{ properties {{ values {{ key value }} }} }}",
-            render_read_body(input, vars)?
-        ),
+        ReadExpr::CollectionMetadataValues { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { metadata { values { key value dtype } } }");
+        }
+        ReadExpr::CollectionPropertiesValues { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { properties { values { key value dtype } } }");
+        }
         // NESTED collections render `list { list { <container> { values { key
         // value } } } }`.
-        ReadExpr::NestedMetadataValues { input } => format!(
-            "{} {{ list {{ list {{ metadata {{ values {{ key value }} }} }} }}",
-            render_read_body(input, vars)?
-        ),
-        ReadExpr::NestedPropertiesValues { input } => format!(
-            "{} {{ list {{ list {{ properties {{ values {{ key value }} }} }} }}",
-            render_read_body(input, vars)?
-        ),
+        ReadExpr::NestedMetadataValues { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { list { metadata { values { key value dtype } } } }");
+        }
+        ReadExpr::NestedPropertiesValues { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { list { properties { values { key value dtype } } } }");
+        }
         // Compound structured terminal on Graph: `sharedNeighbours(selectedNodes: [ids]) { name }`
         // — opens ONE net brace (the outer, before `sharedNeighbours`); the inner
         // `{ name }` is self-balanced.
-        ReadExpr::SharedNeighbours { input, ids } => format!(
-            "{} {{ sharedNeighbours(selectedNodes: [{}]) {{ name }}",
-            render_read_body(input, vars)?,
-            render_string_list(ids)
-        ),
+        ReadExpr::SharedNeighbours { input, ids } => {
+            render_read_into(input, vars, out)?;
+            let _ = write!(
+                out,
+                " {{ sharedNeighbours(selectedNodes: [{}]) {{ name }}",
+                render_string_list(ids)
+            );
+        }
         // `findNodes(propertiesDict: [{key, value}]) { name }` — opens ONE net
         // brace (before `findNodes`); inner `{ name }` is self-balanced.
-        ReadExpr::FindNodes { input, properties } => format!(
-            "{} {{ findNodes(propertiesDict: {}) {{ name }}",
-            render_read_body(input, vars)?,
-            vars.add_properties(properties)?,
-        ),
+        ReadExpr::FindNodes { input, properties } => {
+            render_read_into(input, vars, out)?;
+            let _ = write!(
+                out,
+                " {{ findNodes(propertiesDict: {}) {{ name }}",
+                vars.add_properties(properties)?
+            );
+        }
         // `findEdges(propertiesDict: [{key, value}]) { src { name } dst { name } }`
         // — opens ONE net brace; the inner `src`/`dst` groups are self-balanced.
-        ReadExpr::FindEdges { input, properties } => format!(
-            "{} {{ findEdges(propertiesDict: {}) {{ src {{ name }} dst {{ name }} }}",
-            render_read_body(input, vars)?,
-            vars.add_properties(properties)?,
-        ),
-        ReadExpr::GetAllNodeTypes { input } => {
-            format!("{} {{ getAllNodeTypes", render_read_body(input, vars)?)
+        ReadExpr::FindEdges { input, properties } => {
+            render_read_into(input, vars, out)?;
+            let _ = write!(
+                out,
+                " {{ findEdges(propertiesDict: {}) {{ src {{ name }} dst {{ name }} }}",
+                vars.add_properties(properties)?
+            );
         }
-        ReadExpr::Id { input } => format!("{} {{ id", render_read_body(input, vars)?),
-        ReadExpr::NodeType { input } => format!("{} {{ nodeType", render_read_body(input, vars)?),
-        ReadExpr::IsActive { input } => format!("{} {{ isActive", render_read_body(input, vars)?),
-        ReadExpr::IsEmpty { input } => format!("{} {{ isEmpty", render_read_body(input, vars)?),
+        ReadExpr::GetAllNodeTypes { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { getAllNodeTypes");
+        }
+        ReadExpr::Id { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { id");
+        }
+        ReadExpr::NodeType { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { nodeType");
+        }
+        ReadExpr::IsActive { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { isActive");
+        }
+        ReadExpr::IsEmpty { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { isEmpty");
+        }
         // Compound structured terminal: `list { timestamp datetime eventId }`
         // returns a list of records. Inner braces are self-balanced; the outer
         // `list` brace opens one net brace, contributing 1 to read_depth.
         //
         // The server's `datetime` field takes an optional format-string arg
         // (defaults to RFC 3339). We pass no arg to get the default.
-        ReadExpr::HistoryList { input } => format!(
-            "{} {{ list {{ timestamp datetime eventId }}",
-            render_read_body(input, vars)?
-        ),
-        ReadExpr::HistoryListRev { input } => format!(
-            "{} {{ listRev {{ timestamp datetime eventId }}",
-            render_read_body(input, vars)?
-        ),
+        ReadExpr::HistoryList { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { list { timestamp datetime eventId }");
+        }
+        ReadExpr::HistoryListRev { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { listRev { timestamp datetime eventId }");
+        }
         ReadExpr::HistoryPage {
             input,
             limit,
             offset,
             page_index,
-        } => format!(
-            "{} {{ page({}) {{ timestamp datetime eventId }}",
-            render_read_body(input, vars)?,
-            render_page_args(*limit, *offset, *page_index),
-        ),
+        } => {
+            render_read_into(input, vars, out)?;
+            let _ = write!(
+                out,
+                " {{ page({}) {{ timestamp datetime eventId }}",
+                render_page_args(*limit, *offset, *page_index)
+            );
+        }
         ReadExpr::HistoryPageRev {
             input,
             limit,
             offset,
             page_index,
-        } => format!(
-            "{} {{ pageRev({}) {{ timestamp datetime eventId }}",
-            render_read_body(input, vars)?,
-            render_page_args(*limit, *offset, *page_index),
-        ),
+        } => {
+            render_read_into(input, vars, out)?;
+            let _ = write!(
+                out,
+                " {{ pageRev({}) {{ timestamp datetime eventId }}",
+                render_page_args(*limit, *offset, *page_index)
+            );
+        }
         ReadExpr::EdgeHistoryCount { input } => {
-            format!("{} {{ edgeHistoryCount", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { edgeHistoryCount");
         }
         // Edge-specific terminals
-        ReadExpr::EdgeIdPair { input } => format!("{} {{ id", render_read_body(input, vars)?),
-        ReadExpr::LayerNames { input } => format!("{} {{ layerNames", render_read_body(input, vars)?),
-        ReadExpr::LayerName { input } => format!("{} {{ layerName", render_read_body(input, vars)?),
-        ReadExpr::IsValid { input } => format!("{} {{ isValid", render_read_body(input, vars)?),
-        ReadExpr::IsDeleted { input } => format!("{} {{ isDeleted", render_read_body(input, vars)?),
-        ReadExpr::IsSelfLoop { input } => format!("{} {{ isSelfLoop", render_read_body(input, vars)?),
+        ReadExpr::EdgeIdPair { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { id");
+        }
+        ReadExpr::LayerNames { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { layerNames");
+        }
+        ReadExpr::LayerName { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { layerName");
+        }
+        ReadExpr::IsValid { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { isValid");
+        }
+        ReadExpr::IsDeleted { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { isDeleted");
+        }
+        ReadExpr::IsSelfLoop { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { isSelfLoop");
+        }
         // EventTime terminals — fetch the full `{ timestamp datetime eventId }`
         // record so the client can return a `RemoteEventTime` (drop-in parity
         // with the local API's `EventTime`, which carries the `event_id`).
         ReadExpr::EarliestTime { input } => {
-            format!(
-                "{} {{ earliestTime {{ timestamp datetime eventId",
-                render_read_body(input, vars)?
-            )
+            render_read_into(input, vars, out)?;
+            out.push_str(" { earliestTime { timestamp datetime eventId");
         }
         ReadExpr::LatestTime { input } => {
-            format!(
-                "{} {{ latestTime {{ timestamp datetime eventId",
-                render_read_body(input, vars)?
-            )
+            render_read_into(input, vars, out)?;
+            out.push_str(" { latestTime { timestamp datetime eventId");
         }
         ReadExpr::Start { input } => {
-            format!(
-                "{} {{ start {{ timestamp datetime eventId",
-                render_read_body(input, vars)?
-            )
+            render_read_into(input, vars, out)?;
+            out.push_str(" { start { timestamp datetime eventId");
         }
         ReadExpr::End { input } => {
-            format!(
-                "{} {{ end {{ timestamp datetime eventId",
-                render_read_body(input, vars)?
-            )
+            render_read_into(input, vars, out)?;
+            out.push_str(" { end { timestamp datetime eventId");
         }
         // Remaining timestamp terminals stay bare `i64` (no local @property
         // counterpart, so not part of the EventTime drop-in change).
-        ReadExpr::EarliestEdgeTime { input } => format!(
-            "{} {{ earliestEdgeTime {{ timestamp",
-            render_read_body(input, vars)?
-        ),
+        ReadExpr::EarliestEdgeTime { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { earliestEdgeTime { timestamp");
+        }
         ReadExpr::LatestEdgeTime { input } => {
-            format!(
-                "{} {{ latestEdgeTime {{ timestamp",
-                render_read_body(input, vars)?
-            )
+            render_read_into(input, vars, out)?;
+            out.push_str(" { latestEdgeTime { timestamp");
         }
         ReadExpr::FirstUpdate { input } => {
-            format!("{} {{ firstUpdate {{ timestamp", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { firstUpdate { timestamp");
         }
         ReadExpr::LastUpdate { input } => {
-            format!("{} {{ lastUpdate {{ timestamp", render_read_body(input, vars)?)
+            render_read_into(input, vars, out)?;
+            out.push_str(" { lastUpdate { timestamp");
         }
         ReadExpr::Time { input } => {
-            format!(
-                "{} {{ time {{ timestamp datetime eventId",
-                render_read_body(input, vars)?
-            )
+            render_read_into(input, vars, out)?;
+            out.push_str(" { time { timestamp datetime eventId");
         }
-    })
+    }
+    Ok(())
 }
 
 fn read_depth(expr: &ReadExpr) -> usize {
@@ -2306,16 +2590,19 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
             Ok(Some(Prop::List(items?.into())))
         }
         // `getDtypeOf(key)` — nullable string (the `PropType` display form).
+        // `PropertyGetDtypeOf`: `{ dtype }` record or null. The structured
+        // dtype JSON is carried through the Prop-typed transport as a string
+        // and deserialized to a `PropType` at the handle layer.
         ReadExpr::PropertyGetDtypeOf { .. } => {
             if terminal_val.is_null() {
                 Ok(None)
             } else {
-                terminal_val
-                    .as_str()
-                    .map(|s| Some(Prop::Str(s.into())))
-                    .ok_or_else(|| {
-                        ClientError::InvalidResponse(format!("`{}` not a string", terminal_key))
-                    })
+                let dtype = terminal_val.get("dtype").ok_or_else(|| {
+                    ClientError::InvalidResponse("dtype record missing `dtype`".into())
+                })?;
+                let carrier = serde_json::to_string(dtype)
+                    .map_err(|e| ClientError::InvalidResponse(e.to_string()))?;
+                Ok(Some(Prop::Str(carrier.into())))
             }
         }
         // Property terminals — each entry is a `{key, value}` record where
@@ -2328,13 +2615,13 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
             if terminal_val.is_null() {
                 Ok(None)
             } else {
-                let value_json = terminal_val
-                    .as_object()
-                    .and_then(|o| o.get("value"))
-                    .ok_or_else(|| {
-                        ClientError::InvalidResponse("property record missing `value`".into())
-                    })?;
-                Ok(Some(json_to_prop(value_json)?))
+                let obj = terminal_val.as_object().ok_or_else(|| {
+                    ClientError::InvalidResponse("property record is not a JSON object".into())
+                })?;
+                let value_json = obj.get("value").ok_or_else(|| {
+                    ClientError::InvalidResponse("property record missing `value`".into())
+                })?;
+                Ok(Some(record_value_to_prop(obj, value_json)?))
             }
         }
         // `PropertyValues`: array of `{value}` records (values only) →
@@ -2346,11 +2633,13 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
             let items: Result<Vec<Prop>, ClientError> = arr
                 .iter()
                 .map(|v| {
-                    let value_json =
-                        v.as_object().and_then(|o| o.get("value")).ok_or_else(|| {
-                            ClientError::InvalidResponse("property record missing `value`".into())
-                        })?;
-                    json_to_prop(value_json)
+                    let obj = v.as_object().ok_or_else(|| {
+                        ClientError::InvalidResponse("property record is not a JSON object".into())
+                    })?;
+                    let value_json = obj.get("value").ok_or_else(|| {
+                        ClientError::InvalidResponse("property record missing `value`".into())
+                    })?;
+                    record_value_to_prop(obj, value_json)
                 })
                 .collect();
             Ok(Some(Prop::List(items?.into())))
@@ -2388,19 +2677,32 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
                 .collect();
             Ok(Some(Prop::List(items?.into())))
         }
-        // `TemporalPropertyValueList`: array of untagged Prop values.
+        // `TemporalPropertyValueList`: array of stored values, decoded via the
+        // sibling `dtype` the fragment fetches on the temporal property.
         ReadExpr::TemporalPropertyValueList { .. } => {
             let arr = terminal_val.as_array().ok_or_else(|| {
                 ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
             })?;
-            let items: Result<Vec<Prop>, ClientError> = arr.iter().map(json_to_prop).collect();
+            let dtype = sibling_dtype(cursor)?;
+            let items: Result<Vec<Prop>, ClientError> = arr
+                .iter()
+                .map(|v| decode_with_dtype(dtype.as_ref(), v))
+                .collect();
             Ok(Some(Prop::List(items?.into())))
         }
-        // `TemporalPropertyAt` / `TemporalPropertyLatest` / stats returning
-        // a nullable untagged Prop scalar.
-        ReadExpr::TemporalPropertyAt { .. }
-        | ReadExpr::TemporalPropertyLatest { .. }
-        | ReadExpr::TemporalPropertySum { .. }
+        // `TemporalPropertyAt` / `TemporalPropertyLatest`: nullable stored
+        // value — decoded via the sibling `dtype`.
+        ReadExpr::TemporalPropertyAt { .. } | ReadExpr::TemporalPropertyLatest { .. } => {
+            if terminal_val.is_null() {
+                Ok(None)
+            } else {
+                let dtype = sibling_dtype(cursor)?;
+                Ok(Some(decode_with_dtype(dtype.as_ref(), terminal_val)?))
+            }
+        }
+        // `Sum` / `Mean` / `Average`: computed aggregates — these may widen
+        // beyond the property dtype (e.g. mean of ints), so stay shape-decoded.
+        ReadExpr::TemporalPropertySum { .. }
         | ReadExpr::TemporalPropertyMean { .. }
         | ReadExpr::TemporalPropertyAverage { .. } => {
             if terminal_val.is_null() {
@@ -2409,12 +2711,16 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
                 Ok(Some(json_to_prop(terminal_val)?))
             }
         }
-        // `TemporalPropertyUnique`: array of untagged Prop values.
+        // `TemporalPropertyUnique`: array of stored values, dtype-directed.
         ReadExpr::TemporalPropertyUnique { .. } => {
             let arr = terminal_val.as_array().ok_or_else(|| {
                 ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
             })?;
-            let items: Result<Vec<Prop>, ClientError> = arr.iter().map(json_to_prop).collect();
+            let dtype = sibling_dtype(cursor)?;
+            let items: Result<Vec<Prop>, ClientError> = arr
+                .iter()
+                .map(|v| decode_with_dtype(dtype.as_ref(), v))
+                .collect();
             Ok(Some(Prop::List(items?.into())))
         }
         // `TemporalPropertyMin` / `Max` / `Median`: nullable `{time, value}`
@@ -2426,7 +2732,8 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
             if terminal_val.is_null() {
                 Ok(None)
             } else {
-                Ok(Some(json_to_property_tuple(terminal_val)?))
+                let dtype = sibling_dtype(cursor)?;
+                Ok(Some(json_to_property_tuple(terminal_val, dtype.as_ref())?))
             }
         }
         // `TemporalPropertyOrderedDedupe`: array of `{time, value}` records.
@@ -2434,8 +2741,11 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
             let arr = terminal_val.as_array().ok_or_else(|| {
                 ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
             })?;
-            let items: Result<Vec<Prop>, ClientError> =
-                arr.iter().map(json_to_property_tuple).collect();
+            let dtype = sibling_dtype(cursor)?;
+            let items: Result<Vec<Prop>, ClientError> = arr
+                .iter()
+                .map(|v| json_to_property_tuple(v, dtype.as_ref()))
+                .collect();
             Ok(Some(Prop::List(items?.into())))
         }
         // `Schema`: the full nested schema tree. We reuse `json_to_prop` —
@@ -3125,7 +3435,7 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
             }
             ReadExpr::PropertyGetDtypeOf { input, .. } => {
                 go(input, out);
-                out.push("getDtypeOf");
+                out.push("get");
             }
             ReadExpr::CountNodes { input } => {
                 go(input, out);
@@ -3367,11 +3677,115 @@ fn json_to_prop(v: &JsonValue) -> Result<Prop, ClientError> {
     gql_to_prop(gql).map_err(|e| ClientError::InvalidResponse(e.message))
 }
 
+/// Decode the serde JSON form of `PropType` served by the `dtype` fields.
+fn json_to_prop_type(v: &JsonValue) -> Result<PropType, ClientError> {
+    PropType::deserialize(v).map_err(|e| ClientError::InvalidResponse(format!("bad dtype: {e}")))
+}
+
+/// Read the `dtype` sibling the fragment fetched on the terminal's parent
+/// (e.g. the temporal-property node). `None` when absent or null — older
+/// servers don't serve it, and an empty property has no declared type.
+fn sibling_dtype(parent: &JsonValue) -> Result<Option<PropType>, ClientError> {
+    match parent.get("dtype") {
+        Some(d) if !d.is_null() => Ok(Some(json_to_prop_type(d)?)),
+        _ => Ok(None),
+    }
+}
+
+/// Type-directed decode when a dtype is known, shape-based fallback otherwise.
+fn decode_with_dtype(dtype: Option<&PropType>, v: &JsonValue) -> Result<Prop, ClientError> {
+    match dtype {
+        Some(d) => json_to_prop_typed(d, v),
+        None => json_to_prop(v),
+    }
+}
+
+/// Type-directed decode of an untagged JSON property value: the server-declared
+/// `dtype` recovers what the JSON shape alone cannot — exact numeric widths
+/// (`U8` instead of `I64`), datetimes (epoch-millis numbers), decimals, and
+/// non-finite floats (protobuf-style `"NaN"`/`"Infinity"`/`"-Infinity"`
+/// sentinels in float positions).
+fn json_to_prop_typed(dtype: &PropType, v: &JsonValue) -> Result<Prop, ClientError> {
+    let mismatch =
+        |want: &str| ClientError::InvalidResponse(format!("dtype says {want}, got `{v}`"));
+    let int = |want: &str| v.as_i64().ok_or_else(|| mismatch(want));
+    let uint = |want: &str| v.as_u64().ok_or_else(|| mismatch(want));
+    let float = |want: &str| {
+        v.as_f64()
+            .or_else(|| v.as_str().and_then(parse_special_float))
+            .ok_or_else(|| mismatch(want))
+    };
+    Ok(match dtype {
+        // No type information recorded — fall back to shape-based decoding.
+        PropType::Empty => json_to_prop(v)?,
+        PropType::Str => Prop::Str(v.as_str().ok_or_else(|| mismatch("Str"))?.into()),
+        PropType::Bool => Prop::Bool(v.as_bool().ok_or_else(|| mismatch("Bool"))?),
+        PropType::U8 => Prop::U8(uint("U8")? as u8),
+        PropType::U16 => Prop::U16(uint("U16")? as u16),
+        PropType::U32 => Prop::U32(uint("U32")? as u32),
+        PropType::U64 => Prop::U64(uint("U64")?),
+        PropType::I32 => Prop::I32(int("I32")? as i32),
+        PropType::I64 => Prop::I64(int("I64")?),
+        PropType::F32 => Prop::F32(float("F32")? as f32),
+        PropType::F64 => Prop::F64(float("F64")?),
+        // The wire carries datetimes as epoch-millis numbers.
+        PropType::NDTime => Prop::NDTime(
+            chrono::DateTime::from_timestamp_millis(int("NDTime")?)
+                .ok_or_else(|| mismatch("NDTime"))?
+                .naive_utc(),
+        ),
+        PropType::DTime => Prop::DTime(
+            chrono::DateTime::from_timestamp_millis(int("DTime")?)
+                .ok_or_else(|| mismatch("DTime"))?,
+        ),
+        PropType::Decimal { .. } => {
+            let s = v.as_str().ok_or_else(|| mismatch("Decimal"))?;
+            Prop::Decimal(s.parse().map_err(|_| mismatch("Decimal"))?)
+        }
+        PropType::List(inner) => {
+            let arr = v.as_array().ok_or_else(|| mismatch("List"))?;
+            Prop::List(
+                arr.iter()
+                    .map(|item| json_to_prop_typed(inner, item))
+                    .collect::<Result<Vec<_>, _>>()?
+                    .into(),
+            )
+        }
+        PropType::Map(fields) => {
+            let obj = v.as_object().ok_or_else(|| mismatch("Map"))?;
+            let entries = obj
+                .iter()
+                .map(|(k, item)| {
+                    let prop = match fields.get(k) {
+                        Some(field_type) => json_to_prop_typed(field_type, item)?,
+                        None => json_to_prop(item)?,
+                    };
+                    Ok::<_, ClientError>((k.as_str(), prop))
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            Prop::map(entries)
+        }
+    })
+}
+
+/// Decode a `{value, dtype?}` record's value, type-directed when the server
+/// sent a `dtype` sibling (older servers may not).
+fn record_value_to_prop(
+    obj: &serde_json::Map<String, JsonValue>,
+    value_json: &JsonValue,
+) -> Result<Prop, ClientError> {
+    let dtype = match obj.get("dtype") {
+        Some(d) if !d.is_null() => Some(json_to_prop_type(d)?),
+        _ => None,
+    };
+    decode_with_dtype(dtype.as_ref(), value_json)
+}
+
 /// Decode a `{ time: {timestamp, datetime, eventId}, value }` JSON record
 /// into a `Prop::Map` with `"time"` (nested Prop::Map matching the event-
 /// time shape used elsewhere) and `"value"` (arbitrary Prop). Used by
 /// TemporalProperty stats (`min`/`max`/`median`) and `ordered_dedupe`.
-fn json_to_property_tuple(v: &JsonValue) -> Result<Prop, ClientError> {
+fn json_to_property_tuple(v: &JsonValue, dtype: Option<&PropType>) -> Result<Prop, ClientError> {
     let obj = v.as_object().ok_or_else(|| {
         ClientError::InvalidResponse("property tuple is not a JSON object".into())
     })?;
@@ -3396,7 +3810,10 @@ fn json_to_property_tuple(v: &JsonValue) -> Result<Prop, ClientError> {
         time_pairs.push(("eventId", Prop::I64(e)));
     }
     let time_map = Prop::map(time_pairs);
-    let value = json_to_prop(value_json)?;
+    let value = match dtype {
+        Some(d) => json_to_prop_typed(d, value_json)?,
+        None => json_to_prop(value_json)?,
+    };
     Ok(Prop::map(vec![("time", time_map), ("value", value)]))
 }
 
@@ -3413,7 +3830,7 @@ fn json_to_property_record(v: &JsonValue) -> Result<Prop, ClientError> {
     let value_json = obj
         .get("value")
         .ok_or_else(|| ClientError::InvalidResponse("property record missing `value`".into()))?;
-    let value = json_to_prop(value_json)?;
+    let value = record_value_to_prop(obj, value_json)?;
     Ok(Prop::map(vec![
         ("key", Prop::Str(key.into())),
         ("value", value),
@@ -3732,6 +4149,130 @@ mod tests {
         assert_eq!(opens, closes, "unbalanced braces in: {query}");
     }
 
+    // ============ Unit tests for sort-by rendering ============
+
+    /// A `NodeSortBy` with no key set — a base for `..` struct update so each
+    /// test names only the key it exercises.
+    fn no_node_key() -> NodeSortBy {
+        NodeSortBy {
+            reverse: None,
+            id: None,
+            name: None,
+            type_: None,
+            time: None,
+            property: None,
+        }
+    }
+
+    fn no_edge_key() -> EdgeSortBy {
+        EdgeSortBy {
+            reverse: None,
+            src: None,
+            dst: None,
+            neighbour: None,
+            time: None,
+            property: None,
+        }
+    }
+
+    #[test]
+    fn render_node_sort_bys_covers_every_key() {
+        let out = render_node_sort_bys(&[
+            NodeSortBy {
+                reverse: Some(true),
+                id: Some(true),
+                ..no_node_key()
+            },
+            NodeSortBy {
+                name: Some(true),
+                ..no_node_key()
+            },
+            // Rust `type_` must render as the GraphQL field `type`.
+            NodeSortBy {
+                type_: Some(true),
+                ..no_node_key()
+            },
+            NodeSortBy {
+                time: Some(SortByTime::Latest),
+                ..no_node_key()
+            },
+            NodeSortBy {
+                property: Some("score".into()),
+                ..no_node_key()
+            },
+        ]);
+        assert_eq!(
+            out,
+            r#"[{reverse: true, id: true}, {name: true}, {type: true}, {time: LATEST}, {property: "score"}]"#
+        );
+        assert_eq!(render_node_sort_bys(&[]), "[]");
+    }
+
+    #[test]
+    fn render_edge_sort_bys_nests_node_keys() {
+        let out = render_edge_sort_bys(&[
+            EdgeSortBy {
+                src: Some(NodeSortBy {
+                    type_: Some(true),
+                    ..no_node_key()
+                }),
+                ..no_edge_key()
+            },
+            EdgeSortBy {
+                dst: Some(NodeSortBy {
+                    reverse: Some(true),
+                    id: Some(true),
+                    ..no_node_key()
+                }),
+                ..no_edge_key()
+            },
+            EdgeSortBy {
+                neighbour: Some(NodeSortBy {
+                    name: Some(true),
+                    ..no_node_key()
+                }),
+                ..no_edge_key()
+            },
+            // Top-level `reverse` belongs to the time/property keys only.
+            EdgeSortBy {
+                reverse: Some(true),
+                time: Some(SortByTime::Earliest),
+                ..no_edge_key()
+            },
+        ]);
+        assert_eq!(
+            out,
+            r#"[{src: {type: true}}, {dst: {reverse: true, id: true}}, {neighbour: {name: true}}, {reverse: true, time: EARLIEST}]"#
+        );
+    }
+
+    #[test]
+    fn sorted_edges_by_neighbour_renders_into_query() {
+        let expr = ReadExpr::SortedEdges {
+            input: Arc::new(ReadExpr::Edges {
+                input: Arc::new(ReadExpr::Root { path: "g".into() }),
+            }),
+            sort_bys: vec![EdgeSortBy {
+                neighbour: Some(NodeSortBy {
+                    property: Some("score".into()),
+                    ..no_node_key()
+                }),
+                ..no_edge_key()
+            }],
+        };
+        let (query, _vars) = render_read(&expr).unwrap();
+        assert!(
+            query.contains(r#"sorted(sortBys: [{neighbour: {property: "score"}}])"#),
+            "got: {query}"
+        );
+        // The nested object must not unbalance the surrounding selection set.
+        assert_eq!(
+            query.matches('{').count(),
+            query.matches('}').count(),
+            "unbalanced braces in: {query}"
+        );
+    }
+
     // ============ Unit tests for GraphQL string escaping ============
 
     #[test]
@@ -3875,14 +4416,15 @@ mod tests {
     }
 
     #[test]
-    fn non_finite_write_property_is_invalid_input_not_a_panic() {
-        // The write path must surface a NaN property as `InvalidInput`, not
-        // panic inside `json!` when `Value`'s serializer rejects it.
-        let props: HashMap<String, Prop> = [("bad".to_string(), Prop::F64(f64::NAN))].into();
-        assert!(matches!(
-            properties_var(&props),
-            Err(ClientError::InvalidInput(_))
-        ));
+    fn non_finite_write_property_rides_the_special_variant() {
+        // NaN has no JSON number form — the write path must ship it in the
+        // tagged `f64Special` variant rather than erroring or emitting `null`.
+        let props: HashMap<String, Prop> = [("v".to_string(), Prop::F64(f64::NAN))].into();
+        let var = properties_var(&props).unwrap();
+        assert_eq!(
+            serde_json::to_value(&var).unwrap(),
+            serde_json::json!([{ "key": "v", "value": { "f64Special": "NAN" } }])
+        );
     }
 
     #[test]
@@ -4041,7 +4583,10 @@ mod tests {
     #[tokio::test]
     async fn test_filtered_collect_matches_columnar_reads() {
         use crate::{client::remote_client::RemoteClient, server::GraphServer};
-        use raphtory::db::api::storage::storage::Config;
+        use raphtory::db::{
+            api::storage::storage::Config,
+            graph::views::filter::model::node_filter::CompositeNodeFilter,
+        };
         use reqwest::Url;
         use std::collections::HashMap as Map;
         use tempfile::tempdir;
@@ -4110,7 +4655,10 @@ mod tests {
         assert_eq!(b_neighbours, ["c"], "b's neighbours under f exclude a");
 
         // select() narrows membership only — handles see the unfiltered graph.
-        let selected = rg.nodes().select(score_gt_15.clone());
+        // Passed as a composite: reflexive TryInto<GqlNodeFilter> is Infallible,
+        // so a raw Gql filter can't satisfy the `Error = GraphError` bound.
+        let score_gt_15_composite = CompositeNodeFilter::try_from(score_gt_15.clone()).unwrap();
+        let selected = rg.nodes().select(score_gt_15_composite).unwrap();
         let mut selected_ids = selected.ids().await.unwrap();
         selected_ids.sort();
         assert_eq!(selected_ids, ["b", "c"], "select narrows membership");

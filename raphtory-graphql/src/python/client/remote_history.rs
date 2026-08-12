@@ -110,8 +110,8 @@ impl PyRemoteHistory {
     ///
     /// Arguments:
     ///   limit (int): maximum number of events on this page.
-    ///   offset (int, optional): additional items to skip. Defaults to 0.
-    ///   page_index (int, optional): 0-based page number. Defaults to 0.
+    ///   offset (int, optional): additional items to skip.
+    ///   page_index (int, optional): 0-based page number.
     ///
     /// Returns:
     ///   list[EventTime]: at most `limit` events.
@@ -132,6 +132,14 @@ impl PyRemoteHistory {
 
     /// A page of events in descending time order. Same args as `page()`.
     /// Fires one RPC.
+    ///
+    /// Arguments:
+    ///     limit (int): maximum number of items on this page.
+    ///     offset (int, optional): additional items to skip.
+    ///     page_index (int, optional): 0-based page number.
+    ///
+    /// Returns:
+    ///     list[EventTime]: at most `limit` events.
     #[pyo3(signature = (limit, offset = None, page_index = None))]
     pub fn page_rev(
         &self,
@@ -210,6 +218,9 @@ impl PyRemoteHistory {
 
     /// Timestamps view of this history (plain int timestamps), mirroring the
     /// local `History.t`. Lazy — no RPC.
+    ///
+    /// Returns:
+    ///     RemoteHistoryTimestamps: the timestamps view of this history.
     #[getter]
     pub fn t(&self) -> PyRemoteHistoryTimestamps {
         PyRemoteHistoryTimestamps {
@@ -219,6 +230,9 @@ impl PyRemoteHistory {
 
     /// Datetime view of this history (RFC 3339 strings), mirroring the
     /// local `History.dt`. Lazy — no RPC.
+    ///
+    /// Returns:
+    ///     RemoteHistoryDateTimes: the datetimes view of this history.
     #[getter]
     pub fn dt(&self) -> PyRemoteHistoryDateTimes {
         PyRemoteHistoryDateTimes {
@@ -227,6 +241,9 @@ impl PyRemoteHistory {
     }
 
     /// Sub-container: event-id view of this history. Lazy — no RPC.
+    ///
+    /// Returns:
+    ///     RemoteHistoryEventIds: the event-ids view of this history.
     #[getter]
     pub fn event_id(&self) -> PyRemoteHistoryEventIds {
         PyRemoteHistoryEventIds {
@@ -236,6 +253,9 @@ impl PyRemoteHistory {
 
     /// Sub-container: inter-event intervals view of this history. Adds
     /// stats terminals (mean/median/max/min). Lazy — no RPC.
+    ///
+    /// Returns:
+    ///     RemoteIntervals: the intervals view of this history.
     #[getter]
     pub fn intervals(&self) -> PyRemoteIntervals {
         PyRemoteIntervals {
@@ -277,18 +297,32 @@ pub struct PyRemoteHistoryTimestamps {
 #[pymethods]
 impl PyRemoteHistoryTimestamps {
     /// Fires one RPC.
+    ///
+    /// Returns:
+    ///     list[int]: all timestamps in ascending time order.
     pub fn collect(&self) -> Result<Vec<i64>, ClientError> {
         let inner = Arc::clone(&self.inner);
         execute_async_task(move || async move { inner.collect().await })
     }
 
     /// Fires one RPC.
+    ///
+    /// Returns:
+    ///     list[int]: all timestamps in descending time order.
     pub fn collect_rev(&self) -> Result<Vec<i64>, ClientError> {
         let inner = Arc::clone(&self.inner);
         execute_async_task(move || async move { inner.collect_rev().await })
     }
 
     /// Fires one RPC.
+    ///
+    /// Arguments:
+    ///     limit (int): maximum number of items on this page.
+    ///     offset (int, optional): additional items to skip.
+    ///     page_index (int, optional): 0-based page number.
+    ///
+    /// Returns:
+    ///     list[int]: at most `limit` timestamps, in ascending time order.
     #[pyo3(signature = (limit, offset = None, page_index = None))]
     pub fn page(
         &self,
@@ -301,6 +335,14 @@ impl PyRemoteHistoryTimestamps {
     }
 
     /// Fires one RPC.
+    ///
+    /// Arguments:
+    ///     limit (int): maximum number of items on this page.
+    ///     offset (int, optional): additional items to skip.
+    ///     page_index (int, optional): 0-based page number.
+    ///
+    /// Returns:
+    ///     list[int]: at most `limit` timestamps, in descending time order.
     #[pyo3(signature = (limit, offset = None, page_index = None))]
     pub fn page_rev(
         &self,
@@ -314,6 +356,9 @@ impl PyRemoteHistoryTimestamps {
 
     /// All timestamps as a `list[int]` — alias of `collect()`, mirroring the
     /// local `HistoryTimestamp.to_list`. Fires one RPC.
+    ///
+    /// Returns:
+    ///     list[int]: all timestamps in ascending time order.
     pub fn to_list(&self) -> Result<Vec<i64>, ClientError> {
         self.collect()
     }
@@ -321,6 +366,9 @@ impl PyRemoteHistoryTimestamps {
     /// All timestamps as a `list[int]` in reverse order — alias of
     /// `collect_rev()`, mirroring the local `HistoryTimestamp.to_list_rev`.
     /// Fires one RPC.
+    ///
+    /// Returns:
+    ///     list[int]: all timestamps in descending time order.
     pub fn to_list_rev(&self) -> Result<Vec<i64>, ClientError> {
         self.collect_rev()
     }
@@ -381,18 +429,32 @@ pub struct PyRemoteHistoryEventIds {
 #[pymethods]
 impl PyRemoteHistoryEventIds {
     /// Fires one RPC.
+    ///
+    /// Returns:
+    ///     list[int]: all event ids in ascending time order.
     pub fn collect(&self) -> Result<Vec<i64>, ClientError> {
         let inner = Arc::clone(&self.inner);
         execute_async_task(move || async move { inner.collect().await })
     }
 
     /// Fires one RPC.
+    ///
+    /// Returns:
+    ///     list[int]: all event ids in descending time order.
     pub fn collect_rev(&self) -> Result<Vec<i64>, ClientError> {
         let inner = Arc::clone(&self.inner);
         execute_async_task(move || async move { inner.collect_rev().await })
     }
 
     /// Fires one RPC.
+    ///
+    /// Arguments:
+    ///     limit (int): maximum number of items on this page.
+    ///     offset (int, optional): additional items to skip.
+    ///     page_index (int, optional): 0-based page number.
+    ///
+    /// Returns:
+    ///     list[int]: at most `limit` event ids, in ascending time order.
     #[pyo3(signature = (limit, offset = None, page_index = None))]
     pub fn page(
         &self,
@@ -405,6 +467,14 @@ impl PyRemoteHistoryEventIds {
     }
 
     /// Fires one RPC.
+    ///
+    /// Arguments:
+    ///     limit (int): maximum number of items on this page.
+    ///     offset (int, optional): additional items to skip.
+    ///     page_index (int, optional): 0-based page number.
+    ///
+    /// Returns:
+    ///     list[int]: at most `limit` event ids, in descending time order.
     #[pyo3(signature = (limit, offset = None, page_index = None))]
     pub fn page_rev(
         &self,
@@ -418,6 +488,9 @@ impl PyRemoteHistoryEventIds {
 
     /// All event ids as a `list[int]` — alias of `collect()`, mirroring the
     /// local `HistoryEventId.to_list`. Fires one RPC.
+    ///
+    /// Returns:
+    ///     list[int]: all event ids in ascending time order.
     pub fn to_list(&self) -> Result<Vec<i64>, ClientError> {
         self.collect()
     }
@@ -425,6 +498,9 @@ impl PyRemoteHistoryEventIds {
     /// All event ids as a `list[int]` in reverse order — alias of
     /// `collect_rev()`, mirroring the local `HistoryEventId.to_list_rev`.
     /// Fires one RPC.
+    ///
+    /// Returns:
+    ///     list[int]: all event ids in descending time order.
     pub fn to_list_rev(&self) -> Result<Vec<i64>, ClientError> {
         self.collect_rev()
     }
@@ -499,6 +575,9 @@ pub struct PyRemoteHistoryDateTimes {
 #[pymethods]
 impl PyRemoteHistoryDateTimes {
     /// Fires one RPC.
+    ///
+    /// Returns:
+    ///     list[datetime]: all datetimes (UTC) in ascending time order.
     pub fn collect(&self) -> Result<Vec<DateTime<Utc>>, ClientError> {
         let inner = Arc::clone(&self.inner);
         parse_rfc3339(execute_async_task(
@@ -507,6 +586,9 @@ impl PyRemoteHistoryDateTimes {
     }
 
     /// Fires one RPC.
+    ///
+    /// Returns:
+    ///     list[datetime]: all datetimes (UTC) in descending time order.
     pub fn collect_rev(&self) -> Result<Vec<DateTime<Utc>>, ClientError> {
         let inner = Arc::clone(&self.inner);
         parse_rfc3339(execute_async_task(move || async move {
@@ -515,6 +597,14 @@ impl PyRemoteHistoryDateTimes {
     }
 
     /// Fires one RPC.
+    ///
+    /// Arguments:
+    ///     limit (int): maximum number of items on this page.
+    ///     offset (int, optional): additional items to skip.
+    ///     page_index (int, optional): 0-based page number.
+    ///
+    /// Returns:
+    ///     list[datetime]: at most `limit` datetimes (UTC), in ascending time order.
     #[pyo3(signature = (limit, offset = None, page_index = None))]
     pub fn page(
         &self,
@@ -529,6 +619,14 @@ impl PyRemoteHistoryDateTimes {
     }
 
     /// Fires one RPC.
+    ///
+    /// Arguments:
+    ///     limit (int): maximum number of items on this page.
+    ///     offset (int, optional): additional items to skip.
+    ///     page_index (int, optional): 0-based page number.
+    ///
+    /// Returns:
+    ///     list[datetime]: at most `limit` datetimes (UTC), in descending time order.
     #[pyo3(signature = (limit, offset = None, page_index = None))]
     pub fn page_rev(
         &self,
@@ -601,18 +699,32 @@ pub struct PyRemoteIntervals {
 #[pymethods]
 impl PyRemoteIntervals {
     /// Fires one RPC.
+    ///
+    /// Returns:
+    ///     list[int]: all intervals in ascending time order.
     pub fn collect(&self) -> Result<Vec<i64>, ClientError> {
         let inner = Arc::clone(&self.inner);
         execute_async_task(move || async move { inner.collect().await })
     }
 
     /// Fires one RPC.
+    ///
+    /// Returns:
+    ///     list[int]: all intervals in descending time order.
     pub fn collect_rev(&self) -> Result<Vec<i64>, ClientError> {
         let inner = Arc::clone(&self.inner);
         execute_async_task(move || async move { inner.collect_rev().await })
     }
 
     /// Fires one RPC.
+    ///
+    /// Arguments:
+    ///     limit (int): maximum number of items on this page.
+    ///     offset (int, optional): additional items to skip.
+    ///     page_index (int, optional): 0-based page number.
+    ///
+    /// Returns:
+    ///     list[int]: at most `limit` intervals, in ascending time order.
     #[pyo3(signature = (limit, offset = None, page_index = None))]
     pub fn page(
         &self,
@@ -625,6 +737,14 @@ impl PyRemoteIntervals {
     }
 
     /// Fires one RPC.
+    ///
+    /// Arguments:
+    ///     limit (int): maximum number of items on this page.
+    ///     offset (int, optional): additional items to skip.
+    ///     page_index (int, optional): 0-based page number.
+    ///
+    /// Returns:
+    ///     list[int]: at most `limit` intervals, in descending time order.
     #[pyo3(signature = (limit, offset = None, page_index = None))]
     pub fn page_rev(
         &self,
@@ -638,6 +758,9 @@ impl PyRemoteIntervals {
 
     /// Mean interval between consecutive events. `None` if fewer than 2 events.
     /// Fires one RPC.
+    ///
+    /// Returns:
+    ///     Optional[float]: the mean interval, or `None` if fewer than 2 events.
     pub fn mean(&self) -> Result<Option<f64>, ClientError> {
         let inner = Arc::clone(&self.inner);
         execute_async_task(move || async move { inner.mean().await })
@@ -645,6 +768,9 @@ impl PyRemoteIntervals {
 
     /// Median interval between consecutive events. `None` if fewer than 2 events.
     /// Fires one RPC.
+    ///
+    /// Returns:
+    ///     Optional[int]: the median interval, or `None` if fewer than 2 events.
     pub fn median(&self) -> Result<Option<i64>, ClientError> {
         let inner = Arc::clone(&self.inner);
         execute_async_task(move || async move { inner.median().await })
@@ -652,6 +778,9 @@ impl PyRemoteIntervals {
 
     /// Max interval between consecutive events. `None` if fewer than 2 events.
     /// Fires one RPC.
+    ///
+    /// Returns:
+    ///     Optional[int]: the largest interval, or `None` if fewer than 2 events.
     pub fn max(&self) -> Result<Option<i64>, ClientError> {
         let inner = Arc::clone(&self.inner);
         execute_async_task(move || async move { inner.max().await })
@@ -659,6 +788,9 @@ impl PyRemoteIntervals {
 
     /// Min interval between consecutive events. `None` if fewer than 2 events.
     /// Fires one RPC.
+    ///
+    /// Returns:
+    ///     Optional[int]: the smallest interval, or `None` if fewer than 2 events.
     pub fn min(&self) -> Result<Option<i64>, ClientError> {
         let inner = Arc::clone(&self.inner);
         execute_async_task(move || async move { inner.min().await })
@@ -666,6 +798,9 @@ impl PyRemoteIntervals {
 
     /// All intervals as a `list[int]` — alias of `collect()`, mirroring the
     /// local `Intervals.to_list`. Fires one RPC.
+    ///
+    /// Returns:
+    ///     list[int]: all intervals in ascending time order.
     pub fn to_list(&self) -> Result<Vec<i64>, ClientError> {
         self.collect()
     }
@@ -673,6 +808,9 @@ impl PyRemoteIntervals {
     /// All intervals as a `list[int]` in reverse order — alias of
     /// `collect_rev()`, mirroring the local `Intervals.to_list_rev`. Fires
     /// one RPC.
+    ///
+    /// Returns:
+    ///     list[int]: all intervals in descending time order.
     pub fn to_list_rev(&self) -> Result<Vec<i64>, ClientError> {
         self.collect_rev()
     }

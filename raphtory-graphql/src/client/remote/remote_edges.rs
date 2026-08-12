@@ -252,9 +252,12 @@ impl RemoteEdges {
     /// `.filter()`, the filter applies **only at this step** — downstream
     /// traversals from the matching edges see the unfiltered graph.
     /// Lazy — no RPC.
-    pub fn select(&self, filter: GqlEdgeFilter) -> RemoteEdges {
-        let filter = Arc::new(filter);
-        RemoteEdges {
+    pub fn select(
+        &self,
+        filter: impl TryInto<GqlEdgeFilter, Error = GraphError>,
+    ) -> Result<RemoteEdges, ClientError> {
+        let filter = Arc::new(filter.try_into()?);
+        Ok(RemoteEdges {
             path: self.path.clone(),
             transport: self.transport.clone(),
             expr: Arc::new(ReadExpr::SelectEdges {
@@ -262,7 +265,7 @@ impl RemoteEdges {
                 filter,
             }),
             ctx: self.ctx.clone(),
-        }
+        })
     }
 
     /// The source node of each edge in this collection, as a flat

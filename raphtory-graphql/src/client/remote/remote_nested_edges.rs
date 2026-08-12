@@ -192,9 +192,12 @@ impl RemoteNestedEdges {
 
     /// Narrow this collection's membership by an edge filter — applies only at
     /// this step; downstream traversals see the unfiltered graph. Lazy — no RPC.
-    pub fn select(&self, filter: GqlEdgeFilter) -> RemoteNestedEdges {
-        let filter = Arc::new(filter);
-        RemoteNestedEdges {
+    pub fn select(
+        &self,
+        filter: impl TryInto<GqlEdgeFilter, Error = GraphError>,
+    ) -> Result<RemoteNestedEdges, ClientError> {
+        let filter = Arc::new(filter.try_into()?);
+        Ok(RemoteNestedEdges {
             path: self.path.clone(),
             transport: self.transport.clone(),
             expr: Arc::new(ReadExpr::SelectEdges {
@@ -202,7 +205,7 @@ impl RemoteNestedEdges {
                 filter,
             }),
             ctx: self.ctx.clone(),
-        }
+        })
     }
 
     /// Fan out each source's edges into one entry per event — returns a new

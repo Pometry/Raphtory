@@ -26,8 +26,8 @@ use crate::{
 };
 use async_graphql::Context;
 use dynamic_graphql::{
-    App, InputObject, Mutation, MutationFields, MutationRoot, OneOfInput, ResolvedObject,
-    ResolvedObjectFields, Result, Upload,
+    App, Mutation, MutationFields, MutationRoot, OneOfInput, ResolvedObject, ResolvedObjectFields,
+    Result, Upload,
 };
 use itertools::Itertools;
 use raphtory::{

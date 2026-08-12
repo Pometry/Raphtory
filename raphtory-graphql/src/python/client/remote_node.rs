@@ -10,7 +10,7 @@ use crate::{
 };
 use pyo3::{
     exceptions::{PyKeyError, PyValueError},
-    pyclass, pymethods, Py, PyAny, PyResult, Python,
+    pyclass, pymethods, PyResult,
 };
 use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
 use raphtory_api::core::{
@@ -44,6 +44,13 @@ impl PyRemoteNode {
 #[pymethods]
 impl PyRemoteNode {
     /// Time-window this node. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     start (TimeInput): inclusive start of the window.
+    ///     end (TimeInput): exclusive end of the window.
+    ///
+    /// Returns:
+    ///     RemoteNode: a new view restricted to the window.
     pub fn window(&self, start: InputTime, end: InputTime) -> PyRemoteNode {
         PyRemoteNode::new(self.node.window(start, end))
     }
@@ -68,86 +75,180 @@ impl PyRemoteNode {
     }
 
     /// Restrict to a single named layer. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     name (str): the name of the layer.
+    ///
+    /// Returns:
+    ///     RemoteNode: a new view restricted to that layer.
     pub fn layer(&self, name: &str) -> PyRemoteNode {
         PyRemoteNode::new(self.node.layer(name))
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     time (TimeInput): the time to snapshot at.
+    ///
+    /// Returns:
+    ///     RemoteNode: a new view snapshotted at that time.
     pub fn at(&self, time: InputTime) -> PyRemoteNode {
         PyRemoteNode::new(self.node.at(time))
     }
 
     /// Restrict to events strictly before the given time. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     time (TimeInput): only events strictly before this time are kept.
+    ///
+    /// Returns:
+    ///     RemoteNode: a new view restricted to events before that time.
     pub fn before(&self, time: InputTime) -> PyRemoteNode {
         PyRemoteNode::new(self.node.before(time))
     }
 
     /// Restrict to events strictly after the given time (exclusive). Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     time (TimeInput): only events strictly after this time are kept.
+    ///
+    /// Returns:
+    ///     RemoteNode: a new view restricted to events after that time.
     pub fn after(&self, time: InputTime) -> PyRemoteNode {
         PyRemoteNode::new(self.node.after(time))
     }
 
     /// Latest state. Lazy — no RPC.
+    ///
+    /// Returns:
+    ///     RemoteNode: a new view of the latest state.
     pub fn latest(&self) -> PyRemoteNode {
         PyRemoteNode::new(self.node.latest())
     }
 
     /// Snapshot at the latest time. Lazy — no RPC.
+    ///
+    /// Returns:
+    ///     RemoteNode: a new view snapshotted at the latest time.
     pub fn snapshot_latest(&self) -> PyRemoteNode {
         PyRemoteNode::new(self.node.snapshot_latest())
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     time (TimeInput): the time to snapshot at.
+    ///
+    /// Returns:
+    ///     RemoteNode: a new view snapshotted at that time.
     pub fn snapshot_at(&self, time: InputTime) -> PyRemoteNode {
         PyRemoteNode::new(self.node.snapshot_at(time))
     }
 
     /// Exclude a specific layer from the view. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     name (str): the name of the layer to exclude.
+    ///
+    /// Returns:
+    ///     RemoteNode: a new view with that layer excluded.
     pub fn exclude_layer(&self, name: &str) -> PyRemoteNode {
         PyRemoteNode::new(self.node.exclude_layer(name))
     }
 
     /// Shrink both start and end of the current window. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     start (TimeInput): the new inclusive start of the window.
+    ///     end (TimeInput): the new exclusive end of the window.
+    ///
+    /// Returns:
+    ///     RemoteNode: a new view with both window bounds shrunk.
     pub fn shrink_window(&self, start: InputTime, end: InputTime) -> PyRemoteNode {
         PyRemoteNode::new(self.node.shrink_window(start, end))
     }
 
     /// Shrink the start of the current window. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     start (TimeInput): the new inclusive start of the window.
+    ///
+    /// Returns:
+    ///     RemoteNode: a new view with the window start shrunk.
     pub fn shrink_start(&self, start: InputTime) -> PyRemoteNode {
         PyRemoteNode::new(self.node.shrink_start(start))
     }
 
     /// Shrink the end of the current window. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     end (TimeInput): the new exclusive end of the window.
+    ///
+    /// Returns:
+    ///     RemoteNode: a new view with the window end shrunk.
     pub fn shrink_end(&self, end: InputTime) -> PyRemoteNode {
         PyRemoteNode::new(self.node.shrink_end(end))
     }
 
     /// Restrict to the default layer. Lazy — no RPC.
+    ///
+    /// Returns:
+    ///     RemoteNode: a new view restricted to the default layer.
     pub fn default_layer(&self) -> PyRemoteNode {
         PyRemoteNode::new(self.node.default_layer())
     }
 
     /// Restrict to the given set of layers. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     names (list[str]): the names of the layers.
+    ///
+    /// Returns:
+    ///     RemoteNode: a new view restricted to those layers.
     pub fn layers(&self, names: Vec<String>) -> PyRemoteNode {
         PyRemoteNode::new(self.node.layers(names))
     }
 
     /// Exclude the given set of layers from the view. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     names (list[str]): the names of the layers to exclude.
+    ///
+    /// Returns:
+    ///     RemoteNode: a new view with those layers excluded.
     pub fn exclude_layers(&self, names: Vec<String>) -> PyRemoteNode {
         PyRemoteNode::new(self.node.exclude_layers(names))
     }
 
     /// Restrict to the given set of valid layers. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     names (list[str]): the names of the valid layers.
+    ///
+    /// Returns:
+    ///     RemoteNode: a new view restricted to those valid layers.
     pub fn valid_layers(&self, names: Vec<String>) -> PyRemoteNode {
         PyRemoteNode::new(self.node.valid_layers(names))
     }
 
     /// Exclude a specific valid layer from the view. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     name (str): the name of the valid layer to exclude.
+    ///
+    /// Returns:
+    ///     RemoteNode: a new view with that valid layer excluded.
     pub fn exclude_valid_layer(&self, name: &str) -> PyRemoteNode {
         PyRemoteNode::new(self.node.exclude_valid_layer(name))
     }
 
     /// Exclude the given set of valid layers from the view. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     names (list[str]): the names of the valid layers to exclude.
+    ///
+    /// Returns:
+    ///     RemoteNode: a new view with those valid layers excluded.
     pub fn exclude_valid_layers(&self, names: Vec<String>) -> PyRemoteNode {
         PyRemoteNode::new(self.node.exclude_valid_layers(names))
     }
@@ -243,6 +344,9 @@ impl PyRemoteNode {
 
     /// Returns the in-degree of the node under the current view chain.
     /// Fires one RPC.
+    ///
+    /// Returns:
+    ///     int: the node's in-degree.
     pub fn in_degree(&self) -> Result<i64, ClientError> {
         let node = Arc::clone(&self.node);
         execute_async_task(move || async move { node.in_degree().await })
@@ -250,12 +354,18 @@ impl PyRemoteNode {
 
     /// Returns the out-degree of the node under the current view chain.
     /// Fires one RPC.
+    ///
+    /// Returns:
+    ///     int: the node's out-degree.
     pub fn out_degree(&self) -> Result<i64, ClientError> {
         let node = Arc::clone(&self.node);
         execute_async_task(move || async move { node.out_degree().await })
     }
 
     /// The node's name. Property — attribute access fires one RPC.
+    ///
+    /// Returns:
+    ///     str: the node's name.
     #[getter]
     pub fn name(&self) -> Result<String, ClientError> {
         let node = Arc::clone(&self.node);
@@ -264,6 +374,10 @@ impl PyRemoteNode {
 
     /// Earliest event time on this node under the current view. `None` if the
     /// node has no events. Property — attribute access fires one RPC.
+    ///
+    /// Returns:
+    ///     Optional[EventTime]: the earliest event time on the node, or `None` if it has no
+    ///         events.
     #[getter]
     pub fn earliest_time(&self) -> Result<Option<EventTime>, ClientError> {
         let node = Arc::clone(&self.node);
@@ -274,6 +388,10 @@ impl PyRemoteNode {
     }
 
     /// Latest event time on this node. Property — attribute access fires one RPC.
+    ///
+    /// Returns:
+    ///     Optional[EventTime]: the latest event time on the node, or `None` if it has no
+    ///         events.
     #[getter]
     pub fn latest_time(&self) -> Result<Option<EventTime>, ClientError> {
         let node = Arc::clone(&self.node);
@@ -284,6 +402,9 @@ impl PyRemoteNode {
     }
 
     /// View start bound as seen by this node. Property — fires one RPC.
+    ///
+    /// Returns:
+    ///     Optional[EventTime]: the view start bound, or `None` if unbounded.
     #[getter]
     pub fn start(&self) -> Result<Option<EventTime>, ClientError> {
         let node = Arc::clone(&self.node);
@@ -294,6 +415,9 @@ impl PyRemoteNode {
     }
 
     /// View end bound as seen by this node. Property — fires one RPC.
+    ///
+    /// Returns:
+    ///     Optional[EventTime]: the view end bound, or `None` if unbounded.
     #[getter]
     pub fn end(&self) -> Result<Option<EventTime>, ClientError> {
         let node = Arc::clone(&self.node);
@@ -303,6 +427,9 @@ impl PyRemoteNode {
 
     /// The node's id (as a string, even if the graph uses integer GIDs).
     /// Property — attribute access fires one RPC.
+    ///
+    /// Returns:
+    ///     str: the node's id.
     #[getter]
     pub fn id(&self) -> Result<String, ClientError> {
         let node = Arc::clone(&self.node);
@@ -310,6 +437,9 @@ impl PyRemoteNode {
     }
 
     /// The node's type. `None` if not set. Property — fires one RPC.
+    ///
+    /// Returns:
+    ///     Optional[str]: the node's type, or `None` if unset.
     #[getter]
     pub fn node_type(&self) -> Result<Option<String>, ClientError> {
         let node = Arc::clone(&self.node);
@@ -317,12 +447,21 @@ impl PyRemoteNode {
     }
 
     /// Whether the node has any events in the current view. Fires one RPC.
+    ///
+    /// Returns:
+    ///     bool: True if the node has events in the current view.
     pub fn is_active(&self) -> Result<bool, ClientError> {
         let node = Arc::clone(&self.node);
         execute_async_task(move || async move { node.is_active().await })
     }
 
     /// Check if this view has a layer named `name`. Fires one RPC.
+    ///
+    /// Arguments:
+    ///     name (str): the name of the layer to check.
+    ///
+    /// Returns:
+    ///     bool: True if the layer is present.
     pub fn has_layer(&self, name: &str) -> Result<bool, ClientError> {
         let node = Arc::clone(&self.node);
         let name = name.to_string();
@@ -331,6 +470,9 @@ impl PyRemoteNode {
 
     /// The size of the window covered by this view (`end - start`), or `None`
     /// if the view is unbounded. Property — attribute access fires one RPC.
+    ///
+    /// Returns:
+    ///     Optional[int]: the size of the window, or `None` if the view is unbounded.
     #[getter]
     pub fn window_size(&self) -> Result<Option<i64>, ClientError> {
         let node = Arc::clone(&self.node);
@@ -338,6 +480,9 @@ impl PyRemoteNode {
     }
 
     /// Count of temporal edge events on this node. Fires one RPC.
+    ///
+    /// Returns:
+    ///     int: the number of temporal edge events on the node.
     pub fn edge_history_count(&self) -> Result<i64, ClientError> {
         let node = Arc::clone(&self.node);
         execute_async_task(move || async move { node.edge_history_count().await })
@@ -345,6 +490,10 @@ impl PyRemoteNode {
 
     /// First update timestamp on this node under the current view. Returns
     /// `None` if the node has no updates in the view. Fires one RPC.
+    ///
+    /// Returns:
+    ///     Optional[int]: the first update timestamp, or `None` if the node has no updates
+    ///         in view.
     pub fn first_update(&self) -> Result<Option<i64>, ClientError> {
         let node = Arc::clone(&self.node);
         execute_async_task(move || async move { node.first_update().await })
@@ -352,6 +501,10 @@ impl PyRemoteNode {
 
     /// Last update timestamp on this node under the current view. Returns
     /// `None` if the node has no updates in the view. Fires one RPC.
+    ///
+    /// Returns:
+    ///     Optional[int]: the last update timestamp, or `None` if the node has no updates
+    ///         in view.
     pub fn last_update(&self) -> Result<Option<i64>, ClientError> {
         let node = Arc::clone(&self.node);
         execute_async_task(move || async move { node.last_update().await })
@@ -360,6 +513,9 @@ impl PyRemoteNode {
     /// This node's neighbours (both directions). Lazy — no RPC. Returns a
     /// `RemotePathFromNode` (not `RemoteNodes`) — see that type for the
     /// available methods; `sorted` and `default_layer` are not available.
+    ///
+    /// Returns:
+    ///     RemotePathFromNode: the neighbouring nodes.
     #[getter]
     pub fn neighbours(&self) -> PyRemotePathFromNode {
         PyRemotePathFromNode::new(self.node.neighbours())
@@ -367,6 +523,9 @@ impl PyRemoteNode {
 
     /// This node's in-neighbours. Lazy — no RPC. See `neighbours` for
     /// return-type notes.
+    ///
+    /// Returns:
+    ///     RemotePathFromNode: the in-neighbouring nodes.
     #[getter]
     pub fn in_neighbours(&self) -> PyRemotePathFromNode {
         PyRemotePathFromNode::new(self.node.in_neighbours())
@@ -374,6 +533,9 @@ impl PyRemoteNode {
 
     /// This node's out-neighbours. Lazy — no RPC. See `neighbours` for
     /// return-type notes.
+    ///
+    /// Returns:
+    ///     RemotePathFromNode: the out-neighbouring nodes.
     #[getter]
     pub fn out_neighbours(&self) -> PyRemotePathFromNode {
         PyRemotePathFromNode::new(self.node.out_neighbours())
@@ -381,6 +543,9 @@ impl PyRemoteNode {
 
     /// The in-component of this node — nodes that can reach this node via
     /// incoming edges (ancestors, not including self). Lazy — no RPC.
+    ///
+    /// Returns:
+    ///     RemoteNodes: the nodes that can reach this node.
     #[getter]
     pub fn in_component(&self) -> PyRemoteNodes {
         PyRemoteNodes::new(self.node.in_component())
@@ -388,24 +553,36 @@ impl PyRemoteNode {
 
     /// The out-component of this node — nodes reachable from this node via
     /// outgoing edges (descendants, not including self). Lazy — no RPC.
+    ///
+    /// Returns:
+    ///     RemoteNodes: the nodes reachable from this node.
     #[getter]
     pub fn out_component(&self) -> PyRemoteNodes {
         PyRemoteNodes::new(self.node.out_component())
     }
 
     /// The collection of this node's edges (both directions). Lazy — no RPC.
+    ///
+    /// Returns:
+    ///     RemoteEdges: the node's incident edges.
     #[getter]
     pub fn edges(&self) -> PyRemoteEdges {
         PyRemoteEdges::new(self.node.edges())
     }
 
     /// The collection of this node's incoming edges. Lazy — no RPC.
+    ///
+    /// Returns:
+    ///     RemoteEdges: the node's incoming edges.
     #[getter]
     pub fn in_edges(&self) -> PyRemoteEdges {
         PyRemoteEdges::new(self.node.in_edges())
     }
 
     /// The collection of this node's outgoing edges. Lazy — no RPC.
+    ///
+    /// Returns:
+    ///     RemoteEdges: the node's outgoing edges.
     #[getter]
     pub fn out_edges(&self) -> PyRemoteEdges {
         PyRemoteEdges::new(self.node.out_edges())
@@ -415,12 +592,18 @@ impl PyRemoteNode {
     /// terminals like `count()`, `collect()`, `earliest_time()`, and the
     /// `.t` / `.dt` / `.event_id` / `.intervals` sub-container accessors.
     /// Lazy — no RPC.
+    ///
+    /// Returns:
+    ///     RemoteHistory: the node's event history.
     #[getter]
     pub fn history(&self) -> PyRemoteHistory {
         PyRemoteHistory::new(self.node.history())
     }
 
     /// The non-temporal metadata container of this node. Lazy — no RPC.
+    ///
+    /// Returns:
+    ///     RemoteMetadata: the node's metadata container.
     #[getter]
     pub fn metadata(&self) -> PyRemoteMetadata {
         PyRemoteMetadata::new(self.node.metadata())
@@ -428,6 +611,9 @@ impl PyRemoteNode {
 
     /// The full properties container of this node (temporal + metadata).
     /// Lazy — no RPC.
+    ///
+    /// Returns:
+    ///     RemoteProperties: the node's properties container.
     #[getter]
     pub fn properties(&self) -> PyRemoteProperties {
         PyRemoteProperties::new(self.node.properties())

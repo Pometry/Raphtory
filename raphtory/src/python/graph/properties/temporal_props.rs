@@ -1266,6 +1266,17 @@ impl PyPropValueList {
         self.mean()
     }
 
+    /// Collect the property values into an arrow-backed node state with a single column.
+    ///
+    /// The values are taken in order and aligned with the nodes of `graph`, so this is only
+    /// meaningful when the list was produced by iterating over the nodes of the same graph.
+    ///
+    /// Arguments:
+    ///     graph (GraphView): the graph whose nodes the values are aligned with
+    ///     col_name (str): the name to give the column holding the property values
+    ///
+    /// Returns:
+    ///     OutputNodeState: the values as a node state with one column named `col_name`
     pub fn arrow_compute(&self, graph: DynamicGraph, col_name: String) -> PyOutputNodeState {
         PyOutputNodeState::new(GenericNodeState::new_from_eval_mapped(
             graph.clone(),

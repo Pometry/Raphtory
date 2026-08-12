@@ -11,7 +11,7 @@ use raphtory_graphql::{
     },
     server::{GraphServer, RunningGraphServer},
 };
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use tempfile::{tempdir, TempDir};
 use url::Url;
 
@@ -76,7 +76,7 @@ async fn test_open_telemetry_spans_complete() {
     let (client, handler, span_exporter, log_exporter, _tmp_dir) =
         setup_for_span_tests(TracingLevel::COMPLETE).await;
     let _ = client
-        .query(OPEN_TELEMETRY_QUERY, HashMap::new())
+        .query(OPEN_TELEMETRY_QUERY, Default::default())
         .await
         .unwrap();
     handler.stop().await;
@@ -115,7 +115,7 @@ async fn test_open_telemetry_spans_essential() {
     let (client, handler, span_exporter, log_exporter, _tmp_dir) =
         setup_for_span_tests(TracingLevel::ESSENTIAL).await;
     let _ = client
-        .query(OPEN_TELEMETRY_QUERY, HashMap::new())
+        .query(OPEN_TELEMETRY_QUERY, Default::default())
         .await
         .unwrap();
     handler.stop().await;
@@ -149,7 +149,7 @@ async fn test_open_telemetry_spans_minimal() {
     let (client, handler, span_exporter, log_exporter, _tmp_dir) =
         setup_for_span_tests(TracingLevel::MINIMAL).await;
     let _ = client
-        .query(OPEN_TELEMETRY_QUERY, HashMap::new())
+        .query(OPEN_TELEMETRY_QUERY, Default::default())
         .await
         .unwrap();
     handler.stop().await;

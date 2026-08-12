@@ -230,10 +230,14 @@ impl PyRaphtoryClient {
     ///     graph_type (Literal["EVENT", "PERSISTENT"]): the type of graph that should be created - this can be EVENT or PERSISTENT
     ///
     /// Returns:
-    ///     None:
+    ///     RemoteGraph: a reference to the newly created graph.
     ///
-    fn new_graph(&self, path: String, graph_type: String) -> PyResult<()> {
-        self.run_async(move |client| async move { client.new_graph(&path, &graph_type).await })
+    fn new_graph(&self, path: String, graph_type: String) -> PyResult<PyRemoteGraph> {
+        let create_path = path.clone();
+        self.run_async(
+            move |client| async move { client.new_graph(&create_path, &graph_type).await },
+        )?;
+        Ok(self.remote_graph(path))
     }
 
     /// Get a RemoteGraph reference to a graph on the server at path
@@ -342,8 +346,9 @@ impl PyRaphtoryClient {
     ///     role (str): the role to grant access to
     ///     path (str): the namespace path
     ///     permission (str): one of "read", "write", "introspect" (case-insensitive)
-    ///     recursive (bool): also grant every currently existing descendant of the
-    ///         namespace individually. Defaults to False.
+    ///     recursive (bool): also grant existing descendants. Defaults to False.
+    ///         Every currently existing descendant of the namespace is granted
+    ///         individually.
     ///
     /// Returns:
     ///     bool: True if the grant was applied.
@@ -371,8 +376,9 @@ impl PyRaphtoryClient {
     /// Arguments:
     ///     role (str): the role to revoke access from
     ///     path (str): the namespace path
-    ///     recursive (bool): also revoke every currently existing descendant of the
-    ///         namespace individually. Defaults to False.
+    ///     recursive (bool): also revoke existing descendants. Defaults to False.
+    ///         Every currently existing descendant of the namespace is revoked
+    ///         individually.
     ///
     /// Returns:
     ///     bool: True if the access was revoked.
@@ -488,7 +494,7 @@ impl PyRaphtoryClient {
     ///     name (str): the role to look up
     ///
     /// Returns:
-    ///     dict[str, Any] | None: a mapping with keys ``name``, ``graphs``
+    ///     Optional[dict[str, Any]]: a mapping with keys ``name``, ``graphs``
     ///     (list of ``{"path", "permission"}``) and ``namespaces``
     ///     (list of ``{"path", "permission"}``), or None if the role does not exist.
     fn get_role<'py>(&self, py: Python<'py>, name: String) -> PyResult<Bound<'py, PyAny>> {

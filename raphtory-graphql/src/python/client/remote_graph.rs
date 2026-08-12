@@ -6,7 +6,6 @@ use crate::{
         remote_graph::RemoteGraph,
         ClientError,
     },
-    model::graph::filtering::GqlFilter,
     python::client::{
         remote_edge::PyRemoteEdge,
         remote_edges::PyRemoteEdges,
@@ -78,6 +77,12 @@ impl PyRemoteGraph {
     }
 
     /// Restrict to a single named layer. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     name (str): the name of the layer.
+    ///
+    /// Returns:
+    ///     RemoteGraph: a new view restricted to that layer.
     pub fn layer(&self, name: &str) -> PyRemoteGraph {
         PyRemoteGraph {
             graph: Arc::new(self.graph.layer(name)),
@@ -85,6 +90,12 @@ impl PyRemoteGraph {
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     time (TimeInput): the time to snapshot at.
+    ///
+    /// Returns:
+    ///     RemoteGraph: a new view snapshotted at that time.
     pub fn at(&self, time: InputTime) -> PyRemoteGraph {
         PyRemoteGraph {
             graph: Arc::new(self.graph.at(time)),
@@ -92,6 +103,12 @@ impl PyRemoteGraph {
     }
 
     /// Restrict to events strictly before the given time. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     time (TimeInput): only events strictly before this time are kept.
+    ///
+    /// Returns:
+    ///     RemoteGraph: a new view restricted to events before that time.
     pub fn before(&self, time: InputTime) -> PyRemoteGraph {
         PyRemoteGraph {
             graph: Arc::new(self.graph.before(time)),
@@ -99,6 +116,12 @@ impl PyRemoteGraph {
     }
 
     /// Restrict to events strictly after the given time (exclusive). Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     time (TimeInput): only events strictly after this time are kept.
+    ///
+    /// Returns:
+    ///     RemoteGraph: a new view restricted to events after that time.
     pub fn after(&self, time: InputTime) -> PyRemoteGraph {
         PyRemoteGraph {
             graph: Arc::new(self.graph.after(time)),
@@ -106,6 +129,9 @@ impl PyRemoteGraph {
     }
 
     /// Restrict to the latest state. Lazy — no RPC.
+    ///
+    /// Returns:
+    ///     RemoteGraph: a new view of the latest state.
     pub fn latest(&self) -> PyRemoteGraph {
         PyRemoteGraph {
             graph: Arc::new(self.graph.latest()),
@@ -113,6 +139,9 @@ impl PyRemoteGraph {
     }
 
     /// Snapshot at the latest time. Lazy — no RPC.
+    ///
+    /// Returns:
+    ///     RemoteGraph: a new view snapshotted at the latest time.
     pub fn snapshot_latest(&self) -> PyRemoteGraph {
         PyRemoteGraph {
             graph: Arc::new(self.graph.snapshot_latest()),
@@ -120,6 +149,12 @@ impl PyRemoteGraph {
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     time (TimeInput): the time to snapshot at.
+    ///
+    /// Returns:
+    ///     RemoteGraph: a new view snapshotted at that time.
     pub fn snapshot_at(&self, time: InputTime) -> PyRemoteGraph {
         PyRemoteGraph {
             graph: Arc::new(self.graph.snapshot_at(time)),
@@ -127,6 +162,12 @@ impl PyRemoteGraph {
     }
 
     /// Exclude a specific layer from the view. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     name (str): the name of the layer to exclude.
+    ///
+    /// Returns:
+    ///     RemoteGraph: a new view with that layer excluded.
     pub fn exclude_layer(&self, name: &str) -> PyRemoteGraph {
         PyRemoteGraph {
             graph: Arc::new(self.graph.exclude_layer(name)),
@@ -134,6 +175,13 @@ impl PyRemoteGraph {
     }
 
     /// Shrink both start and end of the current window. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     start (TimeInput): the new inclusive start of the window.
+    ///     end (TimeInput): the new exclusive end of the window.
+    ///
+    /// Returns:
+    ///     RemoteGraph: a new view with both window bounds shrunk.
     pub fn shrink_window(&self, start: InputTime, end: InputTime) -> PyRemoteGraph {
         PyRemoteGraph {
             graph: Arc::new(self.graph.shrink_window(start, end)),
@@ -141,6 +189,12 @@ impl PyRemoteGraph {
     }
 
     /// Shrink the start of the current window. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     start (TimeInput): the new inclusive start of the window.
+    ///
+    /// Returns:
+    ///     RemoteGraph: a new view with the window start shrunk.
     pub fn shrink_start(&self, start: InputTime) -> PyRemoteGraph {
         PyRemoteGraph {
             graph: Arc::new(self.graph.shrink_start(start)),
@@ -148,6 +202,12 @@ impl PyRemoteGraph {
     }
 
     /// Shrink the end of the current window. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     end (TimeInput): the new exclusive end of the window.
+    ///
+    /// Returns:
+    ///     RemoteGraph: a new view with the window end shrunk.
     pub fn shrink_end(&self, end: InputTime) -> PyRemoteGraph {
         PyRemoteGraph {
             graph: Arc::new(self.graph.shrink_end(end)),
@@ -155,6 +215,9 @@ impl PyRemoteGraph {
     }
 
     /// Restrict to the "valid" subgraph (event-graph filter). Lazy — no RPC.
+    ///
+    /// Returns:
+    ///     RemoteGraph: a new view restricted to the valid subgraph.
     pub fn valid(&self) -> PyRemoteGraph {
         PyRemoteGraph {
             graph: Arc::new(self.graph.valid()),
@@ -162,6 +225,9 @@ impl PyRemoteGraph {
     }
 
     /// Restrict to the default layer. Lazy — no RPC.
+    ///
+    /// Returns:
+    ///     RemoteGraph: a new view restricted to the default layer.
     pub fn default_layer(&self) -> PyRemoteGraph {
         PyRemoteGraph {
             graph: Arc::new(self.graph.default_layer()),
@@ -169,6 +235,12 @@ impl PyRemoteGraph {
     }
 
     /// Restrict to the given set of layers. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     names (list[str]): the names of the layers.
+    ///
+    /// Returns:
+    ///     RemoteGraph: a new view restricted to those layers.
     pub fn layers(&self, names: Vec<String>) -> PyRemoteGraph {
         PyRemoteGraph {
             graph: Arc::new(self.graph.layers(names)),
@@ -176,6 +248,12 @@ impl PyRemoteGraph {
     }
 
     /// Exclude the given set of layers from the view. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     names (list[str]): the names of the layers to exclude.
+    ///
+    /// Returns:
+    ///     RemoteGraph: a new view with those layers excluded.
     pub fn exclude_layers(&self, names: Vec<String>) -> PyRemoteGraph {
         PyRemoteGraph {
             graph: Arc::new(self.graph.exclude_layers(names)),
@@ -183,6 +261,12 @@ impl PyRemoteGraph {
     }
 
     /// Restrict to the given set of valid layers. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     names (list[str]): the names of the valid layers.
+    ///
+    /// Returns:
+    ///     RemoteGraph: a new view restricted to those valid layers.
     pub fn valid_layers(&self, names: Vec<String>) -> PyRemoteGraph {
         PyRemoteGraph {
             graph: Arc::new(self.graph.valid_layers(names)),
@@ -190,6 +274,12 @@ impl PyRemoteGraph {
     }
 
     /// Exclude a specific valid layer from the view. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     name (str): the name of the valid layer to exclude.
+    ///
+    /// Returns:
+    ///     RemoteGraph: a new view with that valid layer excluded.
     pub fn exclude_valid_layer(&self, name: &str) -> PyRemoteGraph {
         PyRemoteGraph {
             graph: Arc::new(self.graph.exclude_valid_layer(name)),
@@ -197,6 +287,12 @@ impl PyRemoteGraph {
     }
 
     /// Exclude the given set of valid layers from the view. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     names (list[str]): the names of the valid layers to exclude.
+    ///
+    /// Returns:
+    ///     RemoteGraph: a new view with those valid layers excluded.
     pub fn exclude_valid_layers(&self, names: Vec<String>) -> PyRemoteGraph {
         PyRemoteGraph {
             graph: Arc::new(self.graph.exclude_valid_layers(names)),
@@ -204,6 +300,12 @@ impl PyRemoteGraph {
     }
 
     /// Restrict to a subgraph induced by the given node ids. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     nodes (list[str]): the ids of the nodes to keep.
+    ///
+    /// Returns:
+    ///     RemoteGraph: a new view restricted to the induced subgraph.
     pub fn subgraph(&self, nodes: Vec<String>) -> PyRemoteGraph {
         PyRemoteGraph {
             graph: Arc::new(self.graph.subgraph(nodes)),
@@ -211,6 +313,12 @@ impl PyRemoteGraph {
     }
 
     /// Restrict to nodes matching one of the given node types. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     node_types (list[str]): the node types to keep.
+    ///
+    /// Returns:
+    ///     RemoteGraph: a new view restricted to those node types.
     pub fn subgraph_node_types(&self, node_types: Vec<String>) -> PyRemoteGraph {
         PyRemoteGraph {
             graph: Arc::new(self.graph.subgraph_node_types(node_types)),
@@ -218,6 +326,12 @@ impl PyRemoteGraph {
     }
 
     /// Exclude the given nodes from the view. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     nodes (list[str]): the ids of the nodes to exclude.
+    ///
+    /// Returns:
+    ///     RemoteGraph: a new view with those nodes excluded.
     pub fn exclude_nodes(&self, nodes: Vec<String>) -> PyRemoteGraph {
         PyRemoteGraph {
             graph: Arc::new(self.graph.exclude_nodes(nodes)),
@@ -225,12 +339,18 @@ impl PyRemoteGraph {
     }
 
     /// Terminal: total node count under the current view. Fires one RPC.
+    ///
+    /// Returns:
+    ///     int: the number of nodes.
     pub fn count_nodes(&self) -> Result<i64, ClientError> {
         let graph = Arc::clone(&self.graph);
         execute_async_task(move || async move { graph.count_nodes().await })
     }
 
     /// Terminal: total edge count under the current view. Fires one RPC.
+    ///
+    /// Returns:
+    ///     int: the number of edges.
     pub fn count_edges(&self) -> Result<i64, ClientError> {
         let graph = Arc::clone(&self.graph);
         execute_async_task(move || async move { graph.count_edges().await })
@@ -238,6 +358,10 @@ impl PyRemoteGraph {
 
     /// Earliest event time under the current view. `None` if the view has no
     /// events. Property — attribute access fires one RPC.
+    ///
+    /// Returns:
+    ///     Optional[EventTime]: the earliest event time, or `None` if the view has no
+    ///         events.
     #[getter]
     pub fn earliest_time(&self) -> Result<Option<EventTime>, ClientError> {
         let graph = Arc::clone(&self.graph);
@@ -248,6 +372,9 @@ impl PyRemoteGraph {
     }
 
     /// Latest event time under the current view. Property — fires one RPC.
+    ///
+    /// Returns:
+    ///     Optional[EventTime]: the latest event time, or `None` if the view has no events.
     #[getter]
     pub fn latest_time(&self) -> Result<Option<EventTime>, ClientError> {
         let graph = Arc::clone(&self.graph);
@@ -258,6 +385,9 @@ impl PyRemoteGraph {
     }
 
     /// View start bound. `None` for an unbounded view. Property — fires one RPC.
+    ///
+    /// Returns:
+    ///     Optional[EventTime]: the view start bound, or `None` if unbounded.
     #[getter]
     pub fn start(&self) -> Result<Option<EventTime>, ClientError> {
         let graph = Arc::clone(&self.graph);
@@ -268,6 +398,9 @@ impl PyRemoteGraph {
     }
 
     /// View end bound. `None` for an unbounded view. Property — fires one RPC.
+    ///
+    /// Returns:
+    ///     Optional[EventTime]: the view end bound, or `None` if unbounded.
     #[getter]
     pub fn end(&self) -> Result<Option<EventTime>, ClientError> {
         let graph = Arc::clone(&self.graph);
@@ -278,24 +411,36 @@ impl PyRemoteGraph {
     }
 
     /// Terminal: graph creation timestamp. Fires one RPC.
+    ///
+    /// Returns:
+    ///     int: the graph's creation timestamp.
     pub fn created(&self) -> Result<i64, ClientError> {
         let graph = Arc::clone(&self.graph);
         execute_async_task(move || async move { graph.created().await })
     }
 
     /// Terminal: last time this graph was opened. Fires one RPC.
+    ///
+    /// Returns:
+    ///     int: the timestamp the graph was last opened at.
     pub fn last_opened(&self) -> Result<i64, ClientError> {
         let graph = Arc::clone(&self.graph);
         execute_async_task(move || async move { graph.last_opened().await })
     }
 
     /// Terminal: last time this graph was updated. Fires one RPC.
+    ///
+    /// Returns:
+    ///     int: the timestamp the graph was last updated at.
     pub fn last_updated(&self) -> Result<i64, ClientError> {
         let graph = Arc::clone(&self.graph);
         execute_async_task(move || async move { graph.last_updated().await })
     }
 
     /// List of unique layer names present in this graph. Property — fires one RPC.
+    ///
+    /// Returns:
+    ///     list[str]: the unique layer names.
     #[getter]
     pub fn unique_layers(&self) -> Result<Vec<String>, ClientError> {
         let graph = Arc::clone(&self.graph);
@@ -317,6 +462,9 @@ impl PyRemoteGraph {
 
     /// The size of the window covered by this view (`end - start`), or `None`
     /// if the view is unbounded. Property — attribute access fires one RPC.
+    ///
+    /// Returns:
+    ///     Optional[int]: the size of the window, or `None` if the view is unbounded.
     #[getter]
     pub fn window_size(&self) -> Result<Option<i64>, ClientError> {
         let graph = Arc::clone(&self.graph);
@@ -325,6 +473,10 @@ impl PyRemoteGraph {
 
     /// Terminal: earliest edge event time under the current view. Returns
     /// `None` if the view has no edge events. Fires one RPC.
+    ///
+    /// Returns:
+    ///     Optional[int]: the earliest edge event time, or `None` if the view has no edge
+    ///         events.
     pub fn earliest_edge_time(&self) -> Result<Option<i64>, ClientError> {
         let graph = Arc::clone(&self.graph);
         execute_async_task(move || async move { graph.earliest_edge_time().await })
@@ -332,12 +484,22 @@ impl PyRemoteGraph {
 
     /// Terminal: latest edge event time under the current view. Returns
     /// `None` if the view has no edge events. Fires one RPC.
+    ///
+    /// Returns:
+    ///     Optional[int]: the latest edge event time, or `None` if the view has no edge
+    ///         events.
     pub fn latest_edge_time(&self) -> Result<Option<i64>, ClientError> {
         let graph = Arc::clone(&self.graph);
         execute_async_task(move || async move { graph.latest_edge_time().await })
     }
 
     /// Terminal: does the graph have a node with this id? Fires one RPC.
+    ///
+    /// Arguments:
+    ///     id (str | int): the id of the node to check.
+    ///
+    /// Returns:
+    ///     bool: True if the node is present.
     pub fn has_node(&self, id: GID) -> Result<bool, ClientError> {
         let graph = Arc::clone(&self.graph);
         let id_str = id.to_string();
@@ -345,6 +507,13 @@ impl PyRemoteGraph {
     }
 
     /// Terminal: does the graph have an edge `(src, dst)`? Fires one RPC.
+    ///
+    /// Arguments:
+    ///     src (str | int): the id of the source node.
+    ///     dst (str | int): the id of the destination node.
+    ///
+    /// Returns:
+    ///     bool: True if the edge is present.
     #[pyo3(signature = (src, dst))]
     pub fn has_edge(&self, src: GID, dst: GID) -> Result<bool, ClientError> {
         let graph = Arc::clone(&self.graph);
@@ -355,24 +524,36 @@ impl PyRemoteGraph {
 
     /// Terminal: total temporal-edge count (edge updates) under the current
     /// view. Fires one RPC.
+    ///
+    /// Returns:
+    ///     int: the number of edge updates.
     pub fn count_temporal_edges(&self) -> Result<i64, ClientError> {
         let graph = Arc::clone(&self.graph);
         execute_async_task(move || async move { graph.count_temporal_edges().await })
     }
 
     /// Terminal: the graph's name. Fires one RPC.
+    ///
+    /// Returns:
+    ///     str: the graph's name.
     pub fn name(&self) -> Result<String, ClientError> {
         let graph = Arc::clone(&self.graph);
         execute_async_task(move || async move { graph.name().await })
     }
 
     /// Terminal: the graph's full path. Fires one RPC.
+    ///
+    /// Returns:
+    ///     str: the graph's full path.
     pub fn path(&self) -> Result<String, ClientError> {
         let graph = Arc::clone(&self.graph);
         execute_async_task(move || async move { graph.path().await })
     }
 
     /// Terminal: the parent namespace of the graph path. Fires one RPC.
+    ///
+    /// Returns:
+    ///     str: the parent namespace of the graph path.
     pub fn namespace(&self) -> Result<String, ClientError> {
         let graph = Arc::clone(&self.graph);
         execute_async_task(move || async move { graph.namespace().await })

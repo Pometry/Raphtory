@@ -64,7 +64,7 @@ type Algorithms {
 		"""
 		Source node id.
 		"""
-		source: String!,
+		source: NodeId!,
 		"""
 		Optional maximum path length; stops the search once reached.
 		"""
@@ -75,6 +75,10 @@ type Algorithms {
 	"""
 	inComponents(
 		"""
+		Optional composite filter (node, edge, and graph-view); the algorithm runs on the resulting view.
+		"""
+		filter: GqlFilter,
+		"""
 		Number of threads to use. Defaults to all available.
 		"""
 		threads: Int
@@ -83,6 +87,10 @@ type Algorithms {
 	Returns the out component (all reachable nodes following out-edges) of every node.
 	"""
 	outComponents(
+		"""
+		Optional composite filter (node, edge, and graph-view); the algorithm runs on the resulting view.
+		"""
+		filter: GqlFilter,
 		"""
 		Number of threads to use. Defaults to all available.
 		"""
@@ -99,7 +107,7 @@ type Algorithms {
 		"""
 		Optional composite filter (node, edge, and graph-view); the algorithm runs on the resulting view.
 		"""
-		filter: ViewFilter
+		filter: GqlFilter
 	): NodeState!
 	"""
 	Returns the out component of a single node (nodes it can reach, with their distance).
@@ -112,7 +120,7 @@ type Algorithms {
 		"""
 		Optional composite filter (node, edge, and graph-view); the algorithm runs on the resulting view.
 		"""
-		filter: ViewFilter
+		filter: GqlFilter
 	): NodeState!
 	"""
 	Returns the local triangle count of a single node (0 if it has degree < 2), or null if
@@ -122,11 +130,7 @@ type Algorithms {
 		"""
 		Node id.
 		"""
-		node: NodeId!,
-		"""
-		Optional composite filter (node, edge, and graph-view); the algorithm runs on the resulting view.
-		"""
-		filter: ViewFilter
+		node: NodeId!
 	): Int
 	"""
 	Returns the local clustering coefficient of a single node (0 if it has degree < 2), or
@@ -136,11 +140,7 @@ type Algorithms {
 		"""
 		Node id.
 		"""
-		node: NodeId!,
-		"""
-		Optional composite filter (node, edge, and graph-view); the algorithm runs on the resulting view.
-		"""
-		filter: ViewFilter
+		node: NodeId!
 	): Float
 	"""
 	Returns the weakly connected component id of every node.
@@ -191,11 +191,11 @@ type Algorithms {
 		"""
 		Source node id.
 		"""
-		source: String!,
+		source: NodeId!,
 		"""
 		Target node ids.
 		"""
-		targets: [String!]!,
+		targets: [NodeId!]!,
 		"""
 		Edge property to use as weight. If unset, all edges have weight 1.
 		"""
@@ -229,7 +229,7 @@ type Algorithms {
 		"""
 		Node ids to compute the coefficient for.
 		"""
-		nodes: [String!]!
+		nodes: [NodeId!]!
 	): NodeState!
 	"""
 	Returns the global clustering coefficient of the graph.
@@ -329,11 +329,11 @@ type Algorithms {
 		"""
 		Node ids to start from.
 		"""
-		seedNodes: [String!]!,
+		seedNodes: [NodeId!]!,
 		"""
 		Node ids that halt the traversal when reached.
 		"""
-		stopNodes: [String!],
+		stopNodes: [NodeId!],
 		"""
 		Number of threads to use. Defaults to all available.
 		"""
@@ -455,10 +455,6 @@ type Algorithms {
 		rollingStep: WindowDuration
 	): Float!
 	"""
-	Returns an alternating boolean mask over the nodes.
-	"""
-	alternatingMask: NodeState!
-	"""
 	Simulates an SEIR epidemic, returning the infection, activation and
 	recovery times of every node that was infected.
 	"""
@@ -520,21 +516,6 @@ enum AlignmentUnit {
 	WEEK
 	MONTH
 	YEAR
-}
-
-enum AllPropertySpec {
-	"""
-	All properties and metadata.
-	"""
-	ALL
-	"""
-	All metadata.
-	"""
-	ALL_METADATA
-	"""
-	All properties.
-	"""
-	ALL_PROPERTIES
 }
 
 """
@@ -1304,17 +1285,25 @@ type EdgeSchema {
 
 input EdgeSortBy {
 	"""
-	Reverse order
+	Reverse order. Applies to the `time` / `property` keys; the node keys
+	(`src` / `dst` / `neighbour`) carry their own `reverse` inside the
+	nested `NodeSortBy` and ignore this flag.
 	"""
 	reverse: Boolean
 	"""
-	Source node
+	Sort by the source node.
 	"""
-	src: Boolean
+	src: NodeSortBy
 	"""
-	Destination
+	Sort by the destination node.
 	"""
-	dst: Boolean
+	dst: NodeSortBy
+	"""
+	Sort by the neighbour node: the endpoint that is NOT the node these
+	edges were traversed from (the destination for a graph-level edge
+	collection).
+	"""
+	neighbour: NodeSortBy
 	"""
 	Time
 	"""
@@ -1682,7 +1671,7 @@ type Edges {
 	"""
 	sorted(
 		"""
-		Ordered list of sort keys. Each entry chooses exactly one of `src` / `dst` / `time` / `property`, with an optional `reverse: true` to flip order.
+		Ordered list of sort keys. Each entry chooses exactly one of `src` / `dst` / `neighbour` / `time` / `property`, with an optional `reverse: true` to flip order.
 		"""
 		sortBys: [EdgeSortBy!]!
 	): Edges!
@@ -2502,48 +2491,6 @@ type Graph {
 		expr: GqlFilter
 	): Graph!
 	"""
-	(Experimental) Get index specification.
-	"""
-	getIndexSpec: IndexSpec!
-	"""
-	(Experimental) Searches for nodes which match the given filter
-	expression. Uses Tantivy's exact search; requires the graph to have
-	been indexed.
-	"""
-	searchNodes(
-		"""
-		Composite node filter (by name, property, type, etc.).
-		"""
-		filter: NodeFilter!,
-		"""
-		Maximum number of nodes to return.
-		"""
-		limit: Int!,
-		"""
-		Number of matches to skip before returning results.
-		"""
-		offset: Int!
-	): [Node!]!
-	"""
-	(Experimental) Searches the index for edges which match the given
-	filter expression. Uses Tantivy's exact search; requires the graph to
-	have been indexed.
-	"""
-	searchEdges(
-		"""
-		Composite edge filter (by property, layer, src/dst, etc.).
-		"""
-		filter: EdgeFilter!,
-		"""
-		Maximum number of edges to return.
-		"""
-		limit: Int!,
-		"""
-		Number of matches to skip before returning results.
-		"""
-		offset: Int!
-	): [Edge!]!
-	"""
 	Apply a list of view operations in the given order and return the
 	resulting graph view. Lets callers compose multiple view transforms
 	(window, layer, filter, snapshot, ...) in a single call.
@@ -3124,36 +3071,6 @@ type HistoryTimestamp {
 	): [Int!]!
 }
 
-type IndexSpec {
-	"""
-	Returns node metadata.
-	"""
-	nodeMetadata: [String!]!
-	"""
-	Returns node properties.
-	"""
-	nodeProperties: [String!]!
-	"""
-	Returns edge metadata.
-	"""
-	edgeMetadata: [String!]!
-	"""
-	Returns edge properties.
-	"""
-	edgeProperties: [String!]!
-}
-
-input IndexSpecInput {
-	"""
-	Node properties.
-	"""
-	nodeProps: PropsInput!
-	"""
-	Edge properties.
-	"""
-	edgeProps: PropsInput!
-}
-
 input InputEdge {
 	"""
 	Source node id (string or non-negative integer).
@@ -3675,19 +3592,6 @@ type MutRoot {
 		"""
 		overwrite: Boolean!
 	): String!
-	"""
-	(Experimental) Creates search index.
-	"""
-	createIndex(
-		"""
-		Graph path relative to the root namespace.
-		"""
-		path: String!,
-		"""
-		Optional spec selecting which node/edge property fields to index. Omit to index a default set.
-		"""
-		indexSpec: IndexSpecInput,		inRam: Boolean!
-	): Boolean!
 	"""
 	Flush any pending writes for the graph at `graphPath` to disk.
 	"""
@@ -4948,6 +4852,14 @@ input NodeSortBy {
 	"""
 	id: Boolean
 	"""
+	Node name
+	"""
+	name: Boolean
+	"""
+	Node type. Untyped nodes sort first (before any named type).
+	"""
+	type: Boolean
+	"""
 	Time
 	"""
 	time: SortByTime
@@ -5045,6 +4957,84 @@ type NodeState {
 		column: String!
 	): NodeStateItem
 	"""
+	Returns the `k` rows with the largest values in a column. Empty cells rank
+	lowest, so they are only included if fewer than `k` rows have a value.
+	Null if the column does not exist, is empty, or is not comparable.
+	"""
+	topK(
+		"""
+		Column name.
+		"""
+		column: String!,
+		"""
+		Number of rows to return.
+		"""
+		k: Int!
+	): NodeState
+	"""
+	Returns the `k` rows with the smallest values in a column. Empty cells rank
+	highest, so they are only included if fewer than `k` rows have a value.
+	Null if the column does not exist, is empty, or is not comparable.
+	"""
+	bottomK(
+		"""
+		Column name.
+		"""
+		column: String!,
+		"""
+		Number of rows to return.
+		"""
+		k: Int!
+	): NodeState
+	"""
+	Returns a view of this node state with the rows sorted by a column's values,
+	ascending with empty cells last. `reverse` flips the whole ordering, putting
+	empty cells first. Null if the column does not exist, is empty, or is not
+	comparable.
+	"""
+	sortByValues(
+		"""
+		Column name.
+		"""
+		column: String!,
+		"""
+		Sort in descending order instead. Defaults to false.
+		"""
+		reverse: Boolean
+	): NodeState
+	"""
+	Groups the nodes by their value in a column. Nodes with an empty cell form
+	their own group. Null if the column does not exist or contains nodes.
+	"""
+	groupBy(
+		"""
+		Column name.
+		"""
+		column: String!
+	): [NodeStateGroup!]
+	"""
+	Returns one page of this node state as a node state of its own, so that
+	`nodes` / `rows` / `columns` on it stay row-aligned with each other.
+	Pages past the end are empty rather than an error.
+	
+	For example, if page(limit: 5, offset: 1, page_index: 2) is called, a page with 5 items,
+	offset by 11 items (2 pages of 5 + 1), will be returned.
+	"""
+	page(
+		"""
+		Maximum number of rows to return on this page.
+		"""
+		limit: Int!,
+		"""
+		Extra rows to skip on top of `pageIndex` paging (default 0).
+		"""
+		offset: Int,
+		"""
+		Zero-based page number; multiplies `limit` to determine where to start (default 0).
+		"""
+		pageIndex: Int
+	): NodeState!
+	"""
 	Returns a view of this node state with the rows sorted by node id.
 	"""
 	sortById: NodeState!
@@ -5082,6 +5072,20 @@ type NodeStateEntry {
 	The node's value in this column.
 	"""
 	value: NodeStateValue!
+}
+
+"""
+The nodes sharing one value of a column, as returned by `groupBy`.
+"""
+type NodeStateGroup {
+	"""
+	The value shared by the nodes in this group; null if their cell is empty.
+	"""
+	value: PropertyOutput
+	"""
+	The nodes holding that value.
+	"""
+	nodes: Nodes!
 }
 
 """
@@ -5499,7 +5503,7 @@ type Nodes {
 	"""
 	sorted(
 		"""
-		Ordered list of sort keys. Each entry chooses exactly one of `id` / `time` / `property`, with an optional `reverse: true` to flip order.
+		Ordered list of sort keys. Each entry chooses exactly one of `id` / `name` / `type` / `time` / `property`, with an optional `reverse: true` to flip order.
 		"""
 		sortBys: [NodeSortBy!]!
 	): Nodes!
@@ -6713,6 +6717,11 @@ type Property {
 	numbers, booleans as booleans, strings as strings, etc.
 	"""
 	value: PropertyOutput!
+	"""
+	The property's exact type, for type-directed decoding of `value`
+	(`value` alone collapses e.g. all integer widths to one JSON number).
+	"""
+	dtype: PropertyType!
 }
 
 """
@@ -6782,18 +6791,19 @@ type PropertyTuple {
 	booleans as booleans, etc.
 	"""
 	value: PropertyOutput!
+	"""
+	The value's exact type, for type-directed decoding of `value`.
+	"""
+	dtype: PropertyType!
 }
 
-input PropsInput @oneOf {
-	"""
-	All properties and metadata.
-	"""
-	all: AllPropertySpec
-	"""
-	Some properties and metadata.
-	"""
-	some: SomePropertySpec
-}
+"""
+A property's type, as `PropType`'s serde JSON form — round-trippable,
+unlike the human-readable string from `getDtypeOf`. Scalars are bare
+strings (`"F64"`), containers are tagged objects
+(`{"List": "F64"}`, `{"Map": {"a": "I64"}}`, `{"Decimal": {"scale": 2}}`).
+"""
+scalar PropertyType
 
 type QueryPlugin {
 	NoOps: String!
@@ -6839,40 +6849,6 @@ type QueryRoot {
 		path: String!
 	): MutableGraph!
 	"""
-	Update graph query, has side effects to update graph state
-	
-	Returns:: GqlMutableGraph
-	"""
-	vectoriseGraph(
-		"""
-		Graph path relative to the root namespace.
-		"""
-		path: String!,
-		"""
-		Optional embedding model; defaults to OpenAI's standard model.
-		"""
-		model: EmbeddingModel,
-		"""
-		Optional node-document template (which fields go into each node's text representation); defaults to the built-in template.
-		"""
-		nodes: Template,
-		"""
-		Optional edge-document template; defaults to the built-in template.
-		"""
-		edges: Template
-	): Boolean!
-	"""
-	Create vectorised graph in the format used for queries
-	
-	Returns:: GqlVectorisedGraph
-	"""
-	vectorisedGraph(
-		"""
-		Graph path relative to the root namespace.
-		"""
-		path: String!
-	): VectorisedGraph
-	"""
 	Returns all namespaces using recursive search
 	
 	Returns::  List of namespaces on root
@@ -6909,6 +6885,40 @@ type QueryRoot {
 	Version string of the running `raphtory-graphql` server build.
 	"""
 	version: String!
+	"""
+	Update graph query, has side effects to update graph state
+	
+	Returns:: GqlMutableGraph
+	"""
+	vectoriseGraph(
+		"""
+		Graph path relative to the root namespace.
+		"""
+		path: String!,
+		"""
+		Optional embedding model; defaults to OpenAI's standard model.
+		"""
+		model: EmbeddingModel,
+		"""
+		Optional node-document template (which fields go into each node's text representation); defaults to the built-in template.
+		"""
+		nodes: Template,
+		"""
+		Optional edge-document template; defaults to the built-in template.
+		"""
+		edges: Template
+	): Boolean!
+	"""
+	Create vectorised graph in the format used for queries
+	
+	Returns:: GqlVectorisedGraph
+	"""
+	vectorisedGraph(
+		"""
+		Graph path relative to the root namespace.
+		"""
+		path: String!
+	): VectorisedGraph
 }
 
 """
@@ -6934,20 +6944,6 @@ type ShortestPathOutput {
 	nodes: [String!]!
 }
 
-"""
-SomePropertySpec object containing lists of metadata and property names.
-"""
-input SomePropertySpec {
-	"""
-	List of metadata.
-	"""
-	metadata: [String!]!
-	"""
-	List of properties.
-	"""
-	properties: [String!]!
-}
-
 enum SortByTime {
 	"""
 	Latest time
@@ -6957,6 +6953,18 @@ enum SortByTime {
 	Earliest time
 	"""
 	EARLIEST
+}
+
+"""
+Non-finite float values, which JSON cannot represent as numbers.
+
+Follows protobuf's JSON mapping convention of spelling these out
+explicitly rather than silently coercing them to `null`.
+"""
+enum SpecialFloat {
+	NAN
+	INFINITY
+	NEG_INFINITY
 }
 
 input Template @oneOf {
@@ -7022,6 +7030,12 @@ type TemporalProperty {
 	The property key (name).
 	"""
 	key: String!
+	"""
+	The property's declared type, for type-directed decoding of stored
+	values (`values`, `at`, `latest`, `unique`, `min`, `max`, `median`,
+	`orderedDedupe`). Aggregates (`sum`, `mean`, `average`) may widen.
+	"""
+	dtype: PropertyType!
 	"""
 	Event history for this property — one entry per temporal update, in
 	insertion order. Use this to navigate the full timeline: access the
@@ -7160,6 +7174,14 @@ input Value @oneOf {
 	"""
 	f64: Float
 	"""
+	Non-finite 32 bit float (NaN, ±Infinity) — JSON has no number form for these.
+	"""
+	f32Special: SpecialFloat
+	"""
+	Non-finite 64 bit float (NaN, ±Infinity) — JSON has no number form for these.
+	"""
+	f64Special: SpecialFloat
+	"""
 	String.
 	"""
 	str: String
@@ -7189,6 +7211,12 @@ input Value @oneOf {
 	decimal: String
 }
 
+"""
+A working set of documents / nodes / edges built up via similarity
+searches on a `VectorisedGraph`. Selections are mutable: you can grow
+them with more hops (`expand*`), dereference the contents (`nodes`,
+`edges`, `getDocuments`), or start fresh with `emptySelection`.
+"""
 type VectorSelection {
 	"""
 	Returns a list of nodes in the current selection.
@@ -7295,9 +7323,28 @@ type VectorSelection {
 	): VectorSelection!
 }
 
+"""
+A graph with embedded vector representations for its nodes and edges.
+Exposes similarity search over documents, nodes, and edges, plus
+selection building (`emptySelection`) and index maintenance
+(`optimizeIndex`).
+"""
 type VectorisedGraph {
+	"""
+	Rebuild (or incrementally update) the on-disk vector indexes for nodes
+	and edges so subsequent similarity searches hit the fresh embeddings.
+	Safe to call repeatedly; returns true on success.
+	"""
 	optimizeIndex: Boolean!
+	"""
+	Returns an empty selection of documents.
+	"""
 	emptySelection: VectorSelection!
+	"""
+	Find the highest-scoring nodes *and* edges (mixed) by similarity to a
+	natural-language query. The query is embedded server-side and matched
+	against indexed entity vectors.
+	"""
 	entitiesBySimilarity(
 		"""
 		Natural-language search string; embedded by the server.
@@ -7312,6 +7359,11 @@ type VectorisedGraph {
 		"""
 		window: VectorisedGraphWindow
 	): VectorSelection!
+	"""
+	Find the highest-scoring nodes by similarity to a natural-language
+	query. The query is embedded server-side and matched against indexed
+	node vectors.
+	"""
 	nodesBySimilarity(
 		"""
 		Natural-language search string; embedded by the server.
@@ -7326,6 +7378,11 @@ type VectorisedGraph {
 		"""
 		window: VectorisedGraphWindow
 	): VectorSelection!
+	"""
+	Find the highest-scoring edges by similarity to a natural-language
+	query. The query is embedded server-side and matched against indexed
+	edge vectors.
+	"""
 	edgesBySimilarity(
 		"""
 		Natural-language search string; embedded by the server.
@@ -7351,26 +7408,6 @@ input VectorisedGraphWindow {
 	Exclusive upper bound of the search window.
 	"""
 	end: TimeInput!
-}
-
-"""
-A composite filter producing a graph view, bundling the graph-view, node,
-and edge filters that are otherwise applied via the separate
-`filter` / `filterNodes` / `filterEdges` resolvers.
-"""
-input ViewFilter {
-	"""
-	Graph-view filter (time windows, snapshots, layers).
-	"""
-	graph: GraphFilter
-	"""
-	Node filter (field, property, metadata, degree; composes with and/or/not).
-	"""
-	nodes: NodeFilter
-	"""
-	Edge filter (src/dst, property, layer; composes with and/or/not).
-	"""
-	edges: EdgeFilter
 }
 
 input Window {
@@ -7417,3 +7454,4 @@ schema {
 	query: QueryRoot
 	mutation: MutRoot
 }
+

@@ -8,8 +8,20 @@ use pyo3::{pyclass, pymethods};
 #[derive(Clone)]
 #[pyclass(name = "RemotePropertySchema", module = "raphtory.graphql", get_all)]
 pub struct PyRemotePropertySchema {
+    /// The property name.
+    ///
+    /// Returns:
+    ///     str: the property name.
     pub key: String,
+    /// The observed property type, as reported by the server.
+    ///
+    /// Returns:
+    ///     str: the property type name.
     pub property_type: String,
+    /// The distinct values seen for a string-valued property; empty otherwise.
+    ///
+    /// Returns:
+    ///     list[str]: the distinct values seen.
     pub variants: Vec<String>,
 }
 
@@ -37,9 +49,25 @@ impl PyRemotePropertySchema {
 #[derive(Clone)]
 #[pyclass(name = "RemoteEdgeSchema", module = "raphtory.graphql", get_all)]
 pub struct PyRemoteEdgeSchema {
+    /// The node type of the edges' source endpoint.
+    ///
+    /// Returns:
+    ///     str: the source node type.
     pub src_type: String,
+    /// The node type of the edges' destination endpoint.
+    ///
+    /// Returns:
+    ///     str: the destination node type.
     pub dst_type: String,
+    /// The temporal property schemas observed on these edges.
+    ///
+    /// Returns:
+    ///     list[RemotePropertySchema]: one entry per property key.
     pub properties: Vec<PyRemotePropertySchema>,
+    /// The metadata schemas observed on these edges.
+    ///
+    /// Returns:
+    ///     list[RemotePropertySchema]: one entry per metadata key.
     pub metadata: Vec<PyRemotePropertySchema>,
 }
 
@@ -68,7 +96,15 @@ impl PyRemoteEdgeSchema {
 #[derive(Clone)]
 #[pyclass(name = "RemoteLayerSchema", module = "raphtory.graphql", get_all)]
 pub struct PyRemoteLayerSchema {
+    /// The layer name.
+    ///
+    /// Returns:
+    ///     str: the layer name.
     pub name: String,
+    /// The edge schemas in this layer, one per `(src_type, dst_type)` pair.
+    ///
+    /// Returns:
+    ///     list[RemoteEdgeSchema]: one entry per endpoint-type pair.
     pub edges: Vec<PyRemoteEdgeSchema>,
 }
 
@@ -92,8 +128,20 @@ impl PyRemoteLayerSchema {
 #[derive(Clone)]
 #[pyclass(name = "RemoteNodeSchema", module = "raphtory.graphql", get_all)]
 pub struct PyRemoteNodeSchema {
+    /// The node type these nodes share.
+    ///
+    /// Returns:
+    ///     str: the node type name.
     pub type_name: String,
+    /// The temporal property schemas observed on these nodes.
+    ///
+    /// Returns:
+    ///     list[RemotePropertySchema]: one entry per property key.
     pub properties: Vec<PyRemotePropertySchema>,
+    /// The metadata schemas observed on these nodes.
+    ///
+    /// Returns:
+    ///     list[RemotePropertySchema]: one entry per metadata key.
     pub metadata: Vec<PyRemotePropertySchema>,
 }
 
@@ -124,7 +172,15 @@ impl PyRemoteNodeSchema {
 #[derive(Clone)]
 #[pyclass(name = "RemoteGraphSchema", module = "raphtory.graphql", get_all)]
 pub struct PyRemoteGraphSchema {
+    /// The per-node-type schemas in this graph.
+    ///
+    /// Returns:
+    ///     list[RemoteNodeSchema]: one entry per node type.
     pub nodes: Vec<PyRemoteNodeSchema>,
+    /// The per-layer edge schemas in this graph.
+    ///
+    /// Returns:
+    ///     list[RemoteLayerSchema]: one entry per edge layer.
     pub layers: Vec<PyRemoteLayerSchema>,
 }
 

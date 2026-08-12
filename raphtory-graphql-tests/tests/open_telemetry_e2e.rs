@@ -11,10 +11,7 @@ use raphtory_graphql::{
     },
     server::GraphServer,
 };
-use std::{
-    collections::{HashMap, HashSet},
-    time::Duration,
-};
+use std::{collections::HashSet, time::Duration};
 use tempfile::tempdir;
 use url::Url;
 
@@ -65,7 +62,7 @@ async fn test_open_telemetry_http_tracing_server() {
 	}
 }".to_string();
     let _ = client
-        .query(&open_telemetry_query, HashMap::new())
+        .query(&open_telemetry_query, Default::default())
         .await
         .unwrap();
 

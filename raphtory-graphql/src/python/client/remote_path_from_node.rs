@@ -41,6 +41,13 @@ impl PyRemotePathFromNode {
 #[pymethods]
 impl PyRemotePathFromNode {
     /// Time-window this collection. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     start (TimeInput): inclusive start of the window.
+    ///     end (TimeInput): exclusive end of the window.
+    ///
+    /// Returns:
+    ///     RemotePathFromNode: a new collection restricted to the window.
     pub fn window(&self, start: InputTime, end: InputTime) -> PyRemotePathFromNode {
         PyRemotePathFromNode::new(self.path.window(start, end))
     }
@@ -78,10 +85,7 @@ impl PyRemotePathFromNode {
         let composite = filter
             .try_as_node_filter()
             .map_err(|e| PyValueError::new_err(e.to_string()))?;
-        let gql_filter = composite
-            .try_into()
-            .map_err(|e: raphtory::errors::GraphError| PyValueError::new_err(e.to_string()))?;
-        Ok(PyRemotePathFromNode::new(self.path.select(gql_filter)))
+        Ok(PyRemotePathFromNode::new(self.path.select(composite)?))
     }
 
     /// `path[filter]` — sugar for `.select(filter)` (matches the local
@@ -91,98 +95,201 @@ impl PyRemotePathFromNode {
     }
 
     /// Restrict to a single named layer. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     name (str): the name of the layer.
+    ///
+    /// Returns:
+    ///     RemotePathFromNode: a new collection restricted to that layer.
     pub fn layer(&self, name: &str) -> PyRemotePathFromNode {
         PyRemotePathFromNode::new(self.path.layer(name))
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     time (TimeInput): the time to snapshot at.
+    ///
+    /// Returns:
+    ///     RemotePathFromNode: a new collection snapshotted at that time.
     pub fn at(&self, time: InputTime) -> PyRemotePathFromNode {
         PyRemotePathFromNode::new(self.path.at(time))
     }
 
     /// Restrict to events strictly before the given time. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     time (TimeInput): only events strictly before this time are kept.
+    ///
+    /// Returns:
+    ///     RemotePathFromNode: a new collection restricted to events before that time.
     pub fn before(&self, time: InputTime) -> PyRemotePathFromNode {
         PyRemotePathFromNode::new(self.path.before(time))
     }
 
     /// Restrict to events strictly after the given time. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     time (TimeInput): only events strictly after this time are kept.
+    ///
+    /// Returns:
+    ///     RemotePathFromNode: a new collection restricted to events after that time.
     pub fn after(&self, time: InputTime) -> PyRemotePathFromNode {
         PyRemotePathFromNode::new(self.path.after(time))
     }
 
     /// Latest state. Lazy — no RPC.
+    ///
+    /// Returns:
+    ///     RemotePathFromNode: a new collection of the latest state.
     pub fn latest(&self) -> PyRemotePathFromNode {
         PyRemotePathFromNode::new(self.path.latest())
     }
 
     /// Snapshot at the latest time. Lazy — no RPC.
+    ///
+    /// Returns:
+    ///     RemotePathFromNode: a new collection snapshotted at the latest time.
     pub fn snapshot_latest(&self) -> PyRemotePathFromNode {
         PyRemotePathFromNode::new(self.path.snapshot_latest())
     }
 
     /// Snapshot at a specific time. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     time (TimeInput): the time to snapshot at.
+    ///
+    /// Returns:
+    ///     RemotePathFromNode: a new collection snapshotted at that time.
     pub fn snapshot_at(&self, time: InputTime) -> PyRemotePathFromNode {
         PyRemotePathFromNode::new(self.path.snapshot_at(time))
     }
 
     /// Exclude a specific layer. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     name (str): the name of the layer to exclude.
+    ///
+    /// Returns:
+    ///     RemotePathFromNode: a new collection with that layer excluded.
     pub fn exclude_layer(&self, name: &str) -> PyRemotePathFromNode {
         PyRemotePathFromNode::new(self.path.exclude_layer(name))
     }
 
     /// Shrink both start and end of the current window. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     start (TimeInput): the new inclusive start of the window.
+    ///     end (TimeInput): the new exclusive end of the window.
+    ///
+    /// Returns:
+    ///     RemotePathFromNode: a new collection with both window bounds shrunk.
     pub fn shrink_window(&self, start: InputTime, end: InputTime) -> PyRemotePathFromNode {
         PyRemotePathFromNode::new(self.path.shrink_window(start, end))
     }
 
     /// Shrink the start of the current window. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     start (TimeInput): the new inclusive start of the window.
+    ///
+    /// Returns:
+    ///     RemotePathFromNode: a new collection with the window start shrunk.
     pub fn shrink_start(&self, start: InputTime) -> PyRemotePathFromNode {
         PyRemotePathFromNode::new(self.path.shrink_start(start))
     }
 
     /// Shrink the end of the current window. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     end (TimeInput): the new exclusive end of the window.
+    ///
+    /// Returns:
+    ///     RemotePathFromNode: a new collection with the window end shrunk.
     pub fn shrink_end(&self, end: InputTime) -> PyRemotePathFromNode {
         PyRemotePathFromNode::new(self.path.shrink_end(end))
     }
 
     /// Restrict to the default layer. Lazy — no RPC.
+    ///
+    /// Returns:
+    ///     RemotePathFromNode: a new collection restricted to the default layer.
     pub fn default_layer(&self) -> PyRemotePathFromNode {
         PyRemotePathFromNode::new(self.path.default_layer())
     }
 
     /// Restrict to the given set of layers. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     names (list[str]): the names of the layers.
+    ///
+    /// Returns:
+    ///     RemotePathFromNode: a new collection restricted to those layers.
     pub fn layers(&self, names: Vec<String>) -> PyRemotePathFromNode {
         PyRemotePathFromNode::new(self.path.layers(names))
     }
 
     /// Exclude the given set of layers. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     names (list[str]): the names of the layers to exclude.
+    ///
+    /// Returns:
+    ///     RemotePathFromNode: a new collection with those layers excluded.
     pub fn exclude_layers(&self, names: Vec<String>) -> PyRemotePathFromNode {
         PyRemotePathFromNode::new(self.path.exclude_layers(names))
     }
 
     /// Restrict to the given set of valid layers. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     names (list[str]): the names of the valid layers.
+    ///
+    /// Returns:
+    ///     RemotePathFromNode: a new collection restricted to those valid layers.
     pub fn valid_layers(&self, names: Vec<String>) -> PyRemotePathFromNode {
         PyRemotePathFromNode::new(self.path.valid_layers(names))
     }
 
     /// Exclude a specific valid layer from the view. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     name (str): the name of the valid layer to exclude.
+    ///
+    /// Returns:
+    ///     RemotePathFromNode: a new collection with that valid layer excluded.
     pub fn exclude_valid_layer(&self, name: &str) -> PyRemotePathFromNode {
         PyRemotePathFromNode::new(self.path.exclude_valid_layer(name))
     }
 
     /// Exclude the given set of valid layers from the view. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     names (list[str]): the names of the valid layers to exclude.
+    ///
+    /// Returns:
+    ///     RemotePathFromNode: a new collection with those valid layers excluded.
     pub fn exclude_valid_layers(&self, names: Vec<String>) -> PyRemotePathFromNode {
         PyRemotePathFromNode::new(self.path.exclude_valid_layers(names))
     }
 
     /// Restrict this collection to members whose node type is in the given
     /// list. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     node_types (list[str]): the node types to keep.
+    ///
+    /// Returns:
+    ///     RemotePathFromNode: a new collection restricted to those node types.
     pub fn type_filter(&self, node_types: Vec<String>) -> PyRemotePathFromNode {
         PyRemotePathFromNode::new(self.path.type_filter(node_types))
     }
 
     /// The neighbours (both directions) reachable one further hop from this
     /// path, as a flat `RemotePathFromNode`. Lazy — no RPC.
+    ///
+    /// Returns:
+    ///     RemotePathFromNode: the neighbours one further hop from this path.
     #[getter]
     pub fn neighbours(&self) -> PyRemotePathFromNode {
         PyRemotePathFromNode::new(self.path.neighbours())
@@ -190,6 +297,9 @@ impl PyRemotePathFromNode {
 
     /// The in-neighbours reachable one further hop from this path, as a flat
     /// `RemotePathFromNode`. Lazy — no RPC.
+    ///
+    /// Returns:
+    ///     RemotePathFromNode: the in-neighbours one further hop from this path.
     #[getter]
     pub fn in_neighbours(&self) -> PyRemotePathFromNode {
         PyRemotePathFromNode::new(self.path.in_neighbours())
@@ -197,6 +307,9 @@ impl PyRemotePathFromNode {
 
     /// The out-neighbours reachable one further hop from this path, as a flat
     /// `RemotePathFromNode`. Lazy — no RPC.
+    ///
+    /// Returns:
+    ///     RemotePathFromNode: the out-neighbours one further hop from this path.
     #[getter]
     pub fn out_neighbours(&self) -> PyRemotePathFromNode {
         PyRemotePathFromNode::new(self.path.out_neighbours())
@@ -204,6 +317,9 @@ impl PyRemotePathFromNode {
 
     /// The incident edges (both directions) of this path, as a flat
     /// `RemoteEdges` collection. Lazy — no RPC.
+    ///
+    /// Returns:
+    ///     RemoteEdges: the incident edges of this path.
     #[getter]
     pub fn edges(&self) -> PyRemoteEdges {
         PyRemoteEdges::new(self.path.edges())
@@ -211,6 +327,9 @@ impl PyRemotePathFromNode {
 
     /// The incoming edges of this path, as a flat `RemoteEdges` collection.
     /// Lazy — no RPC.
+    ///
+    /// Returns:
+    ///     RemoteEdges: the incoming edges of this path.
     #[getter]
     pub fn in_edges(&self) -> PyRemoteEdges {
         PyRemoteEdges::new(self.path.in_edges())
@@ -218,12 +337,18 @@ impl PyRemotePathFromNode {
 
     /// The outgoing edges of this path, as a flat `RemoteEdges` collection.
     /// Lazy — no RPC.
+    ///
+    /// Returns:
+    ///     RemoteEdges: the outgoing edges of this path.
     #[getter]
     pub fn out_edges(&self) -> PyRemoteEdges {
         PyRemoteEdges::new(self.path.out_edges())
     }
 
     /// The id of each node in this path. Property — attribute access fires one RPC.
+    ///
+    /// Returns:
+    ///     list[str]: the ids, in path order.
     #[getter]
     pub fn id(&self) -> Result<Vec<String>, ClientError> {
         let path = Arc::clone(&self.path);
@@ -232,6 +357,9 @@ impl PyRemotePathFromNode {
 
     /// The name of each node in this path. Property — attribute access fires
     /// one RPC.
+    ///
+    /// Returns:
+    ///     list[str]: the names, in path order.
     #[getter]
     pub fn name(&self) -> Result<Vec<String>, ClientError> {
         let path = Arc::clone(&self.path);
@@ -240,6 +368,9 @@ impl PyRemotePathFromNode {
 
     /// The type of each node in this path (`None` when unset). Property —
     /// attribute access fires one RPC.
+    ///
+    /// Returns:
+    ///     list[Optional[str]]: the node types, in path order.
     #[getter]
     pub fn node_type(&self) -> Result<Vec<Option<String>>, ClientError> {
         let path = Arc::clone(&self.path);
@@ -280,6 +411,9 @@ impl PyRemotePathFromNode {
 
     /// The non-temporal metadata of this path as a columnar view. Each accessor
     /// returns one value per node. Lazy — no RPC.
+    ///
+    /// Returns:
+    ///     RemoteMetadataView: the columnar metadata view of this path.
     #[getter]
     pub fn metadata(&self) -> PyRemoteMetadataView {
         PyRemoteMetadataView::new(self.path.metadata())
@@ -287,12 +421,18 @@ impl PyRemotePathFromNode {
 
     /// The properties of this path as a columnar view. Each accessor returns
     /// one value per node. Lazy — no RPC.
+    ///
+    /// Returns:
+    ///     RemotePropertiesView: the columnar properties view of this path.
     #[getter]
     pub fn properties(&self) -> PyRemotePropertiesView {
         PyRemotePropertiesView::new(self.path.properties())
     }
 
     /// Returns the number of nodes in this collection. Fires one RPC.
+    ///
+    /// Returns:
+    ///     int: the number of nodes.
     pub fn count(&self) -> Result<i64, ClientError> {
         let path = Arc::clone(&self.path);
         execute_async_task(move || async move { path.count().await })
@@ -336,6 +476,12 @@ impl PyRemotePathFromNode {
     }
 
     /// Check if this view has a layer named `name`. Fires one RPC.
+    ///
+    /// Arguments:
+    ///     name (str): the name of the layer to check.
+    ///
+    /// Returns:
+    ///     bool: True if the layer is present.
     pub fn has_layer(&self, name: &str) -> Result<bool, ClientError> {
         let path = Arc::clone(&self.path);
         let name = name.to_string();
@@ -344,6 +490,9 @@ impl PyRemotePathFromNode {
 
     /// The size of the window covered by this view (`end - start`), or `None`
     /// if the view is unbounded. Property — attribute access fires one RPC.
+    ///
+    /// Returns:
+    ///     Optional[int]: the size of the window, or `None` if the view is unbounded.
     #[getter]
     pub fn window_size(&self) -> Result<Option<i64>, ClientError> {
         let path = Arc::clone(&self.path);
@@ -352,6 +501,9 @@ impl PyRemotePathFromNode {
 
     /// A single combined event history for all nodes reachable from the source
     /// in this view — a `RemoteHistory` container. Lazy — no RPC.
+    ///
+    /// Returns:
+    ///     RemoteHistory: the combined event history of the nodes in this view.
     pub fn combined_history(&self) -> PyRemoteHistory {
         PyRemoteHistory::new(self.path.combined_history())
     }
@@ -370,6 +522,9 @@ impl PyRemotePathFromNode {
 
     /// View start bound for this collection — `None` if unbounded. Property —
     /// attribute access fires one RPC.
+    ///
+    /// Returns:
+    ///     Optional[EventTime]: the view start bound, or `None` if unbounded.
     #[getter]
     pub fn start(&self) -> Result<Option<EventTime>, ClientError> {
         let path = Arc::clone(&self.path);
@@ -381,6 +536,9 @@ impl PyRemotePathFromNode {
 
     /// View end bound for this collection — `None` if unbounded. Property —
     /// attribute access fires one RPC.
+    ///
+    /// Returns:
+    ///     Optional[EventTime]: the view end bound, or `None` if unbounded.
     #[getter]
     pub fn end(&self) -> Result<Option<EventTime>, ClientError> {
         let path = Arc::clone(&self.path);
@@ -391,6 +549,9 @@ impl PyRemotePathFromNode {
     /// Materialize this collection as a list of `RemoteNode` handles. Fires
     /// one RPC. Each returned node is rebased under the same view chain
     /// that produced this collection.
+    ///
+    /// Returns:
+    ///     list[RemoteNode]: one handle per node in the collection.
     pub fn collect(&self) -> Result<Vec<PyRemoteNode>, ClientError> {
         let path = Arc::clone(&self.path);
         let result = execute_async_task(move || async move { path.collect().await })?;

@@ -24,7 +24,11 @@ def _served():
 
 def _names(client, node, field, select=""):
     arg = f"(select: {select})" if select else ""
-    q = '{ graph(path: "g") { node(name: "%s") { %s%s { list { name } } } } }' % (node, field, arg)
+    q = '{ graph(path: "g") { node(name: "%s") { %s%s { list { name } } } } }' % (
+        node,
+        field,
+        arg,
+    )
     return sorted(n["name"] for n in client.query(q)["graph"]["node"][field]["list"])
 
 
@@ -35,11 +39,17 @@ def test_out_component_scoped_by_edge_layer():
         assert _names(client, "a", "outComponent") == ["b", "c", "x", "y"]
         # scope the walk to the `owns` edge layer -> only the ownership chain
         assert _names(
-            client, "a", "outComponent", '{edge: {layers: {names: ["owns"], expr: %s}}}' % PASS_EDGE
+            client,
+            "a",
+            "outComponent",
+            '{edge: {layers: {names: ["owns"], expr: %s}}}' % PASS_EDGE,
         ) == ["b", "c"]
         # scope to `has` -> only a's own satellite (owns edges are not followed)
         assert _names(
-            client, "a", "outComponent", '{edge: {layers: {names: ["has"], expr: %s}}}' % PASS_EDGE
+            client,
+            "a",
+            "outComponent",
+            '{edge: {layers: {names: ["has"], expr: %s}}}' % PASS_EDGE,
         ) == ["x"]
 
 
@@ -59,8 +69,12 @@ def test_out_component_scoped_by_graph_layer_filter():
     # The graph-level layer filter (the `filter.Graph.layer(...)` equivalent).
     with _served().start() as server:
         client = server.get_client()
-        assert _names(client, "a", "outComponent", '{graph: {layers: {names: ["owns"]}}}') == ["b", "c"]
-        assert _names(client, "a", "outComponent", '{graph: {layers: {names: ["has"]}}}') == ["x"]
+        assert _names(
+            client, "a", "outComponent", '{graph: {layers: {names: ["owns"]}}}'
+        ) == ["b", "c"]
+        assert _names(
+            client, "a", "outComponent", '{graph: {layers: {names: ["has"]}}}'
+        ) == ["x"]
 
 
 def test_component_filter_and_or_combinators():
@@ -96,7 +110,8 @@ def test_component_filter_and_or_combinators():
             client,
             "a",
             "outComponent",
-            '{edge: {and: [{layers: {names: ["owns"], expr: %s}}, %s]}}' % (PASS_EDGE, PASS_EDGE),
+            '{edge: {and: [{layers: {names: ["owns"], expr: %s}}, %s]}}'
+            % (PASS_EDGE, PASS_EDGE),
         ) == ["b", "c"]
 
 
@@ -135,12 +150,20 @@ def test_in_component_scoped_by_filters():
         ) == ["a", "b"]
         # edge filter
         assert _names(
-            client, "c", "inComponent", '{edge: {layers: {names: ["owns"], expr: %s}}}' % PASS_EDGE
+            client,
+            "c",
+            "inComponent",
+            '{edge: {layers: {names: ["owns"], expr: %s}}}' % PASS_EDGE,
         ) == ["a", "b"]
         # graph (layer) filter
-        assert _names(client, "c", "inComponent", '{graph: {layers: {names: ["owns"]}}}') == ["a", "b"]
+        assert _names(
+            client, "c", "inComponent", '{graph: {layers: {names: ["owns"]}}}'
+        ) == ["a", "b"]
         # no incoming `has` edges into c
-        assert _names(client, "c", "inComponent", '{graph: {layers: {names: ["has"]}}}') == []
+        assert (
+            _names(client, "c", "inComponent", '{graph: {layers: {names: ["has"]}}}')
+            == []
+        )
 
 
 def test_component_respects_an_external_graph_filter():

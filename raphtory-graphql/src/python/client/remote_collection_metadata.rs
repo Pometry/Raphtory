@@ -23,21 +23,13 @@ use raphtory::python::utils::execute_async_task;
 use raphtory_api::core::entities::properties::prop::Prop;
 use std::sync::Arc;
 
-/// Convert a single `Prop` value into a native Python object.
-fn prop_to_py(py: Python<'_>, value: Prop) -> PyResult<Py<PyAny>> {
-    Ok(value
-        .into_pyobject(py)
-        .map_err(|e| ClientError::InvalidResponse(e.to_string()))?
-        .unbind())
-}
-
-/// Look up `key` in one member's `(key, value)` entries, returning its value
-/// as a Python object, or Python `None` when the member lacks the key.
-fn member_value(py: Python<'_>, entries: &[(String, Prop)], key: &str) -> PyResult<Py<PyAny>> {
-    match entries.iter().find(|(k, _)| k == key) {
-        Some((_, v)) => prop_to_py(py, v.clone()),
-        None => Ok(py.None()),
-    }
+/// Look up `key` in one member's `(key, value)` entries, returning its value,
+/// or `None` when the member lacks the key.
+fn member_value(entries: &[(String, Prop)], key: &str) -> Option<Prop> {
+    entries
+        .iter()
+        .find(|(k, _)| k == key)
+        .map(|(_, v)| v.clone())
 }
 
 /// Build the column for `key` — flat (`list`) or nested (`list[list]`) — or
@@ -49,20 +41,15 @@ fn build_column(py: Python<'_>, data: &ColumnarProps, key: &str) -> PyResult<Opt
     }
     let column: Py<PyAny> = match data {
         ColumnarProps::Flat(members) => {
-            let items: Vec<Py<PyAny>> = members
-                .iter()
-                .map(|m| member_value(py, m, key))
-                .collect::<PyResult<_>>()?;
+            let items: Vec<Option<Prop>> = members.iter().map(|m| member_value(m, key)).collect();
             PyList::new(py, items)?.into_any().unbind()
         }
         ColumnarProps::Nested(sources) => {
             let rows: Vec<Py<PyAny>> = sources
                 .iter()
                 .map(|source| {
-                    let inner: Vec<Py<PyAny>> = source
-                        .iter()
-                        .map(|m| member_value(py, m, key))
-                        .collect::<PyResult<_>>()?;
+                    let inner: Vec<Option<Prop>> =
+                        source.iter().map(|m| member_value(m, key)).collect();
                     Ok(PyList::new(py, inner)?.into_any().unbind())
                 })
                 .collect::<PyResult<_>>()?;
@@ -80,6 +67,9 @@ macro_rules! columnar_view_methods {
         #[pymethods]
         impl $ty {
             #[doc = concat!("All keys present across the ", $entity, " collection, in first-seen order. Fires one RPC.")]
+            #[doc = ""]
+            #[doc = "Returns:"]
+            #[doc = "    list[str]: the keys, in first-seen order."]
             pub fn keys(&self) -> Result<Vec<String>, ClientError> {
                 let inner = Arc::clone(&self.inner);
                 let data = execute_async_task(move || async move { inner.fetch().await })?;
@@ -87,6 +77,12 @@ macro_rules! columnar_view_methods {
             }
 
             #[doc = concat!("The column of values for `key` — one entry per ", $entity, " member (nested per source for nested collections), `None` where a member lacks the key. Returns `None` if no member has the key. Fires one RPC.")]
+            #[doc = ""]
+            #[doc = "Arguments:"]
+            #[doc = concat!("    key (str): the ", $entity, " name to look up.")]
+            #[doc = ""]
+            #[doc = "Returns:"]
+            #[doc = "    Optional[list]: the column of values, or `None` if no member has the key."]
             pub fn get(&self, py: Python<'_>, key: String) -> PyResult<Option<Py<PyAny>>> {
                 let inner = Arc::clone(&self.inner);
                 let data = execute_async_task(move || async move { inner.fetch().await })?;
@@ -94,6 +90,9 @@ macro_rules! columnar_view_methods {
             }
 
             #[doc = "One column per key, in key order. Fires one RPC."]
+            #[doc = ""]
+            #[doc = "Returns:"]
+            #[doc = "    list: one column per key, in key order."]
             pub fn values(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
                 let inner = Arc::clone(&self.inner);
                 let data = execute_async_task(move || async move { inner.fetch().await })?;
@@ -107,6 +106,9 @@ macro_rules! columnar_view_methods {
             }
 
             #[doc = "All `(key, column)` entries, in key order. Fires one RPC."]
+            #[doc = ""]
+            #[doc = "Returns:"]
+            #[doc = "    list[tuple[str, list]]: the `(key, column)` entries, in key order."]
             pub fn items(&self, py: Python<'_>) -> PyResult<Vec<(String, Py<PyAny>)>> {
                 let inner = Arc::clone(&self.inner);
                 let data = execute_async_task(move || async move { inner.fetch().await })?;
@@ -120,6 +122,9 @@ macro_rules! columnar_view_methods {
             }
 
             #[doc = "All `(key, column)` entries as a native Python `dict`. Fires one RPC."]
+            #[doc = ""]
+            #[doc = "Returns:"]
+            #[doc = "    dict[str, list]: the columns, keyed by key."]
             pub fn as_dict(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
                 let inner = Arc::clone(&self.inner);
                 let data = execute_async_task(move || async move { inner.fetch().await })?;
