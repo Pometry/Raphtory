@@ -68,10 +68,10 @@ impl<GS: GraphPropSegmentOps<Extension = EXT>, EXT: PersistenceStrategy>
         GraphPropWriter::new(graph_props, head)
     }
 
-    pub fn write_locked<'a>(&'a self) -> WriteLockedGraphPropPages<'a, GS> {
+    pub fn write_locked(&self) -> WriteLockedGraphPropPages<GS> {
         WriteLockedGraphPropPages::new(LockedGraphPropPage::new(
-            self.page.as_ref(),
-            self.page.head_mut(),
+            self.page.clone(),
+            self.page.head_arc_mut(),
         ))
     }
 

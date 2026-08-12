@@ -2,6 +2,7 @@ use crate::{
     LocalPOS,
     api::edges::EdgeSegmentOps,
     error::StorageError,
+    loop_lock_write_arc,
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
     properties::PropMutEntry,
     segments::{
@@ -11,7 +12,8 @@ use crate::{
     wal::LSN,
 };
 use parking_lot::{
-    RawRwLock, RwLock, RwLockReadGuard, RwLockWriteGuard, lock_api::ArcRwLockReadGuard,
+    RawRwLock, RwLock, RwLockReadGuard, RwLockWriteGuard,
+    lock_api::{ArcRwLockReadGuard, ArcRwLockWriteGuard},
 };
 use raphtory_api::core::{
     entities::{
@@ -458,6 +460,10 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
 
     fn head_mut(&self) -> RwLockWriteGuard<'_, MemEdgeSegment> {
         self.segment.write()
+    }
+
+    fn head_arc_mut(&self) -> ArcRwLockWriteGuard<RawRwLock, MemEdgeSegment> {
+        loop_lock_write_arc(&self.segment)
     }
 
     fn try_head_mut(&self) -> Option<RwLockWriteGuard<'_, MemEdgeSegment>> {

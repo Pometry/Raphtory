@@ -1,3 +1,8 @@
+use std::{
+    ops::{Deref, DerefMut},
+    sync::Arc,
+};
+
 use crate::{
     LocalPOS,
     api::edges::EdgeSegmentOps,
@@ -10,7 +15,7 @@ use crate::{
     persist::strategy::PersistenceStrategy,
     segments::edge::segment::MemEdgeSegment,
 };
-use parking_lot::RwLockWriteGuard;
+use parking_lot::{RawRwLock, lock_api::ArcRwLockWriteGuard};
 use raphtory_api::core::entities::LayerId;
 use raphtory_core::entities::{EID, ELID};
 use rayon::prelude::*;
@@ -20,39 +25,48 @@ use std::{
 };
 
 #[derive(Debug)]
-pub struct LockedEdgePage<'a, ES> {
+pub struct LockedEdgePage<ES> {
     page_id: usize,
     max_page_len: u32,
-    page: &'a ES,
-    num_edges: &'a GraphStats,
-    lock: RwLockWriteGuard<'a, MemEdgeSegment>,
+    page: Arc<ES>,
+    stats: Arc<GraphStats>,
+    lock: ArcRwLockWriteGuard<RawRwLock, MemEdgeSegment>,
 }
 
-impl<'a, ES: EdgeSegmentOps> LockedEdgePage<'a, ES> {
+impl<ES: EdgeSegmentOps> LockedEdgePage<ES> {
     pub fn new(
         page_id: usize,
         max_page_len: u32,
-        page: &'a ES,
-        num_edges: &'a GraphStats,
-        lock: RwLockWriteGuard<'a, MemEdgeSegment>,
+        page: Arc<ES>,
+        stats: Arc<GraphStats>,
+        lock: ArcRwLockWriteGuard<RawRwLock, MemEdgeSegment>,
     ) -> Self {
         Self {
             page_id,
             max_page_len,
             page,
-            num_edges,
+            stats,
             lock,
         }
     }
 
     #[inline(always)]
     pub fn writer(&mut self) -> EdgeWriter<'_, &mut MemEdgeSegment, ES> {
-        EdgeWriter::new(self.num_edges, self.page, self.lock.deref_mut())
+        EdgeWriter::new(
+            self.stats.as_ref(),
+            self.page.as_ref(),
+            self.lock.deref_mut(),
+        )
     }
 
     #[inline(always)]
     pub fn bulk_writer(&mut self) -> BulkEdgeWriter<'_, &mut MemEdgeSegment, ES> {
-        EdgeWriter::new(self.num_edges, self.page, self.lock.deref_mut()).into()
+        EdgeWriter::new(
+            self.stats.as_ref(),
+            self.page.as_ref(),
+            self.lock.deref_mut(),
+        )
+        .into()
     }
 
     #[inline(always)]
@@ -76,15 +90,16 @@ impl<'a, ES: EdgeSegmentOps> LockedEdgePage<'a, ES> {
     }
 
     pub fn page(&self) -> &ES {
-        self.page
+        self.page.as_ref()
     }
 }
+
 #[derive(Debug)]
-pub struct WriteLockedEdgePages<'a, ES> {
-    writers: Vec<LockedEdgePage<'a, ES>>,
+pub struct WriteLockedEdgePages<ES> {
+    writers: Vec<LockedEdgePage<ES>>,
 }
 
-impl<ES> Default for WriteLockedEdgePages<'_, ES> {
+impl<ES> Default for WriteLockedEdgePages<ES> {
     fn default() -> Self {
         Self {
             writers: Vec::new(),
@@ -92,27 +107,27 @@ impl<ES> Default for WriteLockedEdgePages<'_, ES> {
     }
 }
 
-impl<'a, EXT: PersistenceStrategy<ES = ES>, ES: EdgeSegmentOps<Extension = EXT>>
-    WriteLockedEdgePages<'a, ES>
+impl<EXT: PersistenceStrategy<ES = ES>, ES: EdgeSegmentOps<Extension = EXT>>
+    WriteLockedEdgePages<ES>
 {
-    pub fn new(writers: Vec<LockedEdgePage<'a, ES>>) -> Self {
+    pub fn new(writers: Vec<LockedEdgePage<ES>>) -> Self {
         Self { writers }
     }
 
     #[inline]
-    pub fn get_mut(&mut self, segment_id: usize) -> Option<&mut LockedEdgePage<'a, ES>> {
+    pub fn get_mut(&mut self, segment_id: usize) -> Option<&mut LockedEdgePage<ES>> {
         self.writers.get_mut(segment_id)
     }
 
-    pub fn par_iter_mut(&mut self) -> rayon::slice::IterMut<'_, LockedEdgePage<'a, ES>> {
+    pub fn par_iter_mut(&mut self) -> rayon::slice::IterMut<'_, LockedEdgePage<ES>> {
         self.writers.par_iter_mut()
     }
 
-    pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, LockedEdgePage<'a, ES>> {
+    pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, LockedEdgePage<ES>> {
         self.writers.iter_mut()
     }
 
-    pub fn into_par_iter(self) -> impl ParallelIterator<Item = LockedEdgePage<'a, ES>> + 'a {
+    pub fn into_par_iter(self) -> impl ParallelIterator<Item = LockedEdgePage<ES>> {
         self.writers.into_par_iter()
     }
 

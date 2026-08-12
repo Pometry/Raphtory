@@ -417,8 +417,8 @@ where
         }
     }
 
-    pub fn write_locked_graph<'a>(&'a self) -> WriteLockedGraph<'a, EXT> {
-        WriteLockedGraph::new(self)
+    pub fn write_locked_graph(self: &Arc<Self>) -> WriteLockedGraph<EXT> {
+        WriteLockedGraph::new(self.clone())
     }
 
     pub fn update_time(&self, _earliest: EventTime) {

@@ -751,7 +751,7 @@ fn update_edge_properties<ES: EdgeSegmentOps<Extension = Extension>>(
     shared_metadata: &[(usize, Prop)],
     prop_cols: &PropCols,
     metadata_cols: &PropCols,
-    shard: &mut LockedEdgePage<'_, ES>,
+    shard: &mut LockedEdgePage<ES>,
     zip: impl Iterator<Item = (usize, VID, VID, i64, usize, EID, usize, bool)>,
     delete: bool,
 ) {
@@ -793,7 +793,7 @@ fn update_edge_properties<ES: EdgeSegmentOps<Extension = Extension>>(
 }
 
 fn update_inbound_edges<NS: NodeSegmentOps<Extension = Extension>>(
-    shard: &mut LockedNodePage<'_, NS>,
+    shard: &mut LockedNodePage<NS>,
     zip: impl Iterator<Item = (usize, VID, VID, EID, i64, usize, usize, bool, bool)>,
     delete: bool,
 ) {
@@ -849,8 +849,8 @@ fn add_and_resolve_outbound_edges<
     eid_col_shared: &&mut [AtomicUsize],
     zip: impl Iterator<Item = (usize, VID, VID, i64, usize, usize)>,
     next_edge_id: impl Fn(usize) -> EID,
-    edges: &WriteLockedEdgePages<'_, ES>,
-    locked_page: &mut LockedNodePage<'_, NS>,
+    edges: &WriteLockedEdgePages<ES>,
+    locked_page: &mut LockedNodePage<NS>,
     delete: bool,
 ) {
     let mut writer = locked_page.bulk_writer();
@@ -915,7 +915,7 @@ fn group_rows_by_eid_segment(
 
 pub fn store_node_ids<NS: NodeSegmentOps<Extension = Extension>>(
     gid_str_cache: &[(GidRef<'_>, VID)],
-    locked_page: &mut LockedNodePage<'_, NS>,
+    locked_page: &mut LockedNodePage<NS>,
 ) {
     let mut writer = locked_page.bulk_writer();
     for (src_gid, vid) in gid_str_cache.iter() {

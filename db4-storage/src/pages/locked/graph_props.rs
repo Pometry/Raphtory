@@ -2,23 +2,23 @@ use crate::{
     api::graph_props::GraphPropSegmentOps, error::StorageError,
     segments::graph_prop::segment::MemGraphPropSegment, wal::LSN,
 };
-use parking_lot::RwLockWriteGuard;
+use parking_lot::{RawRwLock, lock_api::ArcRwLockWriteGuard};
 use raphtory_api::core::entities::properties::prop::Prop;
 use raphtory_core::storage::timeindex::AsTime;
-use std::{ops::DerefMut, path::Path};
+use std::{ops::DerefMut, sync::Arc, path::Path};
 
-pub struct LockedGraphPropPage<'a, GS: GraphPropSegmentOps> {
-    page: &'a GS,
-    lock: RwLockWriteGuard<'a, MemGraphPropSegment>,
+pub struct LockedGraphPropPage<GS: GraphPropSegmentOps> {
+    page: Arc<GS>,
+    lock: ArcRwLockWriteGuard<RawRwLock, MemGraphPropSegment>,
 }
 
-impl<'a, GS: GraphPropSegmentOps> LockedGraphPropPage<'a, GS> {
-    pub fn new(page: &'a GS, lock: RwLockWriteGuard<'a, MemGraphPropSegment>) -> Self {
+impl<GS: GraphPropSegmentOps> LockedGraphPropPage<GS> {
+    pub fn new(page: Arc<GS>, lock: ArcRwLockWriteGuard<RawRwLock, MemGraphPropSegment>) -> Self {
         Self { page, lock }
     }
 
     pub fn segment(&self) -> &GS {
-        self.page
+        self.page.as_ref()
     }
 
     /// Add temporal properties to the graph
@@ -51,24 +51,24 @@ impl<'a, GS: GraphPropSegmentOps> LockedGraphPropPage<'a, GS> {
     }
 }
 
-impl<GS: GraphPropSegmentOps> Drop for LockedGraphPropPage<'_, GS> {
+impl<GS: GraphPropSegmentOps> Drop for LockedGraphPropPage<GS> {
     fn drop(&mut self) {
         self.page
-            .notify_write(&mut self.lock)
+            .notify_write(self.lock.deref_mut())
             .expect("Failed to persist graph props page");
     }
 }
 
-pub struct WriteLockedGraphPropPages<'a, GS: GraphPropSegmentOps> {
-    writer: LockedGraphPropPage<'a, GS>,
+pub struct WriteLockedGraphPropPages<GS: GraphPropSegmentOps> {
+    writer: LockedGraphPropPage<GS>,
 }
 
-impl<'a, GS: GraphPropSegmentOps> WriteLockedGraphPropPages<'a, GS> {
-    pub fn new(writer: LockedGraphPropPage<'a, GS>) -> Self {
+impl<GS: GraphPropSegmentOps> WriteLockedGraphPropPages<GS> {
+    pub fn new(writer: LockedGraphPropPage<GS>) -> Self {
         Self { writer }
     }
 
-    pub fn writer(&mut self) -> &mut LockedGraphPropPage<'a, GS> {
+    pub fn writer(&mut self) -> &mut LockedGraphPropPage<GS> {
         &mut self.writer
     }
 

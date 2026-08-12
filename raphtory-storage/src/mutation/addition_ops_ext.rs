@@ -28,7 +28,7 @@ use raphtory_core::{
     },
     storage::timeindex::EventTime,
 };
-use std::sync::atomic::Ordering;
+use std::sync::{atomic::Ordering, Arc};
 use storage::{
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     error::StorageError,
@@ -228,14 +228,13 @@ impl<'a> NodeWriteLock for AtomicAddNode<'a> {
     }
 }
 
-impl InternalAdditionOps for TemporalGraph {
+impl InternalAdditionOps for Arc<TemporalGraph> {
     type Error = MutationError;
     type WS<'a> = UnlockedSession<'a>;
     type AtomicAddEdge<'a> = AtomicAddEdge<'a, Extension>;
 
-    fn write_lock(&self) -> Result<WriteLockedGraph<'_, Extension>, Self::Error> {
-        let locked_g = self.write_locked_graph();
-        Ok(locked_g)
+    fn write_lock(&self) -> Result<WriteLockedGraph<Extension>, Self::Error> {
+        Ok(self.write_locked_graph())
     }
 
     fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<LayerId>, Self::Error> {
@@ -363,7 +362,9 @@ impl InternalAdditionOps for TemporalGraph {
     }
 
     fn write_session(&self) -> Result<Self::WS<'_>, Self::Error> {
-        Ok(UnlockedSession { graph: self })
+        Ok(UnlockedSession {
+            graph: self.as_ref(),
+        })
     }
 
     fn atomic_add_edge(
@@ -745,7 +746,7 @@ impl InternalAdditionOps for TemporalGraph {
     }
 }
 
-impl DurabilityOps for TemporalGraph {
+impl DurabilityOps for Arc<TemporalGraph> {
     fn transaction_manager(&self) -> Result<&TransactionManager, MutationError> {
         Ok(&self.transaction_manager)
     }
@@ -759,9 +760,9 @@ impl DurabilityOps for TemporalGraph {
     }
 }
 
-impl RecoveryOps for TemporalGraph {}
+impl RecoveryOps for Arc<TemporalGraph> {}
 
-impl StagingOps for TemporalGraph {
+impl StagingOps for Arc<TemporalGraph> {
     fn stage(&self) -> Result<StagedGraph<'_>, StagingError> {
         // Acquire full write lock to prevent modifications during staging.
         let mut write_locked_graph = self.write_locked_graph();

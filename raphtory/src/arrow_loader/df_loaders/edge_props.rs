@@ -219,7 +219,7 @@ pub fn load_edges_from_df_prefetch<G: StaticGraphViewOps + PropertyAdditionOps +
 #[inline(never)]
 fn add_and_resolve_outbound_edges<'a, NS: NodeSegmentOps<Extension = Extension>>(
     eid_col_shared: &&mut [AtomicUsize],
-    locked_page: &mut LockedNodePage<'_, NS>,
+    locked_page: &mut LockedNodePage<NS>,
     zip: impl Iterator<Item = (&'a VID, &'a VID)>,
 ) -> Result<(), LoadError> {
     let writer = locked_page.writer();
@@ -241,7 +241,7 @@ fn add_and_resolve_outbound_edges<'a, NS: NodeSegmentOps<Extension = Extension>>
 fn update_edge_metadata<'a, ES: EdgeSegmentOps<Extension = Extension>>(
     shared_metadata: &[(usize, Prop)],
     metadata_cols: &PropCols,
-    shard: &mut LockedEdgePage<'_, ES>,
+    shard: &mut LockedEdgePage<ES>,
     zip: impl Iterator<Item = (&'a VID, &'a VID, &'a EID, &'a usize)>,
 ) {
     let mut c_props = Vec::new();

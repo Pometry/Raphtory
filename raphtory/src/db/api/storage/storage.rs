@@ -102,13 +102,13 @@ impl Storage {
     }
 
     fn load_with_extension(path: &Path, ext: Extension) -> Result<Self, GraphError> {
-        let temporal_graph = TemporalGraph::load(path, ext)?;
+        let temporal_graph = Arc::new(TemporalGraph::load(path, ext)?);
 
         // Run crash recovery if needed.
         temporal_graph.run_recovery()?;
 
         Ok(Self {
-            graph: GraphStorage::Unlocked(Arc::new(temporal_graph)),
+            graph: GraphStorage::Unlocked(temporal_graph),
         })
     }
 
@@ -305,7 +305,7 @@ impl InternalAdditionOps for Storage {
     type WS<'a> = StorageWriteSession<'a>;
     type AtomicAddEdge<'a> = AtomicAddEdgeSession<'a>;
 
-    fn write_lock(&self) -> Result<WriteLockedGraph<'_, Extension>, Self::Error> {
+    fn write_lock(&self) -> Result<WriteLockedGraph<Extension>, Self::Error> {
         Ok(self.graph.write_lock()?)
     }
 

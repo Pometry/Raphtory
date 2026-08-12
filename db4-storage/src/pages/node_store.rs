@@ -247,17 +247,17 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         }
     }
 
-    pub fn write_locked<'a>(&'a self) -> WriteLockedNodePages<'a, NS> {
+    pub fn write_locked(&self) -> WriteLockedNodePages<NS> {
         WriteLockedNodePages::new(
             self.segments
                 .iter()
                 .map(|(page_id, page)| {
                     LockedNodePage::new(
                         page_id,
-                        &self.stats,
+                        self.stats.clone(),
                         self.max_segment_len(),
-                        page.as_ref(),
-                        page.head_mut(),
+                        page.clone(),
+                        page.head_arc_mut(),
                     )
                 })
                 .collect(),

@@ -22,13 +22,16 @@ use crate::{
         },
     },
 };
-use parking_lot::RwLock;
+use parking_lot::{
+    RawRwLock, RwLock, RwLockReadGuard, RwLockWriteGuard, lock_api::ArcRwLockWriteGuard,
+};
 use raphtory_api::core::entities::{EID, VID};
 use segments::{
     edge::segment::MemEdgeSegment, graph_prop::GraphPropSegmentView, node::segment::MemNodeSegment,
 };
 use std::{
     path::{Path, PathBuf},
+    sync::Arc,
     thread,
     time::Duration,
 };
@@ -62,8 +65,8 @@ pub type ReadLockedLayer<P> = ReadLockedGraphStore<NS<P>, ES<P>, GS<P>, P>;
 pub type ReadLockedNodes<P> = ReadLockedNodeStorage<NS<P>, P>;
 pub type ReadLockedEdges<P> = ReadLockedEdgeStorage<ES<P>, P>;
 
-pub type NodeEntry<'a> = MemNodeEntry<'a, parking_lot::RwLockReadGuard<'a, MemNodeSegment>>;
-pub type EdgeEntry<'a> = MemEdgeEntry<'a, parking_lot::RwLockReadGuard<'a, MemEdgeSegment>>;
+pub type NodeEntry<'a> = MemNodeEntry<'a, RwLockReadGuard<'a, MemNodeSegment>>;
+pub type EdgeEntry<'a> = MemEdgeEntry<'a, RwLockReadGuard<'a, MemEdgeSegment>>;
 pub type GraphPropEntry<'a> = MemGraphPropEntry<'a>;
 pub type NodeEntryRef<'a> = MemNodeRef<'a>;
 pub type EdgeEntryRef<'a> = MemEdgeRef<'a>;
@@ -217,11 +220,23 @@ pub fn collect_tree_paths(path: &Path) -> Vec<PathBuf> {
     paths
 }
 
-pub fn loop_lock_write<A>(lock: &RwLock<A>) -> parking_lot::RwLockWriteGuard<'_, A> {
+pub fn loop_lock_write<A>(lock: &RwLock<A>) -> RwLockWriteGuard<'_, A> {
     const MAX_BACKOFF_US: u64 = 1000; // 1ms max
     let mut backoff_us = 1;
     loop {
         if let Some(guard) = lock.try_write_for(Duration::from_micros(50)) {
+            return guard;
+        }
+        thread::park_timeout(Duration::from_micros(backoff_us));
+        backoff_us = (backoff_us * 2).min(MAX_BACKOFF_US);
+    }
+}
+
+pub fn loop_lock_write_arc<A>(lock: &Arc<RwLock<A>>) -> ArcRwLockWriteGuard<RawRwLock, A> {
+    const MAX_BACKOFF_US: u64 = 1000; // 1ms max
+    let mut backoff_us = 1;
+    loop {
+        if let Some(guard) = lock.try_write_arc_for(Duration::from_micros(50)) {
             return guard;
         }
         thread::park_timeout(Duration::from_micros(backoff_us));

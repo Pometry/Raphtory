@@ -5,6 +5,7 @@ use crate::{
 use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::entities::properties::prop::AsPropRef;
 use raphtory_core::storage::timeindex::AsTime;
+use std::ops::DerefMut;
 
 /// Provides mutable access to a graph segment. Holds an exclusive write lock
 /// on the in-memory segment for the duration of its lifetime.
@@ -55,7 +56,7 @@ impl<'a, GS: GraphPropSegmentOps> GraphPropWriter<'a, GS> {
 impl<GS: GraphPropSegmentOps> Drop for GraphPropWriter<'_, GS> {
     fn drop(&mut self) {
         self.graph_props
-            .notify_write(&mut self.mem_segment)
+            .notify_write(self.mem_segment.deref_mut())
             .expect("Failed to persist node page");
     }
 }

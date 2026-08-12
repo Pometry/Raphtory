@@ -1,5 +1,5 @@
 use crate::{error::StorageError, segments::graph_prop::segment::MemGraphPropSegment, wal::LSN};
-use parking_lot::{RwLockReadGuard, RwLockWriteGuard};
+use parking_lot::{RawRwLock, RwLockReadGuard, RwLockWriteGuard, lock_api::ArcRwLockWriteGuard};
 use raphtory_api::core::entities::properties::{
     meta::Meta,
     prop::{AsPropRef, Prop},
@@ -27,6 +27,8 @@ where
 
     fn head_mut(&self) -> RwLockWriteGuard<'_, MemGraphPropSegment>;
 
+    fn head_arc_mut(&self) -> ArcRwLockWriteGuard<RawRwLock, MemGraphPropSegment>;
+
     fn entry(&self) -> Self::Entry<'_>;
 
     fn num_updates(&self) -> usize;
@@ -42,7 +44,7 @@ where
 
     fn notify_write(
         &self,
-        mem_segment: &mut RwLockWriteGuard<'_, MemGraphPropSegment>,
+        mem_segment: impl DerefMut<Target = MemGraphPropSegment>,
     ) -> Result<(), StorageError>;
 
     fn flush(

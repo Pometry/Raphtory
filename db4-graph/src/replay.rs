@@ -22,7 +22,7 @@ use storage::{
     ES, GS, NS,
 };
 
-impl<EXT> GraphReplay for WriteLockedGraph<'_, EXT>
+impl<EXT> GraphReplay for WriteLockedGraph<EXT>
 where
     EXT: PersistenceStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>,
     NS<EXT>: NodeSegmentOps<Extension = EXT>,

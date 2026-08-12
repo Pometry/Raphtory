@@ -451,7 +451,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
         self.ext.config().max_edge_page_len()
     }
 
-    pub fn write_locked<'a>(&'a self) -> WriteLockedEdgePages<'a, ES> {
+    pub fn write_locked(&self) -> WriteLockedEdgePages<ES> {
         WriteLockedEdgePages::new(
             self.segments
                 .iter()
@@ -459,9 +459,9 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
                     LockedEdgePage::new(
                         page_id,
                         self.max_page_len(),
-                        page.as_ref(),
-                        &self.layer_counter,
-                        page.head_mut(),
+                        page.clone(),
+                        self.layer_counter.clone(),
+                        page.head_arc_mut(),
                     )
                 })
                 .collect(),

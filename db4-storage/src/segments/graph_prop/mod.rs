@@ -4,11 +4,14 @@ pub mod segment;
 use crate::{
     api::graph_props::GraphPropSegmentOps,
     error::StorageError,
+    loop_lock_write_arc,
     persist::strategy::PersistenceStrategy,
     segments::graph_prop::{entry::MemGraphPropEntry, segment::MemGraphPropSegment},
     wal::LSN,
 };
-use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+use parking_lot::{
+    RawRwLock, RwLock, RwLockReadGuard, RwLockWriteGuard, lock_api::ArcRwLockWriteGuard,
+};
 use raphtory_api::core::entities::properties::{meta::Meta, prop::AsPropRef};
 use std::{
     ops::DerefMut,
@@ -67,6 +70,10 @@ impl<P: PersistenceStrategy> GraphPropSegmentOps for GraphPropSegmentView<P> {
         self.head.write()
     }
 
+    fn head_arc_mut(&self) -> ArcRwLockWriteGuard<RawRwLock, MemGraphPropSegment> {
+        loop_lock_write_arc(&self.head)
+    }
+
     fn entry(&self) -> Self::Entry<'_> {
         let head = self.head.read();
 
@@ -99,7 +106,7 @@ impl<P: PersistenceStrategy> GraphPropSegmentOps for GraphPropSegmentView<P> {
 
     fn notify_write(
         &self,
-        _mem_segment: &mut RwLockWriteGuard<'_, MemGraphPropSegment>,
+        _mem_segment: impl DerefMut<Target = MemGraphPropSegment>,
     ) -> Result<(), StorageError> {
         Ok(())
     }

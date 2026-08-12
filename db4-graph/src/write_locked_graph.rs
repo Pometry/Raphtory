@@ -15,7 +15,7 @@ use storage::{
 };
 
 /// Holds write locks across all segments in the graph for fast bulk ingestion.
-pub struct WriteLockedGraph<'a, EXT>
+pub struct WriteLockedGraph<EXT>
 where
     EXT: PersistenceStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>,
     NS<EXT>: NodeSegmentOps<Extension = EXT>,
@@ -25,17 +25,17 @@ where
     pub nodes: WriteLockedNodePages<'a, NS<EXT>>,
     pub edges: WriteLockedEdgePages<'a, ES<EXT>>,
     pub graph_props: WriteLockedGraphPropPages<'a, GS<EXT>>,
-    pub graph: &'a TemporalGraph<EXT>,
+    pub graph: Arc<TemporalGraph<EXT>>,
 }
 
-impl<'a, EXT> WriteLockedGraph<'a, EXT>
+impl<EXT> WriteLockedGraph<EXT>
 where
     EXT: PersistenceStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>,
     NS<EXT>: NodeSegmentOps<Extension = EXT>,
     ES<EXT>: EdgeSegmentOps<Extension = EXT>,
     GS<EXT>: GraphPropSegmentOps<Extension = EXT>,
 {
-    pub fn new(graph: &'a TemporalGraph<EXT>) -> Self {
+    pub fn new(graph: Arc<TemporalGraph<EXT>>) -> Self {
         WriteLockedGraph {
             nodes: graph.storage.nodes().write_locked(),
             edges: graph.storage.edges().write_locked(),
@@ -45,7 +45,7 @@ where
     }
 
     pub fn graph(&self) -> &TemporalGraph<EXT> {
-        self.graph
+        self.graph.as_ref()
     }
 
     pub fn resize_segments_to_vid(&mut self, vid: VID) {

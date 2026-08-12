@@ -10,28 +10,28 @@ use crate::{
     persist::strategy::PersistenceStrategy,
     segments::node::segment::MemNodeSegment,
 };
-use parking_lot::RwLockWriteGuard;
+use parking_lot::{RawRwLock, lock_api::ArcRwLockWriteGuard};
 use raphtory_api::core::entities::LayerId;
 use raphtory_core::entities::VID;
 use rayon::prelude::*;
-use std::{ops::DerefMut, path::Path};
+use std::{ops::DerefMut, path::Path, sync::Arc};
 
 #[derive(Debug)]
-pub struct LockedNodePage<'a, NS> {
+pub struct LockedNodePage<NS> {
     segment_id: usize,
     max_page_len: u32,
-    layer_counter: &'a GraphStats,
-    page: &'a NS,
-    lock: RwLockWriteGuard<'a, MemNodeSegment>,
+    layer_counter: Arc<GraphStats>,
+    page: Arc<NS>,
+    lock: ArcRwLockWriteGuard<RawRwLock, MemNodeSegment>,
 }
 
-impl<'a, NS: NodeSegmentOps> LockedNodePage<'a, NS> {
+impl<NS: NodeSegmentOps> LockedNodePage<NS> {
     pub fn new(
         segment_id: usize,
-        layer_counter: &'a GraphStats,
+        layer_counter: Arc<GraphStats>,
         max_page_len: u32,
-        page: &'a NS,
-        lock: RwLockWriteGuard<'a, MemNodeSegment>,
+        page: Arc<NS>,
+        lock: ArcRwLockWriteGuard<RawRwLock, MemNodeSegment>,
     ) -> Self {
         Self {
             segment_id,
@@ -43,17 +43,26 @@ impl<'a, NS: NodeSegmentOps> LockedNodePage<'a, NS> {
     }
 
     pub fn segment(&self) -> &NS {
-        self.page
+        self.page.as_ref()
     }
 
     #[inline(always)]
     pub fn writer(&mut self) -> NodeWriter<'_, &mut MemNodeSegment, NS> {
-        NodeWriter::new(self.page, self.layer_counter, self.lock.deref_mut())
+        NodeWriter::new(
+            self.page.as_ref(),
+            self.layer_counter.as_ref(),
+            self.lock.deref_mut(),
+        )
     }
 
     #[inline(always)]
     pub fn bulk_writer(&mut self) -> BulkNodeWriter<'_, &mut MemNodeSegment, NS> {
-        NodeWriter::new(self.page, self.layer_counter, self.lock.deref_mut()).into()
+        NodeWriter::new(
+            self.page.as_ref(),
+            self.layer_counter.as_ref(),
+            self.lock.deref_mut(),
+        )
+        .into()
     }
 
     pub fn head(&mut self) -> &mut MemNodeSegment {
@@ -86,11 +95,11 @@ impl<'a, NS: NodeSegmentOps> LockedNodePage<'a, NS> {
     }
 }
 
-pub struct WriteLockedNodePages<'a, NS> {
-    writers: Vec<LockedNodePage<'a, NS>>,
+pub struct WriteLockedNodePages<NS> {
+    writers: Vec<LockedNodePage<NS>>,
 }
 
-impl<NS> Default for WriteLockedNodePages<'_, NS> {
+impl<NS> Default for WriteLockedNodePages<NS> {
     fn default() -> Self {
         Self {
             writers: Vec::new(),
@@ -98,10 +107,10 @@ impl<NS> Default for WriteLockedNodePages<'_, NS> {
     }
 }
 
-impl<'a, EXT: PersistenceStrategy<NS = NS>, NS: NodeSegmentOps<Extension = EXT>>
-    WriteLockedNodePages<'a, NS>
+impl<EXT: PersistenceStrategy<NS = NS>, NS: NodeSegmentOps<Extension = EXT>>
+    WriteLockedNodePages<NS>
 {
-    pub fn new(writers: Vec<LockedNodePage<'a, NS>>) -> Self {
+    pub fn new(writers: Vec<LockedNodePage<NS>>) -> Self {
         Self { writers }
     }
 
@@ -110,19 +119,19 @@ impl<'a, EXT: PersistenceStrategy<NS = NS>, NS: NodeSegmentOps<Extension = EXT>>
     }
 
     #[inline]
-    pub fn get_mut(&mut self, segment_id: usize) -> Option<&mut LockedNodePage<'a, NS>> {
+    pub fn get_mut(&mut self, segment_id: usize) -> Option<&mut LockedNodePage<NS>> {
         self.writers.get_mut(segment_id)
     }
 
-    pub fn par_iter_mut(&mut self) -> rayon::slice::IterMut<'_, LockedNodePage<'a, NS>> {
+    pub fn par_iter_mut(&mut self) -> rayon::slice::IterMut<'_, LockedNodePage<NS>> {
         self.writers.par_iter_mut()
     }
 
-    pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, LockedNodePage<'a, NS>> {
+    pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, LockedNodePage<NS>> {
         self.writers.iter_mut()
     }
 
-    pub fn into_par_iter(self) -> impl ParallelIterator<Item = LockedNodePage<'a, NS>> + 'a {
+    pub fn into_par_iter(self) -> impl ParallelIterator<Item = LockedNodePage<NS>> {
         self.writers.into_par_iter()
     }
 
