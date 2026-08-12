@@ -8,7 +8,7 @@ on — not exhaustive coverage yet.
 
 import pytest
 
-from _parity import assert_parity, graph_pair
+from _parity import GRAPH_TYPES, assert_parity, graph_pair
 
 
 def _build_basic(g):
@@ -18,11 +18,37 @@ def _build_basic(g):
     g.add_edge(3, "ben", "hamza")
 
 
-@pytest.fixture(scope="module")
-def basic_pair():
-    # One server for all read cases in this module (reads don't mutate).
-    with graph_pair(_build_basic) as pair:
+@pytest.fixture(scope="module", params=GRAPH_TYPES)
+def basic_pair(request):
+    # One server per graph model for all read cases in this module (reads don't
+    # mutate). Running both models keeps `graph_type` honest: the reads below
+    # are model-independent, so a pair built from mismatched halves — an EVENT
+    # local graph against a PERSISTENT remote — would show up here.
+    with graph_pair(_build_basic, graph_type=request.param) as pair:
         yield pair
+
+
+@pytest.mark.parametrize(
+    "graph_type,edges_after_last_event", [("EVENT", 0), ("PERSISTENT", 1)]
+)
+def test_graph_type_selects_the_model_on_both_sides(graph_type, edges_after_last_event):
+    """``graph_type`` reaches *both* halves of the pair, not just the local one.
+
+    Asserted through behaviour rather than types, because the remote handle is a
+    ``RemoteGraph`` for either model — there is no client-side class to inspect,
+    so only a model-dependent answer can show which graph the server built. An
+    edge added at t=3 is still present at t=100 in a persistent graph and gone
+    in an event graph, which pins each side to the requested model: a pair built
+    from mismatched halves fails the parity assert, and a pair that silently
+    built two EVENT graphs fails the expected count.
+    """
+    with graph_pair(_build_basic, graph_type=graph_type) as pair:
+        assert_parity(pair, lambda g: g.at(100).count_edges())
+        for name, side in (("local", pair.local), ("remote", pair.remote)):
+            assert side.at(100).count_edges() == edges_after_last_event, (
+                f"{name}: {graph_type} graph reported "
+                f"{side.at(100).count_edges()} edges at t=100"
+            )
 
 
 # (id, fn) — each fn takes a graph handle and returns a comparable result.

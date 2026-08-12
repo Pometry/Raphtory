@@ -25,8 +25,18 @@ import math
 import tempfile
 from dataclasses import dataclass
 
-from raphtory import Graph
+from raphtory import Graph, PersistentGraph
 from raphtory.graphql import GraphServer
+
+# The graph models a pair can be built for. These strings select the model on
+# *both* sides, but asymmetrically: remotely `graph_type` is an argument to
+# `new_graph` and the handle is a `RemoteGraph` either way (the model is
+# server-side state), while locally the model *is* the class. So the same string
+# has to be routed two different ways, and a pair built from mismatched halves
+# would compare two graph models and report the difference as a parity bug.
+GRAPH_TYPES = ("EVENT", "PERSISTENT")
+
+_LOCAL_CLASS = {"EVENT": Graph, "PERSISTENT": PersistentGraph}
 
 
 @dataclass
@@ -44,8 +54,18 @@ def graph_pair(build, graph_type="EVENT"):
     ``build`` takes a single graph handle and applies writes using only the
     shared (drop-in) surface, so the exact same callable runs against each side.
     The server is started on enter and torn down on exit.
+
+    ``graph_type`` picks the graph model for *both* sides: the server is told
+    which kind to create and the local side is instantiated from the matching
+    class, so the pair always compares like with like.
     """
-    local = Graph()
+    try:
+        local_cls = _LOCAL_CLASS[graph_type]
+    except KeyError:
+        raise ValueError(
+            f"unknown graph_type {graph_type!r}, expected one of {list(GRAPH_TYPES)}"
+        ) from None
+    local = local_cls()
     build(local)
     # TemporaryDirectory (outer) is torn down only after the server context
     # (inner) has stopped and flushed — so the dir outlives every write-back and
@@ -53,8 +73,7 @@ def graph_pair(build, graph_type="EVENT"):
     with tempfile.TemporaryDirectory() as work_dir:
         with GraphServer(work_dir).start() as server:
             client = server.get_client()
-            client.new_graph("g", graph_type)
-            remote = client.remote_graph("g")
+            remote = client.new_graph("g", graph_type)
             build(remote)
             yield GraphPair(local=local, remote=remote)
 
