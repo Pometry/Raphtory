@@ -5,9 +5,12 @@
 //! gRPC-based one) can be swapped in by implementing this trait — client
 //! wrappers won't change.
 
-use crate::client::{op::Op, remote_history::RemoteEventTime, ClientError};
+use crate::client::{op::Op, ClientError};
 use async_graphql::async_trait;
-use raphtory_api::core::entities::properties::prop::{Prop, PropMap};
+use raphtory_api::core::{
+    entities::properties::prop::{Prop, PropMap},
+    storage::timeindex::EventTime,
+};
 
 /// Executes a graph operation against a remote server.
 ///
@@ -390,7 +393,7 @@ pub(crate) fn expect_optional_prop(
 pub(crate) fn expect_optional_property_tuple(
     v: Option<Prop>,
     context: &str,
-) -> Result<Option<(RemoteEventTime, Prop)>, ClientError> {
+) -> Result<Option<(EventTime, Prop)>, ClientError> {
     match v {
         None => Ok(None),
         Some(Prop::Map(map)) => extract_property_tuple(&*map, context).map(Some),
@@ -405,7 +408,7 @@ pub(crate) fn expect_optional_property_tuple(
 pub(crate) fn expect_property_tuple_list(
     v: Option<Prop>,
     context: &str,
-) -> Result<Vec<(RemoteEventTime, Prop)>, ClientError> {
+) -> Result<Vec<(EventTime, Prop)>, ClientError> {
     match v {
         Some(Prop::List(items)) => items
             .iter()
@@ -424,12 +427,11 @@ pub(crate) fn expect_property_tuple_list(
     }
 }
 
-fn extract_property_tuple(
-    map: &PropMap,
-    context: &str,
-) -> Result<(RemoteEventTime, Prop), ClientError> {
+fn extract_property_tuple(map: &PropMap, context: &str) -> Result<(EventTime, Prop), ClientError> {
     let time = match map.get("time") {
-        Some(Prop::Map(time_map)) => extract_event_time(&*time_map),
+        Some(Prop::Map(time_map)) => extract_event_time(&*time_map).ok_or_else(|| {
+            ClientError::InvalidResponse(format!("`{}` tuple `time` has no timestamp", context))
+        })?,
         _ => {
             return Err(ClientError::InvalidResponse(format!(
                 "`{}` tuple missing `time`",
@@ -443,24 +445,24 @@ fn extract_property_tuple(
     Ok((time, value))
 }
 
-fn extract_event_time(map: &PropMap) -> RemoteEventTime {
+/// Decode a wire `{timestamp, eventId}` record into an [`EventTime`] — the same
+/// type the local API exposes. `None` when there is no timestamp: the server's
+/// representation of "no event time" (e.g. `earliest_time` on an empty view),
+/// which the local API models as an absent value. A missing `event_id`
+/// defaults to `0`; the server only omits it alongside the timestamp.
+///
+/// The datetime is *not* read from the wire — `EventTime::dt()` derives it from
+/// the timestamp locally, so the server never renders one.
+fn extract_event_time(map: &PropMap) -> Option<EventTime> {
     let timestamp = match map.get("timestamp") {
-        Some(Prop::I64(n)) => Some(*n),
-        _ => None,
-    };
-    let dt = match map.get("datetime") {
-        Some(Prop::Str(s)) => Some(s.to_string()),
-        _ => None,
+        Some(Prop::I64(n)) => *n,
+        _ => return None,
     };
     let event_id = match map.get("eventId") {
-        Some(Prop::I64(n)) => Some(*n),
-        _ => None,
+        Some(Prop::I64(n)) => *n as usize,
+        _ => 0,
     };
-    RemoteEventTime {
-        timestamp,
-        dt,
-        event_id,
-    }
+    Some(EventTime::new(timestamp, event_id))
 }
 
 /// Unwrap a `Transport::execute` result expecting a `Prop::List` of
@@ -482,10 +484,10 @@ pub(crate) fn expect_prop_list(v: Option<Prop>, context: &str) -> Result<Vec<Pro
 pub(crate) fn expect_optional_event_time(
     v: Option<Prop>,
     context: &str,
-) -> Result<Option<RemoteEventTime>, ClientError> {
+) -> Result<Option<EventTime>, ClientError> {
     match v {
         None => Ok(None),
-        Some(Prop::Map(map)) => Ok(Some(extract_event_time(&map))),
+        Some(Prop::Map(map)) => Ok(extract_event_time(&map)),
         Some(_) => Err(ClientError::InvalidResponse(format!(
             "`{}` returned unexpected value type",
             context
@@ -516,30 +518,17 @@ pub(crate) fn expect_optional_f64(
 pub(crate) fn expect_event_time_list(
     v: Option<Prop>,
     context: &str,
-) -> Result<Vec<RemoteEventTime>, ClientError> {
+) -> Result<Vec<EventTime>, ClientError> {
     match v {
         Some(Prop::List(items)) => items
             .iter()
             .map(|p| match p {
-                Prop::Map(map) => {
-                    let timestamp = match map.get("timestamp") {
-                        Some(Prop::I64(n)) => Some(*n),
-                        _ => None,
-                    };
-                    let dt = match map.get("datetime") {
-                        Some(Prop::Str(s)) => Some(s.to_string()),
-                        _ => None,
-                    };
-                    let event_id = match map.get("eventId") {
-                        Some(Prop::I64(n)) => Some(*n),
-                        _ => None,
-                    };
-                    Ok(RemoteEventTime {
-                        timestamp,
-                        dt,
-                        event_id,
-                    })
-                }
+                // Every entry in a history list carries a timestamp; one
+                // without is a malformed response, surfaced rather than
+                // silently dropped from the list.
+                Prop::Map(map) => extract_event_time(&map).ok_or_else(|| {
+                    ClientError::InvalidResponse(format!("`{}` element has no timestamp", context))
+                }),
                 _ => Err(ClientError::InvalidResponse(format!(
                     "`{}` element not a Prop::Map",
                     context
@@ -887,20 +876,20 @@ pub(crate) fn expect_nested_optional_string_list(
     }
 }
 
-/// Unwrap a columnar accessor producing `Vec<Option<RemoteEventTime>>` — a flat
+/// Unwrap a columnar accessor producing `Vec<Option<EventTime>>` — a flat
 /// `Prop::List` where each element is a `Prop::List` of 0 (`None`) or 1
 /// (`Some`) `Prop::Map`. Used by `Edges.earliest_time` / `latest_time` / `time`.
 pub(crate) fn expect_optional_event_time_list(
     v: Option<Prop>,
     context: &str,
-) -> Result<Vec<Option<RemoteEventTime>>, ClientError> {
+) -> Result<Vec<Option<EventTime>>, ClientError> {
     match v {
         Some(Prop::List(items)) => items
             .iter()
             .map(|elem| match elem {
                 Prop::List(inner) => match inner.iter().next() {
                     None => Ok(None),
-                    Some(Prop::Map(map)) => Ok(Some(extract_event_time(&map))),
+                    Some(Prop::Map(map)) => Ok(extract_event_time(&map)),
                     Some(_) => Err(ClientError::InvalidResponse(format!(
                         "`{}` element wrapper contains non-map",
                         context
@@ -920,11 +909,11 @@ pub(crate) fn expect_optional_event_time_list(
 }
 
 /// Nested form of `expect_optional_event_time_list` →
-/// `Vec<Vec<Option<RemoteEventTime>>>`. Used by `NestedEdges.earliest_time` etc.
+/// `Vec<Vec<Option<EventTime>>>`. Used by `NestedEdges.earliest_time` etc.
 pub(crate) fn expect_nested_optional_event_time_list(
     v: Option<Prop>,
     context: &str,
-) -> Result<Vec<Vec<Option<RemoteEventTime>>>, ClientError> {
+) -> Result<Vec<Vec<Option<EventTime>>>, ClientError> {
     match v {
         Some(Prop::List(rows)) => rows
             .iter()

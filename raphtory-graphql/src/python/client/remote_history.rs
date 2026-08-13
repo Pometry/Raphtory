@@ -66,10 +66,9 @@ impl PyRemoteHistory {
     ///   Optional[EventTime]: the earliest event time, or None.
     pub fn earliest_time(&self) -> Result<Option<EventTime>, ClientError> {
         let history = Arc::clone(&self.history);
-        Ok(
-            execute_async_task(move || async move { history.earliest_time().await })?
-                .and_then(|t| t.to_event_time()),
-        )
+        Ok(execute_async_task(move || async move {
+            history.earliest_time().await
+        })?)
     }
 
     /// Latest event time in this history — `None` if empty. Fires one RPC.
@@ -78,10 +77,9 @@ impl PyRemoteHistory {
     ///   Optional[EventTime]: the latest event time, or None.
     pub fn latest_time(&self) -> Result<Option<EventTime>, ClientError> {
         let history = Arc::clone(&self.history);
-        Ok(
-            execute_async_task(move || async move { history.latest_time().await })?
-                .and_then(|t| t.to_event_time()),
-        )
+        Ok(execute_async_task(move || async move {
+            history.latest_time().await
+        })?)
     }
 
     /// All events in this history in ascending time order. Fires one RPC.
@@ -91,7 +89,7 @@ impl PyRemoteHistory {
     pub fn collect(&self) -> Result<Vec<EventTime>, ClientError> {
         let history = Arc::clone(&self.history);
         let result = execute_async_task(move || async move { history.collect().await })?;
-        Ok(result.iter().filter_map(|t| t.to_event_time()).collect())
+        Ok(result)
     }
 
     /// All events in this history in descending time order. Fires one RPC.
@@ -101,7 +99,7 @@ impl PyRemoteHistory {
     pub fn collect_rev(&self) -> Result<Vec<EventTime>, ClientError> {
         let history = Arc::clone(&self.history);
         let result = execute_async_task(move || async move { history.collect_rev().await })?;
-        Ok(result.iter().filter_map(|t| t.to_event_time()).collect())
+        Ok(result)
     }
 
     /// A page of events in ascending time order — at most `limit` items,
@@ -127,7 +125,7 @@ impl PyRemoteHistory {
             execute_async_task(
                 move || async move { history.page(limit, offset, page_index).await },
             )?;
-        Ok(result.iter().filter_map(|t| t.to_event_time()).collect())
+        Ok(result)
     }
 
     /// A page of events in descending time order. Same args as `page()`.
@@ -151,7 +149,7 @@ impl PyRemoteHistory {
         let result = execute_async_task(move || async move {
             history.page_rev(limit, offset, page_index).await
         })?;
-        Ok(result.iter().filter_map(|t| t.to_event_time()).collect())
+        Ok(result)
     }
 
     /// Enables `for t in remote_history:` — fetches all events in one RPC
@@ -547,19 +545,6 @@ impl PyRemoteHistoryEventIds {
     }
 }
 
-/// Parse the server's RFC 3339 datetime strings into UTC `datetime`s, matching
-/// the local `History.dt`, which returns `list[datetime]` rather than strings.
-fn parse_rfc3339(strings: Vec<String>) -> Result<Vec<DateTime<Utc>>, ClientError> {
-    strings
-        .into_iter()
-        .map(|s| {
-            DateTime::parse_from_rfc3339(&s)
-                .map(|dt| dt.with_timezone(&Utc))
-                .map_err(|e| ClientError::InvalidResponse(format!("invalid datetime {s:?}: {e}")))
-        })
-        .collect()
-}
-
 /// Datetime view of a `RemoteHistory`. Lists / pages return `list[datetime]`
 /// (UTC), mirroring the local `History.dt`.
 #[derive(Clone)]
@@ -580,9 +565,7 @@ impl PyRemoteHistoryDateTimes {
     ///     list[datetime]: all datetimes (UTC) in ascending time order.
     pub fn collect(&self) -> Result<Vec<DateTime<Utc>>, ClientError> {
         let inner = Arc::clone(&self.inner);
-        parse_rfc3339(execute_async_task(
-            move || async move { inner.collect().await },
-        )?)
+        execute_async_task(move || async move { inner.collect().await })
     }
 
     /// Fires one RPC.
@@ -591,9 +574,7 @@ impl PyRemoteHistoryDateTimes {
     ///     list[datetime]: all datetimes (UTC) in descending time order.
     pub fn collect_rev(&self) -> Result<Vec<DateTime<Utc>>, ClientError> {
         let inner = Arc::clone(&self.inner);
-        parse_rfc3339(execute_async_task(move || async move {
-            inner.collect_rev().await
-        })?)
+        execute_async_task(move || async move { inner.collect_rev().await })
     }
 
     /// Fires one RPC.
@@ -613,9 +594,7 @@ impl PyRemoteHistoryDateTimes {
         page_index: Option<usize>,
     ) -> Result<Vec<DateTime<Utc>>, ClientError> {
         let inner = Arc::clone(&self.inner);
-        parse_rfc3339(execute_async_task(move || async move {
-            inner.page(limit, offset, page_index).await
-        })?)
+        execute_async_task(move || async move { inner.page(limit, offset, page_index).await })
     }
 
     /// Fires one RPC.
@@ -635,9 +614,7 @@ impl PyRemoteHistoryDateTimes {
         page_index: Option<usize>,
     ) -> Result<Vec<DateTime<Utc>>, ClientError> {
         let inner = Arc::clone(&self.inner);
-        parse_rfc3339(execute_async_task(move || async move {
-            inner.page_rev(limit, offset, page_index).await
-        })?)
+        execute_async_task(move || async move { inner.page_rev(limit, offset, page_index).await })
     }
 
     /// `len(...)` — number of datetimes. Fires one RPC (`collect()`).

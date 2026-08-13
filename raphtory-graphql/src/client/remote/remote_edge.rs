@@ -7,7 +7,7 @@ use crate::{
             UpdateEdgeMetadata as UpdateEdgeMetadataOp, ViewOp, WriteOp,
         },
         remote_edges::RemoteEdges,
-        remote_history::{RemoteEventTime, RemoteHistory},
+        remote_history::RemoteHistory,
         remote_metadata::{RemoteMetadata, RemoteProperties},
         remote_node::RemoteNode,
         transport::{
@@ -20,7 +20,9 @@ use crate::{
 };
 use raphtory::errors::GraphError;
 use raphtory_api::core::{
-    entities::properties::prop::Prop, storage::timeindex::AsTime, utils::time::IntoTime,
+    entities::properties::prop::Prop,
+    storage::timeindex::{AsTime, EventTime},
+    utils::time::IntoTime,
 };
 use std::{collections::HashMap, sync::Arc};
 
@@ -334,7 +336,7 @@ impl RemoteEdge {
 
     /// Terminal: earliest event time on this edge under the current view.
     /// Returns `None` if the edge has no events in the view. Fires one RPC.
-    pub async fn earliest_time(&self) -> Result<Option<RemoteEventTime>, ClientError> {
+    pub async fn earliest_time(&self) -> Result<Option<EventTime>, ClientError> {
         let op = Op::Read(ReadExpr::EarliestTime {
             input: self.expr.clone(),
         });
@@ -343,7 +345,7 @@ impl RemoteEdge {
 
     /// Terminal: latest event time on this edge under the current view.
     /// Fires one RPC.
-    pub async fn latest_time(&self) -> Result<Option<RemoteEventTime>, ClientError> {
+    pub async fn latest_time(&self) -> Result<Option<EventTime>, ClientError> {
         let op = Op::Read(ReadExpr::LatestTime {
             input: self.expr.clone(),
         });
@@ -370,7 +372,7 @@ impl RemoteEdge {
 
     /// Terminal: the specific event time this exploded edge event happened at.
     /// Meaningful primarily on `explode()`'d edge views. Fires one RPC.
-    pub async fn time(&self) -> Result<Option<RemoteEventTime>, ClientError> {
+    pub async fn time(&self) -> Result<Option<EventTime>, ClientError> {
         let op = Op::Read(ReadExpr::Time {
             input: self.expr.clone(),
         });
@@ -378,7 +380,7 @@ impl RemoteEdge {
     }
 
     /// Terminal: view start bound as seen by this edge. Fires one RPC.
-    pub async fn start(&self) -> Result<Option<RemoteEventTime>, ClientError> {
+    pub async fn start(&self) -> Result<Option<EventTime>, ClientError> {
         let op = Op::Read(ReadExpr::Start {
             input: self.expr.clone(),
         });
@@ -386,7 +388,7 @@ impl RemoteEdge {
     }
 
     /// Terminal: view end bound as seen by this edge. Fires one RPC.
-    pub async fn end(&self) -> Result<Option<RemoteEventTime>, ClientError> {
+    pub async fn end(&self) -> Result<Option<EventTime>, ClientError> {
         let op = Op::Read(ReadExpr::End {
             input: self.expr.clone(),
         });

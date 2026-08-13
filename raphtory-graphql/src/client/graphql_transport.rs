@@ -1067,10 +1067,6 @@ fn render_read_into(
             render_read_into(input, vars, out)?;
             out.push_str(" { eventId");
         }
-        ReadExpr::HistoryDateTimes { input } => {
-            render_read_into(input, vars, out)?;
-            out.push_str(" { datetimes");
-        }
         ReadExpr::HistoryIntervals { input } => {
             render_read_into(input, vars, out)?;
             out.push_str(" { intervals");
@@ -1351,7 +1347,7 @@ fn render_read_into(
             render_read_into(input, vars, out)?;
             let _ = write!(
                 out,
-                " {{ dtype orderedDedupe(latestTime: {}) {{ time {{ timestamp datetime eventId }} value }}",
+                " {{ dtype orderedDedupe(latestTime: {}) {{ time {{ timestamp eventId }} value }}",
                 latest_time
             );
         }
@@ -1369,15 +1365,15 @@ fn render_read_into(
         }
         ReadExpr::TemporalPropertyMin { input } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { dtype min { time { timestamp datetime eventId } value }");
+            out.push_str(" { dtype min { time { timestamp eventId } value }");
         }
         ReadExpr::TemporalPropertyMax { input } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { dtype max { time { timestamp datetime eventId } value }");
+            out.push_str(" { dtype max { time { timestamp eventId } value }");
         }
         ReadExpr::TemporalPropertyMedian { input } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { dtype median { time { timestamp datetime eventId } value }");
+            out.push_str(" { dtype median { time { timestamp eventId } value }");
         }
         // Compound-structured tree — one RPC fetches everything.
         ReadExpr::Schema { input } => {
@@ -1580,15 +1576,15 @@ fn render_read_into(
         }
         ReadExpr::CollectionEarliestTime { input } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { list { earliestTime { timestamp datetime eventId } }");
+            out.push_str(" { list { earliestTime { timestamp eventId } }");
         }
         ReadExpr::CollectionLatestTime { input } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { list { latestTime { timestamp datetime eventId } }");
+            out.push_str(" { list { latestTime { timestamp eventId } }");
         }
         ReadExpr::CollectionTime { input } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { list { time { timestamp datetime eventId } }");
+            out.push_str(" { list { time { timestamp eventId } }");
         }
         // Columnar accessors — NESTED collections render `list { list { <field> } }`.
         ReadExpr::NestedNames { input } => {
@@ -1609,15 +1605,15 @@ fn render_read_into(
         }
         ReadExpr::NestedEarliestTime { input } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { list { list { earliestTime { timestamp datetime eventId } } }");
+            out.push_str(" { list { list { earliestTime { timestamp eventId } } }");
         }
         ReadExpr::NestedLatestTime { input } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { list { list { latestTime { timestamp datetime eventId } } }");
+            out.push_str(" { list { list { latestTime { timestamp eventId } } }");
         }
         ReadExpr::NestedTime { input } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { list { list { time { timestamp datetime eventId } } }");
+            out.push_str(" { list { list { time { timestamp eventId } } }");
         }
         // Boolean columnar accessors — FLAT collections render `list { <field> }`.
         ReadExpr::CollectionIsActive { input } => {
@@ -1757,7 +1753,7 @@ fn render_read_into(
             render_read_into(input, vars, out)?;
             out.push_str(" { isEmpty");
         }
-        // Compound structured terminal: `list { timestamp datetime eventId }`
+        // Compound structured terminal: `list { timestamp eventId }`
         // returns a list of records. Inner braces are self-balanced; the outer
         // `list` brace opens one net brace, contributing 1 to read_depth.
         //
@@ -1765,11 +1761,11 @@ fn render_read_into(
         // (defaults to RFC 3339). We pass no arg to get the default.
         ReadExpr::HistoryList { input } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { list { timestamp datetime eventId }");
+            out.push_str(" { list { timestamp eventId }");
         }
         ReadExpr::HistoryListRev { input } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { listRev { timestamp datetime eventId }");
+            out.push_str(" { listRev { timestamp eventId }");
         }
         ReadExpr::HistoryPage {
             input,
@@ -1780,7 +1776,7 @@ fn render_read_into(
             render_read_into(input, vars, out)?;
             let _ = write!(
                 out,
-                " {{ page({}) {{ timestamp datetime eventId }}",
+                " {{ page({}) {{ timestamp eventId }}",
                 render_page_args(*limit, *offset, *page_index)
             );
         }
@@ -1793,7 +1789,7 @@ fn render_read_into(
             render_read_into(input, vars, out)?;
             let _ = write!(
                 out,
-                " {{ pageRev({}) {{ timestamp datetime eventId }}",
+                " {{ pageRev({}) {{ timestamp eventId }}",
                 render_page_args(*limit, *offset, *page_index)
             );
         }
@@ -1826,24 +1822,24 @@ fn render_read_into(
             render_read_into(input, vars, out)?;
             out.push_str(" { isSelfLoop");
         }
-        // EventTime terminals — fetch the full `{ timestamp datetime eventId }`
-        // record so the client can return a `RemoteEventTime` (drop-in parity
+        // EventTime terminals — fetch the full `{ timestamp eventId }`
+        // record so the client can return a `EventTime` (drop-in parity
         // with the local API's `EventTime`, which carries the `event_id`).
         ReadExpr::EarliestTime { input } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { earliestTime { timestamp datetime eventId");
+            out.push_str(" { earliestTime { timestamp eventId");
         }
         ReadExpr::LatestTime { input } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { latestTime { timestamp datetime eventId");
+            out.push_str(" { latestTime { timestamp eventId");
         }
         ReadExpr::Start { input } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { start { timestamp datetime eventId");
+            out.push_str(" { start { timestamp eventId");
         }
         ReadExpr::End { input } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { end { timestamp datetime eventId");
+            out.push_str(" { end { timestamp eventId");
         }
         // Remaining timestamp terminals stay bare `i64` (no local @property
         // counterpart, so not part of the EventTime drop-in change).
@@ -1865,7 +1861,7 @@ fn render_read_into(
         }
         ReadExpr::Time { input } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { time { timestamp datetime eventId");
+            out.push_str(" { time { timestamp eventId");
         }
     }
     Ok(())
@@ -2017,7 +2013,6 @@ fn read_depth(expr: &ReadExpr) -> usize {
         | ReadExpr::HistoryPageRev { input, .. }
         | ReadExpr::HistoryTimestamps { input }
         | ReadExpr::HistoryEventIds { input }
-        | ReadExpr::HistoryDateTimes { input }
         | ReadExpr::HistoryIntervals { input }
         | ReadExpr::SubList { input }
         | ReadExpr::SubListRev { input }
@@ -2126,7 +2121,7 @@ fn col_bool_elem(v: &JsonValue, field: &'static str) -> Result<Prop, ClientError
         })
 }
 
-/// `list { <field> { timestamp datetime eventId } }` element → `Prop::List([])`
+/// `list { <field> { timestamp eventId } }` element → `Prop::List([])`
 /// (None — no event in view) or `[Prop::Map]` (Some). Mirrors the single
 /// EventTime decode.
 fn col_event_time_elem(v: &JsonValue, field: &str) -> Result<Prop, ClientError> {
@@ -2138,9 +2133,6 @@ fn col_event_time_elem(v: &JsonValue, field: &str) -> Result<Prop, ClientError> 
         None => Ok(Prop::List(Vec::<Prop>::new().into())),
         Some(t) => {
             let mut pairs: Vec<(&'static str, Prop)> = vec![("timestamp", Prop::I64(t))];
-            if let Some(d) = obj.get("datetime").and_then(|x| x.as_str()) {
-                pairs.push(("datetime", Prop::Str(d.into())));
-            }
             if let Some(e) = obj.get("eventId").and_then(|x| x.as_i64()) {
                 pairs.push(("eventId", Prop::I64(e)));
             }
@@ -2325,8 +2317,8 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
             .as_i64()
             .map(|n| Some(Prop::I64(n)))
             .ok_or_else(|| ClientError::InvalidResponse(format!("`{}` not an i64", terminal_key))),
-        // Sub-container list/page terminals dispatch by parent selection:
-        // DateTimes → string list; Timestamps/EventIds/Intervals → int list.
+        // Sub-container list/page terminals — always an int list. (`.dt`
+        // reads the timestamps container and converts client-side.)
         ReadExpr::SubList { input }
         | ReadExpr::SubListRev { input }
         | ReadExpr::SubPage { input, .. }
@@ -2335,20 +2327,6 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
                 ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
             })?;
             match &**input {
-                ReadExpr::HistoryDateTimes { .. } => {
-                    let items: Result<Vec<Prop>, ClientError> = arr
-                        .iter()
-                        .map(|v| {
-                            v.as_str().map(|s| Prop::Str(s.into())).ok_or_else(|| {
-                                ClientError::InvalidResponse(format!(
-                                    "`{}` element not a string",
-                                    terminal_key
-                                ))
-                            })
-                        })
-                        .collect();
-                    Ok(Some(Prop::List(items?.into())))
-                }
                 ReadExpr::HistoryTimestamps { .. }
                 | ReadExpr::HistoryEventIds { .. }
                 | ReadExpr::HistoryIntervals { .. } => {
@@ -2560,7 +2538,7 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
         // `[{"timestamp":N,"dt":"...","eventId":N}, ...]`. Any field may be
         // null. Decode each element into a `Prop::Map` (missing keys → null
         // semantically); `expect_event_time_list` unwraps to a typed
-        // `Vec<RemoteEventTime>`.
+        // `Vec<EventTime>`.
         ReadExpr::HistoryList { .. }
         | ReadExpr::HistoryListRev { .. }
         | ReadExpr::HistoryPage { .. }
@@ -2579,9 +2557,6 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
                     let mut pairs: Vec<(&'static str, Prop)> = Vec::new();
                     if let Some(t) = obj.get("timestamp").and_then(|x| x.as_i64()) {
                         pairs.push(("timestamp", Prop::I64(t)));
-                    }
-                    if let Some(d) = obj.get("datetime").and_then(|x| x.as_str()) {
-                        pairs.push(("datetime", Prop::Str(d.into())));
                     }
                     if let Some(e) = obj.get("eventId").and_then(|x| x.as_i64()) {
                         pairs.push(("eventId", Prop::I64(e)));
@@ -3131,7 +3106,7 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
         // EventTime terminals — the terminal value is the whole
         // `{ timestamp, datetime, eventId }` object. Decode it into a
         // `Prop::Map` (missing fields → absent keys); the client unwraps to a
-        // `RemoteEventTime` via `expect_optional_event_time`. A JSON `null`
+        // `EventTime` via `expect_optional_event_time`. A JSON `null`
         // object (e.g. an empty graph) maps to `Ok(None)`.
         ReadExpr::EarliestTime { .. }
         | ReadExpr::LatestTime { .. }
@@ -3151,9 +3126,6 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
                 None => Ok(None),
                 Some(t) => {
                     let mut pairs: Vec<(&'static str, Prop)> = vec![("timestamp", Prop::I64(t))];
-                    if let Some(d) = obj.get("datetime").and_then(|x| x.as_str()) {
-                        pairs.push(("datetime", Prop::Str(d.into())));
-                    }
                     if let Some(e) = obj.get("eventId").and_then(|x| x.as_i64()) {
                         pairs.push(("eventId", Prop::I64(e)));
                     }
@@ -3663,10 +3635,6 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
                 go(input, out);
                 out.push("eventId");
             }
-            ReadExpr::HistoryDateTimes { input } => {
-                go(input, out);
-                out.push("datetimes");
-            }
             ReadExpr::HistoryIntervals { input } => {
                 go(input, out);
                 out.push("intervals");
@@ -3920,9 +3888,6 @@ fn json_to_property_tuple(v: &JsonValue, dtype: Option<&PropType>) -> Result<Pro
     let mut time_pairs: Vec<(&'static str, Prop)> = Vec::new();
     if let Some(t) = time_obj.get("timestamp").and_then(|x| x.as_i64()) {
         time_pairs.push(("timestamp", Prop::I64(t)));
-    }
-    if let Some(d) = time_obj.get("datetime").and_then(|x| x.as_str()) {
-        time_pairs.push(("datetime", Prop::Str(d.into())));
     }
     if let Some(e) = time_obj.get("eventId").and_then(|x| x.as_i64()) {
         time_pairs.push(("eventId", Prop::I64(e)));
@@ -4219,7 +4184,6 @@ fn child_input(expr: &ReadExpr) -> Option<&ReadExpr> {
         | ReadExpr::HistoryPageRev { input, .. }
         | ReadExpr::HistoryTimestamps { input }
         | ReadExpr::HistoryEventIds { input }
-        | ReadExpr::HistoryDateTimes { input }
         | ReadExpr::HistoryIntervals { input }
         | ReadExpr::SubList { input }
         | ReadExpr::SubListRev { input }
@@ -4239,6 +4203,7 @@ mod tests {
         filtering::{PropCondition, PropertyFilterNew},
         property::Value as GqlValue,
     };
+    use raphtory_api::core::storage::timeindex::AsTime;
     use std::sync::Arc;
 
     // ============ Unit tests for the read pipeline ============
@@ -4975,7 +4940,7 @@ mod tests {
             .await
             .unwrap()
             .into_iter()
-            .map(|t| t.unwrap().timestamp.unwrap())
+            .map(|t| t.unwrap().t())
             .collect();
         assert_eq!(times, [1, 5]);
 
@@ -4984,7 +4949,7 @@ mod tests {
         let handles = exploded.collect().await.unwrap();
         assert_eq!(handles.len(), 2);
         for (handle, (expect_t, expect_w)) in handles.iter().zip([(1i64, 1i64), (5, 2)]) {
-            let t = handle.time().await.unwrap().unwrap().timestamp.unwrap();
+            let t = handle.time().await.unwrap().unwrap().t();
             assert_eq!(t, expect_t, "handle not pinned to its event");
             let w = handle
                 .properties()
@@ -5001,10 +4966,7 @@ mod tests {
         let e = rg.edge("x", "y").await.unwrap().unwrap();
         let single = e.explode().collect().await.unwrap();
         assert_eq!(single.len(), 2);
-        assert_eq!(
-            single[1].time().await.unwrap().unwrap().timestamp.unwrap(),
-            5
-        );
+        assert_eq!(single[1].time().await.unwrap().unwrap().t(), 5);
 
         // Layer-exploded members are re-addressable via the server's
         // `eventLayer` field: each handle resolves its `layer_name`, while

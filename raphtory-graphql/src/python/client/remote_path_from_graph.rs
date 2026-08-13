@@ -391,12 +391,7 @@ impl PyRemotePathFromGraph {
         Ok(
             execute_async_task(move || async move { path.earliest_time().await })?
                 .into_iter()
-                .map(|inner| {
-                    inner
-                        .into_iter()
-                        .map(|o| o.and_then(|t| t.to_event_time()))
-                        .collect()
-                })
+                .map(|inner| inner.into_iter().map(|o| o).collect())
                 .collect(),
         )
     }
@@ -412,12 +407,7 @@ impl PyRemotePathFromGraph {
         Ok(
             execute_async_task(move || async move { path.latest_time().await })?
                 .into_iter()
-                .map(|inner| {
-                    inner
-                        .into_iter()
-                        .map(|o| o.and_then(|t| t.to_event_time()))
-                        .collect()
-                })
+                .map(|inner| inner.into_iter().map(|o| o).collect())
                 .collect(),
         )
     }
@@ -542,10 +532,9 @@ impl PyRemotePathFromGraph {
     #[getter]
     pub fn start(&self) -> Result<Option<EventTime>, ClientError> {
         let path = Arc::clone(&self.path);
-        Ok(
-            execute_async_task(move || async move { path.start().await })?
-                .and_then(|t| t.to_event_time()),
-        )
+        Ok(execute_async_task(
+            move || async move { path.start().await },
+        )?)
     }
 
     /// View end bound for this collection — `None` if unbounded. Property —
@@ -556,8 +545,7 @@ impl PyRemotePathFromGraph {
     #[getter]
     pub fn end(&self) -> Result<Option<EventTime>, ClientError> {
         let path = Arc::clone(&self.path);
-        Ok(execute_async_task(move || async move { path.end().await })?
-            .and_then(|t| t.to_event_time()))
+        Ok(execute_async_task(move || async move { path.end().await })?)
     }
 
     /// Materialize this collection as a nested list of `RemoteNode` handles —

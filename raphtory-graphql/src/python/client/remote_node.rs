@@ -381,10 +381,9 @@ impl PyRemoteNode {
     #[getter]
     pub fn earliest_time(&self) -> Result<Option<EventTime>, ClientError> {
         let node = Arc::clone(&self.node);
-        Ok(
-            execute_async_task(move || async move { node.earliest_time().await })?
-                .and_then(|t| t.to_event_time()),
-        )
+        Ok(execute_async_task(move || async move {
+            node.earliest_time().await
+        })?)
     }
 
     /// Latest event time on this node. Property — attribute access fires one RPC.
@@ -395,10 +394,9 @@ impl PyRemoteNode {
     #[getter]
     pub fn latest_time(&self) -> Result<Option<EventTime>, ClientError> {
         let node = Arc::clone(&self.node);
-        Ok(
-            execute_async_task(move || async move { node.latest_time().await })?
-                .and_then(|t| t.to_event_time()),
-        )
+        Ok(execute_async_task(move || async move {
+            node.latest_time().await
+        })?)
     }
 
     /// View start bound as seen by this node. Property — fires one RPC.
@@ -408,10 +406,9 @@ impl PyRemoteNode {
     #[getter]
     pub fn start(&self) -> Result<Option<EventTime>, ClientError> {
         let node = Arc::clone(&self.node);
-        Ok(
-            execute_async_task(move || async move { node.start().await })?
-                .and_then(|t| t.to_event_time()),
-        )
+        Ok(execute_async_task(
+            move || async move { node.start().await },
+        )?)
     }
 
     /// View end bound as seen by this node. Property — fires one RPC.
@@ -421,8 +418,7 @@ impl PyRemoteNode {
     #[getter]
     pub fn end(&self) -> Result<Option<EventTime>, ClientError> {
         let node = Arc::clone(&self.node);
-        Ok(execute_async_task(move || async move { node.end().await })?
-            .and_then(|t| t.to_event_time()))
+        Ok(execute_async_task(move || async move { node.end().await })?)
     }
 
     /// The node's id (as a string, even if the graph uses integer GIDs).

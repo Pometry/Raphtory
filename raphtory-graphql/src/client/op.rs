@@ -475,14 +475,14 @@ pub enum ReadExpr {
     /// — `bool`. Server field name is `isEmpty`.
     IsEmpty { input: Arc<ReadExpr> },
     /// Terminal on a `RemoteHistory` container: list all events in ascending
-    /// order — `Vec<RemoteEventTime>`. Server field is `list`; queries the
+    /// order — `Vec<EventTime>`. Server field is `list`; queries the
     /// compound sub-fields `timestamp`, `dt`, `eventId` per record.
     HistoryList { input: Arc<ReadExpr> },
     /// Terminal on a `RemoteHistory` container: list all events in descending
-    /// order — `Vec<RemoteEventTime>`. Server field is `listRev`.
+    /// order — `Vec<EventTime>`. Server field is `listRev`.
     HistoryListRev { input: Arc<ReadExpr> },
     /// Terminal on a `RemoteHistory` container: paginated list of events in
-    /// ascending order — `Vec<RemoteEventTime>`. `offset` and `page_index`
+    /// ascending order — `Vec<EventTime>`. `offset` and `page_index`
     /// are optional; each defaults to 0 server-side.
     HistoryPage {
         input: Arc<ReadExpr>,
@@ -491,7 +491,7 @@ pub enum ReadExpr {
         page_index: Option<usize>,
     },
     /// Terminal on a `RemoteHistory` container: paginated list of events in
-    /// descending order — `Vec<RemoteEventTime>`. Same args as `HistoryPage`.
+    /// descending order — `Vec<EventTime>`. Same args as `HistoryPage`.
     HistoryPageRev {
         input: Arc<ReadExpr>,
         limit: usize,
@@ -506,9 +506,6 @@ pub enum ReadExpr {
     /// Navigate to the event-id view of a history. History → HistoryEventIds.
     /// Server field: `eventId`.
     HistoryEventIds { input: Arc<ReadExpr> },
-    /// Navigate to the datetime view of a history. History → HistoryDateTimes.
-    /// Server field: `datetimes` (no format arg — server default RFC 3339).
-    HistoryDateTimes { input: Arc<ReadExpr> },
     /// Navigate to the intervals view of a history — inter-event gaps.
     /// History → HistoryIntervals. Server field: `intervals`.
     HistoryIntervals { input: Arc<ReadExpr> },

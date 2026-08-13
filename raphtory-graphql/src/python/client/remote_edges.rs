@@ -403,7 +403,7 @@ impl PyRemoteEdges {
         Ok(
             execute_async_task(move || async move { edges.earliest_time().await })?
                 .into_iter()
-                .map(|o| o.and_then(|t| t.to_event_time()))
+                .map(|o| o)
                 .collect(),
         )
     }
@@ -419,7 +419,7 @@ impl PyRemoteEdges {
         Ok(
             execute_async_task(move || async move { edges.latest_time().await })?
                 .into_iter()
-                .map(|o| o.and_then(|t| t.to_event_time()))
+                .map(|o| o)
                 .collect(),
         )
     }
@@ -436,7 +436,7 @@ impl PyRemoteEdges {
         Ok(
             execute_async_task(move || async move { edges.time().await })?
                 .into_iter()
-                .map(|o| o.and_then(|t| t.to_event_time()))
+                .map(|o| o)
                 .collect(),
         )
     }
@@ -532,10 +532,9 @@ impl PyRemoteEdges {
     #[getter]
     pub fn start(&self) -> Result<Option<EventTime>, ClientError> {
         let edges = Arc::clone(&self.edges);
-        Ok(
-            execute_async_task(move || async move { edges.start().await })?
-                .and_then(|t| t.to_event_time()),
-        )
+        Ok(execute_async_task(
+            move || async move { edges.start().await },
+        )?)
     }
 
     /// View end bound for this collection — `None` if unbounded. Property —
@@ -546,10 +545,9 @@ impl PyRemoteEdges {
     #[getter]
     pub fn end(&self) -> Result<Option<EventTime>, ClientError> {
         let edges = Arc::clone(&self.edges);
-        Ok(
-            execute_async_task(move || async move { edges.end().await })?
-                .and_then(|t| t.to_event_time()),
-        )
+        Ok(execute_async_task(
+            move || async move { edges.end().await },
+        )?)
     }
 
     /// Materialize this collection as a list of `RemoteEdge` handles.

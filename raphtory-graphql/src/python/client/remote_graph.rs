@@ -365,10 +365,9 @@ impl PyRemoteGraph {
     #[getter]
     pub fn earliest_time(&self) -> Result<Option<EventTime>, ClientError> {
         let graph = Arc::clone(&self.graph);
-        Ok(
-            execute_async_task(move || async move { graph.earliest_time().await })?
-                .and_then(|t| t.to_event_time()),
-        )
+        Ok(execute_async_task(move || async move {
+            graph.earliest_time().await
+        })?)
     }
 
     /// Latest event time under the current view. Property — fires one RPC.
@@ -378,10 +377,9 @@ impl PyRemoteGraph {
     #[getter]
     pub fn latest_time(&self) -> Result<Option<EventTime>, ClientError> {
         let graph = Arc::clone(&self.graph);
-        Ok(
-            execute_async_task(move || async move { graph.latest_time().await })?
-                .and_then(|t| t.to_event_time()),
-        )
+        Ok(execute_async_task(move || async move {
+            graph.latest_time().await
+        })?)
     }
 
     /// View start bound. `None` for an unbounded view. Property — fires one RPC.
@@ -391,10 +389,9 @@ impl PyRemoteGraph {
     #[getter]
     pub fn start(&self) -> Result<Option<EventTime>, ClientError> {
         let graph = Arc::clone(&self.graph);
-        Ok(
-            execute_async_task(move || async move { graph.start().await })?
-                .and_then(|t| t.to_event_time()),
-        )
+        Ok(execute_async_task(
+            move || async move { graph.start().await },
+        )?)
     }
 
     /// View end bound. `None` for an unbounded view. Property — fires one RPC.
@@ -404,10 +401,9 @@ impl PyRemoteGraph {
     #[getter]
     pub fn end(&self) -> Result<Option<EventTime>, ClientError> {
         let graph = Arc::clone(&self.graph);
-        Ok(
-            execute_async_task(move || async move { graph.end().await })?
-                .and_then(|t| t.to_event_time()),
-        )
+        Ok(execute_async_task(
+            move || async move { graph.end().await },
+        )?)
     }
 
     /// Terminal: graph creation timestamp. Fires one RPC.

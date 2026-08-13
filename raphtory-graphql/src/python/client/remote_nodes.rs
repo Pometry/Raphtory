@@ -403,7 +403,7 @@ impl PyRemoteNodes {
         Ok(
             execute_async_task(move || async move { nodes.earliest_time().await })?
                 .into_iter()
-                .map(|o| o.and_then(|t| t.to_event_time()))
+                .map(|o| o)
                 .collect(),
         )
     }
@@ -419,7 +419,7 @@ impl PyRemoteNodes {
         Ok(
             execute_async_task(move || async move { nodes.latest_time().await })?
                 .into_iter()
-                .map(|o| o.and_then(|t| t.to_event_time()))
+                .map(|o| o)
                 .collect(),
         )
     }
@@ -534,10 +534,9 @@ impl PyRemoteNodes {
     #[getter]
     pub fn start(&self) -> Result<Option<EventTime>, ClientError> {
         let nodes = Arc::clone(&self.nodes);
-        Ok(
-            execute_async_task(move || async move { nodes.start().await })?
-                .and_then(|t| t.to_event_time()),
-        )
+        Ok(execute_async_task(
+            move || async move { nodes.start().await },
+        )?)
     }
 
     /// View end bound for this collection — `None` if unbounded. Property —
@@ -548,10 +547,9 @@ impl PyRemoteNodes {
     #[getter]
     pub fn end(&self) -> Result<Option<EventTime>, ClientError> {
         let nodes = Arc::clone(&self.nodes);
-        Ok(
-            execute_async_task(move || async move { nodes.end().await })?
-                .and_then(|t| t.to_event_time()),
-        )
+        Ok(execute_async_task(
+            move || async move { nodes.end().await },
+        )?)
     }
 
     /// Materialize this collection as a list of `RemoteNode` handles.

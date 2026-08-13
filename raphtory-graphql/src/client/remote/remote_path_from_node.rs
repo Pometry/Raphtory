@@ -3,7 +3,7 @@ use crate::{
         op::{HandleCtx, HandleOp, InputTime, Op, ReadExpr, ViewOp},
         remote_collection_metadata::{RemoteMetadataView, RemotePropertiesView},
         remote_edges::RemoteEdges,
-        remote_history::{RemoteEventTime, RemoteHistory},
+        remote_history::RemoteHistory,
         remote_node::RemoteNode,
         transport::{
             expect_bool, expect_i64, expect_i64_list, expect_optional_event_time,
@@ -15,6 +15,7 @@ use crate::{
     model::graph::filtering::{GqlFilter, GqlNodeFilter},
 };
 use raphtory::errors::GraphError;
+use raphtory_api::core::storage::timeindex::EventTime;
 use std::sync::Arc;
 
 /// A handle to a "path from node" collection on the server — the nodes
@@ -342,7 +343,7 @@ impl RemotePathFromNode {
 
     /// Columnar accessor: each node's earliest event time — mirrors the local
     /// `PathFromNode.earliest_time`. Fires one RPC.
-    pub async fn earliest_time(&self) -> Result<Vec<Option<RemoteEventTime>>, ClientError> {
+    pub async fn earliest_time(&self) -> Result<Vec<Option<EventTime>>, ClientError> {
         let op = Op::Read(ReadExpr::CollectionEarliestTime {
             input: self.expr.clone(),
         });
@@ -351,7 +352,7 @@ impl RemotePathFromNode {
 
     /// Columnar accessor: each node's latest event time — mirrors the local
     /// `PathFromNode.latest_time`. Fires one RPC.
-    pub async fn latest_time(&self) -> Result<Vec<Option<RemoteEventTime>>, ClientError> {
+    pub async fn latest_time(&self) -> Result<Vec<Option<EventTime>>, ClientError> {
         let op = Op::Read(ReadExpr::CollectionLatestTime {
             input: self.expr.clone(),
         });
@@ -459,7 +460,7 @@ impl RemotePathFromNode {
 
     /// Terminal: view start bound for this collection — `None` if unbounded.
     /// Fires one RPC.
-    pub async fn start(&self) -> Result<Option<RemoteEventTime>, ClientError> {
+    pub async fn start(&self) -> Result<Option<EventTime>, ClientError> {
         let op = Op::Read(ReadExpr::Start {
             input: self.expr.clone(),
         });
@@ -468,7 +469,7 @@ impl RemotePathFromNode {
 
     /// Terminal: view end bound for this collection — `None` if unbounded.
     /// Fires one RPC.
-    pub async fn end(&self) -> Result<Option<RemoteEventTime>, ClientError> {
+    pub async fn end(&self) -> Result<Option<EventTime>, ClientError> {
         let op = Op::Read(ReadExpr::End {
             input: self.expr.clone(),
         });

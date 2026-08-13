@@ -30,8 +30,8 @@ pub use remote_edge::RemoteEdge;
 pub use remote_edges::RemoteEdges;
 pub use remote_graph::RemoteGraph;
 pub use remote_history::{
-    RemoteEventTime, RemoteHistory, RemoteHistoryDateTimes, RemoteHistoryEventIds,
-    RemoteHistoryTimestamps, RemoteIntervals,
+    RemoteHistory, RemoteHistoryDateTimes, RemoteHistoryEventIds, RemoteHistoryTimestamps,
+    RemoteIntervals,
 };
 pub use remote_metadata::{
     RemoteMetadata, RemoteProperties, RemotePropertyTuple, RemoteTemporalProperties,

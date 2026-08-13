@@ -1,6 +1,6 @@
 use crate::client::{
     op::{HandleCtx, Op, ReadExpr},
-    remote_history::{RemoteEventTime, RemoteHistory},
+    remote_history::RemoteHistory,
     transport::{
         expect_bool, expect_i64, expect_optional_prop, expect_optional_property_tuple,
         expect_prop_list, expect_property_list, expect_property_tuple_list, expect_string_list,
@@ -8,7 +8,10 @@ use crate::client::{
     },
     ClientError,
 };
-use raphtory_api::core::entities::properties::prop::{Prop, PropType};
+use raphtory_api::core::{
+    entities::properties::prop::{Prop, PropType},
+    storage::timeindex::EventTime,
+};
 use std::sync::Arc;
 
 /// A handle to the metadata container of a remote graph, node, or edge —
@@ -465,7 +468,7 @@ impl RemoteTemporalProperty {
 #[derive(Clone, Debug, PartialEq)]
 pub struct RemotePropertyTuple {
     /// The event time at which this value was observed.
-    pub time: RemoteEventTime,
+    pub time: EventTime,
     /// The property value at that time.
     pub value: Prop,
 }
