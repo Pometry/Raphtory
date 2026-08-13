@@ -1,3 +1,4 @@
+use raphtory_api::python::timeindex::PyOptionalEventTime;
 use crate::{
     client::{
         op::{
@@ -360,50 +361,50 @@ impl PyRemoteGraph {
     /// events. Property — attribute access fires one RPC.
     ///
     /// Returns:
-    ///     Optional[EventTime]: the earliest event time, or `None` if the view has no
+    ///     OptionalEventTime: the earliest event time, or empty if the view has no
     ///         events.
     #[getter]
-    pub fn earliest_time(&self) -> Result<Option<EventTime>, ClientError> {
+    pub fn earliest_time(&self) -> Result<PyOptionalEventTime, ClientError> {
         let graph = Arc::clone(&self.graph);
         Ok(execute_async_task(move || async move {
             graph.earliest_time().await
-        })?)
+        })?.into())
     }
 
     /// Latest event time under the current view. Property — fires one RPC.
     ///
     /// Returns:
-    ///     Optional[EventTime]: the latest event time, or `None` if the view has no events.
+    ///     OptionalEventTime: the latest event time, or empty if the view has no events.
     #[getter]
-    pub fn latest_time(&self) -> Result<Option<EventTime>, ClientError> {
+    pub fn latest_time(&self) -> Result<PyOptionalEventTime, ClientError> {
         let graph = Arc::clone(&self.graph);
         Ok(execute_async_task(move || async move {
             graph.latest_time().await
-        })?)
+        })?.into())
     }
 
     /// View start bound. `None` for an unbounded view. Property — fires one RPC.
     ///
     /// Returns:
-    ///     Optional[EventTime]: the view start bound, or `None` if unbounded.
+    ///     OptionalEventTime: the view start bound, or empty if unbounded.
     #[getter]
-    pub fn start(&self) -> Result<Option<EventTime>, ClientError> {
+    pub fn start(&self) -> Result<PyOptionalEventTime, ClientError> {
         let graph = Arc::clone(&self.graph);
         Ok(execute_async_task(
             move || async move { graph.start().await },
-        )?)
+        )?.into())
     }
 
     /// View end bound. `None` for an unbounded view. Property — fires one RPC.
     ///
     /// Returns:
-    ///     Optional[EventTime]: the view end bound, or `None` if unbounded.
+    ///     OptionalEventTime: the view end bound, or empty if unbounded.
     #[getter]
-    pub fn end(&self) -> Result<Option<EventTime>, ClientError> {
+    pub fn end(&self) -> Result<PyOptionalEventTime, ClientError> {
         let graph = Arc::clone(&self.graph);
         Ok(execute_async_task(
             move || async move { graph.end().await },
-        )?)
+        )?.into())
     }
 
     /// Terminal: graph creation timestamp. Fires one RPC.

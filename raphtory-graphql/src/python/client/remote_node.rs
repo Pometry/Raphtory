@@ -1,3 +1,4 @@
+use raphtory_api::python::timeindex::PyOptionalEventTime;
 use crate::{
     client::{remote_node::RemoteNode, ClientError},
     python::client::{
@@ -376,49 +377,49 @@ impl PyRemoteNode {
     /// node has no events. Property — attribute access fires one RPC.
     ///
     /// Returns:
-    ///     Optional[EventTime]: the earliest event time on the node, or `None` if it has no
+    ///     OptionalEventTime: the earliest event time on the node, or empty if it has no
     ///         events.
     #[getter]
-    pub fn earliest_time(&self) -> Result<Option<EventTime>, ClientError> {
+    pub fn earliest_time(&self) -> Result<PyOptionalEventTime, ClientError> {
         let node = Arc::clone(&self.node);
         Ok(execute_async_task(move || async move {
             node.earliest_time().await
-        })?)
+        })?.into())
     }
 
     /// Latest event time on this node. Property — attribute access fires one RPC.
     ///
     /// Returns:
-    ///     Optional[EventTime]: the latest event time on the node, or `None` if it has no
+    ///     OptionalEventTime: the latest event time on the node, or empty if it has no
     ///         events.
     #[getter]
-    pub fn latest_time(&self) -> Result<Option<EventTime>, ClientError> {
+    pub fn latest_time(&self) -> Result<PyOptionalEventTime, ClientError> {
         let node = Arc::clone(&self.node);
         Ok(execute_async_task(move || async move {
             node.latest_time().await
-        })?)
+        })?.into())
     }
 
     /// View start bound as seen by this node. Property — fires one RPC.
     ///
     /// Returns:
-    ///     Optional[EventTime]: the view start bound, or `None` if unbounded.
+    ///     OptionalEventTime: the view start bound, or empty if unbounded.
     #[getter]
-    pub fn start(&self) -> Result<Option<EventTime>, ClientError> {
+    pub fn start(&self) -> Result<PyOptionalEventTime, ClientError> {
         let node = Arc::clone(&self.node);
         Ok(execute_async_task(
             move || async move { node.start().await },
-        )?)
+        )?.into())
     }
 
     /// View end bound as seen by this node. Property — fires one RPC.
     ///
     /// Returns:
-    ///     Optional[EventTime]: the view end bound, or `None` if unbounded.
+    ///     OptionalEventTime: the view end bound, or empty if unbounded.
     #[getter]
-    pub fn end(&self) -> Result<Option<EventTime>, ClientError> {
+    pub fn end(&self) -> Result<PyOptionalEventTime, ClientError> {
         let node = Arc::clone(&self.node);
-        Ok(execute_async_task(move || async move { node.end().await })?)
+        Ok(execute_async_task(move || async move { node.end().await })?.into())
     }
 
     /// The node's id (as a string, even if the graph uses integer GIDs).

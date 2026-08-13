@@ -1,3 +1,4 @@
+use raphtory_api::python::timeindex::PyOptionalEventTime;
 use crate::{
     client::{remote_path_from_node::RemotePathFromNode, ClientError},
     python::client::{
@@ -524,24 +525,24 @@ impl PyRemotePathFromNode {
     /// attribute access fires one RPC.
     ///
     /// Returns:
-    ///     Optional[EventTime]: the view start bound, or `None` if unbounded.
+    ///     OptionalEventTime: the view start bound, or empty if unbounded.
     #[getter]
-    pub fn start(&self) -> Result<Option<EventTime>, ClientError> {
+    pub fn start(&self) -> Result<PyOptionalEventTime, ClientError> {
         let path = Arc::clone(&self.path);
         Ok(execute_async_task(
             move || async move { path.start().await },
-        )?)
+        )?.into())
     }
 
     /// View end bound for this collection — `None` if unbounded. Property —
     /// attribute access fires one RPC.
     ///
     /// Returns:
-    ///     Optional[EventTime]: the view end bound, or `None` if unbounded.
+    ///     OptionalEventTime: the view end bound, or empty if unbounded.
     #[getter]
-    pub fn end(&self) -> Result<Option<EventTime>, ClientError> {
+    pub fn end(&self) -> Result<PyOptionalEventTime, ClientError> {
         let path = Arc::clone(&self.path);
-        Ok(execute_async_task(move || async move { path.end().await })?)
+        Ok(execute_async_task(move || async move { path.end().await })?.into())
     }
 
     /// Materialize this collection as a list of `RemoteNode` handles. Fires

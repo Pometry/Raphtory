@@ -1,3 +1,4 @@
+use raphtory_api::python::timeindex::PyOptionalEventTime;
 use crate::{
     client::{remote_edges::RemoteEdges, ClientError},
     python::client::{
@@ -528,26 +529,26 @@ impl PyRemoteEdges {
     /// attribute access fires one RPC.
     ///
     /// Returns:
-    ///     Optional[EventTime]: the view start bound, or `None` if unbounded.
+    ///     OptionalEventTime: the view start bound, or empty if unbounded.
     #[getter]
-    pub fn start(&self) -> Result<Option<EventTime>, ClientError> {
+    pub fn start(&self) -> Result<PyOptionalEventTime, ClientError> {
         let edges = Arc::clone(&self.edges);
         Ok(execute_async_task(
             move || async move { edges.start().await },
-        )?)
+        )?.into())
     }
 
     /// View end bound for this collection — `None` if unbounded. Property —
     /// attribute access fires one RPC.
     ///
     /// Returns:
-    ///     Optional[EventTime]: the view end bound, or `None` if unbounded.
+    ///     OptionalEventTime: the view end bound, or empty if unbounded.
     #[getter]
-    pub fn end(&self) -> Result<Option<EventTime>, ClientError> {
+    pub fn end(&self) -> Result<PyOptionalEventTime, ClientError> {
         let edges = Arc::clone(&self.edges);
         Ok(execute_async_task(
             move || async move { edges.end().await },
-        )?)
+        )?.into())
     }
 
     /// Materialize this collection as a list of `RemoteEdge` handles.
