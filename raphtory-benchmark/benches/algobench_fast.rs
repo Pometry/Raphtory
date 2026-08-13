@@ -3,8 +3,7 @@ use rand::{rngs::SmallRng, SeedableRng};
 use raphtory::{
     algorithms::{
         centrality::degree_centrality::degree_centrality,
-        components::weakly_connected_components,
-        components::{out_component, out_component_filtered},
+        components::{out_component, out_component_filtered, weakly_connected_components},
         dynamics::temporal::epidemics::{temporal_SEIR, Number},
         metrics::{
             clustering_coefficient::{
