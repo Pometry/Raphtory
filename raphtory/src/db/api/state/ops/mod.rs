@@ -19,9 +19,7 @@ pub trait NodeOp: Send + Sync {
     type Output: Clone + Send + Sync;
 
     /// The domain of validity for this node op
-    fn domain(&self, _storage: &GraphStorage) -> NodeList {
-        NodeList::All
-    }
+    fn domain(&self, _storage: &GraphStorage) -> NodeList;
 
     /// Returns `Some(value)` if the node op has a constant global value
     fn const_value(&self) -> Option<Self::Output> {
@@ -138,6 +136,10 @@ pub struct ArrowMap<Op: NodeOp, A> {
 impl<Op: NodeOp, V: Clone + Send + Sync> NodeOp for Map<Op, V> {
     type Output = V;
 
+    fn domain(&self, storage: &GraphStorage) -> NodeList {
+        self.op.domain(storage)
+    }
+
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
         (self.map)(self.op.apply(storage, node))
     }
@@ -151,6 +153,10 @@ impl<Op: NodeOp, A: InputNodeStateValue<Op::Output>> ArrowNodeOp for ArrowMap<Op
 
 impl<Op: NodeOp, A: InputNodeStateValue<Op::Output>> NodeOp for ArrowMap<Op, A> {
     type Output = Op::Output;
+
+    fn domain(&self, storage: &GraphStorage) -> NodeList {
+        self.op.domain(storage)
+    }
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
         self.op.apply(storage, node)
@@ -190,6 +196,10 @@ where
 {
     type Output = V;
 
+    fn domain(&self, _storage: &GraphStorage) -> NodeList {
+        NodeList::All
+    }
+
     fn const_value(&self) -> Option<Self::Output> {
         Some(self.0.clone())
     }
@@ -214,6 +224,12 @@ where
 {
     type Output = bool;
 
+    fn domain(&self, storage: &GraphStorage) -> NodeList {
+        self.left
+            .domain(storage)
+            .intersection(&self.right.domain(storage))
+    }
+
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
         self.left.apply(storage, node) == self.right.apply(storage, node)
     }
@@ -226,6 +242,10 @@ pub struct NotANodeFilter;
 
 impl NodeOp for NotANodeFilter {
     type Output = bool;
+
+    fn domain(&self, _storage: &GraphStorage) -> NodeList {
+        NodeList::All
+    }
 
     fn apply(&self, _storage: &GraphStorage, _node: VID) -> Self::Output {
         panic!("Not a node filter")
