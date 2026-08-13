@@ -9,9 +9,11 @@ Three pieces live here:
 
 * ``graph_pair`` — seed a local ``Graph`` and a ``RemoteGraph`` identically and
   yield both.
-* ``canonical`` / ``assert_parity`` — normalize any result into a stable,
-  comparable form (collection order, float precision, datetime tz) and assert
-  local == remote, including exception parity.
+* ``canonical`` / ``assert_parity`` — reduce a result to a comparable form and
+  assert local == remote, including exception parity. **No drift is tolerated**:
+  the comparator may only bridge the fact that the two sides are distinct
+  objects over distinct graphs (see its docstring). Anything else that differs
+  is a product bug and belongs in ``KNOWN_GAPS`` with an issue.
 * ``KNOWN_GAPS`` — the divergence ledger. APIs not yet at parity are recorded
   here (with a reason) rather than silently skipped, so the suite doubles as an
   executable parity spec that shrinks as gaps close.
@@ -80,52 +82,83 @@ def graph_pair(build, graph_type="EVENT"):
 
 # --- canonicalization -------------------------------------------------------
 
-# Float comparison tolerance: serde round-trips can perturb the last bits.
-_FLOAT_PLACES = 9
+# Handle collections whose *iteration order is unspecified*, so a differing
+# order is not a defect and the comparator may sort them. Everything else —
+# histories, property values, algorithm output, `sorted()` results — keeps its
+# order, because there the order is part of the answer.
+_UNORDERED_COLLECTIONS = frozenset(
+    {
+        "Nodes",
+        "Edges",
+        "NestedEdges",
+        "PathFromNode",
+        "PathFromGraph",
+        "RemoteNodes",
+        "RemoteEdges",
+        "RemoteNestedEdges",
+        "RemotePathFromNode",
+        "RemotePathFromGraph",
+    }
+)
 
 
-def canonical(value):
-    """Normalize a raphtory result into a stable, comparable Python value.
-
-    Absorbs the drift that would otherwise cause false diffs between an
-    in-process result and one that crossed the wire: collection ordering, float
-    precision, and datetime timezone. Entities are reduced to identity
-    (node name, edge ``(src, dst)``) so the two sides compare structurally.
-    """
-    # bool is an int subclass — handle before int.
-    if value is None or isinstance(value, bool):
-        return value
-    if isinstance(value, float):
-        return "nan" if math.isnan(value) else round(value, _FLOAT_PLACES)
-    if isinstance(value, (int, str)):
-        return value
-    if isinstance(value, datetime.datetime):
-        # Compare as a tz-normalized epoch instant, so aware/naive-UTC agree.
-        return round(value.timestamp(), 3)
-    if isinstance(value, dict):
-        return {k: canonical(v) for k, v in sorted(value.items(), key=repr)}
-
-    # Remote time values are `EventTime` objects; local returns plain ints. Reduce
-    # to the timestamp so the two sides compare. (`event_id` refinements are
-    # exercised explicitly elsewhere, not through this default reduction.)
-    t = getattr(value, "t", None)
-    if isinstance(t, int) and not isinstance(value, (int, str)):
-        return t
-
-    # Entities: edge before node (an edge also has no `.name`).
+def _identity(value):
+    """``('edge', src, dst)`` / ``('node', name)`` for an entity, else ``None``."""
     src, dst = getattr(value, "src", None), getattr(value, "dst", None)
     if src is not None and dst is not None:
-        return ("edge", canonical(src.name), canonical(dst.name))
+        return ("edge", src.name, dst.name)
     name = getattr(value, "name", None)
     if isinstance(name, str):
         return ("node", name)
+    return None
 
-    # Anything iterable (collections, histories) → order-insensitive list.
+
+def canonical(value):
+    """Reduce a raphtory result to a comparable Python value.
+
+    This is deliberately *not* a normalizer. It bridges only the ways in which
+    the two sides are unavoidably different objects, never a difference in the
+    answers themselves:
+
+    1. **Entities become identities.** A local ``Node`` and a remote
+       ``RemoteNode`` point at different graphs, so they could never compare
+       equal; they are reduced to name / ``(src, dst)``.
+    2. **Unordered entity collections are sorted.** Iteration order over nodes,
+       edges and neighbours is unspecified, so a differing order is not a defect.
+    3. **Other containers are materialized in order.** A local ``History`` and a
+       remote ``RemoteHistory`` are distinct classes, so ``==`` between them is
+       meaningless; listing them makes their *contents* comparable without
+       reordering anything, so a real difference still fails.
+
+    Nothing else is touched. Float precision, datetime timezone, ``NaN``,
+    map key order and ``EventTime``-vs-``int`` all compare as they come: if a
+    value does not survive the round-trip exactly, that is a product bug for
+    ``KNOWN_GAPS`` and an issue, not something to paper over here.
+    """
+    if isinstance(value, (str, bytes)) or value is None or isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return value
+
+    if type(value).__name__ in _UNORDERED_COLLECTIONS:
+        return sorted((canonical(v) for v in value), key=repr)
+
+    identity = _identity(value)
+    if identity is not None:
+        return identity
+
+    if isinstance(value, dict):
+        # `dict.__eq__` already ignores key order, so keys are left alone; a
+        # test that cares about map *order* asserts it explicitly.
+        return {k: canonical(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [canonical(v) for v in value]
+
     try:
-        items = [canonical(v) for v in value]
+        items = iter(value)
     except TypeError:
         return value
-    return sorted(items, key=repr)
+    return [canonical(v) for v in items]
 
 
 def _run(fn, g):

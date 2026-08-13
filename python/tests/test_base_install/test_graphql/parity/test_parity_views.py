@@ -78,19 +78,14 @@ def matrix_pair():
 # answers, so `sorted(n.name for n in nodes)` is invariant under every op.
 
 
-def _t(value):
-    """Reduce a time-ish value to its timestamp (remote yields ``EventTime``)."""
-    return None if value is None else getattr(value, "t", value)
-
-
 def _node_facts(n):
     return (
         n.name,
         n.degree(),
         n.in_degree(),
         n.out_degree(),
-        _t(n.earliest_time),
-        _t(n.latest_time),
+        n.earliest_time,
+        n.latest_time,
     )
 
 
@@ -98,8 +93,8 @@ def _edge_facts(e):
     return (
         e.src.name,
         e.dst.name,
-        _t(e.earliest_time),
-        _t(e.latest_time),
+        e.earliest_time,
+        e.latest_time,
         tuple(sorted(e.layer_names)),
         e.is_valid(),
         e.is_deleted(),
@@ -112,8 +107,8 @@ def _probe_graph(h):
         h.count_edges(),
         sorted(_node_facts(n) for n in h.nodes),
         sorted(_edge_facts(e) for e in h.edges),
-        _t(h.earliest_time),
-        _t(h.latest_time),
+        h.earliest_time,
+        h.latest_time,
     )
 
 
@@ -121,12 +116,12 @@ def _probe_node(h):
     return (
         _node_facts(h),
         sorted(x.name for x in h.neighbours),
-        sorted(_t(x) for x in h.history),
+        sorted(x for x in h.history),
     )
 
 
 def _probe_edge(h):
-    return None if h is None else (_edge_facts(h), sorted(_t(x) for x in h.history))
+    return None if h is None else (_edge_facts(h), sorted(x for x in h.history))
 
 
 def _probe_nodes(h):
@@ -154,7 +149,7 @@ def _probe_nested_edges(h):
 
 def _probe_bounds(h):
     """The window a view installs — observable on every handle type."""
-    return (_t(h.start), _t(h.end), h.window_size)
+    return (h.start, h.end, h.window_size)
 
 
 # handle name -> (how to reach it from a graph handle, content probe)

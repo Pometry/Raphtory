@@ -89,11 +89,6 @@ def _assert_write_rejected(pair, write, probe):
     assert_parity(pair, probe)
 
 
-def _t(value):
-    """Reduce a time-ish value to its timestamp (remote yields ``EventTime``)."""
-    return None if value is None else getattr(value, "t", value)
-
-
 def _stamps(times):
     """``(timestamp, event_id)`` for a history/deletions sequence.
 
@@ -181,7 +176,7 @@ def _deletion_facts(g):
         edge.is_valid(),
         edge.layer("l1").is_deleted(),
         edge.layer("l1").is_valid(),
-        _t(edge.latest_time),
+        edge.latest_time,
         sorted(tuple(sorted(e.layer_names)) for e in g.edges),
         sorted((e.src.name, e.dst.name) for e in g.edges),
         g.count_edges(),
@@ -335,7 +330,7 @@ def _layer_facts(g):
         sorted(g.edge("a", "b").layer_names),
         sorted(g.unique_layers),
         sorted(
-            (e.layer_name, _t(e.earliest_time), _t(e.latest_time))
+            (e.layer_name, e.earliest_time, e.latest_time)
             for e in g.edge("a", "b").explode_layers()
         ),
         sorted((layer, g.has_layer(layer)) for layer in WRITTEN_LAYERS + ["nope"]),
@@ -551,8 +546,8 @@ def _batch_state(g):
         g.count_nodes(),
         g.count_edges(),
         g.count_temporal_edges(),
-        _t(g.earliest_time),
-        _t(g.latest_time),
+        g.earliest_time,
+        g.latest_time,
     )
 
 
@@ -680,7 +675,7 @@ def test_add_node_after_create_node_still_updates():
             lambda g: (
                 _stamps(g.node("fresh").history),
                 g.node("fresh").properties.get("score"),
-                _t(g.node("fresh").latest_time),
+                g.node("fresh").latest_time,
             ),
         )
 
@@ -978,8 +973,8 @@ def _timeline_probe(reach):
             None if prop is None else prop.value(),
             None if prop is None else sorted(prop.unique()),
             _stamps(handle.history),
-            _t(handle.earliest_time),
-            _t(handle.latest_time),
+            handle.earliest_time,
+            handle.latest_time,
         )
 
     return probe
@@ -1035,8 +1030,8 @@ def test_timeline_at_reads_parity(kind, time):
         assert_parity(
             pair,
             lambda g: (
-                _t(reach(g).at(time).earliest_time),
-                _t(reach(g).at(time).latest_time),
+                reach(g).at(time).earliest_time,
+                reach(g).at(time).latest_time,
                 _stamps(reach(g).at(time).history),
             ),
         )
@@ -1061,7 +1056,7 @@ def test_timeline_latest_read_parity(kind):
     with graph_pair(_build_timeline(kind)) as pair:
         assert_parity(pair, lambda g: reach(g).properties.temporal.get("s").value())
         assert_parity(pair, lambda g: reach(g).properties.get("s"))
-        assert_parity(pair, lambda g: _t(reach(g).latest().latest_time))
+        assert_parity(pair, lambda g: reach(g).latest().latest_time)
         for name, g in _sides(pair):
             assert reach(g).properties.get("s") == 4.0, (
                 f"{name}: latest value is {reach(g).properties.get('s')!r}, "

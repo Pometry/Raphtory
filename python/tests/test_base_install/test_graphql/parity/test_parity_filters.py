@@ -165,26 +165,21 @@ def filter_pair():
 # than the collection itself).
 
 
-def _t(value):
-    """Reduce a time-ish value to its timestamp (remote yields ``EventTime``)."""
-    return None if value is None else getattr(value, "t", value)
-
-
 def _node_facts(n):
     return {
         "degree": n.degree(),
         "in_degree": n.in_degree(),
         "out_degree": n.out_degree(),
-        "earliest": _t(n.earliest_time),
-        "latest": _t(n.latest_time),
+        "earliest": n.earliest_time,
+        "latest": n.latest_time,
     }
 
 
 def _edge_facts(e):
     return {
         "layers": sorted(e.layer_names),
-        "earliest": _t(e.earliest_time),
-        "latest": _t(e.latest_time),
+        "earliest": e.earliest_time,
+        "latest": e.latest_time,
         "valid": e.is_valid(),
         "deleted": e.is_deleted(),
     }
