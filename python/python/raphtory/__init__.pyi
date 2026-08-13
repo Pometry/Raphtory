@@ -845,8 +845,8 @@ class Graph(GraphView):
         timestamp: int,
         src: str | int,
         dst: str | int,
-        layer: Optional[str],
-        event_id: Optional[int],
+        layer: Optional[str] = None,
+        event_id: Optional[int] = None,
     ) -> MutableEdge:
         """
         Deletes an edge given the timestamp, src and dst nodes and layer (optional).
