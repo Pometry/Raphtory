@@ -10,7 +10,6 @@ use crate::{
         remote_client::RemoteClient,
         remote_edge::RemoteEdge,
         remote_edges::RemoteEdges,
-        remote_history::RemoteEventTime,
         remote_metadata::{RemoteMetadata, RemoteProperties},
         remote_node::RemoteNode,
         remote_nodes::RemoteNodes,
@@ -252,7 +251,7 @@ impl RemoteGraph {
 
     /// Terminal: earliest event timestamp under the current view. Returns
     /// `None` if the view has no events. Fires one RPC.
-    pub async fn earliest_time(&self) -> Result<Option<RemoteEventTime>, ClientError> {
+    pub async fn earliest_time(&self) -> Result<Option<EventTime>, ClientError> {
         let op = Op::Read(ReadExpr::EarliestTime {
             input: self.expr.clone(),
         });
@@ -261,7 +260,7 @@ impl RemoteGraph {
 
     /// Terminal: latest event timestamp under the current view. Returns
     /// `None` if the view has no events. Fires one RPC.
-    pub async fn latest_time(&self) -> Result<Option<RemoteEventTime>, ClientError> {
+    pub async fn latest_time(&self) -> Result<Option<EventTime>, ClientError> {
         let op = Op::Read(ReadExpr::LatestTime {
             input: self.expr.clone(),
         });
@@ -270,7 +269,7 @@ impl RemoteGraph {
 
     /// Terminal: view start bound. Returns `None` for an unbounded view.
     /// Fires one RPC.
-    pub async fn start(&self) -> Result<Option<RemoteEventTime>, ClientError> {
+    pub async fn start(&self) -> Result<Option<EventTime>, ClientError> {
         let op = Op::Read(ReadExpr::Start {
             input: self.expr.clone(),
         });
@@ -279,7 +278,7 @@ impl RemoteGraph {
 
     /// Terminal: view end bound. Returns `None` for an unbounded view.
     /// Fires one RPC.
-    pub async fn end(&self) -> Result<Option<RemoteEventTime>, ClientError> {
+    pub async fn end(&self) -> Result<Option<EventTime>, ClientError> {
         let op = Op::Read(ReadExpr::End {
             input: self.expr.clone(),
         });

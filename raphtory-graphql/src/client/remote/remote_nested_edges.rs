@@ -3,7 +3,6 @@ use crate::{
         op::{EdgePin, Fanout, HandleCtx, HandleOp, InputTime, Op, ReadExpr, ViewOp},
         remote_collection_metadata::{RemoteMetadataView, RemotePropertiesView},
         remote_edge::RemoteEdge,
-        remote_history::RemoteEventTime,
         remote_path_from_graph::RemotePathFromGraph,
         transport::{
             expect_bool, expect_double_nested_string_list, expect_i64, expect_nested_bool_list,
@@ -16,6 +15,7 @@ use crate::{
     model::graph::filtering::GqlFilter,
 };
 use raphtory::errors::GraphError;
+use raphtory_api::core::storage::timeindex::EventTime;
 use std::sync::Arc;
 
 /// A handle to a nested edges collection on the server — the edges incident to
@@ -366,7 +366,7 @@ impl RemoteNestedEdges {
     /// Columnar accessor: each source's per-edge earliest event time — one
     /// inner list per source node. Mirrors the local `NestedEdges.earliest_time`.
     /// Fires one RPC.
-    pub async fn earliest_time(&self) -> Result<Vec<Vec<Option<RemoteEventTime>>>, ClientError> {
+    pub async fn earliest_time(&self) -> Result<Vec<Vec<Option<EventTime>>>, ClientError> {
         let op = Op::Read(ReadExpr::NestedEarliestTime {
             input: self.expr.clone(),
         });
@@ -376,7 +376,7 @@ impl RemoteNestedEdges {
     /// Columnar accessor: each source's per-edge latest event time — one inner
     /// list per source node. Mirrors the local `NestedEdges.latest_time`. Fires
     /// one RPC.
-    pub async fn latest_time(&self) -> Result<Vec<Vec<Option<RemoteEventTime>>>, ClientError> {
+    pub async fn latest_time(&self) -> Result<Vec<Vec<Option<EventTime>>>, ClientError> {
         let op = Op::Read(ReadExpr::NestedLatestTime {
             input: self.expr.clone(),
         });
@@ -386,7 +386,7 @@ impl RemoteNestedEdges {
     /// Columnar accessor: each source's per-edge event time — one inner list
     /// per source node. Only valid on exploded edges; the server raises a
     /// GraphQL error otherwise. Mirrors the local `NestedEdges.time`. Fires one RPC.
-    pub async fn time(&self) -> Result<Vec<Vec<Option<RemoteEventTime>>>, ClientError> {
+    pub async fn time(&self) -> Result<Vec<Vec<Option<EventTime>>>, ClientError> {
         let op = Op::Read(ReadExpr::NestedTime {
             input: self.expr.clone(),
         });
@@ -435,7 +435,7 @@ impl RemoteNestedEdges {
 
     /// Terminal: view start bound for this collection — `None` if unbounded.
     /// Fires one RPC.
-    pub async fn start(&self) -> Result<Option<RemoteEventTime>, ClientError> {
+    pub async fn start(&self) -> Result<Option<EventTime>, ClientError> {
         let op = Op::Read(ReadExpr::Start {
             input: self.expr.clone(),
         });
@@ -444,7 +444,7 @@ impl RemoteNestedEdges {
 
     /// Terminal: view end bound for this collection — `None` if unbounded.
     /// Fires one RPC.
-    pub async fn end(&self) -> Result<Option<RemoteEventTime>, ClientError> {
+    pub async fn end(&self) -> Result<Option<EventTime>, ClientError> {
         let op = Op::Read(ReadExpr::End {
             input: self.expr.clone(),
         });

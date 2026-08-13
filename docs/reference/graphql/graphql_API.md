@@ -796,6 +796,1075 @@ Graph path relative to the root namespace.
 
 ## Objects
 
+### Algorithms
+
+The algorithms that can be run on a graph view.
+
+<table>
+<thead>
+<tr>
+<th align="left">Field</th>
+<th align="right">Argument</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.pagerank">pagerank</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a>!</td>
+<td>
+
+Returns the PageRank centrality of every node in the graph.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">iterCount</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Number of iterations to run. Defaults to 20.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">threads</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Number of threads to use. Defaults to all available.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">tol</td>
+<td valign="top"><a href="#float">Float</a></td>
+<td>
+
+Convergence tolerance. Defaults to 0.000001.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">dampingFactor</td>
+<td valign="top"><a href="#float">Float</a></td>
+<td>
+
+Probability that the spread continues. Defaults to 0.85.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">weight</td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+Edge property to use as weight. If unset, all edges have weight 1.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.degreecentrality">degreeCentrality</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a>!</td>
+<td>
+
+Returns the degree centrality of every node.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.betweennesscentrality">betweennessCentrality</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a>!</td>
+<td>
+
+Returns the betweenness centrality of every node.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">k</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Number of nodes to sample. Defaults to all nodes.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">normalized</td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Whether to normalize the values. Defaults to true.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.hits">hits</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a>!</td>
+<td>
+
+Returns the HITS hub and authority scores of every node.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">iterCount</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Number of iterations to run. Defaults to 20.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">threads</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Number of threads to use. Defaults to all available.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.singlesourceshortestpath">singleSourceShortestPath</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a>!</td>
+<td>
+
+Returns the shortest (unweighted) path from `source` to every reachable node.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">source</td>
+<td valign="top"><a href="#nodeid">NodeId</a>!</td>
+<td>
+
+Source node id.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">cutoff</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Optional maximum path length; stops the search once reached.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.incomponents">inComponents</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a>!</td>
+<td>
+
+Returns the in component (all nodes that can reach it following out-edges) of every node.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">filter</td>
+<td valign="top"><a href="#gqlfilter">GqlFilter</a></td>
+<td>
+
+Optional composite filter (node, edge, and graph-view); the algorithm runs on the resulting view.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">threads</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Number of threads to use. Defaults to all available.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.outcomponents">outComponents</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a>!</td>
+<td>
+
+Returns the out component (all reachable nodes following out-edges) of every node.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">filter</td>
+<td valign="top"><a href="#gqlfilter">GqlFilter</a></td>
+<td>
+
+Optional composite filter (node, edge, and graph-view); the algorithm runs on the resulting view.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">threads</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Number of threads to use. Defaults to all available.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.incomponent">inComponent</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a>!</td>
+<td>
+
+Returns the in component of a single node (nodes that can reach it, with their distance).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">node</td>
+<td valign="top"><a href="#nodeid">NodeId</a>!</td>
+<td>
+
+Node id.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">filter</td>
+<td valign="top"><a href="#gqlfilter">GqlFilter</a></td>
+<td>
+
+Optional composite filter (node, edge, and graph-view); the algorithm runs on the resulting view.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.outcomponent">outComponent</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a>!</td>
+<td>
+
+Returns the out component of a single node (nodes it can reach, with their distance).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">node</td>
+<td valign="top"><a href="#nodeid">NodeId</a>!</td>
+<td>
+
+Node id.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">filter</td>
+<td valign="top"><a href="#gqlfilter">GqlFilter</a></td>
+<td>
+
+Optional composite filter (node, edge, and graph-view); the algorithm runs on the resulting view.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.localtrianglecount">localTriangleCount</strong></td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Returns the local triangle count of a single node (0 if it has degree < 2), or null if
+the node does not exist in the view.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">node</td>
+<td valign="top"><a href="#nodeid">NodeId</a>!</td>
+<td>
+
+Node id.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.localclusteringcoefficient">localClusteringCoefficient</strong></td>
+<td valign="top"><a href="#float">Float</a></td>
+<td>
+
+Returns the local clustering coefficient of a single node (0 if it has degree < 2), or
+null if the node does not exist in the view.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">node</td>
+<td valign="top"><a href="#nodeid">NodeId</a>!</td>
+<td>
+
+Node id.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.weaklyconnectedcomponents">weaklyConnectedComponents</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a>!</td>
+<td>
+
+Returns the weakly connected component id of every node.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.stronglyconnectedcomponents">stronglyConnectedComponents</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a>!</td>
+<td>
+
+Returns the strongly connected component id of every node.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.louvain">louvain</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a>!</td>
+<td>
+
+Returns the community of every node (Louvain).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">resolution</td>
+<td valign="top"><a href="#float">Float</a></td>
+<td>
+
+Resolution parameter for modularity. Defaults to 1.0.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">weightProp</td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+Edge property to use as weight. If unset, all edges have weight 1.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">tol</td>
+<td valign="top"><a href="#float">Float</a></td>
+<td>
+
+Convergence tolerance. Defaults to 1e-8.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">rngSeed</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Seed for the node-shuffling rng. If unset, seeded from the OS.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.labelpropagation">labelPropagation</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a>!</td>
+<td>
+
+Returns the community of every node (label propagation).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">iterCount</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Number of iterations to run. Defaults to 20.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">threads</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Number of threads to use. Defaults to all available.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.dijkstra">dijkstra</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a>!</td>
+<td>
+
+Returns the weighted shortest path from `source` to each of `targets` (Dijkstra).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">source</td>
+<td valign="top"><a href="#nodeid">NodeId</a>!</td>
+<td>
+
+Source node id.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">targets</td>
+<td valign="top">[<a href="#nodeid">NodeId</a>!]!</td>
+<td>
+
+Target node ids.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">weight</td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+Edge property to use as weight. If unset, all edges have weight 1.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">direction</td>
+<td valign="top"><a href="#direction">Direction</a></td>
+<td>
+
+Edge direction to follow. Defaults to BOTH.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.alllocalreciprocity">allLocalReciprocity</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a>!</td>
+<td>
+
+Returns the local reciprocity of every node.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.balance">balance</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a>!</td>
+<td>
+
+Returns the net sum of edge weights (balance) of every node.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">name</td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+Edge property to use as weight. Defaults to `weight`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">direction</td>
+<td valign="top"><a href="#direction">Direction</a></td>
+<td>
+
+Edge direction to consider. Defaults to BOTH.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.localclusteringcoefficientbatch">localClusteringCoefficientBatch</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a>!</td>
+<td>
+
+Returns the local clustering coefficient of each of the given nodes.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">nodes</td>
+<td valign="top">[<a href="#nodeid">NodeId</a>!]!</td>
+<td>
+
+Node ids to compute the coefficient for.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.globalclusteringcoefficient">globalClusteringCoefficient</strong></td>
+<td valign="top"><a href="#float">Float</a>!</td>
+<td>
+
+Returns the global clustering coefficient of the graph.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.directedgraphdensity">directedGraphDensity</strong></td>
+<td valign="top"><a href="#float">Float</a>!</td>
+<td>
+
+Returns the directed graph density (fraction of possible directed edges present).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.globalreciprocity">globalReciprocity</strong></td>
+<td valign="top"><a href="#float">Float</a>!</td>
+<td>
+
+Returns the global reciprocity of the graph.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.averagedegree">averageDegree</strong></td>
+<td valign="top"><a href="#float">Float</a>!</td>
+<td>
+
+Returns the average (undirected) degree of the graph's nodes.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.maxdegree">maxDegree</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Returns the maximum (undirected) degree of any node in the graph.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.mindegree">minDegree</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Returns the minimum (undirected) degree of any node in the graph.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.maxoutdegree">maxOutDegree</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Returns the maximum out-degree of any node in the graph.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.maxindegree">maxInDegree</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Returns the maximum in-degree of any node in the graph.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.minoutdegree">minOutDegree</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Returns the minimum out-degree of any node in the graph.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.minindegree">minInDegree</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Returns the minimum in-degree of any node in the graph.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.tripletcount">tripletCount</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Returns the number of connected triplets (paths of length 2) in the graph.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">threads</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Number of threads to use. Defaults to all available.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.trianglecount">triangleCount</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Returns the number of triangles in the graph.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">threads</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Number of threads to use. Defaults to all available.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.fastrp">fastRp</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a>!</td>
+<td>
+
+Returns the FastRP embedding of every node.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">embeddingDim</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Dimension of the embedding.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">normalizationStrength</td>
+<td valign="top"><a href="#float">Float</a>!</td>
+<td>
+
+Normalization strength applied to neighbour contributions.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">iterWeights</td>
+<td valign="top">[<a href="#float">Float</a>!]!</td>
+<td>
+
+Weight of each iteration's contribution to the embedding.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">seed</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Seed for the rng. If unset, seeded from the OS.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">threads</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Number of threads to use. Defaults to all available.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.temporallyreachablenodes">temporallyReachableNodes</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a>!</td>
+<td>
+
+Returns the nodes temporally reachable from `seedNodes` starting at `startTime`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">maxHops</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Maximum number of hops to traverse.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">startTime</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Time at which the traversal starts.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">seedNodes</td>
+<td valign="top">[<a href="#nodeid">NodeId</a>!]!</td>
+<td>
+
+Node ids to start from.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">stopNodes</td>
+<td valign="top">[<a href="#nodeid">NodeId</a>!]</td>
+<td>
+
+Node ids that halt the traversal when reached.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">threads</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Number of threads to use. Defaults to all available.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.fruchtermanreingold">fruchtermanReingold</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a>!</td>
+<td>
+
+Returns the 2D layout position of every node (Fruchterman-Reingold).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">iterCount</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Number of iterations to run. Defaults to 100.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">scale</td>
+<td valign="top"><a href="#float">Float</a></td>
+<td>
+
+Scale of the layout. Defaults to 1.0.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">nodeStartSize</td>
+<td valign="top"><a href="#float">Float</a></td>
+<td>
+
+Initial node size. Defaults to 1.0.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">cooloffFactor</td>
+<td valign="top"><a href="#float">Float</a></td>
+<td>
+
+Cooloff factor. Defaults to 0.95.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">dt</td>
+<td valign="top"><a href="#float">Float</a></td>
+<td>
+
+Time step. Defaults to 0.1.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.cohesivefruchtermanreingold">cohesiveFruchtermanReingold</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a>!</td>
+<td>
+
+Returns the 2D layout position of every node (cohesive Fruchterman-Reingold).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">iterCount</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Number of iterations to run. Defaults to 100.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">scale</td>
+<td valign="top"><a href="#float">Float</a></td>
+<td>
+
+Scale of the layout. Defaults to 1.0.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">nodeStartSize</td>
+<td valign="top"><a href="#float">Float</a></td>
+<td>
+
+Initial node size. Defaults to 1.0.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">cooloffFactor</td>
+<td valign="top"><a href="#float">Float</a></td>
+<td>
+
+Cooloff factor. Defaults to 0.95.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">dt</td>
+<td valign="top"><a href="#float">Float</a></td>
+<td>
+
+Time step. Defaults to 0.1.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.localtemporalthreenodemotifs">localTemporalThreeNodeMotifs</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a>!</td>
+<td>
+
+Returns the local temporal three-node motif counts of every node.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">delta</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Maximum time difference between the first and last edge of a motif.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">threads</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Number of threads to use. Defaults to all available.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.globaltemporalthreenodemotif">globalTemporalThreeNodeMotif</strong></td>
+<td valign="top">[<a href="#int">Int</a>!]!</td>
+<td>
+
+Returns the graph-wide temporal three-node motif counts: 40 counts in a
+fixed order (8 two-node, 24 star, then 8 triangle motifs).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">delta</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Maximum time difference between the first and last edge of a motif.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">threads</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Number of threads to use. Defaults to all available.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.globaltemporalthreenodemotifmulti">globalTemporalThreeNodeMotifMulti</strong></td>
+<td valign="top">[<a href="#motifcounts">MotifCounts</a>!]!</td>
+<td>
+
+Returns the graph-wide temporal three-node motif counts for each of
+`deltas`, one row of 40 counts per delta, in the order given.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">deltas</td>
+<td valign="top">[<a href="#int">Int</a>!]!</td>
+<td>
+
+Maximum time differences to compute the motif counts for.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">threads</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Number of threads to use. Defaults to all available.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.temporalrichclubcoefficient">temporalRichClubCoefficient</strong></td>
+<td valign="top"><a href="#float">Float</a>!</td>
+<td>
+
+Returns the temporal rich club coefficient: the maximal density among the
+nodes of degree at least `k` that persists over `windowSize` consecutive
+snapshots. The snapshots are the rolling windows described by
+`rollingWindow` / `rollingStep`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">k</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Minimum degree a node must have to be in the rich club.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">windowSize</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Number of consecutive snapshots the edges must persist over.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">rollingWindow</td>
+<td valign="top"><a href="#windowduration">WindowDuration</a>!</td>
+<td>
+
+Width of each snapshot.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">rollingStep</td>
+<td valign="top"><a href="#windowduration">WindowDuration</a></td>
+<td>
+
+Optional gap between the start of one snapshot and the next. Defaults to `rollingWindow`, i.e. non-overlapping snapshots.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.temporalseir">temporalSeir</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a>!</td>
+<td>
+
+Simulates an SEIR epidemic, returning the infection, activation and
+recovery times of every node that was infected.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">seeds</td>
+<td valign="top"><a href="#seeds">Seeds</a>!</td>
+<td>
+
+How the initially infected nodes are chosen.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">infectionProb</td>
+<td valign="top"><a href="#float">Float</a>!</td>
+<td>
+
+Probability that an encounter between an active and a susceptible node infects it.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">initialInfection</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Time of the initial infection.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">recoveryRate</td>
+<td valign="top"><a href="#float">Float</a></td>
+<td>
+
+Rate at which infected nodes recover. If unset, nodes never recover.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">incubationRate</td>
+<td valign="top"><a href="#float">Float</a></td>
+<td>
+
+Rate at which infected nodes become infectious. If unset, they are infectious immediately.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">rngSeed</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Seed for the random number generator. If unset, seeded from the OS.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.maxweightmatching">maxWeightMatching</strong></td>
+<td valign="top"><a href="#matching">Matching</a>!</td>
+<td>
+
+Returns a maximum weight matching of the graph, treated as undirected.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">weightProp</td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+Edge property to use as weight. If unset, all edges have weight 1.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">maxCardinality</td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Only consider maximum-cardinality matchings. Defaults to false.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">verifyOptimum</td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Verify that the matching found is optimum. Defaults to false.
+
+</td>
+</tr>
+</tbody>
+</table>
+
 ### CollectionOfMetaGraph
 
 Collection of items
@@ -1729,31 +2798,10 @@ metadata / history are restricted to the matching subset.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">expr</td>
-<td valign="top"><a href="#edgefilter">EdgeFilter</a>!</td>
+<td valign="top"><a href="#gqlfilter">GqlFilter</a>!</td>
 <td>
 
-Composite edge filter (by property, layer, src/dst, etc.).
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edge.filternodes">filterNodes</strong></td>
-<td valign="top"><a href="#edge">Edge</a>!</td>
-<td>
-
-Apply a node filter in place, returning an edge view whose node
-traversals (src, dst, nbr and everything reached through them) only
-see nodes matching the filter. The edge itself stays addressable
-regardless of whether its endpoints match.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">expr</td>
-<td valign="top"><a href="#nodefilter">NodeFilter</a>!</td>
-<td>
-
-Composite node filter (by property, name, type, etc.).
+Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
 
 </td>
 </tr>
@@ -2517,10 +3565,10 @@ Contrast with `select`, which applies here and is not carried through.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">expr</td>
-<td valign="top"><a href="#edgefilter">EdgeFilter</a>!</td>
+<td valign="top"><a href="#gqlfilter">GqlFilter</a>!</td>
 <td>
 
-Composite edge filter (by property, layer, src/dst, etc.).
+Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
 
 </td>
 </tr>
@@ -3515,6 +4563,15 @@ loaded at server startup.
 </td>
 </tr>
 <tr>
+<td colspan="2" valign="top"><strong id="graph.algorithm">algorithm</strong></td>
+<td valign="top"><a href="#algorithms">Algorithms</a>!</td>
+<td>
+
+Access the algorithms that can be run on this graph view.
+
+</td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="graph.sharedneighbours">sharedNeighbours</strong></td>
 <td valign="top">[<a href="#node">Node</a>!]!</td>
 <td>
@@ -3613,48 +4670,10 @@ expression and narrows nodes, edges, and their properties to what matches.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">expr</td>
-<td valign="top"><a href="#graphfilter">GraphFilter</a></td>
+<td valign="top"><a href="#gqlfilter">GqlFilter</a></td>
 <td>
 
-Optional composite filter combining node, edge, property, and metadata conditions. If omitted, applies the identity filter (equivalent to no filtering).
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graph.filternodes">filterNodes</strong></td>
-<td valign="top"><a href="#graph">Graph</a>!</td>
-<td>
-
-Returns a graph view restricted to nodes that match the given filter; edges
-are kept only if both endpoints survive.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">expr</td>
-<td valign="top"><a href="#nodefilter">NodeFilter</a>!</td>
-<td>
-
-Composite node filter (by name, property, type, etc.).
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graph.filteredges">filterEdges</strong></td>
-<td valign="top"><a href="#graph">Graph</a>!</td>
-<td>
-
-Returns a graph view restricted to edges that match the given filter. Nodes
-remain in the view even if all their edges are filtered out.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">expr</td>
-<td valign="top"><a href="#edgefilter">EdgeFilter</a>!</td>
-<td>
-
-Composite edge filter (by property, layer, src/dst, etc.).
+Optional filter expression: node/edge predicates, graph views (window, layer, ...), or and/or/not combinations of them. `and` is an intersection: each leg is evaluated independently and the results intersect — to evaluate a predicate *inside* a view, scope the predicate itself (e.g. a windowed property condition). If omitted, applies the identity filter.
 
 </td>
 </tr>
@@ -4636,6 +5655,140 @@ Returns the list of edge schemas for this edge layer
 </tbody>
 </table>
 
+### Matching
+
+A matching of a graph: a set of edges no two of which share a node.
+
+<table>
+<thead>
+<tr>
+<th align="left">Field</th>
+<th align="right">Argument</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="matching.count">count</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Returns the number of edges in the matching.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="matching.edges">edges</strong></td>
+<td valign="top"><a href="#edges">Edges</a>!</td>
+<td>
+
+The edges in the matching.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="matching.src">src</strong></td>
+<td valign="top"><a href="#node">Node</a></td>
+<td>
+
+The node matched to `dst`, null if it is unmatched.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">dst</td>
+<td valign="top"><a href="#nodeid">NodeId</a>!</td>
+<td>
+
+Destination node id.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="matching.dst">dst</strong></td>
+<td valign="top"><a href="#node">Node</a></td>
+<td>
+
+The node matched to `src`, null if it is unmatched.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">src</td>
+<td valign="top"><a href="#nodeid">NodeId</a>!</td>
+<td>
+
+Source node id.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="matching.edgeforsrc">edgeForSrc</strong></td>
+<td valign="top"><a href="#edge">Edge</a></td>
+<td>
+
+The matched edge for `src`, null if it is unmatched.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">src</td>
+<td valign="top"><a href="#nodeid">NodeId</a>!</td>
+<td>
+
+Source node id.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="matching.edgefordst">edgeForDst</strong></td>
+<td valign="top"><a href="#edge">Edge</a></td>
+<td>
+
+The matched edge for `dst`, null if it is unmatched.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">dst</td>
+<td valign="top"><a href="#nodeid">NodeId</a>!</td>
+<td>
+
+Destination node id.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="matching.contains">contains</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a>!</td>
+<td>
+
+Whether the `src` to `dst` edge is part of the matching.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">src</td>
+<td valign="top"><a href="#nodeid">NodeId</a>!</td>
+<td>
+
+Source node id.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">dst</td>
+<td valign="top"><a href="#nodeid">NodeId</a>!</td>
+<td>
+
+Destination node id.
+
+</td>
+</tr>
+</tbody>
+</table>
+
 ### MetaGraph
 
 Lightweight summary of a stored graph — its name, path, counts, and
@@ -4815,6 +5968,42 @@ All metadata values as `{key, value}` entries.
 <td>
 
 Optional whitelist. If provided, only metadata with these keys is returned; if omitted, every metadata entry is returned.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### MotifCounts
+
+The motif counts for a single delta. Wraps the counts in an object because
+the schema builder does not support nested lists of scalars.
+
+<table>
+<thead>
+<tr>
+<th align="left">Field</th>
+<th align="right">Argument</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="motifcounts.delta">delta</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+The delta these counts were computed for.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="motifcounts.counts">counts</strong></td>
+<td valign="top">[<a href="#int">Int</a>!]!</td>
+<td>
+
+The 40 motif counts, positionally ordered (see the core docs).
 
 </td>
 </tr>
@@ -6111,10 +7300,10 @@ Contrast with `select`, which applies here and is not carried through.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">expr</td>
-<td valign="top"><a href="#edgefilter">EdgeFilter</a>!</td>
+<td valign="top"><a href="#gqlfilter">GqlFilter</a>!</td>
 <td>
 
-Composite edge filter (by property, layer, src/dst, etc.).
+Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
 
 </td>
 </tr>
@@ -6684,11 +7873,35 @@ Returns the number edges with this node as the destination.
 <tr>
 <td colspan="2" valign="top"><strong id="node.incomponent">inComponent</strong></td>
 <td valign="top"><a href="#nodes">Nodes</a>!</td>
+<td>
+
+Nodes that can reach this one via out-edges. `select` is a general filter expression — a node
+filter, an edge filter, or a graph (layer/window) filter — scoping which nodes/edges the walk
+steps through. The returned nodes are on the full graph so their other-layer neighbours stay
+queryable.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">select</td>
+<td valign="top"><a href="#gqlfilter">GqlFilter</a></td>
 <td></td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.outcomponent">outComponent</strong></td>
 <td valign="top"><a href="#nodes">Nodes</a>!</td>
+<td>
+
+Nodes reachable from this one via out-edges. `select` is a general filter expression — a node
+filter, an edge filter, or a graph (layer/window) filter — scoping which nodes/edges the walk
+steps through. The returned nodes are on the full (unfiltered) graph, so their other-layer
+neighbours remain queryable.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">select</td>
+<td valign="top"><a href="#gqlfilter">GqlFilter</a></td>
 <td></td>
 </tr>
 <tr>
@@ -6782,27 +7995,10 @@ Returns the number of neighbours that have at least one out-going edge from this
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">expr</td>
-<td valign="top"><a href="#nodefilter">NodeFilter</a>!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="node.filteredges">filterEdges</strong></td>
-<td valign="top"><a href="#node">Node</a>!</td>
+<td valign="top"><a href="#gqlfilter">GqlFilter</a>!</td>
 <td>
 
-Apply an edge filter in place, returning a node view whose edge
-traversals (degree, edges, neighbours and everything reached through
-them) only see edges matching the filter. The node itself stays
-addressable regardless of the filter.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">expr</td>
-<td valign="top"><a href="#edgefilter">EdgeFilter</a>!</td>
-<td>
-
-Composite edge filter (by property, layer, src/dst, etc.).
+Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
 
 </td>
 </tr>
@@ -6853,6 +8049,590 @@ string-valued properties) the set of distinct values.
 
 Metadata schemas seen on nodes of this type — like `properties`, but
 covering metadata fields rather than temporal properties.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### NodeState
+
+A mapping from the nodes of a graph to the values computed for them by an algorithm.
+
+The output is columnar: every column of the underlying node state is exposed as
+a `NodeStateColumn` whose `values` are row-aligned with `nodes`.
+
+<table>
+<thead>
+<tr>
+<th align="left">Field</th>
+<th align="right">Argument</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestate.count">count</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Returns the number of nodes with a value in this node state.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestate.nodes">nodes</strong></td>
+<td valign="top"><a href="#nodes">Nodes</a>!</td>
+<td>
+
+The nodes with a value in this node state, in row order. Aligned with `values`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestate.columnnames">columnNames</strong></td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td>
+
+The column names of this node state in order.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestate.rows">rows</strong></td>
+<td valign="top">[<a href="#nodestaterow">NodeStateRow</a>!]!</td>
+<td>
+
+All rows of the node state keyed by node, with one entry per column.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestate.headlessrows">headlessRows</strong></td>
+<td valign="top">[<a href="#nodestateheadlessrow">NodeStateHeadlessRow</a>!]!</td>
+<td>
+
+All rows of the node state keyed by node, without the column names: the `values` of each row are
+in `columnNames` order.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestate.get">get</strong></td>
+<td valign="top">[<a href="#nodestateentry">NodeStateEntry</a>!]</td>
+<td>
+
+Returns the values for a node, one entry per column; null if the node has no value in this NodeState.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">node</td>
+<td valign="top"><a href="#nodeid">NodeId</a>!</td>
+<td>
+
+Node id.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestate.min">min</strong></td>
+<td valign="top"><a href="#nodestateitem">NodeStateItem</a></td>
+<td>
+
+Minimum `(node, value)` of a column. Null if the column does not exist, is empty,
+or its values are not comparable (e.g. contains nodes).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">column</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Column name.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestate.max">max</strong></td>
+<td valign="top"><a href="#nodestateitem">NodeStateItem</a></td>
+<td>
+
+Maximum `(node, value)` of a column. Null if the column does not exist, is empty,
+or its values are not comparable (e.g. contains nodes).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">column</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Column name.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestate.sum">sum</strong></td>
+<td valign="top"><a href="#propertyoutput">PropertyOutput</a></td>
+<td>
+
+Sum of a column's values, skipping empty cells. Null if the column does not exist, is empty,
+or is not additive (e.g. contains nodes).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">column</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Column name.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestate.mean">mean</strong></td>
+<td valign="top"><a href="#propertyoutput">PropertyOutput</a></td>
+<td>
+
+Mean of a column's values as a float, skipping empty cells. Null if the column does not exist,
+is empty, or has any non-numeric value.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">column</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Column name.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestate.median">median</strong></td>
+<td valign="top"><a href="#nodestateitem">NodeStateItem</a></td>
+<td>
+
+Median `(node, value)` of a column (upper median on even lengths). Null if the column
+does not exist, is empty, or is not comparable (e.g. contains nodes).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">column</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Column name.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestate.topk">topK</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a></td>
+<td>
+
+Returns the `k` rows with the largest values in a column. Empty cells rank
+lowest, so they are only included if fewer than `k` rows have a value.
+Null if the column does not exist, is empty, or is not comparable.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">column</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Column name.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">k</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Number of rows to return.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestate.bottomk">bottomK</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a></td>
+<td>
+
+Returns the `k` rows with the smallest values in a column. Empty cells rank
+highest, so they are only included if fewer than `k` rows have a value.
+Null if the column does not exist, is empty, or is not comparable.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">column</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Column name.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">k</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Number of rows to return.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestate.sortbyvalues">sortByValues</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a></td>
+<td>
+
+Returns a view of this node state with the rows sorted by a column's values,
+ascending with empty cells last. `reverse` flips the whole ordering, putting
+empty cells first. Null if the column does not exist, is empty, or is not
+comparable.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">column</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Column name.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">reverse</td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Sort in descending order instead. Defaults to false.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestate.groupby">groupBy</strong></td>
+<td valign="top">[<a href="#nodestategroup">NodeStateGroup</a>!]</td>
+<td>
+
+Groups the nodes by their value in a column. Nodes with an empty cell form
+their own group. Null if the column does not exist or contains nodes.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">column</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Column name.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestate.page">page</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a>!</td>
+<td>
+
+Returns one page of this node state as a node state of its own, so that
+`nodes` / `rows` / `columns` on it stay row-aligned with each other.
+Pages past the end are empty rather than an error.
+
+For example, if page(limit: 5, offset: 1, page_index: 2) is called, a page with 5 items,
+offset by 11 items (2 pages of 5 + 1), will be returned.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">limit</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Maximum number of rows to return on this page.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">offset</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Extra rows to skip on top of `pageIndex` paging (default 0).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">pageIndex</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Zero-based page number; multiplies `limit` to determine where to start (default 0).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestate.sortbyid">sortById</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a>!</td>
+<td>
+
+Returns a view of this node state with the rows sorted by node id.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestate.columns">columns</strong></td>
+<td valign="top">[<a href="#nodestatecolumn">NodeStateColumn</a>!]!</td>
+<td>
+
+The columns of the node state, one per output field of the algorithm.
+`values` are row-aligned with `nodes`.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### NodeStateColumn
+
+One column of a node state: the values of a single output field of the
+algorithm. Row-aligned with `NodeState.nodes`.
+
+<table>
+<thead>
+<tr>
+<th align="left">Field</th>
+<th align="right">Argument</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestatecolumn.name">name</strong></td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Name of the column.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestatecolumn.values">values</strong></td>
+<td valign="top">[<a href="#nodestatevalue">NodeStateValue</a>!]!</td>
+<td>
+
+The values of this column; `values[i]` belongs to `NodeState.nodes[i]`.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### NodeStateEntry
+
+One column's value for a single node.
+
+<table>
+<thead>
+<tr>
+<th align="left">Field</th>
+<th align="right">Argument</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestateentry.columnname">columnName</strong></td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Name of the column.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestateentry.value">value</strong></td>
+<td valign="top"><a href="#nodestatevalue">NodeStateValue</a>!</td>
+<td>
+
+The node's value in this column.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### NodeStateGroup
+
+The nodes sharing one value of a column, as returned by `groupBy`.
+
+<table>
+<thead>
+<tr>
+<th align="left">Field</th>
+<th align="right">Argument</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestategroup.value">value</strong></td>
+<td valign="top"><a href="#propertyoutput">PropertyOutput</a></td>
+<td>
+
+The value shared by the nodes in this group; null if their cell is empty.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestategroup.nodes">nodes</strong></td>
+<td valign="top"><a href="#nodes">Nodes</a>!</td>
+<td>
+
+The nodes holding that value.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### NodeStateHeadlessRow
+
+A node's full row in the node state without the column names: `values[i]`
+belongs to the column `NodeState.columnNames[i]`.
+
+<table>
+<thead>
+<tr>
+<th align="left">Field</th>
+<th align="right">Argument</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestateheadlessrow.node">node</strong></td>
+<td valign="top"><a href="#node">Node</a>!</td>
+<td>
+
+The node this row belongs to.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestateheadlessrow.values">values</strong></td>
+<td valign="top">[<a href="#nodestatevalue">NodeStateValue</a>!]!</td>
+<td>
+
+The row's values, in `columnNames` order.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### NodeStateItem
+
+A `(node, value)` pair, e.g. the result of a column aggregate.
+
+<table>
+<thead>
+<tr>
+<th align="left">Field</th>
+<th align="right">Argument</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestateitem.node">node</strong></td>
+<td valign="top"><a href="#node">Node</a>!</td>
+<td>
+
+The node.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestateitem.value">value</strong></td>
+<td valign="top"><a href="#propertyoutput">PropertyOutput</a>!</td>
+<td>
+
+The node's value.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### NodeStateProp
+
+A plain property value of a node state cell.
+
+<table>
+<thead>
+<tr>
+<th align="left">Field</th>
+<th align="right">Argument</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestateprop.prop">prop</strong></td>
+<td valign="top"><a href="#propertyoutput">PropertyOutput</a></td>
+<td>
+
+The property value; null if the node has no value in this column.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### NodeStateRow
+
+A node's full row in the node state: one entry per column.
+
+<table>
+<thead>
+<tr>
+<th align="left">Field</th>
+<th align="right">Argument</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestaterow.node">node</strong></td>
+<td valign="top"><a href="#node">Node</a>!</td>
+<td>
+
+The node this row belongs to.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestaterow.entries">entries</strong></td>
+<td valign="top">[<a href="#nodestateentry">NodeStateEntry</a>!]!</td>
+<td>
+
+The row's values, one entry per column.
 
 </td>
 </tr>
@@ -7519,10 +9299,10 @@ Contrast with `select`, which applies here and is not carried through.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">expr</td>
-<td valign="top"><a href="#nodefilter">NodeFilter</a>!</td>
+<td valign="top"><a href="#gqlfilter">GqlFilter</a>!</td>
 <td>
 
-Composite node filter (by name, property, type, etc.).
+Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
 
 </td>
 </tr>
@@ -8237,10 +10017,10 @@ Contrast with `select`, which applies here and is not carried through.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">expr</td>
-<td valign="top"><a href="#nodefilter">NodeFilter</a>!</td>
+<td valign="top"><a href="#gqlfilter">GqlFilter</a>!</td>
 <td>
 
-Composite node filter (by name, property, type, etc.).
+Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
 
 </td>
 </tr>
@@ -8913,10 +10693,10 @@ Contrast with `select`, which applies here and is not carried through.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">expr</td>
-<td valign="top"><a href="#nodefilter">NodeFilter</a>!</td>
+<td valign="top"><a href="#gqlfilter">GqlFilter</a>!</td>
 <td>
 
-Composite node filter (by name, property, type, etc.).
+Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
 
 </td>
 </tr>
@@ -9269,6 +11049,16 @@ numbers, booleans as booleans, strings as strings, etc.
 
 </td>
 </tr>
+<tr>
+<td colspan="2" valign="top"><strong id="property.dtype">dtype</strong></td>
+<td valign="top"><a href="#propertytype">PropertyType</a>!</td>
+<td>
+
+The property's exact type, for type-directed decoding of `value`
+(`value` alone collapses e.g. all integer widths to one JSON number).
+
+</td>
+</tr>
 </tbody>
 </table>
 
@@ -9344,6 +11134,15 @@ The value rendered as a human-readable string. For programmatic access use
 
 The value as a typed `PropertyOutput` scalar — numbers come back as numbers,
 booleans as booleans, etc.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="propertytuple.dtype">dtype</strong></td>
+<td valign="top"><a href="#propertytype">PropertyType</a>!</td>
+<td>
+
+The value's exact type, for type-directed decoding of `value`.
 
 </td>
 </tr>
@@ -9502,6 +11301,17 @@ update (via `values` / `history` / `orderedDedupe`), point lookups (`at`,
 <td>
 
 The property key (name).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="temporalproperty.dtype">dtype</strong></td>
+<td valign="top"><a href="#propertytype">PropertyType</a>!</td>
+<td>
+
+The property's declared type, for type-directed decoding of stored
+values (`values`, `at`, `latest`, `unique`, `min`, `max`, `median`,
+`orderedDedupe`). Aggregates (`sum`, `mean`, `average`) may widen.
 
 </td>
 </tr>
@@ -10929,6 +12739,202 @@ OpenAI embedding models or compatible providers
 </tbody>
 </table>
 
+### FuzzySearchExpr
+
+Fuzzy string match: passes when the candidate is within `levenshteinDistance`
+edits of `value` (optionally also matching by prefix). Mirrors the local
+`fuzzy_search(value, levenshtein_distance, prefix_match)` builder.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="fuzzysearchexpr.value">value</strong></td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+The string to match against.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="fuzzysearchexpr.levenshteindistance">levenshteinDistance</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Maximum Levenshtein edit distance for a match.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="fuzzysearchexpr.prefixmatch">prefixMatch</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a>!</td>
+<td>
+
+Whether a prefix match within the distance also passes.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### GqlFilter
+
+A general filter expression — a node filter (`nodes`), an edge filter (`edges`), a graph/view
+filter (`graph`, e.g. a layer or window restriction), or an `and`/`or` combination of these
+(which may mix kinds). Used where an operation accepts any filter, such as scoping a component
+walk.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="gqlfilter.nodes">nodes</strong></td>
+<td valign="top"><a href="#nodefilter">NodeFilter</a></td>
+<td>
+
+Filter by node properties, fields, or temporal state.
+(Persisted filters may use the legacy `node` key.)
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="gqlfilter.edges">edges</strong></td>
+<td valign="top"><a href="#edgefilter">EdgeFilter</a></td>
+<td>
+
+Filter by edge properties, source/destination, or temporal state.
+(Persisted filters may use the legacy `edge` key.)
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="gqlfilter.graph">graph</strong></td>
+<td valign="top"><a href="#graphfilter">GraphFilter</a></td>
+<td>
+
+Apply a graph-level view (window, snapshot, layer restriction, …).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="gqlfilter.and">and</strong></td>
+<td valign="top">[<a href="#gqlfilter">GqlFilter</a>!]</td>
+<td>
+
+All sub-filters must pass (intersection).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="gqlfilter.or">or</strong></td>
+<td valign="top">[<a href="#gqlfilter">GqlFilter</a>!]</td>
+<td>
+
+At least one sub-filter must pass (union).
+Cross-type sub-filters (e.g. `nodes` and `edges` together) produce a
+proper graph union: a node is visible if it matches the node filter or
+has a visible edge, and an edge is visible if it matches the edge
+filter or both its endpoints are visible.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="gqlfilter.not">not</strong></td>
+<td valign="top"><a href="#gqlfilter">GqlFilter</a></td>
+<td>
+
+Inverts the nested filter.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="gqlfilter.window">window</strong></td>
+<td valign="top"><a href="#graphwindowexpr">GraphWindowExpr</a></td>
+<td>
+
+Restrict evaluation to a time window (inclusive start, exclusive end).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="gqlfilter.at">at</strong></td>
+<td valign="top"><a href="#graphtimeexpr">GraphTimeExpr</a></td>
+<td>
+
+Restrict evaluation to a single point in time.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="gqlfilter.before">before</strong></td>
+<td valign="top"><a href="#graphtimeexpr">GraphTimeExpr</a></td>
+<td>
+
+Restrict evaluation to times strictly before the given time.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="gqlfilter.after">after</strong></td>
+<td valign="top"><a href="#graphtimeexpr">GraphTimeExpr</a></td>
+<td>
+
+Restrict evaluation to times strictly after the given time.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="gqlfilter.latest">latest</strong></td>
+<td valign="top"><a href="#graphunaryexpr">GraphUnaryExpr</a></td>
+<td>
+
+Evaluate against the latest available state.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="gqlfilter.snapshotat">snapshotAt</strong></td>
+<td valign="top"><a href="#graphtimeexpr">GraphTimeExpr</a></td>
+<td>
+
+Evaluate against a snapshot of the graph at a given time.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="gqlfilter.snapshotlatest">snapshotLatest</strong></td>
+<td valign="top"><a href="#graphunaryexpr">GraphUnaryExpr</a></td>
+<td>
+
+Evaluate against the most recent snapshot of the graph.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="gqlfilter.layers">layers</strong></td>
+<td valign="top"><a href="#graphlayersexpr">GraphLayersExpr</a></td>
+<td>
+
+Restrict evaluation to one or more layers.
+
+</td>
+</tr>
+</tbody>
+</table>
+
 ### GraphFilter
 
 GraphQL input type for restricting a graph view.
@@ -11574,6 +13580,15 @@ Substring match.
 <td>
 
 Negated substring match.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodefieldcondition.fuzzysearch">fuzzySearch</strong></td>
+<td valign="top"><a href="#fuzzysearchexpr">FuzzySearchExpr</a></td>
+<td>
+
+Fuzzy string match (Levenshtein distance, optional prefix matching).
 
 </td>
 </tr>
@@ -12671,6 +14686,15 @@ Negated substring match against the property's string representation.
 </td>
 </tr>
 <tr>
+<td colspan="2" valign="top"><strong id="propcondition.fuzzysearch">fuzzySearch</strong></td>
+<td valign="top"><a href="#fuzzysearchexpr">FuzzySearchExpr</a></td>
+<td>
+
+Fuzzy string match (Levenshtein distance, optional prefix matching).
+
+</td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="propcondition.isin">isIn</strong></td>
 <td valign="top"><a href="#value">Value</a></td>
 <td>
@@ -12901,6 +14925,49 @@ Value.
 </tbody>
 </table>
 
+### Seeds
+
+How the initially infected nodes are chosen.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="seeds.nodes">nodes</strong></td>
+<td valign="top">[<a href="#nodeid">NodeId</a>!]</td>
+<td>
+
+Infect exactly these nodes.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="seeds.number">number</strong></td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Infect this many randomly chosen nodes.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="seeds.probability">probability</strong></td>
+<td valign="top"><a href="#float">Float</a></td>
+<td>
+
+Infect this fraction of the nodes, chosen at random.
+
+</td>
+</tr>
+</tbody>
+</table>
+
 ### Template
 
 <table>
@@ -13046,6 +15113,24 @@ Properties.
 <td>
 
 64 bit float.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="value.f32special">f32Special</strong></td>
+<td valign="top"><a href="#specialfloat">SpecialFloat</a></td>
+<td>
+
+Non-finite 32 bit float (NaN, ±Infinity) — JSON has no number form for these.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="value.f64special">f64Special</strong></td>
+<td valign="top"><a href="#specialfloat">SpecialFloat</a></td>
+<td>
+
+Non-finite 64 bit float (NaN, ±Infinity) — JSON has no number form for these.
 
 </td>
 </tr>
@@ -13305,6 +15390,33 @@ Example (GraphQL):
 </tbody>
 </table>
 
+### Direction
+
+Edge direction to follow during traversal.
+
+<table>
+<thead>
+<tr>
+<th align="left">Value</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td valign="top"><strong>OUT</strong></td>
+<td></td>
+</tr>
+<tr>
+<td valign="top"><strong>IN</strong></td>
+<td></td>
+</tr>
+<tr>
+<td valign="top"><strong>BOTH</strong></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+
 ### GraphType
 
 <table>
@@ -13406,6 +15518,36 @@ Earliest time
 </tbody>
 </table>
 
+### SpecialFloat
+
+Non-finite float values, which JSON cannot represent as numbers.
+
+Follows protobuf's JSON mapping convention of spelling these out
+explicitly rather than silently coercing them to `null`.
+
+<table>
+<thead>
+<tr>
+<th align="left">Value</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td valign="top"><strong>NAN</strong></td>
+<td></td>
+</tr>
+<tr>
+<td valign="top"><strong>INFINITY</strong></td>
+<td></td>
+</tr>
+<tr>
+<td valign="top"><strong>NEG_INFINITY</strong></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+
 ## Scalars
 
 ### Boolean
@@ -13441,6 +15583,13 @@ integer (`42`). Use whichever form matches how the graph was indexed
 when nodes were added.
 
 ### PropertyOutput
+
+### PropertyType
+
+A property's type, as `PropType`'s serde JSON form — round-trippable,
+unlike the human-readable string from `getDtypeOf`. Scalars are bare
+strings (`"F64"`), containers are tagged objects
+(`{"List": "F64"}`, `{"Map": {"a": "I64"}}`, `{"Decimal": {"scale": 2}}`).
 
 ### String
 
@@ -13525,6 +15674,48 @@ Lightweight summary of a stored graph — its name, path, counts, and
 filesystem timestamps — served without deserializing the full graph.
 Useful for listing what's available on the server before committing to a
 full load.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### NodeStateValue
+
+A single cell of a node state column: either a plain property value, a
+node, or a collection of nodes.
+
+<table>
+<thead>
+<tr>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td valign="top"><strong><a href="#nodestateprop">NodeStateProp</a></strong></td>
+<td valign="top">
+
+A plain property value of a node state cell.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong><a href="#node">Node</a></strong></td>
+<td valign="top">
+
+Raphtory graph node.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong><a href="#nodes">Nodes</a></strong></td>
+<td valign="top">
+
+A lazy collection of nodes from a graph view. Supports all the same view
+transforms as `Graph` (window, layer, filter, ...) plus pagination and
+sorting. Iterated via `list` / `page` / `ids` / `count`.
 
 </td>
 </tr>

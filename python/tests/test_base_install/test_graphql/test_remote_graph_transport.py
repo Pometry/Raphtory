@@ -21,21 +21,10 @@ import pytest
 from raphtory.graphql import EdgeSortBy, GraphServer, NodeSortBy, SortByTime
 
 
-@contextlib.contextmanager
-def _remote_graph_and_client(name="g", graph_type="EVENT"):
-    """Start a GraphServer in a self-cleaning temp dir, create one graph on
-    it, and yield `(RemoteGraph, RaphtoryClient)`.
-
-    The single server fixture every test goes through: population differs per
-    test, so callers add their own nodes/edges to the yielded handle. The temp
-    dir is removed on exit (`TemporaryDirectory`, not `mkdtemp` — no leaked
-    directories), which is safe because the server's `__exit__` joins the
-    server task before we get here.
-    """
-    with tempfile.TemporaryDirectory() as work_dir:
-        with GraphServer(work_dir).start() as server:
-            client = server.get_client()
-            yield client.new_graph(name, graph_type), client
+# The shared server-startup context manager lives in test_utils so every test
+# file stands servers up the same way; population differs per test, so callers
+# add their own nodes/edges to the yielded handle.
+from utils import remote_graph_server as _remote_graph_and_client
 
 
 @contextlib.contextmanager
@@ -161,8 +150,8 @@ def test_empty_graph_reads():
         assert rg.edges.count() == 0
         assert rg.nodes.collect() == []
         assert rg.edges.collect() == []
-        assert rg.earliest_time is None
-        assert rg.latest_time is None
+        assert rg.earliest_time.is_none()
+        assert rg.latest_time.is_none()
 
 
 def test_event_id_secondary_index():
@@ -806,8 +795,8 @@ def test_history_scalar_terminals_on_node():
         h_windowed = rg.node("ben").window(100, 200).history
         assert h_windowed.count() == 0
         assert h_windowed.is_empty() is True
-        assert h_windowed.earliest_time() is None
-        assert h_windowed.latest_time() is None
+        assert h_windowed.earliest_time().is_none()
+        assert h_windowed.latest_time().is_none()
 
 
 def test_history_scalar_terminals_on_edge():
@@ -826,8 +815,8 @@ def test_history_scalar_terminals_on_edge():
         d = e.deletions
         assert d.count() == 0
         assert d.is_empty() is True
-        assert d.earliest_time() is None
-        assert d.latest_time() is None
+        assert d.earliest_time().is_none()
+        assert d.latest_time().is_none()
 
 
 def test_history_list_and_iter():
@@ -1452,10 +1441,10 @@ def test_collection_view_bounds():
     the semantics on Graph / Node / Edge."""
     with _make_graph_with_edge() as rg:
         # Unbounded — both bounds are None.
-        assert rg.nodes.start is None
-        assert rg.nodes.end is None
-        assert rg.edges.start is None
-        assert rg.edges.end is None
+        assert rg.nodes.start.is_none()
+        assert rg.nodes.end.is_none()
+        assert rg.edges.start.is_none()
+        assert rg.edges.end.is_none()
 
         # Bounded via graph-level window — inherited by collections.
         assert rg.window(0, 5).nodes.start == 0
@@ -1465,11 +1454,11 @@ def test_collection_view_bounds():
 
         # One-sided bounds propagate to collections too.
         # `before(5)` is exclusive upper — end reports the boundary time.
-        assert rg.before(5).nodes.start is None
+        assert rg.before(5).nodes.start.is_none()
         assert rg.before(5).nodes.end == 5
         # `after(5)` is exclusive lower — effective start is 6.
         assert rg.after(5).edges.start == 6
-        assert rg.after(5).edges.end is None
+        assert rg.after(5).edges.end.is_none()
 
 
 def test_graph_unique_layers():
@@ -1505,8 +1494,8 @@ def test_edge_view_chain_builders():
         # windowed), so nullable terminals return None. This differs from
         # `rg.window(...).edge(...)`, where the edge isn't present in the
         # windowed view at selection time so `.edge()` itself returns None.
-        assert e.window(100, 200).earliest_time is None
-        assert e.window(100, 200).latest_time is None
+        assert e.window(100, 200).earliest_time.is_none()
+        assert e.window(100, 200).latest_time.is_none()
         import pytest
 
         # At / snapshot_at.

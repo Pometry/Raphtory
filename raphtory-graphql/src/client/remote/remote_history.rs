@@ -2,46 +2,13 @@ use crate::client::{
     op::{HandleCtx, Op, ReadExpr},
     transport::{
         expect_bool, expect_event_time_list, expect_i64, expect_i64_list,
-        expect_optional_event_time, expect_optional_f64, expect_optional_i64, expect_string_list,
-        Transport,
+        expect_optional_event_time, expect_optional_f64, expect_optional_i64, Transport,
     },
     ClientError,
 };
-use raphtory_api::core::storage::timeindex::EventTime;
+use chrono::{DateTime, Utc};
+use raphtory_api::core::storage::timeindex::{AsTime, EventTime};
 use std::sync::Arc;
-
-/// A single event on a node/edge's history — the value type each entry in
-/// `RemoteHistory.collect()` / `.collect_rev()` decodes to.
-///
-/// All three fields are optional because the server can return null for any
-/// of them (synthetic events, sparse metadata). Matches the shape of the
-/// local Python API's `EventTime` type.
-///
-/// `dt` is an RFC 3339 datetime string (the server default) — parse to a
-/// typed datetime client-side if you need one.
-#[derive(Clone, Debug, PartialEq)]
-pub struct RemoteEventTime {
-    /// The event's timestamp in the graph's native time unit (usually ms).
-    pub timestamp: Option<i64>,
-    /// RFC 3339 datetime string for the event (e.g. `"1970-01-01T00:00:00.003+00:00"`).
-    pub dt: Option<String>,
-    /// The event's internal id — a monotonically-increasing counter used to
-    /// disambiguate multiple events at the same timestamp.
-    pub event_id: Option<i64>,
-}
-
-impl RemoteEventTime {
-    /// Convert this wire record into a concrete [`EventTime`], the same type
-    /// the local API exposes. Returns `None` when there is no timestamp —
-    /// the server's representation of "no event time" (e.g. `earliest_time`
-    /// on an empty view), which the local API models as an absent value
-    /// rather than an `EventTime` with null fields. A missing `event_id`
-    /// defaults to `0`; the server only omits it alongside the timestamp.
-    pub fn to_event_time(&self) -> Option<EventTime> {
-        self.timestamp
-            .map(|t| EventTime::new(t, self.event_id.unwrap_or(0) as usize))
-    }
-}
 
 /// A handle to the event history of a node or edge on the server.
 ///
@@ -105,7 +72,7 @@ impl RemoteHistory {
 
     /// Terminal: earliest event time in this history. Returns `None` if the
     /// history is empty. Fires one RPC.
-    pub async fn earliest_time(&self) -> Result<Option<RemoteEventTime>, ClientError> {
+    pub async fn earliest_time(&self) -> Result<Option<EventTime>, ClientError> {
         let op = Op::Read(ReadExpr::EarliestTime {
             input: self.expr.clone(),
         });
@@ -114,7 +81,7 @@ impl RemoteHistory {
 
     /// Terminal: latest event time in this history. Returns `None` if the
     /// history is empty. Fires one RPC.
-    pub async fn latest_time(&self) -> Result<Option<RemoteEventTime>, ClientError> {
+    pub async fn latest_time(&self) -> Result<Option<EventTime>, ClientError> {
         let op = Op::Read(ReadExpr::LatestTime {
             input: self.expr.clone(),
         });
@@ -124,7 +91,7 @@ impl RemoteHistory {
     /// Terminal: all events in this history in ascending time order.
     /// Fires one RPC. Each event carries its timestamp, ISO 8601 datetime
     /// string, and internal event id (all optional).
-    pub async fn collect(&self) -> Result<Vec<RemoteEventTime>, ClientError> {
+    pub async fn collect(&self) -> Result<Vec<EventTime>, ClientError> {
         let op = Op::Read(ReadExpr::HistoryList {
             input: self.expr.clone(),
         });
@@ -133,7 +100,7 @@ impl RemoteHistory {
 
     /// Terminal: all events in this history in descending time order.
     /// Fires one RPC.
-    pub async fn collect_rev(&self) -> Result<Vec<RemoteEventTime>, ClientError> {
+    pub async fn collect_rev(&self) -> Result<Vec<EventTime>, ClientError> {
         let op = Op::Read(ReadExpr::HistoryListRev {
             input: self.expr.clone(),
         });
@@ -148,7 +115,7 @@ impl RemoteHistory {
         limit: usize,
         offset: Option<usize>,
         page_index: Option<usize>,
-    ) -> Result<Vec<RemoteEventTime>, ClientError> {
+    ) -> Result<Vec<EventTime>, ClientError> {
         let op = Op::Read(ReadExpr::HistoryPage {
             input: self.expr.clone(),
             limit,
@@ -165,7 +132,7 @@ impl RemoteHistory {
         limit: usize,
         offset: Option<usize>,
         page_index: Option<usize>,
-    ) -> Result<Vec<RemoteEventTime>, ClientError> {
+    ) -> Result<Vec<EventTime>, ClientError> {
         let op = Op::Read(ReadExpr::HistoryPageRev {
             input: self.expr.clone(),
             limit,
@@ -189,7 +156,7 @@ impl RemoteHistory {
     }
 
     /// Sub-container: timestamps view of this history — plain integer
-    /// timestamps instead of full `RemoteEventTime` records. Lazy — no RPC.
+    /// timestamps instead of full `EventTime` records. Lazy — no RPC.
     pub fn timestamps(&self) -> RemoteHistoryTimestamps {
         RemoteHistoryTimestamps {
             path: self.path.clone(),
@@ -219,7 +186,10 @@ impl RemoteHistory {
         RemoteHistoryDateTimes {
             path: self.path.clone(),
             transport: self.transport.clone(),
-            expr: Arc::new(ReadExpr::HistoryDateTimes {
+            // Reads the *timestamps* container: the datetime is derived from
+            // the timestamp client-side (`AsTime::dt`), so the server never
+            // renders and ships a datetime string we can compute ourselves.
+            expr: Arc::new(ReadExpr::HistoryTimestamps {
                 input: self.expr.clone(),
             }),
             ctx: self.ctx.clone(),
@@ -377,21 +347,37 @@ pub struct RemoteHistoryDateTimes {
     pub ctx: HandleCtx,
 }
 
+/// Convert timestamps (epoch millis) to UTC datetimes using the same
+/// [`AsTime::dt`] conversion the local API uses — no server round-trip.
+fn to_datetimes(timestamps: Vec<i64>) -> Result<Vec<DateTime<Utc>>, ClientError> {
+    timestamps
+        .into_iter()
+        .map(|t| {
+            EventTime::new(t, 0).dt().map_err(|e| {
+                ClientError::InvalidResponse(format!("timestamp {t} is not a valid datetime: {e}"))
+            })
+        })
+        .collect()
+}
+
 impl RemoteHistoryDateTimes {
     /// Terminal: all datetimes in ascending order. Fires one RPC.
-    pub async fn collect(&self) -> Result<Vec<String>, ClientError> {
+    pub async fn collect(&self) -> Result<Vec<DateTime<Utc>>, ClientError> {
         let op = Op::Read(ReadExpr::SubList {
             input: self.expr.clone(),
         });
-        expect_string_list(self.transport.execute(&op).await?, "list")
+        to_datetimes(expect_i64_list(self.transport.execute(&op).await?, "list")?)
     }
 
     /// Terminal: all datetimes in descending order. Fires one RPC.
-    pub async fn collect_rev(&self) -> Result<Vec<String>, ClientError> {
+    pub async fn collect_rev(&self) -> Result<Vec<DateTime<Utc>>, ClientError> {
         let op = Op::Read(ReadExpr::SubListRev {
             input: self.expr.clone(),
         });
-        expect_string_list(self.transport.execute(&op).await?, "listRev")
+        to_datetimes(expect_i64_list(
+            self.transport.execute(&op).await?,
+            "listRev",
+        )?)
     }
 
     /// Terminal: paginated datetimes in ascending order. Fires one RPC.
@@ -400,14 +386,14 @@ impl RemoteHistoryDateTimes {
         limit: usize,
         offset: Option<usize>,
         page_index: Option<usize>,
-    ) -> Result<Vec<String>, ClientError> {
+    ) -> Result<Vec<DateTime<Utc>>, ClientError> {
         let op = Op::Read(ReadExpr::SubPage {
             input: self.expr.clone(),
             limit,
             offset,
             page_index,
         });
-        expect_string_list(self.transport.execute(&op).await?, "page")
+        to_datetimes(expect_i64_list(self.transport.execute(&op).await?, "page")?)
     }
 
     /// Terminal: paginated datetimes in descending order. Fires one RPC.
@@ -416,14 +402,17 @@ impl RemoteHistoryDateTimes {
         limit: usize,
         offset: Option<usize>,
         page_index: Option<usize>,
-    ) -> Result<Vec<String>, ClientError> {
+    ) -> Result<Vec<DateTime<Utc>>, ClientError> {
         let op = Op::Read(ReadExpr::SubPageRev {
             input: self.expr.clone(),
             limit,
             offset,
             page_index,
         });
-        expect_string_list(self.transport.execute(&op).await?, "pageRev")
+        to_datetimes(expect_i64_list(
+            self.transport.execute(&op).await?,
+            "pageRev",
+        )?)
     }
 }
 

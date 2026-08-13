@@ -5,9 +5,12 @@
 //! gRPC-based one) can be swapped in by implementing this trait — client
 //! wrappers won't change.
 
-use crate::client::{op::Op, remote_history::RemoteEventTime, ClientError};
+use crate::client::{op::Op, ClientError};
 use async_graphql::async_trait;
-use raphtory_api::core::entities::properties::prop::{Prop, PropMap};
+use raphtory_api::core::{
+    entities::properties::prop::{Prop, PropMap, PropUnwrap},
+    storage::timeindex::EventTime,
+};
 
 /// Executes a graph operation against a remote server.
 ///
@@ -37,27 +40,102 @@ pub trait Transport: Send + Sync {
 // these to turn transport results into typed values; a second transport
 // implementation must produce exactly the shapes these functions accept.
 
+// The uniform decoders below are one-line casts over these combinators: a
+// `PropUnwrap` accessor (`into_i64`, `into_bool`, …) names the expected shape,
+// and the combinator handles scalar / nullable / list / nested-list plumbing.
+
+/// The shared "shape mismatch" decode error.
+fn unexpected(context: &str) -> ClientError {
+    ClientError::InvalidResponse(format!("`{}` returned unexpected value type", context))
+}
+
+/// Cast a required scalar.
+fn cast<T>(
+    v: Option<Prop>,
+    cast: impl Fn(Prop) -> Option<T>,
+    context: &str,
+) -> Result<T, ClientError> {
+    v.and_then(cast).ok_or_else(|| unexpected(context))
+}
+
+/// Cast a nullable scalar: JSON null (`None`) stays `None`; a present value of
+/// the wrong type is an error.
+fn cast_optional<T>(
+    v: Option<Prop>,
+    cast: impl Fn(Prop) -> Option<T>,
+    context: &str,
+) -> Result<Option<T>, ClientError> {
+    v.map(|p| cast(p).ok_or_else(|| unexpected(context)))
+        .transpose()
+}
+
+/// Cast every element of a `Prop::List`.
+fn cast_list<T>(
+    v: Option<Prop>,
+    cast: impl Fn(Prop) -> Option<T>,
+    context: &str,
+) -> Result<Vec<T>, ClientError> {
+    match v {
+        Some(Prop::List(items)) => items
+            .iter()
+            .map(|p| cast(p).ok_or_else(|| unexpected(context)))
+            .collect(),
+        _ => Err(unexpected(context)),
+    }
+}
+
+/// Cast a nested list (one inner `Prop::List` per outer element), element-wise.
+fn cast_nested_list<T>(
+    v: Option<Prop>,
+    cast: impl Fn(Prop) -> Option<T> + Copy,
+    context: &str,
+) -> Result<Vec<Vec<T>>, ClientError> {
+    match v {
+        Some(Prop::List(rows)) => rows
+            .iter()
+            .map(|row| cast_list(Some(row), cast, context))
+            .collect(),
+        _ => Err(unexpected(context)),
+    }
+}
+
+/// Cast a columnar optional list — each element is a 0-length (`None`) or
+/// 1-length (`Some`) `Prop::List` wrapper.
+fn cast_optional_wrapper_list<T>(
+    v: Option<Prop>,
+    cast: impl Fn(Prop) -> Option<T>,
+    context: &str,
+) -> Result<Vec<Option<T>>, ClientError> {
+    match v {
+        Some(Prop::List(items)) => items
+            .iter()
+            .map(|elem| match elem {
+                Prop::List(inner) => inner
+                    .iter()
+                    .next()
+                    .map(|p| cast(p).ok_or_else(|| unexpected(context)))
+                    .transpose(),
+                _ => Err(unexpected(context)),
+            })
+            .collect(),
+        _ => Err(unexpected(context)),
+    }
+}
+
+/// A `Prop::Str` cast producing an owned `String`.
+fn into_string(p: Prop) -> Option<String> {
+    p.into_str().map(|s| s.to_string())
+}
+
 /// Unwrap a `Transport::execute` result expecting a `Prop::I64` scalar.
 /// `context` is used for the error message if the shape doesn't match.
 pub(crate) fn expect_i64(v: Option<Prop>, context: &str) -> Result<i64, ClientError> {
-    match v {
-        Some(Prop::I64(n)) => Ok(n),
-        _ => Err(ClientError::InvalidResponse(format!(
-            "`{}` returned unexpected value type",
-            context
-        ))),
-    }
+    cast(v, PropUnwrap::into_i64, context)
 }
 
 /// Unwrap a `Transport::execute` result expecting a `Prop::Str` scalar.
 pub(crate) fn expect_string(v: Option<Prop>, context: &str) -> Result<String, ClientError> {
-    match v {
-        Some(Prop::Str(s)) => Ok(s.to_string()),
-        _ => Err(ClientError::InvalidResponse(format!(
-            "`{}` returned unexpected value type",
-            context
-        ))),
-    }
+    cast(v, into_string, context)
 }
 
 /// Unwrap a `Transport::execute` result expecting a nullable `Prop::I64`
@@ -68,25 +146,12 @@ pub(crate) fn expect_optional_i64(
     v: Option<Prop>,
     context: &str,
 ) -> Result<Option<i64>, ClientError> {
-    match v {
-        None => Ok(None),
-        Some(Prop::I64(n)) => Ok(Some(n)),
-        Some(_) => Err(ClientError::InvalidResponse(format!(
-            "`{}` returned unexpected value type",
-            context
-        ))),
-    }
+    cast_optional(v, PropUnwrap::into_i64, context)
 }
 
 /// Unwrap a `Transport::execute` result expecting a `Prop::Bool` scalar.
 pub(crate) fn expect_bool(v: Option<Prop>, context: &str) -> Result<bool, ClientError> {
-    match v {
-        Some(Prop::Bool(b)) => Ok(b),
-        _ => Err(ClientError::InvalidResponse(format!(
-            "`{}` returned unexpected value type",
-            context
-        ))),
-    }
+    cast(v, PropUnwrap::into_bool, context)
 }
 
 /// Unwrap a `Transport::execute` result expecting a nullable `Prop::Str`
@@ -96,14 +161,7 @@ pub(crate) fn expect_optional_string(
     v: Option<Prop>,
     context: &str,
 ) -> Result<Option<String>, ClientError> {
-    match v {
-        None => Ok(None),
-        Some(Prop::Str(s)) => Ok(Some(s.to_string())),
-        Some(_) => Err(ClientError::InvalidResponse(format!(
-            "`{}` returned unexpected value type",
-            context
-        ))),
-    }
+    cast_optional(v, into_string, context)
 }
 
 /// Unwrap a `Transport::execute` result expecting a `Prop::List` of
@@ -112,22 +170,7 @@ pub(crate) fn expect_string_list(
     v: Option<Prop>,
     context: &str,
 ) -> Result<Vec<String>, ClientError> {
-    match v {
-        Some(Prop::List(items)) => items
-            .iter()
-            .map(|p| match p {
-                Prop::Str(s) => Ok(s.to_string()),
-                _ => Err(ClientError::InvalidResponse(format!(
-                    "`{}` list contains non-string element",
-                    context
-                ))),
-            })
-            .collect(),
-        _ => Err(ClientError::InvalidResponse(format!(
-            "`{}` returned unexpected value type",
-            context
-        ))),
-    }
+    cast_list(v, into_string, context)
 }
 
 /// Unwrap a `Transport::execute` result expecting a `Prop::List` of
@@ -138,53 +181,14 @@ pub(crate) fn expect_nested_string_list(
     v: Option<Prop>,
     context: &str,
 ) -> Result<Vec<Vec<String>>, ClientError> {
-    match v {
-        Some(Prop::List(rows)) => rows
-            .iter()
-            .map(|row| match row {
-                Prop::List(items) => items
-                    .iter()
-                    .map(|p| match p {
-                        Prop::Str(s) => Ok(s.to_string()),
-                        _ => Err(ClientError::InvalidResponse(format!(
-                            "`{}` inner list contains non-string element",
-                            context
-                        ))),
-                    })
-                    .collect::<Result<Vec<String>, ClientError>>(),
-                _ => Err(ClientError::InvalidResponse(format!(
-                    "`{}` outer list contains non-list element",
-                    context
-                ))),
-            })
-            .collect(),
-        _ => Err(ClientError::InvalidResponse(format!(
-            "`{}` returned unexpected value type",
-            context
-        ))),
-    }
+    cast_nested_list(v, into_string, context)
 }
 
 /// Unwrap a `Transport::execute` result expecting a `Prop::List` of
 /// `Prop::Bool`s — e.g. the per-edge `is_valid()` / `is_active()` accessors
 /// on a flat `Edges` collection.
 pub(crate) fn expect_bool_list(v: Option<Prop>, context: &str) -> Result<Vec<bool>, ClientError> {
-    match v {
-        Some(Prop::List(items)) => items
-            .iter()
-            .map(|p| match p {
-                Prop::Bool(b) => Ok(b),
-                _ => Err(ClientError::InvalidResponse(format!(
-                    "`{}` list contains non-bool element",
-                    context
-                ))),
-            })
-            .collect(),
-        _ => Err(ClientError::InvalidResponse(format!(
-            "`{}` returned unexpected value type",
-            context
-        ))),
-    }
+    cast_list(v, PropUnwrap::into_bool, context)
 }
 
 /// Unwrap a `Transport::execute` result expecting a `Prop::List` of
@@ -195,53 +199,14 @@ pub(crate) fn expect_nested_bool_list(
     v: Option<Prop>,
     context: &str,
 ) -> Result<Vec<Vec<bool>>, ClientError> {
-    match v {
-        Some(Prop::List(rows)) => rows
-            .iter()
-            .map(|row| match row {
-                Prop::List(items) => items
-                    .iter()
-                    .map(|p| match p {
-                        Prop::Bool(b) => Ok(b),
-                        _ => Err(ClientError::InvalidResponse(format!(
-                            "`{}` inner list contains non-bool element",
-                            context
-                        ))),
-                    })
-                    .collect::<Result<Vec<bool>, ClientError>>(),
-                _ => Err(ClientError::InvalidResponse(format!(
-                    "`{}` outer list contains non-list element",
-                    context
-                ))),
-            })
-            .collect(),
-        _ => Err(ClientError::InvalidResponse(format!(
-            "`{}` returned unexpected value type",
-            context
-        ))),
-    }
+    cast_nested_list(v, PropUnwrap::into_bool, context)
 }
 
 /// Unwrap a `Transport::execute` result expecting a `Prop::List` of
 /// `Prop::I64`s. Used by sub-container list/page terminals when the parent
 /// is `Timestamps`, `EventIds`, or `Intervals`.
 pub(crate) fn expect_i64_list(v: Option<Prop>, context: &str) -> Result<Vec<i64>, ClientError> {
-    match v {
-        Some(Prop::List(items)) => items
-            .iter()
-            .map(|p| match p {
-                Prop::I64(n) => Ok(n),
-                _ => Err(ClientError::InvalidResponse(format!(
-                    "`{}` list contains non-i64 element",
-                    context
-                ))),
-            })
-            .collect(),
-        _ => Err(ClientError::InvalidResponse(format!(
-            "`{}` returned unexpected value type",
-            context
-        ))),
-    }
+    cast_list(v, PropUnwrap::into_i64, context)
 }
 
 /// Unwrap a `Transport::execute` result expecting a `Prop::List` of
@@ -252,31 +217,7 @@ pub(crate) fn expect_nested_i64_list(
     v: Option<Prop>,
     context: &str,
 ) -> Result<Vec<Vec<i64>>, ClientError> {
-    match v {
-        Some(Prop::List(rows)) => rows
-            .iter()
-            .map(|row| match row {
-                Prop::List(items) => items
-                    .iter()
-                    .map(|p| match p {
-                        Prop::I64(n) => Ok(n),
-                        _ => Err(ClientError::InvalidResponse(format!(
-                            "`{}` inner list contains non-i64 element",
-                            context
-                        ))),
-                    })
-                    .collect::<Result<Vec<i64>, ClientError>>(),
-                _ => Err(ClientError::InvalidResponse(format!(
-                    "`{}` outer list contains non-list element",
-                    context
-                ))),
-            })
-            .collect(),
-        _ => Err(ClientError::InvalidResponse(format!(
-            "`{}` returned unexpected value type",
-            context
-        ))),
-    }
+    cast_nested_list(v, PropUnwrap::into_i64, context)
 }
 
 /// Unwrap a `Transport::execute` result expecting a `Prop::List` of
@@ -390,7 +331,7 @@ pub(crate) fn expect_optional_prop(
 pub(crate) fn expect_optional_property_tuple(
     v: Option<Prop>,
     context: &str,
-) -> Result<Option<(RemoteEventTime, Prop)>, ClientError> {
+) -> Result<Option<(EventTime, Prop)>, ClientError> {
     match v {
         None => Ok(None),
         Some(Prop::Map(map)) => extract_property_tuple(&*map, context).map(Some),
@@ -405,7 +346,7 @@ pub(crate) fn expect_optional_property_tuple(
 pub(crate) fn expect_property_tuple_list(
     v: Option<Prop>,
     context: &str,
-) -> Result<Vec<(RemoteEventTime, Prop)>, ClientError> {
+) -> Result<Vec<(EventTime, Prop)>, ClientError> {
     match v {
         Some(Prop::List(items)) => items
             .iter()
@@ -424,12 +365,11 @@ pub(crate) fn expect_property_tuple_list(
     }
 }
 
-fn extract_property_tuple(
-    map: &PropMap,
-    context: &str,
-) -> Result<(RemoteEventTime, Prop), ClientError> {
+fn extract_property_tuple(map: &PropMap, context: &str) -> Result<(EventTime, Prop), ClientError> {
     let time = match map.get("time") {
-        Some(Prop::Map(time_map)) => extract_event_time(&*time_map),
+        Some(Prop::Map(time_map)) => extract_event_time(&*time_map).ok_or_else(|| {
+            ClientError::InvalidResponse(format!("`{}` tuple `time` has no timestamp", context))
+        })?,
         _ => {
             return Err(ClientError::InvalidResponse(format!(
                 "`{}` tuple missing `time`",
@@ -443,36 +383,30 @@ fn extract_property_tuple(
     Ok((time, value))
 }
 
-fn extract_event_time(map: &PropMap) -> RemoteEventTime {
+/// Decode a wire `{timestamp, eventId}` record into an [`EventTime`] — the same
+/// type the local API exposes. `None` when there is no timestamp: the server's
+/// representation of "no event time" (e.g. `earliest_time` on an empty view),
+/// which the local API models as an absent value. A missing `event_id`
+/// defaults to `0`; the server only omits it alongside the timestamp.
+///
+/// The datetime is *not* read from the wire — `EventTime::dt()` derives it from
+/// the timestamp locally, so the server never renders one.
+fn extract_event_time(map: &PropMap) -> Option<EventTime> {
     let timestamp = match map.get("timestamp") {
-        Some(Prop::I64(n)) => Some(*n),
-        _ => None,
-    };
-    let dt = match map.get("datetime") {
-        Some(Prop::Str(s)) => Some(s.to_string()),
-        _ => None,
+        Some(Prop::I64(n)) => *n,
+        _ => return None,
     };
     let event_id = match map.get("eventId") {
-        Some(Prop::I64(n)) => Some(*n),
-        _ => None,
+        Some(Prop::I64(n)) => *n as usize,
+        _ => 0,
     };
-    RemoteEventTime {
-        timestamp,
-        dt,
-        event_id,
-    }
+    Some(EventTime::new(timestamp, event_id))
 }
 
 /// Unwrap a `Transport::execute` result expecting a `Prop::List` of
 /// arbitrary polymorphic `Prop`s. Used by `TemporalPropertyValueList`.
 pub(crate) fn expect_prop_list(v: Option<Prop>, context: &str) -> Result<Vec<Prop>, ClientError> {
-    match v {
-        Some(Prop::List(items)) => Ok(items.iter().collect()),
-        _ => Err(ClientError::InvalidResponse(format!(
-            "`{}` returned unexpected value type",
-            context
-        ))),
-    }
+    cast_list(v, Some, context)
 }
 
 /// Unwrap a `Transport::execute` result expecting a nullable EventTime
@@ -482,10 +416,10 @@ pub(crate) fn expect_prop_list(v: Option<Prop>, context: &str) -> Result<Vec<Pro
 pub(crate) fn expect_optional_event_time(
     v: Option<Prop>,
     context: &str,
-) -> Result<Option<RemoteEventTime>, ClientError> {
+) -> Result<Option<EventTime>, ClientError> {
     match v {
         None => Ok(None),
-        Some(Prop::Map(map)) => Ok(Some(extract_event_time(&map))),
+        Some(Prop::Map(map)) => Ok(extract_event_time(&map)),
         Some(_) => Err(ClientError::InvalidResponse(format!(
             "`{}` returned unexpected value type",
             context
@@ -499,14 +433,7 @@ pub(crate) fn expect_optional_f64(
     v: Option<Prop>,
     context: &str,
 ) -> Result<Option<f64>, ClientError> {
-    match v {
-        None => Ok(None),
-        Some(Prop::F64(n)) => Ok(Some(n)),
-        Some(_) => Err(ClientError::InvalidResponse(format!(
-            "`{}` returned unexpected value type",
-            context
-        ))),
-    }
+    cast_optional(v, PropUnwrap::into_f64, context)
 }
 
 /// Unwrap a `Transport::execute` result expecting a `HistoryList` /
@@ -516,30 +443,17 @@ pub(crate) fn expect_optional_f64(
 pub(crate) fn expect_event_time_list(
     v: Option<Prop>,
     context: &str,
-) -> Result<Vec<RemoteEventTime>, ClientError> {
+) -> Result<Vec<EventTime>, ClientError> {
     match v {
         Some(Prop::List(items)) => items
             .iter()
             .map(|p| match p {
-                Prop::Map(map) => {
-                    let timestamp = match map.get("timestamp") {
-                        Some(Prop::I64(n)) => Some(*n),
-                        _ => None,
-                    };
-                    let dt = match map.get("datetime") {
-                        Some(Prop::Str(s)) => Some(s.to_string()),
-                        _ => None,
-                    };
-                    let event_id = match map.get("eventId") {
-                        Some(Prop::I64(n)) => Some(*n),
-                        _ => None,
-                    };
-                    Ok(RemoteEventTime {
-                        timestamp,
-                        dt,
-                        event_id,
-                    })
-                }
+                // Every entry in a history list carries a timestamp; one
+                // without is a malformed response, surfaced rather than
+                // silently dropped from the list.
+                Prop::Map(map) => extract_event_time(&map).ok_or_else(|| {
+                    ClientError::InvalidResponse(format!("`{}` element has no timestamp", context))
+                }),
                 _ => Err(ClientError::InvalidResponse(format!(
                     "`{}` element not a Prop::Map",
                     context
@@ -844,29 +758,7 @@ pub(crate) fn expect_optional_string_list(
     v: Option<Prop>,
     context: &str,
 ) -> Result<Vec<Option<String>>, ClientError> {
-    match v {
-        Some(Prop::List(items)) => items
-            .iter()
-            .map(|elem| match elem {
-                Prop::List(inner) => match inner.iter().next() {
-                    None => Ok(None),
-                    Some(Prop::Str(s)) => Ok(Some(s.to_string())),
-                    Some(_) => Err(ClientError::InvalidResponse(format!(
-                        "`{}` element wrapper contains non-string",
-                        context
-                    ))),
-                },
-                _ => Err(ClientError::InvalidResponse(format!(
-                    "`{}` element not an optional wrapper",
-                    context
-                ))),
-            })
-            .collect(),
-        _ => Err(ClientError::InvalidResponse(format!(
-            "`{}` returned unexpected value type",
-            context
-        ))),
-    }
+    cast_optional_wrapper_list(v, into_string, context)
 }
 
 /// Nested form of `expect_optional_string_list` → `Vec<Vec<Option<String>>>`
@@ -878,29 +770,26 @@ pub(crate) fn expect_nested_optional_string_list(
     match v {
         Some(Prop::List(rows)) => rows
             .iter()
-            .map(|row| expect_optional_string_list(Some(row.clone()), context))
+            .map(|row| expect_optional_string_list(Some(row), context))
             .collect(),
-        _ => Err(ClientError::InvalidResponse(format!(
-            "`{}` returned unexpected value type",
-            context
-        ))),
+        _ => Err(unexpected(context)),
     }
 }
 
-/// Unwrap a columnar accessor producing `Vec<Option<RemoteEventTime>>` — a flat
+/// Unwrap a columnar accessor producing `Vec<Option<EventTime>>` — a flat
 /// `Prop::List` where each element is a `Prop::List` of 0 (`None`) or 1
 /// (`Some`) `Prop::Map`. Used by `Edges.earliest_time` / `latest_time` / `time`.
 pub(crate) fn expect_optional_event_time_list(
     v: Option<Prop>,
     context: &str,
-) -> Result<Vec<Option<RemoteEventTime>>, ClientError> {
+) -> Result<Vec<Option<EventTime>>, ClientError> {
     match v {
         Some(Prop::List(items)) => items
             .iter()
             .map(|elem| match elem {
                 Prop::List(inner) => match inner.iter().next() {
                     None => Ok(None),
-                    Some(Prop::Map(map)) => Ok(Some(extract_event_time(&map))),
+                    Some(Prop::Map(map)) => Ok(extract_event_time(&map)),
                     Some(_) => Err(ClientError::InvalidResponse(format!(
                         "`{}` element wrapper contains non-map",
                         context
@@ -920,11 +809,11 @@ pub(crate) fn expect_optional_event_time_list(
 }
 
 /// Nested form of `expect_optional_event_time_list` →
-/// `Vec<Vec<Option<RemoteEventTime>>>`. Used by `NestedEdges.earliest_time` etc.
+/// `Vec<Vec<Option<EventTime>>>`. Used by `NestedEdges.earliest_time` etc.
 pub(crate) fn expect_nested_optional_event_time_list(
     v: Option<Prop>,
     context: &str,
-) -> Result<Vec<Vec<Option<RemoteEventTime>>>, ClientError> {
+) -> Result<Vec<Vec<Option<EventTime>>>, ClientError> {
     match v {
         Some(Prop::List(rows)) => rows
             .iter()
@@ -947,11 +836,8 @@ pub(crate) fn expect_double_nested_string_list(
     match v {
         Some(Prop::List(rows)) => rows
             .iter()
-            .map(|row| expect_nested_string_list(Some(row.clone()), context))
+            .map(|row| cast_nested_list(Some(row), into_string, context))
             .collect(),
-        _ => Err(ClientError::InvalidResponse(format!(
-            "`{}` returned unexpected value type",
-            context
-        ))),
+        _ => Err(unexpected(context)),
     }
 }

@@ -3,7 +3,6 @@ use crate::{
         op::{EdgePin, EdgeSortBy, Fanout, HandleCtx, HandleOp, InputTime, Op, ReadExpr, ViewOp},
         remote_collection_metadata::{RemoteMetadataView, RemotePropertiesView},
         remote_edge::RemoteEdge,
-        remote_history::RemoteEventTime,
         remote_path_from_node::RemotePathFromNode,
         transport::{
             expect_bool, expect_bool_list, expect_edge_list, expect_exploded_edge_list,
@@ -16,6 +15,7 @@ use crate::{
     model::graph::filtering::GqlFilter,
 };
 use raphtory::errors::GraphError;
+use raphtory_api::core::storage::timeindex::EventTime;
 use std::sync::Arc;
 
 /// A handle to a remote collection of edges on the server.
@@ -356,7 +356,7 @@ impl RemoteEdges {
 
     /// Columnar accessor: each edge's earliest event time — mirrors the local
     /// `Edges.earliest_time`. Fires one RPC.
-    pub async fn earliest_time(&self) -> Result<Vec<Option<RemoteEventTime>>, ClientError> {
+    pub async fn earliest_time(&self) -> Result<Vec<Option<EventTime>>, ClientError> {
         let op = Op::Read(ReadExpr::CollectionEarliestTime {
             input: self.expr.clone(),
         });
@@ -365,7 +365,7 @@ impl RemoteEdges {
 
     /// Columnar accessor: each edge's latest event time — mirrors the local
     /// `Edges.latest_time`. Fires one RPC.
-    pub async fn latest_time(&self) -> Result<Vec<Option<RemoteEventTime>>, ClientError> {
+    pub async fn latest_time(&self) -> Result<Vec<Option<EventTime>>, ClientError> {
         let op = Op::Read(ReadExpr::CollectionLatestTime {
             input: self.expr.clone(),
         });
@@ -375,7 +375,7 @@ impl RemoteEdges {
     /// Columnar accessor: each edge's event time — mirrors the local
     /// `Edges.time`. Only valid on exploded edges; the server raises a GraphQL
     /// error otherwise. Fires one RPC.
-    pub async fn time(&self) -> Result<Vec<Option<RemoteEventTime>>, ClientError> {
+    pub async fn time(&self) -> Result<Vec<Option<EventTime>>, ClientError> {
         let op = Op::Read(ReadExpr::CollectionTime {
             input: self.expr.clone(),
         });
@@ -453,7 +453,7 @@ impl RemoteEdges {
 
     /// Terminal: view start bound for this collection — `None` if unbounded.
     /// Fires one RPC.
-    pub async fn start(&self) -> Result<Option<RemoteEventTime>, ClientError> {
+    pub async fn start(&self) -> Result<Option<EventTime>, ClientError> {
         let op = Op::Read(ReadExpr::Start {
             input: self.expr.clone(),
         });
@@ -462,7 +462,7 @@ impl RemoteEdges {
 
     /// Terminal: view end bound for this collection — `None` if unbounded.
     /// Fires one RPC.
-    pub async fn end(&self) -> Result<Option<RemoteEventTime>, ClientError> {
+    pub async fn end(&self) -> Result<Option<EventTime>, ClientError> {
         let op = Op::Read(ReadExpr::End {
             input: self.expr.clone(),
         });

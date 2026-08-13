@@ -27,7 +27,7 @@ use async_graphql::{async_trait, Value as GqlValue};
 use raphtory_api::core::entities::properties::prop::{Prop, PropType};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value as JsonValue};
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 /// Build the `TimeInput` variable value: a bare int, or `{timestamp, eventId}`
 /// when an explicit secondary index is given.
@@ -678,6 +678,16 @@ fn render_string_list(items: &[String]) -> String {
         .join(", ")
 }
 
+/// Append the optional `(keys: [..])` whitelist to a columnar `values` field.
+/// `None` (all columns) appends nothing.
+fn render_keys_filter(keys: &Option<Arc<[String]>>, out: &mut String) {
+    if let Some(keys) = keys {
+        out.push_str("(keys: [");
+        out.push_str(&render_string_list(keys));
+        out.push_str("])");
+    }
+}
+
 /// Render `SortByTime` as its GraphQL enum literal — the async_graphql
 /// `Enum` derive emits SCREAMING_SNAKE_CASE variants.
 fn render_sort_by_time(t: SortByTime) -> &'static str {
@@ -1050,10 +1060,6 @@ fn render_read_into(
             render_read_into(input, vars, out)?;
             out.push_str(" { eventId");
         }
-        ReadExpr::HistoryDateTimes { input } => {
-            render_read_into(input, vars, out)?;
-            out.push_str(" { datetimes");
-        }
         ReadExpr::HistoryIntervals { input } => {
             render_read_into(input, vars, out)?;
             out.push_str(" { intervals");
@@ -1334,7 +1340,7 @@ fn render_read_into(
             render_read_into(input, vars, out)?;
             let _ = write!(
                 out,
-                " {{ dtype orderedDedupe(latestTime: {}) {{ time {{ timestamp datetime eventId }} value }}",
+                " {{ dtype orderedDedupe(latestTime: {}) {{ time {{ timestamp eventId }} value }}",
                 latest_time
             );
         }
@@ -1352,15 +1358,15 @@ fn render_read_into(
         }
         ReadExpr::TemporalPropertyMin { input } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { dtype min { time { timestamp datetime eventId } value }");
+            out.push_str(" { dtype min { time { timestamp eventId } value }");
         }
         ReadExpr::TemporalPropertyMax { input } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { dtype max { time { timestamp datetime eventId } value }");
+            out.push_str(" { dtype max { time { timestamp eventId } value }");
         }
         ReadExpr::TemporalPropertyMedian { input } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { dtype median { time { timestamp datetime eventId } value }");
+            out.push_str(" { dtype median { time { timestamp eventId } value }");
         }
         // Compound-structured tree — one RPC fetches everything.
         ReadExpr::Schema { input } => {
@@ -1569,15 +1575,15 @@ fn render_read_into(
         }
         ReadExpr::CollectionEarliestTime { input } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { list { earliestTime { timestamp datetime eventId } }");
+            out.push_str(" { list { earliestTime { timestamp eventId } }");
         }
         ReadExpr::CollectionLatestTime { input } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { list { latestTime { timestamp datetime eventId } }");
+            out.push_str(" { list { latestTime { timestamp eventId } }");
         }
         ReadExpr::CollectionTime { input } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { list { time { timestamp datetime eventId } }");
+            out.push_str(" { list { time { timestamp eventId } }");
         }
         // Columnar accessors — NESTED collections render `list { list { <field> } }`.
         ReadExpr::NestedNames { input } => {
@@ -1598,15 +1604,15 @@ fn render_read_into(
         }
         ReadExpr::NestedEarliestTime { input } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { list { list { earliestTime { timestamp datetime eventId } } }");
+            out.push_str(" { list { list { earliestTime { timestamp eventId } } }");
         }
         ReadExpr::NestedLatestTime { input } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { list { list { latestTime { timestamp datetime eventId } } }");
+            out.push_str(" { list { list { latestTime { timestamp eventId } } }");
         }
         ReadExpr::NestedTime { input } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { list { list { time { timestamp datetime eventId } } }");
+            out.push_str(" { list { list { time { timestamp eventId } } }");
         }
         // Boolean columnar accessors — FLAT collections render `list { <field> }`.
         ReadExpr::CollectionIsActive { input } => {
@@ -1646,23 +1652,54 @@ fn render_read_into(
         // `metadata` / `properties` container and read all `{key, value}`
         // entries. FLAT collections render `list { <container> { values { key
         // value } } }`.
-        ReadExpr::CollectionMetadataValues { input } => {
+        // A `Some` key whitelist renders as the server-side `values(keys: [..])`
+        // filter, so single-column reads never ship the other columns.
+        ReadExpr::CollectionMetadataValues { input, keys } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { list { metadata { values { key value dtype } } }");
+            out.push_str(" { list { metadata { values");
+            render_keys_filter(keys, out);
+            out.push_str(" { key value dtype } } }");
         }
-        ReadExpr::CollectionPropertiesValues { input } => {
+        ReadExpr::CollectionPropertiesValues { input, keys } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { list { properties { values { key value dtype } } }");
+            out.push_str(" { list { properties { values");
+            render_keys_filter(keys, out);
+            out.push_str(" { key value dtype } } }");
         }
         // NESTED collections render `list { list { <container> { values { key
         // value } } } }`.
-        ReadExpr::NestedMetadataValues { input } => {
+        ReadExpr::NestedMetadataValues { input, keys } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { list { list { metadata { values { key value dtype } } } }");
+            out.push_str(" { list { list { metadata { values");
+            render_keys_filter(keys, out);
+            out.push_str(" { key value dtype } } } }");
         }
-        ReadExpr::NestedPropertiesValues { input } => {
+        ReadExpr::NestedPropertiesValues { input, keys } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { list { list { properties { values { key value dtype } } } }");
+            out.push_str(" { list { list { properties { values");
+            render_keys_filter(keys, out);
+            out.push_str(" { key value dtype } } } }");
+        }
+        // Collection key lookup — the FIRST member's key set (mirrors the local
+        // views, whose `keys()` reads the first entity's filtered registry).
+        // `page(limit: 1)` keeps the wire cost at one member's key names.
+        ReadExpr::CollectionMetadataKeys { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { page(limit: 1) { metadata { keys } }");
+        }
+        ReadExpr::CollectionPropertiesKeys { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { page(limit: 1) { properties { keys } }");
+        }
+        // NESTED: first member of the first source (local nested views delegate
+        // to their first inner view, which reads ITS first member).
+        ReadExpr::NestedMetadataKeys { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { page(limit: 1) { page(limit: 1) { metadata { keys } } }");
+        }
+        ReadExpr::NestedPropertiesKeys { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { page(limit: 1) { page(limit: 1) { properties { keys } } }");
         }
         // Compound structured terminal on Graph: `sharedNeighbours(selectedNodes: [ids]) { name }`
         // — opens ONE net brace (the outer, before `sharedNeighbours`); the inner
@@ -1715,7 +1752,7 @@ fn render_read_into(
             render_read_into(input, vars, out)?;
             out.push_str(" { isEmpty");
         }
-        // Compound structured terminal: `list { timestamp datetime eventId }`
+        // Compound structured terminal: `list { timestamp eventId }`
         // returns a list of records. Inner braces are self-balanced; the outer
         // `list` brace opens one net brace, contributing 1 to read_depth.
         //
@@ -1723,11 +1760,11 @@ fn render_read_into(
         // (defaults to RFC 3339). We pass no arg to get the default.
         ReadExpr::HistoryList { input } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { list { timestamp datetime eventId }");
+            out.push_str(" { list { timestamp eventId }");
         }
         ReadExpr::HistoryListRev { input } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { listRev { timestamp datetime eventId }");
+            out.push_str(" { listRev { timestamp eventId }");
         }
         ReadExpr::HistoryPage {
             input,
@@ -1738,7 +1775,7 @@ fn render_read_into(
             render_read_into(input, vars, out)?;
             let _ = write!(
                 out,
-                " {{ page({}) {{ timestamp datetime eventId }}",
+                " {{ page({}) {{ timestamp eventId }}",
                 render_page_args(*limit, *offset, *page_index)
             );
         }
@@ -1751,7 +1788,7 @@ fn render_read_into(
             render_read_into(input, vars, out)?;
             let _ = write!(
                 out,
-                " {{ pageRev({}) {{ timestamp datetime eventId }}",
+                " {{ pageRev({}) {{ timestamp eventId }}",
                 render_page_args(*limit, *offset, *page_index)
             );
         }
@@ -1784,24 +1821,24 @@ fn render_read_into(
             render_read_into(input, vars, out)?;
             out.push_str(" { isSelfLoop");
         }
-        // EventTime terminals — fetch the full `{ timestamp datetime eventId }`
-        // record so the client can return a `RemoteEventTime` (drop-in parity
+        // EventTime terminals — fetch the full `{ timestamp eventId }`
+        // record so the client can return a `EventTime` (drop-in parity
         // with the local API's `EventTime`, which carries the `event_id`).
         ReadExpr::EarliestTime { input } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { earliestTime { timestamp datetime eventId");
+            out.push_str(" { earliestTime { timestamp eventId");
         }
         ReadExpr::LatestTime { input } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { latestTime { timestamp datetime eventId");
+            out.push_str(" { latestTime { timestamp eventId");
         }
         ReadExpr::Start { input } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { start { timestamp datetime eventId");
+            out.push_str(" { start { timestamp eventId");
         }
         ReadExpr::End { input } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { end { timestamp datetime eventId");
+            out.push_str(" { end { timestamp eventId");
         }
         // Remaining timestamp terminals stay bare `i64` (no local @property
         // counterpart, so not part of the EventTime drop-in change).
@@ -1823,7 +1860,7 @@ fn render_read_into(
         }
         ReadExpr::Time { input } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { time { timestamp datetime eventId");
+            out.push_str(" { time { timestamp eventId");
         }
     }
     Ok(())
@@ -1929,10 +1966,14 @@ fn read_depth(expr: &ReadExpr) -> usize {
         | ReadExpr::NestedIsValid { input }
         | ReadExpr::NestedIsDeleted { input }
         | ReadExpr::NestedIsSelfLoop { input }
-        | ReadExpr::CollectionMetadataValues { input }
-        | ReadExpr::CollectionPropertiesValues { input }
-        | ReadExpr::NestedMetadataValues { input }
-        | ReadExpr::NestedPropertiesValues { input }
+        | ReadExpr::CollectionMetadataValues { input, .. }
+        | ReadExpr::CollectionPropertiesValues { input, .. }
+        | ReadExpr::NestedMetadataValues { input, .. }
+        | ReadExpr::NestedPropertiesValues { input, .. }
+        | ReadExpr::CollectionMetadataKeys { input }
+        | ReadExpr::CollectionPropertiesKeys { input }
+        | ReadExpr::NestedMetadataKeys { input }
+        | ReadExpr::NestedPropertiesKeys { input }
         | ReadExpr::SharedNeighbours { input, .. }
         | ReadExpr::FindNodes { input, .. }
         | ReadExpr::FindEdges { input, .. }
@@ -1972,7 +2013,6 @@ fn read_depth(expr: &ReadExpr) -> usize {
         | ReadExpr::HistoryPageRev { input, .. }
         | ReadExpr::HistoryTimestamps { input }
         | ReadExpr::HistoryEventIds { input }
-        | ReadExpr::HistoryDateTimes { input }
         | ReadExpr::HistoryIntervals { input }
         | ReadExpr::SubList { input }
         | ReadExpr::SubListRev { input }
@@ -2081,7 +2121,7 @@ fn col_bool_elem(v: &JsonValue, field: &'static str) -> Result<Prop, ClientError
         })
 }
 
-/// `list { <field> { timestamp datetime eventId } }` element → `Prop::List([])`
+/// `list { <field> { timestamp eventId } }` element → `Prop::List([])`
 /// (None — no event in view) or `[Prop::Map]` (Some). Mirrors the single
 /// EventTime decode.
 fn col_event_time_elem(v: &JsonValue, field: &str) -> Result<Prop, ClientError> {
@@ -2093,9 +2133,6 @@ fn col_event_time_elem(v: &JsonValue, field: &str) -> Result<Prop, ClientError> 
         None => Ok(Prop::List(Vec::<Prop>::new().into())),
         Some(t) => {
             let mut pairs: Vec<(&'static str, Prop)> = vec![("timestamp", Prop::I64(t))];
-            if let Some(d) = obj.get("datetime").and_then(|x| x.as_str()) {
-                pairs.push(("datetime", Prop::Str(d.into())));
-            }
             if let Some(e) = obj.get("eventId").and_then(|x| x.as_i64()) {
                 pairs.push(("eventId", Prop::I64(e)));
             }
@@ -2200,6 +2237,54 @@ fn build_nested_property_column(
     Ok(Some(Prop::List(rows?.into())))
 }
 
+/// Decode a collection key lookup: `terminal_val` is the limit-1 `page` array;
+/// the keys live at `[0].<container>.keys` (nested lookups tunnel through the
+/// inner limit-1 `page` first). An empty page — empty collection, or empty
+/// first source for nested — decodes to an empty key list, mirroring the local
+/// views' `unwrap_or_default()`.
+fn parse_first_member_keys(
+    terminal_val: &JsonValue,
+    container: &str,
+    nested: bool,
+) -> Result<Option<Prop>, ClientError> {
+    let page = terminal_val
+        .as_array()
+        .ok_or_else(|| ClientError::InvalidResponse("keys `page` not a JSON array".into()))?;
+    let Some(mut first) = page.first() else {
+        return Ok(Some(Prop::List(Vec::<Prop>::new().into())));
+    };
+    if nested {
+        let inner = first
+            .get("page")
+            .and_then(|v| v.as_array())
+            .ok_or_else(|| {
+                ClientError::InvalidResponse(
+                    "nested keys element missing inner `page` array".into(),
+                )
+            })?;
+        match inner.first() {
+            Some(member) => first = member,
+            None => return Ok(Some(Prop::List(Vec::<Prop>::new().into()))),
+        }
+    }
+    let keys = first
+        .get(container)
+        .and_then(|c| c.get("keys"))
+        .and_then(|k| k.as_array())
+        .ok_or_else(|| {
+            ClientError::InvalidResponse(format!("keys element missing `{container}.keys` array"))
+        })?;
+    let items: Result<Vec<Prop>, ClientError> = keys
+        .iter()
+        .map(|v| {
+            v.as_str()
+                .map(|s| Prop::Str(s.into()))
+                .ok_or_else(|| ClientError::InvalidResponse("property key is not a string".into()))
+        })
+        .collect();
+    Ok(Some(Prop::List(items?.into())))
+}
+
 fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientError> {
     let path = build_json_path(expr);
     let mut cursor = root;
@@ -2232,8 +2317,8 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
             .as_i64()
             .map(|n| Some(Prop::I64(n)))
             .ok_or_else(|| ClientError::InvalidResponse(format!("`{}` not an i64", terminal_key))),
-        // Sub-container list/page terminals dispatch by parent selection:
-        // DateTimes → string list; Timestamps/EventIds/Intervals → int list.
+        // Sub-container list/page terminals — always an int list. (`.dt`
+        // reads the timestamps container and converts client-side.)
         ReadExpr::SubList { input }
         | ReadExpr::SubListRev { input }
         | ReadExpr::SubPage { input, .. }
@@ -2242,20 +2327,6 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
                 ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
             })?;
             match &**input {
-                ReadExpr::HistoryDateTimes { .. } => {
-                    let items: Result<Vec<Prop>, ClientError> = arr
-                        .iter()
-                        .map(|v| {
-                            v.as_str().map(|s| Prop::Str(s.into())).ok_or_else(|| {
-                                ClientError::InvalidResponse(format!(
-                                    "`{}` element not a string",
-                                    terminal_key
-                                ))
-                            })
-                        })
-                        .collect();
-                    Ok(Some(Prop::List(items?.into())))
-                }
                 ReadExpr::HistoryTimestamps { .. }
                 | ReadExpr::HistoryEventIds { .. }
                 | ReadExpr::HistoryIntervals { .. } => {
@@ -2468,7 +2539,7 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
         // `[{"timestamp":N,"dt":"...","eventId":N}, ...]`. Any field may be
         // null. Decode each element into a `Prop::Map` (missing keys → null
         // semantically); `expect_event_time_list` unwraps to a typed
-        // `Vec<RemoteEventTime>`.
+        // `Vec<EventTime>`.
         ReadExpr::HistoryList { .. }
         | ReadExpr::HistoryListRev { .. }
         | ReadExpr::HistoryPage { .. }
@@ -2487,9 +2558,6 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
                     let mut pairs: Vec<(&'static str, Prop)> = Vec::new();
                     if let Some(t) = obj.get("timestamp").and_then(|x| x.as_i64()) {
                         pairs.push(("timestamp", Prop::I64(t)));
-                    }
-                    if let Some(d) = obj.get("datetime").and_then(|x| x.as_str()) {
-                        pairs.push(("datetime", Prop::Str(d.into())));
                     }
                     if let Some(e) = obj.get("eventId").and_then(|x| x.as_i64()) {
                         pairs.push(("eventId", Prop::I64(e)));
@@ -2980,6 +3048,22 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
         ReadExpr::NestedPropertiesValues { .. } => {
             build_nested_property_column(terminal_val, "properties")
         }
+        // Collection key lookup — `terminal_val` is the limit-1 `page` array;
+        // dig `[0].<container>.keys` (nested digs through the inner limit-1
+        // `page` first). An empty page (empty collection / empty first source)
+        // yields an empty key list, matching the local views.
+        ReadExpr::CollectionMetadataKeys { .. } => {
+            parse_first_member_keys(terminal_val, "metadata", false)
+        }
+        ReadExpr::CollectionPropertiesKeys { .. } => {
+            parse_first_member_keys(terminal_val, "properties", false)
+        }
+        ReadExpr::NestedMetadataKeys { .. } => {
+            parse_first_member_keys(terminal_val, "metadata", true)
+        }
+        ReadExpr::NestedPropertiesKeys { .. } => {
+            parse_first_member_keys(terminal_val, "properties", true)
+        }
         // Bool-shaped terminals.
         ReadExpr::HasNode { .. }
         | ReadExpr::HasEdge { .. }
@@ -3023,7 +3107,7 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
         // EventTime terminals — the terminal value is the whole
         // `{ timestamp, datetime, eventId }` object. Decode it into a
         // `Prop::Map` (missing fields → absent keys); the client unwraps to a
-        // `RemoteEventTime` via `expect_optional_event_time`. A JSON `null`
+        // `EventTime` via `expect_optional_event_time`. A JSON `null`
         // object (e.g. an empty graph) maps to `Ok(None)`.
         ReadExpr::EarliestTime { .. }
         | ReadExpr::LatestTime { .. }
@@ -3043,9 +3127,6 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
                 None => Ok(None),
                 Some(t) => {
                     let mut pairs: Vec<(&'static str, Prop)> = vec![("timestamp", Prop::I64(t))];
-                    if let Some(d) = obj.get("datetime").and_then(|x| x.as_str()) {
-                        pairs.push(("datetime", Prop::Str(d.into())));
-                    }
                     if let Some(e) = obj.get("eventId").and_then(|x| x.as_i64()) {
                         pairs.push(("eventId", Prop::I64(e)));
                     }
@@ -3415,12 +3496,21 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
             | ReadExpr::NestedIsValid { input }
             | ReadExpr::NestedIsDeleted { input }
             | ReadExpr::NestedIsSelfLoop { input }
-            | ReadExpr::CollectionMetadataValues { input }
-            | ReadExpr::CollectionPropertiesValues { input }
-            | ReadExpr::NestedMetadataValues { input }
-            | ReadExpr::NestedPropertiesValues { input } => {
+            | ReadExpr::CollectionMetadataValues { input, .. }
+            | ReadExpr::CollectionPropertiesValues { input, .. }
+            | ReadExpr::NestedMetadataValues { input, .. }
+            | ReadExpr::NestedPropertiesValues { input, .. } => {
                 go(input, out);
                 out.push("list");
+            }
+            // Collection key lookup navigates into the limit-1 `page`; the
+            // parse arm digs the rest (`[0].<container>.keys`).
+            ReadExpr::CollectionMetadataKeys { input }
+            | ReadExpr::CollectionPropertiesKeys { input }
+            | ReadExpr::NestedMetadataKeys { input }
+            | ReadExpr::NestedPropertiesKeys { input } => {
+                go(input, out);
+                out.push("page");
             }
             ReadExpr::SharedNeighbours { input, .. } => {
                 go(input, out);
@@ -3549,10 +3639,6 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
             ReadExpr::HistoryEventIds { input } => {
                 go(input, out);
                 out.push("eventId");
-            }
-            ReadExpr::HistoryDateTimes { input } => {
-                go(input, out);
-                out.push("datetimes");
             }
             ReadExpr::HistoryIntervals { input } => {
                 go(input, out);
@@ -3808,9 +3894,6 @@ fn json_to_property_tuple(v: &JsonValue, dtype: Option<&PropType>) -> Result<Pro
     if let Some(t) = time_obj.get("timestamp").and_then(|x| x.as_i64()) {
         time_pairs.push(("timestamp", Prop::I64(t)));
     }
-    if let Some(d) = time_obj.get("datetime").and_then(|x| x.as_str()) {
-        time_pairs.push(("datetime", Prop::Str(d.into())));
-    }
     if let Some(e) = time_obj.get("eventId").and_then(|x| x.as_i64()) {
         time_pairs.push(("eventId", Prop::I64(e)));
     }
@@ -4051,10 +4134,14 @@ fn child_input(expr: &ReadExpr) -> Option<&ReadExpr> {
         | ReadExpr::NestedIsValid { input }
         | ReadExpr::NestedIsDeleted { input }
         | ReadExpr::NestedIsSelfLoop { input }
-        | ReadExpr::CollectionMetadataValues { input }
-        | ReadExpr::CollectionPropertiesValues { input }
-        | ReadExpr::NestedMetadataValues { input }
-        | ReadExpr::NestedPropertiesValues { input }
+        | ReadExpr::CollectionMetadataValues { input, .. }
+        | ReadExpr::CollectionPropertiesValues { input, .. }
+        | ReadExpr::NestedMetadataValues { input, .. }
+        | ReadExpr::NestedPropertiesValues { input, .. }
+        | ReadExpr::CollectionMetadataKeys { input }
+        | ReadExpr::CollectionPropertiesKeys { input }
+        | ReadExpr::NestedMetadataKeys { input }
+        | ReadExpr::NestedPropertiesKeys { input }
         | ReadExpr::SharedNeighbours { input, .. }
         | ReadExpr::FindNodes { input, .. }
         | ReadExpr::FindEdges { input, .. }
@@ -4103,7 +4190,6 @@ fn child_input(expr: &ReadExpr) -> Option<&ReadExpr> {
         | ReadExpr::HistoryPageRev { input, .. }
         | ReadExpr::HistoryTimestamps { input }
         | ReadExpr::HistoryEventIds { input }
-        | ReadExpr::HistoryDateTimes { input }
         | ReadExpr::HistoryIntervals { input }
         | ReadExpr::SubList { input }
         | ReadExpr::SubListRev { input }
@@ -4123,6 +4209,7 @@ mod tests {
         filtering::{GqlNodeFilter, PropCondition, PropertyFilterNew},
         property::Value as GqlValue,
     };
+    use raphtory_api::core::storage::timeindex::AsTime;
     use std::sync::Arc;
 
     // ============ Unit tests for the read pipeline ============
@@ -4153,6 +4240,103 @@ mod tests {
         let opens = query.matches('{').count();
         let closes = query.matches('}').count();
         assert_eq!(opens, closes, "unbalanced braces in: {query}");
+    }
+
+    /// A `Some` key whitelist renders the server-side `values(keys: [..])`
+    /// filter; `None` renders bare `values` (all columns). Pins the lazy
+    /// single-column fetch shape.
+    #[test]
+    fn columnar_values_render_keys_whitelist() {
+        let nodes = ReadExpr::Nodes {
+            input: Arc::new(ReadExpr::Root { path: "g".into() }),
+        };
+        let one = ReadExpr::CollectionPropertiesValues {
+            input: Arc::new(nodes.clone()),
+            keys: Some(vec!["score".to_string()].into()),
+        };
+        let (query, _) = render_read(&one).unwrap();
+        assert!(
+            query.contains("properties { values(keys: [\"score\"]) { key value dtype } }"),
+            "whitelist not rendered: {query}"
+        );
+        assert_eq!(
+            query.matches('{').count(),
+            query.matches('}').count(),
+            "unbalanced braces in: {query}"
+        );
+
+        let all = ReadExpr::CollectionPropertiesValues {
+            input: Arc::new(nodes),
+            keys: None,
+        };
+        let (query, _) = render_read(&all).unwrap();
+        assert!(
+            query.contains("properties { values { key value dtype } }"),
+            "bare values not rendered: {query}"
+        );
+    }
+
+    /// Collection key lookup renders a `page(limit: 1)` selection — the first
+    /// member's key names, never the collection's property values. Nested
+    /// tunnels through the first source's own limit-1 page.
+    #[test]
+    fn columnar_keys_render_first_member_page() {
+        let nodes = ReadExpr::Nodes {
+            input: Arc::new(ReadExpr::Root { path: "g".into() }),
+        };
+        let flat = ReadExpr::CollectionMetadataKeys {
+            input: Arc::new(nodes.clone()),
+        };
+        let (query, _) = render_read(&flat).unwrap();
+        assert!(
+            query.contains("page(limit: 1) { metadata { keys } }"),
+            "first-member keys not rendered: {query}"
+        );
+        assert_eq!(
+            query.matches('{').count(),
+            query.matches('}').count(),
+            "unbalanced braces in: {query}"
+        );
+
+        let nested = ReadExpr::NestedPropertiesKeys {
+            input: Arc::new(nodes),
+        };
+        let (query, _) = render_read(&nested).unwrap();
+        assert!(
+            query.contains("page(limit: 1) { page(limit: 1) { properties { keys } } }"),
+            "nested first-member keys not rendered: {query}"
+        );
+        assert_eq!(
+            query.matches('{').count(),
+            query.matches('}').count(),
+            "unbalanced braces in: {query}"
+        );
+    }
+
+    /// Decoding a key lookup: keys at `page[0].<container>.keys`; an empty
+    /// page (empty collection / empty first source) is an empty key list.
+    #[test]
+    fn parse_first_member_keys_shapes() {
+        let flat = json!([{ "metadata": { "keys": ["a", "b"] } }]);
+        let got = parse_first_member_keys(&flat, "metadata", false).unwrap();
+        assert_eq!(
+            got,
+            Some(Prop::List(
+                vec![Prop::Str("a".into()), Prop::Str("b".into())].into()
+            ))
+        );
+
+        let empty = json!([]);
+        let got = parse_first_member_keys(&empty, "metadata", false).unwrap();
+        assert_eq!(got, Some(Prop::List(Vec::<Prop>::new().into())));
+
+        let nested = json!([{ "page": [{ "properties": { "keys": ["x"] } }] }]);
+        let got = parse_first_member_keys(&nested, "properties", true).unwrap();
+        assert_eq!(got, Some(Prop::List(vec![Prop::Str("x".into())].into())));
+
+        let nested_empty_source = json!([{ "page": [] }]);
+        let got = parse_first_member_keys(&nested_empty_source, "properties", true).unwrap();
+        assert_eq!(got, Some(Prop::List(Vec::<Prop>::new().into())));
     }
 
     // ============ Unit tests for sort-by rendering ============
@@ -4762,7 +4946,7 @@ mod tests {
             .await
             .unwrap()
             .into_iter()
-            .map(|t| t.unwrap().timestamp.unwrap())
+            .map(|t| t.unwrap().t())
             .collect();
         assert_eq!(times, [1, 5]);
 
@@ -4771,7 +4955,7 @@ mod tests {
         let handles = exploded.collect().await.unwrap();
         assert_eq!(handles.len(), 2);
         for (handle, (expect_t, expect_w)) in handles.iter().zip([(1i64, 1i64), (5, 2)]) {
-            let t = handle.time().await.unwrap().unwrap().timestamp.unwrap();
+            let t = handle.time().await.unwrap().unwrap().t();
             assert_eq!(t, expect_t, "handle not pinned to its event");
             let w = handle
                 .properties()
@@ -4788,10 +4972,7 @@ mod tests {
         let e = rg.edge("x", "y").await.unwrap().unwrap();
         let single = e.explode().collect().await.unwrap();
         assert_eq!(single.len(), 2);
-        assert_eq!(
-            single[1].time().await.unwrap().unwrap().timestamp.unwrap(),
-            5
-        );
+        assert_eq!(single[1].time().await.unwrap().unwrap().t(), 5);
 
         // Layer-exploded members are re-addressable via the server's
         // `eventLayer` field: each handle resolves its `layer_name`, while

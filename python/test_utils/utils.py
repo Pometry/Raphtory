@@ -1,3 +1,4 @@
+import contextlib
 import json
 import os
 import re
@@ -112,11 +113,35 @@ def measure(name: str, f: Callable[..., B], *args, print_result: bool = True) ->
     return result
 
 
+@contextlib.contextmanager
+def graphql_server(graph=None, path="g"):
+    """Start a `GraphServer` in a temporary directory (removed on exit, after
+    the server has stopped) and yield its client. When `graph` is given it is
+    sent to the server at `path` first, ready to query.
+
+    The single shared way tests stand up a server — use this (directly or via
+    a fixture) instead of hand-rolling `tempfile` + `GraphServer` per test.
+    """
+    with tempfile.TemporaryDirectory() as work_dir:
+        with GraphServer(work_dir).start() as server:
+            client = server.get_client()
+            if graph is not None:
+                client.send_graph(path=path, graph=graph)
+            yield client
+
+
+@contextlib.contextmanager
+def remote_graph_server(name="g", graph_type="EVENT"):
+    """Start a `GraphServer` (via [`graphql_server`]), create one empty graph
+    on it, and yield `(RemoteGraph, RaphtoryClient)`. Callers populate the
+    yielded handle themselves — the write-path counterpart of passing a
+    pre-built graph to `graphql_server`."""
+    with graphql_server() as client:
+        yield client.new_graph(name, graph_type), client
+
+
 def run_graphql_test(query, expected_output, graph, sort_output=False):
-    tmp_work_dir = tempfile.mkdtemp()
-    with GraphServer(tmp_work_dir).start() as server:
-        client = server.get_client()
-        client.send_graph(path="g", graph=graph)
+    with graphql_server(graph) as client:
         response = client.query(query)
 
         # Convert response to a dictionary if needed and compare
@@ -130,10 +155,7 @@ def run_graphql_test(query, expected_output, graph, sort_output=False):
 
 
 def run_group_graphql_test(queries_and_expected_outputs, graph, sort_output=False):
-    tmp_work_dir = tempfile.mkdtemp()
-    with GraphServer(tmp_work_dir).start() as server:
-        client = server.get_client()
-        client.send_graph(path="g", graph=graph)
+    with graphql_server(graph) as client:
 
         for query, expected_output in queries_and_expected_outputs:
             response = client.query(query)
@@ -149,10 +171,7 @@ def run_group_graphql_test(queries_and_expected_outputs, graph, sort_output=Fals
 
 
 def run_graphql_error_test(query, expected_error_message, graph):
-    tmp_work_dir = tempfile.mkdtemp()
-    with GraphServer(tmp_work_dir).start() as server:
-        client = server.get_client()
-        client.send_graph(path="g", graph=graph)
+    with graphql_server(graph) as client:
 
         with pytest.raises(Exception) as excinfo:
             client.query(query)
@@ -167,10 +186,7 @@ def run_graphql_error_test(query, expected_error_message, graph):
 
 
 def run_group_graphql_error_test(queries_and_expected_error_messages, graph):
-    tmp_work_dir = tempfile.mkdtemp()
-    with GraphServer(tmp_work_dir).start() as server:
-        client = server.get_client()
-        client.send_graph(path="g", graph=graph)
+    with graphql_server(graph) as client:
         for query, expected_error_message in queries_and_expected_error_messages:
             with pytest.raises(Exception) as excinfo:
                 client.query(query)
@@ -184,10 +200,7 @@ def run_group_graphql_error_test(queries_and_expected_error_messages, graph):
 
 
 def run_graphql_error_test_contains(query, expected_substrings, graph):
-    tmp_work_dir = tempfile.mkdtemp()
-    with GraphServer(tmp_work_dir).start() as server:
-        client = server.get_client()
-        client.send_graph(path="g", graph=graph)
+    with graphql_server(graph) as client:
 
         with pytest.raises(Exception) as excinfo:
             client.query(query)
@@ -201,10 +214,7 @@ def run_graphql_error_test_contains(query, expected_substrings, graph):
 
 
 def run_graphql_compare_test(query_a, query_b, graph):
-    tmp_work_dir = tempfile.mkdtemp()
-    with GraphServer(tmp_work_dir).start() as server:
-        client = server.get_client()
-        client.send_graph(path="g", graph=graph)
+    with graphql_server(graph) as client:
 
         resp_a = client.query(query_a)
         resp_b = client.query(query_b)

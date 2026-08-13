@@ -631,11 +631,7 @@ impl PyRemoteTemporalProperty {
         let times = execute_async_task(move || async move { history.collect().await })?;
         let inner = Arc::clone(&self.inner);
         let vals = execute_async_task(move || async move { inner.values().await })?;
-        Ok(times
-            .into_iter()
-            .zip(vals)
-            .map(|(t, v)| (t.to_event_time().unwrap_or(EventTime::MIN), v))
-            .collect())
+        Ok(times.into_iter().zip(vals).collect())
     }
 
     /// `for (time, value) in temporal_property:` — iterate the `(time, value)`
@@ -651,8 +647,6 @@ impl PyRemoteTemporalProperty {
 /// `min` / `max` / `median` (a single pair) and each entry of
 /// `ordered_dedupe` (a list of pairs).
 /// A remote `(time, value)` pair as the native tuple the local API returns.
-/// A stored temporal value always carries a timestamp; MIN is an unreachable
-/// fallback for a malformed server response.
 fn tuple_to_py(t: RemotePropertyTuple) -> (EventTime, Prop) {
-    (t.time.to_event_time().unwrap_or(EventTime::MIN), t.value)
+    (t.time, t.value)
 }
