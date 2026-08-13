@@ -650,14 +650,45 @@ pub enum ReadExpr {
     // / `NestedEdges`. Each opens ONE net brace (the outer `list`); inner groups
     // self-balance. For `properties`, temporal values collapse to their latest
     // under the current view — matching the local columnar property views.
+    // Each variant carries an optional key whitelist: `None` fetches every
+    // property (the all-columns reads — `values`/`items`/`as_dict`); `Some`
+    // renders `values(keys: [..])` so the server filters to just those columns
+    // — the single-column `get(key)` never ships the rest of the collection's
+    // properties over the wire.
     /// FLAT: each member's metadata entries — one `[{key, value}]` per member.
-    CollectionMetadataValues { input: Arc<ReadExpr> },
+    CollectionMetadataValues {
+        input: Arc<ReadExpr>,
+        keys: Option<Arc<[String]>>,
+    },
     /// FLAT: each member's property entries (temporal → latest).
-    CollectionPropertiesValues { input: Arc<ReadExpr> },
+    CollectionPropertiesValues {
+        input: Arc<ReadExpr>,
+        keys: Option<Arc<[String]>>,
+    },
     /// NESTED: per-source per-member metadata entries.
-    NestedMetadataValues { input: Arc<ReadExpr> },
+    NestedMetadataValues {
+        input: Arc<ReadExpr>,
+        keys: Option<Arc<[String]>>,
+    },
     /// NESTED: per-source per-member property entries (temporal → latest).
-    NestedPropertiesValues { input: Arc<ReadExpr> },
+    NestedPropertiesValues {
+        input: Arc<ReadExpr>,
+        keys: Option<Arc<[String]>>,
+    },
+
+    // Collection-level key lookup. Local `MetadataView::keys()` reads the
+    // FIRST member's key set (the per-entity filtered property registry), so
+    // the remote mirrors that with a `page(limit: 1)` selection — one member's
+    // key names over the wire, never the collection's property values. Empty
+    // collection → empty key list, matching local's `unwrap_or_default()`.
+    /// FLAT: first member's metadata keys — `page(limit: 1) { metadata { keys } }`.
+    CollectionMetadataKeys { input: Arc<ReadExpr> },
+    /// FLAT: first member's property keys.
+    CollectionPropertiesKeys { input: Arc<ReadExpr> },
+    /// NESTED: first member of the first source — `page(limit: 1) { page(limit: 1) { … } }`.
+    NestedMetadataKeys { input: Arc<ReadExpr> },
+    /// NESTED: first member of the first source's property keys.
+    NestedPropertiesKeys { input: Arc<ReadExpr> },
 
     // ============ Node scalar terminals ============
     /// Terminal: node id — `String` (server may return int-like GID; treated as string).

@@ -27,7 +27,7 @@ use async_graphql::{async_trait, Value as GqlValue};
 use raphtory_api::core::entities::properties::prop::{Prop, PropType};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value as JsonValue};
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 /// Build the `TimeInput` variable value: a bare int, or `{timestamp, eventId}`
 /// when an explicit secondary index is given.
@@ -683,6 +683,16 @@ fn render_string_list(items: &[String]) -> String {
         .map(|s| render_gql_str(s))
         .collect::<Vec<_>>()
         .join(", ")
+}
+
+/// Append the optional `(keys: [..])` whitelist to a columnar `values` field.
+/// `None` (all columns) appends nothing.
+fn render_keys_filter(keys: &Option<Arc<[String]>>, out: &mut String) {
+    if let Some(keys) = keys {
+        out.push_str("(keys: [");
+        out.push_str(&render_string_list(keys));
+        out.push_str("])");
+    }
 }
 
 /// Render `SortByTime` as its GraphQL enum literal — the async_graphql
@@ -1647,23 +1657,54 @@ fn render_read_into(
         // `metadata` / `properties` container and read all `{key, value}`
         // entries. FLAT collections render `list { <container> { values { key
         // value } } }`.
-        ReadExpr::CollectionMetadataValues { input } => {
+        // A `Some` key whitelist renders as the server-side `values(keys: [..])`
+        // filter, so single-column reads never ship the other columns.
+        ReadExpr::CollectionMetadataValues { input, keys } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { list { metadata { values { key value dtype } } }");
+            out.push_str(" { list { metadata { values");
+            render_keys_filter(keys, out);
+            out.push_str(" { key value dtype } } }");
         }
-        ReadExpr::CollectionPropertiesValues { input } => {
+        ReadExpr::CollectionPropertiesValues { input, keys } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { list { properties { values { key value dtype } } }");
+            out.push_str(" { list { properties { values");
+            render_keys_filter(keys, out);
+            out.push_str(" { key value dtype } } }");
         }
         // NESTED collections render `list { list { <container> { values { key
         // value } } } }`.
-        ReadExpr::NestedMetadataValues { input } => {
+        ReadExpr::NestedMetadataValues { input, keys } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { list { list { metadata { values { key value dtype } } } }");
+            out.push_str(" { list { list { metadata { values");
+            render_keys_filter(keys, out);
+            out.push_str(" { key value dtype } } } }");
         }
-        ReadExpr::NestedPropertiesValues { input } => {
+        ReadExpr::NestedPropertiesValues { input, keys } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { list { list { properties { values { key value dtype } } } }");
+            out.push_str(" { list { list { properties { values");
+            render_keys_filter(keys, out);
+            out.push_str(" { key value dtype } } } }");
+        }
+        // Collection key lookup — the FIRST member's key set (mirrors the local
+        // views, whose `keys()` reads the first entity's filtered registry).
+        // `page(limit: 1)` keeps the wire cost at one member's key names.
+        ReadExpr::CollectionMetadataKeys { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { page(limit: 1) { metadata { keys } }");
+        }
+        ReadExpr::CollectionPropertiesKeys { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { page(limit: 1) { properties { keys } }");
+        }
+        // NESTED: first member of the first source (local nested views delegate
+        // to their first inner view, which reads ITS first member).
+        ReadExpr::NestedMetadataKeys { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { page(limit: 1) { page(limit: 1) { metadata { keys } } }");
+        }
+        ReadExpr::NestedPropertiesKeys { input } => {
+            render_read_into(input, vars, out)?;
+            out.push_str(" { page(limit: 1) { page(limit: 1) { properties { keys } } }");
         }
         // Compound structured terminal on Graph: `sharedNeighbours(selectedNodes: [ids]) { name }`
         // — opens ONE net brace (the outer, before `sharedNeighbours`); the inner
@@ -1929,10 +1970,14 @@ fn read_depth(expr: &ReadExpr) -> usize {
         | ReadExpr::NestedIsValid { input }
         | ReadExpr::NestedIsDeleted { input }
         | ReadExpr::NestedIsSelfLoop { input }
-        | ReadExpr::CollectionMetadataValues { input }
-        | ReadExpr::CollectionPropertiesValues { input }
-        | ReadExpr::NestedMetadataValues { input }
-        | ReadExpr::NestedPropertiesValues { input }
+        | ReadExpr::CollectionMetadataValues { input, .. }
+        | ReadExpr::CollectionPropertiesValues { input, .. }
+        | ReadExpr::NestedMetadataValues { input, .. }
+        | ReadExpr::NestedPropertiesValues { input, .. }
+        | ReadExpr::CollectionMetadataKeys { input }
+        | ReadExpr::CollectionPropertiesKeys { input }
+        | ReadExpr::NestedMetadataKeys { input }
+        | ReadExpr::NestedPropertiesKeys { input }
         | ReadExpr::SharedNeighbours { input, .. }
         | ReadExpr::FindNodes { input, .. }
         | ReadExpr::FindEdges { input, .. }
@@ -2198,6 +2243,54 @@ fn build_nested_property_column(
         })
         .collect();
     Ok(Some(Prop::List(rows?.into())))
+}
+
+/// Decode a collection key lookup: `terminal_val` is the limit-1 `page` array;
+/// the keys live at `[0].<container>.keys` (nested lookups tunnel through the
+/// inner limit-1 `page` first). An empty page — empty collection, or empty
+/// first source for nested — decodes to an empty key list, mirroring the local
+/// views' `unwrap_or_default()`.
+fn parse_first_member_keys(
+    terminal_val: &JsonValue,
+    container: &str,
+    nested: bool,
+) -> Result<Option<Prop>, ClientError> {
+    let page = terminal_val
+        .as_array()
+        .ok_or_else(|| ClientError::InvalidResponse("keys `page` not a JSON array".into()))?;
+    let Some(mut first) = page.first() else {
+        return Ok(Some(Prop::List(Vec::<Prop>::new().into())));
+    };
+    if nested {
+        let inner = first
+            .get("page")
+            .and_then(|v| v.as_array())
+            .ok_or_else(|| {
+                ClientError::InvalidResponse(
+                    "nested keys element missing inner `page` array".into(),
+                )
+            })?;
+        match inner.first() {
+            Some(member) => first = member,
+            None => return Ok(Some(Prop::List(Vec::<Prop>::new().into()))),
+        }
+    }
+    let keys = first
+        .get(container)
+        .and_then(|c| c.get("keys"))
+        .and_then(|k| k.as_array())
+        .ok_or_else(|| {
+            ClientError::InvalidResponse(format!("keys element missing `{container}.keys` array"))
+        })?;
+    let items: Result<Vec<Prop>, ClientError> = keys
+        .iter()
+        .map(|v| {
+            v.as_str()
+                .map(|s| Prop::Str(s.into()))
+                .ok_or_else(|| ClientError::InvalidResponse("property key is not a string".into()))
+        })
+        .collect();
+    Ok(Some(Prop::List(items?.into())))
 }
 
 fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientError> {
@@ -2979,6 +3072,22 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
         ReadExpr::NestedPropertiesValues { .. } => {
             build_nested_property_column(terminal_val, "properties")
         }
+        // Collection key lookup — `terminal_val` is the limit-1 `page` array;
+        // dig `[0].<container>.keys` (nested digs through the inner limit-1
+        // `page` first). An empty page (empty collection / empty first source)
+        // yields an empty key list, matching the local views.
+        ReadExpr::CollectionMetadataKeys { .. } => {
+            parse_first_member_keys(terminal_val, "metadata", false)
+        }
+        ReadExpr::CollectionPropertiesKeys { .. } => {
+            parse_first_member_keys(terminal_val, "properties", false)
+        }
+        ReadExpr::NestedMetadataKeys { .. } => {
+            parse_first_member_keys(terminal_val, "metadata", true)
+        }
+        ReadExpr::NestedPropertiesKeys { .. } => {
+            parse_first_member_keys(terminal_val, "properties", true)
+        }
         // Bool-shaped terminals.
         ReadExpr::HasNode { .. }
         | ReadExpr::HasEdge { .. }
@@ -3410,12 +3519,21 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
             | ReadExpr::NestedIsValid { input }
             | ReadExpr::NestedIsDeleted { input }
             | ReadExpr::NestedIsSelfLoop { input }
-            | ReadExpr::CollectionMetadataValues { input }
-            | ReadExpr::CollectionPropertiesValues { input }
-            | ReadExpr::NestedMetadataValues { input }
-            | ReadExpr::NestedPropertiesValues { input } => {
+            | ReadExpr::CollectionMetadataValues { input, .. }
+            | ReadExpr::CollectionPropertiesValues { input, .. }
+            | ReadExpr::NestedMetadataValues { input, .. }
+            | ReadExpr::NestedPropertiesValues { input, .. } => {
                 go(input, out);
                 out.push("list");
+            }
+            // Collection key lookup navigates into the limit-1 `page`; the
+            // parse arm digs the rest (`[0].<container>.keys`).
+            ReadExpr::CollectionMetadataKeys { input }
+            | ReadExpr::CollectionPropertiesKeys { input }
+            | ReadExpr::NestedMetadataKeys { input }
+            | ReadExpr::NestedPropertiesKeys { input } => {
+                go(input, out);
+                out.push("page");
             }
             ReadExpr::SharedNeighbours { input, .. } => {
                 go(input, out);
@@ -4045,10 +4163,14 @@ fn child_input(expr: &ReadExpr) -> Option<&ReadExpr> {
         | ReadExpr::NestedIsValid { input }
         | ReadExpr::NestedIsDeleted { input }
         | ReadExpr::NestedIsSelfLoop { input }
-        | ReadExpr::CollectionMetadataValues { input }
-        | ReadExpr::CollectionPropertiesValues { input }
-        | ReadExpr::NestedMetadataValues { input }
-        | ReadExpr::NestedPropertiesValues { input }
+        | ReadExpr::CollectionMetadataValues { input, .. }
+        | ReadExpr::CollectionPropertiesValues { input, .. }
+        | ReadExpr::NestedMetadataValues { input, .. }
+        | ReadExpr::NestedPropertiesValues { input, .. }
+        | ReadExpr::CollectionMetadataKeys { input }
+        | ReadExpr::CollectionPropertiesKeys { input }
+        | ReadExpr::NestedMetadataKeys { input }
+        | ReadExpr::NestedPropertiesKeys { input }
         | ReadExpr::SharedNeighbours { input, .. }
         | ReadExpr::FindNodes { input, .. }
         | ReadExpr::FindEdges { input, .. }
@@ -4147,6 +4269,103 @@ mod tests {
         let opens = query.matches('{').count();
         let closes = query.matches('}').count();
         assert_eq!(opens, closes, "unbalanced braces in: {query}");
+    }
+
+    /// A `Some` key whitelist renders the server-side `values(keys: [..])`
+    /// filter; `None` renders bare `values` (all columns). Pins the lazy
+    /// single-column fetch shape.
+    #[test]
+    fn columnar_values_render_keys_whitelist() {
+        let nodes = ReadExpr::Nodes {
+            input: Arc::new(ReadExpr::Root { path: "g".into() }),
+        };
+        let one = ReadExpr::CollectionPropertiesValues {
+            input: Arc::new(nodes.clone()),
+            keys: Some(vec!["score".to_string()].into()),
+        };
+        let (query, _) = render_read(&one).unwrap();
+        assert!(
+            query.contains("properties { values(keys: [\"score\"]) { key value dtype } }"),
+            "whitelist not rendered: {query}"
+        );
+        assert_eq!(
+            query.matches('{').count(),
+            query.matches('}').count(),
+            "unbalanced braces in: {query}"
+        );
+
+        let all = ReadExpr::CollectionPropertiesValues {
+            input: Arc::new(nodes),
+            keys: None,
+        };
+        let (query, _) = render_read(&all).unwrap();
+        assert!(
+            query.contains("properties { values { key value dtype } }"),
+            "bare values not rendered: {query}"
+        );
+    }
+
+    /// Collection key lookup renders a `page(limit: 1)` selection — the first
+    /// member's key names, never the collection's property values. Nested
+    /// tunnels through the first source's own limit-1 page.
+    #[test]
+    fn columnar_keys_render_first_member_page() {
+        let nodes = ReadExpr::Nodes {
+            input: Arc::new(ReadExpr::Root { path: "g".into() }),
+        };
+        let flat = ReadExpr::CollectionMetadataKeys {
+            input: Arc::new(nodes.clone()),
+        };
+        let (query, _) = render_read(&flat).unwrap();
+        assert!(
+            query.contains("page(limit: 1) { metadata { keys } }"),
+            "first-member keys not rendered: {query}"
+        );
+        assert_eq!(
+            query.matches('{').count(),
+            query.matches('}').count(),
+            "unbalanced braces in: {query}"
+        );
+
+        let nested = ReadExpr::NestedPropertiesKeys {
+            input: Arc::new(nodes),
+        };
+        let (query, _) = render_read(&nested).unwrap();
+        assert!(
+            query.contains("page(limit: 1) { page(limit: 1) { properties { keys } } }"),
+            "nested first-member keys not rendered: {query}"
+        );
+        assert_eq!(
+            query.matches('{').count(),
+            query.matches('}').count(),
+            "unbalanced braces in: {query}"
+        );
+    }
+
+    /// Decoding a key lookup: keys at `page[0].<container>.keys`; an empty
+    /// page (empty collection / empty first source) is an empty key list.
+    #[test]
+    fn parse_first_member_keys_shapes() {
+        let flat = json!([{ "metadata": { "keys": ["a", "b"] } }]);
+        let got = parse_first_member_keys(&flat, "metadata", false).unwrap();
+        assert_eq!(
+            got,
+            Some(Prop::List(
+                vec![Prop::Str("a".into()), Prop::Str("b".into())].into()
+            ))
+        );
+
+        let empty = json!([]);
+        let got = parse_first_member_keys(&empty, "metadata", false).unwrap();
+        assert_eq!(got, Some(Prop::List(Vec::<Prop>::new().into())));
+
+        let nested = json!([{ "page": [{ "properties": { "keys": ["x"] } }] }]);
+        let got = parse_first_member_keys(&nested, "properties", true).unwrap();
+        assert_eq!(got, Some(Prop::List(vec![Prop::Str("x".into())].into())));
+
+        let nested_empty_source = json!([{ "page": [] }]);
+        let got = parse_first_member_keys(&nested_empty_source, "properties", true).unwrap();
+        assert_eq!(got, Some(Prop::List(Vec::<Prop>::new().into())));
     }
 
     // ============ Unit tests for sort-by rendering ============
