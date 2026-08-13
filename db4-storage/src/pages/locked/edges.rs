@@ -19,10 +19,7 @@ use parking_lot::{RawRwLock, lock_api::ArcRwLockWriteGuard};
 use raphtory_api::core::entities::LayerId;
 use raphtory_core::entities::{EID, ELID};
 use rayon::prelude::*;
-use std::{
-    ops::{Deref, DerefMut},
-    path::Path,
-};
+use std::path::Path;
 
 #[derive(Debug)]
 pub struct LockedEdgePage<ES> {

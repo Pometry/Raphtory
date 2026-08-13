@@ -5,7 +5,7 @@ use crate::{
 use parking_lot::{RawRwLock, lock_api::ArcRwLockWriteGuard};
 use raphtory_api::core::entities::properties::prop::Prop;
 use raphtory_core::storage::timeindex::AsTime;
-use std::{ops::DerefMut, sync::Arc, path::Path};
+use std::{ops::DerefMut, path::Path, sync::Arc};
 
 pub struct LockedGraphPropPage<GS: GraphPropSegmentOps> {
     page: Arc<GS>,

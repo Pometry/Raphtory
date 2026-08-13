@@ -18,8 +18,8 @@ use raphtory_api::core::entities::{
 use raphtory_core::entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef};
 use std::{fmt::Debug, iter, path::Path, sync::Arc};
 use storage::{
-    pages::SegmentCounts, persist::strategy::PersistenceStrategy,
-    state::StateIndex, Extension, GraphPropEntry,
+    pages::SegmentCounts, persist::strategy::PersistenceStrategy, state::StateIndex, Extension,
+    GraphPropEntry,
 };
 use thiserror::Error;
 

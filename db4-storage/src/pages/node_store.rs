@@ -1,7 +1,7 @@
 use super::{node_page::writer::NodeWriter, resolve_pos};
 use crate::{
     LocalPOS,
-    api::nodes::{ReadLockedNodeSegmentOps, NodeSegmentOps},
+    api::nodes::{NodeSegmentOps, ReadLockedNodeSegmentOps},
     error::StorageError,
     pages::{
         SegmentCounts,
@@ -63,7 +63,8 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     pub fn try_node_ref(
         &self,
         node: VID,
-    ) -> Option<<<NS as NodeSegmentOps>::ReadLockedSegment as ReadLockedNodeSegmentOps>::EntryRef<'_>> {
+    ) -> Option<<<NS as NodeSegmentOps>::ReadLockedSegment as ReadLockedNodeSegmentOps>::EntryRef<'_>>
+    {
         let (segment_id, pos) = self.storage.resolve_pos(node);
         let locked_segment = &self.locked_segments.get(segment_id)?;
         if pos.0 < locked_segment.num_nodes() {
@@ -84,7 +85,9 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     pub fn iter(
         &self,
     ) -> impl Iterator<
-        Item = <<NS as NodeSegmentOps>::ReadLockedSegment as ReadLockedNodeSegmentOps>::EntryRef<'_>,
+        Item = <<NS as NodeSegmentOps>::ReadLockedSegment as ReadLockedNodeSegmentOps>::EntryRef<
+            '_,
+        >,
     > + '_ {
         self.locked_segments
             .iter()
@@ -101,7 +104,9 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     pub fn par_iter(
         &self,
     ) -> impl ParallelIterator<
-        Item = <<NS as NodeSegmentOps>::ReadLockedSegment as ReadLockedNodeSegmentOps>::EntryRef<'_>,
+        Item = <<NS as NodeSegmentOps>::ReadLockedSegment as ReadLockedNodeSegmentOps>::EntryRef<
+            '_,
+        >,
     > + '_ {
         self.locked_segments
             .par_iter()

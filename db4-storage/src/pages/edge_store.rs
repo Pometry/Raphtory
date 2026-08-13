@@ -69,7 +69,9 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
         &'a self,
         layer_ids: &'b LayerIds,
     ) -> impl Iterator<
-        Item = <<ES as EdgeSegmentOps>::ReadLockedSegment as ReadLockedEdgeSegmentOps>::EntryRef<'a>,
+        Item = <<ES as EdgeSegmentOps>::ReadLockedSegment as ReadLockedEdgeSegmentOps>::EntryRef<
+            'a,
+        >,
     > + 'a {
         self.locked_pages
             .iter()
@@ -80,7 +82,9 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
         &'a self,
         layer_ids: &'b LayerIds,
     ) -> impl ParallelIterator<
-        Item = <<ES as EdgeSegmentOps>::ReadLockedSegment as ReadLockedEdgeSegmentOps>::EntryRef<'a>,
+        Item = <<ES as EdgeSegmentOps>::ReadLockedSegment as ReadLockedEdgeSegmentOps>::EntryRef<
+            'a,
+        >,
     > + 'a {
         self.locked_pages
             .par_iter()
