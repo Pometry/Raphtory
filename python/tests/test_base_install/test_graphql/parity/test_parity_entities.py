@@ -75,11 +75,16 @@ COLLECTION_READS = [
     ("node_degrees", lambda g: sorted(n.degree() for n in g.nodes)),
     ("edge_pairs", lambda g: sorted((e.src.name, e.dst.name) for e in g.edges)),
     ("edge_count", lambda g: g.edges.count()),
-    ("layer_edges", lambda g: sorted((e.src.name, e.dst.name) for e in g.layer("knows").edges)),
+    (
+        "layer_edges",
+        lambda g: sorted((e.src.name, e.dst.name) for e in g.layer("knows").edges),
+    ),
 ]
 
 
-@pytest.mark.parametrize("name,fn", COLLECTION_READS, ids=[c[0] for c in COLLECTION_READS])
+@pytest.mark.parametrize(
+    "name,fn", COLLECTION_READS, ids=[c[0] for c in COLLECTION_READS]
+)
 def test_collection_read_parity(rich_pair, name, fn):
     assert_parity(rich_pair, fn)
 
