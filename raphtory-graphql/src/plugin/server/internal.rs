@@ -34,6 +34,12 @@ pub trait ServerPluginImpl: Send + Sync + 'static {
     fn augment_args(&self, cmd: Command) -> Command;
 
     fn augment_args_for_update(&self, cmd: Command) -> Command;
+
+    fn boxed_clone(&self) -> Box<dyn ServerPluginImpl>;
+
+    fn name(&self) -> String {
+        self.new_boxed_args().name().to_string()
+    }
 }
 
 impl<T: ServerPlugin> ServerPluginImpl for T {
@@ -47,5 +53,9 @@ impl<T: ServerPlugin> ServerPluginImpl for T {
 
     fn augment_args_for_update(&self, cmd: Command) -> Command {
         <T::Extension as clap::Args>::augment_args_for_update(cmd)
+    }
+
+    fn boxed_clone(&self) -> Box<dyn ServerPluginImpl> {
+        Box::new(self.clone())
     }
 }

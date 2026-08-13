@@ -200,6 +200,7 @@ field_types = "1.1.0"
 opentelemetry-appender-tracing = "0.32.0"
 mock-collector = "0.2.14"
 dyn-clone = "1.0.20"
+inventory = "0.3.24"
 
 [workspace.dependencies.storage]
 package = "db4-storage"

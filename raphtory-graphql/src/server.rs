@@ -67,6 +67,7 @@ use {
     raphtory::vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate},
 };
 
+use crate::plugin::server::PluginRegistrationError;
 pub use config::ConfigError;
 
 pub const DEFAULT_PORT: u16 = 1736;
@@ -116,6 +117,8 @@ pub enum ServerError {
     SchemaError(String),
     #[error("Failed to create endpoints: {0}")]
     EndpointError(String),
+    #[error(transparent)]
+    CliPluginRegistrationError(#[from] PluginRegistrationError),
 }
 
 impl ServerError {

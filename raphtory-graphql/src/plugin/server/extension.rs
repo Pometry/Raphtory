@@ -1,5 +1,9 @@
 pub(crate) use crate::plugin::server::internal::ServerExtensionImpl;
-use crate::{plugin::server::EXTENSIONS, server::ServerError, GraphServer};
+use crate::{
+    plugin::server::{get_plugin, get_plugins, EXTENSIONS},
+    server::ServerError,
+    GraphServer,
+};
 use clap::{ArgMatches, Command};
 use config::ConfigError;
 use indexmap::{map::IntoValues, IndexMap};
@@ -85,10 +89,7 @@ impl<'de> Deserialize<'de> for ArgExtensions {
             {
                 let mut exts = ArgExtensions(IndexMap::new());
                 while let Some((key, value)) = map.next_entry::<&str, Value>()? {
-                    let guard = EXTENSIONS.lock().expect("extensions lock poisoned");
-                    let plugin_factory = guard
-                        .get(key)
-                        .ok_or_else(|| de::Error::custom(format!("unknown plugin {key}")))?;
+                    let plugin_factory = get_plugin(key).map_err(de::Error::custom)?;
                     let mut plugin = plugin_factory.new_boxed_args();
                     plugin.update_from_json(&value).map_err(de::Error::custom)?;
                     exts.push_boxed(plugin);
@@ -150,14 +151,7 @@ impl ArgExtensions {
                 for (name, value) in map {
                     match self.0.get_mut(name) {
                         None => {
-                            let mut ext = EXTENSIONS
-                                .lock()
-                                .expect("plugin lock poisoned")
-                                .get(name)
-                                .ok_or_else(|| {
-                                    ConfigError::Message(format!("Unknown plugin {name}"))
-                                })?
-                                .new_boxed_args();
+                            let mut ext = get_plugin(name)?.new_boxed_args();
                             ext.update_from_json(value)?;
                             self.push_boxed(ext);
                         }
@@ -180,14 +174,11 @@ impl ArgExtensions {
 impl clap::FromArgMatches for ArgExtensions {
     fn from_arg_matches(matches: &ArgMatches) -> Result<Self, clap::Error> {
         Ok(ArgExtensions(
-            EXTENSIONS
-                .lock()
-                .expect("plugin lock poisoned")
-                .iter()
-                .map(|(name, ext)| {
+            get_plugins()
+                .map(|(ext)| {
                     let mut plugin = ext.new_boxed_args();
                     plugin.dyn_update_from_arg_matches(matches)?;
-                    Ok::<_, clap::Error>((name.clone(), plugin))
+                    Ok::<_, clap::Error>((plugin.name().to_string(), plugin))
                 })
                 .collect::<Result<_, clap::Error>>()?,
         ))
@@ -203,14 +194,14 @@ impl clap::FromArgMatches for ArgExtensions {
 
 impl clap::Args for ArgExtensions {
     fn augment_args(mut cmd: Command) -> Command {
-        for plugin in EXTENSIONS.lock().expect("plugin lock poisoned").values() {
+        for plugin in get_plugins() {
             cmd = plugin.augment_args(cmd);
         }
         cmd
     }
 
     fn augment_args_for_update(mut cmd: Command) -> Command {
-        for plugin in EXTENSIONS.lock().expect("plugin lock poisoned").values() {
+        for plugin in get_plugins() {
             cmd = plugin.augment_args_for_update(cmd);
         }
         cmd

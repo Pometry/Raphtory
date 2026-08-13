@@ -9,11 +9,9 @@ use raphtory_graphql::{
     model::QueryRoot,
     plugin::{
         schema::RegisterPlugin,
-        server::{
-            extension::ServerExtension,
-            plugin::{register_cli_plugin, ServerPlugin},
-        },
+        server::{extension::ServerExtension, plugin::ServerPlugin},
     },
+    register_cli_plugin,
     server::ServerError,
     GraphServer,
 };
@@ -80,6 +78,7 @@ impl RegisterPlugin for TestSchemaPlugin {
     }
 }
 
+#[derive(Copy, Clone)]
 struct TestArgPlugin;
 impl ServerPlugin for TestArgPlugin {
     type Extension = TestArgs;
@@ -88,9 +87,10 @@ impl ServerPlugin for TestArgPlugin {
     }
 }
 
+register_cli_plugin!(TestArgPlugin);
+
 #[tokio::test]
 async fn test_cli_parsing_extension() {
-    register_cli_plugin(TestArgPlugin);
     let mut cmd = raphtory_graphql::cli::Args::command();
 
     // make sure the `--test` option appears in the help for server arguments
@@ -175,8 +175,6 @@ async fn test_extension_via_conf() {
 
 #[tokio::test]
 async fn test_config_file_cmd_override() {
-    register_cli_plugin(TestArgPlugin);
-
     let mut config_file = NamedTempFile::with_suffix(".toml").unwrap();
     write!(
         &mut config_file,
@@ -215,8 +213,6 @@ async fn test_config_file_cmd_override() {
 
 #[tokio::test]
 async fn test_config_file() {
-    register_cli_plugin(TestArgPlugin);
-
     let mut config_file = NamedTempFile::with_suffix(".toml").unwrap();
     write!(
         &mut config_file,
