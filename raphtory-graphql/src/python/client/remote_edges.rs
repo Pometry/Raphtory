@@ -1,4 +1,3 @@
-use raphtory_api::python::timeindex::PyOptionalEventTime;
 use crate::{
     client::{remote_edges::RemoteEdges, ClientError},
     python::client::{
@@ -10,7 +9,10 @@ use crate::{
 };
 use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyRef, PyRefMut, PyResult};
 use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
-use raphtory_api::core::{storage::timeindex::EventTime, utils::time::InputTime};
+use raphtory_api::{
+    core::{storage::timeindex::EventTime, utils::time::InputTime},
+    python::timeindex::PyOptionalEventTime,
+};
 use std::sync::Arc;
 
 /// A handle to a remote collection of edges.
@@ -533,9 +535,7 @@ impl PyRemoteEdges {
     #[getter]
     pub fn start(&self) -> Result<PyOptionalEventTime, ClientError> {
         let edges = Arc::clone(&self.edges);
-        Ok(execute_async_task(
-            move || async move { edges.start().await },
-        )?.into())
+        Ok(execute_async_task(move || async move { edges.start().await })?.into())
     }
 
     /// View end bound for this collection — `None` if unbounded. Property —
@@ -546,9 +546,7 @@ impl PyRemoteEdges {
     #[getter]
     pub fn end(&self) -> Result<PyOptionalEventTime, ClientError> {
         let edges = Arc::clone(&self.edges);
-        Ok(execute_async_task(
-            move || async move { edges.end().await },
-        )?.into())
+        Ok(execute_async_task(move || async move { edges.end().await })?.into())
     }
 
     /// Materialize this collection as a list of `RemoteEdge` handles.

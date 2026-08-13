@@ -1,4 +1,3 @@
-use raphtory_api::python::timeindex::PyOptionalEventTime;
 use crate::{
     client::{remote_edge::RemoteEdge, ClientError},
     python::client::{
@@ -10,8 +9,11 @@ use crate::{
 };
 use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyResult};
 use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
-use raphtory_api::core::{
-    entities::properties::prop::Prop, storage::timeindex::EventTime, utils::time::InputTime,
+use raphtory_api::{
+    core::{
+        entities::properties::prop::Prop, storage::timeindex::EventTime, utils::time::InputTime,
+    },
+    python::timeindex::PyOptionalEventTime,
 };
 use std::{collections::HashMap, sync::Arc};
 
@@ -394,9 +396,7 @@ impl PyRemoteEdge {
     #[getter]
     pub fn earliest_time(&self) -> Result<PyOptionalEventTime, ClientError> {
         let edge = Arc::clone(&self.edge);
-        Ok(execute_async_task(move || async move {
-            edge.earliest_time().await
-        })?.into())
+        Ok(execute_async_task(move || async move { edge.earliest_time().await })?.into())
     }
 
     /// Latest event time on this edge under the current view. Property — RPC.
@@ -407,9 +407,7 @@ impl PyRemoteEdge {
     #[getter]
     pub fn latest_time(&self) -> Result<PyOptionalEventTime, ClientError> {
         let edge = Arc::clone(&self.edge);
-        Ok(execute_async_task(move || async move {
-            edge.latest_time().await
-        })?.into())
+        Ok(execute_async_task(move || async move { edge.latest_time().await })?.into())
     }
 
     /// First update timestamp on this edge under the current view. Fires one RPC.
@@ -441,9 +439,7 @@ impl PyRemoteEdge {
     #[getter]
     pub fn time(&self) -> Result<PyOptionalEventTime, ClientError> {
         let edge = Arc::clone(&self.edge);
-        Ok(execute_async_task(
-            move || async move { edge.time().await },
-        )?.into())
+        Ok(execute_async_task(move || async move { edge.time().await })?.into())
     }
 
     /// View start bound as seen by this edge. Property — fires one RPC.
@@ -453,9 +449,7 @@ impl PyRemoteEdge {
     #[getter]
     pub fn start(&self) -> Result<PyOptionalEventTime, ClientError> {
         let edge = Arc::clone(&self.edge);
-        Ok(execute_async_task(
-            move || async move { edge.start().await },
-        )?.into())
+        Ok(execute_async_task(move || async move { edge.start().await })?.into())
     }
 
     /// View end bound as seen by this edge. Property — fires one RPC.

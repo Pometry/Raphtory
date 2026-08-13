@@ -1,4 +1,3 @@
-use raphtory_api::python::timeindex::PyOptionalEventTime;
 use crate::{
     client::{
         op::{
@@ -19,10 +18,13 @@ use crate::{
 };
 use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyResult};
 use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
-use raphtory_api::core::{
-    entities::{properties::prop::Prop, GID},
-    storage::timeindex::EventTime,
-    utils::time::InputTime,
+use raphtory_api::{
+    core::{
+        entities::{properties::prop::Prop, GID},
+        storage::timeindex::EventTime,
+        utils::time::InputTime,
+    },
+    python::timeindex::PyOptionalEventTime,
 };
 use std::{collections::HashMap, sync::Arc};
 
@@ -366,9 +368,7 @@ impl PyRemoteGraph {
     #[getter]
     pub fn earliest_time(&self) -> Result<PyOptionalEventTime, ClientError> {
         let graph = Arc::clone(&self.graph);
-        Ok(execute_async_task(move || async move {
-            graph.earliest_time().await
-        })?.into())
+        Ok(execute_async_task(move || async move { graph.earliest_time().await })?.into())
     }
 
     /// Latest event time under the current view. Property — fires one RPC.
@@ -378,9 +378,7 @@ impl PyRemoteGraph {
     #[getter]
     pub fn latest_time(&self) -> Result<PyOptionalEventTime, ClientError> {
         let graph = Arc::clone(&self.graph);
-        Ok(execute_async_task(move || async move {
-            graph.latest_time().await
-        })?.into())
+        Ok(execute_async_task(move || async move { graph.latest_time().await })?.into())
     }
 
     /// View start bound. `None` for an unbounded view. Property — fires one RPC.
@@ -390,9 +388,7 @@ impl PyRemoteGraph {
     #[getter]
     pub fn start(&self) -> Result<PyOptionalEventTime, ClientError> {
         let graph = Arc::clone(&self.graph);
-        Ok(execute_async_task(
-            move || async move { graph.start().await },
-        )?.into())
+        Ok(execute_async_task(move || async move { graph.start().await })?.into())
     }
 
     /// View end bound. `None` for an unbounded view. Property — fires one RPC.
@@ -402,9 +398,7 @@ impl PyRemoteGraph {
     #[getter]
     pub fn end(&self) -> Result<PyOptionalEventTime, ClientError> {
         let graph = Arc::clone(&self.graph);
-        Ok(execute_async_task(
-            move || async move { graph.end().await },
-        )?.into())
+        Ok(execute_async_task(move || async move { graph.end().await })?.into())
     }
 
     /// Terminal: graph creation timestamp. Fires one RPC.

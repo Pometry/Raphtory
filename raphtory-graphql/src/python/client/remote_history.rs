@@ -1,4 +1,3 @@
-use raphtory_api::python::timeindex::PyOptionalEventTime;
 use crate::client::{
     remote_history::{
         RemoteHistory, RemoteHistoryDateTimes, RemoteHistoryEventIds, RemoteHistoryTimestamps,
@@ -14,7 +13,7 @@ use pyo3::{
     Bound, IntoPyObject, Py, PyAny, PyRef, PyRefMut, PyResult, Python,
 };
 use raphtory::python::utils::execute_async_task;
-use raphtory_api::core::storage::timeindex::EventTime;
+use raphtory_api::{core::storage::timeindex::EventTime, python::timeindex::PyOptionalEventTime};
 use std::sync::Arc;
 
 /// A handle to the event history of a remote node or edge.
@@ -67,9 +66,7 @@ impl PyRemoteHistory {
     ///   OptionalEventTime: the earliest event time, or empty.
     pub fn earliest_time(&self) -> Result<PyOptionalEventTime, ClientError> {
         let history = Arc::clone(&self.history);
-        Ok(execute_async_task(move || async move {
-            history.earliest_time().await
-        })?.into())
+        Ok(execute_async_task(move || async move { history.earliest_time().await })?.into())
     }
 
     /// Latest event time in this history — `None` if empty. Fires one RPC.
@@ -78,9 +75,7 @@ impl PyRemoteHistory {
     ///   OptionalEventTime: the latest event time, or empty.
     pub fn latest_time(&self) -> Result<PyOptionalEventTime, ClientError> {
         let history = Arc::clone(&self.history);
-        Ok(execute_async_task(move || async move {
-            history.latest_time().await
-        })?.into())
+        Ok(execute_async_task(move || async move { history.latest_time().await })?.into())
     }
 
     /// All events in this history in ascending time order. Fires one RPC.

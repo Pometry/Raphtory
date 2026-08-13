@@ -1,4 +1,3 @@
-use raphtory_api::python::timeindex::PyOptionalEventTime;
 use crate::{
     client::{remote_node::RemoteNode, ClientError},
     python::client::{
@@ -14,8 +13,11 @@ use pyo3::{
     pyclass, pymethods, PyResult,
 };
 use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
-use raphtory_api::core::{
-    entities::properties::prop::Prop, storage::timeindex::EventTime, utils::time::InputTime,
+use raphtory_api::{
+    core::{
+        entities::properties::prop::Prop, storage::timeindex::EventTime, utils::time::InputTime,
+    },
+    python::timeindex::PyOptionalEventTime,
 };
 use std::{collections::HashMap, sync::Arc};
 
@@ -382,9 +384,7 @@ impl PyRemoteNode {
     #[getter]
     pub fn earliest_time(&self) -> Result<PyOptionalEventTime, ClientError> {
         let node = Arc::clone(&self.node);
-        Ok(execute_async_task(move || async move {
-            node.earliest_time().await
-        })?.into())
+        Ok(execute_async_task(move || async move { node.earliest_time().await })?.into())
     }
 
     /// Latest event time on this node. Property — attribute access fires one RPC.
@@ -395,9 +395,7 @@ impl PyRemoteNode {
     #[getter]
     pub fn latest_time(&self) -> Result<PyOptionalEventTime, ClientError> {
         let node = Arc::clone(&self.node);
-        Ok(execute_async_task(move || async move {
-            node.latest_time().await
-        })?.into())
+        Ok(execute_async_task(move || async move { node.latest_time().await })?.into())
     }
 
     /// View start bound as seen by this node. Property — fires one RPC.
@@ -407,9 +405,7 @@ impl PyRemoteNode {
     #[getter]
     pub fn start(&self) -> Result<PyOptionalEventTime, ClientError> {
         let node = Arc::clone(&self.node);
-        Ok(execute_async_task(
-            move || async move { node.start().await },
-        )?.into())
+        Ok(execute_async_task(move || async move { node.start().await })?.into())
     }
 
     /// View end bound as seen by this node. Property — fires one RPC.
