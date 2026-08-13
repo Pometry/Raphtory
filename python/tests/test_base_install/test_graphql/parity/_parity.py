@@ -242,10 +242,10 @@ KNOWN_GAPS = {
     "filter.nested_edges.filter": (
         "RemoteNestedEdges.filter has no local counterpart (as " "filter.edges.filter)"
     ),
-    "filter.collection.select": (
-        "select() — the remote's explicit narrow-here-only form — has no local "
-        "counterpart; locally only the collection[expr] sugar exists"
-    ),
+    # `select()` used to be ledgered here as remote-only. It is remote-only, but
+    # that is an additive extra rather than a divergence: the `collection[expr]`
+    # sugar both sides share lowers to the same server field, and is covered as
+    # an ordinary matrix in test_parity_filters.py (`GETITEM_SITES`).
     "filter.node.by_state_column": (
         "filter.Node.by_state_column needs a boolean OutputNodeState column, "
         "and no algorithm on the drop-in surface produces one, so the "

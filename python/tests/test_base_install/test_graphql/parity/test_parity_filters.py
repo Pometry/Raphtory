@@ -1151,19 +1151,6 @@ FILTER_GAP_CASES = [
             for sub in g.nodes.edges.filter(f.Edge.property("weight") > 2.0)
         ),
     ),
-    # `select` is the remote's explicit narrow-here-only form; locally only the
-    # `[expr]` sugar exists.
-    (
-        "filter.collection.select",
-        lambda g: sorted(n.name for n in g.nodes.select(f.Node.property("score") > 15)),
-    ),
-    (
-        "filter.collection.select",
-        lambda g: sorted(
-            (e.src.name, e.dst.name)
-            for e in g.edges.select(f.Edge.property("weight") > 2.0)
-        ),
-    ),
 ]
 
 _GAP_IDS = [f"{key}-{i}" for i, (key, _) in enumerate(FILTER_GAP_CASES)]
