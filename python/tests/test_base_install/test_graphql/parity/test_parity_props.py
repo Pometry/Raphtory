@@ -114,29 +114,29 @@ def test_typed_property_dtypes_are_exact(typed_pair):
 def test_list_property_order_parity(typed_pair):
     """List element *order* survives, not just the multiset of elements.
 
-    The comparator sorts iterables, so the list is joined into a string first —
-    a reordering would then be a string diff rather than compare equal.
+    Compared directly: the comparator only reorders entity collections, so a
+    list property keeps its order all the way to the assertion.
     """
-    assert_parity(
-        typed_pair,
-        lambda g: ",".join(str(v) for v in g.node("a").properties.get("p_list")),
-    )
+    assert_parity(typed_pair, lambda g: g.node("a").properties.get("p_list"))
 
 
 # --- non-finite floats ------------------------------------------------------
 
 
+# Every non-finite float, at both widths, and the value it must read back as.
+_NON_FINITE = {
+    "nan": (float("nan"), math.nan),
+    "pos_inf": (float("inf"), math.inf),
+    "neg_inf": (float("-inf"), -math.inf),
+    "nan_f32": (Prop.f32(float("nan")), math.nan),
+    "pos_inf_f32": (Prop.f32(float("inf")), math.inf),
+    "neg_inf_f32": (Prop.f32(float("-inf")), -math.inf),
+}
+
+
 def _build_non_finite(g):
     g.add_node(
-        1,
-        "a",
-        properties={
-            "nan": float("nan"),
-            "pos_inf": float("inf"),
-            "neg_inf": float("-inf"),
-            "nan_f32": Prop.f32(float("nan")),
-            "pos_inf_f32": Prop.f32(float("inf")),
-        },
+        1, "a", properties={k: written for k, (written, _) in _NON_FINITE.items()}
     )
 
 
@@ -146,32 +146,29 @@ def non_finite_pair():
         yield pair
 
 
-NON_FINITE_KEYS = ["nan", "pos_inf", "neg_inf", "nan_f32", "pos_inf_f32"]
+@pytest.mark.parametrize("key", list(_NON_FINITE))
+def test_non_finite_float_round_trips(non_finite_pair, key):
+    """Each non-finite float reads back as itself, on both sides.
 
-
-@pytest.mark.parametrize("key", NON_FINITE_KEYS)
-def test_non_finite_float_parity(non_finite_pair, key):
-    # The comparator already folds NaN to a sentinel (NaN != NaN would make a
-    # direct compare always fail), and ±inf compares by identity.
-    assert_parity(non_finite_pair, lambda g: g.node("a").properties.get(key))
-
-
-@pytest.mark.parametrize("key", ["nan", "nan_f32"])
-def test_nan_is_nan_on_both_sides(non_finite_pair, key):
-    """Explicitly assert NaN-ness per side — a `None` would silently pass the
-    comparator's sentinel folding if both sides degraded the same way."""
-    for side in (non_finite_pair.local, non_finite_pair.remote):
-        value = side.node("a").properties.get(key)
-        assert isinstance(value, float) and math.isnan(
-            value
-        ), f"expected NaN for {key!r}, got {value!r}"
-
-
-def test_infinities_are_infinite_on_both_sides(non_finite_pair):
-    for side in (non_finite_pair.local, non_finite_pair.remote):
-        props = side.node("a").properties
-        assert props.get("pos_inf") == math.inf
-        assert props.get("neg_inf") == -math.inf
+    Asserted per side against an expected value rather than through the
+    comparator: ``nan != nan`` in IEEE arithmetic, so a parity comparison would
+    fail on two *correct* answers. Pinning the value is also strictly stronger,
+    because it catches both sides degrading the same way — a ``None``, a
+    ``0.0``, or a ``NaN`` where an infinity was written.
+    """
+    expected = _NON_FINITE[key][1]
+    for name, side in (
+        ("local", non_finite_pair.local),
+        ("remote", non_finite_pair.remote),
+    ):
+        got = side.node("a").properties.get(key)
+        assert isinstance(got, float), f"{name}: {key} read back as {got!r}"
+        if math.isnan(expected):
+            assert math.isnan(got), f"{name}: expected NaN for {key}, got {got!r}"
+        else:
+            assert (
+                got == expected
+            ), f"{name}: expected {expected} for {key}, got {got!r}"
 
 
 # --- map key order ----------------------------------------------------------
@@ -180,11 +177,12 @@ def test_infinities_are_infinite_on_both_sides(non_finite_pair):
 def test_map_property_key_order_parity(typed_pair):
     """A dict-valued property keeps its *insertion* order on both sides.
 
-    Joined into a string because the comparator sorts dict keys — the whole
-    point here is that the wire format did not re-key the map alphabetically.
+    The keys are listed rather than compared as a dict: ``dict.__eq__`` ignores
+    order, so comparing the mappings would pass even if the wire format re-keyed
+    the map alphabetically. The key *list* is order-sensitive.
     """
     assert_parity(
-        typed_pair, lambda g: ",".join(g.node("a").properties.get("p_map").keys())
+        typed_pair, lambda g: list(g.node("a").properties.get("p_map").keys())
     )
 
 
