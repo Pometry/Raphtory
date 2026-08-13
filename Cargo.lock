@@ -6517,6 +6517,7 @@ dependencies = [
  "field_types",
  "futures-util",
  "indexmap 2.14.0",
+ "inventory",
  "itertools 0.15.0",
  "jsonwebtoken",
  "once_cell",
