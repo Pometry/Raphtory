@@ -23,7 +23,7 @@ use raphtory::errors::GraphError;
 use raphtory_api::core::{
     entities::properties::prop::Prop,
     storage::timeindex::{AsTime, EventTime},
-    utils::time::IntoTime,
+    utils::time::TryIntoInputTime,
 };
 use std::{collections::HashMap, sync::Arc};
 
@@ -502,17 +502,16 @@ impl RemoteNode {
     /// Add temporal updates to the node at the specified time. `event_id` locks
     /// the secondary index (as on `add_node`); `None` lets the server
     /// auto-increment.
-    pub async fn add_updates<T: IntoTime>(
+    pub async fn add_updates<T: TryIntoInputTime>(
         &self,
         t: T,
         properties: Option<HashMap<String, Prop>>,
         layer: Option<String>,
-        event_id: Option<usize>,
     ) -> Result<(), ClientError> {
         let op = Op::Write(WriteOp::AddNodeUpdates(AddNodeUpdatesOp {
             path: self.path.clone(),
             id: self.id.clone(),
-            time: input_time_from_parts(t.into_time().t(), event_id),
+            time: t.try_into_input_time()?,
             properties,
             layer,
         }));

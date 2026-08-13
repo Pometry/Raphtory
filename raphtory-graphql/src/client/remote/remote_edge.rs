@@ -22,7 +22,7 @@ use raphtory::errors::GraphError;
 use raphtory_api::core::{
     entities::properties::prop::Prop,
     storage::timeindex::{AsTime, EventTime},
-    utils::time::IntoTime,
+    utils::time::TryIntoInputTime,
 };
 use std::{collections::HashMap, sync::Arc};
 
@@ -481,18 +481,17 @@ impl RemoteEdge {
 
     /// Add temporal updates to the edge at the specified time. `event_id` locks
     /// the secondary index; `None` lets the server auto-increment.
-    pub async fn add_updates<T: IntoTime>(
+    pub async fn add_updates<T: TryIntoInputTime>(
         &self,
         t: T,
         properties: Option<HashMap<String, Prop>>,
         layer: Option<String>,
-        event_id: Option<usize>,
     ) -> Result<(), ClientError> {
         let op = Op::Write(WriteOp::AddEdgeUpdates(AddEdgeUpdatesOp {
             path: self.path.clone(),
             src: self.src.clone(),
             dst: self.dst.clone(),
-            time: input_time_from_parts(t.into_time().t(), event_id),
+            time: t.try_into_input_time()?,
             properties,
             layer,
         }));
@@ -502,17 +501,16 @@ impl RemoteEdge {
 
     /// Mark the edge as deleted at the specified time. `event_id` locks the
     /// secondary index; `None` lets the server auto-increment.
-    pub async fn delete<T: IntoTime>(
+    pub async fn delete<T: TryIntoInputTime>(
         &self,
         t: T,
         layer: Option<String>,
-        event_id: Option<usize>,
     ) -> Result<(), ClientError> {
         let op = Op::Write(WriteOp::DeleteEdgeAtTime(DeleteEdgeAtTimeOp {
             path: self.path.clone(),
             src: self.src.clone(),
             dst: self.dst.clone(),
-            time: input_time_from_parts(t.into_time().t(), event_id),
+            time: t.try_into_input_time()?,
             layer,
         }));
         self.transport.execute(&op).await?;

@@ -1,5 +1,5 @@
 use crate::{
-    client::{remote_node::RemoteNode, ClientError},
+    client::{op::input_time_from_parts, remote_node::RemoteNode, ClientError},
     python::client::{
         remote_edges::PyRemoteEdges,
         remote_history::PyRemoteHistory,
@@ -15,7 +15,9 @@ use pyo3::{
 use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
 use raphtory_api::{
     core::{
-        entities::properties::prop::Prop, storage::timeindex::EventTime, utils::time::InputTime,
+        entities::properties::prop::Prop,
+        storage::timeindex::{AsTime, EventTime},
+        utils::time::InputTime,
     },
     python::timeindex::PyOptionalEventTime,
 };
@@ -296,7 +298,10 @@ impl PyRemoteNode {
     ) -> Result<(), ClientError> {
         let node = Arc::clone(&self.node);
 
-        let task = move || async move { node.add_updates(t, properties, layer, event_id).await };
+        let task = move || async move {
+            node.add_updates(input_time_from_parts(t.t(), event_id), properties, layer)
+                .await
+        };
         execute_async_task(task)?;
 
         Ok(())

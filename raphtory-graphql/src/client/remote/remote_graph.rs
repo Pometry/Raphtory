@@ -26,7 +26,7 @@ use raphtory::errors::GraphError;
 use raphtory_api::core::{
     entities::{properties::prop::Prop, GID},
     storage::timeindex::{AsTime, EventTime},
-    utils::time::IntoTime,
+    utils::time::TryIntoInputTime,
 };
 use std::{collections::HashMap, sync::Arc};
 
@@ -671,19 +671,18 @@ impl RemoteGraph {
     /// Fires one RPC. Returns a trusted `RemoteNode` handle for the added
     /// node — no follow-up `hasNode` validation is fired, since the server
     /// just confirmed the write.
-    pub async fn add_node<G: Into<GID> + ToString, T: IntoTime>(
+    pub async fn add_node<G: Into<GID> + ToString, T: TryIntoInputTime>(
         &self,
         timestamp: T,
         id: G,
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<String>,
         layer: Option<String>,
-        event_id: Option<usize>,
     ) -> Result<RemoteNode, ClientError> {
         let id_str = id.to_string();
         let op = Op::Write(WriteOp::AddNode(AddNodeOp {
             path: self.path.clone(),
-            time: input_time_from_parts(timestamp.into_time().t(), event_id),
+            time: timestamp.try_into_input_time()?,
             id: id_str.clone(),
             properties,
             node_type,
@@ -707,19 +706,18 @@ impl RemoteGraph {
     ///
     /// Fires one RPC. Returns a trusted `RemoteNode` handle for the created
     /// node — no follow-up `hasNode` validation is fired.
-    pub async fn create_node<G: Into<GID> + ToString, T: IntoTime>(
+    pub async fn create_node<G: Into<GID> + ToString, T: TryIntoInputTime>(
         &self,
         timestamp: T,
         id: G,
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<String>,
         layer: Option<String>,
-        event_id: Option<usize>,
     ) -> Result<RemoteNode, ClientError> {
         let id_str = id.to_string();
         let op = Op::Write(WriteOp::CreateNode(CreateNodeOp {
             path: self.path.clone(),
-            time: input_time_from_parts(timestamp.into_time().t(), event_id),
+            time: timestamp.try_into_input_time()?,
             id: id_str.clone(),
             properties,
             node_type,
@@ -745,20 +743,19 @@ impl RemoteGraph {
     ///
     /// Fires one RPC. Returns a trusted `RemoteEdge` handle — no follow-up
     /// `hasEdge` validation is fired, since the server just confirmed the write.
-    pub async fn add_edge<G: Into<GID> + ToString, T: IntoTime>(
+    pub async fn add_edge<G: Into<GID> + ToString, T: TryIntoInputTime>(
         &self,
         timestamp: T,
         src: G,
         dst: G,
         properties: Option<HashMap<String, Prop>>,
         layer: Option<String>,
-        event_id: Option<usize>,
     ) -> Result<RemoteEdge, ClientError> {
         let src_str = src.to_string();
         let dst_str = dst.to_string();
         let op = Op::Write(WriteOp::AddEdge(AddEdgeOp {
             path: self.path.clone(),
-            time: input_time_from_parts(timestamp.into_time().t(), event_id),
+            time: timestamp.try_into_input_time()?,
             src: src_str.clone(),
             dst: dst_str.clone(),
             properties,
@@ -785,13 +782,12 @@ impl RemoteGraph {
     /// Fires one RPC.
     pub async fn add_properties(
         &self,
-        timestamp: EventTime,
+        timestamp: impl TryIntoInputTime,
         properties: HashMap<String, Prop>,
-        event_id: Option<usize>,
     ) -> Result<(), ClientError> {
         let op = Op::Write(WriteOp::AddGraphProperty(AddGraphPropertyOp {
             path: self.path.clone(),
-            time: input_time_from_parts(timestamp.into_time().t(), event_id),
+            time: timestamp.try_into_input_time()?,
             properties,
         }));
         self.transport.execute(&op).await?;
@@ -833,19 +829,18 @@ impl RemoteGraph {
     ///
     /// Fires one RPC. Returns a trusted `RemoteEdge` handle for the deleted
     /// edge — subsequent reads on it observe the deletion.
-    pub async fn delete_edge<G: Into<GID> + ToString, T: IntoTime>(
+    pub async fn delete_edge<G: Into<GID> + ToString, T: TryIntoInputTime>(
         &self,
         timestamp: T,
         src: G,
         dst: G,
         layer: Option<String>,
-        event_id: Option<usize>,
     ) -> Result<RemoteEdge, ClientError> {
         let src_str = src.to_string();
         let dst_str = dst.to_string();
         let op = Op::Write(WriteOp::DeleteEdge(DeleteEdgeOp {
             path: self.path.clone(),
-            time: input_time_from_parts(timestamp.into_time().t(), event_id),
+            time: timestamp.try_into_input_time()?,
             src: src_str.clone(),
             dst: dst_str.clone(),
             layer,

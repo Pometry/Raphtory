@@ -1,7 +1,8 @@
 use crate::{
     client::{
         op::{
-            AddEdges as AddEdgesOp, AddNodes as AddNodesOp, EdgeAddition, NodeAddition, Op, WriteOp,
+            input_time_from_parts, AddEdges as AddEdgesOp, AddNodes as AddNodesOp, EdgeAddition,
+            NodeAddition, Op, WriteOp,
         },
         remote_graph::RemoteGraph,
         ClientError,
@@ -21,7 +22,7 @@ use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_t
 use raphtory_api::{
     core::{
         entities::{properties::prop::Prop, GID},
-        storage::timeindex::EventTime,
+        storage::timeindex::{AsTime, EventTime},
         utils::time::InputTime,
     },
     python::timeindex::PyOptionalEventTime,
@@ -777,7 +778,13 @@ impl PyRemoteGraph {
 
         let node = execute_async_task(move || async move {
             graph
-                .add_node(timestamp, id, properties, node_type, layer, event_id)
+                .add_node(
+                    input_time_from_parts(timestamp.t(), event_id),
+                    id,
+                    properties,
+                    node_type,
+                    layer,
+                )
                 .await
         })?;
 
@@ -813,7 +820,13 @@ impl PyRemoteGraph {
 
         let node = execute_async_task(move || async move {
             graph
-                .create_node(timestamp, id, properties, node_type, layer, event_id)
+                .create_node(
+                    input_time_from_parts(timestamp.t(), event_id),
+                    id,
+                    properties,
+                    node_type,
+                    layer,
+                )
                 .await
         })?;
 
@@ -840,7 +853,9 @@ impl PyRemoteGraph {
     ) -> Result<(), ClientError> {
         let graph = Arc::clone(&self.graph);
         execute_async_task(move || async move {
-            graph.add_properties(timestamp, properties, event_id).await
+            graph
+                .add_properties(input_time_from_parts(timestamp.t(), event_id), properties)
+                .await
         })
     }
 
@@ -896,7 +911,13 @@ impl PyRemoteGraph {
 
         let edge = execute_async_task(move || async move {
             graph
-                .add_edge(timestamp, src, dst, properties, layer, event_id)
+                .add_edge(
+                    input_time_from_parts(timestamp.t(), event_id),
+                    src,
+                    dst,
+                    properties,
+                    layer,
+                )
                 .await
         })?;
 
@@ -929,7 +950,12 @@ impl PyRemoteGraph {
 
         let edge = execute_async_task(move || async move {
             graph
-                .delete_edge(timestamp, src, dst, layer, event_id)
+                .delete_edge(
+                    input_time_from_parts(timestamp.t(), event_id),
+                    src,
+                    dst,
+                    layer,
+                )
                 .await
         })?;
 
