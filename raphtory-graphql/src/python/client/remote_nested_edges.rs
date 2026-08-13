@@ -412,12 +412,7 @@ impl PyRemoteNestedEdges {
     #[getter]
     pub fn earliest_time(&self) -> Result<Vec<Vec<Option<EventTime>>>, ClientError> {
         let edges = Arc::clone(&self.edges);
-        Ok(
-            execute_async_task(move || async move { edges.earliest_time().await })?
-                .into_iter()
-                .map(|row| row.into_iter().map(|o| o).collect())
-                .collect(),
-        )
+        execute_async_task(move || async move { edges.earliest_time().await })
     }
 
     /// The latest event time of each edge, grouped per source node. Property —
@@ -428,12 +423,7 @@ impl PyRemoteNestedEdges {
     #[getter]
     pub fn latest_time(&self) -> Result<Vec<Vec<Option<EventTime>>>, ClientError> {
         let edges = Arc::clone(&self.edges);
-        Ok(
-            execute_async_task(move || async move { edges.latest_time().await })?
-                .into_iter()
-                .map(|row| row.into_iter().map(|o| o).collect())
-                .collect(),
-        )
+        execute_async_task(move || async move { edges.latest_time().await })
     }
 
     /// The event time of each edge, grouped per source node. Only valid once
@@ -445,12 +435,7 @@ impl PyRemoteNestedEdges {
     #[getter]
     pub fn time(&self) -> Result<Vec<Vec<Option<EventTime>>>, ClientError> {
         let edges = Arc::clone(&self.edges);
-        Ok(
-            execute_async_task(move || async move { edges.time().await })?
-                .into_iter()
-                .map(|row| row.into_iter().map(|o| o).collect())
-                .collect(),
-        )
+        execute_async_task(move || async move { edges.time().await })
     }
 
     /// The non-temporal metadata of this collection as a nested columnar view.

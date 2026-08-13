@@ -408,12 +408,7 @@ impl PyRemotePathFromNode {
     #[getter]
     pub fn earliest_time(&self) -> Result<Vec<Option<EventTime>>, ClientError> {
         let path = Arc::clone(&self.path);
-        Ok(
-            execute_async_task(move || async move { path.earliest_time().await })?
-                .into_iter()
-                .map(|o| o)
-                .collect(),
-        )
+        execute_async_task(move || async move { path.earliest_time().await })
     }
 
     /// The latest event time of each node in this path. Property — attribute
@@ -424,12 +419,7 @@ impl PyRemotePathFromNode {
     #[getter]
     pub fn latest_time(&self) -> Result<Vec<Option<EventTime>>, ClientError> {
         let path = Arc::clone(&self.path);
-        Ok(
-            execute_async_task(move || async move { path.latest_time().await })?
-                .into_iter()
-                .map(|o| o)
-                .collect(),
-        )
+        execute_async_task(move || async move { path.latest_time().await })
     }
 
     /// The non-temporal metadata of this path as a columnar view. Each accessor

@@ -417,12 +417,7 @@ impl PyRemoteEdges {
     #[getter]
     pub fn earliest_time(&self) -> Result<Vec<Option<EventTime>>, ClientError> {
         let edges = Arc::clone(&self.edges);
-        Ok(
-            execute_async_task(move || async move { edges.earliest_time().await })?
-                .into_iter()
-                .map(|o| o)
-                .collect(),
-        )
+        execute_async_task(move || async move { edges.earliest_time().await })
     }
 
     /// The latest event time of each edge in this collection. Property —
@@ -433,12 +428,7 @@ impl PyRemoteEdges {
     #[getter]
     pub fn latest_time(&self) -> Result<Vec<Option<EventTime>>, ClientError> {
         let edges = Arc::clone(&self.edges);
-        Ok(
-            execute_async_task(move || async move { edges.latest_time().await })?
-                .into_iter()
-                .map(|o| o)
-                .collect(),
-        )
+        execute_async_task(move || async move { edges.latest_time().await })
     }
 
     /// The event time of each edge in this collection. Only valid once the
@@ -450,12 +440,7 @@ impl PyRemoteEdges {
     #[getter]
     pub fn time(&self) -> Result<Vec<Option<EventTime>>, ClientError> {
         let edges = Arc::clone(&self.edges);
-        Ok(
-            execute_async_task(move || async move { edges.time().await })?
-                .into_iter()
-                .map(|o| o)
-                .collect(),
-        )
+        execute_async_task(move || async move { edges.time().await })
     }
 
     /// Whether each edge is active (has an event) in the current view. Method

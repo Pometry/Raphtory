@@ -414,12 +414,7 @@ impl PyRemotePathFromGraph {
     #[getter]
     pub fn earliest_time(&self) -> Result<Vec<Vec<Option<EventTime>>>, ClientError> {
         let path = Arc::clone(&self.path);
-        Ok(
-            execute_async_task(move || async move { path.earliest_time().await })?
-                .into_iter()
-                .map(|inner| inner.into_iter().map(|o| o).collect())
-                .collect(),
-        )
+        execute_async_task(move || async move { path.earliest_time().await })
     }
 
     /// The latest event time of each node, grouped per source node. Property —
@@ -430,12 +425,7 @@ impl PyRemotePathFromGraph {
     #[getter]
     pub fn latest_time(&self) -> Result<Vec<Vec<Option<EventTime>>>, ClientError> {
         let path = Arc::clone(&self.path);
-        Ok(
-            execute_async_task(move || async move { path.latest_time().await })?
-                .into_iter()
-                .map(|inner| inner.into_iter().map(|o| o).collect())
-                .collect(),
-        )
+        execute_async_task(move || async move { path.latest_time().await })
     }
 
     /// The non-temporal metadata of this collection as a nested columnar view.

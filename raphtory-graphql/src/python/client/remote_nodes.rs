@@ -422,12 +422,7 @@ impl PyRemoteNodes {
     #[getter]
     pub fn earliest_time(&self) -> Result<Vec<Option<EventTime>>, ClientError> {
         let nodes = Arc::clone(&self.nodes);
-        Ok(
-            execute_async_task(move || async move { nodes.earliest_time().await })?
-                .into_iter()
-                .map(|o| o)
-                .collect(),
-        )
+        execute_async_task(move || async move { nodes.earliest_time().await })
     }
 
     /// The latest event time of each node in this collection. Property —
@@ -438,12 +433,7 @@ impl PyRemoteNodes {
     #[getter]
     pub fn latest_time(&self) -> Result<Vec<Option<EventTime>>, ClientError> {
         let nodes = Arc::clone(&self.nodes);
-        Ok(
-            execute_async_task(move || async move { nodes.latest_time().await })?
-                .into_iter()
-                .map(|o| o)
-                .collect(),
-        )
+        execute_async_task(move || async move { nodes.latest_time().await })
     }
 
     /// The non-temporal metadata of this collection as a columnar view. Each
