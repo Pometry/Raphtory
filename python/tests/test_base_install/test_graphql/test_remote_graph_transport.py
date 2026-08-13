@@ -21,21 +21,10 @@ import pytest
 from raphtory.graphql import EdgeSortBy, GraphServer, NodeSortBy, SortByTime
 
 
-@contextlib.contextmanager
-def _remote_graph_and_client(name="g", graph_type="EVENT"):
-    """Start a GraphServer in a self-cleaning temp dir, create one graph on
-    it, and yield `(RemoteGraph, RaphtoryClient)`.
-
-    The single server fixture every test goes through: population differs per
-    test, so callers add their own nodes/edges to the yielded handle. The temp
-    dir is removed on exit (`TemporaryDirectory`, not `mkdtemp` — no leaked
-    directories), which is safe because the server's `__exit__` joins the
-    server task before we get here.
-    """
-    with tempfile.TemporaryDirectory() as work_dir:
-        with GraphServer(work_dir).start() as server:
-            client = server.get_client()
-            yield client.new_graph(name, graph_type), client
+# The shared server-startup context manager lives in test_utils so every test
+# file stands servers up the same way; population differs per test, so callers
+# add their own nodes/edges to the yielded handle.
+from utils import remote_graph_server as _remote_graph_and_client
 
 
 @contextlib.contextmanager
