@@ -965,6 +965,77 @@ pub(crate) mod data_tests {
         }
     }
 
+    /// After remote-style mutations, an explicit persist must rewrite the
+    /// metadata sidecar so cache-miss namespace listings report true counts.
+    #[tokio::test]
+    async fn test_persist_refreshes_metadata_sidecar_counts() {
+        use crate::paths::ExistingGraphFolder;
+
+        let tmp_work_dir = tempfile::tempdir().unwrap();
+        let data = Data::new(tmp_work_dir.path(), &Default::default(), Default::default());
+
+        // A fresh empty graph — its sidecar starts at 0 nodes / 0 edges.
+        let path = "people";
+        let folder = data
+            .work_dir_write()
+            .await
+            .validate_path_for_insert(path, false)
+            .unwrap();
+        let empty: MaterializedGraph = Graph::new().into();
+        data.insert_graph(folder, empty).await.unwrap();
+
+        // Remote-style mutations against the resident graph, without touching the sidecar.
+        let graph = data.get_graph_for_test(path).await.unwrap();
+        graph.add_edge(0, "a", "b", NO_PROPS, None).unwrap();
+        graph.add_node(0, "c", NO_PROPS, None, None).unwrap();
+        graph.set_dirty(true);
+
+        graph.persist().unwrap();
+
+        // The persisted sidecar (what cache-miss listings read) must reflect the writes.
+        let read_folder = ExistingGraphFolder::try_from(data.work_dir_read().await, path).unwrap();
+        let meta = read_folder.graph_folder().read_metadata().unwrap();
+        assert_eq!(meta.node_count, 3, "sidecar node_count stale after persist");
+        assert_eq!(meta.edge_count, 1, "sidecar edge_count stale after persist");
+    }
+
+    /// Eviction (here via `flush_and_clear`) must also persist true counts —
+    /// regression guard now that eviction and explicit flush share `persist`.
+    #[tokio::test]
+    async fn test_eviction_persists_metadata_sidecar_counts() {
+        use crate::paths::ExistingGraphFolder;
+
+        let tmp_work_dir = tempfile::tempdir().unwrap();
+        let data = Data::new(tmp_work_dir.path(), &Default::default(), Default::default());
+
+        let path = "people";
+        let folder = data
+            .work_dir_write()
+            .await
+            .validate_path_for_insert(path, false)
+            .unwrap();
+        let empty: MaterializedGraph = Graph::new().into();
+        data.insert_graph(folder, empty).await.unwrap();
+
+        let graph = data.get_graph_for_test(path).await.unwrap();
+        graph.add_edge(0, "a", "b", NO_PROPS, None).unwrap();
+        graph.set_dirty(true);
+        drop(graph);
+
+        data.cache.flush_and_clear();
+
+        let read_folder = ExistingGraphFolder::try_from(data.work_dir_read().await, path).unwrap();
+        let meta = read_folder.graph_folder().read_metadata().unwrap();
+        assert_eq!(
+            meta.node_count, 2,
+            "sidecar node_count stale after eviction"
+        );
+        assert_eq!(
+            meta.edge_count, 1,
+            "sidecar edge_count stale after eviction"
+        );
+    }
+
     #[tokio::test]
     async fn test_eviction() {
         let tmp_work_dir = tempfile::tempdir().unwrap();

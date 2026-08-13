@@ -14,7 +14,7 @@ use crate::{
         },
     },
     paths::{ExistingGraphFolder, ValidGraphPaths, ValidWriteableGraphFolder},
-    rayon::blocking_compute,
+    rayon::{blocking_compute, blocking_write},
     url_encode::{url_decode_graph_at, url_encode_graph},
 };
 use async_graphql::Context;
@@ -733,10 +733,15 @@ impl Mut {
         let data = ctx.data_unchecked::<Data>();
         let graph = data
             .get_graph_with_write_permission(ctx, &graph_path)
-            .await?
-            .graph()
-            .clone();
-        graph.flush()?;
+            .await?;
+        blocking_write(move || {
+            let res = graph.persist();
+            if res.is_err() {
+                graph.set_dirty(true);
+            }
+            res
+        })
+        .await?;
         Ok(true)
     }
 }

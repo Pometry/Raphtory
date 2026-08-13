@@ -17,7 +17,7 @@ use raphtory::{
         graph::{edge::EdgeView, node::NodeView},
     },
     errors::{GraphError, GraphResult},
-    prelude::{EdgeViewOps, StableDecode},
+    prelude::{AdditionOps, EdgeViewOps, StableDecode},
 };
 use raphtory_api::core::storage::graph_folder::GraphPaths;
 use raphtory_storage::{
@@ -124,6 +124,24 @@ impl GraphWithVectors {
 
     pub fn ref_count(&self) -> usize {
         Arc::strong_count(&self.inner)
+    }
+
+    /// Flush in-memory writes to the storage engine and rewrite the on-disk
+    /// metadata sidecar, so cache-miss namespace listings report accurate
+    /// counts. The dirty flag is cleared up front so a mutation racing the
+    /// flush re-marks the graph dirty. Both steps are attempted independently
+    /// and the first error is returned; callers decide whether a failure
+    /// should re-mark the graph dirty for a later retry.
+    pub fn persist(&self) -> Result<(), GraphError> {
+        self.set_flushing(true);
+        self.set_dirty(false);
+        let flushed = self.graph().flush();
+        let written = self
+            .folder()
+            .replace_graph_data(self.graph().clone())
+            .map_err(|e| GraphError::ExternalError(Arc::new(e)));
+        self.set_flushing(false);
+        flushed.and(written)
     }
 
     /// Generates and stores embeddings for a batch of nodes.

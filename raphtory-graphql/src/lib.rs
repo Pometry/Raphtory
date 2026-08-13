@@ -2982,4 +2982,461 @@ mod graphql_test {
         assert_eq!(res.errors, vec![], "flush mutation returned errors");
         assert_eq!(res.data.into_json().unwrap(), json!({"flush": true}));
     }
+
+    /// End-to-end reproduction of the stale namespace-listing counts bug:
+    /// create a graph, populate it, and flush — all over GraphQL — then read
+    /// the listing from a cold-cache session (as after a server restart),
+    /// which resolves `nodeCount`/`edgeCount` from the persisted sidecar.
+    /// Before the fix, `updateGraph{ flush }` never rewrote the sidecar, so
+    /// this reported 0/0.
+    #[tokio::test]
+    async fn test_namespace_listing_counts_after_flush() {
+        use crate::test_support::{run_mutation, setup_with_graphs};
+
+        let work_dir = tempdir().unwrap();
+
+        let session = setup_with_graphs(&[], work_dir.path()).await;
+
+        // Graph lives inside the `people` namespace so we can list it below.
+        let created = run_mutation(
+            &session.schema,
+            r#"mutation { newGraph(path: "people/g", graphType: EVENT) }"#,
+        )
+        .await;
+        assert_eq!(created.errors, vec![], "newGraph errored");
+
+        // `updateGraph` is a side-effecting field on the query root.
+        // `addEdge` implicitly creates both endpoints: 2 nodes, 1 edge.
+        let written = run_mutation(
+            &session.schema,
+            r#"query { updateGraph(path: "people/g") { addEdge(time: 0, src: "a", dst: "b") { success } } }"#,
+        )
+        .await;
+        assert_eq!(written.errors, vec![], "addEdge errored");
+
+        // Separate request so `flush` is ordered after the writes.
+        let flushed = run_mutation(
+            &session.schema,
+            r#"query { updateGraph(path: "people/g") { flush } }"#,
+        )
+        .await;
+        assert_eq!(flushed.errors, vec![], "flush errored");
+
+        // Fresh session over the same work dir → cold cache, so the listing
+        // reads counts from the persisted sidecar (the bug surface).
+        let restarted = setup_with_graphs(&[], work_dir.path()).await;
+        let listed = restarted
+            .schema
+            .execute(Request::new(
+                r#"query { namespace(path: "people") { graphs { list { nodeCount edgeCount } } } }"#,
+            ))
+            .await;
+        assert_eq!(listed.errors, vec![], "namespace listing errored");
+
+        let json = listed.data.into_json().unwrap();
+        let row = &json["namespace"]["graphs"]["list"][0];
+        assert_eq!(row["nodeCount"], 2, "listing nodeCount stale after flush");
+        assert_eq!(row["edgeCount"], 1, "listing edgeCount stale after flush");
+
+        // Keep session 1 alive past the assertion: its `Drop` runs
+        // `flush_and_clear`, which would rewrite the sidecar and mask the bug.
+        drop(session);
+    }
+
+    #[tokio::test]
+    async fn test_nodes_sorted_by_type_then_name() {
+        let g = Graph::new();
+        g.add_node(1, "b", NO_PROPS, Some("Person"), None).unwrap();
+        g.add_node(1, "a", NO_PROPS, Some("Person"), None).unwrap();
+        g.add_node(1, "c", NO_PROPS, Some("Company"), None).unwrap();
+        g.add_node(1, "d", NO_PROPS, None, None).unwrap(); // untyped
+
+        let graph: MaterializedGraph = g.into();
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", graph)], tmp_dir.path()).await;
+
+        // type ascending: None < "Company" < "Person"; then name ascending.
+        let query = r#"
+        {
+          graph(path: "g") {
+            nodes {
+              sorted(sortBys: [{ type: true }, { name: true }]) {
+                list { name }
+              }
+            }
+          }
+        }
+        "#;
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        let data = res.data.into_json().unwrap();
+        assert_eq!(
+            data,
+            json!({ "graph": { "nodes": { "sorted": { "list": [
+                { "name": "d" }, { "name": "c" }, { "name": "a" }, { "name": "b" }
+            ] } } } })
+        );
+    }
+
+    #[tokio::test]
+    async fn test_nodes_sorted_by_type_reverse() {
+        let g = Graph::new();
+        g.add_node(1, "b", NO_PROPS, Some("Person"), None).unwrap();
+        g.add_node(1, "a", NO_PROPS, Some("Person"), None).unwrap();
+        g.add_node(1, "c", NO_PROPS, Some("Company"), None).unwrap();
+        g.add_node(1, "d", NO_PROPS, None, None).unwrap(); // untyped
+
+        let graph: MaterializedGraph = g.into();
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", graph)], tmp_dir.path()).await;
+
+        // type descending (reverse: true): "Person" > "Company" > None; then name ascending.
+        let query = r#"
+        {
+          graph(path: "g") {
+            nodes {
+              sorted(sortBys: [{ type: true, reverse: true }, { name: true }]) {
+                list { name }
+              }
+            }
+          }
+        }
+        "#;
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        let data = res.data.into_json().unwrap();
+        assert_eq!(
+            data,
+            json!({ "graph": { "nodes": { "sorted": { "list": [
+                { "name": "a" }, { "name": "b" }, { "name": "c" }, { "name": "d" }
+            ] } } } })
+        );
+    }
+
+    #[tokio::test]
+    async fn test_nodes_sorted_by_id_regression() {
+        let g = Graph::new();
+        g.add_node(1, "c", NO_PROPS, None, None).unwrap();
+        g.add_node(1, "a", NO_PROPS, None, None).unwrap();
+        g.add_node(1, "b", NO_PROPS, None, None).unwrap();
+
+        let graph: MaterializedGraph = g.into();
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", graph)], tmp_dir.path()).await;
+
+        let query = r#"
+        {
+          graph(path: "g") {
+            nodes { sorted(sortBys: [{ id: true }]) { list { name } } }
+          }
+        }
+        "#;
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        let data = res.data.into_json().unwrap();
+        assert_eq!(
+            data,
+            json!({ "graph": { "nodes": { "sorted": { "list": [
+                { "name": "a" }, { "name": "b" }, { "name": "c" }
+            ] } } } })
+        );
+    }
+
+    async fn neighbour_sort_setup(tmp: &std::path::Path) -> crate::test_support::TestSetup {
+        // Anchor "hub" with edges in BOTH directions to typed + untyped neighbours.
+        let g = Graph::new();
+        g.add_node(1, "hub", NO_PROPS, None, None).unwrap();
+        g.add_node(1, "x", [("score", 3i64)], Some("B"), None)
+            .unwrap();
+        g.add_node(1, "y", [("score", 1i64)], Some("A"), None)
+            .unwrap();
+        g.add_node(1, "w", [("score", 2i64)], Some("A"), None)
+            .unwrap();
+        g.add_node(1, "z", [("score", 4i64)], None, None).unwrap(); // untyped
+        g.add_edge(10, "hub", "x", NO_PROPS, None).unwrap(); // out -> nbr x (B)
+        g.add_edge(11, "y", "hub", NO_PROPS, None).unwrap(); // in  -> nbr y (A)
+        g.add_edge(12, "w", "hub", NO_PROPS, None).unwrap(); // in  -> nbr w (A)
+        g.add_edge(13, "hub", "z", NO_PROPS, None).unwrap(); // out -> nbr z (untyped)
+
+        let graph: MaterializedGraph = g.into();
+        setup_with_graphs(&[("g", graph)], tmp).await
+    }
+
+    #[tokio::test]
+    async fn test_edges_sorted_by_neighbour_type_then_name() {
+        let tmp_dir = tempdir().unwrap();
+        let setup = neighbour_sort_setup(tmp_dir.path()).await;
+
+        // type asc (None < "A" < "B"), then name asc: z(None), w(A), y(A), x(B)
+        let query = r#"
+        {
+          graph(path: "g") {
+            node(name: "hub") {
+              edges {
+                explodeLayers {
+                  sorted(sortBys: [
+                    { neighbour: { type: true } },
+                    { neighbour: { name: true } },
+                    { time: LATEST }
+                  ]) {
+                    count
+                    page(limit: 10) { nbr { name nodeType } }
+                  }
+                }
+              }
+            }
+          }
+        }
+        "#;
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        let data = res.data.into_json().unwrap();
+        assert_eq!(
+            data,
+            json!({ "graph": { "node": { "edges": { "explodeLayers": { "sorted": {
+                "count": 4,
+                "page": [
+                    { "nbr": { "name": "z", "nodeType": null } },
+                    { "nbr": { "name": "w", "nodeType": "A" } },
+                    { "nbr": { "name": "y", "nodeType": "A" } },
+                    { "nbr": { "name": "x", "nodeType": "B" } }
+                ]
+            } } } } } })
+        );
+    }
+
+    #[tokio::test]
+    async fn test_edges_sorted_by_neighbour_property() {
+        let tmp_dir = tempdir().unwrap();
+        let setup = neighbour_sort_setup(tmp_dir.path()).await;
+
+        // neighbour "score" ascending: y(1), w(2), x(3), z(4)
+        let query = r#"
+        {
+          graph(path: "g") {
+            node(name: "hub") {
+              edges {
+                explodeLayers {
+                  sorted(sortBys: [{ neighbour: { property: "score" } }]) {
+                    page(limit: 10) { nbr { name } }
+                  }
+                }
+              }
+            }
+          }
+        }
+        "#;
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        let data = res.data.into_json().unwrap();
+        assert_eq!(
+            data,
+            json!({ "graph": { "node": { "edges": { "explodeLayers": { "sorted": {
+                "page": [
+                    { "nbr": { "name": "y" } }, { "nbr": { "name": "w" } },
+                    { "nbr": { "name": "x" } }, { "nbr": { "name": "z" } }
+                ]
+            } } } } } })
+        );
+    }
+
+    #[tokio::test]
+    async fn test_graph_edges_neighbour_id_equals_dst() {
+        // At graph level every ref is Dir::Out, so neighbour == dst.
+        let tmp_dir = tempdir().unwrap();
+        let setup = neighbour_sort_setup(tmp_dir.path()).await;
+
+        let query = r#"
+        {
+          graph(path: "g") {
+            edges {
+              sorted(sortBys: [{ neighbour: { id: true } }]) {
+                page(limit: 10) { dst { name } }
+              }
+            }
+          }
+        }
+        "#;
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        let data = res.data.into_json().unwrap();
+        // dst ids ascending: hub, hub, x, z
+        assert_eq!(
+            data,
+            json!({ "graph": { "edges": { "sorted": {
+                "page": [
+                    { "dst": { "name": "hub" } }, { "dst": { "name": "hub" } },
+                    { "dst": { "name": "x" } }, { "dst": { "name": "z" } }
+                ]
+            } } } })
+        );
+    }
+
+    #[tokio::test]
+    async fn test_edges_sorted_by_neighbour_name_reverse() {
+        let tmp_dir = tempdir().unwrap();
+        let setup = neighbour_sort_setup(tmp_dir.path()).await;
+
+        // Neighbour name DESCENDING via the nested `reverse`; the outer
+        // `reverse: true` must be ignored (the neighbour arm early-returns).
+        // hub's neighbours are w, x, y, z -> descending: z, y, x, w.
+        let query = r#"
+        {
+          graph(path: "g") {
+            node(name: "hub") {
+              edges {
+                explodeLayers {
+                  sorted(sortBys: [{ reverse: true, neighbour: { name: true, reverse: true } }]) {
+                    page(limit: 10) { nbr { name } }
+                  }
+                }
+              }
+            }
+          }
+        }
+        "#;
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        let data = res.data.into_json().unwrap();
+        assert_eq!(
+            data,
+            json!({ "graph": { "node": { "edges": { "explodeLayers": { "sorted": {
+                "page": [
+                    { "nbr": { "name": "z" } }, { "nbr": { "name": "y" } },
+                    { "nbr": { "name": "x" } }, { "nbr": { "name": "w" } }
+                ]
+            } } } } } })
+        );
+    }
+
+    #[tokio::test]
+    async fn test_edges_sorted_by_neighbour_self_loop() {
+        // Self-loop hub->hub must resolve nbr to the anchor itself, sorting
+        // under its own type ("M"), not treated specially.
+        let g = Graph::new();
+        g.add_node(1, "hub", NO_PROPS, Some("M"), None).unwrap();
+        g.add_node(1, "a", NO_PROPS, Some("A"), None).unwrap();
+        g.add_edge(10, "hub", "a", NO_PROPS, None).unwrap();
+        g.add_edge(11, "hub", "hub", NO_PROPS, None).unwrap();
+
+        let graph: MaterializedGraph = g.into();
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", graph)], tmp_dir.path()).await;
+
+        let query = r#"
+        {
+          graph(path: "g") {
+            node(name: "hub") {
+              edges {
+                explodeLayers {
+                  sorted(sortBys: [{ neighbour: { type: true } }]) {
+                    count
+                    page(limit: 10) { nbr { name nodeType } }
+                  }
+                }
+              }
+            }
+          }
+        }
+        "#;
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        let data = res.data.into_json().unwrap();
+        assert_eq!(
+            data,
+            json!({ "graph": { "node": { "edges": { "explodeLayers": { "sorted": {
+                "count": 2,
+                "page": [
+                    { "nbr": { "name": "a", "nodeType": "A" } },
+                    { "nbr": { "name": "hub", "nodeType": "M" } }
+                ]
+            } } } } } })
+        );
+    }
+
+    #[tokio::test]
+    async fn test_edges_sorted_by_neighbour_type_reverse_untyped_last() {
+        let tmp_dir = tempdir().unwrap();
+        let setup = neighbour_sort_setup(tmp_dir.path()).await;
+
+        // neighbour type DESCENDING (untyped sorts last, not first), then
+        // neighbour name ascending to break the "A" tie: x(B), w(A), y(A), z(None)
+        let query = r#"
+        {
+          graph(path: "g") {
+            node(name: "hub") {
+              edges {
+                explodeLayers {
+                  sorted(sortBys: [
+                      { neighbour: { type: true, reverse: true } },
+                      { neighbour: { name: true } }
+                  ]) {
+                    page(limit: 10) { nbr { name nodeType } }
+                  }
+                }
+              }
+            }
+          }
+        }
+        "#;
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        let data = res.data.into_json().unwrap();
+        assert_eq!(
+            data,
+            json!({ "graph": { "node": { "edges": { "explodeLayers": { "sorted": {
+                "page": [
+                    { "nbr": { "name": "x", "nodeType": "B" } },
+                    { "nbr": { "name": "w", "nodeType": "A" } },
+                    { "nbr": { "name": "y", "nodeType": "A" } },
+                    { "nbr": { "name": "z", "nodeType": null } }
+                ]
+            } } } } } })
+        );
+    }
+
+    #[tokio::test]
+    async fn test_graph_edges_sorted_by_src_node() {
+        // Sort a graph-level edge collection by the src node (type, then name).
+        // Enabled by making `src` take a NodeSortBy; a bare id flag could not
+        // express this.
+        let g = Graph::new();
+        g.add_node(1, "a", NO_PROPS, Some("Z"), None).unwrap();
+        g.add_node(1, "b", NO_PROPS, Some("A"), None).unwrap();
+        g.add_node(1, "c", NO_PROPS, None, None).unwrap(); // untyped
+        g.add_node(1, "x", NO_PROPS, None, None).unwrap();
+        g.add_edge(10, "a", "x", NO_PROPS, None).unwrap();
+        g.add_edge(11, "b", "x", NO_PROPS, None).unwrap();
+        g.add_edge(12, "c", "x", NO_PROPS, None).unwrap();
+
+        let graph: MaterializedGraph = g.into();
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", graph)], tmp_dir.path()).await;
+
+        // src type ascending, untyped first: None(c) < "A"(b) < "Z"(a)
+        let query = r#"
+        {
+          graph(path: "g") {
+            edges {
+              sorted(sortBys: [{ src: { type: true } }, { src: { name: true } }]) {
+                page(limit: 10) { src { name nodeType } }
+              }
+            }
+          }
+        }
+        "#;
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        let data = res.data.into_json().unwrap();
+        assert_eq!(
+            data,
+            json!({ "graph": { "edges": { "sorted": {
+                "page": [
+                    { "src": { "name": "c", "nodeType": null } },
+                    { "src": { "name": "b", "nodeType": "A" } },
+                    { "src": { "name": "a", "nodeType": "Z" } }
+                ]
+            } } } })
+        );
+    }
 }
