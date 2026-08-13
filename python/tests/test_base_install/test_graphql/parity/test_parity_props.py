@@ -17,19 +17,30 @@ from raphtory import Prop
 
 from _parity import assert_parity, graph_pair
 
-# A fixed instant, tz-aware, so datetime parity is not clock-dependent.
+# Fixed instants so datetime parity is not clock-dependent — one tz-aware, one
+# naive, because they are distinct dtypes (`DTime` vs `NDTime`) and the naive
+# one is the easier of the two to lose across a wire format that assumes UTC.
 _DT = datetime.datetime(2021, 3, 4, 5, 6, 7, tzinfo=datetime.timezone.utc)
+_NDT = datetime.datetime(2021, 3, 4, 5, 6, 7)
 
 # Insertion order is deliberately NOT alphabetical — see the map-order test.
 _MAP = {"zeta": 1, "alpha": 2, "mid": 3}
 
+# Every `Prop` constructor raphtory exposes, so no width or kind goes untested:
+# a type absent from this table is one whose round-trip nothing here pins.
 _TYPED_PROPS = {
     "p_u8": Prop.u8(7),
     "p_u16": Prop.u16(300),
-    "p_i32": Prop.i32(-70000),
+    "p_u32": Prop.u32(70000),
     "p_u64": Prop.u64(2**40),
+    "p_i32": Prop.i32(-70000),
+    "p_i64": Prop.i64(-(2**40)),
     "p_f32": Prop.f32(1.5),
+    "p_f64": Prop.f64(2.5),
+    "p_bool": Prop.bool(True),
+    "p_str": Prop.str("hello"),
     "p_datetime": Prop.aware_datetime(_DT),
+    "p_naive_datetime": Prop.naive_datetime(_NDT),
     "p_decimal": Prop.decimal(Decimal("3.14")),
     "p_list": Prop.list([1, 2, 3]),
     "p_map": Prop.map(_MAP),
@@ -59,29 +70,19 @@ def test_node_typed_property_value_parity(typed_pair, key):
     assert_parity(typed_pair, lambda g: g.node("a").properties.get(key))
 
 
+# `PropType` values compare structurally, so the dtype tests compare the
+# objects. (An earlier version compared `repr` strings; that was a workaround
+# for `str(PropType)` of a Map being non-deterministic — it iterates a hash map,
+# so its key order varies between calls on the same graph. Equality is not
+# affected by that, and reports a real difference rather than a rendering one.)
 @pytest.mark.parametrize("key", _TYPED_KEYS)
 def test_node_typed_property_dtype_parity(typed_pair, key):
-    # `repr(PropType)` rather than the object: it renders the full shape
-    # (`U8`, `Decimal(2)`, `List<I64>`, `Map{...}`), so a widened or erased
-    # type shows up in the diff instead of comparing equal by coincidence.
-    # `repr` and not `str`: `str` of a Map dtype iterates a hash map, so its
-    # key order varies between calls *on the same graph* — `repr` sorts.
-    assert_parity(typed_pair, lambda g: repr(g.node("a").properties.get_dtype_of(key)))
+    assert_parity(typed_pair, lambda g: g.node("a").properties.get_dtype_of(key))
 
 
 @pytest.mark.parametrize("key", _TYPED_KEYS)
 def test_edge_typed_property_dtype_parity(typed_pair, key):
-    assert_parity(
-        typed_pair, lambda g: repr(g.edge("a", "b").properties.get_dtype_of(key))
-    )
-
-
-@pytest.mark.parametrize("key", _TYPED_KEYS)
-def test_typed_property_dtype_object_parity(typed_pair, key):
-    """The `PropType` values themselves compare equal, not just their rendering."""
-    local = typed_pair.local.node("a").properties.get_dtype_of(key)
-    remote = typed_pair.remote.node("a").properties.get_dtype_of(key)
-    assert local == remote, f"dtype mismatch for {key!r}: {local!r} != {remote!r}"
+    assert_parity(typed_pair, lambda g: g.edge("a", "b").properties.get_dtype_of(key))
 
 
 def test_absent_property_dtype_parity(typed_pair):
@@ -98,15 +99,25 @@ def test_typed_property_dtypes_are_exact(typed_pair):
     expected = {
         "p_u8": "PropType.U8",
         "p_u16": "PropType.U16",
-        "p_i32": "PropType.I32",
+        "p_u32": "PropType.U32",
         "p_u64": "PropType.U64",
+        "p_i32": "PropType.I32",
+        "p_i64": "PropType.I64",
         "p_f32": "PropType.F32",
+        "p_f64": "PropType.F64",
+        "p_bool": "PropType.Bool",
+        "p_str": "PropType.Str",
         "p_datetime": "PropType.DTime",
+        "p_naive_datetime": "PropType.NDTime",
         "p_decimal": "PropType.Decimal(2)",
         "p_list": "PropType.List<I64>",
         "p_map": "PropType.Map{ alpha: I64, mid: I64, zeta: I64 }",
     }
+    # `repr` here (not equality): this pins the *expected* widths, and a literal
+    # is the readable way to write them down. Unlike `str`, `repr` sorts map
+    # keys, so it is stable enough to compare against.
     props = typed_pair.local.node("a").properties
+    assert set(expected) == set(_TYPED_PROPS), "every typed property needs a pin"
     for key, dtype in expected.items():
         assert repr(props.get_dtype_of(key)) == dtype
 
@@ -134,10 +145,19 @@ _NON_FINITE = {
 }
 
 
+_WRITTEN = {k: written for k, (written, _) in _NON_FINITE.items()}
+
+
 def _build_non_finite(g):
-    g.add_node(
-        1, "a", properties={k: written for k, (written, _) in _NON_FINITE.items()}
-    )
+    """Seed the non-finite floats on every carrier: node, edge and graph, as
+    both temporal properties and metadata."""
+    g.add_node(1, "a", properties=dict(_WRITTEN))
+    g.add_node(1, "b")
+    g.add_edge(2, "a", "b", properties=dict(_WRITTEN))
+    g.add_properties(3, dict(_WRITTEN))
+    g.node("a").add_metadata(dict(_WRITTEN))
+    g.edge("a", "b").add_metadata(dict(_WRITTEN))
+    g.add_metadata(dict(_WRITTEN))
 
 
 @pytest.fixture(scope="module")
@@ -146,48 +166,62 @@ def non_finite_pair():
         yield pair
 
 
+# Every place a property can live: (carrier, container) -> reader.
+_CARRIERS = {
+    "node.properties": lambda g: g.node("a").properties,
+    "node.metadata": lambda g: g.node("a").metadata,
+    "edge.properties": lambda g: g.edge("a", "b").properties,
+    "edge.metadata": lambda g: g.edge("a", "b").metadata,
+    "graph.properties": lambda g: g.properties,
+    "graph.metadata": lambda g: g.metadata,
+}
+
+
+@pytest.mark.parametrize("carrier", list(_CARRIERS))
 @pytest.mark.parametrize("key", list(_NON_FINITE))
-def test_non_finite_float_round_trips(non_finite_pair, key):
-    """Each non-finite float reads back as itself, on both sides.
+def test_non_finite_float_round_trips(non_finite_pair, carrier, key):
+    """Each non-finite float reads back as itself, on both sides, everywhere.
 
     Asserted per side against an expected value rather than through the
     comparator: ``nan != nan`` in IEEE arithmetic, so a parity comparison would
-    fail on two *correct* answers. Pinning the value is also strictly stronger,
-    because it catches both sides degrading the same way — a ``None``, a
-    ``0.0``, or a ``NaN`` where an infinity was written.
+    fail on two *correct* answers. Pinning the value is also strictly stronger
+    than parity, because it catches both sides degrading the same way — a
+    ``None``, a ``0.0``, or a ``NaN`` where an infinity was written — which is
+    why there is no separate parity check for these.
+
+    Crossed with every carrier because the JSON encoding of a non-finite float
+    is chosen per container; one of them getting it wrong is exactly the kind
+    of gap a node-properties-only test would miss.
     """
     expected = _NON_FINITE[key][1]
+    read = _CARRIERS[carrier]
     for name, side in (
         ("local", non_finite_pair.local),
         ("remote", non_finite_pair.remote),
     ):
-        got = side.node("a").properties.get(key)
-        assert isinstance(got, float), f"{name}: {key} read back as {got!r}"
+        got = read(side).get(key)
+        where = f"{name}/{carrier}"
+        assert isinstance(got, float), f"{where}: {key} read back as {got!r}"
         if math.isnan(expected):
-            assert math.isnan(got), f"{name}: expected NaN for {key}, got {got!r}"
+            assert math.isnan(got), f"{where}: expected NaN for {key}, got {got!r}"
         else:
             assert (
                 got == expected
-            ), f"{name}: expected {expected} for {key}, got {got!r}"
+            ), f"{where}: expected {expected} for {key}, got {got!r}"
 
 
 # --- map key order ----------------------------------------------------------
 
 
-def test_map_property_key_order_parity(typed_pair):
-    """A dict-valued property keeps its *insertion* order on both sides.
-
-    The keys are listed rather than compared as a dict: ``dict.__eq__`` ignores
-    order, so comparing the mappings would pass even if the wire format re-keyed
-    the map alphabetically. The key *list* is order-sensitive.
-    """
-    assert_parity(
-        typed_pair, lambda g: list(g.node("a").properties.get("p_map").keys())
-    )
-
-
 def test_map_property_key_order_is_insertion_order(typed_pair):
-    """Anchor the order to what was written, so both sides sorting alike fails."""
+    """A dict-valued property keeps the order it was written in, on both sides.
+
+    Asserted per side against the written order rather than local-vs-remote:
+    that is strictly stronger, since two sides re-keying the map the same way
+    (alphabetically, say) would satisfy parity while still having lost the
+    order. The keys are listed rather than compared as a dict because
+    ``dict.__eq__`` ignores order — the key *list* is what carries it.
+    """
     for side in (typed_pair.local, typed_pair.remote):
         got = list(side.node("a").properties.get("p_map").keys())
         assert got == list(_MAP), f"map key order changed: {got}"
