@@ -62,6 +62,15 @@ pub enum ClientError {
     GraphFolder(#[from] GraphFolderError),
 }
 
+/// Query rendering writes into a `String`, which cannot actually fail — but the
+/// renderer propagates the result rather than discarding it, so that no call
+/// site reads as if it were swallowing an error.
+impl From<std::fmt::Error> for ClientError {
+    fn from(err: std::fmt::Error) -> Self {
+        ClientError::InvalidInput(format!("failed to render query: {err}"))
+    }
+}
+
 /// Extract the machine-readable `extensions.code` from a single GraphQL error
 /// object, if present.
 fn error_code(error: &JsonValue) -> Option<&str> {

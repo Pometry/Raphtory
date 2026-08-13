@@ -967,15 +967,16 @@ fn render_read_into(
     out: &mut String,
 ) -> Result<(), ClientError> {
     use std::fmt::Write;
-    // Writing into a String cannot fail, so `write!` results are ignored.
+    // Writing into a String cannot fail, but the results are propagated rather
+    // than discarded so that no line here reads as a swallowed error.
     match expr {
         ReadExpr::Root { path } => {
-            let _ = write!(out, "graph(path: {})", render_gql_str(path));
+            write!(out, "graph(path: {})", render_gql_str(path))?;
         }
         // View chaining
         ReadExpr::View { input, op } => {
             render_read_into(input, vars, out)?;
-            let _ = write!(out, " {{ {}", render_view_op(op));
+            write!(out, " {{ {}", render_view_op(op))?;
         }
         ReadExpr::Valid { input } => {
             render_read_into(input, vars, out)?;
@@ -983,45 +984,45 @@ fn render_read_into(
         }
         ReadExpr::Subgraph { input, nodes } => {
             render_read_into(input, vars, out)?;
-            let _ = write!(out, " {{ subgraph(nodes: [{}])", render_string_list(nodes));
+            write!(out, " {{ subgraph(nodes: [{}])", render_string_list(nodes))?;
         }
         ReadExpr::SubgraphNodeTypes { input, node_types } => {
             render_read_into(input, vars, out)?;
-            let _ = write!(
+            write!(
                 out,
                 " {{ subgraphNodeTypes(nodeTypes: [{}])",
                 render_string_list(node_types)
-            );
+            )?;
         }
         ReadExpr::ExcludeNodes { input, nodes } => {
             render_read_into(input, vars, out)?;
-            let _ = write!(
+            write!(
                 out,
                 " {{ excludeNodes(nodes: [{}])",
                 render_string_list(nodes)
-            );
+            )?;
         }
         ReadExpr::TypeFilter { input, node_types } => {
             render_read_into(input, vars, out)?;
-            let _ = write!(
+            write!(
                 out,
                 " {{ typeFilter(nodeTypes: [{}])",
                 render_string_list(node_types)
-            );
+            )?;
         }
         // Selection
         ReadExpr::Node { input, id } => {
             render_read_into(input, vars, out)?;
-            let _ = write!(out, " {{ node(name: {})", render_gql_str(id));
+            write!(out, " {{ node(name: {})", render_gql_str(id))?;
         }
         ReadExpr::Edge { input, src, dst } => {
             render_read_into(input, vars, out)?;
-            let _ = write!(
+            write!(
                 out,
                 " {{ edge(src: {}, dst: {})",
                 render_gql_str(src),
                 render_gql_str(dst)
-            );
+            )?;
         }
         ReadExpr::Src { input } => {
             render_read_into(input, vars, out)?;
@@ -1081,11 +1082,11 @@ fn render_read_into(
             page_index,
         } => {
             render_read_into(input, vars, out)?;
-            let _ = write!(
+            write!(
                 out,
                 " {{ page({})",
                 render_page_args(*limit, *offset, *page_index)
-            );
+            )?;
         }
         ReadExpr::SubPageRev {
             input,
@@ -1094,11 +1095,11 @@ fn render_read_into(
             page_index,
         } => {
             render_read_into(input, vars, out)?;
-            let _ = write!(
+            write!(
                 out,
                 " {{ pageRev({})",
                 render_page_args(*limit, *offset, *page_index)
-            );
+            )?;
         }
         // Intervals stats
         ReadExpr::IntervalsMean { input } => {
@@ -1167,19 +1168,19 @@ fn render_read_into(
         }
         ReadExpr::SortedNodes { input, sort_bys } => {
             render_read_into(input, vars, out)?;
-            let _ = write!(
+            write!(
                 out,
                 " {{ sorted(sortBys: {})",
                 render_node_sort_bys(sort_bys)
-            );
+            )?;
         }
         ReadExpr::SortedEdges { input, sort_bys } => {
             render_read_into(input, vars, out)?;
-            let _ = write!(
+            write!(
                 out,
                 " {{ sorted(sortBys: {})",
                 render_edge_sort_bys(sort_bys)
-            );
+            )?;
         }
         ReadExpr::Filtered { input, filter } => {
             // Unified server field `filter(expr: GqlFilter!)` — the same field
@@ -1187,20 +1188,20 @@ fn render_read_into(
             // AND propagates to downstream traversals (contrast `select`,
             // which narrows membership at one step only).
             render_read_into(input, vars, out)?;
-            let _ = write!(out, " {{ filter(expr: {})", vars.add_filter(filter)?);
+            write!(out, " {{ filter(expr: {})", vars.add_filter(filter)?)?;
         }
         ReadExpr::SelectNodes { input, filter } => {
             // Server field `select(expr: GqlFilter!)`: narrows the current
             // collection's membership only; downstream traversals see the
             // unfiltered graph.
             render_read_into(input, vars, out)?;
-            let _ = write!(out, " {{ select(expr: {})", vars.add_filter(filter)?);
+            write!(out, " {{ select(expr: {})", vars.add_filter(filter)?)?;
         }
         ReadExpr::SelectEdges { input, filter } => {
             // Server field `select(expr: GqlFilter!)` on `Edges`: narrows the
             // current collection's membership only.
             render_read_into(input, vars, out)?;
-            let _ = write!(out, " {{ select(expr: {})", vars.add_filter(filter)?);
+            write!(out, " {{ select(expr: {})", vars.add_filter(filter)?)?;
         }
         ReadExpr::EdgeEvent {
             input,
@@ -1219,15 +1220,15 @@ fn render_read_into(
             render_read_into(input, vars, out)?;
             match layer {
                 Some(l) => {
-                    let _ = write!(
+                    write!(
                         out,
                         " {{ event(time: {}, layer: {})",
                         time_arg,
                         render_gql_str(l)
-                    );
+                    )?;
                 }
                 None => {
-                    let _ = write!(out, " {{ event(time: {})", time_arg);
+                    write!(out, " {{ event(time: {})", time_arg)?;
                 }
             }
         }
@@ -1235,7 +1236,7 @@ fn render_read_into(
         // layer-exploded instance.
         ReadExpr::EdgeLayerEvent { input, layer } => {
             render_read_into(input, vars, out)?;
-            let _ = write!(out, " {{ eventLayer(name: {})", render_gql_str(layer));
+            write!(out, " {{ eventLayer(name: {})", render_gql_str(layer))?;
         }
         // Metadata / Properties navigation
         ReadExpr::Metadata { input } => {
@@ -1253,15 +1254,15 @@ fn render_read_into(
         // contributing 1 to read_depth.
         ReadExpr::PropertyGet { input, key } => {
             render_read_into(input, vars, out)?;
-            let _ = write!(
+            write!(
                 out,
                 " {{ get(key: {}) {{ value dtype }}",
                 render_gql_str(key)
-            );
+            )?;
         }
         ReadExpr::PropertyContains { input, key } => {
             render_read_into(input, vars, out)?;
-            let _ = write!(out, " {{ contains(key: {})", render_gql_str(key));
+            write!(out, " {{ contains(key: {})", render_gql_str(key))?;
         }
         ReadExpr::PropertyKeys { input } => {
             render_read_into(input, vars, out)?;
@@ -1269,17 +1270,17 @@ fn render_read_into(
         }
         ReadExpr::PropertyGetDtypeOf { input, key } => {
             render_read_into(input, vars, out)?;
-            let _ = write!(out, " {{ get(key: {}) {{ dtype }}", render_gql_str(key));
+            write!(out, " {{ get(key: {}) {{ dtype }}", render_gql_str(key))?;
         }
         ReadExpr::PropertyValues { input, keys } => {
             render_read_into(input, vars, out)?;
             match keys {
                 Some(ks) => {
-                    let _ = write!(
+                    write!(
                         out,
                         " {{ values(keys: [{}]) {{ value dtype }}",
                         render_string_list(ks)
-                    );
+                    )?;
                 }
                 None => out.push_str(" { values { value dtype }"),
             }
@@ -1288,11 +1289,11 @@ fn render_read_into(
             render_read_into(input, vars, out)?;
             match keys {
                 Some(ks) => {
-                    let _ = write!(
+                    write!(
                         out,
                         " {{ values(keys: [{}]) {{ key value dtype }}",
                         render_string_list(ks)
-                    );
+                    )?;
                 }
                 None => out.push_str(" { values { key value dtype }"),
             }
@@ -1303,7 +1304,7 @@ fn render_read_into(
         }
         ReadExpr::TemporalPropertyByKey { input, key } => {
             render_read_into(input, vars, out)?;
-            let _ = write!(out, " {{ get(key: {})", render_gql_str(key));
+            write!(out, " {{ get(key: {})", render_gql_str(key))?;
         }
         // `values(keys?) { key }` — we only fetch the key from each record;
         // clients build a `RemoteTemporalProperty` handle around each key.
@@ -1311,11 +1312,11 @@ fn render_read_into(
             render_read_into(input, vars, out)?;
             match keys {
                 Some(ks) => {
-                    let _ = write!(
+                    write!(
                         out,
                         " {{ values(keys: [{}]) {{ key }}",
                         render_string_list(ks)
-                    );
+                    )?;
                 }
                 None => out.push_str(" { values { key }"),
             }
@@ -1326,7 +1327,7 @@ fn render_read_into(
         }
         ReadExpr::TemporalPropertyAt { input, time } => {
             render_read_into(input, vars, out)?;
-            let _ = write!(out, " {{ dtype at(t: {})", time);
+            write!(out, " {{ dtype at(t: {})", time)?;
         }
         ReadExpr::TemporalPropertyLatest { input } => {
             render_read_into(input, vars, out)?;
@@ -1338,11 +1339,11 @@ fn render_read_into(
         }
         ReadExpr::TemporalPropertyOrderedDedupe { input, latest_time } => {
             render_read_into(input, vars, out)?;
-            let _ = write!(
+            write!(
                 out,
                 " {{ dtype orderedDedupe(latestTime: {}) {{ time {{ timestamp eventId }} value }}",
                 latest_time
-            );
+            )?;
         }
         ReadExpr::TemporalPropertySum { input } => {
             render_read_into(input, vars, out)?;
@@ -1407,16 +1408,16 @@ fn render_read_into(
         }
         ReadExpr::HasNode { input, id } => {
             render_read_into(input, vars, out)?;
-            let _ = write!(out, " {{ hasNode(name: {})", render_gql_str(id));
+            write!(out, " {{ hasNode(name: {})", render_gql_str(id))?;
         }
         ReadExpr::HasEdge { input, src, dst } => {
             render_read_into(input, vars, out)?;
-            let _ = write!(
+            write!(
                 out,
                 " {{ hasEdge(src: {}, dst: {})",
                 render_gql_str(src),
                 render_gql_str(dst)
-            );
+            )?;
         }
         ReadExpr::CountTemporalEdges { input } => {
             render_read_into(input, vars, out)?;
@@ -1448,7 +1449,7 @@ fn render_read_into(
         }
         ReadExpr::HasLayer { input, name } => {
             render_read_into(input, vars, out)?;
-            let _ = write!(out, " {{ hasLayer(name: {})", render_gql_str(name));
+            write!(out, " {{ hasLayer(name: {})", render_gql_str(name))?;
         }
         ReadExpr::WindowSize { input } => {
             render_read_into(input, vars, out)?;
@@ -1706,31 +1707,31 @@ fn render_read_into(
         // `{ name }` is self-balanced.
         ReadExpr::SharedNeighbours { input, ids } => {
             render_read_into(input, vars, out)?;
-            let _ = write!(
+            write!(
                 out,
                 " {{ sharedNeighbours(selectedNodes: [{}]) {{ name }}",
                 render_string_list(ids)
-            );
+            )?;
         }
         // `findNodes(propertiesDict: [{key, value}]) { name }` — opens ONE net
         // brace (before `findNodes`); inner `{ name }` is self-balanced.
         ReadExpr::FindNodes { input, properties } => {
             render_read_into(input, vars, out)?;
-            let _ = write!(
+            write!(
                 out,
                 " {{ findNodes(propertiesDict: {}) {{ name }}",
                 vars.add_properties(properties)?
-            );
+            )?;
         }
         // `findEdges(propertiesDict: [{key, value}]) { src { name } dst { name } }`
         // — opens ONE net brace; the inner `src`/`dst` groups are self-balanced.
         ReadExpr::FindEdges { input, properties } => {
             render_read_into(input, vars, out)?;
-            let _ = write!(
+            write!(
                 out,
                 " {{ findEdges(propertiesDict: {}) {{ src {{ name }} dst {{ name }} }}",
                 vars.add_properties(properties)?
-            );
+            )?;
         }
         ReadExpr::GetAllNodeTypes { input } => {
             render_read_into(input, vars, out)?;
@@ -1773,11 +1774,11 @@ fn render_read_into(
             page_index,
         } => {
             render_read_into(input, vars, out)?;
-            let _ = write!(
+            write!(
                 out,
                 " {{ page({}) {{ timestamp eventId }}",
                 render_page_args(*limit, *offset, *page_index)
-            );
+            )?;
         }
         ReadExpr::HistoryPageRev {
             input,
@@ -1786,11 +1787,11 @@ fn render_read_into(
             page_index,
         } => {
             render_read_into(input, vars, out)?;
-            let _ = write!(
+            write!(
                 out,
                 " {{ pageRev({}) {{ timestamp eventId }}",
                 render_page_args(*limit, *offset, *page_index)
-            );
+            )?;
         }
         ReadExpr::EdgeHistoryCount { input } => {
             render_read_into(input, vars, out)?;
