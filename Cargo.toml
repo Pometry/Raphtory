@@ -21,7 +21,7 @@ default-members = ["raphtory"]
 resolver = "2"
 
 [workspace.package]
-version = "0.18.0"
+version = "0.18.12"
 documentation = "https://raphtory.readthedocs.io/en/latest/"
 repository = "https://github.com/Raphtory/raphtory/"
 license = "GPL-3.0"
@@ -58,17 +58,17 @@ opt-level = 1 # much smaller files
 
 
 [workspace.dependencies]
-db4-graph = { version = "0.18.0", path = "db4-graph", default-features = false }
-db4-storage = { version = "0.18.0", path = "db4-storage" }
-raphtory = { version = "0.18.0", path = "raphtory", default-features = false }
+db4-graph = { version = "0.18.12", path = "db4-graph", default-features = false }
+db4-storage = { version = "0.18.12", path = "db4-storage" }
+raphtory = { version = "0.18.12", path = "raphtory", default-features = false }
 raphtory-tests = { path = "raphtory-tests", default-features = false }
-raphtory-api = { version = "0.18.0", path = "raphtory-api", default-features = false }
-raphtory-api-macros = { version = "0.18.0", path = "raphtory-api-macros", default-features = false }
-raphtory-core = { version = "0.18.0", path = "raphtory-core", default-features = false }
-raphtory-graphql = { version = "0.18.0", path = "raphtory-graphql", default-features = false }
-raphtory-storage = { version = "0.18.0", path = "raphtory-storage", default-features = false }
-raphtory-itertools = { version = "0.18.0", path = "raphtory-itertools" }
-drop-logging = { version = "0.18.0", path = "drop-logging" }
+raphtory-api = { version = "0.18.12", path = "raphtory-api", default-features = false }
+raphtory-api-macros = { version = "0.18.12", path = "raphtory-api-macros", default-features = false }
+raphtory-core = { version = "0.18.12", path = "raphtory-core", default-features = false }
+raphtory-graphql = { version = "0.18.12", path = "raphtory-graphql", default-features = false }
+raphtory-storage = { version = "0.18.12", path = "raphtory-storage", default-features = false }
+raphtory-itertools = { version = "0.18.12", path = "raphtory-itertools" }
+drop-logging = { version = "0.18.12", path = "drop-logging" }
 async-graphql = { version = "7.2.1", features = ["dynamic-schema"] }
 async-graphql-poem = "7.2.1"
 dynamic-graphql = "0.10.2"
@@ -85,7 +85,7 @@ serde = { version = "1.0.228", features = ["derive", "rc"] }
 serde_json = { version = "1.0.149", features = ["float_roundtrip"] }
 pyo3 = { version = "0.29.0", features = ["multiple-pymethods", "chrono"] }
 pyo3-build-config = "0.29.0"
-pyo3-arrow = { package = "raphtory-pyo3-arrow", version = "0.19.0" }
+pyo3-arrow = { version = "0.19.0" }
 numpy = "0.29.0"
 itertools = "0.15.0"
 rand = "0.9.4"
@@ -122,7 +122,7 @@ quad-rand = "0.2.3"
 zip = "8.6.0"
 bzip2 = "0.6.1"
 async-trait = "0.1.89"
-async-openai = "0.28.3"
+async-openai = "0.41.3"
 num = "0.4.3"
 display-error-chain = "0.2.2"
 bigdecimal = { version = "0.4.10", features = ["serde"] }
@@ -165,18 +165,18 @@ lancedb = { version = "0.33.0", features = [] }
 heed = "0.22.0"
 sqlparser = "0.62.0"
 futures = "0.3"
-arrow = { version = "58.4.0" }
-parquet = { version = "58.4.0" }
-arrow-json = { version = "58.4.0" }
-arrow-buffer = { version = "58.4.0" }
-arrow-schema = { version = "58.4.0" }
-arrow-csv = { version = "58.4.0" }
-arrow-array = { version = "58.4.0", features = ["chrono-tz"] }
-arrow-cast = { version = "58.4.0" }
-arrow-ipc = { version = "58.4.0" }
-arrow-data = { version = "58.4.0" }
-arrow-select = { version = "58.4.0" }
-serde_arrow = { version = "0.14.2", features = ["arrow-58"] }
+arrow = { version = "59.1.0" }
+parquet = { version = "59.1.0" }
+arrow-json = { version = "59.1.0" }
+arrow-buffer = { version = "59.1.0" }
+arrow-schema = { version = "59.1.0" }
+arrow-csv = { version = "59.1.0" }
+arrow-array = { version = "59.1.0", features = ["chrono-tz"] }
+arrow-cast = { version = "59.1.0" }
+arrow-ipc = { version = "59.1.0" }
+arrow-data = { version = "59.1.0" }
+arrow-select = { version = "59.1.0" }
+serde_arrow = { version = "0.14.2", features = ["arrow-59"] }
 datafusion = { version = "54.1.0" }
 datafusion-physical-expr-common = "54.1.0"
 datafusion-physical-expr = "54.1.0"
