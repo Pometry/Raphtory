@@ -327,13 +327,14 @@ def test_delete_edge_of_unknown_edge_creates_it_on_both_sides():
         assert_parity(pair, lambda g: _stamps(g.edge("x", "y").deletions))
 
 
-def test_edge_delete_without_a_default_layer_is_rejected_on_both_sides():
-    """``Edge.delete()`` with no layer needs a default layer to already exist.
+def test_edge_delete_creates_the_default_layer_on_both_sides():
+    """``edge.delete(t)`` with no layer creates the default layer if missing.
 
-    A real asymmetry inside the write path, identical on both sides:
-    ``graph.delete_edge(t, src, dst)`` *creates* the default layer on demand,
-    while ``edge.delete(t)`` refuses when there isn't one. Pinned because the
-    two calls look interchangeable and are not.
+    The two spellings of "delete this edge, no layer given" must agree:
+    ``graph.delete_edge(t, src, dst)`` has always created ``_default`` on
+    demand, while ``edge.delete(t)`` used to refuse when the graph's layers
+    were all named. That asymmetry is now fixed in the engine, so both sides
+    accept it and record the same tombstone.
     """
 
     def build(g):
@@ -344,13 +345,17 @@ def test_edge_delete_without_a_default_layer_is_rejected_on_both_sides():
         return (_stamps(g.edge("a", "b").deletions), sorted(g.unique_layers))
 
     with graph_pair(build) as pair:
-        _assert_write_rejected(pair, lambda g: g.edge("a", "b").delete(6), probe)
+        _assert_write_lands(pair, lambda g: g.edge("a", "b").delete(6), probe)
+        for name, g in _sides(pair):
+            assert "_default" in g.unique_layers, (
+                f"{name}: edge.delete() with no layer should have created the "
+                f"default layer, layers are {sorted(g.unique_layers)}"
+            )
 
-        # The graph-level call, by contrast, is accepted and creates `_default` —
-        # after which the edge-level call works. Without this half the test would
-        # not distinguish "no default layer" from "deletes never work".
-        _assert_write_lands(pair, lambda g: g.delete_edge(7, "a", "b"), probe)
-        _assert_write_lands(pair, lambda g: g.edge("a", "b").delete(8), probe)
+    # And it is the *same* write as the graph-level call: applied to a fresh
+    # pair, the two spellings leave identical state.
+    with graph_pair(build) as pair:
+        _assert_write_lands(pair, lambda g: g.delete_edge(6, "a", "b"), probe)
 
 
 # --- 2. layer-scoped writes -------------------------------------------------
