@@ -36,7 +36,7 @@ import pytest
 
 hypothesis = pytest.importorskip("hypothesis")
 
-from hypothesis import HealthCheck, event, given, settings, target
+from hypothesis import HealthCheck, event, example, given, settings, target
 from hypothesis import strategies as st
 
 from _parity import GraphPair, assert_parity, canonical
@@ -258,6 +258,10 @@ def _parity_with_outcome(pair, fn):
 
 
 @given(ops=write_ops())
+# The empty graph is the shape most likely to break `earliest_time`,
+# aggregations and `collect()`, and random sizing reaches it only ~0.6% of
+# the time — so it is pinned as an explicit example rather than left to luck.
+@example(ops=[])
 @_gen_settings(max_examples=150)
 def test_generated_writes_full_state_parity(client, ops):
     """Any generated write sequence leaves both sides in the same full state.
@@ -267,67 +271,74 @@ def test_generated_writes_full_state_parity(client, ops):
     conflicting metadata write cannot mask what the rest of the sequence does.
     """
     pair, rejected = _fresh_pair(client, ops)
-    event(f"writes: rejected={min(rejected, 3)}")
+    # These are Hypothesis `event` labels — they only shape the coverage
+    # summary, never the assertions. Both are bucketed rather than exact so the
+    # summary stays readable: an unbounded `rejected` count would print one
+    # line per distinct number, so 3+ collapses into a single "3" bucket.
+    event(f"writes: rejected={min(rejected, 3)}{'+' if rejected > 3 else ''}")
     event(
-        f"writes: ops={'few' if len(ops) <= 4 else 'several' if len(ops) <= 8 else 'many'}"
+        f"writes: ops={'none' if not ops else 'few' if len(ops) <= 4 else 'several' if len(ops) <= 8 else 'many'}"
     )
     assert_parity(pair, probe_full_state)
 
 
 # --- P2: generated filters on generated graphs ---------------------------------
 
-# A seed prefix guaranteeing every filterable key, layer and node type occurs,
-# so a generated expression usually has something to bite on and the
-# discriminating-outcome rate below stays honest work rather than luck.
-_FILTER_SEED_OPS = [
-    ("add_node", 1, "n0", {"p_int": 7, "p_str": "red", "p_bool": True}, "person"),
-    ("add_node", 2, "n1", {"p_int": 0, "p_float": 2.5}, "bot"),
-    ("add_node", 3, "n2", {"p_str": "blue", "p_bool": False}, "org"),
-    ("add_edge", 4, "n0", "n1", {"p_float": 0.5, "p_str": "green"}, "alpha", None),
-    ("add_edge", 5, "n1", "n2", {"p_int": 42}, "beta", None),
-    ("add_edge", 6, "n2", "n0", {"p_float": 1.5}, "gamma", None),
-]
+# No fixed seed prefix: prepending one would mean every filter example runs
+# against a graph that already contains those exact keys, layers and node
+# types, so graphs *without* them could never be explored. `target` below
+# steers generation toward expressions that match part of the graph — the same
+# goal, without narrowing the input space.
 
 
 def _classify_filtered(filtered, unfiltered):
+    """What the filter actually did, named after the outcome.
+
+    ``matched_some`` is the case worth generating: the filter kept part of the
+    graph and dropped the rest, so local and remote agreeing on it is a real
+    claim. The other two pass trivially — a backend that ignored filters
+    entirely would still match all, and an empty result is the same `[]` on
+    both sides either way.
+    """
     if not filtered["nodes"] and not filtered["edges"]:
-        return "empty"
+        return "matched_none"
     if filtered == unfiltered:
-        return "universal"
-    return "discriminating"
+        return "matched_all"
+    return "matched_some"
 
 
-@given(ops=write_ops(max_size=8), expr=filter_exprs())
-@_gen_settings(max_examples=300)
+@given(ops=write_ops(max_size=16), expr=filter_exprs())
+@_gen_settings(max_examples=600)
 def test_generated_filter_parity(client, ops, expr):
     """A generated expression over a generated graph selects the same thing
     through ``graph.filter`` on both sides — or is refused by both.
 
     The event statistics make vacuity visible instead of guessed: every
-    example is classified as discriminating (kept some, dropped some),
-    universal, empty, or rejected, and ``target`` pushes generation toward
-    discriminating expressions.
+    example is classified by what the filter did — ``matched_some`` (kept
+    part, dropped the rest — the case that proves anything), ``matched_all``,
+    ``matched_none``, or ``rejected`` — and ``target`` steers generation
+    toward ``matched_some``.
     """
-    pair, _ = _fresh_pair(client, _FILTER_SEED_OPS + ops)
+    pair, _ = _fresh_pair(client, ops)
     outcome, filtered = _parity_with_outcome(
         pair, lambda g: probe_membership(g.filter(compile_filter(expr)))
     )
     if outcome == "raised":
         event("filter: rejected (both sides)")
-        target(0.0, label="discriminating filters")
+        target(0.0, label="filters that matched some")
         return
     # Discrimination is classified on the local side only: value parity above
     # already forces the remote answer to be identical.
     kind = _classify_filtered(filtered, probe_membership(pair.local))
     event(f"filter: {kind}")
-    target(1.0 if kind == "discriminating" else 0.0, label="discriminating filters")
+    target(1.0 if kind == "matched_some" else 0.0, label="filters that matched some")
 
 
 # --- P3: generated expressions at the collection subscripts ---------------------
 
 
-@given(ops=write_ops(max_size=8), expr=filter_exprs())
-@_gen_settings(max_examples=200)
+@given(ops=write_ops(max_size=16), expr=filter_exprs())
+@_gen_settings(max_examples=400)
 def test_generated_subscript_parity(client, ops, expr):
     """``nodes[expr]`` and ``edges[expr]`` agree for generated expressions.
 
@@ -336,7 +347,7 @@ def test_generated_subscript_parity(client, ops, expr):
     asserted outright (not just as optional exception parity) whenever the
     generated tree's leaves are all edge-kind.
     """
-    pair, _ = _fresh_pair(client, _FILTER_SEED_OPS + ops)
+    pair, _ = _fresh_pair(client, ops)
     kinds = leaf_kinds(expr)
 
     node_outcome, _ = _parity_with_outcome(

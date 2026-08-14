@@ -107,8 +107,18 @@ _SET_NODE_TYPE = st.tuples(
 )
 
 
-def write_ops(min_size=1, max_size=12):
-    """A sequence of write operations over the shared pools."""
+def write_ops(min_size=0, max_size=20):
+    """A sequence of write operations over the shared pools.
+
+    ``min_size=0`` on purpose: the empty graph is a common edge case for
+    ``earliest_time``, aggregations and ``collect()``, and excluding it means
+    the one shape most likely to break is the one shape never generated.
+
+    ``max_size`` is generous because the interesting write bugs are ordering
+    bugs — a later write landing in the wrong layer, or a metadata conflict
+    only reachable after several interleavings — and those need sequences long
+    enough for the interleaving to happen.
+    """
     return st.lists(
         st.one_of(
             _ADD_NODE,
