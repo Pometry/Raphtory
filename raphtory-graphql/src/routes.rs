@@ -58,12 +58,21 @@ struct PublicFolder;
 
 pub(crate) struct PublicFilesEndpoint<G> {
     public_dir: Option<PathBuf>,
+    disable_ui: bool,
     gql: G,
 }
 
 impl<G> PublicFilesEndpoint<G> {
-    pub(crate) fn new(public_dir: Option<PathBuf>, gql: G) -> PublicFilesEndpoint<G> {
-        PublicFilesEndpoint { public_dir, gql }
+    pub(crate) fn new(
+        public_dir: Option<PathBuf>,
+        disable_ui: bool,
+        gql: G,
+    ) -> PublicFilesEndpoint<G> {
+        PublicFilesEndpoint {
+            public_dir,
+            disable_ui,
+            gql,
+        }
     }
 }
 
@@ -76,6 +85,8 @@ where
     async fn call(&self, req: Request) -> poem::Result<Self::Output> {
         if req.method() == Method::POST {
             self.gql.call(req).await
+        } else if self.disable_ui {
+            Ok(StatusCode::NOT_FOUND.into_response())
         } else if let Some(public_dir) = &self.public_dir {
             StaticFilesEndpoint::new(public_dir)
                 .index_file("index.html")
@@ -119,8 +130,24 @@ mod tests {
     fn public_dir_endpoint(dir: &Path) -> impl Endpoint<Output = Response> {
         PublicFilesEndpoint::new(
             Some(dir.to_path_buf()),
+            false,
             make_sync(|_| Response::builder().body("gql")),
         )
+    }
+
+    #[tokio::test]
+    async fn disable_ui_returns_404_for_get_but_post_reaches_gql() {
+        let endpoint =
+            PublicFilesEndpoint::new(None, true, make_sync(|_| Response::builder().body("gql")));
+        // GET (the UI) is gone.
+        assert_eq!(get(&endpoint, "/").await.status(), StatusCode::NOT_FOUND);
+        // POST still reaches the GraphQL executor.
+        let post = Request::builder()
+            .method(Method::POST)
+            .uri("/".parse().unwrap())
+            .finish();
+        let resp = endpoint.call(post).await.unwrap();
+        assert_eq!(resp.into_body().into_string().await.unwrap(), "gql");
     }
 
     async fn get(endpoint: &impl Endpoint<Output = Response>, path: &str) -> Response {
