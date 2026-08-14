@@ -1,9 +1,9 @@
 """Hypothesis strategies for the generative parity layer.
 
 Everything here generates *data*, not raphtory objects: a write operation is a
-tuple like ``("add_node", 3, "n1", {"p_int": 7}, "person")``, a filter
-expression is a nested tuple tree, a view chain is a list of op tuples. Data
-first, objects second, for two reasons:
+tuple like ``("add_node", 3, "n1", {"q0": 7}, "person")``, a filter expression
+is a nested tuple tree, a view chain is a list of op tuples. Data first,
+objects second, for two reasons:
 
 * Hypothesis shrinks and reports the generated value — a tuple tree makes the
   minimal failing example readable and replayable verbatim, where a
@@ -11,47 +11,198 @@ first, objects second, for two reasons:
 * the same generated value is compiled/applied twice, once per side, so the
   two sides cannot diverge through object identity.
 
-Pools are deliberately tiny (6 node names, 3 layers, 6 property keys, ~4
-values per key) so that generated sequences actually collide: repeated updates
-to one entity, same-timestamp writes, deletes of edges that exist, filters
-whose comparison values really occur in the graph. Every property key has a
-*fixed* value type; that keeps generated writes free of dtype conflicts (the
-enumerated suite pins dtype-conflict rejection already), so a generated
-sequence explores state space instead of tripping over rejections.
+**Schema-first.** Each example first generates a *schema* — a mapping of
+property names to types, the types themselves drawn from every leaf dtype
+raphtory exposes plus recursively nested lists and maps (modelled on the
+rust-side generator in ``db4-storage/src/pages/test_utils/props.rs``). Writes
+then produce values conforming to the schema, and filter expressions draw
+their keys *from* the schema with comparison values of the matching type. That
+correlation is not seeding: no content is fixed — a given example's graph may
+still contain any subset of its schema, including none of it — but an
+expression no longer names a property that could not possibly exist, which
+previously made a third of generated examples fail with "property does not
+exist" before testing anything.
+
+Name pools (nodes, layers, node types, property names) stay deliberately tiny
+so that generated sequences actually collide: repeated updates to one entity,
+same-timestamp writes, deletes of edges that exist, filters whose comparison
+values really occur in the graph. Every schema key has one fixed type per
+example, which keeps generated writes free of dtype conflicts (the enumerated
+suite pins dtype-conflict rejection already).
 
 Ops that raphtory legitimately rejects on *both* sides can still be generated
-(metadata re-add with a new value, ``set_node_type`` on a typed node);
-``apply_ops`` treats "both sides reject identically" as parity rather than
-avoiding the case.
+(metadata re-add with a new value, ``set_node_type`` on a typed node, and a
+deliberate ~10% of filter leaves naming a key outside the schema);
+``apply_ops`` and the filter properties treat "both sides reject identically"
+as parity rather than avoiding the case.
 """
 
 from __future__ import annotations
 
-import operator
+import datetime
+from decimal import Decimal
 
 from hypothesis import strategies as st
 
+from raphtory import Prop
 from raphtory import filter as f
 
-# --- pools --------------------------------------------------------------------
+# --- name pools -----------------------------------------------------------------
 
 NODE_NAMES = ["n0", "n1", "n2", "n3", "n4", "n5"]
 LAYERS = ["alpha", "beta", "gamma"]
 NODE_TYPES = ["person", "bot", "org"]
+# Property-name vocabulary. Small and closed (like the pools above) so distinct
+# examples reuse names and writes collide; which *type* a name has is decided
+# per example by the generated schema.
+PROP_NAMES = ["q0", "q1", "q2", "q3", "q4"]
+META_NAMES = ["m0", "m1"]
+# A key outside every schema, drawn by ~10% of property leaves on purpose so
+# the "filter on an absent property" rejection stays exercised deliberately
+# rather than dominating by accident.
+MISSING_KEY = "q_missing"
 
-# One value type per key, values chosen so equality comparisons can bite.
-PROP_POOLS = {
-    "p_int": [0, 1, 7, 42],
-    "p_float": [0.5, 1.5, 2.5, -3.25],
-    "p_str": ["red", "green", "blue", "redish"],
-    "p_bool": [True, False],
-    "p_list": [[1, 2], [2, 3], [7]],
-    "p_map": [{"x": 1, "y": 2}, {"x": 2, "y": 3}],
+_DT_A = datetime.datetime(2021, 3, 4, 5, 6, 7, tzinfo=datetime.timezone.utc)
+_DT_B = datetime.datetime(2022, 11, 30, 23, 59, 59, tzinfo=datetime.timezone.utc)
+_NDT_A = datetime.datetime(2021, 3, 4, 5, 6, 7)
+_NDT_B = datetime.datetime(2022, 11, 30, 23, 59, 59)
+
+# --- the type universe -----------------------------------------------------------
+#
+# One row per leaf dtype: the value pool (small, ordered-distinct, so
+# comparisons collide *and* discriminate), the `Prop` constructor that pins the
+# width on writes and comparison values (None = plain Python round-trips to the
+# right dtype already), and the comparison kind (which operators apply).
+
+_LEAF_TYPES = {
+    # tag:       (pool,                              wrap,                kind)
+    "i64": ([-(2**40), 0, 7, 42], None, "orderable"),
+    "i32": ([-70000, 0, 3], Prop.i32, "orderable"),
+    "u8": ([0, 7, 255], Prop.u8, "orderable"),
+    "u16": ([0, 300, 65535], Prop.u16, "orderable"),
+    "u32": ([0, 70000], Prop.u32, "orderable"),
+    "u64": ([0, 2**40], Prop.u64, "orderable"),
+    "f64": ([-3.25, 0.5, 1.5, 2.5], None, "orderable"),
+    "f32": ([-3.25, 0.5, 1.5], Prop.f32, "orderable"),
+    "bool": ([True, False], None, "flag"),
+    "str": (["red", "green", "blue", "redish"], None, "text"),
+    "dtime": ([_DT_A, _DT_B], Prop.aware_datetime, "orderable"),
+    "ndtime": ([_NDT_A, _NDT_B], Prop.naive_datetime, "orderable"),
+    "decimal": ([Decimal("3.14"), Decimal("-0.50")], Prop.decimal, "orderable"),
 }
-META_POOLS = {
-    "m_int": [1, 2],
-    "m_str": ["uk", "us"],
+
+# Which comparison operators make sense per kind. This is THE registry: a leaf
+# strategy draws an operator from its type's kind here, and `_apply_comparison`
+# dispatches by the very same (dunder) name — adding an operator means adding
+# it to exactly one row, and generation and application cannot drift apart.
+# Args-arity is encoded in the entry: "value" ops take one comparison value of
+# the leaf's type, "values" ops a small list of them, "bare" ops nothing.
+KIND_OPERATORS = {
+    "orderable": {
+        "__eq__": "value",
+        "__ne__": "value",
+        "__lt__": "value",
+        "__le__": "value",
+        "__gt__": "value",
+        "__ge__": "value",
+        "is_in": "values",
+        "is_some": "bare",
+        "is_none": "bare",
+    },
+    "text": {
+        "__eq__": "value",
+        "__ne__": "value",
+        "contains": "value",
+        "starts_with": "value",
+        "ends_with": "value",
+        "is_in": "values",
+        "is_some": "bare",
+        "is_none": "bare",
+    },
+    "flag": {
+        "__eq__": "value",
+        "__ne__": "value",
+        "is_some": "bare",
+        "is_none": "bare",
+    },
+    # Containers (list/map values): equality and presence only.
+    "container": {
+        "__eq__": "value",
+        "__ne__": "value",
+        "is_some": "bare",
+        "is_none": "bare",
+    },
 }
+
+
+def _leaf_type_tags():
+    return st.sampled_from(sorted(_LEAF_TYPES))
+
+
+def prop_types():
+    """A property *type*: a leaf dtype, or a list/map of a leaf dtype.
+
+    Mirrors the rust generator's ``prop_type()`` (leaves + ``prop_recursive``);
+    one level of nesting here, because every extra level multiplies the wire
+    cost of each example while the encode/decode path it exercises is the same.
+    """
+    leaves = _leaf_type_tags().map(lambda t: ("leaf", t))
+    return st.one_of(
+        leaves,
+        _leaf_type_tags().map(lambda t: ("list", t)),
+        _leaf_type_tags().map(lambda t: ("map", t)),
+    )
+
+
+def prop_schemas(names=PROP_NAMES):
+    """A schema: a subset of the property-name vocabulary, each name typed.
+
+    ``min_size=1``: the schema is vocabulary, not content — property-free
+    graphs are still generated (writes draw a subset of the schema, possibly
+    none of it), but an *empty* schema would force every property leaf in
+    ``filter_exprs`` onto the missing-key fallback, swamping the run with
+    absent-property rejections.
+    """
+    return st.dictionaries(
+        st.sampled_from(names), prop_types(), min_size=1, max_size=len(names)
+    )
+
+
+def _raw_value(type_):
+    """A strategy for one *unwrapped* value of ``type_`` (plain Python data,
+    kept raw in the generated tuples so shrunk examples stay readable)."""
+    shape, tag = type_
+    pool, _, _ = _LEAF_TYPES[tag]
+    leaf = st.sampled_from(pool)
+    if shape == "leaf":
+        return leaf
+    if shape == "list":
+        return st.lists(leaf, min_size=1, max_size=3)
+    return st.dictionaries(st.sampled_from(["x", "y", "z"]), leaf, min_size=1)
+
+
+def wrap_value(type_, raw):
+    """Pin ``raw`` to its schema type for a write or a comparison value.
+
+    The wrap is what keeps a ``u8`` a ``u8`` across the write and the filter:
+    without it a plain ``7`` would arrive as ``i64`` and either widen the
+    property or mismatch the comparison.
+    """
+    shape, tag = type_
+    _, wrap, _ = _LEAF_TYPES[tag]
+    if shape == "leaf":
+        return wrap(raw) if wrap else raw
+    if shape == "list":
+        return Prop.list([wrap(v) if wrap else v for v in raw])
+    return Prop.map({k: wrap(v) if wrap else v for k, v in raw.items()})
+
+
+def _kind(type_):
+    shape, tag = type_
+    if shape != "leaf":
+        return "container"
+    return _LEAF_TYPES[tag][2]
+
 
 _times = st.integers(min_value=0, max_value=12)
 # Explicit event ids sit above any auto-assigned id a short sequence produces
@@ -62,93 +213,123 @@ _maybe_layer = st.sampled_from([None] + LAYERS)
 
 
 @st.composite
-def _props(draw, pools=PROP_POOLS, max_size=3):
+def _props(draw, schema, max_size=3):
+    """A property dict conforming to ``schema``: raw values, wrapped on apply."""
+    if not schema:
+        return {}
     keys = draw(
-        st.lists(st.sampled_from(sorted(pools)), unique=True, max_size=max_size)
+        st.lists(st.sampled_from(sorted(schema)), unique=True, max_size=max_size)
     )
-    return {key: draw(st.sampled_from(pools[key])) for key in keys}
+    return {key: draw(_raw_value(schema[key])) for key in keys}
 
 
-# --- write operations -----------------------------------------------------------
-
+# --- write operations -------------------------------------------------------------
+#
 # Each op is a tuple whose first element names the call; `apply_op` dispatches.
-_ADD_NODE = st.tuples(
-    st.just("add_node"),
-    _times,
-    _names,
-    _props(),
-    st.sampled_from([None] + NODE_TYPES),
-)
-_ADD_EDGE = st.tuples(
-    st.just("add_edge"), _times, _names, _names, _props(), _maybe_layer, _event_ids
-)
-_NODE_UPDATES = st.tuples(st.just("node_updates"), _names, _times, _props(), _event_ids)
-_EDGE_UPDATES = st.tuples(
-    st.just("edge_updates"), _names, _names, _times, _props(), _maybe_layer, _event_ids
-)
-_DELETE_EDGE = st.tuples(
-    st.just("delete_edge"), _times, _names, _names, _maybe_layer, _event_ids
-)
-_NODE_METADATA = st.tuples(
-    st.just("node_metadata"), _names, _props(pools=META_POOLS, max_size=2)
-)
-_EDGE_METADATA = st.tuples(
-    st.just("edge_metadata"),
-    _names,
-    _names,
-    _props(pools=META_POOLS, max_size=2),
-    _maybe_layer,
-)
-_GRAPH_METADATA = st.tuples(
-    st.just("graph_metadata"), _props(pools=META_POOLS, max_size=2)
-)
-_SET_NODE_TYPE = st.tuples(
-    st.just("set_node_type"), _names, st.sampled_from(NODE_TYPES)
-)
+# Ops carry raw values; the schema travels alongside (in the generated case)
+# so `apply_op` can wrap each value to its pinned type at apply time.
+
+
+def _op_strategies(schema, meta_schema):
+    props = _props(schema)
+    meta = _props(meta_schema, max_size=2)
+    return dict(
+        add_node=st.tuples(
+            st.just("add_node"),
+            _times,
+            _names,
+            props,
+            st.sampled_from([None] + NODE_TYPES),
+        ),
+        add_edge=st.tuples(
+            st.just("add_edge"), _times, _names, _names, props, _maybe_layer, _event_ids
+        ),
+        node_updates=st.tuples(
+            st.just("node_updates"), _names, _times, props, _event_ids
+        ),
+        edge_updates=st.tuples(
+            st.just("edge_updates"),
+            _names,
+            _names,
+            _times,
+            props,
+            _maybe_layer,
+            _event_ids,
+        ),
+        delete_edge=st.tuples(
+            st.just("delete_edge"), _times, _names, _names, _maybe_layer, _event_ids
+        ),
+        node_metadata=st.tuples(st.just("node_metadata"), _names, meta),
+        edge_metadata=st.tuples(
+            st.just("edge_metadata"), _names, _names, meta, _maybe_layer
+        ),
+        graph_metadata=st.tuples(st.just("graph_metadata"), meta),
+        set_node_type=st.tuples(
+            st.just("set_node_type"), _names, st.sampled_from(NODE_TYPES)
+        ),
+    )
+
+
+@st.composite
+def generated_case(draw, max_ops=20, min_ops=0, with_expr=False):
+    """A full generated example: ``(schema, ops)`` or ``(schema, ops, expr)``.
+
+    The schema is drawn first; writes conform to it and (when requested) the
+    filter expression draws its property keys from it — correlation by
+    construction, not by seeding content.
+
+    ``min_ops=0`` on purpose: the empty graph is a common edge case for
+    ``earliest_time``, aggregations and ``collect()``. ``max_ops`` is generous
+    because the interesting write bugs are ordering bugs, which need sequences
+    long enough for the interleaving to happen.
+    """
+    schema = draw(prop_schemas())
+    meta_schema = draw(prop_schemas(names=META_NAMES))
+    ops = draw(
+        st.lists(
+            st.one_of(*(_op_strategies(schema, meta_schema).values())),
+            min_size=min_ops,
+            max_size=max_ops,
+        )
+    )
+    if not with_expr:
+        return schema, meta_schema, ops
+    expr = draw(filter_exprs(schema))
+    return schema, meta_schema, ops, expr
 
 
 def write_ops(min_size=0, max_size=20):
-    """A sequence of write operations over the shared pools.
-
-    ``min_size=0`` on purpose: the empty graph is a common edge case for
-    ``earliest_time``, aggregations and ``collect()``, and excluding it means
-    the one shape most likely to break is the one shape never generated.
-
-    ``max_size`` is generous because the interesting write bugs are ordering
-    bugs — a later write landing in the wrong layer, or a metadata conflict
-    only reachable after several interleavings — and those need sequences long
-    enough for the interleaving to happen.
-    """
-    return st.lists(
-        st.one_of(
-            _ADD_NODE,
-            _ADD_EDGE,
-            _NODE_UPDATES,
-            _EDGE_UPDATES,
-            _DELETE_EDGE,
-            _NODE_METADATA,
-            _EDGE_METADATA,
-            _GRAPH_METADATA,
-            _SET_NODE_TYPE,
-        ),
-        min_size=min_size,
-        max_size=max_size,
-    )
+    """A ``(schema, meta_schema, ops)`` case — see ``generated_case``."""
+    return generated_case(max_ops=max_size, min_ops=min_size)
 
 
 def safe_write_ops():
     """Write ops that can never be rejected: graph-level, auto-creating, no
     metadata/node_type (whose write-once semantics can conflict with earlier
     examples). Used where a shared graph accumulates writes across examples
-    (the RPC-count property) and an exception would abort the count."""
+    (the RPC-count property) and an exception would abort the count.
+
+    Values are drawn from a fixed all-leaf schema (one representative key per
+    comparison kind) — the RPC-count property cares about call shapes, not
+    type variety, and a fixed schema keeps every op self-contained."""
+    schema = {
+        "q0": ("leaf", "i64"),
+        "q1": ("leaf", "str"),
+        "q2": ("leaf", "f64"),
+    }
+    ops = _op_strategies(schema, {})
     return st.one_of(
-        st.tuples(st.just("add_node"), _times, _names, _props(), st.none()),
-        _ADD_EDGE,
-        _DELETE_EDGE,
-    )
+        st.tuples(st.just("add_node"), _times, _names, _props(schema), st.none()),
+        ops["add_edge"],
+        ops["delete_edge"],
+    ).map(lambda op: (schema, {}, [op]))
 
 
-def apply_op(g, op):
+def _wrapped(schema, props):
+    return {k: wrap_value(schema[k], v) for k, v in props.items()} or None
+
+
+def apply_op(g, schema, meta_schema, op):
     """Apply one generated op to a graph handle (local or remote).
 
     Entity-scoped ops are guarded on existence: ``g.node(...)`` is ``None`` on
@@ -158,23 +339,28 @@ def apply_op(g, op):
     tag = op[0]
     if tag == "add_node":
         _, t, name, props, node_type = op
-        g.add_node(t, name, properties=props or None, node_type=node_type)
+        g.add_node(t, name, properties=_wrapped(schema, props), node_type=node_type)
     elif tag == "add_edge":
         _, t, src, dst, props, layer, event_id = op
         g.add_edge(
-            t, src, dst, properties=props or None, layer=layer, event_id=event_id
+            t,
+            src,
+            dst,
+            properties=_wrapped(schema, props),
+            layer=layer,
+            event_id=event_id,
         )
     elif tag == "node_updates":
         _, name, t, props, event_id = op
         node = g.node(name)
         if node is not None:
-            node.add_updates(t, properties=props or None, event_id=event_id)
+            node.add_updates(t, properties=_wrapped(schema, props), event_id=event_id)
     elif tag == "edge_updates":
         _, src, dst, t, props, layer, event_id = op
         edge = g.edge(src, dst)
         if edge is not None:
             edge.add_updates(
-                t, properties=props or None, layer=layer, event_id=event_id
+                t, properties=_wrapped(schema, props), layer=layer, event_id=event_id
             )
     elif tag == "delete_edge":
         _, t, src, dst, layer, event_id = op
@@ -183,16 +369,16 @@ def apply_op(g, op):
         _, name, meta = op
         node = g.node(name)
         if node is not None and meta:
-            node.add_metadata(meta)
+            node.add_metadata(_wrapped(meta_schema, meta))
     elif tag == "edge_metadata":
         _, src, dst, meta, layer = op
         edge = g.edge(src, dst)
         if edge is not None and meta:
-            edge.add_metadata(meta, layer=layer)
+            edge.add_metadata(_wrapped(meta_schema, meta), layer=layer)
     elif tag == "graph_metadata":
         (_, meta) = op
         if meta:
-            g.add_metadata(meta)
+            g.add_metadata(_wrapped(meta_schema, meta))
     elif tag == "set_node_type":
         _, name, node_type = op
         node = g.node(name)
@@ -202,23 +388,24 @@ def apply_op(g, op):
         raise ValueError(f"unknown generated op {op!r}")
 
 
-def apply_ops(local, remote, ops):
-    """Apply ``ops`` to both graphs with per-op exception parity.
+def apply_ops(local, remote, case):
+    """Apply a generated case to both graphs with per-op exception parity.
 
     A rejected op (metadata conflict, node-type conflict) must be rejected by
     *both* sides with the same exception type; the sequence then continues, so
     one rejection does not shadow the rest of the generated sequence. Returns
     the number of rejected ops (for Hypothesis event statistics).
     """
+    schema, meta_schema, ops = case[0], case[1], case[2]
     rejected = 0
     for op in ops:
         local_exc = remote_exc = None
         try:
-            apply_op(local, op)
+            apply_op(local, schema, meta_schema, op)
         except Exception as exc:  # noqa: BLE001 — parity check needs the type
             local_exc = exc
         try:
-            apply_op(remote, op)
+            apply_op(remote, schema, meta_schema, op)
         except Exception as exc:  # noqa: BLE001 — parity check needs the type
             remote_exc = exc
         assert type(local_exc) is type(remote_exc), (
@@ -230,58 +417,54 @@ def apply_ops(local, remote, ops):
     return rejected
 
 
-# --- filter expressions -----------------------------------------------------------
-
-# Property keys usable in comparisons (lists/maps stay write-only: ordering and
-# string ops over them are not part of the filter surface).
-_NUMERIC_KEYS = ["p_int", "p_float"]
-_CMP_OPS = ["eq", "ne", "lt", "le", "gt", "ge"]
-_STRING_OPS = ["eq", "ne", "contains", "starts_with", "ends_with", "is_in"]
+# --- filter expressions -------------------------------------------------------
 
 
 @st.composite
-def _node_prop_leaf(draw):
-    key = draw(st.sampled_from(_NUMERIC_KEYS + ["p_str", "p_bool"]))
-    if key == "p_bool":
-        op = draw(st.sampled_from(["eq", "ne"]))
-    elif key == "p_str":
-        op = draw(st.sampled_from(_STRING_OPS + ["is_some", "is_none"]))
+def _prop_leaf(draw, prefix, schema):
+    """A property comparison leaf, keyed by the example's schema.
+
+    The key is drawn from the schema (so the property *can* exist), the
+    operator from the key's type kind, and the comparison value from the same
+    type's pool — value-vs-property dtype mismatches cannot be generated. A
+    deliberate ~10% of leaves use ``MISSING_KEY`` (typed i64) instead, keeping
+    the absent-property rejection exercised on purpose.
+    """
+    keys = sorted(schema)
+    # 1-in-20 per leaf; an expression holds several leaves, so the
+    # per-expression rate lands near the intended ~10%.
+    if not keys or draw(st.integers(0, 19)) == 0:
+        key, type_ = MISSING_KEY, ("leaf", "i64")
     else:
-        op = draw(st.sampled_from(_CMP_OPS + ["is_in", "is_some", "is_none"]))
-    value = draw(_leaf_value(key, op))
-    return ("nprop", key, op, value)
-
-
-@st.composite
-def _edge_prop_leaf(draw):
-    key = draw(st.sampled_from(_NUMERIC_KEYS + ["p_str"]))
-    if key == "p_str":
-        op = draw(st.sampled_from(_STRING_OPS + ["is_some", "is_none"]))
+        key = draw(st.sampled_from(keys))
+        type_ = schema[key]
+    ops = KIND_OPERATORS[_kind(type_)]
+    op = draw(st.sampled_from(sorted(ops)))
+    arity = ops[op]
+    if arity == "bare":
+        args = ()
+    elif arity == "values":
+        args = (draw(st.lists(_raw_value(type_), min_size=1, max_size=3)),)
     else:
-        op = draw(st.sampled_from(_CMP_OPS + ["is_in", "is_some", "is_none"]))
-    value = draw(_leaf_value(key, op))
-    return ("eprop", key, op, value)
+        args = (draw(_raw_value(type_)),)
+    return (prefix, key, type_, op, args)
 
 
-def _leaf_value(key, op):
-    pool = PROP_POOLS[key]
-    if op in ("is_some", "is_none"):
-        return st.none()
-    if op == "is_in":
-        return st.lists(st.sampled_from(pool), min_size=1, max_size=3, unique_by=repr)
-    return st.sampled_from(pool)
+_FIELD_OPS = ["__eq__", "__ne__", "contains", "starts_with", "ends_with", "is_in"]
 
 
 @st.composite
 def _field_leaf(draw, tag, values):
-    op = draw(st.sampled_from(_STRING_OPS))
+    op = draw(st.sampled_from(_FIELD_OPS))
     if op == "is_in":
-        value = draw(
-            st.lists(st.sampled_from(values), min_size=1, max_size=3, unique=True)
+        args = (
+            draw(
+                st.lists(st.sampled_from(values), min_size=1, max_size=3, unique=True)
+            ),
         )
     else:
-        value = draw(st.sampled_from(values))
-    return (tag, op, value)
+        args = (draw(st.sampled_from(values)),)
+    return (tag, op, args)
 
 
 def _view_atoms():
@@ -294,8 +477,8 @@ def _view_atoms():
     )
 
 
-def filter_exprs(kinds=("node", "edge", "view")):
-    """A recursive filter-expression tree over the shared pools.
+def filter_exprs(schema, kinds=("node", "edge", "view")):
+    """A recursive filter-expression tree, keyed by the example's schema.
 
     Leaves are weighted over combinators by ``st.recursive`` itself (it
     extends only a fraction of draws); depth is bounded by ``max_leaves=4``,
@@ -304,13 +487,13 @@ def filter_exprs(kinds=("node", "edge", "view")):
     leaves = []
     if "node" in kinds:
         leaves += [
-            _node_prop_leaf(),
+            _prop_leaf("nprop", schema),
             _field_leaf("nname", NODE_NAMES),
             _field_leaf("ntype", NODE_TYPES),
         ]
     if "edge" in kinds:
         leaves += [
-            _edge_prop_leaf(),
+            _prop_leaf("eprop", schema),
             _field_leaf("esrc", NODE_NAMES),
             _field_leaf("edst", NODE_NAMES),
         ]
@@ -341,14 +524,11 @@ def leaf_kinds(expr):
     return {"view"}
 
 
-def _apply_comparison(target, op, value):
-    if op in ("eq", "ne", "lt", "le", "gt", "ge"):
-        return getattr(operator, op)(target, value)
-    if op == "is_some":
-        return target.is_some()
-    if op == "is_none":
-        return target.is_none()
-    return getattr(target, op)(value)  # contains / starts_with / ends_with / is_in
+def _apply_comparison(target, op, args):
+    # Operator names in the registry are the builder's own method names
+    # (dunders included), so application is a single dispatch — the bare ops
+    # simply carry an empty args tuple.
+    return getattr(target, op)(*args)
 
 
 def compile_filter(expr):
@@ -360,10 +540,16 @@ def compile_filter(expr):
         return compile_filter(expr[1]) | compile_filter(expr[2])
     if tag == "not":
         return ~compile_filter(expr[1])
-    if tag == "nprop":
-        return _apply_comparison(f.Node.property(expr[1]), expr[2], expr[3])
-    if tag == "eprop":
-        return _apply_comparison(f.Edge.property(expr[1]), expr[2], expr[3])
+    if tag in ("nprop", "eprop"):
+        _, key, type_, op, args = expr
+        # Wrap comparison values to the schema type, exactly as writes do —
+        # a u8 property is compared against a u8 value, not a widened i64.
+        if args and KIND_OPERATORS[_kind(type_)][op] == "values":
+            args = ([wrap_value(type_, v) for v in args[0]],)
+        elif args:
+            args = (wrap_value(type_, args[0]),)
+        builder = f.Node.property(key) if tag == "nprop" else f.Edge.property(key)
+        return _apply_comparison(builder, op, args)
     if tag == "nname":
         return _apply_comparison(f.Node.name(), expr[1], expr[2])
     if tag == "ntype":

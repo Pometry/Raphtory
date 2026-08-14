@@ -48,7 +48,7 @@ from _strategies import (
     apply_ops,
     apply_view_chain,
     compile_filter,
-    filter_exprs,
+    generated_case,
     leaf_kinds,
     safe_write_ops,
     view_chains,
@@ -88,7 +88,7 @@ def client():
             yield server.get_client()
 
 
-def _fresh_pair(client, ops):
+def _fresh_pair(client, case):
     """A new local Graph and a new remote graph, seeded with ``ops`` in lockstep.
 
     Returns ``(pair, rejected)`` where ``rejected`` counts ops both sides
@@ -98,7 +98,7 @@ def _fresh_pair(client, ops):
     name = f"gen_{next(_GRAPH_SEQ)}"
     client.new_graph(name, "EVENT")
     remote = client.remote_graph(name)
-    rejected = apply_ops(local, remote, ops)
+    rejected = apply_ops(local, remote, case)
     return GraphPair(local=local, remote=remote), rejected
 
 
@@ -257,20 +257,21 @@ def _parity_with_outcome(pair, fn):
 # --- P1: generated write sequences read back identically ------------------------
 
 
-@given(ops=write_ops())
+@given(case=write_ops())
 # The empty graph is the shape most likely to break `earliest_time`,
 # aggregations and `collect()`, and random sizing reaches it only ~0.6% of
 # the time — so it is pinned as an explicit example rather than left to luck.
-@example(ops=[])
+@example(case=({}, {}, []))
 @_gen_settings(max_examples=150)
-def test_generated_writes_full_state_parity(client, ops):
+def test_generated_writes_full_state_parity(client, case):
     """Any generated write sequence leaves both sides in the same full state.
 
     Rejections along the way are themselves parity-checked per op (both sides
     must refuse, same type) and the sequence continues past them, so one
     conflicting metadata write cannot mask what the rest of the sequence does.
     """
-    pair, rejected = _fresh_pair(client, ops)
+    ops = case[2]
+    pair, rejected = _fresh_pair(client, case)
     # These are Hypothesis `event` labels — they only shape the coverage
     # summary, never the assertions. Both are bucketed rather than exact so the
     # summary stays readable: an unbounded `rejected` count would print one
@@ -307,9 +308,9 @@ def _classify_filtered(filtered, unfiltered):
     return "matched_some"
 
 
-@given(ops=write_ops(max_size=16), expr=filter_exprs())
+@given(case=generated_case(max_ops=16, with_expr=True))
 @_gen_settings(max_examples=600)
-def test_generated_filter_parity(client, ops, expr):
+def test_generated_filter_parity(client, case):
     """A generated expression over a generated graph selects the same thing
     through ``graph.filter`` on both sides — or is refused by both.
 
@@ -319,7 +320,8 @@ def test_generated_filter_parity(client, ops, expr):
     ``matched_none``, or ``rejected`` — and ``target`` steers generation
     toward ``matched_some``.
     """
-    pair, _ = _fresh_pair(client, ops)
+    *_, expr = case
+    pair, _ = _fresh_pair(client, case)
     outcome, filtered = _parity_with_outcome(
         pair, lambda g: probe_membership(g.filter(compile_filter(expr)))
     )
@@ -337,9 +339,9 @@ def test_generated_filter_parity(client, ops, expr):
 # --- P3: generated expressions at the collection subscripts ---------------------
 
 
-@given(ops=write_ops(max_size=16), expr=filter_exprs())
+@given(case=generated_case(max_ops=16, with_expr=True))
 @_gen_settings(max_examples=400)
-def test_generated_subscript_parity(client, ops, expr):
+def test_generated_subscript_parity(client, case):
     """``nodes[expr]`` and ``edges[expr]`` agree for generated expressions.
 
     A pure edge-testing expression says nothing about node membership, so on
@@ -347,7 +349,8 @@ def test_generated_subscript_parity(client, ops, expr):
     asserted outright (not just as optional exception parity) whenever the
     generated tree's leaves are all edge-kind.
     """
-    pair, _ = _fresh_pair(client, ops)
+    *_, expr = case
+    pair, _ = _fresh_pair(client, case)
     kinds = leaf_kinds(expr)
 
     node_outcome, _ = _parity_with_outcome(
@@ -423,9 +426,9 @@ def test_generated_chain_plus_terminal_is_one_rpc(counted, chain, terminal):
     )
 
 
-@given(op=safe_write_ops())
+@given(case=safe_write_ops())
 @_gen_settings(max_examples=150)
-def test_generated_write_is_one_rpc(counted, op):
+def test_generated_write_is_one_rpc(counted, case):
     """Any generated write op is one round trip, whatever its arguments.
 
     Ops come from the never-rejected subset (graph-level, auto-creating,
@@ -434,7 +437,8 @@ def test_generated_write_is_one_rpc(counted, op):
     """
     remote, counter = counted
     counter.reset()
-    apply_op(remote, op)
+    schema, meta_schema, (op,) = case
+    apply_op(remote, schema, meta_schema, op)
     assert (
         counter.value == 1
     ), f"write {op!r}: expected exactly 1 RPC, wire saw {counter.value}"
