@@ -48,6 +48,38 @@ def _snapshot(pair, probe):
     return {name: canonical(probe(g)) for name, g in _sides(pair)}
 
 
+def _containment_facts(g):
+    """Every layer's membership plus the unlayered totals.
+
+    A caller's probe reads the place a write was *meant* to land, which proves
+    it arrived but not that it arrived *only* there. This reads everywhere: the
+    layer list, each layer's nodes/edges, and the graph-level totals. A write
+    that also leaked into `_default`, or into a sibling layer, moves one of
+    these even though the targeted probe looks perfect.
+
+    Deliberately generic — no property names — so it can run after every write
+    regardless of what that write touched.
+    """
+    layers = sorted(g.unique_layers)
+    return {
+        "layers": layers,
+        "per_layer": {
+            layer: (
+                sorted(n.name for n in g.layer(layer).nodes),
+                sorted((e.src.name, e.dst.name) for e in g.layer(layer).edges),
+                g.layer(layer).count_edges(),
+            )
+            for layer in layers
+        },
+        "graph": (
+            sorted(n.name for n in g.nodes),
+            sorted((e.src.name, e.dst.name) for e in g.edges),
+            g.count_nodes(),
+            g.count_edges(),
+        ),
+    }
+
+
 def _assert_write_lands(pair, write, probe):
     """Apply ``write`` to both graphs: the probe must move on *each* side, then match.
 
@@ -55,6 +87,10 @@ def _assert_write_lands(pair, write, probe):
     dropped on the floor leaves each side equal to its own ``before``, and the
     two sides still equal to each other — so a cross-side comparison on its own
     would call that parity.
+
+    Then `_containment_facts` is compared across *all* layers and the whole
+    graph, so a write that landed where it was asked to but *also* somewhere
+    else is caught — the targeted probe alone cannot see that.
     """
     before = _snapshot(pair, probe)
     for _, g in _sides(pair):
@@ -66,12 +102,22 @@ def _assert_write_lands(pair, write, probe):
             f"no-op, which makes the parity assertion below vacuous"
         )
     assert_parity(pair, probe)
+    assert_parity(pair, _containment_facts)
     return after
 
 
 def _assert_write_rejected(pair, write, probe):
-    """Both sides must reject ``write``, and neither may be changed by it."""
+    """Both sides must reject ``write``, and neither may be changed by it.
+
+    "Not changed" is asserted twice, at different strengths. The caller's probe
+    is compared per side (the targeted read). Then `_containment_facts` — every
+    layer plus the graph totals — is *also* compared per side against its own
+    before-snapshot, not merely across sides: a rejected write has no oracle
+    problem, nothing may change anywhere, so a stray layer conjured identically
+    on both sides is still a failure here even though it would satisfy parity.
+    """
     before = _snapshot(pair, probe)
+    containment_before = _snapshot(pair, _containment_facts)
     for name, g in _sides(pair):
         try:
             value = write(g)
@@ -81,10 +127,15 @@ def _assert_write_rejected(pair, write, probe):
             f"{name}: write was accepted (returned {value!r}), expected a failure"
         )
     after = _snapshot(pair, probe)
+    containment_after = _snapshot(pair, _containment_facts)
     for name, _ in _sides(pair):
         assert after[name] == before[name], (
             f"{name}: a rejected write still changed state: "
             f"{before[name]!r} -> {after[name]!r}"
+        )
+        assert containment_after[name] == containment_before[name], (
+            f"{name}: a rejected write still changed a layer or the totals: "
+            f"{containment_before[name]!r} -> {containment_after[name]!r}"
         )
     assert_parity(pair, probe)
 
@@ -1269,3 +1320,32 @@ def test_known_write_gap(key, fn):
 def test_write_gap_cases_are_all_ledgered():
     for key, _ in WRITE_GAP_CASES:
         assert key in KNOWN_GAPS, f"gap case {key!r} missing from KNOWN_GAPS ledger"
+
+
+# --- delete-edge argument parity ---------------------------------------------
+
+
+def test_delete_edge_takes_an_event_id_on_both_sides():
+    """`delete_edge` accepts the same arguments — ``event_id`` included — on both.
+
+    The signatures used to diverge (remote had no ``event_id`` at all), so a
+    graph-agnostic build could not call it. One call form now works on both, and
+    the tombstone it records — timestamp *and* event id — must match. Built on
+    its own pair rather than the module fixture, because it writes.
+    """
+
+    def build(g):
+        g.add_node(1, "a")
+        g.add_node(1, "b")
+        g.add_edge(2, "a", "b", layer="knows")
+        g.delete_edge(5, "a", "b", layer="knows", event_id=7)
+
+    with graph_pair(build) as pair:
+        assert_parity(pair, lambda g: g.edge("a", "b").is_deleted())
+        assert_parity(
+            pair,
+            lambda g: sorted(
+                (t.t, t.event_id) for t in g.edge("a", "b").layer("knows").deletions
+            ),
+        )
+        assert_parity(pair, lambda g: g.count_edges())

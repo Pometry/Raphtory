@@ -354,29 +354,3 @@ def test_path_from_graph_iteration_yields_chainable_paths(matrix_pair):
             for source, path in g.nodes.neighbours
         ),
     )
-
-
-def test_delete_edge_takes_an_event_id_on_both_sides():
-    """`delete_edge` accepts the same arguments — ``event_id`` included — on both.
-
-    The signatures used to diverge (remote had no ``event_id`` at all), so a
-    graph-agnostic build could not call it. One call form now works on both, and
-    the tombstone it records — timestamp *and* event id — must match. Built on
-    its own pair rather than the module fixture, because it writes.
-    """
-
-    def build(g):
-        g.add_node(1, "a")
-        g.add_node(1, "b")
-        g.add_edge(2, "a", "b", layer="knows")
-        g.delete_edge(5, "a", "b", layer="knows", event_id=7)
-
-    with graph_pair(build) as pair:
-        assert_parity(pair, lambda g: g.edge("a", "b").is_deleted())
-        assert_parity(
-            pair,
-            lambda g: sorted(
-                (t.t, t.event_id) for t in g.edge("a", "b").layer("knows").deletions
-            ),
-        )
-        assert_parity(pair, lambda g: g.count_edges())
