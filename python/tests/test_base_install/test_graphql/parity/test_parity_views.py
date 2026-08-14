@@ -20,6 +20,16 @@ Every pair is also guarded against a *vacuous* pass: the op must demonstrably
 change what the handle reports versus the same handle unviewed, on both sides.
 Without that guard a remote that ignored every view op would pass the entire
 matrix.
+
+That guard runs on the local side too, which looks like re-testing an API this
+suite is entitled to assume works. It isn't: it tests *this fixture*, not
+raphtory. Parity compares two answers, so two handles that both report the
+unviewed graph agree — meaning the assertion holds while proving nothing. The
+local half of the guard is what detects that, and the cause is almost always
+the case itself rather than the engine: a window wide enough to cover every
+event, a layer every edge belongs to, an ``at`` on a timestamp where nothing
+happens. Those cases pass silently forever otherwise, so the suite would
+decay into green noise as the fixture drifts away from the ops it exercises.
 """
 
 import itertools

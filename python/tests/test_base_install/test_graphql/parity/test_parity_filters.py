@@ -507,6 +507,14 @@ def test_expr_parity(filter_pair, name):
 
 
 # --- non-vacuity guard ------------------------------------------------------
+#
+# Asserted per side, local included. That is not re-testing the local engine,
+# which this suite assumes works — it is testing that *this expression on this
+# fixture* still has bite. Parity compares two answers, so an expression that
+# matches everything (or nothing) makes both sides agree while proving nothing:
+# a backend that ignored filters outright would return exactly the same thing.
+# The local half is what notices, and what it usually catches is the case going
+# stale as the fixture moves, not the engine breaking.
 
 
 def _discriminating_axes(probed, baseline):
