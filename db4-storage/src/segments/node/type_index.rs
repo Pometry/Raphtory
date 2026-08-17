@@ -3,13 +3,13 @@ use std::collections::BTreeMap;
 
 /// Enables fast node lookups by node type.
 #[derive(Debug, Default)]
-pub struct NodeTypeIndex {
+pub struct MemNodeTypeIndex {
     /// Maps a node type id to the positions of nodes with that type.
     /// The positions list is maintained in ascending order.
     map: BTreeMap<usize, Vec<LocalPOS>>,
 }
 
-impl NodeTypeIndex {
+impl MemNodeTypeIndex {
     pub fn new() -> Self {
         Self::default()
     }
@@ -48,7 +48,7 @@ mod tests {
 
     #[test]
     fn insert_keeps_list_sorted() {
-        let mut index = NodeTypeIndex::new();
+        let mut index = MemNodeTypeIndex::new();
 
         index.insert(1, LocalPOS(4));
         index.insert(1, LocalPOS(1));
@@ -59,7 +59,7 @@ mod tests {
 
     #[test]
     fn insert_ignores_duplicates() {
-        let mut index = NodeTypeIndex::new();
+        let mut index = MemNodeTypeIndex::new();
 
         index.insert(1, LocalPOS(2));
         index.insert(1, LocalPOS(2));
@@ -71,7 +71,7 @@ mod tests {
 
     #[test]
     fn get_missing_type_is_empty() {
-        let index = NodeTypeIndex::new();
+        let index = MemNodeTypeIndex::new();
 
         assert!(index.get(3).is_empty());
     }
