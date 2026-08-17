@@ -25,7 +25,7 @@ use std::{
     error::Error,
     fmt::{Debug, Display, Formatter},
 };
-use tracing::warn;
+use tracing::error;
 
 #[derive(Debug)]
 pub struct BatchFailures {
@@ -223,7 +223,7 @@ impl GqlMutableGraph {
 
         self.post_mutation_ops().await;
         if let Err(error) = node.update_embeddings().await {
-            warn!(
+            error!(
                 "Failed to embed the node added to graph {}: {error}",
                 self.graph.folder().local_path()
             );
@@ -266,7 +266,7 @@ impl GqlMutableGraph {
 
         self.post_mutation_ops().await;
         if let Err(error) = node.update_embeddings().await {
-            warn!(
+            error!(
                 "Failed to embed the node added to graph {}: {error}",
                 self.graph.folder().local_path()
             );
@@ -328,7 +328,7 @@ impl GqlMutableGraph {
 
         let count = succeeded.len();
         if let Err(error) = self.graph.update_node_embeddings(succeeded).await {
-            warn!(
+            error!(
                 "Failed to embed {count} nodes added to graph {}: {error}",
                 self.graph.folder().local_path()
             );
@@ -382,7 +382,7 @@ impl GqlMutableGraph {
 
         self.post_mutation_ops().await;
         if let Err(error) = edge.update_embeddings().await {
-            warn!(
+            error!(
                 "Failed to embed the edge added to graph {}: {error}",
                 self.graph.folder().local_path()
             );
@@ -440,7 +440,7 @@ impl GqlMutableGraph {
         self.post_mutation_ops().await;
         let count = edge_pairs.len();
         if let Err(error) = self.graph.update_edge_embeddings(edge_pairs).await {
-            warn!(
+            error!(
                 "Failed to embed {count} edges added to graph {}: {error}",
                 self.graph.folder().local_path()
             );
@@ -478,7 +478,7 @@ impl GqlMutableGraph {
 
         self.post_mutation_ops().await;
         if let Err(error) = edge.update_embeddings().await {
-            warn!(
+            error!(
                 "Failed to embed the edge added to graph {}: {error}",
                 self.graph.folder().local_path()
             );
@@ -710,7 +710,7 @@ impl GqlMutableNode {
 
         self.post_mutation_ops().await;
         if let Err(error) = self.node.update_embeddings().await {
-            warn!(
+            error!(
                 "Failed to re-embed an updated node in graph {}: {error}",
                 self.node.graph.folder().local_path()
             );
@@ -787,7 +787,7 @@ impl GqlMutableEdge {
 
         self.post_mutation_ops().await;
         if let Err(error) = self.edge.update_embeddings().await {
-            warn!(
+            error!(
                 "Failed to re-embed an updated edge in graph {}: {error}",
                 self.edge.graph.folder().local_path()
             );
@@ -821,7 +821,7 @@ impl GqlMutableEdge {
 
         self.post_mutation_ops().await;
         if let Err(error) = self.edge.update_embeddings().await {
-            warn!(
+            error!(
                 "Failed to re-embed an updated edge in graph {}: {error}",
                 self.edge.graph.folder().local_path()
             );
@@ -855,7 +855,7 @@ impl GqlMutableEdge {
 
         self.post_mutation_ops().await;
         if let Err(error) = self.edge.update_embeddings().await {
-            warn!(
+            error!(
                 "Failed to re-embed an updated edge in graph {}: {error}",
                 self.edge.graph.folder().local_path()
             );
@@ -891,7 +891,7 @@ impl GqlMutableEdge {
 
         self.post_mutation_ops().await;
         if let Err(error) = self.edge.update_embeddings().await {
-            warn!(
+            error!(
                 "Failed to re-embed an updated edge in graph {}: {error}",
                 self.edge.graph.folder().local_path()
             );
