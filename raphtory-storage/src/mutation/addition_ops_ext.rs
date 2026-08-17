@@ -211,6 +211,7 @@ impl<'a> NodeWriteLock for AtomicAddNode<'a> {
 
     fn set_type(&mut self, node_type: usize) {
         let pos = self.local_pos();
+
         self.writer
             .store_node_type(pos, STATIC_GRAPH_LAYER_ID, node_type)
     }

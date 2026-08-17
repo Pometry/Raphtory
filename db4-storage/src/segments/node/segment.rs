@@ -6,7 +6,10 @@ use crate::{
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
     segments::{
         HasRow, SegmentContainer,
-        node::entry::{MemNodeEntry, MemNodeRef},
+        node::{
+            entry::{MemNodeEntry, MemNodeRef},
+            node_type_index::NodeTypeIndex,
+        },
     },
     wal::LSN,
 };
@@ -27,6 +30,7 @@ use raphtory_core::{
     storage::timeindex::{AsTime, EventTime},
 };
 use std::{
+    mem,
     ops::{Deref, DerefMut},
     path::PathBuf,
     sync::{
@@ -40,6 +44,7 @@ pub struct MemNodeSegment {
     segment_id: usize,
     max_page_len: u32,
     layers: Vec<SegmentContainer<AdjEntry>>,
+    node_type_index: NodeTypeIndex,
     global_mem_tracker: Arc<AtomicUsize>,
     est_size: usize,
     lsn: LSN,
@@ -99,6 +104,14 @@ impl MemNodeSegment {
         self.segment_id
     }
 
+    pub fn insert_node_type(&mut self, pos: LocalPOS, type_id: usize) {
+        self.node_type_index.insert(type_id, pos);
+    }
+
+    pub fn nodes_of_type(&self, type_id: usize) -> &[LocalPOS] {
+        self.node_type_index.get(type_id)
+    }
+
     pub fn est_size(&self) -> usize {
         self.est_size
     }
@@ -125,7 +138,9 @@ impl MemNodeSegment {
                     head_guard.max_page_len(),
                     head_guard.meta().clone(),
                 );
-                std::mem::swap(&mut *head_guard, &mut old_head);
+
+                mem::swap(&mut *head_guard, &mut old_head);
+
                 old_head
             })
             .collect::<Vec<_>>()
@@ -174,14 +189,16 @@ impl MemNodeSegment {
     /// The new segment will have the same number of layers as the original.
     pub fn take(&mut self) -> Self {
         let layers = self.layers.iter_mut().map(|layer| layer.take()).collect();
-        let est_size = self.est_size;
-        self.est_size = 0;
+        let node_type_index = mem::take(&mut self.node_type_index);
+        let est_size = mem::take(&mut self.est_size);
+
         Self {
             segment_id: self.segment_id,
             max_page_len: self.max_page_len,
-            est_size,
             global_mem_tracker: self.global_mem_tracker.clone(),
             layers,
+            node_type_index,
+            est_size,
             lsn: self.lsn,
         }
     }
@@ -246,6 +263,7 @@ impl MemNodeSegment {
             segment_id,
             max_page_len,
             layers: vec![SegmentContainer::new(segment_id, max_page_len, meta)],
+            node_type_index: NodeTypeIndex::new(),
             global_mem_tracker,
             est_size: 0,
             lsn: 0,
@@ -627,6 +645,7 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
 
 #[cfg(test)]
 mod test {
+    use super::MemNodeSegment;
     use crate::{
         LocalPOS, NodeSegmentView,
         api::nodes::NodeSegmentOps,
@@ -641,7 +660,7 @@ mod test {
         prop::{Prop, PropType},
     };
     use raphtory_core::entities::{EID, ELID, VID};
-    use std::sync::Arc;
+    use std::sync::{Arc, atomic::AtomicUsize};
     use tempfile::tempdir;
 
     #[test]
@@ -774,5 +793,31 @@ mod test {
 
         // after the segment is dropped, the global estimated size should be zero (no more usage)
         assert_eq!(ext.estimated_size(), 0);
+    }
+
+    #[test]
+    fn node_type_index_tracks_types() {
+        let segment_id = 0;
+        let max_page_len = 10;
+
+        let mut segment = MemNodeSegment::new(
+            segment_id,
+            max_page_len,
+            Arc::new(Meta::default()),
+            Arc::new(AtomicUsize::new(0)),
+        );
+
+        segment.insert_node_type(LocalPOS(1), 1);
+        segment.insert_node_type(LocalPOS(3), 1);
+        segment.insert_node_type(LocalPOS(2), 2);
+
+        assert_eq!(segment.nodes_of_type(1), &[LocalPOS(1), LocalPOS(3)]);
+        assert_eq!(segment.nodes_of_type(2), &[LocalPOS(2)]);
+
+        let taken = segment.take();
+        assert!(segment.nodes_of_type(1).is_empty());
+        assert!(segment.nodes_of_type(2).is_empty());
+        assert_eq!(taken.nodes_of_type(1), &[LocalPOS(1), LocalPOS(3)]);
+        assert_eq!(taken.nodes_of_type(2), &[LocalPOS(2)]);
     }
 }
