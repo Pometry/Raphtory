@@ -1,7 +1,8 @@
 //! The client: remote handle types plus the transport plumbing they run on.
 //!
 //! - [`remote`] holds the handle types ([`RemoteGraph`], [`RemoteNode`], …).
-//! - [`op`], [`transport`], [`graphql_transport`] and `error` are the plumbing:
+//! - [`remote_client`], [`op`], [`transport`], [`graphql_transport`] and `error`
+//!   are the plumbing: the wire client,
 //!   the operation vocabulary, the transport trait, its GraphQL implementation
 //!   and the error type.
 //!
@@ -13,6 +14,7 @@ mod error;
 pub mod graphql_transport;
 pub mod op;
 pub mod remote;
+pub mod remote_client;
 pub mod transport;
 
 pub use error::ClientError;
@@ -26,6 +28,7 @@ pub use op::{
 // Glob so the handle types *and* their modules keep their pre-move paths under
 // `client::` (e.g. `client::remote_graph::RemoteGraph`).
 pub use remote::*;
+pub use remote_client::RemoteClient;
 pub use transport::Transport;
 
 use crate::model::graph::property::{ObjectEntry, Value};

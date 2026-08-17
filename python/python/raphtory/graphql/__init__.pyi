@@ -788,13 +788,13 @@ class RemoteGraph(object):
         """
 
     @property
-    def earliest_time(self) -> Optional[EventTime]:
+    def earliest_time(self) -> OptionalEventTime:
         """
         Earliest event time under the current view. `None` if the view has no
         events. Property — attribute access fires one RPC.
 
         Returns:
-            Optional[EventTime]: the earliest event time, or `None` if the view has no
+            OptionalEventTime: the earliest event time, or empty if the view has no
                 events.
         """
 
@@ -824,12 +824,12 @@ class RemoteGraph(object):
         """
 
     @property
-    def end(self) -> Optional[EventTime]:
+    def end(self) -> OptionalEventTime:
         """
         View end bound. `None` for an unbounded view. Property — fires one RPC.
 
         Returns:
-            Optional[EventTime]: the view end bound, or `None` if unbounded.
+            OptionalEventTime: the view end bound, or empty if unbounded.
         """
 
     def exclude_layer(self, name: str) -> RemoteGraph:
@@ -1010,12 +1010,12 @@ class RemoteGraph(object):
         """
 
     @property
-    def latest_time(self) -> Optional[EventTime]:
+    def latest_time(self) -> OptionalEventTime:
         """
         Latest event time under the current view. Property — fires one RPC.
 
         Returns:
-            Optional[EventTime]: the latest event time, or `None` if the view has no events.
+            OptionalEventTime: the latest event time, or empty if the view has no events.
         """
 
     def layer(self, name: str) -> RemoteGraph:
@@ -1193,12 +1193,12 @@ class RemoteGraph(object):
         """
 
     @property
-    def start(self) -> Optional[EventTime]:
+    def start(self) -> OptionalEventTime:
         """
         View start bound. `None` for an unbounded view. Property — fires one RPC.
 
         Returns:
-            Optional[EventTime]: the view start bound, or `None` if unbounded.
+            OptionalEventTime: the view start bound, or empty if unbounded.
         """
 
     def subgraph(self, nodes: list[str]) -> RemoteGraph:
@@ -1427,23 +1427,23 @@ class RemoteEdge(object):
         """
 
     @property
-    def earliest_time(self) -> Optional[EventTime]:
+    def earliest_time(self) -> OptionalEventTime:
         """
         Earliest event time on this edge under the current view. `None` if the
         edge has no events in the view. Property — attribute access fires one RPC.
 
         Returns:
-            Optional[EventTime]: the earliest event time on the edge, or `None` if it has no
+            OptionalEventTime: the earliest event time on the edge, or empty if it has no
                 events in view.
         """
 
     @property
-    def end(self) -> Optional[EventTime]:
+    def end(self) -> OptionalEventTime:
         """
         View end bound as seen by this edge. Property — fires one RPC.
 
         Returns:
-            Optional[EventTime]: the view end bound, or `None` if unbounded.
+            OptionalEventTime: the view end bound, or empty if unbounded.
         """
 
     def exclude_layer(self, name: str) -> RemoteEdge:
@@ -1615,12 +1615,12 @@ class RemoteEdge(object):
         """
 
     @property
-    def latest_time(self) -> Optional[EventTime]:
+    def latest_time(self) -> OptionalEventTime:
         """
         Latest event time on this edge under the current view. Property — RPC.
 
         Returns:
-            Optional[EventTime]: the latest event time on the edge, or `None` if it has no
+            OptionalEventTime: the latest event time on the edge, or empty if it has no
                 events in view.
         """
 
@@ -1757,22 +1757,22 @@ class RemoteEdge(object):
         """
 
     @property
-    def start(self) -> Optional[EventTime]:
+    def start(self) -> OptionalEventTime:
         """
         View start bound as seen by this edge. Property — fires one RPC.
 
         Returns:
-            Optional[EventTime]: the view start bound, or `None` if unbounded.
+            OptionalEventTime: the view start bound, or empty if unbounded.
         """
 
     @property
-    def time(self) -> Optional[EventTime]:
+    def time(self) -> OptionalEventTime:
         """
         The event time this exploded edge event happened at. Meaningful
         primarily on `explode()`'d views. Property — attribute access fires one RPC.
 
         Returns:
-            Optional[EventTime]: the event time of this exploded edge event, or `None` if
+            OptionalEventTime: the event time of this exploded edge event, or empty if
                 there is none.
         """
 
@@ -1915,13 +1915,13 @@ class RemoteNode(object):
         """
 
     @property
-    def earliest_time(self) -> Optional[EventTime]:
+    def earliest_time(self) -> OptionalEventTime:
         """
         Earliest event time on this node under the current view. `None` if the
         node has no events. Property — attribute access fires one RPC.
 
         Returns:
-            Optional[EventTime]: the earliest event time on the node, or `None` if it has no
+            OptionalEventTime: the earliest event time on the node, or empty if it has no
                 events.
         """
 
@@ -1943,12 +1943,12 @@ class RemoteNode(object):
         """
 
     @property
-    def end(self) -> Optional[EventTime]:
+    def end(self) -> OptionalEventTime:
         """
         View end bound as seen by this node. Property — fires one RPC.
 
         Returns:
-            Optional[EventTime]: the view end bound, or `None` if unbounded.
+            OptionalEventTime: the view end bound, or empty if unbounded.
         """
 
     def exclude_layer(self, name: str) -> RemoteNode:
@@ -2119,12 +2119,12 @@ class RemoteNode(object):
         """
 
     @property
-    def latest_time(self) -> Optional[EventTime]:
+    def latest_time(self) -> OptionalEventTime:
         """
         Latest event time on this node. Property — attribute access fires one RPC.
 
         Returns:
-            Optional[EventTime]: the latest event time on the node, or `None` if it has no
+            OptionalEventTime: the latest event time on the node, or empty if it has no
                 events.
         """
 
@@ -2302,12 +2302,12 @@ class RemoteNode(object):
         """
 
     @property
-    def start(self) -> Optional[EventTime]:
+    def start(self) -> OptionalEventTime:
         """
         View start bound as seen by this node. Property — fires one RPC.
 
         Returns:
-            Optional[EventTime]: the view start bound, or `None` if unbounded.
+            OptionalEventTime: the view start bound, or empty if unbounded.
         """
 
     def update_metadata(self, properties: dict[str, PropValue]) -> None:
@@ -2477,13 +2477,13 @@ class RemoteNodes(object):
         """
 
     @property
-    def end(self) -> Optional[EventTime]:
+    def end(self) -> OptionalEventTime:
         """
         View end bound for this collection — `None` if unbounded. Property —
         attribute access fires one RPC.
 
         Returns:
-            Optional[EventTime]: the view end bound, or `None` if unbounded.
+            OptionalEventTime: the view end bound, or empty if unbounded.
         """
 
     def exclude_layer(self, name: str) -> RemoteNodes:
@@ -2798,13 +2798,13 @@ class RemoteNodes(object):
         """
 
     @property
-    def start(self) -> Optional[EventTime]:
+    def start(self) -> OptionalEventTime:
         """
         View start bound for this collection — `None` if unbounded. Property —
         attribute access fires one RPC.
 
         Returns:
-            Optional[EventTime]: the view start bound, or `None` if unbounded.
+            OptionalEventTime: the view start bound, or empty if unbounded.
         """
 
     def type_filter(self, node_types: list[str]) -> RemoteNodes:
@@ -2983,13 +2983,13 @@ class RemotePathFromNode(object):
         """
 
     @property
-    def end(self) -> Optional[EventTime]:
+    def end(self) -> OptionalEventTime:
         """
         View end bound for this collection — `None` if unbounded. Property —
         attribute access fires one RPC.
 
         Returns:
-            Optional[EventTime]: the view end bound, or `None` if unbounded.
+            OptionalEventTime: the view end bound, or empty if unbounded.
         """
 
     def exclude_layer(self, name: str) -> RemotePathFromNode:
@@ -3286,13 +3286,13 @@ class RemotePathFromNode(object):
         """
 
     @property
-    def start(self) -> Optional[EventTime]:
+    def start(self) -> OptionalEventTime:
         """
         View start bound for this collection — `None` if unbounded. Property —
         attribute access fires one RPC.
 
         Returns:
-            Optional[EventTime]: the view start bound, or `None` if unbounded.
+            OptionalEventTime: the view start bound, or empty if unbounded.
         """
 
     def type_filter(self, node_types: list[str]) -> RemotePathFromNode:
@@ -3473,13 +3473,13 @@ class RemotePathFromGraph(object):
         """
 
     @property
-    def end(self) -> Optional[EventTime]:
+    def end(self) -> OptionalEventTime:
         """
         View end bound for this collection — `None` if unbounded. Property —
         attribute access fires one RPC.
 
         Returns:
-            Optional[EventTime]: the view end bound, or `None` if unbounded.
+            OptionalEventTime: the view end bound, or empty if unbounded.
         """
 
     def exclude_layer(self, name: str) -> RemotePathFromGraph:
@@ -3778,13 +3778,13 @@ class RemotePathFromGraph(object):
         """
 
     @property
-    def start(self) -> Optional[EventTime]:
+    def start(self) -> OptionalEventTime:
         """
         View start bound for this collection — `None` if unbounded. Property —
         attribute access fires one RPC.
 
         Returns:
-            Optional[EventTime]: the view start bound, or `None` if unbounded.
+            OptionalEventTime: the view start bound, or empty if unbounded.
         """
 
     def type_filter(self, node_types: list[str]) -> RemotePathFromGraph:
@@ -3940,13 +3940,13 @@ class RemoteEdges(object):
         """
 
     @property
-    def end(self) -> Optional[EventTime]:
+    def end(self) -> OptionalEventTime:
         """
         View end bound for this collection — `None` if unbounded. Property —
         attribute access fires one RPC.
 
         Returns:
-            Optional[EventTime]: the view end bound, or `None` if unbounded.
+            OptionalEventTime: the view end bound, or empty if unbounded.
         """
 
     def exclude_layer(self, name: str) -> RemoteEdges:
@@ -4268,13 +4268,13 @@ class RemoteEdges(object):
         """
 
     @property
-    def start(self) -> Optional[EventTime]:
+    def start(self) -> OptionalEventTime:
         """
         View start bound for this collection — `None` if unbounded. Property —
         attribute access fires one RPC.
 
         Returns:
-            Optional[EventTime]: the view start bound, or `None` if unbounded.
+            OptionalEventTime: the view start bound, or empty if unbounded.
         """
 
     @property
@@ -4431,13 +4431,13 @@ class RemoteNestedEdges(object):
         """
 
     @property
-    def end(self) -> Optional[EventTime]:
+    def end(self) -> OptionalEventTime:
         """
         View end bound for this collection — `None` if unbounded. Property —
         attribute access fires one RPC.
 
         Returns:
-            Optional[EventTime]: the view end bound, or `None` if unbounded.
+            OptionalEventTime: the view end bound, or empty if unbounded.
         """
 
     def exclude_layer(self, name: str) -> RemoteNestedEdges:
@@ -4752,13 +4752,13 @@ class RemoteNestedEdges(object):
         """
 
     @property
-    def start(self) -> Optional[EventTime]:
+    def start(self) -> OptionalEventTime:
         """
         View start bound for this collection — `None` if unbounded. Property —
         attribute access fires one RPC.
 
         Returns:
-            Optional[EventTime]: the view start bound, or `None` if unbounded.
+            OptionalEventTime: the view start bound, or empty if unbounded.
         """
 
     @property
@@ -4871,12 +4871,12 @@ class RemoteHistory(object):
             RemoteHistoryDateTimes: the datetimes view of this history.
         """
 
-    def earliest_time(self) -> Optional[EventTime]:
+    def earliest_time(self) -> OptionalEventTime:
         """
         Earliest event time in this history — `None` if empty. Fires one RPC.
 
         Returns:
-          Optional[EventTime]: the earliest event time, or None.
+          OptionalEventTime: the earliest event time, or empty.
         """
 
     @property
@@ -4906,12 +4906,12 @@ class RemoteHistory(object):
           bool: True if empty.
         """
 
-    def latest_time(self) -> Optional[EventTime]:
+    def latest_time(self) -> OptionalEventTime:
         """
         Latest event time in this history — `None` if empty. Fires one RPC.
 
         Returns:
-          Optional[EventTime]: the latest event time, or None.
+          OptionalEventTime: the latest event time, or empty.
         """
 
     def page(
@@ -5528,13 +5528,13 @@ class RemoteMetadataView(object):
 
     def get(self, key: str) -> Optional[list]:
         """
-        The column of values for `key` — one entry per metadata member (nested per source for nested collections), `None` where a member lacks the key. Returns `None` if no member has the key. Fires one RPC.
+        The column of values for `key` — one entry per metadata member (nested per source for nested collections), `None` where a member lacks the key. Returns `None` if the key is not registered. Fires one single-column RPC.
 
         Arguments:
             key (str): the metadata name to look up.
 
         Returns:
-           Optional[list]: the column of values, or `None` if no member has the key.
+           Optional[list]: the column of values, or `None` if the key is not registered.
         """
 
     def items(self) -> list[tuple[str, list]]:
@@ -5547,10 +5547,10 @@ class RemoteMetadataView(object):
 
     def keys(self) -> list[str]:
         """
-        All keys present across the metadata collection, in first-seen order. Fires one RPC.
+        All metadata keys, read from the first collection member's registry (matching the local view). Fires one key-lookup RPC — no property values travel.
 
         Returns:
-           list[str]: the keys, in first-seen order.
+           list[str]: the keys.
         """
 
     def values(self) -> list:
@@ -5579,13 +5579,13 @@ class RemotePropertiesView(object):
 
     def get(self, key: str) -> Optional[list]:
         """
-        The column of values for `key` — one entry per property member (nested per source for nested collections), `None` where a member lacks the key. Returns `None` if no member has the key. Fires one RPC.
+        The column of values for `key` — one entry per property member (nested per source for nested collections), `None` where a member lacks the key. Returns `None` if the key is not registered. Fires one single-column RPC.
 
         Arguments:
             key (str): the property name to look up.
 
         Returns:
-           Optional[list]: the column of values, or `None` if no member has the key.
+           Optional[list]: the column of values, or `None` if the key is not registered.
         """
 
     def items(self) -> list[tuple[str, list]]:
@@ -5598,10 +5598,10 @@ class RemotePropertiesView(object):
 
     def keys(self) -> list[str]:
         """
-        All keys present across the property collection, in first-seen order. Fires one RPC.
+        All property keys, read from the first collection member's registry (matching the local view). Fires one key-lookup RPC — no property values travel.
 
         Returns:
-           list[str]: the keys, in first-seen order.
+           list[str]: the keys.
         """
 
     def values(self) -> list:

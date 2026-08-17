@@ -475,14 +475,14 @@ pub enum ReadExpr {
     /// — `bool`. Server field name is `isEmpty`.
     IsEmpty { input: Arc<ReadExpr> },
     /// Terminal on a `RemoteHistory` container: list all events in ascending
-    /// order — `Vec<RemoteEventTime>`. Server field is `list`; queries the
+    /// order — `Vec<EventTime>`. Server field is `list`; queries the
     /// compound sub-fields `timestamp`, `dt`, `eventId` per record.
     HistoryList { input: Arc<ReadExpr> },
     /// Terminal on a `RemoteHistory` container: list all events in descending
-    /// order — `Vec<RemoteEventTime>`. Server field is `listRev`.
+    /// order — `Vec<EventTime>`. Server field is `listRev`.
     HistoryListRev { input: Arc<ReadExpr> },
     /// Terminal on a `RemoteHistory` container: paginated list of events in
-    /// ascending order — `Vec<RemoteEventTime>`. `offset` and `page_index`
+    /// ascending order — `Vec<EventTime>`. `offset` and `page_index`
     /// are optional; each defaults to 0 server-side.
     HistoryPage {
         input: Arc<ReadExpr>,
@@ -491,7 +491,7 @@ pub enum ReadExpr {
         page_index: Option<usize>,
     },
     /// Terminal on a `RemoteHistory` container: paginated list of events in
-    /// descending order — `Vec<RemoteEventTime>`. Same args as `HistoryPage`.
+    /// descending order — `Vec<EventTime>`. Same args as `HistoryPage`.
     HistoryPageRev {
         input: Arc<ReadExpr>,
         limit: usize,
@@ -506,9 +506,6 @@ pub enum ReadExpr {
     /// Navigate to the event-id view of a history. History → HistoryEventIds.
     /// Server field: `eventId`.
     HistoryEventIds { input: Arc<ReadExpr> },
-    /// Navigate to the datetime view of a history. History → HistoryDateTimes.
-    /// Server field: `datetimes` (no format arg — server default RFC 3339).
-    HistoryDateTimes { input: Arc<ReadExpr> },
     /// Navigate to the intervals view of a history — inter-event gaps.
     /// History → HistoryIntervals. Server field: `intervals`.
     HistoryIntervals { input: Arc<ReadExpr> },
@@ -650,14 +647,45 @@ pub enum ReadExpr {
     // / `NestedEdges`. Each opens ONE net brace (the outer `list`); inner groups
     // self-balance. For `properties`, temporal values collapse to their latest
     // under the current view — matching the local columnar property views.
+    // Each variant carries an optional key whitelist: `None` fetches every
+    // property (the all-columns reads — `values`/`items`/`as_dict`); `Some`
+    // renders `values(keys: [..])` so the server filters to just those columns
+    // — the single-column `get(key)` never ships the rest of the collection's
+    // properties over the wire.
     /// FLAT: each member's metadata entries — one `[{key, value}]` per member.
-    CollectionMetadataValues { input: Arc<ReadExpr> },
+    CollectionMetadataValues {
+        input: Arc<ReadExpr>,
+        keys: Option<Arc<[String]>>,
+    },
     /// FLAT: each member's property entries (temporal → latest).
-    CollectionPropertiesValues { input: Arc<ReadExpr> },
+    CollectionPropertiesValues {
+        input: Arc<ReadExpr>,
+        keys: Option<Arc<[String]>>,
+    },
     /// NESTED: per-source per-member metadata entries.
-    NestedMetadataValues { input: Arc<ReadExpr> },
+    NestedMetadataValues {
+        input: Arc<ReadExpr>,
+        keys: Option<Arc<[String]>>,
+    },
     /// NESTED: per-source per-member property entries (temporal → latest).
-    NestedPropertiesValues { input: Arc<ReadExpr> },
+    NestedPropertiesValues {
+        input: Arc<ReadExpr>,
+        keys: Option<Arc<[String]>>,
+    },
+
+    // Collection-level key lookup. Local `MetadataView::keys()` reads the
+    // FIRST member's key set (the per-entity filtered property registry), so
+    // the remote mirrors that with a `page(limit: 1)` selection — one member's
+    // key names over the wire, never the collection's property values. Empty
+    // collection → empty key list, matching local's `unwrap_or_default()`.
+    /// FLAT: first member's metadata keys — `page(limit: 1) { metadata { keys } }`.
+    CollectionMetadataKeys { input: Arc<ReadExpr> },
+    /// FLAT: first member's property keys.
+    CollectionPropertiesKeys { input: Arc<ReadExpr> },
+    /// NESTED: first member of the first source — `page(limit: 1) { page(limit: 1) { … } }`.
+    NestedMetadataKeys { input: Arc<ReadExpr> },
+    /// NESTED: first member of the first source's property keys.
+    NestedPropertiesKeys { input: Arc<ReadExpr> },
 
     // ============ Node scalar terminals ============
     /// Terminal: node id — `String` (server may return int-like GID; treated as string).

@@ -9,7 +9,10 @@ use crate::{
 };
 use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyRef, PyRefMut, PyResult};
 use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
-use raphtory_api::core::{storage::timeindex::EventTime, utils::time::InputTime};
+use raphtory_api::{
+    core::{storage::timeindex::EventTime, utils::time::InputTime},
+    python::timeindex::PyOptionalEventTime,
+};
 use std::sync::Arc;
 
 /// A handle to a "path from node" collection.
@@ -388,7 +391,7 @@ impl PyRemotePathFromNode {
         Ok(
             execute_async_task(move || async move { path.earliest_time().await })?
                 .into_iter()
-                .map(|o| o.and_then(|t| t.to_event_time()))
+                .map(|o| o)
                 .collect(),
         )
     }
@@ -404,7 +407,7 @@ impl PyRemotePathFromNode {
         Ok(
             execute_async_task(move || async move { path.latest_time().await })?
                 .into_iter()
-                .map(|o| o.and_then(|t| t.to_event_time()))
+                .map(|o| o)
                 .collect(),
         )
     }
@@ -524,26 +527,22 @@ impl PyRemotePathFromNode {
     /// attribute access fires one RPC.
     ///
     /// Returns:
-    ///     Optional[EventTime]: the view start bound, or `None` if unbounded.
+    ///     OptionalEventTime: the view start bound, or empty if unbounded.
     #[getter]
-    pub fn start(&self) -> Result<Option<EventTime>, ClientError> {
+    pub fn start(&self) -> Result<PyOptionalEventTime, ClientError> {
         let path = Arc::clone(&self.path);
-        Ok(
-            execute_async_task(move || async move { path.start().await })?
-                .and_then(|t| t.to_event_time()),
-        )
+        Ok(execute_async_task(move || async move { path.start().await })?.into())
     }
 
     /// View end bound for this collection — `None` if unbounded. Property —
     /// attribute access fires one RPC.
     ///
     /// Returns:
-    ///     Optional[EventTime]: the view end bound, or `None` if unbounded.
+    ///     OptionalEventTime: the view end bound, or empty if unbounded.
     #[getter]
-    pub fn end(&self) -> Result<Option<EventTime>, ClientError> {
+    pub fn end(&self) -> Result<PyOptionalEventTime, ClientError> {
         let path = Arc::clone(&self.path);
-        Ok(execute_async_task(move || async move { path.end().await })?
-            .and_then(|t| t.to_event_time()))
+        Ok(execute_async_task(move || async move { path.end().await })?.into())
     }
 
     /// Materialize this collection as a list of `RemoteNode` handles. Fires

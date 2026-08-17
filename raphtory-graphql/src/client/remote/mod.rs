@@ -10,7 +10,6 @@
 //! Every type is re-exported from [`crate::client`], so `crate::client::RemoteGraph`
 //! and `crate::client::remote::RemoteGraph` name the same type.
 
-pub mod remote_client;
 pub mod remote_collection_metadata;
 pub mod remote_edge;
 pub mod remote_edges;
@@ -24,14 +23,13 @@ pub mod remote_path_from_graph;
 pub mod remote_path_from_node;
 pub mod remote_schema;
 
-pub use remote_client::RemoteClient;
 pub use remote_collection_metadata::{ColumnarProps, RemoteMetadataView, RemotePropertiesView};
 pub use remote_edge::RemoteEdge;
 pub use remote_edges::RemoteEdges;
 pub use remote_graph::RemoteGraph;
 pub use remote_history::{
-    RemoteEventTime, RemoteHistory, RemoteHistoryDateTimes, RemoteHistoryEventIds,
-    RemoteHistoryTimestamps, RemoteIntervals,
+    RemoteHistory, RemoteHistoryDateTimes, RemoteHistoryEventIds, RemoteHistoryTimestamps,
+    RemoteIntervals,
 };
 pub use remote_metadata::{
     RemoteMetadata, RemoteProperties, RemotePropertyTuple, RemoteTemporalProperties,

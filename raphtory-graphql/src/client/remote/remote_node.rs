@@ -7,7 +7,7 @@ use crate::{
             WriteOp,
         },
         remote_edges::RemoteEdges,
-        remote_history::{RemoteEventTime, RemoteHistory},
+        remote_history::RemoteHistory,
         remote_metadata::{RemoteMetadata, RemoteProperties},
         remote_nodes::RemoteNodes,
         remote_path_from_node::RemotePathFromNode,
@@ -21,7 +21,9 @@ use crate::{
 };
 use raphtory::errors::GraphError;
 use raphtory_api::core::{
-    entities::properties::prop::Prop, storage::timeindex::AsTime, utils::time::IntoTime,
+    entities::properties::prop::Prop,
+    storage::timeindex::{AsTime, EventTime},
+    utils::time::IntoTime,
 };
 use std::{collections::HashMap, sync::Arc};
 
@@ -235,7 +237,7 @@ impl RemoteNode {
 
     /// Terminal: earliest event timestamp on this node under the current view.
     /// Returns `None` if the node has no events in the view. Fires one RPC.
-    pub async fn earliest_time(&self) -> Result<Option<RemoteEventTime>, ClientError> {
+    pub async fn earliest_time(&self) -> Result<Option<EventTime>, ClientError> {
         let op = Op::Read(ReadExpr::EarliestTime {
             input: self.expr.clone(),
         });
@@ -244,7 +246,7 @@ impl RemoteNode {
 
     /// Terminal: latest event timestamp on this node under the current view.
     /// Fires one RPC.
-    pub async fn latest_time(&self) -> Result<Option<RemoteEventTime>, ClientError> {
+    pub async fn latest_time(&self) -> Result<Option<EventTime>, ClientError> {
         let op = Op::Read(ReadExpr::LatestTime {
             input: self.expr.clone(),
         });
@@ -252,7 +254,7 @@ impl RemoteNode {
     }
 
     /// Terminal: view start bound as seen by this node. Fires one RPC.
-    pub async fn start(&self) -> Result<Option<RemoteEventTime>, ClientError> {
+    pub async fn start(&self) -> Result<Option<EventTime>, ClientError> {
         let op = Op::Read(ReadExpr::Start {
             input: self.expr.clone(),
         });
@@ -260,7 +262,7 @@ impl RemoteNode {
     }
 
     /// Terminal: view end bound as seen by this node. Fires one RPC.
-    pub async fn end(&self) -> Result<Option<RemoteEventTime>, ClientError> {
+    pub async fn end(&self) -> Result<Option<EventTime>, ClientError> {
         let op = Op::Read(ReadExpr::End {
             input: self.expr.clone(),
         });
