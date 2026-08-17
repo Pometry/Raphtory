@@ -212,8 +212,7 @@ impl<'a> NodeWriteLock for AtomicAddNode<'a> {
     fn set_type(&mut self, node_type: usize) {
         let pos = self.local_pos();
 
-        self.writer
-            .store_node_type(pos, STATIC_GRAPH_LAYER_ID, node_type)
+        self.writer.store_node_type(pos, node_type)
     }
 
     fn set_lsn(&mut self, lsn: LSN) {
@@ -601,21 +600,17 @@ impl InternalAdditionOps for TemporalGraph {
 
         if src_id.is_new() {
             if let Some(gid) = src.as_gid_ref() {
-                node_writers.get_mut_src().store_node_id(
-                    src_pos,
-                    STATIC_GRAPH_LAYER_ID,
-                    gid.to_owned(),
-                );
+                node_writers
+                    .get_mut_src()
+                    .store_node_id(src_pos, gid.to_owned());
             }
         }
 
         if dst_id.is_new() {
             if let Some(gid) = dst.as_gid_ref() {
-                node_writers.get_mut_dst().store_node_id(
-                    dst_pos,
-                    STATIC_GRAPH_LAYER_ID,
-                    gid.to_owned(),
-                );
+                node_writers
+                    .get_mut_dst()
+                    .store_node_id(dst_pos, gid.to_owned());
             }
         }
 
@@ -674,7 +669,7 @@ impl InternalAdditionOps for TemporalGraph {
                         self.round_robin_counter.fetch_add(1, Ordering::Relaxed),
                         1,
                     );
-                    writer.store_node_id(pos, STATIC_GRAPH_LAYER_ID, gid.to_owned());
+                    writer.store_node_id(pos, gid.to_owned());
                     let vid =
                         pos.as_vid(writer.page.segment_id(), writer.mut_segment.max_page_len());
                     init.init(vid)?;

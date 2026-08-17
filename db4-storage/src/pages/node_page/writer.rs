@@ -233,31 +233,34 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
     pub fn store_node_id_and_node_type(
         &mut self,
         pos: LocalPOS,
-        layer_id: LayerId,
         gid: GidRef<'_>,
         node_type: usize,
     ) {
         let node_type = (node_type != DEFAULT_NODE_TYPE_ID).then_some(node_type);
-        self.update_c_props(pos, layer_id, node_info_as_props(Some(gid), node_type));
+        self.update_c_props(
+            pos,
+            STATIC_GRAPH_LAYER_ID,
+            node_info_as_props(Some(gid), node_type),
+        );
 
         if let Some(node_type) = node_type {
             self.mut_segment.insert_node_type(pos, node_type);
         }
     }
 
-    pub fn store_node_id(&mut self, pos: LocalPOS, layer_id: LayerId, gid: GID) {
+    pub fn store_node_id(&mut self, pos: LocalPOS, gid: GID) {
         let gid = match gid {
             GID::U64(id) => Prop::U64(id),
             GID::Str(s) => Prop::str(s),
         };
 
         let props = [(NODE_ID_IDX, gid)];
-        self.update_c_props(pos, layer_id, props);
+        self.update_c_props(pos, STATIC_GRAPH_LAYER_ID, props);
     }
 
-    pub fn store_node_type(&mut self, pos: LocalPOS, layer_id: LayerId, node_type: usize) {
+    pub fn store_node_type(&mut self, pos: LocalPOS, node_type: usize) {
         let props = [(NODE_TYPE_IDX, Prop::U64(node_type as u64))];
-        self.update_c_props(pos, layer_id, props);
+        self.update_c_props(pos, STATIC_GRAPH_LAYER_ID, props);
 
         if node_type != DEFAULT_NODE_TYPE_ID {
             self.mut_segment.insert_node_type(pos, node_type);

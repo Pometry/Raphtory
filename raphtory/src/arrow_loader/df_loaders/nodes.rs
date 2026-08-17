@@ -454,27 +454,21 @@ pub fn load_node_props_from_df<
             .par_iter_mut()
             .try_for_each(|shard| {
                 let mut c_props = vec![];
-
                 let mut writer = shard.writer();
+
                 for (idx, ((vid, node_type), gid)) in node_col_resolved
                     .iter()
                     .zip(node_type_col_resolved.iter())
                     .zip(node_col.iter())
                     .enumerate()
                     .filter(|(_, ((vid, _), _))| vid.is_initialised())
-                // filter out unresolved vids
+                // Filter out unresolved vids
                 {
-                    if let Some(mut_node) = writer.resolve_pos(*vid) {
+                    if let Some(pos) = writer.resolve_pos(*vid) {
                         let row_layer = layer_col_resolved
                             .as_ref()
                             .map_or(STATIC_GRAPH_LAYER_ID, |r| LayerId(r[idx]));
-                        // gid and node_type live at STATIC_GRAPH_LAYER
-                        writer.store_node_id_and_node_type(
-                            mut_node,
-                            STATIC_GRAPH_LAYER_ID,
-                            gid,
-                            *node_type,
-                        );
+                        writer.store_node_id_and_node_type(pos, gid, *node_type);
 
                         if resolve_nodes {
                             // because we don't call resolve_node above
@@ -486,7 +480,7 @@ pub fn load_node_props_from_df<
                         c_props.extend(shared_metadata.iter().map(|(i, p)| (*i, p.as_prop_ref())));
 
                         if !c_props.is_empty() {
-                            writer.update_c_props(mut_node, row_layer, c_props.drain(..));
+                            writer.update_c_props(pos, row_layer, c_props.drain(..));
                         }
                     };
                 }
@@ -702,7 +696,7 @@ fn store_node_ids_and_type<NS: NodeSegmentOps<Extension = Extension>>(
     let mut writer = locked_page.writer();
     for (gid, (vid, node_type)) in gid_str_cache.iter() {
         if let Some(src_pos) = writer.resolve_pos(*vid) {
-            writer.store_node_id_and_node_type(src_pos, STATIC_GRAPH_LAYER_ID, *gid, *node_type);
+            writer.store_node_id_and_node_type(src_pos, *gid, *node_type);
         }
     }
 }

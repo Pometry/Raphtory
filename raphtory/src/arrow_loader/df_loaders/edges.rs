@@ -28,10 +28,7 @@ use itertools::{izip, Itertools};
 use raphtory_api::{
     atomic_extra::{atomic_usize_from_mut_slice, atomic_vid_from_mut_slice},
     core::{
-        entities::{
-            properties::{meta::STATIC_GRAPH_LAYER_ID, prop::AsPropRef},
-            GidType, LayerId, EID,
-        },
+        entities::{properties::prop::AsPropRef, GidType, LayerId, EID},
         storage::{dict_mapper::MaybeNew, timeindex::EventTime},
     },
 };
@@ -920,7 +917,7 @@ pub fn store_node_ids<NS: NodeSegmentOps<Extension = Extension>>(
     let mut writer = locked_page.bulk_writer();
     for (src_gid, vid) in gid_str_cache.iter() {
         if let Some(src_pos) = writer.resolve_pos(*vid) {
-            writer.store_node_id(src_pos, STATIC_GRAPH_LAYER_ID, (*src_gid).into());
+            writer.store_node_id(src_pos, (*src_gid).into());
         }
     }
 }

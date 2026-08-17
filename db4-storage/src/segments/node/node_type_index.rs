@@ -14,7 +14,7 @@ impl NodeTypeIndex {
         Self::default()
     }
 
-    /// Records that `type_id` includes the node at `pos`.
+    /// Associates the node at `pos` with `type_id`.
     pub fn insert(&mut self, type_id: usize, pos: LocalPOS) {
         let list = self.map.entry(type_id).or_default();
 
