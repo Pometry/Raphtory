@@ -246,6 +246,15 @@ KNOWN_GAPS = {
     # that is an additive extra rather than a divergence: the `collection[expr]`
     # sugar both sides share lowers to the same server field, and is covered as
     # an ordinary matrix in test_parity_filters.py (`GETITEM_SITES`).
+    "collection_props.temporal": (
+        "the collection-level PropertiesView.temporal columnar timeline view "
+        "is not implemented on remote (deferred with the NodeState subsystem)"
+    ),
+    "history.merge": (
+        "History.merge / History.compose_histories are unavailable on remote "
+        "history handles — combining histories needs either server support or "
+        "client-side merge semantics (deferred with the NodeState subsystem)"
+    ),
     "filter.node.by_state_column": (
         "filter.Node.by_state_column needs a boolean OutputNodeState column, "
         "and no algorithm on the drop-in surface produces one, so the "

@@ -32,6 +32,14 @@ GAP_CASES = [
     ("edges.deletions", lambda g: list(g.edges.deletions)),
     ("expanding", lambda g: [w.count_edges() for w in g.expanding(1)]),
     ("rolling", lambda g: [w.count_edges() for w in g.rolling(2)]),
+    (
+        "collection_props.temporal",
+        lambda g: sorted(g.nodes.properties.temporal.keys()),
+    ),
+    (
+        "history.merge",
+        lambda g: [t.t for t in g.node("a").history.merge(g.node("b").history)],
+    ),
 ]
 
 

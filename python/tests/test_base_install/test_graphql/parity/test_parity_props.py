@@ -229,3 +229,31 @@ def test_map_property_key_order_is_insertion_order(typed_pair):
 
 def test_map_property_values_parity(typed_pair):
     assert_parity(typed_pair, lambda g: g.node("a").properties.get("p_map"))
+
+
+# --- collection property views: the mapping protocol --------------------------
+
+
+def test_collection_view_contains_parity(typed_pair):
+    """`key in nodes.properties` answers the same on both sides."""
+    assert_parity(typed_pair, lambda g: "p_u8" in g.nodes.properties)
+    assert_parity(typed_pair, lambda g: "nope" in g.nodes.properties)
+
+
+def test_collection_view_getitem_parity(typed_pair):
+    """`nodes.properties[key]` returns the column, and raises `KeyError` for an
+    unregistered key, on both sides — contrast `.get`, which returns `None`."""
+    assert_parity(typed_pair, lambda g: list(g.nodes.properties["p_u8"]))
+    assert_parity(typed_pair, lambda g: g.nodes.properties["nope"])
+
+
+def test_collection_view_iter_parity(typed_pair):
+    """`for k in nodes.properties` yields the keys on both sides.
+
+    The metadata view is asserted too: it shares the macro-generated protocol
+    remotely, but a regression could split the two, and iteration over an
+    *empty* view (nothing in this build writes node metadata) is its own edge
+    case worth holding to parity.
+    """
+    assert_parity(typed_pair, lambda g: sorted(g.nodes.properties))
+    assert_parity(typed_pair, lambda g: sorted(g.nodes.metadata))

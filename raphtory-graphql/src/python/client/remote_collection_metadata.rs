@@ -19,7 +19,11 @@ use crate::client::{
     remote::remote_collection_metadata::{Column, RemoteMetadataView, RemotePropertiesView},
     ClientError,
 };
-use pyo3::{prelude::*, types::PyDict};
+use pyo3::{
+    exceptions::PyKeyError,
+    prelude::*,
+    types::{PyDict, PyList},
+};
 use raphtory::python::utils::execute_async_task;
 use std::sync::Arc;
 
@@ -96,6 +100,24 @@ macro_rules! columnar_view_methods {
                     dict.set_item(key, col)?;
                 }
                 Ok(dict.unbind())
+            }
+
+            #[doc = concat!("`key in view` — whether a ", $entity, " with this key exists (matching the local view). Fires one key-lookup RPC.")]
+            fn __contains__(&self, key: String) -> Result<bool, ClientError> {
+                let inner = Arc::clone(&self.inner);
+                execute_async_task(move || async move { inner.contains(&key).await })
+            }
+
+            #[doc = concat!("`view[key]` — the column of values for `key`, raising `KeyError` if the key is not registered (matching the local view). Contrast with `.get(key)`, which returns `None`. Fires one single-column RPC.")]
+            fn __getitem__(&self, key: String) -> PyResult<Column> {
+                self.get(key)?
+                    .ok_or_else(|| PyKeyError::new_err("No such property"))
+            }
+
+            #[doc = "`for k in view` — iterate the keys (matching the local view). Fires one key-lookup RPC."]
+            fn __iter__(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+                let keys = self.keys()?;
+                Ok(PyList::new(py, keys)?.try_iter()?.into_any().unbind())
             }
         }
     };
