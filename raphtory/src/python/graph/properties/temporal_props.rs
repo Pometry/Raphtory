@@ -1266,6 +1266,14 @@ impl PyPropValueList {
         self.mean()
     }
 
+    /// Compute a node state from these property values using an arrow compute kernel.
+    ///
+    /// Arguments:
+    ///     graph (GraphView): the graph the property values belong to.
+    ///     col_name (str): the property column name to compute over.
+    ///
+    /// Returns:
+    ///     OutputNodeState: the computed node state.
     pub fn arrow_compute(&self, graph: DynamicGraph, col_name: String) -> PyOutputNodeState {
         PyOutputNodeState::new(GenericNodeState::new_from_eval_mapped(
             graph.clone(),
