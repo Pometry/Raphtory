@@ -49,7 +49,15 @@ pub enum Op {
 #[derive(Clone, Debug)]
 pub enum ReadExpr {
     /// Start of every read tree — names the graph.
-    Root { path: String },
+    Root {
+        path: String,
+        /// Optional graph-semantics override, rendered as the server's
+        /// `graphType:` argument (`EVENT` / `PERSISTENT`). `None` keeps the
+        /// stored graph's native flavour. Set by `RemoteGraph::event_graph` /
+        /// `persistent_graph` — the remote form of the local zero-copy
+        /// flavour conversions, applied at load time by the server.
+        graph_type: Option<String>,
+    },
 
     // ============ View chaining (Graph → Graph) ============
     /// A composable graph-view operation (window / layer / at / …) applied
@@ -1380,12 +1388,15 @@ mod handle_ctx_tests {
     // compared, and printed — and replay applies it in recorded order.
     #[test]
     fn recorded_view_ops_are_inspectable_and_replay_in_order() {
-        let ctx = HandleCtx::new(ReadExpr::Root { path: "g".into() })
-            .with_op(HandleOp::View(ViewOp::Window {
-                start: InputTime::Simple(0),
-                end: InputTime::Simple(10),
-            }))
-            .with_op(HandleOp::View(ViewOp::Layer { name: "a".into() }));
+        let ctx = HandleCtx::new(ReadExpr::Root {
+            path: "g".into(),
+            graph_type: None,
+        })
+        .with_op(HandleOp::View(ViewOp::Window {
+            start: InputTime::Simple(0),
+            end: InputTime::Simple(10),
+        }))
+        .with_op(HandleOp::View(ViewOp::Layer { name: "a".into() }));
 
         assert_eq!(ctx.ops.len(), 2);
         assert!(matches!(&ctx.ops[0], HandleOp::View(ViewOp::Window { .. })));
@@ -1411,12 +1422,18 @@ mod handle_ctx_tests {
     }
 
     fn ctx() -> HandleCtx {
-        HandleCtx::new(ReadExpr::Root { path: "g".into() })
+        HandleCtx::new(ReadExpr::Root {
+            path: "g".into(),
+            graph_type: None,
+        })
     }
 
     fn nodes() -> Arc<ReadExpr> {
         Arc::new(ReadExpr::Nodes {
-            input: Arc::new(ReadExpr::Root { path: "g".into() }),
+            input: Arc::new(ReadExpr::Root {
+                path: "g".into(),
+                graph_type: None,
+            }),
         })
     }
 
@@ -1505,7 +1522,10 @@ mod handle_ctx_tests {
     fn path_handle_expr_refuses_a_chain_it_cannot_reroot() {
         let expr = ReadExpr::Neighbours {
             input: Arc::new(ReadExpr::Edges {
-                input: Arc::new(ReadExpr::Root { path: "g".into() }),
+                input: Arc::new(ReadExpr::Root {
+                    path: "g".into(),
+                    graph_type: None,
+                }),
             }),
         };
         assert!(ctx().path_handle_expr(&expr, "a").is_none());

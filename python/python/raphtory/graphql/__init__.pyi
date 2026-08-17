@@ -855,6 +855,20 @@ class RemoteGraph(object):
             OptionalEventTime: the view end bound, or empty if unbounded.
         """
 
+    def event_graph(self) -> RemoteGraph:
+        """
+        View this graph with event semantics, whatever flavour it was stored
+        with — the remote form of the local zero-copy conversion. Only valid on
+        the base handle (as locally, where the conversions live on the graph
+        classes rather than on views). Lazy — no RPC.
+
+        Returns:
+            RemoteGraph: the same server graph under event semantics.
+
+        Raises:
+            Exception: if called after view operations.
+        """
+
     def exclude_layer(self, name: str) -> RemoteGraph:
         """
         Exclude a specific layer from the view. Lazy — no RPC.
@@ -1122,6 +1136,20 @@ class RemoteGraph(object):
 
         Returns:
             str: the graph's full path.
+        """
+
+    def persistent_graph(self) -> RemoteGraph:
+        """
+        View this graph with persistent semantics, whatever flavour it was
+        stored with — the remote form of the local zero-copy conversion. Only
+        valid on the base handle (as locally, where the conversions live on the
+        graph classes rather than on views). Lazy — no RPC.
+
+        Returns:
+            RemoteGraph: the same server graph under persistent semantics.
+
+        Raises:
+            Exception: if called after view operations.
         """
 
     @property
@@ -5570,6 +5598,15 @@ class RemoteMetadataView(object):
     Returned by the `metadata` getter on the remote collection handles.
     """
 
+    def __contains__(self, key):
+        """Return bool(key in self)."""
+
+    def __getitem__(self, key):
+        """Return self[key]."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
     def as_dict(self) -> dict[str, list]:
         """
         All `(key, column)` entries as a native Python `dict`. Fires one RPC.
@@ -5620,6 +5657,15 @@ class RemotePropertiesView(object):
 
     Returned by the `properties` getter on the remote collection handles.
     """
+
+    def __contains__(self, key):
+        """Return bool(key in self)."""
+
+    def __getitem__(self, key):
+        """Return self[key]."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
 
     def as_dict(self) -> dict[str, list]:
         """

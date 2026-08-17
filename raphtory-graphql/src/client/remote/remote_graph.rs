@@ -54,12 +54,49 @@ impl RemoteGraph {
     /// `Root { path }`.
     pub fn new(path: String, client: RemoteClient) -> Self {
         let transport: Arc<dyn Transport> = Arc::new(GraphqlTransport::new(client));
-        let expr = ReadExpr::Root { path: path.clone() };
+        let expr = ReadExpr::Root {
+            path: path.clone(),
+            graph_type: None,
+        };
         Self {
             path,
             transport,
             expr: expr.into(),
         }
+    }
+
+    /// The same server graph reinterpreted with the given semantics — the
+    /// remote form of the local zero-copy flavour conversions. Only valid on
+    /// the base handle: locally `event_graph`/`persistent_graph` live on the
+    /// graph classes, not on views, so a converted handle always starts a
+    /// fresh (unviewed) expression and applying it mid-chain is refused
+    /// rather than silently dropping the accumulated views.
+    fn with_flavour(&self, flavour: &str) -> Result<RemoteGraph, ClientError> {
+        if !matches!(&*self.expr, ReadExpr::Root { .. }) {
+            return Err(ClientError::InvalidInput(format!(
+                "{flavour}-semantics conversion applies to the base graph — call it \
+                 before any view operations, as with the local API"
+            )));
+        }
+        Ok(Self {
+            path: self.path.clone(),
+            transport: self.transport.clone(),
+            expr: ReadExpr::Root {
+                path: self.path.clone(),
+                graph_type: Some(flavour.to_string()),
+            }
+            .into(),
+        })
+    }
+
+    /// View this graph with event semantics. Lazy — no RPC.
+    pub fn event_graph(&self) -> Result<RemoteGraph, ClientError> {
+        self.with_flavour("EVENT")
+    }
+
+    /// View this graph with persistent semantics. Lazy — no RPC.
+    pub fn persistent_graph(&self) -> Result<RemoteGraph, ClientError> {
+        self.with_flavour("PERSISTENT")
     }
 
     /// Time-window the graph. Lazy — builds up the read expression, no RPC.

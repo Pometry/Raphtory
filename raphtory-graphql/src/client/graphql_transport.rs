@@ -970,8 +970,20 @@ fn render_read_into(
     // Writing into a String cannot fail, but the results are propagated rather
     // than discarded so that no line here reads as a swallowed error.
     match expr {
-        ReadExpr::Root { path } => {
-            write!(out, "graph(path: {})", render_gql_str(path))?;
+        ReadExpr::Root { path, graph_type } => {
+            // `graphType` is a GraphQL enum, so its value renders as a bare
+            // token rather than a quoted string.
+            match graph_type {
+                Some(flavour) => {
+                    write!(
+                        out,
+                        "graph(path: {}, graphType: {})",
+                        render_gql_str(path),
+                        flavour
+                    )?;
+                }
+                None => write!(out, "graph(path: {})", render_gql_str(path))?,
+            }
         }
         // View chaining
         ReadExpr::View { input, op } => {
@@ -4021,7 +4033,7 @@ fn build_not_found_error(expr: &ReadExpr, null_key: &str) -> ClientError {
 /// no matching variant is found in the tree.
 fn find_selection(expr: &ReadExpr, null_key: &str) -> Option<String> {
     let this = match expr {
-        ReadExpr::Root { path } if null_key == "graph" => Some(format!("Graph '{}'", path)),
+        ReadExpr::Root { path, .. } if null_key == "graph" => Some(format!("Graph '{}'", path)),
         ReadExpr::Node { id, .. } if null_key == "node" => Some(format!("Node '{}'", id)),
         ReadExpr::Edge { src, dst, .. } if null_key == "edge" => {
             Some(format!("Edge ('{}', '{}')", src, dst))
@@ -4220,7 +4232,10 @@ mod tests {
         let expr = ReadExpr::Degree {
             input: Arc::new(ReadExpr::Node {
                 input: Arc::new(ReadExpr::View {
-                    input: Arc::new(ReadExpr::Root { path: "g".into() }),
+                    input: Arc::new(ReadExpr::Root {
+                        path: "g".into(),
+                        graph_type: None,
+                    }),
                     op: ViewOp::Window {
                         start: InputTime::Simple(0),
                         end: InputTime::Simple(10),
@@ -4243,13 +4258,34 @@ mod tests {
         assert_eq!(opens, closes, "unbalanced braces in: {query}");
     }
 
+    /// A flavour override renders as the server's `graphType:` argument — a
+    /// bare enum token, not a quoted string.
+    #[test]
+    fn root_renders_graph_type_override() {
+        let expr = ReadExpr::CountNodes {
+            input: Arc::new(ReadExpr::Root {
+                path: "g".into(),
+                graph_type: Some("EVENT".into()),
+            }),
+        };
+        let (query, _) = render_read(&expr).unwrap();
+        assert!(
+            query.contains("graph(path: \"g\", graphType: EVENT)"),
+            "graphType not rendered as enum token: {query}"
+        );
+        assert_eq!(query.matches('{').count(), query.matches('}').count());
+    }
+
     /// A `Some` key whitelist renders the server-side `values(keys: [..])`
     /// filter; `None` renders bare `values` (all columns). Pins the lazy
     /// single-column fetch shape.
     #[test]
     fn columnar_values_render_keys_whitelist() {
         let nodes = ReadExpr::Nodes {
-            input: Arc::new(ReadExpr::Root { path: "g".into() }),
+            input: Arc::new(ReadExpr::Root {
+                path: "g".into(),
+                graph_type: None,
+            }),
         };
         let one = ReadExpr::CollectionPropertiesValues {
             input: Arc::new(nodes.clone()),
@@ -4283,7 +4319,10 @@ mod tests {
     #[test]
     fn columnar_keys_render_first_member_page() {
         let nodes = ReadExpr::Nodes {
-            input: Arc::new(ReadExpr::Root { path: "g".into() }),
+            input: Arc::new(ReadExpr::Root {
+                path: "g".into(),
+                graph_type: None,
+            }),
         };
         let flat = ReadExpr::CollectionMetadataKeys {
             input: Arc::new(nodes.clone()),
@@ -4441,7 +4480,10 @@ mod tests {
     fn sorted_edges_by_neighbour_renders_into_query() {
         let expr = ReadExpr::SortedEdges {
             input: Arc::new(ReadExpr::Edges {
-                input: Arc::new(ReadExpr::Root { path: "g".into() }),
+                input: Arc::new(ReadExpr::Root {
+                    path: "g".into(),
+                    graph_type: None,
+                }),
             }),
             sort_bys: vec![EdgeSortBy {
                 neighbour: Some(NodeSortBy {
@@ -4487,7 +4529,10 @@ mod tests {
     #[test]
     fn node_name_position_is_escaped() {
         let expr = ReadExpr::HasNode {
-            input: Arc::new(ReadExpr::Root { path: "g".into() }),
+            input: Arc::new(ReadExpr::Root {
+                path: "g".into(),
+                graph_type: None,
+            }),
             id: "O\"Brien".into(),
         };
         let (q, _vars) = render_read(&expr).unwrap();
@@ -4582,7 +4627,10 @@ mod tests {
             input: Arc::new(ReadExpr::Filtered {
                 input: Arc::new(ReadExpr::Filtered {
                     input: Arc::new(ReadExpr::Nodes {
-                        input: Arc::new(ReadExpr::Root { path: "g".into() }),
+                        input: Arc::new(ReadExpr::Root {
+                            path: "g".into(),
+                            graph_type: None,
+                        }),
                     }),
                     filter: Arc::new(GqlFilter::Nodes(prop_filter("inner"))),
                 }),
@@ -4652,7 +4700,10 @@ mod tests {
     fn parse_read_walks_to_terminal_value() {
         let expr = ReadExpr::Degree {
             input: Arc::new(ReadExpr::Node {
-                input: Arc::new(ReadExpr::Root { path: "g".into() }),
+                input: Arc::new(ReadExpr::Root {
+                    path: "g".into(),
+                    graph_type: None,
+                }),
                 id: "ben".into(),
             }),
         };
@@ -4691,15 +4742,9 @@ mod tests {
         let rg = client.remote_graph("test-graph".into());
 
         // Write path: add_node routes through Transport
-        rg.add_node(1i64, "ben", None, None, None, None)
-            .await
-            .unwrap();
-        rg.add_node(2i64, "hamza", None, None, None, None)
-            .await
-            .unwrap();
-        rg.add_edge(3i64, "ben", "hamza", None, None, None)
-            .await
-            .unwrap();
+        rg.add_node(1i64, "ben", None, None, None).await.unwrap();
+        rg.add_node(2i64, "hamza", None, None, None).await.unwrap();
+        rg.add_edge(3i64, "ben", "hamza", None, None).await.unwrap();
 
         // Read path: composed expression through Transport
         // g.node("ben").degree() — after edge (ben -> hamza), ben has degree 1.
@@ -4794,13 +4839,13 @@ mod tests {
 
         for (name, score) in [("a", 10i64), ("b", 20), ("c", 30)] {
             let props: Map<String, Prop> = [("score".to_string(), Prop::I64(score))].into();
-            rg.add_node(1i64, name, Some(props), None, None, None)
+            rg.add_node(1i64, name, Some(props), None, None)
                 .await
                 .unwrap();
         }
-        rg.add_edge(1i64, "a", "b", None, None, None).await.unwrap();
-        rg.add_edge(2i64, "b", "c", None, None, None).await.unwrap();
-        rg.add_edge(3i64, "c", "a", None, None, None).await.unwrap();
+        rg.add_edge(1i64, "a", "b", None, None).await.unwrap();
+        rg.add_edge(2i64, "b", "c", None, None).await.unwrap();
+        rg.add_edge(3i64, "c", "a", None, None).await.unwrap();
 
         let score_gt_15 = GqlNodeFilter::Property(PropertyFilterNew {
             name: "score".into(),
@@ -4934,9 +4979,7 @@ mod tests {
 
         for (t, w) in [(1i64, 1i64), (5, 2)] {
             let props: Map<String, Prop> = [("weight".to_string(), Prop::I64(w))].into();
-            rg.add_edge(t, "x", "y", Some(props), None, None)
-                .await
-                .unwrap();
+            rg.add_edge(t, "x", "y", Some(props), None).await.unwrap();
         }
 
         let exploded = rg.edges().explode();

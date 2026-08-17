@@ -228,6 +228,38 @@ impl PyRemoteGraph {
         }
     }
 
+    /// View this graph with event semantics, whatever flavour it was stored
+    /// with — the remote form of the local zero-copy conversion. Only valid on
+    /// the base handle (as locally, where the conversions live on the graph
+    /// classes rather than on views). Lazy — no RPC.
+    ///
+    /// Returns:
+    ///     RemoteGraph: the same server graph under event semantics.
+    ///
+    /// Raises:
+    ///     Exception: if called after view operations.
+    pub fn event_graph(&self) -> Result<PyRemoteGraph, ClientError> {
+        Ok(PyRemoteGraph {
+            graph: Arc::new(self.graph.event_graph()?),
+        })
+    }
+
+    /// View this graph with persistent semantics, whatever flavour it was
+    /// stored with — the remote form of the local zero-copy conversion. Only
+    /// valid on the base handle (as locally, where the conversions live on the
+    /// graph classes rather than on views). Lazy — no RPC.
+    ///
+    /// Returns:
+    ///     RemoteGraph: the same server graph under persistent semantics.
+    ///
+    /// Raises:
+    ///     Exception: if called after view operations.
+    pub fn persistent_graph(&self) -> Result<PyRemoteGraph, ClientError> {
+        Ok(PyRemoteGraph {
+            graph: Arc::new(self.graph.persistent_graph()?),
+        })
+    }
+
     /// Restrict to the default layer. Lazy — no RPC.
     ///
     /// Returns:

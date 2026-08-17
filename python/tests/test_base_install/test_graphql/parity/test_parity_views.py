@@ -364,3 +364,58 @@ def test_path_from_graph_iteration_yields_chainable_paths(matrix_pair):
             for source, path in g.nodes.neighbours
         ),
     )
+
+
+# --- flavour conversion --------------------------------------------------------
+
+
+def _build_flavoured(g):
+    """A graph where the two time-semantics answer differently: a deleted edge
+    is invalid under persistent semantics but valid (a plain pair of events)
+    under event semantics."""
+    g.add_edge(1, "a", "b")
+    g.delete_edge(5, "a", "b")
+    g.add_edge(8, "c", "d")
+
+
+def _flavour_probe(g):
+    return (
+        g.count_edges(),
+        sorted((e.src.name, e.dst.name, e.is_valid()) for e in g.edges),
+        sorted([t.t for t in e.deletions] for e in g.edges),
+    )
+
+
+@pytest.mark.parametrize("graph_type", ["EVENT", "PERSISTENT"])
+@pytest.mark.parametrize("convert", ["event_graph", "persistent_graph"])
+def test_flavour_conversion_parity(graph_type, convert):
+    """`event_graph()` / `persistent_graph()` reinterpret the same graph under
+    the other time-semantics, identically on both sides, from either stored
+    flavour. The cross conversions are guarded against vacuity: converting a
+    graph with a deletion to the other flavour must change what `is_valid`
+    reports, otherwise this proves nothing.
+    """
+    with graph_pair(_build_flavoured, graph_type=graph_type) as pair:
+        base = {
+            name: canonical(_flavour_probe(g))
+            for name, g in (("local", pair.local), ("remote", pair.remote))
+        }
+        converted = {}
+        for name, g in (("local", pair.local), ("remote", pair.remote)):
+            converted[name] = canonical(_flavour_probe(getattr(g, convert)()))
+        assert converted["local"] == converted["remote"], (
+            f"{graph_type} -> {convert}: local={converted['local']!r} "
+            f"remote={converted['remote']!r}"
+        )
+        crossed = (graph_type == "EVENT") != (convert == "event_graph")
+        if crossed:
+            for name in ("local", "remote"):
+                assert converted[name] != base[name], (
+                    f"{name}: converting {graph_type} via {convert} changed "
+                    f"nothing — the vacuity guard on this test failed"
+                )
+        else:
+            for name in ("local", "remote"):
+                assert (
+                    converted[name] == base[name]
+                ), f"{name}: identity conversion changed the answer"
