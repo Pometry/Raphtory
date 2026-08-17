@@ -2,7 +2,7 @@ use crate::{
     api::core::storage::timeindex::AsTime,
     db::{
         api::view::{
-            DynamicGraph, EdgeSelect, IntoDynBoxed, IntoDynHop, IntoDynamic, StaticGraphViewOps,
+            DynamicGraph, IntoDynBoxed, IntoDynHop, IntoDynamic, Select, StaticGraphViewOps,
         },
         graph::{
             edge::EdgeView,

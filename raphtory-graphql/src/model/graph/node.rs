@@ -20,7 +20,7 @@ use raphtory::{
     db::{
         api::{
             properties::dyn_props::DynProperties,
-            view::{filter_ops::NodeSelect, Filter, *},
+            view::{filter_ops::Select, Filter, *},
         },
         graph::{
             node::NodeView,

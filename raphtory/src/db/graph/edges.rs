@@ -4,17 +4,18 @@ use crate::{
         api::{
             properties::{Metadata, Properties},
             view::{
-                internal::{DynGraphArc, GraphView, InternalEdgeSelect, InternalFilter, Static},
+                internal::{DynGraphArc, GraphView, InternalFilter, Static},
                 BaseEdgeViewOps, BoxableGraphView, BoxedLIter, DynamicGraph, IntoDynBoxed,
-                IntoDynamic, StaticGraphViewOps,
+                IntoDynamic, Select, StaticGraphViewOps,
             },
         },
         graph::{
             edge::EdgeView,
             path::{PathFromGraph, PathFromNode},
-            views::filter::and_filtered_graph::AndFilteredGraph,
+            views::filter::{and_filtered_graph::AndFilteredGraph, CreateFilter},
         },
     },
+    errors::GraphError,
     prelude::GraphViewOps,
 };
 use std::{
@@ -206,32 +207,27 @@ impl<G: StaticGraphViewOps + IntoDynamic + Static> From<Edges<'static, G>>
     }
 }
 
-impl<'graph, G> InternalEdgeSelect<'graph> for Edges<'graph, G>
-where
-    G: GraphViewOps<'graph> + 'graph,
-{
-    type IterGraph = G;
-    type IterFiltered<FilteredGraph: GraphViewOps<'graph> + 'graph> = Edges<'graph, G>;
+impl<'graph, G: GraphView + 'graph> Select<'graph> for Edges<'graph, G> {
+    type IterFiltered<Filter: CreateFilter + 'graph> = Edges<'graph, G>;
 
-    fn iter_graph(&self) -> &Self::IterGraph {
-        &self.base_graph
-    }
-
-    fn apply_iter_filter<FilteredGraph: GraphViewOps<'graph> + 'graph>(
+    fn select<F: CreateFilter + 'graph>(
         &self,
-        filtered_graph: FilteredGraph,
-    ) -> Self::IterFiltered<FilteredGraph> {
+        filter: F,
+    ) -> Result<Self::IterFiltered<F>, GraphError> {
+        let filtered_graph = filter.filter_graph_view(self.base_graph.clone())?;
+        let filtered_graph = filter.create_filter(filtered_graph)?;
+
         let edges = self.edges.clone();
         let select = Arc::new(AndFilteredGraph::new(
             self.base_graph.clone(),
             self.select.clone(),
             filtered_graph,
         ));
-        Edges {
+        Ok(Edges {
             base_graph: self.base_graph.clone(),
             select,
             edges,
-        }
+        })
     }
 }
 
@@ -389,21 +385,15 @@ impl<'graph, G: GraphViewOps<'graph>> BaseEdgeViewOps<'graph> for NestedEdges<'g
     }
 }
 
-impl<'graph, G> InternalEdgeSelect<'graph> for NestedEdges<'graph, G>
-where
-    G: GraphViewOps<'graph> + 'graph,
-{
-    type IterGraph = G;
-    type IterFiltered<FilteredGraph: GraphViewOps<'graph> + 'graph> = NestedEdges<'graph, G>;
+impl<'graph, G: GraphView + 'graph> Select<'graph> for NestedEdges<'graph, G> {
+    type IterFiltered<Filter: CreateFilter + 'graph> = NestedEdges<'graph, G>;
 
-    fn iter_graph(&self) -> &Self::IterGraph {
-        &self.graph
-    }
-
-    fn apply_iter_filter<FilteredGraph: GraphViewOps<'graph> + 'graph>(
+    fn select<F: CreateFilter + 'graph>(
         &self,
-        filtered_graph: FilteredGraph,
-    ) -> Self::IterFiltered<FilteredGraph> {
+        filter: F,
+    ) -> Result<Self::IterFiltered<F>, GraphError> {
+        let filtered_graph = filter.filter_graph_view(self.graph.clone())?;
+        let filtered_graph = filter.create_filter(filtered_graph)?;
         let edges = self.edges.clone();
         let select = Arc::new(AndFilteredGraph::new(
             self.graph.clone(),
@@ -411,11 +401,11 @@ where
             filtered_graph,
         ));
 
-        NestedEdges {
+        Ok(NestedEdges {
             graph: self.graph.clone(),
             nodes: self.nodes.clone(),
             select,
             edges,
-        }
+        })
     }
 }

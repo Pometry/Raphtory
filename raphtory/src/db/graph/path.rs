@@ -4,7 +4,7 @@ use crate::{
         api::{
             state::ops::{ArrowNodeOp, NodeFilterOp, NodeOp},
             view::{
-                filter_ops::NodeSelect,
+                filter_ops::Select,
                 history::History,
                 internal::{DynGraphArc, GraphView, InternalFilter, Static},
                 BaseNodeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
@@ -266,13 +266,12 @@ where
     }
 }
 
-impl<'graph, G> NodeSelect<'graph> for PathFromGraph<'graph, G>
+impl<'graph, G> Select<'graph> for PathFromGraph<'graph, G>
 where
     G: GraphView + 'graph,
     Self: 'graph,
 {
-    type IterGraph = G;
-    type IterFiltered<Filter: NodeFilterOp + 'graph> = PathFromGraph<'graph, G>;
+    type IterFiltered<Filter: CreateFilter + 'graph> = PathFromGraph<'graph, G>;
 
     fn select<F: CreateFilter + 'graph>(
         &self,
@@ -518,12 +517,11 @@ where
     }
 }
 
-impl<'graph, G> NodeSelect<'graph> for PathFromNode<'graph, G>
+impl<'graph, G> Select<'graph> for PathFromNode<'graph, G>
 where
     G: GraphViewOps<'graph>,
 {
-    type IterGraph = G;
-    type IterFiltered<Next: NodeFilterOp + 'graph> = PathFromNode<'graph, G>;
+    type IterFiltered<Next: CreateFilter + 'graph> = PathFromNode<'graph, G>;
 
     fn select<F: CreateFilter + 'graph>(
         &self,

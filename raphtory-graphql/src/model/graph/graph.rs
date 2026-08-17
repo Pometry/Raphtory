@@ -30,7 +30,7 @@ use raphtory::{
     },
     db::{
         api::view::{
-            filter_ops::NodeSelect, DynamicGraph, EdgeSelect, Filter, IntoDynamic, NodeViewOps,
+            filter_ops::Select, DynamicGraph, EdgeSelect, Filter, IntoDynamic, NodeViewOps,
             StaticGraphViewOps, TimeOps,
         },
         graph::{
