@@ -163,8 +163,13 @@ mod vector_tests {
     }
 
     async fn use_fake_model() -> CachedEmbeddingModel {
-        tokio::spawn(async {
-            let running = serve_custom_embedding(None, 3070, fake_embedding).await;
+        use_fake_model_on_port(3070).await
+    }
+
+    // every test needs its own port, tests within a crate run concurrently
+    async fn use_fake_model_on_port(port: u16) -> CachedEmbeddingModel {
+        tokio::spawn(async move {
+            let running = serve_custom_embedding(None, port, fake_embedding).await;
             running.wait().await;
         });
         tokio::time::sleep(Duration::from_secs(1)).await;
@@ -172,7 +177,7 @@ mod vector_tests {
             .openai(
                 super::embeddings::ModelConfig::OpenAI(OpenAIEmbeddings::new(
                     "whatever",
-                    "http://localhost:3070",
+                    format!("http://localhost:{port}"),
                 ))
                 .with_dimension(10),
             )
@@ -262,6 +267,41 @@ mod vector_tests {
         selection.expand(2, None);
         let docs = selection.get_documents().await.unwrap();
         assert!(docs.is_empty())
+    }
+
+    #[tokio::test]
+    async fn test_vectorise_twice_on_the_same_path() {
+        let template = custom_template();
+        let g = Graph::new();
+        g.add_node(
+            0,
+            "Frodo",
+            [("age".to_string(), Prop::str("30"))],
+            Some("hobbit"),
+            None,
+        )
+        .unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let model = use_fake_model_on_port(3072).await;
+
+        g.vectorise(model.clone(), template.clone(), Some(dir.path()), false)
+            .await
+            .unwrap();
+        let vectors = g
+            .vectorise(model, template, Some(dir.path()), false)
+            .await
+            .unwrap();
+
+        let embedding = vectors.embed_text("whatever").await.unwrap();
+        let docs = vectors
+            .nodes_by_similarity(&embedding, 10, None)
+            .execute()
+            .await
+            .unwrap()
+            .get_documents()
+            .await
+            .unwrap();
+        assert_eq!(docs.len(), 1);
     }
 
     #[test]

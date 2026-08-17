@@ -7,6 +7,7 @@ use crate::{
         },
         GqlGraphType,
     },
+    paths::ValidGraphPaths,
     rayon::blocking_write,
 };
 use dynamic_graphql::{InputObject, ResolvedObject, ResolvedObjectFields};
@@ -24,6 +25,7 @@ use std::{
     error::Error,
     fmt::{Debug, Display, Formatter},
 };
+use tracing::warn;
 
 #[derive(Debug)]
 pub struct BatchFailures {
@@ -220,7 +222,12 @@ impl GqlMutableGraph {
         .await?;
 
         self.post_mutation_ops().await;
-        let _ = node.update_embeddings().await;
+        if let Err(error) = node.update_embeddings().await {
+            warn!(
+                "Failed to embed the node added to graph {}: {error}",
+                self.graph.folder().local_path()
+            );
+        }
 
         Ok(GqlMutableNode::new(node))
     }
@@ -258,7 +265,12 @@ impl GqlMutableGraph {
         .await?;
 
         self.post_mutation_ops().await;
-        let _ = node.update_embeddings().await;
+        if let Err(error) = node.update_embeddings().await {
+            warn!(
+                "Failed to embed the node added to graph {}: {error}",
+                self.graph.folder().local_path()
+            );
+        }
 
         Ok(GqlMutableNode::new(node))
     }
@@ -314,8 +326,13 @@ impl GqlMutableGraph {
 
         self.post_mutation_ops().await;
 
-        // Generate embeddings
-        let _ = self.graph.update_node_embeddings(succeeded).await;
+        let count = succeeded.len();
+        if let Err(error) = self.graph.update_node_embeddings(succeeded).await {
+            warn!(
+                "Failed to embed {count} nodes added to graph {}: {error}",
+                self.graph.folder().local_path()
+            );
+        }
         if let Some(failures) = batch_failures {
             Err(failures)
         } else {
@@ -364,7 +381,12 @@ impl GqlMutableGraph {
         .await?;
 
         self.post_mutation_ops().await;
-        let _ = edge.update_embeddings().await;
+        if let Err(error) = edge.update_embeddings().await {
+            warn!(
+                "Failed to embed the edge added to graph {}: {error}",
+                self.graph.folder().local_path()
+            );
+        }
 
         Ok(GqlMutableEdge::new(edge))
     }
@@ -416,7 +438,13 @@ impl GqlMutableGraph {
         .await;
 
         self.post_mutation_ops().await;
-        let _ = self.graph.update_edge_embeddings(edge_pairs).await;
+        let count = edge_pairs.len();
+        if let Err(error) = self.graph.update_edge_embeddings(edge_pairs).await {
+            warn!(
+                "Failed to embed {count} edges added to graph {}: {error}",
+                self.graph.folder().local_path()
+            );
+        }
 
         match failures {
             None => Ok(true),
@@ -449,7 +477,12 @@ impl GqlMutableGraph {
         .await?;
 
         self.post_mutation_ops().await;
-        let _ = edge.update_embeddings().await;
+        if let Err(error) = edge.update_embeddings().await {
+            warn!(
+                "Failed to embed the edge added to graph {}: {error}",
+                self.graph.folder().local_path()
+            );
+        }
 
         Ok(GqlMutableEdge::new(edge))
     }
@@ -676,7 +709,12 @@ impl GqlMutableNode {
         .await?;
 
         self.post_mutation_ops().await;
-        let _ = self.node.update_embeddings().await;
+        if let Err(error) = self.node.update_embeddings().await {
+            warn!(
+                "Failed to re-embed an updated node in graph {}: {error}",
+                self.node.graph.folder().local_path()
+            );
+        }
 
         Ok(true)
     }
@@ -748,7 +786,12 @@ impl GqlMutableEdge {
         .await?;
 
         self.post_mutation_ops().await;
-        let _ = self.edge.update_embeddings().await;
+        if let Err(error) = self.edge.update_embeddings().await {
+            warn!(
+                "Failed to re-embed an updated edge in graph {}: {error}",
+                self.edge.graph.folder().local_path()
+            );
+        }
 
         Ok(true)
     }
@@ -777,7 +820,12 @@ impl GqlMutableEdge {
         .await?;
 
         self.post_mutation_ops().await;
-        let _ = self.edge.update_embeddings().await;
+        if let Err(error) = self.edge.update_embeddings().await {
+            warn!(
+                "Failed to re-embed an updated edge in graph {}: {error}",
+                self.edge.graph.folder().local_path()
+            );
+        }
 
         Ok(true)
     }
@@ -806,7 +854,12 @@ impl GqlMutableEdge {
         .await?;
 
         self.post_mutation_ops().await;
-        let _ = self.edge.update_embeddings().await;
+        if let Err(error) = self.edge.update_embeddings().await {
+            warn!(
+                "Failed to re-embed an updated edge in graph {}: {error}",
+                self.edge.graph.folder().local_path()
+            );
+        }
 
         Ok(true)
     }
@@ -837,7 +890,12 @@ impl GqlMutableEdge {
         .await?;
 
         self.post_mutation_ops().await;
-        let _ = self.edge.update_embeddings().await;
+        if let Err(error) = self.edge.update_embeddings().await {
+            warn!(
+                "Failed to re-embed an updated edge in graph {}: {error}",
+                self.edge.graph.folder().local_path()
+            );
+        }
 
         Ok(true)
     }
@@ -1152,5 +1210,152 @@ mod tests {
             assert_eq!(result.unwrap().get_documents().await.unwrap().len(), 2);
             context.embedding_server.stop().await;
         }
+    }
+
+    /// Every write path embeds inline, and none of them may fail the write when embedding is
+    /// unavailable — but the entity is then missing from the index, so the failure has to be
+    /// reported (a warning naming the graph) instead of discarded. This drives each of those
+    /// paths with the embedding server stopped.
+    #[tokio::test]
+    async fn test_every_write_path_survives_a_failing_embedding() {
+        let work_dir = TempDir::new().unwrap();
+        {
+            let context = create_mutable_graph(1752, work_dir.path()).await;
+            let graph = &context.mutable_graph;
+
+            // seed while embedding still works, so there is an index to compare against
+            graph
+                .add_node(0.into(), "seed".into(), None, Some("person".into()), None)
+                .await
+                .unwrap();
+            let indexed_before = documents(graph).await;
+
+            // from here on every embedding attempt fails
+            context.embedding_server.stop().await;
+
+            let node = graph
+                .add_node(1.into(), "added".into(), None, Some("person".into()), None)
+                .await
+                .expect("add_node must not fail because embedding failed");
+            graph
+                .create_node(
+                    1.into(),
+                    "created".into(),
+                    None,
+                    Some("person".into()),
+                    None,
+                )
+                .await
+                .expect("create_node must not fail because embedding failed");
+            graph
+                .add_nodes(vec![NodeAddition {
+                    name: "batched".into(),
+                    node_type: Some("person".to_string()),
+                    metadata: None,
+                    updates: Some(vec![TemporalPropertyInput {
+                        time: 1.into(),
+                        properties: None,
+                    }]),
+                    layer: None,
+                }])
+                .await
+                .expect("add_nodes must not fail because embedding failed");
+            let edge = graph
+                .add_edge(1.into(), "added".into(), "created".into(), None, None)
+                .await
+                .expect("add_edge must not fail because embedding failed");
+            graph
+                .add_edges(vec![EdgeAddition {
+                    src: "batched".into(),
+                    dst: "seed".into(),
+                    layer: None,
+                    metadata: None,
+                    updates: Some(vec![TemporalPropertyInput {
+                        time: 1.into(),
+                        properties: None,
+                    }]),
+                }])
+                .await
+                .expect("add_edges must not fail because embedding failed");
+
+            // node handle paths
+            node.add_updates(2.into(), None, None)
+                .await
+                .expect("node add_updates must not fail because embedding failed");
+            // a node with no type yet, so setting one is a legal update
+            graph
+                .add_node(1.into(), "typeless".into(), None, None, None)
+                .await
+                .unwrap()
+                .set_node_type("person".to_string())
+                .await
+                .expect("set_node_type must not fail because embedding failed");
+            node.add_metadata(vec![GqlPropertyInput {
+                key: "team".to_string(),
+                value: Value::Str("red".to_string()),
+            }])
+            .await
+            .expect("node add_metadata must not fail because embedding failed");
+            node.update_metadata(vec![GqlPropertyInput {
+                key: "team".to_string(),
+                value: Value::Str("blue".to_string()),
+            }])
+            .await
+            .expect("node update_metadata must not fail because embedding failed");
+
+            // edge handle paths
+            edge.add_updates(3.into(), None, None)
+                .await
+                .expect("edge add_updates must not fail because embedding failed");
+            edge.add_metadata(
+                vec![GqlPropertyInput {
+                    key: "weight".to_string(),
+                    value: Value::Str("heavy".to_string()),
+                }],
+                None,
+            )
+            .await
+            .expect("edge add_metadata must not fail because embedding failed");
+            edge.update_metadata(
+                vec![GqlPropertyInput {
+                    key: "weight".to_string(),
+                    value: Value::Str("light".to_string()),
+                }],
+                None,
+            )
+            .await
+            .expect("edge update_metadata must not fail because embedding failed");
+            edge.delete(4.into(), None)
+                .await
+                .expect("edge delete must not fail because embedding failed");
+
+            // the writes landed in the graph
+            assert!(
+                graph.graph.node("added").is_some(),
+                "the write itself must be applied even when embedding fails"
+            );
+            // ...and none of them reached the index, which is why the warning matters
+            assert_eq!(
+                documents(graph).await,
+                indexed_before,
+                "nothing should have been indexed while embedding was unavailable"
+            );
+        }
+    }
+
+    /// Documents currently in the node index.
+    async fn documents(graph: &GqlMutableGraph) -> usize {
+        graph
+            .graph
+            .vectors()
+            .unwrap()
+            .nodes_by_similarity(&fake_embedding("anything").into(), 100, None)
+            .execute()
+            .await
+            .unwrap()
+            .get_documents()
+            .await
+            .unwrap()
+            .len()
     }
 }

@@ -1,58 +1,18 @@
+"""Vectorising a graph for the first time, by each of the routes that can do it."""
+
 import tempfile
-from raphtory.graphql import GraphServer, RaphtoryClient
+
 from raphtory import Graph
-from raphtory.vectors import OpenAIEmbeddings, embedding_server
+from raphtory.graphql import GraphServer
+from raphtory.vectors import OpenAIEmbeddings
 
-
-@embedding_server
-def embeddings(text: str):
-    return [text.count("a"), text.count("b")]
-
-
-def setup_graph(g):
-    g.add_node(1, "aab")
-    g.add_edge(1, "aab", "bbb")
-
-
-def assert_correct_documents(client):
-    query = """{
-    vectorisedGraph(path: "abb") {
-        entitiesBySimilarity(query: "aab", limit: 1) {
-            getDocuments {
-                content
-                embedding
-                entity {
-                    __typename
-                    ... on Node {
-                        name
-                    }
-                    ... on Edge {
-                        src {
-                            name
-                        }
-                        dst {
-                            name
-                        }
-                    }
-                }
-            }
-        }
-    }
-    }"""
-    result = client.query(query)
-    assert result == {
-        "vectorisedGraph": {
-            "entitiesBySimilarity": {
-                "getDocuments": [
-                    {
-                        "entity": {"__typename": "Node", "name": "aab"},
-                        "content": "aab",
-                        "embedding": [2.0, 1.0],
-                    }
-                ]
-            }
-        },
-    }
+from helpers import (
+    EMBEDDING_PORT,
+    assert_correct_documents,
+    embeddings,
+    setup_graph,
+    vectorise_query,
+)
 
 
 def test_new_graph():

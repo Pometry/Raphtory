@@ -75,6 +75,22 @@ impl OpenAIEmbeddings {
 pub(super) struct VectorMeta {
     pub(super) template: DocumentTemplate,
     pub(super) model: ModelConfig,
+    /// Which generation of the collections this meta points at. A full rebuild writes a new
+    /// generation and only then updates this file, so the switch is a single atomic write and a
+    /// rebuild that never finishes leaves the previous generation in use. Absent in metas written
+    /// before generations existed, which are generation 0.
+    #[serde(default)]
+    pub(super) generation: u64,
+}
+
+/// Collection names for a generation. Generation 0 keeps the original names so stores written
+/// before generations existed are read without migration.
+pub(super) fn collection_names(generation: u64) -> (String, String) {
+    if generation == 0 {
+        ("nodes".to_owned(), "edges".to_owned())
+    } else {
+        (format!("nodes_{generation}"), format!("edges_{generation}"))
+    }
 }
 
 impl VectorMeta {
@@ -94,7 +110,9 @@ impl VectorMeta {
 #[derive(Clone)]
 pub struct LazyDiskVectorCache {
     path: PathBuf,
-    cache: OnceCell<VectorCache>,
+    // shared by every clone: the on-disk cache is a heed env, and heed refuses to open the same
+    // path twice in one process, so each clone resolving its own cell would fail
+    cache: Arc<OnceCell<VectorCache>>,
 }
 
 impl LazyDiskVectorCache {
@@ -129,8 +147,9 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
         let model = resolved.validate_and_set_dim(meta.model).await?;
         let dim = model.dim().ok_or_else(|| GraphError::UnresolvedModel)?;
 
-        let node_db = NodeDb(factory.from_path(db_path.clone(), "nodes", dim).await?);
-        let edge_db = EdgeDb(factory.from_path(db_path, "edges", dim).await?);
+        let (node_table, edge_table) = collection_names(meta.generation);
+        let node_db = NodeDb(factory.from_path(db_path.clone(), &node_table, dim).await?);
+        let edge_db = EdgeDb(factory.from_path(db_path, &edge_table, dim).await?);
 
         Ok(VectorisedGraph {
             template: meta.template,
@@ -142,7 +161,7 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
     }
 }
 
-fn meta_path(path: &Path) -> PathBuf {
+pub(super) fn meta_path(path: &Path) -> PathBuf {
     path.join("meta")
 }
 
@@ -152,6 +171,19 @@ pub(super) fn db_path(path: &Path) -> PathBuf {
 
 #[cfg(test)]
 mod vector_storage_tests {
+    use super::LazyDiskVectorCache;
+
+    /// Every clone has to resolve to the same underlying cache, otherwise the second one to
+    /// resolve fails to open the heed env that the first one already holds
+    #[tokio::test]
+    async fn test_clones_resolve_to_the_same_cache() {
+        let dir = tempfile::tempdir().unwrap();
+        let cache = LazyDiskVectorCache::new(dir.path().join("vector-cache"));
+        let clone = cache.clone();
+        clone.resolve().await.unwrap();
+        cache.resolve().await.unwrap();
+    }
+
     // #[test]
     // fn test_vector_meta() {
     //     let meta = VectorMeta {

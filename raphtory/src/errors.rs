@@ -151,6 +151,9 @@ pub enum GraphError {
     #[error("Storage feature not enabled")]
     DiskGraphNotEnabled,
 
+    #[error("The stored template or embedding model differs from the one requested, so only entities missing from the index cannot be added; re-vectorise instead")]
+    VectorTemplateChanged,
+
     #[error("Valid view is not supported for event graph")]
     EventGraphNoValidView,
 
