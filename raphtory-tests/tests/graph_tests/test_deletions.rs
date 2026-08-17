@@ -1,10 +1,13 @@
 use itertools::Itertools;
 use proptest::{arbitrary::any, proptest, sample::subsequence};
 use raphtory::{
-    db::graph::{
-        edge::EdgeView,
-        graph::{assert_graph_equal, assert_persistent_materialize_graph_equal},
-        views::deletion_graph::PersistentGraph,
+    db::{
+        api::view::internal::GraphView,
+        graph::{
+            edge::EdgeView,
+            graph::{assert_graph_equal, assert_persistent_materialize_graph_equal},
+            views::deletion_graph::PersistentGraph,
+        },
     },
     prelude::*,
 };
@@ -573,6 +576,15 @@ fn check_valid<'graph, G: GraphViewOps<'graph>>(e: &EdgeView<G>) {
     assert!(e.graph.edge(e.src(), e.dst()).is_some());
 }
 
+fn check_nonexisting<G: GraphView>(e: &EdgeView<G>) {
+    assert!(!e.is_valid());
+    assert!(!e.is_deleted());
+    let t = e.latest_time().map(|t| t.t()).unwrap_or(i64::MAX);
+    let g = e.graph.at(t); // latest view of the graph
+    assert!(!g.has_edge(e.src(), e.dst()));
+    assert!(g.edge(e.src(), e.dst()).is_none());
+}
+
 fn check_deleted<'graph, G: GraphViewOps<'graph>>(e: &EdgeView<G>) {
     assert!(!e.is_valid());
     assert!(e.is_deleted());
@@ -596,7 +608,7 @@ fn test_deletion_multiple_layers() {
     let e_layer_2 = e.layers("2").unwrap();
 
     assert!(!g.at(0).has_edge(1, 2));
-    check_deleted(&e.at(0));
+    check_nonexisting(&e.at(0));
     for t in 1..13 {
         assert!(g.at(t).has_edge(1, 2));
         check_valid(&e.at(t));
@@ -608,7 +620,7 @@ fn test_deletion_multiple_layers() {
     check_deleted(&e_layer_1.at(10));
     check_valid(&e_layer_1.at(9));
     check_valid(&e_layer_1.at(1));
-    check_deleted(&e_layer_1.at(0));
+    check_nonexisting(&e_layer_1.at(0));
 
     check_valid(&e_layer_2);
     check_deleted(&e_layer_2.at(9));
@@ -629,7 +641,7 @@ fn test_edge_is_valid() {
 
     g.add_edge(1, 1, 2, NO_PROPS, None).unwrap();
     let e = g.edge(1, 2).unwrap();
-    check_deleted(&e.before(1));
+    check_nonexisting(&e.before(1));
     check_valid(&e.after(1));
     check_valid(&e);
 
