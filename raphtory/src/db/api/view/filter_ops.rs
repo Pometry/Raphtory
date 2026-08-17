@@ -1,9 +1,13 @@
 use crate::{
     db::{
-        api::view::internal::{InternalEdgeSelect, InternalFilter, InternalNodeSelect},
+        api::{
+            state::ops::NodeFilterOp,
+            view::internal::{InternalEdgeSelect, InternalFilter, InternalNodeSelect},
+        },
         graph::views::filter::CreateFilter,
     },
     errors::GraphError,
+    prelude::GraphViewOps,
 };
 
 pub trait Filter<'graph>: InternalFilter<'graph> {
@@ -19,7 +23,27 @@ pub trait Filter<'graph>: InternalFilter<'graph> {
     }
 }
 
-pub trait NodeSelect<'graph>: InternalNodeSelect<'graph> {
+pub trait NodeSelect<'graph>: 'graph {
+    type IterGraph: GraphViewOps<'graph> + 'graph;
+
+    type IterFiltered<Filter: NodeFilterOp + 'graph>: NodeSelect<
+        'graph,
+        IterGraph = Self::IterGraph,
+    >;
+    fn select<F: CreateFilter>(
+        &self,
+        filter: F,
+    ) -> Result<
+        Self::IterFiltered<F::NodeFilter<'graph, F::FilteredGraph<'graph, Self::IterGraph>>>,
+        GraphError,
+    >;
+}
+
+impl<'graph, T: InternalNodeSelect<'graph> + 'graph> NodeSelect<'graph> for T {
+    type IterGraph = <T as InternalNodeSelect<'graph>>::IterGraph;
+    type IterFiltered<Filter: NodeFilterOp + 'graph> =
+        <T as InternalNodeSelect<'graph>>::IterFiltered<Filter>;
+
     fn select<F: CreateFilter>(
         &self,
         filter: F,
@@ -32,7 +56,11 @@ pub trait NodeSelect<'graph>: InternalNodeSelect<'graph> {
     }
 }
 
-pub trait EdgeSelect<'graph>: InternalEdgeSelect<'graph> {
+pub trait EdgeSelect<'graph> {
+    type IterGraph = <T as InternalNodeSelect<'graph>>::IterGraph;
+    type IterFiltered<Filter: NodeFilterOp + 'graph> =
+        <T as InternalNodeSelect<'graph>>::IterFiltered<Filter>;
+
     fn select<F: CreateFilter>(
         &self,
         filter: F,
@@ -46,5 +74,4 @@ pub trait EdgeSelect<'graph>: InternalEdgeSelect<'graph> {
 }
 
 impl<'graph, T: InternalFilter<'graph>> Filter<'graph> for T {}
-impl<'graph, T: InternalNodeSelect<'graph>> NodeSelect<'graph> for T {}
 impl<'graph, T: InternalEdgeSelect<'graph>> EdgeSelect<'graph> for T {}

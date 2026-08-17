@@ -1,7 +1,9 @@
 use crate::{
     api::core::storage::timeindex::AsTime,
     db::{
-        api::view::{DynamicGraph, EdgeSelect, IntoDynBoxed, IntoDynamic, StaticGraphViewOps},
+        api::view::{
+            DynamicGraph, EdgeSelect, IntoDynBoxed, IntoDynHop, IntoDynamic, StaticGraphViewOps,
+        },
         graph::{
             edge::EdgeView,
             edges::{Edges, NestedEdges},
@@ -61,12 +63,8 @@ impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for Edges<'stat
     type Error = <Self::Target as IntoPyObject<'py>>::Error;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        let base_graph = self.base_graph.into_dynamic();
-        let edges = self.edges;
-        PyEdges {
-            edges: Edges { base_graph, edges },
-        }
-        .into_pyobject(py)
+        let edges = self.into_dyn();
+        PyEdges { edges }.into_pyobject(py)
     }
 }
 
@@ -367,11 +365,7 @@ impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for NestedEdges
     type Error = <Self::Target as IntoPyObject<'py>>::Error;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        let edges = NestedEdges {
-            nodes: self.nodes,
-            graph: self.graph.into_dynamic(),
-            edges: self.edges,
-        };
+        let edges = self.into_dyn_hop();
         PyNestedEdges { edges }.into_pyobject(py)
     }
 }

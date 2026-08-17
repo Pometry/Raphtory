@@ -17,7 +17,6 @@ use crate::{
     errors::GraphError,
     prelude::GraphViewOps,
 };
-use raphtory_storage::layer_ops::InternalLayerOps;
 use std::{fmt, fmt::Display};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -66,13 +65,7 @@ impl<L: CreateFilter, R: CreateFilter> CreateFilter for AndFilter<L, R> {
         let r = self.right.filter_graph_view(graph.clone())?;
         let left = self.left.create_filter(l)?;
         let right = self.right.create_filter(r)?;
-        let layer_ids = left.layer_ids().intersect(right.layer_ids());
-        Ok(AndFilteredGraph {
-            graph,
-            left,
-            right,
-            layer_ids,
-        })
+        Ok(AndFilteredGraph::new(graph, left, right))
     }
 
     fn create_node_filter<'graph, G: GraphView + 'graph>(

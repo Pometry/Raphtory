@@ -172,11 +172,10 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
 
 #[inline]
 fn edges_inner<'graph, G: GraphView + 'graph>(g: &G, locked: bool) -> Edges<'graph, G> {
-    let graph = g.clone();
-    let edges: Arc<dyn Fn() -> BoxedLIter<'graph, EdgeRef> + Send + Sync + 'graph> = match graph
-        .node_list()
-    {
-        NodeList::All { .. } => Arc::new(move || {
+    let edges: Arc<
+        dyn Fn(DynGraphArc<'graph>) -> BoxedLIter<'graph, EdgeRef> + Send + Sync + 'graph,
+    > = Arc::new(move |graph| match graph.node_list() {
+        NodeList::All { .. } => {
             let layer_ids = graph.layer_ids().clone();
             let graph = graph.clone();
             let gs = if locked {
@@ -195,8 +194,8 @@ fn edges_inner<'graph, G: GraphView + 'graph>(g: &G, locked: bool) -> Edges<'gra
                 }
             })
             .into_dyn_boxed()
-        }),
-        NodeList::List { elems } => Arc::new(move || {
+        }
+        NodeList::List { elems } => {
             let cg = if locked {
                 graph.core_graph().lock()
             } else {
@@ -208,12 +207,9 @@ fn edges_inner<'graph, G: GraphView + 'graph>(g: &G, locked: bool) -> Edges<'gra
                 .into_iter()
                 .flat_map(move |node| node_edges(cg.clone(), graph.clone(), node, Direction::OUT))
                 .into_dyn_boxed()
-        }),
-    };
-    Edges {
-        base_graph: g.clone(),
-        edges,
-    }
+        }
+    });
+    Edges::new(g.clone(), edges)
 }
 
 fn df_view_from_record_batch(

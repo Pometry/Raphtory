@@ -19,8 +19,8 @@ use crate::{
 };
 use async_graphql::Context;
 use dynamic_graphql::{
-    App, InputObject, Mutation, MutationFields, MutationRoot, OneOfInput, ResolvedObject,
-    ResolvedObjectFields, Result, Upload,
+    App, Mutation, MutationFields, MutationRoot, OneOfInput, ResolvedObject, ResolvedObjectFields,
+    Result, Upload,
 };
 use itertools::Itertools;
 use raphtory::{
@@ -42,7 +42,7 @@ use std::{collections::HashMap, path::PathBuf, sync::Arc};
 use tracing::warn;
 
 #[cfg(feature = "vectors")]
-use crate::model::graph::vectorised_graph::{GqlVectorisedGraph, VectorQuery};
+use crate::model::graph::vectorised_graph::VectorQuery;
 
 pub mod graph;
 pub mod plugins;

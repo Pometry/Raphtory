@@ -67,17 +67,17 @@ pub trait CreateFilter: Sized {
         Self: 'graph,
         G: GraphViewOps<'graph>;
 
-    type NodeFilter<'graph, G>: NodeFilterOp
+    type NodeFilter<'graph, G>: NodeFilterOp + 'graph
     where
         Self: 'graph,
         G: GraphView + 'graph;
 
-    type FilteredGraph<'graph, G>: GraphViewOps<'graph>
+    type FilteredGraph<'graph, G>: GraphView + 'graph
     where
         Self: 'graph,
-        G: GraphViewOps<'graph>;
+        G: GraphView + 'graph;
 
-    fn create_filter<'graph, G: GraphViewOps<'graph>>(
+    fn create_filter<'graph, G: GraphView + 'graph>(
         self,
         graph: G,
     ) -> Result<Self::EntityFiltered<'graph, G>, GraphError>;

@@ -187,7 +187,7 @@ impl PyGraph {
     ///                                (note that the page sizes cannot be overridden and are ignored)
     ///     read_only (bool): open as a read-only snapshot. Multiple processes can hold
     ///                       a read-only handle to the same graph directory concurrently;
-    ///                       mutating the returned graph will fail. Defaults to ``False``.
+    ///                       mutating the returned graph will fail. Defaults to `False`.
     ///
     /// Returns:
     ///     Graph: the graph
