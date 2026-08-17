@@ -347,13 +347,42 @@ impl MemNodeSegment {
         layer_id: LayerId,
         props: impl IntoIterator<Item = (usize, P)>,
     ) -> (bool, usize) {
+        self.add_props_inner(t, node_pos, layer_id, props, true)
+    }
+
+    /// As [`Self::add_props`] but skips per-append presence marking, for bulk
+    /// loaders that mark the whole chunk's `(layer, prop)` set up front.
+    pub fn add_props_bulk<T: AsTime, P: AsPropRef>(
+        &mut self,
+        t: T,
+        node_pos: LocalPOS,
+        layer_id: LayerId,
+        props: impl IntoIterator<Item = (usize, P)>,
+    ) -> (bool, usize) {
+        self.add_props_inner(t, node_pos, layer_id, props, false)
+    }
+
+    #[inline]
+    fn add_props_inner<T: AsTime, P: AsPropRef>(
+        &mut self,
+        t: T,
+        node_pos: LocalPOS,
+        layer_id: LayerId,
+        props: impl IntoIterator<Item = (usize, P)>,
+        mark: bool,
+    ) -> (bool, usize) {
         let layer = self.get_or_create_layer(layer_id);
         let est_size = layer.est_size();
         let row = layer.reserve_local_row(node_pos);
         let is_new = row.is_new();
         let row = row.inner().row;
         let ts = EventTime::new(t.t(), t.i());
-        layer.mark_and_append_t_props(row, layer_id, ts, props);
+        if mark {
+            layer.mark_and_append_t_props(row, layer_id, ts, props);
+        } else {
+            // doesn't mark these props' presence at these layers in the bitset, used in bulk ingestion
+            layer.append_t_props(row, ts, props);
+        }
         let layer_est_size = layer.est_size();
         (is_new, layer_est_size - est_size)
     }
@@ -376,13 +405,40 @@ impl MemNodeSegment {
         layer_id: LayerId,
         props: impl IntoIterator<Item = (usize, P)>,
     ) -> (bool, usize) {
+        self.update_metadata_inner(node_pos, layer_id, props, true)
+    }
+
+    /// As [`Self::update_metadata`] but skips per-append presence marking, for
+    /// bulk loaders that mark the chunk's `(layer, prop)` set up front.
+    pub fn update_metadata_bulk<P: AsPropRef>(
+        &mut self,
+        node_pos: LocalPOS,
+        layer_id: LayerId,
+        props: impl IntoIterator<Item = (usize, P)>,
+    ) -> (bool, usize) {
+        self.update_metadata_inner(node_pos, layer_id, props, false)
+    }
+
+    #[inline]
+    fn update_metadata_inner<P: AsPropRef>(
+        &mut self,
+        node_pos: LocalPOS,
+        layer_id: LayerId,
+        props: impl IntoIterator<Item = (usize, P)>,
+        mark: bool,
+    ) -> (bool, usize) {
         let segment_container = self.get_or_create_layer(layer_id);
         let est_size = segment_container.est_size();
 
         let row = segment_container.reserve_local_row(node_pos).map(|a| a.row);
         let is_new = row.is_new();
         let row = row.inner();
-        segment_container.mark_and_append_const_props(row, layer_id, props);
+        if mark {
+            segment_container.mark_and_append_const_props(row, layer_id, props);
+        } else {
+            // doesn't mark these const props' presence at these layers in the bitset, used in bulk ingestion
+            segment_container.append_const_props(row, props);
+        }
 
         let layer_est_size = segment_container.est_size();
         let added_size = (layer_est_size - est_size) + 8; // random estimate for constant properties

@@ -306,6 +306,31 @@ impl<T: HasRow> SegmentContainer<T> {
         &mut self.properties
     }
 
+    /// Append temporal props to `local_row` **without** touching the per-layer
+    /// presence bitset.
+    pub(crate) fn append_t_props<P: AsPropRef>(
+        &mut self,
+        local_row: usize,
+        t: EventTime,
+        props: impl IntoIterator<Item = (usize, P)>,
+    ) {
+        self.properties
+            .get_mut_entry(local_row)
+            .append_t_props(t, props);
+    }
+
+    /// Append const (metadata) props without touching the presence bitset.
+    /// See [`Self::append_t_props`].
+    pub(crate) fn append_const_props<P: AsPropRef>(
+        &mut self,
+        local_row: usize,
+        props: impl IntoIterator<Item = (usize, P)>,
+    ) {
+        self.properties
+            .get_mut_entry(local_row)
+            .append_const_props(props);
+    }
+
     /// Append temporal props to `local_row`, marking each `(layer_id, prop_id)`
     /// in this segment's `Meta` per-layer property presence bitset as the
     /// iterator is consumed.
