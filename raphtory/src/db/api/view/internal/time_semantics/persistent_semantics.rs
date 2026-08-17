@@ -65,6 +65,24 @@ fn last_before<
     }
 }
 
+fn is_deleted_before<
+    'a,
+    G: GraphViewOps<'a>,
+    TSA: TimeIndexOps<'a, IndexType = EventTime, RangeType = TSA>,
+    TSD: TimeIndexOps<'a, IndexType = EventTime, RangeType = TSD>,
+>(
+    additions: FilteredEdgeTimeIndex<'a, G, TSA>,
+    deletions: FilteredEdgeTimeIndex<'a, G, TSD>,
+    t: EventTime,
+) -> bool {
+    let last_addition_before_start = additions.range(EventTime::MIN..t).last();
+    let last_deletion_before_start = deletions
+        .merge(additions.invert())
+        .range(EventTime::MIN..t)
+        .last();
+    last_deletion_before_start > last_addition_before_start // this is false if both are `None`, i.e., an edge that doesn't exist yet is not deleted
+}
+
 fn persisted_event<
     'a,
     G: GraphViewOps<'a>,
@@ -1089,7 +1107,8 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         view: G,
         w: Range<EventTime>,
     ) -> bool {
-        !edge_alive_at_end(e, w.end, view)
+        e.filtered_updates_iter(&view, view.layer_ids())
+            .any(|(_, additions, deletions)| is_deleted_before(additions, deletions, w.end))
     }
 
     fn edge_is_active<'graph, G: GraphViewOps<'graph>>(

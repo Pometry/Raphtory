@@ -1199,3 +1199,38 @@ fn deletions_window_has_exclusive_start() {
     assert!(e.window(2, 3).is_deleted());
     assert!(!e.latest().is_active()); // this is the same as above
 }
+
+#[test]
+fn test_is_deleted_window() {
+    let g = PersistentGraph::new();
+    g.add_edge(5, 0, 1, NO_PROPS, None)
+        .unwrap()
+        .delete(10, None)
+        .unwrap();
+    let edge = g.edge(0, 1).unwrap();
+
+    // an edge that doesn't exist yet is not deleted
+    assert!(!edge.before(5).is_deleted());
+    assert!(!edge.before(5).is_valid());
+    assert!(!edge.before(5).is_active());
+
+    // the edge is eventually deleted
+    assert!(edge.after(5).is_deleted());
+    assert!(!edge.after(5).is_valid());
+    assert!(edge.after(5).is_active()); // deletion event counts as activity
+
+    // window include the addition but not deletion
+    assert!(!edge.window(4, 7).is_deleted()); // the edge is not deleted by the end of the window
+    assert!(edge.window(4, 7).is_valid());
+    assert!(edge.window(4, 7).is_active()); // the addition event counts as activity
+
+    // window between the addition and deletion event
+    assert!(!edge.window(6, 7).is_deleted()); // the edge is not deleted by the end of the window
+    assert!(edge.window(6, 7).is_valid());
+    assert!(!edge.window(6, 7).is_active()); // no events in the window
+
+    // window after the deletion event
+    assert!(edge.after(10).is_deleted());
+    assert!(!edge.after(10).is_valid());
+    assert!(!edge.after(10).is_active()); // no events in the window
+}
