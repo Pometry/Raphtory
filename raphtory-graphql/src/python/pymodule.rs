@@ -25,8 +25,7 @@ use crate::{
                 PyRemotePropertySchema,
             },
             remote_sorting::{PyEdgeSortBy, PyNodeSortBy, PySortByTime},
-            PyAllPropertySpec, PyEdgeAddition, PyNodeAddition, PyPropsInput, PyRemoteIndexSpec,
-            PySomePropertySpec, PyUpdate,
+            PyEdgeAddition, PyNodeAddition, PyUpdate,
         },
         decode_graph, encode_graph, schema,
         server::{running_server::PyRunningGraphServer, server::PyGraphServer},
@@ -84,10 +83,6 @@ pub fn base_graphql_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyErr>
     graphql_module.add_class::<PyNodeAddition>()?;
     graphql_module.add_class::<PyUpdate>()?;
     graphql_module.add_class::<PyEdgeAddition>()?;
-    graphql_module.add_class::<PyRemoteIndexSpec>()?;
-    graphql_module.add_class::<PyPropsInput>()?;
-    graphql_module.add_class::<PySomePropertySpec>()?;
-    graphql_module.add_class::<PyAllPropertySpec>()?;
     graphql_module.add_class::<PySortByTime>()?;
     graphql_module.add_class::<PyNodeSortBy>()?;
     graphql_module.add_class::<PyEdgeSortBy>()?;

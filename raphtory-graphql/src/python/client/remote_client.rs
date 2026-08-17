@@ -2,8 +2,8 @@ use crate::{
     client::{is_online, remote_client::RemoteClient, ClientError},
     model::graph::filtering::{GqlEdgeFilter, GqlNodeFilter},
     python::{
-        client::{remote_graph::PyRemoteGraph, PyRemoteIndexSpec},
-        encode_graph, translate_from_python, translate_map_to_python, translate_to_python,
+        client::remote_graph::PyRemoteGraph, encode_graph, translate_from_python,
+        translate_map_to_python, translate_to_python,
     },
 };
 use pyo3::{
@@ -252,30 +252,6 @@ impl PyRaphtoryClient {
         PyRemoteGraph {
             graph: Arc::new(self.client.remote_graph(path)),
         }
-    }
-
-    /// Create Index for graph on the server at 'path'
-    ///
-    /// Arguments:
-    ///     path (str): the path of the graph to be created
-    ///     index_spec (RemoteIndexSpec): spec specifying the properties that need to be indexed
-    ///     in_ram (bool): create index in ram. Defaults to True.
-    ///
-    /// Returns:
-    ///     None:
-    ///
-    #[pyo3(signature = (path, index_spec, in_ram = true))]
-    fn create_index(
-        &self,
-        path: String,
-        index_spec: PyRemoteIndexSpec,
-        in_ram: bool,
-    ) -> PyResult<()> {
-        let spec_value =
-            serde_json::to_value(&index_spec).map_err(|e| PyException::new_err(e.to_string()))?;
-        self.run_async(
-            move |client| async move { client.create_index(&path, spec_value, in_ram).await },
-        )
     }
 
     /// Create a role in the server's permissions store.

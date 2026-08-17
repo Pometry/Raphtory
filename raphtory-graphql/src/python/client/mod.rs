@@ -5,7 +5,7 @@ use crate::{
     },
     python::pymodule::RemotePermissionError,
 };
-use pyo3::{exceptions::PyValueError, prelude::*, pyclass, pymethods};
+use pyo3::{prelude::*, pyclass, pymethods};
 use raphtory_api::{
     core::{
         entities::{properties::prop::Prop, GID},
@@ -14,7 +14,6 @@ use raphtory_api::{
     },
     python::{error::adapt_err_value, timeindex::PyEventTime},
 };
-use serde::Serialize;
 use std::collections::HashMap;
 
 pub mod remote_client;
@@ -134,115 +133,6 @@ impl PyEdgeAddition {
             layer,
             metadata,
             updates,
-        }
-    }
-}
-
-/// Specifies that **all** properties should be included when creating an index.
-/// Use one of the predefined variants: `All`, `AllMetadata`, or `AllProperties`.
-#[derive(Clone, Serialize, PartialEq)]
-#[pyclass(
-    name = "AllPropertySpec",
-    module = "raphtory.graphql",
-    eq,
-    eq_int,
-    from_py_object
-)]
-pub enum PyAllPropertySpec {
-    /// Include all properties (both metadata and temporal).
-    #[serde(rename = "ALL")]
-    All,
-    /// Include only metadata.
-    #[serde(rename = "ALL_METADATA")]
-    AllMetadata,
-    /// Include only temporal properties.
-    #[serde(rename = "ALL_PROPERTIES")]
-    AllProperties,
-}
-
-/// Create a SomePropertySpec by explicitly listing metadata and/or temporal property names.
-///
-/// Arguments:
-///     metadata (list[str]): Metadata property names. Defaults to [].
-///     properties (list[str]): Temporal property names. Defaults to [].
-#[derive(Clone, Serialize)]
-#[pyclass(name = "SomePropertySpec", module = "raphtory.graphql", from_py_object)]
-pub struct PySomePropertySpec {
-    /// Metadata property names to include in the index.
-    pub metadata: Vec<String>,
-    /// Temporal property names to include in the index.
-    pub properties: Vec<String>,
-}
-
-#[pymethods]
-impl PySomePropertySpec {
-    #[new]
-    #[pyo3(signature = (metadata = vec![], properties = vec![]))]
-    fn new(metadata: Vec<String>, properties: Vec<String>) -> Self {
-        Self {
-            metadata,
-            properties,
-        }
-    }
-}
-
-/// Create a PropsInput by choosing to include all/some properties explicitly.
-///
-/// Arguments:
-///     all (AllPropertySpec, optional): Use a predefined spec to include all properties of a kind.
-///     some (SomePropertySpec, optional): Explicitly list the properties to include.
-///
-/// Raises:
-///     ValueError: If neither all and some are specified.
-#[derive(Clone, Serialize)]
-#[pyclass(name = "PropsInput", module = "raphtory.graphql", from_py_object)]
-pub struct PyPropsInput {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub all: Option<PyAllPropertySpec>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub some: Option<PySomePropertySpec>,
-}
-
-#[pymethods]
-impl PyPropsInput {
-    #[new]
-    #[pyo3(signature = (all=None, some=None))]
-    fn new(all: Option<PyAllPropertySpec>, some: Option<PySomePropertySpec>) -> PyResult<Self> {
-        if all.is_none() && some.is_none() {
-            Err(PyValueError::new_err(
-                "PropsInput must have exactly one of 'all' or 'some'",
-            ))
-        } else {
-            Ok(Self { all, some })
-        }
-    }
-}
-
-/// Create a RemoteIndexSpec specifying which node and edge properties to index.
-///
-/// Arguments:
-///     node_props (PropsInput): Property spec for nodes.
-///     edge_props (PropsInput): Property spec for edges.
-#[derive(Clone, Serialize)]
-#[pyclass(name = "RemoteIndexSpec", module = "raphtory.graphql", from_py_object)]
-pub struct PyRemoteIndexSpec {
-    /// Property inclusion specification for nodes.
-    #[serde(rename = "nodeProps")]
-    pub node_props: PyPropsInput,
-    /// Property inclusion specification for edges.
-    #[serde(rename = "edgeProps")]
-    pub edge_props: PyPropsInput,
-}
-
-#[pymethods]
-impl PyRemoteIndexSpec {
-    #[new]
-    #[pyo3(signature = (node_props, edge_props))]
-    fn new(node_props: PyPropsInput, edge_props: PyPropsInput) -> Self {
-        Self {
-            node_props,
-            edge_props,
         }
     }
 }

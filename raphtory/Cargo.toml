@@ -128,9 +128,6 @@ io = [
     "dep:kdam",
 ]
 
-# search
-# search = ["dep:tantivy", "dep:tempfile", "io"]
-
 # datafusion-backed node-state sort/group_by ops (enabled by default)
 datafusion = [
     "dep:datafusion-physical-expr-common",
