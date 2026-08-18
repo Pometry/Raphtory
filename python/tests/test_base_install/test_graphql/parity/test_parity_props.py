@@ -150,12 +150,18 @@ _WRITTEN = {k: written for k, (written, _) in _NON_FINITE.items()}
 
 def _build_non_finite(g):
     """Seed the non-finite floats on every carrier: node, edge and graph, as
-    both temporal properties and metadata."""
-    g.add_node(1, "a", properties=dict(_WRITTEN))
-    g.add_node(1, "b")
+    both temporal properties and metadata.
+
+    Both nodes carry the values, not just ``a``: the columnar carriers below
+    read one entry per collection member, and a member with no value yields
+    ``None``, which would pass the check without exercising the encoding.
+    """
+    for node in ("a", "b"):
+        g.add_node(1, node, properties=dict(_WRITTEN))
     g.add_edge(2, "a", "b", properties=dict(_WRITTEN))
     g.add_properties(3, dict(_WRITTEN))
-    g.node("a").add_metadata(dict(_WRITTEN))
+    for node in ("a", "b"):
+        g.node(node).add_metadata(dict(_WRITTEN))
     g.edge("a", "b").add_metadata(dict(_WRITTEN))
     g.add_metadata(dict(_WRITTEN))
 
@@ -208,6 +214,61 @@ def test_non_finite_float_round_trips(non_finite_pair, carrier, key):
             assert (
                 got == expected
             ), f"{where}: expected {expected} for {key}, got {got!r}"
+
+
+# The columnar carriers: the same property read through a *collection*, which
+# returns one entry per member rather than a scalar. These travel as a JSON
+# array rather than a single value, so a container that encodes non-finite
+# floats correctly on its own can still get the column wrong.
+_COLUMN_CARRIERS = {
+    "nodes.properties": (lambda g: g.nodes.properties, False),
+    "nodes.metadata": (lambda g: g.nodes.metadata, False),
+    "edges.properties": (lambda g: g.edges.properties, False),
+    "edges.metadata": (lambda g: g.edges.metadata, False),
+    "neighbours.properties": (lambda g: g.node("a").neighbours.properties, False),
+    "neighbours.metadata": (lambda g: g.node("a").neighbours.metadata, False),
+    "nested.properties": (lambda g: g.nodes.neighbours.properties, True),
+    "nested.metadata": (lambda g: g.nodes.neighbours.metadata, True),
+}
+
+
+@pytest.mark.parametrize("carrier", list(_COLUMN_CARRIERS))
+@pytest.mark.parametrize("key", list(_NON_FINITE))
+def test_non_finite_float_round_trips_through_collections(
+    non_finite_pair, carrier, key
+):
+    """Every entry of the column reads back as the value that was written.
+
+    Same per-side value pinning as the scalar case, for the same reason: a
+    parity comparison of two ``NaN`` columns would fail on two correct
+    answers, and pinning also catches both sides degrading identically.
+
+    The fixture gives every member a value, so an all-``None`` column means
+    the read is broken rather than the data being absent — asserted, since a
+    column of ``None`` would otherwise satisfy this vacuously.
+    """
+    expected = _NON_FINITE[key][1]
+    read, nested = _COLUMN_CARRIERS[carrier]
+    for name, side in (
+        ("local", non_finite_pair.local),
+        ("remote", non_finite_pair.remote),
+    ):
+        column = read(side).get(key)
+        where = f"{name}/{carrier}"
+        assert column is not None, f"{where}: {key} column missing"
+        values = [v for row in column for v in row] if nested else list(column)
+        assert values, f"{where}: {key} column is empty"
+        assert all(
+            v is not None for v in values
+        ), f"{where}: {key} column has holes ({values!r}); every member was written"
+        for got in values:
+            assert isinstance(got, float), f"{where}: {key} entry read as {got!r}"
+            if math.isnan(expected):
+                assert math.isnan(got), f"{where}: expected NaN for {key}, got {got!r}"
+            else:
+                assert (
+                    got == expected
+                ), f"{where}: expected {expected} for {key}, got {got!r}"
 
 
 # --- map key order ----------------------------------------------------------
