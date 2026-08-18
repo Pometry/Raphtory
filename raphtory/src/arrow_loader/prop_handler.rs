@@ -50,14 +50,7 @@ impl PropCols {
     }
 
     /// Prop ids whose column holds at least one value in this chunk.
-    ///
-    /// An all-null column says nothing about presence, so it must not be marked.
-    /// Short-circuits on the first row with a value, so a populated column costs
-    /// O(1); only an entirely empty column pays a full scan.
-    ///
-    /// Deliberately goes through `get_ref` rather than `as_array`: the latter
-    /// materialises an arrow array, and `MapCol::as_array` panics for
-    /// empty-map columns that carry a validity buffer.
+    /// Only an entirely empty column pays a full scan.
     pub fn populated_prop_ids(&self) -> Vec<usize> {
         self.prop_ids
             .iter()
@@ -66,36 +59,71 @@ impl PropCols {
             .map(|(id, _)| *id)
             .collect()
     }
+
+    /// The exact `(layer, prop_id)` pairs this chunk populates. May scan the entire chunk,
+    /// but short-circuits when a property is seen in all `distinct_layers`.
+    pub fn populated_layer_prop_pairs(
+        &self,
+        layer_per_row: Option<&[usize]>,
+        distinct_layers: &[LayerId],
+    ) -> Vec<(LayerId, usize)> {
+        // A single layer needs no per-row attribution: every value in a populated
+        // column necessarily belongs to that one layer.
+        if distinct_layers.len() <= 1 {
+            let Some(&layer) = distinct_layers.first() else {
+                return Vec::new();
+            };
+            return self
+                .populated_prop_ids()
+                .into_iter()
+                .map(|id| (layer, id))
+                .collect();
+        }
+        let Some(rows) = layer_per_row else {
+            // `distinct` can only exceed one layer when a layer column exists
+            return Vec::new();
+        };
+
+        // Both come from the same chunk, so this holds structurally. It matters:
+        // a layer column shorter than the chunk would leave rows unscanned and could under-mark the
+        // per-layer property presence bitset, potentially leading to skipped layers which contain data.
+        debug_assert_eq!(
+            rows.len(),
+            self.len,
+            "layer column must cover every row in the chunk"
+        );
+
+        let layer_width = distinct_layers
+            .iter()
+            .map(|l| l.0)
+            .max()
+            .map_or(0, |m| m + 1);
+        let mut out = Vec::new();
+        let mut seen = vec![false; layer_width];
+        // check to see which layers each prop belongs to; i.e. collect unique (layer, prop) pairs
+        for (&prop_id, col) in self.prop_ids.iter().zip(self.cols.iter()) {
+            seen.iter_mut().for_each(|s| *s = false);
+            let mut found = 0;
+            for (row, &layer) in rows.iter().enumerate().take(self.len) {
+                if found == distinct_layers.len() {
+                    break; // present in every layer it could be; no point scanning on
+                }
+                if !seen[layer] && col.get_ref(row).is_some() {
+                    seen[layer] = true;
+                    found += 1;
+                    out.push((LayerId(layer), prop_id));
+                }
+            }
+        }
+        out
+    }
 }
 
 /// Mark every `(layer, prop)` pair this chunk may write, once, before any rows
 /// are appended.
-///
-/// Bulk loading appends one property per column per row, so testing presence per
-/// append costs ~14ns x rows x columns -- around 1e9 checks on a wide dataset --
-/// to record at most a few thousand distinct bits. The resolved prop ids and the
-/// layers involved are both known per chunk, so the whole set is marked here and
-/// the append path uses the `_bulk` writers, which skip the check entirely.
-///
-/// `layers` is the resolved per-row layer column, or `None` when every row goes
-/// to `default_layer`.
-///
-/// When the chunk touches a single layer -- the common case, including every
-/// `load_edges(layer=...)` call and all node loading -- the marking is exact: a
-/// column is only marked if it holds at least one value (see
-/// [`PropCols::populated_prop_ids`]). When a chunk spans several layers, the union of
-/// (layers x non-null props) is marked instead, since attributing a column's
-/// non-null rows to individual layers would need the per-row scan this function
-/// exists to avoid. That over-marks only in the multi-layer case, and a false
-/// positive merely costs a missed layer-skip. A false negative would be unsound,
-/// and this cannot produce one.
-///
-/// `shared_metadata_ids` covers constant metadata applied to every row, which is
-/// resolved outside the chunk's columns and so is not part of `metadata`. It is
-/// marked unconditionally: a shared value is present on every row by definition.
 pub fn mark_chunk_prop_presence(
     node_or_edge_meta: &Meta,
-    layers: Option<&[usize]>,
+    layer_per_row: Option<&[usize]>,
     default_layer: LayerId,
     t_props: &PropCols,
     metadata: &PropCols,
@@ -107,31 +135,40 @@ pub fn mark_chunk_prop_presence(
     {
         return;
     }
-    let layer_ids: Vec<LayerId> = match layers {
-        // one pass, indexed by layer id: layer counts are tiny, row counts are not
-        Some(rows) => {
-            let mut seen = vec![false; rows.iter().copied().max().map_or(0, |m| m + 1)];
-            for &l in rows {
-                seen[l] = true;
-            }
-            seen.iter()
-                .enumerate()
-                .filter(|(_, &s)| s)
-                .map(|(i, _)| LayerId(i))
-                .collect()
-        }
-        None => vec![default_layer],
-    };
+    let distinct = distinct_layers(layer_per_row, default_layer);
 
     node_or_edge_meta
         .temporal_prop_mapper()
-        .mark_props_in_layers(layer_ids.iter().copied(), &t_props.populated_prop_ids());
+        .mark_prop_layer_pairs(t_props.populated_layer_prop_pairs(layer_per_row, &distinct));
 
-    let mut const_ids = metadata.populated_prop_ids();
-    const_ids.extend_from_slice(shared_metadata_ids);
+    let mut metadata_pairs = metadata.populated_layer_prop_pairs(layer_per_row, &distinct);
+    // shared metadata is on every row, so it is present in every layer here
+    for &layer in &distinct {
+        metadata_pairs.extend(shared_metadata_ids.iter().map(|&id| (layer, id)));
+    }
     node_or_edge_meta
         .metadata_mapper()
-        .mark_props_in_layers(layer_ids.iter().copied(), &const_ids);
+        .mark_prop_layer_pairs(metadata_pairs);
+}
+
+/// The distinct layers a chunk writes to, from its per-row layer column.
+/// One pass indexed by layer id.
+fn distinct_layers(layer_per_row: Option<&[usize]>, default_layer: LayerId) -> Vec<LayerId> {
+    let Some(rows) = layer_per_row else {
+        return vec![default_layer];
+    };
+    let Some(&max_layer) = rows.iter().max() else {
+        return Vec::new(); // empty chunk writes nothing
+    };
+    let mut seen = vec![false; max_layer + 1];
+    for &l in rows {
+        seen[l] = true;
+    }
+    seen.iter()
+        .enumerate()
+        .filter(|(_, &s)| s)
+        .map(|(i, _)| LayerId(i))
+        .collect()
 }
 
 pub fn combine_properties_arrow<E>(

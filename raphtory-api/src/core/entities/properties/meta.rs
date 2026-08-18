@@ -328,29 +328,20 @@ impl PropMapper {
         ensure_and_set(&mut guard, layer_id.0, prop_id);
     }
 
-    /// Mark a whole set of `(layer, prop)` pairs at once, taking the write lock
-    /// at most once for the entire set.
-    pub fn mark_props_in_layers(
-        &self,
-        layers: impl IntoIterator<Item = LayerId>,
-        prop_ids: &[usize],
-    ) {
-        if prop_ids.is_empty() {
-            return;
-        }
-        // collect first so the common "already marked" case takes no write lock
-        let missing: Vec<_> = layers
+    /// Mark a whole set of `(layer, prop)` pairs at once, taking the write lock at most once for
+    /// the entire set, and not at all if every bit is already set. Used in bulk loading.
+    pub fn mark_prop_layer_pairs(&self, pairs: impl IntoIterator<Item = (LayerId, usize)>) {
+        // filter first so the common "already marked" case takes no write lock
+        let missing: Vec<_> = pairs
             .into_iter()
-            .filter(|&layer| prop_ids.iter().any(|&p| !self.layer_has(layer, p)))
+            .filter(|&(layer, prop_id)| !self.layer_has(layer, prop_id))
             .collect();
         if missing.is_empty() {
             return;
         }
         let mut guard = self.layer_prop_presence.write();
-        for layer in missing {
-            for &prop_id in prop_ids {
-                ensure_and_set(&mut guard, layer.0, prop_id);
-            }
+        for (layer, prop_id) in missing {
+            ensure_and_set(&mut guard, layer.0, prop_id);
         }
     }
 
