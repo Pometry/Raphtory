@@ -1,5 +1,6 @@
 use crate::{
     api::core::storage::timeindex::AsTime,
+    core::state::accumulator_id::accumulators::val,
     db::{
         api::view::{
             DynamicGraph, IntoDynBoxed, IntoDynHop, IntoDynamic, Select, StaticGraphViewOps,
@@ -71,8 +72,14 @@ impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for Edges<'stat
 impl<G: StaticGraphViewOps + IntoDynamic> From<Edges<'static, G>> for PyEdges {
     fn from(value: Edges<'static, G>) -> Self {
         let base_graph = value.base_graph.into_dynamic();
+        let edges = value.edges;
+        let select = value.select;
         Self {
-            edges: Edges::new(base_graph, value.edges),
+            edges: Edges {
+                base_graph,
+                edges,
+                select,
+            },
         }
     }
 }
@@ -378,9 +385,17 @@ impl<'graph, G: GraphViewOps<'graph>> Repr for NestedEdges<'graph, G> {
 
 impl<G: StaticGraphViewOps + IntoDynamic> From<NestedEdges<'static, G>> for PyNestedEdges {
     fn from(value: NestedEdges<'static, G>) -> Self {
-        let base_graph = value.graph.into_dynamic();
+        let graph = value.graph.into_dynamic();
+        let nodes = value.nodes;
+        let edges = value.edges;
+        let select = value.select;
         Self {
-            edges: NestedEdges::new(base_graph, value.nodes, value.edges),
+            edges: NestedEdges {
+                graph,
+                nodes,
+                edges,
+                select,
+            },
         }
     }
 }

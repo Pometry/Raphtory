@@ -139,20 +139,22 @@ pub mod prelude {
                 },
                 view::{EdgeViewOps, GraphViewOps, LayerOps, NodeViewOps, TimeOps},
             },
-            graph::{graph::Graph, views::deletion_graph::PersistentGraph},
+            graph::{
+                graph::Graph,
+                views::{
+                    deletion_graph::PersistentGraph,
+                    filter::model::{
+                        filter::Filter,
+                        node_filter::NodeFilter,
+                        property_filter::{ops::PropertyFilterOps, PropertyFilter},
+                        EdgeFilter,
+                    },
+                    property_redacted_graph::PropertyRedaction,
+                    PropertyRedactedGraph,
+                },
+            },
         },
     };
-
-    pub use crate::db::graph::views::filter::model::{
-        filter::Filter, property_filter::PropertyFilter,
-    };
-
-    pub use crate::db::graph::views::{
-        property_redacted_graph::PropertyRedaction, PropertyRedactedGraph,
-    };
-
-    pub use crate::db::graph::views::filter::model::{node_filter::NodeFilter, EdgeFilter};
-
     pub use storage::{persist::config::ConfigOps, Config};
 
     #[cfg(feature = "io")]

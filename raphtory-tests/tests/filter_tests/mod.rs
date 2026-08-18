@@ -2,6 +2,7 @@ use raphtory::{db::api::view::StaticGraphViewOps, prelude::*};
 
 mod cached_view;
 mod edge_property_filter;
+pub mod edges_select_tests;
 mod exploded_edge_property_filter;
 mod node_property_filter;
 mod subgraph_tests;
