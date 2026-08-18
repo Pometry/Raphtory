@@ -9,7 +9,7 @@ use crate::{
 use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyRef, PyRefMut, PyResult};
 use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
 use raphtory_api::{
-    core::{storage::timeindex::EventTime, utils::time::InputTime},
+    core::{entities::GID, storage::timeindex::EventTime, utils::time::InputTime},
     python::timeindex::PyOptionalEventTime,
 };
 use std::sync::Arc;
@@ -374,9 +374,11 @@ impl PyRemoteNestedEdges {
     /// Property — attribute access fires one RPC.
     ///
     /// Returns:
-    ///   list[list[tuple[str, str]]]: id pairs grouped per source node.
+    ///   list[list[tuple[str | int, str | int]]]: id pairs grouped per
+    ///   source node — endpoint ids are strings for string-indexed graphs,
+    ///   integers for integer-indexed ones.
     #[getter]
-    pub fn id(&self) -> Result<Vec<Vec<(String, String)>>, ClientError> {
+    pub fn id(&self) -> Result<Vec<Vec<(GID, GID)>>, ClientError> {
         let edges = Arc::clone(&self.edges);
         execute_async_task(move || async move { edges.id().await })
     }

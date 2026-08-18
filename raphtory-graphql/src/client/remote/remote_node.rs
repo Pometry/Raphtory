@@ -1,10 +1,9 @@
 use crate::{
     client::{
         op::{
-            input_time_from_parts, AddNodeMetadata as AddNodeMetadataOp,
-            AddNodeUpdates as AddNodeUpdatesOp, HandleCtx, HandleOp, InputTime, Op, ReadExpr,
-            SetNodeType as SetNodeTypeOp, UpdateNodeMetadata as UpdateNodeMetadataOp, ViewOp,
-            WriteOp,
+            AddNodeMetadata as AddNodeMetadataOp, AddNodeUpdates as AddNodeUpdatesOp, HandleCtx,
+            HandleOp, InputTime, Op, ReadExpr, SetNodeType as SetNodeTypeOp,
+            UpdateNodeMetadata as UpdateNodeMetadataOp, ViewOp, WriteOp,
         },
         remote_edges::RemoteEdges,
         remote_history::RemoteHistory,
@@ -12,7 +11,7 @@ use crate::{
         remote_nodes::RemoteNodes,
         remote_path_from_node::RemotePathFromNode,
         transport::{
-            expect_bool, expect_i64, expect_optional_event_time, expect_optional_i64,
+            expect_bool, expect_gid, expect_i64, expect_optional_event_time, expect_optional_i64,
             expect_optional_string, expect_string, Transport,
         },
         ClientError,
@@ -21,8 +20,8 @@ use crate::{
 };
 use raphtory::errors::GraphError;
 use raphtory_api::core::{
-    entities::properties::prop::Prop,
-    storage::timeindex::{AsTime, EventTime},
+    entities::{properties::prop::Prop, GID},
+    storage::timeindex::EventTime,
     utils::time::TryIntoInputTime,
 };
 use std::{collections::HashMap, sync::Arc};
@@ -38,7 +37,7 @@ use std::{collections::HashMap, sync::Arc};
 #[derive(Clone)]
 pub struct RemoteNode {
     pub path: String,
-    pub id: String,
+    pub id: GID,
     pub transport: Arc<dyn Transport>,
     pub expr: Arc<ReadExpr>,
     /// Materialization context — inherited by child collections so their
@@ -51,7 +50,7 @@ impl RemoteNode {
     /// materialization context.
     pub fn with_expr(
         path: String,
-        id: String,
+        id: GID,
         transport: Arc<dyn Transport>,
         expr: impl Into<Arc<ReadExpr>>,
         ctx: HandleCtx,
@@ -269,13 +268,14 @@ impl RemoteNode {
         expect_optional_event_time(self.transport.execute(&op).await?, "end")
     }
 
-    /// Terminal: the node's id (as a string, even if the graph uses int GIDs).
-    /// Fires one RPC.
-    pub async fn id(&self) -> Result<String, ClientError> {
+    /// Terminal: the node's id — a string for string-indexed graphs, an
+    /// integer for integer-indexed ones, matching the local `.id`. Fires one
+    /// RPC.
+    pub async fn id(&self) -> Result<GID, ClientError> {
         let op = Op::Read(ReadExpr::Id {
             input: self.expr.clone(),
         });
-        expect_string(self.transport.execute(&op).await?, "id")
+        expect_gid(self.transport.execute(&op).await?, "id")
     }
 
     /// Terminal: the node's type. `None` if not set. Fires one RPC.

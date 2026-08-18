@@ -5,7 +5,7 @@
 //! what "an operation" means on the wire.
 
 use crate::{client::properties_to_input, model::graph::filtering::GqlFilter};
-use raphtory_api::core::entities::properties::prop::Prop;
+use raphtory_api::core::entities::{properties::prop::Prop, GID};
 // Re-exported so the client transport wrappers import the op tree's time type
 // from one place (`op::InputTime`), same as `ReadExpr`/`WriteOp`.
 pub use raphtory_api::core::utils::time::InputTime;
@@ -70,7 +70,7 @@ pub enum ReadExpr {
     /// Restrict to a subgraph induced by the given node ids.
     Subgraph {
         input: Arc<ReadExpr>,
-        nodes: Arc<[String]>,
+        nodes: Arc<[GID]>,
     },
     /// Restrict to nodes matching one of the given node types.
     SubgraphNodeTypes {
@@ -92,12 +92,12 @@ pub enum ReadExpr {
 
     // ============ Selection ============
     /// Narrow to a single node by id. Graph → Node.
-    Node { input: Arc<ReadExpr>, id: String },
+    Node { input: Arc<ReadExpr>, id: GID },
     /// Narrow to a single edge by (src, dst). Graph → Edge.
     Edge {
         input: Arc<ReadExpr>,
-        src: String,
-        dst: String,
+        src: GID,
+        dst: GID,
     },
     /// Navigate to a source node. Polymorphic on the endpoint's collection
     /// kind — the server field is `src` in every case, so one variant covers
@@ -334,10 +334,7 @@ pub enum ReadExpr {
     /// result if any input id doesn't exist or the list is empty. Returns
     /// `Vec<String>` of names — clients wrap each in a `RemoteNode`.
     /// Server field: `sharedNeighbours(selectedNodes: [NodeId!]!)`.
-    SharedNeighbours {
-        input: Arc<ReadExpr>,
-        ids: Vec<String>,
-    },
+    SharedNeighbours { input: Arc<ReadExpr>, ids: Vec<GID> },
 
     /// Terminal on Graph: the nodes whose latest property values match every
     /// `(name, value)` entry in `properties`. Returns `Vec<String>` of node
@@ -401,12 +398,12 @@ pub enum ReadExpr {
 
     // ============ Graph scalar terminals ============
     /// Terminal: check if a node with `id` exists in the view — `bool`.
-    HasNode { input: Arc<ReadExpr>, id: String },
+    HasNode { input: Arc<ReadExpr>, id: GID },
     /// Terminal: check if an edge with `(src, dst)` exists in the view — `bool`.
     HasEdge {
         input: Arc<ReadExpr>,
-        src: String,
-        dst: String,
+        src: GID,
+        dst: GID,
     },
     /// Terminal: total count of temporal edges (edge updates) — `i64`.
     CountTemporalEdges { input: Arc<ReadExpr> },
@@ -864,7 +861,7 @@ impl HandleCtx {
 
     /// Replay the op chain onto a single-node anchor. Fanout markers never
     /// occur in node collections and are ignored.
-    pub fn node_handle_expr(&self, id: String) -> ReadExpr {
+    pub fn node_handle_expr(&self, id: GID) -> ReadExpr {
         let mut expr = ReadExpr::Node {
             input: self.graph.clone(),
             id,
@@ -886,7 +883,7 @@ impl HandleCtx {
     /// event at the position of the first fanout marker. `event` is
     /// `(time, event_id, layer)` as fetched by `ExplodedEdgesList`; callers
     /// materializing a non-exploded collection pass `None`.
-    pub fn edge_handle_expr(&self, src: String, dst: String, pin: Option<EdgePin>) -> ReadExpr {
+    pub fn edge_handle_expr(&self, src: GID, dst: GID, pin: Option<EdgePin>) -> ReadExpr {
         let mut expr = ReadExpr::Edge {
             input: self.graph.clone(),
             src,
@@ -946,7 +943,7 @@ impl HandleCtx {
     ///
     /// `None` when the chain contains a step with no single-source counterpart —
     /// callers surface that as an error rather than pair up wrong data.
-    pub fn path_handle_expr(&self, expr: &ReadExpr, id: &str) -> Option<Arc<ReadExpr>> {
+    pub fn path_handle_expr(&self, expr: &ReadExpr, id: &GID) -> Option<Arc<ReadExpr>> {
         rebase_at_source(expr, &self.graph, id).map(|(rebased, _)| rebased)
     }
 }
@@ -961,7 +958,7 @@ type Rebuild<'a> = Box<dyn Fn(Arc<ReadExpr>) -> ReadExpr + 'a>;
 fn rebase_at_source(
     expr: &ReadExpr,
     anchor: &Arc<ReadExpr>,
-    id: &str,
+    id: &GID,
 ) -> Option<(Arc<ReadExpr>, bool)> {
     use ReadExpr as E;
 
@@ -974,7 +971,7 @@ fn rebase_at_source(
         return Some((
             Arc::new(E::Node {
                 input: anchor.clone(),
-                id: id.to_string(),
+                id: id.clone(),
             }),
             true,
         ));
@@ -1135,7 +1132,7 @@ pub enum WriteOp {
 pub struct AddNode {
     pub path: String,
     pub time: InputTime,
-    pub id: String,
+    pub id: GID,
     pub properties: Option<HashMap<String, Prop>>,
     pub node_type: Option<String>,
     pub layer: Option<String>,
@@ -1147,7 +1144,7 @@ pub struct AddNode {
 pub struct CreateNode {
     pub path: String,
     pub time: InputTime,
-    pub id: String,
+    pub id: GID,
     pub properties: Option<HashMap<String, Prop>>,
     pub node_type: Option<String>,
     pub layer: Option<String>,
@@ -1157,8 +1154,8 @@ pub struct CreateNode {
 pub struct AddEdge {
     pub path: String,
     pub time: InputTime,
-    pub src: String,
-    pub dst: String,
+    pub src: GID,
+    pub dst: GID,
     pub properties: Option<HashMap<String, Prop>>,
     pub layer: Option<String>,
 }
@@ -1192,8 +1189,8 @@ pub struct UpdateGraphMetadata {
 pub struct DeleteEdge {
     pub path: String,
     pub time: InputTime,
-    pub src: String,
-    pub dst: String,
+    pub src: GID,
+    pub dst: GID,
     pub layer: Option<String>,
 }
 
@@ -1201,7 +1198,7 @@ pub struct DeleteEdge {
 /// works if the type has not been previously set).
 pub struct SetNodeType {
     pub path: String,
-    pub id: String,
+    pub id: GID,
     pub new_type: String,
 }
 
@@ -1209,7 +1206,7 @@ pub struct SetNodeType {
 /// at a specific time.
 pub struct AddNodeUpdates {
     pub path: String,
-    pub id: String,
+    pub id: GID,
     pub time: InputTime,
     pub properties: Option<HashMap<String, Prop>>,
     /// Layer the update belongs to; the server uses the default layer when omitted.
@@ -1220,7 +1217,7 @@ pub struct AddNodeUpdates {
 /// specific node.
 pub struct AddNodeMetadata {
     pub path: String,
-    pub id: String,
+    pub id: GID,
     pub properties: HashMap<String, Prop>,
 }
 
@@ -1228,7 +1225,7 @@ pub struct AddNodeMetadata {
 /// on a specific node.
 pub struct UpdateNodeMetadata {
     pub path: String,
-    pub id: String,
+    pub id: GID,
     pub properties: HashMap<String, Prop>,
 }
 
@@ -1236,8 +1233,8 @@ pub struct UpdateNodeMetadata {
 /// existing edge at a specific time.
 pub struct AddEdgeUpdates {
     pub path: String,
-    pub src: String,
-    pub dst: String,
+    pub src: GID,
+    pub dst: GID,
     pub time: InputTime,
     pub properties: Option<HashMap<String, Prop>>,
     pub layer: Option<String>,
@@ -1248,8 +1245,8 @@ pub struct AddEdgeUpdates {
 /// `updateGraph.edge(src,dst).delete(time, layer)` mutation.
 pub struct DeleteEdgeAtTime {
     pub path: String,
-    pub src: String,
-    pub dst: String,
+    pub src: GID,
+    pub dst: GID,
     pub time: InputTime,
     pub layer: Option<String>,
 }
@@ -1258,8 +1255,8 @@ pub struct DeleteEdgeAtTime {
 /// specific edge (optionally on a specific layer).
 pub struct AddEdgeMetadata {
     pub path: String,
-    pub src: String,
-    pub dst: String,
+    pub src: GID,
+    pub dst: GID,
     pub properties: HashMap<String, Prop>,
     pub layer: Option<String>,
 }
@@ -1268,8 +1265,8 @@ pub struct AddEdgeMetadata {
 /// on a specific edge (optionally on a specific layer).
 pub struct UpdateEdgeMetadata {
     pub path: String,
-    pub src: String,
-    pub dst: String,
+    pub src: GID,
+    pub dst: GID,
     pub properties: HashMap<String, Prop>,
     pub layer: Option<String>,
 }
@@ -1291,7 +1288,7 @@ pub struct AddEdges {
 /// One node in a batch add. `metadata` = non-temporal props; `updates` =
 /// temporal events attached to the node at specific times.
 pub struct NodeAddition {
-    pub name: String,
+    pub name: GID,
     pub node_type: Option<String>,
     pub metadata: Option<HashMap<String, Prop>>,
     pub updates: Option<Vec<TemporalUpdate>>,
@@ -1299,8 +1296,8 @@ pub struct NodeAddition {
 
 /// One edge in a batch add.
 pub struct EdgeAddition {
-    pub src: String,
-    pub dst: String,
+    pub src: GID,
+    pub dst: GID,
     pub layer: Option<String>,
     pub metadata: Option<HashMap<String, Prop>>,
     pub updates: Option<Vec<TemporalUpdate>>,
@@ -1339,6 +1336,23 @@ impl Serialize for TemporalUpdate {
     }
 }
 
+/// Serializes a `GID` as the bare JSON scalar the server's `NodeId` scalar
+/// expects — a number for integer ids, a string for string ids. (The derived
+/// `GID` serde form is externally tagged and must never reach the wire.)
+pub(crate) struct GidVar<'a>(pub &'a GID);
+
+impl Serialize for GidVar<'_> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self.0 {
+            GID::U64(v) => serializer.serialize_u64(*v),
+            GID::Str(s) => serializer.serialize_str(s),
+        }
+    }
+}
+
 impl Serialize for NodeAddition {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -1351,7 +1365,7 @@ impl Serialize for NodeAddition {
             .transpose()
             .map_err(serde::ser::Error::custom)?;
         let mut state = serializer.serialize_struct("NodeAddition", 4)?;
-        state.serialize_field("name", &self.name)?;
+        state.serialize_field("name", &GidVar(&self.name))?;
         state.serialize_field("nodeType", &self.node_type)?;
         state.serialize_field("metadata", &metadata)?;
         state.serialize_field("updates", &self.updates)?;
@@ -1371,8 +1385,8 @@ impl Serialize for EdgeAddition {
             .transpose()
             .map_err(serde::ser::Error::custom)?;
         let mut state = serializer.serialize_struct("EdgeAddition", 5)?;
-        state.serialize_field("src", &self.src)?;
-        state.serialize_field("dst", &self.dst)?;
+        state.serialize_field("src", &GidVar(&self.src))?;
+        state.serialize_field("dst", &GidVar(&self.dst))?;
         state.serialize_field("layer", &self.layer)?;
         state.serialize_field("metadata", &metadata)?;
         state.serialize_field("updates", &self.updates)?;
@@ -1442,7 +1456,9 @@ mod handle_ctx_tests {
     #[test]
     fn path_handle_expr_reroots_the_traversal_at_one_source() {
         let expr = ReadExpr::Neighbours { input: nodes() };
-        let rebased = ctx().path_handle_expr(&expr, "a").expect("re-rootable");
+        let rebased = ctx()
+            .path_handle_expr(&expr, &GID::Str("a".into()))
+            .expect("re-rootable");
 
         let ReadExpr::Neighbours { input } = &*rebased else {
             panic!("traversal should be preserved as the outermost node");
@@ -1469,7 +1485,9 @@ mod handle_ctx_tests {
         let expr = layer.apply(Arc::new(ReadExpr::Neighbours {
             input: Arc::new(window.apply(nodes())),
         }));
-        let rebased = ctx().path_handle_expr(&expr, "a").expect("re-rootable");
+        let rebased = ctx()
+            .path_handle_expr(&expr, &GID::Str("a".into()))
+            .expect("re-rootable");
 
         let ReadExpr::View { input, op } = &*rebased else {
             panic!("post-traversal view op should stay outermost");
@@ -1496,7 +1514,9 @@ mod handle_ctx_tests {
                 node_types: vec!["ant".to_string()].into(),
             }),
         };
-        let rebased = ctx().path_handle_expr(&below, "a").expect("re-rootable");
+        let rebased = ctx()
+            .path_handle_expr(&below, &GID::Str("a".into()))
+            .expect("re-rootable");
         let ReadExpr::Neighbours { input } = &*rebased else {
             panic!("traversal should be preserved");
         };
@@ -1509,7 +1529,9 @@ mod handle_ctx_tests {
             input: Arc::new(ReadExpr::Neighbours { input: nodes() }),
             node_types: vec!["ant".to_string()].into(),
         };
-        let rebased = ctx().path_handle_expr(&above, "a").expect("re-rootable");
+        let rebased = ctx()
+            .path_handle_expr(&above, &GID::Str("a".into()))
+            .expect("re-rootable");
         assert!(
             matches!(&*rebased, ReadExpr::TypeFilter { .. }),
             "typeFilter on the path should be kept"
@@ -1528,6 +1550,8 @@ mod handle_ctx_tests {
                 }),
             }),
         };
-        assert!(ctx().path_handle_expr(&expr, "a").is_none());
+        assert!(ctx()
+            .path_handle_expr(&expr, &GID::Str("a".into()))
+            .is_none());
     }
 }

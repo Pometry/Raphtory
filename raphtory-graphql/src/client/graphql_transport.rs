@@ -24,7 +24,10 @@ use crate::{
     },
 };
 use async_graphql::{async_trait, Value as GqlValue};
-use raphtory_api::core::entities::properties::prop::{Prop, PropType};
+use raphtory_api::core::entities::{
+    properties::prop::{Prop, PropType},
+    GID,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value as JsonValue};
 use std::{collections::HashMap, sync::Arc};
@@ -143,7 +146,7 @@ impl GraphqlTransport {
         let variables = json!({
             "path": json!(args.path),
             "time": input_time_var(&args.time),
-            "name": json!(args.id),
+            "name": gid_var(&args.id),
             "properties": opt_properties_var(&args.properties)?,
             "nodeType": json!(args.node_type),
             "layer": json!(args.layer),
@@ -170,7 +173,7 @@ impl GraphqlTransport {
         let variables = json!({
             "path": json!(args.path),
             "time": input_time_var(&args.time),
-            "name": json!(args.id),
+            "name": gid_var(&args.id),
             "properties": opt_properties_var(&args.properties)?,
             "nodeType": json!(args.node_type),
             "layer": json!(args.layer),
@@ -197,8 +200,8 @@ impl GraphqlTransport {
         let variables = json!({
             "path": json!(args.path),
             "time": input_time_var(&args.time),
-            "src": json!(args.src),
-            "dst": json!(args.dst),
+            "src": gid_var(&args.src),
+            "dst": gid_var(&args.dst),
             "properties": opt_properties_var(&args.properties)?,
             "layer": json!(args.layer),
         });
@@ -290,8 +293,8 @@ impl GraphqlTransport {
         let variables = json!({
             "path": json!(args.path),
             "time": input_time_var(&args.time),
-            "src": json!(args.src),
-            "dst": json!(args.dst),
+            "src": gid_var(&args.src),
+            "dst": gid_var(&args.dst),
             "layer": json!(args.layer),
         });
         let res = self.client.query(query, variables).await?;
@@ -313,7 +316,7 @@ impl GraphqlTransport {
 
         let variables = json!({
             "path": json!(args.path),
-            "name": json!(args.id),
+            "name": gid_var(&args.id),
             "newType": json!(args.new_type),
         });
         let res = self.client.query(query, variables).await?;
@@ -338,7 +341,7 @@ impl GraphqlTransport {
 
         let variables = json!({
             "path": json!(args.path),
-            "name": json!(args.id),
+            "name": gid_var(&args.id),
             "time": input_time_var(&args.time),
             "properties": opt_properties_var(&args.properties)?,
             "layer": json!(args.layer),
@@ -364,7 +367,7 @@ impl GraphqlTransport {
 
         let variables = json!({
             "path": json!(args.path),
-            "name": json!(args.id),
+            "name": gid_var(&args.id),
             "properties": properties_var(&args.properties)?,
         });
         let res = self.client.query(query, variables).await?;
@@ -388,7 +391,7 @@ impl GraphqlTransport {
 
         let variables = json!({
             "path": json!(args.path),
-            "name": json!(args.id),
+            "name": gid_var(&args.id),
             "properties": properties_var(&args.properties)?,
         });
         let res = self.client.query(query, variables).await?;
@@ -413,8 +416,8 @@ impl GraphqlTransport {
 
         let variables = json!({
             "path": json!(args.path),
-            "src": json!(args.src),
-            "dst": json!(args.dst),
+            "src": gid_var(&args.src),
+            "dst": gid_var(&args.dst),
             "time": input_time_var(&args.time),
             "properties": opt_properties_var(&args.properties)?,
             "layer": json!(args.layer),
@@ -445,8 +448,8 @@ impl GraphqlTransport {
 
         let variables = json!({
             "path": json!(args.path),
-            "src": json!(args.src),
-            "dst": json!(args.dst),
+            "src": gid_var(&args.src),
+            "dst": gid_var(&args.dst),
             "time": input_time_var(&args.time),
             "layer": json!(args.layer),
         });
@@ -476,8 +479,8 @@ impl GraphqlTransport {
 
         let variables = json!({
             "path": json!(args.path),
-            "src": json!(args.src),
-            "dst": json!(args.dst),
+            "src": gid_var(&args.src),
+            "dst": gid_var(&args.dst),
             "properties": properties_var(&args.properties)?,
             "layer": json!(args.layer),
         });
@@ -507,8 +510,8 @@ impl GraphqlTransport {
 
         let variables = json!({
             "path": json!(args.path),
-            "src": json!(args.src),
-            "dst": json!(args.dst),
+            "src": gid_var(&args.src),
+            "dst": gid_var(&args.dst),
             "properties": properties_var(&args.properties)?,
             "layer": json!(args.layer),
         });
@@ -774,6 +777,48 @@ fn render_gql_str(s: &str) -> String {
     serde_json::to_string(s).expect("string serialization is infallible")
 }
 
+/// Render a node id as a GraphQL `NodeId` literal — a bare number for integer
+/// ids, a quoted string for string ids. Stringifying an integer id here would
+/// silently turn an integer-indexed graph into a string-indexed one.
+fn render_gql_gid(gid: &GID) -> String {
+    match gid {
+        GID::U64(v) => v.to_string(),
+        GID::Str(s) => render_gql_str(s),
+    }
+}
+
+fn render_gid_list(items: &[GID]) -> String {
+    items
+        .iter()
+        .map(render_gql_gid)
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+/// A node id as a JSON variable value for the server's `NodeId` scalar —
+/// number or string, mirroring `render_gql_gid`. (`json!(gid)` would emit the
+/// externally tagged serde form, which the scalar rejects.)
+fn gid_var(gid: &GID) -> JsonValue {
+    match gid {
+        GID::U64(v) => json!(v),
+        GID::Str(s) => json!(s),
+    }
+}
+
+/// Decode a `NodeId` scalar from a response — a string or a number, with the
+/// JSON type preserved (`Prop::Str` / `Prop::U64`), matching the local `.id`.
+fn gid_prop(v: &JsonValue) -> Result<Prop, ClientError> {
+    if let Some(s) = v.as_str() {
+        Ok(Prop::Str(s.into()))
+    } else if let Some(n) = v.as_u64() {
+        Ok(Prop::U64(n))
+    } else {
+        Err(ClientError::InvalidResponse(
+            "node id not a string or non-negative int".into(),
+        ))
+    }
+}
+
 /// Node/edge-scoped writes address their target as `updateGraph { node(name) }`
 /// / `edge(src, dst)`. When the target doesn't exist under the current view the
 /// server resolves that field to `null` with no error and silently does
@@ -996,7 +1041,7 @@ fn render_read_into(
         }
         ReadExpr::Subgraph { input, nodes } => {
             render_read_into(input, vars, out)?;
-            write!(out, " {{ subgraph(nodes: [{}])", render_string_list(nodes))?;
+            write!(out, " {{ subgraph(nodes: [{}])", render_gid_list(nodes))?;
         }
         ReadExpr::SubgraphNodeTypes { input, node_types } => {
             render_read_into(input, vars, out)?;
@@ -1025,15 +1070,15 @@ fn render_read_into(
         // Selection
         ReadExpr::Node { input, id } => {
             render_read_into(input, vars, out)?;
-            write!(out, " {{ node(name: {})", render_gql_str(id))?;
+            write!(out, " {{ node(name: {})", render_gql_gid(id))?;
         }
         ReadExpr::Edge { input, src, dst } => {
             render_read_into(input, vars, out)?;
             write!(
                 out,
                 " {{ edge(src: {}, dst: {})",
-                render_gql_str(src),
-                render_gql_str(dst)
+                render_gql_gid(src),
+                render_gql_gid(dst)
             )?;
         }
         ReadExpr::Src { input } => {
@@ -1420,15 +1465,15 @@ fn render_read_into(
         }
         ReadExpr::HasNode { input, id } => {
             render_read_into(input, vars, out)?;
-            write!(out, " {{ hasNode(name: {})", render_gql_str(id))?;
+            write!(out, " {{ hasNode(name: {})", render_gql_gid(id))?;
         }
         ReadExpr::HasEdge { input, src, dst } => {
             render_read_into(input, vars, out)?;
             write!(
                 out,
                 " {{ hasEdge(src: {}, dst: {})",
-                render_gql_str(src),
-                render_gql_str(dst)
+                render_gql_gid(src),
+                render_gql_gid(dst)
             )?;
         }
         ReadExpr::CountTemporalEdges { input } => {
@@ -1467,9 +1512,12 @@ fn render_read_into(
             render_read_into(input, vars, out)?;
             out.push_str(" { windowSize");
         }
+        // Typed per-node ids: the columnar `ids` field is `[String!]!` (the
+        // server stringifies), so the id is read from each node object
+        // instead — `Node.id` is the typed `NodeId` scalar.
         ReadExpr::Ids { input } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { ids");
+            out.push_str(" { list { id }");
         }
         // `PathFromGraph.ids` is a columnar `[[String]]` field computed in ONE
         // server-side `blocking_compute` (vs `list { ids }`, which resolves one
@@ -1477,7 +1525,7 @@ fn render_read_into(
         // ONE net brace, same as `Ids`.
         ReadExpr::NestedIds { input } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { ids");
+            out.push_str(" { list { list { id } }");
         }
         // `PathFromGraph.sourceIds` — the flat `[String]` of source node ids,
         // aligned with `ids`' outer index. Opens ONE net brace, same as `Ids`.
@@ -1531,7 +1579,7 @@ fn render_read_into(
         // the inner `src { name }` / `dst { name }` groups are self-balanced.
         ReadExpr::EdgesList { input } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { list { src { name } dst { name } }");
+            out.push_str(" { list { src { id } dst { id } }");
         }
         // `NestedEdges.list` returns `[Edges!]!` — one object per source node.
         // We render `list { list { src { name } dst { name } } }` and read each
@@ -1541,7 +1589,7 @@ fn render_read_into(
         // group is self-balanced. Mirrors `EdgesList`, one level deeper.
         ReadExpr::NestedEdgesList { input } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { list { list { src { name } dst { name } } }");
+            out.push_str(" { list { list { src { id } dst { id } } }");
         }
         // Exploded-collection variant of `EdgesList`: adds each member's
         // event identity (`time { timestamp eventId }`, `layerName`) so
@@ -1549,25 +1597,23 @@ fn render_read_into(
         // the outer `list` opens one net brace, inner groups self-balance.
         ReadExpr::ExplodedEdgesList { input } => {
             render_read_into(input, vars, out)?;
-            out.push_str(
-                " { list { src { name } dst { name } time { timestamp eventId } layerName }",
-            );
+            out.push_str(" { list { src { id } dst { id } time { timestamp eventId } layerName }");
         }
         // Nested variant of `ExplodedEdgesList` — mirrors `NestedEdgesList`.
         ReadExpr::NestedExplodedEdgesList { input } => {
             render_read_into(input, vars, out)?;
             out.push_str(
-                " { list { list { src { name } dst { name } time { timestamp eventId } layerName } }",
+                " { list { list { src { id } dst { id } time { timestamp eventId } layerName } }",
             );
         }
         // Layer-exploded members — `(src, dst, layer)` per member (no time).
         ReadExpr::ExplodedLayersEdgesList { input } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { list { src { name } dst { name } layerName }");
+            out.push_str(" { list { src { id } dst { id } layerName }");
         }
         ReadExpr::NestedExplodedLayersEdgesList { input } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { list { list { src { name } dst { name } layerName } }");
+            out.push_str(" { list { list { src { id } dst { id } layerName } }");
         }
         // Columnar accessors — FLAT collections render `list { <field> }`.
         ReadExpr::CollectionNames { input } => {
@@ -1721,8 +1767,8 @@ fn render_read_into(
             render_read_into(input, vars, out)?;
             write!(
                 out,
-                " {{ sharedNeighbours(selectedNodes: [{}]) {{ name }}",
-                render_string_list(ids)
+                " {{ sharedNeighbours(selectedNodes: [{}]) {{ id }}",
+                render_gid_list(ids)
             )?;
         }
         // `findNodes(propertiesDict: [{key, value}]) { name }` — opens ONE net
@@ -1731,7 +1777,7 @@ fn render_read_into(
             render_read_into(input, vars, out)?;
             write!(
                 out,
-                " {{ findNodes(propertiesDict: {}) {{ name }}",
+                " {{ findNodes(propertiesDict: {}) {{ id }}",
                 vars.add_properties(properties)?
             )?;
         }
@@ -1741,7 +1787,7 @@ fn render_read_into(
             render_read_into(input, vars, out)?;
             write!(
                 out,
-                " {{ findEdges(propertiesDict: {}) {{ src {{ name }} dst {{ name }} }}",
+                " {{ findEdges(propertiesDict: {}) {{ src {{ id }} dst {{ id }} }}",
                 vars.add_properties(properties)?
             )?;
         }
@@ -2375,9 +2421,57 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
                     })
             }
         }
+        // Typed node-id list — `list { id }`, each element's `id` a string or
+        // number (the `NodeId` scalar). The JSON type is preserved so an
+        // integer-indexed graph reports integer ids, matching local.
+        ReadExpr::Ids { .. } => {
+            let arr = terminal_val.as_array().ok_or_else(|| {
+                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
+            })?;
+            let items: Result<Vec<Prop>, ClientError> = arr
+                .iter()
+                .map(|v| {
+                    gid_prop(v.get("id").ok_or_else(|| {
+                        ClientError::InvalidResponse("collection element missing `id`".into())
+                    })?)
+                })
+                .collect();
+            Ok(Some(Prop::List(items?.into())))
+        }
+        // Nested variant — `list { list { id } }`, one inner list per source.
+        ReadExpr::NestedIds { .. } => {
+            let outer = terminal_val.as_array().ok_or_else(|| {
+                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
+            })?;
+            let rows: Result<Vec<Prop>, ClientError> = outer
+                .iter()
+                .map(|source| {
+                    let inner = source
+                        .get("list")
+                        .and_then(|x| x.as_array())
+                        .ok_or_else(|| {
+                            ClientError::InvalidResponse(format!(
+                                "`{}` element missing inner `list`",
+                                terminal_key
+                            ))
+                        })?;
+                    let items: Result<Vec<Prop>, ClientError> = inner
+                        .iter()
+                        .map(|v| {
+                            gid_prop(v.get("id").ok_or_else(|| {
+                                ClientError::InvalidResponse(
+                                    "collection element missing `id`".into(),
+                                )
+                            })?)
+                        })
+                        .collect();
+                    Ok(Prop::List(items?.into()))
+                })
+                .collect();
+            Ok(Some(Prop::List(rows?.into())))
+        }
         // List-of-string terminal — the JSON is an array of strings.
-        ReadExpr::Ids { .. }
-        | ReadExpr::SourceIds { .. }
+        ReadExpr::SourceIds { .. }
         | ReadExpr::LayerNames { .. }
         | ReadExpr::UniqueLayers { .. }
         | ReadExpr::PropertyKeys { .. } => {
@@ -2396,38 +2490,6 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
                 })
                 .collect();
             Ok(Some(Prop::List(items?.into())))
-        }
-        // Nested id terminal — `PathFromGraph.ids` is a columnar `[[String]]`
-        // (outer = per source, inner = that source's ids). Parse straight into
-        // `Prop::List(Prop::List(Prop::Str))`.
-        ReadExpr::NestedIds { .. } => {
-            let outer = terminal_val.as_array().ok_or_else(|| {
-                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
-            })?;
-            let rows: Result<Vec<Prop>, ClientError> = outer
-                .iter()
-                .map(|inner_val| {
-                    let inner = inner_val.as_array().ok_or_else(|| {
-                        ClientError::InvalidResponse(format!(
-                            "`{}` element not a JSON array",
-                            terminal_key
-                        ))
-                    })?;
-                    let items: Result<Vec<Prop>, ClientError> = inner
-                        .iter()
-                        .map(|v| {
-                            v.as_str().map(|s| Prop::Str(s.into())).ok_or_else(|| {
-                                ClientError::InvalidResponse(format!(
-                                    "`{}` inner element not a string",
-                                    terminal_key
-                                ))
-                            })
-                        })
-                        .collect();
-                    Ok(Prop::List(items?.into()))
-                })
-                .collect();
-            Ok(Some(Prop::List(rows?.into())))
         }
         // Flat collection degree terminals — the JSON is an array of ints
         // (`degree`/`inDegree`/`outDegree`/`edgeHistoryCount` on a `Nodes`
@@ -2525,6 +2587,7 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
         }
         // List-of-GID terminal — each element can be a JSON string or int.
         // Used for edge `id` which returns [src, dst] as `Vec<GqlNodeId>`.
+        // As with the `id` terminal, the JSON type is preserved.
         ReadExpr::EdgeIdPair { .. } => {
             let arr = terminal_val.as_array().ok_or_else(|| {
                 ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
@@ -2534,10 +2597,8 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
                 .map(|v| {
                     if let Some(s) = v.as_str() {
                         Ok(Prop::Str(s.into()))
-                    } else if let Some(n) = v.as_i64() {
-                        Ok(Prop::Str(n.to_string().into()))
                     } else if let Some(n) = v.as_u64() {
-                        Ok(Prop::Str(n.to_string().into()))
+                        Ok(Prop::U64(n))
                     } else {
                         Err(ClientError::InvalidResponse(format!(
                             "`{}` element not a string or int",
@@ -2580,43 +2641,21 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
                 .collect();
             Ok(Some(Prop::List(items?.into())))
         }
-        // `sharedNeighbours { name }` — array of `{"name": "..."}` records.
-        // Decode to `Prop::List(Prop::Str, ...)` matching the shape used by
-        // `Ids` — the client wraps each name in a `RemoteNode`.
-        ReadExpr::SharedNeighbours { .. } => {
+        // `sharedNeighbours { id }` / `findNodes { id }` — arrays of typed-id
+        // records; the client wraps each id in a `RemoteNode`.
+        ReadExpr::SharedNeighbours { .. } | ReadExpr::FindNodes { .. } => {
             let arr = terminal_val.as_array().ok_or_else(|| {
                 ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
             })?;
             let items: Result<Vec<Prop>, ClientError> = arr
                 .iter()
                 .map(|v| {
-                    v.get("name")
-                        .and_then(|x| x.as_str())
-                        .map(|s| Prop::Str(s.into()))
-                        .ok_or_else(|| {
-                            ClientError::InvalidResponse(
-                                "sharedNeighbours element missing `name`".into(),
-                            )
-                        })
-                })
-                .collect();
-            Ok(Some(Prop::List(items?.into())))
-        }
-        // `findNodes { name }` — array of `{"name": "..."}` records. Same shape
-        // as `sharedNeighbours`; the client wraps each name in a `RemoteNode`.
-        ReadExpr::FindNodes { .. } => {
-            let arr = terminal_val.as_array().ok_or_else(|| {
-                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
-            })?;
-            let items: Result<Vec<Prop>, ClientError> = arr
-                .iter()
-                .map(|v| {
-                    v.get("name")
-                        .and_then(|x| x.as_str())
-                        .map(|s| Prop::Str(s.into()))
-                        .ok_or_else(|| {
-                            ClientError::InvalidResponse("findNodes element missing `name`".into())
-                        })
+                    gid_prop(v.get("id").ok_or_else(|| {
+                        ClientError::InvalidResponse(format!(
+                            "`{}` element missing `id`",
+                            terminal_key
+                        ))
+                    })?)
                 })
                 .collect();
             Ok(Some(Prop::List(items?.into())))
@@ -2633,25 +2672,25 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
                 .map(|v| {
                     let src = v
                         .get("src")
-                        .and_then(|s| s.get("name"))
-                        .and_then(|n| n.as_str())
+                        .and_then(|s| s.get("id"))
+                        .map(gid_prop)
+                        .transpose()?
                         .ok_or_else(|| {
                             ClientError::InvalidResponse(
-                                "findEdges element missing `src.name`".into(),
+                                "findEdges element missing `src.id`".into(),
                             )
                         })?;
                     let dst = v
                         .get("dst")
-                        .and_then(|d| d.get("name"))
-                        .and_then(|n| n.as_str())
+                        .and_then(|d| d.get("id"))
+                        .map(gid_prop)
+                        .transpose()?
                         .ok_or_else(|| {
                             ClientError::InvalidResponse(
-                                "findEdges element missing `dst.name`".into(),
+                                "findEdges element missing `dst.id`".into(),
                             )
                         })?;
-                    Ok(Prop::List(
-                        vec![Prop::Str(src.into()), Prop::Str(dst.into())].into(),
-                    ))
+                    Ok(Prop::List(vec![src, dst].into()))
                 })
                 .collect();
             Ok(Some(Prop::List(items?.into())))
@@ -2848,21 +2887,21 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
                 .map(|v| {
                     let src = v
                         .get("src")
-                        .and_then(|s| s.get("name"))
-                        .and_then(|n| n.as_str())
+                        .and_then(|s| s.get("id"))
+                        .map(gid_prop)
+                        .transpose()?
                         .ok_or_else(|| {
-                            ClientError::InvalidResponse("edge element missing `src.name`".into())
+                            ClientError::InvalidResponse("edge element missing `src.id`".into())
                         })?;
                     let dst = v
                         .get("dst")
-                        .and_then(|d| d.get("name"))
-                        .and_then(|n| n.as_str())
+                        .and_then(|d| d.get("id"))
+                        .map(gid_prop)
+                        .transpose()?
                         .ok_or_else(|| {
-                            ClientError::InvalidResponse("edge element missing `dst.name`".into())
+                            ClientError::InvalidResponse("edge element missing `dst.id`".into())
                         })?;
-                    Ok(Prop::List(
-                        vec![Prop::Str(src.into()), Prop::Str(dst.into())].into(),
-                    ))
+                    Ok(Prop::List(vec![src, dst].into()))
                 })
                 .collect();
             Ok(Some(Prop::List(items?.into())))
@@ -2892,25 +2931,25 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
                         .map(|v| {
                             let src = v
                                 .get("src")
-                                .and_then(|s| s.get("name"))
-                                .and_then(|n| n.as_str())
+                                .and_then(|s| s.get("id"))
+                                .map(gid_prop)
+                                .transpose()?
                                 .ok_or_else(|| {
                                     ClientError::InvalidResponse(
-                                        "edge element missing `src.name`".into(),
+                                        "edge element missing `src.id`".into(),
                                     )
                                 })?;
                             let dst = v
                                 .get("dst")
-                                .and_then(|d| d.get("name"))
-                                .and_then(|n| n.as_str())
+                                .and_then(|d| d.get("id"))
+                                .map(gid_prop)
+                                .transpose()?
                                 .ok_or_else(|| {
                                     ClientError::InvalidResponse(
-                                        "edge element missing `dst.name`".into(),
+                                        "edge element missing `dst.id`".into(),
                                     )
                                 })?;
-                            Ok(Prop::List(
-                                vec![Prop::Str(src.into()), Prop::Str(dst.into())].into(),
-                            ))
+                            Ok(Prop::List(vec![src, dst].into()))
                         })
                         .collect();
                     Ok(Prop::List(items?.into()))
@@ -3090,14 +3129,15 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
             .as_bool()
             .map(|b| Some(Prop::Bool(b)))
             .ok_or_else(|| ClientError::InvalidResponse(format!("`{}` not a bool", terminal_key))),
-        // `id` can be a JSON string or number (GID scalar); coerce to string.
+        // `id` is the GID scalar — a string for string-indexed graphs, a
+        // number for integer-indexed ones. The JSON type is the answer, so it
+        // is preserved rather than coerced (a stringified integer id would
+        // diverge from the local `.id`, which returns an int).
         ReadExpr::Id { .. } => {
             if let Some(s) = terminal_val.as_str() {
                 Ok(Some(Prop::Str(s.into())))
-            } else if let Some(n) = terminal_val.as_i64() {
-                Ok(Some(Prop::Str(n.to_string().into())))
             } else if let Some(n) = terminal_val.as_u64() {
-                Ok(Some(Prop::Str(n.to_string().into())))
+                Ok(Some(Prop::U64(n)))
             } else {
                 Err(ClientError::InvalidResponse(
                     "`id` not a string or int".into(),
@@ -3404,11 +3444,11 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
             }
             ReadExpr::Ids { input } => {
                 go(input, out);
-                out.push("ids");
+                out.push("list");
             }
             ReadExpr::NestedIds { input } => {
                 go(input, out);
-                out.push("ids");
+                out.push("list");
             }
             ReadExpr::SourceIds { input } => {
                 go(input, out);
@@ -3941,21 +3981,23 @@ fn json_to_property_record(v: &JsonValue) -> Result<Prop, ClientError> {
 /// Build a `NotFound` error describing which Node/Edge/Graph selection
 /// returned `null` in the response. Walks the `expr` tree from outermost
 /// inward to find the variant whose json key matches `null_key`.
-/// Decode one exploded-edge record — `{"src":{"name":..},"dst":{"name":..},
+/// Decode one exploded-edge record — `{"src":{"id":..},"dst":{"id":..},
 /// "time":{"timestamp":..,"eventId":..},"layerName":..}` — into the
 /// 5-element list `[src, dst, timestamp, event_id, layer_name]` used by the
 /// `ExplodedEdgesList` / `NestedExplodedEdgesList` terminals.
 fn exploded_edge_elem(v: &JsonValue) -> Result<Prop, ClientError> {
     let src = v
         .get("src")
-        .and_then(|s| s.get("name"))
-        .and_then(|n| n.as_str())
-        .ok_or_else(|| ClientError::InvalidResponse("edge element missing `src.name`".into()))?;
+        .and_then(|s| s.get("id"))
+        .map(gid_prop)
+        .transpose()?
+        .ok_or_else(|| ClientError::InvalidResponse("edge element missing `src.id`".into()))?;
     let dst = v
         .get("dst")
-        .and_then(|d| d.get("name"))
-        .and_then(|n| n.as_str())
-        .ok_or_else(|| ClientError::InvalidResponse("edge element missing `dst.name`".into()))?;
+        .and_then(|d| d.get("id"))
+        .map(gid_prop)
+        .transpose()?
+        .ok_or_else(|| ClientError::InvalidResponse("edge element missing `dst.id`".into()))?;
     let time = v.get("time").ok_or_else(|| {
         ClientError::InvalidResponse("exploded edge element missing `time`".into())
     })?;
@@ -3976,8 +4018,8 @@ fn exploded_edge_elem(v: &JsonValue) -> Result<Prop, ClientError> {
     })?;
     Ok(Prop::List(
         vec![
-            Prop::Str(src.into()),
-            Prop::Str(dst.into()),
+            src,
+            dst,
             Prop::I64(timestamp),
             Prop::I64(event_id),
             Prop::Str(layer.into()),
@@ -3986,31 +4028,26 @@ fn exploded_edge_elem(v: &JsonValue) -> Result<Prop, ClientError> {
     ))
 }
 
-/// Decode one `ExplodedLayersEdgesList` element — `{src{name}, dst{name},
+/// Decode one `ExplodedLayersEdgesList` element — `{src{id}, dst{id},
 /// layerName}` — into `[src, dst, layer]` (no time; layer-exploded members have
 /// a layer but not a single event time).
 fn exploded_layers_edge_elem(v: &JsonValue) -> Result<Prop, ClientError> {
     let src = v
         .get("src")
-        .and_then(|s| s.get("name"))
-        .and_then(|n| n.as_str())
-        .ok_or_else(|| ClientError::InvalidResponse("edge element missing `src.name`".into()))?;
+        .and_then(|s| s.get("id"))
+        .map(gid_prop)
+        .transpose()?
+        .ok_or_else(|| ClientError::InvalidResponse("edge element missing `src.id`".into()))?;
     let dst = v
         .get("dst")
-        .and_then(|d| d.get("name"))
-        .and_then(|n| n.as_str())
-        .ok_or_else(|| ClientError::InvalidResponse("edge element missing `dst.name`".into()))?;
+        .and_then(|d| d.get("id"))
+        .map(gid_prop)
+        .transpose()?
+        .ok_or_else(|| ClientError::InvalidResponse("edge element missing `dst.id`".into()))?;
     let layer = v.get("layerName").and_then(|l| l.as_str()).ok_or_else(|| {
         ClientError::InvalidResponse("layer-exploded edge element missing `layerName`".into())
     })?;
-    Ok(Prop::List(
-        vec![
-            Prop::Str(src.into()),
-            Prop::Str(dst.into()),
-            Prop::Str(layer.into()),
-        ]
-        .into(),
-    ))
+    Ok(Prop::List(vec![src, dst, Prop::Str(layer.into())].into()))
 }
 
 fn build_not_found_error(expr: &ReadExpr, null_key: &str) -> ClientError {
@@ -4506,6 +4543,44 @@ mod tests {
         );
     }
 
+    // ============ Unit tests for node-id rendering ============
+
+    #[test]
+    fn node_ids_keep_their_type_on_the_wire() {
+        // The server's `NodeId` scalar is typed: a number selects an
+        // integer-indexed graph, a quoted string a string-indexed one. An
+        // integer id rendered as `"5"` would silently build the wrong kind of
+        // graph, so the two forms must stay distinguishable in both the
+        // inline-literal and the JSON-variable paths.
+        assert_eq!(render_gql_gid(&GID::U64(5)), "5");
+        assert_eq!(render_gql_gid(&GID::Str("5".into())), r#""5""#);
+        assert_eq!(gid_var(&GID::U64(5)), json!(5));
+        assert_eq!(gid_var(&GID::Str("5".into())), json!("5"));
+
+        // `json!(gid)` would emit the derived, externally tagged serde form
+        // (`{"U64":5}`), which the scalar rejects — hence `gid_var`.
+        assert_ne!(gid_var(&GID::U64(5)), json!(GID::U64(5)));
+
+        // Lists (`subgraph`, `sharedNeighbours`) render element-wise.
+        assert_eq!(
+            render_gid_list(&[GID::U64(5), GID::Str("a".into())]),
+            r#"5, "a""#
+        );
+    }
+
+    #[test]
+    fn node_ids_are_decoded_back_to_their_type() {
+        // The reverse direction: a JSON number decodes to an integer id and a
+        // JSON string to a string id, so `.id` reports what the graph holds
+        // rather than a stringification of it.
+        assert_eq!(gid_prop(&json!(5)).unwrap(), Prop::U64(5));
+        assert_eq!(gid_prop(&json!("5")).unwrap(), Prop::Str("5".into()));
+        // Negative ids are not representable (`GID::U64`), so they are a
+        // protocol error rather than a silent truncation.
+        assert!(gid_prop(&json!(-1)).is_err());
+        assert!(gid_prop(&json!(null)).is_err());
+    }
+
     // ============ Unit tests for GraphQL string escaping ============
 
     #[test]
@@ -4857,10 +4932,14 @@ mod tests {
         let filtered = rg.nodes().filter(score_gt_15.clone()).unwrap();
         let mut ids = filtered.ids().await.unwrap();
         ids.sort();
-        assert_eq!(ids, ["a", "b", "c"], "filter must not narrow membership");
+        assert_eq!(
+            ids,
+            ["a", "b", "c"].map(GID::from),
+            "filter must not narrow membership"
+        );
 
         // Handles from collect() must agree with the columnar degree.
-        let columnar: Map<String, i64> = filtered
+        let columnar: Map<GID, i64> = filtered
             .ids()
             .await
             .unwrap()
@@ -4875,20 +4954,36 @@ mod tests {
                 handle.id
             );
         }
-        assert_eq!(columnar["a"], 2, "a keeps both matching neighbours");
-        assert_eq!(columnar["b"], 1, "a (score=10) dropped from b's edges");
-        assert_eq!(columnar["c"], 1, "a (score=10) dropped from c's edges");
+        assert_eq!(
+            columnar[&GID::from("a")],
+            2,
+            "a keeps both matching neighbours"
+        );
+        assert_eq!(
+            columnar[&GID::from("b")],
+            1,
+            "a (score=10) dropped from b's edges"
+        );
+        assert_eq!(
+            columnar[&GID::from("c")],
+            1,
+            "a (score=10) dropped from c's edges"
+        );
 
         // The filter keeps propagating through traversals on the handle.
-        let by_id: Map<String, _> = filtered
+        let by_id: Map<GID, _> = filtered
             .collect()
             .await
             .unwrap()
             .into_iter()
             .map(|n| (n.id.clone(), n))
             .collect();
-        let b_neighbours = by_id["b"].neighbours().ids().await.unwrap();
-        assert_eq!(b_neighbours, ["c"], "b's neighbours under f exclude a");
+        let b_neighbours = by_id[&GID::from("b")].neighbours().ids().await.unwrap();
+        assert_eq!(
+            b_neighbours,
+            ["c"].map(GID::from),
+            "b's neighbours under f exclude a"
+        );
 
         // select() narrows membership only — handles see the unfiltered graph.
         // Passed as a composite to pin that kind-typed callers still satisfy
@@ -4897,7 +4992,11 @@ mod tests {
         let selected = rg.nodes().select(score_gt_15_composite).unwrap();
         let mut selected_ids = selected.ids().await.unwrap();
         selected_ids.sort();
-        assert_eq!(selected_ids, ["b", "c"], "select narrows membership");
+        assert_eq!(
+            selected_ids,
+            ["b", "c"].map(GID::from),
+            "select narrows membership"
+        );
         for handle in selected.collect().await.unwrap() {
             assert_eq!(
                 handle.degree().await.unwrap(),
@@ -4918,7 +5017,7 @@ mod tests {
             .unwrap();
         let c_handles = b.neighbours().collect().await.unwrap();
         assert_eq!(c_handles.len(), 1);
-        assert_eq!(c_handles[0].id, "c");
+        assert_eq!(c_handles[0].id, GID::from("c"));
         assert_eq!(
             c_handles[0].degree().await.unwrap(),
             1,
@@ -4937,9 +5036,15 @@ mod tests {
             .unwrap();
         let rows = nested.edges().collect().await.unwrap();
         let ids_in_order = nested.ids().await.unwrap();
-        let b_row = &rows[ids_in_order.iter().position(|id| id == "b").unwrap()];
+        let b_row = &rows[ids_in_order
+            .iter()
+            .position(|id| id == &GID::from("b"))
+            .unwrap()];
         assert_eq!(b_row.len(), 1, "b keeps only the edge to c under f");
-        assert_eq!((b_row[0].src.as_str(), b_row[0].dst.as_str()), ("b", "c"));
+        assert_eq!(
+            (&b_row[0].src, &b_row[0].dst),
+            (&GID::from("b"), &GID::from("c"))
+        );
         assert_eq!(
             b_row[0].src().degree().await.unwrap(),
             1,

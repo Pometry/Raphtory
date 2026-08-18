@@ -15,7 +15,7 @@ use pyo3::{
 use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
 use raphtory_api::{
     core::{
-        entities::properties::prop::Prop,
+        entities::{properties::prop::Prop, GID},
         storage::timeindex::{AsTime, EventTime},
         utils::time::InputTime,
     },
@@ -430,9 +430,10 @@ impl PyRemoteNode {
     /// Property — attribute access fires one RPC.
     ///
     /// Returns:
-    ///     str: the node's id.
+    ///     str | int: the node's id — a string for string-indexed graphs, an
+    ///         integer for integer-indexed ones.
     #[getter]
-    pub fn id(&self) -> Result<String, ClientError> {
+    pub fn id(&self) -> Result<GID, ClientError> {
         let node = Arc::clone(&self.node);
         execute_async_task(move || async move { node.id().await })
     }

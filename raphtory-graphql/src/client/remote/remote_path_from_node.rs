@@ -6,7 +6,7 @@ use crate::{
         remote_history::RemoteHistory,
         remote_node::RemoteNode,
         transport::{
-            expect_bool, expect_i64, expect_i64_list, expect_optional_event_time,
+            expect_bool, expect_gid_list, expect_i64, expect_i64_list, expect_optional_event_time,
             expect_optional_event_time_list, expect_optional_i64, expect_optional_string_list,
             expect_string_list, Transport,
         },
@@ -15,7 +15,7 @@ use crate::{
     model::graph::filtering::GqlFilter,
 };
 use raphtory::errors::GraphError;
-use raphtory_api::core::storage::timeindex::EventTime;
+use raphtory_api::core::{entities::GID, storage::timeindex::EventTime};
 use std::sync::Arc;
 
 /// A handle to a "path from node" collection on the server — the nodes
@@ -309,20 +309,21 @@ impl RemotePathFromNode {
     }
 
     /// Terminal: the list of node ids in this collection. Fires one RPC.
-    pub async fn ids(&self) -> Result<Vec<String>, ClientError> {
+    pub async fn ids(&self) -> Result<Vec<GID>, ClientError> {
         let op = Op::Read(ReadExpr::Ids {
             input: self.expr.clone(),
         });
-        expect_string_list(self.transport.execute(&op).await?, "ids")
+        expect_gid_list(self.transport.execute(&op).await?, "ids")
     }
 
-    /// Columnar accessor: each node's id — mirrors the local `PathFromNode.id`.
-    /// Fires one RPC.
-    pub async fn id(&self) -> Result<Vec<String>, ClientError> {
+    /// Columnar accessor: each node's id — mirrors the local `PathFromNode.id`,
+    /// including the type: string ids for string-indexed graphs, integers for
+    /// integer-indexed ones. Fires one RPC.
+    pub async fn id(&self) -> Result<Vec<GID>, ClientError> {
         let op = Op::Read(ReadExpr::Ids {
             input: self.expr.clone(),
         });
-        expect_string_list(self.transport.execute(&op).await?, "id")
+        expect_gid_list(self.transport.execute(&op).await?, "id")
     }
 
     /// Columnar accessor: each node's name — mirrors the local

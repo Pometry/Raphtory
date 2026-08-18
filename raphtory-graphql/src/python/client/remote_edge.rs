@@ -11,7 +11,7 @@ use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyResult};
 use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
 use raphtory_api::{
     core::{
-        entities::properties::prop::Prop,
+        entities::{properties::prop::Prop, GID},
         storage::timeindex::{AsTime, EventTime},
         utils::time::InputTime,
     },
@@ -476,9 +476,11 @@ impl PyRemoteEdge {
     /// Edge id as a `(src, dst)` pair of endpoint ids. Property — fires one RPC.
     ///
     /// Returns:
-    ///     tuple[str, str]: the `(src, dst)` pair of endpoint ids.
+    ///     tuple[str | int, str | int]: the `(src, dst)` pair of endpoint
+    ///         ids — strings for string-indexed graphs, integers for
+    ///         integer-indexed ones.
     #[getter]
-    pub fn id(&self) -> Result<(String, String), ClientError> {
+    pub fn id(&self) -> Result<(GID, GID), ClientError> {
         let edge = Arc::clone(&self.edge);
         execute_async_task(move || async move { edge.id().await })
     }

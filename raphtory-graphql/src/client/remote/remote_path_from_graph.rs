@@ -7,7 +7,7 @@ use crate::{
         remote_node::RemoteNode,
         remote_path_from_node::RemotePathFromNode,
         transport::{
-            expect_bool, expect_i64, expect_nested_i64_list,
+            expect_bool, expect_i64, expect_nested_gid_list, expect_nested_i64_list,
             expect_nested_optional_event_time_list, expect_nested_optional_string_list,
             expect_nested_string_list, expect_optional_event_time, expect_optional_i64,
             expect_string_list, Transport,
@@ -17,7 +17,7 @@ use crate::{
     model::graph::filtering::GqlFilter,
 };
 use raphtory::errors::GraphError;
-use raphtory_api::core::storage::timeindex::EventTime;
+use raphtory_api::core::{entities::GID, storage::timeindex::EventTime};
 use std::sync::Arc;
 
 /// A handle to a "path from graph" collection on the server — the neighbours
@@ -307,11 +307,11 @@ impl RemotePathFromGraph {
 
     /// Terminal: the nested list of node ids in this collection — one inner
     /// list per source node. Fires one RPC.
-    pub async fn ids(&self) -> Result<Vec<Vec<String>>, ClientError> {
+    pub async fn ids(&self) -> Result<Vec<Vec<GID>>, ClientError> {
         let op = Op::Read(ReadExpr::NestedIds {
             input: self.expr.clone(),
         });
-        expect_nested_string_list(self.transport.execute(&op).await?, "ids")
+        expect_nested_gid_list(self.transport.execute(&op).await?, "ids")
     }
 
     /// Terminal: the ids of the SOURCE nodes these paths hang off — one per
@@ -337,6 +337,7 @@ impl RemotePathFromGraph {
             .await?
             .into_iter()
             .map(|id| {
+                let id = GID::Str(id);
                 let path_expr = self.ctx.path_handle_expr(&self.expr, &id).ok_or_else(|| {
                     ClientError::InvalidInput(
                         "this collection cannot be re-rooted at a single source node, so \
@@ -365,11 +366,11 @@ impl RemotePathFromGraph {
 
     /// Columnar accessor: each source's neighbour ids — one inner list per
     /// source node. Mirrors the local `PathFromGraph.id`. Fires one RPC.
-    pub async fn id(&self) -> Result<Vec<Vec<String>>, ClientError> {
+    pub async fn id(&self) -> Result<Vec<Vec<GID>>, ClientError> {
         let op = Op::Read(ReadExpr::NestedIds {
             input: self.expr.clone(),
         });
-        expect_nested_string_list(self.transport.execute(&op).await?, "id")
+        expect_nested_gid_list(self.transport.execute(&op).await?, "id")
     }
 
     /// Columnar accessor: each source's neighbour names — one inner list per

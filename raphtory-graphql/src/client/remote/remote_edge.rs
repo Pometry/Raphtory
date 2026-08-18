@@ -1,18 +1,17 @@
 use crate::{
     client::{
         op::{
-            input_time_from_parts, AddEdgeMetadata as AddEdgeMetadataOp,
-            AddEdgeUpdates as AddEdgeUpdatesOp, DeleteEdgeAtTime as DeleteEdgeAtTimeOp, Fanout,
-            HandleCtx, HandleOp, InputTime, Op, ReadExpr,
-            UpdateEdgeMetadata as UpdateEdgeMetadataOp, ViewOp, WriteOp,
+            AddEdgeMetadata as AddEdgeMetadataOp, AddEdgeUpdates as AddEdgeUpdatesOp,
+            DeleteEdgeAtTime as DeleteEdgeAtTimeOp, Fanout, HandleCtx, HandleOp, InputTime, Op,
+            ReadExpr, UpdateEdgeMetadata as UpdateEdgeMetadataOp, ViewOp, WriteOp,
         },
         remote_edges::RemoteEdges,
         remote_history::RemoteHistory,
         remote_metadata::{RemoteMetadata, RemoteProperties},
         remote_node::RemoteNode,
         transport::{
-            expect_bool, expect_optional_event_time, expect_optional_i64, expect_string,
-            expect_string_list, Transport,
+            expect_bool, expect_gid_list, expect_optional_event_time, expect_optional_i64,
+            expect_string, expect_string_list, Transport,
         },
         ClientError,
     },
@@ -20,8 +19,8 @@ use crate::{
 };
 use raphtory::errors::GraphError;
 use raphtory_api::core::{
-    entities::properties::prop::Prop,
-    storage::timeindex::{AsTime, EventTime},
+    entities::{properties::prop::Prop, GID},
+    storage::timeindex::EventTime,
     utils::time::TryIntoInputTime,
 };
 use std::{collections::HashMap, sync::Arc};
@@ -36,8 +35,8 @@ use std::{collections::HashMap, sync::Arc};
 #[derive(Clone)]
 pub struct RemoteEdge {
     pub path: String,
-    pub src: String,
-    pub dst: String,
+    pub src: GID,
+    pub dst: GID,
     pub transport: Arc<dyn Transport>,
     pub expr: Arc<ReadExpr>,
     /// Materialization context — inherited by descendants so their
@@ -50,8 +49,8 @@ impl RemoteEdge {
     /// materialization context.
     pub fn with_expr(
         path: String,
-        src: String,
-        dst: String,
+        src: GID,
+        dst: GID,
         transport: Arc<dyn Transport>,
         expr: impl Into<Arc<ReadExpr>>,
         ctx: HandleCtx,
@@ -241,7 +240,7 @@ impl RemoteEdge {
     pub fn nbr(&self) -> RemoteNode {
         RemoteNode::with_expr(
             self.path.clone(),
-            String::new(),
+            GID::Str(String::new()),
             self.transport.clone(),
             ReadExpr::Nbr {
                 input: self.expr.clone(),
@@ -395,12 +394,13 @@ impl RemoteEdge {
         expect_optional_event_time(self.transport.execute(&op).await?, "end")
     }
 
-    /// Terminal: edge id as `(src, dst)` pair of endpoint ids. Fires one RPC.
-    pub async fn id(&self) -> Result<(String, String), ClientError> {
+    /// Terminal: edge id as `(src, dst)` pair of endpoint ids — typed like
+    /// the local `.id` (integers on integer-indexed graphs). Fires one RPC.
+    pub async fn id(&self) -> Result<(GID, GID), ClientError> {
         let op = Op::Read(ReadExpr::EdgeIdPair {
             input: self.expr.clone(),
         });
-        let list = expect_string_list(self.transport.execute(&op).await?, "id")?;
+        let list = expect_gid_list(self.transport.execute(&op).await?, "id")?;
         let mut it = list.into_iter();
         let src = it
             .next()

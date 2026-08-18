@@ -2,7 +2,7 @@ use crate::{
     client::{
         graphql_transport::GraphqlTransport,
         op::{
-            input_time_from_parts, AddEdge as AddEdgeOp, AddGraphMetadata as AddGraphMetadataOp,
+            AddEdge as AddEdgeOp, AddGraphMetadata as AddGraphMetadataOp,
             AddGraphProperty as AddGraphPropertyOp, AddNode as AddNodeOp,
             CreateNode as CreateNodeOp, DeleteEdge as DeleteEdgeOp, HandleCtx, InputTime, Op,
             ReadExpr, UpdateGraphMetadata as UpdateGraphMetadataOp, ViewOp, WriteOp,
@@ -25,7 +25,7 @@ use crate::{
 use raphtory::errors::GraphError;
 use raphtory_api::core::{
     entities::{properties::prop::Prop, GID},
-    storage::timeindex::{AsTime, EventTime},
+    storage::timeindex::EventTime,
     utils::time::TryIntoInputTime,
 };
 use std::{collections::HashMap, sync::Arc};
@@ -233,7 +233,7 @@ impl RemoteGraph {
     }
 
     /// Restrict to a subgraph induced by the given node ids. Lazy — no RPC.
-    pub fn subgraph(&self, nodes: Vec<String>) -> RemoteGraph {
+    pub fn subgraph(&self, nodes: Vec<GID>) -> RemoteGraph {
         self.with_expr(ReadExpr::Subgraph {
             input: self.expr.clone(),
             nodes: nodes.into(),
@@ -323,10 +323,10 @@ impl RemoteGraph {
     }
 
     /// Terminal: does the graph have a node with this id? Fires one RPC.
-    pub async fn has_node(&self, id: impl ToString) -> Result<bool, ClientError> {
+    pub async fn has_node(&self, id: impl Into<GID>) -> Result<bool, ClientError> {
         let op = Op::Read(ReadExpr::HasNode {
             input: self.expr.clone(),
-            id: id.to_string(),
+            id: id.into(),
         });
         expect_bool(self.transport.execute(&op).await?, "hasNode")
     }
@@ -334,13 +334,13 @@ impl RemoteGraph {
     /// Terminal: does the graph have an edge `(src, dst)`? Fires one RPC.
     pub async fn has_edge(
         &self,
-        src: impl ToString,
-        dst: impl ToString,
+        src: impl Into<GID>,
+        dst: impl Into<GID>,
     ) -> Result<bool, ClientError> {
         let op = Op::Read(ReadExpr::HasEdge {
             input: self.expr.clone(),
-            src: src.to_string(),
-            dst: dst.to_string(),
+            src: src.into(),
+            dst: dst.into(),
         });
         expect_bool(self.transport.execute(&op).await?, "hasEdge")
     }
@@ -469,11 +469,11 @@ impl RemoteGraph {
     ///
     /// Server-returned handles (from `.nodes.collect()`, `.neighbours`, etc.)
     /// bypass this check — those ids came from the server, so we trust them.
-    pub async fn node(&self, id: impl ToString) -> Result<Option<RemoteNode>, ClientError> {
-        let id_str = id.to_string();
+    pub async fn node(&self, id: impl Into<GID>) -> Result<Option<RemoteNode>, ClientError> {
+        let id = id.into();
         let check = Op::Read(ReadExpr::HasNode {
             input: self.expr.clone(),
-            id: id_str.clone(),
+            id: id.clone(),
         });
         let exists = expect_bool(self.transport.execute(&check).await?, "hasNode")?;
         if !exists {
@@ -481,11 +481,11 @@ impl RemoteGraph {
         }
         Ok(Some(RemoteNode::with_expr(
             self.path.clone(),
-            id_str.clone(),
+            id.clone(),
             self.transport.clone(),
             ReadExpr::Node {
                 input: self.expr.clone(),
-                id: id_str,
+                id,
             },
             HandleCtx::new(self.expr.clone()),
         )))
@@ -542,10 +542,7 @@ impl RemoteGraph {
     ///
     /// Each returned handle rebases at `self.expr`, so downstream terminals
     /// inherit the same view chain.
-    pub async fn shared_neighbours(
-        &self,
-        ids: Vec<String>,
-    ) -> Result<Vec<RemoteNode>, ClientError> {
+    pub async fn shared_neighbours(&self, ids: Vec<GID>) -> Result<Vec<RemoteNode>, ClientError> {
         let op = Op::Read(ReadExpr::SharedNeighbours {
             input: self.expr.clone(),
             ids,
@@ -554,13 +551,14 @@ impl RemoteGraph {
         Ok(names
             .into_iter()
             .map(|name| {
+                let id = GID::Str(name);
                 RemoteNode::with_expr(
                     self.path.clone(),
-                    name.clone(),
+                    id.clone(),
                     self.transport.clone(),
                     ReadExpr::Node {
                         input: self.expr.clone(),
-                        id: name,
+                        id,
                     },
                     HandleCtx::new(self.expr.clone()),
                 )
@@ -584,13 +582,14 @@ impl RemoteGraph {
         Ok(names
             .into_iter()
             .map(|name| {
+                let id = GID::Str(name);
                 RemoteNode::with_expr(
                     self.path.clone(),
-                    name.clone(),
+                    id.clone(),
                     self.transport.clone(),
                     ReadExpr::Node {
                         input: self.expr.clone(),
-                        id: name,
+                        id,
                     },
                     HandleCtx::new(self.expr.clone()),
                 )
@@ -672,15 +671,15 @@ impl RemoteGraph {
     /// current view. Same guarantee and rationale as `.node()`.
     pub async fn edge(
         &self,
-        src: impl ToString,
-        dst: impl ToString,
+        src: impl Into<GID>,
+        dst: impl Into<GID>,
     ) -> Result<Option<RemoteEdge>, ClientError> {
-        let src_str = src.to_string();
-        let dst_str = dst.to_string();
+        let src = src.into();
+        let dst = dst.into();
         let check = Op::Read(ReadExpr::HasEdge {
             input: self.expr.clone(),
-            src: src_str.clone(),
-            dst: dst_str.clone(),
+            src: src.clone(),
+            dst: dst.clone(),
         });
         let exists = expect_bool(self.transport.execute(&check).await?, "hasEdge")?;
         if !exists {
@@ -688,13 +687,13 @@ impl RemoteGraph {
         }
         Ok(Some(RemoteEdge::with_expr(
             self.path.clone(),
-            src_str.clone(),
-            dst_str.clone(),
+            src.clone(),
+            dst.clone(),
             self.transport.clone(),
             ReadExpr::Edge {
                 input: self.expr.clone(),
-                src: src_str,
-                dst: dst_str,
+                src,
+                dst,
             },
             HandleCtx::new(self.expr.clone()),
         )))
@@ -708,7 +707,7 @@ impl RemoteGraph {
     /// Fires one RPC. Returns a trusted `RemoteNode` handle for the added
     /// node — no follow-up `hasNode` validation is fired, since the server
     /// just confirmed the write.
-    pub async fn add_node<G: Into<GID> + ToString, T: TryIntoInputTime>(
+    pub async fn add_node<G: Into<GID>, T: TryIntoInputTime>(
         &self,
         timestamp: T,
         id: G,
@@ -716,11 +715,11 @@ impl RemoteGraph {
         node_type: Option<String>,
         layer: Option<String>,
     ) -> Result<RemoteNode, ClientError> {
-        let id_str = id.to_string();
+        let id = id.into();
         let op = Op::Write(WriteOp::AddNode(AddNodeOp {
             path: self.path.clone(),
             time: timestamp.try_into_input_time()?,
-            id: id_str.clone(),
+            id: id.clone(),
             properties,
             node_type,
             layer,
@@ -728,11 +727,11 @@ impl RemoteGraph {
         self.transport.execute(&op).await?;
         Ok(RemoteNode::with_expr(
             self.path.clone(),
-            id_str.clone(),
+            id.clone(),
             self.transport.clone(),
             ReadExpr::Node {
                 input: self.expr.clone(),
-                id: id_str,
+                id,
             },
             HandleCtx::new(self.expr.clone()),
         ))
@@ -743,7 +742,7 @@ impl RemoteGraph {
     ///
     /// Fires one RPC. Returns a trusted `RemoteNode` handle for the created
     /// node — no follow-up `hasNode` validation is fired.
-    pub async fn create_node<G: Into<GID> + ToString, T: TryIntoInputTime>(
+    pub async fn create_node<G: Into<GID>, T: TryIntoInputTime>(
         &self,
         timestamp: T,
         id: G,
@@ -751,11 +750,11 @@ impl RemoteGraph {
         node_type: Option<String>,
         layer: Option<String>,
     ) -> Result<RemoteNode, ClientError> {
-        let id_str = id.to_string();
+        let id = id.into();
         let op = Op::Write(WriteOp::CreateNode(CreateNodeOp {
             path: self.path.clone(),
             time: timestamp.try_into_input_time()?,
-            id: id_str.clone(),
+            id: id.clone(),
             properties,
             node_type,
             layer,
@@ -763,11 +762,11 @@ impl RemoteGraph {
         self.transport.execute(&op).await?;
         Ok(RemoteNode::with_expr(
             self.path.clone(),
-            id_str.clone(),
+            id.clone(),
             self.transport.clone(),
             ReadExpr::Node {
                 input: self.expr.clone(),
-                id: id_str,
+                id,
             },
             HandleCtx::new(self.expr.clone()),
         ))
@@ -780,7 +779,7 @@ impl RemoteGraph {
     ///
     /// Fires one RPC. Returns a trusted `RemoteEdge` handle — no follow-up
     /// `hasEdge` validation is fired, since the server just confirmed the write.
-    pub async fn add_edge<G: Into<GID> + ToString, T: TryIntoInputTime>(
+    pub async fn add_edge<G: Into<GID>, T: TryIntoInputTime>(
         &self,
         timestamp: T,
         src: G,
@@ -788,26 +787,26 @@ impl RemoteGraph {
         properties: Option<HashMap<String, Prop>>,
         layer: Option<String>,
     ) -> Result<RemoteEdge, ClientError> {
-        let src_str = src.to_string();
-        let dst_str = dst.to_string();
+        let src = src.into();
+        let dst = dst.into();
         let op = Op::Write(WriteOp::AddEdge(AddEdgeOp {
             path: self.path.clone(),
             time: timestamp.try_into_input_time()?,
-            src: src_str.clone(),
-            dst: dst_str.clone(),
+            src: src.clone(),
+            dst: dst.clone(),
             properties,
             layer,
         }));
         self.transport.execute(&op).await?;
         Ok(RemoteEdge::with_expr(
             self.path.clone(),
-            src_str.clone(),
-            dst_str.clone(),
+            src.clone(),
+            dst.clone(),
             self.transport.clone(),
             ReadExpr::Edge {
                 input: self.expr.clone(),
-                src: src_str,
-                dst: dst_str,
+                src,
+                dst,
             },
             HandleCtx::new(self.expr.clone()),
         ))
@@ -866,32 +865,32 @@ impl RemoteGraph {
     ///
     /// Fires one RPC. Returns a trusted `RemoteEdge` handle for the deleted
     /// edge — subsequent reads on it observe the deletion.
-    pub async fn delete_edge<G: Into<GID> + ToString, T: TryIntoInputTime>(
+    pub async fn delete_edge<G: Into<GID>, T: TryIntoInputTime>(
         &self,
         timestamp: T,
         src: G,
         dst: G,
         layer: Option<String>,
     ) -> Result<RemoteEdge, ClientError> {
-        let src_str = src.to_string();
-        let dst_str = dst.to_string();
+        let src = src.into();
+        let dst = dst.into();
         let op = Op::Write(WriteOp::DeleteEdge(DeleteEdgeOp {
             path: self.path.clone(),
             time: timestamp.try_into_input_time()?,
-            src: src_str.clone(),
-            dst: dst_str.clone(),
+            src: src.clone(),
+            dst: dst.clone(),
             layer,
         }));
         self.transport.execute(&op).await?;
         Ok(RemoteEdge::with_expr(
             self.path.clone(),
-            src_str.clone(),
-            dst_str.clone(),
+            src.clone(),
+            dst.clone(),
             self.transport.clone(),
             ReadExpr::Edge {
                 input: self.expr.clone(),
-                src: src_str,
-                dst: dst_str,
+                src,
+                dst,
             },
             HandleCtx::new(self.expr.clone()),
         ))

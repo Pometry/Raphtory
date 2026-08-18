@@ -15,7 +15,7 @@ use crate::{
     model::graph::filtering::GqlFilter,
 };
 use raphtory::errors::GraphError;
-use raphtory_api::core::storage::timeindex::EventTime;
+use raphtory_api::core::{entities::GID, storage::timeindex::EventTime};
 use std::sync::Arc;
 
 /// A handle to a nested edges collection on the server — the edges incident to
@@ -336,7 +336,7 @@ impl RemoteNestedEdges {
 
     /// Columnar accessor: each source's edge `(src, dst)` id pairs — one inner
     /// list per source node. Mirrors the local `NestedEdges.id`. Fires one RPC.
-    pub async fn id(&self) -> Result<Vec<Vec<(String, String)>>, ClientError> {
+    pub async fn id(&self) -> Result<Vec<Vec<(GID, GID)>>, ClientError> {
         let op = Op::Read(ReadExpr::NestedEdgesList {
             input: self.expr.clone(),
         });

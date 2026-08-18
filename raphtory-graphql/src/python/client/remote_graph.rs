@@ -338,11 +338,11 @@ impl PyRemoteGraph {
     /// Restrict to a subgraph induced by the given node ids. Lazy — no RPC.
     ///
     /// Arguments:
-    ///     nodes (list[str]): the ids of the nodes to keep.
+    ///     nodes (list[str | int]): the ids of the nodes to keep.
     ///
     /// Returns:
     ///     RemoteGraph: a new view restricted to the induced subgraph.
-    pub fn subgraph(&self, nodes: Vec<String>) -> PyRemoteGraph {
+    pub fn subgraph(&self, nodes: Vec<GID>) -> PyRemoteGraph {
         PyRemoteGraph {
             graph: Arc::new(self.graph.subgraph(nodes)),
         }
@@ -689,7 +689,7 @@ impl PyRemoteGraph {
     /// Returns:
     ///     list[RemoteNode]: the shared neighbours. Empty if `ids` is empty
     ///         or none of the ids exist in the current view.
-    pub fn shared_neighbours(&self, ids: Vec<String>) -> Result<Vec<PyRemoteNode>, ClientError> {
+    pub fn shared_neighbours(&self, ids: Vec<GID>) -> Result<Vec<PyRemoteNode>, ClientError> {
         let graph = Arc::clone(&self.graph);
         let nodes = execute_async_task(move || async move { graph.shared_neighbours(ids).await })?;
         Ok(nodes.into_iter().map(PyRemoteNode::new).collect())

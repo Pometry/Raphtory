@@ -312,7 +312,7 @@ impl From<PyUpdate> for TemporalUpdate {
 impl From<PyNodeAddition> for NodeAddition {
     fn from(n: PyNodeAddition) -> Self {
         Self {
-            name: n.name.to_string(),
+            name: n.name,
             node_type: n.node_type,
             metadata: n.metadata,
             updates: n.updates.map(|us| us.into_iter().map(Into::into).collect()),
@@ -323,8 +323,8 @@ impl From<PyNodeAddition> for NodeAddition {
 impl From<PyEdgeAddition> for EdgeAddition {
     fn from(e: PyEdgeAddition) -> Self {
         Self {
-            src: e.src.to_string(),
-            dst: e.dst.to_string(),
+            src: e.src,
+            dst: e.dst,
             layer: e.layer,
             metadata: e.metadata,
             updates: e.updates.map(|us| us.into_iter().map(Into::into).collect()),

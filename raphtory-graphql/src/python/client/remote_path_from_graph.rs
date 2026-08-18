@@ -12,7 +12,7 @@ use crate::{
 use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyRef, PyRefMut, PyResult};
 use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
 use raphtory_api::{
-    core::{storage::timeindex::EventTime, utils::time::InputTime},
+    core::{entities::GID, storage::timeindex::EventTime, utils::time::InputTime},
     python::timeindex::PyOptionalEventTime,
 };
 use std::sync::Arc;
@@ -377,9 +377,11 @@ impl PyRemotePathFromGraph {
     /// access fires one RPC.
     ///
     /// Returns:
-    ///     list[list[str]]: the ids, grouped per source node.
+    ///     list[list[str | int]]: the ids, grouped per source node —
+    ///     strings for string-indexed graphs, integers for integer-indexed
+    ///     ones.
     #[getter]
-    pub fn id(&self) -> Result<Vec<Vec<String>>, ClientError> {
+    pub fn id(&self) -> Result<Vec<Vec<GID>>, ClientError> {
         let path = Arc::clone(&self.path);
         execute_async_task(move || async move { path.id().await })
     }

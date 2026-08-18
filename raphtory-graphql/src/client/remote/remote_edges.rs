@@ -15,7 +15,7 @@ use crate::{
     model::graph::filtering::GqlFilter,
 };
 use raphtory::errors::GraphError;
-use raphtory_api::core::storage::timeindex::EventTime;
+use raphtory_api::core::{entities::GID, storage::timeindex::EventTime};
 use std::sync::Arc;
 
 /// A handle to a remote collection of edges on the server.
@@ -328,7 +328,7 @@ impl RemoteEdges {
 
     /// Columnar accessor: each edge's `(src, dst)` id pair — mirrors the local
     /// `Edges.id`. Fires one RPC.
-    pub async fn id(&self) -> Result<Vec<(String, String)>, ClientError> {
+    pub async fn id(&self) -> Result<Vec<(GID, GID)>, ClientError> {
         let op = Op::Read(ReadExpr::EdgesList {
             input: self.expr.clone(),
         });

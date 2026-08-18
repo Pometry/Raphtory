@@ -50,6 +50,17 @@ from raphtory import filter as f
 # --- name pools -----------------------------------------------------------------
 
 NODE_NAMES = ["n0", "n1", "n2", "n3", "n4", "n5"]
+NODE_IDS_INT = [0, 1, 2, 3, 4, 5]
+# A graph's id type is pinned by its first node write: string and integer ids
+# cannot mix within one graph. Each example draws one flavour as part of its
+# schema. "str" and "int" generate conforming graphs; "mixed" deliberately
+# draws from both pools so the wrong-type-id rejection stays exercised as
+# exception parity (both sides must refuse a mismatched id identically).
+ID_FLAVOURS = {
+    "str": NODE_NAMES,
+    "int": NODE_IDS_INT,
+    "mixed": NODE_NAMES[:3] + NODE_IDS_INT[:3],
+}
 LAYERS = ["alpha", "beta", "gamma"]
 NODE_TYPES = ["person", "bot", "org"]
 # Property-name vocabulary. Small and closed (like the pools above) so distinct
@@ -208,7 +219,6 @@ _times = st.integers(min_value=0, max_value=12)
 # Explicit event ids sit above any auto-assigned id a short sequence produces
 # (autos count writes from 0), so explicit and auto ids never collide.
 _event_ids = st.sampled_from([None, 50, 51, 52])
-_names = st.sampled_from(NODE_NAMES)
 _maybe_layer = st.sampled_from([None] + LAYERS)
 
 
@@ -230,9 +240,10 @@ def _props(draw, schema, max_size=3):
 # so `apply_op` can wrap each value to its pinned type at apply time.
 
 
-def _op_strategies(schema, meta_schema):
+def _op_strategies(schema, meta_schema, id_pool=NODE_NAMES):
     props = _props(schema)
     meta = _props(meta_schema, max_size=2)
+    _names = st.sampled_from(id_pool)
     return dict(
         add_node=st.tuples(
             st.just("add_node"),
@@ -285,16 +296,17 @@ def generated_case(draw, max_ops=20, min_ops=0, with_expr=False):
     """
     schema = draw(prop_schemas())
     meta_schema = draw(prop_schemas(names=META_NAMES))
+    id_pool = ID_FLAVOURS[draw(st.sampled_from(sorted(ID_FLAVOURS)))]
     ops = draw(
         st.lists(
-            st.one_of(*(_op_strategies(schema, meta_schema).values())),
+            st.one_of(*(_op_strategies(schema, meta_schema, id_pool).values())),
             min_size=min_ops,
             max_size=max_ops,
         )
     )
     if not with_expr:
         return schema, meta_schema, ops
-    expr = draw(filter_exprs(schema))
+    expr = draw(filter_exprs(schema, id_pool=id_pool))
     return schema, meta_schema, ops, expr
 
 
@@ -318,6 +330,7 @@ def safe_write_ops():
         "q2": ("leaf", "f64"),
     }
     ops = _op_strategies(schema, {})
+    _names = st.sampled_from(NODE_NAMES)
     return st.one_of(
         st.tuples(st.just("add_node"), _times, _names, _props(schema), st.none()),
         ops["add_edge"],
@@ -477,25 +490,28 @@ def _view_atoms():
     )
 
 
-def filter_exprs(schema, kinds=("node", "edge", "view")):
+def filter_exprs(schema, kinds=("node", "edge", "view"), id_pool=NODE_NAMES):
     """A recursive filter-expression tree, keyed by the example's schema.
 
     Leaves are weighted over combinators by ``st.recursive`` itself (it
     extends only a fraction of draws); depth is bounded by ``max_leaves=4``,
     which keeps combinator nesting at or below three levels.
     """
+    # Name-field comparisons are string comparisons on both sides; an int
+    # node's name is its decimal string, so the pools are stringified ids.
+    names = [str(x) for x in id_pool]
     leaves = []
     if "node" in kinds:
         leaves += [
             _prop_leaf("nprop", schema),
-            _field_leaf("nname", NODE_NAMES),
+            _field_leaf("nname", names),
             _field_leaf("ntype", NODE_TYPES),
         ]
     if "edge" in kinds:
         leaves += [
             _prop_leaf("eprop", schema),
-            _field_leaf("esrc", NODE_NAMES),
-            _field_leaf("edst", NODE_NAMES),
+            _field_leaf("esrc", names),
+            _field_leaf("edst", names),
         ]
     if "view" in kinds:
         leaves.append(_view_atoms())
