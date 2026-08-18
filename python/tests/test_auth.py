@@ -327,6 +327,32 @@ def test_mutations(query):
         assert_successful_response(response)
 
 
+def test_disable_ui_with_read_only_token():
+    """With the UI disabled, the browser UI (GET) is gone but the server still answers: /health is
+    up, an unauthenticated POST is still rejected (read token required), and a read-only token
+    queries successfully."""
+    work_dir = tempfile.mkdtemp()
+    with GraphServer(
+        work_dir,
+        config={"auth": {"public_key": PUB_KEY}, "schema": {"disable_ui": True}},
+    ).start() as server:
+        port = server.port()
+        data = json.dumps({"query": QUERY_ROOT})
+
+        # UI (any GET) is disabled.
+        assert requests.get(raphtory_url(port)).status_code == 404
+
+        # Server still responding: health check is up.
+        assert requests.get(f"{raphtory_url(port)}/health").status_code == 200
+
+        # The API (POST) still requires a token...
+        assert requests.post(raphtory_url(port), data=data).status_code == 401
+
+        # ...and a read-only token queries successfully.
+        response = requests.post(raphtory_url(port), headers=READ_HEADERS, data=data)
+        assert_successful_response(response)
+
+
 def test_raphtory_client():
     work_dir = tempfile.mkdtemp()
     with GraphServer(

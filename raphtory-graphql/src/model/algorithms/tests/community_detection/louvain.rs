@@ -33,24 +33,28 @@ async fn test_algorithm_louvain() {
 
     let res = setup.schema.execute(Request::new(query)).await;
     assert_eq!(res.errors, vec![], "{:?}", res.errors);
-    // two triangles -> two communities: {a,b,c} and {d,e,f}
+    // two triangles -> two communities: {a,b,c} and {d,e,f}. Row order follows
+    // storage-internal node order, so rows are sorted by id before comparing.
     let entry = |id: &str, community| {
         json!({
             "node": { "id": id },
             "entries": [{ "columnName": "community_id", "value": { "prop": community } }]
         })
     };
+    let mut data = res.data.into_json().unwrap();
+    let rows = data["graph"]["algorithm"]["louvain"]["rows"]
+        .as_array_mut()
+        .unwrap();
+    rows.sort_by_key(|row| row["node"]["id"].as_str().unwrap().to_string());
     assert_eq!(
-        res.data.into_json().unwrap(),
-        json!({
-            "graph": { "algorithm": { "louvain": { "rows": [
-                entry("a", 0),
-                entry("b", 0),
-                entry("c", 0),
-                entry("d", 1),
-                entry("e", 1),
-                entry("f", 1),
-            ] } } }
-        })
+        *rows,
+        vec![
+            entry("a", 0),
+            entry("b", 0),
+            entry("c", 0),
+            entry("d", 1),
+            entry("e", 1),
+            entry("f", 1),
+        ]
     );
 }
