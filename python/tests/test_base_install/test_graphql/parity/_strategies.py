@@ -97,9 +97,9 @@ _LEAF_TYPES = {
     "f32": ([-3.25, 0.5, 1.5], Prop.f32, "orderable"),
     "bool": ([True, False], None, "flag"),
     "str": (["red", "green", "blue", "redish"], None, "text"),
-    "dtime": ([_DT_A, _DT_B], Prop.aware_datetime, "orderable"),
-    "ndtime": ([_NDT_A, _NDT_B], Prop.naive_datetime, "orderable"),
-    "decimal": ([Decimal("3.14"), Decimal("-0.50")], Prop.decimal, "orderable"),
+    "dtime": ([_DT_A, _DT_B], None, "orderable"),
+    "ndtime": ([_NDT_A, _NDT_B], None, "orderable"),
+    "decimal": ([Decimal("3.14"), Decimal("-0.50")], None, "orderable"),
 }
 
 # Which comparison operators make sense per kind. This is THE registry: a leaf
