@@ -18,6 +18,7 @@ use crate::{
         transport::Transport,
         ClientError,
     },
+    data::GqlGraphType,
     model::graph::{
         filtering::GqlFilter,
         property::{gql_to_prop, parse_special_float},
@@ -1024,7 +1025,7 @@ fn render_read_into(
                         out,
                         "graph(path: {}, graphType: {})",
                         render_gql_str(path),
-                        flavour
+                        flavour.as_gql()
                     )?;
                 }
                 None => write!(out, "graph(path: {})", render_gql_str(path))?,
@@ -4260,7 +4261,7 @@ mod tests {
         property::Value as GqlValue,
     };
     use raphtory_api::core::storage::timeindex::AsTime;
-    use std::sync::Arc;
+    use std::{str::FromStr, sync::Arc};
 
     // ============ Unit tests for the read pipeline ============
 
@@ -4302,7 +4303,7 @@ mod tests {
         let expr = ReadExpr::CountNodes {
             input: Arc::new(ReadExpr::Root {
                 path: "g".into(),
-                graph_type: Some("EVENT".into()),
+                graph_type: Some(GqlGraphType::Event),
             }),
         };
         let (query, _) = render_read(&expr).unwrap();
@@ -4541,6 +4542,23 @@ mod tests {
             query.matches('}').count(),
             "unbalanced braces in: {query}"
         );
+    }
+
+    #[test]
+    fn graph_type_parses_and_renders_as_a_gql_enum_literal() {
+        // The value is spliced into the query as a bare token, so the typed
+        // enum is what keeps an arbitrary string out of the query text.
+        assert_eq!(GqlGraphType::Event.as_gql(), "EVENT");
+        assert_eq!(GqlGraphType::Persistent.as_gql(), "PERSISTENT");
+        assert_eq!(GqlGraphType::from_str("EVENT"), Ok(GqlGraphType::Event));
+        assert_eq!(
+            GqlGraphType::from_str("PERSISTENT"),
+            Ok(GqlGraphType::Persistent)
+        );
+        // Anything else is rejected at the boundary rather than reaching the
+        // server, including a lowercase spelling of a real variant.
+        assert!(GqlGraphType::from_str("event").is_err());
+        assert!(GqlGraphType::from_str("PERSISTENT) { evil }").is_err());
     }
 
     // ============ Unit tests for node-id rendering ============
@@ -4812,7 +4830,10 @@ mod tests {
         let client = RemoteClient::new(url, None);
 
         // Create the graph
-        client.new_graph("test-graph", "EVENT").await.unwrap();
+        client
+            .new_graph("test-graph", GqlGraphType::Event)
+            .await
+            .unwrap();
 
         let rg = client.remote_graph("test-graph".into());
 
@@ -4909,7 +4930,10 @@ mod tests {
         let running = server.start_with_port(0).await.unwrap();
         let url = Url::parse(&format!("http://localhost:{}", running.port())).unwrap();
         let client = RemoteClient::new(url, None);
-        client.new_graph("parity-filter", "EVENT").await.unwrap();
+        client
+            .new_graph("parity-filter", GqlGraphType::Event)
+            .await
+            .unwrap();
         let rg = client.remote_graph("parity-filter".into());
 
         for (name, score) in [("a", 10i64), ("b", 20), ("c", 30)] {
@@ -5079,7 +5103,10 @@ mod tests {
         let running = server.start_with_port(0).await.unwrap();
         let url = Url::parse(&format!("http://localhost:{}", running.port())).unwrap();
         let client = RemoteClient::new(url, None);
-        client.new_graph("parity-explode", "EVENT").await.unwrap();
+        client
+            .new_graph("parity-explode", GqlGraphType::Event)
+            .await
+            .unwrap();
         let rg = client.remote_graph("parity-explode".into());
 
         for (t, w) in [(1i64, 1i64), (5, 2)] {

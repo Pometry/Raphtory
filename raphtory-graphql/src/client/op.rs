@@ -4,7 +4,7 @@
 //! hands it to the transport. This module is the single source of truth for
 //! what "an operation" means on the wire.
 
-use crate::{client::properties_to_input, model::graph::filtering::GqlFilter};
+use crate::{client::properties_to_input, data::GqlGraphType, model::graph::filtering::GqlFilter};
 use raphtory_api::core::entities::{properties::prop::Prop, GID};
 // Re-exported so the client transport wrappers import the op tree's time type
 // from one place (`op::InputTime`), same as `ReadExpr`/`WriteOp`.
@@ -52,11 +52,11 @@ pub enum ReadExpr {
     Root {
         path: String,
         /// Optional graph-semantics override, rendered as the server's
-        /// `graphType:` argument (`EVENT` / `PERSISTENT`). `None` keeps the
-        /// stored graph's native flavour. Set by `RemoteGraph::event_graph` /
-        /// `persistent_graph` — the remote form of the local zero-copy
-        /// flavour conversions, applied at load time by the server.
-        graph_type: Option<String>,
+        /// `graphType:` argument. `None` keeps the stored graph's native
+        /// flavour. Set by `RemoteGraph::event_graph` / `persistent_graph` —
+        /// the remote form of the local zero-copy flavour conversions,
+        /// applied at load time by the server.
+        graph_type: Option<GqlGraphType>,
     },
 
     // ============ View chaining (Graph → Graph) ============

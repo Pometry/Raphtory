@@ -1,5 +1,6 @@
 use crate::{
     client::{is_online, remote_client::RemoteClient, ClientError},
+    data::GqlGraphType,
     model::graph::filtering::{GqlEdgeFilter, GqlNodeFilter},
     python::{
         client::{remote_graph::PyRemoteGraph, PyRemoteIndexSpec},
@@ -17,7 +18,7 @@ use raphtory::{
     python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task},
 };
 use serde_json::{json, Value as JsonValue};
-use std::{collections::HashMap, future::Future, sync::Arc};
+use std::{collections::HashMap, future::Future, str::FromStr, sync::Arc};
 use tracing::debug;
 use url::Url;
 
@@ -233,9 +234,13 @@ impl PyRaphtoryClient {
     ///     RemoteGraph: a reference to the newly created graph.
     ///
     fn new_graph(&self, path: String, graph_type: String) -> PyResult<PyRemoteGraph> {
+        // The Python surface keeps the string spelling; parsing it here is the
+        // boundary where it becomes a typed graph model, so an invalid value
+        // fails with a clear message before any request is sent.
+        let graph_type = GqlGraphType::from_str(&graph_type).map_err(PyValueError::new_err)?;
         let create_path = path.clone();
         self.run_async(
-            move |client| async move { client.new_graph(&create_path, &graph_type).await },
+            move |client| async move { client.new_graph(&create_path, graph_type).await },
         )?;
         Ok(self.remote_graph(path))
     }

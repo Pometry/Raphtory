@@ -20,6 +20,7 @@ use crate::{
         },
         ClientError,
     },
+    data::GqlGraphType,
     model::graph::filtering::GqlFilter,
 };
 use raphtory::errors::GraphError;
@@ -71,11 +72,12 @@ impl RemoteGraph {
     /// graph classes, not on views, so a converted handle always starts a
     /// fresh (unviewed) expression and applying it mid-chain is refused
     /// rather than silently dropping the accumulated views.
-    fn with_flavour(&self, flavour: &str) -> Result<RemoteGraph, ClientError> {
+    fn with_flavour(&self, flavour: GqlGraphType) -> Result<RemoteGraph, ClientError> {
         if !matches!(&*self.expr, ReadExpr::Root { .. }) {
             return Err(ClientError::InvalidInput(format!(
-                "{flavour}-semantics conversion applies to the base graph — call it \
-                 before any view operations, as with the local API"
+                "{}-semantics conversion applies to the base graph — call it \
+                 before any view operations, as with the local API",
+                flavour.as_gql()
             )));
         }
         Ok(Self {
@@ -83,7 +85,7 @@ impl RemoteGraph {
             transport: self.transport.clone(),
             expr: ReadExpr::Root {
                 path: self.path.clone(),
-                graph_type: Some(flavour.to_string()),
+                graph_type: Some(flavour),
             }
             .into(),
         })
@@ -91,12 +93,12 @@ impl RemoteGraph {
 
     /// View this graph with event semantics. Lazy — no RPC.
     pub fn event_graph(&self) -> Result<RemoteGraph, ClientError> {
-        self.with_flavour("EVENT")
+        self.with_flavour(GqlGraphType::Event)
     }
 
     /// View this graph with persistent semantics. Lazy — no RPC.
     pub fn persistent_graph(&self) -> Result<RemoteGraph, ClientError> {
-        self.with_flavour("PERSISTENT")
+        self.with_flavour(GqlGraphType::Persistent)
     }
 
     /// Time-window the graph. Lazy — builds up the read expression, no RPC.
