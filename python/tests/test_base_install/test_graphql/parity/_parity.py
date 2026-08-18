@@ -25,6 +25,7 @@ import contextlib
 import datetime
 import math
 import tempfile
+from collections.abc import Iterable
 from dataclasses import dataclass
 
 from raphtory import Graph, PersistentGraph
@@ -66,7 +67,7 @@ def graph_pair(build, graph_type="EVENT"):
     except KeyError:
         raise ValueError(
             f"unknown graph_type {graph_type!r}, expected one of {list(GRAPH_TYPES)}"
-        ) from None
+        )
     local = local_cls()
     build(local)
     # TemporaryDirectory (outer) is torn down only after the server context
@@ -135,11 +136,6 @@ def canonical(value):
     value does not survive the round-trip exactly, that is a product bug for
     ``KNOWN_GAPS`` and an issue, not something to paper over here.
     """
-    if isinstance(value, (str, bytes)) or value is None or isinstance(value, bool):
-        return value
-    if isinstance(value, (int, float)):
-        return value
-
     if type(value).__name__ in _UNORDERED_COLLECTIONS:
         return sorted((canonical(v) for v in value), key=repr)
 
@@ -151,14 +147,10 @@ def canonical(value):
         # `dict.__eq__` already ignores key order, so keys are left alone; a
         # test that cares about map *order* asserts it explicitly.
         return {k: canonical(v) for k, v in value.items()}
-    if isinstance(value, (list, tuple)):
+    # str/bytes are Iterable but compare as scalars, never element-wise.
+    if isinstance(value, Iterable) and not isinstance(value, (str, bytes)):
         return [canonical(v) for v in value]
-
-    try:
-        items = iter(value)
-    except TypeError:
-        return value
-    return [canonical(v) for v in items]
+    return value
 
 
 def _run(fn, g):

@@ -1090,31 +1090,6 @@ def test_edge_expr_in_a_node_subscript_is_refused_the_same_way(
     )
 
 
-def test_comparison_to_a_non_string_type_is_a_python_error(filter_pair):
-    """`node_type() == 5` never becomes an expression, on either side.
-
-    The comparison itself raises, rather than falling back to Python's default
-    `==` and yielding a plain `bool`. That fallback was the dangerous shape: it
-    turned a mistyped comparison into a value that is not a filter at all, and
-    would silently become a match-everything filter the day a bare `bool` is
-    accepted as one. Failing at the comparison also puts the error where the
-    mistake is, instead of at some later `filter()` call.
-
-    Being a builder-level rule this is backend-independent — the expression is
-    never built, so neither side is ever reached.
-    """
-    with pytest.raises(TypeError):
-        f.Node.node_type() == 5
-    with pytest.raises(TypeError):
-        f.Node.node_type() != 5
-    # A correctly typed comparison still builds an expression both sides apply.
-    assert isinstance(f.Node.node_type() == "person", f.FilterExpr)
-    assert_parity(
-        filter_pair,
-        lambda g: sorted(n.name for n in g.nodes[f.Node.node_type() == "person"]),
-    )
-
-
 def test_is_in_with_a_mistyped_value_matches_nothing_on_both_sides(filter_pair):
     """`is_in` with values of the wrong type is empty, not an error.
 

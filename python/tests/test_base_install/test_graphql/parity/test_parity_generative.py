@@ -278,7 +278,7 @@ def test_generated_writes_full_state_parity(client, case):
     # line per distinct number, so 3+ collapses into a single "3" bucket.
     event(f"writes: rejected={min(rejected, 3)}{'+' if rejected > 3 else ''}")
     event(
-        f"writes: ops={'none' if not ops else 'few' if len(ops) <= 4 else 'several' if len(ops) <= 8 else 'many'}"
+        f"writes: ops={'0' if not ops else '1-4' if len(ops) <= 4 else '5-8' if len(ops) <= 8 else '>8'}"
     )
     assert_parity(pair, probe_full_state)
 

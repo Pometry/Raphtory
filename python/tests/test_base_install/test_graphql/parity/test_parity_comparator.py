@@ -98,6 +98,7 @@ def test_datetime_timezone_is_not_normalized():
     aware = datetime.datetime(2021, 3, 4, 5, 6, 7, tzinfo=datetime.timezone.utc)
     assert not _agree(naive, aware)
     assert _agree(aware, aware)
+    assert _agree(naive, naive)
 
 
 def test_sequence_order_is_preserved():
@@ -166,6 +167,20 @@ def test_assert_parity_requires_both_sides_to_raise_the_same_type():
         if g == "local":
             raise ValueError("local only")
         return 1
+
+    with pytest.raises(AssertionError, match="exception parity mismatch"):
+        assert_parity(_pair("local", "remote"), boom)
+
+
+def test_assert_parity_rejects_two_different_exception_types():
+    """Both sides refusing is only parity if they refuse the same way — a
+    remote that turns every local ValueError into a generic error would
+    otherwise pass every rejection case."""
+
+    def boom(g):
+        if g == "local":
+            raise ValueError("local flavour")
+        raise TypeError("remote flavour")
 
     with pytest.raises(AssertionError, match="exception parity mismatch"):
         assert_parity(_pair("local", "remote"), boom)
