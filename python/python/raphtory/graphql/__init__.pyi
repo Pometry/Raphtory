@@ -1257,12 +1257,12 @@ class RemoteGraph(object):
             OptionalEventTime: the view start bound, or empty if unbounded.
         """
 
-    def subgraph(self, nodes: list[str]) -> RemoteGraph:
+    def subgraph(self, nodes: list[str | int]) -> RemoteGraph:
         """
         Restrict to a subgraph induced by the given node ids. Lazy — no RPC.
 
         Arguments:
-            nodes (list[str]): the ids of the nodes to keep.
+            nodes (list[str | int]): the ids of the nodes to keep.
 
         Returns:
             RemoteGraph: a new view restricted to the induced subgraph.
@@ -1613,12 +1613,14 @@ class RemoteEdge(object):
         """
 
     @property
-    def id(self) -> tuple[str, str]:
+    def id(self) -> tuple[str | int, str | int]:
         """
         Edge id as a `(src, dst)` pair of endpoint ids. Property — fires one RPC.
 
         Returns:
-            tuple[str, str]: the `(src, dst)` pair of endpoint ids.
+            tuple[str | int, str | int]: the `(src, dst)` pair of endpoint
+                ids — strings for string-indexed graphs, integers for
+                integer-indexed ones.
         """
 
     def is_active(self) -> bool:
@@ -2104,13 +2106,14 @@ class RemoteNode(object):
         """
 
     @property
-    def id(self) -> str:
+    def id(self):
         """
         The node's id (as a string, even if the graph uses integer GIDs).
         Property — attribute access fires one RPC.
 
         Returns:
-            str: the node's id.
+            str | int: the node's id — a string for string-indexed graphs, an
+                integer for integer-indexed ones.
         """
 
     @property
@@ -2621,13 +2624,14 @@ class RemoteNodes(object):
         """
 
     @property
-    def id(self) -> list[str]:
+    def id(self) -> list[str | int]:
         """
         The id of each node in this collection. Property — attribute access
         fires one RPC.
 
         Returns:
-          list[str]: the ids, in collection order.
+          list[str | int]: the ids, in collection order — strings for
+          string-indexed graphs, integers for integer-indexed ones.
         """
 
     def in_degree(self) -> list[int]:
@@ -3129,12 +3133,13 @@ class RemotePathFromNode(object):
         """
 
     @property
-    def id(self) -> list[str]:
+    def id(self) -> list[str | int]:
         """
         The id of each node in this path. Property — attribute access fires one RPC.
 
         Returns:
-            list[str]: the ids, in path order.
+            list[str | int]: the ids, in path order — strings for
+            string-indexed graphs, integers for integer-indexed ones.
         """
 
     def in_degree(self) -> list[int]:
@@ -3624,13 +3629,15 @@ class RemotePathFromGraph(object):
         """
 
     @property
-    def id(self) -> list[list[str]]:
+    def id(self) -> list[list[str | int]]:
         """
         The id of each neighbour, grouped per source node. Property — attribute
         access fires one RPC.
 
         Returns:
-            list[list[str]]: the ids, grouped per source node.
+            list[list[str | int]]: the ids, grouped per source node —
+            strings for string-indexed graphs, integers for integer-indexed
+            ones.
         """
 
     def in_degree(self) -> list[list[int]]:
@@ -4116,13 +4123,15 @@ class RemoteEdges(object):
         """
 
     @property
-    def id(self) -> list[tuple[str, str]]:
+    def id(self) -> list[tuple[str | int, str | int]]:
         """
         The `(src, dst)` id pair of each edge in this collection. Property —
         attribute access fires one RPC.
 
         Returns:
-          list[tuple[str, str]]: the id pairs, in collection order.
+          list[tuple[str | int, str | int]]: the id pairs, in collection
+          order — endpoint ids are strings for string-indexed graphs,
+          integers for integer-indexed ones.
         """
 
     def is_active(self) -> list[bool]:
@@ -4612,13 +4621,15 @@ class RemoteNestedEdges(object):
         """
 
     @property
-    def id(self) -> list[list[tuple[str, str]]]:
+    def id(self) -> list[list[tuple[str | int, str | int]]]:
         """
         The `(src, dst)` id pair of each edge, grouped per source node.
         Property — attribute access fires one RPC.
 
         Returns:
-          list[list[tuple[str, str]]]: id pairs grouped per source node.
+          list[list[tuple[str | int, str | int]]]: id pairs grouped per
+          source node — endpoint ids are strings for string-indexed graphs,
+          integers for integer-indexed ones.
         """
 
     def is_active(self) -> list[list[bool]]:

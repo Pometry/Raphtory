@@ -32,13 +32,14 @@ from raphtory.iterables import *
 
 __all__ = ["gql", "register_procedure", "GqlResult", "GqlRow"]
 
-def gql(graph: Any, query: Any, params=None):
+def gql(graph: Any, query: Any, params: Any = None):
     """
     Execute a GQL query against a Raphtory graph view.
 
     Args:
         graph: A Raphtory GraphView to query
         query: A GQL query string
+        params: A dict of query parameter names to values, bound to the query when provided.
 
     Returns:
         A GqlResult object with table display, pandas conversion, and iteration.
@@ -98,6 +99,26 @@ class GqlRow(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def keys(self): ...
-    def to_dict(self): ...
-    def values(self): ...
+    def keys(self) -> list[str]:
+        """
+        Get the column names of the row.
+
+        Returns:
+            list[str]: The column names, in result order.
+        """
+
+    def to_dict(self) -> dict[str, Any]:
+        """
+        Convert the row to a dictionary of column name to value.
+
+        Returns:
+            dict[str, Any]: The row as a dictionary.
+        """
+
+    def values(self) -> list[Any]:
+        """
+        Get the values of the row.
+
+        Returns:
+            list[Any]: The values, in the same order as `keys()`.
+        """

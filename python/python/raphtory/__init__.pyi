@@ -73,6 +73,7 @@ __all__ = [
     "node_state",
     "filter",
     "iterables",
+    "gql",
     "nullmodels",
     "plottingutils",
 ]
