@@ -219,8 +219,13 @@ class RunningGraphServer(object):
             RaphtoryClient: the client.
         """
 
-    def port(self):
-        """Get the port the server is listening on"""
+    def port(self) -> int:
+        """
+        Get the port the server is listening on
+
+        Returns:
+            int: the port the server is listening on.
+        """
 
     def stop(self) -> None:
         """

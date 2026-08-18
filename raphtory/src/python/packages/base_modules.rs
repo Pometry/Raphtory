@@ -237,7 +237,6 @@ pub fn base_graph_loader_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, P
         &graph_loader_module,
         lotr_graph,
         lotr_graph_with_props,
-        neo4j_movie_graph,
         stable_coin_graph,
         reddit_hyperlink_graph,
         reddit_hyperlink_graph_local,

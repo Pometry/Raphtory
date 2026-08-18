@@ -147,9 +147,9 @@ impl PyPersistentGraph {
     ///     path (str | PathLike): the path of the graph folder
     ///     config (Config, optional): specify a new config to override the values saved for the graph
     ///                                (note that the page sizes cannot be overridden and are ignored)
-    ///     read_only (bool): open as a read-only snapshot. Defaults to False.
-    ///                       Multiple processes can hold a read-only handle to the same graph
-    ///                       directory concurrently; mutating the returned graph will fail.
+    ///     read_only (bool, optional): open as a read-only snapshot. Multiple processes can hold
+    ///                       a read-only handle to the same graph directory concurrently;
+    ///                       mutating the returned graph will fail. Defaults to False.
     ///
     /// Returns:
     ///     PersistentGraph: the graph

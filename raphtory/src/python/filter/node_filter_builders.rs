@@ -423,7 +423,7 @@ impl PyNodeFilter {
     /// Selects incoming node degree for filtering.
     ///
     /// Returns:
-    ///     filter.FilterOps
+    ///     filter.FilterOps: a builder that selects the node degree for filtering.
     #[staticmethod]
     fn in_degree<'py>(_py: Python<'py>) -> PyPropertyExprBuilder {
         PyPropertyExprBuilder(Arc::new(NodeFilter.in_degree()))
@@ -432,7 +432,7 @@ impl PyNodeFilter {
     /// Selects total node degree for filtering.
     ///
     /// Returns:
-    ///     filter.FilterOps
+    ///     filter.FilterOps: a builder that selects the node degree for filtering.
     #[staticmethod]
     fn degree<'py>(_py: Python<'py>) -> PyPropertyExprBuilder {
         PyPropertyExprBuilder(Arc::new(NodeFilter.degree()))
@@ -441,7 +441,7 @@ impl PyNodeFilter {
     /// Selects outgoing node degree for filtering.
     ///
     /// Returns:
-    ///     filter.FilterOps
+    ///     filter.FilterOps: a builder that selects the node degree for filtering.
     #[staticmethod]
     fn out_degree<'py>(_py: Python<'py>) -> PyPropertyExprBuilder {
         PyPropertyExprBuilder(Arc::new(NodeFilter.out_degree()))
