@@ -1,15 +1,17 @@
-"""Return *types* must match, not just return values.
+"""Absent times report absence, on both sides, as a real time object.
 
-Value parity has a blind spot: raphtory's time types compare equal across
-classes, so ``OptionalEventTime(Some(1)) == EventTime(1)`` is ``True``. A remote
-accessor could therefore hand back a different class from its local counterpart
-and every value assertion in this suite would still pass — while real user code
-broke, because the two classes disagree about ``is None``, ``.is_none()`` and
-``x.t`` on an empty value.
+The class-level half of this lives in the comparator: raphtory's time types
+compare equal across classes and to bare ints, so ``canonical`` carries the
+class alongside the value (see ``_TIME_TYPES`` in ``_parity.py``) and *every*
+parity assertion in the suite rejects a substituted return type. Nothing here
+needs to re-list accessors for that.
 
-So the drop-in claim needs a second, type-level check. Each case below reaches
-the same accessor on both sides and asserts the *classes* agree, both when a
-value is present and — where reachable — when it is absent.
+What the comparator cannot check is the one case below. An absent time is an
+``OptionalEventTime`` that *reprs as* ``None`` and compares equal to it, while
+``is None`` is ``False`` and ``is_none()`` is ``True``. Parity only says the two
+sides agree; it cannot say they are both genuinely reporting absence rather
+than both returning a present value. That is a per-side assertion, so it stays
+explicit.
 """
 
 import pytest
@@ -23,80 +25,6 @@ def _build(g):
     g.add_node(6, "c")
     g.add_edge(3, "a", "b")
     g.add_edge(7, "a", "c")
-
-
-@pytest.fixture(scope="module")
-def pair():
-    with graph_pair(_build) as p:
-        yield p
-
-
-# Accessors that yield a single optional time. Locally every one of these is an
-# `OptionalEventTime` — one static class whether or not a time exists — so the
-# remote must not substitute `EventTime`/`None`.
-SCALAR_TIME_ACCESSORS = {
-    "graph.earliest_time": lambda g: g.earliest_time,
-    "graph.latest_time": lambda g: g.latest_time,
-    "graph.start": lambda g: g.start,
-    "graph.end": lambda g: g.end,
-    "node.earliest_time": lambda g: g.node("a").earliest_time,
-    "node.latest_time": lambda g: g.node("a").latest_time,
-    "node.start": lambda g: g.node("a").start,
-    "node.end": lambda g: g.node("a").end,
-    "edge.earliest_time": lambda g: g.edge("a", "b").earliest_time,
-    "edge.latest_time": lambda g: g.edge("a", "b").latest_time,
-    "edge.start": lambda g: g.edge("a", "b").start,
-    "edge.end": lambda g: g.edge("a", "b").end,
-    "nodes.start": lambda g: g.nodes.start,
-    "nodes.end": lambda g: g.nodes.end,
-    "edges.start": lambda g: g.edges.start,
-    "edges.end": lambda g: g.edges.end,
-    "history.earliest_time": lambda g: g.node("a").history.earliest_time(),
-    "history.latest_time": lambda g: g.node("a").history.latest_time(),
-}
-
-# Accessors that yield a *collection* of times. Locally the elements are bare
-# `EventTime` (an entity in a collection always has events), so wrapping them
-# in an optional remotely would be just as much a divergence as the reverse.
-COLLECTION_TIME_ACCESSORS = {
-    "nodes.earliest_time": lambda g: list(g.nodes.earliest_time),
-    "nodes.latest_time": lambda g: list(g.nodes.latest_time),
-    "edges.earliest_time": lambda g: list(g.edges.earliest_time),
-    "edges.latest_time": lambda g: list(g.edges.latest_time),
-    "node.history": lambda g: list(g.node("a").history),
-    "path.earliest_time": lambda g: list(g.node("a").neighbours.earliest_time),
-    "nested.earliest_time": lambda g: [
-        x for row in g.nodes.neighbours.earliest_time for x in row
-    ],
-}
-
-
-def _types(pair, fn):
-    """``(local_type, remote_type)`` for ``fn`` applied to each side."""
-    return type(fn(pair.local)), type(fn(pair.remote))
-
-
-@pytest.mark.parametrize("name", sorted(SCALAR_TIME_ACCESSORS))
-def test_scalar_time_accessor_types_match(pair, name):
-    local, remote = _types(pair, SCALAR_TIME_ACCESSORS[name])
-    assert local is remote, (
-        f"{name} returns {local.__name__} locally but {remote.__name__} remotely; "
-        f"the two classes disagree about `is None` / `.is_none()` / `.t`, so this "
-        f"is a drop-in break even though the values compare equal"
-    )
-
-
-@pytest.mark.parametrize("name", sorted(COLLECTION_TIME_ACCESSORS))
-def test_collection_time_element_types_match(pair, name):
-    fn = COLLECTION_TIME_ACCESSORS[name]
-    local_items, remote_items = fn(pair.local), fn(pair.remote)
-    assert local_items and remote_items, f"{name}: nothing to compare"
-    local_types = {type(x).__name__ for x in local_items}
-    remote_types = {type(x).__name__ for x in remote_items}
-    assert local_types == remote_types, (
-        f"{name} yields {sorted(local_types)} locally but "
-        f"{sorted(remote_types)} remotely"
-    )
 
 
 # Accessors with no value to report, and the models they are empty in. An

@@ -103,6 +103,17 @@ _UNORDERED_COLLECTIONS = frozenset(
 )
 
 
+# Time classes that compare equal to *each other* and to a bare ``int``:
+# ``OptionalEventTime(1) == EventTime(1) == 1`` are all true, and an empty
+# ``OptionalEventTime`` equals ``None``. So value comparison alone cannot see a
+# substituted class — while the classes differ where it matters to callers
+# (``is None`` flips, and ``is_none()`` exists on only one of them). The
+# comparator therefore carries the class alongside the value for these, so a
+# remote that swapped one for the other, or degraded to a bare int or ``None``,
+# fails instead of passing silently.
+_TIME_TYPES = frozenset({"OptionalEventTime", "EventTime"})
+
+
 def _identity(value):
     """``('edge', src, dst)`` / ``('node', name)`` for an entity, else ``None``."""
     src, dst = getattr(value, "src", None), getattr(value, "dst", None)
@@ -130,13 +141,24 @@ def canonical(value):
        remote ``RemoteHistory`` are distinct classes, so ``==`` between them is
        meaningless; listing them makes their *contents* comparable without
        reordering anything, so a real difference still fails.
+    4. **Time values carry their class.** This one *tightens* the comparison
+       rather than bridging a difference: the time classes compare equal to
+       each other and to bare ints, so without the class a substituted return
+       type would pass (see ``_TIME_TYPES``). The value itself is kept as-is
+       alongside it, so nothing about the comparison is weakened.
 
-    Nothing else is touched. Float precision, datetime timezone, ``NaN``,
-    map key order and ``EventTime``-vs-``int`` all compare as they come: if a
-    value does not survive the round-trip exactly, that is a product bug for
-    ``KNOWN_GAPS`` and an issue, not something to paper over here.
+    Nothing else is touched. Float precision, datetime timezone, ``NaN`` and
+    map key order all compare as they come: if a value does not survive the
+    round-trip exactly, that is a product bug for ``KNOWN_GAPS`` and an issue,
+    not something to paper over here.
     """
-    if type(value).__name__ in _UNORDERED_COLLECTIONS:
+    name = type(value).__name__
+    if name in _TIME_TYPES:
+        # Paired with the value, not a reduction of it: `==` on the value keeps
+        # doing whatever it did before, and the class merely has to match too.
+        return (name, value)
+
+    if name in _UNORDERED_COLLECTIONS:
         return sorted((canonical(v) for v in value), key=repr)
 
     identity = _identity(value)
