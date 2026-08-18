@@ -274,6 +274,12 @@ impl AppConfigBuilder {
                                         .map_err(|e| invalid_value([path, sub_path], e))?,
                                 );
                             }
+                            SchemaConfigFieldName::DisableUi => {
+                                self.with_disable_ui(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
                         }
                     }
                 }
@@ -434,6 +440,11 @@ impl AppConfigBuilder {
 
     pub fn with_disable_introspection(&mut self, disable_introspection: bool) -> &mut Self {
         self.config.schema.disable_introspection = disable_introspection;
+        self
+    }
+
+    pub fn with_disable_ui(&mut self, disable_ui: bool) -> &mut Self {
+        self.config.schema.disable_ui = disable_ui;
         self
     }
 

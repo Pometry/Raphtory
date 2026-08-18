@@ -69,6 +69,7 @@ __all__ = [
     "algorithms",
     "graph_loader",
     "graph_gen",
+    "vectors",
     "node_state",
     "filter",
     "iterables",
@@ -666,6 +667,26 @@ class GraphView(object):
 
         Returns:
              GraphView: The layered view
+        """
+
+    def vectorise(
+        self,
+        model: VectorCache,
+        nodes: bool | str = True,
+        edges: bool | str = True,
+        verbose: bool = False,
+    ) -> VectorisedGraph:
+        """
+        Create a VectorisedGraph from the current graph.
+
+        Args:
+          model (VectorCache): Cache wrapping the embedding model used to embed documents.
+          nodes (bool | str): Enable for nodes to be embedded, disable for nodes to not be embedded or specify a custom document property to use if a string is provided. Defaults to True.
+          edges (bool | str): Enable for edges to be embedded, disable for edges to not be embedded or specify a custom document property to use if a string is provided. Defaults to True.
+          verbose (bool): Enable to print logs reporting progress. Defaults to False.
+
+        Returns:
+          VectorisedGraph: A VectorisedGraph with all the documents and their embeddings, with an initial empty selection.
         """
 
     def window(self, start: TimeInput, end: TimeInput) -> GraphView:
