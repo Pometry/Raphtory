@@ -278,7 +278,7 @@ impl PyRemoteEdge {
         let task = move || async move {
             edge.add_updates(
                 input_time_from_parts(t.t(), event_id),
-                properties,
+                properties.into_iter().flatten(),
                 layer_str,
             )
             .await

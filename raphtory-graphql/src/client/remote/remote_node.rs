@@ -1,5 +1,6 @@
 use crate::{
     client::{
+        collect_opt_props, collect_props,
         op::{
             AddNodeMetadata as AddNodeMetadataOp, AddNodeUpdates as AddNodeUpdatesOp, HandleCtx,
             HandleOp, InputTime, Op, ReadExpr, SetNodeType as SetNodeTypeOp,
@@ -24,7 +25,7 @@ use raphtory_api::core::{
     storage::timeindex::EventTime,
     utils::time::TryIntoInputTime,
 };
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
 /// A handle to a remote node on the server.
 ///
@@ -502,17 +503,22 @@ impl RemoteNode {
     /// Add temporal updates to the node at the specified time. `event_id` locks
     /// the secondary index (as on `add_node`); `None` lets the server
     /// auto-increment.
-    pub async fn add_updates<T: TryIntoInputTime>(
+    pub async fn add_updates<
+        T: TryIntoInputTime,
+        PN: AsRef<str>,
+        P: Into<Prop>,
+        PII: IntoIterator<Item = (PN, P)>,
+    >(
         &self,
         t: T,
-        properties: Option<HashMap<String, Prop>>,
+        properties: PII,
         layer: Option<String>,
     ) -> Result<(), ClientError> {
         let op = Op::Write(WriteOp::AddNodeUpdates(AddNodeUpdatesOp {
             path: self.path.clone(),
             id: self.id.clone(),
             time: t.try_into_input_time()?,
-            properties,
+            properties: collect_opt_props(properties),
             layer,
         }));
         self.transport.execute(&op).await?;
@@ -520,25 +526,28 @@ impl RemoteNode {
     }
 
     /// Add metadata to the node (properties that do not change over time).
-    pub async fn add_metadata(&self, properties: HashMap<String, Prop>) -> Result<(), ClientError> {
+    pub async fn add_metadata<PN: AsRef<str>, P: Into<Prop>>(
+        &self,
+        properties: impl IntoIterator<Item = (PN, P)>,
+    ) -> Result<(), ClientError> {
         let op = Op::Write(WriteOp::AddNodeMetadata(AddNodeMetadataOp {
             path: self.path.clone(),
             id: self.id.clone(),
-            properties,
+            properties: collect_props(properties),
         }));
         self.transport.execute(&op).await?;
         Ok(())
     }
 
     /// Update metadata of the node, overwriting existing values.
-    pub async fn update_metadata(
+    pub async fn update_metadata<PN: AsRef<str>, P: Into<Prop>>(
         &self,
-        properties: HashMap<String, Prop>,
+        properties: impl IntoIterator<Item = (PN, P)>,
     ) -> Result<(), ClientError> {
         let op = Op::Write(WriteOp::UpdateNodeMetadata(UpdateNodeMetadataOp {
             path: self.path.clone(),
             id: self.id.clone(),
-            properties,
+            properties: collect_props(properties),
         }));
         self.transport.execute(&op).await?;
         Ok(())

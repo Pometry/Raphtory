@@ -813,7 +813,7 @@ impl PyRemoteGraph {
                 .add_node(
                     input_time_from_parts(timestamp.t(), event_id),
                     id,
-                    properties,
+                    properties.into_iter().flatten(),
                     node_type,
                     layer,
                 )
@@ -855,7 +855,7 @@ impl PyRemoteGraph {
                 .create_node(
                     input_time_from_parts(timestamp.t(), event_id),
                     id,
-                    properties,
+                    properties.into_iter().flatten(),
                     node_type,
                     layer,
                 )
@@ -947,7 +947,7 @@ impl PyRemoteGraph {
                     input_time_from_parts(timestamp.t(), event_id),
                     src,
                     dst,
-                    properties,
+                    properties.into_iter().flatten(),
                     layer,
                 )
                 .await

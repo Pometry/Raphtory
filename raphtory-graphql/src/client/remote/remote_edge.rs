@@ -1,5 +1,6 @@
 use crate::{
     client::{
+        collect_opt_props, collect_props,
         op::{
             AddEdgeMetadata as AddEdgeMetadataOp, AddEdgeUpdates as AddEdgeUpdatesOp,
             DeleteEdgeAtTime as DeleteEdgeAtTimeOp, Fanout, HandleCtx, HandleOp, InputTime, Op,
@@ -23,7 +24,7 @@ use raphtory_api::core::{
     storage::timeindex::EventTime,
     utils::time::TryIntoInputTime,
 };
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
 /// A handle to a remote edge on the server.
 ///
@@ -481,10 +482,15 @@ impl RemoteEdge {
 
     /// Add temporal updates to the edge at the specified time. `event_id` locks
     /// the secondary index; `None` lets the server auto-increment.
-    pub async fn add_updates<T: TryIntoInputTime>(
+    pub async fn add_updates<
+        T: TryIntoInputTime,
+        PN: AsRef<str>,
+        P: Into<Prop>,
+        PII: IntoIterator<Item = (PN, P)>,
+    >(
         &self,
         t: T,
-        properties: Option<HashMap<String, Prop>>,
+        properties: PII,
         layer: Option<String>,
     ) -> Result<(), ClientError> {
         let op = Op::Write(WriteOp::AddEdgeUpdates(AddEdgeUpdatesOp {
@@ -492,7 +498,7 @@ impl RemoteEdge {
             src: self.src.clone(),
             dst: self.dst.clone(),
             time: t.try_into_input_time()?,
-            properties,
+            properties: collect_opt_props(properties),
             layer,
         }));
         self.transport.execute(&op).await?;
@@ -518,16 +524,16 @@ impl RemoteEdge {
     }
 
     /// Add metadata to the edge (properties that do not change over time).
-    pub async fn add_metadata(
+    pub async fn add_metadata<PN: AsRef<str>, P: Into<Prop>>(
         &self,
-        properties: HashMap<String, Prop>,
+        properties: impl IntoIterator<Item = (PN, P)>,
         layer: Option<String>,
     ) -> Result<(), ClientError> {
         let op = Op::Write(WriteOp::AddEdgeMetadata(AddEdgeMetadataOp {
             path: self.path.clone(),
             src: self.src.clone(),
             dst: self.dst.clone(),
-            properties,
+            properties: collect_props(properties),
             layer,
         }));
         self.transport.execute(&op).await?;
@@ -535,16 +541,16 @@ impl RemoteEdge {
     }
 
     /// Update metadata of the edge, overwriting existing values.
-    pub async fn update_metadata(
+    pub async fn update_metadata<PN: AsRef<str>, P: Into<Prop>>(
         &self,
-        properties: HashMap<String, Prop>,
+        properties: impl IntoIterator<Item = (PN, P)>,
         layer: Option<String>,
     ) -> Result<(), ClientError> {
         let op = Op::Write(WriteOp::UpdateEdgeMetadata(UpdateEdgeMetadataOp {
             path: self.path.clone(),
             src: self.src.clone(),
             dst: self.dst.clone(),
-            properties,
+            properties: collect_props(properties),
             layer,
         }));
         self.transport.execute(&op).await?;

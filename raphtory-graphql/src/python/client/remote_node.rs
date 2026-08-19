@@ -299,8 +299,12 @@ impl PyRemoteNode {
         let node = Arc::clone(&self.node);
 
         let task = move || async move {
-            node.add_updates(input_time_from_parts(t.t(), event_id), properties, layer)
-                .await
+            node.add_updates(
+                input_time_from_parts(t.t(), event_id),
+                properties.into_iter().flatten(),
+                layer,
+            )
+            .await
         };
         execute_async_task(task)?;
 

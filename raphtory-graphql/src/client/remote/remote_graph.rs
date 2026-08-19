@@ -1,5 +1,6 @@
 use crate::{
     client::{
+        collect_opt_props, collect_props,
         graphql_transport::GraphqlTransport,
         op::{
             AddEdge as AddEdgeOp, AddGraphMetadata as AddGraphMetadataOp,
@@ -709,14 +710,21 @@ impl RemoteGraph {
     /// Fires one RPC. Returns a trusted `RemoteNode` handle for the added
     /// node — no follow-up `hasNode` validation is fired, since the server
     /// just confirmed the write.
-    pub async fn add_node<G: Into<GID>, T: TryIntoInputTime>(
+    pub async fn add_node<
+        G: Into<GID>,
+        T: TryIntoInputTime,
+        PN: AsRef<str>,
+        P: Into<Prop>,
+        PII: IntoIterator<Item = (PN, P)>,
+    >(
         &self,
         timestamp: T,
         id: G,
-        properties: Option<HashMap<String, Prop>>,
+        properties: PII,
         node_type: Option<String>,
         layer: Option<String>,
     ) -> Result<RemoteNode, ClientError> {
+        let properties = collect_opt_props(properties);
         let id = id.into();
         let op = Op::Write(WriteOp::AddNode(AddNodeOp {
             path: self.path.clone(),
@@ -744,14 +752,21 @@ impl RemoteGraph {
     ///
     /// Fires one RPC. Returns a trusted `RemoteNode` handle for the created
     /// node — no follow-up `hasNode` validation is fired.
-    pub async fn create_node<G: Into<GID>, T: TryIntoInputTime>(
+    pub async fn create_node<
+        G: Into<GID>,
+        T: TryIntoInputTime,
+        PN: AsRef<str>,
+        P: Into<Prop>,
+        PII: IntoIterator<Item = (PN, P)>,
+    >(
         &self,
         timestamp: T,
         id: G,
-        properties: Option<HashMap<String, Prop>>,
+        properties: PII,
         node_type: Option<String>,
         layer: Option<String>,
     ) -> Result<RemoteNode, ClientError> {
+        let properties = collect_opt_props(properties);
         let id = id.into();
         let op = Op::Write(WriteOp::CreateNode(CreateNodeOp {
             path: self.path.clone(),
@@ -781,14 +796,21 @@ impl RemoteGraph {
     ///
     /// Fires one RPC. Returns a trusted `RemoteEdge` handle — no follow-up
     /// `hasEdge` validation is fired, since the server just confirmed the write.
-    pub async fn add_edge<G: Into<GID>, T: TryIntoInputTime>(
+    pub async fn add_edge<
+        G: Into<GID>,
+        T: TryIntoInputTime,
+        PN: AsRef<str>,
+        P: Into<Prop>,
+        PII: IntoIterator<Item = (PN, P)>,
+    >(
         &self,
         timestamp: T,
         src: G,
         dst: G,
-        properties: Option<HashMap<String, Prop>>,
+        properties: PII,
         layer: Option<String>,
     ) -> Result<RemoteEdge, ClientError> {
+        let properties = collect_opt_props(properties);
         let src = src.into();
         let dst = dst.into();
         let op = Op::Write(WriteOp::AddEdge(AddEdgeOp {
@@ -818,15 +840,15 @@ impl RemoteGraph {
     /// the given timestamp. Distinct from `add_metadata`, which is non-temporal.
     ///
     /// Fires one RPC.
-    pub async fn add_properties(
+    pub async fn add_properties<PN: AsRef<str>, P: Into<Prop>>(
         &self,
         timestamp: impl TryIntoInputTime,
-        properties: HashMap<String, Prop>,
+        properties: impl IntoIterator<Item = (PN, P)>,
     ) -> Result<(), ClientError> {
         let op = Op::Write(WriteOp::AddGraphProperty(AddGraphPropertyOp {
             path: self.path.clone(),
             time: timestamp.try_into_input_time()?,
-            properties,
+            properties: collect_props(properties),
         }));
         self.transport.execute(&op).await?;
         Ok(())
@@ -836,10 +858,13 @@ impl RemoteGraph {
     /// lifetime of the graph and don't depend on any timestamp.
     ///
     /// Fires one RPC.
-    pub async fn add_metadata(&self, properties: HashMap<String, Prop>) -> Result<(), ClientError> {
+    pub async fn add_metadata<PN: AsRef<str>, P: Into<Prop>>(
+        &self,
+        properties: impl IntoIterator<Item = (PN, P)>,
+    ) -> Result<(), ClientError> {
         let op = Op::Write(WriteOp::AddGraphMetadata(AddGraphMetadataOp {
             path: self.path.clone(),
-            properties,
+            properties: collect_props(properties),
         }));
         self.transport.execute(&op).await?;
         Ok(())
@@ -849,13 +874,13 @@ impl RemoteGraph {
     /// replaces the value for each supplied key rather than adding.
     ///
     /// Fires one RPC.
-    pub async fn update_metadata(
+    pub async fn update_metadata<PN: AsRef<str>, P: Into<Prop>>(
         &self,
-        properties: HashMap<String, Prop>,
+        properties: impl IntoIterator<Item = (PN, P)>,
     ) -> Result<(), ClientError> {
         let op = Op::Write(WriteOp::UpdateGraphMetadata(UpdateGraphMetadataOp {
             path: self.path.clone(),
-            properties,
+            properties: collect_props(properties),
         }));
         self.transport.execute(&op).await?;
         Ok(())

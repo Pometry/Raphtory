@@ -18,7 +18,6 @@ use crate::{
         transport::Transport,
         ClientError,
     },
-    data::GqlGraphType,
     model::graph::{
         filtering::GqlFilter,
         property::{gql_to_prop, parse_special_float},
@@ -4256,10 +4255,14 @@ fn child_input(expr: &ReadExpr) -> Option<&ReadExpr> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::graph::{
-        filtering::{GqlNodeFilter, PropCondition, PropertyFilterNew},
-        property::Value as GqlValue,
+    use crate::{
+        data::GqlGraphType,
+        model::graph::{
+            filtering::{GqlNodeFilter, PropCondition, PropertyFilterNew},
+            property::Value as GqlValue,
+        },
     };
+    use raphtory::prelude::NO_PROPS;
     use raphtory_api::core::storage::timeindex::AsTime;
     use std::{str::FromStr, sync::Arc};
 
@@ -4838,9 +4841,15 @@ mod tests {
         let rg = client.remote_graph("test-graph".into());
 
         // Write path: add_node routes through Transport
-        rg.add_node(1i64, "ben", None, None, None).await.unwrap();
-        rg.add_node(2i64, "hamza", None, None, None).await.unwrap();
-        rg.add_edge(3i64, "ben", "hamza", None, None).await.unwrap();
+        rg.add_node(1i64, "ben", NO_PROPS, None, None)
+            .await
+            .unwrap();
+        rg.add_node(2i64, "hamza", NO_PROPS, None, None)
+            .await
+            .unwrap();
+        rg.add_edge(3i64, "ben", "hamza", NO_PROPS, None)
+            .await
+            .unwrap();
 
         // Read path: composed expression through Transport
         // g.node("ben").degree() — after edge (ben -> hamza), ben has degree 1.
@@ -4937,14 +4946,15 @@ mod tests {
         let rg = client.remote_graph("parity-filter".into());
 
         for (name, score) in [("a", 10i64), ("b", 20), ("c", 30)] {
-            let props: Map<String, Prop> = [("score".to_string(), Prop::I64(score))].into();
-            rg.add_node(1i64, name, Some(props), None, None)
+            // Local-style property argument: a literal of (&str, i64) pairs,
+            // no HashMap<String, Prop> to assemble first.
+            rg.add_node(1i64, name, [("score", score)], None, None)
                 .await
                 .unwrap();
         }
-        rg.add_edge(1i64, "a", "b", None, None).await.unwrap();
-        rg.add_edge(2i64, "b", "c", None, None).await.unwrap();
-        rg.add_edge(3i64, "c", "a", None, None).await.unwrap();
+        rg.add_edge(1i64, "a", "b", NO_PROPS, None).await.unwrap();
+        rg.add_edge(2i64, "b", "c", NO_PROPS, None).await.unwrap();
+        rg.add_edge(3i64, "c", "a", NO_PROPS, None).await.unwrap();
 
         let score_gt_15 = GqlNodeFilter::Property(PropertyFilterNew {
             name: "score".into(),
@@ -5093,7 +5103,6 @@ mod tests {
         use crate::{client::remote_client::RemoteClient, server::GraphServer};
         use raphtory::db::api::storage::storage::Config;
         use reqwest::Url;
-        use std::collections::HashMap as Map;
         use tempfile::tempdir;
 
         let tmp_dir = tempdir().unwrap();
@@ -5110,8 +5119,9 @@ mod tests {
         let rg = client.remote_graph("parity-explode".into());
 
         for (t, w) in [(1i64, 1i64), (5, 2)] {
-            let props: Map<String, Prop> = [("weight".to_string(), Prop::I64(w))].into();
-            rg.add_edge(t, "x", "y", Some(props), None).await.unwrap();
+            rg.add_edge(t, "x", "y", [("weight", w)], None)
+                .await
+                .unwrap();
         }
 
         let exploded = rg.edges().explode();
