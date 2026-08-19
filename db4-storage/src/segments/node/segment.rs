@@ -108,7 +108,7 @@ impl MemNodeSegment {
         self.node_type_index.insert(type_id, pos);
     }
 
-    pub fn nodes_of_type(&self, type_id: usize) -> &[LocalPOS] {
+    pub fn nodes_of_type(&self, type_id: usize) -> impl Iterator<Item = LocalPOS> + '_ {
         self.node_type_index.get(type_id)
     }
 
@@ -678,8 +678,8 @@ mod test {
             Some(path.path().to_path_buf()),
             ext.clone(),
         );
-        let stats = GraphStats::default();
 
+        let stats = GraphStats::default();
         let mut writer = NodeWriter::new(&segment, &stats, segment.head_mut());
 
         let est_size1 = writer.mut_segment.est_size();
@@ -719,6 +719,7 @@ mod test {
             VID(3),
             EID(7).with_layer(STATIC_GRAPH_LAYER_ID),
         );
+
         let est_size4 = writer.mut_segment.est_size();
         assert_eq!(
             est_size4, est_size3,
@@ -779,11 +780,13 @@ mod test {
             STATIC_GRAPH_LAYER_ID,
             [(prop_id, Prop::F64(5.41))],
         );
+
         let est_size8 = writer.mut_segment.est_size();
         assert!(
             est_size8 > est_size7,
             "Estimated size should increase after adding another temporal property"
         );
+
         drop(writer);
 
         // after drop the global estimated size should be the same as the last estimated size of the writer
@@ -811,13 +814,13 @@ mod test {
         segment.insert_node_type(LocalPOS(3), 1);
         segment.insert_node_type(LocalPOS(2), 2);
 
-        assert_eq!(segment.nodes_of_type(1), &[LocalPOS(1), LocalPOS(3)]);
-        assert_eq!(segment.nodes_of_type(2), &[LocalPOS(2)]);
+        assert!(segment.nodes_of_type(1).eq([LocalPOS(1), LocalPOS(3)]));
+        assert!(segment.nodes_of_type(2).eq([LocalPOS(2)]));
 
         let taken = segment.take();
-        assert!(segment.nodes_of_type(1).is_empty());
-        assert!(segment.nodes_of_type(2).is_empty());
-        assert_eq!(taken.nodes_of_type(1), &[LocalPOS(1), LocalPOS(3)]);
-        assert_eq!(taken.nodes_of_type(2), &[LocalPOS(2)]);
+        assert_eq!(segment.nodes_of_type(1).count(), 0);
+        assert_eq!(segment.nodes_of_type(2).count(), 0);
+        assert!(taken.nodes_of_type(1).eq([LocalPOS(1), LocalPOS(3)]));
+        assert!(taken.nodes_of_type(2).eq([LocalPOS(2)]));
     }
 }
