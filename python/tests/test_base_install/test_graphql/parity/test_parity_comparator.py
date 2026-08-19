@@ -7,9 +7,9 @@ format mangled floats, re-keyed maps or reordered histories — so its policy is
 pinned here rather than left to the docstring.
 
 The policy: it may bridge only the ways the two sides are unavoidably *different
-objects over different graphs* (entity identity, and the order of collections
-whose order is unspecified). Every actual difference in an answer must survive
-to the assertion. The negative cases below are the important half.
+objects over different graphs* — entity identity, and materializing containers
+whose classes differ. It reorders nothing. Every actual difference in an answer
+must survive to the assertion. The negative cases below are the important half.
 """
 
 import datetime
@@ -63,16 +63,40 @@ def test_distinct_entities_still_differ(pair):
     assert not _agree(pair.local.edge("a", "b"), pair.remote.edge("a", "c"))
 
 
-def test_entity_collections_compare_regardless_of_order(pair):
-    """Iteration order over nodes/edges is unspecified, so it may be sorted."""
+def test_entity_collections_compare_by_contents(pair):
+    """A local collection and its remote twin are different classes, so they are
+    listed to make their contents comparable — without reordering either side.
+
+    The comparator used to sort these, on the grounds that iteration order is
+    unspecified. It does not any more: the two sides agree on order in practice,
+    so leaving it alone means a future ordering divergence fails here instead of
+    being absorbed."""
     assert _agree(pair.local.nodes, pair.remote.nodes)
     assert _agree(pair.local.edges, pair.remote.edges)
     assert _agree(pair.local.node("a").neighbours, pair.remote.node("a").neighbours)
 
 
 def test_entity_collections_of_different_membership_differ(pair):
-    """Sorting a collection must not hide a membership difference."""
+    """Materializing a collection must not hide a membership difference."""
     assert not _agree(pair.local.nodes, pair.remote.node("a").neighbours)
+
+
+def test_entity_collection_order_is_not_absorbed():
+    """A reordered collection is a difference, not a detail.
+
+    Uses stand-ins rather than real handles because the point is the
+    comparator's policy: two collections with the same members in a different
+    order must not agree."""
+
+    class Coll:
+        def __init__(self, names):
+            self._names = names
+
+        def __iter__(self):
+            return iter(self._names)
+
+    assert _agree(Coll(["a", "b", "c"]), Coll(["a", "b", "c"]))
+    assert not _agree(Coll(["a", "b", "c"]), Coll(["c", "b", "a"]))
 
 
 # --- refused: anything that is a real difference in the answer --------------
@@ -102,8 +126,8 @@ def test_datetime_timezone_is_not_normalized():
 
 
 def test_sequence_order_is_preserved():
-    """Only *entity collections* may be reordered; ordinary sequences carry
-    their order as part of the answer (histories, list properties, sorts)."""
+    """Nothing is reordered: order is part of the answer everywhere (histories,
+    list properties, sorts, and entity collections alike)."""
     assert not _agree([1, 2, 3], [3, 2, 1])
     assert not _agree(("a", "b"), ("b", "a"))
     assert _agree([1, 2, 3], [1, 2, 3])

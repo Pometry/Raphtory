@@ -83,26 +83,6 @@ def graph_pair(build, graph_type="EVENT"):
 
 # --- canonicalization -------------------------------------------------------
 
-# Handle collections whose *iteration order is unspecified*, so a differing
-# order is not a defect and the comparator may sort them. Everything else —
-# histories, property values, algorithm output, `sorted()` results — keeps its
-# order, because there the order is part of the answer.
-_UNORDERED_COLLECTIONS = frozenset(
-    {
-        "Nodes",
-        "Edges",
-        "NestedEdges",
-        "PathFromNode",
-        "PathFromGraph",
-        "RemoteNodes",
-        "RemoteEdges",
-        "RemoteNestedEdges",
-        "RemotePathFromNode",
-        "RemotePathFromGraph",
-    }
-)
-
-
 # Time classes that compare equal to *each other* and to a bare ``int``:
 # ``OptionalEventTime(1) == EventTime(1) == 1`` are all true, and an empty
 # ``OptionalEventTime`` equals ``None``. So value comparison alone cannot see a
@@ -135,13 +115,18 @@ def canonical(value):
     1. **Entities become identities.** A local ``Node`` and a remote
        ``RemoteNode`` point at different graphs, so they could never compare
        equal; they are reduced to name / ``(src, dst)``.
-    2. **Unordered entity collections are sorted.** Iteration order over nodes,
-       edges and neighbours is unspecified, so a differing order is not a defect.
-    3. **Other containers are materialized in order.** A local ``History`` and a
-       remote ``RemoteHistory`` are distinct classes, so ``==`` between them is
-       meaningless; listing them makes their *contents* comparable without
-       reordering anything, so a real difference still fails.
-    4. **Time values carry their class.** This one *tightens* the comparison
+    2. **Containers are materialized, never reordered.** A local ``Nodes`` and a
+       remote ``RemoteNodes`` are distinct classes, so ``==`` between them is
+       meaningless; listing them makes their *contents* comparable. Order is
+       left exactly as each side produced it, so an ordering difference is a
+       failure rather than something the comparator absorbs. (Entity collections
+       used to be sorted here on the grounds that iteration order is
+       unspecified. Measured instead: local and remote agree on the order of
+       nodes, edges, neighbours, windowed and subgraph collections, and the
+       whole suite — including the generative properties — passes without the
+       sort. So it was hiding nothing, and removing it means the suite would
+       report it if that ever changed.)
+    3. **Time values carry their class.** This one *tightens* the comparison
        rather than bridging a difference: the time classes compare equal to
        each other and to bare ints, so without the class a substituted return
        type would pass (see ``_TIME_TYPES``). The value itself is kept as-is
@@ -157,9 +142,6 @@ def canonical(value):
         # Paired with the value, not a reduction of it: `==` on the value keeps
         # doing whatever it did before, and the class merely has to match too.
         return (name, value)
-
-    if name in _UNORDERED_COLLECTIONS:
-        return sorted((canonical(v) for v in value), key=repr)
 
     identity = _identity(value)
     if identity is not None:
