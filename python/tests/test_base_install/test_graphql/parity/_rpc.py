@@ -24,8 +24,8 @@ import contextlib
 import http.server
 import tempfile
 import threading
-
-import requests
+import urllib.error
+import urllib.request
 
 from raphtory.graphql import GraphServer, RaphtoryClient
 
@@ -74,22 +74,29 @@ def _forwarding_handler(upstream_url, counter):
                 for key in ("Content-Type", "Authorization", "Accept")
                 if key in self.headers
             }
-            upstream = requests.request(
-                method,
-                upstream_url + self.path,
-                data=body,
-                headers=headers,
-                timeout=_FORWARD_TIMEOUT_S,
+            # Stdlib only, so the suite has no dependencies beyond pytest.
+            # urllib raises on non-2xx while still carrying the response, so
+            # both arms produce the same (status, payload, content type).
+            request = urllib.request.Request(
+                upstream_url + self.path, data=body, headers=headers, method=method
             )
-            # `requests` has already decoded any Content-Encoding, so the body
-            # is re-measured here rather than echoing upstream's length.
-            payload = upstream.content
             try:
-                self.send_response(upstream.status_code)
+                with urllib.request.urlopen(
+                    request, timeout=_FORWARD_TIMEOUT_S
+                ) as upstream:
+                    status = upstream.status
+                    payload = upstream.read()
+                    upstream_content_type = upstream.headers.get("Content-Type")
+            except urllib.error.HTTPError as err:
+                status = err.code
+                payload = err.read()
+                upstream_content_type = err.headers.get("Content-Type")
+            try:
+                self.send_response(status)
                 # Strip CR/LF before echoing an upstream header value: a
                 # header carrying them would let the response be split into
                 # fabricated extra headers or a second response.
-                content_type = upstream.headers.get("Content-Type")
+                content_type = upstream_content_type
                 if content_type:
                     safe_content_type = content_type.replace("\r", "").replace("\n", "")
                     self.send_header("Content-Type", safe_content_type)
