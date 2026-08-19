@@ -389,7 +389,7 @@ def apply_op(g, schema, meta_schema, op):
         if edge is not None and meta:
             edge.add_metadata(_wrapped(meta_schema, meta), layer=layer)
     elif tag == "graph_metadata":
-        (_, meta) = op
+        _, meta = op
         if meta:
             g.add_metadata(_wrapped(meta_schema, meta))
     elif tag == "set_node_type":

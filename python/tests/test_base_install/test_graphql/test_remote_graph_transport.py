@@ -20,7 +20,6 @@ import pytest
 
 from raphtory.graphql import EdgeSortBy, GraphServer, NodeSortBy, SortByTime
 
-
 # The shared server-startup context manager lives in test_utils so every test
 # file stands servers up the same way; population differs per test, so callers
 # add their own nodes/edges to the yielded handle.

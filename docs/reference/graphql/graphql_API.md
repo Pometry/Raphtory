@@ -3600,10 +3600,10 @@ Contrast with `filter`, which persists the scope through subsequent ops.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">expr</td>
-<td valign="top"><a href="#edgefilter">EdgeFilter</a>!</td>
+<td valign="top"><a href="#gqlfilter">GqlFilter</a>!</td>
 <td>
 
-Composite edge filter (by property, layer, src/dst, etc.).
+Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
 
 </td>
 </tr>
@@ -7321,10 +7321,10 @@ Contrast with `filter`, which persists the scope through subsequent ops.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">expr</td>
-<td valign="top"><a href="#edgefilter">EdgeFilter</a>!</td>
+<td valign="top"><a href="#gqlfilter">GqlFilter</a>!</td>
 <td>
 
-Composite edge filter (by property, layer, src/dst, etc.).
+Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
 
 </td>
 </tr>
@@ -9334,10 +9334,10 @@ Contrast with `filter`, which persists the scope through subsequent ops.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">expr</td>
-<td valign="top"><a href="#nodefilter">NodeFilter</a>!</td>
+<td valign="top"><a href="#gqlfilter">GqlFilter</a>!</td>
 <td>
 
-Composite node filter (by name, property, type, etc.).
+Filter expression: node predicates, graph views, or and/or/not combinations (and = intersection). Expressions that test edges are rejected.
 
 </td>
 </tr>
@@ -9957,6 +9957,19 @@ computed in ONE `blocking_compute`. Fast-path equivalent of
 </td>
 </tr>
 <tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.sourceids">sourceIds</strong></td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td>
+
+Columnar `sourceIds`: the id of the source node each path hangs off, in
+the same order as `ids` / `list` — one entry per source path, so entry
+`i` of `sourceIds` and entry `i` of `ids` describe the same pair. Lets a
+client reconstruct the `(source, path)` pairing in ONE request instead of
+one request per source. Computed in ONE `blocking_compute`, like `ids`.
+
+</td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="pathfromgraph.degree">degree</strong></td>
 <td valign="top"><a href="#nestedintlist">NestedIntList</a>!</td>
 <td>
@@ -10038,10 +10051,10 @@ Contrast with `filter`, which persists the scope through subsequent ops.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">expr</td>
-<td valign="top"><a href="#nodefilter">NodeFilter</a>!</td>
+<td valign="top"><a href="#gqlfilter">GqlFilter</a>!</td>
 <td>
 
-Composite node filter (by name, property, type, etc.).
+Filter expression: node predicates, graph views, or and/or/not combinations (and = intersection). Expressions that test edges are rejected.
 
 </td>
 </tr>
@@ -10725,10 +10738,10 @@ Contrast with `filter`, which persists the scope through subsequent ops.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">expr</td>
-<td valign="top"><a href="#nodefilter">NodeFilter</a>!</td>
+<td valign="top"><a href="#gqlfilter">GqlFilter</a>!</td>
 <td>
 
-Composite node filter (by name, property, type, etc.).
+Filter expression: node predicates, graph views, or and/or/not combinations (and = intersection). Expressions that test edges are rejected.
 
 </td>
 </tr>
@@ -12739,6 +12752,380 @@ OpenAI embedding models or compatible providers
 </tbody>
 </table>
 
+### ExplodedEdgeFilter
+
+GraphQL input type for filtering **exploded edges** — edge views where each
+temporal event is an individually addressable edge instance, rather than
+one aggregated edge across time.
+
+Predicates are evaluated **per event**: a property condition keeps the
+individual updates that match it (and the edges carrying them), where the
+plain `EdgeFilter` evaluates one aggregated value per edge.
+
+Filters can target edge endpoints, properties/metadata, temporal scope,
+layer membership, and structural edge state, and can be combined
+recursively with `And`/`Or`/`Not` — mirroring `EdgeFilter`.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgefilter.src">src</strong></td>
+<td valign="top"><a href="#nodefilter">NodeFilter</a></td>
+<td>
+
+Applies a filter to the **source node** of the exploded edge.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgefilter.dst">dst</strong></td>
+<td valign="top"><a href="#nodefilter">NodeFilter</a></td>
+<td>
+
+Applies a filter to the **destination node** of the exploded edge.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgefilter.property">property</strong></td>
+<td valign="top"><a href="#propertyfilternew">PropertyFilterNew</a></td>
+<td>
+
+Filters an exploded-edge **property** by name and value, evaluated
+per event.
+
+Example:
+`{ Property: { name: "weight", gt: 0.5 } }`
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgefilter.metadata">metadata</strong></td>
+<td valign="top"><a href="#propertyfilternew">PropertyFilterNew</a></td>
+<td>
+
+Filters an exploded-edge **metadata field**.
+
+Metadata is shared across all temporal versions of an edge.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgefilter.temporalproperty">temporalProperty</strong></td>
+<td valign="top"><a href="#propertyfilternew">PropertyFilterNew</a></td>
+<td>
+
+Filters a **temporal exploded-edge property**, evaluated within a
+temporal context per event.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgefilter.and">and</strong></td>
+<td valign="top">[<a href="#explodededgefilter">ExplodedEdgeFilter</a>!]</td>
+<td>
+
+Logical **AND** over multiple exploded-edge filters.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgefilter.or">or</strong></td>
+<td valign="top">[<a href="#explodededgefilter">ExplodedEdgeFilter</a>!]</td>
+<td>
+
+Logical **OR** over multiple exploded-edge filters.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgefilter.not">not</strong></td>
+<td valign="top"><a href="#explodededgefilter">ExplodedEdgeFilter</a></td>
+<td>
+
+Logical **NOT** over a nested exploded-edge filter.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgefilter.window">window</strong></td>
+<td valign="top"><a href="#explodededgewindowexpr">ExplodedEdgeWindowExpr</a></td>
+<td>
+
+Restricts exploded-edge evaluation to a **time window**
+(inclusive start, exclusive end).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgefilter.at">at</strong></td>
+<td valign="top"><a href="#explodededgetimeexpr">ExplodedEdgeTimeExpr</a></td>
+<td>
+
+Restricts exploded-edge evaluation to a **single point in time**.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgefilter.before">before</strong></td>
+<td valign="top"><a href="#explodededgetimeexpr">ExplodedEdgeTimeExpr</a></td>
+<td>
+
+Restricts exploded-edge evaluation to times **strictly before** a
+given time.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgefilter.after">after</strong></td>
+<td valign="top"><a href="#explodededgetimeexpr">ExplodedEdgeTimeExpr</a></td>
+<td>
+
+Restricts exploded-edge evaluation to times **strictly after** a
+given time.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgefilter.latest">latest</strong></td>
+<td valign="top"><a href="#explodededgeunaryexpr">ExplodedEdgeUnaryExpr</a></td>
+<td>
+
+Evaluates exploded-edge predicates against the **latest available
+state**.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgefilter.snapshotat">snapshotAt</strong></td>
+<td valign="top"><a href="#explodededgetimeexpr">ExplodedEdgeTimeExpr</a></td>
+<td>
+
+Evaluates exploded-edge predicates against a **snapshot** of the graph
+at a specific time.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgefilter.snapshotlatest">snapshotLatest</strong></td>
+<td valign="top"><a href="#explodededgeunaryexpr">ExplodedEdgeUnaryExpr</a></td>
+<td>
+
+Evaluates exploded-edge predicates against the **most recent
+snapshot** of the graph.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgefilter.layers">layers</strong></td>
+<td valign="top"><a href="#explodededgelayersexpr">ExplodedEdgeLayersExpr</a></td>
+<td>
+
+Restricts evaluation to exploded edges belonging to one or more
+**layers**.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgefilter.isactive">isActive</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Matches exploded edges that have at least one event in the current
+view/window.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgefilter.isvalid">isValid</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Matches exploded edges that are structurally valid (i.e. not deleted)
+in the current view/window.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgefilter.isdeleted">isDeleted</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Matches exploded edges that have been deleted in the current
+view/window.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgefilter.isselfloop">isSelfLoop</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Matches exploded edges that are **self-loops**
+(source node == destination node).
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### ExplodedEdgeLayersExpr
+
+Restricts exploded-edge evaluation to one or more layers and applies a
+nested `ExplodedEdgeFilter`.
+
+Used by `GqlExplodedEdgeFilter::Layers`.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgelayersexpr.names">names</strong></td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td>
+
+Layer names to include.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgelayersexpr.expr">expr</strong></td>
+<td valign="top"><a href="#explodededgefilter">ExplodedEdgeFilter</a>!</td>
+<td>
+
+Filter evaluated within the layer-restricted view.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### ExplodedEdgeTimeExpr
+
+Restricts exploded-edge evaluation to a single time bound and applies a
+nested `ExplodedEdgeFilter`.
+
+Used by `At`, `Before`, `After`, and `SnapshotAt` exploded-edge filters.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgetimeexpr.time">time</strong></td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Reference time for the operation.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgetimeexpr.expr">expr</strong></td>
+<td valign="top"><a href="#explodededgefilter">ExplodedEdgeFilter</a>!</td>
+<td>
+
+Filter evaluated within the restricted time scope.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### ExplodedEdgeUnaryExpr
+
+Applies a unary edge-view operation and then evaluates a nested
+`ExplodedEdgeFilter`.
+
+Used by `Latest` and `SnapshotLatest` exploded-edge filters.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeunaryexpr.expr">expr</strong></td>
+<td valign="top"><a href="#explodededgefilter">ExplodedEdgeFilter</a>!</td>
+<td>
+
+Filter evaluated after applying the unary operation.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### ExplodedEdgeWindowExpr
+
+Restricts exploded-edge evaluation to a time window and applies a nested
+`ExplodedEdgeFilter`.
+
+Used by `GqlExplodedEdgeFilter::Window`.
+
+The window is inclusive of `start` and exclusive of `end`.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgewindowexpr.start">start</strong></td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Window start time (inclusive).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgewindowexpr.end">end</strong></td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Window end time (exclusive).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgewindowexpr.expr">expr</strong></td>
+<td valign="top"><a href="#explodededgefilter">ExplodedEdgeFilter</a>!</td>
+<td>
+
+Filter evaluated within the restricted window.
+
+</td>
+</tr>
+</tbody>
+</table>
+
 ### FuzzySearchExpr
 
 Fuzzy string match: passes when the candidate is within `levenshteinDistance`
@@ -12817,6 +13204,16 @@ Filter by node properties, fields, or temporal state.
 
 Filter by edge properties, source/destination, or temporal state.
 (Persisted filters may use the legacy `edge` key.)
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="gqlfilter.explodededges">explodedEdges</strong></td>
+<td valign="top"><a href="#explodededgefilter">ExplodedEdgeFilter</a></td>
+<td>
+
+Filter exploded edges — per-event edge instances — by properties,
+endpoints, or temporal state, evaluated per event.
 
 </td>
 </tr>

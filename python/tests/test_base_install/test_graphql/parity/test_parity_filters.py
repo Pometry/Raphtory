@@ -35,7 +35,6 @@ import pytest
 from _parity import KNOWN_GAPS, assert_parity, canonical, graph_pair
 from raphtory import filter as f
 
-
 # --- fixture ----------------------------------------------------------------
 
 

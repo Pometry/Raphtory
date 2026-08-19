@@ -36,7 +36,6 @@ from raphtory.graphql import RemoteEdgeAddition, RemoteNodeAddition, RemoteUpdat
 
 from _parity import KNOWN_GAPS, assert_parity, canonical, graph_pair
 
-
 # --- write-aware assertions -------------------------------------------------
 
 
