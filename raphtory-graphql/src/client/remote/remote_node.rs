@@ -491,6 +491,7 @@ impl RemoteNode {
 
     /// Set the type on the node. This only works if the type has not been previously set.
     pub async fn set_node_type(&self, new_type: String) -> Result<(), ClientError> {
+        self.require_base_for_write("set_node_type")?;
         let op = Op::Write(WriteOp::SetNodeType(SetNodeTypeOp {
             path: self.path.clone(),
             id: self.id.clone(),
@@ -503,6 +504,26 @@ impl RemoteNode {
     /// Add temporal updates to the node at the specified time. `event_id` locks
     /// the secondary index (as on `add_node`); `None` lets the server
     /// auto-increment.
+    /// Refuse a write on a viewed handle — a write always targets the stored
+    /// node, so accepting one here would silently ignore the view (locally
+    /// impossible: view types have no mutation methods). See #2716 for the
+    /// structural fix; until then the attempt is loud instead of wrong.
+    fn require_base_for_write(&self, what: &str) -> Result<(), ClientError> {
+        let is_base = matches!(
+            &*self.expr,
+            ReadExpr::Node { input, .. } if matches!(&**input, ReadExpr::Root { .. })
+        );
+        if is_base {
+            Ok(())
+        } else {
+            Err(ClientError::InvalidInput(format!(
+                "{what} applies to the base node handle — this handle carries a \
+                 view, and writes on views are not supported (as with the local \
+                 API, where views have no mutation methods)"
+            )))
+        }
+    }
+
     pub async fn add_updates<
         T: TryIntoInputTime,
         PN: AsRef<str>,
@@ -514,6 +535,7 @@ impl RemoteNode {
         properties: PII,
         layer: Option<String>,
     ) -> Result<(), ClientError> {
+        self.require_base_for_write("add_updates")?;
         let op = Op::Write(WriteOp::AddNodeUpdates(AddNodeUpdatesOp {
             path: self.path.clone(),
             id: self.id.clone(),
@@ -530,6 +552,7 @@ impl RemoteNode {
         &self,
         properties: impl IntoIterator<Item = (PN, P)>,
     ) -> Result<(), ClientError> {
+        self.require_base_for_write("add_metadata")?;
         let op = Op::Write(WriteOp::AddNodeMetadata(AddNodeMetadataOp {
             path: self.path.clone(),
             id: self.id.clone(),
@@ -544,6 +567,7 @@ impl RemoteNode {
         &self,
         properties: impl IntoIterator<Item = (PN, P)>,
     ) -> Result<(), ClientError> {
+        self.require_base_for_write("update_metadata")?;
         let op = Op::Write(WriteOp::UpdateNodeMetadata(UpdateNodeMetadataOp {
             path: self.path.clone(),
             id: self.id.clone(),

@@ -73,6 +73,23 @@ impl RemoteGraph {
     /// graph classes, not on views, so a converted handle always starts a
     /// fresh (unviewed) expression and applying it mid-chain is refused
     /// rather than silently dropping the accumulated views.
+    /// Refuse a write on a viewed handle. Writes always target the stored
+    /// graph, so accepting one through a window/layer/filter handle would
+    /// silently ignore the view — locally impossible, since `GraphView` has no
+    /// mutation methods. Until the remote surface gets the same base-vs-view
+    /// split (#2716), the guard makes the attempt loud instead of wrong.
+    fn require_base_for_write(&self, what: &str) -> Result<(), ClientError> {
+        if matches!(&*self.expr, ReadExpr::Root { .. }) {
+            Ok(())
+        } else {
+            Err(ClientError::InvalidInput(format!(
+                "{what} applies to the base graph handle — this handle carries a \
+                 view, and writes on views are not supported (as with the local \
+                 API, where views have no mutation methods)"
+            )))
+        }
+    }
+
     fn with_flavour(&self, flavour: GqlGraphType) -> Result<RemoteGraph, ClientError> {
         if !matches!(&*self.expr, ReadExpr::Root { .. }) {
             return Err(ClientError::InvalidInput(format!(
@@ -724,6 +741,7 @@ impl RemoteGraph {
         node_type: Option<String>,
         layer: Option<String>,
     ) -> Result<RemoteNode, ClientError> {
+        self.require_base_for_write("add_node")?;
         let properties = collect_opt_props(properties);
         let id = id.into();
         let op = Op::Write(WriteOp::AddNode(AddNodeOp {
@@ -766,6 +784,7 @@ impl RemoteGraph {
         node_type: Option<String>,
         layer: Option<String>,
     ) -> Result<RemoteNode, ClientError> {
+        self.require_base_for_write("create_node")?;
         let properties = collect_opt_props(properties);
         let id = id.into();
         let op = Op::Write(WriteOp::CreateNode(CreateNodeOp {
@@ -810,6 +829,7 @@ impl RemoteGraph {
         properties: PII,
         layer: Option<String>,
     ) -> Result<RemoteEdge, ClientError> {
+        self.require_base_for_write("add_edge")?;
         let properties = collect_opt_props(properties);
         let src = src.into();
         let dst = dst.into();
@@ -845,6 +865,7 @@ impl RemoteGraph {
         timestamp: impl TryIntoInputTime,
         properties: impl IntoIterator<Item = (PN, P)>,
     ) -> Result<(), ClientError> {
+        self.require_base_for_write("add_properties")?;
         let op = Op::Write(WriteOp::AddGraphProperty(AddGraphPropertyOp {
             path: self.path.clone(),
             time: timestamp.try_into_input_time()?,
@@ -862,6 +883,7 @@ impl RemoteGraph {
         &self,
         properties: impl IntoIterator<Item = (PN, P)>,
     ) -> Result<(), ClientError> {
+        self.require_base_for_write("add_metadata")?;
         let op = Op::Write(WriteOp::AddGraphMetadata(AddGraphMetadataOp {
             path: self.path.clone(),
             properties: collect_props(properties),
@@ -878,6 +900,7 @@ impl RemoteGraph {
         &self,
         properties: impl IntoIterator<Item = (PN, P)>,
     ) -> Result<(), ClientError> {
+        self.require_base_for_write("update_metadata")?;
         let op = Op::Write(WriteOp::UpdateGraphMetadata(UpdateGraphMetadataOp {
             path: self.path.clone(),
             properties: collect_props(properties),
@@ -899,6 +922,7 @@ impl RemoteGraph {
         dst: G,
         layer: Option<String>,
     ) -> Result<RemoteEdge, ClientError> {
+        self.require_base_for_write("delete_edge")?;
         let src = src.into();
         let dst = dst.into();
         let op = Op::Write(WriteOp::DeleteEdge(DeleteEdgeOp {

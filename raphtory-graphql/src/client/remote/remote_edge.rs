@@ -482,6 +482,26 @@ impl RemoteEdge {
 
     /// Add temporal updates to the edge at the specified time. `event_id` locks
     /// the secondary index; `None` lets the server auto-increment.
+    /// Refuse a write on a viewed handle — a write always targets the stored
+    /// edge, so accepting one here would silently ignore the view (locally
+    /// impossible: view types have no mutation methods). See #2716 for the
+    /// structural fix; until then the attempt is loud instead of wrong.
+    fn require_base_for_write(&self, what: &str) -> Result<(), ClientError> {
+        let is_base = matches!(
+            &*self.expr,
+            ReadExpr::Edge { input, .. } if matches!(&**input, ReadExpr::Root { .. })
+        );
+        if is_base {
+            Ok(())
+        } else {
+            Err(ClientError::InvalidInput(format!(
+                "{what} applies to the base edge handle — this handle carries a \
+                 view, and writes on views are not supported (as with the local \
+                 API, where views have no mutation methods)"
+            )))
+        }
+    }
+
     pub async fn add_updates<
         T: TryIntoInputTime,
         PN: AsRef<str>,
@@ -493,6 +513,7 @@ impl RemoteEdge {
         properties: PII,
         layer: Option<String>,
     ) -> Result<(), ClientError> {
+        self.require_base_for_write("add_updates")?;
         let op = Op::Write(WriteOp::AddEdgeUpdates(AddEdgeUpdatesOp {
             path: self.path.clone(),
             src: self.src.clone(),
@@ -512,6 +533,7 @@ impl RemoteEdge {
         t: T,
         layer: Option<String>,
     ) -> Result<(), ClientError> {
+        self.require_base_for_write("delete")?;
         let op = Op::Write(WriteOp::DeleteEdgeAtTime(DeleteEdgeAtTimeOp {
             path: self.path.clone(),
             src: self.src.clone(),
@@ -529,6 +551,7 @@ impl RemoteEdge {
         properties: impl IntoIterator<Item = (PN, P)>,
         layer: Option<String>,
     ) -> Result<(), ClientError> {
+        self.require_base_for_write("add_metadata")?;
         let op = Op::Write(WriteOp::AddEdgeMetadata(AddEdgeMetadataOp {
             path: self.path.clone(),
             src: self.src.clone(),
@@ -546,6 +569,7 @@ impl RemoteEdge {
         properties: impl IntoIterator<Item = (PN, P)>,
         layer: Option<String>,
     ) -> Result<(), ClientError> {
+        self.require_base_for_write("update_metadata")?;
         let op = Op::Write(WriteOp::UpdateEdgeMetadata(UpdateEdgeMetadataOp {
             path: self.path.clone(),
             src: self.src.clone(),
