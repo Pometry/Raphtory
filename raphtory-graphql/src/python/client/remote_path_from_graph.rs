@@ -451,15 +451,6 @@ impl PyRemotePathFromGraph {
         PyRemotePropertiesView::new(self.path.properties())
     }
 
-    /// Returns the number of source paths in this collection. Fires one RPC.
-    ///
-    /// Returns:
-    ///     int: the number of source paths.
-    pub fn count(&self) -> Result<i64, ClientError> {
-        let path = Arc::clone(&self.path);
-        execute_async_task(move || async move { path.count().await })
-    }
-
     /// Returns the degree of each node, grouped per source node. Fires one RPC.
     ///
     /// Returns:
@@ -533,13 +524,13 @@ impl PyRemotePathFromGraph {
     /// `len(path)` — number of source paths in the collection. Fires one RPC.
     pub fn __len__(&self) -> Result<usize, ClientError> {
         let path = Arc::clone(&self.path);
-        Ok(execute_async_task(move || async move { path.count().await })?.max(0) as usize)
+        Ok(execute_async_task(move || async move { path.len().await })?.max(0) as usize)
     }
 
     /// `bool(path)` — whether the collection is non-empty. Fires one RPC.
     pub fn __bool__(&self) -> Result<bool, ClientError> {
         let path = Arc::clone(&self.path);
-        Ok(execute_async_task(move || async move { path.count().await })? > 0)
+        Ok(execute_async_task(move || async move { path.len().await })? > 0)
     }
 
     /// View start bound for this collection — `None` if unbounded. Property —

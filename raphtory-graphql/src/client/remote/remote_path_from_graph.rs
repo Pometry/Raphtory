@@ -464,8 +464,11 @@ impl RemotePathFromGraph {
         expect_nested_i64_list(self.transport.execute(&op).await?, "edgeHistoryCount")
     }
 
-    /// Terminal: the number of source paths in this collection. Fires one RPC.
-    pub async fn count(&self) -> Result<i64, ClientError> {
+    /// Terminal: the number of *sources* — the outer length, not the total
+    /// neighbour count. Named `len` for that reason, matching the local
+    /// `PathFromGraph`, whose `len()` is the same outer count.
+    /// Fires one RPC.
+    pub async fn len(&self) -> Result<i64, ClientError> {
         let op = Op::Read(ReadExpr::Count {
             input: self.expr.clone(),
         });

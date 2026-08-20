@@ -140,6 +140,14 @@ def remote_graph_server(name="g", graph_type="EVENT"):
         yield client.new_graph(name, graph_type), client
 
 
+@contextlib.contextmanager
+def remote_graph(name="g", graph_type="EVENT"):
+    """As [`remote_graph_server`], yielding just the `RemoteGraph` — the
+    fixture nearly every test wants."""
+    with remote_graph_server(name, graph_type) as (rg, _client):
+        yield rg
+
+
 def run_graphql_test(query, expected_output, graph, sort_output=False):
     with graphql_server(graph) as client:
         response = client.query(query)

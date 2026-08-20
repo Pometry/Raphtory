@@ -347,9 +347,9 @@ TERMINALS = {
         lambda rg: rg.node("a").neighbours,
         lambda p: p.collect(),
     ),
-    "path_from_graph.count": (
+    "path_from_graph.len": (
         lambda rg: rg.nodes.neighbours,
-        lambda p: p.count(),
+        lambda p: len(p),
     ),
     "path_from_graph.degree": (
         lambda rg: rg.nodes.neighbours,

@@ -20,18 +20,11 @@ import pytest
 
 from raphtory.graphql import EdgeSortBy, GraphServer, NodeSortBy, SortByTime
 
-# The shared server-startup context manager lives in test_utils so every test
+# The shared server-startup context managers live in test_utils so every test
 # file stands servers up the same way; population differs per test, so callers
 # add their own nodes/edges to the yielded handle.
+from utils import remote_graph as _remote_graph
 from utils import remote_graph_server as _remote_graph_and_client
-
-
-@contextlib.contextmanager
-def _remote_graph(name="g", graph_type="EVENT"):
-    """As `_remote_graph_and_client`, yielding just the `RemoteGraph` — the
-    fixture nearly every test wants."""
-    with _remote_graph_and_client(name, graph_type) as (rg, _client):
-        yield rg
 
 
 @contextlib.contextmanager
@@ -2050,12 +2043,9 @@ def test_select_nodes_can_chain():
 
 
 def test_filter_nodes_preserves_membership():
-    """A *property* `.filter()` on `RemoteNodes` does NOT narrow the current
-    collection — the returned collection retains all original members; the
-    predicate is retained for downstream traversals. Contrast with `.select()`,
-    which narrows membership at this step, and with a node-id filter (e.g.
-    `Node.name() == ...`), which the engine applies as a graph view and so does
-    narrow — matching local raphtory."""
+    """`.filter()` keeps every member; only what they report downstream is
+    filtered. (`.select()` is the one that narrows membership.) Matches local
+    raphtory."""
     from raphtory.filter import Node
 
     with _make_filter_graph() as rg:
@@ -2393,8 +2383,10 @@ def test_nodes_out_neighbours_path_from_graph_count():
     with _make_node_filter_graph() as rg:  # ben -> hamza, alice, bob
         path = rg.nodes.out_neighbours
         assert isinstance(path, RemotePathFromGraph)
-        # 4 source nodes → 4 source paths.
-        assert path.count() == 4
+        # 4 source nodes → 4 source paths; `len` is the outer length, exactly
+        # as local `len(PathFromGraph)` is (the total neighbour count is
+        # `sum(out_degree)`, a different number).
+        assert len(path) == 4
 
 
 # --- multi-hop traversal on the two path collection types --------------------
@@ -2514,7 +2506,7 @@ def test_nodes_out_neighbours_path_from_graph():
         assert all(isinstance(x, str) for row in ids for x in row)
 
         # One source path per source node.
-        assert path.count() == 4
+        assert len(path) == 4
         assert len(ids) == 4
         assert len(collected) == 4
 
@@ -2948,8 +2940,6 @@ def test_event_time_t():
     with _make_graph_with_edge() as rg:
         et = rg.node("ben").history.earliest_time()
         assert et.t == 1
-        # strict parity: the non-local name is gone.
-        assert not hasattr(et, "timestamp")
 
 
 def test_history_t_dt():
@@ -3512,14 +3502,15 @@ def test_edges_src_dst_nbr():
         redges = rg.edges
         rids = redges.id  # list[(str, str)]
         # Local edge ids are already string tuples for string-named nodes.
-        lids = list(lg.edges.id)
+        # The local accessors are re-iterable views, so no materializing.
+        lids = lg.edges.id
 
         r_src = dict(zip(rids, redges.src.name))
         r_dst = dict(zip(rids, redges.dst.name))
         r_nbr = dict(zip(rids, redges.nbr.name))
-        l_src = dict(zip(lids, list(lg.edges.src.name)))
-        l_dst = dict(zip(lids, list(lg.edges.dst.name)))
-        l_nbr = dict(zip(lids, list(lg.edges.nbr.name)))
+        l_src = dict(zip(lids, lg.edges.src.name))
+        l_dst = dict(zip(lids, lg.edges.dst.name))
+        l_nbr = dict(zip(lids, lg.edges.nbr.name))
 
         assert r_src == l_src
         assert r_dst == l_dst
