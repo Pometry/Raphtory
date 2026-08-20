@@ -12,10 +12,10 @@ use crate::{
         },
         ClientError,
     },
-    model::graph::filtering::{GqlEdgeFilter, GqlFilter},
+    model::graph::filtering::GqlFilter,
 };
 use raphtory::errors::GraphError;
-use raphtory_api::core::storage::timeindex::EventTime;
+use raphtory_api::core::{entities::GID, storage::timeindex::EventTime};
 use std::sync::Arc;
 
 /// A handle to a nested edges collection on the server — the edges incident to
@@ -190,11 +190,12 @@ impl RemoteNestedEdges {
         })
     }
 
-    /// Narrow this collection's membership by an edge filter — applies only at
+    /// Narrow this collection's membership by a filter expression (node/edge
+    /// predicates, graph views, and/or/not combinations) — applies only at
     /// this step; downstream traversals see the unfiltered graph. Lazy — no RPC.
     pub fn select(
         &self,
-        filter: impl TryInto<GqlEdgeFilter, Error = GraphError>,
+        filter: impl TryInto<GqlFilter, Error = GraphError>,
     ) -> Result<RemoteNestedEdges, ClientError> {
         let filter = Arc::new(filter.try_into()?);
         Ok(RemoteNestedEdges {
@@ -335,7 +336,7 @@ impl RemoteNestedEdges {
 
     /// Columnar accessor: each source's edge `(src, dst)` id pairs — one inner
     /// list per source node. Mirrors the local `NestedEdges.id`. Fires one RPC.
-    pub async fn id(&self) -> Result<Vec<Vec<(String, String)>>, ClientError> {
+    pub async fn id(&self) -> Result<Vec<Vec<(GID, GID)>>, ClientError> {
         let op = Op::Read(ReadExpr::NestedEdgesList {
             input: self.expr.clone(),
         });

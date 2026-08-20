@@ -20,7 +20,6 @@ import pytest
 
 from raphtory.graphql import EdgeSortBy, GraphServer, NodeSortBy, SortByTime
 
-
 # The shared server-startup context manager lives in test_utils so every test
 # file stands servers up the same way; population differs per test, so callers
 # add their own nodes/edges to the yielded handle.
@@ -2996,10 +2995,9 @@ def test_history_sequence_dunders():
         assert [e.t for e in reversed(h)] == [8, 3, 1]
 
 
-def test_history_subcollection_dunders_and_to_list():
+def test_history_subcollection_dunders():
     """Sub-collections (`t`, `event_id`, `intervals`, `dt`) support the sequence
-    protocol; the int-valued ones also expose `to_list`/`to_list_rev` aliases of
-    `collect`/`collect_rev`."""
+    protocol."""
     with _make_graph_with_edge() as rg:
         rg.add_edge(8, "ben", "hamza")  # ben events at t=1, 3, 8
         ts = rg.node("ben").history.t
@@ -3013,35 +3011,33 @@ def test_history_subcollection_dunders_and_to_list():
         with pytest.raises(IndexError):
             _ = ts[5]
 
-        # to_list / to_list_rev aliases (t, event_id, intervals)
-        assert ts.to_list() == ts.collect() == [1, 3, 8]
-        assert ts.to_list_rev() == ts.collect_rev() == [8, 3, 1]
+        assert ts.collect() == [1, 3, 8]
+        assert ts.collect_rev() == [8, 3, 1]
 
         eids = rg.node("ben").history.event_id
         assert len(eids) == 3
-        assert eids.to_list() == eids.collect()
         assert list(eids) == eids.collect()
 
         intervals = rg.node("ben").history.intervals
         # gaps between consecutive events: (3-1), (8-3) = [2, 5]
-        assert intervals.to_list() == intervals.collect() == [2, 5]
-        # to_list_rev is a pure alias of collect_rev (server's own reverse
-        # semantics; don't hard-code the value here).
-        assert intervals.to_list_rev() == intervals.collect_rev()
+        assert intervals.collect() == [2, 5]
+        # Reversal reverses the *history*, so the deltas flip sign — the local
+        # semantics: reversed [8, 3, 1] has intervals [-5, -2], not [5, 2].
+        assert intervals.collect_rev() == [-5, -2]
+        assert list(reversed(intervals)) == [-5, -2]
         assert len(intervals) == 2
         assert intervals[0] == 2
         assert 5 in intervals
         # __reversed__ composes collect_rev (server reverse semantics).
         assert list(reversed(intervals)) == intervals.collect_rev()
 
-        # datetimes: sequence protocol but NO to_list (matches local).
+        # datetimes: sequence protocol.
         dts = rg.node("ben").history.dt
         assert len(dts) == 3
         assert list(dts) == dts.collect()
         assert dts[0] == dts.collect()[0]
         assert dts[0] in dts
         assert list(reversed(dts)) == dts.collect_rev()
-        assert not hasattr(dts, "to_list")
 
 
 def test_temporal_properties_dict_dunders_and_latest():

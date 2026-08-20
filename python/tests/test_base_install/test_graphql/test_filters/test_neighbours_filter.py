@@ -288,9 +288,9 @@ def test_neighbours_selection(graph):
             nodes(select: { property: { name: "p100", where: { gt: { i64: 30 } } } }) {
               list {
                 neighbours {
-                  select(expr: {
+                  select(expr: { nodes: {
                      property: { name: "p2", where: { gt: { i64: 3 } } }
-                  }) {
+                  } }) {
                     list {
                     name
                   }

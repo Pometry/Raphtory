@@ -1,6 +1,7 @@
 use crate::{
     client::{remote_nodes::RemoteNodes, ClientError},
     python::client::{
+        node_subscript,
         remote_collection_metadata::{PyRemoteMetadataView, PyRemotePropertiesView},
         remote_nested_edges::PyRemoteNestedEdges,
         remote_node::PyRemoteNode,
@@ -11,7 +12,7 @@ use crate::{
 use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyRef, PyRefMut, PyResult};
 use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
 use raphtory_api::{
-    core::{storage::timeindex::EventTime, utils::time::InputTime},
+    core::{entities::GID, storage::timeindex::EventTime, utils::time::InputTime},
     python::timeindex::PyOptionalEventTime,
 };
 use std::sync::Arc;
@@ -257,8 +258,7 @@ impl PyRemoteNodes {
     ///
     /// Raises:
     ///     ValueError: if the filter cannot be represented as a GraphQL
-    ///         `NodeFilter` (e.g. references edge fields, or uses an
-    ///         unsupported operator like `FuzzySearch`).
+    ///         `NodeFilter` (e.g. references edge fields).
     pub fn filter(&self, filter: PyFilterExpr) -> PyResult<PyRemoteNodes> {
         let tree = filter
             .try_as_filter_tree()
@@ -266,7 +266,8 @@ impl PyRemoteNodes {
         Ok(PyRemoteNodes::new(self.nodes.filter(tree)?))
     }
 
-    /// Narrow this collection's membership by a filter expression. Unlike
+    /// Narrow this collection's membership by a filter expression — node
+    /// predicates, graph views, or and/or/not combinations of them. Unlike
     /// `.filter()`, the filter applies **only at this step** — downstream
     /// traversals from the matching nodes see the unfiltered graph. Use
     /// `.filter()` for the propagating variant. Lazy — no RPC.
@@ -276,15 +277,33 @@ impl PyRemoteNodes {
     ///
     /// Returns:
     ///     RemoteNodes: a new collection narrowed to matching nodes.
+    ///
+    /// Raises:
+    ///     Exception: if the expression tests edges rather than nodes — the
+    ///         same error the local engine raises.
+    ///     ValueError: if the filter cannot be sent over the wire.
     pub fn select(&self, filter: PyFilterExpr) -> PyResult<PyRemoteNodes> {
-        let composite = filter
-            .try_as_node_filter()
-            .map_err(|e| PyValueError::new_err(e.to_string()))?;
-        Ok(PyRemoteNodes::new(self.nodes.select(composite)?))
+        Ok(PyRemoteNodes::new(
+            self.nodes.select(node_subscript(&filter)?)?,
+        ))
     }
 
-    /// `nodes[filter]` — sugar for `.select(filter)` (matches the local
-    /// `Nodes.__getitem__`). Lazy — no RPC.
+    /// `nodes[filter]` — narrow this collection's membership by a filter
+    /// expression, the sugar form of `.select(filter)` (matches the local
+    /// `Nodes.__getitem__`). Node predicates, graph views (which narrow
+    /// membership to the nodes present in the view), and combinations all
+    /// apply. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     filter (FilterExpr): a filter expression from `raphtory.filter`.
+    ///
+    /// Returns:
+    ///     RemoteNodes: a new collection narrowed to matching nodes.
+    ///
+    /// Raises:
+    ///     Exception: if the expression tests edges rather than nodes — the
+    ///         same error the local `Nodes.__getitem__` raises.
+    ///     ValueError: if the filter cannot be sent over the wire.
     fn __getitem__(&self, filter: PyFilterExpr) -> PyResult<PyRemoteNodes> {
         self.select(filter)
     }
@@ -366,9 +385,10 @@ impl PyRemoteNodes {
     /// fires one RPC.
     ///
     /// Returns:
-    ///   list[str]: the ids, in collection order.
+    ///   list[str | int]: the ids, in collection order — strings for
+    ///   string-indexed graphs, integers for integer-indexed ones.
     #[getter]
-    pub fn id(&self) -> Result<Vec<String>, ClientError> {
+    pub fn id(&self) -> Result<Vec<GID>, ClientError> {
         let nodes = Arc::clone(&self.nodes);
         execute_async_task(move || async move { nodes.id().await })
     }
@@ -403,12 +423,7 @@ impl PyRemoteNodes {
     #[getter]
     pub fn earliest_time(&self) -> Result<Vec<Option<EventTime>>, ClientError> {
         let nodes = Arc::clone(&self.nodes);
-        Ok(
-            execute_async_task(move || async move { nodes.earliest_time().await })?
-                .into_iter()
-                .map(|o| o)
-                .collect(),
-        )
+        execute_async_task(move || async move { nodes.earliest_time().await })
     }
 
     /// The latest event time of each node in this collection. Property —
@@ -419,12 +434,7 @@ impl PyRemoteNodes {
     #[getter]
     pub fn latest_time(&self) -> Result<Vec<Option<EventTime>>, ClientError> {
         let nodes = Arc::clone(&self.nodes);
-        Ok(
-            execute_async_task(move || async move { nodes.latest_time().await })?
-                .into_iter()
-                .map(|o| o)
-                .collect(),
-        )
+        execute_async_task(move || async move { nodes.latest_time().await })
     }
 
     /// The non-temporal metadata of this collection as a columnar view. Each

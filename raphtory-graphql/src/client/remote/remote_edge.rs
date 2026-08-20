@@ -1,18 +1,18 @@
 use crate::{
     client::{
+        collect_opt_props, collect_props,
         op::{
-            input_time_from_parts, AddEdgeMetadata as AddEdgeMetadataOp,
-            AddEdgeUpdates as AddEdgeUpdatesOp, DeleteEdgeAtTime as DeleteEdgeAtTimeOp, Fanout,
-            HandleCtx, HandleOp, InputTime, Op, ReadExpr,
-            UpdateEdgeMetadata as UpdateEdgeMetadataOp, ViewOp, WriteOp,
+            AddEdgeMetadata as AddEdgeMetadataOp, AddEdgeUpdates as AddEdgeUpdatesOp,
+            DeleteEdgeAtTime as DeleteEdgeAtTimeOp, Fanout, HandleCtx, HandleOp, InputTime, Op,
+            ReadExpr, UpdateEdgeMetadata as UpdateEdgeMetadataOp, ViewOp, WriteOp,
         },
         remote_edges::RemoteEdges,
         remote_history::RemoteHistory,
         remote_metadata::{RemoteMetadata, RemoteProperties},
         remote_node::RemoteNode,
         transport::{
-            expect_bool, expect_optional_event_time, expect_optional_i64, expect_string,
-            expect_string_list, Transport,
+            expect_bool, expect_gid_list, expect_optional_event_time, expect_optional_i64,
+            expect_string, expect_string_list, Transport,
         },
         ClientError,
     },
@@ -20,11 +20,11 @@ use crate::{
 };
 use raphtory::errors::GraphError;
 use raphtory_api::core::{
-    entities::properties::prop::Prop,
-    storage::timeindex::{AsTime, EventTime},
-    utils::time::IntoTime,
+    entities::{properties::prop::Prop, GID},
+    storage::timeindex::EventTime,
+    utils::time::TryIntoInputTime,
 };
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
 /// A handle to a remote edge on the server.
 ///
@@ -36,8 +36,8 @@ use std::{collections::HashMap, sync::Arc};
 #[derive(Clone)]
 pub struct RemoteEdge {
     pub path: String,
-    pub src: String,
-    pub dst: String,
+    pub src: GID,
+    pub dst: GID,
     pub transport: Arc<dyn Transport>,
     pub expr: Arc<ReadExpr>,
     /// Materialization context — inherited by descendants so their
@@ -50,8 +50,8 @@ impl RemoteEdge {
     /// materialization context.
     pub fn with_expr(
         path: String,
-        src: String,
-        dst: String,
+        src: GID,
+        dst: GID,
         transport: Arc<dyn Transport>,
         expr: impl Into<Arc<ReadExpr>>,
         ctx: HandleCtx,
@@ -241,7 +241,7 @@ impl RemoteEdge {
     pub fn nbr(&self) -> RemoteNode {
         RemoteNode::with_expr(
             self.path.clone(),
-            String::new(),
+            GID::Str(String::new()),
             self.transport.clone(),
             ReadExpr::Nbr {
                 input: self.expr.clone(),
@@ -395,12 +395,13 @@ impl RemoteEdge {
         expect_optional_event_time(self.transport.execute(&op).await?, "end")
     }
 
-    /// Terminal: edge id as `(src, dst)` pair of endpoint ids. Fires one RPC.
-    pub async fn id(&self) -> Result<(String, String), ClientError> {
+    /// Terminal: edge id as `(src, dst)` pair of endpoint ids — typed like
+    /// the local `.id` (integers on integer-indexed graphs). Fires one RPC.
+    pub async fn id(&self) -> Result<(GID, GID), ClientError> {
         let op = Op::Read(ReadExpr::EdgeIdPair {
             input: self.expr.clone(),
         });
-        let list = expect_string_list(self.transport.execute(&op).await?, "id")?;
+        let list = expect_gid_list(self.transport.execute(&op).await?, "id")?;
         let mut it = list.into_iter();
         let src = it
             .next()
@@ -481,19 +482,44 @@ impl RemoteEdge {
 
     /// Add temporal updates to the edge at the specified time. `event_id` locks
     /// the secondary index; `None` lets the server auto-increment.
-    pub async fn add_updates<T: IntoTime>(
+    /// Refuse a write on a viewed handle — a write always targets the stored
+    /// edge, so accepting one here would silently ignore the view (locally
+    /// impossible: view types have no mutation methods). See #2716 for the
+    /// structural fix; until then the attempt is loud instead of wrong.
+    fn require_base_for_write(&self, what: &str) -> Result<(), ClientError> {
+        let is_base = matches!(
+            &*self.expr,
+            ReadExpr::Edge { input, .. } if matches!(&**input, ReadExpr::Root { .. })
+        );
+        if is_base {
+            Ok(())
+        } else {
+            Err(ClientError::InvalidInput(format!(
+                "{what} applies to the base edge handle — this handle carries a \
+                 view, and writes on views are not supported (as with the local \
+                 API, where views have no mutation methods)"
+            )))
+        }
+    }
+
+    pub async fn add_updates<
+        T: TryIntoInputTime,
+        PN: AsRef<str>,
+        P: Into<Prop>,
+        PII: IntoIterator<Item = (PN, P)>,
+    >(
         &self,
         t: T,
-        properties: Option<HashMap<String, Prop>>,
+        properties: PII,
         layer: Option<String>,
-        event_id: Option<usize>,
     ) -> Result<(), ClientError> {
+        self.require_base_for_write("add_updates")?;
         let op = Op::Write(WriteOp::AddEdgeUpdates(AddEdgeUpdatesOp {
             path: self.path.clone(),
             src: self.src.clone(),
             dst: self.dst.clone(),
-            time: input_time_from_parts(t.into_time().t(), event_id),
-            properties,
+            time: t.try_into_input_time()?,
+            properties: collect_opt_props(properties),
             layer,
         }));
         self.transport.execute(&op).await?;
@@ -502,17 +528,17 @@ impl RemoteEdge {
 
     /// Mark the edge as deleted at the specified time. `event_id` locks the
     /// secondary index; `None` lets the server auto-increment.
-    pub async fn delete<T: IntoTime>(
+    pub async fn delete<T: TryIntoInputTime>(
         &self,
         t: T,
         layer: Option<String>,
-        event_id: Option<usize>,
     ) -> Result<(), ClientError> {
+        self.require_base_for_write("delete")?;
         let op = Op::Write(WriteOp::DeleteEdgeAtTime(DeleteEdgeAtTimeOp {
             path: self.path.clone(),
             src: self.src.clone(),
             dst: self.dst.clone(),
-            time: input_time_from_parts(t.into_time().t(), event_id),
+            time: t.try_into_input_time()?,
             layer,
         }));
         self.transport.execute(&op).await?;
@@ -520,16 +546,17 @@ impl RemoteEdge {
     }
 
     /// Add metadata to the edge (properties that do not change over time).
-    pub async fn add_metadata(
+    pub async fn add_metadata<PN: AsRef<str>, P: Into<Prop>>(
         &self,
-        properties: HashMap<String, Prop>,
+        properties: impl IntoIterator<Item = (PN, P)>,
         layer: Option<String>,
     ) -> Result<(), ClientError> {
+        self.require_base_for_write("add_metadata")?;
         let op = Op::Write(WriteOp::AddEdgeMetadata(AddEdgeMetadataOp {
             path: self.path.clone(),
             src: self.src.clone(),
             dst: self.dst.clone(),
-            properties,
+            properties: collect_props(properties),
             layer,
         }));
         self.transport.execute(&op).await?;
@@ -537,16 +564,17 @@ impl RemoteEdge {
     }
 
     /// Update metadata of the edge, overwriting existing values.
-    pub async fn update_metadata(
+    pub async fn update_metadata<PN: AsRef<str>, P: Into<Prop>>(
         &self,
-        properties: HashMap<String, Prop>,
+        properties: impl IntoIterator<Item = (PN, P)>,
         layer: Option<String>,
     ) -> Result<(), ClientError> {
+        self.require_base_for_write("update_metadata")?;
         let op = Op::Write(WriteOp::UpdateEdgeMetadata(UpdateEdgeMetadataOp {
             path: self.path.clone(),
             src: self.src.clone(),
             dst: self.dst.clone(),
-            properties,
+            properties: collect_props(properties),
             layer,
         }));
         self.transport.execute(&op).await?;

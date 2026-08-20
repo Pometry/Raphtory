@@ -845,8 +845,8 @@ class Graph(GraphView):
         timestamp: int,
         src: str | int,
         dst: str | int,
-        layer: Optional[str],
-        event_id: Optional[int],
+        layer: Optional[str] = None,
+        event_id: Optional[int] = None,
     ) -> MutableEdge:
         """
         Deletes an edge given the timestamp, src and dst nodes and layer (optional).
@@ -1086,7 +1086,9 @@ class Graph(GraphView):
 
     @staticmethod
     def load(
-        path: str | PathLike, config: Optional[Config] = None, read_only: bool = False
+        path: str | PathLike,
+        config: Optional[Config] = None,
+        read_only: Optional[bool] = False,
     ) -> Graph:
         """
         Load a disk graph from path
@@ -1095,9 +1097,9 @@ class Graph(GraphView):
             path (str | PathLike): the path of the graph folder
             config (Config, optional): specify a new config to override the values saved for the graph
                                        (note that the page sizes cannot be overridden and are ignored)
-            read_only (bool): open as a read-only snapshot. Defaults to False.
-                              Multiple processes can hold a read-only handle to the same graph
-                              directory concurrently; mutating the returned graph will fail.
+            read_only (bool, optional): open as a read-only snapshot. Multiple processes can hold
+                              a read-only handle to the same graph directory concurrently;
+                              mutating the returned graph will fail. Defaults to False.
 
         Returns:
             Graph: the graph
@@ -1733,7 +1735,9 @@ class PersistentGraph(GraphView):
 
     @staticmethod
     def load(
-        path: str | PathLike, config: Optional[Config] = None, read_only: bool = False
+        path: str | PathLike,
+        config: Optional[Config] = None,
+        read_only: Optional[bool] = False,
     ) -> PersistentGraph:
         """
         Load a disk graph from path
@@ -1742,9 +1746,9 @@ class PersistentGraph(GraphView):
             path (str | PathLike): the path of the graph folder
             config (Config, optional): specify a new config to override the values saved for the graph
                                        (note that the page sizes cannot be overridden and are ignored)
-            read_only (bool): open as a read-only snapshot. Defaults to False.
-                              Multiple processes can hold a read-only handle to the same graph
-                              directory concurrently; mutating the returned graph will fail.
+            read_only (bool, optional): open as a read-only snapshot. Multiple processes can hold
+                              a read-only handle to the same graph directory concurrently;
+                              mutating the returned graph will fail. Defaults to False.
 
         Returns:
             PersistentGraph: the graph

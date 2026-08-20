@@ -228,6 +228,25 @@ pub struct RemoteHistoryTimestamps {
 }
 
 impl RemoteHistoryTimestamps {
+    /// Reversed view of this container. Lazy — no RPC: the reversal wraps the
+    /// parent history (the server's `reverse` field), so downstream reads and
+    /// any future optimised iterators compose with it automatically.
+    pub fn reverse(&self) -> RemoteHistoryTimestamps {
+        let input = match &*self.expr {
+            ReadExpr::HistoryTimestamps { input } => input.clone(),
+            // Constructed only in this file with the variant above.
+            _ => unreachable!("RemoteHistoryTimestamps always wraps HistoryTimestamps"),
+        };
+        RemoteHistoryTimestamps {
+            path: self.path.clone(),
+            transport: self.transport.clone(),
+            expr: Arc::new(ReadExpr::HistoryTimestamps {
+                input: Arc::new(ReadExpr::HistoryReverse { input }),
+            }),
+            ctx: self.ctx.clone(),
+        }
+    }
+
     /// Terminal: all timestamps in ascending order. Fires one RPC.
     pub async fn collect(&self) -> Result<Vec<i64>, ClientError> {
         let op = Op::Read(ReadExpr::SubList {
@@ -288,6 +307,25 @@ pub struct RemoteHistoryEventIds {
 }
 
 impl RemoteHistoryEventIds {
+    /// Reversed view of this container. Lazy — no RPC: the reversal wraps the
+    /// parent history (the server's `reverse` field), so downstream reads and
+    /// any future optimised iterators compose with it automatically.
+    pub fn reverse(&self) -> RemoteHistoryEventIds {
+        let input = match &*self.expr {
+            ReadExpr::HistoryEventIds { input } => input.clone(),
+            // Constructed only in this file with the variant above.
+            _ => unreachable!("RemoteHistoryEventIds always wraps HistoryEventIds"),
+        };
+        RemoteHistoryEventIds {
+            path: self.path.clone(),
+            transport: self.transport.clone(),
+            expr: Arc::new(ReadExpr::HistoryEventIds {
+                input: Arc::new(ReadExpr::HistoryReverse { input }),
+            }),
+            ctx: self.ctx.clone(),
+        }
+    }
+
     /// Terminal: all event ids in ascending order. Fires one RPC.
     pub async fn collect(&self) -> Result<Vec<i64>, ClientError> {
         let op = Op::Read(ReadExpr::SubList {
@@ -361,6 +399,25 @@ fn to_datetimes(timestamps: Vec<i64>) -> Result<Vec<DateTime<Utc>>, ClientError>
 }
 
 impl RemoteHistoryDateTimes {
+    /// Reversed view of this container. Lazy — no RPC: the reversal wraps the
+    /// parent history (the server's `reverse` field), so downstream reads and
+    /// any future optimised iterators compose with it automatically.
+    pub fn reverse(&self) -> RemoteHistoryDateTimes {
+        let input = match &*self.expr {
+            ReadExpr::HistoryTimestamps { input } => input.clone(),
+            // Constructed only in this file with the variant above.
+            _ => unreachable!("RemoteHistoryDateTimes always wraps HistoryTimestamps"),
+        };
+        RemoteHistoryDateTimes {
+            path: self.path.clone(),
+            transport: self.transport.clone(),
+            expr: Arc::new(ReadExpr::HistoryTimestamps {
+                input: Arc::new(ReadExpr::HistoryReverse { input }),
+            }),
+            ctx: self.ctx.clone(),
+        }
+    }
+
     /// Terminal: all datetimes in ascending order. Fires one RPC.
     pub async fn collect(&self) -> Result<Vec<DateTime<Utc>>, ClientError> {
         let op = Op::Read(ReadExpr::SubList {
@@ -428,6 +485,25 @@ pub struct RemoteIntervals {
 }
 
 impl RemoteIntervals {
+    /// Reversed view of this container. Lazy — no RPC: the reversal wraps the
+    /// parent history (the server's `reverse` field), so downstream reads and
+    /// any future optimised iterators compose with it automatically.
+    pub fn reverse(&self) -> RemoteIntervals {
+        let input = match &*self.expr {
+            ReadExpr::HistoryIntervals { input } => input.clone(),
+            // Constructed only in this file with the variant above.
+            _ => unreachable!("RemoteIntervals always wraps HistoryIntervals"),
+        };
+        RemoteIntervals {
+            path: self.path.clone(),
+            transport: self.transport.clone(),
+            expr: Arc::new(ReadExpr::HistoryIntervals {
+                input: Arc::new(ReadExpr::HistoryReverse { input }),
+            }),
+            ctx: self.ctx.clone(),
+        }
+    }
+
     /// Terminal: all intervals in ascending order. Fires one RPC.
     pub async fn collect(&self) -> Result<Vec<i64>, ClientError> {
         let op = Op::Read(ReadExpr::SubList {

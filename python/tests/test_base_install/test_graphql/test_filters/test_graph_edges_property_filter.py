@@ -612,7 +612,7 @@ def test_edges_chained_selection_edges_filter_paired(graph):
     query {
       graph(path: "g") {
         edges(select: { property: { name: "p2", where: { gt: { i64: 3 } } } }) {
-          select(expr: { property: { name: "p2", where: { lt: { i64: 5 } } } }) {
+          select(expr: { edge: { property: { name: "p2", where: { lt: { i64: 5 } } } } }) {
             filter(expr: { edge: {
               dst: {
                 node: {
@@ -646,8 +646,8 @@ def test_edges_chained_selection_edges_filter_paired_ver2(graph):
     query {
       graph(path: "g") {
         edges {
-          select(expr: { property: { name: "p2", where: { gt: { i64: 3 } } } }) {
-            select(expr: { property: { name: "p2", where: { lt: { i64: 5 } } } }) {
+          select(expr: { edge: { property: { name: "p2", where: { gt: { i64: 3 } } } } }) {
+            select(expr: { edge: { property: { name: "p2", where: { lt: { i64: 5 } } } } }) {
               filter(expr: { edge: {
                 dst: {
                   node: {

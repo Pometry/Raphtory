@@ -1,16 +1,18 @@
 use crate::{
     client::{remote_path_from_graph::RemotePathFromGraph, ClientError},
     python::client::{
+        node_subscript,
         remote_collection_metadata::{PyRemoteMetadataView, PyRemotePropertiesView},
         remote_history::PyRemoteHistory,
         remote_nested_edges::PyRemoteNestedEdges,
         remote_node::PyRemoteNode,
+        remote_path_from_node::PyRemotePathFromNode,
     },
 };
 use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyRef, PyRefMut, PyResult};
 use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
 use raphtory_api::{
-    core::{storage::timeindex::EventTime, utils::time::InputTime},
+    core::{entities::GID, storage::timeindex::EventTime, utils::time::InputTime},
     python::timeindex::PyOptionalEventTime,
 };
 use std::sync::Arc;
@@ -76,22 +78,43 @@ impl PyRemotePathFromGraph {
         Ok(PyRemotePathFromGraph::new(self.path.filter(tree)?))
     }
 
-    /// Narrow this collection's membership by a node filter — applies only at
-    /// this step; downstream traversals see the unfiltered graph. Lazy — no RPC.
+    /// Narrow this collection's membership by a filter expression — node
+    /// predicates, graph views, or and/or/not combinations of them — applies
+    /// only at this step; downstream traversals see the unfiltered graph.
+    /// Lazy — no RPC.
     ///
     /// Arguments:
-    ///     filter (FilterExpr): a node filter expression from `raphtory.filter`.
+    ///     filter (FilterExpr): a filter expression from `raphtory.filter`.
     ///
     /// Returns:
     ///     RemotePathFromGraph: a new collection narrowed to matching nodes.
+    ///
+    /// Raises:
+    ///     Exception: if the expression tests edges rather than nodes — the
+    ///         same error the local engine raises.
+    ///     ValueError: if the filter cannot be sent over the wire.
     pub fn select(&self, filter: PyFilterExpr) -> PyResult<PyRemotePathFromGraph> {
-        let composite = filter
-            .try_as_node_filter()
-            .map_err(|e| PyValueError::new_err(e.to_string()))?;
-        Ok(PyRemotePathFromGraph::new(self.path.select(composite)?))
+        Ok(PyRemotePathFromGraph::new(
+            self.path.select(node_subscript(&filter)?)?,
+        ))
     }
 
-    /// `path[filter]` — sugar for `.select(filter)`. Lazy — no RPC.
+    /// `path[filter]` — narrow this collection's membership by a filter
+    /// expression, the sugar form of `.select(filter)` (matches the local
+    /// `PathFromGraph.__getitem__`). Node predicates, graph views (which
+    /// narrow membership to the nodes present in the view), and combinations
+    /// all apply. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     filter (FilterExpr): a filter expression from `raphtory.filter`.
+    ///
+    /// Returns:
+    ///     RemotePathFromGraph: a new collection narrowed to matching nodes.
+    ///
+    /// Raises:
+    ///     Exception: if the expression tests edges rather than nodes — the
+    ///         same error the local `PathFromGraph.__getitem__` raises.
+    ///     ValueError: if the filter cannot be sent over the wire.
     fn __getitem__(&self, filter: PyFilterExpr) -> PyResult<PyRemotePathFromGraph> {
         self.select(filter)
     }
@@ -354,9 +377,11 @@ impl PyRemotePathFromGraph {
     /// access fires one RPC.
     ///
     /// Returns:
-    ///     list[list[str]]: the ids, grouped per source node.
+    ///     list[list[str | int]]: the ids, grouped per source node —
+    ///     strings for string-indexed graphs, integers for integer-indexed
+    ///     ones.
     #[getter]
-    pub fn id(&self) -> Result<Vec<Vec<String>>, ClientError> {
+    pub fn id(&self) -> Result<Vec<Vec<GID>>, ClientError> {
         let path = Arc::clone(&self.path);
         execute_async_task(move || async move { path.id().await })
     }
@@ -391,12 +416,7 @@ impl PyRemotePathFromGraph {
     #[getter]
     pub fn earliest_time(&self) -> Result<Vec<Vec<Option<EventTime>>>, ClientError> {
         let path = Arc::clone(&self.path);
-        Ok(
-            execute_async_task(move || async move { path.earliest_time().await })?
-                .into_iter()
-                .map(|inner| inner.into_iter().map(|o| o).collect())
-                .collect(),
-        )
+        execute_async_task(move || async move { path.earliest_time().await })
     }
 
     /// The latest event time of each node, grouped per source node. Property —
@@ -407,12 +427,7 @@ impl PyRemotePathFromGraph {
     #[getter]
     pub fn latest_time(&self) -> Result<Vec<Vec<Option<EventTime>>>, ClientError> {
         let path = Arc::clone(&self.path);
-        Ok(
-            execute_async_task(move || async move { path.latest_time().await })?
-                .into_iter()
-                .map(|inner| inner.into_iter().map(|o| o).collect())
-                .collect(),
-        )
+        execute_async_task(move || async move { path.latest_time().await })
     }
 
     /// The non-temporal metadata of this collection as a nested columnar view.
@@ -564,19 +579,30 @@ impl PyRemotePathFromGraph {
             .collect())
     }
 
-    /// Enables `for row in remote_path_from_graph:` — fetches everything in one
-    /// RPC, then yields each per-source `list[RemoteNode]`.
+    /// Enables `for source, path in remote_path_from_graph:` — mirrors the local
+    /// `PathFromGraph`, which pairs each source node with that source's own
+    /// `PathFromNode`. Fetches the source ids in one RPC; the yielded path is a
+    /// lazy handle that still chains (`path.window(..)`, `path.degree()`, ...).
+    ///
+    /// Returns:
+    ///   Iterator[tuple[RemoteNode, RemotePathFromNode]]: one `(source, path)`
+    ///     pair per source node.
     fn __iter__(&self) -> Result<PyRemotePathFromGraphIter, ClientError> {
-        let list = self.collect()?;
+        let path = Arc::clone(&self.path);
+        let pairs = execute_async_task(move || async move { path.pairs().await })?;
         Ok(PyRemotePathFromGraphIter {
-            inner: list.into_iter(),
+            inner: pairs
+                .into_iter()
+                .map(|(source, path)| (PyRemoteNode::new(source), PyRemotePathFromNode::new(path)))
+                .collect::<Vec<_>>()
+                .into_iter(),
         })
     }
 }
 
 #[pyclass(name = "RemotePathFromGraphIter", module = "raphtory.graphql")]
 pub struct PyRemotePathFromGraphIter {
-    inner: std::vec::IntoIter<Vec<PyRemoteNode>>,
+    inner: std::vec::IntoIter<(PyRemoteNode, PyRemotePathFromNode)>,
 }
 
 #[pymethods]
@@ -585,7 +611,7 @@ impl PyRemotePathFromGraphIter {
         slf
     }
 
-    fn __next__(mut slf: PyRefMut<Self>) -> Option<Vec<PyRemoteNode>> {
+    fn __next__(mut slf: PyRefMut<Self>) -> Option<(PyRemoteNode, PyRemotePathFromNode)> {
         slf.inner.next()
     }
 }

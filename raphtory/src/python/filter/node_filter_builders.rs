@@ -21,7 +21,7 @@ use crate::{
         types::iterable::FromIterable,
     },
 };
-use pyo3::{pyclass, pymethods, Bound, IntoPyObject, PyResult, Python};
+use pyo3::{pyclass, pymethods, types::PyAnyMethods, Bound, IntoPyObject, PyAny, PyResult, Python};
 use raphtory_api::core::{entities::GID, storage::timeindex::EventTime};
 use std::sync::Arc;
 
@@ -46,8 +46,13 @@ impl PyNodeIdFilterBuilder {
     ///
     /// Returns:
     ///     filter.FilterExpr: A filter expression evaluating equality.
-    fn __eq__(&self, value: GID) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.0.eq(value)))
+    fn __eq__(&self, value: &Bound<'_, PyAny>) -> PyResult<PyFilterExpr> {
+        // Extract explicitly: with a concrete parameter type pyo3 turns a
+        // conversion failure into `NotImplemented`, so Python falls back to
+        // its default `==` and hands back a plain `bool` instead of a filter
+        // expression — the comparison silently stops being a filter.
+        let value: GID = value.extract()?;
+        Ok(PyFilterExpr(Arc::new(self.0.eq(value))))
     }
 
     /// Returns a filter expression that checks whether the node ID
@@ -58,8 +63,13 @@ impl PyNodeIdFilterBuilder {
     ///
     /// Returns:
     ///     filter.FilterExpr: A filter expression evaluating inequality.
-    fn __ne__(&self, value: GID) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.0.ne(value)))
+    fn __ne__(&self, value: &Bound<'_, PyAny>) -> PyResult<PyFilterExpr> {
+        // Extract explicitly: with a concrete parameter type pyo3 turns a
+        // conversion failure into `NotImplemented`, so Python falls back to
+        // its default `==` and hands back a plain `bool` instead of a filter
+        // expression — the comparison silently stops being a filter.
+        let value: GID = value.extract()?;
+        Ok(PyFilterExpr(Arc::new(self.0.ne(value))))
     }
 
     /// Returns a filter expression that checks whether the node ID
@@ -241,8 +251,13 @@ macro_rules! impl_node_text_filter_builder {
             ///
             /// Returns:
             ///     filter.FilterExpr: A filter expression evaluating equality.
-            fn __eq__(&self, value: String) -> PyFilterExpr {
-                PyFilterExpr(Arc::new(self.0.eq(value)))
+            fn __eq__(&self, value: &Bound<'_, PyAny>) -> PyResult<PyFilterExpr> {
+                // Extract explicitly: with a concrete parameter type pyo3 turns a
+                // conversion failure into `NotImplemented`, so Python falls back to
+                // its default `==` and hands back a plain `bool` instead of a filter
+                // expression — the comparison silently stops being a filter.
+                let value: String = value.extract()?;
+                Ok(PyFilterExpr(Arc::new(self.0.eq(value))))
             }
 
             /// Returns a filter expression that checks whether the entity's
@@ -253,8 +268,13 @@ macro_rules! impl_node_text_filter_builder {
             ///
             /// Returns:
             ///     filter.FilterExpr: A filter expression evaluating inequality.
-            fn __ne__(&self, value: String) -> PyFilterExpr {
-                PyFilterExpr(Arc::new(self.0.ne(value)))
+            fn __ne__(&self, value: &Bound<'_, PyAny>) -> PyResult<PyFilterExpr> {
+                // Extract explicitly: with a concrete parameter type pyo3 turns a
+                // conversion failure into `NotImplemented`, so Python falls back to
+                // its default `==` and hands back a plain `bool` instead of a filter
+                // expression — the comparison silently stops being a filter.
+                let value: String = value.extract()?;
+                Ok(PyFilterExpr(Arc::new(self.0.ne(value))))
             }
 
             /// Returns a filter expression that checks whether the entity's
@@ -403,7 +423,7 @@ impl PyNodeFilter {
     /// Selects incoming node degree for filtering.
     ///
     /// Returns:
-    ///     filter.FilterOps
+    ///     filter.FilterOps: a builder that selects the node degree for filtering.
     #[staticmethod]
     fn in_degree<'py>(_py: Python<'py>) -> PyPropertyExprBuilder {
         PyPropertyExprBuilder(Arc::new(NodeFilter.in_degree()))
@@ -412,7 +432,7 @@ impl PyNodeFilter {
     /// Selects total node degree for filtering.
     ///
     /// Returns:
-    ///     filter.FilterOps
+    ///     filter.FilterOps: a builder that selects the node degree for filtering.
     #[staticmethod]
     fn degree<'py>(_py: Python<'py>) -> PyPropertyExprBuilder {
         PyPropertyExprBuilder(Arc::new(NodeFilter.degree()))
@@ -421,7 +441,7 @@ impl PyNodeFilter {
     /// Selects outgoing node degree for filtering.
     ///
     /// Returns:
-    ///     filter.FilterOps
+    ///     filter.FilterOps: a builder that selects the node degree for filtering.
     #[staticmethod]
     fn out_degree<'py>(_py: Python<'py>) -> PyPropertyExprBuilder {
         PyPropertyExprBuilder(Arc::new(NodeFilter.out_degree()))

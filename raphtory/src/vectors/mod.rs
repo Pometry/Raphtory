@@ -377,7 +377,7 @@ mod vector_tests {
         )
         .unwrap();
 
-        dotenv::dotenv().ok();
+        dotenvy::dotenv().ok();
 
         let model = VectorCache::in_memory()
             .openai(

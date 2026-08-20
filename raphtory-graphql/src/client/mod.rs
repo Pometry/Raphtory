@@ -44,6 +44,33 @@ pub fn is_online(url: &str) -> bool {
         .unwrap_or(false)
 }
 
+/// Collect a property argument into the map the wire ops carry.
+///
+/// The write methods take properties the same way the local `AdditionOps` do —
+/// any `IntoIterator` of `(key, value)` where the key is string-like and the
+/// value converts to a `Prop` — so `[("score", 1i64)]`, a `Vec<(String, Prop)>`
+/// and a `HashMap` are all accepted, and `NO_PROPS` means none. This is where
+/// that argument becomes the concrete map an `Op` holds.
+pub(crate) fn collect_props<PN: AsRef<str>, P: Into<Prop>>(
+    props: impl IntoIterator<Item = (PN, P)>,
+) -> HashMap<String, Prop> {
+    props
+        .into_iter()
+        .map(|(k, v)| (k.as_ref().to_string(), v.into()))
+        .collect()
+}
+
+/// As `collect_props`, for the ops whose property field is optional: an empty
+/// argument is `None` so the field is omitted from the request rather than sent
+/// as an empty list, matching what the client did before properties became a
+/// local-style iterator.
+pub(crate) fn collect_opt_props<PN: AsRef<str>, P: Into<Prop>>(
+    props: impl IntoIterator<Item = (PN, P)>,
+) -> Option<HashMap<String, Prop>> {
+    let props = collect_props(props);
+    (!props.is_empty()).then_some(props)
+}
+
 /// Convert a property map into the `[PropertyInput!]` wire shape
 /// (`[{key, value}]`, where `value` is the `Value` @oneOf JSON). Serialization
 /// of `Value` rejects non-finite floats, so a `NaN`/`Infinity` surfaces as an

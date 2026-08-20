@@ -353,6 +353,20 @@ impl GqlPathFromGraph {
         .await)
     }
 
+    /// Columnar `sourceIds`: the id of the source node each path hangs off, in
+    /// the same order as `ids` / `list` — one entry per source path, so entry
+    /// `i` of `sourceIds` and entry `i` of `ids` describe the same pair. Lets a
+    /// client reconstruct the `(source, path)` pairing in ONE request instead of
+    /// one request per source. Computed in ONE `blocking_compute`, like `ids`.
+    async fn source_ids(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<String>> {
+        check_list_allowed(ctx)?;
+        let self_clone = self.clone();
+        Ok(
+            blocking_compute(move || self_clone.nn.iter().map(|(src, _)| src.name()).collect())
+                .await,
+        )
+    }
+
     /// Columnar `degree`: each source node's per-neighbour degrees as `[[Int]]`,
     /// computed in ONE `blocking_compute`. Fast-path for `list { degree }`.
     async fn degree(&self, ctx: &Context<'_>) -> async_graphql::Result<NestedIntList> {
@@ -483,13 +497,14 @@ impl GqlPathFromGraph {
 
     async fn select(
         &self,
-        #[graphql(desc = "Composite node filter (by name, property, type, etc.).")]
-        expr: GqlNodeFilter,
+        #[graphql(
+            desc = "Filter expression: node predicates, graph views, or and/or/not combinations (and = intersection). Expressions that test edges are rejected."
+        )]
+        expr: GqlFilter,
     ) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let filter: CompositeNodeFilter = expr.try_into()?;
-            let filtered = self_clone.nn.select(filter)?;
+            let filtered = self_clone.nn.select(expr)?;
             Ok(self_clone.update(filtered.into_dyn()))
         })
         .await

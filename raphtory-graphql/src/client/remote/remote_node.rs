@@ -1,10 +1,10 @@
 use crate::{
     client::{
+        collect_opt_props, collect_props,
         op::{
-            input_time_from_parts, AddNodeMetadata as AddNodeMetadataOp,
-            AddNodeUpdates as AddNodeUpdatesOp, HandleCtx, HandleOp, InputTime, Op, ReadExpr,
-            SetNodeType as SetNodeTypeOp, UpdateNodeMetadata as UpdateNodeMetadataOp, ViewOp,
-            WriteOp,
+            AddNodeMetadata as AddNodeMetadataOp, AddNodeUpdates as AddNodeUpdatesOp, HandleCtx,
+            HandleOp, InputTime, Op, ReadExpr, SetNodeType as SetNodeTypeOp,
+            UpdateNodeMetadata as UpdateNodeMetadataOp, ViewOp, WriteOp,
         },
         remote_edges::RemoteEdges,
         remote_history::RemoteHistory,
@@ -12,7 +12,7 @@ use crate::{
         remote_nodes::RemoteNodes,
         remote_path_from_node::RemotePathFromNode,
         transport::{
-            expect_bool, expect_i64, expect_optional_event_time, expect_optional_i64,
+            expect_bool, expect_gid, expect_i64, expect_optional_event_time, expect_optional_i64,
             expect_optional_string, expect_string, Transport,
         },
         ClientError,
@@ -21,11 +21,11 @@ use crate::{
 };
 use raphtory::errors::GraphError;
 use raphtory_api::core::{
-    entities::properties::prop::Prop,
-    storage::timeindex::{AsTime, EventTime},
-    utils::time::IntoTime,
+    entities::{properties::prop::Prop, GID},
+    storage::timeindex::EventTime,
+    utils::time::TryIntoInputTime,
 };
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
 /// A handle to a remote node on the server.
 ///
@@ -38,7 +38,7 @@ use std::{collections::HashMap, sync::Arc};
 #[derive(Clone)]
 pub struct RemoteNode {
     pub path: String,
-    pub id: String,
+    pub id: GID,
     pub transport: Arc<dyn Transport>,
     pub expr: Arc<ReadExpr>,
     /// Materialization context — inherited by child collections so their
@@ -51,7 +51,7 @@ impl RemoteNode {
     /// materialization context.
     pub fn with_expr(
         path: String,
-        id: String,
+        id: GID,
         transport: Arc<dyn Transport>,
         expr: impl Into<Arc<ReadExpr>>,
         ctx: HandleCtx,
@@ -269,13 +269,14 @@ impl RemoteNode {
         expect_optional_event_time(self.transport.execute(&op).await?, "end")
     }
 
-    /// Terminal: the node's id (as a string, even if the graph uses int GIDs).
-    /// Fires one RPC.
-    pub async fn id(&self) -> Result<String, ClientError> {
+    /// Terminal: the node's id — a string for string-indexed graphs, an
+    /// integer for integer-indexed ones, matching the local `.id`. Fires one
+    /// RPC.
+    pub async fn id(&self) -> Result<GID, ClientError> {
         let op = Op::Read(ReadExpr::Id {
             input: self.expr.clone(),
         });
-        expect_string(self.transport.execute(&op).await?, "id")
+        expect_gid(self.transport.execute(&op).await?, "id")
     }
 
     /// Terminal: the node's type. `None` if not set. Fires one RPC.
@@ -490,6 +491,7 @@ impl RemoteNode {
 
     /// Set the type on the node. This only works if the type has not been previously set.
     pub async fn set_node_type(&self, new_type: String) -> Result<(), ClientError> {
+        self.require_base_for_write("set_node_type")?;
         let op = Op::Write(WriteOp::SetNodeType(SetNodeTypeOp {
             path: self.path.clone(),
             id: self.id.clone(),
@@ -502,42 +504,74 @@ impl RemoteNode {
     /// Add temporal updates to the node at the specified time. `event_id` locks
     /// the secondary index (as on `add_node`); `None` lets the server
     /// auto-increment.
-    pub async fn add_updates<T: IntoTime>(
+    /// Refuse a write on a viewed handle — a write always targets the stored
+    /// node, so accepting one here would silently ignore the view (locally
+    /// impossible: view types have no mutation methods). See #2716 for the
+    /// structural fix; until then the attempt is loud instead of wrong.
+    fn require_base_for_write(&self, what: &str) -> Result<(), ClientError> {
+        let is_base = matches!(
+            &*self.expr,
+            ReadExpr::Node { input, .. } if matches!(&**input, ReadExpr::Root { .. })
+        );
+        if is_base {
+            Ok(())
+        } else {
+            Err(ClientError::InvalidInput(format!(
+                "{what} applies to the base node handle — this handle carries a \
+                 view, and writes on views are not supported (as with the local \
+                 API, where views have no mutation methods)"
+            )))
+        }
+    }
+
+    pub async fn add_updates<
+        T: TryIntoInputTime,
+        PN: AsRef<str>,
+        P: Into<Prop>,
+        PII: IntoIterator<Item = (PN, P)>,
+    >(
         &self,
         t: T,
-        properties: Option<HashMap<String, Prop>>,
-        event_id: Option<usize>,
+        properties: PII,
+        layer: Option<String>,
     ) -> Result<(), ClientError> {
+        self.require_base_for_write("add_updates")?;
         let op = Op::Write(WriteOp::AddNodeUpdates(AddNodeUpdatesOp {
             path: self.path.clone(),
             id: self.id.clone(),
-            time: input_time_from_parts(t.into_time().t(), event_id),
-            properties,
+            time: t.try_into_input_time()?,
+            properties: collect_opt_props(properties),
+            layer,
         }));
         self.transport.execute(&op).await?;
         Ok(())
     }
 
     /// Add metadata to the node (properties that do not change over time).
-    pub async fn add_metadata(&self, properties: HashMap<String, Prop>) -> Result<(), ClientError> {
+    pub async fn add_metadata<PN: AsRef<str>, P: Into<Prop>>(
+        &self,
+        properties: impl IntoIterator<Item = (PN, P)>,
+    ) -> Result<(), ClientError> {
+        self.require_base_for_write("add_metadata")?;
         let op = Op::Write(WriteOp::AddNodeMetadata(AddNodeMetadataOp {
             path: self.path.clone(),
             id: self.id.clone(),
-            properties,
+            properties: collect_props(properties),
         }));
         self.transport.execute(&op).await?;
         Ok(())
     }
 
     /// Update metadata of the node, overwriting existing values.
-    pub async fn update_metadata(
+    pub async fn update_metadata<PN: AsRef<str>, P: Into<Prop>>(
         &self,
-        properties: HashMap<String, Prop>,
+        properties: impl IntoIterator<Item = (PN, P)>,
     ) -> Result<(), ClientError> {
+        self.require_base_for_write("update_metadata")?;
         let op = Op::Write(WriteOp::UpdateNodeMetadata(UpdateNodeMetadataOp {
             path: self.path.clone(),
             id: self.id.clone(),
-            properties,
+            properties: collect_props(properties),
         }));
         self.transport.execute(&op).await?;
         Ok(())

@@ -8,7 +8,10 @@
 use crate::client::{op::Op, ClientError};
 use async_graphql::async_trait;
 use raphtory_api::core::{
-    entities::properties::prop::{Prop, PropMap, PropUnwrap},
+    entities::{
+        properties::prop::{Prop, PropMap, PropUnwrap},
+        GID,
+    },
     storage::timeindex::EventTime,
 };
 
@@ -171,6 +174,36 @@ pub(crate) fn expect_string_list(
     context: &str,
 ) -> Result<Vec<String>, ClientError> {
     cast_list(v, into_string, context)
+}
+
+/// A node id decoded from a response `Prop` — string ids arrive as
+/// `Prop::Str`, integer ids as `Prop::U64` (see `gid_prop`).
+fn into_gid(p: Prop) -> Option<GID> {
+    match p {
+        Prop::Str(s) => Some(GID::Str(s.to_string())),
+        Prop::U64(v) => Some(GID::U64(v)),
+        _ => None,
+    }
+}
+
+/// Unwrap a `Transport::execute` result expecting a single node id.
+pub(crate) fn expect_gid(v: Option<Prop>, context: &str) -> Result<GID, ClientError> {
+    cast(v, into_gid, context)
+}
+
+/// Unwrap a `Transport::execute` result expecting a `Prop::List` of node ids
+/// (e.g. the result of `.ids()` on a collection) — typed, not stringified.
+pub(crate) fn expect_gid_list(v: Option<Prop>, context: &str) -> Result<Vec<GID>, ClientError> {
+    cast_list(v, into_gid, context)
+}
+
+/// Nested variant of `expect_gid_list` — e.g. `.ids()` on a `PathFromGraph`
+/// collection, where each inner list holds the neighbours of one source node.
+pub(crate) fn expect_nested_gid_list(
+    v: Option<Prop>,
+    context: &str,
+) -> Result<Vec<Vec<GID>>, ClientError> {
+    cast_nested_list(v, into_gid, context)
 }
 
 /// Unwrap a `Transport::execute` result expecting a `Prop::List` of
@@ -468,11 +501,11 @@ pub(crate) fn expect_event_time_list(
 }
 
 /// Unwrap a `Transport::execute` result expecting an EdgesList terminal — a
-/// `Prop::List` of 2-element `Prop::List([src, dst])` string pairs.
+/// `Prop::List` of 2-element `Prop::List([src, dst])` typed-id pairs.
 pub(crate) fn expect_edge_list(
     v: Option<Prop>,
     context: &str,
-) -> Result<Vec<(String, String)>, ClientError> {
+) -> Result<Vec<(GID, GID)>, ClientError> {
     match v {
         Some(Prop::List(items)) => items
             .iter()
@@ -491,24 +524,12 @@ pub(crate) fn expect_edge_list(
                             context
                         )));
                     }
-                    let src = match src {
-                        Prop::Str(s) => s.to_string(),
-                        _ => {
-                            return Err(ClientError::InvalidResponse(format!(
-                                "`{}` src not a string",
-                                context
-                            )))
-                        }
-                    };
-                    let dst = match dst {
-                        Prop::Str(s) => s.to_string(),
-                        _ => {
-                            return Err(ClientError::InvalidResponse(format!(
-                                "`{}` dst not a string",
-                                context
-                            )))
-                        }
-                    };
+                    let src = into_gid(src).ok_or_else(|| {
+                        ClientError::InvalidResponse(format!("`{}` src not a node id", context))
+                    })?;
+                    let dst = into_gid(dst).ok_or_else(|| {
+                        ClientError::InvalidResponse(format!("`{}` dst not a node id", context))
+                    })?;
                     Ok((src, dst))
                 }
                 _ => Err(ClientError::InvalidResponse(format!(
@@ -526,7 +547,7 @@ pub(crate) fn expect_edge_list(
 
 /// One member of an exploded-edge fetch: `(src, dst, time, event_id,
 /// layer_name)` — everything needed to pin a handle to the event.
-pub(crate) type ExplodedEdgeRecord = (String, String, i64, i64, String);
+pub(crate) type ExplodedEdgeRecord = (GID, GID, i64, i64, String);
 
 /// Decode one 5-element `[src, dst, timestamp, event_id, layer_name]` inner
 /// list produced by the `ExplodedEdgesList` terminals.
@@ -555,9 +576,14 @@ fn exploded_edge_record(p: &Prop, context: &str) -> Result<ExplodedEdgeRecord, C
             context, what
         ))),
     };
+    let gid_at = |idx: usize, what: &str| {
+        into_gid(items[idx].clone()).ok_or_else(|| {
+            ClientError::InvalidResponse(format!("`{}` {} not a node id", context, what))
+        })
+    };
     Ok((
-        str_at(0, "src")?,
-        str_at(1, "dst")?,
+        gid_at(0, "src")?,
+        gid_at(1, "dst")?,
         i64_at(2, "timestamp")?,
         i64_at(3, "event_id")?,
         str_at(4, "layer_name")?,
@@ -583,7 +609,7 @@ pub(crate) fn expect_exploded_edge_list(
 }
 
 /// Decode one `[src, dst, layer]` layer-exploded-edge record.
-fn layers_edge_record(p: &Prop, context: &str) -> Result<(String, String, String), ClientError> {
+fn layers_edge_record(p: &Prop, context: &str) -> Result<(GID, GID, String), ClientError> {
     let items: Vec<Prop> = match p {
         Prop::List(items) => items.iter().collect(),
         _ => Vec::new(),
@@ -601,7 +627,12 @@ fn layers_edge_record(p: &Prop, context: &str) -> Result<(String, String, String
             context, what
         ))),
     };
-    Ok((str_at(0, "src")?, str_at(1, "dst")?, str_at(2, "layer")?))
+    let gid_at = |idx: usize, what: &str| {
+        into_gid(items[idx].clone()).ok_or_else(|| {
+            ClientError::InvalidResponse(format!("`{}` {} not a node id", context, what))
+        })
+    };
+    Ok((gid_at(0, "src")?, gid_at(1, "dst")?, str_at(2, "layer")?))
 }
 
 /// Unwrap a `Transport::execute` result for `ExplodedLayersEdgesList` — a
@@ -610,7 +641,7 @@ fn layers_edge_record(p: &Prop, context: &str) -> Result<(String, String, String
 pub(crate) fn expect_exploded_layers_edge_list(
     v: Option<Prop>,
     context: &str,
-) -> Result<Vec<(String, String, String)>, ClientError> {
+) -> Result<Vec<(GID, GID, String)>, ClientError> {
     match v {
         Some(Prop::List(items)) => items
             .iter()
@@ -628,7 +659,7 @@ pub(crate) fn expect_exploded_layers_edge_list(
 pub(crate) fn expect_nested_exploded_layers_edge_list(
     v: Option<Prop>,
     context: &str,
-) -> Result<Vec<Vec<(String, String, String)>>, ClientError> {
+) -> Result<Vec<Vec<(GID, GID, String)>>, ClientError> {
     match v {
         Some(Prop::List(rows)) => rows
             .iter()
@@ -684,7 +715,7 @@ pub(crate) fn expect_nested_exploded_edge_list(
 pub(crate) fn expect_nested_edge_list(
     v: Option<Prop>,
     context: &str,
-) -> Result<Vec<Vec<(String, String)>>, ClientError> {
+) -> Result<Vec<Vec<(GID, GID)>>, ClientError> {
     match v {
         Some(Prop::List(rows)) => rows
             .iter()
@@ -712,24 +743,18 @@ pub(crate) fn expect_nested_edge_list(
                                     context
                                 )));
                             }
-                            let src = match src {
-                                Prop::Str(s) => s.to_string(),
-                                _ => {
-                                    return Err(ClientError::InvalidResponse(format!(
-                                        "`{}` src not a string",
-                                        context
-                                    )))
-                                }
-                            };
-                            let dst = match dst {
-                                Prop::Str(s) => s.to_string(),
-                                _ => {
-                                    return Err(ClientError::InvalidResponse(format!(
-                                        "`{}` dst not a string",
-                                        context
-                                    )))
-                                }
-                            };
+                            let src = into_gid(src).ok_or_else(|| {
+                                ClientError::InvalidResponse(format!(
+                                    "`{}` src not a node id",
+                                    context
+                                ))
+                            })?;
+                            let dst = into_gid(dst).ok_or_else(|| {
+                                ClientError::InvalidResponse(format!(
+                                    "`{}` dst not a node id",
+                                    context
+                                ))
+                            })?;
                             Ok((src, dst))
                         }
                         _ => Err(ClientError::InvalidResponse(format!(
@@ -737,7 +762,7 @@ pub(crate) fn expect_nested_edge_list(
                             context
                         ))),
                     })
-                    .collect::<Result<Vec<(String, String)>, ClientError>>(),
+                    .collect::<Result<Vec<(GID, GID)>, ClientError>>(),
                 _ => Err(ClientError::InvalidResponse(format!(
                     "`{}` outer list contains non-list element",
                     context

@@ -40,8 +40,16 @@ async fn test_algorithm_louvain() {
             "entries": [{ "columnName": "community_id", "value": { "prop": community } }]
         })
     };
+    let mut actual = res.data.into_json().unwrap();
+    // Row order follows the storage backend's node iteration order; what the
+    // algorithm guarantees is the set of node -> community assignments, so
+    // compare rows in a canonical order.
+    actual["graph"]["algorithm"]["louvain"]["rows"]
+        .as_array_mut()
+        .expect("rows should be an array")
+        .sort_by(|l, r| l["node"]["id"].as_str().cmp(&r["node"]["id"].as_str()));
     assert_eq!(
-        res.data.into_json().unwrap(),
+        actual,
         json!({
             "graph": { "algorithm": { "louvain": { "rows": [
                 entry("a", 0),

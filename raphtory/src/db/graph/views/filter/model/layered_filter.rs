@@ -122,6 +122,9 @@ impl<T: TryAsCompositeFilter> TryAsCompositeFilter for Layered<T> {
         if let Ok(f) = self.try_as_composite_edge_filter() {
             return Ok(FilterTree::Edge(f));
         }
+        if let Ok(f) = self.try_as_composite_exploded_edge_filter() {
+            return Ok(FilterTree::ExplodedEdge(f));
+        }
         let FilterTree::View(ops) = self.inner.try_as_filter_tree()? else {
             return Err(GraphError::NotSupported);
         };

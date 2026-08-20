@@ -1781,9 +1781,9 @@ type Edges {
 	"""
 	select(
 		"""
-		Composite edge filter (by property, layer, src/dst, etc.).
+		Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
 		"""
-		expr: EdgeFilter!
+		expr: GqlFilter!
 	): Edges!
 }
 
@@ -1933,6 +1933,190 @@ type EventTime {
 }
 
 """
+GraphQL input type for filtering **exploded edges** — edge views where each
+temporal event is an individually addressable edge instance, rather than
+one aggregated edge across time.
+
+Predicates are evaluated **per event**: a property condition keeps the
+individual updates that match it (and the edges carrying them), where the
+plain `EdgeFilter` evaluates one aggregated value per edge.
+
+Filters can target edge endpoints, properties/metadata, temporal scope,
+layer membership, and structural edge state, and can be combined
+recursively with `And`/`Or`/`Not` — mirroring `EdgeFilter`.
+"""
+input ExplodedEdgeFilter @oneOf {
+	"""
+	Applies a filter to the **source node** of the exploded edge.
+	"""
+	src: NodeFilter
+	"""
+	Applies a filter to the **destination node** of the exploded edge.
+	"""
+	dst: NodeFilter
+	"""
+	Filters an exploded-edge **property** by name and value, evaluated
+	per event.
+	
+	Example:
+	`{ Property: { name: "weight", gt: 0.5 } }`
+	"""
+	property: PropertyFilterNew
+	"""
+	Filters an exploded-edge **metadata field**.
+	
+	Metadata is shared across all temporal versions of an edge.
+	"""
+	metadata: PropertyFilterNew
+	"""
+	Filters a **temporal exploded-edge property**, evaluated within a
+	temporal context per event.
+	"""
+	temporalProperty: PropertyFilterNew
+	"""
+	Logical **AND** over multiple exploded-edge filters.
+	"""
+	and: [ExplodedEdgeFilter!]
+	"""
+	Logical **OR** over multiple exploded-edge filters.
+	"""
+	or: [ExplodedEdgeFilter!]
+	"""
+	Logical **NOT** over a nested exploded-edge filter.
+	"""
+	not: ExplodedEdgeFilter
+	"""
+	Restricts exploded-edge evaluation to a **time window**
+	(inclusive start, exclusive end).
+	"""
+	window: ExplodedEdgeWindowExpr
+	"""
+	Restricts exploded-edge evaluation to a **single point in time**.
+	"""
+	at: ExplodedEdgeTimeExpr
+	"""
+	Restricts exploded-edge evaluation to times **strictly before** a
+	given time.
+	"""
+	before: ExplodedEdgeTimeExpr
+	"""
+	Restricts exploded-edge evaluation to times **strictly after** a
+	given time.
+	"""
+	after: ExplodedEdgeTimeExpr
+	"""
+	Evaluates exploded-edge predicates against the **latest available
+	state**.
+	"""
+	latest: ExplodedEdgeUnaryExpr
+	"""
+	Evaluates exploded-edge predicates against a **snapshot** of the graph
+	at a specific time.
+	"""
+	snapshotAt: ExplodedEdgeTimeExpr
+	"""
+	Evaluates exploded-edge predicates against the **most recent
+	snapshot** of the graph.
+	"""
+	snapshotLatest: ExplodedEdgeUnaryExpr
+	"""
+	Restricts evaluation to exploded edges belonging to one or more
+	**layers**.
+	"""
+	layers: ExplodedEdgeLayersExpr
+	"""
+	Matches exploded edges that have at least one event in the current
+	view/window.
+	"""
+	isActive: Boolean
+	"""
+	Matches exploded edges that are structurally valid (i.e. not deleted)
+	in the current view/window.
+	"""
+	isValid: Boolean
+	"""
+	Matches exploded edges that have been deleted in the current
+	view/window.
+	"""
+	isDeleted: Boolean
+	"""
+	Matches exploded edges that are **self-loops**
+	(source node == destination node).
+	"""
+	isSelfLoop: Boolean
+}
+
+"""
+Restricts exploded-edge evaluation to one or more layers and applies a
+nested `ExplodedEdgeFilter`.
+
+Used by `GqlExplodedEdgeFilter::Layers`.
+"""
+input ExplodedEdgeLayersExpr {
+	"""
+	Layer names to include.
+	"""
+	names: [String!]!
+	"""
+	Filter evaluated within the layer-restricted view.
+	"""
+	expr: ExplodedEdgeFilter!
+}
+
+"""
+Restricts exploded-edge evaluation to a single time bound and applies a
+nested `ExplodedEdgeFilter`.
+
+Used by `At`, `Before`, `After`, and `SnapshotAt` exploded-edge filters.
+"""
+input ExplodedEdgeTimeExpr {
+	"""
+	Reference time for the operation.
+	"""
+	time: TimeInput!
+	"""
+	Filter evaluated within the restricted time scope.
+	"""
+	expr: ExplodedEdgeFilter!
+}
+
+"""
+Applies a unary edge-view operation and then evaluates a nested
+`ExplodedEdgeFilter`.
+
+Used by `Latest` and `SnapshotLatest` exploded-edge filters.
+"""
+input ExplodedEdgeUnaryExpr {
+	"""
+	Filter evaluated after applying the unary operation.
+	"""
+	expr: ExplodedEdgeFilter!
+}
+
+"""
+Restricts exploded-edge evaluation to a time window and applies a nested
+`ExplodedEdgeFilter`.
+
+Used by `GqlExplodedEdgeFilter::Window`.
+
+The window is inclusive of `start` and exclusive of `end`.
+"""
+input ExplodedEdgeWindowExpr {
+	"""
+	Window start time (inclusive).
+	"""
+	start: TimeInput!
+	"""
+	Window end time (exclusive).
+	"""
+	end: TimeInput!
+	"""
+	Filter evaluated within the restricted window.
+	"""
+	expr: ExplodedEdgeFilter!
+}
+
+"""
 Fuzzy string match: passes when the candidate is within `levenshteinDistance`
 edits of `value` (optionally also matching by prefix). Mirrors the local
 `fuzzy_search(value, levenshtein_distance, prefix_match)` builder.
@@ -1953,7 +2137,7 @@ input FuzzySearchExpr {
 }
 
 """
-A general filter expression — a node filter (`nodes`), an edge filter (`edges`), a graph/view
+A general filter expression — a node filter (`node`), an edge filter (`edge`), a graph/view
 filter (`graph`, e.g. a layer or window restriction), or an `and`/`or` combination of these
 (which may mix kinds). Used where an operation accepts any filter, such as scoping a component
 walk.
@@ -1961,14 +2145,18 @@ walk.
 input GqlFilter @oneOf {
 	"""
 	Filter by node properties, fields, or temporal state.
-	(Persisted filters may use the legacy `node` key.)
 	"""
-	nodes: NodeFilter
+	node: NodeFilter
 	"""
 	Filter by edge properties, source/destination, or temporal state.
 	(Persisted filters may use the legacy `edge` key.)
 	"""
-	edges: EdgeFilter
+	edge: EdgeFilter
+	"""
+	Filter exploded edges — per-event edge instances — by properties,
+	endpoints, or temporal state, evaluated per event.
+	"""
+	explodedEdge: ExplodedEdgeFilter
 	"""
 	Apply a graph-level view (window, snapshot, layer restriction, …).
 	"""
@@ -1979,7 +2167,7 @@ input GqlFilter @oneOf {
 	and: [GqlFilter!]
 	"""
 	At least one sub-filter must pass (union).
-	Cross-type sub-filters (e.g. `nodes` and `edges` together) produce a
+	Cross-type sub-filters (e.g. `node` and `edge` together) produce a
 	proper graph union: a node is visible if it matches the node filter or
 	has a visible edge, and an edge is visible if it matches the edge
 	filter or both its endpoints are visible.
@@ -3260,18 +3448,18 @@ type MetaGraph {
 	"""
 	lastUpdated: Int!
 	"""
-	Returns the number of nodes in the graph.
+	Returns the number of nodes in the graph, or null if the caller lacks unfiltered read.
 	"""
-	nodeCount: Int!
+	nodeCount: Int
 	"""
-	Returns the number of edges in the graph.
+	Returns the number of edges in the graph, or null if the caller lacks unfiltered read.
 	
 	Returns:
 	int:
 	"""
-	edgeCount: Int!
+	edgeCount: Int
 	"""
-	Returns the metadata of the graph.
+	Returns the metadata of the graph, or null if the caller lacks unfiltered read.
 	
 	Reads metadata without forcing a full graph load: from the
 	in-memory cache if the graph is already loaded, otherwise directly
@@ -3279,7 +3467,7 @@ type MetaGraph {
 	`graph_props` segment for disk-backed graphs). This keeps
 	`MetaGraph.metadata` cheap for namespace listings of many graphs.
 	"""
-	metadata: [Property!]!
+	metadata: [Property!]
 }
 
 """
@@ -4250,9 +4438,9 @@ type NestedEdges {
 	"""
 	select(
 		"""
-		Composite edge filter (by property, layer, src/dst, etc.).
+		Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
 		"""
-		expr: EdgeFilter!
+		expr: GqlFilter!
 	): NestedEdges!
 }
 
@@ -5618,9 +5806,9 @@ type Nodes {
 	"""
 	select(
 		"""
-		Composite node filter (by name, property, type, etc.).
+		Filter expression: node predicates, graph views, or and/or/not combinations (and = intersection). Expressions that test edges are rejected.
 		"""
-		expr: NodeFilter!
+		expr: GqlFilter!
 	): Nodes!
 	"""
 	Returns the neighbouring nodes of each node in the collection.
@@ -5988,6 +6176,14 @@ type PathFromGraph {
 	"""
 	ids: NestedStringList!
 	"""
+	Columnar `sourceIds`: the id of the source node each path hangs off, in
+	the same order as `ids` / `list` — one entry per source path, so entry
+	`i` of `sourceIds` and entry `i` of `ids` describe the same pair. Lets a
+	client reconstruct the `(source, path)` pairing in ONE request instead of
+	one request per source. Computed in ONE `blocking_compute`, like `ids`.
+	"""
+	sourceIds: [String!]!
+	"""
 	Columnar `degree`: each source node's per-neighbour degrees as `[[Int]]`,
 	computed in ONE `blocking_compute`. Fast-path for `list { degree }`.
 	"""
@@ -6030,9 +6226,9 @@ type PathFromGraph {
 	"""
 	select(
 		"""
-		Composite node filter (by name, property, type, etc.).
+		Filter expression: node predicates, graph views, or and/or/not combinations (and = intersection). Expressions that test edges are rejected.
 		"""
-		expr: NodeFilter!
+		expr: GqlFilter!
 	): PathFromGraph!
 	"""
 	Returns the neighbouring nodes reachable one further hop from each source
@@ -6375,9 +6571,9 @@ type PathFromNode {
 	"""
 	select(
 		"""
-		Composite node filter (by name, property, type, etc.).
+		Filter expression: node predicates, graph views, or and/or/not combinations (and = intersection). Expressions that test edges are rejected.
 		"""
-		expr: NodeFilter!
+		expr: GqlFilter!
 	): PathFromNode!
 	"""
 	Returns the neighbouring nodes reachable one further hop from this path
@@ -6905,6 +7101,33 @@ type QueryRoot {
 		nodes: Template,
 		"""
 		Optional edge-document template; defaults to the built-in template.
+		"""
+		edges: Template
+	): Boolean!
+	"""
+	Index only the entities that are missing from an existing vector index, leaving what is
+	already indexed untouched. Cheap enough to run routinely, and never destructive.
+	
+	Fails if the graph has no index yet, or if the template or model differs from the one the
+	index was built with — `vectoriseGraph` is what covers those, by rebuilding.
+	
+	Returns:: bool
+	"""
+	vectoriseMissing(
+		"""
+		Graph path relative to the root namespace.
+		"""
+		path: String!,
+		"""
+		Embedding model; must match the one the index was built with.
+		"""
+		model: EmbeddingModel,
+		"""
+		Node-document template; must match the one the index was built with.
+		"""
+		nodes: Template,
+		"""
+		Edge-document template; must match the one the index was built with.
 		"""
 		edges: Template
 	): Boolean!
@@ -7454,4 +7677,3 @@ schema {
 	query: QueryRoot
 	mutation: MutRoot
 }
-

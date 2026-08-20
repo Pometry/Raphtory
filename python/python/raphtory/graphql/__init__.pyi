@@ -215,8 +215,13 @@ class RunningGraphServer(object):
             RaphtoryClient: the client.
         """
 
-    def port(self):
-        """Get the port the server is listening on"""
+    def port(self) -> int:
+        """
+        Get the port the server is listening on
+
+        Returns:
+            int: the port the server is listening on.
+        """
 
     def stop(self) -> None:
         """
@@ -763,6 +768,7 @@ class RemoteGraph(object):
         src: str | int,
         dst: str | int,
         layer: Optional[str] = None,
+        event_id: Optional[int] = None,
     ) -> RemoteEdge:
         """
         Deletes an edge in the remote graph, given the timestamp, src and dst nodes and layer (optional)
@@ -772,6 +778,8 @@ class RemoteGraph(object):
             src (str | int): The id of the source node.
             dst (str | int): The id of the destination node.
             layer (str, optional): The layer of the edge.
+            event_id (int, optional): Secondary index to disambiguate multiple
+                updates at the same timestamp. If omitted, the server auto-increments it.
 
         Returns:
             RemoteEdge: the remote edge
@@ -830,6 +838,20 @@ class RemoteGraph(object):
 
         Returns:
             OptionalEventTime: the view end bound, or empty if unbounded.
+        """
+
+    def event_graph(self) -> RemoteGraph:
+        """
+        View this graph with event semantics, whatever flavour it was stored
+        with — the remote form of the local zero-copy conversion. Only valid on
+        the base handle (as locally, where the conversions live on the graph
+        classes rather than on views). Lazy — no RPC.
+
+        Returns:
+            RemoteGraph: the same server graph under event semantics.
+
+        Raises:
+            Exception: if called after view operations.
         """
 
     def exclude_layer(self, name: str) -> RemoteGraph:
@@ -1101,6 +1123,20 @@ class RemoteGraph(object):
             str: the graph's full path.
         """
 
+    def persistent_graph(self) -> RemoteGraph:
+        """
+        View this graph with persistent semantics, whatever flavour it was
+        stored with — the remote form of the local zero-copy conversion. Only
+        valid on the base handle (as locally, where the conversions live on the
+        graph classes rather than on views). Lazy — no RPC.
+
+        Returns:
+            RemoteGraph: the same server graph under persistent semantics.
+
+        Raises:
+            Exception: if called after view operations.
+        """
+
     @property
     def properties(self) -> RemoteProperties:
         """
@@ -1201,12 +1237,12 @@ class RemoteGraph(object):
             OptionalEventTime: the view start bound, or empty if unbounded.
         """
 
-    def subgraph(self, nodes: list[str]) -> RemoteGraph:
+    def subgraph(self, nodes: list[str | int]) -> RemoteGraph:
         """
         Restrict to a subgraph induced by the given node ids. Lazy — no RPC.
 
         Arguments:
-            nodes (list[str]): the ids of the nodes to keep.
+            nodes (list[str | int]): the ids of the nodes to keep.
 
         Returns:
             RemoteGraph: a new view restricted to the induced subgraph.
@@ -1557,12 +1593,14 @@ class RemoteEdge(object):
         """
 
     @property
-    def id(self) -> tuple[str, str]:
+    def id(self) -> tuple[str | int, str | int]:
         """
         Edge id as a `(src, dst)` pair of endpoint ids. Property — fires one RPC.
 
         Returns:
-            tuple[str, str]: the `(src, dst)` pair of endpoint ids.
+            tuple[str | int, str | int]: the `(src, dst)` pair of endpoint
+                ids — strings for string-indexed graphs, integers for
+                integer-indexed ones.
         """
 
     def is_active(self) -> bool:
@@ -1846,6 +1884,7 @@ class RemoteNode(object):
         self,
         t: int | str | datetime,
         properties: Optional[dict[str, PropValue]] = None,
+        layer: Optional[str] = None,
         event_id: Optional[int] = None,
     ) -> None:
         """
@@ -1855,6 +1894,8 @@ class RemoteNode(object):
         Arguments:
           t (int | str | datetime): The timestamp at which the updates should be applied.
           properties (dict[str, PropValue], optional): A dictionary of properties to update.
+          layer (str, optional): The layer the updates belong to. Defaults to the
+              graph's default layer.
           event_id (int, optional): Secondary index to disambiguate multiple
               updates at the same timestamp. If omitted, the server auto-increments it.
 
@@ -2045,13 +2086,14 @@ class RemoteNode(object):
         """
 
     @property
-    def id(self) -> str:
+    def id(self):
         """
         The node's id (as a string, even if the graph uses integer GIDs).
         Property — attribute access fires one RPC.
 
         Returns:
-            str: the node's id.
+            str | int: the node's id — a string for string-indexed graphs, an
+                integer for integer-indexed ones.
         """
 
     @property
@@ -2547,8 +2589,7 @@ class RemoteNodes(object):
 
         Raises:
             ValueError: if the filter cannot be represented as a GraphQL
-                `NodeFilter` (e.g. references edge fields, or uses an
-                unsupported operator like `FuzzySearch`).
+                `NodeFilter` (e.g. references edge fields).
         """
 
     def has_layer(self, name: str) -> bool:
@@ -2563,13 +2604,14 @@ class RemoteNodes(object):
         """
 
     @property
-    def id(self) -> list[str]:
+    def id(self) -> list[str | int]:
         """
         The id of each node in this collection. Property — attribute access
         fires one RPC.
 
         Returns:
-          list[str]: the ids, in collection order.
+          list[str | int]: the ids, in collection order — strings for
+          string-indexed graphs, integers for integer-indexed ones.
         """
 
     def in_degree(self) -> list[int]:
@@ -2720,7 +2762,8 @@ class RemoteNodes(object):
 
     def select(self, filter: Any) -> RemoteNodes:
         """
-        Narrow this collection's membership by a filter expression. Unlike
+        Narrow this collection's membership by a filter expression — node
+        predicates, graph views, or and/or/not combinations of them. Unlike
         `.filter()`, the filter applies **only at this step** — downstream
         traversals from the matching nodes see the unfiltered graph. Use
         `.filter()` for the propagating variant. Lazy — no RPC.
@@ -2730,6 +2773,11 @@ class RemoteNodes(object):
 
         Returns:
             RemoteNodes: a new collection narrowed to matching nodes.
+
+        Raises:
+            Exception: if the expression tests edges rather than nodes — the
+                same error the local engine raises.
+            ValueError: if the filter cannot be sent over the wire.
         """
 
     def shrink_end(self, end: TimeInput) -> RemoteNodes:
@@ -3065,12 +3113,13 @@ class RemotePathFromNode(object):
         """
 
     @property
-    def id(self) -> list[str]:
+    def id(self) -> list[str | int]:
         """
         The id of each node in this path. Property — attribute access fires one RPC.
 
         Returns:
-            list[str]: the ids, in path order.
+            list[str | int]: the ids, in path order — strings for
+            string-indexed graphs, integers for integer-indexed ones.
         """
 
     def in_degree(self) -> list[int]:
@@ -3221,15 +3270,21 @@ class RemotePathFromNode(object):
 
     def select(self, filter: Any) -> RemotePathFromNode:
         """
-        Narrow this collection's membership by a node filter — applies only at
-        this step; downstream traversals see the unfiltered graph. Server-only
-        (no local `PathFromNode.select`). Lazy — no RPC.
+        Narrow this collection's membership by a filter expression — node
+        predicates, graph views, or and/or/not combinations of them — applies
+        only at this step; downstream traversals see the unfiltered graph.
+        Server-only (no local `PathFromNode.select`). Lazy — no RPC.
 
         Arguments:
-            filter (FilterExpr): a node filter expression from `raphtory.filter`.
+            filter (FilterExpr): a filter expression from `raphtory.filter`.
 
         Returns:
             RemotePathFromNode: a new collection narrowed to matching nodes.
+
+        Raises:
+            Exception: if the expression tests edges rather than nodes — the
+                same error the local engine raises.
+            ValueError: if the filter cannot be sent over the wire.
         """
 
     def shrink_end(self, end: TimeInput) -> RemotePathFromNode:
@@ -3554,13 +3609,15 @@ class RemotePathFromGraph(object):
         """
 
     @property
-    def id(self) -> list[list[str]]:
+    def id(self) -> list[list[str | int]]:
         """
         The id of each neighbour, grouped per source node. Property — attribute
         access fires one RPC.
 
         Returns:
-            list[list[str]]: the ids, grouped per source node.
+            list[list[str | int]]: the ids, grouped per source node —
+            strings for string-indexed graphs, integers for integer-indexed
+            ones.
         """
 
     def in_degree(self) -> list[list[int]]:
@@ -3714,14 +3771,21 @@ class RemotePathFromGraph(object):
 
     def select(self, filter: Any) -> RemotePathFromGraph:
         """
-        Narrow this collection's membership by a node filter — applies only at
-        this step; downstream traversals see the unfiltered graph. Lazy — no RPC.
+        Narrow this collection's membership by a filter expression — node
+        predicates, graph views, or and/or/not combinations of them — applies
+        only at this step; downstream traversals see the unfiltered graph.
+        Lazy — no RPC.
 
         Arguments:
-            filter (FilterExpr): a node filter expression from `raphtory.filter`.
+            filter (FilterExpr): a filter expression from `raphtory.filter`.
 
         Returns:
             RemotePathFromGraph: a new collection narrowed to matching nodes.
+
+        Raises:
+            Exception: if the expression tests edges rather than nodes — the
+                same error the local engine raises.
+            ValueError: if the filter cannot be sent over the wire.
         """
 
     def shrink_end(self, end: TimeInput) -> RemotePathFromGraph:
@@ -4024,8 +4088,7 @@ class RemoteEdges(object):
 
         Raises:
             ValueError: if the filter cannot be represented as a GraphQL
-                `EdgeFilter` (e.g. uses an unsupported operator like
-                `FuzzySearch`).
+                `EdgeFilter` (e.g. references node-only fields).
         """
 
     def has_layer(self, name: str) -> bool:
@@ -4040,13 +4103,15 @@ class RemoteEdges(object):
         """
 
     @property
-    def id(self) -> list[tuple[str, str]]:
+    def id(self) -> list[tuple[str | int, str | int]]:
         """
         The `(src, dst)` id pair of each edge in this collection. Property —
         attribute access fires one RPC.
 
         Returns:
-          list[tuple[str, str]]: the id pairs, in collection order.
+          list[tuple[str | int, str | int]]: the id pairs, in collection
+          order — endpoint ids are strings for string-indexed graphs,
+          integers for integer-indexed ones.
         """
 
     def is_active(self) -> list[bool]:
@@ -4179,16 +4244,20 @@ class RemoteEdges(object):
 
     def select(self, filter: Any) -> RemoteEdges:
         """
-        Narrow this collection's membership by a filter expression. Unlike
-        `.filter()`, the filter applies **only at this step** — downstream
-        traversals from the matching edges see the unfiltered graph. Use
-        `.filter()` for the propagating variant. Lazy — no RPC.
+        Narrow this collection's membership by a filter expression — edge or
+        node predicates, graph views, or and/or/not combinations of them.
+        Unlike `.filter()`, the filter applies **only at this step** —
+        downstream traversals from the matching edges see the unfiltered
+        graph. Use `.filter()` for the propagating variant. Lazy — no RPC.
 
         Arguments:
             filter (FilterExpr): a filter expression from `raphtory.filter`.
 
         Returns:
             RemoteEdges: a new collection narrowed to matching edges.
+
+        Raises:
+            ValueError: if the filter cannot be sent over the wire.
         """
 
     def shrink_end(self, end: TimeInput) -> RemoteEdges:
@@ -4532,13 +4601,15 @@ class RemoteNestedEdges(object):
         """
 
     @property
-    def id(self) -> list[list[tuple[str, str]]]:
+    def id(self) -> list[list[tuple[str | int, str | int]]]:
         """
         The `(src, dst)` id pair of each edge, grouped per source node.
         Property — attribute access fires one RPC.
 
         Returns:
-          list[list[tuple[str, str]]]: id pairs grouped per source node.
+          list[list[tuple[str | int, str | int]]]: id pairs grouped per
+          source node — endpoint ids are strings for string-indexed graphs,
+          integers for integer-indexed ones.
         """
 
     def is_active(self) -> list[list[bool]]:
@@ -4677,14 +4748,19 @@ class RemoteNestedEdges(object):
 
     def select(self, filter: Any) -> RemoteNestedEdges:
         """
-        Narrow this collection's membership by an edge filter — applies only at
-        this step; downstream traversals see the unfiltered graph. Lazy — no RPC.
+        Narrow this collection's membership by a filter expression — edge or
+        node predicates, graph views, or and/or/not combinations of them —
+        applies only at this step; downstream traversals see the unfiltered
+        graph. Lazy — no RPC.
 
         Arguments:
-            filter (FilterExpr): an edge filter expression from `raphtory.filter`.
+            filter (FilterExpr): a filter expression from `raphtory.filter`.
 
         Returns:
             RemoteNestedEdges: a new collection narrowed to matching edges.
+
+        Raises:
+            ValueError: if the filter cannot be sent over the wire.
         """
 
     def shrink_end(self, end: TimeInput) -> RemoteNestedEdges:
@@ -5518,6 +5594,15 @@ class RemoteMetadataView(object):
     Returned by the `metadata` getter on the remote collection handles.
     """
 
+    def __contains__(self, key):
+        """Return bool(key in self)."""
+
+    def __getitem__(self, key):
+        """Return self[key]."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
     def as_dict(self) -> dict[str, list]:
         """
         All `(key, column)` entries as a native Python `dict`. Fires one RPC.
@@ -5568,6 +5653,15 @@ class RemotePropertiesView(object):
 
     Returned by the `properties` getter on the remote collection handles.
     """
+
+    def __contains__(self, key):
+        """Return bool(key in self)."""
+
+    def __getitem__(self, key):
+        """Return self[key]."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
 
     def as_dict(self) -> dict[str, list]:
         """

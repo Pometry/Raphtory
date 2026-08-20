@@ -6,16 +6,16 @@ use crate::{
         remote_node::RemoteNode,
         remote_path_from_graph::RemotePathFromGraph,
         transport::{
-            expect_bool, expect_i64, expect_i64_list, expect_optional_event_time,
+            expect_bool, expect_gid_list, expect_i64, expect_i64_list, expect_optional_event_time,
             expect_optional_event_time_list, expect_optional_i64, expect_optional_string_list,
             expect_string_list, Transport,
         },
         ClientError,
     },
-    model::graph::filtering::{GqlFilter, GqlNodeFilter},
+    model::graph::filtering::GqlFilter,
 };
 use raphtory::errors::GraphError;
-use raphtory_api::core::storage::timeindex::EventTime;
+use raphtory_api::core::{entities::GID, storage::timeindex::EventTime};
 use std::sync::Arc;
 
 /// A handle to a remote collection of nodes on the server.
@@ -25,7 +25,7 @@ use std::sync::Arc;
 /// - `RemoteNode::neighbours()` / `.in_neighbours()` / `.out_neighbours()` —
 ///   the neighbours of a specific node.
 ///
-/// Holds the accumulated read expression (`expr`) so terminals like `.ids()`
+/// Holds the accumulated read expression (`expr`) so terminals like `.id()`
 /// and `.count()` evaluate under the full view chain built up on the parent,
 /// plus a materialization context (`ctx`) recording the parent graph view and
 /// the ordered collection-level ops — used by `.collect()` so materialized
@@ -219,13 +219,14 @@ impl RemoteNodes {
         })
     }
 
-    /// Narrow this collection's membership by a filter expression. Unlike
-    /// `.filter()`, the filter applies **only at this step** — downstream
-    /// traversals from the matching nodes see the unfiltered graph.
-    /// Lazy — no RPC.
+    /// Narrow this collection's membership by a filter expression (node
+    /// predicates, graph views, and/or/not combinations — expressions that
+    /// test edges are rejected by the server). Unlike `.filter()`, the
+    /// filter applies **only at this step** — downstream traversals from
+    /// the matching nodes see the unfiltered graph. Lazy — no RPC.
     pub fn select(
         &self,
-        filter: impl TryInto<GqlNodeFilter, Error = GraphError>,
+        filter: impl TryInto<GqlFilter, Error = GraphError>,
     ) -> Result<RemoteNodes, ClientError> {
         let filter = Arc::new(filter.try_into()?);
         Ok(RemoteNodes {
@@ -242,7 +243,7 @@ impl RemoteNodes {
     /// Reorder this collection by the given sort keys (lexicographic — ties
     /// on the first key break to the second, etc.). Returns a new
     /// `RemoteNodes` handle carrying the sort; the RPC only fires on a
-    /// downstream terminal (`.collect()`, `.count()`, `.ids()`, …). Lazy — no
+    /// downstream terminal (`.collect()`, `.count()`, `.id()`, …). Lazy — no
     /// RPC. `ctx` is unchanged: sorting affects only this
     /// collection's iteration order, not the view of materialized nodes.
     pub fn sorted(&self, sort_bys: Vec<NodeSortBy>) -> RemoteNodes {
@@ -345,21 +346,14 @@ impl RemoteNodes {
         )
     }
 
-    /// Terminal: the list of node ids in this collection. Fires one RPC.
-    pub async fn ids(&self) -> Result<Vec<String>, ClientError> {
+    /// Columnar accessor: each node's id — mirrors the local `Nodes.id`,
+    /// including the type: string ids for string-indexed graphs, integers
+    /// for integer-indexed ones. Fires one RPC.
+    pub async fn id(&self) -> Result<Vec<GID>, ClientError> {
         let op = Op::Read(ReadExpr::Ids {
             input: self.expr.clone(),
         });
-        expect_string_list(self.transport.execute(&op).await?, "ids")
-    }
-
-    /// Columnar accessor: each node's id — mirrors the local `Nodes.id`.
-    /// Fires one RPC. (Ids are strings over the GraphQL transport.)
-    pub async fn id(&self) -> Result<Vec<String>, ClientError> {
-        let op = Op::Read(ReadExpr::Ids {
-            input: self.expr.clone(),
-        });
-        expect_string_list(self.transport.execute(&op).await?, "id")
+        expect_gid_list(self.transport.execute(&op).await?, "id")
     }
 
     /// Columnar accessor: each node's name — mirrors the local `Nodes.name`.
@@ -509,7 +503,7 @@ impl RemoteNodes {
     /// order — so terminals on returned nodes evaluate under the same
     /// composed view as collection-level reads.
     pub async fn collect(&self) -> Result<Vec<RemoteNode>, ClientError> {
-        let ids = self.ids().await?;
+        let ids = self.id().await?;
         Ok(ids
             .into_iter()
             .map(|id| {

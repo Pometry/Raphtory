@@ -9,7 +9,7 @@ use crate::{
 use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyRef, PyRefMut, PyResult};
 use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
 use raphtory_api::{
-    core::{storage::timeindex::EventTime, utils::time::InputTime},
+    core::{entities::GID, storage::timeindex::EventTime, utils::time::InputTime},
     python::timeindex::PyOptionalEventTime,
 };
 use std::sync::Arc;
@@ -77,22 +77,39 @@ impl PyRemoteNestedEdges {
         Ok(PyRemoteNestedEdges::new(self.edges.filter(tree)?))
     }
 
-    /// Narrow this collection's membership by an edge filter — applies only at
-    /// this step; downstream traversals see the unfiltered graph. Lazy — no RPC.
+    /// Narrow this collection's membership by a filter expression — edge or
+    /// node predicates, graph views, or and/or/not combinations of them —
+    /// applies only at this step; downstream traversals see the unfiltered
+    /// graph. Lazy — no RPC.
     ///
     /// Arguments:
-    ///     filter (FilterExpr): an edge filter expression from `raphtory.filter`.
+    ///     filter (FilterExpr): a filter expression from `raphtory.filter`.
     ///
     /// Returns:
     ///     RemoteNestedEdges: a new collection narrowed to matching edges.
+    ///
+    /// Raises:
+    ///     ValueError: if the filter cannot be sent over the wire.
     pub fn select(&self, filter: PyFilterExpr) -> PyResult<PyRemoteNestedEdges> {
-        let composite = filter
-            .try_as_edge_filter()
+        let tree = filter
+            .try_as_filter_tree()
             .map_err(|e| PyValueError::new_err(e.to_string()))?;
-        Ok(PyRemoteNestedEdges::new(self.edges.select(composite)?))
+        Ok(PyRemoteNestedEdges::new(self.edges.select(tree)?))
     }
 
-    /// `edges[filter]` — sugar for `.select(filter)`. Lazy — no RPC.
+    /// `edges[filter]` — narrow this collection's membership by a filter
+    /// expression, the sugar form of `.select(filter)` (matches the local
+    /// `NestedEdges.__getitem__`). Edge predicates, node predicates, graph
+    /// views and mixed combinations all apply. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     filter (FilterExpr): a filter expression from `raphtory.filter`.
+    ///
+    /// Returns:
+    ///     RemoteNestedEdges: a new collection narrowed to matching edges.
+    ///
+    /// Raises:
+    ///     ValueError: if the filter cannot be sent over the wire.
     fn __getitem__(&self, filter: PyFilterExpr) -> PyResult<PyRemoteNestedEdges> {
         self.select(filter)
     }
@@ -357,9 +374,11 @@ impl PyRemoteNestedEdges {
     /// Property — attribute access fires one RPC.
     ///
     /// Returns:
-    ///   list[list[tuple[str, str]]]: id pairs grouped per source node.
+    ///   list[list[tuple[str | int, str | int]]]: id pairs grouped per
+    ///   source node — endpoint ids are strings for string-indexed graphs,
+    ///   integers for integer-indexed ones.
     #[getter]
-    pub fn id(&self) -> Result<Vec<Vec<(String, String)>>, ClientError> {
+    pub fn id(&self) -> Result<Vec<Vec<(GID, GID)>>, ClientError> {
         let edges = Arc::clone(&self.edges);
         execute_async_task(move || async move { edges.id().await })
     }
@@ -395,12 +414,7 @@ impl PyRemoteNestedEdges {
     #[getter]
     pub fn earliest_time(&self) -> Result<Vec<Vec<Option<EventTime>>>, ClientError> {
         let edges = Arc::clone(&self.edges);
-        Ok(
-            execute_async_task(move || async move { edges.earliest_time().await })?
-                .into_iter()
-                .map(|row| row.into_iter().map(|o| o).collect())
-                .collect(),
-        )
+        execute_async_task(move || async move { edges.earliest_time().await })
     }
 
     /// The latest event time of each edge, grouped per source node. Property —
@@ -411,12 +425,7 @@ impl PyRemoteNestedEdges {
     #[getter]
     pub fn latest_time(&self) -> Result<Vec<Vec<Option<EventTime>>>, ClientError> {
         let edges = Arc::clone(&self.edges);
-        Ok(
-            execute_async_task(move || async move { edges.latest_time().await })?
-                .into_iter()
-                .map(|row| row.into_iter().map(|o| o).collect())
-                .collect(),
-        )
+        execute_async_task(move || async move { edges.latest_time().await })
     }
 
     /// The event time of each edge, grouped per source node. Only valid once
@@ -428,12 +437,7 @@ impl PyRemoteNestedEdges {
     #[getter]
     pub fn time(&self) -> Result<Vec<Vec<Option<EventTime>>>, ClientError> {
         let edges = Arc::clone(&self.edges);
-        Ok(
-            execute_async_task(move || async move { edges.time().await })?
-                .into_iter()
-                .map(|row| row.into_iter().map(|o| o).collect())
-                .collect(),
-        )
+        execute_async_task(move || async move { edges.time().await })
     }
 
     /// The non-temporal metadata of this collection as a nested columnar view.

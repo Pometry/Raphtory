@@ -496,6 +496,7 @@ pub enum GraphViewOp {
 pub enum FilterTree {
     Node(CompositeNodeFilter),
     Edge(CompositeEdgeFilter),
+    ExplodedEdge(CompositeExplodedEdgeFilter),
     View(Vec<GraphViewOp>),
     And(Vec<FilterTree>),
     Or(Vec<FilterTree>),
@@ -514,12 +515,20 @@ pub trait TryAsCompositeFilter: Send + Sync {
     /// Export this filter as a kind-tagged [`FilterTree`]. The default covers
     /// every single-kind filter via the composite exports; combinators and
     /// graph-view filters override it to preserve structure the single-kind
-    /// exports cannot represent (mixed-kind trees, view chains).
+    /// exports cannot represent (mixed-kind trees, view chains). The kinds are
+    /// tried node → edge → exploded-edge, so a filter that exports as more
+    /// than one kind (e.g. the edge validity predicates) keeps its
+    /// plain-edge export.
     fn try_as_filter_tree(&self) -> Result<FilterTree, GraphError> {
         if let Ok(f) = self.try_as_composite_node_filter() {
             return Ok(FilterTree::Node(f));
         }
-        Ok(FilterTree::Edge(self.try_as_composite_edge_filter()?))
+        if let Ok(f) = self.try_as_composite_edge_filter() {
+            return Ok(FilterTree::Edge(f));
+        }
+        Ok(FilterTree::ExplodedEdge(
+            self.try_as_composite_exploded_edge_filter()?,
+        ))
     }
 }
 

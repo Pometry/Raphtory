@@ -1,5 +1,5 @@
 use crate::{
-    client::{remote_node::RemoteNode, ClientError},
+    client::{op::input_time_from_parts, remote_node::RemoteNode, ClientError},
     python::client::{
         remote_edges::PyRemoteEdges,
         remote_history::PyRemoteHistory,
@@ -15,7 +15,9 @@ use pyo3::{
 use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
 use raphtory_api::{
     core::{
-        entities::properties::prop::Prop, storage::timeindex::EventTime, utils::time::InputTime,
+        entities::{properties::prop::Prop, GID},
+        storage::timeindex::{AsTime, EventTime},
+        utils::time::InputTime,
     },
     python::timeindex::PyOptionalEventTime,
 };
@@ -279,21 +281,31 @@ impl PyRemoteNode {
     /// Arguments:
     ///   t (int | str | datetime): The timestamp at which the updates should be applied.
     ///   properties (dict[str, PropValue], optional): A dictionary of properties to update.
+    ///   layer (str, optional): The layer the updates belong to. Defaults to the
+    ///       graph's default layer.
     ///   event_id (int, optional): Secondary index to disambiguate multiple
     ///       updates at the same timestamp. If omitted, the server auto-increments it.
     ///
     /// Returns:
     ///   None:
-    #[pyo3(signature = (t, properties=None, event_id=None))]
+    #[pyo3(signature = (t, properties=None, layer=None, event_id=None))]
     pub fn add_updates(
         &self,
         t: EventTime,
         properties: Option<HashMap<String, Prop>>,
+        layer: Option<String>,
         event_id: Option<usize>,
     ) -> Result<(), ClientError> {
         let node = Arc::clone(&self.node);
 
-        let task = move || async move { node.add_updates(t, properties, event_id).await };
+        let task = move || async move {
+            node.add_updates(
+                input_time_from_parts(t.t(), event_id),
+                properties.into_iter().flatten(),
+                layer,
+            )
+            .await
+        };
         execute_async_task(task)?;
 
         Ok(())
@@ -422,9 +434,10 @@ impl PyRemoteNode {
     /// Property — attribute access fires one RPC.
     ///
     /// Returns:
-    ///     str: the node's id.
+    ///     str | int: the node's id — a string for string-indexed graphs, an
+    ///         integer for integer-indexed ones.
     #[getter]
-    pub fn id(&self) -> Result<String, ClientError> {
+    pub fn id(&self) -> Result<GID, ClientError> {
         let node = Arc::clone(&self.node);
         execute_async_task(move || async move { node.id().await })
     }

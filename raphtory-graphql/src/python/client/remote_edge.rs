@@ -1,5 +1,5 @@
 use crate::{
-    client::{remote_edge::RemoteEdge, ClientError},
+    client::{op::input_time_from_parts, remote_edge::RemoteEdge, ClientError},
     python::client::{
         remote_edges::PyRemoteEdges,
         remote_history::PyRemoteHistory,
@@ -11,7 +11,9 @@ use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyResult};
 use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
 use raphtory_api::{
     core::{
-        entities::properties::prop::Prop, storage::timeindex::EventTime, utils::time::InputTime,
+        entities::{properties::prop::Prop, GID},
+        storage::timeindex::{AsTime, EventTime},
+        utils::time::InputTime,
     },
     python::timeindex::PyOptionalEventTime,
 };
@@ -273,8 +275,14 @@ impl PyRemoteEdge {
         let edge = Arc::clone(&self.edge);
         let layer_str = layer.map(|s| s.to_string());
 
-        let task =
-            move || async move { edge.add_updates(t, properties, layer_str, event_id).await };
+        let task = move || async move {
+            edge.add_updates(
+                input_time_from_parts(t.t(), event_id),
+                properties.into_iter().flatten(),
+                layer_str,
+            )
+            .await
+        };
         execute_async_task(task)?;
 
         Ok(())
@@ -303,7 +311,10 @@ impl PyRemoteEdge {
         let edge = Arc::clone(&self.edge);
         let layer_str = layer.map(|s| s.to_string());
 
-        let task = move || async move { edge.delete(t, layer_str, event_id).await };
+        let task = move || async move {
+            edge.delete(input_time_from_parts(t.t(), event_id), layer_str)
+                .await
+        };
         execute_async_task(task)?;
 
         Ok(())
@@ -465,9 +476,11 @@ impl PyRemoteEdge {
     /// Edge id as a `(src, dst)` pair of endpoint ids. Property — fires one RPC.
     ///
     /// Returns:
-    ///     tuple[str, str]: the `(src, dst)` pair of endpoint ids.
+    ///     tuple[str | int, str | int]: the `(src, dst)` pair of endpoint
+    ///         ids — strings for string-indexed graphs, integers for
+    ///         integer-indexed ones.
     #[getter]
-    pub fn id(&self) -> Result<(String, String), ClientError> {
+    pub fn id(&self) -> Result<(GID, GID), ClientError> {
         let edge = Arc::clone(&self.edge);
         execute_async_task(move || async move { edge.id().await })
     }

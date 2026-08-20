@@ -563,7 +563,7 @@ mod graphql_test {
               }
             }
             nodes {
-              select(expr: { degree: { direction: BOTH, where: { gt: { u64: 0 } } } }) {
+              select(expr: { nodes: { degree: { direction: BOTH, where: { gt: { u64: 0 } } } } }) {
                 list {
                   name
                 }

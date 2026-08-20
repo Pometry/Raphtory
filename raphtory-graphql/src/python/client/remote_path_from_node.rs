@@ -1,6 +1,7 @@
 use crate::{
     client::{remote_path_from_node::RemotePathFromNode, ClientError},
     python::client::{
+        node_subscript,
         remote_collection_metadata::{PyRemoteMetadataView, PyRemotePropertiesView},
         remote_edges::PyRemoteEdges,
         remote_history::PyRemoteHistory,
@@ -10,7 +11,7 @@ use crate::{
 use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyRef, PyRefMut, PyResult};
 use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
 use raphtory_api::{
-    core::{storage::timeindex::EventTime, utils::time::InputTime},
+    core::{entities::GID, storage::timeindex::EventTime, utils::time::InputTime},
     python::timeindex::PyOptionalEventTime,
 };
 use std::sync::Arc;
@@ -75,24 +76,43 @@ impl PyRemotePathFromNode {
         Ok(PyRemotePathFromNode::new(self.path.filter(tree)?))
     }
 
-    /// Narrow this collection's membership by a node filter — applies only at
-    /// this step; downstream traversals see the unfiltered graph. Server-only
-    /// (no local `PathFromNode.select`). Lazy — no RPC.
+    /// Narrow this collection's membership by a filter expression — node
+    /// predicates, graph views, or and/or/not combinations of them — applies
+    /// only at this step; downstream traversals see the unfiltered graph.
+    /// Server-only (no local `PathFromNode.select`). Lazy — no RPC.
     ///
     /// Arguments:
-    ///     filter (FilterExpr): a node filter expression from `raphtory.filter`.
+    ///     filter (FilterExpr): a filter expression from `raphtory.filter`.
     ///
     /// Returns:
     ///     RemotePathFromNode: a new collection narrowed to matching nodes.
+    ///
+    /// Raises:
+    ///     Exception: if the expression tests edges rather than nodes — the
+    ///         same error the local engine raises.
+    ///     ValueError: if the filter cannot be sent over the wire.
     pub fn select(&self, filter: PyFilterExpr) -> PyResult<PyRemotePathFromNode> {
-        let composite = filter
-            .try_as_node_filter()
-            .map_err(|e| PyValueError::new_err(e.to_string()))?;
-        Ok(PyRemotePathFromNode::new(self.path.select(composite)?))
+        Ok(PyRemotePathFromNode::new(
+            self.path.select(node_subscript(&filter)?)?,
+        ))
     }
 
-    /// `path[filter]` — sugar for `.select(filter)` (matches the local
-    /// `PathFromNode.__getitem__`). Lazy — no RPC.
+    /// `path[filter]` — narrow this collection's membership by a filter
+    /// expression, the sugar form of `.select(filter)` (matches the local
+    /// `PathFromNode.__getitem__`). Node predicates, graph views (which
+    /// narrow membership to the nodes present in the view), and combinations
+    /// all apply. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     filter (FilterExpr): a filter expression from `raphtory.filter`.
+    ///
+    /// Returns:
+    ///     RemotePathFromNode: a new collection narrowed to matching nodes.
+    ///
+    /// Raises:
+    ///     Exception: if the expression tests edges rather than nodes — the
+    ///         same error the local `PathFromNode.__getitem__` raises.
+    ///     ValueError: if the filter cannot be sent over the wire.
     fn __getitem__(&self, filter: PyFilterExpr) -> PyResult<PyRemotePathFromNode> {
         self.select(filter)
     }
@@ -351,9 +371,10 @@ impl PyRemotePathFromNode {
     /// The id of each node in this path. Property — attribute access fires one RPC.
     ///
     /// Returns:
-    ///     list[str]: the ids, in path order.
+    ///     list[str | int]: the ids, in path order — strings for
+    ///     string-indexed graphs, integers for integer-indexed ones.
     #[getter]
-    pub fn id(&self) -> Result<Vec<String>, ClientError> {
+    pub fn id(&self) -> Result<Vec<GID>, ClientError> {
         let path = Arc::clone(&self.path);
         execute_async_task(move || async move { path.id().await })
     }
@@ -388,12 +409,7 @@ impl PyRemotePathFromNode {
     #[getter]
     pub fn earliest_time(&self) -> Result<Vec<Option<EventTime>>, ClientError> {
         let path = Arc::clone(&self.path);
-        Ok(
-            execute_async_task(move || async move { path.earliest_time().await })?
-                .into_iter()
-                .map(|o| o)
-                .collect(),
-        )
+        execute_async_task(move || async move { path.earliest_time().await })
     }
 
     /// The latest event time of each node in this path. Property — attribute
@@ -404,12 +420,7 @@ impl PyRemotePathFromNode {
     #[getter]
     pub fn latest_time(&self) -> Result<Vec<Option<EventTime>>, ClientError> {
         let path = Arc::clone(&self.path);
-        Ok(
-            execute_async_task(move || async move { path.latest_time().await })?
-                .into_iter()
-                .map(|o| o)
-                .collect(),
-        )
+        execute_async_task(move || async move { path.latest_time().await })
     }
 
     /// The non-temporal metadata of this path as a columnar view. Each accessor

@@ -1,5 +1,6 @@
 use crate::{
     client::{error::classify_graphql_errors, ClientError, RemoteGraph},
+    data::GqlGraphType,
     url_encode::url_decode_graph,
 };
 use raphtory::{db::api::view::MaterializedGraph, prelude::Config};
@@ -313,25 +314,16 @@ impl RemoteClient {
     }
 
     /// Create a new empty graph on the server.
-    pub async fn new_graph(&self, path: &str, graph_type: &str) -> Result<(), ClientError> {
-        // `graph_type` is spliced into the query as an unquoted GraphQL enum
-        // literal, so it must be validated against the known variants rather
-        // than blindly interpolated.
-        let graph_type = match graph_type {
-            "EVENT" => "EVENT",
-            "PERSISTENT" => "PERSISTENT",
-            other => {
-                return Err(ClientError::InvalidInput(format!(
-                    "invalid graph type `{other}`: expected \"EVENT\" or \"PERSISTENT\""
-                )))
-            }
-        };
+    pub async fn new_graph(&self, path: &str, graph_type: GqlGraphType) -> Result<(), ClientError> {
+        // `graphType` is a GraphQL enum, so the value is spliced in as a bare
+        // token. Taking the enum rather than a string means there is no
+        // unvalidated value to splice.
         let query = r#"
             mutation NewGraph($path: String!) {
               newGraph(path: $path, graphType: EVENT)
             }"#
         .to_owned()
-        .replace("EVENT", graph_type);
+        .replace("EVENT", graph_type.as_gql());
 
         let variables = json!({
             "path": json!(path),

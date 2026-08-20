@@ -1,7 +1,8 @@
 use crate::{
     client::{
         op::{
-            AddEdges as AddEdgesOp, AddNodes as AddNodesOp, EdgeAddition, NodeAddition, Op, WriteOp,
+            input_time_from_parts, AddEdges as AddEdgesOp, AddNodes as AddNodesOp, EdgeAddition,
+            NodeAddition, Op, WriteOp,
         },
         remote_graph::RemoteGraph,
         ClientError,
@@ -21,7 +22,7 @@ use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_t
 use raphtory_api::{
     core::{
         entities::{properties::prop::Prop, GID},
-        storage::timeindex::EventTime,
+        storage::timeindex::{AsTime, EventTime},
         utils::time::InputTime,
     },
     python::timeindex::PyOptionalEventTime,
@@ -227,6 +228,38 @@ impl PyRemoteGraph {
         }
     }
 
+    /// View this graph with event semantics, whatever flavour it was stored
+    /// with — the remote form of the local zero-copy conversion. Only valid on
+    /// the base handle (as locally, where the conversions live on the graph
+    /// classes rather than on views). Lazy — no RPC.
+    ///
+    /// Returns:
+    ///     RemoteGraph: the same server graph under event semantics.
+    ///
+    /// Raises:
+    ///     Exception: if called after view operations.
+    pub fn event_graph(&self) -> Result<PyRemoteGraph, ClientError> {
+        Ok(PyRemoteGraph {
+            graph: Arc::new(self.graph.event_graph()?),
+        })
+    }
+
+    /// View this graph with persistent semantics, whatever flavour it was
+    /// stored with — the remote form of the local zero-copy conversion. Only
+    /// valid on the base handle (as locally, where the conversions live on the
+    /// graph classes rather than on views). Lazy — no RPC.
+    ///
+    /// Returns:
+    ///     RemoteGraph: the same server graph under persistent semantics.
+    ///
+    /// Raises:
+    ///     Exception: if called after view operations.
+    pub fn persistent_graph(&self) -> Result<PyRemoteGraph, ClientError> {
+        Ok(PyRemoteGraph {
+            graph: Arc::new(self.graph.persistent_graph()?),
+        })
+    }
+
     /// Restrict to the default layer. Lazy — no RPC.
     ///
     /// Returns:
@@ -305,11 +338,11 @@ impl PyRemoteGraph {
     /// Restrict to a subgraph induced by the given node ids. Lazy — no RPC.
     ///
     /// Arguments:
-    ///     nodes (list[str]): the ids of the nodes to keep.
+    ///     nodes (list[str | int]): the ids of the nodes to keep.
     ///
     /// Returns:
     ///     RemoteGraph: a new view restricted to the induced subgraph.
-    pub fn subgraph(&self, nodes: Vec<String>) -> PyRemoteGraph {
+    pub fn subgraph(&self, nodes: Vec<GID>) -> PyRemoteGraph {
         PyRemoteGraph {
             graph: Arc::new(self.graph.subgraph(nodes)),
         }
@@ -656,7 +689,7 @@ impl PyRemoteGraph {
     /// Returns:
     ///     list[RemoteNode]: the shared neighbours. Empty if `ids` is empty
     ///         or none of the ids exist in the current view.
-    pub fn shared_neighbours(&self, ids: Vec<String>) -> Result<Vec<PyRemoteNode>, ClientError> {
+    pub fn shared_neighbours(&self, ids: Vec<GID>) -> Result<Vec<PyRemoteNode>, ClientError> {
         let graph = Arc::clone(&self.graph);
         let nodes = execute_async_task(move || async move { graph.shared_neighbours(ids).await })?;
         Ok(nodes.into_iter().map(PyRemoteNode::new).collect())
@@ -777,7 +810,13 @@ impl PyRemoteGraph {
 
         let node = execute_async_task(move || async move {
             graph
-                .add_node(timestamp, id, properties, node_type, layer, event_id)
+                .add_node(
+                    input_time_from_parts(timestamp.t(), event_id),
+                    id,
+                    properties.into_iter().flatten(),
+                    node_type,
+                    layer,
+                )
                 .await
         })?;
 
@@ -813,7 +852,13 @@ impl PyRemoteGraph {
 
         let node = execute_async_task(move || async move {
             graph
-                .create_node(timestamp, id, properties, node_type, layer, event_id)
+                .create_node(
+                    input_time_from_parts(timestamp.t(), event_id),
+                    id,
+                    properties.into_iter().flatten(),
+                    node_type,
+                    layer,
+                )
                 .await
         })?;
 
@@ -840,7 +885,9 @@ impl PyRemoteGraph {
     ) -> Result<(), ClientError> {
         let graph = Arc::clone(&self.graph);
         execute_async_task(move || async move {
-            graph.add_properties(timestamp, properties, event_id).await
+            graph
+                .add_properties(input_time_from_parts(timestamp.t(), event_id), properties)
+                .await
         })
     }
 
@@ -896,7 +943,13 @@ impl PyRemoteGraph {
 
         let edge = execute_async_task(move || async move {
             graph
-                .add_edge(timestamp, src, dst, properties, layer, event_id)
+                .add_edge(
+                    input_time_from_parts(timestamp.t(), event_id),
+                    src,
+                    dst,
+                    properties.into_iter().flatten(),
+                    layer,
+                )
                 .await
         })?;
 
@@ -910,22 +963,32 @@ impl PyRemoteGraph {
     ///     src (str | int): The id of the source node.
     ///     dst (str | int): The id of the destination node.
     ///     layer (str, optional): The layer of the edge.
+    ///     event_id (int, optional): Secondary index to disambiguate multiple
+    ///         updates at the same timestamp. If omitted, the server auto-increments it.
     ///
     /// Returns:
     ///     RemoteEdge: the remote edge
-    #[pyo3(signature = (timestamp, src, dst, layer=None))]
+    #[pyo3(signature = (timestamp, src, dst, layer=None, event_id=None))]
     pub fn delete_edge(
         &self,
         timestamp: EventTime,
         src: GID,
         dst: GID,
         layer: Option<&str>,
+        event_id: Option<usize>,
     ) -> Result<PyRemoteEdge, ClientError> {
         let graph = Arc::clone(&self.graph);
         let layer = layer.map(|s| s.to_string());
 
         let edge = execute_async_task(move || async move {
-            graph.delete_edge(timestamp, src, dst, layer).await
+            graph
+                .delete_edge(
+                    input_time_from_parts(timestamp.t(), event_id),
+                    src,
+                    dst,
+                    layer,
+                )
+                .await
         })?;
 
         Ok(PyRemoteEdge::new(edge))

@@ -28,10 +28,7 @@ use raphtory::{
 use raphtory_api::{core::utils::time::IntoTime, iter::IntoDynBoxed};
 use std::{cmp::Ordering, sync::Arc};
 
-use crate::model::graph::filtering::GqlEdgeFilter;
-use raphtory::db::{
-    api::view::Filter, graph::views::filter::model::edge_filter::CompositeEdgeFilter,
-};
+use raphtory::db::api::view::Filter;
 
 /// A lazy collection of edges from a graph view. Supports the usual view
 /// transforms (window, layer, filter, ...), plus edge-specific ones like
@@ -564,13 +561,14 @@ impl GqlEdges {
 
     async fn select(
         &self,
-        #[graphql(desc = "Composite edge filter (by property, layer, src/dst, etc.).")]
-        expr: GqlEdgeFilter,
+        #[graphql(
+            desc = "Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection)."
+        )]
+        expr: GqlFilter,
     ) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let filter: CompositeEdgeFilter = expr.try_into()?;
-            let filtered = self_clone.ee.select(filter)?;
+            let filtered = self_clone.ee.select(expr)?;
             Ok(self_clone.update(filtered))
         })
         .await

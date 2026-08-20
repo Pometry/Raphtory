@@ -12,10 +12,10 @@ use crate::{
         },
         ClientError,
     },
-    model::graph::filtering::{GqlEdgeFilter, GqlFilter},
+    model::graph::filtering::GqlFilter,
 };
 use raphtory::errors::GraphError;
-use raphtory_api::core::storage::timeindex::EventTime;
+use raphtory_api::core::{entities::GID, storage::timeindex::EventTime};
 use std::sync::Arc;
 
 /// A handle to a remote collection of edges on the server.
@@ -31,9 +31,8 @@ use std::sync::Arc;
 /// the ordered collection-level ops — used by `.collect()` so materialized
 /// `RemoteEdge`s evaluate under the same composed view.
 ///
-/// Note: edges are identified by `(src, dst)` pairs — there's no
-/// single-string id, so this collection exposes `.count()` and `.collect()`
-/// but no `.ids()`.
+/// Note: edges are identified by `(src, dst)` pairs, so the `.id()` column
+/// yields pairs rather than single ids.
 #[derive(Clone)]
 pub struct RemoteEdges {
     pub path: String,
@@ -248,13 +247,13 @@ impl RemoteEdges {
         })
     }
 
-    /// Narrow this collection's membership by a filter expression. Unlike
-    /// `.filter()`, the filter applies **only at this step** — downstream
-    /// traversals from the matching edges see the unfiltered graph.
-    /// Lazy — no RPC.
+    /// Narrow this collection's membership by a filter expression (node/edge
+    /// predicates, graph views, and/or/not combinations). Unlike `.filter()`,
+    /// the filter applies **only at this step** — downstream traversals from
+    /// the matching edges see the unfiltered graph. Lazy — no RPC.
     pub fn select(
         &self,
-        filter: impl TryInto<GqlEdgeFilter, Error = GraphError>,
+        filter: impl TryInto<GqlFilter, Error = GraphError>,
     ) -> Result<RemoteEdges, ClientError> {
         let filter = Arc::new(filter.try_into()?);
         Ok(RemoteEdges {
@@ -328,7 +327,7 @@ impl RemoteEdges {
 
     /// Columnar accessor: each edge's `(src, dst)` id pair — mirrors the local
     /// `Edges.id`. Fires one RPC.
-    pub async fn id(&self) -> Result<Vec<(String, String)>, ClientError> {
+    pub async fn id(&self) -> Result<Vec<(GID, GID)>, ClientError> {
         let op = Op::Read(ReadExpr::EdgesList {
             input: self.expr.clone(),
         });

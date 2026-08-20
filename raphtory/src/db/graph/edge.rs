@@ -319,10 +319,22 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
                 let layer = self.edge.layer();
                 match layer {
                     Some(l_id) => l_id,
-                    None => self
-                        .graph
-                        .get_default_layer_id()
-                        .ok_or_else(|| GraphError::no_default_layer(&self.graph))?,
+                    // No layer named and the edge is not pinned to one: fall
+                    // back to the default layer, creating it when the caller
+                    // is writing. Without the `create` arm an unlayered
+                    // `edge.delete(t)` failed on a graph whose layers are all
+                    // named, while the equivalent `graph.delete_edge(t, src,
+                    // dst)` succeeded and created the layer itself — the same
+                    // call spelled two ways, behaving differently.
+                    None => match self.graph.get_default_layer_id() {
+                        Some(id) => id,
+                        None if create => self
+                            .graph
+                            .resolve_layer(None)
+                            .map_err(into_graph_err)?
+                            .inner(),
+                        None => return Err(GraphError::no_default_layer(&self.graph)),
+                    },
                 }
             }
         };

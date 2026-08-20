@@ -2,7 +2,7 @@
 //! GraphQL errors into it.
 
 use crate::data::{CODE_ACCESS_DENIED, CODE_GRAPH_NOT_FOUND};
-use raphtory_api::core::storage::graph_folder::GraphFolderError;
+use raphtory_api::core::{storage::graph_folder::GraphFolderError, utils::time::ParseTimeError};
 use serde_json::Value as JsonValue;
 use thiserror::Error;
 
@@ -60,6 +60,25 @@ pub enum ClientError {
 
     #[error(transparent)]
     GraphFolder(#[from] GraphFolderError),
+}
+
+/// A time argument that cannot be interpreted — e.g. an unparseable datetime
+/// string. Write methods take `TryIntoInputTime` (the same trait the local
+/// mutation API uses), so the parse happens client-side and reports here rather
+/// than travelling to the server as a nonsense timestamp.
+impl From<ParseTimeError> for ClientError {
+    fn from(err: ParseTimeError) -> Self {
+        ClientError::InvalidInput(format!("invalid time: {err}"))
+    }
+}
+
+/// Query rendering writes into a `String`, which cannot actually fail — but the
+/// renderer propagates the result rather than discarding it, so that no call
+/// site reads as if it were swallowing an error.
+impl From<std::fmt::Error> for ClientError {
+    fn from(err: std::fmt::Error) -> Self {
+        ClientError::InvalidInput(format!("failed to render query: {err}"))
+    }
 }
 
 /// Extract the machine-readable `extensions.code` from a single GraphQL error
