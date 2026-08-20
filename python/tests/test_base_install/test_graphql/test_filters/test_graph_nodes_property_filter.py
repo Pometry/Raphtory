@@ -298,7 +298,7 @@ def test_node_property_filter_is_in_empty_list(graph):
     query {
       graph(path: "g") {
         nodes {
-          select(expr: { nodes: { property: { name: "prop1", where: { isIn: { list: [] } } } } }
+          select(expr: { node: { property: { name: "prop1", where: { isIn: { list: [] } } } } }
           ) {
             list { name }
           }
@@ -438,7 +438,7 @@ def test_graph_node_type_and_property_filter(graph):
     query {
       graph(path: "g") {
         nodes {
-          select(expr: { nodes: {
+          select(expr: { node: {
             and: [
               {
                 node: {

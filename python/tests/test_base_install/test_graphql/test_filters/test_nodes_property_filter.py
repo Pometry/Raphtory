@@ -67,7 +67,7 @@ def test_node_property_filter_equal3(graph):
     query {
       graph(path: "g") {
         nodes {
-          select(expr: { nodes: {
+          select(expr: { node: {
               property: {
                 name: "prop5"
                 where: {
@@ -92,7 +92,7 @@ def test_node_property_filter_equal_type_error(graph):
     query {
       graph(path: "g") {
         nodes {
-          select(expr: { nodes: {
+          select(expr: { node: {
               property: {
                 name: "prop5"
                 where: {
@@ -121,7 +121,7 @@ def test_node_property_filter_not_equal(graph):
     query {
       graph(path: "g") {
         nodes {
-          select(expr: { nodes: {
+          select(expr: { node: {
               property: {
                 name: "prop4"
                 where: {
@@ -150,7 +150,7 @@ def test_node_property_filter_not_equal_type_error(graph):
     query {
       graph(path: "g") {
         nodes {
-          select(expr: { nodes: {
+          select(expr: { node: {
               property: {
                 name: "prop4"
                 where: {
@@ -179,7 +179,7 @@ def test_node_property_filter_greater_than_or_equal(graph):
     query {
       graph(path: "g") {
         nodes {
-          select(expr: { nodes: {
+          select(expr: { node: {
               property: {
                 name: "prop1"
                 where: {
@@ -206,7 +206,7 @@ def test_node_property_filter_greater_than_or_equal_type_error(graph):
     query {
       graph(path: "g") {
         nodes {
-          select(expr: { nodes: {
+          select(expr: { node: {
               property: {
                 name: "prop1"
                 where: {
@@ -235,7 +235,7 @@ def test_node_property_filter_less_than_or_equal(graph):
     query {
       graph(path: "g") {
         nodes {
-          select(expr: { nodes: {
+          select(expr: { node: {
               property: {
                 name: "prop1"
                 where: {
@@ -266,7 +266,7 @@ def test_node_property_filter_less_than_or_equal_type_error(graph):
     query {
       graph(path: "g") {
         nodes {
-          select(expr: { nodes: {
+          select(expr: { node: {
               property: {
                 name: "prop1"
                 where: { le: { str: "shivam" } }
@@ -291,7 +291,7 @@ def test_node_property_filter_greater_than(graph):
     query {
       graph(path: "g") {
         nodes {
-          select(expr: { nodes: {
+          select(expr: { node: {
               property: {
                 name: "prop1"
                 where: { gt: { i64: 30 } }
@@ -314,7 +314,7 @@ def test_node_property_filter_greater_than_type_error(graph):
     query {
       graph(path: "g") {
         nodes {
-          select(expr: { nodes: {
+          select(expr: { node: {
               property: {
                 name: "prop1"
                 where: { gt: { str: "shivam" } }
@@ -339,7 +339,7 @@ def test_node_property_filter_less_than(graph):
     query {
       graph(path: "g") {
         nodes {
-          select(expr: { nodes: {
+          select(expr: { node: {
               property: {
                 name: "prop1"
                 where: { lt: { i64: 30 } }
@@ -364,7 +364,7 @@ def test_node_property_filter_less_than_type_error(graph):
     query {
       graph(path: "g") {
         nodes {
-          select(expr: { nodes: {
+          select(expr: { node: {
               property: {
                 name: "prop1"
                 where: { lt: { str: "shivam" } }
@@ -389,7 +389,7 @@ def test_node_property_filter_is_none(graph):
     query {
       graph(path: "g") {
         nodes {
-          select(expr: { nodes: {
+          select(expr: { node: {
               property: {
                 name: "prop5"
                 where: { isNone: true }
@@ -414,7 +414,7 @@ def test_node_property_filter_is_some(graph):
     query {
       graph(path: "g") {
         nodes {
-          select(expr: { nodes: {
+          select(expr: { node: {
               property: {
                 name: "prop5"
                 where: { isSome: true }
@@ -439,7 +439,7 @@ def test_node_property_filter_is_in(graph):
     query {
       graph(path: "g") {
         nodes {
-          select(expr: { nodes: {
+          select(expr: { node: {
               property: {
                 name: "prop1"
                 where: { isIn: { list: [{i64: 10},{i64: 30},{i64: 50},{i64: 70}] } }
@@ -464,7 +464,7 @@ def test_node_property_filter_is_in_empty_list(graph):
     query {
       graph(path: "g") {
         nodes {
-          select(expr: { nodes: {
+          select(expr: { node: {
               property: {
                 name: "prop1"
                 where: { isIn: { list: [] } }
@@ -488,7 +488,7 @@ def test_node_property_filter_is_in_no_value(graph):
     query {
       graph(path: "g") {
         nodes {
-          select(expr: { nodes: {
+          select(expr: { node: {
               property: {
                 name: "prop1"
                 where: { isIn: { list: [{i64: 100}] } }
@@ -511,7 +511,7 @@ def test_node_property_filter_is_in_type_error(graph):
     query {
       graph(path: "g") {
         nodes {
-          select(expr: { nodes: {
+          select(expr: { node: {
               property: {
                 name: "prop1"
                 where: { isIn: { str: "shivam" } }
@@ -536,7 +536,7 @@ def test_node_property_filter_is_not_in(graph):
     query {
       graph(path: "g") {
         nodes {
-          select(expr: { nodes: {
+          select(expr: { node: {
               property: {
                 name: "prop1"
                 where: { isNotIn: { list: [{i64: 10},{i64: 30},{i64: 50},{i64: 70}] } }
@@ -561,7 +561,7 @@ def test_node_property_filter_is_not_in_empty_list(graph):
     query {
       graph(path: "g") {
         nodes {
-          select(expr: { nodes: {
+          select(expr: { node: {
               property: {
                 name: "prop1"
                 where: { isNotIn: { list: [] } }
@@ -592,7 +592,7 @@ def test_node_property_filter_is_not_in_type_error(graph):
     query {
       graph(path: "g") {
         nodes {
-          select(expr: { nodes: {
+          select(expr: { node: {
               property: {
                 name: "prop1"
                 where: { isNotIn: { str: "shivam" } }
@@ -639,7 +639,7 @@ def test_nodes_property_filter_starts_with(graph):
     query {
       graph(path: "g") {
         nodes {
-          select(expr: { nodes: {
+          select(expr: { node: {
             property: {
               name: "prop3"
               where: { startsWith: { str: "abc" } }
@@ -669,7 +669,7 @@ def test_nodes_property_filter_ends_with(graph):
     query {
       graph(path: "g") {
         nodes {
-          select(expr: { nodes: {
+          select(expr: { node: {
             property: {
               name: "prop3"
               where: { endsWith: { str: "333" } }
@@ -691,7 +691,7 @@ def test_nodes_property_filter_temporal_first_starts_with(graph):
     query {
       graph(path: "g") {
         nodes {
-          select(expr: { nodes: {
+          select(expr: { node: {
             temporalProperty: {
               name: "prop3"
               where: { first: { startsWith: { str: "abc" } } }
@@ -721,7 +721,7 @@ def test_nodes_property_filter_temporal_all_starts_with(graph):
     query {
       graph(path: "g") {
         nodes {
-          select(expr: { nodes: {
+          select(expr: { node: {
             temporalProperty: {
               name: "prop3"
               where: { any: { startsWith: { str: "abc1" } } }

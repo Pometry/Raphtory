@@ -88,13 +88,13 @@ def test_edges_chained_selection_with_edge_filter(graph):
     query {
       graph(path: "g") {
         edges {
-          select(expr: { edges: { dst: { 
+          select(expr: { edge: { dst: { 
             node: {
               field: NODE_ID
               where: { eq: { u64: 2 } }
             }
           } } }) {
-            select(expr: { edges: { property: { name: "p2", where: { gt:{ i64: 2 } } } } }) {
+            select(expr: { edge: { property: { name: "p2", where: { gt:{ i64: 2 } } } } }) {
               list { src { name } dst { name } }
             }        
           }
@@ -124,7 +124,7 @@ def test_edges_filter_window_is_active(graph):
     query {
       graph(path: "g") {
         edges {
-          select(expr: { edges: {window: {start: 1, end: 4, expr: {isActive: true}}} }) {
+          select(expr: { edge: {window: {start: 1, end: 4, expr: {isActive: true}}} }) {
             list {
               src {
                 name
@@ -162,7 +162,7 @@ def test_edges_filter_window_is_deleted(graph):
     query {
       graph(path: "g") {
         edges {
-          select(expr: { edges: {window: {start: 1, end: 5, expr: {isDeleted: true}}} }) {
+          select(expr: { edge: {window: {start: 1, end: 5, expr: {isDeleted: true}}} }) {
             list {
               src {
                 name

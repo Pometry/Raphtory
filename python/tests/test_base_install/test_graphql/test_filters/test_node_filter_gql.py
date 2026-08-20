@@ -124,7 +124,7 @@ def test_nodes_filter_windowed_is_active(graph):
     query {
       graph(path: "g") {
         nodes {
-          select(expr: {nodes: {window: {start: 1, end: 4, expr: {isActive: true}}}}) {
+          select(expr: {node: {window: {start: 1, end: 4, expr: {isActive: true}}}}) {
             list {
               name
             }
@@ -152,7 +152,7 @@ def test_nodes_filter_windowed_is_not_active(graph):
     query {
       graph(path: "g") {
         nodes {
-          select(expr: {nodes: {window: {start: 1, end: 4, expr: {isActive: false}}}}) {
+          select(expr: {node: {window: {start: 1, end: 4, expr: {isActive: false}}}}) {
             list {
               name
             }
@@ -227,7 +227,7 @@ def _degree_select_nodes_query_expected_pair(expr, expected_names):
   query {{
     graph(path: "g") {{
       nodes {{
-        select(expr: {{ nodes: {{ {expr} }} }}) {{
+        select(expr: {{ node: {{ {expr} }} }}) {{
           list {{ name }}
         }}
       }}
@@ -537,7 +537,7 @@ def test_filter_nodes_degree_invalid_non_numeric_string_values_gql(graph):
     query {{
       graph(path: "g") {{
         nodes {{
-          select(expr: {{ nodes: {{ {expr} }} }}) {{
+          select(expr: {{ node: {{ {expr} }} }}) {{
             list {{ name }}
           }}
         }}
@@ -584,7 +584,7 @@ def test_filter_nodes_degree_invalid_expressions_gql(graph):
     query {{
       graph(path: "g") {{
         nodes {{
-          select(expr: {{ nodes: {{ {expr} }} }}) {{
+          select(expr: {{ node: {{ {expr} }} }}) {{
             list {{ name }}
           }}
         }}
