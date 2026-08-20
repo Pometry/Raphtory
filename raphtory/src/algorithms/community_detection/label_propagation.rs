@@ -94,8 +94,9 @@ where
     let active: Arc<Vec<AtomicBool>> =
         Arc::new((0..num_nodes).map(|_| AtomicBool::new(false)).collect());
 
-    // An unseeded run draws fresh entropy, as `fast_rp`, `louvain` and the graph generators all do.
+    // Unseeded runs draw random number
     let tie_seed: u64 = seed.unwrap_or_else(|| rand::rng().random());
+
     let step1 = ATask::new(move |s| {
         let id = s.node.index();
         let state: &mut LabelPropState = s.get_mut();
