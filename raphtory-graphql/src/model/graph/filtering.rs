@@ -2502,13 +2502,15 @@ pub struct GraphAccessFilter {
 // ============ Reverse conversion: engine filter → wire filter ============
 //
 // Used by the RemoteGraph Python client, which builds filters via the local
-// `PyFilterExpr` API (produces `CompositeNodeFilter`) then converts to
-// `GqlNodeFilter` for GraphQL transmission. The forward path
+// `PyFilterExpr` API (producing a `Composite*Filter`) and sends them as the
+// unified `GqlFilter` — the per-kind conversions here are the first half of
+// that, with `Composite*Filter -> GqlFilter` wrapping them. The forward path
 // (`TryFrom<GqlNodeFilter> for CompositeNodeFilter`, above) already exists.
 //
-// Not all `CompositeNodeFilter` variants have a lossless GQL counterpart —
-// for example, `Layer::All` has no single-layer-name representation on the
-// wire. Unsupported cases surface as `GraphError::InvalidGqlFilter`.
+// Not every engine filter has a lossless wire counterpart, and those cases
+// surface as `GraphError::InvalidGqlFilter` rather than being silently
+// dropped. (A `Layer::All` view op is not one of them: it restricts nothing,
+// so it is skipped while the rest of the chain is kept.)
 
 fn wrap<T>(t: T) -> Wrapped<T> {
     Wrapped(Box::new(t))

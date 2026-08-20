@@ -283,9 +283,11 @@ impl RemoteNestedEdges {
         )
     }
 
-    /// Terminal: the number of source edge collections in this collection.
+    /// Terminal: the number of *sources* — i.e. the outer length, not the
+    /// total edge count. Named `len` for that reason, matching the local
+    /// `NestedEdges`, whose `len()` is the same outer count.
     /// Fires one RPC.
-    pub async fn count(&self) -> Result<i64, ClientError> {
+    pub async fn len(&self) -> Result<i64, ClientError> {
         let op = Op::Read(ReadExpr::Count {
             input: self.expr.clone(),
         });

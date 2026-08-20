@@ -144,12 +144,12 @@ impl GraphqlTransport {
         "#;
 
         let variables = json!({
-            "path": json!(args.path),
+            "path": args.path,
             "time": input_time_var(&args.time),
             "name": gid_var(&args.id),
             "properties": opt_properties_var(&args.properties)?,
-            "nodeType": json!(args.node_type),
-            "layer": json!(args.layer),
+            "nodeType": args.node_type,
+            "layer": args.layer,
         });
         let res = self.client.query(query, variables).await?;
 
@@ -171,12 +171,12 @@ impl GraphqlTransport {
         "#;
 
         let variables = json!({
-            "path": json!(args.path),
+            "path": args.path,
             "time": input_time_var(&args.time),
             "name": gid_var(&args.id),
             "properties": opt_properties_var(&args.properties)?,
-            "nodeType": json!(args.node_type),
-            "layer": json!(args.layer),
+            "nodeType": args.node_type,
+            "layer": args.layer,
         });
         let res = self.client.query(query, variables).await?;
 
@@ -198,12 +198,12 @@ impl GraphqlTransport {
         "#;
 
         let variables = json!({
-            "path": json!(args.path),
+            "path": args.path,
             "time": input_time_var(&args.time),
             "src": gid_var(&args.src),
             "dst": gid_var(&args.dst),
             "properties": opt_properties_var(&args.properties)?,
-            "layer": json!(args.layer),
+            "layer": args.layer,
         });
         let res = self.client.query(query, variables).await?;
 
@@ -224,7 +224,7 @@ impl GraphqlTransport {
         "#;
 
         let variables = json!({
-            "path": json!(args.path),
+            "path": args.path,
             "t": input_time_var(&args.time),
             "properties": properties_var(&args.properties)?,
         });
@@ -247,7 +247,7 @@ impl GraphqlTransport {
         "#;
 
         let variables = json!({
-            "path": json!(args.path),
+            "path": args.path,
             "properties": properties_var(&args.properties)?,
         });
         let res = self.client.query(query, variables).await?;
@@ -269,7 +269,7 @@ impl GraphqlTransport {
         "#;
 
         let variables = json!({
-            "path": json!(args.path),
+            "path": args.path,
             "properties": properties_var(&args.properties)?,
         });
         let res = self.client.query(query, variables).await?;
@@ -291,11 +291,11 @@ impl GraphqlTransport {
         "#;
 
         let variables = json!({
-            "path": json!(args.path),
+            "path": args.path,
             "time": input_time_var(&args.time),
             "src": gid_var(&args.src),
             "dst": gid_var(&args.dst),
-            "layer": json!(args.layer),
+            "layer": args.layer,
         });
         let res = self.client.query(query, variables).await?;
 
@@ -315,9 +315,9 @@ impl GraphqlTransport {
         "#;
 
         let variables = json!({
-            "path": json!(args.path),
+            "path": args.path,
             "name": gid_var(&args.id),
-            "newType": json!(args.new_type),
+            "newType": args.new_type,
         });
         let res = self.client.query(query, variables).await?;
         ensure_write_target_present(&res, "node", format!("node '{}'", args.id))?;
@@ -340,11 +340,11 @@ impl GraphqlTransport {
         "#;
 
         let variables = json!({
-            "path": json!(args.path),
+            "path": args.path,
             "name": gid_var(&args.id),
             "time": input_time_var(&args.time),
             "properties": opt_properties_var(&args.properties)?,
-            "layer": json!(args.layer),
+            "layer": args.layer,
         });
         let res = self.client.query(query, variables).await?;
         ensure_write_target_present(&res, "node", format!("node '{}'", args.id))?;
@@ -366,7 +366,7 @@ impl GraphqlTransport {
         "#;
 
         let variables = json!({
-            "path": json!(args.path),
+            "path": args.path,
             "name": gid_var(&args.id),
             "properties": properties_var(&args.properties)?,
         });
@@ -390,7 +390,7 @@ impl GraphqlTransport {
         "#;
 
         let variables = json!({
-            "path": json!(args.path),
+            "path": args.path,
             "name": gid_var(&args.id),
             "properties": properties_var(&args.properties)?,
         });
@@ -415,12 +415,12 @@ impl GraphqlTransport {
         "#;
 
         let variables = json!({
-            "path": json!(args.path),
+            "path": args.path,
             "src": gid_var(&args.src),
             "dst": gid_var(&args.dst),
             "time": input_time_var(&args.time),
             "properties": opt_properties_var(&args.properties)?,
-            "layer": json!(args.layer),
+            "layer": args.layer,
         });
         let res = self.client.query(query, variables).await?;
         ensure_write_target_present(
@@ -447,11 +447,11 @@ impl GraphqlTransport {
         "#;
 
         let variables = json!({
-            "path": json!(args.path),
+            "path": args.path,
             "src": gid_var(&args.src),
             "dst": gid_var(&args.dst),
             "time": input_time_var(&args.time),
-            "layer": json!(args.layer),
+            "layer": args.layer,
         });
         let res = self.client.query(query, variables).await?;
         ensure_write_target_present(
@@ -478,11 +478,11 @@ impl GraphqlTransport {
         "#;
 
         let variables = json!({
-            "path": json!(args.path),
+            "path": args.path,
             "src": gid_var(&args.src),
             "dst": gid_var(&args.dst),
             "properties": properties_var(&args.properties)?,
-            "layer": json!(args.layer),
+            "layer": args.layer,
         });
         let res = self.client.query(query, variables).await?;
         ensure_write_target_present(
@@ -509,11 +509,11 @@ impl GraphqlTransport {
         "#;
 
         let variables = json!({
-            "path": json!(args.path),
+            "path": args.path,
             "src": gid_var(&args.src),
             "dst": gid_var(&args.dst),
             "properties": properties_var(&args.properties)?,
-            "layer": json!(args.layer),
+            "layer": args.layer,
         });
         let res = self.client.query(query, variables).await?;
         ensure_write_target_present(
@@ -536,7 +536,7 @@ impl GraphqlTransport {
         "#;
 
         let variables = json!({
-            "path": json!(args.path),
+            "path": args.path,
             "nodes": to_var(&args.nodes)?,
         });
         let res = self.client.query(query, variables).await?;
@@ -554,7 +554,7 @@ impl GraphqlTransport {
         "#;
 
         let variables = json!({
-            "path": json!(args.path),
+            "path": args.path,
             "edges": to_var(&args.edges)?,
         });
         let res = self.client.query(query, variables).await?;
@@ -572,10 +572,7 @@ impl GraphqlTransport {
             .client
             .query(&query, JsonValue::Object(variables))
             .await?;
-        // Re-wrap the response fields by moving them — `serde_json::to_value`
-        // here would deep-copy the entire payload on every read RPC.
-        let root = JsonValue::Object(res.into_iter().collect());
-        parse_read(expr, &root)
+        parse_read(expr, &res)
     }
 }
 
@@ -2426,10 +2423,25 @@ fn parse_first_member_keys(
     Ok(Some(Prop::List(items?.into())))
 }
 
-fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientError> {
+fn parse_read(
+    expr: &ReadExpr,
+    root: &HashMap<String, JsonValue>,
+) -> Result<Option<Prop>, ClientError> {
+    // The response map is indexed as-is — no re-wrapping into a `JsonValue`
+    // (which would rebuild the map) and no `serde_json::to_value` (which
+    // would deep-copy the payload). Everything below the root field borrows.
     let path = build_json_path(expr);
-    let mut cursor = root;
-    for key in &path[..path.len() - 1] {
+    // Every executable read names the graph root field plus a terminal, so the
+    // path has at least two segments (a bare `Root` has no terminal to read).
+    debug_assert!(path.len() >= 2, "read path too short: {path:?}");
+    let first = path.first().expect("every read path names its root field");
+    let mut cursor = root
+        .get(*first)
+        .ok_or_else(|| ClientError::InvalidResponse(format!("missing `{}` in response", first)))?;
+    if cursor.is_null() && path.len() > 1 {
+        return Err(build_not_found_error(expr, first));
+    }
+    for key in &path[1..path.len() - 1] {
         cursor = cursor.get(*key).ok_or_else(|| {
             ClientError::InvalidResponse(format!("missing `{}` in response", key))
         })?;
@@ -4907,9 +4919,10 @@ mod tests {
                 id: "ben".into(),
             }),
         };
-        let response = serde_json::json!({
-            "graph": { "node": { "degree": 42 } }
-        });
+        let response = HashMap::from([(
+            "graph".to_string(),
+            serde_json::json!({ "node": { "degree": 42 } }),
+        )]);
         let value = parse_read(&expr, &response).unwrap();
         match value {
             Some(Prop::I64(n)) => assert_eq!(n, 42),

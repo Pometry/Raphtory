@@ -320,7 +320,7 @@ impl PyRemoteNestedEdges {
     ///     int: the number of source edge collections.
     pub fn count(&self) -> Result<i64, ClientError> {
         let edges = Arc::clone(&self.edges);
-        execute_async_task(move || async move { edges.count().await })
+        execute_async_task(move || async move { edges.len().await })
     }
 
     /// Check if this view has a layer named `name`. Fires one RPC.
@@ -519,13 +519,13 @@ impl PyRemoteNestedEdges {
     /// `len(edges)` — number of source edge collections. Fires one RPC.
     pub fn __len__(&self) -> Result<usize, ClientError> {
         let edges = Arc::clone(&self.edges);
-        Ok(execute_async_task(move || async move { edges.count().await })?.max(0) as usize)
+        Ok(execute_async_task(move || async move { edges.len().await })?.max(0) as usize)
     }
 
     /// `bool(edges)` — whether the collection is non-empty. Fires one RPC.
     pub fn __bool__(&self) -> Result<bool, ClientError> {
         let edges = Arc::clone(&self.edges);
-        Ok(execute_async_task(move || async move { edges.count().await })? > 0)
+        Ok(execute_async_task(move || async move { edges.len().await })? > 0)
     }
 
     /// View start bound for this collection — `None` if unbounded. Property —

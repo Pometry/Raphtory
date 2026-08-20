@@ -28,7 +28,7 @@ use raphtory_api::core::utils::time::IntoTime;
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "NestedEdges")]
 pub(crate) struct GqlNestedEdges {
-    pub(crate) nn: NestedEdges<'static, DynamicGraph>,
+    pub(crate) edges: NestedEdges<'static, DynamicGraph>,
 }
 
 impl GqlNestedEdges {
@@ -39,7 +39,9 @@ impl GqlNestedEdges {
 
 impl GqlNestedEdges {
     pub(crate) fn new<E: Into<NestedEdges<'static, DynamicGraph>>>(edges: E) -> Self {
-        Self { nn: edges.into() }
+        Self {
+            edges: edges.into(),
+        }
     }
 
     /// Materialise the nested structure as one `GqlEdges` per source node. Each
@@ -48,7 +50,7 @@ impl GqlNestedEdges {
     /// expressed via the object, not a `[[..]]` list (which the derive macro
     /// can't register).
     fn per_source(&self) -> Vec<GqlEdges> {
-        self.nn.iter().map(GqlEdges::new).collect()
+        self.edges.iter().map(GqlEdges::new).collect()
     }
 }
 
@@ -60,7 +62,7 @@ impl GqlNestedEdges {
 
     /// Returns a collection containing only edges in the default edge layer.
     async fn default_layer(&self) -> Self {
-        self.update(self.nn.default_layer())
+        self.update(self.edges.default_layer())
     }
 
     /// Returns a collection containing only edges belonging to the listed layers.
@@ -70,7 +72,7 @@ impl GqlNestedEdges {
         #[graphql(desc = "Layer names to include.")] names: Vec<String>,
     ) -> Self {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.update(self_clone.nn.valid_layers(names))).await
+        blocking_compute(move || self_clone.update(self_clone.edges.valid_layers(names))).await
     }
 
     /// Returns a collection containing edges belonging to all layers except the excluded list of layers.
@@ -80,13 +82,14 @@ impl GqlNestedEdges {
         #[graphql(desc = "Layer names to exclude.")] names: Vec<String>,
     ) -> Self {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.update(self_clone.nn.exclude_valid_layers(names))).await
+        blocking_compute(move || self_clone.update(self_clone.edges.exclude_valid_layers(names)))
+            .await
     }
 
     /// Returns a collection containing edges belonging to the specified layer.
 
     async fn layer(&self, #[graphql(desc = "Layer name to include.")] name: String) -> Self {
-        self.update(self.nn.valid_layers(name))
+        self.update(self.edges.valid_layers(name))
     }
 
     /// Returns a collection containing edges belonging to all layers except the excluded layer specified.
@@ -95,7 +98,7 @@ impl GqlNestedEdges {
         &self,
         #[graphql(desc = "Layer name to exclude.")] name: String,
     ) -> Self {
-        self.update(self.nn.exclude_valid_layers(name))
+        self.update(self.edges.exclude_valid_layers(name))
     }
 
     /// Creates a view of the NestedEdges including all events between the specified start (inclusive) and end (exclusive).
@@ -105,7 +108,7 @@ impl GqlNestedEdges {
         #[graphql(desc = "Inclusive lower bound.")] start: GqlTimeInput,
         #[graphql(desc = "Exclusive upper bound.")] end: GqlTimeInput,
     ) -> Self {
-        self.update(self.nn.window(start.into_time(), end.into_time()))
+        self.update(self.edges.window(start.into_time(), end.into_time()))
     }
 
     /// Creates a view of the NestedEdges including all events at a specified time.
@@ -114,13 +117,13 @@ impl GqlNestedEdges {
         &self,
         #[graphql(desc = "Instant to pin the view to.")] time: GqlTimeInput,
     ) -> Self {
-        self.update(self.nn.at(time.into_time()))
+        self.update(self.edges.at(time.into_time()))
     }
 
     /// View showing only the latest state of each edge (equivalent to `at(latestTime)`).
     async fn latest(&self) -> Self {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.update(self_clone.nn.latest())).await
+        blocking_compute(move || self_clone.update(self_clone.edges.latest())).await
     }
 
     /// Creates a view of the NestedEdges including all events that are valid at time.
@@ -129,25 +132,25 @@ impl GqlNestedEdges {
         &self,
         #[graphql(desc = "Instant at which entities must be valid.")] time: GqlTimeInput,
     ) -> Self {
-        self.update(self.nn.snapshot_at(time.into_time()))
+        self.update(self.edges.snapshot_at(time.into_time()))
     }
 
     /// Creates a view of the NestedEdges including all events that are valid at the latest time.
     async fn snapshot_latest(&self) -> Self {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.update(self_clone.nn.snapshot_latest())).await
+        blocking_compute(move || self_clone.update(self_clone.edges.snapshot_latest())).await
     }
 
     /// Creates a view of the NestedEdges including all events before a specified end (exclusive).
 
     async fn before(&self, #[graphql(desc = "Exclusive upper bound.")] time: GqlTimeInput) -> Self {
-        self.update(self.nn.before(time.into_time()))
+        self.update(self.edges.before(time.into_time()))
     }
 
     /// Creates a view of the NestedEdges including all events after a specified start (exclusive).
 
     async fn after(&self, #[graphql(desc = "Exclusive lower bound.")] time: GqlTimeInput) -> Self {
-        self.update(self.nn.after(time.into_time()))
+        self.update(self.edges.after(time.into_time()))
     }
 
     /// Shrinks both the start and end of the window.
@@ -159,7 +162,7 @@ impl GqlNestedEdges {
         #[graphql(desc = "Proposed new end (TimeInput); ignored if it would widen the window.")]
         end: GqlTimeInput,
     ) -> Self {
-        self.update(self.nn.shrink_window(start.into_time(), end.into_time()))
+        self.update(self.edges.shrink_window(start.into_time(), end.into_time()))
     }
 
     /// Set the start of the window.
@@ -169,7 +172,7 @@ impl GqlNestedEdges {
         #[graphql(desc = "Proposed new start (TimeInput); ignored if it would widen the window.")]
         start: GqlTimeInput,
     ) -> Self {
-        self.update(self.nn.shrink_start(start.into_time()))
+        self.update(self.edges.shrink_start(start.into_time()))
     }
 
     /// Set the end of the window.
@@ -179,7 +182,7 @@ impl GqlNestedEdges {
         #[graphql(desc = "Proposed new end (TimeInput); ignored if it would widen the window.")]
         end: GqlTimeInput,
     ) -> Self {
-        self.update(self.nn.shrink_end(end.into_time()))
+        self.update(self.edges.shrink_end(end.into_time()))
     }
 
     /// Takes a specified selection of views and applies them in order given.
@@ -191,7 +194,7 @@ impl GqlNestedEdges {
         )]
         views: Vec<EdgesViewCollection>,
     ) -> Result<GqlNestedEdges, GraphError> {
-        let mut return_view: GqlNestedEdges = self.update(self.nn.clone());
+        let mut return_view: GqlNestedEdges = self.update(self.edges.clone());
         for view in views {
             return_view = match view {
                 EdgesViewCollection::DefaultLayer(apply) => {
@@ -247,24 +250,24 @@ impl GqlNestedEdges {
 
     /// Returns the earliest time that this NestedEdges is valid or None if valid for all times.
     async fn start(&self) -> GqlEventTime {
-        self.nn.start().into()
+        self.edges.start().into()
     }
 
     /// Returns the latest time that this NestedEdges is valid or None if valid for all times.
     async fn end(&self) -> GqlEventTime {
-        self.nn.end().into()
+        self.edges.end().into()
     }
 
     /// Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
     async fn window_size(&self) -> Option<i64> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.nn.window_size().map(|s| s as i64)).await
+        blocking_compute(move || self_clone.edges.window_size().map(|s| s as i64)).await
     }
 
     /// Check if a layer with the given name is present in this view.
     async fn has_layer(&self, name: String) -> bool {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.nn.has_layer(name)).await
+        blocking_compute(move || self_clone.edges.has_layer(name)).await
     }
 
     /////////////////////
@@ -274,34 +277,34 @@ impl GqlNestedEdges {
     /// Returns the source node of each edge, grouped per source node, as a
     /// nested `PathFromGraph`.
     async fn src(&self) -> GqlPathFromGraph {
-        GqlPathFromGraph::new(self.nn.src())
+        GqlPathFromGraph::new(self.edges.src())
     }
 
     /// Returns the destination node of each edge, grouped per source node, as a
     /// nested `PathFromGraph`.
     async fn dst(&self) -> GqlPathFromGraph {
-        GqlPathFromGraph::new(self.nn.dst())
+        GqlPathFromGraph::new(self.edges.dst())
     }
 
     /// Returns the node at the other end of each edge (destination for
     /// out-edges, source for in-edges), grouped per source node, as a nested
     /// `PathFromGraph`.
     async fn nbr(&self) -> GqlPathFromGraph {
-        GqlPathFromGraph::new(self.nn.nbr())
+        GqlPathFromGraph::new(self.edges.nbr())
     }
 
     /// Expand each source's edges into one edge per update — mirrors the local
     /// `NestedEdges.explode`. The per-source nesting is preserved; only the
     /// inner edge lists fan out per event.
     async fn explode(&self) -> Self {
-        self.update(self.nn.explode())
+        self.update(self.edges.explode())
     }
 
     /// Expand each source's edges into one edge per layer — mirrors the local
     /// `NestedEdges.explode_layers`. Each resulting edge carries only the
     /// updates from its respective layer.
     async fn explode_layers(&self) -> Self {
-        self.update(self.nn.explode_layers())
+        self.update(self.edges.explode_layers())
     }
 
     /////////////////
@@ -311,7 +314,7 @@ impl GqlNestedEdges {
     /// Number of source edge collections in this collection (one per source node).
     async fn count(&self) -> usize {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.nn.len()).await
+        blocking_compute(move || self_clone.edges.len()).await
     }
 
     /// Fetch one page of source edge collections up to a specified limit, optionally offset by a specified amount.
@@ -339,7 +342,7 @@ impl GqlNestedEdges {
         Ok(blocking_compute(move || {
             let start = page_index.unwrap_or(0) * limit + offset.unwrap_or(0);
             self_clone
-                .nn
+                .edges
                 .iter()
                 .map(GqlEdges::new)
                 .skip(start)
@@ -376,7 +379,7 @@ impl GqlNestedEdges {
         let self_clone = self.clone();
         blocking_compute(move || {
             let filter: DynFilter = expr.try_into()?;
-            let filtered = self_clone.nn.filter(filter)?;
+            let filtered = self_clone.edges.filter(filter)?;
             Ok(self_clone.update(filtered.into_dyn()))
         })
         .await
@@ -396,7 +399,7 @@ impl GqlNestedEdges {
     ) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let filtered = self_clone.nn.select(expr)?;
+            let filtered = self_clone.edges.select(expr)?;
             Ok(self_clone.update(filtered))
         })
         .await

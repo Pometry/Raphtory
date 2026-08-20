@@ -11,7 +11,7 @@ use crate::{
 use pyo3::{
     exceptions::PyKeyError,
     prelude::*,
-    types::{PyDict, PyList},
+    types::{PyDict, PyIterator, PyList},
     Py, PyAny,
 };
 use raphtory::python::utils::execute_async_task;
@@ -379,12 +379,12 @@ impl PyRemoteTemporalProperties {
     /// Returns:
     ///     dict[str, list[tuple[EventTime, PropValue]]]: every property's full history,
     ///         keyed by property name.
-    pub fn histories(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+    pub fn histories<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
         let dict = PyDict::new(py);
         for (key, tp) in self.items()? {
             dict.set_item(key, tp.items()?)?;
         }
-        Ok(dict.into_any().unbind())
+        Ok(dict)
     }
 
     /// The latest value of every temporal property, as `{key: value}` —
@@ -396,14 +396,14 @@ impl PyRemoteTemporalProperties {
     /// Returns:
     ///     dict[str, PropValue]: the latest value of every property, keyed by property
     ///         name; keys with no update in view are omitted.
-    pub fn latest(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+    pub fn latest<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
         let dict = PyDict::new(py);
         for (key, tp) in self.items()? {
             if let Some(value) = tp.latest()? {
                 dict.set_item(key, value)?;
             }
         }
-        Ok(dict.into_any().unbind())
+        Ok(dict)
     }
 
     /// `td[key]` — the temporal property handle, or raises `KeyError` if
@@ -429,9 +429,9 @@ impl PyRemoteTemporalProperties {
     }
 
     /// `for k in td` — iterate temporal property keys. Fires one RPC.
-    fn __iter__(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+    fn __iter__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyIterator>> {
         let keys = self.keys()?;
-        Ok(PyList::new(py, keys)?.try_iter()?.into_any().unbind())
+        PyList::new(py, keys)?.try_iter()
     }
 }
 
