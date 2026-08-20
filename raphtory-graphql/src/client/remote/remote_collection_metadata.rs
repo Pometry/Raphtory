@@ -40,72 +40,15 @@ pub enum Column {
     Nested(Vec<Vec<Option<Prop>>>),
 }
 
-/// The pivoted result of a columnar property/metadata fetch. `Flat` carries one
-/// entry-list per member; `Nested` carries one member-list per source node.
-#[derive(Clone, Debug)]
-pub enum ColumnarProps {
-    /// Flat collection (`Nodes` / `Edges` / `PathFromNode`): per-member entries.
-    Flat(Vec<Vec<(String, Prop)>>),
-    /// Nested collection (`PathFromGraph` / `NestedEdges`): per-source,
-    /// per-member entries.
-    Nested(Vec<Vec<Vec<(String, Prop)>>>),
-}
-
-/// Look up `key` in one member's `(key, value)` entries.
-fn member_value(entries: &[(String, Prop)], key: &str) -> Option<Prop> {
-    entries
-        .iter()
-        .find(|(k, _)| k == key)
-        .map(|(_, v)| v.clone())
-}
-
-impl ColumnarProps {
-    /// The union of all keys across every fetched entry, in first-seen order.
-    fn entry_keys(&self) -> Vec<String> {
-        let mut seen: Vec<String> = Vec::new();
-        let mut push = |entries: &Vec<(String, Prop)>| {
-            for (k, _) in entries {
-                if !seen.contains(k) {
-                    seen.push(k.clone());
-                }
-            }
-        };
+impl Column {
+    /// Whether any member has a value — distinguishes a registered key whose
+    /// members all lack a value from a key that is not registered at all.
+    fn has_values(&self) -> bool {
         match self {
-            ColumnarProps::Flat(members) => {
-                for m in members {
-                    push(m);
-                }
-            }
-            ColumnarProps::Nested(sources) => {
-                for source in sources {
-                    for m in source {
-                        push(m);
-                    }
-                }
-            }
-        }
-        seen
-    }
-
-    /// Whether any fetched member carried a value (i.e. the fetch matched at
-    /// least one entry).
-    fn has_entries(&self) -> bool {
-        !self.entry_keys().is_empty()
-    }
-
-    /// Pivot out the column for `key`: one value per member, `None` where a
-    /// member lacks the key.
-    pub fn column(&self, key: &str) -> Column {
-        match self {
-            ColumnarProps::Flat(members) => {
-                Column::Flat(members.iter().map(|m| member_value(m, key)).collect())
-            }
-            ColumnarProps::Nested(sources) => Column::Nested(
-                sources
-                    .iter()
-                    .map(|source| source.iter().map(|m| member_value(m, key)).collect())
-                    .collect(),
-            ),
+            Column::Flat(members) => members.iter().any(Option::is_some),
+            Column::Nested(sources) => sources
+                .iter()
+                .any(|members| members.iter().any(Option::is_some)),
         }
     }
 }
@@ -131,34 +74,30 @@ macro_rules! columnar_view_impl {
                 }
             }
 
-            /// Fetch the members' `{key, value}` entries, pivoted into
-            /// [`ColumnarProps`]. `keys: Some(..)` renders the server-side
-            /// `values(keys: [..])` whitelist so only those columns travel;
-            /// `None` fetches every column. One RPC either way.
-            async fn fetch_with_keys(
-                &self,
-                keys: Option<Arc<[String]>>,
-            ) -> Result<ColumnarProps, ClientError> {
+            /// Fetch the given columns in one RPC — one aliased `get` per
+            /// key, so only those columns travel and the response arrives
+            /// already column-shaped (no key matching, no pivot).
+            async fn fetch_columns(&self, keys: Arc<[String]>) -> Result<Vec<Column>, ClientError> {
                 if self.nested {
                     let op = Op::Read(ReadExpr::$values_nested {
                         input: self.expr.clone(),
                         keys,
                     });
-                    let data = expect_nested_columnar_property_list(
+                    let cols = expect_nested_columnar_property_list(
                         self.transport.execute(&op).await?,
                         "values",
                     )?;
-                    Ok(ColumnarProps::Nested(data))
+                    Ok(cols.into_iter().map(Column::Nested).collect())
                 } else {
                     let op = Op::Read(ReadExpr::$values_flat {
                         input: self.expr.clone(),
                         keys,
                     });
-                    let data = expect_columnar_property_list(
+                    let cols = expect_columnar_property_list(
                         self.transport.execute(&op).await?,
                         "values",
                     )?;
-                    Ok(ColumnarProps::Flat(data))
+                    Ok(cols.into_iter().map(Column::Flat).collect())
                 }
             }
 
@@ -188,15 +127,16 @@ macro_rules! columnar_view_impl {
             /// The single column for `key`, or `None` when the key isn't
             /// registered — matching the local `get()`.
             ///
-            /// Fast path: one RPC fetching just this column. Only when the
-            /// column comes back entirely empty does a key lookup distinguish
-            /// registered-but-absent (`Some` column of `None`s) from
-            /// unregistered (`None`).
+            /// One RPC fetching just this column. Only when the column is
+            /// entirely empty does a key lookup distinguish registered-but-
+            /// absent (`Some` column of `None`s) from unregistered (`None`).
             pub async fn get(&self, key: &str) -> Result<Option<Column>, ClientError> {
-                let whitelist: Arc<[String]> = Arc::from(vec![key.to_string()]);
-                let data = self.fetch_with_keys(Some(whitelist)).await?;
-                if data.has_entries() || self.contains(key).await? {
-                    Ok(Some(data.column(key)))
+                let keys: Arc<[String]> = Arc::from(vec![key.to_string()]);
+                let column = self.fetch_columns(keys).await?.pop().ok_or_else(|| {
+                    ClientError::InvalidResponse("`get` returned no column".into())
+                })?;
+                if column.has_values() || self.contains(key).await? {
+                    Ok(Some(column))
                 } else {
                     Ok(None)
                 }
@@ -205,22 +145,15 @@ macro_rules! columnar_view_impl {
             /// Every column, keyed and ordered by [`keys`](Self::keys) — the
             /// local views drive `values` / `items` / `as_dict` off `keys()`
             /// (`keys().map(get)`), so the remote mirrors that: one key lookup
-            /// plus one whitelist-filtered values fetch, shipping exactly the
-            /// columns that will be returned.
+            /// plus one fetch of exactly the columns that will be returned,
+            /// zipped back to their keys by position.
             pub async fn fetch_all(&self) -> Result<Vec<(String, Column)>, ClientError> {
                 let keys = self.keys().await?;
                 if keys.is_empty() {
                     return Ok(Vec::new());
                 }
-                let whitelist: Arc<[String]> = Arc::from(keys.clone());
-                let data = self.fetch_with_keys(Some(whitelist)).await?;
-                Ok(keys
-                    .into_iter()
-                    .map(|key| {
-                        let col = data.column(&key);
-                        (key, col)
-                    })
-                    .collect())
+                let columns = self.fetch_columns(Arc::from(keys.clone())).await?;
+                Ok(keys.into_iter().zip(columns).collect())
             }
         }
     };

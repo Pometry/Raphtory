@@ -691,6 +691,31 @@ fn render_keys_filter(keys: &Option<Arc<[String]>>, out: &mut String) {
     }
 }
 
+/// Render the requested property columns as aliased single-key `get`s:
+/// `c0: get(key: "score") { value } c1: get(key: "tag") { value }`.
+///
+/// One field per column. The key is identical for every member, so shipping it
+/// per member is pure repetition — it is dropped, and the alias index *is* the
+/// column index, so the response needs no key matching to pivot: position
+/// carries the meaning. `dtype` stays: it disambiguates the value union when
+/// decoding (u64 vs i64, f32 vs f64).
+fn render_property_columns(keys: &[String], out: &mut String) {
+    use std::fmt::Write;
+    // An empty selection set is invalid GraphQL; both callers guarantee at
+    // least one key (`get` sends one, `fetch_all` returns early on none).
+    debug_assert!(!keys.is_empty(), "columnar fetch with no columns");
+    for (i, key) in keys.iter().enumerate() {
+        if i > 0 {
+            out.push(' ');
+        }
+        let _ = write!(
+            out,
+            "c{i}: get(key: {}) {{ value dtype }}",
+            render_gql_str(key)
+        );
+    }
+}
+
 /// Render `SortByTime` as its GraphQL enum literal — the async_graphql
 /// `Enum` derive emits SCREAMING_SNAKE_CASE variants.
 fn render_sort_by_time(t: SortByTime) -> &'static str {
@@ -1726,36 +1751,33 @@ fn render_read_into(
             out.push_str(" { list { list { isSelfLoop } }");
         }
         // Columnar property / metadata accessors — descend per-member into the
-        // `metadata` / `properties` container and read all `{key, value}`
-        // entries. FLAT collections render `list { <container> { values { key
-        // value } } }`.
-        // A `Some` key whitelist renders as the server-side `values(keys: [..])`
-        // filter, so single-column reads never ship the other columns.
+        // `metadata` / `properties` container and read the requested columns
+        // as aliased single-key `get`s (see `render_property_columns`), so
+        // only those columns travel and nothing else ships over the wire.
         ReadExpr::CollectionMetadataValues { input, keys } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { list { metadata { values");
-            render_keys_filter(keys, out);
-            out.push_str(" { key value dtype } } }");
+            out.push_str(" { list { metadata { ");
+            render_property_columns(keys, out);
+            out.push_str(" } }");
         }
         ReadExpr::CollectionPropertiesValues { input, keys } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { list { properties { values");
-            render_keys_filter(keys, out);
-            out.push_str(" { key value dtype } } }");
+            out.push_str(" { list { properties { ");
+            render_property_columns(keys, out);
+            out.push_str(" } }");
         }
-        // NESTED collections render `list { list { <container> { values { key
-        // value } } } }`.
+        // NESTED collections render `list { list { <container> { .. } } }`.
         ReadExpr::NestedMetadataValues { input, keys } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { list { list { metadata { values");
-            render_keys_filter(keys, out);
-            out.push_str(" { key value dtype } } } }");
+            out.push_str(" { list { list { metadata { ");
+            render_property_columns(keys, out);
+            out.push_str(" } } }");
         }
         ReadExpr::NestedPropertiesValues { input, keys } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { list { list { properties { values");
-            render_keys_filter(keys, out);
-            out.push_str(" { key value dtype } } } }");
+            out.push_str(" { list { list { properties { ");
+            render_property_columns(keys, out);
+            out.push_str(" } } }");
         }
         // Collection key lookup — the FIRST member's key set (mirrors the local
         // views, whose `keys()` reads the first entity's filtered registry).
@@ -2258,62 +2280,102 @@ where
 /// `Prop::List` of `{key, value}` records. `container` is the JSON field name
 /// (`metadata` or `properties`); the element shape is
 /// `{ <container>: { values: [ {key, value}, ... ] } }`.
-fn member_property_entries(el: &JsonValue, container: &str) -> Result<Prop, ClientError> {
-    let values = el
-        .get(container)
-        .and_then(|c| c.get("values"))
-        .and_then(|v| v.as_array())
-        .ok_or_else(|| {
-            ClientError::InvalidResponse(format!(
-                "columnar element missing `{}.values` array",
-                container
-            ))
-        })?;
-    let items: Result<Vec<Prop>, ClientError> =
-        values.iter().map(json_to_property_record).collect();
-    Ok(Prop::List(items?.into()))
+/// Decode one member's aliased columns into `n` optional values, positionally.
+///
+/// `c{i}` is the column requested at index `i`; a `null` alias means this
+/// member has no value for that key. Each value is wrapped as a 0- or
+/// 1-element `Prop::List`, the convention the optional-column decoders use.
+fn member_column_values(
+    el: &JsonValue,
+    container: &str,
+    n: usize,
+) -> Result<Vec<Prop>, ClientError> {
+    let container_val = el.get(container).ok_or_else(|| {
+        ClientError::InvalidResponse(format!("columnar element missing `{}`", container))
+    })?;
+    (0..n)
+        .map(|i| match container_val.get(format!("c{i}")) {
+            // `null` is an answer: this member has no value for the key. A
+            // *missing* alias is not — every requested field comes back, as
+            // null at worst, so its absence is a protocol violation and must
+            // fail loudly rather than decode as an absent value.
+            None => Err(ClientError::InvalidResponse(format!(
+                "columnar response missing requested alias `c{i}`"
+            ))),
+            Some(JsonValue::Null) => Ok(Prop::List(Vec::<Prop>::new().into())),
+            Some(column) => {
+                let obj = column.as_object().ok_or_else(|| {
+                    ClientError::InvalidResponse(format!("columnar `c{i}` not a JSON object"))
+                })?;
+                let value_json = obj.get("value").ok_or_else(|| {
+                    ClientError::InvalidResponse(format!("columnar `c{i}` record missing `value`"))
+                })?;
+                Ok(Prop::List(
+                    vec![record_value_to_prop(obj, value_json)?].into(),
+                ))
+            }
+        })
+        .collect()
 }
 
-/// Map a flat `list` array of members into a per-member `Prop::List` of
-/// property/metadata `{key, value}` records.
+/// Transpose per-member decoded values into per-column lists.
+fn transpose(rows: Vec<Vec<Prop>>, n: usize) -> Vec<Prop> {
+    let mut columns: Vec<Vec<Prop>> = vec![Vec::with_capacity(rows.len()); n];
+    for row in rows {
+        for (col, value) in columns.iter_mut().zip(row) {
+            col.push(value);
+        }
+    }
+    columns
+        .into_iter()
+        .map(|col| Prop::List(col.into()))
+        .collect()
+}
+
+/// Decode a flat collection's aliased columns into one `Prop::List` per
+/// requested column, each holding a 0-or-1-element optional per member.
 fn build_property_column(
     terminal_val: &JsonValue,
     container: &str,
+    keys: &[String],
 ) -> Result<Option<Prop>, ClientError> {
     let arr = terminal_val
         .as_array()
         .ok_or_else(|| ClientError::InvalidResponse("columnar `list` not a JSON array".into()))?;
-    let rows: Result<Vec<Prop>, ClientError> = arr
+    let rows = arr
         .iter()
-        .map(|el| member_property_entries(el, container))
-        .collect();
-    Ok(Some(Prop::List(rows?.into())))
+        .map(|el| member_column_values(el, container, keys.len()))
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(Some(Prop::List(transpose(rows, keys.len()).into())))
 }
 
-/// Map the outer per-source `list` array (each element carrying its own inner
-/// `list` of members) into a per-source per-member `Prop::List` of
-/// property/metadata `{key, value}` records.
+/// Nested variant: one `Prop::List` per requested column, each holding one
+/// per-source list of optionals.
 fn build_nested_property_column(
     terminal_val: &JsonValue,
     container: &str,
+    keys: &[String],
 ) -> Result<Option<Prop>, ClientError> {
     let outer = terminal_val
         .as_array()
         .ok_or_else(|| ClientError::InvalidResponse("columnar `list` not a JSON array".into()))?;
-    let rows: Result<Vec<Prop>, ClientError> = outer
+    // Per source, the columns for that source's members.
+    let per_source = outer
         .iter()
         .map(|row| {
             let inner = row.get("list").and_then(|v| v.as_array()).ok_or_else(|| {
                 ClientError::InvalidResponse("columnar element missing inner `list` array".into())
             })?;
-            let members: Result<Vec<Prop>, ClientError> = inner
+            let rows = inner
                 .iter()
-                .map(|el| member_property_entries(el, container))
-                .collect();
-            Ok(Prop::List(members?.into()))
+                .map(|el| member_column_values(el, container, keys.len()))
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(transpose(rows, keys.len()))
         })
-        .collect();
-    Ok(Some(Prop::List(rows?.into())))
+        .collect::<Result<Vec<_>, ClientError>>()?;
+    // Regroup source-major into column-major.
+    let columns = transpose(per_source, keys.len());
+    Ok(Some(Prop::List(columns.into())))
 }
 
 /// Decode a collection key lookup: `terminal_val` is the limit-1 `page` array;
@@ -3103,22 +3165,22 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
             build_nested_column(terminal_val, |v| col_bool_elem(v, "isSelfLoop"))
         }
         // Columnar property / metadata accessors — FLAT collections. Each `list`
-        // element carries a `<container> { values { key value } }` sub-object;
-        // decode into a per-member `Prop::List` of `{key, value}` records.
-        ReadExpr::CollectionMetadataValues { .. } => {
-            build_property_column(terminal_val, "metadata")
+        // element carries the aliased columns for one member; decode straight
+        // into one `Prop::List` per requested column.
+        ReadExpr::CollectionMetadataValues { keys, .. } => {
+            build_property_column(terminal_val, "metadata", keys)
         }
-        ReadExpr::CollectionPropertiesValues { .. } => {
-            build_property_column(terminal_val, "properties")
+        ReadExpr::CollectionPropertiesValues { keys, .. } => {
+            build_property_column(terminal_val, "properties", keys)
         }
         // Columnar property / metadata accessors — NESTED collections. The outer
         // `list` array holds per-source records, each with its own inner `list`
         // of members.
-        ReadExpr::NestedMetadataValues { .. } => {
-            build_nested_property_column(terminal_val, "metadata")
+        ReadExpr::NestedMetadataValues { keys, .. } => {
+            build_nested_property_column(terminal_val, "metadata", keys)
         }
-        ReadExpr::NestedPropertiesValues { .. } => {
-            build_nested_property_column(terminal_val, "properties")
+        ReadExpr::NestedPropertiesValues { keys, .. } => {
+            build_nested_property_column(terminal_val, "properties", keys)
         }
         // Collection key lookup — `terminal_val` is the limit-1 `page` array;
         // dig `[0].<container>.keys` (nested digs through the inner limit-1
@@ -4349,25 +4411,32 @@ mod tests {
         assert_eq!(query.matches('{').count(), query.matches('}').count());
     }
 
-    /// A `Some` key whitelist renders the server-side `values(keys: [..])`
-    /// filter; `None` renders bare `values` (all columns). Pins the lazy
-    /// single-column fetch shape.
+    /// Requested columns render as aliased single-key `get`s carrying only the
+    /// value and its dtype — no per-member key, since the alias index says
+    /// which column it is. `None` (every column) stays on `values`, which does
+    /// need the key.
     #[test]
-    fn columnar_values_render_keys_whitelist() {
+    fn columnar_values_render_aliased_columns() {
         let nodes = ReadExpr::Nodes {
             input: Arc::new(ReadExpr::Root {
                 path: "g".into(),
                 graph_type: None,
             }),
         };
+
+        // One requested column: a single aliased `get`, value and dtype only.
         let one = ReadExpr::CollectionPropertiesValues {
             input: Arc::new(nodes.clone()),
-            keys: Some(vec!["score".to_string()].into()),
+            keys: vec!["score".to_string()].into(),
         };
         let (query, _) = render_read(&one).unwrap();
         assert!(
-            query.contains("properties { values(keys: [\"score\"]) { key value dtype } }"),
-            "whitelist not rendered: {query}"
+            query.contains("properties { c0: get(key: \"score\") { value dtype } }"),
+            "single column not rendered as an aliased get: {query}"
+        );
+        assert!(
+            !query.contains(" key "),
+            "the per-member key should not be requested: {query}"
         );
         assert_eq!(
             query.matches('{').count(),
@@ -4375,14 +4444,17 @@ mod tests {
             "unbalanced braces in: {query}"
         );
 
-        let all = ReadExpr::CollectionPropertiesValues {
-            input: Arc::new(nodes),
-            keys: None,
+        // Two columns: one aliased field each, indices in request order.
+        let two = ReadExpr::CollectionPropertiesValues {
+            input: Arc::new(nodes.clone()),
+            keys: vec!["score".to_string(), "tag".to_string()].into(),
         };
-        let (query, _) = render_read(&all).unwrap();
+        let (query, _) = render_read(&two).unwrap();
         assert!(
-            query.contains("properties { values { key value dtype } }"),
-            "bare values not rendered: {query}"
+            query.contains(
+                "properties { c0: get(key: \"score\") { value dtype } c1: get(key: \"tag\") { value dtype } }"
+            ),
+            "two columns not rendered as ordered aliases: {query}"
         );
     }
 

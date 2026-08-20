@@ -670,30 +670,38 @@ pub enum ReadExpr {
     // / `NestedEdges`. Each opens ONE net brace (the outer `list`); inner groups
     // self-balance. For `properties`, temporal values collapse to their latest
     // under the current view — matching the local columnar property views.
-    // Each variant carries an optional key whitelist: `None` fetches every
-    // property (the all-columns reads — `values`/`items`/`as_dict`); `Some`
-    // renders `values(keys: [..])` so the server filters to just those columns
-    // — the single-column `get(key)` never ships the rest of the collection's
-    // properties over the wire.
-    /// FLAT: each member's metadata entries — one `[{key, value}]` per member.
+    // Each variant names the columns to fetch; the transport renders one
+    // aliased `get(key:)` per column, so only those columns travel and the
+    // response needs no key matching to pivot: the alias index is the column
+    // index. The all-columns reads (`values`/`items`/`as_dict`) pass the full
+    // key set from a preceding `keys()` lookup.
+    /// FLAT: the requested metadata columns — one optional value per member.
     CollectionMetadataValues {
         input: Arc<ReadExpr>,
-        keys: Option<Arc<[String]>>,
+        /// The columns to fetch, in order — the alias index in the rendered
+        /// query, and the column index in the decoded result.
+        keys: Arc<[String]>,
     },
-    /// FLAT: each member's property entries (temporal → latest).
+    /// FLAT: the requested property columns (temporal → latest).
     CollectionPropertiesValues {
         input: Arc<ReadExpr>,
-        keys: Option<Arc<[String]>>,
+        /// The columns to fetch, in order — the alias index in the rendered
+        /// query, and the column index in the decoded result.
+        keys: Arc<[String]>,
     },
-    /// NESTED: per-source per-member metadata entries.
+    /// NESTED: the requested metadata columns, per source.
     NestedMetadataValues {
         input: Arc<ReadExpr>,
-        keys: Option<Arc<[String]>>,
+        /// The columns to fetch, in order — the alias index in the rendered
+        /// query, and the column index in the decoded result.
+        keys: Arc<[String]>,
     },
-    /// NESTED: per-source per-member property entries (temporal → latest).
+    /// NESTED: the requested property columns (temporal → latest), per source.
     NestedPropertiesValues {
         input: Arc<ReadExpr>,
-        keys: Option<Arc<[String]>>,
+        /// The columns to fetch, in order — the alias index in the rendered
+        /// query, and the column index in the decoded result.
+        keys: Arc<[String]>,
     },
 
     // Collection-level key lookup. Local `MetadataView::keys()` reads the
