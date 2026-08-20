@@ -2,33 +2,33 @@ use dynamic_graphql::{Enum, OneOfInput};
 use raphtory::core::utils::time::{AlignmentUnit, Interval, TryIntoInterval};
 use raphtory_api::core::utils::time::ParseTimeError;
 
-pub(crate) mod collection;
-mod document;
-pub(crate) mod edge;
+pub mod collection;
+pub mod document;
+pub mod edge;
 pub mod edges;
 pub mod filtering;
-pub(crate) mod graph;
-pub(crate) mod history;
+pub mod graph;
+pub mod history;
 pub mod meta_graph;
-pub(crate) mod mutable_graph;
+pub mod mutable_graph;
 pub mod namespace;
 pub mod namespaced_item;
-pub(crate) mod nested_edges;
-pub(crate) mod node;
-pub(crate) mod node_id;
-pub(crate) mod node_state;
-mod nodes;
-pub(crate) mod path_from_graph;
-mod path_from_node;
-pub(crate) mod property;
-pub(crate) mod timeindex;
+pub mod nested_edges;
+pub mod node;
+pub mod node_id;
+pub mod node_state;
+pub mod nodes;
+pub mod path_from_graph;
+pub mod path_from_node;
+pub mod property;
+pub mod timeindex;
 
 #[cfg(feature = "vectors")]
-pub(crate) mod vector_selection;
+pub mod vector_selection;
 
 #[cfg(feature = "vectors")]
-pub(crate) mod vectorised_graph;
-mod windowset;
+pub mod vectorised_graph;
+pub mod windowset;
 
 #[derive(OneOfInput, Clone)]
 pub(crate) enum WindowDuration {

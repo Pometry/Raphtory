@@ -32,7 +32,7 @@ use raphtory_api::core::utils::time::IntoTime;
 /// list type directly, hence the custom scalar.
 #[derive(Clone, Debug, Scalar)]
 #[graphql(name = "NestedStringList")]
-pub(crate) struct NestedStringList(pub Vec<Vec<String>>);
+pub struct NestedStringList(pub Vec<Vec<String>>);
 
 impl ScalarValue for NestedStringList {
     fn from_value(_value: GqlValue) -> Result<Self, Error> {
@@ -55,7 +55,7 @@ impl ScalarValue for NestedStringList {
 /// columnar `degree`/`inDegree`/`outDegree` nested terminals.
 #[derive(Clone, Debug, Scalar)]
 #[graphql(name = "NestedIntList")]
-pub(crate) struct NestedIntList(pub Vec<Vec<i64>>);
+pub struct NestedIntList(pub Vec<Vec<i64>>);
 
 impl ScalarValue for NestedIntList {
     fn from_value(_value: GqlValue) -> Result<Self, Error> {
@@ -80,7 +80,7 @@ impl ScalarValue for NestedIntList {
 /// further hops.
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "PathFromGraph")]
-pub(crate) struct GqlPathFromGraph {
+pub struct GqlPathFromGraph {
     pub(crate) nn: PathFromGraph<'static, DynamicGraph>,
 }
 

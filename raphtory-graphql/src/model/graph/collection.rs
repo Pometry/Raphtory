@@ -40,7 +40,7 @@ pub(crate) fn check_page_limit(ctx: &Context<'_>, limit: usize) -> Result<()> {
 /// Collection of items
 #[derive(ResolvedObject, Clone)]
 #[graphql(get_type_name = true)]
-pub(crate) struct GqlCollection<T>
+pub struct GqlCollection<T>
 where
     T: Clone + Send + Sync,
     T: OutputTypeName + 'static,

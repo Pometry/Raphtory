@@ -24,7 +24,7 @@ pub(super) struct InputEdge {
 /// `edges`, `getDocuments`), or start fresh with `emptySelection`.
 #[derive(ResolvedObject)]
 #[graphql(name = "VectorSelection")]
-pub(crate) struct GqlVectorSelection(VectorSelection<MaterializedGraph>);
+pub struct GqlVectorSelection(VectorSelection<MaterializedGraph>);
 
 impl From<VectorSelection<MaterializedGraph>> for GqlVectorSelection {
     fn from(value: VectorSelection<MaterializedGraph>) -> Self {

@@ -33,7 +33,7 @@ use std::{
 /// a `NodeStateColumn` whose `values` are row-aligned with `nodes`.
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "NodeState")]
-pub(crate) struct GqlNodeState {
+pub struct GqlNodeState {
     pub(crate) node_state: OutputTypedNodeState<'static, DynamicGraph>,
 }
 
@@ -62,7 +62,7 @@ pub(crate) enum GqlNodeStateValue {
 /// A plain property value of a node state cell.
 #[derive(SimpleObject, Clone)]
 #[graphql(name = "NodeStateProp")]
-pub(crate) struct GqlNodeStateProp {
+pub struct GqlNodeStateProp {
     /// The property value; null if the node has no value in this column.
     prop: Option<GqlPropertyOutputVal>,
 }
@@ -83,7 +83,7 @@ impl From<NodeStateOutput<'static, Arc<dyn BoxableGraphView>>> for GqlNodeStateV
 /// algorithm. Row-aligned with `NodeState.nodes`.
 #[derive(SimpleObject, Clone)]
 #[graphql(name = "NodeStateColumn")]
-pub(crate) struct GqlNodeStateColumn {
+pub struct GqlNodeStateColumn {
     /// Name of the column.
     name: String,
     /// The values of this column; `values[i]` belongs to `NodeState.nodes[i]`.
@@ -93,7 +93,7 @@ pub(crate) struct GqlNodeStateColumn {
 /// One column's value for a single node.
 #[derive(SimpleObject, Clone)]
 #[graphql(name = "NodeStateEntry")]
-pub(crate) struct GqlNodeStateEntry {
+pub struct GqlNodeStateEntry {
     /// Name of the column.
     column_name: String,
     /// The node's value in this column.
@@ -103,7 +103,7 @@ pub(crate) struct GqlNodeStateEntry {
 /// A `(node, value)` pair, e.g. the result of a column aggregate.
 #[derive(SimpleObject, Clone)]
 #[graphql(name = "NodeStateItem")]
-pub(crate) struct GqlNodeStateItem {
+pub struct GqlNodeStateItem {
     /// The node.
     node: GqlNode,
     /// The node's value.
@@ -113,7 +113,7 @@ pub(crate) struct GqlNodeStateItem {
 /// A node's full row in the node state: one entry per column.
 #[derive(SimpleObject, Clone)]
 #[graphql(name = "NodeStateRow")]
-pub(crate) struct GqlNodeStateRow {
+pub struct GqlNodeStateRow {
     /// The node this row belongs to.
     node: GqlNode,
     /// The row's values, one entry per column.
@@ -123,7 +123,7 @@ pub(crate) struct GqlNodeStateRow {
 /// The nodes sharing one value of a column, as returned by `groupBy`.
 #[derive(SimpleObject, Clone)]
 #[graphql(name = "NodeStateGroup")]
-pub(crate) struct GqlNodeStateGroup {
+pub struct GqlNodeStateGroup {
     /// The value shared by the nodes in this group; null if their cell is empty.
     value: Option<GqlPropertyOutputVal>,
     /// The nodes holding that value.
@@ -134,7 +134,7 @@ pub(crate) struct GqlNodeStateGroup {
 /// belongs to the column `NodeState.columnNames[i]`.
 #[derive(SimpleObject, Clone)]
 #[graphql(name = "NodeStateHeadlessRow")]
-pub(crate) struct GqlNodeStateHeadlessRow {
+pub struct GqlNodeStateHeadlessRow {
     /// The node this row belongs to.
     node: GqlNode,
     /// The row's values, in `columnNames` order.

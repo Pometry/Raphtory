@@ -33,7 +33,7 @@ use raphtory_api::core::utils::time::IntoTime;
 /// to walk further hops.
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "PathFromNode")]
-pub(crate) struct GqlPathFromNode {
+pub struct GqlPathFromNode {
     pub(crate) nn: PathFromNode<'static, DynamicGraph>,
 }
 

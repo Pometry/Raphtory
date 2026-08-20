@@ -413,7 +413,7 @@ fn prop_to_gql(prop: &Prop) -> GqlValue {
 /// human-readable string (`asString`).
 #[derive(Clone, ResolvedObject)]
 #[graphql(name = "Property")]
-pub(crate) struct GqlProperty {
+pub struct GqlProperty {
     key: String,
     prop: Prop,
 }
@@ -462,7 +462,7 @@ impl GqlProperty {
 /// `median`, `orderedDedupe`).
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "PropertyTuple")]
-pub(crate) struct GqlPropertyTuple {
+pub struct GqlPropertyTuple {
     time: EventTime,
     prop: Prop,
 }
@@ -511,7 +511,7 @@ impl GqlPropertyTuple {
 /// `median`, `count`).
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "TemporalProperty")]
-pub(crate) struct GqlTemporalProperty {
+pub struct GqlTemporalProperty {
     key: String,
     prop: TemporalPropertyView<DynProps>,
 }
@@ -666,7 +666,7 @@ impl GqlTemporalProperty {
 /// `keys` / `values`, or drop into `temporal` for time-aware accessors.
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "Properties")]
-pub(crate) struct GqlProperties {
+pub struct GqlProperties {
     props: DynProperties,
 }
 
@@ -690,7 +690,7 @@ impl<P: Into<DynProperties>> From<P> for GqlProperties {
 /// you need per-update iteration, time-indexed lookups, or aggregates.
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "TemporalProperties")]
-pub(crate) struct GqlTemporalProperties {
+pub struct GqlTemporalProperties {
     props: DynTemporalProperties,
 }
 
@@ -712,7 +712,7 @@ impl From<DynTemporalProperties> for GqlTemporalProperties {
 /// time-varying data.
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "Metadata")]
-pub(crate) struct GqlMetadata {
+pub struct GqlMetadata {
     props: DynMetadata,
 }
 

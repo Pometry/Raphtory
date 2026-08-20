@@ -42,7 +42,7 @@ use std::cmp::Ordering;
 /// sorting. Iterated via `list` / `page` / `ids` / `count`.
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "Nodes")]
-pub(crate) struct GqlNodes {
+pub struct GqlNodes {
     pub(crate) nn: Nodes<'static, DynamicGraph, DynamicGraph, DynNodeFilter>,
 }
 

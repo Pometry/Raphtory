@@ -27,7 +27,7 @@ use raphtory::db::{
 /// per-window.
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "GraphWindowSet")]
-pub(crate) struct GqlGraphWindowSet {
+pub struct GqlGraphWindowSet {
     pub(crate) ws: WindowSet<'static, DynamicGraph>,
     path: UnlockedGraphFolder,
 }
@@ -99,7 +99,7 @@ impl GqlGraphWindowSet {
 /// that window.
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "NodeWindowSet")]
-pub(crate) struct GqlNodeWindowSet {
+pub struct GqlNodeWindowSet {
     pub(crate) ws: WindowSet<'static, NodeView<'static, DynamicGraph>>,
 }
 
@@ -163,7 +163,7 @@ impl GqlNodeWindowSet {
 /// as it exists in that window.
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "NodesWindowSet")]
-pub(crate) struct GqlNodesWindowSet {
+pub struct GqlNodesWindowSet {
     pub(crate) ws: WindowSet<'static, Nodes<'static, DynamicGraph, DynamicGraph, DynNodeFilter>>,
 }
 
@@ -232,7 +232,7 @@ impl GqlNodesWindowSet {
 /// Each entry is a `PathFromNode` scoped to that window.
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "PathFromNodeWindowSet")]
-pub(crate) struct GqlPathFromNodeWindowSet {
+pub struct GqlPathFromNodeWindowSet {
     pub(crate) ws: WindowSet<'static, PathFromNode<'static, DynamicGraph>>,
 }
 
@@ -303,7 +303,7 @@ impl GqlPathFromNodeWindowSet {
 /// that window.
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "EdgeWindowSet")]
-pub(crate) struct GqlEdgeWindowSet {
+pub struct GqlEdgeWindowSet {
     pub(crate) ws: WindowSet<'static, EdgeView<DynamicGraph>>,
 }
 
@@ -367,7 +367,7 @@ impl GqlEdgeWindowSet {
 /// as it exists in that window.
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "EdgesWindowSet")]
-pub(crate) struct GqlEdgesWindowSet {
+pub struct GqlEdgesWindowSet {
     pub(crate) ws: WindowSet<'static, Edges<'static, DynamicGraph>>,
 }
 

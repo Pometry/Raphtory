@@ -125,6 +125,41 @@ fn cast_optional_wrapper_list<T>(
     }
 }
 
+// ============ Prop-shaped record decoding ============
+//
+// The structured terminals (e.g. `schema`) arrive as one `Prop` tree; these
+// unwrap its pieces with a context for the error, mirroring the `expect_*`
+// family above, which does the same for whole `Transport::execute` results.
+
+/// Unwrap a `Prop::Str` field of a decoded record.
+pub(crate) fn prop_str(prop: Prop, context: &str) -> Result<String, ClientError> {
+    match prop {
+        Prop::Str(s) => Ok(s.to_string()),
+        _ => Err(ClientError::InvalidResponse(format!(
+            "`{}` expected Prop::Str",
+            context
+        ))),
+    }
+}
+
+/// Unwrap a `Prop::List` field of a decoded record.
+pub(crate) fn prop_list(prop: Prop, context: &str) -> Result<Vec<Prop>, ClientError> {
+    match prop {
+        Prop::List(items) => Ok(items.iter().collect()),
+        _ => Err(ClientError::InvalidResponse(format!(
+            "`{}` expected Prop::List",
+            context
+        ))),
+    }
+}
+
+/// Look up a required key in a decoded `Prop::Map` record.
+pub(crate) fn prop_map_get(map: &PropMap, key: &str) -> Result<Prop, ClientError> {
+    map.get(key)
+        .cloned()
+        .ok_or_else(|| ClientError::InvalidResponse(format!("record missing `{}`", key)))
+}
+
 /// A `Prop::Str` cast producing an owned `String`.
 fn into_string(p: Prop) -> Option<String> {
     p.into_str().map(|s| s.to_string())

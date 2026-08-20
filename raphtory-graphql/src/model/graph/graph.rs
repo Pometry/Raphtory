@@ -58,7 +58,7 @@ use std::{
 /// keep chaining. Views are cheap — they don't copy the underlying data.
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "Graph")]
-pub(crate) struct GqlGraph {
+pub struct GqlGraph {
     path: UnlockedGraphFolder,
     graph: DynamicGraph,
 }

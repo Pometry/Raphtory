@@ -139,7 +139,7 @@ impl IntoWindowTuple for Option<VectorisedGraphWindow> {
 /// (`optimizeIndex`).
 #[derive(ResolvedObject)]
 #[graphql(name = "VectorisedGraph")]
-pub(crate) struct GqlVectorisedGraph(VectorisedGraph<MaterializedGraph>);
+pub struct GqlVectorisedGraph(VectorisedGraph<MaterializedGraph>);
 
 impl From<VectorisedGraph<MaterializedGraph>> for GqlVectorisedGraph {
     fn from(value: VectorisedGraph<MaterializedGraph>) -> Self {

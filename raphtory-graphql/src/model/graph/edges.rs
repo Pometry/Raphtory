@@ -35,7 +35,7 @@ use raphtory::db::api::view::Filter;
 /// `explode` and `explodeLayers`, pagination, and sorting.
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "Edges")]
-pub(crate) struct GqlEdges {
+pub struct GqlEdges {
     pub(crate) ee: Edges<'static, DynamicGraph>,
 }
 

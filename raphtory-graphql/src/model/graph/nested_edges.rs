@@ -27,7 +27,7 @@ use raphtory_api::core::utils::time::IntoTime;
 /// transforms (window, layer, filter, ...).
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "NestedEdges")]
-pub(crate) struct GqlNestedEdges {
+pub struct GqlNestedEdges {
     pub(crate) edges: NestedEdges<'static, DynamicGraph>,
 }
 
