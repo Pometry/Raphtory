@@ -193,12 +193,10 @@ impl PyRemoteHistory {
     }
 
     /// `reversed(history)` — iterate events in descending time order.
-    /// Fires one RPC (`collect_rev()`), then yields each locally.
+    /// Routed through the lazy `reverse()` handle, so it stays a single RPC
+    /// today and picks up any future optimised iterator automatically.
     fn __reversed__(&self) -> Result<PyRemoteHistoryIter, ClientError> {
-        let list = self.collect_rev()?;
-        Ok(PyRemoteHistoryIter {
-            inner: list.into_iter(),
-        })
+        self.reverse().__iter__()
     }
 
     /// A new history with the iteration order of its entries reversed.
@@ -348,25 +346,6 @@ impl PyRemoteHistoryTimestamps {
         execute_async_task(move || async move { inner.page_rev(limit, offset, page_index).await })
     }
 
-    /// All timestamps as a `list[int]` — alias of `collect()`, mirroring the
-    /// local `HistoryTimestamp.to_list`. Fires one RPC.
-    ///
-    /// Returns:
-    ///     list[int]: all timestamps in ascending time order.
-    pub fn to_list(&self) -> Result<Vec<i64>, ClientError> {
-        self.collect()
-    }
-
-    /// All timestamps as a `list[int]` in reverse order — alias of
-    /// `collect_rev()`, mirroring the local `HistoryTimestamp.to_list_rev`.
-    /// Fires one RPC.
-    ///
-    /// Returns:
-    ///     list[int]: all timestamps in descending time order.
-    pub fn to_list_rev(&self) -> Result<Vec<i64>, ClientError> {
-        self.collect_rev()
-    }
-
     /// `len(...)` — number of timestamps. Fires one RPC (`collect()`).
     fn __len__(&self) -> Result<usize, ClientError> {
         Ok(self.collect()?.len())
@@ -399,13 +378,14 @@ impl PyRemoteHistoryTimestamps {
         Ok(self.collect()?.contains(&item))
     }
 
-    /// `reversed(...)` — iterate timestamps in reverse. Fires one RPC
-    /// (`collect_rev()`).
+    /// `reversed(...)` — iterate timestamps in reverse. Routed through the
+    /// lazy `reverse()` view, so it stays one RPC and composes with any
+    /// future optimised iterator.
     fn __reversed__(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
-        Ok(PyList::new(py, self.collect_rev()?)?
-            .try_iter()?
-            .into_any()
-            .unbind())
+        let reversed = Self {
+            inner: Arc::new(self.inner.reverse()),
+        };
+        reversed.__iter__(py)
     }
 }
 
@@ -480,25 +460,6 @@ impl PyRemoteHistoryEventIds {
         execute_async_task(move || async move { inner.page_rev(limit, offset, page_index).await })
     }
 
-    /// All event ids as a `list[int]` — alias of `collect()`, mirroring the
-    /// local `HistoryEventId.to_list`. Fires one RPC.
-    ///
-    /// Returns:
-    ///     list[int]: all event ids in ascending time order.
-    pub fn to_list(&self) -> Result<Vec<i64>, ClientError> {
-        self.collect()
-    }
-
-    /// All event ids as a `list[int]` in reverse order — alias of
-    /// `collect_rev()`, mirroring the local `HistoryEventId.to_list_rev`.
-    /// Fires one RPC.
-    ///
-    /// Returns:
-    ///     list[int]: all event ids in descending time order.
-    pub fn to_list_rev(&self) -> Result<Vec<i64>, ClientError> {
-        self.collect_rev()
-    }
-
     /// `len(...)` — number of event ids. Fires one RPC (`collect()`).
     fn __len__(&self) -> Result<usize, ClientError> {
         Ok(self.collect()?.len())
@@ -531,13 +492,14 @@ impl PyRemoteHistoryEventIds {
         Ok(self.collect()?.contains(&item))
     }
 
-    /// `reversed(...)` — iterate event ids in reverse. Fires one RPC
-    /// (`collect_rev()`).
+    /// `reversed(...)` — iterate event ids in reverse. Routed through the
+    /// lazy `reverse()` view, so it stays one RPC and composes with any
+    /// future optimised iterator.
     fn __reversed__(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
-        Ok(PyList::new(py, self.collect_rev()?)?
-            .try_iter()?
-            .into_any()
-            .unbind())
+        let reversed = Self {
+            inner: Arc::new(self.inner.reverse()),
+        };
+        reversed.__iter__(py)
     }
 }
 
@@ -651,13 +613,14 @@ impl PyRemoteHistoryDateTimes {
         }
     }
 
-    /// `reversed(...)` — iterate datetimes in reverse. Fires one RPC
-    /// (`collect_rev()`).
+    /// `reversed(...)` — iterate datetimes in reverse. Routed through the
+    /// lazy `reverse()` view, so it stays one RPC and composes with any
+    /// future optimised iterator.
     fn __reversed__(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
-        Ok(PyList::new(py, self.collect_rev()?)?
-            .try_iter()?
-            .into_any()
-            .unbind())
+        let reversed = Self {
+            inner: Arc::new(self.inner.reverse()),
+        };
+        reversed.__iter__(py)
     }
 }
 
@@ -769,25 +732,6 @@ impl PyRemoteIntervals {
         execute_async_task(move || async move { inner.min().await })
     }
 
-    /// All intervals as a `list[int]` — alias of `collect()`, mirroring the
-    /// local `Intervals.to_list`. Fires one RPC.
-    ///
-    /// Returns:
-    ///     list[int]: all intervals in ascending time order.
-    pub fn to_list(&self) -> Result<Vec<i64>, ClientError> {
-        self.collect()
-    }
-
-    /// All intervals as a `list[int]` in reverse order — alias of
-    /// `collect_rev()`, mirroring the local `Intervals.to_list_rev`. Fires
-    /// one RPC.
-    ///
-    /// Returns:
-    ///     list[int]: all intervals in descending time order.
-    pub fn to_list_rev(&self) -> Result<Vec<i64>, ClientError> {
-        self.collect_rev()
-    }
-
     /// `len(...)` — number of intervals. Fires one RPC (`collect()`).
     fn __len__(&self) -> Result<usize, ClientError> {
         Ok(self.collect()?.len())
@@ -820,13 +764,14 @@ impl PyRemoteIntervals {
         Ok(self.collect()?.contains(&item))
     }
 
-    /// `reversed(...)` — iterate intervals in reverse. Fires one RPC
-    /// (`collect_rev()`).
+    /// `reversed(...)` — iterate intervals in reverse. Routed through the
+    /// lazy `reverse()` view, so it stays one RPC and composes with any
+    /// future optimised iterator.
     fn __reversed__(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
-        Ok(PyList::new(py, self.collect_rev()?)?
-            .try_iter()?
-            .into_any()
-            .unbind())
+        let reversed = Self {
+            inner: Arc::new(self.inner.reverse()),
+        };
+        reversed.__iter__(py)
     }
 }
 
