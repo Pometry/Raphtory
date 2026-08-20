@@ -2,7 +2,7 @@ use crate::{
     core::entities::{edges::edge_ref::EdgeRef, VID},
     db::{
         api::{
-            state::ops::{ArrowNodeOp, NodeFilterOp, NodeOp},
+            state::ops::{ArrowNodeOp, NodeOp},
             view::{
                 filter_ops::Select,
                 history::History,
@@ -278,7 +278,7 @@ where
         filter: F,
     ) -> Result<PathFromGraph<'graph, G>, GraphError> {
         let filter_graph = filter.filter_graph_view(self.base_graph.clone())?;
-        let filter = filter.create_node_filter(filter_graph.clone())?;
+        let filter = filter.create_node_filter(self.base_graph.clone(), filter_graph.clone())?;
 
         let select = Arc::new(AndFilteredGraph::new(
             self.base_graph.clone(),
@@ -534,7 +534,7 @@ where
             self.select.clone(),
             filter_graph.clone(),
         ));
-        let filter_op = filter.create_node_filter(filter_graph)?;
+        let filter_op = filter.create_node_filter(self.base_graph.clone(), filter_graph)?;
         Ok(PathFromNode {
             base_graph: self.base_graph.clone(),
             select,

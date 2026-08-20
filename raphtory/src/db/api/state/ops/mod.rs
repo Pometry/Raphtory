@@ -238,7 +238,8 @@ where
 impl<Left, Right> IntoDynNodeOp for Eq<Left, Right> where Eq<Left, Right>: NodeOp + 'static {}
 
 #[derive(Clone)]
-pub struct NotANodeFilter;
+/// Never type for filters that are not node filters. This can never be constructed (enum with no variants).
+pub enum NotANodeFilter {}
 
 impl NodeOp for NotANodeFilter {
     type Output = bool;

@@ -9278,14 +9278,15 @@ mod test_edge_filter {
 
     #[test]
     fn test_is_self_loop_edge_window() {
+        // window has no effect on is_self_loop and because we are using an `EdgeFilter` as the
+        // entrypoint, the window is only applied to the edges, not the graph
         let filter = EdgeFilter.window(1, 3).is_self_loop();
-        let expected_results_empty = vec![];
         let expected_results_self_loop = vec!["Bangalore->Bangalore"];
         assert_filter_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
             filter.clone(),
-            &expected_results_empty,
+            &expected_results_self_loop,
             TestVariants::All,
         );
 
@@ -9294,7 +9295,7 @@ mod test_edge_filter {
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
             filter.clone(),
-            &vec!["Bangalore->Bangalore"],
+            &expected_results_self_loop,
             TestVariants::All,
         );
 

@@ -1,6 +1,5 @@
 use crate::{
     api::core::storage::timeindex::AsTime,
-    core::state::accumulator_id::accumulators::val,
     db::{
         api::view::{
             DynamicGraph, IntoDynBoxed, IntoDynHop, IntoDynamic, Select, StaticGraphViewOps,

@@ -215,7 +215,7 @@ impl<'graph, G: GraphView + 'graph> Select<'graph> for Edges<'graph, G> {
         filter: F,
     ) -> Result<Self::IterFiltered<F>, GraphError> {
         let filtered_graph = filter.filter_graph_view(self.base_graph.clone())?;
-        let filtered_graph = filter.create_filter(filtered_graph)?;
+        let filtered_graph = filter.create_filter(self.base_graph.clone(), filtered_graph)?;
 
         let edges = self.edges.clone();
         let select = Arc::new(AndFilteredGraph::new(
@@ -393,7 +393,7 @@ impl<'graph, G: GraphView + 'graph> Select<'graph> for NestedEdges<'graph, G> {
         filter: F,
     ) -> Result<Self::IterFiltered<F>, GraphError> {
         let filtered_graph = filter.filter_graph_view(self.graph.clone())?;
-        let filtered_graph = filter.create_filter(filtered_graph)?;
+        let filtered_graph = filter.create_filter(self.graph.clone(), filtered_graph)?;
         let edges = self.edges.clone();
         let select = Arc::new(AndFilteredGraph::new(
             self.graph.clone(),

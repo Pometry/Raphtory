@@ -24,7 +24,7 @@ use raphtory::{
         property_filter::{Op, PropertyFilter, PropertyFilterValue, PropertyRef},
         snapshot_filter::{SnapshotAt as SnapshotAtWrap, SnapshotLatest as SnapshotLatestWrap},
         windowed_filter::Windowed,
-        ComposableFilter, DynFilter, DynView, NoFilter, ViewWrapOps,
+        ComposableFilter, DynFilter, DynView, Unfiltered, ViewWrapOps,
     },
     errors::GraphError,
 };
@@ -1859,7 +1859,7 @@ impl TryFrom<GraphRowFilter> for DynFilter {
                     Some(first) => filters.try_fold(first, |combined, filter| {
                         Ok::<_, GraphError>(Arc::new(combined.and(filter?)) as DynFilter)
                     })?,
-                    None => Arc::new(NoFilter) as DynFilter,
+                    None => Arc::new(Unfiltered) as DynFilter,
                 }
             }
             GraphRowFilter::Or(filters) => {
@@ -1869,7 +1869,7 @@ impl TryFrom<GraphRowFilter> for DynFilter {
                     Some(first) => filters.try_fold(first, |combined, filter| {
                         Ok::<_, GraphError>(Arc::new(combined.or(filter?)) as DynFilter)
                     })?,
-                    None => Arc::new(NoFilter) as DynFilter,
+                    None => Arc::new(Unfiltered) as DynFilter,
                 }
             }
         };

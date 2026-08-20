@@ -66,7 +66,7 @@ use storage::{persist::strategy::PersistenceStrategy, Config, Extension};
 /// information about a graph. The trait has associated types
 /// that are used to define the type of the nodes, edges
 /// and the corresponding iterators.
-pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
+pub trait GraphViewOps<'graph>: GraphView + 'graph {
     /// Return an iterator over all edges in the graph.
     fn edges(&self) -> Edges<'graph, Self>;
 
@@ -1195,13 +1195,13 @@ where
     G: GraphView + 'graph,
 {
     type Graph = G;
-    type Filtered<Next: GraphViewOps<'graph> + 'graph> = Next;
+    type Filtered<Next: GraphView + 'graph + 'graph> = Next;
 
     fn base_graph(&self) -> &Self::Graph {
         self
     }
 
-    fn apply_filter<Next: GraphViewOps<'graph> + 'graph>(
+    fn apply_filter<Next: GraphView + 'graph + 'graph>(
         &self,
         filtered_graph: Next,
     ) -> Self::Filtered<Next> {
