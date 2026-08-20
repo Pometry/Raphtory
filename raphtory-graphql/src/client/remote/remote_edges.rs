@@ -31,9 +31,8 @@ use std::sync::Arc;
 /// the ordered collection-level ops — used by `.collect()` so materialized
 /// `RemoteEdge`s evaluate under the same composed view.
 ///
-/// Note: edges are identified by `(src, dst)` pairs — there's no
-/// single-string id, so this collection exposes `.count()` and `.collect()`
-/// but no `.ids()`.
+/// Note: edges are identified by `(src, dst)` pairs, so the `.id()` column
+/// yields pairs rather than single ids.
 #[derive(Clone)]
 pub struct RemoteEdges {
     pub path: String,

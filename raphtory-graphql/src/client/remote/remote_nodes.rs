@@ -25,7 +25,7 @@ use std::sync::Arc;
 /// - `RemoteNode::neighbours()` / `.in_neighbours()` / `.out_neighbours()` —
 ///   the neighbours of a specific node.
 ///
-/// Holds the accumulated read expression (`expr`) so terminals like `.ids()`
+/// Holds the accumulated read expression (`expr`) so terminals like `.id()`
 /// and `.count()` evaluate under the full view chain built up on the parent,
 /// plus a materialization context (`ctx`) recording the parent graph view and
 /// the ordered collection-level ops — used by `.collect()` so materialized
@@ -243,7 +243,7 @@ impl RemoteNodes {
     /// Reorder this collection by the given sort keys (lexicographic — ties
     /// on the first key break to the second, etc.). Returns a new
     /// `RemoteNodes` handle carrying the sort; the RPC only fires on a
-    /// downstream terminal (`.collect()`, `.count()`, `.ids()`, …). Lazy — no
+    /// downstream terminal (`.collect()`, `.count()`, `.id()`, …). Lazy — no
     /// RPC. `ctx` is unchanged: sorting affects only this
     /// collection's iteration order, not the view of materialized nodes.
     pub fn sorted(&self, sort_bys: Vec<NodeSortBy>) -> RemoteNodes {
@@ -344,14 +344,6 @@ impl RemoteNodes {
             },
             self.ctx.clone(),
         )
-    }
-
-    /// Terminal: the list of node ids in this collection. Fires one RPC.
-    pub async fn ids(&self) -> Result<Vec<GID>, ClientError> {
-        let op = Op::Read(ReadExpr::Ids {
-            input: self.expr.clone(),
-        });
-        expect_gid_list(self.transport.execute(&op).await?, "ids")
     }
 
     /// Columnar accessor: each node's id — mirrors the local `Nodes.id`,
@@ -511,7 +503,7 @@ impl RemoteNodes {
     /// order — so terminals on returned nodes evaluate under the same
     /// composed view as collection-level reads.
     pub async fn collect(&self) -> Result<Vec<RemoteNode>, ClientError> {
-        let ids = self.ids().await?;
+        let ids = self.id().await?;
         Ok(ids
             .into_iter()
             .map(|id| {

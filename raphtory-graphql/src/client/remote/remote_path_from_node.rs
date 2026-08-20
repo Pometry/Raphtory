@@ -308,14 +308,6 @@ impl RemotePathFromNode {
         )
     }
 
-    /// Terminal: the list of node ids in this collection. Fires one RPC.
-    pub async fn ids(&self) -> Result<Vec<GID>, ClientError> {
-        let op = Op::Read(ReadExpr::Ids {
-            input: self.expr.clone(),
-        });
-        expect_gid_list(self.transport.execute(&op).await?, "ids")
-    }
-
     /// Columnar accessor: each node's id — mirrors the local `PathFromNode.id`,
     /// including the type: string ids for string-indexed graphs, integers for
     /// integer-indexed ones. Fires one RPC.
@@ -483,7 +475,7 @@ impl RemotePathFromNode {
     /// anchors on the parent graph view and replays the collection-level ops
     /// in application order.
     pub async fn collect(&self) -> Result<Vec<RemoteNode>, ClientError> {
-        let ids = self.ids().await?;
+        let ids = self.id().await?;
         Ok(ids
             .into_iter()
             .map(|id| {

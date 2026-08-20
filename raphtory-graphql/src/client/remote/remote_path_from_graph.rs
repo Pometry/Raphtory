@@ -305,15 +305,6 @@ impl RemotePathFromGraph {
         )
     }
 
-    /// Terminal: the nested list of node ids in this collection — one inner
-    /// list per source node. Fires one RPC.
-    pub async fn ids(&self) -> Result<Vec<Vec<GID>>, ClientError> {
-        let op = Op::Read(ReadExpr::NestedIds {
-            input: self.expr.clone(),
-        });
-        expect_nested_gid_list(self.transport.execute(&op).await?, "ids")
-    }
-
     /// Terminal: the ids of the SOURCE nodes these paths hang off — one per
     /// source, aligned with `ids()`' outer index. Fires one RPC.
     pub async fn source_ids(&self) -> Result<Vec<String>, ClientError> {
@@ -535,7 +526,7 @@ impl RemotePathFromGraph {
     /// the parent graph view and replays the collection-level ops in
     /// application order.
     pub async fn collect(&self) -> Result<Vec<Vec<RemoteNode>>, ClientError> {
-        let nested = self.ids().await?;
+        let nested = self.id().await?;
         Ok(nested
             .into_iter()
             .map(|row| {

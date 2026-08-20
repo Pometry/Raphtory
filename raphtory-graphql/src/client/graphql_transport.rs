@@ -4964,7 +4964,7 @@ mod tests {
         // Membership: filter keeps every node addressable — including `a`,
         // which fails the filter itself.
         let filtered = rg.nodes().filter(score_gt_15.clone()).unwrap();
-        let mut ids = filtered.ids().await.unwrap();
+        let mut ids = filtered.id().await.unwrap();
         ids.sort();
         assert_eq!(
             ids,
@@ -4974,7 +4974,7 @@ mod tests {
 
         // Handles from collect() must agree with the columnar degree.
         let columnar: Map<GID, i64> = filtered
-            .ids()
+            .id()
             .await
             .unwrap()
             .into_iter()
@@ -5012,7 +5012,7 @@ mod tests {
             .into_iter()
             .map(|n| (n.id.clone(), n))
             .collect();
-        let b_neighbours = by_id[&GID::from("b")].neighbours().ids().await.unwrap();
+        let b_neighbours = by_id[&GID::from("b")].neighbours().id().await.unwrap();
         assert_eq!(
             b_neighbours,
             ["c"].map(GID::from),
@@ -5024,7 +5024,7 @@ mod tests {
         // the widened `TryInto<GqlFilter>` bound.
         let score_gt_15_composite = CompositeNodeFilter::try_from(score_gt_15.clone()).unwrap();
         let selected = rg.nodes().select(score_gt_15_composite).unwrap();
-        let mut selected_ids = selected.ids().await.unwrap();
+        let mut selected_ids = selected.id().await.unwrap();
         selected_ids.sort();
         assert_eq!(
             selected_ids,
@@ -5069,7 +5069,7 @@ mod tests {
             }))
             .unwrap();
         let rows = nested.edges().collect().await.unwrap();
-        let ids_in_order = nested.ids().await.unwrap();
+        let ids_in_order = nested.id().await.unwrap();
         let b_row = &rows[ids_in_order
             .iter()
             .position(|id| id == &GID::from("b"))
