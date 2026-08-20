@@ -14,6 +14,8 @@ use crate::{
     },
     prelude::*,
 };
+use rand::Rng;
+use raphtory_api::core::utils::hashing::calculate_hash;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
@@ -40,13 +42,24 @@ pub struct LabelPropState {
     is_changed: bool, // derive(Default) initializes to false
 }
 
+/// Deterministic pseudorandom rank for `label` as seen by `node`, used only to break vote-count
+/// ties in `step3`.
+///
+/// `node` is the VID and the super-step is not mixed in, so a node's preference order is stable
+/// across iterations: a standing tie resolves the same way each time and adds no churn to
+/// `global_diff`.
+fn tie_rank(seed: u64, node: usize, label: usize) -> u64 {
+    calculate_hash(&(seed, node, label))
+}
+
 /// Computes components using a label propagation algorithm
 ///
 /// # Arguments
 ///
 /// - `g` - A reference to the graph
 /// - `iter_count` - Number of iterations
-/// - `seed` - (Optional) Array of 32 bytes of u8 which is set as the rng seed
+/// - `seed` - (Optional) Seeds the tie-break draw. The value used is printed in the stopping summary
+///   and can be passed back here to reproduce a run.
 /// - `threads` - (Optional) Number of threads to use
 /// - `init_state` - (Optional) HashMap of node VID to community ID. When absent, every node starts
 ///   in its own community. When present, only the nodes it names are labelled and active; the rest
@@ -64,7 +77,7 @@ pub struct LabelPropState {
 pub fn label_propagation<G>(
     g: &G,
     iter_count: usize,
-    _seed: Option<[u8; 32]>,
+    seed: Option<u64>,
     threads: Option<usize>,
     init_state: Option<HashMap<usize, usize>>,
     rel_tol: Option<f64>,
@@ -81,6 +94,8 @@ where
     let active: Arc<Vec<AtomicBool>> =
         Arc::new((0..num_nodes).map(|_| AtomicBool::new(false)).collect());
 
+    // An unseeded run draws fresh entropy, as `fast_rp`, `louvain` and the graph generators all do.
+    let tie_seed: u64 = seed.unwrap_or_else(|| rand::rng().random());
     let step1 = ATask::new(move |s| {
         let id = s.node.index();
         let state: &mut LabelPropState = s.get_mut();
@@ -121,6 +136,7 @@ where
             return Step::Continue;
         }
 
+        let id = s.node.index();
         let prev_id = s.prev().community_id;
         let nbor_iter = s.neighbours();
         let state: &mut LabelPropState = s.get_mut();
@@ -142,11 +158,14 @@ where
                 .nbors
                 .insert(nbor_id, *state.nbors.get(&nbor_id).unwrap_or(&0) + 1);
         }
-        // get max label (use usize ID to resolve tie)
         if let Some((&label, _)) = state
             .nbors
             .iter()
-            .max_by(|(k1, v1), (k2, v2)| v1.cmp(v2).then(k1.cmp(k2)))
+            // REMOVED: get max label (use usize ID to resolve tie)
+            // .max_by(|(k1, v1), (k2, v2)| v1.cmp(v2).then(k1.cmp(k2)))
+            // NEW BEHAVIOUR: a tie is settled by pseudorandom rank, which draws the winner uniformly
+            // from all the top-tied labels.
+            .max_by_key(|&(&label, &count)| (count, tie_rank(tie_seed, id, label)))
         {
             state.community_id = label;
         }
@@ -178,7 +197,11 @@ where
         // Stop once fully converged (diff == 0) or the changed-node count has plateaued.
         if diff == 0 || *stale >= patience {
             let pct = 100.0 * diff as f64 / num_nodes as f64;
-            println!("label_propagation: stopped after {n_iter} iters; diff={diff} ({pct:.2}%)");
+            // println!("label_propagation: stopped after {n_iter} iters; diff={diff} ({pct:.2}%)");
+            println!(
+                "label_propagation: stopped after {n_iter} iters; \
+                 diff={diff} ({pct:.2}%); seed={tie_seed}"
+            );
             Step::Done
         } else {
             Step::Continue

@@ -792,7 +792,7 @@ pub fn betweenness_centrality(
 pub fn label_propagation(
     graph: &PyGraphView,
     iter_count: usize,
-    seed: Option<[u8; 32]>,
+    seed: Option<u64>,
     init_state: Option<HashMap<PyNodeRef, usize>>,
     rel_tol: Option<f64>,
     patience: Option<usize>,

@@ -46,7 +46,7 @@ fn lpa_test() {
         graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
     }
     test_storage!(&graph, |graph| {
-        let seed = Some([5; 32]);
+        let seed = Some(5);
         let result = label_propagation(graph, 20, seed, None, None, None, None)
             .to_hashmap(|value| value.community_id);
         println!("{:?}", result);
