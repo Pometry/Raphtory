@@ -23,6 +23,13 @@ use std::{
     },
 };
 
+/// Label carried by a node that has not (yet) been assigned a community.
+///
+/// Only used when `init_state` is supplied for unseeded nodes.
+/// Safe as a sentinel because `usize::MAX` is already the codebase's "not a node"
+/// marker (see `VID::is_initialised`), so it can never collide with a node index.
+const NO_LABEL: usize = usize::MAX;
+
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
 pub struct LabelPropState {
     #[serde(skip)]
@@ -41,7 +48,10 @@ pub struct LabelPropState {
 /// - `iter_count` - Number of iterations
 /// - `seed` - (Optional) Array of 32 bytes of u8 which is set as the rng seed
 /// - `threads` - (Optional) Number of threads to use
-/// - `init_state` - (Optional) HashMap of node index to community ID for warm-starting the algorithm
+/// - `init_state` - (Optional) HashMap of node VID to community ID. When absent, every node starts
+///   in its own community. When present, only the nodes it names are labelled and active; the rest
+///   start unlabelled and may acquire a label from their neighbours. A map covering every node
+///   reproduces a previous warm-start behaviour exactly.
 /// - `rel_tol` - (Optional) Relative-improvement threshold to track convergence. An iteration counts
 ///   as progress only if its changed-node count drops below `best * (1 - rel_tol)`. Defaults to 3e-4.
 /// - `patience` - (Optional) Stop after this many consecutive iterations without progress. Defaults to 10.
@@ -49,8 +59,8 @@ pub struct LabelPropState {
 /// # Returns
 ///
 /// A `TypedNodeState` mapping each node to its `LabelPropState`: its `community_id`, plus
-/// `alternate_id` (the previous label it swaps with while oscillating, or `None` once converged).
-///
+/// `alternate_id` (the previous label it swaps with while oscillating; `None` once converged, and
+/// also `None` until the node has been labeled a whole iteration.
 pub fn label_propagation<G>(
     g: &G,
     iter_count: usize,
@@ -74,11 +84,19 @@ where
     let step1 = ATask::new(move |s| {
         let id = s.node.index();
         let state: &mut LabelPropState = s.get_mut();
-        state.community_id = init_state
-            .as_ref()
-            .and_then(|map| map.get(&id).copied())
-            .unwrap_or(id);
-        state.is_changed = true; // the actual initialization
+        match init_state.as_ref() {
+            // Unseeded
+            None => {
+                state.community_id = id;
+                state.is_changed = true; // the actual initialization
+            }
+            // Seeded: only nodes named in the map get a label, and only they start live.
+            Some(map) => {
+                let seed = map.get(&id).copied();
+                state.community_id = seed.unwrap_or(NO_LABEL);
+                state.is_changed = seed.is_some();
+            }
+        }
         Step::Continue
     });
 
@@ -106,10 +124,18 @@ where
         let prev_id = s.prev().community_id;
         let nbor_iter = s.neighbours();
         let state: &mut LabelPropState = s.get_mut();
-        state.nbors = HashMap::from([(prev_id, 1)]);
+        // each node votes for its own label but only if it's initialised
+        state.nbors = if prev_id != NO_LABEL {
+            HashMap::from([(prev_id, 1)])
+        } else {
+            HashMap::new()
+        };
         // get labels from neighbors
         for nbor in nbor_iter {
             let nbor_id = nbor.prev().community_id;
+            if nbor_id == NO_LABEL {
+                continue; // unlabelled neihbours don't cast a vote
+            }
             // below could be written instead as:
             // *state.nbors.entry(nbor_id).or_insert(0) += 1;
             state
@@ -126,7 +152,7 @@ where
         }
         state.is_changed = state.community_id != prev_id;
         if state.is_changed {
-            state.alternate_id = Some(prev_id);
+            state.alternate_id = (prev_id != NO_LABEL).then_some(prev_id);
             s.global_update(&global_diff, 1);
         } else {
             state.alternate_id = None;
