@@ -702,6 +702,36 @@ DUNDERS = {
     ),
     "history.t.len": (lambda rg: rg.node("a").history.t, lambda t: len(t), 1),
     "history.t.contains": (lambda rg: rg.node("a").history.t, lambda t: 1 in t, 1),
+    "history.event_id.contains": (
+        lambda rg: rg.node("a").history.event_id,
+        lambda e: 0 in e,
+        1,
+    ),
+    "history.intervals.len": (
+        lambda rg: rg.node("a").history.intervals,
+        lambda i: len(i),
+        1,
+    ),
+    "history.intervals.contains": (
+        lambda rg: rg.node("a").history.intervals,
+        lambda i: 1 in i,
+        1,
+    ),
+    "history.dt.contains": (
+        lambda rg: rg.node("a").history.dt,
+        lambda d: __import__("datetime").datetime(
+            1970, 1, 1, tzinfo=__import__("datetime").timezone.utc
+        )
+        in d,
+        1,
+    ),
+    # A naive datetime is not UTC-convertible, so it is simply not a member —
+    # answered client-side with no wire trip at all.
+    "history.dt.contains_naive": (
+        lambda rg: rg.node("a").history.dt,
+        lambda d: __import__("datetime").datetime(1970, 1, 1) in d,
+        0,
+    ),
     "nodes.len": (lambda rg: rg.nodes, lambda ns: len(ns), 1),
     "nodes.bool": (lambda rg: rg.nodes, lambda ns: bool(ns), 1),
     "edges.len": (lambda rg: rg.edges, lambda es: len(es), 1),

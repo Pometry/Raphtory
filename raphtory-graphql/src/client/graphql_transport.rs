@@ -1105,6 +1105,24 @@ fn render_read_into(
             render_read_into(input, vars, out)?;
             out.push_str(" { reverse");
         }
+        ReadExpr::HistoryContains {
+            input,
+            timestamp,
+            event_id,
+        } => {
+            render_read_into(input, vars, out)?;
+            match event_id {
+                Some(event_id) => write!(
+                    out,
+                    " {{ contains(timestamp: {timestamp}, eventId: {event_id})"
+                )?,
+                None => write!(out, " {{ contains(timestamp: {timestamp})")?,
+            }
+        }
+        ReadExpr::HistoryValueContains { input, value } => {
+            render_read_into(input, vars, out)?;
+            write!(out, " {{ contains(value: {value})")?;
+        }
         ReadExpr::Deletions { input } => {
             render_read_into(input, vars, out)?;
             out.push_str(" { deletions");
@@ -1943,6 +1961,8 @@ fn read_depth(expr: &ReadExpr) -> usize {
         | ReadExpr::History { input }
         | ReadExpr::CombinedHistory { input }
         | ReadExpr::HistoryReverse { input }
+        | ReadExpr::HistoryContains { input, .. }
+        | ReadExpr::HistoryValueContains { input, .. }
         | ReadExpr::Deletions { input }
         | ReadExpr::Nodes { input }
         | ReadExpr::Neighbours { input }
@@ -3119,6 +3139,8 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
         // Bool-shaped terminals.
         ReadExpr::HasNode { .. }
         | ReadExpr::HasEdge { .. }
+        | ReadExpr::HistoryContains { .. }
+        | ReadExpr::HistoryValueContains { .. }
         | ReadExpr::IsActive { .. }
         | ReadExpr::IsValid { .. }
         | ReadExpr::IsDeleted { .. }
@@ -3285,6 +3307,14 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
             ReadExpr::HistoryReverse { input } => {
                 go(input, out);
                 out.push("reverse");
+            }
+            ReadExpr::HistoryContains { input, .. } => {
+                go(input, out);
+                out.push("contains");
+            }
+            ReadExpr::HistoryValueContains { input, .. } => {
+                go(input, out);
+                out.push("contains");
             }
             ReadExpr::Deletions { input } => {
                 go(input, out);
@@ -4102,6 +4132,8 @@ fn child_input(expr: &ReadExpr) -> Option<&ReadExpr> {
         | ReadExpr::History { input }
         | ReadExpr::CombinedHistory { input }
         | ReadExpr::HistoryReverse { input }
+        | ReadExpr::HistoryContains { input, .. }
+        | ReadExpr::HistoryValueContains { input, .. }
         | ReadExpr::Deletions { input }
         | ReadExpr::Nodes { input }
         | ReadExpr::Neighbours { input }

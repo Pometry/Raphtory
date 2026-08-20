@@ -10,10 +10,13 @@ use pyo3::{
     exceptions::PyIndexError,
     pyclass, pymethods,
     types::{PyAnyMethods, PyList},
-    Bound, IntoPyObject, Py, PyAny, PyRef, PyRefMut, PyResult, Python,
+    Bound, Py, PyAny, PyRef, PyRefMut, PyResult, Python,
 };
 use raphtory::python::utils::execute_async_task;
-use raphtory_api::{core::storage::timeindex::EventTime, python::timeindex::PyOptionalEventTime};
+use raphtory_api::{
+    core::storage::timeindex::{AsTime, EventTime},
+    python::timeindex::PyOptionalEventTime,
+};
 use std::sync::Arc;
 
 /// A handle to the event history of a remote node or edge.
@@ -176,20 +179,21 @@ impl PyRemoteHistory {
         single_from_page(page, index)
     }
 
-    /// `item in history` — whether an event equal to `item` is present.
-    /// `item` may be an `EventTime` (compared by `(timestamp, event_id)`)
-    /// or a bare `int` (compared by timestamp), mirroring the local
-    /// `History.__contains__`. Fires one RPC and scans the full history
-    /// (`collect()`) — O(history); there is no server-side membership terminal.
-    fn __contains__(&self, py: Python<'_>, item: &Bound<'_, PyAny>) -> PyResult<bool> {
-        let events = self.collect()?;
-        for e in events {
-            let obj = e.into_pyobject(py)?.into_any();
-            if obj.eq(item)? {
-                return Ok(true);
-            }
-        }
-        Ok(false)
+    /// `item in history` — whether an event equal to `item` is present,
+    /// compared by `(timestamp, event_id)` exactly as locally: anything that
+    /// converts to an `EventTime` is accepted (a bare `int` becomes
+    /// `(t, event_id=0)`), anything else raises. Fires one small RPC — the
+    /// membership check runs server-side; no events travel.
+    fn __contains__(&self, item: EventTime) -> PyResult<bool> {
+        // The same signature as the local `History.__contains__`: the
+        // `EventTime` extraction defines what an item may be (an `EventTime`,
+        // or an int/float/str/datetime that converts to one — a bare int
+        // becomes `(t, event_id=0)`) and what fails with a `TypeError`.
+        let history = Arc::clone(&self.history);
+        let (timestamp, event_id) = (item.t(), item.i());
+        Ok(execute_async_task(move || async move {
+            history.contains(timestamp, Some(event_id)).await
+        })?)
     }
 
     /// `reversed(history)` — iterate events in descending time order.
@@ -346,9 +350,11 @@ impl PyRemoteHistoryTimestamps {
         execute_async_task(move || async move { inner.page_rev(limit, offset, page_index).await })
     }
 
-    /// `len(...)` — number of timestamps. Fires one RPC (`collect()`).
+    /// `len(...)` — number of timestamps. Fires one RPC — the count comes
+    /// back alone, not the values.
     fn __len__(&self) -> Result<usize, ClientError> {
-        Ok(self.collect()?.len())
+        let inner = Arc::clone(&self.inner);
+        Ok(execute_async_task(move || async move { inner.count().await })? as usize)
     }
 
     /// `x[i]` — the i-th timestamp. Supports negative indices; raises
@@ -372,10 +378,11 @@ impl PyRemoteHistoryTimestamps {
             .unbind())
     }
 
-    /// `item in ...` — membership test. Fires one RPC and scans the full list
-    /// (`collect()`) — O(history); there is no server-side membership terminal.
+    /// `item in ...` — membership test. Fires one RPC — the check runs
+    /// server-side; no values travel.
     fn __contains__(&self, item: i64) -> Result<bool, ClientError> {
-        Ok(self.collect()?.contains(&item))
+        let inner = Arc::clone(&self.inner);
+        execute_async_task(move || async move { inner.contains(item).await })
     }
 
     /// `reversed(...)` — iterate timestamps in reverse. Routed through the
@@ -460,9 +467,11 @@ impl PyRemoteHistoryEventIds {
         execute_async_task(move || async move { inner.page_rev(limit, offset, page_index).await })
     }
 
-    /// `len(...)` — number of event ids. Fires one RPC (`collect()`).
+    /// `len(...)` — number of event ids. Fires one RPC — the count comes
+    /// back alone, not the values.
     fn __len__(&self) -> Result<usize, ClientError> {
-        Ok(self.collect()?.len())
+        let inner = Arc::clone(&self.inner);
+        Ok(execute_async_task(move || async move { inner.count().await })? as usize)
     }
 
     /// `x[i]` — the i-th event id. Supports negative indices; raises
@@ -486,10 +495,11 @@ impl PyRemoteHistoryEventIds {
             .unbind())
     }
 
-    /// `item in ...` — membership test. Fires one RPC and scans the full list
-    /// (`collect()`) — O(history); there is no server-side membership terminal.
+    /// `item in ...` — membership test. Fires one RPC — the check runs
+    /// server-side; no values travel.
     fn __contains__(&self, item: i64) -> Result<bool, ClientError> {
-        Ok(self.collect()?.contains(&item))
+        let inner = Arc::clone(&self.inner);
+        execute_async_task(move || async move { inner.contains(item).await })
     }
 
     /// `reversed(...)` — iterate event ids in reverse. Routed through the
@@ -575,9 +585,11 @@ impl PyRemoteHistoryDateTimes {
         execute_async_task(move || async move { inner.page_rev(limit, offset, page_index).await })
     }
 
-    /// `len(...)` — number of datetimes. Fires one RPC (`collect()`).
+    /// `len(...)` — number of datetimes. Fires one RPC — the count comes
+    /// back alone, not the values.
     fn __len__(&self) -> Result<usize, ClientError> {
-        Ok(self.collect()?.len())
+        let inner = Arc::clone(&self.inner);
+        Ok(execute_async_task(move || async move { inner.count().await })? as usize)
     }
 
     /// `x[i]` — the i-th datetime. Supports negative indices; raises
@@ -601,14 +613,18 @@ impl PyRemoteHistoryDateTimes {
             .unbind())
     }
 
-    /// `item in ...` — membership test against the datetimes. Fires one RPC
-    /// and scans the full list (`collect()`) — O(history). Anything that isn't
-    /// a UTC-convertible datetime is simply not a member (returns `False`),
-    /// matching Python's `in` — rather than raising on a naive datetime or a
-    /// string.
+    /// `item in ...` — membership test against the datetimes. Fires one RPC —
+    /// the check runs server-side on the underlying timestamp. Anything that
+    /// isn't a UTC-convertible datetime is simply not a member (returns
+    /// `False`), matching Python's `in` — rather than raising on a naive
+    /// datetime or a string.
     fn __contains__(&self, item: &Bound<'_, PyAny>) -> Result<bool, ClientError> {
         match item.extract::<DateTime<Utc>>() {
-            Ok(dt) => Ok(self.collect()?.contains(&dt)),
+            Ok(dt) => {
+                let inner = Arc::clone(&self.inner);
+                let ms = dt.timestamp_millis();
+                execute_async_task(move || async move { inner.contains_ms(ms).await })
+            }
             Err(_) => Ok(false),
         }
     }
@@ -732,9 +748,11 @@ impl PyRemoteIntervals {
         execute_async_task(move || async move { inner.min().await })
     }
 
-    /// `len(...)` — number of intervals. Fires one RPC (`collect()`).
+    /// `len(...)` — number of intervals. Fires one RPC — the count comes
+    /// back alone, not the values.
     fn __len__(&self) -> Result<usize, ClientError> {
-        Ok(self.collect()?.len())
+        let inner = Arc::clone(&self.inner);
+        Ok(execute_async_task(move || async move { inner.count().await })? as usize)
     }
 
     /// `x[i]` — the i-th interval. Supports negative indices; raises
@@ -758,10 +776,11 @@ impl PyRemoteIntervals {
             .unbind())
     }
 
-    /// `item in ...` — membership test. Fires one RPC and scans the full list
-    /// (`collect()`) — O(history); there is no server-side membership terminal.
+    /// `item in ...` — membership test. Fires one RPC — the check runs
+    /// server-side; no values travel.
     fn __contains__(&self, item: i64) -> Result<bool, ClientError> {
-        Ok(self.collect()?.contains(&item))
+        let inner = Arc::clone(&self.inner);
+        execute_async_task(move || async move { inner.contains(item).await })
     }
 
     /// `reversed(...)` — iterate intervals in reverse. Routed through the

@@ -10,6 +10,7 @@ use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::db::api::view::history::{
     History, HistoryDateTime, HistoryEventId, HistoryTimestamp, InternalHistoryOps, Intervals,
 };
+use raphtory_api::core::storage::timeindex::EventTime;
 use std::{any::Any, sync::Arc};
 
 /// History of updates for an object in Raphtory.
@@ -151,6 +152,21 @@ impl GqlHistory {
         blocking_compute(move || self_clone.history.len() as u64).await
     }
 
+    /// Whether an entry equal to the given time is present. With `eventId`,
+    /// an entry must match both the timestamp and the event id; without it,
+    /// any entry at the timestamp matches.
+    async fn contains(&self, timestamp: i64, event_id: Option<usize>) -> bool {
+        let self_clone = self.clone();
+        blocking_compute(move || match event_id {
+            Some(event_id) => self_clone
+                .history
+                .iter()
+                .any(|x| x == EventTime::new(timestamp, event_id)),
+            None => self_clone.history.iter().any(|x| x == timestamp),
+        })
+        .await
+    }
+
     /// Returns a HistoryTimestamp object which accesses timestamps (milliseconds since the Unix epoch)
     /// instead of EventTime entries.
     async fn timestamps(&self) -> GqlHistoryTimestamp {
@@ -213,6 +229,18 @@ pub struct GqlHistoryTimestamp {
 
 #[ResolvedObjectFields]
 impl GqlHistoryTimestamp {
+    /// Get the number of timestamps (one per entry).
+    async fn count(&self) -> u64 {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.history_t.iter().count() as u64).await
+    }
+
+    /// Whether the given value is present among the timestamps.
+    async fn contains(&self, value: i64) -> bool {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.history_t.iter().any(|v| v == value)).await
+    }
+
     /// List all timestamps.
     async fn list(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<i64>> {
         check_list_allowed(ctx)?;
@@ -500,6 +528,18 @@ pub struct GqlHistoryEventId {
 
 #[ResolvedObjectFields]
 impl GqlHistoryEventId {
+    /// Get the number of event ids (one per entry).
+    async fn count(&self) -> u64 {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.history_s.iter().count() as u64).await
+    }
+
+    /// Whether the given value is present among the event ids.
+    async fn contains(&self, value: u64) -> bool {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.history_s.iter().any(|v| v as u64 == value)).await
+    }
+
     /// List event ids.
     async fn list(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<u64>> {
         check_list_allowed(ctx)?;
@@ -602,6 +642,19 @@ pub struct GqlIntervals {
 
 #[ResolvedObjectFields]
 impl GqlIntervals {
+    /// Get the number of intervals (one per consecutive pair of entries,
+    /// so one less than the history's count; zero for an empty history).
+    async fn count(&self) -> u64 {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.intervals.iter().count() as u64).await
+    }
+
+    /// Whether the given value is present among the intervals.
+    async fn contains(&self, value: i64) -> bool {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.intervals.iter().any(|v| v == value)).await
+    }
+
     /// List time intervals between consecutive timestamps in milliseconds.
     async fn list(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<i64>> {
         check_list_allowed(ctx)?;

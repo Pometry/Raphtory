@@ -3036,6 +3036,12 @@ type History {
 	"""
 	count: Int!
 	"""
+	Whether an entry equal to the given time is present. With `eventId`,
+	an entry must match both the timestamp and the event id; without it,
+	any entry at the timestamp matches.
+	"""
+	contains(timestamp: Int!, eventId: Int): Boolean!
+	"""
 	Returns a HistoryTimestamp object which accesses timestamps (milliseconds since the Unix epoch)
 	instead of EventTime entries.
 	"""
@@ -3153,6 +3159,14 @@ History object that provides access to event ids instead of `EventTime` entries.
 """
 type HistoryEventId {
 	"""
+	Get the number of event ids (one per entry).
+	"""
+	count: Int!
+	"""
+	Whether the given value is present among the event ids.
+	"""
+	contains(value: Int!): Boolean!
+	"""
 	List event ids.
 	"""
 	list: [Int!]!
@@ -3208,6 +3222,14 @@ type HistoryEventId {
 History object that provides access to timestamps (milliseconds since the Unix epoch) instead of `EventTime` entries.
 """
 type HistoryTimestamp {
+	"""
+	Get the number of timestamps (one per entry).
+	"""
+	count: Int!
+	"""
+	Whether the given value is present among the timestamps.
+	"""
+	contains(value: Int!): Boolean!
 	"""
 	List all timestamps.
 	"""
@@ -3275,6 +3297,15 @@ input InputEdge {
 Provides access to the intervals between temporal entries of an object.
 """
 type Intervals {
+	"""
+	Get the number of intervals (one per consecutive pair of entries,
+	so one less than the history's count; zero for an empty history).
+	"""
+	count: Int!
+	"""
+	Whether the given value is present among the intervals.
+	"""
+	contains(value: Int!): Boolean!
 	"""
 	List time intervals between consecutive timestamps in milliseconds.
 	"""

@@ -127,6 +127,19 @@ pub enum ReadExpr {
     /// `History` whose iteration order is flipped. Container-selection like
     /// `History`. Server field: `reverse`.
     HistoryReverse { input: Arc<ReadExpr> },
+    /// Terminal on History: whether an entry equal to the given time is
+    /// present — `bool`. With `event_id`, both fields must match; without it,
+    /// any entry at the timestamp matches (the two equalities `EventTime`
+    /// itself defines). Server field: `contains(timestamp:, eventId:)`.
+    HistoryContains {
+        input: Arc<ReadExpr>,
+        timestamp: i64,
+        event_id: Option<usize>,
+    },
+    /// Terminal on a history sub-container (timestamps / event ids /
+    /// intervals): whether the given value is present — `bool`. Server
+    /// field: `contains(value:)`.
+    HistoryValueContains { input: Arc<ReadExpr>, value: i64 },
     /// Navigate to the deletion history of an edge. Edge → History.
     /// Same shape as `History` but reads the `deletions` server field
     /// instead of `history` — deletions are edge-only.

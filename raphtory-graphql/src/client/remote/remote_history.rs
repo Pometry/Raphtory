@@ -155,6 +155,22 @@ impl RemoteHistory {
         )
     }
 
+    /// Terminal: whether an entry equal to the given time is present. With
+    /// `event_id`, both fields must match; without it, any entry at the
+    /// timestamp matches. Fires one RPC — the check runs server-side.
+    pub async fn contains(
+        &self,
+        timestamp: i64,
+        event_id: Option<usize>,
+    ) -> Result<bool, ClientError> {
+        let op = Op::Read(ReadExpr::HistoryContains {
+            input: self.expr.clone(),
+            timestamp,
+            event_id,
+        });
+        expect_bool(self.transport.execute(&op).await?, "contains")
+    }
+
     /// Sub-container: timestamps view of this history — plain integer
     /// timestamps instead of full `EventTime` records. Lazy — no RPC.
     pub fn timestamps(&self) -> RemoteHistoryTimestamps {
@@ -228,6 +244,25 @@ pub struct RemoteHistoryTimestamps {
 }
 
 impl RemoteHistoryTimestamps {
+    /// Terminal: number of values in this container. Fires one RPC — the
+    /// count comes back alone, not the values.
+    pub async fn count(&self) -> Result<i64, ClientError> {
+        let op = Op::Read(ReadExpr::Count {
+            input: self.expr.clone(),
+        });
+        expect_i64(self.transport.execute(&op).await?, "count")
+    }
+
+    /// Terminal: whether the given value is present. Fires one RPC — the
+    /// membership check runs server-side.
+    pub async fn contains(&self, value: i64) -> Result<bool, ClientError> {
+        let op = Op::Read(ReadExpr::HistoryValueContains {
+            input: self.expr.clone(),
+            value,
+        });
+        expect_bool(self.transport.execute(&op).await?, "contains")
+    }
+
     /// Reversed view of this container. Lazy — no RPC: the reversal wraps the
     /// parent history (the server's `reverse` field), so downstream reads and
     /// any future optimised iterators compose with it automatically.
@@ -307,6 +342,25 @@ pub struct RemoteHistoryEventIds {
 }
 
 impl RemoteHistoryEventIds {
+    /// Terminal: number of values in this container. Fires one RPC — the
+    /// count comes back alone, not the values.
+    pub async fn count(&self) -> Result<i64, ClientError> {
+        let op = Op::Read(ReadExpr::Count {
+            input: self.expr.clone(),
+        });
+        expect_i64(self.transport.execute(&op).await?, "count")
+    }
+
+    /// Terminal: whether the given value is present. Fires one RPC — the
+    /// membership check runs server-side.
+    pub async fn contains(&self, value: i64) -> Result<bool, ClientError> {
+        let op = Op::Read(ReadExpr::HistoryValueContains {
+            input: self.expr.clone(),
+            value,
+        });
+        expect_bool(self.transport.execute(&op).await?, "contains")
+    }
+
     /// Reversed view of this container. Lazy — no RPC: the reversal wraps the
     /// parent history (the server's `reverse` field), so downstream reads and
     /// any future optimised iterators compose with it automatically.
@@ -399,6 +453,25 @@ fn to_datetimes(timestamps: Vec<i64>) -> Result<Vec<DateTime<Utc>>, ClientError>
 }
 
 impl RemoteHistoryDateTimes {
+    /// Terminal: number of datetimes (one per event). Fires one RPC.
+    pub async fn count(&self) -> Result<i64, ClientError> {
+        let op = Op::Read(ReadExpr::Count {
+            input: self.expr.clone(),
+        });
+        expect_i64(self.transport.execute(&op).await?, "count")
+    }
+
+    /// Terminal: whether an event exists at the given epoch-millisecond
+    /// timestamp — datetimes are derived 1:1 from timestamps, so membership
+    /// is checked on the timestamp container. Fires one RPC.
+    pub async fn contains_ms(&self, value: i64) -> Result<bool, ClientError> {
+        let op = Op::Read(ReadExpr::HistoryValueContains {
+            input: self.expr.clone(),
+            value,
+        });
+        expect_bool(self.transport.execute(&op).await?, "contains")
+    }
+
     /// Reversed view of this container. Lazy — no RPC: the reversal wraps the
     /// parent history (the server's `reverse` field), so downstream reads and
     /// any future optimised iterators compose with it automatically.
@@ -485,6 +558,25 @@ pub struct RemoteIntervals {
 }
 
 impl RemoteIntervals {
+    /// Terminal: number of values in this container. Fires one RPC — the
+    /// count comes back alone, not the values.
+    pub async fn count(&self) -> Result<i64, ClientError> {
+        let op = Op::Read(ReadExpr::Count {
+            input: self.expr.clone(),
+        });
+        expect_i64(self.transport.execute(&op).await?, "count")
+    }
+
+    /// Terminal: whether the given value is present. Fires one RPC — the
+    /// membership check runs server-side.
+    pub async fn contains(&self, value: i64) -> Result<bool, ClientError> {
+        let op = Op::Read(ReadExpr::HistoryValueContains {
+            input: self.expr.clone(),
+            value,
+        });
+        expect_bool(self.transport.execute(&op).await?, "contains")
+    }
+
     /// Reversed view of this container. Lazy — no RPC: the reversal wraps the
     /// parent history (the server's `reverse` field), so downstream reads and
     /// any future optimised iterators compose with it automatically.
