@@ -11,6 +11,7 @@ use crate::{
             views::filter::{
                 edge_filtered_graph::EdgeFilteredGraph,
                 edge_property_filtered_graph::EdgePropertyFilteredGraph,
+                exploded_edge_filtered_graph::ExplodedEdgeFilteredGraph,
                 exploded_edge_property_filter::ExplodedEdgePropertyFilteredGraph,
                 model::{
                     edge_filter::CompositeEdgeFilter, ComposableFilter,
@@ -462,7 +463,7 @@ impl CreateFilter for PropertyFilter<EdgeFilter> {
 
 impl CreateFilter for PropertyFilter<ExplodedEdgeFilter> {
     type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
-        EdgeFilteredGraph<G, ExplodedEdgePropertyFilteredGraph<F>>;
+        ExplodedEdgeFilteredGraph<G, ExplodedEdgePropertyFilteredGraph<F>>;
     type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> = NotANodeFilter;
     type FilteredGraph<'graph, G>
         = G
@@ -476,7 +477,7 @@ impl CreateFilter for PropertyFilter<ExplodedEdgeFilter> {
         filtered: F,
     ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
         let prop_id = self.resolve_prop_id(graph.edge_meta(), graph.num_layers() > 1)?;
-        Ok(EdgeFilteredGraph::new(
+        Ok(ExplodedEdgeFilteredGraph::new(
             graph,
             ExplodedEdgePropertyFilteredGraph::new(filtered, prop_id, self),
         ))

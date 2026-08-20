@@ -55,34 +55,10 @@ impl<G: GraphView, F: GraphView> InheritEdgePropertySchemaOps for EdgeFilteredGr
 impl<G: GraphView, F: GraphView> InheritTimeSemantics for EdgeFilteredGraph<G, F> {}
 impl<G: GraphView, F: GraphView> InheritNodeHistoryFilter for EdgeFilteredGraph<G, F> {}
 impl<G: GraphView, F: GraphView> InheritEdgeHistoryFilter for EdgeFilteredGraph<G, F> {}
-impl<G: GraphView, F: GraphView> InternalEdgeLayerFilterOps for EdgeFilteredGraph<G, F> {
-    fn internal_edge_layer_filtered(&self) -> bool {
-        self.base.internal_edge_layer_filtered() || self.filter.internal_edge_layer_filtered()
-    }
 
-    fn internal_layer_filter_edge_list_trusted(&self) -> bool {
-        false
-    }
+impl<G: GraphView, F: GraphView> InheritEdgeLayerFilterOps for EdgeFilteredGraph<G, F> {}
 
-    fn internal_filter_edge_layer(&self, edge: EdgeEntryRef, layer: LayerId) -> bool {
-        self.base.internal_filter_edge_layer(edge, layer)
-            && self.filter.filter_edge_layer(edge, layer)
-    }
-}
-impl<G: GraphView, F: GraphView> InternalExplodedEdgeFilterOps for EdgeFilteredGraph<G, F> {
-    fn internal_exploded_edge_filtered(&self) -> bool {
-        self.base.internal_exploded_edge_filtered() || self.filter.internal_exploded_edge_filtered()
-    }
-
-    fn internal_exploded_filter_edge_list_trusted(&self) -> bool {
-        false
-    }
-
-    fn internal_filter_exploded_edge(&self, eid: ELID, t: EventTime, layer_ids: &LayerIds) -> bool {
-        self.base.internal_filter_exploded_edge(eid, t, layer_ids)
-            && self.filter.filter_exploded_edge(eid, t)
-    }
-}
+impl<G: GraphView, F: GraphView> InheritExplodedEdgeFilterOps for EdgeFilteredGraph<G, F> {}
 
 impl<G: GraphView, F: GraphView> InternalEdgeFilterOps for EdgeFilteredGraph<G, F> {
     #[inline]

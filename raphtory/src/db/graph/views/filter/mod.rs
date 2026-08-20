@@ -14,6 +14,7 @@ pub mod and_filtered_graph;
 pub mod edge_filtered_graph;
 pub mod edge_node_filtered_graph;
 pub mod edge_property_filtered_graph;
+pub mod exploded_edge_filtered_graph;
 pub mod exploded_edge_node_filtered_graph;
 pub mod exploded_edge_property_filter;
 pub mod model;
