@@ -64,10 +64,10 @@ use crate::{
         graph::nodes::Nodes,
     },
     errors::GraphError,
-    prelude::{Graph, NodeStateOps, PropUnwrap},
+    prelude::{Graph, GraphViewOps, NodeStateOps, PropUnwrap},
     python::{
         filter::filter_expr::PyFilterExpr,
-        graph::{node::PyNode, node_state::PyOutputNodeState, views::graph_view::PyGraphView},
+        graph::{node::PyNode, views::graph_view::PyGraphView},
         utils::PyNodeRef,
     },
 };
@@ -777,12 +777,15 @@ pub fn betweenness_centrality(
 ///     graph (GraphView): A reference to the graph
 ///     iter_count (int): Number of iterations. Defaults to 20.
 ///     seed (bytes, optional): Array of 32 bytes of u8 which is set as the rng seed
-///     init_state (OutputNodeState, optional): Node state from a previous run used as the initial community assignment
+///     init_state (dict[NodeInput, int], optional): initial community assignment. Nodes omitted from the map start unlabelled and take a label from their neighbours.
 ///     rel_tol (float, optional): Relative-improvement threshold for the plateau stop. An iteration counts as progress only if its changed-node count drops below best * (1 - rel_tol). Defaults to 3e-4.
 ///     patience (int, optional): Stop after this many consecutive iterations without progress. Defaults to 10.
 ///
 /// Returns:
 ///     OutputNodeState: NodeState mapping nodes to community id
+///
+/// Raises:
+///     ValueError: If a key of `init_state` is not a node in `graph`.
 ///
 #[pyfunction]
 #[pyo3[signature = (graph, iter_count=20, seed=None, init_state=None, rel_tol=None, patience=None)]]
@@ -790,25 +793,30 @@ pub fn label_propagation(
     graph: &PyGraphView,
     iter_count: usize,
     seed: Option<[u8; 32]>,
-    init_state: Option<&PyOutputNodeState>,
+    init_state: Option<HashMap<PyNodeRef, usize>>,
     rel_tol: Option<f64>,
     patience: Option<usize>,
-) -> OutputTypedNodeState<'static, DynamicGraph> {
-    let init_map: Option<HashMap<usize, usize>> = init_state.map(|state| {
-        state
-            .inner
-            .iter()
-            .filter_map(|(node, prop_map)| {
-                let cid = prop_map
-                    .get("community_id")
-                    .and_then(|v| v.as_ref())
-                    .and_then(|p| (&p.0).as_f64())
-                    .map(|v| v as usize)?;
-                Some((node.node.0, cid))
-            })
-            .collect()
-    });
-    label_propagation_rs(
+) -> PyResult<OutputTypedNodeState<'static, DynamicGraph>> {
+    let init_map: Option<HashMap<usize, usize>> = match init_state {
+        None => None,
+        Some(seeds) => {
+            let mut resolved = HashMap::with_capacity(seeds.len());
+            for (node, label) in seeds {
+                match graph.graph.node(&node) {
+                    Some(n) => {
+                        resolved.insert(n.node.0, label);
+                    }
+                    None => {
+                        return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                            "{node:?} is not a node in the graph"
+                        )))
+                    }
+                }
+            }
+            Some(resolved)
+        }
+    };
+    let result = label_propagation_rs(
         &graph.graph,
         iter_count,
         seed,
@@ -816,12 +824,8 @@ pub fn label_propagation(
         init_map,
         rel_tol,
         patience,
-    )
-    .to_output_nodestate()
-    // match  {
-    //Ok(result) => Ok(result),
-    //Err(err_msg) => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(err_msg)),
-    // }
+    );
+    Ok(result.to_output_nodestate())
 }
 
 /// Determines which nodes are in the k-core for a given value of k
