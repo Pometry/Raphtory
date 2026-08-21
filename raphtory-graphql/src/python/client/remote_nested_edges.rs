@@ -313,16 +313,6 @@ impl PyRemoteNestedEdges {
         PyRemoteNestedEdges::new(self.edges.explode_layers())
     }
 
-    /// Returns the number of source edge collections in this collection. Fires
-    /// one RPC.
-    ///
-    /// Returns:
-    ///     int: the number of source edge collections.
-    pub fn count(&self) -> Result<i64, ClientError> {
-        let edges = Arc::clone(&self.edges);
-        execute_async_task(move || async move { edges.len().await })
-    }
-
     /// Check if this view has a layer named `name`. Fires one RPC.
     ///
     /// Arguments:

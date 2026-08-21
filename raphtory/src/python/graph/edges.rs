@@ -86,14 +86,6 @@ impl PyEdges {
         Ok(PyEdges::from(r))
     }
 
-    /// Returns the number of edges.
-    ///
-    /// Returns:
-    ///     int:
-    fn count(&self) -> usize {
-        self.edges.len()
-    }
-
     /// Returns the earliest time of the edges.
     ///
     /// Returns:

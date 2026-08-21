@@ -2459,14 +2459,6 @@ class RemoteNodes(object):
           list[RemoteNode]: one handle per node in the collection.
         """
 
-    def count(self) -> int:
-        """
-        Returns the number of nodes in this collection. Fires one RPC.
-
-        Returns:
-          int: the number of nodes.
-        """
-
     def default_layer(self) -> RemoteNodes:
         """
         Restrict to the default layer. Lazy — no RPC.
@@ -2971,14 +2963,6 @@ class RemotePathFromNode(object):
             RemoteHistory: the combined event history of the nodes in this view.
         """
 
-    def count(self) -> int:
-        """
-        Returns the number of nodes in this collection. Fires one RPC.
-
-        Returns:
-            int: the number of nodes.
-        """
-
     def default_layer(self) -> RemotePathFromNode:
         """
         Restrict to the default layer. Lazy — no RPC.
@@ -3467,14 +3451,6 @@ class RemotePathFromGraph(object):
             RemoteHistory: the combined event history of the nodes in this view.
         """
 
-    def count(self) -> int:
-        """
-        Returns the number of source paths in this collection. Fires one RPC.
-
-        Returns:
-            int: the number of source paths.
-        """
-
     def default_layer(self) -> RemotePathFromGraph:
         """
         Restrict to the default layer. Lazy — no RPC.
@@ -3958,14 +3934,6 @@ class RemoteEdges(object):
 
         Returns:
           list[RemoteEdge]: one handle per edge in the collection.
-        """
-
-    def count(self) -> int:
-        """
-        Returns the number of edges in this collection. Fires one RPC.
-
-        Returns:
-          int: the number of edges.
         """
 
     def default_layer(self) -> RemoteEdges:
@@ -4453,15 +4421,6 @@ class RemoteNestedEdges(object):
 
         Returns:
           list[list[RemoteEdge]]: the incident edges grouped per source node.
-        """
-
-    def count(self) -> int:
-        """
-        Returns the number of source edge collections in this collection. Fires
-        one RPC.
-
-        Returns:
-            int: the number of source edge collections.
         """
 
     def default_layer(self) -> RemoteNestedEdges:

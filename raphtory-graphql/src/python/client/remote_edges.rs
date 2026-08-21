@@ -320,15 +320,6 @@ impl PyRemoteEdges {
         self.select(filter)
     }
 
-    /// Returns the number of edges in this collection. Fires one RPC.
-    ///
-    /// Returns:
-    ///   int: the number of edges.
-    pub fn count(&self) -> Result<i64, ClientError> {
-        let edges = Arc::clone(&self.edges);
-        execute_async_task(move || async move { edges.count().await })
-    }
-
     /// Check if this view has a layer named `name`. Fires one RPC.
     ///
     /// Arguments:

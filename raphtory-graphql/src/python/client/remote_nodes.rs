@@ -457,15 +457,6 @@ impl PyRemoteNodes {
         PyRemotePropertiesView::new(self.nodes.properties())
     }
 
-    /// Returns the number of nodes in this collection. Fires one RPC.
-    ///
-    /// Returns:
-    ///   int: the number of nodes.
-    pub fn count(&self) -> Result<i64, ClientError> {
-        let nodes = Arc::clone(&self.nodes);
-        execute_async_task(move || async move { nodes.count().await })
-    }
-
     /// Returns the degree of each node in this collection. Fires one RPC.
     ///
     /// Returns:

@@ -315,7 +315,7 @@ TERMINALS = {
     "edge.last_update": (lambda rg: rg.edge("a", "b"), lambda e: e.last_update()),
     "edge.getitem": (lambda rg: rg.edge("a", "b"), lambda e: e["weight"]),
     # nodes collection
-    "nodes.count": (lambda rg: rg.nodes, lambda ns: ns.count()),
+    "nodes.len": (lambda rg: rg.nodes, lambda ns: len(ns)),
     "nodes.degree": (lambda rg: rg.nodes, lambda ns: ns.degree()),
     "nodes.in_degree": (lambda rg: rg.nodes, lambda ns: ns.in_degree()),
     "nodes.out_degree": (lambda rg: rg.nodes, lambda ns: ns.out_degree()),
@@ -329,13 +329,13 @@ TERMINALS = {
         lambda ns: ns.edge_history_count(),
     ),
     # edges collection
-    "edges.count": (lambda rg: rg.edges, lambda es: es.count()),
+    "edges.len": (lambda rg: rg.edges, lambda es: len(es)),
     "edges.collect": (lambda rg: rg.edges, lambda es: es.collect()),
     "edges.earliest_time": (lambda rg: rg.edges, lambda es: es.earliest_time),
     # paths
-    "path_from_node.count": (
+    "path_from_node.len": (
         lambda rg: rg.node("a").neighbours,
-        lambda p: p.count(),
+        lambda p: len(p),
     ),
     "path_from_node.degree": (
         lambda rg: rg.node("a").neighbours,
@@ -486,7 +486,7 @@ CHAINED = {
     .layer("knows")
     .collect(),
     "nodes.window.degree": lambda rg: rg.nodes.window(2, 6).degree(),
-    "edges.valid_layers.count": lambda rg: rg.edges.valid_layers(["knows"]).count(),
+    "edges.valid_layers.count": lambda rg: len(rg.edges.valid_layers(["knows"])),
     "graph.filter.count_nodes": lambda rg: rg.filter(
         f.Node.property("score") > 1.0
     ).count_nodes(),

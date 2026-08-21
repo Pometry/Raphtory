@@ -4688,14 +4688,6 @@ class Edges(object):
              list[Edge]: the list of edges
         """
 
-    def count(self) -> int:
-        """
-        Returns the number of edges.
-
-        Returns:
-            int:
-        """
-
     def default_layer(self) -> Edges:
         """
          Return a view of Edges containing only the default edge layer

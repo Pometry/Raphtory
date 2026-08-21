@@ -74,7 +74,7 @@ COLLECTION_READS = [
     ("node_types", lambda g: sorted(str(n.node_type) for n in g.nodes)),
     ("node_degrees", lambda g: sorted(n.degree() for n in g.nodes)),
     ("edge_pairs", lambda g: sorted((e.src.name, e.dst.name) for e in g.edges)),
-    ("edge_count", lambda g: g.edges.count()),
+    ("edge_count", lambda g: len(g.edges)),
     (
         "layer_edges",
         lambda g: sorted((e.src.name, e.dst.name) for e in g.layer("knows").edges),

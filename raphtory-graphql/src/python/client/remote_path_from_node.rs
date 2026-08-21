@@ -443,15 +443,6 @@ impl PyRemotePathFromNode {
         PyRemotePropertiesView::new(self.path.properties())
     }
 
-    /// Returns the number of nodes in this collection. Fires one RPC.
-    ///
-    /// Returns:
-    ///     int: the number of nodes.
-    pub fn count(&self) -> Result<i64, ClientError> {
-        let path = Arc::clone(&self.path);
-        execute_async_task(move || async move { path.count().await })
-    }
-
     /// Returns the degree of each node in this path. Fires one RPC.
     ///
     /// Returns:
