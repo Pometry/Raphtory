@@ -95,20 +95,16 @@ impl VectorCollection for LanceDbCollection {
         // and currently duplicates the row, so only the last vector for each id is kept
         let incoming: Vec<_> = ids.into_iter().zip(vectors).collect();
         let mut seen = HashSet::with_capacity(incoming.len());
-        let mut deduped = Vec::with_capacity(incoming.len());
-        for pair in incoming.into_iter().rev() {
-            if seen.insert(pair.0) {
-                deduped.push(pair);
-            }
-        }
-        deduped.reverse();
-
         let mut builder = FixedSizeListBuilder::new(Float32Builder::new(), self.dim as i32);
-        let mut ids = Vec::with_capacity(deduped.len());
-        for (id, vector) in deduped {
-            ids.push(id);
-            builder.values().append_slice(&vector);
-            builder.append(true);
+        let mut ids = Vec::with_capacity(incoming.len()); // duplicates should be rare
+
+        // order after deduplication doesn't matter, can build the arrays directly
+        for (id, vector) in incoming.into_iter().rev() {
+            if seen.insert(id) {
+                ids.push(id);
+                builder.values().append_slice(&vector);
+                builder.append(true);
+            }
         }
 
         let schema = self.schema();
