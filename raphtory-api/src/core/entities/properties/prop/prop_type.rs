@@ -22,7 +22,7 @@ impl PropError {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum PropType {
     #[default]
     Empty,
@@ -43,6 +43,34 @@ pub enum PropType {
     Decimal {
         scale: i64,
     },
+}
+
+impl fmt::Debug for PropType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        // Only the container spellings differ from `Display` (`List(x)` vs
+        // `List<x>`, `Map({..})` vs `Map{ .. }`, `Decimal { scale: n }` vs
+        // `Decimal(n)`); every unit variant delegates.
+        match self {
+            PropType::List(p_type) => f.debug_tuple("List").field(p_type).finish(),
+            PropType::Map(p_type) => {
+                // The derived impl would iterate the HashMap, whose order is
+                // seeded per process — the same type would render differently
+                // between runs. Sorting keeps the derived shape, made
+                // deterministic; equality stays order-independent.
+                let mut fields: Vec<_> = p_type.iter().collect();
+                fields.sort_by_key(|(k, _)| k.as_str());
+                write!(f, "Map(")?;
+                let mut map = f.debug_map();
+                for (k, v) in fields {
+                    map.entry(k, v);
+                }
+                map.finish()?;
+                write!(f, ")")
+            }
+            PropType::Decimal { scale } => f.debug_struct("Decimal").field("scale", scale).finish(),
+            unit => Display::fmt(unit, f),
+        }
+    }
 }
 
 impl Display for PropType {
