@@ -3,7 +3,10 @@ use crate::{
     rayon::blocking_compute,
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, SimpleObject};
-use raphtory::{algorithms::bipartite::max_weight_matching::Matching, db::api::view::DynamicGraph};
+use raphtory::{
+    algorithms::{bipartite::max_weight_matching::Matching, pathing::scored_paths::ScoredPath},
+    db::{api::view::DynamicGraph, graph::node::NodeView},
+};
 
 /// The motif counts for a single delta. Wraps the counts in an object because
 /// the schema builder does not support nested lists of scalars.
@@ -94,5 +97,57 @@ impl GqlMatching {
     ) -> bool {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.matching.contains(src, dst)).await
+    }
+}
+
+/// A path to a destination node, together with its total score.
+#[derive(ResolvedObject, Clone)]
+#[graphql(name = "ScoredPath")]
+pub(crate) struct GqlScoredPath {
+    graph: DynamicGraph,
+    path: ScoredPath,
+}
+
+impl GqlScoredPath {
+    pub(crate) fn new(graph: &DynamicGraph, path: ScoredPath) -> Self {
+        Self {
+            graph: graph.clone(),
+            path,
+        }
+    }
+}
+
+#[ResolvedObjectFields]
+impl GqlScoredPath {
+    /// Sum of every node score and edge score along the path.
+    async fn score(&self) -> f64 {
+        self.path.score
+    }
+
+    /// The nodes on the path, starting at the start node and ending at the destination.
+    async fn nodes(&self) -> Vec<GqlNode> {
+        self.path
+            .nodes
+            .iter()
+            .map(|node| {
+                let node: NodeView<'static, DynamicGraph> =
+                    NodeView::new_internal(self.graph.clone(), *node);
+                node.into()
+            })
+            .collect()
+    }
+
+    /// The layer traversed at each hop: `layers[i]` connects `nodes[i]` to `nodes[i + 1]`.
+    async fn layers(&self) -> Vec<String> {
+        self.path
+            .layers
+            .iter()
+            .map(|layer| layer.to_string())
+            .collect()
+    }
+
+    /// The number of hops on the path.
+    async fn hops(&self) -> usize {
+        self.path.layers.len()
     }
 }

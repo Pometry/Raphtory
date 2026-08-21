@@ -3,8 +3,8 @@
 use crate::{
     model::{
         algorithms::{
-            inputs::{GqlDirection, GqlSeeds},
-            outputs::{GqlMatching, GqlMotifCounts},
+            inputs::{GqlDirection, GqlScoringMap, GqlSeeds},
+            outputs::{GqlMatching, GqlMotifCounts, GqlScoredPath},
         },
         graph::{
             filtering::GqlFilter, node_id::GqlNodeId, node_state::GqlNodeState,
@@ -62,6 +62,7 @@ use raphtory::{
         },
         pathing::{
             dijkstra::dijkstra_single_source_shortest_paths,
+            scored_paths::{top_scoring_paths, ScoringMap},
             single_source_shortest_path::single_source_shortest_path,
             temporal_reachability::temporally_reachable_nodes,
         },
@@ -72,6 +73,7 @@ use raphtory::{
     prelude::{GraphViewOps, TimeOps},
 };
 use raphtory_api::core::storage::arc_str::OptionAsStr;
+use std::num::NonZeroUsize;
 
 fn get_node(
     graph: DynamicGraph,
@@ -353,6 +355,68 @@ impl GqlAlgorithms {
             })
             .await?
             .into())
+    }
+
+    /// Returns the highest-scoring paths that reach `destination`, best first.
+    ///
+    /// Every node and every edge on a path contributes a score, looked up from `scoring` by node
+    /// type and by edge layer. Scores are summed and may be negative: a negative weight makes the
+    /// search route around that kind of relationship rather than forbid it, so a longer path of
+    /// positive edges can beat a direct negative one. Paths are simple — no node appears twice.
+    async fn top_scoring_paths(
+        &self,
+        #[graphql(desc = "Destination node id. Every returned path ends here.")]
+        destination: GqlNodeId,
+        #[graphql(
+            desc = "Node ids paths may start from. Every node is a candidate start if unset."
+        )]
+        sources: Option<Vec<GqlNodeId>>,
+        #[graphql(
+            desc = "Per-layer and per-node-type scoring rules. Scores everything 0 if unset."
+        )]
+        scoring: Option<GqlScoringMap>,
+        #[graphql(desc = "Longest path to consider, in edges. Defaults to 4.")] max_hops: Option<
+            usize,
+        >,
+        #[graphql(
+            desc = "Return only this many paths, highest score first. All are returned if unset."
+        )]
+        top_k: Option<usize>,
+        #[graphql(
+            desc = "Keep at most this many partial paths per node at each hop. Exhaustive if unset, which is exact but slower on graphs with high-degree nodes."
+        )]
+        beam_width: Option<usize>,
+        #[graphql(desc = "Direction the returned paths follow. Defaults to BOTH.")]
+        direction: Option<GqlDirection>,
+    ) -> async_graphql::Result<Vec<GqlScoredPath>> {
+        let beam_width = match beam_width {
+            None => None,
+            Some(0) => {
+                return Err(async_graphql::Error::new(
+                    "beamWidth must be greater than 0",
+                ))
+            }
+            Some(width) => NonZeroUsize::new(width),
+        };
+        let scoring: ScoringMap = scoring.map(Into::into).unwrap_or_default();
+        let direction = direction.unwrap_or(GqlDirection::Both).into();
+        self.run(move |graph| {
+            let paths = top_scoring_paths(
+                &graph,
+                destination,
+                sources,
+                &scoring,
+                max_hops,
+                top_k,
+                beam_width,
+                direction,
+            )?;
+            Ok(paths
+                .into_iter()
+                .map(|path| GqlScoredPath::new(&graph, path))
+                .collect())
+        })
+        .await
     }
 
     /// Returns the local reciprocity of every node.

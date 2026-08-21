@@ -51,6 +51,7 @@ use crate::{
         },
         pathing::{
             dijkstra::dijkstra_single_source_shortest_paths as dijkstra_single_source_shortest_paths_rs,
+            scored_paths::top_scoring_paths as top_scoring_paths_rs,
             single_source_shortest_path::single_source_shortest_path as single_source_shortest_path_rs,
             temporal_reachability::temporally_reachable_nodes as temporal_reachability_rs,
         },
@@ -66,15 +67,17 @@ use crate::{
     errors::GraphError,
     prelude::Graph,
     python::{
+        algorithm::scored_paths::{PyScoredPath, PyScoringMap},
         filter::filter_expr::PyFilterExpr,
         graph::{node::PyNode, views::graph_view::PyGraphView},
         utils::PyNodeRef,
     },
 };
-use pyo3::{prelude::*, types::PyList};
+use pyo3::{exceptions::PyValueError, prelude::*, types::PyList};
 use rand::{prelude::StdRng, SeedableRng};
 use raphtory_api::core::{entities::LayerIds, storage::timeindex::EventTime, Direction};
 use raphtory_storage::core_ops::CoreGraphOps;
+use std::num::NonZeroUsize;
 
 /// Helper function to parse single-vertex or multi-vertex parameters to a Vec of vertices
 fn process_node_param(param: &Bound<PyAny>) -> PyResult<Vec<PyNodeRef>> {
@@ -748,6 +751,87 @@ pub fn dijkstra_single_source_shortest_paths(
 ) -> Result<OutputTypedNodeState<'static, DynamicGraph>, GraphError> {
     dijkstra_single_source_shortest_paths_rs(&graph.graph, source, targets, weight, direction)
         .map(|result| result.to_output_nodestate())
+}
+
+/// Finds the highest-scoring paths that reach a destination node.
+///
+/// Every node and every edge on a path contributes a score, looked up by node type and by edge
+/// layer. Scores are summed and may be negative: a negative weight makes the search route around
+/// that kind of relationship rather than forbid it, so a longer path of positive edges can beat a
+/// direct negative one. Paths are simple — no node appears twice — and no longer than `max_hops`.
+///
+/// `scoring` is a dict describing how to score each edge layer and each node type:
+///
+/// ```python
+/// {
+///     "layers": {
+///         "friend": {
+///             "weight": 5.0,
+///             "properties": [
+///                 {"name": "closeness", "categories": {"close": 4.0, "distant": -1.0}},
+///                 {"name": "shared_projects", "scale": 0.5},
+///             ],
+///         },
+///         "ex_partner": {"weight": -10.0},
+///     },
+///     "default_layer": {"weight": 0.0},
+///     "node_types": {"person": {"weight": 1.0}, "recruiter": {"weight": -3.0}},
+/// }
+/// ```
+///
+/// Each entry in `properties` adds to the score of the edge or node it is read from, either by the
+/// property's numeric value multiplied by `scale` (default 1.0), or by looking the value up in
+/// `categories`. `default` (default 0.0) is used when the property is missing, is not numeric, or
+/// its value is not in `categories`. Layers and node types with no entry score 0, unless
+/// `default_layer` or `default_node_type` is given, or `skip_unscored_layers` or
+/// `skip_unscored_node_types` is set to only traverse the ones listed.
+///
+/// Arguments:
+///     graph (GraphView): The graph to search in.
+///     destination (NodeInput): The node every returned path ends at.
+///     sources (list[NodeInput], optional): The nodes paths may start from. Every node is a candidate start by default.
+///     scoring (dict, optional): Per-layer and per-node-type scoring rules. Scores everything 0 by default.
+///     max_hops (int, optional): Longest path to consider, in edges. Defaults to 4.
+///     top_k (int, optional): Return only this many paths, highest score first. All paths are returned by default.
+///     beam_width (int, optional): Keep at most this many partial paths per node at each hop. The search is exhaustive by default, which returns the exact best paths but can be slow on graphs with high-degree nodes.
+///     direction (Direction): Direction the returned paths follow. "out" means each hop follows an out-edge towards the destination. Defaults to "both".
+///
+/// Returns:
+///     list[ScoredPath]: Paths ordered by descending score.
+///
+#[pyfunction]
+#[pyo3[signature = (graph, destination, sources=None, scoring=None, max_hops=None, top_k=None, beam_width=None, direction=Direction::BOTH)]]
+pub fn top_scoring_paths(
+    graph: &PyGraphView,
+    destination: PyNodeRef,
+    sources: Option<Vec<PyNodeRef>>,
+    scoring: Option<PyScoringMap>,
+    max_hops: Option<usize>,
+    top_k: Option<usize>,
+    beam_width: Option<usize>,
+    direction: Direction,
+) -> PyResult<Vec<PyScoredPath>> {
+    let beam_width = beam_width
+        .map(|width| {
+            NonZeroUsize::new(width)
+                .ok_or_else(|| PyValueError::new_err("beam_width must be greater than 0"))
+        })
+        .transpose()?;
+    let scoring = scoring.map(|scoring| scoring.0).unwrap_or_default();
+    let paths = top_scoring_paths_rs(
+        &graph.graph,
+        destination,
+        sources,
+        &scoring,
+        max_hops,
+        top_k,
+        beam_width,
+        direction,
+    )?;
+    Ok(paths
+        .into_iter()
+        .map(|path| PyScoredPath::new(&graph.graph, path))
+        .collect())
 }
 
 /// Computes the betweenness centrality for nodes in a given graph.

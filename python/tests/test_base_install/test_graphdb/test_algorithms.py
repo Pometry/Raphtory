@@ -513,6 +513,153 @@ def test_dijsktra_shortest_paths():
     assert "Property NO does not exist" in str(excinfo.value)
 
 
+def intro_graph():
+    """A warm-introduction graph: three routes from Me to John, one via an ex-partner."""
+    g = Graph()
+    for name in ["Me", "Jenny", "James", "John"]:
+        g.add_node(0, name, node_type="person")
+    g.add_node(0, "Priya", node_type="recruiter")
+
+    g.add_edge(1, "Me", "Jenny", {"closeness": "close"}, layer="friend")
+    g.add_edge(1, "Jenny", "John", layer="ex_partner")
+    g.add_edge(1, "Me", "James", {"years": 4}, layer="colleague")
+    g.add_edge(1, "James", "John", {"closeness": "distant"}, layer="friend")
+    g.add_edge(1, "Me", "Priya", layer="colleague")
+    g.add_edge(1, "Priya", "John", layer="colleague")
+    return g
+
+
+RELATIONSHIP_SCORING = {
+    "layers": {
+        "friend": {"weight": 5.0},
+        "colleague": {"weight": 3.0},
+        "ex_partner": {"weight": -10.0},
+    }
+}
+
+
+def routes(paths):
+    return [([node.name for node in path.nodes], path.score) for path in paths]
+
+
+def test_top_scoring_paths():
+    from raphtory.algorithms import top_scoring_paths
+
+    g = intro_graph()
+    paths = top_scoring_paths(
+        g, "John", sources=["Me"], scoring=RELATIONSHIP_SCORING, max_hops=2, direction="out"
+    )
+
+    # The route through the ex-partner still exists, it just ranks last.
+    assert routes(paths) == [
+        (["Me", "James", "John"], 8.0),
+        (["Me", "Priya", "John"], 6.0),
+        (["Me", "Jenny", "John"], -5.0),
+    ]
+    assert paths[0].layers == ["colleague", "friend"]
+    assert len(paths[0]) == 2
+
+
+def test_top_scoring_paths_property_scores():
+    from raphtory.algorithms import top_scoring_paths
+
+    g = intro_graph()
+    scoring = {
+        "layers": {
+            "friend": {
+                "weight": 5.0,
+                "properties": [
+                    {
+                        "name": "closeness",
+                        "categories": {"close": 4.0, "distant": -1.0},
+                    }
+                ],
+            },
+            # Priya's edges have no "years", so they fall back to the default.
+            "colleague": {
+                "weight": 3.0,
+                "properties": [{"name": "years", "scale": 0.5, "default": 0.0}],
+            },
+            "ex_partner": {"weight": -10.0},
+        },
+        "node_types": {"recruiter": {"weight": -5.0}},
+    }
+    paths = top_scoring_paths(
+        g, "John", sources=["Me"], scoring=scoring, max_hops=2, direction="out"
+    )
+
+    assert routes(paths) == [
+        # (3 + 4 * 0.5) + (5 - 1)
+        (["Me", "James", "John"], 9.0),
+        # (3 + 0) + recruiter -5 + (3 + 0)
+        (["Me", "Priya", "John"], 1.0),
+        # (5 + 4) + (-10)
+        (["Me", "Jenny", "John"], -1.0),
+    ]
+
+
+def test_top_scoring_paths_hop_cutoff_and_top_k():
+    from raphtory.algorithms import top_scoring_paths
+
+    g = intro_graph()
+    assert (
+        top_scoring_paths(
+            g,
+            "John",
+            sources=["Me"],
+            scoring=RELATIONSHIP_SCORING,
+            max_hops=1,
+            direction="out",
+        )
+        == []
+    )
+
+    paths = top_scoring_paths(
+        g,
+        "John",
+        sources=["Me"],
+        scoring=RELATIONSHIP_SCORING,
+        max_hops=2,
+        top_k=1,
+        direction="out",
+    )
+    assert routes(paths) == [(["Me", "James", "John"], 8.0)]
+
+
+def test_top_scoring_paths_skip_unscored_layers():
+    from raphtory.algorithms import top_scoring_paths
+
+    g = intro_graph()
+    # Every route to John needs a colleague or ex_partner hop.
+    paths = top_scoring_paths(
+        g,
+        "John",
+        sources=["Me"],
+        scoring={"layers": {"friend": {"weight": 5.0}}, "skip_unscored_layers": True},
+        max_hops=2,
+        direction="out",
+    )
+    assert paths == []
+
+
+def test_top_scoring_paths_errors():
+    from raphtory.algorithms import top_scoring_paths
+
+    g = intro_graph()
+
+    with pytest.raises(Exception) as excinfo:
+        top_scoring_paths(g, "Nobody", sources=["Me"], scoring=RELATIONSHIP_SCORING)
+    assert "Nobody" in str(excinfo.value)
+
+    with pytest.raises(ValueError) as excinfo:
+        top_scoring_paths(g, "John", scoring=RELATIONSHIP_SCORING, beam_width=0)
+    assert "beam_width must be greater than 0" in str(excinfo.value)
+
+    # A typo in the scoring map is rejected rather than silently ignored.
+    with pytest.raises(Exception):
+        top_scoring_paths(g, "John", scoring={"layerz": {"friend": {"weight": 1.0}}})
+
+
 def test_betweenness_centrality():
     from raphtory import Graph
     from raphtory.algorithms import betweenness_centrality

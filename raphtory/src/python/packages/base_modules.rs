@@ -2,7 +2,9 @@
 use crate::{
     add_classes, add_functions,
     python::{
-        algorithm::{epidemics::PyInfected, max_weight_matching::PyMatching},
+        algorithm::{
+            epidemics::PyInfected, max_weight_matching::PyMatching, scored_paths::PyScoredPath,
+        },
         graph::{
             edge::{PyEdge, PyMutableEdge},
             edges::{PyEdges, PyNestedEdges},
@@ -184,6 +186,7 @@ pub fn base_algorithm_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyEr
     add_functions!(
         &algorithm_module,
         dijkstra_single_source_shortest_paths,
+        top_scoring_paths,
         global_reciprocity,
         betweenness_centrality,
         all_local_reciprocity,
@@ -227,7 +230,7 @@ pub fn base_algorithm_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyEr
         max_weight_matching
     );
 
-    add_classes!(&algorithm_module, PyMatching, PyInfected);
+    add_classes!(&algorithm_module, PyMatching, PyInfected, PyScoredPath);
     Ok(algorithm_module)
 }
 
