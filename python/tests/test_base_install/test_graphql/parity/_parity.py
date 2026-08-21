@@ -212,10 +212,6 @@ KNOWN_GAPS = {
         "batch add_edges exists on RemoteGraph only; local Graph has no batch "
         "write API, so batch writes are compared against the equivalent loop"
     ),
-    "temporal_property.latest": (
-        "RemoteTemporalProperty.latest() has no local TemporalProperty "
-        "equivalent (local exposes latest() on TemporalProperties only)"
-    ),
     # Two filter-expression gaps used to be ledgered here. ExplodedEdge
     # property/metadata filters are now transported (FilterTree gained an
     # ExplodedEdge kind and the schema an `ExplodedEdgeFilter` input), so they

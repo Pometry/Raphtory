@@ -1277,9 +1277,8 @@ def test_node_type_conflict_leaves_the_rest_of_the_write_intact():
 # (gap_key, fn). Same contract as `test_parity_gaps`: the case is expected to
 # fail today because the API is missing on one side, and `strict=True` turns the
 # day it starts working into a RED suite that forces the ledger entry out.
-# Unlike that module, these gaps run in *both* directions — `graph.add_nodes`,
-# `graph.add_edges` and `temporal_property.latest` exist on remote and are
-# missing locally.
+# Unlike that module, these gaps run in *both* directions — `graph.add_nodes`
+# and `graph.add_edges` exist on remote and are missing locally.
 WRITE_GAP_CASES = [
     (
         "graph.add_nodes",
@@ -1292,10 +1291,6 @@ WRITE_GAP_CASES = [
         lambda g: g.add_edges(
             [RemoteEdgeAddition("a", "b", updates=[RemoteUpdate(1, {"w": 1.0})])]
         ),
-    ),
-    (
-        "temporal_property.latest",
-        lambda g: g.node("a").properties.temporal.get("s").latest(),
     ),
 ]
 

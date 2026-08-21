@@ -389,7 +389,7 @@ impl PyRemoteTemporalProperties {
 
     /// The latest value of every temporal property, as `{key: value}` —
     /// mirrors the local `TemporalProperties.latest()`. Composed from
-    /// `items()` + each property's `latest()`; fires 1 RPC for the property
+    /// `items()` + each property's `value()`; fires 1 RPC for the property
     /// list plus 1 per property. Keys whose property has no update in view
     /// are omitted (their latest is `None`), matching the local behaviour.
     ///
@@ -399,7 +399,7 @@ impl PyRemoteTemporalProperties {
     pub fn latest<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
         let dict = PyDict::new(py);
         for (key, tp) in self.items()? {
-            if let Some(value) = tp.latest()? {
+            if let Some(value) = tp.value()? {
                 dict.set_item(key, value)?;
             }
         }
@@ -495,26 +495,15 @@ impl PyRemoteTemporalProperty {
         execute_async_task(move || async move { inner.at(t).await })
     }
 
-    /// The most recent value, or `None` if the property has no updates
-    /// in view. Fires one RPC.
-    ///
-    /// Returns:
-    ///     Optional[PropValue]: the most recent value, or `None` if the property has no
-    ///         updates in view.
-    pub fn latest(&self) -> Result<Option<Prop>, ClientError> {
-        let inner = Arc::clone(&self.inner);
-        execute_async_task(move || async move { inner.latest().await })
-    }
-
-    /// The latest value of the property, or `None` if it has no updates in
-    /// view. Alias for `latest()` (drop-in parity with the local
-    /// `TemporalProperty.value`). Fires one RPC.
+    /// The most recent value, or `None` if the property has no updates in
+    /// view — matching the local `TemporalProperty.value`. Fires one RPC.
     ///
     /// Returns:
     ///     Optional[PropValue]: the most recent value, or `None` if the property has no
     ///         updates in view.
     pub fn value(&self) -> Result<Option<Prop>, ClientError> {
-        self.latest()
+        let inner = Arc::clone(&self.inner);
+        execute_async_task(move || async move { inner.latest().await })
     }
 
     /// Number of updates recorded for this property in the current view.

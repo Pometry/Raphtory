@@ -401,10 +401,6 @@ TERMINALS = {
         lambda rg: rg.node("a").properties.temporal.get("score"),
         lambda tp: tp.at(2),
     ),
-    "temporal_property.latest": (
-        lambda rg: rg.node("a").properties.temporal.get("score"),
-        lambda tp: tp.latest(),
-    ),
     "temporal_property.value": (
         lambda rg: rg.node("a").properties.temporal.get("score"),
         lambda tp: tp.value(),

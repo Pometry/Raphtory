@@ -5713,7 +5713,7 @@ class RemoteTemporalProperties(object):
         """
         The latest value of every temporal property, as `{key: value}` —
         mirrors the local `TemporalProperties.latest()`. Composed from
-        `items()` + each property's `latest()`; fires 1 RPC for the property
+        `items()` + each property's `value()`; fires 1 RPC for the property
         list plus 1 per property. Keys whose property has no update in view
         are omitted (their latest is `None`), matching the local behaviour.
 
@@ -5806,16 +5806,6 @@ class RemoteTemporalProperty(object):
             str: the property name.
         """
 
-    def latest(self) -> Optional[PropValue]:
-        """
-        The most recent value, or `None` if the property has no updates
-        in view. Fires one RPC.
-
-        Returns:
-            Optional[PropValue]: the most recent value, or `None` if the property has no
-                updates in view.
-        """
-
     def max(self) -> Optional[tuple[EventTime, PropValue]]:
         """
         Maximum `(time, value)` pair. `None` if not comparable or empty.
@@ -5889,9 +5879,8 @@ class RemoteTemporalProperty(object):
 
     def value(self) -> Optional[PropValue]:
         """
-        The latest value of the property, or `None` if it has no updates in
-        view. Alias for `latest()` (drop-in parity with the local
-        `TemporalProperty.value`). Fires one RPC.
+        The most recent value, or `None` if the property has no updates in
+        view — matching the local `TemporalProperty.value`. Fires one RPC.
 
         Returns:
             Optional[PropValue]: the most recent value, or `None` if the property has no

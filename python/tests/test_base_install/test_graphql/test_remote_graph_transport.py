@@ -1009,7 +1009,7 @@ def test_temporal_properties_histories():
 
 def test_temporal_property_terminals():
     """`RemoteTemporalProperty` core methods: `.history`, `.values()`,
-    `.at(t)`, `.latest()`, `.count()`."""
+    `.at(t)`, `.value()`, `.count()`."""
     with _make_graph_with_edge() as rg:
         # score: 1.5 at t=5, 2.5 at t=10, 3.5 at t=15
         rg.node("ben").add_updates(5, properties={"score": 1.5})
@@ -1024,8 +1024,8 @@ def test_temporal_property_terminals():
         vals = score.values()
         assert vals == [1.5, 2.5, 3.5]
 
-        # latest — most recent value
-        assert score.latest() == 3.5
+        # value — most recent value, matching the local `TemporalProperty.value`
+        assert score.value() == 3.5
 
         # at(t) — value at or before t
         assert score.at(5) == 1.5
@@ -2760,7 +2760,7 @@ def test_valid_layers_view_ops():
 
 def test_temporal_properties_items_and_value():
     """`RemoteTemporalProperties.items()` pairs each key with its handle;
-    `RemoteTemporalProperty.value()` is an alias for `.latest()`."""
+    each handle's `.value()` is its most recent value."""
     with _make_graph_with_edge() as rg:
         rg.node("ben").add_updates(5, properties={"score": 1.5, "active": True})
         rg.node("ben").add_updates(10, properties={"score": 2.5})
@@ -2772,11 +2772,14 @@ def test_temporal_properties_items_and_value():
         for key, handle in items:
             assert handle.key == key
 
-        # value() == latest() for each property.
+        # value() — the most recent value of each property.
         by_key = dict(items)
-        assert by_key["score"].value() == by_key["score"].latest()
         assert by_key["score"].value() == 2.5
-        assert by_key["active"].value() == by_key["active"].latest()
+        assert by_key["active"].value() is True
+
+        # the per-property alias is gone; only the container has `latest()`.
+        assert not hasattr(by_key["score"], "latest")
+        assert tp.latest() == {"score": 2.5, "active": True}
 
 
 def test_has_layer():
