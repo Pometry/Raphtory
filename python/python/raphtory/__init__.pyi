@@ -6947,22 +6947,6 @@ class HistoryTimestamp(object):
             NDArray[np.int64]: Timestamps in milliseconds since the Unix epoch in reverse order.
         """
 
-    def to_list(self) -> list[int]:
-        """
-        Collect all timestamps into a list.
-
-        Returns:
-            list[int]: List of timestamps.
-        """
-
-    def to_list_rev(self) -> list[int]:
-        """
-        Collect all timestamps into a list in reverse order.
-
-        Returns:
-            list[int]: List of timestamps.
-        """
-
 class HistoryDateTime(object):
     """History view that exposes UTC datetimes."""
 
@@ -7086,22 +7070,6 @@ class HistoryEventId(object):
             NDArray[np.uintp]: Event ids in reverse order.
         """
 
-    def to_list(self) -> list[int]:
-        """
-        Collect all event ids into a list.
-
-        Returns:
-            list[int]: List of event ids.
-        """
-
-    def to_list_rev(self) -> list[int]:
-        """
-        Collect all event ids into a list in reverse order.
-
-        Returns:
-            list[int]: List of event ids.
-        """
-
 class Intervals(object):
     """View over the intervals between consecutive timestamps, expressed in milliseconds."""
 
@@ -7189,22 +7157,6 @@ class Intervals(object):
 
         Returns:
             Optional[int]: Minimum interval, or None if fewer than 1 interval.
-        """
-
-    def to_list(self) -> list[int]:
-        """
-        Collect all interval values in milliseconds into a list.
-
-        Returns:
-            list[int]: List of intervals in milliseconds.
-        """
-
-    def to_list_rev(self) -> list[int]:
-        """
-        Collect all interval values in milliseconds into a list in reverse order.
-
-        Returns:
-            list[int]: List of intervals in milliseconds.
         """
 
 class WindowSet(object):
