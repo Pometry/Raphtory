@@ -172,50 +172,79 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
 #[inline]
 fn edges_inner<'graph, G: GraphView + 'graph>(g: &G, locked: bool) -> Edges<'graph, G> {
     let graph = g.clone();
-    // The node-list walk below trusts every listed node to be a real source node (it only filters
-    // the far endpoint of each out-edge). That is sound only when the node list is trusted (exact).
-    // An untrusted list — e.g. the intersection of an enumerable filter with a non-enumerable one,
-    // as produced by `AndFilteredGraph::node_list` — is a superset of the actual nodes, so walking a
-    // stale source would surface edges to filtered-out nodes. Fall back to scanning all edges with
-    // `filter_edge` in that case.
     let trusted_node_list = graph.node_list_trusted();
-    let edges: Arc<dyn Fn() -> BoxedLIter<'graph, EdgeRef> + Send + Sync + 'graph> = match graph
-        .node_list()
-    {
-        NodeList::List { elems } if trusted_node_list => Arc::new(move || {
-            let cg = if locked {
-                graph.core_graph().lock()
-            } else {
-                graph.core_graph().clone()
-            };
-            let graph = graph.clone();
-            elems
-                .clone()
-                .into_iter()
-                .flat_map(move |node| node_edges(cg.clone(), graph.clone(), node, Direction::OUT))
-                .into_dyn_boxed()
-        }),
-        _ => Arc::new(move || {
-            let layer_ids = graph.layer_ids().clone();
-            let graph = graph.clone();
-            let gs = if locked {
-                graph.core_graph().lock()
-            } else {
-                graph.core_graph().clone()
-            };
-            GenLockedIter::from((gs, layer_ids, graph), move |(gs, layer_ids, graph)| {
-                let edges = gs.edges();
-                let iter = edges.iter(layer_ids);
-                if graph.filtered_excluding_layers() {
-                    iter.filter_map(|e| graph.filter_edge(e.as_ref()).then(|| e.out_ref()))
-                        .into_dyn_boxed()
+
+    let edges: Arc<dyn Fn() -> BoxedLIter<'graph, EdgeRef> + Send + Sync + 'graph> =
+        match graph.node_list() {
+            NodeList::List { elems } => {
+                // The `node_edges` function below trusts the local node (it only filters
+                // the remote endpoint of each edge). For an untrusted node list, — e.g. the intersection of an enumerable filter with a non-enumerable one,
+                // as produced by `AndFilteredGraph::node_list` — we need to explicitly filter the local node as well.
+                if trusted_node_list {
+                    Arc::new(move || {
+                        let graph = graph.clone();
+                        let gs = if locked {
+                            graph.core_graph().lock()
+                        } else {
+                            graph.core_graph().clone()
+                        };
+                        elems
+                            .clone()
+                            .into_iter()
+                            .flat_map(move |node| {
+                                node_edges(gs.clone(), graph.clone(), node, Direction::OUT)
+                            })
+                            .into_dyn_boxed()
+                    })
                 } else {
-                    iter.map(|e| e.out_ref()).into_dyn_boxed()
+                    Arc::new(move || {
+                        let gs = if locked {
+                            graph.core_graph().lock()
+                        } else {
+                            graph.core_graph().clone()
+                        };
+                        let graph = graph.clone();
+                        let graph_copy = graph.clone();
+                        let gs_copy = gs.clone();
+                        elems
+                            .clone()
+                            .into_iter()
+                            .filter(move |node| {
+                                // layer/window/edge filters are handled below, only explict node filters need to be handled here
+                                graph_copy.internal_filter_node(
+                                    gs_copy.core_node(*node).as_ref(),
+                                    graph_copy.layer_ids(),
+                                )
+                            })
+                            .flat_map(move |node| {
+                                node_edges(gs.clone(), graph.clone(), node, Direction::OUT)
+                            })
+                            .into_dyn_boxed()
+                    })
                 }
-            })
-            .into_dyn_boxed()
-        }),
-    };
+            }
+            NodeList::All => Arc::new(move || {
+                let layer_ids = graph.layer_ids().clone();
+                let graph = graph.clone();
+                let gs = if locked {
+                    graph.core_graph().lock()
+                } else {
+                    graph.core_graph().clone()
+                };
+
+                GenLockedIter::from((gs, layer_ids, graph), move |(gs, layer_ids, graph)| {
+                    let edges = gs.edges();
+                    let iter = edges.iter(layer_ids);
+                    if graph.filtered_excluding_layers() {
+                        iter.filter_map(|e| graph.filter_edge(e.as_ref()).then(|| e.out_ref()))
+                            .into_dyn_boxed()
+                    } else {
+                        iter.map(|e| e.out_ref()).into_dyn_boxed()
+                    }
+                })
+                .into_dyn_boxed()
+            }),
+        };
     Edges {
         base_graph: g.clone(),
         edges,
