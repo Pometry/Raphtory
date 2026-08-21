@@ -1383,6 +1383,13 @@ pub enum GqlExplodedEdgeFilter {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct Wrapped<T>(Box<T>);
+
+impl<T> From<T> for Wrapped<T> {
+    fn from(inner: T) -> Self {
+        Wrapped(Box::new(inner))
+    }
+}
+
 impl<T> Deref for Wrapped<T> {
     type Target = T;
     fn deref(&self) -> &Self::Target {
@@ -1795,7 +1802,7 @@ fn translate_prop_leaf_to_filter(
     })
 }
 
-fn build_property_filter_from_condition_with_entity<M: Clone + Send + Sync + 'static>(
+pub(crate) fn build_property_filter_from_condition_with_entity<M: Clone + Send + Sync + 'static>(
     prop_ref: PropertyRef,
     cond: &PropCondition,
     entity: M,

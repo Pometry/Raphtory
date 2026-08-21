@@ -2,13 +2,19 @@ use crate::{
     auth_policy::AuthorizationPolicy,
     data::{get_relative_path, Data, WorkDirGuard},
     model::graph::{
-        collection::GqlCollection, meta_graph::MetaGraph, namespaced_item::NamespacedItem,
+        collection::GqlCollection,
+        meta_graph::MetaGraph,
+        namespace_filtering::{
+            sort_graphs, MetaGraphFilter, MetaGraphSort, NamespaceFilter, NamespaceSort,
+            NamespacedItemFilter,
+        },
+        namespaced_item::NamespacedItem,
     },
     paths::{ExistingGraphFolder, PathValidationError, ValidPath},
     rayon::blocking_compute,
 };
 use async_graphql::Context;
-use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
+use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, Result};
 use itertools::Itertools;
 use std::{cmp::Ordering, path::PathBuf, sync::Arc};
 use walkdir::WalkDir;
@@ -22,6 +28,13 @@ pub struct Namespace {
     guard: WorkDirGuard,
     current_dir: PathBuf,  // always validated
     relative_path: String, // relative to the root working directory
+}
+
+impl Namespace {
+    /// Path relative to the root working directory, as used by `path`.
+    pub(crate) fn path_str(&self) -> &str {
+        &self.relative_path
+    }
 }
 
 impl PartialEq for Namespace {
@@ -213,29 +226,68 @@ impl Namespace {
     /// Graphs directly inside this namespace (excludes graphs in nested
     /// namespaces). Filtered by the caller's permissions — only graphs the
     /// caller is allowed to see are returned.
-    pub async fn graphs(&self, ctx: &Context<'_>) -> GqlCollection<MetaGraph> {
+    ///
+    /// `filter` and `sort` are applied before the returned collection is paged,
+    /// so `count` reflects the filtered total and `page` slices the sorted
+    /// order.
+    pub async fn graphs(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(desc = "Restricts which graphs are listed.")] filter: Option<MetaGraphFilter>,
+        #[graphql(desc = "Sort keys applied in order, before paging.")] sort: Option<
+            Vec<MetaGraphSort>,
+        >,
+    ) -> Result<GqlCollection<MetaGraph>> {
         let data = ctx.data_unchecked::<Data>();
         let self_clone = self.clone();
         let items = blocking_compute(move || self_clone.get_children().collect::<Vec<_>>()).await;
-        GqlCollection::new(
-            items
-                .into_iter()
-                .filter_map(|item| match item {
-                    NamespacedItem::MetaGraph(g)
-                        if is_graph_visible(ctx, &data.auth_policy, &g) =>
-                    {
-                        Some(g)
+        let visible = items.into_iter().filter_map(|item| match item {
+            NamespacedItem::MetaGraph(g) if is_graph_visible(ctx, &data.auth_policy, &g) => Some(g),
+            _ => None,
+        });
+
+        let mut graphs = match &filter {
+            None => visible.collect::<Vec<_>>(),
+            Some(filter) => {
+                let mut kept = Vec::new();
+                for graph in visible {
+                    if filter.matches(&graph, ctx, data).await? {
+                        kept.push(graph);
                     }
-                    _ => None,
-                })
-                .sorted()
-                .collect(),
-        )
+                }
+                kept
+            }
+        };
+
+        sort_graphs(&mut graphs, sort.as_deref(), ctx, data).await?;
+
+        Ok(GqlCollection::new(graphs.into()))
     }
     /// Path of this namespace relative to the root namespace. Empty string for
     /// the root namespace itself.
     pub async fn path(&self) -> String {
         self.relative_path.clone()
+    }
+
+    /// Most recent `lastUpdated` across the graphs directly inside this
+    /// namespace, or null when it holds none.
+    ///
+    /// Computed here so a listing can show a folder's recency without the client
+    /// walking every graph in every folder it displays.
+    async fn last_updated(&self, ctx: &Context<'_>) -> Result<Option<i64>> {
+        let data = ctx.data_unchecked::<Data>();
+        let self_clone = self.clone();
+        let items = blocking_compute(move || self_clone.get_children().collect::<Vec<_>>()).await;
+        let mut latest: Option<i64> = None;
+        for item in items {
+            if let NamespacedItem::MetaGraph(g) = item {
+                if is_graph_visible(ctx, &data.auth_policy, &g) {
+                    let updated = g.last_updated_value().await?;
+                    latest = Some(latest.map_or(updated, |current: i64| current.max(updated)));
+                }
+            }
+        }
+        Ok(latest)
     }
 
     /// Parent namespace, or null at the root.
@@ -259,43 +311,87 @@ impl Namespace {
 
     /// Sub-namespaces directly inside this one (one level down, not recursive).
     /// Filtered by permissions.
-    pub async fn children(&self, ctx: &Context<'_>) -> GqlCollection<Namespace> {
+    ///
+    /// `filter` and `sort` are applied before the returned collection is paged.
+    pub async fn children(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(desc = "Restricts which sub-namespaces are listed.")] filter: Option<
+            NamespaceFilter,
+        >,
+        #[graphql(desc = "Ordering applied before paging.")] sort: Option<NamespaceSort>,
+    ) -> GqlCollection<Namespace> {
         let data = ctx.data_unchecked::<Data>();
         let self_clone = self.clone();
         let items = blocking_compute(move || self_clone.get_children().collect::<Vec<_>>()).await;
-        GqlCollection::new(
-            items
-                .into_iter()
-                .filter_map(|item| match item {
-                    NamespacedItem::Namespace(n)
-                        if is_namespace_visible(ctx, &data.auth_policy, &n) =>
-                    {
-                        Some(n)
-                    }
-                    _ => None,
-                })
-                .sorted()
-                .collect(),
-        )
+        let mut namespaces = items
+            .into_iter()
+            .filter_map(|item| match item {
+                NamespacedItem::Namespace(n)
+                    if is_namespace_visible(ctx, &data.auth_policy, &n) =>
+                {
+                    Some(n)
+                }
+                _ => None,
+            })
+            .filter(|n| filter.as_ref().map_or(true, |f| f.matches(n)))
+            .sorted()
+            .collect::<Vec<_>>();
+
+        if sort.as_ref().and_then(|s| s.reverse) == Some(true) {
+            namespaces.reverse();
+        }
+
+        GqlCollection::new(namespaces.into())
     }
 
     /// Everything in this namespace — sub-namespaces and graphs — as a single
     /// heterogeneous collection. Sub-namespaces are listed before graphs.
     /// Filtered by permissions.
-    pub async fn items(&self, ctx: &Context<'_>) -> GqlCollection<NamespacedItem> {
+    ///
+    /// `filter` and `sort` are applied before the returned collection is paged.
+    /// `sort` orders the graphs; sub-namespaces keep path order and stay ahead of
+    /// them, so a client paging this collection walks folders before graphs
+    /// regardless of how the graphs are ordered.
+    pub async fn items(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(desc = "Restricts which items are listed.")] filter: Option<NamespacedItemFilter>,
+        #[graphql(desc = "Sort keys for the graphs, applied in order before paging.")] sort: Option<
+            Vec<MetaGraphSort>,
+        >,
+    ) -> Result<GqlCollection<NamespacedItem>> {
         let data = ctx.data_unchecked::<Data>();
         let self_clone = self.clone();
         let all_items =
             blocking_compute(move || self_clone.get_children().collect::<Vec<_>>()).await;
-        GqlCollection::new(
-            all_items
-                .into_iter()
-                .filter(|item| match item {
-                    NamespacedItem::MetaGraph(g) => is_graph_visible(ctx, &data.auth_policy, g),
-                    NamespacedItem::Namespace(n) => is_namespace_visible(ctx, &data.auth_policy, n),
-                })
-                .sorted()
-                .collect(),
-        )
+        let visible = all_items.into_iter().filter(|item| match item {
+            NamespacedItem::MetaGraph(g) => is_graph_visible(ctx, &data.auth_policy, g),
+            NamespacedItem::Namespace(n) => is_namespace_visible(ctx, &data.auth_policy, n),
+        });
+
+        let mut namespaces = Vec::new();
+        let mut graphs = Vec::new();
+        for item in visible {
+            if let Some(filter) = &filter {
+                if !filter.matches(&item, ctx, data).await? {
+                    continue;
+                }
+            }
+            match item {
+                NamespacedItem::Namespace(n) => namespaces.push(n),
+                NamespacedItem::MetaGraph(g) => graphs.push(g),
+            }
+        }
+
+        namespaces.sort();
+        sort_graphs(&mut graphs, sort.as_deref(), ctx, data).await?;
+
+        let items = namespaces
+            .into_iter()
+            .map(NamespacedItem::Namespace)
+            .chain(graphs.into_iter().map(NamespacedItem::MetaGraph))
+            .collect::<Vec<_>>();
+        Ok(GqlCollection::new(items.into()))
     }
 }
