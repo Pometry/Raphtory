@@ -2077,9 +2077,6 @@ class Node(object):
     def __ge__(self, value):
         """Return self>=value."""
 
-    def __getitem__(self, key):
-        """Return self[key]."""
-
     def __gt__(self, value):
         """Return self>value."""
 
@@ -4102,9 +4099,6 @@ class Edge(object):
 
     def __ge__(self, value):
         """Return self>=value."""
-
-    def __getitem__(self, key):
-        """Return self[key]."""
 
     def __gt__(self, value):
         """Return self>value."""

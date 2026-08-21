@@ -300,7 +300,6 @@ TERMINALS = {
     ),
     "node.first_update": (lambda rg: rg.node("a"), lambda n: n.first_update()),
     "node.last_update": (lambda rg: rg.node("a"), lambda n: n.last_update()),
-    "node.getitem": (lambda rg: rg.node("a"), lambda n: n["score"]),
     # edge
     "edge.earliest_time": (lambda rg: rg.edge("a", "b"), lambda e: e.earliest_time),
     "edge.latest_time": (lambda rg: rg.edge("a", "b"), lambda e: e.latest_time),
@@ -312,7 +311,6 @@ TERMINALS = {
     "edge.is_active": (lambda rg: rg.edge("a", "b"), lambda e: e.is_active()),
     "edge.first_update": (lambda rg: rg.edge("a", "b"), lambda e: e.first_update()),
     "edge.last_update": (lambda rg: rg.edge("a", "b"), lambda e: e.last_update()),
-    "edge.getitem": (lambda rg: rg.edge("a", "b"), lambda e: e["weight"]),
     # nodes collection
     "nodes.len": (lambda rg: rg.nodes, lambda ns: len(ns)),
     "nodes.degree": (lambda rg: rg.nodes, lambda ns: ns.degree()),

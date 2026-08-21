@@ -262,14 +262,6 @@ impl PyNode {
     pub fn is_active(&self) -> bool {
         self.node.is_active()
     }
-
-    //******  Python  ******//
-    pub fn __getitem__(&self, name: &str) -> PyResult<Prop> {
-        self.node
-            .properties()
-            .get(name)
-            .ok_or(PyKeyError::new_err(format!("Unknown property {}", name)))
-    }
 }
 
 impl Repr for PyNode {

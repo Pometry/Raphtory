@@ -1318,9 +1318,6 @@ class RemoteEdge(object):
     and [RemoteGraph.delete_edge][raphtory.graphql.RemoteGraph.delete_edge].
     """
 
-    def __getitem__(self, key):
-        """Return self[key]."""
-
     def add_metadata(
         self, properties: dict[str, PropValue], layer: Optional[str] = None
     ) -> None:
@@ -1834,9 +1831,6 @@ class RemoteEdge(object):
         """
 
 class RemoteNode(object):
-    def __getitem__(self, key):
-        """Return self[key]."""
-
     def add_metadata(self, properties: dict[str, PropValue]) -> None:
         """
         Add metadata to a node in the remote graph.

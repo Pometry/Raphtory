@@ -2663,20 +2663,24 @@ def test_collection_getitem_is_select():
         assert got == [("alice", "bob"), ("bob", "hamza")]
 
 
-def test_node_edge_getitem_property():
-    """`node[key]` / `edge[key]` return the property value. `node[missing]`
-    raises `KeyError`; `edge[missing]` returns `None` (matches local)."""
+def test_node_edge_property_reads_are_explicit():
+    """The `node[key]` / `edge[key]` property shortcut is gone (it hid the
+    property/metadata distinction and node vs edge disagreed on missing keys);
+    reads go through the explicit properties container on both sides."""
     import pytest
 
     with _make_graph_with_edge() as rg:
         rg.node("ben").add_updates(5, properties={"score": 2.5})
         rg.add_edge(6, "ben", "hamza", properties={"weight": 9.0})
-        assert rg.node("ben")["score"] == 2.5
-        with pytest.raises(KeyError):
-            rg.node("ben")["nonexistent"]
+        assert rg.node("ben").properties.get("score") == 2.5
+        assert rg.node("ben").properties.get("nonexistent") is None
+        assert rg.edge("ben", "hamza").properties.get("weight") == 9.0
 
-        assert rg.edge("ben", "hamza")["weight"] == 9.0
-        assert rg.edge("ben", "hamza")["nonexistent"] is None
+        # the shortcut itself is gone, matching local
+        with pytest.raises(TypeError):
+            rg.node("ben")["score"]
+        with pytest.raises(TypeError):
+            rg.edge("ben", "hamza")["weight"]
 
 
 def test_event_time_fields():
