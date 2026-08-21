@@ -14,7 +14,7 @@ use crate::client::{
     transport::{prop_list, prop_map_get, prop_str},
     ClientError,
 };
-use raphtory_api::core::entities::properties::prop::{Prop, PropMap};
+use raphtory_api::core::entities::properties::prop::{Prop, PropMap, PropType};
 
 /// A single property schema entry — one key on a node/edge type, with its
 /// observed property type and (for string-valued properties) the set of
@@ -22,7 +22,7 @@ use raphtory_api::core::entities::properties::prop::{Prop, PropMap};
 #[derive(Clone, Debug, PartialEq)]
 pub struct RemotePropertySchema {
     pub key: String,
-    pub property_type: String,
+    pub property_type: PropType,
     pub variants: Vec<String>,
 }
 
@@ -122,10 +122,12 @@ impl RemotePropertySchema {
         let map = expect_map(prop, "propertySchema")?;
         Ok(Self {
             key: prop_str(prop_map_get(&map, "key")?, "propertySchema.key")?,
-            property_type: prop_str(
-                prop_map_get(&map, "propertyType")?,
-                "propertySchema.propertyType",
-            )?,
+            property_type: {
+                let json = prop_str(prop_map_get(&map, "dtype")?, "propertySchema.dtype")?;
+                serde_json::from_str(&json).map_err(|e| {
+                    ClientError::InvalidResponse(format!("propertySchema.dtype: {e}"))
+                })?
+            },
             variants: prop_list(prop_map_get(&map, "variants")?, "propertySchema.variants")?
                 .into_iter()
                 .map(|p| prop_str(p, "propertySchema.variants[]"))

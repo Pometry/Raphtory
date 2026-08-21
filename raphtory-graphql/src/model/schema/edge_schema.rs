@@ -91,8 +91,7 @@ fn collect_schema<P: PropertiesOps>(props: P, mapper: &PropMapper) -> SchemaAggr
                 key.to_string(),
                 mapper
                     .get_dtype(id)
-                    .expect("type for internal id should always exist")
-                    .to_string(),
+                    .expect("type for internal id should always exist"),
             );
             Some((key_with_prop_type, HashSet::from([value.to_string()])))
         })

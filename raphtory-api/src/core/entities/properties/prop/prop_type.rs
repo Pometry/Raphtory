@@ -45,6 +45,30 @@ pub enum PropType {
     },
 }
 
+impl std::hash::Hash for PropType {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        // Must agree with the derived `Eq`: `Map` equality ignores field
+        // order (it is a HashMap), so the hash walks the fields in sorted
+        // order — the same canonical order `Debug` and `Display` render.
+        std::mem::discriminant(self).hash(state);
+        match self {
+            PropType::List(inner) => inner.hash(state),
+            PropType::Decimal { scale } => scale.hash(state),
+            PropType::Map(fields) => {
+                let mut entries: Vec<_> = fields.iter().collect();
+                entries.sort_by_key(|(k, _)| k.as_str());
+                entries.len().hash(state);
+                for (k, v) in entries {
+                    k.hash(state);
+                    v.hash(state);
+                }
+            }
+            // Unit variants: the discriminant already said everything.
+            _ => {}
+        }
+    }
+}
+
 impl fmt::Debug for PropType {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         // Only the container spellings differ from `Display` (`List(x)` vs

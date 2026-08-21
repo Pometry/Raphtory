@@ -1471,11 +1471,11 @@ fn render_read_into(
             render_read_into(input, vars, out)?;
             out.push_str(
                 " { schema { \
-                nodes { typeName properties { key propertyType variants } \
-                    metadata { key propertyType variants } } \
+                nodes { typeName properties { key dtype variants } \
+                    metadata { key dtype variants } } \
                 layers { name edges { srcType dstType \
-                    properties { key propertyType variants } \
-                    metadata { key propertyType variants } } } }",
+                    properties { key dtype variants } \
+                    metadata { key dtype variants } } } }",
             );
         }
         // Terminals — no args after the field name
@@ -2963,12 +2963,20 @@ fn parse_read(
                 .collect();
             Ok(Some(Prop::List(items?.into())))
         }
-        // `Schema`: the full nested schema tree. We reuse `json_to_prop` —
+        // `Schema`: the full nested schema tree. Each `dtype` is the serde
+        // form of `PropType`, which the generic Prop conversion would mangle
+        // (`{"Map": ...}` would become a `Prop::Map`), so each is re-encoded
+        // as its JSON text first and survives the tree as a string; the
+        // schema decoder deserializes it back into a real `PropType`.
         // the response is untagged JSON strings, arrays, and objects, all of
         // which `json_to_prop` decodes natively into a nested `Prop::Map` /
         // `Prop::List` tree. The call site walks that tree to build typed
         // `RemoteGraphSchema` structs.
-        ReadExpr::Schema { .. } => Ok(Some(json_to_prop(terminal_val)?)),
+        ReadExpr::Schema { .. } => {
+            let mut tree = terminal_val.clone();
+            stash_dtypes_as_json_text(&mut tree);
+            Ok(Some(json_to_prop(&tree)?))
+        }
         // Compound structured list terminal — JSON shape is
         // `[{"src":{"name":"X"},"dst":{"name":"Y"}}, ...]`. Decode each element
         // into a 2-element inner list `[src, dst]`, wrapped in an outer list.
@@ -3919,6 +3927,25 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
 /// Decode a leaf property value from a JSON response. Delegates to the model's
 /// `gql_to_prop` (the single source of truth for JSON→`Prop` value semantics)
 /// after lifting `serde_json::Value` into `async_graphql::Value`.
+/// Replace every `dtype` value in a schema response with its own JSON text,
+/// so the typed form rides the `Prop` tree as an opaque string instead of
+/// being decoded as if it were property data.
+fn stash_dtypes_as_json_text(v: &mut JsonValue) {
+    match v {
+        JsonValue::Object(map) => {
+            for (key, value) in map.iter_mut() {
+                if key == "dtype" {
+                    *value = JsonValue::String(value.to_string());
+                } else {
+                    stash_dtypes_as_json_text(value);
+                }
+            }
+        }
+        JsonValue::Array(items) => items.iter_mut().for_each(stash_dtypes_as_json_text),
+        _ => {}
+    }
+}
+
 fn json_to_prop(v: &JsonValue) -> Result<Prop, ClientError> {
     let gql =
         GqlValue::from_json(v.clone()).map_err(|e| ClientError::InvalidResponse(e.to_string()))?;

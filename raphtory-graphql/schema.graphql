@@ -6995,7 +6995,14 @@ scalar PropertyOutput
 
 type PropertySchema {
 	key: String!
+	"""
+	The type rendered as text — kept for existing consumers; prefer `dtype`.
+	"""
 	propertyType: String!
+	"""
+	The structured property type.
+	"""
+	dtype: PropertyType!
 	variants: [String!]!
 }
 

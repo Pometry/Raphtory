@@ -873,7 +873,10 @@ def test_graph_schema():
         user_schema = next(n for n in schema.nodes if n.type_name == "user")
         score_prop = next((p for p in user_schema.properties if p.key == "score"), None)
         assert score_prop is not None
-        assert score_prop.property_type == "F64"  # the float 1.5 above
+        # A real PropType, compared by equality — not a rendered string.
+        from raphtory import PropType
+
+        assert score_prop.property_type == PropType.f64()  # the float 1.5 above
 
         # user node type has "role" metadata
         role_meta = next((p for p in user_schema.metadata if p.key == "role"), None)
