@@ -1,4 +1,4 @@
-use async_graphql::{Error, Value as GqlValue};
+use async_graphql::{indexmap::IndexMap, Error, Name, Value as GqlValue};
 use chrono::format::{Item, StrftimeItems};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, Scalar, ScalarValue};
 use raphtory_api::core::{
@@ -160,8 +160,19 @@ impl ScalarValue for GqlTimeInput {
         }
     }
 
+    // The exact inverse of `from_value`: a bare timestamp for `Simple`, the
+    // `{timestamp, eventId}` object for `Indexed`. Rendering `Indexed` as a
+    // bare timestamp would silently drop the locked event_id.
     fn to_value(&self) -> GqlValue {
-        self.t().into()
+        match self.0 {
+            InputTime::Simple(t) => t.into(),
+            InputTime::Indexed(t, event_id) => {
+                let mut obj = IndexMap::new();
+                obj.insert(Name::new("timestamp"), t.into());
+                obj.insert(Name::new("eventId"), event_id.into());
+                GqlValue::Object(obj)
+            }
+        }
     }
 }
 
@@ -300,6 +311,35 @@ mod time_input_serde_tests {
     fn indexed_serializes_as_timestamp_event_id_object() {
         let v = serde_json::to_value(GqlTimeInput(InputTime::Indexed(5, 2))).unwrap();
         assert_eq!(v, serde_json::json!({ "timestamp": 5, "eventId": 2 }));
+    }
+
+    // `to_value` is the scalar's render direction — it must be the exact
+    // inverse of `from_value`, or a locked event_id is lost on the way out.
+    #[test]
+    fn round_trips_through_the_scalar_value_pair() {
+        for t in [
+            InputTime::Simple(-3),
+            InputTime::Simple(0),
+            InputTime::Indexed(7, 0),
+            InputTime::Indexed(9, 4),
+        ] {
+            let rendered = GqlTimeInput(t).to_value();
+            let back = GqlTimeInput::from_value(rendered).unwrap();
+            assert_eq!(back.0, t, "scalar round-trip lost information for {t:?}");
+        }
+    }
+
+    // The rendered form matches the serde wire form, so both paths agree.
+    #[test]
+    fn to_value_matches_the_serde_wire_form() {
+        for t in [InputTime::Simple(5), InputTime::Indexed(5, 2)] {
+            let rendered = serde_json::to_value(GqlTimeInput(t).to_value()).unwrap();
+            let serialized = serde_json::to_value(GqlTimeInput(t)).unwrap();
+            assert_eq!(
+                rendered, serialized,
+                "to_value disagrees with serde for {t:?}"
+            );
+        }
     }
 
     #[test]
