@@ -7,7 +7,10 @@ use crate::{
         api::{
             properties::{Metadata, Properties},
             state::Index,
-            view::{internal::InternalFilter, BaseEdgeViewOps, BoxedLIter},
+            view::{
+                internal::{DynGraphArc, InternalFilter},
+                BaseEdgeViewOps, BoxableGraphView, BoxedLIter,
+            },
         },
         graph::edges::Edges,
         task::{
@@ -153,7 +156,7 @@ impl<'graph, 'a, G: GraphViewOps<'graph>, CS: Clone + ComputeState, S: 'static>
         self.edges.as_metadata()
     }
 
-    fn map_nodes<F: for<'b> Fn(&'b Self::Graph, EdgeRef) -> VID + Send + Sync + Clone + 'graph>(
+    fn map_nodes<F: Fn(&dyn BoxableGraphView, EdgeRef) -> VID + Send + Sync + Clone + 'graph>(
         &self,
         op: F,
     ) -> Self::Nodes {
@@ -172,15 +175,12 @@ impl<'graph, 'a, G: GraphViewOps<'graph>, CS: Clone + ComputeState, S: 'static>
             local_state_prev,
             node_state,
         };
-        EvalPathFromNode {
-            eval_graph,
-            op: path.op,
-        }
+        EvalPathFromNode { eval_graph, path }
     }
 
     fn map_exploded<
         I: Iterator<Item = EdgeRef> + Send + Sync + 'graph,
-        F: for<'b> Fn(&'b Self::Graph, EdgeRef) -> I + Send + Sync + Clone + 'graph,
+        F: Fn(&DynGraphArc<'graph>, EdgeRef) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
         op: F,

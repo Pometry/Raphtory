@@ -10,7 +10,10 @@ use raphtory::{
     db::{
         api::{
             state::NodeOp,
-            view::{internal::GraphView, BoxableGraphView},
+            view::{
+                internal::{DynGraphArc, GraphView},
+                BoxableGraphView,
+            },
         },
         graph::views::filter::{
             model::{
@@ -33,7 +36,8 @@ use raphtory::{
                     SnapshotAt as SnapshotAtWrap, SnapshotLatest as SnapshotLatestWrap,
                 },
                 windowed_filter::Windowed,
-                ComposableFilter, DynFilter, DynView, FilterTree, GraphViewOp, ViewWrapOps,
+                ComposableFilter, DynFilter, DynView, FilterTree, GraphViewOp, Unfiltered,
+                ViewWrapOps,
             },
             CreateFilter,
         },
@@ -678,31 +682,34 @@ impl TryFrom<GqlGraphFilter> for GqlFilter {
 }
 
 impl CreateFilter for GqlFilter {
-    type EntityFiltered<'graph, G: GraphViewOps<'graph>>
-        = Arc<dyn BoxableGraphView + 'graph>
+    type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph>
+        = DynGraphArc<'graph>
     where
         Self: 'graph;
 
-    type NodeFilter<'graph, G: GraphView + 'graph> = Arc<dyn NodeOp<Output = bool> + 'graph>;
+    type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
+        Arc<dyn NodeOp<Output = bool> + 'graph>;
 
     type FilteredGraph<'graph, G>
-        = Arc<dyn BoxableGraphView + 'graph>
+        = DynGraphArc<'graph>
     where
         Self: 'graph,
-        G: GraphViewOps<'graph>;
+        G: GraphView + 'graph;
 
-    fn create_filter<'graph, G: GraphViewOps<'graph>>(
+    fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         graph: G,
-    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
-        DynFilter::try_from(self)?.create_filter(graph)
+        filtered: F,
+    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
+        DynFilter::try_from(self)?.create_filter(graph, filtered)
     }
 
-    fn create_node_filter<'graph, G: GraphView + 'graph>(
+    fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         graph: G,
-    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
-        DynFilter::try_from(self)?.create_node_filter(graph)
+        filtered: F,
+    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
+        DynFilter::try_from(self)?.create_node_filter(graph, filtered)
     }
 
     fn filter_graph_view<'graph, G: GraphView + 'graph>(

@@ -95,6 +95,30 @@ fn edge_alive_at_end<'graph, G: GraphViewOps<'graph>>(
         .any(|(_, additions, deletions)| alive_before(additions, deletions, t))
 }
 
+fn edge_deleted_at<'graph, G: GraphView + 'graph>(
+    e: EdgeEntryRef<'graph>,
+    t: EventTime,
+    view: G,
+) -> bool {
+    let mut active = false;
+    let mut deleted = true;
+    for (_, additions, deletions) in e.filtered_updates_iter(&view, view.layer_ids()) {
+        let last_addition_before_start = additions.range(EventTime::MIN..t).last();
+        let last_deletion_before_start = deletions
+            .merge(additions.invert())
+            .range(EventTime::MIN..t)
+            .last();
+
+        match (last_addition_before_start, last_deletion_before_start) {
+            (None, None) => {}
+            (addition, deletion) => {
+                active = true;
+                deleted &= deletion > addition
+            }
+        }
+    }
+    active && deleted
+}
 fn edge_alive_at_start<'graph, G: GraphViewOps<'graph>>(
     e: EdgeEntryRef<'graph>,
     t: EventTime,
@@ -1075,21 +1099,31 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         edge_alive_at_end(e, r.end, view)
     }
 
+    /// # Semantics
+    ///
+    /// - An edge is deleted if it is deleted in all layers
+    /// - An edge that has no visible deletion event is not deleted (if it has no visible event at
+    ///   all, it is neither deleted nor valid)
     fn edge_is_deleted<'graph, G: GraphViewOps<'graph>>(
         &self,
         e: EdgeEntryRef<'graph>,
         view: G,
     ) -> bool {
-        !edge_alive_at_end(e, EventTime::MAX, view)
+        edge_deleted_at(e, EventTime::MAX, view)
     }
 
+    /// # Semantics
+    ///
+    /// - An edge is deleted if it is deleted in all layers
+    /// - An edge that has no visible deletion event is not deleted (if it has no visible event at
+    ///   all, it is neither deleted nor valid)
     fn edge_is_deleted_window<'graph, G: GraphViewOps<'graph>>(
         &self,
         e: EdgeEntryRef<'graph>,
         view: G,
         w: Range<EventTime>,
     ) -> bool {
-        !edge_alive_at_end(e, w.end, view)
+        edge_deleted_at(e, w.end, view)
     }
 
     fn edge_is_active<'graph, G: GraphViewOps<'graph>>(

@@ -16,7 +16,7 @@ use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
     core::utils::time::TryIntoInterval,
     db::{
-        api::view::{filter_ops::NodeSelect, DynamicGraph, Filter},
+        api::view::{filter_ops::Select, DynamicGraph, Filter},
         graph::{
             path::PathFromNode,
             views::filter::model::{CompositeNodeFilter, DynFilter},

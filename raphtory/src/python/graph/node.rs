@@ -16,7 +16,7 @@ use crate::{
                 LazyNodeState, NodeStateOps,
             },
             view::{
-                filter_ops::NodeSelect,
+                filter_ops::Select,
                 history::History,
                 internal::{
                     DynOrMutableGraph, DynamicGraph, IntoDynHop, IntoDynamic, IntoDynamicOrMutable,
@@ -1009,13 +1009,8 @@ impl<'graph, G: GraphViewOps<'graph>> Repr for PathFromGraph<'graph, G> {
 
 impl<G: StaticGraphViewOps + IntoDynamic> From<PathFromGraph<'static, G>> for PyPathFromGraph {
     fn from(value: PathFromGraph<'static, G>) -> Self {
-        Self {
-            path: PathFromGraph {
-                base_graph: value.base_graph.into_dynamic(),
-                op: value.op,
-                nodes: value.nodes,
-            },
-        }
+        let path = value.into_dyn_hop();
+        Self { path }
     }
 }
 
@@ -1052,12 +1047,8 @@ impl_iterable_mixin!(
 
 impl<G: StaticGraphViewOps + IntoDynamic> From<PathFromNode<'static, G>> for PyPathFromNode {
     fn from(value: PathFromNode<'static, G>) -> Self {
-        Self {
-            path: PathFromNode {
-                base_graph: value.base_graph.clone().into_dynamic(),
-                op: value.op.clone(),
-            },
-        }
+        let path = value.into_dyn_hop();
+        Self { path }
     }
 }
 

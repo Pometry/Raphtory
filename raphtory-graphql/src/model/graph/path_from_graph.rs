@@ -13,7 +13,7 @@ use async_graphql::{Context, Error, Value as GqlValue};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, Scalar, ScalarValue};
 use raphtory::{
     db::{
-        api::view::{filter_ops::NodeSelect, DynamicGraph, Filter},
+        api::view::{filter_ops::Select, DynamicGraph, Filter},
         graph::{
             path::PathFromGraph,
             views::filter::model::{CompositeNodeFilter, DynFilter},

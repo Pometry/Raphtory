@@ -12,7 +12,7 @@ use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
     db::{
-        api::view::{DynamicGraph, EdgeSelect, Filter},
+        api::view::{filter_ops::Select, DynamicGraph, Filter},
         graph::{edges::NestedEdges, views::filter::model::DynFilter},
     },
     errors::GraphError,

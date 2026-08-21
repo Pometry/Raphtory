@@ -27,7 +27,7 @@ use crate::{
         },
     },
     errors::GraphError,
-    prelude::{GraphViewOps, TimeOps},
+    prelude::TimeOps,
 };
 use raphtory_api::core::storage::timeindex::EventTime;
 use std::{fmt, fmt::Display};
@@ -142,40 +142,46 @@ impl<T: TryAsCompositeFilter> TryAsCompositeFilter for Latest<T> {
 }
 
 impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for Latest<T> {
-    type EntityFiltered<'graph, G>
-        = T::EntityFiltered<'graph, G>
+    type EntityFiltered<'graph, G, F>
+        = T::EntityFiltered<'graph, G, F>
     where
-        G: GraphViewOps<'graph> + TimeOps<'graph> + Clone;
+        G: GraphView + TimeOps<'graph> + 'graph,
+        F: GraphView + TimeOps<'graph> + 'graph;
 
-    type NodeFilter<'graph, G>
-        = T::NodeFilter<'graph, G>
+    type NodeFilter<'graph, G, F>
+        = T::NodeFilter<'graph, G, F>
     where
-        G: GraphView + TimeOps<'graph> + Clone + 'graph;
+        G: GraphView + TimeOps<'graph> + 'graph,
+        F: GraphView + TimeOps<'graph> + 'graph;
 
     type FilteredGraph<'graph, G>
         = WindowedGraph<T::FilteredGraph<'graph, G>>
     where
         Self: 'graph,
-        G: GraphViewOps<'graph>;
+        G: GraphView + 'graph;
 
-    fn create_filter<'graph, G>(
+    fn create_filter<'graph, G, F>(
         self,
         graph: G,
-    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError>
+        filtered: F,
+    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError>
     where
-        G: GraphViewOps<'graph> + TimeOps<'graph, WindowedViewType = WindowedGraph<G>> + Clone,
+        G: GraphView + 'graph,
+        F: GraphView + 'graph,
     {
-        self.inner.create_filter(graph)
+        self.inner.create_filter(graph, filtered)
     }
 
-    fn create_node_filter<'graph, G>(
+    fn create_node_filter<'graph, G, F>(
         self,
         graph: G,
-    ) -> Result<Self::NodeFilter<'graph, G>, GraphError>
+        filtered: F,
+    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError>
     where
-        G: GraphView + TimeOps<'graph, WindowedViewType = WindowedGraph<G>> + Clone + 'graph,
+        G: GraphView + 'graph,
+        F: GraphView + 'graph,
     {
-        self.inner.create_node_filter(graph)
+        self.inner.create_node_filter(graph, filtered)
     }
 
     fn filter_graph_view<'graph, G: GraphView + 'graph>(

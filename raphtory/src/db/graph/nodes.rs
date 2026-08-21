@@ -10,7 +10,7 @@ use crate::{
                 Index, LazyNodeState,
             },
             view::{
-                internal::{FilterOps, InternalFilter, InternalNodeSelect, NodeList},
+                internal::{DynGraphArc, FilterOps, InternalFilter, InternalNodeSelect, NodeList},
                 sort::{compare_node, NodeSortBy},
                 BaseNodeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
             },
@@ -402,39 +402,37 @@ where
 
     fn map_edges<
         I: Iterator<Item = EdgeRef> + Send + Sync + 'graph,
-        T: Fn(&GraphStorage, &Self::Graph, VID) -> I + Send + Sync + 'graph,
+        T: Fn(&GraphStorage, &DynGraphArc<'graph>, VID) -> I + Send + Sync + 'graph,
     >(
         &self,
         op: T,
     ) -> Self::Edges {
-        let graph = self.graph.clone();
         let nodes = self.clone();
         let nodes = Arc::new(move || nodes.iter_refs().into_dyn_boxed());
-        let edges = Arc::new(move |node: VID| {
+        let edges = Arc::new(move |graph: DynGraphArc<'graph>, node: VID| {
             let cg = graph.core_graph();
             op(cg, &graph, node).into_dyn_boxed()
         });
-        NestedEdges {
-            graph: self.graph.clone(),
-            nodes,
-            edges,
-        }
+        NestedEdges::new(self.graph.clone(), nodes, edges)
     }
 
     fn hop<
         I: Iterator<Item = VID> + Send + Sync + 'graph,
-        T: Fn(&GraphStorage, &Self::Graph, VID) -> I + Send + Sync + 'graph,
+        T: Fn(&GraphStorage, &DynGraphArc<'graph>, VID) -> I + Send + Sync + 'graph,
     >(
         &self,
         op: T,
     ) -> Self::PathType {
-        let graph = self.graph.clone();
         let nodes = self.clone();
         let nodes = Arc::new(move || nodes.iter_refs().into_dyn_boxed());
-        PathFromGraph::new(self.graph.clone(), nodes, move |v| {
-            let cg = graph.core_graph();
-            op(cg, &graph, v).into_dyn_boxed()
-        })
+        PathFromGraph::new(
+            self.graph.clone(),
+            nodes,
+            Arc::new(move |graph, v| {
+                let cg = graph.core_graph();
+                op(cg, &graph, v).into_dyn_boxed()
+            }),
+        )
     }
 }
 

@@ -18,7 +18,7 @@ use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
     core::utils::time::TryIntoInterval,
     db::{
-        api::view::{DynamicGraph, EdgeSelect},
+        api::view::{internal::InternalFilter, DynamicGraph},
         graph::{edges::Edges, views::filter::model::DynFilter},
     },
     errors::GraphError,
@@ -26,7 +26,11 @@ use raphtory::{
 };
 use raphtory_api::core::utils::time::IntoTime;
 
-use raphtory::db::api::view::Filter;
+use crate::model::graph::filtering::GqlEdgeFilter;
+use raphtory::db::{
+    api::view::{Filter, Select},
+    graph::views::filter::model::edge_filter::CompositeEdgeFilter,
+};
 
 /// A lazy collection of edges from a graph view. Supports the usual view
 /// transforms (window, layer, filter, ...), plus edge-specific ones like
