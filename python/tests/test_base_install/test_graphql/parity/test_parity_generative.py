@@ -22,11 +22,11 @@ server holds hundreds of small graphs without strain); read-only properties
 share one module-scoped pair; RPC-count properties share one counting proxy
 and reset its counter per example.
 
-``max_examples`` per property is budgeted to keep the whole module well
-under two minutes: a fresh-graph example costs ~10-40ms (server calls
-dominate), a shared-pair or RPC-count example ~1-3ms — measured, not guessed,
-so the counts below (150-300 per property) leave several-fold headroom for
-slower CI machines.
+``max_examples`` per property is budgeted against measured per-example cost:
+a fresh-graph example costs ~10-40ms (server calls dominate), a shared-pair or
+RPC-count example ~1-3ms. The counts below (150-600 per property) put the whole
+module at roughly three minutes on a developer laptop — the ceiling to weigh
+when deciding how often CI runs it.
 """
 
 import itertools
@@ -34,8 +34,10 @@ import tempfile
 
 import pytest
 
-hypothesis = pytest.importorskip("hypothesis")
-
+# Imported unconditionally on purpose. Hypothesis is a declared test dependency
+# (`test` extra, and named directly by the `base`/`all` tox envs that run this
+# suite); an `importorskip` here would let a machine without it report the whole
+# module green having generated nothing.
 from hypothesis import HealthCheck, event, example, given, settings, target
 from hypothesis import strategies as st
 
