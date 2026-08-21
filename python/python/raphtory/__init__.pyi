@@ -4341,6 +4341,17 @@ class Edge(object):
             Edges:
         """
 
+    def filter(self, filter: filter.FilterExpr) -> Edge:
+        """
+        Return a filtered view that only includes nodes and edges that satisfy the filter
+
+        Arguments:
+            filter (filter.FilterExpr): The filter to apply to the nodes and edges.
+
+        Returns:
+            Edge: The filtered view
+        """
+
     def has_layer(self, name: str) -> bool:
         """
          Check if Edge has the layer `"name"`
@@ -4810,6 +4821,17 @@ class Edges(object):
 
         Returns:
             Edges:
+        """
+
+    def filter(self, filter: filter.FilterExpr) -> Edges:
+        """
+        Return a filtered view that only includes nodes and edges that satisfy the filter
+
+        Arguments:
+            filter (filter.FilterExpr): The filter to apply to the nodes and edges.
+
+        Returns:
+            Edges: The filtered view
         """
 
     def has_layer(self, name: str) -> bool:
@@ -5308,6 +5330,17 @@ class NestedEdges(object):
 
         Returns:
             Edges:
+        """
+
+    def filter(self, filter: filter.FilterExpr) -> NestedEdges:
+        """
+        Return a filtered view that only includes nodes and edges that satisfy the filter
+
+        Arguments:
+            filter (filter.FilterExpr): The filter to apply to the nodes and edges.
+
+        Returns:
+            NestedEdges: The filtered view
         """
 
     def has_layer(self, name: str) -> bool:

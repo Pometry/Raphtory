@@ -22,12 +22,13 @@ compares what the filtered handle reports:
   hole in the suite.
 * `test_site_matrix_parity` / `test_site_matrix_discriminates` — the same
   expressions again, crossed with every handle that accepts a filter
-  (`graph`, `nodes`, `node`, `PathFromNode`, `PathFromGraph`, and the
-  `collection[expr]` sugar), because a filter can be lowered correctly for one
-  application site and dropped at another.
+  (`graph`, `nodes`, `node`, `PathFromNode`, `PathFromGraph`, `Edges`, `Edge`,
+  `NestedEdges`, and the `collection[expr]` sugar), because a filter can be
+  lowered correctly for one application site and dropped at another.
 
-Divergences found by this module are recorded in `KNOWN_GAPS` and replayed as
-strict xfails at the bottom, so they cannot be forgotten or silently fixed.
+Forms this module cannot reach at all are recorded in
+`UNREACHABLE_FILTER_FORMS` and cross-checked against `KNOWN_GAPS`, so they
+cannot be forgotten.
 """
 
 import pytest
@@ -202,6 +203,43 @@ def _probe_nodes(h):
 
 def _probe_edges(h):
     return {"edges": {_edge_key(e): _edge_facts(e) for e in h}}
+
+
+def _edge_view_facts(e):
+    """`_edge_facts` plus the endpoint degrees.
+
+    An edge handle's own facts — layers, times, validity — do not change when
+    the graph it is viewed through is filtered; the edge keeps its identity and
+    the collection keeps its membership. What changes is the graph *around* it,
+    so the endpoint degrees are what make a filtered edge view observably
+    different from an unfiltered one.
+    """
+    return {
+        **_edge_facts(e),
+        "src_degree": e.src.degree(),
+        "dst_degree": e.dst.degree(),
+    }
+
+
+def _probe_edges_view(h):
+    return {"edges": {_edge_key(e): _edge_view_facts(e) for e in h}}
+
+
+def _probe_edge_view(h):
+    """A single edge handle; a filter may reduce it to ``None``."""
+    return {"edges": {} if h is None else {_edge_key(h): _edge_view_facts(h)}}
+
+
+def _probe_nested_edges(h):
+    # Flattened to `source|src->dst` keys, as `_probe_path_from_graph` does for
+    # nodes: every row stays attributed to its source.
+    return {
+        "edges": {
+            f"{i}|{_edge_key(e)}": _edge_view_facts(e)
+            for i, sub in enumerate(h)
+            for e in sub
+        }
+    }
 
 
 def _probe_node(h):
@@ -821,6 +859,17 @@ FILTER_SITES = {
         lambda g, e: g.nodes.neighbours.filter(e),
         _probe_path_from_graph,
     ),
+    "edges": (lambda g: g.edges, lambda g, e: g.edges.filter(e), _probe_edges_view),
+    "edge": (
+        lambda g: g.edge("hub", "spoke2"),
+        lambda g, e: g.edge("hub", "spoke2").filter(e),
+        _probe_edge_view,
+    ),
+    "nested_edges": (
+        lambda g: g.nodes.edges,
+        lambda g, e: g.nodes.edges.filter(e),
+        _probe_nested_edges,
+    ),
 }
 
 # Expressions applied at every filter site: one per family, each chosen to be
@@ -1112,57 +1161,6 @@ def test_is_in_with_a_mistyped_value_matches_nothing_on_both_sides(filter_pair):
         )
 
 
-# --- divergence ledger ------------------------------------------------------
-
-# Local↔remote filter gaps found by this module. Each is replayed below as a
-# strict xfail, so the day it closes the suite goes red and the entry has to be
-# deleted here and in `_parity.py`.
-FILTER_GAP_CASES = [
-    # ExplodedEdge expressions — predicates AND property/metadata reads — now
-    # cross the wire; they are in the matrix above (`EXPLODED_EXPRS`).
-    # Remote-only application sites: the local Edge / Edges / NestedEdges have
-    # no `filter` at all (locally, filtering is a node-view-op plus GraphView).
-    (
-        "filter.edges.filter",
-        lambda g: sorted(
-            (e.src.name, e.dst.name)
-            for e in g.edges.filter(f.Edge.property("weight") > 2.0)
-        ),
-    ),
-    (
-        "filter.edge.filter",
-        lambda g: g.edge("hub", "spoke2")
-        .filter(f.Edge.property("weight") > 2.0)
-        .src.name,
-    ),
-    (
-        "filter.nested_edges.filter",
-        lambda g: sorted(
-            sorted((e.src.name, e.dst.name) for e in sub)
-            for sub in g.nodes.edges.filter(f.Edge.property("weight") > 2.0)
-        ),
-    ),
-]
-
-_GAP_IDS = [f"{key}-{i}" for i, (key, _) in enumerate(FILTER_GAP_CASES)]
-
-
-@pytest.mark.parametrize(
-    "key,fn",
-    [
-        pytest.param(
-            key,
-            fn,
-            marks=pytest.mark.xfail(reason=KNOWN_GAPS[key], strict=True),
-            id=case_id,
-        )
-        for (key, fn), case_id in zip(FILTER_GAP_CASES, _GAP_IDS)
-    ],
-)
-def test_filter_known_gap(filter_pair, key, fn):
-    assert_parity(filter_pair, fn)
-
-
 # `[expr]` with general (non-kind-typed) expressions: select on the wire now
 # takes GqlFilter, so graph-view / node / mixed expressions narrow membership
 # the same way local core select does.
@@ -1242,8 +1240,6 @@ UNREACHABLE_FILTER_FORMS = ["filter.node.by_state_column"]
 
 def test_filter_gap_cases_are_all_ledgered():
     """Every gap this module knows about corresponds to a KNOWN_GAPS entry."""
-    for key, _ in FILTER_GAP_CASES:
-        assert key in KNOWN_GAPS, f"gap case {key!r} missing from KNOWN_GAPS ledger"
     for key in UNREACHABLE_FILTER_FORMS:
         assert key in KNOWN_GAPS, f"unreachable form {key!r} missing from KNOWN_GAPS"
 

@@ -221,19 +221,9 @@ KNOWN_GAPS = {
     # Exception('Node filter expected') the local engine does, so the case is
     # an ordinary assertion there too
     # (`test_edge_expr_in_a_node_subscript_is_refused_the_same_way`).
-    # Remote-only filter application sites. Like the batch-write entries above,
-    # these run in the other direction: the remote has the API and the local
-    # handle does not, so a graph-agnostic case cannot exercise them.
-    "filter.edges.filter": (
-        "RemoteEdges.filter has no local counterpart; locally filter() is a "
-        "node-view-op plus GraphView, so Edges has no filter method"
-    ),
-    "filter.edge.filter": (
-        "RemoteEdge.filter has no local counterpart (as filter.edges.filter)"
-    ),
-    "filter.nested_edges.filter": (
-        "RemoteNestedEdges.filter has no local counterpart (as " "filter.edges.filter)"
-    ),
+    # The Edge / Edges / NestedEdges `filter` sites used to be ledgered here as
+    # remote-only. They are ordinary matrix entries in test_parity_filters.py
+    # now that the local handles accept a filter too (`FILTER_SITES`).
     # `select()` used to be ledgered here as remote-only. It is remote-only, but
     # that is an additive extra rather than a divergence: the `collection[expr]`
     # sugar both sides share lowers to the same server field, and is covered as
