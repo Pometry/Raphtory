@@ -123,11 +123,6 @@ impl RemoteEdges {
         })
     }
 
-    /// Shrink both start and end of the current window. Lazy — no RPC.
-    pub fn shrink_window(&self, start: InputTime, end: InputTime) -> RemoteEdges {
-        self.with_view_op(ViewOp::ShrinkWindow { start, end })
-    }
-
     /// Shrink the start of the current window. Lazy — no RPC.
     pub fn shrink_start(&self, start: InputTime) -> RemoteEdges {
         self.with_view_op(ViewOp::ShrinkStart { start })

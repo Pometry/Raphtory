@@ -207,18 +207,6 @@ impl GqlPathFromGraph {
         self.update(self.nn.after(time.into_time()))
     }
 
-    /// Shrink both the start and end of the window.
-
-    async fn shrink_window(
-        &self,
-        #[graphql(desc = "Proposed new start (TimeInput); ignored if it would widen the window.")]
-        start: GqlTimeInput,
-        #[graphql(desc = "Proposed new end (TimeInput); ignored if it would widen the window.")]
-        end: GqlTimeInput,
-    ) -> Self {
-        self.update(self.nn.shrink_window(start.into_time(), end.into_time()))
-    }
-
     /// Set the start of the window to the larger of the specified start and self.start().
 
     async fn shrink_start(
@@ -473,9 +461,6 @@ impl GqlPathFromGraph {
                 }
                 PathFromNodeViewCollection::Window(window) => {
                     return_view.window(window.start, window.end).await
-                }
-                PathFromNodeViewCollection::ShrinkWindow(window) => {
-                    return_view.shrink_window(window.start, window.end).await
                 }
                 PathFromNodeViewCollection::ShrinkStart(time) => {
                     return_view.shrink_start(time).await

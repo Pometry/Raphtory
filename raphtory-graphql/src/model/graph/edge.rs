@@ -234,20 +234,6 @@ impl GqlEdge {
         self.ee.after(time.into_time()).into()
     }
 
-    /// Shrinks both the start and end of the window.
-
-    async fn shrink_window(
-        &self,
-        #[graphql(desc = "Proposed new start (TimeInput); ignored if it would widen the window.")]
-        start: GqlTimeInput,
-        #[graphql(desc = "Proposed new end (TimeInput); ignored if it would widen the window.")]
-        end: GqlTimeInput,
-    ) -> Self {
-        self.ee
-            .shrink_window(start.into_time(), end.into_time())
-            .into()
-    }
-
     /// Set the start of the window.
 
     async fn shrink_start(
@@ -315,9 +301,6 @@ impl GqlEdge {
                 EdgeViewCollection::At(at) => return_view.at(at).await,
                 EdgeViewCollection::Before(time) => return_view.before(time).await,
                 EdgeViewCollection::After(time) => return_view.after(time).await,
-                EdgeViewCollection::ShrinkWindow(window) => {
-                    return_view.shrink_window(window.start, window.end).await
-                }
                 EdgeViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await,
                 EdgeViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
                 EdgeViewCollection::EdgeFilter(filter) => {

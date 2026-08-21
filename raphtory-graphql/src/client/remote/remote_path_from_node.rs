@@ -118,11 +118,6 @@ impl RemotePathFromNode {
         })
     }
 
-    /// Shrink both start and end of the current window. Lazy — no RPC.
-    pub fn shrink_window(&self, start: InputTime, end: InputTime) -> RemotePathFromNode {
-        self.with_view_op(ViewOp::ShrinkWindow { start, end })
-    }
-
     /// Shrink the start of the current window. Lazy — no RPC.
     pub fn shrink_start(&self, start: InputTime) -> RemotePathFromNode {
         self.with_view_op(ViewOp::ShrinkStart { start })

@@ -88,7 +88,6 @@ VIEW_OPS = {
     "layer": lambda h: h.layer("knows"),
     "layers": lambda h: h.layers(["knows", "works"]),
     "snapshot_at": lambda h: h.snapshot_at(5),
-    "shrink_window": lambda h: h.shrink_window(3, 8),
     "exclude_layer": lambda h: h.exclude_layer("knows"),
     "valid_layers": lambda h: h.valid_layers(["knows"]),
     "default_layer": lambda h: h.default_layer(),

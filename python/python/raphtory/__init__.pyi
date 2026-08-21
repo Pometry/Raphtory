@@ -486,18 +486,6 @@ class GraphView(object):
              GraphView:
         """
 
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> GraphView:
-        """
-        Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
-
-        Arguments:
-            start (TimeInput): the new start time for the window
-            end (TimeInput): the new end time for the window
-
-        Returns:
-             GraphView:
-        """
-
     def snapshot_at(self, time: TimeInput) -> GraphView:
         """
          Create a view of the GraphView including all events that have not been explicitly deleted at `time`.
@@ -2495,18 +2483,6 @@ class Node(object):
              Node:
         """
 
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> Node:
-        """
-        Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
-
-        Arguments:
-            start (TimeInput): the new start time for the window
-            end (TimeInput): the new end time for the window
-
-        Returns:
-             Node:
-        """
-
     def snapshot_at(self, time: TimeInput) -> Node:
         """
          Create a view of the Node including all events that have not been explicitly deleted at `time`.
@@ -2987,18 +2963,6 @@ class Nodes(object):
 
         Arguments:
            start (TimeInput): the new start time of the window
-
-        Returns:
-             Nodes:
-        """
-
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> Nodes:
-        """
-        Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
-
-        Arguments:
-            start (TimeInput): the new start time for the window
-            end (TimeInput): the new end time for the window
 
         Returns:
              Nodes:
@@ -3498,18 +3462,6 @@ class PathFromNode(object):
              PathFromNode:
         """
 
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> PathFromNode:
-        """
-        Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
-
-        Arguments:
-            start (TimeInput): the new start time for the window
-            end (TimeInput): the new end time for the window
-
-        Returns:
-             PathFromNode:
-        """
-
     def snapshot_at(self, time: TimeInput) -> PathFromNode:
         """
          Create a view of the PathFromNode including all events that have not been explicitly deleted at `time`.
@@ -3989,18 +3941,6 @@ class PathFromGraph(object):
 
         Arguments:
            start (TimeInput): the new start time of the window
-
-        Returns:
-             PathFromGraph:
-        """
-
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> PathFromGraph:
-        """
-        Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
-
-        Arguments:
-            start (TimeInput): the new start time for the window
-            end (TimeInput): the new end time for the window
 
         Returns:
              PathFromGraph:
@@ -4545,18 +4485,6 @@ class Edge(object):
              Edge:
         """
 
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> Edge:
-        """
-        Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
-
-        Arguments:
-            start (TimeInput): the new start time for the window
-            end (TimeInput): the new end time for the window
-
-        Returns:
-             Edge:
-        """
-
     def snapshot_at(self, time: TimeInput) -> Edge:
         """
          Create a view of the Edge including all events that have not been explicitly deleted at `time`.
@@ -5026,18 +4954,6 @@ class Edges(object):
 
         Arguments:
            start (TimeInput): the new start time of the window
-
-        Returns:
-             Edges:
-        """
-
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> Edges:
-        """
-        Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
-
-        Arguments:
-            start (TimeInput): the new start time for the window
-            end (TimeInput): the new end time for the window
 
         Returns:
              Edges:
@@ -5535,18 +5451,6 @@ class NestedEdges(object):
 
         Arguments:
            start (TimeInput): the new start time of the window
-
-        Returns:
-             NestedEdges:
-        """
-
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> NestedEdges:
-        """
-        Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
-
-        Arguments:
-            start (TimeInput): the new start time for the window
-            end (TimeInput): the new end time for the window
 
         Returns:
              NestedEdges:

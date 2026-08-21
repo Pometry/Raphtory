@@ -602,7 +602,6 @@ def view_chains(max_size=3):
         ),
         st.tuples(st.just("shrink_start"), _times),
         st.tuples(st.just("shrink_end"), _times),
-        window_args.map(lambda ab: ("shrink_window", ab[0], ab[1])),
     )
     return st.lists(op, min_size=1, max_size=max_size)
 

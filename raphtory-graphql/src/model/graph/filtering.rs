@@ -97,8 +97,6 @@ pub enum GraphViewCollection {
     Before(GqlTimeInput),
     /// View after a specified time (start exclusive).
     After(GqlTimeInput),
-    /// Shrink a Window to a specified start and end time.
-    ShrinkWindow(Window),
     /// Set the window start to a specified time.
     ShrinkStart(GqlTimeInput),
     /// Set the window end to a specified time.
@@ -133,8 +131,6 @@ pub enum NodesViewCollection {
     Before(GqlTimeInput),
     /// View after a specified time (start exclusive).
     After(GqlTimeInput),
-    /// Shrink a Window to a specified start and end time.
-    ShrinkWindow(Window),
     /// Set the window start to a specified time.
     ShrinkStart(GqlTimeInput),
     /// Set the window end to a specified time.
@@ -169,8 +165,6 @@ pub enum NodeViewCollection {
     Before(GqlTimeInput),
     /// View after a specified time (start exclusive).
     After(GqlTimeInput),
-    /// Shrink a Window to a specified start and end time.
-    ShrinkWindow(Window),
     /// Set the window start to a specified time.
     ShrinkStart(GqlTimeInput),
     /// Set the window end to a specified time.
@@ -203,8 +197,6 @@ pub enum EdgesViewCollection {
     Before(GqlTimeInput),
     /// View after a specified time (start exclusive).
     After(GqlTimeInput),
-    /// Shrink a Window to a specified start and end time.
-    ShrinkWindow(Window),
     /// Set the window start to a specified time.
     ShrinkStart(GqlTimeInput),
     /// Set the window end to a specified time.
@@ -237,8 +229,6 @@ pub enum EdgeViewCollection {
     Before(GqlTimeInput),
     /// View after a specified time (start exclusive).
     After(GqlTimeInput),
-    /// Shrink a Window to a specified start and end time.
-    ShrinkWindow(Window),
     /// Set the window start to a specified time.
     ShrinkStart(GqlTimeInput),
     /// Set the window end to a specified time.
@@ -269,8 +259,6 @@ pub enum PathFromNodeViewCollection {
     Before(GqlTimeInput),
     /// View after a specified time (start exclusive).
     After(GqlTimeInput),
-    /// Shrink a Window to a specified start and end time.
-    ShrinkWindow(Window),
     /// Set the window start to a specified time.
     ShrinkStart(GqlTimeInput),
     /// Set the window end to a specified time.

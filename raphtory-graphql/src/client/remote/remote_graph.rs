@@ -174,12 +174,6 @@ impl RemoteGraph {
         )
     }
 
-    /// Shrink both start and end of the current window (intersection, never widens).
-    /// Lazy — no RPC.
-    pub fn shrink_window(&self, start: InputTime, end: InputTime) -> RemoteGraph {
-        self.with_expr(ViewOp::ShrinkWindow { start, end }.apply(self.expr.clone()))
-    }
-
     /// Shrink the start of the current window. Lazy — no RPC.
     pub fn shrink_start(&self, start: InputTime) -> RemoteGraph {
         self.with_expr(ViewOp::ShrinkStart { start }.apply(self.expr.clone()))

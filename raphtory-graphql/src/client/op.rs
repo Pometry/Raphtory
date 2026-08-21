@@ -799,7 +799,6 @@ pub enum ViewOp {
     Latest,
     SnapshotLatest,
     SnapshotAt { time: InputTime },
-    ShrinkWindow { start: InputTime, end: InputTime },
     ShrinkStart { start: InputTime },
     ShrinkEnd { end: InputTime },
     Layer { name: String },

@@ -291,7 +291,7 @@ def test_node_id_type_and_state():
 
 def test_snapshot_latest_exclude_shrink_view_ops():
     """`.snapshot_at()`, `.latest()`, `.snapshot_latest()`, `.exclude_layer()`,
-    `.shrink_window()`, `.shrink_end()` — all lazy builders that compose with
+    `.shrink_end()` — all lazy builders that compose with
     terminals."""
     with _make_graph_with_edge() as rg:
         # `.snapshot_at(3)` — snapshot at t=3, edge is visible.
@@ -303,9 +303,6 @@ def test_snapshot_latest_exclude_shrink_view_ops():
         # `.exclude_layer("_default")` — the edge was added on the default layer,
         # so excluding it should remove the edge from view (ben degree = 0).
         assert rg.exclude_layer("_default").node("ben").degree() == 0
-        # `.shrink_window` — first widen with window(0, 10), then shrink to [1, 3).
-        # Shrunk view excludes edge at t=3.
-        assert rg.window(0, 10).shrink_window(1, 3).node("ben").degree() == 0
         # `.shrink_end(3)` — after window(0, 10), narrow to end=3.
         assert rg.window(0, 10).shrink_end(3).node("ben").degree() == 0
 
@@ -619,15 +616,13 @@ def test_node_view_chain_builders():
 
 
 def test_node_shrink_builders():
-    """`.shrink_window`, `.shrink_start`, `.shrink_end` narrow an existing window."""
+    """`.shrink_start`, `.shrink_end` narrow one bound of an existing window."""
     with _make_graph_with_edge() as rg:
         rg.add_edge(8, "ben", "hamza")
         # Start from a wide window, then shrink it.
         wide = rg.node("ben").window(0, 100)
         assert wide.edge_history_count() == 2
 
-        # Shrink both ends.
-        assert wide.shrink_window(0, 5).edge_history_count() == 1
         # Shrink start only — cuts off t=3, keeps t=8.
         assert wide.shrink_start(5).edge_history_count() == 1
         # Shrink end only — keeps t=3, cuts off t=8.
@@ -1528,14 +1523,13 @@ def test_edge_view_chain_builders():
 
 
 def test_edge_shrink_builders():
-    """`.shrink_window`, `.shrink_start`, `.shrink_end` narrow an existing window."""
+    """`.shrink_start`, `.shrink_end` narrow one bound of an existing window."""
     with _make_graph_with_edge() as rg:
         rg.add_edge(8, "ben", "hamza")
         wide = rg.edge("ben", "hamza").window(0, 100)
         assert wide.earliest_time == 3
         assert wide.latest_time == 8
 
-        assert wide.shrink_window(0, 5).latest_time == 3
         # shrink_start cuts t=3, keeps t=8.
         assert wide.shrink_start(5).earliest_time == 8
         # shrink_end keeps t=3, cuts t=8.
@@ -3439,6 +3433,7 @@ def _make_property_graphs():
             add_edge(2, "b", "c", {"w": 2.0, "kind": "x"})
             add_edge(3, "c", "a", {"w": 1.0, "kind": "y"})
         yield rg, lg
+
 
 def test_graph_get_all_node_types():
     """`RemoteGraph.get_all_node_types` mirrors local

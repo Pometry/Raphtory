@@ -323,21 +323,6 @@ impl GqlGraph {
         self.apply(|g| g.after(time))
     }
 
-    /// Shrink both the start and end of the window. The new bounds are taken as the
-    /// intersection with the current window; this never widens the view.
-
-    async fn shrink_window(
-        &self,
-        #[graphql(desc = "Proposed new start (TimeInput); ignored if before the current start.")]
-        start: GqlTimeInput,
-        #[graphql(desc = "Proposed new end (TimeInput); ignored if after the current end.")]
-        end: GqlTimeInput,
-    ) -> Self {
-        let start = start.into_time();
-        let end = end.into_time();
-        self.apply(|g| g.shrink_window(start, end))
-    }
-
     /// Set the start of the window to the larger of the specified value or current start.
 
     async fn shrink_start(
@@ -806,9 +791,6 @@ impl GqlGraph {
                 }
                 GraphViewCollection::Before(before) => return_view.before(before).await,
                 GraphViewCollection::After(after) => return_view.after(after).await,
-                GraphViewCollection::ShrinkWindow(window) => {
-                    return_view.shrink_window(window.start, window.end).await
-                }
                 GraphViewCollection::ShrinkStart(start) => return_view.shrink_start(start).await,
                 GraphViewCollection::ShrinkEnd(end) => return_view.shrink_end(end).await,
                 GraphViewCollection::NodeFilter(filter) => {

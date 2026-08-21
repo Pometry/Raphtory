@@ -1191,18 +1191,6 @@ class RemoteGraph(object):
             RemoteGraph: a new view with the window start shrunk.
         """
 
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> RemoteGraph:
-        """
-        Shrink both start and end of the current window. Lazy — no RPC.
-
-        Arguments:
-            start (TimeInput): the new inclusive start of the window.
-            end (TimeInput): the new exclusive end of the window.
-
-        Returns:
-            RemoteGraph: a new view with both window bounds shrunk.
-        """
-
     def snapshot_at(self, time: TimeInput) -> RemoteGraph:
         """
         Snapshot at a specific time. Lazy — no RPC.
@@ -1746,18 +1734,6 @@ class RemoteEdge(object):
 
         Returns:
             RemoteEdge: a new view with the window start shrunk.
-        """
-
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> RemoteEdge:
-        """
-        Shrink both start and end of the current window. Lazy — no RPC.
-
-        Arguments:
-            start (TimeInput): the new inclusive start of the window.
-            end (TimeInput): the new exclusive end of the window.
-
-        Returns:
-            RemoteEdge: a new view with both window bounds shrunk.
         """
 
     def snapshot_at(self, time: TimeInput) -> RemoteEdge:
@@ -2306,18 +2282,6 @@ class RemoteNode(object):
             RemoteNode: a new view with the window start shrunk.
         """
 
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> RemoteNode:
-        """
-        Shrink both start and end of the current window. Lazy — no RPC.
-
-        Arguments:
-            start (TimeInput): the new inclusive start of the window.
-            end (TimeInput): the new exclusive end of the window.
-
-        Returns:
-            RemoteNode: a new view with both window bounds shrunk.
-        """
-
     def snapshot_at(self, time: TimeInput) -> RemoteNode:
         """
         Snapshot at a specific time. Lazy — no RPC.
@@ -2786,18 +2750,6 @@ class RemoteNodes(object):
 
         Returns:
             RemoteNodes: a new collection with the window start shrunk.
-        """
-
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> RemoteNodes:
-        """
-        Shrink both start and end of the current window. Lazy — no RPC.
-
-        Arguments:
-            start (TimeInput): the new inclusive start of the window.
-            end (TimeInput): the new exclusive end of the window.
-
-        Returns:
-            RemoteNodes: a new collection with both window bounds shrunk.
         """
 
     def snapshot_at(self, time: TimeInput) -> RemoteNodes:
@@ -3287,18 +3239,6 @@ class RemotePathFromNode(object):
             RemotePathFromNode: a new collection with the window start shrunk.
         """
 
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> RemotePathFromNode:
-        """
-        Shrink both start and end of the current window. Lazy — no RPC.
-
-        Arguments:
-            start (TimeInput): the new inclusive start of the window.
-            end (TimeInput): the new exclusive end of the window.
-
-        Returns:
-            RemotePathFromNode: a new collection with both window bounds shrunk.
-        """
-
     def snapshot_at(self, time: TimeInput) -> RemotePathFromNode:
         """
         Snapshot at a specific time. Lazy — no RPC.
@@ -3780,18 +3720,6 @@ class RemotePathFromGraph(object):
             RemotePathFromGraph: a new collection with the window start shrunk.
         """
 
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> RemotePathFromGraph:
-        """
-        Shrink both start and end of the current window. Lazy — no RPC.
-
-        Arguments:
-            start (TimeInput): the new inclusive start of the window.
-            end (TimeInput): the new exclusive end of the window.
-
-        Returns:
-            RemotePathFromGraph: a new collection with both window bounds shrunk.
-        """
-
     def snapshot_at(self, time: TimeInput) -> RemotePathFromGraph:
         """
         Snapshot at a specific time. Lazy — no RPC.
@@ -4242,18 +4170,6 @@ class RemoteEdges(object):
 
         Returns:
             RemoteEdges: a new collection with the window start shrunk.
-        """
-
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> RemoteEdges:
-        """
-        Shrink both start and end of the current window. Lazy — no RPC.
-
-        Arguments:
-            start (TimeInput): the new inclusive start of the window.
-            end (TimeInput): the new exclusive end of the window.
-
-        Returns:
-            RemoteEdges: a new collection with both window bounds shrunk.
         """
 
     def snapshot_at(self, time: TimeInput) -> RemoteEdges:
@@ -4736,18 +4652,6 @@ class RemoteNestedEdges(object):
 
         Returns:
             RemoteNestedEdges: a new collection with the window start shrunk.
-        """
-
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> RemoteNestedEdges:
-        """
-        Shrink both start and end of the current window. Lazy — no RPC.
-
-        Arguments:
-            start (TimeInput): the new inclusive start of the window.
-            end (TimeInput): the new exclusive end of the window.
-
-        Returns:
-            RemoteNestedEdges: a new collection with both window bounds shrunk.
         """
 
     def snapshot_at(self, time: TimeInput) -> RemoteNestedEdges:

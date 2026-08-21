@@ -133,18 +133,6 @@ impl PyRemoteNodes {
         PyRemoteNodes::new(self.nodes.exclude_layer(name))
     }
 
-    /// Shrink both start and end of the current window. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     start (TimeInput): the new inclusive start of the window.
-    ///     end (TimeInput): the new exclusive end of the window.
-    ///
-    /// Returns:
-    ///     RemoteNodes: a new collection with both window bounds shrunk.
-    pub fn shrink_window(&self, start: InputTime, end: InputTime) -> PyRemoteNodes {
-        PyRemoteNodes::new(self.nodes.shrink_window(start, end))
-    }
-
     /// Shrink the start of the current window. Lazy — no RPC.
     ///
     /// Arguments:

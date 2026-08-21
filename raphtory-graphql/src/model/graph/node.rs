@@ -232,20 +232,6 @@ impl GqlNode {
         self.vv.after(time.into_time()).into()
     }
 
-    /// Shrink a Window to a specified start and end time, if these are earlier and later than the current start and end respectively.
-
-    async fn shrink_window(
-        &self,
-        #[graphql(desc = "Proposed new start (TimeInput); ignored if it would widen the window.")]
-        start: GqlTimeInput,
-        #[graphql(desc = "Proposed new end (TimeInput); ignored if it would widen the window.")]
-        end: GqlTimeInput,
-    ) -> Self {
-        self.vv
-            .shrink_window(start.into_time(), end.into_time())
-            .into()
-    }
-
     /// Set the start of the window to the larger of a specified start time and self.start().
 
     async fn shrink_start(
@@ -303,9 +289,6 @@ impl GqlNode {
                 NodeViewCollection::At(at) => return_view.at(at).await,
                 NodeViewCollection::Before(time) => return_view.before(time).await,
                 NodeViewCollection::After(time) => return_view.after(time).await,
-                NodeViewCollection::ShrinkWindow(window) => {
-                    return_view.shrink_window(window.start, window.end).await
-                }
                 NodeViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await,
                 NodeViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
                 NodeViewCollection::NodeFilter(filter) => {

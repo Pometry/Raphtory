@@ -962,11 +962,6 @@ fn render_view_op(op: &ViewOp) -> String {
         ViewOp::Latest => "latest".to_string(),
         ViewOp::SnapshotLatest => "snapshotLatest".to_string(),
         ViewOp::SnapshotAt { time } => format!("snapshotAt(time: {})", render_input_time(time)),
-        ViewOp::ShrinkWindow { start, end } => format!(
-            "shrinkWindow(start: {}, end: {})",
-            render_input_time(start),
-            render_input_time(end)
-        ),
         ViewOp::ShrinkStart { start } => {
             format!("shrinkStart(start: {})", render_input_time(start))
         }
@@ -999,7 +994,6 @@ fn view_op_json_key(op: &ViewOp) -> &'static str {
         ViewOp::Latest => "latest",
         ViewOp::SnapshotLatest => "snapshotLatest",
         ViewOp::SnapshotAt { .. } => "snapshotAt",
-        ViewOp::ShrinkWindow { .. } => "shrinkWindow",
         ViewOp::ShrinkStart { .. } => "shrinkStart",
         ViewOp::ShrinkEnd { .. } => "shrinkEnd",
         ViewOp::Layer { .. } => "layer",
