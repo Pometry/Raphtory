@@ -18,7 +18,7 @@ use itertools::Itertools;
 use raphtory::{
     core::utils::time::TryIntoInterval,
     db::{
-        api::view::{internal::InternalFilter, DynamicGraph, EdgeSelect},
+        api::view::{internal::InternalFilter, DynamicGraph},
         graph::edges::Edges,
     },
     errors::GraphError,
@@ -29,7 +29,8 @@ use std::{cmp::Ordering, sync::Arc};
 
 use crate::model::graph::filtering::GqlEdgeFilter;
 use raphtory::db::{
-    api::view::Filter, graph::views::filter::model::edge_filter::CompositeEdgeFilter,
+    api::view::{Filter, Select},
+    graph::views::filter::model::edge_filter::CompositeEdgeFilter,
 };
 
 /// A lazy collection of edges from a graph view. Supports the usual view
@@ -407,7 +408,7 @@ impl GqlEdges {
                 .collect();
             self_clone.update(Edges::new(
                 self_clone.ee.base_graph().clone(),
-                Arc::new(move || {
+                Arc::new(move |_| {
                     let sorted = sorted.clone();
                     (0..sorted.len()).map(move |i| sorted[i]).into_dyn_boxed()
                 }),

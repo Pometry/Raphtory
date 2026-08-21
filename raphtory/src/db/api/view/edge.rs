@@ -8,8 +8,8 @@ use crate::{
             properties::{internal::InternalPropertiesOps, Metadata, Properties},
             view::{
                 history::{DeletionHistory, History},
-                internal::{EdgeTimeSemanticsOps, GraphTimeSemanticsOps, GraphView},
-                IntoDynBoxed,
+                internal::{DynGraphArc, EdgeTimeSemanticsOps, GraphTimeSemanticsOps, GraphView},
+                BoxableGraphView, IntoDynBoxed,
             },
         },
         graph::{
@@ -117,14 +117,14 @@ pub trait BaseEdgeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
 
     fn as_metadata(&self) -> Self::ValueType<Metadata<'graph, Self::PropType>>;
 
-    fn map_nodes<F: for<'a> Fn(&'a Self::Graph, EdgeRef) -> VID + Send + Sync + Clone + 'graph>(
+    fn map_nodes<F: Fn(&dyn BoxableGraphView, EdgeRef) -> VID + Send + Sync + Clone + 'graph>(
         &self,
         op: F,
     ) -> Self::Nodes;
 
     fn map_exploded<
         I: Iterator<Item = EdgeRef> + Send + Sync + 'graph,
-        F: for<'a> Fn(&'a Self::Graph, EdgeRef) -> I + Send + Sync + Clone + 'graph,
+        F: Fn(&DynGraphArc<'graph>, EdgeRef) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
         op: F,

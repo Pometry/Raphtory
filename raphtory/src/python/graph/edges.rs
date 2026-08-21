@@ -1,7 +1,9 @@
 use crate::{
     api::core::storage::timeindex::AsTime,
     db::{
-        api::view::{DynamicGraph, EdgeSelect, IntoDynBoxed, IntoDynamic, StaticGraphViewOps},
+        api::view::{
+            DynamicGraph, IntoDynBoxed, IntoDynHop, IntoDynamic, Select, StaticGraphViewOps,
+        },
         graph::{
             edge::EdgeView,
             edges::{Edges, NestedEdges},
@@ -61,20 +63,22 @@ impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for Edges<'stat
     type Error = <Self::Target as IntoPyObject<'py>>::Error;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        let base_graph = self.base_graph.into_dynamic();
-        let edges = self.edges;
-        PyEdges {
-            edges: Edges { base_graph, edges },
-        }
-        .into_pyobject(py)
+        let edges = self.into_dyn();
+        PyEdges { edges }.into_pyobject(py)
     }
 }
 
 impl<G: StaticGraphViewOps + IntoDynamic> From<Edges<'static, G>> for PyEdges {
     fn from(value: Edges<'static, G>) -> Self {
         let base_graph = value.base_graph.into_dynamic();
+        let edges = value.edges;
+        let select = value.select;
         Self {
-            edges: Edges::new(base_graph, value.edges),
+            edges: Edges {
+                base_graph,
+                edges,
+                select,
+            },
         }
     }
 }
@@ -367,11 +371,7 @@ impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for NestedEdges
     type Error = <Self::Target as IntoPyObject<'py>>::Error;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        let edges = NestedEdges {
-            nodes: self.nodes,
-            graph: self.graph.into_dynamic(),
-            edges: self.edges,
-        };
+        let edges = self.into_dyn_hop();
         PyNestedEdges { edges }.into_pyobject(py)
     }
 }
@@ -384,9 +384,17 @@ impl<'graph, G: GraphViewOps<'graph>> Repr for NestedEdges<'graph, G> {
 
 impl<G: StaticGraphViewOps + IntoDynamic> From<NestedEdges<'static, G>> for PyNestedEdges {
     fn from(value: NestedEdges<'static, G>) -> Self {
-        let base_graph = value.graph.into_dynamic();
+        let graph = value.graph.into_dynamic();
+        let nodes = value.nodes;
+        let edges = value.edges;
+        let select = value.select;
         Self {
-            edges: NestedEdges::new(base_graph, value.nodes, value.edges),
+            edges: NestedEdges {
+                graph,
+                nodes,
+                edges,
+                select,
+            },
         }
     }
 }

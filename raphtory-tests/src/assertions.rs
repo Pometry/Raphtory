@@ -1,7 +1,7 @@
 use raphtory::{
     db::{
         api::view::{
-            filter_ops::{EdgeSelect, Filter, NodeSelect},
+            filter_ops::{Filter, Select},
             StaticGraphViewOps,
         },
         graph::views::{
