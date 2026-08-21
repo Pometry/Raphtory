@@ -4,11 +4,9 @@ use crate::{
     model::{
         algorithms::GqlAlgorithms,
         graph::{
-            collection::check_list_allowed,
             edge::GqlEdge,
             edges::GqlEdges,
             filtering::{GqlEdgeFilter, GqlFilter, GqlNodeFilter, GraphViewCollection},
-            mutable_graph::{as_properties, GqlPropertyInput},
             node::GqlNode,
             node_id::GqlNodeId,
             nodes::GqlNodes,
@@ -49,7 +47,7 @@ use raphtory::{
 use raphtory_api::core::{storage::timeindex::AsTime, utils::time::IntoTime};
 use raphtory_storage::core_ops::CoreGraphOps;
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashSet,
     convert::{Into, TryInto},
 };
 
@@ -684,68 +682,6 @@ impl GqlGraph {
                 Some(intersection) => intersection.into_iter().map(|vv| vv.into()).collect(),
                 None => vec![],
             }
-        })
-        .await)
-    }
-
-    /// The nodes whose latest property value matches every `(key, value)`
-    /// entry in `propertiesDict`. Mirrors the local `Graph.find_nodes`.
-
-    async fn find_nodes(
-        &self,
-        ctx: &Context<'_>,
-        #[graphql(desc = "`{key, value}` property entries every returned node must match.")]
-        properties_dict: Vec<GqlPropertyInput>,
-    ) -> Result<Vec<GqlNode>> {
-        // Unbounded scan over every node — honour the same list guard as
-        // `nodes.list` so `disable_lists` can't be bypassed via find.
-        check_list_allowed(ctx)?;
-        let props: HashMap<String, Prop> = as_properties(properties_dict)?.collect();
-        let self_clone = self.clone();
-        Ok(blocking_compute(move || {
-            self_clone
-                .graph
-                .nodes()
-                .into_iter()
-                .filter(|n| {
-                    let node_props = n.properties();
-                    props
-                        .iter()
-                        .all(|(k, v)| node_props.get(k).as_ref() == Some(v))
-                })
-                .map(|n| n.into())
-                .collect()
-        })
-        .await)
-    }
-
-    /// The edges whose latest property value matches every `(key, value)`
-    /// entry in `propertiesDict`. Mirrors the local `Graph.find_edges`.
-
-    async fn find_edges(
-        &self,
-        ctx: &Context<'_>,
-        #[graphql(desc = "`{key, value}` property entries every returned edge must match.")]
-        properties_dict: Vec<GqlPropertyInput>,
-    ) -> Result<Vec<GqlEdge>> {
-        // Unbounded scan over every edge — honour the same list guard as
-        // `edges.list` so `disable_lists` can't be bypassed via find.
-        check_list_allowed(ctx)?;
-        let props: HashMap<String, Prop> = as_properties(properties_dict)?.collect();
-        let self_clone = self.clone();
-        Ok(blocking_compute(move || {
-            self_clone
-                .graph
-                .edges()
-                .into_iter()
-                .filter(|e| {
-                    let edge_props = e.properties();
-                    props
-                        .iter()
-                        .all(|(k, v)| edge_props.get(k).as_ref() == Some(v))
-                })
-                .map(|e| e.into())
-                .collect()
         })
         .await)
     }

@@ -3437,36 +3437,6 @@ def _make_property_graphs():
             add_edge(3, "c", "a", {"w": 1.0, "kind": "y"})
         yield rg, lg
 
-
-def test_graph_find_nodes():
-    """`RemoteGraph.find_nodes` mirrors local `Graph.find_nodes` — nodes whose
-    latest property values match every entry in the dict."""
-    with _make_property_graphs() as (rg, lg):
-        r = sorted(n.name for n in rg.find_nodes({"score": 10}))
-        l = sorted(n.name for n in lg.find_nodes({"score": 10}))
-        assert r == l == ["a", "c"]
-
-        # No matches.
-        assert rg.find_nodes({"score": 999}) == []
-        # Two-key match narrows to a single node.
-        assert [n.name for n in rg.find_nodes({"score": 20})] == ["b"]
-
-
-def test_graph_find_edges():
-    """`RemoteGraph.find_edges` mirrors local `Graph.find_edges` — edges whose
-    latest property values match every entry in the dict."""
-    with _make_property_graphs() as (rg, lg):
-        r_kind = sorted(e.id for e in rg.find_edges({"kind": "x"}))
-        l_kind = sorted(e.id for e in lg.find_edges({"kind": "x"}))
-        assert r_kind == l_kind == [("a", "b"), ("b", "c")]
-
-        r_w = sorted(e.id for e in rg.find_edges({"w": 1.0}))
-        l_w = sorted(e.id for e in lg.find_edges({"w": 1.0}))
-        assert r_w == l_w == [("a", "b"), ("c", "a")]
-
-        assert rg.find_edges({"kind": "zzz"}) == []
-
-
 def test_graph_get_all_node_types():
     """`RemoteGraph.get_all_node_types` mirrors local
     `Graph.get_all_node_types`."""

@@ -284,8 +284,6 @@ TERMINALS = {
     "graph.has_node": (lambda rg: rg, lambda g: g.has_node("a")),
     "graph.has_edge": (lambda rg: rg, lambda g: g.has_edge("a", "b")),
     "graph.get_all_node_types": (lambda rg: rg, lambda g: g.get_all_node_types()),
-    "graph.find_nodes": (lambda rg: rg, lambda g: g.find_nodes({"score": 3.0})),
-    "graph.find_edges": (lambda rg: rg, lambda g: g.find_edges({"weight": 2.0})),
     # node
     "node.degree": (lambda rg: rg.node("a"), lambda n: n.degree()),
     "node.in_degree": (lambda rg: rg.node("a"), lambda n: n.in_degree()),

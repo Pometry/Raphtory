@@ -2634,26 +2634,6 @@ type Graph {
 		selectedNodes: [NodeId!]!
 	): [Node!]!
 	"""
-	The nodes whose latest property value matches every `(key, value)`
-	entry in `propertiesDict`. Mirrors the local `Graph.find_nodes`.
-	"""
-	findNodes(
-		"""
-		`{key, value}` property entries every returned node must match.
-		"""
-		propertiesDict: [PropertyInput!]!
-	): [Node!]!
-	"""
-	The edges whose latest property value matches every `(key, value)`
-	entry in `propertiesDict`. Mirrors the local `Graph.find_edges`.
-	"""
-	findEdges(
-		"""
-		`{key, value}` property entries every returned edge must match.
-		"""
-		propertiesDict: [PropertyInput!]!
-	): [Edge!]!
-	"""
 	All node types present in the graph. Mirrors the local
 	`Graph.get_all_node_types`.
 	"""

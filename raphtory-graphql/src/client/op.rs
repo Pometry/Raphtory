@@ -349,22 +349,6 @@ pub enum ReadExpr {
     /// Server field: `sharedNeighbours(selectedNodes: [NodeId!]!)`.
     SharedNeighbours { input: Arc<ReadExpr>, ids: Vec<GID> },
 
-    /// Terminal on Graph: the nodes whose latest property values match every
-    /// `(name, value)` entry in `properties`. Returns `Vec<String>` of node
-    /// names — clients wrap each in a `RemoteNode`. Server field:
-    /// `findNodes(propertiesDict: [PropertyInput!]!)`.
-    FindNodes {
-        input: Arc<ReadExpr>,
-        properties: HashMap<String, Prop>,
-    },
-    /// Terminal on Graph: the edges whose latest property values match every
-    /// `(name, value)` entry in `properties`. Returns `Vec<(String, String)>`
-    /// of `(src, dst)` name pairs — clients wrap each in a `RemoteEdge`.
-    /// Server field: `findEdges(propertiesDict: [PropertyInput!]!)`.
-    FindEdges {
-        input: Arc<ReadExpr>,
-        properties: HashMap<String, Prop>,
-    },
     /// Terminal on Graph: all node types present in the graph — `Vec<String>`.
     /// Server field: `getAllNodeTypes`.
     GetAllNodeTypes { input: Arc<ReadExpr> },

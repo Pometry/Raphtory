@@ -695,44 +695,6 @@ impl PyRemoteGraph {
         Ok(nodes.into_iter().map(PyRemoteNode::new).collect())
     }
 
-    /// Get the nodes whose latest value matches every property in
-    /// `properties_dict`. Mirrors the local `Graph.find_nodes`. Fires one RPC.
-    ///
-    /// Arguments:
-    ///     properties_dict (dict[str, PropValue]): the property names and values
-    ///         a node must match.
-    ///
-    /// Returns:
-    ///     list[RemoteNode]: the nodes that match all the given properties.
-    pub fn find_nodes(
-        &self,
-        properties_dict: HashMap<String, Prop>,
-    ) -> Result<Vec<PyRemoteNode>, ClientError> {
-        let graph = Arc::clone(&self.graph);
-        let nodes =
-            execute_async_task(move || async move { graph.find_nodes(properties_dict).await })?;
-        Ok(nodes.into_iter().map(PyRemoteNode::new).collect())
-    }
-
-    /// Get the edges whose latest value matches every property in
-    /// `properties_dict`. Mirrors the local `Graph.find_edges`. Fires one RPC.
-    ///
-    /// Arguments:
-    ///     properties_dict (dict[str, PropValue]): the property names and values
-    ///         an edge must match.
-    ///
-    /// Returns:
-    ///     list[RemoteEdge]: the edges that match all the given properties.
-    pub fn find_edges(
-        &self,
-        properties_dict: HashMap<String, Prop>,
-    ) -> Result<Vec<PyRemoteEdge>, ClientError> {
-        let graph = Arc::clone(&self.graph);
-        let edges =
-            execute_async_task(move || async move { graph.find_edges(properties_dict).await })?;
-        Ok(edges.into_iter().map(PyRemoteEdge::new).collect())
-    }
-
     /// Returns all the node types present in the graph. Mirrors the local
     /// `Graph.get_all_node_types`. Fires one RPC.
     ///

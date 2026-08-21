@@ -34,15 +34,13 @@ use crate::{
     prelude::*,
     python::{
         filter::filter_expr::PyFilterExpr,
-        graph::{edge::PyEdge, node::PyNode},
         types::repr::{Repr, StructReprBuilder},
         utils::PyNodeRef,
     },
 };
 use pyo3::{prelude::*, Borrowed};
 use raphtory_api::{core::storage::arc_str::ArcStr, python::timeindex::PyOptionalEventTime};
-use rayon::prelude::*;
-use std::{collections::HashMap, path::PathBuf};
+use std::path::PathBuf;
 
 impl<'py> IntoPyObject<'py> for MaterializedGraph {
     type Target = PyAny;
@@ -276,31 +274,6 @@ impl PyGraphView {
         self.graph.node(id)
     }
 
-    /// Get the nodes that match the properties name and value
-    /// Arguments:
-    ///     properties_dict (dict[str, PropValue]): the properties name and value
-    /// Returns:
-    ///    list[Node]: the nodes that match the properties name and value
-    #[pyo3(signature = (properties_dict))]
-    pub fn find_nodes(&self, properties_dict: HashMap<String, Prop>) -> Vec<PyNode> {
-        let iter = self.nodes().into_iter().par_bridge();
-        let out = iter
-            .filter(|n| {
-                let props = n.properties();
-                properties_dict.iter().all(|(k, v)| {
-                    if let Some(prop) = props.get(k) {
-                        &prop == v
-                    } else {
-                        false
-                    }
-                })
-            })
-            .map(PyNode::from)
-            .collect::<Vec<_>>();
-
-        out
-    }
-
     /// Gets the nodes in the graph
     ///
     /// Returns:
@@ -321,31 +294,6 @@ impl PyGraphView {
     #[pyo3(signature = (src, dst))]
     pub fn edge(&self, src: PyNodeRef, dst: PyNodeRef) -> Option<EdgeView<DynamicGraph>> {
         self.graph.edge(src, dst)
-    }
-
-    /// Get the edges that match the properties name and value
-    /// Arguments:
-    ///     properties_dict (dict[str, PropValue]): the properties name and value
-    /// Returns:
-    ///    list[Edge]: the edges that match the properties name and value
-    #[pyo3(signature = (properties_dict))]
-    pub fn find_edges(&self, properties_dict: HashMap<String, Prop>) -> Vec<PyEdge> {
-        let iter = self.edges().into_iter().par_bridge();
-        let out = iter
-            .filter(|e| {
-                let props = e.properties();
-                properties_dict.iter().all(|(k, v)| {
-                    if let Some(prop) = props.get(k) {
-                        &prop == v
-                    } else {
-                        false
-                    }
-                })
-            })
-            .map(PyEdge::from)
-            .collect::<Vec<_>>();
-
-        out
     }
 
     /// Gets all edges in the graph

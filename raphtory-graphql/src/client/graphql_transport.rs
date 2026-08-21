@@ -599,12 +599,6 @@ impl VarCollector {
         self.add("GqlFilter!", f)
     }
 
-    /// Register a property dict (`findNodes`/`findEdges` `propertiesDict` arg)
-    /// as a `[PropertyInput!]!` variable.
-    fn add_properties(&mut self, props: &HashMap<String, Prop>) -> Result<String, ClientError> {
-        self.add("[PropertyInput!]!", &properties_to_input(props)?)
-    }
-
     /// Serialize `value`, register it as `$fN: <gql_type>`, and return `$fN`.
     /// A serialization failure (e.g. a non-finite float in a filter value) maps
     /// to `InvalidInput` — the same class the literal renderer rejected.
@@ -1808,26 +1802,6 @@ fn render_read_into(
                 render_gid_list(ids)
             )?;
         }
-        // `findNodes(propertiesDict: [{key, value}]) { name }` — opens ONE net
-        // brace (before `findNodes`); inner `{ name }` is self-balanced.
-        ReadExpr::FindNodes { input, properties } => {
-            render_read_into(input, vars, out)?;
-            write!(
-                out,
-                " {{ findNodes(propertiesDict: {}) {{ id }}",
-                vars.add_properties(properties)?
-            )?;
-        }
-        // `findEdges(propertiesDict: [{key, value}]) { src { name } dst { name } }`
-        // — opens ONE net brace; the inner `src`/`dst` groups are self-balanced.
-        ReadExpr::FindEdges { input, properties } => {
-            render_read_into(input, vars, out)?;
-            write!(
-                out,
-                " {{ findEdges(propertiesDict: {}) {{ src {{ id }} dst {{ id }} }}",
-                vars.add_properties(properties)?
-            )?;
-        }
         ReadExpr::GetAllNodeTypes { input } => {
             render_read_into(input, vars, out)?;
             out.push_str(" { getAllNodeTypes");
@@ -2073,8 +2047,6 @@ fn read_depth(expr: &ReadExpr) -> usize {
         | ReadExpr::NestedMetadataKeys { input }
         | ReadExpr::NestedPropertiesKeys { input }
         | ReadExpr::SharedNeighbours { input, .. }
-        | ReadExpr::FindNodes { input, .. }
-        | ReadExpr::FindEdges { input, .. }
         | ReadExpr::GetAllNodeTypes { input }
         | ReadExpr::PropertyGetDtypeOf { input, .. }
         | ReadExpr::CountNodes { input }
@@ -2735,9 +2707,9 @@ fn parse_read(
                 .collect();
             Ok(Some(Prop::List(items?.into())))
         }
-        // `sharedNeighbours { id }` / `findNodes { id }` — arrays of typed-id
-        // records; the client wraps each id in a `RemoteNode`.
-        ReadExpr::SharedNeighbours { .. } | ReadExpr::FindNodes { .. } => {
+        // `sharedNeighbours { id }` — an array of typed-id records; the
+        // client wraps each id in a `RemoteNode`.
+        ReadExpr::SharedNeighbours { .. } => {
             let arr = terminal_val.as_array().ok_or_else(|| {
                 ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
             })?;
@@ -2750,41 +2722,6 @@ fn parse_read(
                             terminal_key
                         ))
                     })?)
-                })
-                .collect();
-            Ok(Some(Prop::List(items?.into())))
-        }
-        // `findEdges { src { name } dst { name } }` — array of edge records.
-        // Decode each into a 2-element inner list `[src, dst]`, matching the
-        // shape used by `EdgesList`; the client wraps each in a `RemoteEdge`.
-        ReadExpr::FindEdges { .. } => {
-            let arr = terminal_val.as_array().ok_or_else(|| {
-                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
-            })?;
-            let items: Result<Vec<Prop>, ClientError> = arr
-                .iter()
-                .map(|v| {
-                    let src = v
-                        .get("src")
-                        .and_then(|s| s.get("id"))
-                        .map(gid_prop)
-                        .transpose()?
-                        .ok_or_else(|| {
-                            ClientError::InvalidResponse(
-                                "findEdges element missing `src.id`".into(),
-                            )
-                        })?;
-                    let dst = v
-                        .get("dst")
-                        .and_then(|d| d.get("id"))
-                        .map(gid_prop)
-                        .transpose()?
-                        .ok_or_else(|| {
-                            ClientError::InvalidResponse(
-                                "findEdges element missing `dst.id`".into(),
-                            )
-                        })?;
-                    Ok(Prop::List(vec![src, dst].into()))
                 })
                 .collect();
             Ok(Some(Prop::List(items?.into())))
@@ -3681,14 +3618,6 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
                 go(input, out);
                 out.push("sharedNeighbours");
             }
-            ReadExpr::FindNodes { input, .. } => {
-                go(input, out);
-                out.push("findNodes");
-            }
-            ReadExpr::FindEdges { input, .. } => {
-                go(input, out);
-                out.push("findEdges");
-            }
             ReadExpr::GetAllNodeTypes { input } => {
                 go(input, out);
                 out.push("getAllNodeTypes");
@@ -4326,8 +4255,6 @@ fn child_input(expr: &ReadExpr) -> Option<&ReadExpr> {
         | ReadExpr::NestedMetadataKeys { input }
         | ReadExpr::NestedPropertiesKeys { input }
         | ReadExpr::SharedNeighbours { input, .. }
-        | ReadExpr::FindNodes { input, .. }
-        | ReadExpr::FindEdges { input, .. }
         | ReadExpr::GetAllNodeTypes { input }
         | ReadExpr::PropertyGetDtypeOf { input, .. }
         | ReadExpr::CountNodes { input }

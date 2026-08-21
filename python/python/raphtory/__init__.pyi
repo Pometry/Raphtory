@@ -301,24 +301,6 @@ class GraphView(object):
             GraphView: The filtered view
         """
 
-    def find_edges(self, properties_dict: dict[str, PropValue]) -> list[Edge]:
-        """
-        Get the edges that match the properties name and value
-        Arguments:
-            properties_dict (dict[str, PropValue]): the properties name and value
-        Returns:
-           list[Edge]: the edges that match the properties name and value
-        """
-
-    def find_nodes(self, properties_dict: dict[str, PropValue]) -> list[Node]:
-        """
-        Get the nodes that match the properties name and value
-        Arguments:
-            properties_dict (dict[str, PropValue]): the properties name and value
-        Returns:
-           list[Node]: the nodes that match the properties name and value
-        """
-
     def has_edge(self, src: NodeInput, dst: NodeInput) -> bool:
         """
         Returns true if the graph contains the specified edge

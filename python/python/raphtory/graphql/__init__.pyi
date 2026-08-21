@@ -948,32 +948,6 @@ class RemoteGraph(object):
                 `NodeFilter` or `EdgeFilter`.
         """
 
-    def find_edges(self, properties_dict: dict[str, PropValue]) -> list[RemoteEdge]:
-        """
-        Get the edges whose latest value matches every property in
-        `properties_dict`. Mirrors the local `Graph.find_edges`. Fires one RPC.
-
-        Arguments:
-            properties_dict (dict[str, PropValue]): the property names and values
-                an edge must match.
-
-        Returns:
-            list[RemoteEdge]: the edges that match all the given properties.
-        """
-
-    def find_nodes(self, properties_dict: dict[str, PropValue]) -> list[RemoteNode]:
-        """
-        Get the nodes whose latest value matches every property in
-        `properties_dict`. Mirrors the local `Graph.find_nodes`. Fires one RPC.
-
-        Arguments:
-            properties_dict (dict[str, PropValue]): the property names and values
-                a node must match.
-
-        Returns:
-            list[RemoteNode]: the nodes that match all the given properties.
-        """
-
     def get_all_node_types(self) -> list[str]:
         """
         Returns all the node types present in the graph. Mirrors the local
