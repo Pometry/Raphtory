@@ -3,6 +3,7 @@ use crate::{
     auth_policy::{AuthorizationPolicy, NamespacePermission},
     data::{parent_namespace, require_graph_write, Data, GqlGraphType, PermissionError},
     model::{
+        data_source::{GqlDataSource, ParquetInput},
         graph::{
             collection::GqlCollection, graph::GqlGraph, meta_graph::MetaGraph,
             mutable_graph::GqlMutableGraph, namespace::Namespace, namespaced_item::NamespacedItem,
@@ -38,16 +39,28 @@ use raphtory::{
     version,
 };
 use raphtory_api::core::entities::properties::prop::PropType;
-use std::{collections::HashMap, path::PathBuf, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 use tracing::warn;
 
 #[cfg(feature = "vectors")]
 use crate::model::graph::vectorised_graph::VectorQuery;
 
+pub mod data_source;
 pub mod graph;
 pub mod plugins;
 pub(crate) mod schema;
 pub(crate) mod sorting;
+
+async fn resolve_parquet_input<'a>(
+    ctx: &Context<'a>,
+    data: &Data,
+    data_source: GqlDataSource,
+) -> Result<ParquetInput> {
+    match data_source {
+        GqlDataSource::Path(path) => ParquetInput::from_path(data, path).await,
+        GqlDataSource::Upload(upload) => ParquetInput::from_upload(ctx, upload),
+    }
+}
 
 pub(crate) fn parse_json_schema(
     json: Option<&str>,
@@ -320,7 +333,8 @@ impl Mut {
     async fn load_nodes<'a>(
         ctx: &Context<'a>,
         #[graphql(desc = "Graph path relative to the root namespace.")] graph_path: String,
-        #[graphql(desc = "Path to the parquet directory.")] data_path: String,
+        #[graphql(desc = "Where to read the parquet from: a server path or an upload.")]
+        data_source: GqlDataSource,
         #[graphql(desc = "The column name for the timestamps.")] time: String,
         #[graphql(desc = "The column name for the node IDs.")] id: String,
         #[graphql(
@@ -364,19 +378,14 @@ impl Mut {
 
         let schema = parse_json_schema(schema.as_deref())?;
 
-        // extracting PathBuf handles Strings too
-        let data_path = PathBuf::from(data_path);
-
-        data.is_parquet_path_allowed(&data_path)
-            .await
-            .map_err(|e| GqlGraphError::LoadError(e.to_string()))?;
+        let input = resolve_parquet_input(ctx, data, data_source).await?;
 
         // wrap in Arc to avoid cloning the entire schema for inner loops
         let arced_schema = schema.map(Arc::new);
 
         load_nodes_from_parquet(
             &graph,
-            &data_path,
+            &input.path,
             &time,
             event_id.as_deref(),
             &id,
@@ -399,7 +408,8 @@ impl Mut {
     async fn load_edges<'a>(
         ctx: &Context<'a>,
         #[graphql(desc = "Graph path relative to the root namespace.")] graph_path: String,
-        #[graphql(desc = "Path to the parquet directory.")] data_path: String,
+        #[graphql(desc = "Where to read the parquet from: a server path or an upload.")]
+        data_source: GqlDataSource,
         #[graphql(desc = "The column name for the update timestamps.")] time: String,
         #[graphql(desc = "The column name for the source node IDs.")] src: String,
         #[graphql(desc = "The column name for the destination node IDs.")] dst: String,
@@ -439,19 +449,14 @@ impl Mut {
 
         let schema = parse_json_schema(schema.as_deref())?;
 
-        // extracting PathBuf handles Strings too
-        let data_path = PathBuf::from(data_path);
-
-        data.is_parquet_path_allowed(&data_path)
-            .await
-            .map_err(|e| GqlGraphError::LoadError(e.to_string()))?;
+        let input = resolve_parquet_input(ctx, data, data_source).await?;
 
         // wrap in Arc to avoid cloning the entire schema for inner loops
         let arced_schema = schema.map(Arc::new);
 
         load_edges_from_parquet(
             &graph,
-            &data_path,
+            &input.path,
             ColumnNames::new(
                 time.as_str(),
                 event_id.as_deref(),

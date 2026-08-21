@@ -297,11 +297,11 @@ Graph path relative to the root namespace.
 </td>
 </tr>
 <tr>
-<td colspan="2" align="right" valign="top">dataPath</td>
-<td valign="top"><a href="#string">String</a>!</td>
+<td colspan="2" align="right" valign="top">dataSource</td>
+<td valign="top"><a href="#datasource">DataSource</a>!</td>
 <td>
 
-Path to the parquet directory.
+Where to read the parquet from: a server path or an upload.
 
 </td>
 </tr>
@@ -414,11 +414,11 @@ Graph path relative to the root namespace.
 </td>
 </tr>
 <tr>
-<td colspan="2" align="right" valign="top">dataPath</td>
-<td valign="top"><a href="#string">String</a>!</td>
+<td colspan="2" align="right" valign="top">dataSource</td>
+<td valign="top"><a href="#datasource">DataSource</a>!</td>
 <td>
 
-Path to the parquet directory.
+Where to read the parquet from: a server path or an upload.
 
 </td>
 </tr>
@@ -4490,6 +4490,16 @@ int:
 </td>
 </tr>
 <tr>
+<td colspan="2" valign="top"><strong id="metagraph.graphtype">graphType</strong></td>
+<td valign="top"><a href="#graphtype">GraphType</a>!</td>
+<td>
+
+Whether the stored graph carries event or persistent semantics.
+Served from the cached metadata, so it costs no graph load.
+
+</td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="metagraph.metadata">metadata</strong></td>
 <td valign="top">[<a href="#property">Property</a>!]!</td>
 <td>
@@ -8358,6 +8368,41 @@ Optional `{start, end}` to restrict matches to edges active in that interval.
 </table>
 
 ## Inputs
+
+### DataSource
+
+Where a loader reads its parquet from: a directory already on the server, or
+data supplied with the request.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="datasource.path">path</strong></td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+Path to a parquet directory on the server. Subject to the parquet allowlist.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="datasource.upload">upload</strong></td>
+<td valign="top"><a href="#upload">Upload</a></td>
+<td>
+
+Multipart upload of a single parquet file.
+
+</td>
+</tr>
+</tbody>
+</table>
 
 ### DegreeFilterNew
 

@@ -116,6 +116,21 @@ type CollectionOfNamespacedItem {
 }
 
 """
+Where a loader reads its parquet from: a directory already on the server, or
+data supplied with the request.
+"""
+input DataSource @oneOf {
+	"""
+	Path to a parquet directory on the server. Subject to the parquet allowlist.
+	"""
+	path: String
+	"""
+	Multipart upload of a single parquet file.
+	"""
+	upload: Upload
+}
+
+"""
 Filters nodes by computed degree with a directional scope.
 
 `DegreeFilterNew` lets callers filter on:
@@ -2521,6 +2536,11 @@ type MetaGraph {
 	"""
 	edgeCount: Int!
 	"""
+	Whether the stored graph carries event or persistent semantics.
+	Served from the cached metadata, so it costs no graph load.
+	"""
+	graphType: GraphType!
+	"""
 	Returns the metadata of the graph.
 	
 	Reads metadata without forcing a full graph load: from the
@@ -2596,9 +2616,9 @@ type MutRoot {
 		"""
 		graphPath: String!,
 		"""
-		Path to the parquet directory.
+		Where to read the parquet from: a server path or an upload.
 		"""
-		dataPath: String!,
+		dataSource: DataSource!,
 		"""
 		The column name for the timestamps.
 		"""
@@ -2649,9 +2669,9 @@ type MutRoot {
 		"""
 		graphPath: String!,
 		"""
-		Path to the parquet directory.
+		Where to read the parquet from: a server path or an upload.
 		"""
-		dataPath: String!,
+		dataSource: DataSource!,
 		"""
 		The column name for the update timestamps.
 		"""

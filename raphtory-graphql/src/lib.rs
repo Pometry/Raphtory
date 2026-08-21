@@ -2454,37 +2454,12 @@ mod graphql_test {
     #[tokio::test]
     async fn test_load_nodes_from_parquet() {
         use crate::config::app_config::AppConfigBuilder;
-        use arrow::{
-            array::{Int64Array, StringArray},
-            datatypes::{DataType, Field, Schema as ArrowSchema},
-            record_batch::RecordBatch,
-        };
-        use parquet::arrow::ArrowWriter;
-        use std::{fs::File, sync::Arc};
 
         let graph_dir = tempdir().unwrap();
         let tmp_dir = tempdir().unwrap();
 
-        // Write a minimal parquet file: two nodes "a" and "b" at t=1 with a weight property.
         let parquet_path = tmp_dir.path().join("nodes.parquet");
-        let arrow_schema = Arc::new(ArrowSchema::new(vec![
-            Field::new("id", DataType::Utf8, false),
-            Field::new("time", DataType::Int64, false),
-            Field::new("weight", DataType::Int64, true),
-        ]));
-        let batch = RecordBatch::try_new(
-            arrow_schema.clone(),
-            vec![
-                Arc::new(StringArray::from(vec!["a", "b"])),
-                Arc::new(Int64Array::from(vec![1, 1])),
-                Arc::new(Int64Array::from(vec![10, 20])),
-            ],
-        )
-        .unwrap();
-        let file = File::create(&parquet_path).unwrap();
-        let mut writer = ArrowWriter::try_new(file, arrow_schema, None).unwrap();
-        writer.write(&batch).unwrap();
-        writer.close().unwrap();
+        write_nodes_parquet_with_ids(&parquet_path, &["a", "b"]);
 
         // Build an AppConfig that permits the temp dir as a parquet source.
         let app_config = AppConfigBuilder::new()
@@ -2508,7 +2483,7 @@ mod graphql_test {
             r#"mutation {{
                 loadNodes(
                     graphPath: "mygraph",
-                    dataPath: "{}",
+                    dataSource: {{ path: "{}" }},
                     time: "time",
                     id: "id",
                     properties: ["weight"]
@@ -2541,41 +2516,279 @@ mod graphql_test {
     }
 
     #[tokio::test]
+    async fn test_load_nodes_from_upload() {
+        use std::fs::File;
+
+        let tmp_dir = tempdir().unwrap();
+        let graph_dir = tempdir().unwrap();
+        let parquet_path = tmp_dir.path().join("nodes.parquet");
+        write_nodes_parquet_with_ids(&parquet_path, &["a", "b"]);
+
+        let data = Data::new(graph_dir.path(), &Default::default(), Config::default());
+        let folder = data
+            .work_dir_write()
+            .await
+            .validate_path_for_insert("mygraph", false)
+            .unwrap();
+        data.insert_graph(folder, Graph::new().into())
+            .await
+            .unwrap();
+        let schema = App::create_schema().data(data).finish().unwrap();
+
+        let mutation = r#"mutation Load($ds: DataSource!) {
+            loadNodes(graphPath: "mygraph", dataSource: $ds, time: "time", id: "id", properties: ["weight"])
+        }"#;
+        let mut req = Request::new(mutation).variables(Variables::from_json(json!({
+            "ds": {"upload": null}
+        })));
+        req.set_upload(
+            "variables.ds.upload",
+            UploadValue {
+                filename: "nodes.parquet".to_string(),
+                content_type: Some("application/octet-stream".to_string()),
+                content: File::open(&parquet_path).unwrap(),
+            },
+        );
+
+        let res = schema.execute(req.data(Access::Rw)).await;
+        assert_eq!(res.errors, vec![], "loadNodes upload returned errors");
+        assert_eq!(res.data.into_json().unwrap(), json!({"loadNodes": true}));
+
+        let query = r#"{ graph(path: "mygraph") { nodes { list { name } } } }"#;
+        let res = schema.execute(Request::new(query).data(Access::Rw)).await;
+        assert_eq!(res.errors, vec![], "node query returned errors");
+        let mut names: Vec<String> = res.data.into_json().unwrap()["graph"]["nodes"]["list"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|n| n["name"].as_str().unwrap().to_string())
+            .collect();
+        names.sort();
+        assert_eq!(names, vec!["a", "b"]);
+    }
+
+    #[tokio::test]
+    async fn test_load_edges_from_upload() {
+        use std::fs::File;
+
+        let tmp_dir = tempdir().unwrap();
+        let graph_dir = tempdir().unwrap();
+        let parquet_path = tmp_dir.path().join("edges.parquet");
+        write_edges_parquet(&parquet_path, &[("a", "b"), ("b", "c")]);
+
+        let data = Data::new(graph_dir.path(), &Default::default(), Config::default());
+        let folder = data
+            .work_dir_write()
+            .await
+            .validate_path_for_insert("mygraph", false)
+            .unwrap();
+        data.insert_graph(folder, Graph::new().into())
+            .await
+            .unwrap();
+        let schema = App::create_schema().data(data).finish().unwrap();
+
+        let mutation = r#"mutation Load($ds: DataSource!) {
+            loadEdges(graphPath: "mygraph", dataSource: $ds, time: "time", src: "src", dst: "dst", properties: ["weight"])
+        }"#;
+        let mut req = Request::new(mutation).variables(Variables::from_json(json!({
+            "ds": {"upload": null}
+        })));
+        req.set_upload(
+            "variables.ds.upload",
+            UploadValue {
+                filename: "edges.parquet".to_string(),
+                content_type: Some("application/octet-stream".to_string()),
+                content: File::open(&parquet_path).unwrap(),
+            },
+        );
+
+        let res = schema.execute(req.data(Access::Rw)).await;
+        assert_eq!(res.errors, vec![], "loadEdges upload returned errors");
+        assert_eq!(res.data.into_json().unwrap(), json!({"loadEdges": true}));
+
+        let query =
+            r#"{ graph(path: "mygraph") { edges { list { src { name } dst { name } } } } }"#;
+        let res = schema.execute(Request::new(query).data(Access::Rw)).await;
+        assert_eq!(res.errors, vec![], "edge query returned errors");
+        let mut edges: Vec<(String, String)> = res.data.into_json().unwrap()["graph"]["edges"]
+            ["list"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|e| {
+                (
+                    e["src"]["name"].as_str().unwrap().to_string(),
+                    e["dst"]["name"].as_str().unwrap().to_string(),
+                )
+            })
+            .collect();
+        edges.sort();
+        assert_eq!(
+            edges,
+            vec![
+                ("a".to_string(), "b".to_string()),
+                ("b".to_string(), "c".to_string())
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn test_data_source_requires_exactly_one_field() {
+        use crate::config::app_config::AppConfigBuilder;
+
+        let graph_dir = tempdir().unwrap();
+        let parquet_dir = tempdir().unwrap();
+        let parquet_path = write_nodes_parquet(parquet_dir.path());
+
+        // Allowlisting the parquet leaves the oneOf rule as the only thing that can
+        // reject the both-fields-supplied case.
+        let app_config = AppConfigBuilder::new()
+            .with_allowed_parquet_paths(vec![parquet_dir.path().to_path_buf()])
+            .build();
+        let data = Data::new(graph_dir.path(), &app_config, Config::default());
+        let folder = data
+            .work_dir_write()
+            .await
+            .validate_path_for_insert("g", false)
+            .unwrap();
+        data.insert_graph(folder, Graph::new().into())
+            .await
+            .unwrap();
+        let schema = App::create_schema().data(data).finish().unwrap();
+
+        let allowed = parquet_path.to_str().unwrap().replace('\\', "/");
+        let load = |ds: String| {
+            format!(
+                r#"mutation {{ loadNodes(graphPath: "g", dataSource: {ds}, time: "time", id: "id") }}"#
+            )
+        };
+
+        // The allowlisted path on its own loads, so any rejection below is the oneOf rule.
+        let res = run_mutation(&schema, &load(format!(r#"{{ path: "{allowed}" }}"#))).await;
+        assert_eq!(res.errors, vec![], "single-field dataSource should load");
+
+        for ds in [
+            "{}".to_string(),
+            format!(r#"{{ path: "{allowed}", upload: null }}"#),
+        ] {
+            let res = run_mutation(&schema, &load(ds.clone())).await;
+            assert!(
+                res.errors.iter().any(|e| e
+                    .message
+                    .contains("Oneof input objects requires have exactly one field")),
+                "dataSource {ds} should be rejected by the oneOf contract, got: {:?}",
+                res.errors
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn test_load_nodes_from_large_upload() {
+        use std::fs::File;
+
+        let tmp_dir = tempdir().unwrap();
+        let graph_dir = tempdir().unwrap();
+        let parquet_path = tmp_dir.path().join("many.parquet");
+        // Enough distinct ids to put the parquet comfortably past any 2MB body default.
+        let ids: Vec<String> = (0..250_000).map(|i| format!("n{i}")).collect();
+        write_nodes_parquet_with_ids(
+            &parquet_path,
+            &ids.iter().map(String::as_str).collect::<Vec<_>>(),
+        );
+        let payload_size = fs::metadata(&parquet_path).unwrap().len();
+        assert!(
+            payload_size > 2 * 1024 * 1024,
+            "test payload must exceed 2MB to be meaningful, got {payload_size} bytes"
+        );
+
+        let data = Data::new(graph_dir.path(), &Default::default(), Config::default());
+        let folder = data
+            .work_dir_write()
+            .await
+            .validate_path_for_insert("big", false)
+            .unwrap();
+        data.insert_graph(folder, Graph::new().into())
+            .await
+            .unwrap();
+        let schema = App::create_schema().data(data).finish().unwrap();
+
+        let mutation = r#"mutation Load($ds: DataSource!) {
+            loadNodes(graphPath: "big", dataSource: $ds, time: "time", id: "id")
+        }"#;
+        let mut req =
+            Request::new(mutation).variables(Variables::from_json(json!({"ds": {"upload": null}})));
+        req.set_upload(
+            "variables.ds.upload",
+            UploadValue {
+                filename: "many.parquet".to_string(),
+                content_type: Some("application/octet-stream".to_string()),
+                content: File::open(&parquet_path).unwrap(),
+            },
+        );
+        let res = schema.execute(req.data(Access::Rw)).await;
+        assert_eq!(res.errors, vec![], "large upload returned errors");
+
+        let query = r#"{ graphMetadata(path: "big") { nodeCount } }"#;
+        let res = schema.execute(Request::new(query).data(Access::Rw)).await;
+        assert_eq!(res.errors, vec![], "graphMetadata query returned errors");
+        assert_eq!(
+            res.data.into_json().unwrap()["graphMetadata"]["nodeCount"],
+            250_000
+        );
+    }
+
+    #[tokio::test]
+    async fn test_meta_graph_exposes_graph_type() {
+        let graph_dir = tempdir().unwrap();
+        let data = Data::new(graph_dir.path(), &Default::default(), Config::default());
+
+        for (path, graph) in [
+            ("event", MaterializedGraph::from(Graph::new())),
+            (
+                "persistent",
+                MaterializedGraph::from(PersistentGraph::new()),
+            ),
+        ] {
+            let folder = data
+                .work_dir_write()
+                .await
+                .validate_path_for_insert(path, false)
+                .unwrap();
+            data.insert_graph(folder, graph).await.unwrap();
+        }
+
+        let schema = App::create_schema().data(data).finish().unwrap();
+        let res = schema
+            .execute(
+                Request::new(
+                    r#"{
+                        event: graphMetadata(path: "event") { graphType }
+                        persistent: graphMetadata(path: "persistent") { graphType }
+                    }"#,
+                )
+                .data(Access::Rw),
+            )
+            .await;
+
+        assert_eq!(res.errors, vec![], "graphMetadata query returned errors");
+        assert_eq!(
+            res.data.into_json().unwrap(),
+            json!({
+                "event": {"graphType": "EVENT"},
+                "persistent": {"graphType": "PERSISTENT"},
+            })
+        );
+    }
+
+    #[tokio::test]
     async fn test_load_edges_from_parquet() {
         use crate::config::app_config::AppConfigBuilder;
-        use arrow::{
-            array::{Int64Array, StringArray},
-            datatypes::{DataType, Field, Schema as ArrowSchema},
-            record_batch::RecordBatch,
-        };
-        use parquet::arrow::ArrowWriter;
-        use std::{fs::File, sync::Arc};
 
         let graph_dir = tempdir().unwrap();
         let tmp_dir = tempdir().unwrap();
 
-        // Write a minimal parquet file: two edges a→b and b→c at t=1 with a weight property.
         let parquet_path = tmp_dir.path().join("edges.parquet");
-        let arrow_schema = Arc::new(ArrowSchema::new(vec![
-            Field::new("src", DataType::Utf8, false),
-            Field::new("dst", DataType::Utf8, false),
-            Field::new("time", DataType::Int64, false),
-            Field::new("weight", DataType::Int64, true),
-        ]));
-        let batch = RecordBatch::try_new(
-            arrow_schema.clone(),
-            vec![
-                Arc::new(StringArray::from(vec!["a", "b"])),
-                Arc::new(StringArray::from(vec!["b", "c"])),
-                Arc::new(Int64Array::from(vec![1, 1])),
-                Arc::new(Int64Array::from(vec![10, 20])),
-            ],
-        )
-        .unwrap();
-        let file = File::create(&parquet_path).unwrap();
-        let mut writer = ArrowWriter::try_new(file, arrow_schema, None).unwrap();
-        writer.write(&batch).unwrap();
-        writer.close().unwrap();
+        write_edges_parquet(&parquet_path, &[("a", "b"), ("b", "c")]);
 
         // Build an AppConfig that permits the temp dir as a parquet source.
         let app_config = AppConfigBuilder::new()
@@ -2599,7 +2812,7 @@ mod graphql_test {
             r#"mutation {{
                 loadEdges(
                     graphPath: "mygraph",
-                    dataPath: "{}",
+                    dataSource: {{ path: "{}" }},
                     time: "time",
                     src: "src",
                     dst: "dst",
@@ -2646,8 +2859,9 @@ mod graphql_test {
 
     // ── allowed-paths tests ──────────────────────────────────────────────────
 
-    /// Write a one-row nodes parquet file into `dir` and return its path.
-    fn write_nodes_parquet(dir: &std::path::Path) -> std::path::PathBuf {
+    /// Write a nodes parquet file at `path` with one row per id, all at t=1 and
+    /// carrying an ascending `weight` property.
+    fn write_nodes_parquet_with_ids(path: &std::path::Path, ids: &[&str]) {
         use arrow::{
             array::{Int64Array, StringArray},
             datatypes::{DataType, Field, Schema as ArrowSchema},
@@ -2656,24 +2870,70 @@ mod graphql_test {
         use parquet::arrow::ArrowWriter;
         use std::{fs::File, sync::Arc};
 
-        let path = dir.join("nodes.parquet");
-        let schema = Arc::new(ArrowSchema::new(vec![
+        let arrow_schema = Arc::new(ArrowSchema::new(vec![
             Field::new("id", DataType::Utf8, false),
             Field::new("time", DataType::Int64, false),
+            Field::new("weight", DataType::Int64, true),
         ]));
+        let times: Vec<i64> = ids.iter().map(|_| 1).collect();
+        let weights: Vec<i64> = (0..ids.len() as i64).collect();
         let batch = RecordBatch::try_new(
-            schema.clone(),
+            arrow_schema.clone(),
             vec![
-                Arc::new(StringArray::from(vec!["x"])),
-                Arc::new(Int64Array::from(vec![1i64])),
+                Arc::new(StringArray::from(ids.to_vec())),
+                Arc::new(Int64Array::from(times)),
+                Arc::new(Int64Array::from(weights)),
             ],
         )
         .unwrap();
-        let file = File::create(&path).unwrap();
-        let mut writer = ArrowWriter::try_new(file, schema, None).unwrap();
+        let file = File::create(path).unwrap();
+        let mut writer = ArrowWriter::try_new(file, arrow_schema, None).unwrap();
         writer.write(&batch).unwrap();
         writer.close().unwrap();
+    }
+
+    /// Write a one-row nodes parquet file into `dir` and return its path.
+    fn write_nodes_parquet(dir: &std::path::Path) -> std::path::PathBuf {
+        let path = dir.join("nodes.parquet");
+        write_nodes_parquet_with_ids(&path, &["x"]);
         path
+    }
+
+    /// Write an edges parquet file at `path`, one row per `(src, dst)` pair at t=1
+    /// carrying an ascending `weight` property.
+    fn write_edges_parquet(path: &std::path::Path, pairs: &[(&str, &str)]) {
+        use arrow::{
+            array::{Int64Array, StringArray},
+            datatypes::{DataType, Field, Schema as ArrowSchema},
+            record_batch::RecordBatch,
+        };
+        use parquet::arrow::ArrowWriter;
+        use std::{fs::File, sync::Arc};
+
+        let arrow_schema = Arc::new(ArrowSchema::new(vec![
+            Field::new("src", DataType::Utf8, false),
+            Field::new("dst", DataType::Utf8, false),
+            Field::new("time", DataType::Int64, false),
+            Field::new("weight", DataType::Int64, true),
+        ]));
+        let srcs: Vec<&str> = pairs.iter().map(|(src, _)| *src).collect();
+        let dsts: Vec<&str> = pairs.iter().map(|(_, dst)| *dst).collect();
+        let times: Vec<i64> = pairs.iter().map(|_| 1).collect();
+        let weights: Vec<i64> = (0..pairs.len() as i64).collect();
+        let batch = RecordBatch::try_new(
+            arrow_schema.clone(),
+            vec![
+                Arc::new(StringArray::from(srcs)),
+                Arc::new(StringArray::from(dsts)),
+                Arc::new(Int64Array::from(times)),
+                Arc::new(Int64Array::from(weights)),
+            ],
+        )
+        .unwrap();
+        let file = File::create(path).unwrap();
+        let mut writer = ArrowWriter::try_new(file, arrow_schema, None).unwrap();
+        writer.write(&batch).unwrap();
+        writer.close().unwrap();
     }
 
     #[tokio::test]
@@ -2700,7 +2960,7 @@ mod graphql_test {
         let schema = App::create_schema().data(data).finish().unwrap();
         let parquet_path_str = parquet_path.to_str().unwrap().replace('\\', "/");
         let mutation = format!(
-            r#"mutation {{ loadNodes(graphPath: "g", dataPath: "{}", time: "time", id: "id") }}"#,
+            r#"mutation {{ loadNodes(graphPath: "g", dataSource: {{ path: "{}" }}, time: "time", id: "id") }}"#,
             parquet_path_str
         );
         let res = run_mutation(&schema, &mutation).await;
@@ -2735,7 +2995,7 @@ mod graphql_test {
         let schema = App::create_schema().data(data).finish().unwrap();
         let parquet_path_str = parquet_path.to_str().unwrap().replace('\\', "/");
         let mutation = format!(
-            r#"mutation {{ loadNodes(graphPath: "g", dataPath: "{}", time: "time", id: "id") }}"#,
+            r#"mutation {{ loadNodes(graphPath: "g", dataSource: {{ path: "{}" }}, time: "time", id: "id") }}"#,
             parquet_path_str
         );
         let res = run_mutation(&schema, &mutation).await;
@@ -2776,7 +3036,7 @@ mod graphql_test {
         let schema = App::create_schema().data(data).finish().unwrap();
         let parquet_path_str = parquet_path.to_str().unwrap().replace('\\', "/");
         let mutation = format!(
-            r#"mutation {{ loadNodes(graphPath: "g", dataPath: "{}", time: "time", id: "id") }}"#,
+            r#"mutation {{ loadNodes(graphPath: "g", dataSource: {{ path: "{}" }}, time: "time", id: "id") }}"#,
             parquet_path_str
         );
         let res = run_mutation(&schema, &mutation).await;
@@ -2818,7 +3078,7 @@ mod graphql_test {
         let schema = App::create_schema().data(data).finish().unwrap();
         let parquet_path_str = parquet_path.to_str().unwrap().replace('\\', "/");
         let mutation = format!(
-            r#"mutation {{ loadNodes(graphPath: "g", dataPath: "{}", time: "time", id: "id") }}"#,
+            r#"mutation {{ loadNodes(graphPath: "g", dataSource: {{ path: "{}" }}, time: "time", id: "id") }}"#,
             parquet_path_str
         );
         let res = run_mutation(&schema, &mutation).await;
@@ -2890,7 +3150,7 @@ mod graphql_test {
             r#"mutation {{
                 loadNodes(
                     graphPath: "g",
-                    dataPath: "{}",
+                    dataSource: {{ path: "{}" }},
                     time: "time",
                     id: "id",
                     properties: ["score"],
@@ -2953,7 +3213,7 @@ mod graphql_test {
         let schema = App::create_schema().data(data).finish().unwrap();
         let parquet_path_str = parquet_path.to_str().unwrap().replace('\\', "/");
         let mutation = format!(
-            r#"mutation {{ loadNodes(graphPath: "g", dataPath: "{}", time: "time", id: "id") }}"#,
+            r#"mutation {{ loadNodes(graphPath: "g", dataSource: {{ path: "{}" }}, time: "time", id: "id") }}"#,
             parquet_path_str
         );
         let res = run_mutation(&schema, &mutation).await;

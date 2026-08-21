@@ -1,5 +1,5 @@
 use crate::{
-    data::Data,
+    data::{Data, GqlGraphType},
     model::graph::property::GqlProperty,
     paths::{ExistingGraphFolder, ValidGraphPaths},
 };
@@ -11,7 +11,10 @@ use raphtory::{
     prelude::{GraphViewOps, PropertiesOps},
     serialise::{metadata::build_graph_metadata, parquet::decode_graph_metadata},
 };
-use raphtory_api::core::storage::graph_folder::{GraphMetadata, GraphPaths};
+use raphtory_api::{
+    core::storage::graph_folder::{GraphMetadata, GraphPaths},
+    GraphType,
+};
 use std::{cmp::Ordering, sync::Arc};
 use tokio::sync::OnceCell;
 
@@ -111,6 +114,16 @@ impl MetaGraph {
     async fn edge_count(&self, ctx: &Context<'_>) -> Result<usize> {
         let data: &Data = ctx.data_unchecked();
         Ok(self.meta(data).await?.edge_count)
+    }
+
+    /// Whether the stored graph carries event or persistent semantics.
+    /// Served from the cached metadata, so it costs no graph load.
+    async fn graph_type(&self, ctx: &Context<'_>) -> Result<GqlGraphType> {
+        let data: &Data = ctx.data_unchecked();
+        Ok(match self.meta(data).await?.graph_type {
+            GraphType::EventGraph => GqlGraphType::Event,
+            GraphType::PersistentGraph => GqlGraphType::Persistent,
+        })
     }
 
     /// Returns the metadata of the graph.
