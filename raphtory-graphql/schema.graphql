@@ -1709,7 +1709,18 @@ type Edges {
 	
 	Returns:
 	int:
+	The property keys this collection reports: the first member's registry
+	view — the graph's registered property keys for the entity kind — or an
+	empty list when there are no members. Mirrors the local collection
+	`properties.keys()`.
 	"""
+	propertyKeys: [String!]!
+	"""
+	The metadata keys this collection reports: the first member's registry
+	view, or an empty list when there are no members. Mirrors the local
+	collection `metadata.keys()`.
+	"""
+	metadataKeys: [String!]!
 	count: Int!
 	"""
 	Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
@@ -4398,7 +4409,18 @@ type NestedEdges {
 	explodeLayers: NestedEdges!
 	"""
 	Number of source edge collections in this collection (one per source node).
+	The property keys this collection reports: the first non-empty source's first member's registry
+	view — the graph's registered property keys for the entity kind — or an
+	empty list when there are no members. Mirrors the local collection
+	`properties.keys()`.
 	"""
+	propertyKeys: [String!]!
+	"""
+	The metadata keys this collection reports: the first non-empty source's first member's registry
+	view, or an empty list when there are no members. Mirrors the local
+	collection `metadata.keys()`.
+	"""
+	metadataKeys: [String!]!
 	count: Int!
 	"""
 	Fetch one page of source edge collections up to a specified limit, optionally offset by a specified amount.
@@ -5772,7 +5794,18 @@ type Nodes {
 	edgeHistoryCount: [Int!]!
 	"""
 	Number of nodes in the current view.
+	The property keys this collection reports: the first member's registry
+	view — the graph's registered property keys for the entity kind — or an
+	empty list when there are no members. Mirrors the local collection
+	`properties.keys()`.
 	"""
+	propertyKeys: [String!]!
+	"""
+	The metadata keys this collection reports: the first member's registry
+	view, or an empty list when there are no members. Mirrors the local
+	collection `metadata.keys()`.
+	"""
+	metadataKeys: [String!]!
 	count: Int!
 	"""
 	Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
@@ -6180,7 +6213,18 @@ type PathFromGraph {
 	combinedHistory: History!
 	"""
 	Number of source paths in this collection (one per source node).
+	The property keys this collection reports: the first non-empty source's first member's registry
+	view — the graph's registered property keys for the entity kind — or an
+	empty list when there are no members. Mirrors the local collection
+	`properties.keys()`.
 	"""
+	propertyKeys: [String!]!
+	"""
+	The metadata keys this collection reports: the first non-empty source's first member's registry
+	view, or an empty list when there are no members. Mirrors the local
+	collection `metadata.keys()`.
+	"""
+	metadataKeys: [String!]!
 	count: Int!
 	"""
 	Fetch one page of source paths up to a specified limit, optionally offset by a specified amount.
@@ -6531,7 +6575,18 @@ type PathFromNode {
 	edgeHistoryCount: [Int!]!
 	"""
 	Number of neighbour nodes reachable from the source in this view.
+	The property keys this collection reports: the first member's registry
+	view — the graph's registered property keys for the entity kind — or an
+	empty list when there are no members. Mirrors the local collection
+	`properties.keys()`.
 	"""
+	propertyKeys: [String!]!
+	"""
+	The metadata keys this collection reports: the first member's registry
+	view, or an empty list when there are no members. Mirrors the local
+	collection `metadata.keys()`.
+	"""
+	metadataKeys: [String!]!
 	count: Int!
 	"""
 	Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.

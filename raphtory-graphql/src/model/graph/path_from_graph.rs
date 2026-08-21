@@ -286,6 +286,42 @@ impl GqlPathFromGraph {
     /////////////////
 
     /// Number of source paths in this collection (one per source node).
+
+    /// The property keys this collection reports: the first non-empty source's first member's registry
+    /// view — the graph's registered property keys for the entity kind — or an
+    /// empty list when there are no members. Mirrors the local collection
+    /// `properties.keys()`.
+    async fn property_keys(&self) -> Vec<String> {
+        let self_clone = self.clone();
+        blocking_compute(move || {
+            self_clone
+                .nn
+                .properties()
+                .filter_map(|(_, mut it)| it.next())
+                .next()
+                .map(|p| p.keys().map(|k| k.to_string()).collect())
+                .unwrap_or_default()
+        })
+        .await
+    }
+
+    /// The metadata keys this collection reports: the first non-empty source's first member's registry
+    /// view, or an empty list when there are no members. Mirrors the local
+    /// collection `metadata.keys()`.
+    async fn metadata_keys(&self) -> Vec<String> {
+        let self_clone = self.clone();
+        blocking_compute(move || {
+            self_clone
+                .nn
+                .metadata()
+                .filter_map(|(_, mut it)| it.next())
+                .next()
+                .map(|p| p.keys().map(|k| k.to_string()).collect())
+                .unwrap_or_default()
+        })
+        .await
+    }
+
     async fn count(&self) -> usize {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.nn.len()).await

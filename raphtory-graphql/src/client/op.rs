@@ -688,18 +688,18 @@ pub enum ReadExpr {
         keys: Arc<[String]>,
     },
 
-    // Collection-level key lookup. Local `MetadataView::keys()` reads the
-    // FIRST member's key set (the per-entity filtered property registry), so
-    // the remote mirrors that with a `page(limit: 1)` selection — one member's
-    // key names over the wire, never the collection's property values. Empty
-    // collection → empty key list, matching local's `unwrap_or_default()`.
-    /// FLAT: first member's metadata keys — `page(limit: 1) { metadata { keys } }`.
+    // Collection-level key lookup. The local collection views report the
+    // graph's registered keys for the entity kind (an empty list when the
+    // collection has no members); the server's registry-backed
+    // `metadataKeys`/`propertyKeys` collection fields mirror that exactly, so
+    // one field name is the whole request — no member data over the wire.
+    /// FLAT: the collection's metadata keys — server field `metadataKeys`.
     CollectionMetadataKeys { input: Arc<ReadExpr> },
-    /// FLAT: first member's property keys.
+    /// FLAT: the collection's property keys — server field `propertyKeys`.
     CollectionPropertiesKeys { input: Arc<ReadExpr> },
-    /// NESTED: first member of the first source — `page(limit: 1) { page(limit: 1) { … } }`.
+    /// NESTED: the nested collection's metadata keys — same server field.
     NestedMetadataKeys { input: Arc<ReadExpr> },
-    /// NESTED: first member of the first source's property keys.
+    /// NESTED: the nested collection's property keys — same server field.
     NestedPropertiesKeys { input: Arc<ReadExpr> },
 
     // ============ Node scalar terminals ============

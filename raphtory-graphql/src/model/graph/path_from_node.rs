@@ -335,6 +335,42 @@ impl GqlPathFromNode {
     /////////////////
 
     /// Number of neighbour nodes reachable from the source in this view.
+
+    /// The property keys this collection reports: the first member's registry
+    /// view — the graph's registered property keys for the entity kind — or an
+    /// empty list when there are no members. Mirrors the local collection
+    /// `properties.keys()`.
+    async fn property_keys(&self) -> Vec<String> {
+        let self_clone = self.clone();
+        blocking_compute(move || {
+            {
+                let mut it = self_clone.nn.properties();
+                it
+            }
+            .next()
+            .map(|p| p.keys().map(|k| k.to_string()).collect())
+            .unwrap_or_default()
+        })
+        .await
+    }
+
+    /// The metadata keys this collection reports: the first member's registry
+    /// view, or an empty list when there are no members. Mirrors the local
+    /// collection `metadata.keys()`.
+    async fn metadata_keys(&self) -> Vec<String> {
+        let self_clone = self.clone();
+        blocking_compute(move || {
+            {
+                let mut it = self_clone.nn.metadata();
+                it
+            }
+            .next()
+            .map(|p| p.keys().map(|k| k.to_string()).collect())
+            .unwrap_or_default()
+        })
+        .await
+    }
+
     async fn count(&self) -> usize {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.nn.len()).await

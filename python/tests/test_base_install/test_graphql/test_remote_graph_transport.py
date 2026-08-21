@@ -3626,6 +3626,65 @@ def _make_columnar_property_graphs():
         yield rg, lg
 
 
+def test_collection_keys_registry_semantics():
+    """Collection keys() reports the graph's REGISTERED keys for the entity
+    kind, not the keys one member happens to carry, and an empty collection
+    reports no keys — matching local. Members here carry disjoint key sets,
+    so a first-member read would under-report."""
+    from raphtory import Graph
+    from raphtory import filter as flt
+
+    with _remote_graph("keysg") as rg:
+        lg = Graph()
+        for g in (rg, lg):
+            g.add_node(1, "a", {"alpha": 1})
+            g.add_node(1, "b", {"beta": 2})
+            g.add_node(1, "c", {"gamma": 3})
+            g.node("b").add_metadata({"mb": 1})
+            g.node("c").add_metadata({"mc": 2})
+            g.add_edge(1, "a", "b", {"ek": 1})
+            g.add_edge(1, "b", "c", {"ew": 2})
+
+        # flat collections: the registry, not the first member's keys.
+        assert set(rg.nodes.properties.keys()) == set(lg.nodes.properties.keys())
+        assert set(rg.nodes.properties.keys()) == {"alpha", "beta", "gamma"}
+        assert set(rg.nodes.metadata.keys()) == set(lg.nodes.metadata.keys())
+        assert set(rg.nodes.metadata.keys()) == {"mb", "mc"}
+        assert set(rg.edges.properties.keys()) == set(lg.edges.properties.keys())
+        assert set(rg.edges.properties.keys()) == {"ek", "ew"}
+
+        # nested collection: same registry answer even though the first
+        # source's first member carries only one of the keys.
+        assert set(rg.nodes.neighbours.properties.keys()) == set(
+            lg.nodes.neighbours.properties.keys()
+        )
+        assert set(rg.nodes.neighbours.properties.keys()) == {
+            "alpha",
+            "beta",
+            "gamma",
+        }
+
+        # a filtered collection still reports the full registry — keys are
+        # graph-level, not member-derived (matching local).
+        expr = flt.Node.name().is_in(["a", "b"])
+        assert set(rg.nodes[expr].properties.keys()) == set(
+            lg.nodes[expr].properties.keys()
+        )
+        assert set(rg.nodes[expr].properties.keys()) == {"alpha", "beta", "gamma"}
+
+        # ...but an EMPTY collection reports no keys on both sides.
+        none = flt.Node.name() == "zzz"
+        assert rg.nodes[none].properties.keys() == []
+        assert list(lg.nodes[none].properties.keys()) == []
+        assert rg.nodes[none].metadata.keys() == []
+
+        # values()/as_dict() drive off keys(), so every registered column now
+        # arrives — including ones the first member lacks.
+        assert set(rg.nodes.properties.as_dict()) == set(
+            dict(lg.nodes.properties.as_dict())
+        )
+
+
 def test_nodes_earliest_latest_time_getters():
     """`RemoteNodes.earliest_time` / `.latest_time` are getters returning a
     flat per-node column, matching local `Nodes`."""
