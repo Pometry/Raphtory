@@ -31,7 +31,7 @@ impl From<PySortByTime> for SortByTime {
 /// static factories `by_id` / `by_name` / `by_type` / `by_time` /
 /// `by_property` — each enforces that exactly one key type is set per entry.
 #[derive(Clone)]
-#[pyclass(name = "NodeSortBy", module = "raphtory.graphql")]
+#[pyclass(name = "NodeSortBy", module = "raphtory.graphql", from_py_object)]
 pub struct PyNodeSortBy {
     pub inner: NodeSortBy,
 }
@@ -148,7 +148,7 @@ impl PyNodeSortBy {
 /// static factories `by_src` / `by_dst` / `by_neighbour` / `by_time` /
 /// `by_property`.
 #[derive(Clone)]
-#[pyclass(name = "EdgeSortBy", module = "raphtory.graphql")]
+#[pyclass(name = "EdgeSortBy", module = "raphtory.graphql", from_py_object)]
 pub struct PyEdgeSortBy {
     pub inner: EdgeSortBy,
 }
