@@ -928,12 +928,28 @@ impl NodeFieldCondition {
     }
 }
 
+/// A condition on one specific built-in field — the payload of the per-field
+/// filter variants (`{ id: { where: ... } }`, `{ name: { where: ... } }`,
+/// `{ nodeType: { where: ... } }`).
+#[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
+pub struct NodeFieldWhere {
+    /// Condition applied to the field.
+    ///
+    /// Exposed as `where` in GraphQL.
+    #[graphql(name = "where")]
+    #[serde(rename = "where")]
+    pub where_: NodeFieldCondition,
+}
+
 /// Filters a built-in node field (`id`, `name`, `type`) using a `NodeFieldCondition`.
 ///
 /// Example (GraphQL):
 /// ```graphql
 /// { Node: { field: NodeName, where: { Contains: "ali" } } }
 /// ```
+///
+/// Deprecated spelling: prefer the per-field forms (`id:` / `name:` /
+/// `nodeType:`), which say the field as the key instead of an enum argument.
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
 pub struct NodeFieldFilterNew {
     /// Which built-in field to filter.
@@ -1010,7 +1026,18 @@ pub struct NodeLayersExpr {
 #[graphql(name = "NodeFilter")]
 #[serde(rename_all = "camelCase")]
 pub enum GqlNodeFilter {
-    /// Filters a built-in node field (ID, name, or type).
+    /// Filters the node id: `{ id: { where: ... } }`.
+    Id(NodeFieldWhere),
+
+    /// Filters the node name: `{ name: { where: ... } }`.
+    Name(NodeFieldWhere),
+
+    /// Filters the node type: `{ nodeType: { where: ... } }`.
+    NodeType(NodeFieldWhere),
+
+    /// Filters a built-in node field chosen by an enum argument. Deprecated
+    /// spelling — prefer the per-field forms above, which name the field as
+    /// the key.
     Node(NodeFieldFilterNew),
 
     /// Filters a node property by name and condition.
@@ -1876,19 +1903,28 @@ fn build_node_filter_from_prop_condition(
     }
 }
 
+/// Translate one built-in-field condition into the engine filter — shared by
+/// the per-field variants and the deprecated enum-argument spelling.
+fn node_field_filter(
+    field: NodeField,
+    where_: &NodeFieldCondition,
+) -> Result<CompositeNodeFilter, GraphError> {
+    let (field_name, field_value, operator) = translate_node_field_where(field, where_)?;
+    Ok(CompositeNodeFilter::Node(Filter {
+        field_name,
+        field_value,
+        operator,
+    }))
+}
+
 impl TryFrom<GqlNodeFilter> for CompositeNodeFilter {
     type Error = GraphError;
     fn try_from(filter: GqlNodeFilter) -> Result<Self, Self::Error> {
         match filter {
-            GqlNodeFilter::Node(node) => {
-                let (field_name, field_value, operator) =
-                    translate_node_field_where(node.field, &node.where_)?;
-                Ok(CompositeNodeFilter::Node(Filter {
-                    field_name,
-                    field_value,
-                    operator,
-                }))
-            }
+            GqlNodeFilter::Id(f) => node_field_filter(NodeField::NodeId, &f.where_),
+            GqlNodeFilter::Name(f) => node_field_filter(NodeField::NodeName, &f.where_),
+            GqlNodeFilter::NodeType(f) => node_field_filter(NodeField::NodeType, &f.where_),
+            GqlNodeFilter::Node(node) => node_field_filter(node.field, &node.where_),
             GqlNodeFilter::Degree(degree) => {
                 let core_direction: Direction = degree.direction.into();
 
@@ -2619,12 +2655,13 @@ fn apply_ops_to_condition(base: PropCondition, ops: &[Op]) -> PropCondition {
     })
 }
 
-/// Map a `Filter` (built-in node field filter) → wire `NodeFieldFilterNew`.
-fn filter_to_node_field(f: Filter) -> Result<NodeFieldFilterNew, GraphError> {
-    let field = match f.field_name.as_str() {
-        "node_id" => NodeField::NodeId,
-        "node_name" => NodeField::NodeName,
-        "node_type" => NodeField::NodeType,
+/// Map a `Filter` (built-in node field filter) → the per-field wire variant
+/// (`Id` / `Name` / `NodeType`).
+fn filter_to_node_field(f: Filter) -> Result<GqlNodeFilter, GraphError> {
+    let variant: fn(NodeFieldWhere) -> GqlNodeFilter = match f.field_name.as_str() {
+        "node_id" => GqlNodeFilter::Id,
+        "node_name" => GqlNodeFilter::Name,
+        "node_type" => GqlNodeFilter::NodeType,
         other => {
             return Err(GraphError::InvalidGqlFilter(format!(
                 "unknown node field name for wire conversion: {}",
@@ -2668,7 +2705,7 @@ fn filter_to_node_field(f: Filter) -> Result<NodeFieldFilterNew, GraphError> {
             )))
         }
     };
-    Ok(NodeFieldFilterNew { field, where_ })
+    Ok(variant(NodeFieldWhere { where_ }))
 }
 
 /// Map a `Layer` (engine) → `Vec<String>` names for the wire.
@@ -2692,7 +2729,7 @@ impl TryFrom<CompositeNodeFilter> for GqlNodeFilter {
     type Error = GraphError;
     fn try_from(f: CompositeNodeFilter) -> Result<Self, Self::Error> {
         Ok(match f {
-            CompositeNodeFilter::Node(filter) => GqlNodeFilter::Node(filter_to_node_field(filter)?),
+            CompositeNodeFilter::Node(filter) => filter_to_node_field(filter)?,
 
             CompositeNodeFilter::Property(pf) => {
                 let base = build_base_prop_condition(pf.operator, &pf.prop_value)?;
@@ -3007,6 +3044,17 @@ mod filter_serde_goldens {
     }
 
     #[test]
+    fn per_field_filter_golden() {
+        let f = GqlNodeFilter::Name(NodeFieldWhere {
+            where_: NodeFieldCondition::Eq(Value::Str("alice".into())),
+        });
+        assert_eq!(
+            serde_json::to_value(&f).unwrap(),
+            serde_json::json!({"name": {"where": {"eq": {"str": "alice"}}}})
+        );
+    }
+
+    #[test]
     fn property_filter_golden() {
         let f = GqlNodeFilter::Property(PropertyFilterNew {
             name: "score".into(),
@@ -3210,7 +3258,9 @@ mod fuzzy_search_tests {
     #[test]
     fn node_name_fuzzy_round_trips_through_the_wire() {
         let core = NodeFilterBuilder::name().fuzzy_search("ben", 1, true);
-        let wire = filter_to_node_field(core.0).unwrap();
+        let GqlNodeFilter::Name(wire) = filter_to_node_field(core.0).unwrap() else {
+            panic!("expected the per-field name variant");
+        };
         let NodeFieldCondition::FuzzySearch(ref f) = wire.where_ else {
             panic!("expected fuzzySearch condition, got {:?}", wire.where_);
         };
@@ -3278,7 +3328,7 @@ mod conversion_hole_tests {
         }));
         let gql = GqlNodeFilter::try_from(layered).unwrap();
         assert!(
-            matches!(gql, GqlNodeFilter::Node(_)),
+            matches!(gql, GqlNodeFilter::Name(_)),
             "Layer::All should drop the layer wrapper, got {gql:?}"
         );
     }

@@ -615,8 +615,7 @@ def test_edges_chained_selection_edges_filter_paired(graph):
           select(expr: { edges: { property: { name: "p2", where: { lt: { i64: 5 } } } } }) {
             filter(expr: { edges: {
               dst: {
-                node: {
-                  field: NODE_ID
+                id: {
                   where: { eq: { u64: 2 } }
                 }
               }
@@ -650,8 +649,7 @@ def test_edges_chained_selection_edges_filter_paired_ver2(graph):
             select(expr: { edges: { property: { name: "p2", where: { lt: { i64: 5 } } } } }) {
               filter(expr: { edges: {
                 dst: {
-                  node: {
-                    field: NODE_ID
+                  id: {
                     where: { eq: { u64: 2 } }
                   }
                 }

@@ -16,8 +16,7 @@ def test_out_neighbours_found(graph):
               filter(expr: { nodes: {
                 and: [
                   {
-                    node: {
-                      field: NODE_NAME,
+                    name: {
                       where: { eq: { str: "d" } }
                     }
                   },
@@ -52,8 +51,7 @@ def test_out_neighbours_found_select(graph):
               filter(expr: { nodes: {
                 and: [
                   {
-                    node: {
-                      field: NODE_NAME,
+                    name: {
                       where: { eq: { str: "d" } }
                     }
                   },
@@ -66,8 +64,7 @@ def test_out_neighbours_found_select(graph):
                 ]
               } }) {
                 outNeighbours(select: {
-                    node: { 
-                        field: NODE_NAME
+                    name: { 
                         where: { eq: { str: "d" } }
                     }                         
                 }) {
@@ -91,8 +88,7 @@ def test_out_neighbours_not_found(graph):
           graph(path: "g") {
             node(name: "a") {
               filter(expr: { nodes: {
-                node: {
-                  field: NODE_NAME,
+                name: {
                   where: { eq: { str: "e" } }
                 }
               } }) {
@@ -151,8 +147,7 @@ def test_in_neighbours_found_select(graph):
                 }
               } }) {
                 inNeighbours(select: {
-                    node: { 
-                        field: NODE_NAME
+                    name: { 
                         where: { eq: { str: "c" } }
                     }                    
                 }) {
@@ -176,8 +171,7 @@ def test_in_neighbours_not_found(graph):
           graph(path: "g") {
             node(name: "d") {
               filter(expr: { nodes: {
-                node: {
-                  field: NODE_NAME,
+                name: {
                   where: { eq: { str: "e" } }
                 }
               } }) {
@@ -200,8 +194,7 @@ def test_neighbours_found(graph):
           graph(path: "g") {
             node(name: "d") {
               filter(expr: { nodes: {
-                node: {
-                  field: NODE_NAME,
+                name: {
                   where: { ne: { str: "a" } }
                 }
               } }) {
@@ -228,14 +221,12 @@ def test_neighbours_found_select(graph):
           graph(path: "g") {
             node(name: "d") {
               filter(expr: { nodes: {
-                node: {
-                  field: NODE_NAME,
+                name: {
                   where: { ne: { str: "a" } }
                 }
               } }) {
                 neighbours(select: {
-                    node: { 
-                        field: NODE_NAME
+                    name: { 
                         where: { eq: { str: "b" } }
                     }
                 }) {
@@ -259,8 +250,7 @@ def test_neighbours_not_found(graph):
           graph(path: "g") {
             node(name: "d") {
               filter(expr: { nodes: {
-                node: {
-                  field: NODE_NAME,
+                name: {
                   where: { eq: { str: "e" } }
                 }
               } }) {

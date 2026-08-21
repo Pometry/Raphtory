@@ -69,7 +69,7 @@ async fn test_algorithm_out_component_filtered() {
         {
           graph(path: "g") {
             algorithm {
-              outComponent(node: "a", filter: { nodes: { node: { field: NODE_NAME, where: { ne: { str: "c" } } } } }) {
+              outComponent(node: "a", filter: { nodes: { name: { where: { ne: { str: "c" } } } } }) {
                 nodes { list { id } }
               }
             }
@@ -102,8 +102,8 @@ async fn test_algorithm_out_component_node_filter_composed() {
             algorithm {
               outComponent(node: "a", filter: { nodes: {
                 and: [
-                  { node: { field: NODE_NAME, where: { ne: { str: "b" } } } },
-                  { node: { field: NODE_NAME, where: { ne: { str: "c" } } } }
+                  { name: { where: { ne: { str: "b" } } } },
+                  { name: { where: { ne: { str: "c" } } } }
                 ]
               } }) {
                 nodes { list { id } }
@@ -137,8 +137,8 @@ async fn test_algorithm_out_component_edge_filter_composed() {
             algorithm {
               outComponent(node: "a", filter: { edges: {
                 and: [
-                  { dst: { node: { field: NODE_NAME, where: { ne: { str: "b" } } } } },
-                  { dst: { node: { field: NODE_NAME, where: { ne: { str: "c" } } } } }
+                  { dst: { name: { where: { ne: { str: "b" } } } } },
+                  { dst: { name: { where: { ne: { str: "c" } } } } }
                 ]
               } }) {
                 nodes { list { id } }
@@ -212,7 +212,7 @@ async fn test_algorithm_out_component_filter_equivalence() {
           graph(path: "g") {
             algorithm {
               outComponent(node: "a", filter: { nodes: {
-                node: { field: NODE_NAME, where: { ne: { str: "c" } } }
+                name: { where: { ne: { str: "c" } } }
               } }) {
                 rows {
                   node { id }
@@ -231,7 +231,7 @@ async fn test_algorithm_out_component_filter_equivalence() {
         {
           graph(path: "g") {
             filter(expr: { nodes: {
-                node: { field: NODE_NAME, where: { ne: { str: "c" } } }} }) {
+                name: { where: { ne: { str: "c" } } }} }) {
               algorithm {
                 outComponent(node: "a") {
                   rows {
