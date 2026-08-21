@@ -24,7 +24,9 @@ def setup_graph(g):
     g.add_edge(1, "aab", "bbb")
 
 
-def vectorise_query(path: str, template: str = "{{ name }}", port: int = EMBEDDING_PORT) -> str:
+def vectorise_query(
+    path: str, template: str = "{{ name }}", port: int = EMBEDDING_PORT
+) -> str:
     return (
         '{ vectoriseGraph(path: "%s", model: { openAI: { model: "whatever", apiBase: "http://localhost:%d" } }, '
         'nodes: { custom: "%s" }, edges: { enabled: false }) }' % (path, port, template)
@@ -47,8 +49,7 @@ def contents(client, path: str, query: str = "aab") -> list[str]:
 
 
 def seed(client, path: str, names: list[str], graph_type: str = "EVENT"):
-    client.new_graph(path, graph_type)
-    remote = client.remote_graph(path)
+    remote = client.new_graph(path, graph_type)
     for i, name in enumerate(names, start=1):
         remote.add_node(i, name, {"doc": name})
 

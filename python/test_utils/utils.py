@@ -114,14 +114,14 @@ def measure(name: str, f: Callable[..., B], *args, print_result: bool = True) ->
 
 
 @contextlib.contextmanager
-def graphql_server():
+def graphql_server(config=None):
     with tempfile.TemporaryDirectory() as work_dir:
-        with GraphServer(work_dir).start() as server:
+        with GraphServer(work_dir, config=config).start() as server:
             yield server
 
 
 @contextlib.contextmanager
-def graphql_client(graph=None, path="g"):
+def graphql_client(graph=None, path="g", config=None):
     """Start a `GraphServer` in a temporary directory (removed on exit, after
     the server has stopped) and yield its client. When `graph` is given it is
     sent to the server at `path` first, ready to query.
@@ -129,7 +129,7 @@ def graphql_client(graph=None, path="g"):
     The single shared way tests stand up a server — use this (directly or via
     a fixture) instead of hand-rolling `tempfile` + `GraphServer` per test.
     """
-    with graphql_server() as server:
+    with graphql_server(config=config) as server:
         client = server.get_client()
         if graph is not None:
             client.send_graph(path=path, graph=graph)
