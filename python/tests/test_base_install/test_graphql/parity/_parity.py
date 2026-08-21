@@ -193,24 +193,26 @@ def assert_parity(pair, fn):
 # so the gap is *recorded* rather than silently skipped. Delete an entry when
 # the corresponding remote API lands.
 KNOWN_GAPS = {
-    "nodes.history": "collection .history missing on remote (NodeState subsystem)",
-    "edges.history": "collection .history missing on remote (NodeState subsystem)",
-    "edges.deletions": "collection .deletions missing on remote",
-    "expanding": "expanding() missing on remote for all view types",
-    "rolling": "rolling() missing on remote for all view types",
-    "path_from_graph.write": "PathFromGraph write mutators missing on remote",
-    "nested_edges.write": "NestedEdges write mutators missing on remote",
-    # Write-path gaps. These run in the *other* direction to the ones above:
-    # remote has the API and the local `Graph` does not, so the drop-in surface
-    # is still whole — but a graph-agnostic `build` cannot use them, which is
-    # exactly what a ledger entry is for.
+    "nodes.history": "collection .history missing on remote (NodeState subsystem, #2722)",
+    "edges.history": "collection .history missing on remote (NodeState subsystem, #2722)",
+    "edges.deletions": "collection .deletions missing on remote (NodeState subsystem, #2722)",
+    "expanding": "expanding() missing on remote for all view types (#2723)",
+    "rolling": "rolling() missing on remote for all view types (#2723)",
+    "path_from_graph.write": "PathFromGraph write mutators missing on remote (#2724)",
+    "nested_edges.write": "NestedEdges write mutators missing on remote (#2724)",
+    # Batch writes run in the *other* direction to the gaps above: remote has
+    # the API and the local `Graph` does not, so the drop-in surface is still
+    # whole. This is a deliberate remote-only extra, not pending work — the
+    # batch shape exists to amortize network round-trips, which local writes
+    # don't have — so there is no issue tracking it. Ledgered because a
+    # graph-agnostic `build` still cannot use it on both sides.
     "graph.add_nodes": (
-        "batch add_nodes exists on RemoteGraph only; local Graph has no batch "
-        "write API, so batch writes are compared against the equivalent loop"
+        "batch add_nodes is a deliberate remote-only extra (amortizes network "
+        "round-trips); batch writes are compared against the equivalent loop"
     ),
     "graph.add_edges": (
-        "batch add_edges exists on RemoteGraph only; local Graph has no batch "
-        "write API, so batch writes are compared against the equivalent loop"
+        "batch add_edges is a deliberate remote-only extra (amortizes network "
+        "round-trips); batch writes are compared against the equivalent loop"
     ),
     # Two filter-expression gaps used to be ledgered here. ExplodedEdge
     # property/metadata filters are now transported (FilterTree gained an
@@ -230,16 +232,16 @@ KNOWN_GAPS = {
     # an ordinary matrix in test_parity_filters.py (`GETITEM_SITES`).
     "collection_props.temporal": (
         "the collection-level PropertiesView.temporal columnar timeline view "
-        "is not implemented on remote (deferred with the NodeState subsystem)"
+        "is not implemented on remote (NodeState subsystem, #2722)"
     ),
     "history.merge": (
         "History.merge / History.compose_histories are unavailable on remote "
         "history handles — combining histories needs either server support or "
-        "client-side merge semantics (deferred with the NodeState subsystem)"
+        "client-side merge semantics (NodeState subsystem, #2722)"
     ),
     "filter.node.by_state_column": (
         "filter.Node.by_state_column needs a boolean OutputNodeState column, "
         "and no algorithm on the drop-in surface produces one, so the "
-        "expression cannot be built for either side to apply"
+        "expression cannot be built for either side to apply (#2722)"
     ),
 }
