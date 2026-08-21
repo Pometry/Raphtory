@@ -25,7 +25,7 @@ use raphtory_api::{
         storage::timeindex::{AsTime, EventTime},
         utils::time::InputTime,
     },
-    python::timeindex::PyOptionalEventTime,
+    python::timeindex::{EventTimeComponent, PyOptionalEventTime},
 };
 use std::{collections::HashMap, sync::Arc};
 
@@ -797,7 +797,7 @@ impl PyRemoteGraph {
     #[pyo3(signature = (timestamp, id, properties = None, node_type = None, event_id = None, layer = None))]
     pub fn add_node(
         &self,
-        timestamp: EventTime,
+        timestamp: EventTimeComponent,
         id: GID,
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<&str>,
@@ -839,7 +839,7 @@ impl PyRemoteGraph {
     #[pyo3(signature = (timestamp, id, properties = None, node_type = None, event_id = None, layer = None))]
     pub fn create_node(
         &self,
-        timestamp: EventTime,
+        timestamp: EventTimeComponent,
         id: GID,
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<&str>,
@@ -879,7 +879,7 @@ impl PyRemoteGraph {
     #[pyo3(signature = (timestamp, properties, event_id = None))]
     pub fn add_properties(
         &self,
-        timestamp: EventTime,
+        timestamp: EventTimeComponent,
         properties: HashMap<String, Prop>,
         event_id: Option<usize>,
     ) -> Result<(), ClientError> {
@@ -931,7 +931,7 @@ impl PyRemoteGraph {
     #[pyo3(signature = (timestamp, src, dst, properties = None, layer = None, event_id = None))]
     pub fn add_edge(
         &self,
-        timestamp: EventTime,
+        timestamp: EventTimeComponent,
         src: GID,
         dst: GID,
         properties: Option<HashMap<String, Prop>>,
@@ -971,7 +971,7 @@ impl PyRemoteGraph {
     #[pyo3(signature = (timestamp, src, dst, layer=None, event_id=None))]
     pub fn delete_edge(
         &self,
-        timestamp: EventTime,
+        timestamp: EventTimeComponent,
         src: GID,
         dst: GID,
         layer: Option<&str>,

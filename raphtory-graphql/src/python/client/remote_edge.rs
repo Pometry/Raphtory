@@ -15,7 +15,7 @@ use raphtory_api::{
         storage::timeindex::{AsTime, EventTime},
         utils::time::InputTime,
     },
-    python::timeindex::PyOptionalEventTime,
+    python::timeindex::{EventTimeComponent, PyOptionalEventTime},
 };
 use std::{collections::HashMap, sync::Arc};
 
@@ -267,7 +267,7 @@ impl PyRemoteEdge {
     #[pyo3(signature = (t, properties=None, layer=None, event_id=None))]
     fn add_updates(
         &self,
-        t: EventTime,
+        t: EventTimeComponent,
         properties: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
         event_id: Option<usize>,
@@ -304,7 +304,7 @@ impl PyRemoteEdge {
     #[pyo3(signature = (t, layer=None, event_id=None))]
     fn delete(
         &self,
-        t: EventTime,
+        t: EventTimeComponent,
         layer: Option<&str>,
         event_id: Option<usize>,
     ) -> Result<(), ClientError> {

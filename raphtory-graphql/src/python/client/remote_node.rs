@@ -19,7 +19,7 @@ use raphtory_api::{
         storage::timeindex::{AsTime, EventTime},
         utils::time::InputTime,
     },
-    python::timeindex::PyOptionalEventTime,
+    python::timeindex::{EventTimeComponent, PyOptionalEventTime},
 };
 use std::{collections::HashMap, sync::Arc};
 
@@ -291,7 +291,7 @@ impl PyRemoteNode {
     #[pyo3(signature = (t, properties=None, layer=None, event_id=None))]
     pub fn add_updates(
         &self,
-        t: EventTime,
+        t: EventTimeComponent,
         properties: Option<HashMap<String, Prop>>,
         layer: Option<String>,
         event_id: Option<usize>,
