@@ -5,6 +5,7 @@ use crate::{
             properties::{Metadata, Properties},
             view::{
                 internal::{FilterOps, InternalEdgeSelect, InternalFilter, Static},
+                sort::{compare_edge, EdgeSortBy},
                 BaseEdgeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
                 StaticGraphViewOps,
             },
@@ -18,8 +19,10 @@ use crate::{
     prelude::GraphViewOps,
 };
 use either::Either;
+use itertools::Itertools;
 use raphtory_api::core::entities::LayerIds;
 use std::{
+    cmp::Ordering,
     fmt::{Debug, Formatter},
     sync::Arc,
 };
@@ -78,6 +81,28 @@ impl<'graph, G: GraphViewOps<'graph>> Edges<'graph, G> {
     pub fn iter(&self) -> impl Iterator<Item = EdgeView<&G>> + '_ {
         let graph = &self.base_graph;
         (self.edges)().map(move |e| EdgeView::new_filtered(graph, e))
+    }
+
+    /// Reorder this collection by an ordered list of sort keys: members
+    /// compare by the first key, ties break to the next. Returns a new
+    /// collection backed by an explicit edge list in the sorted order.
+    pub fn sorted(&self, sort_bys: &[EdgeSortBy]) -> Self {
+        let sorted: Arc<[EdgeRef]> = self
+            .iter()
+            .sorted_by(|a, b| {
+                sort_bys.iter().fold(Ordering::Equal, |current, sort_by| {
+                    current.then_with(|| compare_edge(a, b, sort_by))
+                })
+            })
+            .map(|edge_view| edge_view.edge)
+            .collect();
+        Edges::new(
+            self.base_graph.clone(),
+            Arc::new(move || {
+                let sorted = sorted.clone();
+                (0..sorted.len()).map(move |i| sorted[i]).into_dyn_boxed()
+            }),
+        )
     }
 
     pub fn len(&self) -> usize {

@@ -10,18 +10,17 @@ use crate::{
             windowset::GqlNodesWindowSet,
             GqlAlignmentUnit, WindowDuration,
         },
-        sorting::{compare_node, NodeSortBy},
+        sorting::NodeSortBy,
     },
     rayon::blocking_compute,
 };
 use async_graphql::{Context, Result};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
-use itertools::Itertools;
 use raphtory::{
     core::utils::time::TryIntoInterval,
     db::{
         api::{
-            state::{ops::DynNodeFilter, Index},
+            state::ops::DynNodeFilter,
             view::{filter_ops::NodeSelect, DynamicGraph, EdgeSelect, Filter},
         },
         graph::{
@@ -34,8 +33,7 @@ use raphtory::{
     errors::GraphError,
     prelude::*,
 };
-use raphtory_api::core::{entities::VID, utils::time::IntoTime};
-use std::cmp::Ordering;
+use raphtory_api::core::utils::time::IntoTime;
 
 /// A lazy collection of nodes from a graph view. Supports all the same view
 /// transforms as `Graph` (window, layer, filter, ...) plus pagination and
@@ -330,20 +328,8 @@ impl GqlNodes {
     ) -> Self {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let sorted: Index<VID> = self_clone
-                .nn
-                .iter()
-                .sorted_by(|first_node, second_node| {
-                    sort_bys
-                        .iter()
-                        .fold(Ordering::Equal, |current_ordering, sort_by| {
-                            current_ordering
-                                .then_with(|| compare_node(first_node, second_node, sort_by))
-                        })
-                })
-                .map(|node_view| node_view.node)
-                .collect();
-            GqlNodes::new(self_clone.nn.indexed(sorted))
+            let sort_bys: Vec<_> = sort_bys.into_iter().map(Into::into).collect();
+            GqlNodes::new(self_clone.nn.sorted(&sort_bys))
         })
         .await
     }

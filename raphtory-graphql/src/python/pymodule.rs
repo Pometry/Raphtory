@@ -24,7 +24,6 @@ use crate::{
                 PyRemoteEdgeSchema, PyRemoteGraphSchema, PyRemoteLayerSchema, PyRemoteNodeSchema,
                 PyRemotePropertySchema,
             },
-            remote_sorting::{PyEdgeSortBy, PyNodeSortBy, PySortByTime},
             PyAllPropertySpec, PyEdgeAddition, PyNodeAddition, PyPropsInput, PyRemoteIndexSpec,
             PySomePropertySpec, PyUpdate,
         },
@@ -33,6 +32,7 @@ use crate::{
     },
 };
 use pyo3::{create_exception, exceptions::PyException, prelude::*};
+use raphtory::python::graph::sorting::{PyEdgeSortBy, PyNodeSortBy, PySortByTime};
 
 create_exception!(
     raphtory.graphql,
@@ -88,6 +88,9 @@ pub fn base_graphql_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyErr>
     graphql_module.add_class::<PyPropsInput>()?;
     graphql_module.add_class::<PySomePropertySpec>()?;
     graphql_module.add_class::<PyAllPropertySpec>()?;
+    // The sort-key classes live in the base `raphtory` module (they are the
+    // same types the local `Nodes.sorted` / `Edges.sorted` take); re-exported
+    // here so `raphtory.graphql.NodeSortBy` keeps working.
     graphql_module.add_class::<PySortByTime>()?;
     graphql_module.add_class::<PyNodeSortBy>()?;
     graphql_module.add_class::<PyEdgeSortBy>()?;

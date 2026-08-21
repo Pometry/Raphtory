@@ -1,15 +1,15 @@
-use crate::client::op::{EdgeSortBy, NodeSortBy, SortByTime};
+//! Python wrappers for the collection sort keys ([`crate::db::api::view::sort`]).
+//!
+//! The same classes serve the local `Nodes.sorted(...)` / `Edges.sorted(...)`
+//! and the remote collections in `raphtory.graphql`, so a drop-in swap between
+//! `Graph` and `RemoteGraph` uses one set of sort-key types.
+
+use crate::db::api::view::sort::{EdgeSortBy, NodeSortBy, SortByTime};
 use pyo3::{pyclass, pymethods};
 
 /// Which time boundary of a member to sort by.
 #[derive(Clone, Copy)]
-#[pyclass(
-    name = "SortByTime",
-    module = "raphtory.graphql",
-    eq,
-    eq_int,
-    from_py_object
-)]
+#[pyclass(name = "SortByTime", module = "raphtory", eq, eq_int, from_py_object)]
 #[derive(PartialEq, Eq)]
 pub enum PySortByTime {
     #[pyo3(name = "LATEST")]
@@ -31,21 +31,17 @@ impl From<PySortByTime> for SortByTime {
 /// static factories `by_id` / `by_name` / `by_type` / `by_time` /
 /// `by_property` — each enforces that exactly one key type is set per entry.
 #[derive(Clone)]
-#[pyclass(name = "NodeSortBy", module = "raphtory.graphql")]
+#[pyclass(name = "NodeSortBy", module = "raphtory", from_py_object)]
 pub struct PyNodeSortBy {
     pub inner: NodeSortBy,
 }
 
 /// A `NodeSortBy` with every key unset — the base each factory fills in one
-/// field of, so adding a server-side key can't silently leave one stale.
+/// field of, so adding a key can't silently leave one stale.
 fn empty_node_sort_by(reverse: bool) -> NodeSortBy {
     NodeSortBy {
         reverse: Some(reverse),
-        id: None,
-        name: None,
-        type_: None,
-        time: None,
-        property: None,
+        ..NodeSortBy::default()
     }
 }
 
@@ -148,7 +144,7 @@ impl PyNodeSortBy {
 /// static factories `by_src` / `by_dst` / `by_neighbour` / `by_time` /
 /// `by_property`.
 #[derive(Clone)]
-#[pyclass(name = "EdgeSortBy", module = "raphtory.graphql")]
+#[pyclass(name = "EdgeSortBy", module = "raphtory", from_py_object)]
 pub struct PyEdgeSortBy {
     pub inner: EdgeSortBy,
 }
@@ -159,11 +155,7 @@ pub struct PyEdgeSortBy {
 fn empty_edge_sort_by(reverse: Option<bool>) -> EdgeSortBy {
     EdgeSortBy {
         reverse,
-        src: None,
-        dst: None,
-        neighbour: None,
-        time: None,
-        property: None,
+        ..EdgeSortBy::default()
     }
 }
 

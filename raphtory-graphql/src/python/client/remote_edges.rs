@@ -4,11 +4,12 @@ use crate::{
         remote_collection_metadata::{PyRemoteMetadataView, PyRemotePropertiesView},
         remote_edge::PyRemoteEdge,
         remote_path_from_node::PyRemotePathFromNode,
-        remote_sorting::PyEdgeSortBy,
     },
 };
 use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyRef, PyRefMut, PyResult};
-use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
+use raphtory::python::{
+    filter::filter_expr::PyFilterExpr, graph::sorting::PyEdgeSortBy, utils::execute_async_task,
+};
 use raphtory_api::{
     core::{entities::GID, storage::timeindex::EventTime, utils::time::InputTime},
     python::timeindex::PyOptionalEventTime,
@@ -245,7 +246,7 @@ impl PyRemoteEdges {
     /// Returns:
     ///     RemoteEdges: a new collection in the sorted order.
     pub fn sorted(&self, sort_bys: Vec<PyEdgeSortBy>) -> PyRemoteEdges {
-        let inner: Vec<_> = sort_bys.into_iter().map(|s| s.inner).collect();
+        let inner: Vec<_> = sort_bys.into_iter().map(|s| s.inner.into()).collect();
         PyRemoteEdges::new(self.edges.sorted(inner))
     }
 

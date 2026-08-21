@@ -39,6 +39,9 @@ __all__ = [
     "Graph",
     "PersistentGraph",
     "Node",
+    "NodeSortBy",
+    "EdgeSortBy",
+    "SortByTime",
     "Nodes",
     "PathFromNode",
     "PathFromGraph",
@@ -2989,6 +2992,18 @@ class Nodes(object):
         """
 
     @property
+    def sorted(self, sort_bys: list[NodeSortBy]) -> Nodes:
+        """
+        Reorder this collection by an ordered list of sort keys. Multi-key
+        sort is lexicographic (ties on key 1 break to key 2).
+
+        Arguments:
+            sort_bys (list[NodeSortBy]): the ordered sort keys.
+
+        Returns:
+            Nodes: a new collection in the sorted order.
+        """
+
     def start(self) -> OptionalEventTime:
         """
          Gets the start time for rolling and expanding windows for this Nodes
@@ -4986,6 +5001,18 @@ class Edges(object):
         """
 
     @property
+    def sorted(self, sort_bys: list[EdgeSortBy]) -> Edges:
+        """
+        Reorder this collection by an ordered list of sort keys. Multi-key
+        sort is lexicographic (ties on key 1 break to key 2).
+
+        Arguments:
+            sort_bys (list[EdgeSortBy]): the ordered sort keys.
+
+        Returns:
+            Edges: a new collection in the sorted order.
+        """
+
     def start(self) -> OptionalEventTime:
         """
          Gets the start time for rolling and expanding windows for this Edges
@@ -5608,6 +5635,176 @@ class MutableEdge(Edge):
 
         Returns:
             None:
+        """
+
+class SortByTime(object):
+    """Which time boundary of a member to sort by."""
+
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __int__(self):
+        """int(self)"""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+class NodeSortBy(object):
+    """
+    One entry in a `Nodes.sorted(...)` sort key list. Construct with the
+    static factories `by_id` / `by_name` / `by_type` / `by_time` /
+    `by_property` — each enforces that exactly one key type is set per entry.
+    """
+
+    @staticmethod
+    def by_id(reverse: Optional[bool] = False) -> NodeSortBy:
+        """
+        Sort by node id (a stable, deterministic ordering).
+
+        Arguments:
+            reverse (bool, optional): sort descending. Defaults to False.
+
+        Returns:
+            NodeSortBy: a sort key usable in `Nodes.sorted(...)`.
+        """
+
+    @staticmethod
+    def by_name(reverse: Optional[bool] = False) -> NodeSortBy:
+        """
+        Sort by node name.
+
+        Arguments:
+            reverse (bool, optional): sort descending. Defaults to False.
+
+        Returns:
+            NodeSortBy: a sort key usable in `Nodes.sorted(...)`.
+        """
+
+    @staticmethod
+    def by_property(key: str, reverse: Optional[bool] = False) -> NodeSortBy:
+        """
+        Sort by a temporal property value on each node.
+
+        Arguments:
+            key (str): the property name.
+            reverse (bool, optional): sort descending. Defaults to False.
+
+        Returns:
+            NodeSortBy: a sort key usable in `Nodes.sorted(...)`.
+        """
+
+    @staticmethod
+    def by_time(time: SortByTime, reverse: Optional[bool] = False) -> NodeSortBy:
+        """
+        Sort by node time (either earliest or latest observed event on the node).
+
+        Arguments:
+            time (SortByTime): the time boundary to use.
+            reverse (bool, optional): sort descending. Defaults to False.
+
+        Returns:
+            NodeSortBy: a sort key usable in `Nodes.sorted(...)`.
+        """
+
+    @staticmethod
+    def by_type(reverse: Optional[bool] = False) -> NodeSortBy:
+        """
+        Sort by node type. Untyped nodes sort first, before any named type.
+
+        Arguments:
+            reverse (bool, optional): sort descending. Defaults to False.
+
+        Returns:
+            NodeSortBy: a sort key usable in `Nodes.sorted(...)`.
+        """
+
+class EdgeSortBy(object):
+    """
+    One entry in an `Edges.sorted(...)` sort key list. Construct with the
+    static factories `by_src` / `by_dst` / `by_neighbour` / `by_time` /
+    `by_property`.
+    """
+
+    @staticmethod
+    def by_dst(key: NodeSortBy) -> EdgeSortBy:
+        """
+        Sort by the destination node, using a node sort key.
+
+        Arguments:
+            key (NodeSortBy): how to order the destination nodes, e.g.
+                `NodeSortBy.by_id()`. Its own `reverse` controls direction.
+
+        Returns:
+            EdgeSortBy: a sort key usable in `Edges.sorted(...)`.
+        """
+
+    @staticmethod
+    def by_neighbour(key: NodeSortBy) -> EdgeSortBy:
+        """
+        Sort by the neighbour node, using a node sort key. The neighbour is the
+        endpoint that is NOT the node the edges were traversed from — for a
+        graph-level edge collection that is the destination.
+
+        Arguments:
+            key (NodeSortBy): how to order the neighbour nodes, e.g.
+                `NodeSortBy.by_name()`. Its own `reverse` controls direction.
+
+        Returns:
+            EdgeSortBy: a sort key usable in `Edges.sorted(...)`.
+        """
+
+    @staticmethod
+    def by_property(key: str, reverse: Optional[bool] = False) -> EdgeSortBy:
+        """
+        Sort by a temporal property value on each edge.
+
+        Arguments:
+            key (str): the property name.
+            reverse (bool, optional): sort descending. Defaults to False.
+
+        Returns:
+            EdgeSortBy: a sort key usable in `Edges.sorted(...)`.
+        """
+
+    @staticmethod
+    def by_src(key: NodeSortBy) -> EdgeSortBy:
+        """
+        Sort by the source node, using a node sort key.
+
+        Arguments:
+            key (NodeSortBy): how to order the source nodes, e.g.
+                `NodeSortBy.by_id()`. Its own `reverse` controls direction.
+
+        Returns:
+            EdgeSortBy: a sort key usable in `Edges.sorted(...)`.
+        """
+
+    @staticmethod
+    def by_time(time: SortByTime, reverse: Optional[bool] = False) -> EdgeSortBy:
+        """
+        Sort by edge time (either earliest or latest event on the edge).
+
+        Arguments:
+            time (SortByTime): the time boundary to use.
+            reverse (bool, optional): sort descending. Defaults to False.
+
+        Returns:
+            EdgeSortBy: a sort key usable in `Edges.sorted(...)`.
         """
 
 class Properties(object):

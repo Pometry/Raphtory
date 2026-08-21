@@ -6,11 +6,12 @@ use crate::{
         remote_nested_edges::PyRemoteNestedEdges,
         remote_node::PyRemoteNode,
         remote_path_from_graph::PyRemotePathFromGraph,
-        remote_sorting::PyNodeSortBy,
     },
 };
 use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyRef, PyRefMut, PyResult};
-use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
+use raphtory::python::{
+    filter::filter_expr::PyFilterExpr, graph::sorting::PyNodeSortBy, utils::execute_async_task,
+};
 use raphtory_api::{
     core::{entities::GID, storage::timeindex::EventTime, utils::time::InputTime},
     python::timeindex::PyOptionalEventTime,
@@ -305,7 +306,7 @@ impl PyRemoteNodes {
     /// Returns:
     ///     RemoteNodes: a new collection in the sorted order.
     pub fn sorted(&self, sort_bys: Vec<PyNodeSortBy>) -> PyRemoteNodes {
-        let inner: Vec<_> = sort_bys.into_iter().map(|s| s.inner).collect();
+        let inner: Vec<_> = sort_bys.into_iter().map(|s| s.inner.into()).collect();
         PyRemoteNodes::new(self.nodes.sorted(inner))
     }
 

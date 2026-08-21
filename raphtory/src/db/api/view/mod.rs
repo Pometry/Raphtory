@@ -7,6 +7,7 @@ pub mod history;
 pub mod internal;
 mod layer;
 pub(crate) mod node;
+pub mod sort;
 pub(crate) mod time;
 
 pub(crate) use edge::BaseEdgeViewOps;
@@ -32,6 +33,7 @@ pub use raphtory_api::{
     iter::{BoxedIter, BoxedLDIter, BoxedLIter, IntoDynBoxed},
 };
 use raphtory_storage::graph::{graph::GraphStorage, nodes::node_entry::NodeStorageEntry};
+pub use sort::{EdgeSortBy, NodeSortBy, SortByTime};
 pub use time::*;
 
 #[self_referencing]

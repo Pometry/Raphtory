@@ -1,6 +1,5 @@
 use dynamic_graphql::{Enum, InputObject};
-use raphtory::{db::graph::node::NodeView, prelude::*};
-use std::cmp::Ordering;
+use raphtory::db::api::view::sort;
 
 #[derive(InputObject, Clone, Debug, Eq, PartialEq)]
 pub struct EdgeSortBy {
@@ -47,36 +46,72 @@ pub enum SortByTime {
     Earliest,
 }
 
-/// Compare two nodes by a single `NodeSortBy` key, applying that key's
-/// `reverse`. Returns `Ordering::Equal` when the key selects nothing or the
-/// values are incomparable. Shared by node sorting and edge neighbour sorting.
-pub(crate) fn compare_node<'graph, G: GraphViewOps<'graph>>(
-    a: &NodeView<'graph, G>,
-    b: &NodeView<'graph, G>,
-    sort_by: &NodeSortBy,
-) -> Ordering {
-    let ordering = if sort_by.id == Some(true) {
-        a.id().partial_cmp(&b.id())
-    } else if sort_by.name == Some(true) {
-        a.name().partial_cmp(&b.name())
-    } else if sort_by.type_ == Some(true) {
-        a.node_type().partial_cmp(&b.node_type())
-    } else if let Some(sort_by_time) = sort_by.time.as_ref() {
-        let (first, second) = match sort_by_time {
-            SortByTime::Latest => (a.latest_time(), b.latest_time()),
-            SortByTime::Earliest => (a.earliest_time(), b.earliest_time()),
-        };
-        first.partial_cmp(&second)
-    } else if let Some(prop) = sort_by.property.as_ref() {
-        a.properties()
-            .get(prop)
-            .partial_cmp(&b.properties().get(prop))
-    } else {
-        None
-    };
-    match ordering {
-        Some(o) if sort_by.reverse == Some(true) => o.reverse(),
-        Some(o) => o,
-        None => Ordering::Equal,
+impl From<SortByTime> for sort::SortByTime {
+    fn from(v: SortByTime) -> Self {
+        match v {
+            SortByTime::Latest => sort::SortByTime::Latest,
+            SortByTime::Earliest => sort::SortByTime::Earliest,
+        }
+    }
+}
+
+impl From<NodeSortBy> for sort::NodeSortBy {
+    fn from(v: NodeSortBy) -> Self {
+        sort::NodeSortBy {
+            reverse: v.reverse,
+            id: v.id,
+            name: v.name,
+            type_: v.type_,
+            time: v.time.map(Into::into),
+            property: v.property,
+        }
+    }
+}
+
+impl From<EdgeSortBy> for sort::EdgeSortBy {
+    fn from(v: EdgeSortBy) -> Self {
+        sort::EdgeSortBy {
+            reverse: v.reverse,
+            src: v.src.map(Into::into),
+            dst: v.dst.map(Into::into),
+            neighbour: v.neighbour.map(Into::into),
+            time: v.time.map(Into::into),
+            property: v.property,
+        }
+    }
+}
+
+impl From<sort::SortByTime> for SortByTime {
+    fn from(v: sort::SortByTime) -> Self {
+        match v {
+            sort::SortByTime::Latest => SortByTime::Latest,
+            sort::SortByTime::Earliest => SortByTime::Earliest,
+        }
+    }
+}
+
+impl From<sort::NodeSortBy> for NodeSortBy {
+    fn from(v: sort::NodeSortBy) -> Self {
+        NodeSortBy {
+            reverse: v.reverse,
+            id: v.id,
+            name: v.name,
+            type_: v.type_,
+            time: v.time.map(Into::into),
+            property: v.property,
+        }
+    }
+}
+
+impl From<sort::EdgeSortBy> for EdgeSortBy {
+    fn from(v: sort::EdgeSortBy) -> Self {
+        EdgeSortBy {
+            reverse: v.reverse,
+            src: v.src.map(Into::into),
+            dst: v.dst.map(Into::into),
+            neighbour: v.neighbour.map(Into::into),
+            time: v.time.map(Into::into),
+            property: v.property,
+        }
     }
 }

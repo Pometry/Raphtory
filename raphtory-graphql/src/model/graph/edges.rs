@@ -9,24 +9,22 @@ use crate::{
             windowset::GqlEdgesWindowSet,
             GqlAlignmentUnit, WindowDuration,
         },
-        sorting::{compare_node, EdgeSortBy, SortByTime},
+        sorting::EdgeSortBy,
     },
     rayon::blocking_compute,
 };
 use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
-use itertools::Itertools;
 use raphtory::{
     core::utils::time::TryIntoInterval,
     db::{
-        api::view::{internal::InternalFilter, DynamicGraph, EdgeSelect},
+        api::view::{DynamicGraph, EdgeSelect},
         graph::{edges::Edges, views::filter::model::DynFilter},
     },
     errors::GraphError,
     prelude::*,
 };
-use raphtory_api::{core::utils::time::IntoTime, iter::IntoDynBoxed};
-use std::{cmp::Ordering, sync::Arc};
+use raphtory_api::core::utils::time::IntoTime;
 
 use raphtory::db::api::view::Filter;
 
@@ -322,81 +320,8 @@ impl GqlEdges {
     ) -> Self {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let sorted: Arc<[_]> = self_clone
-                .ee
-                .iter()
-                .sorted_by(|first_edge, second_edge| {
-                    sort_bys.clone().into_iter().fold(
-                        Ordering::Equal,
-                        |current_ordering, sort_by| {
-                            current_ordering.then_with(|| {
-                                // Node keys resolve their endpoint and delegate
-                                // to `compare_node`, which applies the nested
-                                // `NodeSortBy.reverse`; they return directly so
-                                // the outer `reverse` below never double-negates.
-                                if let Some(src_sort) = sort_by.src.as_ref() {
-                                    return compare_node(
-                                        &first_edge.src(),
-                                        &second_edge.src(),
-                                        src_sort,
-                                    );
-                                }
-                                if let Some(dst_sort) = sort_by.dst.as_ref() {
-                                    return compare_node(
-                                        &first_edge.dst(),
-                                        &second_edge.dst(),
-                                        dst_sort,
-                                    );
-                                }
-                                if let Some(neighbour_sort) = sort_by.neighbour.as_ref() {
-                                    return compare_node(
-                                        &first_edge.nbr(),
-                                        &second_edge.nbr(),
-                                        neighbour_sort,
-                                    );
-                                }
-                                let ordering = if let Some(sort_by_time) = sort_by.time {
-                                    let (first_time, second_time) = match sort_by_time {
-                                        SortByTime::Latest => {
-                                            (first_edge.latest_time(), second_edge.latest_time())
-                                        }
-                                        SortByTime::Earliest => (
-                                            first_edge.earliest_time(),
-                                            second_edge.earliest_time(),
-                                        ),
-                                    };
-                                    first_time.partial_cmp(&second_time)
-                                } else if let Some(sort_by_property) = sort_by.property {
-                                    let first_prop_maybe =
-                                        first_edge.properties().get(&sort_by_property);
-                                    let second_prop_maybe =
-                                        second_edge.properties().get(&sort_by_property);
-                                    first_prop_maybe.partial_cmp(&second_prop_maybe)
-                                } else {
-                                    None
-                                };
-                                if let Some(ordering) = ordering {
-                                    if sort_by.reverse == Some(true) {
-                                        ordering.reverse()
-                                    } else {
-                                        ordering
-                                    }
-                                } else {
-                                    Ordering::Equal
-                                }
-                            })
-                        },
-                    )
-                })
-                .map(|edge_view| edge_view.edge)
-                .collect();
-            self_clone.update(Edges::new(
-                self_clone.ee.base_graph().clone(),
-                Arc::new(move || {
-                    let sorted = sorted.clone();
-                    (0..sorted.len()).map(move |i| sorted[i]).into_dyn_boxed()
-                }),
-            ))
+            let sort_bys: Vec<_> = sort_bys.into_iter().map(Into::into).collect();
+            self_clone.update(self_clone.ee.sorted(&sort_bys))
         })
         .await
     }

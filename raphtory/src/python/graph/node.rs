@@ -39,6 +39,7 @@ use crate::{
             history::{NestedHistoryIterable, PyHistory},
             node::internal::InternalFilter,
             properties::{MetadataListList, MetadataView, PropertiesView, PyNestedPropsIterable},
+            sorting::PyNodeSortBy,
         },
         types::{iterable::FromIterable, repr::StructReprBuilder, wrappers::iterables::*},
         utils::PyNodeRef,
@@ -500,6 +501,19 @@ impl PyNodes {
     fn __getitem__(&self, filter: PyFilterExpr) -> PyResult<PyNodes> {
         let r = self.nodes.select(filter)?;
         Ok(PyNodes::from(r))
+    }
+
+    /// Reorder this collection by an ordered list of sort keys. Multi-key
+    /// sort is lexicographic (ties on key 1 break to key 2).
+    ///
+    /// Arguments:
+    ///     sort_bys (list[NodeSortBy]): the ordered sort keys.
+    ///
+    /// Returns:
+    ///     Nodes: a new collection in the sorted order.
+    fn sorted(&self, sort_bys: Vec<PyNodeSortBy>) -> PyNodes {
+        let sort_bys: Vec<_> = sort_bys.into_iter().map(|s| s.inner).collect();
+        PyNodes::from(self.nodes.sorted(&sort_bys))
     }
 }
 
