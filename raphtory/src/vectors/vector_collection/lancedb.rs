@@ -136,9 +136,7 @@ impl VectorCollection for LanceDbCollection {
         for batch in batches {
             let column = primitive_column::<UInt64Type>(&batch, "id")
                 .ok_or(GraphError::InvalidVectorDbSchema)?;
-            ids.extend(
-                (0..column.len()).filter_map(|i| column.is_valid(i).then(|| column.value(i))),
-            );
+            ids.extend(column.iter().flatten());
         }
         Ok(ids)
     }

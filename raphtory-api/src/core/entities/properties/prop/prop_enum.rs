@@ -523,61 +523,77 @@ pub fn validate_bd(bd: &BigDecimal) -> Result<(), InvalidBigDecimal> {
 }
 
 impl Prop {
+    /// cast to T or return self on failure
+    fn cast_num_inner<T>(self) -> Result<T, Prop>
+    where
+        T: FromPrimitive + Bounded,
+    {
+        match self {
+            Prop::U8(v) => T::from_u8(v).ok_or(Prop::U8(v)),
+            Prop::U16(v) => T::from_u16(v).ok_or(Prop::U16(v)),
+            Prop::I32(v) => T::from_i32(v).ok_or(Prop::I32(v)),
+            Prop::I64(v) => T::from_i64(v).ok_or(Prop::I64(v)),
+            Prop::U32(v) => T::from_u32(v).ok_or(Prop::U32(v)),
+            Prop::U64(v) => T::from_u64(v).ok_or(Prop::U64(v)),
+            Prop::F32(v) => T::from_f32(v).ok_or(Prop::F32(v)),
+            Prop::F64(v) => T::from_f64(v).ok_or(Prop::F64(v)),
+            _ => Err(self),
+        }
+    }
     // auxiliary function to help with numerical conversion
     pub fn cast_num<T>(self) -> Option<T>
     where
         T: FromPrimitive + Bounded,
     {
-        match self {
-            Prop::U8(v) => T::from_u8(v),
-            Prop::U16(v) => T::from_u16(v),
-            Prop::I32(v) => T::from_i32(v),
-            Prop::I64(v) => T::from_i64(v),
-            Prop::U32(v) => T::from_u32(v),
-            Prop::U64(v) => T::from_u64(v),
-            Prop::F32(v) => T::from_f32(v),
-            Prop::F64(v) => T::from_f64(v),
-            _ => None,
-        }
+        self.cast_num_inner().ok()
     }
 
     /// convert prop into another prop type (primarily for numerical conversions)
     pub fn try_cast(self, prop_type: PropType) -> Option<Prop> {
+        self.try_cast_inner(prop_type).ok()
+    }
+
+    fn try_cast_inner(self, prop_type: PropType) -> Result<Prop, Prop> {
         // Early return if casting to the same type
         if self.dtype() == prop_type {
-            return Some(self);
+            return Ok(self);
         }
 
         match self {
-            Prop::Str(v) => match prop_type {
-                PropType::Str => Some(Prop::Str(v)),
-                PropType::U8 => v.parse::<u8>().map(Prop::U8).ok(),
-                PropType::U16 => v.parse::<u16>().map(Prop::U16).ok(),
-                PropType::I32 => v.parse::<i32>().map(Prop::I32).ok(),
-                PropType::I64 => v.parse::<i64>().map(Prop::I64).ok(),
-                PropType::U32 => v.parse::<u32>().map(Prop::U32).ok(),
-                PropType::U64 => v.parse::<u64>().map(Prop::U64).ok(),
-                PropType::F32 => v.parse::<f32>().map(Prop::F32).ok(),
-                PropType::F64 => v.parse::<f64>().map(Prop::F64).ok(),
-                PropType::Bool => v.parse::<bool>().map(Prop::Bool).ok(),
-                PropType::NDTime => v.parse::<NaiveDateTime>().map(Prop::NDTime).ok(),
-                PropType::DTime => v.parse::<DateTime<Utc>>().map(Prop::DTime).ok(),
+            Prop::Str(ref v) => match prop_type {
+                PropType::U8 => v.parse::<u8>().map(Prop::U8).map_err(|_| self),
+                PropType::U16 => v.parse::<u16>().map(Prop::U16).map_err(|_| self),
+                PropType::I32 => v.parse::<i32>().map(Prop::I32).map_err(|_| self),
+                PropType::I64 => v.parse::<i64>().map(Prop::I64).map_err(|_| self),
+                PropType::U32 => v.parse::<u32>().map(Prop::U32).map_err(|_| self),
+                PropType::U64 => v.parse::<u64>().map(Prop::U64).map_err(|_| self),
+                PropType::F32 => v.parse::<f32>().map(Prop::F32).map_err(|_| self),
+                PropType::F64 => v.parse::<f64>().map(Prop::F64).map_err(|_| self),
+                PropType::Bool => v.parse::<bool>().map(Prop::Bool).map_err(|_| self),
+                PropType::NDTime => v
+                    .parse::<NaiveDateTime>()
+                    .map(Prop::NDTime)
+                    .map_err(|_| self),
+                PropType::DTime => v
+                    .parse::<DateTime<Utc>>()
+                    .map(Prop::DTime)
+                    .map_err(|_| self),
                 PropType::Decimal { scale } => v
                     .parse::<BigDecimal>()
                     .map(|v| Prop::Decimal(v.with_scale(scale)))
-                    .ok(),
-                _ => None,
+                    .map_err(|_| self),
+                _ => Err(self),
             },
             Prop::Bool(v) => match prop_type {
-                PropType::Str => Some(Prop::Str(v.to_string().into())),
-                PropType::U8 => Some(Prop::U8(v as _)),
-                PropType::U16 => Some(Prop::U16(v as _)),
-                PropType::I32 => Some(Prop::I32(v as _)),
-                PropType::I64 => Some(Prop::I64(v as _)),
-                PropType::U32 => Some(Prop::U32(v as _)),
-                PropType::U64 => Some(Prop::U64(v as _)),
-                PropType::F32 => Some(Prop::F32(if v { 1.0 } else { 0.0 })),
-                PropType::F64 => Some(Prop::F64(if v { 1.0 } else { 0.0 })),
+                PropType::Str => Ok(Prop::Str(v.to_string().into())),
+                PropType::U8 => Ok(Prop::U8(v as _)),
+                PropType::U16 => Ok(Prop::U16(v as _)),
+                PropType::I32 => Ok(Prop::I32(v as _)),
+                PropType::I64 => Ok(Prop::I64(v as _)),
+                PropType::U32 => Ok(Prop::U32(v as _)),
+                PropType::U64 => Ok(Prop::U64(v as _)),
+                PropType::F32 => Ok(Prop::F32(if v { 1.0 } else { 0.0 })),
+                PropType::F64 => Ok(Prop::F64(if v { 1.0 } else { 0.0 })),
                 PropType::Bool => unreachable!("Same type case handled above"),
                 PropType::Decimal { scale } => {
                     let val = if v {
@@ -585,85 +601,124 @@ impl Prop {
                     } else {
                         BigDecimal::from(0)
                     };
-                    Some(Prop::Decimal(val.with_scale(scale)))
+                    Ok(Prop::Decimal(val.with_scale(scale)))
                 }
-                _ => None,
+                _ => Err(self),
             },
-            Prop::List(_v) => None,
-            Prop::Map(_v) => None,
+            v @ Prop::List(_) => Err(v),
+            v @ Prop::Map(_) => Err(v),
             Prop::NDTime(v) => match prop_type {
-                PropType::Str => Some(Prop::Str(v.to_string().into())),
-                PropType::I64 => Some(Prop::I64(v.and_utc().timestamp())),
+                PropType::Str => Ok(Prop::Str(v.to_string().into())),
+                PropType::I64 => Ok(Prop::I64(v.and_utc().timestamp())),
                 PropType::U64 => {
                     let ts = v.and_utc().timestamp();
                     if ts >= 0 {
-                        Some(Prop::U64(ts as u64))
+                        Ok(Prop::U64(ts as u64))
                     } else {
-                        None
+                        Err(self)
                     }
                 }
-                PropType::DTime => Some(Prop::DTime(v.and_utc())),
+                PropType::DTime => Ok(Prop::DTime(v.and_utc())),
                 PropType::NDTime => unreachable!("Same type case handled above"),
-                _ => None,
+                _ => Err(self),
             },
             Prop::DTime(v) => match prop_type {
-                PropType::Str => Some(Prop::Str(v.to_rfc3339().into())),
-                PropType::I64 => Some(Prop::I64(v.timestamp())),
+                PropType::Str => Ok(Prop::Str(v.to_rfc3339().into())),
+                PropType::I64 => Ok(Prop::I64(v.timestamp())),
                 PropType::U64 => {
                     let ts = v.timestamp();
                     if ts >= 0 {
-                        Some(Prop::U64(ts as u64))
+                        Ok(Prop::U64(ts as u64))
                     } else {
-                        None
+                        Err(self)
                     }
                 }
-                PropType::NDTime => Some(Prop::NDTime(v.naive_utc())),
+                PropType::NDTime => Ok(Prop::NDTime(v.naive_utc())),
                 PropType::DTime => unreachable!("Same type case handled above"),
-                _ => None,
+                _ => Err(self),
             },
             Prop::Decimal(v) => match prop_type {
                 PropType::Str => Some(Prop::Str(v.to_string().into())),
-                PropType::U8 => {
-                    let as_i64 = v.to_i64()?;
-                    u8::from_i64(as_i64).map(Prop::U8)
-                }
-                PropType::U16 => {
-                    let as_i64 = v.to_i64()?;
-                    u16::from_i64(as_i64).map(Prop::U16)
-                }
-                PropType::I32 => {
-                    let as_i64 = v.to_i64()?;
-                    i32::from_i64(as_i64).map(Prop::I32)
-                }
+                PropType::U8 => v.to_u8().map(Prop::U8),
+                PropType::U16 => v.to_u16().map(Prop::U16),
+                PropType::I32 => v.to_i32().map(Prop::I32),
                 PropType::I64 => v.to_i64().map(Prop::I64),
-                PropType::U32 => {
-                    let as_i64 = v.to_i64()?;
-                    u32::from_i64(as_i64).map(Prop::U32)
-                }
-                PropType::U64 => {
-                    let as_i64 = v.to_i64()?;
-                    u64::from_i64(as_i64).map(Prop::U64)
-                }
+                PropType::U32 => v.to_u32().map(Prop::U32),
+
+                PropType::U64 => v.to_u64().map(Prop::U64),
                 PropType::F32 => v.to_f32().map(Prop::F32),
                 PropType::F64 => v.to_f64().map(Prop::F64),
-                PropType::Bool => {
-                    let as_i64 = v.to_i64()?;
-                    Some(Prop::Bool(as_i64 != 0))
-                }
+                PropType::Bool => Some(Prop::Bool(v != 0)),
                 PropType::Decimal { scale } => Some(Prop::Decimal(v.with_scale(scale))),
                 _ => None,
-            },
+            }
+            .ok_or(Prop::Decimal(v)),
             _ => match prop_type {
                 // Numeric conversions using num_traits
-                PropType::U8 => self.cast_num::<u8>().map(Prop::U8),
-                PropType::U16 => self.cast_num::<u16>().map(Prop::U16),
-                PropType::I32 => self.cast_num::<i32>().map(Prop::I32),
-                PropType::I64 => self.cast_num::<i64>().map(Prop::I64),
-                PropType::U32 => self.cast_num::<u32>().map(Prop::U32),
-                PropType::U64 => self.cast_num::<u64>().map(Prop::U64),
-                PropType::F32 => self.cast_num::<f32>().map(Prop::F32),
-                PropType::F64 => self.cast_num::<f64>().map(Prop::F64),
-                _ => None,
+                PropType::U8 => self.cast_num_inner::<u8>().map(Prop::U8),
+                PropType::U16 => self.cast_num_inner::<u16>().map(Prop::U16),
+                PropType::I32 => self.cast_num_inner::<i32>().map(Prop::I32),
+                PropType::I64 => self.cast_num_inner::<i64>().map(Prop::I64),
+                PropType::U32 => self.cast_num_inner::<u32>().map(Prop::U32),
+                PropType::U64 => self.cast_num_inner::<u64>().map(Prop::U64),
+                PropType::F32 => self.cast_num_inner::<f32>().map(Prop::F32),
+                PropType::F64 => self.cast_num_inner::<f64>().map(Prop::F64),
+                PropType::Decimal { scale } => self
+                    .into_big_decimal()
+                    .map(|v| Prop::Decimal(v.with_scale(scale))),
+                _ => Err(self),
+            },
+        }
+    }
+
+    fn as_signed_int(self) -> Option<Prop> {
+        match self {
+            Prop::U8(v) => Some(Prop::I32(v as i32)),
+            Prop::U16(v) => Some(Prop::I32(v as i32)),
+            Prop::U32(v) => {
+                if v > i32::MAX as u32 {
+                    Some(Prop::I64(v as i64))
+                } else {
+                    Some(Prop::I32(v as i32))
+                }
+            }
+            Prop::U64(v) => {
+                if v > i64::MAX as u64 {
+                    Some(Prop::Decimal(BigDecimal::from(v)))
+                } else {
+                    Some(Prop::I64(v as i64))
+                }
+            }
+            v @ (Prop::I32(_) | Prop::I64(_)) => Some(v),
+            _ => None,
+        }
+    }
+
+    /// Cast a pair of values to a common compatible dtype for numeric operations
+    ///
+    /// float and decimal have priority over integers, left has priority over right
+    pub fn try_cast_compatible_numeric(self, other: Prop) -> Option<(Prop, Prop)> {
+        if !self.is_numeric() || !other.is_numeric() {
+            return None;
+        }
+
+        match self.dtype() {
+            dt @ (PropType::Decimal { .. } | PropType::F32 | PropType::F64) => {
+                Some((self, other.try_cast(dt)?))
+            }
+            this_dt => match other.dtype() {
+                other_dt @ (PropType::Decimal { .. } | PropType::F32 | PropType::F64) => {
+                    Some((self.try_cast(other_dt)?, other))
+                }
+                other_dt => match other.try_cast_inner(this_dt) {
+                    Ok(other) => Some((self, other)),
+                    Err(other) => match self.try_cast_inner(other_dt) {
+                        Ok(this) => Some((this, other)),
+                        Err(this) => this
+                            .as_signed_int()?
+                            .try_cast_compatible_numeric(other.as_signed_int()?),
+                    },
+                },
             },
         }
     }
@@ -773,12 +828,12 @@ impl Prop {
 
     /// Consume a numeric prop into a `BigDecimal` — exact for integers and existing decimals, the
     /// nearest decimal for floats. `None` for non-numerics (and non-finite floats).
-    fn into_big_decimal(self) -> Option<BigDecimal> {
+    fn into_big_decimal(self) -> Result<BigDecimal, Prop> {
         match self {
-            Prop::Decimal(d) => Some(d),
-            Prop::F32(v) => BigDecimal::from_f64(v as f64),
-            Prop::F64(v) => BigDecimal::from_f64(v),
-            other => other.as_i128().map(BigDecimal::from),
+            Prop::Decimal(d) => Ok(d),
+            Prop::F32(v) => BigDecimal::from_f64(v as f64).ok_or(Prop::F32(v)),
+            Prop::F64(v) => BigDecimal::from_f64(v).ok_or(Prop::F64(v)),
+            other => other.as_i128().map(BigDecimal::from).ok_or(other),
         }
     }
 
@@ -787,6 +842,14 @@ impl Prop {
             self,
             Prop::U8(_) | Prop::U16(_) | Prop::U32(_) | Prop::U64(_)
         )
+    }
+
+    fn is_signed_int(&self) -> bool {
+        matches!(self, Prop::I32(_) | Prop::I64(_))
+    }
+
+    fn is_int(&self) -> bool {
+        self.is_unsigned_int() || self.is_signed_int()
     }
 
     /// Add two props. Same-type integer sums keep their type, bumping one size up on overflow
@@ -831,20 +894,12 @@ impl Prop {
             (List(a), List(b)) => Some(List(PropArray::Vec(
                 a.iter().chain(b.iter()).collect::<Vec<_>>().into(),
             ))),
-            // Cross-type numeric pair: widen to the widest type in the common family (never
-            // narrower than either operand), spilling to `Decimal` past `u64`/`i64`. Non-numeric
-            // pairs are unaddable.
-            (a, b) => {
-                if matches!(a, Decimal(_)) || matches!(b, Decimal(_)) {
-                    Some(Decimal(a.into_big_decimal()? + b.into_big_decimal()?))
-                } else if matches!(a, F32(_) | F64(_)) || matches!(b, F32(_) | F64(_)) {
-                    Some(F64(a.as_f64()? + b.as_f64()?))
-                } else if a.is_unsigned_int() && b.is_unsigned_int() {
-                    Some(Self::u64_or_decimal(a.as_u128()? + b.as_u128()?))
-                } else {
-                    Some(Self::i64_or_decimal(a.as_i128()? + b.as_i128()?))
-                }
+            // Cross-type numeric pair: cast to a common compatible dtype
+            (a, b) if a.is_numeric() && b.is_numeric() => {
+                let (left, right) = a.try_cast_compatible_numeric(b)?;
+                left.add(right)
             }
+            _ => None,
         }
     }
 
@@ -854,7 +909,7 @@ impl Prop {
         use Prop::*;
         if matches!(self, Decimal(_)) || matches!(other, Decimal(_)) {
             Some(Decimal(
-                self.into_big_decimal()? - other.into_big_decimal()?,
+                self.into_big_decimal().ok()? - other.into_big_decimal().ok()?,
             ))
         } else if matches!(self, F32(_) | F64(_)) || matches!(other, F32(_) | F64(_)) {
             Some(F64(self.as_f64()? - other.as_f64()?))
@@ -876,7 +931,7 @@ impl Prop {
         use Prop::*;
         if matches!(self, Decimal(_)) || matches!(other, Decimal(_)) {
             Some(Decimal(
-                self.into_big_decimal()? * other.into_big_decimal()?,
+                self.into_big_decimal().ok()? * other.into_big_decimal().ok()?,
             ))
         } else if matches!(self, F32(_) | F64(_)) || matches!(other, F32(_) | F64(_)) {
             Some(F64(self.as_f64()? * other.as_f64()?))
@@ -893,7 +948,10 @@ impl Prop {
     pub fn div(self, other: Prop) -> Option<Prop> {
         use Prop::*;
         if matches!(self, Decimal(_)) || matches!(other, Decimal(_)) {
-            let (a, b) = (self.into_big_decimal()?, other.into_big_decimal()?);
+            let (a, b) = (
+                self.into_big_decimal().ok()?,
+                other.into_big_decimal().ok()?,
+            );
             (!b.is_zero()).then(|| Decimal(a / b))
         } else {
             let (a, b) = (self.as_f64()?, other.as_f64()?);
@@ -967,8 +1025,8 @@ impl Prop {
         // through `f64`.
         if matches!(self, Prop::Decimal(_)) || matches!(other, Prop::Decimal(_)) {
             if let (Some(a), Some(b)) = (
-                self.clone().into_big_decimal(),
-                other.clone().into_big_decimal(),
+                self.clone().into_big_decimal().ok(),
+                other.clone().into_big_decimal().ok(),
             ) {
                 return a.partial_cmp(&b);
             }

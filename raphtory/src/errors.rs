@@ -28,10 +28,10 @@ use std::{
 };
 use storage::{error::StorageError, resolver::mapping_resolver::InvalidNodeId};
 
+use crate::algorithms::dynamics::temporal::epidemics::SeedError;
 #[cfg(feature = "python")]
 use pyo3::PyErr;
-
-use crate::algorithms::dynamics::temporal::epidemics::SeedError;
+use tempfile::PersistError;
 #[cfg(feature = "io")]
 use zip::result::ZipError;
 
@@ -117,6 +117,9 @@ pub fn into_graph_err(err: impl Into<GraphError>) -> GraphError {
 pub enum GraphError {
     #[error(transparent)]
     ExternalError(Arc<dyn std::error::Error + Send + Sync>),
+
+    #[error(transparent)]
+    PersistError(#[from] PersistError),
 
     #[error(transparent)]
     MutationError(#[from] MutationError),
