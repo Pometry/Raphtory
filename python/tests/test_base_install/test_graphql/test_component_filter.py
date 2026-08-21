@@ -8,7 +8,7 @@ Filter selects use `expr: {isValid: true}` as a pass-all edge expression.
 import pytest
 
 from raphtory import Graph
-from utils import graphql_server
+from utils import graphql_client
 
 
 @pytest.fixture(scope="module")
@@ -20,7 +20,7 @@ def client():
     g.add_edge(0, "b", "c", layer="owns")
     g.add_edge(0, "a", "x", layer="has")
     g.add_edge(0, "b", "y", layer="has")
-    with graphql_server(g) as c:
+    with graphql_client(g) as c:
         yield c
 
 

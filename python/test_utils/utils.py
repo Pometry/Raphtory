@@ -114,7 +114,14 @@ def measure(name: str, f: Callable[..., B], *args, print_result: bool = True) ->
 
 
 @contextlib.contextmanager
-def graphql_server(graph=None, path="g"):
+def graphql_server():
+    with tempfile.TemporaryDirectory() as work_dir:
+        with GraphServer(work_dir).start() as server:
+            yield server
+
+
+@contextlib.contextmanager
+def graphql_client(graph=None, path="g"):
     """Start a `GraphServer` in a temporary directory (removed on exit, after
     the server has stopped) and yield its client. When `graph` is given it is
     sent to the server at `path` first, ready to query.
@@ -122,12 +129,11 @@ def graphql_server(graph=None, path="g"):
     The single shared way tests stand up a server — use this (directly or via
     a fixture) instead of hand-rolling `tempfile` + `GraphServer` per test.
     """
-    with tempfile.TemporaryDirectory() as work_dir:
-        with GraphServer(work_dir).start() as server:
-            client = server.get_client()
-            if graph is not None:
-                client.send_graph(path=path, graph=graph)
-            yield client
+    with graphql_server() as server:
+        client = server.get_client()
+        if graph is not None:
+            client.send_graph(path=path, graph=graph)
+        yield client
 
 
 @contextlib.contextmanager
@@ -136,12 +142,12 @@ def remote_graph_server(name="g", graph_type="EVENT"):
     on it, and yield `(RemoteGraph, RaphtoryClient)`. Callers populate the
     yielded handle themselves — the write-path counterpart of passing a
     pre-built graph to `graphql_server`."""
-    with graphql_server() as client:
+    with graphql_client() as client:
         yield client.new_graph(name, graph_type), client
 
 
 def run_graphql_test(query, expected_output, graph, sort_output=False):
-    with graphql_server(graph) as client:
+    with graphql_client(graph) as client:
         response = client.query(query)
 
         # Convert response to a dictionary if needed and compare
@@ -155,7 +161,7 @@ def run_graphql_test(query, expected_output, graph, sort_output=False):
 
 
 def run_group_graphql_test(queries_and_expected_outputs, graph, sort_output=False):
-    with graphql_server(graph) as client:
+    with graphql_client(graph) as client:
 
         for query, expected_output in queries_and_expected_outputs:
             response = client.query(query)
@@ -171,7 +177,7 @@ def run_group_graphql_test(queries_and_expected_outputs, graph, sort_output=Fals
 
 
 def run_graphql_error_test(query, expected_error_message, graph):
-    with graphql_server(graph) as client:
+    with graphql_client(graph) as client:
 
         with pytest.raises(Exception) as excinfo:
             client.query(query)
@@ -186,7 +192,7 @@ def run_graphql_error_test(query, expected_error_message, graph):
 
 
 def run_group_graphql_error_test(queries_and_expected_error_messages, graph):
-    with graphql_server(graph) as client:
+    with graphql_client(graph) as client:
         for query, expected_error_message in queries_and_expected_error_messages:
             with pytest.raises(Exception) as excinfo:
                 client.query(query)
@@ -200,7 +206,7 @@ def run_group_graphql_error_test(queries_and_expected_error_messages, graph):
 
 
 def run_graphql_error_test_contains(query, expected_substrings, graph):
-    with graphql_server(graph) as client:
+    with graphql_client(graph) as client:
 
         with pytest.raises(Exception) as excinfo:
             client.query(query)
@@ -214,7 +220,7 @@ def run_graphql_error_test_contains(query, expected_substrings, graph):
 
 
 def run_graphql_compare_test(query_a, query_b, graph):
-    with graphql_server(graph) as client:
+    with graphql_client(graph) as client:
 
         resp_a = client.query(query_a)
         resp_b = client.query(query_b)

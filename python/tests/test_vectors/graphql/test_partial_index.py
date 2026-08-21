@@ -13,6 +13,7 @@ import time
 
 from raphtory.graphql import GraphServer, RaphtoryClient
 from raphtory.vectors import embedding_server
+from utils import graphql_server, graphql_client
 
 PARTIAL_PORT = 7341
 
@@ -99,11 +100,7 @@ def test_partial_index_only_embeds_missing_entities():
     reproduces, by writing while the embedding server is down.
     """
     CONTROL.reset()
-    work_dir = tempfile.TemporaryDirectory()
-
-    with GraphServer(work_dir.name).start() as server:
-        client = server.get_client()
-
+    with graphql_client() as client:
         with controlled_embeddings.start(PARTIAL_PORT):
             seed(client, "pg", ["aab", "abb"])
             client.query(rebuild("pg", DOC))
@@ -112,44 +109,48 @@ def test_partial_index_only_embeds_missing_entities():
             # nothing missing: no embedding calls at all, just the id scan
             before = CONTROL.calls
             client.query(missing("pg", DOC))
-            assert CONTROL.calls == before, (
-                f"a partial index with nothing missing embedded {CONTROL.calls - before} documents"
-            )
+            assert (
+                CONTROL.calls == before
+            ), f"a partial index with nothing missing embedded {CONTROL.calls - before} documents"
             assert contents(client, "pg") == ["aab", "abb"]
 
         # written while embedding is unavailable: the write lands, the index does not get it
         client.remote_graph("pg").add_node(3, "bba", {"doc": "bba"})
 
         with controlled_embeddings.start(PARTIAL_PORT):
-            assert contents(client, "pg") == ["aab", "abb"], (
-                "the node written without embeddings should be missing from the index"
-            )
+            assert contents(client, "pg") == [
+                "aab",
+                "abb",
+            ], "the node written without embeddings should be missing from the index"
 
             before = CONTROL.calls
             client.query(missing("pg", DOC))
-            assert CONTROL.calls - before == 1, (
-                f"expected 1 embedding for the node that was missing, got {CONTROL.calls - before}"
-            )
-            assert contents(client, "pg") == ["aab", "abb", "bba"], (
-                "the partial index should have repaired the missing entity"
-            )
+            assert (
+                CONTROL.calls - before == 1
+            ), f"expected 1 embedding for the node that was missing, got {CONTROL.calls - before}"
+            assert contents(client, "pg") == [
+                "aab",
+                "abb",
+                "bba",
+            ], "the partial index should have repaired the missing entity"
 
             # a changed template cannot be filled in incrementally
-            assert query_failed(client, missing("pg", "changed " + DOC)), (
-                "a partial index against a changed template must be refused"
-            )
-            assert contents(client, "pg") == ["aab", "abb", "bba"], (
-                "the refused call must not have touched the index"
-            )
+            assert query_failed(
+                client, missing("pg", "changed " + DOC)
+            ), "a partial index against a changed template must be refused"
+            assert contents(client, "pg") == [
+                "aab",
+                "abb",
+                "bba",
+            ], "the refused call must not have touched the index"
 
 
 def test_rebuild_keeps_serving_while_in_flight():
     """The previous index must keep answering while a rebuild is running."""
     CONTROL.reset()
-    work_dir = tempfile.TemporaryDirectory()
 
     with controlled_embeddings.start(PARTIAL_PORT):
-        with GraphServer(work_dir.name).start() as server:
+        with graphql_server() as server:
             client = server.get_client()
             seed(client, "ag", ["aab", "abb"])
             client.query(rebuild("ag", DOC))
@@ -173,9 +174,10 @@ def test_rebuild_keeps_serving_while_in_flight():
                 time.sleep(0.3)
                 assert not outcome, "the rebuild should still be running"
                 # "aab" is already cached, so this needs no embedding call of its own
-                assert contents(client, "ag") == ["aab", "abb"], (
-                    "the previous documents must still be served while a rebuild is in flight"
-                )
+                assert contents(client, "ag") == [
+                    "aab",
+                    "abb",
+                ], "the previous documents must still be served while a rebuild is in flight"
             finally:
                 thread.join(timeout=60)
             assert outcome == ["ok"], outcome
@@ -188,52 +190,59 @@ def test_failed_rebuild_leaves_the_previous_index_and_recovers():
     """A rebuild that cannot complete leaves the previous index serving — live and after a
     restart — and a later rebuild that does complete must work."""
     CONTROL.reset()
-    work_dir = tempfile.TemporaryDirectory()
-
-    with GraphServer(work_dir.name).start() as server:
-        client = server.get_client()
-        with controlled_embeddings.start(PARTIAL_PORT):
-            seed(client, "rg", ["aab", "abb"])
-            client.query(rebuild("rg", DOC))
-            assert contents(client, "rg") == ["aab", "abb"]
-
-        # embedding server is down: the rebuild cannot finish
-        assert query_failed(client, rebuild("rg", SECOND_DOC)), (
-            "a rebuild that cannot embed must report the failure"
-        )
-        assert contents(client, "rg") == ["aab", "abb"], (
-            "a failed rebuild must leave the previous documents being served"
-        )
-
-        with controlled_embeddings.start(PARTIAL_PORT):
-            # the meta was never switched, so the graph is not wedged: a rebuild still works
-            client.query(rebuild("rg", SECOND_DOC))
-            assert contents(client, "rg", "second aab") == ["second aab", "second abb"]
-
-    # and the switch survives a restart
-    with controlled_embeddings.start(PARTIAL_PORT):
-        with GraphServer(work_dir.name).start() as server:
+    with tempfile.TemporaryDirectory() as work_dir:
+        with GraphServer(work_dir).start() as server:
             client = server.get_client()
-            assert contents(client, "rg", "second aab") == ["second aab", "second abb"]
+            with controlled_embeddings.start(PARTIAL_PORT):
+                seed(client, "rg", ["aab", "abb"])
+                client.query(rebuild("rg", DOC))
+                assert contents(client, "rg") == ["aab", "abb"]
+
+            # embedding server is down: the rebuild cannot finish
+            assert query_failed(
+                client, rebuild("rg", SECOND_DOC)
+            ), "a rebuild that cannot embed must report the failure"
+            assert contents(client, "rg") == [
+                "aab",
+                "abb",
+            ], "a failed rebuild must leave the previous documents being served"
+
+            with controlled_embeddings.start(PARTIAL_PORT):
+                # the meta was never switched, so the graph is not wedged: a rebuild still works
+                client.query(rebuild("rg", SECOND_DOC))
+                assert contents(client, "rg", "second aab") == [
+                    "second aab",
+                    "second abb",
+                ]
+
+        # and the switch survives a restart
+        with controlled_embeddings.start(PARTIAL_PORT):
+            with GraphServer(work_dir).start() as server:
+                client = server.get_client()
+                assert contents(client, "rg", "second aab") == [
+                    "second aab",
+                    "second abb",
+                ]
 
 
 def test_failed_rebuild_leaves_the_previous_index_on_disk():
     """The same, checked across a restart rather than in-process: an abandoned rebuild must not
     change what a fresh server loads."""
     CONTROL.reset()
-    work_dir = tempfile.TemporaryDirectory()
+    with tempfile.TemporaryDirectory() as work_dir:
 
-    with GraphServer(work_dir.name).start() as server:
-        client = server.get_client()
-        with controlled_embeddings.start(PARTIAL_PORT):
-            seed(client, "dg", ["aab", "abb"])
-            client.query(rebuild("dg", DOC))
-            assert contents(client, "dg") == ["aab", "abb"]
-        assert query_failed(client, rebuild("dg", SECOND_DOC))
-
-    with controlled_embeddings.start(PARTIAL_PORT):
-        with GraphServer(work_dir.name).start() as server:
+        with GraphServer(work_dir).start() as server:
             client = server.get_client()
-            assert contents(client, "dg") == ["aab", "abb"], (
-                "an abandoned rebuild must leave the previous generation on disk"
-            )
+            with controlled_embeddings.start(PARTIAL_PORT):
+                seed(client, "dg", ["aab", "abb"])
+                client.query(rebuild("dg", DOC))
+                assert contents(client, "dg") == ["aab", "abb"]
+            assert query_failed(client, rebuild("dg", SECOND_DOC))
+
+        with controlled_embeddings.start(PARTIAL_PORT):
+            with GraphServer(work_dir).start() as server:
+                client = server.get_client()
+                assert contents(client, "dg") == [
+                    "aab",
+                    "abb",
+                ], "an abandoned rebuild must leave the previous generation on disk"
