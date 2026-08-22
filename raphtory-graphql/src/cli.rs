@@ -190,9 +190,6 @@ pub struct ConfigArgs {
     #[arg(long, env = "RAPHTORY_PUBLIC_DIR", help = "Public directory path")]
     pub(crate) public_dir: Option<PathBuf>,
 
-    #[arg(long, env = "RAPHTORY_PERMISSIONS_STORE_PATH", default_value = None, help = "Path to the JSON permissions store file.")]
-    permissions_store_path: Option<PathBuf>,
-
     #[command(flatten)]
     pub(crate) extensions: ArgExtensions,
 }

@@ -125,6 +125,12 @@ fn require_namespace_write(
     new_path: &str,
     operation: &str,
 ) -> Result<()> {
+    if crate::auth::is_read_only(ctx) {
+        return Err(gql_error_with_code(
+            "Access denied: this context may not write",
+            CODE_ACCESS_DENIED,
+        ));
+    }
     match policy {
         None => ctx
             .require_jwt_write_access()

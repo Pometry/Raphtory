@@ -14,7 +14,6 @@ use crate::{
     server::ServerError::SchemaError,
 };
 use async_graphql::dynamic::Schema;
-use once_cell::sync::Lazy;
 use opentelemetry::trace::TracerProvider;
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
 use opentelemetry_sdk::{
@@ -38,7 +37,6 @@ use std::{
     ops::Deref,
     path::{Path, PathBuf},
     pin::Pin,
-    sync::RwLock,
     task::{Context, Poll},
 };
 use thiserror::Error;
@@ -71,25 +69,6 @@ use crate::plugin::server::PluginRegistrationError;
 pub use config::ConfigError;
 
 pub const DEFAULT_PORT: u16 = 1736;
-
-type ServerExtensionFn = Box<dyn Fn(GraphServer, Option<&Path>) -> GraphServer + Send + Sync>;
-
-static SERVER_EXTENSION: Lazy<RwLock<Option<ServerExtensionFn>>> = Lazy::new(|| RwLock::new(None));
-
-pub fn register_server_extension(f: ServerExtensionFn) {
-    *SERVER_EXTENSION.write().unwrap() = Some(f);
-}
-
-pub fn apply_server_extension(server: GraphServer, path: Option<&Path>) -> GraphServer {
-    match SERVER_EXTENSION.read().unwrap().as_ref() {
-        Some(ext) => ext(server, path),
-        None => server,
-    }
-}
-
-pub fn has_server_extension() -> bool {
-    SERVER_EXTENSION.read().unwrap().is_some()
-}
 
 #[derive(Error, Debug)]
 pub enum ServerError {

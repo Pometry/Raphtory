@@ -403,6 +403,40 @@ pub(crate) trait ContextValidation {
     fn require_jwt_write_access(&self) -> Result<(), AuthError>;
 }
 
+/// A request-context marker meaning "this execution must not write", independent of how much
+/// access its token carries.
+///
+/// Attach it with `Request::data(ReadOnly)` (or `.data(ReadOnly)` when building a schema for
+/// internal use). Every write gate refuses while it is present, so an [`Access::Rw`] token
+/// executing under this marker still cannot write.
+///
+/// # Why a marker, rather than lowering `Access`
+///
+/// The two answer different questions. [`Access`] is *how much authority this token has*; the
+/// marker is *whether this particular execution is permitted to use it to write*. A server
+/// extension that runs a query itself — on a caller's behalf, but with access of its own rather
+/// than the caller's — needs to raise the first without raising the second. Lowering `Access` to
+/// [`Access::Ro`] would instead take away the read breadth that is the whole point of running it
+/// separately, so the two have to be independent.
+///
+/// # Why the gate, rather than inspecting the query
+///
+/// Parsing as a `query` operation does **not** make a document read-only. GraphQL's query root
+/// carries fields that mutate — `updateGraph`, `deleteGraph`, and the `load*` family — so a
+/// document containing no `mutation` keyword can still change stored data.
+///
+/// Checking at the point where write authority is granted, instead of pattern-matching the query
+/// text, means the refusal does not depend on how a mutating field is named, aliased, or reached:
+/// anything that needs write authority asks for it, and while this marker is set the answer is no.
+/// It also keeps the guarantee true for fields added later, which a text check would silently miss.
+#[derive(Clone, Copy, Debug)]
+pub struct ReadOnly;
+
+/// Whether this context is marked [`ReadOnly`].
+pub(crate) fn is_read_only(ctx: &async_graphql::Context<'_>) -> bool {
+    ctx.data::<ReadOnly>().is_ok()
+}
+
 /// Check that the request carries a write-access JWT (`"access": "rw"`).
 /// For use in dynamic resolver ops that run under `query { ... }` and are
 /// therefore not covered by the `MutationAuth` extension.
@@ -421,6 +455,10 @@ pub fn require_jwt_write_access_dynamic(
 
 impl<'a> ContextValidation for &Context<'a> {
     fn require_jwt_write_access(&self) -> Result<(), AuthError> {
+        // A read-only context never writes, however much access its token carries.
+        if self.data::<ReadOnly>().is_ok() {
+            return Err(AuthError::RequireWrite);
+        }
         match self.data::<Access>() {
             Ok(access) if access == &Access::Rw => Ok(()),
             _ => Err(AuthError::RequireWrite),

@@ -7,7 +7,6 @@ use crate::{
         log_config::{LoggingConfig, LoggingConfigFieldName},
         otlp_config::{TracingConfig, TracingConfigFieldName, TracingLevel, TracingProtocol},
         parquet_config::{ParquetConfig, ParquetConfigFieldName},
-        rbac_config::RbacConfig,
         schema_config::{SchemaConfig, SchemaConfigFieldName},
     },
     plugin::server::extension::{ArgExtensions, BoxedExtension, ServerExtensionImpl},
@@ -35,7 +34,7 @@ pub struct AppConfig {
     pub schema: SchemaConfig,
     pub parquet: ParquetConfig,
     pub public_dir: Option<PathBuf>,
-    pub rbac: RbacConfig,
+    #[serde(flatten)]
     pub extensions: ArgExtensions,
 }
 
@@ -75,7 +74,9 @@ fn as_boxed_external<E: Error + Send + Sync + 'static>(error: E) -> ServerError 
 
 impl AppConfigBuilder {
     pub fn new() -> Self {
-        AppConfig::default().into()
+        let mut builder: Self = AppConfig::default().into();
+        builder.config.extensions = ArgExtensions::with_defaults();
+        builder
     }
 
     pub fn new_from_args(server_args: ConfigArgs) -> Result<Self, ServerError> {
@@ -166,7 +167,31 @@ impl AppConfigBuilder {
             .ok_or_else(|| ConfigError::Message(format!("Invalid config: {value}")))?;
 
         for (path, value) in map {
-            match AppConfigFieldName::by_name(path).ok_or_else(|| invalid_path([path]))? {
+            // A key naming no built-in section names a server extension, whose settings sit at
+            // the top level alongside the built-ins. An unregistered name still errors, exactly as
+            // an unknown section did.
+            //
+            // `extensions` is deliberately not treated as a section here: the field is
+            // `#[serde(flatten)]`ed, so a config file has no such key either, and routing it
+            // through the same lookup keeps this path and the file path in agreement.
+            let field = AppConfigFieldName::by_name(path)
+                .filter(|f| !matches!(f, AppConfigFieldName::Extensions));
+            let Some(field) = field else {
+                // A name that is neither a section nor a registered extension is simply an
+                // invalid field. Only once it is known to be an extension do we hand the value
+                // over and let its own error through — that error names the offending inner
+                // field, which reporting the section name here would hide.
+                if !crate::plugin::server::is_registered(path) {
+                    return Err(invalid_path([path]));
+                }
+                let mut one = serde_json::Map::new();
+                one.insert(path.clone(), value.clone());
+                self.config
+                    .extensions
+                    .update_from_json(&serde_json::Value::Object(one))?;
+                continue;
+            };
+            match field {
                 AppConfigFieldName::Logging => {
                     let map = value.as_object().ok_or_else(|| {
                         ConfigError::Message(format!("Invalid logging config: {value}"))
@@ -292,18 +317,6 @@ impl AppConfigBuilder {
                                         .map_err(|e| invalid_value([path, sub_path], e))?,
                                 );
                             }
-                            AuthConfigFieldName::JwksUri => {
-                                self.with_auth_jwks_uri(
-                                    Deserialize::deserialize(value)
-                                        .map_err(|e| invalid_value([path, sub_path], e))?,
-                                );
-                            }
-                            AuthConfigFieldName::JwksRefreshSecs => {
-                                self.with_auth_jwks_refresh_secs(
-                                    Deserialize::deserialize(value)
-                                        .map_err(|e| invalid_value([path, sub_path], e))?,
-                                );
-                            }
                         }
                     }
                 }
@@ -423,13 +436,7 @@ impl AppConfigBuilder {
                         Deserialize::deserialize(value).map_err(|e| invalid_value([path], e))?,
                     );
                 }
-                AppConfigFieldName::Rbac => {
-                    self.config.rbac =
-                        Deserialize::deserialize(value).map_err(|e| invalid_value([path], e))?;
-                }
-                AppConfigFieldName::Extensions => {
-                    self.config.extensions.update_from_json(value)?;
-                }
+                AppConfigFieldName::Extensions => unreachable!("filtered out above"),
             }
         }
 
@@ -525,15 +532,7 @@ impl AppConfigBuilder {
         self
     }
 
-    pub fn with_auth_jwks_uri(&mut self, jwks_uri: Option<String>) -> &mut Self {
-        self.config.auth.jwks_uri = jwks_uri;
-        self
-    }
 
-    pub fn with_auth_jwks_refresh_secs(&mut self, secs: Option<u64>) -> &mut Self {
-        self.config.auth.jwks_refresh_secs = secs;
-        self
-    }
 
     pub fn with_heavy_query_limit(&mut self, heavy_query_limit: Option<usize>) -> &mut Self {
         self.config.concurrency.heavy_query_limit = heavy_query_limit;

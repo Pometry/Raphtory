@@ -13,7 +13,7 @@ use std::sync::Arc;
 mod auth;
 pub mod auth_policy;
 
-pub use auth::{KeyResolver, StaticKeyResolver};
+pub use auth::{KeyResolver, ReadOnly, StaticKeyResolver};
 pub mod cache;
 pub mod cli;
 pub mod client;

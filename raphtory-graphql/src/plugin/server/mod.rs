@@ -22,6 +22,11 @@ use thiserror::Error;
 pub enum PluginRegistrationError {
     #[error("Multiple cli plugins registered with name '{0}'")]
     Multiple(String),
+    /// Extension settings sit at the top level beside the built-in sections, and the built-ins are
+    /// matched first — by `AppConfigFieldName` on the json path, and by serde's named fields before
+    /// `flatten` on the file path. A colliding name would therefore never receive its config.
+    #[error("Extension '{0}' collides with a built-in config section and would never be configured")]
+    ShadowsConfigSection(String),
     #[error("No registered plugin with name '{0}'")]
     Unknown(String),
 }
@@ -53,6 +58,12 @@ fn get_plugin(name: &str) -> Result<&dyn ServerPluginImpl, PluginRegistrationErr
 
 fn get_plugins() -> impl Iterator<Item = &'static dyn ServerPluginImpl> {
     EXTENSIONS.values().map(|ext| ext.as_ref())
+}
+
+/// Whether a plugin with this name was registered at compile time. Lets a build report which
+/// optional extensions it was compiled with.
+pub(crate) fn is_registered(name: &str) -> bool {
+    EXTENSIONS.contains_key(name)
 }
 
 pub mod extension;

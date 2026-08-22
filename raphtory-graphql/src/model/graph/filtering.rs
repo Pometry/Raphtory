@@ -58,6 +58,7 @@ use std::{
 };
 
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Window {
     /// Window start time.
     pub start: GqlTimeInput,
@@ -323,6 +324,7 @@ impl Display for NodeField {
 /// { Property: { name: "weight", where: { Gt: 0.5 } } }
 /// ```
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct PropertyFilterNew {
     /// Property (or metadata) key.
     pub name: String,
@@ -377,6 +379,7 @@ impl From<DegreeDirection> for String {
 }
 
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct DegreeFilterNew {
     pub direction: DegreeDirection,
     #[graphql(name = "where")]
@@ -524,6 +527,7 @@ impl PropCondition {
 /// { Window: { start: 0, end: 10, expr: { Layers: { names: ["A"] } } } }
 /// ```
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct GraphWindowExpr {
     /// Window start time (inclusive).
     pub start: GqlTimeInput,
@@ -540,6 +544,7 @@ pub struct GraphWindowExpr {
 /// Example:
 /// `{ At: { time: 5, expr: { Layers: { names: ["L1"] } } } }`
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct GraphTimeExpr {
     /// Reference time for the operation.
     pub time: GqlTimeInput,
@@ -551,6 +556,7 @@ pub struct GraphTimeExpr {
 ///
 /// Used for unary view operations like `Latest` and `SnapshotLatest`.
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct GraphUnaryExpr {
     /// Optional nested filter applied after the unary operation.
     pub expr: Option<Wrapped<GqlGraphFilter>>,
@@ -560,6 +566,7 @@ pub struct GraphUnaryExpr {
 ///
 /// Used by `GqlGraphFilter::Layers`.
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct GraphLayersExpr {
     /// Layer names to include.
     pub names: Vec<String>,
@@ -927,6 +934,7 @@ impl NodeFieldCondition {
 /// { Node: { field: NodeName, where: { Contains: "ali" } } }
 /// ```
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct NodeFieldFilterNew {
     /// Which built-in field to filter.
     pub field: NodeField,
@@ -944,6 +952,7 @@ pub struct NodeFieldFilterNew {
 ///
 /// The window is inclusive of `start` and exclusive of `end`.
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct NodeWindowExpr {
     /// Window start time (inclusive).
     pub start: GqlTimeInput,
@@ -957,6 +966,7 @@ pub struct NodeWindowExpr {
 ///
 /// Used by `At`, `Before`, and `After` node filters.
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct NodeTimeExpr {
     /// Reference time for the operation.
     pub time: GqlTimeInput,
@@ -968,6 +978,7 @@ pub struct NodeTimeExpr {
 ///
 /// Used by `Latest` and `SnapshotLatest` node filters.
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct NodeUnaryExpr {
     /// Filter evaluated after applying the unary operation.
     pub expr: Wrapped<GqlNodeFilter>,
@@ -977,6 +988,7 @@ pub struct NodeUnaryExpr {
 ///
 /// Used by `GqlNodeFilter::Layers`.
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct NodeLayersExpr {
     /// Layer names to include.
     pub names: Vec<String>,
@@ -1060,6 +1072,7 @@ pub enum GqlNodeFilter {
 ///
 /// The window is inclusive of `start` and exclusive of `end`.
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct EdgeWindowExpr {
     /// Window start time (inclusive).
     pub start: GqlTimeInput,
@@ -1073,6 +1086,7 @@ pub struct EdgeWindowExpr {
 ///
 /// Used by `At`, `Before`, and `After` edge filters.
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct EdgeTimeExpr {
     /// Reference time for the operation.
     pub time: GqlTimeInput,
@@ -1084,6 +1098,7 @@ pub struct EdgeTimeExpr {
 ///
 /// Used by `Latest` and `SnapshotLatest` edge filters.
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct EdgeUnaryExpr {
     /// Filter evaluated after applying the unary operation.
     pub expr: Wrapped<GqlEdgeFilter>,
@@ -1093,6 +1108,7 @@ pub struct EdgeUnaryExpr {
 ///
 /// Used by `GqlEdgeFilter::Layers`.
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct EdgeLayersExpr {
     /// Layer names to include.
     pub names: Vec<String>,
@@ -1252,6 +1268,7 @@ pub enum GqlEdgeFilter {
 ///
 /// The window is inclusive of `start` and exclusive of `end`.
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ExplodedEdgeWindowExpr {
     /// Window start time (inclusive).
     pub start: GqlTimeInput,
@@ -1266,6 +1283,7 @@ pub struct ExplodedEdgeWindowExpr {
 ///
 /// Used by `At`, `Before`, `After`, and `SnapshotAt` exploded-edge filters.
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ExplodedEdgeTimeExpr {
     /// Reference time for the operation.
     pub time: GqlTimeInput,
@@ -1278,6 +1296,7 @@ pub struct ExplodedEdgeTimeExpr {
 ///
 /// Used by `Latest` and `SnapshotLatest` exploded-edge filters.
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ExplodedEdgeUnaryExpr {
     /// Filter evaluated after applying the unary operation.
     pub expr: Wrapped<GqlExplodedEdgeFilter>,
@@ -1288,6 +1307,7 @@ pub struct ExplodedEdgeUnaryExpr {
 ///
 /// Used by `GqlExplodedEdgeFilter::Layers`.
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ExplodedEdgeLayersExpr {
     /// Layer names to include.
     pub names: Vec<String>,
@@ -1403,6 +1423,7 @@ impl<T> Deref for Wrapped<T> {
 /// edits of `value` (optionally also matching by prefix). Mirrors the local
 /// `fuzzy_search(value, levenshtein_distance, prefix_match)` builder.
 #[derive(InputObject, Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 #[serde(rename_all = "camelCase")]
 pub struct FuzzySearchExpr {
     /// The string to match against.
@@ -2463,6 +2484,7 @@ impl TryFrom<GqlGraphFilter> for DynView {
 
 /// Property/metadata keys to hide per entity type.
 #[derive(InputObject, Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct HiddenKeys {
     /// Keys to strip from node property/metadata responses.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -2479,6 +2501,7 @@ pub struct HiddenKeys {
 /// Separates row-level visibility (which entities are returned) from column-level
 /// visibility (which property keys appear on returned entities).
 #[derive(InputObject, Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct GraphAccessFilter {
     /// Row-level filter: which nodes/edges/graph-view are visible.
     #[serde(default, skip_serializing_if = "Option::is_none")]
