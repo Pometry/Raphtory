@@ -1,10 +1,9 @@
 use crate::{
     client::{is_online, remote_client::RemoteClient, ClientError},
     data::GqlGraphType,
-    model::graph::filtering::{GqlEdgeFilter, GqlNodeFilter},
     python::{
         client::remote_graph::PyRemoteGraph, encode_graph, translate_from_python,
-        translate_map_to_python, translate_to_python,
+        translate_map_to_python,
     },
 };
 use pyo3::{
@@ -14,10 +13,9 @@ use pyo3::{
 };
 use raphtory::{
     db::api::view::MaterializedGraph,
-    errors::GraphError,
-    python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task},
+    python::utils::execute_async_task,
 };
-use serde_json::{json, Value as JsonValue};
+use serde_json::Value as JsonValue;
 use std::{collections::HashMap, future::Future, str::FromStr, sync::Arc};
 use tracing::debug;
 use url::Url;
