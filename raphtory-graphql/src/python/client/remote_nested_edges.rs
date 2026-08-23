@@ -1,3 +1,4 @@
+use super::view_ops::py_remote_view_ops;
 use crate::{
     client::{remote_nested_edges::RemoteNestedEdges, ClientError},
     python::client::{
@@ -46,18 +47,6 @@ impl PyRemoteNestedEdges {
 
 #[pymethods]
 impl PyRemoteNestedEdges {
-    /// Time-window this collection. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     start (TimeInput): inclusive start of the window.
-    ///     end (TimeInput): exclusive end of the window.
-    ///
-    /// Returns:
-    ///     RemoteNestedEdges: a new collection restricted to the window.
-    pub fn window(&self, start: InputTime, end: InputTime) -> PyRemoteNestedEdges {
-        PyRemoteNestedEdges::new(self.edges.window(start, end))
-    }
-
     /// Filter this collection by an edge filter. **Propagates** to downstream
     /// traversals from the matching edges. Lazy — no RPC.
     ///
@@ -112,173 +101,6 @@ impl PyRemoteNestedEdges {
     ///     ValueError: if the filter cannot be sent over the wire.
     fn __getitem__(&self, filter: PyFilterExpr) -> PyResult<PyRemoteNestedEdges> {
         self.select(filter)
-    }
-
-    /// Restrict to a single named layer. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     name (str): the name of the layer.
-    ///
-    /// Returns:
-    ///     RemoteNestedEdges: a new collection restricted to that layer.
-    pub fn layer(&self, name: &str) -> PyRemoteNestedEdges {
-        PyRemoteNestedEdges::new(self.edges.layer(name))
-    }
-
-    /// View including all events at a specific time. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     time (TimeInput): the time to view.
-    ///
-    /// Returns:
-    ///     RemoteNestedEdges: a new collection snapshotted at that time.
-    pub fn at(&self, time: InputTime) -> PyRemoteNestedEdges {
-        PyRemoteNestedEdges::new(self.edges.at(time))
-    }
-
-    /// Restrict to events strictly before the given time. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     time (TimeInput): only events strictly before this time are kept.
-    ///
-    /// Returns:
-    ///     RemoteNestedEdges: a new collection restricted to events before that time.
-    pub fn before(&self, time: InputTime) -> PyRemoteNestedEdges {
-        PyRemoteNestedEdges::new(self.edges.before(time))
-    }
-
-    /// Restrict to events strictly after the given time. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     time (TimeInput): only events strictly after this time are kept.
-    ///
-    /// Returns:
-    ///     RemoteNestedEdges: a new collection restricted to events after that time.
-    pub fn after(&self, time: InputTime) -> PyRemoteNestedEdges {
-        PyRemoteNestedEdges::new(self.edges.after(time))
-    }
-
-    /// Latest state. Lazy — no RPC.
-    ///
-    /// Returns:
-    ///     RemoteNestedEdges: a new collection of the latest state.
-    pub fn latest(&self) -> PyRemoteNestedEdges {
-        PyRemoteNestedEdges::new(self.edges.latest())
-    }
-
-    /// Snapshot at the latest time. Lazy — no RPC.
-    ///
-    /// Returns:
-    ///     RemoteNestedEdges: a new collection snapshotted at the latest time.
-    pub fn snapshot_latest(&self) -> PyRemoteNestedEdges {
-        PyRemoteNestedEdges::new(self.edges.snapshot_latest())
-    }
-
-    /// Snapshot at a specific time. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     time (TimeInput): the time to snapshot at.
-    ///
-    /// Returns:
-    ///     RemoteNestedEdges: a new collection snapshotted at that time.
-    pub fn snapshot_at(&self, time: InputTime) -> PyRemoteNestedEdges {
-        PyRemoteNestedEdges::new(self.edges.snapshot_at(time))
-    }
-
-    /// Exclude a specific layer. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     name (str): the name of the layer to exclude.
-    ///
-    /// Returns:
-    ///     RemoteNestedEdges: a new collection with that layer excluded.
-    pub fn exclude_layer(&self, name: &str) -> PyRemoteNestedEdges {
-        PyRemoteNestedEdges::new(self.edges.exclude_layer(name))
-    }
-
-    /// Shrink the start of the current window. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     start (TimeInput): the new inclusive start of the window.
-    ///
-    /// Returns:
-    ///     RemoteNestedEdges: a new collection with the window start shrunk.
-    pub fn shrink_start(&self, start: InputTime) -> PyRemoteNestedEdges {
-        PyRemoteNestedEdges::new(self.edges.shrink_start(start))
-    }
-
-    /// Shrink the end of the current window. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     end (TimeInput): the new exclusive end of the window.
-    ///
-    /// Returns:
-    ///     RemoteNestedEdges: a new collection with the window end shrunk.
-    pub fn shrink_end(&self, end: InputTime) -> PyRemoteNestedEdges {
-        PyRemoteNestedEdges::new(self.edges.shrink_end(end))
-    }
-
-    /// Restrict to the default layer. Lazy — no RPC.
-    ///
-    /// Returns:
-    ///     RemoteNestedEdges: a new collection restricted to the default layer.
-    pub fn default_layer(&self) -> PyRemoteNestedEdges {
-        PyRemoteNestedEdges::new(self.edges.default_layer())
-    }
-
-    /// Restrict to the given set of layers. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     names (list[str]): the names of the layers.
-    ///
-    /// Returns:
-    ///     RemoteNestedEdges: a new collection restricted to those layers.
-    pub fn layers(&self, names: Vec<String>) -> PyRemoteNestedEdges {
-        PyRemoteNestedEdges::new(self.edges.layers(names))
-    }
-
-    /// Exclude the given set of layers. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     names (list[str]): the names of the layers to exclude.
-    ///
-    /// Returns:
-    ///     RemoteNestedEdges: a new collection with those layers excluded.
-    pub fn exclude_layers(&self, names: Vec<String>) -> PyRemoteNestedEdges {
-        PyRemoteNestedEdges::new(self.edges.exclude_layers(names))
-    }
-
-    /// Restrict to the given set of valid layers. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     names (list[str]): the names of the valid layers.
-    ///
-    /// Returns:
-    ///     RemoteNestedEdges: a new collection restricted to those valid layers.
-    pub fn valid_layers(&self, names: Vec<String>) -> PyRemoteNestedEdges {
-        PyRemoteNestedEdges::new(self.edges.valid_layers(names))
-    }
-
-    /// Exclude a specific valid layer from the view. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     name (str): the name of the valid layer to exclude.
-    ///
-    /// Returns:
-    ///     RemoteNestedEdges: a new collection with that valid layer excluded.
-    pub fn exclude_valid_layer(&self, name: &str) -> PyRemoteNestedEdges {
-        PyRemoteNestedEdges::new(self.edges.exclude_valid_layer(name))
-    }
-
-    /// Exclude the given set of valid layers from the view. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     names (list[str]): the names of the valid layers to exclude.
-    ///
-    /// Returns:
-    ///     RemoteNestedEdges: a new collection with those valid layers excluded.
-    pub fn exclude_valid_layers(&self, names: Vec<String>) -> PyRemoteNestedEdges {
-        PyRemoteNestedEdges::new(self.edges.exclude_valid_layers(names))
     }
 
     /// Fan out each source's edges into one entry per event. Mirrors the local
@@ -568,3 +390,5 @@ impl PyRemoteNestedEdgesIter {
         slf.inner.next()
     }
 }
+
+py_remote_view_ops!(PyRemoteNestedEdges, edges, "RemoteNestedEdges");

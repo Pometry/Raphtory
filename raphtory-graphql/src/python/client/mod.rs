@@ -34,6 +34,7 @@ pub mod remote_nodes;
 pub mod remote_path_from_graph;
 pub mod remote_path_from_node;
 pub mod remote_schema;
+pub(crate) mod view_ops;
 
 /// Convert a node-collection `select` / `nodes[expr]` subscript into the
 /// filter tree that narrows the collection's membership. Node predicates,

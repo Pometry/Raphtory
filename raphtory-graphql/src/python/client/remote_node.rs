@@ -1,3 +1,4 @@
+use super::view_ops::py_remote_view_ops;
 use crate::{
     client::{op::input_time_from_parts, remote_node::RemoteNode, ClientError},
     python::client::{
@@ -48,18 +49,6 @@ impl PyRemoteNode {
 
 #[pymethods]
 impl PyRemoteNode {
-    /// Time-window this node. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     start (TimeInput): inclusive start of the window.
-    ///     end (TimeInput): exclusive end of the window.
-    ///
-    /// Returns:
-    ///     RemoteNode: a new view restricted to the window.
-    pub fn window(&self, start: InputTime, end: InputTime) -> PyRemoteNode {
-        PyRemoteNode::new(self.node.window(start, end))
-    }
-
     /// Return a filtered view of this node — mirrors the local
     /// `Node.filter(FilterExpr)`. Lazy — no RPC.
     ///
@@ -77,173 +66,6 @@ impl PyRemoteNode {
             .try_as_filter_tree()
             .map_err(|e| PyValueError::new_err(e.to_string()))?;
         Ok(PyRemoteNode::new(self.node.filter(tree)?))
-    }
-
-    /// Restrict to a single named layer. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     name (str): the name of the layer.
-    ///
-    /// Returns:
-    ///     RemoteNode: a new view restricted to that layer.
-    pub fn layer(&self, name: &str) -> PyRemoteNode {
-        PyRemoteNode::new(self.node.layer(name))
-    }
-
-    /// View including all events at a specific time. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     time (TimeInput): the time to view.
-    ///
-    /// Returns:
-    ///     RemoteNode: a new view snapshotted at that time.
-    pub fn at(&self, time: InputTime) -> PyRemoteNode {
-        PyRemoteNode::new(self.node.at(time))
-    }
-
-    /// Restrict to events strictly before the given time. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     time (TimeInput): only events strictly before this time are kept.
-    ///
-    /// Returns:
-    ///     RemoteNode: a new view restricted to events before that time.
-    pub fn before(&self, time: InputTime) -> PyRemoteNode {
-        PyRemoteNode::new(self.node.before(time))
-    }
-
-    /// Restrict to events strictly after the given time (exclusive). Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     time (TimeInput): only events strictly after this time are kept.
-    ///
-    /// Returns:
-    ///     RemoteNode: a new view restricted to events after that time.
-    pub fn after(&self, time: InputTime) -> PyRemoteNode {
-        PyRemoteNode::new(self.node.after(time))
-    }
-
-    /// Latest state. Lazy — no RPC.
-    ///
-    /// Returns:
-    ///     RemoteNode: a new view of the latest state.
-    pub fn latest(&self) -> PyRemoteNode {
-        PyRemoteNode::new(self.node.latest())
-    }
-
-    /// Snapshot at the latest time. Lazy — no RPC.
-    ///
-    /// Returns:
-    ///     RemoteNode: a new view snapshotted at the latest time.
-    pub fn snapshot_latest(&self) -> PyRemoteNode {
-        PyRemoteNode::new(self.node.snapshot_latest())
-    }
-
-    /// Snapshot at a specific time. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     time (TimeInput): the time to snapshot at.
-    ///
-    /// Returns:
-    ///     RemoteNode: a new view snapshotted at that time.
-    pub fn snapshot_at(&self, time: InputTime) -> PyRemoteNode {
-        PyRemoteNode::new(self.node.snapshot_at(time))
-    }
-
-    /// Exclude a specific layer from the view. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     name (str): the name of the layer to exclude.
-    ///
-    /// Returns:
-    ///     RemoteNode: a new view with that layer excluded.
-    pub fn exclude_layer(&self, name: &str) -> PyRemoteNode {
-        PyRemoteNode::new(self.node.exclude_layer(name))
-    }
-
-    /// Shrink the start of the current window. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     start (TimeInput): the new inclusive start of the window.
-    ///
-    /// Returns:
-    ///     RemoteNode: a new view with the window start shrunk.
-    pub fn shrink_start(&self, start: InputTime) -> PyRemoteNode {
-        PyRemoteNode::new(self.node.shrink_start(start))
-    }
-
-    /// Shrink the end of the current window. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     end (TimeInput): the new exclusive end of the window.
-    ///
-    /// Returns:
-    ///     RemoteNode: a new view with the window end shrunk.
-    pub fn shrink_end(&self, end: InputTime) -> PyRemoteNode {
-        PyRemoteNode::new(self.node.shrink_end(end))
-    }
-
-    /// Restrict to the default layer. Lazy — no RPC.
-    ///
-    /// Returns:
-    ///     RemoteNode: a new view restricted to the default layer.
-    pub fn default_layer(&self) -> PyRemoteNode {
-        PyRemoteNode::new(self.node.default_layer())
-    }
-
-    /// Restrict to the given set of layers. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     names (list[str]): the names of the layers.
-    ///
-    /// Returns:
-    ///     RemoteNode: a new view restricted to those layers.
-    pub fn layers(&self, names: Vec<String>) -> PyRemoteNode {
-        PyRemoteNode::new(self.node.layers(names))
-    }
-
-    /// Exclude the given set of layers from the view. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     names (list[str]): the names of the layers to exclude.
-    ///
-    /// Returns:
-    ///     RemoteNode: a new view with those layers excluded.
-    pub fn exclude_layers(&self, names: Vec<String>) -> PyRemoteNode {
-        PyRemoteNode::new(self.node.exclude_layers(names))
-    }
-
-    /// Restrict to the given set of valid layers. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     names (list[str]): the names of the valid layers.
-    ///
-    /// Returns:
-    ///     RemoteNode: a new view restricted to those valid layers.
-    pub fn valid_layers(&self, names: Vec<String>) -> PyRemoteNode {
-        PyRemoteNode::new(self.node.valid_layers(names))
-    }
-
-    /// Exclude a specific valid layer from the view. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     name (str): the name of the valid layer to exclude.
-    ///
-    /// Returns:
-    ///     RemoteNode: a new view with that valid layer excluded.
-    pub fn exclude_valid_layer(&self, name: &str) -> PyRemoteNode {
-        PyRemoteNode::new(self.node.exclude_valid_layer(name))
-    }
-
-    /// Exclude the given set of valid layers from the view. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     names (list[str]): the names of the valid layers to exclude.
-    ///
-    /// Returns:
-    ///     RemoteNode: a new view with those valid layers excluded.
-    pub fn exclude_valid_layers(&self, names: Vec<String>) -> PyRemoteNode {
-        PyRemoteNode::new(self.node.exclude_valid_layers(names))
     }
 
     /// Set the type on the node. This only works if the type has not been previously set, otherwise will
@@ -615,3 +437,5 @@ impl PyRemoteNode {
         PyRemoteProperties::new(self.node.properties())
     }
 }
+
+py_remote_view_ops!(PyRemoteNode, node, "RemoteNode");

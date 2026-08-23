@@ -1360,7 +1360,7 @@ class RemoteEdge(object):
 
     def after(self, time: TimeInput) -> RemoteEdge:
         """
-        Restrict to events strictly after the given time (exclusive). Lazy — no RPC.
+        Restrict to events strictly after the given time. Lazy — no RPC.
 
         Arguments:
             time (TimeInput): only events strictly after this time are kept.
@@ -1371,13 +1371,13 @@ class RemoteEdge(object):
 
     def at(self, time: TimeInput) -> RemoteEdge:
         """
-        Snapshot at a specific time. Lazy — no RPC.
+        View including all events at a specific time. Lazy — no RPC.
 
         Arguments:
-            time (TimeInput): the time to snapshot at.
+            time (TimeInput): the time to view.
 
         Returns:
-            RemoteEdge: a new view snapshotted at that time.
+            RemoteEdge: a new view of that time.
         """
 
     def before(self, time: TimeInput) -> RemoteEdge:
@@ -1463,7 +1463,7 @@ class RemoteEdge(object):
 
     def exclude_layer(self, name: str) -> RemoteEdge:
         """
-        Exclude a specific layer from the view. Lazy — no RPC.
+        Exclude a specific layer. Lazy — no RPC.
 
         Arguments:
             name (str): the name of the layer to exclude.
@@ -1474,7 +1474,7 @@ class RemoteEdge(object):
 
     def exclude_layers(self, names: list[str]) -> RemoteEdge:
         """
-        Exclude the given set of layers from the view. Lazy — no RPC.
+        Exclude the given set of layers. Lazy — no RPC.
 
         Arguments:
             names (list[str]): the names of the layers to exclude.
@@ -1810,7 +1810,7 @@ class RemoteEdge(object):
 
     def window(self, start: TimeInput, end: TimeInput) -> RemoteEdge:
         """
-        Time-window this edge. Lazy — no RPC.
+        Time-window this handle. Lazy — no RPC.
 
         Arguments:
             start (TimeInput): inclusive start of the window.
@@ -1869,7 +1869,7 @@ class RemoteNode(object):
 
     def after(self, time: TimeInput) -> RemoteNode:
         """
-        Restrict to events strictly after the given time (exclusive). Lazy — no RPC.
+        Restrict to events strictly after the given time. Lazy — no RPC.
 
         Arguments:
             time (TimeInput): only events strictly after this time are kept.
@@ -1880,13 +1880,13 @@ class RemoteNode(object):
 
     def at(self, time: TimeInput) -> RemoteNode:
         """
-        Snapshot at a specific time. Lazy — no RPC.
+        View including all events at a specific time. Lazy — no RPC.
 
         Arguments:
-            time (TimeInput): the time to snapshot at.
+            time (TimeInput): the time to view.
 
         Returns:
-            RemoteNode: a new view snapshotted at that time.
+            RemoteNode: a new view of that time.
         """
 
     def before(self, time: TimeInput) -> RemoteNode:
@@ -1958,7 +1958,7 @@ class RemoteNode(object):
 
     def exclude_layer(self, name: str) -> RemoteNode:
         """
-        Exclude a specific layer from the view. Lazy — no RPC.
+        Exclude a specific layer. Lazy — no RPC.
 
         Arguments:
             name (str): the name of the layer to exclude.
@@ -1969,7 +1969,7 @@ class RemoteNode(object):
 
     def exclude_layers(self, names: list[str]) -> RemoteNode:
         """
-        Exclude the given set of layers from the view. Lazy — no RPC.
+        Exclude the given set of layers. Lazy — no RPC.
 
         Arguments:
             names (list[str]): the names of the layers to exclude.
@@ -2330,7 +2330,7 @@ class RemoteNode(object):
 
     def window(self, start: TimeInput, end: TimeInput) -> RemoteNode:
         """
-        Time-window this node. Lazy — no RPC.
+        Time-window this handle. Lazy — no RPC.
 
         Arguments:
             start (TimeInput): inclusive start of the window.
@@ -2380,18 +2380,18 @@ class RemoteNodes(object):
             time (TimeInput): only events strictly after this time are kept.
 
         Returns:
-            RemoteNodes: a new collection restricted to events after that time.
+            RemoteNodes: a new view restricted to events after that time.
         """
 
     def at(self, time: TimeInput) -> RemoteNodes:
         """
-        Snapshot at a specific time. Lazy — no RPC.
+        View including all events at a specific time. Lazy — no RPC.
 
         Arguments:
-            time (TimeInput): the time to snapshot at.
+            time (TimeInput): the time to view.
 
         Returns:
-            RemoteNodes: a new collection snapshotted at that time.
+            RemoteNodes: a new view of that time.
         """
 
     def before(self, time: TimeInput) -> RemoteNodes:
@@ -2402,7 +2402,7 @@ class RemoteNodes(object):
             time (TimeInput): only events strictly before this time are kept.
 
         Returns:
-            RemoteNodes: a new collection restricted to events before that time.
+            RemoteNodes: a new view restricted to events before that time.
         """
 
     def collect(self) -> list[RemoteNode]:
@@ -2422,7 +2422,7 @@ class RemoteNodes(object):
         Restrict to the default layer. Lazy — no RPC.
 
         Returns:
-            RemoteNodes: a new collection restricted to the default layer.
+            RemoteNodes: a new view restricted to the default layer.
         """
 
     def degree(self) -> list[int]:
@@ -2480,7 +2480,7 @@ class RemoteNodes(object):
             name (str): the name of the layer to exclude.
 
         Returns:
-            RemoteNodes: a new collection with that layer excluded.
+            RemoteNodes: a new view with that layer excluded.
         """
 
     def exclude_layers(self, names: list[str]) -> RemoteNodes:
@@ -2491,7 +2491,7 @@ class RemoteNodes(object):
             names (list[str]): the names of the layers to exclude.
 
         Returns:
-            RemoteNodes: a new collection with those layers excluded.
+            RemoteNodes: a new view with those layers excluded.
         """
 
     def exclude_valid_layer(self, name: str) -> RemoteNodes:
@@ -2502,7 +2502,7 @@ class RemoteNodes(object):
             name (str): the name of the valid layer to exclude.
 
         Returns:
-            RemoteNodes: a new collection with that valid layer excluded.
+            RemoteNodes: a new view with that valid layer excluded.
         """
 
     def exclude_valid_layers(self, names: list[str]) -> RemoteNodes:
@@ -2513,7 +2513,7 @@ class RemoteNodes(object):
             names (list[str]): the names of the valid layers to exclude.
 
         Returns:
-            RemoteNodes: a new collection with those valid layers excluded.
+            RemoteNodes: a new view with those valid layers excluded.
         """
 
     def filter(self, filter: Any) -> RemoteNodes:
@@ -2591,7 +2591,7 @@ class RemoteNodes(object):
         Latest state. Lazy — no RPC.
 
         Returns:
-            RemoteNodes: a new collection of the latest state.
+            RemoteNodes: a new view of the latest state.
         """
 
     @property
@@ -2612,7 +2612,7 @@ class RemoteNodes(object):
             name (str): the name of the layer.
 
         Returns:
-            RemoteNodes: a new collection restricted to that layer.
+            RemoteNodes: a new view restricted to that layer.
         """
 
     def layers(self, names: list[str]) -> RemoteNodes:
@@ -2623,7 +2623,7 @@ class RemoteNodes(object):
             names (list[str]): the names of the layers.
 
         Returns:
-            RemoteNodes: a new collection restricted to those layers.
+            RemoteNodes: a new view restricted to those layers.
         """
 
     @property
@@ -2732,7 +2732,7 @@ class RemoteNodes(object):
             end (TimeInput): the new exclusive end of the window.
 
         Returns:
-            RemoteNodes: a new collection with the window end shrunk.
+            RemoteNodes: a new view with the window end shrunk.
         """
 
     def shrink_start(self, start: TimeInput) -> RemoteNodes:
@@ -2743,7 +2743,7 @@ class RemoteNodes(object):
             start (TimeInput): the new inclusive start of the window.
 
         Returns:
-            RemoteNodes: a new collection with the window start shrunk.
+            RemoteNodes: a new view with the window start shrunk.
         """
 
     def snapshot_at(self, time: TimeInput) -> RemoteNodes:
@@ -2754,7 +2754,7 @@ class RemoteNodes(object):
             time (TimeInput): the time to snapshot at.
 
         Returns:
-            RemoteNodes: a new collection snapshotted at that time.
+            RemoteNodes: a new view snapshotted at that time.
         """
 
     def snapshot_latest(self) -> RemoteNodes:
@@ -2762,7 +2762,7 @@ class RemoteNodes(object):
         Snapshot at the latest time. Lazy — no RPC.
 
         Returns:
-            RemoteNodes: a new collection snapshotted at the latest time.
+            RemoteNodes: a new view snapshotted at the latest time.
         """
 
     def sorted(self, sort_bys: list[NodeSortBy]) -> RemoteNodes:
@@ -2808,19 +2808,19 @@ class RemoteNodes(object):
             names (list[str]): the names of the valid layers.
 
         Returns:
-            RemoteNodes: a new collection restricted to those valid layers.
+            RemoteNodes: a new view restricted to those valid layers.
         """
 
     def window(self, start: TimeInput, end: TimeInput) -> RemoteNodes:
         """
-        Time-window this collection. Lazy — no RPC.
+        Time-window this handle. Lazy — no RPC.
 
         Arguments:
             start (TimeInput): inclusive start of the window.
             end (TimeInput): exclusive end of the window.
 
         Returns:
-            RemoteNodes: a new collection restricted to the window.
+            RemoteNodes: a new view restricted to the window.
         """
 
     @property
@@ -2865,18 +2865,18 @@ class RemotePathFromNode(object):
             time (TimeInput): only events strictly after this time are kept.
 
         Returns:
-            RemotePathFromNode: a new collection restricted to events after that time.
+            RemotePathFromNode: a new view restricted to events after that time.
         """
 
     def at(self, time: TimeInput) -> RemotePathFromNode:
         """
-        Snapshot at a specific time. Lazy — no RPC.
+        View including all events at a specific time. Lazy — no RPC.
 
         Arguments:
-            time (TimeInput): the time to snapshot at.
+            time (TimeInput): the time to view.
 
         Returns:
-            RemotePathFromNode: a new collection snapshotted at that time.
+            RemotePathFromNode: a new view of that time.
         """
 
     def before(self, time: TimeInput) -> RemotePathFromNode:
@@ -2887,7 +2887,7 @@ class RemotePathFromNode(object):
             time (TimeInput): only events strictly before this time are kept.
 
         Returns:
-            RemotePathFromNode: a new collection restricted to events before that time.
+            RemotePathFromNode: a new view restricted to events before that time.
         """
 
     def collect(self) -> list[RemoteNode]:
@@ -2914,7 +2914,7 @@ class RemotePathFromNode(object):
         Restrict to the default layer. Lazy — no RPC.
 
         Returns:
-            RemotePathFromNode: a new collection restricted to the default layer.
+            RemotePathFromNode: a new view restricted to the default layer.
         """
 
     def degree(self) -> list[int]:
@@ -2972,7 +2972,7 @@ class RemotePathFromNode(object):
             name (str): the name of the layer to exclude.
 
         Returns:
-            RemotePathFromNode: a new collection with that layer excluded.
+            RemotePathFromNode: a new view with that layer excluded.
         """
 
     def exclude_layers(self, names: list[str]) -> RemotePathFromNode:
@@ -2983,7 +2983,7 @@ class RemotePathFromNode(object):
             names (list[str]): the names of the layers to exclude.
 
         Returns:
-            RemotePathFromNode: a new collection with those layers excluded.
+            RemotePathFromNode: a new view with those layers excluded.
         """
 
     def exclude_valid_layer(self, name: str) -> RemotePathFromNode:
@@ -2994,7 +2994,7 @@ class RemotePathFromNode(object):
             name (str): the name of the valid layer to exclude.
 
         Returns:
-            RemotePathFromNode: a new collection with that valid layer excluded.
+            RemotePathFromNode: a new view with that valid layer excluded.
         """
 
     def exclude_valid_layers(self, names: list[str]) -> RemotePathFromNode:
@@ -3005,7 +3005,7 @@ class RemotePathFromNode(object):
             names (list[str]): the names of the valid layers to exclude.
 
         Returns:
-            RemotePathFromNode: a new collection with those valid layers excluded.
+            RemotePathFromNode: a new view with those valid layers excluded.
         """
 
     def filter(self, filter: Any) -> RemotePathFromNode:
@@ -3079,7 +3079,7 @@ class RemotePathFromNode(object):
         Latest state. Lazy — no RPC.
 
         Returns:
-            RemotePathFromNode: a new collection of the latest state.
+            RemotePathFromNode: a new view of the latest state.
         """
 
     @property
@@ -3100,7 +3100,7 @@ class RemotePathFromNode(object):
             name (str): the name of the layer.
 
         Returns:
-            RemotePathFromNode: a new collection restricted to that layer.
+            RemotePathFromNode: a new view restricted to that layer.
         """
 
     def layers(self, names: list[str]) -> RemotePathFromNode:
@@ -3111,7 +3111,7 @@ class RemotePathFromNode(object):
             names (list[str]): the names of the layers.
 
         Returns:
-            RemotePathFromNode: a new collection restricted to those layers.
+            RemotePathFromNode: a new view restricted to those layers.
         """
 
     @property
@@ -3219,7 +3219,7 @@ class RemotePathFromNode(object):
             end (TimeInput): the new exclusive end of the window.
 
         Returns:
-            RemotePathFromNode: a new collection with the window end shrunk.
+            RemotePathFromNode: a new view with the window end shrunk.
         """
 
     def shrink_start(self, start: TimeInput) -> RemotePathFromNode:
@@ -3230,7 +3230,7 @@ class RemotePathFromNode(object):
             start (TimeInput): the new inclusive start of the window.
 
         Returns:
-            RemotePathFromNode: a new collection with the window start shrunk.
+            RemotePathFromNode: a new view with the window start shrunk.
         """
 
     def snapshot_at(self, time: TimeInput) -> RemotePathFromNode:
@@ -3241,7 +3241,7 @@ class RemotePathFromNode(object):
             time (TimeInput): the time to snapshot at.
 
         Returns:
-            RemotePathFromNode: a new collection snapshotted at that time.
+            RemotePathFromNode: a new view snapshotted at that time.
         """
 
     def snapshot_latest(self) -> RemotePathFromNode:
@@ -3249,7 +3249,7 @@ class RemotePathFromNode(object):
         Snapshot at the latest time. Lazy — no RPC.
 
         Returns:
-            RemotePathFromNode: a new collection snapshotted at the latest time.
+            RemotePathFromNode: a new view snapshotted at the latest time.
         """
 
     @property
@@ -3282,19 +3282,19 @@ class RemotePathFromNode(object):
             names (list[str]): the names of the valid layers.
 
         Returns:
-            RemotePathFromNode: a new collection restricted to those valid layers.
+            RemotePathFromNode: a new view restricted to those valid layers.
         """
 
     def window(self, start: TimeInput, end: TimeInput) -> RemotePathFromNode:
         """
-        Time-window this collection. Lazy — no RPC.
+        Time-window this handle. Lazy — no RPC.
 
         Arguments:
             start (TimeInput): inclusive start of the window.
             end (TimeInput): exclusive end of the window.
 
         Returns:
-            RemotePathFromNode: a new collection restricted to the window.
+            RemotePathFromNode: a new view restricted to the window.
         """
 
     @property
@@ -3341,18 +3341,18 @@ class RemotePathFromGraph(object):
             time (TimeInput): only events strictly after this time are kept.
 
         Returns:
-            RemotePathFromGraph: a new collection restricted to events after that time.
+            RemotePathFromGraph: a new view restricted to events after that time.
         """
 
     def at(self, time: TimeInput) -> RemotePathFromGraph:
         """
-        Snapshot at a specific time. Lazy — no RPC.
+        View including all events at a specific time. Lazy — no RPC.
 
         Arguments:
-            time (TimeInput): the time to snapshot at.
+            time (TimeInput): the time to view.
 
         Returns:
-            RemotePathFromGraph: a new collection snapshotted at that time.
+            RemotePathFromGraph: a new view of that time.
         """
 
     def before(self, time: TimeInput) -> RemotePathFromGraph:
@@ -3363,7 +3363,7 @@ class RemotePathFromGraph(object):
             time (TimeInput): only events strictly before this time are kept.
 
         Returns:
-            RemotePathFromGraph: a new collection restricted to events before that time.
+            RemotePathFromGraph: a new view restricted to events before that time.
         """
 
     def collect(self) -> list[list[RemoteNode]]:
@@ -3390,7 +3390,7 @@ class RemotePathFromGraph(object):
         Restrict to the default layer. Lazy — no RPC.
 
         Returns:
-            RemotePathFromGraph: a new collection restricted to the default layer.
+            RemotePathFromGraph: a new view restricted to the default layer.
         """
 
     def degree(self) -> list[list[int]]:
@@ -3449,7 +3449,7 @@ class RemotePathFromGraph(object):
             name (str): the name of the layer to exclude.
 
         Returns:
-            RemotePathFromGraph: a new collection with that layer excluded.
+            RemotePathFromGraph: a new view with that layer excluded.
         """
 
     def exclude_layers(self, names: list[str]) -> RemotePathFromGraph:
@@ -3460,7 +3460,7 @@ class RemotePathFromGraph(object):
             names (list[str]): the names of the layers to exclude.
 
         Returns:
-            RemotePathFromGraph: a new collection with those layers excluded.
+            RemotePathFromGraph: a new view with those layers excluded.
         """
 
     def exclude_valid_layer(self, name: str) -> RemotePathFromGraph:
@@ -3471,7 +3471,7 @@ class RemotePathFromGraph(object):
             name (str): the name of the valid layer to exclude.
 
         Returns:
-            RemotePathFromGraph: a new collection with that valid layer excluded.
+            RemotePathFromGraph: a new view with that valid layer excluded.
         """
 
     def exclude_valid_layers(self, names: list[str]) -> RemotePathFromGraph:
@@ -3482,7 +3482,7 @@ class RemotePathFromGraph(object):
             names (list[str]): the names of the valid layers to exclude.
 
         Returns:
-            RemotePathFromGraph: a new collection with those valid layers excluded.
+            RemotePathFromGraph: a new view with those valid layers excluded.
         """
 
     def filter(self, filter: Any) -> RemotePathFromGraph:
@@ -3558,7 +3558,7 @@ class RemotePathFromGraph(object):
         Latest state. Lazy — no RPC.
 
         Returns:
-            RemotePathFromGraph: a new collection of the latest state.
+            RemotePathFromGraph: a new view of the latest state.
         """
 
     @property
@@ -3579,7 +3579,7 @@ class RemotePathFromGraph(object):
             name (str): the name of the layer.
 
         Returns:
-            RemotePathFromGraph: a new collection restricted to that layer.
+            RemotePathFromGraph: a new view restricted to that layer.
         """
 
     def layers(self, names: list[str]) -> RemotePathFromGraph:
@@ -3590,7 +3590,7 @@ class RemotePathFromGraph(object):
             names (list[str]): the names of the layers.
 
         Returns:
-            RemotePathFromGraph: a new collection restricted to those layers.
+            RemotePathFromGraph: a new view restricted to those layers.
         """
 
     @property
@@ -3700,7 +3700,7 @@ class RemotePathFromGraph(object):
             end (TimeInput): the new exclusive end of the window.
 
         Returns:
-            RemotePathFromGraph: a new collection with the window end shrunk.
+            RemotePathFromGraph: a new view with the window end shrunk.
         """
 
     def shrink_start(self, start: TimeInput) -> RemotePathFromGraph:
@@ -3711,7 +3711,7 @@ class RemotePathFromGraph(object):
             start (TimeInput): the new inclusive start of the window.
 
         Returns:
-            RemotePathFromGraph: a new collection with the window start shrunk.
+            RemotePathFromGraph: a new view with the window start shrunk.
         """
 
     def snapshot_at(self, time: TimeInput) -> RemotePathFromGraph:
@@ -3722,7 +3722,7 @@ class RemotePathFromGraph(object):
             time (TimeInput): the time to snapshot at.
 
         Returns:
-            RemotePathFromGraph: a new collection snapshotted at that time.
+            RemotePathFromGraph: a new view snapshotted at that time.
         """
 
     def snapshot_latest(self) -> RemotePathFromGraph:
@@ -3730,7 +3730,7 @@ class RemotePathFromGraph(object):
         Snapshot at the latest time. Lazy — no RPC.
 
         Returns:
-            RemotePathFromGraph: a new collection snapshotted at the latest time.
+            RemotePathFromGraph: a new view snapshotted at the latest time.
         """
 
     @property
@@ -3763,19 +3763,19 @@ class RemotePathFromGraph(object):
             names (list[str]): the names of the valid layers.
 
         Returns:
-            RemotePathFromGraph: a new collection restricted to those valid layers.
+            RemotePathFromGraph: a new view restricted to those valid layers.
         """
 
     def window(self, start: TimeInput, end: TimeInput) -> RemotePathFromGraph:
         """
-        Time-window this collection. Lazy — no RPC.
+        Time-window this handle. Lazy — no RPC.
 
         Arguments:
             start (TimeInput): inclusive start of the window.
             end (TimeInput): exclusive end of the window.
 
         Returns:
-            RemotePathFromGraph: a new collection restricted to the window.
+            RemotePathFromGraph: a new view restricted to the window.
         """
 
     @property
@@ -3822,18 +3822,18 @@ class RemoteEdges(object):
             time (TimeInput): only events strictly after this time are kept.
 
         Returns:
-            RemoteEdges: a new collection restricted to events after that time.
+            RemoteEdges: a new view restricted to events after that time.
         """
 
     def at(self, time: TimeInput) -> RemoteEdges:
         """
-        Snapshot at a specific time. Lazy — no RPC.
+        View including all events at a specific time. Lazy — no RPC.
 
         Arguments:
-            time (TimeInput): the time to snapshot at.
+            time (TimeInput): the time to view.
 
         Returns:
-            RemoteEdges: a new collection snapshotted at that time.
+            RemoteEdges: a new view of that time.
         """
 
     def before(self, time: TimeInput) -> RemoteEdges:
@@ -3844,7 +3844,7 @@ class RemoteEdges(object):
             time (TimeInput): only events strictly before this time are kept.
 
         Returns:
-            RemoteEdges: a new collection restricted to events before that time.
+            RemoteEdges: a new view restricted to events before that time.
         """
 
     def collect(self) -> list[RemoteEdge]:
@@ -3863,7 +3863,7 @@ class RemoteEdges(object):
         Restrict to the default layer. Lazy — no RPC.
 
         Returns:
-            RemoteEdges: a new collection restricted to the default layer.
+            RemoteEdges: a new view restricted to the default layer.
         """
 
     @property
@@ -3905,7 +3905,7 @@ class RemoteEdges(object):
             name (str): the name of the layer to exclude.
 
         Returns:
-            RemoteEdges: a new collection with that layer excluded.
+            RemoteEdges: a new view with that layer excluded.
         """
 
     def exclude_layers(self, names: list[str]) -> RemoteEdges:
@@ -3916,7 +3916,7 @@ class RemoteEdges(object):
             names (list[str]): the names of the layers to exclude.
 
         Returns:
-            RemoteEdges: a new collection with those layers excluded.
+            RemoteEdges: a new view with those layers excluded.
         """
 
     def exclude_valid_layer(self, name: str) -> RemoteEdges:
@@ -3927,7 +3927,7 @@ class RemoteEdges(object):
             name (str): the name of the valid layer to exclude.
 
         Returns:
-            RemoteEdges: a new collection with that valid layer excluded.
+            RemoteEdges: a new view with that valid layer excluded.
         """
 
     def exclude_valid_layers(self, names: list[str]) -> RemoteEdges:
@@ -3938,7 +3938,7 @@ class RemoteEdges(object):
             names (list[str]): the names of the valid layers to exclude.
 
         Returns:
-            RemoteEdges: a new collection with those valid layers excluded.
+            RemoteEdges: a new view with those valid layers excluded.
         """
 
     def explode(self) -> RemoteEdges:
@@ -4039,7 +4039,7 @@ class RemoteEdges(object):
         Latest state. Lazy — no RPC.
 
         Returns:
-            RemoteEdges: a new collection of the latest state.
+            RemoteEdges: a new view of the latest state.
         """
 
     @property
@@ -4060,7 +4060,7 @@ class RemoteEdges(object):
             name (str): the name of the layer.
 
         Returns:
-            RemoteEdges: a new collection restricted to that layer.
+            RemoteEdges: a new view restricted to that layer.
         """
 
     @property
@@ -4092,7 +4092,7 @@ class RemoteEdges(object):
             names (list[str]): the names of the layers.
 
         Returns:
-            RemoteEdges: a new collection restricted to those layers.
+            RemoteEdges: a new view restricted to those layers.
         """
 
     @property
@@ -4152,7 +4152,7 @@ class RemoteEdges(object):
             end (TimeInput): the new exclusive end of the window.
 
         Returns:
-            RemoteEdges: a new collection with the window end shrunk.
+            RemoteEdges: a new view with the window end shrunk.
         """
 
     def shrink_start(self, start: TimeInput) -> RemoteEdges:
@@ -4163,7 +4163,7 @@ class RemoteEdges(object):
             start (TimeInput): the new inclusive start of the window.
 
         Returns:
-            RemoteEdges: a new collection with the window start shrunk.
+            RemoteEdges: a new view with the window start shrunk.
         """
 
     def snapshot_at(self, time: TimeInput) -> RemoteEdges:
@@ -4174,7 +4174,7 @@ class RemoteEdges(object):
             time (TimeInput): the time to snapshot at.
 
         Returns:
-            RemoteEdges: a new collection snapshotted at that time.
+            RemoteEdges: a new view snapshotted at that time.
         """
 
     def snapshot_latest(self) -> RemoteEdges:
@@ -4182,7 +4182,7 @@ class RemoteEdges(object):
         Snapshot at the latest time. Lazy — no RPC.
 
         Returns:
-            RemoteEdges: a new collection snapshotted at the latest time.
+            RemoteEdges: a new view snapshotted at the latest time.
         """
 
     def sorted(self, sort_bys: list[EdgeSortBy]) -> RemoteEdges:
@@ -4237,19 +4237,19 @@ class RemoteEdges(object):
             names (list[str]): the names of the valid layers.
 
         Returns:
-            RemoteEdges: a new collection restricted to those valid layers.
+            RemoteEdges: a new view restricted to those valid layers.
         """
 
     def window(self, start: TimeInput, end: TimeInput) -> RemoteEdges:
         """
-        Time-window this collection. Lazy — no RPC.
+        Time-window this handle. Lazy — no RPC.
 
         Arguments:
             start (TimeInput): inclusive start of the window.
             end (TimeInput): exclusive end of the window.
 
         Returns:
-            RemoteEdges: a new collection restricted to the window.
+            RemoteEdges: a new view restricted to the window.
         """
 
     @property
@@ -4298,18 +4298,18 @@ class RemoteNestedEdges(object):
             time (TimeInput): only events strictly after this time are kept.
 
         Returns:
-            RemoteNestedEdges: a new collection restricted to events after that time.
+            RemoteNestedEdges: a new view restricted to events after that time.
         """
 
     def at(self, time: TimeInput) -> RemoteNestedEdges:
         """
-        Snapshot at a specific time. Lazy — no RPC.
+        View including all events at a specific time. Lazy — no RPC.
 
         Arguments:
-            time (TimeInput): the time to snapshot at.
+            time (TimeInput): the time to view.
 
         Returns:
-            RemoteNestedEdges: a new collection snapshotted at that time.
+            RemoteNestedEdges: a new view of that time.
         """
 
     def before(self, time: TimeInput) -> RemoteNestedEdges:
@@ -4320,7 +4320,7 @@ class RemoteNestedEdges(object):
             time (TimeInput): only events strictly before this time are kept.
 
         Returns:
-            RemoteNestedEdges: a new collection restricted to events before that time.
+            RemoteNestedEdges: a new view restricted to events before that time.
         """
 
     def collect(self) -> list[list[RemoteEdge]]:
@@ -4338,7 +4338,7 @@ class RemoteNestedEdges(object):
         Restrict to the default layer. Lazy — no RPC.
 
         Returns:
-            RemoteNestedEdges: a new collection restricted to the default layer.
+            RemoteNestedEdges: a new view restricted to the default layer.
         """
 
     @property
@@ -4380,7 +4380,7 @@ class RemoteNestedEdges(object):
             name (str): the name of the layer to exclude.
 
         Returns:
-            RemoteNestedEdges: a new collection with that layer excluded.
+            RemoteNestedEdges: a new view with that layer excluded.
         """
 
     def exclude_layers(self, names: list[str]) -> RemoteNestedEdges:
@@ -4391,7 +4391,7 @@ class RemoteNestedEdges(object):
             names (list[str]): the names of the layers to exclude.
 
         Returns:
-            RemoteNestedEdges: a new collection with those layers excluded.
+            RemoteNestedEdges: a new view with those layers excluded.
         """
 
     def exclude_valid_layer(self, name: str) -> RemoteNestedEdges:
@@ -4402,7 +4402,7 @@ class RemoteNestedEdges(object):
             name (str): the name of the valid layer to exclude.
 
         Returns:
-            RemoteNestedEdges: a new collection with that valid layer excluded.
+            RemoteNestedEdges: a new view with that valid layer excluded.
         """
 
     def exclude_valid_layers(self, names: list[str]) -> RemoteNestedEdges:
@@ -4413,7 +4413,7 @@ class RemoteNestedEdges(object):
             names (list[str]): the names of the valid layers to exclude.
 
         Returns:
-            RemoteNestedEdges: a new collection with those valid layers excluded.
+            RemoteNestedEdges: a new view with those valid layers excluded.
         """
 
     def explode(self) -> RemoteNestedEdges:
@@ -4520,7 +4520,7 @@ class RemoteNestedEdges(object):
         Latest state. Lazy — no RPC.
 
         Returns:
-            RemoteNestedEdges: a new collection of the latest state.
+            RemoteNestedEdges: a new view of the latest state.
         """
 
     @property
@@ -4541,7 +4541,7 @@ class RemoteNestedEdges(object):
             name (str): the name of the layer.
 
         Returns:
-            RemoteNestedEdges: a new collection restricted to that layer.
+            RemoteNestedEdges: a new view restricted to that layer.
         """
 
     @property
@@ -4573,7 +4573,7 @@ class RemoteNestedEdges(object):
             names (list[str]): the names of the layers.
 
         Returns:
-            RemoteNestedEdges: a new collection restricted to those layers.
+            RemoteNestedEdges: a new view restricted to those layers.
         """
 
     @property
@@ -4634,7 +4634,7 @@ class RemoteNestedEdges(object):
             end (TimeInput): the new exclusive end of the window.
 
         Returns:
-            RemoteNestedEdges: a new collection with the window end shrunk.
+            RemoteNestedEdges: a new view with the window end shrunk.
         """
 
     def shrink_start(self, start: TimeInput) -> RemoteNestedEdges:
@@ -4645,7 +4645,7 @@ class RemoteNestedEdges(object):
             start (TimeInput): the new inclusive start of the window.
 
         Returns:
-            RemoteNestedEdges: a new collection with the window start shrunk.
+            RemoteNestedEdges: a new view with the window start shrunk.
         """
 
     def snapshot_at(self, time: TimeInput) -> RemoteNestedEdges:
@@ -4656,7 +4656,7 @@ class RemoteNestedEdges(object):
             time (TimeInput): the time to snapshot at.
 
         Returns:
-            RemoteNestedEdges: a new collection snapshotted at that time.
+            RemoteNestedEdges: a new view snapshotted at that time.
         """
 
     def snapshot_latest(self) -> RemoteNestedEdges:
@@ -4664,7 +4664,7 @@ class RemoteNestedEdges(object):
         Snapshot at the latest time. Lazy — no RPC.
 
         Returns:
-            RemoteNestedEdges: a new collection snapshotted at the latest time.
+            RemoteNestedEdges: a new view snapshotted at the latest time.
         """
 
     @property
@@ -4707,19 +4707,19 @@ class RemoteNestedEdges(object):
             names (list[str]): the names of the valid layers.
 
         Returns:
-            RemoteNestedEdges: a new collection restricted to those valid layers.
+            RemoteNestedEdges: a new view restricted to those valid layers.
         """
 
     def window(self, start: TimeInput, end: TimeInput) -> RemoteNestedEdges:
         """
-        Time-window this collection. Lazy — no RPC.
+        Time-window this handle. Lazy — no RPC.
 
         Arguments:
             start (TimeInput): inclusive start of the window.
             end (TimeInput): exclusive end of the window.
 
         Returns:
-            RemoteNestedEdges: a new collection restricted to the window.
+            RemoteNestedEdges: a new view restricted to the window.
         """
 
     @property
