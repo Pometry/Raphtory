@@ -4,7 +4,7 @@
 //! and the remote collections in `raphtory.graphql`, so a drop-in swap between
 //! `Graph` and `RemoteGraph` uses one set of sort-key types.
 
-use crate::db::api::view::sort::{EdgeSortBy, NodeSortBy, SortByTime};
+use crate::db::api::view::sort::{EdgeSortBy, EdgeSortKey, NodeSortBy, NodeSortKey, SortByTime};
 use pyo3::{pyclass, pymethods};
 
 /// Which time boundary of a member to sort by.
@@ -29,20 +29,11 @@ impl From<PySortByTime> for SortByTime {
 
 /// One entry in a `Nodes.sorted(...)` sort key list. Construct with the
 /// static factories `by_id` / `by_name` / `by_type` / `by_time` /
-/// `by_property` — each enforces that exactly one key type is set per entry.
+/// `by_property` — the key is an enum, so exactly one is set by construction.
 #[derive(Clone)]
 #[pyclass(name = "NodeSortBy", module = "raphtory", from_py_object)]
 pub struct PyNodeSortBy {
     pub inner: NodeSortBy,
-}
-
-/// A `NodeSortBy` with every key unset — the base each factory fills in one
-/// field of, so adding a key can't silently leave one stale.
-fn empty_node_sort_by(reverse: bool) -> NodeSortBy {
-    NodeSortBy {
-        reverse: Some(reverse),
-        ..NodeSortBy::default()
-    }
 }
 
 #[pymethods]
@@ -59,8 +50,8 @@ impl PyNodeSortBy {
     fn by_id(reverse: bool) -> Self {
         Self {
             inner: NodeSortBy {
-                id: Some(true),
-                ..empty_node_sort_by(reverse)
+                reverse,
+                key: NodeSortKey::Id,
             },
         }
     }
@@ -77,8 +68,8 @@ impl PyNodeSortBy {
     fn by_name(reverse: bool) -> Self {
         Self {
             inner: NodeSortBy {
-                name: Some(true),
-                ..empty_node_sort_by(reverse)
+                reverse,
+                key: NodeSortKey::Name,
             },
         }
     }
@@ -95,8 +86,8 @@ impl PyNodeSortBy {
     fn by_type(reverse: bool) -> Self {
         Self {
             inner: NodeSortBy {
-                type_: Some(true),
-                ..empty_node_sort_by(reverse)
+                reverse,
+                key: NodeSortKey::Type,
             },
         }
     }
@@ -114,8 +105,8 @@ impl PyNodeSortBy {
     fn by_time(time: PySortByTime, reverse: bool) -> Self {
         Self {
             inner: NodeSortBy {
-                time: Some(time.into()),
-                ..empty_node_sort_by(reverse)
+                reverse,
+                key: NodeSortKey::Time(time.into()),
             },
         }
     }
@@ -133,8 +124,8 @@ impl PyNodeSortBy {
     fn by_property(key: String, reverse: bool) -> Self {
         Self {
             inner: NodeSortBy {
-                property: Some(key),
-                ..empty_node_sort_by(reverse)
+                reverse,
+                key: NodeSortKey::Property(key),
             },
         }
     }
@@ -147,16 +138,6 @@ impl PyNodeSortBy {
 #[pyclass(name = "EdgeSortBy", module = "raphtory", from_py_object)]
 pub struct PyEdgeSortBy {
     pub inner: EdgeSortBy,
-}
-
-/// An `EdgeSortBy` with every key unset. `reverse` applies to the `time` /
-/// `property` keys only — the node keys carry their own `reverse` inside the
-/// nested `NodeSortBy`, so those factories leave it unset.
-fn empty_edge_sort_by(reverse: Option<bool>) -> EdgeSortBy {
-    EdgeSortBy {
-        reverse,
-        ..EdgeSortBy::default()
-    }
 }
 
 #[pymethods]
@@ -174,8 +155,9 @@ impl PyEdgeSortBy {
     fn by_src(key: PyNodeSortBy) -> Self {
         Self {
             inner: EdgeSortBy {
-                src: Some(key.inner),
-                ..empty_edge_sort_by(None)
+                // direction comes from the nested node key
+                reverse: false,
+                key: EdgeSortKey::Src(key.inner),
             },
         }
     }
@@ -193,8 +175,9 @@ impl PyEdgeSortBy {
     fn by_dst(key: PyNodeSortBy) -> Self {
         Self {
             inner: EdgeSortBy {
-                dst: Some(key.inner),
-                ..empty_edge_sort_by(None)
+                // direction comes from the nested node key
+                reverse: false,
+                key: EdgeSortKey::Dst(key.inner),
             },
         }
     }
@@ -214,8 +197,9 @@ impl PyEdgeSortBy {
     fn by_neighbour(key: PyNodeSortBy) -> Self {
         Self {
             inner: EdgeSortBy {
-                neighbour: Some(key.inner),
-                ..empty_edge_sort_by(None)
+                // direction comes from the nested node key
+                reverse: false,
+                key: EdgeSortKey::Neighbour(key.inner),
             },
         }
     }
@@ -233,8 +217,8 @@ impl PyEdgeSortBy {
     fn by_time(time: PySortByTime, reverse: bool) -> Self {
         Self {
             inner: EdgeSortBy {
-                time: Some(time.into()),
-                ..empty_edge_sort_by(Some(reverse))
+                reverse,
+                key: EdgeSortKey::Time(time.into()),
             },
         }
     }
@@ -252,8 +236,8 @@ impl PyEdgeSortBy {
     fn by_property(key: String, reverse: bool) -> Self {
         Self {
             inner: EdgeSortBy {
-                property: Some(key),
-                ..empty_edge_sort_by(Some(reverse))
+                reverse,
+                key: EdgeSortKey::Property(key),
             },
         }
     }

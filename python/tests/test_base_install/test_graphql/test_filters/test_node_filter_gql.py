@@ -38,6 +38,25 @@ def test_filter_nodes_with_str_ids_for_node_id_eq_gql(graph):
 
 
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_sort_key_with_no_or_several_fields_is_rejected(graph):
+    # A sort-key entry names exactly one attribute. Setting none, or several,
+    # used to be a silent no-op / silent drop of all but the first.
+    for keys in ("[{}]", "[{reverse: true}]", "[{id: true, name: true}]"):
+        run_graphql_error_test_contains(
+            """
+            query {
+              graph(path: "g") {
+                nodes { sorted(sortBys: %s) { list { name } } }
+              }
+            }
+            """
+            % keys,
+            "exactly one",
+            graph,
+        )
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_deprecated_node_field_spelling_still_accepted(graph):
     # The old enum-argument spelling ({node: {field: ..., where: ...}})
     # remains accepted for backwards compatibility; new queries should use

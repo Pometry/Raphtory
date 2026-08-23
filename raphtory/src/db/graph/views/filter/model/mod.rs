@@ -516,6 +516,25 @@ pub enum FilterTree {
     Not(Box<FilterTree>),
 }
 
+impl FilterTree {
+    /// Whether any part of this expression tests edges.
+    ///
+    /// An edge test says nothing about which nodes belong in a node
+    /// collection, so a node-collection subscript refuses such an expression.
+    /// Lives here next to the enum so a new variant has to answer the question
+    /// rather than silently defaulting somewhere else.
+    pub fn tests_edges(&self) -> bool {
+        match self {
+            FilterTree::Edge(_) | FilterTree::ExplodedEdge(_) => true,
+            FilterTree::Node(_) | FilterTree::View(_) => false,
+            FilterTree::And(items) | FilterTree::Or(items) => {
+                items.iter().any(FilterTree::tests_edges)
+            }
+            FilterTree::Not(inner) => inner.tests_edges(),
+        }
+    }
+}
+
 pub trait TryAsCompositeFilter: Send + Sync {
     fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError>;
 

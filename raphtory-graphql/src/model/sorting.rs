@@ -1,5 +1,5 @@
 use dynamic_graphql::{Enum, InputObject};
-use raphtory::db::api::view::sort;
+use raphtory::{db::api::view::sort, errors::GraphError};
 
 #[derive(InputObject, Clone, Debug, Eq, PartialEq)]
 pub struct EdgeSortBy {
@@ -55,28 +55,71 @@ impl From<SortByTime> for sort::SortByTime {
     }
 }
 
-impl From<NodeSortBy> for sort::NodeSortBy {
-    fn from(v: NodeSortBy) -> Self {
-        sort::NodeSortBy {
-            reverse: v.reverse,
-            id: v.id,
-            name: v.name,
-            type_: v.type_,
-            time: v.time.map(Into::into),
-            property: v.property,
+impl TryFrom<NodeSortBy> for sort::NodeSortBy {
+    type Error = GraphError;
+
+    /// The wire type has one optional field per key because GraphQL input
+    /// objects cannot express "exactly one of"; this is where that constraint
+    /// is checked, so the core type can carry a single key by construction.
+    fn try_from(v: NodeSortBy) -> Result<Self, Self::Error> {
+        let mut keys: Vec<sort::NodeSortKey> = Vec::new();
+        if v.id == Some(true) {
+            keys.push(sort::NodeSortKey::Id);
+        }
+        if v.name == Some(true) {
+            keys.push(sort::NodeSortKey::Name);
+        }
+        if v.type_ == Some(true) {
+            keys.push(sort::NodeSortKey::Type);
+        }
+        if let Some(t) = v.time {
+            keys.push(sort::NodeSortKey::Time(t.into()));
+        }
+        if let Some(p) = v.property {
+            keys.push(sort::NodeSortKey::Property(p));
+        }
+        match <[sort::NodeSortKey; 1]>::try_from(keys) {
+            Ok([key]) => Ok(sort::NodeSortBy {
+                reverse: v.reverse == Some(true),
+                key,
+            }),
+            Err(keys) => Err(GraphError::InvalidGqlFilter(format!(
+                "a node sort key must set exactly one of id/name/type/time/property, got {}",
+                keys.len()
+            ))),
         }
     }
 }
 
-impl From<EdgeSortBy> for sort::EdgeSortBy {
-    fn from(v: EdgeSortBy) -> Self {
-        sort::EdgeSortBy {
-            reverse: v.reverse,
-            src: v.src.map(Into::into),
-            dst: v.dst.map(Into::into),
-            neighbour: v.neighbour.map(Into::into),
-            time: v.time.map(Into::into),
-            property: v.property,
+impl TryFrom<EdgeSortBy> for sort::EdgeSortBy {
+    type Error = GraphError;
+
+    fn try_from(v: EdgeSortBy) -> Result<Self, Self::Error> {
+        let mut keys: Vec<sort::EdgeSortKey> = Vec::new();
+        if let Some(src) = v.src {
+            keys.push(sort::EdgeSortKey::Src(src.try_into()?));
+        }
+        if let Some(dst) = v.dst {
+            keys.push(sort::EdgeSortKey::Dst(dst.try_into()?));
+        }
+        if let Some(nbr) = v.neighbour {
+            keys.push(sort::EdgeSortKey::Neighbour(nbr.try_into()?));
+        }
+        if let Some(t) = v.time {
+            keys.push(sort::EdgeSortKey::Time(t.into()));
+        }
+        if let Some(p) = v.property {
+            keys.push(sort::EdgeSortKey::Property(p));
+        }
+        match <[sort::EdgeSortKey; 1]>::try_from(keys) {
+            Ok([key]) => Ok(sort::EdgeSortBy {
+                reverse: v.reverse == Some(true),
+                key,
+            }),
+            Err(keys) => Err(GraphError::InvalidGqlFilter(format!(
+                "an edge sort key must set exactly one of src/dst/neighbour/time/property, got {}",
+                keys.len()
+            ))),
         }
     }
 }
@@ -92,26 +135,42 @@ impl From<sort::SortByTime> for SortByTime {
 
 impl From<sort::NodeSortBy> for NodeSortBy {
     fn from(v: sort::NodeSortBy) -> Self {
-        NodeSortBy {
-            reverse: v.reverse,
-            id: v.id,
-            name: v.name,
-            type_: v.type_,
-            time: v.time.map(Into::into),
-            property: v.property,
+        let mut out = NodeSortBy {
+            reverse: Some(v.reverse),
+            id: None,
+            name: None,
+            type_: None,
+            time: None,
+            property: None,
+        };
+        match v.key {
+            sort::NodeSortKey::Id => out.id = Some(true),
+            sort::NodeSortKey::Name => out.name = Some(true),
+            sort::NodeSortKey::Type => out.type_ = Some(true),
+            sort::NodeSortKey::Time(t) => out.time = Some(t.into()),
+            sort::NodeSortKey::Property(p) => out.property = Some(p),
         }
+        out
     }
 }
 
 impl From<sort::EdgeSortBy> for EdgeSortBy {
     fn from(v: sort::EdgeSortBy) -> Self {
-        EdgeSortBy {
-            reverse: v.reverse,
-            src: v.src.map(Into::into),
-            dst: v.dst.map(Into::into),
-            neighbour: v.neighbour.map(Into::into),
-            time: v.time.map(Into::into),
-            property: v.property,
+        let mut out = EdgeSortBy {
+            reverse: Some(v.reverse),
+            src: None,
+            dst: None,
+            neighbour: None,
+            time: None,
+            property: None,
+        };
+        match v.key {
+            sort::EdgeSortKey::Src(k) => out.src = Some(k.into()),
+            sort::EdgeSortKey::Dst(k) => out.dst = Some(k.into()),
+            sort::EdgeSortKey::Neighbour(k) => out.neighbour = Some(k.into()),
+            sort::EdgeSortKey::Time(t) => out.time = Some(t.into()),
+            sort::EdgeSortKey::Property(p) => out.property = Some(p),
         }
+        out
     }
 }

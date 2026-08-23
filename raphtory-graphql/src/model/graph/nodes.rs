@@ -325,11 +325,16 @@ impl GqlNodes {
             desc = "Ordered list of sort keys. Each entry chooses exactly one of `id` / `name` / `type` / `time` / `property`, with an optional `reverse: true` to flip order."
         )]
         sort_bys: Vec<NodeSortBy>,
-    ) -> Self {
+    ) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let sort_bys: Vec<_> = sort_bys.into_iter().map(Into::into).collect();
-            GqlNodes::new(self_clone.nn.sorted(&sort_bys))
+            // A key that sets none or several of the mutually exclusive fields
+            // is rejected here rather than silently ignored.
+            let sort_bys = sort_bys
+                .into_iter()
+                .map(TryInto::try_into)
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(GqlNodes::new(self_clone.nn.sorted(&sort_bys)))
         })
         .await
     }

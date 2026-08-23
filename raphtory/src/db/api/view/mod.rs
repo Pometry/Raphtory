@@ -33,7 +33,7 @@ pub use raphtory_api::{
     iter::{BoxedIter, BoxedLDIter, BoxedLIter, IntoDynBoxed},
 };
 use raphtory_storage::graph::{graph::GraphStorage, nodes::node_entry::NodeStorageEntry};
-pub use sort::{EdgeSortBy, NodeSortBy, SortByTime};
+pub use sort::{EdgeSortBy, EdgeSortKey, NodeSortBy, NodeSortKey, SortByTime};
 pub use time::*;
 
 #[self_referencing]
