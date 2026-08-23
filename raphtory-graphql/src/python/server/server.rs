@@ -32,7 +32,6 @@ use {
 ///     config (dict, optional): configuration overrides applied on top of `config_path`, as a
 ///                              dict of nested sections. Unknown section or field names raise an
 ///                              error. The available sections and fields are:
-///
 ///                              * `logging`: `log_level` (str)
 ///                              * `cache`: `capacity` (int) - maximum number of graphs to keep
 ///                                in memory at once
