@@ -532,8 +532,6 @@ impl AppConfigBuilder {
         self
     }
 
-
-
     pub fn with_heavy_query_limit(&mut self, heavy_query_limit: Option<usize>) -> &mut Self {
         self.config.concurrency.heavy_query_limit = heavy_query_limit;
         self

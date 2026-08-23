@@ -11,10 +11,7 @@ use pyo3::{
     prelude::*,
     types::PyDict,
 };
-use raphtory::{
-    db::api::view::MaterializedGraph,
-    python::utils::execute_async_task,
-};
+use raphtory::{db::api::view::MaterializedGraph, python::utils::execute_async_task};
 use serde_json::Value as JsonValue;
 use std::{collections::HashMap, future::Future, str::FromStr, sync::Arc};
 use tracing::debug;

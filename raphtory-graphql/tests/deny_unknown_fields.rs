@@ -83,7 +83,11 @@ fn input_objects_reject_unknown_fields() {
             continue;
         }
         let text = std::fs::read_to_string(path).expect("read source file");
-        let rel = path.strip_prefix(&src).unwrap_or(path).display().to_string();
+        let rel = path
+            .strip_prefix(&src)
+            .unwrap_or(path)
+            .display()
+            .to_string();
         if let Ok(ast) = syn::parse_file(&text) {
             check_items(&ast.items, &rel, &mut offenders);
         }

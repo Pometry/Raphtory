@@ -25,7 +25,9 @@ pub enum PluginRegistrationError {
     /// Extension settings sit at the top level beside the built-in sections, and the built-ins are
     /// matched first — by `AppConfigFieldName` on the json path, and by serde's named fields before
     /// `flatten` on the file path. A colliding name would therefore never receive its config.
-    #[error("Extension '{0}' collides with a built-in config section and would never be configured")]
+    #[error(
+        "Extension '{0}' collides with a built-in config section and would never be configured"
+    )]
     ShadowsConfigSection(String),
     #[error("No registered plugin with name '{0}'")]
     Unknown(String),

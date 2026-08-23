@@ -128,9 +128,8 @@ impl PyGraphServer {
         // An extension may block during startup (a role source syncs before the server is ready);
         // release the GIL so it doesn't freeze the interpreter and an in-process dependency can
         // still respond.
-        let server = py.detach(|| {
-            block_on(GraphServer::new(work_dir, app_config, Config::default()))
-        })?;
+        let server =
+            py.detach(|| block_on(GraphServer::new(work_dir, app_config, Config::default())))?;
         Ok(PyGraphServer(server))
     }
 

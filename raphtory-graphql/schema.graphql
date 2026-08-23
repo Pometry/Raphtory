@@ -7392,6 +7392,22 @@ input Value @oneOf {
 	BigDecimal number (string representation, e.g. "3.14159" or "123e-5").
 	"""
 	decimal: String
+	"""
+	A named placeholder, resolved before the filter is evaluated.
+	
+	Lets a filter be written once with per-request values left open — an authorization policy
+	binds them per caller. A `Var` must be substituted before the filter reaches the engine;
+	converting one to a `Prop` is an error rather than a silent default.
+	"""
+	var: String
+	"""
+	A named claim, read straight from the caller's token and substituted before evaluation.
+	
+	Like [`Value::Var`] but sourced directly from a token claim rather than a binding, so no
+	spec is needed. Must be substituted before the filter reaches the engine; converting one to
+	a `Prop` is an error rather than a silent default.
+	"""
+	claim: String
 }
 
 """
