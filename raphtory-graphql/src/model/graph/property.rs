@@ -146,6 +146,12 @@ pub enum Value {
     /// binds them per caller. A `Var` must be substituted before the filter reaches the engine;
     /// converting one to a `Prop` is an error rather than a silent default.
     Var(String),
+    /// A named claim, read straight from the caller's token and substituted before evaluation.
+    ///
+    /// Like [`Value::Var`] but sourced directly from a token claim rather than a binding, so no
+    /// spec is needed. Must be substituted before the filter reaches the engine; converting one to
+    /// a `Prop` is an error rather than a silent default.
+    Claim(String),
 }
 
 // JSON has no NaN/Infinity — `serde_json` would silently coerce them to `null`,
@@ -177,6 +183,7 @@ impl Display for Value {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Value::Var(name) => write!(f, "Var({})", name),
+            Value::Claim(name) => write!(f, "Claim({})", name),
             Value::U8(v) => write!(f, "U8({})", v),
             Value::U16(v) => write!(f, "U16({})", v),
             Value::U32(v) => write!(f, "U32({})", v),
@@ -221,6 +228,9 @@ fn value_to_prop(value: Value) -> Result<Prop, GraphError> {
         // visible bug rather than a filter that quietly matches nothing.
         Value::Var(name) => Err(GraphError::InvalidGqlFilter(format!(
             "unresolved variable '{name}' in filter"
+        ))),
+        Value::Claim(name) => Err(GraphError::InvalidGqlFilter(format!(
+            "unresolved claim '{name}' in filter"
         ))),
         Value::U8(n) => Ok(Prop::U8(n)),
         Value::U16(n) => Ok(Prop::U16(n)),

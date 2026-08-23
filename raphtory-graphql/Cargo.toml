@@ -73,6 +73,9 @@ tempfile = { workspace = true }
 pretty_assertions = { workspace = true }
 arrow = { workspace = true }
 parquet = { workspace = true }
+# The deny_unknown_fields lint test parses source with syn.
+syn = { version = "2", features = ["full"] }
+quote = "1"
 
 
 [features]
