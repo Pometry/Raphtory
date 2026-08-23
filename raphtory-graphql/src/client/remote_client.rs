@@ -68,7 +68,11 @@ impl RemoteClient {
 
     /// Returns true if the server could be reached and returns a healthy response.
     pub async fn is_healthy(&self) -> bool {
-        let health_url = self.url.join("health").expect("couldn't create health url");
+        // `join` fails for cannot-be-a-base URLs (`mailto:` and friends); such a
+        // server is simply not reachable, so report unhealthy rather than panic.
+        let Ok(health_url) = self.url.join("health") else {
+            return false;
+        };
 
         let response_res = self
             .client

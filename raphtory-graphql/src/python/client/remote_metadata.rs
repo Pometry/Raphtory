@@ -632,9 +632,6 @@ impl PyRemoteTemporalProperty {
     }
 }
 
-/// A `(time, value)` snapshot inside a temporal property. Returned by
-/// `min` / `max` / `median` (a single pair) and each entry of
-/// `ordered_dedupe` (a list of pairs).
 /// A remote `(time, value)` pair as the native tuple the local API returns.
 fn tuple_to_py(t: RemotePropertyTuple) -> (EventTime, Prop) {
     (t.time, t.value)

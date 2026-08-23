@@ -90,10 +90,10 @@ impl PyRemoteNode {
         PyRemoteNode::new(self.node.layer(name))
     }
 
-    /// Snapshot at a specific time. Lazy — no RPC.
+    /// View including all events at a specific time. Lazy — no RPC.
     ///
     /// Arguments:
-    ///     time (TimeInput): the time to snapshot at.
+    ///     time (TimeInput): the time to view.
     ///
     /// Returns:
     ///     RemoteNode: a new view snapshotted at that time.
@@ -269,20 +269,22 @@ impl PyRemoteNode {
     /// Arguments:
     ///   t (int | str | datetime): The timestamp at which the updates should be applied.
     ///   properties (dict[str, PropValue], optional): A dictionary of properties to update.
-    ///   layer (str, optional): The layer the updates belong to. Defaults to the
-    ///       graph's default layer.
     ///   event_id (int, optional): Secondary index to disambiguate multiple
     ///       updates at the same timestamp. If omitted, the server auto-increments it.
+    ///   layer (str, optional): The layer the updates belong to. Defaults to the
+    ///       graph's default layer.
     ///
     /// Returns:
     ///   None:
-    #[pyo3(signature = (t, properties=None, layer=None, event_id=None))]
+    // Parameter order matches the local `Node.add_updates` exactly: a
+    // positional third argument means `event_id` on both sides.
+    #[pyo3(signature = (t, properties=None, event_id=None, layer=None))]
     pub fn add_updates(
         &self,
         t: EventTimeComponent,
         properties: Option<HashMap<String, Prop>>,
-        layer: Option<String>,
         event_id: Option<usize>,
+        layer: Option<String>,
     ) -> Result<(), ClientError> {
         let node = Arc::clone(&self.node);
 
@@ -304,14 +306,14 @@ impl PyRemoteNode {
     /// change over time. These properties are fundamental attributes of the node.
     ///
     /// Arguments:
-    ///   properties (dict[str, PropValue]): A dictionary of properties to be added to the node.
+    ///   metadata (dict[str, PropValue]): A dictionary of properties to be added to the node.
     ///
     /// Returns:
     ///   None:
-    pub fn add_metadata(&self, properties: HashMap<String, Prop>) -> Result<(), ClientError> {
+    pub fn add_metadata(&self, metadata: HashMap<String, Prop>) -> Result<(), ClientError> {
         let node = Arc::clone(&self.node);
 
-        let task = move || async move { node.add_metadata(properties).await };
+        let task = move || async move { node.add_metadata(metadata).await };
         execute_async_task(task)?;
         Ok(())
     }
@@ -321,14 +323,14 @@ impl PyRemoteNode {
     /// change over time. These properties are fundamental attributes of the node.
     ///
     /// Arguments:
-    ///   properties (dict[str, PropValue]): A dictionary of properties to be added to the node.
+    ///   metadata (dict[str, PropValue]): A dictionary of properties to be added to the node.
     ///
     /// Returns:
     ///   None:
-    pub fn update_metadata(&self, properties: HashMap<String, Prop>) -> Result<(), ClientError> {
+    pub fn update_metadata(&self, metadata: HashMap<String, Prop>) -> Result<(), ClientError> {
         let node = Arc::clone(&self.node);
 
-        let task = move || async move { node.update_metadata(properties).await };
+        let task = move || async move { node.update_metadata(metadata).await };
         execute_async_task(task)?;
         Ok(())
     }

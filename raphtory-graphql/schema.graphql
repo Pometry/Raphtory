@@ -5065,6 +5065,9 @@ type NodeState {
 	columnNames: [String!]!
 	"""
 	All rows of the node state keyed by node, with one entry per column.
+	Unbounded: honours the same list guard as the other bulk endpoints, so
+	`disable_lists` cannot be bypassed through node state. Use `page` when
+	lists are disabled.
 	"""
 	rows: [NodeStateRow!]!
 	"""
@@ -7626,4 +7629,3 @@ schema {
 	query: QueryRoot
 	mutation: MutRoot
 }
-

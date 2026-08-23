@@ -435,7 +435,7 @@ TERMINALS = {
         lambda tp: tp.median(),
     ),
     # history terminals
-    "history.count": (lambda rg: rg.node("a").history, lambda h: h.count()),
+    "history.len": (lambda rg: rg.node("a").history, lambda h: len(h)),
     "history.is_empty": (lambda rg: rg.node("a").history, lambda h: h.is_empty()),
     "history.earliest_time": (
         lambda rg: rg.node("a").history,

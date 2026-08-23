@@ -13,7 +13,7 @@ import math
 from decimal import Decimal
 
 import pytest
-from raphtory import Prop
+from raphtory import PropType, Prop
 
 from _parity import assert_parity, graph_pair
 
@@ -97,29 +97,30 @@ def test_typed_property_dtypes_are_exact(typed_pair):
     this anchors the local (ground-truth) side to the widths that were written.
     """
     expected = {
-        "p_u8": "PropType.U8",
-        "p_u16": "PropType.U16",
-        "p_u32": "PropType.U32",
-        "p_u64": "PropType.U64",
-        "p_i32": "PropType.I32",
-        "p_i64": "PropType.I64",
-        "p_f32": "PropType.F32",
-        "p_f64": "PropType.F64",
-        "p_bool": "PropType.Bool",
-        "p_str": "PropType.Str",
-        "p_datetime": "PropType.DTime",
-        "p_naive_datetime": "PropType.NDTime",
-        "p_decimal": "PropType.Decimal(2)",
-        "p_list": "PropType.List<I64>",
-        "p_map": "PropType.Map{ alpha: I64, mid: I64, zeta: I64 }",
+        "p_u8": PropType.u8(),
+        "p_u16": PropType.u16(),
+        "p_u32": PropType.u32(),
+        "p_u64": PropType.u64(),
+        "p_i32": PropType.i32(),
+        "p_i64": PropType.i64(),
+        "p_f32": PropType.f32(),
+        "p_f64": PropType.f64(),
+        "p_bool": PropType.bool(),
+        "p_str": PropType.str(),
+        "p_datetime": PropType.datetime(),
+        "p_naive_datetime": PropType.naive_datetime(),
+        "p_decimal": PropType.decimal(2),
+        "p_list": PropType.list(PropType.i64()),
+        "p_map": PropType.map(
+            {"alpha": PropType.i64(), "mid": PropType.i64(), "zeta": PropType.i64()}
+        ),
     }
-    # `repr` here (not equality): this pins the *expected* widths, and a literal
-    # is the readable way to write them down. Unlike `str`, `repr` sorts map
-    # keys, so it is stable enough to compare against.
+    # Compared as `PropType` values, not rendered strings: the object is the
+    # thing under test, and its Eq is order-independent for maps.
     props = typed_pair.local.node("a").properties
     assert set(expected) == set(_TYPED_PROPS), "every typed property needs a pin"
     for key, dtype in expected.items():
-        assert repr(props.get_dtype_of(key)) == dtype
+        assert props.get_dtype_of(key) == dtype
 
 
 def test_list_property_order_parity(typed_pair):

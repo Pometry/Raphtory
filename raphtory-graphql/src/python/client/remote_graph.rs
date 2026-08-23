@@ -93,10 +93,10 @@ impl PyRemoteGraph {
         }
     }
 
-    /// Snapshot at a specific time. Lazy — no RPC.
+    /// View including all events at a specific time. Lazy — no RPC.
     ///
     /// Arguments:
-    ///     time (TimeInput): the time to snapshot at.
+    ///     time (TimeInput): the time to view.
     ///
     /// Returns:
     ///     RemoteGraph: a new view snapshotted at that time.
@@ -204,7 +204,9 @@ impl PyRemoteGraph {
         }
     }
 
-    /// Restrict to the "valid" subgraph (event-graph filter). Lazy — no RPC.
+    /// Restrict to the "valid" subgraph. The meaning depends on the graph's
+    /// time semantics: on a persistent graph an edge is valid when its last
+    /// update is an addition rather than a deletion. Lazy — no RPC.
     ///
     /// Returns:
     ///     RemoteGraph: a new view restricted to the valid subgraph.
@@ -350,11 +352,11 @@ impl PyRemoteGraph {
     /// Exclude the given nodes from the view. Lazy — no RPC.
     ///
     /// Arguments:
-    ///     nodes (list[str]): the ids of the nodes to exclude.
+    ///     nodes (list[str | int]): the ids of the nodes to exclude.
     ///
     /// Returns:
     ///     RemoteGraph: a new view with those nodes excluded.
-    pub fn exclude_nodes(&self, nodes: Vec<String>) -> PyRemoteGraph {
+    pub fn exclude_nodes(&self, nodes: Vec<GID>) -> PyRemoteGraph {
         PyRemoteGraph {
             graph: Arc::new(self.graph.exclude_nodes(nodes)),
         }
@@ -842,25 +844,25 @@ impl PyRemoteGraph {
     /// Adds metadata to the remote graph.
     ///
     /// Arguments:
-    ///     properties (dict): The metadata of the graph.
+    ///     metadata (dict): The metadata of the graph.
     ///
     /// Returns:
     ///     None:
-    pub fn add_metadata(&self, properties: HashMap<String, Prop>) -> Result<(), ClientError> {
+    pub fn add_metadata(&self, metadata: HashMap<String, Prop>) -> Result<(), ClientError> {
         let graph = Arc::clone(&self.graph);
-        execute_async_task(move || async move { graph.add_metadata(properties).await })
+        execute_async_task(move || async move { graph.add_metadata(metadata).await })
     }
 
     /// Updates metadata on the remote graph.
     ///
     /// Arguments:
-    ///     properties (dict): The metadata of the graph.
+    ///     metadata (dict): The metadata of the graph.
     ///
     /// Returns:
     ///     None:
-    pub fn update_metadata(&self, properties: HashMap<String, Prop>) -> Result<(), ClientError> {
+    pub fn update_metadata(&self, metadata: HashMap<String, Prop>) -> Result<(), ClientError> {
         let graph = Arc::clone(&self.graph);
-        execute_async_task(move || async move { graph.update_metadata(properties).await })
+        execute_async_task(move || async move { graph.update_metadata(metadata).await })
     }
 
     /// Adds a new edge with the given source and destination nodes and properties to the remote graph.

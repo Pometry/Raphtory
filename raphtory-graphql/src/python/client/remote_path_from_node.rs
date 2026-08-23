@@ -128,10 +128,10 @@ impl PyRemotePathFromNode {
         PyRemotePathFromNode::new(self.path.layer(name))
     }
 
-    /// Snapshot at a specific time. Lazy — no RPC.
+    /// View including all events at a specific time. Lazy — no RPC.
     ///
     /// Arguments:
-    ///     time (TimeInput): the time to snapshot at.
+    ///     time (TimeInput): the time to view.
     ///
     /// Returns:
     ///     RemotePathFromNode: a new collection snapshotted at that time.

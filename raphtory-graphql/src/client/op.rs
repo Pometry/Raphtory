@@ -80,7 +80,7 @@ pub enum ReadExpr {
     /// Exclude the given nodes from the view.
     ExcludeNodes {
         input: Arc<ReadExpr>,
-        nodes: Arc<[String]>,
+        nodes: Arc<[GID]>,
     },
     /// Restrict a `RemoteNodes` collection to members with one of the given
     /// node types. Unlike view ops, this actually filters membership — the

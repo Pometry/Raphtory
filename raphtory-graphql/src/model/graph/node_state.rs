@@ -1,6 +1,9 @@
 use crate::{
     model::graph::{
-        collection::check_page_limit, node::GqlNode, node_id::GqlNodeId, nodes::GqlNodes,
+        collection::{check_list_allowed, check_page_limit},
+        node::GqlNode,
+        node_id::GqlNodeId,
+        nodes::GqlNodes,
         property::GqlPropertyOutputVal,
     },
     rayon::blocking_compute,
@@ -267,9 +270,12 @@ impl GqlNodeState {
     }
 }
 
-// TODO: add paging: `columns`/`nodes`/`rows` currently dump every row.
+// Paging: `page` is the bounded reader; `rows`/`headlessRows`/`columns` are the
+// unbounded bulk endpoints and are gated by `check_list_allowed` like every
+// other `list`-shaped field. Columnar paging is tracked in #2722.
 
-// FIXME: Not exposed: `merge` (takes a second NodeState, which cannot be a query argument)
+// Not exposed: `merge` (takes a second NodeState, which cannot be a query
+// argument) — see #2722 for the remote NodeState subsystem.
 // and `to_parquet`/`from_parquet` (avoid server-side filesystem access).
 #[ResolvedObjectFields]
 impl GqlNodeState {
@@ -296,9 +302,13 @@ impl GqlNodeState {
     }
 
     /// All rows of the node state keyed by node, with one entry per column.
-    async fn rows(&self) -> Vec<GqlNodeStateRow> {
+    /// Unbounded: honours the same list guard as the other bulk endpoints, so
+    /// `disable_lists` cannot be bypassed through node state. Use `page` when
+    /// lists are disabled.
+    async fn rows(&self, ctx: &Context<'_>) -> Result<Vec<GqlNodeStateRow>> {
+        check_list_allowed(ctx)?;
         let self_clone = self.clone();
-        blocking_compute(move || {
+        Ok(blocking_compute(move || {
             self_clone
                 .node_state
                 .iter()
@@ -316,14 +326,15 @@ impl GqlNodeState {
                 })
                 .collect()
         })
-        .await
+        .await)
     }
 
     /// All rows of the node state keyed by node, without the column names: the `values` of each row are
     /// in `columnNames` order.
-    async fn headless_rows(&self) -> Vec<GqlNodeStateHeadlessRow> {
+    async fn headless_rows(&self, ctx: &Context<'_>) -> Result<Vec<GqlNodeStateHeadlessRow>> {
+        check_list_allowed(ctx)?;
         let self_clone = self.clone();
-        blocking_compute(move || {
+        Ok(blocking_compute(move || {
             self_clone
                 .node_state
                 .iter()
@@ -338,7 +349,7 @@ impl GqlNodeState {
                 })
                 .collect()
         })
-        .await
+        .await)
     }
 
     /// Returns the values for a node, one entry per column; null if the node has no value in this NodeState.
@@ -586,9 +597,10 @@ impl GqlNodeState {
 
     /// The columns of the node state, one per output field of the algorithm.
     /// `values` are row-aligned with `nodes`.
-    async fn columns(&self) -> Vec<GqlNodeStateColumn> {
+    async fn columns(&self, ctx: &Context<'_>) -> Result<Vec<GqlNodeStateColumn>> {
+        check_list_allowed(ctx)?;
         let self_clone = self.clone();
-        blocking_compute(move || {
+        Ok(blocking_compute(move || {
             let num_rows = self_clone.node_state.len();
             let mut columns: Vec<(String, Vec<GqlNodeStateValue>)> = self_clone
                 .node_state
@@ -612,7 +624,7 @@ impl GqlNodeState {
                 .map(|(name, values)| GqlNodeStateColumn { name, values })
                 .collect()
         })
-        .await
+        .await)
     }
 }
 

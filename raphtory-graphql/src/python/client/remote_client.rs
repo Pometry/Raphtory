@@ -248,7 +248,7 @@ impl PyRaphtoryClient {
     /// Get a RemoteGraph reference to a graph on the server at path
     ///
     /// Arguments:
-    ///     path (str): the path of the graph to be created
+    ///     path (str): the path of the graph
     ///
     /// Returns:
     ///     RemoteGraph: the remote graph reference
@@ -262,7 +262,7 @@ impl PyRaphtoryClient {
     /// Create Index for graph on the server at 'path'
     ///
     /// Arguments:
-    ///     path (str): the path of the graph to be created
+    ///     path (str): the path of the graph to index
     ///     index_spec (RemoteIndexSpec): spec specifying the properties that need to be indexed
     ///     in_ram (bool): create index in ram. Defaults to True.
     ///

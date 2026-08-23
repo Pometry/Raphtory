@@ -277,7 +277,7 @@ impl RemoteGraph {
     }
 
     /// Exclude the given nodes from the view. Lazy — no RPC.
-    pub fn exclude_nodes(&self, nodes: Vec<String>) -> RemoteGraph {
+    pub fn exclude_nodes(&self, nodes: Vec<GID>) -> RemoteGraph {
         self.with_expr(ReadExpr::ExcludeNodes {
             input: self.expr.clone(),
             nodes: nodes.into(),

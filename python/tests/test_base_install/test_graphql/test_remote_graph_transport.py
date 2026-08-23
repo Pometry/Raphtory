@@ -8,7 +8,7 @@ RPC model:
 - Selection methods `.node()` / `.edge()` fire one validation RPC each (via
   hasNode / hasEdge) and return `None` if the id isn't present in the current
   view (matching the local `Graph.node -> Optional[Node]`).
-- Terminals (`.degree()`, `.earliest_time()`, `.count()`, ...) fire one RPC
+- Terminals (`.degree()`, `.earliest_time()`, `len(...)`, ...) fire one RPC
   evaluating the accumulated read expression.
 - Writes (`.add_node()`, `.add_edge()`, ...) always fire an RPC.
 """
@@ -345,7 +345,7 @@ def test_default_layer_and_valid():
 
 def test_nodes_collection():
     """`rg.nodes` accessor returns a `RemoteNodes` collection with `.id`,
-    `.count()`, and `.collect()` terminals."""
+    `len()`, and `.collect()` terminals."""
     with _make_graph_with_edge() as rg:
         nodes = rg.nodes
         assert len(nodes) == 2
@@ -443,7 +443,7 @@ def test_edge_selection_and_navigation():
 
 
 def test_edges_collection():
-    """`rg.edges` accessor returns a `RemoteEdges` collection with `.count()`
+    """`rg.edges` accessor returns a `RemoteEdges` collection with `len()`
     and `.collect()` terminals. Edge ids are `(src, dst)` pairs, via `.id`."""
     with _make_graph_with_edge() as rg:
         edges = rg.edges
@@ -771,7 +771,7 @@ def test_history_scalar_terminals_on_node():
     with _make_graph_with_edge() as rg:
         # Node ben: add_node at t=1, add_edge (ben, hamza) at t=3 → 2 events.
         h = rg.node("ben").history  # property, not method
-        assert h.count() == 2
+        assert len(h) == 2
         assert h.is_empty() is False
         assert h.earliest_time() == 1
         assert h.latest_time() == 3
@@ -780,7 +780,7 @@ def test_history_scalar_terminals_on_node():
         # but the node selection itself is validated at .node() and passes
         # because ben exists in the outer view).
         h_windowed = rg.node("ben").window(100, 200).history
-        assert h_windowed.count() == 0
+        assert len(h_windowed) == 0
         assert h_windowed.is_empty() is True
         assert h_windowed.earliest_time().is_none()
         assert h_windowed.latest_time().is_none()
@@ -794,13 +794,13 @@ def test_history_scalar_terminals_on_edge():
         e = rg.edge("ben", "hamza")
 
         h = e.history
-        assert h.count() == 1
+        assert len(h) == 1
         assert h.is_empty() is False
         assert h.earliest_time() == 3
         assert h.latest_time() == 3
 
         d = e.deletions
-        assert d.count() == 0
+        assert len(d) == 0
         assert d.is_empty() is True
         assert d.earliest_time().is_none()
         assert d.latest_time().is_none()
@@ -1033,7 +1033,7 @@ def test_temporal_property_terminals():
 
         # history — reuses RemoteHistory
         hist = score.history
-        assert hist.count() == 3
+        assert len(hist) == 3
         assert hist.collect()[0].t == 5
 
 
@@ -1363,7 +1363,7 @@ def test_history_page_and_page_rev():
         rg.add_edge(7, "ben", "hamza")
         rg.add_edge(9, "ben", "hamza")
         h = rg.node("ben").history
-        assert h.count() == 5
+        assert len(h) == 5
 
         # Full first page — limit=2, no offset, no page_index.
         page = h.page(limit=2)
@@ -1421,7 +1421,7 @@ def test_history_records_deletion_event():
         rg.delete_edge(10, "ben", "hamza")
 
         e = rg.edge("ben", "hamza")
-        assert e.deletions.count() == 1
+        assert len(e.deletions) == 1
         assert e.deletions.earliest_time() == 10
 
 
@@ -2821,8 +2821,8 @@ def test_combined_history():
         ch = rg.node("ben").out_neighbours.combined_history()
         hamza_hist = rg.node("hamza").history
 
-        assert ch.count() >= 1
-        assert ch.count() == hamza_hist.count()
+        assert len(ch) >= 1
+        assert len(ch) == len(hamza_hist)
         assert sorted(e.t for e in ch.collect()) == sorted(
             e.t for e in hamza_hist.collect()
         )

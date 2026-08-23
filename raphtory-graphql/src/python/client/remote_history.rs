@@ -43,17 +43,16 @@ impl PyRemoteHistory {
     }
 }
 
-#[pymethods]
 impl PyRemoteHistory {
-    /// Number of events in this history. Fires one RPC.
-    ///
-    /// Returns:
-    ///   int: the number of events.
-    pub fn count(&self) -> Result<i64, ClientError> {
+    /// Number of events; the backing call for `__len__` and `__bool__`.
+    fn count(&self) -> Result<i64, ClientError> {
         let history = Arc::clone(&self.history);
         execute_async_task(move || async move { history.count().await })
     }
+}
 
+#[pymethods]
+impl PyRemoteHistory {
     /// Whether this history has no events. Fires one RPC.
     ///
     /// Returns:
@@ -160,7 +159,8 @@ impl PyRemoteHistory {
         })
     }
 
-    /// `len(history)` — number of events. Fires one RPC (`count()`).
+    /// `len(history)` — number of events. Fires one RPC. (`len()` is the only
+    /// spelling, matching the local `History`.)
     fn __len__(&self) -> Result<usize, ClientError> {
         Ok(self.count()? as usize)
     }
@@ -794,9 +794,6 @@ impl PyRemoteIntervals {
     }
 }
 
-/// Shared helper for `__getitem__` on the int-valued sub-collections:
-/// resolves a (possibly negative) index into `items`, raising `IndexError`
-/// when out of range.
 /// Map a Python index to a single-element page fetch: `(use_page_rev, offset)`.
 /// A non-negative index is the `offset`-th item from the front (`page`); a
 /// negative index is the `offset`-th from the end (`page_rev`, so `[-1]` costs

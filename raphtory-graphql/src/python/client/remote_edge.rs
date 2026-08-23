@@ -82,10 +82,10 @@ impl PyRemoteEdge {
         PyRemoteEdge::new(self.edge.layer(name))
     }
 
-    /// Snapshot at a specific time. Lazy — no RPC.
+    /// View including all events at a specific time. Lazy — no RPC.
     ///
     /// Arguments:
-    ///     time (TimeInput): the time to snapshot at.
+    ///     time (TimeInput): the time to view.
     ///
     /// Returns:
     ///     RemoteEdge: a new view snapshotted at that time.
@@ -313,21 +313,21 @@ impl PyRemoteEdge {
     /// change over time. This metadata is fundamental information of the edge.
     ///
     /// Arguments:
-    ///   properties (dict[str, PropValue]): A dictionary of properties to be added to the edge.
-    ///   layer (str, optional): The layer you want these properties to be added on to.
+    ///   metadata (dict[str, PropValue]): A dictionary of metadata to be added to the edge.
+    ///   layer (str, optional): The layer you want this metadata to be added on to.
     ///
     /// Returns:
     ///   None:
-    #[pyo3(signature = (properties, layer=None))]
+    #[pyo3(signature = (metadata, layer=None))]
     fn add_metadata(
         &self,
-        properties: HashMap<String, Prop>,
+        metadata: HashMap<String, Prop>,
         layer: Option<&str>,
     ) -> Result<(), ClientError> {
         let edge = Arc::clone(&self.edge);
         let layer_str = layer.map(|s| s.to_string());
 
-        let task = move || async move { edge.add_metadata(properties, layer_str).await };
+        let task = move || async move { edge.add_metadata(metadata, layer_str).await };
         execute_async_task(task)?;
 
         Ok(())
@@ -338,21 +338,21 @@ impl PyRemoteEdge {
     /// change over time. These properties are fundamental attributes of the edge.
     ///
     /// Arguments:
-    ///   properties (dict[str, PropValue]): A dictionary of properties to be added to the edge.
+    ///   metadata (dict[str, PropValue]): A dictionary of properties to be added to the edge.
     ///   layer (str, optional): The layer you want these properties to be added on to.
     ///
     /// Returns:
     ///   None:
-    #[pyo3(signature = (properties, layer=None))]
+    #[pyo3(signature = (metadata, layer=None))]
     pub fn update_metadata(
         &self,
-        properties: HashMap<String, Prop>,
+        metadata: HashMap<String, Prop>,
         layer: Option<&str>,
     ) -> Result<(), ClientError> {
         let edge = Arc::clone(&self.edge);
         let layer_str = layer.map(|s| s.to_string());
 
-        let task = move || async move { edge.update_metadata(properties, layer_str).await };
+        let task = move || async move { edge.update_metadata(metadata, layer_str).await };
         execute_async_task(task)?;
 
         Ok(())

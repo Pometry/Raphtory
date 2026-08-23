@@ -616,12 +616,12 @@ class RemoteGraph(object):
             None:
         """
 
-    def add_metadata(self, properties: dict) -> None:
+    def add_metadata(self, metadata: dict) -> None:
         """
         Adds metadata to the remote graph.
 
         Arguments:
-            properties (dict): The metadata of the graph.
+            metadata (dict): The metadata of the graph.
 
         Returns:
             None:
@@ -896,12 +896,12 @@ class RemoteGraph(object):
             RemoteGraph: a new view with those layers excluded.
         """
 
-    def exclude_nodes(self, nodes: list[str]) -> RemoteGraph:
+    def exclude_nodes(self, nodes: list[str | int]) -> RemoteGraph:
         """
         Exclude the given nodes from the view. Lazy — no RPC.
 
         Arguments:
-            nodes (list[str]): the ids of the nodes to exclude.
+            nodes (list[str | int]): the ids of the nodes to exclude.
 
         Returns:
             RemoteGraph: a new view with those nodes excluded.
@@ -1250,12 +1250,12 @@ class RemoteGraph(object):
             list[str]: the unique layer names.
         """
 
-    def update_metadata(self, properties: dict) -> None:
+    def update_metadata(self, metadata: dict) -> None:
         """
         Updates metadata on the remote graph.
 
         Arguments:
-            properties (dict): The metadata of the graph.
+            metadata (dict): The metadata of the graph.
 
         Returns:
             None:
@@ -1319,7 +1319,7 @@ class RemoteEdge(object):
     """
 
     def add_metadata(
-        self, properties: dict[str, PropValue], layer: Optional[str] = None
+        self, metadata: dict[str, PropValue], layer: Optional[str] = None
     ) -> None:
         """
         Add metadata to the edge within the remote graph.
@@ -1327,7 +1327,7 @@ class RemoteEdge(object):
         change over time. This metadata is fundamental information of the edge.
 
         Arguments:
-          properties (dict[str, PropValue]): A dictionary of properties to be added to the edge.
+          metadata (dict[str, PropValue]): A dictionary of metadata to be added to the edge.
           layer (str, optional): The layer you want these properties to be added on to.
 
         Returns:
@@ -1782,7 +1782,7 @@ class RemoteEdge(object):
         """
 
     def update_metadata(
-        self, properties: dict[str, PropValue], layer: Optional[str] = None
+        self, metadata: dict[str, PropValue], layer: Optional[str] = None
     ) -> None:
         """
         Update metadata of an edge in the remote graph overwriting existing values.
@@ -1790,7 +1790,7 @@ class RemoteEdge(object):
         change over time. These properties are fundamental attributes of the edge.
 
         Arguments:
-          properties (dict[str, PropValue]): A dictionary of properties to be added to the edge.
+          metadata (dict[str, PropValue]): A dictionary of metadata to be added to the edge.
           layer (str, optional): The layer you want these properties to be added on to.
 
         Returns:
@@ -1831,7 +1831,7 @@ class RemoteEdge(object):
         """
 
 class RemoteNode(object):
-    def add_metadata(self, properties: dict[str, PropValue]) -> None:
+    def add_metadata(self, metadata: dict[str, PropValue]) -> None:
         """
         Add metadata to a node in the remote graph.
         This function is used to add properties to a node that do not
@@ -2304,7 +2304,7 @@ class RemoteNode(object):
             OptionalEventTime: the view start bound, or empty if unbounded.
         """
 
-    def update_metadata(self, properties: dict[str, PropValue]) -> None:
+    def update_metadata(self, metadata: dict[str, PropValue]) -> None:
         """
         Update metadata of a node in the remote graph overwriting existing values.
         This function is used to add properties to a node that does not
@@ -4778,14 +4778,6 @@ class RemoteHistory(object):
 
         Returns:
           list[EventTime]: one event per entry.
-        """
-
-    def count(self) -> int:
-        """
-        Number of events in this history. Fires one RPC.
-
-        Returns:
-          int: the number of events.
         """
 
     @property

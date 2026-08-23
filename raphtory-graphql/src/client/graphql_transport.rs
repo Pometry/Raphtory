@@ -1063,11 +1063,7 @@ fn render_read_into(
         }
         ReadExpr::ExcludeNodes { input, nodes } => {
             render_read_into(input, vars, out)?;
-            write!(
-                out,
-                " {{ excludeNodes(nodes: [{}])",
-                render_string_list(nodes)
-            )?;
+            write!(out, " {{ excludeNodes(nodes: [{}])", render_gid_list(nodes))?;
         }
         ReadExpr::TypeFilter { input, node_types } => {
             render_read_into(input, vars, out)?;
@@ -2340,16 +2336,25 @@ fn parse_read(
     // would deep-copy the payload). Everything below the root field borrows.
     let path = build_json_path(expr);
     // Every executable read names the graph root field plus a terminal, so the
-    // path has at least two segments (a bare `Root` has no terminal to read).
-    debug_assert!(path.len() >= 2, "read path too short: {path:?}");
-    let first = path.first().expect("every read path names its root field");
+    // path has at least two segments. A bare `Root` has no terminal to read —
+    // reject it rather than indexing past the end (the slice below would panic).
+    let [first, rest @ ..] = path.as_slice() else {
+        return Err(ClientError::InvalidInput(
+            "read expression has no terminal to read".into(),
+        ));
+    };
+    if rest.is_empty() {
+        return Err(ClientError::InvalidInput(
+            "read expression has no terminal to read".into(),
+        ));
+    }
     let mut cursor = root
         .get(*first)
         .ok_or_else(|| ClientError::InvalidResponse(format!("missing `{}` in response", first)))?;
     if cursor.is_null() && path.len() > 1 {
         return Err(build_not_found_error(expr, first));
     }
-    for key in &path[1..path.len() - 1] {
+    for key in &rest[..rest.len() - 1] {
         cursor = cursor.get(*key).ok_or_else(|| {
             ClientError::InvalidResponse(format!("missing `{}` in response", key))
         })?;
@@ -3863,11 +3868,13 @@ fn json_to_prop_typed(dtype: &PropType, v: &JsonValue) -> Result<Prop, ClientErr
         PropType::Empty => json_to_prop(v)?,
         PropType::Str => Prop::Str(v.as_str().ok_or_else(|| mismatch("Str"))?.into()),
         PropType::Bool => Prop::Bool(v.as_bool().ok_or_else(|| mismatch("Bool"))?),
-        PropType::U8 => Prop::U8(uint("U8")? as u8),
-        PropType::U16 => Prop::U16(uint("U16")? as u16),
-        PropType::U32 => Prop::U32(uint("U32")? as u32),
+        // Narrowing conversions check the range: a value outside the declared
+        // width is a protocol error, not something to wrap silently.
+        PropType::U8 => Prop::U8(u8::try_from(uint("U8")?).map_err(|_| mismatch("U8"))?),
+        PropType::U16 => Prop::U16(u16::try_from(uint("U16")?).map_err(|_| mismatch("U16"))?),
+        PropType::U32 => Prop::U32(u32::try_from(uint("U32")?).map_err(|_| mismatch("U32"))?),
         PropType::U64 => Prop::U64(uint("U64")?),
-        PropType::I32 => Prop::I32(int("I32")? as i32),
+        PropType::I32 => Prop::I32(i32::try_from(int("I32")?).map_err(|_| mismatch("I32"))?),
         PropType::I64 => Prop::I64(int("I64")?),
         PropType::F32 => Prop::F32(float("F32")? as f32),
         PropType::F64 => Prop::F64(float("F64")?),
@@ -3942,12 +3949,18 @@ fn json_to_property_tuple(v: &JsonValue, dtype: Option<&PropType>) -> Result<Pro
     let time_obj = time_json.as_object().ok_or_else(|| {
         ClientError::InvalidResponse("property tuple `time` is not a JSON object".into())
     })?;
+    // A field that is present but the wrong type is a protocol error — dropping
+    // it here would be indistinguishable from the server not selecting it.
     let mut time_pairs: Vec<(&'static str, Prop)> = Vec::new();
-    if let Some(t) = time_obj.get("timestamp").and_then(|x| x.as_i64()) {
-        time_pairs.push(("timestamp", Prop::I64(t)));
-    }
-    if let Some(e) = time_obj.get("eventId").and_then(|x| x.as_i64()) {
-        time_pairs.push(("eventId", Prop::I64(e)));
+    for field in ["timestamp", "eventId"] {
+        if let Some(raw) = time_obj.get(field) {
+            let v = raw.as_i64().ok_or_else(|| {
+                ClientError::InvalidResponse(format!(
+                    "property tuple `time.{field}` is not an integer: `{raw}`"
+                ))
+            })?;
+            time_pairs.push((field, Prop::I64(v)));
+        }
     }
     let time_map = Prop::map(time_pairs);
     let value = match dtype {
@@ -4253,6 +4266,44 @@ fn child_input(expr: &ReadExpr) -> Option<&ReadExpr> {
 
 #[cfg(test)]
 mod tests {
+
+    /// A read expression with no terminal (a bare `Root`) is rejected, not
+    /// indexed past the end — the old slice arithmetic panicked in release.
+    #[test]
+    fn read_with_no_terminal_is_rejected() {
+        let root = ReadExpr::Root {
+            path: "g".into(),
+            graph_type: None,
+        };
+        let err = parse_read(&root, &HashMap::new()).unwrap_err();
+        assert!(
+            matches!(err, ClientError::InvalidInput(_)),
+            "bare Root must be InvalidInput, got {err:?}"
+        );
+    }
+
+    /// A value outside its declared width is a protocol error, never a silent
+    /// wrap (`300 as u8` would decode to 44).
+    #[test]
+    fn out_of_range_typed_decode_is_an_error_not_a_wrap() {
+        use raphtory_api::core::entities::properties::prop::PropType;
+        for (dtype, val) in [
+            (PropType::U8, json!(300)),
+            (PropType::U16, json!(70_000)),
+            (PropType::U32, json!(5_000_000_000u64)),
+            (PropType::I32, json!(3_000_000_000i64)),
+        ] {
+            let err = json_to_prop_typed(&dtype, &val).unwrap_err();
+            assert!(
+                matches!(err, ClientError::InvalidResponse(_)),
+                "{dtype:?} {val} must be InvalidResponse, got {err:?}"
+            );
+        }
+        assert_eq!(
+            json_to_prop_typed(&PropType::U8, &json!(255)).unwrap(),
+            Prop::U8(255)
+        );
+    }
     use super::*;
     use crate::{
         data::GqlGraphType,
