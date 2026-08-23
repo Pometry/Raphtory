@@ -3304,21 +3304,21 @@ mod exploded_edge_filter_tests {
         let cases = [
             (
                 GqlFilter::ExplodedEdge(exploded_prop_gt("w", 1)),
-                r#"{"explodedEdges":{"property":{"name":"w","where":{"gt":{"i64":1}}}}}"#,
+                r#"{"explodedEdge":{"property":{"name":"w","where":{"gt":{"i64":1}}}}}"#,
             ),
             (
                 GqlFilter::ExplodedEdge(GqlExplodedEdgeFilter::Metadata(PropertyFilterNew {
                     name: "kind".into(),
                     where_: PropCondition::Eq(Value::Str("strong".into())),
                 })),
-                r#"{"explodedEdges":{"metadata":{"name":"kind","where":{"eq":{"str":"strong"}}}}}"#,
+                r#"{"explodedEdge":{"metadata":{"name":"kind","where":{"eq":{"str":"strong"}}}}}"#,
             ),
             (
                 GqlFilter::ExplodedEdge(GqlExplodedEdgeFilter::And(vec![
                     exploded_prop_gt("w", 1),
                     GqlExplodedEdgeFilter::IsValid(true),
                 ])),
-                r#"{"explodedEdges":{"and":[{"property":{"name":"w","where":{"gt":{"i64":1}}}},{"isValid":true}]}}"#,
+                r#"{"explodedEdge":{"and":[{"property":{"name":"w","where":{"gt":{"i64":1}}}},{"isValid":true}]}}"#,
             ),
         ];
         for (filter, expected) in cases {
