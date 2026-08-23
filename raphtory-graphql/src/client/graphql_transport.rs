@@ -4054,7 +4054,7 @@ fn build_not_found_error(expr: &ReadExpr, null_key: &str) -> ClientError {
     let desc = find_selection(expr, null_key)
         .unwrap_or_else(|| format!("unexpected null at `{}`", null_key));
     // A null at the graph root means the graph is missing — or hidden from the
-    // caller, which the server reports identically (RBAC non-disclosure). That
+    // caller, which the server deliberately reports identically. That
     // is not a view-scoping failure, so surface it as `GraphNotFound` (message
     // reads "... does not exist") rather than `NotFound` (suffixed "not found
     // in view", which only makes sense for a node/edge outside the view).
@@ -4642,7 +4642,7 @@ mod tests {
         // A filter with a quote-bearing string value: it must be shipped as a
         // `$fN` JSON variable (escaping inherent, no query-string splicing to
         // break out of), not rendered into the query text.
-        let filter = GqlFilter::Nodes(GqlNodeFilter::Property(PropertyFilterNew {
+        let filter = GqlFilter::Node(GqlNodeFilter::Property(PropertyFilterNew {
             name: "score".into(),
             where_: PropCondition::Eq(GqlValue::Str("O\"Brien".into())),
         }));
@@ -4695,7 +4695,7 @@ mod tests {
     #[test]
     fn property_key_rides_json_variable_intact() {
         // A quote-bearing property KEY is carried as JSON data too.
-        let filter = GqlFilter::Nodes(GqlNodeFilter::Property(PropertyFilterNew {
+        let filter = GqlFilter::Node(GqlNodeFilter::Property(PropertyFilterNew {
             name: "wei\"rd".into(),
             where_: PropCondition::Eq(GqlValue::Str("v".into())),
         }));
@@ -4772,7 +4772,7 @@ mod tests {
             GqlValue::F64(f64::INFINITY),
             GqlValue::F32(f32::NEG_INFINITY),
         ] {
-            let filter = GqlFilter::Nodes(GqlNodeFilter::Property(PropertyFilterNew {
+            let filter = GqlFilter::Node(GqlNodeFilter::Property(PropertyFilterNew {
                 name: "x".into(),
                 where_: PropCondition::Eq(bad),
             }));
@@ -4784,7 +4784,7 @@ mod tests {
         }
 
         // A finite float serializes fine.
-        let filter = GqlFilter::Nodes(GqlNodeFilter::Property(PropertyFilterNew {
+        let filter = GqlFilter::Node(GqlNodeFilter::Property(PropertyFilterNew {
             name: "x".into(),
             where_: PropCondition::Eq(GqlValue::F64(1.5)),
         }));

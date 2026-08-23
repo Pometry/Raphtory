@@ -21,12 +21,14 @@ const RUNNING_SERVER_CONSUMED_MSG: &str =
     "Running server object has already been used, please create another one from scratch";
 
 pub(crate) fn translate_from_python(value: Bound<PyAny>) -> PyResult<JsonValue> {
-    if let Ok(value) = value.extract::<i64>() {
+    // `bool` before `i64`: in Python `True`/`False` are `int` subclasses, so extracting an integer
+    // first would turn a bool into 1/0 and it would reach the server as a number.
+    if let Ok(value) = value.extract::<bool>() {
+        Ok(JsonValue::Bool(value))
+    } else if let Ok(value) = value.extract::<i64>() {
         Ok(JsonValue::Number(value.into()))
     } else if let Ok(value) = value.extract::<f64>() {
         Ok(JsonValue::Number(Number::from_f64(value).unwrap()))
-    } else if let Ok(value) = value.extract::<bool>() {
-        Ok(JsonValue::Bool(value))
     } else if let Ok(value) = value.extract::<String>() {
         Ok(JsonValue::String(value))
     } else if let Ok(value) = value.extract::<Vec<Bound<PyAny>>>() {

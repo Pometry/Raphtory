@@ -30,8 +30,10 @@ pub enum Access {
 }
 
 impl Default for Access {
-    /// Tokens from an external IdP (SSO/OIDC) carry no `access` claim; they are read-only and
-    /// subject to RBAC. Write/admin access requires an explicit `"access": "rw"`.
+    /// Read-only. A token that carries no `access` claim — as one minted by an external identity
+    /// provider does — gets the least authority, and whatever authorization policy is active
+    /// decides what that reaches. Write access has to be asked for, with an explicit
+    /// `"access": "rw"`.
     fn default() -> Self {
         Access::Ro
     }

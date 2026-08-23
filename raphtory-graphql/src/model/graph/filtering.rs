@@ -2501,7 +2501,7 @@ pub struct HiddenKeys {
 /// Separates row-level visibility (which entities are returned) from column-level
 /// visibility (which property keys appear on returned entities).
 #[derive(InputObject, Clone, Debug, Default, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct GraphAccessFilter {
     /// Row-level filter: which nodes/edges/graph-view are visible.
     #[serde(default, skip_serializing_if = "Option::is_none")]

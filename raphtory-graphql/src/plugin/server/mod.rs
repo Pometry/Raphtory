@@ -9,7 +9,7 @@ use crate::{
     plugin::server::{internal::ServerPluginImpl, plugin::PluginRegistration},
     server::ServerError,
 };
-use indexmap::{map::Entry, IndexMap};
+use indexmap::IndexMap;
 use once_cell::sync::Lazy;
 use std::{
     iter::{IntoIterator, Iterator},
@@ -35,19 +35,31 @@ static EXTENSIONS: Lazy<IndexMap<String, Box<dyn ServerPluginImpl>>> = Lazy::new
     let mut map = IndexMap::new();
     for registration in inventory::iter::<PluginRegistration> {
         let plugin = registration.0();
-        let name = plugin.name();
-        match map.entry(name) {
-            Entry::Occupied(entry) => {
-                // unrecoverable
-                panic!("Multiple plugins registered with name {}", entry.key());
-            }
-            Entry::Vacant(entry) => {
-                entry.insert(plugin);
-            }
-        }
+        // Last registration wins on a name clash rather than panicking here — this runs inside a
+        // `Lazy` and cannot report an error. `check_no_duplicate_plugins`, called at server start,
+        // is where a clash is turned into a startup error.
+        map.insert(plugin.name().to_string(), plugin);
     }
     map
 });
+
+/// Fail if two plugins registered under the same name.
+///
+/// A clash means one silently shadows the other in [`EXTENSIONS`], so its CLI flags and config
+/// section would never take effect. It can only happen at build time (two `register_cli_plugin!`
+/// invocations, or two linked crates, claiming one name), so this is a deterministic check run once
+/// at startup rather than anything a user can trigger. Kept separate from the `Lazy` above, and
+/// from the clap `augment_args` path, neither of which can return an error.
+pub(crate) fn check_no_duplicate_plugins() -> Result<(), PluginRegistrationError> {
+    let mut seen = std::collections::HashSet::new();
+    for registration in inventory::iter::<PluginRegistration> {
+        let name = registration.0().name().to_string();
+        if !seen.insert(name.clone()) {
+            return Err(PluginRegistrationError::Multiple(name));
+        }
+    }
+    Ok(())
+}
 
 fn get_plugin(name: &str) -> Result<&dyn ServerPluginImpl, PluginRegistrationError> {
     EXTENSIONS

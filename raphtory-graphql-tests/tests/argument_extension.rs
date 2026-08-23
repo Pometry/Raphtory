@@ -179,7 +179,7 @@ async fn test_config_file_cmd_override() {
     write!(
         &mut config_file,
         r#"
-    [extensions.test]
+    [test]
     test = "test_from_file"
     "#
     )
@@ -217,7 +217,7 @@ async fn test_config_file() {
     write!(
         &mut config_file,
         r#"
-    [extensions.test]
+    [test]
     test = "test_from_file"
     "#
     )

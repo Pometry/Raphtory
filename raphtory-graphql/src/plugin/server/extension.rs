@@ -24,8 +24,8 @@ pub type ExtensionRef<'a> = &'a dyn ServerExtensionImpl;
 pub trait ServerExtension: Debug + Send + Sync + 'static {
     /// name of the extension (used for registration/serialisation)
     ///
-    /// Note that registering a new plugin with the same name as an existing one will replace
-    /// the existing plugin!
+    /// Must be unique across registered plugins: two sharing a name are refused at server start,
+    /// since one would otherwise silently shadow the other.
     fn name(&self) -> &str;
 
     /// hook that gets called on the parsed arguments during server creation
