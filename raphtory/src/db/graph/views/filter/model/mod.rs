@@ -487,6 +487,54 @@ impl<T: TemporalPropertyFilterFactory + 'static> DynTemporalPropertyFilterBuilde
 
 impl TemporalPropertyFilterFactory for Arc<dyn DynTemporalPropertyFilterBuilder> {}
 
+/// One graph-level view restriction, as data. `at`/`before`/`after` lower to
+/// `Window` at construction time (see `ViewWrapOps`), so they need no
+/// variants here.
+#[derive(Clone, Debug, PartialEq)]
+pub enum GraphViewOp {
+    Window { start: EventTime, end: EventTime },
+    Latest,
+    SnapshotAt(EventTime),
+    SnapshotLatest,
+    Layers(Layer),
+}
+
+/// Kind-tagged, owned export of a filter tree — the transportable form of a
+/// composed filter, referencing no in-process state. `View` is an
+/// outermost-first chain of graph-level restrictions. Produced by
+/// [`TryAsCompositeFilter::try_as_filter_tree`]; filters that inherently
+/// reference in-process state (e.g. node-state columns) cannot be exported
+/// and return an error instead.
+#[derive(Clone, Debug)]
+pub enum FilterTree {
+    Node(CompositeNodeFilter),
+    Edge(CompositeEdgeFilter),
+    ExplodedEdge(CompositeExplodedEdgeFilter),
+    View(Vec<GraphViewOp>),
+    And(Vec<FilterTree>),
+    Or(Vec<FilterTree>),
+    Not(Box<FilterTree>),
+}
+
+impl FilterTree {
+    /// Whether any part of this expression tests edges.
+    ///
+    /// An edge test says nothing about which nodes belong in a node
+    /// collection, so a node-collection subscript refuses such an expression.
+    /// Lives here next to the enum so a new variant has to answer the question
+    /// rather than silently defaulting somewhere else.
+    pub fn tests_edges(&self) -> bool {
+        match self {
+            FilterTree::Edge(_) | FilterTree::ExplodedEdge(_) => true,
+            FilterTree::Node(_) | FilterTree::View(_) => false,
+            FilterTree::And(items) | FilterTree::Or(items) => {
+                items.iter().any(FilterTree::tests_edges)
+            }
+            FilterTree::Not(inner) => inner.tests_edges(),
+        }
+    }
+}
+
 pub trait TryAsCompositeFilter: Send + Sync {
     fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError>;
 
@@ -495,9 +543,32 @@ pub trait TryAsCompositeFilter: Send + Sync {
     fn try_as_composite_exploded_edge_filter(
         &self,
     ) -> Result<CompositeExplodedEdgeFilter, GraphError>;
+
+    /// Export this filter as a kind-tagged [`FilterTree`]. The default covers
+    /// every single-kind filter via the composite exports; combinators and
+    /// graph-view filters override it to preserve structure the single-kind
+    /// exports cannot represent (mixed-kind trees, view chains). The kinds are
+    /// tried node → edge → exploded-edge, so a filter that exports as more
+    /// than one kind (e.g. the edge validity predicates) keeps its
+    /// plain-edge export.
+    fn try_as_filter_tree(&self) -> Result<FilterTree, GraphError> {
+        if let Ok(f) = self.try_as_composite_node_filter() {
+            return Ok(FilterTree::Node(f));
+        }
+        if let Ok(f) = self.try_as_composite_edge_filter() {
+            return Ok(FilterTree::Edge(f));
+        }
+        Ok(FilterTree::ExplodedEdge(
+            self.try_as_composite_exploded_edge_filter()?,
+        ))
+    }
 }
 
 impl<T: TryAsCompositeFilter + ?Sized> TryAsCompositeFilter for Arc<T> {
+    fn try_as_filter_tree(&self) -> Result<FilterTree, GraphError> {
+        self.deref().try_as_filter_tree()
+    }
+
     fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
         self.deref().try_as_composite_node_filter()
     }

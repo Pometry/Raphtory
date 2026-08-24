@@ -1,14 +1,37 @@
+//! The client: remote handle types plus the transport plumbing they run on.
+//!
+//! - [`remote`] holds the handle types ([`RemoteGraph`], [`RemoteNode`], …).
+//! - [`remote_client`], [`op`], [`transport`], [`graphql_transport`] and `error`
+//!   are the plumbing: the wire client,
+//!   the operation vocabulary, the transport trait, its GraphQL implementation
+//!   and the error type.
+//!
+//! Everything public in [`remote`] — its submodules included — is re-exported
+//! here, so `client::RemoteGraph`, `client::remote::RemoteGraph` and
+//! `client::remote_graph::RemoteGraph` all name the same type.
+
 mod error;
-pub mod raphtory_client;
-pub mod remote_edge;
-pub mod remote_graph;
-pub mod remote_node;
+pub mod graphql_transport;
+pub mod op;
+pub mod remote;
+pub mod remote_client;
+pub mod transport;
 
 pub use error::ClientError;
-pub use remote_edge::GraphQLRemoteEdge;
-pub use remote_graph::GraphQLRemoteGraph;
-pub use remote_node::GraphQLRemoteNode;
+pub use graphql_transport::GraphqlTransport;
+pub use op::{
+    AddEdge, AddEdgeMetadata, AddEdgeUpdates, AddEdges, AddGraphMetadata, AddGraphProperty,
+    AddNode, AddNodeMetadata, AddNodeUpdates, AddNodes, CreateNode, DeleteEdge, DeleteEdgeAtTime,
+    EdgeAddition, NodeAddition, Op, ReadExpr, SetNodeType, TemporalUpdate, UpdateEdgeMetadata,
+    UpdateGraphMetadata, UpdateNodeMetadata, WriteOp,
+};
+// Glob so the handle types *and* their modules keep their pre-move paths under
+// `client::` (e.g. `client::remote_graph::RemoteGraph`).
+pub use remote::*;
+pub use remote_client::RemoteClient;
+pub use transport::Transport;
 
+use crate::model::graph::property::{ObjectEntry, Value};
 use raphtory_api::core::entities::properties::prop::Prop;
 use std::collections::HashMap;
 
@@ -21,144 +44,49 @@ pub fn is_online(url: &str) -> bool {
         .unwrap_or(false)
 }
 
-pub(crate) fn inner_collection(value: &Prop) -> String {
-    match value {
-        Prop::Str(value) => format!("{{ str: {} }}", serde_json::to_string(value).unwrap()),
-        Prop::U8(value) => format!("{{ u8: {} }}", value),
-        Prop::U16(value) => format!("{{ u16: {} }}", value),
-        Prop::I32(value) => format!("{{ i32: {} }}", value),
-        Prop::I64(value) => format!("{{ i64: {} }}", value),
-        Prop::U32(value) => format!("{{ u32: {} }}", value),
-        Prop::U64(value) => format!("{{ u64: {} }}", value),
-        Prop::F32(value) => format!("{{ f32: {} }}", value),
-        Prop::F64(value) => format!("{{ f64: {} }}", value),
-        Prop::Bool(value) => format!("{{ bool: {} }}", value),
-        Prop::List(value) => {
-            let vec: Vec<String> = value.iter().map(|p| inner_collection(&p)).collect();
-            format!("{{ list: [{}] }}", vec.join(", "))
-        }
-        Prop::Map(value) => {
-            let properties_array: Vec<String> = value
-                .iter()
-                .map(|(k, v)| {
-                    format!(
-                        "{{ key: {}, value: {} }}",
-                        serde_json::to_string(k).unwrap(),
-                        inner_collection(v)
-                    )
-                })
-                .collect();
-            format!("{{ object: [{}] }}", properties_array.join(", "))
-        }
-        Prop::DTime(dt) => format!("{{ dtime: \"{}\" }}", dt.to_rfc3339()),
-        Prop::NDTime(ndt) => format!(
-            "{{ ndtime: \"{}\" }}",
-            ndt.format("%Y-%m-%dT%H:%M:%S%.3f").to_string()
-        ),
-        Prop::Decimal(value) => format!("{{ decimal: \"{}\" }}", value.to_string()),
-    }
+/// Collect a property argument into the map the wire ops carry.
+///
+/// The write methods take properties the same way the local `AdditionOps` do —
+/// any `IntoIterator` of `(key, value)` where the key is string-like and the
+/// value converts to a `Prop` — so `[("score", 1i64)]`, a `Vec<(String, Prop)>`
+/// and a `HashMap` are all accepted, and `NO_PROPS` means none. This is where
+/// that argument becomes the concrete map an `Op` holds.
+pub(crate) fn collect_props<PN: AsRef<str>, P: Into<Prop>>(
+    props: impl IntoIterator<Item = (PN, P)>,
+) -> HashMap<String, Prop> {
+    props
+        .into_iter()
+        .map(|(k, v)| (k.as_ref().to_string(), v.into()))
+        .collect()
 }
 
-fn to_graphql_valid(key: &String, value: &Prop) -> String {
-    match value {
-        Prop::Str(value) => format!(
-            "{{ key: {}, value: {{ str: {} }} }}",
-            serde_json::to_string(key).unwrap(),
-            serde_json::to_string(value).unwrap()
-        ),
-        Prop::U8(value) => format!(
-            "{{ key: {}, value: {{ u8: {} }} }}",
-            serde_json::to_string(key).unwrap(),
-            value
-        ),
-        Prop::U16(value) => format!(
-            "{{ key: {}, value: {{ u16: {} }} }}",
-            serde_json::to_string(key).unwrap(),
-            value
-        ),
-        Prop::I32(value) => format!(
-            "{{ key: {}, value: {{ i32: {} }} }}",
-            serde_json::to_string(key).unwrap(),
-            value
-        ),
-        Prop::I64(value) => format!(
-            "{{ key: {}, value: {{ i64: {} }} }}",
-            serde_json::to_string(key).unwrap(),
-            value
-        ),
-        Prop::U32(value) => format!(
-            "{{ key: {}, value: {{ u32: {} }} }}",
-            serde_json::to_string(key).unwrap(),
-            value
-        ),
-        Prop::U64(value) => format!(
-            "{{ key: {}, value: {{ u64: {} }} }}",
-            serde_json::to_string(key).unwrap(),
-            value
-        ),
-        Prop::F32(value) => format!(
-            "{{ key: {}, value: {{ f32: {} }} }}",
-            serde_json::to_string(key).unwrap(),
-            value
-        ),
-        Prop::F64(value) => format!(
-            "{{ key: {}, value: {{ f64: {} }} }}",
-            serde_json::to_string(key).unwrap(),
-            value
-        ),
-        Prop::Bool(value) => format!(
-            "{{ key: {}, value: {{ bool: {} }} }}",
-            serde_json::to_string(key).unwrap(),
-            value
-        ),
-        Prop::List(value) => {
-            let vec: Vec<String> = value.iter().map(|p| inner_collection(&p)).collect();
-            format!(
-                "{{ key: {}, value: {{ list: [{}] }} }}",
-                serde_json::to_string(key).unwrap(),
-                vec.join(", ")
-            )
-        }
-        Prop::Map(value) => {
-            let properties_array: Vec<String> = value
-                .iter()
-                .map(|(k, v)| {
-                    format!(
-                        "{{ key: {}, value: {} }}",
-                        serde_json::to_string(k).unwrap(),
-                        inner_collection(v)
-                    )
-                })
-                .collect();
-            format!(
-                "{{ key: {}, value: {{ object: [{}] }} }}",
-                serde_json::to_string(key).unwrap(),
-                properties_array.join(", ")
-            )
-        }
-        Prop::DTime(dt) => format!(
-            "{{ key: {}, value: {{ dtime: \"{}\" }} }}",
-            serde_json::to_string(key).unwrap(),
-            dt.to_rfc3339()
-        ),
-        Prop::NDTime(ndt) => format!(
-            "{{ key: {}, value: {{ ndtime: \"{}\" }} }}",
-            serde_json::to_string(key).unwrap(),
-            ndt.format("%Y-%m-%dT%H:%M:%S%.3f").to_string()
-        ),
-        Prop::Decimal(value) => format!(
-            "{{ key: {}, value: {{ decimal: \"{}\" }} }}",
-            serde_json::to_string(key).unwrap(),
-            value.to_string()
-        ),
-    }
+/// As `collect_props`, for the ops whose property field is optional: an empty
+/// argument is `None` so the field is omitted from the request rather than sent
+/// as an empty list, matching what the client did before properties became a
+/// local-style iterator.
+pub(crate) fn collect_opt_props<PN: AsRef<str>, P: Into<Prop>>(
+    props: impl IntoIterator<Item = (PN, P)>,
+) -> Option<HashMap<String, Prop>> {
+    let props = collect_props(props);
+    (!props.is_empty()).then_some(props)
 }
 
-pub(crate) fn build_property_string(properties: HashMap<String, Prop>) -> String {
-    let properties_array: Vec<String> = properties
+/// Convert a property map into the `[PropertyInput!]` wire shape
+/// (`[{key, value}]`, where `value` is the `Value` @oneOf JSON). Non-finite
+/// floats (`NaN`/`Infinity`) have no JSON number form and ride the tagged
+/// `f32Special`/`f64Special` variants instead, so they round-trip rather than
+/// erroring or turning into a silent `null`. Shared by the write appliers (as
+/// a query variable) and the batch `NodeAddition`/`EdgeAddition` serializers.
+pub(crate) fn properties_to_input(
+    properties: &HashMap<String, Prop>,
+) -> Result<Vec<ObjectEntry>, ClientError> {
+    properties
         .iter()
-        .map(|(k, v)| to_graphql_valid(k, v))
-        .collect();
-
-    format!("[{}]", properties_array.join(", "))
+        .map(|(k, v)| {
+            Ok(ObjectEntry {
+                key: k.clone(),
+                value: Value::try_from(v)?,
+            })
+        })
+        .collect()
 }

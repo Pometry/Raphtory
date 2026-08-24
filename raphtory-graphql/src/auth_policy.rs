@@ -1,4 +1,5 @@
 use crate::model::graph::filtering::GraphAccessFilter;
+use futures_util::future::BoxFuture;
 
 /// Opaque error returned by [`AuthorizationPolicy::graph_permissions`] when access is entirely
 /// denied. The message is intended for logging only; callers must not surface it to end users.
@@ -127,6 +128,24 @@ pub trait AuthorizationPolicy: Send + Sync + 'static {
         ctx: &async_graphql::Context<'_>,
         path: &str,
     ) -> Option<NamespacePermission>;
+
+    /// Optional asynchronous refinement of an already-resolved permission.
+    ///
+    /// Called on the read path once [`Self::graph_permissions`] has granted at least read access,
+    /// and before the permission's filter is applied. Unlike `graph_permissions` this is `async`,
+    /// so an implementation may perform I/O (further lookups, queries) while deciding the final
+    /// permission.
+    ///
+    /// The default returns `perm` unchanged: policies that need no refinement — and the no-policy
+    /// case — are unaffected. Returning `Err` denies the request.
+    fn refine_permission<'a>(
+        &'a self,
+        _ctx: &'a async_graphql::Context<'_>,
+        _path: &'a str,
+        perm: GraphPermission,
+    ) -> BoxFuture<'a, Result<GraphPermission, AuthPolicyError>> {
+        Box::pin(std::future::ready(Ok(perm)))
+    }
 
     /// Called after a graph is successfully created to auto-grant `Write` for the creator's role.
     /// Returns an error if the grant cannot be persisted; the caller is responsible for rolling

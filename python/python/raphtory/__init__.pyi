@@ -19,7 +19,6 @@ from raphtory.algorithms import *
 from raphtory.vectors import *
 from raphtory.node_state import *
 from raphtory.graphql import *
-from raphtory.gql import *
 from raphtory.typing import *
 import numpy as np
 from numpy.typing import NDArray
@@ -39,6 +38,9 @@ __all__ = [
     "Graph",
     "PersistentGraph",
     "Node",
+    "NodeSortBy",
+    "EdgeSortBy",
+    "SortByTime",
     "Nodes",
     "PathFromNode",
     "PathFromGraph",
@@ -184,6 +186,32 @@ class GraphView(object):
             OptionalEventTime: the time entry of the earliest activity in the graph
         """
 
+    @property
+    def earliest_edge_time(self) -> OptionalEventTime:
+        """
+        Time entry of the earliest edge activity in the graph
+
+        Unlike `earliest_time`, this ignores node-only and graph-property
+        events, so it answers when this graph first had an edge.
+
+        Returns:
+            OptionalEventTime: the time entry of the earliest edge activity, or
+                empty if the view has no edges
+        """
+
+    @property
+    def latest_edge_time(self) -> OptionalEventTime:
+        """
+        Time entry of the latest edge activity in the graph
+
+        Unlike `latest_time`, this ignores node-only and graph-property
+        events, so it answers when this graph first had an edge.
+
+        Returns:
+            OptionalEventTime: the time entry of the latest edge activity, or
+                empty if the view has no edges
+        """
+
     def edge(self, src: NodeInput, dst: NodeInput) -> Optional[Edge]:
         """
         Gets the edge with the specified source and destination nodes
@@ -299,24 +327,6 @@ class GraphView(object):
 
         Returns:
             GraphView: The filtered view
-        """
-
-    def find_edges(self, properties_dict: dict[str, PropValue]) -> list[Edge]:
-        """
-        Get the edges that match the properties name and value
-        Arguments:
-            properties_dict (dict[str, PropValue]): the properties name and value
-        Returns:
-           list[Edge]: the edges that match the properties name and value
-        """
-
-    def find_nodes(self, properties_dict: dict[str, PropValue]) -> list[Node]:
-        """
-        Get the nodes that match the properties name and value
-        Arguments:
-            properties_dict (dict[str, PropValue]): the properties name and value
-        Returns:
-           list[Node]: the nodes that match the properties name and value
         """
 
     def has_edge(self, src: NodeInput, dst: NodeInput) -> bool:
@@ -499,18 +509,6 @@ class GraphView(object):
 
         Arguments:
            start (TimeInput): the new start time of the window
-
-        Returns:
-             GraphView:
-        """
-
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> GraphView:
-        """
-        Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
-
-        Arguments:
-            start (TimeInput): the new start time for the window
-            end (TimeInput): the new end time for the window
 
         Returns:
              GraphView:
@@ -845,8 +843,8 @@ class Graph(GraphView):
         timestamp: int,
         src: str | int,
         dst: str | int,
-        layer: Optional[str],
-        event_id: Optional[int],
+        layer: Optional[str] = None,
+        event_id: Optional[int] = None,
     ) -> MutableEdge:
         """
         Deletes an edge given the timestamp, src and dst nodes and layer (optional).
@@ -2107,9 +2105,6 @@ class Node(object):
     def __ge__(self, value):
         """Return self>=value."""
 
-    def __getitem__(self, key):
-        """Return self[key]."""
-
     def __gt__(self, value):
         """Return self>value."""
 
@@ -2508,18 +2503,6 @@ class Node(object):
 
         Arguments:
            start (TimeInput): the new start time of the window
-
-        Returns:
-             Node:
-        """
-
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> Node:
-        """
-        Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
-
-        Arguments:
-            start (TimeInput): the new start time for the window
-            end (TimeInput): the new end time for the window
 
         Returns:
              Node:
@@ -3010,18 +2993,6 @@ class Nodes(object):
              Nodes:
         """
 
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> Nodes:
-        """
-        Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
-
-        Arguments:
-            start (TimeInput): the new start time for the window
-            end (TimeInput): the new end time for the window
-
-        Returns:
-             Nodes:
-        """
-
     def snapshot_at(self, time: TimeInput) -> Nodes:
         """
          Create a view of the Nodes including all events that have not been explicitly deleted at `time`.
@@ -3046,6 +3017,18 @@ class Nodes(object):
         """
 
     @property
+    def sorted(self, sort_bys: list[NodeSortBy]) -> Nodes:
+        """
+        Reorder this collection by an ordered list of sort keys. Multi-key
+        sort is lexicographic (ties on key 1 break to key 2).
+
+        Arguments:
+            sort_bys (list[NodeSortBy]): the ordered sort keys.
+
+        Returns:
+            Nodes: a new collection in the sorted order.
+        """
+
     def start(self) -> OptionalEventTime:
         """
          Gets the start time for rolling and expanding windows for this Nodes
@@ -3511,18 +3494,6 @@ class PathFromNode(object):
 
         Arguments:
            start (TimeInput): the new start time of the window
-
-        Returns:
-             PathFromNode:
-        """
-
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> PathFromNode:
-        """
-        Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
-
-        Arguments:
-            start (TimeInput): the new start time for the window
-            end (TimeInput): the new end time for the window
 
         Returns:
              PathFromNode:
@@ -4012,18 +3983,6 @@ class PathFromGraph(object):
              PathFromGraph:
         """
 
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> PathFromGraph:
-        """
-        Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
-
-        Arguments:
-            start (TimeInput): the new start time for the window
-            end (TimeInput): the new end time for the window
-
-        Returns:
-             PathFromGraph:
-        """
-
     def snapshot_at(self, time: TimeInput) -> PathFromGraph:
         """
          Create a view of the PathFromGraph including all events that have not been explicitly deleted at `time`.
@@ -4180,9 +4139,6 @@ class Edge(object):
 
     def __ge__(self, value):
         """Return self>=value."""
-
-    def __getitem__(self, key):
-        """Return self[key]."""
 
     def __gt__(self, value):
         """Return self>value."""
@@ -4357,6 +4313,17 @@ class Edge(object):
 
         Returns:
             Edges:
+        """
+
+    def filter(self, filter: filter.FilterExpr) -> Edge:
+        """
+        Return a filtered view that only includes nodes and edges that satisfy the filter
+
+        Arguments:
+            filter (filter.FilterExpr): The filter to apply to the nodes and edges.
+
+        Returns:
+            Edge: The filtered view
         """
 
     def has_layer(self, name: str) -> bool:
@@ -4552,18 +4519,6 @@ class Edge(object):
              Edge:
         """
 
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> Edge:
-        """
-        Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
-
-        Arguments:
-            start (TimeInput): the new start time for the window
-            end (TimeInput): the new end time for the window
-
-        Returns:
-             Edge:
-        """
-
     def snapshot_at(self, time: TimeInput) -> Edge:
         """
          Create a view of the Edge including all events that have not been explicitly deleted at `time`.
@@ -4706,14 +4661,6 @@ class Edges(object):
              list[Edge]: the list of edges
         """
 
-    def count(self) -> int:
-        """
-        Returns the number of edges.
-
-        Returns:
-            int:
-        """
-
     def default_layer(self) -> Edges:
         """
          Return a view of Edges containing only the default edge layer
@@ -4836,6 +4783,17 @@ class Edges(object):
 
         Returns:
             Edges:
+        """
+
+    def filter(self, filter: filter.FilterExpr) -> Edges:
+        """
+        Return a filtered view that only includes nodes and edges that satisfy the filter
+
+        Arguments:
+            filter (filter.FilterExpr): The filter to apply to the nodes and edges.
+
+        Returns:
+            Edges: The filtered view
         """
 
     def has_layer(self, name: str) -> bool:
@@ -5035,18 +4993,6 @@ class Edges(object):
              Edges:
         """
 
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> Edges:
-        """
-        Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
-
-        Arguments:
-            start (TimeInput): the new start time for the window
-            end (TimeInput): the new end time for the window
-
-        Returns:
-             Edges:
-        """
-
     def snapshot_at(self, time: TimeInput) -> Edges:
         """
          Create a view of the Edges including all events that have not been explicitly deleted at `time`.
@@ -5080,6 +5026,18 @@ class Edges(object):
         """
 
     @property
+    def sorted(self, sort_bys: list[EdgeSortBy]) -> Edges:
+        """
+        Reorder this collection by an ordered list of sort keys. Multi-key
+        sort is lexicographic (ties on key 1 break to key 2).
+
+        Arguments:
+            sort_bys (list[EdgeSortBy]): the ordered sort keys.
+
+        Returns:
+            Edges: a new collection in the sorted order.
+        """
+
     def start(self) -> OptionalEventTime:
         """
          Gets the start time for rolling and expanding windows for this Edges
@@ -5336,6 +5294,17 @@ class NestedEdges(object):
             Edges:
         """
 
+    def filter(self, filter: filter.FilterExpr) -> NestedEdges:
+        """
+        Return a filtered view that only includes nodes and edges that satisfy the filter
+
+        Arguments:
+            filter (filter.FilterExpr): The filter to apply to the nodes and edges.
+
+        Returns:
+            NestedEdges: The filtered view
+        """
+
     def has_layer(self, name: str) -> bool:
         """
          Check if NestedEdges has the layer `"name"`
@@ -5533,18 +5502,6 @@ class NestedEdges(object):
              NestedEdges:
         """
 
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> NestedEdges:
-        """
-        Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
-
-        Arguments:
-            start (TimeInput): the new start time for the window
-            end (TimeInput): the new end time for the window
-
-        Returns:
-             NestedEdges:
-        """
-
     def snapshot_at(self, time: TimeInput) -> NestedEdges:
         """
          Create a view of the NestedEdges including all events that have not been explicitly deleted at `time`.
@@ -5705,6 +5662,176 @@ class MutableEdge(Edge):
             None:
         """
 
+class SortByTime(object):
+    """Which time boundary of a member to sort by."""
+
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __int__(self):
+        """int(self)"""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+class NodeSortBy(object):
+    """
+    One entry in a `Nodes.sorted(...)` sort key list. Construct with the
+    static factories `by_id` / `by_name` / `by_type` / `by_time` /
+    `by_property` — each enforces that exactly one key type is set per entry.
+    """
+
+    @staticmethod
+    def by_id(reverse: Optional[bool] = False) -> NodeSortBy:
+        """
+        Sort by node id (a stable, deterministic ordering).
+
+        Arguments:
+            reverse (bool, optional): sort descending. Defaults to False.
+
+        Returns:
+            NodeSortBy: a sort key usable in `Nodes.sorted(...)`.
+        """
+
+    @staticmethod
+    def by_name(reverse: Optional[bool] = False) -> NodeSortBy:
+        """
+        Sort by node name.
+
+        Arguments:
+            reverse (bool, optional): sort descending. Defaults to False.
+
+        Returns:
+            NodeSortBy: a sort key usable in `Nodes.sorted(...)`.
+        """
+
+    @staticmethod
+    def by_property(key: str, reverse: Optional[bool] = False) -> NodeSortBy:
+        """
+        Sort by a temporal property value on each node.
+
+        Arguments:
+            key (str): the property name.
+            reverse (bool, optional): sort descending. Defaults to False.
+
+        Returns:
+            NodeSortBy: a sort key usable in `Nodes.sorted(...)`.
+        """
+
+    @staticmethod
+    def by_time(time: SortByTime, reverse: Optional[bool] = False) -> NodeSortBy:
+        """
+        Sort by node time (either earliest or latest observed event on the node).
+
+        Arguments:
+            time (SortByTime): the time boundary to use.
+            reverse (bool, optional): sort descending. Defaults to False.
+
+        Returns:
+            NodeSortBy: a sort key usable in `Nodes.sorted(...)`.
+        """
+
+    @staticmethod
+    def by_type(reverse: Optional[bool] = False) -> NodeSortBy:
+        """
+        Sort by node type. Untyped nodes sort first, before any named type.
+
+        Arguments:
+            reverse (bool, optional): sort descending. Defaults to False.
+
+        Returns:
+            NodeSortBy: a sort key usable in `Nodes.sorted(...)`.
+        """
+
+class EdgeSortBy(object):
+    """
+    One entry in an `Edges.sorted(...)` sort key list. Construct with the
+    static factories `by_src` / `by_dst` / `by_neighbour` / `by_time` /
+    `by_property`.
+    """
+
+    @staticmethod
+    def by_dst(key: NodeSortBy) -> EdgeSortBy:
+        """
+        Sort by the destination node, using a node sort key.
+
+        Arguments:
+            key (NodeSortBy): how to order the destination nodes, e.g.
+                `NodeSortBy.by_id()`. Its own `reverse` controls direction.
+
+        Returns:
+            EdgeSortBy: a sort key usable in `Edges.sorted(...)`.
+        """
+
+    @staticmethod
+    def by_neighbour(key: NodeSortBy) -> EdgeSortBy:
+        """
+        Sort by the neighbour node, using a node sort key. The neighbour is the
+        endpoint that is NOT the node the edges were traversed from — for a
+        graph-level edge collection that is the destination.
+
+        Arguments:
+            key (NodeSortBy): how to order the neighbour nodes, e.g.
+                `NodeSortBy.by_name()`. Its own `reverse` controls direction.
+
+        Returns:
+            EdgeSortBy: a sort key usable in `Edges.sorted(...)`.
+        """
+
+    @staticmethod
+    def by_property(key: str, reverse: Optional[bool] = False) -> EdgeSortBy:
+        """
+        Sort by a temporal property value on each edge.
+
+        Arguments:
+            key (str): the property name.
+            reverse (bool, optional): sort descending. Defaults to False.
+
+        Returns:
+            EdgeSortBy: a sort key usable in `Edges.sorted(...)`.
+        """
+
+    @staticmethod
+    def by_src(key: NodeSortBy) -> EdgeSortBy:
+        """
+        Sort by the source node, using a node sort key.
+
+        Arguments:
+            key (NodeSortBy): how to order the source nodes, e.g.
+                `NodeSortBy.by_id()`. Its own `reverse` controls direction.
+
+        Returns:
+            EdgeSortBy: a sort key usable in `Edges.sorted(...)`.
+        """
+
+    @staticmethod
+    def by_time(time: SortByTime, reverse: Optional[bool] = False) -> EdgeSortBy:
+        """
+        Sort by edge time (either earliest or latest event on the edge).
+
+        Arguments:
+            time (SortByTime): the time boundary to use.
+            reverse (bool, optional): sort descending. Defaults to False.
+
+        Returns:
+            EdgeSortBy: a sort key usable in `Edges.sorted(...)`.
+        """
+
 class Properties(object):
     """A view of the properties of an entity"""
 
@@ -5799,7 +5926,7 @@ class Properties(object):
            TemporalProperties:
         """
 
-    def values(self) -> list[PropValue]:
+    def values(self, keys: Optional[list[str]] = None) -> list[PropValue]:
         """
         Get the values of the properties.
 
@@ -5837,14 +5964,17 @@ class PyPropValueList(object):
 
     def arrow_compute(self, graph: GraphView, col_name: str) -> OutputNodeState:
         """
-        Compute a node state from these property values using an arrow compute kernel.
+        Collect the property values into an arrow-backed node state with a single column.
+
+        The values are taken in order and aligned with the nodes of `graph`, so this is only
+        meaningful when the list was produced by iterating over the nodes of the same graph.
 
         Arguments:
-            graph (GraphView): the graph the property values belong to.
-            col_name (str): the property column name to compute over.
+            graph (GraphView): the graph whose nodes the values are aligned with
+            col_name (str): the name to give the column holding the property values
 
         Returns:
-            OutputNodeState: the computed node state.
+            OutputNodeState: the values as a node state with one column named `col_name`
         """
 
     def average(self) -> PropValue:
@@ -6169,7 +6299,7 @@ class Metadata(object):
             list[str]: the property keys
         """
 
-    def values(self) -> list[PropValue]:
+    def values(self, keys: Optional[list[str]] = None) -> list[PropValue]:
         """
         lists the property values
 
@@ -6328,7 +6458,7 @@ class TemporalProperties(object):
             dict[str, PropValue]: the mapping of property keys to latest values
         """
 
-    def values(self) -> list[TemporalProperty]:
+    def values(self, keys: Optional[list[str]] = None) -> list[TemporalProperty]:
         """
         List the values of the properties
 
@@ -6962,22 +7092,6 @@ class HistoryTimestamp(object):
             NDArray[np.int64]: Timestamps in milliseconds since the Unix epoch in reverse order.
         """
 
-    def to_list(self) -> list[int]:
-        """
-        Collect all timestamps into a list.
-
-        Returns:
-            list[int]: List of timestamps.
-        """
-
-    def to_list_rev(self) -> list[int]:
-        """
-        Collect all timestamps into a list in reverse order.
-
-        Returns:
-            list[int]: List of timestamps.
-        """
-
 class HistoryDateTime(object):
     """History view that exposes UTC datetimes."""
 
@@ -7101,22 +7215,6 @@ class HistoryEventId(object):
             NDArray[np.uintp]: Event ids in reverse order.
         """
 
-    def to_list(self) -> list[int]:
-        """
-        Collect all event ids into a list.
-
-        Returns:
-            list[int]: List of event ids.
-        """
-
-    def to_list_rev(self) -> list[int]:
-        """
-        Collect all event ids into a list in reverse order.
-
-        Returns:
-            list[int]: List of event ids.
-        """
-
 class Intervals(object):
     """View over the intervals between consecutive timestamps, expressed in milliseconds."""
 
@@ -7204,22 +7302,6 @@ class Intervals(object):
 
         Returns:
             Optional[int]: Minimum interval, or None if fewer than 1 interval.
-        """
-
-    def to_list(self) -> list[int]:
-        """
-        Collect all interval values in milliseconds into a list.
-
-        Returns:
-            list[int]: List of intervals in milliseconds.
-        """
-
-    def to_list_rev(self) -> list[int]:
-        """
-        Collect all interval values in milliseconds into a list in reverse order.
-
-        Returns:
-            list[int]: List of intervals in milliseconds.
         """
 
 class WindowSet(object):

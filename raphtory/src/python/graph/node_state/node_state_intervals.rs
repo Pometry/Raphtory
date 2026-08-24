@@ -199,7 +199,7 @@ impl NodeStateIntervals {
     pub fn to_list(&self) -> Vec<Vec<i64>> {
         self.inner
             .iter_values()
-            .map(|v| v.to_list())
+            .map(|v| v.intervals.collect())
             .collect::<Vec<Vec<i64>>>()
     }
 }

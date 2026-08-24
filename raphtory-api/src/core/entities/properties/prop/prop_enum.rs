@@ -17,6 +17,7 @@ use arrow_array::{
 use arrow_schema::{DataType, Field, FieldRef, Fields, TimeUnit, DECIMAL128_MAX_PRECISION};
 use bigdecimal::{num_bigint::BigInt, BigDecimal};
 use chrono::{DateTime, NaiveDateTime, Utc};
+use indexmap::IndexMap;
 use itertools::Itertools;
 use num_traits::{Bounded, FromPrimitive, ToPrimitive};
 use rustc_hash::{FxBuildHasher, FxHashMap};
@@ -38,6 +39,10 @@ use thiserror::Error;
 
 // Equivalent to parquet decimal(38, 0).
 pub const DECIMAL_MAX: i128 = 99999999999999999999999999999999999999i128;
+
+/// Insertion-ordered map used for `Prop::Map` values, so map properties keep a
+/// deterministic key order through serialization round-trips.
+pub type PropMap = IndexMap<ArcStr, Prop, FxBuildHasher>;
 
 #[derive(Error, Debug)]
 #[error("Decimal {0} too large.")]
@@ -62,7 +67,7 @@ enum PropUntaggedDef {
     F32(f32),
     Bool(bool),
     List(PropArray),
-    Map(Arc<FxHashMap<ArcStr, Prop>>),
+    Map(Arc<PropMap>),
     NDTime(NaiveDateTime),
     DTime(DateTime<Utc>),
     Decimal(BigDecimal),
@@ -99,7 +104,7 @@ impl<'de> Deserialize<'de> for PropUntagged {
             F32(f32),
             Str(ArcStr),
             List(Vec<PropUntagged>), // recursively uses PropUntagged
-            Map(FxHashMap<ArcStr, PropUntagged>), // recursively uses PropUntagged
+            Map(IndexMap<ArcStr, PropUntagged, FxBuildHasher>), // recursively uses PropUntagged
             NDTime(NaiveDateTime),
             DTime(DateTime<Utc>),
             Decimal(BigDecimal),
@@ -152,7 +157,7 @@ pub enum Prop {
     F32(f32),
     Bool(bool),
     List(PropArray),
-    Map(Arc<FxHashMap<ArcStr, Prop>>),
+    Map(Arc<PropMap>),
     NDTime(NaiveDateTime),
     DTime(DateTime<Utc>),
     Decimal(BigDecimal),
@@ -275,7 +280,7 @@ pub struct SerdeArrowList<'a>(pub &'a PropArray);
 pub struct SerdeArrowArray<'a>(pub &'a ArrayRef);
 
 #[derive(Clone, Copy)]
-pub struct SerdeArrowMap<'a>(pub &'a HashMap<ArcStr, Prop, FxBuildHasher>);
+pub struct SerdeArrowMap<'a>(pub &'a PropMap);
 
 #[derive(Clone, Copy, Serialize)]
 pub struct SerdeRow<P: Serialize> {
@@ -699,7 +704,7 @@ impl Prop {
     }
 
     pub fn map(vals: impl IntoIterator<Item = (impl Into<ArcStr>, impl Into<Prop>)>) -> Self {
-        let h_map: FxHashMap<_, _> = vals
+        let h_map: PropMap = vals
             .into_iter()
             .map(|(k, v)| (k.into(), v.into()))
             .collect();
@@ -903,6 +908,12 @@ impl From<HashMap<ArcStr, Prop>> for Prop {
 
 impl From<FxHashMap<ArcStr, Prop>> for Prop {
     fn from(value: FxHashMap<ArcStr, Prop>) -> Self {
+        Prop::Map(Arc::new(value.into_iter().collect()))
+    }
+}
+
+impl From<PropMap> for Prop {
+    fn from(value: PropMap) -> Self {
         Prop::Map(Arc::new(value))
     }
 }

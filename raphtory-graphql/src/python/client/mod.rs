@@ -1,21 +1,59 @@
-use crate::client::{inner_collection, ClientError};
+use crate::{
+    client::{
+        op::{EdgeAddition, NodeAddition, TemporalUpdate},
+        ClientError,
+    },
+    python::pymodule::RemotePermissionError,
+};
 use pyo3::{exceptions::PyValueError, prelude::*, pyclass, pymethods};
+use raphtory::{
+    db::graph::views::filter::model::FilterTree, errors::GraphError,
+    python::filter::filter_expr::PyFilterExpr,
+};
 use raphtory_api::{
     core::{
         entities::{properties::prop::Prop, GID},
-        storage::timeindex::EventTime,
+        storage::timeindex::{AsTime, EventTime},
         utils::time::IntoTime,
     },
     python::{error::adapt_err_value, timeindex::PyEventTime},
 };
-use serde::{ser::SerializeStruct, Serialize, Serializer};
-use serde_json::json;
+use serde::Serialize;
 use std::collections::HashMap;
 
-pub mod raphtory_client;
+pub mod remote_client;
+pub mod remote_collection_metadata;
 pub mod remote_edge;
+pub mod remote_edges;
 pub mod remote_graph;
+pub mod remote_history;
+pub mod remote_metadata;
+pub mod remote_nested_edges;
 pub mod remote_node;
+pub mod remote_nodes;
+pub mod remote_path_from_graph;
+pub mod remote_path_from_node;
+pub mod remote_schema;
+pub(crate) mod view_ops;
+
+/// Convert a node-collection `select` / `nodes[expr]` subscript into the
+/// filter tree that narrows the collection's membership. Node predicates,
+/// graph views, and their combinations all pass through; the server applies
+/// them with select (membership-narrowing) semantics.
+///
+/// An expression that tests edges is refused eagerly with the same error the
+/// local `Nodes.__getitem__` raises, so one `except` clause catches it on
+/// either backend — and at the same moment: locally the rejection happens at
+/// subscript time, not at first read.
+pub(crate) fn node_subscript(filter: &PyFilterExpr) -> PyResult<FilterTree> {
+    let tree = filter
+        .try_as_filter_tree()
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    if tree.tests_edges() {
+        return Err(adapt_err_value(&GraphError::NotNodeFilter));
+    }
+    Ok(tree)
+}
 
 /// A temporal update
 ///
@@ -27,37 +65,6 @@ pub mod remote_node;
 pub struct PyUpdate {
     time: PyEventTime,
     properties: Option<HashMap<String, Prop>>,
-}
-
-impl Serialize for PyUpdate {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut count = 1;
-        if self.properties.is_some() {
-            count += 1;
-        }
-        let mut state = serializer.serialize_struct("PyUpdate", count)?;
-
-        let time = &self.time;
-        let time = (*time).into_time();
-        state.serialize_field("time", &time)?;
-        if let Some(ref properties) = self.properties {
-            let properties_list: Vec<serde_json::Value> = properties
-                .iter()
-                .map(|(key, value)| {
-                    json!({
-                        "key": key,
-                        "value": inner_collection(value),
-                    })
-                })
-                .collect();
-            state.serialize_field("properties", &properties_list)?;
-        }
-
-        state.end()
-    }
 }
 
 #[pymethods]
@@ -90,48 +97,6 @@ pub struct PyNodeAddition {
     node_type: Option<String>,
     metadata: Option<HashMap<String, Prop>>,
     updates: Option<Vec<PyUpdate>>,
-}
-
-impl Serialize for PyNodeAddition {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut count = 1;
-        if self.node_type.is_some() {
-            count += 1;
-        }
-        if self.metadata.is_some() {
-            count += 1;
-        }
-        if self.updates.is_some() {
-            count += 1;
-        }
-        let mut state = serializer.serialize_struct("PyNodeAddition", count)?;
-
-        state.serialize_field("name", &self.name.to_string())?;
-
-        if let Some(node_type) = &self.node_type {
-            state.serialize_field("node_type", node_type)?;
-        }
-
-        if let Some(ref metadata) = self.metadata {
-            let properties_list: Vec<serde_json::Value> = metadata
-                .iter()
-                .map(|(key, value)| {
-                    json!({
-                        "key": key,
-                        "value": inner_collection(value),
-                    })
-                })
-                .collect();
-            state.serialize_field("metadata", &properties_list)?;
-        }
-        if let Some(updates) = &self.updates {
-            state.serialize_field("updates", updates)?;
-        }
-        state.end()
-    }
 }
 
 #[pymethods]
@@ -175,49 +140,6 @@ pub struct PyEdgeAddition {
     updates: Option<Vec<PyUpdate>>,
 }
 
-impl Serialize for PyEdgeAddition {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut count = 2;
-        if self.layer.is_some() {
-            count += 1;
-        }
-        if self.metadata.is_some() {
-            count += 1;
-        }
-        if self.updates.is_some() {
-            count += 1;
-        }
-        let mut state = serializer.serialize_struct("PyEdgeAddition", count)?;
-
-        state.serialize_field("src", &self.src.to_string())?;
-        state.serialize_field("dst", &self.dst.to_string())?;
-
-        if let Some(layer) = &self.layer {
-            state.serialize_field("layer", layer)?;
-        }
-
-        if let Some(ref metadata) = self.metadata {
-            let properties_list: Vec<serde_json::Value> = metadata
-                .iter()
-                .map(|(key, value)| {
-                    json!({
-                        "key": key,
-                        "value": inner_collection(value),
-                    })
-                })
-                .collect();
-            state.serialize_field("metadata", &properties_list)?;
-        }
-        if let Some(updates) = &self.updates {
-            state.serialize_field("updates", updates)?;
-        }
-        state.end()
-    }
-}
-
 #[pymethods]
 impl PyEdgeAddition {
     #[new]
@@ -240,7 +162,7 @@ impl PyEdgeAddition {
 }
 
 /// Specifies that **all** properties should be included when creating an index.
-/// Use one of the predefined variants: ALL , ALL_METADATA , or ALL_TEMPORAL .
+/// Use one of the predefined variants: `All`, `AllMetadata`, or `AllProperties`.
 #[derive(Clone, Serialize, PartialEq)]
 #[pyclass(
     name = "AllPropertySpec",
@@ -348,9 +270,51 @@ impl PyRemoteIndexSpec {
     }
 }
 
-// Takes care of the ClientError -> PyException conversion
+// Takes care of the ClientError -> PyException conversion.
+// A permission denial maps to the distinct `RemotePermissionError` type so
+// callers can catch it specifically; everything else (including a missing graph)
+// stays a generic exception.
 impl From<ClientError> for PyErr {
     fn from(err: ClientError) -> Self {
-        adapt_err_value(&err)
+        match &err {
+            ClientError::PermissionDenied(msg) => RemotePermissionError::new_err(msg.clone()),
+            _ => adapt_err_value(&err),
+        }
+    }
+}
+
+// ============ Py* → transport-layer op-arg conversions ============
+// Used by the batch `add_nodes` / `add_edges` mutations to hand off the
+// Python-supplied input to `WriteOp::AddNodes` / `WriteOp::AddEdges`.
+
+impl From<PyUpdate> for TemporalUpdate {
+    fn from(u: PyUpdate) -> Self {
+        Self {
+            time: u.time.into_time().t(),
+            properties: u.properties,
+        }
+    }
+}
+
+impl From<PyNodeAddition> for NodeAddition {
+    fn from(n: PyNodeAddition) -> Self {
+        Self {
+            name: n.name,
+            node_type: n.node_type,
+            metadata: n.metadata,
+            updates: n.updates.map(|us| us.into_iter().map(Into::into).collect()),
+        }
+    }
+}
+
+impl From<PyEdgeAddition> for EdgeAddition {
+    fn from(e: PyEdgeAddition) -> Self {
+        Self {
+            src: e.src,
+            dst: e.dst,
+            layer: e.layer,
+            metadata: e.metadata,
+            updates: e.updates.map(|us| us.into_iter().map(Into::into).collect()),
+        }
     }
 }

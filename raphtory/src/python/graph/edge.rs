@@ -190,10 +190,6 @@ impl PyEdge {
         self.edge.id()
     }
 
-    pub fn __getitem__(&self, name: &str) -> Option<Prop> {
-        self.edge.properties().get(name)
-    }
-
     /// Returns a history object with EventTime entries for when an edge is added or change to an edge is made.
     ///
     /// Returns:

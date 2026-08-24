@@ -133,6 +133,23 @@ pub trait GraphViewOps<'graph>: GraphView + 'graph {
     /// Get the `EventTime` of the latest activity in the graph.
     fn latest_time(&self) -> Option<EventTime>;
 
+    /// Get the `EventTime` of the earliest edge activity in the graph.
+    ///
+    /// Unlike [`earliest_time`](Self::earliest_time), this ignores node-only
+    /// and graph-property events, so it answers "when did this graph first
+    /// have an edge". `None` when the view has no edges.
+    fn earliest_edge_time(&self) -> Option<EventTime> {
+        self.edges().earliest_time().flatten().min()
+    }
+
+    /// Get the `EventTime` of the latest edge activity in the graph.
+    ///
+    /// The edge-only counterpart of [`latest_time`](Self::latest_time);
+    /// `None` when the view has no edges.
+    fn latest_edge_time(&self) -> Option<EventTime> {
+        self.edges().latest_time().flatten().max()
+    }
+
     /// Return the number of nodes in the graph.
     fn count_nodes(&self) -> usize;
 

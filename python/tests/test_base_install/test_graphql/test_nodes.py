@@ -13,8 +13,7 @@ def test_graph_node_sort_by_nothing(graph):
     query = """{
       graph(path: "g") {
         nodes(select: {
-          node: { 
-            field: NODE_ID
+          id: { 
             where: { eq: { u64: 1 } }
           }
         }) {
