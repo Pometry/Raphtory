@@ -1,21 +1,21 @@
 use crate::{
+    LocalPOS,
     api::nodes::NodeSegmentOps,
     error::StorageError,
     pages::{layer_counter::GraphStats, resolve_pos},
     segments::node::segment::MemNodeSegment,
     wal::LSN,
-    LocalPOS,
 };
 use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::entities::{
+    EID, GID, LayerId, VID,
     properties::{
         meta::{NODE_ID_IDX, NODE_TYPE_IDX, STATIC_GRAPH_LAYER_ID},
         prop::{AsPropRef, Prop},
     },
-    LayerId, EID, GID, VID,
 };
 use raphtory_core::{
-    entities::{GidRef, ELID},
+    entities::{ELID, GidRef},
     storage::timeindex::AsTime,
 };
 use std::ops::DerefMut;
