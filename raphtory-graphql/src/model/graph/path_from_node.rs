@@ -62,7 +62,7 @@ impl GqlPathFromNode {
 
     /// Returns a view of PathFromNode containing the specified layer, errors if the layer does not exist.
 
-    async fn layers(
+    pub async fn layers(
         &self,
         #[graphql(desc = "Layer names to include.")] names: Vec<String>,
     ) -> Self {
@@ -71,14 +71,14 @@ impl GqlPathFromNode {
     }
 
     /// Return a view of PathFromNode restricted to the default layer.
-    async fn default_layer(&self) -> Self {
+    pub async fn default_layer(&self) -> Self {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.update(self_clone.nn.default_layer())).await
     }
 
     /// Return a view of PathFromNode containing all layers except the specified excluded layers, errors if any of the layers do not exist.
 
-    async fn exclude_layers(
+    pub async fn exclude_layers(
         &self,
         #[graphql(desc = "Layer names to exclude.")] names: Vec<String>,
     ) -> Self {
@@ -88,13 +88,13 @@ impl GqlPathFromNode {
 
     /// Return a view of PathFromNode containing the layer specified layer, errors if the layer does not exist.
 
-    async fn layer(&self, #[graphql(desc = "Layer name to include.")] name: String) -> Self {
+    pub async fn layer(&self, #[graphql(desc = "Layer name to include.")] name: String) -> Self {
         self.update(self.nn.valid_layers(name))
     }
 
     /// Return a view of PathFromNode containing all layers except the specified excluded layers, errors if any of the layers do not exist.
 
-    async fn exclude_layer(
+    pub async fn exclude_layer(
         &self,
         #[graphql(desc = "Layer name to exclude.")] name: String,
     ) -> Self {
@@ -111,7 +111,7 @@ impl GqlPathFromNode {
     /// Note that passing a step larger than window while alignment_unit is not "Unaligned" may lead to some entries appearing before
     /// the start of the first window and/or after the end of the last window (i.e. not included in any window).
 
-    async fn rolling(
+    pub async fn rolling(
         &self,
         #[graphql(
             desc = "Width of each window. Pass either `{epoch: <ms>}` for a discrete number of milliseconds (e.g. `{epoch: 1000}` for 1 second), or `{duration: <text>}` for a calendar duration (e.g. `{duration: 1 day}` or `{duration: 2 hours and 30 minutes}`)."
@@ -144,7 +144,7 @@ impl GqlPathFromNode {
     /// If unspecified (i.e. by default), alignment is done on the smallest unit of time in the step.
     /// e.g. "1 month and 1 day" will align at the start of the day.
 
-    async fn expanding(
+    pub async fn expanding(
         &self,
         #[graphql(
             desc = "How much the window grows by on each step. Pass either `{epoch: <ms>}` for a discrete number of milliseconds, or `{duration: <text>}` for a calendar duration (e.g. `{duration: 1 day}`)."
@@ -166,7 +166,7 @@ impl GqlPathFromNode {
 
     /// Create a view of the PathFromNode including all events between a specified start (inclusive) and end (exclusive).
 
-    async fn window(
+    pub async fn window(
         &self,
         #[graphql(desc = "Inclusive lower bound.")] start: GqlTimeInput,
         #[graphql(desc = "Exclusive upper bound.")] end: GqlTimeInput,
@@ -176,7 +176,7 @@ impl GqlPathFromNode {
 
     /// Create a view of the PathFromNode including all events at time.
 
-    async fn at(
+    pub async fn at(
         &self,
         #[graphql(desc = "Instant to pin the view to.")] time: GqlTimeInput,
     ) -> Self {
@@ -184,14 +184,14 @@ impl GqlPathFromNode {
     }
 
     /// Create a view of the PathFromNode including all events that are valid at the latest time.
-    async fn snapshot_latest(&self) -> Self {
+    pub async fn snapshot_latest(&self) -> Self {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.update(self_clone.nn.snapshot_latest())).await
     }
 
     /// Create a view of the PathFromNode including all events that are valid at the specified time.
 
-    async fn snapshot_at(
+    pub async fn snapshot_at(
         &self,
         #[graphql(desc = "Instant at which entities must be valid.")] time: GqlTimeInput,
     ) -> Self {
@@ -199,26 +199,32 @@ impl GqlPathFromNode {
     }
 
     /// Create a view of the PathFromNode including all events at the latest time.
-    async fn latest(&self) -> Self {
+    pub async fn latest(&self) -> Self {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.update(self_clone.nn.latest())).await
     }
 
     /// Create a view of the PathFromNode including all events before the specified end (exclusive).
 
-    async fn before(&self, #[graphql(desc = "Exclusive upper bound.")] time: GqlTimeInput) -> Self {
+    pub async fn before(
+        &self,
+        #[graphql(desc = "Exclusive upper bound.")] time: GqlTimeInput,
+    ) -> Self {
         self.update(self.nn.before(time.into_time()))
     }
 
     /// Create a view of the PathFromNode including all events after the specified start (exclusive).
 
-    async fn after(&self, #[graphql(desc = "Exclusive lower bound.")] time: GqlTimeInput) -> Self {
+    pub async fn after(
+        &self,
+        #[graphql(desc = "Exclusive lower bound.")] time: GqlTimeInput,
+    ) -> Self {
         self.update(self.nn.after(time.into_time()))
     }
 
     /// Set the start of the window to the larger of the specified start and self.start().
 
-    async fn shrink_start(
+    pub async fn shrink_start(
         &self,
         #[graphql(desc = "Proposed new start (TimeInput); ignored if it would widen the window.")]
         start: GqlTimeInput,
@@ -228,7 +234,7 @@ impl GqlPathFromNode {
 
     /// Set the end of the window to the smaller of the specified end and self.end().
 
-    async fn shrink_end(
+    pub async fn shrink_end(
         &self,
         #[graphql(desc = "Proposed new end (TimeInput); ignored if it would widen the window.")]
         end: GqlTimeInput,
@@ -238,7 +244,7 @@ impl GqlPathFromNode {
 
     /// Narrow this path to neighbours whose node type is in the given set.
 
-    async fn type_filter(
+    pub async fn type_filter(
         &self,
         #[graphql(desc = "Node types to keep.")] node_types: Vec<String>,
     ) -> Self {
@@ -251,29 +257,29 @@ impl GqlPathFromNode {
     ////////////////////////
 
     /// Returns the earliest time that this PathFromNode is valid or None if the PathFromNode is valid for all times.
-    async fn start(&self) -> GqlEventTime {
+    pub async fn start(&self) -> GqlEventTime {
         self.nn.start().into()
     }
 
     /// Returns the latest time that this PathFromNode is valid or None if the PathFromNode is valid for all times.
-    async fn end(&self) -> GqlEventTime {
+    pub async fn end(&self) -> GqlEventTime {
         self.nn.end().into()
     }
 
     /// Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
-    async fn window_size(&self) -> Option<i64> {
+    pub async fn window_size(&self) -> Option<i64> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.nn.window_size().map(|s| s as i64)).await
     }
 
     /// Check if a layer with the given name is present in this view.
-    async fn has_layer(&self, name: String) -> bool {
+    pub async fn has_layer(&self, name: String) -> bool {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.nn.has_layer(name)).await
     }
 
     /// Returns a single history object combining the time entries of all nodes reachable from the source in this view.
-    async fn combined_history(&self) -> GqlHistory {
+    pub async fn combined_history(&self) -> GqlHistory {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.nn.combined_history().into()).await
     }
@@ -283,7 +289,7 @@ impl GqlPathFromNode {
     ///////////////////
 
     /// The degree (number of incident edges) of every node in the path, in order.
-    async fn degree(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<usize>> {
+    pub async fn degree(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<usize>> {
         // Columnar metric over every member — unbounded, so honour the
         // same list guard as `list`/`ids`.
         check_list_allowed(ctx)?;
@@ -292,7 +298,7 @@ impl GqlPathFromNode {
     }
 
     /// The in-degree (number of incoming edges) of every node in the path, in order.
-    async fn in_degree(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<usize>> {
+    pub async fn in_degree(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<usize>> {
         // Columnar metric over every member — unbounded, so honour the
         // same list guard as `list`/`ids`.
         check_list_allowed(ctx)?;
@@ -301,7 +307,7 @@ impl GqlPathFromNode {
     }
 
     /// The out-degree (number of outgoing edges) of every node in the path, in order.
-    async fn out_degree(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<usize>> {
+    pub async fn out_degree(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<usize>> {
         // Columnar metric over every member — unbounded, so honour the
         // same list guard as `list`/`ids`.
         check_list_allowed(ctx)?;
@@ -310,7 +316,7 @@ impl GqlPathFromNode {
     }
 
     /// The number of edge updates incident to every node in the path, in order.
-    async fn edge_history_count(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<usize>> {
+    pub async fn edge_history_count(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<usize>> {
         // Columnar metric over every member — unbounded, so honour the
         // same list guard as `list`/`ids`.
         check_list_allowed(ctx)?;
@@ -328,7 +334,7 @@ impl GqlPathFromNode {
     /// view — the graph's registered property keys for the entity kind — or an
     /// empty list when there are no members. Mirrors the local collection
     /// `properties.keys()`.
-    async fn property_keys(&self) -> Vec<String> {
+    pub async fn property_keys(&self) -> Vec<String> {
         let self_clone = self.clone();
         blocking_compute(move || {
             {
@@ -345,7 +351,7 @@ impl GqlPathFromNode {
     /// The metadata keys this collection reports: the first member's registry
     /// view, or an empty list when there are no members. Mirrors the local
     /// collection `metadata.keys()`.
-    async fn metadata_keys(&self) -> Vec<String> {
+    pub async fn metadata_keys(&self) -> Vec<String> {
         let self_clone = self.clone();
         blocking_compute(move || {
             {
@@ -359,7 +365,7 @@ impl GqlPathFromNode {
         .await
     }
 
-    async fn count(&self) -> usize {
+    pub async fn count(&self) -> usize {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.nn.len()).await
     }
@@ -370,7 +376,7 @@ impl GqlPathFromNode {
     /// For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
     /// will be returned.
 
-    async fn page(
+    pub async fn page(
         &self,
         ctx: &Context<'_>,
         #[graphql(desc = "Maximum number of items to return on this page.")] limit: usize,
@@ -392,7 +398,7 @@ impl GqlPathFromNode {
 
     /// Materialise every neighbour node in the path. Rejected by the server when
     /// bulk list endpoints are disabled; use `page` for paginated access instead.
-    async fn list(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<GqlNode>> {
+    pub async fn list(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<GqlNode>> {
         check_list_allowed(ctx)?;
         let self_clone = self.clone();
         Ok(blocking_compute(move || self_clone.iter().collect()).await)
@@ -400,7 +406,7 @@ impl GqlPathFromNode {
 
     /// Every neighbour node's id (name) as a flat list of strings. Rejected by the
     /// server when bulk list endpoints are disabled.
-    async fn ids(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<String>> {
+    pub async fn ids(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<String>> {
         check_list_allowed(ctx)?;
         let self_clone = self.clone();
         Ok(blocking_compute(move || self_clone.nn.name().collect()).await)
@@ -408,7 +414,7 @@ impl GqlPathFromNode {
 
     /// Takes a specified selection of views and applies them in given order.
 
-    async fn apply_views(
+    pub async fn apply_views(
         &self,
         #[graphql(
             desc = "Ordered list of view operations; each entry is a one-of variant (`window`, `layer`, `filter`, ...) applied to the running result."
@@ -470,7 +476,7 @@ impl GqlPathFromNode {
     ///
     /// Contrast with `select`, which applies here and is not carried through.
 
-    async fn filter(
+    pub async fn filter(
         &self,
         #[graphql(
             desc = "Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection)."
@@ -502,7 +508,7 @@ impl GqlPathFromNode {
     ///
     /// Contrast with `filter`, which persists the scope through subsequent ops.
 
-    async fn select(
+    pub async fn select(
         &self,
         #[graphql(
             desc = "Filter expression: node predicates, graph views, or and/or/not combinations (and = intersection). Expressions that test edges are rejected."
@@ -523,7 +529,7 @@ impl GqlPathFromNode {
 
     /// Returns the neighbouring nodes reachable one further hop from this path
     /// (both directions), as a flat `PathFromNode`.
-    async fn neighbours(
+    pub async fn neighbours(
         &self,
         select: Option<GqlNodeFilter>,
     ) -> Result<GqlPathFromNode, GraphError> {
@@ -538,7 +544,7 @@ impl GqlPathFromNode {
 
     /// Returns the in-neighbours reachable one further hop from this path, as a
     /// flat `PathFromNode`.
-    async fn in_neighbours(
+    pub async fn in_neighbours(
         &self,
         select: Option<GqlNodeFilter>,
     ) -> Result<GqlPathFromNode, GraphError> {
@@ -553,7 +559,7 @@ impl GqlPathFromNode {
 
     /// Returns the out-neighbours reachable one further hop from this path, as a
     /// flat `PathFromNode`.
-    async fn out_neighbours(
+    pub async fn out_neighbours(
         &self,
         select: Option<GqlNodeFilter>,
     ) -> Result<GqlPathFromNode, GraphError> {
@@ -568,19 +574,19 @@ impl GqlPathFromNode {
 
     /// Returns the incident edges (both directions) of the nodes in this path,
     /// as a flat `Edges` collection.
-    async fn edges(&self) -> GqlEdges {
+    pub async fn edges(&self) -> GqlEdges {
         GqlEdges::new(self.nn.edges())
     }
 
     /// Returns the incoming edges of the nodes in this path, as a flat `Edges`
     /// collection.
-    async fn in_edges(&self) -> GqlEdges {
+    pub async fn in_edges(&self) -> GqlEdges {
         GqlEdges::new(self.nn.in_edges())
     }
 
     /// Returns the outgoing edges of the nodes in this path, as a flat `Edges`
     /// collection.
-    async fn out_edges(&self) -> GqlEdges {
+    pub async fn out_edges(&self) -> GqlEdges {
         GqlEdges::new(self.nn.out_edges())
     }
 }

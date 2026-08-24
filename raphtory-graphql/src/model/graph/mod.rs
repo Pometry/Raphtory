@@ -31,7 +31,7 @@ pub mod vectorised_graph;
 pub mod windowset;
 
 #[derive(OneOfInput, Clone)]
-pub(crate) enum WindowDuration {
+pub enum WindowDuration {
     /// Duration of window period.
     ///
     /// Choose from:
@@ -54,7 +54,7 @@ impl TryFrom<WindowDuration> for Interval {
 /// Alignment unit used to align window boundaries.
 #[derive(Enum, Copy, Clone, Eq, PartialEq)]
 #[graphql(name = "AlignmentUnit")]
-pub(crate) enum GqlAlignmentUnit {
+pub enum GqlAlignmentUnit {
     Unaligned, // note that there is no functional difference between millisecond and unaligned for the time being
     Millisecond,
     Second,

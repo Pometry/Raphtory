@@ -68,13 +68,13 @@ impl GqlEdges {
     ////////////////////////
 
     /// Returns a collection containing only edges in the default edge layer.
-    async fn default_layer(&self) -> Self {
+    pub async fn default_layer(&self) -> Self {
         self.update(self.ee.default_layer())
     }
 
     /// Returns a collection containing only edges belonging to the listed layers.
 
-    async fn layers(
+    pub async fn layers(
         &self,
         #[graphql(desc = "Layer names to include.")] names: Vec<String>,
     ) -> Self {
@@ -84,7 +84,7 @@ impl GqlEdges {
 
     /// Returns a collection containing edges belonging to all layers except the excluded list of layers.
 
-    async fn exclude_layers(
+    pub async fn exclude_layers(
         &self,
         #[graphql(desc = "Layer names to exclude.")] names: Vec<String>,
     ) -> Self {
@@ -94,13 +94,13 @@ impl GqlEdges {
 
     /// Returns a collection containing edges belonging to the specified layer.
 
-    async fn layer(&self, #[graphql(desc = "Layer name to include.")] name: String) -> Self {
+    pub async fn layer(&self, #[graphql(desc = "Layer name to include.")] name: String) -> Self {
         self.update(self.ee.valid_layers(name))
     }
 
     /// Returns a collection containing edges belonging to all layers except the excluded layer specified.
 
-    async fn exclude_layer(
+    pub async fn exclude_layer(
         &self,
         #[graphql(desc = "Layer name to exclude.")] name: String,
     ) -> Self {
@@ -117,7 +117,7 @@ impl GqlEdges {
     /// Note that passing a step larger than window while alignment_unit is not "Unaligned" may lead to some entries appearing before
     /// the start of the first window and/or after the end of the last window (i.e. not included in any window).
 
-    async fn rolling(
+    pub async fn rolling(
         &self,
         #[graphql(
             desc = "Width of each window. Pass either `{epoch: <ms>}` for a discrete number of milliseconds (e.g. `{epoch: 1000}` for 1 second), or `{duration: <text>}` for a calendar duration (e.g. `{duration: 1 day}` or `{duration: 2 hours and 30 minutes}`)."
@@ -150,7 +150,7 @@ impl GqlEdges {
     /// If unspecified (i.e. by default), alignment is done on the smallest unit of time in the step.
     /// e.g. "1 month and 1 day" will align at the start of the day.
 
-    async fn expanding(
+    pub async fn expanding(
         &self,
         #[graphql(
             desc = "How much the window grows by on each step. Pass either `{epoch: <ms>}` for a discrete number of milliseconds, or `{duration: <text>}` for a calendar duration (e.g. `{duration: 1 day}`)."
@@ -172,7 +172,7 @@ impl GqlEdges {
 
     /// Creates a view of the Edge including all events between the specified start (inclusive) and end (exclusive).
 
-    async fn window(
+    pub async fn window(
         &self,
         #[graphql(desc = "Inclusive lower bound.")] start: GqlTimeInput,
         #[graphql(desc = "Exclusive upper bound.")] end: GqlTimeInput,
@@ -182,7 +182,7 @@ impl GqlEdges {
 
     /// Creates a view of the Edge including all events at a specified time.
 
-    async fn at(
+    pub async fn at(
         &self,
         #[graphql(desc = "Instant to pin the view to.")] time: GqlTimeInput,
     ) -> Self {
@@ -190,7 +190,7 @@ impl GqlEdges {
     }
 
     /// View showing only the latest state of each edge (equivalent to `at(latestTime)`).
-    async fn latest(&self) -> Self {
+    pub async fn latest(&self) -> Self {
         let e = self.ee.clone();
         let latest = blocking_compute(move || e.latest()).await;
         self.update(latest)
@@ -198,7 +198,7 @@ impl GqlEdges {
 
     /// Creates a view of the Edge including all events that are valid at time. This is equivalent to before(time + 1) for Graph and at(time) for PersistentGraph.
 
-    async fn snapshot_at(
+    pub async fn snapshot_at(
         &self,
         #[graphql(desc = "Instant at which entities must be valid.")] time: GqlTimeInput,
     ) -> Self {
@@ -206,25 +206,31 @@ impl GqlEdges {
     }
 
     /// Creates a view of the Edge including all events that are valid at the latest time. This is equivalent to a no-op for Graph and latest() for PersistentGraph.
-    async fn snapshot_latest(&self) -> Self {
+    pub async fn snapshot_latest(&self) -> Self {
         self.update(self.ee.snapshot_latest())
     }
 
     /// Creates a view of the Edge including all events before a specified end (exclusive).
 
-    async fn before(&self, #[graphql(desc = "Exclusive upper bound.")] time: GqlTimeInput) -> Self {
+    pub async fn before(
+        &self,
+        #[graphql(desc = "Exclusive upper bound.")] time: GqlTimeInput,
+    ) -> Self {
         self.update(self.ee.before(time.into_time()))
     }
 
     /// Creates a view of the Edge including all events after a specified start (exclusive).
 
-    async fn after(&self, #[graphql(desc = "Exclusive lower bound.")] time: GqlTimeInput) -> Self {
+    pub async fn after(
+        &self,
+        #[graphql(desc = "Exclusive lower bound.")] time: GqlTimeInput,
+    ) -> Self {
         self.update(self.ee.after(time.into_time()))
     }
 
     /// Set the start of the window.
 
-    async fn shrink_start(
+    pub async fn shrink_start(
         &self,
         #[graphql(desc = "Proposed new start (TimeInput); ignored if it would widen the window.")]
         start: GqlTimeInput,
@@ -234,7 +240,7 @@ impl GqlEdges {
 
     /// Set the end of the window.
 
-    async fn shrink_end(
+    pub async fn shrink_end(
         &self,
         #[graphql(desc = "Proposed new end (TimeInput); ignored if it would widen the window.")]
         end: GqlTimeInput,
@@ -244,7 +250,7 @@ impl GqlEdges {
 
     /// Takes a specified selection of views and applies them in order given.
 
-    async fn apply_views(
+    pub async fn apply_views(
         &self,
         #[graphql(
             desc = "Ordered list of view operations; each entry is a one-of variant (`window`, `layer`, `filter`, ...) applied to the running result."
@@ -301,21 +307,21 @@ impl GqlEdges {
     /// Expand each edge into one edge per update: if `A->B` has three updates, it
     /// becomes three `A->B` entries each at a distinct timestamp. Use this to
     /// iterate per-event rather than per-edge.
-    async fn explode(&self) -> Self {
+    pub async fn explode(&self) -> Self {
         self.update(self.ee.explode())
     }
 
     /// Returns an edge object for each layer within the original edge.
     ///
     /// Each new edge object contains only updates from the respective layers.
-    async fn explode_layers(&self) -> Self {
+    pub async fn explode_layers(&self) -> Self {
         self.update(self.ee.explode_layers())
     }
 
     /// Sort the edges. Multiple criteria are applied lexicographically (ties
     /// on the first key break to the second, etc.).
 
-    async fn sorted(
+    pub async fn sorted(
         &self,
         #[graphql(
             desc = "Ordered list of sort keys. Each entry chooses exactly one of `src` / `dst` / `neighbour` / `time` / `property`, with an optional `reverse: true` to flip order."
@@ -340,23 +346,23 @@ impl GqlEdges {
     ////////////////////////
 
     /// Returns the start time of the window or none if there is no window.
-    async fn start(&self) -> GqlEventTime {
+    pub async fn start(&self) -> GqlEventTime {
         self.ee.start().into()
     }
 
     /// Returns the end time of the window or none if there is no window.
-    async fn end(&self) -> GqlEventTime {
+    pub async fn end(&self) -> GqlEventTime {
         self.ee.end().into()
     }
 
     /// Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
-    async fn window_size(&self) -> Option<i64> {
+    pub async fn window_size(&self) -> Option<i64> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.ee.window_size().map(|s| s as i64)).await
     }
 
     /// Check if a layer with the given name is present in this view.
-    async fn has_layer(&self, name: String) -> bool {
+    pub async fn has_layer(&self, name: String) -> bool {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.ee.has_layer(name)).await
     }
@@ -366,18 +372,18 @@ impl GqlEdges {
     /////////////////////
 
     /// Returns the source node of each edge, as a flat `PathFromNode`.
-    async fn src(&self) -> GqlPathFromNode {
+    pub async fn src(&self) -> GqlPathFromNode {
         GqlPathFromNode::new(self.ee.src())
     }
 
     /// Returns the destination node of each edge, as a flat `PathFromNode`.
-    async fn dst(&self) -> GqlPathFromNode {
+    pub async fn dst(&self) -> GqlPathFromNode {
         GqlPathFromNode::new(self.ee.dst())
     }
 
     /// Returns the node at the other end of each edge (destination for
     /// out-edges, source for in-edges), as a flat `PathFromNode`.
-    async fn nbr(&self) -> GqlPathFromNode {
+    pub async fn nbr(&self) -> GqlPathFromNode {
         GqlPathFromNode::new(self.ee.nbr())
     }
 
@@ -394,7 +400,7 @@ impl GqlEdges {
     /// view — the graph's registered property keys for the entity kind — or an
     /// empty list when there are no members. Mirrors the local collection
     /// `properties.keys()`.
-    async fn property_keys(&self) -> Vec<String> {
+    pub async fn property_keys(&self) -> Vec<String> {
         let self_clone = self.clone();
         blocking_compute(move || {
             {
@@ -411,7 +417,7 @@ impl GqlEdges {
     /// The metadata keys this collection reports: the first member's registry
     /// view, or an empty list when there are no members. Mirrors the local
     /// collection `metadata.keys()`.
-    async fn metadata_keys(&self) -> Vec<String> {
+    pub async fn metadata_keys(&self) -> Vec<String> {
         let self_clone = self.clone();
         blocking_compute(move || {
             {
@@ -425,7 +431,7 @@ impl GqlEdges {
         .await
     }
 
-    async fn count(&self) -> usize {
+    pub async fn count(&self) -> usize {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.ee.len()).await
     }
@@ -436,7 +442,7 @@ impl GqlEdges {
     /// For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
     /// will be returned.
 
-    async fn page(
+    pub async fn page(
         &self,
         ctx: &Context<'_>,
         #[graphql(desc = "Maximum number of items to return on this page.")] limit: usize,
@@ -457,7 +463,7 @@ impl GqlEdges {
     }
 
     /// Returns a list of all objects in the current selection of the collection. You should filter the collection first then call list.
-    async fn list(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<GqlEdge>> {
+    pub async fn list(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<GqlEdge>> {
         check_list_allowed(ctx)?;
         let self_clone = self.clone();
         Ok(blocking_compute(move || self_clone.iter().collect()).await)
@@ -479,7 +485,7 @@ impl GqlEdges {
     ///
     /// Contrast with `select`, which applies here and is not carried through.
 
-    async fn filter(
+    pub async fn filter(
         &self,
         #[graphql(
             desc = "Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection)."
@@ -514,7 +520,7 @@ impl GqlEdges {
     ///
     /// Contrast with `filter`, which persists the scope through subsequent ops.
 
-    async fn select(
+    pub async fn select(
         &self,
         #[graphql(
             desc = "Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection)."

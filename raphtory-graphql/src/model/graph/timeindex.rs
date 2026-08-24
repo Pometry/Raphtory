@@ -234,12 +234,12 @@ pub struct GqlEventTime {
 #[ResolvedObjectFields]
 impl GqlEventTime {
     /// Get the timestamp in milliseconds since the Unix epoch.
-    async fn timestamp(&self) -> Option<i64> {
+    pub async fn timestamp(&self) -> Option<i64> {
         self.inner.map(|t| t.t())
     }
 
     /// Get the event id for the EventTime. Used for ordering within the same timestamp.
-    async fn event_id(&self) -> Option<u64> {
+    pub async fn event_id(&self) -> Option<u64> {
         self.inner.map(|t| t.i() as u64)
     }
 
@@ -250,7 +250,7 @@ impl GqlEventTime {
     /// Refer to chrono::format::strftime for formatting specifiers and escape sequences.
     /// Raises an error if a time conversion fails.
 
-    async fn datetime(
+    pub async fn datetime(
         &self,
         #[graphql(
             desc = "Optional format string for the rendered datetime. Uses `%`-style specifiers — for example `%Y-%m-%d` for `2024-01-15`, `%Y-%m-%d %H:%M:%S` for `2024-01-15 10:30:00`, or `%H:%M` for `10:30`. Defaults to RFC 3339 (e.g. `2024-01-15T10:30:45.123+00:00`) when omitted."

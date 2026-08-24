@@ -280,17 +280,17 @@ impl GqlNodeState {
 #[ResolvedObjectFields]
 impl GqlNodeState {
     /// Returns the number of nodes with a value in this node state.
-    async fn count(&self) -> usize {
+    pub async fn count(&self) -> usize {
         self.node_state.len()
     }
 
     /// The nodes with a value in this node state, in row order. Aligned with `values`.
-    async fn nodes(&self) -> GqlNodes {
+    pub async fn nodes(&self) -> GqlNodes {
         GqlNodes::new(self.node_state.nodes())
     }
 
     /// The column names of this node state in order.
-    async fn column_names(&self) -> Vec<String> {
+    pub async fn column_names(&self) -> Vec<String> {
         self.node_state
             .state
             .values_ref()
@@ -305,7 +305,7 @@ impl GqlNodeState {
     /// Unbounded: honours the same list guard as the other bulk endpoints, so
     /// `disable_lists` cannot be bypassed through node state. Use `page` when
     /// lists are disabled.
-    async fn rows(&self, ctx: &Context<'_>) -> Result<Vec<GqlNodeStateRow>> {
+    pub async fn rows(&self, ctx: &Context<'_>) -> Result<Vec<GqlNodeStateRow>> {
         check_list_allowed(ctx)?;
         let self_clone = self.clone();
         Ok(blocking_compute(move || {
@@ -331,7 +331,7 @@ impl GqlNodeState {
 
     /// All rows of the node state keyed by node, without the column names: the `values` of each row are
     /// in `columnNames` order.
-    async fn headless_rows(&self, ctx: &Context<'_>) -> Result<Vec<GqlNodeStateHeadlessRow>> {
+    pub async fn headless_rows(&self, ctx: &Context<'_>) -> Result<Vec<GqlNodeStateHeadlessRow>> {
         check_list_allowed(ctx)?;
         let self_clone = self.clone();
         Ok(blocking_compute(move || {
@@ -353,7 +353,7 @@ impl GqlNodeState {
     }
 
     /// Returns the values for a node, one entry per column; null if the node has no value in this NodeState.
-    async fn get(
+    pub async fn get(
         &self,
         #[graphql(desc = "Node id.")] node: GqlNodeId,
     ) -> Option<Vec<GqlNodeStateEntry>> {
@@ -376,7 +376,7 @@ impl GqlNodeState {
 
     /// Minimum `(node, value)` of a column. Null if the column does not exist, is empty,
     /// or its values are not comparable (e.g. contains nodes).
-    async fn min(
+    pub async fn min(
         &self,
         #[graphql(desc = "Column name.")] column: String,
     ) -> Option<GqlNodeStateItem> {
@@ -393,7 +393,7 @@ impl GqlNodeState {
 
     /// Maximum `(node, value)` of a column. Null if the column does not exist, is empty,
     /// or its values are not comparable (e.g. contains nodes).
-    async fn max(
+    pub async fn max(
         &self,
         #[graphql(desc = "Column name.")] column: String,
     ) -> Option<GqlNodeStateItem> {
@@ -410,7 +410,7 @@ impl GqlNodeState {
 
     /// Sum of a column's values, skipping empty cells. Null if the column does not exist, is empty,
     /// or is not additive (e.g. contains nodes).
-    async fn sum(
+    pub async fn sum(
         &self,
         #[graphql(desc = "Column name.")] column: String,
     ) -> Option<GqlPropertyOutputVal> {
@@ -431,7 +431,7 @@ impl GqlNodeState {
 
     /// Mean of a column's values as a float, skipping empty cells. Null if the column does not exist,
     /// is empty, or has any non-numeric value.
-    async fn mean(
+    pub async fn mean(
         &self,
         #[graphql(desc = "Column name.")] column: String,
     ) -> Option<GqlPropertyOutputVal> {
@@ -451,7 +451,7 @@ impl GqlNodeState {
 
     /// Median `(node, value)` of a column (upper median on even lengths). Null if the column
     /// does not exist, is empty, or is not comparable (e.g. contains nodes).
-    async fn median(
+    pub async fn median(
         &self,
         #[graphql(desc = "Column name.")] column: String,
     ) -> Option<GqlNodeStateItem> {
@@ -469,7 +469,7 @@ impl GqlNodeState {
     /// Returns the `k` rows with the largest values in a column. Empty cells rank
     /// lowest, so they are only included if fewer than `k` rows have a value.
     /// Null if the column does not exist, is empty, or is not comparable.
-    async fn top_k(
+    pub async fn top_k(
         &self,
         #[graphql(desc = "Column name.")] column: String,
         #[graphql(desc = "Number of rows to return.")] k: usize,
@@ -489,7 +489,7 @@ impl GqlNodeState {
     /// Returns the `k` rows with the smallest values in a column. Empty cells rank
     /// highest, so they are only included if fewer than `k` rows have a value.
     /// Null if the column does not exist, is empty, or is not comparable.
-    async fn bottom_k(
+    pub async fn bottom_k(
         &self,
         #[graphql(desc = "Column name.")] column: String,
         #[graphql(desc = "Number of rows to return.")] k: usize,
@@ -510,7 +510,7 @@ impl GqlNodeState {
     /// ascending with empty cells last. `reverse` flips the whole ordering, putting
     /// empty cells first. Null if the column does not exist, is empty, or is not
     /// comparable.
-    async fn sort_by_values(
+    pub async fn sort_by_values(
         &self,
         #[graphql(desc = "Column name.")] column: String,
         #[graphql(desc = "Sort in descending order instead. Defaults to false.")] reverse: Option<
@@ -535,7 +535,7 @@ impl GqlNodeState {
 
     /// Groups the nodes by their value in a column. Nodes with an empty cell form
     /// their own group. Null if the column does not exist or contains nodes.
-    async fn group_by(
+    pub async fn group_by(
         &self,
         #[graphql(desc = "Column name.")] column: String,
     ) -> Option<Vec<GqlNodeStateGroup>> {
@@ -566,7 +566,7 @@ impl GqlNodeState {
     ///
     /// For example, if page(limit: 5, offset: 1, page_index: 2) is called, a page with 5 items,
     /// offset by 11 items (2 pages of 5 + 1), will be returned.
-    async fn page(
+    pub async fn page(
         &self,
         ctx: &Context<'_>,
         #[graphql(desc = "Maximum number of rows to return on this page.")] limit: usize,
@@ -587,7 +587,7 @@ impl GqlNodeState {
     }
 
     /// Returns a view of this node state with the rows sorted by node id.
-    async fn sort_by_id(&self) -> GqlNodeState {
+    pub async fn sort_by_id(&self) -> GqlNodeState {
         let self_clone = self.clone();
         blocking_compute(move || GqlNodeState {
             node_state: self_clone.node_state.sort_by_id(),
@@ -597,7 +597,7 @@ impl GqlNodeState {
 
     /// The columns of the node state, one per output field of the algorithm.
     /// `values` are row-aligned with `nodes`.
-    async fn columns(&self, ctx: &Context<'_>) -> Result<Vec<GqlNodeStateColumn>> {
+    pub async fn columns(&self, ctx: &Context<'_>) -> Result<Vec<GqlNodeStateColumn>> {
         check_list_allowed(ctx)?;
         let self_clone = self.clone();
         Ok(blocking_compute(move || {

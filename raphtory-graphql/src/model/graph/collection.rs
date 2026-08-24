@@ -79,7 +79,7 @@ where
     T: for<'a> ResolveOwned<'a>,
 {
     /// Returns a list of collection objects.
-    async fn list(&self, ctx: &Context<'_>) -> Result<Vec<T>> {
+    pub async fn list(&self, ctx: &Context<'_>) -> Result<Vec<T>> {
         check_list_allowed(ctx)?;
         let self_clone = self.clone();
         Ok(blocking_compute(move || self_clone.items.to_vec()).await)
@@ -90,7 +90,7 @@ where
     /// For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
     /// will be returned.
 
-    async fn page(
+    pub async fn page(
         &self,
         ctx: &Context<'_>,
         #[graphql(desc = "Maximum number of items to return on this page.")] limit: usize,
@@ -117,7 +117,7 @@ where
     }
 
     /// Returns a count of collection objects.
-    async fn count(&self) -> usize {
+    pub async fn count(&self) -> usize {
         self.items.len()
     }
 }

@@ -35,17 +35,17 @@ impl From<VectorSelection<MaterializedGraph>> for GqlVectorSelection {
 #[ResolvedObjectFields]
 impl GqlVectorSelection {
     /// Returns a list of nodes in the current selection.
-    async fn nodes(&self) -> Vec<GqlNode> {
+    pub async fn nodes(&self) -> Vec<GqlNode> {
         self.0.nodes().into_iter().map(|e| e.into()).collect()
     }
 
     /// Returns a list of edges in the current selection.
-    async fn edges(&self) -> Vec<GqlEdge> {
+    pub async fn edges(&self) -> Vec<GqlEdge> {
         self.0.edges().into_iter().map(|e| e.into()).collect()
     }
 
     /// Returns a list of documents in the current selection.
-    async fn get_documents(&self) -> GraphResult<Vec<GqlDocument>> {
+    pub async fn get_documents(&self) -> GraphResult<Vec<GqlDocument>> {
         let cloned = self.0.clone();
         let docs = cloned.get_documents_with_distances().await?.into_iter();
         Ok(docs
@@ -61,7 +61,7 @@ impl GqlVectorSelection {
     /// Add every document associated with the named nodes to the selection.
     /// Documents added this way receive a score of 0 (no similarity ranking).
 
-    async fn add_nodes(
+    pub async fn add_nodes(
         &self,
         #[graphql(desc = "Node ids whose documents to include.")] nodes: Vec<GqlNodeId>,
     ) -> Self {
@@ -73,7 +73,7 @@ impl GqlVectorSelection {
     /// Add every document associated with the named edges to the selection.
     /// Documents added this way receive a score of 0 (no similarity ranking).
 
-    async fn add_edges(
+    pub async fn add_edges(
         &self,
         #[graphql(desc = "List of `{src, dst}` pairs identifying the edges.")] edges: Vec<
             InputEdge,
@@ -89,7 +89,7 @@ impl GqlVectorSelection {
     /// document already in the selection. Two documents are 1 hop apart if
     /// they're on the same entity or on a connected node/edge pair.
 
-    async fn expand(
+    pub async fn expand(
         &self,
         #[graphql(desc = "Number of expansion rounds (1 = direct neighbours).")] hops: usize,
         #[graphql(
@@ -111,7 +111,7 @@ impl GqlVectorSelection {
     /// selection and adds the highest-scoring entities (mixed nodes and
     /// edges); the loop continues until `limit` entities have been added.
 
-    async fn expand_entities_by_similarity(
+    pub async fn expand_entities_by_similarity(
         &self,
         #[graphql(desc = "Natural-language search string; embedded by the server.")] query: String,
         #[graphql(desc = "Total number of entities to add across all passes.")] limit: usize,
@@ -132,7 +132,7 @@ impl GqlVectorSelection {
     /// Like `expandEntitiesBySimilarity` but restricted to nodes — iteratively
     /// add the highest-scoring adjacent nodes to the selection.
 
-    async fn expand_nodes_by_similarity(
+    pub async fn expand_nodes_by_similarity(
         &self,
         #[graphql(desc = "Natural-language search string; embedded by the server.")] query: String,
         #[graphql(desc = "Total number of nodes to add across all passes.")] limit: usize,
@@ -153,7 +153,7 @@ impl GqlVectorSelection {
     /// Like `expandEntitiesBySimilarity` but restricted to edges — iteratively
     /// add the highest-scoring adjacent edges to the selection.
 
-    async fn expand_edges_by_similarity(
+    pub async fn expand_edges_by_similarity(
         &self,
         #[graphql(desc = "Natural-language search string; embedded by the server.")] query: String,
         #[graphql(desc = "Total number of edges to add across all passes.")] limit: usize,
