@@ -190,11 +190,10 @@ def test_non_finite_float_round_trips(non_finite_pair, carrier, key):
     """Each non-finite float reads back as itself, on both sides, everywhere.
 
     Asserted per side against an expected value rather than through the
-    comparator: ``nan != nan`` in IEEE arithmetic, so a parity comparison would
-    fail on two *correct* answers. Pinning the value is also strictly stronger
-    than parity, because it catches both sides degrading the same way — a
-    ``None``, a ``0.0``, or a ``NaN`` where an infinity was written — which is
-    why there is no separate parity check for these.
+    comparator, because pinning the value is strictly stronger than parity: it
+    catches both sides degrading the same way — a ``None``, a ``0.0``, or a
+    ``NaN`` where an infinity was written — which is why there is no separate
+    parity check for these.
 
     Crossed with every carrier because the JSON encoding of a non-finite float
     is chosen per container; one of them getting it wrong is exactly the kind

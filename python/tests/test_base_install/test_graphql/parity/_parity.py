@@ -93,6 +93,13 @@ def graph_pair(build, graph_type="EVENT"):
 # fails instead of passing silently.
 _TIME_TYPES = frozenset({"OptionalEventTime", "EventTime"})
 
+# ``nan != nan`` in IEEE arithmetic, so a NaN that survived the round-trip
+# perfectly would still fail a parity comparison. Both sides are mapped to this
+# one sentinel so "both NaN" compares equal. Only NaN: the infinities compare
+# fine on their own and are left alone, so a NaN arriving where an infinity was
+# written is still a failure.
+_NAN = object()
+
 
 def _identity(value):
     """``('edge', src, dst)`` / ``('node', name)`` for an entity, else ``None``."""
@@ -132,10 +139,14 @@ def canonical(value):
        type would pass (see ``_TIME_TYPES``). The value itself is kept as-is
        alongside it, so nothing about the comparison is weakened.
 
-    Nothing else is touched. Float precision, datetime timezone, ``NaN`` and
-    map key order all compare as they come: if a value does not survive the
-    round-trip exactly, that is a product bug for ``KNOWN_GAPS`` and an issue,
-    not something to paper over here.
+    4. **NaN becomes one sentinel.** ``nan != nan``, so two sides that both
+       round-tripped a NaN faithfully would still compare unequal. Only NaN is
+       folded (see ``_NAN``); the infinities are left alone.
+
+    Nothing else is touched. Float precision, datetime timezone and map key
+    order all compare as they come: if a value does not survive the round-trip
+    exactly, that is a product bug for ``KNOWN_GAPS`` and an issue, not
+    something to paper over here.
     """
     name = type(value).__name__
     if name in _TIME_TYPES:
@@ -154,6 +165,8 @@ def canonical(value):
     # str/bytes are Iterable but compare as scalars, never element-wise.
     if isinstance(value, Iterable) and not isinstance(value, (str, bytes)):
         return [canonical(v) for v in value]
+    if isinstance(value, float) and math.isnan(value):
+        return _NAN
     return value
 
 
@@ -214,22 +227,6 @@ KNOWN_GAPS = {
         "batch add_edges is a deliberate remote-only extra (amortizes network "
         "round-trips); batch writes are compared against the equivalent loop"
     ),
-    # Two filter-expression gaps used to be ledgered here. ExplodedEdge
-    # property/metadata filters are now transported (FilterTree gained an
-    # ExplodedEdge kind and the schema an `ExplodedEdgeFilter` input), so they
-    # are ordinary matrix entries in test_parity_filters.py. And an
-    # entity-type-mismatched `[expr]` was refused by both sides but as
-    # different exception types; the remote now raises the same
-    # Exception('Node filter expected') the local engine does, so the case is
-    # an ordinary assertion there too
-    # (`test_edge_expr_in_a_node_subscript_is_refused_the_same_way`).
-    # The Edge / Edges / NestedEdges `filter` sites used to be ledgered here as
-    # remote-only. They are ordinary matrix entries in test_parity_filters.py
-    # now that the local handles accept a filter too (`FILTER_SITES`).
-    # `select()` used to be ledgered here as remote-only. It is remote-only, but
-    # that is an additive extra rather than a divergence: the `collection[expr]`
-    # sugar both sides share lowers to the same server field, and is covered as
-    # an ordinary matrix in test_parity_filters.py (`GETITEM_SITES`).
     "collection_props.temporal": (
         "the collection-level PropertiesView.temporal columnar timeline view "
         "is not implemented on remote (NodeState subsystem, #2722)"

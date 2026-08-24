@@ -147,7 +147,10 @@ KIND_OPERATORS = {
 
 
 def _leaf_type_tags():
-    return st.sampled_from(sorted(_LEAF_TYPES))
+    # `list`, not `sorted`: `sampled_from` needs a sequence rather than a dict,
+    # and it shrinks towards index 0, so the literal order (simplest tag first)
+    # is what we want to keep.
+    return st.sampled_from(list(_LEAF_TYPES))
 
 
 def prop_types():
@@ -227,6 +230,10 @@ def _props(draw, schema, max_size=3):
     """A property dict conforming to ``schema``: raw values, wrapped on apply."""
     if not schema:
         return {}
+    # `sorted`, not `list`: unlike the static tables above, a schema is drawn
+    # from `st.dictionaries`, so its insertion order varies per example. Sorting
+    # fixes the key-to-index mapping, otherwise shrinking the schema silently
+    # repoints this draw at a different property.
     keys = draw(
         st.lists(st.sampled_from(sorted(schema)), unique=True, max_size=max_size)
     )
@@ -296,7 +303,7 @@ def generated_case(draw, max_ops=20, min_ops=0, with_expr=False):
     """
     schema = draw(prop_schemas())
     meta_schema = draw(prop_schemas(names=META_NAMES))
-    id_pool = ID_FLAVOURS[draw(st.sampled_from(sorted(ID_FLAVOURS)))]
+    id_pool = ID_FLAVOURS[draw(st.sampled_from(list(ID_FLAVOURS)))]
     ops = draw(
         st.lists(
             st.one_of(*(_op_strategies(schema, meta_schema, id_pool).values())),
@@ -443,6 +450,8 @@ def _prop_leaf(draw, prefix, schema):
     deliberate ~10% of leaves use ``MISSING_KEY`` (typed i64) instead, keeping
     the absent-property rejection exercised on purpose.
     """
+    # sorted for the same reason as in `_props`: a drawn schema has no stable
+    # insertion order, so the key-to-index mapping has to be pinned.
     keys = sorted(schema)
     # 1-in-20 per leaf; an expression holds several leaves, so the
     # per-expression rate lands near the intended ~10%.
@@ -452,7 +461,7 @@ def _prop_leaf(draw, prefix, schema):
         key = draw(st.sampled_from(keys))
         type_ = schema[key]
     ops = KIND_OPERATORS[_kind(type_)]
-    op = draw(st.sampled_from(sorted(ops)))
+    op = draw(st.sampled_from(list(ops)))
     arity = ops[op]
     if arity == "bare":
         args = ()
