@@ -1497,6 +1497,14 @@ mod agg_arith_tests {
     }
 
     #[test]
+    fn add_rejects_lists_with_different_inner_types() {
+        let a = Prop::list([1i64, 2, 3]);
+        let b = Prop::list(["hi", "there"]);
+
+        assert_eq!(a.add(b), None);
+    }
+
+    #[test]
     fn add_rejects_non_additive_types() {
         assert_eq!(Prop::Bool(true).add(Prop::Bool(false)), None);
     }
