@@ -1,19 +1,19 @@
 use itertools::Itertools;
-use parking_lot::{RwLockReadGuard, RwLockWriteGuard, lock_api::ArcRwLockReadGuard};
+use parking_lot::{lock_api::ArcRwLockReadGuard, RwLockReadGuard, RwLockWriteGuard};
 use raphtory_api::{
     core::{
-        Direction,
         entities::properties::{
             meta::{Meta, NODE_ID_IDX, NODE_TYPE_IDX},
             prop::{AsPropRef, Prop, PropUnwrap},
             tprop::TPropOps,
         },
+        Direction,
     },
     iter::IntoDynBoxed,
 };
 use raphtory_api_macros::box_on_debug_lifetime;
 use raphtory_core::{
-    entities::{EID, GidRef, LayerIds, VID, edges::edge_ref::EdgeRef},
+    entities::{edges::edge_ref::EdgeRef, GidRef, LayerIds, EID, VID},
     storage::timeindex::{EventTime, TimeIndexOps},
     utils::iter::GenLockedIter,
 };
@@ -23,21 +23,21 @@ use std::{
     ops::{Deref, DerefMut, Range},
     path::{Path, PathBuf},
     sync::{
-        Arc,
         atomic::{AtomicU32, Ordering},
+        Arc,
     },
 };
 
 use crate::{
-    LocalPOS,
     error::StorageError,
     generic_time_ops::LayerIter,
     pages::node_store::increment_and_clamp,
     segments::node::segment::MemNodeSegment,
     utils::{Iter2, Iter3, Iter4},
     wal::LSN,
+    LocalPOS,
 };
-use raphtory_api::core::entities::{LayerId, properties::meta::STATIC_GRAPH_LAYER_ID};
+use raphtory_api::core::entities::{properties::meta::STATIC_GRAPH_LAYER_ID, LayerId};
 use raphtory_itertools::FastMergeExt;
 use rayon::prelude::*;
 
@@ -138,6 +138,8 @@ pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
     fn num_layers(&self) -> usize;
 
     fn layer_count(&self, layer_id: LayerId) -> u32;
+
+    fn get_metadata_immut(&self, pos: LocalPOS, layer_id: LayerId, prop_id: usize) -> Option<Prop>;
 
     fn check_metadata_immut<P: AsPropRef>(
         &self,

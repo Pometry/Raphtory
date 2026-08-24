@@ -1,21 +1,21 @@
 use crate::{
-    LocalPOS,
     api::nodes::NodeSegmentOps,
     error::StorageError,
     pages::{layer_counter::GraphStats, resolve_pos},
     segments::node::segment::MemNodeSegment,
     wal::LSN,
+    LocalPOS,
 };
 use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::entities::{
-    EID, GID, LayerId, VID,
     properties::{
         meta::{NODE_ID_IDX, NODE_TYPE_IDX, STATIC_GRAPH_LAYER_ID},
         prop::{AsPropRef, Prop},
     },
+    LayerId, EID, GID, VID,
 };
 use raphtory_core::{
-    entities::{ELID, GidRef},
+    entities::{GidRef, ELID},
     storage::timeindex::AsTime,
 };
 use std::ops::DerefMut;
@@ -168,7 +168,9 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
     }
 
     pub fn get_metadata(&self, pos: LocalPOS, layer_id: LayerId, prop_id: usize) -> Option<Prop> {
-        self.writer.get_metadata(pos, layer_id, prop_id)
+        self.writer
+            .get_metadata(pos, layer_id, prop_id)
+            .or_else(|| self.segment.get_metadata_immut(pos, layer_id, prop_id))
     }
 
     pub fn check_metadata<P: AsPropRef>(
