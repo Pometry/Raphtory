@@ -77,28 +77,6 @@ impl PyRemoteNodes {
         Ok(PyRemoteNodes::new(self.nodes.filter(tree)?))
     }
 
-    /// Narrow this collection's membership by a filter expression — node
-    /// predicates, graph views, or and/or/not combinations of them. Unlike
-    /// `.filter()`, the filter applies **only at this step** — downstream
-    /// traversals from the matching nodes see the unfiltered graph. Use
-    /// `.filter()` for the propagating variant. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     filter (FilterExpr): a filter expression from `raphtory.filter`.
-    ///
-    /// Returns:
-    ///     RemoteNodes: a new collection narrowed to matching nodes.
-    ///
-    /// Raises:
-    ///     Exception: if the expression tests edges rather than nodes — the
-    ///         same error the local engine raises.
-    ///     ValueError: if the filter cannot be sent over the wire.
-    pub fn select(&self, filter: PyFilterExpr) -> PyResult<PyRemoteNodes> {
-        Ok(PyRemoteNodes::new(
-            self.nodes.select(node_subscript(&filter)?)?,
-        ))
-    }
-
     /// `nodes[filter]` — narrow this collection's membership by a filter
     /// expression, the sugar form of `.select(filter)` (matches the local
     /// `Nodes.__getitem__`). Node predicates, graph views (which narrow
@@ -116,7 +94,9 @@ impl PyRemoteNodes {
     ///         same error the local `Nodes.__getitem__` raises.
     ///     ValueError: if the filter cannot be sent over the wire.
     fn __getitem__(&self, filter: PyFilterExpr) -> PyResult<PyRemoteNodes> {
-        self.select(filter)
+        Ok(PyRemoteNodes::new(
+            self.nodes.select(node_subscript(&filter)?)?,
+        ))
     }
 
     /// Reorder this collection by an ordered list of sort keys. Multi-key

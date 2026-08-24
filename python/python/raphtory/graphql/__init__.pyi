@@ -1539,15 +1539,6 @@ class RemoteEdge(object):
             ValueError: if the filter cannot be represented remotely.
         """
 
-    def first_update(self) -> Optional[int]:
-        """
-        First update timestamp on this edge under the current view. Fires one RPC.
-
-        Returns:
-            Optional[int]: the first update timestamp, or `None` if the edge has no updates
-                in view.
-        """
-
     def has_layer(self, name: str) -> bool:
         """
         Check if this view has a layer named `name`. Fires one RPC.
@@ -1612,15 +1603,6 @@ class RemoteEdge(object):
 
         Returns:
             bool: True if the edge is valid at the current time.
-        """
-
-    def last_update(self) -> Optional[int]:
-        """
-        Last update timestamp on this edge under the current view. Fires one RPC.
-
-        Returns:
-            Optional[int]: the last update timestamp, or `None` if the edge has no updates
-                in view.
         """
 
     def latest(self) -> RemoteEdge:
@@ -2016,16 +1998,6 @@ class RemoteNode(object):
                 `NodeFilter` (e.g. references edge fields).
         """
 
-    def first_update(self) -> Optional[int]:
-        """
-        First update timestamp on this node under the current view. Returns
-        `None` if the node has no updates in the view. Fires one RPC.
-
-        Returns:
-            Optional[int]: the first update timestamp, or `None` if the node has no updates
-                in view.
-        """
-
     def has_layer(self, name: str) -> bool:
         """
         Check if this view has a layer named `name`. Fires one RPC.
@@ -2104,16 +2076,6 @@ class RemoteNode(object):
 
         Returns:
             bool: True if the node has events in the current view.
-        """
-
-    def last_update(self) -> Optional[int]:
-        """
-        Last update timestamp on this node under the current view. Returns
-        `None` if the node has no updates in the view. Fires one RPC.
-
-        Returns:
-            Optional[int]: the last update timestamp, or `None` if the node has no updates
-                in view.
         """
 
     def latest(self) -> RemoteNode:
@@ -2704,26 +2666,6 @@ class RemoteNodes(object):
             RemotePropertiesView: the columnar properties view of this collection.
         """
 
-    def select(self, filter: Any) -> RemoteNodes:
-        """
-        Narrow this collection's membership by a filter expression — node
-        predicates, graph views, or and/or/not combinations of them. Unlike
-        `.filter()`, the filter applies **only at this step** — downstream
-        traversals from the matching nodes see the unfiltered graph. Use
-        `.filter()` for the propagating variant. Lazy — no RPC.
-
-        Arguments:
-            filter (FilterExpr): a filter expression from `raphtory.filter`.
-
-        Returns:
-            RemoteNodes: a new collection narrowed to matching nodes.
-
-        Raises:
-            Exception: if the expression tests edges rather than nodes — the
-                same error the local engine raises.
-            ValueError: if the filter cannot be sent over the wire.
-        """
-
     def shrink_end(self, end: TimeInput) -> RemoteNodes:
         """
         Shrink the end of the current window. Lazy — no RPC.
@@ -3192,25 +3134,6 @@ class RemotePathFromNode(object):
             RemotePropertiesView: the columnar properties view of this path.
         """
 
-    def select(self, filter: Any) -> RemotePathFromNode:
-        """
-        Narrow this collection's membership by a filter expression — node
-        predicates, graph views, or and/or/not combinations of them — applies
-        only at this step; downstream traversals see the unfiltered graph.
-        Server-only (no local `PathFromNode.select`). Lazy — no RPC.
-
-        Arguments:
-            filter (FilterExpr): a filter expression from `raphtory.filter`.
-
-        Returns:
-            RemotePathFromNode: a new collection narrowed to matching nodes.
-
-        Raises:
-            Exception: if the expression tests edges rather than nodes — the
-                same error the local engine raises.
-            ValueError: if the filter cannot be sent over the wire.
-        """
-
     def shrink_end(self, end: TimeInput) -> RemotePathFromNode:
         """
         Shrink the end of the current window. Lazy — no RPC.
@@ -3673,25 +3596,6 @@ class RemotePathFromGraph(object):
             RemotePropertiesView: the nested columnar properties view of this collection.
         """
 
-    def select(self, filter: Any) -> RemotePathFromGraph:
-        """
-        Narrow this collection's membership by a filter expression — node
-        predicates, graph views, or and/or/not combinations of them — applies
-        only at this step; downstream traversals see the unfiltered graph.
-        Lazy — no RPC.
-
-        Arguments:
-            filter (FilterExpr): a filter expression from `raphtory.filter`.
-
-        Returns:
-            RemotePathFromGraph: a new collection narrowed to matching nodes.
-
-        Raises:
-            Exception: if the expression tests edges rather than nodes — the
-                same error the local engine raises.
-            ValueError: if the filter cannot be sent over the wire.
-        """
-
     def shrink_end(self, end: TimeInput) -> RemotePathFromGraph:
         """
         Shrink the end of the current window. Lazy — no RPC.
@@ -4124,24 +4028,6 @@ class RemoteEdges(object):
 
         Returns:
             RemotePropertiesView: the columnar properties view of this collection.
-        """
-
-    def select(self, filter: Any) -> RemoteEdges:
-        """
-        Narrow this collection's membership by a filter expression — edge or
-        node predicates, graph views, or and/or/not combinations of them.
-        Unlike `.filter()`, the filter applies **only at this step** —
-        downstream traversals from the matching edges see the unfiltered
-        graph. Use `.filter()` for the propagating variant. Lazy — no RPC.
-
-        Arguments:
-            filter (FilterExpr): a filter expression from `raphtory.filter`.
-
-        Returns:
-            RemoteEdges: a new collection narrowed to matching edges.
-
-        Raises:
-            ValueError: if the filter cannot be sent over the wire.
         """
 
     def shrink_end(self, end: TimeInput) -> RemoteEdges:
@@ -4607,23 +4493,6 @@ class RemoteNestedEdges(object):
 
         Returns:
             RemotePropertiesView: the nested columnar properties view of this collection.
-        """
-
-    def select(self, filter: Any) -> RemoteNestedEdges:
-        """
-        Narrow this collection's membership by a filter expression — edge or
-        node predicates, graph views, or and/or/not combinations of them —
-        applies only at this step; downstream traversals see the unfiltered
-        graph. Lazy — no RPC.
-
-        Arguments:
-            filter (FilterExpr): a filter expression from `raphtory.filter`.
-
-        Returns:
-            RemoteNestedEdges: a new collection narrowed to matching edges.
-
-        Raises:
-            ValueError: if the filter cannot be sent over the wire.
         """
 
     def shrink_end(self, end: TimeInput) -> RemoteNestedEdges:

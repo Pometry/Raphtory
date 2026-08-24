@@ -231,26 +231,6 @@ impl PyRemoteEdge {
         Ok(execute_async_task(move || async move { edge.latest_time().await })?.into())
     }
 
-    /// First update timestamp on this edge under the current view. Fires one RPC.
-    ///
-    /// Returns:
-    ///     Optional[int]: the first update timestamp, or `None` if the edge has no updates
-    ///         in view.
-    pub fn first_update(&self) -> Result<Option<i64>, ClientError> {
-        let edge = Arc::clone(&self.edge);
-        execute_async_task(move || async move { edge.first_update().await })
-    }
-
-    /// Last update timestamp on this edge under the current view. Fires one RPC.
-    ///
-    /// Returns:
-    ///     Optional[int]: the last update timestamp, or `None` if the edge has no updates
-    ///         in view.
-    pub fn last_update(&self) -> Result<Option<i64>, ClientError> {
-        let edge = Arc::clone(&self.edge);
-        execute_async_task(move || async move { edge.last_update().await })
-    }
-
     /// The event time this exploded edge event happened at. Meaningful
     /// primarily on `explode()`'d views. Property — attribute access fires one RPC.
     ///

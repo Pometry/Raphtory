@@ -65,27 +65,6 @@ impl PyRemotePathFromNode {
         Ok(PyRemotePathFromNode::new(self.path.filter(tree)?))
     }
 
-    /// Narrow this collection's membership by a filter expression — node
-    /// predicates, graph views, or and/or/not combinations of them — applies
-    /// only at this step; downstream traversals see the unfiltered graph.
-    /// Server-only (no local `PathFromNode.select`). Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     filter (FilterExpr): a filter expression from `raphtory.filter`.
-    ///
-    /// Returns:
-    ///     RemotePathFromNode: a new collection narrowed to matching nodes.
-    ///
-    /// Raises:
-    ///     Exception: if the expression tests edges rather than nodes — the
-    ///         same error the local engine raises.
-    ///     ValueError: if the filter cannot be sent over the wire.
-    pub fn select(&self, filter: PyFilterExpr) -> PyResult<PyRemotePathFromNode> {
-        Ok(PyRemotePathFromNode::new(
-            self.path.select(node_subscript(&filter)?)?,
-        ))
-    }
-
     /// `path[filter]` — narrow this collection's membership by a filter
     /// expression, the sugar form of `.select(filter)` (matches the local
     /// `PathFromNode.__getitem__`). Node predicates, graph views (which
@@ -103,7 +82,9 @@ impl PyRemotePathFromNode {
     ///         same error the local `PathFromNode.__getitem__` raises.
     ///     ValueError: if the filter cannot be sent over the wire.
     fn __getitem__(&self, filter: PyFilterExpr) -> PyResult<PyRemotePathFromNode> {
-        self.select(filter)
+        Ok(PyRemotePathFromNode::new(
+            self.path.select(node_subscript(&filter)?)?,
+        ))
     }
 
     /// Restrict this collection to members whose node type is in the given

@@ -306,28 +306,6 @@ impl PyRemoteNode {
         execute_async_task(move || async move { node.edge_history_count().await })
     }
 
-    /// First update timestamp on this node under the current view. Returns
-    /// `None` if the node has no updates in the view. Fires one RPC.
-    ///
-    /// Returns:
-    ///     Optional[int]: the first update timestamp, or `None` if the node has no updates
-    ///         in view.
-    pub fn first_update(&self) -> Result<Option<i64>, ClientError> {
-        let node = Arc::clone(&self.node);
-        execute_async_task(move || async move { node.first_update().await })
-    }
-
-    /// Last update timestamp on this node under the current view. Returns
-    /// `None` if the node has no updates in the view. Fires one RPC.
-    ///
-    /// Returns:
-    ///     Optional[int]: the last update timestamp, or `None` if the node has no updates
-    ///         in view.
-    pub fn last_update(&self) -> Result<Option<i64>, ClientError> {
-        let node = Arc::clone(&self.node);
-        execute_async_task(move || async move { node.last_update().await })
-    }
-
     /// This node's neighbours (both directions). Lazy — no RPC. Returns a
     /// `RemotePathFromNode` (not `RemoteNodes`) — see that type for the
     /// available methods; `sorted` and `default_layer` are not available.

@@ -5901,7 +5901,7 @@ class Properties(object):
            TemporalProperties:
         """
 
-    def values(self) -> list[PropValue]:
+    def values(self, keys: Optional[list[str]] = None) -> list[PropValue]:
         """
         Get the values of the properties.
 
@@ -6274,7 +6274,7 @@ class Metadata(object):
             list[str]: the property keys
         """
 
-    def values(self) -> list[PropValue]:
+    def values(self, keys: Optional[list[str]] = None) -> list[PropValue]:
         """
         lists the property values
 
@@ -6433,7 +6433,7 @@ class TemporalProperties(object):
             dict[str, PropValue]: the mapping of property keys to latest values
         """
 
-    def values(self) -> list[TemporalProperty]:
+    def values(self, keys: Optional[list[str]] = None) -> list[TemporalProperty]:
         """
         List the values of the properties
 

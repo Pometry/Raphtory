@@ -140,9 +140,9 @@ FILTER_SITES = {
         lambda rg: rg.nodes,
         lambda h: h.filter(f.Node.property("score") > 1.0),
     ),
-    "nodes.select": (
+    "nodes.getitem": (
         lambda rg: rg.nodes,
-        lambda h: h.select(f.Node.property("score") > 1.0),
+        lambda h: h[f.Node.property("score") > 1.0],
     ),
     "nodes.subscript": (
         lambda rg: rg.nodes,
@@ -152,17 +152,17 @@ FILTER_SITES = {
         lambda rg: rg.edges,
         lambda h: h.filter(f.Edge.property("weight") > 1.0),
     ),
-    "edges.select": (
+    "edges.getitem": (
         lambda rg: rg.edges,
-        lambda h: h.select(f.Edge.property("weight") > 1.0),
+        lambda h: h[f.Edge.property("weight") > 1.0],
     ),
-    "path_from_node.select": (
+    "path_from_node.getitem": (
         lambda rg: rg.node("a").neighbours,
-        lambda h: h.select(f.Node.property("score") > 1.0),
+        lambda h: h[f.Node.property("score") > 1.0],
     ),
-    "path_from_graph.select": (
+    "path_from_graph.getitem": (
         lambda rg: rg.nodes.neighbours,
-        lambda h: h.select(f.Node.property("score") > 1.0),
+        lambda h: h[f.Node.property("score") > 1.0],
     ),
 }
 
@@ -298,8 +298,6 @@ TERMINALS = {
         lambda rg: rg.node("a"),
         lambda n: n.edge_history_count(),
     ),
-    "node.first_update": (lambda rg: rg.node("a"), lambda n: n.first_update()),
-    "node.last_update": (lambda rg: rg.node("a"), lambda n: n.last_update()),
     # edge
     "edge.earliest_time": (lambda rg: rg.edge("a", "b"), lambda e: e.earliest_time),
     "edge.latest_time": (lambda rg: rg.edge("a", "b"), lambda e: e.latest_time),
@@ -309,8 +307,6 @@ TERMINALS = {
     "edge.is_deleted": (lambda rg: rg.edge("a", "b"), lambda e: e.is_deleted()),
     "edge.is_self_loop": (lambda rg: rg.edge("a", "b"), lambda e: e.is_self_loop()),
     "edge.is_active": (lambda rg: rg.edge("a", "b"), lambda e: e.is_active()),
-    "edge.first_update": (lambda rg: rg.edge("a", "b"), lambda e: e.first_update()),
-    "edge.last_update": (lambda rg: rg.edge("a", "b"), lambda e: e.last_update()),
     # nodes collection
     "nodes.len": (lambda rg: rg.nodes, lambda ns: len(ns)),
     "nodes.degree": (lambda rg: rg.nodes, lambda ns: ns.degree()),
@@ -487,9 +483,9 @@ CHAINED = {
     "graph.filter.count_nodes": lambda rg: rg.filter(
         f.Node.property("score") > 1.0
     ).count_nodes(),
-    "nodes.select.collect": lambda rg: rg.nodes.select(
+    "nodes.getitem.collect": lambda rg: rg.nodes[
         f.Node.property("score") > 1.0
-    ).collect(),
+    ].collect(),
 }
 
 

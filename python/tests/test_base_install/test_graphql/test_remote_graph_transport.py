@@ -530,18 +530,18 @@ def test_graph_edge_time_terminals():
 
 
 def test_node_update_time_terminals():
-    """`first_update` / `last_update` on a node return the range of event
-    timestamps that touched this node under the current view."""
+    """A node's update range comes from its history, as it does locally —
+    there is no separate `first_update` / `last_update` spelling."""
     with _make_graph_with_edge() as rg:
         # ben has add_node at t=1 and add_edge (ben, hamza) at t=3.
         ben = rg.node("ben")
-        assert ben.first_update() == 1
-        assert ben.last_update() == 3
+        assert ben.history.earliest_time().t == 1
+        assert ben.history.latest_time().t == 3
 
         # Windowed view narrows the range — only the t=3 edge event visible.
         ben_windowed = rg.window(2, 5).node("ben")
-        assert ben_windowed.first_update() == 3
-        assert ben_windowed.last_update() == 3
+        assert ben_windowed.history.earliest_time().t == 3
+        assert ben_windowed.history.latest_time().t == 3
 
 
 def test_absent_node_or_edge_returns_none():
@@ -633,15 +633,15 @@ def test_edge_read_terminals():
     """Read terminals on RemoteEdge — time, layer, id, bool state — mirror
     the shape of the Node terminals under the current view."""
     with _make_graph_with_edge() as rg:
-        # Second edge event on the same pair at t=8, so we can distinguish
-        # first_update vs last_update on the edge itself.
+        # Second edge event on the same pair at t=8, so the edge's history
+        # spans a range.
         rg.add_edge(8, "ben", "hamza")
         e = rg.edge("ben", "hamza")
         # Time-range terminals.
         assert e.earliest_time == 3
         assert e.latest_time == 8
-        assert e.first_update() == 3
-        assert e.last_update() == 8
+        assert e.history.earliest_time().t == 3
+        assert e.history.latest_time().t == 8
 
         # Id — pair of endpoint ids.
         assert e.id == ("ben", "hamza")
@@ -667,8 +667,8 @@ def test_edge_read_terminals():
         e_win = rg.window(0, 5).edge("ben", "hamza")
         assert e_win.earliest_time == 3
         assert e_win.latest_time == 3
-        assert e_win.first_update() == 3
-        assert e_win.last_update() == 3
+        assert e_win.history.earliest_time().t == 3
+        assert e_win.history.latest_time().t == 3
 
 
 def test_edge_self_loop_and_absent():
@@ -1946,7 +1946,7 @@ def test_select_nodes_by_name_eq():
     from raphtory.filter import Node
 
     with _make_filter_graph() as rg:
-        narrowed = rg.nodes.select(Node.name() == "ben").collect()
+        narrowed = rg.nodes[Node.name() == "ben"].collect()
         assert [n.name for n in narrowed] == ["ben"]
 
 
@@ -1955,7 +1955,7 @@ def test_select_nodes_by_name_contains():
     from raphtory.filter import Node
 
     with _make_filter_graph() as rg:
-        narrowed = rg.nodes.select(Node.name().contains("b")).collect()
+        narrowed = rg.nodes[Node.name().contains("b")].collect()
         names = sorted(n.name for n in narrowed)
         assert names == ["ben", "bob"]
 
@@ -1965,7 +1965,7 @@ def test_select_nodes_by_property_gt():
     from raphtory.filter import Node
 
     with _make_filter_graph() as rg:
-        narrowed = rg.nodes.select(Node.property("score") > 12.0).collect()
+        narrowed = rg.nodes[Node.property("score") > 12.0].collect()
         names = sorted(n.name for n in narrowed)
         assert names == ["alice", "bob"]
 
@@ -1976,7 +1976,7 @@ def test_select_nodes_and_combinator():
 
     with _make_filter_graph() as rg:
         combined = (Node.name().contains("b")) & (Node.property("score") > 12.0)
-        narrowed = rg.nodes.select(combined).collect()
+        narrowed = rg.nodes[combined].collect()
         assert [n.name for n in narrowed] == ["bob"]
 
 
@@ -1986,7 +1986,7 @@ def test_select_nodes_or_combinator():
 
     with _make_filter_graph() as rg:
         combined = (Node.name() == "ben") | (Node.property("score") < 6.0)
-        narrowed = rg.nodes.select(combined).collect()
+        narrowed = rg.nodes[combined].collect()
         names = sorted(n.name for n in narrowed)
         assert names == ["ben", "hamza"]
 
@@ -1996,52 +1996,50 @@ def test_select_nodes_not_combinator():
     from raphtory.filter import Node
 
     with _make_filter_graph() as rg:
-        narrowed = rg.nodes.select(~(Node.name() == "ben")).collect()
+        narrowed = rg.nodes[~(Node.name() == "ben")].collect()
         names = sorted(n.name for n in narrowed)
         assert names == ["alice", "bob", "hamza"]
 
 
 def test_select_nodes_returns_lazy_handle():
-    """`.select()` returns a `RemoteNodes` — terminals (`.count()`,
+    """`[]` returns a `RemoteNodes` — terminals (`.count()`,
     `.id`, `.collect()`) all work on it."""
     from raphtory.filter import Node
 
     with _make_filter_graph() as rg:
-        narrowed = rg.nodes.select(Node.property("score") >= 10.0)
+        narrowed = rg.nodes[Node.property("score") >= 10.0]
         assert len(narrowed) == 3
         assert sorted(narrowed.id) == ["alice", "ben", "bob"]
 
 
 def test_select_nodes_composes_with_view_chain():
-    """`.select()` chains with view ops (`.window()`) — both narrow the
+    """`[]` chains with view ops (`.window()`) — both narrow the
     resulting collection."""
     from raphtory.filter import Node
 
     with _make_filter_graph() as rg:
         # Window [0, 3) sees only ben (t=1) and hamza (t=2). Then filter by
         # score > 6 leaves just ben (score=10).
-        narrowed = rg.window(0, 3).nodes.select(Node.property("score") > 6.0).collect()
+        narrowed = rg.window(0, 3).nodes[Node.property("score") > 6.0].collect()
         assert [n.name for n in narrowed] == ["ben"]
 
 
 def test_select_nodes_can_chain():
-    """Chained `.select()` calls compose — server applies each in turn."""
+    """Chained `[]` calls compose — server applies each in turn."""
     from raphtory.filter import Node
 
     with _make_filter_graph() as rg:
         # First select narrows to names containing "b"; second narrows to
         # score > 12 — only bob remains.
-        narrowed = (
-            rg.nodes.select(Node.name().contains("b"))
-            .select(Node.property("score") > 12.0)
-            .collect()
-        )
+        narrowed = rg.nodes[Node.name().contains("b")][
+            Node.property("score") > 12.0
+        ].collect()
         assert [n.name for n in narrowed] == ["bob"]
 
 
 def test_filter_nodes_preserves_membership():
     """`.filter()` keeps every member; only what they report downstream is
-    filtered. (`.select()` is the one that narrows membership.) Matches local
+    filtered. (`[]` is the one that narrows membership.) Matches local
     raphtory."""
     from raphtory.filter import Node
 
@@ -2121,7 +2119,7 @@ def test_select_edges_by_property_gt():
     from raphtory.filter import Edge
 
     with _make_edge_filter_graph() as rg:
-        narrowed = rg.edges.select(Edge.property("weight") > 12.0).collect()
+        narrowed = rg.edges[Edge.property("weight") > 12.0].collect()
         assert _edge_pairs(narrowed) == [("alice", "bob"), ("bob", "hamza")]
 
 
@@ -2130,7 +2128,7 @@ def test_select_edges_by_src_name():
     from raphtory.filter import Edge
 
     with _make_edge_filter_graph() as rg:
-        narrowed = rg.edges.select(Edge.src().name() == "ben").collect()
+        narrowed = rg.edges[Edge.src().name() == "ben"].collect()
         assert _edge_pairs(narrowed) == [("ben", "alice"), ("ben", "hamza")]
 
 
@@ -2139,7 +2137,7 @@ def test_select_edges_by_dst_name():
     from raphtory.filter import Edge
 
     with _make_edge_filter_graph() as rg:
-        narrowed = rg.edges.select(Edge.dst().name() == "hamza").collect()
+        narrowed = rg.edges[Edge.dst().name() == "hamza"].collect()
         assert _edge_pairs(narrowed) == [("ben", "hamza"), ("bob", "hamza")]
 
 
@@ -2150,7 +2148,7 @@ def test_select_edges_and_combinator():
 
     with _make_edge_filter_graph() as rg:
         combined = (Edge.src().name() == "ben") & (Edge.property("weight") > 6.0)
-        narrowed = rg.edges.select(combined).collect()
+        narrowed = rg.edges[combined].collect()
         assert _edge_pairs(narrowed) == [("ben", "hamza")]
 
 
@@ -2160,7 +2158,7 @@ def test_select_edges_or_combinator():
 
     with _make_edge_filter_graph() as rg:
         combined = (Edge.property("weight") > 18.0) | (Edge.src().name() == "ben")
-        narrowed = rg.edges.select(combined).collect()
+        narrowed = rg.edges[combined].collect()
         assert _edge_pairs(narrowed) == [
             ("alice", "bob"),
             ("ben", "alice"),
@@ -2173,17 +2171,17 @@ def test_select_edges_not_combinator():
     from raphtory.filter import Edge
 
     with _make_edge_filter_graph() as rg:
-        narrowed = rg.edges.select(~(Edge.dst().name() == "hamza")).collect()
+        narrowed = rg.edges[~(Edge.dst().name() == "hamza")].collect()
         assert _edge_pairs(narrowed) == [("alice", "bob"), ("ben", "alice")]
 
 
 def test_select_edges_returns_lazy_handle():
-    """`.select()` returns a `RemoteEdges` — terminals (`.count()`, `.collect()`)
+    """`[]` returns a `RemoteEdges` — terminals (`.count()`, `.collect()`)
     all work on it."""
     from raphtory.filter import Edge
 
     with _make_edge_filter_graph() as rg:
-        narrowed = rg.edges.select(Edge.property("weight") >= 10.0)
+        narrowed = rg.edges[Edge.property("weight") >= 10.0]
         assert len(narrowed) == 3
         assert _edge_pairs(narrowed.collect()) == [
             ("alice", "bob"),
@@ -2193,36 +2191,34 @@ def test_select_edges_returns_lazy_handle():
 
 
 def test_select_edges_composes_with_view_chain():
-    """`.select()` chains with view ops (`.window()`) — both narrow the
+    """`[]` chains with view ops (`.window()`) — both narrow the
     resulting collection."""
     from raphtory.filter import Edge
 
     with _make_edge_filter_graph() as rg:
         # Window [0, 3) sees only ben-hamza (t=1) and ben-alice (t=2). Then
         # filter by weight > 6 leaves just ben-hamza (weight=10).
-        narrowed = rg.window(0, 3).edges.select(Edge.property("weight") > 6.0).collect()
+        narrowed = rg.window(0, 3).edges[Edge.property("weight") > 6.0].collect()
         assert _edge_pairs(narrowed) == [("ben", "hamza")]
 
 
 def test_select_edges_can_chain():
-    """Chained `.select()` calls compose — server applies each in turn."""
+    """Chained `[]` calls compose — server applies each in turn."""
     from raphtory.filter import Edge
 
     with _make_edge_filter_graph() as rg:
         # First select narrows to edges out of ben; second narrows to
         # weight > 6 — only ben-hamza remains.
-        narrowed = (
-            rg.edges.select(Edge.src().name() == "ben")
-            .select(Edge.property("weight") > 6.0)
-            .collect()
-        )
+        narrowed = rg.edges[Edge.src().name() == "ben"][
+            Edge.property("weight") > 6.0
+        ].collect()
         assert _edge_pairs(narrowed) == [("ben", "hamza")]
 
 
 def test_filter_edges_preserves_membership():
     """`.filter()` on `RemoteEdges` does NOT narrow the current collection —
     the returned collection retains all original members. The filter is
-    retained for downstream traversals. Contrast with `.select()`, which
+    retained for downstream traversals. Contrast with `[]`, which
     narrows membership at this step (tested above)."""
     from raphtory.filter import Edge
 
@@ -2331,13 +2327,13 @@ def test_node_filter_accepts_edge_filter():
 
 
 def test_path_from_node_select_narrows():
-    """`.select()` on a neighbours path narrows membership at this hop."""
+    """`[]` on a neighbours path narrows membership at this hop."""
     from raphtory.filter import Node
 
     with _make_node_filter_graph() as rg:
         # ben's out-neighbours: hamza (5), alice (20), bob (15).
         # select score > 12 → alice, bob.
-        narrowed = rg.node("ben").out_neighbours.select(Node.property("score") > 12.0)
+        narrowed = rg.node("ben").out_neighbours[Node.property("score") > 12.0]
         assert sorted(narrowed.id) == ["alice", "bob"]
 
 
@@ -2649,16 +2645,16 @@ def test_property_dtype_fidelity_remote():
 
 
 def test_collection_getitem_is_select():
-    """`nodes[filter]` / `edges[filter]` are sugar for `.select(filter)` —
+    """`nodes[filter]` / `edges[filter]` are sugar for `[filter]` —
     matching the local API, where `__getitem__` takes a FilterExpr."""
     from raphtory.filter import Edge, Node
 
     with _make_filter_graph() as rg:  # 4 nodes with a score property
-        # nodes[<node filter>] == nodes.select(<node filter>)
+        # nodes[<node filter>] == nodes[<node filter>]
         assert sorted(rg.nodes[Node.property("score") > 12.0].id) == ["alice", "bob"]
 
     with _make_edge_filter_graph() as rg:
-        # edges[<edge filter>] == edges.select(<edge filter>)
+        # edges[<edge filter>] == edges[<edge filter>]
         got = _edge_pairs(rg.edges[Edge.property("weight") > 12.0].collect())
         assert got == [("alice", "bob"), ("bob", "hamza")]
 
