@@ -445,20 +445,20 @@ impl RemoteGraph {
 
     /// Terminal: earliest edge event time under the current view. Returns
     /// `None` if the view has no edge events. Fires one RPC.
-    pub async fn earliest_edge_time(&self) -> Result<Option<i64>, ClientError> {
+    pub async fn earliest_edge_time(&self) -> Result<Option<EventTime>, ClientError> {
         let op = Op::Read(ReadExpr::EarliestEdgeTime {
             input: self.expr.clone(),
         });
-        expect_optional_i64(self.transport.execute(&op).await?, "earliestEdgeTime")
+        expect_optional_event_time(self.transport.execute(&op).await?, "earliestEdgeTime")
     }
 
     /// Terminal: latest edge event time under the current view. Returns
     /// `None` if the view has no edge events. Fires one RPC.
-    pub async fn latest_edge_time(&self) -> Result<Option<i64>, ClientError> {
+    pub async fn latest_edge_time(&self) -> Result<Option<EventTime>, ClientError> {
         let op = Op::Read(ReadExpr::LatestEdgeTime {
             input: self.expr.clone(),
         });
-        expect_optional_i64(self.transport.execute(&op).await?, "latestEdgeTime")
+        expect_optional_event_time(self.transport.execute(&op).await?, "latestEdgeTime")
     }
 
     /// Internal helper: clone `self` with a new `expr`. Keeps the view-op

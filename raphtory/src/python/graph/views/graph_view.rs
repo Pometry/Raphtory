@@ -213,6 +213,29 @@ impl PyGraphView {
         self.graph.latest_time().into()
     }
 
+    /// Time entry of the earliest edge activity in the graph
+    ///
+    /// Unlike `earliest_time`, this ignores node-only and graph-property
+    /// events, so it answers when this graph first had an edge.
+    ///
+    /// Returns:
+    ///     OptionalEventTime: the time entry of the earliest edge activity, or
+    ///         empty if the view has no edges
+    #[getter]
+    pub fn earliest_edge_time(&self) -> PyOptionalEventTime {
+        self.graph.earliest_edge_time().into()
+    }
+
+    /// Time entry of the latest edge activity in the graph
+    ///
+    /// Returns:
+    ///     OptionalEventTime: the time entry of the latest edge activity, or
+    ///         empty if the view has no edges
+    #[getter]
+    pub fn latest_edge_time(&self) -> PyOptionalEventTime {
+        self.graph.latest_edge_time().into()
+    }
+
     /// Number of edges in the graph
     ///
     /// Returns:

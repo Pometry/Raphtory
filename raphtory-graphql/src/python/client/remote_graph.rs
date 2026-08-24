@@ -483,26 +483,30 @@ impl PyRemoteGraph {
         execute_async_task(move || async move { graph.window_size().await })
     }
 
-    /// Terminal: earliest edge event time under the current view. Returns
-    /// `None` if the view has no edge events. Fires one RPC.
+    /// Time entry of the earliest edge activity in the graph. Unlike
+    /// `earliest_time`, this ignores node-only and graph-property events.
+    /// Property — fires one RPC.
     ///
     /// Returns:
-    ///     Optional[int]: the earliest edge event time, or `None` if the view has no edge
-    ///         events.
-    pub fn earliest_edge_time(&self) -> Result<Option<i64>, ClientError> {
+    ///     OptionalEventTime: the time entry of the earliest edge activity, or
+    ///         empty if the view has no edges.
+    #[getter]
+    pub fn earliest_edge_time(&self) -> Result<PyOptionalEventTime, ClientError> {
         let graph = Arc::clone(&self.graph);
-        execute_async_task(move || async move { graph.earliest_edge_time().await })
+        Ok(execute_async_task(move || async move { graph.earliest_edge_time().await })?.into())
     }
 
-    /// Terminal: latest edge event time under the current view. Returns
-    /// `None` if the view has no edge events. Fires one RPC.
+    /// Time entry of the latest edge activity in the graph. Unlike
+    /// `latest_time`, this ignores node-only and graph-property events.
+    /// Property — fires one RPC.
     ///
     /// Returns:
-    ///     Optional[int]: the latest edge event time, or `None` if the view has no edge
-    ///         events.
-    pub fn latest_edge_time(&self) -> Result<Option<i64>, ClientError> {
+    ///     OptionalEventTime: the time entry of the latest edge activity, or
+    ///         empty if the view has no edges.
+    #[getter]
+    pub fn latest_edge_time(&self) -> Result<PyOptionalEventTime, ClientError> {
         let graph = Arc::clone(&self.graph);
-        execute_async_task(move || async move { graph.latest_edge_time().await })
+        Ok(execute_async_task(move || async move { graph.latest_edge_time().await })?.into())
     }
 
     /// Terminal: does the graph have a node with this id? Fires one RPC.

@@ -805,14 +805,16 @@ class RemoteGraph(object):
             RemoteEdge: the remote edge
         """
 
-    def earliest_edge_time(self) -> Optional[int]:
+    @property
+    def earliest_edge_time(self) -> OptionalEventTime:
         """
-        Terminal: earliest edge event time under the current view. Returns
-        `None` if the view has no edge events. Fires one RPC.
+        Time entry of the earliest edge activity in the graph. Unlike
+        `earliest_time`, this ignores node-only and graph-property events.
+        Property — fires one RPC.
 
         Returns:
-            Optional[int]: the earliest edge event time, or `None` if the view has no edge
-                events.
+            OptionalEventTime: the time entry of the earliest edge activity, or
+                empty if the view has no edges.
         """
 
     @property
@@ -1015,14 +1017,16 @@ class RemoteGraph(object):
             RemoteGraph: a new view of the latest state.
         """
 
-    def latest_edge_time(self) -> Optional[int]:
+    @property
+    def latest_edge_time(self) -> OptionalEventTime:
         """
-        Terminal: latest edge event time under the current view. Returns
-        `None` if the view has no edge events. Fires one RPC.
+        Time entry of the latest edge activity in the graph. Unlike
+        `latest_time`, this ignores node-only and graph-property events.
+        Property — fires one RPC.
 
         Returns:
-            Optional[int]: the latest edge event time, or `None` if the view has no edge
-                events.
+            OptionalEventTime: the time entry of the latest edge activity, or
+                empty if the view has no edges.
         """
 
     @property

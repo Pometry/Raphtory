@@ -507,26 +507,41 @@ def test_graph_metadata_timestamps():
 
 
 def test_graph_edge_time_terminals():
-    """`earliest_edge_time` / `latest_edge_time` return event timestamps under
-    the current view. Nullable — empty view returns None."""
+    """`earliest_edge_time` / `latest_edge_time` are getters returning an
+    `EventTime`, matching the local `Graph` getters of the same name. Empty
+    when the view has no edges."""
+    from raphtory import Graph
+
     with _make_graph_with_edge() as rg:
         # Only one edge, added at t=3.
-        assert rg.earliest_edge_time() == 3
-        assert rg.latest_edge_time() == 3
+        assert rg.earliest_edge_time.t == 3
+        assert rg.latest_edge_time.t == 3
 
         # Add another edge at t=8. Range becomes [3, 8].
         rg.add_edge(8, "ben", "hamza")
-        assert rg.earliest_edge_time() == 3
-        assert rg.latest_edge_time() == 8
+        assert rg.earliest_edge_time.t == 3
+        assert rg.latest_edge_time.t == 8
 
         # Windowed view narrows the range.
-        assert rg.window(0, 5).earliest_edge_time() == 3
-        assert rg.window(0, 5).latest_edge_time() == 3
-        assert rg.window(6, 10).earliest_edge_time() == 8
+        assert rg.window(0, 5).earliest_edge_time.t == 3
+        assert rg.window(0, 5).latest_edge_time.t == 3
+        assert rg.window(6, 10).earliest_edge_time.t == 8
 
-        # Window with no edge events returns None.
-        assert rg.window(100, 200).earliest_edge_time() is None
-        assert rg.window(100, 200).latest_edge_time() is None
+        # Window with no edge events is empty on both sides.
+        assert rg.window(100, 200).earliest_edge_time.t is None
+        assert rg.window(100, 200).latest_edge_time.t is None
+
+        # Parity: the local graph exposes the same getters, and unlike
+        # `earliest_time` these ignore node-only events.
+        lg = Graph()
+        lg.add_node(1, "solo")
+        lg.add_edge(3, "ben", "hamza")
+        lg.add_edge(8, "ben", "hamza")
+        assert lg.earliest_time.t == 1  # node event counts here
+        assert lg.earliest_edge_time.t == 3  # but not here
+        assert lg.latest_edge_time.t == 8
+        assert rg.earliest_edge_time.t == lg.earliest_edge_time.t
+        assert rg.latest_edge_time.t == lg.latest_edge_time.t
 
 
 def test_node_update_time_terminals():

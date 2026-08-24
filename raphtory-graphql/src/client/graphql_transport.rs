@@ -1890,15 +1890,13 @@ fn render_read_into(
             render_read_into(input, vars, out)?;
             out.push_str(" { end { timestamp eventId");
         }
-        // Remaining timestamp terminals stay bare `i64` (no local @property
-        // counterpart, so not part of the EventTime drop-in change).
         ReadExpr::EarliestEdgeTime { input } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { earliestEdgeTime { timestamp");
+            out.push_str(" { earliestEdgeTime { timestamp eventId");
         }
         ReadExpr::LatestEdgeTime { input } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { latestEdgeTime { timestamp");
+            out.push_str(" { latestEdgeTime { timestamp eventId");
         }
         ReadExpr::FirstUpdate { input } => {
             render_read_into(input, vars, out)?;
@@ -3149,6 +3147,8 @@ fn parse_read(
         // object (e.g. an empty graph) maps to `Ok(None)`.
         ReadExpr::EarliestTime { .. }
         | ReadExpr::LatestTime { .. }
+        | ReadExpr::EarliestEdgeTime { .. }
+        | ReadExpr::LatestEdgeTime { .. }
         | ReadExpr::Start { .. }
         | ReadExpr::End { .. }
         | ReadExpr::Time { .. } => {
@@ -3173,11 +3173,9 @@ fn parse_read(
             }
         }
         // Nullable i64-shaped terminals — server can return JSON `null`
-        // (e.g. an empty graph has no `earliestEdgeTime.timestamp`). We map
+        // (e.g. an empty history has no median interval). We map
         // JSON null → Ok(None); a valid number → Ok(Some(Prop::I64(n))).
-        ReadExpr::EarliestEdgeTime { .. }
-        | ReadExpr::LatestEdgeTime { .. }
-        | ReadExpr::FirstUpdate { .. }
+        ReadExpr::FirstUpdate { .. }
         | ReadExpr::LastUpdate { .. }
         | ReadExpr::WindowSize { .. }
         | ReadExpr::IntervalsMedian { .. }
@@ -3760,17 +3758,17 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
                 go(input, out);
                 out.push("end");
             }
-            // Remaining timestamp terminals — push TWO keys (outer + "timestamp").
+            // EventTime-shaped: the arm reads the whole object, so the path
+            // stops at the field (as `earliestTime` above does).
             ReadExpr::EarliestEdgeTime { input } => {
                 go(input, out);
                 out.push("earliestEdgeTime");
-                out.push("timestamp");
             }
             ReadExpr::LatestEdgeTime { input } => {
                 go(input, out);
                 out.push("latestEdgeTime");
-                out.push("timestamp");
             }
+            // Remaining timestamp terminals — push TWO keys (outer + "timestamp").
             ReadExpr::FirstUpdate { input } => {
                 go(input, out);
                 out.push("firstUpdate");

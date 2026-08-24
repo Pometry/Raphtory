@@ -187,6 +187,32 @@ class GraphView(object):
             OptionalEventTime: the time entry of the earliest activity in the graph
         """
 
+    @property
+    def earliest_edge_time(self) -> OptionalEventTime:
+        """
+        Time entry of the earliest edge activity in the graph
+
+        Unlike `earliest_time`, this ignores node-only and graph-property
+        events, so it answers when this graph first had an edge.
+
+        Returns:
+            OptionalEventTime: the time entry of the earliest edge activity, or
+                empty if the view has no edges
+        """
+
+    @property
+    def latest_edge_time(self) -> OptionalEventTime:
+        """
+        Time entry of the latest edge activity in the graph
+
+        Unlike `latest_time`, this ignores node-only and graph-property
+        events, so it answers when this graph first had an edge.
+
+        Returns:
+            OptionalEventTime: the time entry of the latest edge activity, or
+                empty if the view has no edges
+        """
+
     def edge(self, src: NodeInput, dst: NodeInput) -> Optional[Edge]:
         """
         Gets the edge with the specified source and destination nodes

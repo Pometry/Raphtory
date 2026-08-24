@@ -418,13 +418,18 @@ impl GqlGraph {
         let self_clone = self.clone();
         Ok(blocking_compute(move || {
             let include_negative = include_negative.unwrap_or(true);
-            self_clone
-                .graph
-                .edges()
-                .earliest_time()
-                .filter_map(|edge_time| edge_time.filter(|&time| include_negative || time.t() >= 0))
-                .min()
-                .into()
+            if include_negative {
+                // no filtering needed — this is exactly the core accessor
+                self_clone.graph.earliest_edge_time().into()
+            } else {
+                self_clone
+                    .graph
+                    .edges()
+                    .earliest_time()
+                    .filter_map(|edge_time| edge_time.filter(|&time| time.t() >= 0))
+                    .min()
+                    .into()
+            }
         })
         .await)
     }
@@ -440,13 +445,18 @@ impl GqlGraph {
         let self_clone = self.clone();
         Ok(blocking_compute(move || {
             let include_negative = include_negative.unwrap_or(true);
-            self_clone
-                .graph
-                .edges()
-                .latest_time()
-                .filter_map(|edge_time| edge_time.filter(|&time| include_negative || time.t() >= 0))
-                .max()
-                .into()
+            if include_negative {
+                // no filtering needed — this is exactly the core accessor
+                self_clone.graph.latest_edge_time().into()
+            } else {
+                self_clone
+                    .graph
+                    .edges()
+                    .latest_time()
+                    .filter_map(|edge_time| edge_time.filter(|&time| time.t() >= 0))
+                    .max()
+                    .into()
+            }
         })
         .await)
     }
