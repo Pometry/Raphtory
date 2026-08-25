@@ -2,6 +2,7 @@ use crate::client::remote_schema::{
     RemoteEdgeSchema, RemoteGraphSchema, RemoteLayerSchema, RemoteNodeSchema, RemotePropertySchema,
 };
 use pyo3::{pyclass, pymethods};
+use raphtory_api::core::entities::properties::prop::PropType;
 
 /// One property key on a node/edge type, with its observed property type
 /// and (for string-valued properties) the set of distinct values seen.
@@ -21,8 +22,8 @@ pub struct PyRemotePropertySchema {
     /// The observed property type, as reported by the server.
     ///
     /// Returns:
-    ///     str: the property type name.
-    pub property_type: String,
+    ///     PropType: the property type.
+    pub property_type: PropType,
     /// The distinct values seen for a string-valued property; empty otherwise.
     ///
     /// Returns:

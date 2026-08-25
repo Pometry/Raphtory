@@ -1,9 +1,6 @@
 use crate::{
     db::{
-        api::{
-            state::ops::{filter::NodeDegreeFilterOp, GraphView},
-            view::GraphViewOps,
-        },
+        api::state::ops::{filter::NodeDegreeFilterOp, GraphView},
         graph::views::filter::{
             model,
             model::{
@@ -50,29 +47,31 @@ pub struct DegreeFilter {
 }
 
 impl CreateFilter for DegreeFilter {
-    type EntityFiltered<'graph, G: GraphViewOps<'graph>> =
-        NodeFilteredGraph<G, NodeDegreeFilterOp<G>>;
+    type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
+        NodeFilteredGraph<G, NodeDegreeFilterOp<F>>;
 
-    type NodeFilter<'graph, G: GraphView + 'graph> = NodeDegreeFilterOp<G>;
+    type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> = NodeDegreeFilterOp<F>;
 
     type FilteredGraph<'graph, G>
         = G
     where
         Self: 'graph,
-        G: GraphViewOps<'graph>;
+        G: GraphView + 'graph;
 
-    fn create_filter<'graph, G: GraphViewOps<'graph>>(
+    fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         graph: G,
-    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
-        let filter = self.create_node_filter(graph.clone())?;
+        filtered: F,
+    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
+        let filter = self.create_node_filter(graph.clone(), filtered)?;
         Ok(NodeFilteredGraph::new(graph, filter))
     }
 
-    fn create_node_filter<'graph, G: GraphView + 'graph>(
+    fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
-        graph: G,
-    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        _graph: G,
+        filtered: F,
+    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
         if !self.ops.is_empty() {
             return Err(GraphError::InvalidFilter(
                 "degree filter does not support expressions".to_string(),
@@ -128,7 +127,7 @@ impl CreateFilter for DegreeFilter {
         };
         let mut filter = self.clone();
         filter.value = value;
-        Ok(NodeDegreeFilterOp::new(graph, filter))
+        Ok(NodeDegreeFilterOp::new(filtered, filter))
     }
 
     fn filter_graph_view<'graph, G: GraphView + 'graph>(

@@ -22,8 +22,9 @@ pub mod remote_nodes;
 pub mod remote_path_from_graph;
 pub mod remote_path_from_node;
 pub mod remote_schema;
+pub(crate) mod view_ops;
 
-pub use remote_collection_metadata::{ColumnarProps, RemoteMetadataView, RemotePropertiesView};
+pub use remote_collection_metadata::{Column, RemoteMetadataView, RemotePropertiesView};
 pub use remote_edge::RemoteEdge;
 pub use remote_edges::RemoteEdges;
 pub use remote_graph::RemoteGraph;

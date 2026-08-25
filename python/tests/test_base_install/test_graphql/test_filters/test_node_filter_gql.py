@@ -22,6 +22,49 @@ def test_filter_nodes_with_str_ids_for_node_id_eq_gql(graph):
     query {
       graph(path: "g") {
         filterNodes: filter(expr: { node: {
+            id: {
+              where: { eq: { str: "1" } }
+            }
+          } }) {
+          nodes {
+            list { name }
+          }
+        }
+      }
+    }
+    """
+    expected_output = {"graph": {"filterNodes": {"nodes": {"list": [{"name": "1"}]}}}}
+    run_graphql_test(query, expected_output, graph)
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_sort_key_with_no_or_several_fields_is_rejected(graph):
+    # A sort-key entry names exactly one attribute. Setting none, or several,
+    # used to be a silent no-op / silent drop of all but the first.
+    for keys in ("[{}]", "[{reverse: true}]", "[{id: true, name: true}]"):
+        run_graphql_error_test_contains(
+            """
+            query {
+              graph(path: "g") {
+                nodes { sorted(sortBys: %s) { list { name } } }
+              }
+            }
+            """
+            % keys,
+            "exactly one",
+            graph,
+        )
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_deprecated_node_field_spelling_still_accepted(graph):
+    # The old enum-argument spelling ({node: {field: ..., where: ...}})
+    # remains accepted for backwards compatibility; new queries should use
+    # the per-field forms (id:/name:/nodeType:).
+    query = """
+    query {
+      graph(path: "g") {
+        filterNodes: filter(expr: { node: {
             node: {
               field: NODE_ID
               where: { eq: { str: "1" } }
@@ -44,8 +87,7 @@ def test_filter_nodes_with_str_ids_for_node_id_eq_gql2(graph):
     query {
       graph(path: "g") {
         filterNodes: filter(expr: { node: {
-            node: {
-              field: NODE_ID
+            id: {
               where: { eq: { u64: 1 } }
             }
           } }) {
@@ -70,8 +112,7 @@ def test_filter_nodes_with_num_ids_for_node_id_eq_gql(graph):
     query {
       graph(path: "g") {
         filterNodes: filter(expr: { node: {
-            node: {
-              field: NODE_ID
+            id: {
               where: { eq: { u64: 1 } }
             }
           } }) {
@@ -92,8 +133,7 @@ def test_nodes_chained_selection_with_node_filter(graph):
     query {
       graph(path: "g") {
         nodes {
-          select(expr: { node: { node: { 
-            field: NODE_TYPE
+          select(expr: { node: { nodeType: { 
             where: { eq: { str: "fire_nation" } }
           } } }) {
             select(expr: { node: { property: { name: "p9", where: { eq:{ i64: 5 } } } } }) {

@@ -960,8 +960,7 @@ def test_nodes_chained_selection_node_filter_paired(graph):
         nodes(select: { property: { name: "p100", where: { gt: { i64: 30 } } } }) {
           select(expr: { node: { property: { name: "p9", where: { eq:{ i64: 5 } } } } }) {
             filter(expr: { node: {
-              node: {
-                field: NODE_TYPE
+              nodeType: {
                 where: { eq: { str: "fire_nation" } }
               }
             } }) {
@@ -989,8 +988,7 @@ def test_nodes_chained_selection_node_filter_paired_ver2(graph):
           select(expr: { node: { property: { name: "p100", where: { gt: { i64: 30 } } } } }) {
             select(expr: { node: { property: { name: "p9", where: { eq:{ i64: 5 } } } } }) {
               filter(expr: { node: {
-                node: {
-                  field: NODE_TYPE
+                nodeType: {
                   where: { eq: { str: "fire_nation" } }
                 }
               } }) {

@@ -34,6 +34,10 @@ pub struct Mask<Op> {
 impl<Op: NodeOp<Output = usize>> NodeOp for Mask<Op> {
     type Output = bool;
 
+    fn domain(&self, storage: &GraphStorage) -> NodeList {
+        self.op.domain(storage)
+    }
+
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
         self.mask
             .get(self.op.apply(storage, node))
@@ -72,6 +76,10 @@ impl<G: GraphView> NodeOp for NodeExistsOp<G> {
 
     fn apply(&self, _storage: &GraphStorage, node: VID) -> Self::Output {
         self.graph.has_node(node)
+    }
+
+    fn domain(&self, _storage: &GraphStorage) -> NodeList {
+        self.graph.node_list()
     }
 }
 
@@ -221,6 +229,10 @@ impl<G> NodePropertyFilterOp<G> {
 impl<G: GraphView> NodeOp for NodePropertyFilterOp<G> {
     type Output = bool;
 
+    fn domain(&self, _storage: &GraphStorage) -> NodeList {
+        self.graph.node_list()
+    }
+
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
         let node = storage.core_node(node);
         self.filter
@@ -251,6 +263,10 @@ impl<G> NodeDegreeFilterOp<G> {
 
 impl<G: GraphView> NodeOp for NodeDegreeFilterOp<G> {
     type Output = bool;
+
+    fn domain(&self, storage: &GraphStorage) -> NodeList {
+        self.degree.domain(storage)
+    }
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
         let node_degree = self.degree.apply(storage, node);
@@ -366,6 +382,10 @@ where
     T: NodeOp<Output = bool>,
 {
     type Output = bool;
+
+    fn domain(&self, _storage: &GraphStorage) -> NodeList {
+        NodeList::All
+    }
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
         !self.0.apply(storage, node)

@@ -10,6 +10,7 @@ use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::db::api::view::history::{
     History, HistoryDateTime, HistoryEventId, HistoryTimestamp, InternalHistoryOps, Intervals,
 };
+use raphtory_api::core::storage::timeindex::EventTime;
 use std::{any::Any, sync::Arc};
 
 /// History of updates for an object in Raphtory.
@@ -41,26 +42,26 @@ impl<T: InternalHistoryOps + 'static> From<History<'_, T>> for GqlHistory {
 #[ResolvedObjectFields]
 impl GqlHistory {
     /// Get the earliest time entry associated with this history or None if the history is empty.
-    async fn earliest_time(&self) -> GqlEventTime {
+    pub async fn earliest_time(&self) -> GqlEventTime {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.history.earliest_time().into()).await
     }
 
     /// Get the latest time entry associated with this history or None if the history is empty.
-    async fn latest_time(&self) -> GqlEventTime {
+    pub async fn latest_time(&self) -> GqlEventTime {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.history.latest_time().into()).await
     }
 
     /// List all time entries present in this history.
-    async fn list(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<GqlEventTime>> {
+    pub async fn list(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<GqlEventTime>> {
         check_list_allowed(ctx)?;
         let self_clone = self.clone();
         Ok(blocking_compute(move || self_clone.history.iter().map(|t| t.into()).collect()).await)
     }
 
     /// List all time entries present in this history in reverse order.
-    async fn list_rev(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<GqlEventTime>> {
+    pub async fn list_rev(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<GqlEventTime>> {
         check_list_allowed(ctx)?;
         let self_clone = self.clone();
         Ok(
@@ -75,7 +76,7 @@ impl GqlHistory {
     /// For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
     /// will be returned.
 
-    async fn page(
+    pub async fn page(
         &self,
         ctx: &Context<'_>,
         #[graphql(desc = "Maximum number of items to return on this page.")] limit: usize,
@@ -107,7 +108,7 @@ impl GqlHistory {
     /// For example, if page_rev(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
     /// will be returned.
 
-    async fn page_rev(
+    pub async fn page_rev(
         &self,
         ctx: &Context<'_>,
         #[graphql(desc = "Maximum number of items to return on this page.")] limit: usize,
@@ -134,26 +135,41 @@ impl GqlHistory {
     }
 
     /// Returns True if the history is empty.
-    async fn is_empty(&self) -> bool {
+    pub async fn is_empty(&self) -> bool {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.history.is_empty()).await
     }
 
     /// Returns a new history with the iteration order of the entries reversed.
-    async fn reverse(&self) -> GqlHistory {
+    pub async fn reverse(&self) -> GqlHistory {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.history.reverse().into()).await
     }
 
     /// Get the number of entries contained in the history.
-    async fn count(&self) -> u64 {
+    pub async fn count(&self) -> u64 {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.history.len() as u64).await
     }
 
+    /// Whether an entry equal to the given time is present. With `eventId`,
+    /// an entry must match both the timestamp and the event id; without it,
+    /// any entry at the timestamp matches.
+    pub async fn contains(&self, timestamp: i64, event_id: Option<usize>) -> bool {
+        let self_clone = self.clone();
+        blocking_compute(move || match event_id {
+            Some(event_id) => self_clone
+                .history
+                .iter()
+                .any(|x| x == EventTime::new(timestamp, event_id)),
+            None => self_clone.history.iter().any(|x| x == timestamp),
+        })
+        .await
+    }
+
     /// Returns a HistoryTimestamp object which accesses timestamps (milliseconds since the Unix epoch)
     /// instead of EventTime entries.
-    async fn timestamps(&self) -> GqlHistoryTimestamp {
+    pub async fn timestamps(&self) -> GqlHistoryTimestamp {
         let self_clone = self.clone();
         blocking_compute(move || GqlHistoryTimestamp {
             history_t: HistoryTimestamp::new(self_clone.history.0.clone()), // clone the Arc, not the underlying object
@@ -166,7 +182,7 @@ impl GqlHistory {
     /// Optionally, a format string can be passed to format the output. Defaults to RFC 3339 if not provided (e.g., "2023-12-25T10:30:45.123Z").
     /// Refer to chrono::format::strftime for formatting specifiers and escape sequences.
 
-    async fn datetimes(
+    pub async fn datetimes(
         &self,
         #[graphql(
             desc = "Optional format string for the rendered datetime. Uses `%`-style specifiers — for example `%Y-%m-%d` for `2024-01-15`, `%Y-%m-%d %H:%M:%S` for `2024-01-15 10:30:00`, or `%H:%M` for `10:30`. Defaults to RFC 3339 (e.g. `2024-01-15T10:30:45.123+00:00`) when omitted."
@@ -183,7 +199,7 @@ impl GqlHistory {
 
     /// Returns a HistoryEventId object which accesses event ids of EventTime entries.
     /// They are used for ordering within the same timestamp.
-    async fn event_id(&self) -> GqlHistoryEventId {
+    pub async fn event_id(&self) -> GqlHistoryEventId {
         let self_clone = self.clone();
         blocking_compute(move || GqlHistoryEventId {
             history_s: HistoryEventId::new(self_clone.history.0.clone()), // clone the Arc, not the underlying object
@@ -195,7 +211,7 @@ impl GqlHistory {
     /// object exposes each gap (in milliseconds) between consecutive events,
     /// plus summary statistics — `min` / `max` / `mean` / `median` — and
     /// paginated access via `list` / `listRev` / `page` / `pageRev`.
-    async fn intervals(&self) -> GqlIntervals {
+    pub async fn intervals(&self) -> GqlIntervals {
         let self_clone = self.clone();
         blocking_compute(move || GqlIntervals {
             intervals: Intervals::new(self_clone.history.0.clone()), // clone the Arc, not the underlying object
@@ -213,15 +229,27 @@ pub struct GqlHistoryTimestamp {
 
 #[ResolvedObjectFields]
 impl GqlHistoryTimestamp {
+    /// Get the number of timestamps (one per entry).
+    pub async fn count(&self) -> u64 {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.history_t.iter().count() as u64).await
+    }
+
+    /// Whether the given value is present among the timestamps.
+    pub async fn contains(&self, value: i64) -> bool {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.history_t.iter().any(|v| v == value)).await
+    }
+
     /// List all timestamps.
-    async fn list(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<i64>> {
+    pub async fn list(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<i64>> {
         check_list_allowed(ctx)?;
         let self_clone = self.clone();
         Ok(blocking_compute(move || self_clone.history_t.collect()).await)
     }
 
     /// List all timestamps in reverse order.
-    async fn list_rev(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<i64>> {
+    pub async fn list_rev(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<i64>> {
         check_list_allowed(ctx)?;
         let self_clone = self.clone();
         Ok(blocking_compute(move || self_clone.history_t.collect_rev()).await)
@@ -233,7 +261,7 @@ impl GqlHistoryTimestamp {
     /// For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
     /// will be returned.
 
-    async fn page(
+    pub async fn page(
         &self,
         ctx: &Context<'_>,
         #[graphql(desc = "Maximum number of items to return on this page.")] limit: usize,
@@ -264,7 +292,7 @@ impl GqlHistoryTimestamp {
     /// For example, if page_rev(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
     /// will be returned.
 
-    async fn page_rev(
+    pub async fn page_rev(
         &self,
         ctx: &Context<'_>,
         #[graphql(desc = "Maximum number of items to return on this page.")] limit: usize,
@@ -304,7 +332,7 @@ impl GqlHistoryDateTime {
     /// If filter_broken is set to True, time conversion errors will be ignored. If set to False, a TimeError
     /// will be raised on time conversion error. Defaults to False.
 
-    async fn list(
+    pub async fn list(
         &self,
         ctx: &Context<'_>,
         #[graphql(
@@ -344,7 +372,7 @@ impl GqlHistoryDateTime {
     /// If filter_broken is set to True, time conversion errors will be ignored. If set to False, a TimeError
     /// will be raised on time conversion error. Defaults to False.
 
-    async fn list_rev(
+    pub async fn list_rev(
         &self,
         ctx: &Context<'_>,
         #[graphql(
@@ -388,7 +416,7 @@ impl GqlHistoryDateTime {
     /// For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
     /// will be returned.
 
-    async fn page(
+    pub async fn page(
         &self,
         ctx: &Context<'_>,
         #[graphql(desc = "Maximum number of items to return on this page.")] limit: usize,
@@ -443,7 +471,7 @@ impl GqlHistoryDateTime {
     /// For example, if page_rev(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
     /// will be returned.
 
-    async fn page_rev(
+    pub async fn page_rev(
         &self,
         ctx: &Context<'_>,
         #[graphql(desc = "Maximum number of items to return on this page.")] limit: usize,
@@ -500,8 +528,20 @@ pub struct GqlHistoryEventId {
 
 #[ResolvedObjectFields]
 impl GqlHistoryEventId {
+    /// Get the number of event ids (one per entry).
+    pub async fn count(&self) -> u64 {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.history_s.iter().count() as u64).await
+    }
+
+    /// Whether the given value is present among the event ids.
+    pub async fn contains(&self, value: u64) -> bool {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.history_s.iter().any(|v| v as u64 == value)).await
+    }
+
     /// List event ids.
-    async fn list(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<u64>> {
+    pub async fn list(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<u64>> {
         check_list_allowed(ctx)?;
         let self_clone = self.clone();
         Ok(blocking_compute(move || {
@@ -515,7 +555,7 @@ impl GqlHistoryEventId {
     }
 
     /// List event ids in reverse order.
-    async fn list_rev(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<u64>> {
+    pub async fn list_rev(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<u64>> {
         check_list_allowed(ctx)?;
         let self_clone = self.clone();
         Ok(blocking_compute(move || {
@@ -534,7 +574,7 @@ impl GqlHistoryEventId {
     /// For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
     /// will be returned.
 
-    async fn page(
+    pub async fn page(
         &self,
         ctx: &Context<'_>,
         #[graphql(desc = "Maximum number of items to return on this page.")] limit: usize,
@@ -566,7 +606,7 @@ impl GqlHistoryEventId {
     /// For example, if page_rev(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
     /// will be returned.
 
-    async fn page_rev(
+    pub async fn page_rev(
         &self,
         ctx: &Context<'_>,
         #[graphql(desc = "Maximum number of items to return on this page.")] limit: usize,
@@ -602,15 +642,28 @@ pub struct GqlIntervals {
 
 #[ResolvedObjectFields]
 impl GqlIntervals {
+    /// Get the number of intervals (one per consecutive pair of entries,
+    /// so one less than the history's count; zero for an empty history).
+    pub async fn count(&self) -> u64 {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.intervals.iter().count() as u64).await
+    }
+
+    /// Whether the given value is present among the intervals.
+    pub async fn contains(&self, value: i64) -> bool {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.intervals.iter().any(|v| v == value)).await
+    }
+
     /// List time intervals between consecutive timestamps in milliseconds.
-    async fn list(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<i64>> {
+    pub async fn list(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<i64>> {
         check_list_allowed(ctx)?;
         let self_clone = self.clone();
         Ok(blocking_compute(move || self_clone.intervals.collect()).await)
     }
 
     /// List millisecond time intervals between consecutive timestamps in reverse order.
-    async fn list_rev(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<i64>> {
+    pub async fn list_rev(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<i64>> {
         check_list_allowed(ctx)?;
         let self_clone = self.clone();
         Ok(blocking_compute(move || self_clone.intervals.collect_rev()).await)
@@ -622,7 +675,7 @@ impl GqlIntervals {
     /// For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
     /// will be returned.
 
-    async fn page(
+    pub async fn page(
         &self,
         ctx: &Context<'_>,
         #[graphql(desc = "Maximum number of items to return on this page.")] limit: usize,
@@ -653,7 +706,7 @@ impl GqlIntervals {
     /// For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
     /// will be returned.
 
-    async fn page_rev(
+    pub async fn page_rev(
         &self,
         ctx: &Context<'_>,
         #[graphql(desc = "Maximum number of items to return on this page.")] limit: usize,
@@ -679,25 +732,25 @@ impl GqlIntervals {
     }
 
     /// Compute the mean interval between consecutive timestamps. Returns None if fewer than 1 timestamp.
-    async fn mean(&self) -> Option<f64> {
+    pub async fn mean(&self) -> Option<f64> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.intervals.mean()).await
     }
 
     /// Compute the median interval between consecutive timestamps. Returns None if fewer than 1 timestamp.
-    async fn median(&self) -> Option<i64> {
+    pub async fn median(&self) -> Option<i64> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.intervals.median()).await
     }
 
     /// Compute the maximum interval between consecutive timestamps. Returns None if fewer than 1 timestamp.
-    async fn max(&self) -> Option<i64> {
+    pub async fn max(&self) -> Option<i64> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.intervals.max()).await
     }
 
     /// Compute the minimum interval between consecutive timestamps. Returns None if fewer than 1 timestamp.
-    async fn min(&self) -> Option<i64> {
+    pub async fn min(&self) -> Option<i64> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.intervals.min()).await
     }

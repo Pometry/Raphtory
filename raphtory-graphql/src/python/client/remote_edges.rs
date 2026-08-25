@@ -1,14 +1,16 @@
+use super::view_ops::py_remote_view_ops;
 use crate::{
     client::{remote_edges::RemoteEdges, ClientError},
     python::client::{
         remote_collection_metadata::{PyRemoteMetadataView, PyRemotePropertiesView},
         remote_edge::PyRemoteEdge,
         remote_path_from_node::PyRemotePathFromNode,
-        remote_sorting::PyEdgeSortBy,
     },
 };
 use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyRef, PyRefMut, PyResult};
-use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
+use raphtory::python::{
+    filter::filter_expr::PyFilterExpr, graph::sorting::PyEdgeSortBy, utils::execute_async_task,
+};
 use raphtory_api::{
     core::{entities::GID, storage::timeindex::EventTime, utils::time::InputTime},
     python::timeindex::PyOptionalEventTime,
@@ -41,197 +43,6 @@ impl PyRemoteEdges {
 
 #[pymethods]
 impl PyRemoteEdges {
-    /// Time-window this collection. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     start (TimeInput): inclusive start of the window.
-    ///     end (TimeInput): exclusive end of the window.
-    ///
-    /// Returns:
-    ///     RemoteEdges: a new collection restricted to the window.
-    pub fn window(&self, start: InputTime, end: InputTime) -> PyRemoteEdges {
-        PyRemoteEdges::new(self.edges.window(start, end))
-    }
-
-    /// Restrict to a single named layer. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     name (str): the name of the layer.
-    ///
-    /// Returns:
-    ///     RemoteEdges: a new collection restricted to that layer.
-    pub fn layer(&self, name: &str) -> PyRemoteEdges {
-        PyRemoteEdges::new(self.edges.layer(name))
-    }
-
-    /// Snapshot at a specific time. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     time (TimeInput): the time to snapshot at.
-    ///
-    /// Returns:
-    ///     RemoteEdges: a new collection snapshotted at that time.
-    pub fn at(&self, time: InputTime) -> PyRemoteEdges {
-        PyRemoteEdges::new(self.edges.at(time))
-    }
-
-    /// Restrict to events strictly before the given time. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     time (TimeInput): only events strictly before this time are kept.
-    ///
-    /// Returns:
-    ///     RemoteEdges: a new collection restricted to events before that time.
-    pub fn before(&self, time: InputTime) -> PyRemoteEdges {
-        PyRemoteEdges::new(self.edges.before(time))
-    }
-
-    /// Restrict to events strictly after the given time. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     time (TimeInput): only events strictly after this time are kept.
-    ///
-    /// Returns:
-    ///     RemoteEdges: a new collection restricted to events after that time.
-    pub fn after(&self, time: InputTime) -> PyRemoteEdges {
-        PyRemoteEdges::new(self.edges.after(time))
-    }
-
-    /// Latest state. Lazy — no RPC.
-    ///
-    /// Returns:
-    ///     RemoteEdges: a new collection of the latest state.
-    pub fn latest(&self) -> PyRemoteEdges {
-        PyRemoteEdges::new(self.edges.latest())
-    }
-
-    /// Snapshot at the latest time. Lazy — no RPC.
-    ///
-    /// Returns:
-    ///     RemoteEdges: a new collection snapshotted at the latest time.
-    pub fn snapshot_latest(&self) -> PyRemoteEdges {
-        PyRemoteEdges::new(self.edges.snapshot_latest())
-    }
-
-    /// Snapshot at a specific time. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     time (TimeInput): the time to snapshot at.
-    ///
-    /// Returns:
-    ///     RemoteEdges: a new collection snapshotted at that time.
-    pub fn snapshot_at(&self, time: InputTime) -> PyRemoteEdges {
-        PyRemoteEdges::new(self.edges.snapshot_at(time))
-    }
-
-    /// Exclude a specific layer. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     name (str): the name of the layer to exclude.
-    ///
-    /// Returns:
-    ///     RemoteEdges: a new collection with that layer excluded.
-    pub fn exclude_layer(&self, name: &str) -> PyRemoteEdges {
-        PyRemoteEdges::new(self.edges.exclude_layer(name))
-    }
-
-    /// Shrink both start and end of the current window. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     start (TimeInput): the new inclusive start of the window.
-    ///     end (TimeInput): the new exclusive end of the window.
-    ///
-    /// Returns:
-    ///     RemoteEdges: a new collection with both window bounds shrunk.
-    pub fn shrink_window(&self, start: InputTime, end: InputTime) -> PyRemoteEdges {
-        PyRemoteEdges::new(self.edges.shrink_window(start, end))
-    }
-
-    /// Shrink the start of the current window. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     start (TimeInput): the new inclusive start of the window.
-    ///
-    /// Returns:
-    ///     RemoteEdges: a new collection with the window start shrunk.
-    pub fn shrink_start(&self, start: InputTime) -> PyRemoteEdges {
-        PyRemoteEdges::new(self.edges.shrink_start(start))
-    }
-
-    /// Shrink the end of the current window. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     end (TimeInput): the new exclusive end of the window.
-    ///
-    /// Returns:
-    ///     RemoteEdges: a new collection with the window end shrunk.
-    pub fn shrink_end(&self, end: InputTime) -> PyRemoteEdges {
-        PyRemoteEdges::new(self.edges.shrink_end(end))
-    }
-
-    /// Restrict to the default layer. Lazy — no RPC.
-    ///
-    /// Returns:
-    ///     RemoteEdges: a new collection restricted to the default layer.
-    pub fn default_layer(&self) -> PyRemoteEdges {
-        PyRemoteEdges::new(self.edges.default_layer())
-    }
-
-    /// Restrict to the given set of layers. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     names (list[str]): the names of the layers.
-    ///
-    /// Returns:
-    ///     RemoteEdges: a new collection restricted to those layers.
-    pub fn layers(&self, names: Vec<String>) -> PyRemoteEdges {
-        PyRemoteEdges::new(self.edges.layers(names))
-    }
-
-    /// Exclude the given set of layers. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     names (list[str]): the names of the layers to exclude.
-    ///
-    /// Returns:
-    ///     RemoteEdges: a new collection with those layers excluded.
-    pub fn exclude_layers(&self, names: Vec<String>) -> PyRemoteEdges {
-        PyRemoteEdges::new(self.edges.exclude_layers(names))
-    }
-
-    /// Restrict to the given set of valid layers. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     names (list[str]): the names of the valid layers.
-    ///
-    /// Returns:
-    ///     RemoteEdges: a new collection restricted to those valid layers.
-    pub fn valid_layers(&self, names: Vec<String>) -> PyRemoteEdges {
-        PyRemoteEdges::new(self.edges.valid_layers(names))
-    }
-
-    /// Exclude a specific valid layer from the view. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     name (str): the name of the valid layer to exclude.
-    ///
-    /// Returns:
-    ///     RemoteEdges: a new collection with that valid layer excluded.
-    pub fn exclude_valid_layer(&self, name: &str) -> PyRemoteEdges {
-        PyRemoteEdges::new(self.edges.exclude_valid_layer(name))
-    }
-
-    /// Exclude the given set of valid layers from the view. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     names (list[str]): the names of the valid layers to exclude.
-    ///
-    /// Returns:
-    ///     RemoteEdges: a new collection with those valid layers excluded.
-    pub fn exclude_valid_layers(&self, names: Vec<String>) -> PyRemoteEdges {
-        PyRemoteEdges::new(self.edges.exclude_valid_layers(names))
-    }
-
     /// Fan out this collection into one entry per event. Lazy — no RPC.
     ///
     /// Returns:
@@ -257,7 +68,7 @@ impl PyRemoteEdges {
     /// Returns:
     ///     RemoteEdges: a new collection in the sorted order.
     pub fn sorted(&self, sort_bys: Vec<PyEdgeSortBy>) -> PyRemoteEdges {
-        let inner: Vec<_> = sort_bys.into_iter().map(|s| s.inner).collect();
+        let inner: Vec<_> = sort_bys.into_iter().map(|s| s.inner.into()).collect();
         PyRemoteEdges::new(self.edges.sorted(inner))
     }
 
@@ -282,27 +93,6 @@ impl PyRemoteEdges {
         Ok(PyRemoteEdges::new(self.edges.filter(tree)?))
     }
 
-    /// Narrow this collection's membership by a filter expression — edge or
-    /// node predicates, graph views, or and/or/not combinations of them.
-    /// Unlike `.filter()`, the filter applies **only at this step** —
-    /// downstream traversals from the matching edges see the unfiltered
-    /// graph. Use `.filter()` for the propagating variant. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     filter (FilterExpr): a filter expression from `raphtory.filter`.
-    ///
-    /// Returns:
-    ///     RemoteEdges: a new collection narrowed to matching edges.
-    ///
-    /// Raises:
-    ///     ValueError: if the filter cannot be sent over the wire.
-    pub fn select(&self, filter: PyFilterExpr) -> PyResult<PyRemoteEdges> {
-        let tree = filter
-            .try_as_filter_tree()
-            .map_err(|e| PyValueError::new_err(e.to_string()))?;
-        Ok(PyRemoteEdges::new(self.edges.select(tree)?))
-    }
-
     /// `edges[filter]` — narrow this collection's membership by a filter
     /// expression, the sugar form of `.select(filter)` (matches the local
     /// `Edges.__getitem__`). Edge predicates, node predicates, graph views
@@ -317,16 +107,10 @@ impl PyRemoteEdges {
     /// Raises:
     ///     ValueError: if the filter cannot be sent over the wire.
     fn __getitem__(&self, filter: PyFilterExpr) -> PyResult<PyRemoteEdges> {
-        self.select(filter)
-    }
-
-    /// Returns the number of edges in this collection. Fires one RPC.
-    ///
-    /// Returns:
-    ///   int: the number of edges.
-    pub fn count(&self) -> Result<i64, ClientError> {
-        let edges = Arc::clone(&self.edges);
-        execute_async_task(move || async move { edges.count().await })
+        let tree = filter
+            .try_as_filter_tree()
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        Ok(PyRemoteEdges::new(self.edges.select(tree)?))
     }
 
     /// Check if this view has a layer named `name`. Fires one RPC.
@@ -593,3 +377,5 @@ impl PyRemoteEdgesIter {
         slf.inner.next()
     }
 }
+
+py_remote_view_ops!(PyRemoteEdges, edges, "RemoteEdges");

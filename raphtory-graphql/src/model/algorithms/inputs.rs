@@ -13,7 +13,7 @@ use raphtory_api::core::{entities::VID, Direction};
 /// Edge direction to follow during traversal.
 #[derive(Enum, Copy, Clone)]
 #[graphql(name = "Direction")]
-pub(crate) enum GqlDirection {
+pub enum GqlDirection {
     Out,
     In,
     Both,
@@ -32,7 +32,7 @@ impl From<GqlDirection> for Direction {
 /// How the initially infected nodes are chosen.
 #[derive(OneOfInput, Clone)]
 #[graphql(name = "Seeds")]
-pub(crate) enum GqlSeeds {
+pub enum GqlSeeds {
     /// Infect exactly these nodes.
     Nodes(Vec<GqlNodeId>),
     /// Infect this many randomly chosen nodes.

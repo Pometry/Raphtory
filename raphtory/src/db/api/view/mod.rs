@@ -7,6 +7,7 @@ pub mod history;
 pub mod internal;
 mod layer;
 pub(crate) mod node;
+pub mod sort;
 pub(crate) mod time;
 
 pub(crate) use edge::BaseEdgeViewOps;
@@ -15,7 +16,7 @@ use ouroboros::self_referencing;
 use std::marker::PhantomData;
 
 use crate::db::api::view::internal::{filtered_node::FilteredNodeStorageOps, GraphView};
-pub use filter_ops::{EdgeSelect, Filter};
+pub use filter_ops::{Filter, Select};
 pub use graph::*;
 pub use internal::{
     BoxableGraphView, DynamicGraph, InheritViewOps, IntoDynHop, IntoDynamic, MaterializedGraph,
@@ -32,6 +33,7 @@ pub use raphtory_api::{
     iter::{BoxedIter, BoxedLDIter, BoxedLIter, IntoDynBoxed},
 };
 use raphtory_storage::graph::{graph::GraphStorage, nodes::node_entry::NodeStorageEntry};
+pub use sort::{EdgeSortBy, EdgeSortKey, NodeSortBy, NodeSortKey, SortByTime};
 pub use time::*;
 
 #[self_referencing]

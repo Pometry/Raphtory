@@ -26,7 +26,7 @@ use crate::{
         },
     },
     errors::GraphError,
-    prelude::{GraphViewOps, LayerOps},
+    prelude::LayerOps,
 };
 use raphtory_api::core::{entities::Layer, storage::timeindex::EventTime};
 use std::{fmt, fmt::Display};
@@ -155,40 +155,46 @@ impl<T: TryAsCompositeFilter> TryAsCompositeFilter for Layered<T> {
 }
 
 impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for Layered<T> {
-    type EntityFiltered<'graph, G>
-        = T::EntityFiltered<'graph, G>
+    type EntityFiltered<'graph, G, F>
+        = T::EntityFiltered<'graph, G, F>
     where
-        G: GraphViewOps<'graph>;
+        G: GraphView + 'graph,
+        F: GraphView + 'graph;
 
-    type NodeFilter<'graph, G>
-        = T::NodeFilter<'graph, G>
+    type NodeFilter<'graph, G, F>
+        = T::NodeFilter<'graph, G, F>
     where
-        G: GraphView + 'graph;
+        G: GraphView + 'graph,
+        F: GraphView + 'graph;
 
     type FilteredGraph<'graph, G>
         = LayeredGraph<T::FilteredGraph<'graph, G>>
     where
         Self: 'graph,
-        G: GraphViewOps<'graph>;
+        G: GraphView + 'graph;
 
-    fn create_filter<'graph, G>(
+    fn create_filter<'graph, G, F>(
         self,
         graph: G,
-    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError>
-    where
-        G: GraphViewOps<'graph>,
-    {
-        self.inner.create_filter(graph)
-    }
-
-    fn create_node_filter<'graph, G>(
-        self,
-        graph: G,
-    ) -> Result<Self::NodeFilter<'graph, G>, GraphError>
+        filtered: F,
+    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError>
     where
         G: GraphView + 'graph,
+        F: GraphView + 'graph,
     {
-        self.inner.create_node_filter(graph)
+        self.inner.create_filter(graph, filtered)
+    }
+
+    fn create_node_filter<'graph, G, F>(
+        self,
+        graph: G,
+        filtered: F,
+    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError>
+    where
+        G: GraphView + 'graph,
+        F: GraphView + 'graph,
+    {
+        self.inner.create_node_filter(graph, filtered)
     }
 
     fn filter_graph_view<'graph, G: GraphView + 'graph>(

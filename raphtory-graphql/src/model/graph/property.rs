@@ -413,7 +413,7 @@ fn prop_to_gql(prop: &Prop) -> GqlValue {
 /// human-readable string (`asString`).
 #[derive(Clone, ResolvedObject)]
 #[graphql(name = "Property")]
-pub(crate) struct GqlProperty {
+pub struct GqlProperty {
     key: String,
     prop: Prop,
 }
@@ -433,26 +433,26 @@ impl From<(String, Prop)> for GqlProperty {
 #[ResolvedObjectFields]
 impl GqlProperty {
     /// The property key (name).
-    async fn key(&self) -> String {
+    pub async fn key(&self) -> String {
         self.key.clone()
     }
 
     /// The property value rendered as a human-readable string (e.g. `"10"`, `"hello"`,
     /// `"2024-01-01T00:00:00Z"`). For programmatic access use `value`, which returns
     /// a typed scalar.
-    async fn as_string(&self) -> String {
+    pub async fn as_string(&self) -> String {
         self.prop.to_string()
     }
 
     /// The property value as a typed `PropertyOutput` scalar — numbers come back as
     /// numbers, booleans as booleans, strings as strings, etc.
-    async fn value(&self) -> GqlPropertyOutputVal {
+    pub async fn value(&self) -> GqlPropertyOutputVal {
         GqlPropertyOutputVal(self.prop.clone())
     }
 
     /// The property's exact type, for type-directed decoding of `value`
     /// (`value` alone collapses e.g. all integer widths to one JSON number).
-    async fn dtype(&self) -> GqlPropTypeOutput {
+    pub async fn dtype(&self) -> GqlPropTypeOutput {
         GqlPropTypeOutput(self.prop.dtype())
     }
 }
@@ -462,7 +462,7 @@ impl GqlProperty {
 /// `median`, `orderedDedupe`).
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "PropertyTuple")]
-pub(crate) struct GqlPropertyTuple {
+pub struct GqlPropertyTuple {
     time: EventTime,
     prop: Prop,
 }
@@ -482,25 +482,25 @@ impl From<(EventTime, Prop)> for GqlPropertyTuple {
 #[ResolvedObjectFields]
 impl GqlPropertyTuple {
     /// The timestamp at which this value was recorded.
-    async fn time(&self) -> GqlEventTime {
+    pub async fn time(&self) -> GqlEventTime {
         self.time.into()
     }
 
     /// The value rendered as a human-readable string. For programmatic access use
     /// `value`, which returns a typed scalar.
-    async fn as_string(&self) -> String {
+    pub async fn as_string(&self) -> String {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.prop.to_string()).await
     }
 
     /// The value as a typed `PropertyOutput` scalar — numbers come back as numbers,
     /// booleans as booleans, etc.
-    async fn value(&self) -> GqlPropertyOutputVal {
+    pub async fn value(&self) -> GqlPropertyOutputVal {
         GqlPropertyOutputVal(self.prop.clone())
     }
 
     /// The value's exact type, for type-directed decoding of `value`.
-    async fn dtype(&self) -> GqlPropTypeOutput {
+    pub async fn dtype(&self) -> GqlPropTypeOutput {
         GqlPropTypeOutput(self.prop.dtype())
     }
 }
@@ -511,7 +511,7 @@ impl GqlPropertyTuple {
 /// `median`, `count`).
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "TemporalProperty")]
-pub(crate) struct GqlTemporalProperty {
+pub struct GqlTemporalProperty {
     key: String,
     prop: TemporalPropertyView<DynProps>,
 }
@@ -531,14 +531,14 @@ impl From<(String, TemporalPropertyView<DynProps>)> for GqlTemporalProperty {
 #[ResolvedObjectFields]
 impl GqlTemporalProperty {
     /// The property key (name).
-    async fn key(&self) -> String {
+    pub async fn key(&self) -> String {
         self.key.clone()
     }
 
     /// The property's declared type, for type-directed decoding of stored
     /// values (`values`, `at`, `latest`, `unique`, `min`, `max`, `median`,
     /// `orderedDedupe`). Aggregates (`sum`, `mean`, `average`) may widen.
-    async fn dtype(&self) -> GqlPropTypeOutput {
+    pub async fn dtype(&self) -> GqlPropTypeOutput {
         GqlPropTypeOutput(self.prop.dtype())
     }
 
@@ -547,14 +547,14 @@ impl GqlTemporalProperty {
     /// raw `timestamps` / `datetimes` / `eventId` lists, analyse gaps between
     /// updates via `intervals` (mean/median/min/max), ask `isEmpty`, or
     /// paginate the events.
-    async fn history(&self) -> GqlHistory {
+    pub async fn history(&self) -> GqlHistory {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.prop.history().into()).await
     }
 
     /// All values this property has ever taken, in temporal order (one per update).
     /// Typed as `PropertyOutput` so numeric values stay numeric.
-    async fn values(&self) -> Vec<GqlPropertyOutputVal> {
+    pub async fn values(&self) -> Vec<GqlPropertyOutputVal> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.prop.values().map(GqlPropertyOutputVal).collect()).await
     }
@@ -562,7 +562,7 @@ impl GqlTemporalProperty {
     /// The value at or before time `t` (latest update on or before `t`). Returns null
     /// if no update exists on or before `t`.
 
-    async fn at(
+    pub async fn at(
         &self,
         #[graphql(
             desc = "A TimeInput (epoch millis integer, RFC3339 string, or `{timestamp, eventId}` object)."
@@ -574,13 +574,13 @@ impl GqlTemporalProperty {
     }
 
     /// The most recent value, or null if the property has never been set in this view.
-    async fn latest(&self) -> Option<GqlPropertyOutputVal> {
+    pub async fn latest(&self) -> Option<GqlPropertyOutputVal> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.prop.latest().map(GqlPropertyOutputVal)).await
     }
 
     /// The set of distinct values this property has ever taken (order not guaranteed).
-    async fn unique(&self) -> Vec<GqlPropertyOutputVal> {
+    pub async fn unique(&self) -> Vec<GqlPropertyOutputVal> {
         let self_clone = self.clone();
         blocking_compute(move || {
             self_clone
@@ -595,7 +595,7 @@ impl GqlTemporalProperty {
 
     /// Collapses runs of consecutive-equal updates into a single `(time, value)` pair.
 
-    async fn ordered_dedupe(
+    pub async fn ordered_dedupe(
         &self,
         #[graphql(
             desc = "If true, each run is represented by its *last* timestamp; if false, by its *first*. Useful for compressing chatter in a timeline."
@@ -615,47 +615,47 @@ impl GqlTemporalProperty {
     }
 
     /// Sum of all updates. Returns null if the dtype is not additive or the property is empty.
-    async fn sum(&self) -> Option<GqlPropertyOutputVal> {
+    pub async fn sum(&self) -> Option<GqlPropertyOutputVal> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.prop.sum().map(GqlPropertyOutputVal)).await
     }
 
     /// Mean of all updates as an F64. Returns null if any value is non-numeric or the property is
     /// empty.
-    async fn mean(&self) -> Option<GqlPropertyOutputVal> {
+    pub async fn mean(&self) -> Option<GqlPropertyOutputVal> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.prop.mean().map(GqlPropertyOutputVal)).await
     }
 
     /// Alias for `mean` — same F64 average, same null cases.
-    async fn average(&self) -> Option<GqlPropertyOutputVal> {
+    pub async fn average(&self) -> Option<GqlPropertyOutputVal> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.prop.average().map(GqlPropertyOutputVal)).await
     }
 
     /// Minimum `(time, value)` pair. Returns null if the dtype is not comparable or the property is
     /// empty.
-    async fn min(&self) -> Option<GqlPropertyTuple> {
+    pub async fn min(&self) -> Option<GqlPropertyTuple> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.prop.min().map(GqlPropertyTuple::from)).await
     }
 
     /// Maximum `(time, value)` pair. Returns null if the dtype is not comparable or the property is
     /// empty.
-    async fn max(&self) -> Option<GqlPropertyTuple> {
+    pub async fn max(&self) -> Option<GqlPropertyTuple> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.prop.max().map(GqlPropertyTuple::from)).await
     }
 
     /// Median `(time, value)` pair (lower median on even-length inputs). Returns null if the dtype
     /// is not comparable or the property is empty.
-    async fn median(&self) -> Option<GqlPropertyTuple> {
+    pub async fn median(&self) -> Option<GqlPropertyTuple> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.prop.median().map(GqlPropertyTuple::from)).await
     }
 
     /// Number of updates recorded for this property in the current view.
-    async fn count(&self) -> usize {
+    pub async fn count(&self) -> usize {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.prop.count()).await
     }
@@ -666,7 +666,7 @@ impl GqlTemporalProperty {
 /// `keys` / `values`, or drop into `temporal` for time-aware accessors.
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "Properties")]
-pub(crate) struct GqlProperties {
+pub struct GqlProperties {
     props: DynProperties,
 }
 
@@ -690,7 +690,7 @@ impl<P: Into<DynProperties>> From<P> for GqlProperties {
 /// you need per-update iteration, time-indexed lookups, or aggregates.
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "TemporalProperties")]
-pub(crate) struct GqlTemporalProperties {
+pub struct GqlTemporalProperties {
     props: DynTemporalProperties,
 }
 
@@ -712,7 +712,7 @@ impl From<DynTemporalProperties> for GqlTemporalProperties {
 /// time-varying data.
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "Metadata")]
-pub(crate) struct GqlMetadata {
+pub struct GqlMetadata {
     props: DynMetadata,
 }
 
@@ -733,7 +733,7 @@ impl GqlProperties {
     /// Look up a single property by key. Returns null if no property with that key
     /// exists in the current view.
 
-    async fn get(
+    pub async fn get(
         &self,
         #[graphql(desc = "The property name.")] key: String,
     ) -> Option<GqlProperty> {
@@ -744,7 +744,7 @@ impl GqlProperties {
 
     /// Returns true if a property with the given key exists in this view.
 
-    async fn contains(
+    pub async fn contains(
         &self,
         #[graphql(desc = "The property name to look up.")] key: String,
     ) -> bool {
@@ -755,7 +755,7 @@ impl GqlProperties {
     /// display string (e.g. `"I64"`, `"Str"`, `"List<F64>"`). Returns null when
     /// the key isn't present. Mirrors the local `Properties.get_dtype_of`.
 
-    async fn get_dtype_of(
+    pub async fn get_dtype_of(
         &self,
         #[graphql(desc = "The property name.")] key: String,
     ) -> Option<String> {
@@ -764,7 +764,7 @@ impl GqlProperties {
 
     /// All property keys present in the current view. Does not include metadata
     /// — metadata is exposed separately via the entity's `metadata` field.
-    async fn keys(&self) -> Vec<String> {
+    pub async fn keys(&self) -> Vec<String> {
         let self_clone = self.clone();
         blocking_compute(move || {
             self_clone
@@ -778,7 +778,7 @@ impl GqlProperties {
 
     /// Snapshot of property values, one `{key, value}` entry per property.
 
-    async fn values(
+    pub async fn values(
         &self,
         #[graphql(
             desc = "Optional whitelist. If provided, only properties with these keys are returned; if omitted or null, every property in the view is returned."
@@ -806,7 +806,7 @@ impl GqlProperties {
 
     /// The temporal-only view of these properties — excludes metadata (which has no
     /// history) and lets you drill into per-key timelines and aggregates.
-    async fn temporal(&self) -> GqlTemporalProperties {
+    pub async fn temporal(&self) -> GqlTemporalProperties {
         self.props.temporal().into()
     }
 }
@@ -816,7 +816,7 @@ impl GqlMetadata {
     /// Look up a single metadata value by key. Returns null if no metadata with that
     /// key exists.
 
-    async fn get(
+    pub async fn get(
         &self,
         #[graphql(desc = "The metadata name.")] key: String,
     ) -> Option<GqlProperty> {
@@ -827,7 +827,7 @@ impl GqlMetadata {
 
     /// Returns true if a metadata entry with the given key exists.
 
-    async fn contains(
+    pub async fn contains(
         &self,
         #[graphql(desc = "The metadata name to look up.")] key: String,
     ) -> bool {
@@ -835,7 +835,7 @@ impl GqlMetadata {
     }
 
     /// All metadata keys present on this entity.
-    async fn keys(&self) -> Vec<String> {
+    pub async fn keys(&self) -> Vec<String> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.props.keys().map(|k| k.clone().into()).collect()).await
     }
@@ -874,7 +874,7 @@ impl GqlTemporalProperties {
     /// Look up a single temporal property by key. Returns null if there's no temporal
     /// property with that key.
 
-    async fn get(
+    pub async fn get(
         &self,
         #[graphql(desc = "The property name.")] key: String,
     ) -> Option<GqlTemporalProperty> {
@@ -883,7 +883,7 @@ impl GqlTemporalProperties {
 
     /// Returns true if a temporal property with the given key exists.
 
-    async fn contains(
+    pub async fn contains(
         &self,
         #[graphql(desc = "The property name to look up.")] key: String,
     ) -> bool {
@@ -891,7 +891,7 @@ impl GqlTemporalProperties {
     }
 
     /// All temporal-property keys present in this view.
-    async fn keys(&self) -> Vec<String> {
+    pub async fn keys(&self) -> Vec<String> {
         let self_clone = self.clone();
         blocking_compute(move || {
             self_clone
@@ -906,7 +906,7 @@ impl GqlTemporalProperties {
     /// All temporal properties, each as a `TemporalProperty` with its full timeline
     /// available. Use `history`, `values`, `latest`, `at`, etc. on each entry.
 
-    async fn values(
+    pub async fn values(
         &self,
         #[graphql(
             desc = "Optional whitelist. If provided, only temporal properties with these keys are returned; if omitted, every temporal property in the view is returned."
@@ -937,8 +937,8 @@ impl GqlTemporalProperties {
 mod value_serde_tests {
     use super::*;
 
-    // Datetime variants serialize to the schema field names `dtime`/`ndtime`
-    // (the OneOfInput @oneOf shape) — the same spelling on every path.
+    // Datetime variants must serialize to the schema field names `dtime`/`ndtime`
+    // (the OneOfInput @oneOf shape), NOT camelCase `dTime`/`nDTime`.
     #[test]
     fn datetime_variants_use_schema_field_names() {
         let d = serde_json::to_value(Value::DTime("2020-01-01T00:00:00Z".to_owned())).unwrap();

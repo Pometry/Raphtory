@@ -144,12 +144,12 @@ impl GraphqlTransport {
         "#;
 
         let variables = json!({
-            "path": json!(args.path),
+            "path": args.path,
             "time": input_time_var(&args.time),
             "name": gid_var(&args.id),
             "properties": opt_properties_var(&args.properties)?,
-            "nodeType": json!(args.node_type),
-            "layer": json!(args.layer),
+            "nodeType": args.node_type,
+            "layer": args.layer,
         });
         let res = self.client.query(query, variables).await?;
 
@@ -171,12 +171,12 @@ impl GraphqlTransport {
         "#;
 
         let variables = json!({
-            "path": json!(args.path),
+            "path": args.path,
             "time": input_time_var(&args.time),
             "name": gid_var(&args.id),
             "properties": opt_properties_var(&args.properties)?,
-            "nodeType": json!(args.node_type),
-            "layer": json!(args.layer),
+            "nodeType": args.node_type,
+            "layer": args.layer,
         });
         let res = self.client.query(query, variables).await?;
 
@@ -198,12 +198,12 @@ impl GraphqlTransport {
         "#;
 
         let variables = json!({
-            "path": json!(args.path),
+            "path": args.path,
             "time": input_time_var(&args.time),
             "src": gid_var(&args.src),
             "dst": gid_var(&args.dst),
             "properties": opt_properties_var(&args.properties)?,
-            "layer": json!(args.layer),
+            "layer": args.layer,
         });
         let res = self.client.query(query, variables).await?;
 
@@ -224,7 +224,7 @@ impl GraphqlTransport {
         "#;
 
         let variables = json!({
-            "path": json!(args.path),
+            "path": args.path,
             "t": input_time_var(&args.time),
             "properties": properties_var(&args.properties)?,
         });
@@ -247,7 +247,7 @@ impl GraphqlTransport {
         "#;
 
         let variables = json!({
-            "path": json!(args.path),
+            "path": args.path,
             "properties": properties_var(&args.properties)?,
         });
         let res = self.client.query(query, variables).await?;
@@ -269,7 +269,7 @@ impl GraphqlTransport {
         "#;
 
         let variables = json!({
-            "path": json!(args.path),
+            "path": args.path,
             "properties": properties_var(&args.properties)?,
         });
         let res = self.client.query(query, variables).await?;
@@ -291,11 +291,11 @@ impl GraphqlTransport {
         "#;
 
         let variables = json!({
-            "path": json!(args.path),
+            "path": args.path,
             "time": input_time_var(&args.time),
             "src": gid_var(&args.src),
             "dst": gid_var(&args.dst),
-            "layer": json!(args.layer),
+            "layer": args.layer,
         });
         let res = self.client.query(query, variables).await?;
 
@@ -315,9 +315,9 @@ impl GraphqlTransport {
         "#;
 
         let variables = json!({
-            "path": json!(args.path),
+            "path": args.path,
             "name": gid_var(&args.id),
-            "newType": json!(args.new_type),
+            "newType": args.new_type,
         });
         let res = self.client.query(query, variables).await?;
         ensure_write_target_present(&res, "node", format!("node '{}'", args.id))?;
@@ -340,11 +340,11 @@ impl GraphqlTransport {
         "#;
 
         let variables = json!({
-            "path": json!(args.path),
+            "path": args.path,
             "name": gid_var(&args.id),
             "time": input_time_var(&args.time),
             "properties": opt_properties_var(&args.properties)?,
-            "layer": json!(args.layer),
+            "layer": args.layer,
         });
         let res = self.client.query(query, variables).await?;
         ensure_write_target_present(&res, "node", format!("node '{}'", args.id))?;
@@ -366,7 +366,7 @@ impl GraphqlTransport {
         "#;
 
         let variables = json!({
-            "path": json!(args.path),
+            "path": args.path,
             "name": gid_var(&args.id),
             "properties": properties_var(&args.properties)?,
         });
@@ -390,7 +390,7 @@ impl GraphqlTransport {
         "#;
 
         let variables = json!({
-            "path": json!(args.path),
+            "path": args.path,
             "name": gid_var(&args.id),
             "properties": properties_var(&args.properties)?,
         });
@@ -415,12 +415,12 @@ impl GraphqlTransport {
         "#;
 
         let variables = json!({
-            "path": json!(args.path),
+            "path": args.path,
             "src": gid_var(&args.src),
             "dst": gid_var(&args.dst),
             "time": input_time_var(&args.time),
             "properties": opt_properties_var(&args.properties)?,
-            "layer": json!(args.layer),
+            "layer": args.layer,
         });
         let res = self.client.query(query, variables).await?;
         ensure_write_target_present(
@@ -447,11 +447,11 @@ impl GraphqlTransport {
         "#;
 
         let variables = json!({
-            "path": json!(args.path),
+            "path": args.path,
             "src": gid_var(&args.src),
             "dst": gid_var(&args.dst),
             "time": input_time_var(&args.time),
-            "layer": json!(args.layer),
+            "layer": args.layer,
         });
         let res = self.client.query(query, variables).await?;
         ensure_write_target_present(
@@ -478,11 +478,11 @@ impl GraphqlTransport {
         "#;
 
         let variables = json!({
-            "path": json!(args.path),
+            "path": args.path,
             "src": gid_var(&args.src),
             "dst": gid_var(&args.dst),
             "properties": properties_var(&args.properties)?,
-            "layer": json!(args.layer),
+            "layer": args.layer,
         });
         let res = self.client.query(query, variables).await?;
         ensure_write_target_present(
@@ -509,11 +509,11 @@ impl GraphqlTransport {
         "#;
 
         let variables = json!({
-            "path": json!(args.path),
+            "path": args.path,
             "src": gid_var(&args.src),
             "dst": gid_var(&args.dst),
             "properties": properties_var(&args.properties)?,
-            "layer": json!(args.layer),
+            "layer": args.layer,
         });
         let res = self.client.query(query, variables).await?;
         ensure_write_target_present(
@@ -536,7 +536,7 @@ impl GraphqlTransport {
         "#;
 
         let variables = json!({
-            "path": json!(args.path),
+            "path": args.path,
             "nodes": to_var(&args.nodes)?,
         });
         let res = self.client.query(query, variables).await?;
@@ -554,7 +554,7 @@ impl GraphqlTransport {
         "#;
 
         let variables = json!({
-            "path": json!(args.path),
+            "path": args.path,
             "edges": to_var(&args.edges)?,
         });
         let res = self.client.query(query, variables).await?;
@@ -572,10 +572,7 @@ impl GraphqlTransport {
             .client
             .query(&query, JsonValue::Object(variables))
             .await?;
-        // Re-wrap the response fields by moving them — `serde_json::to_value`
-        // here would deep-copy the entire payload on every read RPC.
-        let root = JsonValue::Object(res.into_iter().collect());
-        parse_read(expr, &root)
+        parse_read(expr, &res)
     }
 }
 
@@ -600,12 +597,6 @@ struct VarCollector {
 impl VarCollector {
     fn add_filter(&mut self, f: &GqlFilter) -> Result<String, ClientError> {
         self.add("GqlFilter!", f)
-    }
-
-    /// Register a property dict (`findNodes`/`findEdges` `propertiesDict` arg)
-    /// as a `[PropertyInput!]!` variable.
-    fn add_properties(&mut self, props: &HashMap<String, Prop>) -> Result<String, ClientError> {
-        self.add("[PropertyInput!]!", &properties_to_input(props)?)
     }
 
     /// Serialize `value`, register it as `$fN: <gql_type>`, and return `$fN`.
@@ -681,13 +672,28 @@ fn render_string_list(items: &[String]) -> String {
         .join(", ")
 }
 
-/// Append the optional `(keys: [..])` whitelist to a columnar `values` field.
-/// `None` (all columns) appends nothing.
-fn render_keys_filter(keys: &Option<Arc<[String]>>, out: &mut String) {
-    if let Some(keys) = keys {
-        out.push_str("(keys: [");
-        out.push_str(&render_string_list(keys));
-        out.push_str("])");
+/// Render the requested property columns as aliased single-key `get`s:
+/// `c0: get(key: "score") { value } c1: get(key: "tag") { value }`.
+///
+/// One field per column. The key is identical for every member, so shipping it
+/// per member is pure repetition — it is dropped, and the alias index *is* the
+/// column index, so the response needs no key matching to pivot: position
+/// carries the meaning. `dtype` stays: it disambiguates the value union when
+/// decoding (u64 vs i64, f32 vs f64).
+fn render_property_columns(keys: &[String], out: &mut String) {
+    use std::fmt::Write;
+    // An empty selection set is invalid GraphQL; both callers guarantee at
+    // least one key (`get` sends one, `fetch_all` returns early on none).
+    debug_assert!(!keys.is_empty(), "columnar fetch with no columns");
+    for (i, key) in keys.iter().enumerate() {
+        if i > 0 {
+            out.push(' ');
+        }
+        let _ = write!(
+            out,
+            "c{i}: get(key: {}) {{ value dtype }}",
+            render_gql_str(key)
+        );
     }
 }
 
@@ -946,11 +952,6 @@ fn render_view_op(op: &ViewOp) -> String {
         ViewOp::Latest => "latest".to_string(),
         ViewOp::SnapshotLatest => "snapshotLatest".to_string(),
         ViewOp::SnapshotAt { time } => format!("snapshotAt(time: {})", render_input_time(time)),
-        ViewOp::ShrinkWindow { start, end } => format!(
-            "shrinkWindow(start: {}, end: {})",
-            render_input_time(start),
-            render_input_time(end)
-        ),
         ViewOp::ShrinkStart { start } => {
             format!("shrinkStart(start: {})", render_input_time(start))
         }
@@ -983,7 +984,6 @@ fn view_op_json_key(op: &ViewOp) -> &'static str {
         ViewOp::Latest => "latest",
         ViewOp::SnapshotLatest => "snapshotLatest",
         ViewOp::SnapshotAt { .. } => "snapshotAt",
-        ViewOp::ShrinkWindow { .. } => "shrinkWindow",
         ViewOp::ShrinkStart { .. } => "shrinkStart",
         ViewOp::ShrinkEnd { .. } => "shrinkEnd",
         ViewOp::Layer { .. } => "layer",
@@ -1053,11 +1053,7 @@ fn render_read_into(
         }
         ReadExpr::ExcludeNodes { input, nodes } => {
             render_read_into(input, vars, out)?;
-            write!(
-                out,
-                " {{ excludeNodes(nodes: [{}])",
-                render_string_list(nodes)
-            )?;
+            write!(out, " {{ excludeNodes(nodes: [{}])", render_gid_list(nodes))?;
         }
         ReadExpr::TypeFilter { input, node_types } => {
             render_read_into(input, vars, out)?;
@@ -1104,6 +1100,24 @@ fn render_read_into(
         ReadExpr::HistoryReverse { input } => {
             render_read_into(input, vars, out)?;
             out.push_str(" { reverse");
+        }
+        ReadExpr::HistoryContains {
+            input,
+            timestamp,
+            event_id,
+        } => {
+            render_read_into(input, vars, out)?;
+            match event_id {
+                Some(event_id) => write!(
+                    out,
+                    " {{ contains(timestamp: {timestamp}, eventId: {event_id})"
+                )?,
+                None => write!(out, " {{ contains(timestamp: {timestamp})")?,
+            }
+        }
+        ReadExpr::HistoryValueContains { input, value } => {
+            render_read_into(input, vars, out)?;
+            write!(out, " {{ contains(value: {value})")?;
         }
         ReadExpr::Deletions { input } => {
             render_read_into(input, vars, out)?;
@@ -1431,11 +1445,11 @@ fn render_read_into(
             render_read_into(input, vars, out)?;
             out.push_str(
                 " { schema { \
-                nodes { typeName properties { key propertyType variants } \
-                    metadata { key propertyType variants } } \
+                nodes { typeName properties { key dtype variants } \
+                    metadata { key dtype variants } } \
                 layers { name edges { srcType dstType \
-                    properties { key propertyType variants } \
-                    metadata { key propertyType variants } } } }",
+                    properties { key dtype variants } \
+                    metadata { key dtype variants } } } }",
             );
         }
         // Terminals — no args after the field name
@@ -1708,57 +1722,44 @@ fn render_read_into(
             out.push_str(" { list { list { isSelfLoop } }");
         }
         // Columnar property / metadata accessors — descend per-member into the
-        // `metadata` / `properties` container and read all `{key, value}`
-        // entries. FLAT collections render `list { <container> { values { key
-        // value } } }`.
-        // A `Some` key whitelist renders as the server-side `values(keys: [..])`
-        // filter, so single-column reads never ship the other columns.
+        // `metadata` / `properties` container and read the requested columns
+        // as aliased single-key `get`s (see `render_property_columns`), so
+        // only those columns travel and nothing else ships over the wire.
         ReadExpr::CollectionMetadataValues { input, keys } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { list { metadata { values");
-            render_keys_filter(keys, out);
-            out.push_str(" { key value dtype } } }");
+            out.push_str(" { list { metadata { ");
+            render_property_columns(keys, out);
+            out.push_str(" } }");
         }
         ReadExpr::CollectionPropertiesValues { input, keys } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { list { properties { values");
-            render_keys_filter(keys, out);
-            out.push_str(" { key value dtype } } }");
+            out.push_str(" { list { properties { ");
+            render_property_columns(keys, out);
+            out.push_str(" } }");
         }
-        // NESTED collections render `list { list { <container> { values { key
-        // value } } } }`.
+        // NESTED collections render `list { list { <container> { .. } } }`.
         ReadExpr::NestedMetadataValues { input, keys } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { list { list { metadata { values");
-            render_keys_filter(keys, out);
-            out.push_str(" { key value dtype } } } }");
+            out.push_str(" { list { list { metadata { ");
+            render_property_columns(keys, out);
+            out.push_str(" } } }");
         }
         ReadExpr::NestedPropertiesValues { input, keys } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { list { list { properties { values");
-            render_keys_filter(keys, out);
-            out.push_str(" { key value dtype } } } }");
+            out.push_str(" { list { list { properties { ");
+            render_property_columns(keys, out);
+            out.push_str(" } } }");
         }
-        // Collection key lookup — the FIRST member's key set (mirrors the local
-        // views, whose `keys()` reads the first entity's filtered registry).
-        // `page(limit: 1)` keeps the wire cost at one member's key names.
-        ReadExpr::CollectionMetadataKeys { input } => {
+        // Collection key lookup — the server's registry-backed collection
+        // fields, which mirror the local views' `keys()` (the graph's
+        // registered keys for the entity kind; empty collection → empty list).
+        ReadExpr::CollectionMetadataKeys { input } | ReadExpr::NestedMetadataKeys { input } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { page(limit: 1) { metadata { keys } }");
+            out.push_str(" { metadataKeys");
         }
-        ReadExpr::CollectionPropertiesKeys { input } => {
+        ReadExpr::CollectionPropertiesKeys { input } | ReadExpr::NestedPropertiesKeys { input } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { page(limit: 1) { properties { keys } }");
-        }
-        // NESTED: first member of the first source (local nested views delegate
-        // to their first inner view, which reads ITS first member).
-        ReadExpr::NestedMetadataKeys { input } => {
-            render_read_into(input, vars, out)?;
-            out.push_str(" { page(limit: 1) { page(limit: 1) { metadata { keys } } }");
-        }
-        ReadExpr::NestedPropertiesKeys { input } => {
-            render_read_into(input, vars, out)?;
-            out.push_str(" { page(limit: 1) { page(limit: 1) { properties { keys } } }");
+            out.push_str(" { propertyKeys");
         }
         // Compound structured terminal on Graph: `sharedNeighbours(selectedNodes: [ids]) { name }`
         // — opens ONE net brace (the outer, before `sharedNeighbours`); the inner
@@ -1769,26 +1770,6 @@ fn render_read_into(
                 out,
                 " {{ sharedNeighbours(selectedNodes: [{}]) {{ id }}",
                 render_gid_list(ids)
-            )?;
-        }
-        // `findNodes(propertiesDict: [{key, value}]) { name }` — opens ONE net
-        // brace (before `findNodes`); inner `{ name }` is self-balanced.
-        ReadExpr::FindNodes { input, properties } => {
-            render_read_into(input, vars, out)?;
-            write!(
-                out,
-                " {{ findNodes(propertiesDict: {}) {{ id }}",
-                vars.add_properties(properties)?
-            )?;
-        }
-        // `findEdges(propertiesDict: [{key, value}]) { src { name } dst { name } }`
-        // — opens ONE net brace; the inner `src`/`dst` groups are self-balanced.
-        ReadExpr::FindEdges { input, properties } => {
-            render_read_into(input, vars, out)?;
-            write!(
-                out,
-                " {{ findEdges(propertiesDict: {}) {{ src {{ id }} dst {{ id }} }}",
-                vars.add_properties(properties)?
             )?;
         }
         ReadExpr::GetAllNodeTypes { input } => {
@@ -1899,15 +1880,13 @@ fn render_read_into(
             render_read_into(input, vars, out)?;
             out.push_str(" { end { timestamp eventId");
         }
-        // Remaining timestamp terminals stay bare `i64` (no local @property
-        // counterpart, so not part of the EventTime drop-in change).
         ReadExpr::EarliestEdgeTime { input } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { earliestEdgeTime { timestamp");
+            out.push_str(" { earliestEdgeTime { timestamp eventId");
         }
         ReadExpr::LatestEdgeTime { input } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { latestEdgeTime { timestamp");
+            out.push_str(" { latestEdgeTime { timestamp eventId");
         }
         ReadExpr::FirstUpdate { input } => {
             render_read_into(input, vars, out)?;
@@ -1943,6 +1922,8 @@ fn read_depth(expr: &ReadExpr) -> usize {
         | ReadExpr::History { input }
         | ReadExpr::CombinedHistory { input }
         | ReadExpr::HistoryReverse { input }
+        | ReadExpr::HistoryContains { input, .. }
+        | ReadExpr::HistoryValueContains { input, .. }
         | ReadExpr::Deletions { input }
         | ReadExpr::Nodes { input }
         | ReadExpr::Neighbours { input }
@@ -2034,8 +2015,6 @@ fn read_depth(expr: &ReadExpr) -> usize {
         | ReadExpr::NestedMetadataKeys { input }
         | ReadExpr::NestedPropertiesKeys { input }
         | ReadExpr::SharedNeighbours { input, .. }
-        | ReadExpr::FindNodes { input, .. }
-        | ReadExpr::FindEdges { input, .. }
         | ReadExpr::GetAllNodeTypes { input }
         | ReadExpr::PropertyGetDtypeOf { input, .. }
         | ReadExpr::CountNodes { input }
@@ -2238,116 +2217,132 @@ where
 /// `Prop::List` of `{key, value}` records. `container` is the JSON field name
 /// (`metadata` or `properties`); the element shape is
 /// `{ <container>: { values: [ {key, value}, ... ] } }`.
-fn member_property_entries(el: &JsonValue, container: &str) -> Result<Prop, ClientError> {
-    let values = el
-        .get(container)
-        .and_then(|c| c.get("values"))
-        .and_then(|v| v.as_array())
-        .ok_or_else(|| {
-            ClientError::InvalidResponse(format!(
-                "columnar element missing `{}.values` array",
-                container
-            ))
-        })?;
-    let items: Result<Vec<Prop>, ClientError> =
-        values.iter().map(json_to_property_record).collect();
-    Ok(Prop::List(items?.into()))
+/// Decode one member's aliased columns into `n` optional values, positionally.
+///
+/// `c{i}` is the column requested at index `i`; a `null` alias means this
+/// member has no value for that key. Each value is wrapped as a 0- or
+/// 1-element `Prop::List`, the convention the optional-column decoders use.
+fn member_column_values(
+    el: &JsonValue,
+    container: &str,
+    n: usize,
+) -> Result<Vec<Prop>, ClientError> {
+    let container_val = el.get(container).ok_or_else(|| {
+        ClientError::InvalidResponse(format!("columnar element missing `{}`", container))
+    })?;
+    (0..n)
+        .map(|i| match container_val.get(format!("c{i}")) {
+            // `null` is an answer: this member has no value for the key. A
+            // *missing* alias is not — every requested field comes back, as
+            // null at worst, so its absence is a protocol violation and must
+            // fail loudly rather than decode as an absent value.
+            None => Err(ClientError::InvalidResponse(format!(
+                "columnar response missing requested alias `c{i}`"
+            ))),
+            Some(JsonValue::Null) => Ok(Prop::List(Vec::<Prop>::new().into())),
+            Some(column) => {
+                let obj = column.as_object().ok_or_else(|| {
+                    ClientError::InvalidResponse(format!("columnar `c{i}` not a JSON object"))
+                })?;
+                let value_json = obj.get("value").ok_or_else(|| {
+                    ClientError::InvalidResponse(format!("columnar `c{i}` record missing `value`"))
+                })?;
+                Ok(Prop::List(
+                    vec![record_value_to_prop(obj, value_json)?].into(),
+                ))
+            }
+        })
+        .collect()
 }
 
-/// Map a flat `list` array of members into a per-member `Prop::List` of
-/// property/metadata `{key, value}` records.
+/// Transpose per-member decoded values into per-column lists.
+fn transpose(rows: Vec<Vec<Prop>>, n: usize) -> Vec<Prop> {
+    let mut columns: Vec<Vec<Prop>> = vec![Vec::with_capacity(rows.len()); n];
+    for row in rows {
+        for (col, value) in columns.iter_mut().zip(row) {
+            col.push(value);
+        }
+    }
+    columns
+        .into_iter()
+        .map(|col| Prop::List(col.into()))
+        .collect()
+}
+
+/// Decode a flat collection's aliased columns into one `Prop::List` per
+/// requested column, each holding a 0-or-1-element optional per member.
 fn build_property_column(
     terminal_val: &JsonValue,
     container: &str,
+    keys: &[String],
 ) -> Result<Option<Prop>, ClientError> {
     let arr = terminal_val
         .as_array()
         .ok_or_else(|| ClientError::InvalidResponse("columnar `list` not a JSON array".into()))?;
-    let rows: Result<Vec<Prop>, ClientError> = arr
+    let rows = arr
         .iter()
-        .map(|el| member_property_entries(el, container))
-        .collect();
-    Ok(Some(Prop::List(rows?.into())))
+        .map(|el| member_column_values(el, container, keys.len()))
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(Some(Prop::List(transpose(rows, keys.len()).into())))
 }
 
-/// Map the outer per-source `list` array (each element carrying its own inner
-/// `list` of members) into a per-source per-member `Prop::List` of
-/// property/metadata `{key, value}` records.
+/// Nested variant: one `Prop::List` per requested column, each holding one
+/// per-source list of optionals.
 fn build_nested_property_column(
     terminal_val: &JsonValue,
     container: &str,
+    keys: &[String],
 ) -> Result<Option<Prop>, ClientError> {
     let outer = terminal_val
         .as_array()
         .ok_or_else(|| ClientError::InvalidResponse("columnar `list` not a JSON array".into()))?;
-    let rows: Result<Vec<Prop>, ClientError> = outer
+    // Per source, the columns for that source's members.
+    let per_source = outer
         .iter()
         .map(|row| {
             let inner = row.get("list").and_then(|v| v.as_array()).ok_or_else(|| {
                 ClientError::InvalidResponse("columnar element missing inner `list` array".into())
             })?;
-            let members: Result<Vec<Prop>, ClientError> = inner
+            let rows = inner
                 .iter()
-                .map(|el| member_property_entries(el, container))
-                .collect();
-            Ok(Prop::List(members?.into()))
+                .map(|el| member_column_values(el, container, keys.len()))
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(transpose(rows, keys.len()))
         })
-        .collect();
-    Ok(Some(Prop::List(rows?.into())))
+        .collect::<Result<Vec<_>, ClientError>>()?;
+    // Regroup source-major into column-major.
+    let columns = transpose(per_source, keys.len());
+    Ok(Some(Prop::List(columns.into())))
 }
 
-/// Decode a collection key lookup: `terminal_val` is the limit-1 `page` array;
-/// the keys live at `[0].<container>.keys` (nested lookups tunnel through the
-/// inner limit-1 `page` first). An empty page — empty collection, or empty
-/// first source for nested — decodes to an empty key list, mirroring the local
-/// views' `unwrap_or_default()`.
-fn parse_first_member_keys(
-    terminal_val: &JsonValue,
-    container: &str,
-    nested: bool,
+fn parse_read(
+    expr: &ReadExpr,
+    root: &HashMap<String, JsonValue>,
 ) -> Result<Option<Prop>, ClientError> {
-    let page = terminal_val
-        .as_array()
-        .ok_or_else(|| ClientError::InvalidResponse("keys `page` not a JSON array".into()))?;
-    let Some(mut first) = page.first() else {
-        return Ok(Some(Prop::List(Vec::<Prop>::new().into())));
-    };
-    if nested {
-        let inner = first
-            .get("page")
-            .and_then(|v| v.as_array())
-            .ok_or_else(|| {
-                ClientError::InvalidResponse(
-                    "nested keys element missing inner `page` array".into(),
-                )
-            })?;
-        match inner.first() {
-            Some(member) => first = member,
-            None => return Ok(Some(Prop::List(Vec::<Prop>::new().into()))),
-        }
-    }
-    let keys = first
-        .get(container)
-        .and_then(|c| c.get("keys"))
-        .and_then(|k| k.as_array())
-        .ok_or_else(|| {
-            ClientError::InvalidResponse(format!("keys element missing `{container}.keys` array"))
-        })?;
-    let items: Result<Vec<Prop>, ClientError> = keys
-        .iter()
-        .map(|v| {
-            v.as_str()
-                .map(|s| Prop::Str(s.into()))
-                .ok_or_else(|| ClientError::InvalidResponse("property key is not a string".into()))
-        })
-        .collect();
-    Ok(Some(Prop::List(items?.into())))
-}
-
-fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientError> {
+    // The response map is indexed as-is — no re-wrapping into a `JsonValue`
+    // (which would rebuild the map) and no `serde_json::to_value` (which
+    // would deep-copy the payload). Everything below the root field borrows.
     let path = build_json_path(expr);
-    let mut cursor = root;
-    for key in &path[..path.len() - 1] {
+    // Every executable read names the graph root field plus a terminal, so the
+    // path has at least two segments. A bare `Root` has no terminal to read —
+    // reject it rather than indexing past the end (the slice below would panic).
+    let [first, rest @ ..] = path.as_slice() else {
+        return Err(ClientError::InvalidInput(
+            "read expression has no terminal to read".into(),
+        ));
+    };
+    if rest.is_empty() {
+        return Err(ClientError::InvalidInput(
+            "read expression has no terminal to read".into(),
+        ));
+    }
+    let mut cursor = root
+        .get(*first)
+        .ok_or_else(|| ClientError::InvalidResponse(format!("missing `{}` in response", first)))?;
+    if cursor.is_null() && path.len() > 1 {
+        return Err(build_not_found_error(expr, first));
+    }
+    for key in &rest[..rest.len() - 1] {
         cursor = cursor.get(*key).ok_or_else(|| {
             ClientError::InvalidResponse(format!("missing `{}` in response", key))
         })?;
@@ -2641,9 +2636,9 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
                 .collect();
             Ok(Some(Prop::List(items?.into())))
         }
-        // `sharedNeighbours { id }` / `findNodes { id }` — arrays of typed-id
-        // records; the client wraps each id in a `RemoteNode`.
-        ReadExpr::SharedNeighbours { .. } | ReadExpr::FindNodes { .. } => {
+        // `sharedNeighbours { id }` — an array of typed-id records; the
+        // client wraps each id in a `RemoteNode`.
+        ReadExpr::SharedNeighbours { .. } => {
             let arr = terminal_val.as_array().ok_or_else(|| {
                 ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
             })?;
@@ -2656,41 +2651,6 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
                             terminal_key
                         ))
                     })?)
-                })
-                .collect();
-            Ok(Some(Prop::List(items?.into())))
-        }
-        // `findEdges { src { name } dst { name } }` — array of edge records.
-        // Decode each into a 2-element inner list `[src, dst]`, matching the
-        // shape used by `EdgesList`; the client wraps each in a `RemoteEdge`.
-        ReadExpr::FindEdges { .. } => {
-            let arr = terminal_val.as_array().ok_or_else(|| {
-                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
-            })?;
-            let items: Result<Vec<Prop>, ClientError> = arr
-                .iter()
-                .map(|v| {
-                    let src = v
-                        .get("src")
-                        .and_then(|s| s.get("id"))
-                        .map(gid_prop)
-                        .transpose()?
-                        .ok_or_else(|| {
-                            ClientError::InvalidResponse(
-                                "findEdges element missing `src.id`".into(),
-                            )
-                        })?;
-                    let dst = v
-                        .get("dst")
-                        .and_then(|d| d.get("id"))
-                        .map(gid_prop)
-                        .transpose()?
-                        .ok_or_else(|| {
-                            ClientError::InvalidResponse(
-                                "findEdges element missing `dst.id`".into(),
-                            )
-                        })?;
-                    Ok(Prop::List(vec![src, dst].into()))
                 })
                 .collect();
             Ok(Some(Prop::List(items?.into())))
@@ -2869,12 +2829,20 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
                 .collect();
             Ok(Some(Prop::List(items?.into())))
         }
-        // `Schema`: the full nested schema tree. We reuse `json_to_prop` —
+        // `Schema`: the full nested schema tree. Each `dtype` is the serde
+        // form of `PropType`, which the generic Prop conversion would mangle
+        // (`{"Map": ...}` would become a `Prop::Map`), so each is re-encoded
+        // as its JSON text first and survives the tree as a string; the
+        // schema decoder deserializes it back into a real `PropType`.
         // the response is untagged JSON strings, arrays, and objects, all of
         // which `json_to_prop` decodes natively into a nested `Prop::Map` /
         // `Prop::List` tree. The call site walks that tree to build typed
         // `RemoteGraphSchema` structs.
-        ReadExpr::Schema { .. } => Ok(Some(json_to_prop(terminal_val)?)),
+        ReadExpr::Schema { .. } => {
+            let mut tree = terminal_val.clone();
+            stash_dtypes_as_json_text(&mut tree);
+            Ok(Some(json_to_prop(&tree)?))
+        }
         // Compound structured list terminal — JSON shape is
         // `[{"src":{"name":"X"},"dst":{"name":"Y"}}, ...]`. Decode each element
         // into a 2-element inner list `[src, dst]`, wrapped in an outer list.
@@ -3083,42 +3051,47 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
             build_nested_column(terminal_val, |v| col_bool_elem(v, "isSelfLoop"))
         }
         // Columnar property / metadata accessors — FLAT collections. Each `list`
-        // element carries a `<container> { values { key value } }` sub-object;
-        // decode into a per-member `Prop::List` of `{key, value}` records.
-        ReadExpr::CollectionMetadataValues { .. } => {
-            build_property_column(terminal_val, "metadata")
+        // element carries the aliased columns for one member; decode straight
+        // into one `Prop::List` per requested column.
+        ReadExpr::CollectionMetadataValues { keys, .. } => {
+            build_property_column(terminal_val, "metadata", keys)
         }
-        ReadExpr::CollectionPropertiesValues { .. } => {
-            build_property_column(terminal_val, "properties")
+        ReadExpr::CollectionPropertiesValues { keys, .. } => {
+            build_property_column(terminal_val, "properties", keys)
         }
         // Columnar property / metadata accessors — NESTED collections. The outer
         // `list` array holds per-source records, each with its own inner `list`
         // of members.
-        ReadExpr::NestedMetadataValues { .. } => {
-            build_nested_property_column(terminal_val, "metadata")
+        ReadExpr::NestedMetadataValues { keys, .. } => {
+            build_nested_property_column(terminal_val, "metadata", keys)
         }
-        ReadExpr::NestedPropertiesValues { .. } => {
-            build_nested_property_column(terminal_val, "properties")
+        ReadExpr::NestedPropertiesValues { keys, .. } => {
+            build_nested_property_column(terminal_val, "properties", keys)
         }
-        // Collection key lookup — `terminal_val` is the limit-1 `page` array;
-        // dig `[0].<container>.keys` (nested digs through the inner limit-1
-        // `page` first). An empty page (empty collection / empty first source)
-        // yields an empty key list, matching the local views.
-        ReadExpr::CollectionMetadataKeys { .. } => {
-            parse_first_member_keys(terminal_val, "metadata", false)
-        }
-        ReadExpr::CollectionPropertiesKeys { .. } => {
-            parse_first_member_keys(terminal_val, "properties", false)
-        }
-        ReadExpr::NestedMetadataKeys { .. } => {
-            parse_first_member_keys(terminal_val, "metadata", true)
-        }
-        ReadExpr::NestedPropertiesKeys { .. } => {
-            parse_first_member_keys(terminal_val, "properties", true)
+        // Collection key lookup — a plain string array from the server's
+        // registry-backed `propertyKeys`/`metadataKeys` fields.
+        ReadExpr::CollectionMetadataKeys { .. }
+        | ReadExpr::CollectionPropertiesKeys { .. }
+        | ReadExpr::NestedMetadataKeys { .. }
+        | ReadExpr::NestedPropertiesKeys { .. } => {
+            let arr = terminal_val.as_array().ok_or_else(|| {
+                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
+            })?;
+            let items: Result<Vec<Prop>, ClientError> = arr
+                .iter()
+                .map(|v| {
+                    v.as_str().map(|s| Prop::Str(s.into())).ok_or_else(|| {
+                        ClientError::InvalidResponse("property key is not a string".into())
+                    })
+                })
+                .collect();
+            Ok(Some(Prop::List(items?.into())))
         }
         // Bool-shaped terminals.
         ReadExpr::HasNode { .. }
         | ReadExpr::HasEdge { .. }
+        | ReadExpr::HistoryContains { .. }
+        | ReadExpr::HistoryValueContains { .. }
         | ReadExpr::IsActive { .. }
         | ReadExpr::IsValid { .. }
         | ReadExpr::IsDeleted { .. }
@@ -3164,6 +3137,8 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
         // object (e.g. an empty graph) maps to `Ok(None)`.
         ReadExpr::EarliestTime { .. }
         | ReadExpr::LatestTime { .. }
+        | ReadExpr::EarliestEdgeTime { .. }
+        | ReadExpr::LatestEdgeTime { .. }
         | ReadExpr::Start { .. }
         | ReadExpr::End { .. }
         | ReadExpr::Time { .. } => {
@@ -3188,11 +3163,9 @@ fn parse_read(expr: &ReadExpr, root: &JsonValue) -> Result<Option<Prop>, ClientE
             }
         }
         // Nullable i64-shaped terminals — server can return JSON `null`
-        // (e.g. an empty graph has no `earliestEdgeTime.timestamp`). We map
+        // (e.g. an empty history has no median interval). We map
         // JSON null → Ok(None); a valid number → Ok(Some(Prop::I64(n))).
-        ReadExpr::EarliestEdgeTime { .. }
-        | ReadExpr::LatestEdgeTime { .. }
-        | ReadExpr::FirstUpdate { .. }
+        ReadExpr::FirstUpdate { .. }
         | ReadExpr::LastUpdate { .. }
         | ReadExpr::WindowSize { .. }
         | ReadExpr::IntervalsMedian { .. }
@@ -3285,6 +3258,14 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
             ReadExpr::HistoryReverse { input } => {
                 go(input, out);
                 out.push("reverse");
+            }
+            ReadExpr::HistoryContains { input, .. } => {
+                go(input, out);
+                out.push("contains");
+            }
+            ReadExpr::HistoryValueContains { input, .. } => {
+                go(input, out);
+                out.push("contains");
             }
             ReadExpr::Deletions { input } => {
                 go(input, out);
@@ -3556,26 +3537,18 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
                 go(input, out);
                 out.push("list");
             }
-            // Collection key lookup navigates into the limit-1 `page`; the
-            // parse arm digs the rest (`[0].<container>.keys`).
-            ReadExpr::CollectionMetadataKeys { input }
-            | ReadExpr::CollectionPropertiesKeys { input }
-            | ReadExpr::NestedMetadataKeys { input }
+            ReadExpr::CollectionMetadataKeys { input } | ReadExpr::NestedMetadataKeys { input } => {
+                go(input, out);
+                out.push("metadataKeys");
+            }
+            ReadExpr::CollectionPropertiesKeys { input }
             | ReadExpr::NestedPropertiesKeys { input } => {
                 go(input, out);
-                out.push("page");
+                out.push("propertyKeys");
             }
             ReadExpr::SharedNeighbours { input, .. } => {
                 go(input, out);
                 out.push("sharedNeighbours");
-            }
-            ReadExpr::FindNodes { input, .. } => {
-                go(input, out);
-                out.push("findNodes");
-            }
-            ReadExpr::FindEdges { input, .. } => {
-                go(input, out);
-                out.push("findEdges");
             }
             ReadExpr::GetAllNodeTypes { input } => {
                 go(input, out);
@@ -3775,17 +3748,17 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
                 go(input, out);
                 out.push("end");
             }
-            // Remaining timestamp terminals — push TWO keys (outer + "timestamp").
+            // EventTime-shaped: the arm reads the whole object, so the path
+            // stops at the field (as `earliestTime` above does).
             ReadExpr::EarliestEdgeTime { input } => {
                 go(input, out);
                 out.push("earliestEdgeTime");
-                out.push("timestamp");
             }
             ReadExpr::LatestEdgeTime { input } => {
                 go(input, out);
                 out.push("latestEdgeTime");
-                out.push("timestamp");
             }
+            // Remaining timestamp terminals — push TWO keys (outer + "timestamp").
             ReadExpr::FirstUpdate { input } => {
                 go(input, out);
                 out.push("firstUpdate");
@@ -3815,6 +3788,25 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
 /// Decode a leaf property value from a JSON response. Delegates to the model's
 /// `gql_to_prop` (the single source of truth for JSON→`Prop` value semantics)
 /// after lifting `serde_json::Value` into `async_graphql::Value`.
+/// Replace every `dtype` value in a schema response with its own JSON text,
+/// so the typed form rides the `Prop` tree as an opaque string instead of
+/// being decoded as if it were property data.
+fn stash_dtypes_as_json_text(v: &mut JsonValue) {
+    match v {
+        JsonValue::Object(map) => {
+            for (key, value) in map.iter_mut() {
+                if key == "dtype" {
+                    *value = JsonValue::String(value.to_string());
+                } else {
+                    stash_dtypes_as_json_text(value);
+                }
+            }
+        }
+        JsonValue::Array(items) => items.iter_mut().for_each(stash_dtypes_as_json_text),
+        _ => {}
+    }
+}
+
 fn json_to_prop(v: &JsonValue) -> Result<Prop, ClientError> {
     let gql =
         GqlValue::from_json(v.clone()).map_err(|e| ClientError::InvalidResponse(e.to_string()))?;
@@ -3864,11 +3856,13 @@ fn json_to_prop_typed(dtype: &PropType, v: &JsonValue) -> Result<Prop, ClientErr
         PropType::Empty => json_to_prop(v)?,
         PropType::Str => Prop::Str(v.as_str().ok_or_else(|| mismatch("Str"))?.into()),
         PropType::Bool => Prop::Bool(v.as_bool().ok_or_else(|| mismatch("Bool"))?),
-        PropType::U8 => Prop::U8(uint("U8")? as u8),
-        PropType::U16 => Prop::U16(uint("U16")? as u16),
-        PropType::U32 => Prop::U32(uint("U32")? as u32),
+        // Narrowing conversions check the range: a value outside the declared
+        // width is a protocol error, not something to wrap silently.
+        PropType::U8 => Prop::U8(u8::try_from(uint("U8")?).map_err(|_| mismatch("U8"))?),
+        PropType::U16 => Prop::U16(u16::try_from(uint("U16")?).map_err(|_| mismatch("U16"))?),
+        PropType::U32 => Prop::U32(u32::try_from(uint("U32")?).map_err(|_| mismatch("U32"))?),
         PropType::U64 => Prop::U64(uint("U64")?),
-        PropType::I32 => Prop::I32(int("I32")? as i32),
+        PropType::I32 => Prop::I32(i32::try_from(int("I32")?).map_err(|_| mismatch("I32"))?),
         PropType::I64 => Prop::I64(int("I64")?),
         PropType::F32 => Prop::F32(float("F32")? as f32),
         PropType::F64 => Prop::F64(float("F64")?),
@@ -3943,12 +3937,18 @@ fn json_to_property_tuple(v: &JsonValue, dtype: Option<&PropType>) -> Result<Pro
     let time_obj = time_json.as_object().ok_or_else(|| {
         ClientError::InvalidResponse("property tuple `time` is not a JSON object".into())
     })?;
+    // A field that is present but the wrong type is a protocol error — dropping
+    // it here would be indistinguishable from the server not selecting it.
     let mut time_pairs: Vec<(&'static str, Prop)> = Vec::new();
-    if let Some(t) = time_obj.get("timestamp").and_then(|x| x.as_i64()) {
-        time_pairs.push(("timestamp", Prop::I64(t)));
-    }
-    if let Some(e) = time_obj.get("eventId").and_then(|x| x.as_i64()) {
-        time_pairs.push(("eventId", Prop::I64(e)));
+    for field in ["timestamp", "eventId"] {
+        if let Some(raw) = time_obj.get(field) {
+            let v = raw.as_i64().ok_or_else(|| {
+                ClientError::InvalidResponse(format!(
+                    "property tuple `time.{field}` is not an integer: `{raw}`"
+                ))
+            })?;
+            time_pairs.push((field, Prop::I64(v)));
+        }
     }
     let time_map = Prop::map(time_pairs);
     let value = match dtype {
@@ -4102,6 +4102,8 @@ fn child_input(expr: &ReadExpr) -> Option<&ReadExpr> {
         | ReadExpr::History { input }
         | ReadExpr::CombinedHistory { input }
         | ReadExpr::HistoryReverse { input }
+        | ReadExpr::HistoryContains { input, .. }
+        | ReadExpr::HistoryValueContains { input, .. }
         | ReadExpr::Deletions { input }
         | ReadExpr::Nodes { input }
         | ReadExpr::Neighbours { input }
@@ -4193,8 +4195,6 @@ fn child_input(expr: &ReadExpr) -> Option<&ReadExpr> {
         | ReadExpr::NestedMetadataKeys { input }
         | ReadExpr::NestedPropertiesKeys { input }
         | ReadExpr::SharedNeighbours { input, .. }
-        | ReadExpr::FindNodes { input, .. }
-        | ReadExpr::FindEdges { input, .. }
         | ReadExpr::GetAllNodeTypes { input }
         | ReadExpr::PropertyGetDtypeOf { input, .. }
         | ReadExpr::CountNodes { input }
@@ -4254,6 +4254,44 @@ fn child_input(expr: &ReadExpr) -> Option<&ReadExpr> {
 
 #[cfg(test)]
 mod tests {
+
+    /// A read expression with no terminal (a bare `Root`) is rejected, not
+    /// indexed past the end — the old slice arithmetic panicked in release.
+    #[test]
+    fn read_with_no_terminal_is_rejected() {
+        let root = ReadExpr::Root {
+            path: "g".into(),
+            graph_type: None,
+        };
+        let err = parse_read(&root, &HashMap::new()).unwrap_err();
+        assert!(
+            matches!(err, ClientError::InvalidInput(_)),
+            "bare Root must be InvalidInput, got {err:?}"
+        );
+    }
+
+    /// A value outside its declared width is a protocol error, never a silent
+    /// wrap (`300 as u8` would decode to 44).
+    #[test]
+    fn out_of_range_typed_decode_is_an_error_not_a_wrap() {
+        use raphtory_api::core::entities::properties::prop::PropType;
+        for (dtype, val) in [
+            (PropType::U8, json!(300)),
+            (PropType::U16, json!(70_000)),
+            (PropType::U32, json!(5_000_000_000u64)),
+            (PropType::I32, json!(3_000_000_000i64)),
+        ] {
+            let err = json_to_prop_typed(&dtype, &val).unwrap_err();
+            assert!(
+                matches!(err, ClientError::InvalidResponse(_)),
+                "{dtype:?} {val} must be InvalidResponse, got {err:?}"
+            );
+        }
+        assert_eq!(
+            json_to_prop_typed(&PropType::U8, &json!(255)).unwrap(),
+            Prop::U8(255)
+        );
+    }
     use super::*;
     use crate::{
         data::GqlGraphType,
@@ -4317,25 +4355,32 @@ mod tests {
         assert_eq!(query.matches('{').count(), query.matches('}').count());
     }
 
-    /// A `Some` key whitelist renders the server-side `values(keys: [..])`
-    /// filter; `None` renders bare `values` (all columns). Pins the lazy
-    /// single-column fetch shape.
+    /// Requested columns render as aliased single-key `get`s carrying only the
+    /// value and its dtype — no per-member key, since the alias index says
+    /// which column it is. `None` (every column) stays on `values`, which does
+    /// need the key.
     #[test]
-    fn columnar_values_render_keys_whitelist() {
+    fn columnar_values_render_aliased_columns() {
         let nodes = ReadExpr::Nodes {
             input: Arc::new(ReadExpr::Root {
                 path: "g".into(),
                 graph_type: None,
             }),
         };
+
+        // One requested column: a single aliased `get`, value and dtype only.
         let one = ReadExpr::CollectionPropertiesValues {
             input: Arc::new(nodes.clone()),
-            keys: Some(vec!["score".to_string()].into()),
+            keys: vec!["score".to_string()].into(),
         };
         let (query, _) = render_read(&one).unwrap();
         assert!(
-            query.contains("properties { values(keys: [\"score\"]) { key value dtype } }"),
-            "whitelist not rendered: {query}"
+            query.contains("properties { c0: get(key: \"score\") { value dtype } }"),
+            "single column not rendered as an aliased get: {query}"
+        );
+        assert!(
+            !query.contains(" key "),
+            "the per-member key should not be requested: {query}"
         );
         assert_eq!(
             query.matches('{').count(),
@@ -4343,22 +4388,24 @@ mod tests {
             "unbalanced braces in: {query}"
         );
 
-        let all = ReadExpr::CollectionPropertiesValues {
-            input: Arc::new(nodes),
-            keys: None,
+        // Two columns: one aliased field each, indices in request order.
+        let two = ReadExpr::CollectionPropertiesValues {
+            input: Arc::new(nodes.clone()),
+            keys: vec!["score".to_string(), "tag".to_string()].into(),
         };
-        let (query, _) = render_read(&all).unwrap();
+        let (query, _) = render_read(&two).unwrap();
         assert!(
-            query.contains("properties { values { key value dtype } }"),
-            "bare values not rendered: {query}"
+            query.contains(
+                "properties { c0: get(key: \"score\") { value dtype } c1: get(key: \"tag\") { value dtype } }"
+            ),
+            "two columns not rendered as ordered aliases: {query}"
         );
     }
 
-    /// Collection key lookup renders a `page(limit: 1)` selection — the first
-    /// member's key names, never the collection's property values. Nested
-    /// tunnels through the first source's own limit-1 page.
+    /// Collection key lookup renders the registry-backed collection field —
+    /// one field name, no member selection, flat and nested alike.
     #[test]
-    fn columnar_keys_render_first_member_page() {
+    fn columnar_keys_render_registry_field() {
         let nodes = ReadExpr::Nodes {
             input: Arc::new(ReadExpr::Root {
                 path: "g".into(),
@@ -4370,8 +4417,12 @@ mod tests {
         };
         let (query, _) = render_read(&flat).unwrap();
         assert!(
-            query.contains("page(limit: 1) { metadata { keys } }"),
-            "first-member keys not rendered: {query}"
+            query.contains("{ metadataKeys"),
+            "registry keys field not rendered: {query}"
+        );
+        assert!(
+            !query.contains("page(limit: 1)"),
+            "keys must not fetch a member page: {query}"
         );
         assert_eq!(
             query.matches('{').count(),
@@ -4384,40 +4435,14 @@ mod tests {
         };
         let (query, _) = render_read(&nested).unwrap();
         assert!(
-            query.contains("page(limit: 1) { page(limit: 1) { properties { keys } } }"),
-            "nested first-member keys not rendered: {query}"
+            query.contains("{ propertyKeys"),
+            "registry keys field not rendered: {query}"
         );
         assert_eq!(
             query.matches('{').count(),
             query.matches('}').count(),
             "unbalanced braces in: {query}"
         );
-    }
-
-    /// Decoding a key lookup: keys at `page[0].<container>.keys`; an empty
-    /// page (empty collection / empty first source) is an empty key list.
-    #[test]
-    fn parse_first_member_keys_shapes() {
-        let flat = json!([{ "metadata": { "keys": ["a", "b"] } }]);
-        let got = parse_first_member_keys(&flat, "metadata", false).unwrap();
-        assert_eq!(
-            got,
-            Some(Prop::List(
-                vec![Prop::Str("a".into()), Prop::Str("b".into())].into()
-            ))
-        );
-
-        let empty = json!([]);
-        let got = parse_first_member_keys(&empty, "metadata", false).unwrap();
-        assert_eq!(got, Some(Prop::List(Vec::<Prop>::new().into())));
-
-        let nested = json!([{ "page": [{ "properties": { "keys": ["x"] } }] }]);
-        let got = parse_first_member_keys(&nested, "properties", true).unwrap();
-        assert_eq!(got, Some(Prop::List(vec![Prop::Str("x".into())].into())));
-
-        let nested_empty_source = json!([{ "page": [] }]);
-        let got = parse_first_member_keys(&nested_empty_source, "properties", true).unwrap();
-        assert_eq!(got, Some(Prop::List(Vec::<Prop>::new().into())));
     }
 
     // ============ Unit tests for sort-by rendering ============
@@ -4803,9 +4828,10 @@ mod tests {
                 id: "ben".into(),
             }),
         };
-        let response = serde_json::json!({
-            "graph": { "node": { "degree": 42 } }
-        });
+        let response = HashMap::from([(
+            "graph".to_string(),
+            serde_json::json!({ "node": { "degree": 42 } }),
+        )]);
         let value = parse_read(&expr, &response).unwrap();
         match value {
             Some(Prop::I64(n)) => assert_eq!(n, 42),

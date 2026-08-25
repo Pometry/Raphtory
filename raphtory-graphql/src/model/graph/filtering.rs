@@ -10,7 +10,7 @@ use raphtory::{
     db::{
         api::{
             state::NodeOp,
-            view::{internal::GraphView, BoxableGraphView},
+            view::internal::{DynGraphArc, GraphView},
         },
         graph::views::filter::{
             model::{
@@ -39,7 +39,6 @@ use raphtory::{
         },
     },
     errors::GraphError,
-    prelude::GraphViewOps,
 };
 use raphtory_api::core::{
     entities::{properties::prop::Prop, Layer, GID},
@@ -97,8 +96,6 @@ pub enum GraphViewCollection {
     Before(GqlTimeInput),
     /// View after a specified time (start exclusive).
     After(GqlTimeInput),
-    /// Shrink a Window to a specified start and end time.
-    ShrinkWindow(Window),
     /// Set the window start to a specified time.
     ShrinkStart(GqlTimeInput),
     /// Set the window end to a specified time.
@@ -133,8 +130,6 @@ pub enum NodesViewCollection {
     Before(GqlTimeInput),
     /// View after a specified time (start exclusive).
     After(GqlTimeInput),
-    /// Shrink a Window to a specified start and end time.
-    ShrinkWindow(Window),
     /// Set the window start to a specified time.
     ShrinkStart(GqlTimeInput),
     /// Set the window end to a specified time.
@@ -169,8 +164,6 @@ pub enum NodeViewCollection {
     Before(GqlTimeInput),
     /// View after a specified time (start exclusive).
     After(GqlTimeInput),
-    /// Shrink a Window to a specified start and end time.
-    ShrinkWindow(Window),
     /// Set the window start to a specified time.
     ShrinkStart(GqlTimeInput),
     /// Set the window end to a specified time.
@@ -203,8 +196,6 @@ pub enum EdgesViewCollection {
     Before(GqlTimeInput),
     /// View after a specified time (start exclusive).
     After(GqlTimeInput),
-    /// Shrink a Window to a specified start and end time.
-    ShrinkWindow(Window),
     /// Set the window start to a specified time.
     ShrinkStart(GqlTimeInput),
     /// Set the window end to a specified time.
@@ -237,8 +228,6 @@ pub enum EdgeViewCollection {
     Before(GqlTimeInput),
     /// View after a specified time (start exclusive).
     After(GqlTimeInput),
-    /// Shrink a Window to a specified start and end time.
-    ShrinkWindow(Window),
     /// Set the window start to a specified time.
     ShrinkStart(GqlTimeInput),
     /// Set the window end to a specified time.
@@ -269,8 +258,6 @@ pub enum PathFromNodeViewCollection {
     Before(GqlTimeInput),
     /// View after a specified time (start exclusive).
     After(GqlTimeInput),
-    /// Shrink a Window to a specified start and end time.
-    ShrinkWindow(Window),
     /// Set the window start to a specified time.
     ShrinkStart(GqlTimeInput),
     /// Set the window end to a specified time.
@@ -682,31 +669,34 @@ impl TryFrom<GqlGraphFilter> for GqlFilter {
 }
 
 impl CreateFilter for GqlFilter {
-    type EntityFiltered<'graph, G: GraphViewOps<'graph>>
-        = Arc<dyn BoxableGraphView + 'graph>
+    type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph>
+        = DynGraphArc<'graph>
     where
         Self: 'graph;
 
-    type NodeFilter<'graph, G: GraphView + 'graph> = Arc<dyn NodeOp<Output = bool> + 'graph>;
+    type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
+        Arc<dyn NodeOp<Output = bool> + 'graph>;
 
     type FilteredGraph<'graph, G>
-        = Arc<dyn BoxableGraphView + 'graph>
+        = DynGraphArc<'graph>
     where
         Self: 'graph,
-        G: GraphViewOps<'graph>;
+        G: GraphView + 'graph;
 
-    fn create_filter<'graph, G: GraphViewOps<'graph>>(
+    fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         graph: G,
-    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
-        DynFilter::try_from(self)?.create_filter(graph)
+        filtered: F,
+    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
+        DynFilter::try_from(self)?.create_filter(graph, filtered)
     }
 
-    fn create_node_filter<'graph, G: GraphView + 'graph>(
+    fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         graph: G,
-    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
-        DynFilter::try_from(self)?.create_node_filter(graph)
+        filtered: F,
+    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
+        DynFilter::try_from(self)?.create_node_filter(graph, filtered)
     }
 
     fn filter_graph_view<'graph, G: GraphView + 'graph>(
@@ -920,17 +910,12 @@ impl NodeFieldCondition {
     }
 }
 
-/// Filters a built-in node field (`id`, `name`, `type`) using a `NodeFieldCondition`.
-///
-/// Example (GraphQL):
-/// ```graphql
-/// { Node: { field: NodeName, where: { Contains: "ali" } } }
-/// ```
+/// A condition on one specific built-in field — the payload of the per-field
+/// filter variants (`{ id: { where: ... } }`, `{ name: { where: ... } }`,
+/// `{ nodeType: { where: ... } }`).
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
-pub struct NodeFieldFilterNew {
-    /// Which built-in field to filter.
-    pub field: NodeField,
-    /// Condition applied to the selected field.
+pub struct NodeFieldWhere {
+    /// Condition applied to the field.
     ///
     /// Exposed as `where` in GraphQL.
     #[graphql(name = "where")]
@@ -1002,8 +987,14 @@ pub struct NodeLayersExpr {
 #[graphql(name = "NodeFilter")]
 #[serde(rename_all = "camelCase")]
 pub enum GqlNodeFilter {
-    /// Filters a built-in node field (ID, name, or type).
-    Node(NodeFieldFilterNew),
+    /// Filters the node id: `{ id: { where: ... } }`.
+    Id(NodeFieldWhere),
+
+    /// Filters the node name: `{ name: { where: ... } }`.
+    Name(NodeFieldWhere),
+
+    /// Filters the node type: `{ nodeType: { where: ... } }`.
+    NodeType(NodeFieldWhere),
 
     /// Filters a node property by name and condition.
     Property(PropertyFilterNew),
@@ -1868,19 +1859,27 @@ fn build_node_filter_from_prop_condition(
     }
 }
 
+/// Translate one built-in-field condition into the engine filter — shared by
+/// the per-field variants and the deprecated enum-argument spelling.
+fn node_field_filter(
+    field: NodeField,
+    where_: &NodeFieldCondition,
+) -> Result<CompositeNodeFilter, GraphError> {
+    let (field_name, field_value, operator) = translate_node_field_where(field, where_)?;
+    Ok(CompositeNodeFilter::Node(Filter {
+        field_name,
+        field_value,
+        operator,
+    }))
+}
+
 impl TryFrom<GqlNodeFilter> for CompositeNodeFilter {
     type Error = GraphError;
     fn try_from(filter: GqlNodeFilter) -> Result<Self, Self::Error> {
         match filter {
-            GqlNodeFilter::Node(node) => {
-                let (field_name, field_value, operator) =
-                    translate_node_field_where(node.field, &node.where_)?;
-                Ok(CompositeNodeFilter::Node(Filter {
-                    field_name,
-                    field_value,
-                    operator,
-                }))
-            }
+            GqlNodeFilter::Id(f) => node_field_filter(NodeField::NodeId, &f.where_),
+            GqlNodeFilter::Name(f) => node_field_filter(NodeField::NodeName, &f.where_),
+            GqlNodeFilter::NodeType(f) => node_field_filter(NodeField::NodeType, &f.where_),
             GqlNodeFilter::Degree(degree) => {
                 let core_direction: Direction = degree.direction.into();
 
@@ -2494,13 +2493,15 @@ pub struct GraphAccessFilter {
 // ============ Reverse conversion: engine filter → wire filter ============
 //
 // Used by the RemoteGraph Python client, which builds filters via the local
-// `PyFilterExpr` API (produces `CompositeNodeFilter`) then converts to
-// `GqlNodeFilter` for GraphQL transmission. The forward path
+// `PyFilterExpr` API (producing a `Composite*Filter`) and sends them as the
+// unified `GqlFilter` — the per-kind conversions here are the first half of
+// that, with `Composite*Filter -> GqlFilter` wrapping them. The forward path
 // (`TryFrom<GqlNodeFilter> for CompositeNodeFilter`, above) already exists.
 //
-// Not all `CompositeNodeFilter` variants have a lossless GQL counterpart —
-// for example, `Layer::All` has no single-layer-name representation on the
-// wire. Unsupported cases surface as `GraphError::InvalidGqlFilter`.
+// Not every engine filter has a lossless wire counterpart, and those cases
+// surface as `GraphError::InvalidGqlFilter` rather than being silently
+// dropped. (A `Layer::All` view op is not one of them: it restricts nothing,
+// so it is skipped while the rest of the chain is kept.)
 
 fn wrap<T>(t: T) -> Wrapped<T> {
     Wrapped(Box::new(t))
@@ -2609,12 +2610,13 @@ fn apply_ops_to_condition(base: PropCondition, ops: &[Op]) -> PropCondition {
     })
 }
 
-/// Map a `Filter` (built-in node field filter) → wire `NodeFieldFilterNew`.
-fn filter_to_node_field(f: Filter) -> Result<NodeFieldFilterNew, GraphError> {
-    let field = match f.field_name.as_str() {
-        "node_id" => NodeField::NodeId,
-        "node_name" => NodeField::NodeName,
-        "node_type" => NodeField::NodeType,
+/// Map a `Filter` (built-in node field filter) → the per-field wire variant
+/// (`Id` / `Name` / `NodeType`).
+fn filter_to_node_field(f: Filter) -> Result<GqlNodeFilter, GraphError> {
+    let variant: fn(NodeFieldWhere) -> GqlNodeFilter = match f.field_name.as_str() {
+        "node_id" => GqlNodeFilter::Id,
+        "node_name" => GqlNodeFilter::Name,
+        "node_type" => GqlNodeFilter::NodeType,
         other => {
             return Err(GraphError::InvalidGqlFilter(format!(
                 "unknown node field name for wire conversion: {}",
@@ -2658,7 +2660,7 @@ fn filter_to_node_field(f: Filter) -> Result<NodeFieldFilterNew, GraphError> {
             )))
         }
     };
-    Ok(NodeFieldFilterNew { field, where_ })
+    Ok(variant(NodeFieldWhere { where_ }))
 }
 
 /// Map a `Layer` (engine) → `Vec<String>` names for the wire.
@@ -2682,7 +2684,7 @@ impl TryFrom<CompositeNodeFilter> for GqlNodeFilter {
     type Error = GraphError;
     fn try_from(f: CompositeNodeFilter) -> Result<Self, Self::Error> {
         Ok(match f {
-            CompositeNodeFilter::Node(filter) => GqlNodeFilter::Node(filter_to_node_field(filter)?),
+            CompositeNodeFilter::Node(filter) => filter_to_node_field(filter)?,
 
             CompositeNodeFilter::Property(pf) => {
                 let base = build_base_prop_condition(pf.operator, &pf.prop_value)?;
@@ -2983,16 +2985,14 @@ mod filter_serde_goldens {
     // coercion, the persisted auth-store `GraphAccessFilter`, and the client
     // all depend on these EXACT shapes. Pin them so a stray `#[serde(rename)]`
     // is caught here, not at e2e time or by an invalidated permission store.
-
     #[test]
-    fn node_field_filter_golden() {
-        let f = GqlNodeFilter::Node(NodeFieldFilterNew {
-            field: NodeField::NodeName,
+    fn per_field_filter_golden() {
+        let f = GqlNodeFilter::Name(NodeFieldWhere {
             where_: NodeFieldCondition::Eq(Value::Str("alice".into())),
         });
         assert_eq!(
             serde_json::to_value(&f).unwrap(),
-            serde_json::json!({"node": {"field": "NODE_NAME", "where": {"eq": {"str": "alice"}}}})
+            serde_json::json!({"name": {"where": {"eq": {"str": "alice"}}}})
         );
     }
 
@@ -3019,7 +3019,7 @@ mod filter_serde_goldens {
 
     #[test]
     fn datetime_value_golden() {
-        // Serialization uses the schema field name `dtime` — the same on every path.
+        // Serialization uses the schema field name `dtime`...
         let v = Value::DTime("2020-01-01T00:00:00Z".into());
         assert_eq!(
             serde_json::to_value(&v).unwrap(),
@@ -3089,19 +3089,19 @@ mod gql_filter_serde_tests {
         let cases = [
             (
                 GqlFilter::Node(node_prop_eq("x", 1)),
-                r#"{"node":{"property":{"name":"x","where":{"eq":{"i64":1}}}}}"#,
+                r#"{"nodes":{"property":{"name":"x","where":{"eq":{"i64":1}}}}}"#,
             ),
             (
                 GqlFilter::And(vec![GqlFilter::Node(node_prop_eq("x", 1))]),
-                r#"{"and":[{"node":{"property":{"name":"x","where":{"eq":{"i64":1}}}}}]}"#,
+                r#"{"and":[{"nodes":{"property":{"name":"x","where":{"eq":{"i64":1}}}}}]}"#,
             ),
             (
                 GqlFilter::Or(vec![GqlFilter::Node(node_prop_eq("x", 1))]),
-                r#"{"or":[{"node":{"property":{"name":"x","where":{"eq":{"i64":1}}}}}]}"#,
+                r#"{"or":[{"nodes":{"property":{"name":"x","where":{"eq":{"i64":1}}}}}]}"#,
             ),
             (
                 GqlFilter::Not(wrap(GqlFilter::Node(node_prop_eq("x", 1)))),
-                r#"{"not":{"node":{"property":{"name":"x","where":{"eq":{"i64":1}}}}}}"#,
+                r#"{"not":{"nodes":{"property":{"name":"x","where":{"eq":{"i64":1}}}}}}"#,
             ),
         ];
         for (filter, expected) in cases {
@@ -3185,7 +3185,9 @@ mod fuzzy_search_tests {
     #[test]
     fn node_name_fuzzy_round_trips_through_the_wire() {
         let core = NodeFilterBuilder::name().fuzzy_search("ben", 1, true);
-        let wire = filter_to_node_field(core.0).unwrap();
+        let GqlNodeFilter::Name(wire) = filter_to_node_field(core.0).unwrap() else {
+            panic!("expected the per-field name variant");
+        };
         let NodeFieldCondition::FuzzySearch(ref f) = wire.where_ else {
             panic!("expected fuzzySearch condition, got {:?}", wire.where_);
         };
@@ -3214,8 +3216,7 @@ mod conversion_hole_tests {
     // builder's `V: Into<GID>` bound.
     #[test]
     fn node_id_ordering_accepts_string_gids() {
-        let filter = GqlNodeFilter::Node(NodeFieldFilterNew {
-            field: NodeField::NodeId,
+        let filter = GqlNodeFilter::Id(NodeFieldWhere {
             where_: NodeFieldCondition::Gt(Value::Str("m".into())),
         });
         assert!(CompositeNodeFilter::try_from(filter).is_ok());
@@ -3253,7 +3254,7 @@ mod conversion_hole_tests {
         }));
         let gql = GqlNodeFilter::try_from(layered).unwrap();
         assert!(
-            matches!(gql, GqlNodeFilter::Node(_)),
+            matches!(gql, GqlNodeFilter::Name(_)),
             "Layer::All should drop the layer wrapper, got {gql:?}"
         );
     }

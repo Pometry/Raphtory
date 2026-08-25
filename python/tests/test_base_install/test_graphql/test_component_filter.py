@@ -8,7 +8,7 @@ Filter selects use `expr: {isValid: true}` as a pass-all edge expression.
 import pytest
 
 from raphtory import Graph
-from utils import graphql_client
+from utils import graphql_server
 
 
 @pytest.fixture(scope="module")
@@ -20,7 +20,7 @@ def client():
     g.add_edge(0, "b", "c", layer="owns")
     g.add_edge(0, "a", "x", layer="has")
     g.add_edge(0, "b", "y", layer="has")
-    with graphql_client(g) as c:
+    with graphql_server(g) as c:
         yield c
 
 
@@ -55,7 +55,7 @@ def test_out_component_scoped_by_node_filter(client):
         client,
         "a",
         "outComponent",
-        '{node: {node: {field: NODE_NAME, where: {isIn: {list: [{str: "b"}, {str: "c"}]}}}}}',
+        '{node: {name: {where: {isIn: {list: [{str: "b"}, {str: "c"}]}}}}}',
     ) == ["b", "c"]
 
 
@@ -76,16 +76,16 @@ def test_component_filter_and_or_combinators(client):
         client,
         "a",
         "outComponent",
-        '{node: {or: [{node: {field: NODE_NAME, where: {eq: {str: "b"}}}}, '
-        '{node: {field: NODE_NAME, where: {eq: {str: "c"}}}}]}}',
+        '{node: {or: [{name: {where: {eq: {str: "b"}}}}, '
+        '{name: {where: {eq: {str: "c"}}}}]}}',
     ) == ["b", "c"]
     # node AND: step through nodes that are neither x nor y
     assert _names(
         client,
         "a",
         "outComponent",
-        '{node: {and: [{node: {field: NODE_NAME, where: {ne: {str: "x"}}}}, '
-        '{node: {field: NODE_NAME, where: {ne: {str: "y"}}}}]}}',
+        '{node: {and: [{name: {where: {ne: {str: "x"}}}}, '
+        '{name: {where: {ne: {str: "y"}}}}]}}',
     ) == ["b", "c"]
     # edge OR: follow owns OR has edges -> everything downstream
     assert _names(
@@ -112,7 +112,7 @@ def test_component_top_level_and_or_across_kinds(client):
         "a",
         "outComponent",
         '{and: [{graph: {layers: {names: ["owns"]}}}, '
-        '{node: {node: {field: NODE_NAME, where: {ne: {str: "c"}}}}}]}',
+        '{node: {name: {where: {ne: {str: "c"}}}}}]}',
     ) == ["b"]
     # graph(has layer) OR edge(owns layer) -> everything downstream
     assert _names(
@@ -131,7 +131,7 @@ def test_in_component_scoped_by_filters(client):
         client,
         "c",
         "inComponent",
-        '{node: {node: {field: NODE_NAME, where: {isIn: {list: [{str: "a"}, {str: "b"}]}}}}}',
+        '{node: {name: {where: {isIn: {list: [{str: "a"}, {str: "b"}]}}}}}',
     ) == ["a", "b"]
     # edge filter
     assert _names(
@@ -154,7 +154,7 @@ def test_component_respects_an_external_graph_filter(client):
     # A graph-level filter (here removing `x`) applied before the walk must be honoured — the
     # returned nodes are over that already-filtered graph.
     q = (
-        '{ graph(path: "g") { filterNodes: filter(expr: {node: {node: {field: NODE_NAME, where: {ne: {str: "x"}}}}}) '
+        '{ graph(path: "g") { filterNodes: filter(expr: {nodes: {name: {where: {ne: {str: "x"}}}}}) '
         '{ node(name: "a") { outComponent { list { name } } } } } }'
     )
     got = client.query(q)["graph"]["filterNodes"]["node"]["outComponent"]["list"]
@@ -165,8 +165,8 @@ def test_component_external_graph_filter_composed_with_select(client):
     # External graph filter (remove `c`) AND a component `select` (owns layer) compose: the
     # owns walk from `a` would reach b, c — but c is filtered out, leaving only b.
     q = (
-        '{ graph(path: "g") { filterNodes: filter(expr: {node: {node: {field: NODE_NAME, where: {ne: {str: "c"}}}}}) '
-        '{ node(name: "a") { outComponent(select: {edge: {layers: {names: ["owns"], expr: {isValid: true}}}}) '
+        '{ graph(path: "g") { filterNodes: filter(expr: {nodes: {name: {where: {ne: {str: "c"}}}}}) '
+        '{ node(name: "a") { outComponent(select: {edges: {layers: {names: ["owns"], expr: {isValid: true}}}}) '
         "{ list { name } } } } } }"
     )
     got = client.query(q)["graph"]["filterNodes"]["node"]["outComponent"]["list"]

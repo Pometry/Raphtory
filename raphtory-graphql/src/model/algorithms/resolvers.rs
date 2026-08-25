@@ -111,7 +111,7 @@ impl GqlAlgorithms {
 #[ResolvedObjectFields]
 impl GqlAlgorithms {
     /// Returns the PageRank centrality of every node in the graph.
-    async fn pagerank(
+    pub async fn pagerank(
         &self,
         #[graphql(desc = "Number of iterations to run. Defaults to 20.")] iter_count: Option<usize>,
         #[graphql(desc = "Number of threads to use. Defaults to all available.")] threads: Option<
@@ -139,12 +139,12 @@ impl GqlAlgorithms {
     }
 
     /// Returns the degree centrality of every node.
-    async fn degree_centrality(&self) -> GqlNodeState {
+    pub async fn degree_centrality(&self) -> GqlNodeState {
         self.run(|graph| degree_centrality(&graph).into()).await
     }
 
     /// Returns the betweenness centrality of every node.
-    async fn betweenness_centrality(
+    pub async fn betweenness_centrality(
         &self,
         #[graphql(desc = "Number of nodes to sample. Defaults to all nodes.")] k: Option<usize>,
         #[graphql(desc = "Whether to normalize the values. Defaults to true.")] normalized: Option<
@@ -156,7 +156,7 @@ impl GqlAlgorithms {
     }
 
     /// Returns the HITS hub and authority scores of every node.
-    async fn hits(
+    pub async fn hits(
         &self,
         #[graphql(desc = "Number of iterations to run. Defaults to 20.")] iter_count: Option<usize>,
         #[graphql(desc = "Number of threads to use. Defaults to all available.")] threads: Option<
@@ -168,7 +168,7 @@ impl GqlAlgorithms {
     }
 
     /// Returns the shortest (unweighted) path from `source` to every reachable node.
-    async fn single_source_shortest_path(
+    pub async fn single_source_shortest_path(
         &self,
         #[graphql(desc = "Source node id.")] source: GqlNodeId,
         #[graphql(desc = "Optional maximum path length; stops the search once reached.")]
@@ -179,7 +179,7 @@ impl GqlAlgorithms {
     }
 
     /// Returns the in component (all nodes that can reach it following out-edges) of every node.
-    async fn in_components(
+    pub async fn in_components(
         &self,
         #[graphql(
             desc = "Optional composite filter (node, edge, and graph-view); the algorithm runs on the resulting view."
@@ -199,7 +199,7 @@ impl GqlAlgorithms {
     }
 
     /// Returns the out component (all reachable nodes following out-edges) of every node.
-    async fn out_components(
+    pub async fn out_components(
         &self,
         #[graphql(
             desc = "Optional composite filter (node, edge, and graph-view); the algorithm runs on the resulting view."
@@ -219,7 +219,7 @@ impl GqlAlgorithms {
     }
 
     /// Returns the in component of a single node (nodes that can reach it, with their distance).
-    async fn in_component(
+    pub async fn in_component(
         &self,
         #[graphql(desc = "Node id.")] node: GqlNodeId,
         #[graphql(
@@ -240,7 +240,7 @@ impl GqlAlgorithms {
     }
 
     /// Returns the out component of a single node (nodes it can reach, with their distance).
-    async fn out_component(
+    pub async fn out_component(
         &self,
         #[graphql(desc = "Node id.")] node: GqlNodeId,
         #[graphql(
@@ -262,7 +262,7 @@ impl GqlAlgorithms {
 
     /// Returns the local triangle count of a single node (0 if it has degree < 2), or null if
     /// the node does not exist in the view.
-    async fn local_triangle_count(
+    pub async fn local_triangle_count(
         &self,
         #[graphql(desc = "Node id.")] node: GqlNodeId,
     ) -> Option<usize> {
@@ -272,7 +272,7 @@ impl GqlAlgorithms {
 
     /// Returns the local clustering coefficient of a single node (0 if it has degree < 2), or
     /// null if the node does not exist in the view.
-    async fn local_clustering_coefficient(
+    pub async fn local_clustering_coefficient(
         &self,
         #[graphql(desc = "Node id.")] node: GqlNodeId,
     ) -> Option<f64> {
@@ -281,19 +281,19 @@ impl GqlAlgorithms {
     }
 
     /// Returns the weakly connected component id of every node.
-    async fn weakly_connected_components(&self) -> GqlNodeState {
+    pub async fn weakly_connected_components(&self) -> GqlNodeState {
         self.run(|graph| weakly_connected_components(&graph).into())
             .await
     }
 
     /// Returns the strongly connected component id of every node.
-    async fn strongly_connected_components(&self) -> GqlNodeState {
+    pub async fn strongly_connected_components(&self) -> GqlNodeState {
         self.run(|graph| strongly_connected_components(&graph).into())
             .await
     }
 
     /// Returns the community of every node (Louvain).
-    async fn louvain(
+    pub async fn louvain(
         &self,
         #[graphql(desc = "Resolution parameter for modularity. Defaults to 1.0.")]
         resolution: Option<f64>,
@@ -317,7 +317,7 @@ impl GqlAlgorithms {
     }
 
     /// Returns the community of every node (label propagation).
-    async fn label_propagation(
+    pub async fn label_propagation(
         &self,
         #[graphql(desc = "Number of iterations to run. Defaults to 20.")] iter_count: Option<usize>,
         #[graphql(desc = "Number of threads to use. Defaults to all available.")] threads: Option<
@@ -331,7 +331,7 @@ impl GqlAlgorithms {
     }
 
     /// Returns the weighted shortest path from `source` to each of `targets` (Dijkstra).
-    async fn dijkstra(
+    pub async fn dijkstra(
         &self,
         #[graphql(desc = "Source node id.")] source: GqlNodeId,
         #[graphql(desc = "Target node ids.")] targets: Vec<GqlNodeId>,
@@ -356,13 +356,13 @@ impl GqlAlgorithms {
     }
 
     /// Returns the local reciprocity of every node.
-    async fn all_local_reciprocity(&self) -> GqlNodeState {
+    pub async fn all_local_reciprocity(&self) -> GqlNodeState {
         self.run(move |graph| all_local_reciprocity(&graph).into())
             .await
     }
 
     /// Returns the net sum of edge weights (balance) of every node.
-    async fn balance(
+    pub async fn balance(
         &self,
         #[graphql(desc = "Edge property to use as weight. Defaults to `weight`.")] name: Option<
             String,
@@ -384,7 +384,7 @@ impl GqlAlgorithms {
     }
 
     /// Returns the local clustering coefficient of each of the given nodes.
-    async fn local_clustering_coefficient_batch(
+    pub async fn local_clustering_coefficient_batch(
         &self,
         #[graphql(desc = "Node ids to compute the coefficient for.")] nodes: Vec<GqlNodeId>,
     ) -> GqlNodeState {
@@ -393,58 +393,58 @@ impl GqlAlgorithms {
     }
 
     /// Returns the global clustering coefficient of the graph.
-    async fn global_clustering_coefficient(&self) -> f64 {
+    pub async fn global_clustering_coefficient(&self) -> f64 {
         self.run(|graph| global_clustering_coefficient(&graph))
             .await
     }
 
     /// Returns the directed graph density (fraction of possible directed edges present).
-    async fn directed_graph_density(&self) -> f64 {
+    pub async fn directed_graph_density(&self) -> f64 {
         self.run(|graph| directed_graph_density(&graph)).await
     }
 
     /// Returns the global reciprocity of the graph.
-    async fn global_reciprocity(&self) -> f64 {
+    pub async fn global_reciprocity(&self) -> f64 {
         self.run(|graph| global_reciprocity(&graph)).await
     }
 
     /// Returns the average (undirected) degree of the graph's nodes.
-    async fn average_degree(&self) -> f64 {
+    pub async fn average_degree(&self) -> f64 {
         self.run(|graph| average_degree(&graph)).await
     }
 
     /// Returns the maximum (undirected) degree of any node in the graph.
-    async fn max_degree(&self) -> usize {
+    pub async fn max_degree(&self) -> usize {
         self.run(|graph| max_degree(&graph)).await
     }
 
     /// Returns the minimum (undirected) degree of any node in the graph.
-    async fn min_degree(&self) -> usize {
+    pub async fn min_degree(&self) -> usize {
         self.run(|graph| min_degree(&graph)).await
     }
 
     /// Returns the maximum out-degree of any node in the graph.
-    async fn max_out_degree(&self) -> usize {
+    pub async fn max_out_degree(&self) -> usize {
         self.run(|graph| max_out_degree(&graph)).await
     }
 
     /// Returns the maximum in-degree of any node in the graph.
-    async fn max_in_degree(&self) -> usize {
+    pub async fn max_in_degree(&self) -> usize {
         self.run(|graph| max_in_degree(&graph)).await
     }
 
     /// Returns the minimum out-degree of any node in the graph.
-    async fn min_out_degree(&self) -> usize {
+    pub async fn min_out_degree(&self) -> usize {
         self.run(|graph| min_out_degree(&graph)).await
     }
 
     /// Returns the minimum in-degree of any node in the graph.
-    async fn min_in_degree(&self) -> usize {
+    pub async fn min_in_degree(&self) -> usize {
         self.run(|graph| min_in_degree(&graph)).await
     }
 
     /// Returns the number of connected triplets (paths of length 2) in the graph.
-    async fn triplet_count(
+    pub async fn triplet_count(
         &self,
         #[graphql(desc = "Number of threads to use. Defaults to all available.")] threads: Option<
             usize,
@@ -454,7 +454,7 @@ impl GqlAlgorithms {
     }
 
     /// Returns the number of triangles in the graph.
-    async fn triangle_count(
+    pub async fn triangle_count(
         &self,
         #[graphql(desc = "Number of threads to use. Defaults to all available.")] threads: Option<
             usize,
@@ -464,7 +464,7 @@ impl GqlAlgorithms {
     }
 
     /// Returns the FastRP embedding of every node.
-    async fn fast_rp(
+    pub async fn fast_rp(
         &self,
         #[graphql(desc = "Dimension of the embedding.")] embedding_dim: usize,
         #[graphql(desc = "Normalization strength applied to neighbour contributions.")]
@@ -491,7 +491,7 @@ impl GqlAlgorithms {
     }
 
     /// Returns the nodes temporally reachable from `seedNodes` starting at `startTime`.
-    async fn temporally_reachable_nodes(
+    pub async fn temporally_reachable_nodes(
         &self,
         #[graphql(desc = "Maximum number of hops to traverse.")] max_hops: usize,
         #[graphql(desc = "Time at which the traversal starts.")] start_time: i64,
@@ -513,7 +513,7 @@ impl GqlAlgorithms {
     }
 
     /// Returns the 2D layout position of every node (Fruchterman-Reingold).
-    async fn fruchterman_reingold(
+    pub async fn fruchterman_reingold(
         &self,
         #[graphql(desc = "Number of iterations to run. Defaults to 100.")] iter_count: Option<u64>,
         #[graphql(desc = "Scale of the layout. Defaults to 1.0.")] scale: Option<f64>,
@@ -536,7 +536,7 @@ impl GqlAlgorithms {
     }
 
     /// Returns the 2D layout position of every node (cohesive Fruchterman-Reingold).
-    async fn cohesive_fruchterman_reingold(
+    pub async fn cohesive_fruchterman_reingold(
         &self,
         #[graphql(desc = "Number of iterations to run. Defaults to 100.")] iter_count: Option<u64>,
         #[graphql(desc = "Scale of the layout. Defaults to 1.0.")] scale: Option<f64>,
@@ -559,7 +559,7 @@ impl GqlAlgorithms {
     }
 
     /// Returns the local temporal three-node motif counts of every node.
-    async fn local_temporal_three_node_motifs(
+    pub async fn local_temporal_three_node_motifs(
         &self,
         #[graphql(desc = "Maximum time difference between the first and last edge of a motif.")]
         delta: i64,
@@ -573,7 +573,7 @@ impl GqlAlgorithms {
 
     /// Returns the graph-wide temporal three-node motif counts: 40 counts in a
     /// fixed order (8 two-node, 24 star, then 8 triangle motifs).
-    async fn global_temporal_three_node_motif(
+    pub async fn global_temporal_three_node_motif(
         &self,
         #[graphql(desc = "Maximum time difference between the first and last edge of a motif.")]
         delta: i64,
@@ -587,7 +587,7 @@ impl GqlAlgorithms {
 
     /// Returns the graph-wide temporal three-node motif counts for each of
     /// `deltas`, one row of 40 counts per delta, in the order given.
-    async fn global_temporal_three_node_motif_multi(
+    pub async fn global_temporal_three_node_motif_multi(
         &self,
         #[graphql(desc = "Maximum time differences to compute the motif counts for.")] deltas: Vec<
             i64,
@@ -613,7 +613,7 @@ impl GqlAlgorithms {
     /// nodes of degree at least `k` that persists over `windowSize` consecutive
     /// snapshots. The snapshots are the rolling windows described by
     /// `rollingWindow` / `rollingStep`.
-    async fn temporal_rich_club_coefficient(
+    pub async fn temporal_rich_club_coefficient(
         &self,
         #[graphql(desc = "Minimum degree a node must have to be in the rich club.")] k: usize,
         #[graphql(desc = "Number of consecutive snapshots the edges must persist over.")]
@@ -637,7 +637,7 @@ impl GqlAlgorithms {
 
     /// Simulates an SEIR epidemic, returning the infection, activation and
     /// recovery times of every node that was infected.
-    async fn temporal_seir(
+    pub async fn temporal_seir(
         &self,
         #[graphql(desc = "How the initially infected nodes are chosen.")] seeds: GqlSeeds,
         #[graphql(
@@ -675,7 +675,7 @@ impl GqlAlgorithms {
     }
 
     /// Returns a maximum weight matching of the graph, treated as undirected.
-    async fn max_weight_matching(
+    pub async fn max_weight_matching(
         &self,
         #[graphql(desc = "Edge property to use as weight. If unset, all edges have weight 1.")]
         weight_prop: Option<String>,

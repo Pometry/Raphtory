@@ -1,5 +1,5 @@
 use crate::{
-    core::storage::lazy_vec::IllegalSet,
+    algorithms::dynamics::temporal::epidemics::SeedError, core::storage::lazy_vec::IllegalSet,
     db::graph::views::filter::model::filter_operator::FilterOperator, prelude::GraphViewOps,
 };
 use arrow::{datatypes::DataType, error::ArrowError};
@@ -28,12 +28,11 @@ use std::{
 };
 use storage::{error::StorageError, resolver::mapping_resolver::InvalidNodeId};
 
-use crate::algorithms::dynamics::temporal::epidemics::SeedError;
 #[cfg(feature = "python")]
 use pyo3::PyErr;
-use tempfile::PersistError;
+
 #[cfg(feature = "io")]
-use zip::result::ZipError;
+use {tempfile::PersistError, zip::result::ZipError};
 
 #[cfg(feature = "vectors")]
 use crate::vectors::embeddings::EmbeddingError;
@@ -118,6 +117,7 @@ pub enum GraphError {
     #[error(transparent)]
     ExternalError(Arc<dyn std::error::Error + Send + Sync>),
 
+    #[cfg(feature = "io")]
     #[error(transparent)]
     PersistError(#[from] PersistError),
 

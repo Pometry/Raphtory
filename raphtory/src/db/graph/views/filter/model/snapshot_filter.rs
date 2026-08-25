@@ -24,7 +24,6 @@ use crate::{
         },
     },
     errors::GraphError,
-    prelude::GraphViewOps,
 };
 use raphtory_api::core::{storage::timeindex::EventTime, utils::time::IntoTime};
 use std::{fmt, fmt::Display};
@@ -135,40 +134,46 @@ impl<T: TryAsCompositeFilter> TryAsCompositeFilter for SnapshotAt<T> {
 }
 
 impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for SnapshotAt<T> {
-    type EntityFiltered<'graph, G>
-        = T::EntityFiltered<'graph, G>
+    type EntityFiltered<'graph, G, F>
+        = T::EntityFiltered<'graph, G, F>
     where
-        G: GraphViewOps<'graph>;
+        G: GraphView + 'graph,
+        F: GraphView + 'graph;
 
-    type NodeFilter<'graph, G>
-        = T::NodeFilter<'graph, G>
+    type NodeFilter<'graph, G, F>
+        = T::NodeFilter<'graph, G, F>
     where
-        G: GraphView + 'graph;
+        G: GraphView + 'graph,
+        F: GraphView + 'graph;
 
     type FilteredGraph<'graph, G>
         = WindowedGraph<T::FilteredGraph<'graph, G>>
     where
         Self: 'graph,
-        G: GraphViewOps<'graph>;
+        G: GraphView + 'graph;
 
-    fn create_filter<'graph, G>(
+    fn create_filter<'graph, G, F>(
         self,
         graph: G,
-    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError>
-    where
-        G: GraphViewOps<'graph>,
-    {
-        self.inner.create_filter(graph)
-    }
-
-    fn create_node_filter<'graph, G>(
-        self,
-        graph: G,
-    ) -> Result<Self::NodeFilter<'graph, G>, GraphError>
+        filtered: F,
+    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError>
     where
         G: GraphView + 'graph,
+        F: GraphView + 'graph,
     {
-        self.inner.create_node_filter(graph)
+        self.inner.create_filter(graph, filtered)
+    }
+
+    fn create_node_filter<'graph, G, F>(
+        self,
+        graph: G,
+        filtered: F,
+    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError>
+    where
+        G: GraphView + 'graph,
+        F: GraphView + 'graph,
+    {
+        self.inner.create_node_filter(graph, filtered)
     }
 
     fn filter_graph_view<'graph, G: GraphView + 'graph>(
@@ -336,39 +341,45 @@ impl<T: TryAsCompositeFilter> TryAsCompositeFilter for SnapshotLatest<T> {
 }
 
 impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for SnapshotLatest<T> {
-    type EntityFiltered<'graph, G>
-        = T::EntityFiltered<'graph, G>
+    type EntityFiltered<'graph, G, F>
+        = T::EntityFiltered<'graph, G, F>
     where
-        G: GraphViewOps<'graph>;
+        G: GraphView + 'graph,
+        F: GraphView + 'graph;
 
-    type NodeFilter<'graph, G>
-        = T::NodeFilter<'graph, G>
+    type NodeFilter<'graph, G, F>
+        = T::NodeFilter<'graph, G, F>
     where
-        G: GraphView + 'graph;
+        G: GraphView + 'graph,
+        F: GraphView + 'graph;
     type FilteredGraph<'graph, G>
         = WindowedGraph<T::FilteredGraph<'graph, G>>
     where
         Self: 'graph,
-        G: GraphViewOps<'graph>;
+        G: GraphView + 'graph;
 
-    fn create_filter<'graph, G>(
+    fn create_filter<'graph, G, F>(
         self,
         graph: G,
-    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError>
-    where
-        G: GraphViewOps<'graph>,
-    {
-        self.inner.create_filter(graph)
-    }
-
-    fn create_node_filter<'graph, G>(
-        self,
-        graph: G,
-    ) -> Result<Self::NodeFilter<'graph, G>, GraphError>
+        filtered: F,
+    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError>
     where
         G: GraphView + 'graph,
+        F: GraphView + 'graph,
     {
-        self.inner.create_node_filter(graph)
+        self.inner.create_filter(graph, filtered)
+    }
+
+    fn create_node_filter<'graph, G, F>(
+        self,
+        graph: G,
+        filtered: F,
+    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError>
+    where
+        G: GraphView + 'graph,
+        F: GraphView + 'graph,
+    {
+        self.inner.create_node_filter(graph, filtered)
     }
 
     fn filter_graph_view<'graph, G: GraphView + 'graph>(

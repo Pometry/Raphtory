@@ -61,10 +61,10 @@ GRAPH_READS = [
     ("has_node_absent", lambda g: g.has_node("nobody")),
     ("ben_degree", lambda g: g.node("ben").degree()),
     ("node_absent_is_none", lambda g: g.node("nobody")),
-    ("window_edge_count", lambda g: g.window(0, 5).edges.count()),
-    ("before_excludes", lambda g: g.before(3).edges.count()),
-    ("after_excludes", lambda g: g.after(3).edges.count()),
-    ("at_includes", lambda g: g.at(3).edges.count()),
+    ("window_edge_count", lambda g: len(g.window(0, 5).edges)),
+    ("before_excludes", lambda g: len(g.before(3).edges)),
+    ("after_excludes", lambda g: len(g.after(3).edges)),
+    ("at_includes", lambda g: len(g.at(3).edges)),
 ]
 
 

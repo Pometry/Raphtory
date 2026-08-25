@@ -1,3 +1,4 @@
+use super::view_ops::py_remote_view_ops;
 use crate::{
     client::{op::input_time_from_parts, remote_edge::RemoteEdge, ClientError},
     python::client::{
@@ -12,10 +13,9 @@ use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_t
 use raphtory_api::{
     core::{
         entities::{properties::prop::Prop, GID},
-        storage::timeindex::{AsTime, EventTime},
         utils::time::InputTime,
     },
-    python::timeindex::PyOptionalEventTime,
+    python::timeindex::{EventTimeComponent, PyOptionalEventTime},
 };
 use std::{collections::HashMap, sync::Arc};
 
@@ -40,18 +40,6 @@ impl PyRemoteEdge {
 
 #[pymethods]
 impl PyRemoteEdge {
-    /// Time-window this edge. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     start (TimeInput): inclusive start of the window.
-    ///     end (TimeInput): exclusive end of the window.
-    ///
-    /// Returns:
-    ///     RemoteEdge: a new view restricted to the window.
-    pub fn window(&self, start: InputTime, end: InputTime) -> PyRemoteEdge {
-        PyRemoteEdge::new(self.edge.window(start, end))
-    }
-
     /// Return a filtered view of this edge — the filter propagates to
     /// everything reached through it. Accepts node or edge filter
     /// expressions; mirrors the local `Edge.filter`. Lazy — no RPC.
@@ -71,185 +59,6 @@ impl PyRemoteEdge {
         Ok(PyRemoteEdge::new(self.edge.filter(tree)?))
     }
 
-    /// Restrict to a single named layer. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     name (str): the name of the layer.
-    ///
-    /// Returns:
-    ///     RemoteEdge: a new view restricted to that layer.
-    pub fn layer(&self, name: &str) -> PyRemoteEdge {
-        PyRemoteEdge::new(self.edge.layer(name))
-    }
-
-    /// Snapshot at a specific time. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     time (TimeInput): the time to snapshot at.
-    ///
-    /// Returns:
-    ///     RemoteEdge: a new view snapshotted at that time.
-    pub fn at(&self, time: InputTime) -> PyRemoteEdge {
-        PyRemoteEdge::new(self.edge.at(time))
-    }
-
-    /// Restrict to events strictly before the given time. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     time (TimeInput): only events strictly before this time are kept.
-    ///
-    /// Returns:
-    ///     RemoteEdge: a new view restricted to events before that time.
-    pub fn before(&self, time: InputTime) -> PyRemoteEdge {
-        PyRemoteEdge::new(self.edge.before(time))
-    }
-
-    /// Restrict to events strictly after the given time (exclusive). Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     time (TimeInput): only events strictly after this time are kept.
-    ///
-    /// Returns:
-    ///     RemoteEdge: a new view restricted to events after that time.
-    pub fn after(&self, time: InputTime) -> PyRemoteEdge {
-        PyRemoteEdge::new(self.edge.after(time))
-    }
-
-    /// Latest state. Lazy — no RPC.
-    ///
-    /// Returns:
-    ///     RemoteEdge: a new view of the latest state.
-    pub fn latest(&self) -> PyRemoteEdge {
-        PyRemoteEdge::new(self.edge.latest())
-    }
-
-    /// Snapshot at the latest time. Lazy — no RPC.
-    ///
-    /// Returns:
-    ///     RemoteEdge: a new view snapshotted at the latest time.
-    pub fn snapshot_latest(&self) -> PyRemoteEdge {
-        PyRemoteEdge::new(self.edge.snapshot_latest())
-    }
-
-    /// Snapshot at a specific time. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     time (TimeInput): the time to snapshot at.
-    ///
-    /// Returns:
-    ///     RemoteEdge: a new view snapshotted at that time.
-    pub fn snapshot_at(&self, time: InputTime) -> PyRemoteEdge {
-        PyRemoteEdge::new(self.edge.snapshot_at(time))
-    }
-
-    /// Exclude a specific layer from the view. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     name (str): the name of the layer to exclude.
-    ///
-    /// Returns:
-    ///     RemoteEdge: a new view with that layer excluded.
-    pub fn exclude_layer(&self, name: &str) -> PyRemoteEdge {
-        PyRemoteEdge::new(self.edge.exclude_layer(name))
-    }
-
-    /// Shrink both start and end of the current window. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     start (TimeInput): the new inclusive start of the window.
-    ///     end (TimeInput): the new exclusive end of the window.
-    ///
-    /// Returns:
-    ///     RemoteEdge: a new view with both window bounds shrunk.
-    pub fn shrink_window(&self, start: InputTime, end: InputTime) -> PyRemoteEdge {
-        PyRemoteEdge::new(self.edge.shrink_window(start, end))
-    }
-
-    /// Shrink the start of the current window. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     start (TimeInput): the new inclusive start of the window.
-    ///
-    /// Returns:
-    ///     RemoteEdge: a new view with the window start shrunk.
-    pub fn shrink_start(&self, start: InputTime) -> PyRemoteEdge {
-        PyRemoteEdge::new(self.edge.shrink_start(start))
-    }
-
-    /// Shrink the end of the current window. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     end (TimeInput): the new exclusive end of the window.
-    ///
-    /// Returns:
-    ///     RemoteEdge: a new view with the window end shrunk.
-    pub fn shrink_end(&self, end: InputTime) -> PyRemoteEdge {
-        PyRemoteEdge::new(self.edge.shrink_end(end))
-    }
-
-    /// Restrict to the default layer. Lazy — no RPC.
-    ///
-    /// Returns:
-    ///     RemoteEdge: a new view restricted to the default layer.
-    pub fn default_layer(&self) -> PyRemoteEdge {
-        PyRemoteEdge::new(self.edge.default_layer())
-    }
-
-    /// Restrict to the given set of layers. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     names (list[str]): the names of the layers.
-    ///
-    /// Returns:
-    ///     RemoteEdge: a new view restricted to those layers.
-    pub fn layers(&self, names: Vec<String>) -> PyRemoteEdge {
-        PyRemoteEdge::new(self.edge.layers(names))
-    }
-
-    /// Exclude the given set of layers from the view. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     names (list[str]): the names of the layers to exclude.
-    ///
-    /// Returns:
-    ///     RemoteEdge: a new view with those layers excluded.
-    pub fn exclude_layers(&self, names: Vec<String>) -> PyRemoteEdge {
-        PyRemoteEdge::new(self.edge.exclude_layers(names))
-    }
-
-    /// Restrict to the given set of valid layers. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     names (list[str]): the names of the valid layers.
-    ///
-    /// Returns:
-    ///     RemoteEdge: a new view restricted to those valid layers.
-    pub fn valid_layers(&self, names: Vec<String>) -> PyRemoteEdge {
-        PyRemoteEdge::new(self.edge.valid_layers(names))
-    }
-
-    /// Exclude a specific valid layer from the view. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     name (str): the name of the valid layer to exclude.
-    ///
-    /// Returns:
-    ///     RemoteEdge: a new view with that valid layer excluded.
-    pub fn exclude_valid_layer(&self, name: &str) -> PyRemoteEdge {
-        PyRemoteEdge::new(self.edge.exclude_valid_layer(name))
-    }
-
-    /// Exclude the given set of valid layers from the view. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     names (list[str]): the names of the valid layers to exclude.
-    ///
-    /// Returns:
-    ///     RemoteEdge: a new view with those valid layers excluded.
-    pub fn exclude_valid_layers(&self, names: Vec<String>) -> PyRemoteEdge {
-        PyRemoteEdge::new(self.edge.exclude_valid_layers(names))
-    }
-
     /// Add updates to an edge in the remote graph at a specified time.
     ///
     /// This function allows for the addition of property updates to an edge within the graph.
@@ -267,7 +76,7 @@ impl PyRemoteEdge {
     #[pyo3(signature = (t, properties=None, layer=None, event_id=None))]
     fn add_updates(
         &self,
-        t: EventTime,
+        t: EventTimeComponent,
         properties: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
         event_id: Option<usize>,
@@ -304,7 +113,7 @@ impl PyRemoteEdge {
     #[pyo3(signature = (t, layer=None, event_id=None))]
     fn delete(
         &self,
-        t: EventTime,
+        t: EventTimeComponent,
         layer: Option<&str>,
         event_id: Option<usize>,
     ) -> Result<(), ClientError> {
@@ -325,21 +134,21 @@ impl PyRemoteEdge {
     /// change over time. This metadata is fundamental information of the edge.
     ///
     /// Arguments:
-    ///   properties (dict[str, PropValue]): A dictionary of properties to be added to the edge.
-    ///   layer (str, optional): The layer you want these properties to be added on to.
+    ///   metadata (dict[str, PropValue]): A dictionary of metadata to be added to the edge.
+    ///   layer (str, optional): The layer you want this metadata to be added on to.
     ///
     /// Returns:
     ///   None:
-    #[pyo3(signature = (properties, layer=None))]
+    #[pyo3(signature = (metadata, layer=None))]
     fn add_metadata(
         &self,
-        properties: HashMap<String, Prop>,
+        metadata: HashMap<String, Prop>,
         layer: Option<&str>,
     ) -> Result<(), ClientError> {
         let edge = Arc::clone(&self.edge);
         let layer_str = layer.map(|s| s.to_string());
 
-        let task = move || async move { edge.add_metadata(properties, layer_str).await };
+        let task = move || async move { edge.add_metadata(metadata, layer_str).await };
         execute_async_task(task)?;
 
         Ok(())
@@ -350,21 +159,21 @@ impl PyRemoteEdge {
     /// change over time. These properties are fundamental attributes of the edge.
     ///
     /// Arguments:
-    ///   properties (dict[str, PropValue]): A dictionary of properties to be added to the edge.
+    ///   metadata (dict[str, PropValue]): A dictionary of properties to be added to the edge.
     ///   layer (str, optional): The layer you want these properties to be added on to.
     ///
     /// Returns:
     ///   None:
-    #[pyo3(signature = (properties, layer=None))]
+    #[pyo3(signature = (metadata, layer=None))]
     pub fn update_metadata(
         &self,
-        properties: HashMap<String, Prop>,
+        metadata: HashMap<String, Prop>,
         layer: Option<&str>,
     ) -> Result<(), ClientError> {
         let edge = Arc::clone(&self.edge);
         let layer_str = layer.map(|s| s.to_string());
 
-        let task = move || async move { edge.update_metadata(properties, layer_str).await };
+        let task = move || async move { edge.update_metadata(metadata, layer_str).await };
         execute_async_task(task)?;
 
         Ok(())
@@ -419,26 +228,6 @@ impl PyRemoteEdge {
     pub fn latest_time(&self) -> Result<PyOptionalEventTime, ClientError> {
         let edge = Arc::clone(&self.edge);
         Ok(execute_async_task(move || async move { edge.latest_time().await })?.into())
-    }
-
-    /// First update timestamp on this edge under the current view. Fires one RPC.
-    ///
-    /// Returns:
-    ///     Optional[int]: the first update timestamp, or `None` if the edge has no updates
-    ///         in view.
-    pub fn first_update(&self) -> Result<Option<i64>, ClientError> {
-        let edge = Arc::clone(&self.edge);
-        execute_async_task(move || async move { edge.first_update().await })
-    }
-
-    /// Last update timestamp on this edge under the current view. Fires one RPC.
-    ///
-    /// Returns:
-    ///     Optional[int]: the last update timestamp, or `None` if the edge has no updates
-    ///         in view.
-    pub fn last_update(&self) -> Result<Option<i64>, ClientError> {
-        let edge = Arc::clone(&self.edge);
-        execute_async_task(move || async move { edge.last_update().await })
     }
 
     /// The event time this exploded edge event happened at. Meaningful
@@ -625,11 +414,6 @@ impl PyRemoteEdge {
     pub fn properties(&self) -> PyRemoteProperties {
         PyRemoteProperties::new(self.edge.properties())
     }
-
-    /// `edge[key]` — the property value for `key`, or `None` if absent
-    /// (matches the local `Edge.__getitem__`, which returns `Optional`).
-    /// Fires one RPC.
-    fn __getitem__(&self, name: String) -> Result<Option<Prop>, ClientError> {
-        self.properties().get(name)
-    }
 }
+
+py_remote_view_ops!(PyRemoteEdge, edge, "RemoteEdge");

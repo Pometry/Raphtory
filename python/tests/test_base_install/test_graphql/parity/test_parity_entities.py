@@ -74,7 +74,7 @@ COLLECTION_READS = [
     ("node_types", lambda g: sorted(str(n.node_type) for n in g.nodes)),
     ("node_degrees", lambda g: sorted(n.degree() for n in g.nodes)),
     ("edge_pairs", lambda g: sorted((e.src.name, e.dst.name) for e in g.edges)),
-    ("edge_count", lambda g: g.edges.count()),
+    ("edge_count", lambda g: len(g.edges)),
     (
         "layer_edges",
         lambda g: sorted((e.src.name, e.dst.name) for e in g.layer("knows").edges),
@@ -103,3 +103,85 @@ PATH_READS = [
 @pytest.mark.parametrize("name,fn", PATH_READS, ids=[c[0] for c in PATH_READS])
 def test_path_read_parity(rich_pair, name, fn):
     assert_parity(rich_pair, fn)
+
+
+# --- sorted() ----------------------------------------------------------------
+
+
+def _build_sortable(g):
+    g.add_node(3, "carol", properties={"score": 10}, node_type="user")
+    g.add_node(1, "alice", properties={"score": 30}, node_type="admin")
+    g.add_node(2, "bob", properties={"score": 20})
+    g.add_edge(1, "bob", "carol", properties={"weight": 5.0})
+    g.add_edge(2, "alice", "carol", properties={"weight": 1.0})
+    g.add_edge(3, "alice", "bob", properties={"weight": 9.0})
+
+
+def test_nodes_sorted_parity():
+    """`Nodes.sorted(...)` takes the same sort-key types on both sides and
+    yields the same order — single key, reversed, multi-key with tie-break,
+    and a missing property falling through to the next key."""
+    from raphtory import NodeSortBy, SortByTime
+
+    key_lists = [
+        [NodeSortBy.by_id()],
+        [NodeSortBy.by_name(reverse=True)],
+        [NodeSortBy.by_property("score")],
+        [NodeSortBy.by_time(SortByTime.EARLIEST)],
+        [NodeSortBy.by_type(), NodeSortBy.by_property("score", reverse=True)],
+    ]
+    with graph_pair(_build_sortable) as pair:
+        base = [n.name for n in pair.local.nodes]
+        for keys in key_lists:
+            local = [n.name for n in pair.local.nodes.sorted(keys)]
+            remote = [n.name for n in pair.remote.nodes.sorted(keys)]
+            assert local == remote, f"sorted({keys}) diverged: {local} vs {remote}"
+            # non-vacuity: every key list reorders this graph (insertion order
+            # is carol, alice, bob — no key agrees with it)
+            assert local != base, f"sorted({keys}) did not discriminate"
+
+        # a key that selects nothing (missing property) compares equal and
+        # falls through to the next key — on both sides
+        fallthrough = [NodeSortBy.by_property("nope"), NodeSortBy.by_name()]
+        by_name = [NodeSortBy.by_name()]
+        local = [n.name for n in pair.local.nodes.sorted(fallthrough)]
+        assert local == [n.name for n in pair.local.nodes.sorted(by_name)]
+        assert local == [n.name for n in pair.remote.nodes.sorted(fallthrough)]
+
+        # sorted() returns a live collection: view chains compose on it and
+        # still agree across sides
+        local = [n.name for n in pair.local.nodes.sorted(by_name).window(0, 2)]
+        remote = [n.name for n in pair.remote.nodes.sorted(by_name).window(0, 2)]
+        assert local == remote
+
+
+def test_edges_sorted_parity():
+    """`Edges.sorted(...)` agrees across sides for endpoint keys (nested
+    NodeSortBy with its own reverse), time and property keys."""
+    from raphtory import EdgeSortBy, NodeSortBy, SortByTime
+
+    key_lists = [
+        [
+            EdgeSortBy.by_src(NodeSortBy.by_name()),
+            EdgeSortBy.by_dst(NodeSortBy.by_name()),
+        ],
+        [EdgeSortBy.by_src(NodeSortBy.by_name(reverse=True))],
+        [EdgeSortBy.by_property("weight")],
+        [EdgeSortBy.by_time(SortByTime.LATEST, reverse=True)],
+    ]
+    with graph_pair(_build_sortable) as pair:
+        for keys in key_lists:
+            local = [(e.src.name, e.dst.name) for e in pair.local.edges.sorted(keys)]
+            remote = [(e.src.name, e.dst.name) for e in pair.remote.edges.sorted(keys)]
+            assert local == remote, f"sorted({keys}) diverged: {local} vs {remote}"
+
+
+def test_sort_key_types_are_shared():
+    """One set of sort-key classes serves both sides: `raphtory.NodeSortBy`
+    and `raphtory.graphql.NodeSortBy` are the same class."""
+    import raphtory
+    import raphtory.graphql as gql
+
+    assert raphtory.NodeSortBy is gql.NodeSortBy
+    assert raphtory.EdgeSortBy is gql.EdgeSortBy
+    assert raphtory.SortByTime is gql.SortByTime

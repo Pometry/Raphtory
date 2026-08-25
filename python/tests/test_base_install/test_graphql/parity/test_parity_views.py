@@ -192,7 +192,6 @@ VIEW_OPS = {
     "exclude_valid_layer": lambda h: h.exclude_valid_layer("knows"),
     "exclude_valid_layers": lambda h: h.exclude_valid_layers(["knows", "works"]),
     "default_layer": lambda h: h.default_layer(),
-    "shrink_window": lambda h: h.shrink_window(3, 8),
     "shrink_start": lambda h: h.shrink_start(4),
     "shrink_end": lambda h: h.shrink_end(6),
 }
@@ -292,7 +291,6 @@ def test_matrix_covers_every_handle_and_op():
         "layers",
         "shrink_end",
         "shrink_start",
-        "shrink_window",
         "snapshot_at",
         "snapshot_latest",
         "valid_layers",

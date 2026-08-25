@@ -3,8 +3,8 @@ use crate::{
     data::GqlGraphType,
     model::graph::filtering::{GqlEdgeFilter, GqlNodeFilter},
     python::{
-        client::remote_graph::PyRemoteGraph, encode_graph, translate_from_python,
-        translate_map_to_python, translate_to_python,
+        client::remote_graph::PyRemoteGraph,
+        encode_graph, translate_from_python, translate_map_to_python, translate_to_python,
     },
 };
 use pyo3::{
@@ -248,7 +248,7 @@ impl PyRaphtoryClient {
     /// Get a RemoteGraph reference to a graph on the server at path
     ///
     /// Arguments:
-    ///     path (str): the path of the graph to be created
+    ///     path (str): the path of the graph
     ///
     /// Returns:
     ///     RemoteGraph: the remote graph reference
