@@ -1,7 +1,7 @@
 use crate::{
     client::{is_online, remote_client::RemoteClient, ClientError},
     data::GqlGraphType,
-    model::graph::filtering::{GqlEdgeFilter, GqlNodeFilter},
+    model::graph::filtering::{GqlEdgeFilter, GqlFilter, GqlNodeFilter},
     python::{
         client::{remote_graph::PyRemoteGraph, PyRemoteIndexSpec},
         encode_graph, translate_from_python, translate_map_to_python, translate_to_python,
@@ -427,13 +427,16 @@ impl PyRaphtoryClient {
     ) -> PyResult<bool> {
         // Reuse the RemoteGraph `.filter()` conversion path: try node first,
         // fall back to edge, then serialize the resulting GraphQL filter type.
-        let row_filter = if let Ok(node) = filter.try_as_node_filter() {
+        //
+        // Build a `GqlFilter` and let its own `Serialize` produce the wire
+        // shape rather than hand-writing the key. The variant names are the
+        // schema's field names, so a rename on the input type carries through
+        // here instead of silently sending a field the server will reject.
+        let gql_filter = if let Ok(node) = filter.try_as_node_filter() {
             let gql: GqlNodeFilter = node
                 .try_into()
                 .map_err(|e: GraphError| PyValueError::new_err(e.to_string()))?;
-            let node_json =
-                serde_json::to_value(&gql).map_err(|e| PyValueError::new_err(e.to_string()))?;
-            json!({ "node": node_json })
+            GqlFilter::Nodes(gql)
         } else {
             let edge = filter
                 .try_as_edge_filter()
@@ -441,10 +444,10 @@ impl PyRaphtoryClient {
             let gql: GqlEdgeFilter = edge
                 .try_into()
                 .map_err(|e: GraphError| PyValueError::new_err(e.to_string()))?;
-            let edge_json =
-                serde_json::to_value(&gql).map_err(|e| PyValueError::new_err(e.to_string()))?;
-            json!({ "edge": edge_json })
+            GqlFilter::Edges(gql)
         };
+        let row_filter =
+            serde_json::to_value(&gql_filter).map_err(|e| PyValueError::new_err(e.to_string()))?;
 
         let mut access_filter = serde_json::Map::new();
         access_filter.insert("filter".to_owned(), row_filter);
