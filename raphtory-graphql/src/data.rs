@@ -361,6 +361,9 @@ impl Data {
         Namespace::try_new(work_dir, ns_path.to_string())
     }
 
+    /// The graph for a folder, from the cache or from disk, with no permission check: callers here
+    /// have already been authorised.
+    ///
     /// # ⚠ Bypasses all permission checks — do not call from resolvers directly.
     /// Use `get_graph_with_read_permission`, `get_raw_graph_with_read_permission`, or
     /// `get_graph_with_write_permission` instead.

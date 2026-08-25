@@ -21,7 +21,7 @@ use bigdecimal::{num_bigint::BigInt, BigDecimal};
 use chrono::{DateTime, NaiveDateTime, Utc};
 use indexmap::IndexMap;
 use itertools::Itertools;
-use num_traits::{Bounded, CheckedMul, CheckedSub, FromPrimitive, ToPrimitive, Zero};
+use num_traits::{Bounded, FromPrimitive, ToPrimitive, Zero};
 use rustc_hash::{FxBuildHasher, FxHashMap};
 use serde::{
     ser::{Error, SerializeMap, SerializeSeq},
@@ -35,7 +35,6 @@ use std::{
     fmt::{Display, Formatter},
     hash::{DefaultHasher, Hash, Hasher},
     num::Wrapping,
-    ops::Div,
     sync::Arc,
 };
 use thiserror::Error;
@@ -809,25 +808,6 @@ impl Prop {
         ))
     }
 
-    /// An exact unsigned value as the widest unsigned prop (`U64`), or `Decimal` once it exceeds
-    /// `u64`. Cross-type results widen up to the family's widest type — never down to a narrower one.
-    fn u64_or_decimal(v: u128) -> Prop {
-        if v <= u64::MAX as u128 {
-            Prop::U64(v as u64)
-        } else {
-            Prop::Decimal(BigDecimal::from(v))
-        }
-    }
-
-    /// An exact signed value as the widest signed prop (`I64`), or `Decimal` once it exceeds `i64`.
-    fn i64_or_decimal(v: i128) -> Prop {
-        if v >= i64::MIN as i128 && v <= i64::MAX as i128 {
-            Prop::I64(v as i64)
-        } else {
-            Prop::Decimal(BigDecimal::from(v))
-        }
-    }
-
     /// Consume a numeric prop into a `BigDecimal` — exact for integers and existing decimals, the
     /// nearest decimal for floats. `None` for non-numerics (and non-finite floats).
     fn into_big_decimal(self) -> Result<BigDecimal, Prop> {
@@ -839,18 +819,18 @@ impl Prop {
         }
     }
 
-    fn is_unsigned_int(&self) -> bool {
+    pub fn is_unsigned_int(&self) -> bool {
         matches!(
             self,
             Prop::U8(_) | Prop::U16(_) | Prop::U32(_) | Prop::U64(_)
         )
     }
 
-    fn is_signed_int(&self) -> bool {
+    pub fn is_signed_int(&self) -> bool {
         matches!(self, Prop::I32(_) | Prop::I64(_))
     }
 
-    fn is_int(&self) -> bool {
+    pub fn is_int(&self) -> bool {
         self.is_unsigned_int() || self.is_signed_int()
     }
 
@@ -1065,9 +1045,6 @@ impl Prop {
     /// compares via `f64`. Non-numeric variants fall back to the same-type ordering ([`PartialOrd`]);
     /// incomparable pairs return `None`.
     pub fn compare(&self, other: &Prop) -> Option<Ordering> {
-        if let (Some(a), Some(b)) = (self.as_i128(), other.as_i128()) {
-            return a.partial_cmp(&b);
-        }
         // A `Decimal` on either side: compare exactly in `Decimal` rather than losing precision
         // through `f64`.
         if matches!(self, Prop::Decimal(_)) || matches!(other, Prop::Decimal(_)) {
@@ -1078,6 +1055,11 @@ impl Prop {
                 return a.partial_cmp(&b);
             }
         }
+
+        if let (Some(a), Some(b)) = (self.as_i128(), other.as_i128()) {
+            return a.partial_cmp(&b);
+        }
+
         if let (Some(a), Some(b)) = (self.as_f64(), other.as_f64()) {
             return a.partial_cmp(&b);
         }
@@ -1098,12 +1080,12 @@ impl Prop {
     /// The mean of numeric `props` as an `F64` prop, or `None` if empty or any value is non-numeric.
     /// Folds [`add`](Prop::add), so the running sum stays exact (widening and spilling to `Decimal`
     /// rather than drifting in `f64`), and converts once for the final division.
-    pub fn mean<'a>(props: impl IntoIterator<Item = &'a Prop>) -> Option<Prop> {
+    pub fn mean(props: impl IntoIterator<Item = Prop>) -> Option<Prop> {
         let mut it = props.into_iter();
-        let mut sum = it.next()?.clone();
+        let mut sum = it.next()?;
         let mut count = 1u64;
         for p in it {
-            sum = sum.add(p.clone())?;
+            sum = sum.add(p)?;
             count += 1;
         }
         Some(Prop::F64(sum.as_f64()? / count as f64))
@@ -1113,8 +1095,7 @@ impl Prop {
     /// length), or `None` if empty or any value is non-numeric. Sorts exactly via
     /// [`compare`](Prop::compare) — so values beyond `2^53` order correctly, unlike an `f64` sort —
     /// then converts only the one or two middle values.
-    pub fn median<'a>(props: impl IntoIterator<Item = &'a Prop>) -> Option<Prop> {
-        let mut vals: Vec<&Prop> = props.into_iter().collect();
+    pub fn median(mut vals: Vec<Prop>) -> Option<Prop> {
         if vals.is_empty() || !vals.iter().all(|p| p.is_numeric()) {
             return None;
         }
@@ -1530,11 +1511,11 @@ mod agg_arith_tests {
 
     #[test]
     fn mean_and_median_are_f64() {
-        let xs = [Prop::I64(3), Prop::I64(5), Prop::I64(8), Prop::I64(2)];
-        assert_eq!(Prop::mean(&xs), Some(Prop::F64(4.5)));
-        assert_eq!(Prop::median(&xs), Some(Prop::F64(4.0)));
-        assert_eq!(Prop::mean(std::iter::empty::<&Prop>()), None);
-        assert_eq!(Prop::mean(&[Prop::str("x")]), None);
+        let xs = vec![Prop::I64(3), Prop::I64(5), Prop::I64(8), Prop::I64(2)];
+        assert_eq!(Prop::mean(xs.clone()), Some(Prop::F64(4.5)));
+        assert_eq!(Prop::median(xs), Some(Prop::F64(4.0)));
+        assert_eq!(Prop::mean(std::iter::empty::<Prop>()), None);
+        assert_eq!(Prop::mean([Prop::str("x")]), None);
     }
 
     #[test]
@@ -1542,7 +1523,7 @@ mod agg_arith_tests {
         // Four `i64::MAX`s overflow an i64 sum; accumulated in i128 the mean is exact (= i64::MAX).
         let big = Prop::I64(i64::MAX);
         assert_eq!(
-            Prop::mean(&[big.clone(), big.clone(), big.clone(), big.clone()]),
+            Prop::mean([big.clone(), big.clone(), big.clone(), big.clone()]),
             Some(Prop::F64(i64::MAX as f64))
         );
     }
