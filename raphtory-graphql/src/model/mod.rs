@@ -1,5 +1,5 @@
 use crate::{
-    auth::ContextValidation,
+    auth::{ContextValidation, RoleClaims},
     auth_policy::{AuthorizationPolicy, NamespacePermission},
     data::{
         gql_error_with_code, parent_namespace, require_graph_write, Data, GqlGraphType,
@@ -202,7 +202,15 @@ impl QueryRoot {
 
         if let Some(policy) = &data.auth_policy {
             if let Err(_) = policy.graph_permissions(ctx, &path) {
-                let roles = ctx.data::<Vec<String>>().map(Vec::as_slice).unwrap_or(&[]);
+                // Only for the log line; a missing entry is reported as such rather than as an
+                // empty role list, which would read as "denied, caller had no roles".
+                let roles = match RoleClaims::from_context(ctx) {
+                    Ok(claims) => claims.as_slice(),
+                    Err(e) => {
+                        warn!(error = %e, graph = path.as_str(), "denying access");
+                        return Ok(None);
+                    }
+                };
                 warn!(
                     roles = ?roles,
                     graph = path.as_str(),

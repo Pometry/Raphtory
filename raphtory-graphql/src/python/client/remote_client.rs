@@ -474,10 +474,13 @@ impl PyRaphtoryClient {
     /// a permissions store.
     ///
     /// Returns:
-    ///     dict[str, Any]: a mapping with keys ``role`` (str or None),
+    ///     dict[str, Any]: a mapping with keys ``roles`` (list of str),
     ///     ``graphs`` (list of ``{"path", "permission", "filtered"}``) and
-    ///     ``namespaces`` (list of ``{"path", "permission"}``). ``role`` is None
+    ///     ``namespaces`` (list of ``{"path", "permission"}``). ``roles`` is empty
     ///     when the token carries no role claim, in which case both lists are empty.
+    ///     A token naming several roles gets their grants merged
+    ///     most-permissive-wins, so an unfiltered grant from one role supersedes a
+    ///     filtered grant from another on the same graph.
     fn my_permissions<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
         let value =
             py.detach(|| self.run_async(|client| async move { client.my_permissions().await }))?;

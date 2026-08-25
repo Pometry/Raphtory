@@ -534,16 +534,17 @@ impl RemoteClient {
     }
 
     /// Return the calling token's own permission grants. Reads only what the
-    /// caller's role has been granted, so it never discloses other roles or
+    /// caller's roles have been granted, so it never discloses other roles or
     /// graphs. The returned object mirrors the `MyPermissions` GraphQL type:
-    /// `{ role, graphs: [{ path, permission, filtered }], namespaces: [{ path, permission }] }`.
-    /// `role` is null when the token carries no role claim.
+    /// `{ roles, graphs: [{ path, permission, filtered }], namespaces: [{ path, permission }] }`.
+    /// `roles` is empty when the token carries no role claim; when it names several, their grants
+    /// are merged most-permissive-wins, matching how the server enforces them.
     pub async fn my_permissions(&self) -> Result<JsonValue, ClientError> {
         let query = r#"
             query MyPermissions {
               permissions {
                 myPermissions {
-                  role
+                  roles
                   graphs { path permission filtered }
                   namespaces { path permission }
                 }
