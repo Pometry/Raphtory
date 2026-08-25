@@ -82,7 +82,7 @@ impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S: 'static, CS: ComputeState +
         self.edge.as_metadata()
     }
 
-    fn map_nodes<F: Fn(&dyn BoxableGraphView, EdgeRef) -> VID + Send + Sync + Clone + 'graph>(
+    fn map_nodes<F: Fn(EdgeRef) -> VID + Send + Sync + Clone + 'graph>(
         &self,
         op: F,
     ) -> Self::Nodes {
