@@ -524,7 +524,7 @@ async fn server_termination(
 mod server_tests {
     use crate::{config::app_config::AppConfigBuilder, server::GraphServer};
     use chrono::prelude::*;
-    use raphtory::db::api::storage::storage::Args;
+    use raphtory::prelude::Args;
     use raphtory_api::core::utils::logging::global_info_logger;
     use tempfile::tempdir;
     use tokio::time::{sleep, Duration};
@@ -573,7 +573,7 @@ mod server_tests {
         let server = GraphServer::new(
             work_dir.path().to_path_buf(),
             Some(app_config),
-            Config::default(),
+            Args::default(),
         )
         .await
         .unwrap();

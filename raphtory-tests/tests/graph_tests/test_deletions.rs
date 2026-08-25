@@ -1,11 +1,13 @@
 use itertools::Itertools;
 use proptest::{arbitrary::any, proptest, sample::subsequence};
 use raphtory::{
-    db::api::view::internal::GraphView,
-    db::graph::{
-        assertions::{assert_graph_equal, assert_persistent_materialize_graph_equal},
-        edge::EdgeView,
-        views::deletion_graph::PersistentGraph,
+    db::{
+        api::view::internal::GraphView,
+        graph::{
+            assertions::{assert_graph_equal, assert_persistent_materialize_graph_equal},
+            edge::EdgeView,
+            views::deletion_graph::PersistentGraph,
+        },
     },
     prelude::*,
 };
