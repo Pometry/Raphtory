@@ -112,6 +112,10 @@ impl MemNodeSegment {
         self.node_type_index.get(type_id)
     }
 
+    pub fn node_type_index(&self) -> &MemNodeTypeIndex {
+        &self.node_type_index
+    }
+
     pub fn est_size(&self) -> usize {
         self.est_size
     }
