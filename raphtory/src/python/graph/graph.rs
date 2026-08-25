@@ -187,7 +187,7 @@ impl PyGraph {
     ///                                (note that page sizes cannot be overridden; providing them raises an error)
     ///     read_only (bool): open as a read-only snapshot. Multiple processes can hold
     ///                       a read-only handle to the same graph directory concurrently;
-    ///                       mutating the returned graph will fail. Defaults to ``False``.
+    ///                       mutating the returned graph will fail. Defaults to False.
     ///
     /// Returns:
     ///     Graph: the graph
@@ -455,6 +455,7 @@ impl PyGraph {
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
+    #[pyo3(signature = (timestamp, src, dst, layer = None, event_id = None))]
     pub fn delete_edge(
         &self,
         timestamp: EventTimeComponent,

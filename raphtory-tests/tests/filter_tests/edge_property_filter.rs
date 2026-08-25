@@ -2,14 +2,15 @@ use itertools::Itertools;
 use proptest::{arbitrary::any, proptest};
 use raphtory::{
     db::{
-        api::view::Filter,
+        api::view::{Filter, Select},
         graph::{
             assertions::{assert_graph_equal, assert_persistent_materialize_graph_equal},
             views::{
                 deletion_graph::PersistentGraph,
                 filter::model::{
                     node_filter::ops::NodeFilterOps, property_filter::ops::PropertyFilterOps,
-                    ComposableFilter, EdgeFilter, PropertyFilterFactory,
+                    ComposableFilter, EdgeFilter, EdgeViewFilterOps, PropertyFilterFactory,
+                    ViewWrapOps,
                 },
             },
         },
@@ -17,7 +18,10 @@ use raphtory::{
     prelude::*,
 };
 use raphtory_api::core::{entities::properties::prop::PropType, storage::timeindex::AsTime};
-use raphtory_storage::mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps};
+use raphtory_storage::{
+    layer_ops::InternalLayerOps,
+    mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps},
+};
 use raphtory_tests::{
     assertions::{assert_ok_or_missing_edges, EdgeRow},
     utils::{build_edge_deletions, build_edge_list, build_graph_from_edge_list, build_window},
@@ -86,6 +90,56 @@ fn test_edge_filter_persistent() {
         vec!["John->David"]
     );
     assert_graph_equal(&filtered_edges, &g_expected);
+}
+
+#[test]
+fn test_multilayer_edge_select() {
+    let g = Graph::new();
+    g.add_edge(0, 1, 2, NO_PROPS, Some("0")).unwrap();
+    g.add_edge(1, 1, 2, NO_PROPS, Some("1")).unwrap();
+    g.add_edge(2, 2, 3, NO_PROPS, Some("0")).unwrap();
+
+    let layer_0 = g.edges().select(EdgeFilter.layer("0").is_active()).unwrap();
+    assert_eq!(
+        layer_0.id().sorted().collect_vec(),
+        [(GID::U64(1), GID::U64(2)), (GID::U64(2), GID::U64(3))]
+    );
+
+    let layer_1 = g.edges().select(EdgeFilter.layer("1").is_active()).unwrap();
+    assert_eq!(layer_1.id().collect_vec(), [(GID::U64(1), GID::U64(2))]);
+
+    let filtered = g
+        .filter(
+            EdgeFilter
+                .layer("0")
+                .is_active()
+                .and(EdgeFilter.layer("1").is_active()),
+        )
+        .unwrap();
+    assert!(filtered.has_edge(1, 2));
+    assert_eq!(
+        filtered.edges().id().collect_vec(),
+        [(GID::U64(1), GID::U64(2))]
+    );
+
+    let chained = g
+        .edges()
+        .select(EdgeFilter.layer("1").is_active())
+        .unwrap()
+        .select(EdgeFilter.layer("0").is_active())
+        .unwrap();
+    assert_eq!(chained.id().collect_vec(), [(GID::U64(1), GID::U64(2))]);
+
+    let edges = g
+        .edges()
+        .select(
+            EdgeFilter
+                .layer("0")
+                .is_active()
+                .and(EdgeFilter.layer("1").is_active()),
+        )
+        .unwrap();
+    assert_eq!(edges.id().collect_vec(), [(GID::U64(1), GID::U64(2))]);
 }
 
 #[test]

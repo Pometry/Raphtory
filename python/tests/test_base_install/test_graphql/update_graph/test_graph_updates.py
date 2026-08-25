@@ -84,9 +84,9 @@ def test_add_properties():
         # rather than `datetime.now()` so the test is deterministic.
         aware_dt = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
         naive_dt = datetime(2024, 1, 1, 12, 0, 0)
-        rg.add_property(1, props)
-        rg.add_property(aware_dt, props)
-        rg.add_property(naive_dt, props)
+        rg.add_properties(1, props)
+        rg.add_properties(aware_dt, props)
+        rg.add_properties(naive_dt, props)
         g = client.receive_graph("path/to/event_graph")
         assert_has_properties(g, props)
 
@@ -111,14 +111,16 @@ def test_add_node():
         props = make_props()
         current_datetime = datetime.now(timezone.utc)
         rg.add_node(current_datetime, "ben", properties=props, node_type="person")
-        rg.add_node(current_datetime, 1)  # This gets stringified on the server
+        # The first write pinned this graph as string-indexed, so an integer id
+        # is refused — the same error the local `Graph` raises for this.
+        with pytest.raises(Exception, match="does not have the correct type"):
+            rg.add_node(current_datetime, 1)
         rg.add_node(current_datetime, "hamza", node_type="person")
         g = client.receive_graph("path/to/event_graph")
         assert g.node("ben").node_type == "person"
         assert_has_properties(g.node("ben"), props)
 
         assert g.node("hamza").node_type == "person"
-        assert g.node("1") is not None
 
 
 def test_add_edge():

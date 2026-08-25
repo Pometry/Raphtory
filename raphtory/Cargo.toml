@@ -69,7 +69,6 @@ datafusion-expr-common = { workspace = true, optional = true }
 # io optional dependencies
 csv = { workspace = true, optional = true }
 zip = { workspace = true, optional = true }
-neo4rs = { workspace = true, optional = true }
 bzip2 = { workspace = true, optional = true }
 flate2 = { workspace = true, optional = true }
 reqwest = { workspace = true, features = ["blocking"], optional = true }
@@ -101,7 +100,7 @@ pythonize = { workspace = true, optional = true }
 csv = { workspace = true }
 tempfile = { workspace = true }
 tokio = { workspace = true } # for vector testing
-dotenv = { workspace = true } # for vector testing
+dotenvy = { workspace = true } # for vector testing
 streaming-stats = { workspace = true }
 indoc = { workspace = true }
 proptest.workspace = true
@@ -117,7 +116,6 @@ progress = ["dep:kdam"]
 
 # Enables the graph loader io module
 io = [
-    "dep:neo4rs",
     "dep:bzip2",
     "dep:flate2",
     "dep:csv",

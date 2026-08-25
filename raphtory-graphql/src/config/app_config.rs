@@ -6,6 +6,7 @@ use crate::{
         log_config::{LoggingConfig, LoggingConfigFieldName},
         otlp_config::{TracingConfig, TracingConfigFieldName, TracingLevel, TracingProtocol},
         parquet_config::{ParquetConfig, ParquetConfigFieldName},
+        rbac_config::RbacConfig,
         schema_config::{SchemaConfig, SchemaConfigFieldName},
     },
     server::ServerError,
@@ -31,6 +32,7 @@ pub struct AppConfig {
     pub schema: SchemaConfig,
     pub parquet: ParquetConfig,
     pub public_dir: Option<PathBuf>,
+    pub rbac: RbacConfig,
 }
 
 pub struct AppConfigBuilder {
@@ -186,6 +188,36 @@ impl AppConfigBuilder {
                                         .map_err(|e| invalid_value([path, sub_path], e))?,
                                 );
                             }
+                            AuthConfigFieldName::Audience => {
+                                self.with_auth_audience(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                            AuthConfigFieldName::Issuer => {
+                                self.with_auth_issuer(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                            AuthConfigFieldName::RoleClaim => {
+                                self.with_auth_role_claim(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                            AuthConfigFieldName::JwksUri => {
+                                self.with_auth_jwks_uri(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                            AuthConfigFieldName::JwksRefreshSecs => {
+                                self.with_auth_jwks_refresh_secs(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
                         }
                     }
                 }
@@ -274,6 +306,12 @@ impl AppConfigBuilder {
                                         .map_err(|e| invalid_value([path, sub_path], e))?,
                                 );
                             }
+                            SchemaConfigFieldName::DisableUi => {
+                                self.with_disable_ui(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
                         }
                     }
                 }
@@ -298,6 +336,10 @@ impl AppConfigBuilder {
                     self.with_public_dir(
                         Deserialize::deserialize(value).map_err(|e| invalid_value([path], e))?,
                     );
+                }
+                AppConfigFieldName::Rbac => {
+                    self.config.rbac =
+                        Deserialize::deserialize(value).map_err(|e| invalid_value([path], e))?;
                 }
             }
         }
@@ -379,6 +421,31 @@ impl AppConfigBuilder {
         self
     }
 
+    pub fn with_auth_audience(&mut self, audience: Option<String>) -> &mut Self {
+        self.config.auth.audience = audience;
+        self
+    }
+
+    pub fn with_auth_issuer(&mut self, issuer: Option<String>) -> &mut Self {
+        self.config.auth.issuer = issuer;
+        self
+    }
+
+    pub fn with_auth_role_claim(&mut self, role_claim: Option<String>) -> &mut Self {
+        self.config.auth.role_claim = role_claim;
+        self
+    }
+
+    pub fn with_auth_jwks_uri(&mut self, jwks_uri: Option<String>) -> &mut Self {
+        self.config.auth.jwks_uri = jwks_uri;
+        self
+    }
+
+    pub fn with_auth_jwks_refresh_secs(&mut self, secs: Option<u64>) -> &mut Self {
+        self.config.auth.jwks_refresh_secs = secs;
+        self
+    }
+
     pub fn with_heavy_query_limit(&mut self, heavy_query_limit: Option<usize>) -> &mut Self {
         self.config.concurrency.heavy_query_limit = heavy_query_limit;
         self
@@ -434,6 +501,11 @@ impl AppConfigBuilder {
 
     pub fn with_disable_introspection(&mut self, disable_introspection: bool) -> &mut Self {
         self.config.schema.disable_introspection = disable_introspection;
+        self
+    }
+
+    pub fn with_disable_ui(&mut self, disable_ui: bool) -> &mut Self {
+        self.config.schema.disable_ui = disable_ui;
         self
     }
 

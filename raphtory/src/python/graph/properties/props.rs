@@ -157,10 +157,21 @@ impl PyProperties {
 
     /// Get the values of the properties.
     ///
+    /// Arguments:
+    ///     keys (list[str], optional): restrict the result to these names, in
+    ///         the given order. Defaults to every key, in `keys()` order.
+    ///
     /// Returns:
     ///     list[PropValue]:
-    pub fn values(&self) -> Vec<Prop> {
-        self.props.iter_filtered().map(|(_, value)| value).collect()
+    #[pyo3(signature = (keys = None))]
+    pub fn values(&self, keys: Option<Vec<String>>) -> Vec<Prop> {
+        match keys {
+            Some(keys) => keys
+                .iter()
+                .filter_map(|k| self.props.get(k.as_str()))
+                .collect(),
+            None => self.props.iter_filtered().map(|(_, value)| value).collect(),
+        }
     }
 
     /// Get a list of key-value pairs

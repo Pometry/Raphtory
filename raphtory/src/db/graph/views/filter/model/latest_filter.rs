@@ -16,9 +16,10 @@ use crate::{
                     property_filter::{builders::PropertyExprBuilderInput, PropertyFilterInput},
                     windowed_filter::Windowed,
                     CombinedFilter, ComposableFilter, CompositeExplodedEdgeFilter,
-                    CompositeNodeFilter, EdgeViewFilterOps, InternalPropertyFilterBuilder,
-                    InternalPropertyFilterFactory, InternalViewWrapOps, NodeViewFilterOps, Op,
-                    PropertyRef, TemporalPropertyFilterFactory, TryAsCompositeFilter, Wrap,
+                    CompositeNodeFilter, EdgeViewFilterOps, FilterTree, GraphViewOp,
+                    InternalPropertyFilterBuilder, InternalPropertyFilterFactory,
+                    InternalViewWrapOps, NodeViewFilterOps, Op, PropertyRef,
+                    TemporalPropertyFilterFactory, TryAsCompositeFilter, Wrap,
                 },
                 CreateFilter,
             },
@@ -26,7 +27,7 @@ use crate::{
         },
     },
     errors::GraphError,
-    prelude::{GraphViewOps, TimeOps},
+    prelude::TimeOps,
 };
 use raphtory_api::core::storage::timeindex::EventTime;
 use std::{fmt, fmt::Display};
@@ -97,6 +98,28 @@ impl<T: InternalPropertyFilterBuilder> InternalPropertyFilterBuilder for Latest<
 }
 
 impl<T: TryAsCompositeFilter> TryAsCompositeFilter for Latest<T> {
+    fn try_as_filter_tree(&self) -> Result<FilterTree, GraphError> {
+        // Single-kind inners keep their composite form (the wrapper becomes a
+        // windowed/layered/... composite variant); only graph-level view
+        // chains export as `View` ops. Anything else (a view wrapping a
+        // mixed-kind tree) has no wire representation yet.
+        if let Ok(f) = self.try_as_composite_node_filter() {
+            return Ok(FilterTree::Node(f));
+        }
+        if let Ok(f) = self.try_as_composite_edge_filter() {
+            return Ok(FilterTree::Edge(f));
+        }
+        if let Ok(f) = self.try_as_composite_exploded_edge_filter() {
+            return Ok(FilterTree::ExplodedEdge(f));
+        }
+        let FilterTree::View(ops) = self.inner.try_as_filter_tree()? else {
+            return Err(GraphError::NotSupported);
+        };
+        let mut chain = vec![GraphViewOp::Latest];
+        chain.extend(ops);
+        Ok(FilterTree::View(chain))
+    }
+
     fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
         Ok(CompositeNodeFilter::Latest(Box::new(Latest::new(
             self.inner.try_as_composite_node_filter()?,
@@ -119,40 +142,46 @@ impl<T: TryAsCompositeFilter> TryAsCompositeFilter for Latest<T> {
 }
 
 impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for Latest<T> {
-    type EntityFiltered<'graph, G>
-        = T::EntityFiltered<'graph, G>
+    type EntityFiltered<'graph, G, F>
+        = T::EntityFiltered<'graph, G, F>
     where
-        G: GraphViewOps<'graph> + TimeOps<'graph> + Clone;
+        G: GraphView + TimeOps<'graph> + 'graph,
+        F: GraphView + TimeOps<'graph> + 'graph;
 
-    type NodeFilter<'graph, G>
-        = T::NodeFilter<'graph, G>
+    type NodeFilter<'graph, G, F>
+        = T::NodeFilter<'graph, G, F>
     where
-        G: GraphView + TimeOps<'graph> + Clone + 'graph;
+        G: GraphView + TimeOps<'graph> + 'graph,
+        F: GraphView + TimeOps<'graph> + 'graph;
 
     type FilteredGraph<'graph, G>
         = WindowedGraph<T::FilteredGraph<'graph, G>>
     where
         Self: 'graph,
-        G: GraphViewOps<'graph>;
+        G: GraphView + 'graph;
 
-    fn create_filter<'graph, G>(
+    fn create_filter<'graph, G, F>(
         self,
         graph: G,
-    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError>
+        filtered: F,
+    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError>
     where
-        G: GraphViewOps<'graph> + TimeOps<'graph, WindowedViewType = WindowedGraph<G>> + Clone,
+        G: GraphView + 'graph,
+        F: GraphView + 'graph,
     {
-        self.inner.create_filter(graph)
+        self.inner.create_filter(graph, filtered)
     }
 
-    fn create_node_filter<'graph, G>(
+    fn create_node_filter<'graph, G, F>(
         self,
         graph: G,
-    ) -> Result<Self::NodeFilter<'graph, G>, GraphError>
+        filtered: F,
+    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError>
     where
-        G: GraphView + TimeOps<'graph, WindowedViewType = WindowedGraph<G>> + Clone + 'graph,
+        G: GraphView + 'graph,
+        F: GraphView + 'graph,
     {
-        self.inner.create_node_filter(graph)
+        self.inner.create_node_filter(graph, filtered)
     }
 
     fn filter_graph_view<'graph, G: GraphView + 'graph>(

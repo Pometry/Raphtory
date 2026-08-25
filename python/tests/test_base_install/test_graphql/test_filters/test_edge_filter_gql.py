@@ -12,14 +12,13 @@ def test_filter_edges_with_str_ids_for_node_id_eq_gql(graph):
     query = """
     query {
       graph(path: "g") {
-        filterEdges(expr: {
+        filterEdges: filter(expr: { edges: {
           src: {
-            node: {
-              field: NODE_ID
-            	where: { eq: { str: "3" } }
+            id: {
+              where: { eq: { str: "3" } }
             }
           }
-        }) {
+        } }) {
           edges {
             list {
               src { name }
@@ -54,14 +53,13 @@ def test_filter_edges_with_num_ids_for_node_id_eq_gql(graph):
     query = """
     query {
       graph(path: "g") {
-        filterEdges(expr: {
+        filterEdges: filter(expr: { edges: {
           src: {
-            node: {
-              field: NODE_ID
+            id: {
               where: { eq: { u64: 1 } }
             }
           }
-        }) {
+        } }) {
           edges {
             list {
               src { name }
@@ -88,13 +86,12 @@ def test_edges_chained_selection_with_edge_filter(graph):
     query {
       graph(path: "g") {
         edges {
-          select(expr: { dst: { 
-            node: {
-              field: NODE_ID
+          select(expr: { edges: { dst: { 
+            id: {
               where: { eq: { u64: 2 } }
             }
-          } }) {
-            select(expr: { property: { name: "p2", where: { gt:{ i64: 2 } } } }) {
+          } } }) {
+            select(expr: { edges: { property: { name: "p2", where: { gt:{ i64: 2 } } } } }) {
               list { src { name } dst { name } }
             }        
           }
@@ -124,7 +121,7 @@ def test_edges_filter_window_is_active(graph):
     query {
       graph(path: "g") {
         edges {
-          select(expr: {window: {start: 1, end: 4, expr: {isActive: true}}}) {
+          select(expr: { edges: {window: {start: 1, end: 4, expr: {isActive: true}}} }) {
             list {
               src {
                 name
@@ -162,7 +159,7 @@ def test_edges_filter_window_is_deleted(graph):
     query {
       graph(path: "g") {
         edges {
-          select(expr: {window: {start: 1, end: 5, expr: {isDeleted: true}}}) {
+          select(expr: { edges: {window: {start: 1, end: 5, expr: {isDeleted: true}}} }) {
             list {
               src {
                 name

@@ -28,4 +28,8 @@ pub struct SchemaConfig {
     /// discovering the API's structure and available fields. Recommended for production
     /// to reduce the attack surface.
     pub disable_introspection: bool,
+
+    /// When true, the browser UI is not served: non-POST requests to the GraphQL endpoint
+    /// return 404, leaving only the API (POST) plus the `/health` and `/version` routes.
+    pub disable_ui: bool,
 }

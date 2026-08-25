@@ -15,7 +15,6 @@ import raphtory.filter as filter
 from raphtory.algorithms import *
 from raphtory.vectors import *
 from raphtory.node_state import *
-from raphtory.gql import *
 from raphtory.typing import *
 import numpy as np
 from numpy.typing import NDArray
@@ -37,6 +36,27 @@ __all__ = [
     "RemoteGraph",
     "RemoteEdge",
     "RemoteNode",
+    "RemoteNodes",
+    "RemotePathFromNode",
+    "RemotePathFromGraph",
+    "RemoteEdges",
+    "RemoteNestedEdges",
+    "RemoteHistory",
+    "RemoteHistoryTimestamps",
+    "RemoteHistoryEventIds",
+    "RemoteHistoryDateTimes",
+    "RemoteIntervals",
+    "RemoteMetadata",
+    "RemoteProperties",
+    "RemoteMetadataView",
+    "RemotePropertiesView",
+    "RemoteTemporalProperties",
+    "RemoteTemporalProperty",
+    "RemoteGraphSchema",
+    "RemoteNodeSchema",
+    "RemoteLayerSchema",
+    "RemoteEdgeSchema",
+    "RemotePropertySchema",
     "RemoteNodeAddition",
     "RemoteUpdate",
     "RemoteEdgeAddition",
@@ -44,6 +64,10 @@ __all__ = [
     "PropsInput",
     "SomePropertySpec",
     "AllPropertySpec",
+    "SortByTime",
+    "NodeSortBy",
+    "EdgeSortBy",
+    "RemotePermissionError",
     "encode_graph",
     "decode_graph",
     "schema",
@@ -57,30 +81,51 @@ class GraphServer(object):
 
     Arguments:
         work_dir (str | PathLike): the working directory for the server
-        cache_capacity (int, optional): the maximum number of graphs to keep in memory at once
-        cache_tti_seconds (int, optional): the inactive time in seconds after which a graph is evicted from the cache
-        log_level (str, optional): the log level for the server
-        tracing (bool, optional): whether tracing should be enabled
-        tracing_level (str, optional): tracing verbosity (e.g. "ERROR", "WARN", "INFO", "DEBUG", "TRACE").
-        otlp_agent_host (str, optional): OTLP agent host for tracing
-        otlp_agent_port(str, optional): OTLP agent port for tracing
-        otlp_tracing_service_name (str, optional): The OTLP tracing service name
-        config_path (str | PathLike, optional): Path to the config file
-        auth_public_key (str, optional): Base64-encoded public key used to verify bearer tokens
-        require_auth_for_reads (bool, optional): Require auth tokens for read queries
-        create_index (bool, optional): Build a search index on startup
-        heavy_query_limit (int, optional): Maximum number of expensive traversal queries (outComponent, inComponent, edges, outEdges, inEdges, neighbours, outNeighbours, inNeighbours) allowed to run simultaneously. Extra queries are parked on a semaphore.
-        exclusive_writes (bool, optional): If True, ingestion/write operations run one at a time and block reads until complete.
-        disable_batching (bool, optional): If True, batched GraphQL requests are rejected. Prevents bypassing per-request depth/complexity limits.
-        max_batch_size (int, optional): Caps the number of queries accepted in a single batched request. Defaults to 10; set to null for unlimited (subject to disable_batching).
-        disable_lists (bool, optional): If True, bulk `list` endpoints on collections are disabled. Clients must use `page` instead.
-        max_page_size (int, optional): Maximum page size allowed on paged collection queries.
-        max_query_depth (int, optional): Maximum nesting depth of a query.
-        max_query_complexity (int, optional): Maximum estimated cost of a query, based on the number of fields selected.
-        max_recursive_depth (int, optional): Internal safety limit to prevent stack overflows from pathologically structured queries (async-graphql default is 32).
-        max_directives_per_field (int, optional): Maximum number of directives on any single field.
-        disable_introspection (bool, optional): If True, schema introspection is disabled entirely.
-        permissions_store_path (str | PathLike, optional): Path to the permissions store (used by the optional auth extension).
+        config_path (str | PathLike, optional): path to a TOML config file, loaded first
+        permissions_store_path (str | PathLike, optional): seed file for admin-managed roles
+                                                           (alias for `rbac.admin.seed_path`)
+        config (dict, optional): configuration overrides applied on top of `config_path`, as a
+                                 dict of nested sections. Unknown section or field names raise an
+                                 error. The available sections and fields are:
+
+                                 * `logging`: `log_level` (str)
+                                 * `cache`: `capacity` (int) - maximum number of graphs to keep
+                                   in memory at once
+                                 * `tracing`: `enabled` (bool), `level` (str, e.g. "ERROR",
+                                   "WARN", "INFO", "DEBUG", "TRACE"), `agent_host` (str),
+                                   `service_name` (str), `transport_protocol` (str),
+                                   `transport_headers` (dict[str, str]),
+                                   `transport_certificate` (str | PathLike)
+                                 * `auth`: `public_key` (str, base64-encoded key used to verify
+                                   bearer tokens), `require_auth_for_reads` (bool),
+                                   `audience` (str), `issuer` (str), `role_claim` (str),
+                                   `jwks_uri` (str), `jwks_refresh_secs` (int)
+                                 * `concurrency`: `heavy_query_limit` (int, maximum number of
+                                   expensive traversal queries allowed to run simultaneously;
+                                   extra queries are parked on a semaphore),
+                                   `exclusive_writes` (bool, run write operations one at a time
+                                   and block reads until complete), `disable_batching` (bool,
+                                   reject batched GraphQL requests), `max_batch_size` (int, cap
+                                   on the number of queries in a batched request; null for
+                                   unlimited), `disable_lists` (bool, disable bulk `list`
+                                   endpoints so clients must use `page`), `max_page_size` (int)
+                                 * `schema`: `max_query_depth` (int), `max_query_complexity`
+                                   (int, based on the number of fields selected),
+                                   `max_recursive_depth` (int, safety limit against stack
+                                   overflows from pathologically structured queries),
+                                   `max_directives_per_field` (int),
+                                   `disable_introspection` (bool)
+                                 * `parquet`: `allowed_paths` (list[str | PathLike]) - the paths
+                                   parquet loading is restricted to
+                                 * `public_dir` (str | PathLike): directory served as static
+                                   files
+                                 * `rbac`: `poll_interval_secs` (int), plus at most one source
+                                   sub-table: `ldap` {url, bind_dn, bind_password_env,
+                                   bind_password, group_base_dn, group_filter,
+                                   permissions_attribute}, `opa` {path, query}, `json` {path},
+                                   or `admin` {seed_path}. Sources are polled and read-only;
+                                   admin is update-driven. The live store is materialised under
+                                   <work_dir>/.permissions/. None set means RBAC is off.
     """
 
     def __new__(
@@ -88,7 +133,7 @@ class GraphServer(object):
         work_dir: str | PathLike,
         config_path: Optional[str | PathLike] = None,
         permissions_store_path: Optional[str | PathLike] = None,
-        config=None,
+        config: Optional[dict] = None,
     ) -> GraphServer:
         """Create and return a new object.  See help(type) for accurate signature."""
 
@@ -173,8 +218,13 @@ class RunningGraphServer(object):
             RaphtoryClient: the client.
         """
 
-    def port(self):
-        """Get the port the server is listening on"""
+    def port(self) -> int:
+        """
+        Get the port the server is listening on
+
+        Returns:
+            int: the port the server is listening on.
+        """
 
     def stop(self) -> None:
         """
@@ -190,10 +240,11 @@ class RaphtoryClient(object):
 
     Arguments:
         url (str): the URL of the Raphtory GraphQL server
-        token:
+        token (str, optional): a bearer token sent with every request; omit for
+            an unauthenticated server.
     """
 
-    def __new__(cls, url: str, token: Any = None) -> RaphtoryClient:
+    def __new__(cls, url: str, token: Optional[str] = None) -> RaphtoryClient:
         """Create and return a new object.  See help(type) for accurate signature."""
 
     def copy_graph(self, path: str, new_path: str) -> None:
@@ -224,6 +275,20 @@ class RaphtoryClient(object):
 
         """
 
+    def create_role(self, name: str) -> bool:
+        """
+        Create a role in the server's permissions store.
+
+        Requires an admin (write-access) token. Only available when the server
+        was started with a permissions store.
+
+        Arguments:
+            name (str): the name of the role to create
+
+        Returns:
+            bool: True if the role was created.
+        """
+
     def delete_graph(self, path: str) -> None:
         """
         Delete graph from a path path on the server
@@ -235,12 +300,124 @@ class RaphtoryClient(object):
             None:
         """
 
+    def delete_role(self, name: str) -> bool:
+        """
+        Delete a role from the server's permissions store.
+
+        Requires an admin (write-access) token.
+
+        Arguments:
+            name (str): the name of the role to delete
+
+        Returns:
+            bool: True if the role was deleted.
+        """
+
+    def get_role(self, name: str) -> Optional[dict[str, Any]]:
+        """
+        Fetch a single role's grants by name.
+
+        Requires an admin (write-access) token.
+
+        Arguments:
+            name (str): the role to look up
+
+        Returns:
+            Optional[dict[str, Any]]: a mapping with keys ``name``, ``graphs``
+            (list of ``{"path", "permission"}``) and ``namespaces``
+            (list of ``{"path", "permission"}``), or None if the role does not exist.
+        """
+
+    def grant_graph(self, role: str, path: str, permission: str) -> bool:
+        """
+        Grant a role access to a single graph.
+
+        Requires an admin (write-access) token.
+
+        Arguments:
+            role (str): the role to grant access to
+            path (str): the path of the graph
+            permission (str): one of "read", "write", "introspect" (case-insensitive)
+
+        Returns:
+            bool: True if the grant was applied.
+
+        Raises:
+            ValueError: if permission is not one of "read", "write", "introspect".
+        """
+
+    def grant_graph_filtered_read_only(
+        self,
+        role: str,
+        path: str,
+        filter: Any,
+        hidden_properties: Optional[dict[str, list[str]]] = None,
+        hidden_metadata: Optional[dict[str, list[str]]] = None,
+    ) -> bool:
+        """
+        Grant a role read-only access to a graph, restricted by a filter.
+
+        The reader (a `{"access": "ro"}` token bearing this role) sees only the
+        nodes/edges matching `filter`, with the given property/metadata keys hidden.
+        Requires an admin (write-access) token.
+
+        Arguments:
+            role (str): the role to grant filtered access to
+            path (str): the path of the graph
+            filter (FilterExpr): a filter expression from `raphtory.filter`; a node
+                filter restricts visible nodes, an edge filter restricts visible edges.
+            hidden_properties (dict[str, list[str]], optional): temporal property keys
+                to hide, keyed by "node", "edge", and/or "graph".
+            hidden_metadata (dict[str, list[str]], optional): metadata keys to hide,
+                keyed by "node", "edge", and/or "graph".
+
+        Returns:
+            bool: True if the grant was applied.
+
+        Raises:
+            ValueError: if the filter cannot be represented as a GraphQL node or
+                edge filter.
+        """
+
+    def grant_namespace(
+        self, role: str, path: str, permission: str, recursive: bool = False
+    ) -> bool:
+        """
+        Grant a role access to a namespace.
+
+        Requires an admin (write-access) token.
+
+        Arguments:
+            role (str): the role to grant access to
+            path (str): the namespace path
+            permission (str): one of "read", "write", "introspect" (case-insensitive)
+            recursive (bool): also grant existing descendants. Defaults to False.
+                Every currently existing descendant of the namespace is granted
+                individually.
+
+        Returns:
+            bool: True if the grant was applied.
+
+        Raises:
+            ValueError: if permission is not one of "read", "write", "introspect".
+        """
+
     def is_server_online(self) -> bool:
         """
         Check if the server is online.
 
         Returns:
             bool: Returns true if server is online otherwise false.
+        """
+
+    def list_roles(self) -> list[str]:
+        """
+        List every role name in the server's permissions store.
+
+        Requires an admin (write-access) token.
+
+        Returns:
+            list[str]: the role names.
         """
 
     def move_graph(self, path: str, new_path: str) -> None:
@@ -255,7 +432,25 @@ class RaphtoryClient(object):
             None:
         """
 
-    def new_graph(self, path: str, graph_type: Literal["EVENT", "PERSISTENT"]) -> None:
+    def my_permissions(self) -> dict[str, Any]:
+        """
+        Return this token's own permission grants.
+
+        Reads only what the calling role has been granted, so it never discloses
+        other roles or graphs. Available to any authenticated caller (does not
+        require an admin token). Only available when the server was started with
+        a permissions store.
+
+        Returns:
+            dict[str, Any]: a mapping with keys ``role`` (str or None),
+            ``graphs`` (list of ``{"path", "permission", "filtered"}``) and
+            ``namespaces`` (list of ``{"path", "permission"}``). ``role`` is None
+            when the token carries no role claim, in which case both lists are empty.
+        """
+
+    def new_graph(
+        self, path: str, graph_type: Literal["EVENT", "PERSISTENT"]
+    ) -> RemoteGraph:
         """
         Create a new empty Graph on the server at path
 
@@ -264,7 +459,7 @@ class RaphtoryClient(object):
             graph_type (Literal["EVENT", "PERSISTENT"]): the type of graph that should be created - this can be EVENT or PERSISTENT
 
         Returns:
-            None:
+            RemoteGraph: a reference to the newly created graph.
 
         """
 
@@ -308,9 +503,40 @@ class RaphtoryClient(object):
 
         """
 
+    def revoke_graph(self, role: str, path: str) -> bool:
+        """
+        Revoke a role's access to a single graph.
+
+        Requires an admin (write-access) token.
+
+        Arguments:
+            role (str): the role to revoke access from
+            path (str): the path of the graph
+
+        Returns:
+            bool: True if the access was revoked.
+        """
+
+    def revoke_namespace(self, role: str, path: str, recursive: bool = False) -> bool:
+        """
+        Revoke a role's access to a namespace.
+
+        Requires an admin (write-access) token.
+
+        Arguments:
+            role (str): the role to revoke access from
+            path (str): the namespace path
+            recursive (bool): also revoke existing descendants. Defaults to False.
+                Every currently existing descendant of the namespace is revoked
+                individually.
+
+        Returns:
+            bool: True if the access was revoked.
+        """
+
     def send_graph(
         self, path: str, graph: Graph | PersistentGraph, overwrite: bool = False
-    ) -> dict[str, Any]:
+    ) -> None:
         """
         Send a graph to the server
 
@@ -320,12 +546,10 @@ class RaphtoryClient(object):
             overwrite (bool): overwrite existing graph. Defaults to False.
 
         Returns:
-            dict[str, Any]: The data field from the graphQL response after executing the mutation.
+            None:
         """
 
-    def upload_graph(
-        self, path: str, file_path: str, overwrite: bool = False
-    ) -> dict[str, Any]:
+    def upload_graph(self, path: str, file_path: str, overwrite: bool = False) -> None:
         """
         Upload graph file from a path file_path on the client
 
@@ -335,7 +559,23 @@ class RaphtoryClient(object):
             overwrite (bool): overwrite existing graph. Defaults to False.
 
         Returns:
-            dict[str, Any]: The data field from the graphQL response after executing the mutation.
+            None:
+        """
+
+    def with_token(self, token: str) -> RaphtoryClient:
+        """
+        Return a new client identical to this one but authenticating with a
+        different bearer token.
+
+        Purely client-side: no server round-trip is made. Useful for acting as a
+        different principal (for example, an admin dropping to a reader token)
+        without reconstructing the client.
+
+        Arguments:
+            token (str): the bearer token the returned client should send.
+
+        Returns:
+            RaphtoryClient: a new client using the given token.
         """
 
 class RemoteGraph(object):
@@ -346,6 +586,7 @@ class RemoteGraph(object):
         dst: str | int,
         properties: Optional[dict] = None,
         layer: Optional[str] = None,
+        event_id: Optional[int] = None,
     ) -> RemoteEdge:
         """
         Adds a new edge with the given source and destination nodes and properties to the remote graph.
@@ -356,6 +597,8 @@ class RemoteGraph(object):
             dst (str | int): The id of the destination node.
             properties (dict, optional): The properties of the edge, as a dict of string and properties.
             layer (str, optional): The layer of the edge.
+            event_id (int, optional): Secondary index to disambiguate multiple
+                updates at the same timestamp. If omitted, the server auto-increments it.
 
         Returns:
             RemoteEdge: the remote edge
@@ -372,12 +615,12 @@ class RemoteGraph(object):
             None:
         """
 
-    def add_metadata(self, properties: dict) -> None:
+    def add_metadata(self, metadata: dict) -> None:
         """
         Adds metadata to the remote graph.
 
         Arguments:
-            properties (dict): The metadata of the graph.
+            metadata (dict): The metadata of the graph.
 
         Returns:
             None:
@@ -389,6 +632,7 @@ class RemoteGraph(object):
         id: str | int,
         properties: Optional[dict] = None,
         node_type: Optional[str] = None,
+        event_id: Optional[int] = None,
         layer: Optional[str] = None,
     ) -> RemoteNode:
         """
@@ -399,6 +643,8 @@ class RemoteGraph(object):
             id (str | int): The id of the node.
             properties (dict, optional): The properties of the node.
             node_type (str, optional): The optional string which will be used as a node type
+            event_id (int, optional): Secondary index to disambiguate multiple
+                updates at the same timestamp. If omitted, the server auto-increments it.
             layer (str, optional): The optional layer where the node update should be written
 
         Returns:
@@ -416,16 +662,82 @@ class RemoteGraph(object):
             None:
         """
 
-    def add_property(self, timestamp: int | str | datetime, properties: dict) -> None:
+    def add_properties(
+        self,
+        timestamp: int | str | datetime,
+        properties: dict,
+        event_id: Optional[int] = None,
+    ) -> None:
         """
-        Adds properties to the remote graph.
+        Adds temporal properties to the remote graph.
 
         Arguments:
             timestamp (int | str | datetime): The timestamp of the temporal property.
             properties (dict): The temporal properties of the graph.
+            event_id (int, optional): Secondary index to disambiguate multiple
+                updates at the same timestamp. If omitted, the server
+                auto-increments it.
 
         Returns:
             None:
+        """
+
+    def after(self, time: TimeInput) -> RemoteGraph:
+        """
+        Restrict to events strictly after the given time (exclusive). Lazy — no RPC.
+
+        Arguments:
+            time (TimeInput): only events strictly after this time are kept.
+
+        Returns:
+            RemoteGraph: a new view restricted to events after that time.
+        """
+
+    def at(self, time: TimeInput) -> RemoteGraph:
+        """
+        Snapshot at a specific time. Lazy — no RPC.
+
+        Arguments:
+            time (TimeInput): the time to snapshot at.
+
+        Returns:
+            RemoteGraph: a new view snapshotted at that time.
+        """
+
+    def before(self, time: TimeInput) -> RemoteGraph:
+        """
+        Restrict to events strictly before the given time. Lazy — no RPC.
+
+        Arguments:
+            time (TimeInput): only events strictly before this time are kept.
+
+        Returns:
+            RemoteGraph: a new view restricted to events before that time.
+        """
+
+    def count_edges(self) -> int:
+        """
+        Terminal: total edge count under the current view. Fires one RPC.
+
+        Returns:
+            int: the number of edges.
+        """
+
+    def count_nodes(self) -> int:
+        """
+        Terminal: total node count under the current view. Fires one RPC.
+
+        Returns:
+            int: the number of nodes.
+        """
+
+    def count_temporal_edges(self) -> int:
+        """
+        Terminal: total temporal-edge count (edge updates) under the current
+        view. Fires one RPC.
+
+        Returns:
+            int: the number of edge updates.
         """
 
     def create_node(
@@ -434,6 +746,8 @@ class RemoteGraph(object):
         id: str | int,
         properties: Optional[dict] = None,
         node_type: Optional[str] = None,
+        event_id: Optional[int] = None,
+        layer: Optional[str] = None,
     ) -> RemoteNode:
         """
         Create a new node with the given id and properties to the remote graph and fail if the node already exists.
@@ -443,9 +757,28 @@ class RemoteGraph(object):
             id (str | int): The id of the node.
             properties (dict, optional): The properties of the node.
             node_type (str, optional): The optional string which will be used as a node type
+            event_id (int, optional): Secondary index to disambiguate multiple
+                updates at the same timestamp. If omitted, the server auto-increments it.
+            layer (str, optional): The optional layer where the node update should be written
 
         Returns:
             RemoteNode: the new remote node
+        """
+
+    def created(self) -> int:
+        """
+        Terminal: graph creation timestamp. Fires one RPC.
+
+        Returns:
+            int: the graph's creation timestamp.
+        """
+
+    def default_layer(self) -> RemoteGraph:
+        """
+        Restrict to the default layer. Lazy — no RPC.
+
+        Returns:
+            RemoteGraph: a new view restricted to the default layer.
         """
 
     def delete_edge(
@@ -454,6 +787,7 @@ class RemoteGraph(object):
         src: str | int,
         dst: str | int,
         layer: Optional[str] = None,
+        event_id: Optional[int] = None,
     ) -> RemoteEdge:
         """
         Deletes an edge in the remote graph, given the timestamp, src and dst nodes and layer (optional)
@@ -463,43 +797,519 @@ class RemoteGraph(object):
             src (str | int): The id of the source node.
             dst (str | int): The id of the destination node.
             layer (str, optional): The layer of the edge.
+            event_id (int, optional): Secondary index to disambiguate multiple
+                updates at the same timestamp. If omitted, the server auto-increments it.
 
         Returns:
             RemoteEdge: the remote edge
         """
 
-    def edge(self, src: str | int, dst: str | int) -> RemoteEdge:
+    @property
+    def earliest_edge_time(self) -> OptionalEventTime:
         """
-        Gets a remote edge with the specified source and destination nodes
+        Time entry of the earliest edge activity in the graph. Unlike
+        `earliest_time`, this ignores node-only and graph-property events.
+        Property — fires one RPC.
+
+        Returns:
+            OptionalEventTime: the time entry of the earliest edge activity, or
+                empty if the view has no edges.
+        """
+
+    @property
+    def earliest_time(self) -> OptionalEventTime:
+        """
+        Earliest event time under the current view. `None` if the view has no
+        events. Property — attribute access fires one RPC.
+
+        Returns:
+            OptionalEventTime: the earliest event time, or empty if the view has no
+                events.
+        """
+
+    def edge(self, src: str | int, dst: str | int) -> Optional[RemoteEdge]:
+        """
+        Gets a remote edge with the specified source and destination nodes.
+
+        Fires one RPC — a `hasEdge` check against the current view chain.
 
         Arguments:
             src (str | int): the source node id
             dst (str | int): the destination node id
 
         Returns:
-            RemoteEdge: the remote edge reference
+            Optional[RemoteEdge]: the remote edge, or `None` if it isn't visible
+                under the current view.
         """
 
-    def node(self, id: str | int) -> RemoteNode:
+    @property
+    def edges(self) -> RemoteEdges:
         """
-        Gets a remote node with the specified id
+        The collection of all edges in this graph under the current view.
+        Lazy — no RPC.
+
+        Returns:
+          RemoteEdges: a handle to the edges collection.
+        """
+
+    @property
+    def end(self) -> OptionalEventTime:
+        """
+        View end bound. `None` for an unbounded view. Property — fires one RPC.
+
+        Returns:
+            OptionalEventTime: the view end bound, or empty if unbounded.
+        """
+
+    def event_graph(self) -> RemoteGraph:
+        """
+        View this graph with event semantics, whatever flavour it was stored
+        with — the remote form of the local zero-copy conversion. Only valid on
+        the base handle (as locally, where the conversions live on the graph
+        classes rather than on views). Lazy — no RPC.
+
+        Returns:
+            RemoteGraph: the same server graph under event semantics.
+
+        Raises:
+            Exception: if called after view operations.
+        """
+
+    def exclude_layer(self, name: str) -> RemoteGraph:
+        """
+        Exclude a specific layer from the view. Lazy — no RPC.
+
+        Arguments:
+            name (str): the name of the layer to exclude.
+
+        Returns:
+            RemoteGraph: a new view with that layer excluded.
+        """
+
+    def exclude_layers(self, names: list[str]) -> RemoteGraph:
+        """
+        Exclude the given set of layers from the view. Lazy — no RPC.
+
+        Arguments:
+            names (list[str]): the names of the layers to exclude.
+
+        Returns:
+            RemoteGraph: a new view with those layers excluded.
+        """
+
+    def exclude_nodes(self, nodes: list[str | int]) -> RemoteGraph:
+        """
+        Exclude the given nodes from the view. Lazy — no RPC.
+
+        Arguments:
+            nodes (list[str | int]): the ids of the nodes to exclude.
+
+        Returns:
+            RemoteGraph: a new view with those nodes excluded.
+        """
+
+    def exclude_valid_layer(self, name: str) -> RemoteGraph:
+        """
+        Exclude a specific valid layer from the view. Lazy — no RPC.
+
+        Arguments:
+            name (str): the name of the valid layer to exclude.
+
+        Returns:
+            RemoteGraph: a new view with that valid layer excluded.
+        """
+
+    def exclude_valid_layers(self, names: list[str]) -> RemoteGraph:
+        """
+        Exclude the given set of valid layers from the view. Lazy — no RPC.
+
+        Arguments:
+            names (list[str]): the names of the valid layers to exclude.
+
+        Returns:
+            RemoteGraph: a new view with those valid layers excluded.
+        """
+
+    def filter(self, filter: Any) -> RemoteGraph:
+        """
+        Return a filtered graph view. Mirrors the local
+        `Graph.filter(FilterExpr)`: pass a node filter to keep matching nodes
+        (edges survive only if both endpoints do), or an edge filter to keep
+        matching edges (nodes remain even if all their edges drop). Lazy — no
+        RPC.
+
+        Arguments:
+            filter (FilterExpr): a filter expression from `raphtory.filter`.
+
+        Returns:
+            RemoteGraph: a new filtered graph view.
+
+        Raises:
+            ValueError: if the filter cannot be represented as a GraphQL
+                `NodeFilter` or `EdgeFilter`.
+        """
+
+    def get_all_node_types(self) -> list[str]:
+        """
+        Returns all the node types present in the graph. Mirrors the local
+        `Graph.get_all_node_types`. Fires one RPC.
+
+        Returns:
+            list[str]: the node types.
+        """
+
+    def has_edge(self, src: str | int, dst: str | int) -> bool:
+        """
+        Terminal: does the graph have an edge `(src, dst)`? Fires one RPC.
+
+        Arguments:
+            src (str | int): the id of the source node.
+            dst (str | int): the id of the destination node.
+
+        Returns:
+            bool: True if the edge is present.
+        """
+
+    def has_layer(self, name: str) -> bool:
+        """
+        Check if this view has a layer named `name`. Fires one RPC.
+
+        Arguments:
+          name (str): the name of the layer to check.
+
+        Returns:
+          bool: True if the layer is present.
+        """
+
+    def has_node(self, id: str | int) -> bool:
+        """
+        Terminal: does the graph have a node with this id? Fires one RPC.
+
+        Arguments:
+            id (str | int): the id of the node to check.
+
+        Returns:
+            bool: True if the node is present.
+        """
+
+    def last_opened(self) -> int:
+        """
+        Terminal: last time this graph was opened. Fires one RPC.
+
+        Returns:
+            int: the timestamp the graph was last opened at.
+        """
+
+    def last_updated(self) -> int:
+        """
+        Terminal: last time this graph was updated. Fires one RPC.
+
+        Returns:
+            int: the timestamp the graph was last updated at.
+        """
+
+    def latest(self) -> RemoteGraph:
+        """
+        Restrict to the latest state. Lazy — no RPC.
+
+        Returns:
+            RemoteGraph: a new view of the latest state.
+        """
+
+    @property
+    def latest_edge_time(self) -> OptionalEventTime:
+        """
+        Time entry of the latest edge activity in the graph. Unlike
+        `latest_time`, this ignores node-only and graph-property events.
+        Property — fires one RPC.
+
+        Returns:
+            OptionalEventTime: the time entry of the latest edge activity, or
+                empty if the view has no edges.
+        """
+
+    @property
+    def latest_time(self) -> OptionalEventTime:
+        """
+        Latest event time under the current view. Property — fires one RPC.
+
+        Returns:
+            OptionalEventTime: the latest event time, or empty if the view has no events.
+        """
+
+    def layer(self, name: str) -> RemoteGraph:
+        """
+        Restrict to a single named layer. Lazy — no RPC.
+
+        Arguments:
+            name (str): the name of the layer.
+
+        Returns:
+            RemoteGraph: a new view restricted to that layer.
+        """
+
+    def layers(self, names: list[str]) -> RemoteGraph:
+        """
+        Restrict to the given set of layers. Lazy — no RPC.
+
+        Arguments:
+            names (list[str]): the names of the layers.
+
+        Returns:
+            RemoteGraph: a new view restricted to those layers.
+        """
+
+    @property
+    def metadata(self) -> RemoteMetadata:
+        """
+        The non-temporal metadata container of this graph. Lazy — no RPC.
+
+        Returns:
+          RemoteMetadata: a handle to the metadata container.
+        """
+
+    def name(self) -> str:
+        """
+        Terminal: the graph's name. Fires one RPC.
+
+        Returns:
+            str: the graph's name.
+        """
+
+    def namespace(self) -> str:
+        """
+        Terminal: the parent namespace of the graph path. Fires one RPC.
+
+        Returns:
+            str: the parent namespace of the graph path.
+        """
+
+    def node(self, id: str | int) -> Optional[RemoteNode]:
+        """
+        Gets a remote node with the specified id.
+
+        Inherits any view chain built up on the parent `RemoteGraph` (e.g. after
+        `rg.window(...)`) so subsequent terminals like `degree()` evaluate under
+        the same view context.
+
+        Fires one RPC — a `hasNode` check against the current view chain.
 
         Arguments:
             id (str | int): the node id
 
         Returns:
-            RemoteNode: the remote node reference
+            Optional[RemoteNode]: the remote node, or `None` if it isn't visible
+                under the current view.
         """
 
-    def update_metadata(self, properties: dict) -> None:
+    @property
+    def nodes(self) -> RemoteNodes:
+        """
+        The collection of all nodes in this graph under the current view.
+        Lazy — no RPC.
+
+        Returns:
+          RemoteNodes: a handle to the nodes collection.
+        """
+
+    def path(self) -> str:
+        """
+        Terminal: the graph's full path. Fires one RPC.
+
+        Returns:
+            str: the graph's full path.
+        """
+
+    def persistent_graph(self) -> RemoteGraph:
+        """
+        View this graph with persistent semantics, whatever flavour it was
+        stored with — the remote form of the local zero-copy conversion. Only
+        valid on the base handle (as locally, where the conversions live on the
+        graph classes rather than on views). Lazy — no RPC.
+
+        Returns:
+            RemoteGraph: the same server graph under persistent semantics.
+
+        Raises:
+            Exception: if called after view operations.
+        """
+
+    @property
+    def properties(self) -> RemoteProperties:
+        """
+        The full properties container of this graph (temporal + metadata).
+        Lazy — no RPC.
+
+        Returns:
+          RemoteProperties: a handle to the properties container.
+        """
+
+    def schema(self) -> RemoteGraphSchema:
+        """
+        Fetch the graph's schema — node types, edge layers, and their
+        observed property/metadata schemas. Fires one RPC and materializes
+        the entire tree eagerly.
+
+        Returns:
+          RemoteGraphSchema: the full schema descriptor.
+        """
+
+    def shared_neighbours(self, ids: list[str]) -> list[RemoteNode]:
+        """
+        Return the nodes that are common neighbours of the given ids
+        (set intersection). Fires one RPC.
+
+        Ids that don't exist in the current view are silently dropped
+        server-side — the intersection is taken over the ids that do exist.
+        So `shared_neighbours(["a", "z"])` where `"z"` is missing returns
+        `a`'s neighbours (not an empty set).
+
+        Arguments:
+            ids (list[str]): node ids to intersect neighbours of.
+
+        Returns:
+            list[RemoteNode]: the shared neighbours. Empty if `ids` is empty
+                or none of the ids exist in the current view.
+        """
+
+    def shrink_end(self, end: TimeInput) -> RemoteGraph:
+        """
+        Shrink the end of the current window. Lazy — no RPC.
+
+        Arguments:
+            end (TimeInput): the new exclusive end of the window.
+
+        Returns:
+            RemoteGraph: a new view with the window end shrunk.
+        """
+
+    def shrink_start(self, start: TimeInput) -> RemoteGraph:
+        """
+        Shrink the start of the current window. Lazy — no RPC.
+
+        Arguments:
+            start (TimeInput): the new inclusive start of the window.
+
+        Returns:
+            RemoteGraph: a new view with the window start shrunk.
+        """
+
+    def snapshot_at(self, time: TimeInput) -> RemoteGraph:
+        """
+        Snapshot at a specific time. Lazy — no RPC.
+
+        Arguments:
+            time (TimeInput): the time to snapshot at.
+
+        Returns:
+            RemoteGraph: a new view snapshotted at that time.
+        """
+
+    def snapshot_latest(self) -> RemoteGraph:
+        """
+        Snapshot at the latest time. Lazy — no RPC.
+
+        Returns:
+            RemoteGraph: a new view snapshotted at the latest time.
+        """
+
+    @property
+    def start(self) -> OptionalEventTime:
+        """
+        View start bound. `None` for an unbounded view. Property — fires one RPC.
+
+        Returns:
+            OptionalEventTime: the view start bound, or empty if unbounded.
+        """
+
+    def subgraph(self, nodes: list[str | int]) -> RemoteGraph:
+        """
+        Restrict to a subgraph induced by the given node ids. Lazy — no RPC.
+
+        Arguments:
+            nodes (list[str | int]): the ids of the nodes to keep.
+
+        Returns:
+            RemoteGraph: a new view restricted to the induced subgraph.
+        """
+
+    def subgraph_node_types(self, node_types: list[str]) -> RemoteGraph:
+        """
+        Restrict to nodes matching one of the given node types. Lazy — no RPC.
+
+        Arguments:
+            node_types (list[str]): the node types to keep.
+
+        Returns:
+            RemoteGraph: a new view restricted to those node types.
+        """
+
+    @property
+    def unique_layers(self) -> list[str]:
+        """
+        List of unique layer names present in this graph. Property — fires one RPC.
+
+        Returns:
+            list[str]: the unique layer names.
+        """
+
+    def update_metadata(self, metadata: dict) -> None:
         """
         Updates metadata on the remote graph.
 
         Arguments:
-            properties (dict): The metadata of the graph.
+            metadata (dict): The metadata of the graph.
 
         Returns:
             None:
+        """
+
+    def valid(self) -> RemoteGraph:
+        """
+        Restrict to the "valid" subgraph (event-graph filter). Lazy — no RPC.
+
+        Returns:
+            RemoteGraph: a new view restricted to the valid subgraph.
+        """
+
+    def valid_layers(self, names: list[str]) -> RemoteGraph:
+        """
+        Restrict to the given set of valid layers. Lazy — no RPC.
+
+        Arguments:
+            names (list[str]): the names of the valid layers.
+
+        Returns:
+            RemoteGraph: a new view restricted to those valid layers.
+        """
+
+    def window(
+        self, start: int | str | datetime, end: int | str | datetime
+    ) -> RemoteGraph:
+        """
+        Restrict the graph to a time window `[start, end)`.
+
+        Lazy: builds up a read expression on the returned `RemoteGraph` without
+        firing an RPC. Terminals invoked on child references (e.g.
+        `rg.window(0, 10).node("ben").degree()`) evaluate under the accumulated
+        view chain.
+
+        Arguments:
+            start (int | str | datetime): inclusive start of the window
+            end (int | str | datetime): exclusive end of the window
+
+        Returns:
+            RemoteGraph: a new remote graph view restricted to the window
+        """
+
+    @property
+    def window_size(self) -> Optional[int]:
+        """
+        The size of the window covered by this view (`end - start`), or `None`
+        if the view is unbounded. Property — attribute access fires one RPC.
+
+        Returns:
+            Optional[int]: the size of the window, or `None` if the view is unbounded.
         """
 
 class RemoteEdge(object):
@@ -512,7 +1322,7 @@ class RemoteEdge(object):
     """
 
     def add_metadata(
-        self, properties: dict[str, PropValue], layer: Optional[str] = None
+        self, metadata: dict[str, PropValue], layer: Optional[str] = None
     ) -> None:
         """
         Add metadata to the edge within the remote graph.
@@ -520,7 +1330,7 @@ class RemoteEdge(object):
         change over time. This metadata is fundamental information of the edge.
 
         Arguments:
-          properties (dict[str, PropValue]): A dictionary of properties to be added to the edge.
+          metadata (dict[str, PropValue]): A dictionary of metadata to be added to the edge.
           layer (str, optional): The layer you want these properties to be added on to.
 
         Returns:
@@ -532,6 +1342,7 @@ class RemoteEdge(object):
         t: int | str | datetime,
         properties: Optional[dict[str, PropValue]] = None,
         layer: Optional[str] = None,
+        event_id: Optional[int] = None,
     ) -> None:
         """
         Add updates to an edge in the remote graph at a specified time.
@@ -543,18 +1354,68 @@ class RemoteEdge(object):
           t (int | str | datetime): The timestamp at which the updates should be applied.
           properties (dict[str, PropValue], optional): A dictionary of properties to update.
           layer (str, optional): The layer you want the updates to be applied.
+          event_id (int, optional): Secondary index to disambiguate multiple
+              updates at the same timestamp. If omitted, the server auto-increments it.
 
         Returns:
           None:
         """
 
-    def delete(self, t: int | str | datetime, layer: Optional[str] = None) -> None:
+    def after(self, time: TimeInput) -> RemoteEdge:
+        """
+        Restrict to events strictly after the given time. Lazy — no RPC.
+
+        Arguments:
+            time (TimeInput): only events strictly after this time are kept.
+
+        Returns:
+            RemoteEdge: a new view restricted to events after that time.
+        """
+
+    def at(self, time: TimeInput) -> RemoteEdge:
+        """
+        View including all events at a specific time. Lazy — no RPC.
+
+        Arguments:
+            time (TimeInput): the time to view.
+
+        Returns:
+            RemoteEdge: a new view of that time.
+        """
+
+    def before(self, time: TimeInput) -> RemoteEdge:
+        """
+        Restrict to events strictly before the given time. Lazy — no RPC.
+
+        Arguments:
+            time (TimeInput): only events strictly before this time are kept.
+
+        Returns:
+            RemoteEdge: a new view restricted to events before that time.
+        """
+
+    def default_layer(self) -> RemoteEdge:
+        """
+        Restrict to the default layer. Lazy — no RPC.
+
+        Returns:
+            RemoteEdge: a new view restricted to the default layer.
+        """
+
+    def delete(
+        self,
+        t: int | str | datetime,
+        layer: Optional[str] = None,
+        event_id: Optional[int] = None,
+    ) -> None:
         """
         Mark the edge as deleted at the specified time.
 
         Arguments:
           t (int | str | datetime): The timestamp at which the deletion should be applied.
           layer (str, optional): The layer you want the deletion applied to.
+          event_id (int, optional): Secondary index to disambiguate multiple
+              updates at the same timestamp. If omitted, the server auto-increments it.
 
         Returns:
           None:
@@ -563,8 +1424,350 @@ class RemoteEdge(object):
           GraphError: If the operation fails.
         """
 
+    @property
+    def deletions(self) -> RemoteHistory:
+        """
+        The deletion history of this edge — a `RemoteHistory` container
+        tracking the times at which the edge was marked deleted. Distinct
+        from `history` which tracks all events. Lazy — no RPC.
+
+        Returns:
+            RemoteHistory: the edge's deletion history.
+        """
+
+    @property
+    def dst(self) -> RemoteNode:
+        """
+        Navigate to this edge's destination node. Property — lazy, no RPC.
+
+        Returns:
+          RemoteNode: a handle to the destination node, carrying the accumulated view chain.
+        """
+
+    @property
+    def earliest_time(self) -> OptionalEventTime:
+        """
+        Earliest event time on this edge under the current view. `None` if the
+        edge has no events in the view. Property — attribute access fires one RPC.
+
+        Returns:
+            OptionalEventTime: the earliest event time on the edge, or empty if it has no
+                events in view.
+        """
+
+    @property
+    def end(self) -> OptionalEventTime:
+        """
+        View end bound as seen by this edge. Property — fires one RPC.
+
+        Returns:
+            OptionalEventTime: the view end bound, or empty if unbounded.
+        """
+
+    def exclude_layer(self, name: str) -> RemoteEdge:
+        """
+        Exclude a specific layer. Lazy — no RPC.
+
+        Arguments:
+            name (str): the name of the layer to exclude.
+
+        Returns:
+            RemoteEdge: a new view with that layer excluded.
+        """
+
+    def exclude_layers(self, names: list[str]) -> RemoteEdge:
+        """
+        Exclude the given set of layers. Lazy — no RPC.
+
+        Arguments:
+            names (list[str]): the names of the layers to exclude.
+
+        Returns:
+            RemoteEdge: a new view with those layers excluded.
+        """
+
+    def exclude_valid_layer(self, name: str) -> RemoteEdge:
+        """
+        Exclude a specific valid layer from the view. Lazy — no RPC.
+
+        Arguments:
+            name (str): the name of the valid layer to exclude.
+
+        Returns:
+            RemoteEdge: a new view with that valid layer excluded.
+        """
+
+    def exclude_valid_layers(self, names: list[str]) -> RemoteEdge:
+        """
+        Exclude the given set of valid layers from the view. Lazy — no RPC.
+
+        Arguments:
+            names (list[str]): the names of the valid layers to exclude.
+
+        Returns:
+            RemoteEdge: a new view with those valid layers excluded.
+        """
+
+    def explode(self) -> RemoteEdges:
+        """
+        Fan out this edge into one entry per event — returns a `RemoteEdges`
+        with each member a single-event edge instance. Lazy — no RPC.
+
+        Returns:
+            RemoteEdges: one entry per event of this edge.
+        """
+
+    def explode_layers(self) -> RemoteEdges:
+        """
+        Fan out this edge into one entry per layer — returns a `RemoteEdges`
+        with each member a single-layer edge instance. Lazy — no RPC.
+
+        Returns:
+            RemoteEdges: one entry per layer of this edge.
+        """
+
+    def filter(self, filter: Any) -> RemoteEdge:
+        """
+        Return a filtered view of this edge — the filter propagates to
+        everything reached through it. Accepts node or edge filter
+        expressions; mirrors the local `Edge.filter`. Lazy — no RPC.
+
+        Arguments:
+            filter (FilterExpr): a filter expression from `raphtory.filter`.
+
+        Returns:
+            RemoteEdge: a new filtered edge view.
+
+        Raises:
+            ValueError: if the filter cannot be represented remotely.
+        """
+
+    def has_layer(self, name: str) -> bool:
+        """
+        Check if this view has a layer named `name`. Fires one RPC.
+
+        Arguments:
+            name (str): the name of the layer to check.
+
+        Returns:
+            bool: True if the layer is present.
+        """
+
+    @property
+    def history(self) -> RemoteHistory:
+        """
+        The event history of this edge — a `RemoteHistory` container with
+        terminals like `count()`, `collect()`, `earliest_time()`, and the
+        `.t` / `.dt` / `.event_id` / `.intervals` sub-container accessors.
+        Lazy — no RPC.
+
+        Returns:
+            RemoteHistory: the edge's event history.
+        """
+
+    @property
+    def id(self) -> tuple[str | int, str | int]:
+        """
+        Edge id as a `(src, dst)` pair of endpoint ids. Property — fires one RPC.
+
+        Returns:
+            tuple[str | int, str | int]: the `(src, dst)` pair of endpoint
+                ids — strings for string-indexed graphs, integers for
+                integer-indexed ones.
+        """
+
+    def is_active(self) -> bool:
+        """
+        Whether the edge has any events in the current view. Fires one RPC.
+
+        Returns:
+            bool: True if the edge has events in the current view.
+        """
+
+    def is_deleted(self) -> bool:
+        """
+        Whether the edge has been deleted at the current time. Fires one RPC.
+
+        Returns:
+            bool: True if the edge has been deleted at the current time.
+        """
+
+    def is_self_loop(self) -> bool:
+        """
+        Whether the edge is a self-loop (src == dst). Fires one RPC.
+
+        Returns:
+            bool: True if the edge is a self-loop.
+        """
+
+    def is_valid(self) -> bool:
+        """
+        Whether the edge is valid at the current time. Fires one RPC.
+
+        Returns:
+            bool: True if the edge is valid at the current time.
+        """
+
+    def latest(self) -> RemoteEdge:
+        """
+        Latest state. Lazy — no RPC.
+
+        Returns:
+            RemoteEdge: a new view of the latest state.
+        """
+
+    @property
+    def latest_time(self) -> OptionalEventTime:
+        """
+        Latest event time on this edge under the current view. Property — RPC.
+
+        Returns:
+            OptionalEventTime: the latest event time on the edge, or empty if it has no
+                events in view.
+        """
+
+    def layer(self, name: str) -> RemoteEdge:
+        """
+        Restrict to a single named layer. Lazy — no RPC.
+
+        Arguments:
+            name (str): the name of the layer.
+
+        Returns:
+            RemoteEdge: a new view restricted to that layer.
+        """
+
+    @property
+    def layer_name(self) -> str:
+        """
+        Single layer name for a layer-restricted view of this edge. Raises if
+        the edge isn't scoped to exactly one layer. Property — fires one RPC.
+
+        Returns:
+            str: the single layer name of this view.
+        """
+
+    @property
+    def layer_names(self) -> list[str]:
+        """
+        Layer names this edge is present in. Property — fires one RPC.
+
+        Returns:
+            list[str]: the layer names the edge is present in.
+        """
+
+    def layers(self, names: list[str]) -> RemoteEdge:
+        """
+        Restrict to the given set of layers. Lazy — no RPC.
+
+        Arguments:
+            names (list[str]): the names of the layers.
+
+        Returns:
+            RemoteEdge: a new view restricted to those layers.
+        """
+
+    @property
+    def metadata(self) -> RemoteMetadata:
+        """
+        The non-temporal metadata container of this edge. Lazy — no RPC.
+
+        Returns:
+            RemoteMetadata: the edge's metadata container.
+        """
+
+    @property
+    def nbr(self) -> RemoteNode:
+        """
+        Navigate to the "other end" node — destination on out-edges, source
+        on in-edges. Property — lazy, no RPC.
+
+        Returns:
+            RemoteNode: a handle to the other-end node, carrying the accumulated view chain.
+        """
+
+    @property
+    def properties(self) -> RemoteProperties:
+        """
+        The full properties container of this edge (temporal + metadata).
+        Lazy — no RPC.
+
+        Returns:
+            RemoteProperties: the edge's properties container.
+        """
+
+    def shrink_end(self, end: TimeInput) -> RemoteEdge:
+        """
+        Shrink the end of the current window. Lazy — no RPC.
+
+        Arguments:
+            end (TimeInput): the new exclusive end of the window.
+
+        Returns:
+            RemoteEdge: a new view with the window end shrunk.
+        """
+
+    def shrink_start(self, start: TimeInput) -> RemoteEdge:
+        """
+        Shrink the start of the current window. Lazy — no RPC.
+
+        Arguments:
+            start (TimeInput): the new inclusive start of the window.
+
+        Returns:
+            RemoteEdge: a new view with the window start shrunk.
+        """
+
+    def snapshot_at(self, time: TimeInput) -> RemoteEdge:
+        """
+        Snapshot at a specific time. Lazy — no RPC.
+
+        Arguments:
+            time (TimeInput): the time to snapshot at.
+
+        Returns:
+            RemoteEdge: a new view snapshotted at that time.
+        """
+
+    def snapshot_latest(self) -> RemoteEdge:
+        """
+        Snapshot at the latest time. Lazy — no RPC.
+
+        Returns:
+            RemoteEdge: a new view snapshotted at the latest time.
+        """
+
+    @property
+    def src(self) -> RemoteNode:
+        """
+        Navigate to this edge's source node. Lazy — no RPC.
+
+        Returns:
+          RemoteNode: a handle to the source node, carrying the accumulated view chain.
+        """
+
+    @property
+    def start(self) -> OptionalEventTime:
+        """
+        View start bound as seen by this edge. Property — fires one RPC.
+
+        Returns:
+            OptionalEventTime: the view start bound, or empty if unbounded.
+        """
+
+    @property
+    def time(self) -> OptionalEventTime:
+        """
+        The event time this exploded edge event happened at. Meaningful
+        primarily on `explode()`'d views. Property — attribute access fires one RPC.
+
+        Returns:
+            OptionalEventTime: the event time of this exploded edge event, or empty if
+                there is none.
+        """
+
     def update_metadata(
-        self, properties: dict[str, PropValue], layer: Optional[str] = None
+        self, metadata: dict[str, PropValue], layer: Optional[str] = None
     ) -> None:
         """
         Update metadata of an edge in the remote graph overwriting existing values.
@@ -572,15 +1775,48 @@ class RemoteEdge(object):
         change over time. These properties are fundamental attributes of the edge.
 
         Arguments:
-          properties (dict[str, PropValue]): A dictionary of properties to be added to the edge.
+          metadata (dict[str, PropValue]): A dictionary of metadata to be added to the edge.
           layer (str, optional): The layer you want these properties to be added on to.
 
         Returns:
           None:
         """
 
+    def valid_layers(self, names: list[str]) -> RemoteEdge:
+        """
+        Restrict to the given set of valid layers. Lazy — no RPC.
+
+        Arguments:
+            names (list[str]): the names of the valid layers.
+
+        Returns:
+            RemoteEdge: a new view restricted to those valid layers.
+        """
+
+    def window(self, start: TimeInput, end: TimeInput) -> RemoteEdge:
+        """
+        Time-window this handle. Lazy — no RPC.
+
+        Arguments:
+            start (TimeInput): inclusive start of the window.
+            end (TimeInput): exclusive end of the window.
+
+        Returns:
+            RemoteEdge: a new view restricted to the window.
+        """
+
+    @property
+    def window_size(self) -> Optional[int]:
+        """
+        The size of the window covered by this view (`end - start`), or `None`
+        if the view is unbounded. Property — attribute access fires one RPC.
+
+        Returns:
+            Optional[int]: the size of the window, or `None` if the view is unbounded.
+        """
+
 class RemoteNode(object):
-    def add_metadata(self, properties: dict[str, PropValue]) -> None:
+    def add_metadata(self, metadata: dict[str, PropValue]) -> None:
         """
         Add metadata to a node in the remote graph.
         This function is used to add properties to a node that do not
@@ -594,7 +1830,11 @@ class RemoteNode(object):
         """
 
     def add_updates(
-        self, t: int | str | datetime, properties: Optional[dict[str, PropValue]] = None
+        self,
+        t: int | str | datetime,
+        properties: Optional[dict[str, PropValue]] = None,
+        layer: Optional[str] = None,
+        event_id: Optional[int] = None,
     ) -> None:
         """
         Add updates to a node in the remote graph at a specified time.
@@ -603,9 +1843,368 @@ class RemoteNode(object):
         Arguments:
           t (int | str | datetime): The timestamp at which the updates should be applied.
           properties (dict[str, PropValue], optional): A dictionary of properties to update.
+          layer (str, optional): The layer the updates belong to. Defaults to the
+              graph's default layer.
+          event_id (int, optional): Secondary index to disambiguate multiple
+              updates at the same timestamp. If omitted, the server auto-increments it.
 
         Returns:
           None:
+        """
+
+    def after(self, time: TimeInput) -> RemoteNode:
+        """
+        Restrict to events strictly after the given time. Lazy — no RPC.
+
+        Arguments:
+            time (TimeInput): only events strictly after this time are kept.
+
+        Returns:
+            RemoteNode: a new view restricted to events after that time.
+        """
+
+    def at(self, time: TimeInput) -> RemoteNode:
+        """
+        View including all events at a specific time. Lazy — no RPC.
+
+        Arguments:
+            time (TimeInput): the time to view.
+
+        Returns:
+            RemoteNode: a new view of that time.
+        """
+
+    def before(self, time: TimeInput) -> RemoteNode:
+        """
+        Restrict to events strictly before the given time. Lazy — no RPC.
+
+        Arguments:
+            time (TimeInput): only events strictly before this time are kept.
+
+        Returns:
+            RemoteNode: a new view restricted to events before that time.
+        """
+
+    def default_layer(self) -> RemoteNode:
+        """
+        Restrict to the default layer. Lazy — no RPC.
+
+        Returns:
+            RemoteNode: a new view restricted to the default layer.
+        """
+
+    def degree(self) -> int:
+        """
+        Returns the degree of the node, evaluated under the current view chain
+        (e.g. under any `rg.window(...)` applied on the parent graph).
+
+        Fires one RPC to the server.
+
+        Returns:
+          int: the node's degree
+        """
+
+    @property
+    def earliest_time(self) -> OptionalEventTime:
+        """
+        Earliest event time on this node under the current view. `None` if the
+        node has no events. Property — attribute access fires one RPC.
+
+        Returns:
+            OptionalEventTime: the earliest event time on the node, or empty if it has no
+                events.
+        """
+
+    def edge_history_count(self) -> int:
+        """
+        Count of temporal edge events on this node. Fires one RPC.
+
+        Returns:
+            int: the number of temporal edge events on the node.
+        """
+
+    @property
+    def edges(self) -> RemoteEdges:
+        """
+        The collection of this node's edges (both directions). Lazy — no RPC.
+
+        Returns:
+            RemoteEdges: the node's incident edges.
+        """
+
+    @property
+    def end(self) -> OptionalEventTime:
+        """
+        View end bound as seen by this node. Property — fires one RPC.
+
+        Returns:
+            OptionalEventTime: the view end bound, or empty if unbounded.
+        """
+
+    def exclude_layer(self, name: str) -> RemoteNode:
+        """
+        Exclude a specific layer. Lazy — no RPC.
+
+        Arguments:
+            name (str): the name of the layer to exclude.
+
+        Returns:
+            RemoteNode: a new view with that layer excluded.
+        """
+
+    def exclude_layers(self, names: list[str]) -> RemoteNode:
+        """
+        Exclude the given set of layers. Lazy — no RPC.
+
+        Arguments:
+            names (list[str]): the names of the layers to exclude.
+
+        Returns:
+            RemoteNode: a new view with those layers excluded.
+        """
+
+    def exclude_valid_layer(self, name: str) -> RemoteNode:
+        """
+        Exclude a specific valid layer from the view. Lazy — no RPC.
+
+        Arguments:
+            name (str): the name of the valid layer to exclude.
+
+        Returns:
+            RemoteNode: a new view with that valid layer excluded.
+        """
+
+    def exclude_valid_layers(self, names: list[str]) -> RemoteNode:
+        """
+        Exclude the given set of valid layers from the view. Lazy — no RPC.
+
+        Arguments:
+            names (list[str]): the names of the valid layers to exclude.
+
+        Returns:
+            RemoteNode: a new view with those valid layers excluded.
+        """
+
+    def filter(self, filter: Any) -> RemoteNode:
+        """
+        Return a filtered view of this node — mirrors the local
+        `Node.filter(FilterExpr)`. Lazy — no RPC.
+
+        Arguments:
+            filter (FilterExpr): a node filter expression from `raphtory.filter`.
+
+        Returns:
+            RemoteNode: a new filtered node view.
+
+        Raises:
+            ValueError: if the filter cannot be represented as a GraphQL
+                `NodeFilter` (e.g. references edge fields).
+        """
+
+    def has_layer(self, name: str) -> bool:
+        """
+        Check if this view has a layer named `name`. Fires one RPC.
+
+        Arguments:
+            name (str): the name of the layer to check.
+
+        Returns:
+            bool: True if the layer is present.
+        """
+
+    @property
+    def history(self) -> RemoteHistory:
+        """
+        The event history of this node — a `RemoteHistory` container with
+        terminals like `count()`, `collect()`, `earliest_time()`, and the
+        `.t` / `.dt` / `.event_id` / `.intervals` sub-container accessors.
+        Lazy — no RPC.
+
+        Returns:
+            RemoteHistory: the node's event history.
+        """
+
+    @property
+    def id(self):
+        """
+        The node's id (as a string, even if the graph uses integer GIDs).
+        Property — attribute access fires one RPC.
+
+        Returns:
+            str | int: the node's id — a string for string-indexed graphs, an
+                integer for integer-indexed ones.
+        """
+
+    @property
+    def in_component(self) -> RemoteNodes:
+        """
+        The in-component of this node — nodes that can reach this node via
+        incoming edges (ancestors, not including self). Lazy — no RPC.
+
+        Returns:
+            RemoteNodes: the nodes that can reach this node.
+        """
+
+    def in_degree(self) -> int:
+        """
+        Returns the in-degree of the node under the current view chain.
+        Fires one RPC.
+
+        Returns:
+            int: the node's in-degree.
+        """
+
+    @property
+    def in_edges(self) -> RemoteEdges:
+        """
+        The collection of this node's incoming edges. Lazy — no RPC.
+
+        Returns:
+            RemoteEdges: the node's incoming edges.
+        """
+
+    @property
+    def in_neighbours(self) -> RemotePathFromNode:
+        """
+        This node's in-neighbours. Lazy — no RPC. See `neighbours` for
+        return-type notes.
+
+        Returns:
+            RemotePathFromNode: the in-neighbouring nodes.
+        """
+
+    def is_active(self) -> bool:
+        """
+        Whether the node has any events in the current view. Fires one RPC.
+
+        Returns:
+            bool: True if the node has events in the current view.
+        """
+
+    def latest(self) -> RemoteNode:
+        """
+        Latest state. Lazy — no RPC.
+
+        Returns:
+            RemoteNode: a new view of the latest state.
+        """
+
+    @property
+    def latest_time(self) -> OptionalEventTime:
+        """
+        Latest event time on this node. Property — attribute access fires one RPC.
+
+        Returns:
+            OptionalEventTime: the latest event time on the node, or empty if it has no
+                events.
+        """
+
+    def layer(self, name: str) -> RemoteNode:
+        """
+        Restrict to a single named layer. Lazy — no RPC.
+
+        Arguments:
+            name (str): the name of the layer.
+
+        Returns:
+            RemoteNode: a new view restricted to that layer.
+        """
+
+    def layers(self, names: list[str]) -> RemoteNode:
+        """
+        Restrict to the given set of layers. Lazy — no RPC.
+
+        Arguments:
+            names (list[str]): the names of the layers.
+
+        Returns:
+            RemoteNode: a new view restricted to those layers.
+        """
+
+    @property
+    def metadata(self) -> RemoteMetadata:
+        """
+        The non-temporal metadata container of this node. Lazy — no RPC.
+
+        Returns:
+            RemoteMetadata: the node's metadata container.
+        """
+
+    @property
+    def name(self) -> str:
+        """
+        The node's name. Property — attribute access fires one RPC.
+
+        Returns:
+            str: the node's name.
+        """
+
+    @property
+    def neighbours(self) -> RemotePathFromNode:
+        """
+        This node's neighbours (both directions). Lazy — no RPC. Returns a
+        `RemotePathFromNode` (not `RemoteNodes`) — see that type for the
+        available methods; `sorted` and `default_layer` are not available.
+
+        Returns:
+            RemotePathFromNode: the neighbouring nodes.
+        """
+
+    @property
+    def node_type(self) -> Optional[str]:
+        """
+        The node's type. `None` if not set. Property — fires one RPC.
+
+        Returns:
+            Optional[str]: the node's type, or `None` if unset.
+        """
+
+    @property
+    def out_component(self) -> RemoteNodes:
+        """
+        The out-component of this node — nodes reachable from this node via
+        outgoing edges (descendants, not including self). Lazy — no RPC.
+
+        Returns:
+            RemoteNodes: the nodes reachable from this node.
+        """
+
+    def out_degree(self) -> int:
+        """
+        Returns the out-degree of the node under the current view chain.
+        Fires one RPC.
+
+        Returns:
+            int: the node's out-degree.
+        """
+
+    @property
+    def out_edges(self) -> RemoteEdges:
+        """
+        The collection of this node's outgoing edges. Lazy — no RPC.
+
+        Returns:
+            RemoteEdges: the node's outgoing edges.
+        """
+
+    @property
+    def out_neighbours(self) -> RemotePathFromNode:
+        """
+        This node's out-neighbours. Lazy — no RPC. See `neighbours` for
+        return-type notes.
+
+        Returns:
+            RemotePathFromNode: the out-neighbouring nodes.
+        """
+
+    @property
+    def properties(self) -> RemoteProperties:
+        """
+        The full properties container of this node (temporal + metadata).
+        Lazy — no RPC.
+
+        Returns:
+            RemoteProperties: the node's properties container.
         """
 
     def set_node_type(self, new_type: str) -> None:
@@ -620,7 +2219,57 @@ class RemoteNode(object):
           None:
         """
 
-    def update_metadata(self, properties: dict[str, PropValue]) -> None:
+    def shrink_end(self, end: TimeInput) -> RemoteNode:
+        """
+        Shrink the end of the current window. Lazy — no RPC.
+
+        Arguments:
+            end (TimeInput): the new exclusive end of the window.
+
+        Returns:
+            RemoteNode: a new view with the window end shrunk.
+        """
+
+    def shrink_start(self, start: TimeInput) -> RemoteNode:
+        """
+        Shrink the start of the current window. Lazy — no RPC.
+
+        Arguments:
+            start (TimeInput): the new inclusive start of the window.
+
+        Returns:
+            RemoteNode: a new view with the window start shrunk.
+        """
+
+    def snapshot_at(self, time: TimeInput) -> RemoteNode:
+        """
+        Snapshot at a specific time. Lazy — no RPC.
+
+        Arguments:
+            time (TimeInput): the time to snapshot at.
+
+        Returns:
+            RemoteNode: a new view snapshotted at that time.
+        """
+
+    def snapshot_latest(self) -> RemoteNode:
+        """
+        Snapshot at the latest time. Lazy — no RPC.
+
+        Returns:
+            RemoteNode: a new view snapshotted at the latest time.
+        """
+
+    @property
+    def start(self) -> OptionalEventTime:
+        """
+        View start bound as seen by this node. Property — fires one RPC.
+
+        Returns:
+            OptionalEventTime: the view start bound, or empty if unbounded.
+        """
+
+    def update_metadata(self, metadata: dict[str, PropValue]) -> None:
         """
         Update metadata of a node in the remote graph overwriting existing values.
         This function is used to add properties to a node that does not
@@ -631,6 +2280,3505 @@ class RemoteNode(object):
 
         Returns:
           None:
+        """
+
+    def valid_layers(self, names: list[str]) -> RemoteNode:
+        """
+        Restrict to the given set of valid layers. Lazy — no RPC.
+
+        Arguments:
+            names (list[str]): the names of the valid layers.
+
+        Returns:
+            RemoteNode: a new view restricted to those valid layers.
+        """
+
+    def window(self, start: TimeInput, end: TimeInput) -> RemoteNode:
+        """
+        Time-window this handle. Lazy — no RPC.
+
+        Arguments:
+            start (TimeInput): inclusive start of the window.
+            end (TimeInput): exclusive end of the window.
+
+        Returns:
+            RemoteNode: a new view restricted to the window.
+        """
+
+    @property
+    def window_size(self) -> Optional[int]:
+        """
+        The size of the window covered by this view (`end - start`), or `None`
+        if the view is unbounded. Property — attribute access fires one RPC.
+
+        Returns:
+            Optional[int]: the size of the window, or `None` if the view is unbounded.
+        """
+
+class RemoteNodes(object):
+    """
+    A handle to a remote collection of nodes.
+
+    Returned by [RemoteGraph.nodes][raphtory.graphql.RemoteGraph.nodes] and by
+    [RemoteNode.neighbours][raphtory.graphql.RemoteNode.neighbours] /
+    [RemoteNode.in_neighbours][raphtory.graphql.RemoteNode.in_neighbours] /
+    [RemoteNode.out_neighbours][raphtory.graphql.RemoteNode.out_neighbours].
+    """
+
+    def __bool__(self):
+        """True if self else False"""
+
+    def __getitem__(self, key):
+        """Return self[key]."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def after(self, time: TimeInput) -> RemoteNodes:
+        """
+        Restrict to events strictly after the given time. Lazy — no RPC.
+
+        Arguments:
+            time (TimeInput): only events strictly after this time are kept.
+
+        Returns:
+            RemoteNodes: a new view restricted to events after that time.
+        """
+
+    def at(self, time: TimeInput) -> RemoteNodes:
+        """
+        View including all events at a specific time. Lazy — no RPC.
+
+        Arguments:
+            time (TimeInput): the time to view.
+
+        Returns:
+            RemoteNodes: a new view of that time.
+        """
+
+    def before(self, time: TimeInput) -> RemoteNodes:
+        """
+        Restrict to events strictly before the given time. Lazy — no RPC.
+
+        Arguments:
+            time (TimeInput): only events strictly before this time are kept.
+
+        Returns:
+            RemoteNodes: a new view restricted to events before that time.
+        """
+
+    def collect(self) -> list[RemoteNode]:
+        """
+        Materialize this collection as a list of `RemoteNode` handles.
+
+        Fires one RPC (to fetch the ids); each returned node is rebased under
+        the same view chain that produced this collection, so terminals on the
+        returned handles evaluate under the same window / layer / at / etc.
+
+        Returns:
+          list[RemoteNode]: one handle per node in the collection.
+        """
+
+    def default_layer(self) -> RemoteNodes:
+        """
+        Restrict to the default layer. Lazy — no RPC.
+
+        Returns:
+            RemoteNodes: a new view restricted to the default layer.
+        """
+
+    def degree(self) -> list[int]:
+        """
+        Returns the degree of each node in this collection. Fires one RPC.
+
+        Returns:
+          list[int]: the per-node degrees, in collection order.
+        """
+
+    @property
+    def earliest_time(self) -> list[Optional[EventTime]]:
+        """
+        The earliest event time of each node in this collection. Property —
+        attribute access fires one RPC.
+
+        Returns:
+          list[Optional[EventTime]]: the earliest times, in collection order.
+        """
+
+    def edge_history_count(self) -> list[int]:
+        """
+        Returns the number of incident edge updates for each node in this
+        collection. Fires one RPC.
+
+        Returns:
+          list[int]: the per-node edge history counts, in collection order.
+        """
+
+    @property
+    def edges(self) -> RemoteNestedEdges:
+        """
+        Each member's incident edges (both directions). Lazy — no RPC. Returns a
+        `RemoteNestedEdges` (nested, grouped per source node).
+
+        Returns:
+            RemoteNestedEdges: each member's incident edges, grouped per source node.
+        """
+
+    @property
+    def end(self) -> OptionalEventTime:
+        """
+        View end bound for this collection — `None` if unbounded. Property —
+        attribute access fires one RPC.
+
+        Returns:
+            OptionalEventTime: the view end bound, or empty if unbounded.
+        """
+
+    def exclude_layer(self, name: str) -> RemoteNodes:
+        """
+        Exclude a specific layer. Lazy — no RPC.
+
+        Arguments:
+            name (str): the name of the layer to exclude.
+
+        Returns:
+            RemoteNodes: a new view with that layer excluded.
+        """
+
+    def exclude_layers(self, names: list[str]) -> RemoteNodes:
+        """
+        Exclude the given set of layers. Lazy — no RPC.
+
+        Arguments:
+            names (list[str]): the names of the layers to exclude.
+
+        Returns:
+            RemoteNodes: a new view with those layers excluded.
+        """
+
+    def exclude_valid_layer(self, name: str) -> RemoteNodes:
+        """
+        Exclude a specific valid layer from the view. Lazy — no RPC.
+
+        Arguments:
+            name (str): the name of the valid layer to exclude.
+
+        Returns:
+            RemoteNodes: a new view with that valid layer excluded.
+        """
+
+    def exclude_valid_layers(self, names: list[str]) -> RemoteNodes:
+        """
+        Exclude the given set of valid layers from the view. Lazy — no RPC.
+
+        Arguments:
+            names (list[str]): the names of the valid layers to exclude.
+
+        Returns:
+            RemoteNodes: a new view with those valid layers excluded.
+        """
+
+    def filter(self, filter: Any) -> RemoteNodes:
+        """
+        Filter this collection by a filter expression from `raphtory.filter`
+        (the same builder used by local graphs). The filter **propagates**:
+        it narrows the current collection AND applies to downstream
+        traversals from the matching nodes (e.g. their `.neighbours`,
+        `.edges`). For a narrow-here-only variant, use `.select(...)`.
+        Lazy — no RPC.
+
+        Arguments:
+            filter (FilterExpr): a filter expression from `raphtory.filter`.
+
+        Returns:
+            RemoteNodes: a new collection with the filter applied.
+
+        Raises:
+            ValueError: if the filter cannot be represented as a GraphQL
+                `NodeFilter` (e.g. references edge fields).
+        """
+
+    def has_layer(self, name: str) -> bool:
+        """
+        Check if this view has a layer named `name`. Fires one RPC.
+
+        Arguments:
+            name (str): the name of the layer to check.
+
+        Returns:
+            bool: True if the layer is present.
+        """
+
+    @property
+    def id(self) -> list[str | int]:
+        """
+        The id of each node in this collection. Property — attribute access
+        fires one RPC.
+
+        Returns:
+          list[str | int]: the ids, in collection order — strings for
+          string-indexed graphs, integers for integer-indexed ones.
+        """
+
+    def in_degree(self) -> list[int]:
+        """
+        Returns the in-degree of each node in this collection. Fires one RPC.
+
+        Returns:
+          list[int]: the per-node in-degrees, in collection order.
+        """
+
+    @property
+    def in_edges(self) -> RemoteNestedEdges:
+        """
+        Each member's incoming edges. Lazy — no RPC. See `edges` for
+        return-type notes.
+
+        Returns:
+            RemoteNestedEdges: each member's incoming edges, grouped per source node.
+        """
+
+    @property
+    def in_neighbours(self) -> RemotePathFromGraph:
+        """
+        Each member's in-neighbours. Lazy — no RPC. See `neighbours` for
+        return-type notes.
+
+        Returns:
+            RemotePathFromGraph: each member's in-neighbours, grouped per source node.
+        """
+
+    def latest(self) -> RemoteNodes:
+        """
+        Latest state. Lazy — no RPC.
+
+        Returns:
+            RemoteNodes: a new view of the latest state.
+        """
+
+    @property
+    def latest_time(self) -> list[Optional[EventTime]]:
+        """
+        The latest event time of each node in this collection. Property —
+        attribute access fires one RPC.
+
+        Returns:
+          list[Optional[EventTime]]: the latest times, in collection order.
+        """
+
+    def layer(self, name: str) -> RemoteNodes:
+        """
+        Restrict to a single named layer. Lazy — no RPC.
+
+        Arguments:
+            name (str): the name of the layer.
+
+        Returns:
+            RemoteNodes: a new view restricted to that layer.
+        """
+
+    def layers(self, names: list[str]) -> RemoteNodes:
+        """
+        Restrict to the given set of layers. Lazy — no RPC.
+
+        Arguments:
+            names (list[str]): the names of the layers.
+
+        Returns:
+            RemoteNodes: a new view restricted to those layers.
+        """
+
+    @property
+    def metadata(self) -> RemoteMetadataView:
+        """
+        The non-temporal metadata of this collection as a columnar view. Each
+        accessor returns one value per node. Lazy — no RPC.
+
+        Returns:
+            RemoteMetadataView: the columnar metadata view of this collection.
+        """
+
+    @property
+    def name(self) -> list[str]:
+        """
+        The name of each node in this collection. Property — attribute access
+        fires one RPC.
+
+        Returns:
+          list[str]: the names, in collection order.
+        """
+
+    @property
+    def neighbours(self) -> RemotePathFromGraph:
+        """
+        Each member's neighbours (both directions). Lazy — no RPC. Returns a
+        `RemotePathFromGraph` (nested, grouped per source node).
+
+        Returns:
+            RemotePathFromGraph: each member's neighbours, grouped per source node.
+        """
+
+    @property
+    def node_type(self) -> list[Optional[str]]:
+        """
+        The type of each node in this collection (`None` when unset). Property —
+        attribute access fires one RPC.
+
+        Returns:
+          list[Optional[str]]: the node types, in collection order.
+        """
+
+    def out_degree(self) -> list[int]:
+        """
+        Returns the out-degree of each node in this collection. Fires one RPC.
+
+        Returns:
+          list[int]: the per-node out-degrees, in collection order.
+        """
+
+    @property
+    def out_edges(self) -> RemoteNestedEdges:
+        """
+        Each member's outgoing edges. Lazy — no RPC. See `edges` for
+        return-type notes.
+
+        Returns:
+            RemoteNestedEdges: each member's outgoing edges, grouped per source node.
+        """
+
+    @property
+    def out_neighbours(self) -> RemotePathFromGraph:
+        """
+        Each member's out-neighbours. Lazy — no RPC. See `neighbours` for
+        return-type notes.
+
+        Returns:
+            RemotePathFromGraph: each member's out-neighbours, grouped per source node.
+        """
+
+    @property
+    def properties(self) -> RemotePropertiesView:
+        """
+        The properties of this collection as a columnar view. Each accessor
+        returns one value per node. Lazy — no RPC.
+
+        Returns:
+            RemotePropertiesView: the columnar properties view of this collection.
+        """
+
+    def shrink_end(self, end: TimeInput) -> RemoteNodes:
+        """
+        Shrink the end of the current window. Lazy — no RPC.
+
+        Arguments:
+            end (TimeInput): the new exclusive end of the window.
+
+        Returns:
+            RemoteNodes: a new view with the window end shrunk.
+        """
+
+    def shrink_start(self, start: TimeInput) -> RemoteNodes:
+        """
+        Shrink the start of the current window. Lazy — no RPC.
+
+        Arguments:
+            start (TimeInput): the new inclusive start of the window.
+
+        Returns:
+            RemoteNodes: a new view with the window start shrunk.
+        """
+
+    def snapshot_at(self, time: TimeInput) -> RemoteNodes:
+        """
+        Snapshot at a specific time. Lazy — no RPC.
+
+        Arguments:
+            time (TimeInput): the time to snapshot at.
+
+        Returns:
+            RemoteNodes: a new view snapshotted at that time.
+        """
+
+    def snapshot_latest(self) -> RemoteNodes:
+        """
+        Snapshot at the latest time. Lazy — no RPC.
+
+        Returns:
+            RemoteNodes: a new view snapshotted at the latest time.
+        """
+
+    def sorted(self, sort_bys: list[NodeSortBy]) -> RemoteNodes:
+        """
+        Reorder this collection by an ordered list of sort keys. Multi-key
+        sort is lexicographic (ties on key 1 break to key 2). Lazy — no RPC.
+
+        Arguments:
+            sort_bys (list[NodeSortBy]): the ordered sort keys.
+
+        Returns:
+            RemoteNodes: a new collection in the sorted order.
+        """
+
+    @property
+    def start(self) -> OptionalEventTime:
+        """
+        View start bound for this collection — `None` if unbounded. Property —
+        attribute access fires one RPC.
+
+        Returns:
+            OptionalEventTime: the view start bound, or empty if unbounded.
+        """
+
+    def type_filter(self, node_types: list[str]) -> RemoteNodes:
+        """
+        Restrict this collection to members whose node type is in the given
+        list. Filters membership — the returned collection has fewer members.
+        Lazy — no RPC.
+
+        Arguments:
+            node_types (list[str]): the node types to keep.
+
+        Returns:
+            RemoteNodes: a new collection restricted to those node types.
+        """
+
+    def valid_layers(self, names: list[str]) -> RemoteNodes:
+        """
+        Restrict to the given set of valid layers. Lazy — no RPC.
+
+        Arguments:
+            names (list[str]): the names of the valid layers.
+
+        Returns:
+            RemoteNodes: a new view restricted to those valid layers.
+        """
+
+    def window(self, start: TimeInput, end: TimeInput) -> RemoteNodes:
+        """
+        Time-window this handle. Lazy — no RPC.
+
+        Arguments:
+            start (TimeInput): inclusive start of the window.
+            end (TimeInput): exclusive end of the window.
+
+        Returns:
+            RemoteNodes: a new view restricted to the window.
+        """
+
+    @property
+    def window_size(self) -> Optional[int]:
+        """
+        The size of the window covered by this view (`end - start`), or `None`
+        if the view is unbounded. Property — attribute access fires one RPC.
+
+        Returns:
+            Optional[int]: the size of the window, or `None` if the view is unbounded.
+        """
+
+class RemotePathFromNode(object):
+    """
+    A handle to a "path from node" collection.
+
+    Produced by [RemoteNode.neighbours][raphtory.graphql.RemoteNode.neighbours] /
+    [RemoteNode.in_neighbours][raphtory.graphql.RemoteNode.in_neighbours] /
+    [RemoteNode.out_neighbours][raphtory.graphql.RemoteNode.out_neighbours].
+
+    Distinct from `RemoteNodes` because the server type (`GqlPathFromNode`)
+    exposes a strict subset of `GqlNodes`. **`sorted` is not available here.**
+    """
+
+    def __bool__(self):
+        """True if self else False"""
+
+    def __getitem__(self, key):
+        """Return self[key]."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def after(self, time: TimeInput) -> RemotePathFromNode:
+        """
+        Restrict to events strictly after the given time. Lazy — no RPC.
+
+        Arguments:
+            time (TimeInput): only events strictly after this time are kept.
+
+        Returns:
+            RemotePathFromNode: a new view restricted to events after that time.
+        """
+
+    def at(self, time: TimeInput) -> RemotePathFromNode:
+        """
+        View including all events at a specific time. Lazy — no RPC.
+
+        Arguments:
+            time (TimeInput): the time to view.
+
+        Returns:
+            RemotePathFromNode: a new view of that time.
+        """
+
+    def before(self, time: TimeInput) -> RemotePathFromNode:
+        """
+        Restrict to events strictly before the given time. Lazy — no RPC.
+
+        Arguments:
+            time (TimeInput): only events strictly before this time are kept.
+
+        Returns:
+            RemotePathFromNode: a new view restricted to events before that time.
+        """
+
+    def collect(self) -> list[RemoteNode]:
+        """
+        Materialize this collection as a list of `RemoteNode` handles. Fires
+        one RPC. Each returned node is rebased under the same view chain
+        that produced this collection.
+
+        Returns:
+            list[RemoteNode]: one handle per node in the collection.
+        """
+
+    def combined_history(self) -> RemoteHistory:
+        """
+        A single combined event history for all nodes reachable from the source
+        in this view — a `RemoteHistory` container. Lazy — no RPC.
+
+        Returns:
+            RemoteHistory: the combined event history of the nodes in this view.
+        """
+
+    def default_layer(self) -> RemotePathFromNode:
+        """
+        Restrict to the default layer. Lazy — no RPC.
+
+        Returns:
+            RemotePathFromNode: a new view restricted to the default layer.
+        """
+
+    def degree(self) -> list[int]:
+        """
+        Returns the degree of each node in this path. Fires one RPC.
+
+        Returns:
+          list[int]: the per-node degrees, in path order.
+        """
+
+    @property
+    def earliest_time(self) -> list[Optional[EventTime]]:
+        """
+        The earliest event time of each node in this path. Property — attribute
+        access fires one RPC.
+
+        Returns:
+          list[Optional[EventTime]]: the earliest times, in collection order.
+        """
+
+    def edge_history_count(self) -> list[int]:
+        """
+        Returns the number of incident edge updates for each node in this path.
+        Fires one RPC.
+
+        Returns:
+          list[int]: the per-node edge history counts, in path order.
+        """
+
+    @property
+    def edges(self) -> RemoteEdges:
+        """
+        The incident edges (both directions) of this path, as a flat
+        `RemoteEdges` collection. Lazy — no RPC.
+
+        Returns:
+            RemoteEdges: the incident edges of this path.
+        """
+
+    @property
+    def end(self) -> OptionalEventTime:
+        """
+        View end bound for this collection — `None` if unbounded. Property —
+        attribute access fires one RPC.
+
+        Returns:
+            OptionalEventTime: the view end bound, or empty if unbounded.
+        """
+
+    def exclude_layer(self, name: str) -> RemotePathFromNode:
+        """
+        Exclude a specific layer. Lazy — no RPC.
+
+        Arguments:
+            name (str): the name of the layer to exclude.
+
+        Returns:
+            RemotePathFromNode: a new view with that layer excluded.
+        """
+
+    def exclude_layers(self, names: list[str]) -> RemotePathFromNode:
+        """
+        Exclude the given set of layers. Lazy — no RPC.
+
+        Arguments:
+            names (list[str]): the names of the layers to exclude.
+
+        Returns:
+            RemotePathFromNode: a new view with those layers excluded.
+        """
+
+    def exclude_valid_layer(self, name: str) -> RemotePathFromNode:
+        """
+        Exclude a specific valid layer from the view. Lazy — no RPC.
+
+        Arguments:
+            name (str): the name of the valid layer to exclude.
+
+        Returns:
+            RemotePathFromNode: a new view with that valid layer excluded.
+        """
+
+    def exclude_valid_layers(self, names: list[str]) -> RemotePathFromNode:
+        """
+        Exclude the given set of valid layers from the view. Lazy — no RPC.
+
+        Arguments:
+            names (list[str]): the names of the valid layers to exclude.
+
+        Returns:
+            RemotePathFromNode: a new view with those valid layers excluded.
+        """
+
+    def filter(self, filter: Any) -> RemotePathFromNode:
+        """
+        Filter this collection by a node filter. **Propagates** to downstream
+        traversals from the matching nodes. Mirrors the local
+        `PathFromNode.filter(FilterExpr)`. Lazy — no RPC.
+
+        Arguments:
+            filter (FilterExpr): a node filter expression from `raphtory.filter`.
+
+        Returns:
+            RemotePathFromNode: a new collection with the filter applied.
+
+        Raises:
+            ValueError: if the filter cannot be represented as a GraphQL
+                `NodeFilter`.
+        """
+
+    def has_layer(self, name: str) -> bool:
+        """
+        Check if this view has a layer named `name`. Fires one RPC.
+
+        Arguments:
+            name (str): the name of the layer to check.
+
+        Returns:
+            bool: True if the layer is present.
+        """
+
+    @property
+    def id(self) -> list[str | int]:
+        """
+        The id of each node in this path. Property — attribute access fires one RPC.
+
+        Returns:
+            list[str | int]: the ids, in path order — strings for
+            string-indexed graphs, integers for integer-indexed ones.
+        """
+
+    def in_degree(self) -> list[int]:
+        """
+        Returns the in-degree of each node in this path. Fires one RPC.
+
+        Returns:
+          list[int]: the per-node in-degrees, in path order.
+        """
+
+    @property
+    def in_edges(self) -> RemoteEdges:
+        """
+        The incoming edges of this path, as a flat `RemoteEdges` collection.
+        Lazy — no RPC.
+
+        Returns:
+            RemoteEdges: the incoming edges of this path.
+        """
+
+    @property
+    def in_neighbours(self) -> RemotePathFromNode:
+        """
+        The in-neighbours reachable one further hop from this path, as a flat
+        `RemotePathFromNode`. Lazy — no RPC.
+
+        Returns:
+            RemotePathFromNode: the in-neighbours one further hop from this path.
+        """
+
+    def latest(self) -> RemotePathFromNode:
+        """
+        Latest state. Lazy — no RPC.
+
+        Returns:
+            RemotePathFromNode: a new view of the latest state.
+        """
+
+    @property
+    def latest_time(self) -> list[Optional[EventTime]]:
+        """
+        The latest event time of each node in this path. Property — attribute
+        access fires one RPC.
+
+        Returns:
+          list[Optional[EventTime]]: the latest times, in collection order.
+        """
+
+    def layer(self, name: str) -> RemotePathFromNode:
+        """
+        Restrict to a single named layer. Lazy — no RPC.
+
+        Arguments:
+            name (str): the name of the layer.
+
+        Returns:
+            RemotePathFromNode: a new view restricted to that layer.
+        """
+
+    def layers(self, names: list[str]) -> RemotePathFromNode:
+        """
+        Restrict to the given set of layers. Lazy — no RPC.
+
+        Arguments:
+            names (list[str]): the names of the layers.
+
+        Returns:
+            RemotePathFromNode: a new view restricted to those layers.
+        """
+
+    @property
+    def metadata(self) -> RemoteMetadataView:
+        """
+        The non-temporal metadata of this path as a columnar view. Each accessor
+        returns one value per node. Lazy — no RPC.
+
+        Returns:
+            RemoteMetadataView: the columnar metadata view of this path.
+        """
+
+    @property
+    def name(self) -> list[str]:
+        """
+        The name of each node in this path. Property — attribute access fires
+        one RPC.
+
+        Returns:
+            list[str]: the names, in path order.
+        """
+
+    @property
+    def neighbours(self) -> RemotePathFromNode:
+        """
+        The neighbours (both directions) reachable one further hop from this
+        path, as a flat `RemotePathFromNode`. Lazy — no RPC.
+
+        Returns:
+            RemotePathFromNode: the neighbours one further hop from this path.
+        """
+
+    @property
+    def node_type(self) -> list[Optional[str]]:
+        """
+        The type of each node in this path (`None` when unset). Property —
+        attribute access fires one RPC.
+
+        Returns:
+            list[Optional[str]]: the node types, in path order.
+        """
+
+    def out_degree(self) -> list[int]:
+        """
+        Returns the out-degree of each node in this path. Fires one RPC.
+
+        Returns:
+          list[int]: the per-node out-degrees, in path order.
+        """
+
+    @property
+    def out_edges(self) -> RemoteEdges:
+        """
+        The outgoing edges of this path, as a flat `RemoteEdges` collection.
+        Lazy — no RPC.
+
+        Returns:
+            RemoteEdges: the outgoing edges of this path.
+        """
+
+    @property
+    def out_neighbours(self) -> RemotePathFromNode:
+        """
+        The out-neighbours reachable one further hop from this path, as a flat
+        `RemotePathFromNode`. Lazy — no RPC.
+
+        Returns:
+            RemotePathFromNode: the out-neighbours one further hop from this path.
+        """
+
+    @property
+    def properties(self) -> RemotePropertiesView:
+        """
+        The properties of this path as a columnar view. Each accessor returns
+        one value per node. Lazy — no RPC.
+
+        Returns:
+            RemotePropertiesView: the columnar properties view of this path.
+        """
+
+    def shrink_end(self, end: TimeInput) -> RemotePathFromNode:
+        """
+        Shrink the end of the current window. Lazy — no RPC.
+
+        Arguments:
+            end (TimeInput): the new exclusive end of the window.
+
+        Returns:
+            RemotePathFromNode: a new view with the window end shrunk.
+        """
+
+    def shrink_start(self, start: TimeInput) -> RemotePathFromNode:
+        """
+        Shrink the start of the current window. Lazy — no RPC.
+
+        Arguments:
+            start (TimeInput): the new inclusive start of the window.
+
+        Returns:
+            RemotePathFromNode: a new view with the window start shrunk.
+        """
+
+    def snapshot_at(self, time: TimeInput) -> RemotePathFromNode:
+        """
+        Snapshot at a specific time. Lazy — no RPC.
+
+        Arguments:
+            time (TimeInput): the time to snapshot at.
+
+        Returns:
+            RemotePathFromNode: a new view snapshotted at that time.
+        """
+
+    def snapshot_latest(self) -> RemotePathFromNode:
+        """
+        Snapshot at the latest time. Lazy — no RPC.
+
+        Returns:
+            RemotePathFromNode: a new view snapshotted at the latest time.
+        """
+
+    @property
+    def start(self) -> OptionalEventTime:
+        """
+        View start bound for this collection — `None` if unbounded. Property —
+        attribute access fires one RPC.
+
+        Returns:
+            OptionalEventTime: the view start bound, or empty if unbounded.
+        """
+
+    def type_filter(self, node_types: list[str]) -> RemotePathFromNode:
+        """
+        Restrict this collection to members whose node type is in the given
+        list. Lazy — no RPC.
+
+        Arguments:
+            node_types (list[str]): the node types to keep.
+
+        Returns:
+            RemotePathFromNode: a new collection restricted to those node types.
+        """
+
+    def valid_layers(self, names: list[str]) -> RemotePathFromNode:
+        """
+        Restrict to the given set of valid layers. Lazy — no RPC.
+
+        Arguments:
+            names (list[str]): the names of the valid layers.
+
+        Returns:
+            RemotePathFromNode: a new view restricted to those valid layers.
+        """
+
+    def window(self, start: TimeInput, end: TimeInput) -> RemotePathFromNode:
+        """
+        Time-window this handle. Lazy — no RPC.
+
+        Arguments:
+            start (TimeInput): inclusive start of the window.
+            end (TimeInput): exclusive end of the window.
+
+        Returns:
+            RemotePathFromNode: a new view restricted to the window.
+        """
+
+    @property
+    def window_size(self) -> Optional[int]:
+        """
+        The size of the window covered by this view (`end - start`), or `None`
+        if the view is unbounded. Property — attribute access fires one RPC.
+
+        Returns:
+            Optional[int]: the size of the window, or `None` if the view is unbounded.
+        """
+
+class RemotePathFromGraph(object):
+    """
+    A handle to a "path from graph" collection.
+
+    Produced by [RemoteNodes.neighbours][raphtory.graphql.RemoteNodes.neighbours] /
+    [RemoteNodes.in_neighbours][raphtory.graphql.RemoteNodes.in_neighbours] /
+    [RemoteNodes.out_neighbours][raphtory.graphql.RemoteNodes.out_neighbours].
+
+    Distinct from `RemotePathFromNode` because it is **nested** — the server
+    type (`GqlPathFromGraph`) groups results per source node. `.id` returns
+    `list[list[str]]`, `collect()` returns `list[list[RemoteNode]]`, and
+    `count()` is the number of source paths.
+    """
+
+    def __bool__(self):
+        """True if self else False"""
+
+    def __getitem__(self, key):
+        """Return self[key]."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def after(self, time: TimeInput) -> RemotePathFromGraph:
+        """
+        Restrict to events strictly after the given time. Lazy — no RPC.
+
+        Arguments:
+            time (TimeInput): only events strictly after this time are kept.
+
+        Returns:
+            RemotePathFromGraph: a new view restricted to events after that time.
+        """
+
+    def at(self, time: TimeInput) -> RemotePathFromGraph:
+        """
+        View including all events at a specific time. Lazy — no RPC.
+
+        Arguments:
+            time (TimeInput): the time to view.
+
+        Returns:
+            RemotePathFromGraph: a new view of that time.
+        """
+
+    def before(self, time: TimeInput) -> RemotePathFromGraph:
+        """
+        Restrict to events strictly before the given time. Lazy — no RPC.
+
+        Arguments:
+            time (TimeInput): only events strictly before this time are kept.
+
+        Returns:
+            RemotePathFromGraph: a new view restricted to events before that time.
+        """
+
+    def collect(self) -> list[list[RemoteNode]]:
+        """
+        Materialize this collection as a nested list of `RemoteNode` handles —
+        one inner list per source node. Fires one RPC. Each returned node is
+        rebased under the same view chain that produced this collection.
+
+        Returns:
+          list[list[RemoteNode]]: the neighbours grouped per source node.
+        """
+
+    def combined_history(self) -> RemoteHistory:
+        """
+        A single combined event history for all nodes in this view — a
+        `RemoteHistory` container. Lazy — no RPC.
+
+        Returns:
+            RemoteHistory: the combined event history of the nodes in this view.
+        """
+
+    def default_layer(self) -> RemotePathFromGraph:
+        """
+        Restrict to the default layer. Lazy — no RPC.
+
+        Returns:
+            RemotePathFromGraph: a new view restricted to the default layer.
+        """
+
+    def degree(self) -> list[list[int]]:
+        """
+        Returns the degree of each node, grouped per source node. Fires one RPC.
+
+        Returns:
+          list[list[int]]: the per-node degrees grouped per source node.
+        """
+
+    @property
+    def earliest_time(self) -> list[list[Optional[EventTime]]]:
+        """
+        The earliest event time of each node, grouped per source node. Property
+        — attribute access fires one RPC.
+
+        Returns:
+          list[list[Optional[EventTime]]]: the earliest times, per source.
+        """
+
+    def edge_history_count(self) -> list[list[int]]:
+        """
+        Returns the number of incident edge updates for each node, grouped per
+        source node. Fires one RPC.
+
+        Returns:
+          list[list[int]]: the per-node edge history counts grouped per source node.
+        """
+
+    @property
+    def edges(self) -> RemoteNestedEdges:
+        """
+        The incident edges (both directions) of each source path, as a nested
+        `RemoteNestedEdges` collection. Lazy — no RPC.
+
+        Returns:
+            RemoteNestedEdges: the incident edges of each source path, grouped per source
+                node.
+        """
+
+    @property
+    def end(self) -> OptionalEventTime:
+        """
+        View end bound for this collection — `None` if unbounded. Property —
+        attribute access fires one RPC.
+
+        Returns:
+            OptionalEventTime: the view end bound, or empty if unbounded.
+        """
+
+    def exclude_layer(self, name: str) -> RemotePathFromGraph:
+        """
+        Exclude a specific layer. Lazy — no RPC.
+
+        Arguments:
+            name (str): the name of the layer to exclude.
+
+        Returns:
+            RemotePathFromGraph: a new view with that layer excluded.
+        """
+
+    def exclude_layers(self, names: list[str]) -> RemotePathFromGraph:
+        """
+        Exclude the given set of layers. Lazy — no RPC.
+
+        Arguments:
+            names (list[str]): the names of the layers to exclude.
+
+        Returns:
+            RemotePathFromGraph: a new view with those layers excluded.
+        """
+
+    def exclude_valid_layer(self, name: str) -> RemotePathFromGraph:
+        """
+        Exclude a specific valid layer from the view. Lazy — no RPC.
+
+        Arguments:
+            name (str): the name of the valid layer to exclude.
+
+        Returns:
+            RemotePathFromGraph: a new view with that valid layer excluded.
+        """
+
+    def exclude_valid_layers(self, names: list[str]) -> RemotePathFromGraph:
+        """
+        Exclude the given set of valid layers from the view. Lazy — no RPC.
+
+        Arguments:
+            names (list[str]): the names of the valid layers to exclude.
+
+        Returns:
+            RemotePathFromGraph: a new view with those valid layers excluded.
+        """
+
+    def filter(self, filter: Any) -> RemotePathFromGraph:
+        """
+        Filter this collection by a node filter. **Propagates** to downstream
+        traversals from the matching nodes. Lazy — no RPC.
+
+        Arguments:
+            filter (FilterExpr): a node filter expression from `raphtory.filter`.
+
+        Returns:
+            RemotePathFromGraph: a new collection with the filter applied.
+
+        Raises:
+            ValueError: if the filter cannot be represented as a GraphQL
+                `NodeFilter`.
+        """
+
+    def has_layer(self, name: str) -> bool:
+        """
+        Check if this view has a layer named `name`. Fires one RPC.
+
+        Arguments:
+            name (str): the name of the layer to check.
+
+        Returns:
+            bool: True if the layer is present.
+        """
+
+    @property
+    def id(self) -> list[list[str | int]]:
+        """
+        The id of each neighbour, grouped per source node. Property — attribute
+        access fires one RPC.
+
+        Returns:
+            list[list[str | int]]: the ids, grouped per source node —
+            strings for string-indexed graphs, integers for integer-indexed
+            ones.
+        """
+
+    def in_degree(self) -> list[list[int]]:
+        """
+        Returns the in-degree of each node, grouped per source node. Fires one RPC.
+
+        Returns:
+          list[list[int]]: the per-node in-degrees grouped per source node.
+        """
+
+    @property
+    def in_edges(self) -> RemoteNestedEdges:
+        """
+        The incoming edges of each source path, as a nested `RemoteNestedEdges`
+        collection. Lazy — no RPC.
+
+        Returns:
+            RemoteNestedEdges: the incoming edges of each source path, grouped per source
+                node.
+        """
+
+    @property
+    def in_neighbours(self) -> RemotePathFromGraph:
+        """
+        The in-neighbours reachable one further hop from each source path, as a
+        nested `RemotePathFromGraph`. Lazy — no RPC.
+
+        Returns:
+            RemotePathFromGraph: the in-neighbours one further hop from each source path.
+        """
+
+    def latest(self) -> RemotePathFromGraph:
+        """
+        Latest state. Lazy — no RPC.
+
+        Returns:
+            RemotePathFromGraph: a new view of the latest state.
+        """
+
+    @property
+    def latest_time(self) -> list[list[Optional[EventTime]]]:
+        """
+        The latest event time of each node, grouped per source node. Property —
+        attribute access fires one RPC.
+
+        Returns:
+          list[list[Optional[EventTime]]]: the latest times, per source.
+        """
+
+    def layer(self, name: str) -> RemotePathFromGraph:
+        """
+        Restrict to a single named layer. Lazy — no RPC.
+
+        Arguments:
+            name (str): the name of the layer.
+
+        Returns:
+            RemotePathFromGraph: a new view restricted to that layer.
+        """
+
+    def layers(self, names: list[str]) -> RemotePathFromGraph:
+        """
+        Restrict to the given set of layers. Lazy — no RPC.
+
+        Arguments:
+            names (list[str]): the names of the layers.
+
+        Returns:
+            RemotePathFromGraph: a new view restricted to those layers.
+        """
+
+    @property
+    def metadata(self) -> RemoteMetadataView:
+        """
+        The non-temporal metadata of this collection as a nested columnar view.
+        Each accessor returns one value per node, grouped per source. Lazy —
+        no RPC.
+
+        Returns:
+            RemoteMetadataView: the nested columnar metadata view of this collection.
+        """
+
+    @property
+    def name(self) -> list[list[str]]:
+        """
+        The name of each neighbour, grouped per source node. Property —
+        attribute access fires one RPC.
+
+        Returns:
+            list[list[str]]: the names, grouped per source node.
+        """
+
+    @property
+    def neighbours(self) -> RemotePathFromGraph:
+        """
+        The neighbours (both directions) reachable one further hop from each
+        source path, as a nested `RemotePathFromGraph`. Lazy — no RPC.
+
+        Returns:
+            RemotePathFromGraph: the neighbours one further hop from each source path.
+        """
+
+    @property
+    def node_type(self) -> list[list[Optional[str]]]:
+        """
+        The type of each neighbour (`None` when unset), grouped per source node.
+        Property — attribute access fires one RPC.
+
+        Returns:
+            list[list[Optional[str]]]: the node types, grouped per source node.
+        """
+
+    def out_degree(self) -> list[list[int]]:
+        """
+        Returns the out-degree of each node, grouped per source node. Fires one RPC.
+
+        Returns:
+          list[list[int]]: the per-node out-degrees grouped per source node.
+        """
+
+    @property
+    def out_edges(self) -> RemoteNestedEdges:
+        """
+        The outgoing edges of each source path, as a nested `RemoteNestedEdges`
+        collection. Lazy — no RPC.
+
+        Returns:
+            RemoteNestedEdges: the outgoing edges of each source path, grouped per source
+                node.
+        """
+
+    @property
+    def out_neighbours(self) -> RemotePathFromGraph:
+        """
+        The out-neighbours reachable one further hop from each source path, as a
+        nested `RemotePathFromGraph`. Lazy — no RPC.
+
+        Returns:
+            RemotePathFromGraph: the out-neighbours one further hop from each source path.
+        """
+
+    @property
+    def properties(self) -> RemotePropertiesView:
+        """
+        The properties of this collection as a nested columnar view. Each
+        accessor returns one value per node, grouped per source. Lazy — no RPC.
+
+        Returns:
+            RemotePropertiesView: the nested columnar properties view of this collection.
+        """
+
+    def shrink_end(self, end: TimeInput) -> RemotePathFromGraph:
+        """
+        Shrink the end of the current window. Lazy — no RPC.
+
+        Arguments:
+            end (TimeInput): the new exclusive end of the window.
+
+        Returns:
+            RemotePathFromGraph: a new view with the window end shrunk.
+        """
+
+    def shrink_start(self, start: TimeInput) -> RemotePathFromGraph:
+        """
+        Shrink the start of the current window. Lazy — no RPC.
+
+        Arguments:
+            start (TimeInput): the new inclusive start of the window.
+
+        Returns:
+            RemotePathFromGraph: a new view with the window start shrunk.
+        """
+
+    def snapshot_at(self, time: TimeInput) -> RemotePathFromGraph:
+        """
+        Snapshot at a specific time. Lazy — no RPC.
+
+        Arguments:
+            time (TimeInput): the time to snapshot at.
+
+        Returns:
+            RemotePathFromGraph: a new view snapshotted at that time.
+        """
+
+    def snapshot_latest(self) -> RemotePathFromGraph:
+        """
+        Snapshot at the latest time. Lazy — no RPC.
+
+        Returns:
+            RemotePathFromGraph: a new view snapshotted at the latest time.
+        """
+
+    @property
+    def start(self) -> OptionalEventTime:
+        """
+        View start bound for this collection — `None` if unbounded. Property —
+        attribute access fires one RPC.
+
+        Returns:
+            OptionalEventTime: the view start bound, or empty if unbounded.
+        """
+
+    def type_filter(self, node_types: list[str]) -> RemotePathFromGraph:
+        """
+        Restrict this collection to members whose node type is in the given
+        list. Lazy — no RPC.
+
+        Arguments:
+            node_types (list[str]): the node types to keep.
+
+        Returns:
+            RemotePathFromGraph: a new collection restricted to those node types.
+        """
+
+    def valid_layers(self, names: list[str]) -> RemotePathFromGraph:
+        """
+        Restrict to the given set of valid layers. Lazy — no RPC.
+
+        Arguments:
+            names (list[str]): the names of the valid layers.
+
+        Returns:
+            RemotePathFromGraph: a new view restricted to those valid layers.
+        """
+
+    def window(self, start: TimeInput, end: TimeInput) -> RemotePathFromGraph:
+        """
+        Time-window this handle. Lazy — no RPC.
+
+        Arguments:
+            start (TimeInput): inclusive start of the window.
+            end (TimeInput): exclusive end of the window.
+
+        Returns:
+            RemotePathFromGraph: a new view restricted to the window.
+        """
+
+    @property
+    def window_size(self) -> Optional[int]:
+        """
+        The size of the window covered by this view (`end - start`), or `None`
+        if the view is unbounded. Property — attribute access fires one RPC.
+
+        Returns:
+            Optional[int]: the size of the window, or `None` if the view is unbounded.
+        """
+
+class RemoteEdges(object):
+    """
+    A handle to a remote collection of edges.
+
+    Returned by [RemoteGraph.edges][raphtory.graphql.RemoteGraph.edges] and by
+    [RemoteNode.edges][raphtory.graphql.RemoteNode.edges] /
+    [RemoteNode.in_edges][raphtory.graphql.RemoteNode.in_edges] /
+    [RemoteNode.out_edges][raphtory.graphql.RemoteNode.out_edges].
+
+    Edges are identified by `(src, dst)` pairs rather than a single-string id;
+    the `.id` accessor returns those `(src, dst)` pairs. Terminals include
+    `count()` and `collect()`.
+    """
+
+    def __bool__(self):
+        """True if self else False"""
+
+    def __getitem__(self, key):
+        """Return self[key]."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def after(self, time: TimeInput) -> RemoteEdges:
+        """
+        Restrict to events strictly after the given time. Lazy — no RPC.
+
+        Arguments:
+            time (TimeInput): only events strictly after this time are kept.
+
+        Returns:
+            RemoteEdges: a new view restricted to events after that time.
+        """
+
+    def at(self, time: TimeInput) -> RemoteEdges:
+        """
+        View including all events at a specific time. Lazy — no RPC.
+
+        Arguments:
+            time (TimeInput): the time to view.
+
+        Returns:
+            RemoteEdges: a new view of that time.
+        """
+
+    def before(self, time: TimeInput) -> RemoteEdges:
+        """
+        Restrict to events strictly before the given time. Lazy — no RPC.
+
+        Arguments:
+            time (TimeInput): only events strictly before this time are kept.
+
+        Returns:
+            RemoteEdges: a new view restricted to events before that time.
+        """
+
+    def collect(self) -> list[RemoteEdge]:
+        """
+        Materialize this collection as a list of `RemoteEdge` handles.
+
+        Fires one RPC (to fetch each edge's `(src, dst)` pair); each returned
+        edge is rebased under the view chain that produced this collection.
+
+        Returns:
+          list[RemoteEdge]: one handle per edge in the collection.
+        """
+
+    def default_layer(self) -> RemoteEdges:
+        """
+        Restrict to the default layer. Lazy — no RPC.
+
+        Returns:
+            RemoteEdges: a new view restricted to the default layer.
+        """
+
+    @property
+    def dst(self) -> RemotePathFromNode:
+        """
+        The destination node of each edge in this collection, as a flat
+        `RemotePathFromNode`. Mirrors the local `Edges.dst`. Property — lazy;
+        attribute access fires no RPC.
+
+        Returns:
+          RemotePathFromNode: the destination nodes, in collection order.
+        """
+
+    @property
+    def earliest_time(self) -> list[Optional[EventTime]]:
+        """
+        The earliest event time of each edge in this collection. Property —
+        attribute access fires one RPC.
+
+        Returns:
+          list[Optional[EventTime]]: the earliest times, in collection order.
+        """
+
+    @property
+    def end(self) -> OptionalEventTime:
+        """
+        View end bound for this collection — `None` if unbounded. Property —
+        attribute access fires one RPC.
+
+        Returns:
+            OptionalEventTime: the view end bound, or empty if unbounded.
+        """
+
+    def exclude_layer(self, name: str) -> RemoteEdges:
+        """
+        Exclude a specific layer. Lazy — no RPC.
+
+        Arguments:
+            name (str): the name of the layer to exclude.
+
+        Returns:
+            RemoteEdges: a new view with that layer excluded.
+        """
+
+    def exclude_layers(self, names: list[str]) -> RemoteEdges:
+        """
+        Exclude the given set of layers. Lazy — no RPC.
+
+        Arguments:
+            names (list[str]): the names of the layers to exclude.
+
+        Returns:
+            RemoteEdges: a new view with those layers excluded.
+        """
+
+    def exclude_valid_layer(self, name: str) -> RemoteEdges:
+        """
+        Exclude a specific valid layer from the view. Lazy — no RPC.
+
+        Arguments:
+            name (str): the name of the valid layer to exclude.
+
+        Returns:
+            RemoteEdges: a new view with that valid layer excluded.
+        """
+
+    def exclude_valid_layers(self, names: list[str]) -> RemoteEdges:
+        """
+        Exclude the given set of valid layers from the view. Lazy — no RPC.
+
+        Arguments:
+            names (list[str]): the names of the valid layers to exclude.
+
+        Returns:
+            RemoteEdges: a new view with those valid layers excluded.
+        """
+
+    def explode(self) -> RemoteEdges:
+        """
+        Fan out this collection into one entry per event. Lazy — no RPC.
+
+        Returns:
+            RemoteEdges: a new collection with one entry per event.
+        """
+
+    def explode_layers(self) -> RemoteEdges:
+        """
+        Fan out this collection into one entry per layer per edge. Lazy — no RPC.
+
+        Returns:
+            RemoteEdges: a new collection with one entry per layer per edge.
+        """
+
+    def filter(self, filter: Any) -> RemoteEdges:
+        """
+        Filter this collection by a filter expression. **The filter
+        propagates**: it applies to the current collection's membership *and*
+        to downstream traversals from the matching edges. For a
+        narrow-here-only variant, use `.select(...)`. Lazy — no RPC.
+
+        Arguments:
+            filter (FilterExpr): a filter expression from `raphtory.filter`.
+
+        Returns:
+            RemoteEdges: a new collection with the filter applied.
+
+        Raises:
+            ValueError: if the filter cannot be represented as a GraphQL
+                `EdgeFilter` (e.g. references node-only fields).
+        """
+
+    def has_layer(self, name: str) -> bool:
+        """
+        Check if this view has a layer named `name`. Fires one RPC.
+
+        Arguments:
+            name (str): the name of the layer to check.
+
+        Returns:
+            bool: True if the layer is present.
+        """
+
+    @property
+    def id(self) -> list[tuple[str | int, str | int]]:
+        """
+        The `(src, dst)` id pair of each edge in this collection. Property —
+        attribute access fires one RPC.
+
+        Returns:
+          list[tuple[str | int, str | int]]: the id pairs, in collection
+          order — endpoint ids are strings for string-indexed graphs,
+          integers for integer-indexed ones.
+        """
+
+    def is_active(self) -> list[bool]:
+        """
+        Whether each edge is active (has an event) in the current view. Method
+        — mirrors the local `Edges.is_active`. Fires one RPC.
+
+        Returns:
+          list[bool]: one flag per edge, in collection order.
+        """
+
+    def is_deleted(self) -> list[bool]:
+        """
+        Whether each edge has been deleted at the current time. Method —
+        mirrors the local `Edges.is_deleted`. Fires one RPC.
+
+        Returns:
+          list[bool]: one flag per edge, in collection order.
+        """
+
+    def is_self_loop(self) -> list[bool]:
+        """
+        Whether each edge is a self-loop (`src == dst`). Method — mirrors the
+        local `Edges.is_self_loop`. Fires one RPC.
+
+        Returns:
+          list[bool]: one flag per edge, in collection order.
+        """
+
+    def is_valid(self) -> list[bool]:
+        """
+        Whether each edge is valid (not deleted) at the current time. Method —
+        mirrors the local `Edges.is_valid`. Fires one RPC.
+
+        Returns:
+          list[bool]: one flag per edge, in collection order.
+        """
+
+    def latest(self) -> RemoteEdges:
+        """
+        Latest state. Lazy — no RPC.
+
+        Returns:
+            RemoteEdges: a new view of the latest state.
+        """
+
+    @property
+    def latest_time(self) -> list[Optional[EventTime]]:
+        """
+        The latest event time of each edge in this collection. Property —
+        attribute access fires one RPC.
+
+        Returns:
+          list[Optional[EventTime]]: the latest times, in collection order.
+        """
+
+    def layer(self, name: str) -> RemoteEdges:
+        """
+        Restrict to a single named layer. Lazy — no RPC.
+
+        Arguments:
+            name (str): the name of the layer.
+
+        Returns:
+            RemoteEdges: a new view restricted to that layer.
+        """
+
+    @property
+    def layer_name(self) -> list[str]:
+        """
+        The single layer name of each edge in this collection. Only valid once
+        the edges have been exploded via `.explode()` / `.explode_layers()`;
+        raises otherwise. Property — attribute access fires one RPC.
+
+        Returns:
+          list[str]: the layer name per edge, in collection order.
+        """
+
+    @property
+    def layer_names(self) -> list[list[str]]:
+        """
+        The layer names of each edge in this collection. Property — attribute
+        access fires one RPC.
+
+        Returns:
+          list[list[str]]: the layer names per edge, in collection order.
+        """
+
+    def layers(self, names: list[str]) -> RemoteEdges:
+        """
+        Restrict to the given set of layers. Lazy — no RPC.
+
+        Arguments:
+            names (list[str]): the names of the layers.
+
+        Returns:
+            RemoteEdges: a new view restricted to those layers.
+        """
+
+    @property
+    def metadata(self) -> RemoteMetadataView:
+        """
+        The non-temporal metadata of this collection as a columnar view. Each
+        accessor returns one value per edge. Lazy — no RPC.
+
+        Returns:
+            RemoteMetadataView: the columnar metadata view of this collection.
+        """
+
+    @property
+    def nbr(self) -> RemotePathFromNode:
+        """
+        The node at the other end of each edge (destination for out-edges,
+        source for in-edges), as a flat `RemotePathFromNode`. Mirrors the local
+        `Edges.nbr`. Property — lazy; attribute access fires no RPC.
+
+        Returns:
+          RemotePathFromNode: the other-end nodes, in collection order.
+        """
+
+    @property
+    def properties(self) -> RemotePropertiesView:
+        """
+        The properties of this collection as a columnar view. Each accessor
+        returns one value per edge. Lazy — no RPC.
+
+        Returns:
+            RemotePropertiesView: the columnar properties view of this collection.
+        """
+
+    def shrink_end(self, end: TimeInput) -> RemoteEdges:
+        """
+        Shrink the end of the current window. Lazy — no RPC.
+
+        Arguments:
+            end (TimeInput): the new exclusive end of the window.
+
+        Returns:
+            RemoteEdges: a new view with the window end shrunk.
+        """
+
+    def shrink_start(self, start: TimeInput) -> RemoteEdges:
+        """
+        Shrink the start of the current window. Lazy — no RPC.
+
+        Arguments:
+            start (TimeInput): the new inclusive start of the window.
+
+        Returns:
+            RemoteEdges: a new view with the window start shrunk.
+        """
+
+    def snapshot_at(self, time: TimeInput) -> RemoteEdges:
+        """
+        Snapshot at a specific time. Lazy — no RPC.
+
+        Arguments:
+            time (TimeInput): the time to snapshot at.
+
+        Returns:
+            RemoteEdges: a new view snapshotted at that time.
+        """
+
+    def snapshot_latest(self) -> RemoteEdges:
+        """
+        Snapshot at the latest time. Lazy — no RPC.
+
+        Returns:
+            RemoteEdges: a new view snapshotted at the latest time.
+        """
+
+    def sorted(self, sort_bys: list[EdgeSortBy]) -> RemoteEdges:
+        """
+        Reorder this collection by an ordered list of sort keys. Multi-key
+        sort is lexicographic (ties on key 1 break to key 2). Lazy — no RPC.
+
+        Arguments:
+            sort_bys (list[EdgeSortBy]): the ordered sort keys.
+
+        Returns:
+            RemoteEdges: a new collection in the sorted order.
+        """
+
+    @property
+    def src(self) -> RemotePathFromNode:
+        """
+        The source node of each edge in this collection, as a flat
+        `RemotePathFromNode`. Mirrors the local `Edges.src`. Property — lazy;
+        attribute access fires no RPC.
+
+        Returns:
+          RemotePathFromNode: the source nodes, in collection order.
+        """
+
+    @property
+    def start(self) -> OptionalEventTime:
+        """
+        View start bound for this collection — `None` if unbounded. Property —
+        attribute access fires one RPC.
+
+        Returns:
+            OptionalEventTime: the view start bound, or empty if unbounded.
+        """
+
+    @property
+    def time(self) -> list[Optional[EventTime]]:
+        """
+        The event time of each edge in this collection. Only valid once the
+        edges have been exploded via `.explode()`; raises otherwise. Property —
+        attribute access fires one RPC.
+
+        Returns:
+          list[Optional[EventTime]]: the event times, in collection order.
+        """
+
+    def valid_layers(self, names: list[str]) -> RemoteEdges:
+        """
+        Restrict to the given set of valid layers. Lazy — no RPC.
+
+        Arguments:
+            names (list[str]): the names of the valid layers.
+
+        Returns:
+            RemoteEdges: a new view restricted to those valid layers.
+        """
+
+    def window(self, start: TimeInput, end: TimeInput) -> RemoteEdges:
+        """
+        Time-window this handle. Lazy — no RPC.
+
+        Arguments:
+            start (TimeInput): inclusive start of the window.
+            end (TimeInput): exclusive end of the window.
+
+        Returns:
+            RemoteEdges: a new view restricted to the window.
+        """
+
+    @property
+    def window_size(self) -> Optional[int]:
+        """
+        The size of the window covered by this view (`end - start`), or `None`
+        if the view is unbounded. Property — attribute access fires one RPC.
+
+        Returns:
+            Optional[int]: the size of the window, or `None` if the view is unbounded.
+        """
+
+class RemoteNestedEdges(object):
+    """
+    A handle to a nested edges collection.
+
+    Produced by [RemoteNodes.edges][raphtory.graphql.RemoteNodes.edges] /
+    [RemoteNodes.in_edges][raphtory.graphql.RemoteNodes.in_edges] /
+    [RemoteNodes.out_edges][raphtory.graphql.RemoteNodes.out_edges].
+
+    Distinct from `RemoteEdges` because it is **nested** — the server type
+    (`GqlNestedEdges`) groups results per source node. `collect()` returns
+    `list[list[RemoteEdge]]`, and `count()` is the number of source edge
+    collections. Edges are identified by `(src, dst)` pairs rather than a
+    single string id; the `.id` accessor returns those pairs, nested per
+    source node.
+    """
+
+    def __bool__(self):
+        """True if self else False"""
+
+    def __getitem__(self, key):
+        """Return self[key]."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def after(self, time: TimeInput) -> RemoteNestedEdges:
+        """
+        Restrict to events strictly after the given time. Lazy — no RPC.
+
+        Arguments:
+            time (TimeInput): only events strictly after this time are kept.
+
+        Returns:
+            RemoteNestedEdges: a new view restricted to events after that time.
+        """
+
+    def at(self, time: TimeInput) -> RemoteNestedEdges:
+        """
+        View including all events at a specific time. Lazy — no RPC.
+
+        Arguments:
+            time (TimeInput): the time to view.
+
+        Returns:
+            RemoteNestedEdges: a new view of that time.
+        """
+
+    def before(self, time: TimeInput) -> RemoteNestedEdges:
+        """
+        Restrict to events strictly before the given time. Lazy — no RPC.
+
+        Arguments:
+            time (TimeInput): only events strictly before this time are kept.
+
+        Returns:
+            RemoteNestedEdges: a new view restricted to events before that time.
+        """
+
+    def collect(self) -> list[list[RemoteEdge]]:
+        """
+        Materialize this collection as a nested list of `RemoteEdge` handles —
+        one inner list per source node. Fires one RPC. Each returned edge is
+        rebased under the same view chain that produced this collection.
+
+        Returns:
+          list[list[RemoteEdge]]: the incident edges grouped per source node.
+        """
+
+    def default_layer(self) -> RemoteNestedEdges:
+        """
+        Restrict to the default layer. Lazy — no RPC.
+
+        Returns:
+            RemoteNestedEdges: a new view restricted to the default layer.
+        """
+
+    @property
+    def dst(self) -> RemotePathFromGraph:
+        """
+        The destination node of each edge, grouped per source node, as a nested
+        `RemotePathFromGraph`. Mirrors the local `NestedEdges.dst`. Property —
+        lazy; attribute access fires no RPC.
+
+        Returns:
+          RemotePathFromGraph: the destination nodes, grouped per source node.
+        """
+
+    @property
+    def earliest_time(self) -> list[list[Optional[EventTime]]]:
+        """
+        The earliest event time of each edge, grouped per source node.
+        Property — attribute access fires one RPC.
+
+        Returns:
+          list[list[Optional[EventTime]]]: earliest times, grouped per source node.
+        """
+
+    @property
+    def end(self) -> OptionalEventTime:
+        """
+        View end bound for this collection — `None` if unbounded. Property —
+        attribute access fires one RPC.
+
+        Returns:
+            OptionalEventTime: the view end bound, or empty if unbounded.
+        """
+
+    def exclude_layer(self, name: str) -> RemoteNestedEdges:
+        """
+        Exclude a specific layer. Lazy — no RPC.
+
+        Arguments:
+            name (str): the name of the layer to exclude.
+
+        Returns:
+            RemoteNestedEdges: a new view with that layer excluded.
+        """
+
+    def exclude_layers(self, names: list[str]) -> RemoteNestedEdges:
+        """
+        Exclude the given set of layers. Lazy — no RPC.
+
+        Arguments:
+            names (list[str]): the names of the layers to exclude.
+
+        Returns:
+            RemoteNestedEdges: a new view with those layers excluded.
+        """
+
+    def exclude_valid_layer(self, name: str) -> RemoteNestedEdges:
+        """
+        Exclude a specific valid layer from the view. Lazy — no RPC.
+
+        Arguments:
+            name (str): the name of the valid layer to exclude.
+
+        Returns:
+            RemoteNestedEdges: a new view with that valid layer excluded.
+        """
+
+    def exclude_valid_layers(self, names: list[str]) -> RemoteNestedEdges:
+        """
+        Exclude the given set of valid layers from the view. Lazy — no RPC.
+
+        Arguments:
+            names (list[str]): the names of the valid layers to exclude.
+
+        Returns:
+            RemoteNestedEdges: a new view with those valid layers excluded.
+        """
+
+    def explode(self) -> RemoteNestedEdges:
+        """
+        Fan out each source's edges into one entry per event. Mirrors the local
+        `NestedEdges.explode`. Lazy — no RPC.
+
+        Returns:
+            RemoteNestedEdges: a new collection with one entry per event, grouped per source
+                node.
+        """
+
+    def explode_layers(self) -> RemoteNestedEdges:
+        """
+        Fan out each source's edges into one entry per layer per edge. Mirrors
+        the local `NestedEdges.explode_layers`. Lazy — no RPC.
+
+        Returns:
+            RemoteNestedEdges: a new collection with one entry per layer per edge, grouped
+                per source node.
+        """
+
+    def filter(self, filter: Any) -> RemoteNestedEdges:
+        """
+        Filter this collection by an edge filter. **Propagates** to downstream
+        traversals from the matching edges. Lazy — no RPC.
+
+        Arguments:
+            filter (FilterExpr): an edge filter expression from `raphtory.filter`.
+
+        Returns:
+            RemoteNestedEdges: a new collection with the filter applied.
+
+        Raises:
+            ValueError: if the filter cannot be represented as a GraphQL
+                `EdgeFilter`.
+        """
+
+    def has_layer(self, name: str) -> bool:
+        """
+        Check if this view has a layer named `name`. Fires one RPC.
+
+        Arguments:
+            name (str): the name of the layer to check.
+
+        Returns:
+            bool: True if the layer is present.
+        """
+
+    @property
+    def id(self) -> list[list[tuple[str | int, str | int]]]:
+        """
+        The `(src, dst)` id pair of each edge, grouped per source node.
+        Property — attribute access fires one RPC.
+
+        Returns:
+          list[list[tuple[str | int, str | int]]]: id pairs grouped per
+          source node — endpoint ids are strings for string-indexed graphs,
+          integers for integer-indexed ones.
+        """
+
+    def is_active(self) -> list[list[bool]]:
+        """
+        Whether each edge is active (has an event) in the current view, grouped
+        per source node. Method — mirrors the local `NestedEdges.is_active`.
+        Fires one RPC.
+
+        Returns:
+          list[list[bool]]: one flag per edge, grouped per source node.
+        """
+
+    def is_deleted(self) -> list[list[bool]]:
+        """
+        Whether each edge has been deleted at the current time, grouped per
+        source node. Method — mirrors the local `NestedEdges.is_deleted`. Fires
+        one RPC.
+
+        Returns:
+          list[list[bool]]: one flag per edge, grouped per source node.
+        """
+
+    def is_self_loop(self) -> list[list[bool]]:
+        """
+        Whether each edge is a self-loop (`src == dst`), grouped per source
+        node. Method — mirrors the local `NestedEdges.is_self_loop`. Fires one
+        RPC.
+
+        Returns:
+          list[list[bool]]: one flag per edge, grouped per source node.
+        """
+
+    def is_valid(self) -> list[list[bool]]:
+        """
+        Whether each edge is valid (not deleted) at the current time, grouped
+        per source node. Method — mirrors the local `NestedEdges.is_valid`.
+        Fires one RPC.
+
+        Returns:
+          list[list[bool]]: one flag per edge, grouped per source node.
+        """
+
+    def latest(self) -> RemoteNestedEdges:
+        """
+        Latest state. Lazy — no RPC.
+
+        Returns:
+            RemoteNestedEdges: a new view of the latest state.
+        """
+
+    @property
+    def latest_time(self) -> list[list[Optional[EventTime]]]:
+        """
+        The latest event time of each edge, grouped per source node. Property —
+        attribute access fires one RPC.
+
+        Returns:
+          list[list[Optional[EventTime]]]: latest times, grouped per source node.
+        """
+
+    def layer(self, name: str) -> RemoteNestedEdges:
+        """
+        Restrict to a single named layer. Lazy — no RPC.
+
+        Arguments:
+            name (str): the name of the layer.
+
+        Returns:
+            RemoteNestedEdges: a new view restricted to that layer.
+        """
+
+    @property
+    def layer_name(self) -> list[list[str]]:
+        """
+        The single layer name of each edge, grouped per source node. Only valid
+        once the edges have been exploded; raises otherwise. Property —
+        attribute access fires one RPC.
+
+        Returns:
+          list[list[str]]: layer name per edge, grouped per source node.
+        """
+
+    @property
+    def layer_names(self) -> list[list[list[str]]]:
+        """
+        The layer names of each edge, grouped per source node. Property —
+        attribute access fires one RPC.
+
+        Returns:
+          list[list[list[str]]]: layer names per edge, grouped per source node.
+        """
+
+    def layers(self, names: list[str]) -> RemoteNestedEdges:
+        """
+        Restrict to the given set of layers. Lazy — no RPC.
+
+        Arguments:
+            names (list[str]): the names of the layers.
+
+        Returns:
+            RemoteNestedEdges: a new view restricted to those layers.
+        """
+
+    @property
+    def metadata(self) -> RemoteMetadataView:
+        """
+        The non-temporal metadata of this collection as a nested columnar view.
+        Each accessor returns one value per edge, grouped per source. Lazy —
+        no RPC.
+
+        Returns:
+            RemoteMetadataView: the nested columnar metadata view of this collection.
+        """
+
+    @property
+    def nbr(self) -> RemotePathFromGraph:
+        """
+        The node at the other end of each edge (destination for out-edges,
+        source for in-edges), grouped per source node, as a nested
+        `RemotePathFromGraph`. Mirrors the local `NestedEdges.nbr`. Property —
+        lazy; attribute access fires no RPC.
+
+        Returns:
+          RemotePathFromGraph: the other-end nodes, grouped per source node.
+        """
+
+    @property
+    def properties(self) -> RemotePropertiesView:
+        """
+        The properties of this collection as a nested columnar view. Each
+        accessor returns one value per edge, grouped per source. Lazy — no RPC.
+
+        Returns:
+            RemotePropertiesView: the nested columnar properties view of this collection.
+        """
+
+    def shrink_end(self, end: TimeInput) -> RemoteNestedEdges:
+        """
+        Shrink the end of the current window. Lazy — no RPC.
+
+        Arguments:
+            end (TimeInput): the new exclusive end of the window.
+
+        Returns:
+            RemoteNestedEdges: a new view with the window end shrunk.
+        """
+
+    def shrink_start(self, start: TimeInput) -> RemoteNestedEdges:
+        """
+        Shrink the start of the current window. Lazy — no RPC.
+
+        Arguments:
+            start (TimeInput): the new inclusive start of the window.
+
+        Returns:
+            RemoteNestedEdges: a new view with the window start shrunk.
+        """
+
+    def snapshot_at(self, time: TimeInput) -> RemoteNestedEdges:
+        """
+        Snapshot at a specific time. Lazy — no RPC.
+
+        Arguments:
+            time (TimeInput): the time to snapshot at.
+
+        Returns:
+            RemoteNestedEdges: a new view snapshotted at that time.
+        """
+
+    def snapshot_latest(self) -> RemoteNestedEdges:
+        """
+        Snapshot at the latest time. Lazy — no RPC.
+
+        Returns:
+            RemoteNestedEdges: a new view snapshotted at the latest time.
+        """
+
+    @property
+    def src(self) -> RemotePathFromGraph:
+        """
+        The source node of each edge, grouped per source node, as a nested
+        `RemotePathFromGraph`. Mirrors the local `NestedEdges.src`. Property —
+        lazy; attribute access fires no RPC.
+
+        Returns:
+          RemotePathFromGraph: the source nodes, grouped per source node.
+        """
+
+    @property
+    def start(self) -> OptionalEventTime:
+        """
+        View start bound for this collection — `None` if unbounded. Property —
+        attribute access fires one RPC.
+
+        Returns:
+            OptionalEventTime: the view start bound, or empty if unbounded.
+        """
+
+    @property
+    def time(self) -> list[list[Optional[EventTime]]]:
+        """
+        The event time of each edge, grouped per source node. Only valid once
+        the edges have been exploded; raises otherwise. Property — attribute
+        access fires one RPC.
+
+        Returns:
+          list[list[Optional[EventTime]]]: event times, grouped per source node.
+        """
+
+    def valid_layers(self, names: list[str]) -> RemoteNestedEdges:
+        """
+        Restrict to the given set of valid layers. Lazy — no RPC.
+
+        Arguments:
+            names (list[str]): the names of the valid layers.
+
+        Returns:
+            RemoteNestedEdges: a new view restricted to those valid layers.
+        """
+
+    def window(self, start: TimeInput, end: TimeInput) -> RemoteNestedEdges:
+        """
+        Time-window this handle. Lazy — no RPC.
+
+        Arguments:
+            start (TimeInput): inclusive start of the window.
+            end (TimeInput): exclusive end of the window.
+
+        Returns:
+            RemoteNestedEdges: a new view restricted to the window.
+        """
+
+    @property
+    def window_size(self) -> Optional[int]:
+        """
+        The size of the window covered by this view (`end - start`), or `None`
+        if the view is unbounded. Property — attribute access fires one RPC.
+
+        Returns:
+            Optional[int]: the size of the window, or `None` if the view is unbounded.
+        """
+
+class RemoteHistory(object):
+    """
+    A handle to the event history of a remote node or edge.
+
+    Returned by [RemoteNode.history][raphtory.graphql.RemoteNode.history] and
+    by [RemoteEdge.history][raphtory.graphql.RemoteEdge.history] /
+    [RemoteEdge.deletions][raphtory.graphql.RemoteEdge.deletions].
+
+    Mirrors the shape of the local Python API's `History` type. Exposes scalar
+    terminals (`count`, `is_empty`, `earliest_time`, `latest_time`), the
+    `collect` / `collect_rev` / `page` / `page_rev` list terminals, and the
+    `.t` / `.dt` / `.event_id` / `.intervals` sub-container accessors.
+    """
+
+    def __contains__(self, key):
+        """Return bool(key in self)."""
+
+    def __getitem__(self, key):
+        """Return self[key]."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __reversed__(self):
+        """
+        `reversed(history)` — iterate events in descending time order.
+        Fires one RPC (`collect_rev()`), then yields each locally.
+        """
+
+    def collect(self) -> list[EventTime]:
+        """
+        All events in this history in ascending time order. Fires one RPC.
+
+        Returns:
+          list[EventTime]: one event per entry.
+        """
+
+    def collect_rev(self) -> list[EventTime]:
+        """
+        All events in this history in descending time order. Fires one RPC.
+
+        Returns:
+          list[EventTime]: one event per entry.
+        """
+
+    @property
+    def dt(self) -> RemoteHistoryDateTimes:
+        """
+        Datetime view of this history (RFC 3339 strings), mirroring the
+        local `History.dt`. Lazy — no RPC.
+
+        Returns:
+            RemoteHistoryDateTimes: the datetimes view of this history.
+        """
+
+    def earliest_time(self) -> OptionalEventTime:
+        """
+        Earliest event time in this history — `None` if empty. Fires one RPC.
+
+        Returns:
+          OptionalEventTime: the earliest event time, or empty.
+        """
+
+    @property
+    def event_id(self) -> RemoteHistoryEventIds:
+        """
+        Sub-container: event-id view of this history. Lazy — no RPC.
+
+        Returns:
+            RemoteHistoryEventIds: the event-ids view of this history.
+        """
+
+    @property
+    def intervals(self) -> RemoteIntervals:
+        """
+        Sub-container: inter-event intervals view of this history. Adds
+        stats terminals (mean/median/max/min). Lazy — no RPC.
+
+        Returns:
+            RemoteIntervals: the intervals view of this history.
+        """
+
+    def is_empty(self) -> bool:
+        """
+        Whether this history has no events. Fires one RPC.
+
+        Returns:
+          bool: True if empty.
+        """
+
+    def latest_time(self) -> OptionalEventTime:
+        """
+        Latest event time in this history — `None` if empty. Fires one RPC.
+
+        Returns:
+          OptionalEventTime: the latest event time, or empty.
+        """
+
+    def page(
+        self, limit: int, offset: Optional[int] = None, page_index: Optional[int] = None
+    ) -> list[EventTime]:
+        """
+        A page of events in ascending time order — at most `limit` items,
+        starting `page_index * limit + offset` items in. Both `offset` and
+        `page_index` default to 0. Fires one RPC.
+
+        Arguments:
+          limit (int): maximum number of events on this page.
+          offset (int, optional): additional items to skip.
+          page_index (int, optional): 0-based page number.
+
+        Returns:
+          list[EventTime]: at most `limit` events.
+        """
+
+    def page_rev(
+        self, limit: int, offset: Optional[int] = None, page_index: Optional[int] = None
+    ) -> list[EventTime]:
+        """
+        A page of events in descending time order. Same args as `page()`.
+        Fires one RPC.
+
+        Arguments:
+            limit (int): maximum number of items on this page.
+            offset (int, optional): additional items to skip.
+            page_index (int, optional): 0-based page number.
+
+        Returns:
+            list[EventTime]: at most `limit` events.
+        """
+
+    def reverse(self) -> RemoteHistory:
+        """
+        A new history with the iteration order of its entries reversed.
+        Lazy — no RPC.
+
+        Returns:
+          RemoteHistory: the reversed history.
+        """
+
+    @property
+    def t(self) -> RemoteHistoryTimestamps:
+        """
+        Timestamps view of this history (plain int timestamps), mirroring the
+        local `History.t`. Lazy — no RPC.
+
+        Returns:
+            RemoteHistoryTimestamps: the timestamps view of this history.
+        """
+
+class RemoteHistoryTimestamps(object):
+    """Timestamps view of a `RemoteHistory`. Lists / pages return `list[int]`."""
+
+    def __contains__(self, key):
+        """Return bool(key in self)."""
+
+    def __getitem__(self, key):
+        """Return self[key]."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __reversed__(self):
+        """
+        `reversed(...)` — iterate timestamps in reverse. Fires one RPC
+        (`collect_rev()`).
+        """
+
+    def collect(self) -> list[int]:
+        """
+        Fires one RPC.
+
+        Returns:
+            list[int]: all timestamps in ascending time order.
+        """
+
+    def collect_rev(self) -> list[int]:
+        """
+        Fires one RPC.
+
+        Returns:
+            list[int]: all timestamps in descending time order.
+        """
+
+    def page(
+        self, limit: int, offset: Optional[int] = None, page_index: Optional[int] = None
+    ) -> list[int]:
+        """
+        Fires one RPC.
+
+        Arguments:
+            limit (int): maximum number of items on this page.
+            offset (int, optional): additional items to skip.
+            page_index (int, optional): 0-based page number.
+
+        Returns:
+            list[int]: at most `limit` timestamps, in ascending time order.
+        """
+
+    def page_rev(
+        self, limit: int, offset: Optional[int] = None, page_index: Optional[int] = None
+    ) -> list[int]:
+        """
+        Fires one RPC.
+
+        Arguments:
+            limit (int): maximum number of items on this page.
+            offset (int, optional): additional items to skip.
+            page_index (int, optional): 0-based page number.
+
+        Returns:
+            list[int]: at most `limit` timestamps, in descending time order.
+        """
+
+class RemoteHistoryEventIds(object):
+    """Event-id view of a `RemoteHistory`. Lists / pages return `list[int]`."""
+
+    def __contains__(self, key):
+        """Return bool(key in self)."""
+
+    def __getitem__(self, key):
+        """Return self[key]."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __reversed__(self):
+        """
+        `reversed(...)` — iterate event ids in reverse. Fires one RPC
+        (`collect_rev()`).
+        """
+
+    def collect(self) -> list[int]:
+        """
+        Fires one RPC.
+
+        Returns:
+            list[int]: all event ids in ascending time order.
+        """
+
+    def collect_rev(self) -> list[int]:
+        """
+        Fires one RPC.
+
+        Returns:
+            list[int]: all event ids in descending time order.
+        """
+
+    def page(
+        self, limit: int, offset: Optional[int] = None, page_index: Optional[int] = None
+    ) -> list[int]:
+        """
+        Fires one RPC.
+
+        Arguments:
+            limit (int): maximum number of items on this page.
+            offset (int, optional): additional items to skip.
+            page_index (int, optional): 0-based page number.
+
+        Returns:
+            list[int]: at most `limit` event ids, in ascending time order.
+        """
+
+    def page_rev(
+        self, limit: int, offset: Optional[int] = None, page_index: Optional[int] = None
+    ) -> list[int]:
+        """
+        Fires one RPC.
+
+        Arguments:
+            limit (int): maximum number of items on this page.
+            offset (int, optional): additional items to skip.
+            page_index (int, optional): 0-based page number.
+
+        Returns:
+            list[int]: at most `limit` event ids, in descending time order.
+        """
+
+class RemoteHistoryDateTimes(object):
+    """
+    Datetime view of a `RemoteHistory`. Lists / pages return `list[datetime]`
+    (UTC), mirroring the local `History.dt`.
+    """
+
+    def __contains__(self, key):
+        """Return bool(key in self)."""
+
+    def __getitem__(self, key):
+        """Return self[key]."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __reversed__(self):
+        """
+        `reversed(...)` — iterate datetimes in reverse. Fires one RPC
+        (`collect_rev()`).
+        """
+
+    def collect(self) -> list[datetime]:
+        """
+        Fires one RPC.
+
+        Returns:
+            list[datetime]: all datetimes (UTC) in ascending time order.
+        """
+
+    def collect_rev(self) -> list[datetime]:
+        """
+        Fires one RPC.
+
+        Returns:
+            list[datetime]: all datetimes (UTC) in descending time order.
+        """
+
+    def page(
+        self, limit: int, offset: Optional[int] = None, page_index: Optional[int] = None
+    ) -> list[datetime]:
+        """
+        Fires one RPC.
+
+        Arguments:
+            limit (int): maximum number of items on this page.
+            offset (int, optional): additional items to skip.
+            page_index (int, optional): 0-based page number.
+
+        Returns:
+            list[datetime]: at most `limit` datetimes (UTC), in ascending time order.
+        """
+
+    def page_rev(
+        self, limit: int, offset: Optional[int] = None, page_index: Optional[int] = None
+    ) -> list[datetime]:
+        """
+        Fires one RPC.
+
+        Arguments:
+            limit (int): maximum number of items on this page.
+            offset (int, optional): additional items to skip.
+            page_index (int, optional): 0-based page number.
+
+        Returns:
+            list[datetime]: at most `limit` datetimes (UTC), in descending time order.
+        """
+
+class RemoteIntervals(object):
+    """
+    Intervals view of a `RemoteHistory` — inter-event gaps plus summary
+    stats (`mean`, `median`, `max`, `min`).
+    """
+
+    def __contains__(self, key):
+        """Return bool(key in self)."""
+
+    def __getitem__(self, key):
+        """Return self[key]."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __reversed__(self):
+        """
+        `reversed(...)` — iterate intervals in reverse. Fires one RPC
+        (`collect_rev()`).
+        """
+
+    def collect(self) -> list[int]:
+        """
+        Fires one RPC.
+
+        Returns:
+            list[int]: all intervals in ascending time order.
+        """
+
+    def collect_rev(self) -> list[int]:
+        """
+        Fires one RPC.
+
+        Returns:
+            list[int]: all intervals in descending time order.
+        """
+
+    def max(self) -> Optional[int]:
+        """
+        Max interval between consecutive events. `None` if fewer than 2 events.
+        Fires one RPC.
+
+        Returns:
+            Optional[int]: the largest interval, or `None` if fewer than 2 events.
+        """
+
+    def mean(self) -> Optional[float]:
+        """
+        Mean interval between consecutive events. `None` if fewer than 2 events.
+        Fires one RPC.
+
+        Returns:
+            Optional[float]: the mean interval, or `None` if fewer than 2 events.
+        """
+
+    def median(self) -> Optional[int]:
+        """
+        Median interval between consecutive events. `None` if fewer than 2 events.
+        Fires one RPC.
+
+        Returns:
+            Optional[int]: the median interval, or `None` if fewer than 2 events.
+        """
+
+    def min(self) -> Optional[int]:
+        """
+        Min interval between consecutive events. `None` if fewer than 2 events.
+        Fires one RPC.
+
+        Returns:
+            Optional[int]: the smallest interval, or `None` if fewer than 2 events.
+        """
+
+    def page(
+        self, limit: int, offset: Optional[int] = None, page_index: Optional[int] = None
+    ) -> list[int]:
+        """
+        Fires one RPC.
+
+        Arguments:
+            limit (int): maximum number of items on this page.
+            offset (int, optional): additional items to skip.
+            page_index (int, optional): 0-based page number.
+
+        Returns:
+            list[int]: at most `limit` intervals, in ascending time order.
+        """
+
+    def page_rev(
+        self, limit: int, offset: Optional[int] = None, page_index: Optional[int] = None
+    ) -> list[int]:
+        """
+        Fires one RPC.
+
+        Arguments:
+            limit (int): maximum number of items on this page.
+            offset (int, optional): additional items to skip.
+            page_index (int, optional): 0-based page number.
+
+        Returns:
+            list[int]: at most `limit` intervals, in descending time order.
+        """
+
+class RemoteMetadata(object):
+    """
+    A handle to the metadata container of a remote graph, node, or edge —
+    the non-temporal properties whose values don't change over the graph's
+    lifetime.
+
+    Returned by [RemoteGraph.metadata][raphtory.graphql.RemoteGraph.metadata],
+    [RemoteNode.metadata][raphtory.graphql.RemoteNode.metadata], and
+    [RemoteEdge.metadata][raphtory.graphql.RemoteEdge.metadata].
+    """
+
+    def __contains__(self, key):
+        """Return bool(key in self)."""
+
+    def __getitem__(self, key):
+        """Return self[key]."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def as_dict(self) -> dict[str, PropValue]:
+        """
+        All `(key, value)` entries as a native Python `dict`. Fires one RPC.
+
+        Returns:
+            dict[str, PropValue]: the metadata as a `dict`.
+        """
+
+    def get(self, key: str) -> Optional[PropValue]:
+        """
+        Fetch a single metadata value by key. Returns `None` if the key
+        isn't present. Fires one RPC.
+
+        Arguments:
+            key (str): the metadata name to look up.
+
+        Returns:
+            Optional[PropValue]: the metadata value as a native Python object,
+                or `None`.
+        """
+
+    def items(self) -> list[tuple[str, PropValue]]:
+        """
+        All `(key, value)` metadata entries, values as native Python objects.
+        Fires one RPC.
+
+        Returns:
+            list[tuple[str, PropValue]]: the `(key, value)` metadata entries.
+        """
+
+    def keys(self) -> list[str]:
+        """
+        All metadata keys present on this entity. Fires one RPC.
+
+        Returns:
+            list[str]: the metadata keys.
+        """
+
+    def values(self, keys: Optional[list[str]] = None) -> list[PropValue]:
+        """
+        All metadata values as native Python objects. If `keys` is provided,
+        only entries with those names are returned. Fires one RPC.
+
+        Arguments:
+            keys (list[str], optional): restrict the result to these metadata names.
+
+        Returns:
+            list[PropValue]: the metadata values.
+        """
+
+class RemoteProperties(object):
+    """
+    A handle to the full properties container of a remote graph, node, or
+    edge — includes both non-temporal metadata and temporal properties.
+
+    Same terminal shape as `RemoteMetadata` (`get`/`contains`/`keys`/`values`).
+    For temporal properties, `.get(key)` and `.values()` yield the property's
+    most recent value under the current view; drill into a property's timeline
+    via `.temporal()`.
+
+    Returned by [RemoteGraph.properties][raphtory.graphql.RemoteGraph.properties],
+    [RemoteNode.properties][raphtory.graphql.RemoteNode.properties], and
+    [RemoteEdge.properties][raphtory.graphql.RemoteEdge.properties].
+    """
+
+    def __contains__(self, key):
+        """Return bool(key in self)."""
+
+    def __getitem__(self, key):
+        """Return self[key]."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def as_dict(self) -> dict[str, PropValue]:
+        """
+        All `(key, value)` entries as a native Python `dict` (temporal
+        properties yield their most recent value). Fires one RPC.
+
+        Returns:
+            dict[str, PropValue]: the properties as a `dict`.
+        """
+
+    def get(self, key: str) -> Optional[PropValue]:
+        """
+        Fetch a single property value by key. Returns `None` if the key
+        isn't present. For a temporal property, yields its most recent value
+        under the current view. Fires one RPC.
+
+        Arguments:
+            key (str): the property name to look up.
+
+        Returns:
+            Optional[PropValue]: the property value, or `None` if absent.
+        """
+
+    def get_dtype_of(self, key: str) -> Optional[PropType]:
+        """
+        The data-type of the property's latest value by key, as a `PropType`.
+        Returns `None`
+        when the key isn't present. Mirrors the local `Properties.get_dtype_of`.
+        Fires one RPC.
+
+        Arguments:
+            key (str): the name of the property.
+
+        Returns:
+            Optional[PropType]: the property's data-type, or None if absent.
+        """
+
+    def items(self) -> list[tuple[str, PropValue]]:
+        """
+        All `(key, value)` property entries, values as native Python objects.
+        Fires one RPC.
+
+        Returns:
+            list[tuple[str, PropValue]]: the `(key, value)` property entries.
+        """
+
+    def keys(self) -> list[str]:
+        """
+        All property keys in the current view. Fires one RPC.
+
+        Returns:
+            list[str]: the property keys.
+        """
+
+    @property
+    def temporal(self) -> RemoteTemporalProperties:
+        """
+        The temporal-only sub-container — excludes metadata and provides
+        per-key timeline accessors. Lazy — no RPC.
+
+        Returns:
+            RemoteTemporalProperties: the temporal-only sub-container.
+        """
+
+    def values(self, keys: Optional[list[str]] = None) -> list[PropValue]:
+        """
+        All property values as native Python objects (temporal properties yield
+        their most recent value). If `keys` is provided, only those names are
+        returned. Fires one RPC.
+
+        Arguments:
+            keys (list[str], optional): restrict the result to these property names.
+
+        Returns:
+            list[PropValue]: the property values.
+        """
+
+class RemoteMetadataView(object):
+    """
+    A columnar view over the non-temporal metadata of a remote node/edge
+    collection. Every accessor returns one value per member (nested per source
+    for nested collections).
+
+    Returned by the `metadata` getter on the remote collection handles.
+    """
+
+    def __contains__(self, key):
+        """Return bool(key in self)."""
+
+    def __getitem__(self, key):
+        """Return self[key]."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def as_dict(self) -> dict[str, list]:
+        """
+        All `(key, column)` entries as a native Python `dict`. Fires one RPC.
+
+        Returns:
+           dict[str, list]: the columns, keyed by key.
+        """
+
+    def get(self, key: str) -> Optional[list]:
+        """
+        The column of values for `key` — one entry per metadata member (nested per source for nested collections), `None` where a member lacks the key. Returns `None` if the key is not registered. Fires one single-column RPC.
+
+        Arguments:
+            key (str): the metadata name to look up.
+
+        Returns:
+           Optional[list]: the column of values, or `None` if the key is not registered.
+        """
+
+    def items(self) -> list[tuple[str, list]]:
+        """
+        All `(key, column)` entries, in key order. Fires one RPC.
+
+        Returns:
+           list[tuple[str, list]]: the `(key, column)` entries, in key order.
+        """
+
+    def keys(self) -> list[str]:
+        """
+        All metadata keys, read from the first collection member's registry (matching the local view). Fires one key-lookup RPC — no property values travel.
+
+        Returns:
+           list[str]: the keys.
+        """
+
+    def values(self) -> list:
+        """
+        One column per key, in key order. Fires one RPC.
+
+        Returns:
+           list: one column per key, in key order.
+        """
+
+class RemotePropertiesView(object):
+    """
+    A columnar view over the properties of a remote node/edge collection
+    (temporal properties yield their most recent value under the current view).
+
+    Returned by the `properties` getter on the remote collection handles.
+    """
+
+    def __contains__(self, key):
+        """Return bool(key in self)."""
+
+    def __getitem__(self, key):
+        """Return self[key]."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def as_dict(self) -> dict[str, list]:
+        """
+        All `(key, column)` entries as a native Python `dict`. Fires one RPC.
+
+        Returns:
+           dict[str, list]: the columns, keyed by key.
+        """
+
+    def get(self, key: str) -> Optional[list]:
+        """
+        The column of values for `key` — one entry per property member (nested per source for nested collections), `None` where a member lacks the key. Returns `None` if the key is not registered. Fires one single-column RPC.
+
+        Arguments:
+            key (str): the property name to look up.
+
+        Returns:
+           Optional[list]: the column of values, or `None` if the key is not registered.
+        """
+
+    def items(self) -> list[tuple[str, list]]:
+        """
+        All `(key, column)` entries, in key order. Fires one RPC.
+
+        Returns:
+           list[tuple[str, list]]: the `(key, column)` entries, in key order.
+        """
+
+    def keys(self) -> list[str]:
+        """
+        All property keys, read from the first collection member's registry (matching the local view). Fires one key-lookup RPC — no property values travel.
+
+        Returns:
+           list[str]: the keys.
+        """
+
+    def values(self) -> list:
+        """
+        One column per key, in key order. Fires one RPC.
+
+        Returns:
+           list: one column per key, in key order.
+        """
+
+class RemoteTemporalProperties(object):
+    """
+    A handle to the temporal-only view of a properties container. Each
+    property has a full history over time.
+
+    Returned by `PyRemoteProperties.temporal`.
+    """
+
+    def __contains__(self, key):
+        """Return bool(key in self)."""
+
+    def __getitem__(self, key):
+        """Return self[key]."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def get(self, key: str) -> Optional[RemoteTemporalProperty]:
+        """
+        Fetch a temporal property by key. Returns `None` if the key isn't
+        present. Fires one RPC (existence check).
+
+        Arguments:
+            key (str): the temporal property name to look up.
+
+        Returns:
+            Optional[RemoteTemporalProperty]: the temporal property handle, or `None` if
+                absent.
+        """
+
+    def histories(self) -> dict[str, list[tuple[EventTime, PropValue]]]:
+        """
+        Every temporal property's full history, as
+        `{key: [(EventTime, value), ...]}` — mirrors the local
+        `TemporalProperties.histories`. Composed from `items()` + each
+        property's `items()`; fires 1 RPC for the property list plus 2 per
+        property (its history + values), so it is heavy for wide containers —
+        prefer `.get(key).items()` when you only need one property.
+
+        Returns:
+            dict[str, list[tuple[EventTime, PropValue]]]: every property's full history,
+                keyed by property name.
+        """
+
+    def items(self) -> list[tuple[str, RemoteTemporalProperty]]:
+        """
+        All `(key, temporal-property handle)` entries. Fires one RPC (fetches
+        the key list); each returned handle fires its own RPCs on subsequent
+        method calls.
+
+        Returns:
+            list[tuple[str, RemoteTemporalProperty]]: the `(key, temporal-property handle)`
+                entries.
+        """
+
+    def keys(self) -> list[str]:
+        """
+        All temporal property keys. Fires one RPC.
+
+        Returns:
+            list[str]: the temporal property keys.
+        """
+
+    def latest(self) -> dict[str, PropValue]:
+        """
+        The latest value of every temporal property, as `{key: value}` —
+        mirrors the local `TemporalProperties.latest()`. Composed from
+        `items()` + each property's `value()`; fires 1 RPC for the property
+        list plus 1 per property. Keys whose property has no update in view
+        are omitted (their latest is `None`), matching the local behaviour.
+
+        Returns:
+            dict[str, PropValue]: the latest value of every property, keyed by property
+                name; keys with no update in view are omitted.
+        """
+
+    def values(self, keys: Optional[list[str]] = None) -> list[RemoteTemporalProperty]:
+        """
+        All temporal properties as handles. If `keys` is provided, only
+        entries with those names are returned. Fires one RPC (fetches key
+        list); each returned handle fires its own RPCs on subsequent calls.
+
+        Arguments:
+            keys (list[str], optional): restrict the result to these property names.
+
+        Returns:
+            list[RemoteTemporalProperty]: the temporal property handles.
+        """
+
+class RemoteTemporalProperty(object):
+    """
+    A handle to a single temporal property — one key with its full history
+    of updates, plus statistical summaries and time-indexed accessors.
+
+    Returned by [PyRemoteTemporalProperties.get][raphtory.graphql.RemoteTemporalProperties.get]
+    and [PyRemoteTemporalProperties.values][raphtory.graphql.RemoteTemporalProperties.values].
+    """
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def at(self, t: EventTime) -> Optional[PropValue]:
+        """
+        Value at or before time `t`, as a native Python object. Returns
+        `None` if no update exists on or before `t`. Fires one RPC.
+
+        Arguments:
+            t (EventTime): the time to read the value at.
+
+        Returns:
+            Optional[PropValue]: the value at or before `t`, or `None` if there is no such
+                update.
+        """
+
+    def average(self) -> Optional[PropValue]:
+        """
+        Alias for `mean`. Fires one RPC.
+
+        Returns:
+            Optional[PropValue]: the mean of all updates, or `None` if not numeric or empty.
+        """
+
+    def count(self) -> int:
+        """
+        Number of updates recorded for this property in the current view.
+        Fires one RPC.
+
+        Returns:
+            int: the number of updates in the current view.
+        """
+
+    @property
+    def history(self) -> RemoteHistory:
+        """
+        The event history of this property. Lazy — no RPC.
+
+        Returns:
+            RemoteHistory: the property's event history.
+        """
+
+    def items(self) -> list[Tuple[EventTime, PropValue]]:
+        """
+        All `(time, value)` pairs this property has taken, in temporal order.
+        Mirrors the local `TemporalProperty.items()`. Fires two RPCs — one for
+        the history (event times) and one for the values — then pairs them
+        element-wise.
+
+        Returns:
+          list[Tuple[EventTime, PropValue]]: one pair per update.
+        """
+
+    @property
+    def key(self) -> str:
+        """
+        The property name — cached on the handle, no RPC needed.
+
+        Returns:
+            str: the property name.
+        """
+
+    def max(self) -> Optional[tuple[EventTime, PropValue]]:
+        """
+        Maximum `(time, value)` pair. `None` if not comparable or empty.
+        Fires one RPC.
+
+        Returns:
+            Optional[tuple[EventTime, PropValue]]: the maximum `(time, value)` pair, or
+                `None` if not comparable or empty.
+        """
+
+    def mean(self) -> Optional[PropValue]:
+        """
+        Mean of all updates. `None` if not numeric or empty. Fires one RPC.
+
+        Returns:
+            Optional[PropValue]: the mean of all updates, or `None` if not numeric or empty.
+        """
+
+    def median(self) -> Optional[tuple[EventTime, PropValue]]:
+        """
+        Median `(time, value)` pair. `None` if not comparable or empty.
+        Fires one RPC.
+
+        Returns:
+            Optional[tuple[EventTime, PropValue]]: the median `(time, value)` pair, or
+                `None` if not comparable or empty.
+        """
+
+    def min(self) -> Optional[tuple[EventTime, PropValue]]:
+        """
+        Minimum `(time, value)` pair. `None` if not comparable or empty.
+        Fires one RPC.
+
+        Returns:
+            Optional[tuple[EventTime, PropValue]]: the minimum `(time, value)` pair, or
+                `None` if not comparable or empty.
+        """
+
+    def ordered_dedupe(self, latest_time: bool) -> list[tuple[EventTime, PropValue]]:
+        """
+        Collapse consecutive-equal updates into single `(time, value)` pairs.
+        `latest_time = True` picks the last timestamp of each run; `False`
+        picks the first. Fires one RPC.
+
+        Arguments:
+            latest_time (bool): pick the last timestamp of each run of equal values rather
+                than the first.
+
+        Returns:
+            list[tuple[EventTime, PropValue]]: one `(time, value)` pair per run of
+                consecutive-equal updates.
+        """
+
+    def sum(self) -> Optional[PropValue]:
+        """
+        Sum of all updates. `None` if not additive. Fires one RPC.
+
+        Returns:
+            Optional[PropValue]: the sum of all updates, or `None` if not additive.
+        """
+
+    def unique(self) -> list[PropValue]:
+        """
+        Distinct values this property has ever taken (order not guaranteed).
+        Fires one RPC.
+
+        Returns:
+            list[PropValue]: the distinct values the property has taken (order not
+                guaranteed).
+        """
+
+    def value(self) -> Optional[PropValue]:
+        """
+        The most recent value, or `None` if the property has no updates in
+        view — matching the local `TemporalProperty.value`. Fires one RPC.
+
+        Returns:
+            Optional[PropValue]: the most recent value, or `None` if the property has no
+                updates in view.
+        """
+
+    def values(self) -> list[PropValue]:
+        """
+        All values this property has ever taken, in temporal order.
+        Fires one RPC. Returns a list of native Python values.
+
+        Returns:
+            list[PropValue]: every value the property has taken, in temporal order.
+        """
+
+class RemoteGraphSchema(object):
+    """
+    The full schema of a remote graph — the tree of node types, edge
+    layers, and their observed property/metadata fields.
+
+    Returned by [RemoteGraph.schema][raphtory.graphql.RemoteGraph.schema].
+    """
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    @property
+    def layers(self) -> list[RemoteLayerSchema]:
+        """
+        The per-layer edge schemas in this graph.
+
+        Returns:
+            list[RemoteLayerSchema]: one entry per edge layer.
+        """
+
+    @property
+    def nodes(self) -> list[RemoteNodeSchema]:
+        """
+        The per-node-type schemas in this graph.
+
+        Returns:
+            list[RemoteNodeSchema]: one entry per node type.
+        """
+
+class RemoteNodeSchema(object):
+    """Schema for nodes of a specific type."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    @property
+    def metadata(self) -> list[RemotePropertySchema]:
+        """
+        The metadata schemas observed on these nodes.
+
+        Returns:
+            list[RemotePropertySchema]: one entry per metadata key.
+        """
+
+    @property
+    def properties(self) -> list[RemotePropertySchema]:
+        """
+        The temporal property schemas observed on these nodes.
+
+        Returns:
+            list[RemotePropertySchema]: one entry per property key.
+        """
+
+    @property
+    def type_name(self) -> str:
+        """
+        The node type these nodes share.
+
+        Returns:
+            str: the node type name.
+        """
+
+class RemoteLayerSchema(object):
+    """Schema for a single edge layer."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    @property
+    def edges(self) -> list[RemoteEdgeSchema]:
+        """
+        The edge schemas in this layer, one per `(src_type, dst_type)` pair.
+
+        Returns:
+            list[RemoteEdgeSchema]: one entry per endpoint-type pair.
+        """
+
+    @property
+    def name(self) -> str:
+        """
+        The layer name.
+
+        Returns:
+            str: the layer name.
+        """
+
+class RemoteEdgeSchema(object):
+    """Schema for edges between a specific `(src_type, dst_type)` pair."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    @property
+    def dst_type(self) -> str:
+        """
+        The node type of the edges' destination endpoint.
+
+        Returns:
+            str: the destination node type.
+        """
+
+    @property
+    def metadata(self) -> list[RemotePropertySchema]:
+        """
+        The metadata schemas observed on these edges.
+
+        Returns:
+            list[RemotePropertySchema]: one entry per metadata key.
+        """
+
+    @property
+    def properties(self) -> list[RemotePropertySchema]:
+        """
+        The temporal property schemas observed on these edges.
+
+        Returns:
+            list[RemotePropertySchema]: one entry per property key.
+        """
+
+    @property
+    def src_type(self) -> str:
+        """
+        The node type of the edges' source endpoint.
+
+        Returns:
+            str: the source node type.
+        """
+
+class RemotePropertySchema(object):
+    """
+    One property key on a node/edge type, with its observed property type
+    and (for string-valued properties) the set of distinct values seen.
+    """
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    @property
+    def key(self) -> str:
+        """
+        The property name.
+
+        Returns:
+            str: the property name.
+        """
+
+    @property
+    def property_type(self) -> str:
+        """
+        The observed property type, as reported by the server.
+
+        Returns:
+            str: the property type name.
+        """
+
+    @property
+    def variants(self) -> list[str]:
+        """
+        The distinct values seen for a string-valued property; empty otherwise.
+
+        Returns:
+            list[str]: the distinct values seen.
         """
 
 class RemoteNodeAddition(object):
@@ -737,7 +5885,7 @@ class SomePropertySpec(object):
 class AllPropertySpec(object):
     """
     Specifies that **all** properties should be included when creating an index.
-    Use one of the predefined variants: ALL , ALL_METADATA , or ALL_TEMPORAL .
+    Use one of the predefined variants: `All`, `AllMetadata`, or `AllProperties`.
     """
 
     def __eq__(self, value):
@@ -763,6 +5911,183 @@ class AllPropertySpec(object):
 
     def __repr__(self):
         """Return repr(self)."""
+
+class SortByTime(object):
+    """Which time boundary of a member to sort by."""
+
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __int__(self):
+        """int(self)"""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+class NodeSortBy(object):
+    """
+    One entry in a `Nodes.sorted(...)` sort key list. Construct with the
+    static factories `by_id` / `by_name` / `by_type` / `by_time` /
+    `by_property` — each enforces that exactly one key type is set per entry.
+    """
+
+    @staticmethod
+    def by_id(reverse: Optional[bool] = False) -> NodeSortBy:
+        """
+        Sort by node id (a stable, deterministic ordering).
+
+        Arguments:
+            reverse (bool, optional): sort descending. Defaults to False.
+
+        Returns:
+            NodeSortBy: a sort key usable in `Nodes.sorted(...)`.
+        """
+
+    @staticmethod
+    def by_name(reverse: Optional[bool] = False) -> NodeSortBy:
+        """
+        Sort by node name.
+
+        Arguments:
+            reverse (bool, optional): sort descending. Defaults to False.
+
+        Returns:
+            NodeSortBy: a sort key usable in `Nodes.sorted(...)`.
+        """
+
+    @staticmethod
+    def by_property(key: str, reverse: Optional[bool] = False) -> NodeSortBy:
+        """
+        Sort by a temporal property value on each node.
+
+        Arguments:
+            key (str): the property name.
+            reverse (bool, optional): sort descending. Defaults to False.
+
+        Returns:
+            NodeSortBy: a sort key usable in `Nodes.sorted(...)`.
+        """
+
+    @staticmethod
+    def by_time(time: SortByTime, reverse: Optional[bool] = False) -> NodeSortBy:
+        """
+        Sort by node time (either earliest or latest observed event on the node).
+
+        Arguments:
+            time (SortByTime): the time boundary to use.
+            reverse (bool, optional): sort descending. Defaults to False.
+
+        Returns:
+            NodeSortBy: a sort key usable in `Nodes.sorted(...)`.
+        """
+
+    @staticmethod
+    def by_type(reverse: Optional[bool] = False) -> NodeSortBy:
+        """
+        Sort by node type. Untyped nodes sort first, before any named type.
+
+        Arguments:
+            reverse (bool, optional): sort descending. Defaults to False.
+
+        Returns:
+            NodeSortBy: a sort key usable in `Nodes.sorted(...)`.
+        """
+
+class EdgeSortBy(object):
+    """
+    One entry in an `Edges.sorted(...)` sort key list. Construct with the
+    static factories `by_src` / `by_dst` / `by_neighbour` / `by_time` /
+    `by_property`.
+    """
+
+    @staticmethod
+    def by_dst(key: NodeSortBy) -> EdgeSortBy:
+        """
+        Sort by the destination node, using a node sort key.
+
+        Arguments:
+            key (NodeSortBy): how to order the destination nodes, e.g.
+                `NodeSortBy.by_id()`. Its own `reverse` controls direction.
+
+        Returns:
+            EdgeSortBy: a sort key usable in `Edges.sorted(...)`.
+        """
+
+    @staticmethod
+    def by_neighbour(key: NodeSortBy) -> EdgeSortBy:
+        """
+        Sort by the neighbour node, using a node sort key. The neighbour is the
+        endpoint that is NOT the node the edges were traversed from — for a
+        graph-level edge collection that is the destination.
+
+        Arguments:
+            key (NodeSortBy): how to order the neighbour nodes, e.g.
+                `NodeSortBy.by_name()`. Its own `reverse` controls direction.
+
+        Returns:
+            EdgeSortBy: a sort key usable in `Edges.sorted(...)`.
+        """
+
+    @staticmethod
+    def by_property(key: str, reverse: Optional[bool] = False) -> EdgeSortBy:
+        """
+        Sort by a temporal property value on each edge.
+
+        Arguments:
+            key (str): the property name.
+            reverse (bool, optional): sort descending. Defaults to False.
+
+        Returns:
+            EdgeSortBy: a sort key usable in `Edges.sorted(...)`.
+        """
+
+    @staticmethod
+    def by_src(key: NodeSortBy) -> EdgeSortBy:
+        """
+        Sort by the source node, using a node sort key.
+
+        Arguments:
+            key (NodeSortBy): how to order the source nodes, e.g.
+                `NodeSortBy.by_id()`. Its own `reverse` controls direction.
+
+        Returns:
+            EdgeSortBy: a sort key usable in `Edges.sorted(...)`.
+        """
+
+    @staticmethod
+    def by_time(time: SortByTime, reverse: Optional[bool] = False) -> EdgeSortBy:
+        """
+        Sort by edge time (either earliest or latest event on the edge).
+
+        Arguments:
+            time (SortByTime): the time boundary to use.
+            reverse (bool, optional): sort descending. Defaults to False.
+
+        Returns:
+            EdgeSortBy: a sort key usable in `Edges.sorted(...)`.
+        """
+
+class RemotePermissionError(Exception):
+    """Raised when the server denies a request for lack of permission. A denied request is distinct from a missing graph: a forbidden-but-hidden graph is reported as not found, never as this error."""
+
+    @property
+    def __weakref__(self):
+        """list of weak references to the object"""
 
 def encode_graph(graph: Graph | PersistentGraph) -> str:
     """

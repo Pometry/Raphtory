@@ -60,8 +60,8 @@ use url::ParseError;
 
 #[cfg(feature = "vectors")]
 use {
-    crate::{model::graph::vectorised_graph::VectorQuery, paths::ExistingGraphFolder, GQLError},
-    raphtory::vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate, VectorsQuery},
+    crate::{paths::ExistingGraphFolder, GQLError},
+    raphtory::vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate},
 };
 
 pub const DEFAULT_PORT: u16 = 1736;
@@ -132,6 +132,7 @@ pub struct GraphServer {
     work_dir: PathBuf,
     config: AppConfig,
     schema_data: Vec<SchemaDataInjector>,
+    key_resolver: Option<std::sync::Arc<dyn crate::auth::KeyResolver>>,
 }
 
 pub fn register_query_plugin<
@@ -174,12 +175,28 @@ impl GraphServer {
             data,
             config,
             schema_data: Vec::new(),
+            key_resolver: None,
         })
     }
 
     /// Returns the working directory for this server.
     pub fn work_dir(&self) -> &Path {
         &self.work_dir
+    }
+
+    /// Register a custom JWT key resolver (e.g. an SSO/JWKS resolver from an auth extension). When
+    /// set, it replaces the static `auth.public_key` for token verification.
+    pub fn with_key_resolver(
+        mut self,
+        resolver: std::sync::Arc<dyn crate::auth::KeyResolver>,
+    ) -> Self {
+        self.key_resolver = Some(resolver);
+        self
+    }
+
+    /// Returns the resolved application config.
+    pub fn config(&self) -> &AppConfig {
+        &self.config
     }
 
     /// Set the authorization policy used for graph access checks.
@@ -374,7 +391,12 @@ impl GraphServer {
                 "/",
                 PublicFilesEndpoint::new(
                     self.config.public_dir.clone(),
-                    AuthenticatedGraphQL::new(schema, self.config.clone()),
+                    self.config.schema.disable_ui,
+                    AuthenticatedGraphQL::new(
+                        schema,
+                        self.config.clone(),
+                        self.key_resolver.clone(),
+                    ),
                 ),
             )
             .at("/health", get(health))
@@ -540,6 +562,47 @@ mod server_tests {
             assert_eq!(resp.status(), 200, "GET {path}");
             assert_eq!(resp.text().await.unwrap(), "<html>ui</html>", "GET {path}");
         }
+
+        running.stop().await
+    }
+
+    #[tokio::test]
+    async fn test_disable_ui_serves_api_not_ui() {
+        let work_dir = tempdir().unwrap();
+        let app_config = AppConfigBuilder::new().with_disable_ui(true).build();
+        let server = GraphServer::new(
+            work_dir.path().to_path_buf(),
+            Some(app_config),
+            Config::default(),
+        )
+        .await
+        .unwrap();
+        let running = server.start_with_port(0).await.unwrap();
+        let port = running.port();
+
+        // The UI is gone on every GET path.
+        for path in ["/", "/graphs", "/index.html"] {
+            let resp = reqwest::get(format!("http://localhost:{port}{path}"))
+                .await
+                .unwrap();
+            assert_eq!(resp.status(), 404, "GET {path}");
+        }
+
+        // The server still answers: health check works.
+        let health = reqwest::get(format!("http://localhost:{port}/health"))
+            .await
+            .unwrap();
+        assert_eq!(health.status(), 200);
+
+        // ...and the GraphQL API (POST) works.
+        let api = reqwest::Client::new()
+            .post(format!("http://localhost:{port}/"))
+            .header("content-type", "application/json")
+            .body(r#"{"query":"{__typename}"}"#)
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(api.status(), 200);
 
         running.stop().await
     }

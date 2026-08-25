@@ -40,8 +40,8 @@ def test_load_from_pandas():
     def assertions(g):
         edges = []
         for e in g.edges:
-            weight = e["weight"]
-            marbles = e["marbles"]
+            weight = e.properties.get("weight")
+            marbles = e.properties.get("marbles")
             edges.append((e.src.id, e.dst.id, weight, marbles))
 
         edges.sort()
@@ -136,14 +136,14 @@ def test_load_from_pandas_into_existing_graph():
     def assertions(g):
         edges = []
         for e in g.edges:
-            weight = e["weight"]
-            marbles = e["marbles"]
+            weight = e.properties.get("weight")
+            marbles = e.properties.get("marbles")
             edges.append((e.src.id, e.dst.id, weight, marbles))
         edges.sort()
 
         nodes = []
         for v in g.nodes:
-            name = v["name"]
+            name = v.properties.get("name")
             nodes.append((v.id, name))
         nodes.sort()
 
@@ -201,14 +201,14 @@ def test_load_from_pandas_nodes():
     def assertions(g):
         edges = []
         for e in g.edges:
-            weight = e["weight"]
-            marbles = e["marbles"]
+            weight = e.properties.get("weight")
+            marbles = e.properties.get("marbles")
             edges.append((e.src.id, e.dst.id, weight, marbles))
         edges.sort()
 
         nodes = []
         for v in g.nodes:
-            name = v["name"]
+            name = v.properties.get("name")
             nodes.append((v.id, name))
         nodes.sort()
 
