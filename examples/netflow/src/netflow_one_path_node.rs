@@ -7,7 +7,11 @@ use raphtory::{
         storage::timeindex::AsTime,
     },
     db::{
-        api::view::{GraphViewOps, NodeViewOps, StaticGraphViewOps},
+        api::view::{GraphViewOps, NodeViewOps, Select, StaticGraphViewOps},
+        graph::views::filter::model::{
+            graph_filter::GraphFilter, ComposableFilter, EdgeViewFilterOps, NodeViewFilterOps,
+            ViewWrapOps,
+        },
         task::{
             context::Context,
             edge::eval_edge::EvalEdgeView,
@@ -23,10 +27,10 @@ fn get_one_hop_counts<'graph, G: GraphViewOps<'graph>>(
     evv: &EvalNodeView<'graph, '_, G, ()>,
     no_time: bool,
 ) -> usize {
-    evv.layers("Netflow")
-        .unwrap()
-        .in_edges()
+    evv.in_edges()
         .explode()
+        .select(GraphFilter.layer("Netflow"))
+        .unwrap()
         .iter()
         .map(|nf_e_edge_expl| one_path_algorithm(nf_e_edge_expl, no_time))
         .sum::<usize>()
@@ -55,11 +59,8 @@ fn one_path_algorithm<'graph, G: GraphViewOps<'graph>, CS: ComputeState>(
         return 0usize;
     }
     // for the netflow B we now look for all E edges that have the dstBytes Prop
-    let dst_bytes_val = nf_e_edge_expl
-        .properties()
-        .get("dstBytes")
-        .into_i64()
-        .unwrap_or(0);
+    let dst_bytes_val = nf_e_edge_expl.properties().get("dstBytes").unwrap_i64();
+
     // For the nf1 we filter any edges from B that do not have the byte size (<=1e8)
     // we only watch B->E edges that are >1e8
     if dst_bytes_val <= 100000000 {
@@ -76,26 +77,30 @@ fn one_path_algorithm<'graph, G: GraphViewOps<'graph>, CS: ComputeState>(
     // Find all the login events satisfying the time constraint and count the program starts that fall in the window
     let event_count = nf_e_edge_expl
         .src()
-        .window(time_bound, nf1_time)
-        .layers("Events2v4624")
+        .in_edges()
+        .explode()
+        .select(
+            GraphFilter
+                .layer("Events2v4624")
+                .window(time_bound, nf1_time),
+        )
+        .unwrap()
+        .select(EdgeFilter::src().id().is_not_in([a_id, b_id]))
+        .unwrap()
         .into_iter()
-        .flat_map(|v| {
-            v.in_edges()
-                .iter()
-                .filter(|e| e.src().id() != a_id && e.src().id() != b_id)
-                .flat_map(|e| e.explode())
-        })
         .flat_map(|login_exp| {
             login_exp
                 .dst()
-                .window(login_exp.time().unwrap().t().saturating_add(1), nf1_time)
-                .layers("Events1v4688")
-        })
-        .flat_map(|v| {
-            v.out_edges()
-                .iter()
-                .filter(|e| e.src().id() == e.dst().id())
-                .flat_map(|e| e.explode())
+                .out_edges()
+                .explode()
+                .select(EdgeFilter.is_self_loop())
+                .unwrap()
+                .select(
+                    GraphFilter
+                        .layer("Events1v4688")
+                        .window(login_exp.time().unwrap().t().saturating_add(1), nf1_time),
+                )
+                .unwrap()
         })
         .count();
     event_count
@@ -156,16 +161,16 @@ mod one_path_test {
                 Some("Netflow"),
             )
             .expect("Panic");
-        // graph
-        //     .add_edge(
-        //         2,
-        //         4,
-        //         5,
-        //         [("dstBytes", Prop::U64(100000005))],
-        //         Some("Netflow"),
-        //     )
-        //     .expect("Panic");
+        graph
+            .add_edge(
+                2,
+                4,
+                5,
+                [("dstBytes", Prop::I64(100000005))],
+                Some("Netflow"),
+            )
+            .expect("Panic");
         let actual = netflow_one_path_node(&graph, true, None);
-        assert_eq!(actual, 0);
+        assert_eq!(actual, 1);
     }
 }
