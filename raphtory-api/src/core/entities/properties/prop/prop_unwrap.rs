@@ -1,10 +1,9 @@
 use crate::core::{
-    entities::properties::prop::{Prop, PropArray},
+    entities::properties::prop::{Prop, PropArray, PropMap},
     storage::arc_str::ArcStr,
 };
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDateTime, Utc};
-use rustc_hash::FxHashMap;
 use std::sync::Arc;
 
 pub trait PropUnwrap: Sized {
@@ -63,8 +62,8 @@ pub trait PropUnwrap: Sized {
         self.into_list().unwrap()
     }
 
-    fn into_map(self) -> Option<Arc<FxHashMap<ArcStr, Prop>>>;
-    fn unwrap_map(self) -> Arc<FxHashMap<ArcStr, Prop>> {
+    fn into_map(self) -> Option<Arc<PropMap>>;
+    fn unwrap_map(self) -> Arc<PropMap> {
         self.into_map().unwrap()
     }
 
@@ -132,7 +131,7 @@ impl<P: PropUnwrap> PropUnwrap for Option<P> {
         self.and_then(|p| p.into_list())
     }
 
-    fn into_map(self) -> Option<Arc<FxHashMap<ArcStr, Prop>>> {
+    fn into_map(self) -> Option<Arc<PropMap>> {
         self.and_then(|p| p.into_map())
     }
 
@@ -242,7 +241,7 @@ impl PropUnwrap for Prop {
         }
     }
 
-    fn into_map(self) -> Option<Arc<FxHashMap<ArcStr, Prop>>> {
+    fn into_map(self) -> Option<Arc<PropMap>> {
         if let Prop::Map(v) = self {
             Some(v)
         } else {

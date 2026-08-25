@@ -6391,7 +6391,6 @@ dependencies = [
  "futures-util",
  "itertools 0.15.0",
  "jsonwebtoken",
- "minijinja",
  "once_cell",
  "opentelemetry",
  "opentelemetry-appender-tracing",
@@ -6405,6 +6404,7 @@ dependencies = [
  "pyo3",
  "pythonize",
  "quick_cache",
+ "rand 0.9.4",
  "raphtory",
  "raphtory-api",
  "raphtory-storage",
@@ -7200,6 +7200,7 @@ version = "1.0.150"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e8014e44b4736ed0538adeecded0fce2a272f22dc9578a7eb6b2d9993c74cfb9"
 dependencies = [
+ "indexmap 2.14.0",
  "itoa",
  "memchr",
  "serde",

@@ -36,12 +36,12 @@ impl<G: StaticGraphViewOps> LayerSchema<G> {
 #[ResolvedObjectFields]
 impl<G: StaticGraphViewOps> LayerSchema<G> {
     /// Returns the name of the layer with this schema
-    async fn name(&self) -> String {
+    pub async fn name(&self) -> String {
         self.graph.get_layer_name(self.layer_id).to_string()
     }
 
     /// Returns the list of property schemas present on edges in this layer
-    async fn properties(&self) -> Vec<PropertySchema> {
+    pub async fn properties(&self) -> Vec<PropertySchema> {
         if let Some(cache) = &self.cache {
             if let Some(hit) = cache.layer().get_properties(&self.layer_id) {
                 return hit;
@@ -69,7 +69,7 @@ impl<G: StaticGraphViewOps> LayerSchema<G> {
     }
 
     /// Returns the list of metadata schemas present on edges in this layer
-    async fn metadata(&self) -> Vec<PropertySchema> {
+    pub async fn metadata(&self) -> Vec<PropertySchema> {
         if let Some(cache) = &self.cache {
             if let Some(hit) = cache.layer().get_metadata(&self.layer_id) {
                 return hit;
@@ -96,7 +96,7 @@ impl<G: StaticGraphViewOps> LayerSchema<G> {
 
 /// Get edge property/metadata keys and types using bitset without collecting values.
 /// Redacted properties are handled by the GraphView (in edge_layer_has_*).
-fn collect_layer_schema<G: StaticGraphViewOps>(
+pub fn collect_layer_schema<G: StaticGraphViewOps>(
     graph: &G,
     layer_id: LayerId,
     metadata: bool,
@@ -122,7 +122,7 @@ fn collect_layer_schema<G: StaticGraphViewOps>(
 }
 
 /// Collect distinct property values for `(key, dtype)` pairs. If there are too many values, we stop.
-fn collect_variants<P: PropertiesOps>(
+pub fn collect_variants<P: PropertiesOps>(
     props_per_edge: impl Iterator<Item = P>,
     mapper: &PropMapper,
 ) -> Vec<PropertySchema> {

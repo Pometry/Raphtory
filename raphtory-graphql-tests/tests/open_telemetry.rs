@@ -4,14 +4,14 @@ use raphtory::{
     prelude::{Graph, StableEncode},
 };
 use raphtory_graphql::{
-    client::raphtory_client::RaphtoryGraphQLClient,
+    client::remote_client::RemoteClient,
     config::{
         app_config::AppConfigBuilder,
         otlp_config::{TracingLevel, TracingProtocol, GLOBAL_EXPORTERS},
     },
     server::{GraphServer, RunningGraphServer},
 };
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use tempfile::{tempdir, TempDir};
 use url::Url;
 
@@ -37,7 +37,7 @@ const OPEN_TELEMETRY_QUERY: &str = "query {
 async fn setup_for_span_tests(
     tracing_level: TracingLevel,
 ) -> (
-    RaphtoryGraphQLClient,
+    RemoteClient,
     RunningGraphServer,
     InMemorySpanExporter,
     InMemoryLogExporter,
@@ -68,7 +68,7 @@ async fn setup_for_span_tests(
     let handler = server.start_with_port(0).await.unwrap();
 
     let endpoint = Url::parse(&format!("http://localhost:{}/", handler.port())).unwrap();
-    let client = RaphtoryGraphQLClient::new(endpoint, None);
+    let client = RemoteClient::new(endpoint, None);
     (client, handler, span_exporter, log_exporter, tmp_dir)
 }
 
@@ -76,7 +76,7 @@ async fn test_open_telemetry_spans_complete() {
     let (client, handler, span_exporter, log_exporter, _tmp_dir) =
         setup_for_span_tests(TracingLevel::COMPLETE).await;
     let _ = client
-        .query(OPEN_TELEMETRY_QUERY, HashMap::new())
+        .query(OPEN_TELEMETRY_QUERY, Default::default())
         .await
         .unwrap();
     handler.stop().await;
@@ -115,7 +115,7 @@ async fn test_open_telemetry_spans_essential() {
     let (client, handler, span_exporter, log_exporter, _tmp_dir) =
         setup_for_span_tests(TracingLevel::ESSENTIAL).await;
     let _ = client
-        .query(OPEN_TELEMETRY_QUERY, HashMap::new())
+        .query(OPEN_TELEMETRY_QUERY, Default::default())
         .await
         .unwrap();
     handler.stop().await;
@@ -149,7 +149,7 @@ async fn test_open_telemetry_spans_minimal() {
     let (client, handler, span_exporter, log_exporter, _tmp_dir) =
         setup_for_span_tests(TracingLevel::MINIMAL).await;
     let _ = client
-        .query(OPEN_TELEMETRY_QUERY, HashMap::new())
+        .query(OPEN_TELEMETRY_QUERY, Default::default())
         .await
         .unwrap();
     handler.stop().await;

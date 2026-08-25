@@ -3,6 +3,7 @@ use crate::{
         api::state::ops::{filter::NodeExistsOp, GraphView},
         graph::views::{
             filter::{
+                edge_filtered_graph::EdgeFilteredGraph,
                 model::{
                     edge_filter::CompositeEdgeFilter, ComposableFilter,
                     CompositeExplodedEdgeFilter, CompositeNodeFilter, TryAsCompositeFilter,
@@ -13,7 +14,6 @@ use crate::{
         },
     },
     errors::GraphError,
-    prelude::GraphViewOps,
 };
 use std::fmt;
 
@@ -27,36 +27,40 @@ impl fmt::Display for IsDeletedEdge {
 }
 
 impl CreateFilter for IsDeletedEdge {
-    type EntityFiltered<'graph, G>
-        = IsDeletedGraph<G>
+    type EntityFiltered<'graph, G, F>
+        = EdgeFilteredGraph<G, IsDeletedGraph<F>>
     where
         Self: 'graph,
-        G: GraphViewOps<'graph>;
+        G: GraphView + 'graph,
+        F: GraphView + 'graph;
 
-    type NodeFilter<'graph, G>
-        = NodeExistsOp<IsDeletedGraph<G>>
+    type NodeFilter<'graph, G, F>
+        = NodeExistsOp<IsDeletedGraph<F>>
     where
         Self: 'graph,
-        G: GraphView + 'graph;
+        G: GraphView + 'graph,
+        F: GraphView + 'graph;
 
     type FilteredGraph<'graph, G>
         = G
     where
         Self: 'graph,
-        G: GraphViewOps<'graph>;
+        G: GraphView + 'graph;
 
-    fn create_filter<'graph, G: GraphViewOps<'graph>>(
+    fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         graph: G,
-    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
-        Ok(IsDeletedGraph::new(graph))
+        filtered: F,
+    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
+        Ok(EdgeFilteredGraph::new(graph, IsDeletedGraph::new(filtered)))
     }
 
-    fn create_node_filter<'graph, G: GraphView + 'graph>(
+    fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
-        graph: G,
-    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
-        Ok(NodeExistsOp::new(IsDeletedGraph::new(graph)))
+        _graph: G,
+        filtered: F,
+    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
+        Ok(NodeExistsOp::new(IsDeletedGraph::new(filtered)))
     }
 
     fn filter_graph_view<'graph, G: GraphView + 'graph>(

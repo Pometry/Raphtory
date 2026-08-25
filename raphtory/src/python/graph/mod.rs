@@ -8,4 +8,5 @@ pub mod io;
 pub mod node;
 pub mod node_state;
 pub mod properties;
+pub mod sorting;
 pub mod views;

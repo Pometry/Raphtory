@@ -7,7 +7,7 @@ use crate::{
     model::{
         blocking_io,
         graph::{
-            filtering::{GraphAccessFilter, GraphRowFilter, HiddenKeys},
+            filtering::{GqlFilter, GraphAccessFilter, HiddenKeys},
             namespace::Namespace,
             namespaced_item::NamespacedItem,
         },
@@ -20,7 +20,7 @@ use crate::{
     rayon::blocking_compute,
     GQLError,
 };
-use async_graphql::Context;
+use async_graphql::{Context, ErrorExtensions};
 use dynamic_graphql::Enum;
 use raphtory::{
     db::{
@@ -40,10 +40,11 @@ use std::{
     io::{Read, Seek},
     ops::Deref,
     path::{Path, PathBuf},
+    str::FromStr,
     sync::Arc,
 };
 use tokio::sync::{OwnedRwLockReadGuard, OwnedRwLockWriteGuard, RwLock};
-use tracing::{error, warn};
+use tracing::{debug, error, warn};
 use walkdir::WalkDir;
 
 #[cfg(feature = "vectors")]
@@ -638,13 +639,81 @@ pub(crate) enum PermissionError {
     },
 }
 
-#[derive(Enum)]
+/// Machine-readable `extensions.code` values attached to authorization errors so
+/// the client classifies failures by structure rather than by message wording.
+///
+/// `GRAPH_NOT_FOUND` must be emitted for both a genuinely missing graph and a
+/// forbidden-but-hidden graph, so the two are byte-for-byte indistinguishable to
+/// an unauthorized caller.
+pub(crate) const CODE_ACCESS_DENIED: &str = "ACCESS_DENIED";
+pub(crate) const CODE_GRAPH_NOT_FOUND: &str = "GRAPH_NOT_FOUND";
+
+/// Build an `async_graphql::Error` carrying a `code` in its extensions. The
+/// human-readable message is preserved unchanged; only the structured code is
+/// added, so the client can branch on it without parsing message text.
+pub(crate) fn gql_error_with_code(
+    message: impl Into<String>,
+    code: &'static str,
+) -> async_graphql::Error {
+    async_graphql::Error::new(message.into()).extend_with(|_, ext| ext.set("code", code))
+}
+
+impl PermissionError {
+    /// The `extensions.code` this denial surfaces to the client. `GraphNotFound`
+    /// deliberately shares the code a genuinely missing graph produces so a
+    /// forbidden graph cannot be distinguished from a nonexistent one.
+    pub(crate) fn code(&self) -> &'static str {
+        match self {
+            PermissionError::GraphNotFound => CODE_GRAPH_NOT_FOUND,
+            PermissionError::IntrospectOnly { .. }
+            | PermissionError::GraphWriteRequired { .. }
+            | PermissionError::GraphUnfilteredReadRequired { .. }
+            | PermissionError::NamespaceWriteRequired { .. } => CODE_ACCESS_DENIED,
+        }
+    }
+
+    /// Convert into an `async_graphql::Error` tagged with the matching `code`.
+    pub(crate) fn into_gql_error(self) -> async_graphql::Error {
+        let code = self.code();
+        gql_error_with_code(self.to_string(), code)
+    }
+}
+
+#[derive(Enum, Clone, Copy, Debug, PartialEq, Eq)]
 #[graphql(name = "GraphType")]
 pub enum GqlGraphType {
     /// Persistent.
     Persistent,
     /// Event.
     Event,
+}
+
+impl GqlGraphType {
+    /// The GraphQL enum literal for this variant, for splicing into a query.
+    /// Unquoted by design — GraphQL enum values are not strings.
+    pub fn as_gql(&self) -> &'static str {
+        match self {
+            GqlGraphType::Persistent => "PERSISTENT",
+            GqlGraphType::Event => "EVENT",
+        }
+    }
+}
+
+impl FromStr for GqlGraphType {
+    type Err = String;
+
+    /// Parses the GraphQL literal. The error names the accepted values,
+    /// because this is the boundary where a caller's string (a Python
+    /// argument, a config value) becomes a typed graph model.
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "EVENT" => Ok(GqlGraphType::Event),
+            "PERSISTENT" => Ok(GqlGraphType::Persistent),
+            other => Err(format!(
+                "invalid graph type `{other}`: expected \"EVENT\" or \"PERSISTENT\""
+            )),
+        }
+    }
 }
 
 /// Returns the namespace portion of a graph path: everything before the last `/`.
@@ -668,28 +737,50 @@ fn require_at_least_read(
                 warn!(graph = path, "Access denied by auth policy");
                 let ns = parent_namespace(path);
                 if policy.namespace_permissions(ctx, ns).is_some() {
-                    Err(msg.into())
+                    Err(gql_error_with_code(msg.to_string(), CODE_ACCESS_DENIED))
                 } else {
-                    Err(PermissionError::GraphNotFound.into())
+                    Err(PermissionError::GraphNotFound.into_gql_error())
                 }
             }
             Ok(perm) => {
                 if let Some(p) = perm.at_least_read() {
                     Ok(p)
                 } else {
-                    warn!(
+                    warn!(graph = path, "Permission denied: introspect-only access");
+                    debug!(
                         graph = path,
-                        "Introspect-only access — graph() denied; use graphMetadata() instead"
+                        "Introspect-only grants can read graphMetadata() but not graph(); \
+                         use graphMetadata() instead or request a read grant"
                     );
                     Err(PermissionError::IntrospectOnly {
                         graph: path.to_string(),
                     }
-                    .into())
+                    .into_gql_error())
                 }
             }
         };
     }
     Ok(GraphPermission::Write)
+}
+
+/// Gives the policy an asynchronous pass at an already-granted permission before its filter is
+/// applied (see [`AuthorizationPolicy::refine_permission`]). A no-op without a policy.
+async fn refine(
+    ctx: &Context<'_>,
+    policy: &Option<Arc<dyn AuthorizationPolicy>>,
+    path: &str,
+    perm: GraphPermission,
+) -> async_graphql::Result<GraphPermission> {
+    match policy {
+        Some(policy) => policy
+            .refine_permission(ctx, path, perm)
+            .await
+            .map_err(|msg| {
+                warn!(graph = path, "Access denied while refining permission");
+                msg.into()
+            }),
+        None => Ok(perm),
+    }
 }
 
 pub(crate) fn require_graph_write(
@@ -698,36 +789,39 @@ pub(crate) fn require_graph_write(
     path: &str,
 ) -> async_graphql::Result<()> {
     match policy {
-        None => ctx.require_jwt_write_access().map_err(Into::into),
+        None => ctx
+            .require_jwt_write_access()
+            .map_err(|e| gql_error_with_code(e.to_string(), CODE_ACCESS_DENIED)),
         Some(p) => {
             p.graph_permissions(ctx, path)
-                .map_err(async_graphql::Error::from)?
+                .map_err(|e| gql_error_with_code(e.to_string(), CODE_ACCESS_DENIED))?
                 .at_least_write()
                 .ok_or_else(|| {
-                    async_graphql::Error::from(PermissionError::GraphWriteRequired {
+                    PermissionError::GraphWriteRequired {
                         graph: path.to_string(),
-                    })
+                    }
+                    .into_gql_error()
                 })?;
             Ok(())
         }
     }
 }
 
-/// Applies a `GraphRowFilter` to a `DynamicGraph`.
+/// Applies a row-level `GqlFilter` to a `DynamicGraph`.
 async fn apply_graph_filter(
     graph: DynamicGraph,
-    row_filter: GraphRowFilter,
+    row_filter: GqlFilter,
 ) -> async_graphql::Result<DynamicGraph> {
     blocking_compute(move || apply_row_filter_sync(graph, row_filter)).await
 }
 
 fn apply_row_filter_sync(
     graph: DynamicGraph,
-    filter: GraphRowFilter,
+    filter: GqlFilter,
 ) -> async_graphql::Result<DynamicGraph> {
     // And sub-filters are applied sequentially so that DynView (window/snapshot/layer)
     // sub-filters wrap the graph view before subsequent node/edge predicate filters run.
-    if let GraphRowFilter::And(filters) = filter {
+    if let GqlFilter::And(filters) = filter {
         return filters
             .into_iter()
             .try_fold(graph, |g, f| apply_row_filter_sync(g, f));
@@ -844,7 +938,11 @@ impl Data {
     ) -> async_graphql::Result<Option<(UnlockedGraphFolder, DynamicGraph, Option<Arc<SchemaCache>>)>>
     {
         match require_at_least_read(ctx, &self.auth_policy, path) {
-            Ok(perm) => self.load_and_filter(path, perm, graph_type).await.map(Some),
+            Ok(perm) => match refine(ctx, &self.auth_policy, path, perm).await {
+                Ok(perm) => self.load_and_filter(path, perm, graph_type).await.map(Some),
+                // Refinement denied access — hide the graph, as with any other read denial.
+                Err(_) => Ok(None),
+            },
             Err(_) => Ok(None),
         }
     }
@@ -860,6 +958,7 @@ impl Data {
         graph_type: Option<GqlGraphType>,
     ) -> async_graphql::Result<(UnlockedGraphFolder, DynamicGraph)> {
         let perm = require_at_least_read(ctx, &self.auth_policy, path)?;
+        let perm = refine(ctx, &self.auth_policy, path, perm).await?;
         let (folder, graph, _cache) = self.load_and_filter(path, perm, graph_type).await?;
         Ok((folder, graph))
     }
@@ -875,9 +974,10 @@ impl Data {
     ) -> async_graphql::Result<GraphWithVectors> {
         let res = require_at_least_read(ctx, &self.auth_policy, path)?;
         if res.level() < PermissionLevel::Read {
-            Err(PermissionError::GraphUnfilteredReadRequired {
+            return Err(PermissionError::GraphUnfilteredReadRequired {
                 graph: path.to_string(),
-            })?;
+            }
+            .into_gql_error());
         }
         let graph = self.get_graph(path).await?;
         Ok(graph)

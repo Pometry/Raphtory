@@ -1,5 +1,5 @@
 use crate::python::{
-    client::raphtory_client::PyRaphtoryClient,
+    client::remote_client::PyRaphtoryClient,
     server::{wait_server, BridgeCommand},
     RUNNING_SERVER_CONSUMED_MSG,
 };

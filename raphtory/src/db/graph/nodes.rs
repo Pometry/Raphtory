@@ -10,7 +10,8 @@ use crate::{
                 Index, LazyNodeState,
             },
             view::{
-                internal::{FilterOps, InternalFilter, InternalNodeSelect, NodeList},
+                internal::{DynGraphArc, FilterOps, InternalFilter, InternalNodeSelect, NodeList},
+                sort::{compare_node, NodeSortBy},
                 BaseNodeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
             },
         },
@@ -18,9 +19,11 @@ use crate::{
     },
     prelude::*,
 };
+use itertools::Itertools;
 use raphtory_storage::{core_ops::is_view_compatible, graph::graph::GraphStorage};
 use rayon::iter::ParallelIterator;
 use std::{
+    cmp::Ordering,
     collections::HashSet,
     fmt::{Debug, Formatter},
     hash::{BuildHasher, Hash},
@@ -163,6 +166,22 @@ where
             g.try_core_node(vid)
                 .is_some_and(|node| view.filter_node(node.as_ref()) && node_select.apply(&g, vid))
         })
+    }
+
+    /// Reorder this collection by an ordered list of sort keys: members
+    /// compare by the first key, ties break to the next. Returns a new
+    /// collection backed by an explicit index in the sorted order.
+    pub fn sorted(&self, sort_bys: &[NodeSortBy]) -> Nodes<'graph, G, GH, F> {
+        let index: Index<VID> = self
+            .iter()
+            .sorted_by(|a, b| {
+                sort_bys.iter().fold(Ordering::Equal, |current, sort_by| {
+                    current.then_with(|| compare_node(a, b, sort_by))
+                })
+            })
+            .map(|node_view| node_view.node)
+            .collect();
+        self.indexed(index)
     }
 
     pub fn indexed(&self, index: Index<VID>) -> Nodes<'graph, G, GH, F> {
@@ -383,39 +402,37 @@ where
 
     fn map_edges<
         I: Iterator<Item = EdgeRef> + Send + Sync + 'graph,
-        T: Fn(&GraphStorage, &Self::Graph, VID) -> I + Send + Sync + 'graph,
+        T: Fn(&GraphStorage, &DynGraphArc<'graph>, VID) -> I + Send + Sync + 'graph,
     >(
         &self,
         op: T,
     ) -> Self::Edges {
-        let graph = self.graph.clone();
         let nodes = self.clone();
         let nodes = Arc::new(move || nodes.iter_refs().into_dyn_boxed());
-        let edges = Arc::new(move |node: VID| {
+        let edges = Arc::new(move |graph: DynGraphArc<'graph>, node: VID| {
             let cg = graph.core_graph();
             op(cg, &graph, node).into_dyn_boxed()
         });
-        NestedEdges {
-            graph: self.graph.clone(),
-            nodes,
-            edges,
-        }
+        NestedEdges::new(self.graph.clone(), nodes, edges)
     }
 
     fn hop<
         I: Iterator<Item = VID> + Send + Sync + 'graph,
-        T: Fn(&GraphStorage, &Self::Graph, VID) -> I + Send + Sync + 'graph,
+        T: Fn(&GraphStorage, &DynGraphArc<'graph>, VID) -> I + Send + Sync + 'graph,
     >(
         &self,
         op: T,
     ) -> Self::PathType {
-        let graph = self.graph.clone();
         let nodes = self.clone();
         let nodes = Arc::new(move || nodes.iter_refs().into_dyn_boxed());
-        PathFromGraph::new(self.graph.clone(), nodes, move |v| {
-            let cg = graph.core_graph();
-            op(cg, &graph, v).into_dyn_boxed()
-        })
+        PathFromGraph::new(
+            self.graph.clone(),
+            nodes,
+            Arc::new(move |graph, v| {
+                let cg = graph.core_graph();
+                op(cg, &graph, v).into_dyn_boxed()
+            }),
+        )
     }
 }
 

@@ -43,7 +43,8 @@ def test_add_properties_same_timestamp_appends():
     work_dir = tempfile.mkdtemp()
     with GraphServer(work_dir).start() as server:
         _new_event_graph(server)
-        server.get_client().query("""
+        server.get_client().query(
+            """
             {
               updateGraph(path: "g") {
                 a: addProperties(t: 100, properties: [{key: "x", value: {i64: 1}}])
@@ -51,7 +52,8 @@ def test_add_properties_same_timestamp_appends():
                 c: addProperties(t: 100, properties: [{key: "x", value: {i64: 3}}])
               }
             }
-            """)
+            """
+        )
         result = _query(
             server,
             """
@@ -76,14 +78,16 @@ def test_add_node_same_timestamp_appends():
     work_dir = tempfile.mkdtemp()
     with GraphServer(work_dir).start() as server:
         _new_event_graph(server)
-        server.get_client().query("""
+        server.get_client().query(
+            """
             {
               updateGraph(path: "g") {
                 a: addNode(time: 100, name: "n", properties: [{key: "v", value: {i64: 1}}]) { success }
                 b: addNode(time: 100, name: "n", properties: [{key: "v", value: {i64: 2}}]) { success }
               }
             }
-            """)
+            """
+        )
         result = _query(
             server,
             """
@@ -112,14 +116,16 @@ def test_add_edge_same_timestamp_appends():
     work_dir = tempfile.mkdtemp()
     with GraphServer(work_dir).start() as server:
         _new_event_graph(server)
-        server.get_client().query("""
+        server.get_client().query(
+            """
             {
               updateGraph(path: "g") {
                 a: addEdge(time: 100, src: "a", dst: "b", properties: [{key: "w", value: {i64: 1}}]) { success }
                 b: addEdge(time: 100, src: "a", dst: "b", properties: [{key: "w", value: {i64: 2}}]) { success }
               }
             }
-            """)
+            """
+        )
         result = _query(
             server,
             """
@@ -148,14 +154,16 @@ def test_create_node_then_add_node_same_timestamp_appends():
     work_dir = tempfile.mkdtemp()
     with GraphServer(work_dir).start() as server:
         _new_event_graph(server)
-        server.get_client().query("""
+        server.get_client().query(
+            """
             {
               updateGraph(path: "g") {
                 a: createNode(time: 100, name: "n", properties: [{key: "v", value: {i64: 1}}]) { success }
                 b: addNode(time: 100, name: "n", properties: [{key: "v", value: {i64: 2}}]) { success }
               }
             }
-            """)
+            """
+        )
         result = _query(
             server,
             """
@@ -185,10 +193,13 @@ def test_mutable_node_add_updates_same_timestamp_appends():
     work_dir = tempfile.mkdtemp()
     with GraphServer(work_dir).start() as server:
         _new_event_graph(server)
-        server.get_client().query("""
+        server.get_client().query(
+            """
             { updateGraph(path: "g") { addNode(time: 0, name: "n") { success } } }
-            """)
-        server.get_client().query("""
+            """
+        )
+        server.get_client().query(
+            """
             {
               updateGraph(path: "g") {
                 node(name: "n") {
@@ -197,7 +208,8 @@ def test_mutable_node_add_updates_same_timestamp_appends():
                 }
               }
             }
-            """)
+            """
+        )
         result = _query(
             server,
             """
@@ -225,10 +237,13 @@ def test_mutable_edge_add_updates_same_timestamp_appends():
     work_dir = tempfile.mkdtemp()
     with GraphServer(work_dir).start() as server:
         _new_event_graph(server)
-        server.get_client().query("""
+        server.get_client().query(
+            """
             { updateGraph(path: "g") { addEdge(time: 0, src: "a", dst: "b") { success } } }
-            """)
-        server.get_client().query("""
+            """
+        )
+        server.get_client().query(
+            """
             {
               updateGraph(path: "g") {
                 edge(src: "a", dst: "b") {
@@ -237,7 +252,8 @@ def test_mutable_edge_add_updates_same_timestamp_appends():
                 }
               }
             }
-            """)
+            """
+        )
         result = _query(
             server,
             """
@@ -270,7 +286,8 @@ def test_add_nodes_batch_same_timestamp_appends():
     work_dir = tempfile.mkdtemp()
     with GraphServer(work_dir).start() as server:
         _new_event_graph(server)
-        server.get_client().query("""
+        server.get_client().query(
+            """
             {
               updateGraph(path: "g") {
                 addNodes(nodes: [
@@ -282,7 +299,8 @@ def test_add_nodes_batch_same_timestamp_appends():
                 ])
               }
             }
-            """)
+            """
+        )
         result = _query(
             server,
             """
@@ -309,7 +327,8 @@ def test_add_edges_batch_same_timestamp_appends():
     work_dir = tempfile.mkdtemp()
     with GraphServer(work_dir).start() as server:
         _new_event_graph(server)
-        server.get_client().query("""
+        server.get_client().query(
+            """
             {
               updateGraph(path: "g") {
                 addEdges(edges: [
@@ -321,7 +340,8 @@ def test_add_edges_batch_same_timestamp_appends():
                 ])
               }
             }
-            """)
+            """
+        )
         result = _query(
             server,
             """
@@ -354,7 +374,8 @@ def test_delete_edge_same_timestamp_appends():
     with GraphServer(work_dir).start() as server:
         client = server.get_client()
         client.new_graph("g", "PERSISTENT")
-        client.query("""
+        client.query(
+            """
             {
               updateGraph(path: "g") {
                 a: addEdge(time: 1, src: "a", dst: "b") { success }
@@ -362,7 +383,8 @@ def test_delete_edge_same_timestamp_appends():
                 d2: deleteEdge(time: 100, src: "a", dst: "b") { success }
               }
             }
-            """)
+            """
+        )
         result = _query(
             server,
             """
@@ -386,14 +408,16 @@ def test_object_time_input_distinct_event_ids_append():
     work_dir = tempfile.mkdtemp()
     with GraphServer(work_dir).start() as server:
         _new_event_graph(server)
-        server.get_client().query("""
+        server.get_client().query(
+            """
             {
               updateGraph(path: "g") {
                 a: addProperties(t: {timestamp: 100, eventId: 0}, properties: [{key: "x", value: {i64: 1}}])
                 b: addProperties(t: {timestamp: 100, eventId: 1}, properties: [{key: "x", value: {i64: 2}}])
               }
             }
-            """)
+            """
+        )
         result = _query(
             server,
             """

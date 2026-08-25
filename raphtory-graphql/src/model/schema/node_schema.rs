@@ -45,14 +45,14 @@ impl NodeSchema {
 impl NodeSchema {
     /// The node type this schema describes (e.g. `"person"`, `"org"`).
     /// Falls back to the default node type for untyped nodes.
-    async fn type_name(&self) -> String {
+    pub async fn type_name(&self) -> String {
         self.type_name_inner()
     }
 
     /// Property schemas seen on nodes of this type — one entry per property key
     /// ever set on a node of this type, with its observed `PropertyType` and (for
     /// string-valued properties) the set of distinct values.
-    async fn properties(&self) -> Vec<PropertySchema> {
+    pub async fn properties(&self) -> Vec<PropertySchema> {
         if let Some(cache) = &self.cache {
             if let Some(hit) = cache.node().get_properties(self.type_id) {
                 return hit;
@@ -68,7 +68,7 @@ impl NodeSchema {
 
     /// Metadata schemas seen on nodes of this type — like `properties`, but
     /// covering metadata fields rather than temporal properties.
-    async fn metadata(&self) -> Vec<PropertySchema> {
+    pub async fn metadata(&self) -> Vec<PropertySchema> {
         if let Some(cache) = &self.cache {
             if let Some(hit) = cache.node().get_metadata(self.type_id) {
                 return hit;
@@ -101,7 +101,7 @@ impl NodeSchema {
             .locked()
             .iter_ids_and_types()
             .filter(|(id, _, _)| visible.contains(id))
-            .map(|(_, name, dtype)| (name.to_string(), dtype.to_string()))
+            .map(|(_, name, dtype)| (name.to_string(), dtype.clone()))
             .unzip();
 
         if self.graph.unfiltered_num_nodes(&LayerIds::All) > MAX_DETAILED_SCHEMA_ENTITIES {
@@ -151,7 +151,7 @@ impl NodeSchema {
             .locked()
             .iter_ids_and_types()
             .filter(|(id, _, _)| visible.contains(id))
-            .map(|(_, name, dtype)| (name.to_string(), dtype.to_string()))
+            .map(|(_, name, dtype)| (name.to_string(), dtype.clone()))
             .unzip();
 
         if self.graph.unfiltered_num_nodes(&LayerIds::All) > MAX_DETAILED_SCHEMA_ENTITIES {
@@ -200,6 +200,7 @@ mod test {
     use crate::model::schema::{graph_schema::GraphSchema, node_schema::PropertySchema};
     use pretty_assertions::assert_eq;
     use raphtory::errors::GraphError;
+    use raphtory_api::core::entities::properties::prop::PropType;
 
     #[test]
     fn aggregate_schema() -> Result<(), GraphError> {
@@ -274,29 +275,36 @@ mod test {
         let expected = vec![
             (
                 "None".to_string(),
-                vec![(("t", "Str"), ["person"]).into()],
+                vec![(("t", PropType::Str), ["person"]).into()],
                 vec![],
             ),
             (
                 "a".to_string(),
                 vec![
-                    (("cost", "F64"), ["99.5"]).into(),
-                    (("t", "Str"), ["wallet"]).into(),
+                    (("cost", PropType::F64), ["99.5"]).into(),
+                    (("t", PropType::Str), ["wallet"]).into(),
                 ],
-                vec![(("lol", "Str"), ["smile"]).into()],
+                vec![(("lol", PropType::Str), ["smile"]).into()],
             ),
             (
                 "b".to_string(),
                 vec![
-                    (("bool_prop", "Bool"), ["true"]).into(),
-                    (("cost_b", "F64"), ["76"]).into(),
-                    (("list_prop", "List<F64>"), ["[1.1, 2.2, 3.3]"]).into(),
+                    (("bool_prop", PropType::Bool), ["true"]).into(),
+                    (("cost_b", PropType::F64), ["76"]).into(),
                     (
-                        ("map_prop", "Map{ a: F64, b: F64 }"),
+                        ("list_prop", PropType::List(Box::new(PropType::F64))),
+                        ["[1.1, 2.2, 3.3]"],
+                    )
+                        .into(),
+                    (
+                        (
+                            "map_prop",
+                            PropType::map([("a", PropType::F64), ("b", PropType::F64)]),
+                        ),
                         ["{\"a\": 1, \"b\": 2}"],
                     )
                         .into(),
-                    (("str_prop", "Str"), ["hello"]).into(),
+                    (("str_prop", PropType::Str), ["hello"]).into(),
                 ],
                 vec![],
             ),

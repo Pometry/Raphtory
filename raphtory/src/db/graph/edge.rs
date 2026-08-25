@@ -20,9 +20,9 @@ use crate::{
                 Metadata, Properties,
             },
             view::{
-                internal::{EdgeTimeSemanticsOps, GraphView, InternalFilter, Static},
-                BaseEdgeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
-                StaticGraphViewOps,
+                internal::{DynGraphArc, EdgeTimeSemanticsOps, GraphView, InternalFilter, Static},
+                BaseEdgeViewOps, BoxableGraphView, BoxedLIter, DynamicGraph, IntoDynBoxed,
+                IntoDynamic, StaticGraphViewOps,
             },
         },
         graph::{edges::Edges, node::NodeView, views::layer_graph::LayeredGraph},
@@ -67,7 +67,7 @@ pub struct EdgeView<G> {
     pub edge: EdgeRef,
 }
 
-pub(crate) fn edge_valid_layer<G: GraphView>(graph: &G, e: EdgeRef) -> bool {
+pub(crate) fn edge_valid_layer<G: BoxableGraphView>(graph: &G, e: EdgeRef) -> bool {
     match e.layer() {
         None => true,
         Some(layer) => graph.layer_ids().contains(&layer),
@@ -262,7 +262,7 @@ impl<'graph, G: GraphViewOps<'graph>> BaseEdgeViewOps<'graph> for EdgeView<G> {
         Metadata::new(self.clone())
     }
 
-    fn map_nodes<F: for<'a> Fn(&'a Self::Graph, EdgeRef) -> VID + Send + Sync + Clone + 'graph>(
+    fn map_nodes<F: Fn(&dyn BoxableGraphView, EdgeRef) -> VID + Send + Sync + Clone + 'graph>(
         &self,
         op: F,
     ) -> Self::Nodes {
@@ -272,16 +272,15 @@ impl<'graph, G: GraphViewOps<'graph>> BaseEdgeViewOps<'graph> for EdgeView<G> {
 
     fn map_exploded<
         I: Iterator<Item = EdgeRef> + Send + Sync + 'graph,
-        F: for<'a> Fn(&'a Self::Graph, EdgeRef) -> I + Send + Sync + Clone + 'graph,
+        F: Fn(&DynGraphArc<'graph>, EdgeRef) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
         op: F,
     ) -> Self::Exploded {
-        let graph1 = self.graph.clone();
         let base_graph = self.graph.clone();
         let edge = self.edge;
-        let edges = Arc::new(move || op(&graph1, edge).into_dyn_boxed());
-        Edges { base_graph, edges }
+        let edges = Arc::new(move |graph| op(&graph, edge).into_dyn_boxed());
+        Edges::new(base_graph, edges)
     }
 }
 
@@ -319,10 +318,22 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
                 let layer = self.edge.layer();
                 match layer {
                     Some(l_id) => l_id,
-                    None => self
-                        .graph
-                        .get_default_layer_id()
-                        .ok_or_else(|| GraphError::no_default_layer(&self.graph))?,
+                    // No layer named and the edge is not pinned to one: fall
+                    // back to the default layer, creating it when the caller
+                    // is writing. Without the `create` arm an unlayered
+                    // `edge.delete(t)` failed on a graph whose layers are all
+                    // named, while the equivalent `graph.delete_edge(t, src,
+                    // dst)` succeeded and created the layer itself — the same
+                    // call spelled two ways, behaving differently.
+                    None => match self.graph.get_default_layer_id() {
+                        Some(id) => id,
+                        None if create => self
+                            .graph
+                            .resolve_layer(None)
+                            .map_err(into_graph_err)?
+                            .inner(),
+                        None => return Err(GraphError::no_default_layer(&self.graph)),
+                    },
                 }
             }
         };

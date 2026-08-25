@@ -31,6 +31,7 @@ use storage::{error::StorageError, resolver::mapping_resolver::InvalidNodeId};
 #[cfg(feature = "python")]
 use pyo3::PyErr;
 
+use crate::algorithms::dynamics::temporal::epidemics::SeedError;
 #[cfg(feature = "io")]
 use zip::result::ZipError;
 
@@ -207,6 +208,12 @@ pub enum GraphError {
     #[error("No Edge between {src} and {dst}")]
     EdgeMissingError { src: GID, dst: GID },
 
+    #[error("No event at time {time} on edge ({src}, {dst})")]
+    EventMissingError { src: GID, dst: GID, time: i64 },
+
+    #[error("No layer '{layer}' on edge ({src}, {dst})")]
+    EdgeLayerMissingError { src: GID, dst: GID, layer: String },
+
     #[error("Property {0} does not exist")]
     PropertyMissingError(String),
 
@@ -238,6 +245,9 @@ pub enum GraphError {
 
     #[error("IO operation failed: {0}")]
     IOErrorMsg(String),
+
+    #[error("Invalid epidemic seeds: {0}")]
+    SeedError(#[from] SeedError),
 
     #[cfg(feature = "vectors")]
     #[error("Heed error: {0}")]

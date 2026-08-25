@@ -13,7 +13,6 @@ use crate::{
         },
     },
     errors::GraphError,
-    prelude::GraphViewOps,
 };
 use std::fmt;
 
@@ -27,35 +26,40 @@ impl fmt::Display for IsSelfLoopEdge {
 }
 
 impl CreateFilter for IsSelfLoopEdge {
-    type EntityFiltered<'graph, G>
+    type EntityFiltered<'graph, G, F>
         = IsSelfLoopGraph<G>
+    // self loop doesn't depend on view filtering, can simplify
     where
         Self: 'graph,
-        G: GraphViewOps<'graph>;
+        G: GraphView + 'graph,
+        F: GraphView + 'graph;
 
-    type NodeFilter<'graph, G>
+    type NodeFilter<'graph, G, F>
         = NodeExistsOp<IsSelfLoopGraph<G>>
     where
         Self: 'graph,
-        G: GraphView + 'graph;
+        G: GraphView + 'graph,
+        F: GraphView + 'graph;
 
     type FilteredGraph<'graph, G>
         = G
     where
         Self: 'graph,
-        G: GraphViewOps<'graph>;
+        G: GraphView + 'graph;
 
-    fn create_filter<'graph, G: GraphViewOps<'graph>>(
+    fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         graph: G,
-    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
+        _filtered: F,
+    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
         Ok(IsSelfLoopGraph::new(graph))
     }
 
-    fn create_node_filter<'graph, G: GraphView + 'graph>(
+    fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         graph: G,
-    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        _filtered: F,
+    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
         Ok(NodeExistsOp::new(IsSelfLoopGraph::new(graph)))
     }
 

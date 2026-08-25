@@ -770,7 +770,9 @@ def test_graph_persistence_across_restarts():
 
         # Verify persistence: check that nodes and edges are still there
         query_nodes = """{graph(path: "persistent_graph") {nodes {sorted (sortBys: [{id: true}]){ list {name} }}}}"""
-        query_edges = """{graph(path: "persistent_graph") {edges {sorted (sortBys: [{src: {id: true}, dst: {id: true}}]){ list {id} }}}}"""
+        # One key per entry: sort by src, break ties on dst. (Setting both in a
+        # single entry is rejected — the second used to be silently ignored.)
+        query_edges = """{graph(path: "persistent_graph") {edges {sorted (sortBys: [{src: {id: true}}, {dst: {id: true}}]){ list {id} }}}}"""
 
         assert client.query(query_nodes) == {
             "graph": {

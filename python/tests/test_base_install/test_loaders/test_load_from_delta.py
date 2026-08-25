@@ -74,7 +74,10 @@ def test_load_from_delta(delta_dir):
         )
 
         assert graph.nodes.id.sorted() == [1, 2, 3, 4, 5, 6]
-        edges = [(*e.id, e["weight"], e["marbles"]) for e in graph.edges]
+        edges = [
+            (*e.id, e.properties.get("weight"), e.properties.get("marbles"))
+            for e in graph.edges
+        ]
         edges.sort()
         assert edges == [
             (1, 2, 1.0, "red"),
@@ -124,9 +127,9 @@ def test_delta_add_column(delta_dir):
         dst="dst",
         properties=["weight", "colour"],
     )
-    assert g.edge(4, 5)["colour"] == "red"
-    assert g.edge(1, 2)["colour"] is None  # predates the column
-    assert g.edge(1, 2)["weight"] == 1.0
+    assert g.edge(4, 5).properties.get("colour") == "red"
+    assert g.edge(1, 2).properties.get("colour") is None  # predates the column
+    assert g.edge(1, 2).properties.get("weight") == 1.0
 
     old = Graph()
     dt0 = DeltaTable(path)
@@ -135,7 +138,7 @@ def test_delta_add_column(delta_dir):
         _reader(dt0), time="time", src="src", dst="dst", properties=["weight"]
     )
     assert (4, 5) not in edge_tuples(old)  # the colour row did not exist at v0
-    assert old.edge(1, 2)["weight"] == 1.0
+    assert old.edge(1, 2).properties.get("weight") == 1.0
 
 
 def test_delta_change_column_type(delta_dir):
@@ -180,8 +183,8 @@ def test_delta_change_column_type(delta_dir):
         dst="dst",
         properties=["weight"],
     )
-    assert g.edge(3, 4)["weight"] == 30
-    assert g.edge(1, 2)["weight"] == 10
+    assert g.edge(3, 4).properties.get("weight") == 30
+    assert g.edge(1, 2).properties.get("weight") == 10
 
     old = Graph()
     dt0 = DeltaTable(path)
@@ -189,7 +192,7 @@ def test_delta_change_column_type(delta_dir):
     old.load_edges(
         _reader(dt0), time="time", src="src", dst="dst", properties=["weight"]
     )
-    assert old.edge(1, 2)["weight"] == 10
+    assert old.edge(1, 2).properties.get("weight") == 10
 
     # Same graph, both versions: int then long is a type conflict.
     mixed = Graph()
