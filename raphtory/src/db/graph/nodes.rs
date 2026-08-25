@@ -11,6 +11,7 @@ use crate::{
             },
             view::{
                 internal::{DynGraphArc, FilterOps, InternalFilter, InternalNodeSelect, NodeList},
+                sort::{compare_node, NodeSortBy},
                 BaseNodeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
             },
         },
@@ -18,9 +19,11 @@ use crate::{
     },
     prelude::*,
 };
+use itertools::Itertools;
 use raphtory_storage::{core_ops::is_view_compatible, graph::graph::GraphStorage};
 use rayon::iter::ParallelIterator;
 use std::{
+    cmp::Ordering,
     collections::HashSet,
     fmt::{Debug, Formatter},
     hash::{BuildHasher, Hash},
@@ -163,6 +166,22 @@ where
             g.try_core_node(vid)
                 .is_some_and(|node| view.filter_node(node.as_ref()) && node_select.apply(&g, vid))
         })
+    }
+
+    /// Reorder this collection by an ordered list of sort keys: members
+    /// compare by the first key, ties break to the next. Returns a new
+    /// collection backed by an explicit index in the sorted order.
+    pub fn sorted(&self, sort_bys: &[NodeSortBy]) -> Nodes<'graph, G, GH, F> {
+        let index: Index<VID> = self
+            .iter()
+            .sorted_by(|a, b| {
+                sort_bys.iter().fold(Ordering::Equal, |current, sort_by| {
+                    current.then_with(|| compare_node(a, b, sort_by))
+                })
+            })
+            .map(|node_view| node_view.node)
+            .collect();
+        self.indexed(index)
     }
 
     pub fn indexed(&self, index: Index<VID>) -> Nodes<'graph, G, GH, F> {

@@ -1,7 +1,10 @@
 use crate::{
     auth::ContextValidation,
     auth_policy::{AuthorizationPolicy, NamespacePermission},
-    data::{parent_namespace, require_graph_write, Data, GqlGraphType, PermissionError},
+    data::{
+        gql_error_with_code, parent_namespace, require_graph_write, Data, GqlGraphType,
+        PermissionError, CODE_ACCESS_DENIED,
+    },
     model::{
         graph::{
             collection::GqlCollection, graph::GqlGraph, meta_graph::MetaGraph,
@@ -44,6 +47,7 @@ use tracing::warn;
 #[cfg(feature = "vectors")]
 use crate::model::graph::vectorised_graph::VectorQuery;
 
+pub(crate) mod algorithms;
 pub mod graph;
 pub mod plugins;
 pub(crate) mod schema;
@@ -121,7 +125,9 @@ fn require_namespace_write(
     operation: &str,
 ) -> Result<()> {
     match policy {
-        None => ctx.require_jwt_write_access().map_err(Into::into),
+        None => ctx
+            .require_jwt_write_access()
+            .map_err(|e| gql_error_with_code(e.to_string(), CODE_ACCESS_DENIED)),
         Some(p) => {
             if p.namespace_permissions(ctx, ns_path) < Some(NamespacePermission::Write) {
                 return Err(PermissionError::NamespaceWriteRequired {
@@ -129,13 +135,12 @@ fn require_namespace_write(
                     graph: new_path.to_string(),
                     operation: operation.to_string(),
                 }
-                .into());
+                .into_gql_error());
             }
             Ok(())
         }
     }
 }
-
 #[derive(ResolvedObject)]
 #[graphql(root)]
 pub struct QueryRoot;
@@ -160,12 +165,12 @@ fn resolve(template: Option<Template>, default: &str) -> Option<String> {
 #[ResolvedObjectFields]
 impl QueryRoot {
     /// Hello world demo
-    async fn hello() -> &'static str {
+    pub async fn hello() -> &'static str {
         "Hello world from raphtory-graphql"
     }
 
     /// Returns a graph
-    async fn graph<'a>(
+    pub async fn graph<'a>(
         ctx: &Context<'a>,
         #[graphql(
             desc = "Graph path relative to the root namespace (e.g. `\"master\"` or `\"team/project/graph\"`)."
@@ -189,17 +194,17 @@ impl QueryRoot {
 
     /// Returns lightweight metadata for a graph (node/edge counts, timestamps) without loading it.
     /// Requires at least INTROSPECT permission.
-    async fn graph_metadata<'a>(
+    pub async fn graph_metadata<'a>(
         ctx: &Context<'a>,
         #[graphql(desc = "Graph path relative to the root namespace.")] path: String,
     ) -> Result<Option<MetaGraph>> {
         let data = ctx.data_unchecked::<Data>();
 
         if let Some(policy) = &data.auth_policy {
-            let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
             if let Err(_) = policy.graph_permissions(ctx, &path) {
+                let roles = ctx.data::<Vec<String>>().map(Vec::as_slice).unwrap_or(&[]);
                 warn!(
-                    role = role.unwrap_or("<no role>"),
+                    roles = ?roles,
                     graph = path.as_str(),
                     "Access denied by auth policy"
                 );
@@ -216,7 +221,7 @@ impl QueryRoot {
     /// Update graph query, has side effects to update graph state
     ///
     /// Returns:: GqlMutableGraph
-    async fn update_graph<'a>(
+    pub async fn update_graph<'a>(
         ctx: &Context<'a>,
         #[graphql(desc = "Graph path relative to the root namespace.")] path: String,
     ) -> Result<GqlMutableGraph> {
@@ -232,7 +237,7 @@ impl QueryRoot {
     /// Returns all namespaces using recursive search
     ///
     /// Returns::  List of namespaces on root
-    async fn namespaces<'a>(ctx: &Context<'a>) -> GqlCollection<Namespace> {
+    pub async fn namespaces<'a>(ctx: &Context<'a>) -> GqlCollection<Namespace> {
         let data = ctx.data_unchecked::<Data>();
         let root = Namespace::root(data.work_dir_read().await);
         let list = blocking_compute(move || {
@@ -251,7 +256,7 @@ impl QueryRoot {
     /// Returns a specific namespace at a given path
     ///
     /// Returns:: Namespace or error if no namespace found
-    async fn namespace<'a>(ctx: &Context<'a>, path: String) -> Result<Namespace> {
+    pub async fn namespace<'a>(ctx: &Context<'a>, path: String) -> Result<Namespace> {
         let data = ctx.data_unchecked::<Data>();
         Ok(Namespace::try_new(data.work_dir_read().await, path)?)
     }
@@ -259,20 +264,20 @@ impl QueryRoot {
     /// Returns root namespace
     ///
     /// Returns::  Root namespace
-    async fn root<'a>(ctx: &Context<'a>) -> Namespace {
+    pub async fn root<'a>(ctx: &Context<'a>) -> Namespace {
         let data = ctx.data_unchecked::<Data>();
         Namespace::root(data.work_dir_read().await)
     }
 
     /// Returns a plugin.
-    async fn plugins<'a>() -> QueryPlugin {
+    pub async fn plugins<'a>() -> QueryPlugin {
         QueryPlugin
     }
 
     /// Encodes graph and returns as string.
     ///
     /// Returns:: Base64 url safe encoded string
-    async fn receive_graph<'a>(
+    pub async fn receive_graph<'a>(
         ctx: &Context<'a>,
         #[graphql(desc = "Graph path relative to the root namespace.")] path: String,
     ) -> Result<String> {
@@ -285,7 +290,7 @@ impl QueryRoot {
     }
 
     /// Version string of the running `raphtory-graphql` server build.
-    async fn version<'a>(_ctx: &Context<'a>) -> String {
+    pub async fn version<'a>(_ctx: &Context<'a>) -> String {
         String::from(version())
     }
 }
@@ -299,12 +304,12 @@ pub(crate) struct Mut(MutRoot);
 #[MutationFields]
 impl Mut {
     /// Returns a collection of mutation plugins.
-    async fn plugins<'a>(_ctx: &Context<'a>) -> MutationPlugin {
+    pub async fn plugins<'a>(_ctx: &Context<'a>) -> MutationPlugin {
         MutationPlugin
     }
 
     /// Delete graph from a path on the server.
-    async fn delete_graph<'a>(
+    pub async fn delete_graph<'a>(
         ctx: &Context<'a>,
         #[graphql(desc = "Graph path relative to the root namespace.")] path: String,
     ) -> Result<bool> {
@@ -317,7 +322,7 @@ impl Mut {
     }
 
     /// Load nodes
-    async fn load_nodes<'a>(
+    pub async fn load_nodes<'a>(
         ctx: &Context<'a>,
         #[graphql(desc = "Graph path relative to the root namespace.")] graph_path: String,
         #[graphql(desc = "Path to the parquet directory.")] data_path: String,
@@ -396,7 +401,7 @@ impl Mut {
     }
 
     /// Load edges
-    async fn load_edges<'a>(
+    pub async fn load_edges<'a>(
         ctx: &Context<'a>,
         #[graphql(desc = "Graph path relative to the root namespace.")] graph_path: String,
         #[graphql(desc = "Path to the parquet directory.")] data_path: String,
@@ -471,7 +476,7 @@ impl Mut {
     }
 
     /// Creates a new graph.
-    async fn new_graph<'a>(
+    pub async fn new_graph<'a>(
         ctx: &Context<'a>,
         #[graphql(desc = "Destination path relative to the root namespace.")] path: String,
         graph_type: GqlGraphType,
@@ -507,7 +512,7 @@ impl Mut {
     }
 
     /// Move graph from a path on the server to a new_path on the server.
-    async fn move_graph<'a>(
+    pub async fn move_graph<'a>(
         ctx: &Context<'a>,
         #[graphql(desc = "Current graph path relative to the root namespace.")] path: &str,
         #[graphql(desc = "Destination path relative to the root namespace.")] new_path: &str,
@@ -532,7 +537,7 @@ impl Mut {
     }
 
     /// Copy graph from a path on the server to a new_path on the server.
-    async fn copy_graph<'a>(
+    pub async fn copy_graph<'a>(
         ctx: &Context<'a>,
         #[graphql(desc = "Source graph path relative to the root namespace.")] path: &str,
         #[graphql(desc = "Destination path relative to the root namespace.")] new_path: &str,
@@ -568,7 +573,7 @@ impl Mut {
     ///
     /// Returns::
     /// name of the new graph
-    async fn upload_graph<'a>(
+    pub async fn upload_graph<'a>(
         ctx: &Context<'a>,
         #[graphql(desc = "Destination path relative to the root namespace.")] path: String,
         #[graphql(desc = "Multipart upload of the serialised graph file.")] graph: Upload,
@@ -595,7 +600,7 @@ impl Mut {
     ///
     /// Returns::
     /// path of the new graph
-    async fn send_graph<'a>(
+    pub async fn send_graph<'a>(
         ctx: &Context<'a>,
         #[graphql(desc = "Destination path relative to the root namespace.")] path: &str,
         #[graphql(desc = "Base64-encoded bincode of the serialised graph.")] graph: String,
@@ -631,7 +636,7 @@ impl Mut {
     /// graph or an existing namespace, and paths that fail validation.
     ///
     /// Returns:: the path of the created namespace
-    async fn create_namespace<'a>(
+    pub async fn create_namespace<'a>(
         ctx: &Context<'a>,
         #[graphql(desc = "Destination path relative to the root namespace.")] path: &str,
     ) -> Result<String> {
@@ -650,7 +655,7 @@ impl Mut {
     /// paths.
     ///
     /// Returns:: true on success
-    async fn delete_namespace<'a>(
+    pub async fn delete_namespace<'a>(
         ctx: &Context<'a>,
         #[graphql(desc = "Path to delete relative to the root namespace.")] path: &str,
     ) -> Result<bool> {
@@ -688,7 +693,7 @@ impl Mut {
     ///
     /// Returns::
     /// name of the new graph
-    async fn create_subgraph<'a>(
+    pub async fn create_subgraph<'a>(
         ctx: &Context<'a>,
         #[graphql(desc = "Source graph path relative to the root namespace.")] parent_path: &str,
         #[graphql(desc = "Node ids to include in the subgraph.")] nodes: Vec<GqlNodeId>,
@@ -726,7 +731,7 @@ impl Mut {
     }
 
     /// Flush any pending writes for the graph at `graphPath` to disk.
-    async fn flush<'a>(
+    pub async fn flush<'a>(
         ctx: &Context<'a>,
         #[graphql(desc = "Graph path relative to the root namespace.")] graph_path: String,
     ) -> Result<bool> {

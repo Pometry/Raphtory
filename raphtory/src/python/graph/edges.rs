@@ -16,6 +16,7 @@ use crate::{
         graph::{
             history::{HistoryIterable, NestedHistoryIterable},
             properties::{MetadataListList, MetadataView, PropertiesView, PyNestedPropsIterable},
+            sorting::PyEdgeSortBy,
         },
         types::{
             repr::{iterator_repr, Repr},
@@ -90,12 +91,17 @@ impl PyEdges {
         Ok(PyEdges::from(r))
     }
 
-    /// Returns the number of edges.
+    /// Reorder this collection by an ordered list of sort keys. Multi-key
+    /// sort is lexicographic (ties on key 1 break to key 2).
+    ///
+    /// Arguments:
+    ///     sort_bys (list[EdgeSortBy]): the ordered sort keys.
     ///
     /// Returns:
-    ///     int:
-    fn count(&self) -> usize {
-        self.edges.len()
+    ///     Edges: a new collection in the sorted order.
+    fn sorted(&self, sort_bys: Vec<PyEdgeSortBy>) -> PyEdges {
+        let sort_bys: Vec<_> = sort_bys.into_iter().map(|s| s.inner).collect();
+        PyEdges::from(self.edges.sorted(&sort_bys))
     }
 
     /// Returns the earliest time of the edges.

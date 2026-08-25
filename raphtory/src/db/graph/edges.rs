@@ -5,6 +5,7 @@ use crate::{
             properties::{Metadata, Properties},
             view::{
                 internal::{DynGraphArc, GraphView, InternalFilter, Static},
+                sort::{compare_edge, EdgeSortBy},
                 BaseEdgeViewOps, BoxableGraphView, BoxedLIter, DynamicGraph, IntoDynBoxed,
                 IntoDynamic, Select, StaticGraphViewOps,
             },
@@ -18,7 +19,9 @@ use crate::{
     errors::GraphError,
     prelude::GraphViewOps,
 };
+use itertools::Itertools;
 use std::{
+    cmp::Ordering,
     fmt::{Debug, Formatter},
     sync::Arc,
 };
@@ -90,6 +93,28 @@ impl<'graph, G: GraphView + 'graph> Edges<'graph, G> {
         let graph = &self.base_graph;
         let select = self.select.clone();
         (self.edges)(select).map(move |e| EdgeView::new_filtered(graph, e))
+    }
+
+    /// Reorder this collection by an ordered list of sort keys: members
+    /// compare by the first key, ties break to the next. Returns a new
+    /// collection backed by an explicit edge list in the sorted order.
+    pub fn sorted(&self, sort_bys: &[EdgeSortBy]) -> Self {
+        let sorted: Arc<[EdgeRef]> = self
+            .iter()
+            .sorted_by(|a, b| {
+                sort_bys.iter().fold(Ordering::Equal, |current, sort_by| {
+                    current.then_with(|| compare_edge(a, b, sort_by))
+                })
+            })
+            .map(|edge_view| edge_view.edge)
+            .collect();
+        Edges::new(
+            self.base_graph.clone(),
+            Arc::new(move |_| {
+                let sorted = sorted.clone();
+                (0..sorted.len()).map(move |i| sorted[i]).into_dyn_boxed()
+            }),
+        )
     }
 
     pub fn len(&self) -> usize {
@@ -281,6 +306,30 @@ impl<'graph, G: GraphViewOps<'graph>> NestedEdges<'graph, G> {
 
     pub fn collect(&self) -> Vec<Vec<EdgeView<G>>> {
         self.iter().map(|edges| edges.collect()).collect()
+    }
+}
+
+impl<'graph, G: IntoDynamic> NestedEdges<'graph, G> {
+    pub fn into_dyn(self) -> NestedEdges<'graph, DynamicGraph> {
+        NestedEdges {
+            graph: self.graph.into_dynamic(),
+            select: self.select,
+            nodes: self.nodes,
+            edges: self.edges,
+        }
+    }
+}
+
+impl<G: StaticGraphViewOps + IntoDynamic + Static> From<NestedEdges<'static, G>>
+    for NestedEdges<'static, DynamicGraph>
+{
+    fn from(value: NestedEdges<'static, G>) -> Self {
+        NestedEdges {
+            graph: value.graph.into_dynamic(),
+            select: value.select,
+            nodes: value.nodes,
+            edges: value.edges,
+        }
     }
 }
 

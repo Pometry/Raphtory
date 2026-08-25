@@ -8,7 +8,8 @@ use crate::{
             model::{
                 edge_filter::CompositeEdgeFilter,
                 exploded_edge_filter::CompositeExplodedEdgeFilter,
-                node_filter::CompositeNodeFilter, ComposableFilter, TryAsCompositeFilter,
+                node_filter::CompositeNodeFilter, ComposableFilter, FilterTree,
+                TryAsCompositeFilter,
             },
             or_filtered_graph::OrFilteredGraph,
             CreateFilter,
@@ -91,6 +92,25 @@ impl<L: CreateFilter, R: CreateFilter> CreateFilter for OrFilter<L, R> {
 }
 
 impl<L: TryAsCompositeFilter, R: TryAsCompositeFilter> TryAsCompositeFilter for OrFilter<L, R> {
+    fn try_as_filter_tree(&self) -> Result<FilterTree, GraphError> {
+        // Same-kind combinations keep their composite form; mixed-kind trees
+        // export structurally — the case the composite exports cannot
+        // represent.
+        if let Ok(f) = self.try_as_composite_node_filter() {
+            return Ok(FilterTree::Node(f));
+        }
+        if let Ok(f) = self.try_as_composite_edge_filter() {
+            return Ok(FilterTree::Edge(f));
+        }
+        if let Ok(f) = self.try_as_composite_exploded_edge_filter() {
+            return Ok(FilterTree::ExplodedEdge(f));
+        }
+        Ok(FilterTree::Or(vec![
+            self.left.try_as_filter_tree()?,
+            self.right.try_as_filter_tree()?,
+        ]))
+    }
+
     fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
         Ok(CompositeNodeFilter::Or(
             Box::new(self.left.try_as_composite_node_filter()?),

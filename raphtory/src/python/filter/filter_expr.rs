@@ -7,7 +7,7 @@ use crate::{
         graph::views::filter::{
             model::{
                 edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter,
-                not_filter::NotFilter, or_filter::OrFilter, AndFilter, DynCreateFilter,
+                not_filter::NotFilter, or_filter::OrFilter, AndFilter, DynCreateFilter, FilterTree,
                 TryAsCompositeFilter,
             },
             CreateFilter,
@@ -29,6 +29,10 @@ use std::sync::Arc;
 pub struct PyFilterExpr(pub Arc<dyn DynCreateFilter>);
 
 impl PyFilterExpr {
+    pub fn try_as_filter_tree(&self) -> Result<FilterTree, GraphError> {
+        self.0.try_as_filter_tree()
+    }
+
     pub fn try_as_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
         self.0.try_as_composite_node_filter()
     }

@@ -1,15 +1,11 @@
-use crate::core::{
-    entities::properties::prop::{
-        prop_col::{MapCol, PropCol},
-        validate_bd, ArrowRow, InvalidBigDecimal, Prop, PropArray, PropUnwrap, SerdeArrowList,
-        SerdeArrowMap,
-    },
-    storage::arc_str::ArcStr,
+use crate::core::entities::properties::prop::{
+    prop_col::{MapCol, PropCol},
+    validate_bd, ArrowRow, InvalidBigDecimal, Prop, PropArray, PropMap, PropUnwrap, SerdeArrowList,
+    SerdeArrowMap,
 };
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDateTime, Utc};
 use num_traits::ToPrimitive;
-use rustc_hash::FxHashMap;
 use serde::Serialize;
 use std::{borrow::Cow, sync::Arc};
 
@@ -37,7 +33,7 @@ impl PropRef<'_> {
 
 #[derive(Debug, Clone, Copy)]
 pub enum PropMapRef<'a> {
-    Mem(&'a Arc<FxHashMap<ArcStr, Prop>>),
+    Mem(&'a Arc<PropMap>),
     PropCol { map: &'a MapCol, i: usize },
     Arrow(ArrowRow<'a>),
 }
@@ -51,7 +47,7 @@ impl<'a> PropMapRef<'a> {
         }
     }
 
-    pub fn as_map(&self) -> Option<&'a Arc<FxHashMap<ArcStr, Prop>>> {
+    pub fn as_map(&self) -> Option<&'a Arc<PropMap>> {
         if let PropMapRef::Mem(m) = self {
             Some(*m)
         } else {
@@ -59,7 +55,7 @@ impl<'a> PropMapRef<'a> {
         }
     }
 
-    pub fn as_mem(&self) -> Arc<FxHashMap<ArcStr, Prop>> {
+    pub fn as_mem(&self) -> Arc<PropMap> {
         match self {
             PropMapRef::Mem(m) => (*m).clone(),
             PropMapRef::PropCol { map, i } => map.get(*i).unwrap_map(),
@@ -120,8 +116,8 @@ impl<'a> From<ArrowRow<'a>> for PropRef<'a> {
     }
 }
 
-impl<'a> From<&'a Arc<FxHashMap<ArcStr, Prop>>> for PropRef<'a> {
-    fn from(map: &'a Arc<FxHashMap<ArcStr, Prop>>) -> Self {
+impl<'a> From<&'a Arc<PropMap>> for PropRef<'a> {
+    fn from(map: &'a Arc<PropMap>) -> Self {
         PropRef::Map(PropMapRef::Mem(map))
     }
 }

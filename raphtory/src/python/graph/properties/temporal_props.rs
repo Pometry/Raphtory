@@ -106,10 +106,21 @@ impl PyTemporalProperties {
 
     /// List the values of the properties
     ///
+    /// Arguments:
+    ///     keys (list[str], optional): restrict the result to these names, in
+    ///         the given order. Defaults to every key, in `keys()` order.
+    ///
     /// Returns:
     ///     list[TemporalProperty]: the list of property views
-    fn values(&self) -> Vec<DynTemporalProperty> {
-        self.props.iter_filtered().map(|(_, value)| value).collect()
+    #[pyo3(signature = (keys = None))]
+    fn values(&self, keys: Option<Vec<String>>) -> Vec<DynTemporalProperty> {
+        match keys {
+            Some(keys) => keys
+                .iter()
+                .filter_map(|k| self.props.get(k.as_str()))
+                .collect(),
+            None => self.props.iter_filtered().map(|(_, value)| value).collect(),
+        }
     }
 
     /// List the property keys together with the corresponding values
@@ -1266,14 +1277,17 @@ impl PyPropValueList {
         self.mean()
     }
 
-    /// Compute a node state from these property values using an arrow compute kernel.
+    /// Collect the property values into an arrow-backed node state with a single column.
+    ///
+    /// The values are taken in order and aligned with the nodes of `graph`, so this is only
+    /// meaningful when the list was produced by iterating over the nodes of the same graph.
     ///
     /// Arguments:
-    ///     graph (GraphView): the graph the property values belong to.
-    ///     col_name (str): the property column name to compute over.
+    ///     graph (GraphView): the graph whose nodes the values are aligned with
+    ///     col_name (str): the name to give the column holding the property values
     ///
     /// Returns:
-    ///     OutputNodeState: the computed node state.
+    ///     OutputNodeState: the values as a node state with one column named `col_name`
     pub fn arrow_compute(&self, graph: DynamicGraph, col_name: String) -> PyOutputNodeState {
         PyOutputNodeState::new(GenericNodeState::new_from_eval_mapped(
             graph.clone(),

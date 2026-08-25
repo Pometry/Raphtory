@@ -139,7 +139,7 @@ impl IntoWindowTuple for Option<VectorisedGraphWindow> {
 /// (`optimizeIndex`).
 #[derive(ResolvedObject)]
 #[graphql(name = "VectorisedGraph")]
-pub(crate) struct GqlVectorisedGraph(VectorisedGraph<MaterializedGraph>);
+pub struct GqlVectorisedGraph(VectorisedGraph<MaterializedGraph>);
 
 impl From<VectorisedGraph<MaterializedGraph>> for GqlVectorisedGraph {
     fn from(value: VectorisedGraph<MaterializedGraph>) -> Self {
@@ -152,20 +152,20 @@ impl GqlVectorisedGraph {
     /// Rebuild (or incrementally update) the on-disk vector indexes for nodes
     /// and edges so subsequent similarity searches hit the fresh embeddings.
     /// Safe to call repeatedly; returns true on success.
-    async fn optimize_index(&self) -> GraphResult<bool> {
+    pub async fn optimize_index(&self) -> GraphResult<bool> {
         self.0.optimize_index().await?;
         Ok(true)
     }
 
     /// Returns an empty selection of documents.
-    async fn empty_selection(&self) -> GqlVectorSelection {
+    pub async fn empty_selection(&self) -> GqlVectorSelection {
         self.0.empty_selection().into()
     }
 
     /// Find the highest-scoring nodes *and* edges (mixed) by similarity to a
     /// natural-language query. The query is embedded server-side and matched
     /// against indexed entity vectors.
-    async fn entities_by_similarity(
+    pub async fn entities_by_similarity(
         &self,
         #[graphql(desc = "Natural-language search string; embedded by the server.")] query: String,
         #[graphql(desc = "Maximum number of results to return.")] limit: usize,
@@ -185,7 +185,7 @@ impl GqlVectorisedGraph {
     /// Find the highest-scoring nodes by similarity to a natural-language
     /// query. The query is embedded server-side and matched against indexed
     /// node vectors.
-    async fn nodes_by_similarity(
+    pub async fn nodes_by_similarity(
         &self,
         #[graphql(desc = "Natural-language search string; embedded by the server.")] query: String,
         #[graphql(desc = "Maximum number of nodes to return.")] limit: usize,
@@ -204,7 +204,7 @@ impl GqlVectorisedGraph {
     /// Find the highest-scoring edges by similarity to a natural-language
     /// query. The query is embedded server-side and matched against indexed
     /// edge vectors.
-    async fn edges_by_similarity(
+    pub async fn edges_by_similarity(
         &self,
         #[graphql(desc = "Natural-language search string; embedded by the server.")] query: String,
         #[graphql(desc = "Maximum number of edges to return.")] limit: usize,
