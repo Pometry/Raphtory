@@ -3,7 +3,6 @@ use raphtory::core::utils::time::{AlignmentUnit, Interval, TryIntoInterval};
 use raphtory_api::core::utils::time::ParseTimeError;
 
 pub mod collection;
-pub mod document;
 pub mod edge;
 pub mod edges;
 pub mod filtering;
@@ -22,13 +21,16 @@ pub mod path_from_graph;
 pub mod path_from_node;
 pub mod property;
 pub mod timeindex;
+pub mod windowset;
 
 #[cfg(feature = "vectors")]
 pub mod vector_selection;
 
 #[cfg(feature = "vectors")]
 pub mod vectorised_graph;
-pub mod windowset;
+
+#[cfg(feature = "vectors")]
+pub mod document;
 
 #[derive(OneOfInput, Clone)]
 pub enum WindowDuration {

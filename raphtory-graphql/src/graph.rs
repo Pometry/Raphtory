@@ -31,10 +31,13 @@ use std::{
     },
     task::Poll,
 };
-use tracing::{debug, error};
+use tracing::debug;
 
 #[cfg(feature = "vectors")]
-use raphtory::vectors::{storage::LazyDiskVectorCache, vectorised_graph::VectorisedGraph};
+use {
+    raphtory::vectors::{storage::LazyDiskVectorCache, vectorised_graph::VectorisedGraph},
+    tracing::error,
+};
 
 /// The element stored in the optional vectors slot of a graph. With the
 /// `vectors` feature this is a real `VectorisedGraph`; without it the slot is

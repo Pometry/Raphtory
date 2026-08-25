@@ -30,7 +30,7 @@ use raphtory_api::core::entities::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value as JsonValue};
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
 
 /// Build the `TimeInput` variable value: a bare int, or `{timestamp, eventId}`
 /// when an explicit secondary index is given.

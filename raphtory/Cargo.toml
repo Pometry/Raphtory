@@ -168,3 +168,11 @@ python = [
 panic-on-drop = [
     "storage/panic-on-drop"
 ]
+
+[[example]]
+name = "eth_loader"
+required-features = ["io"]
+
+[[example]]
+name = "snb_loader"
+required-features = ["io"]

@@ -1013,17 +1013,6 @@ impl Prop {
         })
     }
 
-    /// The value as `u128`, or `None` for non-unsigned-integer variants.
-    fn as_u128(&self) -> Option<u128> {
-        Some(match self {
-            Prop::U8(v) => *v as u128,
-            Prop::U16(v) => *v as u128,
-            Prop::U32(v) => *v as u128,
-            Prop::U64(v) => *v as u128,
-            _ => return None,
-        })
-    }
-
     /// True for every numeric variant (integers, floats and `Decimal`); false otherwise.
     pub fn is_numeric(&self) -> bool {
         matches!(
