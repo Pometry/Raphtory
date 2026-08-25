@@ -7,7 +7,10 @@ use crate::{
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{db::api::view::StaticGraphViewOps, prelude::*};
-use raphtory_api::core::entities::{properties::meta::PropMapper, LayerId, LayerIds};
+use raphtory_api::core::entities::{
+    properties::{meta::PropMapper, prop::PropType},
+    LayerId, LayerIds,
+};
 use std::{
     collections::{hash_map::Entry, HashMap, HashSet},
     sync::Arc,
@@ -117,7 +120,7 @@ pub fn collect_layer_schema<G: StaticGraphViewOps>(
                 graph.edge_layer_has_temporal_prop(layer_id, *id)
             }
         })
-        .map(|(_, name, dtype)| PropertySchema::new(name.to_string(), dtype.to_string(), vec![]))
+        .map(|(_, name, dtype)| PropertySchema::new(name.to_string(), dtype.clone(), vec![]))
         .collect()
 }
 
@@ -126,7 +129,7 @@ pub fn collect_variants<P: PropertiesOps>(
     props_per_edge: impl Iterator<Item = P>,
     mapper: &PropMapper,
 ) -> Vec<PropertySchema> {
-    let mut schema: HashMap<(String, String), HashSet<String>> = HashMap::new();
+    let mut schema: HashMap<(String, PropType), HashSet<String>> = HashMap::new();
     for props in props_per_edge {
         for ((key, value), id) in props.iter().zip(props.ids()) {
             let Some(value) = value else { continue };
@@ -134,8 +137,7 @@ pub fn collect_variants<P: PropertiesOps>(
                 key.to_string(),
                 mapper
                     .get_dtype(id)
-                    .expect("type for internal id should always exist")
-                    .to_string(),
+                    .expect("type for internal id should always exist"),
             );
             match schema.entry(key_with_prop_type) {
                 Entry::Vacant(entry) => {

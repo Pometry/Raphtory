@@ -49,6 +49,7 @@ use raphtory_storage::core_ops::CoreGraphOps;
 use std::{
     collections::HashSet,
     convert::{Into, TryInto},
+    sync::Arc,
 };
 
 /// A view of a Raphtory graph. Every field here returns either data from the
