@@ -17,7 +17,7 @@ pub struct PermissionsEntrypointMut;
 ///
 /// The entrypoint itself is not admin-gated: each query field under it enforces
 /// its own access check. Admin-only fields (`listRoles`, `getRole`) require write
-/// access, while `myPermissions` returns only the caller's own grants and is
+/// access, while `viewer` returns only the caller's own grants and is
 /// therefore reachable by any authenticated caller.
 pub struct PermissionsEntrypointQuery;
 
@@ -68,7 +68,7 @@ impl Register for PermissionsEntrypointQuery {
                 |_ctx| {
                     FieldFuture::new(async move {
                         // Access is enforced per-field: admin-only fields check
-                        // write access themselves; `myPermissions` is self-scoped.
+                        // write access themselves; `viewer` is self-scoped.
                         Ok(Some(FieldValue::owned_any(
                             PermissionsQueryPlugin::default(),
                         )))

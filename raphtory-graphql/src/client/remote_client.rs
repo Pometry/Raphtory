@@ -535,15 +535,15 @@ impl RemoteClient {
 
     /// Return the calling token's own permission grants. Reads only what the
     /// caller's roles have been granted, so it never discloses other roles or
-    /// graphs. The returned object mirrors the `MyPermissions` GraphQL type:
+    /// graphs. The returned object mirrors the `ViewerPermissions` GraphQL type:
     /// `{ roles, graphs: [{ path, permission, filtered }], namespaces: [{ path, permission }] }`.
     /// `roles` is empty when the token carries no role claim; when it names several, their grants
     /// are merged most-permissive-wins, matching how the server enforces them.
-    pub async fn my_permissions(&self) -> Result<JsonValue, ClientError> {
+    pub async fn viewer_permissions(&self) -> Result<JsonValue, ClientError> {
         let query = r#"
-            query MyPermissions {
+            query ViewerPermissions {
               permissions {
-                myPermissions {
+                viewer {
                   roles
                   graphs { path permission filtered }
                   namespaces { path permission }
@@ -553,11 +553,11 @@ impl RemoteClient {
         .to_owned();
         let data = self.query(&query, json!({})).await?;
         data.get("permissions")
-            .and_then(|p| p.get("myPermissions"))
+            .and_then(|p| p.get("viewer"))
             .cloned()
             .ok_or_else(|| {
                 ClientError::InvalidResponse(format!(
-                    "Expected 'permissions.myPermissions' in server response, got: {data:?}"
+                    "Expected 'permissions.viewer' in server response, got: {data:?}"
                 ))
             })
     }
@@ -592,7 +592,7 @@ impl RemoteClient {
               permissions {
                 getRole(name: $name) {
                   name
-                  graphs { path permission }
+                  graphs { path permission filtered }
                   namespaces { path permission }
                 }
               }

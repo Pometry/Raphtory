@@ -481,9 +481,9 @@ impl PyRaphtoryClient {
     ///     A token naming several roles gets their grants merged
     ///     most-permissive-wins, so an unfiltered grant from one role supersedes a
     ///     filtered grant from another on the same graph.
-    fn my_permissions<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        let value =
-            py.detach(|| self.run_async(|client| async move { client.my_permissions().await }))?;
+    fn viewer_permissions<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        let value = py
+            .detach(|| self.run_async(|client| async move { client.viewer_permissions().await }))?;
         translate_to_python(py, value)
     }
 
@@ -506,8 +506,10 @@ impl PyRaphtoryClient {
     ///
     /// Returns:
     ///     Optional[dict[str, Any]]: a mapping with keys ``name``, ``graphs``
-    ///     (list of ``{"path", "permission"}``) and ``namespaces``
+    ///     (list of ``{"path", "permission", "filtered"}``) and ``namespaces``
     ///     (list of ``{"path", "permission"}``), or None if the role does not exist.
+    ///     ``filtered`` is True when the grant carries an access filter, without
+    ///     exposing the filter's contents.
     fn get_role<'py>(&self, py: Python<'py>, name: String) -> PyResult<Bound<'py, PyAny>> {
         let value = py
             .detach(|| self.run_async(move |client| async move { client.get_role(&name).await }))?;

@@ -324,8 +324,10 @@ class RaphtoryClient(object):
 
         Returns:
             Optional[dict[str, Any]]: a mapping with keys ``name``, ``graphs``
-            (list of ``{"path", "permission"}``) and ``namespaces``
+            (list of ``{"path", "permission", "filtered"}``) and ``namespaces``
             (list of ``{"path", "permission"}``), or None if the role does not exist.
+            ``filtered`` is True when the grant carries an access filter, without
+            exposing the filter's contents.
         """
 
     def grant_graph(self, role: str, path: str, permission: str) -> bool:
@@ -432,7 +434,7 @@ class RaphtoryClient(object):
             None:
         """
 
-    def my_permissions(self) -> dict[str, Any]:
+    def viewer_permissions(self) -> dict[str, Any]:
         """
         Return this token's own permission grants.
 
@@ -442,10 +444,13 @@ class RaphtoryClient(object):
         a permissions store.
 
         Returns:
-            dict[str, Any]: a mapping with keys ``role`` (str or None),
+            dict[str, Any]: a mapping with keys ``roles`` (list of str),
             ``graphs`` (list of ``{"path", "permission", "filtered"}``) and
-            ``namespaces`` (list of ``{"path", "permission"}``). ``role`` is None
+            ``namespaces`` (list of ``{"path", "permission"}``). ``roles`` is empty
             when the token carries no role claim, in which case both lists are empty.
+            A token naming several roles gets their grants merged
+            most-permissive-wins, so an unfiltered grant from one role supersedes a
+            filtered grant from another on the same graph.
         """
 
     def new_graph(
