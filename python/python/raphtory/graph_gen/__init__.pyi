@@ -37,7 +37,7 @@ from raphtory.iterables import *
 __all__ = ["random_attachment", "ba_preferential_attachment"]
 
 def random_attachment(
-    g: Any, nodes_to_add: Any, edges_per_step: Any, seed: Any = None
+    g: Graph, nodes_to_add: int, edges_per_step: int, seed: Optional[list[int]] = None
 ) -> None:
     """
     Generates a graph using the random attachment model
@@ -47,17 +47,17 @@ def random_attachment(
     Physical Review E 64.4 (2001): 041902.
 
     Arguments:
-      g: The graph you wish to add nodes and edges to
-      nodes_to_add: The amount of nodes you wish to add to the graph (steps)
-      edges_per_step: The amount of edges a joining node should add to the graph
-      seed: The seed used in rng, an array of length 32 containing ints (ints must have a max size of u8)
+      g (Graph): The graph you wish to add nodes and edges to
+      nodes_to_add (int): The amount of nodes you wish to add to the graph (steps)
+      edges_per_step (int): The amount of edges a joining node should add to the graph
+      seed (list[int], optional): The seed used in rng, an array of length 32 containing ints (ints must have a max size of u8)
 
     Returns:
      None:
     """
 
 def ba_preferential_attachment(
-    g: Any, nodes_to_add: Any, edges_per_step: Any, seed: Any = None
+    g: Graph, nodes_to_add: int, edges_per_step: int, seed: Optional[list[int]] = None
 ) -> None:
     """
     Generates a graph using the preferential attachment model.
@@ -74,10 +74,10 @@ def ba_preferential_attachment(
     the min number of both will be added before generation begins.
 
     Arguments:
-       g: The graph you wish to add nodes and edges to
-       nodes_to_add: The amount of nodes you wish to add to the graph (steps)
-       edges_per_step: The amount of edges a joining node should add to the graph
-       seed: The seed used in rng, an array of length 32 containing ints (ints must have a max size of u8)
+       g (Graph): The graph you wish to add nodes and edges to
+       nodes_to_add (int): The amount of nodes you wish to add to the graph (steps)
+       edges_per_step (int): The amount of edges a joining node should add to the graph
+       seed (list[int], optional): The seed used in rng, an array of length 32 containing ints (ints must have a max size of u8)
 
     Returns:
         None:
