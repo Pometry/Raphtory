@@ -809,6 +809,20 @@ class Graph(GraphView):
             GraphError: If the operation fails.
         """
 
+    def build_property_index(self) -> None:
+        """
+        Build secondary indexes over node property values to speed up
+        property filters (equality, comparisons and string matching).
+
+        Flushes any in-memory data first, then builds and persists indexes for
+        storage segments that do not have them yet. Backends without index
+        support treat this as a no-op. Filters work the same either way; the
+        index only changes how fast they run.
+
+        Returns:
+            None: This function does not return a value, if the operation is successful.
+        """
+
     def create_node(
         self,
         timestamp: TimeInput,
@@ -1472,6 +1486,20 @@ class PersistentGraph(GraphView):
 
         Raises:
             GraphError: If the operation fails.
+        """
+
+    def build_property_index(self) -> None:
+        """
+        Build secondary indexes over node property values to speed up
+        property filters (equality, comparisons and string matching).
+
+        Flushes any in-memory data first, then builds and persists indexes for
+        storage segments that do not have them yet. Backends without index
+        support treat this as a no-op. Filters work the same either way; the
+        index only changes how fast they run.
+
+        Returns:
+            None: This function does not return a value, if the operation is successful.
         """
 
     def create_node(

@@ -41,6 +41,33 @@ use raphtory_api::core::entities::{LayerId, properties::meta::STATIC_GRAPH_LAYER
 use raphtory_itertools::FastMergeExt;
 use rayon::prelude::*;
 
+/// A property predicate a storage backend may resolve to candidate rows via a
+/// secondary index. String operators use the semantics of the corresponding
+/// `str` methods; comparisons use the property value's natural order.
+#[derive(Debug, Clone, Copy)]
+pub enum PropPredicate<'a> {
+    Eq(&'a Prop),
+    In(&'a std::collections::HashSet<Prop>),
+    Lt(&'a Prop),
+    Le(&'a Prop),
+    Gt(&'a Prop),
+    Ge(&'a Prop),
+    StartsWith(&'a str),
+    EndsWith(&'a str),
+    Contains(&'a str),
+}
+
+/// Candidate rows of one segment for a [`PropPredicate`].
+///
+/// `rows` must be a superset of the matching rows (no false negatives) over
+/// the segment's whole history; when `exact` is false the caller must still
+/// verify each row against the actual predicate semantics.
+#[derive(Debug, Clone, Default)]
+pub struct PropCandidates {
+    pub rows: Vec<LocalPOS>,
+    pub exact: bool,
+}
+
 pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
     type Extension;
 
@@ -138,6 +165,25 @@ pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
     fn num_layers(&self) -> usize;
 
     fn layer_count(&self, layer_id: LayerId) -> u32;
+
+    /// Resolve a property predicate to candidate rows using a secondary
+    /// index, if this backend has one for the property. `metadata` selects
+    /// the metadata prop-id space over the temporal one. `None` means the
+    /// predicate cannot be served and the caller should scan as usual.
+    fn node_prop_candidates(
+        &self,
+        _prop_id: usize,
+        _metadata: bool,
+        _predicate: &PropPredicate,
+    ) -> Option<PropCandidates> {
+        None
+    }
+
+    /// Build any missing secondary property indexes for this segment.
+    /// Backends without index support do nothing.
+    fn build_prop_index(&self) -> Result<(), StorageError> {
+        Ok(())
+    }
 
     fn check_metadata_immut<P: AsPropRef>(
         &self,

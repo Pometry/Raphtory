@@ -18,10 +18,16 @@ use raphtory_api::core::entities::{
 use raphtory_core::entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef};
 use std::{fmt::Debug, iter, path::Path, sync::Arc};
 use storage::{
-    error::StorageError, pages::SegmentCounts, persist::strategy::PersistenceStrategy,
-    state::StateIndex, Extension, GIDResolver, GraphPropEntry,
+    api::nodes::{NodeSegmentOps, PropPredicate},
+    error::StorageError,
+    pages::SegmentCounts,
+    persist::strategy::PersistenceStrategy,
+    state::StateIndex,
+    Extension, GIDResolver, GraphPropEntry,
 };
 use thiserror::Error;
+
+pub use storage::api::nodes::PropPredicate as NodePropPredicate;
 
 #[derive(Clone, Debug)]
 pub enum GraphStorage {
@@ -156,6 +162,51 @@ impl GraphStorage {
             GraphStorage::Mem(storage) => storage.graph.storage().edges().num_segments(),
             GraphStorage::Unlocked(storage) => storage.storage().edges().num_segments(),
         }
+    }
+
+    fn temporal_graph(&self) -> &TemporalGraph {
+        match self {
+            GraphStorage::Mem(storage) => &storage.graph,
+            GraphStorage::Unlocked(storage) => storage,
+        }
+    }
+
+    /// Resolve a node property predicate to a candidate VID superset using the
+    /// storage backend's secondary indexes, if it has them for this property.
+    /// `metadata` selects the metadata prop-id space over the temporal one.
+    /// `None` means the predicate cannot be served and callers should scan.
+    /// Candidates may include non-matching nodes — callers must still verify.
+    pub fn node_prop_candidates(
+        &self,
+        prop_id: usize,
+        metadata: bool,
+        predicate: &PropPredicate,
+    ) -> Option<Vec<VID>> {
+        let nodes = self.temporal_graph().storage().nodes();
+        let max_segment_len = nodes.max_segment_len();
+        let mut vids = Vec::new();
+        for segment in nodes.segments_iter() {
+            let candidates = segment.node_prop_candidates(prop_id, metadata, predicate)?;
+            let segment_id = segment.segment_id();
+            vids.extend(
+                candidates
+                    .rows
+                    .into_iter()
+                    .map(|pos| pos.as_vid(segment_id, max_segment_len)),
+            );
+        }
+        Some(vids)
+    }
+
+    /// Ask the storage backend to build any missing secondary property
+    /// indexes. A no-op for backends without index support. Segments are
+    /// independent, so they build in parallel.
+    pub fn build_node_prop_index(&self) -> Result<(), StorageError> {
+        use rayon::iter::ParallelIterator;
+        let nodes = self.temporal_graph().storage().nodes();
+        nodes
+            .segments_par_iter()
+            .try_for_each(|segment| segment.build_prop_index())
     }
 
     #[inline(always)]

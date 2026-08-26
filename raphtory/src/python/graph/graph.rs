@@ -214,6 +214,21 @@ impl PyGraph {
         self.graph.flush()
     }
 
+    /// Build secondary indexes over node property values to speed up
+    /// property filters (equality, comparisons and string matching).
+    ///
+    /// Flushes any in-memory data first, then builds and persists indexes for
+    /// storage segments that do not have them yet. Backends without index
+    /// support treat this as a no-op. Filters work the same either way; the
+    /// index only changes how fast they run.
+    ///
+    /// Returns:
+    ///     None: This function does not return a value, if the operation is successful.
+    pub fn build_property_index(&self) -> Result<(), GraphError> {
+        self.graph.core_graph().build_node_prop_index()?;
+        Ok(())
+    }
+
     /// Return a read-only handle to this graph.
     ///
     /// Mutations on the returned graph (``add_node``, ``add_edge``,

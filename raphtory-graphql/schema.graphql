@@ -4044,6 +4044,14 @@ type MutableGraph {
 	processes attaching a read-only handle observe up-to-date data.
 	"""
 	flush: Boolean!
+	"""
+	Build secondary indexes over node property values to speed up property
+	filters (equality, comparisons and string matching). Flushes in-memory
+	data first, then builds indexes for storage segments that lack them.
+	A no-op for storage backends without index support; filters return the
+	same results either way, the index only changes how fast they run.
+	"""
+	buildPropertyIndex: Boolean!
 }
 
 """
@@ -4722,8 +4730,8 @@ input NodeAddition {
 """
 Boolean expression over a built-in node field (ID, name, or type).
 
-This is used by `NodeFieldFilterNew.where_` when filtering a specific
-`NodeField`.
+This is used by `NodeFieldWhere.where_` when filtering a specific
+built-in field.
 
 Supports comparisons, string predicates, and set membership.
 (Presence checks and aggregations are handled via property filters instead.)
@@ -4803,7 +4811,7 @@ GraphQL input type for filtering nodes.
 `NodeFilter` represents a composable boolean expression evaluated
 against nodes in a graph. Filters can target:
 
-- built-in node fields (`Node` / `NodeFieldFilterNew`),
+- built-in node fields (`Id` / `Name` / `NodeType`),
 - node properties and metadata,
 - temporal properties,
 - temporal scope (windows, snapshots, latest),
@@ -7580,3 +7588,4 @@ schema {
 	query: QueryRoot
 	mutation: MutRoot
 }
+

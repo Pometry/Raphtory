@@ -21,6 +21,7 @@ use raphtory::{
     prelude::*,
 };
 use raphtory_api::core::storage::arc_str::OptionAsStr;
+use raphtory_storage::core_ops::CoreGraphOps;
 use std::{
     error::Error,
     fmt::{Debug, Display, Formatter},
@@ -565,6 +566,20 @@ impl GqlMutableGraph {
                 self_clone.graph.set_dirty(true);
             }
             res.map(|_| true)
+        })
+        .await
+    }
+
+    /// Build secondary indexes over node property values to speed up property
+    /// filters (equality, comparisons and string matching). Flushes in-memory
+    /// data first, then builds indexes for storage segments that lack them.
+    /// A no-op for storage backends without index support; filters return the
+    /// same results either way, the index only changes how fast they run.
+    pub async fn build_property_index(&self) -> Result<bool, GraphError> {
+        let graph = self.graph.graph().clone();
+        blocking_write(move || {
+            graph.core_graph().build_node_prop_index()?;
+            Ok(true)
         })
         .await
     }
