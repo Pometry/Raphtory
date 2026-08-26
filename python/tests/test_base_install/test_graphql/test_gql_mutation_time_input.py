@@ -29,8 +29,7 @@ def test_add_node_accepts_int_string_and_object_time():
         client.new_graph("g", "EVENT")
 
         # Three forms, three different nodes.
-        client.query(
-            """
+        client.query("""
             {
               updateGraph(path: "g") {
                 int_form: addNode(time: 100, name: "intNode") { success }
@@ -38,8 +37,7 @@ def test_add_node_accepts_int_string_and_object_time():
                 obj_form: addNode(time: {timestamp: 300, eventId: 0}, name: "objNode") { success }
               }
             }
-            """
-        )
+            """)
 
         # Verify each landed at the expected timestamp.
         result = _query(
@@ -67,8 +65,7 @@ def test_add_edge_and_delete_edge_accept_time_input_shapes():
         client = server.get_client()
         client.new_graph("g", "PERSISTENT")
 
-        client.query(
-            """
+        client.query("""
             {
               updateGraph(path: "g") {
                 int_add: addEdge(time: 10, src: "a", dst: "b") { success }
@@ -76,8 +73,7 @@ def test_add_edge_and_delete_edge_accept_time_input_shapes():
                 obj_del: deleteEdge(time: {timestamp: 30, eventId: 0}, src: "a", dst: "b") { success }
               }
             }
-            """
-        )
+            """)
 
         result = _query(
             server,
@@ -109,8 +105,7 @@ def test_add_properties_accepts_time_input_shapes():
         client = server.get_client()
         client.new_graph("g", "EVENT")
 
-        client.query(
-            """
+        client.query("""
             {
               updateGraph(path: "g") {
                 p1: addProperties(t: 100, properties: [{key: "score", value: {i64: 1}}])
@@ -118,8 +113,7 @@ def test_add_properties_accepts_time_input_shapes():
                 p3: addProperties(t: {timestamp: 300, eventId: 0}, properties: [{key: "score", value: {i64: 3}}])
               }
             }
-            """
-        )
+            """)
 
         result = _query(
             server,
@@ -154,8 +148,7 @@ def test_temporal_property_input_accepts_time_input_in_batch():
         client = server.get_client()
         client.new_graph("g", "EVENT")
 
-        client.query(
-            """
+        client.query("""
             {
               updateGraph(path: "g") {
                 addNodes(nodes: [
@@ -170,8 +163,7 @@ def test_temporal_property_input_accepts_time_input_in_batch():
                 ])
               }
             }
-            """
-        )
+            """)
 
         result = _query(
             server,
@@ -203,8 +195,7 @@ def test_add_edges_batch_accepts_time_input_shapes():
         client = server.get_client()
         client.new_graph("g", "EVENT")
 
-        client.query(
-            """
+        client.query("""
             {
               updateGraph(path: "g") {
                 addEdges(edges: [
@@ -219,8 +210,7 @@ def test_add_edges_batch_accepts_time_input_shapes():
                 ])
               }
             }
-            """
-        )
+            """)
 
         result = _query(
             server,
@@ -252,19 +242,16 @@ def test_mutable_node_and_edge_add_updates_accept_time_input():
         client.new_graph("g", "PERSISTENT")
 
         # Seed the node and edge so we can look them up below.
-        client.query(
-            """
+        client.query("""
             {
               updateGraph(path: "g") {
                 addNode(time: 0, name: "n") { success }
                 addEdge(time: 0, src: "a", dst: "b") { success }
               }
             }
-            """
-        )
+            """)
 
-        client.query(
-            """
+        client.query("""
             {
               updateGraph(path: "g") {
                 node(name: "n") {
@@ -279,8 +266,7 @@ def test_mutable_node_and_edge_add_updates_accept_time_input():
                 }
               }
             }
-            """
-        )
+            """)
 
         result = _query(
             server,
