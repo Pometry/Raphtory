@@ -337,8 +337,8 @@ pub fn local_clustering_coefficient(graph: &PyGraphView, v: PyNodeRef) -> Option
 /// Uses path-counting for its triangle-counting step.
 ///
 /// Arguments:
-///     graph: Raphtory graph, can be directed or undirected but will be treated as undirected.
-///     v: vec of node ids, if empty, will return results for every node in the graph
+///     graph (GraphView): Raphtory graph, can be directed or undirected but will be treated as undirected.
+///     v (list[NodeInput], optional): node ids; if omitted, returns results for every node in the graph
 ///
 /// Returns:
 ///     OutputNodeState: Mapping of vertices to lcc score
