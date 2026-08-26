@@ -8,7 +8,7 @@ Filter selects use `expr: {isValid: true}` as a pass-all edge expression.
 import pytest
 
 from raphtory import Graph
-from utils import graphql_server
+from utils import graphql_client
 
 
 @pytest.fixture(scope="module")
@@ -20,7 +20,7 @@ def client():
     g.add_edge(0, "b", "c", layer="owns")
     g.add_edge(0, "a", "x", layer="has")
     g.add_edge(0, "b", "y", layer="has")
-    with graphql_server(g) as c:
+    with graphql_client(g) as c:
         yield c
 
 
@@ -154,7 +154,7 @@ def test_component_respects_an_external_graph_filter(client):
     # A graph-level filter (here removing `x`) applied before the walk must be honoured — the
     # returned nodes are over that already-filtered graph.
     q = (
-        '{ graph(path: "g") { filterNodes: filter(expr: {nodes: {name: {where: {ne: {str: "x"}}}}}) '
+        '{ graph(path: "g") { filterNodes: filter(expr: {node: {name: {where: {ne: {str: "x"}}}}}) '
         '{ node(name: "a") { outComponent { list { name } } } } } }'
     )
     got = client.query(q)["graph"]["filterNodes"]["node"]["outComponent"]["list"]
@@ -165,8 +165,8 @@ def test_component_external_graph_filter_composed_with_select(client):
     # External graph filter (remove `c`) AND a component `select` (owns layer) compose: the
     # owns walk from `a` would reach b, c — but c is filtered out, leaving only b.
     q = (
-        '{ graph(path: "g") { filterNodes: filter(expr: {nodes: {name: {where: {ne: {str: "c"}}}}}) '
-        '{ node(name: "a") { outComponent(select: {edges: {layers: {names: ["owns"], expr: {isValid: true}}}}) '
+        '{ graph(path: "g") { filterNodes: filter(expr: {node: {name: {where: {ne: {str: "c"}}}}}) '
+        '{ node(name: "a") { outComponent(select: {edge: {layers: {names: ["owns"], expr: {isValid: true}}}}) '
         "{ list { name } } } } } }"
     )
     got = client.query(q)["graph"]["filterNodes"]["node"]["outComponent"]["list"]

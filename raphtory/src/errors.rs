@@ -32,10 +32,13 @@ use storage::{error::StorageError, resolver::mapping_resolver::InvalidNodeId};
 use pyo3::PyErr;
 
 #[cfg(feature = "io")]
-use {tempfile::PersistError, zip::result::ZipError};
+use zip::result::ZipError;
 
 #[cfg(feature = "vectors")]
 use crate::vectors::embeddings::EmbeddingError;
+
+#[cfg(any(feature = "vectors", feature = "io"))]
+use tempfile::PersistError;
 
 #[derive(thiserror::Error, Debug)]
 pub enum InvalidPathReason {
@@ -117,7 +120,7 @@ pub enum GraphError {
     #[error(transparent)]
     ExternalError(Arc<dyn std::error::Error + Send + Sync>),
 
-    #[cfg(feature = "io")]
+    #[cfg(any(feature = "io", feature = "vectors"))]
     #[error(transparent)]
     PersistError(#[from] PersistError),
 

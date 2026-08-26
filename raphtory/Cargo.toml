@@ -146,7 +146,7 @@ vectors = [
     "dep:moka",
     "dep:lancedb",
     "dep:tokio", # also used for the io feature
-    "dep:tempfile", # also used for the storage feature
+    "dep:tempfile",
     "dep:axum"
 ]
 
