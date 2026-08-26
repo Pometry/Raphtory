@@ -129,10 +129,10 @@ impl Storage {
         path: impl AsRef<Path>,
         args: Args,
     ) -> Result<Self, GraphError> {
+        // NOTE: config is explicitly not saved to disk here.
         let path = path.as_ref();
         let config = Config::load_from_dir(path)?;
         let config = args.apply_to_config(config)?;
-        config.save_to_dir(path)?;
         let ext = Extension::load(path, config)?;
 
         Self::load_read_only_with_extension(path, ext)
