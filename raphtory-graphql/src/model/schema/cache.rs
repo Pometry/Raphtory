@@ -5,7 +5,7 @@ use std::{collections::HashMap, sync::RwLock};
 /// Root per-graph schema cache. Lives on the in-memory `GraphWithVectors` and is
 /// shared with the base `GqlGraph` view.
 #[derive(Default)]
-pub(crate) struct SchemaCache {
+pub struct SchemaCache {
     node: NodeSchemaCache,
     layer: LayerSchemaCache,
 }
