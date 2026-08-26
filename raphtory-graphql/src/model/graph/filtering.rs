@@ -3089,19 +3089,19 @@ mod gql_filter_serde_tests {
         let cases = [
             (
                 GqlFilter::Node(node_prop_eq("x", 1)),
-                r#"{"nodes":{"property":{"name":"x","where":{"eq":{"i64":1}}}}}"#,
+                r#"{"node":{"property":{"name":"x","where":{"eq":{"i64":1}}}}}"#,
             ),
             (
                 GqlFilter::And(vec![GqlFilter::Node(node_prop_eq("x", 1))]),
-                r#"{"and":[{"nodes":{"property":{"name":"x","where":{"eq":{"i64":1}}}}}]}"#,
+                r#"{"and":[{"node":{"property":{"name":"x","where":{"eq":{"i64":1}}}}}]}"#,
             ),
             (
                 GqlFilter::Or(vec![GqlFilter::Node(node_prop_eq("x", 1))]),
-                r#"{"or":[{"nodes":{"property":{"name":"x","where":{"eq":{"i64":1}}}}}]}"#,
+                r#"{"or":[{"node":{"property":{"name":"x","where":{"eq":{"i64":1}}}}}]}"#,
             ),
             (
                 GqlFilter::Not(wrap(GqlFilter::Node(node_prop_eq("x", 1)))),
-                r#"{"not":{"nodes":{"property":{"name":"x","where":{"eq":{"i64":1}}}}}}"#,
+                r#"{"not":{"node":{"property":{"name":"x","where":{"eq":{"i64":1}}}}}}"#,
             ),
         ];
         for (filter, expected) in cases {
@@ -3282,21 +3282,21 @@ mod exploded_edge_filter_tests {
         let cases = [
             (
                 GqlFilter::ExplodedEdge(exploded_prop_gt("w", 1)),
-                r#"{"explodedEdges":{"property":{"name":"w","where":{"gt":{"i64":1}}}}}"#,
+                r#"{"explodedEdge":{"property":{"name":"w","where":{"gt":{"i64":1}}}}}"#,
             ),
             (
                 GqlFilter::ExplodedEdge(GqlExplodedEdgeFilter::Metadata(PropertyFilterNew {
                     name: "kind".into(),
                     where_: PropCondition::Eq(Value::Str("strong".into())),
                 })),
-                r#"{"explodedEdges":{"metadata":{"name":"kind","where":{"eq":{"str":"strong"}}}}}"#,
+                r#"{"explodedEdge":{"metadata":{"name":"kind","where":{"eq":{"str":"strong"}}}}}"#,
             ),
             (
                 GqlFilter::ExplodedEdge(GqlExplodedEdgeFilter::And(vec![
                     exploded_prop_gt("w", 1),
                     GqlExplodedEdgeFilter::IsValid(true),
                 ])),
-                r#"{"explodedEdges":{"and":[{"property":{"name":"w","where":{"gt":{"i64":1}}}},{"isValid":true}]}}"#,
+                r#"{"explodedEdge":{"and":[{"property":{"name":"w","where":{"gt":{"i64":1}}}},{"isValid":true}]}}"#,
             ),
         ];
         for (filter, expected) in cases {

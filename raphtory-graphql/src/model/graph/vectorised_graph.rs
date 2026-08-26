@@ -112,8 +112,7 @@ impl<'b> VectorQuery<'b> {
     /// Returns:: bool
     async fn vectorise_missing<'a>(
         ctx: &Context<'a>,
-        #[graphql(desc = "Graph path relative to the root namespace.")]
-        path: String,
+        #[graphql(desc = "Graph path relative to the root namespace.")] path: String,
         #[graphql(desc = "Embedding model; must match the one the index was built with.")]
         model: Option<EmbeddingModel>,
         #[graphql(desc = "Node-document template; must match the one the index was built with.")]
@@ -150,7 +149,7 @@ impl<'b> VectorQuery<'b> {
 }
 
 #[derive(InputObject)]
-pub(super) struct VectorisedGraphWindow {
+pub struct VectorisedGraphWindow {
     /// Inclusive lower bound of the search window.
     start: GqlTimeInput,
     /// Exclusive upper bound of the search window.

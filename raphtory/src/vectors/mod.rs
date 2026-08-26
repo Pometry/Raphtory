@@ -185,17 +185,6 @@ mod vector_tests {
             .unwrap()
     }
 
-    fn panicking_embedding(_text: &str) -> Vec<f32> {
-        panic!("embedding function was called")
-    }
-
-    async fn use_panicking_model_config() -> OpenAIEmbeddings {
-        tokio::spawn(async {
-            serve_custom_embedding(None, 3071, panicking_embedding).await;
-        });
-        OpenAIEmbeddings::new("whatever", "http://localhost:3071")
-    }
-
     fn custom_template() -> DocumentTemplate {
         DocumentTemplate {
             node_template: Some(
@@ -217,22 +206,34 @@ mod vector_tests {
     // Another option might be having a model that returns always the same embedding for "raphtory"
     // but increments for the rest of the texts
     // can then validate the answer didn't change, which means the cache was used
+    //
+    // fn panicking_embedding(_text: &str) -> Vec<f32> {
+    //     panic!("embedding function was called")
+    // }
+    //
+    // async fn use_panicking_model_config() -> OpenAIEmbeddings {
+    //     tokio::spawn(async {
+    //         serve_custom_embedding(None, 3071, panicking_embedding).await;
+    //     });
+    //     OpenAIEmbeddings::new("whatever", "http://localhost:3071")
+    // }
+    //
     // #[tokio::test]
     // async fn test_embedding_cache() {
     //     let template = custom_template();
     //     let g = Graph::new();
     //     g.add_node(0, "test", NO_PROPS, None).unwrap();
-
+    //
     //     let path = PathBuf::from("/tmp/raphtory/very/deep/path/embedding-cache-test");
     //     let _ = remove_dir_all(&path);
     //     let config = use_panicking_model_config().await;
-
+    //
     //     let cache = VectorCache::on_disk(&path).await.unwrap();
     //     let model = cache.openai(config).await.unwrap();
     //     g.vectorise(model, template.clone(), None, false)
     //         .await
     //         .unwrap();
-
+    //
     //     // the following uses the embeddings from the cache, so it doesn't call the panicking
     //     // embedding, which would make the test fail
     //     let cache = VectorCache::on_disk(&path).await.unwrap();

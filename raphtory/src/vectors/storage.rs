@@ -6,7 +6,7 @@ use super::{
 };
 use crate::{
     db::api::view::StaticGraphViewOps,
-    errors::{GraphError, GraphResult, InvalidPathReason},
+    errors::{GraphError, GraphResult},
     vectors::{
         embeddings::ModelConfig,
         vector_collection::{lancedb::LanceDb, VectorCollectionFactory},
@@ -15,7 +15,6 @@ use crate::{
 use async_openai::config::{OpenAIConfig, OPENAI_API_BASE};
 use serde::{Deserialize, Serialize};
 use std::{
-    fs::File,
     path::{Path, PathBuf},
     sync::Arc,
 };
