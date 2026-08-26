@@ -14,7 +14,7 @@ it, remote does not" — here it is the other way round.
 """
 
 import pytest
-from raphtory.graphql import EdgeSortBy, NodeSortBy
+from raphtory import EdgeSortBy, NodeSortBy
 
 from _parity import graph_pair
 
