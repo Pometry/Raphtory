@@ -349,14 +349,18 @@ impl PropMapper {
         self.dtypes.read_recursive()
     }
 
+    /// Copies the name/id and dtype schema into a standalone mapper.
+    ///
+    /// The per-layer property presence bitset is deliberately *not* copied because
+    /// a different (often filtered) graph can change (or often hide) properties/layers.
+    /// It must be rebuilt and can't be carried over.
     pub fn deep_clone(&self) -> Self {
         let dtypes = self.dtypes.read_recursive().clone();
-        let layer_presence = self.layer_prop_presence.read_recursive().clone();
         Self {
             id_mapper: self.id_mapper.deep_clone(),
             row_size: AtomicUsize::new(self.row_size.load(std::sync::atomic::Ordering::Relaxed)),
             dtypes: Arc::new(RwLock::new(dtypes)),
-            layer_prop_presence: Arc::new(RwLock::new(layer_presence)),
+            layer_prop_presence: Arc::new(RwLock::new(Vec::new())),
         }
     }
 
