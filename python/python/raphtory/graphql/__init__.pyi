@@ -4730,7 +4730,8 @@ class RemoteHistory(object):
     def __reversed__(self):
         """
         `reversed(history)` — iterate events in descending time order.
-        Fires one RPC (`collect_rev()`), then yields each locally.
+        Routed through the lazy `reverse()` handle, so it stays a single RPC
+        today and picks up any future optimised iterator automatically.
         """
 
     def collect(self) -> list[EventTime]:
@@ -4879,8 +4880,9 @@ class RemoteHistoryTimestamps(object):
 
     def __reversed__(self):
         """
-        `reversed(...)` — iterate timestamps in reverse. Fires one RPC
-        (`collect_rev()`).
+        `reversed(...)` — iterate timestamps in reverse. Routed through the
+        lazy `reverse()` view, so it stays one RPC and composes with any
+        future optimised iterator.
         """
 
     def collect(self) -> list[int]:
@@ -4929,25 +4931,6 @@ class RemoteHistoryTimestamps(object):
             list[int]: at most `limit` timestamps, in descending time order.
         """
 
-    def to_list(self) -> list[int]:
-        """
-        All timestamps as a `list[int]` — alias of `collect()`, mirroring the
-        local `HistoryTimestamp.to_list`. Fires one RPC.
-
-        Returns:
-            list[int]: all timestamps in ascending time order.
-        """
-
-    def to_list_rev(self) -> list[int]:
-        """
-        All timestamps as a `list[int]` in reverse order — alias of
-        `collect_rev()`, mirroring the local `HistoryTimestamp.to_list_rev`.
-        Fires one RPC.
-
-        Returns:
-            list[int]: all timestamps in descending time order.
-        """
-
 class RemoteHistoryEventIds(object):
     """Event-id view of a `RemoteHistory`. Lists / pages return `list[int]`."""
 
@@ -4965,8 +4948,9 @@ class RemoteHistoryEventIds(object):
 
     def __reversed__(self):
         """
-        `reversed(...)` — iterate event ids in reverse. Fires one RPC
-        (`collect_rev()`).
+        `reversed(...)` — iterate event ids in reverse. Routed through the
+        lazy `reverse()` view, so it stays one RPC and composes with any
+        future optimised iterator.
         """
 
     def collect(self) -> list[int]:
@@ -5015,25 +4999,6 @@ class RemoteHistoryEventIds(object):
             list[int]: at most `limit` event ids, in descending time order.
         """
 
-    def to_list(self) -> list[int]:
-        """
-        All event ids as a `list[int]` — alias of `collect()`, mirroring the
-        local `HistoryEventId.to_list`. Fires one RPC.
-
-        Returns:
-            list[int]: all event ids in ascending time order.
-        """
-
-    def to_list_rev(self) -> list[int]:
-        """
-        All event ids as a `list[int]` in reverse order — alias of
-        `collect_rev()`, mirroring the local `HistoryEventId.to_list_rev`.
-        Fires one RPC.
-
-        Returns:
-            list[int]: all event ids in descending time order.
-        """
-
 class RemoteHistoryDateTimes(object):
     """
     Datetime view of a `RemoteHistory`. Lists / pages return `list[datetime]`
@@ -5054,8 +5019,9 @@ class RemoteHistoryDateTimes(object):
 
     def __reversed__(self):
         """
-        `reversed(...)` — iterate datetimes in reverse. Fires one RPC
-        (`collect_rev()`).
+        `reversed(...)` — iterate datetimes in reverse. Routed through the
+        lazy `reverse()` view, so it stays one RPC and composes with any
+        future optimised iterator.
         """
 
     def collect(self) -> list[datetime]:
@@ -5124,8 +5090,9 @@ class RemoteIntervals(object):
 
     def __reversed__(self):
         """
-        `reversed(...)` — iterate intervals in reverse. Fires one RPC
-        (`collect_rev()`).
+        `reversed(...)` — iterate intervals in reverse. Routed through the
+        lazy `reverse()` view, so it stays one RPC and composes with any
+        future optimised iterator.
         """
 
     def collect(self) -> list[int]:
@@ -5208,25 +5175,6 @@ class RemoteIntervals(object):
 
         Returns:
             list[int]: at most `limit` intervals, in descending time order.
-        """
-
-    def to_list(self) -> list[int]:
-        """
-        All intervals as a `list[int]` — alias of `collect()`, mirroring the
-        local `Intervals.to_list`. Fires one RPC.
-
-        Returns:
-            list[int]: all intervals in ascending time order.
-        """
-
-    def to_list_rev(self) -> list[int]:
-        """
-        All intervals as a `list[int]` in reverse order — alias of
-        `collect_rev()`, mirroring the local `Intervals.to_list_rev`. Fires
-        one RPC.
-
-        Returns:
-            list[int]: all intervals in descending time order.
         """
 
 class RemoteMetadata(object):
@@ -6229,8 +6177,8 @@ def has_extension(name: str) -> bool:
     """
     Returns True if a server extension with this name is compiled into the build.
 
-    Which extensions exist depends on how the build was assembled; this library has no
-    opinion about their names.
+    Which extensions exist depends on how the build was assembled; this library has no opinion
+    about their names.
 
     Arguments:
         name (str): the extension's registered name.

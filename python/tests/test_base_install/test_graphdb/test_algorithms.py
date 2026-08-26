@@ -609,7 +609,9 @@ def test_balance_uses_decimal_weights_by_value():
     g.add_edge(0, "a", "c", {"w": Prop.decimal(Decimal("4.0"))})
 
     out = algorithms.balance(g, "w", "out")
-    assert out["a"]["balance"] == -6.5  # -(2.5 + 4.0), not the -2.0 of a 1.0-per-edge fallback
+    assert (
+        out["a"]["balance"] == -6.5
+    )  # -(2.5 + 4.0), not the -2.0 of a 1.0-per-edge fallback
 
     inn = algorithms.balance(g, "w", "in")
     assert inn["b"]["balance"] == 2.5
@@ -618,7 +620,8 @@ def test_balance_uses_decimal_weights_by_value():
 
 def test_pagerank_uses_decimal_weights_by_value():
     """Regression: Decimal edge weights must count in weighted pagerank. Before `Prop::as_f64`
-    handled `Decimal`, `.as_f64().unwrap_or(1.0)` dropped them to 1.0 — i.e. silently unweighted."""
+    handled `Decimal`, `.as_f64().unwrap_or(1.0)` dropped them to 1.0 — i.e. silently unweighted.
+    """
     from decimal import Decimal
 
     from raphtory import Prop

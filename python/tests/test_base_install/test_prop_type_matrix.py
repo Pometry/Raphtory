@@ -71,7 +71,10 @@ def test_comparison_works_within_family_and_errors_across():
         for f2, fc in ALL_TYPES.items():
             expr = filter.Node.property(p) == fc(5)
             if _family(s) == _family(f2):
-                assert g.filter(expr).count_nodes() == 1, (s, f2)  # equal value → matches
+                assert g.filter(expr).count_nodes() == 1, (
+                    s,
+                    f2,
+                )  # equal value → matches
             else:
                 with pytest.raises(Exception):
                     g.filter(expr).count_nodes()
@@ -158,7 +161,9 @@ def test_map_equality_in_filters():
     g.add_node(0, "b", properties={"meta": Prop.map({"role": "mgr"})})
     meta = filter.Node.property("meta")
     assert g.filter(meta == {"role": "eng", "level": 2}).count_nodes() == 1
-    assert g.filter(meta == {"level": 2, "role": "eng"}).count_nodes() == 1  # order-free
+    assert (
+        g.filter(meta == {"level": 2, "role": "eng"}).count_nodes() == 1
+    )  # order-free
     assert g.filter(meta != {"role": "eng", "level": 2}).count_nodes() == 1
 
 
@@ -167,8 +172,18 @@ def test_is_in_mixes_numeric_types_in_one_set():
     g = Graph()
     g.add_node(0, "n", properties={"v": Prop.i64(5)})
     v = filter.Node.property("v")
-    assert g.filter(v.is_in([Prop.u8(1), Prop.f64(5.0), Prop.decimal(Decimal(9))])).count_nodes() == 1
-    assert g.filter(v.is_in([Prop.u8(1), Prop.f32(2.0), Prop.decimal(Decimal(9))])).count_nodes() == 0
+    assert (
+        g.filter(
+            v.is_in([Prop.u8(1), Prop.f64(5.0), Prop.decimal(Decimal(9))])
+        ).count_nodes()
+        == 1
+    )
+    assert (
+        g.filter(
+            v.is_in([Prop.u8(1), Prop.f32(2.0), Prop.decimal(Decimal(9))])
+        ).count_nodes()
+        == 0
+    )
     assert g.filter(v.is_not_in([Prop.u8(1), Prop.f32(2.0)])).count_nodes() == 1
 
 
@@ -203,7 +218,9 @@ def test_aggregate_widens_and_spills_on_big_values():
     g = Graph()
     for t in range(3):
         g.add_node(t, "a", properties={"x": Prop.u8(255)})
-    assert g.node("a").properties.temporal.get("x").sum() == 765  # 3*255, widened past u8/u16
+    assert (
+        g.node("a").properties.temporal.get("x").sum() == 765
+    )  # 3*255, widened past u8/u16
 
     g.add_node(0, "b", properties={"u32": Prop.u32(4294967295)})
     g.add_node(1, "b", properties={"u32": Prop.u32(4294967295)})
@@ -217,7 +234,9 @@ def test_aggregate_widens_and_spills_on_big_values():
     for t in range(3):
         g.add_node(t, "d", properties={"u64": Prop.u64(umax)})
     s = g.node("d").properties.temporal.get("u64").sum()
-    assert s == 3 * umax and isinstance(s, Decimal)  # spilled to exact Decimal, not a rounded float
+    assert s == 3 * umax and isinstance(
+        s, Decimal
+    )  # spilled to exact Decimal, not a rounded float
 
     imax = 2**63 - 1
     for t in range(3):

@@ -60,7 +60,9 @@ def test_concurrent_updates_while_querying():
                 graph = RaphtoryClient(url).remote_graph("abb")
                 for i in range(reads_per_writer):
                     try:
-                        graph.add_node(i + 1, f"w{wid}n{i}", {"doc": f"aaa w{wid} n{i}"})
+                        graph.add_node(
+                            i + 1, f"w{wid}n{i}", {"doc": f"aaa w{wid} n{i}"}
+                        )
                     except Exception as e:
                         record(f"write w{wid}n{i} failed: {e}")
 
@@ -100,7 +102,9 @@ def test_concurrent_updates_while_querying():
             write_threads = [
                 threading.Thread(target=writer, args=(w,)) for w in range(writers)
             ] + [threading.Thread(target=vectoriser)]
-            read_threads = [threading.Thread(target=reader, args=(r,)) for r in range(readers)]
+            read_threads = [
+                threading.Thread(target=reader, args=(r,)) for r in range(readers)
+            ]
             for t in write_threads + read_threads:
                 t.start()
             for t in write_threads:
@@ -109,15 +113,15 @@ def test_concurrent_updates_while_querying():
             for t in read_threads:
                 t.join()
 
-            assert failures == [], f"{len(failures)} failures, first few: {failures[:5]}"
+            assert (
+                failures == []
+            ), f"{len(failures)} failures, first few: {failures[:5]}"
 
             final = client.query(read_query)["graph"]["nodes"]["list"]
-            assert len(final) == expected_nodes, (
-                f"expected {expected_nodes} nodes after the concurrent writes, got {len(final)}"
-            )
+            assert (
+                len(final) == expected_nodes
+            ), f"expected {expected_nodes} nodes after the concurrent writes, got {len(final)}"
             docs = client.query(search_query)["vectorisedGraph"]["nodesBySimilarity"][
                 "getDocuments"
             ]
             assert docs, "vector index returned nothing after concurrent updates"
-
-

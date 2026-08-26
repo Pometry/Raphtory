@@ -66,7 +66,9 @@ async fn duplicate_plugin_names_are_refused_at_startup() {
     )
     .await;
 
-    let err = result.err().expect("a duplicate plugin name must refuse to start");
+    let err = result
+        .err()
+        .expect("a duplicate plugin name must refuse to start");
     let message = err.to_string();
     assert!(
         message.contains("clash"),
