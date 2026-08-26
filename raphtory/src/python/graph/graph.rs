@@ -50,7 +50,7 @@ use std::{
 ///
 /// Arguments:
 ///     path (str | PathLike, optional): The path for persisting the graph (only works with disk storage enabled)
-///     config (Args, optional): The configuration options for the graph
+///     config (dict[str, Any], optional): The configuration options for the graph
 #[derive(Clone)]
 #[pyclass(name = "Graph", extends = PyGraphView, module = "raphtory", frozen, from_py_object)]
 pub struct PyGraph {
@@ -183,14 +183,14 @@ impl PyGraph {
     ///
     /// Arguments:
     ///     path (str | PathLike): the path of the graph folder
-    ///     config (Args, optional): specify a new config to override the values saved for the graph
+    ///     config (dict[str, Any], optional): specify a new config to override the values saved for the graph
     ///                                (note that page sizes cannot be overridden; providing them raises an error)
-    ///     read_only (bool): open as a read-only snapshot. Multiple processes can hold
-    ///                       a read-only handle to the same graph directory concurrently;
-    ///                       mutating the returned graph will fail. Defaults to False.
+    ///     read_only (bool): open as a read-only snapshot. Defaults to False.
+    ///                       Multiple processes can hold a read-only handle to the same graph
+    ///                       directory concurrently; mutating the returned graph will fail.
     ///
     /// Returns:
-    ///     Graph: the graph
+    ///     Graph: the graph loaded from path
     #[pyo3(signature = (path, config = None, read_only = false))]
     #[staticmethod]
     pub fn load(
