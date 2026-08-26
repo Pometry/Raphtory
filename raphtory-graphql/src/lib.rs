@@ -28,7 +28,8 @@ mod routes;
 pub mod server;
 pub mod url_encode;
 
-#[cfg(feature = "python")]
+#[cfg(all(feature = "python", not(doctest)))]
+// no doctests in python as the docstrings are python not rust format
 pub mod python;
 
 #[cfg(test)]
