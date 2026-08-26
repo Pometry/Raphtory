@@ -57,31 +57,6 @@ def test_sort_key_with_no_or_several_fields_is_rejected(graph):
 
 
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
-def test_deprecated_node_field_spelling_still_accepted(graph):
-    # The old enum-argument spelling ({node: {field: ..., where: ...}})
-    # remains accepted for backwards compatibility; new queries should use
-    # the per-field forms (id:/name:/nodeType:).
-    query = """
-    query {
-      graph(path: "g") {
-        filterNodes: filter(expr: { node: {
-            node: {
-              field: NODE_ID
-              where: { eq: { str: "1" } }
-            }
-          } }) {
-          nodes {
-            list { name }
-          }
-        }
-      }
-    }
-    """
-    expected_output = {"graph": {"filterNodes": {"nodes": {"list": [{"name": "1"}]}}}}
-    run_graphql_test(query, expected_output, graph)
-
-
-@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_filter_nodes_with_str_ids_for_node_id_eq_gql2(graph):
     query = """
     query {

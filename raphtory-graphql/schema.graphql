@@ -842,19 +842,6 @@ type Edge {
 		time: TimeInput!
 	): Edge!
 	"""
-	Shrinks both the start and end of the window.
-	"""
-	shrinkWindow(
-		"""
-		Proposed new start (TimeInput); ignored if it would widen the window.
-		"""
-		start: TimeInput!,
-		"""
-		Proposed new end (TimeInput); ignored if it would widen the window.
-		"""
-		end: TimeInput!
-	): Edge!
-	"""
 	Set the start of the window.
 	"""
 	shrinkStart(
@@ -1388,10 +1375,6 @@ input EdgeViewCollection @oneOf {
 	"""
 	after: TimeInput
 	"""
-	Shrink a Window to a specified start and end time.
-	"""
-	shrinkWindow: Window
-	"""
 	Set the window start to a specified time.
 	"""
 	shrinkStart: TimeInput
@@ -1614,19 +1597,6 @@ type Edges {
 		time: TimeInput!
 	): Edges!
 	"""
-	Shrinks both the start and end of the window.
-	"""
-	shrinkWindow(
-		"""
-		Proposed new start (TimeInput); ignored if it would widen the window.
-		"""
-		start: TimeInput!,
-		"""
-		Proposed new end (TimeInput); ignored if it would widen the window.
-		"""
-		end: TimeInput!
-	): Edges!
-	"""
 	Set the start of the window.
 	"""
 	shrinkStart(
@@ -1709,7 +1679,18 @@ type Edges {
 	
 	Returns:
 	int:
+	The property keys this collection reports: the first member's registry
+	view — the graph's registered property keys for the entity kind — or an
+	empty list when there are no members. Mirrors the local collection
+	`properties.keys()`.
 	"""
+	propertyKeys: [String!]!
+	"""
+	The metadata keys this collection reports: the first member's registry
+	view, or an empty list when there are no members. Mirrors the local
+	collection `metadata.keys()`.
+	"""
+	metadataKeys: [String!]!
 	count: Int!
 	"""
 	Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
@@ -1832,10 +1813,6 @@ input EdgesViewCollection @oneOf {
 	View after a specified time (start exclusive).
 	"""
 	after: TimeInput
-	"""
-	Shrink a Window to a specified start and end time.
-	"""
-	shrinkWindow: Window
 	"""
 	Set the window start to a specified time.
 	"""
@@ -2412,20 +2389,6 @@ type Graph {
 		time: TimeInput!
 	): Graph!
 	"""
-	Shrink both the start and end of the window. The new bounds are taken as the
-	intersection with the current window; this never widens the view.
-	"""
-	shrinkWindow(
-		"""
-		Proposed new start (TimeInput); ignored if before the current start.
-		"""
-		start: TimeInput!,
-		"""
-		Proposed new end (TimeInput); ignored if after the current end.
-		"""
-		end: TimeInput!
-	): Graph!
-	"""
 	Set the start of the window to the larger of the specified value or current start.
 	"""
 	shrinkStart(
@@ -2632,26 +2595,6 @@ type Graph {
 		"""
 		selectedNodes: [NodeId!]!
 	): [Node!]!
-	"""
-	The nodes whose latest property value matches every `(key, value)`
-	entry in `propertiesDict`. Mirrors the local `Graph.find_nodes`.
-	"""
-	findNodes(
-		"""
-		`{key, value}` property entries every returned node must match.
-		"""
-		propertiesDict: [PropertyInput!]!
-	): [Node!]!
-	"""
-	The edges whose latest property value matches every `(key, value)`
-	entry in `propertiesDict`. Mirrors the local `Graph.find_edges`.
-	"""
-	findEdges(
-		"""
-		`{key, value}` property entries every returned edge must match.
-		"""
-		propertiesDict: [PropertyInput!]!
-	): [Edge!]!
 	"""
 	All node types present in the graph. Mirrors the local
 	`Graph.get_all_node_types`.
@@ -2870,10 +2813,6 @@ input GraphViewCollection @oneOf {
 	"""
 	after: TimeInput
 	"""
-	Shrink a Window to a specified start and end time.
-	"""
-	shrinkWindow: Window
-	"""
 	Set the window start to a specified time.
 	"""
 	shrinkStart: TimeInput
@@ -3035,6 +2974,12 @@ type History {
 	"""
 	count: Int!
 	"""
+	Whether an entry equal to the given time is present. With `eventId`,
+	an entry must match both the timestamp and the event id; without it,
+	any entry at the timestamp matches.
+	"""
+	contains(timestamp: Int!, eventId: Int): Boolean!
+	"""
 	Returns a HistoryTimestamp object which accesses timestamps (milliseconds since the Unix epoch)
 	instead of EventTime entries.
 	"""
@@ -3152,6 +3097,14 @@ History object that provides access to event ids instead of `EventTime` entries.
 """
 type HistoryEventId {
 	"""
+	Get the number of event ids (one per entry).
+	"""
+	count: Int!
+	"""
+	Whether the given value is present among the event ids.
+	"""
+	contains(value: Int!): Boolean!
+	"""
 	List event ids.
 	"""
 	list: [Int!]!
@@ -3207,6 +3160,14 @@ type HistoryEventId {
 History object that provides access to timestamps (milliseconds since the Unix epoch) instead of `EventTime` entries.
 """
 type HistoryTimestamp {
+	"""
+	Get the number of timestamps (one per entry).
+	"""
+	count: Int!
+	"""
+	Whether the given value is present among the timestamps.
+	"""
+	contains(value: Int!): Boolean!
 	"""
 	List all timestamps.
 	"""
@@ -3274,6 +3235,15 @@ input InputEdge {
 Provides access to the intervals between temporal entries of an object.
 """
 type Intervals {
+	"""
+	Get the number of intervals (one per consecutive pair of entries,
+	so one less than the history's count; zero for an empty history).
+	"""
+	count: Int!
+	"""
+	Whether the given value is present among the intervals.
+	"""
+	contains(value: Int!): Boolean!
 	"""
 	List time intervals between consecutive timestamps in milliseconds.
 	"""
@@ -4301,19 +4271,6 @@ type NestedEdges {
 		time: TimeInput!
 	): NestedEdges!
 	"""
-	Shrinks both the start and end of the window.
-	"""
-	shrinkWindow(
-		"""
-		Proposed new start (TimeInput); ignored if it would widen the window.
-		"""
-		start: TimeInput!,
-		"""
-		Proposed new end (TimeInput); ignored if it would widen the window.
-		"""
-		end: TimeInput!
-	): NestedEdges!
-	"""
 	Set the start of the window.
 	"""
 	shrinkStart(
@@ -4386,7 +4343,18 @@ type NestedEdges {
 	explodeLayers: NestedEdges!
 	"""
 	Number of source edge collections in this collection (one per source node).
+	The property keys this collection reports: the first non-empty source's first member's registry
+	view — the graph's registered property keys for the entity kind — or an
+	empty list when there are no members. Mirrors the local collection
+	`properties.keys()`.
 	"""
+	propertyKeys: [String!]!
+	"""
+	The metadata keys this collection reports: the first non-empty source's first member's registry
+	view, or an empty list when there are no members. Mirrors the local
+	collection `metadata.keys()`.
+	"""
+	metadataKeys: [String!]!
 	count: Int!
 	"""
 	Fetch one page of source edge collections up to a specified limit, optionally offset by a specified amount.
@@ -4615,19 +4583,6 @@ type Node {
 		time: TimeInput!
 	): Node!
 	"""
-	Shrink a Window to a specified start and end time, if these are earlier and later than the current start and end respectively.
-	"""
-	shrinkWindow(
-		"""
-		Proposed new start (TimeInput); ignored if it would widen the window.
-		"""
-		start: TimeInput!,
-		"""
-		Proposed new end (TimeInput); ignored if it would widen the window.
-		"""
-		end: TimeInput!
-	): Node!
-	"""
 	Set the start of the window to the larger of a specified start time and self.start().
 	"""
 	shrinkStart(
@@ -4783,27 +4738,6 @@ input NodeAddition {
 	layer: String
 }
 
-enum NodeField {
-	"""
-	Node ID field.
-	
-	Represents the graph’s node identifier (numeric or string-backed in the API).
-	"""
-	NODE_ID
-	"""
-	Node name field.
-	
-	Represents the human-readable node name (string).
-	"""
-	NODE_NAME
-	"""
-	Node type field.
-	
-	Represents the optional node type assigned at node creation (string).
-	"""
-	NODE_TYPE
-}
-
 """
 Boolean expression over a built-in node field (ID, name, or type).
 
@@ -4869,20 +4803,13 @@ input NodeFieldCondition @oneOf {
 }
 
 """
-Filters a built-in node field (`id`, `name`, `type`) using a `NodeFieldCondition`.
-
-Example (GraphQL):
-```graphql
-{ Node: { field: NodeName, where: { Contains: "ali" } } }
-```
+A condition on one specific built-in field — the payload of the per-field
+filter variants (`{ id: { where: ... } }`, `{ name: { where: ... } }`,
+`{ nodeType: { where: ... } }`).
 """
-input NodeFieldFilterNew {
+input NodeFieldWhere {
 	"""
-	Which built-in field to filter.
-	"""
-	field: NodeField!
-	"""
-	Condition applied to the selected field.
+	Condition applied to the field.
 	
 	Exposed as `where` in GraphQL.
 	"""
@@ -4907,9 +4834,17 @@ Filters can be combined recursively using logical operators
 """
 input NodeFilter @oneOf {
 	"""
-	Filters a built-in node field (ID, name, or type).
+	Filters the node id: `{ id: { where: ... } }`.
 	"""
-	node: NodeFieldFilterNew
+	id: NodeFieldWhere
+	"""
+	Filters the node name: `{ name: { where: ... } }`.
+	"""
+	name: NodeFieldWhere
+	"""
+	Filters the node type: `{ nodeType: { where: ... } }`.
+	"""
+	nodeType: NodeFieldWhere
 	"""
 	Filters a node property by name and condition.
 	"""
@@ -5078,6 +5013,9 @@ type NodeState {
 	columnNames: [String!]!
 	"""
 	All rows of the node state keyed by node, with one entry per column.
+	Unbounded: honours the same list guard as the other bulk endpoints, so
+	`disable_lists` cannot be bypassed through node state. Use `page` when
+	lists are disabled.
 	"""
 	rows: [NodeStateRow!]!
 	"""
@@ -5409,10 +5347,6 @@ input NodeViewCollection @oneOf {
 	"""
 	after: TimeInput
 	"""
-	Shrink a Window to a specified start and end time.
-	"""
-	shrinkWindow: Window
-	"""
 	Set the window start to a specified time.
 	"""
 	shrinkStart: TimeInput
@@ -5635,19 +5569,6 @@ type Nodes {
 		time: TimeInput!
 	): Nodes!
 	"""
-	Shrink both the start and end of the window.
-	"""
-	shrinkWindow(
-		"""
-		Proposed new start (TimeInput); ignored if it would widen the window.
-		"""
-		start: TimeInput!,
-		"""
-		Proposed new end (TimeInput); ignored if it would widen the window.
-		"""
-		end: TimeInput!
-	): Nodes!
-	"""
 	Set the start of the window to the larger of a specified start time and self.start().
 	"""
 	shrinkStart(
@@ -5729,7 +5650,18 @@ type Nodes {
 	edgeHistoryCount: [Int!]!
 	"""
 	Number of nodes in the current view.
+	The property keys this collection reports: the first member's registry
+	view — the graph's registered property keys for the entity kind — or an
+	empty list when there are no members. Mirrors the local collection
+	`properties.keys()`.
 	"""
+	propertyKeys: [String!]!
+	"""
+	The metadata keys this collection reports: the first member's registry
+	view, or an empty list when there are no members. Mirrors the local
+	collection `metadata.keys()`.
+	"""
+	metadataKeys: [String!]!
 	count: Int!
 	"""
 	Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
@@ -5881,10 +5813,6 @@ input NodesViewCollection @oneOf {
 	View after a specified time (start exclusive).
 	"""
 	after: TimeInput
-	"""
-	Shrink a Window to a specified start and end time.
-	"""
-	shrinkWindow: Window
 	"""
 	Set the window start to a specified time.
 	"""
@@ -6076,19 +6004,6 @@ type PathFromGraph {
 		time: TimeInput!
 	): PathFromGraph!
 	"""
-	Shrink both the start and end of the window.
-	"""
-	shrinkWindow(
-		"""
-		Proposed new start (TimeInput); ignored if it would widen the window.
-		"""
-		start: TimeInput!,
-		"""
-		Proposed new end (TimeInput); ignored if it would widen the window.
-		"""
-		end: TimeInput!
-	): PathFromGraph!
-	"""
 	Set the start of the window to the larger of the specified start and self.start().
 	"""
 	shrinkStart(
@@ -6137,7 +6052,18 @@ type PathFromGraph {
 	combinedHistory: History!
 	"""
 	Number of source paths in this collection (one per source node).
+	The property keys this collection reports: the first non-empty source's first member's registry
+	view — the graph's registered property keys for the entity kind — or an
+	empty list when there are no members. Mirrors the local collection
+	`properties.keys()`.
 	"""
+	propertyKeys: [String!]!
+	"""
+	The metadata keys this collection reports: the first non-empty source's first member's registry
+	view, or an empty list when there are no members. Mirrors the local
+	collection `metadata.keys()`.
+	"""
+	metadataKeys: [String!]!
 	count: Int!
 	"""
 	Fetch one page of source paths up to a specified limit, optionally offset by a specified amount.
@@ -6411,19 +6337,6 @@ type PathFromNode {
 		time: TimeInput!
 	): PathFromNode!
 	"""
-	Shrink both the start and end of the window.
-	"""
-	shrinkWindow(
-		"""
-		Proposed new start (TimeInput); ignored if it would widen the window.
-		"""
-		start: TimeInput!,
-		"""
-		Proposed new end (TimeInput); ignored if it would widen the window.
-		"""
-		end: TimeInput!
-	): PathFromNode!
-	"""
 	Set the start of the window to the larger of the specified start and self.start().
 	"""
 	shrinkStart(
@@ -6488,7 +6401,18 @@ type PathFromNode {
 	edgeHistoryCount: [Int!]!
 	"""
 	Number of neighbour nodes reachable from the source in this view.
+	The property keys this collection reports: the first member's registry
+	view — the graph's registered property keys for the entity kind — or an
+	empty list when there are no members. Mirrors the local collection
+	`properties.keys()`.
 	"""
+	propertyKeys: [String!]!
+	"""
+	The metadata keys this collection reports: the first member's registry
+	view, or an empty list when there are no members. Mirrors the local
+	collection `metadata.keys()`.
+	"""
+	metadataKeys: [String!]!
 	count: Int!
 	"""
 	Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
@@ -6648,10 +6572,6 @@ input PathFromNodeViewCollection @oneOf {
 	View after a specified time (start exclusive).
 	"""
 	after: TimeInput
-	"""
-	Shrink a Window to a specified start and end time.
-	"""
-	shrinkWindow: Window
 	"""
 	Set the window start to a specified time.
 	"""
@@ -6963,7 +6883,14 @@ scalar PropertyOutput
 
 type PropertySchema {
 	key: String!
+	"""
+	The type rendered as text — kept for existing consumers; prefer `dtype`.
+	"""
 	propertyType: String!
+	"""
+	The structured property type.
+	"""
+	dtype: PropertyType!
 	variants: [String!]!
 }
 

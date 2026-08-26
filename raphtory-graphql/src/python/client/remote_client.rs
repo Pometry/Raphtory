@@ -3,8 +3,8 @@ use crate::{
     data::GqlGraphType,
     model::graph::filtering::{GqlEdgeFilter, GqlNodeFilter},
     python::{
-        client::remote_graph::PyRemoteGraph,
-        encode_graph, translate_from_python, translate_map_to_python, translate_to_python,
+        client::remote_graph::PyRemoteGraph, encode_graph, translate_from_python,
+        translate_map_to_python, translate_to_python,
     },
 };
 use pyo3::{
