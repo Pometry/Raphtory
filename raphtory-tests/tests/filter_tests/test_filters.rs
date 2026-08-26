@@ -1637,7 +1637,7 @@ mod test_node_filter {
         algorithms::alternating_mask::alternating_mask,
         core::entities::VID,
         db::{
-            api::view::{filter_ops::NodeSelect, Filter},
+            api::view::{filter_ops::Select, Filter},
             graph::views::filter::{
                 model::{
                     degree_filter::DegreeFilterFactory,
@@ -4853,7 +4853,7 @@ mod test_node_property_filter_agg {
                     ("p_u32s", list_u32(&[1, 2, 3])), // min: 1,  max: 3,  sum: 6,    avg: 2.0,  len: 3
                     ("p_u32s_max", list_u32(&[u32::MAX, u32::MAX])), // min: 1,  max: 3,  sum: 8589934590
                     ("p_u64s", list_u64(&[1, 2, 3])), // min: 1,  max: 3,  sum: 6,    avg: 2.0,  len: 3
-                    ("p_u64s_max", list_u64(&[u64::MAX, u64::MAX])), // min: 1,  max: 3,  sum: OVERFLOW
+                    ("p_u64s_max", list_u64(&[u64::MAX, u64::MAX])), // min: u64::MAX,  max: u64::MAX,  sum: OVERFLOW
                     ("p_i32s", list_i32(&[1, 2, 3])), // min: 1,  max: 3,  sum: 6,    avg: 2.0,  len: 3
                     ("p_i64s", list_i64(&[1, 2, 3])), // min: 1,  max: 3,  sum: 6,    avg: 2.0,  len: 3
                     ("p_f32s", list_f32(&[1.0, 2.0, 3.5])), // min: 1.0, max: 3.5, sum: 6.5,  avg: 2.1666666666666665, len: 3
@@ -5105,6 +5105,7 @@ mod test_node_property_filter_agg {
         graph
     }
 
+    #[track_caller]
     fn apply_assertion(
         filter: impl TryAsCompositeFilter + CreateFilter + Clone,
         expected: &[&str],
@@ -5118,6 +5119,7 @@ mod test_node_property_filter_agg {
         );
     }
 
+    #[track_caller]
     fn apply_assertion_err(
         filter: impl TryAsCompositeFilter + CreateFilter + Clone,
         expected: &str,
@@ -8050,7 +8052,7 @@ mod test_node_property_filter_agg {
         apply_assertion_err(filter, expected);
     }
 
-    // --------------- OVERFLOW ---------------
+    // --------------- OVERFLOW HANDLING ---------------
     #[test]
     fn test_max_value_agg() {
         let filter = NodeFilter
@@ -8086,7 +8088,7 @@ mod test_node_property_filter_agg {
         apply_assertion(filter, &expected);
 
         let filter = NodeFilter.property("p_u64s_max").sum().gt(Prop::U64(0));
-        let expected: Vec<&str> = vec![];
+        let expected: Vec<&str> = vec!["n1", "n5"];
         apply_assertion(filter, &expected);
 
         // AVG is computed in f64 even if SUM overflowed.
@@ -8095,8 +8097,9 @@ mod test_node_property_filter_agg {
         let expected = vec!["n5"];
         apply_assertion(filter, &expected);
 
+        // Overflow is handled by promoting to Decimal which still compares
         let filter = NodeFilter.property("p_i64s_max").sum().gt(Prop::I64(0));
-        let expected: Vec<&str> = vec![];
+        let expected: Vec<&str> = vec!["n5"];
         apply_assertion(filter, &expected);
 
         // AVG is computed in f64 even if SUM overflowed.
@@ -9245,7 +9248,6 @@ mod test_edge_filter {
         );
     }
 
-    // Disk graph doesn't support deletions
     #[test]
     fn test_is_deleted_edge_before() {
         let filter = EdgeFilter.before(4).is_deleted();
@@ -9268,37 +9270,40 @@ mod test_edge_filter {
 
     #[test]
     fn test_is_self_loop_edge_window() {
+        // window has no effect on is_self_loop and because we are using an `EdgeFilter` as the
+        // entrypoint, the window is only applied to the edges, not the graph
         let filter = EdgeFilter.window(1, 3).is_self_loop();
-        let expected_results = vec![];
+        let expected_results_self_loop = vec!["Bangalore->Bangalore"];
         assert_filter_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
             filter.clone(),
-            &expected_results,
+            &expected_results_self_loop,
             TestVariants::All,
         );
+
+        // window doesn't make a difference for `is_self_loop`
         assert_select_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
             filter.clone(),
-            &expected_results,
+            &expected_results_self_loop,
             TestVariants::All,
         );
 
         let filter = EdgeFilter.window(1, 6).is_self_loop();
-        let expected_results = vec!["Bangalore->Bangalore"];
         assert_filter_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
             filter.clone(),
-            &expected_results,
+            &expected_results_self_loop,
             TestVariants::All,
         );
         assert_select_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
             filter.clone(),
-            &expected_results,
+            &expected_results_self_loop,
             TestVariants::All,
         );
     }

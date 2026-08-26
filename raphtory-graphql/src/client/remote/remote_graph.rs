@@ -16,8 +16,8 @@ use crate::{
         remote_nodes::RemoteNodes,
         remote_schema::RemoteGraphSchema,
         transport::{
-            expect_bool, expect_edge_list, expect_i64, expect_optional_event_time,
-            expect_optional_i64, expect_string, expect_string_list, Transport,
+            expect_bool, expect_i64, expect_optional_event_time, expect_optional_i64,
+            expect_string, expect_string_list, Transport,
         },
         ClientError,
     },
@@ -30,7 +30,7 @@ use raphtory_api::core::{
     storage::timeindex::EventTime,
     utils::time::TryIntoInputTime,
 };
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
 /// A handle to a remote graph on the server.
 ///
@@ -174,12 +174,6 @@ impl RemoteGraph {
         )
     }
 
-    /// Shrink both start and end of the current window (intersection, never widens).
-    /// Lazy — no RPC.
-    pub fn shrink_window(&self, start: InputTime, end: InputTime) -> RemoteGraph {
-        self.with_expr(ViewOp::ShrinkWindow { start, end }.apply(self.expr.clone()))
-    }
-
     /// Shrink the start of the current window. Lazy — no RPC.
     pub fn shrink_start(&self, start: InputTime) -> RemoteGraph {
         self.with_expr(ViewOp::ShrinkStart { start }.apply(self.expr.clone()))
@@ -283,7 +277,7 @@ impl RemoteGraph {
     }
 
     /// Exclude the given nodes from the view. Lazy — no RPC.
-    pub fn exclude_nodes(&self, nodes: Vec<String>) -> RemoteGraph {
+    pub fn exclude_nodes(&self, nodes: Vec<GID>) -> RemoteGraph {
         self.with_expr(ReadExpr::ExcludeNodes {
             input: self.expr.clone(),
             nodes: nodes.into(),
@@ -451,20 +445,20 @@ impl RemoteGraph {
 
     /// Terminal: earliest edge event time under the current view. Returns
     /// `None` if the view has no edge events. Fires one RPC.
-    pub async fn earliest_edge_time(&self) -> Result<Option<i64>, ClientError> {
+    pub async fn earliest_edge_time(&self) -> Result<Option<EventTime>, ClientError> {
         let op = Op::Read(ReadExpr::EarliestEdgeTime {
             input: self.expr.clone(),
         });
-        expect_optional_i64(self.transport.execute(&op).await?, "earliestEdgeTime")
+        expect_optional_event_time(self.transport.execute(&op).await?, "earliestEdgeTime")
     }
 
     /// Terminal: latest edge event time under the current view. Returns
     /// `None` if the view has no edge events. Fires one RPC.
-    pub async fn latest_edge_time(&self) -> Result<Option<i64>, ClientError> {
+    pub async fn latest_edge_time(&self) -> Result<Option<EventTime>, ClientError> {
         let op = Op::Read(ReadExpr::LatestEdgeTime {
             input: self.expr.clone(),
         });
-        expect_optional_i64(self.transport.execute(&op).await?, "latestEdgeTime")
+        expect_optional_event_time(self.transport.execute(&op).await?, "latestEdgeTime")
     }
 
     /// Internal helper: clone `self` with a new `expr`. Keeps the view-op
@@ -579,69 +573,6 @@ impl RemoteGraph {
                     ReadExpr::Node {
                         input: self.expr.clone(),
                         id,
-                    },
-                    HandleCtx::new(self.expr.clone()),
-                )
-            })
-            .collect())
-    }
-
-    /// Terminal: the nodes whose latest property value equals the given value
-    /// for **every** `(name, value)` entry in `properties_dict`. Mirrors the
-    /// local `Graph.find_nodes`. Fires one RPC. Each returned handle rebases at
-    /// `self.expr`, inheriting the current view chain.
-    pub async fn find_nodes(
-        &self,
-        properties_dict: HashMap<String, Prop>,
-    ) -> Result<Vec<RemoteNode>, ClientError> {
-        let op = Op::Read(ReadExpr::FindNodes {
-            input: self.expr.clone(),
-            properties: properties_dict,
-        });
-        let names = expect_string_list(self.transport.execute(&op).await?, "findNodes")?;
-        Ok(names
-            .into_iter()
-            .map(|name| {
-                let id = GID::Str(name);
-                RemoteNode::with_expr(
-                    self.path.clone(),
-                    id.clone(),
-                    self.transport.clone(),
-                    ReadExpr::Node {
-                        input: self.expr.clone(),
-                        id,
-                    },
-                    HandleCtx::new(self.expr.clone()),
-                )
-            })
-            .collect())
-    }
-
-    /// Terminal: the edges whose latest property value equals the given value
-    /// for **every** `(name, value)` entry in `properties_dict`. Mirrors the
-    /// local `Graph.find_edges`. Fires one RPC. Each returned handle rebases at
-    /// `self.expr`, inheriting the current view chain.
-    pub async fn find_edges(
-        &self,
-        properties_dict: HashMap<String, Prop>,
-    ) -> Result<Vec<RemoteEdge>, ClientError> {
-        let op = Op::Read(ReadExpr::FindEdges {
-            input: self.expr.clone(),
-            properties: properties_dict,
-        });
-        let pairs = expect_edge_list(self.transport.execute(&op).await?, "findEdges")?;
-        Ok(pairs
-            .into_iter()
-            .map(|(src, dst)| {
-                RemoteEdge::with_expr(
-                    self.path.clone(),
-                    src.clone(),
-                    dst.clone(),
-                    self.transport.clone(),
-                    ReadExpr::Edge {
-                        input: self.expr.clone(),
-                        src,
-                        dst,
                     },
                     HandleCtx::new(self.expr.clone()),
                 )

@@ -33,20 +33,7 @@ pub mod remote_nodes;
 pub mod remote_path_from_graph;
 pub mod remote_path_from_node;
 pub mod remote_schema;
-pub mod remote_sorting;
-
-/// True if `tree` tests edges anywhere.
-///
-/// An edge test says nothing about which nodes belong in a node collection, and
-/// the local engine refuses one in a `nodes[...]` subscript.
-fn tests_edges(tree: &FilterTree) -> bool {
-    match tree {
-        FilterTree::Edge(_) | FilterTree::ExplodedEdge(_) => true,
-        FilterTree::Node(_) | FilterTree::View(_) => false,
-        FilterTree::And(items) | FilterTree::Or(items) => items.iter().any(tests_edges),
-        FilterTree::Not(inner) => tests_edges(inner),
-    }
-}
+pub(crate) mod view_ops;
 
 /// Convert a node-collection `select` / `nodes[expr]` subscript into the
 /// filter tree that narrows the collection's membership. Node predicates,
@@ -61,7 +48,7 @@ pub(crate) fn node_subscript(filter: &PyFilterExpr) -> PyResult<FilterTree> {
     let tree = filter
         .try_as_filter_tree()
         .map_err(|e| PyValueError::new_err(e.to_string()))?;
-    if tests_edges(&tree) {
+    if tree.tests_edges() {
         return Err(adapt_err_value(&GraphError::NotNodeFilter));
     }
     Ok(tree)

@@ -1,3 +1,4 @@
+use super::view_ops::py_remote_view_ops;
 use crate::{
     client::{remote_nodes::RemoteNodes, ClientError},
     python::client::{
@@ -6,11 +7,12 @@ use crate::{
         remote_nested_edges::PyRemoteNestedEdges,
         remote_node::PyRemoteNode,
         remote_path_from_graph::PyRemotePathFromGraph,
-        remote_sorting::PyNodeSortBy,
     },
 };
 use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyRef, PyRefMut, PyResult};
-use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
+use raphtory::python::{
+    filter::filter_expr::PyFilterExpr, graph::sorting::PyNodeSortBy, utils::execute_async_task,
+};
 use raphtory_api::{
     core::{entities::GID, storage::timeindex::EventTime, utils::time::InputTime},
     python::timeindex::PyOptionalEventTime,
@@ -39,197 +41,6 @@ impl PyRemoteNodes {
 
 #[pymethods]
 impl PyRemoteNodes {
-    /// Time-window this collection. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     start (TimeInput): inclusive start of the window.
-    ///     end (TimeInput): exclusive end of the window.
-    ///
-    /// Returns:
-    ///     RemoteNodes: a new collection restricted to the window.
-    pub fn window(&self, start: InputTime, end: InputTime) -> PyRemoteNodes {
-        PyRemoteNodes::new(self.nodes.window(start, end))
-    }
-
-    /// Restrict to a single named layer. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     name (str): the name of the layer.
-    ///
-    /// Returns:
-    ///     RemoteNodes: a new collection restricted to that layer.
-    pub fn layer(&self, name: &str) -> PyRemoteNodes {
-        PyRemoteNodes::new(self.nodes.layer(name))
-    }
-
-    /// Snapshot at a specific time. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     time (TimeInput): the time to snapshot at.
-    ///
-    /// Returns:
-    ///     RemoteNodes: a new collection snapshotted at that time.
-    pub fn at(&self, time: InputTime) -> PyRemoteNodes {
-        PyRemoteNodes::new(self.nodes.at(time))
-    }
-
-    /// Restrict to events strictly before the given time. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     time (TimeInput): only events strictly before this time are kept.
-    ///
-    /// Returns:
-    ///     RemoteNodes: a new collection restricted to events before that time.
-    pub fn before(&self, time: InputTime) -> PyRemoteNodes {
-        PyRemoteNodes::new(self.nodes.before(time))
-    }
-
-    /// Restrict to events strictly after the given time. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     time (TimeInput): only events strictly after this time are kept.
-    ///
-    /// Returns:
-    ///     RemoteNodes: a new collection restricted to events after that time.
-    pub fn after(&self, time: InputTime) -> PyRemoteNodes {
-        PyRemoteNodes::new(self.nodes.after(time))
-    }
-
-    /// Latest state. Lazy — no RPC.
-    ///
-    /// Returns:
-    ///     RemoteNodes: a new collection of the latest state.
-    pub fn latest(&self) -> PyRemoteNodes {
-        PyRemoteNodes::new(self.nodes.latest())
-    }
-
-    /// Snapshot at the latest time. Lazy — no RPC.
-    ///
-    /// Returns:
-    ///     RemoteNodes: a new collection snapshotted at the latest time.
-    pub fn snapshot_latest(&self) -> PyRemoteNodes {
-        PyRemoteNodes::new(self.nodes.snapshot_latest())
-    }
-
-    /// Snapshot at a specific time. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     time (TimeInput): the time to snapshot at.
-    ///
-    /// Returns:
-    ///     RemoteNodes: a new collection snapshotted at that time.
-    pub fn snapshot_at(&self, time: InputTime) -> PyRemoteNodes {
-        PyRemoteNodes::new(self.nodes.snapshot_at(time))
-    }
-
-    /// Exclude a specific layer. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     name (str): the name of the layer to exclude.
-    ///
-    /// Returns:
-    ///     RemoteNodes: a new collection with that layer excluded.
-    pub fn exclude_layer(&self, name: &str) -> PyRemoteNodes {
-        PyRemoteNodes::new(self.nodes.exclude_layer(name))
-    }
-
-    /// Shrink both start and end of the current window. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     start (TimeInput): the new inclusive start of the window.
-    ///     end (TimeInput): the new exclusive end of the window.
-    ///
-    /// Returns:
-    ///     RemoteNodes: a new collection with both window bounds shrunk.
-    pub fn shrink_window(&self, start: InputTime, end: InputTime) -> PyRemoteNodes {
-        PyRemoteNodes::new(self.nodes.shrink_window(start, end))
-    }
-
-    /// Shrink the start of the current window. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     start (TimeInput): the new inclusive start of the window.
-    ///
-    /// Returns:
-    ///     RemoteNodes: a new collection with the window start shrunk.
-    pub fn shrink_start(&self, start: InputTime) -> PyRemoteNodes {
-        PyRemoteNodes::new(self.nodes.shrink_start(start))
-    }
-
-    /// Shrink the end of the current window. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     end (TimeInput): the new exclusive end of the window.
-    ///
-    /// Returns:
-    ///     RemoteNodes: a new collection with the window end shrunk.
-    pub fn shrink_end(&self, end: InputTime) -> PyRemoteNodes {
-        PyRemoteNodes::new(self.nodes.shrink_end(end))
-    }
-
-    /// Restrict to the default layer. Lazy — no RPC.
-    ///
-    /// Returns:
-    ///     RemoteNodes: a new collection restricted to the default layer.
-    pub fn default_layer(&self) -> PyRemoteNodes {
-        PyRemoteNodes::new(self.nodes.default_layer())
-    }
-
-    /// Restrict to the given set of layers. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     names (list[str]): the names of the layers.
-    ///
-    /// Returns:
-    ///     RemoteNodes: a new collection restricted to those layers.
-    pub fn layers(&self, names: Vec<String>) -> PyRemoteNodes {
-        PyRemoteNodes::new(self.nodes.layers(names))
-    }
-
-    /// Exclude the given set of layers. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     names (list[str]): the names of the layers to exclude.
-    ///
-    /// Returns:
-    ///     RemoteNodes: a new collection with those layers excluded.
-    pub fn exclude_layers(&self, names: Vec<String>) -> PyRemoteNodes {
-        PyRemoteNodes::new(self.nodes.exclude_layers(names))
-    }
-
-    /// Restrict to the given set of valid layers. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     names (list[str]): the names of the valid layers.
-    ///
-    /// Returns:
-    ///     RemoteNodes: a new collection restricted to those valid layers.
-    pub fn valid_layers(&self, names: Vec<String>) -> PyRemoteNodes {
-        PyRemoteNodes::new(self.nodes.valid_layers(names))
-    }
-
-    /// Exclude a specific valid layer from the view. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     name (str): the name of the valid layer to exclude.
-    ///
-    /// Returns:
-    ///     RemoteNodes: a new collection with that valid layer excluded.
-    pub fn exclude_valid_layer(&self, name: &str) -> PyRemoteNodes {
-        PyRemoteNodes::new(self.nodes.exclude_valid_layer(name))
-    }
-
-    /// Exclude the given set of valid layers from the view. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     names (list[str]): the names of the valid layers to exclude.
-    ///
-    /// Returns:
-    ///     RemoteNodes: a new collection with those valid layers excluded.
-    pub fn exclude_valid_layers(&self, names: Vec<String>) -> PyRemoteNodes {
-        PyRemoteNodes::new(self.nodes.exclude_valid_layers(names))
-    }
-
     /// Restrict this collection to members whose node type is in the given
     /// list. Filters membership — the returned collection has fewer members.
     /// Lazy — no RPC.
@@ -251,7 +62,7 @@ impl PyRemoteNodes {
     /// Lazy — no RPC.
     ///
     /// Arguments:
-    ///     filter (FilterExpr): a filter expression from `raphtory.filter`.
+    ///     filter (filter.FilterExpr): a filter expression from `raphtory.filter`.
     ///
     /// Returns:
     ///     RemoteNodes: a new collection with the filter applied.
@@ -264,28 +75,6 @@ impl PyRemoteNodes {
             .try_as_filter_tree()
             .map_err(|e| PyValueError::new_err(e.to_string()))?;
         Ok(PyRemoteNodes::new(self.nodes.filter(tree)?))
-    }
-
-    /// Narrow this collection's membership by a filter expression — node
-    /// predicates, graph views, or and/or/not combinations of them. Unlike
-    /// `.filter()`, the filter applies **only at this step** — downstream
-    /// traversals from the matching nodes see the unfiltered graph. Use
-    /// `.filter()` for the propagating variant. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     filter (FilterExpr): a filter expression from `raphtory.filter`.
-    ///
-    /// Returns:
-    ///     RemoteNodes: a new collection narrowed to matching nodes.
-    ///
-    /// Raises:
-    ///     Exception: if the expression tests edges rather than nodes — the
-    ///         same error the local engine raises.
-    ///     ValueError: if the filter cannot be sent over the wire.
-    pub fn select(&self, filter: PyFilterExpr) -> PyResult<PyRemoteNodes> {
-        Ok(PyRemoteNodes::new(
-            self.nodes.select(node_subscript(&filter)?)?,
-        ))
     }
 
     /// `nodes[filter]` — narrow this collection's membership by a filter
@@ -305,7 +94,9 @@ impl PyRemoteNodes {
     ///         same error the local `Nodes.__getitem__` raises.
     ///     ValueError: if the filter cannot be sent over the wire.
     fn __getitem__(&self, filter: PyFilterExpr) -> PyResult<PyRemoteNodes> {
-        self.select(filter)
+        Ok(PyRemoteNodes::new(
+            self.nodes.select(node_subscript(&filter)?)?,
+        ))
     }
 
     /// Reorder this collection by an ordered list of sort keys. Multi-key
@@ -317,7 +108,7 @@ impl PyRemoteNodes {
     /// Returns:
     ///     RemoteNodes: a new collection in the sorted order.
     pub fn sorted(&self, sort_bys: Vec<PyNodeSortBy>) -> PyRemoteNodes {
-        let inner: Vec<_> = sort_bys.into_iter().map(|s| s.inner).collect();
+        let inner: Vec<_> = sort_bys.into_iter().map(|s| s.inner.into()).collect();
         PyRemoteNodes::new(self.nodes.sorted(inner))
     }
 
@@ -455,15 +246,6 @@ impl PyRemoteNodes {
     #[getter]
     pub fn properties(&self) -> PyRemotePropertiesView {
         PyRemotePropertiesView::new(self.nodes.properties())
-    }
-
-    /// Returns the number of nodes in this collection. Fires one RPC.
-    ///
-    /// Returns:
-    ///   int: the number of nodes.
-    pub fn count(&self) -> Result<i64, ClientError> {
-        let nodes = Arc::clone(&self.nodes);
-        execute_async_task(move || async move { nodes.count().await })
     }
 
     /// Returns the degree of each node in this collection. Fires one RPC.
@@ -605,3 +387,5 @@ impl PyRemoteNodesIter {
         slf.inner.next()
     }
 }
+
+py_remote_view_ops!(PyRemoteNodes, nodes, "RemoteNodes");

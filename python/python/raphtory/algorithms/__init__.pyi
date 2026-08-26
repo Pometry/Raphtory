@@ -19,7 +19,6 @@ import raphtory.filter as filter
 from raphtory.vectors import *
 from raphtory.node_state import *
 from raphtory.graphql import *
-from raphtory.gql import *
 from raphtory.typing import *
 import numpy as np
 from numpy.typing import NDArray
@@ -415,15 +414,17 @@ def local_clustering_coefficient(graph: GraphView, v: NodeInput) -> float:
         float: the local clustering coefficient of node v in graph.
     """
 
-def local_clustering_coefficient_batch(graph: Any, v: Any = None) -> OutputNodeState:
+def local_clustering_coefficient_batch(
+    graph: GraphView, v: Optional[list[NodeInput]] = None
+) -> OutputNodeState:
     """
     Returns the Local clustering coefficient (batch, intersection) for each specified node in a graph. This measures the degree to which one or multiple nodes in a graph tend to cluster together.
 
     Uses path-counting for its triangle-counting step.
 
     Arguments:
-        graph: Raphtory graph, can be directed or undirected but will be treated as undirected.
-        v: vec of node ids, if empty, will return results for every node in the graph
+        graph (GraphView): Raphtory graph, can be directed or undirected but will be treated as undirected.
+        v (list[NodeInput], optional): node ids; if omitted, returns results for every node in the graph
 
     Returns:
         OutputNodeState: Mapping of vertices to lcc score

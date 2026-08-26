@@ -361,10 +361,13 @@ impl Data {
         Namespace::try_new(work_dir, ns_path.to_string())
     }
 
+    /// The graph for a folder, from the cache or from disk, with no permission check: callers here
+    /// have already been authorised.
+    ///
     /// # ⚠ Bypasses all permission checks — do not call from resolvers directly.
     /// Use `get_graph_with_read_permission`, `get_raw_graph_with_read_permission`, or
     /// `get_graph_with_write_permission` instead.
-    async fn get_graph(&self, path: &str) -> Result<GraphWithVectors, GQLError> {
+    async fn get_graph_unchecked(&self, path: &str) -> Result<GraphWithVectors, GQLError> {
         self.cache
             .get_or_insert(path, self.read_graph_from_disk(path))
             .await
@@ -376,7 +379,7 @@ impl Data {
         &self,
         path: &str,
     ) -> Result<GraphWithVectors, GQLError> {
-        self.get_graph(path).await
+        self.get_graph_unchecked(path).await
     }
 
     pub async fn get_cached_graph(&self, path: &str) -> Option<GraphWithVectors> {
@@ -567,7 +570,7 @@ impl Data {
         // The indexing itself runs with no cache guard held: it embeds the whole graph, and holding
         // the entry would block every read of this graph for the duration. Readers keep being served
         // by the vectors currently in the entry while this runs.
-        let graph = self.get_graph_unchecked(folder).await?;
+        let graph = self.get_graph_unchecked(folder.local_path()).await?;
         let vectors = index(graph.graph().clone(), vectors_path)
             .await
             .map_err(|error| {
@@ -593,19 +596,6 @@ impl Data {
             })
             .await?;
         Ok(())
-    }
-
-    /// The graph for a folder, from the cache or from disk, with no permission check: callers here
-    /// have already been authorised.
-    #[cfg(feature = "vectors")]
-    async fn get_graph_unchecked(
-        &self,
-        folder: &ExistingGraphFolder,
-    ) -> Result<GraphWithVectors, GQLError> {
-        match self.cache.get(folder.local_path()) {
-            Some(graph) => Ok(graph),
-            None => Ok(self.read_graph_from_disk_inner(folder.clone()).await?),
-        }
     }
 
     pub async fn get_all_graph_folders(&self) -> impl Iterator<Item = ExistingGraphFolder> {
@@ -942,7 +932,7 @@ impl Data {
         perm: GraphPermission,
         graph_type: Option<GqlGraphType>,
     ) -> async_graphql::Result<(UnlockedGraphFolder, DynamicGraph)> {
-        let gwv = self.get_graph(path).await?;
+        let gwv = self.get_graph_unchecked(path).await?;
         let typed_graph = match graph_type {
             Some(GqlGraphType::Event) => match gwv.graph() {
                 MaterializedGraph::EventGraph(g) => MaterializedGraph::EventGraph(g.clone()),
@@ -1021,7 +1011,7 @@ impl Data {
             }
             .into_gql_error());
         }
-        let graph = self.get_graph(path).await?;
+        let graph = self.get_graph_unchecked(path).await?;
         Ok(graph)
     }
 
@@ -1032,7 +1022,7 @@ impl Data {
         path: &str,
     ) -> async_graphql::Result<GraphWithVectors> {
         require_graph_write(ctx, &self.auth_policy, path)?;
-        let graph = self.get_graph(path).await?;
+        let graph = self.get_graph_unchecked(path).await?;
         Ok(graph)
     }
 
@@ -1049,7 +1039,7 @@ impl Data {
         if matches!(perm, GraphPermission::Read { filter: Some(_) }) {
             return Ok(None);
         }
-        let graph = self.get_graph(path).await?;
+        let graph = self.get_graph_unchecked(path).await?;
         Ok(graph.vectors().cloned().map(|g| g.into()))
     }
 }
@@ -1115,7 +1105,10 @@ pub(crate) mod data_tests {
         save_graphs_to_work_dir(&data, &graphs).await.unwrap();
 
         for graph in graphs.keys() {
-            assert!(data.get_graph(graph).await.is_ok(), "could not get {graph}")
+            assert!(
+                data.get_graph_unchecked(graph).await.is_ok(),
+                "could not get {graph}"
+            )
         }
     }
 
@@ -1258,7 +1251,7 @@ pub(crate) mod data_tests {
             "a vectorise that could not embed must report the failure"
         );
 
-        let graph = data.get_graph(name).await.unwrap();
+        let graph = data.get_graph_unchecked(name).await.unwrap();
         assert!(
             graph.vectors().is_some(),
             "the graph must keep the vectors it had before the failed vectorise"
@@ -1273,7 +1266,7 @@ pub(crate) mod data_tests {
     /// Number of documents a similarity search returns for `text`.
     #[cfg(feature = "vectors")]
     async fn search_hits(data: &Data, path: &str, text: &str) -> usize {
-        let graph = data.get_graph(path).await.unwrap();
+        let graph = data.get_graph_unchecked(path).await.unwrap();
         let vectors = graph.vectors().expect("graph has no vectors");
         let embedding = vectors.embed_text(text).await.unwrap();
         vectors
@@ -1341,7 +1334,11 @@ pub(crate) mod data_tests {
         // embedding cache, and the re-vectorise afterwards must still work
         let data = Data::new(tmp_work_dir.path(), &configs, Default::default());
         assert!(
-            data.get_graph(name).await.unwrap().vectors().is_some(),
+            data.get_graph_unchecked(name)
+                .await
+                .unwrap()
+                .vectors()
+                .is_some(),
             "the persisted index should be loaded with the graph"
         );
 
@@ -1358,7 +1355,7 @@ pub(crate) mod data_tests {
             .await
             .unwrap();
 
-        let graph = data.get_graph(name).await.unwrap();
+        let graph = data.get_graph_unchecked(name).await.unwrap();
         let vectors = graph
             .vectors()
             .expect("the graph should still have vectors after re-vectorising");
@@ -1430,7 +1427,7 @@ pub(crate) mod data_tests {
         // that can only have come back from disk
         for pass in 0..2 {
             for name in ["test_vg", "test_vg2"] {
-                let graph = data.get_graph(name).await.unwrap();
+                let graph = data.get_graph_unchecked(name).await.unwrap();
                 let vectors = graph
                     .vectors()
                     .unwrap_or_else(|| panic!("pass {pass}: {name} came back without vectors"));
@@ -1481,11 +1478,11 @@ pub(crate) mod data_tests {
         assert!(!data.cache.contains_key("test_g2"));
 
         // Test size based eviction
-        data.get_graph("test_g2").await.unwrap();
+        data.get_graph_unchecked("test_g2").await.unwrap();
         assert!(data.cache.contains_key("test_g2"));
         assert!(!data.cache.contains_key("test_g"));
 
-        data.get_graph("test_g").await.unwrap(); // wait for any eviction
+        data.get_graph_unchecked("test_g").await.unwrap(); // wait for any eviction
         assert_eq!(data.cache.iter().count(), 1);
     }
 
@@ -1539,12 +1536,12 @@ pub(crate) mod data_tests {
         assert!(!paths.contains(&g7_path)); // Hidden path is ignored
 
         assert!(data
-            .get_graph("shivam/investigations/2024-12-22/g2")
+            .get_graph_unchecked("shivam/investigations/2024-12-22/g2")
             .await
             .is_ok());
 
-        assert!(data.get_graph("some/random/path").await.is_err());
-        assert!(data.get_graph(".graph").await.is_err());
+        assert!(data.get_graph_unchecked("some/random/path").await.is_err());
+        assert!(data.get_graph_unchecked(".graph").await.is_err());
     }
 
     #[tokio::test]
@@ -1583,8 +1580,8 @@ pub(crate) mod data_tests {
 
         let data = Data::new(tmp_work_dir.path(), &configs, Default::default());
 
-        let loaded_graph1 = data.get_graph("test_graph1").await.unwrap();
-        let loaded_graph2 = data.get_graph("test_graph2").await.unwrap();
+        let loaded_graph1 = data.get_graph_unchecked("test_graph1").await.unwrap();
+        let loaded_graph2 = data.get_graph_unchecked("test_graph2").await.unwrap();
 
         // TODO: This test doesn't work with disk storage right now, make sure modification dates actually update correctly!
         if loaded_graph1.graph().disk_storage_path().is_some() {
@@ -1665,7 +1662,7 @@ pub(crate) mod data_tests {
         let data = Data::new(tmp_work_dir.path(), &configs, Default::default());
 
         // Load first graph
-        let loaded_graph1 = data.get_graph("test_graph1").await.unwrap();
+        let loaded_graph1 = data.get_graph_unchecked("test_graph1").await.unwrap();
         assert!(
             !loaded_graph1.is_dirty(),
             "Graph1 should not be dirty when loaded from disk"
@@ -1680,7 +1677,7 @@ pub(crate) mod data_tests {
 
         // Load second graph
         println!("Loading second graph");
-        let loaded_graph2 = data.get_graph("test_graph2").await.unwrap();
+        let loaded_graph2 = data.get_graph_unchecked("test_graph2").await.unwrap();
         assert!(
             !loaded_graph2.is_dirty(),
             "Graph2 should not be dirty when loaded from disk"

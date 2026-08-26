@@ -4,36 +4,47 @@ use crate::{
         api::{
             properties::{Metadata, Properties},
             view::{
-                internal::{FilterOps, InternalEdgeSelect, InternalFilter, Static},
-                BaseEdgeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
-                StaticGraphViewOps,
+                internal::{DynGraphArc, GraphView, InternalFilter, Static},
+                sort::{compare_edge, EdgeSortBy},
+                BaseEdgeViewOps, BoxableGraphView, BoxedLIter, DynamicGraph, IntoDynBoxed,
+                IntoDynamic, Select, StaticGraphViewOps,
             },
         },
         graph::{
             edge::EdgeView,
             path::{PathFromGraph, PathFromNode},
-            views::layer_graph::LayeredGraph,
+            views::filter::{and_filtered_graph::AndFilteredGraph, CreateFilter},
         },
     },
+    errors::GraphError,
     prelude::GraphViewOps,
 };
-use either::Either;
-use raphtory_api::core::entities::LayerIds;
+use itertools::Itertools;
 use std::{
+    cmp::Ordering,
     fmt::{Debug, Formatter},
     sync::Arc,
 };
 
+pub type EdgeOp<'graph> = Arc<
+    dyn Fn(Arc<dyn BoxableGraphView + 'graph>) -> BoxedLIter<'graph, EdgeRef>
+        + Send
+        + Sync
+        + 'graph,
+>;
+
 #[derive(Clone)]
 pub struct Edges<'graph, G> {
     pub(crate) base_graph: G,
-    pub(crate) edges: Arc<dyn Fn() -> BoxedLIter<'graph, EdgeRef> + Send + Sync + 'graph>,
+    pub(crate) select: DynGraphArc<'graph>,
+    pub(crate) edges: EdgeOp<'graph>,
 }
 
-impl<'graph, G: IntoDynamic> Edges<'graph, G> {
-    pub fn into_dyn(self) -> Edges<'graph, DynamicGraph> {
+impl<G: IntoDynamic> Edges<'static, G> {
+    pub fn into_dyn(self) -> Edges<'static, DynamicGraph> {
         Edges {
             base_graph: self.base_graph.into_dynamic(),
+            select: self.select,
             edges: self.edges,
         }
     }
@@ -62,22 +73,48 @@ where
     ) -> Self::Filtered<Next> {
         Edges {
             base_graph: filtered_graph,
+            select: self.select.clone(),
             edges: self.edges.clone(),
         }
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> Edges<'graph, G> {
-    pub fn new(
-        base_graph: G,
-        edges: Arc<dyn Fn() -> BoxedLIter<'graph, EdgeRef> + Send + Sync + 'graph>,
-    ) -> Self {
-        Edges { base_graph, edges }
+impl<'graph, G: GraphView + 'graph> Edges<'graph, G> {
+    pub fn new(base_graph: G, edges: EdgeOp<'graph>) -> Self {
+        let select = Arc::new(base_graph.clone()) as DynGraphArc<'graph>;
+        Edges {
+            base_graph,
+            select,
+            edges,
+        }
     }
 
     pub fn iter(&self) -> impl Iterator<Item = EdgeView<&G>> + '_ {
         let graph = &self.base_graph;
-        (self.edges)().map(move |e| EdgeView::new_filtered(graph, e))
+        let select = self.select.clone();
+        (self.edges)(select).map(move |e| EdgeView::new_filtered(graph, e))
+    }
+
+    /// Reorder this collection by an ordered list of sort keys: members
+    /// compare by the first key, ties break to the next. Returns a new
+    /// collection backed by an explicit edge list in the sorted order.
+    pub fn sorted(&self, sort_bys: &[EdgeSortBy]) -> Self {
+        let sorted: Arc<[EdgeRef]> = self
+            .iter()
+            .sorted_by(|a, b| {
+                sort_bys.iter().fold(Ordering::Equal, |current, sort_by| {
+                    current.then_with(|| compare_edge(a, b, sort_by))
+                })
+            })
+            .map(|edge_view| edge_view.edge)
+            .collect();
+        Edges::new(
+            self.base_graph.clone(),
+            Arc::new(move |_| {
+                let sorted = sorted.clone();
+                (0..sorted.len()).map(move |i| sorted[i]).into_dyn_boxed()
+            }),
+        )
     }
 
     pub fn len(&self) -> usize {
@@ -108,7 +145,9 @@ impl<'graph, G: GraphViewOps<'graph>> IntoIterator for Edges<'graph, G> {
 
     fn into_iter(self) -> Self::IntoIter {
         let base_graph = self.base_graph.clone();
-        Box::new((self.edges)().map(move |e| EdgeView::new_filtered(base_graph.clone(), e)))
+        Box::new(
+            (self.edges)(self.select).map(move |e| EdgeView::new_filtered(base_graph.clone(), e)),
+        )
     }
 }
 
@@ -127,7 +166,9 @@ impl<'graph, G: GraphViewOps<'graph>> BaseEdgeViewOps<'graph> for Edges<'graph, 
         op: F,
     ) -> Self::ValueType<O> {
         let graph = self.base_graph.clone();
-        (self.edges)().map(move |e| op(&graph, e)).into_dyn_boxed()
+        (self.edges)(self.select.clone())
+            .map(move |e| op(&graph, e))
+            .into_dyn_boxed()
     }
 
     fn as_props(&self) -> Self::ValueType<Properties<Self::PropType>> {
@@ -138,35 +179,41 @@ impl<'graph, G: GraphViewOps<'graph>> BaseEdgeViewOps<'graph> for Edges<'graph, 
         self.map(|g, e| Metadata::new(EdgeView::new(g.clone(), e)))
     }
 
-    fn map_nodes<F: for<'a> Fn(&'a Self::Graph, EdgeRef) -> VID + Send + Sync + Clone + 'graph>(
+    fn map_nodes<F: Fn(EdgeRef) -> VID + Send + Sync + Clone + 'graph>(
         &self,
         op: F,
     ) -> Self::Nodes {
-        let graph = self.base_graph.clone();
         let edges = self.edges.clone();
-        PathFromNode::new(self.base_graph.clone(), move || {
-            let graph = graph.clone();
-            let op = op.clone();
-            edges().map(move |e| op(&graph, e)).into_dyn_boxed()
-        })
+        let select = self.select.clone();
+        PathFromNode::new_one_hop_filtered(
+            self.base_graph.clone(),
+            select,
+            Arc::new(move |graph| {
+                let op = op.clone();
+                edges(graph).map(move |e| op(e)).into_dyn_boxed()
+            }),
+        )
     }
 
     fn map_exploded<
         I: Iterator<Item = EdgeRef> + Send + Sync + 'graph,
-        F: for<'a> Fn(&'a Self::Graph, EdgeRef) -> I + Send + Sync + Clone + 'graph,
+        F: Fn(&DynGraphArc<'graph>, EdgeRef) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
         op: F,
     ) -> Self::Exploded {
-        let graph = self.base_graph.clone();
         let edges = self.edges.clone();
-        let edges = Arc::new(move || {
+        let edges = Arc::new(move |graph: DynGraphArc<'graph>| {
             let graph = graph.clone();
             let op = op.clone();
-            edges().flat_map(move |e| op(&graph, e)).into_dyn_boxed()
+            edges(graph.clone())
+                .flat_map(move |e| op(&graph, e))
+                .into_dyn_boxed()
         });
+        let select = self.select.clone();
         Edges {
             base_graph: self.base_graph.clone(),
+            select,
             edges,
         }
     }
@@ -178,64 +225,57 @@ impl<G: StaticGraphViewOps + IntoDynamic + Static> From<Edges<'static, G>>
     fn from(value: Edges<'static, G>) -> Self {
         Edges {
             base_graph: value.base_graph.into_dynamic(),
+            select: value.select,
             edges: value.edges,
         }
     }
 }
 
-impl<'graph, G> InternalEdgeSelect<'graph> for Edges<'graph, G>
-where
-    G: GraphViewOps<'graph> + 'graph,
-{
-    type IterGraph = G;
-    type IterFiltered<FilteredGraph: GraphViewOps<'graph> + 'graph> = Edges<'graph, G>;
+impl<'graph, G: GraphView + 'graph> Select<'graph> for Edges<'graph, G> {
+    type IterFiltered<Filter: CreateFilter + 'graph> = Edges<'graph, G>;
 
-    fn iter_graph(&self) -> &Self::IterGraph {
-        &self.base_graph
-    }
-
-    fn apply_iter_filter<FilteredGraph: GraphViewOps<'graph> + 'graph>(
+    fn select<F: CreateFilter + 'graph>(
         &self,
-        filtered_graph: FilteredGraph,
-    ) -> Self::IterFiltered<FilteredGraph> {
+        filter: F,
+    ) -> Result<Self::IterFiltered<F>, GraphError> {
+        let filtered_graph = filter.filter_graph_view(self.base_graph.clone())?;
+        let filtered_graph = filter.create_filter(self.base_graph.clone(), filtered_graph)?;
+
         let edges = self.edges.clone();
-        Edges {
+        let select = Arc::new(AndFilteredGraph::new(
+            self.base_graph.clone(),
+            self.select.clone(),
+            filtered_graph,
+        ));
+        Ok(Edges {
             base_graph: self.base_graph.clone(),
-            edges: Arc::new(move || {
-                let filtered_graph = filtered_graph.clone();
-                let edges_locked = filtered_graph.core_edges();
-                Box::new(edges().filter(move |e_ref| match e_ref.layer() {
-                    Some(l) => match e_ref.time() {
-                        Some(t) => {
-                            filtered_graph.filter_exploded_edge(e_ref.pid().with_layer(l), t)
-                        }
-                        None => {
-                            let lg = LayeredGraph::new(&filtered_graph, LayerIds::One(l));
-                            lg.filter_edge(edges_locked.edge(Either::Right(*e_ref)))
-                        }
-                    },
-                    None => filtered_graph.filter_edge(edges_locked.edge(Either::Right(*e_ref))),
-                }))
-            }),
-        }
+            select,
+            edges,
+        })
     }
 }
+
+pub type NestedEdgeOp<'graph> =
+    Arc<dyn Fn(DynGraphArc<'graph>, VID) -> BoxedLIter<'graph, EdgeRef> + Send + Sync + 'graph>;
 
 #[derive(Clone)]
 pub struct NestedEdges<'graph, G> {
     pub(crate) graph: G,
+    pub(crate) select: DynGraphArc<'graph>,
     pub(crate) nodes: Arc<dyn Fn() -> BoxedLIter<'graph, VID> + Send + Sync + 'graph>,
-    pub(crate) edges: Arc<dyn Fn(VID) -> BoxedLIter<'graph, EdgeRef> + Send + Sync + 'graph>,
+    pub(crate) edges: NestedEdgeOp<'graph>,
 }
 
 impl<'graph, G: GraphViewOps<'graph>> NestedEdges<'graph, G> {
     pub fn new(
         graph: G,
         nodes: Arc<dyn Fn() -> BoxedLIter<'graph, VID> + Send + Sync + 'graph>,
-        edges: Arc<dyn Fn(VID) -> BoxedLIter<'graph, EdgeRef> + Send + Sync + 'graph>,
+        edges: NestedEdgeOp<'graph>,
     ) -> Self {
+        let select = Arc::new(graph.clone());
         NestedEdges {
             graph,
+            select,
             nodes,
             edges,
         }
@@ -252,11 +292,13 @@ impl<'graph, G: GraphViewOps<'graph>> NestedEdges<'graph, G> {
     pub fn iter(&self) -> impl Iterator<Item = Edges<'graph, G>> + 'graph {
         let base_graph = self.graph.clone();
         let edges = self.edges.clone();
+        let select = self.select.clone();
         (self.nodes)().map(move |n| {
             let edge_fn = edges.clone();
             Edges {
                 base_graph: base_graph.clone(),
-                edges: Arc::new(move || edge_fn(n)),
+                select: select.clone(),
+                edges: Arc::new(move |graph| edge_fn(graph, n)),
             }
         })
     }
@@ -270,6 +312,7 @@ impl<'graph, G: IntoDynamic> NestedEdges<'graph, G> {
     pub fn into_dyn(self) -> NestedEdges<'graph, DynamicGraph> {
         NestedEdges {
             graph: self.graph.into_dynamic(),
+            select: self.select,
             nodes: self.nodes,
             edges: self.edges,
         }
@@ -282,6 +325,7 @@ impl<G: StaticGraphViewOps + IntoDynamic + Static> From<NestedEdges<'static, G>>
     fn from(value: NestedEdges<'static, G>) -> Self {
         NestedEdges {
             graph: value.graph.into_dynamic(),
+            select: value.select,
             nodes: value.nodes,
             edges: value.edges,
         }
@@ -305,6 +349,7 @@ where
     ) -> Self::Filtered<Next> {
         NestedEdges {
             graph: filtered_graph,
+            select: self.select.clone(),
             nodes: self.nodes.clone(),
             edges: self.edges.clone(),
         }
@@ -327,11 +372,14 @@ impl<'graph, G: GraphViewOps<'graph>> BaseEdgeViewOps<'graph> for NestedEdges<'g
     ) -> Self::ValueType<O> {
         let graph = self.graph.clone();
         let edges = self.edges.clone();
+        let select = self.select.clone();
         (self.nodes)()
             .map(move |n| {
                 let graph = graph.clone();
                 let op = op.clone();
-                edges(n).map(move |e| op(&graph, e)).into_dyn_boxed()
+                edges(select.clone(), n)
+                    .map(move |e| op(&graph, e))
+                    .into_dyn_boxed()
             })
             .into_dyn_boxed()
     }
@@ -344,77 +392,65 @@ impl<'graph, G: GraphViewOps<'graph>> BaseEdgeViewOps<'graph> for NestedEdges<'g
         self.map(|g, e| Metadata::new(EdgeView::new(g.clone(), e)))
     }
 
-    fn map_nodes<F: for<'a> Fn(&'a Self::Graph, EdgeRef) -> VID + Send + Sync + Clone + 'graph>(
+    fn map_nodes<F: Fn(EdgeRef) -> VID + Send + Sync + Clone + 'graph>(
         &self,
         op: F,
     ) -> Self::Nodes {
-        let graph = self.graph.clone();
         let edges = self.edges.clone();
-        let edges = move |n| {
-            let graph = graph.clone();
+        let select = self.select.clone();
+        let edges = Arc::new(move |graph: DynGraphArc<'graph>, n| {
             let op = op.clone();
-            edges(n).map(move |e| op(&graph, e)).into_dyn_boxed()
-        };
-        PathFromGraph::new(self.graph.clone(), self.nodes.clone(), edges)
+            edges(graph, n).map(move |e| op(e)).into_dyn_boxed()
+        });
+        PathFromGraph::new_filtered(self.graph.clone(), select, self.nodes.clone(), edges)
     }
 
     fn map_exploded<
         I: Iterator<Item = EdgeRef> + Send + Sync + 'graph,
-        F: for<'a> Fn(&'a Self::Graph, EdgeRef) -> I + Send + Sync + Clone + 'graph,
+        F: Fn(&DynGraphArc<'graph>, EdgeRef) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
         op: F,
     ) -> Self::Exploded {
-        let graph = self.graph.clone();
         let edges = self.edges.clone();
-        let edges = Arc::new(move |n: VID| {
+        let select = self.select.clone();
+        let edges = Arc::new(move |graph: DynGraphArc<'graph>, n: VID| {
             let graph = graph.clone();
             let op = op.clone();
-            edges(n).flat_map(move |e| op(&graph, e)).into_dyn_boxed()
+            edges(graph.clone(), n)
+                .flat_map(move |e| op(&graph, e))
+                .into_dyn_boxed()
         });
         NestedEdges {
             graph: self.graph.clone(),
             nodes: self.nodes.clone(),
+            select,
             edges,
         }
     }
 }
 
-impl<'graph, G> InternalEdgeSelect<'graph> for NestedEdges<'graph, G>
-where
-    G: GraphViewOps<'graph> + 'graph,
-{
-    type IterGraph = G;
-    type IterFiltered<FilteredGraph: GraphViewOps<'graph> + 'graph> = NestedEdges<'graph, G>;
+impl<'graph, G: GraphView + 'graph> Select<'graph> for NestedEdges<'graph, G> {
+    type IterFiltered<Filter: CreateFilter + 'graph> = NestedEdges<'graph, G>;
 
-    fn iter_graph(&self) -> &Self::IterGraph {
-        &self.graph
-    }
-
-    fn apply_iter_filter<FilteredGraph: GraphViewOps<'graph> + 'graph>(
+    fn select<F: CreateFilter + 'graph>(
         &self,
-        filtered_graph: FilteredGraph,
-    ) -> Self::IterFiltered<FilteredGraph> {
+        filter: F,
+    ) -> Result<Self::IterFiltered<F>, GraphError> {
+        let filtered_graph = filter.filter_graph_view(self.graph.clone())?;
+        let filtered_graph = filter.create_filter(self.graph.clone(), filtered_graph)?;
         let edges = self.edges.clone();
-        NestedEdges {
+        let select = Arc::new(AndFilteredGraph::new(
+            self.graph.clone(),
+            self.select.clone(),
+            filtered_graph,
+        ));
+
+        Ok(NestedEdges {
             graph: self.graph.clone(),
             nodes: self.nodes.clone(),
-            edges: Arc::new(move |vid| {
-                let filtered_graph = filtered_graph.clone();
-                let edges_locked = filtered_graph.core_edges();
-                Box::new(edges(vid).filter(move |e_ref| match e_ref.layer() {
-                    Some(l) => match e_ref.time() {
-                        Some(t) => {
-                            filtered_graph.filter_exploded_edge(e_ref.pid().with_layer(l), t)
-                        }
-                        None => {
-                            let lg = LayeredGraph::new(&filtered_graph, LayerIds::One(l));
-                            lg.filter_edge(edges_locked.edge(Either::Right(*e_ref)))
-                        }
-                    },
-                    None => filtered_graph.filter_edge(edges_locked.edge(Either::Right(*e_ref))),
-                }))
-            }),
-        }
+            select,
+            edges,
+        })
     }
 }

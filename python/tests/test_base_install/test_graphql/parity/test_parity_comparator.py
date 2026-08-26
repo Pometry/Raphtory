@@ -109,10 +109,25 @@ def test_float_precision_is_not_smoothed():
     assert _agree(1.5, 1.5)
 
 
-def test_nan_is_not_folded_to_a_sentinel():
-    """``NaN`` is left alone, which is why non-finite floats are asserted
-    explicitly per side in ``test_parity_props`` instead of by parity."""
-    assert not _agree(math.nan, math.nan)
+def test_nan_agrees_with_nan_but_nothing_else():
+    """Both sides producing ``NaN`` is agreement, not a mismatch: ``nan != nan``
+    would otherwise fail a faithful round-trip. Only ``NaN`` is folded, so a
+    ``NaN`` standing in for an infinity or a number is still a failure."""
+    assert _agree(math.nan, math.nan)
+    assert not _agree(math.nan, math.inf)
+    assert not _agree(math.nan, -math.inf)
+    assert not _agree(math.nan, 0.0)
+    assert not _agree(math.nan, None)
+    assert _agree([1.0, math.nan], [1.0, math.nan])
+    assert not _agree([1.0, math.nan], [math.nan, 1.0])
+
+
+def test_infinities_are_left_alone():
+    """The infinities compare fine unaided, so the comparator does not touch
+    them: each still has to match its own sign."""
+    assert _agree(math.inf, math.inf)
+    assert _agree(-math.inf, -math.inf)
+    assert not _agree(math.inf, -math.inf)
 
 
 def test_datetime_timezone_is_not_normalized():

@@ -146,7 +146,7 @@ vectors = [
     "dep:moka",
     "dep:lancedb",
     "dep:tokio", # also used for the io feature
-    "dep:tempfile", # also used for the storage feature
+    "dep:tempfile",
     "dep:axum"
 ]
 
@@ -168,3 +168,11 @@ python = [
 panic-on-drop = [
     "storage/panic-on-drop"
 ]
+
+[[example]]
+name = "eth_loader"
+required-features = ["io"]
+
+[[example]]
+name = "snb_loader"
+required-features = ["io"]

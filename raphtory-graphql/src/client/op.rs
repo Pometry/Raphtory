@@ -80,7 +80,7 @@ pub enum ReadExpr {
     /// Exclude the given nodes from the view.
     ExcludeNodes {
         input: Arc<ReadExpr>,
-        nodes: Arc<[String]>,
+        nodes: Arc<[GID]>,
     },
     /// Restrict a `RemoteNodes` collection to members with one of the given
     /// node types. Unlike view ops, this actually filters membership — the
@@ -127,6 +127,19 @@ pub enum ReadExpr {
     /// `History` whose iteration order is flipped. Container-selection like
     /// `History`. Server field: `reverse`.
     HistoryReverse { input: Arc<ReadExpr> },
+    /// Terminal on History: whether an entry equal to the given time is
+    /// present — `bool`. With `event_id`, both fields must match; without it,
+    /// any entry at the timestamp matches (the two equalities `EventTime`
+    /// itself defines). Server field: `contains(timestamp:, eventId:)`.
+    HistoryContains {
+        input: Arc<ReadExpr>,
+        timestamp: i64,
+        event_id: Option<usize>,
+    },
+    /// Terminal on a history sub-container (timestamps / event ids /
+    /// intervals): whether the given value is present — `bool`. Server
+    /// field: `contains(value:)`.
+    HistoryValueContains { input: Arc<ReadExpr>, value: i64 },
     /// Navigate to the deletion history of an edge. Edge → History.
     /// Same shape as `History` but reads the `deletions` server field
     /// instead of `history` — deletions are edge-only.
@@ -336,22 +349,6 @@ pub enum ReadExpr {
     /// Server field: `sharedNeighbours(selectedNodes: [NodeId!]!)`.
     SharedNeighbours { input: Arc<ReadExpr>, ids: Vec<GID> },
 
-    /// Terminal on Graph: the nodes whose latest property values match every
-    /// `(name, value)` entry in `properties`. Returns `Vec<String>` of node
-    /// names — clients wrap each in a `RemoteNode`. Server field:
-    /// `findNodes(propertiesDict: [PropertyInput!]!)`.
-    FindNodes {
-        input: Arc<ReadExpr>,
-        properties: HashMap<String, Prop>,
-    },
-    /// Terminal on Graph: the edges whose latest property values match every
-    /// `(name, value)` entry in `properties`. Returns `Vec<(String, String)>`
-    /// of `(src, dst)` name pairs — clients wrap each in a `RemoteEdge`.
-    /// Server field: `findEdges(propertiesDict: [PropertyInput!]!)`.
-    FindEdges {
-        input: Arc<ReadExpr>,
-        properties: HashMap<String, Prop>,
-    },
     /// Terminal on Graph: all node types present in the graph — `Vec<String>`.
     /// Server field: `getAllNodeTypes`.
     GetAllNodeTypes { input: Arc<ReadExpr> },
@@ -657,44 +654,52 @@ pub enum ReadExpr {
     // / `NestedEdges`. Each opens ONE net brace (the outer `list`); inner groups
     // self-balance. For `properties`, temporal values collapse to their latest
     // under the current view — matching the local columnar property views.
-    // Each variant carries an optional key whitelist: `None` fetches every
-    // property (the all-columns reads — `values`/`items`/`as_dict`); `Some`
-    // renders `values(keys: [..])` so the server filters to just those columns
-    // — the single-column `get(key)` never ships the rest of the collection's
-    // properties over the wire.
-    /// FLAT: each member's metadata entries — one `[{key, value}]` per member.
+    // Each variant names the columns to fetch; the transport renders one
+    // aliased `get(key:)` per column, so only those columns travel and the
+    // response needs no key matching to pivot: the alias index is the column
+    // index. The all-columns reads (`values`/`items`/`as_dict`) pass the full
+    // key set from a preceding `keys()` lookup.
+    /// FLAT: the requested metadata columns — one optional value per member.
     CollectionMetadataValues {
         input: Arc<ReadExpr>,
-        keys: Option<Arc<[String]>>,
+        /// The columns to fetch, in order — the alias index in the rendered
+        /// query, and the column index in the decoded result.
+        keys: Arc<[String]>,
     },
-    /// FLAT: each member's property entries (temporal → latest).
+    /// FLAT: the requested property columns (temporal → latest).
     CollectionPropertiesValues {
         input: Arc<ReadExpr>,
-        keys: Option<Arc<[String]>>,
+        /// The columns to fetch, in order — the alias index in the rendered
+        /// query, and the column index in the decoded result.
+        keys: Arc<[String]>,
     },
-    /// NESTED: per-source per-member metadata entries.
+    /// NESTED: the requested metadata columns, per source.
     NestedMetadataValues {
         input: Arc<ReadExpr>,
-        keys: Option<Arc<[String]>>,
+        /// The columns to fetch, in order — the alias index in the rendered
+        /// query, and the column index in the decoded result.
+        keys: Arc<[String]>,
     },
-    /// NESTED: per-source per-member property entries (temporal → latest).
+    /// NESTED: the requested property columns (temporal → latest), per source.
     NestedPropertiesValues {
         input: Arc<ReadExpr>,
-        keys: Option<Arc<[String]>>,
+        /// The columns to fetch, in order — the alias index in the rendered
+        /// query, and the column index in the decoded result.
+        keys: Arc<[String]>,
     },
 
-    // Collection-level key lookup. Local `MetadataView::keys()` reads the
-    // FIRST member's key set (the per-entity filtered property registry), so
-    // the remote mirrors that with a `page(limit: 1)` selection — one member's
-    // key names over the wire, never the collection's property values. Empty
-    // collection → empty key list, matching local's `unwrap_or_default()`.
-    /// FLAT: first member's metadata keys — `page(limit: 1) { metadata { keys } }`.
+    // Collection-level key lookup. The local collection views report the
+    // graph's registered keys for the entity kind (an empty list when the
+    // collection has no members); the server's registry-backed
+    // `metadataKeys`/`propertyKeys` collection fields mirror that exactly, so
+    // one field name is the whole request — no member data over the wire.
+    /// FLAT: the collection's metadata keys — server field `metadataKeys`.
     CollectionMetadataKeys { input: Arc<ReadExpr> },
-    /// FLAT: first member's property keys.
+    /// FLAT: the collection's property keys — server field `propertyKeys`.
     CollectionPropertiesKeys { input: Arc<ReadExpr> },
-    /// NESTED: first member of the first source — `page(limit: 1) { page(limit: 1) { … } }`.
+    /// NESTED: the nested collection's metadata keys — same server field.
     NestedMetadataKeys { input: Arc<ReadExpr> },
-    /// NESTED: first member of the first source's property keys.
+    /// NESTED: the nested collection's property keys — same server field.
     NestedPropertiesKeys { input: Arc<ReadExpr> },
 
     // ============ Node scalar terminals ============
@@ -794,7 +799,6 @@ pub enum ViewOp {
     Latest,
     SnapshotLatest,
     SnapshotAt { time: InputTime },
-    ShrinkWindow { start: InputTime, end: InputTime },
     ShrinkStart { start: InputTime },
     ShrinkEnd { end: InputTime },
     Layer { name: String },

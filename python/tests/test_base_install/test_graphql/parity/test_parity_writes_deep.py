@@ -32,6 +32,7 @@ Writes mutate, so no case shares a graph pair: each builds its own.
 """
 
 import pytest
+from raphtory import PropType
 from raphtory.graphql import RemoteEdgeAddition, RemoteNodeAddition, RemoteUpdate
 
 from _parity import KNOWN_GAPS, assert_parity, canonical, graph_pair
@@ -960,12 +961,12 @@ def test_written_property_dtype_readback_parity(target):
             pair,
             lambda g: reach(g).add_updates(5, properties={"count": 3, "ratio": 1.5}),
             lambda g: sorted(
-                (key, repr(read(g).get_dtype_of(key))) for key in ("count", "ratio")
+                (key, read(g).get_dtype_of(key)) for key in ("count", "ratio")
             ),
         )
         for name, g in _sides(pair):
-            assert repr(read(g).get_dtype_of("count")) == "PropType.I64", name
-            assert repr(read(g).get_dtype_of("ratio")) == "PropType.F64", name
+            assert read(g).get_dtype_of("count") == PropType.i64(), name
+            assert read(g).get_dtype_of("ratio") == PropType.f64(), name
 
 
 # --- 6. property updates over time ------------------------------------------
@@ -1167,13 +1168,13 @@ def _typed_probe(g):
             (t.t, t.event_id, v)
             for t, v in g.node("a").properties.temporal.get("x").items()
         ),
-        repr(g.node("a").properties.get_dtype_of("x")),
+        g.node("a").properties.get_dtype_of("x"),
         _stamps(g.edge("a", "b").history),
         tuple(
             (t.t, t.event_id, v)
             for t, v in g.edge("a", "b").properties.temporal.get("w").items()
         ),
-        repr(g.edge("a", "b").properties.get_dtype_of("w")),
+        g.edge("a", "b").properties.get_dtype_of("w"),
         g.count_nodes(),
         g.count_edges(),
     )
@@ -1277,9 +1278,8 @@ def test_node_type_conflict_leaves_the_rest_of_the_write_intact():
 # (gap_key, fn). Same contract as `test_parity_gaps`: the case is expected to
 # fail today because the API is missing on one side, and `strict=True` turns the
 # day it starts working into a RED suite that forces the ledger entry out.
-# Unlike that module, these gaps run in *both* directions — `graph.add_nodes`,
-# `graph.add_edges` and `temporal_property.latest` exist on remote and are
-# missing locally.
+# Unlike that module, these gaps run in *both* directions — `graph.add_nodes`
+# and `graph.add_edges` exist on remote and are missing locally.
 WRITE_GAP_CASES = [
     (
         "graph.add_nodes",
@@ -1292,10 +1292,6 @@ WRITE_GAP_CASES = [
         lambda g: g.add_edges(
             [RemoteEdgeAddition("a", "b", updates=[RemoteUpdate(1, {"w": 1.0})])]
         ),
-    ),
-    (
-        "temporal_property.latest",
-        lambda g: g.node("a").properties.temporal.get("s").latest(),
     ),
 ]
 

@@ -10,8 +10,11 @@
 //! walking the nested `Prop::Map` / `Prop::List` tree that
 //! `parse_read` decoded.
 
-use crate::client::ClientError;
-use raphtory_api::core::entities::properties::prop::{Prop, PropMap};
+use crate::client::{
+    transport::{prop_list, prop_map_get, prop_str},
+    ClientError,
+};
+use raphtory_api::core::entities::properties::prop::{Prop, PropMap, PropType};
 
 /// A single property schema entry — one key on a node/edge type, with its
 /// observed property type and (for string-valued properties) the set of
@@ -19,7 +22,7 @@ use raphtory_api::core::entities::properties::prop::{Prop, PropMap};
 #[derive(Clone, Debug, PartialEq)]
 pub struct RemotePropertySchema {
     pub key: String,
-    pub property_type: String,
+    pub property_type: PropType,
     pub variants: Vec<String>,
 }
 
@@ -66,11 +69,11 @@ impl RemoteGraphSchema {
     pub(crate) fn from_prop(prop: Prop) -> Result<Self, ClientError> {
         let map = expect_map(prop, "schema")?;
         Ok(Self {
-            nodes: expect_list(map_get(&map, "nodes")?, "schema.nodes")?
+            nodes: prop_list(prop_map_get(&map, "nodes")?, "schema.nodes")?
                 .into_iter()
                 .map(RemoteNodeSchema::from_prop)
                 .collect::<Result<_, _>>()?,
-            layers: expect_list(map_get(&map, "layers")?, "schema.layers")?
+            layers: prop_list(prop_map_get(&map, "layers")?, "schema.layers")?
                 .into_iter()
                 .map(RemoteLayerSchema::from_prop)
                 .collect::<Result<_, _>>()?,
@@ -82,9 +85,9 @@ impl RemoteNodeSchema {
     fn from_prop(prop: Prop) -> Result<Self, ClientError> {
         let map = expect_map(prop, "nodeSchema")?;
         Ok(Self {
-            type_name: expect_string(map_get(&map, "typeName")?, "nodeSchema.typeName")?,
-            properties: decode_property_schemas(map_get(&map, "properties")?)?,
-            metadata: decode_property_schemas(map_get(&map, "metadata")?)?,
+            type_name: prop_str(prop_map_get(&map, "typeName")?, "nodeSchema.typeName")?,
+            properties: decode_property_schemas(prop_map_get(&map, "properties")?)?,
+            metadata: decode_property_schemas(prop_map_get(&map, "metadata")?)?,
         })
     }
 }
@@ -93,8 +96,8 @@ impl RemoteLayerSchema {
     fn from_prop(prop: Prop) -> Result<Self, ClientError> {
         let map = expect_map(prop, "layerSchema")?;
         Ok(Self {
-            name: expect_string(map_get(&map, "name")?, "layerSchema.name")?,
-            edges: expect_list(map_get(&map, "edges")?, "layerSchema.edges")?
+            name: prop_str(prop_map_get(&map, "name")?, "layerSchema.name")?,
+            edges: prop_list(prop_map_get(&map, "edges")?, "layerSchema.edges")?
                 .into_iter()
                 .map(RemoteEdgeSchema::from_prop)
                 .collect::<Result<_, _>>()?,
@@ -106,10 +109,10 @@ impl RemoteEdgeSchema {
     fn from_prop(prop: Prop) -> Result<Self, ClientError> {
         let map = expect_map(prop, "edgeSchema")?;
         Ok(Self {
-            src_type: expect_string(map_get(&map, "srcType")?, "edgeSchema.srcType")?,
-            dst_type: expect_string(map_get(&map, "dstType")?, "edgeSchema.dstType")?,
-            properties: decode_property_schemas(map_get(&map, "properties")?)?,
-            metadata: decode_property_schemas(map_get(&map, "metadata")?)?,
+            src_type: prop_str(prop_map_get(&map, "srcType")?, "edgeSchema.srcType")?,
+            dst_type: prop_str(prop_map_get(&map, "dstType")?, "edgeSchema.dstType")?,
+            properties: decode_property_schemas(prop_map_get(&map, "properties")?)?,
+            metadata: decode_property_schemas(prop_map_get(&map, "metadata")?)?,
         })
     }
 }
@@ -118,21 +121,23 @@ impl RemotePropertySchema {
     fn from_prop(prop: Prop) -> Result<Self, ClientError> {
         let map = expect_map(prop, "propertySchema")?;
         Ok(Self {
-            key: expect_string(map_get(&map, "key")?, "propertySchema.key")?,
-            property_type: expect_string(
-                map_get(&map, "propertyType")?,
-                "propertySchema.propertyType",
-            )?,
-            variants: expect_list(map_get(&map, "variants")?, "propertySchema.variants")?
+            key: prop_str(prop_map_get(&map, "key")?, "propertySchema.key")?,
+            property_type: {
+                let json = prop_str(prop_map_get(&map, "dtype")?, "propertySchema.dtype")?;
+                serde_json::from_str(&json).map_err(|e| {
+                    ClientError::InvalidResponse(format!("propertySchema.dtype: {e}"))
+                })?
+            },
+            variants: prop_list(prop_map_get(&map, "variants")?, "propertySchema.variants")?
                 .into_iter()
-                .map(|p| expect_string(p, "propertySchema.variants[]"))
+                .map(|p| prop_str(p, "propertySchema.variants[]"))
                 .collect::<Result<_, _>>()?,
         })
     }
 }
 
 fn decode_property_schemas(prop: Prop) -> Result<Vec<RemotePropertySchema>, ClientError> {
-    expect_list(prop, "propertySchemas")?
+    prop_list(prop, "propertySchemas")?
         .into_iter()
         .map(RemotePropertySchema::from_prop)
         .collect()
@@ -148,30 +153,4 @@ fn expect_map(prop: Prop, context: &str) -> Result<std::sync::Arc<PropMap>, Clie
             context
         ))),
     }
-}
-
-fn expect_list(prop: Prop, context: &str) -> Result<Vec<Prop>, ClientError> {
-    match prop {
-        Prop::List(items) => Ok(items.iter().collect()),
-        _ => Err(ClientError::InvalidResponse(format!(
-            "`{}` expected Prop::List",
-            context
-        ))),
-    }
-}
-
-fn expect_string(prop: Prop, context: &str) -> Result<String, ClientError> {
-    match prop {
-        Prop::Str(s) => Ok(s.to_string()),
-        _ => Err(ClientError::InvalidResponse(format!(
-            "`{}` expected Prop::Str",
-            context
-        ))),
-    }
-}
-
-fn map_get(map: &PropMap, key: &str) -> Result<Prop, ClientError> {
-    map.get(key)
-        .cloned()
-        .ok_or_else(|| ClientError::InvalidResponse(format!("schema record missing `{}`", key)))
 }

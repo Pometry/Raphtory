@@ -237,7 +237,7 @@ impl PyRaphtoryClient {
     /// Get a RemoteGraph reference to a graph on the server at path
     ///
     /// Arguments:
-    ///     path (str): the path of the graph to be created
+    ///     path (str): the path of the graph
     ///
     /// Returns:
     ///     RemoteGraph: the remote graph reference

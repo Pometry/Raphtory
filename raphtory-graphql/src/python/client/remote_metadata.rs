@@ -11,7 +11,7 @@ use crate::{
 use pyo3::{
     exceptions::PyKeyError,
     prelude::*,
-    types::{PyDict, PyList},
+    types::{PyDict, PyIterator, PyList},
     Py, PyAny,
 };
 use raphtory::python::utils::execute_async_task;
@@ -379,31 +379,31 @@ impl PyRemoteTemporalProperties {
     /// Returns:
     ///     dict[str, list[tuple[EventTime, PropValue]]]: every property's full history,
     ///         keyed by property name.
-    pub fn histories(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+    pub fn histories<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
         let dict = PyDict::new(py);
         for (key, tp) in self.items()? {
             dict.set_item(key, tp.items()?)?;
         }
-        Ok(dict.into_any().unbind())
+        Ok(dict)
     }
 
     /// The latest value of every temporal property, as `{key: value}` —
     /// mirrors the local `TemporalProperties.latest()`. Composed from
-    /// `items()` + each property's `latest()`; fires 1 RPC for the property
+    /// `items()` + each property's `value()`; fires 1 RPC for the property
     /// list plus 1 per property. Keys whose property has no update in view
     /// are omitted (their latest is `None`), matching the local behaviour.
     ///
     /// Returns:
     ///     dict[str, PropValue]: the latest value of every property, keyed by property
     ///         name; keys with no update in view are omitted.
-    pub fn latest(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+    pub fn latest<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
         let dict = PyDict::new(py);
         for (key, tp) in self.items()? {
-            if let Some(value) = tp.latest()? {
+            if let Some(value) = tp.value()? {
                 dict.set_item(key, value)?;
             }
         }
-        Ok(dict.into_any().unbind())
+        Ok(dict)
     }
 
     /// `td[key]` — the temporal property handle, or raises `KeyError` if
@@ -429,9 +429,9 @@ impl PyRemoteTemporalProperties {
     }
 
     /// `for k in td` — iterate temporal property keys. Fires one RPC.
-    fn __iter__(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+    fn __iter__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyIterator>> {
         let keys = self.keys()?;
-        Ok(PyList::new(py, keys)?.try_iter()?.into_any().unbind())
+        PyList::new(py, keys)?.try_iter()
     }
 }
 
@@ -495,26 +495,15 @@ impl PyRemoteTemporalProperty {
         execute_async_task(move || async move { inner.at(t).await })
     }
 
-    /// The most recent value, or `None` if the property has no updates
-    /// in view. Fires one RPC.
-    ///
-    /// Returns:
-    ///     Optional[PropValue]: the most recent value, or `None` if the property has no
-    ///         updates in view.
-    pub fn latest(&self) -> Result<Option<Prop>, ClientError> {
-        let inner = Arc::clone(&self.inner);
-        execute_async_task(move || async move { inner.latest().await })
-    }
-
-    /// The latest value of the property, or `None` if it has no updates in
-    /// view. Alias for `latest()` (drop-in parity with the local
-    /// `TemporalProperty.value`). Fires one RPC.
+    /// The most recent value, or `None` if the property has no updates in
+    /// view — matching the local `TemporalProperty.value`. Fires one RPC.
     ///
     /// Returns:
     ///     Optional[PropValue]: the most recent value, or `None` if the property has no
     ///         updates in view.
     pub fn value(&self) -> Result<Option<Prop>, ClientError> {
-        self.latest()
+        let inner = Arc::clone(&self.inner);
+        execute_async_task(move || async move { inner.latest().await })
     }
 
     /// Number of updates recorded for this property in the current view.
@@ -643,9 +632,6 @@ impl PyRemoteTemporalProperty {
     }
 }
 
-/// A `(time, value)` snapshot inside a temporal property. Returned by
-/// `min` / `max` / `median` (a single pair) and each entry of
-/// `ordered_dedupe` (a list of pairs).
 /// A remote `(time, value)` pair as the native tuple the local API returns.
 fn tuple_to_py(t: RemotePropertyTuple) -> (EventTime, Prop) {
     (t.time, t.value)

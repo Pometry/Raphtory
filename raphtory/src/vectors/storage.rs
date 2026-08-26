@@ -15,10 +15,10 @@ use crate::{
 use async_openai::config::{OpenAIConfig, OPENAI_API_BASE};
 use serde::{Deserialize, Serialize};
 use std::{
-    fs::File,
     path::{Path, PathBuf},
     sync::Arc,
 };
+use tempfile::NamedTempFile;
 use tokio::sync::OnceCell;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
@@ -94,9 +94,12 @@ pub(super) fn collection_names(generation: u64) -> (String, String) {
 }
 
 impl VectorMeta {
+    /// Atomically writes the new meta file
     pub(super) fn write_to_path(&self, path: &Path) -> Result<(), GraphError> {
-        let file = File::create(meta_path(path))?;
-        serde_json::to_writer(file, self)?;
+        let mut file = NamedTempFile::new_in(path)?;
+        serde_json::to_writer(&mut file, self)?;
+        file.as_file().sync_all()?;
+        file.persist(meta_path(path))?;
         Ok(())
     }
 

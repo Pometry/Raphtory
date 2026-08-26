@@ -22,12 +22,13 @@ compares what the filtered handle reports:
   hole in the suite.
 * `test_site_matrix_parity` / `test_site_matrix_discriminates` — the same
   expressions again, crossed with every handle that accepts a filter
-  (`graph`, `nodes`, `node`, `PathFromNode`, `PathFromGraph`, and the
-  `collection[expr]` sugar), because a filter can be lowered correctly for one
-  application site and dropped at another.
+  (`graph`, `nodes`, `node`, `PathFromNode`, `PathFromGraph`, `Edges`, `Edge`,
+  `NestedEdges`, and the `collection[expr]` sugar), because a filter can be
+  lowered correctly for one application site and dropped at another.
 
-Divergences found by this module are recorded in `KNOWN_GAPS` and replayed as
-strict xfails at the bottom, so they cannot be forgotten or silently fixed.
+Forms this module cannot reach at all are recorded in
+`UNREACHABLE_FILTER_FORMS` and cross-checked against `KNOWN_GAPS`, so they
+cannot be forgotten.
 """
 
 import pytest
@@ -154,9 +155,9 @@ def filter_pair():
 # --- probes -----------------------------------------------------------------
 #
 # A probe reduces a filtered handle to a keyed, fully-labelled structure. Keys
-# matter: `canonical` sorts the members of an unkeyed tuple, which would let a
-# swapped `src`/`dst` or a swapped `in_degree`/`out_degree` compare equal. Dicts
-# keyed by entity identity and by fact name cannot be reordered into agreement.
+# matter: a dict keyed by entity identity and by fact name names every value it
+# carries, so a swapped `src`/`dst` or a swapped `in_degree`/`out_degree` shows
+# up as two mismatched keys rather than hiding inside a positional tuple.
 #
 # The facts are also chosen to be sensitive to both things a filter can change:
 # *membership* (which entities remain) and *scope* (what each survivor answers,
@@ -204,6 +205,43 @@ def _probe_edges(h):
     return {"edges": {_edge_key(e): _edge_facts(e) for e in h}}
 
 
+def _edge_view_facts(e):
+    """`_edge_facts` plus the endpoint degrees.
+
+    An edge handle's own facts — layers, times, validity — do not change when
+    the graph it is viewed through is filtered; the edge keeps its identity and
+    the collection keeps its membership. What changes is the graph *around* it,
+    so the endpoint degrees are what make a filtered edge view observably
+    different from an unfiltered one.
+    """
+    return {
+        **_edge_facts(e),
+        "src_degree": e.src.degree(),
+        "dst_degree": e.dst.degree(),
+    }
+
+
+def _probe_edges_view(h):
+    return {"edges": {_edge_key(e): _edge_view_facts(e) for e in h}}
+
+
+def _probe_edge_view(h):
+    """A single edge handle; a filter may reduce it to ``None``."""
+    return {"edges": {} if h is None else {_edge_key(h): _edge_view_facts(h)}}
+
+
+def _probe_nested_edges(h):
+    # Flattened to `source|src->dst` keys, as `_probe_path_from_graph` does for
+    # nodes: every row stays attributed to its source.
+    return {
+        "edges": {
+            f"{i}|{_edge_key(e)}": _edge_view_facts(e)
+            for i, sub in enumerate(h)
+            for e in sub
+        }
+    }
+
+
 def _probe_node(h):
     """A single node handle; a filter may reduce it to ``None``."""
     return {"nodes": {} if h is None else {h.name: _node_facts(h)}}
@@ -248,6 +286,25 @@ NODE_PROPERTY_EXPRS = {
     "node.prop.starts_with": lambda: f.Node.property("tag").starts_with("alpha"),
     "node.prop.ends_with": lambda: f.Node.property("tag").ends_with("a"),
     "node.prop.fuzzy": lambda: f.Node.property("tag").fuzzy_search("alpho", 1, False),
+    # `level` is metadata *and* a temporal property, with different values,
+    # so a lowering that reads the wrong source cannot produce the right
+    # answer (see `test_property_sources_are_distinct`).
+    "node.metadata.eq": lambda: f.Node.metadata("level") == "gold",
+    "node.metadata.ne": lambda: f.Node.metadata("level") != "gold",
+    "node.metadata.is_in": lambda: f.Node.metadata("region").is_in(["eu", "apac"]),
+    "node.metadata.is_some": lambda: f.Node.metadata("region").is_some(),
+    "node.metadata.is_none": lambda: f.Node.metadata("region").is_none(),
+    "node.metadata.contains": lambda: f.Node.metadata("region").contains("a"),
+    "node.prop.level_eq": lambda: f.Node.property("level") == "bronze",
+    "node.temporal.any": lambda: f.Node.property("score").temporal().any() > 50,
+    "node.temporal.all": lambda: f.Node.property("score").temporal().all() > 5,
+    "node.temporal.first": (lambda: f.Node.property("score").temporal().first() > 15),
+    "node.temporal.last": (lambda: f.Node.property("score").temporal().last() > 15),
+    "node.temporal.min": lambda: f.Node.property("score").temporal().min() > 5,
+    "node.temporal.max": lambda: f.Node.property("score").temporal().max() > 50,
+    "node.temporal.sum": lambda: f.Node.property("score").temporal().sum() > 50,
+    "node.temporal.avg": (lambda: f.Node.property("score").temporal().avg() > 20),
+    "node.temporal.int": (lambda: f.Node.property("score").temporal().len() > 1),
 }
 
 NODE_FIELD_EXPRS = {
@@ -294,50 +351,6 @@ DEGREE_EXPRS = {
     "out_degree.gt": lambda: f.Node.out_degree() > 1,
 }
 
-# The three property sources. `level` is present as *both* metadata and a
-# temporal property, with different values, so a lowering that reads the wrong
-# source cannot produce the right answer (see `test_property_sources_are_distinct`).
-SOURCE_EXPRS = {
-    "source.node.metadata.eq": lambda: f.Node.metadata("level") == "gold",
-    "source.node.metadata.ne": lambda: f.Node.metadata("level") != "gold",
-    "source.node.metadata.is_in": lambda: f.Node.metadata("region").is_in(
-        ["eu", "apac"]
-    ),
-    "source.node.metadata.is_some": lambda: f.Node.metadata("region").is_some(),
-    "source.node.metadata.is_none": lambda: f.Node.metadata("region").is_none(),
-    "source.node.metadata.contains": lambda: f.Node.metadata("region").contains("a"),
-    "source.node.property.eq": lambda: f.Node.property("level") == "bronze",
-    "source.node.temporal.any": lambda: f.Node.property("score").temporal().any() > 50,
-    "source.node.temporal.all": lambda: f.Node.property("score").temporal().all() > 5,
-    "source.node.temporal.first": (
-        lambda: f.Node.property("score").temporal().first() > 15
-    ),
-    "source.node.temporal.last": (
-        lambda: f.Node.property("score").temporal().last() > 15
-    ),
-    "source.node.temporal.min": lambda: f.Node.property("score").temporal().min() > 5,
-    "source.node.temporal.max": lambda: f.Node.property("score").temporal().max() > 50,
-    "source.node.temporal.sum": lambda: f.Node.property("score").temporal().sum() > 50,
-    "source.node.temporal.avg": (
-        lambda: f.Node.property("score").temporal().avg() > 20
-    ),
-    "source.node.temporal.len": (lambda: f.Node.property("score").temporal().len() > 1),
-    "source.edge.metadata.is_some": lambda: f.Edge.metadata("kind").is_some(),
-    "source.edge.metadata.is_none": lambda: f.Edge.metadata("kind").is_none(),
-    "source.edge.property.eq": lambda: f.Edge.property("note") == "zz",
-    "source.edge.temporal.any": (
-        lambda: f.Edge.property("weight").temporal().any() > 3.0
-    ),
-    "source.edge.temporal.avg": (
-        lambda: f.Edge.property("weight").temporal().avg() > 3.0
-    ),
-    "source.edge.temporal.first": (
-        lambda: f.Edge.property("weight").temporal().first() > 2.0
-    ),
-    "source.edge.temporal.last": (
-        lambda: f.Edge.property("weight").temporal().last() > 2.0
-    ),
-}
 
 EDGE_PROPERTY_EXPRS = {
     "edge.prop.gt": lambda: f.Edge.property("weight") > 2.0,
@@ -354,6 +367,16 @@ EDGE_PROPERTY_EXPRS = {
     "edge.prop.not_contains": lambda: f.Edge.property("note").not_contains("a"),
     "edge.prop.starts_with": lambda: f.Edge.property("note").starts_with("a"),
     "edge.prop.ends_with": lambda: f.Edge.property("note").ends_with("b"),
+    # `level` is metadata *and* a temporal property, with different values,
+    # so a lowering that reads the wrong source cannot produce the right
+    # answer (see `test_property_sources_are_distinct`).
+    "edge.metadata.is_some": lambda: f.Edge.metadata("kind").is_some(),
+    "edge.metadata.is_none": lambda: f.Edge.metadata("kind").is_none(),
+    "edge.prop.note_eq": lambda: f.Edge.property("note") == "zz",
+    "edge.temporal.any": (lambda: f.Edge.property("weight").temporal().any() > 3.0),
+    "edge.temporal.avg": (lambda: f.Edge.property("weight").temporal().avg() > 3.0),
+    "edge.temporal.first": (lambda: f.Edge.property("weight").temporal().first() > 2.0),
+    "edge.temporal.last": (lambda: f.Edge.property("weight").temporal().last() > 2.0),
 }
 
 EDGE_ENDPOINT_EXPRS = {
@@ -488,7 +511,6 @@ EXPRS = {
     **NODE_PROPERTY_EXPRS,
     **NODE_FIELD_EXPRS,
     **DEGREE_EXPRS,
-    **SOURCE_EXPRS,
     **EDGE_PROPERTY_EXPRS,
     **EDGE_ENDPOINT_EXPRS,
     **COMBINATOR_EXPRS,
@@ -539,10 +561,9 @@ def _discriminating_axes(probed, baseline):
 # discriminate — not merely "some axis" — is what stops an edge filter matching
 # zero edges from passing because the surviving nodes happened to be rescoped
 # (their degrees drop when every edge is filtered out). Names are the single
-# source of truth here, and `test_every_expr_declares_an_axis` keeps them honest.
+# source of truth here, and `_required_axis` refuses a name it cannot classify.
 _EDGE_AXIS_PREFIXES = (
     "edge.",
-    "source.edge.",
     "scoped.edge.",
     "scoped.exploded.",
     "pred.edge.",
@@ -555,7 +576,6 @@ _NODE_AXIS_PREFIXES = (
     "degree.",
     "in_degree.",
     "out_degree.",
-    "source.node.",
     "scoped.node.",
     "pred.node.",
 )
@@ -572,12 +592,23 @@ _EITHER_AXIS_PREFIXES = (
 
 
 def _required_axis(name):
-    """The axis `name` must discriminate on, or None if either will do."""
+    """The axis `name` must discriminate on, or None if either will do.
+
+    An unknown name is an error rather than a None: defaulting would relax the
+    guard to "either axis", which is the loophole the guard exists to close, and
+    a typo or a new family added without a prefix would do it silently.
+    """
     if name.startswith(_EDGE_AXIS_PREFIXES):
         return "edges"
     if name.startswith(_NODE_AXIS_PREFIXES):
         return "nodes"
-    return None
+    if name.startswith(_EITHER_AXIS_PREFIXES):
+        return None
+    raise AssertionError(
+        f"expression {name!r} has no declared axis family — add its prefix to "
+        f"_EDGE_AXIS_PREFIXES / _NODE_AXIS_PREFIXES / _EITHER_AXIS_PREFIXES so "
+        f"the non-vacuity guard knows what to require"
+    )
 
 
 def _assert_discriminates(side_name, label, probed, baseline, name):
@@ -594,22 +625,6 @@ def _assert_discriminates(side_name, label, probed, baseline, name):
             f"even though the expression predicates over {required}: it matched "
             f"no {required}, so its parity case is vacuous"
         )
-
-
-def test_every_expr_declares_an_axis():
-    """Every expression name falls in a known family, so none defaults silently.
-
-    `_required_axis` reads the name. A typo, or a new family added without a
-    prefix, would silently return None and relax the guard to "either axis" —
-    which is exactly the loophole the guard exists to close.
-    """
-    known = _EDGE_AXIS_PREFIXES + _NODE_AXIS_PREFIXES + _EITHER_AXIS_PREFIXES
-    unclassified = [name for name in EXPRS if not name.startswith(known)]
-    assert unclassified == [], (
-        f"expressions with no declared axis family: {unclassified} — add the "
-        f"prefix to _EDGE_AXIS_PREFIXES / _NODE_AXIS_PREFIXES / "
-        f"_EITHER_AXIS_PREFIXES so the non-vacuity guard knows what to require"
-    )
 
 
 # Unfiltered probe values, memoized per side: the matrix asks for them once per
@@ -669,7 +684,9 @@ _UNIVERSAL_EXPRS = {
     ),
     "universal.view_not": (
         lambda: ~f.Graph.layer("knows"),
-        "negating a view scope does not exclude entities from the result",
+        "negating a view scope does not exclude entities from the result; the "
+        "intended semantics are undecided (#2718), so this pins today's no-op "
+        "rather than endorsing it",
     ),
 }
 
@@ -825,6 +842,17 @@ FILTER_SITES = {
         lambda g, e: g.nodes.neighbours.filter(e),
         _probe_path_from_graph,
     ),
+    "edges": (lambda g: g.edges, lambda g, e: g.edges.filter(e), _probe_edges_view),
+    "edge": (
+        lambda g: g.edge("hub", "spoke2"),
+        lambda g, e: g.edge("hub", "spoke2").filter(e),
+        _probe_edge_view,
+    ),
+    "nested_edges": (
+        lambda g: g.nodes.edges,
+        lambda g, e: g.nodes.edges.filter(e),
+        _probe_nested_edges,
+    ),
 }
 
 # Expressions applied at every filter site: one per family, each chosen to be
@@ -835,8 +863,8 @@ SITE_EXPRS = [
     "node.name.contains",
     "node.type.eq",
     "degree.le",
-    "source.node.metadata.eq",
-    "source.node.temporal.first",
+    "node.metadata.eq",
+    "node.temporal.first",
     "edge.prop.gt",
     "edge.src.name.eq",
     "comb.and",
@@ -901,8 +929,8 @@ GETITEM_SITES = {
             "node.id.starts_with",
             "node.name.fuzzy",
             "degree.le",
-            "source.node.metadata.eq",
-            "source.node.temporal.first",
+            "node.metadata.eq",
+            "node.temporal.first",
             "comb.and",
             "comb.not",
             "comb.nested_3",
@@ -920,7 +948,7 @@ GETITEM_SITES = {
             "edge.dst.type.eq",
             "edge.src.property.gt",
             "edge.src.name.fuzzy",
-            "source.edge.metadata.is_some",
+            "edge.metadata.is_some",
             "comb.edge_or",
             "comb.edge_not",
             "exploded.prop.gt",
@@ -1004,6 +1032,7 @@ REJECTED_EXPRS = {
     "reject.unknown_property": lambda: f.Node.property("nope") > 1,
     "reject.unknown_metadata": lambda: f.Node.metadata("nope") > 1,
     "reject.degree_vs_str": lambda: f.Node.degree() > "x",
+    # `avg` is F64 and `len` is U64, so neither accepts a plain Python int here.
 }
 
 
@@ -1109,57 +1138,6 @@ def test_is_in_with_a_mistyped_value_matches_nothing_on_both_sides(filter_pair):
         )
 
 
-# --- divergence ledger ------------------------------------------------------
-
-# Local↔remote filter gaps found by this module. Each is replayed below as a
-# strict xfail, so the day it closes the suite goes red and the entry has to be
-# deleted here and in `_parity.py`.
-FILTER_GAP_CASES = [
-    # ExplodedEdge expressions — predicates AND property/metadata reads — now
-    # cross the wire; they are in the matrix above (`EXPLODED_EXPRS`).
-    # Remote-only application sites: the local Edge / Edges / NestedEdges have
-    # no `filter` at all (locally, filtering is a node-view-op plus GraphView).
-    (
-        "filter.edges.filter",
-        lambda g: sorted(
-            (e.src.name, e.dst.name)
-            for e in g.edges.filter(f.Edge.property("weight") > 2.0)
-        ),
-    ),
-    (
-        "filter.edge.filter",
-        lambda g: g.edge("hub", "spoke2")
-        .filter(f.Edge.property("weight") > 2.0)
-        .src.name,
-    ),
-    (
-        "filter.nested_edges.filter",
-        lambda g: sorted(
-            sorted((e.src.name, e.dst.name) for e in sub)
-            for sub in g.nodes.edges.filter(f.Edge.property("weight") > 2.0)
-        ),
-    ),
-]
-
-_GAP_IDS = [f"{key}-{i}" for i, (key, _) in enumerate(FILTER_GAP_CASES)]
-
-
-@pytest.mark.parametrize(
-    "key,fn",
-    [
-        pytest.param(
-            key,
-            fn,
-            marks=pytest.mark.xfail(reason=KNOWN_GAPS[key], strict=True),
-            id=case_id,
-        )
-        for (key, fn), case_id in zip(FILTER_GAP_CASES, _GAP_IDS)
-    ],
-)
-def test_filter_known_gap(filter_pair, key, fn):
-    assert_parity(filter_pair, fn)
-
-
 # `[expr]` with general (non-kind-typed) expressions: select on the wire now
 # takes GqlFilter, so graph-view / node / mixed expressions narrow membership
 # the same way local core select does.
@@ -1239,8 +1217,6 @@ UNREACHABLE_FILTER_FORMS = ["filter.node.by_state_column"]
 
 def test_filter_gap_cases_are_all_ledgered():
     """Every gap this module knows about corresponds to a KNOWN_GAPS entry."""
-    for key, _ in FILTER_GAP_CASES:
-        assert key in KNOWN_GAPS, f"gap case {key!r} missing from KNOWN_GAPS ledger"
     for key in UNREACHABLE_FILTER_FORMS:
         assert key in KNOWN_GAPS, f"unreachable form {key!r} missing from KNOWN_GAPS"
 

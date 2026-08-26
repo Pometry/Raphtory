@@ -1,3 +1,4 @@
+use super::view_ops::py_remote_view_ops;
 use crate::{
     client::{remote_path_from_graph::RemotePathFromGraph, ClientError},
     python::client::{
@@ -47,23 +48,11 @@ impl PyRemotePathFromGraph {
 
 #[pymethods]
 impl PyRemotePathFromGraph {
-    /// Time-window this collection. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     start (TimeInput): inclusive start of the window.
-    ///     end (TimeInput): exclusive end of the window.
-    ///
-    /// Returns:
-    ///     RemotePathFromGraph: a new collection restricted to the window.
-    pub fn window(&self, start: InputTime, end: InputTime) -> PyRemotePathFromGraph {
-        PyRemotePathFromGraph::new(self.path.window(start, end))
-    }
-
     /// Filter this collection by a node filter. **Propagates** to downstream
     /// traversals from the matching nodes. Lazy — no RPC.
     ///
     /// Arguments:
-    ///     filter (FilterExpr): a node filter expression from `raphtory.filter`.
+    ///     filter (filter.FilterExpr): a node filter expression from `raphtory.filter`.
     ///
     /// Returns:
     ///     RemotePathFromGraph: a new collection with the filter applied.
@@ -76,27 +65,6 @@ impl PyRemotePathFromGraph {
             .try_as_filter_tree()
             .map_err(|e| PyValueError::new_err(e.to_string()))?;
         Ok(PyRemotePathFromGraph::new(self.path.filter(tree)?))
-    }
-
-    /// Narrow this collection's membership by a filter expression — node
-    /// predicates, graph views, or and/or/not combinations of them — applies
-    /// only at this step; downstream traversals see the unfiltered graph.
-    /// Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     filter (FilterExpr): a filter expression from `raphtory.filter`.
-    ///
-    /// Returns:
-    ///     RemotePathFromGraph: a new collection narrowed to matching nodes.
-    ///
-    /// Raises:
-    ///     Exception: if the expression tests edges rather than nodes — the
-    ///         same error the local engine raises.
-    ///     ValueError: if the filter cannot be sent over the wire.
-    pub fn select(&self, filter: PyFilterExpr) -> PyResult<PyRemotePathFromGraph> {
-        Ok(PyRemotePathFromGraph::new(
-            self.path.select(node_subscript(&filter)?)?,
-        ))
     }
 
     /// `path[filter]` — narrow this collection's membership by a filter
@@ -116,186 +84,9 @@ impl PyRemotePathFromGraph {
     ///         same error the local `PathFromGraph.__getitem__` raises.
     ///     ValueError: if the filter cannot be sent over the wire.
     fn __getitem__(&self, filter: PyFilterExpr) -> PyResult<PyRemotePathFromGraph> {
-        self.select(filter)
-    }
-
-    /// Restrict to a single named layer. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     name (str): the name of the layer.
-    ///
-    /// Returns:
-    ///     RemotePathFromGraph: a new collection restricted to that layer.
-    pub fn layer(&self, name: &str) -> PyRemotePathFromGraph {
-        PyRemotePathFromGraph::new(self.path.layer(name))
-    }
-
-    /// Snapshot at a specific time. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     time (TimeInput): the time to snapshot at.
-    ///
-    /// Returns:
-    ///     RemotePathFromGraph: a new collection snapshotted at that time.
-    pub fn at(&self, time: InputTime) -> PyRemotePathFromGraph {
-        PyRemotePathFromGraph::new(self.path.at(time))
-    }
-
-    /// Restrict to events strictly before the given time. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     time (TimeInput): only events strictly before this time are kept.
-    ///
-    /// Returns:
-    ///     RemotePathFromGraph: a new collection restricted to events before that time.
-    pub fn before(&self, time: InputTime) -> PyRemotePathFromGraph {
-        PyRemotePathFromGraph::new(self.path.before(time))
-    }
-
-    /// Restrict to events strictly after the given time. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     time (TimeInput): only events strictly after this time are kept.
-    ///
-    /// Returns:
-    ///     RemotePathFromGraph: a new collection restricted to events after that time.
-    pub fn after(&self, time: InputTime) -> PyRemotePathFromGraph {
-        PyRemotePathFromGraph::new(self.path.after(time))
-    }
-
-    /// Latest state. Lazy — no RPC.
-    ///
-    /// Returns:
-    ///     RemotePathFromGraph: a new collection of the latest state.
-    pub fn latest(&self) -> PyRemotePathFromGraph {
-        PyRemotePathFromGraph::new(self.path.latest())
-    }
-
-    /// Snapshot at the latest time. Lazy — no RPC.
-    ///
-    /// Returns:
-    ///     RemotePathFromGraph: a new collection snapshotted at the latest time.
-    pub fn snapshot_latest(&self) -> PyRemotePathFromGraph {
-        PyRemotePathFromGraph::new(self.path.snapshot_latest())
-    }
-
-    /// Snapshot at a specific time. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     time (TimeInput): the time to snapshot at.
-    ///
-    /// Returns:
-    ///     RemotePathFromGraph: a new collection snapshotted at that time.
-    pub fn snapshot_at(&self, time: InputTime) -> PyRemotePathFromGraph {
-        PyRemotePathFromGraph::new(self.path.snapshot_at(time))
-    }
-
-    /// Exclude a specific layer. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     name (str): the name of the layer to exclude.
-    ///
-    /// Returns:
-    ///     RemotePathFromGraph: a new collection with that layer excluded.
-    pub fn exclude_layer(&self, name: &str) -> PyRemotePathFromGraph {
-        PyRemotePathFromGraph::new(self.path.exclude_layer(name))
-    }
-
-    /// Shrink both start and end of the current window. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     start (TimeInput): the new inclusive start of the window.
-    ///     end (TimeInput): the new exclusive end of the window.
-    ///
-    /// Returns:
-    ///     RemotePathFromGraph: a new collection with both window bounds shrunk.
-    pub fn shrink_window(&self, start: InputTime, end: InputTime) -> PyRemotePathFromGraph {
-        PyRemotePathFromGraph::new(self.path.shrink_window(start, end))
-    }
-
-    /// Shrink the start of the current window. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     start (TimeInput): the new inclusive start of the window.
-    ///
-    /// Returns:
-    ///     RemotePathFromGraph: a new collection with the window start shrunk.
-    pub fn shrink_start(&self, start: InputTime) -> PyRemotePathFromGraph {
-        PyRemotePathFromGraph::new(self.path.shrink_start(start))
-    }
-
-    /// Shrink the end of the current window. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     end (TimeInput): the new exclusive end of the window.
-    ///
-    /// Returns:
-    ///     RemotePathFromGraph: a new collection with the window end shrunk.
-    pub fn shrink_end(&self, end: InputTime) -> PyRemotePathFromGraph {
-        PyRemotePathFromGraph::new(self.path.shrink_end(end))
-    }
-
-    /// Restrict to the default layer. Lazy — no RPC.
-    ///
-    /// Returns:
-    ///     RemotePathFromGraph: a new collection restricted to the default layer.
-    pub fn default_layer(&self) -> PyRemotePathFromGraph {
-        PyRemotePathFromGraph::new(self.path.default_layer())
-    }
-
-    /// Restrict to the given set of layers. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     names (list[str]): the names of the layers.
-    ///
-    /// Returns:
-    ///     RemotePathFromGraph: a new collection restricted to those layers.
-    pub fn layers(&self, names: Vec<String>) -> PyRemotePathFromGraph {
-        PyRemotePathFromGraph::new(self.path.layers(names))
-    }
-
-    /// Exclude the given set of layers. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     names (list[str]): the names of the layers to exclude.
-    ///
-    /// Returns:
-    ///     RemotePathFromGraph: a new collection with those layers excluded.
-    pub fn exclude_layers(&self, names: Vec<String>) -> PyRemotePathFromGraph {
-        PyRemotePathFromGraph::new(self.path.exclude_layers(names))
-    }
-
-    /// Restrict to the given set of valid layers. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     names (list[str]): the names of the valid layers.
-    ///
-    /// Returns:
-    ///     RemotePathFromGraph: a new collection restricted to those valid layers.
-    pub fn valid_layers(&self, names: Vec<String>) -> PyRemotePathFromGraph {
-        PyRemotePathFromGraph::new(self.path.valid_layers(names))
-    }
-
-    /// Exclude a specific valid layer from the view. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     name (str): the name of the valid layer to exclude.
-    ///
-    /// Returns:
-    ///     RemotePathFromGraph: a new collection with that valid layer excluded.
-    pub fn exclude_valid_layer(&self, name: &str) -> PyRemotePathFromGraph {
-        PyRemotePathFromGraph::new(self.path.exclude_valid_layer(name))
-    }
-
-    /// Exclude the given set of valid layers from the view. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     names (list[str]): the names of the valid layers to exclude.
-    ///
-    /// Returns:
-    ///     RemotePathFromGraph: a new collection with those valid layers excluded.
-    pub fn exclude_valid_layers(&self, names: Vec<String>) -> PyRemotePathFromGraph {
-        PyRemotePathFromGraph::new(self.path.exclude_valid_layers(names))
+        Ok(PyRemotePathFromGraph::new(
+            self.path.select(node_subscript(&filter)?)?,
+        ))
     }
 
     /// Restrict this collection to members whose node type is in the given
@@ -451,15 +242,6 @@ impl PyRemotePathFromGraph {
         PyRemotePropertiesView::new(self.path.properties())
     }
 
-    /// Returns the number of source paths in this collection. Fires one RPC.
-    ///
-    /// Returns:
-    ///     int: the number of source paths.
-    pub fn count(&self) -> Result<i64, ClientError> {
-        let path = Arc::clone(&self.path);
-        execute_async_task(move || async move { path.count().await })
-    }
-
     /// Returns the degree of each node, grouped per source node. Fires one RPC.
     ///
     /// Returns:
@@ -533,13 +315,13 @@ impl PyRemotePathFromGraph {
     /// `len(path)` — number of source paths in the collection. Fires one RPC.
     pub fn __len__(&self) -> Result<usize, ClientError> {
         let path = Arc::clone(&self.path);
-        Ok(execute_async_task(move || async move { path.count().await })?.max(0) as usize)
+        Ok(execute_async_task(move || async move { path.len().await })?.max(0) as usize)
     }
 
     /// `bool(path)` — whether the collection is non-empty. Fires one RPC.
     pub fn __bool__(&self) -> Result<bool, ClientError> {
         let path = Arc::clone(&self.path);
-        Ok(execute_async_task(move || async move { path.count().await })? > 0)
+        Ok(execute_async_task(move || async move { path.len().await })? > 0)
     }
 
     /// View start bound for this collection — `None` if unbounded. Property —
@@ -615,3 +397,5 @@ impl PyRemotePathFromGraphIter {
         slf.inner.next()
     }
 }
+
+py_remote_view_ops!(PyRemotePathFromGraph, path, "RemotePathFromGraph");

@@ -31,7 +31,7 @@ use raphtory::{
         },
         projections::temporal_bipartite_projection::temporal_bipartite_projection,
     },
-    db::graph::views::filter::Unfiltered,
+    db::graph::views::filter::Exists,
     prelude::*,
 };
 use raphtory_api::core::Direction;
@@ -267,7 +267,7 @@ pub fn graphgen_in_component_filtered(c: &mut Criterion) {
         first_node_id,
         |graph, source| {
             let node = graph.node(source.clone()).expect("source node exists");
-            in_component_filtered(node, Unfiltered).unwrap()
+            in_component_filtered(node, Exists).unwrap()
         },
     );
 }

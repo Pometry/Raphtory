@@ -16,7 +16,7 @@ use crate::{
                 LazyNodeState, NodeStateOps,
             },
             view::{
-                filter_ops::NodeSelect,
+                filter_ops::Select,
                 history::History,
                 internal::{
                     DynOrMutableGraph, DynamicGraph, IntoDynHop, IntoDynamic, IntoDynamicOrMutable,
@@ -37,8 +37,8 @@ use crate::{
         filter::filter_expr::PyFilterExpr,
         graph::{
             history::{NestedHistoryIterable, PyHistory},
-            node::internal::InternalFilter,
             properties::{MetadataListList, MetadataView, PropertiesView, PyNestedPropsIterable},
+            sorting::PyNodeSortBy,
         },
         types::{iterable::FromIterable, repr::StructReprBuilder, wrappers::iterables::*},
         utils::PyNodeRef,
@@ -46,11 +46,7 @@ use crate::{
     *,
 };
 use pyo3::{
-    exceptions::{PyKeyError, PyTypeError},
-    prelude::*,
-    pybacked::PyBackedStr,
-    pyclass, pymethods,
-    types::PyDict,
+    exceptions::PyTypeError, prelude::*, pybacked::PyBackedStr, pyclass, pymethods, types::PyDict,
     Borrowed, IntoPyObjectExt, Py, PyAny, PyResult, Python,
 };
 use python::{
@@ -261,14 +257,6 @@ impl PyNode {
     ///     bool:
     pub fn is_active(&self) -> bool {
         self.node.is_active()
-    }
-
-    //******  Python  ******//
-    pub fn __getitem__(&self, name: &str) -> PyResult<Prop> {
-        self.node
-            .properties()
-            .get(name)
-            .ok_or(PyKeyError::new_err(format!("Unknown property {}", name)))
     }
 }
 
@@ -508,6 +496,19 @@ impl PyNodes {
     fn __getitem__(&self, filter: PyFilterExpr) -> PyResult<PyNodes> {
         let r = self.nodes.select(filter)?;
         Ok(PyNodes::from(r))
+    }
+
+    /// Reorder this collection by an ordered list of sort keys. Multi-key
+    /// sort is lexicographic (ties on key 1 break to key 2).
+    ///
+    /// Arguments:
+    ///     sort_bys (list[NodeSortBy]): the ordered sort keys.
+    ///
+    /// Returns:
+    ///     Nodes: a new collection in the sorted order.
+    fn sorted(&self, sort_bys: Vec<PyNodeSortBy>) -> PyNodes {
+        let sort_bys: Vec<_> = sort_bys.into_iter().map(|s| s.inner).collect();
+        PyNodes::from(self.nodes.sorted(&sort_bys))
     }
 }
 
@@ -1003,13 +1004,8 @@ impl<'graph, G: GraphViewOps<'graph>> Repr for PathFromGraph<'graph, G> {
 
 impl<G: StaticGraphViewOps + IntoDynamic> From<PathFromGraph<'static, G>> for PyPathFromGraph {
     fn from(value: PathFromGraph<'static, G>) -> Self {
-        Self {
-            path: PathFromGraph {
-                base_graph: value.base_graph.into_dynamic(),
-                op: value.op,
-                nodes: value.nodes,
-            },
-        }
+        let path = value.into_dyn_hop();
+        Self { path }
     }
 }
 
@@ -1046,12 +1042,8 @@ impl_iterable_mixin!(
 
 impl<G: StaticGraphViewOps + IntoDynamic> From<PathFromNode<'static, G>> for PyPathFromNode {
     fn from(value: PathFromNode<'static, G>) -> Self {
-        Self {
-            path: PathFromNode {
-                base_graph: value.base_graph.clone().into_dynamic(),
-                op: value.op.clone(),
-            },
-        }
+        let path = value.into_dyn_hop();
+        Self { path }
     }
 }
 

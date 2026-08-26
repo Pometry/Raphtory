@@ -65,7 +65,7 @@ use storage::{persist::strategy::PersistenceStrategy, Config, Extension};
 /// information about a graph. The trait has associated types
 /// that are used to define the type of the nodes, edges
 /// and the corresponding iterators.
-pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
+pub trait GraphViewOps<'graph>: GraphView + 'graph {
     /// Return an iterator over all edges in the graph.
     fn edges(&self) -> Edges<'graph, Self>;
 
@@ -132,6 +132,23 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     /// Get the `EventTime` of the latest activity in the graph.
     fn latest_time(&self) -> Option<EventTime>;
 
+    /// Get the `EventTime` of the earliest edge activity in the graph.
+    ///
+    /// Unlike [`earliest_time`](Self::earliest_time), this ignores node-only
+    /// and graph-property events, so it answers "when did this graph first
+    /// have an edge". `None` when the view has no edges.
+    fn earliest_edge_time(&self) -> Option<EventTime> {
+        self.edges().earliest_time().flatten().min()
+    }
+
+    /// Get the `EventTime` of the latest edge activity in the graph.
+    ///
+    /// The edge-only counterpart of [`latest_time`](Self::latest_time);
+    /// `None` when the view has no edges.
+    fn latest_edge_time(&self) -> Option<EventTime> {
+        self.edges().latest_time().flatten().max()
+    }
+
     /// Return the number of nodes in the graph.
     fn count_nodes(&self) -> usize;
 
@@ -171,84 +188,75 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
 
 #[inline]
 fn edges_inner<'graph, G: GraphView + 'graph>(g: &G, locked: bool) -> Edges<'graph, G> {
-    let graph = g.clone();
-    let trusted_node_list = graph.node_list_trusted();
-
-    let edges: Arc<dyn Fn() -> BoxedLIter<'graph, EdgeRef> + Send + Sync + 'graph> =
-        match graph.node_list() {
-            NodeList::List { elems } => {
-                // The `node_edges` function below trusts the local node (it only filters
-                // the remote endpoint of each edge). For an untrusted node list, — e.g. the intersection of an enumerable filter with a non-enumerable one,
-                // as produced by `AndFilteredGraph::node_list` — we need to explicitly filter the local node as well.
-                if trusted_node_list {
-                    Arc::new(move || {
-                        let graph = graph.clone();
-                        let gs = if locked {
-                            graph.core_graph().lock()
-                        } else {
-                            graph.core_graph().clone()
-                        };
-                        elems
-                            .clone()
-                            .into_iter()
-                            .flat_map(move |node| {
-                                node_edges(gs.clone(), graph.clone(), node, Direction::OUT)
-                            })
-                            .into_dyn_boxed()
-                    })
-                } else {
-                    Arc::new(move || {
-                        let gs = if locked {
-                            graph.core_graph().lock()
-                        } else {
-                            graph.core_graph().clone()
-                        };
-                        let graph = graph.clone();
-                        let graph_copy = graph.clone();
-                        let gs_copy = gs.clone();
-                        elems
-                            .clone()
-                            .into_iter()
-                            .filter(move |node| {
-                                // layer/window/edge filters are handled below, only explict node filters need to be handled here
-                                graph_copy.internal_filter_node(
-                                    gs_copy.core_node(*node).as_ref(),
-                                    graph_copy.layer_ids(),
-                                )
-                            })
-                            .flat_map(move |node| {
-                                node_edges(gs.clone(), graph.clone(), node, Direction::OUT)
-                            })
-                            .into_dyn_boxed()
-                    })
-                }
-            }
-            NodeList::All => Arc::new(move || {
-                let layer_ids = graph.layer_ids().clone();
+    let edges: Arc<
+        dyn Fn(DynGraphArc<'graph>) -> BoxedLIter<'graph, EdgeRef> + Send + Sync + 'graph,
+    > = Arc::new(move |graph| match graph.node_list() {
+        NodeList::List { elems } => {
+            // The `node_edges` function below trusts the local node (it only filters
+            // the remote endpoint of each edge). For an untrusted node list, — e.g. the intersection of an enumerable filter with a non-enumerable one,
+            // as produced by `AndFilteredGraph::node_list` — we need to explicitly filter the local node as well.
+            if graph.node_list_trusted() {
                 let graph = graph.clone();
                 let gs = if locked {
                     graph.core_graph().lock()
                 } else {
                     graph.core_graph().clone()
                 };
+                elems
+                    .clone()
+                    .into_iter()
+                    .flat_map(move |node| {
+                        node_edges(gs.clone(), graph.clone(), node, Direction::OUT)
+                    })
+                    .into_dyn_boxed()
+            } else {
+                let gs = if locked {
+                    graph.core_graph().lock()
+                } else {
+                    graph.core_graph().clone()
+                };
+                let graph = graph.clone();
+                let graph_copy = graph.clone();
+                let gs_copy = gs.clone();
+                elems
+                    .clone()
+                    .into_iter()
+                    .filter(move |node| {
+                        // layer/window/edge filters are handled below, only explict node filters need to be handled here
+                        graph_copy.internal_filter_node(
+                            gs_copy.core_node(*node).as_ref(),
+                            graph_copy.layer_ids(),
+                        )
+                    })
+                    .flat_map(move |node| {
+                        node_edges(gs.clone(), graph.clone(), node, Direction::OUT)
+                    })
+                    .into_dyn_boxed()
+            }
+        }
+        NodeList::All => {
+            let layer_ids = graph.layer_ids().clone();
+            let graph = graph.clone();
+            let gs = if locked {
+                graph.core_graph().lock()
+            } else {
+                graph.core_graph().clone()
+            };
 
-                GenLockedIter::from((gs, layer_ids, graph), move |(gs, layer_ids, graph)| {
-                    let edges = gs.edges();
-                    let iter = edges.iter(layer_ids);
-                    if graph.filtered_excluding_layers() {
-                        iter.filter_map(|e| graph.filter_edge(e.as_ref()).then(|| e.out_ref()))
-                            .into_dyn_boxed()
-                    } else {
-                        iter.map(|e| e.out_ref()).into_dyn_boxed()
-                    }
-                })
-                .into_dyn_boxed()
-            }),
-        };
-    Edges {
-        base_graph: g.clone(),
-        edges,
-    }
+            GenLockedIter::from((gs, layer_ids, graph), move |(gs, layer_ids, graph)| {
+                let edges = gs.edges();
+                let iter = edges.iter(layer_ids);
+                if graph.filtered_excluding_layers() {
+                    iter.filter_map(|e| graph.filter_edge(e.as_ref()).then(|| e.out_ref()))
+                        .into_dyn_boxed()
+                } else {
+                    iter.map(|e| e.out_ref()).into_dyn_boxed()
+                }
+            })
+            .into_dyn_boxed()
+        }
+    });
+    Edges::new(g.clone(), edges)
 }
 
 fn df_view_from_record_batch(
@@ -924,13 +932,13 @@ where
     G: GraphView + 'graph,
 {
     type Graph = G;
-    type Filtered<Next: GraphViewOps<'graph> + 'graph> = Next;
+    type Filtered<Next: GraphView + 'graph + 'graph> = Next;
 
     fn base_graph(&self) -> &Self::Graph {
         self
     }
 
-    fn apply_filter<Next: GraphViewOps<'graph> + 'graph>(
+    fn apply_filter<Next: GraphView + 'graph + 'graph>(
         &self,
         filtered_graph: Next,
     ) -> Self::Filtered<Next> {

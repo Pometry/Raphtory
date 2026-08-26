@@ -125,6 +125,41 @@ fn cast_optional_wrapper_list<T>(
     }
 }
 
+// ============ Prop-shaped record decoding ============
+//
+// The structured terminals (e.g. `schema`) arrive as one `Prop` tree; these
+// unwrap its pieces with a context for the error, mirroring the `expect_*`
+// family above, which does the same for whole `Transport::execute` results.
+
+/// Unwrap a `Prop::Str` field of a decoded record.
+pub(crate) fn prop_str(prop: Prop, context: &str) -> Result<String, ClientError> {
+    match prop {
+        Prop::Str(s) => Ok(s.to_string()),
+        _ => Err(ClientError::InvalidResponse(format!(
+            "`{}` expected Prop::Str",
+            context
+        ))),
+    }
+}
+
+/// Unwrap a `Prop::List` field of a decoded record.
+pub(crate) fn prop_list(prop: Prop, context: &str) -> Result<Vec<Prop>, ClientError> {
+    match prop {
+        Prop::List(items) => Ok(items.iter().collect()),
+        _ => Err(ClientError::InvalidResponse(format!(
+            "`{}` expected Prop::List",
+            context
+        ))),
+    }
+}
+
+/// Look up a required key in a decoded `Prop::Map` record.
+pub(crate) fn prop_map_get(map: &PropMap, key: &str) -> Result<Prop, ClientError> {
+    map.get(key)
+        .cloned()
+        .ok_or_else(|| ClientError::InvalidResponse(format!("record missing `{}`", key)))
+}
+
 /// A `Prop::Str` cast producing an owned `String`.
 fn into_string(p: Prop) -> Option<String> {
     p.into_str().map(|s| s.to_string())
@@ -277,58 +312,42 @@ pub(crate) fn expect_property_list(
     }
 }
 
-/// Unwrap a flat columnar property/metadata result — a `Prop::List` where each
-/// element is itself a `Prop::List` of `{key, value}` records (one inner list
-/// per collection member). Used by the collection-level `RemoteMetadataView` /
-/// `RemotePropertiesView` on flat collections.
+/// Unwrap a columnar property/metadata fetch: a `Prop::List` of columns, each
+/// a `Prop::List` of per-member optionals (`[]` absent, `[v]` present).
+///
+/// The wire carries one aliased field per requested column, so the response is
+/// already column-shaped — there is no key to match and nothing to pivot.
 pub(crate) fn expect_columnar_property_list(
     v: Option<Prop>,
     context: &str,
-) -> Result<Vec<Vec<(String, Prop)>>, ClientError> {
+) -> Result<Vec<Vec<Option<Prop>>>, ClientError> {
     match v {
-        Some(Prop::List(members)) => members
+        Some(Prop::List(columns)) => columns
             .iter()
-            .map(|member| match member {
-                Prop::List(pairs) => pairs
-                    .iter()
-                    .map(|p| match p {
-                        Prop::Map(map) => extract_key_value_pair(&*map, context),
-                        _ => Err(ClientError::InvalidResponse(format!(
-                            "`{}` entry not a Prop::Map",
-                            context
-                        ))),
-                    })
-                    .collect(),
-                _ => Err(ClientError::InvalidResponse(format!(
-                    "`{}` member not a Prop::List",
-                    context
-                ))),
-            })
+            .map(|column| cast_optional_wrapper_list(Some(column), Some, context))
             .collect(),
-        _ => Err(ClientError::InvalidResponse(format!(
-            "`{}` returned unexpected value type",
-            context
-        ))),
+        _ => Err(unexpected(context)),
     }
 }
 
-/// Unwrap a nested columnar property/metadata result — a `Prop::List` of
-/// per-source `Prop::List`s, each holding per-member `Prop::List`s of
-/// `{key, value}` records. Used by the collection-level views on nested
-/// collections (`PathFromGraph` / `NestedEdges`).
+/// Nested variant: a `Prop::List` of columns, each a `Prop::List` of sources,
+/// each a `Prop::List` of per-member optionals.
 pub(crate) fn expect_nested_columnar_property_list(
     v: Option<Prop>,
     context: &str,
-) -> Result<Vec<Vec<Vec<(String, Prop)>>>, ClientError> {
+) -> Result<Vec<Vec<Vec<Option<Prop>>>>, ClientError> {
     match v {
-        Some(Prop::List(sources)) => sources
+        Some(Prop::List(columns)) => columns
             .iter()
-            .map(|source| expect_columnar_property_list(Some(source.clone()), context))
+            .map(|column| match column {
+                Prop::List(sources) => sources
+                    .iter()
+                    .map(|source| cast_optional_wrapper_list(Some(source), Some, context))
+                    .collect(),
+                _ => Err(unexpected(context)),
+            })
             .collect(),
-        _ => Err(ClientError::InvalidResponse(format!(
-            "`{}` returned unexpected value type",
-            context
-        ))),
+        _ => Err(unexpected(context)),
     }
 }
 

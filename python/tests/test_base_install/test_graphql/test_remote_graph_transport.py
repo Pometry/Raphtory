@@ -8,7 +8,7 @@ RPC model:
 - Selection methods `.node()` / `.edge()` fire one validation RPC each (via
   hasNode / hasEdge) and return `None` if the id isn't present in the current
   view (matching the local `Graph.node -> Optional[Node]`).
-- Terminals (`.degree()`, `.earliest_time()`, `.count()`, ...) fire one RPC
+- Terminals (`.degree()`, `.earliest_time()`, `len(...)`, ...) fire one RPC
   evaluating the accumulated read expression.
 - Writes (`.add_node()`, `.add_edge()`, ...) always fire an RPC.
 """
@@ -18,20 +18,14 @@ import tempfile
 
 import pytest
 
-from raphtory.graphql import EdgeSortBy, GraphServer, NodeSortBy, SortByTime
+from raphtory import EdgeSortBy, NodeSortBy, SortByTime
+from raphtory.graphql import GraphServer
 
-# The shared server-startup context manager lives in test_utils so every test
+# The shared server-startup context managers live in test_utils so every test
 # file stands servers up the same way; population differs per test, so callers
 # add their own nodes/edges to the yielded handle.
+from utils import remote_graph as _remote_graph
 from utils import remote_graph_server as _remote_graph_and_client
-
-
-@contextlib.contextmanager
-def _remote_graph(name="g", graph_type="EVENT"):
-    """As `_remote_graph_and_client`, yielding just the `RemoteGraph` — the
-    fixture nearly every test wants."""
-    with _remote_graph_and_client(name, graph_type) as (rg, _client):
-        yield rg
 
 
 @contextlib.contextmanager
@@ -62,11 +56,11 @@ def test_view_boundary_semantics():
         # _make_graph_with_edge already has ben->hamza at t=3.
         rg.add_edge(10, "x", "y")  # x->y has a single event, exactly at t=10
         # after(t) is strictly after — an event exactly at t is excluded.
-        assert rg.after(10).edges.count() == 0
-        assert rg.after(9).edges.count() == 1  # only x->y (t=10)
+        assert len(rg.after(10).edges) == 0
+        assert len(rg.after(9).edges) == 1  # only x->y (t=10)
         # at(t) includes exactly t; before(t) excludes it.
-        assert rg.at(10).edges.count() == 1  # only x->y
-        assert rg.before(10).edges.count() == 1  # only ben->hamza (t=3)
+        assert len(rg.at(10).edges) == 1  # only x->y
+        assert len(rg.before(10).edges) == 1  # only ben->hamza (t=3)
 
 
 def test_event_id_precise_windowing():
@@ -122,10 +116,10 @@ def test_view_ops_accept_str_and_datetime():
 
     with _make_graph_with_edge() as rg:
         # ben->hamza is at t=3 (ms since epoch → 1970-01-01T00:00:00.003Z).
-        assert rg.window("1970-01-01", "2000-01-01").edges.count() == 1  # ISO strings
+        assert len(rg.window("1970-01-01", "2000-01-01").edges) == 1  # ISO strings
         aware = _dt.datetime(1970, 1, 1, tzinfo=_dt.timezone.utc)  # epoch 0
-        assert rg.after(aware).edges.count() == 1  # t=3 is after epoch start
-        assert rg.before("1970-01-01").edges.count() == 0  # nothing before epoch
+        assert len(rg.after(aware).edges) == 1  # t=3 is after epoch start
+        assert len(rg.before("1970-01-01").edges) == 0  # nothing before epoch
 
 
 def test_add_updates_event_id_precise():
@@ -145,8 +139,8 @@ def test_empty_graph_reads():
     counts are 0, collections are empty, and the graph's earliest/latest time
     are `None` (not a phantom event time)."""
     with _remote_graph("empty") as rg:
-        assert rg.nodes.count() == 0
-        assert rg.edges.count() == 0
+        assert len(rg.nodes) == 0
+        assert len(rg.edges) == 0
         assert rg.nodes.collect() == []
         assert rg.edges.collect() == []
         assert rg.earliest_time.is_none()
@@ -298,7 +292,7 @@ def test_node_id_type_and_state():
 
 def test_snapshot_latest_exclude_shrink_view_ops():
     """`.snapshot_at()`, `.latest()`, `.snapshot_latest()`, `.exclude_layer()`,
-    `.shrink_window()`, `.shrink_end()` — all lazy builders that compose with
+    `.shrink_end()` — all lazy builders that compose with
     terminals."""
     with _make_graph_with_edge() as rg:
         # `.snapshot_at(3)` — snapshot at t=3, edge is visible.
@@ -310,9 +304,6 @@ def test_snapshot_latest_exclude_shrink_view_ops():
         # `.exclude_layer("_default")` — the edge was added on the default layer,
         # so excluding it should remove the edge from view (ben degree = 0).
         assert rg.exclude_layer("_default").node("ben").degree() == 0
-        # `.shrink_window` — first widen with window(0, 10), then shrink to [1, 3).
-        # Shrunk view excludes edge at t=3.
-        assert rg.window(0, 10).shrink_window(1, 3).node("ben").degree() == 0
         # `.shrink_end(3)` — after window(0, 10), narrow to end=3.
         assert rg.window(0, 10).shrink_end(3).node("ben").degree() == 0
 
@@ -355,10 +346,10 @@ def test_default_layer_and_valid():
 
 def test_nodes_collection():
     """`rg.nodes` accessor returns a `RemoteNodes` collection with `.id`,
-    `.count()`, and `.collect()` terminals."""
+    `len()`, and `.collect()` terminals."""
     with _make_graph_with_edge() as rg:
         nodes = rg.nodes
-        assert nodes.count() == 2
+        assert len(nodes) == 2
         assert sorted(nodes.id) == ["ben", "hamza"]
 
         # Materialize as RemoteNode handles, then read a scalar off each.
@@ -453,11 +444,11 @@ def test_edge_selection_and_navigation():
 
 
 def test_edges_collection():
-    """`rg.edges` accessor returns a `RemoteEdges` collection with `.count()`
+    """`rg.edges` accessor returns a `RemoteEdges` collection with `len()`
     and `.collect()` terminals. Edge ids are `(src, dst)` pairs, via `.id`."""
     with _make_graph_with_edge() as rg:
         edges = rg.edges
-        assert edges.count() == 1
+        assert len(edges) == 1
 
         # Materialize as RemoteEdge handles; navigate back to endpoints.
         remote_edges = edges.collect()
@@ -486,14 +477,14 @@ def test_node_edge_collections():
     with _make_graph_with_edge() as rg:
         ben = rg.node("ben")
         # ben → hamza: ben has one out-edge, zero in-edges.
-        assert ben.out_edges.count() == 1
-        assert ben.in_edges.count() == 0
-        assert ben.edges.count() == 1
+        assert len(ben.out_edges) == 1
+        assert len(ben.in_edges) == 0
+        assert len(ben.edges) == 1
 
         hamza = rg.node("hamza")
-        assert hamza.in_edges.count() == 1
-        assert hamza.out_edges.count() == 0
-        assert hamza.edges.count() == 1
+        assert len(hamza.in_edges) == 1
+        assert len(hamza.out_edges) == 0
+        assert len(hamza.edges) == 1
 
         # The single out-edge from ben goes to hamza.
         out_pairs = [(e.src.name, e.dst.name) for e in ben.out_edges.collect()]
@@ -517,41 +508,56 @@ def test_graph_metadata_timestamps():
 
 
 def test_graph_edge_time_terminals():
-    """`earliest_edge_time` / `latest_edge_time` return event timestamps under
-    the current view. Nullable — empty view returns None."""
+    """`earliest_edge_time` / `latest_edge_time` are getters returning an
+    `EventTime`, matching the local `Graph` getters of the same name. Empty
+    when the view has no edges."""
+    from raphtory import Graph
+
     with _make_graph_with_edge() as rg:
         # Only one edge, added at t=3.
-        assert rg.earliest_edge_time() == 3
-        assert rg.latest_edge_time() == 3
+        assert rg.earliest_edge_time.t == 3
+        assert rg.latest_edge_time.t == 3
 
         # Add another edge at t=8. Range becomes [3, 8].
         rg.add_edge(8, "ben", "hamza")
-        assert rg.earliest_edge_time() == 3
-        assert rg.latest_edge_time() == 8
+        assert rg.earliest_edge_time.t == 3
+        assert rg.latest_edge_time.t == 8
 
         # Windowed view narrows the range.
-        assert rg.window(0, 5).earliest_edge_time() == 3
-        assert rg.window(0, 5).latest_edge_time() == 3
-        assert rg.window(6, 10).earliest_edge_time() == 8
+        assert rg.window(0, 5).earliest_edge_time.t == 3
+        assert rg.window(0, 5).latest_edge_time.t == 3
+        assert rg.window(6, 10).earliest_edge_time.t == 8
 
-        # Window with no edge events returns None.
-        assert rg.window(100, 200).earliest_edge_time() is None
-        assert rg.window(100, 200).latest_edge_time() is None
+        # Window with no edge events is empty on both sides.
+        assert rg.window(100, 200).earliest_edge_time.t is None
+        assert rg.window(100, 200).latest_edge_time.t is None
+
+        # Parity: the local graph exposes the same getters, and unlike
+        # `earliest_time` these ignore node-only events.
+        lg = Graph()
+        lg.add_node(1, "solo")
+        lg.add_edge(3, "ben", "hamza")
+        lg.add_edge(8, "ben", "hamza")
+        assert lg.earliest_time.t == 1  # node event counts here
+        assert lg.earliest_edge_time.t == 3  # but not here
+        assert lg.latest_edge_time.t == 8
+        assert rg.earliest_edge_time.t == lg.earliest_edge_time.t
+        assert rg.latest_edge_time.t == lg.latest_edge_time.t
 
 
 def test_node_update_time_terminals():
-    """`first_update` / `last_update` on a node return the range of event
-    timestamps that touched this node under the current view."""
+    """A node's update range comes from its history, as it does locally —
+    there is no separate `first_update` / `last_update` spelling."""
     with _make_graph_with_edge() as rg:
         # ben has add_node at t=1 and add_edge (ben, hamza) at t=3.
         ben = rg.node("ben")
-        assert ben.first_update() == 1
-        assert ben.last_update() == 3
+        assert ben.history.earliest_time().t == 1
+        assert ben.history.latest_time().t == 3
 
         # Windowed view narrows the range — only the t=3 edge event visible.
         ben_windowed = rg.window(2, 5).node("ben")
-        assert ben_windowed.first_update() == 3
-        assert ben_windowed.last_update() == 3
+        assert ben_windowed.history.earliest_time().t == 3
+        assert ben_windowed.history.latest_time().t == 3
 
 
 def test_absent_node_or_edge_returns_none():
@@ -619,22 +625,20 @@ def test_node_view_chain_builders():
         # Chaining works — window then out_neighbours.
         neighbours = ben.window(0, 5).out_neighbours.id
         assert neighbours == ["hamza"]
-        assert ben.window(100, 200).out_neighbours.count() == 0
+        assert len(ben.window(100, 200).out_neighbours) == 0
 
         # Chain after selection order commutes with pre-selection.
         assert ben.window(0, 5).degree() == rg.window(0, 5).node("ben").degree()
 
 
 def test_node_shrink_builders():
-    """`.shrink_window`, `.shrink_start`, `.shrink_end` narrow an existing window."""
+    """`.shrink_start`, `.shrink_end` narrow one bound of an existing window."""
     with _make_graph_with_edge() as rg:
         rg.add_edge(8, "ben", "hamza")
         # Start from a wide window, then shrink it.
         wide = rg.node("ben").window(0, 100)
         assert wide.edge_history_count() == 2
 
-        # Shrink both ends.
-        assert wide.shrink_window(0, 5).edge_history_count() == 1
         # Shrink start only — cuts off t=3, keeps t=8.
         assert wide.shrink_start(5).edge_history_count() == 1
         # Shrink end only — keeps t=3, cuts off t=8.
@@ -645,15 +649,15 @@ def test_edge_read_terminals():
     """Read terminals on RemoteEdge — time, layer, id, bool state — mirror
     the shape of the Node terminals under the current view."""
     with _make_graph_with_edge() as rg:
-        # Second edge event on the same pair at t=8, so we can distinguish
-        # first_update vs last_update on the edge itself.
+        # Second edge event on the same pair at t=8, so the edge's history
+        # spans a range.
         rg.add_edge(8, "ben", "hamza")
         e = rg.edge("ben", "hamza")
         # Time-range terminals.
         assert e.earliest_time == 3
         assert e.latest_time == 8
-        assert e.first_update() == 3
-        assert e.last_update() == 8
+        assert e.history.earliest_time().t == 3
+        assert e.history.latest_time().t == 8
 
         # Id — pair of endpoint ids.
         assert e.id == ("ben", "hamza")
@@ -679,8 +683,8 @@ def test_edge_read_terminals():
         e_win = rg.window(0, 5).edge("ben", "hamza")
         assert e_win.earliest_time == 3
         assert e_win.latest_time == 3
-        assert e_win.first_update() == 3
-        assert e_win.last_update() == 3
+        assert e_win.history.earliest_time().t == 3
+        assert e_win.history.latest_time().t == 3
 
 
 def test_edge_self_loop_and_absent():
@@ -716,28 +720,28 @@ def test_collection_view_chain_builders():
         # materialized `.nodes` / `.edges` handle doesn't change its count.
         # Contrast with pre-selection (`rg.window(...).nodes`) where the graph-
         # level view filters membership. Same semantics as node/edge selection.
-        assert rg.nodes.window(0, 5).count() == 2
-        assert rg.nodes.window(100, 200).count() == 2  # sticky!
-        assert rg.window(100, 200).nodes.count() == 0  # graph-level filters
+        assert len(rg.nodes.window(0, 5)) == 2
+        assert len(rg.nodes.window(100, 200)) == 2  # sticky!
+        assert len(rg.window(100, 200).nodes) == 0  # graph-level filters
         # Same story on edges — collection membership sticks; view narrows.
-        assert rg.edges.window(0, 5).count() == 1
-        assert rg.edges.window(100, 200).count() == 1  # sticky
-        assert rg.window(100, 200).edges.count() == 0  # graph-level filters
+        assert len(rg.edges.window(0, 5)) == 1
+        assert len(rg.edges.window(100, 200)) == 1  # sticky
+        assert len(rg.window(100, 200).edges) == 0  # graph-level filters
 
         # at / before / after / latest / snapshot compose without membership change on nodes.
-        assert rg.nodes.at(3).count() == 2
-        assert rg.nodes.before(5).count() == 2
-        assert rg.nodes.after(5).count() == 2
-        assert rg.nodes.latest().count() == 2
-        assert rg.nodes.snapshot_latest().count() == 2
-        assert rg.nodes.snapshot_at(3).count() == 2
+        assert len(rg.nodes.at(3)) == 2
+        assert len(rg.nodes.before(5)) == 2
+        assert len(rg.nodes.after(5)) == 2
+        assert len(rg.nodes.latest()) == 2
+        assert len(rg.nodes.snapshot_latest()) == 2
+        assert len(rg.nodes.snapshot_at(3)) == 2
 
         # Layer ops on edges — same sticky semantics: count unchanged, view narrows.
-        assert rg.edges.default_layer().count() == 1
-        assert rg.edges.layer("_default").count() == 1
-        assert rg.edges.layers(["_default"]).count() == 1
-        assert rg.edges.exclude_layer("_default").count() == 1
-        assert rg.edges.exclude_layers(["_default"]).count() == 1
+        assert len(rg.edges.default_layer()) == 1
+        assert len(rg.edges.layer("_default")) == 1
+        assert len(rg.edges.layers(["_default"])) == 1
+        assert len(rg.edges.exclude_layer("_default")) == 1
+        assert len(rg.edges.exclude_layers(["_default"])) == 1
 
         # `.start` reflects the collection's own view bound.
         assert rg.nodes.window(0, 5).start == 0
@@ -783,7 +787,7 @@ def test_history_scalar_terminals_on_node():
     with _make_graph_with_edge() as rg:
         # Node ben: add_node at t=1, add_edge (ben, hamza) at t=3 → 2 events.
         h = rg.node("ben").history  # property, not method
-        assert h.count() == 2
+        assert len(h) == 2
         assert h.is_empty() is False
         assert h.earliest_time() == 1
         assert h.latest_time() == 3
@@ -792,7 +796,7 @@ def test_history_scalar_terminals_on_node():
         # but the node selection itself is validated at .node() and passes
         # because ben exists in the outer view).
         h_windowed = rg.node("ben").window(100, 200).history
-        assert h_windowed.count() == 0
+        assert len(h_windowed) == 0
         assert h_windowed.is_empty() is True
         assert h_windowed.earliest_time().is_none()
         assert h_windowed.latest_time().is_none()
@@ -806,13 +810,13 @@ def test_history_scalar_terminals_on_edge():
         e = rg.edge("ben", "hamza")
 
         h = e.history
-        assert h.count() == 1
+        assert len(h) == 1
         assert h.is_empty() is False
         assert h.earliest_time() == 3
         assert h.latest_time() == 3
 
         d = e.deletions
-        assert d.count() == 0
+        assert len(d) == 0
         assert d.is_empty() is True
         assert d.earliest_time().is_none()
         assert d.latest_time().is_none()
@@ -880,7 +884,10 @@ def test_graph_schema():
         user_schema = next(n for n in schema.nodes if n.type_name == "user")
         score_prop = next((p for p in user_schema.properties if p.key == "score"), None)
         assert score_prop is not None
-        assert score_prop.property_type == "F64"  # the float 1.5 above
+        # A real PropType, compared by equality — not a rendered string.
+        from raphtory import PropType
+
+        assert score_prop.property_type == PropType.f64()  # the float 1.5 above
 
         # user node type has "role" metadata
         role_meta = next((p for p in user_schema.metadata if p.key == "role"), None)
@@ -1013,7 +1020,7 @@ def test_temporal_properties_histories():
 
 def test_temporal_property_terminals():
     """`RemoteTemporalProperty` core methods: `.history`, `.values()`,
-    `.at(t)`, `.latest()`, `.count()`."""
+    `.at(t)`, `.value()`, `.count()`."""
     with _make_graph_with_edge() as rg:
         # score: 1.5 at t=5, 2.5 at t=10, 3.5 at t=15
         rg.node("ben").add_updates(5, properties={"score": 1.5})
@@ -1028,8 +1035,8 @@ def test_temporal_property_terminals():
         vals = score.values()
         assert vals == [1.5, 2.5, 3.5]
 
-        # latest — most recent value
-        assert score.latest() == 3.5
+        # value — most recent value, matching the local `TemporalProperty.value`
+        assert score.value() == 3.5
 
         # at(t) — value at or before t
         assert score.at(5) == 1.5
@@ -1042,7 +1049,7 @@ def test_temporal_property_terminals():
 
         # history — reuses RemoteHistory
         hist = score.history
-        assert hist.count() == 3
+        assert len(hist) == 3
         assert hist.collect()[0].t == 5
 
 
@@ -1162,7 +1169,7 @@ def test_edge_explode():
         e = rg.edge("ben", "hamza")
         # 3 events on this edge: t=3, t=5, t=8.
         exploded = e.explode()
-        assert exploded.count() == 3
+        assert len(exploded) == 3
 
         # Each exploded instance still points at (ben, hamza).
         for ex in exploded.collect():
@@ -1171,7 +1178,7 @@ def test_edge_explode():
 
         # Layer explode — only one layer here so should be 1 entry.
         by_layer = e.explode_layers()
-        assert by_layer.count() == 1
+        assert len(by_layer) == 1
 
 
 def test_edges_explode():
@@ -1184,7 +1191,7 @@ def test_edges_explode():
         rg.add_edge(7, "ben", "sam")
         # Total events across both edges: 2 + 1 = 3.
         exploded = rg.edges.explode()
-        assert exploded.count() == 3
+        assert len(exploded) == 3
 
 
 def test_node_in_out_component():
@@ -1200,7 +1207,7 @@ def test_node_in_out_component():
         # Out-component from ben: {hamza, sam, tom} (descendants, excludes ben).
         out = rg.node("ben").out_component
         assert sorted(out.id) == ["hamza", "sam", "tom"]
-        assert out.count() == 3
+        assert len(out) == 3
 
         # In-component of tom: {ben, hamza, sam}.
         into_tom = rg.node("tom").in_component
@@ -1212,7 +1219,7 @@ def test_node_in_out_component():
 
         # Terminal node in out-direction: tom's out-component is empty.
         assert rg.node("tom").out_component.id == []
-        assert rg.node("tom").out_component.count() == 0
+        assert len(rg.node("tom").out_component) == 0
 
         # Composes with view — under a window that only sees ben->hamza,
         # ben's out-component shrinks to {hamza}.
@@ -1235,25 +1242,25 @@ def test_nodes_type_filter():
         # Add a third node with no type.
         rg.add_node(4, "sam")
         all_nodes = rg.nodes
-        assert all_nodes.count() == 3
+        assert len(all_nodes) == 3
 
         # Filter to only "user" nodes.
         users = all_nodes.type_filter(["user"])
-        assert users.count() == 1
+        assert len(users) == 1
         assert users.id == ["ben"]
 
         # Filter to multiple types.
         both = all_nodes.type_filter(["user", "bot"])
-        assert both.count() == 2
+        assert len(both) == 2
         assert sorted(both.id) == ["ben", "hamza"]
 
         # Filter to nonexistent type — empty collection.
         empty = all_nodes.type_filter(["nonexistent"])
-        assert empty.count() == 0
+        assert len(empty) == 0
         assert empty.id == []
 
         # Filter is composable — narrow further by a window.
-        assert all_nodes.type_filter(["user"]).window(0, 5).count() == 1
+        assert len(all_nodes.type_filter(["user"]).window(0, 5)) == 1
 
 
 def test_nodes_type_filter_with_windowed_view():
@@ -1270,7 +1277,7 @@ def test_nodes_type_filter_with_windowed_view():
         # window; then type_filter filters by type. Only ben matches "user"
         # in [0, 5) window.
         pre_windowed = rg.window(0, 5).nodes.type_filter(["user"])
-        assert pre_windowed.count() == 1
+        assert len(pre_windowed) == 1
         assert pre_windowed.id == ["ben"]
 
         # Materialize under the windowed filter — `.collect()` returns handles
@@ -1283,11 +1290,11 @@ def test_nodes_type_filter_with_windowed_view():
 
         # (b) Sticky-selection: nodes fixed at 3, then windowed view narrows
         # (sticky, count unchanged), then type_filter shrinks to matching type.
-        assert rg.nodes.window(0, 5).type_filter(["user"]).count() == 2
+        assert len(rg.nodes.window(0, 5).type_filter(["user"])) == 2
 
         # (c) Filter first, then window (still sticky — filter shrunk to 2,
         # window narrows view of those 2, count unchanged at 2).
-        assert rg.nodes.type_filter(["user"]).window(0, 5).count() == 2
+        assert len(rg.nodes.type_filter(["user"]).window(0, 5)) == 2
 
 
 def test_history_sub_containers():
@@ -1372,7 +1379,7 @@ def test_history_page_and_page_rev():
         rg.add_edge(7, "ben", "hamza")
         rg.add_edge(9, "ben", "hamza")
         h = rg.node("ben").history
-        assert h.count() == 5
+        assert len(h) == 5
 
         # Full first page — limit=2, no offset, no page_index.
         page = h.page(limit=2)
@@ -1430,7 +1437,7 @@ def test_history_records_deletion_event():
         rg.delete_edge(10, "ben", "hamza")
 
         e = rg.edge("ben", "hamza")
-        assert e.deletions.count() == 1
+        assert len(e.deletions) == 1
         assert e.deletions.earliest_time() == 10
 
 
@@ -1532,14 +1539,13 @@ def test_edge_view_chain_builders():
 
 
 def test_edge_shrink_builders():
-    """`.shrink_window`, `.shrink_start`, `.shrink_end` narrow an existing window."""
+    """`.shrink_start`, `.shrink_end` narrow one bound of an existing window."""
     with _make_graph_with_edge() as rg:
         rg.add_edge(8, "ben", "hamza")
         wide = rg.edge("ben", "hamza").window(0, 100)
         assert wide.earliest_time == 3
         assert wide.latest_time == 8
 
-        assert wide.shrink_window(0, 5).latest_time == 3
         # shrink_start cuts t=3, keeps t=8.
         assert wide.shrink_start(5).earliest_time == 8
         # shrink_end keeps t=3, cuts t=8.
@@ -1627,7 +1633,7 @@ def test_nodes_sorted_is_lazy_and_composable():
     with _make_graph_with_edge() as rg:
         sorted_nodes = rg.nodes.sorted([NodeSortBy.by_id()])
         # Terminal still works — count == 2.
-        assert sorted_nodes.count() == 2
+        assert len(sorted_nodes) == 2
         # `.collect()` returns full node handles in sorted order.
         materialized = sorted_nodes.collect()
         assert [n.name for n in materialized] == sorted(n.name for n in materialized)
@@ -1861,7 +1867,7 @@ def test_remote_path_from_node_terminals():
     with _make_graph_with_edge() as rg:
         ben = rg.node("ben")
         assert ben.out_neighbours.id == ["hamza"]
-        assert ben.out_neighbours.count() == 1
+        assert len(ben.out_neighbours) == 1
         materialized = ben.out_neighbours.collect()
         assert [n.name for n in materialized] == ["hamza"]
         assert [n.name for n in ben.out_neighbours] == ["hamza"]
@@ -1956,7 +1962,7 @@ def test_select_nodes_by_name_eq():
     from raphtory.filter import Node
 
     with _make_filter_graph() as rg:
-        narrowed = rg.nodes.select(Node.name() == "ben").collect()
+        narrowed = rg.nodes[Node.name() == "ben"].collect()
         assert [n.name for n in narrowed] == ["ben"]
 
 
@@ -1965,7 +1971,7 @@ def test_select_nodes_by_name_contains():
     from raphtory.filter import Node
 
     with _make_filter_graph() as rg:
-        narrowed = rg.nodes.select(Node.name().contains("b")).collect()
+        narrowed = rg.nodes[Node.name().contains("b")].collect()
         names = sorted(n.name for n in narrowed)
         assert names == ["ben", "bob"]
 
@@ -1975,7 +1981,7 @@ def test_select_nodes_by_property_gt():
     from raphtory.filter import Node
 
     with _make_filter_graph() as rg:
-        narrowed = rg.nodes.select(Node.property("score") > 12.0).collect()
+        narrowed = rg.nodes[Node.property("score") > 12.0].collect()
         names = sorted(n.name for n in narrowed)
         assert names == ["alice", "bob"]
 
@@ -1986,7 +1992,7 @@ def test_select_nodes_and_combinator():
 
     with _make_filter_graph() as rg:
         combined = (Node.name().contains("b")) & (Node.property("score") > 12.0)
-        narrowed = rg.nodes.select(combined).collect()
+        narrowed = rg.nodes[combined].collect()
         assert [n.name for n in narrowed] == ["bob"]
 
 
@@ -1996,7 +2002,7 @@ def test_select_nodes_or_combinator():
 
     with _make_filter_graph() as rg:
         combined = (Node.name() == "ben") | (Node.property("score") < 6.0)
-        narrowed = rg.nodes.select(combined).collect()
+        narrowed = rg.nodes[combined].collect()
         names = sorted(n.name for n in narrowed)
         assert names == ["ben", "hamza"]
 
@@ -2006,56 +2012,51 @@ def test_select_nodes_not_combinator():
     from raphtory.filter import Node
 
     with _make_filter_graph() as rg:
-        narrowed = rg.nodes.select(~(Node.name() == "ben")).collect()
+        narrowed = rg.nodes[~(Node.name() == "ben")].collect()
         names = sorted(n.name for n in narrowed)
         assert names == ["alice", "bob", "hamza"]
 
 
 def test_select_nodes_returns_lazy_handle():
-    """`.select()` returns a `RemoteNodes` — terminals (`.count()`,
+    """`[]` returns a `RemoteNodes` — terminals (`.count()`,
     `.id`, `.collect()`) all work on it."""
     from raphtory.filter import Node
 
     with _make_filter_graph() as rg:
-        narrowed = rg.nodes.select(Node.property("score") >= 10.0)
-        assert narrowed.count() == 3
+        narrowed = rg.nodes[Node.property("score") >= 10.0]
+        assert len(narrowed) == 3
         assert sorted(narrowed.id) == ["alice", "ben", "bob"]
 
 
 def test_select_nodes_composes_with_view_chain():
-    """`.select()` chains with view ops (`.window()`) — both narrow the
+    """`[]` chains with view ops (`.window()`) — both narrow the
     resulting collection."""
     from raphtory.filter import Node
 
     with _make_filter_graph() as rg:
         # Window [0, 3) sees only ben (t=1) and hamza (t=2). Then filter by
         # score > 6 leaves just ben (score=10).
-        narrowed = rg.window(0, 3).nodes.select(Node.property("score") > 6.0).collect()
+        narrowed = rg.window(0, 3).nodes[Node.property("score") > 6.0].collect()
         assert [n.name for n in narrowed] == ["ben"]
 
 
 def test_select_nodes_can_chain():
-    """Chained `.select()` calls compose — server applies each in turn."""
+    """Chained `[]` calls compose — server applies each in turn."""
     from raphtory.filter import Node
 
     with _make_filter_graph() as rg:
         # First select narrows to names containing "b"; second narrows to
         # score > 12 — only bob remains.
-        narrowed = (
-            rg.nodes.select(Node.name().contains("b"))
-            .select(Node.property("score") > 12.0)
-            .collect()
-        )
+        narrowed = rg.nodes[Node.name().contains("b")][
+            Node.property("score") > 12.0
+        ].collect()
         assert [n.name for n in narrowed] == ["bob"]
 
 
 def test_filter_nodes_preserves_membership():
-    """A *property* `.filter()` on `RemoteNodes` does NOT narrow the current
-    collection — the returned collection retains all original members; the
-    predicate is retained for downstream traversals. Contrast with `.select()`,
-    which narrows membership at this step, and with a node-id filter (e.g.
-    `Node.name() == ...`), which the engine applies as a graph view and so does
-    narrow — matching local raphtory."""
+    """`.filter()` keeps every member; only what they report downstream is
+    filtered. (`[]` is the one that narrows membership.) Matches local
+    raphtory."""
     from raphtory.filter import Node
 
     with _make_filter_graph() as rg:
@@ -2134,7 +2135,7 @@ def test_select_edges_by_property_gt():
     from raphtory.filter import Edge
 
     with _make_edge_filter_graph() as rg:
-        narrowed = rg.edges.select(Edge.property("weight") > 12.0).collect()
+        narrowed = rg.edges[Edge.property("weight") > 12.0].collect()
         assert _edge_pairs(narrowed) == [("alice", "bob"), ("bob", "hamza")]
 
 
@@ -2143,7 +2144,7 @@ def test_select_edges_by_src_name():
     from raphtory.filter import Edge
 
     with _make_edge_filter_graph() as rg:
-        narrowed = rg.edges.select(Edge.src().name() == "ben").collect()
+        narrowed = rg.edges[Edge.src().name() == "ben"].collect()
         assert _edge_pairs(narrowed) == [("ben", "alice"), ("ben", "hamza")]
 
 
@@ -2152,7 +2153,7 @@ def test_select_edges_by_dst_name():
     from raphtory.filter import Edge
 
     with _make_edge_filter_graph() as rg:
-        narrowed = rg.edges.select(Edge.dst().name() == "hamza").collect()
+        narrowed = rg.edges[Edge.dst().name() == "hamza"].collect()
         assert _edge_pairs(narrowed) == [("ben", "hamza"), ("bob", "hamza")]
 
 
@@ -2163,7 +2164,7 @@ def test_select_edges_and_combinator():
 
     with _make_edge_filter_graph() as rg:
         combined = (Edge.src().name() == "ben") & (Edge.property("weight") > 6.0)
-        narrowed = rg.edges.select(combined).collect()
+        narrowed = rg.edges[combined].collect()
         assert _edge_pairs(narrowed) == [("ben", "hamza")]
 
 
@@ -2173,7 +2174,7 @@ def test_select_edges_or_combinator():
 
     with _make_edge_filter_graph() as rg:
         combined = (Edge.property("weight") > 18.0) | (Edge.src().name() == "ben")
-        narrowed = rg.edges.select(combined).collect()
+        narrowed = rg.edges[combined].collect()
         assert _edge_pairs(narrowed) == [
             ("alice", "bob"),
             ("ben", "alice"),
@@ -2186,18 +2187,18 @@ def test_select_edges_not_combinator():
     from raphtory.filter import Edge
 
     with _make_edge_filter_graph() as rg:
-        narrowed = rg.edges.select(~(Edge.dst().name() == "hamza")).collect()
+        narrowed = rg.edges[~(Edge.dst().name() == "hamza")].collect()
         assert _edge_pairs(narrowed) == [("alice", "bob"), ("ben", "alice")]
 
 
 def test_select_edges_returns_lazy_handle():
-    """`.select()` returns a `RemoteEdges` — terminals (`.count()`, `.collect()`)
+    """`[]` returns a `RemoteEdges` — terminals (`.count()`, `.collect()`)
     all work on it."""
     from raphtory.filter import Edge
 
     with _make_edge_filter_graph() as rg:
-        narrowed = rg.edges.select(Edge.property("weight") >= 10.0)
-        assert narrowed.count() == 3
+        narrowed = rg.edges[Edge.property("weight") >= 10.0]
+        assert len(narrowed) == 3
         assert _edge_pairs(narrowed.collect()) == [
             ("alice", "bob"),
             ("ben", "hamza"),
@@ -2206,36 +2207,34 @@ def test_select_edges_returns_lazy_handle():
 
 
 def test_select_edges_composes_with_view_chain():
-    """`.select()` chains with view ops (`.window()`) — both narrow the
+    """`[]` chains with view ops (`.window()`) — both narrow the
     resulting collection."""
     from raphtory.filter import Edge
 
     with _make_edge_filter_graph() as rg:
         # Window [0, 3) sees only ben-hamza (t=1) and ben-alice (t=2). Then
         # filter by weight > 6 leaves just ben-hamza (weight=10).
-        narrowed = rg.window(0, 3).edges.select(Edge.property("weight") > 6.0).collect()
+        narrowed = rg.window(0, 3).edges[Edge.property("weight") > 6.0].collect()
         assert _edge_pairs(narrowed) == [("ben", "hamza")]
 
 
 def test_select_edges_can_chain():
-    """Chained `.select()` calls compose — server applies each in turn."""
+    """Chained `[]` calls compose — server applies each in turn."""
     from raphtory.filter import Edge
 
     with _make_edge_filter_graph() as rg:
         # First select narrows to edges out of ben; second narrows to
         # weight > 6 — only ben-hamza remains.
-        narrowed = (
-            rg.edges.select(Edge.src().name() == "ben")
-            .select(Edge.property("weight") > 6.0)
-            .collect()
-        )
+        narrowed = rg.edges[Edge.src().name() == "ben"][
+            Edge.property("weight") > 6.0
+        ].collect()
         assert _edge_pairs(narrowed) == [("ben", "hamza")]
 
 
 def test_filter_edges_preserves_membership():
     """`.filter()` on `RemoteEdges` does NOT narrow the current collection —
     the returned collection retains all original members. The filter is
-    retained for downstream traversals. Contrast with `.select()`, which
+    retained for downstream traversals. Contrast with `[]`, which
     narrows membership at this step (tested above)."""
     from raphtory.filter import Edge
 
@@ -2344,13 +2343,13 @@ def test_node_filter_accepts_edge_filter():
 
 
 def test_path_from_node_select_narrows():
-    """`.select()` on a neighbours path narrows membership at this hop."""
+    """`[]` on a neighbours path narrows membership at this hop."""
     from raphtory.filter import Node
 
     with _make_node_filter_graph() as rg:
         # ben's out-neighbours: hamza (5), alice (20), bob (15).
         # select score > 12 → alice, bob.
-        narrowed = rg.node("ben").out_neighbours.select(Node.property("score") > 12.0)
+        narrowed = rg.node("ben").out_neighbours[Node.property("score") > 12.0]
         assert sorted(narrowed.id) == ["alice", "bob"]
 
 
@@ -2393,8 +2392,10 @@ def test_nodes_out_neighbours_path_from_graph_count():
     with _make_node_filter_graph() as rg:  # ben -> hamza, alice, bob
         path = rg.nodes.out_neighbours
         assert isinstance(path, RemotePathFromGraph)
-        # 4 source nodes → 4 source paths.
-        assert path.count() == 4
+        # 4 source nodes → 4 source paths; `len` is the outer length, exactly
+        # as local `len(PathFromGraph)` is (the total neighbour count is
+        # `sum(out_degree)`, a different number).
+        assert len(path) == 4
 
 
 # --- multi-hop traversal on the two path collection types --------------------
@@ -2428,7 +2429,7 @@ def test_path_from_node_edges_flat():
         out_edges = rg.node("ben").out_neighbours.out_edges
         assert isinstance(out_edges, RemoteEdges)
         # hamza/alice/bob have no out-edges.
-        assert out_edges.count() == 0
+        assert len(out_edges) == 0
         # Their incoming edges are the three ben->X edges, flattened.
         in_edges = rg.node("ben").out_neighbours.in_edges
         assert isinstance(in_edges, RemoteEdges)
@@ -2514,7 +2515,7 @@ def test_nodes_out_neighbours_path_from_graph():
         assert all(isinstance(x, str) for row in ids for x in row)
 
         # One source path per source node.
-        assert path.count() == 4
+        assert len(path) == 4
         assert len(ids) == 4
         assert len(collected) == 4
 
@@ -2558,7 +2559,7 @@ def test_nodes_out_edges_nested_edges():
         assert all(isinstance(row, list) for row in collected)
 
         # One source edge collection per source node.
-        assert nested.count() == 4
+        assert len(nested) == 4
         assert len(collected) == 4
 
         # ben's out-edges are (ben, hamza), (ben, alice), (ben, bob); the other
@@ -2660,34 +2661,38 @@ def test_property_dtype_fidelity_remote():
 
 
 def test_collection_getitem_is_select():
-    """`nodes[filter]` / `edges[filter]` are sugar for `.select(filter)` —
+    """`nodes[filter]` / `edges[filter]` are sugar for `[filter]` —
     matching the local API, where `__getitem__` takes a FilterExpr."""
     from raphtory.filter import Edge, Node
 
     with _make_filter_graph() as rg:  # 4 nodes with a score property
-        # nodes[<node filter>] == nodes.select(<node filter>)
+        # nodes[<node filter>] == nodes[<node filter>]
         assert sorted(rg.nodes[Node.property("score") > 12.0].id) == ["alice", "bob"]
 
     with _make_edge_filter_graph() as rg:
-        # edges[<edge filter>] == edges.select(<edge filter>)
+        # edges[<edge filter>] == edges[<edge filter>]
         got = _edge_pairs(rg.edges[Edge.property("weight") > 12.0].collect())
         assert got == [("alice", "bob"), ("bob", "hamza")]
 
 
-def test_node_edge_getitem_property():
-    """`node[key]` / `edge[key]` return the property value. `node[missing]`
-    raises `KeyError`; `edge[missing]` returns `None` (matches local)."""
+def test_node_edge_property_reads_are_explicit():
+    """The `node[key]` / `edge[key]` property shortcut is gone (it hid the
+    property/metadata distinction and node vs edge disagreed on missing keys);
+    reads go through the explicit properties container on both sides."""
     import pytest
 
     with _make_graph_with_edge() as rg:
         rg.node("ben").add_updates(5, properties={"score": 2.5})
         rg.add_edge(6, "ben", "hamza", properties={"weight": 9.0})
-        assert rg.node("ben")["score"] == 2.5
-        with pytest.raises(KeyError):
-            rg.node("ben")["nonexistent"]
+        assert rg.node("ben").properties.get("score") == 2.5
+        assert rg.node("ben").properties.get("nonexistent") is None
+        assert rg.edge("ben", "hamza").properties.get("weight") == 9.0
 
-        assert rg.edge("ben", "hamza")["weight"] == 9.0
-        assert rg.edge("ben", "hamza")["nonexistent"] is None
+        # the shortcut itself is gone, matching local
+        with pytest.raises(TypeError):
+            rg.node("ben")["score"]
+        with pytest.raises(TypeError):
+            rg.edge("ben", "hamza")["weight"]
 
 
 def test_event_time_fields():
@@ -2745,12 +2750,12 @@ def test_valid_layers_view_ops():
         # On a RemoteNodes collection — returns RemoteNodes, terminal runs.
         nodes = rg.nodes.valid_layers(["_default"])
         assert type(nodes).__name__ == "RemoteNodes"
-        assert nodes.count() == 2
+        assert len(nodes) == 2
 
         # On a RemoteEdges collection — returns RemoteEdges, terminal runs.
         edges = rg.edges.exclude_valid_layer("knows")
         assert type(edges).__name__ == "RemoteEdges"
-        assert edges.count() >= 1
+        assert len(edges) >= 1
 
         # On a RemoteNode — returns RemoteNode, terminal runs.
         node = rg.node("ben").valid_layers(["_default", "knows"])
@@ -2765,7 +2770,7 @@ def test_valid_layers_view_ops():
 
 def test_temporal_properties_items_and_value():
     """`RemoteTemporalProperties.items()` pairs each key with its handle;
-    `RemoteTemporalProperty.value()` is an alias for `.latest()`."""
+    each handle's `.value()` is its most recent value."""
     with _make_graph_with_edge() as rg:
         rg.node("ben").add_updates(5, properties={"score": 1.5, "active": True})
         rg.node("ben").add_updates(10, properties={"score": 2.5})
@@ -2777,11 +2782,14 @@ def test_temporal_properties_items_and_value():
         for key, handle in items:
             assert handle.key == key
 
-        # value() == latest() for each property.
+        # value() — the most recent value of each property.
         by_key = dict(items)
-        assert by_key["score"].value() == by_key["score"].latest()
         assert by_key["score"].value() == 2.5
-        assert by_key["active"].value() == by_key["active"].latest()
+        assert by_key["active"].value() is True
+
+        # the per-property alias is gone; only the container has `latest()`.
+        assert not hasattr(by_key["score"], "latest")
+        assert tp.latest() == {"score": 2.5, "active": True}
 
 
 def test_has_layer():
@@ -2825,8 +2833,8 @@ def test_combined_history():
         ch = rg.node("ben").out_neighbours.combined_history()
         hamza_hist = rg.node("hamza").history
 
-        assert ch.count() >= 1
-        assert ch.count() == hamza_hist.count()
+        assert len(ch) >= 1
+        assert len(ch) == len(hamza_hist)
         assert sorted(e.t for e in ch.collect()) == sorted(
             e.t for e in hamza_hist.collect()
         )
@@ -2948,8 +2956,6 @@ def test_event_time_t():
     with _make_graph_with_edge() as rg:
         et = rg.node("ben").history.earliest_time()
         assert et.t == 1
-        # strict parity: the non-local name is gone.
-        assert not hasattr(et, "timestamp")
 
 
 def test_history_t_dt():
@@ -3445,35 +3451,6 @@ def _make_property_graphs():
         yield rg, lg
 
 
-def test_graph_find_nodes():
-    """`RemoteGraph.find_nodes` mirrors local `Graph.find_nodes` — nodes whose
-    latest property values match every entry in the dict."""
-    with _make_property_graphs() as (rg, lg):
-        r = sorted(n.name for n in rg.find_nodes({"score": 10}))
-        l = sorted(n.name for n in lg.find_nodes({"score": 10}))
-        assert r == l == ["a", "c"]
-
-        # No matches.
-        assert rg.find_nodes({"score": 999}) == []
-        # Two-key match narrows to a single node.
-        assert [n.name for n in rg.find_nodes({"score": 20})] == ["b"]
-
-
-def test_graph_find_edges():
-    """`RemoteGraph.find_edges` mirrors local `Graph.find_edges` — edges whose
-    latest property values match every entry in the dict."""
-    with _make_property_graphs() as (rg, lg):
-        r_kind = sorted(e.id for e in rg.find_edges({"kind": "x"}))
-        l_kind = sorted(e.id for e in lg.find_edges({"kind": "x"}))
-        assert r_kind == l_kind == [("a", "b"), ("b", "c")]
-
-        r_w = sorted(e.id for e in rg.find_edges({"w": 1.0}))
-        l_w = sorted(e.id for e in lg.find_edges({"w": 1.0}))
-        assert r_w == l_w == [("a", "b"), ("c", "a")]
-
-        assert rg.find_edges({"kind": "zzz"}) == []
-
-
 def test_graph_get_all_node_types():
     """`RemoteGraph.get_all_node_types` mirrors local
     `Graph.get_all_node_types`."""
@@ -3512,14 +3489,15 @@ def test_edges_src_dst_nbr():
         redges = rg.edges
         rids = redges.id  # list[(str, str)]
         # Local edge ids are already string tuples for string-named nodes.
-        lids = list(lg.edges.id)
+        # The local accessors are re-iterable views, so no materializing.
+        lids = lg.edges.id
 
         r_src = dict(zip(rids, redges.src.name))
         r_dst = dict(zip(rids, redges.dst.name))
         r_nbr = dict(zip(rids, redges.nbr.name))
-        l_src = dict(zip(lids, list(lg.edges.src.name)))
-        l_dst = dict(zip(lids, list(lg.edges.dst.name)))
-        l_nbr = dict(zip(lids, list(lg.edges.nbr.name)))
+        l_src = dict(zip(lids, lg.edges.src.name))
+        l_dst = dict(zip(lids, lg.edges.dst.name))
+        l_nbr = dict(zip(lids, lg.edges.nbr.name))
 
         assert r_src == l_src
         assert r_dst == l_dst
@@ -3660,6 +3638,65 @@ def _make_columnar_property_graphs():
             g.add_edge(3, "b", "c")
             g.edge("a", "b").add_metadata({"em": 9})
         yield rg, lg
+
+
+def test_collection_keys_registry_semantics():
+    """Collection keys() reports the graph's REGISTERED keys for the entity
+    kind, not the keys one member happens to carry, and an empty collection
+    reports no keys — matching local. Members here carry disjoint key sets,
+    so a first-member read would under-report."""
+    from raphtory import Graph
+    from raphtory import filter as flt
+
+    with _remote_graph("keysg") as rg:
+        lg = Graph()
+        for g in (rg, lg):
+            g.add_node(1, "a", {"alpha": 1})
+            g.add_node(1, "b", {"beta": 2})
+            g.add_node(1, "c", {"gamma": 3})
+            g.node("b").add_metadata({"mb": 1})
+            g.node("c").add_metadata({"mc": 2})
+            g.add_edge(1, "a", "b", {"ek": 1})
+            g.add_edge(1, "b", "c", {"ew": 2})
+
+        # flat collections: the registry, not the first member's keys.
+        assert set(rg.nodes.properties.keys()) == set(lg.nodes.properties.keys())
+        assert set(rg.nodes.properties.keys()) == {"alpha", "beta", "gamma"}
+        assert set(rg.nodes.metadata.keys()) == set(lg.nodes.metadata.keys())
+        assert set(rg.nodes.metadata.keys()) == {"mb", "mc"}
+        assert set(rg.edges.properties.keys()) == set(lg.edges.properties.keys())
+        assert set(rg.edges.properties.keys()) == {"ek", "ew"}
+
+        # nested collection: same registry answer even though the first
+        # source's first member carries only one of the keys.
+        assert set(rg.nodes.neighbours.properties.keys()) == set(
+            lg.nodes.neighbours.properties.keys()
+        )
+        assert set(rg.nodes.neighbours.properties.keys()) == {
+            "alpha",
+            "beta",
+            "gamma",
+        }
+
+        # a filtered collection still reports the full registry — keys are
+        # graph-level, not member-derived (matching local).
+        expr = flt.Node.name().is_in(["a", "b"])
+        assert set(rg.nodes[expr].properties.keys()) == set(
+            lg.nodes[expr].properties.keys()
+        )
+        assert set(rg.nodes[expr].properties.keys()) == {"alpha", "beta", "gamma"}
+
+        # ...but an EMPTY collection reports no keys on both sides.
+        none = flt.Node.name() == "zzz"
+        assert rg.nodes[none].properties.keys() == []
+        assert list(lg.nodes[none].properties.keys()) == []
+        assert rg.nodes[none].metadata.keys() == []
+
+        # values()/as_dict() drive off keys(), so every registered column now
+        # arrives — including ones the first member lacks.
+        assert set(rg.nodes.properties.as_dict()) == set(
+            dict(lg.nodes.properties.as_dict())
+        )
 
 
 def test_nodes_earliest_latest_time_getters():

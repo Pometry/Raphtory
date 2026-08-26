@@ -1,5 +1,5 @@
 use crate::{
-    core::storage::lazy_vec::IllegalSet,
+    algorithms::dynamics::temporal::epidemics::SeedError, core::storage::lazy_vec::IllegalSet,
     db::graph::views::filter::model::filter_operator::FilterOperator, prelude::GraphViewOps,
 };
 use arrow::{datatypes::DataType, error::ArrowError};
@@ -31,12 +31,14 @@ use storage::{error::StorageError, resolver::mapping_resolver::InvalidNodeId};
 #[cfg(feature = "python")]
 use pyo3::PyErr;
 
-use crate::algorithms::dynamics::temporal::epidemics::SeedError;
 #[cfg(feature = "io")]
 use zip::result::ZipError;
 
 #[cfg(feature = "vectors")]
 use crate::vectors::embeddings::EmbeddingError;
+
+#[cfg(any(feature = "vectors", feature = "io"))]
+use tempfile::PersistError;
 
 #[derive(thiserror::Error, Debug)]
 pub enum InvalidPathReason {
@@ -117,6 +119,10 @@ pub fn into_graph_err(err: impl Into<GraphError>) -> GraphError {
 pub enum GraphError {
     #[error(transparent)]
     ExternalError(Arc<dyn std::error::Error + Send + Sync>),
+
+    #[cfg(any(feature = "io", feature = "vectors"))]
+    #[error(transparent)]
+    PersistError(#[from] PersistError),
 
     #[error(transparent)]
     MutationError(#[from] MutationError),

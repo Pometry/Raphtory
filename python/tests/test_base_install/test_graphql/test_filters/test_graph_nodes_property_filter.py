@@ -441,8 +441,7 @@ def test_graph_node_type_and_property_filter(graph):
           select(expr: { node: {
             and: [
               {
-                node: {
-                  field: NODE_TYPE,
+                nodeType: {
                   where: { isIn: { list: [ {str: "fire_nation"}, {str: "water_tribe"} ] } }
                 }
               },

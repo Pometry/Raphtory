@@ -82,32 +82,32 @@ impl MetaGraph {
 /// Metagraphs are a GraphQL specific object that wraps  the normal graph functions. Metagraphs exist in memory and reduce the need to load full graphs from disk.
 impl MetaGraph {
     /// Returns the graph name.
-    async fn name(&self) -> Option<String> {
+    pub async fn name(&self) -> Option<String> {
         self.folder.get_graph_name().ok()
     }
 
     /// Returns path of graph.
-    async fn path(&self) -> String {
+    pub async fn path(&self) -> String {
         self.folder.local_path().into()
     }
 
     /// Returns the timestamp for the creation of the graph.
-    async fn created(&self) -> Result<i64> {
+    pub async fn created(&self) -> Result<i64> {
         Ok(self.folder.created_async().await?)
     }
 
     /// Returns the graph's last opened timestamp according to system time.
-    async fn last_opened(&self) -> Result<i64> {
+    pub async fn last_opened(&self) -> Result<i64> {
         Ok(self.folder.last_opened_async().await?)
     }
 
     /// Returns the graph's last updated timestamp.
-    async fn last_updated(&self) -> Result<i64> {
+    pub async fn last_updated(&self) -> Result<i64> {
         Ok(self.folder.last_updated_async().await?)
     }
 
     /// Returns the number of nodes in the graph, or null if the caller lacks unfiltered read.
-    async fn node_count(&self, ctx: &Context<'_>) -> Result<Option<usize>> {
+    pub async fn node_count(&self, ctx: &Context<'_>) -> Result<Option<usize>> {
         let data: &Data = ctx.data_unchecked();
         if !self.caller_has_full_read(ctx, data) {
             return Ok(None);
@@ -119,7 +119,7 @@ impl MetaGraph {
     ///
     /// Returns:
     ///     int:
-    async fn edge_count(&self, ctx: &Context<'_>) -> Result<Option<usize>> {
+    pub async fn edge_count(&self, ctx: &Context<'_>) -> Result<Option<usize>> {
         let data: &Data = ctx.data_unchecked();
         if !self.caller_has_full_read(ctx, data) {
             return Ok(None);
@@ -134,7 +134,7 @@ impl MetaGraph {
     /// from disk (parquet metadata for parquet-backed graphs, the
     /// `graph_props` segment for disk-backed graphs). This keeps
     /// `MetaGraph.metadata` cheap for namespace listings of many graphs.
-    async fn metadata(&self, ctx: &Context<'_>) -> Result<Option<Vec<GqlProperty>>> {
+    pub async fn metadata(&self, ctx: &Context<'_>) -> Result<Option<Vec<GqlProperty>>> {
         let data: &Data = ctx.data_unchecked();
         if !self.caller_has_full_read(ctx, data) {
             return Ok(None);

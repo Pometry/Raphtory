@@ -12,7 +12,7 @@ use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
     db::{
-        api::view::{DynamicGraph, EdgeSelect, Filter},
+        api::view::{filter_ops::Select, DynamicGraph, Filter},
         graph::{edges::NestedEdges, views::filter::model::DynFilter},
     },
     errors::GraphError,
@@ -27,8 +27,8 @@ use raphtory_api::core::utils::time::IntoTime;
 /// transforms (window, layer, filter, ...).
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "NestedEdges")]
-pub(crate) struct GqlNestedEdges {
-    pub(crate) nn: NestedEdges<'static, DynamicGraph>,
+pub struct GqlNestedEdges {
+    pub(crate) edges: NestedEdges<'static, DynamicGraph>,
 }
 
 impl GqlNestedEdges {
@@ -39,7 +39,9 @@ impl GqlNestedEdges {
 
 impl GqlNestedEdges {
     pub(crate) fn new<E: Into<NestedEdges<'static, DynamicGraph>>>(edges: E) -> Self {
-        Self { nn: edges.into() }
+        Self {
+            edges: edges.into(),
+        }
     }
 
     /// Materialise the nested structure as one `GqlEdges` per source node. Each
@@ -48,7 +50,7 @@ impl GqlNestedEdges {
     /// expressed via the object, not a `[[..]]` list (which the derive macro
     /// can't register).
     fn per_source(&self) -> Vec<GqlEdges> {
-        self.nn.iter().map(GqlEdges::new).collect()
+        self.edges.iter().map(GqlEdges::new).collect()
     }
 }
 
@@ -59,139 +61,134 @@ impl GqlNestedEdges {
     ////////////////////////
 
     /// Returns a collection containing only edges in the default edge layer.
-    async fn default_layer(&self) -> Self {
-        self.update(self.nn.default_layer())
+    pub async fn default_layer(&self) -> Self {
+        self.update(self.edges.default_layer())
     }
 
     /// Returns a collection containing only edges belonging to the listed layers.
 
-    async fn layers(
+    pub async fn layers(
         &self,
         #[graphql(desc = "Layer names to include.")] names: Vec<String>,
     ) -> Self {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.update(self_clone.nn.valid_layers(names))).await
+        blocking_compute(move || self_clone.update(self_clone.edges.valid_layers(names))).await
     }
 
     /// Returns a collection containing edges belonging to all layers except the excluded list of layers.
 
-    async fn exclude_layers(
+    pub async fn exclude_layers(
         &self,
         #[graphql(desc = "Layer names to exclude.")] names: Vec<String>,
     ) -> Self {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.update(self_clone.nn.exclude_valid_layers(names))).await
+        blocking_compute(move || self_clone.update(self_clone.edges.exclude_valid_layers(names)))
+            .await
     }
 
     /// Returns a collection containing edges belonging to the specified layer.
 
-    async fn layer(&self, #[graphql(desc = "Layer name to include.")] name: String) -> Self {
-        self.update(self.nn.valid_layers(name))
+    pub async fn layer(&self, #[graphql(desc = "Layer name to include.")] name: String) -> Self {
+        self.update(self.edges.valid_layers(name))
     }
 
     /// Returns a collection containing edges belonging to all layers except the excluded layer specified.
 
-    async fn exclude_layer(
+    pub async fn exclude_layer(
         &self,
         #[graphql(desc = "Layer name to exclude.")] name: String,
     ) -> Self {
-        self.update(self.nn.exclude_valid_layers(name))
+        self.update(self.edges.exclude_valid_layers(name))
     }
 
     /// Creates a view of the NestedEdges including all events between the specified start (inclusive) and end (exclusive).
 
-    async fn window(
+    pub async fn window(
         &self,
         #[graphql(desc = "Inclusive lower bound.")] start: GqlTimeInput,
         #[graphql(desc = "Exclusive upper bound.")] end: GqlTimeInput,
     ) -> Self {
-        self.update(self.nn.window(start.into_time(), end.into_time()))
+        self.update(self.edges.window(start.into_time(), end.into_time()))
     }
 
     /// Creates a view of the NestedEdges including all events at a specified time.
 
-    async fn at(
+    pub async fn at(
         &self,
         #[graphql(desc = "Instant to pin the view to.")] time: GqlTimeInput,
     ) -> Self {
-        self.update(self.nn.at(time.into_time()))
+        self.update(self.edges.at(time.into_time()))
     }
 
     /// View showing only the latest state of each edge (equivalent to `at(latestTime)`).
-    async fn latest(&self) -> Self {
+    pub async fn latest(&self) -> Self {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.update(self_clone.nn.latest())).await
+        blocking_compute(move || self_clone.update(self_clone.edges.latest())).await
     }
 
     /// Creates a view of the NestedEdges including all events that are valid at time.
 
-    async fn snapshot_at(
+    pub async fn snapshot_at(
         &self,
         #[graphql(desc = "Instant at which entities must be valid.")] time: GqlTimeInput,
     ) -> Self {
-        self.update(self.nn.snapshot_at(time.into_time()))
+        self.update(self.edges.snapshot_at(time.into_time()))
     }
 
     /// Creates a view of the NestedEdges including all events that are valid at the latest time.
-    async fn snapshot_latest(&self) -> Self {
+    pub async fn snapshot_latest(&self) -> Self {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.update(self_clone.nn.snapshot_latest())).await
+        blocking_compute(move || self_clone.update(self_clone.edges.snapshot_latest())).await
     }
 
     /// Creates a view of the NestedEdges including all events before a specified end (exclusive).
 
-    async fn before(&self, #[graphql(desc = "Exclusive upper bound.")] time: GqlTimeInput) -> Self {
-        self.update(self.nn.before(time.into_time()))
+    pub async fn before(
+        &self,
+        #[graphql(desc = "Exclusive upper bound.")] time: GqlTimeInput,
+    ) -> Self {
+        self.update(self.edges.before(time.into_time()))
     }
 
     /// Creates a view of the NestedEdges including all events after a specified start (exclusive).
 
-    async fn after(&self, #[graphql(desc = "Exclusive lower bound.")] time: GqlTimeInput) -> Self {
-        self.update(self.nn.after(time.into_time()))
-    }
-
-    /// Shrinks both the start and end of the window.
-
-    async fn shrink_window(
+    pub async fn after(
         &self,
-        #[graphql(desc = "Proposed new start (TimeInput); ignored if it would widen the window.")]
-        start: GqlTimeInput,
-        #[graphql(desc = "Proposed new end (TimeInput); ignored if it would widen the window.")]
-        end: GqlTimeInput,
+        #[graphql(desc = "Exclusive lower bound.")] time: GqlTimeInput,
     ) -> Self {
-        self.update(self.nn.shrink_window(start.into_time(), end.into_time()))
+        self.update(self.edges.after(time.into_time()))
     }
 
     /// Set the start of the window.
 
-    async fn shrink_start(
+    pub async fn shrink_start(
         &self,
         #[graphql(desc = "Proposed new start (TimeInput); ignored if it would widen the window.")]
         start: GqlTimeInput,
     ) -> Self {
-        self.update(self.nn.shrink_start(start.into_time()))
+        self.update(self.edges.shrink_start(start.into_time()))
     }
 
     /// Set the end of the window.
 
-    async fn shrink_end(
+    pub async fn shrink_end(
         &self,
         #[graphql(desc = "Proposed new end (TimeInput); ignored if it would widen the window.")]
         end: GqlTimeInput,
     ) -> Self {
-        self.update(self.nn.shrink_end(end.into_time()))
+        self.update(self.edges.shrink_end(end.into_time()))
     }
 
     /// Takes a specified selection of views and applies them in order given.
 
-    async fn apply_views(
+    pub async fn apply_views(
         &self,
         #[graphql(
             desc = "Ordered list of view operations; each entry is a one-of variant (`window`, `layer`, `filter`, ...) applied to the running result."
         )]
         views: Vec<EdgesViewCollection>,
     ) -> Result<GqlNestedEdges, GraphError> {
-        let mut return_view: GqlNestedEdges = self.update(self.nn.clone());
+        let mut return_view: GqlNestedEdges = self.update(self.edges.clone());
         for view in views {
             return_view = match view {
                 EdgesViewCollection::DefaultLayer(apply) => {
@@ -227,9 +224,6 @@ impl GqlNestedEdges {
                 EdgesViewCollection::At(at) => return_view.at(at).await,
                 EdgesViewCollection::Before(time) => return_view.before(time).await,
                 EdgesViewCollection::After(time) => return_view.after(time).await,
-                EdgesViewCollection::ShrinkWindow(window) => {
-                    return_view.shrink_window(window.start, window.end).await
-                }
                 EdgesViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await,
                 EdgesViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
                 EdgesViewCollection::EdgeFilter(filter) => {
@@ -246,25 +240,25 @@ impl GqlNestedEdges {
     ////////////////////////
 
     /// Returns the earliest time that this NestedEdges is valid or None if valid for all times.
-    async fn start(&self) -> GqlEventTime {
-        self.nn.start().into()
+    pub async fn start(&self) -> GqlEventTime {
+        self.edges.start().into()
     }
 
     /// Returns the latest time that this NestedEdges is valid or None if valid for all times.
-    async fn end(&self) -> GqlEventTime {
-        self.nn.end().into()
+    pub async fn end(&self) -> GqlEventTime {
+        self.edges.end().into()
     }
 
     /// Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
-    async fn window_size(&self) -> Option<i64> {
+    pub async fn window_size(&self) -> Option<i64> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.nn.window_size().map(|s| s as i64)).await
+        blocking_compute(move || self_clone.edges.window_size().map(|s| s as i64)).await
     }
 
     /// Check if a layer with the given name is present in this view.
-    async fn has_layer(&self, name: String) -> bool {
+    pub async fn has_layer(&self, name: String) -> bool {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.nn.has_layer(name)).await
+        blocking_compute(move || self_clone.edges.has_layer(name)).await
     }
 
     /////////////////////
@@ -273,35 +267,35 @@ impl GqlNestedEdges {
 
     /// Returns the source node of each edge, grouped per source node, as a
     /// nested `PathFromGraph`.
-    async fn src(&self) -> GqlPathFromGraph {
-        GqlPathFromGraph::new(self.nn.src())
+    pub async fn src(&self) -> GqlPathFromGraph {
+        GqlPathFromGraph::new(self.edges.src())
     }
 
     /// Returns the destination node of each edge, grouped per source node, as a
     /// nested `PathFromGraph`.
-    async fn dst(&self) -> GqlPathFromGraph {
-        GqlPathFromGraph::new(self.nn.dst())
+    pub async fn dst(&self) -> GqlPathFromGraph {
+        GqlPathFromGraph::new(self.edges.dst())
     }
 
     /// Returns the node at the other end of each edge (destination for
     /// out-edges, source for in-edges), grouped per source node, as a nested
     /// `PathFromGraph`.
-    async fn nbr(&self) -> GqlPathFromGraph {
-        GqlPathFromGraph::new(self.nn.nbr())
+    pub async fn nbr(&self) -> GqlPathFromGraph {
+        GqlPathFromGraph::new(self.edges.nbr())
     }
 
     /// Expand each source's edges into one edge per update — mirrors the local
     /// `NestedEdges.explode`. The per-source nesting is preserved; only the
     /// inner edge lists fan out per event.
-    async fn explode(&self) -> Self {
-        self.update(self.nn.explode())
+    pub async fn explode(&self) -> Self {
+        self.update(self.edges.explode())
     }
 
     /// Expand each source's edges into one edge per layer — mirrors the local
     /// `NestedEdges.explode_layers`. Each resulting edge carries only the
     /// updates from its respective layer.
-    async fn explode_layers(&self) -> Self {
-        self.update(self.nn.explode_layers())
+    pub async fn explode_layers(&self) -> Self {
+        self.update(self.edges.explode_layers())
     }
 
     /////////////////
@@ -309,9 +303,45 @@ impl GqlNestedEdges {
     /////////////////
 
     /// Number of source edge collections in this collection (one per source node).
-    async fn count(&self) -> usize {
+
+    /// The property keys this collection reports: the first non-empty source's first member's registry
+    /// view — the graph's registered property keys for the entity kind — or an
+    /// empty list when there are no members. Mirrors the local collection
+    /// `properties.keys()`.
+    pub async fn property_keys(&self) -> Vec<String> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.nn.len()).await
+        blocking_compute(move || {
+            self_clone
+                .edges
+                .properties()
+                .filter_map(|mut it| it.next())
+                .next()
+                .map(|p| p.keys().map(|k| k.to_string()).collect())
+                .unwrap_or_default()
+        })
+        .await
+    }
+
+    /// The metadata keys this collection reports: the first non-empty source's first member's registry
+    /// view, or an empty list when there are no members. Mirrors the local
+    /// collection `metadata.keys()`.
+    pub async fn metadata_keys(&self) -> Vec<String> {
+        let self_clone = self.clone();
+        blocking_compute(move || {
+            self_clone
+                .edges
+                .metadata()
+                .filter_map(|mut it| it.next())
+                .next()
+                .map(|p| p.keys().map(|k| k.to_string()).collect())
+                .unwrap_or_default()
+        })
+        .await
+    }
+
+    pub async fn count(&self) -> usize {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.edges.len()).await
     }
 
     /// Fetch one page of source edge collections up to a specified limit, optionally offset by a specified amount.
@@ -320,7 +350,7 @@ impl GqlNestedEdges {
     /// For example, if page(5, 2, 1) is called, a page with 5 source collections, offset by 11 (2 pages of 5 + 1),
     /// will be returned. Each entry is the per-source list of incident edges.
 
-    async fn page(
+    pub async fn page(
         &self,
         ctx: &Context<'_>,
         #[graphql(desc = "Maximum number of source edge collections to return on this page.")]
@@ -339,7 +369,7 @@ impl GqlNestedEdges {
         Ok(blocking_compute(move || {
             let start = page_index.unwrap_or(0) * limit + offset.unwrap_or(0);
             self_clone
-                .nn
+                .edges
                 .iter()
                 .map(GqlEdges::new)
                 .skip(start)
@@ -354,7 +384,7 @@ impl GqlNestedEdges {
     /// `list { list { src { name } dst { name } } }` to reach the per-source
     /// edges. Rejected by the server when bulk list endpoints are disabled; use
     /// `page` for paginated access instead.
-    async fn list(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<GqlEdges>> {
+    pub async fn list(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<GqlEdges>> {
         check_list_allowed(ctx)?;
         let self_clone = self.clone();
         Ok(blocking_compute(move || self_clone.per_source()).await)
@@ -366,7 +396,7 @@ impl GqlNestedEdges {
     ///
     /// Contrast with `select`, which applies here and is not carried through.
 
-    async fn filter(
+    pub async fn filter(
         &self,
         #[graphql(
             desc = "Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection)."
@@ -376,7 +406,7 @@ impl GqlNestedEdges {
         let self_clone = self.clone();
         blocking_compute(move || {
             let filter: DynFilter = expr.try_into()?;
-            let filtered = self_clone.nn.filter(filter)?;
+            let filtered = self_clone.edges.filter(filter)?;
             Ok(self_clone.update(filtered.into_dyn()))
         })
         .await
@@ -387,7 +417,7 @@ impl GqlNestedEdges {
     ///
     /// Contrast with `filter`, which persists the scope through subsequent ops.
 
-    async fn select(
+    pub async fn select(
         &self,
         #[graphql(
             desc = "Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection)."
@@ -396,7 +426,7 @@ impl GqlNestedEdges {
     ) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let filtered = self_clone.nn.select(expr)?;
+            let filtered = self_clone.edges.select(expr)?;
             Ok(self_clone.update(filtered))
         })
         .await

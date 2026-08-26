@@ -649,10 +649,6 @@ def test_pagerank_uses_decimal_weights_by_value():
     assert score(dec, "c") != score(unw, "c")
 
 
-# Uses NodeState.groups([...]) (datafusion-backed group_by), which is temporarily
-# disabled behind the `datafusion` cargo feature during the arrow-59/pyo3-0.29
-# upgrade. Re-enable this test when the `datafusion` feature is turned back on.
-@pytest.mark.skip(reason="datafusion-backed groups() temporarily disabled")
 def test_label_propagation_algorithm():
     g = Graph()
     edges_str = [
@@ -820,7 +816,6 @@ def test_max_weight_matching():
     assert max_weight.dst(3) is None
 
 
-@pytest.mark.skip(reason="Probability test - to be investigated")
 def test_fast_rp():
     g = Graph()
     edges = [
@@ -846,15 +841,14 @@ def test_fast_rp():
 
     group_1 = [1, 2, 3]
     group_2 = [4, 5, 6, 7]
+    for i in group_1:
+        within_group = min(
+            norm(np.array(result[i]) - np.array(result[j])) for j in group_1 if j != i
+        )
+        outside_group = min(
+            norm(np.array(result[i]) - np.array(result[j])) for j in group_2
+        )
 
-    d1 = max(
-        norm(np.array(result[i]) - np.array(result[j]))
-        for i in group_1
-        for j in group_1
-    )
-    d2 = min(
-        norm(np.array(result[i]) - np.array(result[j]))
-        for i in group_1
-        for j in group_2
-    )
-    assert d1 < d2
+        assert (
+            within_group < outside_group
+        )  # nearest neighbour in the embedding space should be in the same component

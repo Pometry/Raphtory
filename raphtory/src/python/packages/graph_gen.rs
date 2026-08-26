@@ -17,10 +17,10 @@ use pyo3::prelude::*;
 /// Physical Review E 64.4 (2001): 041902.
 ///
 /// Arguments:
-///   g: The graph you wish to add nodes and edges to
-///   nodes_to_add: The amount of nodes you wish to add to the graph (steps)
-///   edges_per_step: The amount of edges a joining node should add to the graph
-///   seed: The seed used in rng, an array of length 32 containing ints (ints must have a max size of u8)
+///   g (Graph): The graph you wish to add nodes and edges to
+///   nodes_to_add (int): The amount of nodes you wish to add to the graph (steps)
+///   edges_per_step (int): The amount of edges a joining node should add to the graph
+///   seed (list[int], optional): The seed used in rng, an array of length 32 containing ints (ints must have a max size of u8)
 ///
 /// Returns:
 ///  None:
@@ -49,10 +49,10 @@ pub fn random_attachment(
 /// the min number of both will be added before generation begins.
 ///
 /// Arguments:
-///    g: The graph you wish to add nodes and edges to
-///    nodes_to_add: The amount of nodes you wish to add to the graph (steps)
-///    edges_per_step: The amount of edges a joining node should add to the graph
-///    seed: The seed used in rng, an array of length 32 containing ints (ints must have a max size of u8)
+///    g (Graph): The graph you wish to add nodes and edges to
+///    nodes_to_add (int): The amount of nodes you wish to add to the graph (steps)
+///    edges_per_step (int): The amount of edges a joining node should add to the graph
+///    seed (list[int], optional): The seed used in rng, an array of length 32 containing ints (ints must have a max size of u8)
 ///
 /// Returns:
 ///     None:

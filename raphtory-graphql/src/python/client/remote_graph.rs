@@ -22,10 +22,9 @@ use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_t
 use raphtory_api::{
     core::{
         entities::{properties::prop::Prop, GID},
-        storage::timeindex::{AsTime, EventTime},
         utils::time::InputTime,
     },
-    python::timeindex::PyOptionalEventTime,
+    python::timeindex::{EventTimeComponent, PyOptionalEventTime},
 };
 use std::{collections::HashMap, sync::Arc};
 
@@ -63,7 +62,7 @@ impl PyRemoteGraph {
     /// RPC.
     ///
     /// Arguments:
-    ///     filter (FilterExpr): a filter expression from `raphtory.filter`.
+    ///     filter (filter.FilterExpr): a filter expression from `raphtory.filter`.
     ///
     /// Returns:
     ///     RemoteGraph: a new filtered graph view.
@@ -93,10 +92,10 @@ impl PyRemoteGraph {
         }
     }
 
-    /// Snapshot at a specific time. Lazy — no RPC.
+    /// View including all events at a specific time. Lazy — no RPC.
     ///
     /// Arguments:
-    ///     time (TimeInput): the time to snapshot at.
+    ///     time (TimeInput): the time to view.
     ///
     /// Returns:
     ///     RemoteGraph: a new view snapshotted at that time.
@@ -178,20 +177,6 @@ impl PyRemoteGraph {
         }
     }
 
-    /// Shrink both start and end of the current window. Lazy — no RPC.
-    ///
-    /// Arguments:
-    ///     start (TimeInput): the new inclusive start of the window.
-    ///     end (TimeInput): the new exclusive end of the window.
-    ///
-    /// Returns:
-    ///     RemoteGraph: a new view with both window bounds shrunk.
-    pub fn shrink_window(&self, start: InputTime, end: InputTime) -> PyRemoteGraph {
-        PyRemoteGraph {
-            graph: Arc::new(self.graph.shrink_window(start, end)),
-        }
-    }
-
     /// Shrink the start of the current window. Lazy — no RPC.
     ///
     /// Arguments:
@@ -218,7 +203,9 @@ impl PyRemoteGraph {
         }
     }
 
-    /// Restrict to the "valid" subgraph (event-graph filter). Lazy — no RPC.
+    /// Restrict to the "valid" subgraph. The meaning depends on the graph's
+    /// time semantics: on a persistent graph an edge is valid when its last
+    /// update is an addition rather than a deletion. Lazy — no RPC.
     ///
     /// Returns:
     ///     RemoteGraph: a new view restricted to the valid subgraph.
@@ -364,11 +351,11 @@ impl PyRemoteGraph {
     /// Exclude the given nodes from the view. Lazy — no RPC.
     ///
     /// Arguments:
-    ///     nodes (list[str]): the ids of the nodes to exclude.
+    ///     nodes (list[str | int]): the ids of the nodes to exclude.
     ///
     /// Returns:
     ///     RemoteGraph: a new view with those nodes excluded.
-    pub fn exclude_nodes(&self, nodes: Vec<String>) -> PyRemoteGraph {
+    pub fn exclude_nodes(&self, nodes: Vec<GID>) -> PyRemoteGraph {
         PyRemoteGraph {
             graph: Arc::new(self.graph.exclude_nodes(nodes)),
         }
@@ -495,26 +482,30 @@ impl PyRemoteGraph {
         execute_async_task(move || async move { graph.window_size().await })
     }
 
-    /// Terminal: earliest edge event time under the current view. Returns
-    /// `None` if the view has no edge events. Fires one RPC.
+    /// Time entry of the earliest edge activity in the graph. Unlike
+    /// `earliest_time`, this ignores node-only and graph-property events.
+    /// Property — fires one RPC.
     ///
     /// Returns:
-    ///     Optional[int]: the earliest edge event time, or `None` if the view has no edge
-    ///         events.
-    pub fn earliest_edge_time(&self) -> Result<Option<i64>, ClientError> {
+    ///     OptionalEventTime: the time entry of the earliest edge activity, or
+    ///         empty if the view has no edges.
+    #[getter]
+    pub fn earliest_edge_time(&self) -> Result<PyOptionalEventTime, ClientError> {
         let graph = Arc::clone(&self.graph);
-        execute_async_task(move || async move { graph.earliest_edge_time().await })
+        Ok(execute_async_task(move || async move { graph.earliest_edge_time().await })?.into())
     }
 
-    /// Terminal: latest edge event time under the current view. Returns
-    /// `None` if the view has no edge events. Fires one RPC.
+    /// Time entry of the latest edge activity in the graph. Unlike
+    /// `latest_time`, this ignores node-only and graph-property events.
+    /// Property — fires one RPC.
     ///
     /// Returns:
-    ///     Optional[int]: the latest edge event time, or `None` if the view has no edge
-    ///         events.
-    pub fn latest_edge_time(&self) -> Result<Option<i64>, ClientError> {
+    ///     OptionalEventTime: the time entry of the latest edge activity, or
+    ///         empty if the view has no edges.
+    #[getter]
+    pub fn latest_edge_time(&self) -> Result<PyOptionalEventTime, ClientError> {
         let graph = Arc::clone(&self.graph);
-        execute_async_task(move || async move { graph.latest_edge_time().await })
+        Ok(execute_async_task(move || async move { graph.latest_edge_time().await })?.into())
     }
 
     /// Terminal: does the graph have a node with this id? Fires one RPC.
@@ -695,44 +686,6 @@ impl PyRemoteGraph {
         Ok(nodes.into_iter().map(PyRemoteNode::new).collect())
     }
 
-    /// Get the nodes whose latest value matches every property in
-    /// `properties_dict`. Mirrors the local `Graph.find_nodes`. Fires one RPC.
-    ///
-    /// Arguments:
-    ///     properties_dict (dict[str, PropValue]): the property names and values
-    ///         a node must match.
-    ///
-    /// Returns:
-    ///     list[RemoteNode]: the nodes that match all the given properties.
-    pub fn find_nodes(
-        &self,
-        properties_dict: HashMap<String, Prop>,
-    ) -> Result<Vec<PyRemoteNode>, ClientError> {
-        let graph = Arc::clone(&self.graph);
-        let nodes =
-            execute_async_task(move || async move { graph.find_nodes(properties_dict).await })?;
-        Ok(nodes.into_iter().map(PyRemoteNode::new).collect())
-    }
-
-    /// Get the edges whose latest value matches every property in
-    /// `properties_dict`. Mirrors the local `Graph.find_edges`. Fires one RPC.
-    ///
-    /// Arguments:
-    ///     properties_dict (dict[str, PropValue]): the property names and values
-    ///         an edge must match.
-    ///
-    /// Returns:
-    ///     list[RemoteEdge]: the edges that match all the given properties.
-    pub fn find_edges(
-        &self,
-        properties_dict: HashMap<String, Prop>,
-    ) -> Result<Vec<PyRemoteEdge>, ClientError> {
-        let graph = Arc::clone(&self.graph);
-        let edges =
-            execute_async_task(move || async move { graph.find_edges(properties_dict).await })?;
-        Ok(edges.into_iter().map(PyRemoteEdge::new).collect())
-    }
-
     /// Returns all the node types present in the graph. Mirrors the local
     /// `Graph.get_all_node_types`. Fires one RPC.
     ///
@@ -797,7 +750,7 @@ impl PyRemoteGraph {
     #[pyo3(signature = (timestamp, id, properties = None, node_type = None, event_id = None, layer = None))]
     pub fn add_node(
         &self,
-        timestamp: EventTime,
+        timestamp: EventTimeComponent,
         id: GID,
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<&str>,
@@ -839,7 +792,7 @@ impl PyRemoteGraph {
     #[pyo3(signature = (timestamp, id, properties = None, node_type = None, event_id = None, layer = None))]
     pub fn create_node(
         &self,
-        timestamp: EventTime,
+        timestamp: EventTimeComponent,
         id: GID,
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<&str>,
@@ -879,7 +832,7 @@ impl PyRemoteGraph {
     #[pyo3(signature = (timestamp, properties, event_id = None))]
     pub fn add_properties(
         &self,
-        timestamp: EventTime,
+        timestamp: EventTimeComponent,
         properties: HashMap<String, Prop>,
         event_id: Option<usize>,
     ) -> Result<(), ClientError> {
@@ -894,25 +847,25 @@ impl PyRemoteGraph {
     /// Adds metadata to the remote graph.
     ///
     /// Arguments:
-    ///     properties (dict): The metadata of the graph.
+    ///     metadata (dict): The metadata of the graph.
     ///
     /// Returns:
     ///     None:
-    pub fn add_metadata(&self, properties: HashMap<String, Prop>) -> Result<(), ClientError> {
+    pub fn add_metadata(&self, metadata: HashMap<String, Prop>) -> Result<(), ClientError> {
         let graph = Arc::clone(&self.graph);
-        execute_async_task(move || async move { graph.add_metadata(properties).await })
+        execute_async_task(move || async move { graph.add_metadata(metadata).await })
     }
 
     /// Updates metadata on the remote graph.
     ///
     /// Arguments:
-    ///     properties (dict): The metadata of the graph.
+    ///     metadata (dict): The metadata of the graph.
     ///
     /// Returns:
     ///     None:
-    pub fn update_metadata(&self, properties: HashMap<String, Prop>) -> Result<(), ClientError> {
+    pub fn update_metadata(&self, metadata: HashMap<String, Prop>) -> Result<(), ClientError> {
         let graph = Arc::clone(&self.graph);
-        execute_async_task(move || async move { graph.update_metadata(properties).await })
+        execute_async_task(move || async move { graph.update_metadata(metadata).await })
     }
 
     /// Adds a new edge with the given source and destination nodes and properties to the remote graph.
@@ -931,7 +884,7 @@ impl PyRemoteGraph {
     #[pyo3(signature = (timestamp, src, dst, properties = None, layer = None, event_id = None))]
     pub fn add_edge(
         &self,
-        timestamp: EventTime,
+        timestamp: EventTimeComponent,
         src: GID,
         dst: GID,
         properties: Option<HashMap<String, Prop>>,
@@ -971,7 +924,7 @@ impl PyRemoteGraph {
     #[pyo3(signature = (timestamp, src, dst, layer=None, event_id=None))]
     pub fn delete_edge(
         &self,
-        timestamp: EventTime,
+        timestamp: EventTimeComponent,
         src: GID,
         dst: GID,
         layer: Option<&str>,

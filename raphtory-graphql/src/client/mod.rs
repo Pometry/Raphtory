@@ -72,10 +72,11 @@ pub(crate) fn collect_opt_props<PN: AsRef<str>, P: Into<Prop>>(
 }
 
 /// Convert a property map into the `[PropertyInput!]` wire shape
-/// (`[{key, value}]`, where `value` is the `Value` @oneOf JSON). Serialization
-/// of `Value` rejects non-finite floats, so a `NaN`/`Infinity` surfaces as an
-/// error rather than a silent `null`. Shared by the write appliers (as a query
-/// variable) and the batch `NodeAddition`/`EdgeAddition` serializers.
+/// (`[{key, value}]`, where `value` is the `Value` @oneOf JSON). Non-finite
+/// floats (`NaN`/`Infinity`) have no JSON number form and ride the tagged
+/// `f32Special`/`f64Special` variants instead, so they round-trip rather than
+/// erroring or turning into a silent `null`. Shared by the write appliers (as
+/// a query variable) and the batch `NodeAddition`/`EdgeAddition` serializers.
 pub(crate) fn properties_to_input(
     properties: &HashMap<String, Prop>,
 ) -> Result<Vec<ObjectEntry>, ClientError> {

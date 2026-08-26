@@ -213,7 +213,7 @@ impl Namespace {
     /// Graphs directly inside this namespace (excludes graphs in nested
     /// namespaces). Filtered by the caller's permissions — only graphs the
     /// caller is allowed to see are returned.
-    async fn graphs(&self, ctx: &Context<'_>) -> GqlCollection<MetaGraph> {
+    pub async fn graphs(&self, ctx: &Context<'_>) -> GqlCollection<MetaGraph> {
         let data = ctx.data_unchecked::<Data>();
         let self_clone = self.clone();
         let items = blocking_compute(move || self_clone.get_children().collect::<Vec<_>>()).await;
@@ -234,12 +234,12 @@ impl Namespace {
     }
     /// Path of this namespace relative to the root namespace. Empty string for
     /// the root namespace itself.
-    async fn path(&self) -> String {
+    pub async fn path(&self) -> String {
         self.relative_path.clone()
     }
 
     /// Parent namespace, or null at the root.
-    async fn parent(&self) -> Option<Namespace> {
+    pub async fn parent(&self) -> Option<Namespace> {
         if self.relative_path.is_empty() {
             None
         } else {
@@ -259,7 +259,7 @@ impl Namespace {
 
     /// Sub-namespaces directly inside this one (one level down, not recursive).
     /// Filtered by permissions.
-    async fn children(&self, ctx: &Context<'_>) -> GqlCollection<Namespace> {
+    pub async fn children(&self, ctx: &Context<'_>) -> GqlCollection<Namespace> {
         let data = ctx.data_unchecked::<Data>();
         let self_clone = self.clone();
         let items = blocking_compute(move || self_clone.get_children().collect::<Vec<_>>()).await;
@@ -282,7 +282,7 @@ impl Namespace {
     /// Everything in this namespace — sub-namespaces and graphs — as a single
     /// heterogeneous collection. Sub-namespaces are listed before graphs.
     /// Filtered by permissions.
-    async fn items(&self, ctx: &Context<'_>) -> GqlCollection<NamespacedItem> {
+    pub async fn items(&self, ctx: &Context<'_>) -> GqlCollection<NamespacedItem> {
         let data = ctx.data_unchecked::<Data>();
         let self_clone = self.clone();
         let all_items =
