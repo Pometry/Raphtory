@@ -63,7 +63,7 @@ impl PyRemoteGraph {
     /// RPC.
     ///
     /// Arguments:
-    ///     filter (FilterExpr): a filter expression from `raphtory.filter`.
+    ///     filter (filter.FilterExpr): a filter expression from `raphtory.filter`.
     ///
     /// Returns:
     ///     RemoteGraph: a new filtered graph view.

@@ -52,7 +52,7 @@ impl PyRemotePathFromGraph {
     /// traversals from the matching nodes. Lazy — no RPC.
     ///
     /// Arguments:
-    ///     filter (FilterExpr): a node filter expression from `raphtory.filter`.
+    ///     filter (filter.FilterExpr): a node filter expression from `raphtory.filter`.
     ///
     /// Returns:
     ///     RemotePathFromGraph: a new collection with the filter applied.
@@ -74,7 +74,7 @@ impl PyRemotePathFromGraph {
     /// all apply. Lazy — no RPC.
     ///
     /// Arguments:
-    ///     filter (FilterExpr): a filter expression from `raphtory.filter`.
+    ///     filter (filter.FilterExpr): a filter expression from `raphtory.filter`.
     ///
     /// Returns:
     ///     RemotePathFromGraph: a new collection narrowed to matching nodes.

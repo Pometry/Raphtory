@@ -403,7 +403,7 @@ impl PyRaphtoryClient {
     /// Arguments:
     ///     role (str): the role to grant filtered access to
     ///     path (str): the path of the graph
-    ///     filter (FilterExpr): a filter expression from `raphtory.filter`; a node
+    ///     filter (filter.FilterExpr): a filter expression from `raphtory.filter`; a node
     ///         filter restricts visible nodes, an edge filter restricts visible edges.
     ///     hidden_properties (dict[str, list[str]], optional): temporal property keys
     ///         to hide, keyed by "node", "edge", and/or "graph".

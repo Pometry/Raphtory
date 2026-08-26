@@ -53,7 +53,7 @@ impl PyRemoteNode {
     /// `Node.filter(FilterExpr)`. Lazy — no RPC.
     ///
     /// Arguments:
-    ///     filter (FilterExpr): a node filter expression from `raphtory.filter`.
+    ///     filter (filter.FilterExpr): a node filter expression from `raphtory.filter`.
     ///
     /// Returns:
     ///     RemoteNode: a new filtered node view.
