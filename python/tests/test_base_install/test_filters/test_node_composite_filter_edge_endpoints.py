@@ -22,7 +22,19 @@ def _init(graph):
     # a filtered-out endpoint can leave a dangling edge.
     for i in range(6):
         graph.add_node(0, i, {"val": i}, "A" if i % 2 == 0 else "B")
-    for src, dst in [(0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 0), (0, 3), (1, 4), (2, 5), (5, 2), (4, 0)]:
+    for src, dst in [
+        (0, 1),
+        (1, 2),
+        (2, 3),
+        (3, 4),
+        (4, 5),
+        (5, 0),
+        (0, 3),
+        (1, 4),
+        (2, 5),
+        (5, 2),
+        (4, 0),
+    ]:
         graph.add_edge(0, src, dst, {"w": src + dst})
     return graph
 
@@ -56,7 +68,9 @@ def test_and_filter_keeps_edge_endpoints_minimal():
         # Keep node ids {0,2,4} AND val < 4  ->  nodes {0,2}. Edge 4->0 must not survive (node 4 gone).
         view = graph.filter(Node.id().is_in([0, 2, 4]) & (Node.property("val") < 4))
         assert sorted(view.nodes.id) == [0, 2]
-        assert _dangling_edges(view) == [], "edge to an excluded node survived the filter"
+        assert (
+            _dangling_edges(view) == []
+        ), "edge to an excluded node survived the filter"
 
     return check
 
@@ -76,7 +90,8 @@ def test_and_filter_combinations_keep_edge_endpoints():
                 offenders[" & ".join(label for label, _ in combo)] = dangling
         assert not offenders, (
             f"{len(offenders)}/{len(combos)} node-filter combinations leaked edges to excluded "
-            f"nodes, e.g. " + "; ".join(f"{k} -> {v}" for k, v in list(offenders.items())[:3])
+            f"nodes, e.g. "
+            + "; ".join(f"{k} -> {v}" for k, v in list(offenders.items())[:3])
         )
 
     return check

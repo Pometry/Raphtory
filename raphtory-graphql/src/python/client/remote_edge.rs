@@ -45,7 +45,7 @@ impl PyRemoteEdge {
     /// expressions; mirrors the local `Edge.filter`. Lazy — no RPC.
     ///
     /// Arguments:
-    ///     filter (FilterExpr): a filter expression from `raphtory.filter`.
+    ///     filter (filter.FilterExpr): a filter expression from `raphtory.filter`.
     ///
     /// Returns:
     ///     RemoteEdge: a new filtered edge view.

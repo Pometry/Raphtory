@@ -49,7 +49,7 @@ impl PyRemoteNode {
     /// `Node.filter(FilterExpr)`. Lazy — no RPC.
     ///
     /// Arguments:
-    ///     filter (FilterExpr): a node filter expression from `raphtory.filter`.
+    ///     filter (filter.FilterExpr): a node filter expression from `raphtory.filter`.
     ///
     /// Returns:
     ///     RemoteNode: a new filtered node view.
@@ -242,7 +242,7 @@ impl PyRemoteNode {
     /// Property — attribute access fires one RPC.
     ///
     /// Returns:
-    ///     str | int: the node's id — a string for string-indexed graphs, an
+    ///     str|int: the node's id — a string for string-indexed graphs, an
     ///         integer for integer-indexed ones.
     #[getter]
     pub fn id(&self) -> Result<GID, ClientError> {
