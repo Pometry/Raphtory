@@ -5,6 +5,7 @@ pub mod concurrency_config;
 pub mod log_config;
 pub mod otlp_config;
 pub mod parquet_config;
+pub mod rbac_config;
 pub mod schema_config;
 
 #[cfg(test)]

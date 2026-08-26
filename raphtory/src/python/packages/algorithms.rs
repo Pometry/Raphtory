@@ -337,8 +337,8 @@ pub fn local_clustering_coefficient(graph: &PyGraphView, v: PyNodeRef) -> Option
 /// Uses path-counting for its triangle-counting step.
 ///
 /// Arguments:
-///     graph: Raphtory graph, can be directed or undirected but will be treated as undirected.
-///     v: vec of node ids, if empty, will return results for every node in the graph
+///     graph (GraphView): Raphtory graph, can be directed or undirected but will be treated as undirected.
+///     v (list[NodeInput], optional): node ids; if omitted, returns results for every node in the graph
 ///
 /// Returns:
 ///     OutputNodeState: Mapping of vertices to lcc score
@@ -916,10 +916,10 @@ pub fn louvain(
 pub fn fruchterman_reingold(
     graph: &PyGraphView,
     iterations: u64,
-    scale: f32,
-    node_start_size: f32,
-    cooloff_factor: f32,
-    dt: f32,
+    scale: f64,
+    node_start_size: f64,
+    cooloff_factor: f64,
+    dt: f64,
 ) -> OutputTypedNodeState<'static, DynamicGraph> {
     fruchterman_reingold_rs(
         &graph.graph,
@@ -949,10 +949,10 @@ pub fn fruchterman_reingold(
 pub fn cohesive_fruchterman_reingold(
     graph: &PyGraphView,
     iter_count: u64,
-    scale: f32,
-    node_start_size: f32,
-    cooloff_factor: f32,
-    dt: f32,
+    scale: f64,
+    node_start_size: f64,
+    cooloff_factor: f64,
+    dt: f64,
 ) -> OutputTypedNodeState<'static, DynamicGraph> {
     cohesive_fruchterman_reingold_rs(
         &graph.graph,

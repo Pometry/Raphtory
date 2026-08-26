@@ -243,8 +243,7 @@ def test_history():
     query_1 = """
     {
       graph(path: "g") {
-        filterEdges(
-          expr:  {
+        filterEdges: filter(expr: { edges: {
               property:  {
                 name: "weight"
                 where:  {
@@ -253,8 +252,7 @@ def test_history():
                     }
                 }
               }
-          }
-        ) {
+          } }) {
           edge(src: "Dumbledore", dst: "Harry") {
             history {
               timestamps {
@@ -278,8 +276,7 @@ def test_history():
     query_2 = """
     {
       graph(path: "g") {
-        filterEdges(
-          expr:  {
+        filterEdges: filter(expr: { edges: {
               property:  {
                 name: "weight"
                 where:  {
@@ -288,8 +285,7 @@ def test_history():
                     }
                 }
               }
-          }
-        ) {
+          } }) {
           edge(src: "Dumbledore", dst: "Harry") {
             history {
               timestamps {
@@ -307,8 +303,7 @@ def test_history():
     query_1 = """
     {
       graph(path: "g") {
-        filterNodes(
-          expr:  {
+        filterNodes: filter(expr: { nodes: {
             property:  {
               name: "Age"
               where:  {
@@ -317,8 +312,7 @@ def test_history():
                   }
               }
             }
-          }
-        ) {
+          } }) {
           node(name: "Dumbledore") {
             history {
               timestamps {
@@ -335,8 +329,7 @@ def test_history():
     query_2 = """
     {
       graph(path: "g") {
-        filterNodes(
-          expr:  {
+        filterNodes: filter(expr: { nodes: {
               property:  {
                 name: "Age"
                 where:  {
@@ -345,8 +338,7 @@ def test_history():
                     }
                 }
             }
-          }
-        ) {
+          } }) {
           node(name: "Dumbledore") {
             history {
               timestamps {
@@ -369,8 +361,7 @@ def test_history():
     query_3 = """
     {
       graph(path: "g") {
-        filterNodes(
-          expr:  {
+        filterNodes: filter(expr: { nodes: {
               property:  {
                 name: "Age"
                 where:  {
@@ -379,8 +370,7 @@ def test_history():
                     }
                 }
               }
-          }
-        ) {
+          } }) {
           node(name: "Harry") {
             history {
               timestamps {
@@ -397,8 +387,7 @@ def test_history():
     query_4 = """
     {
       graph(path: "g") {
-        filterNodes(
-          expr:  {
+        filterNodes: filter(expr: { nodes: {
               property:  {
                 name: "Age"
                 where:  {
@@ -407,8 +396,7 @@ def test_history():
                     }
                 }
               }
-          }
-        ) {
+          } }) {
           node(name: "Harry") {
             history {
               timestamps {

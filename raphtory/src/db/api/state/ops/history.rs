@@ -3,7 +3,7 @@ use crate::db::{
         state::ops::{ArrowNodeOp, IntoDynNodeOp, NodeOp},
         view::{
             history::History,
-            internal::{GraphView, NodeTimeSemanticsOps},
+            internal::{GraphView, NodeList, NodeTimeSemanticsOps},
         },
     },
     graph::node::NodeView,
@@ -30,6 +30,10 @@ impl From<Option<EventTime>> for EarliestTimeStruct {
 
 impl<G: GraphView> NodeOp for EarliestTime<G> {
     type Output = Option<EventTime>;
+
+    fn domain(&self, _storage: &GraphStorage) -> NodeList {
+        self.view.node_list()
+    }
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
         let semantics = self.view.node_time_semantics();
@@ -61,6 +65,10 @@ impl From<Option<EventTime>> for LatestTimeStruct {
 
 impl<G: GraphView> NodeOp for LatestTime<G> {
     type Output = Option<EventTime>;
+
+    fn domain(&self, _storage: &GraphStorage) -> NodeList {
+        self.view.node_list()
+    }
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
         let semantics = self.view.node_time_semantics();
@@ -104,6 +112,10 @@ impl<'graph, G: GraphView + 'graph> From<History<'graph, NodeView<'graph, G>>> f
 impl<'graph, G: GraphView + 'graph> NodeOp for HistoryOp<'graph, G> {
     type Output = History<'graph, NodeView<'graph, G>>;
 
+    fn domain(&self, _storage: &GraphStorage) -> NodeList {
+        self.graph.node_list()
+    }
+
     #[allow(unused_variables)]
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
         History::new(NodeView::new_internal(self.graph.clone(), node))
@@ -134,6 +146,10 @@ impl From<usize> for EdgeHistoryCountStruct {
 
 impl<G: GraphView> NodeOp for EdgeHistoryCount<G> {
     type Output = usize;
+
+    fn domain(&self, _storage: &GraphStorage) -> NodeList {
+        self.view.node_list()
+    }
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
         let node = storage.core_node(node);

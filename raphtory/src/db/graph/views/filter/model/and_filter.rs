@@ -9,7 +9,8 @@ use crate::{
             model::{
                 edge_filter::CompositeEdgeFilter,
                 exploded_edge_filter::CompositeExplodedEdgeFilter,
-                node_filter::CompositeNodeFilter, ComposableFilter, TryAsCompositeFilter,
+                node_filter::CompositeNodeFilter, ComposableFilter, FilterTree,
+                TryAsCompositeFilter,
             },
             CreateFilter,
         },
@@ -17,7 +18,6 @@ use crate::{
     errors::GraphError,
     prelude::GraphViewOps,
 };
-use raphtory_storage::layer_ops::InternalLayerOps;
 use std::{fmt, fmt::Display};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -35,19 +35,19 @@ impl<L: Display, R: Display> Display for AndFilter<L, R> {
 impl<L, R> ComposableFilter for AndFilter<L, R> {}
 
 impl<L: CreateFilter, R: CreateFilter> CreateFilter for AndFilter<L, R> {
-    type EntityFiltered<'graph, G: GraphViewOps<'graph>>
+    type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph>
         = AndFilteredGraph<
         G,
-        L::EntityFiltered<'graph, L::FilteredGraph<'graph, G>>,
-        R::EntityFiltered<'graph, R::FilteredGraph<'graph, G>>,
+        L::EntityFiltered<'graph, G, L::FilteredGraph<'graph, F>>,
+        R::EntityFiltered<'graph, G, R::FilteredGraph<'graph, F>>,
     >
     where
         Self: 'graph;
 
-    type NodeFilter<'graph, G: GraphView + 'graph>
+    type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>
         = AndOp<
-        L::NodeFilter<'graph, L::FilteredGraph<'graph, G>>,
-        R::NodeFilter<'graph, R::FilteredGraph<'graph, G>>,
+        L::NodeFilter<'graph, G, L::FilteredGraph<'graph, F>>,
+        R::NodeFilter<'graph, G, R::FilteredGraph<'graph, F>>,
     >
     where
         Self: 'graph;
@@ -58,34 +58,30 @@ impl<L: CreateFilter, R: CreateFilter> CreateFilter for AndFilter<L, R> {
         Self: 'graph,
         G: GraphViewOps<'graph>;
 
-    fn create_filter<'graph, G: GraphViewOps<'graph>>(
+    fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         graph: G,
-    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
-        let l = self.left.filter_graph_view(graph.clone())?;
-        let r = self.right.filter_graph_view(graph.clone())?;
-        let left = self.left.create_filter(l)?;
-        let right = self.right.create_filter(r)?;
-        let layer_ids = left.layer_ids().intersect(right.layer_ids());
-        Ok(AndFilteredGraph {
-            graph,
-            left,
-            right,
-            layer_ids,
-        })
+        filtered: F,
+    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
+        let l = self.left.filter_graph_view(filtered.clone())?;
+        let r = self.right.filter_graph_view(filtered)?;
+        let left = self.left.create_filter(graph.clone(), l)?;
+        let right = self.right.create_filter(graph.clone(), r)?;
+        Ok(AndFilteredGraph::new(graph, left, right))
     }
 
-    fn create_node_filter<'graph, G: GraphView + 'graph>(
+    fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         graph: G,
-    ) -> Result<Self::NodeFilter<'graph, G>, GraphError>
+        filtered: F,
+    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError>
     where
         Self: 'graph,
     {
-        let l = self.left.filter_graph_view(graph.clone())?;
-        let r = self.right.filter_graph_view(graph.clone())?;
-        let left = self.left.create_node_filter(l)?;
-        let right = self.right.create_node_filter(r)?;
+        let l = self.left.filter_graph_view(filtered.clone())?;
+        let r = self.right.filter_graph_view(filtered)?;
+        let left = self.left.create_node_filter(graph.clone(), l)?;
+        let right = self.right.create_node_filter(graph, r)?;
         Ok(left.and(right))
     }
 
@@ -101,6 +97,25 @@ impl<L: CreateFilter, R: CreateFilter> CreateFilter for AndFilter<L, R> {
 }
 
 impl<L: TryAsCompositeFilter, R: TryAsCompositeFilter> TryAsCompositeFilter for AndFilter<L, R> {
+    fn try_as_filter_tree(&self) -> Result<FilterTree, GraphError> {
+        // Same-kind combinations keep their composite form; mixed-kind trees
+        // export structurally — the case the composite exports cannot
+        // represent.
+        if let Ok(f) = self.try_as_composite_node_filter() {
+            return Ok(FilterTree::Node(f));
+        }
+        if let Ok(f) = self.try_as_composite_edge_filter() {
+            return Ok(FilterTree::Edge(f));
+        }
+        if let Ok(f) = self.try_as_composite_exploded_edge_filter() {
+            return Ok(FilterTree::ExplodedEdge(f));
+        }
+        Ok(FilterTree::And(vec![
+            self.left.try_as_filter_tree()?,
+            self.right.try_as_filter_tree()?,
+        ]))
+    }
+
     fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
         Ok(CompositeNodeFilter::And(
             Box::new(self.left.try_as_composite_node_filter()?),

@@ -1637,7 +1637,7 @@ mod test_node_filter {
         algorithms::alternating_mask::alternating_mask,
         core::entities::VID,
         db::{
-            api::view::{filter_ops::NodeSelect, Filter},
+            api::view::{filter_ops::Select, Filter},
             graph::views::filter::{
                 model::{
                     degree_filter::DegreeFilterFactory,
@@ -8290,13 +8290,24 @@ mod test_edge_filter {
         init_edges_graph, init_edges_graph_with_num_ids, init_edges_graph_with_str_ids,
         init_edges_graph_with_str_ids_del, init_nodes_graph, IdentityGraphTransformer,
     };
-    use raphtory::db::graph::views::filter::model::{
-        edge_filter::EdgeFilter,
-        node_filter::ops::{NodeFilterOps, NodeIdFilterOps},
-        property_filter::ops::{ListAggOps, PropertyFilterOps},
-        ComposableFilter, EdgeViewFilterOps, PropertyFilterFactory, TemporalPropertyFilterFactory,
-        ViewWrapOps,
+    use itertools::Itertools;
+    use raphtory::{
+        db::{
+            api::view::{Filter, Select},
+            graph::views::filter::{
+                and_filtered_graph::AndFilteredGraph,
+                model::{
+                    edge_filter::EdgeFilter,
+                    node_filter::ops::{NodeFilterOps, NodeIdFilterOps},
+                    property_filter::ops::{ListAggOps, PropertyFilterOps},
+                    ComposableFilter, EdgeViewFilterOps, PropertyFilterFactory,
+                    TemporalPropertyFilterFactory, ViewWrapOps,
+                },
+            },
+        },
+        prelude::{EdgeViewOps, Graph, GraphViewOps, PersistentGraph, TimeOps},
     };
+    use raphtory_api::core::entities::GID;
     use raphtory_tests::assertions::{
         assert_filter_edges_results, assert_select_edges_results, TestGraphVariants, TestVariants,
     };
@@ -9245,7 +9256,6 @@ mod test_edge_filter {
         );
     }
 
-    // Disk graph doesn't support deletions
     #[test]
     fn test_is_deleted_edge_before() {
         let filter = EdgeFilter.before(4).is_deleted();
@@ -9268,37 +9278,40 @@ mod test_edge_filter {
 
     #[test]
     fn test_is_self_loop_edge_window() {
+        // window has no effect on is_self_loop and because we are using an `EdgeFilter` as the
+        // entrypoint, the window is only applied to the edges, not the graph
         let filter = EdgeFilter.window(1, 3).is_self_loop();
-        let expected_results = vec![];
+        let expected_results_self_loop = vec!["Bangalore->Bangalore"];
         assert_filter_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
             filter.clone(),
-            &expected_results,
+            &expected_results_self_loop,
             TestVariants::All,
         );
+
+        // window doesn't make a difference for `is_self_loop`
         assert_select_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
             filter.clone(),
-            &expected_results,
+            &expected_results_self_loop,
             TestVariants::All,
         );
 
         let filter = EdgeFilter.window(1, 6).is_self_loop();
-        let expected_results = vec!["Bangalore->Bangalore"];
         assert_filter_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
             filter.clone(),
-            &expected_results,
+            &expected_results_self_loop,
             TestVariants::All,
         );
         assert_select_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
             filter.clone(),
-            &expected_results,
+            &expected_results_self_loop,
             TestVariants::All,
         );
     }

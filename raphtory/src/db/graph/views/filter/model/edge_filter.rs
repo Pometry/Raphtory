@@ -2,7 +2,10 @@ use crate::{
     db::{
         api::{
             state::ops::NotANodeFilter,
-            view::{internal::GraphView, BoxableGraphView},
+            view::{
+                internal::{DynGraphArc, GraphView},
+                BoxableGraphView,
+            },
         },
         graph::views::filter::{
             edge_node_filtered_graph::EdgeNodeFilteredGraph,
@@ -37,7 +40,6 @@ use crate::{
         },
     },
     errors::GraphError,
-    prelude::GraphViewOps,
 };
 use raphtory_api::core::storage::timeindex::EventTime;
 use std::{fmt, fmt::Display, sync::Arc};
@@ -247,36 +249,40 @@ impl<T: InternalPropertyFilterFactory> InternalPropertyFilterFactory for EdgeEnd
 impl<T: TemporalPropertyFilterFactory> TemporalPropertyFilterFactory for EdgeEndpointWrapper<T> {}
 
 impl<T: CreateFilter + Clone + 'static> CreateFilter for EdgeEndpointWrapper<T> {
-    type EntityFiltered<'graph, G>
-        = EdgeNodeFilteredGraph<G, T::NodeFilter<'graph, G>>
+    type EntityFiltered<'graph, G, F>
+        = EdgeNodeFilteredGraph<G, T::NodeFilter<'graph, G, F>>
     where
         Self: 'graph,
-        G: GraphViewOps<'graph>;
+        G: GraphView + 'graph,
+        F: GraphView + 'graph;
 
-    type NodeFilter<'graph, G>
+    type NodeFilter<'graph, G, F>
         = NotANodeFilter
     where
         Self: 'graph,
-        G: GraphView + 'graph;
+        G: GraphView + 'graph,
+        F: GraphView + 'graph;
 
     type FilteredGraph<'graph, G>
         = T::FilteredGraph<'graph, G>
     where
         Self: 'graph,
-        G: GraphViewOps<'graph>;
+        G: GraphView + 'graph;
 
-    fn create_filter<'graph, G: GraphViewOps<'graph>>(
+    fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         graph: G,
-    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
-        let filter = self.inner.create_node_filter(graph.clone())?;
+        filtered: F,
+    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
+        let filter = self.inner.create_node_filter(graph.clone(), filtered)?;
         Ok(EdgeNodeFilteredGraph::new(graph, self.endpoint, filter))
     }
 
-    fn create_node_filter<'graph, G: GraphView + 'graph>(
+    fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         _graph: G,
-    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        _filtered: F,
+    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
         Err(GraphError::NotNodeFilter)
     }
 
@@ -356,83 +362,96 @@ impl Display for CompositeEdgeFilter {
 }
 
 impl CreateFilter for CompositeEdgeFilter {
-    type EntityFiltered<'graph, G: GraphViewOps<'graph>> = Arc<dyn BoxableGraphView + 'graph>;
+    type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
+        Arc<dyn BoxableGraphView + 'graph>;
 
-    type NodeFilter<'graph, G>
+    type NodeFilter<'graph, G, F>
         = NotANodeFilter
     where
         Self: 'graph,
-        G: GraphView + 'graph;
+        G: GraphView + 'graph,
+        F: GraphView + 'graph;
 
     type FilteredGraph<'graph, G>
         = Arc<dyn BoxableGraphView + 'graph>
     where
         Self: 'graph,
-        G: GraphViewOps<'graph>;
+        G: GraphView + 'graph;
 
-    fn create_filter<'graph, G: GraphViewOps<'graph>>(
+    fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         graph: G,
-    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
+        filtered: F,
+    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
         match self {
             CompositeEdgeFilter::Src(filter) => {
                 let wrapped = EdgeEndpointWrapper::new(filter, Endpoint::Src);
-                let filtered_graph = wrapped.create_filter(graph)?;
+                let filtered_graph = wrapped.create_filter(graph, filtered)?;
                 Ok(Arc::new(filtered_graph))
             }
             CompositeEdgeFilter::Dst(filter) => {
                 let wrapped = EdgeEndpointWrapper::new(filter, Endpoint::Dst);
-                let filtered_graph = wrapped.create_filter(graph)?;
+                let filtered_graph = wrapped.create_filter(graph, filtered)?;
                 Ok(Arc::new(filtered_graph))
             }
-            CompositeEdgeFilter::Property(i) => Ok(Arc::new(i.create_filter(graph)?)),
+            CompositeEdgeFilter::Property(i) => Ok(Arc::new(i.create_filter(graph, filtered)?)),
             CompositeEdgeFilter::Windowed(i) => {
                 let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
-                i.create_filter(dyn_graph)
+                let dyn_filtered: DynGraphArc<'graph> = Arc::new(filtered);
+                i.create_filter(dyn_graph, dyn_filtered)
             }
             CompositeEdgeFilter::Latest(i) => {
                 let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
-                i.create_filter(dyn_graph)
+                let dyn_filtered: DynGraphArc<'graph> = Arc::new(filtered);
+                i.create_filter(dyn_graph, dyn_filtered)
             }
             CompositeEdgeFilter::SnapshotAt(i) => {
                 let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
-                i.create_filter(dyn_graph)
+                let dyn_filtered: DynGraphArc<'graph> = Arc::new(filtered);
+                i.create_filter(dyn_graph, dyn_filtered)
             }
             CompositeEdgeFilter::SnapshotLatest(i) => {
                 let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
-                i.create_filter(dyn_graph)
+                let dyn_filtered: DynGraphArc<'graph> = Arc::new(filtered);
+                i.create_filter(dyn_graph, dyn_filtered)
             }
-            CompositeEdgeFilter::IsActiveEdge(i) => Ok(Arc::new(i.create_filter(graph)?)),
-            CompositeEdgeFilter::IsValidEdge(i) => Ok(Arc::new(i.create_filter(graph)?)),
-            CompositeEdgeFilter::IsDeletedEdge(i) => Ok(Arc::new(i.create_filter(graph)?)),
-            CompositeEdgeFilter::IsSelfLoopEdge(i) => Ok(Arc::new(i.create_filter(graph)?)),
+            CompositeEdgeFilter::IsActiveEdge(i) => Ok(Arc::new(i.create_filter(graph, filtered)?)),
+            CompositeEdgeFilter::IsValidEdge(i) => Ok(Arc::new(i.create_filter(graph, filtered)?)),
+            CompositeEdgeFilter::IsDeletedEdge(i) => {
+                Ok(Arc::new(i.create_filter(graph, filtered)?))
+            }
+            CompositeEdgeFilter::IsSelfLoopEdge(i) => {
+                Ok(Arc::new(i.create_filter(graph, filtered)?))
+            }
             CompositeEdgeFilter::Layered(i) => {
                 let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
-                i.create_filter(dyn_graph)
+                let dyn_filtered: DynGraphArc<'graph> = Arc::new(filtered);
+                i.create_filter(dyn_graph, dyn_filtered)
             }
             CompositeEdgeFilter::And(l, r) => {
                 let (l, r) = (*l, *r);
                 Ok(Arc::new(
-                    AndFilter { left: l, right: r }.create_filter(graph)?,
+                    AndFilter { left: l, right: r }.create_filter(graph, filtered)?,
                 ))
             }
             CompositeEdgeFilter::Or(l, r) => {
                 let (l, r) = (*l, *r);
                 Ok(Arc::new(
-                    OrFilter { left: l, right: r }.create_filter(graph)?,
+                    OrFilter { left: l, right: r }.create_filter(graph, filtered)?,
                 ))
             }
             CompositeEdgeFilter::Not(f) => {
                 let base = *f;
-                Ok(Arc::new(NotFilter(base).create_filter(graph)?))
+                Ok(Arc::new(NotFilter(base).create_filter(graph, filtered)?))
             }
         }
     }
 
-    fn create_node_filter<'graph, G: GraphView + 'graph>(
+    fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         _graph: G,
-    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        _filtered: F,
+    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
         Err(GraphError::NotNodeFilter)
     }
 
