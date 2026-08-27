@@ -735,7 +735,9 @@ fn require_at_least_read(
             Err(msg) => {
                 warn!(graph = path, "Access denied by auth policy");
                 let ns = parent_namespace(path);
-                if policy.namespace_permissions(ctx, ns).is_some() {
+                // A fault resolving the namespace must not upgrade a not-found into a
+                // disclosure that the graph exists, so it falls to the not-found branch.
+                if matches!(policy.namespace_permissions(ctx, ns), Ok(Some(_))) {
                     Err(gql_error_with_code(msg.to_string(), CODE_ACCESS_DENIED))
                 } else {
                     Err(PermissionError::GraphNotFound.into_gql_error())

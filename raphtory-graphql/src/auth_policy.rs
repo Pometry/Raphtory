@@ -123,11 +123,15 @@ pub trait AuthorizationPolicy: Send + Sync + 'static {
     /// Resolves the effective namespace permission for a principal.
     /// Returns `None` if the principal has no access to this namespace (it is invisible).
     /// The implementation is responsible for extracting principal identity from `ctx`.
+    /// Resolves the effective permission on a namespace.
+    /// Returns `Err` only when the principal cannot be established at all, which is a
+    /// server-side fault rather than a caller who lacks access; a caller with no grant on
+    /// this namespace is `Ok(None)`.
     fn namespace_permissions(
         &self,
         ctx: &async_graphql::Context<'_>,
         path: &str,
-    ) -> Option<NamespacePermission>;
+    ) -> Result<Option<NamespacePermission>, AuthPolicyError>;
 
     /// Optional asynchronous refinement of an already-resolved permission.
     ///
@@ -205,8 +209,8 @@ pub(crate) mod auth_policy_tests {
             &self,
             _ctx: &async_graphql::Context<'_>,
             path: &str,
-        ) -> Option<NamespacePermission> {
-            self.namespaces.get(path).cloned()
+        ) -> Result<Option<NamespacePermission>, AuthPolicyError> {
+            Ok(self.namespaces.get(path).cloned())
         }
     }
 }

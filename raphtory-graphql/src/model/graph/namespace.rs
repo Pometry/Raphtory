@@ -204,7 +204,9 @@ fn is_namespace_visible(
     n: &Namespace,
 ) -> bool {
     policy.as_ref().map_or(true, |p| {
-        p.namespace_permissions(ctx, &n.relative_path).is_some()
+        // A fault resolving the principal means visibility cannot be confirmed, so the
+        // namespace stays hidden rather than being listed on a maybe.
+        matches!(p.namespace_permissions(ctx, &n.relative_path), Ok(Some(_)))
     })
 }
 

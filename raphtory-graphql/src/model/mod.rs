@@ -129,7 +129,10 @@ fn require_namespace_write(
             .require_jwt_write_access()
             .map_err(|e| gql_error_with_code(e.to_string(), CODE_ACCESS_DENIED)),
         Some(p) => {
-            if p.namespace_permissions(ctx, ns_path) < Some(NamespacePermission::Write) {
+            let ns_perm = p
+                .namespace_permissions(ctx, ns_path)
+                .map_err(|e| gql_error_with_code(e.to_string(), CODE_ACCESS_DENIED))?;
+            if ns_perm < Some(NamespacePermission::Write) {
                 return Err(PermissionError::NamespaceWriteRequired {
                     namespace: ns_path.to_string(),
                     graph: new_path.to_string(),
