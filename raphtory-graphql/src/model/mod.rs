@@ -7,8 +7,12 @@ use crate::{
     },
     model::{
         graph::{
-            collection::GqlCollection, graph::GqlGraph, meta_graph::MetaGraph,
-            mutable_graph::GqlMutableGraph, namespace::Namespace, namespaced_item::NamespacedItem,
+            collection::GqlCollection,
+            graph::GqlGraph,
+            meta_graph::MetaGraph,
+            mutable_graph::GqlMutableGraph,
+            namespace::{is_namespace_visible, Namespace},
+            namespaced_item::NamespacedItem,
             node_id::GqlNodeId,
         },
         plugins::{
@@ -202,7 +206,10 @@ impl QueryRoot {
 
         if let Some(policy) = &data.auth_policy {
             if let Err(_) = policy.graph_permissions(ctx, &path) {
-                let roles = ctx.data::<Vec<String>>().map(Vec::as_slice).unwrap_or(&[]);
+                let roles = ctx
+                    .data::<crate::auth::Roles>()
+                    .map(|r| r.0.as_slice())
+                    .unwrap_or(&[]);
                 warn!(
                     roles = ?roles,
                     graph = path.as_str(),
@@ -240,7 +247,7 @@ impl QueryRoot {
     pub async fn namespaces<'a>(ctx: &Context<'a>) -> GqlCollection<Namespace> {
         let data = ctx.data_unchecked::<Data>();
         let root = Namespace::root(data.work_dir_read().await);
-        let list = blocking_compute(move || {
+        let all: Vec<Namespace> = blocking_compute(move || {
             root.self_and_all_children()
                 .filter_map(|child| match child {
                     NamespacedItem::Namespace(item) => Some(item),
@@ -250,7 +257,12 @@ impl QueryRoot {
                 .collect()
         })
         .await;
-        GqlCollection::new(list)
+        // Filter to namespaces the caller may see.
+        let visible = all
+            .into_iter()
+            .filter(|n| is_namespace_visible(ctx, &data.auth_policy, n))
+            .collect();
+        GqlCollection::new(visible)
     }
 
     /// Returns a specific namespace at a given path

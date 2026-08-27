@@ -129,12 +129,12 @@ impl FilterOperator {
 
         let cmp = |op: &FilterOperator, r: &Prop, l: &Prop| -> bool {
             match op {
-                Eq => r == l,
-                Ne => r != l,
-                Lt => r.partial_cmp(l).map(|o| o == Less).unwrap_or(false),
-                Le => r.partial_cmp(l).map(|o| o != Greater).unwrap_or(false),
-                Gt => r.partial_cmp(l).map(|o| o == Greater).unwrap_or(false),
-                Ge => r.partial_cmp(l).map(|o| o != Less).unwrap_or(false),
+                Eq => r.equals(l),
+                Ne => !r.equals(l),
+                Lt => r.compare(l).map(|o| o == Less).unwrap_or(false),
+                Le => r.compare(l).map(|o| o != Greater).unwrap_or(false),
+                Gt => r.compare(l).map(|o| o == Greater).unwrap_or(false),
+                Ge => r.compare(l).map(|o| o != Less).unwrap_or(false),
                 _ => false,
             }
         };
@@ -202,14 +202,14 @@ impl FilterOperator {
             Set(set) => match self {
                 IsIn => {
                     if let Some(r) = right {
-                        set.contains(r)
+                        set.iter().any(|s| s.equals(r))
                     } else {
                         false
                     }
                 }
                 IsNotIn => {
                     if let Some(r) = right {
-                        !set.contains(r)
+                        !set.iter().any(|s| s.equals(r))
                     } else {
                         false
                     }

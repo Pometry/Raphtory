@@ -346,37 +346,6 @@ impl RemoteClient {
         RemoteGraph::new(path, self.clone())
     }
 
-    /// Create index on the server. `index_spec` must serialize to a value
-    /// compatible with the GraphQL `IndexSpecInput` type.
-    pub async fn create_index(
-        &self,
-        path: &str,
-        index_spec: JsonValue,
-        in_ram: bool,
-    ) -> Result<(), ClientError> {
-        let query = r#"
-            mutation CreateIndex($path: String!, $indexSpec: IndexSpecInput!, $inRam: Boolean!) {
-                createIndex(path: $path, indexSpec: $indexSpec, inRam: $inRam)
-            }
-        "#
-        .to_owned();
-
-        let variables = json!({
-            "path": json!(path),
-            "indexSpec": index_spec,
-            "inRam": json!(in_ram),
-        });
-
-        let data = self.query(&query, variables).await?;
-        match data.get("createIndex") {
-            Some(JsonValue::Bool(true)) => Ok(()),
-            _ => Err(ClientError::InvalidResponse(format!(
-                "Failed to create index, server returned: {:?}",
-                data
-            ))),
-        }
-    }
-
     /// Extract the `success` flag from a `{ permissions { <field> { success } } }`
     /// mutation response. The permission mutations are only present in the schema
     /// when the server was started with a permissions store, so a missing field

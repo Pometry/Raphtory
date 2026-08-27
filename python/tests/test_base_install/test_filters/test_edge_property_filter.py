@@ -1006,11 +1006,11 @@ def test_edge_overflow_max_values():
             ).edges
         ) == {("b", "c")}
 
-        # overflow SUM for u64: your engine returns None when sum overflows
+        # overflow SUM for u64: overflow is handled by promoting to Decimal
         pairs = _pairs(
-            graph.filter(filter.Edge.property("p_u64s").sum() > Prop.u64(0)).edges
+            graph.filter(filter.Edge.property("p_u64s").sum() > U64_MAX).edges
         )
-        assert ("d", "a") not in pairs
+        assert pairs == {("d", "a")}
 
         # AVG computed in f64 even if sum overflows (mirror node test)
         avg_u64_max_pair = _pairs(

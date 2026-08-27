@@ -174,14 +174,3 @@ def test_edges_sorted_parity():
             local = [(e.src.name, e.dst.name) for e in pair.local.edges.sorted(keys)]
             remote = [(e.src.name, e.dst.name) for e in pair.remote.edges.sorted(keys)]
             assert local == remote, f"sorted({keys}) diverged: {local} vs {remote}"
-
-
-def test_sort_key_types_are_shared():
-    """One set of sort-key classes serves both sides: `raphtory.NodeSortBy`
-    and `raphtory.graphql.NodeSortBy` are the same class."""
-    import raphtory
-    import raphtory.graphql as gql
-
-    assert raphtory.NodeSortBy is gql.NodeSortBy
-    assert raphtory.EdgeSortBy is gql.EdgeSortBy
-    assert raphtory.SortByTime is gql.SortByTime

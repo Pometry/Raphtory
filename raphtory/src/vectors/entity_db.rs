@@ -90,14 +90,18 @@ pub(super) trait EntityDb: Sized {
         futures_util::pin_mut!(vectors);
 
         while let Some(result) = vectors.as_mut().chunks(1000).next().await {
-            let vector_result: Vec<(u64, Embedding)> = result
-                .into_iter()
-                .map(|result| result.unwrap())
-                .map(|(id, vector)| (id, vector))
-                .collect();
-            let ids = vector_result.iter().map(|(id, _)| *id).collect();
-            let vectors = vector_result.into_iter().map(|(_, vector)| vector);
-            self.get_db().insert_vectors(ids, vectors).await?
+            // a failed embedding has to surface as an error: unwrapping it here panics inside
+            // whatever task is vectorising
+            let mut ids = Vec::with_capacity(result.len());
+            let mut vectors = Vec::with_capacity(result.len());
+            for res in result {
+                let (id, vector) = res?;
+                ids.push(id);
+                vectors.push(vector);
+            }
+            self.get_db()
+                .insert_vectors(ids, vectors.into_iter())
+                .await?
         }
         Ok(())
     }

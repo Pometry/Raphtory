@@ -184,7 +184,7 @@ pub fn assert_select_nodes_results(
         SelectNodes(filter),
     )
 }
-
+#[track_caller]
 fn assert_filter_err_contains<E>(err: GraphError, expected: E)
 where
     E: AsRef<str>,
@@ -202,6 +202,7 @@ where
     }
 }
 
+#[track_caller]
 pub fn assert_filter_nodes_err(
     init_graph: fn(Graph) -> Graph,
     transform: impl GraphTransformer,
@@ -354,6 +355,7 @@ pub fn filter_edges(graph: &Graph, filter: impl CreateFilter) -> Vec<String> {
 
 pub type EdgeRow = (u64, u64, i64, String, i64);
 
+#[track_caller]
 pub fn assert_ok_or_missing_edges<T>(
     edges: &[EdgeRow],
     res: Result<T, GraphError>,
@@ -371,6 +373,7 @@ pub fn assert_ok_or_missing_edges<T>(
     }
 }
 
+#[track_caller]
 pub fn assert_ok_or_missing_nodes<T>(
     nodes: &[(u64, Option<String>, Option<i64>)],
     res: Result<T, GraphError>,
