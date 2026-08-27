@@ -9,15 +9,11 @@ use crate::{
         remote_path_from_node::PyRemotePathFromNode,
     },
 };
-use pyo3::{
-    exceptions::{PyKeyError, PyValueError},
-    pyclass, pymethods, PyResult,
-};
+use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyResult};
 use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
 use raphtory_api::{
     core::{
         entities::{properties::prop::Prop, GID},
-        storage::timeindex::{AsTime, EventTime},
         utils::time::InputTime,
     },
     python::timeindex::{EventTimeComponent, PyOptionalEventTime},
@@ -53,7 +49,7 @@ impl PyRemoteNode {
     /// `Node.filter(FilterExpr)`. Lazy — no RPC.
     ///
     /// Arguments:
-    ///     filter (FilterExpr): a node filter expression from `raphtory.filter`.
+    ///     filter (filter.FilterExpr): a node filter expression from `raphtory.filter`.
     ///
     /// Returns:
     ///     RemoteNode: a new filtered node view.
@@ -246,7 +242,7 @@ impl PyRemoteNode {
     /// Property — attribute access fires one RPC.
     ///
     /// Returns:
-    ///     str | int: the node's id — a string for string-indexed graphs, an
+    ///     str|int: the node's id — a string for string-indexed graphs, an
     ///         integer for integer-indexed ones.
     #[getter]
     pub fn id(&self) -> Result<GID, ClientError> {

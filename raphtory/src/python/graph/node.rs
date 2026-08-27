@@ -37,7 +37,6 @@ use crate::{
         filter::filter_expr::PyFilterExpr,
         graph::{
             history::{NestedHistoryIterable, PyHistory},
-            node::internal::InternalFilter,
             properties::{MetadataListList, MetadataView, PropertiesView, PyNestedPropsIterable},
             sorting::PyNodeSortBy,
         },
@@ -47,11 +46,7 @@ use crate::{
     *,
 };
 use pyo3::{
-    exceptions::{PyKeyError, PyTypeError},
-    prelude::*,
-    pybacked::PyBackedStr,
-    pyclass, pymethods,
-    types::PyDict,
+    exceptions::PyTypeError, prelude::*, pybacked::PyBackedStr, pyclass, pymethods, types::PyDict,
     Borrowed, IntoPyObjectExt, Py, PyAny, PyResult, Python,
 };
 use python::{

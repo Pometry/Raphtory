@@ -77,7 +77,7 @@ impl<G: StaticGraphViewOps + IntoDynamic + Static> From<PathFromGraph<'static, G
 }
 
 impl<'graph, G: GraphViewOps<'graph>> PathFromGraph<'graph, G> {
-    fn new_filtered(
+    pub fn new_filtered(
         base_graph: G,
         select: DynGraphArc<'graph>,
         nodes: Arc<dyn Fn() -> BoxedLIter<'graph, VID> + Send + Sync + 'graph>,
