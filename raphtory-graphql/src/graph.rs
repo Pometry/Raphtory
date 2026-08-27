@@ -34,7 +34,10 @@ use std::{
 use tracing::debug;
 
 #[cfg(feature = "vectors")]
-use raphtory::vectors::{storage::LazyDiskVectorCache, vectorised_graph::VectorisedGraph};
+use {
+    raphtory::vectors::{storage::LazyDiskVectorCache, vectorised_graph::VectorisedGraph},
+    tracing::error,
+};
 
 /// The element stored in the optional vectors slot of a graph. With the
 /// `vectors` feature this is a real `VectorisedGraph`; without it the slot is
@@ -193,10 +196,22 @@ impl GraphWithVectors {
             .await?
         };
         #[cfg(feature = "vectors")]
-        let vectors =
-            VectorisedGraph::read_from_path(&folder.vectors_path()?, graph.clone(), cache)
-                .await
-                .ok();
+        let vectors = {
+            let vectors_path = folder.vectors_path()?;
+            match VectorisedGraph::read_from_path(&vectors_path, graph.clone(), cache).await {
+                Ok(vectors) => Some(vectors),
+                Err(error) => {
+                    // a graph that was never vectorised has no vectors dir, that is not a failure
+                    if vectors_path.exists() {
+                        error!(
+                            "Could not load the vectors of graph {}: {error}",
+                            folder.local_path()
+                        );
+                    }
+                    None
+                }
+            }
+        };
         #[cfg(not(feature = "vectors"))]
         let vectors = None;
 

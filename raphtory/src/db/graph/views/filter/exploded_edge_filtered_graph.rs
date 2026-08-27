@@ -5,21 +5,19 @@ use crate::db::api::{
     state::ops::GraphView,
     view::internal::{
         FilterOps, Immutable, InheritEdgeFilterOps, InheritEdgeHistoryFilter,
-        InheritEdgeLayerFilterOps, InheritExplodedEdgeFilterOps, InheritListOps,
-        InheritMaterialize, InheritNodeFilterOps, InheritNodeHistoryFilter, InheritStorageOps,
-        InheritTimeSemantics, InternalEdgeFilterOps, InternalEdgeLayerFilterOps,
+        InheritEdgeLayerFilterOps, InheritListOps, InheritMaterialize, InheritNodeFilterOps,
+        InheritNodeHistoryFilter, InheritStorageOps, InheritTimeSemantics,
         InternalExplodedEdgeFilterOps, Static,
     },
 };
 use raphtory_api::{
     core::{
-        entities::{LayerId, LayerIds, ELID},
+        entities::{LayerIds, ELID},
         storage::timeindex::EventTime,
     },
     inherit::Base,
 };
 use raphtory_storage::{core_ops::InheritCoreGraphOps, layer_ops::InheritLayerOps};
-use storage::EdgeEntryRef;
 
 #[derive(Debug, Clone)]
 pub struct ExplodedEdgeFilteredGraph<G, F> {

@@ -2114,7 +2114,7 @@ input FuzzySearchExpr {
 }
 
 """
-A general filter expression — a node filter (`nodes`), an edge filter (`edges`), a graph/view
+A general filter expression — a node filter (`node`), an edge filter (`edge`), a graph/view
 filter (`graph`, e.g. a layer or window restriction), or an `and`/`or` combination of these
 (which may mix kinds). Used where an operation accepts any filter, such as scoping a component
 walk.
@@ -2122,19 +2122,18 @@ walk.
 input GqlFilter @oneOf {
 	"""
 	Filter by node properties, fields, or temporal state.
-	(Persisted filters may use the legacy `node` key.)
 	"""
-	nodes: NodeFilter
+	node: NodeFilter
 	"""
 	Filter by edge properties, source/destination, or temporal state.
 	(Persisted filters may use the legacy `edge` key.)
 	"""
-	edges: EdgeFilter
+	edge: EdgeFilter
 	"""
 	Filter exploded edges — per-event edge instances — by properties,
 	endpoints, or temporal state, evaluated per event.
 	"""
-	explodedEdges: ExplodedEdgeFilter
+	explodedEdge: ExplodedEdgeFilter
 	"""
 	Apply a graph-level view (window, snapshot, layer restriction, …).
 	"""
@@ -2145,7 +2144,7 @@ input GqlFilter @oneOf {
 	and: [GqlFilter!]
 	"""
 	At least one sub-filter must pass (union).
-	Cross-type sub-filters (e.g. `nodes` and `edges` together) produce a
+	Cross-type sub-filters (e.g. `node` and `edge` together) produce a
 	proper graph union: a node is visible if it matches the node filter or
 	has a visible edge, and an edge is visible if it matches the edge
 	filter or both its endpoints are visible.
@@ -3419,18 +3418,18 @@ type MetaGraph {
 	"""
 	lastUpdated: Int!
 	"""
-	Returns the number of nodes in the graph.
+	Returns the number of nodes in the graph, or null if the caller lacks unfiltered read.
 	"""
-	nodeCount: Int!
+	nodeCount: Int
 	"""
-	Returns the number of edges in the graph.
+	Returns the number of edges in the graph, or null if the caller lacks unfiltered read.
 	
 	Returns:
 	int:
 	"""
-	edgeCount: Int!
+	edgeCount: Int
 	"""
-	Returns the metadata of the graph.
+	Returns the metadata of the graph, or null if the caller lacks unfiltered read.
 	
 	Reads metadata without forcing a full graph load: from the
 	in-memory cache if the graph is already loaded, otherwise directly
@@ -3438,7 +3437,7 @@ type MetaGraph {
 	`graph_props` segment for disk-backed graphs). This keeps
 	`MetaGraph.metadata` cheap for namespace listings of many graphs.
 	"""
-	metadata: [Property!]!
+	metadata: [Property!]
 }
 
 """
@@ -4739,27 +4738,6 @@ input NodeAddition {
 	layer: String
 }
 
-enum NodeField {
-	"""
-	Node ID field.
-	
-	Represents the graph’s node identifier (numeric or string-backed in the API).
-	"""
-	NODE_ID
-	"""
-	Node name field.
-	
-	Represents the human-readable node name (string).
-	"""
-	NODE_NAME
-	"""
-	Node type field.
-	
-	Represents the optional node type assigned at node creation (string).
-	"""
-	NODE_TYPE
-}
-
 """
 Boolean expression over a built-in node field (ID, name, or type).
 
@@ -4825,30 +4803,6 @@ input NodeFieldCondition @oneOf {
 }
 
 """
-Filters a built-in node field (`id`, `name`, `type`) using a `NodeFieldCondition`.
-
-Example (GraphQL):
-```graphql
-{ Node: { field: NodeName, where: { Contains: "ali" } } }
-```
-
-Deprecated spelling: prefer the per-field forms (`id:` / `name:` /
-`nodeType:`), which say the field as the key instead of an enum argument.
-"""
-input NodeFieldFilterNew {
-	"""
-	Which built-in field to filter.
-	"""
-	field: NodeField!
-	"""
-	Condition applied to the selected field.
-	
-	Exposed as `where` in GraphQL.
-	"""
-	where: NodeFieldCondition!
-}
-
-"""
 A condition on one specific built-in field — the payload of the per-field
 filter variants (`{ id: { where: ... } }`, `{ name: { where: ... } }`,
 `{ nodeType: { where: ... } }`).
@@ -4891,12 +4845,6 @@ input NodeFilter @oneOf {
 	Filters the node type: `{ nodeType: { where: ... } }`.
 	"""
 	nodeType: NodeFieldWhere
-	"""
-	Filters a built-in node field chosen by an enum argument. Deprecated
-	spelling — prefer the per-field forms above, which name the field as
-	the key.
-	"""
-	node: NodeFieldFilterNew
 	"""
 	Filters a node property by name and condition.
 	"""
@@ -7080,6 +7028,33 @@ type QueryRoot {
 		nodes: Template,
 		"""
 		Optional edge-document template; defaults to the built-in template.
+		"""
+		edges: Template
+	): Boolean!
+	"""
+	Index only the entities that are missing from an existing vector index, leaving what is
+	already indexed untouched. Cheap enough to run routinely, and never destructive.
+	
+	Fails if the graph has no index yet, or if the template or model differs from the one the
+	index was built with — `vectoriseGraph` is what covers those, by rebuilding.
+	
+	Returns:: bool
+	"""
+	vectoriseMissing(
+		"""
+		Graph path relative to the root namespace.
+		"""
+		path: String!,
+		"""
+		Embedding model; must match the one the index was built with.
+		"""
+		model: EmbeddingModel,
+		"""
+		Node-document template; must match the one the index was built with.
+		"""
+		nodes: Template,
+		"""
+		Edge-document template; must match the one the index was built with.
 		"""
 		edges: Template
 	): Boolean!

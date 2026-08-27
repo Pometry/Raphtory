@@ -1,5 +1,5 @@
 use crate::{
-    core::storage::lazy_vec::IllegalSet,
+    algorithms::dynamics::temporal::epidemics::SeedError, core::storage::lazy_vec::IllegalSet,
     db::graph::views::filter::model::filter_operator::FilterOperator, prelude::GraphViewOps,
 };
 use arrow::{datatypes::DataType, error::ArrowError};
@@ -31,12 +31,14 @@ use storage::{error::StorageError, resolver::mapping_resolver::InvalidNodeId};
 #[cfg(feature = "python")]
 use pyo3::PyErr;
 
-use crate::algorithms::dynamics::temporal::epidemics::SeedError;
 #[cfg(feature = "io")]
 use zip::result::ZipError;
 
 #[cfg(feature = "vectors")]
 use crate::vectors::embeddings::EmbeddingError;
+
+#[cfg(any(feature = "vectors", feature = "io"))]
+use tempfile::PersistError;
 
 #[derive(thiserror::Error, Debug)]
 pub enum InvalidPathReason {
@@ -118,6 +120,10 @@ pub enum GraphError {
     #[error(transparent)]
     ExternalError(Arc<dyn std::error::Error + Send + Sync>),
 
+    #[cfg(any(feature = "io", feature = "vectors"))]
+    #[error(transparent)]
+    PersistError(#[from] PersistError),
+
     #[error(transparent)]
     MutationError(#[from] MutationError),
 
@@ -151,23 +157,8 @@ pub enum GraphError {
     #[error("Storage feature not enabled")]
     DiskGraphNotEnabled,
 
-    #[error("Missing graph index. You need to create an index first.")]
-    IndexNotCreated,
-
-    #[error("Failed to create index.")]
-    FailedToCreateIndex,
-
-    #[error("Failed to persist index.")]
-    FailedToPersistIndex,
-
-    #[error("Cannot persist RAM index")]
-    CannotPersistRamIndex,
-
-    #[error("Failed to remove existing graph index: {0}")]
-    FailedToRemoveExistingGraphIndex(PathBuf),
-
-    #[error("Failed to move graph index")]
-    FailedToMoveGraphIndex,
+    #[error("The stored template or embedding model differs from the one requested, so only entities missing from the index cannot be added; re-vectorise instead")]
+    VectorTemplateChanged,
 
     #[error("Valid view is not supported for event graph")]
     EventGraphNoValidView,
@@ -374,15 +365,6 @@ pub enum GraphError {
     #[error("Property {0} not found in temporal or metadata")]
     PropertyNotFound(String),
 
-    #[error("PropertyIndex not found for property {0}")]
-    PropertyIndexNotFound(String),
-
-    #[error("Tokenization is support only for str field type")]
-    UnsupportedFieldTypeForTokenization,
-
-    #[error("Not tokens found")]
-    NoTokensFound,
-
     #[error("More than one view set within a ViewCollection object - due to limitations in graphql we cannot tell which order to execute these in. Please add these views as individual objects in the order you want them to execute.")]
     TooManyViewsSet,
 
@@ -403,12 +385,6 @@ pub enum GraphError {
 
     #[error("Only property filters are supported for exploded edge filtering")]
     NotExplodedEdgeFilter,
-
-    #[error("Indexing not supported")]
-    IndexingNotSupported,
-
-    #[error("Failed to create index in ram. There already exists an on disk index.")]
-    OnDiskIndexAlreadyExists,
 
     #[error("Your window and step must be of the same type: duration (string) or epoch (int)")]
     MismatchedIntervalTypes,

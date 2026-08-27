@@ -262,11 +262,11 @@ impl<'graph, G: GraphViewOps<'graph>> BaseEdgeViewOps<'graph> for EdgeView<G> {
         Metadata::new(self.clone())
     }
 
-    fn map_nodes<F: Fn(&dyn BoxableGraphView, EdgeRef) -> VID + Send + Sync + Clone + 'graph>(
+    fn map_nodes<F: Fn(EdgeRef) -> VID + Send + Sync + Clone + 'graph>(
         &self,
         op: F,
     ) -> Self::Nodes {
-        let vid = op(&self.graph, self.edge);
+        let vid = op(self.edge);
         NodeView::new_internal(self.graph.clone(), vid)
     }
 

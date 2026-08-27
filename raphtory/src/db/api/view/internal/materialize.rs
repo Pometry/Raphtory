@@ -4,15 +4,17 @@ use crate::{
         api::view::internal::*,
         graph::{graph::Graph, views::deletion_graph::PersistentGraph},
     },
-    errors::GraphError,
     prelude::*,
 };
-#[cfg(feature = "io")]
-use raphtory_api::core::storage::graph_folder::GraphPaths;
 use raphtory_api::{iter::BoxedLIter, GraphType};
 use raphtory_storage::{graph::graph::GraphStorage, mutation::InheritMutationOps};
 use std::ops::Range;
-use storage::Config;
+
+#[cfg(feature = "io")]
+use {
+    crate::errors::GraphError, raphtory_api::core::storage::graph_folder::GraphPaths,
+    storage::Config,
+};
 
 #[derive(Clone)]
 pub enum MaterializedGraph {

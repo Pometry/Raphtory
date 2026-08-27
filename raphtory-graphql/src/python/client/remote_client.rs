@@ -3,8 +3,8 @@ use crate::{
     data::GqlGraphType,
     model::graph::filtering::{GqlEdgeFilter, GqlNodeFilter},
     python::{
-        client::{remote_graph::PyRemoteGraph, PyRemoteIndexSpec},
-        encode_graph, translate_from_python, translate_map_to_python, translate_to_python,
+        client::remote_graph::PyRemoteGraph, encode_graph, translate_from_python,
+        translate_map_to_python, translate_to_python,
     },
 };
 use pyo3::{
@@ -259,30 +259,6 @@ impl PyRaphtoryClient {
         }
     }
 
-    /// Create Index for graph on the server at 'path'
-    ///
-    /// Arguments:
-    ///     path (str): the path of the graph to index
-    ///     index_spec (RemoteIndexSpec): spec specifying the properties that need to be indexed
-    ///     in_ram (bool): create index in ram. Defaults to True.
-    ///
-    /// Returns:
-    ///     None:
-    ///
-    #[pyo3(signature = (path, index_spec, in_ram = true))]
-    fn create_index(
-        &self,
-        path: String,
-        index_spec: PyRemoteIndexSpec,
-        in_ram: bool,
-    ) -> PyResult<()> {
-        let spec_value =
-            serde_json::to_value(&index_spec).map_err(|e| PyException::new_err(e.to_string()))?;
-        self.run_async(
-            move |client| async move { client.create_index(&path, spec_value, in_ram).await },
-        )
-    }
-
     /// Create a role in the server's permissions store.
     ///
     /// Requires an admin (write-access) token. Only available when the server
@@ -403,7 +379,7 @@ impl PyRaphtoryClient {
     /// Arguments:
     ///     role (str): the role to grant filtered access to
     ///     path (str): the path of the graph
-    ///     filter (FilterExpr): a filter expression from `raphtory.filter`; a node
+    ///     filter (filter.FilterExpr): a filter expression from `raphtory.filter`; a node
     ///         filter restricts visible nodes, an edge filter restricts visible edges.
     ///     hidden_properties (dict[str, list[str]], optional): temporal property keys
     ///         to hide, keyed by "node", "edge", and/or "graph".

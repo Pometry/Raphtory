@@ -1,58 +1,18 @@
+"""Vectorising a graph for the first time, by each of the routes that can do it."""
+
 import tempfile
-from raphtory.graphql import GraphServer, RaphtoryClient
+
 from raphtory import Graph
-from raphtory.vectors import OpenAIEmbeddings, embedding_server
+from raphtory.graphql import GraphServer
+from raphtory.vectors import OpenAIEmbeddings
 
-
-@embedding_server
-def embeddings(text: str):
-    return [text.count("a"), text.count("b")]
-
-
-def setup_graph(g):
-    g.add_node(1, "aab")
-    g.add_edge(1, "aab", "bbb")
-
-
-def assert_correct_documents(client):
-    query = """{
-    vectorisedGraph(path: "abb") {
-        entitiesBySimilarity(query: "aab", limit: 1) {
-            getDocuments {
-                content
-                embedding
-                entity {
-                    __typename
-                    ... on Node {
-                        name
-                    }
-                    ... on Edge {
-                        src {
-                            name
-                        }
-                        dst {
-                            name
-                        }
-                    }
-                }
-            }
-        }
-    }
-    }"""
-    result = client.query(query)
-    assert result == {
-        "vectorisedGraph": {
-            "entitiesBySimilarity": {
-                "getDocuments": [
-                    {
-                        "entity": {"__typename": "Node", "name": "aab"},
-                        "content": "aab",
-                        "embedding": [2.0, 1.0],
-                    }
-                ]
-            }
-        },
-    }
+from helpers import (
+    EMBEDDING_PORT,
+    assert_correct_documents,
+    embeddings,
+    setup_graph,
+    vectorise_query,
+)
 
 
 def test_new_graph():
@@ -65,11 +25,13 @@ def test_new_graph():
             client.new_graph("abb", "EVENT")
             rg = client.remote_graph("abb")
             setup_graph(rg)
-            client.query("""
+            client.query(
+                """
                 {
                     vectoriseGraph(path: "abb", model: { openAI: { model: "whatever", apiBase: "http://localhost:7340" } }, nodes: { custom: "{{ name }}" }, edges: { enabled: false })
                 }
-                """)
+                """
+            )
             assert_correct_documents(client)
 
 
@@ -86,11 +48,13 @@ def test_upload_graph():
             g_path = temp_dir.name + "/abb"
             g.save_to_zip(g_path)
             client.upload_graph(path="abb", file_path=g_path, overwrite=True)
-            client.query("""
+            client.query(
+                """
                 {
                 vectoriseGraph(path: "abb", model: { openAI: { model: "whatever", apiBase: "http://localhost:7340" } }, nodes: { custom: "{{ name }}" }, edges: { enabled: false })
                 }
-                """)
+                """
+            )
             assert_correct_documents(client)
 
 
@@ -111,14 +75,17 @@ def test_vectorised_graph_window_accepts_time_input_shapes():
             setup_graph(rg)
             # `model` and `apiBase` point at the mock embedding server above,
             # so the model name is just a placeholder identifier.
-            client.query("""
+            client.query(
+                """
                 {
                     vectoriseGraph(path: "abb", model: { openAI: { model: "mock-model", apiBase: "http://localhost:7340" } }, nodes: { custom: "{{ name }}" }, edges: { enabled: false })
                 }
-                """)
+                """
+            )
 
             def run(window_literal: str):
-                q = """
+                q = (
+                    """
                     {
                         vectorisedGraph(path: "abb") {
                             entitiesBySimilarity(query: "aab", limit: 5, window: %s) {
@@ -126,7 +93,9 @@ def test_vectorised_graph_window_accepts_time_input_shapes():
                             }
                         }
                     }
-                    """ % window_literal
+                    """
+                    % window_literal
+                )
                 return client.query(q)
 
             # Same time bounds, three different input shapes — all should be

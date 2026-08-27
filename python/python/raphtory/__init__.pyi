@@ -38,9 +38,6 @@ __all__ = [
     "Graph",
     "PersistentGraph",
     "Node",
-    "NodeSortBy",
-    "EdgeSortBy",
-    "SortByTime",
     "Nodes",
     "PathFromNode",
     "PathFromGraph",
@@ -49,6 +46,9 @@ __all__ = [
     "Edges",
     "NestedEdges",
     "MutableEdge",
+    "SortByTime",
+    "NodeSortBy",
+    "EdgeSortBy",
     "Properties",
     "PyPropValueList",
     "PropType",
@@ -178,15 +178,6 @@ class GraphView(object):
         """
 
     @property
-    def earliest_time(self) -> OptionalEventTime:
-        """
-        Time entry of the earliest activity in the graph
-
-        Returns:
-            OptionalEventTime: the time entry of the earliest activity in the graph
-        """
-
-    @property
     def earliest_edge_time(self) -> OptionalEventTime:
         """
         Time entry of the earliest edge activity in the graph
@@ -200,16 +191,12 @@ class GraphView(object):
         """
 
     @property
-    def latest_edge_time(self) -> OptionalEventTime:
+    def earliest_time(self) -> OptionalEventTime:
         """
-        Time entry of the latest edge activity in the graph
-
-        Unlike `latest_time`, this ignores node-only and graph-property
-        events, so it answers when this graph first had an edge.
+        Time entry of the earliest activity in the graph
 
         Returns:
-            OptionalEventTime: the time entry of the latest edge activity, or
-                empty if the view has no edges
+            OptionalEventTime: the time entry of the earliest activity in the graph
         """
 
     def edge(self, src: NodeInput, dst: NodeInput) -> Optional[Edge]:
@@ -369,6 +356,16 @@ class GraphView(object):
 
         Returns:
              GraphView:
+        """
+
+    @property
+    def latest_edge_time(self) -> OptionalEventTime:
+        """
+        Time entry of the latest edge activity in the graph
+
+        Returns:
+            OptionalEventTime: the time entry of the latest edge activity, or
+                empty if the view has no edges
         """
 
     @property
@@ -1095,9 +1092,9 @@ class Graph(GraphView):
             path (str | PathLike): the path of the graph folder
             config (Config, optional): specify a new config to override the values saved for the graph
                                        (note that the page sizes cannot be overridden and are ignored)
-            read_only (bool, optional): open as a read-only snapshot. Multiple processes can hold
-                              a read-only handle to the same graph directory concurrently;
-                              mutating the returned graph will fail. Defaults to False.
+            read_only (bool, optional): open as a read-only snapshot. Defaults to False.
+                                        Multiple processes can hold a read-only handle to the same
+                                        graph directory concurrently. Mutating the returned graph will fail.
 
         Returns:
             Graph: the graph
@@ -1744,9 +1741,9 @@ class PersistentGraph(GraphView):
             path (str | PathLike): the path of the graph folder
             config (Config, optional): specify a new config to override the values saved for the graph
                                        (note that the page sizes cannot be overridden and are ignored)
-            read_only (bool, optional): open as a read-only snapshot. Multiple processes can hold
-                              a read-only handle to the same graph directory concurrently;
-                              mutating the returned graph will fail. Defaults to False.
+            read_only (bool, optional): open as a read-only snapshot. Defaults to False.
+                                        Multiple processes can hold a read-only handle to the same
+                                        graph directory concurrently. Mutating the returned graph will fail.
 
         Returns:
             PersistentGraph: the graph
@@ -3016,7 +3013,6 @@ class Nodes(object):
              Nodes:
         """
 
-    @property
     def sorted(self, sort_bys: list[NodeSortBy]) -> Nodes:
         """
         Reorder this collection by an ordered list of sort keys. Multi-key
@@ -3029,6 +3025,7 @@ class Nodes(object):
             Nodes: a new collection in the sorted order.
         """
 
+    @property
     def start(self) -> OptionalEventTime:
         """
          Gets the start time for rolling and expanding windows for this Nodes
@@ -5016,16 +5013,6 @@ class Edges(object):
              Edges:
         """
 
-    @property
-    def src(self) -> Nodes:
-        """
-        Returns the source node of the edge.
-
-        Returns:
-            Nodes:
-        """
-
-    @property
     def sorted(self, sort_bys: list[EdgeSortBy]) -> Edges:
         """
         Reorder this collection by an ordered list of sort keys. Multi-key
@@ -5038,6 +5025,16 @@ class Edges(object):
             Edges: a new collection in the sorted order.
         """
 
+    @property
+    def src(self) -> Nodes:
+        """
+        Returns the source node of the edge.
+
+        Returns:
+            Nodes:
+        """
+
+    @property
     def start(self) -> OptionalEventTime:
         """
          Gets the start time for rolling and expanding windows for this Edges
@@ -5693,7 +5690,7 @@ class NodeSortBy(object):
     """
     One entry in a `Nodes.sorted(...)` sort key list. Construct with the
     static factories `by_id` / `by_name` / `by_type` / `by_time` /
-    `by_property` — each enforces that exactly one key type is set per entry.
+    `by_property` — the key is an enum, so exactly one is set by construction.
     """
 
     @staticmethod
@@ -5929,6 +5926,10 @@ class Properties(object):
     def values(self, keys: Optional[list[str]] = None) -> list[PropValue]:
         """
         Get the values of the properties.
+
+        Arguments:
+            keys (list[str], optional): restrict the result to these names, in
+                the given order. Defaults to every key, in `keys()` order.
 
         Returns:
             list[PropValue]:
@@ -6301,7 +6302,11 @@ class Metadata(object):
 
     def values(self, keys: Optional[list[str]] = None) -> list[PropValue]:
         """
-        lists the property values
+        lists the metadata values
+
+        Arguments:
+            keys (list[str], optional): restrict the result to these names, in
+                the given order. Defaults to every key, in `keys()` order.
 
         Returns:
             list[PropValue]:
@@ -6461,6 +6466,10 @@ class TemporalProperties(object):
     def values(self, keys: Optional[list[str]] = None) -> list[TemporalProperty]:
         """
         List the values of the properties
+
+        Arguments:
+            keys (list[str], optional): restrict the result to these names, in
+                the given order. Defaults to every key, in `keys()` order.
 
         Returns:
             list[TemporalProperty]: the list of property views
