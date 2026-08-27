@@ -4722,8 +4722,8 @@ input NodeAddition {
 """
 Boolean expression over a built-in node field (ID, name, or type).
 
-This is used by `NodeFieldFilterNew.where_` when filtering a specific
-`NodeField`.
+This is used by `NodeFieldWhere.where_` when filtering a specific
+built-in field.
 
 Supports comparisons, string predicates, and set membership.
 (Presence checks and aggregations are handled via property filters instead.)
@@ -4803,7 +4803,7 @@ GraphQL input type for filtering nodes.
 `NodeFilter` represents a composable boolean expression evaluated
 against nodes in a graph. Filters can target:
 
-- built-in node fields (`Node` / `NodeFieldFilterNew`),
+- built-in node fields (`Id` / `Name` / `NodeType`),
 - node properties and metadata,
 - temporal properties,
 - temporal scope (windows, snapshots, latest),
@@ -7580,3 +7580,4 @@ schema {
 	query: QueryRoot
 	mutation: MutRoot
 }
+
