@@ -319,8 +319,7 @@ impl<T: HasRow> SegmentContainer<T> {
             .append_t_props(t, props);
     }
 
-    /// Append const (metadata) props without touching the presence bitset.
-    /// See [`Self::append_t_props`].
+    /// Append const (metadata) props **without** touching the presence bitset.
     pub(crate) fn append_const_props<P: AsPropRef>(
         &mut self,
         local_row: usize,

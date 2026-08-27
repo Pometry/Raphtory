@@ -249,7 +249,7 @@ impl Meta {
     }
 }
 
-/// Manages the mapping of property names to their IDs and types.
+/// Manages the mapping of property names to their IDs, types and layers in which they exist.
 #[derive(Default, Serialize, Deserialize)]
 pub struct PropMapper {
     /// Maps property names to their IDs.
