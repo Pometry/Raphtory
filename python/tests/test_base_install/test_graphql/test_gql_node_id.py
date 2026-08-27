@@ -27,8 +27,7 @@ def test_addnode_and_node_lookup_with_integer_ids():
         client = server.get_client()
         client.new_graph("g", "EVENT")
 
-        client.query(
-            """
+        client.query("""
             {
               updateGraph(path: "g") {
                 a: addNode(time: 1, name: 1) { success }
@@ -36,8 +35,7 @@ def test_addnode_and_node_lookup_with_integer_ids():
                 c: addNode(time: 3, name: 42) { success }
               }
             }
-            """
-        )
+            """)
 
         result = _query(
             server,
@@ -68,16 +66,14 @@ def test_addedge_and_edge_lookup_with_integer_endpoints():
         client = server.get_client()
         client.new_graph("g", "EVENT")
 
-        client.query(
-            """
+        client.query("""
             {
               updateGraph(path: "g") {
                 e1: addEdge(time: 10, src: 1, dst: 2) { success }
                 e2: addEdge(time: 20, src: 2, dst: 3) { success }
               }
             }
-            """
-        )
+            """)
 
         result = _query(
             server,
@@ -110,8 +106,7 @@ def test_view_transforms_with_integer_node_ids():
         client.new_graph("g", "EVENT")
 
         # Build a small integer-id graph: 1 → 2, 1 → 3, 4 → 2 (so 1 and 4 share neighbour 2).
-        client.query(
-            """
+        client.query("""
             {
               updateGraph(path: "g") {
                 e1: addEdge(time: 1, src: 1, dst: 2) { success }
@@ -119,8 +114,7 @@ def test_view_transforms_with_integer_node_ids():
                 e3: addEdge(time: 3, src: 4, dst: 2) { success }
               }
             }
-            """
-        )
+            """)
 
         result = _query(
             server,
@@ -150,8 +144,7 @@ def test_batch_addnodes_addedges_with_integer_ids():
         client = server.get_client()
         client.new_graph("g", "EVENT")
 
-        client.query(
-            """
+        client.query("""
             {
               updateGraph(path: "g") {
                 addNodes(nodes: [
@@ -164,8 +157,7 @@ def test_batch_addnodes_addedges_with_integer_ids():
                 ])
               }
             }
-            """
-        )
+            """)
 
         result = _query(
             server,
@@ -195,8 +187,7 @@ def test_view_transforms_with_string_node_ids():
         client.new_graph("g", "EVENT")
 
         # alice → bob, alice → carol, dave → bob (alice and dave share bob).
-        client.query(
-            """
+        client.query("""
             {
               updateGraph(path: "g") {
                 e1: addEdge(time: 1, src: "alice", dst: "bob")   { success }
@@ -204,8 +195,7 @@ def test_view_transforms_with_string_node_ids():
                 e3: addEdge(time: 3, src: "dave",  dst: "bob")   { success }
               }
             }
-            """
-        )
+            """)
 
         result = _query(
             server,
@@ -233,8 +223,7 @@ def test_batch_addnodes_addedges_with_string_ids():
         client = server.get_client()
         client.new_graph("g", "EVENT")
 
-        client.query(
-            """
+        client.query("""
             {
               updateGraph(path: "g") {
                 addNodes(nodes: [
@@ -247,8 +236,7 @@ def test_batch_addnodes_addedges_with_string_ids():
                 ])
               }
             }
-            """
-        )
+            """)
 
         result = _query(
             server,
@@ -278,16 +266,14 @@ def test_string_ids_remain_unchanged_for_existing_clients():
         client = server.get_client()
         client.new_graph("g", "EVENT")
 
-        client.query(
-            """
+        client.query("""
             {
               updateGraph(path: "g") {
                 addNode(time: 1, name: "alice") { success }
                 addEdge(time: 2, src: "alice", dst: "bob") { success }
               }
             }
-            """
-        )
+            """)
 
         result = _query(
             server,
@@ -312,15 +298,13 @@ def test_negative_integer_rejected():
         client.new_graph("g", "EVENT")
 
         try:
-            client.query(
-                """
+            client.query("""
                 {
                   updateGraph(path: "g") {
                     addNode(time: 1, name: -1) { success }
                   }
                 }
-                """
-            )
+                """)
             raise AssertionError(
                 "Expected schema-level rejection for negative integer NodeId"
             )

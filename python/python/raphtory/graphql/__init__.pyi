@@ -411,25 +411,6 @@ class RaphtoryClient(object):
             None:
         """
 
-    def viewer_permissions(self) -> dict[str, Any]:
-        """
-        Return this token's own permission grants.
-
-        Reads only what the calling role has been granted, so it never discloses
-        other roles or graphs. Available to any authenticated caller (does not
-        require an admin token). Only available when the server was started with
-        a permissions store.
-
-        Returns:
-            dict[str, Any]: a mapping with keys ``roles`` (list of str),
-            ``graphs`` (list of ``{"path", "permission", "filtered"}``) and
-            ``namespaces`` (list of ``{"path", "permission"}``). ``roles`` is empty
-            when the token carries no role claim, in which case both lists are empty.
-            A token naming several roles gets their grants merged
-            most-permissive-wins, so an unfiltered grant from one role supersedes a
-            filtered grant from another on the same graph.
-        """
-
     def new_graph(
         self, path: str, graph_type: Literal["EVENT", "PERSISTENT"]
     ) -> RemoteGraph:
@@ -542,6 +523,25 @@ class RaphtoryClient(object):
 
         Returns:
             None:
+        """
+
+    def viewer_permissions(self) -> dict[str, Any]:
+        """
+        Return this token's own permission grants.
+
+        Reads only what the calling role has been granted, so it never discloses
+        other roles or graphs. Available to any authenticated caller (does not
+        require an admin token). Only available when the server was started with
+        a permissions store.
+
+        Returns:
+            dict[str, Any]: a mapping with keys ``roles`` (list of str),
+            ``graphs`` (list of ``{"path", "permission", "filtered"}``) and
+            ``namespaces`` (list of ``{"path", "permission"}``). ``roles`` is empty
+            when the token carries no role claim, in which case both lists are empty.
+            A token naming several roles gets their grants merged
+            most-permissive-wins, so an unfiltered grant from one role supersedes a
+            filtered grant from another on the same graph.
         """
 
     def with_token(self, token: str) -> RaphtoryClient:

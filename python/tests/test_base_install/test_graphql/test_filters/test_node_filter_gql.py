@@ -49,8 +49,7 @@ def test_sort_key_with_no_or_several_fields_is_rejected(graph):
                 nodes { sorted(sortBys: %s) { list { name } } }
               }
             }
-            """
-            % keys,
+            """ % keys,
             "exactly one",
             graph,
         )
