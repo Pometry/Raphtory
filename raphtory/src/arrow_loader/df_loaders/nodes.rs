@@ -495,6 +495,7 @@ pub fn load_node_props_from_df<
 }
 
 type Resolved<'a> = (GidRef<'a>, (VID, usize));
+
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
 fn get_or_resolve_node_vids<
     'a: 'c,
@@ -521,6 +522,7 @@ fn get_or_resolve_node_vids<
             [node_type_resolved].as_ref(),
             [atomic_src_col].as_ref(),
         )?;
+
         (
             src_col_resolved.as_slice(),
             gid_str_cache.into_iter().collect(),

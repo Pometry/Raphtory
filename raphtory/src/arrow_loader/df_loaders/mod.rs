@@ -9,6 +9,7 @@ use crate::{
     errors::{into_graph_err, GraphError},
     prelude::*,
 };
+use dashmap::SharedValue;
 #[cfg(feature = "progress")]
 use kdam::{Bar, BarBuilder, BarExt};
 use raphtory_api::core::{
@@ -20,6 +21,7 @@ use raphtory_storage::mutation::addition_ops::{InternalAdditionOps, SessionAddit
 use rayon::prelude::*;
 use std::{
     collections::HashMap,
+    hash::BuildHasher,
     sync::atomic::{AtomicUsize, Ordering},
 };
 use storage::pages::resolve_pos;
@@ -314,14 +316,13 @@ fn resolve_nodes_with_cache_generic<'a, V: Send + Sync>(
 ) -> Result<FxDashMap<GidRef<'a>, V>, GraphError> {
     let gid_str_cache: dashmap::DashMap<GidRef<'_>, V, _> = FxDashMap::default();
     let hasher_factory = gid_str_cache.hasher().clone();
+
     gid_str_cache
         .shards()
         .par_iter()
         .enumerate()
         .try_for_each(|(shard_idx, shard)| {
             let mut shard_guard = shard.write();
-            use dashmap::SharedValue;
-            use std::hash::BuildHasher;
 
             // Create hasher function for this shard
             let hash_key = |key: &GidRef<'_>| -> u64 { hasher_factory.hash_one(key) };
@@ -355,6 +356,7 @@ fn resolve_nodes_with_cache_generic<'a, V: Send + Sync>(
 
             Ok::<(), GraphError>(())
         })?;
+
     Ok(gid_str_cache)
 }
 

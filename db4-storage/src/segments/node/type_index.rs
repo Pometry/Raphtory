@@ -28,7 +28,7 @@ impl MemNodeTypeIndex {
         self.map.last_key_value().map(|(k, _)| *k)
     }
 
-    /// Total number of (type_id, position) pairs.
+    /// Total number of `(type_id, position)` pairs.
     pub fn num_entries(&self) -> usize {
         self.map.values().map(|s| s.len()).sum()
     }
