@@ -74,9 +74,7 @@ fn as_boxed_external<E: Error + Send + Sync + 'static>(error: E) -> ServerError 
 
 impl AppConfigBuilder {
     pub fn new() -> Self {
-        let mut builder: Self = AppConfig::default().into();
-        builder.config.extensions = ArgExtensions::with_defaults();
-        builder
+        AppConfig::default().into()
     }
 
     pub fn new_from_args(server_args: ConfigArgs) -> Result<Self, ServerError> {

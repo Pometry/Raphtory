@@ -57,21 +57,13 @@ register_cli_plugin!(PluginOne);
 register_cli_plugin!(PluginTwo);
 
 #[tokio::test]
+#[should_panic(expected = "Multiple cli plugins registered with name 'clash'")]
 async fn duplicate_plugin_names_are_refused_at_startup() {
     let work_dir = TempDir::new().unwrap();
-    let result = GraphServer::new(
+    let _ = GraphServer::new(
         work_dir.path().to_path_buf(),
         Some(AppConfig::default()),
         Default::default(),
     )
     .await;
-
-    let err = result
-        .err()
-        .expect("a duplicate plugin name must refuse to start");
-    let message = err.to_string();
-    assert!(
-        message.contains("clash"),
-        "startup error must name the clashing plugin, got: {message}"
-    );
 }

@@ -139,9 +139,6 @@ impl GraphServer {
         app_config: Option<AppConfig>,
         graph_config: Config,
     ) -> Result<Self, ServerError> {
-        // Reject a build in which two plugins registered under one name before doing any work — one
-        // would silently shadow the other's flags and config. See `check_no_duplicate_plugins`.
-        crate::plugin::server::check_no_duplicate_plugins()?;
         if !work_dir.exists() {
             create_dir_all(&work_dir)?;
         }

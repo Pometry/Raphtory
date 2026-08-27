@@ -6,15 +6,14 @@
 //!
 
 use crate::{
+    config::app_config::AppConfigFieldName,
     plugin::server::{internal::ServerPluginImpl, plugin::PluginRegistration},
-    server::ServerError,
 };
 use indexmap::IndexMap;
 use once_cell::sync::Lazy;
 use std::{
     iter::{IntoIterator, Iterator},
     ops::Deref,
-    sync::Mutex,
 };
 use thiserror::Error;
 
@@ -37,31 +36,25 @@ static EXTENSIONS: Lazy<IndexMap<String, Box<dyn ServerPluginImpl>>> = Lazy::new
     let mut map = IndexMap::new();
     for registration in inventory::iter::<PluginRegistration> {
         let plugin = registration.0();
-        // Last registration wins on a name clash rather than panicking here — this runs inside a
-        // `Lazy` and cannot report an error. `check_no_duplicate_plugins`, called at server start,
-        // is where a clash is turned into a startup error.
-        map.insert(plugin.name().to_string(), plugin);
+        // Any error with the plugin registration will panic. Plugins are registered at compile-time,
+        // any error here is an unconditionally broken build of raphtory.
+        let name = plugin.name();
+
+        if AppConfigFieldName::by_name(&name).is_some() {
+            // A name shadowed by a built-in section would silently never be configured, so refuse
+            // to start rather than run an extension holding whatever its defaults happen to be.
+            panic!(
+                "{}",
+                PluginRegistrationError::ShadowsConfigSection(plugin.name())
+            );
+        }
+
+        if let Some(old_plugin) = map.insert(name, plugin) {
+            panic!("{}", PluginRegistrationError::Multiple(old_plugin.name()));
+        }
     }
     map
 });
-
-/// Fail if two plugins registered under the same name.
-///
-/// A clash means one silently shadows the other in [`EXTENSIONS`], so its CLI flags and config
-/// section would never take effect. It can only happen at build time (two `register_cli_plugin!`
-/// invocations, or two linked crates, claiming one name), so this is a deterministic check run once
-/// at startup rather than anything a user can trigger. Kept separate from the `Lazy` above, and
-/// from the clap `augment_args` path, neither of which can return an error.
-pub(crate) fn check_no_duplicate_plugins() -> Result<(), PluginRegistrationError> {
-    let mut seen = std::collections::HashSet::new();
-    for registration in inventory::iter::<PluginRegistration> {
-        let name = registration.0().name().to_string();
-        if !seen.insert(name.clone()) {
-            return Err(PluginRegistrationError::Multiple(name));
-        }
-    }
-    Ok(())
-}
 
 fn get_plugin(name: &str) -> Result<&dyn ServerPluginImpl, PluginRegistrationError> {
     EXTENSIONS

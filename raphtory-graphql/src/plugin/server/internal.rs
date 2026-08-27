@@ -1,13 +1,7 @@
 //! Internal interface traits which define a dyn-compatible interface on top of Clap.
 
-use crate::{
-    plugin::server::{extension::ServerExtension, plugin::ServerPlugin},
-    server::ServerError,
-};
+use crate::plugin::server::{extension::ServerExtension, plugin::ServerPlugin};
 use clap::{ArgMatches, Command, FromArgMatches};
-use config::ConfigError;
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
 /// Dynamic extension trait
 pub trait ServerExtensionImpl: ServerExtension {

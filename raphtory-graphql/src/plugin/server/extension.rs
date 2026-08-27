@@ -1,6 +1,6 @@
 pub(crate) use crate::plugin::server::internal::ServerExtensionImpl;
 use crate::{
-    plugin::server::{get_plugin, get_plugins, PluginRegistrationError, EXTENSIONS},
+    plugin::server::{get_plugin, get_plugins},
     server::ServerError,
     GraphServer,
 };
@@ -42,8 +42,22 @@ pub trait ServerExtension: Debug + Send + Sync + 'static {
     fn to_json(&self) -> Result<Value, ServerError>;
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct ArgExtensions(IndexMap<String, BoxedExtension>);
+
+impl Default for ArgExtensions {
+    /// One default instance of every registered extension. The command-line path builds exactly
+    /// this (clap constructs each plugin's args whether or not a flag was given), so the config
+    /// file path must start here too — otherwise an extension that is meant to configure itself
+    /// from elsewhere is simply never asked, purely because the file has no block naming it.
+    fn default() -> Self {
+        let mut exts = ArgExtensions(IndexMap::new());
+        for plugin in get_plugins() {
+            exts.push_boxed(plugin.new_boxed_args());
+        }
+        exts
+    }
+}
 
 impl IntoIterator for ArgExtensions {
     type Item = BoxedExtension;
@@ -125,28 +139,8 @@ impl PartialEq for ArgExtensions {
 }
 
 impl ArgExtensions {
-    /// One default instance of every registered extension. The command-line path builds exactly
-    /// this (clap constructs each plugin's args whether or not a flag was given), so the config
-    /// file path must start here too — otherwise an extension that is meant to configure itself
-    /// from elsewhere is simply never asked, purely because the file has no block naming it.
-    pub fn with_defaults() -> Self {
-        let mut exts = ArgExtensions(IndexMap::new());
-        for plugin in get_plugins() {
-            exts.push_boxed(plugin.new_boxed_args());
-        }
-        exts
-    }
-
     pub fn process(&self, mut server: GraphServer) -> Result<GraphServer, ServerError> {
         for plugin in self.iter() {
-            // A name shadowed by a built-in section would silently never be configured, so refuse
-            // to start rather than run an extension holding whatever its defaults happen to be.
-            if crate::config::app_config::AppConfigFieldName::by_name(plugin.name()).is_some() {
-                return Err(PluginRegistrationError::ShadowsConfigSection(
-                    plugin.name().to_string(),
-                )
-                .into());
-            }
             server = plugin.apply(server)?;
         }
         Ok(server)
@@ -195,7 +189,7 @@ impl clap::FromArgMatches for ArgExtensions {
     fn from_arg_matches(matches: &ArgMatches) -> Result<Self, clap::Error> {
         Ok(ArgExtensions(
             get_plugins()
-                .map(|(ext)| {
+                .map(|ext| {
                     let mut plugin = ext.new_boxed_args();
                     plugin.dyn_update_from_arg_matches(matches)?;
                     Ok::<_, clap::Error>((plugin.name().to_string(), plugin))
