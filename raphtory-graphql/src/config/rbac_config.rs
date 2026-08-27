@@ -1,5 +1,8 @@
 use serde::{Deserialize, Serialize};
 
+/// Default seconds to wait for the startup sync before failing to start.
+pub const DEFAULT_SYNC_STARTUP_TIMEOUT_SECS: u64 = 30;
+
 /// Role-management settings. At most one of the source sub-tables (`ldap`/`opa`/`json`/`admin`) may
 /// be set; each is a distinct role source. None set → RBAC is off. Disabled by default and inert in
 /// the open-source build.
@@ -8,6 +11,9 @@ use serde::{Deserialize, Serialize};
 pub struct RbacConfig {
     /// Re-sync interval for a polled source, in seconds. Unset → load once at startup.
     pub poll_interval_secs: Option<u64>,
+    /// Max seconds to wait for the startup sync to complete; if it fails or times out the server
+    /// fails to start. Unset → `DEFAULT_SYNC_STARTUP_TIMEOUT_SECS`.
+    pub sync_startup_timeout_secs: Option<u64>,
     /// Polled, read-only: roles from an LDAP/AD directory.
     pub ldap: Option<LdapSourceConfig>,
     /// Polled, read-only: roles from evaluating an OPA/Rego policy file.

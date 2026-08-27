@@ -1018,7 +1018,7 @@ impl<'graph, G: GraphViewOps<'graph>> OutputTypedNodeState<'graph, G> {
                 let rhs_val = rhs_val.unwrap();
 
                 let casted_rhs = rhs_val
-                    .try_cast(lhs_val.0.dtype())
+                    .cast(lhs_val.0.dtype())
                     .ok_or("Failed to cast rhs value")?;
 
                 if casted_rhs != lhs_val.0 {

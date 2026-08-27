@@ -19,7 +19,7 @@ use raphtory_api::core::{
 };
 use raphtory_storage::{
     core_ops::InheritCoreGraphOps,
-    graph::{graph::GraphStorage, locked::LockedGraph},
+    graph::graph::GraphStorage,
     layer_ops::InheritLayerOps,
     mutation::{
         addition_ops::{EdgeWriteLock, InternalAdditionOps, SessionAdditionOps},
@@ -27,7 +27,6 @@ use raphtory_storage::{
         property_addition_ops::InternalPropertyAdditionOps,
         EdgeWriterT, GraphPropWriterT, NodeWriterT,
     },
-    recovery_ops::RecoveryOps,
 };
 use std::{
     fmt::{Display, Formatter},
@@ -71,94 +70,12 @@ impl Base for Storage {
 }
 
 impl Storage {
-    pub(crate) fn new_at_path(path: impl AsRef<Path>) -> Result<Self, GraphError> {
-        let config = Config::default();
-        let ext = Extension::new(config, Some(path.as_ref()))?;
-        let temporal_graph = TemporalGraph::new_at_path_with_ext(path, ext)?;
-
-        Ok(Self {
-            graph: GraphStorage::Unlocked(Arc::new(temporal_graph)),
-        })
-    }
-
     pub(crate) fn new_with_config(config: Config) -> Result<Self, GraphError> {
         let ext = Extension::new(config, None)?;
         let temporal_graph = TemporalGraph::new(ext)?;
         Ok(Self {
             graph: GraphStorage::Unlocked(Arc::new(temporal_graph)),
         })
-    }
-
-    pub(crate) fn new_at_path_with_config(
-        path: impl AsRef<Path>,
-        config: Config,
-    ) -> Result<Self, GraphError> {
-        let ext = Extension::new(config, Some(path.as_ref()))?;
-        let temporal_graph = TemporalGraph::new_at_path_with_ext(path, ext)?;
-
-        Ok(Self {
-            graph: GraphStorage::Unlocked(Arc::new(temporal_graph)),
-        })
-    }
-
-    fn load_with_extension(path: &Path, ext: Extension) -> Result<Self, GraphError> {
-        let temporal_graph = TemporalGraph::load(path, ext)?;
-
-        // Run crash recovery if needed.
-        temporal_graph.run_recovery()?;
-
-        Ok(Self {
-            graph: GraphStorage::Unlocked(Arc::new(temporal_graph)),
-        })
-    }
-
-    fn load_read_only_with_extension(path: &Path, ext: Extension) -> Result<Self, GraphError> {
-        // Skip crash recovery: recovery mutates the graph and is unsafe
-        // when other handles are attached to the same directory.
-        let temporal_graph = TemporalGraph::load_read_only(path, ext)?;
-
-        // `LockedGraph` holds read locks on the underlying segments, so
-        // every mutation entry point that goes through
-        // `GraphStorage::mutable()?` errors with `ReadLockedImmutable`.
-        let locked = LockedGraph::new(Arc::new(temporal_graph));
-
-        Ok(Self {
-            graph: GraphStorage::Mem(locked),
-        })
-    }
-
-    pub fn load(path: impl AsRef<Path>) -> Result<Self, GraphError> {
-        let path = path.as_ref();
-        let ext = Extension::load(path)?;
-
-        Self::load_with_extension(path, ext)
-    }
-
-    pub fn load_with_config(path: impl AsRef<Path>, config: Config) -> Result<Self, GraphError> {
-        let path = path.as_ref();
-        let ext = Extension::load_with_config(path, config)?;
-
-        Self::load_with_extension(path, ext)
-    }
-
-    /// Load the graph as a read-only snapshot — multiple processes can open
-    /// the same graph directory concurrently. Mutating operations on the
-    /// returned graph will return errors from the underlying storage.
-    pub fn load_read_only(path: impl AsRef<Path>) -> Result<Self, GraphError> {
-        let path = path.as_ref();
-        let ext = Extension::load(path)?;
-
-        Self::load_read_only_with_extension(path, ext)
-    }
-
-    pub fn load_read_only_with_config(
-        path: impl AsRef<Path>,
-        config: Config,
-    ) -> Result<Self, GraphError> {
-        let path = path.as_ref();
-        let ext = Extension::load_with_config(path, config)?;
-
-        Self::load_read_only_with_extension(path, ext)
     }
 
     pub(crate) fn from_inner(graph: GraphStorage) -> Self {
@@ -173,6 +90,100 @@ impl Storage {
     pub fn read_only(&self) -> Self {
         Self {
             graph: self.graph.lock(),
+        }
+    }
+}
+
+#[cfg(feature = "io")]
+mod io {
+    use super::*;
+    use raphtory_storage::{graph::locked::LockedGraph, recovery_ops::RecoveryOps};
+    impl Storage {
+        pub(crate) fn new_at_path(path: impl AsRef<Path>) -> Result<Self, GraphError> {
+            let config = Config::default();
+            let ext = Extension::new(config, Some(path.as_ref()))?;
+            let temporal_graph = TemporalGraph::new_at_path_with_ext(path, ext)?;
+
+            Ok(Self {
+                graph: GraphStorage::Unlocked(Arc::new(temporal_graph)),
+            })
+        }
+        pub(crate) fn new_at_path_with_config(
+            path: impl AsRef<Path>,
+            config: Config,
+        ) -> Result<Self, GraphError> {
+            let ext = Extension::new(config, Some(path.as_ref()))?;
+            let temporal_graph = TemporalGraph::new_at_path_with_ext(path, ext)?;
+
+            Ok(Self {
+                graph: GraphStorage::Unlocked(Arc::new(temporal_graph)),
+            })
+        }
+
+        fn load_with_extension(path: &Path, ext: Extension) -> Result<Self, GraphError> {
+            let temporal_graph = TemporalGraph::load(path, ext)?;
+
+            // Run crash recovery if needed.
+            temporal_graph.run_recovery()?;
+
+            Ok(Self {
+                graph: GraphStorage::Unlocked(Arc::new(temporal_graph)),
+            })
+        }
+
+        fn load_read_only_with_extension(path: &Path, ext: Extension) -> Result<Self, GraphError> {
+            // Skip crash recovery: recovery mutates the graph and is unsafe
+            // when other handles are attached to the same directory.
+            let temporal_graph = TemporalGraph::load_read_only(path, ext)?;
+
+            // `LockedGraph` holds read locks on the underlying segments, so
+            // every mutation entry point that goes through
+            // `GraphStorage::mutable()?` errors with `ReadLockedImmutable`.
+            let locked = LockedGraph::new(Arc::new(temporal_graph));
+
+            Ok(Self {
+                graph: GraphStorage::Mem(locked),
+            })
+        }
+
+        pub fn load(path: impl AsRef<Path>) -> Result<Self, GraphError> {
+            let path = path.as_ref();
+            let ext = Extension::load(path)?;
+
+            Self::load_with_extension(path, ext)
+        }
+
+        pub fn load_with_config(
+            path: impl AsRef<Path>,
+            config: Config,
+        ) -> Result<Self, GraphError> {
+            let path = path.as_ref();
+            let ext = Extension::load_with_config(path, config)?;
+
+            Self::load_with_extension(path, ext)
+        }
+
+        /// Load the graph as a read-only snapshot — multiple processes can open
+        /// the same graph directory concurrently. Mutating operations on the
+        /// returned graph will return errors from the underlying storage.
+        pub fn load_read_only(path: impl AsRef<Path>) -> Result<Self, GraphError> {
+            let path = path.as_ref();
+            let ext = Extension::load(path)?;
+
+            Self::load_read_only_with_extension(path, ext)
+        }
+
+        /// Load the graph as a read-only snapshot — multiple processes can open
+        /// the same graph directory concurrently. Mutating operations on the
+        /// returned graph will return errors from the underlying storage.
+        pub fn load_read_only_with_config(
+            path: impl AsRef<Path>,
+            config: Config,
+        ) -> Result<Self, GraphError> {
+            let path = path.as_ref();
+            let ext = Extension::load_with_config(path, config)?;
+
+            Self::load_read_only_with_extension(path, ext)
         }
     }
 }

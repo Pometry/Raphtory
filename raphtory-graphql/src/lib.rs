@@ -1,9 +1,7 @@
 #![recursion_limit = "256"]
 
 pub use crate::{
-    auth::{
-        require_jwt_write_access_dynamic, Access, RoleClaims, RoleClaimsMissing, TokenClaimValues,
-    },
+    auth::{require_jwt_write_access_dynamic, Access, Roles, RolesMissing, TokenClaimValues},
     model::graph::{filtering::GraphAccessFilter, property::Value},
     server::GraphServer,
 };
@@ -30,7 +28,8 @@ mod routes;
 pub mod server;
 pub mod url_encode;
 
-#[cfg(feature = "python")]
+#[cfg(all(feature = "python", not(doctest)))]
+// no doctests in python as the docstrings are python not rust format
 pub mod python;
 
 #[cfg(test)]
@@ -556,7 +555,7 @@ mod graphql_test {
         {
           graph(path: "g") {
             filterNodes: filter(
-                expr: { nodes: { degree: { direction: BOTH, where: { gt: { u64: 0 } } } } }
+                expr: { node: { degree: { direction: BOTH, where: { gt: { u64: 0 } } } } }
             ) {
               nodes {
                 list {
@@ -565,7 +564,7 @@ mod graphql_test {
               }
             }
             nodes {
-              select(expr: { nodes: { degree: { direction: BOTH, where: { gt: { u64: 0 } } } } }) {
+              select(expr: { node: { degree: { direction: BOTH, where: { gt: { u64: 0 } } } } }) {
                 list {
                   name
                 }

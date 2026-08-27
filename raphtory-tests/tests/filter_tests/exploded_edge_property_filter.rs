@@ -3,9 +3,8 @@ use proptest::{arbitrary::any, proptest};
 use raphtory::{
     core::entities::nodes::node_ref::AsNodeRef,
     db::{
-        api::view::{Filter, StaticGraphViewOps},
+        api::view::Filter,
         graph::{
-            edge::EdgeView,
             graph::{
                 assert_graph_equal, assert_node_equal, assert_nodes_equal,
                 assert_persistent_materialize_graph_equal,
@@ -21,10 +20,7 @@ use raphtory::{
     },
     prelude::*,
 };
-use raphtory_api::core::{
-    entities::properties::prop::PropType,
-    storage::{arc_str::ArcStr, timeindex::AsTime},
-};
+use raphtory_api::core::{entities::properties::prop::PropType, storage::timeindex::AsTime};
 use raphtory_storage::{
     core_ops::CoreGraphOps,
     mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps},
@@ -149,16 +145,6 @@ fn build_filtered_persistent_graph(
         }
     }
     (g, g_filtered)
-}
-
-fn edge_attr<G: StaticGraphViewOps>(
-    e: &EdgeView<G>,
-) -> (String, String, Option<i64>, Option<ArcStr>) {
-    let src = e.src().name();
-    let dst = e.dst().name();
-    let int_prop = e.properties().get("int_prop");
-    let str_prop = e.properties().get("str_prop");
-    (src, dst, int_prop.into_i64(), str_prop.into_str())
 }
 
 #[test]

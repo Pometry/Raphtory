@@ -7,7 +7,12 @@ use raphtory_api::core::entities::properties::prop::PropType;
 /// One property key on a node/edge type, with its observed property type
 /// and (for string-valued properties) the set of distinct values seen.
 #[derive(Clone)]
-#[pyclass(name = "RemotePropertySchema", module = "raphtory.graphql", get_all)]
+#[pyclass(
+    name = "RemotePropertySchema",
+    module = "raphtory.graphql",
+    get_all,
+    skip_from_py_object
+)]
 pub struct PyRemotePropertySchema {
     /// The property name.
     ///
@@ -48,7 +53,12 @@ impl PyRemotePropertySchema {
 
 /// Schema for edges between a specific `(src_type, dst_type)` pair.
 #[derive(Clone)]
-#[pyclass(name = "RemoteEdgeSchema", module = "raphtory.graphql", get_all)]
+#[pyclass(
+    name = "RemoteEdgeSchema",
+    module = "raphtory.graphql",
+    get_all,
+    skip_from_py_object
+)]
 pub struct PyRemoteEdgeSchema {
     /// The node type of the edges' source endpoint.
     ///
@@ -95,7 +105,12 @@ impl PyRemoteEdgeSchema {
 
 /// Schema for a single edge layer.
 #[derive(Clone)]
-#[pyclass(name = "RemoteLayerSchema", module = "raphtory.graphql", get_all)]
+#[pyclass(
+    name = "RemoteLayerSchema",
+    module = "raphtory.graphql",
+    get_all,
+    skip_from_py_object
+)]
 pub struct PyRemoteLayerSchema {
     /// The layer name.
     ///
@@ -127,7 +142,12 @@ impl PyRemoteLayerSchema {
 
 /// Schema for nodes of a specific type.
 #[derive(Clone)]
-#[pyclass(name = "RemoteNodeSchema", module = "raphtory.graphql", get_all)]
+#[pyclass(
+    name = "RemoteNodeSchema",
+    module = "raphtory.graphql",
+    get_all,
+    skip_from_py_object
+)]
 pub struct PyRemoteNodeSchema {
     /// The node type these nodes share.
     ///
@@ -171,7 +191,12 @@ impl PyRemoteNodeSchema {
 ///
 /// Returned by [RemoteGraph.schema][raphtory.graphql.RemoteGraph.schema].
 #[derive(Clone)]
-#[pyclass(name = "RemoteGraphSchema", module = "raphtory.graphql", get_all)]
+#[pyclass(
+    name = "RemoteGraphSchema",
+    module = "raphtory.graphql",
+    get_all,
+    skip_from_py_object
+)]
 pub struct PyRemoteGraphSchema {
     /// The per-node-type schemas in this graph.
     ///

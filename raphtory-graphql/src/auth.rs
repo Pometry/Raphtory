@@ -64,16 +64,16 @@ impl TokenClaimValues {
     }
 }
 
-/// The roles carried by the validated token, injected into the GraphQL context for authorization
-/// policies to consult. Empty when the token carries no role claim, or when no token was presented.
+/// The roles carried by the validated token (a request may hold several), injected into the GraphQL
+/// context for authorization policies. Empty when no token was presented.
 ///
 /// A newtype rather than a bare `Vec<String>` on purpose: the context is keyed by type, and
 /// `ctx.data::<T>()` resolves at runtime, so a bare standard type can be silently orphaned by a
 /// change on the producing side without any consumer failing to compile.
 #[derive(Clone, Debug, Default)]
-pub struct RoleClaims(pub Vec<String>);
+pub struct Roles(pub Vec<String>);
 
-impl RoleClaims {
+impl Roles {
     /// The roles, in the order the claim listed them.
     pub fn as_slice(&self) -> &[String] {
         &self.0
@@ -81,31 +81,28 @@ impl RoleClaims {
 
     /// The caller's roles, read from the request context.
     ///
-    /// The auth layer inserts `RoleClaims` on every request, including when no token was presented
-    /// and when auth is not configured, so an absent entry is an internal inconsistency rather than
-    /// a token without roles. It is reported as an error instead of being read as "no roles":
+    /// The auth layer inserts `Roles` on every request, including when no token was presented and
+    /// when auth is not configured, so an absent entry is an internal inconsistency rather than a
+    /// token without roles. It is reported as an error instead of being read as "no roles":
     /// silently substituting an empty set would deny every request for a reason no caller or log
     /// could explain, which is exactly how a change to this type went unnoticed once already.
-    pub fn from_context<'a>(ctx: &'a Context<'_>) -> Result<&'a Self, RoleClaimsMissing> {
-        ctx.data::<Self>().map_err(|_| RoleClaimsMissing)
+    pub fn from_context<'a>(ctx: &'a Context<'_>) -> Result<&'a Self, RolesMissing> {
+        ctx.data::<Self>().map_err(|_| RolesMissing)
     }
 }
 
-/// The request context carried no [`RoleClaims`]. Always a server-side fault: the auth layer inserts
-/// it unconditionally, so this means a request bypassed that layer or the entry's type has drifted.
+/// The request context carried no [`Roles`]. Always a server-side fault: the auth layer inserts it
+/// unconditionally, so this means a request bypassed that layer or the entry's type has drifted.
 #[derive(Debug, Clone, Copy)]
-pub struct RoleClaimsMissing;
+pub struct RolesMissing;
 
-impl std::fmt::Display for RoleClaimsMissing {
+impl std::fmt::Display for RolesMissing {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "internal: request context is missing the caller's role claims"
-        )
+        write!(f, "internal: request context is missing the caller's roles")
     }
 }
 
-impl std::error::Error for RoleClaimsMissing {}
+impl std::error::Error for RolesMissing {}
 
 /// Resolves the JWT decoding key(s) used to verify a bearer token. The default
 /// [`StaticKeyResolver`] returns a single configured key; an extension may register a resolver that
@@ -247,11 +244,7 @@ where
         let auth = &self.config.auth;
         let (access, roles, claim_values) = match &self.key_resolver {
             // if auth is not setup, we give write access to all requests
-            None => (
-                Access::Rw,
-                RoleClaims::default(),
-                TokenClaimValues::default(),
-            ),
+            None => (Access::Rw, Roles::default(), TokenClaimValues::default()),
             Some(resolver) => {
                 let claims = match req.header(AUTHORIZATION) {
                     Some(header) => {
@@ -269,7 +262,7 @@ where
                 match claims {
                     Some((access, roles, other)) => {
                         debug!(roles = ?roles, "JWT validated successfully");
-                        (access, RoleClaims(roles), TokenClaimValues(other))
+                        (access, Roles(roles), TokenClaimValues(other))
                     }
                     None => {
                         if auth.require_auth_for_reads {
@@ -277,11 +270,7 @@ where
                             return Err(Unauthorized(AuthError::RequireRead));
                         } else {
                             debug!("No valid JWT but require_auth_for_reads=false — granting read access");
-                            (
-                                Access::Ro,
-                                RoleClaims::default(),
-                                TokenClaimValues::default(),
-                            )
+                            (Access::Ro, Roles::default(), TokenClaimValues::default())
                         }
                     }
                 }

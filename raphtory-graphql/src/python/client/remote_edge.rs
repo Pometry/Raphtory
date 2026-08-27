@@ -13,7 +13,6 @@ use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_t
 use raphtory_api::{
     core::{
         entities::{properties::prop::Prop, GID},
-        storage::timeindex::{AsTime, EventTime},
         utils::time::InputTime,
     },
     python::timeindex::{EventTimeComponent, PyOptionalEventTime},

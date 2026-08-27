@@ -1,5 +1,5 @@
 use crate::{
-    auth::{ContextValidation, RoleClaims},
+    auth::{ContextValidation, Roles},
     auth_policy::{AuthorizationPolicy, NamespacePermission},
     data::{
         gql_error_with_code, parent_namespace, require_graph_write, Data, GqlGraphType,
@@ -7,8 +7,12 @@ use crate::{
     },
     model::{
         graph::{
-            collection::GqlCollection, graph::GqlGraph, meta_graph::MetaGraph,
-            mutable_graph::GqlMutableGraph, namespace::Namespace, namespaced_item::NamespacedItem,
+            collection::GqlCollection,
+            graph::GqlGraph,
+            meta_graph::MetaGraph,
+            mutable_graph::GqlMutableGraph,
+            namespace::{is_namespace_visible, Namespace},
+            namespaced_item::NamespacedItem,
             node_id::GqlNodeId,
         },
         plugins::{
@@ -207,7 +211,7 @@ impl QueryRoot {
             if let Err(_) = policy.graph_permissions(ctx, &path) {
                 // Only for the log line; a missing entry is reported as such rather than as an
                 // empty role list, which would read as "denied, caller had no roles".
-                let roles = match RoleClaims::from_context(ctx) {
+                let roles = match Roles::from_context(ctx) {
                     Ok(claims) => claims.as_slice(),
                     Err(e) => {
                         warn!(error = %e, graph = path.as_str(), "denying access");
@@ -251,7 +255,7 @@ impl QueryRoot {
     pub async fn namespaces<'a>(ctx: &Context<'a>) -> GqlCollection<Namespace> {
         let data = ctx.data_unchecked::<Data>();
         let root = Namespace::root(data.work_dir_read().await);
-        let list = blocking_compute(move || {
+        let all: Vec<Namespace> = blocking_compute(move || {
             root.self_and_all_children()
                 .filter_map(|child| match child {
                     NamespacedItem::Namespace(item) => Some(item),
@@ -261,7 +265,12 @@ impl QueryRoot {
                 .collect()
         })
         .await;
-        GqlCollection::new(list)
+        // Filter to namespaces the caller may see.
+        let visible = all
+            .into_iter()
+            .filter(|n| is_namespace_visible(ctx, &data.auth_policy, n))
+            .collect();
+        GqlCollection::new(visible)
     }
 
     /// Returns a specific namespace at a given path
