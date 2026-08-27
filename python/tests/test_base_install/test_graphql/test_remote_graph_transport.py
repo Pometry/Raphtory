@@ -871,6 +871,7 @@ def test_graph_schema():
         rg.node("hamza").set_node_type("bot")
         rg.node("ben").add_updates(5, properties={"score": 1.5})
         rg.node("ben").add_metadata({"role": "admin"})
+        rg.edge("ben", "hamza").add_updates(7, properties={"n_calls": 3})
         rg.edge("ben", "hamza").add_metadata({"weight": 0.5})
         schema = rg.schema()
 
@@ -892,17 +893,22 @@ def test_graph_schema():
         role_meta = next((p for p in user_schema.metadata if p.key == "role"), None)
         assert role_meta is not None
 
-        # layers: default layer with edges
+        # layers: the default layer reports the keys seen on its edges directly
         default_layer = next((l for l in schema.layers if l.name == "_default"), None)
         assert default_layer is not None
-        assert len(default_layer.edges) >= 1
 
-        # edge schema: user → bot with weight metadata
-        edge_schema = default_layer.edges[0]
-        assert edge_schema.src_type in {"user", "bot"}
-        assert edge_schema.dst_type in {"user", "bot"}
-        weight_meta = next((p for p in edge_schema.metadata if p.key == "weight"), None)
+        # the edge property and metadata set above show up on the layer, typed
+        n_calls_prop = next(
+            (p for p in default_layer.properties if p.key == "n_calls"), None
+        )
+        assert n_calls_prop is not None
+        assert n_calls_prop.property_type == PropType.i64()  # the int 3 above
+
+        weight_meta = next(
+            (p for p in default_layer.metadata if p.key == "weight"), None
+        )
         assert weight_meta is not None
+        assert weight_meta.property_type == PropType.f64()  # the float 0.5 above
 
 
 def test_temporal_property_stats():

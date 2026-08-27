@@ -1,5 +1,5 @@
 use crate::client::remote_schema::{
-    RemoteEdgeSchema, RemoteGraphSchema, RemoteLayerSchema, RemoteNodeSchema, RemotePropertySchema,
+    RemoteGraphSchema, RemoteLayerSchema, RemoteNodeSchema, RemotePropertySchema,
 };
 use pyo3::{pyclass, pymethods};
 use raphtory_api::core::entities::properties::prop::PropType;
@@ -46,53 +46,6 @@ impl PyRemotePropertySchema {
     }
 }
 
-/// Schema for edges between a specific `(src_type, dst_type)` pair.
-#[derive(Clone)]
-#[pyclass(name = "RemoteEdgeSchema", module = "raphtory.graphql", get_all)]
-pub struct PyRemoteEdgeSchema {
-    /// The node type of the edges' source endpoint.
-    ///
-    /// Returns:
-    ///     str: the source node type.
-    pub src_type: String,
-    /// The node type of the edges' destination endpoint.
-    ///
-    /// Returns:
-    ///     str: the destination node type.
-    pub dst_type: String,
-    /// The temporal property schemas observed on these edges.
-    ///
-    /// Returns:
-    ///     list[RemotePropertySchema]: one entry per property key.
-    pub properties: Vec<PyRemotePropertySchema>,
-    /// The metadata schemas observed on these edges.
-    ///
-    /// Returns:
-    ///     list[RemotePropertySchema]: one entry per metadata key.
-    pub metadata: Vec<PyRemotePropertySchema>,
-}
-
-impl From<RemoteEdgeSchema> for PyRemoteEdgeSchema {
-    fn from(v: RemoteEdgeSchema) -> Self {
-        Self {
-            src_type: v.src_type,
-            dst_type: v.dst_type,
-            properties: v.properties.into_iter().map(Into::into).collect(),
-            metadata: v.metadata.into_iter().map(Into::into).collect(),
-        }
-    }
-}
-
-#[pymethods]
-impl PyRemoteEdgeSchema {
-    fn __repr__(&self) -> String {
-        format!(
-            "RemoteEdgeSchema(src_type={:?}, dst_type={:?}, properties=[...], metadata=[...])",
-            self.src_type, self.dst_type
-        )
-    }
-}
-
 /// Schema for a single edge layer.
 #[derive(Clone)]
 #[pyclass(name = "RemoteLayerSchema", module = "raphtory.graphql", get_all)]
@@ -102,18 +55,24 @@ pub struct PyRemoteLayerSchema {
     /// Returns:
     ///     str: the layer name.
     pub name: String,
-    /// The edge schemas in this layer, one per `(src_type, dst_type)` pair.
+    /// The temporal property schemas observed on edges in this layer.
     ///
     /// Returns:
-    ///     list[RemoteEdgeSchema]: one entry per endpoint-type pair.
-    pub edges: Vec<PyRemoteEdgeSchema>,
+    ///     list[RemotePropertySchema]: one entry per property key.
+    pub properties: Vec<PyRemotePropertySchema>,
+    /// The metadata schemas observed on edges in this layer.
+    ///
+    /// Returns:
+    ///     list[RemotePropertySchema]: one entry per metadata key.
+    pub metadata: Vec<PyRemotePropertySchema>,
 }
 
 impl From<RemoteLayerSchema> for PyRemoteLayerSchema {
     fn from(v: RemoteLayerSchema) -> Self {
         Self {
             name: v.name,
-            edges: v.edges.into_iter().map(Into::into).collect(),
+            properties: v.properties.into_iter().map(Into::into).collect(),
+            metadata: v.metadata.into_iter().map(Into::into).collect(),
         }
     }
 }
@@ -121,7 +80,10 @@ impl From<RemoteLayerSchema> for PyRemoteLayerSchema {
 #[pymethods]
 impl PyRemoteLayerSchema {
     fn __repr__(&self) -> String {
-        format!("RemoteLayerSchema(name={:?}, edges=[...])", self.name)
+        format!(
+            "RemoteLayerSchema(name={:?}, properties=[...], metadata=[...])",
+            self.name
+        )
     }
 }
 

@@ -1457,9 +1457,8 @@ fn render_read_into(
                 " { schema { \
                 nodes { typeName properties { key dtype variants } \
                     metadata { key dtype variants } } \
-                layers { name edges { srcType dstType \
-                    properties { key dtype variants } \
-                    metadata { key dtype variants } } } }",
+                layers { name properties { key dtype variants } \
+                    metadata { key dtype variants } } }",
             );
         }
         // Terminals — no args after the field name
