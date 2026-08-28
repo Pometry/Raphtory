@@ -8,7 +8,7 @@ use clap::{
     Args as ClapArgs, Command,
     error::{ContextKind, ContextValue},
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::iter;
 use tracing::error;
 
@@ -21,7 +21,7 @@ use tracing::error;
 /// `Config` represents the final config values derived from `Args`, where fields
 /// that are not set by the user are filled with default values. `Config` is then used
 /// internally to configure the storage implementation.
-pub trait ArgsOps: Sized + Clone + ClapArgs {
+pub trait ArgsOps: Sized + Clone + ClapArgs + Serialize + DeserializeOwned {
     type Config: ConfigOps<Args = Self>;
 
     /// Merge the `Some` values in `new_args` into `self`.
@@ -77,13 +77,15 @@ fn display_error(err: &clap::Error, cm: &Command) -> String {
     err.to_string()
 }
 
-#[derive(Debug, Clone, Deserialize, ClapArgs)]
+#[derive(Debug, Clone, Serialize, Deserialize, ClapArgs)]
 #[serde(default)]
 pub struct BaseArgs {
     #[arg(long, env = "RAPHTORY_MAX_NODE_PAGE_LEN")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     max_node_page_len: Option<u32>,
 
     #[arg(long, env = "RAPHTORY_MAX_EDGE_PAGE_LEN")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     max_edge_page_len: Option<u32>,
 }
 

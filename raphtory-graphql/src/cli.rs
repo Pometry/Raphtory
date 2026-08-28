@@ -19,9 +19,9 @@ use crate::{
 };
 use clap::{Parser, Subcommand};
 use raphtory::db::api::storage::storage::Args as GraphArgs;
-use std::{collections::HashMap, io, fmt::Debug, path::PathBuf};
 use serde::Serialize;
 use serde_json::json;
+use std::{collections::HashMap, fmt::Debug, path::PathBuf};
 use tokio::io::Result as IoResult;
 
 fn parse_json_map(input: &str) -> Result<HashMap<String, String>, serde_json::Error> {
