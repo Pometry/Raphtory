@@ -13,7 +13,7 @@ use std::sync::Arc;
 mod auth;
 pub mod auth_policy;
 
-pub use auth::{KeyResolver, StaticKeyResolver};
+pub use auth::{KeyResolver, ReadOnly, StaticKeyResolver};
 pub mod cache;
 pub mod cli;
 pub mod client;
@@ -32,6 +32,7 @@ pub mod url_encode;
 // no doctests in python as the docstrings are python not rust format
 pub mod python;
 
+pub mod plugin;
 #[cfg(test)]
 pub(crate) mod test_support;
 

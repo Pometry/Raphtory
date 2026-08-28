@@ -65,7 +65,7 @@ __all__ = [
     "decode_graph",
     "schema",
     "cli",
-    "has_permissions_extension",
+    "has_extension",
 ]
 
 class GraphServer(object):
@@ -75,8 +75,6 @@ class GraphServer(object):
     Arguments:
         work_dir (str | PathLike): the working directory for the server
         config_path (str | PathLike, optional): path to a TOML config file, loaded first
-        permissions_store_path (str | PathLike, optional): seed file for admin-managed roles
-                                                           (alias for `rbac.admin.seed_path`)
         config (dict, optional): configuration overrides applied on top of `config_path`, as a
                                  dict of nested sections. Unknown section or field names raise an
                                  error. The available sections and fields are:
@@ -91,8 +89,7 @@ class GraphServer(object):
                                    `transport_certificate` (str | PathLike)
                                  * `auth`: `public_key` (str, base64-encoded key used to verify
                                    bearer tokens), `require_auth_for_reads` (bool),
-                                   `audience` (str), `issuer` (str), `role_claim` (str),
-                                   `jwks_uri` (str), `jwks_refresh_secs` (int)
+                                   `audience` (str), `issuer` (str), `role_claim` (str)
                                  * `concurrency`: `heavy_query_limit` (int, maximum number of
                                    expensive traversal queries allowed to run simultaneously;
                                    extra queries are parked on a semaphore),
@@ -112,20 +109,16 @@ class GraphServer(object):
                                    parquet loading is restricted to
                                  * `public_dir` (str | PathLike): directory served as static
                                    files
-                                 * `rbac`: `poll_interval_secs` (int), plus at most one source
-                                   sub-table: `ldap` {url, bind_dn, bind_password_env,
-                                   bind_password, group_base_dn, group_filter,
-                                   permissions_attribute}, `opa` {path, query}, `json` {path},
-                                   or `admin` {seed_path}. Sources are polled and read-only;
-                                   admin is update-driven. The live store is materialised under
-                                   <work_dir>/.permissions/. None set means RBAC is off.
+
+                                 A section naming none of the above is taken as a server
+                                 extension's settings, so which further sections are accepted
+                                 depends on which extensions the build has.
     """
 
     def __new__(
         cls,
         work_dir: str | PathLike,
         config_path: Optional[str | PathLike] = None,
-        permissions_store_path: Optional[str | PathLike] = None,
         config: Optional[dict] = None,
     ) -> GraphServer:
         """Create and return a new object.  See help(type) for accurate signature."""
@@ -252,20 +245,6 @@ class RaphtoryClient(object):
             None:
         """
 
-    def create_role(self, name: str) -> bool:
-        """
-        Create a role in the server's permissions store.
-
-        Requires an admin (write-access) token. Only available when the server
-        was started with a permissions store.
-
-        Arguments:
-            name (str): the name of the role to create
-
-        Returns:
-            bool: True if the role was created.
-        """
-
     def delete_graph(self, path: str) -> None:
         """
         Delete graph from a path path on the server
@@ -277,124 +256,12 @@ class RaphtoryClient(object):
             None:
         """
 
-    def delete_role(self, name: str) -> bool:
-        """
-        Delete a role from the server's permissions store.
-
-        Requires an admin (write-access) token.
-
-        Arguments:
-            name (str): the name of the role to delete
-
-        Returns:
-            bool: True if the role was deleted.
-        """
-
-    def get_role(self, name: str) -> Optional[dict[str, Any]]:
-        """
-        Fetch a single role's grants by name.
-
-        Requires an admin (write-access) token.
-
-        Arguments:
-            name (str): the role to look up
-
-        Returns:
-            Optional[dict[str, Any]]: a mapping with keys ``name``, ``graphs``
-            (list of ``{"path", "permission"}``) and ``namespaces``
-            (list of ``{"path", "permission"}``), or None if the role does not exist.
-        """
-
-    def grant_graph(self, role: str, path: str, permission: str) -> bool:
-        """
-        Grant a role access to a single graph.
-
-        Requires an admin (write-access) token.
-
-        Arguments:
-            role (str): the role to grant access to
-            path (str): the path of the graph
-            permission (str): one of "read", "write", "introspect" (case-insensitive)
-
-        Returns:
-            bool: True if the grant was applied.
-
-        Raises:
-            ValueError: if permission is not one of "read", "write", "introspect".
-        """
-
-    def grant_graph_filtered_read_only(
-        self,
-        role: str,
-        path: str,
-        filter: filter.FilterExpr,
-        hidden_properties: Optional[dict[str, list[str]]] = None,
-        hidden_metadata: Optional[dict[str, list[str]]] = None,
-    ) -> bool:
-        """
-        Grant a role read-only access to a graph, restricted by a filter.
-
-        The reader (a `{"access": "ro"}` token bearing this role) sees only the
-        nodes/edges matching `filter`, with the given property/metadata keys hidden.
-        Requires an admin (write-access) token.
-
-        Arguments:
-            role (str): the role to grant filtered access to
-            path (str): the path of the graph
-            filter (filter.FilterExpr): a filter expression from `raphtory.filter`; a node
-                filter restricts visible nodes, an edge filter restricts visible edges.
-            hidden_properties (dict[str, list[str]], optional): temporal property keys
-                to hide, keyed by "node", "edge", and/or "graph".
-            hidden_metadata (dict[str, list[str]], optional): metadata keys to hide,
-                keyed by "node", "edge", and/or "graph".
-
-        Returns:
-            bool: True if the grant was applied.
-
-        Raises:
-            ValueError: if the filter cannot be represented as a GraphQL node or
-                edge filter.
-        """
-
-    def grant_namespace(
-        self, role: str, path: str, permission: str, recursive: bool = False
-    ) -> bool:
-        """
-        Grant a role access to a namespace.
-
-        Requires an admin (write-access) token.
-
-        Arguments:
-            role (str): the role to grant access to
-            path (str): the namespace path
-            permission (str): one of "read", "write", "introspect" (case-insensitive)
-            recursive (bool): also grant existing descendants. Defaults to False.
-                Every currently existing descendant of the namespace is granted
-                individually.
-
-        Returns:
-            bool: True if the grant was applied.
-
-        Raises:
-            ValueError: if permission is not one of "read", "write", "introspect".
-        """
-
     def is_server_online(self) -> bool:
         """
         Check if the server is online.
 
         Returns:
             bool: Returns true if server is online otherwise false.
-        """
-
-    def list_roles(self) -> list[str]:
-        """
-        List every role name in the server's permissions store.
-
-        Requires an admin (write-access) token.
-
-        Returns:
-            list[str]: the role names.
         """
 
     def move_graph(self, path: str, new_path: str) -> None:
@@ -407,22 +274,6 @@ class RaphtoryClient(object):
 
         Returns:
             None:
-        """
-
-    def my_permissions(self) -> dict[str, Any]:
-        """
-        Return this token's own permission grants.
-
-        Reads only what the calling role has been granted, so it never discloses
-        other roles or graphs. Available to any authenticated caller (does not
-        require an admin token). Only available when the server was started with
-        a permissions store.
-
-        Returns:
-            dict[str, Any]: a mapping with keys ``role`` (str or None),
-            ``graphs`` (list of ``{"path", "permission", "filtered"}``) and
-            ``namespaces`` (list of ``{"path", "permission"}``). ``role`` is None
-            when the token carries no role claim, in which case both lists are empty.
         """
 
     def new_graph(
@@ -478,37 +329,6 @@ class RaphtoryClient(object):
         Returns:
             RemoteGraph: the remote graph reference
 
-        """
-
-    def revoke_graph(self, role: str, path: str) -> bool:
-        """
-        Revoke a role's access to a single graph.
-
-        Requires an admin (write-access) token.
-
-        Arguments:
-            role (str): the role to revoke access from
-            path (str): the path of the graph
-
-        Returns:
-            bool: True if the access was revoked.
-        """
-
-    def revoke_namespace(self, role: str, path: str, recursive: bool = False) -> bool:
-        """
-        Revoke a role's access to a namespace.
-
-        Requires an admin (write-access) token.
-
-        Arguments:
-            role (str): the role to revoke access from
-            path (str): the namespace path
-            recursive (bool): also revoke existing descendants. Defaults to False.
-                Every currently existing descendant of the namespace is revoked
-                individually.
-
-        Returns:
-            bool: True if the access was revoked.
         """
 
     def send_graph(
@@ -5866,10 +5686,16 @@ def cli() -> None:
         None:
     """
 
-def has_permissions_extension() -> bool:
+def has_extension(name: str) -> bool:
     """
-    Returns True if the permissions extension (raphtory-auth) is compiled in.
+    Returns True if a server extension with this name is compiled into the build.
+
+    Which extensions exist depends on how the build was assembled; this library has no opinion
+    about their names.
+
+    Arguments:
+        name (str): the extension's registered name.
 
     Returns:
-        bool: True if the extension is built in, False otherwise.
+        bool: True if that extension is built in, False otherwise.
     """
