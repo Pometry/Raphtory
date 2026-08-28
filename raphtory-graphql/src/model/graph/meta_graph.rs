@@ -74,10 +74,11 @@ impl MetaGraph {
 
     /// Whether the caller has unfiltered read; gates the summary fields below, which are read from
     /// stored metadata without the access filter applied.
-    fn caller_has_full_read(&self, ctx: &Context<'_>, data: &Data) -> bool {
-        data.auth_policy
-            .as_ref()
-            .map_or(true, |p| p.full_read(ctx, self.folder.local_path()))
+    fn caller_has_full_read(&self, ctx: &Context<'_>, data: &Data) -> Result<bool> {
+        match data.auth_policy.as_ref() {
+            None => Ok(true),
+            Some(p) => Ok(p.full_read(ctx, self.folder.local_path())?),
+        }
     }
 
     /// Key/value metadata pairs, read the cheap way: from the in-memory cache if
@@ -94,7 +95,7 @@ impl MetaGraph {
         ctx: &Context<'_>,
         data: &Data,
     ) -> Result<Option<Vec<(String, Prop)>>> {
-        if !self.caller_has_full_read(ctx, data) {
+        if !self.caller_has_full_read(ctx, data)? {
             return Ok(None);
         }
 
@@ -161,7 +162,7 @@ impl MetaGraph {
         ctx: &Context<'_>,
         data: &Data,
     ) -> Result<Option<usize>> {
-        if !self.caller_has_full_read(ctx, data) {
+        if !self.caller_has_full_read(ctx, data)? {
             return Ok(None);
         }
         Ok(Some(self.meta(data).await?.node_count))
@@ -172,7 +173,7 @@ impl MetaGraph {
         ctx: &Context<'_>,
         data: &Data,
     ) -> Result<Option<usize>> {
-        if !self.caller_has_full_read(ctx, data) {
+        if !self.caller_has_full_read(ctx, data)? {
             return Ok(None);
         }
         Ok(Some(self.meta(data).await?.edge_count))
@@ -214,7 +215,7 @@ impl MetaGraph {
     /// Returns the number of nodes in the graph, or null if the caller lacks unfiltered read.
     pub async fn node_count(&self, ctx: &Context<'_>) -> Result<Option<usize>> {
         let data: &Data = ctx.data_unchecked();
-        if !self.caller_has_full_read(ctx, data) {
+        if !self.caller_has_full_read(ctx, data)? {
             return Ok(None);
         }
         Ok(Some(self.meta(data).await?.node_count))
@@ -226,7 +227,7 @@ impl MetaGraph {
     ///     int:
     pub async fn edge_count(&self, ctx: &Context<'_>) -> Result<Option<usize>> {
         let data: &Data = ctx.data_unchecked();
-        if !self.caller_has_full_read(ctx, data) {
+        if !self.caller_has_full_read(ctx, data)? {
             return Ok(None);
         }
         Ok(Some(self.meta(data).await?.edge_count))

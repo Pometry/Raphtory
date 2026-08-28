@@ -1,5 +1,5 @@
 use crate::{
-    auth_policy::AuthorizationPolicy,
+    auth_policy::{AuthPolicyError, AuthorizationPolicy},
     data::{get_relative_path, Data, WorkDirGuard},
     model::graph::{
         collection::GqlCollection,
@@ -17,6 +17,7 @@ use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, Result};
 use itertools::Itertools;
 use std::{cmp::Ordering, path::PathBuf, sync::Arc};
+use tracing::error;
 use walkdir::WalkDir;
 
 /// A directory-like container for graphs and nested namespaces. Graphs are
@@ -201,24 +202,36 @@ impl Namespace {
     }
 }
 
+/// Whether the caller may see this graph in a listing.
+///
+/// `Err` is a policy that could not answer at all. It propagates rather than reading as
+/// "hidden", because an omitted row and a row the caller has no grant on are indistinguishable
+/// once the listing is returned — which is the same conflation that made the role-claim outage
+/// invisible.
 fn is_graph_visible(
     ctx: &Context<'_>,
     policy: &Option<Arc<dyn AuthorizationPolicy>>,
     g: &MetaGraph,
-) -> bool {
-    policy
-        .as_ref()
-        .map_or(true, |p| p.graph_permissions(ctx, &g.local_path()).is_ok())
+) -> Result<bool, AuthPolicyError> {
+    let Some(policy) = policy.as_ref() else {
+        return Ok(true);
+    };
+    Ok(policy.graph_permissions(ctx, &g.local_path())?.is_some())
 }
 
+/// Whether the caller may see this namespace in a listing. `Err` propagates for the same
+/// reason as in [`is_graph_visible`].
 pub(crate) fn is_namespace_visible(
     ctx: &Context<'_>,
     policy: &Option<Arc<dyn AuthorizationPolicy>>,
     n: &Namespace,
-) -> bool {
-    policy.as_ref().map_or(true, |p| {
-        p.namespace_permissions(ctx, &n.relative_path).is_some()
-    })
+) -> Result<bool, AuthPolicyError> {
+    let Some(policy) = policy.as_ref() else {
+        return Ok(true);
+    };
+    Ok(policy
+        .namespace_permissions(ctx, &n.relative_path)?
+        .is_some())
 }
 
 #[ResolvedObjectFields]
@@ -241,13 +254,17 @@ impl Namespace {
         let data = ctx.data_unchecked::<Data>();
         let self_clone = self.clone();
         let items = blocking_compute(move || self_clone.get_children().collect::<Vec<_>>()).await;
-        let visible = items.into_iter().filter_map(|item| match item {
-            NamespacedItem::MetaGraph(g) if is_graph_visible(ctx, &data.auth_policy, &g) => Some(g),
-            _ => None,
-        });
+        let mut visible = Vec::new();
+        for item in items {
+            if let NamespacedItem::MetaGraph(g) = item {
+                if is_graph_visible(ctx, &data.auth_policy, &g)? {
+                    visible.push(g);
+                }
+            }
+        }
 
         let graphs = match &filter {
-            None => visible.collect::<Vec<_>>(),
+            None => visible,
             Some(filter) => {
                 let mut kept = Vec::new();
                 for graph in visible {
@@ -281,7 +298,7 @@ impl Namespace {
         let mut latest: Option<i64> = None;
         for item in items {
             if let NamespacedItem::MetaGraph(g) = item {
-                if is_graph_visible(ctx, &data.auth_policy, &g) {
+                if is_graph_visible(ctx, &data.auth_policy, &g)? {
                     let updated = g.last_updated_value().await?;
                     latest = Some(latest.map_or(updated, |current: i64| current.max(updated)));
                 }
@@ -320,7 +337,7 @@ impl Namespace {
             NamespaceFilter,
         >,
         #[graphql(desc = "Ordering applied before paging.")] sort: Option<NamespaceSort>,
-    ) -> GqlCollection<Namespace> {
+    ) -> Result<GqlCollection<Namespace>> {
         let data = ctx.data_unchecked::<Data>();
         let self_clone = self.clone();
         let namespaces = blocking_compute(move || {
@@ -339,11 +356,13 @@ impl Namespace {
             namespaces
         })
         .await;
-        let namespaces = namespaces
-            .into_iter()
-            .filter(|n| is_namespace_visible(ctx, &data.auth_policy, n))
-            .collect::<Vec<_>>();
-        GqlCollection::new(namespaces.into())
+        let mut visible = Vec::new();
+        for n in namespaces {
+            if is_namespace_visible(ctx, &data.auth_policy, &n)? {
+                visible.push(n);
+            }
+        }
+        Ok(GqlCollection::new(visible.into()))
     }
 
     /// Everything in this namespace — sub-namespaces and graphs — as a single
@@ -366,10 +385,16 @@ impl Namespace {
         let self_clone = self.clone();
         let all_items =
             blocking_compute(move || self_clone.get_children().collect::<Vec<_>>()).await;
-        let visible = all_items.into_iter().filter(|item| match item {
-            NamespacedItem::MetaGraph(g) => is_graph_visible(ctx, &data.auth_policy, g),
-            NamespacedItem::Namespace(n) => is_namespace_visible(ctx, &data.auth_policy, n),
-        });
+        let mut visible = Vec::new();
+        for item in all_items {
+            let keep = match &item {
+                NamespacedItem::MetaGraph(g) => is_graph_visible(ctx, &data.auth_policy, g)?,
+                NamespacedItem::Namespace(n) => is_namespace_visible(ctx, &data.auth_policy, n)?,
+            };
+            if keep {
+                visible.push(item);
+            }
+        }
 
         let mut namespaces = Vec::new();
         let mut graphs = Vec::new();

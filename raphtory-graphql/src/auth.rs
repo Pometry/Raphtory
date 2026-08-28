@@ -68,8 +68,43 @@ impl TokenClaimValues {
 
 /// The roles carried by the validated token (a request may hold several), injected into the GraphQL
 /// context for authorization policies. Empty when no token was presented.
+///
+/// A newtype rather than a bare `Vec<String>` on purpose: the context is keyed by type, and
+/// `ctx.data::<T>()` resolves at runtime, so a bare standard type can be silently orphaned by a
+/// change on the producing side without any consumer failing to compile.
 #[derive(Clone, Debug, Default)]
 pub struct Roles(pub Vec<String>);
+
+impl Roles {
+    /// The roles, in the order the claim listed them.
+    pub fn as_slice(&self) -> &[String] {
+        &self.0
+    }
+
+    /// The caller's roles, read from the request context.
+    ///
+    /// The auth layer inserts `Roles` on every request, including when no token was presented and
+    /// when auth is not configured, so an absent entry is an internal inconsistency rather than a
+    /// token without roles. It is reported as an error instead of being read as "no roles":
+    /// silently substituting an empty set would deny every request for a reason no caller or log
+    /// could explain, which is exactly how a change to this type went unnoticed once already.
+    pub fn from_context<'a>(ctx: &'a Context<'_>) -> Result<&'a Self, RolesMissing> {
+        ctx.data::<Self>().map_err(|_| RolesMissing)
+    }
+}
+
+/// The request context carried no [`Roles`]. Always a server-side fault: the auth layer inserts it
+/// unconditionally, so this means a request bypassed that layer or the entry's type has drifted.
+#[derive(Debug, Clone, Copy)]
+pub struct RolesMissing;
+
+impl std::fmt::Display for RolesMissing {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "internal: request context is missing the caller's roles")
+    }
+}
+
+impl std::error::Error for RolesMissing {}
 
 /// Resolves the JWT decoding key(s) used to verify a bearer token. The default
 /// [`StaticKeyResolver`] returns a single configured key; an extension may register a resolver that
@@ -211,7 +246,7 @@ where
         let auth = &self.config.auth;
         let (access, roles, claim_values) = match &self.key_resolver {
             // if auth is not setup, we give write access to all requests
-            None => (Access::Rw, Vec::new(), TokenClaimValues::default()),
+            None => (Access::Rw, Roles::default(), TokenClaimValues::default()),
             Some(resolver) => {
                 let claims = match req.header(AUTHORIZATION) {
                     Some(header) => {
@@ -229,7 +264,7 @@ where
                 match claims {
                     Some((access, roles, other)) => {
                         debug!(roles = ?roles, "JWT validated successfully");
-                        (access, roles, TokenClaimValues(other))
+                        (access, Roles(roles), TokenClaimValues(other))
                     }
                     None => {
                         if auth.require_auth_for_reads {
@@ -237,7 +272,7 @@ where
                             return Err(Unauthorized(AuthError::RequireRead));
                         } else {
                             debug!("No valid JWT but require_auth_for_reads=false — granting read access");
-                            (Access::Ro, Vec::new(), TokenClaimValues::default())
+                            (Access::Ro, Roles::default(), TokenClaimValues::default())
                         }
                     }
                 }
@@ -252,7 +287,7 @@ where
         if is_accept_multipart_mixed {
             let (req, mut body) = req.split();
             let req = GraphQLRequest::from_request(&req, &mut body).await?;
-            let req = req.0.data(access).data(Roles(roles)).data(claim_values);
+            let req = req.0.data(access).data(roles).data(claim_values);
             let stream = self.executor.execute_stream(req, None);
             Ok(Response::builder()
                 .header("content-type", "multipart/mixed; boundary=graphql")
@@ -276,7 +311,7 @@ where
                 }
             }
 
-            let req = batch_req.data(access).data(Roles(roles)).data(claim_values);
+            let req = batch_req.data(access).data(roles).data(claim_values);
 
             let contains_update = match &req {
                 BatchRequest::Single(request) => is_exclusive_write(&request.query),
@@ -504,5 +539,93 @@ impl Extension for MutationAuth {
             }
             Ok(doc)
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn claims(role: Option<serde_json::Value>, other: &[(&str, serde_json::Value)]) -> TokenClaims {
+        TokenClaims {
+            access: Access::Ro,
+            role,
+            other: other
+                .iter()
+                .map(|(k, v)| (k.to_string(), v.clone()))
+                .collect(),
+        }
+    }
+
+    #[test]
+    fn role_claim_may_be_a_single_string() {
+        let c = claims(Some(json!("analyst")), &[]);
+        assert_eq!(effective_roles(&c, None), vec!["analyst".to_string()]);
+    }
+
+    #[test]
+    fn role_claim_may_be_an_array() {
+        // The shape SSO providers emit; a single-role deployment and an Entra-style
+        // token have to travel the same path.
+        let c = claims(Some(json!(["analyst", "auditor"])), &[]);
+        assert_eq!(
+            effective_roles(&c, None),
+            vec!["analyst".to_string(), "auditor".to_string()]
+        );
+    }
+
+    #[test]
+    fn absent_role_claim_yields_no_roles() {
+        assert!(effective_roles(&claims(None, &[]), None).is_empty());
+    }
+
+    #[test]
+    fn empty_array_role_claim_yields_no_roles() {
+        assert!(effective_roles(&claims(Some(json!([])), &[]), None).is_empty());
+    }
+
+    #[test]
+    fn a_custom_claim_name_is_read_from_the_other_claims() {
+        // `role_claim = "groups"`: the standard `role` claim must be ignored entirely,
+        // not merged with the custom one.
+        let c = claims(Some(json!("ignored")), &[("groups", json!(["eng", "ops"]))]);
+        assert_eq!(
+            effective_roles(&c, Some("groups")),
+            vec!["eng".to_string(), "ops".to_string()]
+        );
+    }
+
+    #[test]
+    fn a_missing_custom_claim_yields_no_roles() {
+        let c = claims(Some(json!("analyst")), &[]);
+        assert!(effective_roles(&c, Some("groups")).is_empty());
+    }
+
+    #[test]
+    fn non_string_entries_are_dropped_not_stringified() {
+        // A malformed claim must not smuggle in a role named "1" or "null".
+        let c = claims(Some(json!(["analyst", 1, null, {"a": 1}, "auditor"])), &[]);
+        assert_eq!(
+            effective_roles(&c, None),
+            vec!["analyst".to_string(), "auditor".to_string()]
+        );
+    }
+
+    #[test]
+    fn a_non_string_non_array_claim_yields_no_roles() {
+        assert!(effective_roles(&claims(Some(json!(42)), &[]), None).is_empty());
+        assert!(effective_roles(&claims(Some(json!({"a": 1})), &[]), None).is_empty());
+    }
+
+    #[test]
+    fn role_order_is_preserved() {
+        // Access decisions are order-independent by construction — grants merge as a set —
+        // so order is preserved here only because reports echo the claim as it was made.
+        let c = claims(Some(json!(["b", "a", "c"])), &[]);
+        assert_eq!(
+            effective_roles(&c, None),
+            vec!["b".to_string(), "a".to_string(), "c".to_string()]
+        );
     }
 }
