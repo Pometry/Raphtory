@@ -659,7 +659,7 @@ mod test {
         let edge_meta = Arc::new(Meta::default());
         let path = tempdir().unwrap();
         let config = BaseConfig::new(10, 10);
-        let ext = NoOpStrategy::new(config, None).unwrap();
+        let ext = NoOpStrategy::new(None, config).unwrap();
         let segment_id = 0;
         let segment = NodeSegmentView::new(
             segment_id,

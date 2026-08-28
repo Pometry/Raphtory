@@ -13,7 +13,7 @@ use std::ops::Range;
 #[cfg(feature = "io")]
 use {
     crate::errors::GraphError, raphtory_api::core::storage::graph_folder::GraphPaths,
-    storage::Config,
+    storage::Args,
 };
 
 #[derive(Clone)]
@@ -117,16 +117,14 @@ impl MaterializedGraph {
     #[cfg(feature = "io")]
     pub fn load_with_config(
         path: &(impl GraphPaths + ?Sized),
-        config: Config,
+        args: Args,
     ) -> Result<Self, GraphError> {
         let meta = path.read_metadata()?;
         if meta.is_diskgraph {
             match meta.graph_type {
-                GraphType::EventGraph => {
-                    Ok(Self::EventGraph(Graph::load_with_config(path, config)?))
-                }
+                GraphType::EventGraph => Ok(Self::EventGraph(Graph::load_with_config(path, args)?)),
                 GraphType::PersistentGraph => Ok(Self::PersistentGraph(
-                    PersistentGraph::load_with_config(path, config)?,
+                    PersistentGraph::load_with_config(path, args)?,
                 )),
             }
         } else {

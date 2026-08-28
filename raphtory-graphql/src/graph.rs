@@ -6,7 +6,7 @@ use raphtory::{
     core::entities::nodes::node_ref::AsNodeRef,
     db::{
         api::{
-            storage::storage::Config,
+            storage::storage::Args,
             view::{
                 internal::{
                     InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InheritStorageOps, Static,
@@ -180,18 +180,18 @@ impl GraphWithVectors {
     pub(crate) async fn read_from_folder(
         folder: &ExistingGraphFolder,
         #[cfg(feature = "vectors")] cache: &LazyDiskVectorCache,
-        config: Config,
+        args: Args,
     ) -> Result<Self, GraphError> {
         let folder_clone = folder.clone();
         let graph_folder = folder.graph_folder();
         let graph = if graph_folder.read_metadata()?.is_diskgraph {
             blocking_compute(move || {
-                MaterializedGraph::load_with_config(folder_clone.graph_folder(), config)
+                MaterializedGraph::load_with_config(folder_clone.graph_folder(), args)
             })
             .await?
         } else {
             blocking_compute(move || {
-                MaterializedGraph::decode_with_config(folder_clone.graph_folder(), config)
+                MaterializedGraph::decode_with_config(folder_clone.graph_folder(), args)
             })
             .await?
         };

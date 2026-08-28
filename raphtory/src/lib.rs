@@ -155,7 +155,11 @@ pub mod prelude {
             },
         },
     };
-    pub use storage::{persist::config::ConfigOps, Config};
+
+    pub use storage::{
+        persist::{args::ArgsOps, config::ConfigOps},
+        Args, Config,
+    };
 
     #[cfg(feature = "io")]
     pub use crate::serialise::{

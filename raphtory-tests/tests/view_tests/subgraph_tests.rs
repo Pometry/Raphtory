@@ -3,7 +3,7 @@ use itertools::Itertools;
 use proptest::{proptest, sample::subsequence};
 use raphtory::{
     algorithms::{components::weakly_connected_components, motifs::triangle_count::triangle_count},
-    db::graph::{graph::assert_graph_equal, views::deletion_graph::PersistentGraph},
+    db::graph::{assertions::assert_graph_equal, views::deletion_graph::PersistentGraph},
     prelude::*,
 };
 use raphtory_storage::mutation::addition_ops::InternalAdditionOps;

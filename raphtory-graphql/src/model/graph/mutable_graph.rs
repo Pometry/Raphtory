@@ -916,7 +916,7 @@ mod tests {
     use super::*;
     use crate::{config::app_config::AppConfig, data::Data, paths::ExistingGraphFolder};
     use raphtory::{
-        db::api::{storage::storage::Config, view::MaterializedGraph},
+        db::api::{storage::storage::Args, view::MaterializedGraph},
         vectors::{
             custom::{serve_custom_embedding, EmbeddingServer},
             storage::OpenAIEmbeddings,
@@ -945,7 +945,7 @@ mod tests {
     async fn create_mutable_graph(port: u16, work_dir: &Path) -> GraphTestContext {
         let graph = create_test_graph();
         let config = AppConfig::default();
-        let data = Data::new(work_dir, &config, Config::default());
+        let data = Data::new(work_dir, &config, Args::default());
 
         let graph_name = "test_graph";
 

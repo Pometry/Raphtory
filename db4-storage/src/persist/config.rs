@@ -1,108 +1,62 @@
-use crate::error::StorageError;
-use clap::{
-    Args, Command,
-    error::{ContextKind, ContextValue},
-};
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
-use std::{iter, path::Path};
-use tempfile::NamedTempFile;
-use tracing::error;
-
 pub const DEFAULT_MAX_PAGE_LEN_NODES: u32 = 600_000; // 2^17
 pub const DEFAULT_MAX_PAGE_LEN_EDGES: u32 = 6_000_000; // 2^20
 pub const CONFIG_FILE_NAME: &str = "config.json";
 
-pub trait ConfigOps: Serialize + DeserializeOwned + Args + Sized {
-    fn max_node_page_len(&self) -> u32;
+use crate::{
+    error::StorageError,
+    persist::args::{ArgsOps, BaseArgs},
+};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use std::path::Path;
+use tempfile::NamedTempFile;
 
-    fn max_edge_page_len(&self) -> u32;
-
-    fn node_types(&self) -> &[String];
-
-    fn with_max_node_page_len(self, page_len: u32) -> Self;
-
-    fn with_max_edge_page_len(self, page_len: u32) -> Self;
-
-    fn with_node_types(&self, node_types: impl IntoIterator<Item = impl AsRef<str>>) -> Self;
+/// Trait for graph storage configuration.
+///
+/// `Config` is the resolved configuration used internally and persisted to
+/// `config.json`. User-facing overrides are supplied via [`ArgsOps`].
+pub trait ConfigOps: Serialize + DeserializeOwned + Sized + Clone {
+    type Args: ArgsOps<Config = Self>;
 
     fn load_from_dir(dir: &Path) -> Result<Self, StorageError> {
         let config_file = dir.join(CONFIG_FILE_NAME);
         let config_file = std::fs::File::open(config_file)?;
         let config = serde_json::from_reader(config_file)?;
+
         Ok(config)
     }
 
     fn save_to_dir(&self, dir: &Path) -> Result<(), StorageError> {
         let config_path = dir.join(CONFIG_FILE_NAME);
         let mut tmp_file = NamedTempFile::new_in(dir)?;
+
         serde_json::to_writer_pretty(&mut tmp_file, self)?;
         tmp_file.as_file().sync_all()?;
         tmp_file
             .persist(&config_path)
             .map_err(std::io::Error::from)?;
+
         Ok(())
     }
 
-    fn update(&mut self, new: Self);
+    fn max_node_page_len(&self) -> u32;
+
+    fn max_edge_page_len(&self) -> u32;
+
+    fn node_types(&self) -> &[String];
+
+    fn with_node_types(&self, node_types: impl IntoIterator<Item = impl AsRef<str>>) -> Self;
 }
 
-#[derive(Debug, Copy, Clone, Serialize, Deserialize, Args)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct BaseConfig {
-    #[arg(long, default_value_t=DEFAULT_MAX_PAGE_LEN_NODES, env="RAPHTORY_MAX_NODE_PAGE_LEN")]
     max_node_page_len: u32,
-
-    #[arg(long, default_value_t=DEFAULT_MAX_PAGE_LEN_EDGES, env="RAPHTORY_MAX_EDGE_PAGE_LEN")]
     max_edge_page_len: u32,
-}
-
-pub trait ClapDefault: Args {
-    fn clap_default() -> Self;
-}
-
-fn display_error(err: &clap::Error, cm: &Command) -> String {
-    if let Some(ContextValue::String(variable)) = err.get(ContextKind::InvalidArg)
-        && let Some(ContextValue::String(value)) = err.get(ContextKind::InvalidValue)
-        && let Some(arg) = cm.get_arguments().find(|arg| {
-            arg.get_long().is_some_and(|long| {
-                variable.starts_with(&format!("--{long}"))
-                    || arg
-                        .get_short()
-                        .is_some_and(|short| variable.starts_with(&format!("-{short}")))
-            })
-        })
-        && let Some(env) = arg.get_env()
-    {
-        let id = arg.get_id();
-        let env = env.display();
-        return format!("Invalid value from environment for '{id}': '{env}={value}'");
-    }
-    err.to_string()
-}
-
-impl<T: Args + Default> ClapDefault for T {
-    fn clap_default() -> Self {
-        let cm = Self::augment_args(Command::default().no_binary_name(true));
-        cm.clone()
-            .try_get_matches_from(iter::empty::<String>())
-            .and_then(|mut matches| Self::from_arg_matches_mut(&mut matches))
-            .unwrap_or_else(|err| {
-                error!(
-                    "{}, ignoring environment variables.",
-                    display_error(&err, &cm)
-                );
-                // unset environment variables and try again
-                cm.mut_args(|arg| arg.env(None))
-                    .try_get_matches_from(iter::empty::<String>())
-                    .and_then(|mut matches| Self::from_arg_matches_mut(&mut matches))
-                    .expect("Reading defaults without environment variables should not fail.")
-            })
-    }
 }
 
 impl Default for BaseConfig {
     fn default() -> Self {
-        Self::clap_default()
+        Self::new(DEFAULT_MAX_PAGE_LEN_NODES, DEFAULT_MAX_PAGE_LEN_EDGES)
     }
 }
 
@@ -113,9 +67,21 @@ impl BaseConfig {
             max_edge_page_len,
         }
     }
+
+    pub fn with_max_node_page_len(mut self, page_len: u32) -> Self {
+        self.max_node_page_len = page_len;
+        self
+    }
+
+    pub fn with_max_edge_page_len(mut self, page_len: u32) -> Self {
+        self.max_edge_page_len = page_len;
+        self
+    }
 }
 
 impl ConfigOps for BaseConfig {
+    type Args = BaseArgs;
+
     fn max_node_page_len(&self) -> u32 {
         self.max_node_page_len
     }
@@ -124,26 +90,12 @@ impl ConfigOps for BaseConfig {
         self.max_edge_page_len
     }
 
-    fn with_max_node_page_len(mut self, page_len: u32) -> Self {
-        self.max_node_page_len = page_len;
-        self
-    }
-
-    fn with_max_edge_page_len(mut self, page_len: u32) -> Self {
-        self.max_edge_page_len = page_len;
-        self
-    }
-
     fn node_types(&self) -> &[String] {
         &[]
     }
 
     fn with_node_types(&self, _node_types: impl IntoIterator<Item = impl AsRef<str>>) -> Self {
         *self
-    }
-
-    fn update(&mut self, _new: Self) {
-        // cannot update page lengths for an existing graph
     }
 }
 

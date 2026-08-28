@@ -8,7 +8,10 @@ use crate::{
         GraphStore, ReadLockedGraphStore, edge_store::ReadLockedEdgeStorage,
         node_store::ReadLockedNodeStorage,
     },
-    persist::strategy::{NoOpStrategy, PersistenceStrategy},
+    persist::{
+        config::ConfigOps,
+        strategy::{NoOpStrategy, PersistenceStrategy},
+    },
     resolver::mapping_resolver::MappingResolver,
     segments::{
         edge::{
@@ -56,6 +59,7 @@ pub type Layer<P> = GraphStore<NS<P>, ES<P>, GS<P>, P>;
 pub type Wal = <Extension as PersistenceStrategy>::Wal;
 pub type ControlFile = <Extension as PersistenceStrategy>::ControlFile;
 pub type Config = <Extension as PersistenceStrategy>::Config;
+pub type Args = <Config as ConfigOps>::Args;
 pub type GIDResolver = MappingResolver;
 
 pub type ReadLockedLayer<P> = ReadLockedGraphStore<NS<P>, ES<P>, GS<P>, P>;

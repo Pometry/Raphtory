@@ -4,8 +4,8 @@ use raphtory::{
     db::{
         api::view::internal::GraphView,
         graph::{
+            assertions::{assert_graph_equal, assert_persistent_materialize_graph_equal},
             edge::EdgeView,
-            graph::{assert_graph_equal, assert_persistent_materialize_graph_equal},
             views::deletion_graph::PersistentGraph,
         },
     },

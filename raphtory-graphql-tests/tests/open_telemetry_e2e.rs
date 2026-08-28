@@ -1,6 +1,6 @@
 use mock_collector::{MockServer, Protocol};
 use raphtory::{
-    db::api::storage::storage::Config,
+    db::api::storage::storage::Args,
     prelude::{Graph, StableEncode},
 };
 use raphtory_graphql::{
@@ -37,7 +37,7 @@ async fn test_open_telemetry_http_tracing_server() {
     let server = GraphServer::new(
         work_dir.path().to_path_buf(),
         Some(app_config),
-        Config::default(),
+        Args::default(),
     )
     .await
     .unwrap();

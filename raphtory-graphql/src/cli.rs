@@ -18,7 +18,7 @@ use crate::{
     GraphServer,
 };
 use clap::{Parser, Subcommand};
-use raphtory::db::api::storage::storage::Config;
+use raphtory::db::api::storage::storage::Args as GraphArgs;
 use serde::Serialize;
 use serde_json::json;
 use std::{collections::HashMap, fmt::Debug, path::PathBuf};
@@ -194,7 +194,7 @@ pub struct ConfigArgs {
     pub(crate) extensions: ArgExtensions,
 }
 
-#[derive(clap::Args, Debug, Serialize)]
+#[derive(clap::Args, Debug)]
 pub struct ServerArgs {
     #[arg(
         long,
@@ -219,7 +219,7 @@ pub struct ServerArgs {
     pub config_args: ConfigArgs,
 
     #[command(flatten)]
-    pub graph_config: Config,
+    pub graph_config: GraphArgs,
 }
 
 pub async fn cli_with_args<I, T>(args_iter: I) -> IoResult<()>

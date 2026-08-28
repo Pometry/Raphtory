@@ -17,7 +17,7 @@ use raphtory::{
             },
         },
         graph::{
-            edge::EdgeView, edges::Edges, graph::assert_graph_equal, path::PathFromNode,
+            assertions::assert_graph_equal, edge::EdgeView, edges::Edges, path::PathFromNode,
             views::deletion_graph::PersistentGraph,
         },
     },

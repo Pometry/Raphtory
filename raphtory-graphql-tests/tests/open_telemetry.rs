@@ -1,6 +1,6 @@
 // OpenTelemetry Tests must be separated into their own binary to prevent polluting other tests since the span and log exporters are set globally.
 use raphtory::{
-    db::api::storage::storage::Config,
+    db::api::storage::storage::Args,
     prelude::{Graph, StableEncode},
 };
 use raphtory_graphql::{
@@ -61,7 +61,7 @@ async fn setup_for_span_tests(
     let server = GraphServer::new(
         tmp_dir.path().to_path_buf(),
         Some(app_config.clone()),
-        Config::default(),
+        Args::default(),
     )
     .await
     .unwrap();

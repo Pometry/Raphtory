@@ -1086,7 +1086,7 @@ pub(crate) fn build_graph_from_edge_list_with_event_id<'a>(
 }
 
 pub fn build_graph(graph_fix: &GraphFixture) -> Arc<Storage> {
-    let g = Arc::new(Storage::default());
+    let g = Arc::new(Storage::new_with_config(Args::default()).unwrap());
     for ((src, dst, layer), updates) in graph_fix.edges() {
         for (t, props) in updates.props.t_props.iter() {
             g.add_edge(*t, src, dst, props.clone(), layer).unwrap();
@@ -1120,7 +1120,7 @@ pub fn build_graph(graph_fix: &GraphFixture) -> Arc<Storage> {
 }
 
 pub fn build_graph_layer(graph_fix: &GraphFixture, layers: &[&str]) -> Arc<Storage> {
-    let g = Arc::new(Storage::default());
+    let g = Arc::new(Storage::new_with_config(Args::default()).unwrap());
     let mut counter = 0usize;
     let actual_layer_set: HashSet<_> = graph_fix
         .edges()
