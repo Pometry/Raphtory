@@ -679,8 +679,11 @@ pub const CODE_GRAPH_NOT_FOUND: &str = "GRAPH_NOT_FOUND";
 /// Build an `async_graphql::Error` carrying a `code` in its extensions. The
 /// human-readable message is preserved unchanged; only the structured code is
 /// added, so the client can branch on it without parsing message text.
-pub fn gql_error_with_code(message: impl Into<String>, code: &'static str) -> async_graphql::Error {
-    async_graphql::Error::new(message.into()).extend_with(|_, ext| ext.set("code", code))
+pub fn gql_error_with_code(
+    error: impl Into<async_graphql::Error>,
+    code: &'static str,
+) -> async_graphql::Error {
+    error.into().extend_with(|_, ext| ext.set("code", code))
 }
 
 impl PermissionError {
