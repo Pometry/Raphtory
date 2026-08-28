@@ -194,7 +194,7 @@ pub struct ConfigArgs {
     pub(crate) extensions: ArgExtensions,
 }
 
-#[derive(clap::Args, Debug, Serialize)]
+#[derive(clap::Args, Debug)]
 pub struct ServerArgs {
     #[arg(
         long,
