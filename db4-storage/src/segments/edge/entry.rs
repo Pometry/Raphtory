@@ -233,7 +233,7 @@ impl<'a> EdgeRefOps<'a> for MemEdgeRef<'a> {
     }
 
     #[inline]
-    fn edge_meta(&self) -> &Arc<Meta> {
+    fn edge_meta(&self) -> &'a Arc<Meta> {
         self.es.edge_meta()
     }
 }

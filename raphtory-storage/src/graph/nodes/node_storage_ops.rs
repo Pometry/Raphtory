@@ -196,7 +196,7 @@ impl<'a> NodeStorageOps<'a> for NodeEntryRef<'a> {
         layer_ids: &'a LayerIds,
         prop_id: usize,
     ) -> impl Iterator<Item = (LayerId, storage::NodeTProps<'a>)> + 'a {
-        let meta = NodeRefOps::node_meta(&self).clone();
+        let meta = NodeRefOps::node_meta(&self);
         self.layer_ids_iter(layer_ids)
             .filter(move |&layer_id| meta.temporal_layer_has(layer_id, prop_id))
             .map(move |layer_id| {
@@ -213,7 +213,7 @@ impl<'a> NodeStorageOps<'a> for NodeEntryRef<'a> {
         layer_ids: &'a LayerIds,
         prop_id: usize,
     ) -> impl Iterator<Item = (LayerId, Prop)> + 'a {
-        let meta = NodeRefOps::node_meta(&self).clone();
+        let meta = NodeRefOps::node_meta(&self);
         self.layer_ids_iter(layer_ids)
             .filter(move |&layer_id| meta.metadata_layer_has(layer_id, prop_id))
             .filter_map(move |layer_id| {
@@ -230,7 +230,7 @@ impl<'a> NodeStorageOps<'a> for NodeEntryRef<'a> {
         layer_ids: &LayerIds,
         prop_id: usize,
     ) -> impl Iterator<Item = storage::NodeTProps<'a>> + Send + Sync + 'a {
-        let meta = NodeRefOps::node_meta(&self).clone();
+        let meta = NodeRefOps::node_meta(&self);
         layer_ids_with_static(self.num_layers(), layer_ids)
             .filter(move |&id| meta.temporal_layer_has(id, prop_id))
             .map(move |id| NodeStorageOps::temporal_prop_layer(self, id, prop_id))

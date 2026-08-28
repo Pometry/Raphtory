@@ -244,7 +244,7 @@ impl<'a> EdgeStorageOps<'a> for storage::EdgeEntryRef<'a> {
         layer_ids: &'a LayerIds,
         prop_id: usize,
     ) -> impl Iterator<Item = (LayerId, impl TPropOps<'a>)> + 'a {
-        let meta = EdgeRefOps::edge_meta(&self).clone();
+        let meta = EdgeRefOps::edge_meta(&self);
         self.layer_ids_iter(layer_ids)
             .filter(move |&layer_id| meta.temporal_layer_has(layer_id, prop_id))
             .map(move |id| (id, EdgeStorageOps::temporal_prop_layer(self, id, prop_id)))
@@ -256,7 +256,7 @@ impl<'a> EdgeStorageOps<'a> for storage::EdgeEntryRef<'a> {
         layer_ids: &'a LayerIds,
         prop_id: usize,
     ) -> impl Iterator<Item = (LayerId, Prop)> + 'a {
-        let meta = EdgeRefOps::edge_meta(&self).clone();
+        let meta = EdgeRefOps::edge_meta(&self);
         self.layer_ids_iter(layer_ids)
             .filter(move |&layer_id| meta.metadata_layer_has(layer_id, prop_id))
             .filter_map(move |id| Some((id, EdgeStorageOps::metadata_layer(self, id, prop_id)?)))

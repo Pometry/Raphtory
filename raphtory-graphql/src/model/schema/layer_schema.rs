@@ -7,14 +7,8 @@ use crate::{
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{db::api::view::StaticGraphViewOps, prelude::*};
-use raphtory_api::core::entities::{
-    properties::{meta::PropMapper, prop::PropType},
-    LayerId, LayerIds,
-};
-use std::{
-    collections::{hash_map::Entry, HashMap, HashSet},
-    sync::Arc,
-};
+use raphtory_api::core::entities::{properties::meta::PropMapper, LayerId, LayerIds};
+use std::sync::Arc;
 
 /// Describes a single edge layer: its name and the edge property/metadata keys
 /// present in it, with observed variants (property values) on small graphs
@@ -124,38 +118,46 @@ pub fn collect_layer_schema<G: StaticGraphViewOps>(
         .collect()
 }
 
-/// Collect distinct property values for `(key, dtype)` pairs. If there are too many values, we stop.
+/// Collect the distinct values seen against each property id. Once a property
+/// exceeds `ENUM_BOUNDARY` values we drop its set and report no variants for it.
 pub fn collect_variants<P: PropertiesOps>(
     props_per_edge: impl Iterator<Item = P>,
     mapper: &PropMapper,
 ) -> Vec<PropertySchema> {
-    let mut schema: HashMap<(String, PropType), HashSet<String>> = HashMap::new();
+    // Vec is indexed by prop id; variants[0] returns the HashSet of variants for prop id 0
+    // `None` = never seen, `Some(empty)` = seen but past ENUM_BOUNDARY
+    let mut variants: Vec<Option<ahash::HashSet<String>>> = Vec::new();
     for props in props_per_edge {
-        for ((key, value), id) in props.iter().zip(props.ids()) {
-            let Some(value) = value else { continue };
-            let key_with_prop_type = (
-                key.to_string(),
-                mapper
-                    .get_dtype(id)
-                    .expect("type for internal id should always exist"),
-            );
-            match schema.entry(key_with_prop_type) {
-                Entry::Vacant(entry) => {
-                    entry.insert(HashSet::from([value.to_string()]));
-                }
-                Entry::Occupied(mut entry) => {
-                    let variants = entry.get_mut();
-                    // An empty set means "too many variants", so we skip
-                    // Otherwise, there should always be at least 1 value in the set
-                    if !variants.is_empty() {
-                        variants.insert(value.to_string());
-                        if variants.len() > ENUM_BOUNDARY {
-                            variants.clear();
-                        }
+        for id in props.ids() {
+            let Some(value) = props.get_by_id(id) else {
+                continue;
+            };
+            if variants.len() <= id {
+                variants.resize_with(id + 1, || None);
+            }
+            match &mut variants[id] {
+                slot @ None => *slot = Some(ahash::HashSet::from_iter([value.to_string()])),
+                Some(seen) if !seen.is_empty() => {
+                    seen.insert(value.to_string());
+                    if seen.len() > ENUM_BOUNDARY {
+                        seen.clear();
                     }
                 }
+                // already past the boundary, nothing left to record
+                Some(_) => {}
             }
         }
     }
-    schema.into_iter().map(|prop| prop.into()).collect()
+
+    // one read lock for every name and dtype, and prop id order for the output
+    let locked = mapper.locked();
+    locked
+        .iter_ids_and_types()
+        .filter_map(|(id, name, dtype)| {
+            let seen = variants.get_mut(id).and_then(Option::take)?;
+            let mut seen = Vec::from_iter(seen);
+            seen.sort_unstable();
+            Some(PropertySchema::new(name.to_string(), dtype.clone(), seen))
+        })
+        .collect()
 }

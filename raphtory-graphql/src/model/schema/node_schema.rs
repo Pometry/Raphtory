@@ -92,15 +92,16 @@ impl NodeSchema {
             .unwrap_or_else(|| DEFAULT_NODE_TYPE.to_string())
     }
     fn properties_inner(&self) -> Vec<PropertySchema> {
-        let visible: std::collections::HashSet<usize> =
+        let visible: ahash::HashSet<usize> =
             self.graph.node_visible_temporal_prop_ids().collect();
-        let (keys, property_types): (Vec<_>, Vec<_>) = self
-            .graph
-            .node_meta()
-            .temporal_prop_mapper()
+        let mapper = self.graph.node_meta().temporal_prop_mapper();
+        // materialized graphs deep_clone the PropMapper, so prop names/ids can leak from the source graph.
+        // the per-layer property presence bitset isn't cloned, so we use it to see if the properties exist in any layer
+        let present = mapper.props_in_any_layer();
+        let (keys, property_types): (Vec<_>, Vec<_>) = mapper
             .locked()
             .iter_ids_and_types()
-            .filter(|(id, _, _)| visible.contains(id))
+            .filter(|(id, _, _)| visible.contains(id) && present.get(*id) == Some(&true))
             .map(|(_, name, dtype)| (name.to_string(), dtype.clone()))
             .unzip();
 
@@ -144,13 +145,14 @@ impl NodeSchema {
     fn metadata_inner(&self) -> Vec<PropertySchema> {
         let visible: std::collections::HashSet<usize> =
             self.graph.node_visible_metadata_ids().collect();
-        let (keys, property_types): (Vec<_>, Vec<_>) = self
-            .graph
-            .node_meta()
-            .metadata_mapper()
+        let mapper = self.graph.node_meta().metadata_mapper();
+        // materialized graphs deep_clone the PropMapper, so prop names/ids can leak from the source graph.
+        // the per-layer property presence bitset isn't cloned, so we use it to see if the properties exist in any layer
+        let present = mapper.props_in_any_layer();
+        let (keys, property_types): (Vec<_>, Vec<_>) = mapper
             .locked()
             .iter_ids_and_types()
-            .filter(|(id, _, _)| visible.contains(id))
+            .filter(|(id, _, _)| visible.contains(id) && present.get(*id) == Some(&true))
             .map(|(_, name, dtype)| (name.to_string(), dtype.clone()))
             .unzip();
 
@@ -197,10 +199,13 @@ mod test {
     use itertools::Itertools;
     use raphtory::{db::api::view::IntoDynamic, prelude::*};
 
-    use crate::model::schema::{graph_schema::GraphSchema, node_schema::PropertySchema};
+    use crate::model::schema::{
+        graph_schema::GraphSchema, node_schema::PropertySchema, MAX_DETAILED_SCHEMA_ENTITIES,
+    };
     use pretty_assertions::assert_eq;
     use raphtory::errors::GraphError;
-    use raphtory_api::core::entities::properties::prop::PropType;
+    use raphtory_api::core::entities::{properties::prop::PropType, LayerIds};
+    use raphtory_storage::core_ops::CoreGraphOps;
 
     #[test]
     fn aggregate_schema() -> Result<(), GraphError> {
@@ -310,5 +315,48 @@ mod test {
             ),
         ];
         assert_eq!(actual, expected);
+    }
+
+    /// Materializing a filtered view keeps the source's prop mappers, so ids and
+    /// dtypes for keys with no values in the result stay registered. The schema
+    /// must not report those - the presence bitset is the only thing
+    /// separating "registered" from "actually has values here".
+    #[test]
+    fn filtered_out_props_are_not_reported_on_large_graphs() -> Result<(), GraphError> {
+        let g = Graph::new();
+        // over the detailed-schema threshold, so the keys/types-only branch runs
+        let num_nodes = MAX_DETAILED_SCHEMA_ENTITIES + 1;
+        for id in 0..num_nodes {
+            g.add_node(0, id as u64, [("kept", Prop::I64(1))], Some("t"), None)?;
+        }
+        // only ever set outside the window below
+        let late = g.add_node(100, u64::MAX, [("dropped", Prop::I64(2))], Some("t"), None)?;
+        late.add_metadata([("dropped_meta", Prop::I64(3))])?;
+
+        let mat = g.window(0, 50).materialize()?;
+        assert!(mat.unfiltered_num_nodes(&LayerIds::All) > MAX_DETAILED_SCHEMA_ENTITIES);
+
+        // the mappers still know the filtered-out keys...
+        let node_meta = mat.node_meta();
+        assert!(node_meta.temporal_prop_mapper().get_id("dropped").is_some());
+        assert!(node_meta.metadata_mapper().get_id("dropped_meta").is_some());
+
+        // ...but only the key with values inside the window is reported
+        let gs = GraphSchema::new(&mat.into_dynamic(), None);
+        let t = gs
+            .nodes
+            .iter()
+            .find(|n| n.type_name_inner() == "t")
+            .expect("node type t");
+        assert_eq!(
+            t.properties_inner(),
+            vec![PropertySchema::new(
+                "kept".to_string(),
+                PropType::I64,
+                vec![]
+            )]
+        );
+        assert_eq!(t.metadata_inner(), vec![]);
+        Ok(())
     }
 }

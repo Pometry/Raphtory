@@ -319,6 +319,22 @@ impl PropMapper {
             .unwrap_or(false)
     }
 
+    /// Which prop ids are present in at least one layer, indexed by prop id.
+    ///
+    /// `false` is authoritative in the same way [`Self::layer_has`] is: the property has no values anywhere.
+    /// These "ghost" entries can exist on materialized graphs where the PropMapper was `deep_clone`d
+    pub fn props_in_any_layer(&self) -> Vec<bool> {
+        let presence = self.layer_prop_presence.read_recursive();
+        let width = presence.iter().map(|row| row.len()).max().unwrap_or(0);
+        let mut any = vec![false; width];
+        for row in presence.iter() {
+            for (prop_id, present) in row.iter().enumerate() {
+                any[prop_id] |= present;
+            }
+        }
+        any
+    }
+
     /// Mark `prop_id` as present in `layer_id`. Only takes the write lock once per (layer, prop)
     pub fn mark_prop_in_layer(&self, layer_id: LayerId, prop_id: usize) {
         if self.layer_has(layer_id, prop_id) {
@@ -471,12 +487,21 @@ impl PropMapper {
         }
     }
 
-    pub fn write_locked(&self) -> WriteLockedPropMapper<'_> {
+    /// Write-locks the name/id and dtype mappers.
+    ///
+    /// Deliberately leaves the per-layer property presence bitset unlocked: sometimes we don't need it
+    pub fn write_locked_mappers(&self) -> WriteLockedPropMapper<'_> {
         WriteLockedPropMapper {
             dict_mapper: self.id_mapper.write(),
             d_types: self.dtypes.write(),
             row_size: &self.row_size,
-            layer_presence: self.layer_prop_presence.write(),
+        }
+    }
+
+    /// Write-locks only the per-layer presence bitset.
+    pub fn write_locked_layer_presence(&self) -> WriteLockedLayerPresence<'_> {
+        WriteLockedLayerPresence {
+            presence: self.layer_prop_presence.write(),
         }
     }
 }
@@ -493,7 +518,10 @@ fn ensure_and_set(presence: &mut Vec<Vec<bool>>, layer_idx: usize, prop_id: usiz
     row[prop_id] = true;
 }
 
-/// Write-locked view of a [`PropMapper`].
+/// Write-locked view of a [`PropMapper`]'s name/id and dtype mappers.
+///
+/// Holds no lock on the per-layer property presence bitset - see
+/// [`PropMapper::write_locked_layer_presence`] for that.
 pub struct WriteLockedPropMapper<'a> {
     /// Maps property names to their IDs.
     dict_mapper: WriteLockedDictMapper<'a>,
@@ -503,9 +531,18 @@ pub struct WriteLockedPropMapper<'a> {
 
     /// Estimated size in bytes of a single row of properties maintained by this mapper.
     row_size: &'a AtomicUsize,
+}
 
-    /// Per-layer property presence bitset.
-    layer_presence: RwLockWriteGuard<'a, Vec<Vec<bool>>>,
+/// Write-locked view of a [`PropMapper`]'s per-layer property presence bitset.
+pub struct WriteLockedLayerPresence<'a> {
+    presence: RwLockWriteGuard<'a, Vec<Vec<bool>>>,
+}
+
+impl WriteLockedLayerPresence<'_> {
+    /// Mark `prop_id` as present in `layer_id`.
+    pub fn mark(&mut self, layer_id: LayerId, prop_id: usize) {
+        ensure_and_set(&mut self.presence, layer_id.0, prop_id);
+    }
 }
 
 impl<'a> WriteLockedPropMapper<'a> {
@@ -598,11 +635,6 @@ impl<'a> WriteLockedPropMapper<'a> {
         dtype: PropType,
     ) -> Result<Option<Either<usize, usize>>, PropError> {
         fast_proptype_check(self.dict_mapper.map(), &self.d_types, prop, dtype)
-    }
-
-    /// Mark `prop_id` as present in `layer_id`
-    pub fn mark_in_layer(&mut self, layer_id: LayerId, prop_id: usize) {
-        ensure_and_set(&mut *self.layer_presence, layer_id.0, prop_id);
     }
 }
 
@@ -812,7 +844,7 @@ mod write_locked_prop_mapper_tests {
         let prop_mapper = PropMapper::default();
 
         let id = {
-            let mut locked = prop_mapper.write_locked();
+            let mut locked = prop_mapper.write_locked_mappers();
             locked.new_id_and_dtype("new_prop", PropType::U8)
         };
 
@@ -825,7 +857,7 @@ mod write_locked_prop_mapper_tests {
         let prop_mapper = PropMapper::default();
 
         let id = {
-            let mut locked = prop_mapper.write_locked();
+            let mut locked = prop_mapper.write_locked_mappers();
             let id = locked.new_id_and_dtype("existing_prop", PropType::U8);
             locked.set_or_unify_dtype(id, PropType::U8).unwrap();
             id
@@ -840,7 +872,7 @@ mod write_locked_prop_mapper_tests {
         let prop_mapper = PropMapper::default();
 
         let result = {
-            let mut locked = prop_mapper.write_locked();
+            let mut locked = prop_mapper.write_locked_mappers();
             let id = locked.new_id_and_dtype("existing_prop", PropType::U8);
 
             locked.set_or_unify_dtype(id, PropType::U16)
@@ -864,7 +896,7 @@ mod write_locked_prop_mapper_tests {
         let prop_mapper = PropMapper::default();
 
         let id = {
-            let mut locked = prop_mapper.write_locked();
+            let mut locked = prop_mapper.write_locked_mappers();
             let id = locked.new_id_and_dtype("prop", PropType::Empty);
             locked.set_or_unify_dtype(id, PropType::U8).unwrap();
             id
@@ -879,7 +911,7 @@ mod write_locked_prop_mapper_tests {
         let prop_mapper = PropMapper::default();
 
         let id = {
-            let mut locked = prop_mapper.write_locked();
+            let mut locked = prop_mapper.write_locked_mappers();
             locked.set_id_and_dtype("existing_prop", 5, PropType::U8);
             locked.new_id_and_dtype("new_prop", PropType::U16)
         };
@@ -893,7 +925,7 @@ mod write_locked_prop_mapper_tests {
         let prop_mapper = PropMapper::default();
 
         let (id1, id2) = {
-            let mut locked = prop_mapper.write_locked();
+            let mut locked = prop_mapper.write_locked_mappers();
             let id1 = locked.new_id_and_dtype("prop1", PropType::U8);
             let id2 = locked.new_id_and_dtype("prop2", PropType::U16);
 
@@ -920,7 +952,7 @@ mod write_locked_prop_mapper_tests {
 
         let prop_mapper = PropMapper::default();
         let id = {
-            let mut locked = prop_mapper.write_locked();
+            let mut locked = prop_mapper.write_locked_mappers();
             locked.new_id_and_dtype("attrs", map_1.clone())
         };
 
@@ -928,7 +960,7 @@ mod write_locked_prop_mapper_tests {
         assert_eq!(before, map_1.est_size());
 
         {
-            let mut locked = prop_mapper.write_locked();
+            let mut locked = prop_mapper.write_locked_mappers();
             locked.set_or_unify_dtype(id, map_2.clone()).unwrap();
         }
 
