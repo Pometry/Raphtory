@@ -72,7 +72,7 @@ impl PyRemotePathFromNode {
     /// all apply. Lazy — no RPC.
     ///
     /// Arguments:
-    ///     filter (FilterExpr): a filter expression from `raphtory.filter`.
+    ///     filter (filter.FilterExpr): a filter expression from `raphtory.filter`.
     ///
     /// Returns:
     ///     RemotePathFromNode: a new collection narrowed to matching nodes.
