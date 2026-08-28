@@ -10,7 +10,10 @@ pub use raphtory::db::graph::views::{PropertyRedactedGraph, PropertyRedaction};
 use raphtory::errors::GraphError;
 use std::sync::Arc;
 
-mod auth;
+/// Public so an out-of-tree authorization plugin (registered via
+/// [`plugin::schema::RegisterPlugin`]) can reach [`auth::ContextValidation`] from typed
+/// resolvers; [`require_jwt_write_access_dynamic`] covers only dynamic ones.
+pub mod auth;
 pub mod auth_policy;
 
 pub use auth::{KeyResolver, ReadOnly, StaticKeyResolver};

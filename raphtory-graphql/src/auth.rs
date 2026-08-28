@@ -436,7 +436,7 @@ fn roles_from_value(v: &serde_json::Value) -> Vec<String> {
     }
 }
 
-pub(crate) trait ContextValidation {
+pub trait ContextValidation {
     fn require_jwt_write_access(&self) -> Result<(), AuthError>;
 }
 

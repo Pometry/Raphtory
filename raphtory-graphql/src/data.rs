@@ -677,16 +677,13 @@ pub(crate) enum PermissionError {
 /// `GRAPH_NOT_FOUND` must be emitted for both a genuinely missing graph and a
 /// forbidden-but-hidden graph, so the two are byte-for-byte indistinguishable to
 /// an unauthorized caller.
-pub(crate) const CODE_ACCESS_DENIED: &str = "ACCESS_DENIED";
-pub(crate) const CODE_GRAPH_NOT_FOUND: &str = "GRAPH_NOT_FOUND";
+pub const CODE_ACCESS_DENIED: &str = "ACCESS_DENIED";
+pub const CODE_GRAPH_NOT_FOUND: &str = "GRAPH_NOT_FOUND";
 
 /// Build an `async_graphql::Error` carrying a `code` in its extensions. The
 /// human-readable message is preserved unchanged; only the structured code is
 /// added, so the client can branch on it without parsing message text.
-pub(crate) fn gql_error_with_code(
-    message: impl Into<String>,
-    code: &'static str,
-) -> async_graphql::Error {
+pub fn gql_error_with_code(message: impl Into<String>, code: &'static str) -> async_graphql::Error {
     async_graphql::Error::new(message.into()).extend_with(|_, ext| ext.set("code", code))
 }
 
