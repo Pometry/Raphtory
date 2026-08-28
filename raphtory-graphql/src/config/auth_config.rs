@@ -125,16 +125,7 @@ pub struct AuthConfig {
     /// string, or an array of strings (e.g. Entra's `roles`/`groups`); every entry is taken as a
     /// role and the authorization policy merges their grants (most-permissive-wins).
     pub role_claim: Option<String>,
-    /// JWKS endpoint for dynamic key discovery (SSO/OIDC). When set, signing keys are fetched from
-    /// here and selected by the token's `kid`. If unset but `issuer` is set, the JWKS URI is
-    /// discovered from `{issuer}/.well-known/openid-configuration`.
-    pub jwks_uri: Option<String>,
-    /// How often to refresh the JWKS, in seconds. Keys also refresh on an unknown `kid`.
-    pub jwks_refresh_secs: Option<u64>,
 }
-
-/// Default JWKS refresh cadence when `jwks_refresh_secs` is unset.
-pub const DEFAULT_JWKS_REFRESH_SECS: u64 = 3600;
 
 impl Default for AuthConfig {
     fn default() -> Self {
@@ -144,8 +135,6 @@ impl Default for AuthConfig {
             audience: None,
             issuer: None,
             role_claim: None,
-            jwks_uri: None,
-            jwks_refresh_secs: None,
         }
     }
 }

@@ -9,7 +9,7 @@ use crate::{
             view::{
                 history::{DeletionHistory, History},
                 internal::{DynGraphArc, EdgeTimeSemanticsOps, GraphTimeSemanticsOps, GraphView},
-                BoxableGraphView, IntoDynBoxed,
+                IntoDynBoxed,
             },
         },
         graph::{
@@ -117,10 +117,8 @@ pub trait BaseEdgeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
 
     fn as_metadata(&self) -> Self::ValueType<Metadata<'graph, Self::PropType>>;
 
-    fn map_nodes<F: Fn(&dyn BoxableGraphView, EdgeRef) -> VID + Send + Sync + Clone + 'graph>(
-        &self,
-        op: F,
-    ) -> Self::Nodes;
+    fn map_nodes<F: Fn(EdgeRef) -> VID + Send + Sync + Clone + 'graph>(&self, op: F)
+        -> Self::Nodes;
 
     fn map_exploded<
         I: Iterator<Item = EdgeRef> + Send + Sync + 'graph,
@@ -337,7 +335,7 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
     /// Returns:
     ///     Nodes:
     fn src(&self) -> Self::Nodes {
-        self.map_nodes(|_, e| e.src())
+        self.map_nodes(|e| e.src())
     }
 
     /// Returns the destination node of the edge.
@@ -345,13 +343,13 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
     /// Returns:
     ///     Nodes:
     fn dst(&self) -> Self::Nodes {
-        self.map_nodes(|_, e| e.dst())
+        self.map_nodes(|e| e.dst())
     }
 
     /// Returns:
     ///     Nodes:
     fn nbr(&self) -> Self::Nodes {
-        self.map_nodes(|_, e| e.remote())
+        self.map_nodes(|e| e.remote())
     }
 
     /// Check if an edge is active (has some update within the current bound) at a given time point.

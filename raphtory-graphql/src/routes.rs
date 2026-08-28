@@ -179,6 +179,30 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn public_dir_missing_index_returns_404() {
+        let dir = tempdir().unwrap(); // exists but has no index.html
+        let endpoint = public_dir_endpoint(dir.path());
+        assert_eq!(get(&endpoint, "/").await.status(), StatusCode::NOT_FOUND);
+        assert_eq!(
+            get(&endpoint, "/graphs").await.status(),
+            StatusCode::NOT_FOUND
+        );
+    }
+
+    #[tokio::test]
+    async fn public_dir_nonexistent_returns_404() {
+        // public_dir points at a path that doesn't exist at all (misconfiguration).
+        let dir = tempdir().unwrap();
+        let missing = dir.path().join("does-not-exist");
+        let endpoint = public_dir_endpoint(&missing);
+        assert_eq!(get(&endpoint, "/").await.status(), StatusCode::NOT_FOUND);
+        assert_eq!(
+            get(&endpoint, "/assets/app.js").await.status(),
+            StatusCode::NOT_FOUND
+        );
+    }
+
+    #[tokio::test]
     async fn public_dir_serves_real_files() {
         let dir = tempdir().unwrap();
         fs::write(dir.path().join("index.html"), "<html>ui</html>").unwrap();

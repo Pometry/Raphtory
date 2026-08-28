@@ -61,7 +61,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
             .ew
             .writer
             .insert_edge_internal_bulk(t, edge_pos, src, dst, layer_id, t_props)
-            && !self.ew.page.immut_has_edge(edge_pos, layer_id)
+            && !self.ew.segment.immut_has_edge(edge_pos, layer_id)
         {
             self.increment_layer_num_edges(layer_id);
         }
@@ -96,7 +96,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
             .ew
             .writer
             .delete_edge_internal(t, edge_pos, src, dst, layer_id)
-            && !self.ew.page.immut_has_edge(edge_pos, layer_id)
+            && !self.ew.segment.immut_has_edge(edge_pos, layer_id)
         {
             self.increment_layer_num_edges(layer_id);
         }

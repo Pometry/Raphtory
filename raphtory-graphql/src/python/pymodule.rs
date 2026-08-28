@@ -24,15 +24,13 @@ use crate::{
                 PyRemoteGraphSchema, PyRemoteLayerSchema, PyRemoteNodeSchema,
                 PyRemotePropertySchema,
             },
-            PyAllPropertySpec, PyEdgeAddition, PyNodeAddition, PyPropsInput, PyRemoteIndexSpec,
-            PySomePropertySpec, PyUpdate,
+            PyEdgeAddition, PyNodeAddition, PyUpdate,
         },
         decode_graph, encode_graph, schema,
         server::{running_server::PyRunningGraphServer, server::PyGraphServer},
     },
 };
 use pyo3::{create_exception, exceptions::PyException, prelude::*};
-use raphtory::python::graph::sorting::{PyEdgeSortBy, PyNodeSortBy, PySortByTime};
 
 create_exception!(
     raphtory.graphql,
@@ -43,13 +41,19 @@ create_exception!(
      reported as not found, never as this error."
 );
 
-/// Returns True if the permissions extension (raphtory-auth) is compiled in.
+/// Returns True if a server extension with this name is compiled into the build.
+///
+/// Which extensions exist depends on how the build was assembled; this library has no opinion
+/// about their names.
+///
+/// Arguments:
+///     name (str): the extension's registered name.
 ///
 /// Returns:
-///     bool: True if the extension is built in, False otherwise.
+///     bool: True if that extension is built in, False otherwise.
 #[pyfunction]
-pub fn has_permissions_extension() -> bool {
-    crate::server::has_server_extension()
+pub fn has_extension(name: &str) -> bool {
+    crate::plugin::server::is_registered(name)
 }
 
 pub fn base_graphql_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyErr> {
@@ -83,16 +87,6 @@ pub fn base_graphql_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyErr>
     graphql_module.add_class::<PyNodeAddition>()?;
     graphql_module.add_class::<PyUpdate>()?;
     graphql_module.add_class::<PyEdgeAddition>()?;
-    graphql_module.add_class::<PyRemoteIndexSpec>()?;
-    graphql_module.add_class::<PyPropsInput>()?;
-    graphql_module.add_class::<PySomePropertySpec>()?;
-    graphql_module.add_class::<PyAllPropertySpec>()?;
-    // The sort-key classes live in the base `raphtory` module (they are the
-    // same types the local `Nodes.sorted` / `Edges.sorted` take); re-exported
-    // here so `raphtory.graphql.NodeSortBy` keeps working.
-    graphql_module.add_class::<PySortByTime>()?;
-    graphql_module.add_class::<PyNodeSortBy>()?;
-    graphql_module.add_class::<PyEdgeSortBy>()?;
 
     graphql_module.add(
         "RemotePermissionError",
@@ -103,10 +97,7 @@ pub fn base_graphql_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyErr>
     graphql_module.add_function(wrap_pyfunction!(decode_graph, &graphql_module)?)?;
     graphql_module.add_function(wrap_pyfunction!(schema, &graphql_module)?)?;
     graphql_module.add_function(wrap_pyfunction!(python_cli, &graphql_module)?)?;
-    graphql_module.add_function(wrap_pyfunction!(
-        has_permissions_extension,
-        &graphql_module
-    )?)?;
+    graphql_module.add_function(wrap_pyfunction!(has_extension, &graphql_module)?)?;
 
     Ok(graphql_module)
 }

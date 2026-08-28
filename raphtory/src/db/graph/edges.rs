@@ -179,19 +179,18 @@ impl<'graph, G: GraphViewOps<'graph>> BaseEdgeViewOps<'graph> for Edges<'graph, 
         self.map(|g, e| Metadata::new(EdgeView::new(g.clone(), e)))
     }
 
-    fn map_nodes<F: Fn(&dyn BoxableGraphView, EdgeRef) -> VID + Send + Sync + Clone + 'graph>(
+    fn map_nodes<F: Fn(EdgeRef) -> VID + Send + Sync + Clone + 'graph>(
         &self,
         op: F,
     ) -> Self::Nodes {
         let edges = self.edges.clone();
         let select = self.select.clone();
-        PathFromNode::new(
+        PathFromNode::new_one_hop_filtered(
             self.base_graph.clone(),
+            select,
             Arc::new(move |graph| {
                 let op = op.clone();
-                edges(select.clone())
-                    .map(move |e| op(&graph, e))
-                    .into_dyn_boxed()
+                edges(graph).map(move |e| op(e)).into_dyn_boxed()
             }),
         )
     }
@@ -393,20 +392,17 @@ impl<'graph, G: GraphViewOps<'graph>> BaseEdgeViewOps<'graph> for NestedEdges<'g
         self.map(|g, e| Metadata::new(EdgeView::new(g.clone(), e)))
     }
 
-    fn map_nodes<F: Fn(&dyn BoxableGraphView, EdgeRef) -> VID + Send + Sync + Clone + 'graph>(
+    fn map_nodes<F: Fn(EdgeRef) -> VID + Send + Sync + Clone + 'graph>(
         &self,
         op: F,
     ) -> Self::Nodes {
         let edges = self.edges.clone();
         let select = self.select.clone();
         let edges = Arc::new(move |graph: DynGraphArc<'graph>, n| {
-            let graph = graph.clone();
             let op = op.clone();
-            edges(select.clone(), n)
-                .map(move |e| op(&graph, e))
-                .into_dyn_boxed()
+            edges(graph, n).map(move |e| op(e)).into_dyn_boxed()
         });
-        PathFromGraph::new(self.graph.clone(), self.nodes.clone(), edges)
+        PathFromGraph::new_filtered(self.graph.clone(), select, self.nodes.clone(), edges)
     }
 
     fn map_exploded<

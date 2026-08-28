@@ -38,6 +38,7 @@ use std::{
 };
 
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ObjectEntry {
     /// Key.
     pub key: String,
@@ -132,13 +133,25 @@ pub enum Value {
     /// Object.
     Object(Vec<ObjectEntry>),
     /// Timezone-aware datetime.
-    #[serde(rename = "dtime", alias = "dTime")]
+    #[serde(rename = "dtime")]
     DTime(String),
     /// Naive datetime (no timezone).
-    #[serde(rename = "ndtime", alias = "nDTime")]
+    #[serde(rename = "ndtime")]
     NDTime(String),
     /// BigDecimal number (string representation, e.g. "3.14159" or "123e-5").
     Decimal(String),
+    /// A named placeholder, resolved before the filter is evaluated.
+    ///
+    /// Lets a filter be written once with per-request values left open — an authorization policy
+    /// binds them per caller. A `Var` must be substituted before the filter reaches the engine;
+    /// converting one to a `Prop` is an error rather than a silent default.
+    Var(String),
+    /// A named claim, read straight from the caller's token and substituted before evaluation.
+    ///
+    /// Like [`Value::Var`] but sourced directly from a token claim rather than a binding, so no
+    /// spec is needed. Must be substituted before the filter reaches the engine; converting one to
+    /// a `Prop` is an error rather than a silent default.
+    Claim(String),
 }
 
 // JSON has no NaN/Infinity — `serde_json` would silently coerce them to `null`,
@@ -169,6 +182,8 @@ fn serialize_finite_f32<S: Serializer>(v: &f32, serializer: S) -> Result<S::Ok, 
 impl Display for Value {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
+            Value::Var(name) => write!(f, "Var({})", name),
+            Value::Claim(name) => write!(f, "Claim({})", name),
             Value::U8(v) => write!(f, "U8({})", v),
             Value::U16(v) => write!(f, "U16({})", v),
             Value::U32(v) => write!(f, "U32({})", v),
@@ -209,6 +224,14 @@ impl TryFrom<Value> for Prop {
 
 fn value_to_prop(value: Value) -> Result<Prop, GraphError> {
     match value {
+        // A placeholder that reached evaluation was never substituted. Erroring here keeps that a
+        // visible bug rather than a filter that quietly matches nothing.
+        Value::Var(name) => Err(GraphError::InvalidGqlFilter(format!(
+            "unresolved variable '{name}' in filter"
+        ))),
+        Value::Claim(name) => Err(GraphError::InvalidGqlFilter(format!(
+            "unresolved claim '{name}' in filter"
+        ))),
         Value::U8(n) => Ok(Prop::U8(n)),
         Value::U16(n) => Ok(Prop::U16(n)),
         Value::U32(n) => Ok(Prop::U32(n)),
@@ -945,17 +968,6 @@ mod value_serde_tests {
         assert_eq!(d, serde_json::json!({ "dtime": "2020-01-01T00:00:00Z" }));
         let nd = serde_json::to_value(Value::NDTime("2020-01-01T00:00:00".to_owned())).unwrap();
         assert_eq!(nd, serde_json::json!({ "ndtime": "2020-01-01T00:00:00" }));
-    }
-
-    // Aliases keep any filter JSON stored under the old camelCase keys readable.
-    #[test]
-    fn datetime_variants_accept_legacy_camelcase_aliases() {
-        let d: Value =
-            serde_json::from_value(serde_json::json!({ "dTime": "2020-01-01T00:00:00Z" })).unwrap();
-        assert!(matches!(d, Value::DTime(_)));
-        let nd: Value =
-            serde_json::from_value(serde_json::json!({ "nDTime": "2020-01-01T00:00:00" })).unwrap();
-        assert!(matches!(nd, Value::NDTime(_)));
     }
 
     #[test]

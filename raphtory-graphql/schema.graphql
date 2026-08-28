@@ -2090,7 +2090,7 @@ input FuzzySearchExpr {
 }
 
 """
-A general filter expression — a node filter (`nodes`), an edge filter (`edges`), a graph/view
+A general filter expression — a node filter (`node`), an edge filter (`edge`), a graph/view
 filter (`graph`, e.g. a layer or window restriction), or an `and`/`or` combination of these
 (which may mix kinds). Used where an operation accepts any filter, such as scoping a component
 walk.
@@ -2098,19 +2098,18 @@ walk.
 input GqlFilter @oneOf {
 	"""
 	Filter by node properties, fields, or temporal state.
-	(Persisted filters may use the legacy `node` key.)
 	"""
-	nodes: NodeFilter
+	node: NodeFilter
 	"""
 	Filter by edge properties, source/destination, or temporal state.
 	(Persisted filters may use the legacy `edge` key.)
 	"""
-	edges: EdgeFilter
+	edge: EdgeFilter
 	"""
 	Filter exploded edges — per-event edge instances — by properties,
 	endpoints, or temporal state, evaluated per event.
 	"""
-	explodedEdges: ExplodedEdgeFilter
+	explodedEdge: ExplodedEdgeFilter
 	"""
 	Apply a graph-level view (window, snapshot, layer restriction, …).
 	"""
@@ -2121,7 +2120,7 @@ input GqlFilter @oneOf {
 	and: [GqlFilter!]
 	"""
 	At least one sub-filter must pass (union).
-	Cross-type sub-filters (e.g. `nodes` and `edges` together) produce a
+	Cross-type sub-filters (e.g. `node` and `edge` together) produce a
 	proper graph union: a node is visible if it matches the node filter or
 	has a visible edge, and an edge is visible if it matches the edge
 	filter or both its endpoints are visible.
@@ -2553,12 +2552,6 @@ type Graph {
 	"""
 	schema: GraphSchema!
 	"""
-	Access registered graph algorithms (PageRank, shortest path, etc.) for this
-	graph view. The set of available algorithms is defined by the plugin registry
-	loaded at server startup.
-	"""
-	algorithms: GraphAlgorithmPlugin!
-	"""
 	Access the algorithms that can be run on this graph view.
 	"""
 	algorithm: Algorithms!
@@ -2609,11 +2602,6 @@ type Graph {
 		"""
 		views: [GraphViewCollection!]!
 	): Graph!
-}
-
-type GraphAlgorithmPlugin {
-	pagerank(iterCount: Int!, threads: Int, tol: Float, weight: String): [PagerankOutput!]!
-	shortest_path(source: String!, targets: [String!]!, direction: String): [ShortestPathOutput!]!
 }
 
 """
@@ -3399,18 +3387,18 @@ type MetaGraph {
 	"""
 	lastUpdated: Int!
 	"""
-	Returns the number of nodes in the graph.
+	Returns the number of nodes in the graph, or null if the caller lacks unfiltered read.
 	"""
-	nodeCount: Int!
+	nodeCount: Int
 	"""
-	Returns the number of edges in the graph.
+	Returns the number of edges in the graph, or null if the caller lacks unfiltered read.
 	
 	Returns:
 	int:
 	"""
-	edgeCount: Int!
+	edgeCount: Int
 	"""
-	Returns the metadata of the graph.
+	Returns the metadata of the graph, or null if the caller lacks unfiltered read.
 	
 	Reads metadata without forcing a full graph load: from the
 	in-memory cache if the graph is already loaded, otherwise directly
@@ -3418,7 +3406,7 @@ type MetaGraph {
 	`graph_props` segment for disk-backed graphs). This keeps
 	`MetaGraph.metadata` cheap for namespace listings of many graphs.
 	"""
-	metadata: [Property!]!
+	metadata: [Property!]
 }
 
 """
@@ -3478,10 +3466,6 @@ type MotifCounts {
 }
 
 type MutRoot {
-	"""
-	Returns a collection of mutation plugins.
-	"""
-	plugins: MutationPlugin!
 	"""
 	Delete graph from a path on the server.
 	"""
@@ -4105,10 +4089,6 @@ type MutableNode {
 	): Boolean!
 }
 
-type MutationPlugin {
-	NoOps: String!
-}
-
 """
 A directory-like container for graphs and nested namespaces. Graphs are
 addressed by path (e.g. `"team/project/graph"`), and every segment except
@@ -4719,32 +4699,11 @@ input NodeAddition {
 	layer: String
 }
 
-enum NodeField {
-	"""
-	Node ID field.
-	
-	Represents the graph’s node identifier (numeric or string-backed in the API).
-	"""
-	NODE_ID
-	"""
-	Node name field.
-	
-	Represents the human-readable node name (string).
-	"""
-	NODE_NAME
-	"""
-	Node type field.
-	
-	Represents the optional node type assigned at node creation (string).
-	"""
-	NODE_TYPE
-}
-
 """
 Boolean expression over a built-in node field (ID, name, or type).
 
-This is used by `NodeFieldFilterNew.where_` when filtering a specific
-`NodeField`.
+This is used by `NodeFieldWhere.where_` when filtering a specific
+built-in field.
 
 Supports comparisons, string predicates, and set membership.
 (Presence checks and aggregations are handled via property filters instead.)
@@ -4805,30 +4764,6 @@ input NodeFieldCondition @oneOf {
 }
 
 """
-Filters a built-in node field (`id`, `name`, `type`) using a `NodeFieldCondition`.
-
-Example (GraphQL):
-```graphql
-{ Node: { field: NodeName, where: { Contains: "ali" } } }
-```
-
-Deprecated spelling: prefer the per-field forms (`id:` / `name:` /
-`nodeType:`), which say the field as the key instead of an enum argument.
-"""
-input NodeFieldFilterNew {
-	"""
-	Which built-in field to filter.
-	"""
-	field: NodeField!
-	"""
-	Condition applied to the selected field.
-	
-	Exposed as `where` in GraphQL.
-	"""
-	where: NodeFieldCondition!
-}
-
-"""
 A condition on one specific built-in field — the payload of the per-field
 filter variants (`{ id: { where: ... } }`, `{ name: { where: ... } }`,
 `{ nodeType: { where: ... } }`).
@@ -4848,7 +4783,7 @@ GraphQL input type for filtering nodes.
 `NodeFilter` represents a composable boolean expression evaluated
 against nodes in a graph. Filters can target:
 
-- built-in node fields (`Node` / `NodeFieldFilterNew`),
+- built-in node fields (`Id` / `Name` / `NodeType`),
 - node properties and metadata,
 - temporal properties,
 - temporal scope (windows, snapshots, latest),
@@ -4871,12 +4806,6 @@ input NodeFilter @oneOf {
 	Filters the node type: `{ nodeType: { where: ... } }`.
 	"""
 	nodeType: NodeFieldWhere
-	"""
-	Filters a built-in node field chosen by an enum argument. Deprecated
-	spelling — prefer the per-field forms above, which name the field as
-	the key.
-	"""
-	node: NodeFieldFilterNew
 	"""
 	Filters a node property by name and condition.
 	"""
@@ -5922,14 +5851,6 @@ input OpenAIConfig {
 }
 
 """
-PageRank score.
-"""
-type PagerankOutput {
-	name: String!
-	rank: Float!
-}
-
-"""
 A nested collection of nodes anchored to a source collection — the result of
 collection-level traversals like `nodes.neighbours`, `inNeighbours`, or
 `outNeighbours`. Each source node yields its own list of neighbour nodes, so
@@ -6960,10 +6881,6 @@ strings (`"F64"`), containers are tagged objects
 """
 scalar PropertyType
 
-type QueryPlugin {
-	NoOps: String!
-}
-
 type QueryRoot {
 	"""
 	Hello world demo
@@ -7022,10 +6939,6 @@ type QueryRoot {
 	"""
 	root: Namespace!
 	"""
-	Returns a plugin.
-	"""
-	plugins: QueryPlugin!
-	"""
 	Encodes graph and returns as string.
 	
 	Returns:: Base64 url safe encoded string
@@ -7064,6 +6977,33 @@ type QueryRoot {
 		edges: Template
 	): Boolean!
 	"""
+	Index only the entities that are missing from an existing vector index, leaving what is
+	already indexed untouched. Cheap enough to run routinely, and never destructive.
+	
+	Fails if the graph has no index yet, or if the template or model differs from the one the
+	index was built with — `vectoriseGraph` is what covers those, by rebuilding.
+	
+	Returns:: bool
+	"""
+	vectoriseMissing(
+		"""
+		Graph path relative to the root namespace.
+		"""
+		path: String!,
+		"""
+		Embedding model; must match the one the index was built with.
+		"""
+		model: EmbeddingModel,
+		"""
+		Node-document template; must match the one the index was built with.
+		"""
+		nodes: Template,
+		"""
+		Edge-document template; must match the one the index was built with.
+		"""
+		edges: Template
+	): Boolean!
+	"""
 	Create vectorised graph in the format used for queries
 	
 	Returns:: GqlVectorisedGraph
@@ -7092,11 +7032,6 @@ input Seeds @oneOf {
 	Infect this fraction of the nodes, chosen at random.
 	"""
 	probability: Float
-}
-
-type ShortestPathOutput {
-	target: String!
-	nodes: [String!]!
 }
 
 enum SortByTime {
@@ -7364,6 +7299,22 @@ input Value @oneOf {
 	BigDecimal number (string representation, e.g. "3.14159" or "123e-5").
 	"""
 	decimal: String
+	"""
+	A named placeholder, resolved before the filter is evaluated.
+	
+	Lets a filter be written once with per-request values left open — an authorization policy
+	binds them per caller. A `Var` must be substituted before the filter reaches the engine;
+	converting one to a `Prop` is an error rather than a silent default.
+	"""
+	var: String
+	"""
+	A named claim, read straight from the caller's token and substituted before evaluation.
+	
+	Like [`Value::Var`] but sourced directly from a token claim rather than a binding, so no
+	spec is needed. Must be substituted before the filter reaches the engine; converting one to
+	a `Prop` is an error rather than a silent default.
+	"""
+	claim: String
 }
 
 """
@@ -7609,3 +7560,4 @@ schema {
 	query: QueryRoot
 	mutation: MutRoot
 }
+

@@ -1,7 +1,7 @@
 #![recursion_limit = "256"]
 
 pub use crate::{
-    auth::{require_jwt_write_access_dynamic, Access, TokenClaimValues},
+    auth::{require_jwt_write_access_dynamic, Access, Roles, TokenClaimValues},
     model::graph::{filtering::GraphAccessFilter, property::Value},
     server::GraphServer,
 };
@@ -13,7 +13,7 @@ use std::sync::Arc;
 mod auth;
 pub mod auth_policy;
 
-pub use auth::{KeyResolver, StaticKeyResolver};
+pub use auth::{KeyResolver, ReadOnly, StaticKeyResolver};
 pub mod cache;
 pub mod cli;
 pub mod client;
@@ -28,9 +28,11 @@ mod routes;
 pub mod server;
 pub mod url_encode;
 
-#[cfg(feature = "python")]
+#[cfg(all(feature = "python", not(doctest)))]
+// no doctests in python as the docstrings are python not rust format
 pub mod python;
 
+pub mod plugin;
 #[cfg(test)]
 pub(crate) mod test_support;
 
@@ -552,7 +554,7 @@ mod graphql_test {
         {
           graph(path: "g") {
             filterNodes: filter(
-                expr: { nodes: { degree: { direction: BOTH, where: { gt: { u64: 0 } } } } }
+                expr: { node: { degree: { direction: BOTH, where: { gt: { u64: 0 } } } } }
             ) {
               nodes {
                 list {
@@ -561,7 +563,7 @@ mod graphql_test {
               }
             }
             nodes {
-              select(expr: { nodes: { degree: { direction: BOTH, where: { gt: { u64: 0 } } } } }) {
+              select(expr: { node: { degree: { direction: BOTH, where: { gt: { u64: 0 } } } } }) {
                 list {
                   name
                 }

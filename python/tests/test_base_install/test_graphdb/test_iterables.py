@@ -80,22 +80,28 @@ def test_empty_lists():
         ("1", "2", 10, 1),
         ("1", "2", 10, 1),
         ("1", "4", 20, 2),
-        ("2", "3", 5, 3),
-        ("3", "2", 2, 4),
-        ("3", "1", 1, 5),
-        ("4", "3", 10, 6),
-        ("4", "1", 5, 7),
         ("1", "5", 2, 8),
+        ("2", "3", 5, 3),
+        ("3", "1", 1, 5),
+        ("3", "2", 2, 4),
+        ("4", "1", 5, 7),
+        ("4", "3", 10, 6),
     ]
     for src, dst, val, time in edges_str:
         g.add_edge(time, src, dst, {"value_dec": val})
+
+    props = g.nodes.out_edges.properties.temporal.get("value_dec").values()
+    print(props.median())
+    print(props.median().median())
+    print(props.median().median().median())
+
     assert (
         g.nodes.out_edges.properties.temporal.get("value_dec")
         .values()
         .median()
         .median()
         .median()
-        == 5
+        == 6.25  # median interpolates
     )
     assert (
         int(
@@ -144,10 +150,10 @@ def test_propiterable():
     assert v.out_edges.properties.get("value_dec").median() == 10
 
     total = g.nodes.in_edges.properties.get("value_dec").sum()
-    assert sorted(total) == [2, 6, 12, 15, 20]
+    assert dict(zip(g.nodes.id, total)) == {"1": 6, "2": 12, "3": 15, "4": 20, "5": 2}
 
     total = g.nodes.edges.properties.get("value_dec").sum()
-    assert sorted(total) == [2, 17, 18, 35, 38]
+    assert dict(zip(g.nodes.id, total)) == {"1": 38, "2": 17, "3": 18, "4": 35, "5": 2}
 
     total = dict(zip(g.nodes.id, g.nodes.out_edges.properties.get("value_dec").sum()))
     assert total == {"1": 32, "2": 5, "3": 3, "4": 15, "5": None}
@@ -156,19 +162,25 @@ def test_propiterable():
     assert total == 55
 
     total = g.nodes.out_edges.properties.get("value_dec").sum().median()
-    assert total == 5
+    assert total == 10
 
     total = g.nodes.out_edges.properties.get("value_dec").sum().drop_none()
     assert sorted(total) == [3, 5, 15, 32]
 
     total = g.nodes.out_edges.properties.get("value_dec").median()
-    assert list(total) == [10, 5, 5, 1, None]
+    assert dict(zip(g.nodes.id, total)) == {
+        "1": 10,
+        "2": 5,
+        "3": 1.5,
+        "4": 7.5,
+        "5": None,
+    }
 
     total = g.node("1").in_edges.properties.get("value_dec").sum()
     assert total == 6
 
     total = g.node("1").in_edges.properties.get("value_dec").median()
-    assert total == 1
+    assert total == 3
 
 
 def test_pypropvalue_list_listlist():
@@ -195,34 +207,56 @@ def test_pypropvalue_list_listlist():
     )  # PyPropValueList([100, 20, 5, 5, 5, 10, 1, 2])
     res_v = v.edges.properties.get("value_dec")  # PyPropValueList([100, 5, 20, 1, 5])
     res_ll = g.nodes.edges.properties.get("value_dec")
+    nodes = g.nodes.id.collect()
 
     assert res.sum() == 148
     assert res_v.sum() == 131
-    assert res_ll.sum() == [131, 107, 35, 18, 5]
+    assert dict(zip(nodes, res_ll.sum())) == {
+        "1": 131,
+        "2": 107,
+        "3": 18,
+        "4": 35,
+        "5": 5,
+    }
 
     assert res.median() == 5
     assert res_v.median() == 5
-    assert res_ll.median() == [5, 5, 10, 2, 5]
+    assert dict(zip(nodes, res_ll.median())) == {
+        "1": 5.0,
+        "2": 5.0,
+        "3": 3.5,
+        "4": 10.0,
+        "5": 5.0,
+    }
 
     assert res.min() == 1
     assert res_v.min() == 1
-    assert res_ll.min() == [1, 2, 5, 1, 5]
+    assert dict(zip(nodes, res_ll.min())) == {"1": 1, "2": 2, "3": 1, "4": 5, "5": 5}
 
     assert res.max() == 100
     assert res_v.max() == 100
-    assert res_ll.max() == [100, 100, 20, 10, 5]
+    assert dict(zip(nodes, res_ll.max())) == {
+        "1": 100,
+        "2": 100,
+        "3": 10,
+        "4": 20,
+        "5": 5,
+    }
 
     assert res.count() == 8
     assert res_v.count() == 5
-    assert res_ll.count() == [5, 3, 3, 4, 1]
+    assert dict(zip(nodes, res_ll.count())) == {"1": 5, "2": 3, "3": 4, "4": 3, "5": 1}
 
     assert res.mean() == res.average() == 18.5
     assert res_v.mean() == res_v.average() == 26.2
-    assert (
-        res_ll.mean()
-        == res_ll.average()
-        == [26.2, 35.666666666666664, 11.666666666666666, 4.5, 5.0]
-    )
+    assert res_ll.mean() == res_ll.average()
+    assert dict(zip(nodes, res_ll.mean())) == {
+        "1": 26.2,
+        "2": 35.666666666666664,
+        "3": 4.5,
+        "4": 11.666666666666666,
+        "5": 5.0,
+    }
 
 
 def test_pytemporalprops():

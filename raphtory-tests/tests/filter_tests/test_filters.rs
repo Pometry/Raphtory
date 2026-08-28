@@ -4853,7 +4853,7 @@ mod test_node_property_filter_agg {
                     ("p_u32s", list_u32(&[1, 2, 3])), // min: 1,  max: 3,  sum: 6,    avg: 2.0,  len: 3
                     ("p_u32s_max", list_u32(&[u32::MAX, u32::MAX])), // min: 1,  max: 3,  sum: 8589934590
                     ("p_u64s", list_u64(&[1, 2, 3])), // min: 1,  max: 3,  sum: 6,    avg: 2.0,  len: 3
-                    ("p_u64s_max", list_u64(&[u64::MAX, u64::MAX])), // min: 1,  max: 3,  sum: OVERFLOW
+                    ("p_u64s_max", list_u64(&[u64::MAX, u64::MAX])), // min: u64::MAX,  max: u64::MAX,  sum: OVERFLOW
                     ("p_i32s", list_i32(&[1, 2, 3])), // min: 1,  max: 3,  sum: 6,    avg: 2.0,  len: 3
                     ("p_i64s", list_i64(&[1, 2, 3])), // min: 1,  max: 3,  sum: 6,    avg: 2.0,  len: 3
                     ("p_f32s", list_f32(&[1.0, 2.0, 3.5])), // min: 1.0, max: 3.5, sum: 6.5,  avg: 2.1666666666666665, len: 3
@@ -5105,6 +5105,7 @@ mod test_node_property_filter_agg {
         graph
     }
 
+    #[track_caller]
     fn apply_assertion(
         filter: impl TryAsCompositeFilter + CreateFilter + Clone,
         expected: &[&str],
@@ -5118,6 +5119,7 @@ mod test_node_property_filter_agg {
         );
     }
 
+    #[track_caller]
     fn apply_assertion_err(
         filter: impl TryAsCompositeFilter + CreateFilter + Clone,
         expected: &str,
@@ -8050,7 +8052,7 @@ mod test_node_property_filter_agg {
         apply_assertion_err(filter, expected);
     }
 
-    // --------------- OVERFLOW ---------------
+    // --------------- OVERFLOW HANDLING ---------------
     #[test]
     fn test_max_value_agg() {
         let filter = NodeFilter
@@ -8086,7 +8088,7 @@ mod test_node_property_filter_agg {
         apply_assertion(filter, &expected);
 
         let filter = NodeFilter.property("p_u64s_max").sum().gt(Prop::U64(0));
-        let expected: Vec<&str> = vec![];
+        let expected: Vec<&str> = vec!["n1", "n5"];
         apply_assertion(filter, &expected);
 
         // AVG is computed in f64 even if SUM overflowed.
@@ -8095,8 +8097,9 @@ mod test_node_property_filter_agg {
         let expected = vec!["n5"];
         apply_assertion(filter, &expected);
 
+        // Overflow is handled by promoting to Decimal which still compares
         let filter = NodeFilter.property("p_i64s_max").sum().gt(Prop::I64(0));
-        let expected: Vec<&str> = vec![];
+        let expected: Vec<&str> = vec!["n5"];
         apply_assertion(filter, &expected);
 
         // AVG is computed in f64 even if SUM overflowed.
@@ -8290,24 +8293,13 @@ mod test_edge_filter {
         init_edges_graph, init_edges_graph_with_num_ids, init_edges_graph_with_str_ids,
         init_edges_graph_with_str_ids_del, init_nodes_graph, IdentityGraphTransformer,
     };
-    use itertools::Itertools;
-    use raphtory::{
-        db::{
-            api::view::{Filter, Select},
-            graph::views::filter::{
-                and_filtered_graph::AndFilteredGraph,
-                model::{
-                    edge_filter::EdgeFilter,
-                    node_filter::ops::{NodeFilterOps, NodeIdFilterOps},
-                    property_filter::ops::{ListAggOps, PropertyFilterOps},
-                    ComposableFilter, EdgeViewFilterOps, PropertyFilterFactory,
-                    TemporalPropertyFilterFactory, ViewWrapOps,
-                },
-            },
-        },
-        prelude::{EdgeViewOps, Graph, GraphViewOps, PersistentGraph, TimeOps},
+    use raphtory::db::graph::views::filter::model::{
+        edge_filter::EdgeFilter,
+        node_filter::ops::{NodeFilterOps, NodeIdFilterOps},
+        property_filter::ops::{ListAggOps, PropertyFilterOps},
+        ComposableFilter, EdgeViewFilterOps, PropertyFilterFactory, TemporalPropertyFilterFactory,
+        ViewWrapOps,
     };
-    use raphtory_api::core::entities::GID;
     use raphtory_tests::assertions::{
         assert_filter_edges_results, assert_select_edges_results, TestGraphVariants, TestVariants,
     };

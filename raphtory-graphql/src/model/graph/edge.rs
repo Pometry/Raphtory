@@ -304,7 +304,7 @@ impl GqlEdge {
                 EdgeViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await,
                 EdgeViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
                 EdgeViewCollection::EdgeFilter(filter) => {
-                    return_view.filter(GqlFilter::Edges(filter)).await?
+                    return_view.filter(GqlFilter::Edge(filter)).await?
                 }
             }
         }
