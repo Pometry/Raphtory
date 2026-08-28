@@ -1,18 +1,19 @@
 use crate::{
     auth::{AuthenticatedGraphQL, MutationAuth},
     auth_policy::AuthorizationPolicy,
-    config::{app_config::AppConfig, auth_config::PublicKeyError},
-    data::Data,
-    model::{
-        plugins::{entry_point::EntryPoint, operation::Operation},
-        App,
+    cli::ServerArgs,
+    config::{
+        app_config::{AppConfig, AppConfigBuilder},
+        auth_config::PublicKeyError,
     },
+    data::Data,
+    model::App,
     observability::open_telemetry::OpenTelemetry,
+    plugin::schema::RegisterPlugin,
     routes::{health, version, PublicFilesEndpoint},
     server::ServerError::SchemaError,
 };
-use config::ConfigError;
-use once_cell::sync::Lazy;
+use async_graphql::dynamic::Schema;
 use opentelemetry::trace::TracerProvider;
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
 use opentelemetry_sdk::{
@@ -29,13 +30,13 @@ use poem::{
 use raphtory::db::api::storage::storage::Config;
 use serde_json::json;
 use std::{
+    error::Error,
     fs::create_dir_all,
     future::Future,
     io::ErrorKind,
     ops::Deref,
     path::{Path, PathBuf},
     pin::Pin,
-    sync::RwLock,
     task::{Context, Poll},
 };
 use thiserror::Error;
@@ -64,26 +65,10 @@ use {
     raphtory::vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate},
 };
 
+use crate::plugin::server::PluginRegistrationError;
+pub use config::ConfigError;
+
 pub const DEFAULT_PORT: u16 = 1736;
-
-type ServerExtensionFn = Box<dyn Fn(GraphServer, Option<&Path>) -> GraphServer + Send + Sync>;
-
-static SERVER_EXTENSION: Lazy<RwLock<Option<ServerExtensionFn>>> = Lazy::new(|| RwLock::new(None));
-
-pub fn register_server_extension(f: ServerExtensionFn) {
-    *SERVER_EXTENSION.write().unwrap() = Some(f);
-}
-
-pub fn apply_server_extension(server: GraphServer, path: Option<&Path>) -> GraphServer {
-    match SERVER_EXTENSION.read().unwrap().as_ref() {
-        Some(ext) => ext(server, path),
-        None => server,
-    }
-}
-
-pub fn has_server_extension() -> bool {
-    SERVER_EXTENSION.read().unwrap().is_some()
-}
 
 #[derive(Error, Debug)]
 pub enum ServerError {
@@ -111,6 +96,14 @@ pub enum ServerError {
     SchemaError(String),
     #[error("Failed to create endpoints: {0}")]
     EndpointError(String),
+    #[error(transparent)]
+    CliPluginRegistrationError(#[from] PluginRegistrationError),
+}
+
+impl ServerError {
+    pub fn config_error(err: impl Error + Send + Sync + 'static) -> Self {
+        Self::ConfigError(ConfigError::Foreign(Box::new(err)))
+    }
 }
 
 impl From<ServerError> for io::Error {
@@ -133,26 +126,7 @@ pub struct GraphServer {
     config: AppConfig,
     schema_data: Vec<SchemaDataInjector>,
     key_resolver: Option<std::sync::Arc<dyn crate::auth::KeyResolver>>,
-}
-
-pub fn register_query_plugin<
-    'a,
-    E: EntryPoint<'a> + 'static + Send,
-    A: Operation<'a, E> + 'static + Send,
->(
-    name: &str,
-) {
-    E::lock_plugins().insert(name.to_string(), Box::new(A::register_operation));
-}
-
-pub fn register_mutation_plugin<
-    'a,
-    E: EntryPoint<'a> + 'static + Send,
-    A: Operation<'a, E> + 'static + Send,
->(
-    name: &str,
-) {
-    E::lock_plugins().insert(name.to_string(), Box::new(A::register_operation));
+    schema_plugins: Vec<Box<dyn RegisterPlugin>>,
 }
 
 impl GraphServer {
@@ -164,19 +138,29 @@ impl GraphServer {
         work_dir: PathBuf,
         app_config: Option<AppConfig>,
         graph_config: Config,
-    ) -> IoResult<Self> {
+    ) -> Result<Self, ServerError> {
         if !work_dir.exists() {
             create_dir_all(&work_dir)?;
         }
         let config = app_config.unwrap_or_default();
+        let extensions = config.extensions.clone();
         let data = Data::new(work_dir.as_path(), &config, graph_config);
-        Ok(Self {
+        let server = Self {
             work_dir,
             data,
             config,
             schema_data: Vec::new(),
             key_resolver: None,
-        })
+            schema_plugins: Vec::new(),
+        };
+        extensions.process(server)
+    }
+
+    pub async fn new_from_args(args: ServerArgs) -> Result<Self, ServerError> {
+        let app_config = AppConfigBuilder::new_from_args(args.config_args)?.build();
+        let work_dir = args.work_dir;
+        let graph_config = args.graph_config;
+        GraphServer::new(work_dir, Some(app_config), graph_config).await
     }
 
     /// Returns the working directory for this server.
@@ -216,6 +200,12 @@ impl GraphServer {
                 .expect("schema data injector called more than once");
             sb.data(data)
         }));
+        self
+    }
+
+    /// Inject resolver plugins into hte GQL schema
+    pub fn with_schema_plugin(mut self, plugin: impl RegisterPlugin) -> Self {
+        self.schema_plugins.push(Box::new(plugin));
         self
     }
 
@@ -347,13 +337,10 @@ impl GraphServer {
         })
     }
 
-    async fn generate_endpoint(
-        &self,
-        tracer: Option<Tracer>,
-    ) -> Result<CompressionEndpoint<CorsEndpoint<Route>>, ServerError> {
+    pub async fn build_schema(&self, tracer: Option<Tracer>) -> Result<Schema, ServerError> {
         let schema_cfg = &self.config.schema;
 
-        let mut schema_builder = App::create_schema()
+        let mut schema_builder = App::create_schema_with_plugins(&self.schema_plugins)
             .data(self.data.clone())
             .data(self.config.concurrency.clone());
 
@@ -377,14 +364,21 @@ impl GraphServer {
             schema_builder = schema_builder.disable_introspection();
         }
         let trace_level = self.config.tracing.level.clone();
-        let schema = if let Some(t) = tracer {
+        if let Some(t) = tracer {
             schema_builder
                 .extension(OpenTelemetry::new(t, trace_level))
                 .finish()
         } else {
             schema_builder.finish()
         }
-        .map_err(|e| SchemaError(e.to_string()))?;
+        .map_err(|e| SchemaError(e.to_string()))
+    }
+
+    async fn generate_endpoint(
+        &self,
+        tracer: Option<Tracer>,
+    ) -> Result<CompressionEndpoint<CorsEndpoint<Route>>, ServerError> {
+        let schema = self.build_schema(tracer).await?;
 
         let app = Route::new()
             .nest(
