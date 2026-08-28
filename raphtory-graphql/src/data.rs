@@ -361,10 +361,13 @@ impl Data {
         Namespace::try_new(work_dir, ns_path.to_string())
     }
 
+    /// The graph for a folder, from the cache or from disk, with no permission check: callers here
+    /// have already been authorised.
+    ///
     /// # ⚠ Bypasses all permission checks — do not call from resolvers directly.
     /// Use `get_graph_with_read_permission`, `get_raw_graph_with_read_permission`, or
     /// `get_graph_with_write_permission` instead.
-    async fn get_graph(&self, path: &str) -> Result<GraphWithVectors, GQLError> {
+    async fn get_graph_unchecked(&self, path: &str) -> Result<GraphWithVectors, GQLError> {
         self.cache
             .get_or_insert(path, self.read_graph_from_disk(path))
             .await
@@ -376,7 +379,7 @@ impl Data {
         &self,
         path: &str,
     ) -> Result<GraphWithVectors, GQLError> {
-        self.get_graph(path).await
+        self.get_graph_unchecked(path).await
     }
 
     pub async fn get_cached_graph(&self, path: &str) -> Option<GraphWithVectors> {
@@ -518,32 +521,7 @@ impl Data {
         Ok(())
     }
 
-    #[cfg(feature = "vectors")]
-    async fn vectorise_with_template(
-        &self,
-        graph: MaterializedGraph,
-        folder: &impl ValidGraphPaths,
-        template: &DocumentTemplate,
-        model: CachedEmbeddingModel,
-    ) -> Option<VectorisedGraph<MaterializedGraph>> {
-        let vectors = graph
-            .vectorise(
-                model,
-                template.clone(),
-                Some(&folder.graph_folder().vectors_path().ok()?),
-                true, // verbose
-            )
-            .await;
-        match vectors {
-            Ok(vectors) => Some(vectors),
-            Err(error) => {
-                let name = folder.local_path();
-                warn!("An error occurred when trying to vectorise graph {name}: {error}");
-                None
-            }
-        }
-    }
-
+    /// Rebuild the whole index for a graph.
     #[cfg(feature = "vectors")]
     pub(crate) async fn vectorise_folder(
         &self,
@@ -551,21 +529,72 @@ impl Data {
         template: &DocumentTemplate,
         model: CachedEmbeddingModel,
     ) -> Result<(), GQLError> {
+        let template = template.clone();
+        self.index_folder(folder, move |graph, path| async move {
+            graph.vectorise(model, template, Some(&path), true).await
+        })
+        .await
+    }
+
+    /// Embed only the entities missing from an existing index. Errors if there is no index yet or
+    /// the template or model has changed — rebuilding is what covers those.
+    #[cfg(feature = "vectors")]
+    pub(crate) async fn vectorise_missing_in_folder(
+        &self,
+        folder: &ExistingGraphFolder,
+        template: &DocumentTemplate,
+        model: CachedEmbeddingModel,
+    ) -> Result<(), GQLError> {
+        let template = template.clone();
+        self.index_folder(folder, move |graph, path| async move {
+            graph.vectorise_missing(model, template, &path, true).await
+        })
+        .await
+    }
+
+    /// Run an indexing operation against a graph's vectors under the cache guard, keeping the
+    /// vectors it already had if the operation fails and reporting the failure to the caller.
+    #[cfg(feature = "vectors")]
+    async fn index_folder<F, Fut>(
+        &self,
+        folder: &ExistingGraphFolder,
+        index: F,
+    ) -> Result<(), GQLError>
+    where
+        F: FnOnce(MaterializedGraph, PathBuf) -> Fut,
+        Fut: std::future::Future<Output = Result<VectorisedGraph<MaterializedGraph>, GraphError>>,
+    {
+        let vectors_path = folder
+            .graph_folder()
+            .vectors_path()
+            .map_err(GraphError::from)?;
+
+        // The indexing itself runs with no cache guard held: it embeds the whole graph, and holding
+        // the entry would block every read of this graph for the duration. Readers keep being served
+        // by the vectors currently in the entry while this runs.
+        let graph = self.get_graph_unchecked(folder.local_path()).await?;
+        let vectors = index(graph.graph().clone(), vectors_path)
+            .await
+            .map_err(|error| {
+                error!(
+                    "An error occurred when trying to vectorise graph {}: {error}",
+                    folder.local_path()
+                );
+                error
+            })?;
+
+        // Swapping the new index in is the only part that needs the guard, and it is quick. On the
+        // error path above the entry is never touched, so a failed vectorise leaves the graph with
+        // exactly the vectors it had.
         let cloned_folder = folder.clone();
+        let fallback = graph;
         self.cache
-            .insert_or_replace_with(folder.local_path(), move |old_graph| async {
-                let graph = match old_graph {
-                    None => self
-                        .read_graph_from_disk_inner(cloned_folder.clone())
-                        .await?
-                        .graph()
-                        .clone(),
-                    Some(old_graph) => old_graph.graph().clone(),
-                };
-                let vectors = self
-                    .vectorise_with_template(graph.clone(), folder, template, model)
-                    .await;
-                Ok::<_, GQLError>(GraphWithVectors::new(graph, vectors, cloned_folder))
+            .insert_or_replace_with(folder.local_path(), |old_graph| async {
+                let current = old_graph.unwrap_or(fallback);
+                let updated =
+                    GraphWithVectors::new(current.graph().clone(), Some(vectors), cloned_folder);
+                updated.set_dirty(current.is_dirty());
+                Ok::<_, GQLError>(updated)
             })
             .await?;
         Ok(())
@@ -789,6 +818,12 @@ pub(crate) fn require_graph_write(
     policy: &Option<Arc<dyn AuthorizationPolicy>>,
     path: &str,
 ) -> async_graphql::Result<()> {
+    if crate::auth::is_read_only(ctx) {
+        return Err(gql_error_with_code(
+            "Access denied: this context may not write",
+            CODE_ACCESS_DENIED,
+        ));
+    }
     match policy {
         None => ctx
             .require_jwt_write_access()
@@ -823,6 +858,15 @@ fn apply_row_filter_sync(
     // And sub-filters are applied sequentially so that DynView (window/snapshot/layer)
     // sub-filters wrap the graph view before subsequent node/edge predicate filters run.
     if let GqlFilter::And(filters) = filter {
+        // An empty `and` folds to the graph unchanged — i.e. no restriction at all. Fail closed
+        // rather than serve every row, matching `DynFilter::try_from`'s rejection of an empty
+        // combinator (which this shortcut path otherwise never reaches).
+        if filters.is_empty() {
+            error!("empty 'and' access filter restricts nothing");
+            return Err(async_graphql::Error::new(
+                "internal error applying access filter",
+            ));
+        }
         return filters
             .into_iter()
             .try_fold(graph, |g, f| apply_row_filter_sync(g, f));
@@ -890,7 +934,7 @@ impl Data {
         perm: GraphPermission,
         graph_type: Option<GqlGraphType>,
     ) -> async_graphql::Result<(UnlockedGraphFolder, DynamicGraph)> {
-        let gwv = self.get_graph(path).await?;
+        let gwv = self.get_graph_unchecked(path).await?;
         let typed_graph = match graph_type {
             Some(GqlGraphType::Event) => match gwv.graph() {
                 MaterializedGraph::EventGraph(g) => MaterializedGraph::EventGraph(g.clone()),
@@ -969,7 +1013,7 @@ impl Data {
             }
             .into_gql_error());
         }
-        let graph = self.get_graph(path).await?;
+        let graph = self.get_graph_unchecked(path).await?;
         Ok(graph)
     }
 
@@ -980,7 +1024,7 @@ impl Data {
         path: &str,
     ) -> async_graphql::Result<GraphWithVectors> {
         require_graph_write(ctx, &self.auth_policy, path)?;
-        let graph = self.get_graph(path).await?;
+        let graph = self.get_graph_unchecked(path).await?;
         Ok(graph)
     }
 
@@ -997,7 +1041,7 @@ impl Data {
         if matches!(perm, GraphPermission::Read { filter: Some(_) }) {
             return Ok(None);
         }
-        let graph = self.get_graph(path).await?;
+        let graph = self.get_graph_unchecked(path).await?;
         Ok(graph.vectors().cloned().map(|g| g.into()))
     }
 }
@@ -1063,7 +1107,10 @@ pub(crate) mod data_tests {
         save_graphs_to_work_dir(&data, &graphs).await.unwrap();
 
         for graph in graphs.keys() {
-            assert!(data.get_graph(graph).await.is_ok(), "could not get {graph}")
+            assert!(
+                data.get_graph_unchecked(graph).await.is_ok(),
+                "could not get {graph}"
+            )
         }
     }
 
@@ -1138,6 +1185,278 @@ pub(crate) mod data_tests {
         );
     }
 
+    /// A vectorise that fails partway must not leave the graph without vectors, and the caller
+    /// has to be told: returning success while quietly dropping the index is how a live index
+    /// disappears with nothing in the response to explain it.
+    #[cfg(feature = "vectors")]
+    #[tokio::test]
+    async fn test_failed_vectorise_reports_and_keeps_the_index() {
+        use crate::paths::ExistingGraphFolder;
+        use raphtory::vectors::{
+            custom::serve_custom_embedding, storage::OpenAIEmbeddings, template::DocumentTemplate,
+        };
+
+        fn fake_embedding(text: &str) -> Vec<f32> {
+            vec![text.len() as f32, 1.0]
+        }
+
+        fn template(prefix: &str) -> DocumentTemplate {
+            DocumentTemplate {
+                node_template: Some(format!("{prefix} {{{{ properties.doc }}}}")),
+                edge_template: None,
+            }
+        }
+
+        let tmp_work_dir = tempfile::tempdir().unwrap();
+        let port = 1751;
+        let name = "failing_vg";
+
+        let graph = Graph::new();
+        for node in ["alice", "bob"] {
+            graph
+                .add_node(0, node, [("doc", node.to_string())], None, None)
+                .unwrap();
+        }
+        graph.encode(&tmp_work_dir.path().join(name)).unwrap();
+
+        let configs = AppConfigBuilder::new().build();
+        let data = Data::new(tmp_work_dir.path(), &configs, Default::default());
+        let embedding_server = serve_custom_embedding(None, port, fake_embedding).await;
+        let model = data
+            .vector_cache
+            .resolve()
+            .await
+            .unwrap()
+            .openai(OpenAIEmbeddings::new("whatever", format!("http://localhost:{port}")).into())
+            .await
+            .unwrap();
+        let folder = ExistingGraphFolder::try_from(data.work_dir_read().await, name).unwrap();
+
+        data.vectorise_folder(&folder, &template("first"), model.clone())
+            .await
+            .unwrap();
+        assert_eq!(
+            search_hits(&data, name, "first alice").await,
+            2,
+            "the first vectorise should have indexed both nodes"
+        );
+
+        // the model is already resolved, so the failure lands on the embedding calls that the
+        // vectorise itself makes rather than on setting the model up
+        embedding_server.stop().await;
+
+        let result = data
+            .vectorise_folder(&folder, &template("second"), model)
+            .await;
+        assert!(
+            result.is_err(),
+            "a vectorise that could not embed must report the failure"
+        );
+
+        let graph = data.get_graph_unchecked(name).await.unwrap();
+        assert!(
+            graph.vectors().is_some(),
+            "the graph must keep the vectors it had before the failed vectorise"
+        );
+        assert_eq!(
+            search_hits(&data, name, "first alice").await,
+            2,
+            "the previous index must still answer after a failed vectorise"
+        );
+    }
+
+    /// Number of documents a similarity search returns for `text`.
+    #[cfg(feature = "vectors")]
+    async fn search_hits(data: &Data, path: &str, text: &str) -> usize {
+        let graph = data.get_graph_unchecked(path).await.unwrap();
+        let vectors = graph.vectors().expect("graph has no vectors");
+        let embedding = vectors.embed_text(text).await.unwrap();
+        vectors
+            .nodes_by_similarity(&embedding, 10, None)
+            .execute()
+            .await
+            .unwrap()
+            .get_documents()
+            .await
+            .unwrap()
+            .len()
+    }
+
+    /// Vectorising has to work on a graph whose index was loaded from disk by an earlier read,
+    /// which is what a restarted server does: something reads the graph, and only then does the
+    /// client re-vectorise it.
+    #[cfg(feature = "vectors")]
+    #[tokio::test]
+    async fn test_vectorise_after_reading_a_reloaded_graph() {
+        use crate::paths::ExistingGraphFolder;
+        use raphtory::vectors::{
+            custom::serve_custom_embedding, storage::OpenAIEmbeddings, template::DocumentTemplate,
+        };
+
+        fn fake_embedding(text: &str) -> Vec<f32> {
+            vec![text.len() as f32, 1.0]
+        }
+
+        let tmp_work_dir = tempfile::tempdir().unwrap();
+        let port = 1750;
+        let name = "reloaded_vg";
+
+        let graph = Graph::new();
+        graph
+            .add_node(0, name, [("doc", name.to_string())], None, None)
+            .unwrap();
+        graph.encode(&tmp_work_dir.path().join(name)).unwrap();
+
+        let configs = AppConfigBuilder::new().build();
+        let _embedding_server = serve_custom_embedding(None, port, fake_embedding).await;
+        let template = DocumentTemplate {
+            node_template: Some("{{ properties.doc }}".to_owned()),
+            edge_template: None,
+        };
+        let embeddings = OpenAIEmbeddings::new("whatever", format!("http://localhost:{port}"));
+
+        // first server: builds and persists the index, then goes away
+        {
+            let data = Data::new(tmp_work_dir.path(), &configs, Default::default());
+            let model = data
+                .vector_cache
+                .resolve()
+                .await
+                .unwrap()
+                .openai(embeddings.clone().into())
+                .await
+                .unwrap();
+            let folder = ExistingGraphFolder::try_from(data.work_dir_read().await, name).unwrap();
+            data.vectorise_folder(&folder, &template, model)
+                .await
+                .unwrap();
+        }
+
+        // second server: the read loads the persisted index before anything else touches the
+        // embedding cache, and the re-vectorise afterwards must still work
+        let data = Data::new(tmp_work_dir.path(), &configs, Default::default());
+        assert!(
+            data.get_graph_unchecked(name)
+                .await
+                .unwrap()
+                .vectors()
+                .is_some(),
+            "the persisted index should be loaded with the graph"
+        );
+
+        let model = data
+            .vector_cache
+            .resolve()
+            .await
+            .unwrap()
+            .openai(embeddings.into())
+            .await
+            .unwrap();
+        let folder = ExistingGraphFolder::try_from(data.work_dir_read().await, name).unwrap();
+        data.vectorise_folder(&folder, &template, model)
+            .await
+            .unwrap();
+
+        let graph = data.get_graph_unchecked(name).await.unwrap();
+        let vectors = graph
+            .vectors()
+            .expect("the graph should still have vectors after re-vectorising");
+        let embedding = vectors.embed_text(name).await.unwrap();
+        let docs = vectors
+            .nodes_by_similarity(&embedding, 1, None)
+            .execute()
+            .await
+            .unwrap()
+            .get_documents()
+            .await
+            .unwrap();
+        assert!(!docs.is_empty(), "index is empty after re-vectorising");
+    }
+
+    /// A vectorised graph that gets evicted has to come back with a working index when it is
+    /// next read, because the vectors are reloaded from disk by a different code path than the
+    /// one that built them.
+    #[cfg(feature = "vectors")]
+    #[tokio::test]
+    async fn test_eviction_reloads_vectorised_graph() {
+        use crate::paths::ExistingGraphFolder;
+        use raphtory::vectors::{
+            custom::serve_custom_embedding, storage::OpenAIEmbeddings, template::DocumentTemplate,
+        };
+
+        fn fake_embedding(text: &str) -> Vec<f32> {
+            vec![text.len() as f32, 1.0]
+        }
+
+        let tmp_work_dir = tempfile::tempdir().unwrap();
+        let port = 1749;
+
+        for name in ["test_vg", "test_vg2"] {
+            let graph = Graph::new();
+            graph
+                .add_node(0, name, [("doc", name.to_string())], None, None)
+                .unwrap();
+            graph.encode(&tmp_work_dir.path().join(name)).unwrap();
+        }
+
+        // capacity 1: reading either graph evicts the other, so the second read of each is a
+        // reload from disk
+        let configs = AppConfigBuilder::new().with_cache_capacity(1).build();
+        let data = Data::new(tmp_work_dir.path(), &configs, Default::default());
+
+        let _embedding_server = serve_custom_embedding(None, port, fake_embedding).await;
+        let template = DocumentTemplate {
+            node_template: Some("{{ properties.doc }}".to_owned()),
+            edge_template: None,
+        };
+        let model = data
+            .vector_cache
+            .resolve()
+            .await
+            .unwrap()
+            .openai(OpenAIEmbeddings::new("whatever", format!("http://localhost:{port}")).into())
+            .await
+            .unwrap();
+
+        for name in ["test_vg", "test_vg2"] {
+            let folder = ExistingGraphFolder::try_from(data.work_dir_read().await, name).unwrap();
+            data.vectorise_folder(&folder, &template, model.clone())
+                .await
+                .unwrap();
+        }
+
+        // two passes: the first evicts what vectorising left cached, the second reads graphs
+        // that can only have come back from disk
+        for pass in 0..2 {
+            for name in ["test_vg", "test_vg2"] {
+                let graph = data.get_graph_unchecked(name).await.unwrap();
+                let vectors = graph
+                    .vectors()
+                    .unwrap_or_else(|| panic!("pass {pass}: {name} came back without vectors"));
+                let embedding = vectors.embed_text(name).await.unwrap();
+                let docs = vectors
+                    .nodes_by_similarity(&embedding, 1, None)
+                    .execute()
+                    .await
+                    .unwrap()
+                    .get_documents()
+                    .await
+                    .unwrap();
+                assert!(
+                    !docs.is_empty(),
+                    "pass {pass}: {name} reloaded with an empty index"
+                );
+                // the graph has to be dropped for the cache to be allowed to evict it
+                drop(graph);
+                assert_eq!(
+                    data.cache.iter().count(),
+                    1,
+                    "pass {pass}: cache should hold only {name}, so the next read reloads"
+                );
+            }
+        }
+    }
+
     #[tokio::test]
     async fn test_eviction() {
         let tmp_work_dir = tempfile::tempdir().unwrap();
@@ -1161,11 +1480,11 @@ pub(crate) mod data_tests {
         assert!(!data.cache.contains_key("test_g2"));
 
         // Test size based eviction
-        data.get_graph("test_g2").await.unwrap();
+        data.get_graph_unchecked("test_g2").await.unwrap();
         assert!(data.cache.contains_key("test_g2"));
         assert!(!data.cache.contains_key("test_g"));
 
-        data.get_graph("test_g").await.unwrap(); // wait for any eviction
+        data.get_graph_unchecked("test_g").await.unwrap(); // wait for any eviction
         assert_eq!(data.cache.iter().count(), 1);
     }
 
@@ -1219,12 +1538,12 @@ pub(crate) mod data_tests {
         assert!(!paths.contains(&g7_path)); // Hidden path is ignored
 
         assert!(data
-            .get_graph("shivam/investigations/2024-12-22/g2")
+            .get_graph_unchecked("shivam/investigations/2024-12-22/g2")
             .await
             .is_ok());
 
-        assert!(data.get_graph("some/random/path").await.is_err());
-        assert!(data.get_graph(".graph").await.is_err());
+        assert!(data.get_graph_unchecked("some/random/path").await.is_err());
+        assert!(data.get_graph_unchecked(".graph").await.is_err());
     }
 
     #[tokio::test]
@@ -1263,8 +1582,8 @@ pub(crate) mod data_tests {
 
         let data = Data::new(tmp_work_dir.path(), &configs, Default::default());
 
-        let loaded_graph1 = data.get_graph("test_graph1").await.unwrap();
-        let loaded_graph2 = data.get_graph("test_graph2").await.unwrap();
+        let loaded_graph1 = data.get_graph_unchecked("test_graph1").await.unwrap();
+        let loaded_graph2 = data.get_graph_unchecked("test_graph2").await.unwrap();
 
         // TODO: This test doesn't work with disk storage right now, make sure modification dates actually update correctly!
         if loaded_graph1.graph().disk_storage_path().is_some() {
@@ -1345,7 +1664,7 @@ pub(crate) mod data_tests {
         let data = Data::new(tmp_work_dir.path(), &configs, Default::default());
 
         // Load first graph
-        let loaded_graph1 = data.get_graph("test_graph1").await.unwrap();
+        let loaded_graph1 = data.get_graph_unchecked("test_graph1").await.unwrap();
         assert!(
             !loaded_graph1.is_dirty(),
             "Graph1 should not be dirty when loaded from disk"
@@ -1360,7 +1679,7 @@ pub(crate) mod data_tests {
 
         // Load second graph
         println!("Loading second graph");
-        let loaded_graph2 = data.get_graph("test_graph2").await.unwrap();
+        let loaded_graph2 = data.get_graph_unchecked("test_graph2").await.unwrap();
         assert!(
             !loaded_graph2.is_dirty(),
             "Graph2 should not be dirty when loaded from disk"

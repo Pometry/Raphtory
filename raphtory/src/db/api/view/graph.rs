@@ -39,7 +39,6 @@ use crate::{
     },
     prelude::*,
 };
-use ahash::HashSet;
 use arrow::array::RecordBatch;
 use db4_graph::TemporalGraph;
 use either::Either;
@@ -48,7 +47,7 @@ use raphtory_api::core::storage::graph_folder::GraphPaths;
 #[cfg(feature = "io")]
 use raphtory_api::core::storage::graph_folder::Metadata as GraphFolderMetadata;
 use raphtory_api::core::{
-    entities::properties::meta::{Meta, PropMapper},
+    entities::properties::meta::Meta,
     storage::{arc_str::ArcStr, timeindex::EventTime},
     Direction,
 };
@@ -192,7 +191,50 @@ fn edges_inner<'graph, G: GraphView + 'graph>(g: &G, locked: bool) -> Edges<'gra
     let edges: Arc<
         dyn Fn(DynGraphArc<'graph>) -> BoxedLIter<'graph, EdgeRef> + Send + Sync + 'graph,
     > = Arc::new(move |graph| match graph.node_list() {
-        NodeList::All { .. } => {
+        NodeList::List { elems } => {
+            // The `node_edges` function below trusts the local node (it only filters
+            // the remote endpoint of each edge). For an untrusted node list, — e.g. the intersection of an enumerable filter with a non-enumerable one,
+            // as produced by `AndFilteredGraph::node_list` — we need to explicitly filter the local node as well.
+            if graph.node_list_trusted() {
+                let graph = graph.clone();
+                let gs = if locked {
+                    graph.core_graph().lock()
+                } else {
+                    graph.core_graph().clone()
+                };
+                elems
+                    .clone()
+                    .into_iter()
+                    .flat_map(move |node| {
+                        node_edges(gs.clone(), graph.clone(), node, Direction::OUT)
+                    })
+                    .into_dyn_boxed()
+            } else {
+                let gs = if locked {
+                    graph.core_graph().lock()
+                } else {
+                    graph.core_graph().clone()
+                };
+                let graph = graph.clone();
+                let graph_copy = graph.clone();
+                let gs_copy = gs.clone();
+                elems
+                    .clone()
+                    .into_iter()
+                    .filter(move |node| {
+                        // layer/window/edge filters are handled below, only explict node filters need to be handled here
+                        graph_copy.internal_filter_node(
+                            gs_copy.core_node(*node).as_ref(),
+                            graph_copy.layer_ids(),
+                        )
+                    })
+                    .flat_map(move |node| {
+                        node_edges(gs.clone(), graph.clone(), node, Direction::OUT)
+                    })
+                    .into_dyn_boxed()
+            }
+        }
+        NodeList::All => {
             let layer_ids = graph.layer_ids().clone();
             let graph = graph.clone();
             let gs = if locked {
@@ -200,6 +242,7 @@ fn edges_inner<'graph, G: GraphView + 'graph>(g: &G, locked: bool) -> Edges<'gra
             } else {
                 graph.core_graph().clone()
             };
+
             GenLockedIter::from((gs, layer_ids, graph), move |(gs, layer_ids, graph)| {
                 let edges = gs.edges();
                 let iter = edges.iter(layer_ids);
@@ -211,19 +254,6 @@ fn edges_inner<'graph, G: GraphView + 'graph>(g: &G, locked: bool) -> Edges<'gra
                 }
             })
             .into_dyn_boxed()
-        }
-        NodeList::List { elems } => {
-            let cg = if locked {
-                graph.core_graph().lock()
-            } else {
-                graph.core_graph().clone()
-            };
-            let graph = graph.clone();
-            elems
-                .clone()
-                .into_iter()
-                .flat_map(move |node| node_edges(cg.clone(), graph.clone(), node, Direction::OUT))
-                .into_dyn_boxed()
         }
     });
     Edges::new(g.clone(), edges)
@@ -892,316 +922,6 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
 
     fn metadata(&self) -> Metadata<'graph, Self> {
         Metadata::new(self.clone())
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct IndexSpec {
-    pub(crate) node_metadata: HashSet<usize>,
-    pub(crate) node_properties: HashSet<usize>,
-    pub(crate) edge_metadata: HashSet<usize>,
-    pub(crate) edge_properties: HashSet<usize>,
-}
-
-/// (Experimental) IndexSpec data structure.
-impl IndexSpec {
-    pub fn diff(existing: &IndexSpec, requested: &IndexSpec) -> Option<IndexSpec> {
-        fn diff_props(existing: &HashSet<usize>, requested: &HashSet<usize>) -> HashSet<usize> {
-            requested.difference(existing).copied().collect()
-        }
-
-        let node_metadata = diff_props(&existing.node_metadata, &requested.node_metadata);
-        let node_properties = diff_props(&existing.node_properties, &requested.node_properties);
-        let edge_metadata = diff_props(&existing.edge_metadata, &requested.edge_metadata);
-        let edge_properties = diff_props(&existing.edge_properties, &requested.edge_properties);
-
-        if node_metadata.is_empty()
-            && node_properties.is_empty()
-            && edge_metadata.is_empty()
-            && edge_properties.is_empty()
-        {
-            None
-        } else {
-            Some(IndexSpec {
-                node_metadata,
-                node_properties,
-                edge_metadata,
-                edge_properties,
-            })
-        }
-    }
-
-    pub fn node_metadata(&self) -> &HashSet<usize> {
-        &self.node_metadata
-    }
-
-    pub fn node_properties(&self) -> &HashSet<usize> {
-        &self.node_properties
-    }
-    pub fn edge_metadata(&self) -> &HashSet<usize> {
-        &self.edge_metadata
-    }
-    pub fn edge_properties(&self) -> &HashSet<usize> {
-        &self.edge_properties
-    }
-
-    pub fn union(existing: &IndexSpec, other: &IndexSpec) -> IndexSpec {
-        fn union_props(a: &HashSet<usize>, b: &HashSet<usize>) -> HashSet<usize> {
-            a.union(b).copied().collect()
-        }
-
-        IndexSpec {
-            node_metadata: union_props(&existing.node_metadata, &other.node_metadata),
-            node_properties: union_props(&existing.node_properties, &other.node_properties),
-            edge_metadata: union_props(&existing.edge_metadata, &other.edge_metadata),
-            edge_properties: union_props(&existing.edge_properties, &other.edge_properties),
-        }
-    }
-
-    pub fn props<G: BoxableGraphView + Sized + Clone + 'static>(
-        &self,
-        graph: &G,
-    ) -> ResolvedIndexSpec {
-        let extract_names = |props: &HashSet<usize>, meta: &PropMapper| {
-            let mut names: Vec<String> = props
-                .iter()
-                .map(|prop_id| meta.get_name(*prop_id).to_string())
-                .collect();
-            names.sort();
-            names
-        };
-
-        ResolvedIndexSpec {
-            node_metadata: extract_names(&self.node_metadata, graph.node_meta().metadata_mapper()),
-            node_properties: extract_names(
-                &self.node_properties,
-                graph.node_meta().temporal_prop_mapper(),
-            ),
-            edge_metadata: extract_names(&self.edge_metadata, graph.edge_meta().metadata_mapper()),
-            edge_properties: extract_names(
-                &self.edge_properties,
-                graph.edge_meta().temporal_prop_mapper(),
-            ),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct ResolvedIndexSpec {
-    pub node_metadata: Vec<String>,
-    pub node_properties: Vec<String>,
-    pub edge_metadata: Vec<String>,
-    pub edge_properties: Vec<String>,
-}
-
-impl ResolvedIndexSpec {
-    pub fn to_vec(&self) -> Vec<Vec<String>> {
-        vec![
-            self.node_metadata.clone(),
-            self.node_properties.clone(),
-            self.edge_metadata.clone(),
-            self.edge_properties.clone(),
-        ]
-    }
-}
-
-#[derive(Clone)]
-/// (Experimental) Creates a IndexSpec data structure containing the specified properties and metadata.
-pub struct IndexSpecBuilder<G: BoxableGraphView + Sized + Clone + 'static> {
-    pub graph: G,
-    node_metadata: Option<HashSet<usize>>,
-    node_properties: Option<HashSet<usize>>,
-    edge_metadata: Option<HashSet<usize>>,
-    edge_properties: Option<HashSet<usize>>,
-}
-
-impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
-    /// Create a new IndexSpecBuilder.
-    ///
-    /// Arguments:
-    ///     graph:
-    pub fn new(graph: G) -> Self {
-        Self {
-            graph,
-            node_metadata: None,
-            node_properties: None,
-            edge_metadata: None,
-            edge_properties: None,
-        }
-    }
-
-    /// Include all node properties and metadata in the IndexSpec.
-    ///
-    /// Returns:
-    ///     IndexSpecBuilder:
-    pub fn with_all_node_properties_and_metadata(mut self) -> Self {
-        self.node_metadata = Some(Self::extract_props(
-            self.graph.node_meta().metadata_mapper(),
-        ));
-        self.node_properties = Some(Self::extract_props(
-            self.graph.node_meta().temporal_prop_mapper(),
-        ));
-        self
-    }
-
-    /// Include all node metadata in the IndexSpec.
-    ///
-    /// Returns:
-    ///     IndexSpecBuilder:
-    pub fn with_all_node_metadata(mut self) -> Self {
-        self.node_metadata = Some(Self::extract_props(
-            self.graph.node_meta().metadata_mapper(),
-        ));
-        self
-    }
-
-    /// Include all node properties in the IndexSpec.
-    ///
-    /// Returns:
-    ///     IndexSpecBuilder:
-    pub fn with_all_node_properties(mut self) -> Self {
-        self.node_properties = Some(Self::extract_props(
-            self.graph.node_meta().temporal_prop_mapper(),
-        ));
-        self
-    }
-
-    /// Include the specified node metadata in the IndexSpec.
-    ///
-    /// Specified node metadata is gathered using the extract_named_props function.
-    ///
-    /// Returns:
-    ///     IndexSpecBuilder:
-    pub fn with_node_metadata<S: AsRef<str>>(
-        mut self,
-        props: impl IntoIterator<Item = S>,
-    ) -> Result<Self, GraphError> {
-        self.node_metadata = Some(Self::extract_named_props(
-            self.graph.node_meta().metadata_mapper(),
-            props,
-        )?);
-        Ok(self)
-    }
-
-    /// Include the specified node properties in the IndexSpec.
-    ///
-    /// Specified node properties is gathered using the extract_named_props function.
-    ///
-    /// Returns:
-    ///     IndexSpecBuilder:
-    pub fn with_node_properties<S: AsRef<str>>(
-        mut self,
-        props: impl IntoIterator<Item = S>,
-    ) -> Result<Self, GraphError> {
-        self.node_properties = Some(Self::extract_named_props(
-            self.graph.node_meta().temporal_prop_mapper(),
-            props,
-        )?);
-        Ok(self)
-    }
-
-    /// Include all edge properties and metadata in the IndexSpec.
-    ///
-    /// Returns:
-    ///     IndexSpecBuilder:
-    pub fn with_all_edge_properties_and_metadata(mut self) -> Self {
-        self.edge_metadata = Some(Self::extract_props(
-            self.graph.edge_meta().metadata_mapper(),
-        ));
-        self.edge_properties = Some(Self::extract_props(
-            self.graph.edge_meta().temporal_prop_mapper(),
-        ));
-        self
-    }
-
-    /// Include all edge metadata in the IndexSpec.
-    ///
-    /// Returns:
-    ///     IndexSpecBuilder:
-    pub fn with_all_edge_metadata(mut self) -> Self {
-        self.edge_metadata = Some(Self::extract_props(
-            self.graph.edge_meta().metadata_mapper(),
-        ));
-        self
-    }
-
-    /// Include all edge properties in the IndexSpec.
-    ///
-    /// Returns:
-    ///     IndexSpecBuilder:
-    pub fn with_all_edge_properties(mut self) -> Self {
-        self.edge_properties = Some(Self::extract_props(
-            self.graph.edge_meta().temporal_prop_mapper(),
-        ));
-        self
-    }
-
-    /// Include the specified edge metadata in the IndexSpec.
-    ///
-    /// Specified edge metadata is gathered using the extract_named_props function.
-    ///
-    /// Returns:
-    ///     IndexSpecBuilder:
-    pub fn with_edge_metadata<S: AsRef<str>>(
-        mut self,
-        props: impl IntoIterator<Item = S>,
-    ) -> Result<Self, GraphError> {
-        self.edge_metadata = Some(Self::extract_named_props(
-            self.graph.edge_meta().metadata_mapper(),
-            props,
-        )?);
-        Ok(self)
-    }
-
-    /// Include the specified edge properties in the IndexSpec.
-    ///
-    /// Specified edge properties is gathered using the extract_named_props function.
-    ///
-    /// Returns:
-    ///     IndexSpecBuilder:
-    pub fn with_edge_properties<S: AsRef<str>>(
-        mut self,
-        props: impl IntoIterator<Item = S>,
-    ) -> Result<Self, GraphError> {
-        self.edge_properties = Some(Self::extract_named_props(
-            self.graph.edge_meta().temporal_prop_mapper(),
-            props,
-        )?);
-        Ok(self)
-    }
-
-    /// Extract properties or metadata.
-    fn extract_props(meta: &PropMapper) -> HashSet<usize> {
-        meta.ids().collect()
-    }
-
-    /// Extract specified named properties or metadata.
-    fn extract_named_props<S: AsRef<str>>(
-        meta: &PropMapper,
-        keys: impl IntoIterator<Item = S>,
-    ) -> Result<HashSet<usize>, GraphError> {
-        keys.into_iter()
-            .map(|k| {
-                let s = k.as_ref();
-                let id = meta
-                    .get_id(s)
-                    .ok_or_else(|| GraphError::PropertyMissingError(s.to_string()))?;
-                Ok(id)
-            })
-            .collect()
-    }
-
-    /// Create a new IndexSpec.
-    ///
-    /// Returns:
-    ///     IndexSpec:
-    pub fn build(self) -> IndexSpec {
-        IndexSpec {
-            node_metadata: self.node_metadata.unwrap_or_default(),
-            node_properties: self.node_properties.unwrap_or_default(),
-            edge_metadata: self.edge_metadata.unwrap_or_default(),
-            edge_properties: self.edge_properties.unwrap_or_default(),
-        }
     }
 }
 

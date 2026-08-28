@@ -15,7 +15,6 @@ use crate::{
             windowset::GqlGraphWindowSet,
             GqlAlignmentUnit, WindowDuration,
         },
-        plugins::graph_algorithm_plugin::GraphAlgorithmPlugin,
         schema::graph_schema::GraphSchema,
     },
     paths::{PathValidationError, UnlockedGraphFolder, ValidGraphPaths},
@@ -636,13 +635,6 @@ impl GqlGraph {
         Ok(blocking_compute(move || GraphSchema::new(&self_clone.graph)).await)
     }
 
-    /// Access registered graph algorithms (PageRank, shortest path, etc.) for this
-    /// graph view. The set of available algorithms is defined by the plugin registry
-    /// loaded at server startup.
-    pub async fn algorithms(&self) -> GraphAlgorithmPlugin {
-        self.graph.clone().into()
-    }
-
     /// Access the algorithms that can be run on this graph view.
     pub async fn algorithm(&self) -> GqlAlgorithms {
         self.graph.clone().into()
@@ -810,10 +802,10 @@ impl GqlGraph {
                 GraphViewCollection::ShrinkStart(start) => return_view.shrink_start(start).await,
                 GraphViewCollection::ShrinkEnd(end) => return_view.shrink_end(end).await,
                 GraphViewCollection::NodeFilter(filter) => {
-                    return_view.filter(Some(GqlFilter::Nodes(filter))).await?
+                    return_view.filter(Some(GqlFilter::Node(filter))).await?
                 }
                 GraphViewCollection::EdgeFilter(filter) => {
-                    return_view.filter(Some(GqlFilter::Edges(filter))).await?
+                    return_view.filter(Some(GqlFilter::Edge(filter))).await?
                 }
             };
         }

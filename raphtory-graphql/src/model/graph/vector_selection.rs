@@ -11,7 +11,7 @@ use raphtory::{
 };
 
 #[derive(InputObject)]
-pub(super) struct InputEdge {
+pub struct InputEdge {
     /// Source node id (string or non-negative integer).
     src: GqlNodeId,
     /// Destination node id (string or non-negative integer).

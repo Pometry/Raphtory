@@ -18,10 +18,7 @@ use raphtory::{
     prelude::*,
 };
 use raphtory_api::core::{entities::properties::prop::PropType, storage::timeindex::AsTime};
-use raphtory_storage::{
-    layer_ops::InternalLayerOps,
-    mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps},
-};
+use raphtory_storage::mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps};
 use raphtory_tests::{
     assertions::{assert_ok_or_missing_edges, EdgeRow},
     utils::{build_edge_deletions, build_edge_list, build_graph_from_edge_list, build_window},

@@ -51,7 +51,7 @@ impl PyRemoteNestedEdges {
     /// traversals from the matching edges. Lazy — no RPC.
     ///
     /// Arguments:
-    ///     filter (FilterExpr): an edge filter expression from `raphtory.filter`.
+    ///     filter (filter.FilterExpr): an edge filter expression from `raphtory.filter`.
     ///
     /// Returns:
     ///     RemoteNestedEdges: a new collection with the filter applied.
@@ -72,7 +72,7 @@ impl PyRemoteNestedEdges {
     /// views and mixed combinations all apply. Lazy — no RPC.
     ///
     /// Arguments:
-    ///     filter (FilterExpr): a filter expression from `raphtory.filter`.
+    ///     filter (filter.FilterExpr): a filter expression from `raphtory.filter`.
     ///
     /// Returns:
     ///     RemoteNestedEdges: a new collection narrowed to matching edges.

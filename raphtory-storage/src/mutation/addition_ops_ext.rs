@@ -181,7 +181,7 @@ pub struct AtomicAddNode<'a> {
 
 impl<'a> AtomicAddNode<'a> {
     fn local_pos(&self) -> LocalPOS {
-        let (_, pos) = resolve_pos(self.vid.inner(), self.writer.mut_segment.max_page_len());
+        let (_, pos) = resolve_pos(self.vid.inner(), self.writer.writer.max_page_len());
         pos
     }
 }
@@ -216,7 +216,7 @@ impl<'a> NodeWriteLock for AtomicAddNode<'a> {
     }
 
     fn set_lsn(&mut self, lsn: LSN) {
-        self.writer.mut_segment.set_lsn(lsn)
+        self.writer.writer.set_lsn(lsn)
     }
 
     fn node(&self) -> MaybeNew<VID> {
@@ -427,7 +427,7 @@ impl InternalAdditionOps for TemporalGraph {
                             1,
                         );
                         let vid =
-                            pos.as_vid(writer.page.segment_id(), writer.mut_segment.max_page_len());
+                            pos.as_vid(writer.segment.segment_id(), writer.writer.max_page_len());
                         init.init(vid)?;
                         (
                             NodeWriters {
@@ -446,10 +446,9 @@ impl InternalAdditionOps for TemporalGraph {
                     self.round_robin_counter.fetch_add(1, Ordering::Relaxed),
                     2,
                 );
-                let src_id =
-                    pos.as_vid(writer.page.segment_id(), writer.mut_segment.max_page_len());
+                let src_id = pos.as_vid(writer.segment.segment_id(), writer.writer.max_page_len());
                 let dst_id = LocalPOS(pos.0 + 1)
-                    .as_vid(writer.page.segment_id(), writer.mut_segment.max_page_len());
+                    .as_vid(writer.segment.segment_id(), writer.writer.max_page_len());
                 src_init.init(src_id)?;
                 dst_init.init(dst_id)?;
                 (
@@ -464,7 +463,7 @@ impl InternalAdditionOps for TemporalGraph {
             (MaybeInit::Init(src_init), Some(MaybeInit::VID(dst_id))) => {
                 let (dst_chunk, _) = nodes.resolve_pos(dst_id);
                 let mut dst_writer = nodes.writer(dst_chunk);
-                match nodes.reserve_segment_row(dst_writer.page) {
+                match nodes.reserve_segment_row(dst_writer.segment) {
                     None => {
                         let (src_id, src_writer) = dst_writer.unlocked(|| {
                             // existing segment is full, need to get a new one, unlock dst_writer such that the segment can be evicted from the free segments
@@ -473,8 +472,8 @@ impl InternalAdditionOps for TemporalGraph {
                                 1,
                             );
                             let src_id = src_pos.as_vid(
-                                src_writer.page.segment_id(),
-                                src_writer.mut_segment.max_page_len(),
+                                src_writer.segment.segment_id(),
+                                src_writer.writer.max_page_len(),
                             );
                             src_init.init(src_id)?;
                             Ok::<_, StorageError>((src_id, src_writer))
@@ -490,8 +489,8 @@ impl InternalAdditionOps for TemporalGraph {
                     }
                     Some(src_pos) => {
                         let src_id = LocalPOS(src_pos).as_vid(
-                            dst_writer.page.segment_id(),
-                            dst_writer.mut_segment.max_page_len(),
+                            dst_writer.segment.segment_id(),
+                            dst_writer.writer.max_page_len(),
                         );
                         src_init.init(src_id)?;
                         (
@@ -508,7 +507,7 @@ impl InternalAdditionOps for TemporalGraph {
             (MaybeInit::VID(src_id), Some(MaybeInit::Init(dst_init))) => {
                 let (src_chunk, _) = nodes.resolve_pos(src_id);
                 let mut src_writer = nodes.writer(src_chunk);
-                match nodes.reserve_segment_row(src_writer.page) {
+                match nodes.reserve_segment_row(src_writer.segment) {
                     None => {
                         let (dst_id, dst_writer) = src_writer.unlocked(|| {
                             // unlocked to make sure we can evict this segment from the free segments to avoid deadlocking
@@ -517,8 +516,8 @@ impl InternalAdditionOps for TemporalGraph {
                                 1,
                             );
                             let dst_id = dst_pos.as_vid(
-                                dst_writer.page.segment_id(),
-                                dst_writer.mut_segment.max_page_len(),
+                                dst_writer.segment.segment_id(),
+                                dst_writer.writer.max_page_len(),
                             );
                             dst_init.init(dst_id)?;
                             Ok::<_, StorageError>((dst_id, dst_writer))
@@ -534,8 +533,8 @@ impl InternalAdditionOps for TemporalGraph {
                     }
                     Some(dst_pos) => {
                         let dst_id = LocalPOS(dst_pos).as_vid(
-                            src_writer.page.segment_id(),
-                            src_writer.mut_segment.max_page_len(),
+                            src_writer.segment.segment_id(),
+                            src_writer.writer.max_page_len(),
                         );
                         dst_init.init(dst_id)?;
                         (
@@ -674,8 +673,7 @@ impl InternalAdditionOps for TemporalGraph {
                         1,
                     );
                     writer.store_node_id(pos, STATIC_GRAPH_LAYER_ID, gid.to_owned());
-                    let vid =
-                        pos.as_vid(writer.page.segment_id(), writer.mut_segment.max_page_len());
+                    let vid = pos.as_vid(writer.segment.segment_id(), writer.writer.max_page_len());
                     init.init(vid)?;
                     return Ok(AtomicAddNode {
                         writer,

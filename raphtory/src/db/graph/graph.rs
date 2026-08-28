@@ -16,11 +16,9 @@
 //! ```
 //!
 use super::views::deletion_graph::PersistentGraph;
-#[cfg(feature = "io")]
-use crate::serialise::metadata::build_graph_metadata;
 use crate::{
     db::api::{
-        storage::storage::{PersistenceStrategy, Storage},
+        storage::storage::Storage,
         view::internal::{
             InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InheritStorageOps, InheritViewOps,
             Static,
@@ -29,8 +27,6 @@ use crate::{
     errors::GraphError,
     prelude::*,
 };
-#[cfg(feature = "io")]
-use raphtory_api::core::storage::graph_folder::{GraphPaths, Metadata as GraphFolderMetadata};
 use raphtory_api::inherit::Base;
 use raphtory_storage::{
     core_ops::InheritCoreGraphOps, graph::graph::GraphStorage, layer_ops::InheritLayerOps,
@@ -41,7 +37,15 @@ use std::{
     fmt::{Display, Formatter},
     sync::Arc,
 };
-use storage::{Args, Extension};
+
+#[cfg(feature = "io")]
+use {
+    crate::{
+        db::api::storage::storage::PersistenceStrategy, serialise::metadata::build_graph_metadata,
+    },
+    raphtory_api::core::storage::graph_folder::{GraphPaths, Metadata as GraphFolderMetadata},
+    storage::{Args, Extension},
+};
 
 #[repr(transparent)]
 #[derive(Debug, Clone)]

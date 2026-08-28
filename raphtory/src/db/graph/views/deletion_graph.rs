@@ -1,5 +1,3 @@
-#[cfg(feature = "io")]
-use crate::serialise::metadata::build_graph_metadata;
 use crate::{
     core::storage::timeindex::{AsTime, EventTime, TimeIndex, TimeIndexOps},
     db::{
@@ -15,10 +13,6 @@ use crate::{
     errors::GraphError,
     prelude::*,
 };
-#[cfg(feature = "io")]
-use raphtory_api::core::storage::graph_folder::GraphPaths;
-#[cfg(feature = "io")]
-use raphtory_api::core::storage::graph_folder::Metadata;
 use raphtory_api::{
     core::entities::properties::tprop::TPropOps,
     inherit::Base,
@@ -32,9 +26,17 @@ use std::{
     ops::Range,
     sync::Arc,
 };
-use storage::api::graph_props::{GraphPropEntryOps, GraphPropRefOps};
+use storage::{
+    api::graph_props::{GraphPropEntryOps, GraphPropRefOps},
+    Args,
+};
 
-use storage::{persist::strategy::PersistenceStrategy, Args, Extension};
+#[cfg(feature = "io")]
+use {
+    crate::serialise::metadata::build_graph_metadata,
+    raphtory_api::core::storage::graph_folder::{GraphPaths, Metadata},
+    storage::{persist::strategy::PersistenceStrategy, Extension},
+};
 
 /// A graph view where an edge remains active from the time it is added until it is explicitly marked as deleted.
 ///

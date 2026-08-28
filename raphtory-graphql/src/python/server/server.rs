@@ -3,7 +3,7 @@ use crate::{
     python::server::{
         running_server::PyRunningGraphServer, wait_server, BridgeCommand, ServerStarted,
     },
-    server::{apply_server_extension, ServerError},
+    server::ServerError,
     GraphServer,
 };
 use crossbeam_channel::RecvTimeoutError;
@@ -27,11 +27,10 @@ use {
 /// Arguments:
 ///     work_dir (str | PathLike): the working directory for the server
 ///     config_path (str | PathLike, optional): path to a TOML config file, loaded first
-///     permissions_store_path (str | PathLike, optional): seed file for admin-managed roles
-///                                                        (alias for `rbac.admin.seed_path`)
 ///     config (dict, optional): configuration overrides applied on top of `config_path`, as a
 ///                              dict of nested sections. Unknown section or field names raise an
 ///                              error. The available sections and fields are:
+///
 ///                              * `logging`: `log_level` (str)
 ///                              * `cache`: `capacity` (int) - maximum number of graphs to keep
 ///                                in memory at once
@@ -42,8 +41,7 @@ use {
 ///                                `transport_certificate` (str | PathLike)
 ///                              * `auth`: `public_key` (str, base64-encoded key used to verify
 ///                                bearer tokens), `require_auth_for_reads` (bool),
-///                                `audience` (str), `issuer` (str), `role_claim` (str),
-///                                `jwks_uri` (str), `jwks_refresh_secs` (int)
+///                                `audience` (str), `issuer` (str), `role_claim` (str)
 ///                              * `concurrency`: `heavy_query_limit` (int, maximum number of
 ///                                expensive traversal queries allowed to run simultaneously;
 ///                                extra queries are parked on a semaphore),
@@ -63,13 +61,10 @@ use {
 ///                                parquet loading is restricted to
 ///                              * `public_dir` (str | PathLike): directory served as static
 ///                                files
-///                              * `rbac`: `poll_interval_secs` (int), plus at most one source
-///                                sub-table: `ldap` {url, bind_dn, bind_password_env,
-///                                bind_password, group_base_dn, group_filter,
-///                                permissions_attribute}, `opa` {path, query}, `json` {path},
-///                                or `admin` {seed_path}. Sources are polled and read-only;
-///                                admin is update-driven. The live store is materialised under
-///                                <work_dir>/.permissions/. None set means RBAC is off.
+///
+///                              A section naming none of the above is taken as a server
+///                              extension's settings, so which further sections are accepted
+///                              depends on which extensions the build has.
 #[pyclass(name = "GraphServer", module = "raphtory.graphql")]
 pub struct PyGraphServer(GraphServer);
 
@@ -111,13 +106,13 @@ impl PyGraphServer {
     #[new]
     #[pyo3(
         signature = (
-            work_dir, config_path=None,permissions_store_path=None, config=None
+            work_dir, config_path=None, config=None
         )
     )]
     fn py_new(
+        py: Python<'_>,
         work_dir: PathBuf,
         config_path: Option<PathBuf>,
-        permissions_store_path: Option<PathBuf>,
         config: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<Self> {
         let mut app_config_builder = AppConfigBuilder::new();
@@ -130,8 +125,11 @@ impl PyGraphServer {
             app_config_builder.update_from_json(depythonize(config.as_any())?)?;
         }
         let app_config = Some(app_config_builder.build());
-        let server = block_on(GraphServer::new(work_dir, app_config, Args::default()))?;
-        let server = apply_server_extension(server, permissions_store_path.as_deref());
+        // An extension may block during startup (a role source syncs before the server is ready);
+        // release the GIL so it doesn't freeze the interpreter and an in-process dependency can
+        // still respond.
+        let server =
+            py.detach(|| block_on(GraphServer::new(work_dir, app_config, Args::default())))?;
         Ok(PyGraphServer(server))
     }
 

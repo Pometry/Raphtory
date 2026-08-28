@@ -78,7 +78,7 @@ impl PyRemoteEdges {
     /// narrow-here-only variant, use `.select(...)`. Lazy — no RPC.
     ///
     /// Arguments:
-    ///     filter (FilterExpr): a filter expression from `raphtory.filter`.
+    ///     filter (filter.FilterExpr): a filter expression from `raphtory.filter`.
     ///
     /// Returns:
     ///     RemoteEdges: a new collection with the filter applied.

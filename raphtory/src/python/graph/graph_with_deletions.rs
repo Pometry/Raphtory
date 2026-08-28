@@ -149,7 +149,7 @@ impl PyPersistentGraph {
     ///                                (note that page sizes cannot be overridden; providing them raises an error)
     ///     read_only (bool): open as a read-only snapshot. Defaults to False.
     ///                       Multiple processes can hold a read-only handle to the same graph
-    ///                       directory concurrently; mutating the returned graph will fail.
+    ///                       directory concurrently. Mutating the returned graph will fail.
     ///
     /// Returns:
     ///     PersistentGraph: the graph loaded from path

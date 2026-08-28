@@ -13,7 +13,6 @@ use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_t
 use raphtory_api::{
     core::{
         entities::{properties::prop::Prop, GID},
-        storage::timeindex::{AsTime, EventTime},
         utils::time::InputTime,
     },
     python::timeindex::{EventTimeComponent, PyOptionalEventTime},
@@ -46,7 +45,7 @@ impl PyRemoteEdge {
     /// expressions; mirrors the local `Edge.filter`. Lazy — no RPC.
     ///
     /// Arguments:
-    ///     filter (FilterExpr): a filter expression from `raphtory.filter`.
+    ///     filter (filter.FilterExpr): a filter expression from `raphtory.filter`.
     ///
     /// Returns:
     ///     RemoteEdge: a new filtered edge view.

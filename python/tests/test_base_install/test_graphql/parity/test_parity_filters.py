@@ -303,6 +303,8 @@ NODE_PROPERTY_EXPRS = {
     "node.temporal.min": lambda: f.Node.property("score").temporal().min() > 5,
     "node.temporal.max": lambda: f.Node.property("score").temporal().max() > 50,
     "node.temporal.sum": lambda: f.Node.property("score").temporal().sum() > 50,
+    "node.temporal.avg": (lambda: f.Node.property("score").temporal().avg() > 20),
+    "node.temporal.int": (lambda: f.Node.property("score").temporal().len() > 1),
 }
 
 NODE_FIELD_EXPRS = {
@@ -1031,12 +1033,6 @@ REJECTED_EXPRS = {
     "reject.unknown_metadata": lambda: f.Node.metadata("nope") > 1,
     "reject.degree_vs_str": lambda: f.Node.degree() > "x",
     # `avg` is F64 and `len` is U64, so neither accepts a plain Python int here.
-    "reject.avg_of_int_property": (
-        lambda: f.Node.property("score").temporal().avg() > 20
-    ),
-    "reject.len_of_int_property": (
-        lambda: f.Node.property("score").temporal().len() > 1
-    ),
 }
 
 

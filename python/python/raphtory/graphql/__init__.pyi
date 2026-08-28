@@ -60,19 +60,12 @@ __all__ = [
     "RemoteNodeAddition",
     "RemoteUpdate",
     "RemoteEdgeAddition",
-    "RemoteIndexSpec",
-    "PropsInput",
-    "SomePropertySpec",
-    "AllPropertySpec",
-    "SortByTime",
-    "NodeSortBy",
-    "EdgeSortBy",
     "RemotePermissionError",
     "encode_graph",
     "decode_graph",
     "schema",
     "cli",
-    "has_permissions_extension",
+    "has_extension",
 ]
 
 class GraphServer(object):
@@ -82,8 +75,6 @@ class GraphServer(object):
     Arguments:
         work_dir (str | PathLike): the working directory for the server
         config_path (str | PathLike, optional): path to a TOML config file, loaded first
-        permissions_store_path (str | PathLike, optional): seed file for admin-managed roles
-                                                           (alias for `rbac.admin.seed_path`)
         config (dict, optional): configuration overrides applied on top of `config_path`, as a
                                  dict of nested sections. Unknown section or field names raise an
                                  error. The available sections and fields are:
@@ -98,8 +89,7 @@ class GraphServer(object):
                                    `transport_certificate` (str | PathLike)
                                  * `auth`: `public_key` (str, base64-encoded key used to verify
                                    bearer tokens), `require_auth_for_reads` (bool),
-                                   `audience` (str), `issuer` (str), `role_claim` (str),
-                                   `jwks_uri` (str), `jwks_refresh_secs` (int)
+                                   `audience` (str), `issuer` (str), `role_claim` (str)
                                  * `concurrency`: `heavy_query_limit` (int, maximum number of
                                    expensive traversal queries allowed to run simultaneously;
                                    extra queries are parked on a semaphore),
@@ -119,20 +109,16 @@ class GraphServer(object):
                                    parquet loading is restricted to
                                  * `public_dir` (str | PathLike): directory served as static
                                    files
-                                 * `rbac`: `poll_interval_secs` (int), plus at most one source
-                                   sub-table: `ldap` {url, bind_dn, bind_password_env,
-                                   bind_password, group_base_dn, group_filter,
-                                   permissions_attribute}, `opa` {path, query}, `json` {path},
-                                   or `admin` {seed_path}. Sources are polled and read-only;
-                                   admin is update-driven. The live store is materialised under
-                                   <work_dir>/.permissions/. None set means RBAC is off.
+
+                                 A section naming none of the above is taken as a server
+                                 extension's settings, so which further sections are accepted
+                                 depends on which extensions the build has.
     """
 
     def __new__(
         cls,
         work_dir: str | PathLike,
         config_path: Optional[str | PathLike] = None,
-        permissions_store_path: Optional[str | PathLike] = None,
         config: Optional[dict] = None,
     ) -> GraphServer:
         """Create and return a new object.  See help(type) for accurate signature."""
@@ -259,36 +245,6 @@ class RaphtoryClient(object):
             None:
         """
 
-    def create_index(
-        self, path: str, index_spec: RemoteIndexSpec, in_ram: bool = True
-    ) -> None:
-        """
-        Create Index for graph on the server at 'path'
-
-        Arguments:
-            path (str): the path of the graph to be created
-            index_spec (RemoteIndexSpec): spec specifying the properties that need to be indexed
-            in_ram (bool): create index in ram. Defaults to True.
-
-        Returns:
-            None:
-
-        """
-
-    def create_role(self, name: str) -> bool:
-        """
-        Create a role in the server's permissions store.
-
-        Requires an admin (write-access) token. Only available when the server
-        was started with a permissions store.
-
-        Arguments:
-            name (str): the name of the role to create
-
-        Returns:
-            bool: True if the role was created.
-        """
-
     def delete_graph(self, path: str) -> None:
         """
         Delete graph from a path path on the server
@@ -300,124 +256,12 @@ class RaphtoryClient(object):
             None:
         """
 
-    def delete_role(self, name: str) -> bool:
-        """
-        Delete a role from the server's permissions store.
-
-        Requires an admin (write-access) token.
-
-        Arguments:
-            name (str): the name of the role to delete
-
-        Returns:
-            bool: True if the role was deleted.
-        """
-
-    def get_role(self, name: str) -> Optional[dict[str, Any]]:
-        """
-        Fetch a single role's grants by name.
-
-        Requires an admin (write-access) token.
-
-        Arguments:
-            name (str): the role to look up
-
-        Returns:
-            Optional[dict[str, Any]]: a mapping with keys ``name``, ``graphs``
-            (list of ``{"path", "permission"}``) and ``namespaces``
-            (list of ``{"path", "permission"}``), or None if the role does not exist.
-        """
-
-    def grant_graph(self, role: str, path: str, permission: str) -> bool:
-        """
-        Grant a role access to a single graph.
-
-        Requires an admin (write-access) token.
-
-        Arguments:
-            role (str): the role to grant access to
-            path (str): the path of the graph
-            permission (str): one of "read", "write", "introspect" (case-insensitive)
-
-        Returns:
-            bool: True if the grant was applied.
-
-        Raises:
-            ValueError: if permission is not one of "read", "write", "introspect".
-        """
-
-    def grant_graph_filtered_read_only(
-        self,
-        role: str,
-        path: str,
-        filter: Any,
-        hidden_properties: Optional[dict[str, list[str]]] = None,
-        hidden_metadata: Optional[dict[str, list[str]]] = None,
-    ) -> bool:
-        """
-        Grant a role read-only access to a graph, restricted by a filter.
-
-        The reader (a `{"access": "ro"}` token bearing this role) sees only the
-        nodes/edges matching `filter`, with the given property/metadata keys hidden.
-        Requires an admin (write-access) token.
-
-        Arguments:
-            role (str): the role to grant filtered access to
-            path (str): the path of the graph
-            filter (FilterExpr): a filter expression from `raphtory.filter`; a node
-                filter restricts visible nodes, an edge filter restricts visible edges.
-            hidden_properties (dict[str, list[str]], optional): temporal property keys
-                to hide, keyed by "node", "edge", and/or "graph".
-            hidden_metadata (dict[str, list[str]], optional): metadata keys to hide,
-                keyed by "node", "edge", and/or "graph".
-
-        Returns:
-            bool: True if the grant was applied.
-
-        Raises:
-            ValueError: if the filter cannot be represented as a GraphQL node or
-                edge filter.
-        """
-
-    def grant_namespace(
-        self, role: str, path: str, permission: str, recursive: bool = False
-    ) -> bool:
-        """
-        Grant a role access to a namespace.
-
-        Requires an admin (write-access) token.
-
-        Arguments:
-            role (str): the role to grant access to
-            path (str): the namespace path
-            permission (str): one of "read", "write", "introspect" (case-insensitive)
-            recursive (bool): also grant existing descendants. Defaults to False.
-                Every currently existing descendant of the namespace is granted
-                individually.
-
-        Returns:
-            bool: True if the grant was applied.
-
-        Raises:
-            ValueError: if permission is not one of "read", "write", "introspect".
-        """
-
     def is_server_online(self) -> bool:
         """
         Check if the server is online.
 
         Returns:
             bool: Returns true if server is online otherwise false.
-        """
-
-    def list_roles(self) -> list[str]:
-        """
-        List every role name in the server's permissions store.
-
-        Requires an admin (write-access) token.
-
-        Returns:
-            list[str]: the role names.
         """
 
     def move_graph(self, path: str, new_path: str) -> None:
@@ -430,22 +274,6 @@ class RaphtoryClient(object):
 
         Returns:
             None:
-        """
-
-    def my_permissions(self) -> dict[str, Any]:
-        """
-        Return this token's own permission grants.
-
-        Reads only what the calling role has been granted, so it never discloses
-        other roles or graphs. Available to any authenticated caller (does not
-        require an admin token). Only available when the server was started with
-        a permissions store.
-
-        Returns:
-            dict[str, Any]: a mapping with keys ``role`` (str or None),
-            ``graphs`` (list of ``{"path", "permission", "filtered"}``) and
-            ``namespaces`` (list of ``{"path", "permission"}``). ``role`` is None
-            when the token carries no role claim, in which case both lists are empty.
         """
 
     def new_graph(
@@ -496,42 +324,11 @@ class RaphtoryClient(object):
         Get a RemoteGraph reference to a graph on the server at path
 
         Arguments:
-            path (str): the path of the graph to be created
+            path (str): the path of the graph
 
         Returns:
             RemoteGraph: the remote graph reference
 
-        """
-
-    def revoke_graph(self, role: str, path: str) -> bool:
-        """
-        Revoke a role's access to a single graph.
-
-        Requires an admin (write-access) token.
-
-        Arguments:
-            role (str): the role to revoke access from
-            path (str): the path of the graph
-
-        Returns:
-            bool: True if the access was revoked.
-        """
-
-    def revoke_namespace(self, role: str, path: str, recursive: bool = False) -> bool:
-        """
-        Revoke a role's access to a namespace.
-
-        Requires an admin (write-access) token.
-
-        Arguments:
-            role (str): the role to revoke access from
-            path (str): the namespace path
-            recursive (bool): also revoke existing descendants. Defaults to False.
-                Every currently existing descendant of the namespace is revoked
-                individually.
-
-        Returns:
-            bool: True if the access was revoked.
         """
 
     def send_graph(
@@ -695,10 +492,10 @@ class RemoteGraph(object):
 
     def at(self, time: TimeInput) -> RemoteGraph:
         """
-        Snapshot at a specific time. Lazy — no RPC.
+        View including all events at a specific time. Lazy — no RPC.
 
         Arguments:
-            time (TimeInput): the time to snapshot at.
+            time (TimeInput): the time to view.
 
         Returns:
             RemoteGraph: a new view snapshotted at that time.
@@ -930,7 +727,7 @@ class RemoteGraph(object):
             RemoteGraph: a new view with those valid layers excluded.
         """
 
-    def filter(self, filter: Any) -> RemoteGraph:
+    def filter(self, filter: filter.FilterExpr) -> RemoteGraph:
         """
         Return a filtered graph view. Mirrors the local
         `Graph.filter(FilterExpr)`: pass a node filter to keep matching nodes
@@ -939,7 +736,7 @@ class RemoteGraph(object):
         RPC.
 
         Arguments:
-            filter (FilterExpr): a filter expression from `raphtory.filter`.
+            filter (filter.FilterExpr): a filter expression from `raphtory.filter`.
 
         Returns:
             RemoteGraph: a new filtered graph view.
@@ -1266,7 +1063,9 @@ class RemoteGraph(object):
 
     def valid(self) -> RemoteGraph:
         """
-        Restrict to the "valid" subgraph (event-graph filter). Lazy — no RPC.
+        Restrict to the "valid" subgraph. The meaning depends on the graph's
+        time semantics: on a persistent graph an edge is valid when its last
+        update is an addition rather than a deletion. Lazy — no RPC.
 
         Returns:
             RemoteGraph: a new view restricted to the valid subgraph.
@@ -1331,7 +1130,7 @@ class RemoteEdge(object):
 
         Arguments:
           metadata (dict[str, PropValue]): A dictionary of metadata to be added to the edge.
-          layer (str, optional): The layer you want these properties to be added on to.
+          layer (str, optional): The layer you want this metadata to be added on to.
 
         Returns:
           None:
@@ -1526,14 +1325,14 @@ class RemoteEdge(object):
             RemoteEdges: one entry per layer of this edge.
         """
 
-    def filter(self, filter: Any) -> RemoteEdge:
+    def filter(self, filter: filter.FilterExpr) -> RemoteEdge:
         """
         Return a filtered view of this edge — the filter propagates to
         everything reached through it. Accepts node or edge filter
         expressions; mirrors the local `Edge.filter`. Lazy — no RPC.
 
         Arguments:
-            filter (FilterExpr): a filter expression from `raphtory.filter`.
+            filter (filter.FilterExpr): a filter expression from `raphtory.filter`.
 
         Returns:
             RemoteEdge: a new filtered edge view.
@@ -1775,7 +1574,7 @@ class RemoteEdge(object):
         change over time. These properties are fundamental attributes of the edge.
 
         Arguments:
-          metadata (dict[str, PropValue]): A dictionary of metadata to be added to the edge.
+          metadata (dict[str, PropValue]): A dictionary of properties to be added to the edge.
           layer (str, optional): The layer you want these properties to be added on to.
 
         Returns:
@@ -1823,7 +1622,7 @@ class RemoteNode(object):
         change over time. These properties are fundamental attributes of the node.
 
         Arguments:
-          properties (dict[str, PropValue]): A dictionary of properties to be added to the node.
+          metadata (dict[str, PropValue]): A dictionary of properties to be added to the node.
 
         Returns:
           None:
@@ -1833,8 +1632,8 @@ class RemoteNode(object):
         self,
         t: int | str | datetime,
         properties: Optional[dict[str, PropValue]] = None,
-        layer: Optional[str] = None,
         event_id: Optional[int] = None,
+        layer: Optional[str] = None,
     ) -> None:
         """
         Add updates to a node in the remote graph at a specified time.
@@ -1843,10 +1642,10 @@ class RemoteNode(object):
         Arguments:
           t (int | str | datetime): The timestamp at which the updates should be applied.
           properties (dict[str, PropValue], optional): A dictionary of properties to update.
-          layer (str, optional): The layer the updates belong to. Defaults to the
-              graph's default layer.
           event_id (int, optional): Secondary index to disambiguate multiple
               updates at the same timestamp. If omitted, the server auto-increments it.
+          layer (str, optional): The layer the updates belong to. Defaults to the
+              graph's default layer.
 
         Returns:
           None:
@@ -1985,13 +1784,13 @@ class RemoteNode(object):
             RemoteNode: a new view with those valid layers excluded.
         """
 
-    def filter(self, filter: Any) -> RemoteNode:
+    def filter(self, filter: filter.FilterExpr) -> RemoteNode:
         """
         Return a filtered view of this node — mirrors the local
         `Node.filter(FilterExpr)`. Lazy — no RPC.
 
         Arguments:
-            filter (FilterExpr): a node filter expression from `raphtory.filter`.
+            filter (filter.FilterExpr): a node filter expression from `raphtory.filter`.
 
         Returns:
             RemoteNode: a new filtered node view.
@@ -2025,13 +1824,13 @@ class RemoteNode(object):
         """
 
     @property
-    def id(self):
+    def id(self) -> str | int:
         """
         The node's id (as a string, even if the graph uses integer GIDs).
         Property — attribute access fires one RPC.
 
         Returns:
-            str | int: the node's id — a string for string-indexed graphs, an
+            str|int: the node's id — a string for string-indexed graphs, an
                 integer for integer-indexed ones.
         """
 
@@ -2276,7 +2075,7 @@ class RemoteNode(object):
         change over time. These properties are fundamental attributes of the node.
 
         Arguments:
-          properties (dict[str, PropValue]): A dictionary of properties to be added to the node.
+          metadata (dict[str, PropValue]): A dictionary of properties to be added to the node.
 
         Returns:
           None:
@@ -2481,7 +2280,7 @@ class RemoteNodes(object):
             RemoteNodes: a new view with those valid layers excluded.
         """
 
-    def filter(self, filter: Any) -> RemoteNodes:
+    def filter(self, filter: filter.FilterExpr) -> RemoteNodes:
         """
         Filter this collection by a filter expression from `raphtory.filter`
         (the same builder used by local graphs). The filter **propagates**:
@@ -2491,7 +2290,7 @@ class RemoteNodes(object):
         Lazy — no RPC.
 
         Arguments:
-            filter (FilterExpr): a filter expression from `raphtory.filter`.
+            filter (filter.FilterExpr): a filter expression from `raphtory.filter`.
 
         Returns:
             RemoteNodes: a new collection with the filter applied.
@@ -2953,14 +2752,14 @@ class RemotePathFromNode(object):
             RemotePathFromNode: a new view with those valid layers excluded.
         """
 
-    def filter(self, filter: Any) -> RemotePathFromNode:
+    def filter(self, filter: filter.FilterExpr) -> RemotePathFromNode:
         """
         Filter this collection by a node filter. **Propagates** to downstream
         traversals from the matching nodes. Mirrors the local
         `PathFromNode.filter(FilterExpr)`. Lazy — no RPC.
 
         Arguments:
-            filter (FilterExpr): a node filter expression from `raphtory.filter`.
+            filter (filter.FilterExpr): a node filter expression from `raphtory.filter`.
 
         Returns:
             RemotePathFromNode: a new collection with the filter applied.
@@ -3411,13 +3210,13 @@ class RemotePathFromGraph(object):
             RemotePathFromGraph: a new view with those valid layers excluded.
         """
 
-    def filter(self, filter: Any) -> RemotePathFromGraph:
+    def filter(self, filter: filter.FilterExpr) -> RemotePathFromGraph:
         """
         Filter this collection by a node filter. **Propagates** to downstream
         traversals from the matching nodes. Lazy — no RPC.
 
         Arguments:
-            filter (FilterExpr): a node filter expression from `raphtory.filter`.
+            filter (filter.FilterExpr): a node filter expression from `raphtory.filter`.
 
         Returns:
             RemotePathFromGraph: a new collection with the filter applied.
@@ -3864,7 +3663,7 @@ class RemoteEdges(object):
             RemoteEdges: a new collection with one entry per layer per edge.
         """
 
-    def filter(self, filter: Any) -> RemoteEdges:
+    def filter(self, filter: filter.FilterExpr) -> RemoteEdges:
         """
         Filter this collection by a filter expression. **The filter
         propagates**: it applies to the current collection's membership *and*
@@ -3872,7 +3671,7 @@ class RemoteEdges(object):
         narrow-here-only variant, use `.select(...)`. Lazy — no RPC.
 
         Arguments:
-            filter (FilterExpr): a filter expression from `raphtory.filter`.
+            filter (filter.FilterExpr): a filter expression from `raphtory.filter`.
 
         Returns:
             RemoteEdges: a new collection with the filter applied.
@@ -4325,13 +4124,13 @@ class RemoteNestedEdges(object):
                 per source node.
         """
 
-    def filter(self, filter: Any) -> RemoteNestedEdges:
+    def filter(self, filter: filter.FilterExpr) -> RemoteNestedEdges:
         """
         Filter this collection by an edge filter. **Propagates** to downstream
         traversals from the matching edges. Lazy — no RPC.
 
         Arguments:
-            filter (FilterExpr): an edge filter expression from `raphtory.filter`.
+            filter (filter.FilterExpr): an edge filter expression from `raphtory.filter`.
 
         Returns:
             RemoteNestedEdges: a new collection with the filter applied.
@@ -4633,7 +4432,8 @@ class RemoteHistory(object):
     def __reversed__(self):
         """
         `reversed(history)` — iterate events in descending time order.
-        Fires one RPC (`collect_rev()`), then yields each locally.
+        Routed through the lazy `reverse()` handle, so it stays a single RPC
+        today and picks up any future optimised iterator automatically.
         """
 
     def collect(self) -> list[EventTime]:
@@ -4774,8 +4574,9 @@ class RemoteHistoryTimestamps(object):
 
     def __reversed__(self):
         """
-        `reversed(...)` — iterate timestamps in reverse. Fires one RPC
-        (`collect_rev()`).
+        `reversed(...)` — iterate timestamps in reverse. Routed through the
+        lazy `reverse()` view, so it stays one RPC and composes with any
+        future optimised iterator.
         """
 
     def collect(self) -> list[int]:
@@ -4841,8 +4642,9 @@ class RemoteHistoryEventIds(object):
 
     def __reversed__(self):
         """
-        `reversed(...)` — iterate event ids in reverse. Fires one RPC
-        (`collect_rev()`).
+        `reversed(...)` — iterate event ids in reverse. Routed through the
+        lazy `reverse()` view, so it stays one RPC and composes with any
+        future optimised iterator.
         """
 
     def collect(self) -> list[int]:
@@ -4911,8 +4713,9 @@ class RemoteHistoryDateTimes(object):
 
     def __reversed__(self):
         """
-        `reversed(...)` — iterate datetimes in reverse. Fires one RPC
-        (`collect_rev()`).
+        `reversed(...)` — iterate datetimes in reverse. Routed through the
+        lazy `reverse()` view, so it stays one RPC and composes with any
+        future optimised iterator.
         """
 
     def collect(self) -> list[datetime]:
@@ -4981,8 +4784,9 @@ class RemoteIntervals(object):
 
     def __reversed__(self):
         """
-        `reversed(...)` — iterate intervals in reverse. Fires one RPC
-        (`collect_rev()`).
+        `reversed(...)` — iterate intervals in reverse. Routed through the
+        lazy `reverse()` view, so it stays one RPC and composes with any
+        future optimised iterator.
         """
 
     def collect(self) -> list[int]:
@@ -5764,12 +5568,12 @@ class RemotePropertySchema(object):
         """
 
     @property
-    def property_type(self) -> str:
+    def property_type(self) -> PropType:
         """
         The observed property type, as reported by the server.
 
         Returns:
-            str: the property type name.
+            PropType: the property type.
         """
 
     @property
@@ -5837,251 +5641,6 @@ class RemoteEdgeAddition(object):
     ) -> RemoteEdgeAddition:
         """Create and return a new object.  See help(type) for accurate signature."""
 
-class RemoteIndexSpec(object):
-    """
-    Create a RemoteIndexSpec specifying which node and edge properties to index.
-
-    Arguments:
-        node_props (PropsInput): Property spec for nodes.
-        edge_props (PropsInput): Property spec for edges.
-    """
-
-    def __new__(cls, node_props: PropsInput, edge_props: PropsInput) -> RemoteIndexSpec:
-        """Create and return a new object.  See help(type) for accurate signature."""
-
-class PropsInput(object):
-    """
-    Create a PropsInput by choosing to include all/some properties explicitly.
-
-    Arguments:
-        all (AllPropertySpec, optional): Use a predefined spec to include all properties of a kind.
-        some (SomePropertySpec, optional): Explicitly list the properties to include.
-
-    Raises:
-        ValueError: If neither all and some are specified.
-    """
-
-    def __new__(
-        cls,
-        all: Optional[AllPropertySpec] = None,
-        some: Optional[SomePropertySpec] = None,
-    ) -> PropsInput:
-        """Create and return a new object.  See help(type) for accurate signature."""
-
-class SomePropertySpec(object):
-    """
-    Create a SomePropertySpec by explicitly listing metadata and/or temporal property names.
-
-    Arguments:
-        metadata (list[str]): Metadata property names. Defaults to [].
-        properties (list[str]): Temporal property names. Defaults to [].
-    """
-
-    def __new__(
-        cls, metadata: list[str] = [], properties: list[str] = []
-    ) -> SomePropertySpec:
-        """Create and return a new object.  See help(type) for accurate signature."""
-
-class AllPropertySpec(object):
-    """
-    Specifies that **all** properties should be included when creating an index.
-    Use one of the predefined variants: `All`, `AllMetadata`, or `AllProperties`.
-    """
-
-    def __eq__(self, value):
-        """Return self==value."""
-
-    def __ge__(self, value):
-        """Return self>=value."""
-
-    def __gt__(self, value):
-        """Return self>value."""
-
-    def __int__(self):
-        """int(self)"""
-
-    def __le__(self, value):
-        """Return self<=value."""
-
-    def __lt__(self, value):
-        """Return self<value."""
-
-    def __ne__(self, value):
-        """Return self!=value."""
-
-    def __repr__(self):
-        """Return repr(self)."""
-
-class SortByTime(object):
-    """Which time boundary of a member to sort by."""
-
-    def __eq__(self, value):
-        """Return self==value."""
-
-    def __ge__(self, value):
-        """Return self>=value."""
-
-    def __gt__(self, value):
-        """Return self>value."""
-
-    def __int__(self):
-        """int(self)"""
-
-    def __le__(self, value):
-        """Return self<=value."""
-
-    def __lt__(self, value):
-        """Return self<value."""
-
-    def __ne__(self, value):
-        """Return self!=value."""
-
-    def __repr__(self):
-        """Return repr(self)."""
-
-class NodeSortBy(object):
-    """
-    One entry in a `Nodes.sorted(...)` sort key list. Construct with the
-    static factories `by_id` / `by_name` / `by_type` / `by_time` /
-    `by_property` — each enforces that exactly one key type is set per entry.
-    """
-
-    @staticmethod
-    def by_id(reverse: Optional[bool] = False) -> NodeSortBy:
-        """
-        Sort by node id (a stable, deterministic ordering).
-
-        Arguments:
-            reverse (bool, optional): sort descending. Defaults to False.
-
-        Returns:
-            NodeSortBy: a sort key usable in `Nodes.sorted(...)`.
-        """
-
-    @staticmethod
-    def by_name(reverse: Optional[bool] = False) -> NodeSortBy:
-        """
-        Sort by node name.
-
-        Arguments:
-            reverse (bool, optional): sort descending. Defaults to False.
-
-        Returns:
-            NodeSortBy: a sort key usable in `Nodes.sorted(...)`.
-        """
-
-    @staticmethod
-    def by_property(key: str, reverse: Optional[bool] = False) -> NodeSortBy:
-        """
-        Sort by a temporal property value on each node.
-
-        Arguments:
-            key (str): the property name.
-            reverse (bool, optional): sort descending. Defaults to False.
-
-        Returns:
-            NodeSortBy: a sort key usable in `Nodes.sorted(...)`.
-        """
-
-    @staticmethod
-    def by_time(time: SortByTime, reverse: Optional[bool] = False) -> NodeSortBy:
-        """
-        Sort by node time (either earliest or latest observed event on the node).
-
-        Arguments:
-            time (SortByTime): the time boundary to use.
-            reverse (bool, optional): sort descending. Defaults to False.
-
-        Returns:
-            NodeSortBy: a sort key usable in `Nodes.sorted(...)`.
-        """
-
-    @staticmethod
-    def by_type(reverse: Optional[bool] = False) -> NodeSortBy:
-        """
-        Sort by node type. Untyped nodes sort first, before any named type.
-
-        Arguments:
-            reverse (bool, optional): sort descending. Defaults to False.
-
-        Returns:
-            NodeSortBy: a sort key usable in `Nodes.sorted(...)`.
-        """
-
-class EdgeSortBy(object):
-    """
-    One entry in an `Edges.sorted(...)` sort key list. Construct with the
-    static factories `by_src` / `by_dst` / `by_neighbour` / `by_time` /
-    `by_property`.
-    """
-
-    @staticmethod
-    def by_dst(key: NodeSortBy) -> EdgeSortBy:
-        """
-        Sort by the destination node, using a node sort key.
-
-        Arguments:
-            key (NodeSortBy): how to order the destination nodes, e.g.
-                `NodeSortBy.by_id()`. Its own `reverse` controls direction.
-
-        Returns:
-            EdgeSortBy: a sort key usable in `Edges.sorted(...)`.
-        """
-
-    @staticmethod
-    def by_neighbour(key: NodeSortBy) -> EdgeSortBy:
-        """
-        Sort by the neighbour node, using a node sort key. The neighbour is the
-        endpoint that is NOT the node the edges were traversed from — for a
-        graph-level edge collection that is the destination.
-
-        Arguments:
-            key (NodeSortBy): how to order the neighbour nodes, e.g.
-                `NodeSortBy.by_name()`. Its own `reverse` controls direction.
-
-        Returns:
-            EdgeSortBy: a sort key usable in `Edges.sorted(...)`.
-        """
-
-    @staticmethod
-    def by_property(key: str, reverse: Optional[bool] = False) -> EdgeSortBy:
-        """
-        Sort by a temporal property value on each edge.
-
-        Arguments:
-            key (str): the property name.
-            reverse (bool, optional): sort descending. Defaults to False.
-
-        Returns:
-            EdgeSortBy: a sort key usable in `Edges.sorted(...)`.
-        """
-
-    @staticmethod
-    def by_src(key: NodeSortBy) -> EdgeSortBy:
-        """
-        Sort by the source node, using a node sort key.
-
-        Arguments:
-            key (NodeSortBy): how to order the source nodes, e.g.
-                `NodeSortBy.by_id()`. Its own `reverse` controls direction.
-
-        Returns:
-            EdgeSortBy: a sort key usable in `Edges.sorted(...)`.
-        """
-
-    @staticmethod
-    def by_time(time: SortByTime, reverse: Optional[bool] = False) -> EdgeSortBy:
-        """
-        Sort by edge time (either earliest or latest event on the edge).
-
-        Arguments:
-            time (SortByTime): the time boundary to use.
-            reverse (bool, optional): sort descending. Defaults to False.
-
-        Returns:
-            EdgeSortBy: a sort key usable in `Edges.sorted(...)`.
-        """
-
 class RemotePermissionError(Exception):
     """Raised when the server denies a request for lack of permission. A denied request is distinct from a missing graph: a forbidden-but-hidden graph is reported as not found, never as this error."""
 
@@ -6127,10 +5686,16 @@ def cli() -> None:
         None:
     """
 
-def has_permissions_extension() -> bool:
+def has_extension(name: str) -> bool:
     """
-    Returns True if the permissions extension (raphtory-auth) is compiled in.
+    Returns True if a server extension with this name is compiled into the build.
+
+    Which extensions exist depends on how the build was assembled; this library has no opinion
+    about their names.
+
+    Arguments:
+        name (str): the extension's registered name.
 
     Returns:
-        bool: True if the extension is built in, False otherwise.
+        bool: True if that extension is built in, False otherwise.
     """

@@ -10,10 +10,7 @@ use raphtory::{
     db::{
         api::{
             state::NodeOp,
-            view::{
-                internal::{DynGraphArc, GraphView},
-                BoxableGraphView,
-            },
+            view::internal::{DynGraphArc, GraphView},
         },
         graph::views::filter::{
             model::{
@@ -36,14 +33,12 @@ use raphtory::{
                     SnapshotAt as SnapshotAtWrap, SnapshotLatest as SnapshotLatestWrap,
                 },
                 windowed_filter::Windowed,
-                ComposableFilter, DynFilter, DynView, FilterTree, GraphViewOp, Unfiltered,
-                ViewWrapOps,
+                ComposableFilter, DynFilter, DynView, FilterTree, GraphViewOp, ViewWrapOps,
             },
             CreateFilter,
         },
     },
     errors::GraphError,
-    prelude::GraphViewOps,
 };
 use raphtory_api::core::{
     entities::{properties::prop::Prop, Layer, GID},
@@ -62,6 +57,7 @@ use std::{
 };
 
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Window {
     /// Window start time.
     pub start: GqlTimeInput,
@@ -269,27 +265,21 @@ pub enum PathFromNodeViewCollection {
     ShrinkEnd(GqlTimeInput),
 }
 
-// Serialized as a GraphQL enum VALUE (not a field-name key). When sent as a
-// query variable it must match the schema's SCREAMING_SNAKE_CASE names
-// (`NODE_ID`/`NODE_NAME`/`NODE_TYPE`) that async_graphql's `Enum` derive emits.
-// Aliases keep any filter JSON stored under the old camelCase readable.
+// The node field a filter targets, as a GraphQL enum value (`NODE_ID`/`NODE_NAME`/`NODE_TYPE`).
 #[derive(Enum, Copy, Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum NodeField {
     /// Node ID field.
     ///
     /// Represents the graph’s node identifier (numeric or string-backed in the API).
-    #[serde(alias = "nodeId")]
     NodeId,
     /// Node name field.
     ///
     /// Represents the human-readable node name (string).
-    #[serde(alias = "nodeName")]
     NodeName,
     /// Node type field.
     ///
     /// Represents the optional node type assigned at node creation (string).
-    #[serde(alias = "nodeType")]
     NodeType,
 }
 
@@ -321,6 +311,7 @@ impl Display for NodeField {
 /// { Property: { name: "weight", where: { Gt: 0.5 } } }
 /// ```
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct PropertyFilterNew {
     /// Property (or metadata) key.
     pub name: String,
@@ -375,6 +366,7 @@ impl From<DegreeDirection> for String {
 }
 
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct DegreeFilterNew {
     pub direction: DegreeDirection,
     #[graphql(name = "where")]
@@ -522,6 +514,7 @@ impl PropCondition {
 /// { Window: { start: 0, end: 10, expr: { Layers: { names: ["A"] } } } }
 /// ```
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct GraphWindowExpr {
     /// Window start time (inclusive).
     pub start: GqlTimeInput,
@@ -538,6 +531,7 @@ pub struct GraphWindowExpr {
 /// Example:
 /// `{ At: { time: 5, expr: { Layers: { names: ["L1"] } } } }`
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct GraphTimeExpr {
     /// Reference time for the operation.
     pub time: GqlTimeInput,
@@ -549,6 +543,7 @@ pub struct GraphTimeExpr {
 ///
 /// Used for unary view operations like `Latest` and `SnapshotLatest`.
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct GraphUnaryExpr {
     /// Optional nested filter applied after the unary operation.
     pub expr: Option<Wrapped<GqlGraphFilter>>,
@@ -558,6 +553,7 @@ pub struct GraphUnaryExpr {
 ///
 /// Used by `GqlGraphFilter::Layers`.
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct GraphLayersExpr {
     /// Layer names to include.
     pub names: Vec<String>,
@@ -601,7 +597,7 @@ pub enum GqlGraphFilter {
     Layers(GraphLayersExpr),
 }
 
-/// A general filter expression — a node filter (`nodes`), an edge filter (`edges`), a graph/view
+/// A general filter expression — a node filter (`node`), an edge filter (`edge`), a graph/view
 /// filter (`graph`, e.g. a layer or window restriction), or an `and`/`or` combination of these
 /// (which may mix kinds). Used where an operation accepts any filter, such as scoping a component
 /// walk.
@@ -609,22 +605,20 @@ pub enum GqlGraphFilter {
 #[serde(rename_all = "camelCase")]
 pub enum GqlFilter {
     /// Filter by node properties, fields, or temporal state.
-    /// (Persisted filters may use the legacy `node` key.)
-    #[serde(alias = "node")]
-    Nodes(GqlNodeFilter),
+    Node(GqlNodeFilter),
     /// Filter by edge properties, source/destination, or temporal state.
     /// (Persisted filters may use the legacy `edge` key.)
     #[serde(alias = "edge")]
-    Edges(GqlEdgeFilter),
+    Edge(GqlEdgeFilter),
     /// Filter exploded edges — per-event edge instances — by properties,
     /// endpoints, or temporal state, evaluated per event.
-    ExplodedEdges(GqlExplodedEdgeFilter),
+    ExplodedEdge(GqlExplodedEdgeFilter),
     /// Apply a graph-level view (window, snapshot, layer restriction, …).
     Graph(GqlGraphFilter),
     /// All sub-filters must pass (intersection).
     And(Vec<GqlFilter>),
     /// At least one sub-filter must pass (union).
-    /// Cross-type sub-filters (e.g. `nodes` and `edges` together) produce a
+    /// Cross-type sub-filters (e.g. `node` and `edge` together) produce a
     /// proper graph union: a node is visible if it matches the node filter or
     /// has a visible edge, and an edge is visible if it matches the edge
     /// filter or both its endpoints are visible.
@@ -656,21 +650,21 @@ pub enum GqlFilter {
 impl TryFrom<GqlNodeFilter> for GqlFilter {
     type Error = GraphError;
     fn try_from(f: GqlNodeFilter) -> Result<Self, Self::Error> {
-        Ok(GqlFilter::Nodes(f))
+        Ok(GqlFilter::Node(f))
     }
 }
 
 impl TryFrom<GqlEdgeFilter> for GqlFilter {
     type Error = GraphError;
     fn try_from(f: GqlEdgeFilter) -> Result<Self, Self::Error> {
-        Ok(GqlFilter::Edges(f))
+        Ok(GqlFilter::Edge(f))
     }
 }
 
 impl TryFrom<GqlExplodedEdgeFilter> for GqlFilter {
     type Error = GraphError;
     fn try_from(f: GqlExplodedEdgeFilter) -> Result<Self, Self::Error> {
-        Ok(GqlFilter::ExplodedEdges(f))
+        Ok(GqlFilter::ExplodedEdge(f))
     }
 }
 
@@ -723,21 +717,21 @@ impl CreateFilter for GqlFilter {
 impl TryFrom<CompositeNodeFilter> for GqlFilter {
     type Error = GraphError;
     fn try_from(f: CompositeNodeFilter) -> Result<Self, Self::Error> {
-        Ok(GqlFilter::Nodes(f.try_into()?))
+        Ok(GqlFilter::Node(f.try_into()?))
     }
 }
 
 impl TryFrom<CompositeEdgeFilter> for GqlFilter {
     type Error = GraphError;
     fn try_from(f: CompositeEdgeFilter) -> Result<Self, Self::Error> {
-        Ok(GqlFilter::Edges(f.try_into()?))
+        Ok(GqlFilter::Edge(f.try_into()?))
     }
 }
 
 impl TryFrom<CompositeExplodedEdgeFilter> for GqlFilter {
     type Error = GraphError;
     fn try_from(f: CompositeExplodedEdgeFilter) -> Result<Self, Self::Error> {
-        Ok(GqlFilter::ExplodedEdges(f.try_into()?))
+        Ok(GqlFilter::ExplodedEdge(f.try_into()?))
     }
 }
 
@@ -787,9 +781,9 @@ impl TryFrom<FilterTree> for GqlFilter {
 
     fn try_from(tree: FilterTree) -> Result<Self, Self::Error> {
         Ok(match tree {
-            FilterTree::Node(f) => GqlFilter::Nodes(f.try_into()?),
-            FilterTree::Edge(f) => GqlFilter::Edges(f.try_into()?),
-            FilterTree::ExplodedEdge(f) => GqlFilter::ExplodedEdges(f.try_into()?),
+            FilterTree::Node(f) => GqlFilter::Node(f.try_into()?),
+            FilterTree::Edge(f) => GqlFilter::Edge(f.try_into()?),
+            FilterTree::ExplodedEdge(f) => GqlFilter::ExplodedEdge(f.try_into()?),
             FilterTree::View(ops) => GqlFilter::Graph(view_ops_to_graph_filter(ops)?),
             FilterTree::And(items) => GqlFilter::And(
                 items
@@ -813,9 +807,9 @@ impl TryFrom<GqlFilter> for DynFilter {
 
     fn try_from(value: GqlFilter) -> Result<Self, Self::Error> {
         let filter = match value {
-            GqlFilter::Nodes(f) => Arc::new(CompositeNodeFilter::try_from(f)?) as DynFilter,
-            GqlFilter::Edges(f) => Arc::new(CompositeEdgeFilter::try_from(f)?) as DynFilter,
-            GqlFilter::ExplodedEdges(f) => {
+            GqlFilter::Node(f) => Arc::new(CompositeNodeFilter::try_from(f)?) as DynFilter,
+            GqlFilter::Edge(f) => Arc::new(CompositeEdgeFilter::try_from(f)?) as DynFilter,
+            GqlFilter::ExplodedEdge(f) => {
                 Arc::new(CompositeExplodedEdgeFilter::try_from(f)?) as DynFilter
             }
             GqlFilter::Graph(f) => DynView::try_from(f)?,
@@ -863,8 +857,8 @@ impl TryFrom<GqlFilter> for DynFilter {
 
 /// Boolean expression over a built-in node field (ID, name, or type).
 ///
-/// This is used by `NodeFieldFilterNew.where_` when filtering a specific
-/// `NodeField`.
+/// This is used by `NodeFieldWhere.where_` when filtering a specific
+/// built-in field.
 ///
 /// Supports comparisons, string predicates, and set membership.
 /// (Presence checks and aggregations are handled via property filters instead.)
@@ -927,29 +921,9 @@ impl NodeFieldCondition {
 /// filter variants (`{ id: { where: ... } }`, `{ name: { where: ... } }`,
 /// `{ nodeType: { where: ... } }`).
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct NodeFieldWhere {
     /// Condition applied to the field.
-    ///
-    /// Exposed as `where` in GraphQL.
-    #[graphql(name = "where")]
-    #[serde(rename = "where")]
-    pub where_: NodeFieldCondition,
-}
-
-/// Filters a built-in node field (`id`, `name`, `type`) using a `NodeFieldCondition`.
-///
-/// Example (GraphQL):
-/// ```graphql
-/// { Node: { field: NodeName, where: { Contains: "ali" } } }
-/// ```
-///
-/// Deprecated spelling: prefer the per-field forms (`id:` / `name:` /
-/// `nodeType:`), which say the field as the key instead of an enum argument.
-#[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
-pub struct NodeFieldFilterNew {
-    /// Which built-in field to filter.
-    pub field: NodeField,
-    /// Condition applied to the selected field.
     ///
     /// Exposed as `where` in GraphQL.
     #[graphql(name = "where")]
@@ -963,6 +937,7 @@ pub struct NodeFieldFilterNew {
 ///
 /// The window is inclusive of `start` and exclusive of `end`.
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct NodeWindowExpr {
     /// Window start time (inclusive).
     pub start: GqlTimeInput,
@@ -976,6 +951,7 @@ pub struct NodeWindowExpr {
 ///
 /// Used by `At`, `Before`, and `After` node filters.
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct NodeTimeExpr {
     /// Reference time for the operation.
     pub time: GqlTimeInput,
@@ -987,6 +963,7 @@ pub struct NodeTimeExpr {
 ///
 /// Used by `Latest` and `SnapshotLatest` node filters.
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct NodeUnaryExpr {
     /// Filter evaluated after applying the unary operation.
     pub expr: Wrapped<GqlNodeFilter>,
@@ -996,6 +973,7 @@ pub struct NodeUnaryExpr {
 ///
 /// Used by `GqlNodeFilter::Layers`.
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct NodeLayersExpr {
     /// Layer names to include.
     pub names: Vec<String>,
@@ -1008,7 +986,7 @@ pub struct NodeLayersExpr {
 /// `NodeFilter` represents a composable boolean expression evaluated
 /// against nodes in a graph. Filters can target:
 ///
-/// - built-in node fields (`Node` / `NodeFieldFilterNew`),
+/// - built-in node fields (`Id` / `Name` / `NodeType`),
 /// - node properties and metadata,
 /// - temporal properties,
 /// - temporal scope (windows, snapshots, latest),
@@ -1029,11 +1007,6 @@ pub enum GqlNodeFilter {
 
     /// Filters the node type: `{ nodeType: { where: ... } }`.
     NodeType(NodeFieldWhere),
-
-    /// Filters a built-in node field chosen by an enum argument. Deprecated
-    /// spelling — prefer the per-field forms above, which name the field as
-    /// the key.
-    Node(NodeFieldFilterNew),
 
     /// Filters a node property by name and condition.
     Property(PropertyFilterNew),
@@ -1090,6 +1063,7 @@ pub enum GqlNodeFilter {
 ///
 /// The window is inclusive of `start` and exclusive of `end`.
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct EdgeWindowExpr {
     /// Window start time (inclusive).
     pub start: GqlTimeInput,
@@ -1103,6 +1077,7 @@ pub struct EdgeWindowExpr {
 ///
 /// Used by `At`, `Before`, and `After` edge filters.
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct EdgeTimeExpr {
     /// Reference time for the operation.
     pub time: GqlTimeInput,
@@ -1114,6 +1089,7 @@ pub struct EdgeTimeExpr {
 ///
 /// Used by `Latest` and `SnapshotLatest` edge filters.
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct EdgeUnaryExpr {
     /// Filter evaluated after applying the unary operation.
     pub expr: Wrapped<GqlEdgeFilter>,
@@ -1123,6 +1099,7 @@ pub struct EdgeUnaryExpr {
 ///
 /// Used by `GqlEdgeFilter::Layers`.
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct EdgeLayersExpr {
     /// Layer names to include.
     pub names: Vec<String>,
@@ -1282,6 +1259,7 @@ pub enum GqlEdgeFilter {
 ///
 /// The window is inclusive of `start` and exclusive of `end`.
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ExplodedEdgeWindowExpr {
     /// Window start time (inclusive).
     pub start: GqlTimeInput,
@@ -1296,6 +1274,7 @@ pub struct ExplodedEdgeWindowExpr {
 ///
 /// Used by `At`, `Before`, `After`, and `SnapshotAt` exploded-edge filters.
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ExplodedEdgeTimeExpr {
     /// Reference time for the operation.
     pub time: GqlTimeInput,
@@ -1308,6 +1287,7 @@ pub struct ExplodedEdgeTimeExpr {
 ///
 /// Used by `Latest` and `SnapshotLatest` exploded-edge filters.
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ExplodedEdgeUnaryExpr {
     /// Filter evaluated after applying the unary operation.
     pub expr: Wrapped<GqlExplodedEdgeFilter>,
@@ -1318,6 +1298,7 @@ pub struct ExplodedEdgeUnaryExpr {
 ///
 /// Used by `GqlExplodedEdgeFilter::Layers`.
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ExplodedEdgeLayersExpr {
     /// Layer names to include.
     pub names: Vec<String>,
@@ -1433,6 +1414,7 @@ impl<T> Deref for Wrapped<T> {
 /// edits of `value` (optionally also matching by prefix). Mirrors the local
 /// `fuzzy_search(value, levenshtein_distance, prefix_match)` builder.
 #[derive(InputObject, Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 #[serde(rename_all = "camelCase")]
 pub struct FuzzySearchExpr {
     /// The string to match against.
@@ -1919,7 +1901,6 @@ impl TryFrom<GqlNodeFilter> for CompositeNodeFilter {
             GqlNodeFilter::Id(f) => node_field_filter(NodeField::NodeId, &f.where_),
             GqlNodeFilter::Name(f) => node_field_filter(NodeField::NodeName, &f.where_),
             GqlNodeFilter::NodeType(f) => node_field_filter(NodeField::NodeType, &f.where_),
-            GqlNodeFilter::Node(node) => node_field_filter(node.field, &node.where_),
             GqlNodeFilter::Degree(degree) => {
                 let core_direction: Direction = degree.direction.into();
 
@@ -2502,6 +2483,7 @@ impl TryFrom<GqlGraphFilter> for DynView {
 
 /// Property/metadata keys to hide per entity type.
 #[derive(InputObject, Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct HiddenKeys {
     /// Keys to strip from node property/metadata responses.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -2518,6 +2500,7 @@ pub struct HiddenKeys {
 /// Separates row-level visibility (which entities are returned) from column-level
 /// visibility (which property keys appear on returned entities).
 #[derive(InputObject, Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct GraphAccessFilter {
     /// Row-level filter: which nodes/edges/graph-view are visible.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -3025,19 +3008,6 @@ mod filter_serde_goldens {
     // coercion, the persisted auth-store `GraphAccessFilter`, and the client
     // all depend on these EXACT shapes. Pin them so a stray `#[serde(rename)]`
     // is caught here, not at e2e time or by an invalidated permission store.
-
-    #[test]
-    fn node_field_filter_golden() {
-        let f = GqlNodeFilter::Node(NodeFieldFilterNew {
-            field: NodeField::NodeName,
-            where_: NodeFieldCondition::Eq(Value::Str("alice".into())),
-        });
-        assert_eq!(
-            serde_json::to_value(&f).unwrap(),
-            serde_json::json!({"node": {"field": "NODE_NAME", "where": {"eq": {"str": "alice"}}}})
-        );
-    }
-
     #[test]
     fn per_field_filter_golden() {
         let f = GqlNodeFilter::Name(NodeFieldWhere {
@@ -3071,28 +3041,13 @@ mod filter_serde_goldens {
     }
 
     #[test]
-    fn datetime_value_golden_and_legacy_alias() {
+    fn datetime_value_golden() {
         // Serialization uses the schema field name `dtime`...
         let v = Value::DTime("2020-01-01T00:00:00Z".into());
         assert_eq!(
             serde_json::to_value(&v).unwrap(),
             serde_json::json!({"dtime": "2020-01-01T00:00:00Z"})
         );
-        // ...and a permission filter persisted under the OLD camelCase key still loads.
-        let legacy: Value =
-            serde_json::from_value(serde_json::json!({"dTime": "2020-01-01T00:00:00Z"})).unwrap();
-        assert!(matches!(legacy, Value::DTime(_)));
-    }
-
-    #[test]
-    fn node_field_legacy_camelcase_alias_loads() {
-        // A permission store written before the SCREAMING_SNAKE `NodeField`
-        // rename must still deserialize (`nodeName` -> `NODE_NAME`).
-        let f: GqlNodeFilter = serde_json::from_value(
-            serde_json::json!({"node": {"field": "nodeName", "where": {"eq": {"str": "alice"}}}}),
-        )
-        .unwrap();
-        assert!(matches!(f, GqlNodeFilter::Node(_)));
     }
 }
 
@@ -3130,8 +3085,8 @@ mod empty_combinator_tests {
                 where_: PropCondition::Eq(Value::I64(1)),
             })
         };
-        assert!(DynFilter::try_from(GqlFilter::And(vec![GqlFilter::Nodes(node_filter())])).is_ok());
-        assert!(DynFilter::try_from(GqlFilter::Or(vec![GqlFilter::Nodes(node_filter())])).is_ok());
+        assert!(DynFilter::try_from(GqlFilter::And(vec![GqlFilter::Node(node_filter())])).is_ok());
+        assert!(DynFilter::try_from(GqlFilter::Or(vec![GqlFilter::Node(node_filter())])).is_ok());
     }
 }
 
@@ -3156,20 +3111,20 @@ mod gql_filter_serde_tests {
     fn serializes_to_the_oneof_wire_shape() {
         let cases = [
             (
-                GqlFilter::Nodes(node_prop_eq("x", 1)),
-                r#"{"nodes":{"property":{"name":"x","where":{"eq":{"i64":1}}}}}"#,
+                GqlFilter::Node(node_prop_eq("x", 1)),
+                r#"{"node":{"property":{"name":"x","where":{"eq":{"i64":1}}}}}"#,
             ),
             (
-                GqlFilter::And(vec![GqlFilter::Nodes(node_prop_eq("x", 1))]),
-                r#"{"and":[{"nodes":{"property":{"name":"x","where":{"eq":{"i64":1}}}}}]}"#,
+                GqlFilter::And(vec![GqlFilter::Node(node_prop_eq("x", 1))]),
+                r#"{"and":[{"node":{"property":{"name":"x","where":{"eq":{"i64":1}}}}}]}"#,
             ),
             (
-                GqlFilter::Or(vec![GqlFilter::Nodes(node_prop_eq("x", 1))]),
-                r#"{"or":[{"nodes":{"property":{"name":"x","where":{"eq":{"i64":1}}}}}]}"#,
+                GqlFilter::Or(vec![GqlFilter::Node(node_prop_eq("x", 1))]),
+                r#"{"or":[{"node":{"property":{"name":"x","where":{"eq":{"i64":1}}}}}]}"#,
             ),
             (
-                GqlFilter::Not(wrap(GqlFilter::Nodes(node_prop_eq("x", 1)))),
-                r#"{"not":{"nodes":{"property":{"name":"x","where":{"eq":{"i64":1}}}}}}"#,
+                GqlFilter::Not(wrap(GqlFilter::Node(node_prop_eq("x", 1)))),
+                r#"{"not":{"node":{"property":{"name":"x","where":{"eq":{"i64":1}}}}}}"#,
             ),
         ];
         for (filter, expected) in cases {
@@ -3180,8 +3135,8 @@ mod gql_filter_serde_tests {
     #[test]
     fn round_trips_through_serde() {
         let filter = GqlFilter::And(vec![
-            GqlFilter::Nodes(node_prop_eq("a", 1)),
-            GqlFilter::Not(wrap(GqlFilter::Or(vec![GqlFilter::Nodes(node_prop_eq(
+            GqlFilter::Node(node_prop_eq("a", 1)),
+            GqlFilter::Not(wrap(GqlFilter::Or(vec![GqlFilter::Node(node_prop_eq(
                 "b", 2,
             ))]))),
         ]);
@@ -3193,7 +3148,7 @@ mod gql_filter_serde_tests {
     // `not` composes end-to-end into a core filter.
     #[test]
     fn not_variant_converts_to_dyn_filter() {
-        let filter = GqlFilter::Not(wrap(GqlFilter::Nodes(node_prop_eq("x", 1))));
+        let filter = GqlFilter::Not(wrap(GqlFilter::Node(node_prop_eq("x", 1))));
         assert!(DynFilter::try_from(filter).is_ok());
     }
 }
@@ -3284,8 +3239,7 @@ mod conversion_hole_tests {
     // builder's `V: Into<GID>` bound.
     #[test]
     fn node_id_ordering_accepts_string_gids() {
-        let filter = GqlNodeFilter::Node(NodeFieldFilterNew {
-            field: NodeField::NodeId,
+        let filter = GqlNodeFilter::Id(NodeFieldWhere {
             where_: NodeFieldCondition::Gt(Value::Str("m".into())),
         });
         assert!(CompositeNodeFilter::try_from(filter).is_ok());
@@ -3330,41 +3284,6 @@ mod conversion_hole_tests {
 }
 
 #[cfg(test)]
-mod stored_access_filter_compat_tests {
-    use super::*;
-
-    // Permission stores written before the row-filter/GqlFilter merge used
-    // `node`/`edge` keys; the serde aliases must keep those loading, while new
-    // writes use the `nodes`/`edges` spelling.
-    #[test]
-    fn legacy_row_filter_keys_still_deserialize() {
-        let legacy = r#"{
-            "filter": {"or": [
-                {"node": {"property": {"name": "team", "where": {"eq": {"str": "sales"}}}}},
-                {"edge": {"property": {"name": "kind", "where": {"eq": {"str": "public"}}}}}
-            ]},
-            "hidden_properties": {"node": ["salary"]}
-        }"#;
-        let parsed: GraphAccessFilter = serde_json::from_str(legacy).unwrap();
-        let Some(GqlFilter::Or(items)) = parsed.filter else {
-            panic!("expected an or-filter");
-        };
-        assert!(matches!(items[0], GqlFilter::Nodes(_)));
-        assert!(matches!(items[1], GqlFilter::Edges(_)));
-
-        // Re-serialization uses the current spelling.
-        let json = serde_json::to_string(&GqlFilter::Nodes(GqlNodeFilter::Property(
-            PropertyFilterNew {
-                name: "x".into(),
-                where_: PropCondition::Eq(Value::I64(1)),
-            },
-        )))
-        .unwrap();
-        assert!(json.starts_with(r#"{"nodes":"#));
-    }
-}
-
-#[cfg(test)]
 mod exploded_edge_filter_tests {
     use super::*;
     use raphtory::db::graph::views::filter::model::{
@@ -3385,22 +3304,22 @@ mod exploded_edge_filter_tests {
     fn serializes_to_the_oneof_wire_shape() {
         let cases = [
             (
-                GqlFilter::ExplodedEdges(exploded_prop_gt("w", 1)),
-                r#"{"explodedEdges":{"property":{"name":"w","where":{"gt":{"i64":1}}}}}"#,
+                GqlFilter::ExplodedEdge(exploded_prop_gt("w", 1)),
+                r#"{"explodedEdge":{"property":{"name":"w","where":{"gt":{"i64":1}}}}}"#,
             ),
             (
-                GqlFilter::ExplodedEdges(GqlExplodedEdgeFilter::Metadata(PropertyFilterNew {
+                GqlFilter::ExplodedEdge(GqlExplodedEdgeFilter::Metadata(PropertyFilterNew {
                     name: "kind".into(),
                     where_: PropCondition::Eq(Value::Str("strong".into())),
                 })),
-                r#"{"explodedEdges":{"metadata":{"name":"kind","where":{"eq":{"str":"strong"}}}}}"#,
+                r#"{"explodedEdge":{"metadata":{"name":"kind","where":{"eq":{"str":"strong"}}}}}"#,
             ),
             (
-                GqlFilter::ExplodedEdges(GqlExplodedEdgeFilter::And(vec![
+                GqlFilter::ExplodedEdge(GqlExplodedEdgeFilter::And(vec![
                     exploded_prop_gt("w", 1),
                     GqlExplodedEdgeFilter::IsValid(true),
                 ])),
-                r#"{"explodedEdges":{"and":[{"property":{"name":"w","where":{"gt":{"i64":1}}}},{"isValid":true}]}}"#,
+                r#"{"explodedEdge":{"and":[{"property":{"name":"w","where":{"gt":{"i64":1}}}},{"isValid":true}]}}"#,
             ),
         ];
         for (filter, expected) in cases {
@@ -3410,7 +3329,7 @@ mod exploded_edge_filter_tests {
 
     #[test]
     fn round_trips_through_serde() {
-        let filter = GqlFilter::ExplodedEdges(GqlExplodedEdgeFilter::Not(wrap(
+        let filter = GqlFilter::ExplodedEdge(GqlExplodedEdgeFilter::Not(wrap(
             GqlExplodedEdgeFilter::Or(vec![
                 exploded_prop_gt("w", 1),
                 GqlExplodedEdgeFilter::TemporalProperty(PropertyFilterNew {
@@ -3476,7 +3395,7 @@ mod exploded_edge_filter_tests {
     // through the same `graph.filter(...)` machinery as node/edge filters.
     #[test]
     fn converts_to_dyn_filter() {
-        let filter = GqlFilter::ExplodedEdges(exploded_prop_gt("w", 1));
+        let filter = GqlFilter::ExplodedEdge(exploded_prop_gt("w", 1));
         assert!(DynFilter::try_from(filter).is_ok());
     }
 
@@ -3491,7 +3410,7 @@ mod exploded_edge_filter_tests {
             .unwrap();
         let gql = GqlFilter::try_from(tree).unwrap();
         assert!(
-            matches!(gql, GqlFilter::ExplodedEdges(_)),
+            matches!(gql, GqlFilter::ExplodedEdge(_)),
             "expected ExplodedEdges, got {gql:?}"
         );
 
@@ -3505,8 +3424,8 @@ mod exploded_edge_filter_tests {
         let GqlFilter::And(items) = gql else {
             panic!("expected GqlFilter::And");
         };
-        assert!(matches!(items[0], GqlFilter::Nodes(_)));
-        assert!(matches!(items[1], GqlFilter::ExplodedEdges(_)));
+        assert!(matches!(items[0], GqlFilter::Node(_)));
+        assert!(matches!(items[1], GqlFilter::ExplodedEdge(_)));
     }
 
     // Empty combinators are rejected like everywhere else in this module.
@@ -3562,8 +3481,8 @@ mod filter_tree_tests {
         let GqlFilter::And(items) = gql else {
             panic!("expected GqlFilter::And");
         };
-        assert!(matches!(items[0], GqlFilter::Nodes(_)));
-        assert!(matches!(items[1], GqlFilter::Edges(_)));
+        assert!(matches!(items[0], GqlFilter::Node(_)));
+        assert!(matches!(items[1], GqlFilter::Edge(_)));
     }
 
     // A graph-view chain exports outermost-first and converts to the nested

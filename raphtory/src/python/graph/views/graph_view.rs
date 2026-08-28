@@ -4,10 +4,7 @@ use crate::{
         api::{
             properties::{Metadata, Properties},
             view::{
-                filter_ops::Filter,
-                internal::{
-                    DynamicGraph, InternalFilter, IntoDynHop, IntoDynamic, MaterializedGraph,
-                },
+                internal::{DynamicGraph, IntoDynHop, IntoDynamic, MaterializedGraph},
                 LayerOps, StaticGraphViewOps,
             },
         },
@@ -33,7 +30,6 @@ use crate::{
     errors::GraphError,
     prelude::*,
     python::{
-        filter::filter_expr::PyFilterExpr,
         types::repr::{Repr, StructReprBuilder},
         utils::PyNodeRef,
     },

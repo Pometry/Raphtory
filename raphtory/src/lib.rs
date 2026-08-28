@@ -145,7 +145,7 @@ pub mod prelude {
                     deletion_graph::PersistentGraph,
                     filter::model::{
                         filter::Filter,
-                        node_filter::NodeFilter,
+                        node_filter::{ops::*, NodeFilter},
                         property_filter::{ops::PropertyFilterOps, PropertyFilter},
                         EdgeFilter,
                     },
