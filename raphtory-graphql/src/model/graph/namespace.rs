@@ -246,7 +246,7 @@ impl Namespace {
             _ => None,
         });
 
-        let mut graphs = match &filter {
+        let graphs = match &filter {
             None => visible.collect::<Vec<_>>(),
             Some(filter) => {
                 let mut kept = Vec::new();
@@ -259,7 +259,7 @@ impl Namespace {
             }
         };
 
-        sort_graphs(&mut graphs, sort.as_deref(), ctx, data).await?;
+        let graphs = sort_graphs(graphs, sort, ctx, data).await?;
 
         Ok(GqlCollection::new(graphs.into()))
     }
@@ -323,25 +323,26 @@ impl Namespace {
     ) -> GqlCollection<Namespace> {
         let data = ctx.data_unchecked::<Data>();
         let self_clone = self.clone();
-        let items = blocking_compute(move || self_clone.get_children().collect::<Vec<_>>()).await;
-        let mut namespaces = items
+        let namespaces = blocking_compute(move || {
+            let mut namespaces = self_clone
+                .get_children()
+                .filter_map(|item| match item {
+                    NamespacedItem::Namespace(n) => Some(n),
+                    _ => None,
+                })
+                .filter(|n| filter.as_ref().map_or(true, |f| f.matches(n)))
+                .sorted()
+                .collect::<Vec<_>>();
+            if sort.as_ref().and_then(|s| s.reverse) == Some(true) {
+                namespaces.reverse();
+            }
+            namespaces
+        })
+        .await;
+        let namespaces = namespaces
             .into_iter()
-            .filter_map(|item| match item {
-                NamespacedItem::Namespace(n)
-                    if is_namespace_visible(ctx, &data.auth_policy, &n) =>
-                {
-                    Some(n)
-                }
-                _ => None,
-            })
-            .filter(|n| filter.as_ref().map_or(true, |f| f.matches(n)))
-            .sorted()
+            .filter(|n| is_namespace_visible(ctx, &data.auth_policy, n))
             .collect::<Vec<_>>();
-
-        if sort.as_ref().and_then(|s| s.reverse) == Some(true) {
-            namespaces.reverse();
-        }
-
         GqlCollection::new(namespaces.into())
     }
 
@@ -385,7 +386,7 @@ impl Namespace {
         }
 
         namespaces.sort();
-        sort_graphs(&mut graphs, sort.as_deref(), ctx, data).await?;
+        let graphs = sort_graphs(graphs, sort, ctx, data).await?;
 
         let items = namespaces
             .into_iter()

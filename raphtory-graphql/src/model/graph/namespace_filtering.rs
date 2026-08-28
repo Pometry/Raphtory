@@ -25,6 +25,7 @@ use crate::{
         namespaced_item::NamespacedItem,
         property::{ObjectEntry, Value},
     },
+    rayon::blocking_compute,
 };
 use async_graphql::Context;
 use dynamic_graphql::{Enum, InputObject, OneOfInput, Result};
@@ -34,7 +35,6 @@ use raphtory::{
 };
 use raphtory_api::core::entities::properties::prop::Prop;
 use std::cmp::Ordering;
-
 // ─── Addressable attributes ──────────────────────────────────────────────────
 
 /// A graph's built-in attributes. Both filtering and sorting address them
@@ -677,47 +677,51 @@ impl MetaGraphSort {
 /// unique per graph and therefore stable from page to page. Callers can always
 /// call it unconditionally.
 pub(crate) async fn sort_graphs(
-    graphs: &mut Vec<MetaGraph>,
-    sort: Option<&[MetaGraphSort]>,
+    mut graphs: Vec<MetaGraph>,
+    sort: Option<Vec<MetaGraphSort>>,
     ctx: &Context<'_>,
     data: &Data,
-) -> Result<()> {
-    let sort = sort.unwrap_or(&[]);
-    for key in sort {
+) -> Result<Vec<MetaGraph>> {
+    let sort = sort.unwrap_or_default();
+    for key in &sort {
         key.validate()?;
     }
 
     let mut keyed = Vec::with_capacity(graphs.len());
     for graph in graphs.drain(..) {
         let mut values = Vec::with_capacity(sort.len());
-        for key in sort {
+        for key in &sort {
             values.push(key.value_for(&graph, ctx, data).await?);
         }
         keyed.push((values, graph));
     }
 
-    keyed.sort_by(|(a, ga), (b, gb)| {
-        for (index, key) in sort.iter().enumerate() {
-            let ordering = match (a.get(index), b.get(index)) {
-                (Some(x), Some(y)) => x.compare(y),
-                _ => Ordering::Equal,
-            };
-            let ordering = if key.reverse == Some(true) {
-                ordering.reverse()
-            } else {
-                ordering
-            };
-            if ordering != Ordering::Equal {
-                return ordering;
+    let graphs = blocking_compute(move || {
+        keyed.sort_by(|(a, ga), (b, gb)| {
+            for (index, key) in sort.iter().enumerate() {
+                let ordering = match (a.get(index), b.get(index)) {
+                    (Some(x), Some(y)) => x.compare(y),
+                    _ => Ordering::Equal,
+                };
+                let ordering = if key.reverse == Some(true) {
+                    ordering.reverse()
+                } else {
+                    ordering
+                };
+                if ordering != Ordering::Equal {
+                    return ordering;
+                }
             }
-        }
-        // Path is unique per graph, so equal sort keys still yield a stable,
-        // page-to-page consistent order.
-        ga.local_path().cmp(gb.local_path())
-    });
+            // Path is unique per graph, so equal sort keys still yield a stable,
+            // page-to-page consistent order.
+            ga.local_path().cmp(gb.local_path())
+        });
 
-    graphs.extend(keyed.into_iter().map(|(_, graph)| graph));
-    Ok(())
+        graphs.extend(keyed.into_iter().map(|(_, graph)| graph));
+        graphs
+    })
+    .await;
+    Ok(graphs)
 }
 
 #[cfg(test)]
