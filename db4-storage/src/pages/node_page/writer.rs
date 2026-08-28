@@ -181,11 +181,11 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         layer_id: LayerId,
         props: impl IntoIterator<Item = (usize, P)>,
     ) {
-        self.l_counter.update_time(t.t());
-        let (is_new_node, add) = self.mut_segment.add_props_bulk(t, pos, layer_id, props);
-        self.mut_segment.increment_est_size(add);
-        if is_new_node && !self.page.has_node(pos, layer_id) {
-            self.l_counter.increment(layer_id);
+        self.graph_stats.update_time(t.t());
+        let (is_new_node, add) = self.writer.add_props_bulk(t, pos, layer_id, props);
+        self.writer.increment_est_size(add);
+        if is_new_node && !self.segment.has_node(pos, layer_id) {
+            self.graph_stats.increment(layer_id);
         }
     }
 
@@ -232,10 +232,10 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         layer_id: LayerId,
         props: impl IntoIterator<Item = (usize, P)>,
     ) {
-        let (is_new_node, add) = self.mut_segment.update_metadata_bulk(pos, layer_id, props);
-        self.mut_segment.increment_est_size(add);
-        if is_new_node && !self.page.has_node(pos, layer_id) {
-            self.l_counter.increment(layer_id);
+        let (is_new_node, add) = self.writer.update_metadata_bulk(pos, layer_id, props);
+        self.writer.increment_est_size(add);
+        if is_new_node && !self.segment.has_node(pos, layer_id) {
+            self.graph_stats.increment(layer_id);
         }
     }
 

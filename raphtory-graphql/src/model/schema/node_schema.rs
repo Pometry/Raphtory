@@ -92,8 +92,7 @@ impl NodeSchema {
             .unwrap_or_else(|| DEFAULT_NODE_TYPE.to_string())
     }
     fn properties_inner(&self) -> Vec<PropertySchema> {
-        let visible: ahash::HashSet<usize> =
-            self.graph.node_visible_temporal_prop_ids().collect();
+        let visible: ahash::HashSet<usize> = self.graph.node_visible_temporal_prop_ids().collect();
         let mapper = self.graph.node_meta().temporal_prop_mapper();
         // materialized graphs deep_clone the PropMapper, so prop names/ids can leak from the source graph.
         // the per-layer property presence bitset isn't cloned, so we use it to see if the properties exist in any layer
