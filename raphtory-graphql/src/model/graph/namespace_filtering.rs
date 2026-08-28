@@ -170,16 +170,16 @@ fn contains_with_case(haystack: &str, needle: &str, case_sensitive: bool) -> boo
 ///
 /// Both matches are exhaustive on purpose: a new variant upstream should fail to
 /// compile here rather than silently pass through unfolded.
-fn fold_value_case(value: &Value) -> Value {
+fn lower_case_value(value: &Value) -> Value {
     match value {
         Value::Str(text) => Value::Str(text.to_lowercase()),
-        Value::List(values) => Value::List(values.iter().map(fold_value_case).collect()),
+        Value::List(values) => Value::List(values.iter().map(lower_case_value).collect()),
         Value::Object(entries) => Value::Object(
             entries
                 .iter()
                 .map(|entry| ObjectEntry {
                     key: entry.key.clone(),
-                    value: fold_value_case(&entry.value),
+                    value: lower_case_value(&entry.value),
                 })
                 .collect(),
         ),
@@ -200,11 +200,11 @@ fn fold_value_case(value: &Value) -> Value {
     }
 }
 
-fn fold_condition_case(cond: &PropCondition) -> PropCondition {
+fn lower_case_condition(cond: &PropCondition) -> PropCondition {
     use PropCondition::*;
-    let fold = fold_value_case;
-    let nested = |inner: &Wrapped<PropCondition>| fold_condition_case(inner).into();
-    let list = |items: &Vec<PropCondition>| items.iter().map(fold_condition_case).collect();
+    let fold = lower_case_value;
+    let nested = |inner: &Wrapped<PropCondition>| lower_case_condition(inner).into();
+    let list = |items: &Vec<PropCondition>| items.iter().map(lower_case_condition).collect();
     match cond {
         Eq(v) => Eq(fold(v)),
         Ne(v) => Ne(fold(v)),
@@ -239,27 +239,18 @@ fn fold_condition_case(cond: &PropCondition) -> PropCondition {
     }
 }
 
-/// Lowercases the value side, mirroring `fold_value_case`.
+/// Lowercases the value side, mirroring `lower_case_value`.
 ///
 /// Only scalar strings are folded. List-valued properties are left alone: they
 /// can only be reached through the aggregate wrappers (`any` / `all` / `first`
 /// / `last`), and every attribute this applies to is a scalar. `IsIn` is still
 /// handled, because there the list is the *operand* — folded by
 /// `fold_value_case` — and the value it tests is a scalar.
-fn fold_prop_case(prop: &Prop) -> Prop {
+fn lower_case_prop(prop: &Prop) -> Prop {
     match prop {
         Prop::Str(text) => Prop::Str(text.to_lowercase().into()),
         other => other.clone(),
     }
-}
-
-/// Evaluates a `PropCondition` against a single metadata value.
-///
-/// `And`/`Or`/`Not` are handled here because they compose whole conditions,
-/// while everything below them compiles to one `PropertyFilter` whose `matches`
-/// already understands absent values and list-aggregating wrappers.
-fn condition_matches(key: &str, cond: &PropCondition, value: Option<&Prop>) -> Result<bool> {
-    condition_matches_with_case(key, cond, value, true)
 }
 
 /// As `condition_matches`, folding case on both sides when `case_sensitive` is
@@ -272,13 +263,18 @@ fn condition_matches_with_case(
     case_sensitive: bool,
 ) -> Result<bool> {
     if !case_sensitive {
-        let folded_value = value.map(fold_prop_case);
-        return condition_matches(key, &fold_condition_case(cond), folded_value.as_ref());
+        let folded_value = value.map(lower_case_prop);
+        return condition_matches(key, &lower_case_condition(cond), folded_value.as_ref());
     }
-    evaluate_condition(key, cond, value)
+    condition_matches(key, cond, value)
 }
 
-fn evaluate_condition(key: &str, cond: &PropCondition, value: Option<&Prop>) -> Result<bool> {
+/// Evaluates a `PropCondition` against a single metadata value.
+///
+/// `And`/`Or`/`Not` are handled here because they compose whole conditions,
+/// while everything below them compiles to one `PropertyFilter` whose `matches`
+/// already understands absent values and list-aggregating wrappers.
+fn condition_matches(key: &str, cond: &PropCondition, value: Option<&Prop>) -> Result<bool> {
     match cond {
         PropCondition::And(list) => {
             for c in list {
@@ -354,7 +350,7 @@ impl MetaGraphCondition {
     fn validate(&self) -> Result<()> {
         match (self.field.is_some(), self.metadata_key.is_some()) {
             (true, true) => Err(GraphError::InvalidGqlFilter(
-                "a condition sets either `field` or `metadataKey`, not both".into(),
+                "a condition must set either `field` or `metadataKey`, not both".into(),
             )
             .into()),
             (false, false) => Err(GraphError::InvalidGqlFilter(
@@ -888,7 +884,7 @@ mod tests {
             Value::NDTime("2026-01-01T00:00:00".into()),
             Value::Decimal("1.5E3".into()),
         ] {
-            let folded = fold_value_case(&value);
+            let folded = lower_case_value(&value);
             assert_eq!(format!("{value:?}"), format!("{folded:?}"));
         }
     }
@@ -899,7 +895,7 @@ mod tests {
             key: "Owner".to_string(),
             value: Value::Str("Alice".into()),
         }]);
-        match fold_value_case(&value) {
+        match lower_case_value(&value) {
             Value::Object(entries) => {
                 assert_eq!(entries[0].key, "Owner");
                 assert!(matches!(&entries[0].value, Value::Str(s) if s == "alice"));
