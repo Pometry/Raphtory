@@ -1,7 +1,9 @@
 #![recursion_limit = "256"]
 
 pub use crate::{
-    auth::{Access, KeyResolver, ReadOnly, Roles, StaticKeyResolver, TokenClaimValues, RolesMissing},
+    auth::{
+        Access, KeyResolver, ReadOnly, Roles, RolesMissing, StaticKeyResolver, TokenClaimValues,
+    },
     model::graph::{filtering::GraphAccessFilter, property::Value},
     server::GraphServer,
 };
