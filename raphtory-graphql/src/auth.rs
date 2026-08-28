@@ -580,8 +580,8 @@ mod tests {
 
     #[test]
     fn role_order_is_preserved() {
-        // Grants merge most-permissive-wins so order does not change the outcome, but
-        // `on_graph_created` grants to the first role, and reports echo the claim.
+        // Access decisions are order-independent by construction — grants merge as a set —
+        // so order is preserved here only because reports echo the claim as it was made.
         let c = claims(Some(json!(["b", "a", "c"])), &[]);
         assert_eq!(
             effective_roles(&c, None),

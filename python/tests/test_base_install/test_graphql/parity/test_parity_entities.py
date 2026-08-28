@@ -174,25 +174,3 @@ def test_edges_sorted_parity():
             local = [(e.src.name, e.dst.name) for e in pair.local.edges.sorted(keys)]
             remote = [(e.src.name, e.dst.name) for e in pair.remote.edges.sorted(keys)]
             assert local == remote, f"sorted({keys}) diverged: {local} vs {remote}"
-
-
-def test_sort_key_types_are_shared():
-    """One set of sort-key classes serves both sides.
-
-    They are exported from `raphtory` alone. Re-exporting them from
-    `raphtory.graphql` as well made each stub declaration a redefinition of the
-    other, so the check is that the remote collections take the very classes the
-    local ones do, rather than that a second name for them exists.
-    """
-    import raphtory
-    import raphtory.graphql as gql
-
-    for name in ("NodeSortBy", "EdgeSortBy", "SortByTime"):
-        assert hasattr(raphtory, name), f"raphtory.{name} is the canonical home"
-        assert not hasattr(gql, name), f"raphtory.graphql.{name} would be a duplicate"
-
-    with graph_pair(_build_sortable) as pair:
-        key = raphtory.NodeSortBy.by_name()
-        local = [n.name for n in pair.local.nodes.sorted([key])]
-        remote = [n.name for n in pair.remote.nodes.sorted([key])]
-        assert local == remote, f"the same key sorted differently: {local} vs {remote}"

@@ -71,10 +71,11 @@ impl MetaGraph {
 
     /// Whether the caller has unfiltered read; gates the summary fields below, which are read from
     /// stored metadata without the access filter applied.
-    fn caller_has_full_read(&self, ctx: &Context<'_>, data: &Data) -> bool {
-        data.auth_policy
-            .as_ref()
-            .map_or(true, |p| p.full_read(ctx, self.folder.local_path()))
+    fn caller_has_full_read(&self, ctx: &Context<'_>, data: &Data) -> Result<bool> {
+        match data.auth_policy.as_ref() {
+            None => Ok(true),
+            Some(p) => Ok(p.full_read(ctx, self.folder.local_path())?),
+        }
     }
 }
 
@@ -109,7 +110,7 @@ impl MetaGraph {
     /// Returns the number of nodes in the graph, or null if the caller lacks unfiltered read.
     pub async fn node_count(&self, ctx: &Context<'_>) -> Result<Option<usize>> {
         let data: &Data = ctx.data_unchecked();
-        if !self.caller_has_full_read(ctx, data) {
+        if !self.caller_has_full_read(ctx, data)? {
             return Ok(None);
         }
         Ok(Some(self.meta(data).await?.node_count))
@@ -121,7 +122,7 @@ impl MetaGraph {
     ///     int:
     pub async fn edge_count(&self, ctx: &Context<'_>) -> Result<Option<usize>> {
         let data: &Data = ctx.data_unchecked();
-        if !self.caller_has_full_read(ctx, data) {
+        if !self.caller_has_full_read(ctx, data)? {
             return Ok(None);
         }
         Ok(Some(self.meta(data).await?.edge_count))
@@ -136,7 +137,7 @@ impl MetaGraph {
     /// `MetaGraph.metadata` cheap for namespace listings of many graphs.
     pub async fn metadata(&self, ctx: &Context<'_>) -> Result<Option<Vec<GqlProperty>>> {
         let data: &Data = ctx.data_unchecked();
-        if !self.caller_has_full_read(ctx, data) {
+        if !self.caller_has_full_read(ctx, data)? {
             return Ok(None);
         }
         if let Some(graph) = data.get_cached_graph(self.folder.local_path()).await {
