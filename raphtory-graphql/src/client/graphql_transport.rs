@@ -4054,7 +4054,7 @@ fn build_not_found_error(expr: &ReadExpr, null_key: &str) -> ClientError {
     let desc = find_selection(expr, null_key)
         .unwrap_or_else(|| format!("unexpected null at `{}`", null_key));
     // A null at the graph root means the graph is missing — or hidden from the
-    // caller, which the server reports identically (RBAC non-disclosure). That
+    // caller, which the server deliberately reports identically. That
     // is not a view-scoping failure, so surface it as `GraphNotFound` (message
     // reads "... does not exist") rather than `NotFound` (suffixed "not found
     // in view", which only makes sense for a node/edge outside the view).

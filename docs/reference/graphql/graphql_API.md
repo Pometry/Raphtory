@@ -133,15 +133,6 @@ Returns::  Root namespace
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="queryroot.plugins">plugins</strong></td>
-<td valign="top"><a href="#queryplugin">QueryPlugin</a>!</td>
-<td>
-
-Returns a plugin.
-
-</td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="queryroot.receivegraph">receiveGraph</strong></td>
 <td valign="top"><a href="#string">String</a>!</td>
 <td>
@@ -302,15 +293,6 @@ Graph path relative to the root namespace.
 </tr>
 </thead>
 <tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="mutroot.plugins">plugins</strong></td>
-<td valign="top"><a href="#mutationplugin">MutationPlugin</a>!</td>
-<td>
-
-Returns a collection of mutation plugins.
-
-</td>
-</tr>
 <tr>
 <td colspan="2" valign="top"><strong id="mutroot.deletegraph">deleteGraph</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
@@ -4541,17 +4523,6 @@ Returns the graph schema.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="graph.algorithms">algorithms</strong></td>
-<td valign="top"><a href="#graphalgorithmplugin">GraphAlgorithmPlugin</a>!</td>
-<td>
-
-Access registered graph algorithms (PageRank, shortest path, etc.) for this
-graph view. The set of available algorithms is defined by the plugin registry
-loaded at server startup.
-
-</td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="graph.algorithm">algorithm</strong></td>
 <td valign="top"><a href="#algorithms">Algorithms</a>!</td>
 <td>
@@ -4647,66 +4618,6 @@ resulting graph view. Lets callers compose multiple view transforms
 Ordered list of view operations; each entry is a one-of variant applied to the running result.
 
 </td>
-</tr>
-</tbody>
-</table>
-
-### GraphAlgorithmPlugin
-
-<table>
-<thead>
-<tr>
-<th align="left">Field</th>
-<th align="right">Argument</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="graphalgorithmplugin.pagerank">pagerank</strong></td>
-<td valign="top">[<a href="#pagerankoutput">PagerankOutput</a>!]!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">iterCount</td>
-<td valign="top"><a href="#int">Int</a>!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">threads</td>
-<td valign="top"><a href="#int">Int</a></td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">tol</td>
-<td valign="top"><a href="#float">Float</a></td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">weight</td>
-<td valign="top"><a href="#string">String</a></td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graphalgorithmplugin.shortest_path">shortest_path</strong></td>
-<td valign="top">[<a href="#shortestpathoutput">ShortestPathOutput</a>!]!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">source</td>
-<td valign="top"><a href="#string">String</a>!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">targets</td>
-<td valign="top">[<a href="#string">String</a>!]!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">direction</td>
-<td valign="top"><a href="#string">String</a></td>
-<td></td>
 </tr>
 </tbody>
 </table>
@@ -6779,26 +6690,6 @@ Optional `{key, value}` pairs attached to the event.
 Optional layer name. If omitted, the default layer is used.
 
 </td>
-</tr>
-</tbody>
-</table>
-
-### MutationPlugin
-
-<table>
-<thead>
-<tr>
-<th align="left">Field</th>
-<th align="right">Argument</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="mutationplugin.noops">NoOps</strong></td>
-<td valign="top"><a href="#string">String</a>!</td>
-<td></td>
 </tr>
 </tbody>
 </table>
@@ -9511,33 +9402,6 @@ endpoints are disabled; use `page` for paginated access instead.
 </tbody>
 </table>
 
-### PagerankOutput
-
-PageRank score.
-
-<table>
-<thead>
-<tr>
-<th align="left">Field</th>
-<th align="right">Argument</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="pagerankoutput.name">name</strong></td>
-<td valign="top"><a href="#string">String</a>!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="pagerankoutput.rank">rank</strong></td>
-<td valign="top"><a href="#float">Float</a>!</td>
-<td></td>
-</tr>
-</tbody>
-</table>
-
 ### PathFromGraph
 
 A nested collection of nodes anchored to a source collection — the result of
@@ -11161,51 +11025,6 @@ booleans as booleans, etc.
 The value's exact type, for type-directed decoding of `value`.
 
 </td>
-</tr>
-</tbody>
-</table>
-
-### QueryPlugin
-
-<table>
-<thead>
-<tr>
-<th align="left">Field</th>
-<th align="right">Argument</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="queryplugin.noops">NoOps</strong></td>
-<td valign="top"><a href="#string">String</a>!</td>
-<td></td>
-</tr>
-</tbody>
-</table>
-
-### ShortestPathOutput
-
-<table>
-<thead>
-<tr>
-<th align="left">Field</th>
-<th align="right">Argument</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="shortestpathoutput.target">target</strong></td>
-<td valign="top"><a href="#string">String</a>!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="shortestpathoutput.nodes">nodes</strong></td>
-<td valign="top">[<a href="#string">String</a>!]!</td>
-<td></td>
 </tr>
 </tbody>
 </table>
@@ -13850,8 +13669,8 @@ Layer.
 
 Boolean expression over a built-in node field (ID, name, or type).
 
-This is used by `NodeFieldFilterNew.where_` when filtering a specific
-`NodeField`.
+This is used by `NodeFieldWhere.where_` when filtering a specific
+built-in field.
 
 Supports comparisons, string predicates, and set membership.
 (Presence checks and aggregations are handled via property filters instead.)
@@ -14021,7 +13840,7 @@ GraphQL input type for filtering nodes.
 `NodeFilter` represents a composable boolean expression evaluated
 against nodes in a graph. Filters can target:
 
-- built-in node fields (`Node` / `NodeFieldFilterNew`),
+- built-in node fields (`Id` / `Name` / `NodeType`),
 - node properties and metadata,
 - temporal properties,
 - temporal scope (windows, snapshots, latest),
@@ -15545,6 +15364,32 @@ Naive datetime (no timezone).
 <td>
 
 BigDecimal number (string representation, e.g. "3.14159" or "123e-5").
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="value.var">var</strong></td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+A named placeholder, resolved before the filter is evaluated.
+
+Lets a filter be written once with per-request values left open — an authorization policy
+binds them per caller. A `Var` must be substituted before the filter reaches the engine;
+converting one to a `Prop` is an error rather than a silent default.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="value.claim">claim</strong></td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+A named claim, read straight from the caller's token and substituted before evaluation.
+
+Like [`Value::Var`] but sourced directly from a token claim rather than a binding, so no
+spec is needed. Must be substituted before the filter reaches the engine; converting one to
+a `Prop` is an error rather than a silent default.
 
 </td>
 </tr>

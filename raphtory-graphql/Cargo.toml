@@ -56,6 +56,9 @@ bigdecimal = { workspace = true, features = ["serde"] }
 quick_cache = { workspace = true }
 field_types = { workspace = true }
 pythonize = { workspace = true, optional = true }
+indexmap = { workspace = true }
+dyn-clone = { workspace = true }
+inventory = { workspace = true }
 
 # python binding optional dependencies
 pyo3 = { workspace = true, optional = true }
@@ -70,6 +73,9 @@ tempfile = { workspace = true }
 pretty_assertions = { workspace = true }
 arrow = { workspace = true }
 parquet = { workspace = true }
+# The deny_unknown_fields lint test parses source with syn.
+syn = { version = "2", features = ["full"] }
+quote = "1"
 
 
 [features]

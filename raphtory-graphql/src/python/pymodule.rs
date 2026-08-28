@@ -41,13 +41,19 @@ create_exception!(
      reported as not found, never as this error."
 );
 
-/// Returns True if the permissions extension (raphtory-auth) is compiled in.
+/// Returns True if a server extension with this name is compiled into the build.
+///
+/// Which extensions exist depends on how the build was assembled; this library has no opinion
+/// about their names.
+///
+/// Arguments:
+///     name (str): the extension's registered name.
 ///
 /// Returns:
-///     bool: True if the extension is built in, False otherwise.
+///     bool: True if that extension is built in, False otherwise.
 #[pyfunction]
-pub fn has_permissions_extension() -> bool {
-    crate::server::has_server_extension()
+pub fn has_extension(name: &str) -> bool {
+    crate::plugin::server::is_registered(name)
 }
 
 pub fn base_graphql_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyErr> {
@@ -92,10 +98,7 @@ pub fn base_graphql_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyErr>
     graphql_module.add_function(wrap_pyfunction!(decode_graph, &graphql_module)?)?;
     graphql_module.add_function(wrap_pyfunction!(schema, &graphql_module)?)?;
     graphql_module.add_function(wrap_pyfunction!(python_cli, &graphql_module)?)?;
-    graphql_module.add_function(wrap_pyfunction!(
-        has_permissions_extension,
-        &graphql_module
-    )?)?;
+    graphql_module.add_function(wrap_pyfunction!(has_extension, &graphql_module)?)?;
 
     Ok(graphql_module)
 }

@@ -6421,9 +6421,12 @@ dependencies = [
  "clap",
  "config",
  "crossbeam-channel",
+ "dyn-clone",
  "dynamic-graphql",
  "field_types",
  "futures-util",
+ "indexmap 2.14.0",
+ "inventory",
  "itertools 0.15.0",
  "jsonwebtoken",
  "once_cell",
@@ -6439,6 +6442,7 @@ dependencies = [
  "pyo3",
  "pythonize",
  "quick_cache",
+ "quote 1.0.47",
  "rand 0.9.5",
  "raphtory",
  "raphtory-api",
@@ -6452,6 +6456,7 @@ dependencies = [
  "spki",
  "strum 0.28.0",
  "strum_macros 0.28.0",
+ "syn 2.0.119",
  "tempfile",
  "thiserror 2.0.20",
  "tokio",
@@ -6467,10 +6472,14 @@ dependencies = [
 name = "raphtory-graphql-tests"
 version = "0.18.0"
 dependencies = [
+ "clap",
+ "dynamic-graphql",
  "mock-collector",
  "opentelemetry_sdk",
  "raphtory",
  "raphtory-graphql",
+ "serde",
+ "serde_json",
  "tempfile",
  "tokio",
  "url",
@@ -6578,6 +6587,7 @@ name = "raphtory_custom_gql_apis"
 version = "0.9.3"
 dependencies = [
  "async-graphql",
+ "dynamic-graphql",
  "futures-util",
  "pyo3",
  "pyo3-build-config",

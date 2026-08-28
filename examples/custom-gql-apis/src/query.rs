@@ -1,39 +1,23 @@
-use async_graphql::{
-    dynamic::{FieldValue, ResolverContext, TypeRef},
-    FieldResult,
-};
-use futures_util::future::BoxFuture;
-use raphtory_graphql::model::plugins::{operation::Operation, query_plugin::QueryPlugin};
+use dynamic_graphql::{ExpandObject, ExpandObjectFields};
+use raphtory::prelude::GraphViewOps;
+use raphtory_graphql::model::{GqlAlgorithms, QueryRoot};
 
-pub(crate) struct HelloQuery;
+#[derive(ExpandObject)]
+pub(crate) struct HelloQuery<'a>(&'a QueryRoot);
 
-impl<'a> Operation<'a, QueryPlugin> for HelloQuery {
-    type OutputType = String;
-
-    fn output_type() -> TypeRef {
-        TypeRef::named_nn(TypeRef::STRING)
+#[ExpandObjectFields]
+impl<'a> HelloQuery<'a> {
+    async fn hello_query(name: String) -> String {
+        "Hello, ".to_owned() + name.as_str()
     }
+}
 
-    fn args<'b>() -> Vec<(&'b str, TypeRef)> {
-        vec![("name", TypeRef::named_nn(TypeRef::STRING))]
-    }
+#[derive(ExpandObject)]
+pub(crate) struct FancyAlgorithm<'a>(&'a GqlAlgorithms);
 
-    fn apply<'b>(
-        _entry_point: &QueryPlugin,
-        ctx: ResolverContext<'b>,
-    ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>> {
-        let name = ctx
-            .args
-            .try_get("name")
-            .unwrap()
-            .string()
-            .unwrap()
-            .to_owned();
-
-        Box::pin(async move {
-            Ok(Some(FieldValue::value(
-                "Hello, ".to_owned() + name.as_str(),
-            )))
-        })
+#[ExpandObjectFields]
+impl<'a> FancyAlgorithm<'a> {
+    async fn fancy_node_count(&self) -> usize {
+        self.0.run(|graph| graph.count_nodes()).await
     }
 }

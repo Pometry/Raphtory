@@ -847,6 +847,12 @@ pub(crate) fn require_graph_write(
     policy: &Option<Arc<dyn AuthorizationPolicy>>,
     path: &str,
 ) -> async_graphql::Result<()> {
+    if crate::auth::is_read_only(ctx) {
+        return Err(gql_error_with_code(
+            "Access denied: this context may not write",
+            CODE_ACCESS_DENIED,
+        ));
+    }
     match policy {
         None => ctx
             .require_jwt_write_access()
@@ -888,6 +894,15 @@ fn apply_row_filter_sync(
     // And sub-filters are applied sequentially so that DynView (window/snapshot/layer)
     // sub-filters wrap the graph view before subsequent node/edge predicate filters run.
     if let GqlFilter::And(filters) = filter {
+        // An empty `and` folds to the graph unchanged — i.e. no restriction at all. Fail closed
+        // rather than serve every row, matching `DynFilter::try_from`'s rejection of an empty
+        // combinator (which this shortcut path otherwise never reaches).
+        if filters.is_empty() {
+            error!("empty 'and' access filter restricts nothing");
+            return Err(async_graphql::Error::new(
+                "internal error applying access filter",
+            ));
+        }
         return filters
             .into_iter()
             .try_fold(graph, |g, f| apply_row_filter_sync(g, f));

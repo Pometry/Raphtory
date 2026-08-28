@@ -43,9 +43,10 @@ pub enum ClientError {
     /// The target graph does not exist — or exists but the caller lacks the
     /// namespace visibility to know it does. The server reports both as the
     /// same `GRAPH_NOT_FOUND` code with an identical message, so the two stay
-    /// indistinguishable (RBAC existence non-disclosure). The message is the
-    /// server's verbatim (e.g. `Graph does not exist`); unlike `NotFound` it is
-    /// not about a view, so it is surfaced as-is rather than suffixed.
+    /// indistinguishable: telling them apart would let a caller map out what
+    /// they cannot read. The message is the server's verbatim (e.g. `Graph does
+    /// not exist`); unlike `NotFound` it is not about a view, so it is surfaced
+    /// as-is rather than suffixed.
     #[error("{0}")]
     GraphNotFound(String),
 
@@ -93,8 +94,8 @@ fn error_code(error: &JsonValue) -> Option<&str> {
 ///
 /// A forbidden-but-hidden graph reports `GRAPH_NOT_FOUND` exactly as a genuinely
 /// missing one does, so both map to `GraphNotFound` and **never** to a
-/// permission error — the two stay indistinguishable to the caller (RBAC
-/// existence non-disclosure).
+/// permission error. Classifying one of them as a permission error would restore
+/// the distinction the server took care to remove.
 pub(crate) fn classify_graphql_errors(errors: &JsonValue, query: &str) -> ClientError {
     let mut access_denied = false;
     let mut graph_not_found = false;
@@ -148,9 +149,9 @@ mod error_classification_tests {
     use super::*;
     use serde_json::json;
 
-    /// RBAC existence non-disclosure: a forbidden graph and a genuinely missing
-    /// one both surface as `GraphNotFound` with the same message — never as a
-    /// `PermissionDenied` — so an unauthorized caller can't tell them apart.
+    /// A forbidden graph and a genuinely missing one both surface as
+    /// `GraphNotFound` with the same message — never as a `PermissionDenied` —
+    /// so an unauthorized caller cannot tell them apart.
     #[test]
     fn forbidden_and_missing_graph_are_indistinguishable() {
         // What the server sends for a graph hidden by policy AND for one that
