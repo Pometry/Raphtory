@@ -76,6 +76,15 @@ impl<I: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> List<I> {
         matches!(self, List::All)
     }
 
+    /// True when the list is a pushdown candidate list whose producer proved
+    /// every key matches its filter (see [`Index::dynamically_exact`]).
+    pub fn dynamically_trusted(&self) -> bool {
+        match self {
+            List::All => false,
+            List::List { elems } => elems.dynamically_exact(),
+        }
+    }
+
     pub fn is_empty(&self) -> bool {
         match self {
             List::All => false,

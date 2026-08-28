@@ -57,14 +57,25 @@ pub enum PropPredicate<'a> {
     Contains(&'a str),
 }
 
-/// Candidate rows of one segment for a [`PropPredicate`].
+/// Which value(s) of a property a [`PropPredicate`] is asked about. A
+/// historical index can answer `Ever` exactly; `Latest` answers are supersets
+/// unless the backend tracks latest values separately.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PropSemantics {
+    /// The property's latest value must match.
+    Latest,
+    /// Any value the property ever held may match.
+    Ever,
+}
+
+/// Global candidate node ids for a [`PropPredicate`].
 ///
-/// `rows` must be a superset of the matching rows (no false negatives) over
-/// the segment's whole history; when `exact` is false the caller must still
-/// verify each row against the actual predicate semantics.
+/// `vids` must be a superset of the matching nodes (no false negatives) over
+/// the graph's whole history; when `exact` is false the caller must still
+/// verify each candidate against the actual predicate semantics.
 #[derive(Debug, Clone, Default)]
-pub struct PropCandidates {
-    pub rows: Vec<LocalPOS>,
+pub struct GlobalPropCandidates {
+    pub vids: Vec<VID>,
     pub exact: bool,
 }
 
@@ -165,25 +176,6 @@ pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
     fn num_layers(&self) -> usize;
 
     fn layer_count(&self, layer_id: LayerId) -> u32;
-
-    /// Resolve a property predicate to candidate rows using a secondary
-    /// index, if this backend has one for the property. `metadata` selects
-    /// the metadata prop-id space over the temporal one. `None` means the
-    /// predicate cannot be served and the caller should scan as usual.
-    fn node_prop_candidates(
-        &self,
-        _prop_id: usize,
-        _metadata: bool,
-        _predicate: &PropPredicate,
-    ) -> Option<PropCandidates> {
-        None
-    }
-
-    /// Build any missing secondary property indexes for this segment.
-    /// Backends without index support do nothing.
-    fn build_prop_index(&self) -> Result<(), StorageError> {
-        Ok(())
-    }
 
     fn check_metadata_immut<P: AsPropRef>(
         &self,

@@ -18,7 +18,7 @@ use raphtory_api::core::entities::{
 use raphtory_core::entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef};
 use std::{fmt::Debug, iter, path::Path, sync::Arc};
 use storage::{
-    api::nodes::{NodeSegmentOps, PropPredicate},
+    api::nodes::{GlobalPropCandidates, PropPredicate, PropSemantics},
     error::StorageError,
     pages::SegmentCounts,
     persist::strategy::PersistenceStrategy,
@@ -27,7 +27,10 @@ use storage::{
 };
 use thiserror::Error;
 
-pub use storage::api::nodes::PropPredicate as NodePropPredicate;
+pub use storage::api::nodes::{
+    GlobalPropCandidates as NodeGlobalPropCandidates, PropPredicate as NodePropPredicate,
+    PropSemantics as NodePropSemantics,
+};
 
 #[derive(Clone, Debug)]
 pub enum GraphStorage {
@@ -181,32 +184,28 @@ impl GraphStorage {
         prop_id: usize,
         metadata: bool,
         predicate: &PropPredicate,
-    ) -> Option<Vec<VID>> {
-        let nodes = self.temporal_graph().storage().nodes();
-        let max_segment_len = nodes.max_segment_len();
-        let mut vids = Vec::new();
-        for segment in nodes.segments_iter() {
-            let candidates = segment.node_prop_candidates(prop_id, metadata, predicate)?;
-            let segment_id = segment.segment_id();
-            vids.extend(
-                candidates
-                    .rows
-                    .into_iter()
-                    .map(|pos| pos.as_vid(segment_id, max_segment_len)),
-            );
-        }
-        Some(vids)
+        semantics: PropSemantics,
+    ) -> Option<GlobalPropCandidates> {
+        let storage = self.temporal_graph().storage();
+        let nodes = storage.nodes();
+        storage.extension().node_prop_candidates(
+            nodes.segments_iter(),
+            nodes.max_segment_len(),
+            prop_id,
+            metadata,
+            predicate,
+            semantics,
+        )
     }
 
-    /// Ask the storage backend to build any missing secondary property
-    /// indexes. A no-op for backends without index support. Segments are
-    /// independent, so they build in parallel.
+    /// Ask the storage backend to build or compact any missing secondary
+    /// property indexes. A no-op for backends without index support.
     pub fn build_node_prop_index(&self) -> Result<(), StorageError> {
-        use rayon::iter::ParallelIterator;
-        let nodes = self.temporal_graph().storage().nodes();
-        nodes
-            .segments_par_iter()
-            .try_for_each(|segment| segment.build_prop_index())
+        let storage = self.temporal_graph().storage();
+        let nodes = storage.nodes();
+        storage
+            .extension()
+            .build_node_prop_index(nodes.segments_iter(), nodes.max_segment_len())
     }
 
     #[inline(always)]

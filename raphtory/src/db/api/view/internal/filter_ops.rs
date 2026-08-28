@@ -38,6 +38,8 @@ pub enum FilterVariants<Neither, Nodes, Edges, Both> {
     Both(Both),
 }
 
+use crate::db::api::view::internal::list_ops::NodeList;
+
 pub trait FilterOps {
     fn filter_node(&self, node: NodeStorageRef) -> bool;
     fn filter_state(&self) -> FilterState;
@@ -48,6 +50,13 @@ pub trait FilterOps {
     fn filtered_excluding_layers(&self) -> bool;
 
     fn node_list_trusted(&self) -> bool;
+
+    /// The node list together with whether it can be trusted (i.e. no
+    /// per-node filtering is needed), decided from a single probe so the
+    /// pair cannot be torn by concurrent updates. Dynamic trust from index
+    /// pushdown exactness rides inside the list and only survives plain
+    /// views: any window or layer restriction re-enables verification.
+    fn trusted_node_list(&self) -> (NodeList, bool);
 
     fn filter_edge(&self, edge: EdgeEntryRef) -> bool;
 
@@ -221,6 +230,18 @@ impl<G: GraphView> FilterOps for G {
             && self.node_filter_includes_edge_filter()
             && self.node_filter_includes_edge_layer_filter()
             && self.node_filter_includes_exploded_edge_filter()
+    }
+
+    fn trusted_node_list(&self) -> (NodeList, bool) {
+        let list = self.node_list();
+        let dynamic = list.dynamically_trusted()
+            && !self.window_filtered()
+            && !self.is_layer_filtered();
+        let trusted = (self.internal_node_list_trusted() || dynamic)
+            && self.node_filter_includes_edge_filter()
+            && self.node_filter_includes_edge_layer_filter()
+            && self.node_filter_includes_exploded_edge_filter();
+        (list, trusted)
     }
 
     #[inline]

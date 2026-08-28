@@ -151,7 +151,7 @@ where
 
     pub fn node_list(&self) -> NodeList {
         match self.nodes.clone() {
-            elems @ Index::Partial(_) => NodeList::List { elems },
+            elems @ (Index::Partial(_) | Index::Sorted { .. }) => NodeList::List { elems },
             _ => self.graph.node_list(),
         }
     }
@@ -271,7 +271,7 @@ where
         } else {
             match &self.nodes {
                 Index::Full(_) => self.graph.count_nodes(),
-                Index::Partial(nodes) => nodes.len(),
+                Index::Partial(_) | Index::Sorted { .. } => self.nodes.len(),
             }
         }
     }
@@ -327,7 +327,17 @@ where
     }
 
     pub fn is_list_filtered(&self) -> bool {
-        !self.graph.node_list_trusted() || self.predicate.is_domain_filtered()
+        // `self.nodes` is an immutable snapshot, so its exactness flag was
+        // frozen together with the keys; the remaining gates are static
+        // properties of the view, making this race-free
+        use crate::db::api::view::internal::InnerFilterOps;
+        let dynamic = self.nodes.dynamically_exact()
+            && !self.graph.window_filtered()
+            && !self.graph.is_layer_filtered()
+            && self.graph.node_filter_includes_edge_filter()
+            && self.graph.node_filter_includes_edge_layer_filter()
+            && self.graph.node_filter_includes_exploded_edge_filter();
+        !(self.graph.node_list_trusted() || dynamic) || self.predicate.is_domain_filtered()
     }
 
     pub fn is_filtered(&self) -> bool {

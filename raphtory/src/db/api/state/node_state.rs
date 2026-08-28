@@ -37,6 +37,64 @@ use storage::state::{StateIndex, StateIndexIter};
 pub enum Index<K> {
     Full(Arc<StateIndex<K>>),
     Partial(Arc<IndexSet<K, ahash::RandomState>>),
+    /// Keys in ascending `usize`-key order, deduplicated. Positions are ranks
+    /// in that order (membership by binary search, no hashing) — the shape
+    /// index-pushdown candidate lists arrive in. `exact` is the pushdown's
+    /// claim that every key satisfies the producing filter (no per-node
+    /// verification needed); it is decided together with the keys, so the
+    /// pair can never be torn by concurrent updates.
+    Sorted { keys: Arc<[K]>, exact: bool },
+}
+
+/// Two-pointer intersection of ascending, deduplicated key slices.
+fn sorted_intersect<K: Copy + Into<usize>>(a: &[K], b: &[K]) -> Vec<K> {
+    let mut out = Vec::new();
+    let (mut i, mut j) = (0, 0);
+    while i < a.len() && j < b.len() {
+        let (ka, kb): (usize, usize) = (a[i].into(), b[j].into());
+        match ka.cmp(&kb) {
+            std::cmp::Ordering::Less => i += 1,
+            std::cmp::Ordering::Greater => j += 1,
+            std::cmp::Ordering::Equal => {
+                out.push(a[i]);
+                i += 1;
+                j += 1;
+            }
+        }
+    }
+    out
+}
+
+/// Two-pointer union of ascending, deduplicated key slices.
+fn sorted_union<K: Copy + Into<usize>>(a: &[K], b: &[K]) -> Vec<K> {
+    let mut out = Vec::with_capacity(a.len().max(b.len()));
+    let (mut i, mut j) = (0, 0);
+    while i < a.len() && j < b.len() {
+        let (ka, kb): (usize, usize) = (a[i].into(), b[j].into());
+        match ka.cmp(&kb) {
+            std::cmp::Ordering::Less => {
+                out.push(a[i]);
+                i += 1;
+            }
+            std::cmp::Ordering::Greater => {
+                out.push(b[j]);
+                j += 1;
+            }
+            std::cmp::Ordering::Equal => {
+                out.push(a[i]);
+                i += 1;
+                j += 1;
+            }
+        }
+    }
+    out.extend_from_slice(&a[i..]);
+    out.extend_from_slice(&b[j..]);
+    out
+}
+
+fn sorted_rank<K: Copy + Into<usize>>(keys: &[K], key: &K) -> Option<usize> {
+    let needle: usize = (*key).into();
+    keys.binary_search_by_key(&needle, |k| (*k).into()).ok()
 }
 
 impl<K> From<StateIndex<K>> for Index<K> {
@@ -56,6 +114,10 @@ impl<K> Clone for Index<K> {
         match self {
             Index::Full(index) => Index::Full(index.clone()),
             Index::Partial(index) => Index::Partial(index.clone()),
+            Index::Sorted { keys, exact } => Index::Sorted {
+                keys: keys.clone(),
+                exact: *exact,
+            },
         }
     }
 }
@@ -67,8 +129,9 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> FromIterator
 }
 impl Index<VID> {
     pub fn for_graph<'graph>(graph: impl GraphViewOps<'graph>) -> Self {
-        if graph.node_list_trusted() {
-            match graph.node_list() {
+        let (node_list, trusted) = graph.trusted_node_list();
+        if trusted {
+            match node_list {
                 NodeList::All { .. } => Self::Full(graph.core_graph().node_state_index().into()),
                 NodeList::List { elems } => elems,
             }
@@ -83,22 +146,47 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
         Self::Partial(keys.into())
     }
 
+    /// Keys already in ascending `usize`-key order and deduplicated (e.g.
+    /// index-pushdown candidates). Unlike `FromIterator` (which preserves
+    /// insertion order in a hash set), positions are ranks in key order.
+    pub fn from_sorted(keys: Vec<K>, exact: bool) -> Self {
+        debug_assert!(
+            keys.windows(2)
+                .all(|w| Into::<usize>::into(w[0]) < Into::<usize>::into(w[1])),
+            "from_sorted requires ascending deduplicated keys"
+        );
+        Self::Sorted {
+            keys: keys.into(),
+            exact,
+        }
+    }
+
+    /// True when this is a pushdown candidate list whose producer proved
+    /// every key matches its filter.
+    pub fn dynamically_exact(&self) -> bool {
+        matches!(self, Index::Sorted { exact: true, .. })
+    }
+
     #[inline]
     pub fn iter(&self) -> impl Iterator<Item = K> + '_ {
         match self {
             Index::Full(index) => Either::Left(index.iter()),
-            Index::Partial(index) => Either::Right(index.iter().copied()),
+            Index::Partial(index) => Either::Right(Either::Left(index.iter().copied())),
+            Index::Sorted { keys, .. } => Either::Right(Either::Right(keys.iter().copied())),
         }
     }
 
     pub fn into_par_iter(self) -> impl ParallelIterator<Item = K> {
         match self {
             Index::Full(index) => Either::Left(index.into_par_iter().map(|(_, k)| k)),
-            Index::Partial(index) => Either::Right(
+            Index::Partial(index) => Either::Right(Either::Left(
                 (0..index.len())
                     .into_par_iter()
                     .map(move |i| *index.get_index(i).unwrap()),
-            ),
+            )),
+            Index::Sorted { keys, .. } => Either::Right(Either::Right(
+                (0..keys.len()).into_par_iter().map(move |i| keys[i]),
+            )),
         }
     }
 
@@ -108,6 +196,7 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
         match self {
             Index::Full(index) => index.resolve(*key),
             Index::Partial(index) => index.get_index_of(key),
+            Index::Sorted { keys, .. } => sorted_rank(keys, key),
         }
     }
 
@@ -116,6 +205,7 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
         match self {
             Index::Full(index) => index.global_index(i),
             Index::Partial(index) => index.get_index(i).copied(),
+            Index::Sorted { keys, .. } => keys.get(i).copied(),
         }
     }
 
@@ -124,6 +214,7 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
         match self {
             Index::Full(index) => index.len(),
             Index::Partial(index) => index.len(),
+            Index::Sorted { keys, .. } => keys.len(),
         }
     }
 
@@ -136,15 +227,19 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
         match self {
             Index::Full(index) => index.resolve(*key).is_some(),
             Index::Partial(index) => index.contains(key),
+            Index::Sorted { keys, .. } => sorted_rank(keys, key).is_some(),
         }
     }
 
     pub fn par_iter(&self) -> impl ParallelIterator<Item = (usize, K)> + '_ {
         match self {
             Index::Full(index) => Either::Left(index.par_iter()),
-            Index::Partial(index) => {
-                Either::Right(index.par_iter().enumerate().map(|(i, v)| (i, *v)))
-            }
+            Index::Partial(index) => Either::Right(Either::Left(
+                index.par_iter().enumerate().map(|(i, v)| (i, *v)),
+            )),
+            Index::Sorted { keys, .. } => Either::Right(Either::Right(
+                keys.par_iter().enumerate().map(|(i, v)| (i, *v)),
+            )),
         }
     }
 
@@ -153,17 +248,63 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
             (Self::Full(_), Self::Partial(a)) => Self::Partial(a.clone()),
             (Self::Partial(a), Self::Full(_)) => Self::Partial(a.clone()),
             (Self::Partial(a), Self::Partial(b)) => a.intersection(b).copied().collect(),
+            (Self::Sorted { keys, exact }, Self::Full(_)) => Self::Sorted {
+                keys: keys.clone(),
+                exact: *exact,
+            },
+            (Self::Full(_), Self::Sorted { keys, exact }) => Self::Sorted {
+                keys: keys.clone(),
+                exact: *exact,
+            },
+            (
+                Self::Sorted { keys: a, exact: ea },
+                Self::Sorted { keys: b, exact: eb },
+            ) => Self::Sorted {
+                keys: sorted_intersect(a, b).into(),
+                exact: *ea && *eb,
+            },
+            // a hash-set side carries no exactness claim
+            (Self::Sorted { keys: a, .. }, Self::Partial(b)) => Self::Sorted {
+                keys: a
+                    .iter()
+                    .copied()
+                    .filter(|k| b.contains(k))
+                    .collect::<Vec<_>>()
+                    .into(),
+                exact: false,
+            },
+            // keeps the left side's insertion order, so stays Partial
+            (Self::Partial(a), Self::Sorted { keys: b, .. }) => a
+                .iter()
+                .copied()
+                .filter(|k| sorted_rank(b, k).is_some())
+                .collect(),
             _ => self.clone(),
         }
     }
 
     pub fn union(&self, other: &Self) -> Self {
         match (self, other) {
-            (Self::Full(index), Self::Partial(_)) | (Self::Partial(_), Self::Full(index)) => {
+            (Self::Full(index), Self::Partial(_) | Self::Sorted { .. })
+            | (Self::Partial(_) | Self::Sorted { .. }, Self::Full(index)) => {
                 Self::Full(index.clone())
             }
             (Self::Full(left), Self::Full(right)) => Self::Full(Arc::new(left.union(right))),
             (Self::Partial(left), Self::Partial(right)) => left.union(right).copied().collect(),
+            (
+                Self::Sorted { keys: a, exact: ea },
+                Self::Sorted { keys: b, exact: eb },
+            ) => Self::Sorted {
+                keys: sorted_union(a, b).into(),
+                exact: *ea && *eb,
+            },
+            // mixed orders have no common canonical form: collect to Partial
+            (Self::Sorted { keys: a, .. }, Self::Partial(b)) => {
+                a.iter().copied().chain(b.iter().copied()).collect()
+            }
+            (Self::Partial(a), Self::Sorted { keys: b, .. }) => {
+                a.iter().copied().chain(b.iter().copied()).collect()
+            }
         }
     }
 }
@@ -213,10 +354,56 @@ impl<K: Eq + Hash + Copy> DoubleEndedIterator for PartialIndexIntoIter<K> {
 
 impl<K: Eq + Hash + Copy> ExactSizeIterator for PartialIndexIntoIter<K> {}
 
+#[derive(Clone)]
+pub struct SortedIndexIntoIter<K> {
+    range: Range<usize>,
+    index: Arc<[K]>,
+}
+
+impl<K: Copy> Iterator for SortedIndexIntoIter<K> {
+    type Item = K;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let i = self.range.next()?;
+        self.index.get(i).copied()
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.range.size_hint()
+    }
+
+    fn count(self) -> usize
+    where
+        Self: Sized,
+    {
+        self.range.count()
+    }
+
+    fn nth(&mut self, n: usize) -> Option<Self::Item> {
+        let i = self.range.nth(n)?;
+        self.index.get(i).copied()
+    }
+}
+
+impl<K: Copy> DoubleEndedIterator for SortedIndexIntoIter<K> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        let i = self.range.next_back()?;
+        self.index.get(i).copied()
+    }
+
+    fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
+        let i = self.range.nth_back(n)?;
+        self.index.get(i).copied()
+    }
+}
+
+impl<K: Copy> ExactSizeIterator for SortedIndexIntoIter<K> {}
+
 #[derive(Clone, Iterator, DoubleEndedIterator, ExactSizeIterator, FusedIterator)]
 pub enum IndexIntoIter<K> {
     Full(StateIndexIter<Arc<StateIndex<K>>, K>),
     Partial(PartialIndexIntoIter<K>),
+    Sorted(SortedIndexIntoIter<K>),
 }
 
 impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> IntoIterator for Index<K> {
@@ -229,6 +416,10 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> IntoIterator
             Index::Partial(index) => IndexIntoIter::Partial(PartialIndexIntoIter {
                 range: 0..index.len(),
                 index,
+            }),
+            Index::Sorted { keys, .. } => IndexIntoIter::Sorted(SortedIndexIntoIter {
+                range: 0..keys.len(),
+                index: keys,
             }),
         }
     }
