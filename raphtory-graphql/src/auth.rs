@@ -401,7 +401,8 @@ fn roles_from_value(v: &serde_json::Value) -> Vec<String> {
     }
 }
 
-pub(crate) trait ContextValidation {
+pub trait ContextValidation {
+    fn is_read_only(&self) -> bool;
     fn require_jwt_write_access(&self) -> Result<(), AuthError>;
 }
 
@@ -434,28 +435,15 @@ pub(crate) trait ContextValidation {
 #[derive(Clone, Copy, Debug)]
 pub struct ReadOnly;
 
-/// Whether this context is marked [`ReadOnly`].
-pub(crate) fn is_read_only(ctx: &async_graphql::Context<'_>) -> bool {
+pub(crate) fn is_read_only(ctx: &Context<'_>) -> bool {
     ctx.data::<ReadOnly>().is_ok()
 }
 
-/// Check that the request carries a write-access JWT (`"access": "rw"`).
-/// For use in dynamic resolver ops that run under `query { ... }` and are
-/// therefore not covered by the `MutationAuth` extension.
-pub fn require_jwt_write_access_dynamic(
-    ctx: &async_graphql::dynamic::ResolverContext,
-) -> Result<(), async_graphql::Error> {
-    if ctx.data::<Access>().is_ok_and(|a| a == &Access::Rw) {
-        Ok(())
-    } else {
-        Err(gql_error_with_code(
-            "Access denied: write access required",
-            CODE_ACCESS_DENIED,
-        ))
+impl<'a> ContextValidation for Context<'a> {
+    /// Whether this context is marked [`ReadOnly`].
+    fn is_read_only(&self) -> bool {
+        self.data::<ReadOnly>().is_ok()
     }
-}
-
-impl<'a> ContextValidation for &Context<'a> {
     fn require_jwt_write_access(&self) -> Result<(), AuthError> {
         // A read-only context never writes, however much access its token carries.
         if self.data::<ReadOnly>().is_ok() {

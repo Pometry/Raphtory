@@ -10,7 +10,7 @@ pub use raphtory::db::graph::views::{PropertyRedactedGraph, PropertyRedaction};
 use raphtory::errors::GraphError;
 use std::sync::Arc;
 
-mod auth;
+pub mod auth;
 pub mod auth_policy;
 
 pub use auth::{KeyResolver, ReadOnly, StaticKeyResolver};
