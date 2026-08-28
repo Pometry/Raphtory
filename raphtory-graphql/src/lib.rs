@@ -1,19 +1,21 @@
 #![recursion_limit = "256"]
 
 pub use crate::{
-    auth::{require_jwt_write_access_dynamic, Access, Roles, RolesMissing, TokenClaimValues},
+    auth::{
+        Access, KeyResolver, ReadOnly, Roles, RolesMissing, StaticKeyResolver, TokenClaimValues,
+    },
     model::graph::{filtering::GraphAccessFilter, property::Value},
     server::GraphServer,
 };
+
 use crate::{data::InsertionError, paths::PathValidationError};
 pub use raphtory::db::graph::views::{PropertyRedactedGraph, PropertyRedaction};
 use raphtory::errors::GraphError;
 use std::sync::Arc;
 
-mod auth;
+pub mod auth;
 pub mod auth_policy;
 
-pub use auth::{KeyResolver, ReadOnly, StaticKeyResolver};
 pub mod cache;
 pub mod cli;
 pub mod client;
