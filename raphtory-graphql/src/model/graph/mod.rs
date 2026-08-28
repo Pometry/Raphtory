@@ -11,6 +11,7 @@ pub mod history;
 pub mod meta_graph;
 pub mod mutable_graph;
 pub mod namespace;
+pub mod namespace_filtering;
 pub mod namespaced_item;
 pub mod nested_edges;
 pub mod node;

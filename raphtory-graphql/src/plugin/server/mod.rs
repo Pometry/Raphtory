@@ -11,10 +11,7 @@ use crate::{
 };
 use indexmap::IndexMap;
 use once_cell::sync::Lazy;
-use std::{
-    iter::{IntoIterator, Iterator},
-    ops::Deref,
-};
+use std::iter::Iterator;
 use thiserror::Error;
 
 #[derive(Error, Debug, Clone)]
