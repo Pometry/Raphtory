@@ -234,9 +234,8 @@ impl<G: GraphView> FilterOps for G {
 
     fn trusted_node_list(&self) -> (NodeList, bool) {
         let list = self.node_list();
-        let dynamic = list.dynamically_trusted()
-            && !self.window_filtered()
-            && !self.is_layer_filtered();
+        let dynamic =
+            list.dynamically_trusted() && !self.window_filtered() && !self.is_layer_filtered();
         let trusted = (self.internal_node_list_trusted() || dynamic)
             && self.node_filter_includes_edge_filter()
             && self.node_filter_includes_edge_layer_filter()

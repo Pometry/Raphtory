@@ -43,7 +43,10 @@ pub enum Index<K> {
     /// claim that every key satisfies the producing filter (no per-node
     /// verification needed); it is decided together with the keys, so the
     /// pair can never be torn by concurrent updates.
-    Sorted { keys: Arc<[K]>, exact: bool },
+    Sorted {
+        keys: Arc<[K]>,
+        exact: bool,
+    },
 }
 
 /// Two-pointer intersection of ascending, deduplicated key slices.
@@ -256,13 +259,12 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
                 keys: keys.clone(),
                 exact: *exact,
             },
-            (
-                Self::Sorted { keys: a, exact: ea },
-                Self::Sorted { keys: b, exact: eb },
-            ) => Self::Sorted {
-                keys: sorted_intersect(a, b).into(),
-                exact: *ea && *eb,
-            },
+            (Self::Sorted { keys: a, exact: ea }, Self::Sorted { keys: b, exact: eb }) => {
+                Self::Sorted {
+                    keys: sorted_intersect(a, b).into(),
+                    exact: *ea && *eb,
+                }
+            }
             // a hash-set side carries no exactness claim
             (Self::Sorted { keys: a, .. }, Self::Partial(b)) => Self::Sorted {
                 keys: a
@@ -291,13 +293,12 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
             }
             (Self::Full(left), Self::Full(right)) => Self::Full(Arc::new(left.union(right))),
             (Self::Partial(left), Self::Partial(right)) => left.union(right).copied().collect(),
-            (
-                Self::Sorted { keys: a, exact: ea },
-                Self::Sorted { keys: b, exact: eb },
-            ) => Self::Sorted {
-                keys: sorted_union(a, b).into(),
-                exact: *ea && *eb,
-            },
+            (Self::Sorted { keys: a, exact: ea }, Self::Sorted { keys: b, exact: eb }) => {
+                Self::Sorted {
+                    keys: sorted_union(a, b).into(),
+                    exact: *ea && *eb,
+                }
+            }
             // mixed orders have no common canonical form: collect to Partial
             (Self::Sorted { keys: a, .. }, Self::Partial(b)) => {
                 a.iter().copied().chain(b.iter().copied()).collect()

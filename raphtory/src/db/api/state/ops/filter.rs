@@ -228,7 +228,6 @@ impl<G> NodePropertyFilterOp<G> {
         }
     }
 
-
     /// The storage-level predicate for index pushdown, when the filter shape
     /// allows it: no value-transforming ops and a positive operator. The
     /// candidates the storage returns are supersets, so `apply` still runs on
@@ -255,7 +254,6 @@ impl<G> NodePropertyFilterOp<G> {
             _ => None,
         }
     }
-
 }
 
 impl<G: GraphView> NodePropertyFilterOp<G> {
@@ -267,8 +265,8 @@ impl<G: GraphView> NodePropertyFilterOp<G> {
     /// off. `temporal().any()` is served by Ever directly; aggregating
     /// chains are not served.
     fn pushdown_semantics(&self) -> Option<(NodePropSemantics, bool)> {
-        use crate::db::graph::views::filter::model::property_filter::Op;
         use crate::db::api::view::internal::InnerFilterOps;
+        use crate::db::graph::views::filter::model::property_filter::Op;
         let plain_view = !self.graph.window_filtered() && !self.graph.is_layer_filtered();
         match (&self.filter.prop_ref, self.filter.ops.as_slice()) {
             (PropertyRef::Property(_) | PropertyRef::Metadata(_), [])
