@@ -29,6 +29,7 @@ use rayon::prelude::*;
 pub(crate) fn get_nodes_par_iter<'a, G: GraphView>(
     g: &'a G,
     node_list: &'a List<VID>,
+    list_trusted: bool,
     nodes_locked: &'a NodesStorageEntry,
 ) -> impl ParallelIterator<Item = (usize, impl Iterator<Item = NodeView<'a, &'a G>> + 'a)> {
     let filtered = g.filtered();
@@ -58,7 +59,6 @@ pub(crate) fn get_nodes_par_iter<'a, G: GraphView>(
             elems: Index::Partial(index),
         } => {
             let chunk_size = (index.len() / rayon::current_num_threads().max(1)).max(1);
-            let list_trusted = g.node_list_trusted();
             let iter = index
                 .par_iter()
                 .chunks(chunk_size)
@@ -66,17 +66,40 @@ pub(crate) fn get_nodes_par_iter<'a, G: GraphView>(
                 .map(move |(c_id, chunk)| {
                     (
                         c_id,
-                        Either::Right(chunk.into_iter().filter_map(move |vid| {
+                        Either::Right(Either::Left(chunk.into_iter().filter_map(move |vid| {
                             let node = g.core_node(*vid);
                             if list_trusted || g.filter_node(node.as_ref()) {
                                 Some(NodeView::new_internal(g, *vid))
                             } else {
                                 None
                             }
-                        })),
+                        }))),
                     )
                 });
-            Either::Right(iter)
+            Either::Right(Either::Left(iter))
+        }
+        List::List {
+            elems: Index::Sorted { keys: index, .. },
+        } => {
+            let chunk_size = (index.len() / rayon::current_num_threads().max(1)).max(1);
+            let iter = index
+                .par_iter()
+                .chunks(chunk_size)
+                .enumerate()
+                .map(move |(c_id, chunk)| {
+                    (
+                        c_id,
+                        Either::Right(Either::Right(chunk.into_iter().filter_map(move |vid| {
+                            let node = g.core_node(*vid);
+                            if list_trusted || g.filter_node(node.as_ref()) {
+                                Some(NodeView::new_internal(g, *vid))
+                            } else {
+                                None
+                            }
+                        }))),
+                    )
+                });
+            Either::Right(Either::Right(iter))
         }
     }
 }
@@ -87,11 +110,11 @@ pub(crate) fn encode_nodes_tprop<G: GraphView, S: RecordBatchSink>(
 ) -> Result<(), GraphError> {
     let graph_locked = g.core_graph().lock();
     let nodes_locked = graph_locked.nodes();
-    let node_list = g.node_list();
+    let (node_list, list_trusted) = g.trusted_node_list();
     run_encode_indexed(
         g,
         g.node_meta().temporal_prop_mapper(),
-        get_nodes_par_iter(g, &node_list, &nodes_locked),
+        get_nodes_par_iter(g, &node_list, list_trusted, &nodes_locked),
         sink_factory_fn,
         |id_type| {
             vec![
@@ -147,11 +170,11 @@ pub(crate) fn encode_nodes_cprop<G: GraphView, S: RecordBatchSink>(
 ) -> Result<(), GraphError> {
     let graph_locked = g.core_graph().lock();
     let nodes_locked = graph_locked.nodes();
-    let node_list = g.node_list();
+    let (node_list, list_trusted) = g.trusted_node_list();
     run_encode_indexed(
         g,
         g.node_meta().metadata_mapper(),
-        get_nodes_par_iter(g, &node_list, &nodes_locked),
+        get_nodes_par_iter(g, &node_list, list_trusted, &nodes_locked),
         sink_factory_fn,
         |id_type| {
             vec![

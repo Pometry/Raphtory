@@ -1,5 +1,9 @@
 use crate::{
-    api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
+    api::{
+        edges::EdgeSegmentOps,
+        graph_props::GraphPropSegmentOps,
+        nodes::{GlobalPropCandidates, NodeSegmentOps, PropPredicate, PropSemantics},
+    },
     error::StorageError,
     persist::{
         config::{BaseConfig, ConfigOps},
@@ -80,6 +84,42 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
     /// Called by bulk loaders to decide if a global flush should be triggered
     fn should_flush(&self) -> bool;
     fn should_pause(&self) -> bool;
+
+    /// Resolve a node property predicate to a global candidate superset using
+    /// secondary indexes, if this strategy maintains them. `metadata` selects
+    /// the metadata prop-id space over the temporal one; `max_segment_len` is
+    /// the VID stride. `None` means the predicate cannot be served and the
+    /// caller should scan as usual. Candidates may include non-matching nodes
+    /// — callers must verify every candidate.
+    fn node_prop_candidates<'a>(
+        &self,
+        _segments: impl Iterator<Item = &'a Self::NS>,
+        _max_segment_len: u32,
+        _prop_id: usize,
+        _metadata: bool,
+        _predicate: &PropPredicate,
+        _semantics: PropSemantics,
+    ) -> Option<GlobalPropCandidates>
+    where
+        Self: Sized,
+        Self::NS: 'a,
+    {
+        None
+    }
+
+    /// Build or compact any missing secondary property indexes. A no-op for
+    /// strategies without index support.
+    fn build_node_prop_index<'a>(
+        &self,
+        _segments: impl Iterator<Item = &'a Self::NS> + Send,
+        _max_segment_len: u32,
+    ) -> Result<(), StorageError>
+    where
+        Self: Sized,
+        Self::NS: 'a,
+    {
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone)]

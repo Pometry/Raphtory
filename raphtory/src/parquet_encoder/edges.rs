@@ -53,7 +53,7 @@ fn get_edges_par_iter<'a, G: GraphView>(
             }))
     } else {
         Either::Right(
-            get_nodes_par_iter(g, node_list, nodes_locked).map(|(chunk, nodes)| {
+            get_nodes_par_iter(g, node_list, g.node_list_trusted(), nodes_locked).map(|(chunk, nodes)| {
                 (
                     chunk,
                     Either::Right(nodes.flat_map(move |node| node.out_edges())),

@@ -18,10 +18,19 @@ use raphtory_api::core::entities::{
 use raphtory_core::entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef};
 use std::{fmt::Debug, iter, path::Path, sync::Arc};
 use storage::{
-    error::StorageError, pages::SegmentCounts, persist::strategy::PersistenceStrategy,
-    state::StateIndex, Extension, GIDResolver, GraphPropEntry,
+    api::nodes::{GlobalPropCandidates, PropPredicate, PropSemantics},
+    error::StorageError,
+    pages::SegmentCounts,
+    persist::strategy::PersistenceStrategy,
+    state::StateIndex,
+    Extension, GIDResolver, GraphPropEntry,
 };
 use thiserror::Error;
+
+pub use storage::api::nodes::{
+    GlobalPropCandidates as NodeGlobalPropCandidates, PropPredicate as NodePropPredicate,
+    PropSemantics as NodePropSemantics,
+};
 
 #[derive(Clone, Debug)]
 pub enum GraphStorage {
@@ -156,6 +165,47 @@ impl GraphStorage {
             GraphStorage::Mem(storage) => storage.graph.storage().edges().num_segments(),
             GraphStorage::Unlocked(storage) => storage.storage().edges().num_segments(),
         }
+    }
+
+    fn temporal_graph(&self) -> &TemporalGraph {
+        match self {
+            GraphStorage::Mem(storage) => &storage.graph,
+            GraphStorage::Unlocked(storage) => storage,
+        }
+    }
+
+    /// Resolve a node property predicate to a candidate VID superset using the
+    /// storage backend's secondary indexes, if it has them for this property.
+    /// `metadata` selects the metadata prop-id space over the temporal one.
+    /// `None` means the predicate cannot be served and callers should scan.
+    /// Candidates may include non-matching nodes — callers must still verify.
+    pub fn node_prop_candidates(
+        &self,
+        prop_id: usize,
+        metadata: bool,
+        predicate: &PropPredicate,
+        semantics: PropSemantics,
+    ) -> Option<GlobalPropCandidates> {
+        let storage = self.temporal_graph().storage();
+        let nodes = storage.nodes();
+        storage.extension().node_prop_candidates(
+            nodes.segments_iter(),
+            nodes.max_segment_len(),
+            prop_id,
+            metadata,
+            predicate,
+            semantics,
+        )
+    }
+
+    /// Ask the storage backend to build or compact any missing secondary
+    /// property indexes. A no-op for backends without index support.
+    pub fn build_node_prop_index(&self) -> Result<(), StorageError> {
+        let storage = self.temporal_graph().storage();
+        let nodes = storage.nodes();
+        storage
+            .extension()
+            .build_node_prop_index(nodes.segments_iter(), nodes.max_segment_len())
     }
 
     #[inline(always)]

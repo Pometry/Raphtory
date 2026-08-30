@@ -41,6 +41,44 @@ use raphtory_api::core::entities::{LayerId, properties::meta::STATIC_GRAPH_LAYER
 use raphtory_itertools::FastMergeExt;
 use rayon::prelude::*;
 
+/// A property predicate a storage backend may resolve to candidate rows via a
+/// secondary index. String operators use the semantics of the corresponding
+/// `str` methods; comparisons use the property value's natural order.
+#[derive(Debug, Clone, Copy)]
+pub enum PropPredicate<'a> {
+    Eq(&'a Prop),
+    In(&'a std::collections::HashSet<Prop>),
+    Lt(&'a Prop),
+    Le(&'a Prop),
+    Gt(&'a Prop),
+    Ge(&'a Prop),
+    StartsWith(&'a str),
+    EndsWith(&'a str),
+    Contains(&'a str),
+}
+
+/// Which value(s) of a property a [`PropPredicate`] is asked about. A
+/// historical index can answer `Ever` exactly; `Latest` answers are supersets
+/// unless the backend tracks latest values separately.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PropSemantics {
+    /// The property's latest value must match.
+    Latest,
+    /// Any value the property ever held may match.
+    Ever,
+}
+
+/// Global candidate node ids for a [`PropPredicate`].
+///
+/// `vids` must be a superset of the matching nodes (no false negatives) over
+/// the graph's whole history; when `exact` is false the caller must still
+/// verify each candidate against the actual predicate semantics.
+#[derive(Debug, Clone, Default)]
+pub struct GlobalPropCandidates {
+    pub vids: Vec<VID>,
+    pub exact: bool,
+}
+
 pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
     type Extension;
 
