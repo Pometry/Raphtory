@@ -327,17 +327,8 @@ where
     }
 
     pub fn is_list_filtered(&self) -> bool {
-        // `self.nodes` is an immutable snapshot, so its exactness flag was
-        // frozen together with the keys; the remaining gates are static
-        // properties of the view, making this race-free
-        use crate::db::api::view::internal::InnerFilterOps;
-        let dynamic = self.nodes.dynamically_exact()
-            && !self.graph.window_filtered()
-            && !self.graph.is_layer_filtered()
-            && self.graph.node_filter_includes_edge_filter()
-            && self.graph.node_filter_includes_edge_layer_filter()
-            && self.graph.node_filter_includes_exploded_edge_filter();
-        !(self.graph.node_list_trusted() || dynamic) || self.predicate.is_domain_filtered()
+        !self.graph.list_trusted(self.nodes.dynamically_exact())
+            || self.predicate.is_domain_filtered()
     }
 
     pub fn is_filtered(&self) -> bool {

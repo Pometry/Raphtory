@@ -107,8 +107,8 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
         None
     }
 
-    /// Build or compact any missing secondary property indexes. A no-op for
-    /// strategies without index support.
+    /// Build any missing secondary property indexes. A no-op for strategies
+    /// without index support.
     fn build_node_prop_index<'a>(
         &self,
         _segments: impl Iterator<Item = &'a Self::NS> + Send,

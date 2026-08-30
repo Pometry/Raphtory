@@ -298,9 +298,7 @@ impl<G: GraphView> NodeOp for NodePropertyFilterOp<G> {
 
     fn domain(&self, storage: &GraphStorage) -> NodeList {
         if let Some(candidates) = self.index_candidates(storage) {
-            // candidates arrive ascending and deduplicated from the index;
-            // exactness rides with them and is gated on view shape at the
-            // consumption sites (FilterOps::trusted_node_list)
+            // index candidates are ascending and deduplicated, as `from_sorted` requires
             let list = NodeList::List {
                 elems: Index::from_sorted(candidates.vids, candidates.exact),
             };

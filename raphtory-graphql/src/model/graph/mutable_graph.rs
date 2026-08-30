@@ -571,10 +571,9 @@ impl GqlMutableGraph {
     }
 
     /// Build secondary indexes over node property values to speed up property
-    /// filters (equality, comparisons and string matching). Flushes in-memory
-    /// data first, then builds indexes for storage segments that lack them.
-    /// A no-op for storage backends without index support; filters return the
-    /// same results either way, the index only changes how fast they run.
+    /// filters (equality, comparisons and string matching). A no-op for
+    /// storage backends without index support; filters return the same
+    /// results either way, the index only changes how fast they run.
     pub async fn build_property_index(&self) -> Result<bool, GraphError> {
         let graph = self.graph.graph().clone();
         blocking_write(move || {

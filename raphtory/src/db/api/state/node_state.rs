@@ -21,6 +21,7 @@ use crate::{
 };
 use indexmap::IndexSet;
 use iter_enum::{DoubleEndedIterator, ExactSizeIterator, FusedIterator, Iterator};
+use itertools::Itertools;
 use raphtory_api::core::storage::timeindex::EventTime;
 use rayon::{iter::Either, prelude::*};
 use std::{
@@ -37,12 +38,10 @@ use storage::state::{StateIndex, StateIndexIter};
 pub enum Index<K> {
     Full(Arc<StateIndex<K>>),
     Partial(Arc<IndexSet<K, ahash::RandomState>>),
-    /// Keys in ascending `usize`-key order, deduplicated. Positions are ranks
-    /// in that order (membership by binary search, no hashing) — the shape
-    /// index-pushdown candidate lists arrive in. `exact` is the pushdown's
-    /// claim that every key satisfies the producing filter (no per-node
-    /// verification needed); it is decided together with the keys, so the
-    /// pair can never be torn by concurrent updates.
+    /// Keys in ascending `usize`-key order, deduplicated; positions are ranks
+    /// in that order (membership by binary search, no hashing). `exact` means
+    /// every key is known to satisfy the filter that produced this index, so
+    /// consumers may skip per-key verification.
     Sorted {
         keys: Arc<[K]>,
         exact: bool,
@@ -65,33 +64,6 @@ fn sorted_intersect<K: Copy + Into<usize>>(a: &[K], b: &[K]) -> Vec<K> {
             }
         }
     }
-    out
-}
-
-/// Two-pointer union of ascending, deduplicated key slices.
-fn sorted_union<K: Copy + Into<usize>>(a: &[K], b: &[K]) -> Vec<K> {
-    let mut out = Vec::with_capacity(a.len().max(b.len()));
-    let (mut i, mut j) = (0, 0);
-    while i < a.len() && j < b.len() {
-        let (ka, kb): (usize, usize) = (a[i].into(), b[j].into());
-        match ka.cmp(&kb) {
-            std::cmp::Ordering::Less => {
-                out.push(a[i]);
-                i += 1;
-            }
-            std::cmp::Ordering::Greater => {
-                out.push(b[j]);
-                j += 1;
-            }
-            std::cmp::Ordering::Equal => {
-                out.push(a[i]);
-                i += 1;
-                j += 1;
-            }
-        }
-    }
-    out.extend_from_slice(&a[i..]);
-    out.extend_from_slice(&b[j..]);
     out
 }
 
@@ -295,7 +267,15 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
             (Self::Partial(left), Self::Partial(right)) => left.union(right).copied().collect(),
             (Self::Sorted { keys: a, exact: ea }, Self::Sorted { keys: b, exact: eb }) => {
                 Self::Sorted {
-                    keys: sorted_union(a, b).into(),
+                    keys: a
+                        .iter()
+                        .copied()
+                        .merge_by(b.iter().copied(), |x, y| {
+                            Into::<usize>::into(*x) <= Into::<usize>::into(*y)
+                        })
+                        .dedup_by(|x, y| Into::<usize>::into(*x) == Into::<usize>::into(*y))
+                        .collect::<Vec<_>>()
+                        .into(),
                     exact: *ea && *eb,
                 }
             }

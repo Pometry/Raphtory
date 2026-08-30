@@ -198,8 +198,8 @@ impl GraphStorage {
         )
     }
 
-    /// Ask the storage backend to build or compact any missing secondary
-    /// property indexes. A no-op for backends without index support.
+    /// Ask the storage backend to build any missing secondary property
+    /// indexes. A no-op for backends without index support.
     pub fn build_node_prop_index(&self) -> Result<(), StorageError> {
         let storage = self.temporal_graph().storage();
         let nodes = storage.nodes();

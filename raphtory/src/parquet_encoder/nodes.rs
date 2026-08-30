@@ -55,51 +55,30 @@ pub(crate) fn get_nodes_par_iter<'a, G: GraphView>(
                     )
                 }),
         ),
-        List::List {
-            elems: Index::Partial(index),
-        } => {
-            let chunk_size = (index.len() / rayon::current_num_threads().max(1)).max(1);
-            let iter = index
-                .par_iter()
+        List::List { elems } => {
+            let chunk_size = (elems.len() / rayon::current_num_threads().max(1)).max(1);
+            let keys = match elems {
+                Index::Partial(index) => Either::Left(index.par_iter()),
+                Index::Sorted { keys, .. } => Either::Right(keys.par_iter()),
+                Index::Full(_) => unreachable!("matched by the first arm"),
+            };
+            let iter = keys
                 .chunks(chunk_size)
                 .enumerate()
                 .map(move |(c_id, chunk)| {
                     (
                         c_id,
-                        Either::Right(Either::Left(chunk.into_iter().filter_map(move |vid| {
+                        Either::Right(chunk.into_iter().filter_map(move |vid| {
                             let node = g.core_node(*vid);
                             if list_trusted || g.filter_node(node.as_ref()) {
                                 Some(NodeView::new_internal(g, *vid))
                             } else {
                                 None
                             }
-                        }))),
+                        })),
                     )
                 });
-            Either::Right(Either::Left(iter))
-        }
-        List::List {
-            elems: Index::Sorted { keys: index, .. },
-        } => {
-            let chunk_size = (index.len() / rayon::current_num_threads().max(1)).max(1);
-            let iter = index
-                .par_iter()
-                .chunks(chunk_size)
-                .enumerate()
-                .map(move |(c_id, chunk)| {
-                    (
-                        c_id,
-                        Either::Right(Either::Right(chunk.into_iter().filter_map(move |vid| {
-                            let node = g.core_node(*vid);
-                            if list_trusted || g.filter_node(node.as_ref()) {
-                                Some(NodeView::new_internal(g, *vid))
-                            } else {
-                                None
-                            }
-                        }))),
-                    )
-                });
-            Either::Right(Either::Right(iter))
+            Either::Right(iter)
         }
     }
 }

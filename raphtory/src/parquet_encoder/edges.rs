@@ -25,6 +25,7 @@ fn get_edges_par_iter<'a, G: GraphView>(
     edges_locked: &'a EdgesStorageRef,
     nodes_locked: &'a NodesStorageEntry,
     node_list: &'a List<VID>,
+    node_list_trusted: bool,
     layer_filter: &'a LayerIds,
 ) -> impl ParallelIterator<Item = (usize, impl Iterator<Item = EdgeView<&'a G>> + 'a)> {
     let filtered = g.filtered();
@@ -53,7 +54,7 @@ fn get_edges_par_iter<'a, G: GraphView>(
             }))
     } else {
         Either::Right(
-            get_nodes_par_iter(g, node_list, g.node_list_trusted(), nodes_locked).map(
+            get_nodes_par_iter(g, node_list, node_list_trusted, nodes_locked).map(
                 |(chunk, nodes)| {
                     (
                         chunk,
@@ -81,14 +82,21 @@ pub(crate) fn encode_edge_tprop<G: GraphView, S: RecordBatchSink>(
     let graph_locked = g.core_graph().lock();
     let edges_locked = graph_locked.edges();
     let nodes_locked = graph_locked.nodes();
-    let node_list = g.node_list();
+    let (node_list, node_list_trusted) = g.trusted_node_list();
     // if we go layer by layer, we save a lot of disk space for graphs saved on disk
     for layer_id in active_layers(g) {
         let layer_filter = LayerIds::One(layer_id);
         run_encode_indexed(
             g,
             g.edge_meta().temporal_prop_mapper(),
-            get_edges_par_iter(g, &edges_locked, &nodes_locked, &node_list, &layer_filter),
+            get_edges_par_iter(
+                g,
+                &edges_locked,
+                &nodes_locked,
+                &node_list,
+                node_list_trusted,
+                &layer_filter,
+            ),
             &sink_factory_fn,
             |id_type| {
                 vec![
@@ -143,13 +151,20 @@ pub(crate) fn encode_edge_deletions<G: GraphView, S: RecordBatchSink>(
     let graph_locked = g.core_graph().lock();
     let edges_locked = graph_locked.edges();
     let nodes_locked = graph_locked.nodes();
-    let node_list = g.node_list();
+    let (node_list, node_list_trusted) = g.trusted_node_list();
     for layer_id in active_layers(g) {
         let layer_filter = LayerIds::One(layer_id);
         run_encode_indexed(
             g,
             g.edge_meta().temporal_prop_mapper(),
-            get_edges_par_iter(g, &edges_locked, &nodes_locked, &node_list, &layer_filter),
+            get_edges_par_iter(
+                g,
+                &edges_locked,
+                &nodes_locked,
+                &node_list,
+                node_list_trusted,
+                &layer_filter,
+            ),
             &sink_factory_fn,
             |id_type| {
                 vec![
@@ -207,13 +222,20 @@ pub(crate) fn encode_edge_cprop<G: GraphView, S: RecordBatchSink>(
     let graph_locked = g.core_graph().lock();
     let edges_locked = graph_locked.edges();
     let nodes_locked = graph_locked.nodes();
-    let node_list = g.node_list();
+    let (node_list, node_list_trusted) = g.trusted_node_list();
     for layer_id in active_layers(g) {
         let layer_filter = LayerIds::One(layer_id);
         run_encode_indexed(
             g,
             g.edge_meta().metadata_mapper(),
-            get_edges_par_iter(g, &edges_locked, &nodes_locked, &node_list, &layer_filter),
+            get_edges_par_iter(
+                g,
+                &edges_locked,
+                &nodes_locked,
+                &node_list,
+                node_list_trusted,
+                &layer_filter,
+            ),
             &sink_factory_fn,
             |id_type| {
                 vec![

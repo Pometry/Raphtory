@@ -814,10 +814,10 @@ class Graph(GraphView):
         Build secondary indexes over node property values to speed up
         property filters (equality, comparisons and string matching).
 
-        Flushes any in-memory data first, then builds and persists indexes for
-        storage segments that do not have them yet. Backends without index
-        support treat this as a no-op. Filters work the same either way; the
-        index only changes how fast they run.
+        Asks the storage backend to build any property value indexes it does
+        not already have. Backends without index support treat this as a
+        no-op. Filters return the same results either way; an index only
+        changes how fast they run.
 
         Returns:
             None: This function does not return a value, if the operation is successful.
@@ -1493,10 +1493,10 @@ class PersistentGraph(GraphView):
         Build secondary indexes over node property values to speed up
         property filters (equality, comparisons and string matching).
 
-        Flushes any in-memory data first, then builds and persists indexes for
-        storage segments that do not have them yet. Backends without index
-        support treat this as a no-op. Filters work the same either way; the
-        index only changes how fast they run.
+        Asks the storage backend to build any property value indexes it does
+        not already have. Backends without index support treat this as a
+        no-op. Filters return the same results either way; an index only
+        changes how fast they run.
 
         Returns:
             None: This function does not return a value, if the operation is successful.
