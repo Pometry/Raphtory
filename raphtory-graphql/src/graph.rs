@@ -60,7 +60,7 @@ pub struct GraphWithVectorsInner {
     pub folder: UnlockedGraphFolder,
     pub is_dirty: AtomicBool,
     pub is_flushing: AtomicBool,
-    /// Cache of computed edge schemas for the unfiltered base view of this graph.
+    /// Cache of computed node/edge schemas for the unfiltered base view of this graph.
     /// Cleared on every mutation.
     pub(crate) schema_cache: Arc<SchemaCache>,
 }

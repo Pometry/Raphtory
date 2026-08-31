@@ -166,17 +166,14 @@ pub struct SegmentContainer<T> {
     meta: Arc<Meta>,
     out_count: usize, // used to count num edges
     inb_count: usize, // used to count num edges
-    /// Thread-local cache of which temporal prop ids this container has already marked in `Meta`'s
-    /// per-layer property presence bitset, indexed by prop id. Keeps the ingestion hot path lock-free.
+    /// Record of which prop ids have already been marked by this container, indexed by prop id, 
+    /// so Meta's (global) lock is touched once per prop instead of once per append.
     t_props_seen: Vec<bool>,
     /// As [`Self::t_props_seen`], for metadata (const) props.
     c_props_seen: Vec<bool>,
 }
 
 /// Records `prop_id` in `seen`, returning `true` only the first time it is seen.
-///
-/// A free fn rather than a method so callers can pass one destructured field
-/// while the container's other fields stay independently borrowed.
 #[inline]
 fn first_sight(seen: &mut Vec<bool>, prop_id: usize) -> bool {
     if seen.len() <= prop_id {
@@ -349,7 +346,7 @@ impl<T: HasRow> SegmentContainer<T> {
         let mapper = meta.temporal_prop_mapper();
         let props = props.into_iter().inspect(|(prop_id, _)| {
             // Only mark props the first time they're seen in this container. Greatly speeds up the
-            // hot path by avoiding acquiring many read_recursive locks which starve the writers (bit flips).
+            // hot path by avoiding acquiring many read_recursive locks which can starve the writers from marking.
             if first_sight(t_props_seen, *prop_id) {
                 mapper.mark_prop_in_layer(layer_id, *prop_id);
             }
