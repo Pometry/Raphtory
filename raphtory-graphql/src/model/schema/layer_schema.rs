@@ -1,13 +1,13 @@
 use crate::{
     model::schema::{
-        cache::SchemaCache, property_schema::PropertySchema, ENUM_BOUNDARY,
+        cache::SchemaCache, collect_variants, property_schema::PropertySchema, MAX_EDGE_VARIANTS,
         MAX_DETAILED_SCHEMA_ENTITIES,
     },
     rayon::blocking_compute,
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{db::api::view::StaticGraphViewOps, prelude::*};
-use raphtory_api::core::entities::{properties::meta::PropMapper, LayerId, LayerIds};
+use raphtory_api::core::entities::{LayerId, LayerIds};
 use std::sync::Arc;
 
 /// Describes a single edge layer: its name and the edge property/metadata keys
@@ -54,7 +54,12 @@ impl<G: StaticGraphViewOps> LayerSchema<G> {
             let layer = graph.get_layer_name(layer_id);
             let layered = graph.valid_layers(layer);
             let mapper = graph.edge_meta().temporal_prop_mapper();
-            collect_variants(layered.edges().into_iter().map(|e| e.properties()), mapper)
+            collect_variants(
+                layered.edges().into_iter().map(|e| e.properties()),
+                mapper,
+                MAX_EDGE_VARIANTS,
+                |_| true,
+            )
         })
         .await;
         if let Some(cache) = &self.cache {
@@ -81,7 +86,12 @@ impl<G: StaticGraphViewOps> LayerSchema<G> {
             let layer = graph.get_layer_name(layer_id);
             let layered = graph.valid_layers(layer);
             let mapper = graph.edge_meta().metadata_mapper();
-            collect_variants(layered.edges().into_iter().map(|e| e.metadata()), mapper)
+            collect_variants(
+                layered.edges().into_iter().map(|e| e.metadata()),
+                mapper,
+                MAX_EDGE_VARIANTS,
+                |_| true,
+            )
         })
         .await;
         if let Some(cache) = &self.cache {
@@ -115,49 +125,5 @@ pub fn collect_layer_schema<G: StaticGraphViewOps>(
             }
         })
         .map(|(_, name, dtype)| PropertySchema::new(name.to_string(), dtype.clone(), vec![]))
-        .collect()
-}
-
-/// Collect the distinct values seen against each property id. Once a property
-/// exceeds `ENUM_BOUNDARY` values we drop its set and report no variants for it.
-pub fn collect_variants<P: PropertiesOps>(
-    props_per_edge: impl Iterator<Item = P>,
-    mapper: &PropMapper,
-) -> Vec<PropertySchema> {
-    // Vec is indexed by prop id; variants[0] returns the HashSet of variants for prop id 0
-    // `None` = never seen, `Some(empty)` = seen but past ENUM_BOUNDARY
-    let mut variants: Vec<Option<ahash::HashSet<String>>> = Vec::new();
-    for props in props_per_edge {
-        for id in props.ids() {
-            let Some(value) = props.get_by_id(id) else {
-                continue;
-            };
-            if variants.len() <= id {
-                variants.resize_with(id + 1, || None);
-            }
-            match &mut variants[id] {
-                slot @ None => *slot = Some(ahash::HashSet::from_iter([value.to_string()])),
-                Some(seen) if !seen.is_empty() => {
-                    seen.insert(value.to_string());
-                    if seen.len() > ENUM_BOUNDARY {
-                        seen.clear();
-                    }
-                }
-                // already past the boundary, nothing left to record
-                Some(_) => {}
-            }
-        }
-    }
-
-    // one read lock for every name and dtype, and prop id order for the output
-    let locked = mapper.locked();
-    locked
-        .iter_ids_and_types()
-        .filter_map(|(id, name, dtype)| {
-            let seen = variants.get_mut(id).and_then(Option::take)?;
-            let mut seen = Vec::from_iter(seen);
-            seen.sort_unstable();
-            Some(PropertySchema::new(name.to_string(), dtype.clone(), seen))
-        })
         .collect()
 }

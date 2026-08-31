@@ -1,6 +1,7 @@
 use crate::model::schema::property_schema::PropertySchema;
+use parking_lot::RwLock;
 use raphtory_api::core::entities::LayerId;
-use std::{collections::HashMap, sync::RwLock};
+use std::collections::HashMap;
 
 /// Root per-graph schema cache. Lives on the in-memory `GraphWithVectors` and is
 /// shared with the base `GqlGraph` view.
@@ -39,24 +40,24 @@ pub(crate) struct NodeSchemaCache {
 
 impl NodeSchemaCache {
     pub(crate) fn get_properties(&self, type_id: usize) -> Option<Vec<PropertySchema>> {
-        self.properties.read().unwrap().get(&type_id).cloned()
+        self.properties.read().get(&type_id).cloned()
     }
 
     pub(crate) fn store_properties(&self, type_id: usize, value: Vec<PropertySchema>) {
-        self.properties.write().unwrap().insert(type_id, value);
+        self.properties.write().insert(type_id, value);
     }
 
     pub(crate) fn get_metadata(&self, type_id: usize) -> Option<Vec<PropertySchema>> {
-        self.metadata.read().unwrap().get(&type_id).cloned()
+        self.metadata.read().get(&type_id).cloned()
     }
 
     pub(crate) fn store_metadata(&self, type_id: usize, value: Vec<PropertySchema>) {
-        self.metadata.write().unwrap().insert(type_id, value);
+        self.metadata.write().insert(type_id, value);
     }
 
     fn invalidate(&self) {
-        self.properties.write().unwrap().clear();
-        self.metadata.write().unwrap().clear();
+        self.properties.write().clear();
+        self.metadata.write().clear();
     }
 }
 
@@ -71,23 +72,23 @@ pub(crate) struct LayerSchemaCache {
 
 impl LayerSchemaCache {
     pub(crate) fn get_properties(&self, key: &LayerId) -> Option<Vec<PropertySchema>> {
-        self.properties.read().unwrap().get(key).cloned()
+        self.properties.read().get(key).cloned()
     }
 
     pub(crate) fn store_properties(&self, key: LayerId, value: Vec<PropertySchema>) {
-        self.properties.write().unwrap().insert(key, value);
+        self.properties.write().insert(key, value);
     }
 
     pub(crate) fn get_metadata(&self, key: &LayerId) -> Option<Vec<PropertySchema>> {
-        self.metadata.read().unwrap().get(key).cloned()
+        self.metadata.read().get(key).cloned()
     }
 
     pub(crate) fn store_metadata(&self, key: LayerId, value: Vec<PropertySchema>) {
-        self.metadata.write().unwrap().insert(key, value);
+        self.metadata.write().insert(key, value);
     }
 
     fn invalidate(&self) {
-        self.properties.write().unwrap().clear();
-        self.metadata.write().unwrap().clear();
+        self.properties.write().clear();
+        self.metadata.write().clear();
     }
 }

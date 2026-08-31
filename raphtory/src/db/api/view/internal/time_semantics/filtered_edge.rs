@@ -441,10 +441,7 @@ impl<'a> FilteredEdgeStorageOps<'a> for EdgeEntryRef<'a> {
         let layer_ids = view.layer_ids();
         let mut values = self
             .metadata_iter(layer_ids, prop_id)
-            // skip layers we know don't have any edge with the property
-            .filter(|(layer, _)| {
-                view.edge_layer_has_metadata(*layer, prop_id) && layer_filter(*layer)
-            });
+            .filter(|(layer, _)| layer_filter(*layer));
         if view.num_layers() > 1 {
             let mut values = values.peekable();
             if values.peek().is_some() {
