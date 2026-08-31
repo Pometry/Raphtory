@@ -38,6 +38,9 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           cache-all-crates: true
+      - name: Clean old criterion folder
+        run: |
+          rm -r "target/criterion"
       - name: Run benchmark (Unix)
         run: |
           set -o pipefail
@@ -70,6 +73,6 @@ jobs:
           summary-always: true
           fail-on-alert: false
           save-data-file: false
-# TODO
-# ON PR DO NOT UPLOAD
-# IF MASTER THEN UPLOAD
+      - name: Clean criterion folder before caching
+        run: |
+          rm -r "target/criterion"
