@@ -166,7 +166,7 @@ pub struct SegmentContainer<T> {
     meta: Arc<Meta>,
     out_count: usize, // used to count num edges
     inb_count: usize, // used to count num edges
-    /// Record of which prop ids have already been marked by this container, indexed by prop id, 
+    /// Record of which prop ids have already been marked by this container, indexed by prop id,
     /// so Meta's (global) lock is touched once per prop instead of once per append.
     t_props_seen: Vec<bool>,
     /// As [`Self::t_props_seen`], for metadata (const) props.

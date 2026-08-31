@@ -1,7 +1,7 @@
 use crate::{
     model::schema::{
-        cache::SchemaCache, collect_variants, property_schema::PropertySchema, MAX_EDGE_VARIANTS,
-        MAX_DETAILED_SCHEMA_ENTITIES,
+        cache::SchemaCache, collect_variants, property_schema::PropertySchema,
+        MAX_DETAILED_SCHEMA_ENTITIES, MAX_EDGE_VARIANTS,
     },
     rayon::blocking_compute,
 };
