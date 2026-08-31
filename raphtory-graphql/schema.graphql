@@ -3422,6 +3422,129 @@ type MetaGraph {
 }
 
 """
+One condition on a graph, testing either a built-in attribute or a metadata
+key. Set exactly one of `field` / `metadataKey`, as for `MetaGraphSort`.
+"""
+input MetaGraphCondition {
+	"""
+	Built-in attribute to test.
+	"""
+	field: MetaGraphField
+	"""
+	Metadata key to test.
+	"""
+	metadataKey: String
+	"""
+	Condition applied to the value, using the same grammar as property
+	filters elsewhere in the schema. Names, paths and metadata strings are
+	tested as strings; counts and timestamps as integers.
+	"""
+	where: PropCondition!
+	"""
+	Overrides the result when the graph has no value for the target.
+	
+	Set this when absence should read as a default rather than a non-match —
+	e.g. treating a graph with no `archived` key as not archived, so
+	`archived == false` still selects it. Applies to `field` too, since a
+	graph may have no name.
+	
+	Left unset, the condition itself decides, which is what you want for
+	conditions already about absence (`isNone`, `ne`).
+	"""
+	matchesIfAbsent: Boolean
+	"""
+	Compare strings case-sensitively (defaults to false, matching
+	`NamespaceFilter`). Only affects string comparisons: numbers, booleans
+	and the string-encoded temporal/decimal values are unaffected.
+	"""
+	caseSensitive: Boolean
+}
+
+"""
+A graph's built-in attributes. Both filtering and sorting address them
+through this enum, so a client that knows how a column maps onto a field can
+drive either from one declaration.
+"""
+enum MetaGraphField {
+	"""
+	The graph's name.
+	"""
+	NAME
+	"""
+	The graph's full path.
+	"""
+	PATH
+	"""
+	Creation timestamp.
+	"""
+	CREATED
+	"""
+	Last-updated timestamp.
+	"""
+	LAST_UPDATED
+	"""
+	Number of nodes.
+	"""
+	NODE_COUNT
+	"""
+	Number of edges.
+	"""
+	EDGE_COUNT
+}
+
+"""
+Narrows a namespace's graph listing.
+
+Composes the same way as the graph/node/edge filters: leaves test one
+attribute or metadata key, and `and` / `or` / `not` combine them.
+"""
+input MetaGraphFilter @oneOf {
+	"""
+	Condition on a built-in attribute or a metadata key.
+	"""
+	condition: MetaGraphCondition
+	"""
+	Logical AND over nested filters.
+	"""
+	and: [MetaGraphFilter!]
+	"""
+	Logical OR over nested filters.
+	"""
+	or: [MetaGraphFilter!]
+	"""
+	Logical NOT over a nested filter.
+	"""
+	not: MetaGraphFilter
+}
+
+"""
+One sort key for a graph listing. Set exactly one of `field` or
+`metadataKey`. Keys are applied in order, each breaking ties left by the
+previous one; graphs missing the sort value sort last.
+"""
+input MetaGraphSort {
+	"""
+	Sort on a built-in attribute.
+	"""
+	field: MetaGraphField
+	"""
+	Sort on the value of this metadata key.
+	"""
+	metadataKey: String
+	"""
+	Explicit ordering for the values of `metadataKey`, lowest first. Values
+	not listed sort after every listed one, among themselves by their natural
+	order. Use for keys holding a small vocabulary whose meaningful order
+	isn't alphabetical.
+	"""
+	valueOrder: [Value!]
+	"""
+	Reverse this key's direction (default ascending).
+	"""
+	reverse: Boolean
+}
+
+"""
 Constant key/value metadata attached to an entity (node, edge, or graph).
 Metadata has no timeline — each key maps to exactly one value for the
 lifetime of the entity. Separate from `Properties`, which carries
@@ -4120,13 +4243,34 @@ type Namespace {
 	Graphs directly inside this namespace (excludes graphs in nested
 	namespaces). Filtered by the caller's permissions — only graphs the
 	caller is allowed to see are returned.
+	
+	`filter` and `sort` are applied before the returned collection is paged,
+	so `count` reflects the filtered total and `page` slices the sorted
+	order.
 	"""
-	graphs: CollectionOfMetaGraph!
+	graphs(
+		"""
+		Restricts which graphs are listed.
+		"""
+		filter: MetaGraphFilter,
+		"""
+		Sort keys applied in order, before paging.
+		"""
+		sort: [MetaGraphSort!]
+	): CollectionOfMetaGraph!
 	"""
 	Path of this namespace relative to the root namespace. Empty string for
 	the root namespace itself.
 	"""
 	path: String!
+	"""
+	Most recent `lastUpdated` across the graphs directly inside this
+	namespace, or null when it holds none.
+	
+	Computed here so a listing can show a folder's recency without the client
+	walking every graph in every folder it displays.
+	"""
+	lastUpdated: Int
 	"""
 	Parent namespace, or null at the root.
 	"""
@@ -4134,17 +4278,83 @@ type Namespace {
 	"""
 	Sub-namespaces directly inside this one (one level down, not recursive).
 	Filtered by permissions.
+	
+	`filter` and `sort` are applied before the returned collection is paged.
 	"""
-	children: CollectionOfNamespace!
+	children(
+		"""
+		Restricts which sub-namespaces are listed.
+		"""
+		filter: NamespaceFilter,
+		"""
+		Ordering applied before paging.
+		"""
+		sort: NamespaceSort
+	): CollectionOfNamespace!
 	"""
 	Everything in this namespace — sub-namespaces and graphs — as a single
 	heterogeneous collection. Sub-namespaces are listed before graphs.
 	Filtered by permissions.
+	
+	`filter` and `sort` are applied before the returned collection is paged.
+	`sort` orders the graphs; sub-namespaces keep path order and stay ahead of
+	them, so a client paging this collection walks folders before graphs
+	regardless of how the graphs are ordered.
 	"""
-	items: CollectionOfNamespacedItem!
+	items(
+		"""
+		Restricts which items are listed.
+		"""
+		filter: NamespacedItemFilter,
+		"""
+		Sort keys for the graphs, applied in order before paging.
+		"""
+		sort: [MetaGraphSort!]
+	): CollectionOfNamespacedItem!
+}
+
+"""
+Narrows a namespace's sub-namespace listing. Sub-namespaces carry no metadata
+of their own, so only their path can be matched.
+"""
+input NamespaceFilter {
+	"""
+	Substring match against the namespace's path.
+	"""
+	pathContains: String
+	"""
+	Match `pathContains` case-sensitively (defaults to false).
+	"""
+	caseSensitive: Boolean
+}
+
+"""
+One sort key for a sub-namespace listing.
+"""
+input NamespaceSort {
+	"""
+	Reverse the path ordering (default ascending).
+	"""
+	reverse: Boolean
 }
 
 union NamespacedItem = Namespace | MetaGraph
+
+"""
+Narrows a namespace's heterogeneous `items` listing. Each half applies to the
+matching kind of item; an item whose kind has no filter is kept. To list only
+one kind, query `graphs` or `children` instead.
+"""
+input NamespacedItemFilter {
+	"""
+	Applied to the graphs in the collection.
+	"""
+	graphs: MetaGraphFilter
+	"""
+	Applied to the sub-namespaces in the collection.
+	"""
+	namespaces: NamespaceFilter
+}
 
 """
 A nested collection of edges anchored to a source collection — the result of

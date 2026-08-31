@@ -1,13 +1,15 @@
 use std::{
     io::Write,
     process::{Command, Stdio},
-    time::Duration,
 };
 
 use raphtory_graphql::config::{app_config::AppConfig, cache_config::DEFAULT_CACHE_CAPACITY};
 use serde::Deserialize;
 use serde_json::Value;
 use tempfile::Builder;
+
+// link in the auth plugin
+extern crate auth;
 
 fn server_bin() -> std::path::PathBuf {
     std::env::var_os("NEXTEST_BIN_EXE_raphtory-server")

@@ -6674,6 +6674,28 @@ Graphs directly inside this namespace (excludes graphs in nested
 namespaces). Filtered by the caller's permissions — only graphs the
 caller is allowed to see are returned.
 
+`filter` and `sort` are applied before the returned collection is paged,
+so `count` reflects the filtered total and `page` slices the sorted
+order.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">filter</td>
+<td valign="top"><a href="#metagraphfilter">MetaGraphFilter</a></td>
+<td>
+
+Restricts which graphs are listed.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">sort</td>
+<td valign="top">[<a href="#metagraphsort">MetaGraphSort</a>!]</td>
+<td>
+
+Sort keys applied in order, before paging.
+
 </td>
 </tr>
 <tr>
@@ -6683,6 +6705,19 @@ caller is allowed to see are returned.
 
 Path of this namespace relative to the root namespace. Empty string for
 the root namespace itself.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="namespace.lastupdated">lastUpdated</strong></td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Most recent `lastUpdated` across the graphs directly inside this
+namespace, or null when it holds none.
+
+Computed here so a listing can show a folder's recency without the client
+walking every graph in every folder it displays.
 
 </td>
 </tr>
@@ -6703,6 +6738,26 @@ Parent namespace, or null at the root.
 Sub-namespaces directly inside this one (one level down, not recursive).
 Filtered by permissions.
 
+`filter` and `sort` are applied before the returned collection is paged.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">filter</td>
+<td valign="top"><a href="#namespacefilter">NamespaceFilter</a></td>
+<td>
+
+Restricts which sub-namespaces are listed.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">sort</td>
+<td valign="top"><a href="#namespacesort">NamespaceSort</a></td>
+<td>
+
+Ordering applied before paging.
+
 </td>
 </tr>
 <tr>
@@ -6713,6 +6768,29 @@ Filtered by permissions.
 Everything in this namespace — sub-namespaces and graphs — as a single
 heterogeneous collection. Sub-namespaces are listed before graphs.
 Filtered by permissions.
+
+`filter` and `sort` are applied before the returned collection is paged.
+`sort` orders the graphs; sub-namespaces keep path order and stay ahead of
+them, so a client paging this collection walks folders before graphs
+regardless of how the graphs are ordered.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">filter</td>
+<td valign="top"><a href="#namespaceditemfilter">NamespacedItemFilter</a></td>
+<td>
+
+Restricts which items are listed.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">sort</td>
+<td valign="top">[<a href="#metagraphsort">MetaGraphSort</a>!]</td>
+<td>
+
+Sort keys for the graphs, applied in order before paging.
 
 </td>
 </tr>
@@ -13560,6 +13638,288 @@ Destination node id (string or non-negative integer).
 </tbody>
 </table>
 
+### MetaGraphCondition
+
+One condition on a graph, testing either a built-in attribute or a metadata
+key. Set exactly one of `field` / `metadataKey`, as for `MetaGraphSort`.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="metagraphcondition.field">field</strong></td>
+<td valign="top"><a href="#metagraphfield">MetaGraphField</a></td>
+<td>
+
+Built-in attribute to test.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="metagraphcondition.metadatakey">metadataKey</strong></td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+Metadata key to test.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="metagraphcondition.where">where</strong></td>
+<td valign="top"><a href="#propcondition">PropCondition</a>!</td>
+<td>
+
+Condition applied to the value, using the same grammar as property
+filters elsewhere in the schema. Names, paths and metadata strings are
+tested as strings; counts and timestamps as integers.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="metagraphcondition.matchesifabsent">matchesIfAbsent</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Overrides the result when the graph has no value for the target.
+
+Set this when absence should read as a default rather than a non-match —
+e.g. treating a graph with no `archived` key as not archived, so
+`archived == false` still selects it. Applies to `field` too, since a
+graph may have no name.
+
+Left unset, the condition itself decides, which is what you want for
+conditions already about absence (`isNone`, `ne`).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="metagraphcondition.casesensitive">caseSensitive</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Compare strings case-sensitively (defaults to false, matching
+`NamespaceFilter`). Only affects string comparisons: numbers, booleans
+and the string-encoded temporal/decimal values are unaffected.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### MetaGraphFilter
+
+Narrows a namespace's graph listing.
+
+Composes the same way as the graph/node/edge filters: leaves test one
+attribute or metadata key, and `and` / `or` / `not` combine them.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="metagraphfilter.condition">condition</strong></td>
+<td valign="top"><a href="#metagraphcondition">MetaGraphCondition</a></td>
+<td>
+
+Condition on a built-in attribute or a metadata key.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="metagraphfilter.and">and</strong></td>
+<td valign="top">[<a href="#metagraphfilter">MetaGraphFilter</a>!]</td>
+<td>
+
+Logical AND over nested filters.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="metagraphfilter.or">or</strong></td>
+<td valign="top">[<a href="#metagraphfilter">MetaGraphFilter</a>!]</td>
+<td>
+
+Logical OR over nested filters.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="metagraphfilter.not">not</strong></td>
+<td valign="top"><a href="#metagraphfilter">MetaGraphFilter</a></td>
+<td>
+
+Logical NOT over a nested filter.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### MetaGraphSort
+
+One sort key for a graph listing. Set exactly one of `field` or
+`metadataKey`. Keys are applied in order, each breaking ties left by the
+previous one; graphs missing the sort value sort last.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="metagraphsort.field">field</strong></td>
+<td valign="top"><a href="#metagraphfield">MetaGraphField</a></td>
+<td>
+
+Sort on a built-in attribute.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="metagraphsort.metadatakey">metadataKey</strong></td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+Sort on the value of this metadata key.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="metagraphsort.valueorder">valueOrder</strong></td>
+<td valign="top">[<a href="#value">Value</a>!]</td>
+<td>
+
+Explicit ordering for the values of `metadataKey`, lowest first. Values
+not listed sort after every listed one, among themselves by their natural
+order. Use for keys holding a small vocabulary whose meaningful order
+isn't alphabetical.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="metagraphsort.reverse">reverse</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Reverse this key's direction (default ascending).
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### NamespaceFilter
+
+Narrows a namespace's sub-namespace listing. Sub-namespaces carry no metadata
+of their own, so only their path can be matched.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="namespacefilter.pathcontains">pathContains</strong></td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+Substring match against the namespace's path.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="namespacefilter.casesensitive">caseSensitive</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Match `pathContains` case-sensitively (defaults to false).
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### NamespaceSort
+
+One sort key for a sub-namespace listing.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="namespacesort.reverse">reverse</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Reverse the path ordering (default ascending).
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### NamespacedItemFilter
+
+Narrows a namespace's heterogeneous `items` listing. Each half applies to the
+matching kind of item; an item whose kind has no filter is kept. To list only
+one kind, query `graphs` or `children` instead.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="namespaceditemfilter.graphs">graphs</strong></td>
+<td valign="top"><a href="#metagraphfilter">MetaGraphFilter</a></td>
+<td>
+
+Applied to the graphs in the collection.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="namespaceditemfilter.namespaces">namespaces</strong></td>
+<td valign="top"><a href="#namespacefilter">NamespaceFilter</a></td>
+<td>
+
+Applied to the sub-namespaces in the collection.
+
+</td>
+</tr>
+</tbody>
+</table>
+
 ### NodeAddition
 
 <table>
@@ -15590,6 +15950,71 @@ Persistent.
 <td>
 
 Event.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### MetaGraphField
+
+A graph's built-in attributes. Both filtering and sorting address them
+through this enum, so a client that knows how a column maps onto a field can
+drive either from one declaration.
+
+<table>
+<thead>
+<tr>
+<th align="left">Value</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td valign="top"><strong>NAME</strong></td>
+<td>
+
+The graph's name.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>PATH</strong></td>
+<td>
+
+The graph's full path.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>CREATED</strong></td>
+<td>
+
+Creation timestamp.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>LAST_UPDATED</strong></td>
+<td>
+
+Last-updated timestamp.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>NODE_COUNT</strong></td>
+<td>
+
+Number of nodes.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>EDGE_COUNT</strong></td>
+<td>
+
+Number of edges.
 
 </td>
 </tr>
