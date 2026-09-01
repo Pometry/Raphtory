@@ -133,10 +133,7 @@ impl PyGraphServer {
         Ok(PyGraphServer(server))
     }
 
-    /// The full configuration schema: every field the server and its compiled-in extensions
-    /// accept, as a nested dict — including fields that are unset by default (which the plain
-    /// reported config omits). Useful for checking that documentation, or an example config,
-    /// covers every available setting.
+    /// The full config schema as a nested dict: every field, including ones unset by default.
     ///
     /// Returns:
     ///     dict: the configuration schema.

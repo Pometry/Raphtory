@@ -41,9 +41,7 @@ pub trait ServerExtension: Debug + Send + Sync + 'static {
     /// serialise config to json
     fn to_json(&self) -> Result<Value, ServerError>;
 
-    /// serialise the extension's full config schema: every field it accepts, including ones that
-    /// are unset by default, so a config-completeness check can enumerate them all. Defaults to
-    /// [`to_json`](Self::to_json), which is exhaustive already when nothing is skipped when unset.
+    /// The full config schema: every field, including ones unset by default. Defaults to `to_json`.
     fn config_schema(&self) -> Result<Value, ServerError> {
         self.to_json()
     }

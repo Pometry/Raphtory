@@ -39,9 +39,7 @@ pub struct AppConfig {
 }
 
 impl AppConfig {
-    /// The config serialised with every registered extension replaced by its full schema — every
-    /// field the extension accepts, not only the ones currently set — so a completeness check can
-    /// enumerate all available settings from the running (compiled-in) server alone.
+    /// The config with each extension replaced by its full schema (every field, not only the set ones).
     pub fn config_schema_json(&self) -> Result<serde_json::Value, ServerError> {
         let mut value = serde_json::to_value(self).map_err(ServerError::config_error)?;
         if let serde_json::Value::Object(map) = &mut value {

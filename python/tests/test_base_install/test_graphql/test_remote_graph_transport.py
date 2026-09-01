@@ -2066,14 +2066,19 @@ def test_filter_nodes_preserves_membership():
         assert all_ids == ["alice", "ben", "bob", "hamza"]
 
 
-def test_filter_nodes_narrows_on_node_id():
-    """#2690: a node-id filter (name/id) is applied as a graph view, so it DOES
-    narrow collection membership — unlike the property filter above. Pins the
-    new behavior (and its parity with local) so a regression is visible."""
+def test_filter_by_node_id_keeps_membership_but_getitem_narrows():
+    """`.filter()` keeps every member for a name/id filter too — `[]` is the one that narrows.
+    Matches local raphtory."""
     from raphtory.filter import Node
 
     with _make_filter_graph() as rg:
-        assert sorted(rg.nodes.filter(Node.name() == "ben").id) == ["ben"]
+        assert sorted(rg.nodes.filter(Node.name() == "ben").id) == [
+            "alice",
+            "ben",
+            "bob",
+            "hamza",
+        ]
+        assert sorted(rg.nodes[Node.name() == "ben"].id) == ["ben"]
 
 
 def test_temporal_multi_op_filter_preserves_op_order_e2e():
