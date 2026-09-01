@@ -75,7 +75,7 @@ def test_and_filter_keeps_edge_endpoints_minimal():
     return check
 
 
-def _combo_offenders(graph, op, join):
+def _dangling_edges_by_combination(graph, op, join):
     """Dangling edges left by every 2- and 3-leg combination joined with `op` (`&` / `|`)."""
     legs = list(LEGS.items())
     combos = list(combinations(legs, 2)) + list(combinations(legs, 3))
@@ -93,7 +93,7 @@ def _combo_offenders(graph, op, join):
 @with_variants(_init)
 def test_and_filter_combinations_keep_edge_endpoints():
     def check(graph):
-        offenders, total = _combo_offenders(graph, lambda a, b: a & b, " & ")
+        offenders, total = _dangling_edges_by_combination(graph, lambda a, b: a & b, " & ")
         assert not offenders, (
             f"{len(offenders)}/{total} and-combinations leaked edges to excluded nodes, e.g. "
             + "; ".join(f"{k} -> {v}" for k, v in list(offenders.items())[:3])
@@ -105,7 +105,7 @@ def test_and_filter_combinations_keep_edge_endpoints():
 @with_variants(_init)
 def test_or_filter_combinations_keep_edge_endpoints():
     def check(graph):
-        offenders, total = _combo_offenders(graph, lambda a, b: a | b, " | ")
+        offenders, total = _dangling_edges_by_combination(graph, lambda a, b: a | b, " | ")
         assert not offenders, (
             f"{len(offenders)}/{total} or-combinations leaked edges to excluded nodes, e.g. "
             + "; ".join(f"{k} -> {v}" for k, v in list(offenders.items())[:3])
@@ -117,8 +117,8 @@ def test_or_filter_combinations_keep_edge_endpoints():
 @with_variants(_init)
 def test_and_of_or_keeps_edge_endpoints_and_node_set():
     def check(graph):
-        # The shape behind the RBAC leak: a node-set restriction ANDed with a wide `or` that
-        # includes a node_type branch (whose domain is every node).
+        # A node-set restriction ANDed with an `or` that includes a node_type branch, whose
+        # domain is every node.
         expr = Node.id().is_in([0, 1, 2, 3, 4, 5]) & (
             Node.node_type().is_in(["A"]) | (Node.name() == "1") | (Node.name() == "3")
         )

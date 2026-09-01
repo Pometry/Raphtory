@@ -98,7 +98,10 @@ impl<'graph, G: GraphViewOps<'graph>, F: NodeFilterOp> InternalNodeFilterOps
 
     fn internal_node_list_trusted(&self) -> bool {
         self.graph.internal_node_list_trusted()
-            && self.filter.const_value_in_domain().is_some_and(|v| v)
+            && self
+                .filter
+                .const_value_in_domain(self.graph.core_graph())
+                .is_some_and(|v| v)
     }
 }
 
