@@ -1,7 +1,10 @@
 use super::{node_page::writer::NodeWriter, resolve_pos};
 use crate::{
     LocalPOS,
-    api::nodes::{LockedNSSegment, NodeSegmentOps},
+    api::{
+        node_type_index::NodeTypeIndexOps,
+        nodes::{LockedNSSegment, NodeSegmentOps},
+    },
     error::StorageError,
     pages::{
         SegmentCounts,
@@ -30,9 +33,13 @@ use std::{
 pub static N: LazyLock<usize> = LazyLock::new(rayon::current_num_threads);
 
 #[derive(Debug)]
-pub struct NodeStorageInner<NS, EXT> {
+pub struct NodeStorageInner<NS, EXT>
+where
+    EXT: PersistenceStrategy<NS = NS>,
+{
     segments: boxcar::Vec<Arc<NS>>,
     stats: Arc<GraphStats>,
+    node_type_index: Arc<EXT::NTI>,
 
     /// Contains ids of segments that can accomodate new nodes.
     free_segments: Box<[RwLock<usize>]>,
@@ -44,7 +51,11 @@ pub struct NodeStorageInner<NS, EXT> {
 }
 
 #[derive(Debug)]
-pub struct ReadLockedNodeStorage<NS: NodeSegmentOps<Extension = EXT>, EXT> {
+pub struct ReadLockedNodeStorage<NS, EXT>
+where
+    NS: NodeSegmentOps<Extension = EXT>,
+    EXT: PersistenceStrategy<NS = NS>,
+{
     storage: Arc<NodeStorageInner<NS, EXT>>,
     locked_segments: Box<[NS::ArcLockedSegment]>,
 }
@@ -209,31 +220,40 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         ext: EXT,
     ) -> Self {
         let free_segments = (0..(*N)).map(RwLock::new).collect::<Box<[_]>>();
+        let type_index_path = nodes_path.as_ref().map(|p| p.join("type_index"));
+        let node_type_index = Arc::new(EXT::NTI::new(type_index_path.as_deref(), ext.clone()));
+
         let empty = Self {
             segments: boxcar::Vec::new(),
             stats: GraphStats::new().into(),
+            node_type_index,
             free_segments: free_segments.try_into().unwrap(),
             nodes_path,
             node_meta,
             edge_meta,
             ext,
         };
+
         let layer_mapper = empty.node_meta.layer_meta();
         let prop_mapper = empty.node_meta.temporal_prop_mapper();
         let metadata_mapper = empty.node_meta.metadata_mapper();
+
         if layer_mapper.num_fields() > 0
             || prop_mapper.num_fields() > 0
             || metadata_mapper.num_fields() > 0
         {
             let segment = empty.get_or_create_segment(0);
             let mut head = segment.head_mut();
+
             if prop_mapper.num_fields() > 0 {
                 head.get_or_create_layer(LayerId(0))
                     .properties_mut()
                     .set_has_properties()
             }
+
             segment.set_dirty(true);
         }
+
         empty
     }
 
@@ -258,6 +278,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
                         &self.stats,
                         self.max_segment_len(),
                         page.as_ref(),
+                        &self.node_type_index,
                         page.head_mut(),
                     )
                 })
@@ -387,7 +408,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     ) -> NodeWriter<'a, RwLockWriteGuard<'a, MemNodeSegment>, NS> {
         let segment = self.get_or_create_segment(segment_id);
         let head = segment.head_mut();
-        NodeWriter::new(segment, &self.stats, head)
+        NodeWriter::new(segment, &self.stats, &self.node_type_index, head)
     }
 
     pub fn try_writer<'a>(
@@ -396,7 +417,12 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     ) -> Option<NodeWriter<'a, RwLockWriteGuard<'a, MemNodeSegment>, NS>> {
         let segment = self.get_or_create_segment(segment_id);
         let head = segment.try_head_mut()?;
-        Some(NodeWriter::new(segment, &self.stats, head))
+        Some(NodeWriter::new(
+            segment,
+            &self.stats,
+            &self.node_type_index,
+            head,
+        ))
     }
 
     pub fn id_type(&self) -> Option<GidType> {
@@ -534,11 +560,15 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
 
         let stats = GraphStats::load(layer_counts, earliest, latest);
 
+        let type_index_path = nodes_path.join("type_index");
+        let node_type_index = Arc::new(EXT::NTI::load(&type_index_path, ext.clone())?);
+
         Ok(Self {
             segments: pages,
             free_segments: free_pages.into(),
             nodes_path: Some(nodes_path.to_path_buf()),
             stats: stats.into(),
+            node_type_index,
             node_meta,
             edge_meta,
             ext,
@@ -626,7 +656,8 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     }
 
     pub(crate) fn flush(&self) -> Result<(), StorageError> {
-        self.segments_par_iter().try_for_each(|seg| seg.flush())
+        self.segments_par_iter().try_for_each(|seg| seg.flush())?;
+        self.node_type_index.flush()
     }
 }
 

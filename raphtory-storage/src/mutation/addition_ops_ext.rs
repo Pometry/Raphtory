@@ -293,13 +293,10 @@ impl InternalAdditionOps for TemporalGraph {
                     None => {
                         let node_type_id = self.node_meta().get_or_create_node_type_id(node_type);
 
-                        writer.update_c_props(
+                        writer.store_node_id_and_node_type(
                             local_pos,
-                            STATIC_GRAPH_LAYER_ID,
-                            node_info_as_props(
-                                id.as_gid_ref(),
-                                Some(node_type_id.inner()).filter(|&id| id != 0),
-                            ),
+                            id.as_gid_ref(),
+                            node_type_id.inner(),
                         );
 
                         node_type_id

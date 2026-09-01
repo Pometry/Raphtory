@@ -468,7 +468,7 @@ pub fn load_node_props_from_df<
                         let row_layer = layer_col_resolved
                             .as_ref()
                             .map_or(STATIC_GRAPH_LAYER_ID, |r| LayerId(r[idx]));
-                        writer.store_node_id_and_node_type(pos, gid, *node_type);
+                        writer.store_node_id_and_node_type(pos, Some(gid), *node_type);
 
                         if resolve_nodes {
                             // because we don't call resolve_node above
@@ -698,7 +698,7 @@ fn store_node_ids_and_type<NS: NodeSegmentOps<Extension = Extension>>(
     let mut writer = locked_page.writer();
     for (gid, (vid, node_type)) in gid_str_cache.iter() {
         if let Some(src_pos) = writer.resolve_pos(*vid) {
-            writer.store_node_id_and_node_type(src_pos, *gid, *node_type);
+            writer.store_node_id_and_node_type(src_pos, Some(*gid), *node_type);
         }
     }
 }

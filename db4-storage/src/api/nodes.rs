@@ -33,6 +33,7 @@ use crate::{
     error::StorageError,
     generic_time_ops::LayerIter,
     pages::node_store::increment_and_clamp,
+    persist::strategy::PersistenceStrategy,
     segments::node::segment::MemNodeSegment,
     utils::{Iter2, Iter3, Iter4},
     wal::LSN,
@@ -41,8 +42,10 @@ use raphtory_api::core::entities::{LayerId, properties::meta::STATIC_GRAPH_LAYER
 use raphtory_itertools::FastMergeExt;
 use rayon::prelude::*;
 
+pub type NodeTypeIndexOf<NS> = <<NS as NodeSegmentOps>::Extension as PersistenceStrategy>::NTI;
+
 pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
-    type Extension;
+    type Extension: PersistenceStrategy<NS = Self>;
 
     type Entry<'a>: NodeEntryOps<'a>
     where

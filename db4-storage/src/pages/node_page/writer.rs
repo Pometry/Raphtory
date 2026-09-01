@@ -1,6 +1,9 @@
 use crate::{
     LocalPOS,
-    api::nodes::NodeSegmentOps,
+    api::{
+        node_type_index::NodeTypeIndexOps,
+        nodes::{NodeSegmentOps, NodeTypeIndexOf},
+    },
     error::StorageError,
     pages::{layer_counter::GraphStats, resolve_pos},
     segments::node::segment::MemNodeSegment,
@@ -25,17 +28,24 @@ pub struct NodeWriter<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSe
     pub page: &'a NS,
     pub mut_segment: MP,
     pub l_counter: &'a GraphStats,
+    pub node_type_index: &'a NodeTypeIndexOf<NS>,
     pub old_est_size: usize,
 }
 
 impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWriter<'a, MP, NS> {
-    pub fn new(page: &'a NS, global_num_nodes: &'a GraphStats, writer: MP) -> Self {
+    pub fn new(
+        page: &'a NS,
+        global_num_nodes: &'a GraphStats,
+        node_type_index: &'a NodeTypeIndexOf<NS>,
+        writer: MP,
+    ) -> Self {
         let old_est_size = writer.est_size();
 
         Self {
             page,
             mut_segment: writer,
             l_counter: global_num_nodes,
+            node_type_index,
             old_est_size,
         }
     }
@@ -233,18 +243,23 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
     pub fn store_node_id_and_node_type(
         &mut self,
         pos: LocalPOS,
-        gid: GidRef<'_>,
+        gid: Option<GidRef<'_>>,
         node_type: usize,
     ) {
         let node_type = (node_type != DEFAULT_NODE_TYPE_ID).then_some(node_type);
         self.update_c_props(
             pos,
             STATIC_GRAPH_LAYER_ID,
-            node_info_as_props(Some(gid), node_type),
+            node_info_as_props(gid, node_type),
         );
 
         if let Some(node_type) = node_type {
-            self.mut_segment.insert_node_type(pos, node_type);
+            let vid = pos.as_vid(
+                self.mut_segment.segment_id(),
+                self.mut_segment.max_page_len(),
+            );
+
+            self.node_type_index.head().insert(node_type, vid);
         }
     }
 
@@ -263,7 +278,12 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         self.update_c_props(pos, STATIC_GRAPH_LAYER_ID, props);
 
         if node_type != DEFAULT_NODE_TYPE_ID {
-            self.mut_segment.insert_node_type(pos, node_type);
+            let vid = pos.as_vid(
+                self.mut_segment.segment_id(),
+                self.mut_segment.max_page_len(),
+            );
+
+            self.node_type_index.head().insert(node_type, vid);
         }
     }
 
@@ -312,6 +332,8 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> Drop
         self.page
             .notify_write(self.mut_segment.deref_mut())
             .expect("Failed to persist node page");
+
+        self.node_type_index.notify_write();
     }
 }
 

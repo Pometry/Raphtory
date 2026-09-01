@@ -1,6 +1,6 @@
 use crate::{
     LocalPOS,
-    api::nodes::NodeSegmentOps,
+    api::nodes::{NodeSegmentOps, NodeTypeIndexOf},
     error::StorageError,
     pages::{
         layer_counter::GraphStats,
@@ -17,11 +17,14 @@ use rayon::prelude::*;
 use std::ops::DerefMut;
 
 #[derive(Debug)]
-pub struct LockedNodePage<'a, NS> {
+pub struct LockedNodePage<'a, NS: NodeSegmentOps> {
     segment_id: usize,
     max_page_len: u32,
     layer_counter: &'a GraphStats,
     page: &'a NS,
+
+    /// Reference to the node type index - used by writers to update the index.
+    node_type_index: &'a NodeTypeIndexOf<NS>,
     lock: RwLockWriteGuard<'a, MemNodeSegment>,
 }
 
@@ -31,6 +34,7 @@ impl<'a, NS: NodeSegmentOps> LockedNodePage<'a, NS> {
         layer_counter: &'a GraphStats,
         max_page_len: u32,
         page: &'a NS,
+        node_type_index: &'a NodeTypeIndexOf<NS>,
         lock: RwLockWriteGuard<'a, MemNodeSegment>,
     ) -> Self {
         Self {
@@ -38,6 +42,7 @@ impl<'a, NS: NodeSegmentOps> LockedNodePage<'a, NS> {
             layer_counter,
             max_page_len,
             page,
+            node_type_index,
             lock,
         }
     }
@@ -48,12 +53,23 @@ impl<'a, NS: NodeSegmentOps> LockedNodePage<'a, NS> {
 
     #[inline(always)]
     pub fn writer(&mut self) -> NodeWriter<'_, &mut MemNodeSegment, NS> {
-        NodeWriter::new(self.page, self.layer_counter, self.lock.deref_mut())
+        NodeWriter::new(
+            self.page,
+            self.layer_counter,
+            self.node_type_index,
+            self.lock.deref_mut(),
+        )
     }
 
     #[inline(always)]
     pub fn bulk_writer(&mut self) -> BulkNodeWriter<'_, &mut MemNodeSegment, NS> {
-        NodeWriter::new(self.page, self.layer_counter, self.lock.deref_mut()).into()
+        NodeWriter::new(
+            self.page,
+            self.layer_counter,
+            self.node_type_index,
+            self.lock.deref_mut(),
+        )
+        .into()
     }
 
     pub fn head(&mut self) -> &mut MemNodeSegment {
@@ -86,11 +102,11 @@ impl<'a, NS: NodeSegmentOps> LockedNodePage<'a, NS> {
     }
 }
 
-pub struct WriteLockedNodePages<'a, NS> {
+pub struct WriteLockedNodePages<'a, NS: NodeSegmentOps> {
     writers: Vec<LockedNodePage<'a, NS>>,
 }
 
-impl<NS> Default for WriteLockedNodePages<'_, NS> {
+impl<NS: NodeSegmentOps> Default for WriteLockedNodePages<'_, NS> {
     fn default() -> Self {
         Self {
             writers: Vec::new(),
@@ -137,6 +153,7 @@ impl<'a, EXT: PersistenceStrategy<NS = NS>, NS: NodeSegmentOps<Extension = EXT>>
             let LockedNodePage { page, lock, .. } = writer;
             page.vacuum(lock.deref_mut())
         })?;
+
         Ok(())
     }
 }

@@ -6,10 +6,7 @@ use crate::{
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
     segments::{
         HasRow, SegmentContainer,
-        node::{
-            entry::{MemNodeEntry, MemNodeRef},
-            type_index::MemNodeTypeIndex,
-        },
+        node::entry::{MemNodeEntry, MemNodeRef},
     },
     wal::LSN,
 };
@@ -44,7 +41,6 @@ pub struct MemNodeSegment {
     segment_id: usize,
     max_page_len: u32,
     layers: Vec<SegmentContainer<AdjEntry>>,
-    node_type_index: MemNodeTypeIndex,
     global_mem_tracker: Arc<AtomicUsize>,
     est_size: usize,
     lsn: LSN,
@@ -102,18 +98,6 @@ impl AsMut<[SegmentContainer<AdjEntry>]> for MemNodeSegment {
 impl MemNodeSegment {
     pub fn segment_id(&self) -> usize {
         self.segment_id
-    }
-
-    pub fn insert_node_type(&mut self, pos: LocalPOS, type_id: usize) {
-        self.node_type_index.insert(type_id, pos);
-    }
-
-    pub fn nodes_of_type(&self, type_id: usize) -> impl Iterator<Item = LocalPOS> + '_ {
-        self.node_type_index.get(type_id)
-    }
-
-    pub fn node_type_index(&self) -> &MemNodeTypeIndex {
-        &self.node_type_index
     }
 
     pub fn est_size(&self) -> usize {
@@ -193,7 +177,6 @@ impl MemNodeSegment {
     /// The new segment will have the same number of layers as the original.
     pub fn take(&mut self) -> Self {
         let layers = self.layers.iter_mut().map(|layer| layer.take()).collect();
-        let node_type_index = mem::take(&mut self.node_type_index);
         let est_size = mem::take(&mut self.est_size);
 
         Self {
@@ -201,7 +184,6 @@ impl MemNodeSegment {
             max_page_len: self.max_page_len,
             global_mem_tracker: self.global_mem_tracker.clone(),
             layers,
-            node_type_index,
             est_size,
             lsn: self.lsn,
         }
@@ -267,7 +249,6 @@ impl MemNodeSegment {
             segment_id,
             max_page_len,
             layers: vec![SegmentContainer::new(segment_id, max_page_len, meta)],
-            node_type_index: MemNodeTypeIndex::new(),
             global_mem_tracker,
             est_size: 0,
             lsn: 0,
@@ -652,12 +633,13 @@ mod test {
     use super::MemNodeSegment;
     use crate::{
         LocalPOS, NodeSegmentView,
-        api::nodes::NodeSegmentOps,
+        api::{node_type_index::NodeTypeIndexOps, nodes::NodeSegmentOps},
         pages::{layer_counter::GraphStats, node_page::writer::NodeWriter},
         persist::{
             config::BaseConfig,
             strategy::{NoOpStrategy, PersistenceStrategy},
         },
+        segments::node_type_index::NodeTypeIndexView,
     };
     use raphtory_api::core::entities::properties::{
         meta::{Meta, STATIC_GRAPH_LAYER_ID},
@@ -684,7 +666,8 @@ mod test {
         );
 
         let stats = GraphStats::default();
-        let mut writer = NodeWriter::new(&segment, &stats, segment.head_mut());
+        let type_index = NodeTypeIndexView::new(None, ext.clone());
+        let mut writer = NodeWriter::new(&segment, &stats, &type_index, segment.head_mut());
 
         let est_size1 = writer.mut_segment.est_size();
         assert_eq!(est_size1, 0);
@@ -800,31 +783,5 @@ mod test {
 
         // after the segment is dropped, the global estimated size should be zero (no more usage)
         assert_eq!(ext.estimated_size(), 0);
-    }
-
-    #[test]
-    fn node_type_index_tracks_types() {
-        let segment_id = 0;
-        let max_page_len = 10;
-
-        let mut segment = MemNodeSegment::new(
-            segment_id,
-            max_page_len,
-            Arc::new(Meta::default()),
-            Arc::new(AtomicUsize::new(0)),
-        );
-
-        segment.insert_node_type(LocalPOS(1), 1);
-        segment.insert_node_type(LocalPOS(3), 1);
-        segment.insert_node_type(LocalPOS(2), 2);
-
-        assert!(segment.nodes_of_type(1).eq([LocalPOS(1), LocalPOS(3)]));
-        assert!(segment.nodes_of_type(2).eq([LocalPOS(2)]));
-
-        let taken = segment.take();
-        assert_eq!(segment.nodes_of_type(1).count(), 0);
-        assert_eq!(segment.nodes_of_type(2).count(), 0);
-        assert!(taken.nodes_of_type(1).eq([LocalPOS(1), LocalPOS(3)]));
-        assert!(taken.nodes_of_type(2).eq([LocalPOS(2)]));
     }
 }
