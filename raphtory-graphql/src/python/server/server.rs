@@ -8,7 +8,7 @@ use crate::{
 };
 use crossbeam_channel::RecvTimeoutError;
 use pyo3::{exceptions::PyRuntimeError, prelude::*, types::PyDict};
-use pythonize::depythonize;
+use pythonize::{depythonize, pythonize};
 use raphtory::{db::api::storage::storage::Config, python::utils::block_on};
 use raphtory_api::python::error::adapt_err_value;
 use std::{path::PathBuf, thread, time::Duration};
@@ -131,6 +131,18 @@ impl PyGraphServer {
         let server =
             py.detach(|| block_on(GraphServer::new(work_dir, app_config, Config::default())))?;
         Ok(PyGraphServer(server))
+    }
+
+    /// The full configuration schema: every field the server and its compiled-in extensions
+    /// accept, as a nested dict — including fields that are unset by default (which the plain
+    /// reported config omits). Useful for checking that documentation, or an example config,
+    /// covers every available setting.
+    ///
+    /// Returns:
+    ///     dict: the configuration schema.
+    fn config_schema<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        let value = self.0.config().config_schema_json()?;
+        Ok(pythonize(py, &value)?)
     }
 
     /// Vectorise the graph name in the server working directory.
