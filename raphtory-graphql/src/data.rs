@@ -900,7 +900,7 @@ fn apply_row_filter_sync(
         if filters.is_empty() {
             error!("empty 'and' access filter restricts nothing");
             return Err(async_graphql::Error::new(
-                "internal error applying access filter",
+                "access filter could not be applied; the grant is misconfigured",
             ));
         }
         return filters
@@ -908,14 +908,14 @@ fn apply_row_filter_sync(
             .try_fold(graph, |g, f| apply_row_filter_sync(g, f));
     }
     let dyn_filter = DynFilter::try_from(filter).map_err(|e| {
-        error!(error = %e, "filter conversion failed");
-        async_graphql::Error::new("internal error applying access filter")
+        error!(error = %e, "access filter conversion failed");
+        async_graphql::Error::new("access filter could not be applied; the grant is misconfigured")
     })?;
     Ok(graph
         .filter(dyn_filter)
         .map_err(|e| {
-            error!(error = %e, "failed to apply filter");
-            async_graphql::Error::new("internal error applying access filter")
+            error!(error = %e, "access filter application failed");
+            async_graphql::Error::new("access filter could not be applied; the grant is misconfigured")
         })?
         .into_dynamic())
 }
